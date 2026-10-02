@@ -597,7 +597,9 @@ namespace GoF2Remake.World
             hans.Place(ToUnity(at), Player.forward);
             hans.SetOnlyEnemy(null);
             hans.frozen = true;
-            var valkyrie = Static("v_station_battlestation_anim_mission_object", Vector3.zero, Vector3.zero, 77, ObjectDocking.Hackable, 7);
+            // createStaticObject(0x4220) then setRotation(0, pi, 0) (Level::createCampaignMission 0xc4ce0): the station's own
+            // orientation at 147 / 152, docking points on the player's side.
+            var valkyrie = Static("v_station_battlestation_anim_mission_object", Vector3.zero, new Vector3(0, Mathf.PI, 0), 77, ObjectDocking.Hackable, 7);
             PartAnimation.HoldAll(valkyrie.gameObject);   // PlayerFixedObject::update never advances an idle animation
             valkyrie.RadarHidden = true;
             valkyrie.DockingType = 0;   // hackable once Alice turns on the player
