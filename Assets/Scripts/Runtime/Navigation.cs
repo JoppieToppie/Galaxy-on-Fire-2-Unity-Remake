@@ -248,8 +248,11 @@ namespace GoF2Remake.Flight
             if (layout.hasStation && st != null)
                 Targets.Add(new Target { kind = Kind.Station, fixedPosition = Vector3.zero, station = st.index,
                                          name = st.index == 101 ? st.name : $"{st.name} {Localization.Get(136)}" });
-            else if (layout.hasStation && layout.alienOrbit)   // the Void station: 415 "Void", distance only, no autopilot
-                Targets.Add(new Target { kind = Kind.Station, fixedPosition = Vector3.zero, station = Session.VoidOrbit, name = Localization.Get(415) });
+            else if (layout.hasStation && layout.alienOrbit)
+                // The Void station, distance only, no autopilot: Radar::draw names the landmark 415 "Void" + 136 "Station";
+                // once dlc1Won, Level::createSpace names the object after station 101 (Valkyrie, Alice's stranded battlestation).
+                Targets.Add(new Target { kind = Kind.Station, fixedPosition = Vector3.zero, station = Session.VoidOrbit,
+                                         name = Story.Dlc1Won ? db.Stations.Find(s => s.index == 101)?.name ?? Localization.Get(415) : $"{Localization.Get(415)} {Localization.Get(136)}" });
             if (layout.hasJumpgate)
                 Targets.Add(new Target { kind = Kind.Jumpgate, fixedPosition = OrbitLayout.ToUnity(layout.jumpgate), name = Localization.Get(547) });
             if (layout.systemIndex >= 0)
