@@ -484,11 +484,13 @@ namespace GoF2Remake.World
                         cam.LookAtUnity(Player.position + side * M, Player);
                         if (Hole != null)
                         {
-                            // Ahead of the player; the remake keeps it clear of the station (inside its volumes the station
-                            // collision would hold the ship off the pull for good).
-                            var ahead = PlayerGame + PlayerDirGame * 30000f;
+                            // Ahead of the player, inside PlayerEgo::calcCollision's 40000 pull radius whatever the ship does
+                            // meanwhile (the original's distance k is lost); the remake keeps it clear of the station by moving
+                            // it above the ship at the same distance instead (adding 30000 upward left it 42000 away from a ship
+                            // parked near the station: never pulled, and gone after a minute).
+                            var ahead = PlayerGame + PlayerDirGame * 20000f;
                             if (level.Station != null && ahead.magnitude < 30000f)
-                                ahead += new Vector3(Player.up.x, Player.up.y, -Player.up.z) * 30000f;
+                                ahead = PlayerGame + new Vector3(Player.up.x, Player.up.y, -Player.up.z) * 20000f;
                             Hole.SetPosition(ahead);
                         }
                         foreach (var s in c.Ships) s?.SetOnlyEnemy(null);
