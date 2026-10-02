@@ -60,6 +60,9 @@ namespace GoF2Remake.Visuals
         public void SetExhaust(bool on, bool player)
         {
             var parts = player ? playerVariantParts : npcVariantParts;
+            // The add-on hulls (42, 43, 55-63) have no NPC engine part, only the player's glow (Globals::getShipGroup builds
+            // them from hull, lights and engine_glow): the glow stands in, or the hangar flight shows no engine at all.
+            if (parts == null || parts.Length == 0) parts = playerVariantParts;
             if (parts != null) foreach (var g in parts) if (g != null) g.SetActive(on);
         }
 
