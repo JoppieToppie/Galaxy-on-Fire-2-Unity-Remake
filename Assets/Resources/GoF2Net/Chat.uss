@@ -8,15 +8,35 @@
     width: 560px;
 }
 
+/* the small Chat button: tapped on a phone, B (the chat key) still opens it too */
 .chat-tab {
     align-self: flex-start;
-    padding: 3px 10px;
-    margin-bottom: 6px;
-    font-size: 14px;
+    min-height: 36px;
+    min-width: 88px;
+    padding: 4px 14px;
+    margin: 0 0 6px 0;
+    font-size: 15px;
     letter-spacing: 1px;
-    color: rgba(216, 236, 247, 0.75);
-    background-color: rgb(4, 8, 14);
-    border-radius: 2px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    color: rgb(216, 236, 247);
+    background-color: rgba(4, 8, 14, 0.85);
+    border-width: 1px;
+    border-color: rgba(143, 216, 255, 0.5);
+    border-radius: 3px;
+}
+
+.chat-tab:hover {
+    background-color: rgba(24, 44, 60, 0.9);
+    border-color: rgb(143, 216, 255);
+}
+
+.chat-tab:active {
+    background-color: rgba(143, 216, 255, 0.3);
+}
+
+.chat--open .chat-tab {
+    border-color: rgb(143, 216, 255);
 }
 
 .chat-line {
