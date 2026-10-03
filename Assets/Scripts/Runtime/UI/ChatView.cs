@@ -1,7 +1,7 @@
 // ChatView.cs
 // Multiplayer chat panel (NetChat) in the flight HUD and the station menu, while a session runs: on the left, the recent
 // lines (fading 12 s after they came in, all shown while typing) over an input row. The chat key (B, GameControls.Chat;
-// or a tap on the "Chat" tab) opens the input with the cursor in it, the send key (Enter / keypad Enter,
+// or the small "Chat" button above the lines, sized for a finger) opens the input with the cursor in it, the send key (Enter / keypad Enter,
 // GameControls.ChatSend) sends, the channel key (Tab, GameControls.ChatChannel) switches Local / Global, Esc closes; all
 // rebindable in Options > Controls (read here from the devices: the game's keys are off while it is open,
 // NetChat.SetTyping). The field keeps the focus while typing: the UI's navigation (the arrows, W A S D, Tab, Space /
@@ -13,6 +13,9 @@
 // every command; NetCommands.Completions); Tab then doesn't switch the channel. Private messages (/w) show as
 // "[From X]" / "[To X]" in violet. The network stats (NetStats) show top left while
 // /netstats has them on.
+// Phones (TouchScreenKeyboard): the chat opens the on-screen keyboard itself instead of the field's own (hideSoftKeyboard),
+// so it can tell the keyboard's Done / checkmark (sends the line) from Back or a tap outside it (closes, the draft kept);
+// the field's own keyboard only closed and blurred on Done, so the line was never sent.
 // Styles: Resources/GoF2Net/Chat.uss.
 
 using GoF2Remake.Data;
@@ -40,7 +43,9 @@ namespace GoF2Remake.UI
         float nextStats;
         TextField field;
         Button channel;
-        Label tab;
+        Button tab;
+        TouchScreenKeyboard keyboard;   // phones: the on-screen keyboard the chat opened (null when none)
+        int keyboardFrame = -10;        // the frame it was opened (it may not report Visible straight away)
         AudioSource sound;
         AudioClip messageClip;
         bool open, hooked;
@@ -67,9 +72,10 @@ namespace GoF2Remake.UI
             var sheet = Resources.Load<StyleSheet>("GoF2Net/Chat");
             if (sheet != null) box.styleSheets.Add(sheet);
 
-            tab = new Label();
+            tab = new Button { focusable = false };   // never a stop for the menus' navigation
             tab.AddToClassList("chat-tab");
-            tab.RegisterCallback<PointerDownEvent>(e => { if (!open) Open(); e.StopPropagation(); });
+            // Opened on the press (not the release), and the touch stays off the HUD under it (steering, the fire area).
+            tab.RegisterCallback<PointerDownEvent>(e => { if (!open) Open(); e.StopPropagation(); }, TrickleDown.TrickleDown);
             box.Add(tab);
             log = new VisualElement { pickingMode = PickingMode.Ignore };
             log.AddToClassList("chat-log");
@@ -86,6 +92,7 @@ namespace GoF2Remake.UI
             row.Add(channel);
             field = new TextField { maxLength = NetChat.MaxCommandLength };   // a chat line is cut to MaxLength when sent
             field.AddToClassList("chat-field");
+            field.hideSoftKeyboard = SoftKeyboard;   // phones: the chat's own keyboard (OpenKeyboard), whose Done it can see
             field.RegisterCallback<KeyDownEvent>(OnKey, TrickleDown.TrickleDown);
             field.RegisterValueChangedCallback(e =>
             {
@@ -126,6 +133,56 @@ namespace GoF2Remake.UI
         {
             if (hooked) { NetChat.Added -= OnAdded; GoF2Remake.Flight.GameControls.Changed -= RefreshKeys; }
             if (open) NetChat.DropTyping();   // the scene's actions go with it (not enabled again)
+            CloseKeyboard();
+        }
+
+        /// <summary>A device with an on-screen keyboard (phones, tablets).</summary>
+        static bool SoftKeyboard => Application.isMobilePlatform && TouchScreenKeyboard.isSupported;
+
+        /// <summary>Phones: the on-screen keyboard for the line (the draft in it, the cursor at its end). Its own input box is
+        /// hidden: the text shows in the chat's field (PollKeyboard copies it over).</summary>
+        void OpenKeyboard()
+        {
+            if (!SoftKeyboard) return;
+            if (keyboard != null && keyboard.status == TouchScreenKeyboard.Status.Visible) return;
+            TouchScreenKeyboard.hideInput = true;
+            string text = field.value ?? "";
+            keyboard = TouchScreenKeyboard.Open(text, TouchScreenKeyboardType.Default, true, false, false);
+            keyboardFrame = Time.frameCount;
+            if (keyboard != null) keyboard.selection = new RangeInt(text.Length, 0);
+        }
+
+        void CloseKeyboard()
+        {
+            if (keyboard == null) return;
+            if (keyboard.status == TouchScreenKeyboard.Status.Visible) keyboard.active = false;
+            keyboard = null;
+        }
+
+        /// <summary>Phones, every frame while the chat's keyboard is up: its text into the line; once it is gone, Done (the
+        /// checkmark / Enter) sends, Back or a tap outside it ends the typing with the draft kept (as a click elsewhere).</summary>
+        void PollKeyboard()
+        {
+            if (keyboard == null) return;
+            string text = keyboard.text ?? "";
+            if (text.Length > field.maxLength) text = text.Substring(0, field.maxLength);
+            var status = keyboard.status;
+            if (status == TouchScreenKeyboard.Status.Visible)
+            {
+                if (field.value != text) field.value = text;
+                return;
+            }
+            if (Time.frameCount - keyboardFrame <= 5) return;   // still coming up
+            keyboard = null;
+            if (!open) return;
+            if (status == TouchScreenKeyboard.Status.Done)
+            {
+                field.value = text;   // some keyboards hand the last word over only when they close
+                SendLine();
+                return;
+            }
+            field.Blur();
+            Suspend();
         }
 
         /// <summary>An event the line keeps to itself: no other handler, no focus move.</summary>
@@ -216,6 +273,7 @@ namespace GoF2Remake.UI
             focusTries = FocusFrames;   // Update focuses the field once the row shows (a hidden element can't take it)
             openFrame = Time.frameCount;
             field.Focus();
+            OpenKeyboard();
             Rebuild();
             RefreshSuggestions();
         }
@@ -232,6 +290,7 @@ namespace GoF2Remake.UI
             open = false;
             box.EnableInClassList("chat--open", false);
             field.value = "";
+            CloseKeyboard();
             field.Blur();
             NetChat.SetTyping(false);
             Rebuild();
@@ -248,6 +307,7 @@ namespace GoF2Remake.UI
         {
             if (!open) return;
             open = false;
+            CloseKeyboard();
             box.EnableInClassList("chat--open", false);
             NetChat.SetTyping(false);
             Rebuild();
@@ -265,7 +325,9 @@ namespace GoF2Remake.UI
         {
             if (tab == null) return;
             string key = GoF2Remake.Flight.GameControls.KeyText(GoF2Remake.Flight.GameControls.Chat, false);
-            tab.text = Localization.Extra("mpChat", "Chat") + (key.Length > 0 ? $"  ({key})" : "");
+            // The key as a hint after the name, not on phones (no keyboard to press it on).
+            bool showKey = key.Length > 0 && !Application.isMobilePlatform;
+            tab.text = Localization.Extra("mpChat", "Chat").ToUpperInvariant() + (showKey ? $"  <color=#8fd8ff>{key}</color>" : "");
             string sendKey = GoF2Remake.Flight.GameControls.KeyText(GoF2Remake.Flight.GameControls.ChatSend, false);
             string channelKey = GoF2Remake.Flight.GameControls.KeyText(GoF2Remake.Flight.GameControls.ChatChannel, false);
             var hints = new System.Collections.Generic.List<string>();
@@ -358,6 +420,7 @@ namespace GoF2Remake.UI
             box.style.display = session ? DisplayStyle.Flex : DisplayStyle.None;
             UpdateStats(session);
             if (!session) { if (open) Close(); return; }
+            PollKeyboard();
             if (!open && !NetChat.Typing && GoF2Remake.Flight.GameControls.Chat.WasPressedThisFrame()) Open();   // rebindable (B)
             // Opening: the cursor goes into the line as soon as the row can take the focus.
             if (open && focusTries > 0)

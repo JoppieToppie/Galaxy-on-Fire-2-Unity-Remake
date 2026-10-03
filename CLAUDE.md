@@ -823,10 +823,14 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   (still in the pilot list). In multiplayer the hangar keeps a HangarTraffic for the guests even without the NPC traffic.
 - **Chat** (`NetChat`, `ChatView` in the flight HUD and the station menu; styles `Resources/GoF2Net/Chat.uss`): global
   (everyone) and local (the same orbit, or docked at the same station); the host stamps each line with the sender's name
-  and location. The chat key (B) or the "Chat" tab opens the input with the cursor in it (`ChatView` keeps focusing the
+  and location. The chat key (B) or the small Chat button above the lines (`.chat-tab`, a finger-sized button that opens on the press;
+  the key shown after its name, not on phones) opens the input with the cursor in it (`ChatView` keeps focusing the
   field for a few frames until its row shows; the opening key's letter, which arrives after the focus, is dropped), the
   send key (Enter / keypad Enter, `GameControls.ChatSend`) sends, the channel key (Tab, `GameControls.ChatChannel`)
-  switches Local / Global, Esc closes; the send and channel keys are rebindable rows read straight from the devices
+  switches Local / Global, Esc closes. Phones: the field's own keyboard is off (`hideSoftKeyboard`) and `ChatView` opens
+  the on-screen keyboard itself (`TouchScreenKeyboard`, its input box hidden, the text copied into the field each frame):
+  Done / the checkmark sends, Back or a tap outside ends the typing with the draft kept (UI Toolkit's own keyboard only
+  closed and blurred the field on Done, so nothing was sent); the send and channel keys are rebindable rows read straight from the devices
   (`GameControls.PressedNow`: the flight map is off while typing), and their key events and characters stay out of the
   line. The field keeps the focus: the project-wide UI map's Navigate (arrows, W A S D), Tab and Submit (Space / Enter)
   are swallowed there (`StopPropagation` + `focusController.IgnoreEvent`: stopping alone still moved the focus to a menu
