@@ -536,10 +536,11 @@ namespace GoF2Remake.Multiplayer
         {
             error = null;
             var db = NetGame.Db;
-            if (int.TryParse(spec, out int index) && db.Ship(index) != null) return index;
+            if (int.TryParse(spec, out int index) && db.Ship(index) != null && CustomShips.Offered(index)) return index;
             int found = -1, matches = 0;
             foreach (var s in db.Ships)
             {
+                if (!CustomShips.Offered(s.index)) continue;   // custom ships: not in multiplayer for now
                 string n = DebugSpawner.ShipName(db, s.index);
                 if (string.Equals(n, spec, StringComparison.OrdinalIgnoreCase)) return s.index;
                 if (spec.Length > 0 && n.StartsWith(spec, StringComparison.OrdinalIgnoreCase)) { found = s.index; matches++; }
@@ -561,7 +562,7 @@ namespace GoF2Remake.Multiplayer
         static PlayerHull.Hull FindHull(string spec, out string error)
         {
             error = null;
-            var all = PlayerHull.All(NetGame.Db);
+            var all = PlayerHull.Offered(NetGame.Db);
             if (int.TryParse(spec, out int index))
             {
                 var byIndex = all.Find(h => h.key == "ship_" + index) ?? all.Find(h => h.stats == index);
@@ -653,13 +654,13 @@ namespace GoF2Remake.Multiplayer
                         by, Math.Abs(a)));
                     break;
                 case Order.Spawn:
-                    if (level == null || NetGame.Db.Ship(a) == null) return;
+                    if (level == null || NetGame.Db.Ship(a) == null || !CustomShips.Offered(a)) return;
                     Notice(by, DebugSpawner.SpawnShip(level, b, a, (DebugSpawner.Behaviour)Mathf.Clamp(c & 0xff, 0, 3), Mathf.Clamp((c >> 8) & 0xf, 1, MaxSpawn),
                         ParseAt(text), c >> 12));
                     break;
                 case Order.Ship:
                     if (a < 0) { Notice(by, PlayerHull.Restore(level, docked)); break; }
-                    var hull = PlayerHull.All(NetGame.Db).Find(h => h.key == text);
+                    var hull = PlayerHull.Offered(NetGame.Db).Find(h => h.key == text);
                     if (hull != null) Notice(by, PlayerHull.Fly(hull, level, docked));
                     break;
                 case Order.Ammo:

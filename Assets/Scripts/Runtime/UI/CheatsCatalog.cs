@@ -176,7 +176,7 @@ namespace GoF2Remake.UI
         /// <summary>Race, ship, behaviour, "Spawn ship"; object type, object, "Spawn object" (World.DebugSpawner).</summary>
         public static List<OptionDef> Spawns(Database db, World.SpaceLevel level, Action<string> notify)
         {
-            var ships = db.Ships.ConvertAll(sh => sh.index);
+            var ships = db.Ships.ConvertAll(sh => sh.index).FindAll(CustomShips.Offered);   // no custom ships while they're off
             ships.Sort();
             var categories = ObjectCategories(db);
             List<AssemblyData> Objects() => ObjectsOf(db, categories[Math.Clamp(objectCategory, 0, categories.Count - 1)]);

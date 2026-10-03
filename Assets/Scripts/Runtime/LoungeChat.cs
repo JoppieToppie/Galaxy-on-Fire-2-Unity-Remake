@@ -111,9 +111,11 @@ namespace GoF2Remake.Data
                 SetChoices();
                 return;
             }
-            if (a.offer == AgentOffer.SellShip && (a.sellShip < 0 || a.sellShip == Session.ShipIndex))
+            if (a.offer == AgentOffer.SellShip && (a.sellShip < 0 || a.sellShip == Session.ShipIndex || !CustomShips.Offered(a.sellShip)))
             {
-                Text = T(858);   // remake: the ship on offer is the one the player flies (bought here, or elsewhere)
+                // remake: the ship on offer is the one the player flies (bought here, or elsewhere), or custom ships were
+                // switched off since this bar was generated
+                Text = T(858);
                 closing = true;
                 SetChoices();
                 return;

@@ -33,6 +33,13 @@ namespace GoF2Remake.Data
 
         public static bool IsCustom(int ship) => Get(ship) != null;
 
+        /// <summary>Custom ships can be had (sold in lounges, offered by the debug and admin tools): the gameplay option on
+        /// (Settings.CustomShipsEnabled) and not in a multiplayer session (not there for now). Ships already owned stay.</summary>
+        public static bool Available => Settings.CustomShipsEnabled && !Multiplayer.NetGame.Active;
+
+        /// <summary>The ship may be offered: an original ship, or a custom one while they're Available.</summary>
+        public static bool Offered(int ship) => Available || !IsCustom(ship);
+
         /// <summary>The ship's name: 913 + index for the original ships, the custom entry's (or its Extra translation).</summary>
         public static string ShipName(int ship)
         {

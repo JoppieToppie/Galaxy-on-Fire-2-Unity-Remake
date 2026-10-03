@@ -164,6 +164,7 @@ namespace GoF2Remake.Data
         /// supernova system.</summary>
         static void AddCustomShipSellers(Database db, int station, List<Agent> agents)
         {
+            if (!CustomShips.Available) return;   // the gameplay option off, or multiplayer
             if (station == 108 || station == 101 || Shop.InSupernovaSystem(SystemOf(db, station), station)) return;
             int systemRace = Sys(db, SystemOf(db, station))?.raceId ?? -1;
             foreach (var c in CustomShips.All)

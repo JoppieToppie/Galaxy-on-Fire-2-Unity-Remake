@@ -139,6 +139,13 @@ entry + race, Default Economy price, hangar height, dealer stations, weapon moun
 fields for the builder, and `lounge`: who sells it). `Database.Load` appends them to `Ships` / `Assemblies` (pack `custom`) / `WeaponMounts`;
 `CustomShips` (plain C#) answers what has no Database at hand. Rules:
 
+- **Option** (Options > Gameplay "Custom ships", `Settings.CustomShipsEnabled`, on by default; hidden in multiplayer):
+  `CustomShips.Available` = the option on and not `NetGame.Active`. They always stay in the Database (saves holding one
+  must still load and fly), but only while Available are they offered: the lounge sellers (`AddCustomShipSellers`; a
+  seller in a bar generated before the switch answers 858), the debug Ships tab and spawn list (`PlayerHull.Offered`,
+  `CustomShips.Offered`) and the multiplayer admin ship / spawn commands. Off keeps a custom ship already flown or stored.
+  Multiplayer sessions start a fresh free-play game, so no custom ship reaches one.
+
 - **Texts**: 913 + index (name) and 977 + index (description) are back to back, so index 64 would read ship 0's
   description. Use `ItemInfo.ShipName` / `ShipDescription` (= `CustomShips.ShipName` / `ShipDescription`), never
   `913 +` / `977 +` directly; translations via `Localization.Extra` "ship<N>Name" / "ship<N>Description".

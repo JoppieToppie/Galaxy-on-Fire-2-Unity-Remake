@@ -163,6 +163,11 @@ namespace GoF2Remake.Data
         /// not marked as shown, so turning it on later still shows it once.</summary>
         public static bool TutorialHints { get => GetBool("tutorialHints", false); set => SetBool("tutorialHints", value); }
 
+        /// <summary>Remake: the remake's own ships (custom_ships.json: the USS Enterprise, the Jedi Starfighter...) can be had in
+        /// single player: their lounge sellers, the debug Ships / spawn lists. Never in multiplayer (CustomShips.Available).
+        /// Off keeps a custom ship the player already flies or stores.</summary>
+        public static bool CustomShipsEnabled { get => GetBool("customShips", true); set => SetBool("customShips", value); }
+
         /// <summary>Remake (GitHub #6): now and then a free-flight orbit holds a pirate outpost or a pirate boss with escorts
         /// (TrafficPlan.AddPirateEvent), each with a bounty.</summary>
         public static bool PirateEvents { get => GetBool("pirateEvents", true); set => SetBool("pirateEvents", value); }

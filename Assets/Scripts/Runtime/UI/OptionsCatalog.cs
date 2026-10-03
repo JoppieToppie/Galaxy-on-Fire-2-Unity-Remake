@@ -274,6 +274,12 @@ namespace GoF2Remake.UI
                 () => Settings.PirateEvents, v => Settings.PirateEvents = v);
             pirateEvents.description = () => X("pirateEventsHelp", "Now and then an orbit holds a pirate outpost with its guards or a pirate boss with escorts; destroying them pays a bounty. Not in the original.");
             list.Add(pirateEvents);
+            // Remake: the remake's own ships (custom_ships.json), single player only.
+            var customShips = Toggle("customShips", OptionPage.Gameplay, () => X("customShips", "Custom ships"),
+                () => Settings.CustomShipsEnabled, v => Settings.CustomShipsEnabled = v);
+            customShips.description = () => X("customShipsHelp", "Ships that aren't in the original game (such as the USS Enterprise and the Jedi Starfighter), sold by visitors in station bars. Off: nobody offers them; a custom ship you already own stays yours. Single player only.");
+            customShips.visible = () => !Multiplayer.NetGame.Active;
+            list.Add(customShips);
             list.Add(Toggle("autoAdvance", OptionPage.Gameplay, () => X("autoAdvance", "Turn voiced dialogue pages automatically"),
                 () => Settings.AutoAdvanceDialogue, v => Settings.AutoAdvanceDialogue = v));
             list.Add(Toggle("animatedDialogue", OptionPage.Gameplay, () => X("animatedDialogue", "Animated dialogue"),
