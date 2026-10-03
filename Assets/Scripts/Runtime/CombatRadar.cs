@@ -1,8 +1,13 @@
 // CombatRadar.cs
 // The ship and salvage part of Radar::draw 0x1554fc (Reference/research/ship_combat.md 5.4, 7.1-7.4), on the player:
 //   gate        only with a scanner (sort 17) mounted: without one no ship or crate locks at all
-//   ship lock   a living NPC on screen inside the +-w/16 box around the crosshair, when nothing else is locking (no
-//               autopilot, no landmark / planet / asteroid candidate); the ring fills over the scanner's attr 29 from
+//   ship lock   a living NPC on screen inside the +-w/16 box around the crosshair, when no other lock holds it: the
+//               timer runs only without an asteroid lock (+0xc), a landmark lock (+0x24), a crate on the tractor beam
+//               (+0x1c), the autopilot, an asteroid approach or a docking (0x1558ae / 0x1566b2). Candidates never block
+//               a ship: a landmark or planet candidate and a planet lock fill their own ring beside it, and Radar::draw
+//               0x1574c0 skips the asteroid loop while a ship candidate exists, not the other way round. With an
+//               asteroid locked a ship in the box freezes both (the original keeps its ship candidate, the remake none:
+//               the asteroid stays locked either way). The ring fills over the scanner's attr 29 from
 //               t = 0; on lock sound 26 (when the target changes). The lock is sticky: kept after the ship leaves the box
 //               until it dies or another lock completes. Homing missiles fly at it (WeaponSystem.LockTarget).
 //   salvage     a crate in the box: ring after 500 ms, locked after the tractor beam's attr 24 (TractorBeam::update);
@@ -121,8 +126,8 @@ namespace GoF2Remake.Flight
             // Radar+0x1ab (AB-4): any crate, wherever it is, even on the autopilot.
             if (tractorMode == 2 && Salvaging == null && !nav.Jumping) AutoSalvage(Camera.main, false);
 
-            bool blocked = nav.Autopilot || nav.Jumping || nav.Candidate != null || nav.Locked != null
-                           || (mining != null && (mining.State != Mining.Phase.Idle || mining.Candidate != null));
+            bool blocked = nav.Autopilot || nav.Jumping || nav.LandmarkLocked || Salvaging != null
+                           || (mining != null && (mining.State != Mining.Phase.Idle || mining.Locked != null));
             Target best = null;
             Crate bestCrate = null;
             NpcShip bestSteal = null;
@@ -243,7 +248,7 @@ namespace GoF2Remake.Flight
 
         void Publish()
         {
-            if (nav != null) nav.ShipLockActive = Busy;
+            if (nav != null) nav.ShipLockActive = Busy || Salvaging != null;   // Radar+8 / +0x1c
         }
 
         static bool InBox(Camera cam, Vector3 crosshair, float box, Vector3 world, out float dist)

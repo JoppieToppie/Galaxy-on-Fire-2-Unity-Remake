@@ -117,6 +117,8 @@ MonoBehaviour:
   injectorEnd: {fileID: 8300000, guid: 97d8ecea466928044b043d3d773eef43, type: 3}
   gammaShield1: {fileID: 8300000, guid: 5b5376798bf21f24eb7b72bbc6d09e45, type: 3}
   gammaShield2: {fileID: 8300000, guid: 80a0669eae50d034e9d2b5242025d704, type: 3}
+  gammaBlazeFlames: {fileID: 4885025143459005862, guid: 5de23d1baf5f9b84382e9a450ca9c49c, type: 3}
+  gammaBlazeGlow: {fileID: 515368877611005550, guid: 11b44382eed6f804f8da5107835a3138, type: 3}
   cloak: {fileID: 8300000, guid: a6c599adfbdf0e54da820350519e0241, type: 3}
   timeShift: {fileID: 8300000, guid: 3b5e230d40eb88e42a3f8a0bbb7b60ff, type: 3}
   timeShiftEnd: {fileID: 8300000, guid: 36f2419d33b9060458b71e6932c69086, type: 3}

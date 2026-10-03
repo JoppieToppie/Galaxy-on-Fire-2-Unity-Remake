@@ -208,6 +208,7 @@ namespace GoF2Remake.UI
         }
 
         public void NextTab() => SetTab(tab == Tab.Ship ? Tab.Shop : tab == Tab.Shop ? Tab.Blueprints : Tab.Ship);
+        public void PrevTab() => SetTab(tab == Tab.Ship ? Tab.Blueprints : tab == Tab.Shop ? Tab.Ship : Tab.Shop);
 
         // ---- list --------------------------------------------------------------------------------------------
 
@@ -892,13 +893,19 @@ namespace GoF2Remake.UI
             Rebuild();
         }
 
-        /// <summary>Enter / A / the action button: mount, demount or buy the selected ship.</summary>
+        /// <summary>Enter / A / the action button: mount, demount or buy the selected ship; on a shop row buy one unit.</summary>
         public void Action()
         {
             if (selected == null) return;
             var db = level.Database;
             switch (selected.kind)
             {
+                // Remake (#24): A / Enter buys (takes, adds) one unit like the right arrow, X sells (stores) one like the left;
+                // the original only has the arrows, and a confirm that did nothing on a shop row read as a dead button.
+                case RowKind.ShopItem:
+                case RowKind.Ingredient:
+                    Trade(1);
+                    break;
                 case RowKind.Blueprint:
                     // Edit (283) -> tab 4, the ingredients.
                     menu.PlayRelease();
@@ -1008,6 +1015,7 @@ namespace GoF2Remake.UI
         /// <summary>The second row button (X / controller X): Sell a stored hull (330 -> 334).</summary>
         public void SecondaryAction()
         {
+            if (selected != null && selected.kind == RowKind.ShopItem) { Trade(-1); return; }   // remake: X / the left arrow
             if (selected == null || selected.kind != RowKind.StoredShip) return;
             int index = selected.equipment;
             menu.PlayRelease();

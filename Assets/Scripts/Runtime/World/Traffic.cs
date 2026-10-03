@@ -604,9 +604,12 @@ namespace GoF2Remake.World
             if (!hasScanner && !Achievements.Has(40)) Achievements.Elite(40, ++Session.BlindKills);
         }
 
+        bool musicHeld;
+
         void Update()
         {
             float dtMs = Time.deltaTime * 1000f;
+            Navigation.SyncMusic(music, ref musicHeld);   // on through conversations, paused by the pause menu
             UpdateOrbit(dtMs);
             UpdateAlienAttackers(dtMs);
             UpdateChatter(dtMs);

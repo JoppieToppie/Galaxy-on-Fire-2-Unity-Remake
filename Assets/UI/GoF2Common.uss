@@ -760,3 +760,41 @@
 .layout-phone .options-panel .back-button {
     margin-top: 14px;
 }
+
+/* ---- controller focus (remake, #24: on a TV the faint cyan highlight was hard to find) ------------------------------
+   With a controller in use (the screen root's .input-gamepad) the focused control gets an amber fill and frame. Only
+   colours change, no sizes: nothing moves when the focus does. */
+.input-gamepad .menu-button:focus,
+.input-gamepad .station-button:focus,
+.input-gamepad .option-row:focus,
+.input-gamepad .option-row.options-selected,
+.input-gamepad .slot-row:focus,
+.input-gamepad .debug-mission:focus,
+.input-gamepad .lounge-row:focus,
+.input-gamepad .wanted-row:focus,
+.input-gamepad .autopilot-menu-item--selected {
+    color: #FFFFFF;
+    background-color: rgba(255, 166, 48, 0.24);
+    border-left-color: var(--gof-amber);
+}
+
+.input-gamepad .tab-button:focus,
+.input-gamepad .tab-button.options-selected,
+.input-gamepad .missions-tab:focus {
+    color: #FFFFFF;
+    background-color: rgba(255, 166, 48, 0.24);
+    border-bottom-color: var(--gof-amber);
+}
+
+.input-gamepad .choice-button:focus,
+.input-gamepad .campaign-card:focus,
+.input-gamepad .mp-address-row:focus,
+.input-gamepad .mp-action:focus,
+.input-gamepad .lounge-back:focus,
+.input-gamepad .dialogue-button:focus,
+.input-gamepad .update-button:focus,
+.input-gamepad .launch-button:focus {
+    color: #FFFFFF;
+    border-color: var(--gof-amber);
+    background-color: rgba(255, 166, 48, 0.24);
+}

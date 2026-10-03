@@ -119,6 +119,7 @@ namespace GoF2Remake.Flight
             var injector = Shop.FirstMounted(db, 43);
             if (injector != null) { hasInjector = true; injectorCost = injector.Attr(59, 30); }
             SetupGamma(db);
+            SetupBlaze(db);
         }
 
         // ---- emergency system (PlayerEgo::tryToStartEmergencySystem 0xad6f0) ------------------------------------
@@ -240,6 +241,48 @@ namespace GoF2Remake.Flight
                 loop.clip = clip; loop.loop = true; loop.spatialBlend = 0f; loop.volume = 0.09f * Sfx.EventGain * Settings.SfxVolume; loop.Play();
                 GammaLoopActive = true;
             }
+        }
+
+        // ---- the gamma shield's blaze (PlayerEgo::PlayerEgo 0xa5d8c, PlayerEgo::update 0xa9b7c, PlayerEgo::render) --------
+        // In the supernova system or Luur's orbit (Status::inSupernovaSystem / inSupernovaOrbit) with a gamma shield (sort
+        // 0x26) mounted: meshes 18803 sn_ship_blaze_flames_anim_add + 18802 sn_ship_blaze_glow_anim_add in one group (+0x34,
+        // shown +0x38), every frame scaled by +0x3c (the ship model's bounding radius x 1.75, PlayerEgo::setShip), turned to
+        // the sun's light direction with up (0, 1, 0), at the ship (ship 8 Kinzer: 300 units ahead), its animations running;
+        // hidden for good by the death (PlayerEgo::update, hudEvent 0x1a) and the planet jump (dockToPlanet).
+
+        GameObject blaze;
+        Vector3 blazeSunDir;
+        GoF2Remake.World.SpaceLevel blazeLevel;
+
+        void SetupBlaze(Database db)
+        {
+            if (assets == null || (assets.gammaBlazeFlames == null && assets.gammaBlazeGlow == null) || Shop.FirstMounted(db, 38) == null) return;
+            int st = Session.StationIndex;
+            if (!Shop.InSupernovaSystem(Shop.SystemOf(db, st), st) && st != 109) return;
+            blazeLevel = FindAnyObjectByType<GoF2Remake.World.SpaceLevel>();
+            if (blazeLevel == null || blazeLevel.Layout == null) return;
+            blazeSunDir = GoF2Remake.World.OrbitLayout.DirToUnity(blazeLevel.Layout.lightDirection).normalized;
+            blaze = new GameObject("GammaShieldBlaze");
+            blaze.transform.SetParent(transform, false);
+            foreach (var prefab in new[] { assets.gammaBlazeFlames, assets.gammaBlazeGlow })
+            {
+                if (prefab == null) continue;
+                var part = Instantiate(prefab, blaze.transform, false);
+                GunRig.StripForFx(part);
+            }
+            var r = ship.visualModel != null ? ship.visualModel.GetComponentInChildren<Renderer>() : null;
+            float radiusUnits = r != null ? r.bounds.extents.magnitude / M : 1500f;   // the bubble's radius too
+            blaze.transform.localScale = Vector3.one * radiusUnits * 1.75f;
+        }
+
+        void LateUpdate()
+        {
+            if (blaze == null) return;
+            if (Dead || (blazeLevel != null && blazeLevel.Navigation != null && blazeLevel.Navigation.Jumping)) { Destroy(blaze); blaze = null; return; }
+            var model = ship.visualModel != null ? ship.visualModel : transform;
+            var pos = model.position;
+            if (Session.ShipIndex == 8) pos += model.forward * (300f * M);
+            blaze.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(blazeSunDir, Vector3.up));
         }
 
         /// <summary>The Debug panel's repair: the gamma pool back to 100.</summary>

@@ -56,6 +56,9 @@ namespace GoF2Remake
 
             ApplyAll();
             ApplyDisplay();
+#if UNITY_WSA && ENABLE_WINMD_SUPPORT && !UNITY_EDITOR
+            UwpDisplay.Install();                 // UWP: the display's real pixel size (a 4K TV, an Xbox), not its view pixels
+#endif
             Visuals.ClassicBloomPass.Install();   // the "Original" bloom option
             HitchLogger.Install();                // development builds: frame hitches to hitches.log
             UI.ScreenshotKey.Install();           // F12: a screenshot to the pictures library

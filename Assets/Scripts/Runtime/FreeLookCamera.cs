@@ -7,7 +7,8 @@
 // per frame; zoom 1500..20000 units, wheel / key steps x -50) while the ship flies on under the player's controls; mining,
 // object docking, cutscenes, the jump scenes and death go back to the standard view.
 // Input (remake): V / controller D-pad up cycles; the orbit follows a touch drag off the controls (FlightHud forwards it
-// instead of the dodge swipe), the mouse with the middle button held, or the right stick; the wheel or a two-finger
+// instead of the dodge swipe), the mouse (moved with the mouse-steering cursor captured, else with the middle button
+// held), or the right stick; the wheel or a two-finger
 // pinch zooms (as in PhotoMode; the triggers keep firing).
 
 using System;
@@ -36,8 +37,9 @@ namespace GoF2Remake.Flight
         float px, py, distance = 3800f, wheel, pinch;
         Vector2 fling, touchDrag;
         bool touchHeld;
-        Vector2 lastMouse;
-        bool mouseDragging;
+        /// <summary>FlightHud: the cursor is captured for mouse steering, so in free look plain mouse movement orbits the
+        /// camera (remake: the PC version has no mouse free look; the middle button held does the same without it).</summary>
+        [NonSerialized] public bool mouseLook;
 
         public static FreeLookCamera Attach(GameObject player, ChaseCamera chase, PlayerTurret turret)
         {
@@ -131,16 +133,15 @@ namespace GoF2Remake.Flight
                 held = touchHeld;
                 touchDrag = Vector2.zero;
             }
+            // The mouse's movement, not the cursor's position (that stops at the screen edge and never moves while captured):
+            // with the middle button held, or always with the cursor captured for mouse steering (FlightHud, mouseLook).
             var mouse = Mouse.current;
-            if (mouse != null && mouse.middleButton.isPressed)
+            if (mouse != null && (mouseLook || mouse.middleButton.isPressed))
             {
-                var p = mouse.position.ReadValue();
-                if (mouseDragging) { var d = (p - lastMouse) * scale; delta += new Vector2(d.x, -d.y); }
-                lastMouse = p;
-                mouseDragging = true;
+                var d = mouse.delta.ReadValue() * scale;
+                delta += new Vector2(d.x, -d.y);
                 held = true;
             }
-            else mouseDragging = false;
             if (held) fling = delta;
             else if (fling != Vector2.zero)
             {

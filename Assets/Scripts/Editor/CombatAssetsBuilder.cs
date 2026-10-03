@@ -70,6 +70,8 @@ namespace GoF2Remake.EditorTools
             a.empSparkMaterial = AssetDatabase.LoadAssetAtPath<Material>($"{Root}/Materials/mat_27260_khador_jump.mat");
             a.shieldBubble = Prefab("Prefabs/valkyrie/fx/v_shield.prefab");
             a.shieldBubbleShader = Shader.Find("GoF2/ShieldBubble");
+            a.gammaBlazeFlames = Prefab("Prefabs/supernova/fx/sn_ship_blaze_flames_anim_add.prefab");
+            a.gammaBlazeGlow = Prefab("Prefabs/supernova/fx/sn_ship_blaze_glow_anim_add.prefab");
             a.invincibility = Clip("DLC_SFX/Invincibility_01.ogg");
             a.injectorInit = Clip("DLC2_SFX/PlasmaInjector_Init_02.ogg");
             a.injectorLoop = Clip("DLC2_SFX/PlasmaInjector_Loop_03.ogg");

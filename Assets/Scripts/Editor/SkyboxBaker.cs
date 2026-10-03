@@ -178,8 +178,20 @@ namespace GoF2Remake.EditorTools
             android.overridden = true;
             android.maxTextureSize = 8192;
             ti.SetPlatformTextureSettings(android);
+            ApplyUwpOverride(ti);
             ti.SaveAndReimport();
             return AssetDatabase.LoadAssetAtPath<Cubemap>(pngPath);
+        }
+
+        /// <summary>UWP (#20): BC1 instead of the default's BC7 (CompressedHQ). On the Xbox the nebula cubemaps showed bands of
+        /// shifted tiles while every BC1 / BC3 texture drew right; Windows keeps BC7.</summary>
+        public static void ApplyUwpOverride(TextureImporter ti)
+        {
+            var uwp = ti.GetPlatformTextureSettings("WindowsStoreApps");
+            uwp.overridden = true;
+            uwp.maxTextureSize = 16384;
+            uwp.format = TextureImporterFormat.DXT1;
+            ti.SetPlatformTextureSettings(uwp);
         }
 
         static Material Layer(UnityEngine.SceneManagement.Scene scene, Mesh mesh, Shader shader, Texture tex)

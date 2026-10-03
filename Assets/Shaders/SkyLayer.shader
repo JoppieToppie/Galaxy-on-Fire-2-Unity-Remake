@@ -30,6 +30,8 @@ Shader "GoF2/SkyLayer"
 
         Pass
         {
+            // Drawn by BackdropPass after the skybox, before the opaque texture copy (the cloak refracts it).
+            Tags { "LightMode" = "GoF2Backdrop" }
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag

@@ -71,6 +71,9 @@ namespace GoF2Remake.Flight
         public AudioClip invincibility;
         [Tooltip("The shield injector (2258 init, 2257 loop, 2259 end) and the gamma shield loops (2260 / 2261).")]
         public AudioClip injectorInit, injectorLoop, injectorEnd, gammaShield1, gammaShield2;
+        [Tooltip("The gamma shield's blaze around the ship in the supernova system (meshes 18803 sn_ship_blaze_flames_anim_add " +
+                 "and 18802 sn_ship_blaze_glow_anim_add, PlayerEgo::PlayerEgo).")]
+        public GameObject gammaBlazeFlames, gammaBlazeGlow;
         [Tooltip("The cloak (sound 30 Cloak_02) and the time extender (1120 TimeShift_Start, 1119 TimeShift_01b at the end).")]
         public AudioClip cloak, timeShift, timeShiftEnd;
         [Tooltip("The cloak's shader (GoF2/Cloak) and dissolve map (Textures/main/fx/cloak_map.png).")]

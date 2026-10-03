@@ -538,13 +538,15 @@ namespace GoF2Remake.UI
             bool cursor = Settings.MouseSteering && !Application.isMobilePlatform && InputMode.Current == InputKind.KeyboardMouse && !Vr.VrMode.Enabled
                       && !pauseMenu.IsOpen && !(nav != null && nav.MenuOpen) && !StarMap.IsOpen && !storyDialogue.IsOpen
                       && !level.Cutscene && level.LaunchCameraOver && Time.timeScale > 0f && (health == null || !health.Dead)
-                      && !(level.FreeLook != null && level.FreeLook.FreeLookActive)
                       && (weapons == null || !weapons.SteeringMissile) && (level.Docking == null || !level.Docking.Busy)
                       && !GoF2Remake.Multiplayer.NetChat.Typing;   // multiplayer: the cursor free for the chat
             // PlayerEgo::right etc. forward to the MiningGame while drilling (0xacd48): the mouse steers the drill then (the PC
             // version's mining); approaching and landing it does nothing, the cursor stays locked.
             bool idle = mining == null || mining.State == Mining.Phase.Idle;
-            bool on = cursor && idle;
+            // Free look keeps the cursor captured: the mouse orbits the camera instead of steering (FreeLookCamera.mouseLook).
+            bool freeLook = level.FreeLook != null && level.FreeLook.FreeLookActive;
+            if (level.FreeLook != null) level.FreeLook.mouseLook = cursor && freeLook;
+            bool on = cursor && idle && !freeLook;
             ship.mouseSteering = on;
             if (mining != null) mining.mouseDrill = cursor && mining.State == Mining.Phase.Mining;
             var wantLock = cursor ? CursorLockMode.Locked : CursorLockMode.None;

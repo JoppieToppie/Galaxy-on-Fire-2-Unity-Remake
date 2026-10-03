@@ -748,7 +748,16 @@ namespace GoF2Remake.UI
         void Back()
         {
             if (infoWindow != null && infoWindow.IsOpen) { Play(buttonRelease); infoWindow.Close(); }
-            else if (DialogOpen) { Play(buttonRelease); CloseDialog(); }
+            else if (DialogOpen)
+            {
+                // The original's ChoiceWindow can't be dismissed (ModStation::OnKeyPress ignores every key while it is open):
+                // back = its No button, or the OK of a message, so the choice's action always runs (the docking fine's No
+                // launches; closing it without one kept the player docked without paying).
+                Play(buttonRelease);
+                var a = dialogNo.resolvedStyle.display != DisplayStyle.None ? dialogNoAction : dialogAction;
+                CloseDialog();
+                a?.Invoke();
+            }
             else if (missions != null && missions.IsOpen) { Play(buttonRelease); missions.Close(); }
             else if (status != null && status.IsOpen) { Play(buttonRelease); status.Close(); }
             else if (lounge != null && lounge.ChatOpen) { Play(buttonRelease); lounge.CloseChat(); }
@@ -936,6 +945,8 @@ namespace GoF2Remake.UI
         }
 
         bool fineChecked;
+        const float ArrivalSettleMs = 1000f;
+        float settleMs;
 
         /// <summary>ModStation::OnInitialize 0xe8080 (combat_equipment.md 7): an enemy race's station (205: |standing| / 100 *
         /// 2800 +- 100) or one whose forces the player attacked (206: rank * 150 + 1000) demands a bribe, x10 hardcore. Yes =
@@ -1574,6 +1585,7 @@ namespace GoF2Remake.UI
                 {
                     Hint($"{select} / {trade}", InputGlyph.Pad(PadButton.DPad));
                     Hint(confirm, InputGlyph.Pad(PadButton.A));
+                    Hint(trade, InputGlyph.Pad(PadButton.X), InputGlyph.Pad(PadButton.A));   // a shop row: X sells, A buys
                     Hint(tabs, InputGlyph.Pad(PadButton.LeftBumper), InputGlyph.Pad(PadButton.RightBumper));
                     if (store) Hint(sellShip, InputGlyph.Pad(PadButton.X));
                     Hint(T("hudBack", "BACK"), InputGlyph.Pad(PadButton.B));
@@ -1602,6 +1614,16 @@ namespace GoF2Remake.UI
 
         // ---- per frame -----------------------------------------------------------------------------------
 
+        /// <summary>ModStation::OnInitialize and ModStation::checkHints: what the station has to say, one at a time, while no
+        /// window is open; true when something opened.</summary>
+        bool RunDockingChecks()
+        {
+            if (DialogOpen || SystemMenuOpen || HangarOpen) return false;
+            if (CheckPirateBase() || CheckDockingFine() || CheckStory() || CheckFreelance() || CheckKaamo() || CheckPendingProducts()) return true;
+            if (!storyDialogue.IsOpen && (CheckRescue() || CheckMedals() || CheckMedalHints())) return true;
+            return CheckWanted() || CheckWingmenContract();
+        }
+
         void Update()
         {
             if (root == null || level == null) return;
@@ -1620,6 +1642,7 @@ namespace GoF2Remake.UI
             if (flying)
             {
                 if (World.SpaceLevel.PlayerTriedToFly()) level.SkipPlayerFlight();
+                settleMs = ArrivalSettleMs;
                 return;
             }
             UpdateMedalToast();
@@ -1647,17 +1670,10 @@ namespace GoF2Remake.UI
                 storyDialogue.Paused = SystemMenuOpen;
                 if (!SystemMenuOpen) { storyDialogue.Tick(Time.unscaledDeltaTime * 1000f); return; }
             }
-            if (!DialogOpen && !SystemMenuOpen && !HangarOpen && CheckPirateBase()) return;
-            if (!DialogOpen && !SystemMenuOpen && !HangarOpen && CheckDockingFine()) return;
-            if (!DialogOpen && !SystemMenuOpen && !HangarOpen && CheckStory()) return;
-            if (!DialogOpen && !SystemMenuOpen && !HangarOpen && CheckFreelance()) return;
-            if (!DialogOpen && !SystemMenuOpen && !HangarOpen && CheckKaamo()) return;
-            if (!DialogOpen && !SystemMenuOpen && !HangarOpen && CheckPendingProducts()) return;
-            if (!DialogOpen && !SystemMenuOpen && !HangarOpen && !storyDialogue.IsOpen && CheckRescue()) return;
-            if (!DialogOpen && !SystemMenuOpen && !HangarOpen && !storyDialogue.IsOpen && CheckMedals()) return;
-            if (!DialogOpen && !SystemMenuOpen && !HangarOpen && !storyDialogue.IsOpen && CheckMedalHints()) return;
-            if (!DialogOpen && !SystemMenuOpen && !HangarOpen && CheckWanted()) return;
-            if (!DialogOpen && !SystemMenuOpen && !HangarOpen && CheckWingmenContract()) return;
+            // Remake: a moment on the pad after the hangar flight lands before anything talks (the original, without the
+            // flight, opens them as the station loads).
+            if (settleMs > 0f) settleMs -= Time.unscaledDeltaTime * 1000f;
+            else if (RunDockingChecks()) return;
             lounge?.Update();
 
             var kb = GoF2Remake.Multiplayer.NetChat.Keys;
@@ -1706,8 +1722,12 @@ namespace GoF2Remake.UI
                     hangarWindow.Action();
                 else if ((kb != null && kb.xKey.wasPressedThisFrame) || (pad != null && pad.buttonWest.wasPressedThisFrame))
                     hangarWindow.SecondaryAction();   // Sell a stored hull (Kaamo Club)
-                else if ((kb != null && (kb.qKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame))
-                         || (pad != null && (pad.leftShoulder.wasPressedThisFrame || pad.rightShoulder.wasPressedThisFrame)))
+                else if ((kb != null && kb.qKey.wasPressedThisFrame) || (pad != null && pad.leftShoulder.wasPressedThisFrame))
+                {
+                    Play(buttonPush);
+                    hangarWindow.PrevTab();   // Q / LB to the left, E / RB to the right, like the options' tabs
+                }
+                else if ((kb != null && kb.eKey.wasPressedThisFrame) || (pad != null && pad.rightShoulder.wasPressedThisFrame))
                 {
                     Play(buttonPush);
                     hangarWindow.NextTab();

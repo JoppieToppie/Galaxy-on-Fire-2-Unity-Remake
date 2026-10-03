@@ -1,7 +1,8 @@
 // GoF2/Backdrop: sun and planet quads (StarSystem::render). The original draws them in the background pass with the
 // depth test off, after the sky and before the scene. Here they are regular quads around the camera whose depth is
-// pushed onto the far plane: they draw over the skybox (their queue comes after it), stay behind every opaque object,
-// and the scene's transparent effects (queue 3000) draw over them. Painter's order via the render queue.
+// pushed onto the far plane: BackdropPass draws them right after the skybox (before URP's opaque texture copy, which the
+// cloak refracts), behind every opaque object; the scene's transparent effects draw over them. Painter's order via the
+// render queue.
 // _Mirror flips u (StarSystem's rotate(0, pi, 0), so a planet's lit rim faces the sun); _Tint is added to the
 // texture colour (blend mode 21, fogged planets). _CoreGlow lifts only the near-white core into HDR (the sun under the
 // remake's bloom), so the rest of the texture keeps the original's brightness. Hand-written for the far-plane depth trick.
@@ -27,6 +28,8 @@ Shader "GoF2/Backdrop"
 
         Pass
         {
+            // Drawn by BackdropPass after the skybox, before the opaque texture copy (the cloak refracts it).
+            Tags { "LightMode" = "GoF2Backdrop" }
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag

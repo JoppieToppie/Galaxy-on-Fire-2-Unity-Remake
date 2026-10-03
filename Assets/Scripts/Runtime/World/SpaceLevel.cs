@@ -381,7 +381,7 @@ namespace GoF2Remake.World
             if (Session.Wingmen.Count > 0 && Session.WingmanContractMs > 0f) Session.WingmanContractMs = Mathf.Max(0f, Session.WingmanContractMs - Time.deltaTime * 1000f);
             if (Health == null) return;
             Health.invulnerable = launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic)
-                                  || (Campaign != null && Campaign.PlayerInvulnerable);
+                                  || (Campaign != null && Campaign.PlayerInvulnerable) || (StorySpace != null && StorySpace.SuccessPending);
             Collision.off = launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic)
                             || (Campaign != null && Campaign.CollisionOff);   // PlayerEgo+0x144
             Collision.ignoreGate = Navigation.GoingToGate;

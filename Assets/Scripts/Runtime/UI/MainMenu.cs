@@ -281,9 +281,29 @@ namespace GoF2Remake.UI
             return rt != null ? new Vector2Int(rt.width, rt.height) : new Vector2Int(Screen.width, Screen.height);
         }
 
+#if UNITY_WSA
+        // UWP (#20): the Xbox's system keyboard closed with B counts as Cancel, and the text field then puts back the text
+        // it had before (the pilot name typed in vanished). The text the keyboard had typed while it was open is kept.
+        TextField keyboardField;
+        string keyboardText;
+        bool keyboardWasOpen;
+
+        void KeepKeyboardText()
+        {
+            bool open = TouchScreenKeyboard.visible;
+            if (open && root.focusController?.focusedElement is TextField f) { keyboardField = f; keyboardText = f.value; }
+            else if (!open && keyboardWasOpen && keyboardField != null && keyboardText != null && keyboardField.value != keyboardText)
+                keyboardField.value = keyboardText;
+            keyboardWasOpen = open;
+        }
+#endif
+
         void Update()
         {
             if (root == null || GoF2Remake.Flight.GameControls.BlocksMenus) return;
+#if UNITY_WSA
+            KeepKeyboardText();
+#endif
             DpadTapNavigation.Pump(root);   // D-pad taps the panel's own navigation drops (the Steam controller)
             // Remake: the debug panel (F10, LB + RB or three fingers held for a second, or five taps on the version text).
             if (screen == MenuState.Menu && Keyboard.current != null && Keyboard.current.f10Key.wasPressedThisFrame) OpenDebug();
@@ -364,6 +384,8 @@ namespace GoF2Remake.UI
         /// on touch.</summary>
         void UpdatePressAnyKey()
         {
+            // The controller focus look (GoF2Common.uss .input-gamepad, like the station and the flight HUD).
+            root?.EnableInClassList("input-gamepad", InputMode.Current == InputKind.Gamepad);
             if (pressAnyKey == null) return;
             pressAnyKey.text = InputMode.Current switch
             {
@@ -1797,9 +1819,19 @@ namespace GoF2Remake.UI
             var list = new List<VisualElement>();
             scope.Query<VisualElement>().Where(v => v.focusable && v.canGrabFocus && v.enabledInHierarchy && v.resolvedStyle.display != DisplayStyle.None
                                                      && !(v.parent is BaseField<float>) && !(v.parent is BaseField<int>) && !(v.parent is Toggle)
-                                                     && IsShown(v, scope))
+                                                     && !InsideTextField(v) && IsShown(v, scope))
                 .ForEach(list.Add);
             return list;
+        }
+
+        /// <summary>A text field's own parts (its TextInput and text element): the field is the one stop. Listed too, the
+        /// D-pad stepped from the field onto its own input, which hands the focus back to the field: the multiplayer panel's
+        /// name field (its first item) never let a controller go (#20).</summary>
+        static bool InsideTextField(VisualElement v)
+        {
+            for (var p = v.parent; p != null; p = p.parent)
+                if (p is TextField) return true;
+            return false;
         }
 
         static bool IsShown(VisualElement v, VisualElement scope)
@@ -1815,7 +1847,11 @@ namespace GoF2Remake.UI
             // The difficulty list starts on Normal (the original's first entry), Easy above it; the economy on the last one picked.
             var normal = scope.name == "difficultyPanel" ? scope.Q<Button>("normalButton")
                 : scope.name == "economyPanel" ? scope.Q<Button>(Session.Economy == Economy.Android ? "economyAndroidButton" : "economyDefaultButton") : null;
+            // Not on a text field (the multiplayer panel's name is its first item): focused, it takes the keys, and on the
+            // Xbox it can bring up the system keyboard, which then takes B (#20). The fields are one step away.
+            var first = items.Find(v => !(v is TextField));
             if (normal != null && items.Contains(normal)) Select(normal);
+            else if (first != null) Select(first);
             else if (items.Count > 0) Select(items[0]);
         }
 

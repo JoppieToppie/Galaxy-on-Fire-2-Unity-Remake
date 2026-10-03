@@ -67,7 +67,8 @@ namespace GoF2Remake.Flight
         static Haptics instance;
         static readonly HapticMixer mixer = new HapticMixer();
         static Gamepad pad;
-        static float sentLow = -1f, sentHigh = -1f, nextPhoneRumble, nextPreview;
+        static float sentLow = -1f, sentHigh = -1f, nextPhoneRumble, nextPreview, resendAt, lastRunning;
+        const float ResendEvery = 0.5f, StopResendFor = 2f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
@@ -75,7 +76,7 @@ namespace GoF2Remake.Flight
             mixer.Clear();
             pad = null;
             sentLow = sentHigh = -1f;
-            nextPhoneRumble = nextPreview = 0f;
+            nextPhoneRumble = nextPreview = resendAt = lastRunning = 0f;
         }
 
         public static void Install()
@@ -144,9 +145,10 @@ namespace GoF2Remake.Flight
             var target = route == Output.Controller ? Gamepad.current : null;
             if (target != pad)
             {
-                if (pad != null && pad.added) pad.ResetHaptics();
+                if (pad != null && pad.added) pad.SetMotorSpeeds(0f, 0f);
                 pad = target;
                 sentLow = sentHigh = -1f;
+                resendAt = 0f;
             }
             if (pad != null) SetMotors(motors.x, motors.y);
 
@@ -168,11 +170,17 @@ namespace GoF2Remake.Flight
             if (pad == null || !pad.added) return;
             low = Mathf.Clamp01(low);
             high = Mathf.Clamp01(high);
-            if (Mathf.Abs(low - sentLow) < 0.01f && Mathf.Abs(high - sentHigh) < 0.01f) return;
+            float now = Time.unscaledTime;
+            if (!HapticMixer.ShouldSend(low, high, sentLow, sentHigh) && now < resendAt) return;
             sentLow = low;
             sentHigh = high;
-            if (low <= 0f && high <= 0f) pad.ResetHaptics();
-            else pad.SetMotorSpeeds(low, high);
+            // Sent again every ResendEvery while running and for StopResendFor after a stop: a backend that drops a command
+            // (the Xbox's, which kept a motor running until the guide was opened) catches up.
+            bool stop = low <= 0f && high <= 0f;
+            if (!stop) lastRunning = now;
+            resendAt = stop && now - lastRunning > StopResendFor ? float.MaxValue : now + ResendEvery;
+            // An explicit zero, not ResetHaptics: that skips the command when the device's own copy already reads 0.
+            pad.SetMotorSpeeds(low, high);
         }
 
         /// <summary>Everything off at once (focus lost, quitting, leaving Play mode: a motor left on keeps running).</summary>
@@ -181,6 +189,7 @@ namespace GoF2Remake.Flight
             mixer.Clear();
             pad = null;
             sentLow = sentHigh = -1f;
+            resendAt = 0f;
             try { InputSystem.ResetHaptics(); }
             catch (System.Exception) { }   // the Input System already shut down (quitting)
             PhoneVibrator.Cancel();

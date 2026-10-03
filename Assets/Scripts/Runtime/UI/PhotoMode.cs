@@ -3,7 +3,8 @@
 // 0x1ac2b0 switches to camera 3 (the orbit camera, TargetFollowCamera::setRotationAroundTarget) while the game stays paused
 // (Level::update(dt = 0)); MGame::OnRender2D draws only the logo 0x534 at the top-right and the footer with Back (170),
 // hidden while a finger turns the camera.
-//   MGame::freeCamTouchBegin / Move / End 0x1a7f20..  one finger: px, py accumulate (py clamped +-200), yaw = -0.005 px,
+//   MGame::freeCamTouchBegin / Move / End 0x1a7f20..  one finger: px, py accumulate (py clamped +-200 only by a fling,
+//                                                     MGame::OnUpdate 0x1aec2c; a drag goes all the way round), yaw = -0.005 px,
 //                                                     pitch = -0.005 py rad; a release over 3 px keeps turning x0.9 per
 //                                                     frame; pinch: distance += span change x -50, 1500..20000 units;
 //                                                     wheel -50 per step, decaying x0.9; arrow keys +-4 px per frame
@@ -165,6 +166,9 @@ namespace GoF2Remake.UI
                     if (fling.magnitude <= 3f) fling = Vector2.zero;
                 }
             }
+            // MGame::OnUpdate (cinematic mode, 0x1aec2c): the pitch is clamped to +-200 only in the fling branch, when the
+            // release keeps it turning (over 1 px a frame); a drag, the arrows and the sticks turn it all the way round.
+            bool flingClamps = !held && Mathf.Abs(fling.y) > 1f;
             if (!held && fling != Vector2.zero)
             {
                 delta = fling * frames;
@@ -191,7 +195,8 @@ namespace GoF2Remake.UI
             }
             if (Mathf.Abs(wheel) > 0.01f) { distance += wheel * -50f * frames; wheel *= Mathf.Pow(0.9f, frames); } else wheel = 0f;
             px += delta.x;
-            py = Mathf.Clamp(py + delta.y, -200f, 200f);
+            py += delta.y;
+            if (flingClamps) py = Mathf.Clamp(py, -200f, 200f);
             distance = Mathf.Clamp(distance, MinDistance, MaxDistance);
             overlay.EnableInClassList("photo-overlay--turning", held && !capturing);
             if (messageMs > 0f && (messageMs -= Time.unscaledDeltaTime * 1000f) <= 0f) message.text = "";
@@ -208,8 +213,9 @@ namespace GoF2Remake.UI
         void Place()
         {
             var rot = Quaternion.Euler(-0.005f * py * Mathf.Rad2Deg, 0.005f * px * Mathf.Rad2Deg, 0f);
-            cam.transform.position = target.position + rot * new Vector3(0f, 0f, -distance * M);
-            cam.transform.LookAt(target.position, Vector3.up);
+            // Looking at the ship with the orbit's own up (LookAt with world up flipped the view over the top: past +-90 deg
+            // the pitch is free now); below 90 deg it is the same view.
+            cam.transform.SetPositionAndRotation(target.position + rot * new Vector3(0f, 0f, -distance * M), rot);
         }
 
         // ---- 60 Save to library (remake-only) -------------------------------------------------------------------

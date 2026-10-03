@@ -49,6 +49,15 @@ namespace GoF2Remake.World
         float levelMs;
         bool briefingChecked, failed;
 
+        /// <summary>Remake: a completed mission's success conversation waits SuccessPauseMs (the original opens it on the
+        /// frame the mission completes, while the asteroid it was mined from is still bursting); meanwhile the mission
+        /// counts as won (no failure) and the player can't be hurt, as if the conversation had already paused the game.</summary>
+        const float SuccessPauseMs = 1500f;
+        float successPauseMs = -1f;
+        List<DialoguePage> pendingSuccess;
+        int pendingReward;
+        public bool SuccessPending => successPauseMs >= 0f;
+
         public void Setup(SpaceLevel spaceLevel, CampaignLevel campaignLevel)
         {
             level = spaceLevel;
@@ -59,6 +68,16 @@ namespace GoF2Remake.World
         {
             if (Session.FreePlay || level == null || DialogueRequested == null || DialogueOpen || level.Leaving) return;
             levelMs += Time.deltaTime * 1000f;
+            if (SuccessPending)
+            {
+                successPauseMs -= Time.deltaTime * 1000f;
+                if (successPauseMs >= 0f) return;
+                successPauseMs = -1f;
+                int reward = pendingReward;
+                Open(pendingSuccess, _ => AfterSuccess(reward));
+                pendingSuccess = null;
+                return;
+            }
             if (level.Health != null && level.Health.Dead)
             {
                 if (!failed && campaign != null) { failed = true; CountFailure(); }
@@ -180,7 +199,13 @@ namespace GoF2Remake.World
             int reward = Story.Mission.reward;
             var step = Story.Step;
             var success = step != null ? StoryTable.Shown(step.success) : null;
-            if (success != null && success.Count > 0) Open(success, _ => AfterSuccess(reward));
+            if (success != null && success.Count > 0)
+            {
+                pendingSuccess = success;
+                pendingReward = reward;
+                successPauseMs = SuccessPauseMs;
+                if (level.Health != null) level.Health.invulnerable = true;   // from this frame on (SpaceLevel keeps it set)
+            }
             else AfterSuccess(reward);
         }
 

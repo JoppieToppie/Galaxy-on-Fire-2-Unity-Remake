@@ -81,6 +81,14 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>The strength of a pulse 'ageMs' into it: 1 while held, then linear to 0 at its end.</summary>
+        /// <summary>Whether new motor speeds are worth a command: a change of at least 0.01 on a motor, and a stop always
+        /// (the 0.01 step alone left a fade's last few percent running when it ended within 0.01 of zero).</summary>
+        public static bool ShouldSend(float low, float high, float sentLow, float sentHigh)
+        {
+            if (low <= 0f && high <= 0f) return sentLow != 0f || sentHigh != 0f;
+            return Mathf.Abs(low - sentLow) >= 0.01f || Mathf.Abs(high - sentHigh) >= 0.01f;
+        }
+
         public static float Envelope(float ageMs, float lengthMs)
         {
             float t = ageMs / Mathf.Max(1f, lengthMs);

@@ -190,9 +190,12 @@ namespace GoF2Remake.World
             return true;
         }
 
+        bool musicHeld;
+
         void Update()
         {
             float dtMs = Time.deltaTime * 1000f;
+            Navigation.SyncMusic(music, ref musicHeld);   // on through conversations, paused by the pause menu
             if (dtMs <= 0f) return;
             MissionMs += dtMs;
             if (fading)
