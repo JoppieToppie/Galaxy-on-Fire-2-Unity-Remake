@@ -32,7 +32,8 @@ namespace GoF2Remake.UI
         }
 
         public static string ItemName(int item) => Localization.Get(1274 + item);
-        public static string ShipName(int ship) => Localization.Get(913 + ship);
+        public static string ShipName(int ship) => CustomShips.ShipName(ship);   // 913 + ship; the custom ships their own
+        public static string ShipDescription(int ship) => CustomShips.ShipDescription(ship);   // 977 + ship
 
         /// <summary>The ship's race under its name ("" = none, Shop.ShipMakerRace): the four races, Grey and pirates.</summary>
         public static string ShipRaceText(int ship)

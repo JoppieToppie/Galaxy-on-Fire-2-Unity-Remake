@@ -1,0 +1,48 @@
+[
+    {
+        "index": 64,
+        "name": "Jedi Starfighter",
+        "description": "A sleek interceptor of unknown Terran design, said to have been rebuilt piece by piece from a wreck towed in from the edge of Terran space. Its split prow, swept wings and twin ion engines make it the most agile hull money can buy, but the cramped frame leaves little room for cargo. No shipyard builds it: the few that exist change hands in station lounges.",
+        "race": 0,
+        "armor": 480,
+        "cargo": 40,
+        "price": 4150000,
+        "priceDefault": 8300000,
+        "slots": { "primary": 4, "secondary": 2, "turret": 0, "equipment": 13 },
+        "handling": 160,
+        "handlingMultiplier": 1.6,
+        "hangarHeight": 290,
+        "lounge": { "systemRace": 0, "minCampaign": 32, "minRank": 12, "chance": 12 },
+        "assembly": "ship_064_jedi_starfighter",
+        "mounts": [
+            { "slotType": 0, "position_engine": [ -73, -23, 442 ] },
+            { "slotType": 0, "position_engine": [ 73, -23, 442 ] },
+            { "slotType": 0, "position_engine": [ -182, -38, 230 ] },
+            { "slotType": 0, "position_engine": [ 182, -38, 230 ] },
+            { "slotType": 1, "position_engine": [ -38, -48, 115 ] },
+            { "slotType": 1, "position_engine": [ 38, -48, 115 ] },
+            { "slotType": 3, "position_engine": [ -48, -73, -478 ], "turretAngles": [ 0.55, 0.55, 0.55 ] },
+            { "slotType": 3, "position_engine": [ 48, -73, -478 ], "turretAngles": [ 0.55, 0.55, 0.55 ] }
+        ],
+        "model": "Models/custom/ships/jedi-star-fighter/jsf_RealTimeModel.fbx",
+        "modelLength": 1000,
+        "modelYaw": 0,
+        "engineGlowRadius": 24,
+        "materials": [
+            {
+                "mesh": "main",
+                "diffuse": "Models/custom/ships/jedi-star-fighter/textures/mainMat_diffuse.png",
+                "normal": "Models/custom/ships/jedi-star-fighter/textures/mainMat_nrm.png",
+                "metallicSmoothness": "Models/custom/ships/jedi-star-fighter/textures/mainMat_metallic_smoothness.png",
+                "smoothness": 1
+            },
+            {
+                "mesh": "aux",
+                "diffuse": "Models/custom/ships/jedi-star-fighter/textures/auxielieryMat_diffuse.png",
+                "normal": "Models/custom/ships/jedi-star-fighter/textures/auxielieryMat_nrm.png",
+                "metallicSmoothness": "Models/custom/ships/jedi-star-fighter/textures/auxielieryMat_metallic_smoothness.png",
+                "smoothness": 1
+            }
+        ]
+    }
+]

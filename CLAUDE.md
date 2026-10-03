@@ -60,6 +60,7 @@ Menu items (from `Scripts/Editor`):
 
 - **GoF2 > Build Materials And Prefabs**: one material per game material and one prefab per game mesh, from `resources.json`.
 - **GoF2 > Build Assembled Prefabs**: one prefab per game object, from `assemblies.json` (see "Assembled prefabs").
+- **GoF2 > Build Custom Ships**: the remake's own ships from `custom_ships.json` (see "Custom ships"): materials, the assembled prefab, the shop icon, then Build Text Icons and Build Hangar Heights.
 - **GoF2 > Create Flight Test Scene**: saves `Assets/Scenes/FlightTest.unity` (assembled Betty + chase camera), an old test scene: not kept in the repo or the build.
 - **GoF2 > Create Main Menu Scene**: `Assets/Scenes/MainMenu.unity` (build index 0; Space 1, Station 2).
 - **GoF2 > Create Space Scene**: `Assets/Scenes/Space.unity`, the flight level (see "Space scene"). Also (re)makes `Resources/GoF2Backdrop` and bakes the space skies if missing.
@@ -130,6 +131,42 @@ The game stores every object as several meshes (hull, `_lights_add`, `_emissive`
 - LOD: each level shows only its LOD mesh, its LOD child meshes and the last-added child (usually the engine). Generic ships switch at 5000/13000 units and cull at 80000. **In this binary `AEGeometry::updateLod` always picks LOD 0** (the modded APK), the prefabs use the intended distances.
 - Stations are placed rotated (0, pi, 0); stored as `spawnRotationEngine`, not baked in. State-dependent parts (mission, race, jumpgate activation) are in `conditionalParts` and start inactive.
 - Suns and planets are the `plane` mesh textured per system at runtime, and skyboxes pick layers per system: not pre-assembled.
+
+## Custom ships (remake-only)
+
+Ships the original doesn't have, after its 64: `Resources/GoF2Data/custom_ships.json` (`CustomShipData` = a ships.json
+entry + race, Default Economy price, hangar height, dealer stations, weapon mounts like `weapons_hd.json`, and the model
+fields for the builder, and `lounge`: who sells it). `Database.Load` appends them to `Ships` / `Assemblies` (pack `custom`) / `WeaponMounts`;
+`CustomShips` (plain C#) answers what has no Database at hand. Rules:
+
+- **Texts**: 913 + index (name) and 977 + index (description) are back to back, so index 64 would read ship 0's
+  description. Use `ItemInfo.ShipName` / `ShipDescription` (= `CustomShips.ShipName` / `ShipDescription`), never
+  `913 +` / `977 +` directly; translations via `Localization.Extra` "ship<N>Name" / "ship<N>Description".
+- **Fixed tables** that stop at 63 fall back to the entry: `Shop.RaceOfShip` / `ShipMakerRace` (ShipRace), `StationTables.ShipY`
+  (hangarHeight); `ShipExhaust.ShipCell` falls back to the Terran cell. NPC traffic never flies them (`NpcTables.RandomFighter`).
+- **Lounge sellers** (no dealer sells them): `AgentGenerator.AddCustomShipSellers` (end of `CreateAgents`, so each time a
+  bar is generated) gives a visitor `AgentOffer.SellShip` (11) at `lounge.chance` % in systems of `lounge.systemRace`
+  (-1 any), from campaign `minCampaign` (free play: rank `minRank`), not at 101 / 108 / the supernova system, unless the
+  player flies or stores the ship; it replaces the last generic visitor that isn't a diplomat or the wingmen offer (or
+  joins a bar under 5). Chat: the seller's lines 768-774 with the ship + the trade-in cost (Extra "loungeShipTradeIn"),
+  "Let me see it" = the ship details, 873, then the dealer's rules (`Hangar.CanBuyShipFor` / `BuyShipFor`: price minus
+  the current ship's value, gear moved over, 336 / 329 / 203; the seller keeps the old hull and its mods; with the club
+  owned 327 Sell / Keep, Keep = `KeepAndBuyShipFor`: full price, the old hull stored, 328), toast 303, plate "Merchant".
+  The Kaamo Club stays as in the original (no dealer; `Shop.EnterStation` clears a 108 dealer list a test build saved).
+- **Models** go in `Assets/Models/custom/` (`AssetImport.cs`: file units, no 180 deg turn, no materials; `*_nrm` normal maps,
+  `*_metallic_smoothness` / metal / rough linear). **GoF2 > Build Custom Ships** (`CustomShipBuilder`) scales the hull to
+  `modelLength` game units nose to tail (turn it with `modelYaw` if the nose isn't +Z), makes URP Lit materials
+  (`Materials/custom/`), the player engine glow at the slot-3 mounts (the Phantom's glow shape on mat_34813, mesh in
+  `Prefabs/custom/`; no NPC engine parts, like 55-63), culls at 80000 units, writes
+  `Resources/Assembled/custom/ships/{assembly}.prefab` (its name must start `ship_NNN_` for `Database.ShipAssembly`) and the
+  icon `GoF2Icons/ship_NNN.png` (`ItemIconBuilder.WriteShipIcon`, the model rendered on the ship plate), then rebuilds the
+  text icons and hangar heights. `CustomShipAutoBuild` runs it by itself after a script reload and before every player
+  build when a prefab or icon is missing or older than custom_ships.json / its model (without the prefab the ship flies
+  as its exhaust particles alone). Mount positions are game units, ship-relative (Unity = (-x, y, z) x 0.05).
+- **64 Jedi Starfighter** (Terran, lounge sellers in Terran systems, 12 %, from campaign 32 / rank 12): 480 hull, 40 t, 4 / 2 / 0 / 13 slots, handling 160 (the most agile hull),
+  4 150 000 (Default 8 300 000). Model `Models/custom/ships/jedi-star-fighter` (source `source/model.7z`; ~189k triangles,
+  one LOD; the canopy's alpha map is unused, so the glass is opaque like the game's hulls). Model by Petri Liuhto
+  (Sketchfab), credited with its link in the About text (`AboutText.ThirdParty`); a new custom model gets its credit there too.
 
 ## Space scene
 

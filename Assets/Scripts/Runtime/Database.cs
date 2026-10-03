@@ -90,6 +90,39 @@ namespace GoF2Remake.Data
     [System.Serializable] public class WeaponMount { public int slotType; public int[] position_engine; public float[] turretAngles; }
     [System.Serializable] public class WeaponMountSet { public int ship; public string shipName; public List<WeaponMount> mounts; }
 
+    /// <summary>A remake-only ship from Resources/GoF2Data/custom_ships.json (see CustomShips): a ships.json entry plus what
+    /// the original keeps in its fixed tables (race, hangar height) and the weapon mounts. The model fields are read
+    /// by "GoF2 > Build Custom Ships", which makes the assembled prefab Resources/Assembled/custom/ships/{assembly}.</summary>
+    [System.Serializable] public class CustomShipData : ShipData
+    {
+        public int race = -1;              // 0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirate, 9 void (Shop.ShipRace)
+        public int priceDefault;           // the Default Economy's price (0 = the same as 'price')
+        public int hangarHeight = 250;     // StationTables.ShipY: pivot height above the hangar floor, game units
+        public string assembly;            // the prefab's name; must start with "ship_NNN_" (Database.ShipAssembly)
+        public List<WeaponMount> mounts;   // like weapons_hd.json: slotType 0 primary, 1 secondary, 2 turret, 3 exhaust
+        // Editor only (GoF2 > Build Custom Ships):
+        public string model;               // FBX path relative to Assets
+        public float modelLength = 1000f;  // nose to tail in game units (0.05 m each) after scaling
+        public float modelYaw;             // degrees about Unity y, when the model's nose doesn't face +Z
+        public float engineGlowRadius = 24f;   // game units, the glow disc at each exhaust mount
+        public List<CustomShipMaterial> materials;
+        public CustomLoungeSeller lounge;  // a lounge visitor who sells it (AgentGenerator.AddCustomShipSellers); null = none
+    }
+
+    /// <summary>When a lounge may have a visitor selling a custom ship (AgentOffer.SellShip): each time a station's bar is
+    /// generated (Generator::createAgents: a station not among the last 3 visited), 'chance' % in systems of 'systemRace'
+    /// (-1 = any), from campaign step 'minCampaign' (free play: from rank 'minRank'), unless the player flies or stores it.</summary>
+    [System.Serializable] public class CustomLoungeSeller
+    {
+        public int systemRace = -1;
+        public int minCampaign;
+        public int minRank;
+        public int chance = 10;
+    }
+
+    /// <summary>A URP Lit material for the renderers whose name contains 'mesh' (paths relative to Assets).</summary>
+    [System.Serializable] public class CustomShipMaterial { public string mesh, diffuse, normal, metallicSmoothness; public float smoothness = 1f; }
+
     /// <summary>One assembled prefab (assemblies.json): Resources/Assembled/{pack}/{category}/{name}.prefab.</summary>
     [System.Serializable] public class AssemblyData
     {
@@ -208,7 +241,35 @@ namespace GoF2Remake.Data
                 if (item != null && a.keys != null) { item.attrKeys = a.keys; item.attrValues = a.values; }
             }
             if (Session.Economy == Economy.Default) db.ApplyDefaultEconomy(resourceFolder);
+            db.AddCustomShips(resourceFolder);
             return db;
+        }
+
+        /// <summary>The remake's own ships (custom_ships.json) after the original 64: their stats (the Default Economy
+        /// price when that economy is on), assembled prefab entry and weapon mounts.</summary>
+        void AddCustomShips(string folder)
+        {
+            foreach (var c in ReadCustomShips(folder))
+            {
+                if (c == null) continue;
+                if (Ship(c.index) != null) { Debug.LogWarning($"Database: custom ship {c.index} ({c.name}) clashes with an existing ship"); continue; }
+                if (Economy == Economy.Default && c.priceDefault > 0) c.price = c.priceDefault;
+                c.handlingMultiplier = c.handling / 100f;
+                if (c.slots == null) c.slots = new ShipSlots();
+                Ships.Add(c);
+                if (!string.IsNullOrEmpty(c.assembly) && AssemblyByName(c.assembly) == null)
+                    Assemblies.Add(new AssemblyData { name = c.assembly, pack = "custom", category = "ships", origin = "custom_ships.json" });
+                if (c.mounts != null && c.mounts.Count > 0)
+                    WeaponMounts.Add(new WeaponMountSet { ship = c.index, shipName = c.name, mounts = c.mounts });
+            }
+        }
+
+        /// <summary>custom_ships.json, a fresh copy per call (Load changes the prices by economy).</summary>
+        public static List<CustomShipData> ReadCustomShips(string folder = "GoF2Data")
+        {
+            var ta = Resources.Load<TextAsset>(folder + "/" + CustomShips.FileName);
+            if (ta == null) return new List<CustomShipData>();
+            return JsonUtility.FromJson<Wrapper<List<CustomShipData>>>("{\"list\":" + ta.text + "}").list ?? new List<CustomShipData>();
         }
 
         public ItemData Item(int index) => index >= 0 && index < Items.Count && Items[index].index == index ? Items[index] : Items.Find(i => i.index == index);

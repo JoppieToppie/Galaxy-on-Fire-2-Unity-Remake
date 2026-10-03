@@ -33,14 +33,6 @@ MonoBehaviour:
   m_UpscalerPriority:
   - upscalerId: unity.stp
     upscalerName: Spatial-Temporal Post-Processing
-  - upscalerId: nvidia.dlss4
-    upscalerName: Deep Learning Super Sampling 4
-  - upscalerId: amd.fsr4
-    upscalerName: FidelityFX Super Resolution 4
-  - upscalerId: amd.fsr3
-    upscalerName: FidelityFX Super Resolution 3
-  - upscalerId: amd.fsr2
-    upscalerName: FidelityFX Super Resolution 2
   - upscalerId: amd.fsr1
     upscalerName: FidelityFX Super Resolution 1.0
   - upscalerId: unity.auto
@@ -120,38 +112,38 @@ MonoBehaviour:
       m_Keys: []
       m_Values: 
   m_PrefilteringModeMainLightShadows: 3
-  m_PrefilteringModeAdditionalLight: 4
-  m_PrefilteringModeAdditionalLightShadows: 0
-  m_PrefilterXRKeywords: 1
-  m_PrefilteringModeForwardPlus: 1
+  m_PrefilteringModeAdditionalLight: 0
+  m_PrefilteringModeAdditionalLightShadows: 2
+  m_PrefilterXRKeywords: 0
+  m_PrefilteringModeForwardPlus: 2
   m_PrefilteringModeDeferredRendering: 0
   m_PrefilteringModeScreenSpaceOcclusion: 1
-  m_PrefilteringModeScreenSpaceReflection: 1
+  m_PrefilteringModeScreenSpaceReflection: 0
   m_PrefilterWriteSmoothness: 1
   m_PrefilterDebugKeywords: 1
-  m_PrefilterWriteRenderingLayers: 0
+  m_PrefilterWriteRenderingLayers: 1
   m_PrefilterHDROutput: 1
-  m_PrefilterAlphaOutput: 0
+  m_PrefilterAlphaOutput: 1
   m_PrefilterSSAOKeywords: 0
   m_PrefilterDBufferMRT1: 1
   m_PrefilterDBufferMRT2: 1
-  m_PrefilterDBufferMRT3: 0
-  m_PrefilterSoftShadowsQualityLow: 0
-  m_PrefilterSoftShadowsQualityMedium: 0
-  m_PrefilterSoftShadowsQualityHigh: 0
+  m_PrefilterDBufferMRT3: 1
+  m_PrefilterSoftShadowsQualityLow: 1
+  m_PrefilterSoftShadowsQualityMedium: 1
+  m_PrefilterSoftShadowsQualityHigh: 1
   m_PrefilterSoftShadows: 0
   m_PrefilterScreenCoord: 1
-  m_PrefilterScreenSpaceIrradiance: 0
+  m_PrefilterScreenSpaceIrradiance: 1
   m_PrefilterNativeRenderPass: 1
   m_PrefilterUseLegacyLightmaps: 0
-  m_PrefilterBicubicLightmapSampling: 0
+  m_PrefilterBicubicLightmapSampling: 1
   m_PrefilterReflectionProbeRotation: 0
   m_PrefilterReflectionProbeBlending: 0
   m_PrefilterReflectionProbeBoxProjection: 0
   m_PrefilterReflectionProbeAtlas: 0
-  m_PrefilterPointSamplingUpsampling: 0
-  m_PrefilterExposure: 0
-  m_PrefilterVolumetricFog: 0
+  m_PrefilterPointSamplingUpsampling: 1
+  m_PrefilterExposure: 1
+  m_PrefilterVolumetricFog: 1
   m_Light2DPrefilteringMode: 0
   m_Light2DKeptVariantCombos: []
   m_ShaderVariantLogLevel: 0

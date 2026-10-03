@@ -20,7 +20,8 @@ namespace GoF2Remake.Data
     public static class AgentOffer
     {
         public const int Mission = 0, SmallTalk = 1, SellItem = 2, SellBlueprint = 3, SellSystem = 4, Purchase = 5,
-                         Wingmen = 6, Diplomat = 7, SellMod = 8, KaamoSpecial = 9, ShipDealer = 10;
+                         Wingmen = 6, Diplomat = 7, SellMod = 8, KaamoSpecial = 9, ShipDealer = 10,
+                         SellShip = 11;   // remake: a custom ship's lounge seller (custom_ships.json "lounge"), sold on trade-in
     }
 
     /// <summary>Mission types (Mission::getName = text 354 + type).</summary>
@@ -95,7 +96,8 @@ namespace GoF2Remake.Data
         public int sellItem = -1, sellQuantity, sellPrice;
         /// <summary>Agent+0x5c / +0x60 / +0x84: a story agent's system coordinates / blueprint / mod for sale.</summary>
         public int sellSystem = -1, sellBlueprint = -1, sellMod = -1;
-        /// <summary>Offer 10 (agent 26, the Kaamo Club's dealer): the ship on offer (-1 = none left).</summary>
+        /// <summary>Offer 10 (agent 26, the Kaamo Club's dealer) and 11 (a custom ship's seller): the ship on offer (-1 = none
+        /// left); its price in sellPrice.</summary>
         public int sellShip = -1;
         /// <summary>Agent+0x58: wingmen / diplomat price.</summary>
         public int costs;

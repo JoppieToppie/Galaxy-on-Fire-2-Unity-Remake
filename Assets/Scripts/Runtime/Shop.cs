@@ -46,8 +46,11 @@ namespace GoF2Remake.Data
                 case 45: case 46: return -1;
                 case 48: return 8;
             }
-            return ship >= 0 && ship < ShipRace.Length ? ShipRace[ship] : -1;
+            return ship >= 0 && ship < ShipRace.Length ? ShipRace[ship] : CustomShips.Get(ship)?.race ?? -1;
         }
+
+        /// <summary>ShipRace for every ship: the original table, then the custom ships' own race (-1 = none).</summary>
+        public static int RaceOfShip(int ship) => ship >= 0 && ship < ShipRace.Length ? ShipRace[ship] : CustomShips.Get(ship)?.race ?? -1;
 
         /// <summary>DAT_00254930 (Item::canBeInstalledMultipleTimes): categories a ship can mount only once.</summary>
         static readonly HashSet<int> OnePerShip = new HashSet<int> { 8, 9, 10, 13, 14, 15, 16, 17, 18, 19, 21, 26, 27, 28, 29, 33, 35, 37, 38, 41 };
@@ -185,7 +188,7 @@ namespace GoF2Remake.Data
             var s = db.Ship(ship);
             if (s == null) return 0;
             int race = RaceOfSystem(db, SystemOf(db, station));
-            return ship < ShipRace.Length && ShipRace[ship] == race ? (int)(s.price * 0.99f) : s.price;
+            return RaceOfShip(ship) == race ? (int)(s.price * 0.99f) : s.price;
         }
 
         // ---- docking: stock kept for the last 3 stations ------------------------------------------------------
@@ -213,6 +216,8 @@ namespace GoF2Remake.Data
                 }
             }
             if (stock.agents == null || (stock.agents.Count == 0 && station != 108)) stock.agents = AgentGenerator.CreateAgents(db, station);   // saves from before the bar
+            // The Kaamo Club never has a dealer (getShipBuyList); a save from a test build that gave it one is cleared.
+            if (station == 108 && stock.ships != null) stock.ships.Clear();
             // Status::departStation: at the owned club the storage is the station's stock (one shared list here).
             if (KaamoClub.StorageAt(station)) stock.items = Session.KaamoItems;
             Freelance.OnEnterStation(stock);

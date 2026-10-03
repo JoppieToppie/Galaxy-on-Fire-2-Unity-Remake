@@ -613,7 +613,7 @@ namespace GoF2Remake.UI
                 detailName.text = ItemInfo.ShipName(selected.ship);
                 detailSub.text = ItemInfo.ShipRaceText(selected.ship);
                 if (s != null) foreach (var (label, value) in ItemInfo.ShipStats(s, hangar.ShipPrice(selected.ship))) AddStat(label, value);
-                detailText.text = T(977 + selected.ship);
+                detailText.text = ItemInfo.ShipDescription(selected.ship);
                 if (selected.kind == RowKind.ShopShip)
                 {
                     int delta = hangar.ShipPrice(selected.ship) - hangar.ShipPrice(Session.ShipIndex);

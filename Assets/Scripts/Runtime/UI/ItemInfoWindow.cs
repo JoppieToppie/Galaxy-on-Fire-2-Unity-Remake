@@ -216,8 +216,8 @@ namespace GoF2Remake.UI
             Row(T(269), (s.slots.equipment + (mine && Session.HasMod(2) ? 1 : 0)) + Plus(2), Cmp(s.slots.equipment, cur?.slots.equipment ?? 0));
             Row(T(164), (Mathf.RoundToInt(s.handling) + (mine && Session.HasMod(3) ? 20 : 0)) + Plus(3), Cmp(s.handling, cur?.handling ?? 0));
             if (showPrice) Row(T(132), ItemInfo.Credits(price));
-            text.text = T(977 + ship);
-            ShowPreview(db, ship, ship < Shop.ShipRace.Length ? Shop.ShipRace[ship] : 0);   // the model by the original's race (freighters)
+            text.text = ItemInfo.ShipDescription(ship);
+            ShowPreview(db, ship, Mathf.Max(0, Shop.RaceOfShip(ship)));   // the model by the original's race (freighters)
         }
 
         public void Close()

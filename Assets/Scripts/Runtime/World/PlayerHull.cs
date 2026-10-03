@@ -111,7 +111,7 @@ namespace GoF2Remake.World
                 if (a == null) continue;   // 50, 53: no model
                 string name = i == 13 ? string.Format(X("debugHullFreighter", "{0} freighter"), RaceName(1))
                             : i == 14 ? X("cheatBattleship", "Terran battleship")
-                            : Localization.Get(913 + i);
+                            : CustomShips.ShipName(i);
                 if (string.IsNullOrEmpty(name) || name == "-") name = ship.name;
                 // Every ship with a model is the player's somewhere (dealers, the story's loaners, Kaamo) but the freighter 13 and
                 // the battleship 14 (and 15 above).

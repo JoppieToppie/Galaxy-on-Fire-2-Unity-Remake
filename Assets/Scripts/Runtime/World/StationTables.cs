@@ -34,7 +34,8 @@ namespace GoF2Remake.World
             440, 340, 170, 470, 170, 170, 170, 170, 200, 170, 250, 150, 170, 250, 270, 170,
         };
 
-        public static float ShipY(int ship) => ship >= 0 && ship < ShipHeight.Length ? ShipHeight[ship] : 250f;
+        public static float ShipY(int ship) => ship >= 0 && ship < ShipHeight.Length ? ShipHeight[ship]
+                                              : GoF2Remake.Data.CustomShips.Get(ship)?.hangarHeight ?? 250f;   // remake: custom_ships.json
 
         // ---- remake: lifted off the pad where the hull would cut into it (hangar_heights.json, GoF2 > Build Hangar Heights) ----
 

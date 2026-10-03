@@ -154,7 +154,37 @@ namespace GoF2Remake.Data
                 var a = agents.Find(x => x.offer == AgentOffer.Mission && x.HasMission && x.mission.reward < 50000);
                 if (a != null) a.mission.reward = Math.Min(a.mission.reward * 10, 50000);
             }
+            AddCustomShipSellers(db, station, agents);
             return agents;
+        }
+
+        /// <summary>Remake: a custom ship's lounge seller (custom_ships.json "lounge", AgentOffer.SellShip). A visitor of the
+        /// ship's race (Terran rules for gender) takes the place of the last generic visitor that offers neither a diplomat's
+        /// nor the bar's wingmen deal, or joins a bar with room. Not at the Kaamo Club, the battlestation or in the evacuated
+        /// supernova system.</summary>
+        static void AddCustomShipSellers(Database db, int station, List<Agent> agents)
+        {
+            if (station == 108 || station == 101 || Shop.InSupernovaSystem(SystemOf(db, station), station)) return;
+            int systemRace = Sys(db, SystemOf(db, station))?.raceId ?? -1;
+            foreach (var c in CustomShips.All)
+            {
+                var l = c.lounge;
+                if (l == null || db.Ship(c.index) == null) continue;
+                if (l.systemRace >= 0 && l.systemRace != systemRace) continue;
+                if (Session.FreePlay ? Session.Rank < l.minRank : Session.CampaignMission < l.minCampaign) continue;
+                if (Session.ShipIndex == c.index || KaamoClub.HasShip(c.index)) continue;
+                if (R(100) >= l.chance) continue;
+                int race = c.race >= 0 && c.race <= 7 ? c.race : 0;
+                bool male = race == 0 ? R(100) < 60 : true;   // only Terrans can be female
+                var seller = new Agent
+                {
+                    name = RandomName(race, male), race = race, male = male, station = station, offer = AgentOffer.SellShip,
+                    portrait = CreatePortrait(male, race), sellShip = c.index, sellPrice = Shop.ShipPrice(db, c.index, station),
+                };
+                int i = agents.FindLastIndex(x => !x.IsStory && x.offer != AgentOffer.Diplomat && x.offer != AgentOffer.Wingmen);
+                if (agents.Count >= 5 && i >= 0) agents[i] = seller;
+                else if (agents.Count < 5) agents.Add(seller);
+            }
         }
 
         /// <summary>SpaceLounge::startChat, diplomat: int(|standing axis| / 100 * 16000).</summary>

@@ -75,18 +75,52 @@ namespace GoF2Remake.EditorTools
             }
 
             AssetDatabase.Refresh();
-            foreach (var path in written)
+            foreach (var path in written) ConfigureIcon(path);
+            Debug.Log($"GoF2: {written.Count} item / ship icons in {OutDir}." +
+                      (GoF2Remake.Data.CustomShips.All.Count > 0 ? " The custom ships' icons come from GoF2 > Build Custom Ships." : ""));
+        }
+
+        static void ConfigureIcon(string path)
+        {
+            var ti = (TextureImporter)AssetImporter.GetAtPath(path);
+            if (ti == null) return;
+            ti.textureType = TextureImporterType.Default;
+            ti.mipmapEnabled = false;
+            ti.alphaIsTransparency = true;
+            ti.wrapMode = TextureWrapMode.Clamp;
+            ti.npotScale = TextureImporterNPOTScale.None;
+            ti.SaveAndReimport();
+        }
+
+        /// <summary>Remake: a custom ship's icon (CustomShipBuilder): the ships' blue plate frame (the first ship entry's
+        /// frameImageId) with 'icon' (w x h, bottom-up rows) centred on it, written as ship_NNN.png.</summary>
+        public static void WriteShipIcon(int ship, Color32[] icon, int w, int h)
+        {
+            var canvas = new Color32[PadW * PadH];
+            if (File.Exists(JsonPath))
             {
-                var ti = (TextureImporter)AssetImporter.GetAtPath(path);
-                if (ti == null) continue;
-                ti.textureType = TextureImporterType.Default;
-                ti.mipmapEnabled = false;
-                ti.alphaIsTransparency = true;
-                ti.wrapMode = TextureWrapMode.Clamp;
-                ti.npotScale = TextureImporterNPOTScale.None;
-                ti.SaveAndReimport();
+                var file = JsonUtility.FromJson<IconFile>(File.ReadAllText(JsonPath));
+                var shipEntry = file.entries.Find(e => e.kind == "ship" && e.index >= 0);
+                var frame = shipEntry == null ? null : file.entries.Find(e => e.kind == "ui" && e.imageId == shipEntry.frameImageId);
+                string atlas = frame == null ? null : Path.Combine(AtlasDir, frame.atlas);
+                if (atlas != null && File.Exists(atlas))
+                {
+                    var t = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                    t.LoadImage(File.ReadAllBytes(atlas));
+                    Blend(canvas, new Pixels { data = t.GetPixels32(), width = t.width, height = t.height }, frame.rect);
+                    Object.DestroyImmediate(t);
+                }
             }
-            Debug.Log($"GoF2: {written.Count} item / ship icons in {OutDir}.");
+            Blend(canvas, new Pixels { data = icon, width = w, height = h }, new[] { 0, 0, w, h });
+            var o = new Texture2D(PadW, PadH, TextureFormat.RGBA32, false);
+            o.SetPixels32(canvas);
+            o.Apply();
+            Directory.CreateDirectory(OutDir);
+            string path = $"{OutDir}/ship_{ship:000}.png";
+            File.WriteAllBytes(path, o.EncodeToPNG());
+            Object.DestroyImmediate(o);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            ConfigureIcon(path);
         }
 
         class Pixels { public Color32[] data; public int width, height; }

@@ -22,12 +22,16 @@ namespace GoF2Remake.EditorTools
         public const string Root = "Assets";
         /// <summary>Meters per GoF unit. Must match ShipController.metersPerUnit (default 0.05).</summary>
         public const float ModelScale = 0.05f;
+        /// <summary>The remake's own models (custom_ships.json): imported in their file units, unflipped, own materials.</summary>
+        public const string CustomModels = Root + "/Models/custom/";
+        public static bool IsCustom(string assetPath) => assetPath.StartsWith(CustomModels);
     }
 
     public class ImportPostprocessor : AssetPostprocessor
     {
         void OnPreprocessTexture()
         {
+            if (ImportSettings.IsCustom(assetPath)) { PreprocessCustomTexture(); return; }
             if (!assetPath.StartsWith(ImportSettings.Root + "/Textures/")) return;
             var ti = (TextureImporter)assetImporter;
             string name = Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
@@ -85,8 +89,45 @@ namespace GoF2Remake.EditorTools
             return true;
         }
 
+        /// <summary>Custom ship textures (PBR sets): *_nrm / *_normal = normal maps, the metallic / smoothness masks linear.</summary>
+        void PreprocessCustomTexture()
+        {
+            var ti = (TextureImporter)assetImporter;
+            string name = System.IO.Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
+            ti.mipmapEnabled = true;
+            ti.maxTextureSize = 2048;
+            ti.textureCompression = TextureImporterCompression.CompressedHQ;
+            if (name.EndsWith("_nrm") || name.EndsWith("_normal") || name.Contains("_normal_")) ti.textureType = TextureImporterType.NormalMap;
+            else
+            {
+                ti.textureType = TextureImporterType.Default;
+                bool mask = name.Contains("metallic_smoothness") || name.EndsWith("_metal") || name.EndsWith("_rough") || name.EndsWith("_alpha");
+                ti.sRGBTexture = !mask;
+                ti.alphaSource = TextureImporterAlphaSource.FromInput;
+            }
+        }
+
+        /// <summary>Custom ship models keep their file units (the builder scales the hull to its modelLength) and their
+        /// facing; materials come from custom_ships.json.</summary>
+        void PreprocessCustomModel()
+        {
+            var mi = (ModelImporter)assetImporter;
+            mi.globalScale = 1f;
+            mi.useFileScale = true;
+            mi.materialImportMode = ModelImporterMaterialImportMode.None;
+            mi.importAnimation = false;
+            mi.importCameras = false;
+            mi.importLights = false;
+            mi.importNormals = ModelImporterNormals.Import;
+            mi.importTangents = ModelImporterTangents.CalculateMikk;
+            mi.indexFormat = ModelImporterIndexFormat.Auto;
+            mi.meshCompression = ModelImporterMeshCompression.Off;
+            mi.isReadable = false;
+        }
+
         void OnPreprocessModel()
         {
+            if (ImportSettings.IsCustom(assetPath)) { PreprocessCustomModel(); return; }
             if (!assetPath.StartsWith(ImportSettings.Root + "/Models/")) return;
             var mi = (ModelImporter)assetImporter;
             mi.globalScale = ImportSettings.ModelScale;
@@ -126,7 +167,7 @@ namespace GoF2Remake.EditorTools
 
         void OnPostprocessModel(GameObject root)
         {
-            if (!assetPath.StartsWith(ImportSettings.Root + "/Models/")) return;
+            if (!assetPath.StartsWith(ImportSettings.Root + "/Models/") || ImportSettings.IsCustom(assetPath)) return;
             var r = Quaternion.Euler(0f, 180f, 0f);
             var ri = Quaternion.Inverse(r);
 

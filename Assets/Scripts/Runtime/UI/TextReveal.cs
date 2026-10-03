@@ -422,6 +422,7 @@ namespace GoF2Remake.UI
                     Add(item, $"item_{db.Items[i].index:000}", !single);
                 }
                 for (int i = 0; i < db.Ships.Count && i < 64; i++) Add(Localization.Get(913 + i), $"ship_{i:000}", false);
+                foreach (var c in CustomShips.All) Add(CustomShips.ShipName(c.index), $"ship_{c.index:000}", false);
                 // Equipment categories: the icon of a first item of the category (not the commodities; ore cores = "core").
                 var firstOf = new Dictionary<int, int>();
                 foreach (var it in db.Items) if (!firstOf.ContainsKey(it.categoryId)) firstOf[it.categoryId] = it.index;
@@ -514,6 +515,7 @@ namespace GoF2Remake.UI
             {
                 for (int i = 0; i < db.Items.Count; i++) Scan(Localization.Get(1274 + i));
                 for (int i = 0; i < db.Ships.Count && i < 64; i++) Scan(Localization.Get(913 + i));
+                foreach (var c in CustomShips.All) Scan(CustomShips.ShipName(c.index));
                 foreach (var st in db.Stations) Scan(st.name);
                 foreach (var sy in db.Systems) Scan(sy.name);
             }
@@ -627,6 +629,7 @@ namespace GoF2Remake.UI
                 foreach (var st in db.Stations) Add(st.name, Place);
                 foreach (var sy in db.Systems) Add(sy.name, Place);
                 for (int i = 0; i < db.Ships.Count && i < 64; i++) Add(Localization.Get(913 + i), Thing);   // 977+ = descriptions
+                foreach (var c in CustomShips.All) Add(CustomShips.ShipName(c.index), Thing);
                 var lower = LowerCaseWords();
                 for (int i = 0; i < db.Items.Count; i++)
                 {

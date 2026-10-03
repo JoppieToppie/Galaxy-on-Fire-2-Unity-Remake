@@ -25,7 +25,6 @@ namespace GoF2Remake.EditorTools
     public static class HangarHeightsBuilder
     {
         const string OutPath = "Assets/Resources/GoF2Data/hangar_heights.json";
-        const int Ships = 64;
         const float Cell = 0.6f;       // m, the hull-bottom grid
         const float DropFrom = 12f;    // m above the table pivot where the drop starts
         const float MinLift = 0.02f;   // m; less is left at the table height
@@ -39,8 +38,9 @@ namespace GoF2Remake.EditorTools
             {
                 var physics = scene.GetPhysicsScene();
                 var bottoms = new Dictionary<int, Vector3[]>();
-                for (int i = 0; i < Ships; i++)
+                foreach (var ship in db.Ships)   // the original 64 and the custom ships (custom_ships.json)
                 {
+                    int i = ship.index;
                     if (i == 14) continue;   // the debug battleship (x2) never parks and doesn't fit the rooms
                     var pts = HullBottom(db, i, scene);
                     if (pts != null && pts.Length > 0) bottoms[i] = pts;

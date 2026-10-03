@@ -282,6 +282,50 @@ namespace GoF2Remake.Data
             }
         }
 
+        // ---- remake: a lounge seller's ship (AgentOffer.SellShip) ---------------------------------------------------
+        // Like the dealer's trade-in, at the seller's 'price': the seller keeps the old hull (no dealer row takes it, and
+        // its mods go with it); with the Kaamo Club owned "Keep" sends it there and the new ship costs the full price.
+
+        public Result CanBuyShipFor(int ship, int price, out int need)
+        {
+            need = 0;
+            if (Session.Passengers > 0) return Result.Passengers;   // 336
+            if (ship == Session.ShipIndex) return Result.SameShip;
+            int cost = Cheats.FreeShopping ? 0 : price - ShipPrice(Session.ShipIndex);
+            if (Session.Credits < cost) { need = cost - Session.Credits; return Result.NoCredits; }
+            return Result.Ok;
+        }
+
+        public bool BuyShipFor(int ship, int price)
+        {
+            if (CanBuyShipFor(ship, price, out _) != Result.Ok) return false;
+            if (!Cheats.FreeShopping) ChangeCredits(ShipPrice(Session.ShipIndex) - price);
+            SwitchTo(ship, null);
+            return true;
+        }
+
+        public Result CanKeepAndBuyShipFor(int ship, int price, out int need)
+        {
+            need = 0;
+            if (Session.Passengers > 0) return Result.Passengers;
+            if (ship == Session.ShipIndex) return Result.SameShip;
+            if (KaamoClub.HasShip(Session.ShipIndex)) return Result.AlreadyStored;   // 328
+            int cost = Cheats.FreeShopping ? 0 : price;
+            if (Session.Credits < cost) { need = cost - Session.Credits; return Result.NoCredits; }
+            return Result.Ok;
+        }
+
+        public bool KeepAndBuyShipFor(int ship, int price)
+        {
+            if (CanKeepAndBuyShipFor(ship, price, out _) != Result.Ok) return false;
+            int old = Session.ShipIndex;
+            var oldMods = Session.ShipMods;
+            if (!Cheats.FreeShopping) ChangeCredits(-price);
+            SwitchTo(ship, null);
+            KaamoClub.Store(old, 0, oldMods);
+            return true;
+        }
+
         // ---- Kaamo Club ------------------------------------------------------------------------------------------
 
         /// <summary>327 -> 331 "Keep": the old hull goes to the club, the new one costs its full price.</summary>
