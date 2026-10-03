@@ -181,7 +181,8 @@ namespace GoF2Remake.Data
                     name = RandomName(race, male), race = race, male = male, station = station, offer = AgentOffer.SellShip,
                     portrait = CreatePortrait(male, race), sellShip = c.index, sellPrice = Shop.ShipPrice(db, c.index, station),
                 };
-                int i = agents.FindLastIndex(x => !x.IsStory && x.offer != AgentOffer.Diplomat && x.offer != AgentOffer.Wingmen);
+                // Not another custom ship's seller either (two in one bar: both stay).
+                int i = agents.FindLastIndex(x => !x.IsStory && x.offer != AgentOffer.Diplomat && x.offer != AgentOffer.Wingmen && x.offer != AgentOffer.SellShip);
                 if (agents.Count >= 5 && i >= 0) agents[i] = seller;
                 else if (agents.Count < 5) agents.Add(seller);
             }

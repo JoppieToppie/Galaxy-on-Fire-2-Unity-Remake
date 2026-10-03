@@ -1638,6 +1638,11 @@ MonoBehaviour:
     m_Unicode: 57655
     m_GlyphIndex: 311
     m_Scale: 1
+    m_Name: ship_065
+  - m_ElementType: 2
+    m_Unicode: 57656
+    m_GlyphIndex: 312
+    m_Scale: 1
     m_Name: heart
   m_SpriteGlyphTable:
   - m_Index: 0
@@ -6625,6 +6630,22 @@ MonoBehaviour:
       m_HorizontalAdvance: 68
     m_GlyphRect:
       m_X: 1472
+      m_Y: 0
+      m_Width: 64
+      m_Height: 64
+    m_Scale: 1
+    m_AtlasIndex: 0
+    m_ClassDefinitionType: 0
+    sprite: {fileID: 0}
+  - m_Index: 312
+    m_Metrics:
+      m_Width: 64
+      m_Height: 64
+      m_HorizontalBearingX: 2
+      m_HorizontalBearingY: 51
+      m_HorizontalAdvance: 68
+    m_GlyphRect:
+      m_X: 1536
       m_Y: 0
       m_Width: 64
       m_Height: 64

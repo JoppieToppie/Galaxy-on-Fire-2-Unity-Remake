@@ -116,6 +116,7 @@ namespace GoF2Remake.EditorTools
             mi.useFileScale = true;
             mi.materialImportMode = ModelImporterMaterialImportMode.None;
             mi.importAnimation = false;
+            mi.importBlendShapes = false;   // an empty blend shape deformer (the Sovereign's) would make a SkinnedMeshRenderer
             mi.importCameras = false;
             mi.importLights = false;
             mi.importNormals = ModelImporterNormals.Import;

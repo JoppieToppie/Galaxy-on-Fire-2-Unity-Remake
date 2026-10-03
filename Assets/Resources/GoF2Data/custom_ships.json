@@ -44,5 +44,74 @@
                 "smoothness": 1
             }
         ]
+    },
+    {
+        "index": 65,
+        "name": "USS Enterprise NCC-1701-E",
+        "description": "A Terran flagship of a design no shipyard in the galaxy recognises: a broad elliptical saucer over a slender engineering hull, its two long nacelles running the length of the stern and glowing blue as the engines spool up. Heavily armoured and with a hold big enough for a freighter's cargo, it handles like the battleship it is. Its registry reads NCC-1701-E, and the crew who sold it would not say where they found it.",
+        "race": 0,
+        "armor": 1000,
+        "cargo": 1000,
+        "price": 30000000,
+        "priceDefault": 30000000,
+        "slots": { "primary": 4, "secondary": 4, "turret": 0, "equipment": 20 },
+        "handling": 60,
+        "handlingMultiplier": 0.6,
+        "hangarHeight": 170,
+        "lounge": { "systemRace": 0, "minCampaign": 36, "minRank": 14, "chance": 8 },
+        "assembly": "ship_065_uss_enterprise_e",
+        "mounts": [
+            { "slotType": 0, "position_engine": [ -229, 9, 1098 ] },
+            { "slotType": 0, "position_engine": [ 229, 9, 1098 ] },
+            { "slotType": 0, "position_engine": [ -365, 9, 875 ] },
+            { "slotType": 0, "position_engine": [ 365, 9, 875 ] },
+            { "slotType": 1, "position_engine": [ -32, -6, 998 ] },
+            { "slotType": 1, "position_engine": [ 32, -6, 998 ] },
+            { "slotType": 1, "position_engine": [ -64, -74, 319 ] },
+            { "slotType": 1, "position_engine": [ 64, -74, 319 ] }
+        ],
+        "model": "Models/custom/ships/star-trek-sovereign-class/source/Sovereign Class.fbx",
+        "modelLength": 2400,
+        "modelYaw": 180,
+        "materials": [
+            {
+                "submesh": 0,
+                "diffuse": "Models/custom/ships/star-trek-sovereign-class/textures/Sovereign_Class_diffuse_1.png",
+                "metallicSmoothness": "Models/custom/ships/star-trek-sovereign-class/textures/Sovereign_Class_metallic_smoothness_1.png",
+                "emission": "Models/custom/ships/star-trek-sovereign-class/textures/Sovereign_Class_lum_1.png",
+                "emissionIntensity": 1.5,
+                "smoothness": 1
+            },
+            {
+                "submesh": 1,
+                "diffuse": "Models/custom/ships/star-trek-sovereign-class/textures/Sovereign_Class_decals.png",
+                "alphaClip": 0.5,
+                "smoothness": 0.3
+            },
+            {
+                "submesh": 2,
+                "diffuse": "Models/custom/ships/star-trek-sovereign-class/textures/Sovereign_Class_diffuse_2.png",
+                "metallicSmoothness": "Models/custom/ships/star-trek-sovereign-class/textures/Sovereign_Class_metallic_smoothness_2.png",
+                "emission": "Models/custom/ships/star-trek-sovereign-class/textures/Sovereign_Class_lum_2_steady.png",
+                "emissionIntensity": 1.5,
+                "smoothness": 1
+            },
+            {
+                "submesh": 3,
+                "diffuse": "Models/custom/ships/star-trek-sovereign-class/textures/Sovereign_Class_diffuse_3.png",
+                "emission": "Models/custom/ships/star-trek-sovereign-class/textures/Sovereign_Class_lum_3.png",
+                "emissionIntensity": 1.5,
+                "smoothness": 0.3
+            }
+        ],
+        "throttleGlow": {
+            "submesh": 2,
+            "mask": "Models/custom/ships/star-trek-sovereign-class/textures/Sovereign_Class_warp_glow_2.png",
+            "color": [ 0.55, 0.8, 1.0 ],
+            "idle": 0.35,
+            "full": 4.5,
+            "boost": 7.5,
+            "offset": 2
+        }
     }
 ]

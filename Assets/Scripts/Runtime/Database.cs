@@ -106,6 +106,7 @@ namespace GoF2Remake.Data
         public float modelYaw;             // degrees about Unity y, when the model's nose doesn't face +Z
         public float engineGlowRadius = 24f;   // game units, the glow disc at each exhaust mount
         public List<CustomShipMaterial> materials;
+        public CustomThrottleGlow throttleGlow;   // a glow on part of the hull that follows the throttle (no mask = none)
         public CustomLoungeSeller lounge;  // a lounge visitor who sells it (AgentGenerator.AddCustomShipSellers); null = none
     }
 
@@ -120,8 +121,27 @@ namespace GoF2Remake.Data
         public int chance = 10;
     }
 
-    /// <summary>A URP Lit material for the renderers whose name contains 'mesh' (paths relative to Assets).</summary>
-    [System.Serializable] public class CustomShipMaterial { public string mesh, diffuse, normal, metallicSmoothness; public float smoothness = 1f; }
+    /// <summary>A URP Lit material for the renderers whose name contains 'mesh' (empty = any) and, when 'submesh' >= 0,
+    /// only for that submesh (one FBX mesh with several materials); paths relative to Assets. 'emission' is an emission map
+    /// (x emissionIntensity), 'alphaClip' > 0 cuts the diffuse's alpha below it (decals).</summary>
+    [System.Serializable] public class CustomShipMaterial
+    {
+        public string mesh, diffuse, normal, metallicSmoothness, emission;
+        public int submesh = -1;
+        public float smoothness = 1f, emissionIntensity = 1f, alphaClip;
+    }
+
+    /// <summary>A custom ship's throttle-driven glow (CustomShipBuilder.BuildThrottleGlow, ThrottleGlow at run time): the
+    /// hull triangles of 'submesh' (-1 = all) whose UVs touch the lit part of 'mask' (paths relative to Assets), copied
+    /// 'offset' game units out along their normals and drawn additive with the mask, tinted 'color' (RGB); the glow
+    /// intensity runs from 'idle' (throttle 0) to 'full' (throttle 100 %) and up to 'boost' while boosting.</summary>
+    [System.Serializable] public class CustomThrottleGlow
+    {
+        public int submesh = -1;
+        public string mask;
+        public float[] color;
+        public float idle = 0.35f, full = 4f, boost = 7f, offset = 0.5f;
+    }
 
     /// <summary>One assembled prefab (assemblies.json): Resources/Assembled/{pack}/{category}/{name}.prefab.</summary>
     [System.Serializable] public class AssemblyData

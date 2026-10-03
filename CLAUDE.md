@@ -163,10 +163,28 @@ fields for the builder, and `lounge`: who sells it). `Database.Load` appends the
   text icons and hangar heights. `CustomShipAutoBuild` runs it by itself after a script reload and before every player
   build when a prefab or icon is missing or older than custom_ships.json / its model (without the prefab the ship flies
   as its exhaust particles alone). Mount positions are game units, ship-relative (Unity = (-x, y, z) x 0.05).
+  Material entries match renderers by `mesh` (name part, empty = any) and, with `submesh` >= 0, one submesh of a
+  multi-material FBX mesh (the builder logs each submesh's triangle count to check the order); `emission` (+
+  `emissionIntensity`) is an emission map, `alphaClip` > 0 cuts decals out. Custom models import without blend shapes.
+- **No exhaust mounts = no flame**: neither the engine glow nor `ShipExhaust`'s particles. `throttleGlow` (`CustomThrottleGlow`)
+  instead lights part of the hull: the triangles of its `submesh` under the lit part of its `mask` are copied `offset`
+  game units out along their normals (`Prefabs/custom/{assembly}_throttle_glow.asset`), GoF2/Additive with the mask
+  (`Materials/custom/{assembly}_throttle_glow.mat`), a player engine part (hidden with the engines); `ThrottleGlow` sets
+  `_Glow` per frame: `idle` at throttle 0 (and braking), `full` at 100 %, up to `boost` while boosting; copies without
+  a `ShipController` (NPCs, other players, the hangar) go by their moved speed against `FlightModel.BaseSpeed`.
 - **64 Jedi Starfighter** (Terran, lounge sellers in Terran systems, 12 %, from campaign 32 / rank 12): 480 hull, 40 t, 4 / 2 / 0 / 13 slots, handling 160 (the most agile hull),
   4 150 000 (Default 8 300 000). Model `Models/custom/ships/jedi-star-fighter` (source `source/model.7z`; ~189k triangles,
   one LOD; the canopy's alpha map is unused, so the glass is opaque like the game's hulls). Model by Petri Liuhto
-  (Sketchfab), credited with its link in the About text (`AboutText.ThirdParty`); a new custom model gets its credit there too.
+  (Sketchfab, CC BY-NC 4.0; modified), credited with its link in the About text (`AboutText.ThirdParty`); a new custom model gets its credit there too.
+- **65 USS Enterprise NCC-1701-E** (Terran, lounge sellers in Terran systems, 8 %, from campaign 36 / rank 14): 1000 hull,
+  1000 t, 4 / 4 / 0 / 20 slots, handling 60, 30 000 000 in both economies. Model `Models/custom/ships/star-trek-sovereign-class`
+  (`source/Sovereign Class.fbx`, one mesh, submeshes 0 diffuse_1 / 1 decals / 2 diffuse_2 / 3 diffuse_3; ~30k triangles;
+  saucer toward file -z, so `modelYaw` 180), 2400 game units long (the biggest player hull: the original's largest
+  bounding radius is ~1265). Primaries on the front half of the saucer rim, secondaries under the saucer's nose and
+  beside the deflector. No exhaust: `throttleGlow` on the blue warp nacelle grilles (`textures/Sovereign_Class_warp_glow_2.png`
+  = the blue of `lum_2`; the hull's own emission uses `lum_2_steady`, `lum_2` without it). The metallic / smoothness
+  masks were made from the model's spec maps (no normal maps came with it). Model by Wholock (Sketchfab, CC BY 4.0; textures modified), credited with
+  its link in the About text.
 
 ## Space scene
 

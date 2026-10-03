@@ -1,14 +1,19 @@
 // CustomShipBuilder.cs  (Editor only)
 // Menu "GoF2/Build Custom Ships": the remake's own ships (Resources/GoF2Data/custom_ships.json, see CustomShips) from
 // their source models, the way AssemblyBuilder makes the original ones:
-//   - one URP Lit material per entry of 'materials' (Assets/Materials/custom/{assembly}_{mesh}.mat): diffuse, normal map,
-//     metallic (R) / smoothness (A) mask, like the game's bump-mapped hulls (PrefabBuilder.CreateMaterial);
+//   - one URP Lit material per entry of 'materials' (Assets/Materials/custom/{assembly}_{mesh or submesh}.mat): diffuse,
+//     normal map, metallic (R) / smoothness (A) mask, like the game's bump-mapped hulls (PrefabBuilder.CreateMaterial),
+//     optionally an emission map and alpha clipping (decals); an entry with 'submesh' >= 0 goes on that submesh only
+//     (one FBX mesh with several materials);
 //   - Resources/Assembled/custom/ships/{assembly}.prefab: an AssembledObject root, the model as "hull" turned by modelYaw
 //     and scaled to modelLength game units nose to tail, and the player's engine glow (playerVariantParts, like
 //     *_engine_glow_add) built at every exhaust mount (slotType 3): the Phantom's glow shape (ship_010_terran_engine_glow_add:
 //     a 12-segment disc and a flared ring 0.87 r behind it, radius x1.31) on the shared glow sprite (mat_34813,
-//     ship_engine_glow.png, centre uv (0.46, 0.947)); no NPC engine parts (like the Kaamo ships 55-63); one LOD level culled
-//     at 80000 units like the generic ships;
+//     ship_engine_glow.png, centre uv (0.46, 0.947)); a ship with no exhaust mounts has no flame at all (ShipExhaust makes
+//     its particles from the same mounts); 'throttleGlow' adds a glow on the hull itself instead (BuildThrottleGlow: the
+//     triangles under the lit part of a mask, additive, its strength set by ThrottleGlow from the throttle), also a
+//     player engine part; no NPC engine parts (like the Kaamo ships 55-63); one LOD level culled at 80000 units like the
+//     generic ships;
 //   - the shop icon Resources/GoF2Icons/ship_NNN.png (ItemIconBuilder.WriteShipIcon: the ship plate's frame + the model
 //     rendered nose to the lower left like the original icons);
 // then runs Build Text Icons (the dialogue's inline ship icon) and Build Hangar Heights (the parking lifts).
@@ -97,20 +102,27 @@ namespace GoF2Remake.EditorTools
                 var renderers = hull.GetComponentsInChildren<Renderer>(true);
                 foreach (var r in renderers)
                 {
-                    var m = MaterialFor(c, mats, r.name);
-                    if (m != null) r.sharedMaterials = Enumerable.Repeat(m, Mathf.Max(1, r.sharedMaterials.Length)).ToArray();
+                    var mesh = MeshOf(r);
+                    int count = Mathf.Max(1, mesh != null ? mesh.subMeshCount : r.sharedMaterials.Length);
+                    var assigned = new Material[count];
+                    for (int i = 0; i < count; i++) assigned[i] = MaterialFor(c, mats, r.name, i);
+                    if (assigned.Any(m => m != null)) r.sharedMaterials = assigned;
+                    if (mesh != null && mesh.subMeshCount > 1)
+                        Debug.Log($"GoF2: custom ship {c.index}: {r.name} submeshes (triangles): " +
+                                  string.Join(", ", Enumerable.Range(0, mesh.subMeshCount).Select(i => $"{i} ({mesh.GetSubMesh(i).indexCount / 3})")));
                 }
                 // Scale to modelLength (game units) along the ship's length (Unity z).
                 float length = BoundsIn(root.transform, renderers).size.z;
                 if (length > 0f) hull.transform.localScale *= c.modelLength * ImportSettings.ModelScale / length;
 
+                // The player's engine parts: the exhaust glow (its first part, ShipExhaust watches it), the throttle glow.
+                var parts = new List<GameObject>();
                 var glow = BuildEngineGlow(c);
-                if (glow != null)
-                {
-                    glow.transform.SetParent(root.transform, false);
-                    asm.playerVariantParts = new[] { glow };
-                }
-                else asm.playerVariantParts = new GameObject[0];
+                if (glow != null) parts.Add(glow);
+                var throttleGlow = BuildThrottleGlow(c, root.transform, renderers);
+                if (throttleGlow != null) parts.Add(throttleGlow);
+                foreach (var p in parts) p.transform.SetParent(root.transform, false);
+                asm.playerVariantParts = parts.ToArray();
                 asm.npcVariantParts = new GameObject[0];
                 asm.conditionalParts = new GameObject[0];
                 asm.conditions = new string[0];
@@ -135,9 +147,9 @@ namespace GoF2Remake.EditorTools
             var b = new Bounds();
             foreach (var r in renderers)
             {
-                var mf = r.GetComponent<MeshFilter>();
-                if (mf == null || mf.sharedMesh == null) continue;
-                var mb = mf.sharedMesh.bounds;
+                var mesh = MeshOf(r);
+                if (mesh == null) continue;
+                var mb = mesh.bounds;
                 var m = root.worldToLocalMatrix * r.transform.localToWorldMatrix;
                 for (int i = 0; i < 8; i++)
                 {
@@ -148,13 +160,25 @@ namespace GoF2Remake.EditorTools
             return b;
         }
 
-        static Material MaterialFor(CustomShipData c, List<Material> mats, string rendererName)
+        /// <summary>The renderer's mesh (a MeshFilter's, or a skinned mesh's).</summary>
+        static Mesh MeshOf(Renderer r) => r is SkinnedMeshRenderer s ? s.sharedMesh : r.GetComponent<MeshFilter>()?.sharedMesh;
+
+        /// <summary>The entry for submesh 'submesh' of the renderer 'rendererName': one naming that submesh first, else
+        /// the first for every submesh (submesh -1); its 'mesh' must be part of the renderer's name (empty = any).
+        /// Otherwise the first material.</summary>
+        static Material MaterialFor(CustomShipData c, List<Material> mats, string rendererName, int submesh)
         {
             if (c.materials == null || mats.Count == 0) return null;
             string n = rendererName.ToLowerInvariant();
+            int any = -1;
             for (int i = 0; i < c.materials.Count; i++)
-                if (!string.IsNullOrEmpty(c.materials[i].mesh) && n.Contains(c.materials[i].mesh.ToLowerInvariant())) return mats[i];
-            return mats[0];
+            {
+                var e = c.materials[i];
+                if (!string.IsNullOrEmpty(e.mesh) && !n.Contains(e.mesh.ToLowerInvariant())) continue;
+                if (e.submesh == submesh) return mats[i];
+                if (e.submesh < 0 && any < 0) any = i;
+            }
+            return mats[any >= 0 ? any : 0];
         }
 
         static List<Material> BuildMaterials(CustomShipData c)
@@ -165,7 +189,8 @@ namespace GoF2Remake.EditorTools
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             foreach (var e in c.materials)
             {
-                string path = $"{MaterialDir}/{c.assembly}_{e.mesh}.mat";
+                string part = !string.IsNullOrEmpty(e.mesh) ? e.mesh : e.submesh >= 0 ? $"submesh{e.submesh}" : "hull";
+                string path = $"{MaterialDir}/{c.assembly}_{part}.mat";
                 var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
                 bool create = mat == null;
                 if (create) mat = new Material(shader) { name = Path.GetFileNameWithoutExtension(path) };
@@ -185,6 +210,29 @@ namespace GoF2Remake.EditorTools
                 mat.SetFloat("_Metallic", ms != null ? 1f : 0f);
                 mat.SetFloat("_Smoothness", e.smoothness);   // with the mask: its alpha x this
                 mat.SetFloat("_SmoothnessTextureChannel", 0f); // metallic alpha
+                // Emission map (lights, windows), x emissionIntensity.
+                var em = Tex(e.emission);
+                if (em == null && !string.IsNullOrEmpty(e.emission)) Debug.LogWarning($"GoF2: custom ship {c.index}: Assets/{e.emission} not found");
+                mat.SetTexture("_EmissionMap", em);
+                if (em != null)
+                {
+                    mat.EnableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", new Color(e.emissionIntensity, e.emissionIntensity, e.emissionIntensity, 1f));
+                    mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                }
+                else
+                {
+                    mat.DisableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", Color.black);
+                    mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+                }
+                // Alpha clipping (decal sheets: the diffuse's alpha cuts them out).
+                bool clip = e.alphaClip > 0f;
+                mat.SetFloat("_AlphaClip", clip ? 1f : 0f);
+                mat.SetFloat("_Cutoff", clip ? e.alphaClip : 0.5f);
+                if (clip) mat.EnableKeyword("_ALPHATEST_ON"); else mat.DisableKeyword("_ALPHATEST_ON");
+                mat.SetOverrideTag("RenderType", clip ? "TransparentCutout" : "Opaque");
+                mat.renderQueue = clip ? (int)RenderQueue.AlphaTest : -1;
                 if (create) AssetDatabase.CreateAsset(mat, path); else EditorUtility.SetDirty(mat);
                 list.Add(mat);
             }
@@ -254,6 +302,108 @@ namespace GoF2Remake.EditorTools
             return go;
         }
 
+        // ---- throttle glow --------------------------------------------------------------------------------------
+
+        const float GlowMaskThreshold = 0.08f;   // a triangle joins the glow where its mask is brighter than this
+
+        /// <summary>'throttleGlow': the hull triangles (of its submesh) whose corners or centre sample the mask above
+        /// GlowMaskThreshold, in the root's space (after the hull's scaling), pushed 'offset' game units out along their
+        /// normals so they don't z-fight the hull; GoF2/Additive with the mask as its texture, ThrottleGlow sets the
+        /// strength. Null without a mask.</summary>
+        static GameObject BuildThrottleGlow(CustomShipData c, Transform root, Renderer[] renderers)
+        {
+            var tg = c.throttleGlow;   // JsonUtility always makes one: no mask = none
+            if (tg == null || string.IsNullOrEmpty(tg.mask)) return null;
+            string maskPath = ImportSettings.Root + "/" + tg.mask;
+            var maskTex = AssetDatabase.LoadAssetAtPath<Texture2D>(maskPath);
+            if (maskTex == null || !File.Exists(maskPath)) { Debug.LogWarning($"GoF2: custom ship {c.index}: throttle glow mask Assets/{tg.mask} not found"); return null; }
+            var shader = Shader.Find("GoF2/Additive");
+            if (shader == null) { Debug.LogWarning("GoF2: shader GoF2/Additive missing: no throttle glow"); return null; }
+
+            // The mask's pixels from the file (the imported texture isn't readable).
+            var pixels = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            var verts = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            try
+            {
+                if (!pixels.LoadImage(File.ReadAllBytes(maskPath))) { Debug.LogWarning($"GoF2: custom ship {c.index}: can't read Assets/{tg.mask}"); return null; }
+                float Lit(Vector2 uv) { var p = pixels.GetPixelBilinear(uv.x, uv.y); return Mathf.Max(p.r, Mathf.Max(p.g, p.b)); }
+                float offset = tg.offset * ImportSettings.ModelScale;
+                foreach (var r in renderers)
+                {
+                    var mesh = MeshOf(r);
+                    if (mesh == null) continue;
+                    var mv = mesh.vertices;
+                    var mn = mesh.normals;
+                    var mu = mesh.uv;
+                    if (mu == null || mu.Length != mv.Length) continue;
+                    bool hasNormals = mn != null && mn.Length == mv.Length;
+                    var m = root.worldToLocalMatrix * r.transform.localToWorldMatrix;
+                    for (int s = 0; s < mesh.subMeshCount; s++)
+                    {
+                        if (tg.submesh >= 0 && s != tg.submesh) continue;
+                        var t = mesh.GetTriangles(s);
+                        for (int i = 0; i + 2 < t.Length; i += 3)
+                        {
+                            Vector2 a = mu[t[i]], b = mu[t[i + 1]], d = mu[t[i + 2]];
+                            if (Mathf.Max(Mathf.Max(Lit(a), Lit(b)), Mathf.Max(Lit(d), Lit((a + b + d) / 3f))) <= GlowMaskThreshold) continue;
+                            for (int k = 0; k < 3; k++)
+                            {
+                                int v = t[i + k];
+                                var n = hasNormals ? m.MultiplyVector(mn[v]).normalized : Vector3.zero;
+                                verts.Add(m.MultiplyPoint3x4(mv[v]) + n * offset);
+                                normals.Add(n);
+                                uvs.Add(mu[v]);
+                            }
+                        }
+                    }
+                }
+            }
+            finally { Object.DestroyImmediate(pixels); }
+            if (verts.Count == 0) { Debug.LogWarning($"GoF2: custom ship {c.index}: no hull triangle under the throttle glow mask (submesh {tg.submesh})"); return null; }
+
+            var glowMesh = new Mesh { name = c.assembly + "_throttle_glow" };
+            if (verts.Count > 65535) glowMesh.indexFormat = IndexFormat.UInt32;
+            glowMesh.SetVertices(verts);
+            glowMesh.SetNormals(normals);
+            glowMesh.SetUVs(0, uvs);
+            glowMesh.SetTriangles(Enumerable.Range(0, verts.Count).ToArray(), 0);
+            glowMesh.RecalculateBounds();
+            Directory.CreateDirectory(MeshDir);
+            string meshPath = $"{MeshDir}/{glowMesh.name}.asset";
+            var old = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
+            if (old != null) { EditorUtility.CopySerialized(glowMesh, old); Object.DestroyImmediate(glowMesh); glowMesh = old; EditorUtility.SetDirty(old); }
+            else AssetDatabase.CreateAsset(glowMesh, meshPath);
+
+            var tint = tg.color != null && tg.color.Length >= 3 ? new Color(tg.color[0], tg.color[1], tg.color[2], 1f) : Color.white;
+            Directory.CreateDirectory(MaterialDir);
+            string matPath = $"{MaterialDir}/{c.assembly}_throttle_glow.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            bool create = mat == null;
+            if (create) mat = new Material(shader) { name = Path.GetFileNameWithoutExtension(matPath) };
+            else mat.shader = shader;
+            mat.SetTexture("_MainTex", maskTex);
+            mat.SetColor("_Color", tint);
+            mat.SetFloat("_Glow", tg.idle);
+            mat.SetFloat("_UseVertexColor", 0f);
+            mat.DisableKeyword("_USEVERTEXCOLOR_ON");
+            if (create) AssetDatabase.CreateAsset(mat, matPath); else EditorUtility.SetDirty(mat);
+
+            var go = new GameObject("throttle_glow");
+            go.AddComponent<MeshFilter>().sharedMesh = glowMesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = mat;
+            mr.shadowCastingMode = ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+            var g = go.AddComponent<ThrottleGlow>();
+            g.color = tint;
+            g.idle = tg.idle;
+            g.full = tg.full;
+            g.boost = tg.boost;
+            return go;
+        }
+
         // ---- shop icon ------------------------------------------------------------------------------------------
 
         /// <summary>The model in a preview scene, orthographic, nose to the lower left and seen from above its left side
@@ -304,10 +454,10 @@ namespace GoF2Remake.EditorTools
                 var v = cam.transform.worldToLocalMatrix;
                 foreach (var r in renderers)
                 {
-                    var mf = r.GetComponent<MeshFilter>();
-                    if (mf == null || mf.sharedMesh == null) continue;
+                    var mesh = MeshOf(r);
+                    if (mesh == null) continue;
                     var m = v * r.transform.localToWorldMatrix;
-                    foreach (var p in mf.sharedMesh.vertices.Where((_, i) => i % 7 == 0))
+                    foreach (var p in mesh.vertices.Where((_, i) => i % 7 == 0))
                     {
                         var q = m.MultiplyPoint3x4(p);
                         minX = Mathf.Min(minX, q.x); maxX = Mathf.Max(maxX, q.x); minY = Mathf.Min(minY, q.y); maxY = Mathf.Max(maxY, q.y);
