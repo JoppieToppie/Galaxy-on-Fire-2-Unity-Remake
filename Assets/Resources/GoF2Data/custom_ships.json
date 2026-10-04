@@ -111,7 +111,386 @@
             "idle": 0.35,
             "full": 4.5,
             "boost": 7.5,
-            "offset": 2
+            "offset": 2,
+            "trailWidth": 60,
+            "trailTime": 0.7,
+            "trailBrightness": 0.15
         }
+    },
+    {
+        "index": 66,
+        "name": "USS Enterprise NCC-1701-D",
+        "description": "An older Terran flagship from the same unknown yards as the Enterprise-E: a vast flat saucer, a deep engineering hull with a glowing deflector dish, and two nacelles whose grilles burn electric blue with the engines. Its broad saucer gives it more room than any fighter could need, and its armour is as heavy as its handling is slow. The registry reads NCC-1701-D; the crew who sold it called it a ship of the line and would say no more.",
+        "race": 0,
+        "armor": 1000,
+        "cargo": 1000,
+        "price": 30000000,
+        "priceDefault": 30000000,
+        "slots": { "primary": 4, "secondary": 4, "turret": 0, "equipment": 20 },
+        "handling": 60,
+        "handlingMultiplier": 0.6,
+        "hangarHeight": 400,
+        "lounge": { "systemRace": 0, "minCampaign": 36, "minRank": 14, "chance": 8 },
+        "assembly": "ship_066_uss_enterprise_d",
+        "mounts": [
+            { "slotType": 0, "position_engine": [ -517, -4, 1073 ] },
+            { "slotType": 0, "position_engine": [ 517, -4, 1073 ] },
+            { "slotType": 0, "position_engine": [ -802, -4, 795 ] },
+            { "slotType": 0, "position_engine": [ 802, -4, 795 ] },
+            { "slotType": 1, "position_engine": [ -71, -16, 990 ] },
+            { "slotType": 1, "position_engine": [ 71, -16, 990 ] },
+            { "slotType": 1, "position_engine": [ -143, -307, -98 ] },
+            { "slotType": 1, "position_engine": [ 143, -307, -98 ] }
+        ],
+        "model": "Models/custom/ships/star-trek-galaxy-class/Enterprise-D.fbx",
+        "modelLength": 2400,
+        "modelYaw": 0,
+        "materials": [
+            {
+                "mesh": "Hull_Mat_Upper_Saucer",
+                "diffuse": "Models/custom/ships/star-trek-galaxy-class/textures/SaucerUpper_albedo.png",
+                "normal": "Models/custom/ships/star-trek-galaxy-class/textures/SaucerUpper_nrm.png",
+                "metallicSmoothness": "Models/custom/ships/star-trek-galaxy-class/textures/SaucerUpper_metallic_smoothness.png",
+                "emission": "Models/custom/ships/star-trek-galaxy-class/textures/SaucerUpper_windows.png",
+                "emissionIntensity": 1.1,
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/star-trek-galaxy-class/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/star-trek-galaxy-class/textures/brushed_metal_nrm.png",
+                "detailTiling": 24,
+                "detailNormalScale": 0.6
+            },
+            {
+                "mesh": "Hull_Mat_Lower_Saucer",
+                "diffuse": "Models/custom/ships/star-trek-galaxy-class/textures/SaucerLower_albedo.png",
+                "normal": "Models/custom/ships/star-trek-galaxy-class/textures/SaucerLower_nrm.png",
+                "metallicSmoothness": "Models/custom/ships/star-trek-galaxy-class/textures/SaucerLower_metallic_smoothness.png",
+                "emission": "Models/custom/ships/star-trek-galaxy-class/textures/SaucerLower_windows.png",
+                "emissionIntensity": 1.1,
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/star-trek-galaxy-class/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/star-trek-galaxy-class/textures/brushed_metal_nrm.png",
+                "detailTiling": 24,
+                "detailNormalScale": 0.6
+            },
+            {
+                "mesh": "Hull_Mat_E_Section",
+                "diffuse": "Models/custom/ships/star-trek-galaxy-class/textures/EHull_albedo.png",
+                "normal": "Models/custom/ships/star-trek-galaxy-class/textures/EHull_nrm.png",
+                "metallicSmoothness": "Models/custom/ships/star-trek-galaxy-class/textures/EHull_metallic_smoothness.png",
+                "emission": "Models/custom/ships/star-trek-galaxy-class/textures/EHull_windows.png",
+                "emissionIntensity": 1.1,
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/star-trek-galaxy-class/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/star-trek-galaxy-class/textures/brushed_metal_nrm.png",
+                "detailTiling": 24,
+                "detailNormalScale": 0.6
+            },
+            {
+                "mesh": "Grey_Highlights",
+                "color": [ 0.36, 0.38, 0.43 ],
+                "metallic": 0.45,
+                "smoothness": 0.36,
+                "detailAlbedo": "Models/custom/ships/star-trek-galaxy-class/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/star-trek-galaxy-class/textures/brushed_metal_nrm.png",
+                "detailTiling": 24,
+                "detailNormalScale": 0.6
+            },
+            {
+                "mesh": "warp_vent_blue",
+                "color": [ 0.25, 0.6, 1.0 ],
+                "emissionColor": [ 0.3, 0.65, 1.0 ],
+                "emissionIntensity": 1.375,
+                "smoothness": 0.85
+            },
+            {
+                "mesh": "Bussard_Scoop_Glass",
+                "color": [ 0.7, 0.07, 0.03 ],
+                "emissionColor": [ 0.75, 0.1, 0.05 ],
+                "emissionIntensity": 1.4,
+                "smoothness": 0.9
+            },
+            {
+                "mesh": "Bussard_Light_Type_1",
+                "color": [ 0.7, 0.07, 0.03 ],
+                "emissionColor": [ 0.75, 0.1, 0.05 ],
+                "emissionIntensity": 1.8,
+                "smoothness": 0.9
+            },
+            {
+                "mesh": "Bussard_Light_Type_2",
+                "color": [ 0.7, 0.07, 0.03 ],
+                "emissionColor": [ 0.75, 0.1, 0.05 ],
+                "emissionIntensity": 1.8,
+                "smoothness": 0.9
+            },
+            {
+                "mesh": "Impulse_Red_Emit",
+                "color": [ 0.7, 0.07, 0.03 ],
+                "emissionColor": [ 0.75, 0.1, 0.05 ],
+                "emissionIntensity": 1.4,
+                "smoothness": 0.9
+            },
+            {
+                "mesh": "Deflector_Emission",
+                "color": [ 0.15, 0.38, 0.8 ],
+                "emissionColor": [ 0.15, 0.4, 0.85 ],
+                "emissionIntensity": 4.95,
+                "smoothness": 0.9
+            },
+            {
+                "mesh": "Deflector_Glass",
+                "color": [ 0.12, 0.28, 0.7 ],
+                "emissionColor": [ 0.12, 0.3, 0.8 ],
+                "emissionIntensity": 2.18,
+                "smoothness": 0.95
+            },
+            {
+                "mesh": "Deflector_Front_Metal",
+                "color": [ 0.16, 0.18, 0.22 ],
+                "metallic": 0.85,
+                "emissionColor": [ 0.12, 0.3, 0.8 ],
+                "emissionIntensity": 0.38,
+                "smoothness": 0.7
+            },
+            {
+                "mesh": "Deflector_Gold_Metal",
+                "color": [ 0.32, 0.38, 0.5 ],
+                "metallic": 0.9,
+                "emissionColor": [ 0.15, 0.38, 0.85 ],
+                "emissionIntensity": 1.05,
+                "smoothness": 0.7
+            },
+            {
+                "mesh": "Nacelle_Gold_Metal",
+                "color": [ 0.4, 0.41, 0.44 ],
+                "metallic": 0.45,
+                "smoothness": 0.33
+            },
+            {
+                "mesh": "Window_Glass",
+                "color": [ 0.03, 0.05, 0.1 ],
+                "metallic": 0.2,
+                "smoothness": 0.95
+            },
+            {
+                "mesh": "Phaser_Casing",
+                "color": [ 0.45, 0.42, 0.25 ],
+                "metallic": 0.7,
+                "smoothness": 0.5
+            },
+            {
+                "mesh": "Phaser_E_Section",
+                "color": [ 0.25, 0.2, 0.17 ],
+                "metallic": 0.6,
+                "smoothness": 0.5
+            },
+            {
+                "mesh": "Phaser_Saucer_Top",
+                "color": [ 0.25, 0.2, 0.17 ],
+                "metallic": 0.6,
+                "smoothness": 0.5
+            },
+            {
+                "mesh": "Phaser_Saucer_Bottom",
+                "color": [ 0.25, 0.2, 0.17 ],
+                "metallic": 0.6,
+                "smoothness": 0.5
+            },
+            {
+                "mesh": "Lifeboats",
+                "color": [ 0.45, 0.46, 0.48 ],
+                "smoothness": 0.4,
+                "metallic": 0.5
+            },
+            {
+                "mesh": "Transporter_Emitter_Pads",
+                "color": [ 0.4, 0.36, 0.3 ],
+                "emissionColor": [ 1.0, 0.55, 0.15 ],
+                "emissionIntensity": 0.1,
+                "smoothness": 0.5
+            },
+            {
+                "mesh": "RCS",
+                "color": [ 0.42, 0.4, 0.3 ],
+                "smoothness": 0.4
+            },
+            {
+                "mesh": "Red_Decal_Modeled",
+                "color": [ 0.85, 0.05, 0.04 ],
+                "smoothness": 0.4
+            },
+            {
+                "mesh": "yellow_run_light",
+                "color": [ 1.0, 0.8, 0.2 ],
+                "emissionColor": [ 1.0, 0.75, 0.2 ],
+                "emissionIntensity": 1.2,
+                "smoothness": 0.6
+            },
+            {
+                "mesh": "Interior_Deck_Material",
+                "color": [ 0.48, 0.32, 0.21 ],
+                "smoothness": 0.3
+            },
+            {
+                "mesh": "Decals",
+                "diffuse": "Models/custom/ships/star-trek-galaxy-class/textures/Decals_Etc.png",
+                "alphaClip": 0.5,
+                "smoothness": 0.4
+            }
+        ],
+        "throttleGlow": {
+            "mesh": "warp_vent_blue",
+            "mask": "Models/custom/ships/star-trek-galaxy-class/textures/glow_white.png",
+            "color": [ 0.3, 0.65, 1.0 ],
+            "idle": 2.75,
+            "full": 8.25,
+            "boost": 12.9,
+            "offset": 2,
+            "trailWidth": 90,
+            "trailTime": 0.7,
+            "trailBrightness": 0.15
+        }
+    },
+    {
+        "index": 67,
+        "name": "Space Banshee",
+        "description": "A nimble alien fighter of a make no one in the known systems builds: a sweeping armoured shell over a single cockpit, two cannon pods slung beneath the nose and swept wings ending in glowing claws. It turns on a coin and its four cannons hit hard, but there is room for little more than its pilot and a few crates. The Vossk who sell it say they took it from a wreck; nobody believes them.",
+        "race": 1,
+        "armor": 420,
+        "cargo": 30,
+        "price": 4400000,
+        "priceDefault": 8800000,
+        "slots": { "primary": 4, "secondary": 1, "turret": 0, "equipment": 7 },
+        "handling": 150,
+        "handlingMultiplier": 1.5,
+        "hangarHeight": 185,
+        "lounge": { "systemRace": 1, "minCampaign": 30, "minRank": 10, "chance": 10 },
+        "assembly": "ship_067_space_banshee",
+        "mounts": [
+            { "slotType": 0, "position_engine": [ -68, -110, 541 ] },
+            { "slotType": 0, "position_engine": [ 68, -110, 541 ] },
+            { "slotType": 0, "position_engine": [ -68, -95, 541 ] },
+            { "slotType": 0, "position_engine": [ 68, -95, 541 ] },
+            { "slotType": 1, "position_engine": [ 0, -120, 257 ] }
+        ],
+        "model": "Models/custom/ships/halo-space-banshee/space_banshee.fbx",
+        "modelLength": 1100,
+        "modelYaw": 0,
+        "materials": [
+            {
+                "mesh": "Banshee_Body",
+                "diffuse": "Models/custom/ships/halo-space-banshee/textures/banshee_albedo.png",
+                "normal": "Models/custom/ships/halo-space-banshee/textures/banshee_nrm.png",
+                "metallicSmoothness": "Models/custom/ships/halo-space-banshee/textures/banshee_metallic_smoothness.png",
+                "emission": "Models/custom/ships/halo-space-banshee/textures/banshee_glow.png",
+                "emissionIntensity": 2.5,
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_nrm.png",
+                "detailTiling": 10,
+                "detailNormalScale": 0.35
+            },
+            {
+                "mesh": "Banshee_Engine",
+                "diffuse": "Models/custom/ships/halo-space-banshee/textures/banshee_albedo.png",
+                "normal": "Models/custom/ships/halo-space-banshee/textures/banshee_nrm.png",
+                "metallicSmoothness": "Models/custom/ships/halo-space-banshee/textures/banshee_metallic_smoothness.png",
+                "emission": "Models/custom/ships/halo-space-banshee/textures/banshee_glow.png",
+                "emissionIntensity": 2.5,
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_nrm.png",
+                "detailTiling": 10,
+                "detailNormalScale": 0.35
+            },
+            {
+                "mesh": "Banshee_Metal",
+                "diffuse": "Models/custom/ships/halo-space-banshee/textures/banshee_albedo.png",
+                "normal": "Models/custom/ships/halo-space-banshee/textures/banshee_nrm.png",
+                "metallicSmoothness": "Models/custom/ships/halo-space-banshee/textures/banshee_metallic_smoothness.png",
+                "emission": "Models/custom/ships/halo-space-banshee/textures/banshee_glow.png",
+                "emissionIntensity": 2.5,
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_nrm.png",
+                "detailTiling": 10,
+                "detailNormalScale": 0.35
+            },
+            {
+                "mesh": "Banshee_Hull",
+                "diffuse": "Models/custom/ships/halo-space-banshee/textures/banshee_albedo.png",
+                "normal": "Models/custom/ships/halo-space-banshee/textures/banshee_nrm.png",
+                "metallicSmoothness": "Models/custom/ships/halo-space-banshee/textures/banshee_metallic_smoothness.png",
+                "emission": "Models/custom/ships/halo-space-banshee/textures/banshee_glow.png",
+                "emissionIntensity": 2.5,
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_nrm.png",
+                "detailTiling": 10,
+                "detailNormalScale": 0.35
+            },
+            {
+                "mesh": "Banshee_Canopy",
+                "diffuse": "Models/custom/ships/halo-space-banshee/textures/banshee_canopy_albedo.png",
+                "normal": "Models/custom/ships/halo-space-banshee/textures/banshee_nrm.png",
+                "normalScale": 0.3,
+                "metallic": 0.05,
+                "smoothness": 0.96
+            },
+            {
+                "mesh": "Banshee_WingSkin",
+                "diffuse": "Models/custom/ships/halo-space-banshee/textures/space_banshee_albedo.png",
+                "normal": "Models/custom/ships/halo-space-banshee/textures/space_banshee_nrm.png",
+                "metallicSmoothness": "Models/custom/ships/halo-space-banshee/textures/space_banshee_metallic_smoothness.png",
+                "emission": "Models/custom/ships/halo-space-banshee/textures/space_banshee_glow.png",
+                "emissionIntensity": 2.5,
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_nrm.png",
+                "detailTiling": 10,
+                "detailNormalScale": 0.35
+            },
+            {
+                "mesh": "Banshee_WingMetal",
+                "diffuse": "Models/custom/ships/halo-space-banshee/textures/space_banshee_albedo.png",
+                "normal": "Models/custom/ships/halo-space-banshee/textures/space_banshee_nrm.png",
+                "metallicSmoothness": "Models/custom/ships/halo-space-banshee/textures/space_banshee_metallic_smoothness.png",
+                "emission": "Models/custom/ships/halo-space-banshee/textures/space_banshee_glow.png",
+                "emissionIntensity": 2.5,
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_nrm.png",
+                "detailTiling": 10,
+                "detailNormalScale": 0.35
+            }
+        ],
+        "throttleGlow": {
+            "mesh": "Banshee_Hull",
+            "submesh": -1,
+            "mask": "Models/custom/ships/halo-space-banshee/textures/banshee_engine_mask.png",
+            "color": [ 0.3, 0.85, 1.0 ],
+            "idle": 2.75,
+            "full": 8.25,
+            "boost": 12.9,
+            "offset": 1,
+            "trailWidth": 30,
+            "trailTime": 0.6,
+            "trailBrightness": 0.15
+        },
+        "extraGlows": [
+            {
+                "mesh": "Banshee_WingMetal",
+                "submesh": -1,
+                "mask": "Models/custom/ships/halo-space-banshee/textures/banshee_wingtip_mask.png",
+                "color": [ 0.3, 0.85, 1.0 ],
+                "idle": 1.4,
+                "full": 4,
+                "boost": 6,
+                "offset": 1,
+                "trailWidth": 12,
+                "trailTime": 0.45,
+                "trailBrightness": 0.075
+            }
+        ]
     }
 ]

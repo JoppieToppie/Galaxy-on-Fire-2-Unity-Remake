@@ -108,6 +108,44 @@ MonoBehaviour:
   full: 4.5
   boost: 7.5
   response: 4
+  engineState: {fileID: 6026760874762941176}
+  trailPoints:
+  - {x: -15.304695, y: 5.2810636, z: -52.03776}
+  - {x: 15.21514, y: 5.2810636, z: -52.03776}
+  trailWidth: 3
+  trailTime: 0.7
+  trailBrightness: 0.15
+--- !u!1 &6026760874762941176
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8771301452431050816}
+  m_Layer: 0
+  m_Name: engine_state
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8771301452431050816
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6026760874762941176}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8635122968702182340}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8319134526049820551
 GameObject:
   m_ObjectHideFlags: 0
@@ -141,6 +179,7 @@ Transform:
   m_Children:
   - {fileID: 5470378856005575485}
   - {fileID: 8382055163569439635}
+  - {fileID: 8771301452431050816}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &4239501450361013217
@@ -161,7 +200,7 @@ MonoBehaviour:
   lastVisibleDistanceGameUnits: 80000
   explosionPrefab: {fileID: 0}
   playerVariantParts:
-  - {fileID: 3607614082033595120}
+  - {fileID: 6026760874762941176}
   npcVariantParts: []
   conditionalParts: []
   conditions: []

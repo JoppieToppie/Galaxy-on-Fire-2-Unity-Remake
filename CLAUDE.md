@@ -176,9 +176,17 @@ fields for the builder, and `lounge`: who sells it). `Database.Load` appends the
 - **No exhaust mounts = no flame**: neither the engine glow nor `ShipExhaust`'s particles. `throttleGlow` (`CustomThrottleGlow`)
   instead lights part of the hull: the triangles of its `submesh` under the lit part of its `mask` are copied `offset`
   game units out along their normals (`Prefabs/custom/{assembly}_throttle_glow.asset`), GoF2/Additive with the mask
-  (`Materials/custom/{assembly}_throttle_glow.mat`), a player engine part (hidden with the engines); `ThrottleGlow` sets
+  (`Materials/custom/{assembly}_throttle_glow.mat`), never hidden with the engines: an empty `engine_state` is the player
+  engine part instead, and while the game has it off (mining, object docking, cutscenes) the glow sits at `idle`; `ThrottleGlow` sets
   `_Glow` per frame: `idle` at throttle 0 (and braking), `full` at 100 %, up to `boost` while boosting; copies without
   a `ShipController` (NPCs, other players, the hangar) go by their moved speed against `FlightModel.BaseSpeed`.
+  Travelling counts as a full boost (the planet jump `Navigation.Jumping`, a jumpgate / Khador jump `SystemJump.Traveling`;
+  the Khador charge builds up to it). `trailWidth` > 0 (game units; `trailTime` s) adds a trail in the glow's colour from
+  the glow's rear end on each side (the builder's `trailPoints`) while boosting or travelling (TrailRenderer, the glow's
+  material with vertex colours, fading to black, at `trailBrightness` x the glow: 0.15 on 65 / 66 and the Banshee's engines, 0.075 its wing tips); never while docking or leaving a station (the
+  Station scene's hangar flights, the launch fly-in; the arrival after a jump keeps it). Ships 65 (60 wide) and 66 (90) have it.
+  `extraGlows` adds more such glows (each its own mesh / mask / colour / levels / trail; built as `throttle_glow_2`, ... with
+  their own mesh and material assets; all share the one `engine_state`).
 - **64 Jedi Starfighter** (Terran, lounge sellers in Terran systems, 12 %, from campaign 32 / rank 12): 480 hull, 40 t, 4 / 2 / 0 / 13 slots, handling 160 (the most agile hull),
   4 150 000 (Default 8 300 000). Model `Models/custom/ships/jedi-star-fighter` (source `source/model.7z`; ~189k triangles,
   one LOD; the canopy's alpha map is unused, so the glass is opaque like the game's hulls). Model by Petri Liuhto
@@ -192,11 +200,39 @@ fields for the builder, and `lounge`: who sells it). `Database.Load` appends the
   = the blue of `lum_2`; the hull's own emission uses `lum_2_steady`, `lum_2` without it). The metallic / smoothness
   masks were made from the model's spec maps (no normal maps came with it). Model by Wholock (Sketchfab, CC BY 4.0; textures modified), credited with
   its link in the About text.
+- **66 USS Enterprise NCC-1701-D** (the same rules as 65: Terran, lounge sellers, 1000 hull / 1000 t, 4 / 4 / 0 / 20, handling
+  60, 30 000 000): `Models/custom/ships/star-trek-galaxy-class`. `source/` holds the original `Enterprise-D_Blender.blend`
+  (Blender 2.74, ChrisKuhn, Blend Swap 16226, CC BY-NC-SA; credited in the About text and `CREDITS.txt`) and its packed
+  textures; `Enterprise-D.fbx` was converted from it outside Unity (no Blender: a .blend reader + FBX writer; Mirror applied,
+  Edge Split baked into the normals, the interior set left out, nose +Z, cm) as **one mesh per material, named by the
+  material**, so the materials match renderers by name (no submesh order), plus "Decals": the hull / lifeboat / transporter
+  polygons under the decal sheet (registry, stripes, insignia: the .blend's second UV map) 0.8 cm off the hull, alpha-cut.
+  `textures/` = derived maps: hull albedo from the DiffSpec panel masks (dark gunmetal, matched to a TNG-era reference
+  shot), metallic 0.45 / smoothness 0.34-0.41 from the spec mask (brushed metal, + the tiled `brushed_metal_detail` / `_nrm`
+  URP detail maps), normal maps from the height maps (the .blend's "Normal" images are heights), window emission thinned
+  (each window shrunk, about two in three lit). Glows: the warp grilles (`warp_vent_blue`) electric blue (lit at throttle 0 too: idle 2.2), with
+  the throttle glow on that whole mesh (`throttleGlow.mesh`, white mask); bussards and the impulse engines (the same red) (the two spots
+  on the saucer's back, a third at the back of the neck) vibrant red with a steady emission; the deflector's parts each
+  glow blue (the front ring and housing gunmetal with a faint blue). Primaries on the front half of the saucer rim, secondaries under the saucer's nose and beside
+  the deflector. Material options used: `color`, `metallic`, `emissionColor` (no map), `detailAlbedo` / `detailNormal`
+  (`detailTiling`, `detailNormalScale`), `normalScale`, `opacity` (< 1: see-through, premultiplied glass); `*_detail` textures import linear.
 
 ## Space scene
 
 `Space.unity` holds only a camera, two directional lights, post-processing and `SpaceLevel`, which builds the current orbit at startup from `Session.StationIndex` (new game: station 78 Var Hastra, ship 10 Phantom, `Status::resetGame`). Research: `Reference/research/space_level_setup.md`, `space_backdrop.md` (+ `space_backdrop_sim.py`), `space_props.md`.
 
+- **67 Space Banshee** (Vossk, lounge sellers in Vossk systems, 10 %, from campaign 30 / rank 10): 420 hull, 30 t,
+  4 / 1 / 0 / 7 slots, handling 150, 4 400 000 (Default 8 800 000). Model `Models/custom/ships/halo-space-banshee`:
+  `space_banshee.dae` (an Assimp export of a skinned game model; source and license unknown) converted to `space_banshee.fbx`
+  outside Unity (bind pose, skeleton dropped, nose +Z, cm, centred on its bounds; one mesh per material, renamed so no name
+  contains another: Banshee_Body / _Engine / _Metal / _Hull / _Canopy / _WingSkin / _WingMetal). `textures/` = a restyle
+  toward the user's reference shots: the Covenant purple / blue paint recoloured mauve-bronze with grime (luminance from the
+  `_s` maps), bare metal olive-bronze (both brushed metal, lightly polished: metallic ~0.65, smoothness ~0.4-0.55,
+  the Enterprise-D's brushed detail pair x10 at 0.35), the canopy shell solid glossy teal (smoothness 0.96), the illum maps as cyan emission, the `zbump` maps
+  (real normal maps) as `_nrm`. No exhaust: `throttleGlow` on the two engine squares at the back (`banshee_engine_mask.png`,
+  the Enterprise-D's levels, trail 30 wide at 0.15) and an `extraGlows` entry on the wing-tip claw strips (`banshee_wingtip_mask.png`,
+  weaker, trail 12 wide at 0.075). Primaries at the four blue circles on the cannon pods' fronts, the secondary at the light
+  under the nose.
 - **One level = one station orbit.** Station at the origin, the other stations of the system are planets. Visible jumpgate only in the system's `jumpgateStation` orbit.
 - **Empty orbits** (`OrbitLayout.IsEmptyOrbit`, `Status::inEmptyOrbit` 0xb8ee8; no docking, no station target): 102-104, 109, 110, 132-134 always, 111 (Luur) above index 0x5d, 101 (Herjaza, the Valkyrie's orbit) from 0x54 (the battlestation is in the Void then), 78 at index 0 / 1 (the prologue, the rescue, a menu backdrop rolled there); the station's model stays in 27 / 110 / 111 (`Level::createSpace` 0xbc0f6, `OrbitLayout.stationObject`). Free play and sessions read index 20.
 - **Stable layout:** the original's RNG is `java.util.Random` (`JavaRandom`), seeded per station: jumpgates and sky rotation `2 * station` (separate sequences), sun/planets `300 * station`, asteroid count/centre `station`. `OrbitLayout` reproduces the research tables exactly. Everything the original randomises per visit uses `UnityEngine.Random`.

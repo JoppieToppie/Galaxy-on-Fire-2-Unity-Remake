@@ -115,12 +115,24 @@ namespace GoF2Remake.EditorTools
                 float length = BoundsIn(root.transform, renderers).size.z;
                 if (length > 0f) hull.transform.localScale *= c.modelLength * ImportSettings.ModelScale / length;
 
-                // The player's engine parts: the exhaust glow (its first part, ShipExhaust watches it), the throttle glow.
+                // The player's engine parts: the exhaust glow (its first part, ShipExhaust watches it). The throttle glow
+                // stays lit when the game switches the engines off (mining, object docking, cutscenes): it is not one of
+                // them, an empty "engine_state" part is, and while that is off the glow sits at its idle level.
                 var parts = new List<GameObject>();
                 var glow = BuildEngineGlow(c);
                 if (glow != null) parts.Add(glow);
-                var throttleGlow = BuildThrottleGlow(c, root.transform, renderers);
-                if (throttleGlow != null) parts.Add(throttleGlow);
+                // 'throttleGlow' and any 'extraGlows' (e.g. the Space Banshee's engines and wing tips), one engine_state for all.
+                var glowSpecs = new List<CustomThrottleGlow> { c.throttleGlow };
+                if (c.extraGlows != null) glowSpecs.AddRange(c.extraGlows);
+                GameObject engineState = null;
+                for (int gi = 0; gi < glowSpecs.Count; gi++)
+                {
+                    var throttleGlow = BuildThrottleGlow(c, glowSpecs[gi], gi == 0 ? "" : "_" + (gi + 1), root.transform, renderers);
+                    if (throttleGlow == null) continue;
+                    throttleGlow.transform.SetParent(root.transform, false);
+                    if (engineState == null) { engineState = new GameObject("engine_state"); parts.Add(engineState); }
+                    throttleGlow.GetComponent<ThrottleGlow>().engineState = engineState;
+                }
                 foreach (var p in parts) p.transform.SetParent(root.transform, false);
                 asm.playerVariantParts = parts.ToArray();
                 asm.npcVariantParts = new GameObject[0];
@@ -200,24 +212,28 @@ namespace GoF2Remake.EditorTools
                 if (diffuse == null && !string.IsNullOrEmpty(e.diffuse)) Debug.LogWarning($"GoF2: custom ship {c.index}: Assets/{e.diffuse} not found");
                 mat.SetTexture("_BaseMap", diffuse);
                 mat.SetTexture("_MainTex", diffuse);
-                mat.SetColor("_BaseColor", Color.white);
+                mat.SetColor("_BaseColor", Rgb(e.color, Color.white));
                 var nrm = Tex(e.normal);
                 mat.SetTexture("_BumpMap", nrm);
+                mat.SetFloat("_BumpScale", e.normalScale > 0f ? e.normalScale : 1f);   // 0 / missing = 1
                 if (nrm != null) mat.EnableKeyword("_NORMALMAP"); else mat.DisableKeyword("_NORMALMAP");
                 var ms = Tex(e.metallicSmoothness);
                 mat.SetTexture("_MetallicGlossMap", ms);
                 if (ms != null) mat.EnableKeyword("_METALLICSPECGLOSSMAP"); else mat.DisableKeyword("_METALLICSPECGLOSSMAP");
-                mat.SetFloat("_Metallic", ms != null ? 1f : 0f);
+                mat.SetFloat("_Metallic", ms != null ? 1f : e.metallic >= 0f ? e.metallic : 0f);
                 mat.SetFloat("_Smoothness", e.smoothness);   // with the mask: its alpha x this
                 mat.SetFloat("_SmoothnessTextureChannel", 0f); // metallic alpha
-                // Emission map (lights, windows), x emissionIntensity.
+                // Emission: a map (lights, windows) and / or a colour, x emissionIntensity.
                 var em = Tex(e.emission);
                 if (em == null && !string.IsNullOrEmpty(e.emission)) Debug.LogWarning($"GoF2: custom ship {c.index}: Assets/{e.emission} not found");
                 mat.SetTexture("_EmissionMap", em);
-                if (em != null)
+                bool emColor = e.emissionColor != null && e.emissionColor.Length >= 3;
+                if (em != null || emColor)
                 {
+                    var ec = Rgb(e.emissionColor, Color.white) * e.emissionIntensity;
+                    ec.a = 1f;
                     mat.EnableKeyword("_EMISSION");
-                    mat.SetColor("_EmissionColor", new Color(e.emissionIntensity, e.emissionIntensity, e.emissionIntensity, 1f));
+                    mat.SetColor("_EmissionColor", ec);
                     mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
                 }
                 else
@@ -233,11 +249,52 @@ namespace GoF2Remake.EditorTools
                 if (clip) mat.EnableKeyword("_ALPHATEST_ON"); else mat.DisableKeyword("_ALPHATEST_ON");
                 mat.SetOverrideTag("RenderType", clip ? "TransparentCutout" : "Opaque");
                 mat.renderQueue = clip ? (int)RenderQueue.AlphaTest : -1;
+                // See-through (glass): URP Lit transparent, premultiplied alpha so the specular highlights stay at full strength.
+                bool glass = e.opacity > 0f && e.opacity < 1f;
+                mat.SetFloat("_Surface", glass ? 1f : 0f);
+                mat.SetFloat("_Blend", glass ? 1f : 0f);   // 1 = premultiply
+                mat.SetFloat("_SrcBlend", glass ? (float)BlendMode.One : (float)BlendMode.One);
+                mat.SetFloat("_DstBlend", glass ? (float)BlendMode.OneMinusSrcAlpha : (float)BlendMode.Zero);
+                mat.SetFloat("_SrcBlendAlpha", (float)BlendMode.One);
+                mat.SetFloat("_DstBlendAlpha", glass ? (float)BlendMode.OneMinusSrcAlpha : (float)BlendMode.Zero);
+                mat.SetFloat("_ZWrite", glass ? 0f : 1f);
+                if (glass)
+                {
+                    mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    mat.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+                    mat.SetOverrideTag("RenderType", "Transparent");
+                    mat.renderQueue = (int)RenderQueue.Transparent;
+                    var bc = mat.GetColor("_BaseColor"); bc.a = e.opacity; mat.SetColor("_BaseColor", bc);
+                    mat.SetShaderPassEnabled("DepthOnly", false);
+                    mat.SetShaderPassEnabled("ShadowCaster", false);
+                }
+                else
+                {
+                    mat.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                    mat.SetShaderPassEnabled("DepthOnly", true);
+                    mat.SetShaderPassEnabled("ShadowCaster", true);
+                }
+                // URP detail maps (brushed metal etc.), tiled over the UVs.
+                var dAlb = Tex(e.detailAlbedo);
+                var dNrm = Tex(e.detailNormal);
+                mat.SetTexture("_DetailAlbedoMap", dAlb);
+                mat.SetTexture("_DetailNormalMap", dNrm);
+                mat.SetFloat("_DetailAlbedoMapScale", 1f);
+                mat.SetFloat("_DetailNormalMapScale", e.detailNormalScale > 0f ? e.detailNormalScale : 1f);
+                var tiling = new Vector2(e.detailTiling > 0f ? e.detailTiling : 1f, e.detailTiling > 0f ? e.detailTiling : 1f);
+                mat.SetTextureScale("_DetailAlbedoMap", tiling);
+                mat.SetTextureScale("_DetailNormalMap", tiling);
+                if (dAlb != null || dNrm != null) mat.EnableKeyword("_DETAIL_MULX2"); else mat.DisableKeyword("_DETAIL_MULX2");
+                mat.DisableKeyword("_DETAIL_SCALED");
                 if (create) AssetDatabase.CreateAsset(mat, path); else EditorUtility.SetDirty(mat);
                 list.Add(mat);
             }
             return list;
         }
+
+        /// <summary>An RGB triple from custom_ships.json (JsonUtility leaves a missing array empty, not null).</summary>
+        static Color Rgb(float[] v, Color fallback) => v != null && v.Length >= 3 ? new Color(v[0], v[1], v[2], 1f) : fallback;
 
         // ---- engine glow ----------------------------------------------------------------------------------------
 
@@ -310,9 +367,9 @@ namespace GoF2Remake.EditorTools
         /// GlowMaskThreshold, in the root's space (after the hull's scaling), pushed 'offset' game units out along their
         /// normals so they don't z-fight the hull; GoF2/Additive with the mask as its texture, ThrottleGlow sets the
         /// strength. Null without a mask.</summary>
-        static GameObject BuildThrottleGlow(CustomShipData c, Transform root, Renderer[] renderers)
+        static GameObject BuildThrottleGlow(CustomShipData c, CustomThrottleGlow tg, string suffix, Transform root, Renderer[] renderers)
         {
-            var tg = c.throttleGlow;   // JsonUtility always makes one: no mask = none
+            // JsonUtility always makes a throttleGlow: no mask = none
             if (tg == null || string.IsNullOrEmpty(tg.mask)) return null;
             string maskPath = ImportSettings.Root + "/" + tg.mask;
             var maskTex = AssetDatabase.LoadAssetAtPath<Texture2D>(maskPath);
@@ -332,6 +389,7 @@ namespace GoF2Remake.EditorTools
                 float offset = tg.offset * ImportSettings.ModelScale;
                 foreach (var r in renderers)
                 {
+                    if (!string.IsNullOrEmpty(tg.mesh) && !r.name.ToLowerInvariant().Contains(tg.mesh.ToLowerInvariant())) continue;
                     var mesh = MeshOf(r);
                     if (mesh == null) continue;
                     var mv = mesh.vertices;
@@ -363,7 +421,7 @@ namespace GoF2Remake.EditorTools
             finally { Object.DestroyImmediate(pixels); }
             if (verts.Count == 0) { Debug.LogWarning($"GoF2: custom ship {c.index}: no hull triangle under the throttle glow mask (submesh {tg.submesh})"); return null; }
 
-            var glowMesh = new Mesh { name = c.assembly + "_throttle_glow" };
+            var glowMesh = new Mesh { name = c.assembly + "_throttle_glow" + suffix };
             if (verts.Count > 65535) glowMesh.indexFormat = IndexFormat.UInt32;
             glowMesh.SetVertices(verts);
             glowMesh.SetNormals(normals);
@@ -378,7 +436,7 @@ namespace GoF2Remake.EditorTools
 
             var tint = tg.color != null && tg.color.Length >= 3 ? new Color(tg.color[0], tg.color[1], tg.color[2], 1f) : Color.white;
             Directory.CreateDirectory(MaterialDir);
-            string matPath = $"{MaterialDir}/{c.assembly}_throttle_glow.mat";
+            string matPath = $"{MaterialDir}/{c.assembly}_throttle_glow{suffix}.mat";
             var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
             bool create = mat == null;
             if (create) mat = new Material(shader) { name = Path.GetFileNameWithoutExtension(matPath) };
@@ -390,7 +448,7 @@ namespace GoF2Remake.EditorTools
             mat.DisableKeyword("_USEVERTEXCOLOR_ON");
             if (create) AssetDatabase.CreateAsset(mat, matPath); else EditorUtility.SetDirty(mat);
 
-            var go = new GameObject("throttle_glow");
+            var go = new GameObject("throttle_glow" + suffix);
             go.AddComponent<MeshFilter>().sharedMesh = glowMesh;
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = mat;
@@ -401,6 +459,20 @@ namespace GoF2Remake.EditorTools
             g.idle = tg.idle;
             g.full = tg.full;
             g.boost = tg.boost;
+            if (tg.trailWidth > 0f)
+            {
+                // The trails start at the glow's rear end on each side (the rearmost 3 % of its length, averaged per side).
+                float minZ = verts.Min(v => v.z), maxZ = verts.Max(v => v.z);
+                float cut = minZ + (maxZ - minZ) * 0.03f;
+                var rear = verts.Where(v => v.z <= cut).ToList();
+                var points = new List<Vector3>();
+                foreach (var side in new[] { rear.Where(v => v.x < 0f).ToList(), rear.Where(v => v.x >= 0f).ToList() })
+                    if (side.Count > 0) points.Add(new Vector3(side.Average(v => v.x), side.Average(v => v.y), minZ));
+                g.trailPoints = points.ToArray();
+                g.trailWidth = tg.trailWidth * ImportSettings.ModelScale;
+                g.trailTime = tg.trailTime > 0f ? tg.trailTime : 0.6f;
+                g.trailBrightness = tg.trailBrightness > 0f ? tg.trailBrightness : 0.3f;
+            }
             return go;
         }
 

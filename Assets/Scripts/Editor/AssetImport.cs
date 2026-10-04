@@ -101,7 +101,8 @@ namespace GoF2Remake.EditorTools
             else
             {
                 ti.textureType = TextureImporterType.Default;
-                bool mask = name.Contains("metallic_smoothness") || name.EndsWith("_metal") || name.EndsWith("_rough") || name.EndsWith("_alpha");
+                bool mask = name.Contains("metallic_smoothness") || name.EndsWith("_metal") || name.EndsWith("_rough") || name.EndsWith("_alpha")
+                            || name.EndsWith("_detail");   // URP detail albedo: linear, 0.5 = neutral (x2)
                 ti.sRGBTexture = !mask;
                 ti.alphaSource = TextureImporterAlphaSource.FromInput;
             }

@@ -1,0 +1,24 @@
+USS Enterprise NCC-1701-D (Galaxy class) model
+Author:  ChrisKuhn
+Source:  https://blendswap.com/blend/16226
+License: CC BY-NC-SA (Creative Commons Attribution-NonCommercial-ShareAlike)
+
+source/Enterprise-D_Blender.blend is the original download (Blender 2.74).
+
+Changes made for this project:
+- Enterprise-D.fbx was converted from the .blend: the Mirror modifier applied, the Edge Split
+  modifier baked into the normals, the interior set (Interior_Set) left out, the model turned so
+  its nose faces +Z (Y up) and stored in centimetres. The procedural Cycles materials are only
+  approximated (names, base and emission colours, texture links).
+- The images that were packed inside the .blend are in source/textures/, unchanged.
+
+ShareAlike: these converted files, and anything else made from this model, must be shared under
+the same license. NonCommercial: not for commercial use without the author's permission.
+
+In the game (ship 66, custom_ships.json), further changes:
+- Enterprise-D.fbx is now split into one mesh per material (named by the material) and has an
+  extra "Decals" mesh: copies of the hull polygons that carry the decal sheet, lifted slightly,
+  with the decal UVs.
+- textures/ now holds maps derived from the originals (hull albedo, metallic/smoothness, normal
+  maps from the height maps, window emission, a brushed-metal detail pair, a white glow mask and
+  the decal sheet at 2048 px). The original packed images are in source/textures/.

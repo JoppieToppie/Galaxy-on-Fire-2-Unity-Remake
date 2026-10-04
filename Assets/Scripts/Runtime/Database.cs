@@ -107,6 +107,7 @@ namespace GoF2Remake.Data
         public float engineGlowRadius = 24f;   // game units, the glow disc at each exhaust mount
         public List<CustomShipMaterial> materials;
         public CustomThrottleGlow throttleGlow;   // a glow on part of the hull that follows the throttle (no mask = none)
+        public List<CustomThrottleGlow> extraGlows;   // more of them (each its own mask, colour, levels and trail)
         public CustomLoungeSeller lounge;  // a lounge visitor who sells it (AgentGenerator.AddCustomShipSellers); null = none
     }
 
@@ -122,25 +123,35 @@ namespace GoF2Remake.Data
     }
 
     /// <summary>A URP Lit material for the renderers whose name contains 'mesh' (empty = any) and, when 'submesh' >= 0,
-    /// only for that submesh (one FBX mesh with several materials); paths relative to Assets. 'emission' is an emission map
-    /// (x emissionIntensity), 'alphaClip' > 0 cuts the diffuse's alpha below it (decals).</summary>
+    /// only for that submesh (one FBX mesh with several materials); paths relative to Assets. 'color' (RGB) tints the
+    /// diffuse (or is the colour without one); 'metallic' >= 0 sets the metalness without a mask. 'emission' is an
+    /// emission map and / or 'emissionColor' (RGB) its colour, x emissionIntensity (> 1 blooms); 'alphaClip' > 0 cuts the
+    /// diffuse's alpha below it (decals). 'detailAlbedo' (linear, 0.5 = neutral) / 'detailNormal' are URP's detail maps,
+    /// tiled 'detailTiling' times over the UVs (e.g. brushed metal).</summary>
     [System.Serializable] public class CustomShipMaterial
     {
-        public string mesh, diffuse, normal, metallicSmoothness, emission;
+        public string mesh, diffuse, normal, metallicSmoothness, emission, detailAlbedo, detailNormal;
         public int submesh = -1;
-        public float smoothness = 1f, emissionIntensity = 1f, alphaClip;
+        public float[] color, emissionColor;
+        public float smoothness = 1f, metallic = -1f, emissionIntensity = 1f, alphaClip, normalScale = 1f;
+        public float detailTiling = 1f, detailNormalScale = 1f;
+        public float opacity;   // 0 / 1 = opaque; below 1 a see-through surface (glass: premultiplied, so reflections stay bright)
     }
 
     /// <summary>A custom ship's throttle-driven glow (CustomShipBuilder.BuildThrottleGlow, ThrottleGlow at run time): the
-    /// hull triangles of 'submesh' (-1 = all) whose UVs touch the lit part of 'mask' (paths relative to Assets), copied
+    /// hull triangles of the renderers whose name contains 'mesh' (empty = any) and of 'submesh' (-1 = all) whose UVs
+    /// touch the lit part of 'mask' (paths relative to Assets; a plain white mask takes them all), copied
     /// 'offset' game units out along their normals and drawn additive with the mask, tinted 'color' (RGB); the glow
     /// intensity runs from 'idle' (throttle 0) to 'full' (throttle 100 %) and up to 'boost' while boosting.</summary>
     [System.Serializable] public class CustomThrottleGlow
     {
         public int submesh = -1;
-        public string mask;
+        public string mask, mesh;
         public float[] color;
         public float idle = 0.35f, full = 4f, boost = 7f, offset = 0.5f;
+        public float trailWidth;          // game units; > 0: a trail in the glow's colour from the glow's rear ends while
+        public float trailTime = 0.6f;    // boosting or travelling (planet jump, jumpgate, Khador Drive), 'trailTime' s long
+        public float trailBrightness = 0.3f;   // the trail x the glow's level
     }
 
     /// <summary>One assembled prefab (assemblies.json): Resources/Assembled/{pack}/{category}/{name}.prefab.</summary>
