@@ -126,8 +126,10 @@ namespace GoF2Remake.Flight
             // Radar+0x1ab (AB-4): any crate, wherever it is, even on the autopilot.
             if (tractorMode == 2 && Salvaging == null && !nav.Jumping) AutoSalvage(Camera.main, false);
 
+            // Radar::draw 0x156900: the ship lock runs unless docking to an asteroid (the approach and mining); a locked
+            // asteroid (+0xc) doesn't stop it: a ship in the box wins and the asteroid lock waits (Navigation.ShipLockActive).
             bool blocked = nav.Autopilot || nav.Jumping || nav.LandmarkLocked || Salvaging != null
-                           || (mining != null && (mining.State != Mining.Phase.Idle || mining.Locked != null));
+                           || (mining != null && mining.State != Mining.Phase.Idle);
             Target best = null;
             Crate bestCrate = null;
             NpcShip bestSteal = null;

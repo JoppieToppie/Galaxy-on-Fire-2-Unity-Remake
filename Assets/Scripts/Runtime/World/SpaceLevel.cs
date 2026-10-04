@@ -302,10 +302,10 @@ namespace GoF2Remake.World
             Hints.Setup(this);
             Navigation.JumpsBlocked = () => !Story.PlanetJumpsAllowed || Story.BlocksJumps(Layout.stationIndex, IsStoryOrbit) || (Siege != null && Siege.Active)
                                             || Multiplayer.NetEventRules.NoJumps   // an event's Restrict Travel
-                                            || (!Session.FreePlay && Story.Index == 65 && Layout.stationIndex == 100)   // escorting Khador (MGame::UseKhadorDrive)
-                                            // remake: no Khador Drive out of the Void while its wormhole is the way back (the
-                                            // main story before the ride out at 43); free play / sessions have no wormhole
-                                            || (Layout.alienOrbit && !Session.FreePlay && Story.Index < 43 && Story.ForcedKhadorTarget(Layout.stationIndex) == null);
+                                            || (!Session.FreePlay && Story.Index == 65 && Layout.stationIndex == 100);   // escorting Khador (MGame::UseKhadorDrive)
+            // MGame::UseKhadorDrive 0x1a9480 has no Void rule of its own: the mission gate above (Story.BlocksJumps, 525) is the
+            // only refusal, and in the alien orbit the drive returns to Status+0x84 (#26: the remake used to refuse it there
+            // through the main story).
             Navigation.SetWormhole(Wormhole);
             Navigation.PlanetJumpRefused = st => StorySpace != null && StorySpace.RefusePlanetJump(st);
             SystemJump.GateBlocked = () => (Siege != null && Siege.Active) || Multiplayer.NetEventRules.NoJumps;

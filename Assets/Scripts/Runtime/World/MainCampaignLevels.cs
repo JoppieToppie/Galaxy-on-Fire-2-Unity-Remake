@@ -238,8 +238,11 @@ namespace GoF2Remake.World
             if (level.StreamOutArrival)
                 level.MovePlayer(ToUnity(new Vector3(-105000, 0, 80000)), OrbitLayout.RotationToUnity(new Vector3(0f, Mathf.PI / 2f, 0f)));
             int hull = 5 * Session.Rank + 1800;
-            // [0] Errkt's freighter (the Vossk freighter), parked far away, hidden and asleep until his call.
-            var f = Freighter(1, 13, new Vector3(-9999999, -9999999, -9999999), false,
+            // [0] Errkt's freighter (the Vossk freighter), parked far away, hidden and asleep until his call. Created as race 0
+            // (createShip(0, 1, 0xd), 0x82270) and turned Vossk only when it appears (event 0): Level::connectPlayers builds the
+            // enemy lists from the races at the start, so the Terran fighters never get it as an enemy (#26: as Vossk from the
+            // start they hunted it, Terran vs Vossk, and its death failed the level).
+            var f = Freighter(0, 13, new Vector3(-9999999, -9999999, -9999999), false,
                               s => { s.alwaysFriend = true; s.nameText = 1604; s.hitpoints = hull; s.inactive = true; s.noLoot = true; });
             f.SetVisible(false);
             // [1]-[4] Terran fighters on the friend route ([2] Jean Baffour), [5]-[8] Void at the wormhole, [9]-[12] in reserve.
