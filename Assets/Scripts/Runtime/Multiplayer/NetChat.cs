@@ -52,7 +52,7 @@ namespace GoF2Remake.Multiplayer
         public static bool Typing { get; private set; }
 
         /// <summary>The keyboard for the game's own key reads: null while a chat line is typed.</summary>
-        public static Keyboard Keys => Typing ? null : Keyboard.current;
+        public static Keyboard Keys => Typing || NetScreen.QuestionOpen ? null : Keyboard.current;
 
         public static void SetTyping(bool on)
         {

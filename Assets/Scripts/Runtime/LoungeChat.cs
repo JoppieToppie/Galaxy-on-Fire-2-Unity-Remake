@@ -15,11 +15,14 @@
 //              785, shown as a message) and the confirmation (865 (+ 864), 866 / 868-873 / 885)
 //   Confirm    "Yes": 850-852 then the deal (mission 853-855 / Challenge 856); a single "Okay." closes the chat
 //   Voice      SpaceLounge::getSoundId 0x19fdb4: one lounge greeting per chat start by offer, race and gender
+// Remake multiplayer: AgentOffer.EventMission, an event graph's bar mission (NetEventMissions): a greeting, the offer text
+// with the reward and the pilots it needs, the question; Okay checks the squad and asks to confirm, the server starts it.
 // The original's single random generator isn't reproducible; UnityEngine.Random picks the text variants.
 
 using System;
 using System.Collections.Generic;
 using GoF2Remake.Flight;
+using GoF2Remake.Multiplayer;
 using GoF2Remake.UI;
 using Random = UnityEngine.Random;
 
@@ -80,6 +83,15 @@ namespace GoF2Remake.Data
             var a = Agent;
             bool first = !a.known;
             Choices.Clear();
+            if (a.offer == AgentOffer.EventMission)
+            {
+                var o = NetEventMissions.OfferOf(a);
+                a.known = true;
+                closing = a.accepted || o == null;
+                Text = closing ? T(858) : T(750 + Random.Range(0, 6)) + " " + NetEventMissions.ChatText(o) + "\n" + T(841 + Random.Range(0, 3));
+                SetChoices();
+                return;
+            }
             if (!a.known)
             {
                 Session.AgentsTalkedTo++;
@@ -144,6 +156,7 @@ namespace GoF2Remake.Data
                     case AgentOffer.Diplomat: return Standing.IsEnemy(a.race);
                     case AgentOffer.Mission: case AgentOffer.Purchase: return a.HasMission;
                     case AgentOffer.SellMod: return !Session.HasMod(a.sellMod);   // installed on this hull: 858
+                    case AgentOffer.EventMission: return NetEventMissions.OfferOf(a) != null;
                     default: return true;
                 }
             }
@@ -396,6 +409,17 @@ namespace GoF2Remake.Data
             Outcome Refuse(string text) { RefusalText = text; return Outcome.Refused; }
             switch (a.offer)
             {
+                case AgentOffer.EventMission:
+                {
+                    var o = NetEventMissions.OfferOf(a);
+                    if (o == null) return Outcome.Closed;
+                    string refusal = NetEventMissions.AcceptRefusal(o);
+                    if (refusal != null) return Refuse(refusal);
+                    ConfirmText = o.reward > 0 ? T(865).Replace("#M", o.title).Replace("#C", C(o.reward))
+                        : string.Format(Localization.Extra("mpEventMissionConfirm", "Take the mission {0}?"), o.title);
+                    if (NetSquad.InSquad) ConfirmText += " " + Localization.Extra("mpEventMissionSquad", "Your whole squad takes it.");
+                    return Outcome.Confirm;
+                }
                 case AgentOffer.Mission:
                 case AgentOffer.Purchase:
                 {
@@ -481,6 +505,10 @@ namespace GoF2Remake.Data
             string thanks = T(850 + Random.Range(0, 3));
             switch (a.offer)
             {
+                case AgentOffer.EventMission:
+                    NetEventMissions.Accept(NetEventMissions.OfferOf(a));   // the server starts it (or says why not)
+                    thanks += " " + T(853 + Random.Range(0, 3));
+                    break;
                 case AgentOffer.Mission:
                 case AgentOffer.Purchase:
                     if (!askedRisk) Session.AcceptedBlindRisk++;
@@ -568,6 +596,7 @@ namespace GoF2Remake.Data
                 case AgentOffer.Purchase: kind = "PRODUCTION"; count = 4; break;
                 case AgentOffer.Wingmen: kind = "WINGMAN"; count = 4; break;
                 case AgentOffer.Diplomat: kind = "DIPLOMAT"; count = 4; break;
+                case AgentOffer.EventMission: kind = "SPECIAL"; count = 4; break;
                 default: return null;
             }
             if (a.offer != AgentOffer.SmallTalk && Random.Range(0, 100) < 30) { kind = "GENERIC"; count = 2; }
@@ -584,6 +613,7 @@ namespace GoF2Remake.Data
         /// agents, the role (the mission type, 306 Wingmen, 305 Merchant, 884 Diplomat).</summary>
         public static (string name, string role) Plate(Agent a)
         {
+            if (a.offer == AgentOffer.EventMission) return (a.name, NetEventMissions.OfferOf(a)?.title ?? "");   // always says what it offers
             if (!a.known && !a.IsStory) return (T(406 + a.race), "");
             if (!a.known) return (a.name, "");
             string role = a.HasMission ? a.mission.Name : a.offer == AgentOffer.Wingmen ? T(306)

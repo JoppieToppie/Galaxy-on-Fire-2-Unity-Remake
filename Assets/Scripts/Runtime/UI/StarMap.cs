@@ -162,7 +162,7 @@ namespace GoF2Remake.UI
             var assets = StarMapAssets.Load();
             if (assets == null || assets.layout == null || assets.panelSettings == null)
             {
-                Debug.LogError("StarMap: run GoF2 > Build Star Map Assets");
+                Debug.LogError("StarMap: run GoF2 > Build > Star Map Assets");
                 return null;
             }
             if (Current != null) Current.Close(new StarMapResult { station = -1 });

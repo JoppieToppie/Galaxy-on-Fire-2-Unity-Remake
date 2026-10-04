@@ -1,5 +1,5 @@
 // StoryAssets.cs
-// What the story presentation can't load by name (Resources/GoF2Story/StoryAssets, built by "GoF2 > Build Story Assets"):
+// What the story presentation can't load by name (Resources/GoF2Story/StoryAssets, built by "GoF2 > Build > Story Assets"):
 //   voice lines   Audio/VOICE_*, DLC_VOICE_*, DLC2_VOICE_* (FMOD voice banks, dialogue_cutscenes.md 5.1), English and
 //                 German (the German files carry a "de_" prefix; only part of the lines were recorded in German)
 //   portraits     the face parts Textures/textures/<body>_<part>_<variant>_ipad_large.png (ImageFactory::loadImage 0x141870)

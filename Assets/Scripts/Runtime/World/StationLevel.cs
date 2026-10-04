@@ -213,7 +213,7 @@ namespace GoF2Remake.World
                 if (clip == null && music != null && music.Length > 0) clip = music[0];
                 musicSource.clip = clip;
                 musicSource.loop = true;
-                musicSource.volume = Settings.MusicVolume;
+                musicSource.volume = Settings.MusicVolume * Multiplayer.NetScreen.SceneMusic;
                 if (clip != null) musicSource.Play();
             }
             SetView(StationView.Hangar, true);
@@ -388,17 +388,44 @@ namespace GoF2Remake.World
             // mesh, female Terrans their own).
             var agents = Stock != null ? Stock.agents : new List<Agent>();
             var slots = StationTables.VisitorSlots[BarRace];
-            var taken = new bool[slots.Length];
+            slotTaken = new bool[slots.Length];
             VisitorCount = Mathf.Min(agents.Count, slots.Length);
-            for (int i = 0; i < VisitorCount; i++)
+            for (int i = 0; i < VisitorCount; i++) SpawnVisitor(agents[i]);
+            // Remake multiplayer: the event graphs' bar missions offered here (NetEventMissions) join as they arrive.
+            Multiplayer.NetEventMissions.RequestOffers(Station != null ? Station.index : Session.StationIndex, AddVisitor);
+
+            barPosA = OrbitLayout.ToUnity(StationTables.BarCameraStart[BarRace]);
+            barPosB = OrbitLayout.ToUnity(StationTables.BarCameraRest[BarRace]);
+            barRotA = CameraRotation(0f, StationTables.BarCameraStartYaw[BarRace], 0f);
+            barRotB = CameraRotation(0f, StationTables.BarCameraRestYaw[BarRace], 0f);
+            swayYaw.Start(0f, 5f);
+        }
+
+        bool[] slotTaken;
+
+        /// <summary>Remake: one more visitor on a free slot after the bar was built (false: every slot taken). The lounge's
+        /// plates and list follow (LoungePanel rebuilds when the count changes).</summary>
+        public bool AddVisitor(Agent agent)
+        {
+            if (agent == null || slotTaken == null || barRoot == null || System.Array.IndexOf(slotTaken, false) < 0) return false;
+            if (visitors.Exists(v => v.agent == agent)) return true;
+            return SpawnVisitor(agent);
+        }
+
+        /// <summary>A visitor billboard for 'agent' on a random free slot (Generator::createAgents' slot nextInt(7) re-rolled
+        /// until free) with its glow and floor shadow.</summary>
+        bool SpawnVisitor(Agent agent)
+        {
+            var slots = StationTables.VisitorSlots[BarRace];
+            if (System.Array.IndexOf(slotTaken, false) < 0) return false;
+            int slot;
+            do slot = Random.Range(0, slots.Length); while (slotTaken[slot]);
+            slotTaken[slot] = true;
+            int i = visitors.Count;
             {
-                int slot;
-                do slot = Random.Range(0, slots.Length); while (taken[slot]);
-                taken[slot] = true;
-                var agent = agents[i];
                 int race = agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
                 var prefab = VisitorPrefab(StationTables.VisitorFor(race, !agent.male));
-                if (prefab == null) continue;
+                if (prefab == null) return false;
                 var feet = OrbitLayout.ToUnity(slots[slot]);
                 var v = new Visitor { feet = feet, agent = agent };
                 v.body = Instantiate(prefab, feet, Quaternion.identity, barRoot).transform;
@@ -417,12 +444,7 @@ namespace GoF2Remake.World
                     Instantiate(visitorShadow, feet + new Vector3(0f, 20f * M, 0f), OrbitLayout.RotationToUnity(Vector3.zero), barRoot).name = $"Visitor {i} shadow";
                 visitors.Add(v);
             }
-
-            barPosA = OrbitLayout.ToUnity(StationTables.BarCameraStart[BarRace]);
-            barPosB = OrbitLayout.ToUnity(StationTables.BarCameraRest[BarRace]);
-            barRotA = CameraRotation(0f, StationTables.BarCameraStartYaw[BarRace], 0f);
-            barRotB = CameraRotation(0f, StationTables.BarCameraRestYaw[BarRace], 0f);
-            swayYaw.Start(0f, 5f);
+            return true;
         }
 
         GameObject VisitorPrefab(StationTables.Visitor v) => v switch
@@ -665,7 +687,7 @@ namespace GoF2Remake.World
             }
 
             if (View == StationView.Hangar) RefreshTurret(false);
-            if (musicSource != null) musicSource.volume = Settings.MusicVolume;
+            if (musicSource != null) musicSource.volume = Settings.MusicVolume * Multiplayer.NetScreen.SceneMusic;
             float atmoMs = Time.unscaledDeltaTime * 1000f;
             mainViewAtmo?.Update(atmoMs); loungeAtmo?.Update(atmoMs); hangarAtmo?.Update(atmoMs);
         }

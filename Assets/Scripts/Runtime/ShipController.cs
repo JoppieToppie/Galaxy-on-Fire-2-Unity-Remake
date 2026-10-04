@@ -122,15 +122,24 @@ namespace GoF2Remake.Flight
         [System.NonSerialized] public bool mouseSteering;
         /// <summary>The crosshair's offset from the screen centre (screen pixels, x right, y up).</summary>
         public Vector2 MouseOffset { get; private set; }
+        /// <summary>Remake: the mouse offset is inside the steering dead zone (Settings.MouseDeadzone): no turning.</summary>
+        public bool MouseInDeadzone { get; private set; } = true;
 
         Vector2 ReadMouseSteer()
         {
             var mouse = Mouse.current;
-            if (!mouseSteering || mouse == null) { MouseOffset = Vector2.zero; return Vector2.zero; }
+            if (!mouseSteering || mouse == null) { MouseOffset = Vector2.zero; MouseInDeadzone = true; return Vector2.zero; }
             var lim = new Vector2(Screen.width * 0.5f * 0.7f, Screen.height * 0.5f * 0.7f);
             var o = MouseOffset + mouse.delta.ReadValue();
             MouseOffset = new Vector2(Mathf.Clamp(o.x, -lim.x, lim.x), Mathf.Clamp(o.y, -lim.y, lim.y));
-            return new Vector2(MouseOffset.x / Mathf.Max(1f, lim.x), MouseOffset.y / Mathf.Max(1f, lim.y));
+            var steer = new Vector2(MouseOffset.x / Mathf.Max(1f, lim.x), MouseOffset.y / Mathf.Max(1f, lim.y));
+            // Remake: a round dead zone (in the same units as the screen's height, so it is a circle on screen), the rest
+            // rescaled so the steering still starts at 0 at its edge and reaches full at the limit.
+            float dz = Data.Settings.MouseDeadzone, m = new Vector2(MouseOffset.x / Mathf.Max(1f, lim.y), MouseOffset.y / Mathf.Max(1f, lim.y)).magnitude;
+            MouseInDeadzone = m <= dz;
+            if (MouseInDeadzone) return Vector2.zero;
+            var scaled = steer * ((m - dz) / (1f - dz) / m);
+            return new Vector2(Mathf.Clamp(scaled.x, -1f, 1f), Mathf.Clamp(scaled.y, -1f, 1f));
         }
 
         void Update()

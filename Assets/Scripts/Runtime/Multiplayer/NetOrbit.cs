@@ -131,11 +131,13 @@ namespace GoF2Remake.Multiplayer
             return ship.Target != null && ship.Target.hostileToPlayer && NetSquad.Same(p, NetPlayer.Local);
         }
 
-        /// <summary>Another member of the local player's squad shot it.</summary>
+        /// <summary>Another member of the local player's squad shot it, or an event turned it on the local player (/provoke).</summary>
         static bool HostileToLocalBySquad(NpcShip ship)
         {
             var me = NetPlayer.Local;
-            if (me == null || me.SquadId == 0) return false;
+            if (me == null) return false;
+            if (ship.aggressors.Contains(me.OwnerClientId)) return true;
+            if (me.SquadId == 0) return false;
             foreach (var id in ship.aggressors) if (id != me.OwnerClientId && NetSquad.SameClient(id, me)) return true;
             return false;
         }

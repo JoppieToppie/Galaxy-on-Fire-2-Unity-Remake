@@ -1,6 +1,6 @@
 // StarMapAssets.cs
 // What the star map and the system jumps need that can't be loaded by name (Resources/GoF2StarMap/StarMapAssets, made by
-// GoF2 > Build Star Map Assets): the overlay UXML and panel settings, the galaxy-view sun materials (mesh 18070 + system
+// GoF2 > Build > Star Map Assets): the overlay UXML and panel settings, the galaxy-view sun materials (mesh 18070 + system
 // texture index -> its material), the Khador jump fx (mesh 15026) and the sounds (starmap_travel.md 11.1):
 //   103 Select_System, 104 / 105 Map_Select_Planet_Push / _Release, 106 / 107 Map_Zoom_In / _Out, 124 / 123 / 126 buttons and
 //   message box, 31 Jumpgate (sound definition /Jumpgate: Jumpgate_3b / 4c / 1b / 2b, one at random), 33 Jumpgate_Charge,

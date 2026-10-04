@@ -1,5 +1,5 @@
 // StarMapBuilder.cs  (Editor only)
-// Menu "GoF2/Build Star Map Assets": Resources/GoF2StarMap/StarMapAssets (StarMapAssets), the references the runtime
+// Menu "GoF2/Build/Star Map Assets": Resources/GoF2StarMap/StarMapAssets (StarMapAssets), the references the runtime
 // star map and the system jumps can't load by name. Sun materials: mesh 18070 + texture index -> its materialId in
 // resources.json -> Materials/mat_<id>_*.mat. Run by Create Space Scene and Create Station Scene when missing.
 
@@ -22,7 +22,7 @@ namespace GoF2Remake.EditorTools
 
         public static bool Exists => File.Exists(AssetPath);
 
-        [MenuItem("GoF2/Build Star Map Assets", priority = 16)]
+        [MenuItem("GoF2/Build/Star Map Assets", priority = 204)]
         public static void Build()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(AssetPath));

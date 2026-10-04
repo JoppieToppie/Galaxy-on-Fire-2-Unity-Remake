@@ -1,7 +1,7 @@
 // PackInstaller.cs  (Editor only)
 // Joins the split asset pack in <project>/GoF2_ImportParts/ (GoF2_AssetPack.zip.001, .002, ...)
 // and extracts it into Assets. Offered automatically once all parts are present, or run it via
-// menu "GoF2/Install Asset Pack".
+// menu "GoF2/Setup/Install Asset Pack".
 
 using System;
 using System.IO;
@@ -50,7 +50,7 @@ namespace GoF2Remake.EditorTools
             return parts.Length > 0;
         }
 
-        [MenuItem("GoF2/Install Asset Pack", priority = 0)]
+        [MenuItem("GoF2/Setup/Install Asset Pack", priority = 400)]
         public static void Install()
         {
             if (!PartsComplete(out var parts))
@@ -105,7 +105,7 @@ namespace GoF2Remake.EditorTools
                     "Installed. Unity will now import the assets (this can take a while).\n\nDelete the " + PartsDir + " folder to free about 1.9 GB?",
                     "Delete parts", "Keep"))
                 Directory.Delete(PartsDir, true);
-            Debug.Log("GoF2: asset pack installed. When importing has finished, run GoF2 > Build Materials And Prefabs.");
+            Debug.Log("GoF2: asset pack installed. When importing has finished, run GoF2 > Build > Materials And Prefabs.");
         }
     }
 }

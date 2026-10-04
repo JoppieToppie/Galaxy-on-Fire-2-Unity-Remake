@@ -124,6 +124,10 @@ namespace GoF2Remake.Data
         public static bool InvertDrillX { get => GetBool("invertDrillX", false); set => SetBool("invertDrillX", value); }
         /// <summary>Globals::mouseCursorActivated (the PC version): the mouse moves the crosshair and steers (desktop only).</summary>
         public static bool MouseSteering { get => GetBool("mouseSteering", true); set => SetBool("mouseSteering", value); }
+        /// <summary>Remake: mouse steering's dead zone, a fraction of the steering range around the centre (0 = none, the
+        /// original's: PlayerEgo::update steers by the raw offset).</summary>
+        public static float MouseDeadzone { get => Get("mouseDeadzone", DefaultMouseDeadzone); set => Set("mouseDeadzone", Mathf.Clamp(value, 0f, 0.3f)); }
+        public const float DefaultMouseDeadzone = 0.08f;
         /// <summary>Remake: Discord Rich Presence (DiscordPresence, desktop).</summary>
         public static bool DiscordPresence { get => GetBool("discordPresence", true); set => SetBool("discordPresence", value); }
         /// <summary>options[0x11] = 0: the accelerometer steers (MGame::handleAccelerometer).</summary>
@@ -211,7 +215,7 @@ namespace GoF2Remake.Data
                      {
                          "masterVolume", "musicVolume", "sfxVolume", "voiceVolume", "displayMode", "resolutionWidth", "resolutionHeight",
                          "frameRate", "renderScale", "upscaler", "upscalerQuality", "msaa", "quality", "brightness", "bloom", "bloomStyle", "lensFlare", "npcPlayerEngines", "fov", "cameraShake",
-                         "sensitivity", "invertPitch", "invertYaw", "invertDrillY", "invertDrillX", "gyroSteering", "gyroSensitivity", "haptics", "stickDeadzone", "launchCamera", "autoAdvanceDialogue", "inputHints",
+                         "sensitivity", "invertPitch", "invertYaw", "invertDrillY", "invertDrillX", "gyroSteering", "gyroSensitivity", "haptics", "stickDeadzone", "mouseDeadzone", "launchCamera", "autoAdvanceDialogue", "inputHints",
                          "pirateEvents", "tutorialHints",
                      })
                 PlayerPrefs.DeleteKey(Prefix + key);

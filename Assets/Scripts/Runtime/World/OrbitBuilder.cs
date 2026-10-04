@@ -29,7 +29,7 @@ namespace GoF2Remake.World
         public static void SetupSky(OrbitLayout layout, float ambientIntensity = 1f, int nebulaOverride = -1)
         {
             var template = Resources.Load<Material>("GoF2Sky/SpaceSky");
-            if (template == null) { Debug.LogWarning("OrbitBuilder: run GoF2 > Bake Space Skies"); return; }
+            if (template == null) { Debug.LogWarning("OrbitBuilder: run GoF2 > Build > Space Skies"); return; }
             var sky = new Material(template) { name = "SpaceSky (runtime)" };
             int stars = layout.systemIndex >= 0 ? layout.systemIndex % 3 : 2;   // alien/void: stars_002
             sky.SetTexture("_Stars", Resources.Load<Cubemap>($"GoF2Sky/stars_{stars:000}"));

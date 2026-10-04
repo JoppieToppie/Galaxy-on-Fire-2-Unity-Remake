@@ -12,7 +12,7 @@
 //   Planets: fixed orientation (not billboards), alpha blended, mirrored so the lit rim faces the sun; the orbit
 //        planet (straight ahead, Unity +Z) grows up to +0.2 scale as the camera flies toward it.
 //   Rings: the planet's quad x4 with sn_planet_ring.
-// Materials come from Resources/GoF2Backdrop/<texture> (made by GoF2 > Create Space Scene), so only the current
+// Materials come from Resources/GoF2Backdrop/<texture> (made by GoF2 > Scenes > Space Scene), so only the current
 // orbit's textures are loaded.
 
 using System.Collections.Generic;

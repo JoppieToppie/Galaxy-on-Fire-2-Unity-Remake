@@ -138,6 +138,11 @@ namespace GoF2Remake.UI
             // for a mission with a target to show.
             bool story = !Session.FreePlay && Story.Step != null && Story.Step.objectiveText >= 0;
             storyText.text = story ? Story.ObjectiveText(db) : T(174);
+            // Remake multiplayer (no story there): the event graph mission the squad is on (NetEventMissions).
+            var eventMission = GoF2Remake.Multiplayer.NetEventMissions.Active;
+            if (!story && eventMission != null)
+                storyText.text = eventMission.title.ToUpperInvariant() + "\n" + string.Format(Localization.Extra("mpMissionCardBy", "Accepted by {0}"), eventMission.by)
+                                 + "\n\n" + GoF2Remake.Multiplayer.NetEventMissions.ActiveText;
             Show(storyMap, story && !Session.StoryMission.IsEmpty && Session.StoryMission.visible && Story.MapTarget >= 0);
 
             var m = Freelance.Mission;

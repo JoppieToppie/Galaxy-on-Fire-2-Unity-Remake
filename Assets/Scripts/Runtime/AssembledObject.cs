@@ -1,7 +1,7 @@
 // AssembledObject.cs
 // Root component of an assembled prefab (Resources/Assembled/...): one game object (ship, station, jumpgate,
 // asteroid, hangar...) put together from its separate game meshes the way the original code does it
-// (AEGeometry root mesh + addChild meshes + setLodMeshes). Built by "GoF2 > Build Assembled Prefabs"
+// (AEGeometry root mesh + addChild meshes + setLodMeshes). Built by "GoF2 > Build > Assembled Prefabs"
 // from Resources/GoF2Data/assemblies.json.
 
 using UnityEngine;

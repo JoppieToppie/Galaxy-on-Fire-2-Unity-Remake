@@ -3,9 +3,9 @@
 // *_engine_add, *_glow...) are unlit/additive meshes drawn at full brightness. Here those materials get
 // _Glow > 1 so they come out in HDR above the bloom threshold, while hulls, skyboxes and UI stay below it.
 //
-// Menu "GoF2/Apply Emissive Glow To Materials": sets _Glow on the GoF2 materials (also run by
+// Menu "GoF2/Import/Apply Emissive Glow To Materials": sets _Glow on the GoF2 materials (also run by
 //   "Build Materials And Prefabs").
-// Menu "GoF2/Add Post Processing To Scene": global Volume with Assets/Settings/GoF2_VolumeProfile.asset
+// Menu "GoF2/Scenes/Add Post Processing To Open Scene": global Volume with Assets/Settings/GoF2_VolumeProfile.asset
 //   (Bloom) and post-processing enabled on the main camera (also run by "Create Flight Test Scene").
 
 using System.Collections.Generic;
@@ -34,7 +34,7 @@ namespace GoF2Remake.EditorTools
         // background) keep _Glow = 1 so they never bloom.
         static readonly Regex GlowMesh = new Regex(@"(emissive|lights|engine|glow|_add)", RegexOptions.IgnoreCase);
 
-        [MenuItem("GoF2/Apply Emissive Glow To Materials", priority = 22)]
+        [MenuItem("GoF2/Import/Apply Emissive Glow To Materials", priority = 302)]
         public static void ApplyGlow()
         {
             var json = AssetDatabase.LoadAssetAtPath<TextAsset>(ImportSettings.Root + "/Resources/GoF2Data/resources.json");
@@ -92,7 +92,7 @@ namespace GoF2Remake.EditorTools
             return profile;
         }
 
-        [MenuItem("GoF2/Add Post Processing To Scene", priority = 3)]
+        [MenuItem("GoF2/Scenes/Add Post Processing To Open Scene", priority = 113)]
         public static void AddToScene()
         {
             var profile = GetOrCreateProfile();

@@ -1,5 +1,5 @@
 // TextIconsBuilder.cs
-// GoF2 > Build Text Icons: the inline icons of the animated dialogue (TextReveal, rich text <sprite>). One atlas of 64 px
+// GoF2 > Build > Text Icons: the inline icons of the animated dialogue (TextReveal, rich text <sprite>). One atlas of 64 px
 // cells and a TextCore SpriteAsset in Resources/Sprite Assets/, where the runtime panel text settings look sprite assets
 // up by name (defaultSpriteAssetPath "Sprite Assets/"), so no PanelTextSettings asset is needed.
 //   race_0 / 1 / 2 / 3 / 8 / 9   the HUD's race emblems (GoF2Hud, Build HUD Images): Terran, Vossk, Nivelian, Midorian,
@@ -50,7 +50,7 @@ namespace GoF2Remake.EditorTools
             return list;
         }
 
-        [MenuItem("GoF2/Build Text Icons")]
+        [MenuItem("GoF2/Build/Text Icons", priority = 222)]
         public static void Build()
         {
             Directory.CreateDirectory(Folder);
@@ -132,7 +132,7 @@ namespace GoF2Remake.EditorTools
         /// <summary>'src' scaled to fit the cell (keeping its aspect), centred; a shop plate ('plate') by its centre square.</summary>
         static void Blit(Texture2D atlas, int x0, int y0, Texture2D src, string name, bool plate)
         {
-            if (src == null) { Debug.LogWarning($"GoF2: text icon {name}: source missing, run GoF2 > Build HUD Images / Build Item Icons"); return; }
+            if (src == null) { Debug.LogWarning($"GoF2: text icon {name}: source missing, run GoF2 > Build > HUD Images / Build Item Icons"); return; }
             // The source rect in pixels: a plate's centre square, else the visible part (the HUD emblems have a wide glow
             // margin that made them tiny next to the text).
             RectInt rect = new RectInt(0, 0, src.width, src.height);

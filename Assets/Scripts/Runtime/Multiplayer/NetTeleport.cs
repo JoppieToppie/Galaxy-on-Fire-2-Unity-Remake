@@ -161,7 +161,7 @@ namespace GoF2Remake.Multiplayer
             float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v) && !float.IsNaN(v) && !float.IsInfinity(v) && Mathf.Abs(v) < 1e7f;
 
         /// <summary>"void", a station index, or the longest station name 'args' starts with (whole words, any case).</summary>
-        static bool ParseStation(string args, out int station, out string rest)
+        internal static bool ParseStation(string args, out int station, out string rest)
         {
             station = 0;
             rest = "";
@@ -303,6 +303,32 @@ namespace GoF2Remake.Multiplayer
             }
             Arrived(by, where);
         }
+
+        /// <summary>An event's respawn (NetEventRespawn): the ship repaired and the orbit loaded with it at 'gamePos' (null:
+        /// RespawnSpot, 3 km in front of the station: the launch spot is within the bigger stations' hulls) moved up to
+        /// 'spread' game units away, facing the station; also while destroyed.</summary>
+        public static void Respawn(int station, Vector3? gamePos, float spread)
+        {
+            Cheats.Repair();   // the ship comes back whole (the next level reads the Session's hull, shield, armor)
+            var spot = gamePos ?? RespawnSpot;
+            spot += UnityEngine.Random.insideUnitSphere * spread;
+            pendingPos = OrbitLayout.ToUnity(spot);
+            pendingRot = pendingPos.sqrMagnitude > 1f ? Quaternion.LookRotation(-pendingPos.normalized, Vector3.up) : Quaternion.identity;
+            pending = true;
+            if (station == Session.VoidOrbit && Session.StationIndex != Session.VoidOrbit) Session.VoidReturnStation = Session.StationIndex;
+            Session.PreviousStationIndex = Session.StationIndex;
+            Session.StationIndex = station;
+            Session.ArrivedByTravel = false;
+            Session.LaunchedFromStation = false;
+            Session.DockedFromSpace = false;
+            Session.ProgrammedStation = -1;
+            SceneManager.LoadScene(SpaceScene);
+        }
+
+        const string SpaceScene = "Space";
+
+        /// <summary>The default respawn spot (game units): in front of the station on the launch side, clear of its hull.</summary>
+        public static readonly Vector3 RespawnSpot = new Vector3(0f, 0f, 60000f);
 
         static void Arrived(string by, string where)
         {

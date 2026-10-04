@@ -1,6 +1,5 @@
 // CombatAssets.cs
-// What ship combat needs that can't be loaded by name (Resources/GoF2Combat/CombatAssets, made by GoF2 > Build Combat
-// Assets; Reference/research/ship_combat.md 5, 8 and npc_traffic_ai.md 8):
+// What ship combat needs that can't be loaded by name (Resources/GoF2Combat/CombatAssets, made by GoF2 > Build > Combat Assets; Reference/research/ship_combat.md 5, 8 and npc_traffic_ai.md 8):
 //   crates      container_003_terran / 004_vossk / 002_nivelian / 001_midorian / 005_void (KIPlayer::createCrate)
 //   wrecks      cargo_003_terran / 004_vossk / 002_nivelian / 001_midorian _explosion_anim, battleship_terran_explosion_anim
 //   explosion   Explosion type 0: explosion_anim_lookat_alpha (+ _add child), 3..9 explosion_debris streaks

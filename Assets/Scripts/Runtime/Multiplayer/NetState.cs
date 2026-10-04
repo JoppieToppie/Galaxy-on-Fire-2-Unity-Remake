@@ -43,6 +43,7 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> seed = new NetworkVariable<int>();
         readonly NetworkVariable<bool> dedicated = new NetworkVariable<bool>();
         readonly NetworkVariable<bool> debugAllowed = new NetworkVariable<bool>();   // the host's / server's choice, fixed for the session
+        readonly NetworkVariable<bool> freeForAll = new NetworkVariable<bool>();     // /pvp, an event's Free For All: every player an enemy
         readonly Dictionary<int, HashSet<int>> destroyed = new Dictionary<int, HashSet<int>>();
         GameObject proxyPrefab, cratePrefab;
         int pendingSeed;
@@ -62,6 +63,12 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>The session allows the Debug menu (NetGame.HostAllowsDebug when it started; off by default).</summary>
         public bool DebugAllowed => debugAllowed.Value;
+
+        /// <summary>Free for all (/pvp, an event): every other player is an enemy (NetAggression.IsHostile), squadmates excepted.</summary>
+        public static bool FreeForAll => Instance != null && Instance.IsSpawned && Instance.freeForAll.Value;
+
+        /// <summary>Server: free for all on / off.</summary>
+        internal void SetFreeForAll(bool on) { if (IsServer) freeForAll.Value = on; }
 
         public override void OnNetworkSpawn()
         {
@@ -371,13 +378,64 @@ namespace GoF2Remake.Multiplayer
             var by = NetSquad.Find(killer);
             if (victim == null || by == null || !HitRecently(victim.NetworkObjectId, killer, 30f)) return;
             NoticeRpc(string.Format(Localization.Extra("mpDestroyedBy", "{0} was destroyed by {1}."), victim.DisplayName, by.DisplayName));
+            NetEvents.OnPlayerKilled(by, victim);   // an event's "on pvpkill"
         }
 
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
         void NoticeRpc(string text) => NetChat.Notice(text);
 
+        /// <summary>A player's answer to an event's question (NetScreen): checked and run by the server (NetEvents.OnAnswer).</summary>
+        internal void SendAnswer(int ask, int choice) => AnswerRpc(ask, choice);
+
+        [Rpc(SendTo.Server)]
+        void AnswerRpc(int ask, int choice, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Command) || choice < 0 || choice > 4) return;
+            NetEvents.OnAnswer(client, ask, choice);
+        }
+
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void NoticeToRpc(string text, RpcParams rpc = default) => NetChat.Notice(text);
+
+        // ---- the event graphs' bar missions (NetEventMissions) ----
+
+        /// <summary>This player docked at 'station': the event missions offered there.</summary>
+        internal void RequestEventOffers(int station) => EventOffersUpRpc(station);
+
+        [Rpc(SendTo.Server)]
+        void EventOffersUpRpc(int station, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Command) || !NetGuard.Station(station)) return;
+            string offers = NetEventMissions.Offers(station);
+            if (offers.Length > 0 && offers.Length < 16000) EventOffersRpc(station, offers, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void EventOffersRpc(int station, string offers, RpcParams rpc = default) => NetEventMissions.ReceiveOffers(station, offers);
+
+        /// <summary>The lounge's Okay on an event mission: the server starts it for the squad.</summary>
+        internal void AcceptEventMission(string name, int station) => AcceptEventMissionRpc(name ?? "", station);
+
+        [Rpc(SendTo.Server)]
+        void AcceptEventMissionRpc(string name, int station, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Command) || name.Length == 0 || name.Length > 64 || !NetGuard.Station(station)) return;
+            NetEventMissions.OnAccept(client, name, station);
+        }
+
+        /// <summary>Server: a team member's mission started ('payload': the offer and who took it) or ended ('payload': its name).</summary>
+        internal void SendEventMission(ulong client, bool started, string payload) =>
+            EventMissionRpc(started, payload ?? "", RpcTarget.Single(client, RpcTargetUse.Temp));
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void EventMissionRpc(bool started, string payload, RpcParams rpc = default)
+        {
+            if (started) NetEventMissions.OnStarted(payload);
+            else NetEventMissions.OnEnded(payload);
+        }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void JoinedSquadRpc(RpcParams rpc = default) => NetMissions.OnJoinedSquad();
@@ -893,7 +951,7 @@ namespace GoF2Remake.Multiplayer
                 dirtyStock.Clear();
             }
             UpdatePendingSpawns();   // their senders' places arrived
-            NetEvents.Tick();   // a running event script
+            NetEvents.Tick();   // a running event
             if ((sweepTimer -= Time.unscaledDeltaTime) > 0f) return;
             sweepTimer = SweepSeconds;
             NetRateLimit.Tick();   // the clients that kept flooding go

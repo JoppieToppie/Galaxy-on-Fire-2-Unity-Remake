@@ -355,7 +355,8 @@ namespace GoF2Remake.Flight
         /// <summary>A key is being captured: the menus ignore their keys meanwhile (and on the frame it ends, so the
         /// captured key doesn't also act in the menu).</summary>
         public static bool Rebinding => operation != null;
-        public static bool BlocksMenus => operation != null || Time.frameCount <= rebindEndFrame + 1;
+        public static bool BlocksMenus => operation != null || Time.frameCount <= rebindEndFrame + 1
+                                          || Multiplayer.NetScreen.QuestionOpen;   // an event's question takes the keys
 
         /// <summary>Captures the slot's binding (a composite slot part by part). 'prompt' gets the part being asked for
         /// ("up", or null for a single binding); 'done' runs once it ended (captured, cleared or cancelled). Esc (or the

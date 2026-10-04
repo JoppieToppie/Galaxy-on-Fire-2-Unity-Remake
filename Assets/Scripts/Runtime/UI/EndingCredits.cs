@@ -71,7 +71,7 @@ namespace GoF2Remake.UI
         {
             foreach (var child in root.Children()) child.style.display = DisplayStyle.None;
             var assets = StoryAssets.Load();
-            if (assets == null || assets.endingUxml == null) { Debug.LogWarning("EndingCredits: run GoF2 > Build Story Assets"); Finish(); return; }
+            if (assets == null || assets.endingUxml == null) { Debug.LogWarning("EndingCredits: run GoF2 > Build > Story Assets"); Finish(); return; }
             layer = assets.endingUxml.Instantiate();
             layer.pickingMode = PickingMode.Ignore;
             layer.style.position = Position.Absolute;

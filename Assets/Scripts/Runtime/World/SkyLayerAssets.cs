@@ -1,6 +1,6 @@
 // SkyLayerAssets.cs
 // What the extra sky layers (SkyLayers) need at runtime and can't load by name: the layer meshes as their per-mesh
-// prefabs (with the part animations) and one GoF2/SkyLayer material per layer. Made by GoF2 > Create Space Scene
+// prefabs (with the part animations) and one GoF2/SkyLayer material per layer. Made by GoF2 > Scenes > Space Scene
 // (SpaceSceneBuilder.BuildSkyLayers) into Resources/GoF2Backdrop/SkyLayerAssets.
 
 using UnityEngine;

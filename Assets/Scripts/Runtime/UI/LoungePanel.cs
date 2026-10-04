@@ -147,6 +147,7 @@ namespace GoF2Remake.UI
             chatReveal.Tick(Time.unscaledDeltaTime * 1000f);
             bool on = Active;
             if (on != root.ClassListContains("lounge-open")) OnViewChanged();
+            if (built && tagItems.Count != level.VisitorAgentCount) Build();   // remake multiplayer: event missions' visitors joined
             if (!on || tags.panel == null) return;
             var cam = level.MainCamera;
             if (cam == null) return;
@@ -177,7 +178,10 @@ namespace GoF2Remake.UI
             var (plateName, plateRole) = LoungeChat.Plate(a);
             chatName.text = plateName.ToUpperInvariant();
             chatSub.text = plateRole.Length > 0 ? plateRole : T(406 + a.race);
-            Portrait.Show(portrait, a.portrait, false);
+            var eventOffer = GoF2Remake.Multiplayer.NetEventMissions.OfferOf(a);
+            if (eventOffer != null && eventOffer.face == null && eventOffer.speakerId >= 0)
+                Portrait.ShowSpeaker(portrait, eventOffer.speakerId, eventOffer.speakerId == 0);   // a story character as the client
+            else Portrait.Show(portrait, a.portrait, false);
             if (root.focusController?.focusedElement is VisualElement f) f.Blur();
             ShowChat();
         }

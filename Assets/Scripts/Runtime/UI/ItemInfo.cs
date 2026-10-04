@@ -1,6 +1,6 @@
 // ItemInfo.cs
 // What the shop shows about items and ships (ListItemWindow::set 0x159468, Layout::formatCredits 0xe5bd4):
-// icons (Resources/GoF2Icons, made by GoF2 > Build Item Icons), credits formatting, the stat rows of an item or a ship,
+// icons (Resources/GoF2Icons, made by GoF2 > Build > Item Icons), credits formatting, the stat rows of an item or a ship,
 // and the description with the known price range. Labels, units and formulas: Reference/research/shop.md 2.4.
 
 using System.Collections.Generic;

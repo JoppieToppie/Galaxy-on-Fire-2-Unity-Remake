@@ -1,4 +1,4 @@
-# Builds Assets/Resources/GoF2Data/assemblies.json, the input of "GoF2 > Build Assembled Prefabs".
+# Builds Assets/Resources/GoF2Data/assemblies.json, the input of "GoF2 > Build > Assembled Prefabs".
 #
 # rules/assemblies_*.json hold the composition rules recovered from the decompiled code (one research
 # pass per area; the matching *_notes.md explain functions, addresses and uncertainties):

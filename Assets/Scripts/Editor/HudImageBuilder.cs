@@ -1,5 +1,5 @@
 // HudImageBuilder.cs  (Editor only)
-// Menu "GoF2/Build HUD Images": cuts the flight HUD's mining and navigation images from the original interface atlases
+// Menu "GoF2/Build/HUD Images": cuts the flight HUD's mining and navigation images from the original interface atlases
 // into Resources/GoF2Hud (loaded by name by MiningView / NavigationView). Rects: Reference/research/mining.md 3.1
 // and 4.7, autopilot_travel.md 1 and 4, starmap_travel.md 11.3 (Android HD = gof2_interface_iphone4.png, plus the images the iPad-large build
 // re-binds to gof2_interface2_ipad_large.png; top-left origin, verified by cropping). Sprite strips become numbered frames.
@@ -222,7 +222,7 @@ namespace GoF2Remake.EditorTools
             (Ipad3, "plasma_crosshair", 1285, 354, 214, 214, 0, false),
         };
 
-        [MenuItem("GoF2/Build HUD Images", priority = 15)]
+        [MenuItem("GoF2/Build/HUD Images", priority = 220)]
         public static void Build()
         {
             var atlases = new System.Collections.Generic.Dictionary<string, Texture2D>();

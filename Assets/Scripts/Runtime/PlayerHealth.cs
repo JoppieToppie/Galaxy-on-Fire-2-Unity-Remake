@@ -419,6 +419,8 @@ namespace GoF2Remake.Flight
                 if (ship.visualModel != null) ship.visualModel.gameObject.SetActive(false);
                 ship.ExternalSpeedMetersPerSecond = 0f;
             }
+            // Remake multiplayer: an event's respawn point brings the ship back in space after its delay (NetEventRespawn).
+            if (exploded && Multiplayer.NetEventRespawn.Due(deathMs)) { Multiplayer.NetEventRespawn.Go(); return; }
             if (!GameOver && deathMs >= 8000f)
             {
                 GameOver = true;

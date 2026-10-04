@@ -1,5 +1,5 @@
 // WeaponBuilder.cs  (Editor only)
-// Menu "GoF2/Build Weapon Fx": turns Resources/GoF2Data/weapon_fx.json (made by
+// Menu "GoF2/Build/Weapon Fx": turns Resources/GoF2Data/weapon_fx.json (made by
 // Reference/tools/weapons/build_weapon_fx.py from Reference/research/weapons.md) into one WeaponFx asset per
 // weapon item in Resources/GoF2Weapons/item_XXX: projectile, muzzle flash and impact prefabs (single-mesh prefabs,
 // or the assembled prefab for rockets) and the shot sound (.ogg by name). Also makes CombatAudio (asteroid
@@ -28,7 +28,7 @@ namespace GoF2Remake.EditorTools
         const int SentryDeploySound = 2263;
 
         /// <summary>Reference/research/fmod_event_ids.txt (from the FEV's LGCY data): system id -> the event's wave files.</summary>
-        static Dictionary<int, List<string>> LoadEventTable()
+        internal static Dictionary<int, List<string>> LoadEventTable()
         {
             var table = new Dictionary<int, List<string>>();
             string path = Path.Combine(Path.GetDirectoryName(Application.dataPath), "Reference/research/fmod_event_ids.txt");
@@ -45,7 +45,7 @@ namespace GoF2Remake.EditorTools
         }
 
         /// <summary>Every wave of an event (a random / sequential sound definition picks among them at runtime).</summary>
-        static AudioClip[] EventClips(Dictionary<int, List<string>> table, int id) =>
+        internal static AudioClip[] EventClips(Dictionary<int, List<string>> table, int id) =>
             table.TryGetValue(id, out var files) ? files.Select(AssetDatabase.LoadAssetAtPath<AudioClip>).Where(c => c != null).ToArray()
                                                  : new AudioClip[0];
 
@@ -82,7 +82,7 @@ namespace GoF2Remake.EditorTools
             { 200, "sn_plasma_collector_003_ship_mounted" },
         };
 
-        [MenuItem("GoF2/Build Weapon Fx", priority = 13)]
+        [MenuItem("GoF2/Build/Weapon Fx", priority = 201)]
         public static void Build()
         {
             var json = AssetDatabase.LoadAssetAtPath<TextAsset>($"{ImportSettings.Root}/Resources/GoF2Data/weapon_fx.json");

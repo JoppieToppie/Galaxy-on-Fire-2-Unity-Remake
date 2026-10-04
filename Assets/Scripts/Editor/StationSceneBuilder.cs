@@ -1,10 +1,10 @@
 // StationSceneBuilder.cs  (Editor only)
-// Menu "GoF2/Create Station Scene": Assets/Scenes/Station.unity, the docked station (hangar + Space Lounge).
+// Menu "GoF2/Scenes/Station Scene": Assets/Scenes/Station.unity, the docked station (hangar + Space Lounge).
 // Like the flight level the scene is almost empty (camera, one light, post-processing, StationLevel, the station
 // menu UI); StationLevel builds the current station's hangar and bar at runtime. This wires up what the level
 // can't load by name: the bar visitor / glow / shadow single-mesh prefabs, the glow material per bar race, music,
-// ambience, button and hangar sounds, language tables. Builds the shop icons (GoF2 > Build Item Icons) and the star map
-// assets (GoF2 > Build Star Map Assets) if missing.
+// ambience, button and hangar sounds, language tables. Builds the shop icons (GoF2 > Build > Item Icons) and the star map
+// assets (GoF2 > Build > Star Map Assets) if missing.
 // Build settings: after Space. Docking in Space loads it, its launch button loads Space.
 
 using System.IO;
@@ -26,7 +26,7 @@ namespace GoF2Remake.EditorTools
         public const string ScenePath = "Assets/Scenes/Station.unity";
         const string Root = ImportSettings.Root;
 
-        [MenuItem("GoF2/Create Station Scene", priority = 12)]
+        [MenuItem("GoF2/Scenes/Station Scene", priority = 102)]
         public static void Build()
         {
             try { BuildScene(); }

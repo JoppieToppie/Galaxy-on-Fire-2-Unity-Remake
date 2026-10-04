@@ -1,9 +1,9 @@
 // SpaceSceneBuilder.cs  (Editor only)
-// Menu "GoF2/Create Space Scene": Assets/Scenes/Space.unity, the flight level. The scene itself is almost empty
+// Menu "GoF2/Scenes/Space Scene": Assets/Scenes/Space.unity, the flight level. The scene itself is almost empty
 // (camera, two directional lights, post-processing, SpaceLevel, the flight HUD); SpaceLevel builds the
 // current station orbit at runtime from the data, like the original's Level::init. This also makes what it loads by name:
 //   Resources/GoF2Backdrop/<texture>.mat  sun (additive), planet and ring (alpha) materials, space dust + fog sprites
-//   Resources/GoF2Sky/                    stars + nebula cubemaps (GoF2 > Bake Space Skies), if missing
+//   Resources/GoF2Sky/                    stars + nebula cubemaps (GoF2 > Build > Space Skies), if missing
 // Build settings: MainMenu 0, Space 1, Station 2. The main menu's "Start new game" loads Space.
 
 using System.IO;
@@ -25,7 +25,7 @@ namespace GoF2Remake.EditorTools
         public const string ScenePath = "Assets/Scenes/Space.unity";
         const string BackdropDir = ImportSettings.Root + "/Resources/" + Backdrop.MaterialFolder;
 
-        [MenuItem("GoF2/Create Space Scene", priority = 12)]
+        [MenuItem("GoF2/Scenes/Space Scene", priority = 101)]
         public static void Build()
         {
             try
@@ -73,7 +73,7 @@ namespace GoF2Remake.EditorTools
 
         /// <summary>Resources/GoF2Backdrop/SkyLayerAssets: the extra sky layer meshes (per-mesh prefabs) and their
         /// GoF2/SkyLayer materials (space_backdrop.md, skybox layers).</summary>
-        [MenuItem("GoF2/Build Sky Layers", priority = 13)]
+        [MenuItem("GoF2/Build/Sky Layers", priority = 223)]
         public static void BuildSkyLayers()
         {
             Directory.CreateDirectory(BackdropDir);

@@ -4,10 +4,10 @@
 // (texture = SolarSystem textureIndex) added on top. This renders both into the six faces of a cubemap so
 // the sky is a regular Unity skybox, which also drives URP ambient light and reflections.
 //
-// Menu "GoF2/Bake Skyboxes": Assets/Skyboxes/skybox_0XX.png (6-face horizontal strip, imported as a
+// Menu "GoF2/Legacy/Bake Combined Skyboxes": Assets/Skyboxes/skybox_0XX.png (6-face horizontal strip, imported as a
 // Cubemap) + skybox_0XX.mat (Skybox/Cubemap). Used by the main menu.
 //
-// Menu "GoF2/Bake Space Skies": the flight levels combine the layers at runtime instead, because a sky is really
+// Menu "GoF2/Build/Space Skies": the flight levels combine the layers at runtime instead, because a sky is really
 // the pair (nebula = system textureIndex 0..18, stars = system index % 3) and the original rotates it per station
 // (space_backdrop.md). Bakes Resources/GoF2Sky/stars_00X and nebula_0XX cubemaps (nebula on black, it is added)
 // plus the SpaceSky.mat template (shader GoF2/SpaceSky) that SpaceLevel instantiates.
@@ -38,7 +38,7 @@ namespace GoF2Remake.EditorTools
 
         public static string MaterialPath(int index) => $"{OutDir}/skybox_{index:000}.mat";
 
-        [MenuItem("GoF2/Bake Space Skies", priority = 24)]
+        [MenuItem("GoF2/Build/Space Skies", priority = 224)]
         public static void BakeSpaceSkies()
         {
             Directory.CreateDirectory(SpaceSkyDir);
@@ -78,7 +78,7 @@ namespace GoF2Remake.EditorTools
                     AssetDatabase.LoadAssetAtPath<Texture2D>($"{R}/Textures/supernova/skyboxes/sn_skybox_{t:000}.png"));
         }
 
-        [MenuItem("GoF2/Bake Skyboxes", priority = 23)]
+        [MenuItem("GoF2/Legacy/Bake Combined Skyboxes", priority = 501)]
         public static void BakeAll()
         {
             try

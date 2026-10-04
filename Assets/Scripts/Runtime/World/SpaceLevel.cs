@@ -97,7 +97,8 @@ namespace GoF2Remake.World
         public PlayerCloak Cloak { get; private set; }
         public TimeExtender Extender { get; private set; }
         /// <summary>MGame::dockEvent: 525 while a mission holds the player here (the story's blocks, the Kaamo siege).</summary>
-        public bool DockingBlocked => Story.BlocksDocking(Layout.stationIndex, IsStoryOrbit) || (Siege != null && Siege.Active);
+        public bool DockingBlocked => Story.BlocksDocking(Layout.stationIndex, IsStoryOrbit) || (Siege != null && Siege.Active)
+                                      || Multiplayer.NetEventRules.NoDocking;   // an event's Restrict Travel
         /// <summary>The orbit was built as the story's (Status::departStation put the campaign mission in Status+400).</summary>
         public bool IsStoryOrbit { get; private set; }
         /// <summary>A story conversation is open (the game is paused).</summary>
@@ -300,13 +301,14 @@ namespace GoF2Remake.World
             Hints = gameObject.AddComponent<FlightHints>();
             Hints.Setup(this);
             Navigation.JumpsBlocked = () => !Story.PlanetJumpsAllowed || Story.BlocksJumps(Layout.stationIndex, IsStoryOrbit) || (Siege != null && Siege.Active)
+                                            || Multiplayer.NetEventRules.NoJumps   // an event's Restrict Travel
                                             || (!Session.FreePlay && Story.Index == 65 && Layout.stationIndex == 100)   // escorting Khador (MGame::UseKhadorDrive)
                                             // remake: no Khador Drive out of the Void while its wormhole is the way back (the
                                             // main story before the ride out at 43); free play / sessions have no wormhole
                                             || (Layout.alienOrbit && !Session.FreePlay && Story.Index < 43 && Story.ForcedKhadorTarget(Layout.stationIndex) == null);
             Navigation.SetWormhole(Wormhole);
             Navigation.PlanetJumpRefused = st => StorySpace != null && StorySpace.RefusePlanetJump(st);
-            SystemJump.GateBlocked = () => Siege != null && Siege.Active;
+            SystemJump.GateBlocked = () => (Siege != null && Siege.Active) || Multiplayer.NetEventRules.NoJumps;
             Radar = Player.gameObject.AddComponent<CombatRadar>();
             Radar.Setup(db, Player, Navigation, Mining, Weapons, Health, Traffic);
             Traffic.LockedTarget = () => Radar != null ? Radar.Locked : null;   // locking a Most Wanted criminal uncovers it

@@ -2,6 +2,8 @@
 // Asteroid mining on the player's ship, from lock-on to ore in the cargo hold (Reference/research/mining.md):
 //   Radar::draw 0x1554fc          lock: keep an asteroid inside a +-w/16 box around the crosshair for (scanner attr 29,
 //                                 else 8000) - 200 ms; nearest in 3D wins; sound 26; no drill -> 541 "No drill installed."
+//                                 (the original keeps the full ring and repeats 541 every frame (0x157b00); remake: the
+//                                 lock is dropped and that asteroid isn't tried again until it has left the crosshair box)
 //   MGame::OnTouchBegin 0x1a838c  action while locked: cargo full -> 322, else "Target: Asteroid" + sound 28 and the
 //                                 autopilot takes the ship in; again = cancel ("Autopilot Off", sound 29); while mining = stop
 //   PlayerEgo::approachAsteroid   steer dir += (to - dir) * dt * min(H + 2.7, 4) / 4096 at full throttle; the last 2000
@@ -80,7 +82,8 @@ namespace GoF2Remake.Flight
         ItemData drill;
         int lockTimeMs = 8000;
         float lockTimer;
-        bool noDrillShown, wasLocked;
+        bool wasLocked;
+        Target refusedNoDrill;   // remake: its lock ran out without a drill; ignored until it leaves the crosshair box
         float dockDistance, pitchAccumulator;
         bool ready;
         Vector3 capturedUp;
@@ -134,7 +137,7 @@ namespace GoF2Remake.Flight
             switch (State)
             {
                 case Phase.Idle:
-                    if (navigation != null && navigation.BlocksAsteroidLock) { Candidate = Locked = null; LockFrame = -1; lockTimer = 0f; wasLocked = false; }
+                    if (navigation != null && navigation.BlocksAsteroidLock) { Candidate = Locked = refusedNoDrill = null; LockFrame = -1; lockTimer = 0f; wasLocked = false; }
                     else UpdateLock(dtMs);
                     break;
                 case Phase.Approaching:
@@ -176,7 +179,10 @@ namespace GoF2Remake.Flight
                         if (d < bestDist) { bestDist = d; best = t; }
                     }
             }
-            if (best != Candidate) { Candidate = best; lockTimer = 0f; noDrillShown = false; }
+            // Remake: an asteroid refused for want of a drill stays ignored while it remains the pick (looking away resets it).
+            if (best != null && best == refusedNoDrill) best = null;
+            else refusedNoDrill = null;
+            if (best != Candidate) { Candidate = best; lockTimer = 0f; }
             if (Candidate == null) { Locked = null; LockFrame = -1; wasLocked = false; return; }
 
             lockTimer += dtMs;
@@ -185,9 +191,15 @@ namespace GoF2Remake.Flight
             {
                 if (drill == null)
                 {
-                    if (!noDrillShown) Say(Localization.Get(541));   // No drill installed.
-                    noDrillShown = true;
-                    Locked = null;
+                    // Radar::draw 0x157b00: hudEvent(0x14) = 541 "No drill installed."; remake: the lock is cancelled (the
+                    // ring and the ore plate go) instead of staying full and repeating the message.
+                    Say(Localization.Get(541));
+                    refusedNoDrill = Candidate;
+                    Candidate = Locked = null;
+                    LockFrame = -1;
+                    lockTimer = 0f;
+                    wasLocked = false;
+                    return;
                 }
                 else
                 {

@@ -1,5 +1,5 @@
 // CombatAssetsBuilder.cs  (Editor only)
-// Menu "GoF2/Build Combat Assets": Resources/GoF2Combat/CombatAssets (CombatAssets), the prefabs and sounds of ship
+// Menu "GoF2/Build/Combat Assets": Resources/GoF2Combat/CombatAssets (CombatAssets), the prefabs and sounds of ship
 // combat (crates, wrecks, explosion, tractor beams, hit / death / music clips). Run by Create Space Scene.
 
 using System.IO;
@@ -15,7 +15,7 @@ namespace GoF2Remake.EditorTools
         const string Root = ImportSettings.Root;
         public const string AssetPath = Root + "/Resources/" + CombatAssets.ResourcePath + ".asset";
 
-        [MenuItem("GoF2/Build Combat Assets", priority = 17)]
+        [MenuItem("GoF2/Build/Combat Assets", priority = 200)]
         public static void Build()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(AssetPath));

@@ -8,7 +8,7 @@
 //   right  168 Medals: 45 plates in three columns, coloured by grade (Achievements); an earned medal shows its hint
 //          (1552 + i, # = the threshold of its grade)
 // Fire power: the original's Ship::getFirePower formula was not recovered; the remake shows the mounted primaries' damage
-// per second. Medal images: GoF2 > Build HUD Images (GoF2Hud/medal_*). Plain class driven by
+// per second. Medal images: GoF2 > Build > HUD Images (GoF2Hud/medal_*). Plain class driven by
 // StationMenu.
 
 using System.Collections.Generic;

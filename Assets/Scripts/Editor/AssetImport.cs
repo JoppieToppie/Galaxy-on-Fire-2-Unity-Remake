@@ -1,9 +1,9 @@
 // AssetImport.cs  (Editor only)
 // 1) AssetPostprocessor: sets correct import settings for the converted GoF2 textures, models and audio.
-// 2) Menu "GoF2/Build Materials And Prefabs": uses Resources/GoF2Data/resources.json (recovered from the
+// 2) Menu "GoF2/Build/Materials And Prefabs": uses Resources/GoF2Data/resources.json (recovered from the
 //    game's own resource table) to create one material per game material and one prefab per game mesh,
 //    with the exact texture/shader binding the original used.
-// 3) Menu "GoF2/Create Flight Test Scene": ship + chase camera, ready to press Play.
+// 3) Menu "GoF2/Legacy/Flight Test Scene": ship + chase camera, ready to press Play.
 //
 // Materials use the GoF2 Shader Graphs (Shaders/*.shadergraph, URP) for unlit/additive/alpha layers and URP Lit
 // for bump-mapped hulls.
@@ -209,7 +209,7 @@ namespace GoF2Remake.EditorTools
             return rp != null && rp.GetType().Name.Contains("Universal");
         }
 
-        [MenuItem("GoF2/Build Materials And Prefabs", priority = 1)]
+        [MenuItem("GoF2/Build/Materials And Prefabs", priority = 240)]
         public static void BuildAll()
         {
             var json = AssetDatabase.LoadAssetAtPath<TextAsset>(R("Resources/GoF2Data/resources.json"));
@@ -320,7 +320,7 @@ namespace GoF2Remake.EditorTools
             return mat;
         }
 
-        [MenuItem("GoF2/Reapply Import Settings (reimport Models, Textures, Audio)", priority = 20)]
+        [MenuItem("GoF2/Import/Reapply Import Settings", priority = 300)]
         public static void ReapplyImportSettings()
         {
             foreach (var f in new[] { "Models", "Textures", "Audio" })
@@ -328,14 +328,14 @@ namespace GoF2Remake.EditorTools
             Debug.Log("GoF2: import settings reapplied.");
         }
 
-        [MenuItem("GoF2/Reimport Models Only", priority = 21)]
+        [MenuItem("GoF2/Import/Reimport Models Only", priority = 301)]
         public static void ReimportModels()
         {
             AssetDatabase.ImportAsset(R("Models"), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
             Debug.Log("GoF2: models reimported.");
         }
 
-        [MenuItem("GoF2/Create Flight Test Scene", priority = 2)]
+        [MenuItem("GoF2/Legacy/Flight Test Scene", priority = 500)]
         public static void CreateTestScene()
         {
             var shipPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(R("Resources/Assembled/main/ships/ship_000_midorian.prefab"))

@@ -1,5 +1,5 @@
 // VrSetup.cs
-// "GoF2 > Configure VR (OpenXR)": the project's XR setup for PC VR (VrMode), idempotent. XR Plug-in Management for
+// "GoF2 > Setup > Configure VR (OpenXR)": the project's XR setup for PC VR (VrMode), idempotent. XR Plug-in Management for
 // Standalone with the OpenXR loader, but not started with the player (Initialize XR on Startup off: VR only with the -vr
 // launch flag, VrMode starts the loader itself), and OpenXR's controller profiles (Oculus / Meta Touch, Valve Index, HTC
 // Vive, Windows Mixed Reality, HP Reverb G2, the Khronos simple controller) so the usual headsets' controllers map onto the
@@ -20,7 +20,7 @@ namespace GoF2Remake.EditorTools
     {
         const string PerTargetPath = "Assets/XR/XRGeneralSettingsPerBuildTarget.asset";
 
-        [MenuItem("GoF2/Configure VR (OpenXR)")]
+        [MenuItem("GoF2/Setup/Configure VR (OpenXR)", priority = 401)]
         public static void Configure()
         {
             var group = BuildTargetGroup.Standalone;

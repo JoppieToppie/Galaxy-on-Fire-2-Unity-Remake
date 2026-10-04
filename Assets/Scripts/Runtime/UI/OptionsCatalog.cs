@@ -235,7 +235,14 @@ namespace GoF2Remake.UI
                     () => Settings.GyroSensitivity, v => Settings.GyroSensitivity = v, v => v.ToString("0.00")));
             }
             if (!Application.isMobilePlatform)
+            {
                 list.Add(Toggle("mouseSteering", OptionPage.Controls, () => X("mouseSteering", "Mouse steering"), () => Settings.MouseSteering, v => Settings.MouseSteering = v));
+                // Remake: a dead zone around the centre, so a mouse near the middle leaves the ship flying straight.
+                var mouseDeadzone = Slider("mouseDeadzone", OptionPage.Controls, () => X("mouseDeadzone", "Mouse steering dead zone"), 0f, 0.3f,
+                    () => Settings.MouseDeadzone, v => Settings.MouseDeadzone = v, Percent);
+                mouseDeadzone.description = () => X("mouseDeadzoneHelp", "How far the mouse can move from the centre before the ship turns.");
+                list.Add(mouseDeadzone);
+            }
             // Remake VR: the cockpit's grabbable stick (right grip) and throttle lever (left grip), else the controllers as a gamepad.
             var vrGrab = Toggle("vrGrabControls", OptionPage.Controls, () => X("vrGrabControls", "VR flight: grab the stick and throttle"),
                 () => Settings.VrGrabControls, v => Settings.VrGrabControls = v);

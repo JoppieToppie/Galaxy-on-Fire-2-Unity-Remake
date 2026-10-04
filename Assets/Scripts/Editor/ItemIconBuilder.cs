@@ -1,5 +1,5 @@
 // ItemIconBuilder.cs  (Editor only)
-// Menu "GoF2/Build Item Icons": one icon per item and per ship for the shop, from the original's atlases, following
+// Menu "GoF2/Build/Item Icons": one icon per item and per ship for the shop, from the original's atlases, following
 // Reference/research/item_icons.json (image ids decoded in Reference/research/shop.md section 1):
 //   item i -> image 2200 + i (items >= 176: 3824 + i), ship s -> image 2417 + s, in gof2_items_ipad_large.png /
 //   gof2_items_ipad_2_large.png (what Android HD loads on >= 1700x1080 screens), 178x86 each;
@@ -26,7 +26,7 @@ namespace GoF2Remake.EditorTools
 
         public static string JsonPath => Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Reference", "research", "item_icons.json"));
 
-        [MenuItem("GoF2/Build Item Icons", priority = 14)]
+        [MenuItem("GoF2/Build/Item Icons", priority = 221)]
         public static void Build()
         {
             if (!File.Exists(JsonPath)) { Debug.LogError($"GoF2: {JsonPath} missing (Reference/tools/shop/build_item_icons.py)"); return; }

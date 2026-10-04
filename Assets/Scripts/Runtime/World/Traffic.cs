@@ -296,6 +296,14 @@ namespace GoF2Remake.World
             chatterQueue.Enqueue(c);
         }
 
+        /// <summary>Remake multiplayer (/radio, an event's Radio node): a line in the radio box after the ones waiting (not
+        /// cutting them, unlike the original's chatter), shown like them: 2 s later, for 2 s per 55 letters + 1.5 s.</summary>
+        public void Say(Chatter line)
+        {
+            if (line == null || string.IsNullOrEmpty(line.text)) return;
+            if (chatterQueue.Count < 10) chatterQueue.Enqueue(line);
+        }
+
         /// <summary>Remake: the chatter stays up at least until its voice clip is over (as Radio.HoldFor).</summary>
         public void HoldChatter(float ms) { if (chatter != null) chatterDurationMs = Mathf.Max(chatterDurationMs, ms); }
 
@@ -924,10 +932,10 @@ namespace GoF2Remake.World
             if (MusicMuted) { if (music.isPlaying) music.Stop(); musicCategory = pendingCategory = -1; return; }
             // MGame::OnRender2D skips Radar::draw while LevelScript's cutscene flag is set, so nothing switches the music
             // during a story cutscene (index 14's arrest: the pirates vanish, the battle track plays on).
-            if (RadarHidden != null && RadarHidden() && musicCategory >= 0) { music.volume = fade * Settings.MusicVolume; return; }
+            if (RadarHidden != null && RadarHidden() && musicCategory >= 0) { music.volume = fade * Settings.MusicVolume * Multiplayer.NetScreen.SceneMusic; return; }
             // Radar::draw 0x157c6c: while 143 IntroAtmo plays nothing switches.
             var introAtmo = StoryAssets.Load()?.introAtmo;
-            if (introAtmo != null && music.clip == introAtmo && music.isPlaying) { music.volume = fade * Settings.MusicVolume; return; }
+            if (introAtmo != null && music.clip == introAtmo && music.isPlaying) { music.volume = fade * Settings.MusicVolume * Multiplayer.NetScreen.SceneMusic; return; }
             int cat = HostileCount <= 0 ? 0 : HostileCount <= 2 ? 1 : HostileCount <= 4 ? 2 : 3;
             // At campaign 0x91 (the plasma array's destruction) a calm orbit never brings the calm track back.
             if (cat == 0 && musicCategory > 0 && !Session.FreePlay && Session.CampaignMission == 0x91) cat = musicCategory;
@@ -960,7 +968,7 @@ namespace GoF2Remake.World
                 }
             }
             else fade = Mathf.Min(1f, fade + dt / 1.5f);
-            music.volume = fade * Settings.MusicVolume;
+            music.volume = fade * Settings.MusicVolume * Multiplayer.NetScreen.SceneMusic;
         }
     }
 }

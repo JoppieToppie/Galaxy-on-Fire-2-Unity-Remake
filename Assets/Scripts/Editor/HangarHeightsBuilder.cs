@@ -1,5 +1,5 @@
 // HangarHeightsBuilder.cs
-// GoF2 > Build Hangar Heights: Resources/GoF2Data/hangar_heights.json, how far a parked ship must be lifted above the
+// GoF2 > Build > Hangar Heights: Resources/GoF2Data/hangar_heights.json, how far a parked ship must be lifted above the
 // original's height (the slot's floor y + StationTables.ShipY, DAT_00253d48) so its hull doesn't cut into the pad, per
 // hangar, slot (-1 = the player's turntable) and heading (24 bins of 15 deg). Nothing is ever lowered: the table height
 // stays wherever the hull clears the pad (the Terran cradles are open funnels, the Vossk pads flat discs). With these
@@ -29,7 +29,7 @@ namespace GoF2Remake.EditorTools
         const float DropFrom = 12f;    // m above the table pivot where the drop starts
         const float MinLift = 0.02f;   // m; less is left at the table height
 
-        [MenuItem("GoF2/Build Hangar Heights", priority = 16)]
+        [MenuItem("GoF2/Build/Hangar Heights", priority = 206)]
         public static void Build()
         {
             var db = Database.Load();

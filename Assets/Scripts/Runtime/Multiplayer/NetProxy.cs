@@ -85,6 +85,8 @@ namespace GoF2Remake.Multiplayer
         EmpSparks sparks;
 
         public int Station => station.Value;
+        /// <summary>Its race (Standing ids; -1 unknown).</summary>
+        public int Race => race.Value;
         /// <summary>The player whose game has this ship (the owner at spawn; the host may own it after they left).</summary>
         public ulong Creator => creator.Value;
         /// <summary>Owned here without a ship: its owner left the session and it passed to the host (NetState's sweep).</summary>

@@ -1,5 +1,5 @@
 // MainMenuBuilder.cs  (Editor only)
-// Menu "GoF2/Create Main Menu Scene": builds Assets/Scenes/MainMenu.unity and the assets it needs.
+// Menu "GoF2/Scenes/Main Menu Scene": builds Assets/Scenes/MainMenu.unity and the assets it needs.
 //   - UI images cut from the original atlases: GoF2 / FISHLABS / ABYSS ENGINE logos (gof2_logos_1440.png,
 //     images 7002 / 7001 / 7000) and the Select Campaign cards (gof2_campaign_select_ipad_large.png,
 //     images 9500-9505), plus two generated shading gradients.
@@ -46,7 +46,7 @@ namespace GoF2Remake.EditorTools
             ("it", "Italiano"), ("nl", "Nederlands"), ("pl", "Polski"), ("ru", "Русский"), ("pt", "Português (Brasil)"),
         };
 
-        [MenuItem("GoF2/Create Main Menu Scene", priority = 3)]
+        [MenuItem("GoF2/Scenes/Main Menu Scene", priority = 100)]
         public static void Build()
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;

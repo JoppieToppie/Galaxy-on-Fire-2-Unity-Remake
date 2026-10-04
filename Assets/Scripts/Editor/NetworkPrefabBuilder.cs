@@ -1,5 +1,5 @@
 // NetworkPrefabBuilder.cs
-// GoF2 > Build Network Prefabs: the multiplayer MVP's network prefabs in Resources/GoF2Net (NetGame registers them at
+// GoF2 > Build > Network Prefabs: the multiplayer MVP's network prefabs in Resources/GoF2Net (NetGame registers them at
 // runtime): NetPlayer, NetProxy, NetState and NetCrate, each a NetworkObject with its behaviour. Existing prefabs are kept, so
 // their GlobalObjectIdHash (which host and clients must agree on) stays the same. Also switches Android's internet
 // permission on (Unity Transport's sockets need it; Unity doesn't detect them).
@@ -13,7 +13,7 @@ namespace GoF2Remake.EditorTools
 {
     public static class NetworkPrefabBuilder
     {
-        [MenuItem("GoF2/Build Network Prefabs")]
+        [MenuItem("GoF2/Build/Network Prefabs", priority = 205)]
         public static void Build()
         {
             string folder = "Assets/Resources/" + NetGame.PrefabFolder;

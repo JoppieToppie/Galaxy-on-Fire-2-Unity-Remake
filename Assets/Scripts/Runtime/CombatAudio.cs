@@ -1,7 +1,7 @@
 // CombatAudio.cs
 // Combat sounds that aren't tied to one weapon (weapons.md section 5): asteroid destroyed (event 21),
 // target lock acquired (event 26); and the mining ones (mining.md 4.8): drill loop (1), landing (2), drill off target (3),
-// autopilot on / off (28 / 29). Resources/GoF2Weapons/CombatAudio, made by GoF2 > Build Weapon Fx.
+// autopilot on / off (28 / 29). Resources/GoF2Weapons/CombatAudio, made by GoF2 > Build > Weapon Fx.
 
 using UnityEngine;
 

@@ -2,7 +2,7 @@
 // The alien font (Globals::fontAlien = resource 1310, the second font of gof2_interface, loaded with spacing 0 by
 // Globals::loadFont 0xf8d20): the dialogue window and the radio draw the text in it when the speaker is 19 (Void) or 56
 // (Corny) (StoryTable.UsesAlienFont; Reference/research/dialogue_cutscenes.md 1.2 / 2.3). Those texts are uppercase
-// gibberish; the font has 26 magenta glyphs, A..Z, cut to Resources/GoF2Hud/alien_A..Z by "GoF2 > Build HUD Images".
+// gibberish; the font has 26 magenta glyphs, A..Z, cut to Resources/GoF2Hud/alien_A..Z by "GoF2 > Build > HUD Images".
 // A Label can't draw a bitmap font, so the text becomes glyph images in a box right after the Label (which is hidden
 // meanwhile and takes the box's classes), one row per word, wrapped at spaces like Globals::getLineArray. Letters map
 // case-insensitively; anything else (!, digits, the U+FFFD the conversion left) isn't in the font and is left out.
@@ -100,7 +100,7 @@ namespace GoF2Remake.UI
             {
                 glyphs = new Texture2D[26];
                 for (int i = 0; i < 26; i++) glyphs[i] = Resources.Load<Texture2D>("GoF2Hud/alien_" + (char)('A' + i));
-                if (glyphs[0] == null) Debug.LogWarning("AlienText: no GoF2Hud/alien_* images, run GoF2 > Build HUD Images");
+                if (glyphs[0] == null) Debug.LogWarning("AlienText: no GoF2Hud/alien_* images, run GoF2 > Build > HUD Images");
             }
             return glyphs[0] != null;
         }

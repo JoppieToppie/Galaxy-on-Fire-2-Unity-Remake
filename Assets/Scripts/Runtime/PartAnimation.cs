@@ -1,6 +1,6 @@
 // PartAnimation.cs
 // Plays the original keyframe animation stored in each model's .gof2mesh.json sidecar
-// (station rings, rotating parts, animated FX). Attached automatically by "GoF2/Build Materials And Prefabs".
+// (station rings, rotating parts, animated FX). Attached automatically by "GoF2/Build/Materials And Prefabs".
 //
 // Keyframe times are milliseconds. The original stores position in a Z-up layout that the engine swaps
 // to Y-up (engine = (c0, c2, -c1)); engine -> Unity is (x, y, -z) once the import step has turned the

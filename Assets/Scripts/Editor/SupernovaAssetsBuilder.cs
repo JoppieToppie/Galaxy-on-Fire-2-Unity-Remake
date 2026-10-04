@@ -1,5 +1,5 @@
 // SupernovaAssetsBuilder.cs  (Editor only)
-// Menu "GoF2/Build Supernova Assets": Resources/GoF2Story/SupernovaAssets (SupernovaAssets), the DLC2 sounds and music.
+// Menu "GoF2/Build/Supernova Assets": Resources/GoF2Story/SupernovaAssets (SupernovaAssets), the DLC2 sounds and music.
 
 using System.IO;
 using GoF2Remake.Data;
@@ -13,7 +13,7 @@ namespace GoF2Remake.EditorTools
         const string Root = ImportSettings.Root;
         public const string AssetPath = Root + "/Resources/GoF2Story/SupernovaAssets.asset";
 
-        [MenuItem("GoF2/Build Supernova Assets", priority = 19)]
+        [MenuItem("GoF2/Build/Supernova Assets", priority = 203)]
         public static void Build()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(AssetPath));

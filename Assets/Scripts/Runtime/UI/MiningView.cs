@@ -9,7 +9,7 @@
 //                the core (class A), drill ring + 10-frame bit at the drill, energy bar (flickers red when low) with its
 //                label and two scrolling data strips, the depth strip and the ore amount next to the drill (red when it
 //                exceeds the free cargo, fades in on every new ton). Centre = (w / 2, h / 2 + 30), HD pixels = panel units.
-// Images come from Resources/GoF2Hud (GoF2 > Build HUD Images).
+// Images come from Resources/GoF2Hud (GoF2 > Build > HUD Images).
 
 using System.Collections.Generic;
 using GoF2Remake.Flight;

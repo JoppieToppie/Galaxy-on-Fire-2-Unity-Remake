@@ -21,6 +21,7 @@
 using System;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
+using GoF2Remake.UI;
 using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
@@ -91,6 +92,23 @@ namespace GoF2Remake.Multiplayer
             Session.FreelanceMission = m;
             Session.InformerKilled = Session.InformerFailed = false;
             NetChat.Notice(string.Format(Localization.Extra("mpMissionShared", "{0} accepted a squad mission: {1}."), from, m.Name));
+            ShowCard(m, from);
+        }
+
+        /// <summary>The squad mission a squadmate took, on this player's screen (NetScreen's mission card): its name, who took
+        /// it, the client's face and name, the target and the reward.</summary>
+        static void ShowCard(FreelanceMission m, string from)
+        {
+            var db = NetGame.Db;
+            var station = db?.Stations.Find(s => s.index == m.target);
+            var system = station != null ? db.Systems.Find(s => s.index == station.system) : null;
+            var lines = new System.Collections.Generic.List<string>();
+            if (!string.IsNullOrEmpty(m.clientName)) lines.Add(string.Format(Localization.Extra("mpMissionCardClient", "Client: {0}"), m.clientName));
+            if (station != null)
+                lines.Add(string.Format(Localization.Extra("mpMissionCardTarget", "Target: {0}"), system != null ? $"{station.name} ({system.name})" : station.name));
+            if (m.Total > 0) lines.Add(string.Format(Localization.Extra("mpMissionCardReward", "Reward: {0}, shared by the squad"), ItemInfo.Credits(m.Total)));
+            NetScreen.ShowMissionCard(null, m.Name, string.Format(Localization.Extra("mpMissionCardBy", "Accepted by {0}"), from),
+                string.Join("\n", lines), m.clientPortrait);
         }
 
         /// <summary>The mission's shared status grew by 'delta' here (delivered ore, the captured container): for the squad too.</summary>

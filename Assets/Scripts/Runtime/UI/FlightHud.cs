@@ -559,8 +559,8 @@ namespace GoF2Remake.UI
                 safeArea.Add(mouseReticle);
             }
             if (mouseReticle == null) return;
-            // Only once the mouse steers away from the centre (beyond ~4 % of the half screen height).
-            bool show = on && ship.MouseOffset.magnitude > Screen.height * 0.02f;
+            // Only once the mouse steers away from the centre (beyond ~4 % of the half screen height and the dead zone).
+            bool show = on && !ship.MouseInDeadzone && ship.MouseOffset.magnitude > Screen.height * 0.02f;
             mouseReticle.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
             if (!show || root.panel == null) return;
             var centre = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f) + ship.MouseOffset;
@@ -1096,7 +1096,9 @@ namespace GoF2Remake.UI
         {
             gameOverMs = 0f;
             gameOver.AddToClassList("game-over--shown");
-            gameOverText.text = GoF2Remake.Multiplayer.NetGame.Active
+            gameOverText.text = GoF2Remake.Multiplayer.NetEventRespawn.Active
+                ? Localization.Extra("mpRespawnEvent", "Respawning in space...")      // an event's respawn point (NetEventRespawn)
+                : GoF2Remake.Multiplayer.NetGame.Active
                 ? Localization.Extra("mpRespawn", "Tap to respawn at the station.")   // multiplayer: no saves, docked again
                 : Localization.Get(Session.HasAutosave ? 196 : 199);
         }

@@ -1,6 +1,6 @@
 // TouchControls.cs
 // The original's touchscreen flight controls (Reference/research/touch_hud.md) as UI Toolkit elements with the original
-// images (Resources/GoF2Hud/touch_*, "GoF2 > Build HUD Images"), laid out like Globals::setCoordsSteer / setCoordsFire
+// images (Resources/GoF2Hud/touch_*, "GoF2 > Build > HUD Images"), laid out like Globals::setCoordsSteer / setCoordsFire
 // (panel units = the original's HD canvas pixels) and driven by their own pointer events:
 //   left group, from S (415)   fast-forward / time extender (40, S - 180) and autopilot (40, S) on their pill (NavigationView
 //                              draws and handles them; placed here), the fixed stick: base 0x4c1 at (20, S + 132), centre

@@ -1,6 +1,6 @@
 // SupernovaAssets.cs
 // What the Supernova add-on's systems load that has no name to look up at runtime (Resources/GoF2Story/SupernovaAssets,
-// made by "GoF2 > Build Supernova Assets"): the DLC2 sounds and music. The FMOD event ids above 213 (0x8be-0x8ea, 2238-2282)
+// made by "GoF2 > Build > Supernova Assets"): the DLC2 sounds and music. The FMOD event ids above 213 (0x8be-0x8ea, 2238-2282)
 // aren't in fmod_event_ids.txt; the clips are name-matched to the DLC2 banks (noted per field).
 
 using UnityEngine;

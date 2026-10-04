@@ -7,6 +7,7 @@
 // (PlayerTurret.PickTarget, SentryGun: whatever is hostileToPlayer; NetPlayer sets the flag on their ship each frame).
 // An attack, not a stray shot: 3 hits or 50 damage within 10 s (a missile is enough, a bullet or two isn't). It lasts 120 s
 // from the last hit either way (every hit starts it again), or until one of the two is destroyed (or the session ends).
+// A free for all (/pvp on, an event's Free For All node) makes every other player an enemy at once, squadmates excepted.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -48,8 +49,17 @@ namespace GoF2Remake.Multiplayer
             until[other] = now + HostileSeconds;
         }
 
-        /// <summary>'client' is this player's enemy: an attack within the last 120 s, and neither has been destroyed since.</summary>
-        public static bool IsHostile(ulong client) => until.TryGetValue(client, out float t) && Time.unscaledTime < t;
+        /// <summary>'client' is this player's enemy: an attack within the last 120 s, and neither has been destroyed since; or
+        /// a free for all (NetState.FreeForAll), where every other player is one but a squadmate.</summary>
+        public static bool IsHostile(ulong client)
+        {
+            if (NetState.FreeForAll)
+            {
+                var other = NetSquad.Find(client);
+                if (other != null && !(NetPlayer.Local != null && NetSquad.Same(NetPlayer.Local, other))) return true;
+            }
+            return until.TryGetValue(client, out float t) && Time.unscaledTime < t;
+        }
 
         /// <summary>That player was destroyed: no longer an enemy, the hits forgotten.</summary>
         public static void Forget(ulong client)

@@ -1,5 +1,5 @@
 // AssemblyBuilder.cs  (Editor only)
-// Menu "GoF2/Build Assembled Prefabs": the game keeps every visual object as several meshes (hull, lights,
+// Menu "GoF2/Build/Assembled Prefabs": the game keeps every visual object as several meshes (hull, lights,
 // emissive, engines, LODs...) and assembles them in code at spawn time (Globals::getShipGroup,
 // PlayerStation::PlayerStation, Level::createStaticObject / createAsteroids, PlayerTurret, Level::createScene
 // for hangars and bars, StarMap...). Resources/GoF2Data/assemblies.json holds those composition rules
@@ -50,7 +50,7 @@ namespace GoF2Remake.EditorTools
 
         static string R(string rel) => ImportSettings.Root + "/" + rel;
 
-        [MenuItem("GoF2/Build Assembled Prefabs", priority = 2)]
+        [MenuItem("GoF2/Build/Assembled Prefabs", priority = 241)]
         public static void BuildAll()
         {
             var json = AssetDatabase.LoadAssetAtPath<TextAsset>(R("Resources/GoF2Data/assemblies.json"));

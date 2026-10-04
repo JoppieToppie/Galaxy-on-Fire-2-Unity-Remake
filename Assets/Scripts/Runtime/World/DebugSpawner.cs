@@ -60,15 +60,32 @@ namespace GoF2Remake.World
             var prefab = AssembledObject.LoadPrefab(level.Database.AssemblyByName(assembly));
             if (prefab == null) return string.Format(Localization.Extra("debugSpawnFailed", "{0} couldn't be spawned."), assembly);
             var p = level.Player.transform;
-            var go = Object.Instantiate(prefab, p.position, Quaternion.LookRotation(-p.forward, p.up));
+            // An object with the original's collision volumes (axis-aligned, never rotated: Level::getBoundingVolume) keeps
+            // its own heading; anything else faces the player and gets a box around its model.
+            int collisionId = StaticCollisionId(assembly);
+            var go = Object.Instantiate(prefab, p.position, collisionId >= 0 ? Quaternion.identity : Quaternion.LookRotation(-p.forward, p.up));
             go.name = "Debug " + assembly;
             var bounds = new Bounds(go.transform.position, Vector3.zero);
             foreach (var r in go.GetComponentsInChildren<Renderer>()) bounds.Encapsulate(r.bounds);
             float radius = Mathf.Max(bounds.extents.magnitude, 5f);
             if (at.HasValue) go.transform.position = at.Value + (go.transform.position - bounds.center);
             else go.transform.position += p.forward * (radius + 150f) + (go.transform.position - bounds.center);
+            // Collision: the player slides along it, NPC fighters steer out of it (Obstacle).
+            var obstacle = go.AddComponent<Obstacle>();
+            obstacle.projectFromVolume = collisionId >= 0;
+            if (collisionId >= 0) obstacle.volumes = CollisionVolume.ForStaticObject(collisionId);
+            if (obstacle.volumes == null || obstacle.volumes.Count == 0)
+            {
+                var placed = new Bounds(go.transform.position, Vector3.zero);
+                foreach (var r in go.GetComponentsInChildren<Renderer>()) placed.Encapsulate(r.bounds);
+                obstacle.volumes = new System.Collections.Generic.List<CollisionVolume> { CollisionVolume.Box(placed.center - go.transform.position, placed.extents) };
+            }
             return string.Format(Localization.Extra("debugObjectSpawned", "{0} spawned ({1:0} m across)."), assembly, radius * 2f);
         }
+
+        /// <summary>The objects with the original's collision volumes (CollisionVolume.ForStaticObject): the pirate outpost
+        /// 1002 (Level::createStaticObject for the pirate bases and the Kaamo siege); -1 = none.</summary>
+        static int StaticCollisionId(string assembly) => assembly == "station_pirates" ? 1002 : -1;
 
         public static string ShipName(Database db, int ship)
         {

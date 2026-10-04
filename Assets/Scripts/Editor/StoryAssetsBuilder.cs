@@ -1,5 +1,5 @@
 // StoryAssetsBuilder.cs  (Editor only)
-// Menu "GoF2/Build Story Assets": Resources/GoF2Story/StoryAssets (StoryAssets): the story voice lines (English and
+// Menu "GoF2/Build/Story Assets": Resources/GoF2Story/StoryAssets (StoryAssets): the story voice lines (English and
 // German, base game and both add-ons) and the portrait parts. Needs the HUD images (portrait background / frame).
 
 using System.IO;
@@ -17,7 +17,7 @@ namespace GoF2Remake.EditorTools
         static readonly string[] VoiceBanks = { "VOICE", "DLC_VOICE", "DLC2_VOICE", "LOUNGE", "GENERIC" };   // LOUNGE: the bar greetings, GENERIC: agents' radio (GenericVoice)
         static readonly Regex PartName = new Regex(@"^(\d+)_(\d)_(\d+)_ipad_large$");
 
-        [MenuItem("GoF2/Build Story Assets", priority = 18)]
+        [MenuItem("GoF2/Build/Story Assets", priority = 202)]
         public static void Build()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(AssetPath));

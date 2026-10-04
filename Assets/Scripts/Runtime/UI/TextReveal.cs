@@ -13,7 +13,7 @@
 //              pirates bone white, Void violet), also the factions named after it ("Vossk Empire", "Terran Fleet"):
 //              story speakers, stations, systems, races, ships, items and the lore names only the texts use (LoreNames);
 //              whole words, case-sensitive (races in either case), plurals too
-//   icons      inline <sprite>s from Resources/Sprite Assets/gof2_text_icons (GoF2 > Build Text Icons), faded in with
+//   icons      inline <sprite>s from Resources/Sprite Assets/gof2_text_icons (GoF2 > Build > Text Icons), faded in with
 //              their letter: a coin before every amount ("1,800$", "20,000 credits" and the credit word of each
 //              language); before the first mention on the page: the race emblems (Terran, Vossk, Nivelian, Midorian,
 //              pirates, Void), the jumpgate, wormhole, blueprint and autopilot icons (their text ids 547 / 545 / 271 / 571),

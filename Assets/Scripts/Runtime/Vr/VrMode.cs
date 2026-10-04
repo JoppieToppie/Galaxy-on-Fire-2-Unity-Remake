@@ -2,7 +2,7 @@
 // Remake: PC VR through OpenXR, only when asked for: the -vr launch flag (or -vrsim: the same VR layout on the desktop
 // without a headset, for testing: the mouse looks around and points; in the Editor the GOF2_VR environment variable "on" /
 // "sim" or PlayerPrefs debug_vr 1 = on, 2 = sim). XR Plug-in Management doesn't start with the player
-// ("GoF2 > Configure VR (OpenXR)" turns Initialize on Startup off): Start() initialises the OpenXR loader and its
+// ("GoF2 > Setup > Configure VR (OpenXR)" turns Initialize on Startup off): Start() initialises the OpenXR loader and its
 // subsystems itself before the first scene; without a headset or runtime it logs why and the game runs flat.
 // Each scene then gets a VrRig (the stereo camera following the scene's own camera, the controllers, the floating UI
 // screen and its laser pointer; VrRig.Attach on sceneLoaded).
