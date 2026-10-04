@@ -152,10 +152,11 @@ namespace GoF2Remake.Visuals
         /// <summary>Length of the animation in ms (0 if it has no keyframes).</summary>
         public float LengthMs => lengthMs;
 
-        /// <summary>Starts the animation over (muzzle flashes and impacts restart with every shot).</summary>
+        /// <summary>Starts the animation over (muzzle flashes and impacts restart with every shot), at loopStartMs (0 unless
+        /// a one-off first key is skipped: the Midorian bar prop).</summary>
         public void Restart()
         {
-            timeMs = 0f;
+            timeMs = Mathf.Clamp(loopStartMs, 0f, Mathf.Max(0f, lengthMs - 1f));
             play = true;
             if (enabled) Update();
         }

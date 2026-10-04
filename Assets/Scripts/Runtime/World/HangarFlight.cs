@@ -1,7 +1,7 @@
 // HangarFlight.cs
 // Remake-only: a ship flying into or out of the docked station's hangar. The original cuts straight from space to the
 // parked ship and back (MGame::dockEvent / ModStation::leaveStation); the lanes are StationTables.HangarLanes.
-//   Arrival:   from 150 m outside the forcefield (growing from nothing to full size on the way, so it doesn't pop in
+//   Arrival:   from 450 m outside the forcefield (growing from nothing to full size on the way, so it doesn't pop in
 //              where the opening shows space), through it and across the room, level, on a centripetal Catmull-Rom
 //              spline (full speed, then braking at a constant rate) toward the point over the pad (Vossk: in a wide arc
 //              through the ring's centre and straight into the bay, at 'hover' height); a short rounded corner turns the
@@ -29,7 +29,7 @@ namespace GoF2Remake.World
     {
         // Outside the forcefield the ships grow from nothing to full size (arriving) or shrink away (departing) over
         // 'OutsideDistance', so they don't pop in or out in view of the opening.
-        const float OutsideDistance = 150f, InsideDistance = 60f;   // m
+        const float OutsideDistance = 450f, InsideDistance = 60f;   // m (150 m: the growth / shrinking was over too fast)
         const float MaxSpeed = 200f, Accel = 60f;                     // the lane, m/s and m/s^2
         const float CornerSpeed = 16f, SettleAccel = 12f, SettleEndSpeed = 0.8f;   // the vertical part (m/s, m/s^2)
         const float GentleDistance = 25f, GentleAccel = 8f;   // the last metres to the stop over the pad (and away from it)
@@ -39,8 +39,9 @@ namespace GoF2Remake.World
         const int LaneSamples = 800, CornerSamples = 24, VerticalSamples = 8, FilletSamples = 12;
         const float FloorMargin = 0.4f;   // m above the parked bottom that a banked / pitched hull keeps
         // The ships also shrink away (grow in) where they leave (enter) the hangar camera's view: over the last (first)
-        // ViewFade metres in view, so they scale down instead of crossing the screen edge at full size.
-        const float ViewFade = 70f, ViewMargin = 0.05f;
+        // ViewFade metres in view (at most ViewFadeShare of the lane in view, so a ship is full size before it slows down
+        // over the pad), so they scale down instead of crossing the screen edge at full size.
+        const float ViewFade = 160f, ViewFadeShare = 0.6f, ViewMargin = 0.05f;
 
         public readonly Transform ship;
         public readonly bool arriving;
@@ -61,7 +62,7 @@ namespace GoF2Remake.World
         readonly float engineVolume;
         float s, v, holdT;
         /// <summary>Arc length where the path leaves the camera's view (departure) / enters it (arrival); -1 = never.</summary>
-        float sViewEdge = -1f;
+        float sViewEdge = -1f, viewFade = ViewFade;
         float scaleK = 1f;
         float yaw, pitch, bank, startYaw, cornerPitch, cornerBank;
         float turnT, turnSeconds, turnFrom, turnTo, holdBob;
@@ -164,6 +165,11 @@ namespace GoF2Remake.World
             sVertical = length[verticalStart];
 
             sViewEdge = ViewEdge(Camera.main);
+            if (sViewEdge >= 0f)
+            {
+                float inView = arriving ? sLane - sViewEdge : sViewEdge - sLane;   // the lane's part in view
+                viewFade = Mathf.Clamp(inView * ViewFadeShare, 1f, ViewFade);
+            }
             laneYaw = Heading(arriving ? d : -d);
             padYaw = finalRotation.HasValue ? finalRotation.Value.eulerAngles.y : laneYaw;
             startYaw = ship.eulerAngles.y;
@@ -458,14 +464,14 @@ namespace GoF2Remake.World
         }
 
         /// <summary>Full size at the forcefield, nothing at the far end outside; and nothing where the path leaves (enters)
-        /// the camera's view, from full size ViewFade metres before (after) it.</summary>
+        /// the camera's view, from full size viewFade metres before (after) it.</summary>
         void ApplyScale(Vector3 pos)
         {
             float beyond = Vector3.Dot(pos - gate, outward);
             float k = 1f - Mathf.SmoothStep(0f, 1f, beyond / OutsideDistance);
             if (sViewEdge >= 0f)
-                k = Mathf.Min(k, arriving ? Mathf.SmoothStep(0f, 1f, (s - sViewEdge) / ViewFade)
-                                          : 1f - Mathf.SmoothStep(0f, 1f, (s - (sViewEdge - ViewFade)) / ViewFade));
+                k = Mathf.Min(k, arriving ? Mathf.SmoothStep(0f, 1f, (s - sViewEdge) / viewFade)
+                                          : 1f - Mathf.SmoothStep(0f, 1f, (s - (sViewEdge - viewFade)) / viewFade));
             scaleK = Mathf.Max(0.001f, k);
             ship.localScale = baseScale * scaleK;
         }

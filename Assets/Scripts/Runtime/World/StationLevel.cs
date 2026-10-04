@@ -191,11 +191,17 @@ namespace GoF2Remake.World
             if (Story.AutosaveAllowed(station)) Session.Autosave();
             BarRace = StationTables.BarRace(Layout.raceId);
             if (mainCamera == null) mainCamera = Camera.main;
+            ApplyAntialiasing();
+            Settings.Changed -= ApplyAntialiasing;
+            Settings.Changed += ApplyAntialiasing;
 
             OrbitBuilder.SetupSky(Layout);   // the system's sky shows through the openings of both rooms
             OrbitBuilder.SpawnBackdrop(Layout, mainCamera);
             BuildHangar();
             BuildBar();
+            // Remake: ships now and then flying past outside the bar's windows.
+            gameObject.AddComponent<BarFlybys>().Setup(this, barRoot, barPosB, barRotB, BarRace == 1, RandomParkedShip,
+                                                       ship => SpawnShip(ship, Vector3.zero, Quaternion.identity, barRoot, "Flyby"));
             Debug.Log($"StationLevel: station {station} {Station?.name} ({Station?.systemName}), hangar {HangarIndex}, " +
                       $"bar {BarRace}, ship {shipIndex}, {VisitorCount} visitors");
 
@@ -365,6 +371,11 @@ namespace GoF2Remake.World
             barRoot = new GameObject("Space Lounge").transform;
             // createScene branch 4: rooms with no rotation (game identity = Unity yaw 180).
             var room = Spawn(StationTables.BarRoom[BarRace], Vector3.zero, OrbitLayout.RotationToUnity(Vector3.zero), barRoot, "Room");
+            // As in the hangar: the loops (and the Midorian prop's replays) skip their one-off first key, where every part
+            // sits at the origin for 33 / 50 ms; played, it flashed for a frame on every wrap (the Nivelian bar's 6.5 s
+            // bar_nivelian_anim_add, the Midorian prop each time it replayed).
+            if (room != null)
+                foreach (var a in room.GetComponentsInChildren<PartAnimation>(true)) a.loopStartMs = a.OneOffStartMs;
             if (room != null && BarRace == 3)
             {
                 // CutScene::initialize (mode 4): bar_midorian_alpha_anim is a one-shot, restarted with 30 % every 2 s.
@@ -455,6 +466,25 @@ namespace GoF2Remake.World
             var go = SpawnShip(index, Vector3.zero, 0f, parent, label);
             if (go != null) go.transform.SetPositionAndRotation(unityPos, unityRot);
             return go;
+        }
+
+        /// <summary>Remake: the rooms' thin, glossy parts (the Nivelian bar stools, the Midorian window frames) shimmered as the
+        /// camera swayed: SMAA works within one frame. The station camera takes URP's temporal AA instead (its slow camera
+        /// and still rooms are where TAA has nothing to smear), unless a temporal upscaler (DLSS, FSR 2+, STP) already
+        /// anti-aliases or MSAA is on (URP's TAA needs it off); then SMAA as before. Again when the options change.</summary>
+        void OnDestroy() => Settings.Changed -= ApplyAntialiasing;
+
+        void ApplyAntialiasing()
+        {
+            if (mainCamera == null) return;
+            var data = UnityEngine.Rendering.Universal.CameraExtensions.GetUniversalAdditionalCameraData(mainCamera);
+            if (data == null) return;
+            var urp = GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
+            bool msaa = urp != null && urp.msaaSampleCount > 1;
+            data.antialiasing = Bootstrap.IsTemporal(Bootstrap.ActiveUpscaler) || msaa
+                ? UnityEngine.Rendering.Universal.AntialiasingMode.SubpixelMorphologicalAntiAliasing
+                : UnityEngine.Rendering.Universal.AntialiasingMode.TemporalAntiAliasing;
+            data.antialiasingQuality = UnityEngine.Rendering.Universal.AntialiasingQuality.High;
         }
 
         /// <summary>Game camera rotation, order 2 (Ry * Rx * Rz, looking down local -Z) -> Unity (looking down +Z).</summary>
