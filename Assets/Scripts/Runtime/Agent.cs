@@ -21,7 +21,10 @@ namespace GoF2Remake.Data
     {
         public const int Mission = 0, SmallTalk = 1, SellItem = 2, SellBlueprint = 3, SellSystem = 4, Purchase = 5,
                          Wingmen = 6, Diplomat = 7, SellMod = 8, KaamoSpecial = 9, ShipDealer = 10,
-                         EventMission = 11;   // remake multiplayer: an event graph's bar mission (NetEventMissions)
+                         EventMission = 11,   // remake multiplayer: an event graph's bar mission (NetEventMissions)
+                         SellShip = 12;       // remake: a custom ship's lounge seller (custom_ships.json "lounge"), sold on
+                                              // trade-in. Was 11 before the multiplayer event missions took it: SaveGame
+                                              // turns a saved 11 with a ship on offer back into 12.
     }
 
     /// <summary>Mission types (Mission::getName = text 354 + type).</summary>

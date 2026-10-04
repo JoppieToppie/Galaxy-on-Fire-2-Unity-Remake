@@ -340,6 +340,12 @@ namespace GoF2Remake.Data
             Session.Equipment = s.equipment ?? new List<ItemStack>();
             Session.Cargo = s.cargo ?? new List<ItemStack>();
             Session.RecentStations = s.recentStations ?? new List<StationStock>();
+            // Saves from before the multiplayer event missions took offer 11: a lounge ship seller was 11 then (event
+            // mission agents are never saved and never sell a ship).
+            foreach (var rs in Session.RecentStations)
+                if (rs?.agents != null)
+                    foreach (var a in rs.agents)
+                        if (a != null && a.offer == 11 && a.sellShip >= 0) a.offer = AgentOffer.SellShip;
             Session.SeenItems = new HashSet<int>(s.seenItems ?? new List<int>());
             Session.VisitedStations = new HashSet<int>(s.visitedStations ?? new List<int> { s.station });
             Session.AttackedStations = new HashSet<int>(s.attackedStations ?? new List<int>());

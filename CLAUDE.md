@@ -153,7 +153,7 @@ fields for the builder, and `lounge`: who sells it). `Database.Load` appends the
 - **Fixed tables** that stop at 63 fall back to the entry: `Shop.RaceOfShip` / `ShipMakerRace` (ShipRace), `StationTables.ShipY`
   (hangarHeight); `ShipExhaust.ShipCell` falls back to the Terran cell. NPC traffic never flies them (`NpcTables.RandomFighter`).
 - **Lounge sellers** (no dealer sells them): `AgentGenerator.AddCustomShipSellers` (end of `CreateAgents`, so each time a
-  bar is generated) gives a visitor `AgentOffer.SellShip` (11) at `lounge.chance` % in systems of `lounge.systemRace`
+  bar is generated) gives a visitor `AgentOffer.SellShip` (12; 11 before the multiplayer event missions took it, `SaveGame` converts old saves) at `lounge.chance` % in systems of `lounge.systemRace`
   (-1 any), from campaign `minCampaign` (free play: rank `minRank`), not at 101 / 108 / the supernova system, unless the
   player flies or stores the ship; it replaces the last generic visitor that isn't a diplomat or the wingmen offer (or
   joins a bar under 5). Chat: the seller's lines 768-774 with the ship + the trade-in cost (Extra "loungeShipTradeIn"),
