@@ -21,8 +21,10 @@ namespace GoF2Remake.World
 
         /// <summary>Ship 'ship' of 'race' 400 m ahead of the player (hostile / by the standings / friendly / neutral), or at
         /// 'at' (a Unity position in this orbit, multiplayer's /spawn ... at x y z); 'count' of them side by side, 60 m apart;
-        /// the result text.</summary>
-        public static string SpawnShip(SpaceLevel level, int race, int ship, Behaviour behaviour, int count = 1, Vector3? at = null, int eventTag = 0)
+        /// 'name' (/spawn ... named): the lock plate's name (KIPlayer+0x18 as a literal, SpawnSpec.name), numbered for
+        /// several; the result text.</summary>
+        public static string SpawnShip(SpaceLevel level, int race, int ship, Behaviour behaviour, int count = 1, Vector3? at = null, int eventTag = 0,
+                                       string name = null)
         {
             if (level == null || level.Traffic == null || level.Player == null) return Localization.Extra("debugNoFlight", "Only in flight.");
             var p = level.Player.transform;
@@ -42,19 +44,23 @@ namespace GoF2Remake.World
                     alwaysFriend = behaviour == Behaviour.Friendly,
                     alwaysNeutral = behaviour == Behaviour.Neutral,
                     eventTag = eventTag,
+                    name = string.IsNullOrEmpty(name) ? null : count > 1 ? $"{name} {i + 1}" : name,
                 };
                 if (level.Traffic.SpawnShip(spec) != null) made++;
             }
             level.Traffic.ConnectPlayers();   // the new ships and the others see each other (targets, hit lists)
-            string name = ShipName(level.Database, ship);
-            return made == 0 ? string.Format(Localization.Extra("debugSpawnFailed", "{0} couldn't be spawned."), name)
-                 : made == 1 ? string.Format(Localization.Extra("debugShipSpawned", "{0} spawned."), name)
-                 : string.Format(Localization.Extra("debugShipsSpawned", "{0} x {1} spawned."), made, name);
+            string shown = ShipName(level.Database, ship);
+            if (!string.IsNullOrEmpty(name)) shown = $"{name} ({shown})";
+            return made == 0 ? string.Format(Localization.Extra("debugSpawnFailed", "{0} couldn't be spawned."), shown)
+                 : made == 1 ? string.Format(Localization.Extra("debugShipSpawned", "{0} spawned."), shown)
+                 : string.Format(Localization.Extra("debugShipsSpawned", "{0} x {1} spawned."), made, shown);
         }
 
         /// <summary>An assembled object ahead of the player, far enough out for its size, facing the player, or centred on 'at'
-        /// (a Unity position in this orbit, multiplayer's /object ... at x y z); the result text.</summary>
-        public static string SpawnObject(SpaceLevel level, string assembly, Vector3? at = null)
+        /// (a Unity position in this orbit, multiplayer's /object ... at x y z); 'name' (/spawn ... named): a HUD marker with
+        /// that name on it (Navigation.Kind.Marker: the bracket, name and distance near the crosshair, never locked); the
+        /// result text.</summary>
+        public static string SpawnObject(SpaceLevel level, string assembly, Vector3? at = null, string name = null)
         {
             if (level == null || level.Player == null) return Localization.Extra("debugNoFlight", "Only in flight.");
             var prefab = AssembledObject.LoadPrefab(level.Database.AssemblyByName(assembly));
@@ -64,7 +70,7 @@ namespace GoF2Remake.World
             // its own heading; anything else faces the player and gets a box around its model.
             int collisionId = StaticCollisionId(assembly);
             var go = Object.Instantiate(prefab, p.position, collisionId >= 0 ? Quaternion.identity : Quaternion.LookRotation(-p.forward, p.up));
-            go.name = "Debug " + assembly;
+            go.name = "Debug " + assembly + (string.IsNullOrEmpty(name) ? "" : " " + name);
             var bounds = new Bounds(go.transform.position, Vector3.zero);
             foreach (var r in go.GetComponentsInChildren<Renderer>()) bounds.Encapsulate(r.bounds);
             float radius = Mathf.Max(bounds.extents.magnitude, 5f);
@@ -80,7 +86,18 @@ namespace GoF2Remake.World
                 foreach (var r in go.GetComponentsInChildren<Renderer>()) placed.Encapsulate(r.bounds);
                 obstacle.volumes = new System.Collections.Generic.List<CollisionVolume> { CollisionVolume.Box(placed.center - go.transform.position, placed.extents) };
             }
-            return string.Format(Localization.Extra("debugObjectSpawned", "{0} spawned ({1:0} m across)."), assembly, radius * 2f);
+            if (!string.IsNullOrEmpty(name) && level.Navigation != null)
+            {
+                // The marker on the model's centre (a child, so it stays with it).
+                var centre = new Bounds(go.transform.position, Vector3.zero);
+                foreach (var r in go.GetComponentsInChildren<Renderer>()) centre.Encapsulate(r.bounds);
+                var mark = new GameObject("Marker");
+                mark.transform.SetParent(go.transform, false);
+                mark.transform.position = centre.center;
+                level.Navigation.Targets.Add(new Navigation.Target { kind = Navigation.Kind.Marker, transform = mark.transform, fixedPosition = centre.center, name = name });
+            }
+            string shown = string.IsNullOrEmpty(name) ? assembly : $"{name} ({assembly})";
+            return string.Format(Localization.Extra("debugObjectSpawned", "{0} spawned ({1:0} m across)."), shown, radius * 2f);
         }
 
         /// <summary>The objects with the original's collision volumes (CollisionVolume.ForStaticObject): the pirate outpost

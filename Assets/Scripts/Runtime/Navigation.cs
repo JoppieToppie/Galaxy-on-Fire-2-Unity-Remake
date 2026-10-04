@@ -48,7 +48,10 @@ namespace GoF2Remake.Flight
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public class Navigation : MonoBehaviour
     {
-        public enum Kind { Station, Jumpgate, Planet, AsteroidField, Destination, KhadorDrive, Waypoint, Wingmen, Cloak, Wormhole, DockingTarget, Secondary, TimeExtender }
+        public enum Kind { Station, Jumpgate, Planet, AsteroidField, Destination, KhadorDrive, Waypoint, Wingmen, Cloak, Wormhole, DockingTarget, Secondary, TimeExtender,
+            /// <summary>Remake multiplayer: a named object (/spawn ... named, DebugSpawner.SpawnObject): its name and distance
+            /// near the crosshair like a landmark's, never locked or flown to.</summary>
+            Marker }
 
         public class Target
         {
@@ -462,7 +465,7 @@ namespace GoF2Remake.Flight
                     // Landmarks first (not during the autopilot), then planets (also during the autopilot).
                     foreach (var t in Targets)
                     {
-                        if (t.kind == Kind.Planet || t.kind == Kind.Wormhole || t.hidden || Autopilot) continue;
+                        if (t.kind == Kind.Planet || t.kind == Kind.Wormhole || t.kind == Kind.Marker || t.hidden || Autopilot) continue;
                         var p = cam.WorldToScreenPoint(t.Position);
                         if (p.z <= 0f || p.x < 0f || p.y < 0f || p.x > w || p.y > h) continue;
                         if (Mathf.Abs(p.x - w / 2f) >= centre || Mathf.Abs(p.y - h / 2f) >= centre) continue;

@@ -49,6 +49,7 @@ through yet. Multiplayer and VR are experimental. A build's version is the date 
   - Discord Rich Presence on Windows: your Discord status shows what you are doing in the game.
   - A Dutch translation, and a choice between German and English voices.
   - Debug tools (Options > Gameplay): jump to any story step, cheats, give items, spawn ships and objects.
+  - The current story step and station show small at the bottom right, so a screenshot of a bug shows where it happened.
   - Export and import of all save games as one file (Options > Gameplay in the main menu), to move your games to
     another PC or phone. Importing checks the file first and replaces every existing save.
 - **Controls and screens:** touch, tilt, keyboard and mouse (with the PC version's clickable on-screen buttons when
@@ -202,7 +203,7 @@ means yourself.
 | `/kill`, `/heal`, `/ammo`, `/reveal`, `/peace [players]` | Destroys, repairs, refills secondaries, reveals the map, resets the standings. |
 | `/give [players] <item> [amount] [mount]` | Items into the hold (docked, `mount` also mounts them). |
 | `/credits [players] <amount>` | Gives (or with a minus, takes) credits. |
-| `/spawn [players] <ship \| object> [race] [count] [enemy \| friendly \| neutral] [at x y z]` | Ships (by number or name) or scenery near the players. |
+| `/spawn [players] <ship \| object> [race] [count] [enemy \| friendly \| neutral] [named <name>] [at x y z]` | Ships (by number or name) or scenery near the players; `named` puts a name on them in the HUD. |
 | `/ship [players] <ship \| own>` | Swaps the players' ship (any hull of the debug tools), or back to their own. |
 | `/cheat [players] <god \| ammo \| cooldown \| boost \| onehit \| locks \| shopping \| jumps> [on \| off]` | A cheat for those players, this session only. |
 | `/title [players] <text> [\| subtitle] [for <seconds>]` | A big title on their screen (`clear` removes it). |

@@ -563,14 +563,19 @@ namespace GoF2Remake.Multiplayer
                         var race = (EventRace)Int(n, "Race");
                         string count = IsWired(n, "Count") || Math.Abs(Num(n, "Count") - 1) > 1e-4 ? Arg(n, "Count") : "";
                         string at = Text(n, "At");
+                        // Older graphs have no Name port: none.
+                        string name = Text(n, "Name", false);
+                        if (name.Length > 0 && name.IndexOf('{') < 0 && name.IndexOf('%') < 0 && name.Length > 32)
+                            Warning(n, "The name is cut to 32 characters.");
+                        string named = name.Length > 0 ? "named " + name : "";
                         bool scenery = false;
                         try { scenery = ship.IndexOf('{') < 0 && EventNames.IsObject(ship); }
                         catch (Exception) { }   // no game data here
                         if (scenery)   // an object: /spawn takes its whole name (no race, count or behaviour)
-                            Line(Join("spawn", Text(n, "Players"), ship, at.Length > 0 ? "at " + at : ""));
+                            Line(Join("spawn", Text(n, "Players"), ship, named, at.Length > 0 ? "at " + at : ""));
                         else
                             Line(Join("spawn", Text(n, "Players"), ship, race == EventRace.Maker ? "" : race.ToString().ToLowerInvariant(), count,
-                                ((EventBehaviour)Int(n, "Behaviour")).ToString().ToLowerInvariant(), at.Length > 0 ? "at " + at : ""));
+                                ((EventBehaviour)Int(n, "Behaviour")).ToString().ToLowerInvariant(), named, at.Length > 0 ? "at " + at : ""));
                         break;
                     }
                     case "EventRewardNode":

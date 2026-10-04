@@ -7,7 +7,7 @@
 //   /give [players] <item> [amount] [mount] items into the hold (an item index or name; 1..1000, default 1); "mount" docked:
 //                                           mounted like the hangar does (Cheats.GiveAndMount)
 //   /credits [players] <amount>             credits added (negative: taken, never below 0)
-//   /spawn [players] <ship | object> [race] [count] [enemy | friendly | neutral | standing] [at x y z]
+//   /spawn [players] <ship | object> [race] [count] [enemy | friendly | neutral | standing] [named <name>] [at x y z]
 //                                           NPC ships 400 m ahead of each player as their orbit's traffic (DebugSpawner):
 //                                           a ship index or name, a race (terran, vossk, nivelian, midorian, pirate, void,
 //                                           specter; default the ship's maker, else pirates), 1..10 of them, enemy by
@@ -15,7 +15,10 @@
 //                                           by the race's standing; "at x y z": there in that player's orbit (game
 //                                           coordinates, what /pos shows), else 400 m ahead of them; a name that is no
 //                                           ship is an assembled object (assemblies.json: station_083_terran, ...) placed
-//                                           as scenery, ahead of them (far enough out for its size) or there
+//                                           as scenery, ahead of them (far enough out for its size) or there;
+//                                           "named <name>" (to the end, or up to "at x y z"; quotes optional): the ships'
+//                                           name on the lock plate (numbered "Name 1", "Name 2"... for several; the other
+//                                           players see it too, NetProxy's label), an object's name as a HUD marker
 //   /mute <players> [minutes], /unmute <players>   their chat and whispers dropped on the server (default: the session)
 // The debug panel's tools (Cheats, PlayerHull, DebugSpawner), for one player:
 //   /ship [players] <ship | own>            fly any hull of the Ships tab (a ship's number or name, the capital ships by
@@ -57,6 +60,9 @@ namespace GoF2Remake.Multiplayer
         public enum Order : byte { Kill = 1, Heal = 2, Give = 3, Credits = 4, Spawn = 5, Ship = 6, Ammo = 7, Reveal = 8, Peace = 9, Cheat = 10, Object = 11, Title = 12, Timer = 13, Dialog = 14, Reward = 15, Scoreboard = 16, Sound = 17, Music = 18, Respawn = 19, Rules = 20, Ask = 21, Provoke = 22, Radio = 23, Waypoint = 24 }
 
         const int MaxGive = 1000, MaxSpawn = 10, MaxCredits = 999999999;
+        /// <summary>A /spawn name's length, and its separator in the order's text (taken out of names).</summary>
+        const int MaxSpawnName = 32;
+        const char NameSeparator = '|';
 
         static string X(string key, string english) => Localization.Extra(key, english);
 
@@ -176,7 +182,9 @@ namespace GoF2Remake.Multiplayer
         public static string Spawn(string args, NetPlayer by) => ForTargets(args, by, true, (t, rest) =>
         {
             if (!t.InSpace) return NotInSpace(t);
+            if (!TakeName(ref rest, out string name)) return Usage("spawn");
             if (!TakeAt(ref rest, out string at)) return Usage("spawn");
+            string named = name != null ? NameSeparator + name : "";
             // From the end: the behaviour, the count and the race, in any order; the rest is the ship.
             var words = new List<string>(rest.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
             if (words.Count == 0) return Usage("spawn");
@@ -199,7 +207,8 @@ namespace GoF2Remake.Multiplayer
                 // Not a ship: an assembled object (the whole name, before any words were taken as a race or a count).
                 var asm = FindAssembly(rest.Trim(), out string objectError);
                 if (asm == null) return ship == -2 ? error : objectError ?? error;
-                Send(t, Order.Object, 0, 0, 0, by, $"spawned object {asm.name}{(at != null ? " at " + at : "")}", at != null ? asm.name + "@" + at : asm.name);
+                Send(t, Order.Object, 0, 0, 0, by, $"spawned object {asm.name}{(at != null ? " at " + at : "")}{(name != null ? " named " + name : "")}",
+                    (at != null ? asm.name + "@" + at : asm.name) + named);
                 return string.Format(X("mpAdmObject", "Spawning {0} at {1}."), asm.name, t.DisplayName);
             }
             if (race < 0)
@@ -209,7 +218,8 @@ namespace GoF2Remake.Multiplayer
             }
             int tag = NetEvents.NewBatch(count, behaviour == DebugSpawner.Behaviour.Hostile);   // an event's spawn: counted (enemies / ships)
             Send(t, Order.Spawn, ship, race, tag << 12 | count << 8 | (int)behaviour, by,
-                $"spawned {count} x ship {ship} (race {race}, {behaviour}{(at != null ? ", at " + at : "")}{(tag != 0 ? ", event batch " + tag : "")})", at);
+                $"spawned {count} x ship {ship} (race {race}, {behaviour}{(at != null ? ", at " + at : "")}{(name != null ? ", named " + name : "")}{(tag != 0 ? ", event batch " + tag : "")})",
+                (at ?? "") + named);
             return string.Format(X("mpAdmSpawned", "Spawning {0} x {1} at {2}."), count, DebugSpawner.ShipName(NetGame.Db, ship), t.DisplayName);
         });
 
@@ -607,6 +617,43 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>Takes a trailing "at x y z" (game coordinates) off 'rest': 'at' = "x y z" (invariant), null without one;
         /// false = an "at" without three finite numbers.</summary>
+        /// <summary>/spawn's "named &lt;name&gt;": the words after it (up to a trailing "at x y z", which stays in 'rest'), quotes
+        /// stripped, cleaned (no rich text, no separator), at most MaxSpawnName characters; null when not given; false =
+        /// "named" with no name.</summary>
+        static bool TakeName(ref string rest, out string name)
+        {
+            name = null;
+            var words = new List<string>(rest.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+            int i = words.FindIndex(w => string.Equals(w, "named", StringComparison.OrdinalIgnoreCase));
+            if (i < 0) return true;
+            var tail = words.GetRange(i + 1, words.Count - i - 1);
+            var keep = words.GetRange(0, i);
+            if (tail.Count >= 4 && string.Equals(tail[tail.Count - 4], "at", StringComparison.OrdinalIgnoreCase)
+                && tail.GetRange(tail.Count - 3, 3).TrueForAll(w => float.TryParse(w, NumberStyles.Float, CultureInfo.InvariantCulture, out _)))
+            {
+                keep.AddRange(tail.GetRange(tail.Count - 4, 4));
+                tail.RemoveRange(tail.Count - 4, 4);
+            }
+            string n = NetChat.Clean(string.Join(" ", tail)).Replace(NameSeparator.ToString(), "").Replace("@", "").Trim().Trim('"', '\'').Trim();
+            if (n.Length == 0) return false;
+            name = n.Length > MaxSpawnName ? n.Substring(0, MaxSpawnName).TrimEnd() : n;
+            rest = string.Join(" ", keep);
+            return true;
+        }
+
+        /// <summary>An order's text and the /spawn name after its NameSeparator (null when none).</summary>
+        static string SplitName(string text, out string name)
+        {
+            name = null;
+            if (string.IsNullOrEmpty(text)) return text;
+            int i = text.IndexOf(NameSeparator);
+            if (i < 0) return text;
+            name = text.Substring(i + 1).Trim();
+            if (name.Length == 0) name = null;
+            else if (name.Length > MaxSpawnName) name = name.Substring(0, MaxSpawnName);
+            return text.Substring(0, i);
+        }
+
         static bool TakeAt(ref string rest, out string at)
         {
             at = null;
@@ -812,10 +859,13 @@ namespace GoF2Remake.Multiplayer
                         by, Math.Abs(a)));
                     break;
                 case Order.Spawn:
+                {
                     if (level == null || NetGame.Db.Ship(a) == null || !CustomShips.Offered(a)) return;
+                    string at = SplitName(text, out string shipName);
                     Notice(by, DebugSpawner.SpawnShip(level, b, a, (DebugSpawner.Behaviour)Mathf.Clamp(c & 0xff, 0, 3), Mathf.Clamp((c >> 8) & 0xf, 1, MaxSpawn),
-                        ParseAt(text), c >> 12));
+                        ParseAt(at), c >> 12, shipName));
                     break;
+                }
                 case Order.Ship:
                     if (a < 0) { Notice(by, PlayerHull.Restore(level, docked)); break; }
                     var hull = PlayerHull.Offered(NetGame.Db).Find(h => h.key == text);
@@ -941,10 +991,13 @@ namespace GoF2Remake.Multiplayer
                     break;
                 }
                 case Order.Object:
+                {
                     if (level == null || string.IsNullOrEmpty(text)) return;
-                    int sep = text.IndexOf('@');
-                    Notice(by, DebugSpawner.SpawnObject(level, sep < 0 ? text : text.Substring(0, sep), sep < 0 ? null : ParseAt(text.Substring(sep + 1))));
+                    string spec = SplitName(text, out string objectName);
+                    int sep = spec.IndexOf('@');
+                    Notice(by, DebugSpawner.SpawnObject(level, sep < 0 ? spec : spec.Substring(0, sep), sep < 0 ? null : ParseAt(spec.Substring(sep + 1)), objectName));
                     break;
+                }
             }
         }
     }

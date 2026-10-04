@@ -505,7 +505,7 @@ namespace GoF2Remake.EditorTools
     [Node("Commands", null, "Spawn")]
     public class EventSpawnNode : EventCommandNode
     {
-        public const string Ship = "Ship", Count = "Count", At = "At", Race = "Race", Behaviour = "Behaviour";
+        public const string Ship = "Ship", Count = "Count", At = "At", Race = "Race", Behaviour = "Behaviour", Name = "Name";
 
         protected override void OnDefineOptions(IOptionDefinitionContext context)
         {
@@ -518,6 +518,8 @@ namespace GoF2Remake.EditorTools
             PlayersIn(context);
             TextIn(context, Ship, "Hiro", "A ship's number or name (or an object's name from assemblies.json, as scenery).");
             NumberIn(context, Count, 1f, "Ships side by side, per player (1..10).");
+            TextIn(context, Name, "", "Optional: the name on the HUD (a ship's lock plate, numbered \"Name 1\", \"Name 2\"... for several; " +
+                "an object gets a marker with it), at most 32 characters. Empty = the usual name.");
             TextIn(context, At, "", "Empty = ahead of each player; else game coordinates \"x y z\" in their orbit.");
         }
     }
