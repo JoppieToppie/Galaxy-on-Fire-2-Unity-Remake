@@ -492,5 +492,95 @@
                 "trailBrightness": 0.075
             }
         ]
+    },
+    {
+        "index": 68,
+        "name": "Millennium Falcon",
+        "description": "A battered light freighter that looks like it should have been scrapped long ago: a saucer hull with twin forward mandibles, an off-centre cockpit and a sensor dish bolted on top. Under the patched plating it hides a hold big enough for any smuggling run, engines tuned far past their rating and a gun turret above and below the hull. Its owners swear it has been through things no other ship has survived, and whoever is selling it asks a price to match.",
+        "race": 8,
+        "armor": 650,
+        "cargo": 260,
+        "price": 9800000,
+        "priceDefault": 16500000,
+        "slots": { "primary": 2, "secondary": 2, "turret": 2, "equipment": 14 },
+        "handling": 115,
+        "handlingMultiplier": 1.15,
+        "hangarHeight": 315,
+        "lounge": { "systemRace": -1, "minCampaign": 34, "minRank": 13, "chance": 8 },
+        "assembly": "ship_068_millennium_falcon",
+        "mounts": [
+            { "slotType": 0, "position_engine": [ -104, 0, 972 ] },
+            { "slotType": 0, "position_engine": [ 104, 0, 972 ] },
+            { "slotType": 1, "position_engine": [ -28, 0, 556 ] },
+            { "slotType": 1, "position_engine": [ 28, 0, 556 ] },
+            { "slotType": 2, "position_engine": [ 0, 128, -64 ] },
+            { "slotType": 2, "position_engine": [ 0, -141, -64 ], "upsideDown": true }
+        ],
+        "model": "Models/custom/ships/millennium-falcon/source/Millenium Falcon NLG.fbx",
+        "modelLength": 1620,
+        "modelYaw": 0,
+        "materials": [
+            {
+                "mesh": "Mesh_0067",
+                "diffuse": "Models/custom/ships/millennium-falcon/textures/Falcon_Main_COLOR.png",
+                "normal": "Models/custom/ships/millennium-falcon/textures/Falcon_Main_NORMAL.png",
+                "metallicSmoothness": "Models/custom/ships/millennium-falcon/textures/Falcon_Main_metallic_smoothness.png",
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_nrm.png",
+                "detailTiling": 10,
+                "detailNormalScale": 0.35
+            },
+            {
+                "mesh": "Mesh_0068",
+                "diffuse": "Models/custom/ships/millennium-falcon/textures/Falcon_Details_COLOR.png",
+                "normal": "Models/custom/ships/millennium-falcon/textures/Falcon_Details_NORMAL.png",
+                "metallicSmoothness": "Models/custom/ships/millennium-falcon/textures/Falcon_Details_metallic_smoothness.png",
+                "emission": "Models/custom/ships/millennium-falcon/textures/Falcon_Details_ILLUMINATION.png",
+                "emissionIntensity": 1.5,
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_nrm.png",
+                "detailTiling": 10,
+                "detailNormalScale": 0.35
+            },
+            {
+                "mesh": "Mesh_0069",
+                "diffuse": "Models/custom/ships/millennium-falcon/textures/Falcon_Gear_COLOR.png",
+                "normal": "Models/custom/ships/millennium-falcon/textures/Falcon_Gear_NORMAL.png",
+                "metallicSmoothness": "Models/custom/ships/millennium-falcon/textures/Falcon_Gear_metallic_smoothness.png",
+                "smoothness": 1,
+                "detailAlbedo": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_detail.png",
+                "detailNormal": "Models/custom/ships/halo-space-banshee/textures/brushed_metal_nrm.png",
+                "detailTiling": 10,
+                "detailNormalScale": 0.35
+            },
+            {
+                "mesh": "Mesh_0546",
+                "color": [ 0.04, 0.06, 0.09 ],
+                "metallic": 0.2,
+                "smoothness": 0.95
+            },
+            {
+                "mesh": "SurfPatch",
+                "color": [ 0.35, 0.65, 1.0 ],
+                "emissionColor": [ 0.35, 0.65, 1.0 ],
+                "emissionIntensity": 1.5,
+                "smoothness": 0.8
+            }
+        ],
+        "throttleGlow": {
+            "mesh": "SurfPatch",
+            "mask": "Models/custom/ships/star-trek-galaxy-class/textures/glow_white.png",
+            "color": [ 0.45, 0.75, 1.0 ],
+            "idle": 2.2,
+            "full": 8.25,
+            "boost": 12.9,
+            "offset": 2,
+            "trailWidth": 110,
+            "trailTime": 0.7,
+            "trailBrightness": 0.1,
+            "trailCount": 13
+        }
     }
 ]

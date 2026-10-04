@@ -91,8 +91,24 @@ namespace GoF2Remake.World
         public FreelanceOrbit FreelanceOrbit { get; private set; }
         /// <summary>The Kaamo Club's pirate siege (station 108 before it's freed), null elsewhere.</summary>
         public KaamoSiege Siege { get; private set; }
-        /// <summary>The player's turret (null without a turret item / mount).</summary>
-        public PlayerTurret Turret { get; private set; }
+        /// <summary>The ship's turrets, in mount order (remake: more than one on a custom ship with several turret mounts).</summary>
+        public System.Collections.Generic.IReadOnlyList<PlayerTurret> Turrets => turrets;
+        readonly System.Collections.Generic.List<PlayerTurret> turrets = new System.Collections.Generic.List<PlayerTurret>();
+        /// <summary>The turret the HUD and the level scripts talk to: the one in the turret view, else the first (null: none).</summary>
+        public PlayerTurret Turret
+        {
+            get
+            {
+                PlayerTurret first = null;
+                foreach (var t in turrets)
+                {
+                    if (t == null) continue;
+                    if (t.InTurretView) return t;
+                    if (first == null) first = t;
+                }
+                return first;
+            }
+        }
         public FreeLookCamera FreeLook { get; private set; }
         public PlayerCloak Cloak { get; private set; }
         public TimeExtender Extender { get; private set; }
@@ -577,8 +593,9 @@ namespace GoF2Remake.World
             if (Cloak != null) Destroy(Cloak);
             Cloak = PlayerCloak.Attach(root, db, shipIndex, Health.Target, model.transform);
             if (Navigation != null) Navigation.Cloak = Cloak;
-            if (Turret != null) Destroy(Turret);
-            Turret = PlayerTurret.Attach(root, db, shipIndex, Session.Equipment, chase);
+            PlayerTurret.RemoveAll(turrets);
+            turrets.Clear();
+            turrets.AddRange(PlayerTurret.AttachAll(root, db, shipIndex, Session.Equipment, chase));
 
             PlayerHull.AttachTurrets(this);
         }
@@ -658,8 +675,9 @@ namespace GoF2Remake.World
             chase.positionCoefficient = 0.006f;         // TargetFollowCamera::resetShipHandling: position / look-at
             chase.rotationCoefficient = 0.005f;
             chase.Snap();
-            // PlayerEgo::checkForTurret: the turret-slot item on the ship's turret mount.
-            Turret = PlayerTurret.Attach(root, db, Session.ShipIndex, Session.Equipment, chase);
+            // PlayerEgo::checkForTurret: the turret-slot item on the ship's turret mount (remake: each on its own mount).
+            turrets.Clear();
+            turrets.AddRange(PlayerTurret.AttachAll(root, db, Session.ShipIndex, Session.Equipment, chase));
             // MGame::switchCamera: the camera button's modes (standard / turret / free look).
             FreeLook = FreeLookCamera.Attach(root, chase, Turret);
             // Level::createGasClouds: the Supernova plasma clouds (a spectral filter mounted).

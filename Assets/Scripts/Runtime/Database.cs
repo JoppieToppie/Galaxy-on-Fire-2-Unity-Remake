@@ -87,12 +87,14 @@ namespace GoF2Remake.Data
 
     /// <summary>Weapon mounts of one ship (weapons_hd.json). slotType 0 = primary, 1 = secondary, 2 = turret,
     /// 3 = engine exhaust points (not a turret, see weapons.md). position_engine is game space, ship-relative.</summary>
-    [System.Serializable] public class WeaponMount { public int slotType; public int[] position_engine; public float[] turretAngles; }
+    /// <remarks>upsideDown (remake, turret mounts only): the turret hangs under the hull, turned 180 deg about the ship's
+    /// length (PlayerTurret); none of the original's mounts set it.</remarks>
+    [System.Serializable] public class WeaponMount { public int slotType; public int[] position_engine; public float[] turretAngles; public bool upsideDown; }
     [System.Serializable] public class WeaponMountSet { public int ship; public string shipName; public List<WeaponMount> mounts; }
 
     /// <summary>A remake-only ship from Resources/GoF2Data/custom_ships.json (see CustomShips): a ships.json entry plus what
     /// the original keeps in its fixed tables (race, hangar height) and the weapon mounts. The model fields are read
-    /// by "GoF2 > Build Custom Ships", which makes the assembled prefab Resources/Assembled/custom/ships/{assembly}.</summary>
+    /// by "GoF2 > Build > Custom Ships", which makes the assembled prefab Resources/Assembled/custom/ships/{assembly}.</summary>
     [System.Serializable] public class CustomShipData : ShipData
     {
         public int race = -1;              // 0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirate, 9 void (Shop.ShipRace)
@@ -100,7 +102,7 @@ namespace GoF2Remake.Data
         public int hangarHeight = 250;     // StationTables.ShipY: pivot height above the hangar floor, game units
         public string assembly;            // the prefab's name; must start with "ship_NNN_" (Database.ShipAssembly)
         public List<WeaponMount> mounts;   // like weapons_hd.json: slotType 0 primary, 1 secondary, 2 turret, 3 exhaust
-        // Editor only (GoF2 > Build Custom Ships):
+        // Editor only (GoF2 > Build > Custom Ships):
         public string model;               // FBX path relative to Assets
         public float modelLength = 1000f;  // nose to tail in game units (0.05 m each) after scaling
         public float modelYaw;             // degrees about Unity y, when the model's nose doesn't face +Z
@@ -152,6 +154,9 @@ namespace GoF2Remake.Data
         public float trailWidth;          // game units; > 0: a trail in the glow's colour from the glow's rear ends while
         public float trailTime = 0.6f;    // boosting or travelling (planet jump, jumpgate, Khador Drive), 'trailTime' s long
         public float trailBrightness = 0.3f;   // the trail x the glow's level
+        public int trailCount;            // 0 = one trail at each side's rear end; > 0 = that many along the glow's whole
+                                          // rear edge, shaped like an ellipse across it: 'trailWidth' / 'trailTime' /
+                                          // brightness in the middle, less toward the ends (the Millennium Falcon's band)
     }
 
     /// <summary>One assembled prefab (assemblies.json): Resources/Assembled/{pack}/{category}/{name}.prefab.</summary>

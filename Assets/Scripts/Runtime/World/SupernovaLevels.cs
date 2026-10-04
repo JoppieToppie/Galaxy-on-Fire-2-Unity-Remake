@@ -1628,8 +1628,11 @@ namespace GoF2Remake.World
                     level.FreeLook?.Set(FreeLookCamera.Mode.Standard, false);
                     level.Turret?.SetTurretView(false);
                     level.Weapons?.SetPrimaryHeld(false);
-                    autoTurretWasOn = level.Turret != null && level.Turret.IsAuto && level.Turret.AutoEnabled;
-                    if (autoTurretWasOn) level.Turret.SetAuto(false, false);
+                    // Remake: any of the ship's auto turrets (SetAuto switches them all).
+                    PlayerTurret cutAutoTurret = null;
+                    foreach (var cutTurret in level.Turrets) if (cutTurret != null && cutTurret.IsAuto) { cutAutoTurret = cutTurret; break; }
+                    autoTurretWasOn = cutAutoTurret != null && cutAutoTurret.AutoEnabled;
+                    if (autoTurretWasOn) cutAutoTurret.SetAuto(false, false);
                     EnterCutscene(false);
                     var f2 = S(2);
                     if (f2 != null) { Show(f2, G(f2), PlayerGame - G(f2)); cam.LookAt(G(f2) + new Vector3(300, 300, 5800), f2.transform); }
@@ -1680,7 +1683,7 @@ namespace GoF2Remake.World
                         valkyrie.DockingType = ObjectDocking.Hackable;
                     }
                     LeaveCutscene();
-                    if (autoTurretWasOn) level.Turret?.SetAuto(true, false);
+                    if (autoTurretWasOn) foreach (var backTurret in level.Turrets) if (backTurret != null && backTurret.IsAuto) { backTurret.SetAuto(true, false); break; }
                     Step = 10;
                     break;
                 case 10:

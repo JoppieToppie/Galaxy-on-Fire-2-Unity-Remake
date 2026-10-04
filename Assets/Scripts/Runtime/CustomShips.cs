@@ -5,7 +5,7 @@
 // back, so index 64 would read ship 0's description: custom ships carry their own texts, translatable with
 // Localization.Extra "ship<N>Name" / "ship<N>Description"), the maker's race (Shop.ShipRace stops at 63), the hangar
 // height (StationTables.ShipY) and who sells them.
-// Models: "GoF2 > Build Custom Ships" (CustomShipBuilder) makes the prefab, the shop icon and the derived tables.
+// Models: "GoF2 > Build > Custom Ships" (CustomShipBuilder) makes the prefab, the shop icon and the derived tables.
 
 using System.Collections.Generic;
 

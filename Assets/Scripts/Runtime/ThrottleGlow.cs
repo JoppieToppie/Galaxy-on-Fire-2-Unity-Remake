@@ -6,7 +6,8 @@
 //   the brake (FlightModel.Braking) counts as throttle 0.
 // Travelling (the planet jump: Navigation.Jumping; a jumpgate or Khador jump: SystemJump.Traveling) counts as a full boost,
 // and the Khador Drive's charge builds the glow up toward it. While boosting or travelling, an optional trail in the glow's
-// colour streams from the glow's rear ends ('trailPoints', set by the builder; 'trailWidth' metres, 'trailTime' s); never
+// colour streams from the glow's rear ends ('trailPoints', set by the builder; 'trailWidth' metres, 'trailTime' s; a band's
+// trails, 'trailProfile', shrink and dim from its middle to its ends like an ellipse); never
 // while docking or leaving a station (the hangar flights, the launch fly-in).
 // The player's ship reads its ShipController; any other copy (NPC, another player's ship in multiplayer, the hangar)
 // has no throttle at hand, so it uses how fast the ship actually moves against the base speed every ship shares
@@ -38,6 +39,8 @@ namespace GoF2Remake.Visuals
         public GameObject engineState;
         [Tooltip("Where the trails start (this object's space); none = no trail.")]
         public Vector3[] trailPoints = new Vector3[0];
+        [Tooltip("Per trail point (empty = all 1): its width, brightness and (0.4 + 0.6 x) length; the ellipse across a band.")]
+        public float[] trailProfile = new float[0];
         [Tooltip("Trail width at its start, metres (0 = no trail).")]
         public float trailWidth;
         [Tooltip("Trail length in seconds.")]
@@ -110,19 +113,30 @@ namespace GoF2Remake.Visuals
                 var go = new GameObject("trail_" + i);
                 go.transform.SetParent(transform, false);
                 go.transform.localPosition = trailPoints[i];
+                float p = trailProfile != null && i < trailProfile.Length ? trailProfile[i] : 1f;
                 var t = go.AddComponent<TrailRenderer>();
                 t.sharedMaterial = trailMaterial;
-                t.time = trailTime;
+                t.time = trailTime * (0.4f + 0.6f * p);
                 t.minVertexDistance = trailWidth * 0.5f;
-                t.widthMultiplier = trailWidth;
+                t.widthMultiplier = trailWidth * p;
                 t.widthCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
-                t.colorGradient = gradient;
+                t.colorGradient = p >= 1f ? gradient : Scaled(gradient, p);
                 t.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 t.receiveShadows = false;
                 t.numCapVertices = 2;
                 t.emitting = false;
                 trails[i] = t;
             }
+        }
+
+        /// <summary>The gradient with its colours x 'k' (additive material: dimmer).</summary>
+        static Gradient Scaled(Gradient g, float k)
+        {
+            var keys = g.colorKeys;
+            for (int i = 0; i < keys.Length; i++) keys[i].color *= k;
+            var scaled = new Gradient();
+            scaled.SetKeys(keys, g.alphaKeys);
+            return scaled;
         }
 
         /// <summary>0 = engines idle, 1 = full throttle, up to 2 = full boost.</summary>

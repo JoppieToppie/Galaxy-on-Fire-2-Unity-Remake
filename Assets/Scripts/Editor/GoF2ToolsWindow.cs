@@ -53,6 +53,7 @@ namespace GoF2Remake.EditorTools
                     T("GoF2/Build/Star Map Assets", "Resources/GoF2StarMap: what the star map can't load by name (its overlay, sun materials, Khador effects, sounds)."),
                     T("GoF2/Build/Network Prefabs", "Resources/GoF2Net: the multiplayer prefabs. Existing ones are kept so their network ids stay the same. Also turns on Android's internet permission."),
                     T("GoF2/Build/Event Audio", "Resources/GoF2Net/EventAudio: the sounds and music multiplayer events and /sound, /music play, from the original's FMOD events."),
+                    T("GoF2/Build/Custom Ships", "Resources/Assembled/custom/ships from custom_ships.json: each remake-only ship's prefab (model, materials, engine and throttle glows) and shop icon, then the text icons and hangar heights. Runs by itself when a prefab is missing or out of date."),
                     T("GoF2/Build/Hangar Heights", "Resources/GoF2Data/hangar_heights.json: how far each ship is lifted on each hangar pad so its hull doesn't cut into it. Run after changing a hangar or a ship model."),
                     T("GoF2/Build/HUD Images", "Resources/GoF2Hud: the HUD, star map, medal and touch-control images and the alien font, cut from the original interface atlases."),
                     T("GoF2/Build/Item Icons", "Resources/GoF2Icons: the shop icon of every item and ship."),

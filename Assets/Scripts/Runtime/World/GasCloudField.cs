@@ -56,7 +56,18 @@ namespace GoF2Remake.World
         Vector3 sparkBaseScale = Vector3.one;
         Database db;
         ShipController ship;
+        /// <summary>The collector the player looks through (remake: one of several turrets), refreshed once a frame (Update).</summary>
         PlayerTurret turret;
+
+        /// <summary>The one in the turret view, else the first plasma collector, else the first turret; looked up on the player,
+        /// so a hull swap's turrets are found.</summary>
+        PlayerTurret FindTurret()
+        {
+            var all = PlayerTurret.On(ship != null ? ship.gameObject : null);
+            foreach (var t in all) if (t.InTurretView) return t;
+            foreach (var t in all) if (t.IsCollector) return t;
+            return all.Count > 0 ? all[0] : null;
+        }
         AudioSource sfx;
         AudioClip[] collected;
 
@@ -201,6 +212,7 @@ namespace GoF2Remake.World
         {
             float dtMs = Time.deltaTime * 1000f;
             if (dtMs <= 0f) return;
+            turret = FindTurret();
             FlushMessage(dtMs);
             bool collecting = turret != null && turret.IsCollector && turret.InTurretView;
             var gun = turret != null ? turret.GunPosition : ship != null ? ship.transform.position : Vector3.zero;

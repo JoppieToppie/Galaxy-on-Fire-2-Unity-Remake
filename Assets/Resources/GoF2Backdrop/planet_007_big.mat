@@ -29,6 +29,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _CoreGlow: 1
     - _DstBlend: 10
     - _Mirror: 0
     - _SrcBlend: 5

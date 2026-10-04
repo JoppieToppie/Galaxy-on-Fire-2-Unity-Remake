@@ -299,15 +299,15 @@ namespace GoF2Remake.World
         }
 
         GameObject turret;
-        int turretItem = -1;
+        string turretItems = "";
 
         /// <summary>CutScene::checkForTurret 0xa4594: the mounted turret on the turntable ship, rebuilt whenever the turret
-        /// item changes (the original re-runs it after every equipment change).</summary>
+        /// item changes (the original re-runs it after every equipment change). Remake: every turret, each on its mount.</summary>
         void RefreshTurret(bool force)
         {
-            int item = GoF2Remake.Flight.PlayerTurret.TurretItem(db, Session.Equipment);
-            if (!force && item == turretItem) return;
-            turretItem = item;
+            string items = string.Join(",", GoF2Remake.Flight.PlayerTurret.TurretItems(db, Session.Equipment));
+            if (!force && items == turretItems) return;
+            turretItems = items;
             if (turret != null) Destroy(turret);
             turret = playerShip != null ? GoF2Remake.Flight.PlayerTurret.BuildStatic(db, shipIndex, Session.Equipment, playerShip) : null;
         }

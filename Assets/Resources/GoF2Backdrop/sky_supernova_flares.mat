@@ -33,6 +33,7 @@ Material:
     - _Fade: 1
     - _Lit: 0
     - _SrcBlend: 1
+    - _UseVertexColor: 0
     m_Colors:
     - _Ambient: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}

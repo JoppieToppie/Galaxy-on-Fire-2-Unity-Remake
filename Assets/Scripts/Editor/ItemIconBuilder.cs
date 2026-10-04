@@ -77,7 +77,7 @@ namespace GoF2Remake.EditorTools
             AssetDatabase.Refresh();
             foreach (var path in written) ConfigureIcon(path);
             Debug.Log($"GoF2: {written.Count} item / ship icons in {OutDir}." +
-                      (GoF2Remake.Data.CustomShips.All.Count > 0 ? " The custom ships' icons come from GoF2 > Build Custom Ships." : ""));
+                      (GoF2Remake.Data.CustomShips.All.Count > 0 ? " The custom ships' icons come from GoF2 > Build > Custom Ships." : ""));
         }
 
         static void ConfigureIcon(string path)

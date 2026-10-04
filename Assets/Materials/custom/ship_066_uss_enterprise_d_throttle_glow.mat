@@ -49,6 +49,7 @@ Material:
     - _ScreenSpaceReflectionsContributeTransparent: 1
     - _UseVertexColor: 0
     - _WritesColor: 1
+    - _XRMotionVectorsPass: 1
     m_Colors:
     - _Color: {r: 0.3, g: 0.65, b: 1, a: 1}
   m_BuildTextureStacks: []

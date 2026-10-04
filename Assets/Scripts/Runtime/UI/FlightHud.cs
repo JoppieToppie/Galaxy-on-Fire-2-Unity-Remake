@@ -326,8 +326,10 @@ namespace GoF2Remake.UI
                 f.nextCamera = fl != null ? (int)fl.Next : -1;
                 f.freeLook = fl != null && fl.FreeLookActive;
                 f.standardCamera = fl == null || fl.Current == FreeLookCamera.Mode.Standard;
-                f.turret = turret != null && turret.IsAuto;
-                f.turretOn = f.turret && turret.AutoEnabled;
+                // Remake: with several turrets the button is the auto-fire switch whenever any of them is an auto turret.
+                var autoTurret = FirstAuto();
+                f.turret = autoTurret != null;
+                f.turretOn = f.turret && autoTurret.AutoEnabled;
                 f.actionArrow = phase == Mining.Phase.Idle && !dockBusy && !turretView
                                 && ((nav != null && nav.Locked != null && nav.PromptText != null) || (mining != null && mining.Locked != null));
                 bool tilt = TiltSteering.Active && (Session.FreePlay || Session.CampaignMission != 48);
@@ -424,6 +426,22 @@ namespace GoF2Remake.UI
             ChooseMenuTarget(menuButtons[i].target);
         }
 
+        /// <summary>The ship's first auto turret (remake: one of several), null without one.</summary>
+        PlayerTurret FirstAuto()
+        {
+            if (level == null || level.Turrets == null) return null;
+            foreach (var t in level.Turrets) if (t != null && t.IsAuto) return t;
+            return null;
+        }
+
+        /// <summary>Any turret with a turret view (a manual turret or a plasma collector).</summary>
+        bool HasManualTurret()
+        {
+            if (level == null || level.Turrets == null) return false;
+            foreach (var t in level.Turrets) if (t != null && !t.IsAuto) return true;
+            return false;
+        }
+
         void BuildHints(InputKind kind)
         {
             hints.Clear();
@@ -495,9 +513,9 @@ namespace GoF2Remake.UI
             Hint(T("hudDodge", "DODGE"), GameControls.DodgeLeft, GameControls.DodgeRight);   // left out while unbound
             Hint(T("hudRoll", "ROLL"), GameControls.Roll);
             Hint(T("hudLevel", "LEVEL"), GameControls.LevelOut);
-            if (level != null && level.Turret != null)
-                Hint(level.Turret.IsAuto ? Localization.Get(37).ToUpperInvariant() : T("hudTurretView", "TURRET VIEW"),
-                     level.Turret.IsAuto ? GameControls.AutoTurret : GameControls.Camera);
+            // Remake: a ship may carry an auto turret and a manual one at once: a hint for each kind it has.
+            if (FirstAuto() != null) Hint(Localization.Get(37).ToUpperInvariant(), GameControls.AutoTurret);
+            if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.Camera);
             Hint(Localization.Get(571).ToUpperInvariant(), GameControls.AutopilotMenu);
             if (nav != null && nav.MenuEntries(true).Count > 0) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);
             Hint(T("hudMenu", "MENU"), menuKey);
@@ -740,7 +758,8 @@ namespace GoF2Remake.UI
             if (phase != lastPhase || autopilot != lastAutopilot) { lastPhase = phase; lastAutopilot = autopilot; BuildHints(InputMode.Current); }
             // The turret: the touch button (turret view / auto-fire) and the hints of the turret view.
             var turret = level != null ? level.Turret : null;
-            bool tv = turret != null && turret.InTurretView, ta = turret != null && turret.AutoEnabled;
+            var autoT = FirstAuto();
+            bool tv = turret != null && turret.InTurretView, ta = autoT != null ? autoT.AutoEnabled : turret != null && turret.AutoEnabled;
             if (tv != lastTurretView || ta != lastTurretAuto) { lastTurretView = tv; lastTurretAuto = ta; BuildHints(InputMode.Current); }
             root.EnableInClassList("hud-cinematic", (nav != null && nav.Jumping) || (jump != null && jump.Cinematic));   // jumps: no HUD
             // The Khador Drive's charge bar, shared with the cloak's "Cloak charging" (317, Hud::draw 0x1933f6).

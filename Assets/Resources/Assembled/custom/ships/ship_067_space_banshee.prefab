@@ -112,6 +112,7 @@ MonoBehaviour:
   trailPoints:
   - {x: -3.3805223, y: -2.6818807, z: -11.087678}
   - {x: 3.3846762, y: -2.681881, z: -11.087678}
+  trailProfile: []
   trailWidth: 1.5
   trailTime: 0.6
   trailBrightness: 0.15
@@ -346,6 +347,7 @@ MonoBehaviour:
   trailPoints:
   - {x: -20.416584, y: -7.6747117, z: 11.954199}
   - {x: 20.416586, y: -7.6712832, z: 11.954199}
+  trailProfile: []
   trailWidth: 0.6
   trailTime: 0.45
   trailBrightness: 0.075

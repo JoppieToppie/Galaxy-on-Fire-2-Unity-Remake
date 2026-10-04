@@ -102,7 +102,8 @@ namespace GoF2Remake.EditorTools
             {
                 ti.textureType = TextureImporterType.Default;
                 bool mask = name.Contains("metallic_smoothness") || name.EndsWith("_metal") || name.EndsWith("_rough") || name.EndsWith("_alpha")
-                            || name.EndsWith("_detail");   // URP detail albedo: linear, 0.5 = neutral (x2)
+                            || name.EndsWith("_detail")   // URP detail albedo: linear, 0.5 = neutral (x2)
+                            || name.EndsWith("_roughness") || name.EndsWith("_metallic") || name.EndsWith("_specular");   // raw PBR masks (the Falcon's)
                 ti.sRGBTexture = !mask;
                 ti.alphaSource = TextureImporterAlphaSource.FromInput;
             }

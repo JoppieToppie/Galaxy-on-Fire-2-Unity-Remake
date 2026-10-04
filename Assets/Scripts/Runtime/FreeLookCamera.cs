@@ -10,6 +10,9 @@
 // instead of the dodge swipe), the mouse (moved with the mouse-steering cursor captured, else with the middle button
 // held), or the right stick; the wheel or a two-finger
 // pinch zooms (as in PhotoMode; the triggers keep firing).
+// Remake: with several manual turrets (custom ships) the Turret mode is visited once per turret, in mount order
+// (Standard -> Turret 1 -> Turret 2 -> Free look); the turrets are looked up on the player each time, so a hull swap's new
+// turrets are found.
 
 using System;
 using GoF2Remake.Data;
@@ -32,7 +35,7 @@ namespace GoF2Remake.Flight
         public Func<bool> Blocked;
 
         ChaseCamera chase;
-        PlayerTurret turret;
+        int turretIndex;   // which manual turret the Turret mode looks through
         Transform anchor;
         float px, py, distance = 3800f, wheel, pinch;
         Vector2 fling, touchDrag;
@@ -41,12 +44,35 @@ namespace GoF2Remake.Flight
         /// camera (remake: the PC version has no mouse free look; the middle button held does the same without it).</summary>
         [NonSerialized] public bool mouseLook;
 
-        public static FreeLookCamera Attach(GameObject player, ChaseCamera chase, PlayerTurret turret)
+        /// <summary>'turret' is unused since the turrets are looked up on the player (PlayerTurret.On); kept for the callers.</summary>
+        public static FreeLookCamera Attach(GameObject player, ChaseCamera chase, PlayerTurret turret = null)
         {
             var f = player.AddComponent<FreeLookCamera>();
             f.chase = chase;
-            f.turret = turret;
             return f;
+        }
+
+        /// <summary>The ship's manual turrets (and plasma collectors), in mount order: the ones with a turret view. Looked up
+        /// at most once a frame (the HUD asks for Next every frame).</summary>
+        System.Collections.Generic.List<PlayerTurret> Manual()
+        {
+            if (manualFrame != Time.frameCount || manualCache == null)
+            {
+                manualCache = PlayerTurret.On(gameObject).FindAll(t => !t.IsAuto);
+                manualFrame = Time.frameCount;
+            }
+            return manualCache;
+        }
+        System.Collections.Generic.List<PlayerTurret> manualCache;
+        int manualFrame = -1;
+
+        PlayerTurret CurrentTurret
+        {
+            get
+            {
+                var manual = Manual();
+                return turretIndex >= 0 && turretIndex < manual.Count ? manual[turretIndex] : null;
+            }
         }
 
         void Awake()
@@ -55,31 +81,43 @@ namespace GoF2Remake.Flight
             anchor.SetParent(transform, false);
         }
 
-        bool TurretMode => turret != null && !turret.IsAuto;
+        bool TurretMode => Manual().Count > 0;
 
-        /// <summary>MGame::nextCamId: the mode the camera button leads to.</summary>
-        public Mode Next => Current == Mode.Standard ? (TurretMode ? Mode.Turret : Mode.FreeLook) : Current == Mode.Turret ? Mode.FreeLook : Mode.Standard;
+        /// <summary>MGame::nextCamId: the mode the camera button leads to (remake: Turret again while another manual turret
+        /// follows).</summary>
+        public Mode Next => Current == Mode.Standard ? (TurretMode ? Mode.Turret : Mode.FreeLook)
+                          : Current == Mode.Turret ? (turretIndex + 1 < Manual().Count ? Mode.Turret : Mode.FreeLook) : Mode.Standard;
 
         /// <summary>The camera button (touch, V, D-pad up).</summary>
         public void Cycle()
         {
             if (Blocked != null && Blocked() && Current == Mode.Standard) return;
+            if (Current == Mode.Turret && turretIndex + 1 < Manual().Count) { EnterTurret(turretIndex + 1, true); return; }
             Set(Next);
         }
 
         public void Set(Mode m, bool announce = true)
         {
             if (m == Current) return;
-            if (Current == Mode.Turret) turret?.SetTurretView(false);
+            if (Current == Mode.Turret) CurrentTurret?.SetTurretView(false);
             if (Current == Mode.FreeLook) ExitFreeLook();
             Current = m;
-            if (m == Mode.Turret)
-            {
-                turret?.SetTurretView(true);
-                if (turret == null || !turret.InTurretView) { Current = Mode.Standard; return; }
-            }
+            if (m == Mode.Turret) { EnterTurret(0, announce); return; }
             if (m == Mode.FreeLook) EnterFreeLook();
-            if (announce) Message?.Invoke(Localization.Get(m == Mode.Standard ? 217 : m == Mode.Turret ? 218 : 220));
+            if (announce) Message?.Invoke(Localization.Get(m == Mode.Standard ? 217 : 220));
+        }
+
+        /// <summary>The turret view of the i-th manual turret (it leaves another turret's view by itself); refused -> Standard.
+        /// The mode's name carries the turret's number when there are several.</summary>
+        void EnterTurret(int index, bool announce)
+        {
+            turretIndex = index;
+            Current = Mode.Turret;
+            var t = CurrentTurret;
+            t?.SetTurretView(true);
+            if (t == null || !t.InTurretView) { Current = Mode.Standard; turretIndex = 0; return; }
+            int count = Manual().Count;
+            if (announce) Message?.Invoke(Localization.Get(218) + (count > 1 ? " " + (index + 1) : ""));
         }
 
         void EnterFreeLook()
@@ -117,7 +155,7 @@ namespace GoF2Remake.Flight
             bool halted = Time.timeScale <= 0f;
             if (!halted && cycleAction.WasPressedThisFrame()) Cycle();
             // The turret view ended on its own (mining, blocked guns): back to the standard mode.
-            if (Current == Mode.Turret && (turret == null || !turret.InTurretView)) Current = Mode.Standard;
+            if (Current == Mode.Turret && (CurrentTurret == null || !CurrentTurret.InTurretView)) { Current = Mode.Standard; turretIndex = 0; }
             if (Current != Mode.FreeLook) return;
             if (Blocked != null && Blocked()) { Set(Mode.Standard, false); return; }
             if (chase != null && chase.follow != anchor && chase.follow != null) { Current = Mode.Standard; return; }   // taken over (the Liberator)

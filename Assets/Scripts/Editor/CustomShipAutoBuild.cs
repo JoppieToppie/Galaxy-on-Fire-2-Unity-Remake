@@ -1,5 +1,5 @@
 // CustomShipAutoBuild.cs  (Editor only)
-// Runs "GoF2 > Build Custom Ships" by itself when a custom ship's prefab or shop icon is missing, or older than
+// Runs "GoF2 > Build > Custom Ships" by itself when a custom ship's prefab or shop icon is missing, or older than
 // custom_ships.json or its model: after the scripts reload in the editor and before every player build. Without the
 // prefab Database.ShipAssembly names a prefab Resources can't load, and the ship flies as nothing but its exhaust particles
 // (ShipExhaust works from the mounts alone).

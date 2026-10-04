@@ -78,7 +78,7 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> missionScore = new NetworkVariable<int>(0, Read, Write);
         readonly NetworkVariable<bool> siegeRun = new NetworkVariable<bool>(false, Read, Write);   // KaamoSiege: builds the siege here
         readonly NetworkVariable<bool> atObject = new NetworkVariable<bool>(false, Read, Write);   // docked at an object (ObjectDocking)
-        readonly NetworkVariable<int> turretItem = new NetworkVariable<int>(-1, Read, Write);   // the mounted turret (PlayerTurret.TurretItem)
+        readonly NetworkVariable<int> turretItem = new NetworkVariable<int>(-1, Read, Write);   // the mounted turrets (PackTurrets)
         readonly NetworkVariable<bool> hangarRun = new NetworkVariable<bool>(false, Read, Write);   // runs its hangar's NPC ships (NetHangar)
         readonly NetworkVariable<bool> arrivedFlying = new NetworkVariable<bool>(false, Read, Write);   // docked by flying in (StationLevel)
         readonly NetworkVariable<int> miningAsteroid = new NetworkVariable<int>(-1, Read, Write);   // drilling this asteroid (NetOrbit index)
@@ -122,7 +122,34 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Docked at an object in space (ObjectDocking.PlayerDocked): NPC hits x0.75, like the local player's.</summary>
         public bool DockedAtObject => atObject.Value;
         /// <summary>The turret item on the ship (-1 = none): shown on its model in space and in the hangar (NetHangar).</summary>
-        public int TurretItem => turretItem.Value;
+        public int TurretItem => turretItem.Value < 0 ? -1 : turretItem.Value & 0xffff;
+        /// <summary>Every turret item on the ship, in mount order (remake: a custom ship can carry two).</summary>
+        public int[] TurretItems => UnpackTurrets(turretItem.Value);
+
+        /// <summary>The turret items in one int: -1 none, else the first in the low 16 bits and the second + 1 in the high 16
+        /// (0 = none), so a single turret is its item index, as before.</summary>
+        public static int PackTurrets(System.Collections.Generic.IList<int> items)
+        {
+            if (items == null || items.Count == 0 || items[0] < 0) return -1;
+            int second = items.Count > 1 && items[1] >= 0 ? items[1] + 1 : 0;
+            return (items[0] & 0xffff) | ((second & 0x7fff) << 16);
+        }
+
+        public static int[] UnpackTurrets(int packed)
+        {
+            if (packed < 0) return new int[0];
+            int first = packed & 0xffff, second = ((packed >> 16) & 0x7fff) - 1;
+            return second >= 0 ? new[] { first, second } : new[] { first };
+        }
+
+        /// <summary>The packed turret items as equipment stacks (PlayerTurret.BuildStatic).</summary>
+        public static ItemStack[] TurretStacks(int packed)
+        {
+            var items = UnpackTurrets(packed);
+            var stacks = new ItemStack[items.Length];
+            for (int i = 0; i < items.Length; i++) stacks[i] = new ItemStack(items[i], 1);
+            return stacks;
+        }
         /// <summary>Docked and running the hangar's NPC ships for everyone docked there (NetHangar).</summary>
         public bool HangarRun => hangarRun.Value;
         /// <summary>Docked by flying in from the orbit (not a session start, a respawn, a load): the others see it land.</summary>
@@ -252,7 +279,7 @@ namespace GoF2Remake.Multiplayer
             if (turretModel != null) Destroy(turretModel);
             turretModel = null;
             if (model == null || turretItem.Value < 0) return;
-            turretModel = PlayerTurret.BuildStatic(NetGame.Db, ship.Value, new[] { new ItemStack(turretItem.Value, 1) }, model.transform);
+            turretModel = PlayerTurret.BuildStatic(NetGame.Db, ship.Value, TurretStacks(turretItem.Value), model.transform);
         }
 
         /// <summary>This player's shots pass through their squadmates (the local player's ship included).</summary>
@@ -555,7 +582,7 @@ namespace GoF2Remake.Multiplayer
             }
             long held = Freelance.Active ? Freelance.Mission.netId : 0;
             if (missionHeld.Value != held) missionHeld.Value = held;
-            int turretNow = PlayerTurret.TurretItem(NetGame.Db, Session.Equipment);   // also changed in the hangar
+            int turretNow = PackTurrets(PlayerTurret.TurretItems(NetGame.Db, Session.Equipment));   // also changed in the hangar
             if (turretItem.Value != turretNow) turretItem.Value = turretNow;
             bool runsHangar = dock != null && NetHangar.Running;
             if (hangarRun.Value != runsHangar) hangarRun.Value = runsHangar;
@@ -586,7 +613,7 @@ namespace GoF2Remake.Multiplayer
                 localShip = level.Player.transform;
             }
             if (level.Weapons != null) sender?.Hook(level.Weapons.Guns);
-            if (level.Turret != null && level.Turret.Gun != null) sender?.Hook(new[] { level.Turret.Gun });
+            foreach (var t in level.Turrets) if (t != null && t.Gun != null) sender?.Hook(new[] { t.Gun });
             foreach (var sentry in SentryGun.All) if (sentry != null && sentry.Gun != null) sender?.Hook(new[] { sentry.Gun });
             if (atObject.Value != ObjectDocking.PlayerDocked) atObject.Value = ObjectDocking.PlayerDocked;
             transform.SetPositionAndRotation(localShip.position, localShip.rotation);

@@ -175,7 +175,10 @@ namespace GoF2Remake.Data
             if (type > 3) return Result.NotMountable;
             if (!Shop.CanInstallMultiple(it.categoryId))
             {
-                swapWith = Session.Equipment.FindIndex(e => db.Item(e.item)?.categoryId == it.categoryId);
+                // Remake: turrets (8) and plasma collectors (35) are one per turret slot, not one per ship, so a ship with
+                // two turret slots (a custom ship) takes a second one; the swap only once every turret slot is taken.
+                bool perSlot = type == 2 && SlotCount(2) > 1 && MountedOfType(2).Count < SlotCount(2);
+                swapWith = perSlot ? -1 : Session.Equipment.FindIndex(e => db.Item(e.item)?.categoryId == it.categoryId);
                 if (swapWith >= 0) return Result.Swap;
             }
             return MountedOfType(type).Count < SlotCount(type) ? Result.Ok : Result.NoFreeSlot;

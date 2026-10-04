@@ -151,11 +151,11 @@ namespace GoF2Remake.Multiplayer
         void ShowTurret(ulong id, GameObject shipGo, NetPlayer p)
         {
             turrets.TryGetValue(id, out var t);
-            int want = shipGo != null ? p.TurretItem : -1;
+            int want = shipGo != null ? NetPlayer.PackTurrets(p.TurretItems) : -1;   // both turrets in one key
             if (t.ship == shipGo && t.item == want && (want < 0 || t.turret != null)) return;
             if (t.turret != null) Destroy(t.turret);
             var turret = shipGo != null && want >= 0
-                ? GoF2Remake.Flight.PlayerTurret.BuildStatic(NetGame.Db, p.ShipIndex, new[] { new ItemStack(want, 1) }, shipGo.transform) : null;
+                ? GoF2Remake.Flight.PlayerTurret.BuildStatic(NetGame.Db, p.ShipIndex, NetPlayer.TurretStacks(want), shipGo.transform) : null;
             turrets[id] = (shipGo, want, turret);
         }
 

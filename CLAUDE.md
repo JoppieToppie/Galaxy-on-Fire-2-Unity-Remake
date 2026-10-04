@@ -67,6 +67,7 @@ Menu items (from `Scripts/Editor`), grouped in submenus; **GoF2 > Tools Overview
 - **GoF2 > Build > Network Prefabs**: `Resources/GoF2Net`, the multiplayer network prefabs (see "Multiplayer").
 - **GoF2 > Build > Event Audio**: `Resources/GoF2Net/EventAudio`, the sounds and music of multiplayer events (see "Multiplayer", Events).
 - **GoF2 > Build > Hangar Heights**: `Resources/GoF2Data/hangar_heights.json`, how far each ship is lifted off each hangar pad (see "Station scene"). Run it again after changing a hangar room or a ship model.
+- **GoF2 > Build > Custom Ships** (also the Project window's right-click **GoF2 > Build > Custom Ships**): the remake's own ships from `custom_ships.json` (see "Custom ships"). `CustomShipAutoBuild` runs it by itself when a prefab or icon is missing or out of date.
 - **GoF2 > Build > HUD Images**: `Resources/GoF2Hud`, the HUD / star map images and the alien font glyphs cut from the original interface atlases (rects in `Reference/research/mining.md`, `autopilot_travel.md`, `starmap_travel.md`). Also run by Create Space Scene.
 - **GoF2 > Build > Item Icons**: `Resources/GoF2Icons`, one icon per item and ship cut from the original atlases per `Reference/research/item_icons.json` (see "Shop").
 - **GoF2 > Build > Text Icons**: `Resources/Sprite Assets/gof2_text_icons` (a TextCore sprite asset + its 64 px atlas, `TextIconsBuilder`): the dialogue's inline icons: a remake-drawn coin (and a heart, last in the atlas, for the main menu's credit line), the race emblems (GoF2Hud race_0/1/2/3/8/9, trimmed to their opaque part), the jumpgate / wormhole / blueprint (map_products) / ore core / container (crate_off) / autopilot icons, every item and ship shop icon (the centre square of the plate). The runtime panel text settings find it by name under `Sprite Assets/`, so no PanelTextSettings asset exists.
@@ -162,7 +163,7 @@ fields for the builder, and `lounge`: who sells it). `Database.Load` appends the
   owned 327 Sell / Keep, Keep = `KeepAndBuyShipFor`: full price, the old hull stored, 328), toast 303, plate "Merchant".
   The Kaamo Club stays as in the original (no dealer; `Shop.EnterStation` clears a 108 dealer list a test build saved).
 - **Models** go in `Assets/Models/custom/` (`AssetImport.cs`: file units, no 180 deg turn, no materials; `*_nrm` normal maps,
-  `*_metallic_smoothness` / metal / rough linear). **GoF2 > Build Custom Ships** (`CustomShipBuilder`) scales the hull to
+  `*_metallic_smoothness` / metal / rough linear). **GoF2 > Build > Custom Ships** (`CustomShipBuilder`) scales the hull to
   `modelLength` game units nose to tail (turn it with `modelYaw` if the nose isn't +Z), makes URP Lit materials
   (`Materials/custom/`), the player engine glow at the slot-3 mounts (the Phantom's glow shape on mat_34813, mesh in
   `Prefabs/custom/`; no NPC engine parts, like 55-63), culls at 80000 units, writes
@@ -171,6 +172,10 @@ fields for the builder, and `lounge`: who sells it). `Database.Load` appends the
   text icons and hangar heights. `CustomShipAutoBuild` runs it by itself after a script reload and before every player
   build when a prefab or icon is missing or older than custom_ships.json / its model (without the prefab the ship flies
   as its exhaust particles alone). Mount positions are game units, ship-relative (Unity = (-x, y, z) x 0.05).
+  **Several turrets / upside down** (remake): `slots.turret` = 2 with two slot-2 mounts carries two turrets (the n-th turret
+  item of the equipment on the n-th mount; the hangar takes a second turret / collector instead of swapping while a turret
+  slot is free, `Hangar.CanMount`); a mount with `"upsideDown": true` (`WeaponMount.upsideDown`) hangs its turret under the
+  hull, turned 180 deg about the ship's length, in flight, on the hangar turntable and on other players' ships.
   Material entries match renderers by `mesh` (name part, empty = any) and, with `submesh` >= 0, one submesh of a
   multi-material FBX mesh (the builder logs each submesh's triangle count to check the order); `emission` (+
   `emissionIntensity`) is an emission map, `alphaClip` > 0 cuts decals out. Custom models import without blend shapes.
@@ -183,7 +188,9 @@ fields for the builder, and `lounge`: who sells it). `Database.Load` appends the
   a `ShipController` (NPCs, other players, the hangar) go by their moved speed against `FlightModel.BaseSpeed`.
   Travelling counts as a full boost (the planet jump `Navigation.Jumping`, a jumpgate / Khador jump `SystemJump.Traveling`;
   the Khador charge builds up to it). `trailWidth` > 0 (game units; `trailTime` s) adds a trail in the glow's colour from
-  the glow's rear end on each side (the builder's `trailPoints`) while boosting or travelling (TrailRenderer, the glow's
+  the glow's rear end on each side (the builder's `trailPoints`; with `trailCount` > 0 that many along the glow's whole rear edge instead, each at its slice's
+  rear edge, width / brightness x and length x (0.4 + 0.6 x) an ellipse across the band, sqrt(1 - t^2), at least 0.15:
+  `ThrottleGlow.trailProfile`) while boosting or travelling (TrailRenderer, the glow's
   material with vertex colours, fading to black, at `trailBrightness` x the glow: 0.15 on 65 / 66 and the Banshee's engines, 0.075 its wing tips); never while docking or leaving a station (the
   Station scene's hangar flights, the launch fly-in; the arrival after a jump keeps it). Ships 65 (60 wide) and 66 (90) have it.
   `extraGlows` adds more such glows (each its own mesh / mask / colour / levels / trail; built as `throttle_glow_2`, ... with
@@ -234,6 +241,22 @@ fields for the builder, and `lounge`: who sells it). `Database.Load` appends the
   the Enterprise-D's levels, trail 30 wide at 0.15) and an `extraGlows` entry on the wing-tip claw strips (`banshee_wingtip_mask.png`,
   weaker, trail 12 wide at 0.075). Primaries at the four blue circles on the cannon pods' fronts, the secondary at the light
   under the nose.
+- **68 Millennium Falcon** (pirate race 8, so the seller is a Terran; lounge sellers in any system, 8 %, from campaign 34 /
+  rank 13): 650 hull, 260 t, 2 / 2 / **2 turrets** / 14 slots, handling 115, 9 800 000 (Default 16 500 000). Model
+  `Models/custom/ships/millennium-falcon/source/Millenium Falcon NLG.fbx` (source and license unknown; `.fbx.orig` is the
+  file before the edit that cut out both quad-laser turrets at the disc centre, Blender (0, -1.5, ±7)); Blender's -Y nose
+  = Unity +Z, so `modelYaw` 0; the pivot is the file's origin (the disc centre, not the bounds), 1620 game units long
+  (18.8 per file unit: the widest turret base, v_autoturret_003's radius 67.5, just fits the middle circle; 1532 would do
+  for the standard radius-64 bases). Meshes: Mesh_0067 Main, Mesh_0068 Details (+ the ILLUMINATION map as emission), Mesh_0069* the gear
+  doors (Gear), Mesh_0546 the glass (cockpit and the old turrets' gunner windows, which still sit in the turret cavities),
+  SurfPatch the rear engine band (blue, `throttleGlow` with a white mask, normals facing back; its trail is 13 trails
+  along the whole band, `trailCount`, 110 wide / 0.7 s / 0.1 in the middle). The materials use the
+  `*_metallic_smoothness` maps (the raw ROUGHNESS / METALLIC / SPECULAR maps stay unused), remapped toward the Space
+  Banshee's brushed metal (metallic m + (0.68 - m) x 0.75, ~0.6; smoothness 0.49 + half the map's deviation from its mean,
+  0.2-0.75) with the Banshee's brushed detail pair x10 at 0.35. Turret mounts on the middle circle, halfway along the strip
+  from the glass's rear edge to the circle's rim: (0, 128, -64) on top, (0, -141, -64) `upsideDown` on the identical circle
+  underneath (hence hangarHeight 315: the hull's bottom is 146 under the pivot); primaries at the
+  mandible tips, secondaries at the front of the disc between them.
 - **One level = one station orbit.** Station at the origin, the other stations of the system are planets. Visible jumpgate only in the system's `jumpgateStation` orbit.
 - **Empty orbits** (`OrbitLayout.IsEmptyOrbit`, `Status::inEmptyOrbit` 0xb8ee8; no docking, no station target): 102-104, 109, 110, 132-134 always, 111 (Luur) above index 0x5d, 101 (Herjaza, the Valkyrie's orbit) from 0x54 (the battlestation is in the Void then), 78 at index 0 / 1 (the prologue, the rescue, a menu backdrop rolled there); the station's model stays in 27 / 110 / 111 (`Level::createSpace` 0xbc0f6, `OrbitLayout.stationObject`). Free play and sessions read index 20.
 - **Stable layout:** the original's RNG is `java.util.Random` (`JavaRandom`), seeded per station: jumpgates and sky rotation `2 * station` (separate sequences), sun/planets `300 * station`, asteroid count/centre `station`. `OrbitLayout` reproduces the research tables exactly. Everything the original randomises per visit uses `UnityEngine.Random`.
@@ -575,7 +598,7 @@ Research: `Reference/research/weapons.md` (functions, per-item table, fx, sounds
 - `Target`: hittable objects (asteroids: radius meshRadius*scale*0.7, HP scale*100+30, rockets kill asteroids instantly, explosion prefab + sound 21; ships and the player with `Hitpoints`). Stations are never hit.
 - **Special weapons** (`Reference/research/weapons_special.md`, `Gun.Kind`): beams (9-11, 228: a stretched beam mesh, instant hit, auto-aim within a cone), scatter guns (burst cube), EMP bombs and nukes (a second press detonates, area damage with falloff, explosion types 7 / 11), mines (drift, proximity), cluster missiles (salvo), the Shock Blast (226: damage + EMP + push, `NpcShip.InitPush`), ionizing missiles, plasma collectors, weapon mods (sort 28 factors on primaries). Several secondaries: G / D-pad right (or tapping the HUD label) cycles `Session.SelectedSecondary`.
 - **Liberator** (guided rocket): the ship holds still and the stick steers the rocket, the camera follows it; ends on impact or timeout.
-- **Turrets** (`PlayerTurret`, `TurretAim`): the turret-slot item on the ship's turret mount; auto turrets (180-182) aim and fire at hostiles, the others by the turret view (T / D-pad up, touch button), Y / D-pad down toggles auto fire; animations only while firing. **Sentry guns** (`SentryGun`, 211-213): up to 3 deployed as secondaries, 100 HP, 3 s invulnerable, hostile NPCs attack them.
+- **Turrets** (`PlayerTurret`, `TurretAim`): the turret-slot item on the ship's turret mount; auto turrets (180-182) aim and fire at hostiles, the others by the turret view (T / D-pad up, touch button), Y / D-pad down toggles auto fire; animations only while firing. Remake, several turrets (custom ships): one `PlayerTurret` per turret (`AttachAll`, `SpaceLevel.Turrets`; `SpaceLevel.Turret` = the one in the turret view, else the first), one auto-fire switch for all of them (`SetAuto`, announced on the first), one turret view at a time: the camera button visits each manual turret in mount order (`FreeLookCamera`, "Turret 1" / "Turret 2"); an upside-down turret's view sits under it, upright, with the stick mirrored (`UpsideDown`); multiplayer packs both items in `NetPlayer.turretItem` (`PackTurrets`: a single turret is its item index, as before). **Sentry guns** (`SentryGun`, 211-213): up to 3 deployed as secondaries, 100 HP, 3 s invulnerable, hostile NPCs attack them.
 - **Smoke trails** (`RocketTrail`, `GunRig.EnableTrails`; `RocketGun::setRadar` / `update`, `ParticleSystemMesh::emitTrail`):
   the player's rockets and missiles (and other players' mirrored ones) trail record 39, a ribbon of particles.png's white
   smoke strip, a new section every 125 units, the last 29 kept (~180 m), 200 units wide, white -> transparent over 3000

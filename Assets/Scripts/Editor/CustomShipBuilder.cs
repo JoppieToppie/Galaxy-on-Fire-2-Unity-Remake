@@ -1,5 +1,5 @@
 // CustomShipBuilder.cs  (Editor only)
-// Menu "GoF2/Build Custom Ships": the remake's own ships (Resources/GoF2Data/custom_ships.json, see CustomShips) from
+// Menu "GoF2/Build/Custom Ships" (also the Project window's right-click GoF2 > Build menu): the remake's own ships (Resources/GoF2Data/custom_ships.json, see CustomShips) from
 // their source models, the way AssemblyBuilder makes the original ones:
 //   - one URP Lit material per entry of 'materials' (Assets/Materials/custom/{assembly}_{mesh or submesh}.mat): diffuse,
 //     normal map, metallic (R) / smoothness (A) mask, like the game's bump-mapped hulls (PrefabBuilder.CreateMaterial),
@@ -42,7 +42,8 @@ namespace GoF2Remake.EditorTools
         const float CullDistance = 80000f;   // game units, the generic ships' last visible distance
         const float ReferenceFov = 60f;      // as AssemblyBuilder
 
-        [MenuItem("GoF2/Build Custom Ships", priority = 3)]
+        [MenuItem("GoF2/Build/Custom Ships", priority = 208)]
+        [MenuItem("Assets/GoF2/Build/Custom Ships", priority = 2000)]
         public static void BuildAll() => Build(true);
 
         /// <summary>The prefabs and icons; 'tables' also rebuilds the text icons and the hangar heights.</summary>
@@ -459,7 +460,35 @@ namespace GoF2Remake.EditorTools
             g.idle = tg.idle;
             g.full = tg.full;
             g.boost = tg.boost;
-            if (tg.trailWidth > 0f)
+            if (tg.trailWidth > 0f && tg.trailCount > 0)
+            {
+                // 'trailCount' trails spread evenly across the glow's width, each on the glow's rear edge at its own x (the
+                // rearmost vertices of that slice, so they follow a curved band), sized by an ellipse across the width:
+                // sqrt(1 - t^2) at t = -1..1 from end to end, at least 0.15 so the end trails still show.
+                float minX = verts.Min(v => v.x), maxX = verts.Max(v => v.x);
+                int n = Mathf.Max(1, tg.trailCount);
+                float slice = (maxX - minX) / n;
+                var points = new List<Vector3>();
+                var profile = new List<float>();
+                for (int i = 0; i < n; i++)
+                {
+                    float x = n == 1 ? (minX + maxX) * 0.5f : Mathf.Lerp(minX + slice * 0.5f, maxX - slice * 0.5f, i / (float)(n - 1));
+                    var inSlice = verts.Where(v => Mathf.Abs(v.x - x) <= slice * 0.5f).ToList();
+                    if (inSlice.Count == 0) continue;
+                    float rearZ = inSlice.Min(v => v.z);
+                    float sliceDepth = inSlice.Max(v => v.z) - rearZ;
+                    var edge = inSlice.Where(v => v.z <= rearZ + sliceDepth * 0.1f).ToList();
+                    points.Add(new Vector3(x, edge.Average(v => v.y), rearZ));
+                    float t = (x - (minX + maxX) * 0.5f) / ((maxX - minX) * 0.5f);
+                    profile.Add(Mathf.Max(0.15f, Mathf.Sqrt(Mathf.Max(0f, 1f - t * t))));
+                }
+                g.trailPoints = points.ToArray();
+                g.trailProfile = profile.ToArray();
+                g.trailWidth = tg.trailWidth * ImportSettings.ModelScale;
+                g.trailTime = tg.trailTime > 0f ? tg.trailTime : 0.6f;
+                g.trailBrightness = tg.trailBrightness > 0f ? tg.trailBrightness : 0.3f;
+            }
+            else if (tg.trailWidth > 0f)
             {
                 // The trails start at the glow's rear end on each side (the rearmost 3 % of its length, averaged per side).
                 float minZ = verts.Min(v => v.z), maxZ = verts.Max(v => v.z);
@@ -469,6 +498,7 @@ namespace GoF2Remake.EditorTools
                 foreach (var side in new[] { rear.Where(v => v.x < 0f).ToList(), rear.Where(v => v.x >= 0f).ToList() })
                     if (side.Count > 0) points.Add(new Vector3(side.Average(v => v.x), side.Average(v => v.y), minZ));
                 g.trailPoints = points.ToArray();
+                g.trailProfile = new float[0];
                 g.trailWidth = tg.trailWidth * ImportSettings.ModelScale;
                 g.trailTime = tg.trailTime > 0f ? tg.trailTime : 0.6f;
                 g.trailBrightness = tg.trailBrightness > 0f ? tg.trailBrightness : 0.3f;
