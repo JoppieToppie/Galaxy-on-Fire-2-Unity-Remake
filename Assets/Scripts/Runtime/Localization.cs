@@ -28,6 +28,7 @@ namespace GoF2Remake.Data
             var w = JsonUtility.FromJson<Wrapper>("{\"items\":" + table.text + "}");
             texts = w?.items ?? new string[0];
             Language = language;
+            LoadExtra(language);
             Changed?.Invoke();
         }
 
@@ -61,6 +62,25 @@ namespace GoF2Remake.Data
         public static string Extra(string key, string english) => extra.TryGetValue(Language + "." + key, out var s) ? s : english;
 
         public static void SetExtra(string language, string key, string text) => extra[language + "." + key] = text;
+
+        /// <summary>Folder under Resources with the remake-only texts per language: extra_LANG.json (LANG = the language code), an object
+        /// { "key": "text" } with the keys of the Extra calls. Missing keys keep their English text.</summary>
+        public const string ExtraFolder = "GoF2Localization";
+
+        static void LoadExtra(string language)
+        {
+            var asset = Resources.Load<TextAsset>(ExtraFolder + "/extra_" + language);
+            if (asset == null) return;
+            try
+            {
+                var d = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(asset.text);
+                if (d != null)
+                    foreach (var kv in d)
+                        if (!string.IsNullOrEmpty(kv.Value)) SetExtra(language, kv.Key, kv.Value.Replace("\r\n", "\n"));
+            }
+            catch (Exception e) { Debug.LogWarning($"Localization: {asset.name}.json can't be read: {e.Message}"); }
+            Resources.UnloadAsset(asset);
+        }
 
         // The converted table lost a few non-ASCII symbols (U+FFFD); restore the ones the menus show.
         static string Clean(string s) => s.Replace("Fire 2�", "Fire 2®").Replace("� 20", "© 20").Replace("\r\n", "\n");

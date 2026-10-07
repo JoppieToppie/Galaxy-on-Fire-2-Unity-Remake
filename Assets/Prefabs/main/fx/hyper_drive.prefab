@@ -1,3 +1,4 @@
+%UNITY 7.0
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!1001 &4192339599270160965
@@ -167,6 +168,8 @@ MonoBehaviour:
   meta: {fileID: 4900000, guid: 97a402e288b709e4d9403846cd707f20, type: 3}
   play: 0
   loop: 1
+  loopStartMs: 0
+  pingPongRotation: 0
   speed: 1
   metersPerUnit: 0.05
   positionMap:
@@ -184,6 +187,7 @@ MonoBehaviour:
   - source: 1
     sign: -1
   rotationInRadians: 1
+  applyMaterialChannels: 0
 --- !u!114 &2663490472060358949
 MonoBehaviour:
   m_ObjectHideFlags: 0

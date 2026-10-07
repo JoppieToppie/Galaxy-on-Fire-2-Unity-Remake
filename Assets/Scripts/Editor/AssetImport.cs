@@ -97,7 +97,7 @@ namespace GoF2Remake.EditorTools
             mi.importLights = false;
             mi.importNormals = ModelImporterNormals.Import;
             mi.importTangents = ModelImporterTangents.CalculateMikk;
-            mi.isReadable = false;
+            mi.isReadable = true;
         }
 
         void OnPreprocessAudio()

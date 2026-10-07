@@ -156,3 +156,8 @@ TextureImporter:
   assetBundleName: 
   assetBundleVariant: 
   script: {fileID: 21037, guid: 0000000000000000e000000000000000, type: 0}
+  blockCollection:
+    blocks: []
+  references:
+    version: 2
+    RefIds: []

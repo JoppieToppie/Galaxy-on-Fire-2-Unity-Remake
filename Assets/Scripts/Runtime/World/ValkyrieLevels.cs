@@ -490,7 +490,10 @@ namespace GoF2Remake.World
             if (fx != null) Object.Destroy(fx);
             fx = null;
             if (assets == null || assets.hyperDrive == null) return;
+<<<<<<< Updated upstream
             // +z at the viewer, like FaceCamera (the camera's own rotation had it mirrored for its first frame).
+=======
+>>>>>>> Stashed changes
             fx = Object.Instantiate(assets.hyperDrive, ToUnity(gamePos), (cam.Camera != null ? cam.Camera.rotation : Quaternion.identity) * Quaternion.Euler(0f, 180f, 0f));
             fx.transform.localScale *= scale;
             GunRig.StripForFx(fx);
@@ -506,7 +509,7 @@ namespace GoF2Remake.World
         void FaceCamera(GameObject go)
         {
             if (go != null && cam.Camera != null)
-                go.transform.rotation = Quaternion.LookRotation(cam.Camera.position - go.transform.position, Vector3.up);
+                go.transform.rotation = Quaternion.LookRotation(cam.Camera.position - go.transform.position, Vector3.up) * Quaternion.Euler(0f, 180f, 0f);
         }
 
         static void PlayAtCamera(AudioClip clip)
