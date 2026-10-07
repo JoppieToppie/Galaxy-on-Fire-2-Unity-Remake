@@ -43,7 +43,8 @@ namespace GoF2Remake.EditorTools
         static readonly (string code, string name)[] Languages =
         {
             ("en", "English"), ("de", "Deutsch"), ("fr", "Français"), ("es", "Español"),
-            ("it", "Italiano"), ("nl", "Nederlands"), ("pl", "Polski"), ("ru", "Русский"), ("pt", "Português (Brasil)"),
+            ("it", "Italiano"), ("nl", "Nederlands"), ("pl", "Polski"), ("ru", "Русский"), ("pt", "Português (Brasil)"),("zh", "简体中文"),
+
         };
 
         [MenuItem("GoF2/Scenes/Main Menu Scene", priority = 100)]
