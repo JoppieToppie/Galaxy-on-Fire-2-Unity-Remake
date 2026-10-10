@@ -415,6 +415,9 @@ namespace GoF2Remake.Data
                 case 79: if (!Session.FreePlay) { Session.CampaignMission = 78; Session.StoryMission = M(0x04, 101); } break;
                 case 35: if (Mission.station != 29) Session.StoryMission = M(0x0b, 29); break;
             }
+            // Remake fix: step 77's unsaleable jump drive is the original's flag on that one Item, which goes with it at 78;
+            // kept as the item number it locked every Khador Drive bought after the Valkyrie campaign (saves since then).
+            if (Index != 77) Session.Unsaleable.Remove(GalaxyMap.KhadorDriveItem);
         }
 
         // ---- completion (Status::missionCompleted 0x0b924c) ------------------------------------------------------
@@ -671,11 +674,14 @@ namespace GoF2Remake.Data
                     int drive = Session.Equipment.FindIndex(e => db.Item(e.item)?.categoryId == 18);
                     if (drive >= 0) Session.Equipment.RemoveAt(drive);
                     else Shop.RemoveFromCargo(GalaxyMap.KhadorDriveItem, 1);
+                    // The original's unsaleable flag was on that Item: it goes with it (the remake's flag is per item
+                    // number, so it stayed and locked every later Khador Drive).
+                    Session.Unsaleable.Remove(GalaxyMap.KhadorDriveItem);
                     Blueprints.ResetAtStation(db, 101);
                     break;
                 }
                 case 84:   // dlc1Won: the jump drive saleable again, one more Khador Drive in the hold
-                    SetJumpDriveSaleable(db, true);
+                    Session.Unsaleable.Remove(GalaxyMap.KhadorDriveItem);   // SetJumpDriveSaleable skipped it with no drive aboard
                     Shop.AddToCargo(GalaxyMap.KhadorDriveItem, 1);
                     break;
                 // ---- Supernova (cases 0x54-0xa1) ----
