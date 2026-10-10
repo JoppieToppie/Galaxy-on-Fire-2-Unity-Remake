@@ -509,6 +509,7 @@ namespace GoF2Remake.World
                     v.centre = new Vector3(-v.centre.x, v.centre.y, -v.centre.z);
                     o.volumes[i] = v;
                 }
+            HullCollision.Attach(go, null, o);   // remake: the player slides along its real shape; NPCs keep the volumes
         }
 
         static void PauseAnimation(GameObject go)

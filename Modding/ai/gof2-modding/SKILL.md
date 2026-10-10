@@ -299,7 +299,7 @@ the game.
 Systems: race 0-3, security 0 (lawless) - 3 (secure), map position (originals x 15-94, y 2-96, z 10-90), sky 0-18, gates
 both ways, up to 7 stations each. Skybox images: 2:1 panorama or 6:1 cube strip (right, left, up, down, front, back), light
 on black, 8192 x 4096 sharp. Stations: techLevel 0-10, planet 0-22 or 24-26, looksLike = an original station whose model
-it borrows, modelSize = largest extent in game units (default 40000), collision box/sphere/none or `volumes`, interior =
+it borrows, modelSize = largest extent in game units (default 40000), collision box/sphere/none or `volumes` (what NPC fighters steer around; the player and shots use the model's real meshes, `none` turns all off), interior =
 race of hangar and bar, or own rooms `hangar` / `bar` from interiors.json (GLB rooms with marker empties: hangar `pad`,
 `camera` required, `camera_target`, `parked_N`, `gate`, `gate_out`, `light`; bar `camera`, `camera_target`, `visitor_N`
 required). `override` changes originals (name, techLevel, looks, music...).

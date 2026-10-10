@@ -401,6 +401,8 @@ namespace GoF2Remake.World
                 // Remake (CapitalShips): a killable capital ship is hit on its collision boxes, not the +-1000 cube at its centre.
                 if (spec.capitalEnhanced) Target.boxes = LocalBoxes(obstacle.volumes);
             }
+            // Remake: shots hit its real shape and the player slides along it (HullCollision); NPCs still steer by the volumes.
+            if (modelGo != null) HullCollision.Attach(modelGo, Target, obstacle);
             if (spec.deadButSelectable) ShowWreckAtEnd();
             Target.Damaged += OnDamaged;
             Target.Died += OnDied;

@@ -264,6 +264,7 @@ namespace GoF2Remake.World
             // Ship combat: the player's Player object, the orbit's NPC traffic, the ship / salvage locks.
             Health = Player.gameObject.AddComponent<PlayerHealth>();
             Health.Setup(db, Player, chase, Weapons);
+            if (Player.visualModel != null) HullCollision.Attach(Player.visualModel.gameObject, Health.Target, null);   // NPC shots hit its real shape
             Collision = Player.gameObject.AddComponent<PlayerCollision>();
             Collision.Setup(Health, chase, Mining);
             Collision.wormhole = Wormhole;
@@ -611,6 +612,9 @@ namespace GoF2Remake.World
         void AddObstacles()
         {
             OrbitBuilder.AddObstacles(Layout, Station, Jumpgate);
+            // Remake: the player slides along their real shapes (HullCollision); shots pass them as in the original.
+            if (Station != null) HullCollision.Attach(Station, null, Station.GetComponent<Obstacle>());
+            if (Jumpgate != null) HullCollision.Attach(Jumpgate, null, Jumpgate.GetComponent<Obstacle>());
             // Remake mods: a station of its own model sizes the dock range and the launch point.
             var own = Modding.ModWorld.ModelOf(Layout.stationIndex);
             var obstacle = Station != null ? Station.GetComponent<Obstacle>() : null;
@@ -656,6 +660,7 @@ namespace GoF2Remake.World
             foreach (var lg in model.GetComponentsInChildren<LODGroup>(true)) lg.ForceLOD(0);
             PlayerHull.PrepareModel(db, model);   // the Void ship at its full size
             ctrl.visualModel = model.transform;
+            if (Health != null) HullCollision.Attach(model, Health.Target, null);
 
             var ship = db.Ship(shipIndex);
             var equipment = new System.Collections.Generic.List<ItemData>();

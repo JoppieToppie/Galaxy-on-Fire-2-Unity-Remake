@@ -33,6 +33,11 @@ namespace GoF2Remake.Flight
         /// <summary>The avoidance direction starts at the touched volume's centre (else at the owner's position).</summary>
         public bool projectFromVolume = true;
         public List<CollisionVolume> volumes = new List<CollisionVolume>();
+        /// <summary>Remake: the player slides along this hull's MeshColliders instead of the volumes (HullCollision); NPC
+        /// fighters still steer by the volumes. Null = none.</summary>
+        [System.NonSerialized] public HullBody hull;
+        /// <summary>The player collides with the hull, not the volumes.</summary>
+        public bool UsesHull => hull != null && hull.Active;
 
         public bool Active => isActiveAndEnabled && volumes != null && volumes.Count > 0;
 

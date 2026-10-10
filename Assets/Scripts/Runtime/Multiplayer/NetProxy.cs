@@ -458,6 +458,7 @@ namespace GoF2Remake.Multiplayer
                                   && asm.playerVariantParts[0] != null);
             name = $"NetProxy {model.Value}";
             visual.SetActive(shown);
+            if (target != null) HullCollision.Attach(visual, target, null);   // shots hit its real shape
         }
 
         void SetShown(bool on)

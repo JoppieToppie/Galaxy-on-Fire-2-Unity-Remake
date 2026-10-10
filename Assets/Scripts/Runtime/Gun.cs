@@ -323,6 +323,7 @@ namespace GoF2Remake.Flight
                 b.age += dtMs;
                 if (Coasts && b.timer <= limit) { Expired?.Invoke(i); continue; }   // Gun::update: a rocket ran out
                 if (kind == Kind.ShockBlast) { Ignite(targets); continue; }   // one instant blast at the ship
+                var from = b.position;   // the hull test sweeps this frame's path
                 if (kind == Kind.Mine) b.position += b.velocity * dtMs * Mathf.Max(1f - b.age / MineStopMs, 0f);
                 else b.position += b.velocity * dtMs;
                 if (kind == Kind.ClusterMissile) Corkscrew(i, ref b, dtMs);
@@ -330,7 +331,7 @@ namespace GoF2Remake.Flight
                 if (targets != null)
                 {
                     if (kind == Kind.Mine) TestMine(i, ref b, targets, dtMs);
-                    else TestHits(i, ref b, targets);
+                    else TestHits(i, ref b, targets, from);
                 }
             }
             if (shaken) LockShaken?.Invoke(this, dropShaken ? previousLock : lockTarget);
@@ -348,13 +349,26 @@ namespace GoF2Remake.Flight
             b.position += (side * (2f * Mathf.Sin(a)) + b.up * (2f * Mathf.Cos(a))) * dtMs * MetersPerUnit;
         }
 
-        void TestHits(int i, ref Bullet b, IReadOnlyList<Target> targets)
+        void TestHits(int i, ref Bullet b, IReadOnlyList<Target> targets, Vector3 from)
         {
             int frame = Time.frameCount;
             var probe = b.position - b.velocity;
+            // Remake (HullCollision): ships, stations' objects and turrets are hit on their real shape: the first hull along
+            // this frame's path whose target this gun may hit. Scatter guns keep their proximity cube.
+            bool hulls = kind != Kind.ScatterGun && HullCollision.Any;
+            castTargets = targets;
+            mayHitFn ??= t => MayHit(t, castTargets);   // one delegate per gun, not one per shot and frame
+            if (hulls && HullCollision.Cast(from, b.position, HullShotRadius, mayHitFn, out var hullTarget, out var hullPoint))
+            {
+                if (IsBomb) { Ignite(targets); return; }   // contact: area damage, no direct hit
+                b.timer = -1e9f;   // gone
+                Hit?.Invoke(i, hullTarget, hullPoint);
+                return;
+            }
             for (int t = 0; t < targets.Count; t++)
             {
                 var target = targets[t];
+                if (hulls && (object)target != null && target != null && target.HasHull) continue;   // tested above
                 // The cheap sphere test first (Target.MayContain): most targets are nowhere near the bullet. Scatter guns'
                 // cube grows with the distance, so they keep the full test.
                 if ((object)target == null || (kind != Kind.ScatterGun && !target.MayContain(probe, frame))) continue;
@@ -379,6 +393,20 @@ namespace GoF2Remake.Flight
                 if (kind == Kind.ScatterGun) { AreaDamage(point, targets, false); Ignited?.Invoke(point); }   // + the burst around
                 return;
             }
+        }
+
+        /// <summary>Metres: a shot's thickness for the hull test (HullCollision.Cast), so a shot grazing an edge hits it (the
+        /// original's cube around a ship was +-1000 units, 50 m, whatever its shape).</summary>
+        const float HullShotRadius = 3f;
+        IReadOnlyList<Target> castTargets;
+        System.Func<Target, bool> mayHitFn;
+
+        /// <summary>A hull's target this gun's shots may hit: in its list, alive, not its own ship, not phased or ignored.</summary>
+        bool MayHit(Target t, IReadOnlyList<Target> targets)
+        {
+            if (t == owner || !t.Alive || t.phased || (Ignores != null && Ignores(t))) return false;
+            for (int k = 0; k < targets.Count; k++) if ((object)targets[k] == t) return true;
+            return false;
         }
 
         /// <summary>The first target without hit boxes whose cube holds 'p' (a turret on 'hull'), else 'hull'.</summary>

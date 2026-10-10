@@ -98,8 +98,20 @@ namespace GoF2Remake.EditorTools
             mi.importNormals = ModelImporterNormals.Import;
             mi.importTangents = ModelImporterTangents.CalculateMikk;
             // Read/Write only where runtime code reads the mesh: Valkyrie 80 splits the deep science station's damaged
-            // thruster flames per engine (ValkyrieLevels.MakeFlamePieces80, #70).
-            mi.isReadable = assetPath.EndsWith("/v_station_deep_science_damaged_emitters_anim_add.fbx");
+            // thruster flames per engine (ValkyrieLevels.MakeFlamePieces80, #70), and the hulls get MeshColliders
+            // (HullCollision: a player build can't cook a collider from a mesh it can't read).
+            mi.isReadable = assetPath.EndsWith("/v_station_deep_science_damaged_emitters_anim_add.fbx") || IsHullModel(assetPath);
+        }
+
+        /// <summary>A model whose meshes become collision hulls (HullCollision): ships, stations, jumpgates, turrets and the
+        /// level objects (misc), not their additive / light layers or lower LODs.</summary>
+        public static bool IsHullModel(string path)
+        {
+            string p = path.Replace('\\', '/');
+            if (!(p.Contains("/ships/") || p.Contains("/stations/") || p.Contains("/jumpgates/") || p.Contains("/turrets/") || p.Contains("/misc/")))
+                return false;
+            string name = System.IO.Path.GetFileNameWithoutExtension(p);
+            return !name.Contains("_add") && !name.Contains("_lights") && !name.Contains("_lod_");
         }
 
         void OnPreprocessAudio()

@@ -115,6 +115,7 @@ namespace GoF2Remake.World
                 foreach (var r in go.GetComponentsInChildren<Renderer>()) placed.Encapsulate(r.bounds);
                 obstacle.volumes = new System.Collections.Generic.List<CollisionVolume> { CollisionVolume.Box(placed.center - go.transform.position, placed.extents) };
             }
+            HullCollision.Attach(go, null, obstacle);   // the player slides along its real shape (HullCollision)
             if (!string.IsNullOrEmpty(name) && level.Navigation != null)
             {
                 // The marker on the model's centre (a child, so it stays with it).

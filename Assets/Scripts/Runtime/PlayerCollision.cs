@@ -69,7 +69,9 @@ namespace GoF2Remake.Flight
             CheckWormhole();
             if (cloak != null && cloak.Phasing) { scrapedLastFrame = false; return; }   // phased out: nothing solid
             CheckObstacles(true);
+            CheckHulls(true);
             CheckObstacles(false);
+            CheckHulls(false);
             CheckAsteroids();
             if (scraping)
             {
@@ -90,7 +92,7 @@ namespace GoF2Remake.Flight
             for (int i = 0; i < all.Count; i++)
             {
                 var o = all[i];
-                if (o == null || o.landmark != landmarks || !o.Active) continue;
+                if (o == null || o.landmark != landmarks || !o.Active || o.UsesHull) continue;   // a hull: CheckHulls
                 if (ignoreGate && o.cubeIsContact) continue;
                 // Remake: the object being docked at doesn't block its own approach (the original's autopilot could pin the
                 // ship on a hull face when it started beside the object; from afar it comes in over the top anyway).
@@ -106,6 +108,70 @@ namespace GoF2Remake.Flight
                 Hit();
             }
         }
+
+        // Remake (HullCollision): the landmarks' / freighters' real shapes. The ship is a sphere (ProbeRadius) pushed out of
+        // every hull it overlaps (Physics.ComputePenetration), so it slides along the hull as on the original's volumes,
+        // flies through its gaps and doesn't stop short of it in a box's empty corner.
+        static readonly Collider[] overlaps = new Collider[32];
+        SphereCollider probe;
+
+        void CheckHulls(bool landmarks)
+        {
+            if (!HullCollision.Any) return;
+            var pos = transform.position;
+            float r = ProbeRadius();
+            int n = HullCollision.Overlap(pos, r, overlaps);
+            for (int k = 0; k < n; k++)
+            {
+                var c = overlaps[k];
+                var body = HullCollision.BodyOf(c);
+                var o = body != null ? body.obstacle : null;
+                // Active: it has volumes too (a mod station's "collision": "none" has none, so no hull contact either).
+                if (o == null || o.landmark != landmarks || !o.Active) continue;
+                if (ignoreGate && o.cubeIsContact) continue;
+                // The object being docked at doesn't block its own approach, nor the station a docking target stands in for.
+                if (docking != null && docking.State == ObjectDocking.Phase.Approach && docking.Target != null
+                    && (o.gameObject == docking.Target.gameObject
+                        || (o.isStation && (o.transform.position - docking.Target.transform.position).sqrMagnitude < 1f))) continue;
+                probe.transform.position = pos;
+                if (!Physics.ComputePenetration(probe, pos, Quaternion.identity, c, c.transform.position, c.transform.rotation, out var dir, out float dist)) continue;
+                pos += dir * dist;
+                transform.position = pos;
+                if (o.isStation) TouchingStation = true;
+                scraping = true;
+                Hit();
+            }
+        }
+
+        /// <summary>Metres: the probe sphere round the ship's centre, a third of the model's largest extent (the original
+        /// tests the ship's centre point, so half the hull sank into a station). Made once per model.</summary>
+        float ProbeRadius()
+        {
+            var ship = GetComponent<ShipController>();
+            var model = ship != null ? ship.visualModel : null;
+            if (probe == null)
+            {
+                var go = new GameObject("CollisionProbe") { layer = HullCollision.ProbeLayer };
+                go.transform.SetParent(transform, false);
+                probe = go.AddComponent<SphereCollider>();
+                probe.isTrigger = true;
+            }
+            if (model != probeModel)
+            {
+                probeModel = model;
+                float size = 20f;
+                if (model != null)
+                {
+                    var b = new Bounds(model.position, Vector3.zero);
+                    foreach (var mr in model.GetComponentsInChildren<MeshRenderer>()) b.Encapsulate(mr.bounds);
+                    size = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
+                }
+                probe.radius = Mathf.Clamp(size / 3f, 3f, 60f);
+            }
+            return probe.radius;
+        }
+
+        Transform probeModel;
 
         void CheckWormhole()
         {
