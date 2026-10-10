@@ -417,6 +417,25 @@
     opacity: 0.3;
 }
 
+/* With a controller: the trigger that does it (LT sell all, RT buy all) at the button's left edge. */
+.trade-all-pad {
+    display: none;
+    position: absolute;
+    left: 4px;
+    top: 0;
+    bottom: 0;
+    justify-content: center;
+    letter-spacing: 0;
+}
+
+.input-gamepad .trade-all-pad {
+    display: flex;
+}
+
+.input-gamepad .trade-all {
+    padding-left: 52px;
+}
+
 .trade-price {
     flex-grow: 1;
     font-size: 28px;

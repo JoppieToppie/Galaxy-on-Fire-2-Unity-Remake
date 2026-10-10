@@ -1792,11 +1792,14 @@ namespace GoF2Remake.UI
                                                                         : $"{T("shopSell", "SELL")} / {T("shopBuy", "BUY")}";   // ingredients: ADD
                 string tabs = $"{Localization.Get(183)} / {Localization.Get(store ? 186 : 185)} / {Localization.Get(272)}".ToUpperInvariant(), confirm = T("hudConfirm", "CONFIRM");
                 string sellShip = T("kaamoSellShip", "SELL SHIP");
+                string tradeAll = store ? $"{T("shopStoreAll", "STORE ALL")} / {T("shopTakeAll", "TAKE ALL")}"
+                                        : $"{T("shopSellAll", "SELL ALL")} / {T("shopBuyAll", "BUY ALL")}";
                 string info = Localization.Get(390).ToUpperInvariant();   // the details window's "Info" (ItemInfoWindow)
                 if (kind == InputKind.KeyboardMouse)
                 {
                     Hint(select, InputGlyph.Key("W"), InputGlyph.Key("S"));
                     Hint(trade, InputGlyph.Key("A"), InputGlyph.Key("D"));
+                    Hint(tradeAll, InputGlyph.Key("SHIFT", true), InputGlyph.Key("A"), InputGlyph.Key("D"));
                     Hint(confirm, InputGlyph.Key("ENTER", true));
                     Hint(tabs, InputGlyph.Key("Q"), InputGlyph.Key("E"));
                     Hint(info, InputGlyph.Key("I"));
@@ -1808,6 +1811,7 @@ namespace GoF2Remake.UI
                     Hint($"{select} / {trade}", InputGlyph.Pad(PadButton.DPad));
                     Hint(confirm, InputGlyph.Pad(PadButton.A));
                     Hint(trade, InputGlyph.Pad(PadButton.X), InputGlyph.Pad(PadButton.A));   // a shop row: X sells, A buys
+                    Hint(tradeAll, InputGlyph.Pad(PadButton.LeftTrigger), InputGlyph.Pad(PadButton.RightTrigger));
                     Hint(tabs, InputGlyph.Pad(PadButton.LeftBumper), InputGlyph.Pad(PadButton.RightBumper));
                     Hint(info, InputGlyph.Pad(PadButton.Y));
                     if (store) Hint(sellShip, InputGlyph.Pad(PadButton.X));
@@ -2265,6 +2269,11 @@ namespace GoF2Remake.UI
                     hangarWindow.Action();
                 else if ((kb != null && kb.xKey.wasPressedThisFrame) || (pad != null && pad.buttonWest.wasPressedThisFrame))
                     hangarWindow.SecondaryAction();   // Sell a stored hull (Kaamo Club)
+                // Remake: LT / RT = Sell all / Buy all (Store all / Take all), the keyboard's Shift + left / right.
+                else if (pad != null && pad.leftTrigger.wasPressedThisFrame)
+                    hangarWindow.TradeAll(-1);
+                else if (pad != null && pad.rightTrigger.wasPressedThisFrame)
+                    hangarWindow.TradeAll(1);
                 else if ((kb != null && kb.qKey.wasPressedThisFrame) || (pad != null && pad.leftShoulder.wasPressedThisFrame))
                 {
                     Play(buttonPush);

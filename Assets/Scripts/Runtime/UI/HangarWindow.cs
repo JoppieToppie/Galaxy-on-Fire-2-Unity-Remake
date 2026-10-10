@@ -130,6 +130,9 @@ namespace GoF2Remake.UI
             HookArrow(buyButton, 1);
             if (sellAllButton != null) { sellAllButton.focusable = false; sellAllButton.clicked += () => TradeAll(-1); }
             if (buyAllButton != null) { buyAllButton.focusable = false; buyAllButton.clicked += () => TradeAll(1); }
+            // Remake: with a controller the buttons show their triggers (LT / RT, StationMenu), placed left of the text.
+            AddPadGlyph(sellAllButton, PadButton.LeftTrigger);
+            AddPadGlyph(buyAllButton, PadButton.RightTrigger);
             foreach (var b in new VisualElement[] { tabShip, tabShop, tabBlueprints, actionButton, actionButton2 }) if (b != null) b.focusable = false;
             list.focusable = detailScroll.focusable = false;
             detailText.parent?.Insert(detailText.parent.IndexOf(detailText) + 1, detailMods);
@@ -994,7 +997,7 @@ namespace GoF2Remake.UI
         /// <summary>Remake (players' suggestion): every unit of the selected shop item at once. Sell all / Store all: what the
         /// hold has of it (mounted units stay); Buy all / Take all: the station's whole stock, as far as the hold has room and
         /// the credits reach. In a multiplayer session the host hears of them as one message (Hangar.BeginBatch / EndBatch).
-        /// Shift + left / right does the same with keys.</summary>
+        /// Shift + left / right does the same with keys, LT / RT with a controller.</summary>
         public void TradeAll(int direction)
         {
             if (selected == null || selected.kind != RowKind.ShopItem) return;
@@ -1014,6 +1017,15 @@ namespace GoF2Remake.UI
             hangar.BeginBatch();
             try { Trade(direction, true, units, true); }
             finally { hangar.EndBatch(); }
+        }
+
+        static void AddPadGlyph(VisualElement button, PadButton pad)
+        {
+            if (button == null) return;
+            var holder = new VisualElement { pickingMode = PickingMode.Ignore };
+            holder.AddToClassList("trade-all-pad");
+            holder.Add(InputGlyph.Pad(pad));
+            button.Add(holder);
         }
 
         /// <summary>Left / right: sell / buy one unit of the selected shop item (Item::transaction). 'all' (TradeAll): running out
