@@ -170,6 +170,7 @@ namespace GoF2Remake.World
             if (GoF2Remake.Multiplayer.NetGame.SessionLost) SceneManager.LoadScene("MainMenu");
             db = Database.Load();
             int station = stationOverride >= 0 ? stationOverride : Session.StationIndex;
+            Hangar.NewDocking();
             Stock = Shop.EnterStation(db, station);
             Story.OnDocked(db, station, Stock);   // ModStation::OnInitialize's story tweaks (index 1: Betty ...)
             // Remake debug (PlayerHull): a hull the player can't normally fly never sits in a hangar (an old save from the

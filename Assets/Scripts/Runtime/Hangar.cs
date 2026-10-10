@@ -20,6 +20,7 @@ using UnityEngine;
 
 namespace GoF2Remake.Data
 {
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public class Hangar
     {
         public enum Result { Ok, NoStock, NoCredits, NothingToSell, NoFreeSlot, Swap, NotMountable, SameShip, NotSaleable, Passengers, AlreadyStored }
@@ -40,7 +41,33 @@ namespace GoF2Remake.Data
             AddPrices(Session.Equipment.Select(e => e.item).ToList());
             AddPrices(Session.Cargo.Select(e => e.item).ToList());
             AddPrices(stock.items.Select(e => e.item).ToList());
+            PinPrices();
             RecordKnownPrices();
+        }
+
+        // Remake: an item's price is fixed for the docking. Each list's prices come from a fresh Random(station), so an
+        // item's price depends on its place in the lists, and a trade moving it between the stock and the hold could
+        // shift it by up to +-2 %: in multiplayer the window is priced again after every trade (the host's shared stock),
+        // and buying at 724 and selling at 746 at once made money with every click. The first price an item gets at
+        // this docking is kept (NewDocking clears them; another station starts afresh).
+        static readonly Dictionary<int, int> pinned = new Dictionary<int, int>();
+        static int pinnedStation = -1;
+
+        /// <summary>A new docking (StationLevel): its prices are worked out afresh.</summary>
+        public static void NewDocking()
+        {
+            pinned.Clear();
+            pinnedStation = -1;
+        }
+
+        void PinPrices()
+        {
+            if (pinnedStation != Station) { pinned.Clear(); pinnedStation = Station; }
+            foreach (var item in prices.Keys.ToList())
+            {
+                if (pinned.TryGetValue(item, out int p)) prices[item] = p;
+                else pinned[item] = prices[item];
+            }
         }
 
         void AddPrices(List<int> items)
@@ -71,7 +98,7 @@ namespace GoF2Remake.Data
         public int PriceOf(int item)
         {
             // An item that joined the list after this opening (multiplayer: another player's sale) gets its price now.
-            if (!prices.ContainsKey(item)) AddPrices(new List<int> { item });
+            if (!prices.ContainsKey(item)) { AddPrices(new List<int> { item }); PinPrices(); }
             return Story.AdjustPrice(Station, item, prices.TryGetValue(item, out int p) ? p : 0);
         }
         /// <summary>Item::isSaleable: story items (Gunant's Drill, the Alien Remains...) can't be sold or demounted (323).</summary>
@@ -202,7 +229,7 @@ namespace GoF2Remake.Data
                 Stock.items.Insert(at < 0 ? Stock.items.Count : at, new ItemStack(item, 1));   // the stock stays in index order
             }
             if (!Storage) Shared(item, 1, 0);   // multiplayer: the shared stock
-            if (!Storage) ChangeCredits(PriceOf(item));
+            if (!Storage) ChangeCredits(GoF2Remake.Multiplayer.NetFactionsClient.SellPrice(Station, PriceOf(item)));   // multiplayer: no more than a member pays
             Session.SeenItems.Add(item);
             if (Session.IsBooze(item)) Session.BoozeTypes.Add(item);   // HangarWindow::selectItem: a committed booze trade
             return Result.Ok;

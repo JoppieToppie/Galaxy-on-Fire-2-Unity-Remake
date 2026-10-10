@@ -591,7 +591,7 @@ Research: `Reference/research/shop.md` (+ `item_icons.json`, reference price cod
   times the ingredients (Khador Drive 200 / 10 Pyresium), starter weapons / scanner / drill cheaper, ships ×0.5-0.8; a few
   stats (mining lasers' attrs 32 / 33, PE Proton 17 / 49-51), tech levels and Night Owl's 3 / 2 secondary slots.
   Multiplayer sessions always use Android (the shared stock). The save slots show difficulty and economy.
-- **Prices** are deterministic per station: `java.util.Random(station)` reseeded per list (cargo, mounted, stock), min + distance factor * (max - min) +- 2 %; verified identical to `prices.py`. Selling pays the buying price; anything sold joins the station's stock. Loma (system 25) always charges the maximum.
+- **Prices** are deterministic per station: `java.util.Random(station)` reseeded per list (cargo, mounted, stock), min + distance factor * (max - min) +- 2 %; verified identical to `prices.py`. Selling pays the buying price; anything sold joins the station's stock. Loma (system 25) always charges the maximum. Remake: an item's price is fixed for the docking (`Hangar.PinPrices`, cleared by `Hangar.NewDocking` in `StationLevel`): an item's price depends on its place in the lists, so a trade moving it between the stock and the hold could shift it by up to ±2 %, and in multiplayer, where the window is priced again after every trade, buying and selling at once made money with every click.
 - **Stock** (`Generator::getItemBuyList`) and **dealer ships** (`getShipBuyList`) are rolled with `UnityEngine.Random` when docking at a station that isn't among the last 3 visited; re-docking after > 30 s nibbles 0-2 units off each row.
 - **Cargo:** every unit is 1 t, mounted items weigh nothing; buying never checks space, launching is refused while overloaded.
 - **Sell all / Buy all** (remake, players' suggestion; Store all / Take all in the Kaamo Club's storage; `HangarWindow.TradeAll`, buttons under the trade arrows, or Shift + left / right): every unit of the selected item: what the hold has of it, or the station's stock as far as the hold has room and the credits reach (no "not enough credits" after some units). In a session one stock message carries the count (`Hangar.BeginBatch` / `EndBatch`; `NetState.StockItemRpc` takes up to 10 000 units, grants what the host's row has and refuses the rest in one `ItemRefusedRpc` with the count, the faction tax on the granted units).
@@ -984,7 +984,8 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   pilots as enemies unless they paid the toll this visit: `NpcShip.TerritoryToLocal`, `NetOrbit.HostileToRemote`,
   `NetFactionsClient.Relation`; pilots without a faction as always); **toll** (`-toll`, 10 000; `TerritoryView` asks on
   arrival through `Traffic.Ask`, `NetFactionsClient.PayToll` -> `TollPaidRpc`, the holder's bank, `NetPlayer.TollStation`
-  for the others' NPCs); **trade cut** (`Hangar.Buy` through `NetFactionsClient.BuyPrice`: members -10 %, other factions +5 %;
+  for the others' NPCs); **trade cut** (`Hangar.Buy` through `NetFactionsClient.BuyPrice`: members -10 %, other factions +5 %; a sale pays no more than
+  the seller pays there, `NetFactionsClient.SellPrice`, or members bought at -10 % and sold at the full price;
   the server banks the tax from `StockItemRpc`'s price, `NetFactions.OnPurchase`; the list shows the plain price; ships
   aren't cut). Not yet: shared storage at the home. Not tested in a build yet.
   UI: the **multiplayer window** (`MultiplayerWindow`, code-built, Squad.uss buttons; in the station a "MULTIPLAYER" button in

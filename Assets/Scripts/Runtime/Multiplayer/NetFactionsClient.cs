@@ -81,6 +81,10 @@ namespace GoF2Remake.Multiplayer
                                 : UnityEngine.Mathf.RoundToInt(price * (100 + NetFactions.TaxPercent) / 100f);
         }
 
+        /// <summary>What a sale at 'station' pays: the list price, never more than this player pays there (a member buying at
+        /// the member's cut and selling at the full price made 10 % on every round trip).</summary>
+        public static int SellPrice(int station, int price) => UnityEngine.Mathf.Min(price, BuyPrice(station, price));
+
         /// <summary>The toll for this station's holder: the credits go, the server banks them.</summary>
         public static bool PayToll(int station)
         {
