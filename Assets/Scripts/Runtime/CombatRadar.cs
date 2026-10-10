@@ -197,6 +197,12 @@ namespace GoF2Remake.Flight
                     if (traffic != null)
                         foreach (var s in traffic.Ships)
                         {
+                            // Radar::draw: a fighter dying with cargo (KIPlayer+0x48) is salvage until it explodes.
+                            if (s.DyingWithCargo && !s.Gone && !s.Hidden && !s.RadarHidden)
+                            {
+                                if (InBox(cam, c, box, s.transform.position, out float dd) && dd < stealD) { stealD = dd; bestSteal = s; }
+                                continue;
+                            }
                             if (s.Gone || !s.Target.Alive || s.Hidden || s.RadarHidden || s.DockingType > 0 || s.Asleep) continue;
                             if (!InBox(cam, c, box, s.transform.position, out float d)) continue;
                             // KIPlayer+0x20: a disabled ship with cargo is salvage (it wins over the ship locks).
@@ -375,8 +381,9 @@ namespace GoF2Remake.Flight
                 if (beamLoop.isPlaying) beamLoop.Stop();
                 return;
             }
-            // TractorBeam::update: a living ship's cargo is let go when the ship dies.
-            if (Salvaging.stolenFrom != null && (!Salvaging.stolenFrom.Target.Alive || Salvaging.stolenFrom.Gone))
+            // TractorBeam::update lets go when the ship is gone (Player::isActive); a dying one keeps its crate coming, which
+            // becomes the ship's crate when it explodes (NpcShip.DropCrate).
+            if (Salvaging.stolenFrom != null && ((!Salvaging.stolenFrom.Target.Alive && !Salvaging.stolenFrom.Dying) || Salvaging.stolenFrom.Gone))
             {
                 Destroy(Salvaging.gameObject);
                 Salvaging = null;
@@ -424,7 +431,9 @@ namespace GoF2Remake.Flight
             }
             int free = Shop.FreeCargo(db);
             var ship = crate.stolenFrom;
-            int want = ship != null ? UnityEngine.Random.Range(0, entry.amount) : entry.amount;
+            // KIPlayer::captureCrate: rnd(amount) only from a living ship; a dying one gives it all and leaves no crate.
+            int want = ship != null && ship.Target.Alive ? UnityEngine.Random.Range(0, entry.amount) : entry.amount;
+            if (ship != null && !ship.Target.Alive) ship.LootTaken();
             int n = Mathf.Max(1, Mathf.Min(want, free));
             n = Mathf.Min(n, entry.amount);
             bool friend = ship != null ? ship.Target.friendToPlayer : crate.fromFriend;

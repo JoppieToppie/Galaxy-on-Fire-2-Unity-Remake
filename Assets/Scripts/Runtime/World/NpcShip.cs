@@ -1733,6 +1733,19 @@ namespace GoF2Remake.World
         /// <summary>KIPlayer::cargoAvailable: something aboard to steal (the Hijacker's mission container drops by itself).</summary>
         public bool HasCargo => Spec.missionCrate < 0 && loot.Exists(s => s.amount > 0);
 
+        /// <summary>PlayerFighter::update 0xf1... sets KIPlayer+0x48 = cargoAvailable() as a fighter starts dying: until it
+        /// explodes Radar::draw gives it the crate markers (0x4f2 near, 0x4f1 far, 0x451 / 0x44d off screen) and it is a
+        /// salvage target (TractorBeam::update makes its crate at the ship, KIPlayer::createCrate(0)); a dying ship without
+        /// cargo has no marker at all. Freighters and fixed objects drop their crate as they die.</summary>
+        public bool DyingWithCargo => Current == State.Dying && !IsFixed && !IsFreighter && !IsTurret && HasCargo && !crateDropped
+                                      && stealCrate == null;
+        public bool Dying => Current == State.Dying;
+
+        /// <summary>KIPlayer::captureCrate on a dying or dead ship clears +0x48: the explosion leaves no crate.</summary>
+        public void LootTaken() => crateDropped = true;
+
+        Crate stealCrate;   // the crate TractorBeam::update made at the ship, while it exists
+
         /// <summary>KIPlayer::createCrate(0) for a living ship (TractorBeam::update's steal): a container of its cargo at the
         /// ship; the capture takes from the ship's own list (StealFrom).</summary>
         public Crate CreateStealCrate()
@@ -1745,6 +1758,7 @@ namespace GoF2Remake.World
             c.Setup(loot, Race);
             c.stolenFrom = this;
             c.pulled = true;
+            stealCrate = c;
             return c;
         }
 
@@ -1766,6 +1780,16 @@ namespace GoF2Remake.World
             // outpost's loot came twice. One crate per death.
             if (crateDropped || loot.Count == 0 || assets == null) return;
             crateDropped = true;
+            // The beam was already pulling the ship's own crate (KIPlayer+0x74): that one is its crate now.
+            if (stealCrate != null)
+            {
+                crate = stealCrate;
+                crate.stolenFrom = null;
+                crate.fromFriend = Target.friendToPlayer;
+                crate.missionLoot = MissionShip;
+                Target.crate = crate;
+                return;
+            }
             var prefab = assets.Crate(Race);
             var go = prefab != null ? Instantiate(prefab, transform.position, Random.rotation) : new GameObject("Crate");
             go.name = "Crate";

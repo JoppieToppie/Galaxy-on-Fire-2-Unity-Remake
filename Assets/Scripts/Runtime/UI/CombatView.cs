@@ -4,7 +4,8 @@
 //     off screen a dot (ring when locked) on the radar ellipse 657 x 491; on screen far (any axis > 24000 units from the
 //     camera) the dot / ring, plus the distance for the locked ship at (-61, +61); near: the hull bar (114 x 10 frame at
 //     (-59, +63), 110 x 6 fill) and, when locked, the faction bracket 81 x 81
-//   crates: far a white diamond 0x4f1, near the white bracket 0x4f2, off screen the box 0x451 (0x44d Void)
+//   crates: far a white diamond 0x4f1, near the white bracket 0x4f2, off screen the box 0x451 (0x44d Void); also a
+//     fighter dying with cargo (KIPlayer+0x48) until it explodes
 //   ship lock: the lock ring on the crosshair (24 frames, from t = 0; crates after 500 ms) and the top plate
 //     "<race> NN%" with the race icon (Radar::drawCurrentLock)
 //   player status (Hud::draw, top left): shield icon (red 500 ms after a hit) + cyan bar, hull icon (red once the armor is
@@ -168,6 +169,12 @@ namespace GoF2Remake.UI
                     {
                         // Radar::draw skips inactive players: a sleeping ship (KIPlayer::setToSleep) has no marker until it
                         // wakes, e.g. a pirate outpost until an enemy comes within its +-50 000 box.
+                        // A fighter dying with cargo (KIPlayer+0x48): the crate markers until it explodes; without cargo none.
+                        if (s.DyingWithCargo && !s.Gone && !s.Hidden && !s.RadarHidden)
+                        {
+                            DrawCrate(Get(s), s.transform.position, s.Race == Standing.Void, cam, origin, centre);
+                            continue;
+                        }
                         if (s.Gone || !s.Target.Alive || s.Hidden || s.Asleep || s.RadarHidden || s.DockingType > 0) continue;
                         int f = s.Target.hostileToPlayer ? 0 : s.Target.friendToPlayer ? 1 : 2;
                         DrawShip(Get(s), s.transform.position, f, s.Target.HullFraction, radar.Locked == s.Target, cam, origin, centre);
