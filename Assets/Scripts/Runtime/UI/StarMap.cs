@@ -501,6 +501,11 @@ namespace GoF2Remake.UI
             return s != null ? GalaxyMap.SunPosition(s) : Vector3.zero;
         }
 
+        /// <summary>The galaxy view's pan limits (camera / 20): the original's [-500, 120] x [-400, 140], widened to every
+        /// visible sun (remake, see Update).</summary>
+        Vector2 PanMin => Vector2.Min(new Vector2(-500f, -400f), overviewMin / 20f);
+        Vector2 PanMax => Vector2.Max(new Vector2(120f, 140f), overviewMax / 20f);
+
         Vector3 GalaxyCameraGame => new Vector3((start.x + pan.x) * 20f, (start.y + pan.y) * 20f, 0f);
         Vector3 SystemCameraGame(int system) => SunGame(system) - new Vector3(0f, 0f, 500f);
 
@@ -1352,8 +1357,11 @@ namespace GoF2Remake.UI
                 // Pan limits: a spring back inside [-500, 120] x [-400, 140] (camera / 20). Not while centring a system:
                 // StarMap::update's auto-centre overwrites the spring's velocity, so the camera reaches a sun past the limit
                 // (Skor Terpa, system 32, is above it: the two settled ~90 px apart and it could never be zoomed into).
+                // Remake: the limits also take in every visible sun (PanMin / PanMax). Six suns lie past the original's box
+                // (Loma, Talidor, Ginoya and Skor Terpa above it, Skavac and Me'enkk below), so once centred the spring
+                // dragged them back off the centre, up to ~280 px, and a second tap where the system had been missed it.
                 var c = start + pan;
-                var clamped = new Vector2(Mathf.Clamp(c.x, -500f, 120f), Mathf.Clamp(c.y, -400f, 140f));
+                var clamped = Vector2.Max(PanMin, Vector2.Min(PanMax, c));
                 if (clamped != c && pointer < 0 && !autoCentre)
                 {
                     pan += (clamped - c) * Mathf.Min(1f, 0.1f * f);
