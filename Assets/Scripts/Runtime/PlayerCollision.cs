@@ -95,7 +95,9 @@ namespace GoF2Remake.Flight
                 // Remake: the object being docked at doesn't block its own approach (the original's autopilot could pin the
                 // ship on a hull face when it started beside the object; from afar it comes in over the top anyway).
                 if (docking != null && docking.State == ObjectDocking.Phase.Approach && docking.Target != null
-                    && o.gameObject == docking.Target.gameObject) continue;
+                    && (o.gameObject == docking.Target.gameObject
+                        // ... nor the station a docking target stands in for (102: Tadram's pads)
+                        || (o.isStation && (o.transform.position - docking.Target.transform.position).sqrMagnitude < 1f))) continue;
                 var pos = transform.position;
                 if (!o.Touches(pos, out _)) continue;
                 transform.position = o.PushOut(pos);

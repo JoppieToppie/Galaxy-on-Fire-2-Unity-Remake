@@ -314,7 +314,12 @@ against the FEV's LGCY data, see "Sound").
   waves), the "Meanwhile..." cutscenes (95, 99, 109, 119, 126, 133, 160, 161), 97, 100, 105 (the bomb), 106, 114, 120, 123, 125
   (hack the secure containers), 131, 135 (titanium into the mining plant), 137, 139 (the Vossk battleships), 142 (the plasma
   tutorial), 144 / 145 (Harval, the array destroyed), 147, 154 (Alice's betrayal, 91 s hack), 157 (the final battle), 158 (the
-  Harval duel). `AsteroidCentre` moves the field for 89 / 114 / 145 / 154. Remake pick: in 105's opening shot the player and the
+  Harval duel). `AsteroidCentre` moves the field for 89 / 114 / 145 / 154. Remake (a player's report): at 102 the player can
+  ferry evacuees too: the original's damaged Tadram object (inactive there, docking type 0: only the Rhinos used its pads) is a
+  hidden pick-up target on set 10's pads named like the station, whose own landmark it replaces (`Navigation.StationReplaced`;
+  `PlayerCollision` lets the approach through the station's volumes); the cutscenes and the carrier's jump end a docking first
+  (`ObjectDocking.Abort`); a shuttle finding every pad taken waits 5000 units out from the nearest one (it used to "dock" at the
+  object's centre, inside the hull). Remake pick: in 105's opening shot the player and the
   escorts fly 2.5 u/ms, just ahead of the camera's dolly (at the launch speed they slid back at it tail first).
 - **89, Luur's supernova** (`StarSystem::switchSunForSupernovaIntro` and LevelScript states 1-4): the look-at helper starts 100 000 units sunward of Luur and 200 000 to its own right, drifting back so the view reaches the sun as it explodes; the sun is sn_sun_011 before the blast (system 27's sun is 0.99182, 1.37329 from 0x6a, its streak sn_sun_011); the container shoots from behind the camera toward the sun with a 500 000-long trail at half speed; no fog at 89; rumble p · (rnd(2A) − A) (`CutsceneCamera.RumbleAmplitude`: 100 · falloff / 30, then 1 / 100); the explosion = the ring mesh 0x2df1 (texture 0x2df3, from 0.68665, +4e-5 per ms) and the core mesh 0x2df2 (0x2df4) at the sun (`Backdrop.StartSupernovaExplosion`; the converted meshes are ~4 m, scaled to the plane quad's 3250 m): the ring in the sun's place (no roll), the core as the glow and the streak at 0.3 × the ring. 105's `switchSunForSupernovaExpansion` only sets the sun back to 1.37329.
 - **Level details from the decompiled scripts**: 157's finale (states 5-12: the Liberator killed, Alice to the Valkyrie, the

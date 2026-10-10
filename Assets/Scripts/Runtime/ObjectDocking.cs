@@ -143,6 +143,16 @@ namespace GoF2Remake.Flight
             toRot = fromRot;
         }
 
+        /// <summary>A level script takes the ship back at once (a cutscene starting, the object leaving): an approach is
+        /// called off, a docked ship is put back on its approach point with the controls back.</summary>
+        public void Abort()
+        {
+            if (State == Phase.Idle) return;
+            if (State == Phase.Approach) { Cancel(); return; }
+            if (Target != null) ship.transform.position = Target.transform.TransformPoint(approachLocal);
+            Release();
+        }
+
         void Cancel()
         {
             ship.autopilotTarget = null;

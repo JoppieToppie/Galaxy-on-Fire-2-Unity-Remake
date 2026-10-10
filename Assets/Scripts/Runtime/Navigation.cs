@@ -470,12 +470,16 @@ namespace GoF2Remake.Flight
         /// its landmark with it.</summary>
         public GameObject StationObject;
 
+        /// <summary>Set by a level whose station a docking target stands in for (remake, 102: Tadram's pads): the station's own
+        /// landmark leaves the locks, markers and the autopilot menu, so the two don't sit on top of each other.</summary>
+        public bool StationReplaced;
+
         /// <summary>Level::getLandmarks' station hidden with its object (#49: the autopilot menu still offered the Valkyrie
         /// after it had jumped away, and flew to an empty spot): no lock, marker, menu entry or autopilot to it.</summary>
         void UpdateStationShown()
         {
             if (StationObject == null) return;
-            bool gone = !StationObject.activeInHierarchy;
+            bool gone = !StationObject.activeInHierarchy || StationReplaced;
             foreach (var t in Targets)
             {
                 if (t.kind != Kind.Station || t.hidden == gone) continue;

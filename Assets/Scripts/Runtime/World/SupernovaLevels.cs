@@ -339,9 +339,24 @@ namespace GoF2Remake.World
             MovePlayer(new Vector3(90000, 6000, 150000), -new Vector3(90000, 6000, 150000));
             var carrierPos = new Vector3(-50000, 1000, 70000);
             var carrier = Static("sn_carrier_terran_1", carrierPos, Vector3.zero, -1, ObjectDocking.DropOff, 5);
-            c.AddPlaceholder();   // [1] the damaged Tadram (the orbit's own station stands in)
-            // The Tadram's pads (set 10, its col_box proxy at the origin, rotation (0, pi, 0) = Unity identity).
-            var tadram = level.Station != null ? level.Station.transform : new GameObject("Tadram pads").transform;
+            // [1] the damaged Tadram: the original's object is inactive (docking type 0, the orbit's own station stands in) and
+            // only the dropships use its pads (set 10, rotation (0, pi, 0) = Unity identity). Remake (a player's report): the
+            // player may ferry evacuees too, so it is a hidden pick-up target on those pads in the station's place (its model
+            // off, no volume or hit cube of its own: the station has them), named like the station.
+            var st = level.Database.Stations.Find(x => x.index == Session.StationIndex);
+            var tadramObj = Static("sn_station_113_midorian", Vector3.zero, new Vector3(0f, Mathf.PI, 0f), -1, ObjectDocking.Pickup, 10, sp =>
+            {
+                sp.name = st != null ? $"{st.name} {Localization.Get(136)}" : null;
+                sp.collisionId = -1;
+                sp.hitRadius = 1f;
+            });
+            if (tadramObj != null)
+            {
+                foreach (var r in tadramObj.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
+                tadramObj.Target.untargetable = true;
+                if (level.Navigation != null) level.Navigation.StationReplaced = true;
+            }
+            var tadram = tadramObj != null ? tadramObj.transform : level.Station != null ? level.Station.transform : new GameObject("Tadram pads").transform;
             var stops = new[] { carrierPos, new Vector3(-30000, 1000, 40000), Vector3.zero };
             var starts = new[] { carrierPos + new Vector3(10000, 6000, -20000), new Vector3(30000, 8000, -35000), new Vector3(35000, 8000, -40000), new Vector3(40000, 8000, -45000) };
             for (int i = 0; i < 4; i++)
@@ -1140,6 +1155,7 @@ namespace GoF2Remake.World
                     break;
                 case 2:
                     if (stepMs < 30000f) break;
+                    level.Docking?.Abort();   // remake: the player may be at a pad (Build102)
                     WakeSpecters102(true);
                     var lead = S(6);
                     EnterCutscene(false);
@@ -1168,6 +1184,10 @@ namespace GoF2Remake.World
                         s.SetOnlyEnemy(next);
                     }
                     if (Story.Mission.value >= 10 || carrier == null) break;
+                    level.Docking?.Abort();
+                    carrier.DockingType = 0;
+                    if (S(1) != null) { S(1).DockingType = 0; S(1).RadarHidden = true; }
+                    if (level.Navigation != null) level.Navigation.StationReplaced = false;
                     Story.Mission.type = StoryType.Level;
                     EnterCutscene(false);
                     SetPlayerVisible(false);
@@ -2150,6 +2170,29 @@ namespace GoF2Remake.World
             return true;
         }
 
+        /// <summary>Every pad of the leg's object taken: hover 5000 units further out than the nearest approach point.</summary>
+        void HoldOffPads(Shuttle sh, Transform obj, float dtMs)
+        {
+            var s = sh.ship;
+            var points = SpacePoints.Set(sh.dockSets[sh.leg]);
+            Vector3 hold = obj.position;
+            float best = float.MaxValue;
+            for (int i = 0; i < points.Count; i++)
+            {
+                if (points[i].type != SpacePoints.Approach) continue;
+                var a = obj.TransformPoint(SpacePoints.ToLocal(points[i].engine));
+                float d = (a - s.transform.position).sqrMagnitude;
+                if (d >= best) continue;
+                best = d;
+                var outward = a - obj.position;
+                hold = a + (outward.sqrMagnitude > 1e-6f ? outward.normalized : Vector3.up) * (5000f * M);
+            }
+            var to = hold - s.transform.position;
+            if (to.magnitude / M < 1500f) { s.scriptedSpeed = 0f; return; }
+            s.scriptedSpeed = 2f;
+            s.transform.rotation = Quaternion.RotateTowards(s.transform.rotation, Quaternion.LookRotation(to.normalized, Vector3.up), 0.05f * dtMs);
+        }
+
         /// <summary>Leaving a pad: the point is free again, the exhaust on; the ship flies off nose first.</summary>
         void ShuttleUndock(Shuttle sh)
         {
@@ -2197,7 +2240,11 @@ namespace GoF2Remake.World
                         sh.waitMs = sh.tickMs = 0f;
                         if (!sh.waiting) { ShuttleUndock(sh); sh.leg = (sh.leg + 1) % sh.points.Length; }
                     }
-                    if (sh.taken >= 0) continue;   // no free pad: fall through and hold near the object's centre
+                    if (sh.taken >= 0) continue;
+                    // Remake: no free pad (another ship or the player on it): wait 5000 units out from the nearest one (it
+                    // fell through to the object's centre and "docked" inside the hull, at 102 inside Tadram).
+                    HoldOffPads(sh, dockObj, dtMs);
+                    continue;
                 }
                 var to = ToUnity(target) - s.transform.position;
                 if (to.magnitude / M < 2500f)
