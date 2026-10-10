@@ -91,10 +91,14 @@ namespace GoF2Remake.Flight
                 float k = Mathf.Min(1.5f * s, 1f);
                 var go = new GameObject("Exhaust");
                 go.transform.SetParent(parent, false);
-                go.transform.localPosition = WeaponSystem.MountToLocal(m);
+                float life = 0.08f * k, size = 250f * s;
+                // Remake (players' reports, #85): the plume starts a quarter of a particle's size behind the anchor. Each
+                // particle is a camera-facing quad of 1.3 x its size centred on the anchor, so seen from the side or a rear
+                // corner the newest one lay over the engine housing (the Dark Angel's ~100-unit housings under a 325-unit
+                // quad). Half the size cleared them but uncovered the engine glow rings in the chase view.
+                go.transform.localPosition = WeaponSystem.MountToLocal(m) + Vector3.back * (PlumeSetback * size * M);
                 var ps = go.AddComponent<ParticleSystem>();
                 ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-                float life = 0.08f * k, size = 250f * s;
                 var main = ps.main;
                 main.loop = true;
                 main.playOnAwake = false;
@@ -179,6 +183,7 @@ namespace GoF2Remake.Flight
         // exhaust gets its own copy of the particles material at _Glow 7 (the shared one is 2.5). So bright, the plume also
         // covers the engine glow's dashed ring the way the original's does.
         const float QuadScale = 1.3f;
+        const float PlumeSetback = 0.25f;   // x the particle size, along the ship's -Z (see Setup)
         const float ExhaustGlow = 7f;
         static Material exhaustMaterial;
 
