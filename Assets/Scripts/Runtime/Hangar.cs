@@ -126,8 +126,24 @@ namespace GoF2Remake.Data
         {
             var s = Ship?.slots;
             if (s == null) return 0;
-            return type switch { 0 => s.primary, 1 => s.secondary, 2 => s.turret, 3 => s.equipment + Session.ModLevel(2), _ => 0 };   // mod 2: +1 equipment slot per level
+            // mod 2: +1 equipment slot per level; the cloak bay (remake option) holds a mounted cloak besides the slots
+            return type switch { 0 => s.primary, 1 => s.secondary, 2 => s.turret, 3 => s.equipment + Session.ModLevel(2) + BaySlot(db, Session.ShipIndex, Session.Equipment), _ => 0 };
         }
+
+        /// <summary>Remake option (Settings.CloakBay): the Specter (44) and the Scimitar (49) have the U'tool built in
+        /// (Ship::hasCloakIntegrated, PlayerCloak); a cloak mounted on them goes into that bay, replacing it, instead of
+        /// taking one of the equipment slots (the original: a slot like any equipment).</summary>
+        public static bool HasCloakBay(int ship) => (ship == 44 || ship == 49) && Settings.CloakBay;
+
+        static bool IsCloak(Database db, int item) => db.Item(item)?.categoryId == 21;
+
+        /// <summary>The bay's extra equipment place: 1 while a cloak is mounted on a ship with a cloak bay.</summary>
+        public static int BaySlot(Database db, int ship, List<ItemStack> equipment) =>
+            HasCloakBay(ship) && equipment != null && equipment.Exists(e => IsCloak(db, e.item)) ? 1 : 0;
+
+        /// <summary>'item' goes into the empty cloak bay of 'ship' (a cloak, the bay free).</summary>
+        public static bool BayTakes(Database db, int ship, int item, List<ItemStack> equipment) =>
+            HasCloakBay(ship) && IsCloak(db, item) && BaySlot(db, ship, equipment) == 0;
 
         public int TypeOf(int item) => db.Item(item)?.TypeId ?? 4;
 
@@ -139,7 +155,7 @@ namespace GoF2Remake.Data
         {
             var s = db.Ship(Session.ShipIndex)?.slots;
             if (s == null) return 0;
-            int Slots(int type) => type switch { 0 => s.primary, 1 => s.secondary, 2 => s.turret, 3 => s.equipment + Session.ModLevel(2), _ => int.MaxValue };
+            int Slots(int type) => type switch { 0 => s.primary, 1 => s.secondary, 2 => s.turret, 3 => s.equipment + Session.ModLevel(2) + BaySlot(db, Session.ShipIndex, Session.Equipment), _ => int.MaxValue };
             int TypeOfItem(int item) => db.Item(item)?.TypeId ?? 4;
             var used = new int[5];
             foreach (var e in Session.Equipment) if (!IsSaleable(e.item)) used[Mathf.Clamp(TypeOfItem(e.item), 0, 4)]++;
@@ -262,6 +278,7 @@ namespace GoF2Remake.Data
                 swapWith = perSlot ? -1 : Session.Equipment.FindIndex(e => db.Item(e.item)?.categoryId == it.categoryId);
                 if (swapWith >= 0) return Result.Swap;
             }
+            if (BayTakes(db, Session.ShipIndex, item, Session.Equipment)) return Result.Ok;   // the cloak bay (remake option)
             return MountedOfType(type).Count < SlotCount(type) ? Result.Ok : Result.NoFreeSlot;
         }
 
@@ -418,7 +435,7 @@ namespace GoF2Remake.Data
             foreach (var e in mounted)
             {
                 int type = TypeOf(e.item);
-                if (MountedOfType(type).Count < SlotCount(type)) Session.Equipment.Add(e);
+                if (MountedOfType(type).Count < SlotCount(type) || BayTakes(db, ship, e.item, Session.Equipment)) Session.Equipment.Add(e);
                 else AddToCargo(e.item, Mathf.Max(1, e.amount));
             }
         }

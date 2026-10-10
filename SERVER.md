@@ -108,6 +108,7 @@ Players on a different game version are turned away with a message saying which 
 | `-nopirateevents` | No pirate outposts and bosses (on by default). |
 | `-nokaamostacking` | The Kaamo Club's upgrades only once each, as in the original (stackable by default). |
 | `-nokaamoequipment` | Ships stored in the Kaamo Club hand their equipment over, as in the original (they keep it by default). |
+| `-nocloakbay` | A cloak mounted on the Specter or the Scimitar takes an equipment slot, as in the original (by default it goes into their integrated cloak's bay). |
 | `-port N` | The port for local network play (default 7777, UDP). |
 | `-fps N` | The server's frame rate (default 60). |
 | `-noconsole` | Windows: no console window of its own. |
@@ -140,7 +141,7 @@ window, **Admin** tab, **Server settings**. You can also type `/set <key> <value
 | `maxplayers` | The player limit | Lowering it works at once. Online, raising it above the start's limit needs a restart. |
 | `allowdebug` | Players may use the Debug menu (`on` / `off`) | At once. |
 | `freepvp` | Players may fight anywhere (`on` / `off`) | At once. |
-| `cloakhides`, `pirateevents`, `capitalships`, `informeroriginal`, `kaamostacking`, `kaamoequipment` | The gameplay rules above (`on` / `off`; `on` = the option on) | At once (new orbits get the spawns that depend on them). |
+| `cloakhides`, `pirateevents`, `capitalships`, `informeroriginal`, `kaamostacking`, `kaamoequipment`, `cloakbay` | The gameplay rules above (`on` / `off`; `on` = the option on) | At once (new orbits get the spawns that depend on them). |
 | `maxearn` | Worth a profile may gain per minute | At once. |
 | `claimcost`, `maxclaims`, `claimdays`, `siegecost`, `toll` | The faction settings above | At once. |
 

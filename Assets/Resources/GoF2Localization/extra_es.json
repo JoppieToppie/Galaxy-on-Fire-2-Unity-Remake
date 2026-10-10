@@ -1299,5 +1299,7 @@
  "dyingCargoMarkers": "Marcadores de rescate en naves moribundas",
  "dyingCargoMarkersHelp": "Una nave con carga muestra los marcadores de contenedor mientras gira antes de explotar, como en el original. Desactivado: sin marcadores; apunta a ella y el rayo tractor sigue atrayendo su carga.",
  "cloakLosesPursuers": "El camuflaje despista a los perseguidores",
- "cloakLosesPursuersHelp": "Las naves enemigas te pierden el rastro mientras estás camuflado: vuelan hasta donde te vieron por última vez y luego vuelven a su patrulla. Desactivado: como en el original, siguen persiguiéndote y apuntándote, pero no disparan."
+ "cloakLosesPursuersHelp": "Las naves enemigas te pierden el rastro mientras estás camuflado: vuelan hasta donde te vieron por última vez y luego vuelven a su patrulla. Desactivado: como en el original, siguen persiguiéndote y apuntándote, pero no disparan.",
+ "cloakBay": "Hueco de camuflaje en naves furtivas",
+ "cloakBayHelp": "El Specter y el Scimitar tienen un camuflaje integrado. Un camuflaje que montes lo sustituye sin ocupar una ranura de equipo. Desactivado: ocupa una ranura, como en el original."
 }

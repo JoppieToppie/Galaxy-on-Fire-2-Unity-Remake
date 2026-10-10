@@ -362,7 +362,9 @@ namespace GoF2Remake.Data
             {
                 int type = db.Item(e.item)?.TypeId ?? 4;
                 int max = slots == null ? 0 : type switch { 0 => slots.primary, 1 => slots.secondary, 2 => slots.turret, 3 => slots.equipment, _ => 0 };
-                if (Session.Equipment.FindAll(x => (db.Item(x.item)?.TypeId ?? 4) == type).Count < max) Session.Equipment.Add(e);
+                if (type == 3) max += Hangar.BaySlot(db, ship, Session.Equipment);
+                if (Session.Equipment.FindAll(x => (db.Item(x.item)?.TypeId ?? 4) == type).Count < max || Hangar.BayTakes(db, ship, e.item, Session.Equipment))
+                    Session.Equipment.Add(e);
                 else Shop.AddToCargo(e.item, Mathf.Max(1, e.amount));
             }
         }

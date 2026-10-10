@@ -1299,5 +1299,7 @@
  "dyingCargoMarkers": "Bergingsmarkeringen op stervende schepen",
  "dyingCargoMarkersHelp": "Een schip met vracht toont de containermarkeringen terwijl het voor de explosie tolt, zoals in het origineel. Uit: geen markeringen; richt erop en de trekstraal haalt de vracht nog steeds binnen.",
  "cloakLosesPursuers": "Camouflage schudt achtervolgers af",
- "cloakLosesPursuersHelp": "Vijandelijke schepen raken je kwijt zolang je gecamoufleerd bent: ze vliegen naar waar ze je het laatst zagen en gaan dan terug naar hun patrouille. Uit: zoals in het origineel blijven ze je achtervolgen en op je richten, maar vuren ze niet."
+ "cloakLosesPursuersHelp": "Vijandelijke schepen raken je kwijt zolang je gecamoufleerd bent: ze vliegen naar waar ze je het laatst zagen en gaan dan terug naar hun patrouille. Uit: zoals in het origineel blijven ze je achtervolgen en op je richten, maar vuren ze niet.",
+ "cloakBay": "Camouflagevak op camouflageschepen",
+ "cloakBayHelp": "De Specter en de Scimitar hebben een ingebouwde camouflage. Een camouflage die je monteert vervangt die zonder een uitrustingsslot te gebruiken. Uit: hij neemt een slot in, zoals in het origineel."
 }

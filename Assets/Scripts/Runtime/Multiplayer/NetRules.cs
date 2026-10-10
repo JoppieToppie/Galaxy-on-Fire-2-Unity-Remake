@@ -17,7 +17,7 @@ namespace GoF2Remake.Multiplayer
     public static class NetRules
     {
         public const int CloakLosesPursuers = 1, PirateEvents = 2, CapitalShips = 4, InformerOriginalRule = 8,
-                         KaamoStacking = 16, KaamoKeepsEquipment = 32;
+                         KaamoStacking = 16, KaamoKeepsEquipment = 32, CloakBay = 64;
 
         /// <summary>One rule: its bit, the server setting's key, the command-line flag that sets it the other way from
         /// its default, the server window's label, and the option's default.</summary>
@@ -36,6 +36,7 @@ namespace GoF2Remake.Multiplayer
             new Rule { bit = InformerOriginalRule, key = "informeroriginal", flag = "-informeroriginal", label = "Informer missions: the original's rule", fallback = false },
             new Rule { bit = KaamoStacking, key = "kaamostacking", flag = "-nokaamostacking", label = "Stackable Kaamo Club upgrades", fallback = true },
             new Rule { bit = KaamoKeepsEquipment, key = "kaamoequipment", flag = "-nokaamoequipment", label = "Stored ships keep their equipment", fallback = true },
+            new Rule { bit = CloakBay, key = "cloakbay", flag = "-nocloakbay", label = "Cloak bay on cloaking ships", fallback = true },
         };
 
         /// <summary>Every rule at its option's default (a dedicated server's start).</summary>

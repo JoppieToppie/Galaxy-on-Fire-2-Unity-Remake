@@ -358,6 +358,10 @@ namespace GoF2Remake.UI
                 () => Settings.KaamoKeepsEquipment, v => Settings.KaamoKeepsEquipment = v);
             kaamoGear.description = () => X("kaamoKeepsEquipmentHelp", "A ship you park in the Kaamo Club keeps its weapons, turrets and equipment, and they are back on it when you fly it again. Off: they move to the ship you take, as in the original. Ships traded in elsewhere always hand theirs over.");
             list.Add(SessionRule(kaamoGear));
+            var cloakBay = Toggle("cloakBay", OptionPage.Gameplay, () => X("cloakBay", "Cloak bay on cloaking ships"),
+                () => Settings.CloakBay, v => Settings.CloakBay = v);
+            cloakBay.description = () => X("cloakBayHelp", "The Specter and the Scimitar have a cloak built in. A cloak you mount on them replaces it without taking an equipment slot. Off: it takes a slot, as in the original.");
+            list.Add(SessionRule(cloakBay));
             // #28: the Informer mission's rule for other ships dying after the spy.
             list.Add(SessionRule(Choice("informerRule", OptionPage.Gameplay, () => X("informerRule", "Informer missions"), true,
                 () => new[] { X("informerRemake", "Remake"), X("informerOriginal", "Original") },

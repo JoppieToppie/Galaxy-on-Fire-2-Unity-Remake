@@ -207,6 +207,10 @@ namespace GoF2Remake.Data
         /// <summary>Remake (players' suggestion): a hull stored in the Kaamo Club keeps the items mounted on it (Hangar). A
         /// session rule.</summary>
         public static bool KaamoKeepsEquipment { get => Rule(R.KaamoKeepsEquipment, "kaamoKeepsEquipment", true); set => SetRule(R.KaamoKeepsEquipment, "kaamoKeepsEquipment", value); }
+        /// <summary>Remake (players' suggestion): the Specter (44) and the Scimitar (49) have the U'tool built in
+        /// (Ship::hasCloakIntegrated); a cloak mounted on them goes into that bay, replacing it, instead of taking an
+        /// equipment slot (Hangar.HasCloakBay). Off = the original: it takes a slot. A session rule.</summary>
+        public static bool CloakBay { get => Rule(R.CloakBay, "cloakBay", true); set => SetRule(R.CloakBay, "cloakBay", value); }
         /// <summary>Remake (players' suggestion): the capital ships fight back (World.CapitalShips): escorts, stronger turrets,
         /// a killable carrier and Vossk battleship with loot, the carrier's Inflicts and its resupply dock. Off = the original.
         /// A session rule.</summary>
@@ -227,6 +231,7 @@ namespace GoF2Remake.Data
             if (GetBool("informerOriginalRule", false)) m |= R.InformerOriginalRule;
             if (GetBool("kaamoStacking", true)) m |= R.KaamoStacking;
             if (GetBool("kaamoKeepsEquipment", true)) m |= R.KaamoKeepsEquipment;
+            if (GetBool("cloakBay", true)) m |= R.CloakBay;
             return m;
         }
 
@@ -292,7 +297,7 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] GameplayKeys =
         {
-            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoKeepsEquipment", "informerOriginalRule",
+            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoKeepsEquipment", "cloakBay", "informerOriginalRule",
             "originalTargetLock", "dyingCargoMarkers", "cloakLosesPursuers", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "discordPresence",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
