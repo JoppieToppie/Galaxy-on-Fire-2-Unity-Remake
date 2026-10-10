@@ -355,6 +355,7 @@ namespace GoF2Remake.Multiplayer
             hostAllocation = null;
             PrepareSession();
             SetUpHostedWorld();
+            if (!Dedicated) NetRules.Host = NetRules.FromOptions();   // a player host's own Gameplay options (a server: Boot)
             NetMods.BeginHost();   // the host's mods when modded content is allowed, else none
             Seed = Environment.TickCount & 0x7fffffff;
             ushort port = HostPort;

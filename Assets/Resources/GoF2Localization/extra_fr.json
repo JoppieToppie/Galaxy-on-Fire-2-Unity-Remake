@@ -1297,5 +1297,7 @@
  "mpTradeNone": "Tu n'es pas en train d'échanger.",
  "kaamoMoveEquipment": "Transférer votre équipement sur le nouveau vaisseau ?\n\nOui : il est monté sur le nouveau vaisseau (ce qui ne rentre pas va dans la soute).\nNon : il reste sur votre {0} au Kaamo Club.",
  "dyingCargoMarkers": "Marqueurs de récupération sur les vaisseaux mourants",
- "dyingCargoMarkersHelp": "Un vaisseau transportant une cargaison affiche les marqueurs de conteneur pendant qu'il tournoie avant d'exploser, comme dans l'original. Désactivé : aucun marqueur ; visez-le et le rayon tracteur attire toujours sa cargaison."
+ "dyingCargoMarkersHelp": "Un vaisseau transportant une cargaison affiche les marqueurs de conteneur pendant qu'il tournoie avant d'exploser, comme dans l'original. Désactivé : aucun marqueur ; visez-le et le rayon tracteur attire toujours sa cargaison.",
+ "cloakLosesPursuers": "Le camouflage sème les poursuivants",
+ "cloakLosesPursuersHelp": "Les vaisseaux ennemis perdent votre trace tant que vous êtes camouflé : ils volent jusqu'à l'endroit où ils vous ont vu pour la dernière fois, puis reprennent leur patrouille. Désactivé : comme dans l'original, ils continuent de vous poursuivre et de vous viser sans tirer."
 }

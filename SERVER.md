@@ -101,6 +101,13 @@ Players on a different game version are turned away with a message saying which 
 | `-maxplayers N` | The player limit, 2 to 100 (default 16). |
 | `-allowdebug` | Players may use the Debug menu (cheats, items, spawns). Off without it. |
 | `-freepvp` | Players may fight each other anywhere, not only in arena matches and faction sieges. |
+| **Gameplay rules** | The game's Gameplay options that change how it plays are one rule for everyone on the server. Each flag turns one the other way from its default. |
+| `-cloakhides` | NPC ships lose track of a cloaked player (they fly to where they last saw them, then back to their patrol). Off by default: as in the original, they keep chasing a cloaked player without firing. |
+| `-capitalships` | Capital ship enhancements (escorts, stronger turrets, a killable carrier and Vossk battleship, fleet battles). Off by default. |
+| `-informeroriginal` | Informer missions use the original's rule (any other ship destroyed before docking fails it). Off by default. |
+| `-nopirateevents` | No pirate outposts and bosses (on by default). |
+| `-nokaamostacking` | The Kaamo Club's upgrades only once each, as in the original (stackable by default). |
+| `-nokaamoequipment` | Ships stored in the Kaamo Club hand their equipment over, as in the original (they keep it by default). |
 | `-port N` | The port for local network play (default 7777, UDP). |
 | `-fps N` | The server's frame rate (default 60). |
 | `-noconsole` | Windows: no console window of its own. |
@@ -133,6 +140,7 @@ window, **Admin** tab, **Server settings**. You can also type `/set <key> <value
 | `maxplayers` | The player limit | Lowering it works at once. Online, raising it above the start's limit needs a restart. |
 | `allowdebug` | Players may use the Debug menu (`on` / `off`) | At once. |
 | `freepvp` | Players may fight anywhere (`on` / `off`) | At once. |
+| `cloakhides`, `pirateevents`, `capitalships`, `informeroriginal`, `kaamostacking`, `kaamoequipment` | The gameplay rules above (`on` / `off`; `on` = the option on) | At once (new orbits get the spawns that depend on them). |
 | `maxearn` | Worth a profile may gain per minute | At once. |
 | `claimcost`, `maxclaims`, `claimdays`, `siegecost`, `toll` | The faction settings above | At once. |
 

@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+using R = GoF2Remake.Multiplayer.NetRules;
+
 namespace GoF2Remake.Data
 {
     /// <summary>Frame rate option (remake only; the original ran at the device's fixed rate).</summary>
@@ -182,27 +184,51 @@ namespace GoF2Remake.Data
         /// not marked as shown, so turning it on later still shows it once.</summary>
         public static bool TutorialHints { get => GetBool("tutorialHints", false); set => SetBool("tutorialHints", value); }
 
-        /// <summary>Remake (GitHub #6): now and then a free-flight orbit holds a pirate outpost or a pirate boss with escorts
-        /// (TrafficPlan.AddPirateEvent), each with a bounty.</summary>
         /// <summary>Informer missions (#28): false = the remake's rule (once the spy is dead, other deaths in its orbit no
         /// longer spoil the mission); true = the original's (PlayerFighter::update 0xf1c8c: any other ship dying before the
-        /// docking fails it, even after the spy).</summary>
-        public static bool InformerOriginalRule { get => GetBool("informerOriginalRule", false); set => SetBool("informerOriginalRule", value); }
+        /// docking fails it, even after the spy). A session rule (NetRules).</summary>
+        public static bool InformerOriginalRule { get => Rule(R.InformerOriginalRule, "informerOriginalRule", false); set => SetRule(R.InformerOriginalRule, "informerOriginalRule", value); }
         /// <summary>The ship lock as the original picks it (Radar::draw: the first ship of the list in the box, any faction,
         /// and any completed lock replaces the old one); off (default) = the remake's smarter lock (CombatRadar).</summary>
         public static bool OriginalTargetLock { get => GetBool("originalTargetLock", false); set => SetBool("originalTargetLock", value); }
         /// <summary>The crate markers on a ship dying with cargo (Radar::draw, the original's; NpcShip.DyingWithCargo). Off
         /// (players' suggestion, for realism): no markers; aimed at, it is still salvage for the tractor beam.</summary>
         public static bool DyingCargoMarkers { get => GetBool("dyingCargoMarkers", true); set => SetBool("dyingCargoMarkers", value); }
-        public static bool PirateEvents { get => GetBool("pirateEvents", true); set => SetBool("pirateEvents", value); }
+        /// <summary>Remake (players' suggestion): NPC ships lose a cloaked target, fly to where they last saw it and go back to
+        /// their routes (NpcShip.Pursuable). Off = the original: chased and aimed at, only not fired at. A session rule.</summary>
+        public static bool CloakLosesPursuers { get => Rule(R.CloakLosesPursuers, "cloakLosesPursuers", false); set => SetRule(R.CloakLosesPursuers, "cloakLosesPursuers", value); }
+        /// <summary>Remake (GitHub #6): now and then a free-flight orbit holds a pirate outpost or a pirate boss with escorts
+        /// (TrafficPlan.AddPirateEvent), each with a bounty. A session rule.</summary>
+        public static bool PirateEvents { get => Rule(R.PirateEvents, "pirateEvents", true); set => SetRule(R.PirateEvents, "pirateEvents", value); }
         /// <summary>Remake (players' suggestion): the Kaamo Club mechanics sell their upgrade again, the price doubling per
-        /// level (LoungeChat.ModPrice); off = the original's one of each. Levels already fitted stay either way.</summary>
-        public static bool KaamoStacking { get => GetBool("kaamoStacking", true); set => SetBool("kaamoStacking", value); }
-        /// <summary>Remake (players' suggestion): a hull stored in the Kaamo Club keeps the items mounted on it (Hangar).</summary>
-        public static bool KaamoKeepsEquipment { get => GetBool("kaamoKeepsEquipment", true); set => SetBool("kaamoKeepsEquipment", value); }
+        /// level (LoungeChat.ModPrice); off = the original's one of each. Levels already fitted stay either way. A session
+        /// rule.</summary>
+        public static bool KaamoStacking { get => Rule(R.KaamoStacking, "kaamoStacking", true); set => SetRule(R.KaamoStacking, "kaamoStacking", value); }
+        /// <summary>Remake (players' suggestion): a hull stored in the Kaamo Club keeps the items mounted on it (Hangar). A
+        /// session rule.</summary>
+        public static bool KaamoKeepsEquipment { get => Rule(R.KaamoKeepsEquipment, "kaamoKeepsEquipment", true); set => SetRule(R.KaamoKeepsEquipment, "kaamoKeepsEquipment", value); }
         /// <summary>Remake (players' suggestion): the capital ships fight back (World.CapitalShips): escorts, stronger turrets,
-        /// a killable carrier and Vossk battleship with loot, the carrier's Inflicts and its resupply dock. Off = the original.</summary>
-        public static bool CapitalShips { get => GetBool("capitalShips", false); set => SetBool("capitalShips", value); }
+        /// a killable carrier and Vossk battleship with loot, the carrier's Inflicts and its resupply dock. Off = the original.
+        /// A session rule.</summary>
+        public static bool CapitalShips { get => Rule(R.CapitalShips, "capitalShips", false); set => SetRule(R.CapitalShips, "capitalShips", value); }
+
+        /// <summary>The Gameplay options that change how the game plays are the session's in multiplayer (NetRules), else the
+        /// player's own.</summary>
+        static bool Rule(int bit, string key, bool fallback) => R.TryGet(bit, out bool on) ? on : GetBool(key, fallback);
+        static void SetRule(int bit, string key, bool value) { SetBool(key, value); R.HostChanged(bit, value); }
+
+        /// <summary>The player's own values of the session rules (a player host's start, NetRules).</summary>
+        public static int LocalRules()
+        {
+            int m = 0;
+            if (GetBool("cloakLosesPursuers", false)) m |= R.CloakLosesPursuers;
+            if (GetBool("pirateEvents", true)) m |= R.PirateEvents;
+            if (GetBool("capitalShips", false)) m |= R.CapitalShips;
+            if (GetBool("informerOriginalRule", false)) m |= R.InformerOriginalRule;
+            if (GetBool("kaamoStacking", true)) m |= R.KaamoStacking;
+            if (GetBool("kaamoKeepsEquipment", true)) m |= R.KaamoKeepsEquipment;
+            return m;
+        }
 
         /// <summary>DialogueWindow::update: with voice, turn the page once the line has ended.</summary>
         public static bool AutoAdvanceDialogue { get => GetBool("autoAdvanceDialogue", true); set => SetBool("autoAdvanceDialogue", value); }
@@ -267,7 +293,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GameplayKeys =
         {
             "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoKeepsEquipment", "informerOriginalRule",
-            "originalTargetLock", "dyingCargoMarkers", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "discordPresence",
+            "originalTargetLock", "dyingCargoMarkers", "cloakLosesPursuers", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "discordPresence",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
 

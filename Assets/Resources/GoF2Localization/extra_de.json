@@ -1297,5 +1297,7 @@
  "mpTradeNone": "Du handelst gerade nicht.",
  "kaamoMoveEquipment": "Deine Ausrüstung auf das neue Schiff übertragen?\n\nJa: Sie wird auf dem neuen Schiff montiert (was nicht passt, kommt in den Frachtraum).\nNein: Sie bleibt auf deiner {0} im Kaamo Club.",
  "dyingCargoMarkers": "Bergungsmarker an sterbenden Schiffen",
- "dyingCargoMarkersHelp": "Ein Schiff mit Fracht zeigt die Container-Marker, während es vor der Explosion trudelt, wie im Original. Aus: keine Marker; zielst du darauf, zieht der Traktorstrahl seine Fracht trotzdem heran."
+ "dyingCargoMarkersHelp": "Ein Schiff mit Fracht zeigt die Container-Marker, während es vor der Explosion trudelt, wie im Original. Aus: keine Marker; zielst du darauf, zieht der Traktorstrahl seine Fracht trotzdem heran.",
+ "cloakLosesPursuers": "Tarnung schüttelt Verfolger ab",
+ "cloakLosesPursuersHelp": "Feindliche Schiffe verlieren dich, solange du getarnt bist: Sie fliegen dorthin, wo sie dich zuletzt gesehen haben, und kehren dann zu ihrer Patrouille zurück. Aus: wie im Original verfolgen sie dich weiter und zielen auf dich, feuern aber nicht."
 }

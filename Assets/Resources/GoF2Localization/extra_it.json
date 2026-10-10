@@ -1297,5 +1297,7 @@
  "mpTradeNone": "Non stai facendo scambi.",
  "kaamoMoveEquipment": "Trasferire l'equipaggiamento sulla nuova nave?\n\nSì: viene montato sulla nuova nave (ciò che non ci sta va nella stiva).\nNo: resta sulla tua {0} al Kaamo Club.",
  "dyingCargoMarkers": "Indicatori di recupero sulle navi morenti",
- "dyingCargoMarkersHelp": "Una nave con un carico mostra gli indicatori del container mentre precipita prima di esplodere, come nell'originale. Disattivato: nessun indicatore; puntala e il raggio traente attira comunque il suo carico."
+ "dyingCargoMarkersHelp": "Una nave con un carico mostra gli indicatori del container mentre precipita prima di esplodere, come nell'originale. Disattivato: nessun indicatore; puntala e il raggio traente attira comunque il suo carico.",
+ "cloakLosesPursuers": "L'occultamento semina gli inseguitori",
+ "cloakLosesPursuersHelp": "Le navi nemiche perdono le tue tracce mentre sei occultato: volano fin dove ti hanno visto l'ultima volta, poi tornano alla loro pattuglia. Disattivato: come nell'originale, continuano a inseguirti e a mirarti, ma non sparano."
 }

@@ -1297,5 +1297,7 @@
  "mpTradeNone": "你没有在交易。",
  "kaamoMoveEquipment": "要把装备转移到新飞船上吗？\n\n是：装备安装到新飞船上（装不下的放入货舱）。\n否：装备留在 Kaamo 俱乐部里你的 {0} 上。",
  "dyingCargoMarkers": "垂死飞船的打捞标记",
- "dyingCargoMarkersHelp": "载有货物的飞船在爆炸前翻滚时显示货柜标记，与原版相同。关闭：不显示标记；瞄准它，牵引光束仍可拉回其货物。"
+ "dyingCargoMarkersHelp": "载有货物的飞船在爆炸前翻滚时显示货柜标记，与原版相同。关闭：不显示标记；瞄准它，牵引光束仍可拉回其货物。",
+ "cloakLosesPursuers": "隐形可甩掉追兵",
+ "cloakLosesPursuersHelp": "隐形期间敌舰会失去你的踪迹：它们飞往最后看到你的位置，然后返回巡逻。关闭：与原版相同，它们会继续追击并瞄准你，但不会开火。"
 }

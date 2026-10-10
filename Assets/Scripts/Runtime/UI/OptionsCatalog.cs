@@ -338,27 +338,31 @@ namespace GoF2Remake.UI
                 () => Settings.DyingCargoMarkers, v => Settings.DyingCargoMarkers = v);
             dyingCargo.description = () => X("dyingCargoMarkersHelp", "A ship carrying cargo shows the container markers while it tumbles before exploding, as in the original. Off: no markers; aim at it and the tractor beam still pulls its cargo.");
             list.Add(dyingCargo);
+            var cloakLoses = Toggle("cloakLosesPursuers", OptionPage.Gameplay, () => X("cloakLosesPursuers", "Cloak shakes off pursuers"),
+                () => Settings.CloakLosesPursuers, v => Settings.CloakLosesPursuers = v);
+            cloakLoses.description = () => X("cloakLosesPursuersHelp", "Enemy ships lose track of you while you're cloaked: they fly to where they last saw you, then go back to their patrol. Off: as in the original, they keep chasing and aiming at you but don't fire.");
+            list.Add(SessionRule(cloakLoses));
             var pirateEvents = Toggle("pirateEvents", OptionPage.Gameplay, () => X("pirateEvents", "Pirate outposts and bosses"),
                 () => Settings.PirateEvents, v => Settings.PirateEvents = v);
             pirateEvents.description = () => X("pirateEventsHelp", "Now and then an orbit holds a pirate outpost with its guards or a pirate boss with escorts; destroying them pays a bounty. Not in the original.");
-            list.Add(pirateEvents);
+            list.Add(SessionRule(pirateEvents));
             var capitalShips = Toggle("capitalShips", OptionPage.Gameplay, () => X("capitalShips", "Capital ship enhancements"),
                 () => Settings.CapitalShips, v => Settings.CapitalShips = v);
             capitalShips.description = () => X("capitalShipsHelp", "Battleships and carriers get escorts and stronger turrets; the carrier and the Vossk battleship can be destroyed for loot, the carrier launches Inflicts when attacked and lets trusted pilots dock to resupply. Not in the original.");
-            list.Add(capitalShips);
+            list.Add(SessionRule(capitalShips));
             var kaamoStacking = Toggle("kaamoStacking", OptionPage.Gameplay, () => X("kaamoStacking", "Stackable Kaamo Club upgrades"),
                 () => Settings.KaamoStacking, v => Settings.KaamoStacking = v);
             kaamoStacking.description = () => X("kaamoStackingHelp", "The Kaamo Club's mechanics fit their upgrade again and again, each level costing twice the last. Off: one of each, as in the original. Not in the original.");
-            list.Add(kaamoStacking);
+            list.Add(SessionRule(kaamoStacking));
             var kaamoGear = Toggle("kaamoKeepsEquipment", OptionPage.Gameplay, () => X("kaamoKeepsEquipment", "Stored ships keep their equipment"),
                 () => Settings.KaamoKeepsEquipment, v => Settings.KaamoKeepsEquipment = v);
             kaamoGear.description = () => X("kaamoKeepsEquipmentHelp", "A ship you park in the Kaamo Club keeps its weapons, turrets and equipment, and they are back on it when you fly it again. Off: they move to the ship you take, as in the original. Ships traded in elsewhere always hand theirs over.");
-            list.Add(kaamoGear);
+            list.Add(SessionRule(kaamoGear));
             // #28: the Informer mission's rule for other ships dying after the spy.
-            list.Add(Choice("informerRule", OptionPage.Gameplay, () => X("informerRule", "Informer missions"), true,
+            list.Add(SessionRule(Choice("informerRule", OptionPage.Gameplay, () => X("informerRule", "Informer missions"), true,
                 () => new[] { X("informerRemake", "Remake"), X("informerOriginal", "Original") },
                 () => Settings.InformerOriginalRule ? 1 : 0, i => Settings.InformerOriginalRule = i == 1,
-                () => X("informerRuleHelp", "Original: any other ship destroyed in the spy's orbit before you dock fails the mission, even after the spy is dead. Remake: once the spy is dead, other kills no longer count.")));
+                () => X("informerRuleHelp", "Original: any other ship destroyed in the spy's orbit before you dock fails the mission, even after the spy is dead. Remake: once the spy is dead, other kills no longer count."))));
             list.Add(Choice("targetLock", OptionPage.Gameplay, () => X("targetLock", "Target lock"), true,
                 () => new[] { X("targetLockSmart", "Smart"), X("targetLockOriginal", "Original") },
                 () => Settings.OriginalTargetLock ? 1 : 0, i => Settings.OriginalTargetLock = i == 1,
@@ -412,6 +416,15 @@ namespace GoF2Remake.UI
         static OptionDef Slider(string id, OptionPage page, Func<string> label, float min, float max, Func<float> get, Action<float> set,
                                 Func<float, string> format) =>
             new OptionDef { id = id, page = page, kind = OptionKind.Slider, label = label, min = min, max = max, get = get, set = set, format = format };
+
+        /// <summary>A Gameplay option that is the session's rule in multiplayer (NetRules): its row hides for a player in
+        /// someone else's session (the host or the server decides; a player host changes it for everyone).</summary>
+        static OptionDef SessionRule(OptionDef d)
+        {
+            var shown = d.visible;
+            d.visible = () => !Multiplayer.NetRules.ClientLocked && (shown == null || shown());
+            return d;
+        }
 
         static OptionDef Toggle(string id, OptionPage page, Func<string> label, Func<bool> get, Action<bool> set) =>
             new OptionDef { id = id, page = page, kind = OptionKind.Toggle, label = label, getBool = get, setBool = set };

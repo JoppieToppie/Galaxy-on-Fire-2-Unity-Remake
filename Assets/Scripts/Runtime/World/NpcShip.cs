@@ -1097,13 +1097,28 @@ namespace GoF2Remake.World
             followingWaypoint = true;
         }
 
+        /// <summary>Remake option (Settings.CloakLosesPursuers, off = the original, which keeps chasing a cloaked target
+        /// and only holds its fire): a cloaked target is lost. The ship flies to where it was last seen, then back to its
+        /// route.</summary>
+        static bool LostToCloak(Target t) => t != null && t.cloaked && Settings.CloakLosesPursuers;   // a session: the host's (NetRules)
+        static bool Pursuable(Target t) => Valid(t) && !LostToCloak(t);
+        const float SearchMs = 12000f, SearchReach = 3000f;
+        Vector3 lastSeen;
+        float searchMs;
+
         /// <summary>§5.3 target selection.</summary>
         void UpdateTargeting()
         {
+            if (attacking && target != null && LostToCloak(target)) { lastSeen = target.transform.position; searchMs = SearchMs; }
+            if (searchMs > 0f)
+            {
+                searchMs -= Time.deltaTime * 1000f;
+                if ((lastSeen - transform.position).sqrMagnitude < SearchReach * M * SearchReach * M) searchMs = 0f;
+            }
             // Multiplayer: another player it is hostile to, kept while valid, hostile and in the box.
             if (remoteTarget != null)
             {
-                if (Valid(remoteTarget) && HostileToRemote != null && HostileToRemote(this, remoteTarget) && InBox(remoteTarget))
+                if (Pursuable(remoteTarget) && HostileToRemote != null && HostileToRemote(this, remoteTarget) && InBox(remoteTarget))
                 {
                     target = remoteTarget;
                     targetPos = target.transform.position;
@@ -1119,7 +1134,7 @@ namespace GoF2Remake.World
             if (remote == null || HostileToRemote == null) return;
             foreach (var r in remote)
             {
-                if (!Valid(r) || !HostileToRemote(this, r) || !InBox(r)) continue;
+                if (!Pursuable(r) || !HostileToRemote(this, r) || !InBox(r)) continue;
                 remoteTarget = r;
                 target = r;
                 targetPos = r.transform.position;
@@ -1135,13 +1150,13 @@ namespace GoF2Remake.World
             int idx = targetIdx;
             if (idx >= n) idx = -1;
             if (!attacking) idx = -1;
-            else if (idx >= 0 && !Valid(enemies[idx])) attacking = false;
+            else if (idx >= 0 && !Pursuable(enemies[idx])) attacking = false;
             bool pirate = Race == Standing.Pirate;
             if (reselectTimer < 5001f)
             {
                 if (!attacking)
                     for (int i = 0; i < n; i++)
-                        if (Valid(enemies[i]) && ((!pirate && turnedEnemy) || InBox(enemies[i]))) { idx = i; attacking = true; break; }
+                        if (Pursuable(enemies[i]) && ((!pirate && turnedEnemy) || InBox(enemies[i]))) { idx = i; attacking = true; break; }
             }
             else
             {
@@ -1153,13 +1168,13 @@ namespace GoF2Remake.World
                     for (int k = 0; k < 5; k++)
                     {
                         int i = Random.Range(0, n);
-                        if (Valid(enemies[i]) && ((!pirate && turnedEnemy) || InBox(enemies[i]))) { idx = i; attacking = true; break; }
+                        if (Pursuable(enemies[i]) && ((!pirate && turnedEnemy) || InBox(enemies[i]))) { idx = i; attacking = true; break; }
                     }
                     if (!attacking) idx = 0;
                 }
                 else idx = 0;
                 // The 5 s re-roll: a target outside the box is dropped (a turned ship too: it flies its route until the next one).
-                if (n > 0 && Valid(enemies[idx])) { if (!InBox(enemies[idx])) idx = -1; }
+                if (n > 0 && Pursuable(enemies[idx])) { if (!InBox(enemies[idx])) idx = -1; }
                 else { idx = -1; attacking = false; }
             }
             if (!Target.hostileToPlayer && idx == 0) { idx = 1; attacking = false; }
@@ -1169,7 +1184,7 @@ namespace GoF2Remake.World
                 for (int i = 1; i < n; i++)
                 {
                     var e = enemies[i];
-                    if (!Valid(e)) continue;
+                    if (!Pursuable(e)) continue;
                     if (Standing.RacesHostile(Race, e.race)) { idx = i; attacking = true; break; }
                 }
             }
@@ -1178,10 +1193,13 @@ namespace GoF2Remake.World
             target = null;
             if (idx < 0 || idx >= n)
             {
+                if (searchMs > 0f) { attacking = false; targetPos = lastSeen; followingWaypoint = true; return; }   // the option
                 var wp = route.Waypoint;
                 // A finished route: the target is the player (PlayerFighter+0x144), so the break-off circle applies, but it isn't
                 // an attack: no firing.
-                if (wp == null) { target = traffic.Player; attacking = false; targetPos = traffic.Player != null ? traffic.Player.transform.position : transform.position; }
+                if (wp == null && LostToCloak(traffic.Player))   // the option: no circling a cloaked player, straight on
+                { attacking = false; targetPos = transform.position + transform.forward * (20000f * M); followingWaypoint = true; }
+                else if (wp == null) { target = traffic.Player; attacking = false; targetPos = traffic.Player != null ? traffic.Player.transform.position : transform.position; }
                 else { route.Update(ToGame(transform.position)); wp = route.Waypoint; targetPos = wp.HasValue ? ToUnity(wp.Value) : transform.position; followingWaypoint = true; }
             }
             else { target = enemies[idx]; targetPos = target.transform.position; }

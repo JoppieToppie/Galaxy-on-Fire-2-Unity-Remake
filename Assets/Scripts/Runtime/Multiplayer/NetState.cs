@@ -56,6 +56,7 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<FixedString4096Bytes> claims = new NetworkVariable<FixedString4096Bytes>();   // NetFactions' territory
         readonly NetworkVariable<FixedString4096Bytes> sieges = new NetworkVariable<FixedString4096Bytes>();   // NetFactions' sieges
         readonly NetworkVariable<int> toll = new NetworkVariable<int>();   // NetFactions.Toll
+        readonly NetworkVariable<int> rules = new NetworkVariable<int>();   // NetRules: the session's gameplay options
         readonly NetworkVariable<FixedString64Bytes> serverId = new NetworkVariable<FixedString64Bytes>();   // their key on the client
         readonly NetworkVariable<bool> freeForAll = new NetworkVariable<bool>();     // /pvp, an event's Free For All: every player an enemy
         readonly NetworkVariable<Unity.Collections.FixedString4096Bytes> sessionMods = new NetworkVariable<Unity.Collections.FixedString4096Bytes>();   // NetMods.SessionList
@@ -85,9 +86,13 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Players may shoot each other anywhere (NetGame.FreePvp, -freepvp); else only in an arena match.</summary>
         public bool FreePvp => freePvp.Value;
 
+        /// <summary>The session's gameplay rules (NetRules bits).</summary>
+        public int Rules => rules.Value;
+
         /// <summary>Server (NetServerSettings): the Debug menu / free PvP changed while running.</summary>
         internal void SetDebugAllowed(bool on) { if (IsServer && debugAllowed.Value != on) debugAllowed.Value = on; }
         internal void SetFreePvp(bool on) { if (IsServer && freePvp.Value != on) freePvp.Value = on; }
+        internal void SetRules(int mask) { if (IsServer && rules.Value != mask) rules.Value = mask; }
 
         /// <summary>The factions' claimed stations, "station|TAG|Name" per line (NetFactions, NetFactionsClient).</summary>
         public string Claims => claims.Value.ToString();
@@ -150,6 +155,7 @@ namespace GoF2Remake.Multiplayer
                 profilesOn.Value = NetProfiles.Enabled;
                 serverId.Value = NetProfiles.ServerId;
                 freePvp.Value = NetGame.FreePvp;
+                rules.Value = NetRules.Host;
                 NetFactions.OnStateSpawned();   // the claims, now that this object exists
                 sessionMods.Value = NetMods.SessionList;
                 proxyPrefab = Resources.Load<GameObject>($"{NetGame.PrefabFolder}/NetProxy");
