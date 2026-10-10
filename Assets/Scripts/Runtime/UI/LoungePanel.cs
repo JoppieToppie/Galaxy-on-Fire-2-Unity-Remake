@@ -168,6 +168,10 @@ namespace GoF2Remake.UI
             if (on != root.ClassListContains("lounge-open")) OnViewChanged();
             if (built && tagItems.Count != level.VisitorAgentCount) Build();   // remake multiplayer: event missions' visitors joined
             if (!on || tags.panel == null) return;
+            // Remake (#82): the camera puts the visitor talked to in the middle of the room left of the chat window.
+            var wb = chatWindow.worldBound;
+            float panelW = root.panel.visualTree.worldBound.width;
+            if (selected >= 0 && wb.width > 0f && panelW > 0f) level.ChatFrameX = Mathf.Clamp(wb.xMin * 0.5f / panelW, 0.15f, 0.5f);
             var cam = level.MainCamera;
             if (cam == null) return;
             for (int i = 0; i < tagItems.Count; i++)

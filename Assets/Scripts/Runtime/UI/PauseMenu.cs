@@ -577,6 +577,22 @@ namespace GoF2Remake.UI
             if (kb != null && (kb.sKey.wasPressedThisFrame || kb.downArrowKey.wasPressedThisFrame)) move = 1;
             if (pad != null && (pad.dpad.up.wasPressedThisFrame || pad.leftStick.up.wasPressedThisFrame)) move = -1;
             if (pad != null && (pad.dpad.down.wasPressedThisFrame || pad.leftStick.down.wasPressedThisFrame)) move = 1;
+            bool debugGrid = page == Page.Debug && items.Count > 0 && index >= 0 && index < items.Count;
+            if (debugGrid && move != 0 && optionRows.TryGetValue(items[index], out var gridRow) && CheatsCatalog.MoveVertical(gridRow.Field, move))
+                move = 0;   // the item grid moved its pick a row
+            if (debugGrid && move != 0)
+            {
+                // The Debug page moves on screen (SpatialNav): the toggles stand two to a row, the Give items buttons
+                // side by side; no wrapping round.
+                var next = SpatialNav.Next(items, items[index], 0, move, v => v.resolvedStyle.display != DisplayStyle.None);
+                if (next != null)
+                {
+                    index = items.IndexOf(next);
+                    Highlight();
+                    if (scroll != null && scroll.contentContainer.Contains(next)) scroll.ScrollTo(next);
+                }
+                move = 0;
+            }
             if (move != 0 && items.Count > 0)
             {
                 index = (index + move + items.Count) % items.Count;
@@ -591,7 +607,13 @@ namespace GoF2Remake.UI
             if (pad != null && (pad.dpad.right.wasPressedThisFrame || pad.leftStick.right.wasPressedThisFrame)) side = 1;
             var current = index < items.Count ? items[index] : null;
             optionRows.TryGetValue(current ?? backdrop, out var option);
-            if (side != 0 && option != null) option.Step(side);
+            if (side != 0 && debugGrid && (option == null || !option.StepsSideways))
+            {
+                // Left / right move to the item beside (a toggle used to flip); steppers and sliders still step.
+                var next = SpatialNav.Next(items, current, side, 0, v => v.resolvedStyle.display != DisplayStyle.None);
+                if (next != null) { index = items.IndexOf(next); Highlight(); current = next; optionRows.TryGetValue(current, out option); }
+            }
+            else if (side != 0 && option != null) option.Step(side);
             bool confirm = (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame))
                            || (pad != null && pad.buttonSouth.wasPressedThisFrame);
             if (!confirm || current == null) return;

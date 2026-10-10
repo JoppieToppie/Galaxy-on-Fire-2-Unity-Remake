@@ -572,6 +572,190 @@
     min-width: 150px;
 }
 
+/* #82: the debug rows read on a phone too. */
+.debug-card .choice-value {
+    font-size: 21px;
+}
+
+.debug-card .choice-segment {
+    font-size: 18px;
+    min-height: 42px;
+}
+
+.debug-card .choice-arrow {
+    min-height: 42px;
+    width: 48px;
+}
+
+.layout-phone .debug-card .choice-label,
+.layout-phone .debug-card .choice-value,
+.layout-phone .debug-action .option-button {
+    font-size: 24px;
+}
+
+.layout-phone .debug-card .choice-segment {
+    font-size: 21px;
+    min-height: 48px;
+}
+
+.layout-phone .debug-card .choice-arrow {
+    min-height: 48px;
+    width: 56px;
+}
+
+/* The Give items page's icon grid under the Item stepper (CheatsCatalog.ItemPicker): a tap / click picks. */
+.debug-item-grid {
+    height: 236px;   /* two rows (the Debug pages are tall enough for them with Amount and the buttons) */
+    margin: 6px 6px 2px 6px;
+    background-color: rgba(0, 0, 0, 0.18);
+}
+
+/* The Item stepper is only a focus stop (keys, controller): out of sight, the grid framed while it is selected. */
+.debug-item-stepper {
+    height: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    opacity: 0;
+}
+
+.debug-item-grid {
+    border-width: 2px;
+    border-color: rgba(0, 0, 0, 0);
+}
+
+.debug-item-row--focus .debug-item-grid,
+.autopilot-menu-item--selected .debug-item-grid {
+    border-color: var(--gof-amber);
+}
+
+.debug-item-grid-content {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 4px;
+}
+
+.debug-item-cell {
+    width: 132px;
+    height: 108px;
+    margin: 3px;
+    padding: 3px;
+    overflow: hidden;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-width: 2px;
+    border-color: rgba(0, 0, 0, 0);
+}
+
+.can-hover .debug-item-cell:hover {
+    background-color: var(--gof-cyan-faint);
+}
+
+.debug-item-cell--picked {
+    border-color: var(--gof-amber);
+    background-color: var(--gof-cyan-faint);
+}
+
+.debug-item-icon {
+    width: 100%;
+    max-width: 140px;
+    height: 60px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.debug-item-name {
+    align-self: stretch;
+    margin-top: 2px;
+    font-size: 14px;
+    white-space: normal;
+    -unity-text-align: upper-center;
+    color: var(--gof-text);
+    overflow: hidden;
+    max-height: 36px;
+}
+
+/* The grid's hint panel (the Presets tab: the slot under the pointer, else the picked one, and its equipment). */
+.debug-grid-hint {
+    min-height: 74px;
+    margin: 4px 6px 0 6px;
+    padding: 6px 8px;
+    background-color: rgba(0, 0, 0, 0.25);
+    border-left-width: 3px;
+    border-left-color: var(--gof-amber);
+}
+
+.debug-grid-hint-title {
+    font-size: 16px;
+    color: #FFFFFF;
+    white-space: normal;
+    margin-bottom: 4px;
+}
+
+.debug-grid-hint-items {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.debug-grid-hint-chip {
+    flex-direction: row;
+    align-items: center;
+    margin: 2px 12px 2px 0;
+}
+
+.debug-grid-hint-icon {
+    width: 62px;
+    height: 30px;
+    margin-right: 6px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.debug-grid-hint-text {
+    font-size: 14px;
+    color: var(--gof-text);
+}
+
+.layout-phone .debug-grid-hint-title {
+    font-size: 21px;
+}
+
+.layout-phone .debug-grid-hint-text {
+    font-size: 18px;
+}
+
+/* An entry without an icon (the Ships tab's freighters and capital ships): its name in the middle, larger. */
+.debug-item-cell--text {
+    justify-content: center;
+}
+
+.debug-item-cell--text .debug-item-icon {
+    display: none;
+}
+
+.debug-item-cell--text .debug-item-name {
+    font-size: 17px;
+    max-height: 60px;
+}
+
+.layout-phone .debug-item-grid {
+    height: 272px;
+}
+
+.layout-phone .debug-item-cell {
+    width: 150px;
+    height: 126px;
+}
+
+.layout-phone .debug-item-icon {
+    max-width: 150px;
+    height: 68px;
+}
+
+.layout-phone .debug-item-name {
+    font-size: 17px;
+    max-height: 44px;
+}
+
 .debug-action {
     margin-top: 8px;
 }

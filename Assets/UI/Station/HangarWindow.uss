@@ -261,6 +261,30 @@
     -unity-background-scale-mode: scale-to-fit;
 }
 
+/* Remake (#82): a ship's details turn it in 3D under the name (ShipPreview; a click opens the item window). */
+.detail-preview {
+    height: 230px;
+    margin-top: 10px;
+    flex-shrink: 0;
+    border-width: 1px;
+    border-color: rgba(33, 152, 255, 0.3);
+    overflow: hidden;
+}
+
+.detail-preview .info-floor {
+    top: 62px;
+    height: 130px;
+}
+
+.layout-phone .detail-preview {
+    height: 190px;
+}
+
+.layout-phone .detail-preview .info-floor {
+    top: 48px;
+    height: 110px;
+}
+
 .detail-titles {
     flex-grow: 1;
     flex-shrink: 1;

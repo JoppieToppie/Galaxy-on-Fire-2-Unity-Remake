@@ -26,6 +26,10 @@ namespace GoF2Remake.UI
         public static Texture2D ShipIcon(int ship) =>
             Modding.ModContent.IsModShip(ship) ? Modding.ModShips.Icon(ship) ?? Icon("ship_010") : Icon($"ship_{ship:000}");
 
+        /// <summary>The icon of a hull with no shop image of its own (the Debug Ships tab's freighters and capital ships, by
+        /// World.PlayerHull's key; "GoF2 > Build > Hull Icons"), null without one.</summary>
+        public static Texture2D HullIcon(string key) => Icon("hull_" + key);
+
         static Texture2D Icon(string name)
         {
             if (!icons.TryGetValue(name, out var t)) icons[name] = t = Resources.Load<Texture2D>("GoF2Icons/" + name);

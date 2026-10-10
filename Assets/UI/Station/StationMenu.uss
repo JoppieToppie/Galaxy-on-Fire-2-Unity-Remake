@@ -406,7 +406,12 @@
 
 /* The Debug page (StationMenu.BuildStationDebug): wider, the tabs over its rows. */
 .system-menu--wide {
-    max-width: 1100px;
+    max-width: 1180px;   /* the Give items grid: seven icons to a row */
+}
+
+/* The Debug page: room for Give items' rows, icon grid and buttons without scrolling. */
+.system-menu--wide .system-slot-list {
+    height: 570px;
 }
 
 .system-menu--wide .system-option Label {

@@ -15,7 +15,6 @@
 // Remake input: mouse / touch drag, A / D or the right stick turn; Esc / B back. Plain class owned by StationMenu.
 
 using GoF2Remake.Data;
-using GoF2Remake.Visuals;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -24,22 +23,15 @@ namespace GoF2Remake.UI
 {
     public class ItemInfoWindow
     {
-        const int PreviewLayer = 30;
-        const float M = 0.05f, FrameMs = 1000f / 30f, PixelsPerRadian = 120f;
+        const float FrameMs = 1000f / 30f;
         static readonly Vector3 StagePosition = new Vector3(0f, -20000f, 0f);
 
         readonly StationMenu menu;
-        readonly VisualElement backdrop, icon, stats, preview, previewImage, floorLeft, floorRight;
+        readonly VisualElement backdrop, icon, stats;
+        readonly ShipPreview preview = new ShipPreview(StagePosition, 1268, 636, 0.9f);
         readonly Label header, help, nameLabel, subLabel, descTitle, text;
         readonly ScrollView textScroll;
         readonly VisualElement modLines = ItemInfo.NewModBlock();
-
-        GameObject stage;
-        Transform model;
-        Camera cam;
-        RenderTexture rt;
-        float yawPx, flingPx, lastX;
-        bool dragging;
 
         public bool IsOpen { get; private set; }
 
@@ -84,20 +76,6 @@ namespace GoF2Remake.UI
 
             var right = new VisualElement();
             right.AddToClassList("info-right");
-            preview = new VisualElement();
-            preview.AddToClassList("info-preview");
-            floorLeft = new VisualElement { pickingMode = PickingMode.Ignore };
-            floorLeft.AddToClassList("info-floor");
-            floorRight = new VisualElement { pickingMode = PickingMode.Ignore };
-            floorRight.AddToClassList("info-floor");
-            floorRight.AddToClassList("info-floor--mirrored");
-            var floor = Hud("info_floor");
-            if (floor != null) { floorLeft.style.backgroundImage = new StyleBackground(floor); floorRight.style.backgroundImage = new StyleBackground(floor); }
-            previewImage = new VisualElement { pickingMode = PickingMode.Ignore };
-            previewImage.AddToClassList("info-preview-image");
-            preview.Add(floorLeft);
-            preview.Add(floorRight);
-            preview.Add(previewImage);
             descTitle = new Label { pickingMode = PickingMode.Ignore };
             descTitle.AddToClassList("info-desc-title");
             descTitle.AddToClassList("gof-semibold");
@@ -107,7 +85,8 @@ namespace GoF2Remake.UI
             text.AddToClassList("info-text");
             textScroll.Add(text);
             textScroll.Add(modLines);
-            right.Add(preview);
+            preview.Element.AddToClassList("info-preview");
+            right.Add(preview.Element);
             right.Add(descTitle);
             right.Add(textScroll);
             columns.Add(left);
@@ -127,22 +106,6 @@ namespace GoF2Remake.UI
             backdrop.Add(box);
             root.Add(backdrop);
 
-            preview.RegisterCallback<PointerDownEvent>(e => { dragging = true; lastX = e.position.x; flingPx = 0f; preview.CapturePointer(e.pointerId); });
-            preview.RegisterCallback<PointerMoveEvent>(e =>
-            {
-                if (!dragging) return;
-                float dx = e.position.x - lastX;
-                lastX = e.position.x;
-                // The ship follows the finger: dragging right turns its near side right.
-                yawPx -= dx;
-                flingPx = -dx;
-            });
-            preview.RegisterCallback<PointerUpEvent>(e =>
-            {
-                dragging = false;
-                if (preview.HasPointerCapture(e.pointerId)) preview.ReleasePointer(e.pointerId);
-                if (Mathf.Abs(flingPx) <= 3f) flingPx = 0f;
-            });
             back.text = T(170).ToUpperInvariant();
         }
 
@@ -189,7 +152,7 @@ namespace GoF2Remake.UI
             var it = db.Item(item);
             if (it == null) return;
             Begin();
-            HidePreview();
+            preview.Hide();
             icon.style.backgroundImage = new StyleBackground(ItemInfo.ItemIcon(item));
             nameLabel.text = ItemInfo.ItemName(item);
             subLabel.text = $"{ItemInfo.Category(it)}  ·  {T(133)} {it.techLevel}";
@@ -222,7 +185,7 @@ namespace GoF2Remake.UI
             if (showPrice) Row(T(132), ItemInfo.Credits(price));
             text.text = GameNames.ShipDescription(ship);
             if (mine) ItemInfo.FillModLines(modLines, Session.ShipMods);   // the Kaamo Club mods under the description
-            ShowPreview(db, ship, Mathf.Max(0, Shop.RaceOfShip(ship)));   // the model by the original's race (freighters)
+            preview.Show(db, ship);
         }
 
         public void Close()
@@ -230,98 +193,20 @@ namespace GoF2Remake.UI
             if (!IsOpen) return;
             IsOpen = false;
             backdrop.RemoveFromClassList("info-backdrop--shown");
-            HidePreview();
+            preview.Hide();
         }
 
-        // ---- 3D preview (its own camera on layer 30, rendered into the box) ---------------------------------------
-
-        void ShowPreview(Database db, int ship, int race)
-        {
-            HidePreview();
-            preview.style.display = DisplayStyle.Flex;
-            var entry = db.ShipAssembly(ship);
-            var prefab = entry != null ? AssembledObject.LoadPrefab(entry) : null;
-            if (prefab == null) return;
-            stage = new GameObject("Info window stage");
-            stage.transform.position = StagePosition;
-            var go = Object.Instantiate(prefab, stage.transform, false);
-            go.GetComponent<AssembledObject>()?.SetPlayerVariant(true);
-            foreach (var lg in go.GetComponentsInChildren<LODGroup>(true)) lg.ForceLOD(0);
-            foreach (var t in go.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = PreviewLayer;
-            model = go.transform;
-            // The camera: (1362, 1690, -5257) game units at 1920 x 1080 -> Unity (x, y, -z) * 0.05, looking at the ship.
-            var camGo = new GameObject("Info window camera");
-            camGo.transform.SetParent(stage.transform, false);
-            camGo.transform.localPosition = new Vector3(1362f, 1690f, 5257f) * M;
-            cam = camGo.AddComponent<Camera>();
-            cam.cullingMask = 1 << PreviewLayer;
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0f, 0f, 0f, 0f);
-            cam.fieldOfView = 0.9203f * Mathf.Rad2Deg;
-            cam.nearClipPlane = 200f * M;
-            cam.farClipPlane = 30000f * M;
-            var bounds = new Bounds(stage.transform.position, Vector3.zero);
-            // Meshes only: a trail or particle renderer (a mod ship's ThrottleGlow trails) is empty at the world origin, far
-            // from the stage, and framed the ship from kilometres away.
-            foreach (var r in go.GetComponentsInChildren<Renderer>()) if (r is MeshRenderer || r is SkinnedMeshRenderer) bounds.Encapsulate(r.bounds);
-            // Remake: the original's direction, at the distance that frames this ship (its offset was made for the
-            // original's model scale, the remake's ships sat tiny in the box).
-            float radius = Mathf.Max(bounds.extents.magnitude, 1f);
-            float dist = radius / Mathf.Sin(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) * 0.9f;
-            camGo.transform.position = bounds.center + camGo.transform.localPosition.normalized * dist;
-            cam.farClipPlane = dist + radius * 4f;
-            cam.nearClipPlane = Mathf.Max(0.1f, dist - radius * 2f);
-            camGo.transform.LookAt(bounds.center);
-            camGo.transform.Rotate(0f, 0f, -0.1f * Mathf.Rad2Deg, Space.Self);
-            rt = new RenderTexture(1268, 636, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
-            cam.targetTexture = rt;
-            var lightGo = new GameObject("Info window light");
-            lightGo.transform.SetParent(stage.transform, false);
-            lightGo.transform.rotation = Quaternion.LookRotation(new Vector3(-5f, -1f, -5f) * -1f);
-            var light = lightGo.AddComponent<Light>();
-            light.type = LightType.Directional;
-            light.cullingMask = 1 << PreviewLayer;
-            light.intensity = 1f;
-            previewImage.style.backgroundImage = new StyleBackground(Background.FromRenderTexture(rt));
-            yawPx = 260f;   // ListItemWindow: starts at 260 px
-            flingPx = 0f;
-            ApplyYaw();
-        }
-
-        void HidePreview()
-        {
-            preview.style.display = DisplayStyle.None;
-            previewImage.style.backgroundImage = StyleKeyword.None;
-            if (stage != null) Object.Destroy(stage);
-            stage = null;
-            model = null;
-            cam = null;
-            if (rt != null) { rt.Release(); Object.Destroy(rt); rt = null; }
-        }
-
-        void ApplyYaw()
-        {
-            if (model != null) model.localRotation = Quaternion.Euler(0f, yawPx / PixelsPerRadian * Mathf.Rad2Deg, 0f);
-        }
-
-        /// <summary>Every frame while open: the fling and the keys / stick turning.</summary>
+        /// <summary>Every frame while open: the keys / stick turning (ShipPreview turns the fling itself).</summary>
         public void Tick()
         {
-            if (!IsOpen || model == null) return;
+            if (!IsOpen || !preview.Shown) return;
             float frames = Time.unscaledDeltaTime * 1000f / FrameMs;
-            if (!dragging && flingPx != 0f)
-            {
-                yawPx += flingPx * frames;
-                flingPx *= Mathf.Pow(0.9f, frames);
-                if (Mathf.Abs(flingPx) <= 1f) flingPx = 0f;
-            }
             var kb = GoF2Remake.Multiplayer.NetChat.Keys;   // null while a multiplayer chat line is typed
             var pad = Gamepad.current;
             float turn = 0f;
             if (kb != null) turn += (kb.dKey.isPressed || kb.rightArrowKey.isPressed ? 1f : 0f) - (kb.aKey.isPressed || kb.leftArrowKey.isPressed ? 1f : 0f);
             if (pad != null) turn += pad.rightStick.ReadValue().x + pad.leftStick.ReadValue().x;
-            yawPx -= Mathf.Clamp(turn, -1f, 1f) * 8f * frames;   // like dragging that way
-            ApplyYaw();
+            preview.Turn(-Mathf.Clamp(turn, -1f, 1f) * 8f * frames);   // like dragging that way
         }
     }
 }

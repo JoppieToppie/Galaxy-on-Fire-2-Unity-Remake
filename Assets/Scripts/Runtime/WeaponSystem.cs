@@ -134,9 +134,11 @@ namespace GoF2Remake.Flight
         }
         public string SecondaryName => SelectedSecondary >= 0 ? UI.ItemInfo.ItemName(SelectedSecondary) : "";
         /// <summary>The mounted secondary items in mount order, each once (Hud::initHudMenu(1)'s list).</summary>
-        public List<int> SecondaryItems()
+        public List<int> SecondaryItems() => SecondaryItems(new List<int>());
+        /// <summary>The same into a list of the caller's (cleared first; the HUD's weapon strip asks every frame).</summary>
+        public List<int> SecondaryItems(List<int> items)
         {
-            var items = new List<int>();
+            items.Clear();
             foreach (var r in rigs) if (r.gun.isSecondary && !items.Contains(r.gun.itemIndex)) items.Add(r.gun.itemIndex);
             return items;
         }

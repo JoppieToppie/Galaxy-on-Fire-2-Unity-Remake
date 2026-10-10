@@ -26,6 +26,12 @@
 // The PC version's cursor mode (Frame.cursor: keys and mouse, the mouse not steering; Hud::draw's Globals::iPad == 0 path and
 // the Full HD manual's screenshot): the same buttons clicked with the mouse, but no stick and no gestures; the cluster in the
 // bottom-right corner, the autopilot / fast-forward pill and the boost at the bottom left.
+// Remake (#81 / #82, the weapon strip): with two or more secondaries mounted, a row of their shop icons and ammo (the selected
+// one framed amber). Holding the secondary button 350 ms fans it out to the left of the button: slide onto an icon and lift
+// to select it (no shot; lifting elsewhere picks nothing), a short tap still fires. Any other change of the selection (the
+// switch key / D-pad, a tap on the plate, the quick menu) shows it for 2 s (touch: at the button, else above the plate);
+// while shown its icons take a tap / click. The original picks a secondary only in the quick menu's second level
+// (Hud::initHudMenu(1)), which stays.
 
 using System;
 using System.Collections.Generic;
@@ -72,6 +78,11 @@ namespace GoF2Remake.UI
         public Func<bool> FirePressed;             // true = the press was an action (no shooting)
         public Action SecondaryReleased, BoostReleased, CameraReleased, MenuReleased, TurretReleased;
         public Action PausePressed, PauseReleased, LevelOut, CycleSecondary;
+        // The weapon strip (remake): the mounted secondaries in mount order, an item's ammo, the selection, a pick.
+        public Func<List<int>> SecondaryList;
+        public Func<int, int> SecondaryAmmo;
+        public Func<int> SelectedSecondary;
+        public Action<int> SelectSecondary;
         public Action<int> Dodge;                  // 1 left, 2 right
         public Func<float> GetThrust;
         public Action<float> SetThrust;
@@ -99,6 +110,11 @@ namespace GoF2Remake.UI
         readonly VisualElement gestureZone, stickArea, stickBase, knob, boost, cluster, fire, arrow, secondary, menu, camera, turret, pause,
                                plate, gauge, gaugeFill;
         readonly Label plateText, gaugeText;
+        readonly VisualElement strip, stripRow;
+        readonly Label stripName;
+        readonly List<VisualElement> stripCells = new List<VisualElement>();
+        readonly List<Label> stripAmmo = new List<Label>();
+        readonly List<int> stripItems = new List<int>();
         readonly Dictionary<int, Gesture> gestures = new Dictionary<int, Gesture>();
         readonly HashSet<VisualElement> held = new HashSet<VisualElement>();
         readonly Texture2D knobOff, knobOn, fireOff, fireOn, boostOff, boostOn, pauseOff, pauseOn, menuOff, menuOn, secOff, secOn,
@@ -150,7 +166,8 @@ namespace GoF2Remake.UI
             camera = Button(Image(layer, camOff[3]), null, () => CameraReleased?.Invoke());
             turret = Button(Image(layer, turretOff), null, () => TurretReleased?.Invoke());
             menu = Button(Image(layer, menuOff), null, () => MenuReleased?.Invoke());
-            secondary = Button(Image(layer, secOff), null, () => SecondaryReleased?.Invoke());
+            secondary = Image(layer, secOff);
+            HookSecondary();
             boost = Button(Image(layer, boostOff), null, () => BoostReleased?.Invoke());
             fire = Image(layer, fireOff);
             HookFire();
@@ -174,11 +191,24 @@ namespace GoF2Remake.UI
             gaugeLayer.Add(gaugeText);
             // The secondary's plate: the gauge layer's too, so keyboard and controller flight show it.
             plate = Image(gaugeLayer, Tex("touch_secondary_plate"));
-            plate.RegisterCallback<PointerDownEvent>(e => { CycleSecondary?.Invoke(); e.StopPropagation(); });
+            plate.RegisterCallback<PointerDownEvent>(e => { plateTapped = true; CycleSecondary?.Invoke(); e.StopPropagation(); });
             plateText = new Label { pickingMode = PickingMode.Ignore };
             plateText.AddToClassList("touch-plate-text");
             plateText.AddToClassList("gof-semibold");
             plate.Add(plateText);
+            // The weapon strip: last in the gauge layer, so it also shows in keyboard / controller flight.
+            strip = new VisualElement { pickingMode = PickingMode.Ignore };
+            strip.AddToClassList("touch-abs");
+            strip.AddToClassList("sec-strip");
+            stripName = new Label { pickingMode = PickingMode.Ignore };
+            stripName.AddToClassList("sec-strip-name");
+            stripName.AddToClassList("gof-semibold");
+            strip.Add(stripName);
+            stripRow = new VisualElement { pickingMode = PickingMode.Ignore };
+            stripRow.AddToClassList("sec-strip-row");
+            strip.Add(stripRow);
+            gaugeLayer.Add(strip);
+            Show(strip, false);
 
             pause = Button(Image(pauseHost, pauseOff), () => PausePressed?.Invoke(), () => PauseReleased?.Invoke());
             pause.AddToClassList("touch-pause");
@@ -400,6 +430,7 @@ namespace GoF2Remake.UI
                 ReleaseCaptures(e);
             ReleaseStick();
             firePointer = -1;
+            ReleaseSecondary();
             gestures.Clear();
             held.Clear();
         }
@@ -427,6 +458,180 @@ namespace GoF2Remake.UI
             if (gaugeMs < 0f) gaugeMs = 0f;
             else if (gaugeMs > 1500f) gaugeMs = 2000f - gaugeMs;
             else if (gaugeMs > 500f) gaugeMs = 500f;
+        }
+
+        // ---- the weapon strip (remake) --------------------------------------------------------------------------
+
+        const float StripHoldS = 0.35f, StripShowMs = 2000f, StripLingerMs = 600f, StripFadeMs = 300f;
+        const float CellW = 150f, CellH = 73f, CellStep = 162f, StripNameH = 34f;
+        int secPointer = -1, stripHover = -1, stripSeen = int.MinValue;
+        float secDownTime, stripMs;
+        bool stripHeld, stripAtButton, stripSelfPick, plateTapped;
+
+        /// <summary>The secondary button: a tap fires on release over it (as Button); held StripHoldS it opens the strip,
+        /// and lifting picks the icon under the finger instead of firing.</summary>
+        void HookSecondary()
+        {
+            secondary.RegisterCallback<PointerDownEvent>(ev =>
+            {
+                if (secPointer >= 0) return;
+                secPointer = ev.pointerId;
+                secondary.CapturePointer(secPointer);
+                held.Add(secondary);
+                secDownTime = Time.unscaledTime;
+                stripHeld = false;
+                stripHover = -1;
+                ev.StopPropagation();
+            });
+            secondary.RegisterCallback<PointerMoveEvent>(ev =>
+            {
+                if (ev.pointerId == secPointer && stripHeld) Hover(CellAt(ev.position));
+            });
+            secondary.RegisterCallback<PointerUpEvent>(ev =>
+            {
+                if (ev.pointerId != secPointer) return;
+                bool over = secondary.ContainsPoint(ev.localPosition);
+                bool wasStrip = stripHeld;
+                int pick = stripHeld ? CellAt(ev.position) : -1;
+                ReleaseSecondary();
+                if (wasStrip) { if (pick >= 0) Pick(pick); else stripMs = 0f; }
+                else if (over) SecondaryReleased?.Invoke();
+                ev.StopPropagation();
+            });
+            secondary.RegisterCallback<PointerCancelEvent>(ev => { if (ev.pointerId == secPointer) { ReleaseSecondary(); stripMs = 0f; } });
+            secondary.RegisterCallback<PointerCaptureOutEvent>(_ =>
+            {
+                if (secPointer < 0) return;
+                secPointer = -1;
+                held.Remove(secondary);
+                stripHeld = false;
+            });
+        }
+
+        void ReleaseSecondary()
+        {
+            if (secPointer >= 0 && secondary.HasPointerCapture(secPointer)) secondary.ReleasePointer(secPointer);
+            secPointer = -1;
+            held.Remove(secondary);
+            stripHeld = false;
+        }
+
+        /// <summary>The strip cell under a panel position (with some slack above and below, so a sloppy slide still hits),
+        /// or -1.</summary>
+        int CellAt(Vector2 panelPosition)
+        {
+            for (int i = 0; i < stripCells.Count; i++)
+            {
+                var r = stripCells[i].worldBound;
+                r.xMin -= 6f; r.xMax += 6f; r.yMin -= 60f; r.yMax += 60f;
+                if (r.Contains(panelPosition)) return i;
+            }
+            return -1;
+        }
+
+        void Hover(int cell)
+        {
+            if (cell == stripHover) return;
+            stripHover = cell;
+            if (cell >= 0) Flight.Haptics.Play(Flight.Haptics.DrillTon);
+        }
+
+        /// <summary>Selects the strip's cell (an empty weapon can't be picked) and lets the strip linger a moment.</summary>
+        void Pick(int cell)
+        {
+            if (cell < 0 || cell >= stripItems.Count) return;
+            int item = stripItems[cell];
+            if (SecondaryAmmo != null && SecondaryAmmo(item) <= 0) return;
+            stripSelfPick = true;
+            SelectSecondary?.Invoke(item);
+            Flight.Haptics.Play(Flight.Haptics.TargetLock);
+            stripMs = StripLingerMs;
+        }
+
+        /// <summary>Rebuilds the cells when the mounted secondaries changed.</summary>
+        void SyncStripCells(List<int> items)
+        {
+            bool same = items.Count == stripItems.Count;
+            for (int i = 0; same && i < items.Count; i++) same = items[i] == stripItems[i];
+            if (same) return;
+            stripItems.Clear();
+            stripItems.AddRange(items);
+            stripRow.Clear();
+            stripCells.Clear();
+            stripAmmo.Clear();
+            for (int i = 0; i < items.Count; i++)
+            {
+                int index = i;
+                var cell = new VisualElement();
+                cell.AddToClassList("sec-strip-cell");
+                var icon = new VisualElement { pickingMode = PickingMode.Ignore };
+                icon.AddToClassList("sec-strip-icon");
+                var tex = ItemInfo.ItemIcon(items[i]);
+                if (tex != null) icon.style.backgroundImage = new StyleBackground(tex);
+                cell.Add(icon);
+                var ammo = new Label { pickingMode = PickingMode.Ignore };
+                ammo.AddToClassList("sec-strip-ammo");
+                ammo.AddToClassList("gof-semibold");
+                cell.Add(ammo);
+                // Shown by a timer the icons take a tap / click; held open, the button keeps the finger.
+                cell.RegisterCallback<PointerDownEvent>(ev => { Pick(index); ev.StopPropagation(); });
+                stripRow.Add(cell);
+                stripCells.Add(cell);
+                stripAmmo.Add(ammo);
+            }
+        }
+
+        void UpdateStrip(float dtMs, bool active, float w, float h, bool touchFull)
+        {
+            var items = active && SecondaryList != null ? SecondaryList() : null;
+            bool several = items != null && items.Count > 1;
+            int selected = SelectedSecondary != null ? SelectedSecondary() : -1;
+            // A change of the selection from anywhere else shows the strip for a moment (the first value is only noted).
+            if (selected != stripSeen)
+            {
+                if (stripSeen != int.MinValue && stripSeen >= 0 && selected >= 0 && !stripSelfPick && several)
+                {
+                    stripMs = StripShowMs;
+                    stripAtButton = touchFull && !plateTapped;   // a tap on the plate shows it there
+                }
+                stripSeen = selected;
+            }
+            stripSelfPick = false;
+            plateTapped = false;
+            if (secPointer >= 0 && !stripHeld && several && Time.unscaledTime - secDownTime >= StripHoldS)
+            {
+                stripHeld = true;
+                stripAtButton = true;
+                stripHover = -1;
+                Flight.Haptics.Play(Flight.Haptics.TargetLock);
+            }
+            if (stripMs > 0f && !stripHeld) stripMs -= dtMs;
+            bool shown = several && (stripHeld || stripMs > 0f) && !Vr.VrMode.Enabled;
+            Show(strip, shown);
+            if (!shown) { stripHover = -1; return; }
+            SyncStripCells(items);
+            int focus = stripHeld && stripHover >= 0 ? stripHover : stripItems.IndexOf(selected);
+            for (int i = 0; i < stripCells.Count; i++)
+            {
+                int ammo = SecondaryAmmo != null ? SecondaryAmmo(stripItems[i]) : 0;
+                string text = ammo.ToString();
+                if (stripAmmo[i].text != text) stripAmmo[i].text = text;
+                stripCells[i].EnableInClassList("sec-strip-cell--selected", stripItems[i] == selected);
+                stripCells[i].EnableInClassList("sec-strip-cell--hover", stripHeld && i == stripHover);
+                stripCells[i].EnableInClassList("sec-strip-cell--empty", ammo <= 0);
+                stripCells[i].pickingMode = stripHeld ? PickingMode.Ignore : PickingMode.Position;
+            }
+            // The name line only while held (the plate under the screen names the selection otherwise).
+            string name = stripHeld && focus >= 0 && focus < stripItems.Count ? ItemInfo.ItemName(stripItems[focus]) : "";
+            if (stripName.text != name) stripName.text = name;
+            float rowW = stripItems.Count * CellStep - (CellStep - CellW);
+            strip.style.width = rowW;
+            // At the button: to its left, level with it, kept on screen; else above the plate at the bottom centre.
+            Vector2 pos = stripAtButton
+                ? new Vector2(Mathf.Max(8f, secondaryPos.x - 14f - rowW), secondaryPos.y + 54.5f - CellH / 2f - StripNameH)
+                : new Vector2(w / 2f - rowW / 2f, h - 37f - 12f - CellH - StripNameH);
+            Place(strip, pos);
+            strip.style.opacity = stripHeld ? 1f : Mathf.Clamp01(stripMs / StripFadeMs);
         }
 
         // ---- per frame ------------------------------------------------------------------------------------------
@@ -496,7 +701,8 @@ namespace GoF2Remake.UI
             Place(menu, bg + new Vector2(152f, 8f));
             Place(camera, bg + new Vector2(28f, 27f));
             Place(turret, bg + new Vector2(160f, -134f));
-            Place(secondary, bg + (left ? new Vector2(-2f, 189f) : new Vector2(144f, 298f)));
+            secondaryPos = bg + (left ? new Vector2(-2f, 189f) : new Vector2(144f, 298f));
+            Place(secondary, secondaryPos);
             Place(boost, boostPos);
             Place(plate, new Vector2(w / 2f - 187f, h - 37f));
             if (navButtons != null)   // FF at (40, S - 180), autopilot (40, S); the cursor mode's at the bottom left
@@ -517,7 +723,7 @@ namespace GoF2Remake.UI
             Place(pause, pausePos);
         }
 
-        Vector2 pausePos;
+        Vector2 pausePos, secondaryPos;
         bool pausePlaced;
 
         static bool Laid(Rect r) => !float.IsNaN(r.x) && !float.IsNaN(r.width) && r.width > 0f && r.height > 0f;
@@ -563,6 +769,8 @@ namespace GoF2Remake.UI
             bool plateShown = (full || f.gauge) && f.secondary && f.secondaryText != null;
             Show(plate, plateShown);
             if (plateShown && plateText.text != f.secondaryText) plateText.text = f.secondaryText;
+            if (!(full && f.secondary) && secPointer >= 0) ReleaseSecondary();
+            UpdateStrip(dtMs, (full || f.gauge) && !f.steeringMissile, Width, Height, full && !f.cursor);
 
             // Hud::draw 18: the boost's alpha shows the charge; a 2 s blink once it is ready again (+0x420 = 2000, +0x424 = 80:
             // one lit frame each time the 80 ms timer runs out, which then restarts at 80). That is tied to the frame rate:

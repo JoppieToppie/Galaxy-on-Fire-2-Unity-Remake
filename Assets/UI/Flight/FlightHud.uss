@@ -66,6 +66,70 @@
     white-space: nowrap;
 }
 
+/* Remake (#81 / #82): the weapon strip, the mounted secondaries' shop icons with their ammo (TouchControls). */
+.sec-strip {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.sec-strip-name {
+    height: 34px;
+    font-size: 22px;
+    color: #FFFFFF;
+    -unity-text-align: lower-center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.sec-strip-row {
+    flex-direction: row;
+}
+
+.sec-strip-cell {
+    width: 150px;
+    height: 73px;
+    margin-right: 12px;
+    background-color: rgba(5, 18, 32, 0.82);
+    border-width: 2px;
+    border-color: rgba(62, 200, 255, 0.45);
+    border-radius: 4px;
+    transition-property: scale, border-color;
+    transition-duration: 0.08s;
+}
+
+.sec-strip-icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.sec-strip-ammo {
+    position: absolute;
+    right: 6px;
+    bottom: 2px;
+    font-size: 20px;
+    color: #FFFFFF;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 1);
+}
+
+.sec-strip-cell--selected {
+    border-color: rgb(255, 176, 46);
+    border-width: 3px;
+}
+
+.sec-strip-cell--hover {
+    border-color: #FFFFFF;
+    scale: 1.12 1.12;
+}
+
+.sec-strip-cell--empty {
+    opacity: 0.4;
+}
+
 /* PlayerEgo::drawThrottle: the thrust number under the crosshair. */
 .touch-gauge-text {
     position: absolute;
@@ -874,7 +938,7 @@
 
 /* The Debug page (PauseMenu.BuildDebug): a wide panel, tabs, a result line, two-column grids and side-by-side cards. */
 .pause-panel--wide {
-    width: 1100px;
+    width: 1180px;
     max-width: 96%;
 }
 

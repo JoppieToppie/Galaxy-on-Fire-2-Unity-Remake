@@ -117,9 +117,9 @@
 .chat-window {
     display: none;
     position: absolute;
-    left: 520px;
-    right: 40px;
-    bottom: 110px;
+    width: 940px;
+    right: 60px;
+    bottom: 120px;
     max-height: 820px;
     background-color: var(--gof-panel);
     border-width: 1px;
@@ -361,9 +361,16 @@
 }
 
 /* Phones: the side panel is narrower. */
-.layout-phone .chat-window,
 .layout-phone .missions-window {
     left: 450px;
+}
+
+/* #82: the chat keeps clear of the bottom-right corner (rounded screens, the hint row) and of the screen's middle, where
+   the bar camera frames the visitor talked to (StationLevel.ChatFrameY). */
+.layout-phone .chat-window {
+    width: 900px;
+    right: 80px;
+    bottom: 140px;
 }
 
 /* lounge_ui.md 1.2: the lounge shows only its header and a footer with Back, not the main view's side panel, buttons

@@ -276,6 +276,8 @@ namespace GoF2Remake.UI
 
         // ---- touch controls (TouchControls, touch_hud.md) ----------------------------------------------------------
 
+        readonly List<int> stripItems = new List<int>();
+
         void BuildTouchControls()
         {
             touch = new TouchControls(root.Q("touchLayer"), root, root.Q("navButtons"))
@@ -292,6 +294,10 @@ namespace GoF2Remake.UI
                 PauseReleased = () => { PlayButton(false); OpenPause(); },
                 LevelOut = () => ship?.AlignToHorizon(),
                 CycleSecondary = () => weapons?.CycleSecondary(),
+                SecondaryList = () => weapons?.SecondaryItems(stripItems),
+                SecondaryAmmo = item => weapons != null ? weapons.AmmoOf(item) : 0,
+                SelectedSecondary = () => weapons != null ? weapons.SelectedSecondary : -1,
+                SelectSecondary = item => weapons?.SelectSecondary(item),
                 Dodge = side => { if (nav == null || !nav.MenuOpen) ship?.RequestDodge(side); },
                 GetThrust = () => ship != null ? ship.Model.Throttle : 0f,
                 SetThrust = t => ship?.SetThrottle(t),

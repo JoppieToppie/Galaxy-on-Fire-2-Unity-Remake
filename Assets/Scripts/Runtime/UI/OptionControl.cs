@@ -67,6 +67,9 @@ namespace GoF2Remake.UI
             Refresh();
         }
 
+        /// <summary>Left / right change the row's value (a slider, a choice, a binding), not move to the next item.</summary>
+        public bool StepsSideways => slider != null || choice != null || binding != null;
+
         /// <summary>The row is shown (OptionDef.visible; always without one).</summary>
         public bool Shown => def.visible == null || def.visible();
 

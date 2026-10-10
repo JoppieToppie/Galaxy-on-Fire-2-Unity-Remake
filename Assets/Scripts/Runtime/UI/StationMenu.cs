@@ -1706,12 +1706,22 @@ namespace GoF2Remake.UI
                 root.focusController?.IgnoreEvent(e);
                 return;
             }
-            if (!DialogOpen && SystemMenuOpen && DebugPage && horizontal)
+            if (!DialogOpen && SystemMenuOpen && DebugPage && (horizontal || vertical))
             {
-                // Left / right steps the focused option (OptionControl.Step, like the pause menu).
+                // Left / right step a value (a stepper, segments, a slider: OptionControl.Step, like the pause menu); else
+                // the keys move on screen (SpatialNav): the toggles stand two to a row, the Give items buttons side by side
+                // (a toggle flipped on left / right, and down went to the button beside).
                 var f = root.focusController?.focusedElement as VisualElement;
                 var c = stationOptions.Find(o => o.Field == f);
-                if (c != null) c.Step(e.direction == NavigationMoveEvent.Direction.Left ? -1 : 1);
+                if (horizontal && c != null && c.StepsSideways) c.Step(e.direction == NavigationMoveEvent.Direction.Left ? -1 : 1);
+                else if (vertical && CheatsCatalog.MoveVertical(f, e.direction == NavigationMoveEvent.Direction.Up ? -1 : 1)) { }
+                else if (System.Array.IndexOf(items, f) < 0) NextNavigable(items, -1, 1)?.Focus();
+                else
+                {
+                    int dx = !horizontal ? 0 : e.direction == NavigationMoveEvent.Direction.Left ? -1 : 1;
+                    int dy = !vertical ? 0 : e.direction == NavigationMoveEvent.Direction.Up ? -1 : 1;
+                    SpatialNav.Next(items, f, dx, dy, Navigable)?.Focus();
+                }
                 e.StopPropagation();
                 root.focusController?.IgnoreEvent(e);
                 return;

@@ -971,25 +971,38 @@ namespace GoF2Remake.World
                     pos = (customBar != null ? barPosB : yaw * barPosB) + new Vector3(0f, Mathf.Sin(bobPhase) * 3.5f * M, 0f);
                     rot = yaw * barRotB;
                 }
-                // Remake: talking to a visitor, the view turns to the middle of their figure and zooms in a little
-                // (FocusVisitor), easing back when the chat closes.
+                // Remake: talking to a visitor, the view turns to them and zooms in a little (FocusVisitor), easing back
+                // when the chat closes. Only sideways, keeping the room camera's pitch and roll: they stand beside the chat
+                // window, in the middle of the room left of it (ChatFrameX, from LoungePanel; #82).
                 chatZoom = Mathf.MoveTowards(chatZoom, chatVisitor >= 0 ? 1f : 0f, dtMs / ChatZoomMs);
                 float z = chatZoom * chatZoom * (3f - 2f * chatZoom);   // smoothstep
-                if (z > 0f && chatTarget != Vector3.zero)
-                {
-                    var toVisitor = chatTarget - pos;
-                    if (toVisitor.sqrMagnitude > 0.01f) rot = Quaternion.Slerp(rot, Quaternion.LookRotation(toVisitor, Vector3.up), z);
-                }
-                cam.SetPositionAndRotation(pos, rot);
                 if (customBar != null) SetCustomLens(customBar.def, StationTables.BarFov, StationTables.BarNear, StationTables.BarFar);
                 else SetLens(StationTables.BarFov, StationTables.BarNear, StationTables.BarFar);
                 if (z > 0f) mainCamera.fieldOfView *= 1f - ChatZoomIn * z;
+                if (z > 0f && chatTarget != Vector3.zero)
+                {
+                    var toVisitor = chatTarget - pos;
+                    toVisitor.y = 0f;
+                    if (toVisitor.sqrMagnitude > 0.01f)
+                    {
+                        // Turn past the visitor by the angle that puts them ChatFrameX of the width from the left.
+                        float halfTanX = Mathf.Tan(mainCamera.fieldOfView * 0.5f * Mathf.Deg2Rad) * mainCamera.aspect;
+                        float past = Mathf.Atan(halfTanX * (1f - 2f * ChatFrameX)) * Mathf.Rad2Deg;
+                        var e = rot.eulerAngles;
+                        float yaw = Mathf.Atan2(toVisitor.x, toVisitor.z) * Mathf.Rad2Deg + past;
+                        rot = Quaternion.Euler(e.x, Mathf.LerpAngle(e.y, yaw, z), e.z);
+                    }
+                }
+                cam.SetPositionAndRotation(pos, rot);
             }
         }
 
         /// <summary>Remake: the bar camera's zoom toward the visitor talked to (the share of the field of view taken off), eased
         /// over ChatZoomMs.</summary>
         const float ChatZoomIn = 0.25f, ChatZoomMs = 800f;
+        /// <summary>Where the visitor talked to stands across the screen, from the left (0) to the right (1): the middle of
+        /// the room left of the chat window (LoungePanel sets it from the window's place).</summary>
+        public float ChatFrameX = 0.24f;
         int chatVisitor = -1;
         Vector3 chatTarget;
         float chatZoom;

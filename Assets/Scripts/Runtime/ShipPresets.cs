@@ -63,6 +63,9 @@ namespace GoF2Remake.Data
         /// <summary>The slot's preset, or null when it is empty.</summary>
         public static Preset Get(int slot) => slot >= 0 && slot < Slots && Data.slots[slot].ship >= 0 ? Data.slots[slot] : null;
 
+        /// <summary>The hull a slot's preset flies (null: an empty slot, or a hull no longer in the game).</summary>
+        public static World.PlayerHull.Hull HullOf(int slot, Database db) { var p = Get(slot); return p != null ? HullOf(db, p) : null; }
+
         static World.PlayerHull.Hull HullOf(Database db, Preset p)
         {
             var all = World.PlayerHull.All(db);
