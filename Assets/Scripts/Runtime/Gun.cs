@@ -361,6 +361,11 @@ namespace GoF2Remake.Flight
                 if (target == null || target == owner || !target.Alive || target.phased) continue;   // phased: flies through
                 if (Ignores != null && Ignores(target)) continue;
                 if (kind == Kind.ScatterGun ? !InScatterCube(target, b.position - b.velocity) : !target.Contains(b.position - b.velocity)) continue;
+                // Remake: a shot inside a big hull's boxes and a smaller target's cube (a capital ship's turret on its hull)
+                // hits the smaller one. Gun::calcCharacterCollision takes the first target of the list, and the host comes
+                // before its turrets, so most turrets, inside the hull's boxes, couldn't be shot (the hull took it); shots
+                // anywhere else on the hull still hit the hull.
+                if (target.boxes != null && target.boxes.Length > 0) target = SmallerInside(target, probe, targets, frame);
                 var point = b.position;
                 if (target.isAsteroid && KillsAsteroids)
                 {
@@ -374,6 +379,20 @@ namespace GoF2Remake.Flight
                 if (kind == Kind.ScatterGun) { AreaDamage(point, targets, false); Ignited?.Invoke(point); }   // + the burst around
                 return;
             }
+        }
+
+        /// <summary>The first target without hit boxes whose cube holds 'p' (a turret on 'hull'), else 'hull'.</summary>
+        Target SmallerInside(Target hull, Vector3 p, IReadOnlyList<Target> targets, int frame)
+        {
+            for (int t = 0; t < targets.Count; t++)
+            {
+                var o = targets[t];
+                if ((object)o == null || o == hull || (o.boxes != null && o.boxes.Length > 0) || !o.MayContain(p, frame)) continue;
+                if (o == null || o == owner || !o.Alive || o.phased || o.isAsteroid) continue;
+                if (Ignores != null && Ignores(o)) continue;
+                if (o.Contains(p)) return o;
+            }
+            return hull;
         }
 
         /// <summary>Scatter guns: the hit cube grows with the shooter's distance to the target (a proximity fuse).</summary>
