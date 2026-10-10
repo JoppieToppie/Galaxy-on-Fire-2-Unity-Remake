@@ -1295,5 +1295,7 @@
  "mpTradeWaitingCmd": "{0} vuole fare uno scambio con te: /trade accept o /trade decline.",
  "mpTradeNoRequest": "Nessuna richiesta di scambio in attesa.",
  "mpTradeNone": "Non stai facendo scambi.",
- "kaamoMoveEquipment": "Trasferire l'equipaggiamento sulla nuova nave?\n\nSì: viene montato sulla nuova nave (ciò che non ci sta va nella stiva).\nNo: resta sulla tua {0} al Kaamo Club."
+ "kaamoMoveEquipment": "Trasferire l'equipaggiamento sulla nuova nave?\n\nSì: viene montato sulla nuova nave (ciò che non ci sta va nella stiva).\nNo: resta sulla tua {0} al Kaamo Club.",
+ "dyingCargoMarkers": "Indicatori di recupero sulle navi morenti",
+ "dyingCargoMarkersHelp": "Una nave con un carico mostra gli indicatori del container mentre precipita prima di esplodere, come nell'originale. Disattivato: nessun indicatore; puntala e il raggio traente attira comunque il suo carico."
 }

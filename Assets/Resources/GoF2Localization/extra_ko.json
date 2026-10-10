@@ -1295,5 +1295,7 @@
  "mpTradeWaitingCmd": "{0}이(가) 거래를 원합니다: /trade accept 또는 /trade decline.",
  "mpTradeNoRequest": "대기 중인 거래 요청이 없습니다.",
  "mpTradeNone": "거래 중이 아닙니다.",
- "kaamoMoveEquipment": "장비를 새 함선으로 옮기시겠습니까?\n\n예: 새 함선에 장착됩니다(들어가지 않는 것은 화물칸으로 갑니다).\n아니요: Kaamo 클럽에 있는 당신의 {0}에 남습니다."
+ "kaamoMoveEquipment": "장비를 새 함선으로 옮기시겠습니까?\n\n예: 새 함선에 장착됩니다(들어가지 않는 것은 화물칸으로 갑니다).\n아니요: Kaamo 클럽에 있는 당신의 {0}에 남습니다.",
+ "dyingCargoMarkers": "파괴 중인 함선의 회수 표시",
+ "dyingCargoMarkersHelp": "화물을 실은 함선은 폭발 전에 회전하는 동안 컨테이너 표시를 보여 줍니다(원작과 동일). 끄기: 표시 없음. 조준하면 트랙터 빔이 여전히 화물을 끌어옵니다."
 }

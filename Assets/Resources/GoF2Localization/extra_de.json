@@ -1295,5 +1295,7 @@
  "mpTradeWaitingCmd": "{0} möchte mit dir handeln: /trade accept oder /trade decline.",
  "mpTradeNoRequest": "Keine Handelsanfrage wartet.",
  "mpTradeNone": "Du handelst gerade nicht.",
- "kaamoMoveEquipment": "Deine Ausrüstung auf das neue Schiff übertragen?\n\nJa: Sie wird auf dem neuen Schiff montiert (was nicht passt, kommt in den Frachtraum).\nNein: Sie bleibt auf deiner {0} im Kaamo Club."
+ "kaamoMoveEquipment": "Deine Ausrüstung auf das neue Schiff übertragen?\n\nJa: Sie wird auf dem neuen Schiff montiert (was nicht passt, kommt in den Frachtraum).\nNein: Sie bleibt auf deiner {0} im Kaamo Club.",
+ "dyingCargoMarkers": "Bergungsmarker an sterbenden Schiffen",
+ "dyingCargoMarkersHelp": "Ein Schiff mit Fracht zeigt die Container-Marker, während es vor der Explosion trudelt, wie im Original. Aus: keine Marker; zielst du darauf, zieht der Traktorstrahl seine Fracht trotzdem heran."
 }

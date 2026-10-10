@@ -1295,5 +1295,7 @@
  "mpTradeWaitingCmd": "{0} quiere comerciar contigo: /trade accept o /trade decline.",
  "mpTradeNoRequest": "No hay ninguna solicitud de comercio pendiente.",
  "mpTradeNone": "No estás comerciando.",
- "kaamoMoveEquipment": "¿Pasar tu equipo a la nueva nave?\n\nSí: se monta en la nueva nave (lo que no quepa va a la bodega).\nNo: se queda en tu {0} en el Kaamo Club."
+ "kaamoMoveEquipment": "¿Pasar tu equipo a la nueva nave?\n\nSí: se monta en la nueva nave (lo que no quepa va a la bodega).\nNo: se queda en tu {0} en el Kaamo Club.",
+ "dyingCargoMarkers": "Marcadores de rescate en naves moribundas",
+ "dyingCargoMarkersHelp": "Una nave con carga muestra los marcadores de contenedor mientras gira antes de explotar, como en el original. Desactivado: sin marcadores; apunta a ella y el rayo tractor sigue atrayendo su carga."
 }

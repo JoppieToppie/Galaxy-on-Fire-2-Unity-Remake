@@ -170,9 +170,10 @@ namespace GoF2Remake.UI
                         // Radar::draw skips inactive players: a sleeping ship (KIPlayer::setToSleep) has no marker until it
                         // wakes, e.g. a pirate outpost until an enemy comes within its +-50 000 box.
                         // A fighter dying with cargo (KIPlayer+0x48): the crate markers until it explodes; without cargo none.
+                        // Remake option (Settings.DyingCargoMarkers): none at all.
                         if (s.DyingWithCargo && !s.Gone && !s.Hidden && !s.RadarHidden)
                         {
-                            DrawCrate(Get(s), s.transform.position, s.Race == Standing.Void, cam, origin, centre);
+                            if (Settings.DyingCargoMarkers) DrawCrate(Get(s), s.transform.position, s.Race == Standing.Void, cam, origin, centre);
                             continue;
                         }
                         if (s.Gone || !s.Target.Alive || s.Hidden || s.Asleep || s.RadarHidden || s.DockingType > 0) continue;

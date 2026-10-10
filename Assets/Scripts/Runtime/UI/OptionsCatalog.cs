@@ -334,6 +334,10 @@ namespace GoF2Remake.UI
                 () => Settings.ShowStoryStep, v => Settings.ShowStoryStep = v);
             storyStep.description = () => X("showStoryStepHelp", "The current story step at the bottom right of the screen. Handy for bug reports.");
             list.Add(storyStep);
+            var dyingCargo = Toggle("dyingCargoMarkers", OptionPage.Gameplay, () => X("dyingCargoMarkers", "Salvage markers on dying ships"),
+                () => Settings.DyingCargoMarkers, v => Settings.DyingCargoMarkers = v);
+            dyingCargo.description = () => X("dyingCargoMarkersHelp", "A ship carrying cargo shows the container markers while it tumbles before exploding, as in the original. Off: no markers; aim at it and the tractor beam still pulls its cargo.");
+            list.Add(dyingCargo);
             var pirateEvents = Toggle("pirateEvents", OptionPage.Gameplay, () => X("pirateEvents", "Pirate outposts and bosses"),
                 () => Settings.PirateEvents, v => Settings.PirateEvents = v);
             pirateEvents.description = () => X("pirateEventsHelp", "Now and then an orbit holds a pirate outpost with its guards or a pirate boss with escorts; destroying them pays a bounty. Not in the original.");

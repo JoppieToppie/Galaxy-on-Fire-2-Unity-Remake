@@ -191,6 +191,9 @@ namespace GoF2Remake.Data
         /// <summary>The ship lock as the original picks it (Radar::draw: the first ship of the list in the box, any faction,
         /// and any completed lock replaces the old one); off (default) = the remake's smarter lock (CombatRadar).</summary>
         public static bool OriginalTargetLock { get => GetBool("originalTargetLock", false); set => SetBool("originalTargetLock", value); }
+        /// <summary>The crate markers on a ship dying with cargo (Radar::draw, the original's; NpcShip.DyingWithCargo). Off
+        /// (players' suggestion, for realism): no markers; aimed at, it is still salvage for the tractor beam.</summary>
+        public static bool DyingCargoMarkers { get => GetBool("dyingCargoMarkers", true); set => SetBool("dyingCargoMarkers", value); }
         public static bool PirateEvents { get => GetBool("pirateEvents", true); set => SetBool("pirateEvents", value); }
         /// <summary>Remake (players' suggestion): the Kaamo Club mechanics sell their upgrade again, the price doubling per
         /// level (LoungeChat.ModPrice); off = the original's one of each. Levels already fitted stay either way.</summary>
@@ -264,7 +267,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GameplayKeys =
         {
             "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoKeepsEquipment", "informerOriginalRule",
-            "originalTargetLock", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "discordPresence",
+            "originalTargetLock", "dyingCargoMarkers", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "discordPresence",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
 

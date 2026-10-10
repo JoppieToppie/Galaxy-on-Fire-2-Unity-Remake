@@ -1295,5 +1295,7 @@
  "mpTradeWaitingCmd": "{0} wil met je handelen: /trade accept of /trade decline.",
  "mpTradeNoRequest": "Er wacht geen handelsverzoek.",
  "mpTradeNone": "Je bent niet aan het handelen.",
- "kaamoMoveEquipment": "Je uitrusting naar het nieuwe schip overzetten?\n\nJa: ze wordt op het nieuwe schip gemonteerd (wat niet past, gaat naar het vrachtruim).\nNee: ze blijft op je {0} in de Kaamo Club."
+ "kaamoMoveEquipment": "Je uitrusting naar het nieuwe schip overzetten?\n\nJa: ze wordt op het nieuwe schip gemonteerd (wat niet past, gaat naar het vrachtruim).\nNee: ze blijft op je {0} in de Kaamo Club.",
+ "dyingCargoMarkers": "Bergingsmarkeringen op stervende schepen",
+ "dyingCargoMarkersHelp": "Een schip met vracht toont de containermarkeringen terwijl het voor de explosie tolt, zoals in het origineel. Uit: geen markeringen; richt erop en de trekstraal haalt de vracht nog steeds binnen."
 }

@@ -1295,5 +1295,7 @@
  "mpTradeWaitingCmd": "{0} veut échanger avec toi : /trade accept ou /trade decline.",
  "mpTradeNoRequest": "Aucune demande d'échange en attente.",
  "mpTradeNone": "Tu n'es pas en train d'échanger.",
- "kaamoMoveEquipment": "Transférer votre équipement sur le nouveau vaisseau ?\n\nOui : il est monté sur le nouveau vaisseau (ce qui ne rentre pas va dans la soute).\nNon : il reste sur votre {0} au Kaamo Club."
+ "kaamoMoveEquipment": "Transférer votre équipement sur le nouveau vaisseau ?\n\nOui : il est monté sur le nouveau vaisseau (ce qui ne rentre pas va dans la soute).\nNon : il reste sur votre {0} au Kaamo Club.",
+ "dyingCargoMarkers": "Marqueurs de récupération sur les vaisseaux mourants",
+ "dyingCargoMarkersHelp": "Un vaisseau transportant une cargaison affiche les marqueurs de conteneur pendant qu'il tournoie avant d'exploser, comme dans l'original. Désactivé : aucun marqueur ; visez-le et le rayon tracteur attire toujours sa cargaison."
 }

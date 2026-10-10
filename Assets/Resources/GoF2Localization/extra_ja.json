@@ -1295,5 +1295,7 @@
  "mpTradeWaitingCmd": "{0}があなたとの取引を希望しています：/trade accept または /trade decline。",
  "mpTradeNoRequest": "保留中の取引申請はありません。",
  "mpTradeNone": "取引していません。",
- "kaamoMoveEquipment": "装備を新しい船に移しますか？\n\nはい：新しい船に装備します（入りきらない物は貨物室へ）。\nいいえ：Kaamoクラブにあるあなたの{0}に残ります。"
+ "kaamoMoveEquipment": "装備を新しい船に移しますか？\n\nはい：新しい船に装備します（入りきらない物は貨物室へ）。\nいいえ：Kaamoクラブにあるあなたの{0}に残ります。",
+ "dyingCargoMarkers": "撃沈中の艦の回収マーカー",
+ "dyingCargoMarkersHelp": "積荷を持つ艦は爆発前に回転している間、コンテナのマーカーを表示します（オリジナルと同じ）。オフ：マーカーなし。狙えばトラクタービームで積荷を引き寄せられます。"
 }
