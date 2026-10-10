@@ -50,7 +50,7 @@ namespace GoF2Remake.UI
         // The lock plate as last built (Update).
         Target plateTarget;
         int platePct = -1, plateRace = int.MinValue;
-        string plateName;
+        string plateName, plateText;
         Texture2D plateIcon;
         readonly MarkerTextures[] factionTextures = new MarkerTextures[3];
 
@@ -212,13 +212,16 @@ namespace GoF2Remake.UI
                     lockPlate.EnableInClassList("lock-plate--shown", true);
                     // Radar::drawCurrentLock 0x158548: "<name or race> NN%"; the Hijacker / the Informer their name alone; a Most
                     // Wanted criminal in its own colour.
-                    // Built again only when something on it changed (every frame allocated the text and the icon's name).
+                    // Built again only when something on it changed (every frame allocated the text and the icon's name), or
+                    // when the mining / navigation view wrote its own text on the shared plate meanwhile (an asteroid's ore or a
+                    // planet's name stayed on the ship's plate).
                     int pct = Mathf.RoundToInt(locked.HullFraction * 100f);
-                    if (locked != plateTarget || pct != platePct || locked.displayName != plateName || locked.race != plateRace)
+                    if (locked != plateTarget || pct != platePct || locked.displayName != plateName || locked.race != plateRace || lockOre.text != plateText)
                     {
                         plateTarget = locked; platePct = pct; plateName = locked.displayName; plateRace = locked.race;
                         string who = string.IsNullOrEmpty(locked.displayName) ? RaceName(locked.race) : locked.displayName;
                         lockOre.text = locked.plateNameOnly && !string.IsNullOrEmpty(locked.displayName) ? locked.displayName : $"{who} {pct}%";
+                        plateText = lockOre.text;
                         plateIcon = !locked.plateNoIcon && (locked.race >= 0 && locked.race <= 3 || locked.race == 8 || locked.race == 9) ? Tex($"race_{locked.race}") : null;
                     }
                     lockOre.EnableInClassList("lock-ore--wanted", locked.plateWanted);

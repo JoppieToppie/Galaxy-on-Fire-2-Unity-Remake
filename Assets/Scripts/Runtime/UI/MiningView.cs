@@ -214,18 +214,21 @@ namespace GoF2Remake.UI
                 // Remake: with a mining beam, how much of the rock it has cut.
                 float cut = mining.BeamProgress(target);
                 int pct = cut >= 0f ? Mathf.FloorToInt(cut * 100f) : -1;
-                if (target.oreItem != plateOre || pct != platePct)
+                if (target.oreItem != plateOre || pct != platePct || lockOre.text != plateText)
                 {
-                    // Built only when it changes (the percentage string allocated every frame).
+                    // Built only when it changes (the percentage string allocated every frame), or when another view wrote
+                    // the shared plate meanwhile.
                     plateOre = target.oreItem;
                     platePct = pct;
                     lockOre.text = pct >= 0 ? $"{ItemInfo.ItemName(plateOre)}  {pct}%" : ItemInfo.ItemName(plateOre);
+                    plateText = lockOre.text;
                 }
             }
             else plateOre = -2;
         }
 
         int plateOre = -2, platePct = -2;
+        string plateText;
 
         // ---- minigame ------------------------------------------------------------------------------------------
 
