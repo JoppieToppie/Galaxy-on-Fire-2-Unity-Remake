@@ -459,6 +459,7 @@ namespace GoF2Remake.Flight
 
         void LateUpdate()
         {
+            if (InputHalted) lastHaltedFrame = Time.frameCount;
             // dockToPlanet: TargetFollowCamera look-at mode, the camera stays put and keeps looking at the ship.
             if (!Jumping) return;
             var cam = Camera.main;
@@ -656,6 +657,12 @@ namespace GoF2Remake.Flight
         /// a menu, conversation or map is open (the world goes on there).</summary>
         public static bool InputHalted => Time.timeScale <= 0f || (GoF2Remake.Multiplayer.NetGame.Active && (halted || GoF2Remake.UI.MultiplayerWindow.IsOpenAny))
                                           || GoF2Remake.Events.EventScreen.QuestionOpen;   // an event's question (multiplayer)
+
+        /// <summary>Remake (#85): the flight controls' presses wait while a menu, conversation or map halts them and for the frame
+        /// after it closes: the press that closed it (A on Resume, a menu entry) went on to boost, as the ship's controls run
+        /// later in that frame. Steering reads the stick's state and needs no guard.</summary>
+        public static bool PressesBlocked => InputHalted || Time.frameCount - lastHaltedFrame <= 1;
+        static int lastHaltedFrame = -10;
 
         void OnDestroy() { halted = false; MusicPaused = false; if (!GoF2Remake.Multiplayer.NetGame.Active) AudioListener.pause = false; }
 

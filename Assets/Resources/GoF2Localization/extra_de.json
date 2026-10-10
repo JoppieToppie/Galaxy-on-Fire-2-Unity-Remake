@@ -1294,5 +1294,6 @@
  "mpCmdTrade": "handelt Credits und Fracht mit einem an deiner Station angedockten Piloten",
  "mpTradeWaitingCmd": "{0} möchte mit dir handeln: /trade accept oder /trade decline.",
  "mpTradeNoRequest": "Keine Handelsanfrage wartet.",
- "mpTradeNone": "Du handelst gerade nicht."
+ "mpTradeNone": "Du handelst gerade nicht.",
+ "kaamoMoveEquipment": "Deine Ausrüstung auf das neue Schiff übertragen?\n\nJa: Sie wird auf dem neuen Schiff montiert (was nicht passt, kommt in den Frachtraum).\nNein: Sie bleibt auf deiner {0} im Kaamo Club."
 }

@@ -770,6 +770,18 @@ namespace GoF2Remake.UI
             Select(dialogYes);
         }
 
+        /// <summary>Remake (#83): after "Keep" (331), whether the equipment mounted now moves to the new ship (true) or stays on
+        /// the old hull in the Kaamo Club (false); asked only while Settings.KaamoKeepsEquipment would keep it there and
+        /// something movable is mounted (Hangar.KeepAsksAboutEquipment), else 'then(false)' at once.</summary>
+        public void AskMoveEquipment(System.Action<bool> then)
+        {
+            if (!Hangar.KeepAsksAboutEquipment) { then(false); return; }
+            string text = string.Format(Localization.Extra("kaamoMoveEquipment",
+                "Move your equipment to the new ship?\n\nYes: it is mounted on the new ship (what doesn't fit goes to the cargo hold).\nNo: it stays on your {0} in the Kaamo Club."),
+                ItemInfo.ShipName(Session.ShipIndex));
+            ShowChoice(text, Localization.Get(134), Localization.Get(135), () => then(true), () => then(false));
+        }
+
         /// <summary>ChoiceWindow with its own two labels (327: 330 "Sell" / 331 "Keep").</summary>
         public void ShowChoice(string text, string yes, string no, System.Action onYes, System.Action onNo)
         {

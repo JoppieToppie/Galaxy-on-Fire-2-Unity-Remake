@@ -442,7 +442,7 @@ namespace GoF2Remake.Multiplayer
             exhaust = ShipExhaust.AttachRemote(gameObject, Database.Load(), model.transform, index, () => shown && engine.Value && cloak.Value < 25f,
                                                () => boost.Value, () => cloak.Value);
             cloakLook?.Dispose();
-            cloakLook = new World.NpcCloak(model.transform);
+            cloakLook = new World.NpcCloak(model.transform, keepEngine: true);
             if (engineLoop != null) Destroy(engineLoop);
             engineLoop = World.HangarFlight.AddEngine(model, true, Database.Load(), index, out engineVolume);
             if (engineLoop != null) EngineVoices.Setup3D(engineLoop);   // the engine events' rolloff (0.05 .. 500 m) in space

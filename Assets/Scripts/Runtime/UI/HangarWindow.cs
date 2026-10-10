@@ -1151,7 +1151,7 @@ namespace GoF2Remake.UI
                         var k = hangar.CanKeepAndBuyShip(ship, out int missing);
                         if (k == Hangar.Result.AlreadyStored) { menu.ShowDialog(Localization.Get(328), null, true); return; }
                         if (k == Hangar.Result.NoCredits) { menu.ShowToast(Localization.Get(203).Replace("#C", ItemInfo.Credits(missing))); return; }
-                        Reserved(() => hangar.KeepAndBuyShip(ship));
+                        menu.AskMoveEquipment(move => Reserved(() => hangar.KeepAndBuyShip(ship, move)));   // #83
                     }));
                     break;
                 }

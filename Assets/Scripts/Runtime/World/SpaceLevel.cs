@@ -352,7 +352,11 @@ namespace GoF2Remake.World
             Navigation.JumpsBlocked = () => NetArenaClient.InMatch || !Story.PlanetJumpsAllowed || Story.BlocksJumps(Layout.stationIndex, IsStoryOrbit) || (Siege != null && Siege.Active)
                                             || FreelanceBlocks   // a freelance mission's orbit (#32)
                                             || Events.EventRules.NoJumps   // an event's Restrict Travel
-                                            || (!Session.FreePlay && Story.Index == 65 && Layout.stationIndex == 100);   // escorting Khador (MGame::UseKhadorDrive)
+                                            || (!Session.FreePlay && Story.Index == 65 && Layout.stationIndex == 100)   // escorting Khador (MGame::UseKhadorDrive)
+                                            // Remake (#84): at 42 the way out of the alien orbit is the wormhole, which shows the
+                                            // mother ship's explosion; its 0xa0 mission isn't a level mission there (its target is
+                                            // that orbit), so the original's Khador Drive skipped the ending.
+                                            || (!Session.FreePlay && Story.Index == 42 && Layout.stationIndex == Session.VoidOrbit);
             // MGame::UseKhadorDrive 0x1a9480 has no Void rule of its own: the mission gate above (Story.BlocksJumps, 525) is the
             // only refusal, and in the alien orbit the drive returns to Status+0x84 (#26: the remake used to refuse it there
             // through the main story).

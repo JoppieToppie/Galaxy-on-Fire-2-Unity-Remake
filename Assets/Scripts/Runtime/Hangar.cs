@@ -367,13 +367,17 @@ namespace GoF2Remake.Data
         /// mounted on it; this takes it off the flown ship (the new hull then starts bare, or with what its own storage row
         /// kept). Null with the option off: the items move over as in the original. The story's unsaleable items (the jump
         /// drive, a mission's gear) never stay behind: they stay mounted and move to the new hull.</summary>
-        static List<ItemStack> EquipmentToStore()
+        static List<ItemStack> EquipmentToStore(bool moveToNewShip = false)
         {
-            if (!Settings.KaamoKeepsEquipment) return null;
+            if (moveToNewShip || !Settings.KaamoKeepsEquipment) return null;
             var kept = Session.Equipment.Where(e => IsSaleable(e.item)).ToList();
             Session.Equipment = Session.Equipment.Where(e => !IsSaleable(e.item)).ToList();
             return kept;
         }
+
+        /// <summary>Remake (#83): "Keep" asks whether the equipment moves to the new ship (Yes) or stays on the old hull in
+        /// the club (No): only while the option keeps it there and something the player may move is mounted.</summary>
+        public static bool KeepAsksAboutEquipment => Settings.KaamoKeepsEquipment && Session.Equipment.Any(e => IsSaleable(e.item));
 
         /// <summary>The new hull becomes the flown ship: every mounted item moves to the first free slot of its type (in
         /// slot order, secondaries with their ammo), the rest to the hold; the cargo stays with the player. 'mount' = the
@@ -425,13 +429,13 @@ namespace GoF2Remake.Data
             return Result.Ok;
         }
 
-        public bool KeepAndBuyShipFor(int ship, int price)
+        public bool KeepAndBuyShipFor(int ship, int price, bool moveEquipment = false)
         {
             if (CanKeepAndBuyShipFor(ship, price, out _) != Result.Ok) return false;
             int old = Session.ShipIndex;
             var oldMods = Session.ShipMods;
             if (!Cheats.FreeShopping) ChangeCredits(-price);
-            var kept = EquipmentToStore();
+            var kept = EquipmentToStore(moveEquipment);
             SwitchTo(ship, null);
             KaamoClub.Store(old, 0, oldMods, kept);
             return true;
@@ -449,13 +453,13 @@ namespace GoF2Remake.Data
             return Result.Ok;
         }
 
-        public bool KeepAndBuyShip(int ship)
+        public bool KeepAndBuyShip(int ship, bool moveEquipment = false)
         {
             if (CanKeepAndBuyShip(ship, out _) != Result.Ok) return false;
             int old = Session.ShipIndex;
             var oldMods = Session.ShipMods;
             if (!Cheats.FreeShopping) ChangeCredits(-ShipPrice(ship));
-            var kept = EquipmentToStore();
+            var kept = EquipmentToStore(moveEquipment);
             SwitchTo(ship, Stock.TakeMods(ship));   // the bought row's mods (OnTouchEnd: getMods of the row, both branches)
             Stock.ships.Remove(ship);   // the bought row is gone
             GoF2Remake.Multiplayer.NetStock.ShipChanged(Station, ship, -1);

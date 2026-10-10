@@ -5,6 +5,9 @@
 // their animations: the ship's lights go on blinking on the vanishing hull. Only the alpha-blended layers dim, to 50 / 255.
 // The engine glow (`*_engine_glow_add` / `*_engine_add`) hides between 25 % and 100 %. #47: the remake hid every glow
 // layer from 25 %, so a cloaked ship lost its light animations. Shared by PlayerCloak and NpcCloak.
+// #85: the original's cloaked player ships keep their engine glow (the reporter's screenshots of a cloaked VoidX and Phantom:
+// the glow on the vanished hull; the +0x14 child the code hides is the last child added to the ship group, evidently not the
+// glow by then), so the players' ships keep it (KeepEngine); the NPC Specters still hide theirs.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -19,6 +22,8 @@ namespace GoF2Remake.Flight
         readonly List<(Renderer r, Color baseColor)> dimmed = new List<(Renderer, Color)>();
         MaterialPropertyBlock block;
         bool engineHidden, dimmedSet;
+        /// <summary>The engine glow stays on while cloaked (the players' ships, #85).</summary>
+        public bool KeepEngine;
 
         /// <summary>A non-hull renderer of the ship (not lit by the hull shader).</summary>
         public void Add(Renderer r, Transform root)
@@ -43,7 +48,7 @@ namespace GoF2Remake.Flight
         /// <summary>The look at 'pct' (0..100) of the cloak's fade.</summary>
         public void Apply(float pct)
         {
-            bool hide = pct >= 25f;
+            bool hide = pct >= 25f && !KeepEngine;
             if (hide != engineHidden)
             {
                 engineHidden = hide;

@@ -1294,5 +1294,6 @@
  "mpCmdTrade": "handluje kredytami i ładunkiem z pilotem zadokowanym na twojej stacji",
  "mpTradeWaitingCmd": "{0} chce z tobą handlować: /trade accept lub /trade decline.",
  "mpTradeNoRequest": "Nie czeka żadna prośba o handel.",
- "mpTradeNone": "Nie handlujesz."
+ "mpTradeNone": "Nie handlujesz.",
+ "kaamoMoveEquipment": "Przenieść wyposażenie na nowy statek?\n\nTak: zostanie zamontowane na nowym statku (co się nie zmieści, trafi do ładowni).\nNie: zostanie na twoim {0} w Kaamo Club."
 }

@@ -1294,5 +1294,6 @@
  "mpCmdTrade": "comercia créditos y carga con un piloto acoplado en tu estación",
  "mpTradeWaitingCmd": "{0} quiere comerciar contigo: /trade accept o /trade decline.",
  "mpTradeNoRequest": "No hay ninguna solicitud de comercio pendiente.",
- "mpTradeNone": "No estás comerciando."
+ "mpTradeNone": "No estás comerciando.",
+ "kaamoMoveEquipment": "¿Pasar tu equipo a la nueva nave?\n\nSí: se monta en la nueva nave (lo que no quepa va a la bodega).\nNo: se queda en tu {0} en el Kaamo Club."
 }

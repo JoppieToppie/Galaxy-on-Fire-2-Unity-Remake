@@ -401,7 +401,7 @@ namespace GoF2Remake.Flight
             if (primaryHeld && FireClaimed != null && FireClaimed()) primaryHeld = false;   // the mining beam
             if (!halted && !TurretView && useBuiltInInput && fireSecondaryAction.WasReleasedThisFrame() && !secondaryLatched) FireSecondary();
             if (!secondaryPressed) secondaryLatched = false;
-            if (!halted && useBuiltInInput && cycleSecondaryAction.WasPressedThisFrame()) CycleSecondary();
+            if (!Navigation.PressesBlocked && useBuiltInInput && cycleSecondaryAction.WasPressedThisFrame()) CycleSecondary();
 
             if (liberator != null) UpdateLiberator(dtMs);
             var cam = Camera.main;

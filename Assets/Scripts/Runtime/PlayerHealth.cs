@@ -261,8 +261,9 @@ namespace GoF2Remake.Flight
         {
             int st = Session.StationIndex, cm = Session.CampaignMission;
             float[] early = { 0.7f, 0.4f, 0.4f, 0.3f, 0.2f }, mid = { 3f, 2f, 1f, 0.5f, 0.3f };
-            // Remake multiplayer: no gamma rays in the completed world (the original keeps 1/s at Naneroh after the story).
-            float rate = st < 109 || st > 113 || Session.CompletedWorld ? 0f : cm < 106 ? early[st - 109] : cm < 158 ? mid[st - 109] : st == 109 ? 1f : 0f;
+            // After the story only Naneroh keeps 1/s; also the multiplayer's completed world (index 162: #80, players asked for
+            // the original's rays back there; the remake had none at all).
+            float rate = st < 109 || st > 113 ? 0f : cm < 106 ? early[st - 109] : cm < 158 ? mid[st - 109] : st == 109 ? 1f : 0f;
             var gammaShield = Shop.FirstMounted(db, 38);
             if (rate > 0f && gammaShield != null) rate *= (100 - gammaShield.Attr(52)) / 100f;
             gammaRate = rate;
@@ -294,7 +295,6 @@ namespace GoF2Remake.Flight
         {
             if (assets == null || (assets.gammaBlazeFlames == null && assets.gammaBlazeGlow == null) || Shop.FirstMounted(db, 38) == null) return;
             int st = Session.StationIndex;
-            if (Session.CompletedWorld) return;   // no gamma rays there (SetupGamma)
             if (!Shop.InSupernovaSystem(Shop.SystemOf(db, st), st) && st != 109) return;
             blazeLevel = FindAnyObjectByType<GoF2Remake.World.SpaceLevel>();
             if (blazeLevel == null || blazeLevel.Layout == null) return;

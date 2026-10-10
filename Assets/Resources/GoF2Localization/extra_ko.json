@@ -1294,5 +1294,6 @@
  "mpCmdTrade": "스테이션에 도킹한 파일럿과 크레딧과 화물을 거래",
  "mpTradeWaitingCmd": "{0}이(가) 거래를 원합니다: /trade accept 또는 /trade decline.",
  "mpTradeNoRequest": "대기 중인 거래 요청이 없습니다.",
- "mpTradeNone": "거래 중이 아닙니다."
+ "mpTradeNone": "거래 중이 아닙니다.",
+ "kaamoMoveEquipment": "장비를 새 함선으로 옮기시겠습니까?\n\n예: 새 함선에 장착됩니다(들어가지 않는 것은 화물칸으로 갑니다).\n아니요: Kaamo 클럽에 있는 당신의 {0}에 남습니다."
 }

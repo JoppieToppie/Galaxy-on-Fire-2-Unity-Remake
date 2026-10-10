@@ -209,7 +209,7 @@ namespace GoF2Remake.Flight
             var mouseSteer = !inputLocked ? ReadMouseSteer() : Vector2.zero;
             if (mouseSteer.sqrMagnitude > steer.sqrMagnitude) steer = mouseSteer;
             // Remake: a motion controller's gyro (ControllerGyro); Level out re-centres it.
-            if (useBuiltInInput && !inputLocked && GameControls.LevelOut.WasPressedThisFrame()) ControllerGyro.Recenter();
+            if (useBuiltInInput && !inputLocked && !Navigation.PressesBlocked && GameControls.LevelOut.WasPressedThisFrame()) ControllerGyro.Recenter();
             var gyroSteer = useBuiltInInput && !inputLocked && autopilotTarget == null ? ControllerGyro.Steer(Time.timeScale > 0f ? Time.unscaledDeltaTime : 0f) : Vector2.zero;
             // Added to the other steering (it was the stronger of the two: a tilted controller held the stick off).
             if (gyroSteer != Vector2.zero) steer = new Vector2(Mathf.Clamp(steer.x + gyroSteer.x, -1f, 1f), Mathf.Clamp(steer.y + gyroSteer.y, -1f, 1f));
@@ -274,6 +274,7 @@ namespace GoF2Remake.Flight
         // alone in free look, where the right stick turns the camera.
         void ReadDodgeInput()
         {
+            if (Navigation.PressesBlocked) return;   // a menu's press (#85)
             if (GameControls.DodgeLeft.WasPressedThisFrame() && !StickInFreeLook(GameControls.DodgeLeft)) RequestDodge(1);
             if (GameControls.DodgeRight.WasPressedThisFrame() && !StickInFreeLook(GameControls.DodgeRight)) RequestDodge(2);
         }
@@ -294,8 +295,11 @@ namespace GoF2Remake.Flight
             if (Mathf.Abs(throttle) > 0.01f) Model.ChangeThrottle(throttle * throttleChangePerSecond * Time.deltaTime);
             // Brake (S): the engines stop while it is held (FlightModel.Braking); a boost overrides it until it is pressed again.
             bool brake = GameControls.Brake.IsPressed();
+            // Presses wait while a menu holds the controls and on the frame it closes (#85: A in the pause, autopilot and quick
+            // menus boosted the ship).
+            bool presses = !Navigation.PressesBlocked;
             if (!brake) brakeOverridden = false;
-            if (brake && GameControls.Boost.WasPressedThisFrame()) brakeOverridden = true;
+            if (presses && brake && GameControls.Boost.WasPressedThisFrame()) brakeOverridden = true;
             Model.Braking = brake && !brakeOverridden;
             // The wheel: +- thrust, 10 % a notch (not while it zooms the free-look camera).
             var mouse = Mouse.current;
@@ -305,8 +309,8 @@ namespace GoF2Remake.Flight
                 float wheel = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(wheel) > 0.01f) Model.ChangeThrottle(Mathf.Sign(wheel) * 0.1f);
             }
-            if (GameControls.Boost.WasPressedThisFrame()) Model.Boost();
-            if (GameControls.LevelOut.WasPressedThisFrame()) Model.AlignToHorizon();
+            if (presses && GameControls.Boost.WasPressedThisFrame()) Model.Boost();
+            if (presses && GameControls.LevelOut.WasPressedThisFrame()) Model.AlignToHorizon();
             return Vector2.ClampMagnitude(GameControls.Steer.ReadValue<Vector2>(), 1f);
         }
 

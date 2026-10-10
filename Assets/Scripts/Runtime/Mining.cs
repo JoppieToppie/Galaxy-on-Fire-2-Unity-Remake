@@ -192,7 +192,7 @@ namespace GoF2Remake.Flight
                     }
                     // MGame::OnTouchBegin key 2: the booster works until the minigame exists (PlayerEgo::isMining is the
                     // MiningGame, +0x1e4), so on the way in and the landing too; the ship's own input is off meanwhile.
-                    if (!Navigation.InputHalted && GameControls.Boost.WasPressedThisFrame()) ship.Boost();
+                    if (!Navigation.PressesBlocked && GameControls.Boost.WasPressedThisFrame()) ship.Boost();
                     Approach(dtMs);
                     break;
                 case Phase.Mining: UpdateMining(dtMs); break;

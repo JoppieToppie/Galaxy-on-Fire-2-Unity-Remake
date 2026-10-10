@@ -161,6 +161,11 @@
     display: none;
 }
 
+/* PlayerEgo::draw: none on the autopilot (FlightHud.UpdateCrosshair; its place still holds the gauge and the rings). */
+.crosshair--autopilot {
+    opacity: 0;
+}
+
 /* the plasma collectors' turret view: 0x1f5d (gof2_interface3.png, 214 px) */
 .crosshair--plasma,
 .crosshair--plasma.crosshair--hit {

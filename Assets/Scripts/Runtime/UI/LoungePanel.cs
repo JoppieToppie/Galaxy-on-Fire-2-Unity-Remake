@@ -270,9 +270,9 @@ namespace GoF2Remake.UI
                     // choice (#31), only with the Kaamo Club owned 327 asks "sell your old ship or keep it" (330 / 331); the
                     // turntable's ship swapped, toast 303.
                     var current = chat;
-                    void Trade(bool keep)
+                    void Trade(bool keep, bool move = false)
                     {
-                        string refusal = current.ConfirmShipTrade(keep);
+                        string refusal = current.ConfirmShipTrade(keep, move);
                         if (refusal != null) { menu.ShowDialog(refusal, null, true); return; }
                         level.ReplacePlayerShip(Session.ShipIndex);
                         if (keep) level.RefreshParkedShips();
@@ -280,7 +280,8 @@ namespace GoF2Remake.UI
                         AfterDeal(current);
                     }
                     if (KaamoClub.Owned)
-                        menu.ShowChoice(Localization.Get(327), Localization.Get(330), Localization.Get(331), () => Trade(false), () => Trade(true));
+                        menu.ShowChoice(Localization.Get(327), Localization.Get(330), Localization.Get(331), () => Trade(false),
+                            () => menu.AskMoveEquipment(move => Trade(true, move)));   // #83
                     else Trade(false);
                     return;
                 }

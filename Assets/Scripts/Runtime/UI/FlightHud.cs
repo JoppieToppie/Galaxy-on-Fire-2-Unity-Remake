@@ -1423,6 +1423,10 @@ namespace GoF2Remake.UI
             crosshair.EnableInClassList("crosshair--plasma-in", collector && level.GasClouds != null && level.GasClouds.PlasmaInRange);
             bool visible = Vector3.Dot(aim - cam.transform.position, cam.transform.forward) > 0f;
             crosshair.EnableInClassList("crosshair--hidden", !visible);
+            // PlayerEgo::draw 0xae4d0: on the autopilot (+0x158, setAutoPilot) only the throttle is drawn, no crosshair,
+            // except in the turret view (#85: the remake kept it). Transparent, not hidden: the throttle gauge and the lock
+            // rings still take its place.
+            crosshair.EnableInClassList("crosshair--autopilot", nav != null && nav.Autopilot && !turretView);
             if (!visible) return;
             var p = RuntimePanelUtils.CameraTransformWorldToPanel(crosshair.panel, aim, cam);
             var parent = crosshair.parent.worldBound;

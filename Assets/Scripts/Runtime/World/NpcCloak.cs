@@ -46,8 +46,10 @@ namespace GoF2Remake.World
         float totalMs, elapsedMs, rollMs;
         bool swapped;
 
-        public NpcCloak(Transform model)
+        /// <param name="keepEngine">another player's ship: its engine glow stays on like the local player's (#85)</param>
+        public NpcCloak(Transform model, bool keepEngine = false)
         {
+            glow.KeepEngine = keepEngine;
             if (model == null) return;
             var assets = CombatAssets.Load();
             var shader = assets != null ? assets.cloakShader : null;

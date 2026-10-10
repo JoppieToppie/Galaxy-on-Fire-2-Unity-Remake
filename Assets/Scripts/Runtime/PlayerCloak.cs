@@ -42,7 +42,7 @@ namespace GoF2Remake.Flight
         AudioSource sfx;
         static InputAction action => GameControls.Cloak;   // rebindable (C / right stick press)
         readonly List<(Renderer r, Material[] original, Material[] cloak)> hull = new List<(Renderer, Material[], Material[])>();
-        readonly CloakGlow glow = new CloakGlow();
+        readonly CloakGlow glow = new CloakGlow { KeepEngine = true };   // #85: the engine glow stays
         bool swapped;
 
         public static bool HasCloak(Database db, int ship) =>

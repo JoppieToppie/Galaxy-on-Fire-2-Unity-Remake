@@ -498,7 +498,7 @@ namespace GoF2Remake.Data
 
         /// <summary>Remake, AgentOffer.SellShip after the confirmation: 'keep' = 331 (the old hull to the Kaamo Club, the full
         /// price), else the trade-in (the seller takes the old hull). Null when bought, else the refusal (328 / 203 / 336).</summary>
-        public string ConfirmShipTrade(bool keep)
+        public string ConfirmShipTrade(bool keep, bool moveEquipment = false)
         {
             var a = Agent;
             var h = TradeHangar();
@@ -508,7 +508,7 @@ namespace GoF2Remake.Data
             if (r == Hangar.Result.Passengers) return T(336);
             if (r == Hangar.Result.SameShip) return T(329);
             if (r == Hangar.Result.NoCredits) return T(203).Replace("#C", C(need));
-            if (!(keep ? h.KeepAndBuyShipFor(a.sellShip, a.sellPrice) : h.BuyShipFor(a.sellShip, a.sellPrice))) return T(858);
+            if (!(keep ? h.KeepAndBuyShipFor(a.sellShip, a.sellPrice, moveEquipment) : h.BuyShipFor(a.sellShip, a.sellPrice))) return T(858);
             a.accepted = true;
             BoughtShip = true;
             Text = T(850 + Random.Range(0, 3));

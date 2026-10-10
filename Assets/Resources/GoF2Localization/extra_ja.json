@@ -1294,5 +1294,6 @@
  "mpCmdTrade": "ステーションにドッキング中のパイロットとクレジットや貨物を取引",
  "mpTradeWaitingCmd": "{0}があなたとの取引を希望しています：/trade accept または /trade decline。",
  "mpTradeNoRequest": "保留中の取引申請はありません。",
- "mpTradeNone": "取引していません。"
+ "mpTradeNone": "取引していません。",
+ "kaamoMoveEquipment": "装備を新しい船に移しますか？\n\nはい：新しい船に装備します（入りきらない物は貨物室へ）。\nいいえ：Kaamoクラブにあるあなたの{0}に残ります。"
 }

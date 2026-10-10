@@ -1294,5 +1294,6 @@
  "mpCmdTrade": "troca créditos e carga com um piloto atracado na sua estação",
  "mpTradeWaitingCmd": "{0} quer trocar com você: /trade accept ou /trade decline.",
  "mpTradeNoRequest": "Nenhum pedido de troca esperando.",
- "mpTradeNone": "Você não está trocando."
+ "mpTradeNone": "Você não está trocando.",
+ "kaamoMoveEquipment": "Transferir seu equipamento para a nova nave?\n\nSim: ele é instalado na nova nave (o que não couber vai para o compartimento de carga).\nNão: ele fica na sua {0} no Kaamo Club."
 }
