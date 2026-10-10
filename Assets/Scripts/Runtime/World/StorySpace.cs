@@ -164,7 +164,6 @@ namespace GoF2Remake.World
             level.Traffic.QueueLine(0xc61 + 2 * k, 0, $"CARLA_ANNOYING_CALL_{k}_1");
         }
 
-        static readonly int[] FreighterStations = { 15, 30, 40, 45, 60, 70, 80, 85, 95 };
         bool decoyChecked;
 
         /// <summary>MGame::OnInitialize at index 125 (campaign_levels_c.md 3.5): a freighter mission station not scanned yet
@@ -173,7 +172,7 @@ namespace GoF2Remake.World
         {
             if (decoyChecked || Story.Index != 125 || level.Traffic == null || levelMs < 1500f) return;
             decoyChecked = true;
-            int bit = System.Array.IndexOf(FreighterStations, level.Layout.stationIndex);
+            int bit = System.Array.IndexOf(Story.FreighterStations, level.Layout.stationIndex);
             if (bit < 0 || (Story.Mission.value & (1 << bit)) != 0) return;
             Story.Mission.value |= 1 << bit;
             int a = 0xaf4 + UnityEngine.Random.Range(0, 4), b = 0xafa + UnityEngine.Random.Range(0, 4);

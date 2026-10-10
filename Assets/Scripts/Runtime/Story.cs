@@ -79,13 +79,34 @@ namespace GoF2Remake.Data
 
         /// <summary>StarMap::drawOnScreenInfo: the stations the map marks with the story icon. Type 0xa3 (step 59, the arms
         /// convoy) marks every target of Status+0x90 not yet done (done ones are negative) instead of the mission's own
-        /// station (101 Valkyrie / system 23, skipped at 0x3b); else the target station.</summary>
+        /// station (101 Valkyrie / system 23, skipped at 0x3b); else the target station.
+        /// StarMap::drawOnScreenInfo / Radar::draw also mark: at 116 the Pescal Inartu bars not searched yet (the mission
+        /// value's bits, StationMenu.SpecialLounge), at 120 only Maissa (93), where the K'mirrk Toad Mutagen goes (the
+        /// level's own orbit, Valadon, isn't marked), at 125 the freighter stations not scanned yet; and the target isn't
+        /// marked at 52, 128, 130 and 148-151. The remake marked the plain target at every step until 2026-10.</summary>
         public static bool MapMarks(int station)
         {
-            if (station < 0) return false;
-            if (Mission != null && Mission.type == StoryType.TargetList) return Session.StoryTargets.Contains(station);
+            if (station < 0 || Mission == null) return false;
+            int v = Mission.value;
+            if (Index == 116)
+            {
+                int slot = station == 94 ? 3 : station >= 90 && station <= 92 ? station - 90 : -1;
+                if (slot >= 0 && (v & (1 << slot)) == 0) return true;
+            }
+            if (Index == 120) return station == 93;
+            if (Index == 125)
+            {
+                int bit = System.Array.IndexOf(FreighterStations, station);
+                if (bit >= 0 && (v & (1 << bit)) == 0) return true;
+            }
+            if (Mission.type == StoryType.TargetList) return Session.StoryTargets.Contains(station);
+            if (Index == 52 || Index == 128 || Index == 130 || (Index >= 148 && Index <= 151)) return false;
             return station == TargetStation;
         }
+
+        /// <summary>Status::isFreighterMissionStation: the stations of step 125's decoy freighters, in the order of their bit
+        /// in the mission value (the remake's order; StorySpace sets them).</summary>
+        public static readonly int[] FreighterStations = { 15, 30, 40, 45, 60, 70, 80, 85, 95 };
 
         /// <summary>The station the Missions window's map centres on: step 59's first remaining convoy target, else the
         /// target station.</summary>
@@ -95,6 +116,7 @@ namespace GoF2Remake.Data
             {
                 if (Mission != null && Mission.type == StoryType.TargetList)
                     foreach (int t in Session.StoryTargets) if (t >= 0) return t;
+                if (Index == 120) return 93;   // Maissa, like the map's story icon (MapMarks)
                 return TargetStation;
             }
         }

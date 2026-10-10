@@ -9,7 +9,9 @@
 //   an asteroid touched            + 0.2 (PlayerEgo::calcCollision)
 //   force >= 1, not invulnerable   Player::setHitpoints(0): the ship blows up
 // Sound 35 Selfdestruct_Warning plays while the goods are aboard, its parameter SpawnIntensity = the force (the FEV's LGCY
-// data): a 58 ms beep every 1000 ms / intensity, intensity 0 below 0.2 then 0.18 -> 0.66 at 1, pitch x1 -> x1.189 (+3 st)
+// data): a 58 ms beep every 1000 ms / intensity, the envelope 0 below 0.2 then 0.18 -> 0.66 at 1 (libfmodevent maps an
+// envelope value v to the intensity (e^(5.7865 v) - 1) * 0.3078, 0..100: 0.58x at 0.2, 14x at 1, so the beeps run from
+// every 1.7 s to almost continuous; the remake took the value as the factor until 2026-10), pitch x1 -> x1.189 (+3 st)
 // from 0.18 to 1, at most 2 at a time; event volume 0.2. Also: every dodge request + 0.17 (PlayerEgo::initManeuver) and a
 // player bomb's ignition + 3 f (PlayerEgo::addNukeVolatileForce, WeaponSystem.OnIgnited), every shot + 0.008 (Player::shoot),
 // every hit taken + 0.065 (Player::damage); it decays by 0.025 per second (Player::update).
@@ -73,7 +75,8 @@ namespace GoF2Remake.Flight
 
             // The warning beeps (spawn intensity and pitch envelopes of event 35).
             float p = Mathf.Clamp01(Force);
-            float intensity = p < 0.2f ? 0f : Mathf.Lerp(0.183544f, 0.663453f, (p - 0.2f) / 0.8f);
+            float envelope = p < 0.2f ? 0f : Mathf.Lerp(0.183544f, 0.663453f, (p - 0.2f) / 0.8f);
+            float intensity = (Mathf.Exp(5.786521f * envelope) - 1f) * 0.30780852f;   // FMOD's spawn intensity scale
             sinceBeepMs += dtMs;
             if (intensity > 0f && sinceBeepMs >= SpawnMs / intensity && clip != null)
             {
