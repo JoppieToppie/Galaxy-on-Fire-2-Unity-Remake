@@ -410,6 +410,50 @@
     -unity-text-align: middle-right;
 }
 
+/* Manufacturing shop overlay: one-run recipe total before the usual ship amount. */
+.row-qty-group {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: var(--space-s);
+}
+
+/* GOF2_MANUFACTURING_V13_VISUAL: the original fixed 76px ship label
+   left empty space before its right-aligned number. Size it to its text,
+   keeping the whole pair anchored at the row's right edge. */
+.row-qty-group .row-qty--ship {
+    width: auto;
+    margin-left: 0;
+}
+
+/* GOF2_MANUFACTURING_V12_VISUAL: recipe totals are secondary to ship cargo. */
+.row-qty--blueprint-required {
+    flex-shrink: 0;
+    margin-right: var(--space-s, 6px);
+    font-size: var(--text-label);
+    color: var(--gof-text-dim);
+    -unity-text-align: middle-right;
+}
+
+/* The blueprint overlay uses a dark resting row, with the same grey hover and
+   blue selection distinction as the regular shop, adjusted for the dark base.
+   Selected+hovered remains blue, never the hover grey. */
+.list-row.list-row--blueprint-material {
+    background-color: rgba(12, 27, 24, 0.40);
+}
+/* GOF2_MANUFACTURING_V14_EXACT_COMPOSITES: colours calculated from this project's ordinary shop rules.
+   Blueprint hover = blueprint normal + (ordinary hover - ordinary normal).
+   Blueprint selected = blueprint normal + (ordinary selected - ordinary normal).
+   The alpha-composite calculation preserves both effects over any backdrop;
+   selected + hovered remains selected. */
+.can-hover .list-row.list-row--blueprint-material:hover {
+    background-color: rgba(34, 48, 45, 0.440);
+}
+.list-row.list-row--blueprint-material.list-row--selected,
+.can-hover .list-row.list-row--blueprint-material.list-row--selected:hover {
+    background-color: rgba(9, 55, 66, 0.490);
+}
+
 /* Remake: an ingredient's SOLD HERE | amount badge opens the shop on it. */
 .can-hover .row-badge--link:hover {
     background-color: #A6F08F;
@@ -588,8 +632,7 @@
 /* Remake: a blueprint ingredient's sides as wide as their text (the fixed 110px broke "12 / 40 t" and ADD in two),
    up to half the box before they wrap. */
 .trade-box--ingredient .trade-side {
-    width: auto;
-    max-width: 50%;
+    width: 110px;
     flex-shrink: 0;
 }
 
@@ -1165,3 +1208,31 @@
 .layout-compact .detail-preview-side {
     width: 44%;
 }
+
+/* Manufacturing v0.3: keep the two inventories on a single row like the ordinary shop. */
+.trade-box--ingredient .trade-side--right {
+    width: 150px;
+    flex-shrink: 0;
+}
+.trade-box--ingredient .trade-side-value {
+    white-space: nowrap;
+}
+
+/* Production actions: same visual language as the game's arrows, with distinct purpose colours. */
+.manufacturing-shop, .manufacturing-autocomplete, .manufacturing-complete {
+    border-width: 2px;
+    border-radius: 4px;
+    padding: 12px 14px;
+    margin-top: 6px;
+    letter-spacing: 2px;
+    background-color: rgba(4, 10, 18, 0.72);
+    color: #FFFFFF;
+    -unity-text-align: middle-center;
+}
+.manufacturing-shop { border-color: #49D66E; background-color: rgba(36, 100, 54, 0.30); }
+.manufacturing-autocomplete { border-color: var(--gof-amber); background-color: rgba(165, 93, 24, 0.30); }
+.manufacturing-complete { border-color: var(--gof-cyan); background-color: rgba(20, 100, 148, 0.30); }
+.manufacturing-complete.detail-action--disabled { opacity: 0.4; }
+.can-hover .manufacturing-shop:hover { background-color: rgba(36, 100, 54, 0.48); }
+.can-hover .manufacturing-autocomplete:hover { background-color: rgba(165, 93, 24, 0.48); }
+.can-hover .manufacturing-complete:hover { background-color: rgba(20, 100, 148, 0.48); }

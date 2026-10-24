@@ -148,6 +148,32 @@ namespace GoF2Remake.Data
             if (station >= 0 && s.station < 0) s.station = station;
         }
 
+        /// <summary>Manufacturing patch: withdraw committed ingredients only at their production station.</summary>
+        public static bool Withdraw(Database db, int product, int slot, int units, int station)
+        {
+            if (units <= 0) return false;
+            var s = State(db, product);
+            var it = db.Item(product);
+            if (it?.blueprint == null || s.station != station || slot < 0 || slot >= it.blueprint.Count) return false;
+            int invested = Invested(db, s, slot);
+            if (invested < units) return false;
+            s.remaining[slot] += units;
+            int price = Mathf.Max(1, AgentGenerator.SinglePrice(db.Item(it.blueprint[slot].item)));
+            s.moneySpent = Mathf.Max(0, s.moneySpent - price * units);
+            if (s.remaining.TrueForAll((r) => r >= 0) && IsEmptyOfIngredients(db, s))
+            {
+                s.moneySpent = 0;
+                s.station = -1;
+            }
+            return true;
+        }
+        static bool IsEmptyOfIngredients(Database db, BlueprintState state)
+        {
+            var parts = db.Item(state.item)?.blueprint;
+            if (parts == null) return true;
+            for (int i = 0; i < parts.Count; i++) if (Invested(db, state, i) > 0) return false;
+            return true;
+        }
         /// <summary>210 / 223 can't be started in a system without gate routes (528).</summary>
         public static bool CanStartIn(Database db, int product, int station)
         {
