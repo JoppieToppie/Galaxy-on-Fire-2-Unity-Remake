@@ -342,6 +342,7 @@ namespace GoF2Remake.UI
         {
             public string word, sprite;
             public bool anyCase, pluralOnly;   // anyCase: matched in lower case; pluralOnly: only "...s" (or capitalised)
+            public bool noPlural;   // Modified: never "...s" (that plural is an ordinary word: Portuguese "termos")
         }
 
         static List<IconRule> iconRules;
@@ -393,6 +394,7 @@ namespace GoF2Remake.UI
                     if (plural) end++;
                     if (end < text.Length && char.IsLetterOrDigit(text[end])) continue;
                     if (rule.pluralOnly && !plural && !char.IsUpper(text[at])) continue;
+                    if (rule.noPlural && plural) continue;
                     bool free = true;
                     for (int k = at; k < end; k++) if (claimed[k]) { free = false; break; }
                     if (!free) continue;
@@ -414,13 +416,13 @@ namespace GoF2Remake.UI
             Hook();
             var list = new List<IconRule>();
             var seen = new HashSet<string>();
-            void Add(string word, string sprite, bool anyCase, bool pluralOnly = false)
+            void Add(string word, string sprite, bool anyCase, bool pluralOnly = false, bool noPlural = false)
             {
                 word = word?.Trim();
                 if (string.IsNullOrEmpty(word) || word.Length < 3 || word.IndexOf('\uFFFD') >= 0 || word.StartsWith("#")) return;
                 if (sprite != null && !HasIcon(sprite)) return;   // not in the atlas: no rule (another may still give the word one)
                 if (!seen.Add((anyCase ? word.ToLowerInvariant() : word) + "|" + (sprite ?? "-"))) return;
-                list.Add(new IconRule { word = word, sprite = sprite, anyCase = anyCase, pluralOnly = pluralOnly });
+                list.Add(new IconRule { word = word, sprite = sprite, anyCase = anyCase, pluralOnly = pluralOnly, noPlural = noPlural });
             }
             string[] raceSprites = { "terran", "vossk", "nivelian", "midorian", null, null, null, null, "pirate", "void" };
             for (int r = 0; r < raceSprites.Length; r++) if (raceSprites[r] != null) Add(Localization.Get(406 + r), raceSprites[r], true);
@@ -462,7 +464,12 @@ namespace GoF2Remake.UI
                 {
                     if (kv.Key == 22 || (kv.Key == 14 && boosterAmbiguous)) continue;
                     string sprite = kv.Key == 24 ? "core" : $"item_{kv.Value:000}";
-                    Add(Localization.Get(221 + kv.Key), sprite, true, pluralOnly: kv.Key == 11);   // 11 Mine: not "a friend of mine"
+                    // Modified: a one-word category whose plural the texts use as an ordinary word, never its singular, takes
+                    // no plural (Portuguese 3 "Termo", the thermo guns: "até termos um plano", Brent at step 20, had its icon).
+                    string category = Localization.Get(221 + kv.Key)?.Trim() ?? "";
+                    string lowerCategory = category.ToLowerInvariant();
+                    bool ordinaryPlural = category.IndexOf(' ') < 0 && lowerWords.Contains(lowerCategory + "s") && !lowerWords.Contains(lowerCategory);
+                    Add(category, sprite, true, pluralOnly: kv.Key == 11, noPlural: ordinaryPlural);   // 11 Mine: not "a friend of mine"
                 }
             }
             // Longest word first, the same length in the order added (List.Sort isn't stable: a mod ship's rule without an icon
