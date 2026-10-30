@@ -29,14 +29,20 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   per item (`Shop.PriceList`, `NetSession.Active`); single player keeps the original's, verified identical to
   `prices.py` (its docking's prices pinned, `Hangar.PinPrices`). Selling pays the buying price (a faction member at its
   own station sells at the 10 % cut too, `Hangar.Sell`); anything sold joins the station's stock. Loma (system 25)
-  always charges the maximum. Remake: an item's price is fixed for the docking (`Hangar.PinPrices`, cleared by
+  always charges the maximum in the Android 2.0.16 build; the iOS 1.1.19 build charges `(int)(maxPrice x 1.05)`
+  (`Status::calcCargoPrices`, the Android disassembly has no multiply), which the remake applies with the Default
+  economy (`Session.Economy`), the Android economy keeping the maximum. Remake: an item's price is fixed for the docking (`Hangar.PinPrices`, cleared by
   `Hangar.NewDocking` in `StationLevel`): an item's price depends on its place in the lists, so a trade moving it
   between the stock and the hold could shift it by up to ±2 %, and in multiplayer, where the window is priced again
   after every trade, buying and selling at once made money with every click.
 - **Stock** (`Generator::getItemBuyList`) and **dealer ships** (`getShipBuyList`) are rolled with `UnityEngine.Random`
   when the station isn't among the last 3 (`Status::departStation`: arriving in its orbit, `Shop.ArriveInOrbit` from
   `SpaceLevel`, or docking; a revisit doesn't reorder the stack; the remake pushed only on docking until 2026-10-16, so
-  Katashán's empty dealer, `getShipBuyList`'s 1 in 6, stayed until 3 other dockings; not in multiplayer sessions);
+  Katashán's empty dealer, `getShipBuyList`'s 1 in 6, stayed until 3 other dockings; not in multiplayer sessions;
+  the iOS 1.1.19 build rolls 2..5 ships, never none, and rolls a duplicate again: the Default economy does the same, as
+  it takes that build's stock factor (step + 10) / 45, its 40 % AB-1 Retractor in every shop during steps 17..24 and its
+  exhaust anchors for the VoidX / H'Soc / Specter / Scimitar, `weapons_hd_default.json` over `weapons_hd.json` in
+  `Database.ApplyDefaultEconomy`, built by `Reference/tools/shop/build_default_mounts.py` from the IPA's `weapons_hd.bin`);
   re-docking after > 30 s nibbles 0-2 units off each row.
 - **Cargo:** every unit is 1 t, mounted items weigh nothing; buying never checks space, launching is refused while overloaded.
 - **Unknown item numbers** (a Windows crash report, 2026-10-12: `ItemInfo.Category` on a null item from `HangarWindow.AddRow`

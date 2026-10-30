@@ -2,7 +2,8 @@
 # The "Default Economy" (the macOS / Windows / iPhone item and ship tables) as an overlay on the remake's data, which came
 # from the Android OBB ("Android Economy"). KiritoJPK's GOF2_2.0.16_Default_Economy.apk (release GOF2FHD09282026) differs from
 # the Android_Economy APK only by assets/data/bin/items.bin and ships.bin, which the game loads instead of the OBB's; they are
-# kept in Reference/binaries/default_economy/.
+# kept in Reference/binaries/default_economy/. Its ships.bin was replaced on 2026-10-30 by the iOS 1.1.19 IPA's (identical
+# layout; the APK's had 12 prices at the in-game 0.99 race discount, e.g. Betty 16038 for 16200), its items.bin is byte-identical.
 #
 #   items.bin (FileRead::loadItemsBinary 0x145f48): 233 x (int[] ingredients, int[] quantities, int[] attribute pairs),
 #             big-endian ints, a count before each array

@@ -231,13 +231,13 @@ namespace GoF2Remake.World
                     }
                     // 0x8c8, 2D (FModSound::play without a position).
                     if (T >= 38000f && T - dtMs < 38000f && sn != null && cam.Camera != null) Sfx.PlayAt(sn.explosion, cam.Camera.position);
-                    if (T >= 38001f && level.Backdrop != null) level.Backdrop.sunScaleFactor *= Mathf.Pow(0.95f, dtMs / 33f);
+                    if (T >= 38001f && level.Backdrop != null) level.Backdrop.sunScaleFactor *= Mathf.Pow(0.95f, dtMs / OriginalFrame.Ms);
                     if (T >= 39001f) { c.Fade(false, Color.white, 500f); Step = 3; }
                     break;
                 }
                 case 3:
                     // The sun x4 a frame until its scale reaches 10; the rumble (1, 100) holds to the end.
-                    if (level.Backdrop != null && level.Backdrop.sunScaleFactor * level.Layout.sunScale < 10f) level.Backdrop.sunScaleFactor *= Mathf.Pow(4f, dtMs / 33f);
+                    if (level.Backdrop != null && level.Backdrop.sunScaleFactor * level.Layout.sunScale < 10f) level.Backdrop.sunScaleFactor *= Mathf.Pow(4f, dtMs / OriginalFrame.Ms);
                     cam.Rumble = 1f;
                     cam.RumbleAmplitude = 100;
                     if (c.FadeDone)
@@ -321,7 +321,7 @@ namespace GoF2Remake.World
                     Step = 6;
                     break;
                 case 6:
-                    if (stepMs >= 2000f && playerSpeed < 100f) playerSpeed = Mathf.Max(playerSpeed, 1f) * Mathf.Pow(1.05f, dtMs / 33f);
+                    if (stepMs >= 2000f && playerSpeed < 100f) playerSpeed = Mathf.Max(playerSpeed, 1f) * Mathf.Pow(1.05f, dtMs / OriginalFrame.Ms);
                     if (stepMs >= 8000f) AdvanceAndTravel(1, 113);
                     break;
             }

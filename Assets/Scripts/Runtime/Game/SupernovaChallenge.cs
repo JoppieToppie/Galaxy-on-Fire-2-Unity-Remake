@@ -8,10 +8,13 @@
 // 0x98, ship 46 with its loadout, 220 kills, station 111), the round of 181 000 ms (Level+0x130 / Objective(3, 181000)),
 // the restart's Patala x10 (MGame::OnTouchEnd), the combo bonus combo x 1000 x (1 + 0.05 combo) and its blinking in the
 // last 3000 ms, the pop of the combo count above 7000 ms of combo timer.
-// Remake picks (the Android build has no rules): 1000 points per Specter the player destroys; each kill restarts the combo
-// timer at ComboStartMs, a kill while it runs raises the combo; the bonus is paid when the timer runs out (and at the
-// round's end); a death ends the round with its score; the difficulty is always Normal (one highscore table); the
-// highscore and best kills stay on this device (PlayerPrefs; Game Center's report was an empty stub on Android).
+// The scoring is the iOS 1.1.19 build's (Level::enemyDied / MGame::OnUpdate, which the Android build never wrote): a kill
+// scores 1000 + 2000 x the combo timer's remaining share of 7500 ms (3000 at most, 1000 once it ran out), then the timer
+// is set to 7500 ms; a kill while it runs raises the combo (Status+0x204); when it runs out with a combo above 1 the bonus
+// combo x 1000 x (1 + 0.05 combo) is paid and the combo is 1 again. Remake picks: the bonus is paid at the round's end
+// too (the original's next frame does the same); a death ends the round with its score; the difficulty is always Normal
+// (one highscore table); the highscore and best kills stay on this device (PlayerPrefs; the iOS build reports to Game
+// Center, the Android stub did nothing).
 // Plain C#: the orbit (World.ChallengeOrbit) and the HUD (UI.ChallengeView) read it.
 
 using System.Collections.Generic;
@@ -24,13 +27,16 @@ namespace GoF2Remake.Data
     {
         /// <summary>Level+0x130: the round's length (3:01 on the HUD's countdown).</summary>
         public const float RoundMs = 181000f;
-        /// <summary>Remake pick: the combo timer a kill sets. Hud::drawChallengeModeScore pops the count above 7000 ms
-        /// (1 + (timer - 7000) x 0.01), so a fresh combo starts a little above it.</summary>
-        public const float ComboStartMs = 7100f;
+        /// <summary>Level::enemyDied: the combo timer a kill sets (Status+0x1fc = 7500). Hud::drawChallengeModeScore pops the
+        /// count above 7000 ms (1 + (timer - 7000) x 0.01).</summary>
+        public const float ComboStartMs = 7500f;
         /// <summary>Hud::drawChallengeModeScore: the bonus line and the blinking in the combo's last 3000 ms.</summary>
         public const float ComboWarnMs = 3000f;
-        /// <summary>Remake pick: points per Specter destroyed by the player.</summary>
-        public const int KillPoints = 1000;
+        /// <summary>Level::enemyDied: a kill's points, 1000 + 2000 x the timer's remaining share (1000 once it ran out, 3000 at
+        /// a full timer).</summary>
+        public const int KillPoints = 1000, KillPointsMax = 3000;
+        public static int KillPointsAt(float comboMs) => comboMs <= 0f ? KillPoints : comboMs >= ComboStartMs ? KillPointsMax
+                                                      : (int)(comboMs / ComboStartMs * 2000f) + KillPoints;
         /// <summary>Hud::drawChallengeModeScore: the score's 7 digits.</summary>
         public const int ScoreDigits = 7;
         public const int MaxScore = 9999999;
@@ -151,15 +157,17 @@ namespace GoF2Remake.Data
             }
         }
 
-        /// <summary>A Specter destroyed by the player: the points, the combo up (a new one at 1) and its timer restarted.</summary>
+        /// <summary>A Specter destroyed by the player: the points by the timer left, the combo up (a new one at 1) and its
+        /// timer restarted.</summary>
         public static void OnKill()
         {
             if (!Active || Over) return;
             Kills++;
+            int points = KillPointsAt(ComboMs);
             Combo = ComboMs > 0f ? Combo + 1 : 1;
             ComboMs = ComboStartMs;
             if (Combo > BestCombo) BestCombo = Combo;
-            Add(KillPoints);
+            Add(points);
             // SV_Mode_01..09: the combo's steps (2 -> 01 ... 10 and more -> 09).
             if (Combo > 1) PendingSound = Mathf.Min(Combo - 1, 9);
         }

@@ -261,9 +261,9 @@ namespace GoF2Remake.World
                     flyInMs += dtMs;
                     cam.SetDolly(new Vector3(0f, Mathf.Max(1f - flyInMs / 15000f, 0f), 0f));
                     if (Step == 3) { if (stepMs >= 8000f) Step = 4; break; }
-                    // State 4: moveForward(0.02 * t98) a frame (30 fps), t98 from state 4's start, stopping near 7000.
+                    // State 4: moveForward(0.02 * t98) an original frame, t98 from state 4's start, stopping near 7000.
                     float t98 = Mathf.Min(stepMs, 7000f);
-                    for (int i = 11; i <= 21; i++) if (S(i) != null) S(i).scriptedSpeed = t98 * 0.02f / 33.3f;
+                    for (int i = 11; i <= 21; i++) if (S(i) != null) S(i).scriptedSpeed = t98 * 0.02f / OriginalFrame.Ms;
                     if (!Over(3) || flyInMs < 18001f) break;
                     // 0x16a6ce: KIPlayer::translate shifts each ship and its route; the Specters by (120000, rnd(12000) - 6000,
                     // rnd(30000) - 87000), Harval by (20000, rnd(6000) - 3000, rnd(6000) - 7000); AI on, the Specters may cloak.
@@ -438,10 +438,10 @@ namespace GoF2Remake.World
                         // Level::switchSkyboxForSupernovaReversal: the system's normal sky, no more flares.
                         foreach (var r in Object.FindObjectsByType<SkyLayers>(FindObjectsInactive.Exclude)) r.gameObject.SetActive(false);
                     }
-                    // 0x16f20e: from 5001 to 5999 ms the sun billboard x0.8 a (30 fps) frame until 5499, then x1.7: it collapses,
+                    // 0x16f20e: from 5001 to 5999 ms the sun billboard x0.8 an original frame until 5499, then x1.7: it collapses,
                     // then balloons.
                     if (stepMs >= 5001f && stepMs < 6000f && level.Backdrop != null)
-                        level.Backdrop.sunScaleFactor *= Mathf.Pow(stepMs <= 5499f ? 0.8f : 1.7f, dtMs / 33.3f);
+                        level.Backdrop.sunScaleFactor *= Mathf.Pow(stepMs <= 5499f ? 0.8f : 1.7f, dtMs / OriginalFrame.Ms);
                     if (stepMs >= 5500f && stepMs - dtMs < 5500f) Blast(valkyrieAt + new Vector3(0, 0, -12000) - LightGame * 3000f, combat?.explosionBig, 25f);
                     if (stepMs >= 5700f && stepMs - dtMs < 5700f)
                     {
@@ -522,8 +522,8 @@ namespace GoF2Remake.World
                     break;
                 }
                 case 2:
-                    // Harval coasts, speeding up to 300 units per 30 fps frame over 3 s (moveForward(min(t, 3000) * 0.1)).
-                    if (harval != null) harval.scriptedSpeed = Mathf.Min(stepMs, 3000f) * 0.1f / 33.3f;
+                    // Harval coasts, speeding up to 300 units per original frame over 3 s (moveForward(min(t, 3000) * 0.1)).
+                    if (harval != null) harval.scriptedSpeed = Mathf.Min(stepMs, 3000f) * 0.1f / OriginalFrame.Ms;
                     if (stepMs <= 12000f || !Over(2)) break;
                     playerSpeed = 0f;
                     LeaveCutscene();

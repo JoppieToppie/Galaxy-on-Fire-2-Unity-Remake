@@ -2,7 +2,8 @@
 // Feature: CLAUDE.md "Shop" > Prices (Status::calcCargoPrices 0xb9d70), the Loma rule, Ship::adjustPrice, the remake's
 // pinned prices per docking (Hangar.PinPrices), the seen-price records (HangarWindow::initialize).
 // Expected numbers: Reference/tools/shop/prices.py (an independent Python port of the price rule with float32 rounding and
-// its own java.util.Random), run on the Android items.json; Loma = maxPrice (shop.md uncertainty 4); ship prices from
+// its own java.util.Random), run on the Android items.json; Loma = maxPrice with the Android economy, x 1.05 with the
+// Default economy (the iOS build's Status::calcCargoPrices, shop.md "Prices"); ship prices from
 // ships.json x 0.99 by hand (shop.md 5); the Phantom 966667 x 0.99f = 957000.
 
 using System.Collections.Generic;
@@ -41,6 +42,33 @@ namespace GoF2Remake.Tests
         public void PriceListMatchesReference(PriceCase c)
         {
             Assert.AreEqual(c.prices, Shop.PriceList(Db, c.station, c.items));
+        }
+
+        [Test]
+        public void LomaChargesTheMaximumAndTheIosBuildFivePercentMore()
+        {
+            // Loma's stations 105-107 (system 25): Android economy = maxPrice, Default economy = (int)(maxPrice x 1.05), no jitter.
+            var items = new List<int> { 0, 5, 54, 109, 122, 164, 200 };
+            var before = Session.Economy;
+            try
+            {
+                foreach (int st in new[] { 105, 106, 107 })
+                {
+                    // (Db follows Session.Economy: each economy's maxima from its own tables)
+                    Session.Economy = Economy.Android;
+                    var dbAndroid = Db;
+                    var android = Shop.PriceList(dbAndroid, st, items);
+                    Session.Economy = Economy.Default;
+                    var dbDefault = Db;
+                    var ios = Shop.PriceList(dbDefault, st, items);
+                    for (int n = 0; n < items.Count; n++)
+                    {
+                        Assert.AreEqual(dbAndroid.Item(items[n]).maxPrice, android[n], $"item {items[n]} at station {st}, Android");
+                        Assert.AreEqual((int)(dbDefault.Item(items[n]).maxPrice * 1.05f), ios[n], $"item {items[n]} at station {st}, Default");
+                    }
+                }
+            }
+            finally { Session.Economy = before; }
         }
 
         [Test]

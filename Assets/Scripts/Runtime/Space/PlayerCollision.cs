@@ -8,7 +8,7 @@
 //   asteroids                                  the asteroid is destroyed (damage 9999, normal death), the player takes
 //                                              20 (shield -> armor -> hull), camera hit(); no push
 //   the wormhole (Wormhole)                    visible and not shrinking, within 40000 units: its loop sound, the ship
-//                                              pulled toward it by (40000 - d) / 256 units per 30 fps frame, camera
+//                                              pulled toward it by (40000 - d) / 256 units per original frame, camera
 //                                              hit(); within 1000 units the ship is inside (PlayerEgo+0x25)
 // Collision is off during the launch / arrival camera and the jump scenes (PlayerEgo+0x144, set by the level), while
 // mining (PlayerEgo+0x356 with a mining phase 1-3) and once dead.
@@ -238,7 +238,7 @@ namespace GoF2Remake.Flight
             w.SetSound(true);
             if (!story || wormholeNoPull == null || !wormholeNoPull())
             {
-                transform.position += d.normalized * ((int)pull >> 8) * (Time.deltaTime * 1000f / 33.3f) * GoF2Remake.World.OrbitLayout.MetersPerUnit;
+                transform.position += d.normalized * ((int)pull >> 8) * (Time.deltaTime * 1000f / OriginalFrame.Ms) * GoF2Remake.World.OrbitLayout.MetersPerUnit;
                 Hit();
                 Haptics.Rumble(0.1f + 0.6f * pull / GoF2Remake.World.Wormhole.RadiusUnits);   // remake: stronger closer in
             }

@@ -39,7 +39,8 @@ namespace GoF2Remake.World
         /// <summary>PlayerFighter states 7 / 8 (game/PlayerFighter.c 2779-2890): the nearest free approach point (type 1), reached
         /// within 2000 units; then the docking point nearest it, eased onto like the player's (approachDockingPoint: nose = the
         /// point's direction, up = from the docking point to the approach point, stopping the ship's height short of it,
-        /// DAT_00254820 = StationTables.ShipY) over 2000 ms (assumed: the NPC's ease time was lost in the decompile); state 9
+        /// DAT_00254820 = StationTables.ShipY) over 3000 ms (the iOS build's PlayerFighter::update: EaseInOutMatrix(.., 3000) on
+        /// entering state 8; the player's own approachDockingPoint eases over 2000); state 9
         /// docked, the exhaust off. Returns true once docked.</summary>
         bool Docking(Shuttle sh, Transform obj, float dtMs)
         {
@@ -96,7 +97,7 @@ namespace GoF2Remake.World
             {
                 s.scriptedSpeed = 0f;
                 sh.easeMs += dtMs;
-                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(sh.easeMs / 2000f));
+                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(sh.easeMs / 3000f));
                 s.transform.SetPositionAndRotation(Vector3.Lerp(sh.fromPos, obj.TransformPoint(sh.pivotLocal), t),
                                                    Quaternion.Slerp(sh.fromRot, obj.rotation * sh.localRot, t));
                 if (t < 1f) return false;

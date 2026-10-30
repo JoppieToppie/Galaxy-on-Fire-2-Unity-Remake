@@ -145,7 +145,8 @@ namespace GoF2Remake.Flight
         {
             var list = new List<ItemStack>();
             int n = Random.Range(0, 3);
-            if (Random.Range(0, 3) == 0) return list;
+            // Android 2.0.16: empty 1 in 3; iOS 1.1.19 (the Default economy): the second roll only when the first is 0, 1 in 9.
+            if (Session.Economy == Economy.Default ? n == 0 && Random.Range(0, 3) == 0 : Random.Range(0, 3) == 0) return list;
             for (int e = 0; e < Mathf.Max(1, n); e++)
             {
                 ItemStack entry = null;
@@ -167,7 +168,7 @@ namespace GoF2Remake.Flight
                 list.Add(entry);
             }
             if (GalaxyMap.HasJumpDrive(db) && GalaxyMap.CellsInCargo() == 0 && Random.Range(0, 100) < 10)
-                list[0] = new ItemStack(GalaxyMap.EnergyCellItem, Random.Range(0, 9) + 1);
+                list[0] = new ItemStack(GalaxyMap.EnergyCellItem, Session.Economy == Economy.Default ? list[0].amount : Random.Range(0, 9) + 1);   // iOS keeps the amount
             return list;
         }
     }

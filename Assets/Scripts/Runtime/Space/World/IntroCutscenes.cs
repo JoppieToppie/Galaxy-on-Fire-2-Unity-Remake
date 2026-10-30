@@ -231,11 +231,11 @@ namespace GoF2Remake.World
                     break;
                 case 1:
                 case 2:
-                    // While step < 3 the pirates drift: every (30 fps) frame translate(0, getPulseValue(0.0005) - 0.5, 0), the
+                    // While step < 3 the pirates drift: every original frame translate(0, getPulseValue(0.0005) - 0.5, 0), the
                     // pulse |sin(playing time ms * 0.0005)| (Layout::getPulseValue 0xe74fc; 0x1614ac).
                     {
                         float pulse = Mathf.Abs(Mathf.Sin(Session.PlaySeconds * 1000f * 0.0005f));
-                        float dy = (pulse - 0.5f) * dtMs / (1000f / 30f) * M;
+                        float dy = (pulse - 0.5f) * dtMs / OriginalFrame.Ms * M;
                         for (int i = 0; i < 3 && i < pirates.Count; i++) pirates[i].transform.position += Vector3.up * dy;
                     }
                     if (Step == 1 && Over(6))
@@ -297,7 +297,7 @@ namespace GoF2Remake.World
                         campaign.PlayLoop(0, assets?.rumble, 0.624f, false);   // 158 Rumble_CutScene_01: a 17.9 s oneshot
                         campaign.PlayLoop(1, assets?.engineBroken, 0.115f);    // 161 Engine_09_Broken, looped
                     }
-                    if (soundsPlayed) playerSpeed *= Mathf.Pow(0.98f, dtMs / 33.3f);
+                    if (soundsPlayed) playerSpeed *= Mathf.Pow(0.98f, dtMs / OriginalFrame.Ms);
                     // LevelScript's dolly is (-0.2, 0, 0.3) u/ms; remake (PR #56): (0.4, 0, -0.2), which keeps the slowing ship in view.
                     if (Over(13)) cam.SetDolly(new Vector3(0.4f, 0f, -0.2f));
                     if (Triggered(14)) Step = 6;
@@ -414,10 +414,10 @@ namespace GoF2Remake.World
         {
             // The Phantom turns slowly: rotate(0, a, a), a = (2dt & ~15) / 65536 * 2pi. PlayerEgo::rotate 0xad980 adds to
             // the stored Euler angles (+0x2e8..+0x2f0) and rebuilds the matrix (setRotation, Rx*Ry*Rz), so the pose is
-            // (0.462, 0.462 + t, 1.5339 + t); t grows at the 30 fps rate (64 per 33.3 ms frame), so it also turns at
+            // (0.462, 0.462 + t, 1.5339 + t); t grows per original frame (64 per OriginalFrame.Ms), so it also turns at
             // high frame rates (below 8 ms a frame the quantised step is 0). The camera drifts (0.1dt, 0, 0), the
             // salvager slows as it arrives (0.2dt * min(z / -5000, 1)).
-            rescueTurn += dtMs * (64f / (1000f / 30f)) / 65536f * 2f * Mathf.PI;
+            rescueTurn += dtMs * (64f / OriginalFrame.Ms) / 65536f * 2f * Mathf.PI;
             Player.rotation = OrbitLayout.RotationToUnity(new Vector3(0.462f, 0.462f + rescueTurn, 1.5339f + rescueTurn));
             cam.SetDolly(new Vector3(0.1f, 0f, 0f));
             if (campaign.Ships.Count > 0)

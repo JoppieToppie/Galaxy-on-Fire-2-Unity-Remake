@@ -349,8 +349,8 @@ namespace GoF2Remake.Tests
         [Test]
         public void StrafeRampsByOneAndAHalfPerFrame()
         {
-            // v = ramp * dir * min(H * 30 * 0.002, 2), ramp 0.1 x1.5 per 30 fps frame up to 1
-            const float frame = 1000f / 30f;
+            // v = ramp * dir * min(H * 30 * 0.002, 2), ramp 0.1 x1.5 per original frame (OriginalFrame.Ms) up to 1
+            const float frame = OriginalFrame.Ms;
             var m = Model(120f);   // H 24 -> 1.44
             m.Strafe(1, frame);
             Assert.AreEqual(0.144f, m.StrafeVelocity, 1e-5f);
@@ -373,7 +373,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void StrafeMoveDecaysAndResetsTheRamp()
         {
-            const float frame = 1000f / 30f;
+            const float frame = OriginalFrame.Ms;
             var m = Model(120f);
             m.Strafe(1, frame);
             Assert.AreEqual(0.144f * frame, m.StepStrafe(frame), 1e-3f);
@@ -673,10 +673,11 @@ namespace GoF2Remake.Tests
         [Test]
         public void AutopilotBankForASmallTurn()
         {
-            // target = turn * limit * 15.139845 -> bank = turn * 15.139845 * 1.2 H
+            // target = turn * limit * 15.139845 -> bank = turn * 15.139845 * 1.2 H, the turn per original frame (OriginalFrame.Ms):
+            // a turn over a 33.333 ms step is half of one per 60 Hz frame
             var m = Model(120f);
             for (int i = 0; i < 100; i++) m.AutopilotBank(1e-4f, 33.333f, 33.333f);
-            Assert.AreEqual(1e-4f * 15.139845f * 1.2f * 24f, m.VisualYawBank, 1e-4f);
+            Assert.AreEqual(1e-4f * OriginalFrame.Ms / 33.333f * 15.139845f * 1.2f * 24f, m.VisualYawBank, 1e-4f);
         }
 
         [Test]

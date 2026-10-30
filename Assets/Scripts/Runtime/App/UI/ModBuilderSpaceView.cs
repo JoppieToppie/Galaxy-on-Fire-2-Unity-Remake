@@ -20,6 +20,7 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
+using GoF2Remake.Flight;
 
 namespace GoF2Remake.UI
 {
@@ -185,7 +186,7 @@ namespace GoF2Remake.UI
                 var kb = Keyboard.current;
                 if (kb != null)
                 {
-                    float f = dt / (1000f / 30f);
+                    float f = dt / OriginalFrame.Ms;
                     float l = kb.leftArrowKey.isPressed || kb.aKey.isPressed ? 1f : 0f, r = kb.rightArrowKey.isPressed || kb.dKey.isPressed ? 1f : 0f;
                     float u = kb.upArrowKey.isPressed || kb.wKey.isPressed ? 1f : 0f, dn = kb.downArrowKey.isPressed || kb.sKey.isPressed ? 1f : 0f;
                     yaw += (r - l) * 0.03f * f;

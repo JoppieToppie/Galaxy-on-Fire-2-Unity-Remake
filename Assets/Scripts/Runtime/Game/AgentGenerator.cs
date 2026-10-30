@@ -124,8 +124,9 @@ namespace GoF2Remake.Data
             if (station != 108) n = R(2) + story.Count + 3 < 5 ? story.Count + 3 + R(2) : 5;
 
             foreach (var s in story) agents.Add(StoryAgent(db, s));
-            // Campaign 23 at station 10: an extra agent sells the AB-1 Retractor (item 68) for 100 000.
-            if (campaign == 23 && station == 10)
+            // Campaign 23 at station 10: an extra agent sells the AB-1 Retractor (item 68) for 100 000 (the Android build; the iOS
+            // build, the Default economy, puts a 40 % AB-1 in every shop during steps 17..24 instead, Shop.GenerateItems).
+            if (campaign == 23 && station == 10 && Session.Economy == Economy.Android)
                 agents.Add(new Agent { name = RandomName(0, true), race = 0, station = station, offer = AgentOffer.SellItem,
                                            portrait = CreatePortrait(true, 0), sellItem = 68, sellQuantity = 1, sellPrice = 100000 });
 
@@ -154,8 +155,8 @@ namespace GoF2Remake.Data
                 }
             AddModRaceDiplomats(db, station, agents);
 
-            // Campaign 23 at station 10, or 1 %: the first mission under 50 000 pays 10x (max 50 000).
-            if ((campaign == 23 && station == 10) || R(100) == 1)
+            // Campaign 23 at station 10, or 1 %: the first mission under 50 000 pays 10x (max 50 000); the Android build only.
+            if (Session.Economy == Economy.Android && ((campaign == 23 && station == 10) || R(100) == 1))
             {
                 var a = agents.Find(x => x.offer == AgentOffer.Mission && x.HasMission && x.mission.reward < 50000);
                 if (a != null) a.mission.reward = Math.Min(a.mission.reward * 10, 50000);

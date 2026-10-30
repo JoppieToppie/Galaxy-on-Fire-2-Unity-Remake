@@ -237,15 +237,21 @@ namespace GoF2Remake.Data
             if (it == null) return 0;
             // Remake mods: a mod blueprint's own price (blueprints.json "autocomplete": a number).
             if (Modding.ModBlueprints.AutocompleteOverride(product, out _, out int own) && own >= 0) return own;
-            if (product == 210)
-            {
-                var s = State(db, product);
-                int value = 0;
-                for (int k = 0; k < it.blueprint.Count; k++)
-                    value += Mathf.Max(0, s.remaining[k]) * AgentGenerator.SinglePrice(db.Item(it.blueprint[k].item));
-                return 2000000 + value;
-            }
+            if (product == 210) return 2000000 + RemainingValue(db, it);
+            // iOS 1.1.19 (the Default economy): 1.4 x the larger of the remaining ingredients' value and quantity x maxPrice;
+            // Android 2.0.16: 1.25 x quantity x maxPrice.
+            if (Session.Economy == Economy.Default) return (int)(Mathf.Max(RemainingValue(db, it), BaseQuantity(it) * it.maxPrice) * 1.4f);
             return (int)((float)(BaseQuantity(it) * it.maxPrice) * 1.25f);
+        }
+
+        /// <summary>BluePrint::getIngredientsValue: the remaining ingredients at their single price.</summary>
+        static int RemainingValue(Database db, ItemData it)
+        {
+            var s = State(db, it.index);
+            int value = 0;
+            for (int k = 0; k < it.blueprint.Count; k++)
+                value += Mathf.Max(0, s.remaining[k]) * AgentGenerator.SinglePrice(db.Item(it.blueprint[k].item));
+            return value;
         }
 
         /// <summary>Remake mods: the blueprint may be autocompleted (blueprints.json "autocomplete": false: never).</summary>

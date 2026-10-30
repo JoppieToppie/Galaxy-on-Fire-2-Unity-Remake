@@ -1,7 +1,7 @@
 // Crate.cs
 // A cargo container left by a destroyed ship (KIPlayer::createCrate 0xb2e2c, Reference/research/ship_combat.md 5.4):
 // the race's container mesh at the explosion, drifting along a random direction at bombForce = 50..50.49 units per
-// (30 fps) frame, x0.98 per frame until < 0.05, spinning slowly; gone 60 s after the death. Only a tractor beam collects it
+// original frame, x0.98 per frame until < 0.05, spinning slowly; gone 60 s after the death. Only a tractor beam collects it
 // (CombatRadar: salvage lock, pull at 10 u/ms, captured within 400 units; the first non-empty entry). A crate stolen from
 // a living (EMP-disabled) ship (KIPlayer::createCrate(0) from TractorBeam::update) carries that ship's cargo and is
 // gone once captured: what is left stays aboard the ship. A shot asteroid leaves one too (Target.DropAsteroidCrate).
@@ -102,7 +102,7 @@ namespace GoF2Remake.Flight
 
         void Update()
         {
-            float dtMs = Time.deltaTime * 1000f, frames = dtMs / 33.3f;
+            float dtMs = Time.deltaTime * 1000f, frames = dtMs / OriginalFrame.Ms;
             if (remote) return;   // the host's crate moves it and ends it (NetCrate)
             ageMs += dtMs;
             // The Hijacker's mission container stays (the original tractors it straight out of the ship; the remake's crate

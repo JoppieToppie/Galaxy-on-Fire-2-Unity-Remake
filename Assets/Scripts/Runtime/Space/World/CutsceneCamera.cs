@@ -84,7 +84,7 @@ namespace GoF2Remake.World
             {
                 int a = Mathf.Max(1, RumbleAmplitude);
                 Haptics.Rumble(Rumble * a / 50f);   // remake: on the controller / phone too (1 = the default amplitude's full rumble)
-                // A new offset per original frame (30 fps), not per rendered frame (players' reports: at 144 fps it shook wildly).
+                // A new offset per original frame (OriginalFrame.Ms), not per rendered frame (players' reports: at 144 fps it shook wildly).
                 look += ChaseCamera.HeldJitter(ref rumbleDir, ref rumbleAgeMs, dtMs) * (a * Rumble * M * Settings.CameraShake);
             }
             var d = look - cam.transform.position;

@@ -18,6 +18,7 @@ using GoF2Remake.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
+using GoF2Remake.Flight;
 
 namespace GoF2Remake.UI
 {
@@ -500,7 +501,7 @@ namespace GoF2Remake.UI
             if (kb == null || ModalOpen || gameCamera) return;
             var focused = root.panel?.focusController?.focusedElement as VisualElement;
             if (focused != null && TextFieldKeys.InTextField(focused)) return;
-            float frames = dt / (1000f / 30f);
+            float frames = dt / OriginalFrame.Ms;
             float l = kb.leftArrowKey.isPressed || kb.aKey.isPressed ? 1f : 0f, r = kb.rightArrowKey.isPressed || kb.dKey.isPressed ? 1f : 0f;
             float u = kb.upArrowKey.isPressed || kb.wKey.isPressed ? 1f : 0f, d = kb.downArrowKey.isPressed || kb.sKey.isPressed ? 1f : 0f;
             roomYaw += (r - l) * 0.03f * frames;

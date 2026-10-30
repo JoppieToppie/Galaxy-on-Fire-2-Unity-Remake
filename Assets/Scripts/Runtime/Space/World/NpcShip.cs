@@ -14,7 +14,7 @@
 //               inside +-8000 of the target it steers along its own right vector (circles away), so it never fires
 //               close up; visual bank up to 33 deg from the averaged turn, auto-level after 750 ms
 //   firing      target inside the +-0.0076 cone (ship-space unit vector x / y) and +-35000 per axis; one NPC gun
-//   boost       5 % per 5 s, or after losing 40 % of the hull, for 5..8 s (x1.05 / x0.95 per 30 fps frame)
+//   boost       5 % per 5 s, or after losing 40 % of the hull, for 5..8 s (x1.05 / x0.95 per original frame)
 //   avoidance   inside the first landmark's volumes (station, gate), then the first ship's (freighters): heading +=
 //               (away - fwd) * speed * 0.03 plus an extra step (fighters fly through asteroids and each other)
 //   death       sound 20, 1.5..3 s tumbling along the death direction, then Explosion type 0, the hull 300 ms more,

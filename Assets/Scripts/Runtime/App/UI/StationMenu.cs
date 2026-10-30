@@ -439,7 +439,7 @@ namespace GoF2Remake.UI
         // ---- remake: Inspect ship (World.HangarInspect, StationLevel.BeginInspect) ----------------------------
 
         // The hangar's camera zooms in on the player's ship and orbits it like the flight's Action Freeze (PhotoMode): a drag
-        // or a finger turns it (with a fling, 0.9 a 30 fps frame), the wheel, a pinch, + / - (Page Up / Down) and the triggers
+        // or a finger turns it (with a fling, 0.9 an original frame), the wheel, a pinch, + / - (Page Up / Down) and the triggers
         // zoom, the arrows / W A S D and the sticks turn it too. The menu flies out meanwhile (the UI animation); a footer
         // keeps Back and the controls' hints. Back: Esc, Backspace, B, or the key that opened it (6 / I, the right stick press).
         // Hide UI (H, the controller's Y) clears the screen (a short click / tap or H / Y again brings it back; a drag still

@@ -30,7 +30,7 @@ namespace GoF2Remake.Tests
             foreach (var f in new[]
             {
                 "items.json", "ships.json", "systems.json", "stations.json", "assemblies.json", "weapons_hd.json", "wanted.json",
-                "item_attributes.json", "economy_default.json", "story.json", "collision.json", "static_collisions.json",
+                "item_attributes.json", "economy_default.json", "weapons_hd_default.json", "story.json", "collision.json", "static_collisions.json",
                 "wreck_collisions.json", "hangar_heights.json", "voice_table.json", "step_summaries.json", "void_station_extra.json",
                 "agents.json", "names.json", "ticker.json", "docks_hd.json", "resources.json", "weapon_fx.json",
             })

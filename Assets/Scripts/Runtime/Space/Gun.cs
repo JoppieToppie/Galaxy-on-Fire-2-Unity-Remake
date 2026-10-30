@@ -14,7 +14,7 @@
 //                           inside 1x
 //   Gun::ignite 0x17dd08    area damage f = clamp((mag - d) / mag, 0, 1) (mines: (10000 - d) / 10000) to every target
 //                           within attr 14; EMP bombs (sort 6) do EMP only and skip asteroids; asteroids take x0.6
-//   RocketGun::seekEnemy 0x18bd70  missiles steer 1/6 of the error per (30 fps) frame toward the locked target (an NPC's:
+//   RocketGun::seekEnemy 0x18bd70  missiles steer 1/6 of the error per original frame toward the locked target (an NPC's:
 //                           its current target, from 1000 ms after the launch: NPC rockets have no trails)
 //   RocketGun::update       cluster rockets corkscrew around their path (radius ~670 units)
 //   MineGun::update 0x181c8c  mines drop (forward + up) at 2 u/ms and stop within 500 ms
@@ -421,7 +421,7 @@ namespace GoF2Remake.Flight
             if (echo != null && echo.Waiting > 0) echo.Tick(dtMs, echoDue ??= new Action<Vector3>(EchoBlast));
             float limit = FreeLimit;
             // Missiles: 1/6 of the error per 33 ms frame, made frame-rate independent.
-            float steerRate = Homing ? 1f - Mathf.Pow(5f / 6f, dtMs / 33.3f) : 0f;
+            float steerRate = Homing ? 1f - Mathf.Pow(5f / 6f, dtMs / OriginalFrame.Ms) : 0f;
             bool shaken = false;
             for (int i = 0; i < bullets.Length; i++)
             {
@@ -725,7 +725,7 @@ namespace GoF2Remake.Flight
                 if (Mathf.Abs(d.x) >= 5f * r || Mathf.Abs(d.y) >= 5f * r || Mathf.Abs(d.z) >= 5f * r) continue;
                 if (Mathf.Abs(d.x) < r && Mathf.Abs(d.y) < r && Mathf.Abs(d.z) < r) { Ignite(targets); return; }
                 b.velocity = d.normalized * MineSpeedUnits * MetersPerUnit;
-                b.position += d.normalized * MinePullUnitsPerFrame * MetersPerUnit * (dtMs / 33.3f);   // 200 units per frame
+                b.position += d.normalized * MinePullUnitsPerFrame * MetersPerUnit * (dtMs / OriginalFrame.Ms);   // 200 units per frame
                 return;
             }
         }

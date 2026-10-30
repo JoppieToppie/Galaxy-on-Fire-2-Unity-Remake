@@ -7,8 +7,8 @@
 //          salvaged, 557 stations, 3235 battleships | 564 jumpgates, 558 goods produced, 560 ore, 561 cores, 567 wingmen)
 //   right  168 Medals: 45 plates in three columns, coloured by grade (Achievements); an earned medal shows its hint
 //          (1552 + i, # = the threshold of its grade)
-// Fire power: the original's Ship::getFirePower formula was not recovered; the remake shows the mounted primaries' damage
-// per second. Medal images: GoF2 > Build > HUD Images (GoF2Hud/medal_*). Plain class driven by
+// Fire power: Shop.FirePower, Ship::refreshValue's sum (verified in the iOS build: the sorts of the mask 0x200010F, the
+// Nirai mod's factors, x 1000). Medal images: GoF2 > Build > HUD Images (GoF2Hud/medal_*). Plain class driven by
 // StationMenu.
 
 using System.Collections.Generic;

@@ -247,7 +247,11 @@ namespace GoF2Remake.Data
             {
                 var it = db.Item(items[n]);
                 if (it == null) continue;
-                if (system == 25) { prices[n] = it.maxPrice; continue; }   // Loma: always the maximum (shop.md uncertainty 4)
+                if (system == 25)   // Loma: the maximum; the iOS 1.1.19 build charges x 1.05 (Status::calcCargoPrices), the Android
+                {                   // 2.0.16 build exactly the maximum: the Default economy (the iOS / PC tables) takes the iOS rule
+                    prices[n] = Session.Economy == Economy.Default ? (int)(it.maxPrice * 1.05f) : it.maxPrice;
+                    continue;
+                }
                 float span = Distance(db, it.lowestPriceSystem, it.highestPriceSystem);
                 float cur = Distance(db, it.lowestPriceSystem, system);
                 float f = 100f / span * cur / 100f;                         // span 0 -> inf / NaN -> 1
@@ -360,7 +364,8 @@ namespace GoF2Remake.Data
             int system = st?.system ?? 0;
             int race = RaceOfSystem(db, system);
             bool hardcore = Session.IsExtreme;
-            float k = Mathf.Min(1.5f, (mission + 25) / 45f);
+            // iOS 1.1.19 (taken with the Default economy): (step + 10) / 45; Android 2.0.16: (step + 25) / 45.
+            float k = Mathf.Min(1.5f, (mission + (Session.Economy == Economy.Default ? 10 : 25)) / 45f);
             int lowTech = station == 105 || station == 107 ? 0 : techS < 4 ? 1 : techS / 2;
 
             foreach (var it in db.Items)
@@ -425,6 +430,10 @@ namespace GoF2Remake.Data
             // getItemBuyList's story extras: the Luur hazard suit (190) first at 139 in system 25, the volatile Void Essence
             // (209) at 126 (one at 117).
             if (!Session.FreePlay && mission == 139 && system == 25 && !list.Exists(s => s.item == 190)) list.Insert(0, new ItemStack(190, 1));
+            // iOS 1.1.19 (the Default economy): during steps 17..24 every shop has a 40 % chance of one AB-1 Retractor (68), in
+            // place of the Android build's step-23 seller at Thynome (AgentGenerator.CreateAgents).
+            if (Session.Economy == Economy.Default && !Session.FreePlay && mission >= 17 && mission <= 24 && Random.Range(0, 100) < 40
+                && !list.Exists(s => s.item == 68)) list.Insert(0, new ItemStack(68, 1));
             if (station == 126 && !list.Exists(s => s.item == 209)) InsertSorted(list, new ItemStack(209, mission == 117 ? 1 : Random.Range(0, 10) + 1));
             if (Session.FreePlay && station == 78 && !list.Any(s => db.Item(s.item)?.categoryId == 19)) InsertSorted(list, new ItemStack(86, 1));
             if (Session.FreePlay && station == 78 && !list.Any(s => s.item == GalaxyMap.EnergyCellItem))
@@ -471,19 +480,25 @@ namespace GoF2Remake.Data
             }
             if (station == 10 && (Achievements.GotAllGoldMedals || Session.CompletedWorld)) return new List<int> { 8 };   // Thynome: the VoidX
             int race = RaceOfSystem(db, system);
-            int n = Random.Range(0, 6) + (station == 41 ? 1 : 0);
+            // Android 2.0.16: rnd 6 ships (+1 at 41), 1 in 6 an empty dealer, a duplicate roll dropped; iOS 1.1.19 (the Default
+            // economy): rnd 4 + 2 (+1 at 41), never empty, a duplicate rolled again.
+            bool ios = Session.Economy == Economy.Default;
+            int n = (ios ? Random.Range(0, 4) + 2 : Random.Range(0, 6)) + (station == 41 ? 1 : 0);
             if (n == 0) return ships;   // getShipBuyList: no rolls, no extras either
             for (int i = 0; i < n; i++)
             {
-                int ship;
-                if (i == 0 && station == 41) ship = 10;          // Phantom
-                else if (i == 0 && station == 78) ship = 0;      // Betty
-                else
+                int ship, tries = 0;
+                do
                 {
-                    int r = race;
-                    if (n > 1 && Random.value < 0.22f) { r = Random.Range(0, 5); if (r == race || r == 4) r = 8; }
-                    ship = RandomFighter(r);
-                }
+                    if (i == 0 && station == 41) ship = 10;          // Phantom
+                    else if (i == 0 && station == 78) ship = 0;      // Betty
+                    else
+                    {
+                        int r = race;
+                        if (n > 1 && Random.value < 0.22f) { r = Random.Range(0, 5); if (r == race || r == 4) r = 8; }
+                        ship = RandomFighter(r);
+                    }
+                } while (ios && ships.Contains(ship) && ++tries < 50);
                 if (!ships.Contains(ship)) ships.Add(ship);
             }
             if (race == 0 && Random.Range(0, 7) == 0) ships.Add(62);

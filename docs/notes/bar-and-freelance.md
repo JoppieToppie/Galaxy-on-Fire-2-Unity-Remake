@@ -13,7 +13,8 @@ generator).
 - **Agents** (`Agent`, `AgentGenerator`): `Generator::createAgents` per station when it isn't among the last 3 visited,
   kept on `StationStock.agents` and saved: 3-5 visitors (story agents from `agents.json` once campaign > 16, generic
   ones: 20 % any of 8 races, offers mission 46 % / small talk / item / purchase / wingmen, one wingman offer per bar, 35
-  % diplomats for hostile races, 1 % a 10x mission), names from `names.json`, portraits `ImageFactory::createChar` (the
+  % diplomats for hostile races, 1 % a 10x mission; the 10x and the step-23 AB-1 seller are the Android build's, the
+  iOS 1.1.19 build has neither, so the Default economy skips them), names from `names.json`, portraits `ImageFactory::createChar` (the
   generic sets draw through `Portrait.Show`). Nobody in the supernova system's lounges (`Status::inSupernovaSystem`,
   system 27 before campaign 0x9e: the evacuated Ginoya stations; a save's kept visitors there are cleared on docking,
   `Shop.EnterStation`); remake, the same stations (`StationLevel.Evacuated`) have no parked ships, hangar traffic or bar
@@ -83,7 +84,7 @@ generator).
   "Pirate activity" tab beside Most Wanted (see "NPCs and combat", Pirate activity board).
 - **Blueprints** (`Blueprints`, the hangar's Blueprints tab 272): 25 products keyed by item (items.json ingredients),
   per-ingredient progress, production station (first investment; 212), 200 $ per unit shipping from another station
-  (288; volatile 204 / 209 refused, 289), 210 / 223 need gate routes (528), Autocomplete `int(qty*maxPrice*1.25)` (210:
+  (288; volatile 204 / 209 refused, 289), 210 / 223 need gate routes (528), Autocomplete `int(qty*maxPrice*1.25)` (iOS 1.1.19, the Default economy: `int(max(remaining value, qty*maxPrice)*1.4)`; 210:
   2 000 000 + the rest's value), a finished run to the hold (211) or waiting at the production station (210, collected
   on docking, 213; remake, a player's report: a finished run left the old Autocomplete row selected on the Shop tab,
   and A autocompleted 'blueprint -1' for 0 $ into an '#item-1' in the hold; selecting no longer commits, below).

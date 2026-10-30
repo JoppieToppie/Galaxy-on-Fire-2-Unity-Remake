@@ -10,6 +10,7 @@ using GoF2Remake.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
+using GoF2Remake.Flight;
 
 namespace GoF2Remake.UI
 {
@@ -203,7 +204,7 @@ namespace GoF2Remake.UI
             if (EditsMounts && kb.mKey.wasPressedThisFrame) Mirror();
             if (!InHangar || !ShipKind(kind)) return;   // the Space Lounge, the map, a room: no ship to fly or turn around
             if (kb.lKey.wasPressedThisFrame && Flies(kind)) StartTestFlight();
-            float frames = dt / (1000f / 30f);
+            float frames = dt / OriginalFrame.Ms;
             float left = kb.leftArrowKey.isPressed || kb.aKey.isPressed ? 1f : 0f, right = kb.rightArrowKey.isPressed || kb.dKey.isPressed ? 1f : 0f;
             float up = kb.upArrowKey.isPressed || kb.wKey.isPressed ? 1f : 0f, dn = kb.downArrowKey.isPressed || kb.sKey.isPressed ? 1f : 0f;
             var d = new Vector2(left - right, up - dn) * 4f * frames;
@@ -266,7 +267,7 @@ namespace GoF2Remake.UI
             }
             if (drag == Drag.None && fling != Vector2.zero)
             {
-                float frames = dt / (1000f / 30f);
+                float frames = dt / OriginalFrame.Ms;
                 TurnOrbit(fling * frames);
                 fling *= Mathf.Pow(0.9f, frames);
                 if (fling.magnitude <= 0.5f) fling = Vector2.zero;

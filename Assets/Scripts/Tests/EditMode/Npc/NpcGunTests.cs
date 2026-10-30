@@ -348,7 +348,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void AMissileNearItsGoalTurnsStraightAtIt()
         {
-            // RocketGun::seekEnemy's steering (1/6 of the error per 33 ms frame at a constant speed) can't turn tighter than
+            // RocketGun::seekEnemy's steering (1/6 of the error per original frame at a constant speed) can't turn tighter than
             // ~150 m at 18 u/ms: a missile that passed its target orbited it (the remake's hull meshes have no hit cube to
             // catch it). Within a quarter second of flight of its goal it now turns straight at it.
             var goGoal = new GameObject("goal");
@@ -371,9 +371,9 @@ namespace GoF2Remake.Tests
                 g.reloadAcc = 1e6f;
                 b2 = g.TryFire(Vector3.zero, Quaternion.identity, false);
                 goal.transform.position = new Vector3(speed * 5000f, 0f, 0f);
-                g.Update(33.3f, null, goal);
+                g.Update(OriginalFrame.Ms, null, goal);
                 float turned = Vector3.Angle(Vector3.forward, g.bullets[b2].velocity);
-                Assert.AreEqual(Mathf.Atan2(1f / 6f, 5f / 6f) * Mathf.Rad2Deg, turned, 0.5f, "1/6 of a right angle's error in a 33 ms frame");
+                Assert.AreEqual(Mathf.Atan2(1f / 6f, 5f / 6f) * Mathf.Rad2Deg, turned, 0.5f, "1/6 of a right angle's error in an original frame");
             }
             finally { Object.DestroyImmediate(goGoal); }
         }

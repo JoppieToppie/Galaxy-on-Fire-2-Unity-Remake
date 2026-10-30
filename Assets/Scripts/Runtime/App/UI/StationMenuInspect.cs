@@ -11,6 +11,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 using PointerType = UnityEngine.UIElements.PointerType;
+using GoF2Remake.Flight;
 
 namespace GoF2Remake.UI
 {
@@ -232,7 +233,7 @@ namespace GoF2Remake.UI
         void UpdateInspect(bool customize = false)
         {
             var insp = level.Inspect;
-            float frames = Time.unscaledDeltaTime * 1000f / (1000f / 30f);
+            float frames = Time.unscaledDeltaTime * 1000f / OriginalFrame.Ms;
             var kb = GoF2Remake.Multiplayer.NetChat.Keys;   // null while a multiplayer chat line is typed
             var pad = Gamepad.current;
             // The photo tools (not in the Customize screen): their keys first, the settings panel takes the arrows / Enter /

@@ -32,7 +32,7 @@ namespace GoF2Remake.UI
 {
     public class PhotoMode
     {
-        const float M = 0.05f, FrameMs = 1000f / 30f;
+        const float M = 0.05f, FrameMs = OriginalFrame.Ms;
         const float MinDistance = 1500f, MaxDistance = 20000f;
 
         readonly VisualElement root, overlay, hints;

@@ -3,7 +3,7 @@
 // (Globals::getShipGroup(idx, race, true)) on a stage far below the station, on layer 30, its own camera at the original's
 // direction ((1362, 1690, -5257) game units, turned -0.1 rad) framing the ship's bounds, rendered into a RenderTexture shown
 // over the floor glow 0x50b (drawn once and mirrored). Turning: yaw only, 120 px = 1 rad, starting at 260 px; a drag turns
-// it, a release over 3 px keeps turning x0.9 per 30 fps frame and stops at 1 px.
+// it, a release over 3 px keeps turning x0.9 per original frame (OriginalFrame.Ms) and stops at 1 px.
 // Used by the full-screen item window (ItemInfoWindow) and (remake, #82) the hangar's details panel, which also spins it
 // slowly while it isn't dragged (AutoSpin) and opens the item window on a click / tap (Clicked).
 // Remake: the camera isn't rolled (the original's -0.1 rad left the ships leaning left over the level floor), and the
@@ -17,6 +17,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
+using GoF2Remake.Flight;
 
 namespace GoF2Remake.UI
 {
@@ -24,13 +25,13 @@ namespace GoF2Remake.UI
     public sealed class ShipPreview
     {
         const int PreviewLayer = 30;
-        const float M = 0.05f, FrameMs = 1000f / 30f, PixelsPerRadian = 120f, ClickSlop = 10f;
+        const float M = 0.05f, FrameMs = OriginalFrame.Ms, PixelsPerRadian = 120f, ClickSlop = 10f;
 
         /// <summary>The box: the floor glow and the rendered ship; drags on it turn the ship.</summary>
         public readonly VisualElement Element;
         /// <summary>A click / tap on the box that didn't turn it.</summary>
         public event Action Clicked;
-        /// <summary>Turning by itself while not dragged or flung, in pixels per 30 fps frame (0 = still).</summary>
+        /// <summary>Turning by itself while not dragged or flung, in pixels per original frame (0 = still).</summary>
         public float AutoSpin;
         public bool Shown => model != null;
         /// <summary>The ship shown, -1 = none.</summary>

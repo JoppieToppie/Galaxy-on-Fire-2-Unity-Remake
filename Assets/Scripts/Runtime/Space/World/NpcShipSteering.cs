@@ -27,7 +27,7 @@ namespace GoF2Remake.World
 
         /// <summary>PlayerFighter::push 0xf3c50 (checked in the disassembly): f = the time left / T; each frame the ship moves
         /// dir x dt x its speed (+0x1e0) x 3 (2 - f) x T / 5000 (a full push 6 -> 12 u/ms) and turns by f x the tumble
-        /// (a random unit vector x 0.2 rad per 30 fps frame).</summary>
+        /// (a random unit vector x 0.2 rad per original frame).</summary>
         void UpdatePush(float dtMs)
         {
             if (pushMs <= 0f) return;
@@ -35,7 +35,7 @@ namespace GoF2Remake.World
             float T = Mathf.Max(1f, pushTotalMs);
             float f = Mathf.Max(0f, pushMs) / T;
             transform.position += pushDir * (dtMs * speed * 3f * (2f - f) * (T / PushMaxMs)) * M;
-            transform.Rotate(pushTumble.normalized, f * pushTumble.magnitude * Mathf.Rad2Deg * dtMs / 33.3f, Space.World);
+            transform.Rotate(pushTumble.normalized, f * pushTumble.magnitude * Mathf.Rad2Deg * dtMs / OriginalFrame.Ms, Space.World);
         }
 
         Vector3 AimAt(Target t, float dtMs)
@@ -107,7 +107,7 @@ namespace GoF2Remake.World
                 if (Mathf.Abs(diff.x) + Mathf.Abs(diff.y) + Mathf.Abs(diff.z) < 0.0625f) h = dirN;
                 float a = Mathf.Acos(Mathf.Clamp(Vector3.Dot(fwd, h), -1f, 1f));
                 if (Vector3.Dot(transform.right, h) > 0f) a = -a;
-                turnRing[ringIndex] = a * 33.3f / dtMs;   // per 30 fps frame, like the original's samples
+                turnRing[ringIndex] = a * OriginalFrame.Ms / dtMs;   // per original frame, like the original's samples
                 ringIndex = (ringIndex + 1) % turnRing.Length;
                 if (ringFilled < turnRing.Length) ringFilled++;
                 float avg = 0f;
@@ -309,7 +309,7 @@ namespace GoF2Remake.World
         /// <summary>§5.5 boost and panic.</summary>
         void UpdateBoost(float dtMs)
         {
-            float frames = dtMs / 33.3f;
+            float frames = dtMs / OriginalFrame.Ms;
             if (Hp.hull < lastHull)
             {
                 damageSinceBoost += lastHull - Hp.hull;
@@ -361,10 +361,10 @@ namespace GoF2Remake.World
             }
         }
 
-        /// <summary>State 6: x1.1 per (30 fps) frame, gone above 100 u/ms.</summary>
+        /// <summary>State 6: x1.1 per original frame, gone above 100 u/ms.</summary>
         void UpdateJumpOut(float dtMs)
         {
-            speed *= Mathf.Pow(1.1f, dtMs / 33.3f);
+            speed *= Mathf.Pow(1.1f, dtMs / OriginalFrame.Ms);
             transform.position += transform.forward * speed * dtMs * M;
             if (speed > 100f) SetDead();
         }

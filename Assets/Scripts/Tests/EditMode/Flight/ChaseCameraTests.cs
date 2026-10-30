@@ -88,13 +88,16 @@ namespace GoF2Remake.Tests
         public void TheShakeKeepsItsDirectionForAnOriginalFrame()
         {
             // Players' reports (2026-10-18): a new random jolt every rendered frame shook wildly at 144 fps; the original draws
-            // one per 30 fps frame.
+            // one per frame of its own (OriginalFrame.Ms, 60 Hz on iOS: two 144 fps frames hold it).
             Vector3 dir = Vector3.zero;
             float age = ChaseCamera.JitterMs;
             var first = ChaseCamera.HeldJitter(ref dir, ref age, 7f);
             Assert.AreNotEqual(Vector3.zero, first);
             Assert.IsTrue(Mathf.Abs(first.x) <= 1f && Mathf.Abs(first.y) <= 1f && Mathf.Abs(first.z) <= 1f);
-            for (int i = 0; i < 3; i++) Assert.AreEqual(first, ChaseCamera.HeldJitter(ref dir, ref age, 7f), "held through a 144 fps frame " + i);
+            // The first draw carries the 7 ms past the frame's end into the next one, so the held frames are those with
+            // 14, 21, ... ms still short of JitterMs: one at 16.7 ms (three at the old 33.3).
+            int held = Mathf.FloorToInt((ChaseCamera.JitterMs - 1e-3f) / 7f) - 1;
+            for (int i = 0; i < held; i++) Assert.AreEqual(first, ChaseCamera.HeldJitter(ref dir, ref age, 7f), "held through a 144 fps frame " + i);
             int changed = 0;
             for (int i = 0; i < 20; i++)
             {

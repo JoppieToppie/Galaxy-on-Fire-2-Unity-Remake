@@ -239,9 +239,9 @@ namespace GoF2Remake.World
                         var s = S(i);
                         if (s == null) continue;
                         if (!s.Cloaked && R(100) < 10) { s.CloakingPossible = true; s.Cloak(20000f, true); }   // cloak(20000, true)
-                        s.scriptedSpeed = stepMs * 0.05f / 33f;
+                        s.scriptedSpeed = stepMs * 0.05f / OriginalFrame.Ms;
                     }
-                    if (stepMs >= 4000f && S(0) != null) S(0).scriptedSpeed = (stepMs - 4000f) * 0.05f / 33f;
+                    if (stepMs >= 4000f && S(0) != null) S(0).scriptedSpeed = (stepMs - 4000f) * 0.05f / OriginalFrame.Ms;
                     if (stepMs >= 7001f)
                     {
                         // LevelScript::process 0x90: the 145 attack is a stream-out arrival (the hidden gate of this gate orbit)
