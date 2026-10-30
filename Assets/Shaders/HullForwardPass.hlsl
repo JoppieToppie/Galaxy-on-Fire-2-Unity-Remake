@@ -187,7 +187,11 @@ void HullPassFragment(
         half3 lit = texG * radiance * _GoF2SunGamma;
         half ndp = saturate(dot(inputData.normalWS, (half3)_GoF2PlanetLight.xyz));
         half3 planet = texG * _GoF2PlanetColor * ndp;
-        half3 gammaLit = SRGBToLinear(saturate(lit + planet + texG * _GoF2SunAmbient)) + max(lit - _GoF2SunGlowFrom, 0.0h) * _GoF2SunGlow;
+        // Modified: the glow keeps the lit colour's hue, scaled by how far its brightness is past _GoF2SunGlowFrom (the
+        // original's bright pass goes by luminance): each channel's own excess over-weighted the strongest ones, and a
+        // warm sun on Dis' beige panels (system 5's LIGHT0 2 / 1.95 / 1.65) glowed a saturated yellow.
+        half lum = dot(lit, half3(0.299h, 0.587h, 0.114h));
+        half3 gammaLit = SRGBToLinear(saturate(lit + planet + texG * _GoF2SunAmbient)) + SRGBToLinear(saturate(lit)) * (max(lum - _GoF2SunGlowFrom, 0.0h) * _GoF2SunGlow);
         color.rgb += max(gammaLit - brdf.diffuse * (radiance + _GoF2PlanetLinear * ndp), 0.0h);
     }
 #endif
