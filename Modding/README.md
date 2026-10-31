@@ -407,7 +407,7 @@ flying by hand, beside the Khador Drive (its own one-per-ship kind, so a ship ca
 `energyCells` energy cells (twice as many on Extreme, like a Khador jump) and the ship flies `cruiseSpeed` / 100 times
 its forward speed, looking and sounding like a boost; every `cruiseRange` units it pays another leg of cells, and without
 the cells for the next leg it stops. Releasing the button, hostile ships, the autopilot, the time extender, a menu, a hit
-on the ship, a station, freighter or object within 400 m ahead (the speed already easing down from 2 km) or the locked
+on the ship, a station, freighter, object or asteroid within 400 m ahead (the speed already easing down from 2 km) or the locked
 landmark within 1 km (the fast-forward's own limit) drop it; a new press charges again. The HUD shows "<item> charging"
 on the Khador Drive's charge bar, "-N t Energy Cells" when a leg is paid and why it stopped.
 
@@ -433,7 +433,7 @@ gone while it is hidden. Fly by hand on the fast-forward button, or lock a syste
 programmed destination's system, then the seven nearest): the autopilot holds the drive itself. Within 8 km of a system the
 ship flies straight on into its gate orbit, the warp and its speed easing out over 7 seconds as the orbit grows ahead. A leg here is the average gate hop, 30 km, whatever `cruiseRange`
 says, so the crossing costs what the gate route's Khador jump would: `energyCells` a hop (twice on Extreme). What a leg paid
-for survives a stop. Out of cells, the ship falls out at the nearest system. No traffic, encounters or story happen here,
+for survives a stop. The HUD says when the hold pays its last leg; out of cells, the ship falls out at the nearest system. No traffic, encounters or story happen here,
 and a save or a load is the orbit the ship left. `cruiseSpeed` is the time a crossing takes: x8 flies an average hop in 38
 seconds. The item is no jump drive: it doesn't replace the Khador Drive for the story's checks.
 

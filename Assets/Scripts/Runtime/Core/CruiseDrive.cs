@@ -10,8 +10,9 @@
 //            like the multiplayer cruise), scaled down from SlowUnits to StopUnits of a hull ahead (Proximity); every
 //            attr 106 units flown pay another leg; no cells for the next leg: it drops.
 //   drop     the button released, the drive blocked (the autopilot, a jump, a menu, the time extender, mining, a docking),
-//            hostiles around (the fast-forward's own rule), a hull within StopUnits ahead, the locked landmark within
-//            ArriveUnits, a hit on the ship, an encounter (CruiseEncounters). A drop needs a fresh press to charge again.
+//            hostiles around (the fast-forward's own rule), a hull or an asteroid within StopUnits ahead (CubeAhead for the
+//            asteroids' cubes), the locked landmark within ArriveUnits, a hit on the ship, an encounter (CruiseEncounters).
+//            A drop needs a fresh press to charge again.
 // Modelled on No Man's Sky's pulse travel (the abort at an obstacle, the drop at a safe distance from the target) and
 // EVERSPACE 2's cruise mode (the charge delay, the slowdown near objects, the interruptions): the behaviour only.
 
@@ -34,9 +35,12 @@ namespace GoF2Remake.Flight
         public const int InterstellarAttr = 135;
         /// <summary>Shop.KindOf: the cruise drives' own one-per-ship kind, past every item category.</summary>
         public const int Kind = 1000;
-        /// <summary>A hull ahead within StopUnits (400 m) drops the cruise; from SlowUnits (2 km) the speed eases down to it.
-        /// The locked landmark (station, gate, docking target) within ArriveUnits (1 km, the fast-forward's limit) drops it.</summary>
+        /// <summary>A hull or an asteroid ahead within StopUnits (400 m) drops the cruise; from SlowUnits (2 km) the speed eases
+        /// down to it. The locked landmark (station, gate, docking target) within ArriveUnits (1 km, the fast-forward's limit)
+        /// drops it.</summary>
         public const float StopUnits = 8000f, SlowUnits = 40000f, ArriveUnits = 20000f;
+        /// <summary>The nose line's half-width (metres) for what lies ahead: the hull sweep's sphere, the asteroids' cubes grown by it.</summary>
+        public const float SweepRadius = 12f;
         public const float RampUpMs = 800f, RampDownMs = 1200f;
 
         public readonly int item, chargeMs, cellsPerLeg, legUnits;
@@ -151,6 +155,29 @@ namespace GoF2Remake.Flight
         /// <summary>The ship comes in at full speed (into or out of the space between the systems): no cruise, the ramp runs down
         /// from the top over 'ms'.</summary>
         public void CarrySpeed(float ms) { Level = 1f; carryMs = ms; }
+
+        /// <summary>Where the line from 'from' along 'dir' (a unit vector) enters the axis-aligned cube of half-size 'half' about
+        /// 'centre' (an asteroid's, PlayerCollision's cube), in the line's own metres: 0 from inside it, float.MaxValue when it
+        /// misses or the cube lies behind. The slab test.</summary>
+        public static float CubeAhead(Vector3 from, Vector3 dir, Vector3 centre, float half)
+        {
+            float near = 0f, far = float.MaxValue;
+            for (int i = 0; i < 3; i++)
+            {
+                float f = from[i] - centre[i], d = dir[i];
+                if (Mathf.Abs(d) < 1e-6f)
+                {
+                    if (Mathf.Abs(f) > half) return float.MaxValue;
+                    continue;
+                }
+                float t1 = (-half - f) / d, t2 = (half - f) / d;
+                if (t1 > t2) { float t = t1; t1 = t2; t2 = t; }
+                if (t1 > near) near = t1;
+                if (t2 < far) far = t2;
+                if (far < near) return float.MaxValue;
+            }
+            return near;
+        }
 
         /// <summary>A hit on the ship (EVERSPACE 2's interruption): a charge or cruise ends; false = nothing ran.</summary>
         public bool Interrupt(Stop reason = Stop.Hit)

@@ -117,7 +117,7 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   (`InterstellarSpaceTests`: 0.5 to 1.25 x over every pair); `CruiseDrive.keepLeg` keeps a paid leg over a stop. The
   autopilot holds the drive there (`Navigation.UpdateDrive`), `CanFastForward` is false. Within `ArriveUnits` (8 km):
   `SystemJump.LeaveInterstellar` into `ArrivalStation` (the gate orbit); a story refusal
-  (`PlanetJumpRefused`) holds until the ship is back outside 1.5 x that. No cells for the next leg: `FallOutOfSlipstream`
+  (`PlanetJumpRefused`) holds until the ship is back outside 1.5 x that. The leg that empties the hold says so (Extra `interstellarLastLeg`); no cells for the next leg: `FallOutOfSlipstream`
   at the nearest system, nobody strands. The Khador scene plays going in only and cuts at its whiteout
   (`SystemJump.KhadorWhiteoutMs`, 1860 ms, from a frame capture of the fx): the orbit stays plain through the charge and the
   animation (the user's call: no warp before it), the camera gliding from its side view to the chase camera's place behind

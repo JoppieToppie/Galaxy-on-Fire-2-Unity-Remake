@@ -30,11 +30,12 @@ def unity(*args, timeout=None):
 
 
 def result_json(text):
+    """The first JSON object in the CLI's output (newer versions print it as a table column, with the parameters after it)."""
     start = text.find("{")
     if start < 0:
         return None
     try:
-        return json.loads(text[start:])
+        return json.JSONDecoder().raw_decode(text[start:])[0]
     except ValueError:
         return None
 
@@ -59,10 +60,12 @@ def wait_ready(limit_s=300):
 
 
 def find(node, key):
-    """The first value of 'key' anywhere in a JSON tree (the CLI nests the runner's response)."""
+    """The first value of 'key' anywhere in a JSON tree (the CLI nests the runner's response; the edit-mode result
+    capitalizes its keys, test_status's play-mode result doesn't)."""
     if isinstance(node, dict):
-        if key in node:
-            return node[key]
+        for k, v in node.items():
+            if k.lower() == key.lower():
+                return v
         for v in node.values():
             found = find(v, key)
             if found is not None:
@@ -131,10 +134,10 @@ def main():
 
     results = find(data, "Results") or []
     failed = [r for r in results if r.get("Status") not in ("Passed", "Skipped")]
+    count = lambda key: summary.get(key, summary.get(key.lower(), 0))
     print("{mode}: {p}/{t} passed, {f} failed, {s} skipped{i} ({sec:.0f} s){flt}".format(
-        mode=a.mode, p=summary.get("Passed", 0), t=summary.get("Total", 0), f=summary.get("Failed", 0),
-        s=summary.get("Skipped", 0),
-        i=", {} inconclusive".format(summary["Inconclusive"]) if summary.get("Inconclusive") else "",
+        mode=a.mode, p=count("Passed"), t=count("Total"), f=count("Failed"), s=count("Skipped"),
+        i=", {} inconclusive".format(count("Inconclusive")) if count("Inconclusive") else "",
         sec=time.time() - started, flt=" [filter {}]".format(a.filter) if a.filter else ""))
     for r in failed:
         print()
@@ -148,7 +151,7 @@ def main():
     if failed:
         print()
         print("Full records: Temp/test_results.json")
-    return 1 if failed or summary.get("Failed") else 0
+    return 1 if failed or count("Failed") else 0
 
 
 if __name__ == "__main__":

@@ -5,9 +5,11 @@
 // joins the multiplayer cruise's in CruiseFactor (ShipController's step), so it looks and sounds like a boost
 // (FlightModel.CruiseVisual). The energy cells go the Khador Drive's way (GalaxyMap.RemoveCells, "-1t Energy Cells";
 // 583 + the cells when there aren't enough; the free-jumps cheat makes it free). What stops it says so on the HUD with
-// the item's name (Extra cruiseDrive*). A hull ahead: HullCollision.Sweep along the nose for what the player is pushed out
-// of (stations, freighters, objects: HullBody.obstacle), not fighters; asteroids aren't hulls, so a field is flown at
-// your own risk (a hit drops the cruise, PlayerHealth.Hit).
+// the item's name (Extra cruiseDrive*). Something ahead: HullCollision.Sweep along the nose for what the player is pushed
+// out of (stations, freighters, objects: HullBody.obstacle), not fighters, and the live asteroids' cubes (Target.isAsteroid,
+// PlayerCollision's cube; they have no hulls) by CruiseDrive.CubeAhead, so a field slows and drops the cruise like a station
+// does, as No Man's Sky's pulse and EVERSPACE 2's cruise are stopped by what lies in the way. Between the systems, the last
+// leg the hold can pay is said (Extra interstellarLastLeg): the next one would fall the ship out.
 // Encounters (CruiseEncounters, the level's EncountersAllowed and SpawnEncounter -> CruiseEncounterSpawner): an ambush
 // appears AmbushAheadUnits ahead and drops the drive (Stop.Encounter; a flyby doesn't); a visible one is a signal, a
 // waypoint target SignalAheadUnits ahead and to one side (lockable, the autopilot flies to it) that spawns when the ship
@@ -91,6 +93,8 @@ namespace GoF2Remake.Flight
                     {
                         GalaxyMap.RemoveCells(Drive.CellsDue);
                         Say($"-{Drive.CellsDue}t {GameNames.Item(GalaxyMap.EnergyCellItem)}");
+                        if (Interstellar && GalaxyMap.CellsInCargo() < Drive.cellsPerLeg)
+                            Say(string.Format(Localization.Extra("interstellarLastLeg", "{0}: last leg of energy cells"), driveName));
                     }
                     break;
                 case CruiseDrive.Event.Refused:
@@ -124,14 +128,34 @@ namespace GoF2Remake.Flight
             if (text != null) Say(string.Format(text, driveName));
         }
 
-        /// <summary>The first hull the ship is pushed out of (stations, freighters, objects) within CruiseDrive.SlowUnits
-        /// along its nose, in units; float.MaxValue = none.</summary>
+        /// <summary>The first hull the ship is pushed out of (stations, freighters, objects) or live asteroid within
+        /// CruiseDrive.SlowUnits along its nose, in units; float.MaxValue = none.</summary>
         float ObstacleAheadUnits()
         {
             var t = ship.transform;
             var from = t.position;
             var to = from + t.forward * (CruiseDrive.SlowUnits * M);
-            return HullCollision.Sweep(from, to, 12f, b => b.obstacle != null && !b.transform.IsChildOf(t), out float d) ? d / M : float.MaxValue;
+            float best = HullCollision.Sweep(from, to, CruiseDrive.SweepRadius, b => b.obstacle != null && !b.transform.IsChildOf(t), out float d) ? d / M : float.MaxValue;
+            return Mathf.Min(best, AsteroidAheadUnits(from, t.forward, best));
+        }
+
+        /// <summary>The first live asteroid whose cube (the ship collision's, grown by the sweep's radius) the nose line enters
+        /// within 'limit' units (at most SlowUnits); float.MaxValue = none. Asteroids have no hull, so their cubes are tested.</summary>
+        float AsteroidAheadUnits(Vector3 from, Vector3 dir, float limit)
+        {
+            float reach = Mathf.Min(limit, CruiseDrive.SlowUnits) * M, best = float.MaxValue;
+            var all = GoF2Remake.Flight.Target.All;   // the asteroid components, not Navigation's own Target
+            for (int i = 0; i < all.Count; i++)
+            {
+                var a = all[i];
+                if (a == null || !a.isAsteroid || !a.Alive) continue;
+                var c = a.transform.position;
+                float broad = reach + a.radius + CruiseDrive.SweepRadius;
+                if ((c - from).sqrMagnitude > broad * broad) continue;
+                float m = CruiseDrive.CubeAhead(from, dir, c, a.radius + CruiseDrive.SweepRadius);
+                if (m < best) best = m;
+            }
+            return best <= reach ? best / M : float.MaxValue;
         }
 
         /// <summary>The locked landmark (station, gate, docking target, wormhole) in units; float.MaxValue = none.</summary>

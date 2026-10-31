@@ -5,10 +5,11 @@
 // ramps up over 800 ms and down over 1200 ms (smoothstep) and eases down from 40000 to 8000 units of a hull ahead, which
 // drops the cruise, as do the locked landmark within 20000 units, hostiles, a hit and the button released; a drop needs
 // a fresh press. Expected numbers from the class's constants and the ES2 importer's Slipstream (x4, 60000 units a
-// leg, 2000 ms, 1 cell).
+// leg, 2000 ms, 1 cell). CubeAhead: the slab test NavigationCruiseDrive runs on the asteroids' cubes.
 
 using GoF2Remake.Flight;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace GoF2Remake.Tests
 {
@@ -289,6 +290,21 @@ namespace GoF2Remake.Tests
             Step(d, 16f, held: false);
             Step(d, 16f, held: false, obstacle: None);
             Assert.AreEqual(0.5f, d.Proximity, 1e-4f, "not refreshed once off");
+        }
+
+        [Test]
+        public void CubeAheadFindsTheCubeOnTheNoseLine()
+        {
+            var from = new Vector3(0f, 0f, 0f);
+            var dir = Vector3.forward;
+            Assert.AreEqual(90f, CruiseDrive.CubeAhead(from, dir, new Vector3(0f, 0f, 100f), 10f), 0.001f, "the near face");
+            Assert.AreEqual(92f, CruiseDrive.CubeAhead(from, dir, new Vector3(8f, -8f, 100f), 8f), 0.001f, "the near face of an offset cube still crossed");
+            Assert.AreEqual(float.MaxValue, CruiseDrive.CubeAhead(from, dir, new Vector3(30f, 0f, 100f), 10f), "aside");
+            Assert.AreEqual(float.MaxValue, CruiseDrive.CubeAhead(from, dir, new Vector3(0f, 0f, -100f), 10f), "behind");
+            Assert.AreEqual(0f, CruiseDrive.CubeAhead(from, dir, new Vector3(5f, 5f, 5f), 10f), "inside it already");
+            var diag = new Vector3(1f, 0f, 1f).normalized;
+            Assert.AreEqual((100f - 10f) * Mathf.Sqrt(2f), CruiseDrive.CubeAhead(from, diag, new Vector3(100f, 0f, 100f), 10f), 0.01f, "entered where the first slab is crossed");
+            Assert.AreEqual(float.MaxValue, CruiseDrive.CubeAhead(from, Vector3.right, new Vector3(100f, 20f, 0f), 10f), "a ray along an axis misses a cube above it");
         }
     }
 }

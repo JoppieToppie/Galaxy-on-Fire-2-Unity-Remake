@@ -69,8 +69,9 @@ the player ship) and `NavigationView` (flight HUD).
   units pay a leg. Drops (a HUD line with the item's name, Extra `cruiseDrive*`): release, hostiles (`HostilesPresent`), the
   autopilot / jump / time extender / mining / docking / a halt, a hull the player is pushed out of (`HullBody.obstacle`:
   stations, freighters, objects; `HullCollision.Sweep` along the nose) within `StopUnits` 8000 (the speed eased down from
-  `SlowUnits` 40000), the locked landmark within `ArriveUnits` 20000, a hit (`PlayerHealth.Hit`). Asteroids aren't hulls: a
-  field is flown at your own risk. Touch: the drive takes the fast-forward slot while usable (the clock keeps it while
+  `SlowUnits` 40000), a live asteroid's cube (the ship collision's, grown by `CruiseDrive.SweepRadius`; asteroids have no
+  hull, so `CruiseDrive.CubeAhead`'s slab test along the nose finds them, 2026-10-31) the same way, the locked landmark within
+  `ArriveUnits` 20000, a hit (`PlayerHealth.Hit`). Touch: the drive takes the fast-forward slot while usable (the clock keeps it while
   the extender runs); hint "CRUISE (HOLD)" (Extra `hudCruiseDrive`). Modelled on No Man's Sky's pulse travel and
   EVERSPACE 2's cruise mode (behaviour only).
   **Encounters** (`Flight.CruiseEncounters` rules, `Modding.ModEncounters` the table with the mods' encounters.json,
