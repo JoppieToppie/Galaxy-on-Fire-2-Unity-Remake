@@ -17,7 +17,7 @@ This file holds only what every task needs. Everything about one area of the gam
 | [assembled-prefabs.md](docs/notes/assembled-prefabs.md) | Assembled objects, ship variants, LODs and the generated levels of detail |
 | [space-scene.md](docs/notes/space-scene.md) | Orbit layout, sky, reflections, hull shader, backdrop, lights, menu background, docking, wormhole, the Void |
 | [navigation.md](docs/notes/navigation.md) | Locks, autopilot, autopilot / quick menus, planet jump, fast-forward and cruise |
-| [star-map.md](docs/notes/star-map.md) | Star map, jumpgates, Khador Drive, arrivals, mission maps, Loma |
+| [star-map.md](docs/notes/star-map.md) | Star map, jumpgates, Khador Drive, arrivals, mission maps, Loma, interstellar space |
 | [npcs-and-combat.md](docs/notes/npcs-and-combat.md) | Traffic, NPC stats and AI, damage, radar and HUD markers, music, collisions, radio, fines, NPC guns and turrets, missile warning, cargo stealing |
 | [capital-ships-and-pirates.md](docs/notes/capital-ships-and-pirates.md) | Capital ships, their enhancements, fleet battles and missiles, pirate bases, pirate events, threat tiers, the pirate board |
 | [story.md](docs/notes/story.md) | Campaign rules, dialogue, radio, cutscenes, the main and Valkyrie levels, the ending |

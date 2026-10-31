@@ -39,6 +39,9 @@ namespace GoF2Remake.Modding
             text ??= description ? "" : d.key;
             return true;
         }
+        /// <summary>Translated, for the other mod tables (ModEncounters' signal names).</summary>
+        public static string TranslatedText(ModInfo mod, string key, Dictionary<string, string> inline) => Translated(mod, key, inline);
+
         /// <summary>The mod's text file for the language, else the entry's own text in the language / English / plain.</summary>
         static string Translated(ModInfo mod, string key, Dictionary<string, string> inline)
         {

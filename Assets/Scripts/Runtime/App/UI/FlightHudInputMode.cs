@@ -121,7 +121,8 @@ namespace GoF2Remake.UI
                 return;
             }
             // Multiplayer: the held button is a cruise mode (Navigation.Cruise), not a fast-forward.
-            string ff = (NetSession.Active ? T("hudCruise", "CRUISE") : T("hudFastForward", "FAST FORWARD")) + " (" + T("hudHold", "HOLD") + ")";
+            // Between the systems it is the drive's.
+            string ff = (NetSession.Active || (nav != null && nav.Interstellar) ? T("hudCruise", "CRUISE") : T("hudFastForward", "FAST FORWARD")) + " (" + T("hudHold", "HOLD") + ")";
             if (lastAutopilot)
             {
                 // Autopilot: throttle, boost and guns still work; fast-forward is held. Off: the autopilot key, or the
@@ -152,6 +153,7 @@ namespace GoF2Remake.UI
                 Hint(T("hudHover", "UP / DOWN"), GameControls.Hover);
                 Hint(T("hudRoll", "ROLL"), GameControls.Roll);
                 Hint(T("hudBoost", "BOOST") + " (" + T("hudHold", "HOLD") + ")", GameControls.Boost);
+                if (nav != null && nav.Drive != null) Hint(T("hudCruiseDrive", "CRUISE") + " (" + T("hudHold", "HOLD") + ")", GameControls.FastForward);   // remake: a cruise drive
                 Hint(T("hudDampeners", "DAMPENERS"), GameControls.Dampeners);
                 Hint(fire, GameControls.FirePrimary);
                 Hint(T("hudMissile", "MISSILE"), GameControls.FireSecondary);
@@ -171,6 +173,7 @@ namespace GoF2Remake.UI
             Hint(throttle, GameControls.Throttle);
             Hint(T("hudBrake", "BRAKE"), GameControls.Brake);
             Hint(T("hudBoost", "BOOST"), GameControls.Boost);
+            if (nav != null && nav.Drive != null) Hint(T("hudCruiseDrive", "CRUISE") + " (" + T("hudHold", "HOLD") + ")", GameControls.FastForward);   // remake: a cruise drive
             Hint(fire, GameControls.FirePrimary);
             Hint(T("hudMissile", "MISSILE"), GameControls.FireSecondary);
             if (weapons != null && weapons.CanCycleSecondary) Hint(T("hudSwitchSecondary", "SWITCH"), GameControls.SwitchSecondary);

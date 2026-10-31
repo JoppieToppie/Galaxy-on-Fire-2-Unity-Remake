@@ -59,6 +59,35 @@ the player ship) and `NavigationView` (flight HUD).
   camera / controller rumble, the boost sound's start and stop; without a booster item 71's boost sound,
   `PlayerEngine.cruiseClip`: a new pilot's Betty has none), while `IsBoosting` (missile evasion, the recharge, volatile
   goods) stays the real boost's.
+- **Cruise drive** (remake, `Flight.CruiseDrive` rules + `NavigationCruiseDrive`; a mod item based on the Khador Drive
+  with `cruiseSpeed` 133 > 0, `Shop.IsCruiseDrive`, its own one-per-ship kind `Shop.KindOf` = `CruiseDrive.Kind` beside the
+  Khador Drive; the ES2 importer's `drives` part, Modding/README.md "Cruise drives"): the fast-forward
+  button in manual flight (the original fast-forward keeps it on the autopilot and the approaches). A fresh press held for
+  attr 37 ms charges (the Khador bar, Extra `hudCruiseDriveCharging`), then one leg's energy cells (attr 38, x2 Extreme, 0
+  with free jumps; `GalaxyMap.RemoveCells`, "-1t Energy Cells", 583 + the cells when short) and the forward speed x attr
+  133 / 100 joins `CruiseFactor` (its own ramp 800 / 1200 ms, `Cruising` and the boost look follow it); every attr 134
+  units pay a leg. Drops (a HUD line with the item's name, Extra `cruiseDrive*`): release, hostiles (`HostilesPresent`), the
+  autopilot / jump / time extender / mining / docking / a halt, a hull the player is pushed out of (`HullBody.obstacle`:
+  stations, freighters, objects; `HullCollision.Sweep` along the nose) within `StopUnits` 8000 (the speed eased down from
+  `SlowUnits` 40000), the locked landmark within `ArriveUnits` 20000, a hit (`PlayerHealth.Hit`). Asteroids aren't hulls: a
+  field is flown at your own risk. Touch: the drive takes the fast-forward slot while usable (the clock keeps it while
+  the extender runs); hint "CRUISE (HOLD)" (Extra `hudCruiseDrive`). Modelled on No Man's Sky's pulse travel and
+  EVERSPACE 2's cruise mode (behaviour only).
+  **Encounters** (`Flight.CruiseEncounters` rules, `Modding.ModEncounters` the table with the mods' encounters.json,
+  `World.CruiseEncounterSpawner` the spawns, `SpaceLevel` gates them: `EncountersAllowed` = the orbit's own traffic
+  (`!ownPassive`, not a multiplayer orbit another player runs, not the prologue) and `CruiseEncounterRules.Allowed` (not
+  the alien orbit, stations 10 / 100-104 / 108, systems 25 / 27 / 32 / 33, a mods-only system)): after `MinCruiseMs` 6000
+  of a cruise a roll every `CheckIntervalMs` 5000 at `ChancePercent` 10, `CooldownMs` 90000 between two, `MaxPerOrbit` 2;
+  the pick by weight among the entries whose rank / security / free-play conditions hold (`CanHappen`). An ambush spawns
+  `AmbushAheadUnits` 22000 ahead and drops the drive (`Stop.Encounter`, Extra `cruiseDriveEncounter`; a flyby doesn't); a
+  visible entry is a signal: a `Kind.Waypoint` target (the white freelance icon, lockable, the autopilot flies to it)
+  `SignalAheadUnits` 45000 ahead and up to `SignalSideUnits` 25000 aside, "Signal detected: X" (Extra
+  `cruiseSignalFound`), spawned when the ship comes within `SignalReachUnits` 12000, gone after `SignalLifeMs` 180 s or
+  `SignalLostUnits` 200000 away ("Signal lost"); a "quest" entry starts its quest graph (`GameHooks.StartQuest` ->
+  `EventRunner.StartQuest`, single player). Built-ins: pirates 2 + rank / 6 raiders (2..5, hostile), trader a freighter of
+  the system's race (`NpcTables.RandomFreighter`) + 2 locals, derelict 2-4 junk crates with a freighter's loot roll (empty:
+  energy cells), distress a local under attack by 1 + rank / 8 raiders, flyby 3 locals of a random race; names Extra
+  `encounter*`. Modelled on No Man's Sky's pulse encounters and EVERSPACE 2's signals (behaviour only).
 - **Menu order** (`Hud::initHudMenu(3)`): outside the alien orbit Asteroid field, Station, Jumpgate, 573 **Waypoint** (a
   player route not finished: the autopilot follows the route, "Target: Waypoint"), "Destination: X"; then every named
   docking target (also in the alien orbit). The original's only restriction is no menu in mission type 0xb7 (the

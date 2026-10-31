@@ -319,6 +319,10 @@ energy cells.
 | `echoRadius` | 129 | The echo's reach in game units (0 = the gun's own `blastRadius`) |
 | `echoExplosion` | 130 | The explosion the echo shows: 0 ship, 8 to 10 scatter (8 the default), 11 shock blast, 13 fireworks; -1 none |
 | `missileDefense` | 131 | Missile defense: with this item mounted, the ship's automatic turrets shoot down the homing missiles flying at it within this reach (game units, 20 per metre), before turning to enemy ships. Any item can carry it; on a seatless cabin (`"base": 91`, `"cabinSize": 0`) it changes nothing else and the shop calls it "Missile defense". Another player's missiles in multiplayer are left alone |
+| `cruiseSpeed` | 133 | A cruise drive's speed factor in hundredths (400 = x4; > 0 makes an item based on the Khador Drive a cruise drive, see [Cruise drives](#cruise-drives)) |
+| `interstellar` | 135 | 1: the mounted cruise drive also flies the space between the systems ([Cruise drives](#cruise-drives)) |
+| `cruiseRange` | 134 | Cruise drive: the distance one leg of energy cells buys (game units, 20 per metre; default 60000 = 3 km) |
+| `cruiseChargeMs` | 37 | Cruise drive: the charge before it engages (ms; the Khador Drive's own charge attribute) |
 | `miningTime` | 132 | An ore's mining time in percent of the game's 6 seconds per layer (default 100; 200 = twice as long). The ore a whole asteroid gives stays the same: it comes slower. Counts for the drill's minigame and the mining beam |
 
 Which stats an item uses depends on its category, so copy the stats its base item has (see `items.json` and
@@ -394,6 +398,86 @@ volume, or the asteroid it sits in destroyed for 20 damage.
     "stats": { "cloakDurationMs": 80000, "cloakChargeMs": 7000, "energyCells": 5, "phaseCloak": 1 }
 }
 ```
+
+### Cruise drives
+
+A cruise drive is an item based on the Khador Drive (85) with `"cruiseSpeed"` above 0: in-system fast travel for a pilot
+flying by hand, beside the Khador Drive (its own one-per-ship kind, so a ship carries both). Hold the fast-forward button
+(the touch button, Tab, controller Y) while nothing else flies the ship: the drive charges for `cruiseChargeMs`, pays
+`energyCells` energy cells (twice as many on Extreme, like a Khador jump) and the ship flies `cruiseSpeed` / 100 times
+its forward speed, looking and sounding like a boost; every `cruiseRange` units it pays another leg of cells, and without
+the cells for the next leg it stops. Releasing the button, hostile ships, the autopilot, the time extender, a menu, a hit
+on the ship, a station, freighter or object within 400 m ahead (the speed already easing down from 2 km) or the locked
+landmark within 1 km (the fast-forward's own limit) drop it; a new press charges again. The HUD shows "<item> charging"
+on the Khador Drive's charge bar, "-N t Energy Cells" when a leg is paid and why it stopped.
+
+```json
+{
+    "id": "slipstream",
+    "base": 85,
+    "name": "Slipstream",
+    "techLevel": 7,
+    "occurrence": 25,
+    "price": [148000, 162800],
+    "stats": { "cruiseSpeed": 400, "cruiseRange": 60000, "cruiseChargeMs": 2000, "energyCells": 1 }
+}
+```
+
+**Between the systems.** With `"interstellar": 1` as well, the mounted drive also flies the space between the systems.
+There is no option for it: mounting the item is the switch, and in the hold it does nothing. It adds an entry with the
+item's name to the quick menu (the Khador Drive's key reaches it on a ship without a Khador Drive), refused where a Khador
+jump is (a mission, volatile goods, the Void). The Khador Drive's charge and scene play once, and instead of a destination the
+ship comes out in an empty space with every system of the star map as a sun at its place on the map. Only what the map
+shows is there: a system appears once it is revealed (the story, bought coordinates, an event, its `available`) and is
+gone while it is hidden. Fly by hand on the fast-forward button, or lock a system or pick it from the autopilot menu (the
+programmed destination's system, then the seven nearest): the autopilot holds the drive itself. Within 8 km of a system the
+ship flies straight on into its gate orbit, the warp and its speed easing out over 7 seconds as the orbit grows ahead. A leg here is the average gate hop, 30 km, whatever `cruiseRange`
+says, so the crossing costs what the gate route's Khador jump would: `energyCells` a hop (twice on Extreme). What a leg paid
+for survives a stop. Out of cells, the ship falls out at the nearest system. No traffic, encounters or story happen here,
+and a save or a load is the orbit the ship left. `cruiseSpeed` is the time a crossing takes: x8 flies an average hop in 38
+seconds. The item is no jump drive: it doesn't replace the Khador Drive for the story's checks.
+
+`warp.json` (optional, the last mod in the load order that has one wins) gives that space its look and sound; each entry is
+optional, and without one the game makes its own:
+
+```json
+{ "tunnel": "warp/tunnel.png", "detail": "warp/detail.png", "streaks": "warp/streaks.png", "tint": "#8cd0ff",
+  "loop": "warp/loop.ogg", "enter": "warp/enter.ogg" }
+```
+
+The warp stretches the sky itself into streaks, so its colours are always the sky's. It runs all the time between the
+systems and with any cruise drive in an orbit, fading in and out with the drive; between the systems it also carries the
+Khador Drive's blue vein web and ice blue. The three images tile and only shape it, of which the red channel is read: `tunnel` and `detail` break it into
+bands, `streaks` are thin lines over it in `tint`. `loop` plays with its strength and `enter` as the drive engages. A
+system's own sky blends in over the last 20 km, so the arrival matches.
+
+**Encounters.** A cruise runs into things: after the first 6 seconds of a cruise, every 5 seconds there is a 10 % chance
+of an encounter (90 seconds apart at least, two per orbit visit at most), picked by weight from a table. The game's own
+table: `pirates` (weight 30, an ambush: raiders appear ahead and the drive drops), `trader` (20, a signal: a freighter
+with escorts), `derelict` (20, a signal: drifting crates), `distress` (20, from rank 2, a signal: a local ship under
+attack), `flyby` (10, a wing passing through; the drive keeps running). A signal is a waypoint ahead and to one side:
+fly or autopilot to it and it appears, cruise on and it fades after 3 minutes or 10 km. None come in the special orbits,
+the Void and supernova systems, Loma, a scripted orbit (a story or freelance mission, the Kaamo siege, the Supernova
+Challenge) or, in multiplayer, an orbit another player runs. `encounters.json` adds to the table and changes it:
+
+```json
+[
+    { "id": "ambush", "kind": "pirates", "weight": 20, "minRank": 4, "security": [0, 1], "ships": 4, "name": "Raider pack" },
+    { "id": "beacon", "kind": "quest", "quest": "old_beacon", "weight": 5 },
+    { "override": "flyby", "weight": 0 },
+    { "override": "trader", "visible": false }
+]
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | A new entry (its key is `mod:id`); or `override`: one of the game's (`pirates`, `trader`, `derelict`, `distress`, `flyby`) or another mod's `mod:id` to change. |
+| `kind` | `pirates`, `trader`, `derelict`, `distress`, `flyby`, or `quest` (starts the quest graph `quest` from the mod's `events/`, single player; the graph spawns, talks and sets waypoints itself). |
+| `weight` | Its share of the roll (0 = never; the game's add up to 100). |
+| `visible` | `true`: a signal the pilot may fly to; `false`: it appears at once (pirates, distress and flyby ambush, trader and derelict signal by default). |
+| `minRank`, `security`, `freePlayOnly` | Only from that rank, only in systems of those security levels (0 Dangerous, 1 Risky, 2 Average, 3 Secure), only in free play. |
+| `ships` | How many: pirates, the trader's escorts, the derelict's crates, the distress call's raiders, the flyby's wing. |
+| `name` | The signal's name on the HUD (a string or per language, like an item's). |
 
 ### Multi-grab tractor beams
 

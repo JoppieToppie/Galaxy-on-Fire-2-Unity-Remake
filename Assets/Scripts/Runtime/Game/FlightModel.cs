@@ -616,8 +616,19 @@ namespace GoF2Remake.Flight
         /// <summary>Boosting or cruising: the boost's look and sound (camera rumble, the boost sound's start and stop).</summary>
         public bool LooksBoosting => IsBoosting || CruiseVisual > 0f;
 
-        public void UpdateCruise(bool cruising, float dtMs) =>
-            CruiseVisual = Mathf.MoveTowards(CruiseVisual, cruising ? 1f : 0f, Mathf.Max(0f, dtMs) / CruiseEaseMs);
+        public void UpdateCruise(bool cruising, float dtMs)
+        {
+            CruiseVisual = Mathf.MoveTowards(CruiseVisual, cruising ? 1f : 0f, Mathf.Max(0f, dtMs) / (cruising || cruiseCarryMs <= 0f ? CruiseEaseMs : cruiseCarryMs));
+            if (cruising || CruiseVisual <= 0f) cruiseCarryMs = 0f;
+        }
+
+        /// <summary>Remake: the ship comes out of a load at speed (SpaceLevel): the look starts full and eases out over 'ms'.</summary>
+        public void CarryCruiseLook(float ms)
+        {
+            CruiseVisual = 1f;
+            cruiseCarryMs = ms;
+        }
+        float cruiseCarryMs;
 
         /// <summary>The level-out request (PlayerEgo::alignToHorizon: the stick's double tap, the Level out binding). Remake:
         /// it levels LevelRequestDelayMs later unless the player steers meanwhile (UpdateLevelRequest).</summary>

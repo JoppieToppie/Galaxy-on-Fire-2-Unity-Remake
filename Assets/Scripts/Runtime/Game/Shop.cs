@@ -53,8 +53,20 @@ namespace GoF2Remake.Data
         public static int RaceOfShip(int ship) => ship >= 0 && ship < ShipRace.Length ? ShipRace[ship] : CustomShips.Get(ship)?.race ?? -1;
 
         /// <summary>DAT_00254930 (Item::canBeInstalledMultipleTimes): categories a ship can mount only once.</summary>
-        static readonly HashSet<int> OnePerShip = new HashSet<int> { 8, 9, 10, 13, 14, 15, 16, 17, 18, 19, 21, 26, 27, 28, 29, 33, 35, 37, 38, 41 };
+        static readonly HashSet<int> OnePerShip = new HashSet<int> { 8, 9, 10, 13, 14, 15, 16, 17, 18, 19, 21, 26, 27, 28, 29, 33, 35, 37, 38, 41, Flight.CruiseDrive.Kind };
+        /// <summary>'category': an item's one-per-ship kind (KindOf), its category for the originals.</summary>
         public static bool CanInstallMultiple(int category) => !OnePerShip.Contains(category);
+
+        /// <summary>Remake: a cruise drive (Flight.CruiseDrive), a mod item made from the Khador Drive with cruiseSpeed (attr 133).</summary>
+        public static bool IsCruiseDrive(ItemData it) => it != null && it.TypeId == 3 && it.Attr(Flight.CruiseDrive.SpeedAttr) > 0;
+
+        /// <summary>The one-per-ship kind an item belongs to (Hangar's install and swap rules, FirstMounted): its category, or
+        /// a remake kind of its own past the categories: a cruise drive keeps its base's category 18 (the Khador Drive's icon
+        /// and look) but is fitted beside a Khador Drive, not in its place.</summary>
+        public static int KindOf(ItemData it) => it == null ? -1 : IsCruiseDrive(it) ? Flight.CruiseDrive.Kind : it.categoryId;
+
+        /// <summary>The mounted cruise drive, null without one.</summary>
+        public static ItemData MountedCruiseDrive(Database db) => FirstMounted(db, Flight.CruiseDrive.Kind);
 
         /// <summary>The original's top tech level, of its items and its stations alike (stations 0-10, items 1-10).</summary>
         public const int TopTech = 10;
@@ -206,10 +218,11 @@ namespace GoF2Remake.Data
         /// <summary>Adds a row to a station's stock, keeping item index order.</summary>
         public static void InsertStock(StationStock stock, ItemStack row) => InsertSorted(stock.items, row);
 
-        /// <summary>Ship::getFirstEquipmentOfSort: the first mounted item of a category, or null.</summary>
+        /// <summary>Ship::getFirstEquipmentOfSort: the first mounted item of a category (a one-per-ship kind, KindOf: a cruise
+        /// drive made from the Khador Drive isn't a jump drive here), or null.</summary>
         public static ItemData FirstMounted(Database db, int category)
         {
-            foreach (var e in Session.Equipment) { var it = db.Item(e.item); if (it != null && it.categoryId == category) return it; }
+            foreach (var e in Session.Equipment) { var it = db.Item(e.item); if (it != null && KindOf(it) == category) return it; }
             return null;
         }
 

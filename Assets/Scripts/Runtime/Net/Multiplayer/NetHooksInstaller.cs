@@ -40,6 +40,7 @@ namespace GoF2Remake.Multiplayer
             GameHooks.ActiveEventMissionTitle = () => EventMissions.Active?.title;
             GameHooks.Condition = EventRunner.Condition;
             GameHooks.ResetLocalEvents = EventRunner.ResetLocal;
+            GameHooks.StartQuest = EventRunner.StartQuest;   // a cruise drive encounter's quest graph (CruiseEncounters)
 
             GameHooks.StockShared = NetStock.Shared;
             GameHooks.StockEntered = NetStock.OnEnterStation;

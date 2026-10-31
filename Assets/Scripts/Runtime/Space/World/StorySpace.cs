@@ -67,6 +67,7 @@ namespace GoF2Remake.World
         void Update()
         {
             if (Session.FreePlay || level == null || DialogueRequested == null || DialogueOpen || level.Leaving) return;
+            if (level.Layout != null && level.Layout.interstellar) return;   // remake: no story between the systems
             levelMs += Time.deltaTime * 1000f;
             if (SuccessPending)
             {

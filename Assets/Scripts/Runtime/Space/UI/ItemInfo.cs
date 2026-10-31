@@ -55,6 +55,7 @@ namespace GoF2Remake.UI
         public static string Category(ItemData it) => it == null ? "" : Modding.ModBlueprints.ShipOf(it.index) >= 0
             ? Localization.Extra("bpShipBlueprint", "Ship blueprint")   // a mod's ship blueprint (its hidden item)
             : it.Attr(Flight.PointDefense.Attribute) > 0 ? Localization.Extra("catMissileDefense", "Missile defense")   // (a mod's, on a seatless cabin)
+            : Shop.IsCruiseDrive(it) ? Localization.Extra("catCruiseDrive", "Cruise drive")   // (a mod's, made from the Khador Drive)
             : Localization.Get(221 + it.categoryId);
 
         /// <summary>Attributes the details never list (index, type, price systems, occurrence, prices, Vossk flag, home station).</summary>
@@ -127,6 +128,16 @@ namespace GoF2Remake.UI
                     case 52: rows.Add((T(160), $"{v} %")); break;
                     case 55: rows.Add((T(161), v.ToString())); break;
                     case 59: rows.Add((T(163), $"{v} t")); break;
+                    // Remake: a cruise drive (Flight.CruiseDrive): the speed factor and the distance a leg of energy cells buys.
+                    case Flight.CruiseDrive.SpeedAttr:
+                        rows.Add((Localization.Extra("statCruiseSpeed", "Cruise speed"), "x " + (v / 100f).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)));
+                        break;
+                    case Flight.CruiseDrive.InterstellarAttr:
+                        rows.Add((Localization.Extra("statInterstellar", "Interstellar flight"), Localization.Extra("statInterstellarOn", "Between the systems")));
+                        break;
+                    case Flight.CruiseDrive.RangeAttr:
+                        rows.Add((Localization.Extra("statCruiseRange", "Range per energy cell leg"), $"{Mathf.RoundToInt(v * Flight.Gun.MetersPerUnit)} m"));   // 20 units a metre
+                        break;
                 }
             }
             // Remake: a weapon's damage to shields (Flight.Gun.ShieldFactor: the Disruptor's 200 %, a mod's shieldDamage).

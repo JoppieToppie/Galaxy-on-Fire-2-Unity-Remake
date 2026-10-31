@@ -47,9 +47,9 @@ using UnityEngine.SceneManagement;
 namespace GoF2Remake.Flight
 {
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
-    public class Navigation : MonoBehaviour
+    public partial class Navigation : MonoBehaviour
     {
-        public enum Kind { Station, Jumpgate, Planet, AsteroidField, Destination, KhadorDrive, Waypoint, Wingmen, Cloak, Wormhole, DockingTarget, Secondary, TimeExtender,
+        public enum Kind { Station, Jumpgate, Planet, AsteroidField, Destination, KhadorDrive, Slipstream, System, Waypoint, Wingmen, Cloak, Wormhole, DockingTarget, Secondary, TimeExtender,
                            Distress, Assist,
             /// <summary>Remake multiplayer: a named object (/spawn ... named, DebugSpawner.SpawnObject): its name and distance
             /// near the crosshair like a landmark's, never locked or flown to.</summary>
@@ -60,7 +60,8 @@ namespace GoF2Remake.Flight
             public Kind kind;
             public Transform transform;      // null for fixed positions
             public Vector3 fixedPosition;
-            public int station = -1;         // planets: the station it leads to
+            public int station = -1;         // planets: the station it leads to (interstellar systems: their arrival)
+            public int system = -1;          // interstellar systems: the system
             public bool disabled;            // drawn half-transparent, ignores taps (the cloak while not ready)
             public bool hidden;              // not drawn and not lockable now (the wormhole while invisible)
             public string name;
@@ -269,9 +270,10 @@ namespace GoF2Remake.Flight
         /// autopilot, the asteroid approach, an object's approach); its turns, timers and the camera keep their pace.</summary>
         public bool Cruise { get; private set; }
         /// <summary>The player ship's forward speed factor (ShipController, Mining's approach): from 1 up to FastForwardScale
-        /// while cruising, eased in over CruiseRampUpMs (smoothstep) and back over CruiseRampDownMs.</summary>
+        /// while cruising, eased in over CruiseRampUpMs (smoothstep) and back over CruiseRampDownMs; or the mounted cruise
+        /// drive's factor (CruiseDrive.Factor, its own ramp) while that runs (NavigationCruiseDrive).</summary>
         public static float CruiseFactor { get; private set; } = 1f;
-        /// <summary>The cruise is held and allowed now (its boost look, FlightModel.CruiseVisual, follows this).</summary>
+        /// <summary>The cruise is held and allowed now, or the cruise drive runs (its boost look, FlightModel.CruiseVisual, follows this).</summary>
         public static bool Cruising { get; private set; }
         const float CruiseRampUpMs = 3000f, CruiseRampDownMs = 1200f;
         float cruiseLevel;
@@ -332,6 +334,8 @@ namespace GoF2Remake.Flight
             sfx.playOnAwake = false;
             var scanner = Shop.FirstMounted(database, 17);
             LockTimeMs = Cheats.LockMs(scanner != null && scanner.HasAttr(29) ? scanner.Attr(29) : 8000);
+            SetupDrive(database);   // remake: a mounted cruise drive (NavigationCruiseDrive)
+            SetupInterstellar();   // remake: the suns of the space between the systems (NavigationInterstellar)
             gateRadiusUnits = layout.JumpgateRadius;
 
             // Level::getLandmarks: [0] station (none in empty orbits), [1] the visible jumpgate (gate orbit only).
@@ -376,6 +380,7 @@ namespace GoF2Remake.Flight
         {
             var list = new List<Target>();
             if (actions) return ActionEntries(list);
+            if (Interstellar) return SystemEntries(list);
             if (!layout.alienOrbit)
             {
                 if (AsteroidField != null) list.Add(AsteroidField);
@@ -407,7 +412,8 @@ namespace GoF2Remake.Flight
             if (HasWingmen != null && HasWingmen()) list.Add(new Target { kind = Kind.Wingmen, name = Localization.Get(306) });
             if (Cloak != null) list.Add(new Target { kind = Kind.Cloak, name = Cloak.ItemName, disabled = !Cloak.Rules.Available });
             // Remake: not while docked at an object (it holds the ship: undock first).
-            if (GalaxyMap.HasJumpDrive(db) && (Docking == null || Docking.State == ObjectDocking.Phase.Idle || Docking.State == ObjectDocking.Phase.Approach)) list.Add(new Target { kind = Kind.KhadorDrive, name = Localization.Get(1359) });
+            if (!Interstellar && GalaxyMap.HasJumpDrive(db) && (Docking == null || Docking.State == ObjectDocking.Phase.Idle || Docking.State == ObjectDocking.Phase.Approach)) list.Add(new Target { kind = Kind.KhadorDrive, name = Localization.Get(1359) });
+            AddSlipstreamEntry(list);   // remake: the mounted drive that flies between the systems (NavigationInterstellar)
             // Remake: the time extender too (the original has it only on its own touch slot), so one menu holds every
             // device: secondaries, wingmen, cloak, Khador Drive and the time extender (half-transparent while recharging).
             if (Extender != null)
@@ -495,6 +501,7 @@ namespace GoF2Remake.Flight
                 KhadorRequested?.Invoke();
                 return;
             }
+            if (target.kind == Kind.Slipstream) { RequestInterstellar(); return; }
             Say($"{Localization.Get(546)}: {target.name}", HudMessageKind.Target);
             Play(sounds?.autopilotOn);
             SetAutopilot(target);
@@ -510,7 +517,7 @@ namespace GoF2Remake.Flight
         {
             get
             {
-                if (Jumping || HostilesPresent || TimeExtender.Active) return false;
+                if (Interstellar || Jumping || HostilesPresent || TimeExtender.Active) return false;   // (the drive has the button there)
                 if (Autopilot) return !AboutToReach;
                 if (mining != null && mining.Target != null && mining.State == Mining.Phase.Approaching)
                     return (mining.Target.transform.position - ship.transform.position).magnitude / M >= AboutToReachUnits;
@@ -525,6 +532,7 @@ namespace GoF2Remake.Flight
         {
             if (ship == null) return;
             float dtMs = Time.deltaTime * 1000f;
+            UpdateDrive(dtMs);
             UpdateCruise(dtMs);
             // PlayerEgo::update: whatever set the player route (a campaign level, a freelance mission's waypoints, a
             // Challenge's course, step 59's convoy point), Route::update advances it from the ship's position every frame;
@@ -541,6 +549,7 @@ namespace GoF2Remake.Flight
             if (Autopilot) AboutToReach = (AutopilotTarget.Position - ship.transform.position).magnitude / M < AboutToReachUnits;
             if (MenuOpen) return;   // paused
             UpdateLock(dtMs);
+            UpdateInterstellar();
             SetFastForward(fastForwardHeld && CanFastForward);
         }
 
@@ -745,9 +754,11 @@ namespace GoF2Remake.Flight
 
         void UpdateCruise(float dtMs)
         {
-            Cruising = Cruise && !halted && !Jumping;
-            cruiseLevel = Mathf.MoveTowards(cruiseLevel, Cruising ? 1f : 0f, Mathf.Max(0f, dtMs) / (Cruising ? CruiseRampUpMs : CruiseRampDownMs));
-            CruiseFactor = 1f + (FastForwardScale - 1f) * cruiseLevel * cruiseLevel * (3f - 2f * cruiseLevel);
+            bool cruise = Cruise && !halted && !Jumping;
+            Cruising = cruise || DriveCruising;
+            cruiseLevel = Mathf.MoveTowards(cruiseLevel, cruise ? 1f : 0f, Mathf.Max(0f, dtMs) / (cruise ? CruiseRampUpMs : CruiseRampDownMs));
+            float multiplayer = 1f + (FastForwardScale - 1f) * cruiseLevel * cruiseLevel * (3f - 2f * cruiseLevel);
+            CruiseFactor = Mathf.Max(multiplayer, Drive != null ? Drive.Factor : 1f);   // remake: the cruise drive's own ramp
         }
 
         void SetFastForward(bool on)
