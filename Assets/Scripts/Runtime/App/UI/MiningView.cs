@@ -187,6 +187,11 @@ namespace GoF2Remake.UI
                         markers.Add(e);
                     }
                     var m = markers[used++];
+                    // Modified: back into the layer when NavigationView rebuilt it (Build clears the shared navMarkers layer
+                    // whenever its targets change, e.g. a freelance mission's waypoint going at its end): the letters were
+                    // left detached and never showed again until the next scene (a player's report: after Junk removal /
+                    // Recovery the Ultrascan's "A" marks were gone until docking).
+                    if (m.parent != markerLayer) markerLayer.Add(m);
                     m.style.display = DisplayStyle.Flex;
                     m.style.translate = new Translate(p.x, p.y);   // not left / top: they ran the layout every frame
                 }
