@@ -130,3 +130,35 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   already uses the flight shaders), no frame over 50 ms: no shader warm-up (`GraphicsStateCollection`) needed so far.
 - **FMOD event IDs -> .ogg**: `Reference/research/fmod_event_ids.txt` (every system id, from the FEV's LGCY data; see
   "Known open items"). Menu theme = 145 `Space_NoCombat_Void`, new game = 143 `IntroAtmo`, buttons 124/123, dialog 126.
+- **Build times** (`ShaderVariantRules`, `ShaderVariantStripper`, 2026-10-31): a full Linux build took 940 s (Clean Build,
+  2026-10-26): 640 s shaders, 262 s IL2CPP's C++, the rest ~40 s. All 16 threads are busy through both (15.9 and 15.5 on
+  average, from `Library/BuildHistory/<id>/BuildPlayerTEP.json`, which holds each build's trace), so only compiling less helps.
+  `GoF2/Hull` was 6425 of the 10 110 CPU-seconds and URP Lit 2274: 4232 and 1608 variants at 1.4 s each. A dry build dumped
+  what a build asks for: of Hull's 4096 forward variants 8 combinations are materials, the rest doublings of API, stereo, LOD
+  crossfade, fog modes, cookies, SSAO and shadows. The stripper drops what the game can't turn on (the rules' header says
+  why each is safe; `ShaderVariantTests` reads the prefabs and scenes for crossfades and cookies): 14 612 variants to 4322,
+  Hull to 290, build size the same, 183 s measured with the other shaders cached and a third of the C++ to do; a Clean Build
+  should be near 370 s (estimate: about 70 s of shaders plus the C++). Clean Build keeps the shader cache (`Library/ShaderCache`)
+  but redoes all of IL2CPP. A cancelled build seems to lose the shader it was on: Hull started over on 2026-10-31 (2884 of 4232).
+  Not stripped, they are live: SSAO, both main-light shadow keywords, soft shadows, UberPost's effects (the photo tools use
+  them). `PaniniProjection ... stripped` in a player's log is URP's own (it was never in the build).
+  **Backend profiles** (`BuildProfilesBuilder`, GoF2 > Build > Backend Build Profiles, 2026-10-31): a build compiles every
+  shader once per graphics API, so each platform has a profile per backend beside its multiple-backend one, which keeps its
+  name and the project's list: Linux (OpenGLCore, then Vulkan, automatic), Linux Vulkan, Linux OpenGL; Windows (D3D12, D3D11),
+  Windows D3D12, Windows D3D11; Android (Vulkan, GLES3), Android Vulkan, Android GLES3; macOS and iOS are Metal alone, so one
+  plain profile each. `unity build --profile "Linux Vulkan"` builds one. A profile saved without its platform's Editor module has
+  empty platform settings; Unity fills them in when an Editor with the module loaded next opens it (the module loads at startup,
+  so install, then restart). The override is a Player Settings override on a copy of the platform's profile, and that is a whole frozen copy
+  of the Player Settings: changes to them don't reach these profiles until the menu item is run again (which also gives them
+  new GUIDs; nothing refers to them). `BuildVersionStamp` still reaches the build (checked: Linux Vulkan's `globalgamemanagers`
+  holds the commit's version). Linux Vulkan: 2161 variants against the Linux profile's 4322, half the size in shaders, 49 s
+  with shaders and C++ cached; only that one has been built so far. Automatic Linux runs on OpenGLCore first, so Linux Vulkan
+  also changes what players render with; a single-backend build has no fallback if that API fails to start. D3D11 alone loses
+  FSR 3 / 4 and GLES3 alone FSR (options.md). Linux, Android and iOS drop stereo, VR being unable to start there (OpenXR: no
+  Linux library; no XR loader for Android, no XR settings for iOS); macOS keeps it, as OpenXR ships a loader for its players.
+  Android is already ARM64 alone, and the platforms' quality levels already exclude each other's URP assets. The macOS profile
+  is Unity's default, Apple silicon alone (x64 or both is its Architecture setting), and with the project's IL2CPP builds only on
+  a Mac: this Linux Editor's macOS module has CoreCLR players alone (`scripting backend (IL2CPP) is not installed`, 2026-10-31).
+  The iOS profile builds here, IL2CPP included, as far as the Xcode project (2026-10-31: 1671 variants, 105 s, 11 min with the
+  first iOS import of every asset, no errors); compiling and signing that project needs a Mac. `Linux Server` keeps its Development tick (the menu's
+  Linux Dedicated Server build passes its own options).
