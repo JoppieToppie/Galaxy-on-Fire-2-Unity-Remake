@@ -121,6 +121,23 @@ namespace GoF2Remake.Flight
             return false;
         }
 
+        /// <summary>Remake (the cruise drive's look ahead): how far along the ray from 'from' (world) along 'dir' (unit) the
+        /// first of these volumes is entered, in metres; 0 from inside one, float.MaxValue when none lies on the ray ahead or
+        /// the obstacle is inactive.</summary>
+        public float RayDistance(Vector3 from, Vector3 dir)
+        {
+            if (!Active) return float.MaxValue;
+            var p0 = Local(from);
+            var d = rotates ? baseRotation * (Quaternion.Inverse(transform.rotation) * dir) : dir;
+            float best = float.MaxValue;
+            for (int i = 0; i < volumes.Count; i++)
+            {
+                float t = volumes[i].RayEntry(p0, d);
+                if (t < best) best = t;
+            }
+            return best;
+        }
+
         /// <summary>The outward normal of the face of 'v' nearest 'p' (a point in it), a sphere's radial direction.</summary>
         static Vector3 OutwardNormal(CollisionVolume v, Vector3 p)
         {

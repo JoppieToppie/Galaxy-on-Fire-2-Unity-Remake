@@ -63,6 +63,8 @@ namespace GoF2Remake.UI
         bool fastForwardPressed;
 
         public bool FastForwardPressed => fastForwardPressed;
+        /// <summary>The fast-forward button pressed or released by code (tests, automation), as a pointer would.</summary>
+        public void SetFastForwardPressed(bool pressed) => fastForwardPressed = pressed;
         public event System.Action AutopilotButton;
 
         // Looked up once per name: the markers ask for theirs every frame (a Resources.Load each, with its path string).

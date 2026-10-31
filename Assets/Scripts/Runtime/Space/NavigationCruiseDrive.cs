@@ -5,11 +5,13 @@
 // joins the multiplayer cruise's in CruiseFactor (ShipController's step), so it looks and sounds like a boost
 // (FlightModel.CruiseVisual). The energy cells go the Khador Drive's way (GalaxyMap.RemoveCells, "-1t Energy Cells";
 // 583 + the cells when there aren't enough; the free-jumps cheat makes it free). What stops it says so on the HUD with
-// the item's name (Extra cruiseDrive*). Something ahead: HullCollision.Sweep along the nose for what the player is pushed
-// out of (stations, freighters, objects: HullBody.obstacle), not fighters, and the live asteroids' cubes (Target.isAsteroid,
-// PlayerCollision's cube; they have no hulls) by CruiseDrive.CubeAhead, so a field slows and drops the cruise like a station
-// does, as No Man's Sky's pulse and EVERSPACE 2's cruise are stopped by what lies in the way. Between the systems, the last
-// leg the hold can pay is said (Extra interstellarLastLeg): the next one would fall the ship out.
+// the item's name (Extra cruiseDrive*). Something ahead (ObstacleAheadUnits): HullCollision.Sweep along the nose for what
+// the player is pushed out of (stations, freighters, objects: HullBody.obstacle), not fighters; the same objects' collision
+// volumes (Obstacle.RayDistance) where their hull takes no part, so the Original and Mixed ship-collision settings see them
+// too; and the live asteroids' cubes (Target.isAsteroid, PlayerCollision's cube; they have no hulls) by CruiseDrive.CubeAhead,
+// so a field slows and drops the cruise like a station does, as No Man's Sky's pulse and EVERSPACE 2's cruise are stopped by
+// what lies in the way. Between the systems, the last leg the hold can pay is said (Extra interstellarLastLeg): the next one
+// would fall the ship out.
 // Encounters (CruiseEncounters, the level's EncountersAllowed and SpawnEncounter -> CruiseEncounterSpawner): an ambush
 // appears AmbushAheadUnits ahead and drops the drive (Stop.Encounter; a flyby doesn't); a visible one is a signal, a
 // waypoint target SignalAheadUnits ahead and to one side (lockable, the autopilot flies to it) that spawns when the ship
@@ -128,15 +130,33 @@ namespace GoF2Remake.Flight
             if (text != null) Say(string.Format(text, driveName));
         }
 
-        /// <summary>The first hull the ship is pushed out of (stations, freighters, objects) or live asteroid within
-        /// CruiseDrive.SlowUnits along its nose, in units; float.MaxValue = none.</summary>
+        /// <summary>The first hull the ship is pushed out of (stations, freighters, objects), such an object's collision volumes
+        /// where its hull takes no part, or live asteroid within CruiseDrive.SlowUnits along its nose, in units; float.MaxValue
+        /// = none.</summary>
         float ObstacleAheadUnits()
         {
             var t = ship.transform;
             var from = t.position;
             var to = from + t.forward * (CruiseDrive.SlowUnits * M);
             float best = HullCollision.Sweep(from, to, CruiseDrive.SweepRadius, b => b.obstacle != null && !b.transform.IsChildOf(t), out float d) ? d / M : float.MaxValue;
+            best = Mathf.Min(best, VolumeAheadUnits(from, t.forward, best, t));
             return Mathf.Min(best, AsteroidAheadUnits(from, t.forward, best));
+        }
+
+        /// <summary>The first obstacle without a hull in play (Obstacle.UsesHull: the Original setting, or Mixed for a flyable
+        /// ship's) whose volumes the nose line enters within 'limit' units; float.MaxValue = none.</summary>
+        float VolumeAheadUnits(Vector3 from, Vector3 dir, float limit, Transform own)
+        {
+            float reach = Mathf.Min(limit, CruiseDrive.SlowUnits) * M, best = float.MaxValue;
+            var all = Obstacle.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var o = all[i];
+                if (o == null || !o.Active || o.UsesHull || o.transform.IsChildOf(own)) continue;
+                float m = o.RayDistance(from, dir);
+                if (m < best) best = m;
+            }
+            return best <= reach ? best / M : float.MaxValue;
         }
 
         /// <summary>The first live asteroid whose cube (the ship collision's, grown by the sweep's radius) the nose line enters

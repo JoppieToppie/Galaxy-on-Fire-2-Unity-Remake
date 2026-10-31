@@ -68,7 +68,8 @@ the player ship) and `NavigationView` (flight HUD).
   133 / 100 joins `CruiseFactor` (its own ramp 800 / 1200 ms, `Cruising` and the boost look follow it); every attr 134
   units pay a leg. Drops (a HUD line with the item's name, Extra `cruiseDrive*`): release, hostiles (`HostilesPresent`), the
   autopilot / jump / time extender / mining / docking / a halt, a hull the player is pushed out of (`HullBody.obstacle`:
-  stations, freighters, objects; `HullCollision.Sweep` along the nose) within `StopUnits` 8000 (the speed eased down from
+  stations, freighters, objects; `HullCollision.Sweep` along the nose, and their collision volumes by `Obstacle.RayDistance`
+  where the hull takes no part under the ship-collision setting, 2026-10-31) within `StopUnits` 8000 (the speed eased down from
   `SlowUnits` 40000), a live asteroid's cube (the ship collision's, grown by `CruiseDrive.SweepRadius`; asteroids have no
   hull, so `CruiseDrive.CubeAhead`'s slab test along the nose finds them, 2026-10-31) the same way, the locked landmark within
   `ArriveUnits` 20000, a hit (`PlayerHealth.Hit`). Touch: the drive takes the fast-forward slot while usable (the clock keeps it while

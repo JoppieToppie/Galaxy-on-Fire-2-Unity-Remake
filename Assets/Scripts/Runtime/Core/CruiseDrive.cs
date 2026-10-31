@@ -10,8 +10,9 @@
 //            like the multiplayer cruise), scaled down from SlowUnits to StopUnits of a hull ahead (Proximity); every
 //            attr 106 units flown pay another leg; no cells for the next leg: it drops.
 //   drop     the button released, the drive blocked (the autopilot, a jump, a menu, the time extender, mining, a docking),
-//            hostiles around (the fast-forward's own rule), a hull or an asteroid within StopUnits ahead (CubeAhead for the
-//            asteroids' cubes), the locked landmark within ArriveUnits, a hit on the ship, an encounter (CruiseEncounters).
+//            hostiles around (the fast-forward's own rule), a hull, an obstacle's volumes or an asteroid within StopUnits
+//            ahead (NavigationCruiseDrive.ObstacleAheadUnits), the locked landmark within ArriveUnits, a hit on the ship, an
+//            encounter (CruiseEncounters).
 //            A drop needs a fresh press to charge again.
 // Modelled on No Man's Sky's pulse travel (the abort at an obstacle, the drop at a safe distance from the target) and
 // EVERSPACE 2's cruise mode (the charge delay, the slowdown near objects, the interruptions): the behaviour only.
@@ -158,26 +159,9 @@ namespace GoF2Remake.Flight
 
         /// <summary>Where the line from 'from' along 'dir' (a unit vector) enters the axis-aligned cube of half-size 'half' about
         /// 'centre' (an asteroid's, PlayerCollision's cube), in the line's own metres: 0 from inside it, float.MaxValue when it
-        /// misses or the cube lies behind. The slab test.</summary>
+        /// misses or the cube lies behind (CollisionVolume.BoxEntry, the slab test).</summary>
         public static float CubeAhead(Vector3 from, Vector3 dir, Vector3 centre, float half)
-        {
-            float near = 0f, far = float.MaxValue;
-            for (int i = 0; i < 3; i++)
-            {
-                float f = from[i] - centre[i], d = dir[i];
-                if (Mathf.Abs(d) < 1e-6f)
-                {
-                    if (Mathf.Abs(f) > half) return float.MaxValue;
-                    continue;
-                }
-                float t1 = (-half - f) / d, t2 = (half - f) / d;
-                if (t1 > t2) { float t = t1; t1 = t2; t2 = t; }
-                if (t1 > near) near = t1;
-                if (t2 < far) far = t2;
-                if (far < near) return float.MaxValue;
-            }
-            return near;
-        }
+            => CollisionVolume.BoxEntry(from, dir, centre, new Vector3(half, half, half));
 
         /// <summary>A hit on the ship (EVERSPACE 2's interruption): a charge or cruise ends; false = nothing ran.</summary>
         public bool Interrupt(Stop reason = Stop.Hit)
