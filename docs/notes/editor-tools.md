@@ -58,6 +58,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   to the release; either way it checks the server starts and pushes `ghcr.io/joppietoppie/gof2-server:<tag>` and
   `:latest` (not for a pre-release). The release tag must be the commit the release was built from, or the fingerprints
   differ.
+- **GoF2 > Build > Backend Build Profiles** (`BuildProfilesBuilder`): `Assets/Settings/Build Profiles`, a profile per graphics
+  backend, copies of the platform's profile with one API as a Player Settings override, and one each for macOS and iOS, Metal
+  alone (`platforms.md` "Build times"). Run again after changing the Player Settings (an override is a frozen copy of them) or
+  installing a platform's Editor module.
 - **GoF2 > Build > Event Audio**: `Resources/GoF2Events/EventAudio`, the sounds and music the event graphs play (see "Multiplayer", Events).
 - **GoF2 > Build > Hangar Heights**: `Resources/GoF2Data/hangar_heights.json`, how far each ship is lifted off each
   hangar pad (see "Station scene"). Run it again after changing a hangar room or a ship model.
