@@ -400,9 +400,13 @@ namespace GoF2Remake.Flight
             if (!Hp.Alive) StartDeath();
         }
 
+        /// <summary>Remake: the ship took damage (a cruise drive's interruption, Navigation).</summary>
+        public event Action Hit;
+
         /// <summary>PlayerEgo::update hit feedback.</summary>
         void OnHit()
         {
+            Hit?.Invoke();
             GetComponent<VolatileCargo>()?.Add(0.065f);   // Player::damage: the volatile meter + 0.065 per hit
             if (chase != null && chase.enabled) chase.Shake(1000f, 6f);
             if (Hp.shield >= 2f) ShieldHitMs = 500f;

@@ -27,6 +27,9 @@ namespace GoF2Remake.Data
         public static Func<FreelanceMission, int, int> SplitReward;
         /// <summary>The mission failed: this player's share of a lost wager; unset: all of it.</summary>
         public static Func<FreelanceMission, int, int> MissionFailed;
+        /// <summary>Remake: starts a quest graph by name (single player; EventRunner.StartQuest: the reason it can't, null =
+        /// started; 'quiet' = one under way or done is no error): a cruise drive encounter of kind "quest" (CruiseEncounters).</summary>
+        public static Func<string, bool, string> StartQuest;
 
         // ---- event graphs (EventMissions, EventRunner) --------------------------------------------------------------
 

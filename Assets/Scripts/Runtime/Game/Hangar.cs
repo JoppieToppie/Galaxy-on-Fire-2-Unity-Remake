@@ -224,7 +224,7 @@ namespace GoF2Remake.Data
         /// <summary>Remake mods: a built-in item a fitted one can take over from, like the Specter's cloak (the cloak bay):
         /// one-per-ship equipment (a shield, armor, booster, scanner, drill, cloak...). Built-in weapons and turrets add to
         /// the ship's slots instead.</summary>
-        public static bool Replaceable(ItemData it) => it != null && it.TypeId == 3 && !Shop.CanInstallMultiple(it.categoryId);
+        public static bool Replaceable(ItemData it) => it != null && it.TypeId == 3 && !Shop.CanInstallMultiple(Shop.KindOf(it));
 
         /// <summary>'e' is a fitted item in the place of one of the flown ship's built-in items (the same one-per-ship kind):
         /// it takes no slot, and the built-in one steps aside while it is there (SyncBuiltIn).</summary>
@@ -233,7 +233,7 @@ namespace GoF2Remake.Data
             if (e == null || e.builtIn || db == null) return false;
             var it = db.Item(e.item);
             if (!Replaceable(it)) return false;
-            foreach (var b in db.BuiltInItems(Session.ShipIndex)) if (db.Item(b.item)?.categoryId == it.categoryId) return true;
+            foreach (var b in db.BuiltInItems(Session.ShipIndex)) if (Shop.KindOf(db.Item(b.item)) == Shop.KindOf(it)) return true;
             return false;
         }
 
@@ -260,7 +260,7 @@ namespace GoF2Remake.Data
             for (int j = 0; j < want.Count; j++)
             {
                 var it = db.Item(want[j].item);
-                replaced[j] = Replaceable(it) && Session.Equipment.Exists(e => !e.builtIn && db.Item(e.item)?.categoryId == it.categoryId);
+                replaced[j] = Replaceable(it) && Session.Equipment.Exists(e => !e.builtIn && Shop.KindOf(db.Item(e.item)) == Shop.KindOf(it));
             }
             for (int i = Session.Equipment.Count - 1; i >= 0; i--)
             {
@@ -376,15 +376,15 @@ namespace GoF2Remake.Data
             // (SyncBuiltIn sets the built-in one aside); one fitted there already is swapped as usual.
             if (InBuiltInPlace(db, new ItemStack(item, 1)))
             {
-                swapWith = Session.Equipment.FindIndex(e => !e.builtIn && db.Item(e.item)?.categoryId == it.categoryId);
+                swapWith = Session.Equipment.FindIndex(e => !e.builtIn && Shop.KindOf(db.Item(e.item)) == Shop.KindOf(it));
                 return swapWith >= 0 ? Result.Swap : Result.Ok;
             }
-            if (!Shop.CanInstallMultiple(it.categoryId))
+            if (!Shop.CanInstallMultiple(Shop.KindOf(it)))
             {
                 // Remake: turrets (8) and plasma collectors (35) are one per turret slot, not one per ship, so a ship with
                 // two turret slots (a custom ship) takes a second one; the swap only once every turret slot is taken.
                 bool perSlot = type == 2 && SlotCount(2) > 1 && MountedOfType(2).Count < SlotCount(2);
-                swapWith = perSlot ? -1 : Session.Equipment.FindIndex(e => !e.builtIn && db.Item(e.item)?.categoryId == it.categoryId);
+                swapWith = perSlot ? -1 : Session.Equipment.FindIndex(e => !e.builtIn && Shop.KindOf(db.Item(e.item)) == Shop.KindOf(it));
                 if (swapWith >= 0) return Result.Swap;
             }
             if (BayTakes(db, Session.ShipIndex, item, Session.Equipment)) return Result.Ok;   // the cloak bay (remake option)

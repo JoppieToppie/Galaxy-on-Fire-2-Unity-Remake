@@ -94,7 +94,7 @@ namespace GoF2Remake.UI
         float gameOverMs = -1f;
         VisualElement jumpCharge, jumpChargeFill, jumpChargeStripes, orbitInfo;
         Label jumpChargeLabel;
-        bool lastCloakCharging;
+        bool lastCloakCharging, lastDriveCharging;
         bool orbitInfoFilled;
         bool lastAutopilot;
         VisualElement autopilotMenu, autopilotMenuItems;
@@ -519,7 +519,7 @@ namespace GoF2Remake.UI
             if (menuKeys && GameControls.AutopilotMenu.WasPressedThisFrame()) OnAutopilotButton();
             else if (menuKeys && GameControls.ActionsMenu.WasPressedThisFrame()) OnActionsButton();
             else if (menuKeys && GameControls.Wingmen.WasPressedThisFrame()) OpenMenuEntry(Navigation.Kind.Wingmen);
-            else if (menuKeys && GameControls.KhadorDrive.WasPressedThisFrame()) OpenMenuEntry(Navigation.Kind.KhadorDrive);
+            else if (menuKeys && GameControls.KhadorDrive.WasPressedThisFrame()) OpenMenuEntry(nav != null && nav.MenuEntries(true).Exists(t => t.kind == Navigation.Kind.KhadorDrive) ? Navigation.Kind.KhadorDrive : Navigation.Kind.Slipstream);
             bool freeLookNow = level != null && level.FreeLook != null && level.FreeLook.FreeLookActive;
             if (GameControls.MouseSteering.WasPressedThisFrame()
                 && !(freeLookNow && GameControls.MouseSteering.activeControl?.device is Mouse))
@@ -662,15 +662,21 @@ namespace GoF2Remake.UI
             root.EnableInClassList("hud-cinematic", (nav != null && nav.Jumping) || (jump != null && jump.Cinematic));   // jumps: no HUD
             // The Khador Drive's charge bar, shared with the cloak's "Cloak charging" (317, Hud::draw 0x1933f6).
             var cloak = level != null && level.Cloak != null ? level.Cloak.Rules : null;
-            bool cloakCharging = cloak != null && cloak.State == Cloak.Phase.Charging && (jump == null || !jump.Charging);
-            jumpCharge.EnableInClassList("jump-charge--shown", (jump != null && jump.Charging) || cloakCharging);
-            if (cloakCharging != lastCloakCharging)
+            bool jumpCharging = jump != null && jump.Charging;
+            bool cloakCharging = cloak != null && cloak.State == Cloak.Phase.Charging && !jumpCharging;
+            // Remake: a cruise drive's charge too (NavigationCruiseDrive), "<item> charging".
+            var drive = nav != null ? nav.Drive : null;
+            bool driveCharging = drive != null && drive.Charging && !jumpCharging && !cloakCharging;
+            jumpCharge.EnableInClassList("jump-charge--shown", jumpCharging || cloakCharging || driveCharging);
+            if (cloakCharging != lastCloakCharging || driveCharging != lastDriveCharging)
             {
                 lastCloakCharging = cloakCharging;
-                jumpChargeLabel.text = (cloakCharging ? Localization.Get(317) : Localization.Get(318)).ToUpperInvariant();
+                lastDriveCharging = driveCharging;
+                jumpChargeLabel.text = (driveCharging ? string.Format(Localization.Extra("hudCruiseDriveCharging", "{0} charging"), GoF2Remake.Data.GameNames.Item(drive.item))
+                                        : cloakCharging ? Localization.Get(317) : Localization.Get(318)).ToUpperInvariant();
             }
             // Hud::draw: half-width min(1, rate x 1.05) x 194 either side of the centre, the stripes' middle first.
-            float chargeRate = jump != null && jump.Charging ? jump.ChargeRate : cloakCharging ? cloak.ChargeRate : -1f;
+            float chargeRate = jumpCharging ? jump.ChargeRate : cloakCharging ? cloak.ChargeRate : driveCharging ? drive.ChargeRate : -1f;
             if (chargeRate >= 0f)
             {
                 float half = Mathf.Min(1f, chargeRate * 1.05f) * 194f;

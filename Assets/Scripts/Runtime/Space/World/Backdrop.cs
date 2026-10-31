@@ -40,8 +40,8 @@ namespace GoF2Remake.World
         {
             public Transform t;
             public MeshRenderer r;       // t's renderer (the streak's is updated every frame)
-            public Vector3 dir;          // Unity direction from the camera
-            public Quaternion rot;       // fixed orientation (planets)
+            public Vector3 dir, dir0;    // Unity direction from the camera, as now and as the orbit has it
+            public Quaternion rot, rot0; // fixed orientation (planets)
             public float scale;
             public bool orbitPlanet;
             public bool star;            // remake mods: drawn as a star (faces the camera, its core glows)
@@ -62,7 +62,7 @@ namespace GoF2Remake.World
         Camera cam;
         OrbitLayout layout;
         Body sun, streak, glow;
-        readonly List<Body> planets = new List<Body>();
+        readonly List<Body> planets = new List<Body>(), bodies = new List<Body>();
 
         /// <summary>StarSystem::getPlanetTargets: one per planet billboard with its station (the orbit planet = the current
         /// station's own, never lockable). The transforms follow the camera, 1000 m out.</summary>
@@ -135,6 +135,40 @@ namespace GoF2Remake.World
             }
             sunGlowStyle = -1;
             ApplySunGlow();   // the star planets' glow (remake mods)
+        }
+
+        // ---- the orbit seen from outside it, the ship flying in (SystemApproach)
+
+        MaterialPropertyBlock fadeBlock;
+        /// <summary>How much of the sun's swell shows, and the camera's z the orbit planet's size goes by, in place of its own.</summary>
+        [System.NonSerialized] public float swell = 1f;
+        [System.NonSerialized] public float? orbitZ;
+
+        /// <summary>Everything turned by 'turn', the sun's light (with its streak) drawn along from 'sunFrom' as 'sunAt' goes to 1:
+        /// it starts as the star ahead and ends where the orbit has it.</summary>
+        public void Turn(Quaternion turn, Vector3 sunFrom, float sunAt)
+        {
+            foreach (var b in bodies)
+            {
+                b.dir = turn * b.dir0;
+                b.rot = turn * b.rot0;
+            }
+            sun.dir = streak.dir = Vector3.Slerp(sunFrom, sun.dir, sunAt);
+            if (glow != null) glow.dir = sun.dir;
+        }
+
+        /// <summary>The bodies' opacity: the planets and rings 'planets', the sun's layers 'sunLayers'.</summary>
+        public void Fade(float planetLayers, float sunLayers)
+        {
+            fadeBlock ??= new MaterialPropertyBlock();
+            foreach (var b in bodies)
+            {
+                float f = b == sun || b == streak || b == glow ? sunLayers : planetLayers;
+                bool added = b.r.sharedMaterial != null && b.r.sharedMaterial.HasProperty("_DstBlend") && b.r.sharedMaterial.GetFloat("_DstBlend") == (float)BlendMode.One;
+                b.r.GetPropertyBlock(fadeBlock);
+                fadeBlock.SetColor("_Color", added ? new Color(f, f, f, f) : new Color(1f, 1f, 1f, f));
+                b.r.SetPropertyBlock(fadeBlock);
+            }
         }
 
         /// <summary>A level script's scale on the sun billboard (the supernova cutscenes: planets[0] x0.95 / x4 per frame).</summary>
@@ -241,7 +275,9 @@ namespace GoF2Remake.World
             r.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
             r.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
             if (mat != null && mat.renderQueue != queue) r.material.renderQueue = queue;   // painter's order
-            return new Body { t = go.transform, r = r, dir = dir, rot = rot, scale = scale };
+            var body = new Body { t = go.transform, r = r, dir = dir, dir0 = dir, rot = rot, rot0 = rot, scale = scale };
+            bodies.Add(body);
+            return body;
         }
 
         static Mesh Quad
@@ -316,7 +352,7 @@ namespace GoF2Remake.World
                 float d = Vector2.Distance(new Vector2(sp.x, sp.y), new Vector2(W * 0.5f, H * 0.5f));
                 flareIntensity = (layout.flareColor == 5 ? 80f : 64f) * (1f - d / (H * 0.5f));
             }
-            float e = NoSwell ? 0f : Mathf.Max((flareIntensity - 10f) / 64f, 0f);
+            float e = NoSwell ? 0f : Mathf.Max((flareIntensity - 10f) / 64f, 0f) * swell;
 
             float s = layout.sunScale * sunScaleFactor;
             var sunRot = Quaternion.LookRotation(sun.dir, cam.transform.up);
@@ -363,7 +399,7 @@ namespace GoF2Remake.World
             }
 
             // getPlanetScaleFactor: f = clamp(camera game z / -800000, -0.2, 0.2) (game z = -Unity z / 0.05).
-            float gameZ = -c.z / OrbitLayout.MetersPerUnit;
+            float gameZ = -(orbitZ ?? c.z) / OrbitLayout.MetersPerUnit;
             float zoom = Mathf.Clamp(gameZ / -800000f, -0.2f, 0.2f);
             foreach (var p in planets)
             {

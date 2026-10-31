@@ -55,6 +55,11 @@ namespace GoF2Remake.Modding
             // An ore's mining time in percent of the game's (Flight.MiningGame / MiningBeamExtraction; default 100): 200 takes
             // each layer twice as long for the same ore (EVERSPACE 2's DT_Mining_Yield: its crystals 10 s against the ores' 5 s).
             ["miningTime"] = 132,
+            // A cruise drive (an item based on the Khador Drive 85) with cruiseSpeed > 0: the speed factor x 100, cruiseRange
+            // the units flown per leg of energy cells, cruiseChargeMs its charge (attr 37), energyCells (38) the cells a leg
+            // costs (Flight.CruiseDrive, Navigation; Modding/README.md "Cruise drives").
+            // interstellar 1: it also flies the space between the systems (InterstellarSpace).
+            ["cruiseSpeed"] = 133, ["cruiseRange"] = 134, ["cruiseChargeMs"] = 37, ["interstellar"] = 135,
             // items.json's statList names
             ["steerable"] = 15, ["handling"] = 17,
             ["loadingTimeMs"] = 11, ["range"] = 12, ["projectileSpeed"] = 13, ["magnitude"] = 14, ["shieldRegenTime"] = 19,

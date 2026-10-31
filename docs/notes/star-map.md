@@ -102,6 +102,56 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
 - **Volatile goods** (`GalaxyMap.HasVolatileGoods`: 209 / 204 in the hold): the Khador menu entry and a map target
   outside the gate routes give 612; a gate neighbour picked on the Khador map goes by the jumpgate. Mission blocks: 525
   at the gate and on the Khador entry.
+- **Interstellar space** (`InterstellarSpace`, 2026-10-31, the user's idea; no original behaviour): a mounted cruise drive
+  with attr 135 (`CruiseDrive.InterstellarAttr`, the ES2 importer's Khador Slipstream) adds a quick menu entry
+  (`Navigation.Kind.Slipstream`, `NavigationInterstellar`); no option, the item is the switch. The Khador charge and scene
+  play (`SystemJump.toInterstellar`), then `Session.EnterInterstellar` reloads Space, read once in `SpaceLevel.Awake`:
+  `InterstellarSpace.Clear` empties the orbit left (`OrbitLayout.interstellar`), which stays `Session.StationIndex`, so a
+  save or load is that orbit and the flag is never saved. No wingmen, traffic, story (`StorySpace`), encounters, wormholes;
+  `plainOrbit` in `Awake` marks what an arena and this space both leave out. Multiplayer: everyone here shares
+  `InterstellarSpace.OrbitId` (`SpaceLevel.NetOrbitId`). Each visible system is a `Kind.System` target and a sun
+  (`InterstellarField`: the map's sun material, kept inside the far plane); `GalaxyMap.Visibility` decides, every frame,
+  so bought coordinates, the story, an event's hide and a mod's `available` all hold here. Scale 240 units a map unit
+  (the average hop, 2510 on the map, is 30 km; the galaxy +-66 km around the origin, centred for floats' sake). A leg
+  is `LegUnits`, the average hop, so `InterstellarSpace.CellsFor` is about the Khador Drive's `GalaxyMap.EnergyCells`
+  (`InterstellarSpaceTests`: 0.5 to 1.25 x over every pair); `CruiseDrive.keepLeg` keeps a paid leg over a stop. The
+  autopilot holds the drive there (`Navigation.UpdateDrive`), `CanFastForward` is false. Within `ArriveUnits` (8 km):
+  `SystemJump.LeaveInterstellar` into `ArrivalStation` (the gate orbit); a story refusal
+  (`PlanetJumpRefused`) holds until the ship is back outside 1.5 x that. No cells for the next leg: `FallOutOfSlipstream`
+  at the nearest system, nobody strands. The Khador scene plays going in only and cuts at its whiteout
+  (`SystemJump.KhadorWhiteoutMs`, 1860 ms, from a frame capture of the fx): the orbit stays plain through the charge and the
+  animation (the user's call: no warp before it), the camera gliding from its side view to the chase camera's place behind
+  the ship, which stays in view (`SystemJump.GlideBehindShip`), and the new level fades out of the same light, on the same
+  view (`WarpSky.OnGUI`). An arrival
+  is `Session.WarpArrival`, at 8 km (`ArriveUnits`): the level changes at full warp, no scene, no fly-in camera, and the ship
+  starts `CarryMeters` further out, flying in through the real orbit with the speed (`CruiseDrive.CarrySpeed`) and warp easing
+  out over `WarpSky.ArrivalCarryMs`, to end at the normal arrival point. **Seamless by building the orbit on the way in**
+  (`SystemApproach`, the user: "load in as you approach", "it needs to be seamless"; an orbit is one scene, it can't stream).
+  From 20 km out a root maps the orbit onto this space, the carried-out arrival point onto the system's edge and the arrival's
+  facing (`OrbitLayout.ArrivalPose`) onto the way there: the real station, gate and asteroids (the same `Random` seed as the
+  arrival's, `OrbitBuilder.SpawnAsteroids`) stand on it, built a frame apart, with no colliders or `Target`s. A `Backdrop` of its
+  own fades in, turned the same way (`Backdrop.Turn` / `Fade`): the sun takes over from the star ahead (`SystemApproach.SunShown`)
+  and draws off the nose to its place in the orbit, the other stars shrink away, and the lights and the hull's gamma globals move
+  to the orbit's. The ship's heading against its course and the chase view in the ship's frame carry over (`Session.WarpHeading`,
+  `WarpView`, `ChaseCamera.CarryView`), the boost look too (`FlightModel.CarryCruiseLook`: it fell to 0, a 20 degree zoom at the
+  swap), the warp's flow and its sound (`WarpSky.CarrySound`). So frames either side of the swap match but for the HUD and the
+  first frames of the flames (checked frame by frame, 2026-10-31). A fall out of the slipstream has no approach: the old ice-blue
+  dissolve (`WarpSky.Setup`, 'unseen'). Not carried: `SkyLayers` (ring skies, storms), the orbit's NPCs, the lens flare.
+  **The swap's stall** (`SpaceLevel.SwapScene`, Editor, with the player's mods): a plain `LoadScene` held ~870 ms, ~600 of it
+  the unused-asset sweep after `Awake`, so it loads additively (no sweep), destroys the old roots first thing in `Awake`
+  (`ClearReplaced`; the two levels never run together) and sets the sky and lights again once the scene is active, as
+  `RenderSettings` go by the active scene. Additive loads don't restart the level clock (`SystemJump.levelStart`). The
+  tables are read on the way in (`SpaceLevel.PrepareArrival`) and traffic, 90-250 ms of `Awake`, comes in a ship a frame
+  (`Traffic.Setup` 'oneAFrame', not with a mission here or in multiplayer): 146 ms now, frames after it normal. The look (`Visuals.WarpSky`, the sky
+  shader `GoF2/SpaceSky`, 2026-10-31, from the shader data and the user's clip of the game): EVERSPACE 2's
+  `M_TravelMode_WarpTunnel` uses distortion, its colours are the sky's, so no mesh: the sky is resampled in polar coordinates
+  about the nose, squeezed into radial streaks in two crossfading phases, level 0 being the plain sky, so nothing cuts; ships,
+  planets and suns draw over it sharp. Between the systems only (`_WarpKhador`; the user: not in the orbit's cruise) it keeps
+  the Khador animation's blue vein web (the fx's own sheet) and ice blue: the beams, star sparks, core and ring were tried and
+  removed. Always 1 between the systems; in an orbit the drive's ramp (any cruise drive). A mod's `warp.json` (`ModWarp`) shapes it, else noise made at runtime. Nearing a
+  system (20 km) its sky blends in, `InterstellarField` loading it as the arrival orbit builds it (`OrbitBuilder.MakeSky`,
+  `_SkyBlend`, runtime layer modes for a mod's images), so an arrival finds the same sky; a new target fades the last out
+  first. `ChaseCamera` carries a cruise's extra movement so the follow's lag stays as at the ship's own speed.
 - **Sounds** (the FEV's LGCY data): 31 Jumpgate = one of Jumpgate_3b / 4c / 1b / 2b at random, 32 KhadorDrive =
   Jumpgate_5c. 102 Map_Whoosh is a drag odometer (`StarMap.AddWhoosh`, StarMap+0x1c0: + min(|dx + dy|, 10) per galaxy
   drag move, + min(|yaw + pitch velocity| · 0.01, 10) per frame in the system view, 0 past 100): entering the parameter

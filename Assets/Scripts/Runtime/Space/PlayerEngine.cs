@@ -64,6 +64,7 @@ namespace GoF2Remake.Flight
         void Setup(Database db, ShipController shipController)
         {
             ship = shipController;
+            wasBoosting = ship != null && ship.Model != null && ship.Model.LooksBoosting;   // out of a load at speed, no new start
             health = GetComponent<PlayerHealth>();
             mining = GetComponent<Mining>();
             var audio = CombatAudio.Load();

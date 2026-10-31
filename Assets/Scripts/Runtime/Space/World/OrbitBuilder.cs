@@ -29,8 +29,31 @@ namespace GoF2Remake.World
 
         public static void SetupSky(OrbitLayout layout, float ambientIntensity = 1f, int nebulaOverride = -1)
         {
+            var sky = MakeSky(layout, nebulaOverride);
+            if (sky == null) return;
+            RenderSettings.skybox = sky;
+            RenderSettings.ambientMode = AmbientMode.Skybox;
+            RenderSettings.ambientIntensity = ambientIntensity;
+            RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
+            SkyReflection.Update();   // the ambient light
+            SkyReflection.SetSystem(layout);   // the hulls' reflection: the system's cubemap (ChangeCubeTexture)
+
+            GoF2Remake.World.SpaceHooks.SceneFog(layout.fog);   // off below Quality High
+            if (layout.fog)
+            {
+                RenderSettings.fogMode = FogMode.Linear;
+                RenderSettings.fogStartDistance = 0f;
+                RenderSettings.fogEndDistance = layout.fogEnd * M;
+                RenderSettings.fogColor = layout.fogColor;
+            }
+        }
+
+        /// <summary>The orbit's sky as a material, set nowhere (InterstellarField blends a system's in on approach); null without
+        /// the baked skies.</summary>
+        public static Material MakeSky(OrbitLayout layout, int nebulaOverride = -1)
+        {
             var template = Resources.Load<Material>("GoF2Sky/SpaceSky");
-            if (template == null) { Debug.LogWarning("OrbitBuilder: run GoF2 > Build > Space Skies"); return; }
+            if (template == null) { Debug.LogWarning("OrbitBuilder: run GoF2 > Build > Space Skies"); return null; }
             var sky = new Material(template) { name = "SpaceSky (runtime)" };
             int stars = layout.systemIndex >= 0 ? layout.systemIndex % 3 : 2;   // alien/void: stars_002
             sky.SetTexture("_Stars", Resources.Load<Cubemap>($"GoF2Sky/stars_{stars:000}"));
@@ -52,21 +75,7 @@ namespace GoF2Remake.World
             }
             // The shader maps world directions into the baked cube: the inverse of the sky's Unity rotation.
             sky.SetMatrix("_SkyRotation", Matrix4x4.Rotate(Quaternion.Inverse(rotation)));
-            RenderSettings.skybox = sky;
-            RenderSettings.ambientMode = AmbientMode.Skybox;
-            RenderSettings.ambientIntensity = ambientIntensity;
-            RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
-            SkyReflection.Update();   // the ambient light
-            SkyReflection.SetSystem(layout);   // the hulls' reflection: the system's cubemap (ChangeCubeTexture)
-
-            GoF2Remake.World.SpaceHooks.SceneFog(layout.fog);   // off below Quality High
-            if (layout.fog)
-            {
-                RenderSettings.fogMode = FogMode.Linear;
-                RenderSettings.fogStartDistance = 0f;
-                RenderSettings.fogEndDistance = layout.fogEnd * M;
-                RenderSettings.fogColor = layout.fogColor;
-            }
+            return sky;
         }
 
         /// <summary>A mod's sky image on a GoF2/SpaceSky layer: 2:1 = a panorama, 6:1 = a strip of cube faces (else a warning
@@ -388,6 +397,17 @@ namespace GoF2Remake.World
         /// </summary>
         public static Transform SpawnAsteroids(Database db, OrbitLayout layout, Transform parent = null, Func<Vector3, bool> reject = null)
             => SpawnField(db, layout, layout.asteroidCentre, layout.asteroidCount, -1, layout.asteroidSpread * 0.6f, layout.asteroidSpread, -1, parent, reject, "Asteroids");
+
+        /// <summary>The same field for the same seed (SystemApproach shows it before the orbit exists); the game's random
+        /// stream goes on as it was.</summary>
+        public static Transform SpawnAsteroids(Database db, OrbitLayout layout, int seed, Transform parent)
+        {
+            var state = Random.state;
+            Random.InitState(seed);
+            var field = SpawnAsteroids(db, layout, parent);
+            Random.state = state;
+            return field;
+        }
 
         /// <summary>
         /// A field of 'count' asteroids around 'centre' (game units) of the orbit's kind: the first 'big' (-1 = roll 2..9

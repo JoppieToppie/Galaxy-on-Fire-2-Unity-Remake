@@ -297,10 +297,7 @@ namespace GoF2Remake.World
             var root = new GameObject($"Player ({ship?.name})");
             if (Session.ArrivedByTravel)
             {
-                var arrival = ArrivalPosition();
-                var facing = Quaternion.LookRotation(-arrival.normalized, Vector3.up);
-                // Level::init: arriving in Loma's black market (system 25) puts the player 40 000 further along game +z.
-                if (Layout.systemIndex == 25) arrival += OrbitLayout.ToUnity(new Vector3(0f, 0f, 40000f));
+                Layout.ArrivalPose(Session.PreviousStationIndex, out var arrival, out var facing);
                 root.transform.SetPositionAndRotation(arrival, facing);
             }
             else if (launchFromMobile >= 0 && Mobiles.Find(m => m.Station == launchFromMobile) is MobileStation from)
@@ -327,6 +324,22 @@ namespace GoF2Remake.World
             {
                 var start = OrbitLayout.ToUnity(new Vector3(70000f, 0f, 100000f));
                 root.transform.SetPositionAndRotation(start, Quaternion.LookRotation(-start.normalized, Vector3.up));
+            }
+            // Remake: a fly-in out of interstellar space starts as far out as its speed carries it, to end where arrivals do.
+            if (warpArrival && InterstellarSpace.Drive(db) is ItemData warpDrive)
+            {
+                root.transform.position -= root.transform.forward * InterstellarSpace.CarryMeters(warpDrive.Attr(CruiseDrive.SpeedAttr), WarpSky.ArrivalCarryMs);
+                root.transform.rotation *= Session.WarpHeading;   // still pointing the way it was, off its course or not
+            }
+            // Remake: outside the system it left, heading for the programmed destination (InterstellarSpace).
+            if (Layout.interstellar)
+            {
+                var from = InterstellarSpace.Position(db.Systems.Find(s => s.index == Layout.systemIndex) ?? db.Systems[0]);
+                var goal = db.Stations.Find(s => s.index == Session.ProgrammedStation) is StationData prog
+                           && db.Systems.Find(s => s.index == prog.system) is SystemData sys && sys.index != Layout.systemIndex && GalaxyMap.IsVisible(db, sys.index)
+                    ? InterstellarSpace.Position(sys) : Vector3.zero;
+                InterstellarSpace.Start(from, goal, out var at, out var forward);
+                root.transform.SetPositionAndRotation(OrbitLayout.ToUnity(at), Quaternion.LookRotation(OrbitLayout.DirToUnity(forward), Vector3.up));
             }
             // Remake multiplayer: an admin's teleport into this orbit (NetTeleport) brings its own pose.
             if (SpaceHooks.TeleportPose != null && SpaceHooks.TeleportPose(out var tpPos, out var tpRot)) root.transform.SetPositionAndRotation(tpPos, tpRot);
@@ -380,6 +393,11 @@ namespace GoF2Remake.World
             chase.positionCoefficient = 0.006f;         // TargetFollowCamera::resetShipHandling: position / look-at
             chase.rotationCoefficient = 0.005f;
             chase.Snap();
+            if (warpArrival)
+            {
+                chase.CarryView(Session.WarpView, Session.WarpViewTurn);
+                ctrl.Model.CarryCruiseLook(WarpSky.ArrivalCarryMs);
+            }
             // PlayerEgo::checkForTurret: the turret-slot item on the ship's turret mount (remake: each on its own mount).
             turrets.Clear();
             turrets.AddRange(PlayerTurret.AttachAll(root, db, Session.ShipIndex, Session.Equipment, chase));
@@ -387,7 +405,7 @@ namespace GoF2Remake.World
             // MGame::switchCamera: the camera button's modes (standard / turret / free look).
             FreeLook = FreeLookCamera.Attach(root, chase, Turret);
             // Level::createGasClouds: the Supernova plasma clouds (a spectral filter mounted).
-            GasClouds = GasCloudField.Spawn(db, Layout, ctrl, Turret);
+            if (!Layout.interstellar) GasClouds = GasCloudField.Spawn(db, Layout, ctrl, Turret);
             if (Radar != null) Radar.Clouds = GasClouds;   // the spectral filters' markers and lock
             Extender = TimeExtender.Attach(root, db);
 
@@ -404,19 +422,12 @@ namespace GoF2Remake.World
             // ChallengeOrbit's MovePlayer places it again around the round's start.
             challengeFlyIn = SupernovaChallenge.Active && !GoF2Remake.Data.NetSession.Active && GoF2Remake.World.SpaceHooks.Arena == null;
             if (challengeFlyIn) Session.ArrivedByTravel = true;
-            if (Session.LaunchedFromStation || Session.ArrivedByTravel) StartLaunchCamera();
+            if (warpArrival) { launchTravel = true; Session.LaunchedFromStation = Session.ArrivedByTravel = false; }
+            else if (Session.LaunchedFromStation || Session.ArrivedByTravel) StartLaunchCamera();
         }
         /// <summary>Level::init with initStreamOutPosition (space_level_setup.md 4): into the gate orbit at the hidden gate
         /// (landmark 2); else 4 x the planet billboard (-20000 * dir) of the station the player came from, or (0, 0, 100000)
         /// when that station isn't in this system.</summary>
-        Vector3 ArrivalPosition()
-        {
-            if (Layout.arrival.HasValue) return OrbitLayout.ToUnity(Layout.arrival.Value);   // remake mods: the orbit's own
-            if (Layout.hasJumpgate || Layout.alienOrbit) return OrbitLayout.ToUnity(Layout.hiddenJumpgate);
-            var from = Layout.planets.Find(p => p.station == Session.PreviousStationIndex);
-            if (from == null) return OrbitLayout.ToUnity(new Vector3(0f, 0f, 100000f));
-            return OrbitLayout.ToUnity(-4f * OrbitLayout.BackdropDistance * OrbitLayout.Direction(from.pitch, from.yaw));
-        }
         /// <summary>Level::createCampaignMission / LevelScript: the level puts the player somewhere else (Unity pose); the launch /
         /// arrival camera is placed again around the new pose.</summary>
         public void MovePlayer(Vector3 position, Quaternion rotation)

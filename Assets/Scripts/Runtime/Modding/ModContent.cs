@@ -90,6 +90,7 @@ namespace GoF2Remake.Modding
             public readonly List<ModBlueprints.Def> blueprints = new List<ModBlueprints.Def>();
             public readonly List<ModWorld.Def> systems = new List<ModWorld.Def>(), stations = new List<ModWorld.Def>();
             public readonly List<ModRaces.Def> races = new List<ModRaces.Def>();
+            public readonly List<ModEncounters.Def> encounters = new List<ModEncounters.Def>();   // a cruise drive's encounters
             public readonly Dictionary<string, Dictionary<string, string>> text =
                 new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);   // language -> key -> text
         }
@@ -137,6 +138,7 @@ namespace GoF2Remake.Modding
                 ParseShips(mod, p);
                 ModBlueprints.Parse(mod, p.blueprints);
                 ModRaces.Parse(mod, p.races);
+                ModEncounters.Parse(mod, p.encounters);
                 ModWorld.Parse(mod, p.systems, p.stations);
                 foreach (var f in mod.Source.FilesIn("text", ".json"))
                 {

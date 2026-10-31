@@ -49,8 +49,9 @@ namespace GoF2Remake.World
         CombatAssets assets;
 
         /// <summary>'storyOrbit': the orbit is built around a campaign mission (Level::init calls createCampaignMission
-        /// instead of createMission), so no normal traffic; the campaign level spawns its ships with SpawnShip.</summary>
-        public void Setup(Database database, OrbitLayout layout, Target player, GameObject station, bool storyOrbit = false, Wormhole wormhole = null)
+        /// instead of createMission), so no normal traffic; the campaign level spawns its ships with SpawnShip. 'oneAFrame':
+        /// remake, the ships come in over the next frames (Update) instead of in this one (an arrival at speed: SystemApproach).</summary>
+        public void Setup(Database database, OrbitLayout layout, Target player, GameObject station, bool storyOrbit = false, Wormhole wormhole = null, bool oneAFrame = false)
         {
             db = database;
             Wormhole = wormhole;
@@ -78,8 +79,24 @@ namespace GoF2Remake.World
             IsStoryOrbit = storyOrbit;
             if (!storyOrbit)
                 foreach (var spec in TrafficPlan.Build(db, StationIndex, sys, player != null ? new Vector3(player.transform.position.x, player.transform.position.y, -player.transform.position.z) / 0.05f : Vector3.zero,
-                                                       wormhole != null && wormhole.Visible ? wormhole.GamePosition : (Vector3?)null)) Create(spec);
-            AddCampaignStatics(layout);
+                                                       wormhole != null && wormhole.Visible ? wormhole.GamePosition : (Vector3?)null)) waiting.Enqueue(spec);
+            music = gameObject.AddComponent<AudioSource>();
+            music.loop = true;
+            music.playOnAwake = false;
+            music.spatialBlend = 0f;
+            orbit = layout;
+            if (oneAFrame && waiting.Count > 0) return;
+            while (waiting.Count > 0) Create(waiting.Dequeue());
+            ShipsPlaced();
+        }
+
+        OrbitLayout orbit;
+        readonly Queue<SpawnSpec> waiting = new Queue<SpawnSpec>();
+
+        /// <summary>What goes by the orbit's ships, once they are all there.</summary>
+        void ShipsPlaced()
+        {
+            AddCampaignStatics(orbit);
             ConnectPlayers();
             wantedShip = Ships.Find(s => s.Spec.wantedIndex >= 0);
             convoyFreighter = Ships.Find(s => s.Spec.convoyRole == SpawnSpec.ConvoyFreighter);
@@ -90,11 +107,6 @@ namespace GoF2Remake.World
             }
             Debug.Log($"Traffic: {Ships.Count} ships ({CountGroup(NpcGroup.Local)} local, {CountGroup(NpcGroup.Jumper)} jumpers, " +
                       $"{CountGroup(NpcGroup.Freighter)} freighters, {CountGroup(NpcGroup.Raider)} raiders)");
-
-            music = gameObject.AddComponent<AudioSource>();
-            music.loop = true;
-            music.playOnAwake = false;
-            music.spatialBlend = 0f;
 
             // Level::initParticleSystems: the red static fog around a pirate base's outpost.
             foreach (var s in Ships) if (s.Spec.group == NpcGroup.Outpost) SpawnRedFog(s.transform.position);
@@ -344,6 +356,11 @@ namespace GoF2Remake.World
 
         void Update()
         {
+            if (waiting.Count > 0)
+            {
+                Create(waiting.Dequeue());
+                if (waiting.Count == 0) ShipsPlaced();
+            }
             float dtMs = Time.deltaTime * 1000f;
             Navigation.SyncMusic(music, ref musicHeld);   // on through conversations, paused by the pause menu
             UpdateOrbit(dtMs);

@@ -355,6 +355,17 @@ namespace GoF2Remake.Data
         /// (another system) 5 s into the level, using that many energy cells.</summary>
         public static bool InstantJump;
         public static int EnergyCellsForNextJump;
+        /// <summary>Remake: the next Space scene is interstellar space (InterstellarSpace), not the orbit of StationIndex. Read
+        /// once by SpaceLevel, never saved: a load is always the orbit the ship left.</summary>
+        public static bool EnterInterstellar;
+        /// <summary>Remake: the next Space scene is an arrival out of interstellar space, at speed, with no camera of its own and
+        /// the warp easing out (Visuals.WarpSky). Read once by SpaceLevel, never saved.</summary>
+        public static bool WarpArrival;
+        /// <summary>Remake: that arrival's ship against its course (Navigation.Leave), so the view doesn't turn at the swap.</summary>
+        public static Quaternion WarpHeading = Quaternion.identity;
+        /// <summary>Remake: and the chase view in the ship's frame, so the ship stays where it is on the screen.</summary>
+        public static Vector3 WarpView;
+        public static Quaternion WarpViewTurn = Quaternion.identity;
 
         /// <summary>Status+0x1dc (Status::jumpgateUsed).</summary>
         public static int JumpgatesUsed;
@@ -544,6 +555,10 @@ namespace GoF2Remake.Data
             ProgrammedStation = -1;
             InstantJump = false;
             EnergyCellsForNextJump = 0;
+            EnterInterstellar = false;
+            WarpArrival = false;
+            WarpHeading = WarpViewTurn = Quaternion.identity;
+            WarpView = Vector3.zero;
             JumpgatesUsed = 0;
             Standing = new[] { 30, 0 };
             ModRaceStanding = new Dictionary<string, int>(System.StringComparer.Ordinal);
