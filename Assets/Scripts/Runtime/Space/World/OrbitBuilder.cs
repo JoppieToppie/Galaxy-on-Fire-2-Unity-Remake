@@ -132,6 +132,13 @@ namespace GoF2Remake.World
             if (gammaSun && sun != null)
             {
                 Color c = layout.SunLightColor, lin = sun.color.linear * sun.intensity;
+                // Modified: the sun table's own hue blended in by SunTint: clamped at 2 a red sun's LIGHT0 is nearly white
+                // (Magnetar, system 5: 2 / 1.95 / 1.65), while the original's Dis is lit a faint red (measured on its screenshots:
+                // red over green 1.5 in the half tones, 1.2 here; 30 % of (1, 0.34, 0.29) gives 2 / 1.56 / 1.30, tuned by eye).
+                var raw = layout.sunColor;
+                float rawMax = Mathf.Max(raw.r, Mathf.Max(raw.g, raw.b), 1e-4f);
+                c = new Color(c.r * Mathf.Lerp(1f, raw.r / rawMax, SunTint), c.g * Mathf.Lerp(1f, raw.g / rawMax, SunTint),
+                              c.b * Mathf.Lerp(1f, raw.b / rawMax, SunTint));
                 static float Ratio(float gamma, float linear) => linear > 1e-4f ? gamma / linear : 0f;
                 SetSunGamma(new Vector3(Ratio(c.r, lin.r), Ratio(c.g, lin.g), Ratio(c.b, lin.b)));
             }
@@ -152,9 +159,11 @@ namespace GoF2Remake.World
 
         /// <summary>Modified: the sunlit side's HDR glow (_GoF2SunGlow), for the bloom; matched by eye to the original's
         /// screenshots (Kaamo).</summary>
-        const float SunGlow = 1.1f;
+        const float SunGlow = 1.3f;
         /// <summary>Modified: the brightness (gamma, texture x LIGHT0) where that glow starts.</summary>
-        const float SunGlowFrom = 0.35f;
+        const float SunGlowFrom = 0.4f;
+        /// <summary>Modified: how much of the sun table's hue tints the sunlit side (0 = LIGHT0 as clamped).</summary>
+        const float SunTint = 0.30f;
 
         /// <summary>Modified: StarSystem::initLight's LightSetGlobalSceneColorAmbient, kA x the sun colour (gamma): kA 0.15, 0.7
         /// in the supernova system (texture 15) but at mission 89 and from 158, where the sun colour is halved first.</summary>
