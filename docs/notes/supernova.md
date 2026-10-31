@@ -154,8 +154,9 @@ against the FEV's LGCY data, see "Sound").
   is 181 000 ms (the HUD timer, `HudReadout`). Not in the challenge: the autopilot menu, its touch button and hint
   (`Navigation.CanOpenMenu`, `NavigationView`, `FlightHud`), the pause menu's Missions / Cargo hold, saving (`SaveGame.Save` /
   `AutoSave`), the asteroid lock (`Mining.UpdateLock`: the Blue Fyre has no drill, "No drill installed." came up at every
-  rock). Scoring (remake: the Android code has only `Hud::drawChallengeModeScore`'s drawing): 1000 per Specter the player
-  destroys; a kill restarts the combo timer at 7100 ms and raises the combo while it runs; run out, a combo pays the
+  rock). Scoring (the iOS 1.1.19 build's `Level::enemyDied` / `MGame::OnUpdate`; the Android code has only
+  `Hud::drawChallengeModeScore`'s drawing): a kill scores 1000 + 2000 x the combo timer's remaining share of 7500 ms (3000
+  at a full timer, 1000 once it ran out) and sets the timer to 7500 ms, raising the combo while it runs; run out, a combo pays the
   original's `combo x 1000 x (1 + 0.05 combo)` (shown beside the count in its last 3000 ms, blinking 50 ms in 100; the count
   pops by 1 + (timer - 7000) x 0.01); the round's end pays a running combo. HUD: 7 digits (`GoF2Hud/challenge_digit_0..9`,
   images 6000-6009 of `gof2_challenge_interface_ipad_large`, **Build HUD Images**) tinted 0x77CCFF at the top centre, under

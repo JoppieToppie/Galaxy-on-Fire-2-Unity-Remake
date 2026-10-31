@@ -16,7 +16,7 @@
 //                        (file rotY, -2 pi per 20 s / 10 s); PartAnimation's default mapping turned that spin the wrong
 //                        way round (the import's 180 deg yaw reverses a spin about Z), so the wormhole flips it
 //   PlayerEgo::calcCollision  visible, not shrinking, within 40000: the loop sound 34 at the wormhole, the player moved
-//                        toward it by (40000 - d) / 256 units per (30 fps) frame, camera hit(); within 1000 = inside
+//                        toward it by (40000 - d) / 256 units per original frame, camera hit(); within 1000 = inside
 //                        (PlayerEgo+0x25, isInWormhole); the ride itself is SpaceLevel's (MGame::OnUpdate)
 // Remake events / missions (EventWormhole, /wormhole): a 'held' wormhole stays open until Close() shrinks it away, with no
 // story rules; SpaceLevel rides it to its own destination.

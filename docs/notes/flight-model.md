@@ -47,7 +47,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   centre and the ship swinging to the side in a turn, as in the original's videos), which players found worse. Boosting
   widens the FOV by 0.35 rad × the boost percentage and rumbles (pct × clamp(speed, 2, 8) / 50). The hit / shot shake
   and the rumble (explosions, the boost, the Liberator, the cutscene camera's) take a new random offset once per
-  original frame (`ChaseCamera.HeldJitter`, 33 ms) and sit on top of the follow, taken off again the next frame
+  original frame (`ChaseCamera.HeldJitter`, `OriginalFrame.Ms`, 16.7 ms at the iOS build's 60 Hz) and sit on top of the follow, taken off again the next frame
   (`UndoJitter`); players' reports 2026-10-18 of extreme shaking: drawn anew every rendered frame and into the eased
   pose, a full rumble turned the view 2.8 deg per frame at 144 fps (0.56 now), and the Original follow turned every hit
   and shot into a flicker of the view.
@@ -66,6 +66,12 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   turns about 40 deg after the sliding ship and keeps it in view (the point is only ~34 m ahead of the camera). Until
   2026-10-11 the remake put the shift on the camera position (scaled to 0.25) and eased a rotation aimed from where the
   camera should be, so the ship slid out of the frame (players compared videos).
+
+- The original's frame (`Core/OriginalFrame.cs`, `OriginalFrame.Ms` = 1000 / 60): the rules the original ran once per frame
+  without a dt (the death spin, the dodge's nose turn, flings, missile steering, the crates' drift, the cutscene and
+  level-script per-frame factors, the camera's shake offsets) are converted with it. The iOS 1.1.19 build starts its
+  display link at frame interval 1 (60 Hz) and feeds MGame::OnUpdate the real elapsed ms (capped 150); the Android
+  build's cap was never determined. Until 2026-10-30 the remake used 30 fps (33.3 ms) for these, half the iPhone's rate.
 
 Useful field offsets in the decompiled code:
 

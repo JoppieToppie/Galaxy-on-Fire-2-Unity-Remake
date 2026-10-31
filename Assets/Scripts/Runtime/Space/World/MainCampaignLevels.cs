@@ -637,10 +637,10 @@ namespace GoF2Remake.World
                 case 4:
                 {
                     // LevelScript 0x28 event 4 (0x1676e0): moveForward((z - 200000) - dt) on top of PlayerFixedObject's
-                    // own moveForward(dt): each 30 fps frame it advances by its distance past the wormhole, which doubles
+                    // own moveForward(dt): each original frame it advances by its distance past the wormhole, which doubles
                     // it, so the hole swallows the freighter in about half a second (here per real time, not per frame).
                     float past = Mathf.Max(1f, z - holeZ);
-                    float extra = past * (Mathf.Pow(2f, dtMs / (1000f / 30f)) - 1f);
+                    float extra = past * (Mathf.Pow(2f, dtMs / OriginalFrame.Ms) - 1f);
                     f.transform.position += f.transform.forward * (extra * M);
                     z = -f.transform.position.z / M;
                     if (z > 500000f)

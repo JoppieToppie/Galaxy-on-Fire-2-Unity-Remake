@@ -210,11 +210,11 @@ namespace GoF2Remake.World
                     bombMs += dtMs;
                     bomb.transform.position += bomb.transform.forward * 13f * dtMs * M;
                     if (bombMs >= 9000f && bombMs - dtMs < 9000f && sn != null) Sfx.PlayAt(sn.explosion, Player.position);
-                    if (bombMs >= 9000f && level.Backdrop != null) level.Backdrop.sunScaleFactor *= Mathf.Pow(0.95f, dtMs / 33f);
+                    if (bombMs >= 9000f && level.Backdrop != null) level.Backdrop.sunScaleFactor *= Mathf.Pow(0.95f, dtMs / OriginalFrame.Ms);
                     if (bombMs >= 10000f) { c.Fade(false, Color.white, 500f); Step = 12; }
                     break;
                 case 12:
-                    if (level.Backdrop != null && level.Backdrop.sunScaleFactor < 10f) level.Backdrop.sunScaleFactor *= Mathf.Pow(4f, dtMs / 33f);
+                    if (level.Backdrop != null && level.Backdrop.sunScaleFactor < 10f) level.Backdrop.sunScaleFactor *= Mathf.Pow(4f, dtMs / OriginalFrame.Ms);
                     cam.Rumble = 0.5f;
                     foreach (var s in c.Ships) if (s != null && s.Race == Standing.Specter && s.Target.Alive) s.InitPush(Player.position, 100000f * M);
                     if (!c.FadeDone) break;

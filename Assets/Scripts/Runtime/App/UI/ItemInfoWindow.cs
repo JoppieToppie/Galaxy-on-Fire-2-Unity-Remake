@@ -18,12 +18,13 @@ using GoF2Remake.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
+using GoF2Remake.Flight;
 
 namespace GoF2Remake.UI
 {
     public class ItemInfoWindow
     {
-        const float FrameMs = 1000f / 30f;
+        const float FrameMs = OriginalFrame.Ms;
         static readonly Vector3 StagePosition = new Vector3(0f, -20000f, 0f);
 
         readonly StationMenu menu;

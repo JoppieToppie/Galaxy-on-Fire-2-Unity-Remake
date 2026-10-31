@@ -466,8 +466,8 @@ namespace GoF2Remake.Flight
             if (!exploded)
             {
                 transform.position += transform.forward * ship.ExternalSpeedMetersPerSecond * dtMs / 1000f;
-                // PlayerEgo::update 0xab2aa: the model's Euler angles + 0.03 rad per (30 fps) frame on every axis.
-                float step = 0.03f * Mathf.Rad2Deg * (dtMs / (1000f / 30f));
+                // PlayerEgo::update 0xab2aa: the model's Euler angles + 0.03 rad per original frame on every axis.
+                float step = 0.03f * Mathf.Rad2Deg * (dtMs / OriginalFrame.Ms);
                 if (ship.visualModel != null) ship.visualModel.localRotation *= Quaternion.Euler(step, step, step);
             }
             if (!exploded && deathMs >= 3000f)

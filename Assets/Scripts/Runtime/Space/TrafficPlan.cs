@@ -281,8 +281,8 @@ namespace GoF2Remake.Flight
             }
             if (terran || vossk || modCapital >= 0) freighters--;
             // A pirate raid on a traveller (initStreamOutPosition): rnd(100) < rank + 20 (40 Extreme) moves the pirates'
-            // point toward the arriving player (Route::setNewCoords(player position / f); f is lost in the decompile,
-            // the remake takes a quarter of the way: half the way put up to 19 Extreme pirates on a player just arrived within
+            // point toward the arriving player (Route::setNewCoords(player position / 3), the divisor read in the iOS build's
+            // Level::createMission; the remake takes a quarter of the way: half the way put up to 19 Extreme pirates on a player just arrived within
             // a minute, players' report 2026-10-16).
             if (raidersOn && raiderRace == Standing.Pirate && Session.ArrivedByTravel && !lootOrbit && Random.Range(0, 100) < rank + (hardcore ? 40 : 20))
                 raiderSpawn = playerGame * AmbushShare;

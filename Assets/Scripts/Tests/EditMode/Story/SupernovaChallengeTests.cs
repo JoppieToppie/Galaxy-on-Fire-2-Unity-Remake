@@ -2,7 +2,8 @@
 // Feature: CLAUDE.md "Supernova add-on" > Supernova Challenge (Data.SupernovaChallenge, Reference/research/
 // supernova_challenge.md): MenuTouchWindow::startSupernovaChallenge's start (the Blue Fyre and its loadout at Luur, campaign
 // index 0x98, rank 9), the round of 181 000 ms, Hud::drawChallengeModeScore's combo bonus / blinking / pop, the remake's
-// scoring (1000 a kill, the combo raised by a kill while its timer runs, paid when it runs out or the round ends), the
+// scoring (the iOS build's: 1000 + 2000 x the 7500 ms combo timer's remaining share a kill, the combo raised by a kill while
+// its timer runs, paid when it runs out or the round ends), the
 // highscore kept, the restart's Patala x10, no saving while it runs, and a new game or load ending it.
 
 using GoF2Remake.Data;
@@ -76,7 +77,8 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(SupernovaChallenge.BonusShown || !SupernovaChallenge.ComboShown, "its last 3000 ms: the bonus beside it, blinking");
             SupernovaChallenge.Tick(3000f);
             Assert.AreEqual(1, SupernovaChallenge.Combo, "run out");
-            Assert.AreEqual(3000 + SupernovaChallenge.ComboBonus(3), SupernovaChallenge.Score);
+            // 1000 (no timer) + 1666 (2500 of 7500 ms left: 2500 / 7500 x 2000 + 1000) + 3000 (a full timer, the same frame)
+            Assert.AreEqual(5666 + SupernovaChallenge.ComboBonus(3), SupernovaChallenge.Score);
             Assert.AreEqual(10, SupernovaChallenge.TakeSound(), "SV_Mode_10 for the bonus");
             SupernovaChallenge.OnKill();
             Assert.AreEqual(1, SupernovaChallenge.Combo, "a kill after the timer ran out starts again");
@@ -106,16 +108,17 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(SupernovaChallenge.TimeUp);
             Assert.IsTrue(SupernovaChallenge.Finish());
             Assert.IsTrue(SupernovaChallenge.Over);
-            Assert.AreEqual(2000 + 2200, SupernovaChallenge.Score, "the combo still running at the end pays out");
-            Assert.AreEqual(4200, SupernovaChallenge.Highscore);
+            // 1000 (no timer) + 3000 (the second kill on a full timer) + the combo bonus 2200
+            Assert.AreEqual(4000 + 2200, SupernovaChallenge.Score, "the combo still running at the end pays out");
+            Assert.AreEqual(6200, SupernovaChallenge.Highscore);
             Assert.AreEqual(2, SupernovaChallenge.BestKills);
             SupernovaChallenge.OnKill();
-            Assert.AreEqual(4200, SupernovaChallenge.Score, "nothing counts after the end");
+            Assert.AreEqual(6200, SupernovaChallenge.Score, "nothing counts after the end");
 
             SupernovaChallenge.Start(true);
             SupernovaChallenge.OnKill();
             Assert.IsFalse(SupernovaChallenge.Finish(), "1000 is no new highscore");
-            Assert.AreEqual(4200, SupernovaChallenge.Highscore);
+            Assert.AreEqual(6200, SupernovaChallenge.Highscore);
         }
 
         [Test]

@@ -21,7 +21,7 @@ the player ship) and `NavigationView` (flight HUD).
 - **Autopilot** (station / jumpgate locked + action): "Target: X" + sound 28; `ShipController.autopilotTarget` steers by
   `moveToPosition` (world up; the model banks into the turn by its return value: the signed turn per frame averaged over
   5 samples × H·750/63·1.2 × 15.14, clamped, eased by dt·H/81 into the yaw rate, `FlightModel.AutopilotBank`, taken per
-  33.3 ms of real time: the frame rate doesn't change it, but fast-forward does, as in the original (its update runs
+  original frame (`OriginalFrame.Ms`, 16.7 ms) of real time: the frame rate doesn't change it, but fast-forward does, as in the original (its update runs
   with dt x 5, so each sample carries five times the turn and the ship banks hard, to the limit 1.2 x a full stick's; a
   player's report with the original's video: the remake divided it away by the scaled dt); #45: it flew the turns flat;
   the rate is also the yaw rate +0x27c, which the model banks from, so handed back the ship eases out of the turn),

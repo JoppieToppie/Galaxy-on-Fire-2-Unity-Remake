@@ -70,7 +70,7 @@ namespace GoF2Remake.World
             if (fxLengthMs <= 0f) StartJump();
             float into = ms - ChargeMs;
             // into the flash, faster and faster
-            speed *= Mathf.Pow(1.1f, dtMs / 33.3f);
+            speed *= Mathf.Pow(1.1f, dtMs / OriginalFrame.Ms);
             host.transform.position += bow * speed * Time.deltaTime;
             if (into >= HideMs)
             {

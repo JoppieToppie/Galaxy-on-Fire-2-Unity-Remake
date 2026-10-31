@@ -26,8 +26,8 @@
 //    ship hidden (PlayerEgo::hideShipForFirstPersonCameraView), the hit shake x0.001 and the rumble x0.0015. Remake
 //    (FreeLookCamera.Mode.FirstPerson): reachable, on the bow instead of the pivot (FirstPersonSeat), the shake and the
 //    rumble as small turns of the view, the boost's FOV at half.
-//  * The shake and the rumble draw a new random offset each frame of the original's 30 fps. Remake (players' reports
-//    2026-10-18, extreme shaking): each offset is held for that 33 ms (HeldJitter) instead of a new one every rendered
+//  * The shake and the rumble draw a new random offset each frame of the original (OriginalFrame.Ms, 60 Hz). Remake (players' reports
+//    2026-10-18, extreme shaking): each offset is held for that frame (HeldJitter) instead of a new one every rendered
 //    frame (at 144 fps an explosion's rumble jolted the view 2.8 deg every 7 ms), and laid on top of the follow, taken
 //    off again the next frame (UndoJitter): drawn into the eased pose, it piled up through the easing.
 
@@ -84,8 +84,8 @@ namespace GoF2Remake.Flight
         Quaternion baseRot, shownRot;
         bool jittered;
 
-        /// <summary>The original's frame (30 fps): a shake or rumble offset lasts this long.</summary>
-        public const float JitterMs = 1000f / 30f;
+        /// <summary>The original's frame (OriginalFrame.Ms, 60 Hz): a shake or rumble offset lasts this long.</summary>
+        public const float JitterMs = OriginalFrame.Ms;
 
         /// <summary>A random direction in [-1, 1] per axis, drawn again once 'ageMs' reaches JitterMs (the original's frame)
         /// rather than every rendered frame. Shared with the cutscene camera's rumble.</summary>

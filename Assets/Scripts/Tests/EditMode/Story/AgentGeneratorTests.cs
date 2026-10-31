@@ -155,7 +155,11 @@ namespace GoF2Remake.Tests
         [Test]
         public void TheRetractorSellerAtThynomeInStep23()
         {
+            // The Android build's agent; the iOS build (the Default economy) puts the Retractor into the shops at steps 17-24 instead.
+            Session.Economy = Economy.Default;
             Session.CampaignMission = 23;
+            Assert.IsFalse(AgentGenerator.CreateAgents(Db, 10).Exists(a => a.sellItem == 68 && a.sellPrice == 100000), "not in the iOS build");
+            Session.Economy = Economy.Android;
             var agents = AgentGenerator.CreateAgents(Db, 10);
             var seller = agents.Find(a => a.offer == AgentOffer.SellItem && a.sellItem == 68);
             Assert.IsNotNull(seller, "AB-1 Retractor");
@@ -168,6 +172,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void Step23AtThynomeTheFirstCheapMissionPaysTenTimes()
         {
+            Session.Economy = Economy.Android;   // the Android build's rule (the iOS build has none)
             Session.CampaignMission = 23;
             int level = System.Math.Min(Session.Rank, 20);
             int checkedBars = 0;

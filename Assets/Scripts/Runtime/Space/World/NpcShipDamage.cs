@@ -300,7 +300,7 @@ namespace GoF2Remake.World
 
         void UpdateDying(float dtMs)
         {
-            float frames = dtMs / 33.3f;
+            float frames = dtMs / OriginalFrame.Ms;
             if (IsTurret) { dyingMs -= dtMs; if (dyingMs <= 0f) SetDead(); return; }
             if (IsFixed || IsFreighter)
             {

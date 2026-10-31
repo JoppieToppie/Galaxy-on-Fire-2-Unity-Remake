@@ -3,7 +3,7 @@
 // (Player+0x60, 0..1), from PlayerEgo::update 0xa9xxx:
 //   no volatile goods              the force is 0
 //   every frame                    + dt * 0.001 * 0.5 * max(|d stick x|, |d stick y|) (the change of +0x268 / +0x270 since
-//                                  the last frame; the remake counts it per 30 fps frame, so the total doesn't depend on
+//                                  the last frame; the remake counts it per original frame, so the total doesn't depend on
 //                                  the frame rate)
 //   while boosting                 + dt * 0.001 * 0.13 (0.17 with the Polytron Boost 195; DAT_000a9ccc / 0xa9cd0)
 //   an asteroid touched            + 0.2 (PlayerEgo::calcCollision)
@@ -23,7 +23,7 @@ namespace GoF2Remake.Flight
 {
     public class VolatileCargo : MonoBehaviour
     {
-        const float InputRate = 0.001f * 0.5f * (1000f / 30f), EventVolume = 0.2007f, SpawnMs = 1000f;
+        const float InputRate = 0.001f * 0.5f * OriginalFrame.Ms, EventVolume = 0.2007f, SpawnMs = 1000f;
 
         ShipController ship;
         PlayerHealth health;

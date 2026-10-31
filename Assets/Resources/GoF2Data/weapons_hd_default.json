@@ -1,0 +1,626 @@
+[
+ {
+  "ship": 8,
+  "shipName": "VoidX",
+  "mounts": [
+   {
+    "slotType": 0,
+    "position_file": [
+     33,
+     -914,
+     -29
+    ],
+    "position_engine": [
+     33,
+     -29,
+     914
+    ]
+   },
+   {
+    "slotType": 0,
+    "position_file": [
+     -33,
+     -914,
+     -29
+    ],
+    "position_engine": [
+     -33,
+     -29,
+     914
+    ]
+   },
+   {
+    "slotType": 0,
+    "position_file": [
+     72,
+     -1221,
+     -29
+    ],
+    "position_engine": [
+     72,
+     -29,
+     1221
+    ]
+   },
+   {
+    "slotType": 0,
+    "position_file": [
+     -72,
+     -1221,
+     -29
+    ],
+    "position_engine": [
+     -72,
+     -29,
+     1221
+    ]
+   },
+   {
+    "slotType": 1,
+    "position_file": [
+     247,
+     -188,
+     -80
+    ],
+    "position_engine": [
+     247,
+     -80,
+     188
+    ]
+   },
+   {
+    "slotType": 1,
+    "position_file": [
+     188,
+     -706,
+     -41
+    ],
+    "position_engine": [
+     188,
+     -41,
+     706
+    ]
+   },
+   {
+    "slotType": 1,
+    "position_file": [
+     -188,
+     -706,
+     -41
+    ],
+    "position_engine": [
+     -188,
+     -41,
+     706
+    ]
+   },
+   {
+    "slotType": 1,
+    "position_file": [
+     -247,
+     -188,
+     -80
+    ],
+    "position_engine": [
+     -247,
+     -80,
+     188
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     0,
+     457,
+     26
+    ],
+    "position_engine": [
+     0,
+     26,
+     -457
+    ],
+    "turretAngles": [
+     0.5999999642372131,
+     0.5999999642372131,
+     0.5999999642372131
+    ]
+   }
+  ]
+ },
+ {
+  "ship": 9,
+  "shipName": "H'Soc",
+  "mounts": [
+   {
+    "slotType": 0,
+    "position_file": [
+     58,
+     -765,
+     -92
+    ],
+    "position_engine": [
+     58,
+     -92,
+     765
+    ]
+   },
+   {
+    "slotType": 0,
+    "position_file": [
+     -59,
+     -765,
+     -92
+    ],
+    "position_engine": [
+     -59,
+     -92,
+     765
+    ]
+   },
+   {
+    "slotType": 1,
+    "position_file": [
+     29,
+     -571,
+     -35
+    ],
+    "position_engine": [
+     29,
+     -35,
+     571
+    ]
+   },
+   {
+    "slotType": 1,
+    "position_file": [
+     29,
+     -571,
+     -35
+    ],
+    "position_engine": [
+     29,
+     -35,
+     571
+    ]
+   },
+   {
+    "slotType": 1,
+    "position_file": [
+     -30,
+     -571,
+     -35
+    ],
+    "position_engine": [
+     -30,
+     -35,
+     571
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     0,
+     477,
+     0
+    ],
+    "position_engine": [
+     0,
+     0,
+     -477
+    ],
+    "turretAngles": [
+     0.699999988079071,
+     0.699999988079071,
+     0.699999988079071
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     -69,
+     447,
+     -57
+    ],
+    "position_engine": [
+     -69,
+     -57,
+     -447
+    ],
+    "turretAngles": [
+     0.25,
+     0.25,
+     0.25
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     69,
+     447,
+     -57
+    ],
+    "position_engine": [
+     69,
+     -57,
+     -447
+    ],
+    "turretAngles": [
+     0.25,
+     0.25,
+     0.25
+    ]
+   }
+  ]
+ },
+ {
+  "ship": 44,
+  "shipName": "Specter",
+  "mounts": [
+   {
+    "slotType": 0,
+    "position_file": [
+     -472,
+     176,
+     -80
+    ],
+    "position_engine": [
+     -472,
+     -80,
+     -176
+    ]
+   },
+   {
+    "slotType": 0,
+    "position_file": [
+     473,
+     177,
+     -80
+    ],
+    "position_engine": [
+     473,
+     -80,
+     -177
+    ]
+   },
+   {
+    "slotType": 0,
+    "position_file": [
+     -476,
+     33,
+     -54
+    ],
+    "position_engine": [
+     -476,
+     -54,
+     -33
+    ]
+   },
+   {
+    "slotType": 0,
+    "position_file": [
+     476,
+     31,
+     -54
+    ],
+    "position_engine": [
+     476,
+     -54,
+     -31
+    ]
+   },
+   {
+    "slotType": 1,
+    "position_file": [
+     -568,
+     518,
+     -64
+    ],
+    "position_engine": [
+     -568,
+     -64,
+     -518
+    ]
+   },
+   {
+    "slotType": 1,
+    "position_file": [
+     569,
+     518,
+     -68
+    ],
+    "position_engine": [
+     569,
+     -68,
+     -518
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     -309,
+     784,
+     -17
+    ],
+    "position_engine": [
+     -309,
+     -17,
+     -784
+    ],
+    "turretAngles": [
+     0.3999999463558197,
+     0.3999999463558197,
+     0.3999999761581421
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     326,
+     784,
+     -22
+    ],
+    "position_engine": [
+     326,
+     -22,
+     -784
+    ],
+    "turretAngles": [
+     0.3999999463558197,
+     0.3999999463558197,
+     0.3999999761581421
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     195,
+     806,
+     -8
+    ],
+    "position_engine": [
+     195,
+     -8,
+     -806
+    ],
+    "turretAngles": [
+     0.3999999463558197,
+     0.3999999463558197,
+     0.3999999761581421
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     -195,
+     806,
+     -2
+    ],
+    "position_engine": [
+     -195,
+     -2,
+     -806
+    ],
+    "turretAngles": [
+     0.3999999463558197,
+     0.3999999463558197,
+     0.3999999761581421
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     -19,
+     806,
+     24
+    ],
+    "position_engine": [
+     -19,
+     24,
+     -806
+    ],
+    "turretAngles": [
+     0.6966820359230042,
+     0.6966820359230042,
+     0.6966820359230042
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     22,
+     806,
+     24
+    ],
+    "position_engine": [
+     22,
+     24,
+     -806
+    ],
+    "turretAngles": [
+     0.6966820359230042,
+     0.6966820359230042,
+     0.6966820359230042
+    ]
+   }
+  ]
+ },
+ {
+  "ship": 49,
+  "shipName": "Scimitar",
+  "mounts": [
+   {
+    "slotType": 0,
+    "position_file": [
+     -506,
+     -1061,
+     -125
+    ],
+    "position_engine": [
+     -506,
+     -125,
+     1061
+    ]
+   },
+   {
+    "slotType": 0,
+    "position_file": [
+     0,
+     316,
+     106
+    ],
+    "position_engine": [
+     0,
+     106,
+     -316
+    ]
+   },
+   {
+    "slotType": 0,
+    "position_file": [
+     513,
+     -1061,
+     -125
+    ],
+    "position_engine": [
+     513,
+     -125,
+     1061
+    ]
+   },
+   {
+    "slotType": 1,
+    "position_file": [
+     229,
+     183,
+     73
+    ],
+    "position_engine": [
+     229,
+     73,
+     -183
+    ]
+   },
+   {
+    "slotType": 1,
+    "position_file": [
+     -228,
+     184,
+     73
+    ],
+    "position_engine": [
+     -228,
+     73,
+     -184
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     317,
+     1107,
+     6
+    ],
+    "position_engine": [
+     317,
+     6,
+     -1107
+    ],
+    "turretAngles": [
+     0.5999999642372131,
+     0.5999999642372131,
+     0.5999999642372131
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     194,
+     1091,
+     79
+    ],
+    "position_engine": [
+     194,
+     79,
+     -1091
+    ],
+    "turretAngles": [
+     0.5999999642372131,
+     0.5999999642372131,
+     0.5999999642372131
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     105,
+     1121,
+     109
+    ],
+    "position_engine": [
+     105,
+     109,
+     -1121
+    ],
+    "turretAngles": [
+     0.5999999642372131,
+     0.5999999642372131,
+     0.5999999642372131
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     -316,
+     1108,
+     4
+    ],
+    "position_engine": [
+     -316,
+     4,
+     -1108
+    ],
+    "turretAngles": [
+     0.5999999642372131,
+     0.5999999642372131,
+     0.5999999642372131
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     -194,
+     1092,
+     80
+    ],
+    "position_engine": [
+     -194,
+     80,
+     -1092
+    ],
+    "turretAngles": [
+     0.5999999642372131,
+     0.5999999642372131,
+     0.5999999642372131
+    ]
+   },
+   {
+    "slotType": 3,
+    "position_file": [
+     -106,
+     1121,
+     109
+    ],
+    "position_engine": [
+     -106,
+     109,
+     -1121
+    ],
+    "turretAngles": [
+     0.5999999642372131,
+     0.5999999642372131,
+     0.5999999642372131
+    ]
+   }
+  ]
+ }
+]

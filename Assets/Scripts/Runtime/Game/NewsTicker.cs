@@ -10,8 +10,9 @@
 // #CHILD_NAME (a first name), #SHIP_NAME (913 + a random fighter), #PLATFORM_NUMBER (A-F + 0-9), #CATASTROPHE (3237 +
 // rnd 5), #VICTIMS, #BERGER_LASER (1279 + rnd 4), #VOSSK_SHIP_OR_ITEM / #VOSSK_REVENUE (3242), #PROFESSION (3243 + rnd 4),
 // #NAME, #ACTIVITY (3247 + rnd 4), #RACE_NAME (406 + rnd 4), #CRIME (3251 + rnd 5), #NIVELIAN_PLANET, #DEMONSTRATORS,
-// #POLL_PERCENTAGE, #POLL_TOPIC (3256 + rnd 6), #CASUALTIES. The decompile loses the tail of replaceTokens: the numbers'
-// ranges past #VICTIMS are assumed.
+// #POLL_PERCENTAGE, #POLL_TOPIC (3256 + rnd 6), #CASUALTIES. The numbers (the iOS build's replaceTokens, whose int arguments
+// the Android decompile lost): #VICTIMS (rnd 99000 + 100000) to the thousand, #DEMONSTRATORS (rnd 990000 + 1000000) to
+// the thousand, #VOSSK_REVENUE playing time in ms / 1 000 000 + 12, #POLL_PERCENTAGE rnd 80 + 10, #CASUALTIES rnd 48.
 
 using System;
 using System.Collections.Generic;
@@ -123,21 +124,21 @@ namespace GoF2Remake.Data
             if (s.Contains("#SHIP_NAME")) s = s.Replace("#SHIP_NAME", GameNames.Ship(Flight.FighterPool.Random(Random.Range(0, 4))));
             s = s.Replace("#PLATFORM_NUMBER", $"{(char)('A' + Random.Range(0, 6))}{Random.Range(0, 10)}")
                  .Replace("#CATASTROPHE", T(3237 + Random.Range(0, 5)))
-                 .Replace("#VICTIMS", (Random.Range(0, 99000) + 1000).ToString("#,0"))
+                 .Replace("#VICTIMS", ((Random.Range(0, 99000) + 100000) / 1000 * 1000).ToString("#,0"))
                  .Replace("#BERGER_LASER", T(1279 + Random.Range(0, 4)));
             if (s.Contains("#VOSSK_SHIP_OR_ITEM"))
                 s = s.Replace("#VOSSK_SHIP_OR_ITEM", Random.Range(0, 100) < 50 ? T(922) : GameNames.Item(Random.Range(0, 60)))
-                     .Replace("#VOSSK_REVENUE", $"{Random.Range(2, 99)} {T(3242)}");
+                     .Replace("#VOSSK_REVENUE", $"{(int)(Session.PlaySeconds / 1000f) + 12} {T(3242)}");
             s = s.Replace("#PROFESSION", T(3243 + Random.Range(0, 4)))
                  .Replace("#NAME", AgentGenerator.RandomName(Random.Range(0, 8), true))
                  .Replace("#ACTIVITY", T(3247 + Random.Range(0, 4)))
                  .Replace("#RACE_NAME", T(406 + Random.Range(0, 4)))
                  .Replace("#CRIME", T(3251 + Random.Range(0, 5)))
                  .Replace("#NIVELIAN_PLANET", RandomStationOfRace(db, 2))
-                 .Replace("#DEMONSTRATORS", (Random.Range(0, 900) * 100 + 1000).ToString("#,0"))
-                 .Replace("#POLL_PERCENTAGE", Random.Range(1, 100).ToString())
+                 .Replace("#DEMONSTRATORS", ((Random.Range(0, 990000) + 1000000) / 1000 * 1000).ToString("#,0"))
+                 .Replace("#POLL_PERCENTAGE", (Random.Range(0, 80) + 10).ToString())
                  .Replace("#POLL_TOPIC", T(3256 + Random.Range(0, 6)))
-                 .Replace("#CASUALTIES", (Random.Range(0, 500) + 2).ToString());
+                 .Replace("#CASUALTIES", Random.Range(0, 48).ToString());
             return s;
         }
 

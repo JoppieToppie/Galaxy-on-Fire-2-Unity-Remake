@@ -160,12 +160,18 @@ namespace GoF2Remake.Tests
 
         // ---- loot (Generator::getLootList) ---------------------------------------------------------------------
 
-        static List<List<ItemStack>> Loot(int n, int seed, bool freighter)
+        static List<List<ItemStack>> Loot(int n, int seed, bool freighter, Economy economy = Economy.Android)
         {
-            Random.InitState(seed);
-            var all = new List<List<ItemStack>>();
-            for (int i = 0; i < n; i++) all.Add(NpcTables.RollLoot(Db, freighter));
-            return all;
+            var before = Session.Economy;
+            Session.Economy = economy;   // the empty roll differs between the builds (Android 1 in 3, iOS / Default 1 in 9)
+            try
+            {
+                Random.InitState(seed);
+                var all = new List<List<ItemStack>>();
+                for (int i = 0; i < n; i++) all.Add(NpcTables.RollLoot(Db, freighter));
+                return all;
+            }
+            finally { Session.Economy = before; }
         }
 
         [Test]
@@ -178,6 +184,17 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(1.0 / 3, empty / (double)n, 0.04);
             Assert.That(all.All(l => l.Count <= 2));
             Assert.AreEqual(1.0 / 3, two / (double)(n - empty), 0.05);
+        }
+
+        [Test]
+        public void LootIsEmptyOneTimeInNineOnTheIosBuild()
+        {
+            // iOS 1.1.19 (the Default economy): the second nextInt(3) only when the first gave 0 entries.
+            const int n = 3000;
+            var all = Loot(n, 23, false, Economy.Default);
+            int empty = all.Count(l => l.Count == 0);
+            Assert.AreEqual(1.0 / 9, empty / (double)n, 0.03);
+            Assert.That(all.All(l => l.Count <= 2));
         }
 
         [Test]

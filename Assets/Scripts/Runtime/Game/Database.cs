@@ -557,8 +557,10 @@ namespace GoF2Remake.Data
         /// <summary>The item and ship tables this instance holds (Session.Economy when it was loaded).</summary>
         public Economy Economy { get; private set; } = Economy.Android;
 
-        /// <summary>The macOS / Windows / iPhone tables (KiritoJPK's Default Economy items.bin / ships.bin) over the Android
-        /// ones: prices, tech levels, occurrences, attributes (and so the stats) and blueprint recipes; ship prices and slots.</summary>
+        /// <summary>The macOS / Windows / iPhone tables (KiritoJPK's Default Economy items.bin, the iOS 1.1.19 ships.bin) over the
+        /// Android ones: prices, tech levels, occurrences, attributes (and so the stats) and blueprint recipes; ship prices and
+        /// slots; and the iOS build's weapon mount sets where they differ (weapons_hd_default.json: the exhaust anchors of the
+        /// VoidX, H'Soc, Specter and Scimitar, Reference/tools/shop/build_default_mounts.py).</summary>
         void ApplyDefaultEconomy(string folder)
         {
             var file = Read<EconomyFile>(folder, "economy_default");
@@ -581,6 +583,14 @@ namespace GoF2Remake.Data
                     sh.armor = e.armor; sh.cargo = e.cargo; sh.price = e.price;
                     sh.slots = new ShipSlots { primary = e.primary, secondary = e.secondary, turret = e.turret, equipment = e.equipment };
                     sh.handling = e.handling; sh.handlingMultiplier = e.handling / 100f;
+                }
+            var mounts = Read<List<WeaponMountSet>>(folder, "weapons_hd_default");
+            if (mounts != null && WeaponMounts != null)
+                foreach (var set in mounts)
+                {
+                    if (set == null || set.mounts == null) continue;
+                    int i = WeaponMounts.FindIndex(m => m.ship == set.ship);
+                    if (i >= 0) WeaponMounts[i] = set; else WeaponMounts.Add(set);
                 }
             Economy = Economy.Default;
         }
