@@ -357,6 +357,21 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ACategoryWhosePluralIsAnOrdinaryWordTakesNoPlural()
+        {
+            // PR #211: Portuguese category 3 "Termo" (the thermo guns) matched "termos" in Brent's "até termos um plano" (1870,
+            // step 20: "until we have a plan"); the texts use "termos" in lower case and never "termo", so no plural.
+            using var portuguese = new DataUiTestKit.TextLanguage("pt");
+            Assert.AreEqual("Termo", Localization.Get(221 + 3).Trim(), "the test's premise");
+            string brent = Localization.Get(1870);
+            int at = brent.IndexOf("termos", System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(at, 0, "the test's premise");
+            Assert.IsNull(Icons(brent)[at], brent);
+            int first = Enumerable.Range(0, GameNames.OriginalItems).First(i => Db.Items[i].categoryId == 3);
+            Assert.AreEqual($"item_{first:000}", Icons("Compre um Termo.")[10], "the singular keeps its icon");
+        }
+
+        [Test]
         public void PlasmaArrayTakesNoIcon()
         {
             Assert.IsFalse(Icons("Destroy the plasma array.").Any(i => i != null));

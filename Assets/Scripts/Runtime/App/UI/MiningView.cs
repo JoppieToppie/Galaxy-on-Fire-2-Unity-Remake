@@ -162,6 +162,7 @@ namespace GoF2Remake.UI
 
         readonly List<VisualElement> markers = new List<VisualElement>();
         readonly List<Target> markerTargets = new List<Target>();
+        readonly List<Vector2> markerPoints = new List<Vector2>();
         VisualElement markerLayer;
 
         /// <summary>The sprite's top-left on the asteroid's projected point (no reference pixel), on screen only.</summary>
@@ -169,7 +170,7 @@ namespace GoF2Remake.UI
         {
             markerLayer ??= layer;
             if (show && mining != null && cam != null) mining.ClassAMarkers(fieldCentre, markerTargets); else markerTargets.Clear();
-            int used = 0;
+            markerPoints.Clear();
             if (markerLayer != null && markerLayer.panel != null)
             {
                 var origin = markerLayer.worldBound.position;
@@ -177,13 +178,25 @@ namespace GoF2Remake.UI
                 {
                     var sp = cam.WorldToScreenPoint(t.transform.position);
                     if (sp.z <= 0f || sp.x < 0f || sp.y < 0f || sp.x > Screen.width || sp.y > Screen.height) continue;
-                    var p = RuntimePanelUtils.CameraTransformWorldToPanel(markerLayer.panel, t.transform.position, cam) - origin;
+                    markerPoints.Add(RuntimePanelUtils.CameraTransformWorldToPanel(markerLayer.panel, t.transform.position, cam) - origin);
+                }
+            }
+            PlaceMarkers(markerLayer, markers, markerPoints, classFrames[0]);
+        }
+
+        /// <summary>One marker in 'layer' per point (made as needed, the rest hidden).</summary>
+        internal static void PlaceMarkers(VisualElement layer, List<VisualElement> markers, List<Vector2> points, Texture2D image)
+        {
+            int used = 0;
+            if (layer != null)
+                foreach (var p in points)
+                {
                     if (used == markers.Count)
                     {
                         var e = new VisualElement { pickingMode = PickingMode.Ignore, usageHints = UsageHints.DynamicTransform };
                         e.style.position = Position.Absolute;
-                        SetImage(e, classFrames[0]);
-                        markerLayer.Add(e);
+                        SetImage(e, image);
+                        layer.Add(e);
                         markers.Add(e);
                     }
                     var m = markers[used++];
@@ -191,11 +204,10 @@ namespace GoF2Remake.UI
                     // whenever its targets change, e.g. a freelance mission's waypoint going at its end): the letters were
                     // left detached and never showed again until the next scene (a player's report: after Junk removal /
                     // Recovery the Ultrascan's "A" marks were gone until docking).
-                    if (m.parent != markerLayer) markerLayer.Add(m);
+                    if (m.parent != layer) layer.Add(m);
                     m.style.display = DisplayStyle.Flex;
                     m.style.translate = new Translate(p.x, p.y);   // not left / top: they ran the layout every frame
                 }
-            }
             for (int i = used; i < markers.Count; i++) markers[i].style.display = DisplayStyle.None;
         }
 

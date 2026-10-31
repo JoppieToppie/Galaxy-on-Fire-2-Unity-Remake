@@ -360,6 +360,11 @@ namespace GoF2Remake.Data
 
         public const int TimeExtenderCategory = 26;
 
+        /// <summary>getItemBuyList's factor on an item's occurrence chance, capped at 1.5: iOS 1.1.19 (taken with the Default
+        /// economy) (step + 10) / 45; Android 2.0.16 (step + 25) / 45.</summary>
+        internal static float StockFactor(int mission) =>
+            Mathf.Min(1.5f, (mission + (Session.Economy == Economy.Default ? 10 : 25)) / 45f);
+
         static List<ItemStack> GenerateItemsOriginal(Database db, int station)
         {
             var list = new List<ItemStack>();
@@ -377,8 +382,7 @@ namespace GoF2Remake.Data
             int system = st?.system ?? 0;
             int race = RaceOfSystem(db, system);
             bool hardcore = Session.IsExtreme;
-            // iOS 1.1.19 (taken with the Default economy): (step + 10) / 45; Android 2.0.16: (step + 25) / 45.
-            float k = Mathf.Min(1.5f, (mission + (Session.Economy == Economy.Default ? 10 : 25)) / 45f);
+            float k = StockFactor(mission);
             int lowTech = station == 105 || station == 107 ? 0 : techS < 4 ? 1 : techS / 2;
 
             foreach (var it in db.Items)
