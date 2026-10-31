@@ -51,5 +51,16 @@ namespace GoF2Remake.Tests
             }
             finally { System.IO.File.Delete(path); }
         }
+
+        [Test]
+        public void TheContentDecidesWhateverTheName()
+        {
+            // #208: before the picker named its copy by type, the weapon fx page saved a picked sound as "fx/<item>.tmp"
+            // (Android's picker, like every platform's, copies to "picked.tmp"); the name alone refused it.
+            Assert.AreEqual(AudioType.OGGVORBIS, ModAudio.TypeOf("fx/plasma_lance.tmp", AudioType.OGGVORBIS));
+            Assert.AreEqual(AudioType.WAV, ModAudio.TypeOf("sounds/shot.ogg", AudioType.WAV), "a WAV saved as .ogg");
+            Assert.AreEqual(AudioType.MPEG, ModAudio.TypeOf("fx/shot.mp3", AudioType.UNKNOWN), "unreadable head: the name");
+            Assert.AreEqual(AudioType.UNKNOWN, ModAudio.TypeOf("fx/shot.tmp", AudioType.UNKNOWN), "neither shows a type");
+        }
     }
 }

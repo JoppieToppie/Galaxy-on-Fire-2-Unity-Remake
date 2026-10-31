@@ -96,7 +96,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   the file's first bytes (`ModAudio.Sniff`: RIFF/WAVE, OggS, ID3 / an MPEG frame sync), the extension only when they
   show none: every platform's file picker copies to "picked.tmp", so the Mod Builder's `ModProject.SetAudio` saved every
   picked WAV / MP3 as .ogg and it "couldn't be played" (a player's report, 2026-10-24); `PickAudio` now hands it a copy
-  named by its type. Tests `ModAudioTypeTests`.
+  named by its type. Tests `ModAudioTypeTests`. The content decides before the name is checked (`ModAudio.TypeOf(file,
+  sniffed)`, #208): the Weapon fx page's "Sound file…" had saved a picked sound as `fx/<item>.tmp` (`AddFile` keeps the
+  copy's extension), which the name alone refused, so the weapon kept its game sound on the new build too.
 - **Ship and weapon sounds** (`ModShipSounds`): ships.json `"sounds"` (a new ship or an override; `ShipDef.sounds`,
   `ModContent.ShipSounds`) = engine / boostStart / boostLoop / boostStop / charger, each a file, a list (random) or { file(s),
   volume, pitch } with a value or [from, to]; a kit hardpoint rule's `"sound"` { shot, loop, release } (`Rule.sound`,

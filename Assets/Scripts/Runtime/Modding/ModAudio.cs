@@ -86,6 +86,9 @@ namespace GoF2Remake.Modding
             catch { return AudioType.UNKNOWN; }
         }
 
+        /// <summary>The type a file is read as: its content's ('sniffed', Sniff), else its name's (Unknown: neither shows one).</summary>
+        public static AudioType TypeOf(string file, AudioType sniffed) => sniffed != AudioType.UNKNOWN ? sniffed : TypeOf(file);
+
         /// <summary>The extension (with the dot) for an AudioType of Sniff, else null.</summary>
         public static string ExtensionOf(AudioType type) =>
             type == AudioType.WAV ? ".wav" : type == AudioType.OGGVORBIS ? ".ogg" : type == AudioType.MPEG ? ".mp3" : null;
@@ -175,10 +178,10 @@ namespace GoF2Remake.Modding
             AudioClip clip = null;
             try
             {
-                var type = TypeOf(file);
-                if (type == AudioType.UNKNOWN) throw new Exception("not an .ogg, .wav or .mp3 file");
+                AudioType type;
                 // A zip mod's file is copied out on a worker thread (ModInfo.LocalFile).
-                // The content decides over the name (a WAV saved as .ogg, see Sniff).
+                // The content decides over the name (a WAV saved as .ogg, see Sniff; #208: the weapon fx page saved a picked
+                // sound as "fx/<item>.tmp" before the picker named its copy by type, so the name alone refused it).
                 AudioType sniffed = AudioType.UNKNOWN;
                 string path = await System.Threading.Tasks.Task.Run(() =>
                 {
@@ -187,7 +190,8 @@ namespace GoF2Remake.Modding
                     return p;
                 });
                 if (path == null) throw new Exception("can't be read");
-                if (sniffed != AudioType.UNKNOWN) type = sniffed;
+                type = TypeOf(file, sniffed);
+                if (type == AudioType.UNKNOWN) throw new Exception("not an .ogg, .wav or .mp3 file");
                 using var req = UnityWebRequestMultimedia.GetAudioClip(new Uri(path).AbsoluteUri, type);
                 if (req.downloadHandler is DownloadHandlerAudioClip handler) handler.compressed = compressed;
                 var op = req.SendWebRequest();
