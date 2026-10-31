@@ -96,5 +96,25 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(SaveGame.Load(1));
             Assert.IsTrue(Session.KhadorCronusGift, "an older save at 77 outside the Cronus");
         }
+
+        [Test]
+        public void OnlyASaveAtStep77KeepsTheJumpDriveLocked()
+        {
+            // #218: a save from before 2026-10-10 kept step 77's lock after the Valkyrie campaign, on every Khador Drive.
+            Session.Equipment.Add(new ItemStack(GalaxyMap.KhadorDriveItem, 1));
+            Session.Equipment.Add(new ItemStack(GalaxyMap.KhadorDriveItem, 1));
+            Session.Unsaleable.Add(GalaxyMap.KhadorDriveItem);
+            Session.Unsaleable.Add(131);   // another story item keeps its lock
+            Assert.IsTrue(SaveGame.Save(1));
+            Assert.IsTrue(SaveGame.Load(1));
+            Assert.IsFalse(Hangar.IsSaleable(GalaxyMap.KhadorDriveItem), "step 77: locked");
+
+            Session.CampaignMission = 100;
+            Session.Unsaleable.Add(GalaxyMap.KhadorDriveItem);
+            Assert.IsTrue(SaveGame.Save(1));
+            Assert.IsTrue(SaveGame.Load(1));
+            Assert.IsTrue(Hangar.IsSaleable(GalaxyMap.KhadorDriveItem), "past the Valkyrie campaign: free again");
+            Assert.IsFalse(Hangar.IsSaleable(131));
+        }
     }
 }

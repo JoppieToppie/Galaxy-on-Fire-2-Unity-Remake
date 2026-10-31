@@ -172,7 +172,8 @@ targets, race; hostile sleepers are hidden after the tutorial. Failures (and dea
 `StationStock.freeUnits` / `Hangar.BuyPriceOf`: only the gifted units, a sold unit is priced, where the original's free row
 took sold units too; #131), the Void Essence (68 / 69, the core of Void Crystals; case 0x47 gives one more with the
 Disruptor blueprint), the Disruptor blueprint (72), the jump drive unsaleable (77), taken (78) and back with a spare
-(84); save v6. Station side: launching at 48 goes straight into B'akrram's orbit (`Story.LaunchStation`), menu locks
+(84; the lock is the item number, so a save not at 77 drops it on load, `SaveGame.Apply`, #218: a save from before
+2026-10-10 kept it on every later Khador Drive); save v6. Station side: launching at 48 goes straight into B'akrram's orbit (`Story.LaunchStation`), menu locks
 (Hangar 48 / 49 / 56, remake: and whenever a loaner is flown, `Session.ParkedShip`, #46: the K'Suukk docks at 54 and the
 S'Kanarr at 57, and a quick tap on Hangar sold their guns or the loaner itself; Lounge 49, Map 48 / 49, at 77 the Map
 only in the Cronus, 326), no autosave imprisoned (77 at 101), Khador's ships at Kothar (77 the Cronus, a free row once
