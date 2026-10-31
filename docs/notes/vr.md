@@ -23,7 +23,9 @@ Index, Vive, WMR, Reverb G2, Khronos simple). Code in `Scripts/Runtime/App/Vr` (
   sorting order); assets get their target back when the scene ends. The screen: 1.9 m wide, 2 m ahead with a headset; in
   flight and in the simulation it fills the logical camera's view at 2 m (the HUD markers sit on what they mark; the
   desktop mouse lines up in the simulation). The star map's camera draws into a texture on the screen (the eye sees only the
-  VR layer meanwhile; StarMap switches every camera off).
+  VR layer meanwhile; StarMap switches every camera off). A panel's quad shows only while a renderer of it runs
+  (`VrPanels.Runs`; PanelRenderer is a Renderer, not a Behaviour): the texture keeps the last frame, and the star map's
+  overlay, whose object goes on Close while its PanelSettings stays, stayed over the main menu (#205; `VrPanelsTests`).
 - **Controllers** (`VrPad`, a headset): the two controllers as one virtual Gamepad fed in `InputSystem.onBeforeUpdate`, so
   every control, its rebinding and the menus' controller navigation work unchanged: sticks, triggers, grips = LB / RB,
   right A / B, left X / Y, left menu = Menu, left stick click = View (autopilot menu), right stick click = D-pad left

@@ -50,6 +50,13 @@ namespace GoF2Remake.Vr
                 size = now;
                 foreach (var e in entries) Resize(e);
             }
+            // A panel shows only while its renderer runs: its texture keeps the last frame drawn (#205: the star map's
+            // overlay, whose object goes when the map closes, stayed over the main menu).
+            foreach (var e in entries)
+            {
+                bool shown = Runs(e.renderer);
+                if (e.quad != null && e.quad.activeSelf != shown) e.quad.SetActive(shown);
+            }
             if ((scanTimer -= Time.unscaledDeltaTime) > 0f) return;
             scanTimer = 0.5f;
             foreach (var r in Object.FindObjectsByType<PanelRenderer>())
@@ -57,12 +64,17 @@ namespace GoF2Remake.Vr
                 if (r == null || r.panelSettings == null) continue;
                 var known = entries.Find(e => e.settings == r.panelSettings);
                 if (known == null) { Add(r.panelSettings); known = entries[entries.Count - 1]; }
-                if (known.renderer == null) known.renderer = r;
+                if (known.renderer == null || (!Runs(known.renderer) && Runs(r))) known.renderer = r;
             }
             entries.RemoveAll(e => e.settings == null);
             foreach (var e in entries)
                 if (e.quad != null) e.quad.transform.localPosition = new Vector3(e.crop.center.x - 0.5f, e.crop.center.y - 0.5f, -0.001f * Order(e));
         }
+
+        /// <summary>The renderer draws its panel (a Renderer, not a Behaviour: no isActiveAndEnabled).</summary>
+        static bool Runs(PanelRenderer r) => r != null && r.enabled && r.gameObject.activeInHierarchy;
+
+        static void Gone(Object o) { if (Application.isPlaying) Object.Destroy(o); else Object.DestroyImmediate(o); }
 
         static int Order(Entry e) => e.settings != null ? Mathf.Clamp((int)e.settings.sortingOrder, -1000, 1000) : 0;
 
@@ -77,7 +89,7 @@ namespace GoF2Remake.Vr
             };
             e.quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
             e.quad.name = "VR Panel " + settings.name;
-            Object.Destroy(e.quad.GetComponent<Collider>());
+            Gone(e.quad.GetComponent<Collider>());
             e.quad.layer = layer;
             e.quad.transform.SetParent(screen, false);
             e.material = ScreenMaterial(3100 + Order(e));
@@ -98,7 +110,7 @@ namespace GoF2Remake.Vr
             e.settings.colorClearValue = new Color(0f, 0f, 0f, 0f);
             e.settings.targetTexture = e.texture;
             if (e.material != null) e.material.SetTexture("_BaseMap", e.texture);
-            if (old != null) { old.Release(); Object.Destroy(old); }
+            if (old != null) { old.Release(); Gone(old); }
         }
 
         /// <summary>A material made from Resources/GoF2Vr/'name' (a template asset: its shader and keywords are in every
@@ -137,6 +149,13 @@ namespace GoF2Remake.Vr
         {
             var e = entries.Find(x => x.settings == settings);
             return e != null ? e.texture : null;
+        }
+
+        /// <summary>The panel's quad is on the screen.</summary>
+        internal bool Shows(PanelSettings settings)
+        {
+            var e = entries.Find(x => x.settings == settings);
+            return e != null && e.quad != null && e.quad.activeSelf;
         }
 
         /// <summary>Shows only 'uv' (0..1, bottom-left origin) of that panel, in its place on the screen (the cockpit's canopy
@@ -208,8 +227,8 @@ namespace GoF2Remake.Vr
                     e.settings.clearColor = e.previousClear;
                     e.settings.colorClearValue = e.previousClearColor;
                 }
-                if (e.texture != null) { e.texture.Release(); Object.Destroy(e.texture); }
-                if (e.material != null) Object.Destroy(e.material);
+                if (e.texture != null) { e.texture.Release(); Gone(e.texture); }
+                if (e.material != null) Gone(e.material);
             }
             entries.Clear();
         }
