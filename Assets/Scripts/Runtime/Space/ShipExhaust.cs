@@ -253,9 +253,19 @@ namespace GoF2Remake.Flight
         static readonly Material[] cellMaterials = new Material[64];
         static readonly RenderTexture[] cellTextures = new RenderTexture[64];
 
-        /// <summary>The exhaust material on cell 'cell' of the 8 x 8 particles.png alone: the cell copied 1:1 into a 128 px
-        /// render texture (clamped, its own mipmaps), so no mip level samples the neighbouring cells. Without a graphics
-        /// device (the dedicated server) the shared material and the inset atlas quad.</summary>
+        /// <summary>The cell texels (of 128) left out on each side of a cell texture (CellMaterial), the quad (CellQuad(-1))
+        /// shrunk to match. The six glows lie within texels 10..121 and fade out before 116; the trail strips start under
+        /// cells 0-2 (row 127 of the png already holds their soft edge). Android report (OnePlus 7T, "thin particles under
+        /// the thrusters"): its Low preset loads textures at half size (Texture quality) and compresses them as ASTC 6x6,
+        /// whose blocks straddle the cell's last rows, so the copy's bottom row took half the strip's brightness (measured:
+        /// 0.53, 0.06 at full size) and the exhaust's _Glow 7 drew it as a line under every plume. 10 texels keep the copy's
+        /// samples out of any texel or 6 x 6 block that touches the strips down to quarter size (8 reach the block across
+        /// the cell's edge at half size), where the glows are down to 1-3 / 255, so the quad's edge doesn't show.</summary>
+        const int CellInset = 10;
+
+        /// <summary>The exhaust material on cell 'cell' of the 8 x 8 particles.png alone: the cell's middle (CellInset)
+        /// copied into a 128 px render texture (clamped, its own mipmaps), so no mip level samples the neighbouring cells.
+        /// Without a graphics device (the dedicated server) the shared material and the inset atlas quad.</summary>
         static Material CellMaterial(Material exhaust, int cell)
         {
             if (exhaust == null || SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return exhaust;
@@ -274,9 +284,9 @@ namespace GoF2Remake.Flight
                     cellTextures[cell] = rt;
                 }
                 if (!rt.IsCreated()) rt.Create();
-                const float step = 1f / 8f;
+                const float step = 1f / 8f, inset = step * CellInset / 128f, size = step - 2f * inset;
                 int cx = cell % 8, cy = cell / 8;   // rows from the top
-                Graphics.Blit(sheet, rt, new Vector2(step, step), new Vector2(cx * step, 1f - (cy + 1) * step));
+                Graphics.Blit(sheet, rt, new Vector2(size, size), new Vector2(cx * step + inset, 1f - (cy + 1) * step + inset));
                 var m = new Material(exhaust) { name = exhaust.name + $" cell {cell}" };
                 m.mainTexture = rt;
                 m.mainTextureScale = Vector2.one;
@@ -290,7 +300,7 @@ namespace GoF2Remake.Flight
         static Mesh fullQuad;
 
         /// <summary>A quad of QuadScale x the particle's size mapping cell 'cell' of the 8 x 8, 1024 px particles.png, inset half
-        /// a texel; -1 = the whole texture (a cell texture of CellMaterial).</summary>
+        /// a texel; -1 = the whole texture (a cell texture of CellMaterial), the quad the size of the cell's middle it holds.</summary>
         internal static Mesh CellQuad(int cell)
         {
             if (cell < 0 ? fullQuad != null : cellQuads[cell] != null) return cell < 0 ? fullQuad : cellQuads[cell];
@@ -300,7 +310,7 @@ namespace GoF2Remake.Flight
             float v1 = 1f - cy * step - 0.5f * px, v0 = 1f - (cy + 1) * step + 0.5f * px;
             if (cell < 0) { u0 = v0 = 0f; u1 = v1 = 1f; }
             var m = new Mesh { name = cell < 0 ? "ExhaustCellTexture" : $"ExhaustCell{cell}" };
-            const float h = 0.5f * QuadScale;
+            float h = 0.5f * QuadScale * (cell < 0 ? (128f - 2f * CellInset) / 128f : 1f);
             m.vertices = new[] { new Vector3(-h, -h, 0f), new Vector3(h, -h, 0f), new Vector3(h, h, 0f), new Vector3(-h, h, 0f) };
             m.uv = new[] { new Vector2(u0, v0), new Vector2(u1, v0), new Vector2(u1, v1), new Vector2(u0, v1) };
             m.triangles = new[] { 0, 2, 1, 0, 3, 2 };

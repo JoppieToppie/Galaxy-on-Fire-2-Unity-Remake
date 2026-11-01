@@ -105,7 +105,10 @@ simulates an orbit's traffic) and `ship_combat.md` (+ `Reference/tools/combat/co
   Angel's); half the size cleared it but uncovered the glow rings in the chase view. Each particle's cell is copied out
   of particles.png into its own 128 px render texture (clamped, its own mipmaps, `ShipExhaust.CellMaterial`): the glows
   are the atlas's top row with the trail strips right under them, and with the fx atlases' mipmaps a UV inset only held
-  at full size, so lines showed under the plume. NPC engine trails don't exist in this build (the `Trail` class is never
+  at full size, so lines showed under the plume. Only the cell's middle is copied (`CellInset`: 10 texels off each side,
+  the quad shrunk to match): Android (OnePlus 7T report, 2026-10-24) still drew a thin line under each plume, as its Low
+  preset loads textures at half size and ASTC 6x6 blocks straddle the cell's edge, so the copy's bottom row took half the
+  strip (the png's row 127 already holds the strip's soft edge). NPC engine trails don't exist in this build (the `Trail` class is never
   constructed). Remake option (Graphics, "Other ships' engines like yours", `Settings.NpcPlayerEngines`, on by default):
   NPC ships use the player's engine system instead, the `*_engine_glow_add` mesh and these exhaust particles
   (`ShipExhaust.AttachRemote`); so do the hangar flights and the bar flybys (`StationLevel.SpawnShip` attaches the
