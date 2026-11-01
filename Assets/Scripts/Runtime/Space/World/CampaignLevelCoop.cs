@@ -4,7 +4,7 @@
 // (NpcShip.StoryShip: shown to everyone in the orbit, hostile ones tougher by CoopCampaign.HullFactor), and a few times a
 // second it tells the crew in that orbit what its level shows (CoopLevelState: the cutscene and its camera, the clock and
 // time limit, the route, the fade, the radio lines). While a crew member there reads a story conversation the level holds
-// (CoopHeld: no clock, script or radio, its ships stopped, the crew can't be hurt), as single player pauses the game.
+// (Held: no clock, script or radio, its ships stopped, the crew can't be hurt), as single player pauses the game.
 // A guest's level is a follower (SetupFollower): nothing built or scripted, the leader's state and radio shown, the
 // leader's cutscene camera watched with the controls held, and afterwards back beside the leader when it moved far.
 
@@ -39,7 +39,7 @@ namespace GoF2Remake.World
         bool LeaderTick(float dtMs)
         {
             bool hold = !Cutscene && SpaceHooks.CoopHold != null && SpaceHooks.CoopHold(CoopStation);
-            if (hold != CoopHeld) SetHeld(hold);
+            if (hold != Held) SetHeld(hold);
             if ((coopSendMs -= dtMs) <= 0f || Cutscene != coopWasCutscene)
             {
                 coopSendMs = CoopSendMs;
@@ -51,7 +51,7 @@ namespace GoF2Remake.World
                         if (s != null && !s.StoryShip && !s.IsWingman && !s.MissionShip && !s.Gone) MarkStoryShip(s);
                 SpaceHooks.CoopLevelState?.Invoke(new CoopLevelState
                 {
-                    station = CoopStation, index = BuiltIndex, cutscene = Cutscene, invulnerable = PlayerInvulnerable, hold = CoopHeld,
+                    station = CoopStation, index = BuiltIndex, cutscene = Cutscene, invulnerable = PlayerInvulnerable, hold = Held,
                     missionMs = MissionMs, timeLimitMs = TimeLimitMs, routeIndex = PlayerRoute != null ? PlayerRoute.index : 0,
                     fadeAlpha = FadeAlpha, fadeColor = FadeColor,
                 });
@@ -69,13 +69,13 @@ namespace GoF2Remake.World
                 var cam = Camera.main;
                 SpaceHooks.CoopCamera?.Invoke(CoopStation, cam.transform.position, cam.transform.rotation, cam.fieldOfView);
             }
-            return CoopHeld;
+            return Held;
         }
 
         /// <summary>The hold on / off: the level's ships stop where they are (and fly on afterwards as they were).</summary>
         void SetHeld(bool on)
         {
-            CoopHeld = on;
+            Held = on;
             if (on)
             {
                 coopFrozen.Clear();
@@ -137,7 +137,7 @@ namespace GoF2Remake.World
             {
                 // The leader isn't running it here (not arrived yet, left, docked): nothing held, a note now and then.
                 if (Cutscene) EndFollowedCutscene();
-                PlayerInvulnerable = CoopHeld = false;
+                PlayerInvulnerable = Held = false;
                 FadeAlpha = 0f;
                 bool leaderHere = SpaceHooks.CoopLeaderHere != null && SpaceHooks.CoopLeaderHere(CoopStation);
                 if (!leaderHere && level.LaunchCameraOver && (coopWaitNoticeMs -= dtMs) <= 0f)
@@ -164,7 +164,7 @@ namespace GoF2Remake.World
             bool wasCutscene = Cutscene;
             Cutscene = s.cutscene;
             if (wasCutscene && !s.cutscene) EndFollowedCutscene();
-            CoopHeld = s.hold;
+            Held = s.hold;
             PlayerInvulnerable = s.invulnerable || s.cutscene || s.hold;
             MissionMs = s.missionMs;
             TimeLimitMs = s.timeLimitMs;

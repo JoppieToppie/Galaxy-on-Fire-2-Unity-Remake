@@ -412,7 +412,7 @@ namespace GoF2Remake.Flight
         /// one turret view at a time (entering this one leaves another's).</summary>
         public void SetTurretView(bool on)
         {
-            if (on && (IsAuto || weapons == null || GunsBlocked || Time.timeScale <= 0f)) return;
+            if (on && (IsAuto || weapons == null || GunsBlocked || Time.timeScale <= 0f || Navigation.ConversationRuns)) return;
             if (InTurretView == on) return;
             if (on) foreach (var other in On(gameObject)) if (other != this && other.InTurretView) other.SetTurretView(false);
             InTurretView = on;
@@ -454,7 +454,7 @@ namespace GoF2Remake.Flight
             if (core == null || !core.Valid) return;
             float dtMs = Time.deltaTime * 1000f;
             if (gun.owner == null) gun.owner = GetComponent<Target>();   // the player's Target comes after the turret
-            bool halted = Time.timeScale <= 0f || GunsBlocked;
+            bool halted = Time.timeScale <= 0f || GunsBlocked || Navigation.ConversationRuns;
             if (!halted && !Navigation.PressesBlocked)   // not a menu's D-pad (multiplayer doesn't pause)
             {
                 // The view key (V / D-pad up) is the camera button now: FreeLookCamera cycles standard / turret / free look.

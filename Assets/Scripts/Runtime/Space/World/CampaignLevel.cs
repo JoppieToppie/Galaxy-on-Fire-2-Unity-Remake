@@ -82,8 +82,9 @@ namespace GoF2Remake.World
         public static CampaignLevel Current { get; private set; }
         /// <summary>A co-op guest's level: nothing built or scripted here, the leader's state shown (SetupFollower).</summary>
         public bool Follower { get; private set; }
-        /// <summary>Co-op: the level waits for a crew member's story conversation (no clock, script, radio; the ships stopped).</summary>
-        public bool CoopHeld { get; private set; }
+        /// <summary>The level waits for a story conversation the game runs on through (no clock, script, radio; the ships
+        /// stopped): a co-op crew member's, or single player's with Settings.PlayOnInConversations (Navigation.ConversationRuns).</summary>
+        public bool Held { get; private set; }
         float coopSendMs, coopCameraMs, coopWaitNoticeMs, coopLeaderSeenAt = -1f, coopCamAt = -1f;
         Route coopRouteSent;
         int coopRouteIndexSent = -1;
@@ -220,7 +221,8 @@ namespace GoF2Remake.World
             if (dtMs <= 0f) return;
             if (Follower && intro == null) { FollowerTick(dtMs); return; }   // remake co-op: the leader's level shown
             if (Follower && FollowIntroOn()) return;   // remake co-op: the prologue / rescue follower's own cutscenes
-            bool held = CoopCampaign.Leader && LeaderTick(dtMs);   // remake co-op: a crew member's story conversation
+            bool held = CoopCampaign.Leader ? LeaderTick(dtMs)   // remake co-op: a crew member's story conversation
+                : !Follower && HoldForConversation();
             if (!held) MissionMs += dtMs;
             if (fading)
             {
@@ -245,12 +247,23 @@ namespace GoF2Remake.World
             if (!level.Dialogue && level.LaunchCameraOver && !jumping) Radio?.Update(dtMs, this);
         }
 
+        /// <summary>Remake: single player's conversation with the game running on (Navigation.ConversationRuns) holds the
+        /// level as a co-op crew member's does, so its script, clock and ships wait as they did under the original's pause.</summary>
+        bool HoldForConversation()
+        {
+            bool hold = Navigation.ConversationRuns && level.Dialogue;
+            if (hold != Held) SetHeld(hold);
+            return hold;
+        }
+
         void LateUpdate()
         {
-            if (intro != null) intro.LateTick(Time.deltaTime * 1000f);
-            main?.LateTick(Time.deltaTime * 1000f);
-            valkyrie?.LateTick(Time.deltaTime * 1000f);
-            supernova?.LateTick(Time.deltaTime * 1000f);
+            // A conversation single player runs on through stops the cutscene camera too, as the pause did.
+            float dtMs = Held && Navigation.ConversationRuns ? 0f : Time.deltaTime * 1000f;
+            if (intro != null) intro.LateTick(dtMs);
+            main?.LateTick(dtMs);
+            valkyrie?.LateTick(dtMs);
+            supernova?.LateTick(dtMs);
         }
 
         // ---- cutscene helpers ------------------------------------------------------------------------------

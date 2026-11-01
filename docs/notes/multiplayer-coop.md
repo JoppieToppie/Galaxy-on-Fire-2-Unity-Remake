@@ -117,7 +117,7 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
     catches up first, `CoopCampaign.CatchUpTo`, so the next orbit is built as the story's).
   - **Hold**: while any crew member in the orbit has a story conversation open (`StorySpace.Open` -> `SpaceHooks.CoopDialog`,
     the server's `coopDialogs`, 180 s at most, cleared when a scene change cuts it off) the leader's level holds
-    (`CampaignLevel.CoopHeld`: no clock, script or radio, its ships `frozen`, the crew invulnerable), as single player
+    (`CampaignLevel.Held`: no clock, script or radio, its ships `frozen`, the crew invulnerable), as single player
     pauses the game. Not during a cutscene.
   - **Deaths and failure**: a guest destroyed there comes back 3 km behind the leader after 5 s (`NetCoop.RespawnDue` /
     `Respawn` beside `EventRespawn`, "Respawning in space...") while the leader lives there. The leader's death, or the

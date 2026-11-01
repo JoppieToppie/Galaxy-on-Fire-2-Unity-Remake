@@ -476,6 +476,9 @@ namespace GoF2Remake.UI
                 () => Settings.AutoAdvanceDialogue, v => Settings.AutoAdvanceDialogue = v));
             list.Add(Toggle("animatedDialogue", OptionPage.Gameplay, () => X("animatedDialogue", "Animated dialogue"),
                 () => Settings.AnimatedDialogue, v => Settings.AnimatedDialogue = v));
+            // Remake: a conversation in flight doesn't pause the game (Navigation.ConversationRuns; the story level holds).
+            list.Add(Toggle("playOnInConversations", OptionPage.Gameplay, () => X("playOnInConversations", "Game runs in conversations"),
+                () => Settings.PlayOnInConversations, v => Settings.PlayOnInConversations = v));
             // The key and controller button hints everywhere: the flight HUD, the menus' prompt bars, the station, the star map,
             // Inspect ship and Action Freeze (it was "Button hints in flight", though the menus' bars read it too).
             var inputHints = Toggle("inputHints", OptionPage.Gameplay, () => X("inputHints", "Button hints"),

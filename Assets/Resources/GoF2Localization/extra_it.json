@@ -3088,5 +3088,7 @@
  "modDlcCard": "DLC {0}  ·  una mod: {1}",
  "modsDlcEarlier": "Gioca prima",
  "modsDlcLater": "Gioca dopo",
- "modsDlcPlace": "DLC {0} di {1}: si gioca dopo {2}."
+ "modsDlcPlace": "DLC {0} di {1}: si gioca dopo {2}.",
+ "playOnInConversations": "Il gioco continua durante i dialoghi",
+ "playOnInConversationsHelp": "In volo, il mondo continua a muoversi mentre un dialogo è aperto. I tuoi comandi restano in attesa, nessuno spara e le missioni della storia si fermano finché non si chiude. Disattivato: il gioco va in pausa."
 }

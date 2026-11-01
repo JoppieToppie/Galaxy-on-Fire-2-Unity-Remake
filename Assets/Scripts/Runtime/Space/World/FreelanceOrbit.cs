@@ -866,11 +866,11 @@ namespace GoF2Remake.World
         void Open(string text, int textId, Action after)
         {
             DialogueOpen = true;
-            if (level.Navigation != null) level.Navigation.Paused = true;
+            if (level.Navigation != null) level.Navigation.Conversation = true;
             MessageRequested?.Invoke(text, mission.clientName, mission.clientPortrait, Freelance.Voice(textId), () =>
             {
                 DialogueOpen = false;
-                if (level.Navigation != null) level.Navigation.Paused = false;
+                if (level.Navigation != null) level.Navigation.Conversation = false;
                 after?.Invoke();
             });
         }

@@ -443,6 +443,10 @@ namespace GoF2Remake.Data
         /// <summary>DialogueWindow::update: with voice, turn the page once the line has ended.</summary>
         public static bool AutoAdvanceDialogue { get => GetBool("autoAdvanceDialogue", true); set => SetBool("autoAdvanceDialogue", value); }
 
+        /// <summary>Remake: a conversation in flight leaves the game running (Navigation.ConversationRuns: the controls stop,
+        /// nothing fires, the story level holds); off = the original's pause (MGame::OnUpdate halts for the dialogue window).</summary>
+        public static bool PlayOnInConversations { get => GetBool("playOnInConversations", false); set => SetBool("playOnInConversations", value); }
+
         /// <summary>Remake: the dialogue and radio text types in with pacing, shouting, actions and tinted names
         /// (TextReveal); off = the original's plain page at once.</summary>
         public static bool AnimatedDialogue { get => GetBool("animatedDialogue", true); set => SetBool("animatedDialogue", value); }
@@ -576,7 +580,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GameplayKeys =
         {
             "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "cloakBay", "informerOriginalRule",
-            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "smarterNpcTargeting", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
+            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "smarterNpcTargeting", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };

@@ -94,6 +94,14 @@ namespace GoF2Remake.Flight
         /// <summary>The flight HUD's pause menu is open (MenuTouchWindow mode 1): the game is paused.</summary>
         public bool PauseMenuOpen { get => pauseMenuOpen; set { pauseMenuOpen = value; ApplyTimeScale(); } }
         bool pauseMenuOpen;
+        /// <summary>A story or freelance conversation is open (StorySpace, FreelanceOrbit): paused as in the original, unless
+        /// Options > Gameplay "Game runs in conversations" (Settings.PlayOnInConversations) keeps the world going (ConversationRuns).</summary>
+        public bool Conversation { get => conversation; set { conversation = value; ApplyTimeScale(); } }
+        bool conversation;
+        /// <summary>Remake: a conversation is open and single player runs on (Settings.PlayOnInConversations): the controls stop
+        /// as in multiplayer (InputHalted), the player can't be hurt, the NPCs hold fire and the story level holds
+        /// (CampaignLevel.Held).</summary>
+        public static bool ConversationRuns { get; private set; }
         /// <summary>The autopilot to the jumpgate is inside its sphere (Level::collideStream, radius 7500 / Vossk 11250).</summary>
         public bool ReachedGate => AutopilotTarget?.kind == Kind.Jumpgate && (AutopilotTarget.Position - ship.transform.position).magnitude < gateRadiusUnits * M;
         /// <summary>Wingmen fly with the player: the menu offers 306 "Wingmen" (the HUD's action-menu entry in the original).</summary>
@@ -786,7 +794,7 @@ namespace GoF2Remake.Flight
 
         /// <summary>The player's flight controls (steering, dodge, guns, mining) are off: the game is paused, or in multiplayer
         /// a menu, conversation or map is open (the world goes on there).</summary>
-        public static bool InputHalted => Time.timeScale <= 0f || (GoF2Remake.Data.NetSession.Active && (halted || GoF2Remake.World.SpaceHooks.MultiplayerWindowIsOpen))
+        public static bool InputHalted => Time.timeScale <= 0f || ConversationRuns || (GoF2Remake.Data.NetSession.Active && (halted || GoF2Remake.World.SpaceHooks.MultiplayerWindowIsOpen))
                                           || GoF2Remake.World.SpaceHooks.QuestionOpen   // an event's question (multiplayer)
                                           || GoF2Remake.World.SpaceHooks.DockedInOrbit;  // remake mods: docked inside the orbit
 
@@ -796,7 +804,7 @@ namespace GoF2Remake.Flight
         public static bool PressesBlocked => InputHalted || Time.frameCount - lastHaltedFrame <= 1;
         static int lastHaltedFrame = -10;
 
-        void OnDestroy() { halted = false; CruiseFactor = 1f; Cruising = false; MusicPaused = false; if (!GoF2Remake.Data.NetSession.Active) AudioListener.pause = false; }
+        void OnDestroy() { halted = ConversationRuns = false; CruiseFactor = 1f; Cruising = false; MusicPaused = false; if (!GoF2Remake.Data.NetSession.Active) AudioListener.pause = false; }
 
         /// <summary>MGame::pauseSounds 0x1a8304: a conversation, hint or map pauses only the sound effects and the engines
         /// (FModSound::pauseAllPlayingSoundFXEvents: the events of the effects category); only the pause menu stops
@@ -817,9 +825,11 @@ namespace GoF2Remake.Flight
 
         void ApplyTimeScale()
         {
-            halted = MenuOpen || paused || pauseMenuOpen;
-            float scale = MenuOpen || paused || pauseMenuOpen ? 0f : FastForward ? FastForwardScale : TimeExtender.Active ? TimeExtender.WorldScale : 1f;
+            halted = MenuOpen || paused || pauseMenuOpen || conversation;
+            bool talkRuns = conversation && Settings.PlayOnInConversations;
+            float scale = MenuOpen || paused || pauseMenuOpen || (conversation && !talkRuns) ? 0f : FastForward ? FastForwardScale : TimeExtender.Active ? TimeExtender.WorldScale : 1f;
             if (GoF2Remake.Data.NetSession.Active) scale = 1f;   // multiplayer: one player's pause doesn't stop the shared world
+            ConversationRuns = talkRuns && !GoF2Remake.Data.NetSession.Active;   // multiplayer: the co-op hold instead
             if (Time.timeScale != scale) Time.timeScale = scale;
             // A halted clock also halts the sound, as PauseMenu does: the engine loops, a boost fired just before and every
             // other source played on through a conversation. The voice, UI and star-map sources ignore the listener pause.

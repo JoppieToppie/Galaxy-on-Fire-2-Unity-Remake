@@ -29,7 +29,8 @@
 //                                   orbit, 127 -> Alioth's, 134 -> docked at Var Lupra, 144 -> Var Lupra's orbit again,
 //                                   155 -> the orbit the Void was entered from, 161 -> Maissa's orbit, 162 -> docked at
 //                                   Maissa; step 125's decoy scans (MGame::OnInitialize) in the freighter stations' orbits
-// The conversation is shown by the flight HUD (DialogueRequested); the game is paused meanwhile (Navigation.Paused).
+// The conversation is shown by the flight HUD (DialogueRequested); the game is paused meanwhile
+// (Navigation.Conversation; or runs on with the level held, Settings.PlayOnInConversations).
 
 using System;
 using System.Collections.Generic;
@@ -360,7 +361,7 @@ namespace GoF2Remake.World
             Open(call.success, _ => { Story.Advance(level.Database); Story.Advance(level.Database); });
         }
 
-        /// <summary>A conversation from another level script (the Kaamo siege's calls), paused like the story's.</summary>
+        /// <summary>A conversation from another level script (the Kaamo siege's calls), held like the story's.</summary>
         public void ShowPages(List<DialoguePage> pages, Action<bool> after)
         {
             if (DialogueRequested == null) { after?.Invoke(false); return; }
@@ -370,12 +371,12 @@ namespace GoF2Remake.World
         void Open(List<DialoguePage> pages, Action<bool> after)
         {
             DialogueOpen = true;
-            if (level.Navigation != null) level.Navigation.Paused = true;
+            if (level.Navigation != null) level.Navigation.Conversation = true;
             SpaceHooks.CoopDialog?.Invoke(true);   // remake co-op: the leader's story level holds meanwhile
             DialogueRequested?.Invoke(pages, skipped =>
             {
                 DialogueOpen = false;
-                if (level.Navigation != null) level.Navigation.Paused = false;
+                if (level.Navigation != null) level.Navigation.Conversation = false;
                 SpaceHooks.CoopDialog?.Invoke(false);
                 after?.Invoke(skipped);
             });
@@ -387,11 +388,11 @@ namespace GoF2Remake.World
         void OpenText(string text, int speaker, Action after)
         {
             DialogueOpen = true;
-            if (level.Navigation != null) level.Navigation.Paused = true;
+            if (level.Navigation != null) level.Navigation.Conversation = true;
             MessageRequested?.Invoke(text, speaker, () =>
             {
                 DialogueOpen = false;
-                if (level.Navigation != null) level.Navigation.Paused = false;
+                if (level.Navigation != null) level.Navigation.Conversation = false;
                 after?.Invoke();
             });
         }

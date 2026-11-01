@@ -3088,5 +3088,7 @@
  "modDlcCard": "DLC {0}  ·  模组：{1}",
  "modsDlcEarlier": "提前游玩",
  "modsDlcLater": "推后游玩",
- "modsDlcPlace": "第{0}个DLC（共{1}个）：在{2}之后游玩。"
+ "modsDlcPlace": "第{0}个DLC（共{1}个）：在{2}之后游玩。",
+ "playOnInConversations": "对话时游戏继续",
+ "playOnInConversationsHelp": "飞行中，对话打开时世界仍在运转。对话关闭前你的操作会等待，没有人开火，剧情任务也会暂停。关闭：游戏暂停。"
 }

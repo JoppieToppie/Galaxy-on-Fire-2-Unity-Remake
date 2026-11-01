@@ -87,6 +87,7 @@ together, #45), hangar depth of field (see "Station scene"), lens flare, hangar 
 All ships, see "Station scene"), levels of detail (see "Assembled prefabs"), field of view (chase camera, default the
 original's 1.22 rad), camera shake, vibration (see **Haptics**), stick dead zone, launch / arrival camera, hangar
 arrival and take-off (`HangarFlight`), auto-play dialogue (the dialogue's AUTO pill), animated dialogue (`TextReveal`),
+game runs in conversations (`Settings.PlayOnInConversations`, off by default, see "Dialogue" in story.md),
 button hints (Gameplay, `Settings.InputHints`; "Button hints in flight" until 2026-10-24, the user's request to cover
 the menus: the flight HUD's, the station's and the star map's hint rows through `InputGlyph.TrackHintsOption`, which
 sets `display: none` inline as well as `.hints--off`, since a screen's own rules beat the class (`.hangar-open .station-hints`

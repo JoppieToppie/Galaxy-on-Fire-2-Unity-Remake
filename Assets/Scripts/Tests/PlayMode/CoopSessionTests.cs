@@ -91,7 +91,7 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(campaign.Follower, "the leader runs it");
             Assert.Greater(campaign.Ships.Count, 0);
             foreach (var s in campaign.Ships) if (s != null) Assert.IsTrue(s.StoryShip, "the crew's ship");
-            Assert.IsFalse(campaign.CoopHeld, "nobody reads a conversation");
+            Assert.IsFalse(campaign.Held, "nobody reads a conversation");
 
             // Step 43 won by the crew while this player flies: the credits in the session, then Thynome and the epilogue.
             while (Story.Index < 43) Story.Advance(db);

@@ -11,7 +11,7 @@ namespace GoF2Remake.World
         /// <summary>The orbit and the step the leader's level was built for.</summary>
         public int station, index;
         /// <summary>The level script holds the camera (the follower watches the leader's), the player can't be hurt, the
-        /// level waits for a crew member's story conversation (CampaignLevel.CoopHeld).</summary>
+        /// level waits for a crew member's story conversation (CampaignLevel.Held).</summary>
         public bool cutscene, invulnerable, hold;
         /// <summary>The mission clock and its limit (ms; 0 = none), the route's waypoint.</summary>
         public float missionMs, timeLimitMs;

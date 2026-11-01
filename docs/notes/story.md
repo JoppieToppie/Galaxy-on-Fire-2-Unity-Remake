@@ -49,7 +49,16 @@ speaker and voice, radio lines; speakers' portrait descriptors and part offsets)
   Menus pause it: the flight pause menu
 pauses the HUD's shared voice source (it ignores the listener pause for the conversations that pause the game, so the
 radio's line kept talking), the station's system menu over a conversation sets `DialogueView.Paused` (voice, typing, input
-and auto-advance wait; the menu takes the keys). The Void (19) and Corny (56) talk in the **alien font** there and in
+and auto-advance wait; the menu takes the keys).
+**Game runs in conversations** (remake, 2026-11-01, Options > Gameplay, `Settings.PlayOnInConversations`, off by default:
+the original pauses): a story or freelance conversation in flight sets `Navigation.Conversation` instead of `Paused`
+(the star maps and the autopilot menu still pause). Off, it pauses as before; on, the clock runs and
+`Navigation.ConversationRuns` (single player only; multiplayer never pauses and co-op has its hold) stops the controls
+(`InputHalted`, as in multiplayer), the player's turrets and the radar lock, makes the player invulnerable and the
+traffic hold fire, and holds the story level as a co-op crew member's conversation does (`CampaignLevel.Held`: no
+clock, script or radio, its ships frozen; its cutscene camera's LateTick gets 0 ms). Traffic and the rest of the
+world keep moving, the sound plays on. Docked conversations aren't affected.
+The Void (19) and Corny (56) talk in the **alien font** there and in
 the radio (`AlienText`, `StoryTable.UsesAlienFont`): the 26 magenta glyphs A..Z of `gof2_interface_iphone4.png` (y 263,
 cut to `GoF2Hud/alien_A..Z` by Build HUD Images; order, 2 px gaps and 12 px spaces assumed: the .aei glyph table wasn't
 converted) as image rows next to the hidden Label, wrapped at spaces; the radio counts 30 alien characters per line.

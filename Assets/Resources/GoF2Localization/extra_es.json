@@ -3088,5 +3088,7 @@
  "modDlcCard": "DLC {0}  ·  un mod: {1}",
  "modsDlcEarlier": "Jugar antes",
  "modsDlcLater": "Jugar después",
- "modsDlcPlace": "DLC {0} de {1}: se juega después de {2}."
+ "modsDlcPlace": "DLC {0} de {1}: se juega después de {2}.",
+ "playOnInConversations": "El juego sigue en las conversaciones",
+ "playOnInConversationsHelp": "En vuelo, el mundo sigue moviéndose mientras hay una conversación abierta. Tus controles esperan, nadie dispara y las misiones de la historia se detienen hasta que termina. Desactivado: el juego se pausa."
 }

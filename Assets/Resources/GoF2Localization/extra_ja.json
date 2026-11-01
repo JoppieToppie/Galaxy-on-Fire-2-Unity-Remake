@@ -3088,5 +3088,7 @@
  "modDlcCard": "DLC {0}  ·  MOD：{1}",
  "modsDlcEarlier": "先にプレイ",
  "modsDlcLater": "後でプレイ",
- "modsDlcPlace": "DLC {0}/{1}：{2}の後にプレイ。"
+ "modsDlcPlace": "DLC {0}/{1}：{2}の後にプレイ。",
+ "playOnInConversations": "会話中もゲームを進める",
+ "playOnInConversationsHelp": "飛行中、会話が開いている間も世界は動き続けます。会話が閉じるまで操作は待機し、誰も撃たず、ストーリーミッションも止まります。オフ：ゲームが一時停止します。"
 }

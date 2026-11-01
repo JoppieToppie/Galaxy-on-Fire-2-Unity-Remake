@@ -3088,5 +3088,7 @@
  "modDlcCard": "DLC {0}  ·  een mod: {1}",
  "modsDlcEarlier": "Eerder spelen",
  "modsDlcLater": "Later spelen",
- "modsDlcPlace": "DLC {0} van {1}: komt na {2}."
+ "modsDlcPlace": "DLC {0} van {1}: komt na {2}.",
+ "playOnInConversations": "Spel loopt door in gesprekken",
+ "playOnInConversationsHelp": "Tijdens het vliegen blijft de wereld bewegen terwijl een gesprek open is. Je besturing wacht, niemand schiet en verhaalmissies wachten tot het sluit. Uit: het spel pauzeert."
 }

@@ -152,7 +152,7 @@ namespace GoF2Remake.World
                         if (GateBlocked != null && GateBlocked()) nav.Refuse();   // MGame::dockEvent: 525 on a mission
                         else DockToStream();
                     }
-                    else if ((Session.InstantJump || storyTarget.HasValue || toInterstellar) && (Time.timeSinceLevelLoad - levelStart) * 1000f > 5000f && !nav.Jumping && !nav.Paused && !GoF2Remake.World.SpaceHooks.StarMapOpen)
+                    else if ((Session.InstantJump || storyTarget.HasValue || toInterstellar) && (Time.timeSinceLevelLoad - levelStart) * 1000f > 5000f && !nav.Jumping && !nav.Paused && !nav.Conversation && !GoF2Remake.World.SpaceHooks.StarMapOpen)
                         StartCharging();
                     break;
                 case State.AtGate:
