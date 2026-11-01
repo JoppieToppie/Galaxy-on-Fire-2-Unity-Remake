@@ -130,6 +130,15 @@ namespace GoF2Remake.World
             reselectTimer = 0f;
         }
 
+        /// <summary>Player::setAlwaysEnemy 0xaf206: always hostile (+0xec) and turned on the player (+0xe0) as well, so a
+        /// fighter of any race but the pirates' takes the player at any range while it isn't attacking (TakesAtAnyRange). A
+        /// SpawnSpec's alwaysEnemy sets only the first; a level script's setAlwaysEnemy call comes here.</summary>
+        public void SetAlwaysEnemy()
+        {
+            alwaysEnemy = true;
+            turnedEnemy = true;
+        }
+
         /// <summary>KIPlayer::setActive(false) + parked far away (index 40: the freighter after the wormhole).</summary>
         public void Deactivate()
         {

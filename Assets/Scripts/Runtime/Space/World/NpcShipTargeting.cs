@@ -97,14 +97,14 @@ namespace GoF2Remake.World
         Target SleepTarget(float dr)
         {
             int n = enemies.Count, idx = -1;
-            bool pirate = Race == Standing.Pirate;
+            bool anyRange = TakesAtAnyRange(Race, turnedEnemy);
             float r = dr * M;
             for (int i = 0; i < n; i++)
             {
                 var e = enemies[i];
                 if (!Valid(e)) continue;
                 var d = e.transform.position - transform.position;
-                if ((!pirate && turnedEnemy) || (Mathf.Abs(d.x) < r && Mathf.Abs(d.y) < r && Mathf.Abs(d.z) < r)) { idx = i; break; }
+                if (anyRange || (Mathf.Abs(d.x) < r && Mathf.Abs(d.y) < r && Mathf.Abs(d.z) < r)) { idx = i; break; }
             }
             if (!Target.hostileToPlayer && idx == 0) idx = 1;
             if (idx > 0)
@@ -130,6 +130,11 @@ namespace GoF2Remake.World
         /// route.</summary>
         static bool LostToCloak(Target t) => t != null && t.cloaked && Settings.CloakLosesPursuers;   // a session: the host's (NetRules)
         static bool Pursuable(Target t) => Valid(t) && !LostToCloak(t);
+
+        /// <summary>PlayerFighter::update 0xf131e / 0xf1444: a turned ship (Player::turnedEnemy, +0xe0) of any race but the
+        /// pirates' (8) takes a target outside its detection box too, when it picks one (not attacking, or the 5 s re-roll's
+        /// random tries). The re-roll still drops a pick outside the box, so it flies its route until the next one.</summary>
+        internal static bool TakesAtAnyRange(int race, bool turned) => turned && race != Standing.Pirate;
 
         /// <summary>§5.3 target selection.</summary>
         void UpdateTargeting()
@@ -177,12 +182,12 @@ namespace GoF2Remake.World
             if (!attacking) idx = -1;
             else if (idx >= 0 && !Pursuable(enemies[idx])) attacking = false;
             if (SmartTargeting && UpdateSmartTargeting(n, idx)) return;
-            bool pirate = Race == Standing.Pirate;
+            bool anyRange = TakesAtAnyRange(Race, turnedEnemy);
             if (reselectTimer < 5001f)
             {
                 if (!attacking)
                     for (int i = 0; i < n; i++)
-                        if (Pursuable(enemies[i]) && ((!pirate && turnedEnemy) || InBox(enemies[i]))) { idx = i; attacking = true; break; }
+                        if (Pursuable(enemies[i]) && (anyRange || InBox(enemies[i]))) { idx = i; attacking = true; break; }
             }
             else
             {
@@ -194,7 +199,7 @@ namespace GoF2Remake.World
                     for (int k = 0; k < 5; k++)
                     {
                         int i = Random.Range(0, n);
-                        if (Pursuable(enemies[i]) && ((!pirate && turnedEnemy) || InBox(enemies[i]))) { idx = i; attacking = true; break; }
+                        if (Pursuable(enemies[i]) && (anyRange || InBox(enemies[i]))) { idx = i; attacking = true; break; }
                     }
                     if (!attacking) idx = 0;
                 }

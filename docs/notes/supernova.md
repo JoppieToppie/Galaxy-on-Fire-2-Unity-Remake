@@ -60,6 +60,16 @@ against the FEV's LGCY data, see "Sound").
   fighters creep 0.5 u/ms in state 1; turret view / free look / Liberator off, the auto turret off until control returns); 89 /
   81 clear the new station's attacked-friends flag. The Coromesk (103) rule: from campaign 0x55 (or 0x87) every start there is at
   (70 000, 0, 100 000) facing the station (`LevelScript::LevelScript` 0x160380, `SpaceLevel.SpawnPlayer`).
+- **158, Harval's AI** (a player's report 2026-11-01: "Harval runs away instead of fighting"): his coast (300 units a
+  frame, no dt) leaves him ~150 000 units from the player when state 3 hands him his AI. The original's hand-over
+  (0x169204..0x169222) is setCloakingPossible(true), `Player::setAlwaysEnemy(true)` (which turns him on the player,
+  +0xe0) and setAIDisabled(false); the remake skipped the setAlwaysEnemy, so he wasn't turned and flew his default
+  patrol (every fighter has one, `PlayerFighter::PlayerFighter`) until the player came within ±50 000.
+  `SupernovaLevels.ReleaseHarval` now calls `NpcShip.SetAlwaysEnemy`: he turns on the player at once (Play mode: idx 0
+  at the hand-over). Still the original: the first 5 s re-roll with the player outside ±50 000 sends him back to his
+  patrol, which brings him near; in the duel he fires guns and Shesha missiles (seen in Play mode) and drops back
+  to the patrol whenever a re-roll finds the player outside the box. `LevelScript::process` calls setAlwaysEnemy at
+  six more places (0x1627fc, 0x165634, 0x16742e, 0x167466, 0x16d3a6, 0x16dd74): not checked against the remake.
 - **Object docking** (`ObjectDocking` on the player, `SpacePoints` = `docks_hd.json` sets: type 1 approach, 2 docking point):
   NPC static objects with a `DockingType` (1 drop-off, 2 pickup, 3 hackable) are lockable "DOCK" targets (`Navigation`); the
   autopilot to the approach point, a 2000 ms ease in, a look-at camera, then transfers 1 unit / 1500 ms (ore 1000; "Loading"

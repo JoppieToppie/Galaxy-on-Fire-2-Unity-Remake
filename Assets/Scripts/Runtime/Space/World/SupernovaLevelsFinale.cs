@@ -132,6 +132,19 @@ namespace GoF2Remake.World
             harval.SetSecondaryGun(214, 4f);
         }
 
+        /// <summary>158's state 2 -> 3 (0x169204..0x169222): Harval may cloak (setCloakingPossible(true)), is set always-enemy
+        /// again (Player::setAlwaysEnemy, which also turns him on the player: +0xe0) and gets his AI back (setAIDisabled(false)).
+        /// The turned flag lets him take the player from the ~150 000 units his coast left between them; without it (until
+        /// 2026-11-01, a player's report: "Harval runs away") he flew his default patrol until the player came within
+        /// +-50 000. A 5 s re-roll with the player outside that box still sends him back to the patrol, as in the original.</summary>
+        internal static void ReleaseHarval(NpcShip harval, Target player)
+        {
+            harval.scriptedSpeed = -1f;
+            harval.CloakingPossible = true;
+            harval.SetAlwaysEnemy();
+            harval.SetOnlyEnemy(player);   // the ctor's setEnemy (his only enemy is the player)
+        }
+
         void Tick154()
         {
             var hans = S(0);
@@ -530,7 +543,7 @@ namespace GoF2Remake.World
                     Ship.SetThrottle(1f);   // 0x1691c6 PlayerEgo::setSpeed(2.0): full base speed
                     if (harval != null)
                     {
-                        harval.scriptedSpeed = -1f; harval.CloakingPossible = true; harval.SetOnlyEnemy(level.Health.Target);
+                        ReleaseHarval(harval, level.Health.Target);
                         Player.rotation = Quaternion.LookRotation((harval.transform.position - Player.position).normalized, Vector3.up);   // facing Harval
                     }
                     timerMs = 0f;
