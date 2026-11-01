@@ -300,7 +300,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   original's Sensitivity doesn't apply to the mouse (the fixed 2.7 above), and its PC cursor moved at the system's
   pointer speed; the Input System reads the raw counts, so a high-DPI mouse reached full deflection on a flick and
   Sensitivity 0.2 changed nothing (Discord "Mouse Sensitivity seems to do nothing", 2026-10-30; test
-  `SettingsTests.MouseSensitivityScalesTheMouseMovementOnly`). Turned off, the PC version's cursor mode (`Globals::mouseCursorActivated` 0, the manual's "Mouse
+  `SettingsTests.MouseSensitivityScalesTheMouseMovementOnly`). The wheel on phones and tablets (`MouseWheel`, Game; Discord,
+  Egg, 2026-10-30): a USB mouse on a Samsung tablet goes through the `sec_touchpad` driver, which sends fractional scroll
+  while the mouse only moves (at most 0.625 in 1,045 events, every real notch 1 or more), so the throttle drifted as the
+  mouse steered; on mobile a frame's scroll under 0.75 is no notch, for the throttle and the free-look, photo mode and
+  Inspect ship zooms alike (a smooth-scrolling wheel or a touchpad's scroll steps less there); desktops keep every scroll. Turned off, the PC version's cursor mode (`Globals::mouseCursorActivated` 0, the manual's "Mouse
   control menu / ship"; `FlightHud.cursorMode`, `TouchControls.Frame.cursor`): `Hud::draw`'s buttons show and take
   clicks (the `Globals::iPad == 0` path and the Full HD manual's screenshot): no stick or gestures, the cluster from the
   bottom-right corner (0x6aa at (w − 397, h − 406)), the autopilot / fast-forward pill and the boost at the bottom left,

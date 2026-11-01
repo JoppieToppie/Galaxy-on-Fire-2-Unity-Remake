@@ -16,6 +16,7 @@
 // held, Dampeners toggles the inertial dampeners. Touch, tilt and VR keep the original style; so do the autopilot, the
 // launch / arrival camera, the turret view, the dodge and computer control, which hand the ship back where they left it.
 
+using GoF2Remake.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -482,12 +483,12 @@ namespace GoF2Remake.Flight
             if (!brake) brakeOverridden = false;
             if (presses && brake && GameControls.Boost.WasPressedThisFrame()) brakeOverridden = true;
             Model.Braking = brake && !brakeOverridden;
-            // The wheel: +- thrust, 10 % a notch (not while it zooms the free-look camera).
-            var mouse = Mouse.current;
+            // The wheel: +- thrust, 10 % a notch (not while it zooms the free-look camera; MouseWheel: a Samsung tablet's
+            // mouse scrolled as it moved).
             if (freeLook == null) freeLook = GetComponent<FreeLookCamera>();
-            if (mouse != null && (freeLook == null || !freeLook.FreeLookActive))
+            if (freeLook == null || !freeLook.FreeLookActive)
             {
-                float wheel = mouse.scroll.ReadValue().y;
+                float wheel = MouseWheel.Steps(Mouse.current);
                 if (Mathf.Abs(wheel) > 0.01f) Model.ChangeThrottle(Mathf.Sign(wheel) * 0.1f);
             }
             if (presses && GameControls.Boost.WasPressedThisFrame()) Model.Boost();

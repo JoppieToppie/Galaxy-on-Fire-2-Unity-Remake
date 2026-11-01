@@ -514,7 +514,7 @@ namespace GoF2Remake.UI
             }
             if (Mouse.current != null && (Mouse.current.position.ReadValue() is var mp) && !OverPanel(mp))
             {
-                float steps = Mathf.Clamp(Mouse.current.scroll.ReadValue().y, -1f, 1f);
+                float steps = MouseWheel.Steps(Mouse.current);
                 if (Mathf.Abs(steps) > 0f) zoom -= steps * 0.08f;
             }
             // The look is slower through a long lens, so a zoomed-in view can still be aimed.

@@ -341,7 +341,7 @@ namespace GoF2Remake.UI
             }
             if (Mouse.current != null && !inspectTools.OverPanel(Mouse.current.position.ReadValue()))
             {
-                float steps = Mathf.Clamp(Mouse.current.scroll.ReadValue().y, -1f, 1f);   // a notch reads 1 or 120
+                float steps = MouseWheel.Steps(Mouse.current);
                 if (Mathf.Abs(steps) > 0f) insp.Zoom(Mathf.Pow(0.85f, steps));
             }
             delta = Settings.OrbitTurn(delta);   // #121: the camera views' own inversion

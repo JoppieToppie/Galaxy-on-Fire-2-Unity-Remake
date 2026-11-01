@@ -247,7 +247,7 @@ namespace GoF2Remake.UI
             }
             if (Mouse.current != null && !tools.OverPanel(Mouse.current.position.ReadValue()))
             {
-                float steps = Mathf.Clamp(Mouse.current.scroll.ReadValue().y, -1f, 1f);   // a notch reads 1 (uniform scroll) or 120 (raw)
+                float steps = MouseWheel.Steps(Mouse.current);
                 if (Mathf.Abs(steps) > 0f) wheel += steps;
             }
             if (Mathf.Abs(wheel) > 0.01f) { distance += wheel * -50f * frames; wheel *= Mathf.Pow(0.9f, frames); } else wheel = 0f;
