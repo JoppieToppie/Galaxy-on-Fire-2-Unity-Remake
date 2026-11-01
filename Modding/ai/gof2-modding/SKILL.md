@@ -542,7 +542,9 @@ repeat (not inside a block).
 
 ## The Mod Builder's MCP server
 
-When the user has the game's Mod Builder open with its **AI tools** MCP server on (Windows), you may have its tools:
+When the user has the game's Mod Builder open with its **AI tools** MCP server on (Windows), you may have its tools
+(`read_guide` gives this guide's files in parts: without arguments their list, then a file's headings, a `section`, a `search`
+or a `line` range; the same files are the resources `gof2-guide://<file>`):
 `builder_status`, `search_content` (find the right numbers / keys: use its `value`), `list_entries`, `get_entries`,
 `put_entry` (the mod files' own JSON; missions with `name`), `patch_entry` (for changes to an existing entry: ops `set` /
 `insert` / `remove` / `move` / `test` by paths like "steps/2/pages/0/text" or "steps/3/then/0", all or none; it keeps the rest

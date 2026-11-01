@@ -61,5 +61,9 @@ __pycache__/
 /Assets/Resources/GoF2Build/
 /Assets/Resources/GoF2Build.meta
 
+# The AI modding guide ModdingGuideBundle copies into a build (deleted afterwards)
+/Assets/Resources/GoF2ModdingGuide/
+/Assets/Resources/GoF2ModdingGuide.meta
+
 # Mods the Editor loads (Modding/README.md; copy an example here to try it)
 /[Mm]ods/

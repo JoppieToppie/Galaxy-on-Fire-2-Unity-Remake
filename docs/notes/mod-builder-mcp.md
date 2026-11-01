@@ -106,3 +106,18 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   through `EditProject`: the project's own methods inside `ExternalEdit`, the state replaced by a fresh `CaptureState`
   (ModRefs.Use writes the manifest, which a state captured before would have put back); answered after the reload like
   put_entry. Docs: Modding/ai/README.md, SKILL.md, the server's Instructions. Not verified with a client yet.
+- **The modding guide on the server** (remake, 2026-11-01, the user's request: the instructions sent assistants to SKILL.md
+  "in the game's repository", which a player connecting their assistant to a build doesn't have): `read_guide`
+  (`ModBuilderMcpGuide`, read-only) hands out Modding/ai/gof2-modding's seven files (`Modding.ModdingGuide.Files`) in parts,
+  at most `MaxChars` 40000 an answer with a note where the text goes on: no arguments the list with sizes, a file its
+  headings with line numbers (outside code blocks; a file under 40000 characters whole), `section` the text under the first
+  heading equal to or containing the words up to the next heading of its level or above, `search` the lines holding every
+  word (file, line, the heading above, a long line cut around the first word), `line` / `lines` a range. The same files are
+  MCP resources (`resources/list` / `resources/read`, `gof2-guide://<file>`, capability `resources`; empty
+  `resources/templates/list`), answered on the HTTP thread from the texts `Start` preloads (`ModdingGuide.Preload`: the
+  Editor reads the repository's folder, so edits show at once; a build reads Resources/GoF2ModdingGuide, which
+  `EditorTools.ModdingGuideBundle` copies in before every build and deletes after it, git-ignored like BuildVersionStamp's
+  fingerprint). The instructions now point at read_guide. Tests: `ModdingGuideTests`. Verified with curl in Play mode:
+  the capability, the instructions, all seven resources listed and missions.md read, read_guide's list, SKILL.md's
+  outline, guide.md's "Engine effect" section, a search, a range of reference.md, an unknown file refused; and the
+  bundle's copy loaded back through Resources (all seven) and removed. Not yet: a real build, a real client.

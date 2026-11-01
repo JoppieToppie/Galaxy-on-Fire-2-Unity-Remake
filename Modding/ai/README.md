@@ -41,7 +41,9 @@ shows the commands to connect, with Copy buttons:
   `npx mcp-remote`, so Node.js must be installed). Restart Claude Desktop.
 - **Other MCP apps:** Streamable HTTP, the URL `http://127.0.0.1:47630/mcp` and the header `Authorization: Bearer <token>`.
 
-Give the assistant the skill as well (above): the server knows the game, the skill explains the formats. Its tools:
+The server carries this guide too: `read_guide` hands the assistant the files above in parts (the list, a file's headings, a
+section, a search, a range of lines), and clients that attach MCP resources see them as `gof2-guide://<file>`, so an
+assistant connected to the game needs nothing else. Setting the skill up as well (above) still saves it the lookups. Its tools:
 `builder_status`, `search_content` (the game's, your project's and other mods' items, ships, systems, stations,
 characters, missions, music, rooms, races, and the game's sound effects and voice lines to replace), `list_entries` / `get_entries` / `put_entry` / `delete_entry` (the project's entries in
 the mod files' own JSON; `patch_entry` changes part of one, e.g. one line of a mission, leaving the rest and its graph layout

@@ -94,14 +94,14 @@ namespace GoF2Remake.Tests
                                          "play_test", "end_play_test", "get_log", "screenshot", "undo", "redo", "show_kind",
                                          "view_model", "view_texture", "list_textures", "select_entry", "view", "hardpoint", "engines",
                                          "test_fly", "end_test_fly", "weapon_range", "switch_hangar", "list_projects", "create_project",
-                                         "open_project", "export_mod", "patch_entry", "loadout", "room_marker", "press", "steer", "ui_buttons", "ui_click" })
+                                         "open_project", "export_mod", "patch_entry", "loadout", "room_marker", "press", "steer", "ui_buttons", "ui_click", "read_guide" })
             {
                 Assert.IsTrue(tools.ContainsKey(name), $"missing tool {name}");
                 Assert.AreEqual("object", (string)tools[name]["inputSchema"]["type"], name);
             }
             foreach (var name in new[] { "put_entry", "patch_entry", "delete_entry", "write_file", "undo", "redo", "play_test" })
                 Assert.IsFalse((bool)tools[name]["annotations"]["readOnlyHint"], $"{name} changes the project");
-            foreach (var name in new[] { "builder_status", "search_content", "get_entries", "read_file", "validate", "get_log", "view_model", "view_texture", "list_textures", "list_projects", "ui_buttons" })
+            foreach (var name in new[] { "builder_status", "search_content", "get_entries", "read_file", "validate", "get_log", "view_model", "view_texture", "list_textures", "list_projects", "ui_buttons", "read_guide" })
                 Assert.IsTrue((bool)tools[name]["annotations"]["readOnlyHint"], $"{name} only reads");
             Assert.IsTrue((bool)tools["delete_entry"]["annotations"]["destructiveHint"]);
         }

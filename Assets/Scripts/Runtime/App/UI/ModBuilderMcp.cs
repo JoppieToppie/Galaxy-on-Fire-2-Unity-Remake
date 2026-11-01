@@ -191,6 +191,7 @@ namespace GoF2Remake.UI
             liveToken = Token;
             liveVersion = BuildVersion.Text;
             livePermission = (int)Permission;
+            ModdingGuide.Preload();   // read_guide and the resources: the HTTP thread reads the texts
             try
             {
                 listener = new TcpListener(IPAddress.Loopback, port);
@@ -415,13 +416,23 @@ namespace GoF2Remake.UI
                     return Result(id, new JObject
                     {
                         ["protocolVersion"] = version,
-                        ["capabilities"] = new JObject { ["tools"] = new JObject { ["listChanged"] = false } },
+                        ["capabilities"] = new JObject { ["tools"] = new JObject { ["listChanged"] = false }, ["resources"] = new JObject { ["listChanged"] = false } },
                         ["serverInfo"] = new JObject { ["name"] = "gof2-mod-builder", ["title"] = "Galaxy on Fire 2 Remake Mod Builder", ["version"] = liveVersion },
                         ["instructions"] = Instructions + PermissionNote((Permissions)livePermission),
                     });
                 }
                 case "ping":
                     return notification ? null : Result(id, new JObject());
+                case "resources/list":
+                    return Result(id, ModdingGuide.Loaded ? GuideResources() : new JObject { ["resources"] = new JArray() });
+                case "resources/read":
+                {
+                    string uri = (string)m["params"]?["uri"];
+                    var read = ModdingGuide.Loaded ? GuideResource(uri) : null;
+                    return read != null ? Result(id, read) : Error(id, -32002, $"Resource not found: {uri}");
+                }
+                case "resources/templates/list":
+                    return Result(id, new JObject { ["resourceTemplates"] = new JArray() });
                 case "tools/list":
                     return Result(id, new JObject { ["tools"] = new JArray(Tools.Select(t => t.Describe())) });
                 case "tools/call":
@@ -450,8 +461,9 @@ namespace GoF2Remake.UI
 
         const string Instructions =
             "The live project of the Galaxy on Fire 2 Remake's Mod Builder (a mod in the game's normal format). Read the modding " +
-            "guide first (Modding/ai/gof2-modding/SKILL.md in the game's repository; its reference.md / missions.md / mission.schema.json " +
-            "/ voices.md / events.md / guide.md for numbers and formats). Find the game's, this project's and other mods' content " +
+            "guide first with read_guide (no arguments lists its files: SKILL.md the format and rules, then reference.md / missions.md / " +
+            "mission.schema.json / voices.md / events.md / guide.md for numbers and formats, in parts: a section, a search; also the " +
+            "resources gof2-guide://<file>). Find the game's, this project's and other mods' content " +
             "with search_content (use the values it returns); read entries with list_entries / get_entries, write them with " +
             "put_entry (the same JSON as the mod files: ships.json, items.json, characters.json, systems.json, stations.json, " +
             "interiors.json, races.json, blueprints.json, gameoptions.json, campaign.json, mod.json, events/<name>.gof2mission), files " +

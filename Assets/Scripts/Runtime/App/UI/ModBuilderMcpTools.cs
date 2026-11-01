@@ -9,7 +9,8 @@
 //   compile_quest / validate / get_quest_schema   the game's own checks: QuestFile, EventRunner, the mod loaders
 //   play_test / end_play_test   ModBuilderPlay; get_log, screenshot; undo / redo; show_kind
 //   (seeing and driving the builder: ModBuilderMcpVision; the game's sounds and voice lines, .aem models, optimize,
-//   import_mod, replace_game_character: ModBuilderMcpContent; the mod's own races: ModBuilderMcpRaces)
+//   import_mod, replace_game_character: ModBuilderMcpContent; the mod's own races: ModBuilderMcpRaces; the modding guide,
+//   read_guide and the resources: ModBuilderMcpGuide)
 
 using System;
 using System.Collections.Generic;
@@ -75,7 +76,7 @@ namespace GoF2Remake.UI
         // ---- the table ------------------------------------------------------------------------------------------
 
         static List<Tool> tools;
-        static List<Tool> Tools => tools ??= MakeTools().Concat(VisionTools()).Concat(ContentTools()).Concat(RaceTools()).ToList();
+        static List<Tool> Tools => tools ??= MakeTools().Concat(VisionTools()).Concat(ContentTools()).Concat(RaceTools()).Concat(GuideTools()).ToList();
 
         static List<Tool> MakeTools() => new List<Tool>
         {
