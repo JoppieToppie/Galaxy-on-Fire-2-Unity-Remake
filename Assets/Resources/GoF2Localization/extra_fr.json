@@ -1570,6 +1570,7 @@
  "flightStyleHelp": "Vol libre : W / S poussée, A / D latéral, Espace / Ctrl monter et descendre, Q / E roulis, Maj boost, Z amortisseurs. Touches propres.",
  "bindingsLayout": "Disposition des touches : {0}. L'option Vol libre sous {1} la change.",
  "targetLockBeams": "Les lasers à faisceau visent alors seulement les hostiles ou ta cible.",
+ "targetLockAsteroids": "Astéroïdes : celui sous le réticule d'abord.",
  "modShipTraffic": "Vaisseaux de mods dans le trafic",
  "modShipTrafficOff": "Désactivé",
  "modShipTrafficHelp": "La fréquence à laquelle les chasseurs PNJ pilotent les vaisseaux de tes mods ; coque et armes restent celles du jeu.",

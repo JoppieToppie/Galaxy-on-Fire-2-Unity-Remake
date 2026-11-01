@@ -1570,6 +1570,7 @@
  "flightStyleHelp": "Volo libero: W / S spinta, A / D laterale, Spazio / Ctrl su e giù, Q / E rollio, Maiusc boost, Z smorzatori. Tasti propri.",
  "bindingsLayout": "Disposizione dei tasti: {0}. La cambia l'opzione Volo libero in {1}.",
  "targetLockBeams": "I laser a raggio mirano solo ai nemici o al tuo bersaglio.",
+ "targetLockAsteroids": "Asteroidi: prima quello sotto il mirino.",
  "modShipTraffic": "Navi delle mod nel traffico",
  "modShipTrafficOff": "No",
  "modShipTrafficHelp": "Quanto spesso i caccia NPC usano le navi delle tue mod; scafo e armi restano quelli del gioco.",

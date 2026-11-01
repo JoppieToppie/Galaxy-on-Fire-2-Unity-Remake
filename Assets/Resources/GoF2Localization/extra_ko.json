@@ -1570,6 +1570,7 @@
  "flightStyleHelp": "자유 비행: W / S 추진, A / D 측면 이동, Space / Ctrl 상하, Q / E 롤, Shift 부스트, Z 댐퍼. 별도 키 배치.",
  "bindingsLayout": "키 배치: {0}. {1}의 자유 비행 설정으로 전환됩니다.",
  "targetLockBeams": "빔 레이저는 적이나 고정 대상만 조준합니다.",
+ "targetLockAsteroids": "소행성: 조준점 아래의 것을 먼저.",
  "modShipTraffic": "교통에 모드 함선 등장",
  "modShipTrafficOff": "끄기",
  "modShipTrafficHelp": "NPC 전투기가 모드 함선을 쓰는 빈도. 선체와 무기는 게임 그대로.",

@@ -459,6 +459,7 @@ namespace GoF2Remake.UI
                 () => Settings.OriginalTargetLock ? 1 : 0, i => Settings.OriginalTargetLock = i == 1,
                 () => X("targetLockPriorityHelp", "Smart: hostile ships first, then the one nearest the crosshair. Original: the first ship in the box.") + " "
                       + X("targetLockBeams", "Beam lasers then aim only at hostiles or your lock.") + " "
+                      + X("targetLockAsteroids", "Asteroids: the one under the crosshair first.") + " "
                       + X("targetLockUnlock", "Unlock target (U) drops the lock; on touch, tap the lock plate.")));
             // Remake (players' suggestion): the Smart lock's hold on an enemy, its own option (CombatRadar, TargetLockRules).
             var keepEnemy = Toggle("keepEnemyLock", OptionPage.Gameplay, () => X("keepEnemyLock", "Keep enemy lock"),

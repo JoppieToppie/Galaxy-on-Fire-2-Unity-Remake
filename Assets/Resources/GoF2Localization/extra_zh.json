@@ -1495,6 +1495,7 @@
  "flightStyleHelp": "自由飞行：W / S 推进，A / D 平移，空格 / Ctrl 上下，Q / E 翻滚，Shift 加速，Z 阻尼器。独立按键布局。",
  "bindingsLayout": "按键布局：{0}。可通过{1}中的“自由飞行”开关切换。",
  "targetLockBeams": "光束激光仅瞄准敌人或你锁定的目标。",
+ "targetLockAsteroids": "小行星：优先选择准星下的那颗。",
  "modShipTraffic": "交通中的模组飞船",
  "modShipTrafficOff": "关",
  "modShipTrafficHelp": "NPC 战机使用你模组飞船的频率；船体和武器仍为游戏原有。",

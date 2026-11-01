@@ -21,7 +21,12 @@ logic (plain C#); `MiningView` draws the lock ring, ore plate, HUD messages and 
   lock time (attr 29, 8000 ms without) - 200 ms. The action prompt then says Mine. Without a drill (`Radar::draw`
   0x157b00: hudEvent 0x14, the original keeps the ring full and repeats it every frame) the remake says 541 "No drill
   installed." once and drops the lock; that asteroid isn't tried again until it has left the crosshair box
-  (`Mining.refusedNoDrill`), so looking away and back starts a new lock.
+  (`Mining.refusedNoDrill`), so looking away and back starts a new lock. The original takes the nearest rock in 3D whose
+  centre is in the box; remake, with the Smart target lock (Options > Gameplay "Target lock", Discord report 2026-10-24:
+  it locked a rock beside the crosshair, not the one under it): a rock the line through the crosshair meets comes first,
+  the front-most (its centre may be outside the box: a big rock over the crosshair), else of those centred in the box the
+  one whose edge is nearest the crosshair in degrees, the rock already locking 0.5 deg ahead so two side by side don't
+  restart the ring by turns (`TargetLockRules.AsteroidScore`, the visible radius `Mining.SurfaceRadius`).
 - **Approach:** player steering off, full throttle, autopilot turn; last 2000 units: exhaust off, landing sound, chase
   camera frozen, the model pitches ~80 deg nose up; stops at `scale * 2500` units, asteroid spin off. The booster works
   on the way in and the landing (MGame::OnTouchBegin refuses it only while drilling: PlayerEgo::isMining is the

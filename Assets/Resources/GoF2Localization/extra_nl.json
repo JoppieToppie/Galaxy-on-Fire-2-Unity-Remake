@@ -1570,6 +1570,7 @@
  "flightStyleHelp": "Vrije vlucht: W / S stuwkracht, A / D zijwaarts, Spatie / Ctrl op en neer, Q / E rollen, Shift boost, Z dempers. Eigen toetsen.",
  "bindingsLayout": "Toetsindeling: {0}. De schakelaar Vrij vliegen onder {1} wisselt die.",
  "targetLockBeams": "Straallasers richten dan alleen op vijanden of je doel.",
+ "targetLockAsteroids": "Asteroïden: eerst die onder het vizier.",
  "modShipTraffic": "Modschepen in het verkeer",
  "modShipTrafficOff": "Uit",
  "modShipTrafficHelp": "Hoe vaak NPC-jagers de schepen van je mods vliegen; romp en wapens blijven die van het spel.",

@@ -1570,6 +1570,7 @@
  "flightStyleHelp": "Swobodny lot: W / S ciąg, A / D na boki, Spacja / Ctrl góra i dół, Q / E przechył, Shift dopalacz, Z tłumiki. Własny układ klawiszy.",
  "bindingsLayout": "Układ klawiszy: {0}. Przełącza go opcja Swobodny lot w zakładce {1}.",
  "targetLockBeams": "Lasery wiązkowe celują wtedy tylko we wrogów lub twój cel.",
+ "targetLockAsteroids": "Asteroidy: najpierw ta pod celownikiem.",
  "modShipTraffic": "Statki z modów w ruchu",
  "modShipTrafficOff": "Wył.",
  "modShipTrafficHelp": "Jak często myśliwce NPC latają statkami z twoich modów; kadłub i broń zostają z gry.",

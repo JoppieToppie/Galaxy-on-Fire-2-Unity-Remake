@@ -3,7 +3,9 @@
 //   Radar::draw 0x1554fc          lock: keep an asteroid inside a +-w/16 box around the crosshair for (scanner attr 29,
 //                                 else 8000) - 200 ms; nearest in 3D wins; sound 26; no drill -> 541 "No drill installed."
 //                                 (the original keeps the full ring and repeats 541 every frame (0x157b00); remake: the
-//                                 lock is dropped and that asteroid isn't tried again until it has left the crosshair box)
+//                                 lock is dropped and that asteroid isn't tried again until it has left the crosshair box).
+//                                 Remake, the Smart target lock: the rock under the crosshair first, else the one nearest
+//                                 it, not the nearest in 3D (TargetLockRules "asteroids")
 //   MGame::OnTouchBegin 0x1a838c  action while locked: cargo full -> 322, else "Target: Asteroid" + sound 28 and the
 //                                 autopilot takes the ship in; again = cancel ("Autopilot Off", sound 29); while mining = stop
 //   PlayerEgo::approachAsteroid   steer dir += (to - dir) * dt * min(H + 2.7, 4) / 4096 at full throttle; the last 2000
@@ -205,7 +207,8 @@ namespace GoF2Remake.Flight
             }
         }
 
-        /// <summary>Radar::draw, asteroid part: box around the crosshair, nearest in 3D, lock timer.</summary>
+        /// <summary>Radar::draw, asteroid part: box around the crosshair, nearest in 3D (the Smart lock: under or nearest the
+        /// crosshair), lock timer.</summary>
         void UpdateLock(float dtMs)
         {
             // No mining in an arena match, nor in the Supernova Challenge (remake: the Blue Fyre has no drill, and the
@@ -224,16 +227,24 @@ namespace GoF2Remake.Flight
             Target best = null;
             if (cam != null)
             {
-                var c = cam.WorldToScreenPoint(ChaseCamera.AimOrigin(ship.transform) + ship.transform.forward * CrosshairDistanceMeters);
+                var aimPoint = ChaseCamera.AimOrigin(ship.transform) + ship.transform.forward * CrosshairDistanceMeters;
+                var c = cam.WorldToScreenPoint(aimPoint);
                 float r = Screen.width / 16f, bestDist = float.MaxValue;
+                // Remake, the Smart lock (TargetLockRules "asteroids"): the rock under the crosshair, else the one nearest it.
+                bool smart = !Settings.OriginalTargetLock;
+                Vector3 eye = cam.transform.position, aim = aimPoint - eye;
                 if (c.z > 0f)
                     foreach (var t in Target.All)
                     {
                         if (t == null || !t.Alive || t.oreItem < 0) continue;
-                        var p = cam.WorldToScreenPoint(t.transform.position);
-                        if (p.z <= 0f || p.x < 0f || p.y < 0f || p.x > Screen.width || p.y > Screen.height) continue;
-                        if (Mathf.Abs(p.x - c.x) >= r || Mathf.Abs(p.y - c.y) >= r) continue;
-                        float d = (t.transform.position - ship.transform.position).sqrMagnitude;
+                        float score = smart ? TargetLockRules.AsteroidScore(eye, aim, t.transform.position, SurfaceRadius(t), t == Candidate) : 0f;
+                        if (!smart || !TargetLockRules.IsUnderCrosshair(score))
+                        {
+                            var p = cam.WorldToScreenPoint(t.transform.position);
+                            if (p.z <= 0f || p.x < 0f || p.y < 0f || p.x > Screen.width || p.y > Screen.height) continue;
+                            if (Mathf.Abs(p.x - c.x) >= r || Mathf.Abs(p.y - c.y) >= r) continue;
+                        }
+                        float d = smart ? score : (t.transform.position - ship.transform.position).sqrMagnitude;
                         if (d < bestDist) { bestDist = d; best = t; }
                     }
             }
@@ -591,11 +602,14 @@ namespace GoF2Remake.Flight
         bool BeamClaimsFire() =>
             BeamMode && State == Phase.Idle && (beamOn || (Locked != null && Locked.Alive && !beamRefused && StartRefusal(Locked) == null));
 
-        /// <summary>Metres along the ship's heading to the rock's visible surface (-1 = the heading misses it). The rock's
-        /// surface is about 0.85 of the mesh's bounding radius (the hit radius is 0.7 of it).</summary>
+        /// <summary>The radius of the rock's visible surface in metres: about 0.85 of the mesh's bounding radius (the hit radius
+        /// is 0.7 of it).</summary>
+        static float SurfaceRadius(Target t) => t.radius / 0.7f * 0.85f;
+
+        /// <summary>Metres along the ship's heading to the rock's visible surface (-1 = the heading misses it).</summary>
         float AlongToRock(Target t, out float surface)
         {
-            surface = t.radius / 0.7f * 0.85f;
+            surface = SurfaceRadius(t);
             var oc = ship.transform.position - t.transform.position;
             float b = Vector3.Dot(oc, ship.transform.forward), disc = b * b - (oc.sqrMagnitude - surface * surface);
             return disc >= 0f ? Mathf.Max(0f, -b - Mathf.Sqrt(disc)) : -1f;

@@ -1570,6 +1570,7 @@
  "flightStyleHelp": "フリーフライト：W / S推進、A / D横移動、Space / Ctrl上下、Q / Eロール、Shiftブースト、Zダンパー。専用キー配置。",
  "bindingsLayout": "キー配置：{0}。{1}のフリーフライト設定で切り替わります。",
  "targetLockBeams": "ビームレーザーは敵かロック対象のみを狙う。",
+ "targetLockAsteroids": "小惑星は照準の下にあるものを優先。",
  "modShipTraffic": "交通にMODの船を登場",
  "modShipTrafficOff": "オフ",
  "modShipTrafficHelp": "NPC戦闘機がMODの船に乗る頻度。船体と武器はゲームのまま。",

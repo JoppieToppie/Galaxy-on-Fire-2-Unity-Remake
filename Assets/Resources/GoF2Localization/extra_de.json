@@ -1570,6 +1570,7 @@
  "flightStyleHelp": "Freier Flug: W / S Schub, A / D seitlich, Leertaste / Strg hoch und runter, Q / E rollen, Shift Boost, Z Dämpfer. Eigene Tastenbelegung.",
  "bindingsLayout": "Tastenaufteilung: {0}. Der Schalter Freier Flug unter {1} wechselt sie.",
  "targetLockBeams": "Strahllaser zielen dann nur auf Feinde oder dein Ziel.",
+ "targetLockAsteroids": "Asteroiden: der unter dem Fadenkreuz zuerst.",
  "modShipTraffic": "Mod-Schiffe im Verkehr",
  "modShipTrafficOff": "Aus",
  "modShipTrafficHelp": "Wie oft NPC-Jäger Schiffe deiner Mods fliegen; Rumpf und Waffen bleiben die des Spiels.",

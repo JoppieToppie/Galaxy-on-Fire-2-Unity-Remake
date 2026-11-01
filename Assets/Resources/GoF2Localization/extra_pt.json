@@ -1575,6 +1575,7 @@
  "flightStyleHelp": "Voo livre: W / S impulso, A / D lateral, Espaço / Ctrl subir e descer, Q / E rolagem, Shift turbo, Z amortecedores. Teclas próprias.",
  "bindingsLayout": "Layout de teclas: {0}. A opção Voo livre em {1} troca o layout.",
  "targetLockBeams": "Lasers de feixe miram só hostis ou seu alvo.",
+ "targetLockAsteroids": "Asteroides: primeiro o que está sob a mira.",
  "modShipTraffic": "Naves de mods no tráfego",
  "modShipTrafficOff": "Desligado",
  "modShipTrafficHelp": "Com que frequência caças NPC usam naves dos seus mods; casco e armas continuam os do jogo.",

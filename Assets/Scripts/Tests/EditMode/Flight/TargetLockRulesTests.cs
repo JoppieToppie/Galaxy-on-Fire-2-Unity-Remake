@@ -2,7 +2,7 @@
 // The remake's ship lock (CLAUDE.md "NPCs and combat", Radar; TargetLockRules, CombatRadar): the Smart lock's priority
 // (hostile first, then the nearest to the crosshair), its hold on an enemy (Settings.KeepEnemyLock, its own option after a
 // player's suggestion), the ship let go by Unlock target, which stays out until it leaves the crosshair box, and the
-// cargo steal from another game's EMP-disabled ship in a session.
+// cargo steal from another game's EMP-disabled ship in a session, and the Smart lock's asteroid pick.
 
 using System.Linq;
 using GoF2Remake.Flight;
@@ -68,6 +68,31 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(TargetLockRules.StillReleased(true, true), "alive and in the box: still released");
             Assert.IsFalse(TargetLockRules.StillReleased(true, false), "out of the box: lockable again");
             Assert.IsFalse(TargetLockRules.StillReleased(false, true), "dead: forgotten");
+        }
+
+        // Discord report 2026-10-24: "Smart targeting does not do well at all trying to scan asteroids" - the original's
+        // nearest asteroid in the box locked a rock beside the crosshair instead of the one under it.
+        [Test]
+        public void TheSmartLockTakesTheAsteroidUnderTheCrosshair()
+        {
+            var eye = UnityEngine.Vector3.zero;
+            var aim = UnityEngine.Vector3.forward;
+            float Score(float x, float z, float surface, bool candidate = false) =>
+                TargetLockRules.AsteroidScore(eye, aim, new UnityEngine.Vector3(x, 0f, z), surface, candidate);
+
+            float farUnder = Score(0f, 2000f, 50f), nearBeside = Score(60f, 300f, 20f);
+            Assert.IsTrue(TargetLockRules.IsUnderCrosshair(farUnder), "the crosshair's line meets the far rock");
+            Assert.IsFalse(TargetLockRules.IsUnderCrosshair(nearBeside), "it misses the near one beside it");
+            Assert.Less(farUnder, nearBeside, "the rock under the crosshair beats a nearer one beside it");
+            Assert.IsTrue(TargetLockRules.IsUnderCrosshair(Score(120f, 1000f, 150f)), "a big rock over the crosshair, its centre off it");
+            Assert.Less(Score(0f, 500f, 50f), Score(0f, 2000f, 50f), "two under it: the front one, the one seen");
+            Assert.Less(Score(10f, 500f, 50f), Score(-5f, 3000f, 50f), "a rock in front partly covering one behind wins");
+            Assert.AreEqual(TargetLockRules.UnderCrosshair, Score(0f, 10f, 50f), "inside the rock");
+
+            Assert.Less(Score(40f, 1000f, 20f), Score(80f, 1000f, 20f), "none under it: the edge nearest the crosshair");
+            Assert.Less(Score(120f, 1000f, 90f), Score(60f, 1000f, 5f), "a big rock's edge nearer than a small rock's centre");
+            Assert.Less(Score(60f, 1000f, 20f, candidate: true), Score(58f, 1000f, 20f), "the rock already locking keeps a small lead");
+            Assert.Greater(Score(200f, 1000f, 20f, candidate: true), Score(60f, 1000f, 20f), "but not against one clearly nearer");
         }
 
         // Discord report 2026-10-21: "the tractor beam can't take loot from EMP-disabled ships". The radar only looked for a
