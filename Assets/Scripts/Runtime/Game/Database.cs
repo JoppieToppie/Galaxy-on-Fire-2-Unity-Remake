@@ -115,11 +115,13 @@ namespace GoF2Remake.Data
     /// turret's base faces, game space like position_engine (x toward the pilot's left, y up, z forward; any length), so a
     /// turret sits on the sides, the nose or at any angle; it wins over upsideDown (= [0, -1, 0]). glowColor / glowSize (remake, a mod ship's exhaust mounts):
     /// the engine flame's colour (RGB 0..1, ModShipBuilder's tinted glow and the nearest-coloured exhaust particle cell) and
-    /// shape (half width, half height, flame length in game units; none = the round glow of CustomShipData.engineGlowRadius).</remarks>
+    /// shape (half width, half height, flame length in game units; none = the round glow of CustomShipData.engineGlowRadius);
+    /// glowShape (remake, exhaust mounts) its outline in that box, Modding.EngineGlowShape: none / "round" an ellipse.</remarks>
     [System.Serializable] public class WeaponMount
     {
         public int slotType; public int[] position_engine; public float[] turretAngles; public bool upsideDown;
         public float[] glowColor, glowSize, turretUp;
+        public string glowShape;
 
         /// <summary>turretUp (else upsideDown) in the Unity ship frame ((-x, y, z), the models are mirrored): a unit vector,
         /// Vector3.up for a plain mount.</summary>

@@ -13,7 +13,12 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   bones drew elsewhere and at another size, so bone animations don't play; the GLB's node animations, parts moving on
   their own, loop: `ModGltf.LoopAnimations`, glTFast's legacy Animation at the default wrap mode played its clip once),
   engine glow discs at the
-  slot-3 mounts on mat_34813 (a mount's `glowSize` [half width, half height, flame length] makes an ellipse; a `glowColor`
+  slot-3 mounts on mat_34813 (a mount's `glowSize` [half width, half height, flame length] makes an ellipse, its
+  `glowShape` another outline in that box: rounded / square / hexagon / diamond / triangle, `EngineGlowShape`, the
+  2026-11-01 request of a modder whose flame clipped a wide nozzle; the sprite read along each point's direction, so
+  corners take the rim's glow, and the exhaust styles take it as the nozzle's outline, `ModExhausts.Glow`; the builder's
+  Hardpoints page: shape buttons, half width, half height, length; checked in Play mode on a .glb ship: round, square,
+  hexagon, triangle and a 70 x 18 rectangle; a `glowColor`
   or the ship's `engineGlowColor` switches the glow to `ModAssets.engineGlowTint`, the sprite in white
   (`Resources/GoF2Mods/ModEngineGlowWhite.png`, Build Mod Assets; the glow sprite there made round and soft, its ring of
   dashes averaged away) tinted by vertex colour, white-hot at the centre, and

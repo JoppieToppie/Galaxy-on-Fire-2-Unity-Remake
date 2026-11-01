@@ -427,21 +427,35 @@ namespace GoF2Remake.UI
             }
             if (type == 3)
             {
-                float r = m.glowSize != null && m.glowSize.Length >= 1 ? m.glowSize[0] : 24f;
-                float len = m.glowSize != null && m.glowSize.Length >= 3 ? m.glowSize[2] : r * 0.87f;
+                // The flame's box (WeaponMount.glowSize: half width, half height, length) and its outline in it (glowShape).
+                float Size(int k) => m.glowSize != null && m.glowSize.Length > k ? m.glowSize[k]
+                                   : k == 0 ? 24f : k == 1 ? Size(0) : 0.87f * 0.5f * (Size(0) + Size(1));
+                void SetSize(int k, float v)
+                {
+                    var g = new[] { Size(0), Size(1), Size(2) };
+                    g[k] = v;
+                    m.glowSize = g;
+                    OnMountEdited(3);
+                }
                 float particles = m.turretAngles != null && m.turretAngles.Length > 0 ? m.turretAngles[0] : 0.55f;
-                Int(selectedBox, T("mbFlameSize", "Flame radius (units)"), Mathf.RoundToInt(r), 1, 5000, v =>
+                Add(selectedBox, new Label(T("mbFlameShape", "Flame shape")), "mbv-inline-label");
+                var shapes = Add(selectedBox, new VisualElement(), "mbv-row", "mbv-add-row");
+                string shape = EngineGlowShape.Normalize(m.glowShape);
+                foreach (var name in EngineGlowShape.Names)
                 {
-                    float l = m.glowSize != null && m.glowSize.Length >= 3 ? m.glowSize[2] : v * 0.87f;
-                    m.glowSize = new[] { (float)v, v, l };
-                    OnMountEdited(3);
-                });
-                Int(selectedBox, T("mbFlameLength", "Flame length (units)"), Mathf.RoundToInt(len), 0, 10000, v =>
-                {
-                    float rr = m.glowSize != null && m.glowSize.Length >= 1 ? m.glowSize[0] : 24f;
-                    m.glowSize = new[] { rr, rr, (float)v };
-                    OnMountEdited(3);
-                });
+                    string n = name;
+                    var b = Act(shapes, T("mbShape_" + n, char.ToUpperInvariant(n[0]) + n.Substring(1)), () =>
+                    {
+                        m.glowShape = n == "round" ? null : n;
+                        OnMountEdited(3);
+                        RefreshPoints();
+                    }, "mbv-type-button");
+                    b.EnableInClassList("mbv-type-button--on", n == shape);
+                }
+                Int(selectedBox, T("mbFlameWidth", "Flame half width (units)"), Mathf.RoundToInt(Size(0)), 1, 5000, v => SetSize(0, v));
+                Int(selectedBox, T("mbFlameHeight", "Flame half height (units)"), Mathf.RoundToInt(Size(1)), 1, 5000, v => SetSize(1, v));
+                Int(selectedBox, T("mbFlameLength", "Flame length (units)"), Mathf.RoundToInt(Size(2)), 0, 10000, v => SetSize(2, v));
+                Note(selectedBox, T("mbFlameSizeNote", "Width and height from the centre to the edge; the length pulls the flame's flared ring back from the point."));
                 Int(selectedBox, T("mbParticles", "Exhaust particles (%)"), Mathf.RoundToInt(particles * 100f), 0, 1000, v =>
                 {
                     float f = v / 100f;

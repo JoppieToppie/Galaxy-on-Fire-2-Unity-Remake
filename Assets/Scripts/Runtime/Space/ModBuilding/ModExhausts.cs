@@ -30,8 +30,8 @@
 // suppressed), no particle plume (ShipExhaust finds the holder's effect). The manoeuvring jets stay.
 // Each exhaust takes the shape of the nozzle it sits on (NozzleShape: half width, half height and centre; ShapeOf): a mod
 // ship's nozzle meshes (materials named "nozzle", measured on the instance: EVERSPACE 2's rings and grilles), else its mount's
-// glowSize, else the game's ships' measured glow (GoF2 > Build > Nozzle Shapes, nozzle_shapes.json), else round
-// (NozzleRadius); a mount's outline only when plausible against its glowSize (Plausible). On a ship with GoF3's engine effect of
+// glowSize (its glowShape's outline), else the game's ships' measured glow (GoF2 > Build > Nozzle Shapes,
+// nozzle_shapes.json), else round (NozzleRadius); a mount's outline only when plausible against its glowSize (Plausible). On a ship with GoF3's engine effect of
 // its own the shapes are scaled so that their typical size is the nozzle that effect is drawn for (FitToOwnEffect: the GoF3
 // builder measures only the hot core of each nozzle's glow). A flame model is scaled per axis to it, an
 // engineFx's parts are spread to it (all but its sprites); both centred on it.
@@ -358,14 +358,13 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>An oval nozzle (half width / height, game units).</summary>
-        static NozzleShape Ellipse(float hw, float hh)
+        static NozzleShape Ellipse(float hw, float hh) => Glow(hw, hh, null);
+
+        /// <summary>A mount's glow outline (EngineGlowShape, none = an ellipse) in a half width x half height box.</summary>
+        static NozzleShape Glow(float hw, float hh, string shape)
         {
             var profile = new float[ProfileSteps];
-            for (int k = 0; k < ProfileSteps; k++)
-            {
-                float a = 2f * Mathf.PI * k / ProfileSteps, x = Mathf.Cos(a) / hw, y = Mathf.Sin(a) / hh;
-                profile[k] = 1f / Mathf.Sqrt(x * x + y * y);
-            }
+            for (int k = 0; k < ProfileSteps; k++) profile[k] = EngineGlowShape.Radius(shape, hw, hh, 2f * Mathf.PI * k / ProfileSteps);
             return new NozzleShape { halfWidth = hw, halfHeight = hh, profile = profile };
         }
 
@@ -428,7 +427,7 @@ namespace GoF2Remake.Modding
                 if (meshes?[i] != null) { shapes[i] = meshes[i]; continue; }
                 if (m.glowSize != null && m.glowSize.Length >= 2 && m.glowSize[0] > 0f && m.glowSize[1] > 0f)
                 {
-                    shapes[i] = Ellipse(m.glowSize[0], m.glowSize[1]);
+                    shapes[i] = Glow(m.glowSize[0], m.glowSize[1], m.glowShape);
                     continue;
                 }
                 var g = game?.nozzles.Find(x => x.halfWidth > 0f && x.mount != null && x.mount.Length >= 3

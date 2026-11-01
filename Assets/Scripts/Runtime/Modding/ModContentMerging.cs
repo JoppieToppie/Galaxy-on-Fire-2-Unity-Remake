@@ -117,7 +117,7 @@ namespace GoF2Remake.Modding
         {
             slotType = m.slotType, upsideDown = m.upsideDown, position_engine = (int[])m.position_engine?.Clone(),
             turretAngles = (float[])m.turretAngles?.Clone(), glowColor = (float[])m.glowColor?.Clone(),
-            glowSize = (float[])m.glowSize?.Clone(), turretUp = (float[])m.turretUp?.Clone(),
+            glowSize = (float[])m.glowSize?.Clone(), glowShape = m.glowShape, turretUp = (float[])m.turretUp?.Clone(),
         };
         static void ApplyShips(Database db, bool dflt)
         {

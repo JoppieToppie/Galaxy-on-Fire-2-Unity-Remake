@@ -39,7 +39,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   along, every change re-measures the hangar height), hangar height + Auto, hull textures: one
   `materials` entry for all meshes, for GLBs without their own), Hardpoints (add by clicking the hull, list, X / Y / Z, mirror,
   centre, delete, slot counts following the points, a turret's facing (see "Missile turrets and salvos"), engine flame
-  radius / length / particles), Loadout
+  shape / half width / half height / length / particles: `glowShape`, see mods-models.md "engine glow discs"), Loadout
   (per-slot item pickers, Auto-fill, god mode / infinite ammo). The 3D editor is `World.ModBuilderGizmo` (balls drawn over the
   hull by `Hidden/GoF2/BuilderGizmo`, Unity-style move arrows along the ship's axes (X = game +x = the pilot's left), a drag on
   a ball slides it over the hull (MeshColliders on layer 22), a flat arrow on the floor toward the nose); the camera is

@@ -333,8 +333,8 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>The engine glow at every exhaust mount: the Phantom's shape, a disc and a flared ring behind it. A mount's
-        /// glowSize (half width, half height, flame length in game units) makes it an ellipse with its own length, its
-        /// glowColor (else the ship's engineGlowColor) tints it: then the whole glow uses engineGlowTint (the white sprite)
+        /// glowSize (half width, half height, flame length in game units) makes it an ellipse with its own length (its glowShape
+        /// another outline in that box, EngineGlowShape: a rectangle, a hexagon...), its glowColor (else the ship's engineGlowColor) tints it: then the whole glow uses engineGlowTint (the white sprite)
         /// with vertex colours, white-hot at the centre, the colour at the rim and the ring; uncoloured mounts stay white.</summary>
         internal static GameObject BuildEngineGlow(CustomShipData c, bool discs = true)
         {
@@ -350,7 +350,6 @@ namespace GoF2Remake.Modding
             }
             bool tinted = assets.engineGlowTint != null && exhausts.Any(m => ColourOf(m) != null);
             var mat = tinted ? assets.engineGlowTint : assets.engineGlow;
-            const int Segments = 12;
             var uvCentre = new Vector2(0.46f, 0.947f);
             const float UvDisc = 0.0254f, UvRing = 0.048f;
             var verts = new List<Vector3>();
@@ -367,23 +366,23 @@ namespace GoF2Remake.Modding
                 var o = WeaponSystem.MountToLocal(m);
                 int centre = verts.Count;
                 verts.Add(o); uvs.Add(uvCentre); colours.Add(core);
+                // The outline's points in the unit box; the sprite is read along their direction only (its disc and ring
+                // radii), so a square's corners take the rim's glow and nothing of the atlas beyond it.
+                var outline = EngineGlowShape.Outline(m.glowShape);
+                int segments = outline.Length;
                 int disc = verts.Count;
-                for (int i = 0; i < Segments; i++)
+                foreach (var d in outline)
                 {
-                    float a = i * Mathf.PI * 2f / Segments;
-                    var d = new Vector2(Mathf.Sin(a), Mathf.Cos(a));
-                    verts.Add(o + new Vector3(d.x * rx, d.y * ry, 0f)); uvs.Add(uvCentre + d * UvDisc); colours.Add(tint);
+                    verts.Add(o + new Vector3(d.x * rx, d.y * ry, 0f)); uvs.Add(uvCentre + d.normalized * UvDisc); colours.Add(tint);
                 }
                 int ring = verts.Count;
-                for (int i = 0; i < Segments; i++)
+                foreach (var d in outline)
                 {
-                    float a = i * Mathf.PI * 2f / Segments;
-                    var d = new Vector2(Mathf.Sin(a), Mathf.Cos(a));
-                    verts.Add(o + new Vector3(d.x * rx * 1.31f, d.y * ry * 1.31f, -back)); uvs.Add(uvCentre + d * UvRing); colours.Add(tint);
+                    verts.Add(o + new Vector3(d.x * rx * 1.31f, d.y * ry * 1.31f, -back)); uvs.Add(uvCentre + d.normalized * UvRing); colours.Add(tint);
                 }
-                for (int i = 0; i < Segments; i++)
+                for (int i = 0; i < segments; i++)
                 {
-                    int j = (i + 1) % Segments;
+                    int j = (i + 1) % segments;
                     tris.AddRange(new[] { centre, disc + i, disc + j });
                     tris.AddRange(new[] { disc + i, ring + i, ring + j, disc + i, ring + j, disc + j });
                 }

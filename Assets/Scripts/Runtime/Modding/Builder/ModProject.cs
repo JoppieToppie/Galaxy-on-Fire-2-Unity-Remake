@@ -152,7 +152,7 @@ namespace GoF2Remake.Modding
             position_engine = m.position_engine != null ? (int[])m.position_engine.Clone() : new int[3],
             turretAngles = m.turretAngles != null ? (float[])m.turretAngles.Clone() : null,
             glowColor = m.glowColor != null ? (float[])m.glowColor.Clone() : null,
-            glowSize = m.glowSize != null ? (float[])m.glowSize.Clone() : null,
+            glowSize = m.glowSize != null ? (float[])m.glowSize.Clone() : null, glowShape = m.glowShape,
             turretUp = m.turretUp != null ? (float[])m.turretUp.Clone() : null,
             outline = m.outline != null ? (float[])m.outline.Clone() : null, builtIn = m.builtIn,
             direction = m.direction != null ? (float[])m.direction.Clone() : null,
@@ -403,6 +403,7 @@ namespace GoF2Remake.Modding
             else if (m.slotType != 2 && m.upsideDown) e["upsideDown"] = true;
             if (m.glowColor != null && m.glowColor.Length >= 3) e["glowColor"] = Floats(m.glowColor, 3);
             if (m.glowSize != null && m.glowSize.Length >= 3) e["glowSize"] = Floats(m.glowSize, 1);
+            if (m.slotType == 3 && EngineGlowShape.Normalize(m.glowShape) != "round") e["glowShape"] = EngineGlowShape.Normalize(m.glowShape);
             if (m.outline != null && m.outline.Length >= 6) e["outline"] = Floats(m.outline, 1);
             if (m.builtIn) e["builtIn"] = true;
             if (m.direction != null && m.direction.Length >= 3) e["direction"] = Floats(m.direction, 3);
