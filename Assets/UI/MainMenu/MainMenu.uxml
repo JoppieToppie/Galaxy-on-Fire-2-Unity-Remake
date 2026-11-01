@@ -11,13 +11,14 @@
                 <ui:VisualElement name="mainButtons" class="main-buttons">
                     <ui:Button name="resumeButton" class="menu-button gof-semibold delay-1" />
                     <ui:Button name="newGameButton" class="menu-button gof-semibold delay-2" />
-                    <ui:Button name="multiplayerButton" class="menu-button gof-semibold delay-3" />
-                    <ui:Button name="loadButton" class="menu-button gof-semibold delay-4" />
-                    <ui:Button name="optionsButton" class="menu-button gof-semibold delay-5" />
-                    <ui:Button name="modsButton" class="menu-button gof-semibold delay-6" />
-                    <ui:Button name="aboutButton" class="menu-button gof-semibold delay-7" />
-                    <ui:Button name="debugButton" class="menu-button gof-semibold delay-8" />
-                    <ui:Button name="exitButton" class="menu-button gof-semibold delay-9" />
+                    <ui:Button name="coopButton" class="menu-button gof-semibold delay-3" />
+                    <ui:Button name="multiplayerButton" class="menu-button gof-semibold delay-4" />
+                    <ui:Button name="loadButton" class="menu-button gof-semibold delay-5" />
+                    <ui:Button name="optionsButton" class="menu-button gof-semibold delay-6" />
+                    <ui:Button name="modsButton" class="menu-button gof-semibold delay-7" />
+                    <ui:Button name="aboutButton" class="menu-button gof-semibold delay-8" />
+                    <ui:Button name="debugButton" class="menu-button gof-semibold delay-9" />
+                    <ui:Button name="exitButton" class="menu-button gof-semibold delay-10" />
                 </ui:VisualElement>
             </ui:VisualElement>
 
@@ -192,6 +193,7 @@
                         </ui:VisualElement>
                         <ui:VisualElement class="mp-card mp-card--last mp-host">
                             <ui:Label name="mpHostTitle" class="mp-card-title gof-semibold" />
+                            <ui:Label name="mpCoopSaved" class="mp-card-text mp-coop-saved" />
                             <ui:VisualElement name="mpModeRow" class="choice-segments mp-mode-row">
                                 <ui:Button name="mpModePublic" class="choice-segment gof-semibold" />
                                 <ui:Button name="mpModePrivate" class="choice-segment gof-semibold" />
@@ -222,19 +224,18 @@
                                     <ui:Button name="mpDebugOn" class="choice-segment choice-segment--last gof-semibold" />
                                 </ui:VisualElement>
                             </ui:VisualElement>
-                            <ui:VisualElement class="mp-debug-row">
+                            <ui:VisualElement name="mpPvpRow" class="mp-debug-row">
                                 <ui:Label name="mpPvpLabel" class="mp-label mp-debug-label gof-semibold" />
                                 <ui:VisualElement class="choice-segments mp-debug-segments">
                                     <ui:Button name="mpPvpOff" class="choice-segment gof-semibold" />
                                     <ui:Button name="mpPvpOn" class="choice-segment choice-segment--last gof-semibold" />
                                 </ui:VisualElement>
                             </ui:VisualElement>
-                            <ui:VisualElement class="mp-debug-row">
+                            <ui:VisualElement name="mpWorldRow" class="mp-debug-row">
                                 <ui:Label name="mpWorldLabel" class="mp-label mp-debug-label gof-semibold" />
                                 <ui:VisualElement class="choice-segments mp-debug-segments">
                                     <ui:Button name="mpWorldFresh" class="choice-segment gof-semibold" />
-                                    <ui:Button name="mpWorldPersistent" class="choice-segment gof-semibold" />
-                                    <ui:Button name="mpWorldCoop" class="choice-segment choice-segment--last gof-semibold" />
+                                    <ui:Button name="mpWorldPersistent" class="choice-segment choice-segment--last gof-semibold" />
                                 </ui:VisualElement>
                             </ui:VisualElement>
                             <ui:VisualElement name="mpCoopStrengthRow" class="mp-debug-row">

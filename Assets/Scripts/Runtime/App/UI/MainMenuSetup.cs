@@ -66,6 +66,7 @@ namespace GoF2Remake.UI
 
             resumeButton = Bind("resumeButton", () => LoadSlot(SaveGame.MostRecentSlot()));
             newGameButton = Bind("newGameButton", () => OpenPanel("campaignPanel"));
+            coopButton = Bind("coopButton", OpenCoop);
             multiplayerButton = Bind("multiplayerButton", OpenMultiplayer);
             loadButton = Bind("loadButton", () => { SyncSaveFolder(true); BuildSlots(); OpenPanel("loadPanel"); });
             // Remake: every save to one file and back (SaveTransfer), under the Load game list; main menu only (no game is

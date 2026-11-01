@@ -3017,7 +3017,6 @@
  "mbPartTexture": "Textuur…",
  "mbPartTextureOff": "Geen textuur",
  "mpCoopTag": "Co-op",
- "mpWorldCoop": "Co-op",
  "coopTitle": "Co-opcampagne",
  "coopCrew": "Bemanning: {0}",
  "coopContinueText": "Doorgaan met de {0}-campagne van de bemanning bij stap {1}?",
@@ -3041,5 +3040,12 @@
  "coopLobbyCrew": "Bemanning ({0}/{1}): {2}",
  "coopLobbyCode": "Deelnamecode: {0}",
  "coopLobbyHost": "Start zodra de bemanning er is: iedereen begint samen aan de campagne.",
- "coopLobbyWait": "Wachten tot {0} de campagne start."
+ "coopLobbyWait": "Wachten tot {0} de campagne start.",
+ "coopIntro": "Speel samen het hele verhaal: tot vier piloten, één campagne.",
+ "coopBrowserTitle": "Open campagnes",
+ "coopNoGames": "Er zijn nu geen open co-opcampagnes. Host er een of doe mee met een code.",
+ "coopHostTitle": "Een campagne hosten",
+ "coopHostButton": "Campagne hosten",
+ "coopSavedNone": "Nog geen opgeslagen campagne: hosten begint een nieuwe.",
+ "coopSaved": "Opgeslagen: {0}, stap {1}"
 }

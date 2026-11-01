@@ -123,6 +123,7 @@ namespace GoF2Remake.UI
             foreach (var n in new[] { "campaignBack", "difficultyBack", "economyBack", "gameOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack" }) Set(n, "‹  " + T(170));
             string mp = Localization.Extra("multiplayer", "Multiplayer").ToUpperInvariant();
             Set("multiplayerButton", mp);
+            Set("coopButton", Localization.Extra("coopTitle", "Co-op campaign").ToUpperInvariant());
             Set("multiplayerTitle", mp);
             Set("mpBadge", Localization.Extra("mpExperimental", "Experimental").ToUpperInvariant());
             Set("mpIntro", Localization.Extra("mpIntroShort", "Meet other pilots, form squads and fly missions together."));
@@ -145,7 +146,6 @@ namespace GoF2Remake.UI
             Set("mpWorldLabel", Localization.Extra("mpWorld", "World").ToUpperInvariant());
             Set("mpWorldFresh", Localization.Extra("mpWorldFresh", "Fresh").ToUpperInvariant());
             Set("mpWorldPersistent", Localization.Extra("mpWorldPersistent", "Persistent").ToUpperInvariant());
-            Set("mpWorldCoop", Localization.Extra("mpWorldCoop", "Co-op").ToUpperInvariant());
             Set("mpCoopStrengthLabel", Localization.Extra("mpCoopStrength", "Enemies per player").ToUpperInvariant());
             Set("mpCoopStrength0", Localization.Extra("mpDebugOff", "Off").ToUpperInvariant());
             foreach (int pct in new[] { 25, 50, 100 }) Set("mpCoopStrength" + pct, "+" + pct + "%");
@@ -162,6 +162,7 @@ namespace GoF2Remake.UI
             Set("mpJoinText", Localization.Extra("mpJoinCodeLabel", "Or join with a code or an address").ToUpperInvariant());
             if (mpAddress != null) mpAddress.textEdition.placeholder = "ABC123  /  192.168.1.20";
             Set("mpJoin", Localization.Extra("mpJoin", "Join").ToUpperInvariant());
+            ApplyPanelMode();   // the Co-op campaign screen's own title and texts
 
             Set("campaignTitle", T(103));
             Set("debugTitle", Localization.Extra("debugTitle", "Debug").ToUpperInvariant());

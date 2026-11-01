@@ -91,13 +91,16 @@ namespace GoF2Remake.UI
             return rows;
         }
 
-        Button resumeButton, newGameButton, multiplayerButton, loadButton, optionsButton, modsButton, aboutButton, debugButton, exitButton;
+        Button resumeButton, newGameButton, coopButton, multiplayerButton, loadButton, optionsButton, modsButton, aboutButton, debugButton, exitButton;
         ModBrowser modBrowser;
         VisualElement updateRow;
         Button updateButton;
         readonly Dictionary<string, VisualElement> panels = new Dictionary<string, VisualElement>();
         VisualElement openPanel;
         readonly List<OptionControl> optionControls = new List<OptionControl>();
+        /// <summary>The multiplayer panel is open as the Co-op campaign screen (the main menu's Co-op campaign button,
+        /// SetPanelMode): its own title, co-op games only, the co-op host settings.</summary>
+        bool coopPanelMode;
         Action dialogYes, dialogNo, dialogAlt;   // dialogAlt: the third button, only for ShowResetChoice
         Func<bool> dialogCheck;   // the Yes button closes the dialog only when this passes (null = always)
         TextField dialogField;
@@ -483,10 +486,12 @@ namespace GoF2Remake.UI
                 // client's next try starts a new session at once, which clears the status).
                 string reason = null;
                 bool popup = name == "multiplayerPanel" && GoF2Remake.Multiplayer.NetGame.TakePopup(out reason);
+                // Back where the session was joined: the Co-op campaign panel after a co-op session.
+                if (name == "multiplayerPanel") SetPanelMode(GoF2Remake.Multiplayer.NetCoop.LastSessionWasCoop);
                 root.schedule.Execute(() =>
                 {
                     OpenPanel(name);
-                    if (popup) ShowNotice(Localization.Extra("multiplayer", "Multiplayer"), reason);
+                    if (popup) ShowNotice(coopPanelMode ? CoopTitle : Localization.Extra("multiplayer", "Multiplayer"), reason);
                 }).ExecuteLater(400);
                 if (GoF2Remake.Multiplayer.NetGame.AutoJoinAddress != null) StartCoroutine(AutoJoin(GoF2Remake.Multiplayer.NetGame.AutoJoinAddress));
                 yield break;
@@ -672,7 +677,7 @@ namespace GoF2Remake.UI
             var target = closing == panels["campaignPanel"] || panels.TryGetValue("debugPanel", out var ap) && closing == ap ? newGameButton
                 : closing == panels["loadPanel"] ? loadButton
                 : closing == panels["optionsPanel"] ? optionsButton
-                : closing == panels["multiplayerPanel"] ? multiplayerButton
+                : closing == panels["multiplayerPanel"] ? (coopPanelMode ? coopButton : multiplayerButton)
                 : panels.TryGetValue("modsPanel", out var mp) && closing == mp || panels.TryGetValue("modsHubPanel", out var mh) && closing == mh ? modsButton : aboutButton;
             Select(target);
         }

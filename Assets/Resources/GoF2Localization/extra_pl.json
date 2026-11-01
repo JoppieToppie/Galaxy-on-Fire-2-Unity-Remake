@@ -3017,7 +3017,6 @@
  "mbPartTexture": "Tekstura…",
  "mbPartTextureOff": "Bez tekstury",
  "mpCoopTag": "Koop",
- "mpWorldCoop": "Koop",
  "coopTitle": "Kampania kooperacyjna",
  "coopCrew": "Załoga: {0}",
  "coopContinueText": "Kontynuować kampanię {0} załogi od kroku {1}?",
@@ -3041,5 +3040,12 @@
  "coopLobbyCrew": "Załoga ({0}/{1}): {2}",
  "coopLobbyCode": "Kod dołączenia: {0}",
  "coopLobbyHost": "Rozpocznij, gdy załoga będzie na miejscu: wszyscy zaczną kampanię razem.",
- "coopLobbyWait": "Czekanie, aż {0} rozpocznie kampanię."
+ "coopLobbyWait": "Czekanie, aż {0} rozpocznie kampanię.",
+ "coopIntro": "Przejdźcie razem całą historię: do czterech pilotów, jedna kampania.",
+ "coopBrowserTitle": "Otwarte kampanie",
+ "coopNoGames": "Brak otwartych kampanii kooperacyjnych. Załóż własną lub dołącz z kodem.",
+ "coopHostTitle": "Załóż kampanię",
+ "coopHostButton": "Załóż kampanię",
+ "coopSavedNone": "Brak zapisanej kampanii: założenie rozpocznie nową.",
+ "coopSaved": "Zapis: {0}, krok {1}"
 }

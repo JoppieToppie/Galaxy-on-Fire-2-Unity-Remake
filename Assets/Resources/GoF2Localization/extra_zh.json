@@ -3017,7 +3017,6 @@
  "mbPartTexture": "贴图…",
  "mbPartTextureOff": "不用贴图",
  "mpCoopTag": "合作",
- "mpWorldCoop": "合作",
  "coopTitle": "合作战役",
  "coopCrew": "机组：{0}",
  "coopContinueText": "从第{1}步继续机组的{0}战役？",
@@ -3041,5 +3040,12 @@
  "coopLobbyCrew": "机组（{0}/{1}）：{2}",
  "coopLobbyCode": "加入代码：{0}",
  "coopLobbyHost": "机组到齐后开始：所有人一起开始战役。",
- "coopLobbyWait": "等待{0}开始战役。"
+ "coopLobbyWait": "等待{0}开始战役。",
+ "coopIntro": "一起游玩完整剧情：最多四名飞行员，一场战役。",
+ "coopBrowserTitle": "开放的战役",
+ "coopNoGames": "目前没有开放的合作战役。主持一场，或用代码加入。",
+ "coopHostTitle": "主持战役",
+ "coopHostButton": "主持战役",
+ "coopSavedNone": "还没有保存的战役：主持将开始新的战役。",
+ "coopSaved": "已保存：{0}，第{1}步"
 }

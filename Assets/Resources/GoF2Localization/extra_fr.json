@@ -3017,7 +3017,6 @@
  "mbPartTexture": "Texture…",
  "mbPartTextureOff": "Sans texture",
  "mpCoopTag": "Coop",
- "mpWorldCoop": "Coop",
  "coopTitle": "Campagne coop",
  "coopCrew": "Équipage : {0}",
  "coopContinueText": "Reprendre la campagne {0} de l'équipage à l'étape {1} ?",
@@ -3041,5 +3040,12 @@
  "coopLobbyCrew": "Équipage ({0}/{1}) : {2}",
  "coopLobbyCode": "Code d'accès : {0}",
  "coopLobbyHost": "Lance quand l'équipage est là : tout le monde commence la campagne ensemble.",
- "coopLobbyWait": "En attente que {0} lance la campagne."
+ "coopLobbyWait": "En attente que {0} lance la campagne.",
+ "coopIntro": "Jouez toute l'histoire ensemble : jusqu'à quatre pilotes, une campagne.",
+ "coopBrowserTitle": "Campagnes ouvertes",
+ "coopNoGames": "Aucune campagne coop ouverte pour l'instant. Héberges-en une ou rejoins-en une avec un code.",
+ "coopHostTitle": "Héberger une campagne",
+ "coopHostButton": "Héberger la campagne",
+ "coopSavedNone": "Pas encore de campagne sauvegardée : héberger en lance une nouvelle.",
+ "coopSaved": "Sauvegarde : {0}, étape {1}"
 }

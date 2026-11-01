@@ -177,6 +177,7 @@
 .main-buttons--revealing > .delay-7 { transition-delay: 0.35s; }
 .main-buttons--revealing > .delay-8 { transition-delay: 0.4s; }
 .main-buttons--revealing > .delay-9 { transition-delay: 0.45s; }
+.main-buttons--revealing > .delay-10 { transition-delay: 0.5s; }
 
 .main-column--dimmed .menu-button {
     opacity: 0.35;

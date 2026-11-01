@@ -3017,7 +3017,6 @@
  "mbPartTexture": "Textura…",
  "mbPartTextureOff": "Sin textura",
  "mpCoopTag": "Coop",
- "mpWorldCoop": "Coop",
  "coopTitle": "Campaña cooperativa",
  "coopCrew": "Tripulación: {0}",
  "coopContinueText": "¿Continuar la campaña {0} de la tripulación en el paso {1}?",
@@ -3041,5 +3040,12 @@
  "coopLobbyCrew": "Tripulación ({0}/{1}): {2}",
  "coopLobbyCode": "Código de acceso: {0}",
  "coopLobbyHost": "Empieza cuando llegue la tripulación: todos comienzan la campaña juntos.",
- "coopLobbyWait": "Esperando a que {0} empiece la campaña."
+ "coopLobbyWait": "Esperando a que {0} empiece la campaña.",
+ "coopIntro": "Jugad toda la historia juntos: hasta cuatro pilotos, una campaña.",
+ "coopBrowserTitle": "Campañas abiertas",
+ "coopNoGames": "No hay campañas cooperativas abiertas ahora. Organiza una o únete con un código.",
+ "coopHostTitle": "Organizar una campaña",
+ "coopHostButton": "Organizar campaña",
+ "coopSavedNone": "Aún no hay campaña guardada: al organizar empieza una nueva.",
+ "coopSaved": "Guardada: {0}, paso {1}"
 }

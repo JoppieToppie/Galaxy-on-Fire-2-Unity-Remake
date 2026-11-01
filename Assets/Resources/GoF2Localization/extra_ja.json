@@ -3017,7 +3017,6 @@
  "mbPartTexture": "テクスチャ…",
  "mbPartTextureOff": "テクスチャなし",
  "mpCoopTag": "協力",
- "mpWorldCoop": "協力",
  "coopTitle": "協力キャンペーン",
  "coopCrew": "クルー: {0}",
  "coopContinueText": "クルーの{0}キャンペーンをステップ{1}から続けますか？",
@@ -3041,5 +3040,12 @@
  "coopLobbyCrew": "クルー（{0}/{1}）：{2}",
  "coopLobbyCode": "参加コード：{0}",
  "coopLobbyHost": "クルーがそろったら開始：全員一緒にキャンペーンを始めます。",
- "coopLobbyWait": "{0}がキャンペーンを開始するのを待っています。"
+ "coopLobbyWait": "{0}がキャンペーンを開始するのを待っています。",
+ "coopIntro": "物語のすべてを一緒にプレイ：最大4人のパイロットで1つのキャンペーン。",
+ "coopBrowserTitle": "参加できるキャンペーン",
+ "coopNoGames": "現在参加できる協力キャンペーンはありません。ホストするか、コードで参加しましょう。",
+ "coopHostTitle": "キャンペーンをホスト",
+ "coopHostButton": "キャンペーンをホスト",
+ "coopSavedNone": "保存されたキャンペーンはまだありません：ホストすると新しく始まります。",
+ "coopSaved": "保存：{0}、ステップ{1}"
 }

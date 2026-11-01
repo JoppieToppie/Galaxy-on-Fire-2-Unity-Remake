@@ -823,6 +823,7 @@ namespace GoF2Remake.Multiplayer
             Dedicated = false;
             PersistentHost = false;
             CoopSession = false;
+            NetCoop.LastSessionWasCoop = false;
             CoopCampaign.Reset();   // nothing of the last co-op session's story
             NetMods.BeginClient();   // no mods until the session's arrive (NetState) or the host picks its own (BeginHost)
             NetStock.Reset();

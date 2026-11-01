@@ -3017,7 +3017,6 @@
  "mbPartTexture": "텍스처…",
  "mbPartTextureOff": "텍스처 없음",
  "mpCoopTag": "협동",
- "mpWorldCoop": "협동",
  "coopTitle": "협동 캠페인",
  "coopCrew": "승무원: {0}",
  "coopContinueText": "승무원의 {0} 캠페인을 {1}단계부터 계속할까요?",
@@ -3041,5 +3040,12 @@
  "coopLobbyCrew": "승무원 ({0}/{1}): {2}",
  "coopLobbyCode": "참가 코드: {0}",
  "coopLobbyHost": "승무원이 모이면 시작하세요: 모두 함께 캠페인을 시작합니다.",
- "coopLobbyWait": "{0}님이 캠페인을 시작하기를 기다리는 중입니다."
+ "coopLobbyWait": "{0}님이 캠페인을 시작하기를 기다리는 중입니다.",
+ "coopIntro": "모든 이야기를 함께 플레이하세요: 최대 4명의 파일럿, 하나의 캠페인.",
+ "coopBrowserTitle": "열린 캠페인",
+ "coopNoGames": "지금 열린 협동 캠페인이 없습니다. 직접 호스트하거나 코드로 참가하세요.",
+ "coopHostTitle": "캠페인 호스트",
+ "coopHostButton": "캠페인 호스트",
+ "coopSavedNone": "저장된 캠페인이 아직 없습니다: 호스트하면 새로 시작합니다.",
+ "coopSaved": "저장됨: {0}, {1}단계"
 }

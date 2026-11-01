@@ -6,8 +6,15 @@ The story for 2-4 players (remake-only, 2026-11-01). Code: `Game/CoopCampaign.cs
 
 ## Co-op campaign (remake-only)
 
-- **Hosting**: the Host card's World switch has a third choice, Co-op (PlayerPrefs `mp_persistent` 2,
-  `NetGame.HostWantsCoop`); Host then asks Continue (the saved campaign's step and crew, `NetCoop.ReadSummary`, coop.json) or
+- **The Co-op campaign screen** (2026-11-01, the user's request: the World switch's Co-op segment was easy to miss): the
+  main menu's own **Co-op campaign** button (after Start new game) opens the multiplayer panel as the co-op screen
+  (`MainMenu.coopPanelMode`, `SetPanelMode` / `ApplyPanelMode`): its title and intro, the browser's "Open campaigns" (co-op
+  listings only, `NetLobby.Entry.coop`), "Host a campaign" with the saved campaign under it (`mpCoopSaved`: campaign, step,
+  crew from coop.json), the co-op settings rows instead of World / Combat, Max players shown capped at 4, "Host campaign".
+  The Multiplayer button opens the plain screen (World: Fresh / Persistent, every listing). The menu reopens the screen
+  the last session came from (`NetCoop.LastSessionWasCoop`); Back returns to the button that opened it. Checked with
+  `UiShots` at all ten sizes (main menu and both screens).
+- **Hosting**: from the Co-op campaign screen (`NetGame.HostWantsCoop` while it is open); Host campaign then asks Continue (the saved campaign's step and crew, `NetCoop.ReadSummary`, coop.json) or
   New campaign (Galaxy on Fire 2, or Add-ons: Valkyrie / Supernova; `NetGame.CoopNewCampaign`). Max players is capped at
   4 (`NetGame.MaxPlayers`' getter, so Relay's allocation and the approval agree). Listed with a CO-OP tag (lobby key `coop`).
   Not on a dedicated server.

@@ -30,6 +30,9 @@ namespace GoF2Remake.Multiplayer
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { storyTimer = squadTimer = summaryTimer = 0f; }
 
+        /// <summary>The last session this game was in was a co-op campaign (the menu reopens the Co-op campaign screen after it).</summary>
+        public static bool LastSessionWasCoop { get; internal set; }
+
         /// <summary>The session is a co-op campaign.</summary>
         public static bool Active => NetGame.Active && NetState.Instance != null && NetState.Instance.IsSpawned && NetState.Instance.Coop;
         /// <summary>This game leads it (the host; a dedicated server never runs one).</summary>
@@ -160,6 +163,7 @@ namespace GoF2Remake.Multiplayer
         internal static void Tick(NetState state)
         {
             if (!Active) return;
+            LastSessionWasCoop = true;
             if ((storyTimer -= Time.unscaledDeltaTime) <= 0f)   // ten times a second (the State is serialized to compare)
             {
                 storyTimer = StorySeconds;
