@@ -84,6 +84,9 @@ namespace GoF2Remake.UI
             Heading(ship, s.IsOverride ? string.Format(T("mbChanges", "Changes {0}"), GameNames.Ship(s.OverrideIndex)) : T("mbNewShipSub", "New ship"));
             var name = Text(ship, T("mbName", "Name"), s.Name, 40, v => { s.Name = v.Trim(); RebuildShips(); MarkDirty(); });
             if (s.IsOverride) name.textEdition.placeholder = GameNames.Ship(s.OverrideIndex);
+            // Remake: the dim tag after its name in the lists (ships.json "tag"; empty = the mod's Ship tag, Mod details)
+            var tag = Text(ship, T("mbShipTag", "Tag after the name"), s.Tag, 24, v => { s.Tag = v.Trim(); MarkDirty(); });
+            tag.textEdition.placeholder = Project.ShipTag;
             Text(ship, T("mbDescription", "Description"), s.Description, 600, v => { s.Description = v; MarkDirty(); }, true);
             if (!s.IsOverride) ShipRaceField(s);   // a game race or a mod's own (ModBuilderViewRaces)
             Heading(ship, T("mbStats", "Stats"));

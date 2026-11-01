@@ -1931,6 +1931,8 @@
  "mbUndone": "تم التراجع.",
  "mbUpdating": "جارٍ تحديث المعاينة…",
  "mbWebsite": "الموقع",
+ "mbModShipTag": "وسم السفن (باهت بعد أسماء سفنها: GoF3، HD...)",
+ "mbShipTag": "وسم بعد الاسم",
  "mbAiActivity": "ما فعله الذكاء الاصطناعي",
  "mbAiChanged": "الذكاء الاصطناعي: {0}",
  "mbAiClaudeCode": "Claude Code (طرفية في المجلد الذي تعمل فيه)",

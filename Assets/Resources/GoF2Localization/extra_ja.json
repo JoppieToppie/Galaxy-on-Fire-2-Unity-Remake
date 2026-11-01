@@ -1931,6 +1931,8 @@
  "mbUndone": "元に戻しました。",
  "mbUpdating": "プレビューを更新中…",
  "mbWebsite": "ウェブサイト",
+ "mbModShipTag": "艦タグ（このMODの艦名の後に薄く表示: GoF3、HD…）",
+ "mbShipTag": "名前の後のタグ",
  "mbAiActivity": "AI が行ったこと",
  "mbAiChanged": "AI：{0}",
  "mbAiClaudeCode": "Claude Code（作業フォルダーで開いたターミナル）",

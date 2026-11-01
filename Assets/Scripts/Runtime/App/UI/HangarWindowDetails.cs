@@ -85,7 +85,7 @@ namespace GoF2Remake.UI
             {
                 var s = db.Ship(selected.ship);
                 detailIcon.style.backgroundImage = new StyleBackground(ItemInfo.ShipIcon(selected.ship));
-                detailName.text = ItemInfo.ShipName(selected.ship);
+                detailName.text = ItemInfo.TaggedShipName(selected.ship);
                 detailSub.text = ItemInfo.ShipRaceText(selected.ship);
                 var hullMods = selected.kind == RowKind.OwnShip ? Session.ShipMods
                     : selected.kind == RowKind.ShopShip ? hangar.Stock.ModsOf(selected.ship)

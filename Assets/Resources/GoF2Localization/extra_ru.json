@@ -1931,6 +1931,8 @@
  "mbUndone": "Отменено.",
  "mbUpdating": "Обновление предпросмотра…",
  "mbWebsite": "Сайт",
+ "mbModShipTag": "Метка кораблей (бледная после названий его кораблей: GoF3, HD...)",
+ "mbShipTag": "Метка после названия",
  "mbAiActivity": "Что сделал ИИ",
  "mbAiChanged": "ИИ: {0}",
  "mbAiClaudeCode": "Claude Code (терминал в папке, где вы работаете)",

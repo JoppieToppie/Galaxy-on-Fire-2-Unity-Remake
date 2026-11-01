@@ -1931,6 +1931,8 @@
  "mbUndone": "Ongedaan gemaakt.",
  "mbUpdating": "Voorbeeld wordt bijgewerkt…",
  "mbWebsite": "Website",
+ "mbModShipTag": "Scheepslabel (vaag achter de namen van zijn schepen: GoF3, HD...)",
+ "mbShipTag": "Label achter de naam",
  "mbAiActivity": "Wat de AI deed",
  "mbAiChanged": "AI: {0}",
  "mbAiClaudeCode": "Claude Code (een terminal in de map waarin je werkt)",

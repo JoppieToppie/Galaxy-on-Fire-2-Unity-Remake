@@ -1931,6 +1931,8 @@
  "mbUndone": "Annulé.",
  "mbUpdating": "Mise à jour de l'aperçu…",
  "mbWebsite": "Site web",
+ "mbModShipTag": "Étiquette des vaisseaux (atténuée après le nom de ses vaisseaux : GoF3, HD...)",
+ "mbShipTag": "Étiquette après le nom",
  "mbAiActivity": "Ce que l'IA a fait",
  "mbAiChanged": "IA : {0}",
  "mbAiClaudeCode": "Claude Code (un terminal dans le dossier où tu travailles)",

@@ -1931,6 +1931,8 @@
  "mbUndone": "되돌렸습니다.",
  "mbUpdating": "미리보기 업데이트 중…",
  "mbWebsite": "웹사이트",
+ "mbModShipTag": "함선 태그 (이 모드 함선 이름 뒤에 흐리게: GoF3, HD...)",
+ "mbShipTag": "이름 뒤 태그",
  "mbAiActivity": "AI가 한 일",
  "mbAiChanged": "AI: {0}",
  "mbAiClaudeCode": "Claude Code (작업 중인 폴더의 터미널)",

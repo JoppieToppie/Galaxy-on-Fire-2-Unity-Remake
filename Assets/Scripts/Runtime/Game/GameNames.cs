@@ -20,6 +20,9 @@ namespace GoF2Remake.Data
         public static string Ship(int ship) =>
             Modding.ModContent.ShipText(ship, false, out var t) ? t : ship >= 0 && ship < OriginalShips ? Localization.Get(ShipNameBase + ship) : "#ship" + ship;
 
+        /// <summary>Remake: a mod's tag for the ship ("GoF3", "HD"), shown dim after its name in the lists; null = none.</summary>
+        public static string ShipTag(int ship) => Modding.ModContent.ShipTag(ship);
+
         public static string ShipDescription(int ship) =>
             Modding.ModContent.ShipText(ship, true, out var t) ? t : ship >= 0 && ship < OriginalShips ? Localization.Get(ShipDescriptionBase + ship) : "";
 

@@ -170,6 +170,7 @@ Every mod needs a `mod.json` at its top level:
 | `author`, `website` | Shown in the Mods screen. |
 | `description` | Shown in the Mods screen (a string, or one text per language). |
 | `credits` | Shown in the Mods screen under the description: who made the models, textures or sounds the mod uses, and their licenses. |
+| `shipTag` | A short tag shown smaller and half transparent after the names of the mod's new ships in the hangar, shop and Kaamo lists, the ship details and the status screen: `"GoF3"` shows "Veteran [GoF3]". A string, or one text per language. A ship's own `tag` in ships.json wins. |
 | `preview` | The image shown in the Mods screen, PNG or JPG. Default `preview.png`. 16:9 looks best, for example 640 × 360. |
 | `dependencies` | Ids of mods that must be on too, optionally with the lowest version: `["ship_pack", "frontier_systems>=1.2"]`. They are loaded first, turning this mod on turns them on as well, and turning one of them off turns this mod off. See [Building on other mods](#building-on-other-mods). |
 | `multiplayerIgnore` | Files multiplayer doesn't compare: what only changes how the mod looks, or what the game never reads. `"folder/"` means everything in that folder, `*` any characters: `["parts/", "maps/*.png", "icons/", "preview.png", "tools/"]`. With it a lighter phone build of the mod (smaller models and textures under the same names) plays with the PC build. The data always counts, whatever the list says: `mod.json`'s `id`, `version`, `dependencies` and this list, the `.json` files at the mod's root, and everything in `events/`. See [Multiplayer](#multiplayer). |
@@ -698,6 +699,7 @@ A list of entries, like items.json: `"id"` adds a ship, `"override"` changes one
 | Field | |
 |---|---|
 | `id`, `name`, `description` | As for items. |
+| `tag` | A short tag shown dim after the ship's name in the lists ("Veteran [GoF3]"), so players tell ships from different games or packs apart (`"HD"`, `"Alliances"`, `"Star Wars"`). A string or one text per language (or `ships.<id>.tag` in the mod's text files). None = the mod's `shipTag` (mod.json); `""` = no tag. |
 | `race` | Who builds it: 0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirate, 9 Void, or a [mod's race](#races) (`"guild"`, `"mod_id:guild"`). Prices are 1 % lower in its race's systems. |
 | `armor`, `cargo`, `handling` | Hull points, hold size (t), handling (the originals use 60 to 160). |
 | `price`, `priceDefault` | The price, and the price in the Default Economy (0 = the same). |
@@ -1046,7 +1048,8 @@ and its Terran, Nivelian and Vossk capital ship drives; the EVERSPACE 2 importer
 ### Changing ships
 
 `override`: an original ship's number or another mod's `"mod_id:ship_id"`, with any of `armor`, `cargo`, `price`,
-`priceDefault`, `slots`, `handling`, `name`, `description`, `mounts`, `flightStyle`, `flight` (see
+`priceDefault`, `slots`, `handling`, `name`, `description`, `tag` (a tag after its name, see [New ships](#new-ships); a
+mod that tags the game's own ships: `[ { "override": 45, "tag": "Valkyrie" } ]`), `mounts`, `flightStyle`, `flight` (see
 [Flight styles](#flight-styles)), `sounds` (see [Ship sounds](#ship-sounds)), `camera`, `cockpit`, `smoke`,
 `explosionScale` (see [Camera, cockpit, damage smoke and explosion](#camera-cockpit-damage-smoke-and-explosion)) (and for
 mod ships `race`, `hangarHeight`).

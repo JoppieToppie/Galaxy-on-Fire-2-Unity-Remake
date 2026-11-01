@@ -1931,6 +1931,8 @@
  "mbUndone": "पूर्ववत किया गया।",
  "mbUpdating": "पूर्वावलोकन अपडेट हो रहा है…",
  "mbWebsite": "वेबसाइट",
+ "mbModShipTag": "जहाज़ टैग (इसके जहाज़ों के नाम के बाद हल्का: GoF3, HD...)",
+ "mbShipTag": "नाम के बाद टैग",
  "mbAiActivity": "AI ने क्या किया",
  "mbAiChanged": "AI: {0}",
  "mbAiClaudeCode": "Claude Code (आपके काम वाले फ़ोल्डर में टर्मिनल)",

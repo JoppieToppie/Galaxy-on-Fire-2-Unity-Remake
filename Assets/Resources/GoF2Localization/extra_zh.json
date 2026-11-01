@@ -1931,6 +1931,8 @@
  "mbUndone": "已撤销。",
  "mbUpdating": "正在更新预览…",
  "mbWebsite": "网站",
+ "mbModShipTag": "舰船标签（淡显于其舰船名称之后：GoF3、HD……）",
+ "mbShipTag": "名称后的标签",
  "mbAiActivity": "AI 做了什么",
  "mbAiChanged": "AI：{0}",
  "mbAiClaudeCode": "Claude Code（在你工作的文件夹中打开终端）",

@@ -1931,6 +1931,8 @@
  "mbUndone": "Desfeito.",
  "mbUpdating": "Atualizando a prévia…",
  "mbWebsite": "Site",
+ "mbModShipTag": "Etiqueta das naves (esmaecida após os nomes das suas naves: GoF3, HD...)",
+ "mbShipTag": "Etiqueta após o nome",
  "mbAiActivity": "O que a IA fez",
  "mbAiChanged": "IA: {0}",
  "mbAiClaudeCode": "Claude Code (um terminal na pasta em que você trabalha)",

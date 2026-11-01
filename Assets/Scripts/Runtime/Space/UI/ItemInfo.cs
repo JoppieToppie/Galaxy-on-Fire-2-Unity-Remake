@@ -45,6 +45,11 @@ namespace GoF2Remake.UI
 
         public static string ItemName(int item) => GameNames.Item(item);
         public static string ShipName(int ship) => GameNames.Ship(ship);
+        /// <summary>Remake (TorchOP's request, 2026-10-23): the name with its mod's tag after it, smaller and half transparent
+        /// ("Veteran [GoF3]"), as rich text for a Label; the plain name without a tag (GameNames.ShipTag).</summary>
+        public static string TaggedShipName(int ship) => WithTag(GameNames.Ship(ship), GameNames.ShipTag(ship));
+        public static string WithTag(string name, string tag) =>
+            string.IsNullOrEmpty(tag) ? name : $"{name} <alpha=#80><size=80%><noparse>[{tag}]</noparse></size></alpha>";
 
         /// <summary>The ship's race under its name ("" = none, Shop.ShipMakerRace): the four races, Grey and pirates.</summary>
         public static string ShipRaceText(int ship)

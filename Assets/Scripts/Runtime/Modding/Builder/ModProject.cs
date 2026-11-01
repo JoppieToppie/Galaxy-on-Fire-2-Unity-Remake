@@ -47,6 +47,8 @@ namespace GoF2Remake.Modding
         public string Website { get => Str(manifest, "website") ?? ""; set { if (string.IsNullOrWhiteSpace(value)) manifest.Remove("website"); else manifest["website"] = value.Trim(); } }
         /// <summary>mod.json "credits": who made what (the Mods screen shows it).</summary>
         public string Credits { get => Str(manifest, "credits") ?? ""; set { if (string.IsNullOrWhiteSpace(value)) manifest.Remove("credits"); else manifest["credits"] = value; } }
+        /// <summary>Remake: mod.json "shipTag": the dim tag after its ships' names in the lists (ModContent.ShipTag).</summary>
+        public string ShipTag { get => Str(manifest, "shipTag") ?? ""; set { if (string.IsNullOrWhiteSpace(value)) manifest.Remove("shipTag"); else manifest["shipTag"] = value.Trim(); } }
         /// <summary>The Mods screen's picture (mod.json "preview", default preview.png): its path in the project, or null.</summary>
         public string PreviewImage
         {
@@ -174,6 +176,8 @@ namespace GoF2Remake.Modding
 
         public string Name { get => S("name"); set { if (string.IsNullOrEmpty(value)) json.Remove("name"); else json["name"] = value; } }
         public string Description { get => S("description") ?? ""; set => json["description"] = value ?? ""; }
+        /// <summary>Remake: ships.json "tag" (the dim tag after its name in the lists), "" = none of its own (the mod's).</summary>
+        public string Tag { get => S("tag") ?? ""; set { if (string.IsNullOrEmpty(value)) json.Remove("tag"); else json["tag"] = value; } }
         public string Model { get => S("model"); set { if (string.IsNullOrEmpty(value)) json.Remove("model"); else json["model"] = value; } }
         /// <summary>The shop icon (a 180 x 88 PNG in the project), null = none.</summary>
         public string Icon { get => S("icon"); set { if (string.IsNullOrEmpty(value)) json.Remove("icon"); else json["icon"] = value; } }

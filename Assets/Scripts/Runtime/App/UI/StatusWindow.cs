@@ -134,7 +134,7 @@ namespace GoF2Remake.UI
             var shipLines = new VisualElement { pickingMode = PickingMode.Ignore };
             shipLines.AddToClassList("status-ship-lines");
             shipBox.Add(shipLines);
-            Line(shipLines, ItemInfo.ShipName(Session.ShipIndex), true);
+            Line(shipLines, ItemInfo.TaggedShipName(Session.ShipIndex), true);
             StatLine(shipLines, T(569), ((int)Shop.FirePower(db)).ToString());
             StatLine(shipLines, T(570), Shop.CombinedHp(db).ToString());
 

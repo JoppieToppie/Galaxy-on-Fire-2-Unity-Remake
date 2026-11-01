@@ -1931,6 +1931,8 @@
  "mbUndone": "Annullato.",
  "mbUpdating": "Aggiornamento dell'anteprima…",
  "mbWebsite": "Sito web",
+ "mbModShipTag": "Etichetta delle navi (tenue dopo i nomi delle sue navi: GoF3, HD...)",
+ "mbShipTag": "Etichetta dopo il nome",
  "mbAiActivity": "Cosa ha fatto l'IA",
  "mbAiChanged": "IA: {0}",
  "mbAiClaudeCode": "Claude Code (un terminale nella cartella in cui lavori)",

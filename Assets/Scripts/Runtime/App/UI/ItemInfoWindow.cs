@@ -172,7 +172,7 @@ namespace GoF2Remake.UI
             if (s == null) return;
             Begin();
             icon.style.backgroundImage = new StyleBackground(ItemInfo.ShipIcon(ship));
-            nameLabel.text = ItemInfo.ShipName(ship);
+            nameLabel.text = ItemInfo.TaggedShipName(ship);
             subLabel.text = ItemInfo.ShipRaceText(ship);
             var cur = Modding.ModShipKits.Effective(db.Ship(Session.ShipIndex));   // a customizable ship: as its build makes it
             s = Modding.ModShipKits.Effective(s);

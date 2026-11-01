@@ -138,6 +138,12 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   *behaviour* should use `Look`; story / rule checks keep the real index.
 - **Names** (`GameNames`): every item / ship name and description goes through it (the original's text blocks 1274 / 1041 /
   913 / 977 + index sit back to back: item 233's name would be the first medal's); never `Localization.Get(1274 + i)`.
+- **Ship tags** (remake, TorchOP's request 2026-10-23: tell SH / HD / Alliances / GoF3 ships apart): `GameNames.ShipTag`
+  (`ModContent.ShipTag`): an override's ships.json `"tag"` (the last mod's, `shipRetags`), else a new ship's own `"tag"`,
+  else its mod.json `"shipTag"`; `""` = none; translated like the name (`ships.<id>.tag`). `ItemInfo.TaggedShipName`
+  adds it as rich text (`<alpha=#80><size=80%>`, the tag in `<noparse>`) to the hangar / shop / Kaamo rows, the hangar
+  details, the item window and the status screen; everywhere else (toasts, selectors, chat, saves) keeps the plain name.
+  Mod Builder: the ship page's "Tag after the name", Mod details' "Ship tag". Tests `ShipTagTests`.
 - **Numbers** (`ModRegistry`, `persistentDataPath/mod_registry.json`, outside the Mods folder): single player gives each "mod:id" key the next free
   number after the original table (233+) for good; a key whose mod is off gets a placeholder (`ModContent.IsMissingItem`:
   commodity 22, no price, never stocked) so the table stays 0..N-1 and saves keep their numbers. Sessions number afresh in the
