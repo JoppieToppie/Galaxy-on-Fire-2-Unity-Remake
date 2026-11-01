@@ -17,11 +17,13 @@ namespace GoF2Remake.Modding
         {
             if (mappedRevision == ModManager.Revision && originalItems >= 0 && originalShips >= 0) return;
             if (originalItems < 0 || originalShips < 0) { Database.Load(); if (originalItems < 0 || originalShips < 0) return; }   // Load sets them
+            _ = ModManager.Active;   // read first: the first read may scan the mods, a new revision, and map all this again inside the loops
             mappedRevision = ModManager.Revision;
             itemIndex.Clear(); itemDefAt.Clear(); placeholderItems.Clear(); itemLook.Clear(); itemRenames.Clear(); deedAt.Clear();
             bool session = ModManager.InSession;
             int next = originalItems;
-            foreach (var mod in ModManager.Active)
+            // A session numbers afresh: its mods first, so they keep the numbers they had before there was any base content.
+            foreach (var mod in ModManager.Active.OrderBy(m => m.IsBase))
                 foreach (var d in Parse(mod).items)
                 {
                     if (d.key == null) continue;

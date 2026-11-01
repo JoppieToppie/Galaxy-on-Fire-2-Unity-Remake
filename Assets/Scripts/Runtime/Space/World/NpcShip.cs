@@ -214,6 +214,8 @@ namespace GoF2Remake.World
         public readonly List<Gun> ExtraGuns = new List<Gun>();
         /// <summary>The ship's model (its pose is what a multiplayer proxy follows), else the ship itself.</summary>
         public Transform Model => model != null ? model : transform;
+        /// <summary>Remake: the warp holds every ship's fire (Traffic.HoldFire).</summary>
+        bool HoldFire => traffic != null && traffic.HoldFire;
         /// <summary>Resources path of the assembled prefab it was built from (Traffic), for multiplayer proxies.</summary>
         public string ModelPath { get; set; }
         /// <summary>A freelance mission's ship (FreelanceOrbit): multiplayer never takes it over from its player.</summary>
@@ -349,7 +351,13 @@ namespace GoF2Remake.World
             RadarHidden = spec.radarHidden;
             if (prefab != null)
             {
-                modelGo = Instantiate(prefab, transform, false);
+                modelGo = spec.standIn != null ? spec.standIn : Instantiate(prefab, transform, false);
+                if (spec.standIn != null)
+                {
+                    modelGo.transform.SetParent(transform, false);
+                    SystemApproach.Wake(spec);
+                    spec.standIn = null;
+                }
                 var asm = modelGo.GetComponent<AssembledObject>();
                 // The option, or a model with no NPC engine part at all (the Kaamo Club's 55-63: only the engine glow).
                 playerEngines = (Settings.NpcPlayerEngines || (asm != null && !asm.HasNpcExhaust)) && spec.fixedObject == null && spec.turretAssembly == null
@@ -589,7 +597,7 @@ namespace GoF2Remake.World
                 // AEGeometry::moveForward never touches the fighter's speed (+0x1e0): released, the AI flies at its own
                 // speed again (keeping the scripted one left Harval at ~9 u/ms in 158 and 154's fighters at 0).
                 transform.position += transform.forward * scriptedSpeed * dtMs * M;
-                if (scriptedFire && gun != null && gun.TryFire(transform) >= 0)
+                if (scriptedFire && !HoldFire && gun != null && gun.TryFire(transform) >= 0)
                 {
                     int shot = NpcTables.ShotSound(Race);
                     var clip = assets != null && assets.shots != null && shot < assets.shots.Length ? assets.shots[shot] : null;

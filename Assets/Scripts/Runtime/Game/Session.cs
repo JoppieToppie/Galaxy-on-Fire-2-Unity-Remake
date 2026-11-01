@@ -361,6 +361,8 @@ namespace GoF2Remake.Data
         /// <summary>Remake: the next Space scene is an arrival out of interstellar space, at speed, with no camera of its own and
         /// the warp easing out (Visuals.WarpSky). Read once by SpaceLevel, never saved.</summary>
         public static bool WarpArrival;
+        /// <summary>... from a cruise to the planet of a station in the same system (Navigation.RunPlanet): it faces that planet.</summary>
+        public static bool WarpLocal;
         /// <summary>Remake: that arrival's ship against its course (Navigation.Leave), so the view doesn't turn at the swap.</summary>
         public static Quaternion WarpHeading = Quaternion.identity;
         /// <summary>Remake: and the chase view in the ship's frame, so the ship stays where it is on the screen.</summary>
@@ -556,7 +558,7 @@ namespace GoF2Remake.Data
             InstantJump = false;
             EnergyCellsForNextJump = 0;
             EnterInterstellar = false;
-            WarpArrival = false;
+            WarpArrival = WarpLocal = false;
             WarpHeading = WarpViewTurn = Quaternion.identity;
             WarpView = Vector3.zero;
             JumpgatesUsed = 0;

@@ -328,8 +328,13 @@ namespace GoF2Remake.World
                 root.transform.SetPositionAndRotation(start, Quaternion.LookRotation(-start.normalized, Vector3.up));
             }
             // Remake: a fly-in out of interstellar space starts as far out as its speed carries it, to end where arrivals do.
-            if (warpArrival && InterstellarSpace.Drive(db) is ItemData warpDrive)
+            if (warpArrival && Shop.MountedCruiseDrive(db) is ItemData warpDrive)
             {
+                if (LocalArrival)
+                {
+                    Layout.PlanetArrivalPose(Session.PreviousStationIndex, out var run, out var runFacing);
+                    root.transform.SetPositionAndRotation(run, runFacing);
+                }
                 root.transform.position -= root.transform.forward * InterstellarSpace.CarryMeters(warpDrive.Attr(CruiseDrive.SpeedAttr), WarpSky.ArrivalCarryMs);
                 root.transform.rotation *= Session.WarpHeading;   // still pointing the way it was, off its course or not
             }

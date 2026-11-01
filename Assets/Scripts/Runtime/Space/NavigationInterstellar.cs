@@ -98,13 +98,18 @@ namespace GoF2Remake.Flight
 
         void Leave(Target system)
         {
-            LeavingInterstellar = true;
             SetAutopilot(null);
-            var way = system.Position - ship.transform.position;
+            LeaveAlong(system.Position - ship.transform.position, system.station);
+        }
+
+        /// <summary>Out of this level at speed into 'station''s orbit, the ship flying along 'way'.</summary>
+        void LeaveAlong(Vector3 way, int station)
+        {
+            LeavingInterstellar = true;
             if (way.sqrMagnitude > 1f) Session.WarpHeading = Quaternion.Inverse(Quaternion.LookRotation(way, Vector3.up)) * ship.transform.rotation;
             Session.WarpView = ship.transform.InverseTransformPoint(chase.transform.position);
             Session.WarpViewTurn = Quaternion.Inverse(ship.transform.rotation) * chase.transform.rotation;
-            SystemReached?.Invoke(system.station);
+            SystemReached?.Invoke(station);
         }
 
         /// <summary>No cells for the next leg: the ship falls out at the nearest system, so nobody is stranded between them.</summary>

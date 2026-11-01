@@ -39,6 +39,7 @@ namespace GoF2Remake.Tests
         IEnumerator EnterSpace(int station, int cells)
         {
             FreePlayAt(station);
+            Session.Difficulty = Session.DifficultyNormal;   // Extreme, left by an edit-mode test, pays a leg twice
             MountDrive(cells);
             Session.EnterInterstellar = true;
             yield return Load("Space");
@@ -69,10 +70,33 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(InterstellarSpace.Systems(space.Database).Count, systems.Count);
             Assert.IsNotNull(Find<InterstellarField>());
             Assert.AreEqual(0, Object.FindObjectsByType<NpcShip>().Length, "no traffic");
+            Assert.IsNull(space.Fog, "no fog: nothing but distance");
+            Assert.IsTrue(space.WarpHolds && space.Weapons.Blocked, "no firing in the warp");
+            Assert.AreEqual(1f, Shader.GetGlobalFloat("_WarpLevel"), "the warp is always full here");
+            Assert.IsNotNull(GameObject.Find("Warp web"), "the vein web, over the planets");
             Assert.IsNotNull(space.Navigation.Drive, "the mounted drive");
             Assert.AreEqual((int)InterstellarSpace.LegUnits, space.Navigation.Drive.legUnits, "a leg is a hop here");
             Assert.LessOrEqual(space.Navigation.MenuEntries().Count, 8);
             Assert.IsFalse(space.Navigation.MenuEntries(true).Exists(t => t.kind == Navigation.Kind.Slipstream), "already here");
+        }
+
+        [UnityTest]
+        public IEnumerator TheGamesOwnDriveDoesBothCruisesWithNoModOn()
+        {
+            FreePlayAt(78);
+            Session.Equipment.Add(new ItemStack(ModContent.ItemIndexOf("gof2:khador_slipstream"), 1));
+            Session.Cargo.Add(new ItemStack(GalaxyMap.EnergyCellItem, 5));
+            Assert.IsEmpty(ModManager.UserMods);
+            Session.LaunchedFromStation = true;
+            yield return Load("Space");
+            yield return WaitFor(() => Find<SpaceLevel>() != null && Find<SpaceLevel>().Navigation != null, 60f, "the orbit");
+            Assert.IsNotNull(Find<SpaceLevel>().Navigation.Drive, "a cruise in the orbit");
+            Assert.IsFalse(Find<SpaceLevel>().Layout.interstellar);
+            Session.EnterInterstellar = true;
+            yield return Load("Space");
+            yield return WaitFor(() => Find<SpaceLevel>() != null && Find<SpaceLevel>().Navigation != null, 60f, "the space between the systems");
+            Assert.IsTrue(Find<SpaceLevel>().Layout.interstellar);
+            Assert.IsNotNull(Find<SpaceLevel>().Navigation.Drive);
         }
 
         [UnityTest]
@@ -108,6 +132,27 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(78, Session.PreviousStationIndex);
             Assert.IsTrue(Find<SpaceLevel>().LaunchCameraOver, "no fly-in: the flight goes on");
             Assert.IsFalse(Session.WarpArrival, "read once");
+            var fog = Find<SpaceLevel>().Fog.GetComponent<MeshRenderer>().sharedMaterial;
+            float full = Find<SpaceLevel>().Layout.dustFogTint.a;
+            Assert.Less(fog.GetColor("_Color").a, full * 0.5f, "the fog eases in with the arrival");
+            var arrived = Find<SpaceLevel>();
+            yield return null;
+            Assert.IsTrue(arrived.WarpHolds && arrived.Weapons.Blocked && arrived.Traffic.HoldFire && arrived.Navigation.ArrivalHeld, "the warp holds everything");
+            arrived.Navigation.SetAutopilot(arrived.Navigation.Targets[0]);
+            Assert.IsNull(arrived.Navigation.AutopilotTarget, "no autopilot till it ends");
+            Assert.IsTrue(arrived.Navigation.RadarOff, "no markers on the station or gate till it ends");
+            var stationFull = arrived.Station != null ? arrived.Station.transform : null;
+            float stationSize = stationFull != null ? stationFull.localScale.x : 0f;
+            var ships = arrived.Traffic.Ships;
+            Assert.IsFalse(ships.Exists(s => Traffic.Enemy(s.Spec)), "no enemies until the warp has ended");
+            yield return Run(1f);
+            Assert.Greater(ships.Count, 0, "the normal traffic is here");
+            Assert.IsTrue(ships.TrueForAll(s => s.RadarHidden || s.Spec.radarHidden), "and off the radar until then");
+            yield return WaitFor(() => Mathf.Approximately(fog.GetColor("_Color").a, full), 10f, "the orbit's full fog");
+            yield return null;
+            Assert.IsFalse(ships.Exists(s => s.RadarHidden && !s.Spec.radarHidden), "on the radar once the warp has ended");
+            Assert.IsFalse(arrived.WarpHolds || arrived.Weapons.Blocked || arrived.Traffic.HoldFire || arrived.Navigation.RadarOff, "and everything free again");
+            if (stationFull != null) Assert.Greater(stationFull.localScale.x, stationSize * 1.5f, "the station grew to its own size");
             Assert.IsNotNull(Find<WarpSky>(), "the warp eases out here");
         }
 
@@ -126,6 +171,10 @@ namespace GoF2Remake.Tests
             yield return WaitFor(() => GameObject.Find("Approach") is GameObject a && a.transform.Find("Asteroids") != null, 10f, "the approach");
             yield return Run(2f);
             var approach = GameObject.Find("Approach").transform;
+            var ahead = GameObject.Find("Arrival ships");
+            Assert.IsNotNull(ahead, "the normal traffic is out there before the arrival");
+            int shipsAhead = ahead.transform.childCount;
+            Assert.Greater(shipsAhead, 0);
             var station = approach.Find("Station");
             var seen = station != null ? ship.InverseTransformPoint(station.position) : Vector3.zero;
             var rocks = approach.Find("Asteroids");
@@ -136,10 +185,15 @@ namespace GoF2Remake.Tests
             yield return WaitFor(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null, 30f, "the arrival");
             var orbit = Find<SpaceLevel>();
             yield return null;
+            var stationAfter = orbit.Station != null ? orbit.Player.transform.InverseTransformPoint(orbit.Station.transform.position) : Vector3.zero;
+            yield return Run(1f);
+            Assert.IsNull(GameObject.Find("Arrival ships"), "all taken over");
+            Assert.IsFalse(GameObject.Find("Ship ahead"), "no stand-in left behind");
+            Assert.GreaterOrEqual(orbit.Traffic.Ships.Count, shipsAhead, "the same ships flying on");
             Assert.AreEqual(count, orbit.Asteroids.childCount, "the same field");
             if (count > 0) Assert.AreEqual(0f, (rock - orbit.Asteroids.GetChild(0).position).magnitude, 1f);
             if (station != null || orbit.Station != null)
-                Assert.Less((seen - orbit.Player.transform.InverseTransformPoint(orbit.Station.transform.position)).magnitude, 300f, "the swap moved the station");
+                Assert.Less((seen - stationAfter).magnitude, 300f, "the swap moved the station");
             Assert.AreEqual(0f, Shader.GetGlobalFloat("_SkyBlend"), "the orbit's own sky now");
         }
 

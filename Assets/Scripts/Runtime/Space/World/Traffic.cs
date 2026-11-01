@@ -50,7 +50,8 @@ namespace GoF2Remake.World
 
         /// <summary>'storyOrbit': the orbit is built around a campaign mission (Level::init calls createCampaignMission
         /// instead of createMission), so no normal traffic; the campaign level spawns its ships with SpawnShip. 'oneAFrame':
-        /// remake, the ships come in over the next frames (Update) instead of in this one (an arrival at speed: SystemApproach).</summary>
+        /// remake, the ships come in over the next frames (Update) instead of in this one, the enemies only once the warp has
+        /// ended (ReleaseEnemies: an arrival at speed, SystemApproach).</summary>
         public void Setup(Database database, OrbitLayout layout, Target player, GameObject station, bool storyOrbit = false, Wormhole wormhole = null, bool oneAFrame = false)
         {
             db = database;
@@ -77,21 +78,68 @@ namespace GoF2Remake.World
             fxRoot = new GameObject("NPC weapon fx").transform;
             fxRoot.SetParent(transform, false);
             IsStoryOrbit = storyOrbit;
-            if (!storyOrbit)
-                foreach (var spec in TrafficPlan.Build(db, StationIndex, sys, player != null ? new Vector3(player.transform.position.x, player.transform.position.y, -player.transform.position.z) / 0.05f : Vector3.zero,
-                                                       wormhole != null && wormhole.Visible ? wormhole.GamePosition : (Vector3?)null)) waiting.Enqueue(spec);
+            var flownPast = SystemApproach.TakeShips();
+            if (!storyOrbit && flownPast != null && oneAFrame)
+            {
+                // The plan the approach made: the ones already out there first, in their place.
+                foreach (var spec in flownPast.FindAll(s => s.standIn != null)) waiting.Enqueue(spec);
+                foreach (var spec in flownPast.FindAll(s => s.standIn == null)) waiting.Enqueue(spec);
+            }
+            else if (!storyOrbit)
+            {
+                var plan = TrafficPlan.Build(db, StationIndex, sys, player != null ? new Vector3(player.transform.position.x, player.transform.position.y, -player.transform.position.z) / 0.05f : Vector3.zero,
+                                             wormhole != null && wormhole.Visible ? wormhole.GamePosition : (Vector3?)null);
+                foreach (var spec in plan) waiting.Enqueue(spec);
+            }
+            if (!oneAFrame || waiting.Count == 0) SystemApproach.DropShips();
             music = gameObject.AddComponent<AudioSource>();
             music.loop = true;
             music.playOnAwake = false;
             music.spatialBlend = 0f;
             orbit = layout;
-            if (oneAFrame && waiting.Count > 0) return;
+            if (oneAFrame && waiting.Count > 0) { holdEnemies = true; return; }
             while (waiting.Count > 0) Create(waiting.Dequeue());
             ShipsPlaced();
         }
 
         OrbitLayout orbit;
         readonly Queue<SpawnSpec> waiting = new Queue<SpawnSpec>();
+        readonly List<SpawnSpec> heldEnemies = new List<SpawnSpec>();
+        readonly List<NpcShip> offRadar = new List<NpcShip>();
+        readonly ArrivalScale arrivalScale = new ArrivalScale();
+
+        /// <summary>No ship fires while the warp holds (SpaceLevel.WarpHolds).</summary>
+        public bool HoldFire { get; set; }
+
+        /// <summary>The ships here growing with the arrival, as its station does (Visuals.WarpSky).</summary>
+        public void SetArrivalSize(float size) => arrivalScale.Apply(size);
+        bool holdEnemies;
+
+        /// <summary>The warp of an arrival has ended: the enemies held back come in, and the ships already here show on the
+        /// radar (a whole orbit's blips at the load gave it away).</summary>
+        public void ReleaseEnemies()
+        {
+            if (!holdEnemies) return;
+            holdEnemies = false;
+            foreach (var ship in offRadar) if (ship != null) ship.RadarHidden = false;
+            offRadar.Clear();
+            arrivalScale.Restore();
+            foreach (var spec in heldEnemies) waiting.Enqueue(spec);
+            heldEnemies.Clear();
+            if (waiting.Count == 0) ShipsPlaced();
+        }
+
+        /// <summary>What the approach builds ahead of the arrival (SystemApproach), by what a ship is and never by where it came
+        /// from, so a mod's ships are in it whatever they are: anything friendly in the orbit from the start. Not what isn't there
+        /// yet (a jumper, one asleep or held by a script), what the arrival alone can decide (a Most Wanted criminal, an event), a
+        /// turret or a part on a hull, a fleet battle's. What this leaves out, or whose model isn't ready, grows in instead
+        /// (ArrivalScale.Add), and enemies wait for the warp's end.</summary>
+        public static bool Carried(SpawnSpec spec) => !Enemy(spec) && !spec.startsDead && !spec.inactive && !spec.asleep && spec.wantedIndex < 0 && spec.pirateEvent == 0
+            && spec.turretAssembly == null && spec.capitalHost == null && spec.battleFoe == null;
+
+        /// <summary>A ship that will be hostile as it comes in (NpcShip's targeting, by the race and flags it starts with).</summary>
+        public static bool Enemy(SpawnSpec spec) => !spec.alwaysFriend && !spec.alwaysNeutral && (spec.alwaysEnemy || spec.race == Standing.Pirate
+            || spec.race == Standing.Void || spec.race == Standing.Specter || Standing.IsEnemy(spec.race));
 
         /// <summary>What goes by the orbit's ships, once they are all there.</summary>
         void ShipsPlaced()
@@ -147,15 +195,22 @@ namespace GoF2Remake.World
             return ship;
         }
 
-        NpcShip Create(SpawnSpec spec)
+        /// <summary>A spec's look, picked once: the approach's stand-in and the ship that takes it over are the same one.</summary>
+        public static AssemblyData AssemblyOf(Database db, SpawnSpec spec)
         {
-            var entry = spec.turretAssembly != null ? db.AssemblyByName(spec.turretAssembly)
+            if (spec.assembly != null) return spec.assembly;
+            return spec.assembly = spec.turretAssembly != null ? db.AssemblyByName(spec.turretAssembly)
                       : spec.ship == 14 ? db.AssemblyByName("battleship_terran")
                       : spec.fixedObject != null ? db.AssemblyByName(spec.fixedObject)
                       // Ship 13 is the Vossk freighter whatever the race (Globals::getShipGroup; its boxes too): step 40's
                       // Errkt flies it as race 0 until it appears (createShip(0, 1, 0xd)) and showed the Terran model.
                       : spec.freighter && !spec.modCapital ? db.AssemblyByName(NpcTables.FreighterAssembly(spec.ship == 13 ? 1 : spec.race))
-                                       : Modding.ModTraffic.Assembly(spec.ship) ?? ShipAssembly(spec.ship, spec.race);   // remake mods: a kit ship's random build
+                                       : Modding.ModTraffic.Assembly(spec.ship) ?? ShipAssembly(db, spec.ship, spec.race);   // remake mods: a kit ship's random build
+        }
+
+        NpcShip Create(SpawnSpec spec)
+        {
+            var entry = AssemblyOf(db, spec);
             var prefab = AssembledObject.LoadPrefab(entry);
             // Remake: a turret object built from a turret item shows the item's turret (a mod's own model too).
             var itemTurret = spec.turretAssembly != null && spec.turretItem >= 0 ? WeaponFx.Load(spec.turretItem)?.turretMounted : null;
@@ -284,7 +339,7 @@ namespace GoF2Remake.World
             }
         }
 
-        AssemblyData ShipAssembly(int ship, int race)
+        static AssemblyData ShipAssembly(Database db, int ship, int race)
         {
             string raceName = race switch { 0 => "terran", 1 => "vossk", 2 => "nivelian", 3 => "midorian", 9 => "void", _ => "pirate" };
             return db.ShipAssembly(ship, raceName);
@@ -358,8 +413,24 @@ namespace GoF2Remake.World
         {
             if (waiting.Count > 0)
             {
-                Create(waiting.Dequeue());
-                if (waiting.Count == 0) ShipsPlaced();
+                var spec = waiting.Dequeue();
+                if (holdEnemies && Enemy(spec)) heldEnemies.Add(spec);
+                else
+                {
+                    bool builtAhead = spec.standIn != null;
+                    var ship = Create(spec);
+                    if (holdEnemies && !spec.radarHidden)
+                    {
+                        ship.RadarHidden = true;
+                        offRadar.Add(ship);
+                        arrivalScale.Add(ship.Model, !builtAhead);
+                    }
+                }
+                if (waiting.Count == 0)
+                {
+                    SystemApproach.DropShips();
+                    if (!holdEnemies) ShipsPlaced();
+                }
             }
             float dtMs = Time.deltaTime * 1000f;
             Navigation.SyncMusic(music, ref musicHeld);   // on through conversations, paused by the pause menu

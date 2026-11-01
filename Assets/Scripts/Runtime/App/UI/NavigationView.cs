@@ -229,7 +229,7 @@ namespace GoF2Remake.UI
             foreach (var m in markers)
             {
                 var t = m.target;
-                if (t.hidden)
+                if (t.hidden || nav.ArrivalHeld)   // remake: an orbit's markers wait for its warp's end, or they give the load away
                 {
                     if (m.bracket != null) m.bracket.style.display = DisplayStyle.None;
                     if (m.icon != null) m.icon.style.display = DisplayStyle.None;

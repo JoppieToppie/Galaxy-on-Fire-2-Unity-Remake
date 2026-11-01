@@ -14,6 +14,15 @@ namespace GoF2Remake.World
     {
         const float M = OrbitLayout.MetersPerUnit;
 
+        Color full;
+
+        /// <summary>The sprites' strength, 0..1: an arrival from between the systems eases its fog in (Visuals.WarpSky).</summary>
+        public void Fade(float amount)
+        {
+            var mat = GetComponent<MeshRenderer>().sharedMaterial;
+            if (mat != null) mat.SetColor("_Color", new Color(full.r, full.g, full.b, full.a * amount));
+        }
+
         public void Build(Material material, int count, float minSizeUnits, float maxSizeUnits, Color color,
                           float radiusUnits, float fadeOutStartUnits, float fadeInEndUnits)
         {
@@ -49,6 +58,7 @@ namespace GoF2Remake.World
             mr.receiveShadows = false;
             if (mr.sharedMaterial == null) return;
             var mat = mr.sharedMaterial;
+            full = color;
             mat.SetColor("_Color", color);
             mat.SetFloat("_Radius", r);
             mat.SetFloat("_FadeOutStart", fadeOutStartUnits * M);

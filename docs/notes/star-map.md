@@ -103,7 +103,8 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   outside the gate routes give 612; a gate neighbour picked on the Khador map goes by the jumpgate. Mission blocks: 525
   at the gate and on the Khador entry.
 - **Interstellar space** (`InterstellarSpace`, 2026-10-31, the user's idea; no original behaviour): a mounted cruise drive
-  with attr 135 (`CruiseDrive.InterstellarAttr`, the ES2 importer's Khador Slipstream) adds a quick menu entry
+  with attr 135 (`CruiseDrive.InterstellarAttr`, the base game's Khador Slipstream, "Base content" in mods.md, one drive for both cruises:
+  Khador sells the blueprint in Thynome's lounge, from step 84 or in free play, as Kothar has none, `Story.LoungeUnlocked`) adds a quick menu entry
   (`Navigation.Kind.Slipstream`, `NavigationInterstellar`); no option, the item is the switch. The Khador charge and scene
   play (`SystemJump.toInterstellar`), then `Session.EnterInterstellar` reloads Space, read once in `SpaceLevel.Awake`:
   `InterstellarSpace.Clear` empties the orbit left (`OrbitLayout.interstellar`), which stays `Session.StationIndex`, so a
@@ -136,7 +137,7 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   `WarpView`, `ChaseCamera.CarryView`), the boost look too (`FlightModel.CarryCruiseLook`: it fell to 0, a 20 degree zoom at the
   swap), the warp's flow and its sound (`WarpSky.CarrySound`). So frames either side of the swap match but for the HUD and the
   first frames of the flames (checked frame by frame, 2026-10-31). A fall out of the slipstream has no approach: the old ice-blue
-  dissolve (`WarpSky.Setup`, 'unseen'). Not carried: `SkyLayers` (ring skies, storms), the orbit's NPCs, the lens flare.
+  dissolve (`WarpSky.Setup`, 'unseen'). Not carried: `SkyLayers` (ring skies, storms). The lens flare eases in over the arrival (`Backdrop.flareShown`): this space has none, so its glare greyed the screen in one frame at the swap.
   **The swap's stall** (`SpaceLevel.SwapScene`, Editor, with the player's mods): a plain `LoadScene` held ~870 ms, ~600 of it
   the unused-asset sweep after `Awake`, so it loads additively (no sweep), destroys the old roots first thing in `Awake`
   (`ClearReplaced`; the two levels never run together) and sets the sky and lights again once the scene is active, as
@@ -148,10 +149,32 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   about the nose, squeezed into radial streaks in two crossfading phases, level 0 being the plain sky, so nothing cuts; ships,
   planets and suns draw over it sharp. Between the systems only (`_WarpKhador`; the user: not in the orbit's cruise) it keeps
   the Khador animation's blue vein web (the fx's own sheet) and ice blue: the beams, star sparks, core and ring were tried and
-  removed. Always 1 between the systems; in an orbit the drive's ramp (any cruise drive). A mod's `warp.json` (`ModWarp`) shapes it, else noise made at runtime. Nearing a
+  removed. The bands only shade the sky and nothing is added to it, in an orbit too: the user rejected the white streaks and
+  kept the stretching. Those were thin lines from a mod's image in the sky shader, spread into wide beams by bloom, not the
+  stretched sky: a sky with the stretch removed still showed them. The planets grow from a speck, half at the swap, full as the arrival eases
+  out (`ApproachSize`, `ArrivalSize`, `Backdrop.planetSize`; the user: fading in at full size was jarring). The flight in faces
+  as a jump's arrival does, the station (the planet dead ahead was tried and dropped once it scaled). The station, gate, asteroids, ships and sun start small too and grow the same
+  way (`ArrivalScale`, each about its own centre, so positions, hit boxes and routes stay real; `sunScaleFactor`). The warp holds
+  all (`SpaceLevel.WarpHolds`, the user): no firing, nobody fires or is hurt, and no drive or autopilot till an arrival's has
+  ended, so nothing can meet the scaled objects. Normal traffic is built ahead, one a frame
+  (`Traffic.Carried`, on a root that survives the load), and `NpcShip.Setup` takes over the same models, so none pops in; all else
+  of the plan is built at the swap as ever (a Wanted criminal moves on arrival). An arrival's enemies wait for the warp's end (`Traffic.ReleaseEnemies`,
+  `Traffic.Enemy`, the user), friendly traffic still one a frame, and neither ships nor the station and gate show on the radar or as markers till then
+  (`NpcShip.RadarHidden`, `Navigation.RadarHidden`: the user called them the biggest tell); a mission's or a multiplayer orbit's ships aren't held. The web is a layer of its own (`GoF2/WarpWeb`, the
+  user: planets stood over it inside the sky): added after the planets, at the far plane, behind all with depth. No fog between the
+  systems (`OrbitBuilder.SpawnDust`, the user: it should feel like crossing vast distances): an arrival's `SpaceFog` eases in
+  over `ArrivalCarryMs` (`WarpSky`, `SpaceDust.Fade`), as its sprites are placed at random, so none built on the approach could
+  match the orbit's. Always 1 between the systems; in an orbit the drive's ramp (any cruise drive). Its two band images are
+  the game's own (`Data.WarpBands`, 2026-11-01: random phases through an inverse FFT, made once a run; the veins are field
+  zero-crossings, as plain noise with ES2's spectrum came out clumpy), so the warp uses no ES2 art; a mod's `warp.json`
+  (`ModWarp`) can replace them. The warp has no sound of its own, only a mod's. Nearing a
   system (20 km) its sky blends in, `InterstellarField` loading it as the arrival orbit builds it (`OrbitBuilder.MakeSky`,
   `_SkyBlend`, runtime layer modes for a mod's images), so an arrival finds the same sky; a new target fades the last out
-  first. `ChaseCamera` carries a cruise's extra movement so the follow's lag stays as at the ship's own speed.
+  first. The traffic ahead goes by what a ship is, never its source, so a mod's are in it (`Traffic.Carried`; the arrival takes the
+  approach's whole plan, as escorts name their hulls); what it can't build grows out of nothing (`ArrivalScale.Add` growIn), and
+  LODGroups never cull what it scales (2026-11-01: they hid shrunk ships until they popped in). Stand-ins sleep
+  (`SystemApproach.Sleep` / `Wake`: every MonoBehaviour, trail and particle system on them, a mod's or not): ES2's world-space
+  engine ribbons drew kilometres of flame from the root's sweep, only where the run lay along the ship's heading. `ChaseCamera` carries a cruise's extra movement so the follow's lag stays as at the ship's own speed.
 - **Sounds** (the FEV's LGCY data): 31 Jumpgate = one of Jumpgate_3b / 4c / 1b / 2b at random, 32 KhadorDrive =
   Jumpgate_5c. 102 Map_Whoosh is a drag odometer (`StarMap.AddWhoosh`, StarMap+0x1c0: + min(|dx + dy|, 10) per galaxy
   drag move, + min(|yaw + pitch velocity| · 0.01, 10) per frame in the system view, 0 past 100): entering the parameter

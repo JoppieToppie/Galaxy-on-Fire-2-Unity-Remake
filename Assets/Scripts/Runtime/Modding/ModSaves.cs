@@ -22,7 +22,7 @@ namespace GoF2Remake.Modding
         /// <summary>SaveGame.Capture: what this game's mods are.</summary>
         public static void Record(SaveData s, Database db)
         {
-            s.mods = ModManager.Active.Select(m => new SaveMod { id = m.Id, name = m.Name, version = m.Version }).ToList();
+            s.mods = ModManager.UserMods.Select(m => new SaveMod { id = m.Id, name = m.Name, version = m.Version }).ToList();
             s.modKeys = new List<SaveModKey>();
             foreach (var kv in ModContent.ActiveItemKeys())
             {

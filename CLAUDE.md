@@ -195,6 +195,9 @@ The full list with what each item makes and writes: [docs/notes/editor-tools.md]
 - `weapons_hd` (gun mounts per ship: slotType 0 primary, 1 secondary, 2 turret, 3 = engine exhaust points, not turrets), `docks_hd` (docking points), `shipparts` / `stationparts`, collision tables, DLC variants `sn_*` / `v_*`.
 - `economy_default.json`: the Default Economy overlay on `items` / `item_attributes` / `ships` (see "Shop").
 - `resources.json`: the original resource table. `meshes[]` (id, model path, materialId), `materials[]` (shading type, textures), `textures[]`. IDs match the decompiled code; most main-game ship meshes are 17000 + ship index (a few special ships differ, so look them up by model path).
+- **New base game content goes in `Resources/GoF2Base`, never in the tables above** (a mod's layout, always on,
+  `ModManager.BaseContent`, id `gof2`, an item's key `gof2:<id>`; see "Base content" in docs/notes/mods.md). The original tables
+  stay 0..N-1 exactly as they are: every number after them belongs to `ModRegistry`, and differs per player.
 - Text IDs (`Localization/text_en.json`):
   - ship name = 913 + index, ship description = 977 + index
   - item name = 1274 + index, item description = 1041 + index

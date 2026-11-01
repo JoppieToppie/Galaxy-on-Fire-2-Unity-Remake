@@ -58,6 +58,9 @@ namespace GoF2Remake.Flight
         public string turretAssembly;  // turret_002_static (Terran) / turret_003_static (Vossk)
         public Vector3 rotation;       // game Euler (radians, Rx*Ry*Rz) of the root
         public float scale = 1f;       // setScaling (turrets 6)
+        public AssemblyData assembly;  // remake: its look, once picked (Traffic.AssemblyOf: a mod's kit ship picks at random)
+        public GameObject standIn;     // remake: its model, already out there on the approach (World.SystemApproach), taken over by NpcShip.Setup
+        public List<Behaviour> standInAsleep;   // what SystemApproach.Sleep turned off on it, for Wake
         // Remake (generic turrets, Flight.TurretCore): any turret item on an NPC.
         public int turretItem = -1;    // a turret object built from this turret item: its model, aim and gun (-1 = turretAssembly's)
         public List<int> turretItems;  // turret items on the ship's turret mounts (null = its type's, Database.NpcTurrets; empty = none)

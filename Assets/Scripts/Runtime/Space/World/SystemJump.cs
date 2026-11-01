@@ -573,7 +573,7 @@ namespace GoF2Remake.World
             Session.PreviousStationIndex = Session.StationIndex;
             Session.StationIndex = targetStation;
             Session.ArrivedByTravel = true;
-            Session.ArrivedBySystemJump = true;
+            Session.ArrivedBySystemJump = !Session.WarpLocal;
             Session.LaunchedFromStation = false;
             if (viaGate) Session.JumpgatesUsed++;
             if (!hopping) Session.ProgrammedStation = -1;   // remake: a hop keeps the destination, the autopilot flies on

@@ -1,10 +1,9 @@
 // ModWarp.cs
 // Remake mods: the look and sound of the warp (Visuals.WarpSky). warp.json
 // (optional, the last mod in the load order that has one wins):
-//   { "tunnel": "warp/tunnel.png", "detail": "warp/detail.png", "streaks": "warp/streaks.png", "tint": "#8cd0ff",
-//     "loop": "warp/loop.ogg", "enter": "warp/enter.ogg" }
+//   { "tunnel": "warp/tunnel.png", "detail": "warp/detail.png", "loop": "warp/loop.ogg", "enter": "warp/enter.ogg" }
 // The sky itself is what stretches; the images shape it (their red channel, tiling): "tunnel" and "detail" break it into
-// bands, "streaks" are the thin lines over it, in "tint". Each is optional, the game makes its own without.
+// bands. Each is optional, the game makes its own without.
 
 using System;
 using GoF2Remake.Data;
@@ -20,8 +19,7 @@ namespace GoF2Remake.Modding
         public sealed class Def
         {
             public ModInfo mod;
-            public string tunnel, detail, streaks, loop, enter;
-            public Color? tint;
+            public string tunnel, detail, loop, enter;
         }
 
         static Def current;
@@ -53,17 +51,11 @@ namespace GoF2Remake.Modding
 
         static Def Parse(ModInfo mod, Newtonsoft.Json.Linq.JObject o)
         {
-            var d = new Def
+            return new Def
             {
-                mod = mod, tunnel = ModJson.Str(o, "tunnel"), detail = ModJson.Str(o, "detail"), streaks = ModJson.Str(o, "streaks"),
+                mod = mod, tunnel = ModJson.Str(o, "tunnel"), detail = ModJson.Str(o, "detail"),
                 loop = ModJson.Str(o, "loop"), enter = ModJson.Str(o, "enter"),
             };
-            if (ModJson.Str(o, "tint") is string tint)
-            {
-                if (ColorUtility.TryParseHtmlString(tint, out var c)) d.tint = c;
-                else mod.Warnings.Add($"{File}: \"tint\" isn't a colour like \"#8cd0ff\" (ignored)");
-            }
-            return d;
         }
 
         /// <summary>A warp.json image, null when it can't be read.</summary>

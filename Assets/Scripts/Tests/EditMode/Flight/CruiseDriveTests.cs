@@ -56,6 +56,18 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void EngagedItRunsWithNoChargeAndPaysNothing()
+        {
+            var drive = new CruiseDrive(1, 800, 1000, 1500, 1, false);
+            drive.Engage();
+            Assert.IsTrue(drive.Cruising, "no charge");
+            Assert.AreEqual(CruiseDrive.Event.None, drive.Update(16f, true, CruiseDrive.Stop.None, 0f, float.MaxValue, float.MaxValue, 0, true));
+            Assert.AreEqual(CruiseDrive.Event.None, drive.Update(16f, true, CruiseDrive.Stop.None, 5000f, float.MaxValue, float.MaxValue, 0, true), "a leg flown, no cells in the hold");
+            Assert.AreEqual(0, drive.CellsDue);
+            Assert.IsTrue(drive.Cruising);
+        }
+
+        [Test]
         public void WithoutKeepLegAStopLosesTheLegAsBefore()
         {
             var d = Slipstream();

@@ -437,18 +437,18 @@ for survives a stop. The HUD says when the hold pays its last leg; out of cells,
 and a save or a load is the orbit the ship left. `cruiseSpeed` is the time a crossing takes: x8 flies an average hop in 38
 seconds. The item is no jump drive: it doesn't replace the Khador Drive for the story's checks.
 
+The game's own cruise drive is the Khador Slipstream (`gof2:khador_slipstream`); a mod can add more with these stats.
+
 `warp.json` (optional, the last mod in the load order that has one wins) gives that space its look and sound; each entry is
-optional, and without one the game makes its own:
+optional. Without one the game uses its own band images and the warp is silent:
 
 ```json
-{ "tunnel": "warp/tunnel.png", "detail": "warp/detail.png", "streaks": "warp/streaks.png", "tint": "#8cd0ff",
-  "loop": "warp/loop.ogg", "enter": "warp/enter.ogg" }
+{ "tunnel": "warp/tunnel.png", "detail": "warp/detail.png", "loop": "warp/loop.ogg", "enter": "warp/enter.ogg" }
 ```
 
-The warp stretches the sky itself into streaks, so its colours are always the sky's. It runs all the time between the
+The warp stretches the sky itself, so its colours are always the sky's. It runs all the time between the
 systems and with any cruise drive in an orbit, fading in and out with the drive; between the systems it also carries the
-Khador Drive's blue vein web and ice blue. The three images tile and only shape it, of which the red channel is read: `tunnel` and `detail` break it into
-bands, `streaks` are thin lines over it in `tint`. `loop` plays with its strength and `enter` as the drive engages. A
+Khador Drive's blue vein web and ice blue. The two images tile and only shape it, of which the red channel is read: `tunnel` and `detail` shade it into bands. `loop` plays with its strength and `enter` as the drive engages. A
 system's own sky blends in over the last 20 km, so the arrival matches.
 
 **Encounters.** A cruise runs into things: after the first 6 seconds of a cruise, every 5 seconds there is a 10 % chance
@@ -1762,7 +1762,7 @@ autocomplete), and the product is made at the station where the first ingredient
 | `autocomplete` | `true` (default): the game's price, 1.25 x the product's price. A number: that price. `false`: it can't be autocompleted. |
 | `available` | A [condition](#conditions) before any source offers it. |
 | `unlocked` | `true`: the player knows it as soon as it is available (the next docking), without finding it. |
-| `lounge` | A Space Lounge visitor sells it: `chance` % each time a bar fills with new visitors, for `price` (default half the product's price), in `systemRace` systems (-1 = any). `stations`: only in those bars (station numbers or `"mod_id:station_id"`; then `chance` defaults to 100), like the game's own blueprint sellers, each at one station: `{ "stations": [ 54 ], "price": 59999 }`. |
+| `lounge` | A Space Lounge visitor sells it: `chance` % each time a bar fills with new visitors, for `price` (default half the product's price), in `systemRace` systems (-1 = any). `stations`: only in those bars (station numbers or `"mod_id:station_id"`; then `chance` defaults to 100), like the game's own blueprint sellers, each at one station: `{ "stations": [ 54 ], "price": 59999 }`. With `stations`, `seller` puts a named character there instead of a local visitor (Kothar and Valkyrie have no lounge): `{ "name": "Khador", "speaker": 20, "race": 7, "offer": "...", "thanks": "...", "known": "..." }`, `speaker` a story character's number for the face, and the optional lines for the offer (`#N` the product, `#C` the price), the sale and every chat after it. |
 | `derelict` | `chance` % of the orbits visited hold a derelict freighter (`race`: terran, vossk, nivelian, midorian or any) to dock at and hack; it leaves the blueprint in a data container. `stations`: only in those orbits (station numbers or `"mod_id:station_id"`; then `chance` defaults to 100, always there). `position`: `[ x, y, z ]` in game units (what `/pos` shows in that orbit), else somewhere out in front of the station. Hacking it also fires the missions' and events' `hacked` trigger. |
 | `drops` | A ship the player destroys may leave it in a data container: `race` (terran, vossk, nivelian, midorian, pirate, void, specter or any), `chance` % per kill (decimals allowed). Or `ship` (a number or `"mod_id:ship_id"`) instead of `race`: only ships of that type drop it, whatever their race, and before any race-wide drop; `{ "ship": "my_mod:boss_hull", "chance": 100 }` makes a boss leave its own hull's blueprint. A blueprint already known is never dropped again. |
 

@@ -153,6 +153,17 @@ namespace GoF2Remake.Flight
             return ev;
         }
 
+        /// <summary>Running now, with no charge and nothing paid: a flight to a planet, the planet jump's own terms (Navigation's
+        /// planet run, which then passes Update 'free').</summary>
+        public void Engage()
+        {
+            State = Phase.Cruising;
+            LastStop = Stop.None;
+            Timer = 0f;
+            LegLeft = legUnits;
+            wasHeld = true;
+        }
+
         /// <summary>The ship comes in at full speed (into or out of the space between the systems): no cruise, the ramp runs down
         /// from the top over 'ms'.</summary>
         public void CarrySpeed(float ms) { Level = 1f; carryMs = ms; }

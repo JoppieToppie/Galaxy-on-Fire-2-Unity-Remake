@@ -69,7 +69,7 @@ namespace GoF2Remake.Flight
         CruiseDrive.Stop DriveBlock =>
             Drive == null || ship == null ? CruiseDrive.Stop.Blocked
             : HostilesPresent ? CruiseDrive.Stop.Hostiles
-            : Jumping || LeavingInterstellar || halted || (Autopilot && !Interstellar) || TimeExtender.Active || InputHalted
+            : ArrivalHeld || Jumping || LeavingInterstellar || halted || (Autopilot && !Interstellar && RunPlanet == null) || TimeExtender.Active || InputHalted
               || (mining != null && mining.State != Mining.Phase.Idle) || (Docking != null && Docking.Busy) ? CruiseDrive.Stop.Blocked
             : CruiseDrive.Stop.None;
 
@@ -83,8 +83,8 @@ namespace GoF2Remake.Flight
             driveMoved = true;
             // The button: the original fast-forward wins while it is allowed (the autopilot and the approaches).
             // Between the systems the autopilot holds it too: a crossing is the drive's whole flight (NavigationInterstellar).
-            bool held = Interstellar ? fastForwardHeld || Autopilot : fastForwardHeld && !CanFastForward;
-            bool free = Cheats.FreeJumps;
+            bool held = Interstellar ? fastForwardHeld || Autopilot : (fastForwardHeld && !CanFastForward) || (RunPlanet != null && runByAutopilot);
+            bool free = Cheats.FreeJumps || RunPlanet != null;   // a flight to a planet is the planet jump's: nothing to pay
             var ev = Drive.Update(dtMs, held, DriveBlock, moved, Drive.State == CruiseDrive.Phase.Off && !held ? float.MaxValue : ObstacleAheadUnits(),
                                   LockedLandmarkUnits(), GalaxyMap.CellsInCargo(), free);
             switch (ev)
@@ -195,7 +195,7 @@ namespace GoF2Remake.Flight
         void UpdateEncounters(float dtMs)
         {
             UpdateSignal(dtMs);
-            if (encounters == null || !EncountersAllowed || SpawnEncounter == null) return;
+            if (encounters == null || !EncountersAllowed || SpawnEncounter == null || RunPlanet != null) return;
             var e = encounters.Update(dtMs, Drive.Cruising, EncounterAllowed, () => UnityEngine.Random.value);
             if (e == null) return;
             var t = ship.transform;

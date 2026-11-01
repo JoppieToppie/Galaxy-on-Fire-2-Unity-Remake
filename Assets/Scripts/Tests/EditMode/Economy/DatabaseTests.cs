@@ -20,7 +20,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void TablesLoad()
         {
-            Assert.AreEqual(233, Db.Items.Count);
+            Assert.AreEqual(233, Db.Items.Count(i => !i.modded));
             Assert.AreEqual(64, Db.Ships.Count);
             Assert.AreEqual(34, Db.Systems.Count);
             Assert.AreEqual(135, Db.Stations.Count);
@@ -35,7 +35,7 @@ namespace GoF2Remake.Tests
             for (int i = 0; i < Db.Items.Count; i++) Assert.AreEqual(i, Db.Item(i).index);
             for (int i = 0; i < Db.Ships.Count; i++) Assert.AreEqual(i, Db.Ship(i).index);
             Assert.IsNull(Db.Item(-1));
-            Assert.IsNull(Db.Item(233));
+            Assert.IsNull(Db.Item(Db.Items.Count));
             Assert.IsNull(Db.Ship(64));
             Assert.AreEqual(10, Db.ShipByName("Phantom").index);
             Assert.AreEqual(122, Db.ItemByName("Energy Cells").index);

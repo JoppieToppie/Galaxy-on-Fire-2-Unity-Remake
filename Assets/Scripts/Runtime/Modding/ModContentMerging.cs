@@ -58,8 +58,6 @@ namespace GoF2Remake.Modding
         public static void Apply(Database db)
         {
             NoteOriginalCounts(db);
-            if (ModManager.Active.Count == 0 && ModRegistry.All(ModRegistry.Kind.Item).Count == 0 && ModRegistry.All(ModRegistry.Kind.Ship).Count == 0
-                && ModRegistry.All(ModRegistry.Kind.System).Count == 0 && ModRegistry.All(ModRegistry.Kind.Station).Count == 0) return;
             EnsureMapping();
             bool dflt = db.Economy == Economy.Default;
             foreach (var mod in ModManager.Active)
@@ -438,11 +436,12 @@ namespace GoF2Remake.Modding
             if (e != null) e.value = value;
             else it.statList.Add(new StatEntry { key = stat, value = value });
         }
-        /// <summary>Database.Load calls this first: the original tables' sizes (the first modded number).</summary>
+        /// <summary>Database.Load calls this first: the original tables' sizes (the first modded number). An empty table is a load
+        /// that found nothing (Resources not ready in a fresh Editor), never the size: kept, it numbered every mod from 0.</summary>
         public static void NoteOriginalCounts(Database db)
         {
-            if (originalItems < 0) originalItems = db.Items.Count;
-            if (originalShips < 0) originalShips = db.Ships.Count;
+            if (originalItems < 0 && db.Items.Count > 0) originalItems = db.Items.Count;
+            if (originalShips < 0 && db.Ships.Count > 0) originalShips = db.Ships.Count;
             ModWorld.NoteOriginalCounts(db);
         }
         public static int OriginalItemCount => originalItems;

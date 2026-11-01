@@ -91,11 +91,11 @@ namespace GoF2Remake.UI
                 e.style.top = p.y - s * 0.5f;
                 e.style.width = s;
                 e.style.height = s;
-                e.style.unityBackgroundImageTintColor = new Color(colour.r, colour.g, colour.b, GammaAlpha(Mathf.Min(alpha, 255f) / 255f));
+                e.style.unityBackgroundImageTintColor = new Color(colour.r, colour.g, colour.b, GammaAlpha(Mathf.Min(alpha, 255f) / 255f) * backdrop.flareShown);
             }
             bool glareOn = I > 0f;
             glare.style.display = glareOn ? DisplayStyle.Flex : DisplayStyle.None;
-            if (glareOn) glare.style.backgroundColor = new Color(colour.r, colour.g, colour.b, GammaAlpha((int)I / 255f));
+            if (glareOn) glare.style.backgroundColor = new Color(colour.r, colour.g, colour.b, GammaAlpha((int)I / 255f) * backdrop.flareShown);
         }
 
         /// <summary>A gamma-space blend's alpha for the linear-space UI (the same result over black).</summary>

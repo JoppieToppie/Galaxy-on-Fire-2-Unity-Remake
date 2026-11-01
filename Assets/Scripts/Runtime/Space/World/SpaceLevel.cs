@@ -150,6 +150,11 @@ namespace GoF2Remake.World
         readonly System.Collections.Generic.List<AudioSource> dockPausedAudio = new System.Collections.Generic.List<AudioSource>();
         public Transform Asteroids { get; private set; }
         public Backdrop Backdrop { get; private set; }
+        WarpSky warpSky;
+        /// <summary>The warp holds everything: between the systems and until an arrival's has ended nobody fires or is hurt.</summary>
+        public bool WarpHolds => (Layout != null && Layout.interstellar) || (warpSky != null && warpSky.Arriving);
+        /// <summary>The orbit's fog sprites; null between the systems.</summary>
+        public SpaceDust Fog { get; private set; }
         public GameObject Station { get; private set; }
         /// <summary>Remake mods: the mobile stations cruising through this orbit now (Modding.MobileStations).</summary>
         public readonly System.Collections.Generic.List<MobileStation> Mobiles = new System.Collections.Generic.List<MobileStation>();
@@ -204,6 +209,8 @@ namespace GoF2Remake.World
         float launchCameraMs;
         /// <summary>This level is an arrival out of interstellar space (Session.WarpArrival): no fly-in camera, the flight goes on.</summary>
         bool warpArrival;
+        /// <summary>... or out of a cruise to this orbit's planet (Session.WarpLocal).</summary>
+        public bool LocalArrival { get; private set; }
         /// <summary>... flown in, the orbit shown on the way (SystemApproach).</summary>
         bool flownIn;
         bool leftDockRange, orbitInfo;
@@ -321,6 +328,8 @@ namespace GoF2Remake.World
             Session.EnterInterstellar = false;
             bool plainOrbit = arena == null && !interstellar;
             warpArrival = Session.WarpArrival && plainOrbit;
+            LocalArrival = warpArrival && Session.WarpLocal;
+            Session.WarpLocal = false;
             flownIn = warpArrival && ready != null;
             Session.WarpArrival = false;
             // Remake mods: launched from a mobile station (Modding.MobileStations): into the orbit it cruises through now.
@@ -389,7 +398,7 @@ namespace GoF2Remake.World
             Session.ArrivedBySystemJump = false;
             SpawnPlayer();
             if (!interstellar) PlaceArrivalWormhole();
-            OrbitBuilder.SpawnDust(Layout);
+            Fog = OrbitBuilder.SpawnDust(Layout);
             var backdrop = OrbitBuilder.SpawnBackdrop(Layout, mainCamera);
             if (!interstellar) SkyLayers.Spawn(Layout, mainCamera);   // ring sky, storms, supernova flares, asteroid belt
             Backdrop = backdrop;
@@ -480,7 +489,7 @@ namespace GoF2Remake.World
             ownPassive = storyOrbit || freelanceOrbit || siege || questOrbit || builderTest || challenge || interstellar || (arena != null && !arena.voids);
             Traffic.LevelMissionActive = () => (storyOrbit && Story.IsLevelMission(station)) || (missionHere && Freelance.IsMissionOrbit(station));
             Traffic.Setup(db, Layout, Health.Target, Station, ownPassive || (GoF2Remake.Data.NetSession.Active && !NetAuthority), Wormhole,
-                          flownIn && !missionHere && !GoF2Remake.Data.NetSession.Active);
+                          warpArrival && !missionHere && !GoF2Remake.Data.NetSession.Active);
             // Remake: a cruise drive's encounters (NavigationCruiseDrive, CruiseEncounterSpawner): only where the traffic is this
             // player's own and nothing scripted runs (a multiplayer orbit another player runs rolls none).
             Navigation.EncountersAllowed = !ownPassive && !(GoF2Remake.Data.NetSession.Active && !NetAuthority) && !prologue
@@ -490,7 +499,7 @@ namespace GoF2Remake.World
             Traffic.RadarHidden = () => Cutscene;
             // No locks or lock sounds (the scanner off). Remake: also in the planet jump, the jumpgate / Khador Drive scenes and
             // while a level script holds the controls (its cutscene camera moves before or after Cutscene says so).
-            Navigation.RadarHidden = () => Cutscene || !LaunchCameraOver || Navigation.Jumping
+            Navigation.RadarHidden = () => Cutscene || !LaunchCameraOver || Navigation.Jumping || (warpSky != null && warpSky.Arriving)
                 || (SystemJump != null && SystemJump.Cinematic) || (Player != null && Player.inputLocked);
             PlayerHull.AttachTurrets(this);   // remake debug: a capital ship's turrets on the player's hull (PlayerHull)
             // Docking at the story's objects (PlayerEgo::dockToDockingPoint): locked through Navigation.
@@ -608,7 +617,9 @@ namespace GoF2Remake.World
             SpaceHooks.LevelBuilt?.Invoke(this);   // multiplayer: the shared orbit (NetOrbit)
             if (arena != null) GoF2Remake.World.SpaceHooks.ArenaLevelReady?.Invoke();
             if (interstellar) gameObject.AddComponent<InterstellarField>().Setup(this);
-            if (interstellar || warpArrival || Navigation.Drive != null) gameObject.AddComponent<WarpSky>().Setup(this, warpArrival, !flownIn, SystemJump);
+            else if (Navigation.Drive != null && !NetSession.Active) gameObject.AddComponent<PlanetApproach>().Setup(this);
+            if (interstellar || warpArrival || Navigation.Drive != null) (warpSky = gameObject.AddComponent<WarpSky>()).Setup(this, warpArrival, !flownIn, SystemJump);
+            Navigation.ArrivalHeld = warpSky != null && warpSky.Arriving;   // from the first frame: no marker shows at the load
             if (Modding.ModBuilder.TestFlying) gameObject.AddComponent<ModBuilderRange>().Setup(this);
             if (Modding.ModBuilder.InSpace) HoldForBuilder();
         }
@@ -703,10 +714,14 @@ namespace GoF2Remake.World
             // MGame::OnUpdate: the wingmen's contract runs down while flying (fast-forward included, not while paused).
             if (Session.Wingmen.Count > 0 && Session.WingmanContractMs > 0f) Session.WingmanContractMs = Mathf.Max(0f, Session.WingmanContractMs - Time.deltaTime * 1000f);
             if (Health == null) return;
-            Health.invulnerable = launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Es2Busy || DockedInOrbit
+            bool warpHolds = WarpHolds;
+            if (Weapons != null) Weapons.WarpHeld = warpHolds;
+            Navigation.ArrivalHeld = warpSky != null && warpSky.Arriving;
+            if (Traffic != null) Traffic.HoldFire = warpHolds;
+            Health.invulnerable = warpHolds || launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Es2Busy || DockedInOrbit
                                   || (Campaign != null && (Campaign.PlayerInvulnerable || Campaign.CoopHeld)) || (StorySpace != null && StorySpace.SuccessPending)
                                   || GoF2Remake.World.SpaceHooks.Invulnerable;
-            Collision.off = launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Es2Busy || DockedInOrbit
+            Collision.off = warpHolds || launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Es2Busy || DockedInOrbit
                             || (Campaign != null && Campaign.CollisionOff);   // PlayerEgo+0x144
             Collision.ignoreGate = Navigation.GoingToGate;
             // Hostiles, or a radio line on screen, block fast-forward (MGame::OnUpdate).

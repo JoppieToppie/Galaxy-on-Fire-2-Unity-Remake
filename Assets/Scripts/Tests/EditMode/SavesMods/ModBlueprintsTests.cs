@@ -38,7 +38,7 @@ namespace GoF2Remake.Tests
         public void TheEntriesAreParsed()
         {
             ModOn();
-            var all = ModBlueprints.All().ToList();
+            var all = ModBlueprints.All().Where(b => !b.mod.IsBase).ToList();
             Assert.AreEqual(2, all.Count);
             var gun = all[0];
             Assert.AreEqual("gun_bp", gun.localId);
@@ -92,7 +92,7 @@ namespace GoF2Remake.Tests
             ModOn();
             var db = Database.Load();
             int deed = ModContent.ItemIndexOf("t_bp:blueprint:yacht_bp");
-            Assert.AreEqual(234, deed, "numbered after the mod's items");
+            Assert.AreEqual(235, deed, "numbered after the mod's items and the base content's");
             var item = db.Item(deed);
             Assert.IsNotNull(item);
             Assert.IsTrue(item.modded);
@@ -245,6 +245,47 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(ModBlueprints.LoungeAllowedAt(b, 5, 1));
             Assert.IsFalse(ModBlueprints.LoungeAllowedAt(b, 5, 0), "its systemRace only");
             Assert.AreEqual(0f, ModBlueprints.Of(4).loungeChance, "every station unknown: nowhere");
+        }
+
+        [Test]
+        public void ANamedSellerStandsInTheirBarWithTheirOwnFaceAndLines()
+        {
+            WriteMod("d", "t_named", "1.0", "", ("blueprints.json",
+                "[ { 'id': 'a', 'item': 2, 'ingredients': [ { 'item': 155 } ], 'available': 'campaign >= 84', 'lounge': { 'stations': [ 10 ], 'price': 49999," +
+                "    'seller': { 'name': 'Khador', 'speaker': 20, 'race': 7, 'offer': 'For you, #C: #N.', 'thanks': 'Most kind.', 'known': 'Hello again.' } } } ]"));
+            ScanAndEnable("t_named");
+            var db = Database.Load();
+            var seller = ModBlueprints.Of(2).seller;
+            Assert.AreEqual("Khador", seller.name);
+
+            Session.CampaignMission = 80;
+            Assert.IsFalse(AgentGenerator.CreateAgents(db, 10).Exists(x => x.offer == AgentOffer.SellBlueprint && x.sellBlueprint == 2), "before the step");
+            var kept = AgentGenerator.CreateAgents(db, 10);
+
+            Session.CampaignMission = 90;
+            AgentGenerator.AddNamedSellers(db, 78, kept);
+            Assert.IsFalse(kept.Exists(x => x.sellBlueprint == 2 && x.offer == AgentOffer.SellBlueprint), "only in their own bar");
+            AgentGenerator.AddNamedSellers(db, 10, kept);
+            var khador = kept.Find(x => x.offer == AgentOffer.SellBlueprint && x.sellBlueprint == 2);
+            Assert.IsNotNull(khador, "joins the visitors a bar kept");
+            Assert.AreEqual("Khador", khador.name);
+            Assert.AreEqual(7, khador.race);
+            CollectionAssert.AreEqual(StoryTable.Portrait(20), khador.portrait);
+            Assert.AreEqual(49999, khador.sellPrice);
+            AgentGenerator.AddNamedSellers(db, 10, kept);
+            Assert.AreEqual(1, kept.Count(x => x.offer == AgentOffer.SellBlueprint && x.sellBlueprint == 2), "once");
+
+            Assert.AreEqual("Khador", LoungeChat.Plate(khador).name, "known on sight");
+            var chat = new LoungeChat(db, khador, 10, null);
+            chat.Start();
+            StringAssert.StartsWith("For you, ", chat.Text);
+            StringAssert.DoesNotContain("#C", chat.Text);
+            StringAssert.DoesNotContain("#N", chat.Text);
+
+            Session.UnlockedBlueprints.Add(2);
+            chat = new LoungeChat(db, khador, 10, null);
+            chat.Start();
+            Assert.AreEqual("Hello again.", chat.Text, "the blueprint learnt: his own line, not 858");
         }
 
         [Test]

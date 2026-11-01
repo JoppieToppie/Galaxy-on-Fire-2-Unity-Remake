@@ -31,7 +31,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void TwentyFiveProducts()
         {
-            CollectionAssert.AreEqual(ProductIds, Blueprints.Products(Db).Select(i => i.index).ToArray());
+            CollectionAssert.AreEqual(ProductIds, Blueprints.Products(Db).Where(i => !i.modded).Select(i => i.index).ToArray());
         }
 
         [Test]

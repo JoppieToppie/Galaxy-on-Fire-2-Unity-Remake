@@ -12,10 +12,11 @@
 // Remake: the warp (Visuals.WarpSky, globals, so every system's and mod's sky has it): the sky itself is stretched round the
 // flight, as EVERSPACE 2's travel mode bends it. The sky is read in polar coordinates about _WarpAxis with the angle squeezed,
 // so a little of it runs out in long radial streaks, in two phases half a cycle apart that crossfade so the flow never ends;
-// the noise breaks it into bands, the sparks add the thin white lines, the centre stays calm. At _WarpLevel 0 it is exactly
-// the plain sky, so the warp starts and ends without a cut, and everything else draws over it as ever. It takes after the
-// Khador Drive's animation between the systems only (_WarpKhador): that fx's blue vein web runs round the centre, and the sky
-// leans to its ice blue. A cruise in an orbit is the plain stretch.
+// the noise shades it into bands, the centre stays calm. Nothing is added to it: lines over it, spread by bloom, were white
+// streaks (the user: only the stretching). At _WarpLevel 0 it is exactly the plain sky, so the warp starts and ends without a
+// cut, and everything else draws over it as ever. It takes after the Khador Drive's animation between the systems only
+// (_WarpKhador): the sky leans to that fx's ice blue, and that fx's vein web is GoF2/WarpWeb, over the planets. A cruise in an
+// orbit is the plain stretch.
 // _SkyBlend: another system's sky over this one (World.InterstellarField, approaching it), its layers set as globals with
 // runtime modes in place of the keywords, so an arrival finds the sky it was already flying in.
 Shader "GoF2/SpaceSky"
@@ -51,15 +52,12 @@ Shader "GoF2/SpaceSky"
             TEXTURE2D(_NebulaMap); SAMPLER(sampler_NebulaMap);
             TEXTURE2D(_WarpNoise);  SAMPLER(sampler_WarpNoise);
             TEXTURE2D(_WarpDetail); SAMPLER(sampler_WarpDetail);
-            TEXTURE2D(_WarpSparks); SAMPLER(sampler_WarpSparks);
-            TEXTURE2D(_WarpArcs);   SAMPLER(sampler_WarpArcs);
             TEXTURECUBE(_BlendStars);  SAMPLER(sampler_BlendStars);
             TEXTURECUBE(_BlendNebula); SAMPLER(sampler_BlendNebula);
             TEXTURE2D(_BlendStarsMap);  SAMPLER(sampler_BlendStarsMap);
             TEXTURE2D(_BlendNebulaMap); SAMPLER(sampler_BlendNebulaMap);
             float _WarpLevel, _WarpTime, _WarpKhador;
             float3 _WarpAxis;
-            half3 _WarpTint;
             float _SkyBlend, _BlendStarsGain, _BlendNebulaGain, _BlendExposure, _BlendStarsMode, _BlendNebulaMode;
             float4x4 _BlendRotation;
             float4 _BlendStarsTexel, _BlendNebulaTexel;
@@ -153,16 +151,6 @@ Shader "GoF2/SpaceSky"
                 return c;
             }
 
-            // The vein web of the Khador Drive's animation, from its own sheet (khador_jump.png), mirrored round the ring,
-            // turning and running out.
-            half3 Web(float around, float ring)
-            {
-                float u = abs(frac(around * 3.0 + _WarpTime * 0.06) * 2.0 - 1.0);
-                float v = abs(frac(ring * 2.2 - _WarpTime * 0.3) * 2.0 - 1.0);
-                half3 web = SAMPLE_TEXTURE2D_LOD(_WarpArcs, sampler_WarpArcs, float2(0.47 + u * 0.19, 0.62 + v * 0.18), 0).rgb;
-                return web * smoothstep(0.03, 0.14, ring) * (1.0 - smoothstep(0.32, 0.62, ring));
-            }
-
             half3 Warp(float3 view)
             {
                 float3 axis = normalize(_WarpAxis);
@@ -185,12 +173,10 @@ Shader "GoF2/SpaceSky"
                 }
                 float bands = SAMPLE_TEXTURE2D_LOD(_WarpNoise, sampler_WarpNoise, float2(around * 6.0, ring * 1.1 - _WarpTime * 0.5), 0).r
                             * SAMPLE_TEXTURE2D_LOD(_WarpDetail, sampler_WarpDetail, float2(around * 3.0 + 0.3, ring * 0.7 - _WarpTime * 0.8), 0).r;
-                sky *= lerp(1.0, 0.35 + 2.4 * smoothstep(0.08, 0.5, bands), amount);
+                sky *= lerp(1.0, 0.6 + 0.4 * smoothstep(0.08, 0.5, bands), amount);   // shade only: never brighter than the sky
                 sky *= 1.0 - _WarpLevel * 0.4 * (1.0 - smoothstep(0.0, 0.2, ring));
                 sky = lerp(sky, dot(sky, half3(0.3, 0.6, 0.1)) * half3(0.62, 0.8, 1.25), amount * 0.4 * _WarpKhador);   // the Khador fx's ice blue
-                half lines = SAMPLE_TEXTURE2D_LOD(_WarpSparks, sampler_WarpSparks, float2(around * 3.0, ring * 0.7 - _WarpTime * 1.4), 0).r;
-                return sky + _WarpTint * lines * lines * lines * amount * 0.8
-                     + Web(around, ring) * amount * 1.4 * _WarpKhador;
+                return sky;
             }
 
             half4 frag(Varyings i) : SV_Target

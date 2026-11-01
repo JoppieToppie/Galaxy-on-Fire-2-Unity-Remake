@@ -117,7 +117,7 @@ namespace GoF2Remake.Data
             else if (a.accepted || a.offer == AgentOffer.SmallTalk && a.textIds.Count == 0)
             {
                 // Remake (a player's suggestion): a Challenge's rival says how the contest went (Freelance.RivalLine).
-                Text = Freelance.RivalLine(a.challengeResult)
+                Text = Freelance.RivalLine(a.challengeResult) ?? SellerOf(a)?.known
                        ?? T(a.offer == AgentOffer.Purchase ? 857
                             : a.offer == AgentOffer.Wingmen || a.HasMission && a.mission.type == MissionType.Challenge ? 859 : 858);
                 closing = true;
@@ -264,6 +264,7 @@ namespace GoF2Remake.Data
         /// <summary>SpaceLounge::startChat / Globals::getAgentMissionText 0xfa7d4: the offer text from its ids.</summary>
         public string Compose(Agent a, List<int> ids)
         {
+            if (SellerOf(a)?.offer is { } offer) return offer.Replace("#N", BlueprintName(a.sellBlueprint)).Replace("#C", C(a.sellPrice));
             int Id(int k) => ids != null && k < ids.Count ? ids[k] : -1;
             var parts = new List<string>();
             if (Id(0) >= 0) parts.Add(T(Id(0)));
@@ -348,6 +349,10 @@ namespace GoF2Remake.Data
             }
             return "";
         }
+
+        /// <summary>A mod blueprint's named seller ("lounge" "seller"), null for anyone else.</summary>
+        static Modding.ModBlueprints.Seller SellerOf(Agent a) =>
+            a.offer == AgentOffer.SellBlueprint ? Modding.ModBlueprints.Of(a.sellBlueprint)?.seller : null;
 
         /// <summary>The story agent's own line (886 + index). The mechanics' lines (907-910) name the ship and the mod's gain:
         /// SpaceLounge::startChat fills #SHIP_NAME with the current ship and #N from the table DAT_00254400 (mod, value):
@@ -612,7 +617,7 @@ namespace GoF2Remake.Data
             }
             if (a.IsStory && a.accepted && a.offer != AgentOffer.KaamoSpecial && a.offer != AgentOffer.ShipDealer)
                 Session.StoryAgentsAccepted.Add(a.storyIndex);
-            Text = thanks;
+            Text = SellerOf(a)?.thanks ?? thanks;
             closing = true;
             SetChoices();
         }
@@ -668,7 +673,7 @@ namespace GoF2Remake.Data
         /// agents, the role (the mission type, 306 Wingmen, 305 Merchant, 884 Diplomat).</summary>
         public static (string name, string role) Plate(Agent a)
         {
-            if (!a.known && !a.IsStory) return (T(406 + a.race), "");
+            if (!a.known && !a.IsStory && SellerOf(a) == null) return (T(406 + a.race), "");   // a named seller is known on sight
             if (a.offer == AgentOffer.EventMission) return (a.name, EventMissions.OfferOf(a)?.title ?? "");   // once talked to, like a mission agent
             if (!a.known) return (a.name, "");
             string role = a.HasMission ? a.mission.Name : a.offer == AgentOffer.Wingmen ? T(306)

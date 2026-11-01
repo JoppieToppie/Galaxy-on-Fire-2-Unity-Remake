@@ -453,6 +453,17 @@ namespace GoF2Remake.World
             if (systemIndex == 25) position += ToUnity(new Vector3(0f, 0f, 40000f));
         }
 
+        /// <summary>Remake: an arrival by cruise to this orbit's planet (Navigation.RunPlanet): as far out as any, on the near side
+        /// of the station, facing the planet the ship was flying at.</summary>
+        public void PlanetArrivalPose(int previousStation, out Vector3 position, out Quaternion facing)
+        {
+            var own = planets.Find(p => p.isOrbitPlanet);
+            if (own == null || arrival.HasValue) { ArrivalPose(previousStation, out position, out facing); return; }
+            var way = DirToUnity(-Direction(own.pitch, own.yaw));
+            position = -way * (4f * BackdropDistance * MetersPerUnit);
+            facing = Quaternion.LookRotation(way, Vector3.up);
+        }
+
         Vector3 ArrivalPoint(int previousStation)
         {
             if (arrival.HasValue) return ToUnity(arrival.Value);   // remake mods: the orbit's own

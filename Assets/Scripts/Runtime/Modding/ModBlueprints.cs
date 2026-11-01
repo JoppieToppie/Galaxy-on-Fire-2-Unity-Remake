@@ -10,7 +10,11 @@
 //       "unlocked": false                      (true: known as soon as it is available),
 //       "lounge": { "chance": 10, "price": 250000, "systemRace": -1 }   (a Space Lounge visitor sells it;
 //                 "stations": [ 78, "mod:id" ]  only in those bars (then the chance defaults to 100): like the game's own
-//                                               blueprint sellers, one at a fixed station),
+//                                               blueprint sellers, one at a fixed station;
+//                 "seller": { "name": "Khador", "speaker": 20, "race": 7,   a named character instead of a local visitor, in
+//                             "offer": "...", "thanks": "...", "known": "..." } those bars: their face (a story speaker), and
+//                                               their own lines for the offer (#N the product, #C the price), the sale and
+//                                               after it),
 //       "derelict": { "chance": 5, "race": "terran" }                    (a hackable freighter wreck in an orbit holds it;
 //                   "stations": [ 78, "mod:id" ]  only in those orbits (then the chance defaults to 100),
 //                   "position": [ x, y, z ]       there, in game units like /pos, instead of somewhere out in front),
@@ -43,6 +47,13 @@ namespace GoF2Remake.Modding
         };
         static readonly HashSet<string> DerelictFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "chance", "race", "stations", "position" };
 
+        /// <summary>"lounge" "seller". The lines are optional: without one the chat says the game's own.</summary>
+        public sealed class Seller
+        {
+            public string name, offer, thanks, known;
+            public int speaker = -1, race;
+        }
+
         public sealed class Def
         {
             public ModInfo mod;
@@ -55,6 +66,8 @@ namespace GoF2Remake.Modding
             /// <summary>"lounge" "stations" as written (empty: any bar of its systemRace) and resolved (ModBlueprints.Apply).</summary>
             public readonly List<string> loungeStationRefs = new List<string>();
             public readonly List<int> loungeStations = new List<int>();
+            /// <summary>"lounge" "seller": who sells it, null for a local visitor.</summary>
+            public Seller seller;
             /// <summary>"derelict" "stations" as written (empty: any orbit) and resolved (ModBlueprints.Apply).</summary>
             public readonly List<string> derelictStationRefs = new List<string>();
             public readonly List<int> derelictStations = new List<int>();
@@ -117,6 +130,12 @@ namespace GoF2Remake.Modding
                     d.loungeChance = ModJson.Float(lo, "chance", d.loungeStationRefs.Count > 0 ? 100f : 10f, File);
                     d.loungePrice = Math.Max(0, ModJson.Int(lo, "price", 0, File));
                     d.loungeRace = ModJson.Int(lo, "systemRace", -1, File);
+                    if (ModJson.Get(lo, "seller") is JObject se)
+                        d.seller = new Seller
+                        {
+                            name = ModJson.Str(se, "name"), speaker = ModJson.Int(se, "speaker", -1, File), race = ModJson.Int(se, "race", 0, File),
+                            offer = ModJson.Str(se, "offer"), thanks = ModJson.Str(se, "thanks"), known = ModJson.Str(se, "known"),
+                        };
                 }
                 if (ModJson.Get(o, "derelict") is JObject de)
                 {

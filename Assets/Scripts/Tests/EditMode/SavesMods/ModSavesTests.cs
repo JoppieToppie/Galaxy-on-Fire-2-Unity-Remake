@@ -61,7 +61,7 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(SaveGame.Save(1));
             var p = SaveGame.Preview(1);
             Assert.AreEqual(Mod, p.mods.Single().id);
-            Assert.AreEqual(5, p.modKeys.Count);
+            Assert.AreEqual(5, p.modKeys.Count(k => !k.key.StartsWith(ModManager.BaseId + ":")));
         }
 
         [Test]

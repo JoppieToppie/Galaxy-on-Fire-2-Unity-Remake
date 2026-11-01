@@ -23,6 +23,8 @@ namespace GoF2Remake.Modding
         public string Name => Manifest?.Name ?? Id;
         public string Version => Manifest?.version ?? "?";
         public bool Broken => Manifest == null || Errors.Count > 0;
+        /// <summary>ModManager.BaseContent: the game's own, no mod to the player.</summary>
+        public bool IsBase => Source is BaseContentSource;
 
         public ModInfo(ModManifest manifest, ModSource source) { Manifest = manifest; Source = source; }
 

@@ -116,7 +116,7 @@ namespace GoF2Remake.World
                    : TurretTargeting.LeadPoint(target) + (AimAt(target, dtMs) - target.transform.position);   // led, at a spot on it
             bool aligned = turretCore.StepToward(at, dtMs);
             if (turretCore.Aim.LimitHit) { turretPicking.LimitHit(dtMs); return; }   // out of reach: dropped at the next pick
-            if (!aligned || !shootingEnabled) return;
+            if (!aligned || !shootingEnabled || HoldFire) return;
             // Bullets from the barrel frame, the usual 100 ahead in the scaled frame (about 600 units); a turret item's from
             // its gun like on a ship.
             int shot = turretCore.Fire();

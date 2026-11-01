@@ -36,6 +36,16 @@ the player ship) and `NavigationView` (flight HUD).
   on at 8 u/ms for 3 s, HUD hidden, then `Space` reloads in that station's orbit (`Session.StationIndex`,
   `PreviousStationIndex`, `ArrivedByTravel`): arrival at 4x the previous station's planet billboard (~4 km), or the
   hidden gate in the gate orbit, facing the station, with the travel fly-in camera.
+- **Planet run** (remake, `NavigationPlanetRun`, `World.PlanetApproach`, 2026-11-01, the user's): a cruise to another station's
+  planet loads that orbit in ahead of the ship as a flight into a system does (`SystemApproach`). By hand: the cruise button
+  held with the nose within 8 deg of a planet, any cruise drive (35 deg off the course or the drive's end stops it, and the orbit
+  fades back out). In place of the planet jump: with a drive that flies between the systems mounted, the action on a locked
+  planet or the autopilot reaching one starts the run instead of the scene, the autopilot flying it and holding the drive;
+  where the drive can't run (hostiles) or stops on the way, the original jump goes. Both on the planet jump's terms, the
+  user's rule: no charge and no energy cells (`CruiseDrive.Engage`, `free` in `UpdateDrive`). Backdrop planets stay with the camera, so a run
+  flies at a point `ApproachUnits` along the way to the planet, fixed at its start, and leaves at `ArriveUnits`. `Session.WarpLocal`:
+  the arrival is `OrbitLayout.PlanetArrivalPose`, facing the orbit's planet (unlike a system's), the plain warp with no web, and
+  the orbit's planet starts at the size it had here. Single player only. No encounters roll during one.
 - **Autopilot menu** (`Hud::initHudMenu(3)`): the touch autopilot button, Q or the controller's View button while
   nothing else flies the ship (1-8 pick an entry; with keys and mouse the entries read "1." to "8.", like the PC
   version's numbered menus; remake: Q / E / V / K do nothing during a level's cutscene, #46); the game pauses
