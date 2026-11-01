@@ -1,7 +1,8 @@
 // InterstellarFlightTests.cs
 // The space between the systems in the real scenes (InterstellarSpace, docs/notes/star-map.md "Interstellar space"), with a
 // test mod's drive mounted: the level builds empty with the map's systems as targets, the autopilot holds the drive and
-// the legs are paid in energy cells, an arrival loads the system's orbit, and an empty hold falls out at the nearest system.
+// the legs are paid in energy cells, an arrival loads the system's orbit, and an empty hold falls out at the nearest system;
+// the Void is a dive from the autopilot menu, and the drive flies out of it.
 
 using System.Collections;
 using System.IO;
@@ -195,6 +196,114 @@ namespace GoF2Remake.Tests
             if (station != null || orbit.Station != null)
                 Assert.Less((seen - stationAfter).magnitude, 300f, "the swap moved the station");
             Assert.AreEqual(0f, Shader.GetGlobalFloat("_SkyBlend"), "the orbit's own sky now");
+        }
+
+        [UnityTest]
+        public IEnumerator TheAutopilotFliesPastOtherSystemsToItsOwn()
+        {
+            yield return EnterSpace(78, 5);
+            var space = Find<SpaceLevel>();
+            yield return Run(1f);
+            var systems = space.Navigation.Targets.Where(t => t.kind == Navigation.Kind.System && t.system != space.Layout.systemIndex).ToList();
+            var goal = systems[0];
+            var passed = systems[1];
+            space.Navigation.SetAutopilot(goal);
+            space.Player.transform.position = passed.Position + Vector3.up * (InterstellarSpace.ArriveUnits * 0.5f * 0.05f);
+            yield return Run(1f);
+            Assert.AreSame(space, Find<SpaceLevel>(), "flown past");
+            space.Player.transform.position = goal.Position + Vector3.up * (InterstellarSpace.ArriveUnits * 0.5f * 0.05f);
+            yield return WaitFor(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null, 30f, "the arrival");
+            Assert.AreEqual(goal.station, Session.StationIndex);
+        }
+
+        [UnityTest]
+        public IEnumerator TheMenusDiveFallsIntoTheVoidUnseen()
+        {
+            yield return EnterSpace(78, 5);
+            var space = Find<SpaceLevel>();
+            yield return Run(1f);
+            var nav = space.Navigation;
+            Assert.IsFalse(nav.Targets.Exists(t => t.station == Session.VoidOrbit), "no place: never drawn, locked or measured");
+            var entries = nav.MenuEntries();
+            Assert.LessOrEqual(entries.Count, 8);
+            var dive = entries[entries.Count - 1];
+            Assert.AreSame(nav.VoidDive, dive, "the menu's last entry");
+            Assert.AreEqual(Localization.Get(415), dive.name);
+            nav.OpenMenu();
+            nav.ChooseMenuEntry(dive);
+            Assert.AreSame(dive, nav.AutopilotTarget);
+            Assert.That(nav.VoidDiveMs, Is.InRange(InterstellarSpace.DiveMinMs, InterstellarSpace.DiveMaxMs));
+            yield return WaitFor(() => nav.DriveCruising, 10f, "the drive under the autopilot");
+            float left = nav.VoidDiveMs;
+            yield return Run(1f);
+            Assert.Less(nav.VoidDiveMs, left - 500f, "the dive runs down on the drive");
+            nav.VoidDiveMs = 3000f;   // (the rest of it)
+            yield return WaitFor(() => GameObject.Find("Approach") is GameObject a && a.transform.Find("Station") != null, 10f, "the Void seeping in");
+            Assert.IsTrue(Session.WarpArrivalPoint.HasValue, "the random arrival point kept");
+            var point = Session.WarpArrivalPoint.Value;
+            yield return WaitFor(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null, 30f, "the fall into the Void");
+            var orbit = Find<SpaceLevel>();
+            Assert.AreEqual(Session.VoidOrbit, Session.StationIndex);
+            Assert.IsTrue(orbit.Layout.alienOrbit);
+            Assert.AreEqual(point, orbit.Layout.hiddenJumpgate, "the arrival the approach was built around");
+            Assert.IsNull(Session.WarpArrivalPoint, "read once");
+            Assert.AreEqual(78, Session.VoidReturnStation, "the Khador Drive goes back to the orbit the crossing left");
+            Assert.AreEqual(4, GalaxyMap.CellsInCargo(), "one leg");
+            yield return null;
+            Assert.IsNotNull(orbit.Station, "the Void station");
+        }
+
+        [UnityTest]
+        public IEnumerator TurningTheAutopilotOffEndsTheDive()
+        {
+            yield return EnterSpace(78, 5);
+            var space = Find<SpaceLevel>();
+            yield return Run(1f);
+            var nav = space.Navigation;
+            nav.OpenMenu();
+            nav.ChooseMenuEntry(nav.VoidDive);
+            yield return Run(1f);
+            nav.SetAutopilot(null);
+            float left = nav.VoidDiveMs;
+            yield return Run(2f);
+            Assert.AreEqual(left, nav.VoidDiveMs, "stopped");
+            Assert.AreSame(space, Find<SpaceLevel>());
+        }
+
+        [UnityTest]
+        public IEnumerator TheDriveFliesOutOfTheVoid()
+        {
+            FreePlayAt(Session.VoidOrbit);
+            Session.VoidReturnStation = 78;
+            MountDrive(5);
+            Session.ArrivedByTravel = true;
+            Session.PreviousStationIndex = 78;
+            yield return Load("Space");
+            yield return WaitFor(() => Find<SpaceLevel>() != null && Find<SpaceLevel>().Navigation != null, 60f, "the Void");
+            var first = Find<SpaceLevel>();
+            Assert.IsTrue(first.Layout.alienOrbit);
+            yield return WaitFor(() => first.LaunchCameraOver, 30f, "the arrival camera");
+            yield return Run(5.5f);   // SystemJump: the level is 5 s old
+            var entry = first.Navigation.MenuEntries(true).Find(t => t.kind == Navigation.Kind.Slipstream);
+            Assert.IsNotNull(entry, "the drive's entry in the Void too");
+            first.Navigation.OpenMenu(true);
+            first.Navigation.ChooseMenuEntry(entry);
+            yield return WaitFor(() => Find<SpaceLevel>() != first && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null && Find<SpaceLevel>().Layout.interstellar, 30f, "interstellar space");
+            var space = Find<SpaceLevel>();
+            Assert.AreEqual(Session.VoidOrbit, Session.StationIndex, "a save here is the Void");
+            Assert.IsFalse(space.Layout.alienOrbit, "the Void's rules stay behind");
+            float fromEntry = (space.Player.transform.position - OrbitLayout.ToUnity(InterstellarSpace.PositionOf(space.Database, 78))).magnitude / 0.05f;
+            Assert.AreEqual(InterstellarSpace.StartUnits, fromEntry, 10f, "beside the system the Void was entered from");
+            yield return Run(1f);
+            var target = space.Navigation.Targets.Where(t => t.kind == Navigation.Kind.System)
+                                                 .OrderBy(t => (t.Position - space.Player.transform.position).sqrMagnitude).First();
+            space.Navigation.SetAutopilot(target);
+            Assert.AreSame(target, space.Navigation.AutopilotTarget, "the autopilot flies to the systems");
+            space.Player.transform.position = target.Position + Vector3.up * (InterstellarSpace.ArriveUnits * 0.5f * 0.05f);
+            yield return WaitFor(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null, 30f, "the arrival");
+            Assert.AreEqual(target.station, Session.StationIndex);
+            Assert.AreEqual(Session.VoidOrbit, Session.PreviousStationIndex);
+            Assert.AreEqual(78, Session.VoidReturnStation, "untouched");
         }
 
         [UnityTest]

@@ -1,7 +1,8 @@
 // InterstellarSpaceTests.cs
 // Feature: the space between the systems (InterstellarSpace, docs/notes/star-map.md "Interstellar space"): the star map's
 // rule decides what shows (nothing the player hasn't unlocked, however it is unlocked), a crossing costs what the gate
-// route's Khador jump does, the space fits floats, and an arrival is always a real orbit.
+// route's Khador jump does, the space fits floats, and an arrival is always a real orbit; the Void is no place, but a short
+// dive off the galaxy's disc once the story has been there.
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -67,9 +68,62 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void TheVoidIsNoSystemToFlyTo()
+        public void TheVoidIsNoPlaceOnTheMap()
         {
+            Session.FreePlay = true;
+            Assert.IsTrue(InterstellarSpace.VoidShown, "free play offers the dive");
             foreach (var p in InterstellarSpace.Systems(db)) Assert.AreNotEqual(Session.VoidOrbit, p.station, p.name);
+        }
+
+        [Test]
+        public void TheDiveIsOfferedOnceTheStoryHasBeenInTheVoid()
+        {
+            Session.FreePlay = false;
+            Session.CampaignMission = 24;
+            Assert.IsFalse(InterstellarSpace.VoidShown, "not before the wormhole ride into it");
+            Session.CampaignMission = 25;
+            Assert.IsTrue(InterstellarSpace.VoidShown);
+        }
+
+        [Test]
+        public void ADiveGoesOffTheDiscOnTheShipsSide()
+        {
+            var way = InterstellarSpace.DiveWay(new Vector3(0f, 0f, 1000f), Vector3.right);
+            Assert.Greater(way.z, 0.8f, "off the disc, away from it");
+            Assert.Greater(way.x, 0.1f, "leaning the ship's way");
+            Assert.AreEqual(1f, way.magnitude, 0.001f);
+            Assert.Less(InterstellarSpace.DiveWay(new Vector3(0f, 0f, -1000f), Vector3.right).z, -0.8f, "the other side: the other way");
+            Assert.AreEqual(Vector3.forward, InterstellarSpace.DiveWay(Vector3.zero, Vector3.forward), "straight off it");
+        }
+
+        [Test]
+        public void ADiveIsTenToFifteenSecondsOnTheDrive()
+        {
+            Assert.AreEqual(10000f, InterstellarSpace.DiveMinMs);
+            Assert.AreEqual(15000f, InterstellarSpace.DiveMaxMs);
+            Assert.AreEqual(InterstellarSpace.ArriveUnits, InterstellarSpace.DiveUnits(800, 0f), "its end is the edge");
+            Assert.AreEqual(InterstellarSpace.ArriveUnits + 16000f * 10f, InterstellarSpace.DiveUnits(800, 10000f), 1f, "800 % of 100 m/s");
+            Assert.LessOrEqual(InterstellarSpace.CellsFor(InterstellarSpace.DiveUnits(800, InterstellarSpace.DiveMaxMs) - InterstellarSpace.ArriveUnits, false), 1,
+                               "a cell at most, under the Khador Drive's two");
+        }
+
+        [Test]
+        public void ALeaveStartsFromTheOrbitsSystemOrWhereTheVoidWasEntered()
+        {
+            Session.VoidReturnStation = 78;
+            Assert.AreEqual(InterstellarSpace.PositionOf(db, 78), InterstellarSpace.PositionOf(db, Session.VoidOrbit));
+            var st = db.Stations.Find(s => s.index == 78);
+            Assert.AreEqual(InterstellarSpace.Position(db.Systems.Find(s => s.index == st.system)), InterstellarSpace.PositionOf(db, 78));
+        }
+
+        [Test]
+        public void LeavingTheVoidDropsItsRulesBetweenTheSystems()
+        {
+            var o = OrbitLayout.Build(db, Session.VoidOrbit);
+            Assert.IsTrue(o.alienOrbit);
+            InterstellarSpace.Clear(o);
+            Assert.IsFalse(o.alienOrbit, "its no-autopilot rule would hold every system target");
+            Assert.AreEqual(Session.VoidOrbit, o.stationIndex, "a save here is the Void");
         }
 
         [Test]

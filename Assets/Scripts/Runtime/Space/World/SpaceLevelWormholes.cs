@@ -338,10 +338,10 @@ namespace GoF2Remake.World
                 root.transform.position -= root.transform.forward * InterstellarSpace.CarryMeters(warpDrive.Attr(CruiseDrive.SpeedAttr), WarpSky.ArrivalCarryMs);
                 root.transform.rotation *= Session.WarpHeading;   // still pointing the way it was, off its course or not
             }
-            // Remake: outside the system it left, heading for the programmed destination (InterstellarSpace).
+            // Remake: outside the system it left (or the Void), heading for the programmed destination (InterstellarSpace).
             if (Layout.interstellar)
             {
-                var from = InterstellarSpace.Position(db.Systems.Find(s => s.index == Layout.systemIndex) ?? db.Systems[0]);
+                var from = InterstellarSpace.PositionOf(db, Layout.stationIndex);
                 var goal = db.Stations.Find(s => s.index == Session.ProgrammedStation) is StationData prog
                            && db.Systems.Find(s => s.index == prog.system) is SystemData sys && sys.index != Layout.systemIndex && GalaxyMap.IsVisible(db, sys.index)
                     ? InterstellarSpace.Position(sys) : Vector3.zero;

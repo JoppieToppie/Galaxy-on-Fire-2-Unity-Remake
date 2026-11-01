@@ -3,8 +3,9 @@
 // map as its sun, the map's own sun material on a quad kept inside the far plane, a beacon from afar growing as the ship
 // closes in. The warp itself is the sky's (Visuals.WarpSky). Nearing a system its own sky blends in over the one the ship left
 // (GoF2/SpaceSky _SkyBlend), the sky its orbit opens with, and the rest of the orbit comes with it (SystemApproach): what the
-// autopilot flies to, else the nearest. A change of target fades the last one out first. It is turned so that the way to the
-// system is the way the ship will face in the orbit, so the sky ahead is the same one on both sides of the load.
+// autopilot flies to (a dive into the Void too, Navigation.VoidDive: no sun, its orbit seeping in as it nears), else the
+// nearest. A change of target fades the last one out first. It is turned so that the way to the system is the way the ship
+// will face in the orbit, so the sky ahead is the same one on both sides of the load.
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -45,7 +46,9 @@ namespace GoF2Remake.World
             nav = level.Navigation;
             ship = level.Player.transform;
             db = level.Database;
-            origin = level.Layout.systemIndex;
+            // out of the Void: beside the system it was entered from (InterstellarSpace.PositionOf)
+            int left = level.Layout.stationIndex == Session.VoidOrbit ? Session.VoidReturnStation : level.Layout.stationIndex;
+            origin = db.Stations.Find(s => s.index == left)?.system ?? level.Layout.systemIndex;
             var materials = StarMapAssets.Load()?.sunMaterials;
             var mesh = Quad();
             foreach (var t in level.Navigation.Targets)
@@ -99,7 +102,7 @@ namespace GoF2Remake.World
             if (ship == null) return;
             var want = nav.AutopilotTarget != null && nav.AutopilotTarget.kind == Navigation.Kind.System ? nav.AutopilotTarget : Nearest();
             float goal = 0f;
-            if (want != null && want.system != origin)
+            if (Approachable(want))
             {
                 float units = (want.Position - ship.position).magnitude / M;
                 goal = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(InterstellarSpace.ArriveUnits, InterstellarSpace.ApproachUnits, units));
@@ -107,7 +110,7 @@ namespace GoF2Remake.World
             if (want != blended)
             {
                 if (blend > 0.001f) goal = 0f;   // the last one out first
-                else if (want != null && want.system != origin) { Load(want); blended = want; }
+                else if (Approachable(want)) { Load(want); blended = want; }
             }
             blend = Mathf.MoveTowards(blend, goal, BlendPerMs * dtMs);
             Shader.SetGlobalFloat("_SkyBlend", blended != null ? blend : 0f);
@@ -120,6 +123,9 @@ namespace GoF2Remake.World
             if (approach == null && goal > 0f && want == blended) approach = new SystemApproach(level, blendedLayout, arrivalAt, arrivalFacing, transform);
             approach?.Update(ship.position, way, turn, blend);
         }
+
+        /// <summary>Not the system the ship has just left (it starts inside that one's approach); a dive into the Void always.</summary>
+        bool Approachable(Navigation.Target t) => t != null && (t == nav.VoidDive || t.system != origin);
 
         Navigation.Target Nearest()
         {
@@ -139,6 +145,7 @@ namespace GoF2Remake.World
         {
             var layout = blendedLayout = OrbitLayout.Build(db, system.station);
             layout.ArrivalPose(Session.StationIndex, out arrivalAt, out arrivalFacing);
+            if (layout.alienOrbit) Session.WarpArrivalPoint = layout.hiddenJumpgate;   // drawn at random: the arrival keeps this one
             if (!skies.TryGetValue(system.system, out var sky))
                 skies[system.system] = sky = OrbitBuilder.MakeSky(layout);
             if (sky == null) return;

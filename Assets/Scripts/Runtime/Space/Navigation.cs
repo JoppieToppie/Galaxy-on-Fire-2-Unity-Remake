@@ -502,6 +502,7 @@ namespace GoF2Remake.Flight
                 return;
             }
             if (target.kind == Kind.Slipstream) { RequestInterstellar(); return; }
+            if (target == VoidDive) StartVoidDive();
             Say($"{Localization.Get(546)}: {target.name}", HudMessageKind.Target);
             Play(sounds?.autopilotOn);
             SetAutopilot(target);

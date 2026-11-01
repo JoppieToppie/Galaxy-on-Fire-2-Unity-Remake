@@ -120,7 +120,27 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   `SystemJump.LeaveInterstellar` into `ArrivalStation` (the gate orbit; an orbit a script sets up on
   arrival, `Navigation.ScriptedArrival`, is loaded as after a jump with its arrival camera, not in the warp); a story refusal
   (`PlanetJumpRefused`) holds until the ship is back outside 1.5 x that. The leg that empties the hold says so (Extra `interstellarLastLeg`); no cells for the next leg: `FallOutOfSlipstream`
-  at the nearest system, nobody strands. The Khador scene plays going in only and cuts at its whiteout
+  at the nearest system, nobody strands. Under the autopilot only its own target's edge is an arrival, the others are flown
+  past (a flight off the galaxy's disc curved out of its start through Weymire's edge, 2026-11-01).
+  **The Void** (2026-11-01, the user: "make the Slipstream go to the alien void as well", then "void should not be one
+  point you go to, distance should also be unknown/hidden as its not a system in the universe we know", 10-15 s): no place
+  here, no marker, no distance. The autopilot menu's last entry, 415 "Void" (`Navigation.VoidDive`, a `Kind.System` target
+  kept out of `Targets`, so never drawn, locked or measured; offered in free play and past the wormhole ride,
+  `InterstellarSpace.VoidShown`, index > 24), is a dive: a new way each time, off the galaxy's disc (thin along game z) on
+  the ship's side leaning its heading (`DiveWay`), and a random 10-15 s of the drive (`DiveMinMs` / `DiveMaxMs`,
+  `VoidDiveMs`, counting only while it cruises; the autopilot off ends it). The target sits ahead at the edge plus what the
+  time left takes at the drive's speed (`DiveUnits`), so the Void's sky and orbit seep in (`InterstellarField`, no sun) and
+  every system's edge is flown past; at 0 the ship falls in (`LeaveAlong` to `Session.VoidOrbit`). One leg: a cell, under
+  the Khador Drive's two. The arrival point is random (`OrbitLayout` landmark 2), so the approach keeps the one it built
+  around (`Session.WarpArrivalPoint`, read once in `SpaceLevel.Awake`). The quick menu offers the drive in the Void too:
+  the space starts beside the system the Void was entered from (`InterstellarSpace.PositionOf`, `Session.VoidReturnStation`;
+  that system counts as the one left in `InterstellarField`), `Clear` drops `alienOrbit` (its no-autopilot rule held every
+  system target) and the station stays -1, so a save there is the Void. An arrival in the Void keeps `VoidReturnStation`
+  the orbit the crossing left (not -1). Story 78 / 80 refuse the drive as ever (`ForcedKhadorTarget`). Tests
+  `InterstellarSpaceTests` (the dive's), `InterstellarFlightTests.TheMenusDiveFallsIntoTheVoidUnseen`,
+  `TurningTheAutopilotOffEndsTheDive`, `TheDriveFliesOutOfTheVoid`; recording
+  `InterstellarRecording.FlyToTheVoidAndBackAndRecordIt`.
+  The Khador scene plays going in only and cuts at its whiteout
   (`SystemJump.KhadorWhiteoutMs`, 1860 ms, from a frame capture of the fx): the orbit stays plain through the charge and the
   animation (the user's call: no warp before it), the camera gliding from its side view to the chase camera's place behind
   the ship, which stays in view (`SystemJump.GlideBehindShip`), and the new level fades out of the same light, on the same

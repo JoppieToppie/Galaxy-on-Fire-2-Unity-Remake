@@ -10,6 +10,10 @@
 //   energy cells  a leg of the drive is LegUnits here, the average gate hop, so a crossing costs what the gate route's
 //                 Khador jump would (GalaxyMap.EnergyCells: a cell a hop, x2 on Extreme): no price in the economy changes.
 //   running out   the drive drops and the ship falls out at the nearest system (Nearest): nobody is stranded here.
+//   the Void      no place here (the user: not a system of the known universe, no point to fly to, no distance): once the
+//                 story is past the wormhole ride into it (VoidShown) the autopilot menu offers a dive off the galaxy's
+//                 disc (DiveWay) that falls into the alien orbit after a random DiveMinMs..DiveMaxMs of the drive; the
+//                 drive flies out of it too, from beside the system it was entered from (PositionOf).
 
 using System.Collections.Generic;
 using GoF2Remake.World;
@@ -37,6 +41,14 @@ namespace GoF2Remake.Data
         public const int OrbitId = 90000;
         /// <summary>The middle of the original galaxy on the map: the space is centred on it, for floats' sake (+-66 km).</summary>
         static readonly Vector3 Centre = new Vector3(-3630f, -2370f, 4000f);
+        /// <summary>The alien orbit's system index as OrbitLayout.Build gives it (it has no system).</summary>
+        public const int VoidSystem = -1;
+        /// <summary>How long a dive into the Void runs on the drive before it falls in (the user, 2026-11-01: 10 to 15 s). A
+        /// leg at the base drive's 800 % is 37 s, so a dive takes one cell, half the Khador Drive's two.</summary>
+        public const float DiveMinMs = 10000f, DiveMaxMs = 15000f;
+        /// <summary>The story step that takes the player into the Void through the wormhole (the ride at 24): the Void is no
+        /// place to fly to before it.</summary>
+        const int VoidRideIndex = 24;
 
         public sealed class Point
         {
@@ -54,6 +66,18 @@ namespace GoF2Remake.Data
 
         /// <summary>A system's place in this space (game units).</summary>
         public static Vector3 Position(SystemData s) => (GalaxyMap.SunPosition(s) - Centre) * UnitsPerMapUnit;
+
+        /// <summary>The dive into the Void is offered: free play, else once the story has been there.</summary>
+        public static bool VoidShown => Session.FreePlay || Story.Index > VoidRideIndex;
+
+        /// <summary>Where an orbit is in this space: its system's (the first system's for a station that has none). The Void
+        /// has no place: out of it the ship is beside the system it was entered from (Session.VoidReturnStation).</summary>
+        public static Vector3 PositionOf(Database db, int station)
+        {
+            if (station == Session.VoidOrbit) station = Session.VoidReturnStation;
+            int system = db.Stations.Find(s => s.index == station)?.system ?? -1;
+            return Position(db.Systems.Find(s => s.index == system) ?? db.Systems[0]);
+        }
 
         /// <summary>Where a jump into the system comes out: its gate orbit, else its first station; -1 = nowhere to go.</summary>
         public static int ArrivalStation(SystemData s)
@@ -74,6 +98,21 @@ namespace GoF2Remake.Data
             }
             return list;
         }
+
+        /// <summary>The way a dive into the Void goes from 'at' with the ship facing 'forward' (game units): off the galaxy's
+        /// disc (thin along z: map z 1600 to 6400) on the side the ship is on, leaning its way, so the turn is short and
+        /// the systems fall behind.</summary>
+        public static Vector3 DiveWay(Vector3 at, Vector3 forward)
+        {
+            var off = new Vector3(0f, 0f, at.z < 0f ? -1f : 1f);
+            var lean = Vector3.ProjectOnPlane(forward, off);
+            return (off * 2f + (lean.sqrMagnitude > 1e-6f ? lean.normalized : Vector3.zero)).normalized;
+        }
+
+        /// <summary>How far ahead (game units) the dive's end lies with 'ms' of it left: the edge, and what the drive at
+        /// 'speedPercent' covers in that time over the ship's own 100 m/s (as CarryMeters).</summary>
+        public static float DiveUnits(int speedPercent, float ms) =>
+            ArriveUnits + Mathf.Max(1f, speedPercent / 100f) * 100f / OrbitLayout.MetersPerUnit * Mathf.Max(0f, ms) / 1000f;
 
         /// <summary>The system closest to 'at' (game units), null with none.</summary>
         public static Point Nearest(List<Point> points, Vector3 at)
@@ -117,6 +156,7 @@ namespace GoF2Remake.Data
         public static void Clear(OrbitLayout o)
         {
             o.interstellar = true;
+            o.alienOrbit = false;   // out of the Void too: its rules (no autopilot, its locks) are the orbit's
             o.hasStation = o.stationObject = o.hasJumpgate = false;
             o.planets.Clear();
             o.asteroidCount = 0;

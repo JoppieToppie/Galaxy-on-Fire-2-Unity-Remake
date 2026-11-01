@@ -169,7 +169,8 @@ Research: `Reference/research/space_level_setup.md`, `space_backdrop.md` (+ `spa
   154), sky `nebula_010` + `stars_002`, the orbit planet `planet_void_big`, Void asteroids around (−30000, 0, 30000)
   (Void Crystals), fog tint 0x9274d4, arrival at (0, rand(20000) − 10000, rand(50000) + 170000) facing the station; the
   station is lockable as 415 "Void" (distance only, no autopilot, not in the menu), no docking, the Khador Drive
-  straight back to `Session.VoidReturnStation` unless a mission blocks jumps (`MGame::UseKhadorDrive` 0x1a9480 has no
+  straight back to `Session.VoidReturnStation` (the Khador Slipstream flies in and out too: star-map.md "Interstellar
+  space") unless a mission blocks jumps (`MGame::UseKhadorDrive` 0x1a9480 has no
   Void rule; the remake refused it through the main story until #26); traffic 2+ Void fighters (`TrafficPlan`); music
   145 / 136 (`StoryAssets.voidMusic` / `voidBattle`).
 - **Void invasion** (Status+0x7c / +0x80): at the attacked station (and coming out of the Void, not at index 42) 2-5

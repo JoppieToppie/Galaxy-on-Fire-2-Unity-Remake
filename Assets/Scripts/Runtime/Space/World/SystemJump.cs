@@ -456,7 +456,7 @@ namespace GoF2Remake.World
         void StartKhadorScene()
         {
             int station = toInterstellar ? Session.StationIndex : storyTarget ?? Session.ProgrammedStation;
-            if (station < 0 && !storyTarget.HasValue) { state = State.None; return; }
+            if (station < 0 && !storyTarget.HasValue && !toInterstellar) { state = State.None; return; }   // (out of the Void: -1)
             BeginScene(station);
             state = State.KhadorScene;
             if (advanceOnJump) { advanceOnJump = false; if (Story.Index == 78) Story.Advance(db); }
@@ -575,7 +575,8 @@ namespace GoF2Remake.World
                 if (Application.CanStreamedLevelBeLoaded(spaceScene)) SpaceLevel.SwapScene(spaceScene);
                 return;
             }
-            if (targetStation == Session.VoidOrbit) Session.VoidReturnStation = Session.StationIndex;
+            // (from between the systems: the orbit left, unless that was the Void itself; the return stays the last one)
+            if (targetStation == Session.VoidOrbit && Session.StationIndex != Session.VoidOrbit) Session.VoidReturnStation = Session.StationIndex;
             Session.PreviousStationIndex = Session.StationIndex;
             Session.StationIndex = targetStation;
             Session.ArrivedByTravel = true;

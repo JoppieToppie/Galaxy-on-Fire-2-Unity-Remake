@@ -5,7 +5,8 @@
 //   ffmpeg -framerate 30 -i Temp/Recording/%05d.png -c:v libx264 -pix_fmt yuv420p -crf 20 interstellar.mp4
 // It records only when Temp/recording_dir.txt names the folder to write to (else it is ignored, so a suite run doesn't
 // record): write that file, then python3 -I Reference/tools/tests/run_tests.py --mode PlayMode --filter
-// GoF2Remake.Tests.InterstellarRecording.
+// GoF2Remake.Tests.InterstellarRecording.FlyACrossingAndRecordIt (or .FlyToTheVoidAndBackAndRecordIt: the autopilot
+// menu's dive into the Void, and out again to the nearest system).
 
 using System.Collections;
 using System.IO;
@@ -81,8 +82,7 @@ namespace GoF2Remake.Tests
             }
         }
 
-        [UnityTest]
-        public IEnumerator FlyACrossingAndRecordIt()
+        void OpenFolder()
         {
             string root = Directory.GetParent(Application.dataPath).FullName;
             string named = Path.Combine(root, "Temp", "recording_dir.txt");
@@ -90,18 +90,11 @@ namespace GoF2Remake.Tests
             folder = File.ReadAllText(named).Trim();
             if (Directory.Exists(folder)) Directory.Delete(folder, true);
             Directory.CreateDirectory(folder);
+        }
 
-            FreePlayAt(78);
-            MountDrive(6);
-            Session.LaunchedFromStation = true;
-            yield return Load("Space");
-            yield return WaitFor(() => Find<SpaceLevel>() != null && Find<SpaceLevel>().LaunchCameraOver && Find<SpaceLevel>().Navigation != null, 60f, "the orbit");
-            var first = Find<SpaceLevel>();
-            yield return Run(5.5f);   // SystemJump: the level is 5 s old before the drive may be called
-            Time.captureFramerate = Fps;
-            recording = true;
-            yield return Capture(2f);   // the orbit, for context
-
+        /// <summary>From the orbit, 5 s old, through the drive's quick menu entry into the space between the systems.</summary>
+        IEnumerator Slipstream(SpaceLevel first)
+        {
             var entry = first.Navigation.MenuEntries(true).Find(t => t.kind == Navigation.Kind.Slipstream);
             Assert.IsNotNull(entry, "the drive's menu entry");
             first.Navigation.OpenMenu(true);
@@ -111,14 +104,64 @@ namespace GoF2Remake.Tests
             var space = Find<SpaceLevel>();
             yield return CaptureUntil(() => space.Navigation != null && space.Navigation.Targets.Any(t => t.kind == Navigation.Kind.System), 10f, "the systems");
             yield return Capture(2f);
+        }
 
+        /// <summary>The autopilot (it holds the drive) to 'pick''s system, through to the arrival and the warp easing out.</summary>
+        IEnumerator FlyTo(System.Func<Navigation.Target, bool> pick)
+        {
+            var space = Find<SpaceLevel>();
             var nav = space.Navigation;
             var at = space.Player.transform.position;
-            var target = nav.Targets.Where(t => t.kind == Navigation.Kind.System && !t.hidden && t.system != space.Layout.systemIndex)
+            var target = nav.Targets.Where(t => t.kind == Navigation.Kind.System && !t.hidden && t.station != Session.StationIndex && pick(t))
                                     .OrderBy(t => (t.Position - at).sqrMagnitude).First();
-            nav.SetAutopilot(target);   // the autopilot to the nearest system: it holds the drive
+            nav.SetAutopilot(target);
             yield return CaptureUntil(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null && !Find<SpaceLevel>().Layout.interstellar, 240f, "the arrival");
             yield return Capture(8f);   // the warp easing out through the real orbit
+        }
+
+        IEnumerator OrbitAt(int station)
+        {
+            FreePlayAt(station);
+            MountDrive(6);
+            Session.LaunchedFromStation = true;
+            yield return Load("Space");
+            yield return WaitFor(() => Find<SpaceLevel>() != null && Find<SpaceLevel>().LaunchCameraOver && Find<SpaceLevel>().Navigation != null, 60f, "the orbit");
+            yield return Run(5.5f);   // SystemJump: the level is 5 s old before the drive may be called
+            Time.captureFramerate = Fps;
+            recording = true;
+            yield return Capture(2f);   // the orbit, for context
+        }
+
+        [UnityTest, Timeout(900000)]   // a 1080p capture runs well under real time
+        public IEnumerator FlyACrossingAndRecordIt()
+        {
+            OpenFolder();
+            yield return OrbitAt(78);
+            yield return Slipstream(Find<SpaceLevel>());
+            yield return FlyTo(t => true);   // the nearest system
+            recording = false;
+            Time.captureFramerate = 0;
+            Debug.Log("Recorded " + frame + " frames into " + folder);
+        }
+
+        [UnityTest, Timeout(900000)]
+        public IEnumerator FlyToTheVoidAndBackAndRecordIt()
+        {
+            OpenFolder();
+            yield return OrbitAt(78);
+            yield return Slipstream(Find<SpaceLevel>());
+            var space = Find<SpaceLevel>();
+            space.Navigation.OpenMenu();
+            yield return Capture(1.5f);
+            space.Navigation.ChooseMenuEntry(space.Navigation.VoidDive);   // the dive: no target drawn, no distance
+            yield return CaptureUntil(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null, 60f, "the Void");
+            yield return Capture(8f);
+            Assert.AreEqual(Session.VoidOrbit, Session.StationIndex);
+            int frames = Mathf.RoundToInt(5.5f * Fps);   // the drive again once the level is 5 s old (counted: the Void's
+            for (int i = 0; i < frames; i++) { Shot(); yield return null; }   // arrival is a warp, no camera to wait for)
+            yield return Slipstream(Find<SpaceLevel>());
+            int entered = Find<SpaceLevel>().Database.Stations.Find(s => s.index == 78).system;
+            yield return FlyTo(t => t.system != entered);   // the nearest other system out of the Void (it starts beside 78's)
             recording = false;
             Time.captureFramerate = 0;
             Debug.Log("Recorded " + frame + " frames into " + folder);

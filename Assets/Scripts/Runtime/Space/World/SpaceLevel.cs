@@ -355,6 +355,8 @@ namespace GoF2Remake.World
             if ((Session.ArrivedByTravel || Session.ArrivedBySystemJump) && station != Session.VoidOrbit && Session.PreviousStationIndex != Session.VoidOrbit)
                 WantedBoard.Move(db, station, Session.ProgrammedStation);
             Layout = OrbitLayout.Build(db, station);
+            if (warpArrival && Layout.alienOrbit && Session.WarpArrivalPoint is Vector3 shown) Layout.hiddenJumpgate = shown;   // where the approach was
+            Session.WarpArrivalPoint = null;
             if (interstellar) InterstellarSpace.Clear(Layout);
             var st = db.Stations.Find(s => s.index == station);
             StationInfo = st;
