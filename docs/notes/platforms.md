@@ -75,6 +75,18 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   MSAA 2x (`Bootstrap.AppliedMsaa`; the option still shows Off), and under a temporal upscaler (MSAA off) 94 %
   (`AppliedRenderScale` / `AndroidFullScale`: URP renders a scale within 5 % of 1 as exactly 1, `kRenderScaleThreshold`).
   Not yet checked on a phone.
+- **Android Vulkan device filter** (`Assets/Settings/VulkanDeviceFilters.asset`, Player settings > Android > Vulkan Device
+  Filtering Asset, `PlayerSettings.Android.androidVulkanDeviceFilterListAsset`; 2026-11-01): one deny entry, device name
+  `Adreno[^0-9]*[56][0-9][0-9]` and Android version `^([7-9]|10)([.][0-9.]*)?$`, so Adreno 5xx / 6xx phones on Android 10
+  or older start on GLES3 (the global API list is Vulkan, GLES3; the "Android Vulkan" profile has no GLES3 and ignores
+  it). Why: a OnePlus 7T (Adreno 640, Android 10, Discord 2026-10-24) drew random rectangles of the screen black or stale
+  with MSAA on, more the higher the MSAA: GPU bins never stored, an old Adreno Vulkan driver's fault (Unity's own Adreno
+  "flickers or goes black with MSAA" reports); URP's render graph always merges passes into Vulkan subpasses
+  (`nativeRenderPassesEnabled` is obsolete and always on), so there is no switch to work around it in Vulkan. Every
+  filter field but the Vulkan API / driver versions is an ECMAScript regex, not a "this version or older": hence the
+  anchored Android pattern (a bare `10` matched Android 10 alone, a partial `[5-9]` would catch 15). The fallback costs
+  those phones STP (no GLES; FSR 1 only where GLES reports shader model 4.5, see "Options"). `SettingsTests.OldAdrenoPhonesStartOnOpenGlEs`. Not yet run on
+  the phone: if GLES breaks the same way, the driver is not the cause.
 - **UWP** (Universal Windows Platform, no build profile: `EditorUserBuildSettings.SwitchActiveBuildTarget(WSA, WSAPlayer)`
   first, then `BuildPipeline.BuildPlayer` to a folder; IL2CPP, x64, D3D): package `JoppieToppie.GoF2Remake`, Start menu
   name "GoF2 Remake", capabilities InternetClient / InternetClientServer / PrivateNetworkClientServer (multiplayer and

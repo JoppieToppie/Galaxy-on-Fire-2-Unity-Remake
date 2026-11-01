@@ -254,6 +254,26 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void OldAdrenoPhonesStartOnOpenGlEs()
+        {
+            // CLAUDE.md "Android Vulkan device filter": Adreno 5xx / 6xx on Android 10 or older are denied Vulkan, and the
+            // build keeps GLES3 to fall back to (the filter fields are ECMAScript regexes, matched as the Editor does).
+            var apis = UnityEditor.PlayerSettings.GetGraphicsAPIs(UnityEditor.BuildTarget.Android);
+            CollectionAssert.Contains(apis, UnityEngine.Rendering.GraphicsDeviceType.OpenGLES3);
+            var lists = UnityEditor.PlayerSettings.Android.androidVulkanDeviceFilterListAsset;
+            Assert.IsNotNull(lists);
+            var deny = lists.vulkanDeviceDenyFilters.Single();
+            bool Matches(string pattern, string value) => System.Text.RegularExpressions.Regex.IsMatch(value, pattern,
+                System.Text.RegularExpressions.RegexOptions.ECMAScript);
+            Assert.IsTrue(Matches(deny.deviceName, "Adreno (TM) 640"));
+            Assert.IsTrue(Matches(deny.deviceName, "Adreno (TM) 540"));
+            Assert.IsFalse(Matches(deny.deviceName, "Adreno (TM) 740"));
+            Assert.IsFalse(Matches(deny.deviceName, "Mali-G76"));
+            foreach (var old in new[] { "7", "8.1", "9", "10" }) Assert.IsTrue(Matches(deny.androidOsVersionString, old), old);
+            foreach (var newer in new[] { "11", "12", "15" }) Assert.IsFalse(Matches(deny.androidOsVersionString, newer), newer);
+        }
+
+        [Test]
         public void AndroidUnderATemporalUpscalerDrawsOneHundredPercentFarEnoughBelowItForUrp()
         {
             Assert.AreEqual(1, Bootstrap.AppliedMsaa(1, 1f, true, true));   // temporal upscalers need MSAA off

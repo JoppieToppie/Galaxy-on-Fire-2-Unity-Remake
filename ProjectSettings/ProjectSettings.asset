@@ -1001,7 +1001,7 @@ PlayerSettings:
   insecureHttpOption: 0
   androidVulkanDenyFilterList: []
   androidVulkanAllowFilterList: []
-  androidVulkanDeviceFilterListAsset: {fileID: 0}
+  androidVulkanDeviceFilterListAsset: {fileID: 7862867394083496736, guid: 139f8b94cb43c094c921a7da82412c55, type: 2}
   d3d12CollectStateObjectDatabase: 0
   d3d12DeviceFilterListAsset: {fileID: 0}
   webGPUDeviceFilterListAsset: {fileID: 0}
