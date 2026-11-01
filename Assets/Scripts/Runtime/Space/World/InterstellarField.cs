@@ -19,8 +19,8 @@ namespace GoF2Remake.World
         /// <summary>A sun's size in the space, and how small and large it may look (half its angle, radians).</summary>
         const float SunRadiusMeters = 3000f, MinAngle = 0.05f, MaxAngle = 0.35f;
 
-        /// <summary>Where a system's sky starts to blend in (20 km), and how fast it may change (per ms).</summary>
-        const float BlendStartUnits = 400000f, BlendPerMs = 1f / 1500f, M = 0.05f;
+        /// <summary>How fast a system's sky may change (per ms).</summary>
+        const float BlendPerMs = 1f / 1500f, M = 0.05f;
 
         struct Sun { public Navigation.Target target; public Transform quad; }
 
@@ -87,8 +87,8 @@ namespace GoF2Remake.World
                 var to = s.target.Position - eye;
                 float distance = Mathf.Max(1f, to.magnitude), at = Mathf.Min(distance, inner);
                 s.quad.SetPositionAndRotation(eye + to / distance * at, cam.transform.rotation);
-                // the star ahead gives way to the orbit's own sun (SystemApproach), the others to the orbit's sky
-                float left = s.target == blended ? 1f - SystemApproach.SunShown(blend) : 1f - blend;
+                // the star ahead gives way to the orbit's own sun (SystemApproach), the others early to the orbit's sky
+                float left = s.target == blended ? 1f - SystemApproach.SunShown(blend) : 1f - SystemApproach.HandedOver(blend);
                 s.quad.localScale = Vector3.one * (at * left * Mathf.Clamp(SunRadiusMeters / distance, MinAngle, MaxAngle));
             }
             UpdateSky(Time.deltaTime * 1000f);
@@ -102,7 +102,7 @@ namespace GoF2Remake.World
             if (want != null && want.system != origin)
             {
                 float units = (want.Position - ship.position).magnitude / M;
-                goal = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(InterstellarSpace.ArriveUnits, BlendStartUnits, units));
+                goal = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(InterstellarSpace.ArriveUnits, InterstellarSpace.ApproachUnits, units));
             }
             if (want != blended)
             {
@@ -143,6 +143,12 @@ namespace GoF2Remake.World
                 skies[system.system] = sky = OrbitBuilder.MakeSky(layout);
             if (sky == null) return;
             blendedSky = sky.GetMatrix("_SkyRotation");
+            LoadBlendSky(sky);
+        }
+
+        /// <summary>'sky' into the shader's second set of layers.</summary>
+        public static void LoadBlendSky(Material sky)
+        {
             Shader.SetGlobalTexture("_BlendStars", sky.GetTexture("_Stars"));
             Shader.SetGlobalTexture("_BlendNebula", sky.GetTexture("_Nebula"));
             SetMap(sky, "_StarsMap", "_BlendStarsMap", "_BlendStarsTexel");

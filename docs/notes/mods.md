@@ -425,13 +425,29 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   replacement flight model as a hangar ship while the additive Station scene was unloading, capping its drive and hiding
   boost effects. Hangar models keep their context when carried under the orbit's station hull; other orbit ships retain
   flight effects. Tests `EngineStationContextTests` cover flight inputs, hangar previews and all five effect components.
+- **Base content** (`ModManager.BaseContent`, `BaseContentSource`, `Resources/GoF2Base`, 2026-11-01): what the remake adds to the
+  game itself, so far the Khador Slipstream, its blueprint and Khador at Thynome. Why not rows in `items.json`: the original
+  tables are numbered 0..232 back to back with the text blocks (`GameNames`: 233 reads a medal's name), the mods' numbers start
+  at 233 in every player's `mod_registry.json` and saves, so no number after the table is free, and there is no room to reserve
+  a block (`db.Items` stays 0..N-1, so a block far up means thousands of placeholders, and moving the mods up means rewriting
+  every registry and save). So base content takes the mods' route: a mod's layout read through `BaseContentSource` (its `All`
+  lists the files; images are `name.png.bytes`), first in `ModManager.Active`, numbered by `ModRegistry` under "gof2:<id>", saved
+  by key like a mod's. A base item's number differs per player: code names it by key (`ModContent.ItemIndexOf`). It is no mod
+  to the player: `UserMods` is `Active` without it for the browser, a save's `mods`, a session's list and `ActiveSignature`; a mod
+  can't take the id. `item.modded` stays true on it: that flag means "not in the original tables", which is what the original
+  save export and the Mod Builder's base list need. A session numbers its mods first (`EnsureMapping`), so they keep the
+  numbers persistent hosts saw before. `BaseContentTests`; texts are English until they get `extra_<lang>` keys. A
+  manifest that can't be read yet (Resources not ready in a fresh Editor) leaves it out instead of throwing out of
+  `Active`: `BaseContent` is null, `Active` isn't kept, and the read that finds it bumps `Revision` (review, 2026-11-01).
 - **Mod blueprints** (`ModBlueprints`, a mod's `blueprints.json`, parsed with the rest in `ModContent.Parse`): a "ship" or
   "item" product, ingredients, requiresShip (a skin: built only while flying that ship, which it rebuilds, the Kaamo upgrades
   kept), autocomplete (true / false / a price: `Blueprints.AutoCompletePrice` / `CanAutocomplete`, the hangar hides the row),
   available, unlocked (known once available, `UnlockAvailable` at `Shop.EnterStation`), and three sources while available and
   not known (`Offerable`): "lounge" (`AgentGenerator.AddModBlueprintSellers`, a local visitor with offer SellBlueprint, the
   openers 874 / 875 in `LoungeChat.StoryLine`; "stations" pins it to those bars like the game's own sellers, chance 100,
-  `LoungeAllowedAt`), "derelict" (`TrafficPlan.Build`: one hackable freighter wreck per visit at
+  `LoungeAllowedAt`; "seller" there puts a named character in instead of a local visitor: a story speaker's face, race and
+  own lines for the offer, the sale and after it, `ModBlueprints.Seller`, `AgentGenerator.PlaceModSeller`, `LoungeChat.SellerOf`;
+  `AddNamedSellers` adds them to a bar whose visitors were kept, a station among the last 3), "derelict" (`TrafficPlan.Build`: one hackable freighter wreck per visit at
   most, `TrafficPlan.HackableWreck` + `SpawnSpec.modBlueprint`; `Traffic.OnHackWon` leaves a data crate; "stations" limits it
   to those orbits, `RollDerelict(station)` / `DerelictAllowedAt`, the chance then defaulting to 100, a list of unknown ones =
   nowhere; "position" [x, y, z] game units in the orbit, else out in front) and "drops" per race or per ship type (`{

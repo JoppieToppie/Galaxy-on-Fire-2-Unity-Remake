@@ -36,6 +36,26 @@ the player ship) and `NavigationView` (flight HUD).
   on at 8 u/ms for 3 s, HUD hidden, then `Space` reloads in that station's orbit (`Session.StationIndex`,
   `PreviousStationIndex`, `ArrivedByTravel`): arrival at 4x the previous station's planet billboard (~4 km), or the
   hidden gate in the gate orbit, facing the station, with the travel fly-in camera.
+- **Planet run** (remake, `NavigationPlanetRun`, `World.PlanetApproach`, 2026-11-01, the user's): a cruise to another station's
+  planet loads that orbit in ahead of the ship as a flight into a system does (`SystemApproach`). By hand: the cruise button
+  held with the nose within 8 deg of a planet (a locked one only when it is that close too), any cruise drive (35 deg off the
+  course or the drive's end stops it, and the orbit fades back out). In place of the planet jump: with a drive that flies between the systems mounted, the action on a locked
+  planet or the autopilot reaching one starts the run instead of the scene, the autopilot flying it and holding the drive;
+  where the drive can't run (hostiles) or stops on the way, the original jump goes (`JumpsBlocked` and `PlanetJumpRefused`
+  asked again first). Both on the planet jump's terms, the user's rule: no charge and no energy cells (`CruiseDrive.Engage`,
+  `RunFree`; by hand only within 15 deg of the course, so a planet ahead is no free cruise to elsewhere). A run keeps the
+  programmed destination as the planet jump does (`SystemJump.LeaveInterstellar`'s `hopping`), and ends instead of leaving
+  while `SystemJump` charges or runs a jump (`Navigation.TravelBusy`). Backdrop planets stay with the camera, so a run
+  flies at a point `RunApproachUnits` (14 km; `ApproachUnits` 20 km until the user's 2026-11-01 "quicker") along the way to
+  the planet, fixed at its start, and leaves at `ArriveUnits` (8 km): 6 km of cruise. `Session.WarpLocal`:
+  the arrival is `OrbitLayout.PlanetArrivalPose`, facing the orbit's planet (unlike a system's), the plain warp with no web, and
+  the orbit's planet starts at the size it had here. This orbit's planets and sun hand over to the next's in the first
+  eighth of the blend (`SystemApproach.HandOverBy`, 0.125; they went only near the arrival, the user, 2026-11-01).
+  Never into an orbit a script sets up on arrival (`Navigation.ScriptedArrival`: a story mission's level, a freelance
+  mission's target, an event quest's; the user, 2026-11-01): its opening (a placed start, an ambush, a cutscene) is written
+  for the planet jump, not a warp's held fire and carried speed, so the jump on its planet is the plain one and a cruise
+  aimed at it no run; an arrival from between the systems loads such an orbit as after a jump (`SystemJump.LeaveInterstellar`).
+  Single player only. No encounters roll during one.
 - **Autopilot menu** (`Hud::initHudMenu(3)`): the touch autopilot button, Q or the controller's View button while
   nothing else flies the ship (1-8 pick an entry; with keys and mouse the entries read "1." to "8.", like the PC
   version's numbered menus; remake: Q / E / V / K do nothing during a level's cutscene, #46); the game pauses
@@ -68,9 +88,11 @@ the player ship) and `NavigationView` (flight HUD).
   133 / 100 joins `CruiseFactor` (its own ramp 800 / 1200 ms, `Cruising` and the boost look follow it); every attr 134
   units pay a leg. Drops (a HUD line with the item's name, Extra `cruiseDrive*`): release, hostiles (`HostilesPresent`), the
   autopilot / jump / time extender / mining / docking / a halt, a hull the player is pushed out of (`HullBody.obstacle`:
-  stations, freighters, objects; `HullCollision.Sweep` along the nose) within `StopUnits` 8000 (the speed eased down from
-  `SlowUnits` 40000), the locked landmark within `ArriveUnits` 20000, a hit (`PlayerHealth.Hit`). Asteroids aren't hulls: a
-  field is flown at your own risk. Touch: the drive takes the fast-forward slot while usable (the clock keeps it while
+  stations, freighters, objects; `HullCollision.Sweep` along the nose, and their collision volumes by `Obstacle.RayDistance`
+  where the hull takes no part under the ship-collision setting, 2026-10-31) within `StopUnits` 8000 (the speed eased down from
+  `SlowUnits` 40000), a live asteroid's cube (the ship collision's, grown by `CruiseDrive.SweepRadius`; asteroids have no
+  hull, so `CruiseDrive.CubeAhead`'s slab test along the nose finds them, 2026-10-31) the same way, the locked landmark within
+  `ArriveUnits` 20000, a hit (`PlayerHealth.Hit`). Touch: the drive takes the fast-forward slot while usable (the clock keeps it while
   the extender runs); hint "CRUISE (HOLD)" (Extra `hudCruiseDrive`). Modelled on No Man's Sky's pulse travel and
   EVERSPACE 2's cruise mode (behaviour only).
   **Encounters** (`Flight.CruiseEncounters` rules, `Modding.ModEncounters` the table with the mods' encounters.json,

@@ -417,6 +417,7 @@ namespace GoF2Remake.World
         /// given (its own target, Gun.SetTarget); false = not fired.</summary>
         bool FireMissile(Target target, Target own = null)
         {
+            if (traffic.HoldFire) return false;
             if (own != null) target = own;
             var from = ship.transform.TransformPoint(launchers[launcherIndex % launchers.Count]);
             var toward = (target.transform.position - from).normalized;

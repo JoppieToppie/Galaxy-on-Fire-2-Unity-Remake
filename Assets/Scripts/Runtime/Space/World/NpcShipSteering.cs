@@ -82,7 +82,7 @@ namespace GoF2Remake.World
                         if (firing == null || !target.Targetable) attacking = false;
                         // PlayerFighter::update's fire block checks the target's cloak (+0x5e), not its own: a cloaked Specter
                         // fires (handleCloaking only sets the look and the radar flag); a script's hidden ship doesn't.
-                        else if (shootingEnabled && !radarHidden && !(dockedPlayer && target.transform.position.y > transform.position.y)
+                        else if (shootingEnabled && !HoldFire && !radarHidden && !(dockedPlayer && target.transform.position.y > transform.position.y)
                                  && firing.TryFire(transform) >= 0)
                         {
                             int shot = NpcTables.ShotSound(Race);

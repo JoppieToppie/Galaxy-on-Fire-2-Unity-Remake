@@ -15,7 +15,7 @@ namespace GoF2Remake.Tests
 {
     public class ModManagerTests : SavesModsTest
     {
-        static string[] ActiveIds() => ModManager.Active.Select(m => m.Id).ToArray();
+        static string[] ActiveIds() => ModManager.UserMods.Select(m => m.Id).ToArray();
 
         [Test]
         public void TheSandboxReadsOnlyItsOwnModsFolder()
@@ -24,7 +24,7 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(System.IO.Path.Combine(Sandbox, "Mods"), ModManager.UserFolder);
             ModManager.Scan();
             Assert.AreEqual(0, ModManager.Installed.Count);
-            Assert.AreEqual(0, ModManager.Active.Count);
+            Assert.AreEqual(0, ModManager.UserMods.Count);
             Assert.IsTrue(System.IO.Directory.Exists(ModsFolder), "the user folder is made on the first scan");
         }
 
@@ -49,7 +49,7 @@ namespace GoF2Remake.Tests
             WriteMod("alpha", "alpha_mod");
             ModManager.Scan();
             Assert.IsFalse(ModManager.IsEnabled("alpha_mod"));
-            Assert.AreEqual(0, ModManager.Active.Count);
+            Assert.AreEqual(0, ModManager.UserMods.Count);
         }
 
         [Test]
@@ -117,7 +117,7 @@ namespace GoF2Remake.Tests
             var m = ModManager.Installed.Single();
             Assert.IsTrue(m.Broken);
             StringAssert.StartsWith("mod.json line 2", m.Errors[0]);
-            Assert.AreEqual(0, ModManager.Active.Count);
+            Assert.AreEqual(0, ModManager.UserMods.Count);
         }
 
         [Test]
@@ -128,7 +128,7 @@ namespace GoF2Remake.Tests
             var m = Installed("bad_mod");
             Assert.IsTrue(m.Broken);
             StringAssert.Contains("items.json", m.Errors[0]);
-            Assert.AreEqual(0, ModManager.Active.Count);
+            Assert.AreEqual(0, ModManager.UserMods.Count);
             Assert.AreEqual(m.Errors[0], ModManager.InactiveReason(m));
         }
 
@@ -144,8 +144,8 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(both.Single(m => m.Broken).Source.Location.EndsWith("b_second"));
             StringAssert.Contains("already uses the id", both.Single(m => m.Broken).Errors[0]);
             ModManager.SetEnabled("same_mod", true);
-            Assert.AreEqual(1, ModManager.Active.Count);
-            Assert.IsFalse(ModManager.Active[0].Broken);
+            Assert.AreEqual(1, ModManager.UserMods.Count);
+            Assert.IsFalse(ModManager.UserMods[0].Broken);
         }
 
         // ---- dependencies ---------------------------------------------------------------------------------------------
@@ -191,7 +191,7 @@ namespace GoF2Remake.Tests
             WriteMod("child", "child_mod", manifestExtra: ", 'dependencies': ['ghost_mod']");
             ScanAndEnable("child_mod");
             Assert.IsTrue(ModManager.IsEnabled("child_mod"));
-            Assert.AreEqual(0, ModManager.Active.Count);
+            Assert.AreEqual(0, ModManager.UserMods.Count);
             StringAssert.Contains("isn't installed", ModManager.InactiveReason(Installed("child_mod")));
         }
 
@@ -223,7 +223,7 @@ namespace GoF2Remake.Tests
             WriteMod("child", "child_mod", manifestExtra: ", 'dependencies': ['base_mod']");
             PlayerPrefs.SetString("mods_enabled", "child_mod");
             ModManager.Scan();
-            Assert.AreEqual(0, ModManager.Active.Count);
+            Assert.AreEqual(0, ModManager.UserMods.Count);
             StringAssert.Contains("on too", ModManager.InactiveReason(Installed("child_mod")));
         }
 
@@ -233,7 +233,7 @@ namespace GoF2Remake.Tests
             WriteMod("base", "base_mod", "1.0", "", ("ships.json", "[ { 'id': 'x' } ]"));
             WriteMod("child", "child_mod", manifestExtra: ", 'dependencies': ['base_mod']");
             ScanAndEnable("child_mod");
-            Assert.AreEqual(0, ModManager.Active.Count);
+            Assert.AreEqual(0, ModManager.UserMods.Count);
             StringAssert.Contains("has errors", ModManager.InactiveReason(Installed("child_mod")));
         }
 
@@ -250,7 +250,7 @@ namespace GoF2Remake.Tests
             CollectionAssert.AreEqual(new[] { "b_mod" }, ActiveIds());
             CollectionAssert.AreEqual(new[] { "a_mod" }, ModManager.SinglePlayerActive.Select(m => m.Id).ToArray());
             ModManager.BeginSession(null);
-            Assert.AreEqual(0, ModManager.Active.Count, "a session without modded content has none");
+            Assert.AreEqual(0, ModManager.UserMods.Count, "a session without modded content has none");
             ModManager.EndSession();
             Assert.IsFalse(ModManager.InSession);
             CollectionAssert.AreEqual(new[] { "a_mod" }, ActiveIds());

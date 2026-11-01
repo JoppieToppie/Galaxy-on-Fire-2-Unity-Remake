@@ -26,6 +26,10 @@ namespace GoF2Remake.Data
         /// <summary>A system's edge (8 km): the level changes here, at full warp with nothing near and the sky already the
         /// system's, and the ship flies the rest of the way in through the real orbit (CarryMeters).</summary>
         public const float ArriveUnits = 160000f;
+        /// <summary>Where a system starts to show on the way in (20 km): its sky blends in, its orbit is built ahead.</summary>
+        public const float ApproachUnits = 400000f;
+        /// <summary>The planets' size of their own where they start to show, and at the edge.</summary>
+        public const float PlanetFarSize = 0.03f, PlanetEdgeSize = 0.5f;
         /// <summary>How far outside the system it left the ship starts.</summary>
         public const float StartUnits = 240000f;
         /// <summary>Multiplayer: the orbit id everybody in this space shares (SpaceLevel.NetOrbitId), past every station and
@@ -96,6 +100,15 @@ namespace GoF2Remake.Data
         /// <summary>How far (metres) a ship carrying a cruise's speed flies while it eases to its own over 'ms' (the smoothstep's
         /// average is half way), the ship's own 100 m/s under it: an arrival starts this far out to end where arrivals do.</summary>
         public static float CarryMeters(int speedPercent, float ms) => (1f + (speedPercent / 100f - 1f) / 2f) * 100f * ms / 1000f;
+
+        /// <summary>How big a system's planets and all else in it are of their own size on the way in, 'units' from it: a speck where the approach
+        /// starts, half at the edge, at a steady rate of growth as a flight at a steady speed sees it.</summary>
+        public static float ApproachSize(float units, float from = PlanetFarSize, float approachUnits = ApproachUnits) =>
+            from * Mathf.Pow(PlanetEdgeSize / from, Mathf.InverseLerp(approachUnits, ArriveUnits, units));
+
+        /// <summary>And in the orbit, as the arrival eases out ('left' 1..0): on from the edge's size to their own, slowing with
+        /// the ship.</summary>
+        public static float ArrivalSize(float left) => Mathf.Lerp(PlanetEdgeSize, 1f, 1f - left * left);
 
         /// <summary>The cells a straight crossing takes: one per started leg, x2 on Extreme.</summary>
         public static int CellsFor(float units, bool extreme) => Mathf.CeilToInt(units / LegUnits) * (extreme ? 2 : 1);

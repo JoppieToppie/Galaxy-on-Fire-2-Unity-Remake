@@ -30,11 +30,12 @@ def unity(*args, timeout=None):
 
 
 def result_json(text):
+    """The first JSON object in the CLI's output (newer versions print it as a table column, with the parameters after it)."""
     start = text.find("{")
     if start < 0:
         return None
     try:
-        return json.loads(text[start:])
+        return json.JSONDecoder().raw_decode(text[start:])[0]
     except ValueError:
         return None
 
@@ -59,10 +60,12 @@ def wait_ready(limit_s=300):
 
 
 def find(node, key):
-    """The first value of 'key' anywhere in a JSON tree (the CLI nests the runner's response)."""
+    """The first value of 'key' anywhere in a JSON tree (the CLI nests the runner's response; the edit-mode result
+    capitalizes its keys, test_status's play-mode result doesn't)."""
     if isinstance(node, dict):
-        if key in node:
-            return node[key]
+        for k, v in node.items():
+            if k.lower() == key.lower():
+                return v
         for v in node.values():
             found = find(v, key)
             if found is not None:
@@ -130,25 +133,27 @@ def main():
         return 1
 
     results = find(data, "Results") or []
-    failed = [r for r in results if r.get("Status") not in ("Passed", "Skipped")]
+    # A record's keys are capitalized or not as the summary's are (field() reads either).
+    field = lambda r, key: next((v for k, v in r.items() if k.lower() == key.lower()), None)
+    failed = [r for r in results if str(field(r, "Status")).lower() not in ("passed", "skipped")]
+    count = lambda key: summary.get(key, summary.get(key.lower(), 0))
     print("{mode}: {p}/{t} passed, {f} failed, {s} skipped{i} ({sec:.0f} s){flt}".format(
-        mode=a.mode, p=summary.get("Passed", 0), t=summary.get("Total", 0), f=summary.get("Failed", 0),
-        s=summary.get("Skipped", 0),
-        i=", {} inconclusive".format(summary["Inconclusive"]) if summary.get("Inconclusive") else "",
+        mode=a.mode, p=count("Passed"), t=count("Total"), f=count("Failed"), s=count("Skipped"),
+        i=", {} inconclusive".format(count("Inconclusive")) if count("Inconclusive") else "",
         sec=time.time() - started, flt=" [filter {}]".format(a.filter) if a.filter else ""))
     for r in failed:
         print()
-        print("FAILED " + r.get("FullName", "?") + " (" + str(r.get("Status")) + ")")
-        message = (r.get("Message") or "").strip()
+        print("FAILED " + (field(r, "FullName") or "?") + " (" + str(field(r, "Status")) + ")")
+        message = (field(r, "Message") or "").strip()
         if message:
             message = message if len(message) <= MESSAGE_CHARS else message[:MESSAGE_CHARS] + " ..."
             print("  " + message.replace("\n", "\n  "))
-        for line in project_stack(r.get("StackTrace")):
+        for line in project_stack(field(r, "StackTrace")):
             print("    at " + line)
     if failed:
         print()
         print("Full records: Temp/test_results.json")
-    return 1 if failed or summary.get("Failed") else 0
+    return 1 if failed or count("Failed") else 0
 
 
 if __name__ == "__main__":

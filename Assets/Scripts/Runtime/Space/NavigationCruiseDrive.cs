@@ -5,9 +5,13 @@
 // joins the multiplayer cruise's in CruiseFactor (ShipController's step), so it looks and sounds like a boost
 // (FlightModel.CruiseVisual). The energy cells go the Khador Drive's way (GalaxyMap.RemoveCells, "-1t Energy Cells";
 // 583 + the cells when there aren't enough; the free-jumps cheat makes it free). What stops it says so on the HUD with
-// the item's name (Extra cruiseDrive*). A hull ahead: HullCollision.Sweep along the nose for what the player is pushed out
-// of (stations, freighters, objects: HullBody.obstacle), not fighters; asteroids aren't hulls, so a field is flown at
-// your own risk (a hit drops the cruise, PlayerHealth.Hit).
+// the item's name (Extra cruiseDrive*). Something ahead (ObstacleAheadUnits): HullCollision.Sweep along the nose for what
+// the player is pushed out of (stations, freighters, objects: HullBody.obstacle), not fighters; the same objects' collision
+// volumes (Obstacle.RayDistance) where their hull takes no part, so the Original and Mixed ship-collision settings see them
+// too; and the live asteroids' cubes (Target.isAsteroid, PlayerCollision's cube; they have no hulls) by CruiseDrive.CubeAhead,
+// so a field slows and drops the cruise like a station does, as No Man's Sky's pulse and EVERSPACE 2's cruise are stopped by
+// what lies in the way. Between the systems, the last leg the hold can pay is said (Extra interstellarLastLeg): the next one
+// would fall the ship out.
 // Encounters (CruiseEncounters, the level's EncountersAllowed and SpawnEncounter -> CruiseEncounterSpawner): an ambush
 // appears AmbushAheadUnits ahead and drops the drive (Stop.Encounter; a flyby doesn't); a visible one is a signal, a
 // waypoint target SignalAheadUnits ahead and to one side (lockable, the autopilot flies to it) that spawns when the ship
@@ -65,7 +69,7 @@ namespace GoF2Remake.Flight
         CruiseDrive.Stop DriveBlock =>
             Drive == null || ship == null ? CruiseDrive.Stop.Blocked
             : HostilesPresent ? CruiseDrive.Stop.Hostiles
-            : Jumping || LeavingInterstellar || halted || (Autopilot && !Interstellar) || TimeExtender.Active || InputHalted
+            : ArrivalHeld || Jumping || LeavingInterstellar || halted || (Autopilot && !Interstellar && RunPlanet == null) || TimeExtender.Active || InputHalted
               || (mining != null && mining.State != Mining.Phase.Idle) || (Docking != null && Docking.Busy) ? CruiseDrive.Stop.Blocked
             : CruiseDrive.Stop.None;
 
@@ -79,8 +83,8 @@ namespace GoF2Remake.Flight
             driveMoved = true;
             // The button: the original fast-forward wins while it is allowed (the autopilot and the approaches).
             // Between the systems the autopilot holds it too: a crossing is the drive's whole flight (NavigationInterstellar).
-            bool held = Interstellar ? fastForwardHeld || Autopilot : fastForwardHeld && !CanFastForward;
-            bool free = Cheats.FreeJumps;
+            bool held = Interstellar ? fastForwardHeld || Autopilot : (fastForwardHeld && !CanFastForward) || (RunPlanet != null && runByAutopilot);
+            bool free = Cheats.FreeJumps || RunFree;   // a flight to a planet is the planet jump's: nothing to pay
             var ev = Drive.Update(dtMs, held, DriveBlock, moved, Drive.State == CruiseDrive.Phase.Off && !held ? float.MaxValue : ObstacleAheadUnits(),
                                   LockedLandmarkUnits(), GalaxyMap.CellsInCargo(), free);
             switch (ev)
@@ -91,6 +95,8 @@ namespace GoF2Remake.Flight
                     {
                         GalaxyMap.RemoveCells(Drive.CellsDue);
                         Say($"-{Drive.CellsDue}t {GameNames.Item(GalaxyMap.EnergyCellItem)}");
+                        if (Interstellar && GalaxyMap.CellsInCargo() < Drive.cellsPerLeg)
+                            Say(string.Format(Localization.Extra("interstellarLastLeg", "{0}: last leg of energy cells"), driveName));
                     }
                     break;
                 case CruiseDrive.Event.Refused:
@@ -124,14 +130,52 @@ namespace GoF2Remake.Flight
             if (text != null) Say(string.Format(text, driveName));
         }
 
-        /// <summary>The first hull the ship is pushed out of (stations, freighters, objects) within CruiseDrive.SlowUnits
-        /// along its nose, in units; float.MaxValue = none.</summary>
+        /// <summary>The first hull the ship is pushed out of (stations, freighters, objects), such an object's collision volumes
+        /// where its hull takes no part, or live asteroid within CruiseDrive.SlowUnits along its nose, in units; float.MaxValue
+        /// = none.</summary>
         float ObstacleAheadUnits()
         {
             var t = ship.transform;
             var from = t.position;
             var to = from + t.forward * (CruiseDrive.SlowUnits * M);
-            return HullCollision.Sweep(from, to, 12f, b => b.obstacle != null && !b.transform.IsChildOf(t), out float d) ? d / M : float.MaxValue;
+            float best = HullCollision.Sweep(from, to, CruiseDrive.SweepRadius, b => b.obstacle != null && !b.transform.IsChildOf(t), out float d) ? d / M : float.MaxValue;
+            best = Mathf.Min(best, VolumeAheadUnits(from, t.forward, best, t));
+            return Mathf.Min(best, AsteroidAheadUnits(from, t.forward, best));
+        }
+
+        /// <summary>The first obstacle without a hull in play (Obstacle.UsesHull: the Original setting, or Mixed for a flyable
+        /// ship's) whose volumes the nose line enters within 'limit' units; float.MaxValue = none.</summary>
+        float VolumeAheadUnits(Vector3 from, Vector3 dir, float limit, Transform own)
+        {
+            float reach = Mathf.Min(limit, CruiseDrive.SlowUnits) * M, best = float.MaxValue;
+            var all = Obstacle.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var o = all[i];
+                if (o == null || !o.Active || o.UsesHull || o.transform.IsChildOf(own)) continue;
+                float m = o.RayDistance(from, dir);
+                if (m < best) best = m;
+            }
+            return best <= reach ? best / M : float.MaxValue;
+        }
+
+        /// <summary>The first live asteroid whose cube (the ship collision's, grown by the sweep's radius) the nose line enters
+        /// within 'limit' units (at most SlowUnits); float.MaxValue = none. Asteroids have no hull, so their cubes are tested.</summary>
+        float AsteroidAheadUnits(Vector3 from, Vector3 dir, float limit)
+        {
+            float reach = Mathf.Min(limit, CruiseDrive.SlowUnits) * M, best = float.MaxValue;
+            var all = GoF2Remake.Flight.Target.All;   // the asteroid components, not Navigation's own Target
+            for (int i = 0; i < all.Count; i++)
+            {
+                var a = all[i];
+                if (a == null || !a.isAsteroid || !a.Alive) continue;
+                var c = a.transform.position;
+                float broad = reach + a.radius + CruiseDrive.SweepRadius;
+                if ((c - from).sqrMagnitude > broad * broad) continue;
+                float m = CruiseDrive.CubeAhead(from, dir, c, a.radius + CruiseDrive.SweepRadius);
+                if (m < best) best = m;
+            }
+            return best <= reach ? best / M : float.MaxValue;
         }
 
         /// <summary>The locked landmark (station, gate, docking target, wormhole) in units; float.MaxValue = none.</summary>
@@ -151,7 +195,7 @@ namespace GoF2Remake.Flight
         void UpdateEncounters(float dtMs)
         {
             UpdateSignal(dtMs);
-            if (encounters == null || !EncountersAllowed || SpawnEncounter == null) return;
+            if (encounters == null || !EncountersAllowed || SpawnEncounter == null || RunPlanet != null) return;
             var e = encounters.Update(dtMs, Drive.Cruising, EncounterAllowed, () => UnityEngine.Random.value);
             if (e == null) return;
             var t = ship.transform;

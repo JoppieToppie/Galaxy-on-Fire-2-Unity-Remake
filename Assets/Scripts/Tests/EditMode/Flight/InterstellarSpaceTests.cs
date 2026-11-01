@@ -158,6 +158,15 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void PlanetsGrowFromASpeckToFullSizeOnTheWayIn()
+        {
+            Assert.AreEqual(InterstellarSpace.PlanetFarSize, InterstellarSpace.ApproachSize(InterstellarSpace.ApproachUnits * 2f), 0.001f, "a speck out there");
+            Assert.Greater(InterstellarSpace.ApproachSize(InterstellarSpace.ArriveUnits * 1.5f), InterstellarSpace.ApproachSize(InterstellarSpace.ArriveUnits * 2f), "growing");
+            Assert.AreEqual(InterstellarSpace.ArrivalSize(1f), InterstellarSpace.ApproachSize(InterstellarSpace.ArriveUnits), 0.001f, "the same size across the load");
+            Assert.AreEqual(1f, InterstellarSpace.ArrivalSize(0f), 0.001f, "full size on arrival");
+        }
+
+        [Test]
         public void AFlyInStartsAsFarOutAsItsSpeedCarriesIt()
         {
             Assert.AreEqual(100f, InterstellarSpace.CarryMeters(100, 1000f), 0.01f, "no cruise: the ship's own speed");

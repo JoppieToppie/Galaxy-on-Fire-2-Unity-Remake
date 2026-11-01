@@ -162,7 +162,12 @@ namespace GoF2Remake.Flight
         /// <summary>More than one secondary item is mounted (the HUD offers the switch).</summary>
         public bool CanCycleSecondary { get { int n = 0, last = -1; foreach (var r in rigs) if (r.gun.isSecondary && r.gun.itemIndex != last) { last = r.gun.itemIndex; n++; } return n > 1; } }
         /// <summary>No firing (the mining minigame blocks the guns, MGame::OnTouchBegin / OnTouchEnd).</summary>
-        public bool Blocked { get; set; }
+        public bool Blocked { get => blocked || WarpHeld; set => blocked = value; }
+        bool blocked;
+        /// <summary>Blocked as set, without the warp's hold: what a caller that puts the block back as it found it reads.</summary>
+        public bool BlockSet => blocked;
+        /// <summary>Remake: no firing in the warp (SpaceLevel.WarpHolds), apart from Blocked, which the menus clear.</summary>
+        public bool WarpHeld { get; set; }
         /// <summary>The primary guns stay silent, the secondaries fire (the approach to an asteroid and the landing: the fire
         /// button aborts instead, Mining; missiles still go, MGame::OnTouchEnd).</summary>
         public bool PrimaryBlocked { get; set; }

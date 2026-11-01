@@ -62,7 +62,7 @@ namespace GoF2Remake.Multiplayer
                 : DedicatedServer.Enabled ? ModManager.Installed.Where(m => !m.Broken).OrderBy(m => m.Id, StringComparer.Ordinal).ToList()
                 : ModManager.SinglePlayerActive;
             ModManager.BeginSession(mods.Select(m => m.Id));
-            SessionList = string.Join(";", ModManager.Active.Select(m => m.NetSignature));
+            SessionList = string.Join(";", ModManager.UserMods.Select(m => m.NetSignature));
             if (SessionList.Length > MaxListLength)
             {
                 Debug.LogWarning("NetMods: too many mods for a session; it runs without them");
@@ -138,6 +138,6 @@ namespace GoF2Remake.Multiplayer
         public static List<string> MissingForListing(string listedMods) => Missing(listedMods, InstalledList);
 
         /// <summary>The session's mods by name for the listing ("Plasma Arsenal 1.0, ...").</summary>
-        public static string SessionNames => string.Join(", ", ModManager.Active.Select(m => $"{m.Name} {m.Version}"));
+        public static string SessionNames => string.Join(", ", ModManager.UserMods.Select(m => $"{m.Name} {m.Version}"));
     }
 }

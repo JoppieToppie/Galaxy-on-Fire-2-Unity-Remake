@@ -1,0 +1,64 @@
+[
+    {
+        "id": "khador_slipstream",
+        "item": "gof2:khador_slipstream",
+        "ingredients": [
+            {
+                "item": 164,
+                "amount": 80
+            },
+            {
+                "item": 158,
+                "amount": 320
+            },
+            {
+                "item": 160,
+                "amount": 320
+            },
+            {
+                "item": 163,
+                "amount": 50
+            },
+            {
+                "item": 118,
+                "amount": 160
+            },
+            {
+                "item": 125,
+                "amount": 240
+            },
+            {
+                "item": 127,
+                "amount": 240
+            },
+            {
+                "item": 129,
+                "amount": 190
+            },
+            {
+                "item": 122,
+                "amount": 200
+            },
+            {
+                "item": 210,
+                "amount": 1
+            }
+        ],
+        "autocomplete": false,
+        "available": "campaign >= 84 or campaign < 0",
+        "lounge": {
+            "stations": [
+                10
+            ],
+            "price": 400000,
+            "seller": {
+                "name": "Khador",
+                "speaker": 20,
+                "race": 7,
+                "offer": "Just a word, Mr. Maxwell. I have stolen a few hours from these disturbances, and I hoped I might find you here. The Khador Drive, you see, has one flaw: it leaves nothing at all between the departure and the arrival. I believe you humans call this... missing the scenery? So I have held the fold open. Mounted, the #N will carry your ship through an orbit at great speed, and out of the system altogether, into the dark between the stars.\nAccording to our calculations it is 97% reliable. Unfortunately, there is always a residual risk. I would be honored if you took the blueprint, for a modest #C. And I must trouble you for one unit of chromo plasma: there is a considerable likelihood that nothing else will hold the fold. Might we say we have an agreement?",
+                "thanks": "Excellent! I believe I am experiencing what you humans call relief. You have my utmost gratitude, Mr. Maxwell. Do carry your regular Khador drive on board also, just in case. I would hate to think of you stranded between the stars. And should Dr. Paolini ask, you have not seen me here.",
+                "known": "Ah, Mr. Maxwell! How very nice to see you. I trust the fold is holding? Should you observe any residual risk, my humble self would be most interested to hear of it. From a safe distance, of course."
+            }
+        }
+    }
+]

@@ -289,5 +289,21 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(expected.y, actual.y, tolerance, message);
             Assert.AreEqual(expected.z, actual.z, tolerance, message);
         }
+
+        [Test]
+        public void RayEntryIntoBoxesAndSpheres()
+        {
+            var box = CollisionVolume.Box(new Vector3(0f, 0f, 100f), new Vector3(10f, 5f, 20f));
+            Assert.AreEqual(80f, box.RayEntry(Vector3.zero, Vector3.forward), 0.001f, "the near face of the box");
+            Assert.AreEqual(float.MaxValue, box.RayEntry(new Vector3(0f, 8f, 0f), Vector3.forward), "above its half height");
+            Assert.AreEqual(0f, box.RayEntry(new Vector3(0f, 0f, 100f), Vector3.forward), "from inside");
+            Assert.AreEqual(float.MaxValue, box.RayEntry(Vector3.zero, Vector3.back), "behind");
+            var ball = CollisionVolume.Sphere(new Vector3(0f, 0f, 100f), 30f);
+            Assert.AreEqual(70f, ball.RayEntry(Vector3.zero, Vector3.forward), 0.001f, "the near side of the sphere");
+            Assert.AreEqual(100f - Mathf.Sqrt(30f * 30f - 20f * 20f), ball.RayEntry(new Vector3(20f, 0f, 0f), Vector3.forward), 0.001f, "a chord");
+            Assert.AreEqual(float.MaxValue, ball.RayEntry(new Vector3(31f, 0f, 0f), Vector3.forward), "past its side");
+            Assert.AreEqual(0f, ball.RayEntry(new Vector3(0f, 0f, 90f), Vector3.forward), "from inside");
+            Assert.AreEqual(float.MaxValue, ball.RayEntry(Vector3.zero, Vector3.back), "behind");
+        }
     }
 }

@@ -4,9 +4,10 @@
 // So this is no object: GoF2/SpaceSky stretches the sky itself by the globals set here, and at level 0 it is the plain sky,
 // which makes the start and the end seamless; ships, planets and suns draw over it untouched. Between the systems (and easing
 // out of them) it takes after the Khador Drive's animation: that fx's vein web runs through it, and it leans to its ice blue;
-// a cruise in an orbit is the plain stretch. Always full between the
-// systems; in an orbit it follows the cruise drive's ramp, and an arrival from between the systems eases out of it. The
-// images and sounds are a mod's warp.json (Modding.ModWarp), else made here, so it works with no mod's art.
+// a cruise in an orbit is the plain stretch. The web is a layer of its own (GoF2/WarpWeb), so the planets stay under it. Always
+// full between the systems; in an orbit it follows the cruise drive's ramp, and an arrival from between the systems eases out
+// of it, the orbit's fog easing in and its planets growing to full size as it goes. The band images are the game's own
+// (Data.WarpBands) unless a mod's warp.json (Modding.ModWarp) replaces them; it plays a sound only if that mod gives one.
 
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
@@ -35,21 +36,27 @@ namespace GoF2Remake.Visuals
         const float AxisFollow = 6f;
 
         static readonly int Level = Shader.PropertyToID("_WarpLevel"), Time_ = Shader.PropertyToID("_WarpTime"), Axis = Shader.PropertyToID("_WarpAxis"),
-                            Tint = Shader.PropertyToID("_WarpTint"), Noise = Shader.PropertyToID("_WarpNoise"), Detail = Shader.PropertyToID("_WarpDetail"),
-                            Sparks = Shader.PropertyToID("_WarpSparks"), Arcs = Shader.PropertyToID("_WarpArcs"),
+                            Noise = Shader.PropertyToID("_WarpNoise"), Detail = Shader.PropertyToID("_WarpDetail"), Arcs = Shader.PropertyToID("_WarpArcs"),
                             Khador = Shader.PropertyToID("_WarpKhador");
 
         Navigation nav;
         ShipController ship;
-        bool interstellar;
+        bool interstellar, local;
         float arrivalMs, lightMs, lightStartMs, lightStrength;
         Color lightColour;
         /// <summary>The sky runs on across a load, and the loop plays through it (CarrySound).</summary>
         static float flow;
         static AudioSource carriedLoop;
         SystemJump jump;
+        SpaceDust fog;
+        Backdrop backdrop;
+        Traffic traffic;
+        ArrivalScale objects;
+        MeshRenderer web;
+        Material webLook;
         Vector3 axis;
-        Texture2D ownNoise, ownDetail, ownSparks;
+        /// <summary>Data.WarpBands' images: made once, so a level's load doesn't pay for them again.</summary>
+        static Texture2D ownNoise, ownDetail;
         AudioSource loop, shot;
         AudioClip enterClip;
         bool wasCruising;
@@ -65,16 +72,36 @@ namespace GoF2Remake.Visuals
             nav = level.Navigation;
             ship = level.Player;
             interstellar = level.Layout.interstellar;
+            local = level.LocalArrival;
             arrivalMs = arriving ? ArrivalCarryMs : 0f;
             if (interstellar) Light(EntryLight, EntryFadeMs, 1f);
             else if (arriving && unseen) Light(ArrivalLight, ArrivalDissolveMs, ArrivalDissolve);
             axis = ship.transform.forward;
+            fog = arriving ? level.Fog : null;
+            if (fog != null) fog.Fade(0f);
+            backdrop = arriving ? level.Backdrop : null;
+            traffic = arriving ? level.Traffic : null;
+            if (arriving)
+            {
+                objects = new ArrivalScale();
+                objects.Add(level.Station != null ? level.Station.transform : null);
+                objects.Add(level.Jumpgate != null ? level.Jumpgate.transform : null);
+                objects.AddChildren(level.Asteroids);
+                objects.Apply(InterstellarSpace.ArrivalSize(1f));
+                traffic?.SetArrivalSize(InterstellarSpace.ArrivalSize(1f));
+            }
+            if (backdrop != null)
+            {
+                backdrop.planetSize = backdrop.sunScaleFactor = InterstellarSpace.ArrivalSize(1f);
+                backdrop.flareShown = 0f;
+            }
             var warp = ModWarp.Current;
-            Shader.SetGlobalTexture(Noise, Layer(warp, warp?.tunnel, ref ownNoise, 16, 16, 1));
-            Shader.SetGlobalTexture(Detail, Layer(warp, warp?.detail, ref ownDetail, 32, 8, 2));
-            Shader.SetGlobalTexture(Sparks, Layer(warp, warp?.streaks, ref ownSparks, 64, 4, 3));
-            Shader.SetGlobalColor(Tint, warp != null && warp.tint.HasValue ? warp.tint.Value : new Color(0.55f, 0.82f, 1f));
+            if (ownNoise == null) ownNoise = OwnLayer("WarpNoise", WarpBands.TunnelSize, WarpBands.Tunnel());
+            if (ownDetail == null) ownDetail = OwnLayer("WarpDetail", WarpBands.DetailSize, WarpBands.Detail());
+            Shader.SetGlobalTexture(Noise, Layer(warp, warp?.tunnel, ownNoise));
+            Shader.SetGlobalTexture(Detail, Layer(warp, warp?.detail, ownDetail));
             Shader.SetGlobalTexture(Arcs, KhadorSheet() ?? Texture2D.blackTexture);
+            MakeWeb();
             Apply(Strength(0f, 0f));
             if (warp == null) return;
             shot = gameObject.AddComponent<AudioSource>();
@@ -103,6 +130,24 @@ namespace GoF2Remake.Visuals
             carriedLoop = loop;
         }
 
+        /// <summary>The vein web, a layer over the planets (GoF2/WarpWeb): the shader places it about the camera.</summary>
+        void MakeWeb()
+        {
+            var shader = Resources.Load<Shader>("GoF2Sky/WarpWeb");
+            if (shader == null || local || (!interstellar && arrivalMs <= 0f)) return;
+            var go = new GameObject("Warp web");
+            go.transform.SetParent(transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = Resources.GetBuiltinResource<Mesh>("Sphere.fbx");
+            web = go.AddComponent<MeshRenderer>();
+            web.sharedMaterial = webLook = new Material(shader);
+            web.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            web.receiveShadows = false;
+            web.localBounds = new Bounds(Vector3.zero, Vector3.one * 1e7f);
+        }
+
+        /// <summary>An arrival's warp is still easing out (SpaceLevel.WarpHolds).</summary>
+        public bool Arriving => arrivalMs > 0f;
+
         /// <summary>The Khador fx's sheet: the warp's vein web is that animation's.</summary>
         static Texture KhadorSheet()
         {
@@ -118,36 +163,20 @@ namespace GoF2Remake.Visuals
             lightStrength = strength;
         }
 
-        Texture2D Layer(ModWarp.Def warp, string path, ref Texture2D own, int cellsAcross, int cellsAlong, int seed)
+        static Texture2D Layer(ModWarp.Def warp, string path, Texture2D own)
         {
             var t = warp != null && !string.IsNullOrEmpty(path) ? ModWarp.Texture(warp, path) : null;
-            if (t == null) t = own = MakeNoise(cellsAcross, cellsAlong, seed);
+            if (t == null) return own;
             t.wrapMode = TextureWrapMode.Repeat;
             return t;
         }
 
-        /// <summary>Value noise that tiles both ways, for a space with no mod's textures.</summary>
-        static Texture2D MakeNoise(int cellsAcross, int cellsAlong, int seed)
+        /// <summary>A band image of the game's own (Data.WarpBands).</summary>
+        static Texture2D OwnLayer(string name, int size, byte[] pixels)
         {
-            const int Size = 128;
-            var random = new System.Random(seed);
-            var cells = new float[cellsAcross, cellsAlong];
-            for (int x = 0; x < cellsAcross; x++) for (int y = 0; y < cellsAlong; y++) cells[x, y] = (float)random.NextDouble();
-            var pixels = new Color32[Size * Size];
-            for (int y = 0; y < Size; y++)
-                for (int x = 0; x < Size; x++)
-                {
-                    float u = x * cellsAcross / (float)Size, v = y * cellsAlong / (float)Size;
-                    int cx = (int)u, cy = (int)v;
-                    float fx = Mathf.SmoothStep(0f, 1f, u - cx), fy = Mathf.SmoothStep(0f, 1f, v - cy);
-                    float a = Mathf.Lerp(cells[cx, cy], cells[(cx + 1) % cellsAcross, cy], fx);
-                    float b = Mathf.Lerp(cells[cx, (cy + 1) % cellsAlong], cells[(cx + 1) % cellsAcross, (cy + 1) % cellsAlong], fx);
-                    byte c = (byte)(Mathf.Lerp(a, b, fy) * 255f);
-                    pixels[y * Size + x] = new Color32(c, c, c, 255);
-                }
-            var t = new Texture2D(Size, Size, TextureFormat.RGBA32, true, true) { name = "WarpNoise", wrapMode = TextureWrapMode.Repeat };
-            t.SetPixels32(pixels);
-            t.Apply(true, true);
+            var t = new Texture2D(size, size, TextureFormat.R8, false, true) { name = name, wrapMode = TextureWrapMode.Repeat };
+            t.SetPixelData(pixels, 0);
+            t.Apply(false, true);
             return t;
         }
 
@@ -163,7 +192,7 @@ namespace GoF2Remake.Visuals
         {
             Shader.SetGlobalFloat(Level, level);
             Shader.SetGlobalFloat(Time_, flow);
-            Shader.SetGlobalFloat(Khador, interstellar || arrivalMs > 0f ? 1f : 0f);
+            Shader.SetGlobalFloat(Khador, interstellar || (arrivalMs > 0f && !local) ? 1f : 0f);
             Shader.SetGlobalVector(Axis, axis);
         }
 
@@ -178,6 +207,34 @@ namespace GoF2Remake.Visuals
             flow = Mathf.Repeat(flow + (IdleFlow + CruiseFlow * drive) * dtMs / 1000f, 1000f);
             float level = Strength(drive, arrivalMs / ArrivalCarryMs);
             Apply(level);
+            if (fog != null)
+            {
+                fog.Fade(1f - arrivalMs / ArrivalCarryMs);
+                if (arrivalMs <= 0f) fog = null;
+            }
+            if (backdrop != null)
+            {
+                backdrop.planetSize = backdrop.sunScaleFactor = InterstellarSpace.ArrivalSize(arrivalMs / ArrivalCarryMs);
+                backdrop.flareShown = 1f - arrivalMs / ArrivalCarryMs;
+                if (arrivalMs <= 0f) backdrop = null;
+            }
+            if (objects != null)
+            {
+                float size = InterstellarSpace.ArrivalSize(arrivalMs / ArrivalCarryMs);
+                objects.Apply(size);
+                traffic?.SetArrivalSize(size);
+                if (arrivalMs <= 0f)
+                {
+                    objects.Restore();
+                    objects = null;
+                }
+            }
+            if (traffic != null && arrivalMs <= 0f)
+            {
+                traffic.ReleaseEnemies();
+                traffic = null;
+            }
+            if (web != null && !interstellar && arrivalMs <= 0f) { Destroy(web.gameObject); web = null; }
             bool cruising = nav != null && nav.DriveCruising;
             if (cruising && !wasCruising && enterClip != null && shot != null) shot.PlayOneShot(enterClip, Settings.SfxVolume);
             wasCruising = cruising;
@@ -205,9 +262,7 @@ namespace GoF2Remake.Visuals
 
         void OnDestroy()
         {
-            if (ownNoise != null) Destroy(ownNoise);
-            if (ownDetail != null) Destroy(ownDetail);
-            if (ownSparks != null) Destroy(ownSparks);
+            if (webLook != null) Destroy(webLook);
         }
     }
 }

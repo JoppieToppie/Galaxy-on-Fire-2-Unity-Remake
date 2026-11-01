@@ -120,7 +120,7 @@ namespace GoF2Remake.Tests
             yield return C("Ship64", s => s.ship = 64, "unknown ship");
             yield return C("NegativeShip", s => s.ship = -1, "unknown ship");
             yield return C("NegativeCredits", s => s.credits = -1, "negative credits");
-            yield return C("EquipmentItem", s => s.equipment.Add(new ItemStack(233, 1)), "equipment");
+            yield return C("EquipmentItem", s => s.equipment.Add(new ItemStack(99999, 1)), "equipment");
             yield return C("EquipmentAmount", s => s.equipment[0].amount = -1, "equipment");
             yield return C("CargoItem", s => s.cargo.Add(new ItemStack(-1, 1)), "cargo");
             yield return C("KaamoItem", s => s.kaamoItems = new List<ItemStack> { new ItemStack(999, 1) }, "Kaamo Club storage");
@@ -145,8 +145,8 @@ namespace GoF2Remake.Tests
             yield return C("InvadedStation", s => s.voidInvasionStation = 135, "invaded station");
             yield return C("InvadedSystem", s => s.voidInvasionSystem = 34, "invaded system");
             yield return C("InvadedSystemNegative", s => s.voidInvasionSystem = -2, "invaded system");
-            yield return C("Blueprint", s => s.blueprints = new List<BlueprintState> { new BlueprintState { item = 233 } }, "blueprint");
-            yield return C("ProductionItem", s => s.pendingProducts = new List<PendingProduct> { new PendingProduct { item = 233, station = 78 } }, "production queue");
+            yield return C("Blueprint", s => s.blueprints = new List<BlueprintState> { new BlueprintState { item = 99999 } }, "blueprint");
+            yield return C("ProductionItem", s => s.pendingProducts = new List<PendingProduct> { new PendingProduct { item = 99999, station = 78 } }, "production queue");
             yield return C("ProductionStation", s => s.pendingProducts = new List<PendingProduct> { new PendingProduct { item = 178, station = 135 } }, "production queue");
             yield return C("ProductionQuantity", s => s.pendingProducts = new List<PendingProduct> { new PendingProduct { item = 178, station = 78, quantity = -1 } }, "production queue");
         }

@@ -150,10 +150,10 @@ namespace GoF2Remake.Tests
         {
             ItemsModOn();
             var db = Database.Load();
-            Assert.AreEqual(236, db.Items.Count);
+            Assert.AreEqual(237, db.Items.Count, "the mod's three and the base content's one");
             for (int i = 0; i < db.Items.Count; i++) Assert.AreEqual(i, db.Items[i].index);
             Assert.AreEqual(233, ModContent.OriginalItemCount);
-            CollectionAssert.AreEquivalent(new[] { 233, 234, 235 }, ModContent.ActiveItemKeys().Select(k => k.Key).ToArray());
+            CollectionAssert.AreEquivalent(new[] { 233, 234, 235, 236 }, ModContent.ActiveItemKeys().Select(k => k.Key).ToArray());
         }
 
         [Test]
@@ -161,11 +161,11 @@ namespace GoF2Remake.Tests
         {
             ModManager.Scan();
             var db = Database.Load();
-            Assert.AreEqual(OriginalItems, db.Items.Count);
+            Assert.AreEqual(OriginalItems, db.Items.Count(i => !i.modded));
             Assert.AreEqual(OriginalShips, db.Ships.Count);
             Assert.AreEqual(OriginalSystems, db.Systems.Count);
             Assert.AreEqual(OriginalStations, db.Stations.Count);
-            Assert.IsFalse(db.Items.Any(i => i.modded));
+            Assert.AreEqual(1, db.Items.Count(i => i.modded), "only the base content");
         }
 
         [Test]
@@ -175,7 +175,7 @@ namespace GoF2Remake.Tests
             Database.Load();
             ModManager.SetEnabled(ItemsMod, false);
             var db = Database.Load();
-            Assert.AreEqual(236, db.Items.Count, "the numbers stay taken");
+            Assert.AreEqual(237, db.Items.Count, "the numbers stay taken");
             var p = db.Item(233);
             Assert.IsTrue(p.modded);
             Assert.AreEqual("t_items:lance", p.modKey);
@@ -199,7 +199,7 @@ namespace GoF2Remake.Tests
             ModManager.SetEnabled(ItemsMod, true);
             var db = Database.Load();
             Assert.AreEqual("Test Lance", db.Item(233).name);
-            Assert.AreEqual(236, db.Items.Count);
+            Assert.AreEqual(237, db.Items.Count);
         }
 
         [Test]

@@ -88,7 +88,7 @@ namespace GoF2Remake.Tests
             NetMods.BeginClient();
             Assert.IsTrue(ModManager.InSession);
             Assert.AreEqual("", NetMods.SessionList);
-            Assert.AreEqual(0, ModManager.Active.Count);
+            Assert.AreEqual(0, ModManager.UserMods.Count);
         }
 
         [Test]

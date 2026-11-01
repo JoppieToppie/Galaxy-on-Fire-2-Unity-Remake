@@ -534,16 +534,19 @@ namespace GoF2Remake.World
             return false;
         }
 
-        /// <summary>SET_STARS + SET_FOG around the camera (Level::initParticleSystems 0xcc990).</summary>
-        public static void SpawnDust(OrbitLayout layout, Transform parent = null)
+        /// <summary>SET_STARS + SET_FOG around the camera (Level::initParticleSystems 0xcc990). Returns the fog; the space between
+        /// the systems has none, nothing but distance there.</summary>
+        public static SpaceDust SpawnDust(OrbitLayout layout, Transform parent = null)
         {
             var stars = new GameObject("SpaceDust").AddComponent<SpaceDust>();
             stars.transform.SetParent(parent, false);
             stars.Build(Resources.Load<Material>($"{Backdrop.MaterialFolder}/space_particle"), 500, 20f, 60f, Color.white, 10000f, 5000f, 2000f);
+            if (layout.interstellar) return null;
             var fog = new GameObject("SpaceFog").AddComponent<SpaceDust>();
             fog.transform.SetParent(parent, false);
             string fogTex = layout.systemTexture == 12 ? "v_fog_ice" : "fog";
             fog.Build(Resources.Load<Material>($"{Backdrop.MaterialFolder}/{fogTex}"), 15, 10000f, 10000f, layout.dustFogTint, 10000f, 5000f, 1000f);
+            return fog;
         }
 
         public static Backdrop SpawnBackdrop(OrbitLayout layout, Camera camera, Transform parent = null)

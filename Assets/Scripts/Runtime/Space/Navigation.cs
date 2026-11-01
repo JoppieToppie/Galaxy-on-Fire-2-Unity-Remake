@@ -546,10 +546,11 @@ namespace GoF2Remake.Flight
             }
             if (Jumping) { UpdateJump(dtMs); return; }
             if (paused || pauseMenuOpen) return;
-            if (Autopilot) AboutToReach = (AutopilotTarget.Position - ship.transform.position).magnitude / M < AboutToReachUnits;
+            if (Autopilot) AboutToReach = RunPlanet == null && (AutopilotTarget.Position - ship.transform.position).magnitude / M < AboutToReachUnits;
             if (MenuOpen) return;   // paused
             UpdateLock(dtMs);
             UpdateInterstellar();
+            UpdatePlanetRun();
             SetFastForward(fastForwardHeld && CanFastForward);
         }
 
@@ -644,7 +645,7 @@ namespace GoF2Remake.Flight
             if (Locked != null && !wasLocked && !RadarOff) Play(sounds?.targetLock);
             wasLocked = Locked != null;
             // The autopilot flying to a programmed station's planet jumps as soon as that planet is locked.
-            if (Locked != null && Locked == AutopilotTarget && Locked.kind == Kind.Planet)
+            if (Locked != null && Locked == AutopilotTarget && Locked.kind == Kind.Planet && Locked != RunPlanet)
             {
                 if (PlanetJumpRefused != null && PlanetJumpRefused(Locked.station)) { SetAutopilot(null); return; }
                 if (JumpsBlocked != null && JumpsBlocked()) { Refuse(JumpRefusal); return; }   // Radar::draw: 525 instead of the jump
@@ -704,9 +705,13 @@ namespace GoF2Remake.Flight
             return true;
         }
 
+        /// <summary>Remake: an arrival's warp is easing out: it runs its course, no drive and no autopilot till then.</summary>
+        public bool ArrivalHeld { get; set; }
+
         /// <summary>PlayerEgo::setAutoPilot: throttle to 100 % when turning on; turning off clears the locks.</summary>
         public void SetAutopilot(Target target)
         {
+            if (ArrivalHeld && target != null) return;
             AutopilotTarget = target;
             ship.autopilotTarget = target != null ? () => target.Position : null;
             if (target != null) ship.SetThrottle(1f);
@@ -718,6 +723,11 @@ namespace GoF2Remake.Flight
         // ---- planet jump (PlayerEgo::dockToPlanet 0xadd20) ----------------------------------------------------
 
         void StartJump(Target planet)
+        {
+            if (!StartPlanetRun(planet)) JumpToPlanet(planet);
+        }
+
+        void JumpToPlanet(Target planet)
         {
             SetAutopilot(null);
             jumpTarget = planet;

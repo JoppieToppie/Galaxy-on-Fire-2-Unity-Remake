@@ -110,6 +110,7 @@ namespace GoF2Remake.World
             nav.KhadorRequested += OpenKhadorMap;
             nav.InterstellarRequested += RequestInterstellar;
             nav.SystemReached += LeaveInterstellar;
+            nav.TravelBusy = () => state != State.None || toInterstellar;
             levelStart = Time.timeSinceLevelLoad;
         }
 
@@ -126,6 +127,7 @@ namespace GoF2Remake.World
             nav.KhadorRequested -= OpenKhadorMap;
             nav.InterstellarRequested -= RequestInterstellar;
             nav.SystemReached -= LeaveInterstellar;
+            nav.TravelBusy = null;
         }
 
         void Update()
@@ -383,15 +385,19 @@ namespace GoF2Remake.World
 
         /// <summary>A system's edge reached: straight into its orbit (Arrive), no second Khador scene: the warp and the ship's speed
         /// carry over and ease out there (Session.WarpArrival). The programmed destination survives when it is in that system:
-        /// the autopilot flies on to its planet, as after a gate hop.</summary>
+        /// the autopilot flies on to its planet, as after a gate hop; after a planet run (Session.WarpLocal) wherever it is. An
+        /// orbit a script sets up on arrival (Navigation.ScriptedArrival) is loaded as after a jump instead, with its arrival
+        /// camera: its opening is written for that.</summary>
         void LeaveInterstellar(int station)
         {
             if (state != State.None) return;
             int prog = Session.ProgrammedStation;
-            hopping = prog >= 0 && prog != station && db.Stations.Find(s => s.index == prog)?.system == db.Stations.Find(s => s.index == station)?.system;
+            // A planet run (Session.WarpLocal) keeps any other destination, as the planet jump does: the autopilot flies on.
+            hopping = prog >= 0 && prog != station
+                      && (Session.WarpLocal || db.Stations.Find(s => s.index == prog)?.system == db.Stations.Find(s => s.index == station)?.system);
             targetStation = station;
-            Session.WarpArrival = true;
-            FindAnyObjectByType<GoF2Remake.Visuals.WarpSky>()?.CarrySound();
+            Session.WarpArrival = !Navigation.ScriptedArrival(station);
+            if (Session.WarpArrival) FindAnyObjectByType<GoF2Remake.Visuals.WarpSky>()?.CarrySound();
             Arrive(false);
         }
 
@@ -573,7 +579,7 @@ namespace GoF2Remake.World
             Session.PreviousStationIndex = Session.StationIndex;
             Session.StationIndex = targetStation;
             Session.ArrivedByTravel = true;
-            Session.ArrivedBySystemJump = true;
+            Session.ArrivedBySystemJump = !Session.WarpLocal;
             Session.LaunchedFromStation = false;
             if (viaGate) Session.JumpgatesUsed++;
             if (!hopping) Session.ProgrammedStation = -1;   // remake: a hop keeps the destination, the autopilot flies on

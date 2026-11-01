@@ -12,6 +12,9 @@
 // exactly the host's. Every change bumps Revision, so ModContent re-reads the content and Database.Load merges it.
 // The Mod Builder (ModBuilder) replaces it too while a project is open: the project's folder is the only active mod
 // (SetBuilderProject), so it is tested on its own and its ship models reload quickly.
+// BaseContent is always in Active, ahead of them: what the remake adds to the game, read like a mod so that it is numbered
+// by a key (ModRegistry) and not in a table the mods' numbers follow. It is no mod to the player: not installed, never
+// off, in no session's list and no save's; UserMods is Active without it.
 
 using System;
 using System.Collections.Generic;
@@ -25,11 +28,37 @@ namespace GoF2Remake.Modding
     public static class ModManager
     {
         const string PrefsKey = "mods_enabled";
+        /// <summary>BaseContent's id, so "gof2:<id>" is a base item's key. No mod may use it.</summary>
+        public const string BaseId = "gof2";
 
         static List<ModInfo> installed;
         static List<ModInfo> active;
         static List<string> sessionIds;   // null = single player (the enabled mods)
         static ModInfo builderProject;    // the Mod Builder's open project (ModBuilder), null = none
+        static ModInfo baseContent;
+
+        static bool baseMissed;
+
+        /// <summary>The remake's own additions (Resources/GoF2Base, see the file comment). Null while its files can't be read
+        /// (Resources not ready in a fresh Editor, a build without the folder): the game goes on without them, Active isn't kept
+        /// meanwhile, and the read that finds them bumps Revision, so the numbering and the tables are made again with them.</summary>
+        public static ModInfo BaseContent
+        {
+            get
+            {
+                if (baseContent != null) return baseContent;
+                var source = new BaseContentSource();
+                try { baseContent = new ModInfo(ModManifest.Read(source), source); }
+                catch (ModJsonException e)
+                {
+                    if (!baseMissed) Debug.LogWarning($"ModManager: the game's own content can't be read yet ({e.Message})");
+                    baseMissed = true;
+                    return null;
+                }
+                if (baseMissed) { baseMissed = false; Revision++; }
+                return baseContent;
+            }
+        }
 
         /// <summary>The Mod Builder has a project open and its throwaway game runs (ModBuilder.Active; never saved).</summary>
         public static bool BuilderOpen { get; internal set; }
@@ -104,6 +133,8 @@ namespace GoF2Remake.Modding
                     ModInfo info;
                     try { info = new ModInfo(ModManifest.Read(src), src); }
                     catch (ModJsonException e) { info = new ModInfo(null, src); info.Errors.Add(e.Message); }
+                    if (info.Manifest != null && string.Equals(info.Id, BaseId, StringComparison.OrdinalIgnoreCase))
+                        info.Errors.Add($"the id \"{BaseId}\" is the game's own");
                     if (info.Manifest != null && !seen.Add(info.Id))
                         info.Errors.Add($"another mod already uses the id \"{info.Id}\" (only the first one found loads)");
                     installed.Add(info);
@@ -182,7 +213,25 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>The mods whose content is in the game now, in the order it is applied.</summary>
-        public static IReadOnlyList<ModInfo> Active => active ??= builderProject != null ? BuilderActive() : Resolve(sessionIds ?? EnabledIds);
+        public static IReadOnlyList<ModInfo> Active
+        {
+            get
+            {
+                if (active != null) return active;
+                var list = WithBase(builderProject != null ? BuilderActive() : Resolve(sessionIds ?? EnabledIds));
+                if (baseContent != null) active = list;   // without it, asked again until it can be read (BaseContent)
+                return list;
+            }
+        }
+
+        /// <summary>Active without BaseContent: the mods as the player, a session and a save know them.</summary>
+        public static List<ModInfo> UserMods => Active.Where(m => !m.IsBase).ToList();
+
+        static List<ModInfo> WithBase(List<ModInfo> mods)
+        {
+            if (BaseContent is ModInfo own && !own.Broken) mods.Insert(0, own);
+            return mods;
+        }
 
         /// <summary>The Mod Builder's project (its folder read as a mod), null = none open.</summary>
         public static ModInfo BuilderProject => builderProject;
@@ -285,7 +334,7 @@ namespace GoF2Remake.Modding
         public static List<ModInfo> SinglePlayerActive => Resolve(EnabledIds);
 
         /// <summary>"id@version#hash" of every active mod in order, joined with ';' ("" = none).</summary>
-        public static string ActiveSignature => string.Join(";", Active.Select(m => m.Signature));
+        public static string ActiveSignature => string.Join(";", UserMods.Select(m => m.Signature));
 
         /// <summary>A multiplayer session uses exactly these mods (ids; empty = the original game), not the enabled ones.</summary>
         public static void BeginSession(IEnumerable<string> ids)

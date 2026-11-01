@@ -119,19 +119,17 @@ namespace GoF2Remake.Tests
         [Test]
         public void WarpJsonGivesTheLookTheLastModWins()
         {
-            WriteMod("warp_a", "warp_a", "1.0", "", ("warp.json", "{ 'tunnel': 'warp/a.png', 'tint': '#8cd0ff', 'loop': 'warp/loop.ogg' }"));
-            WriteMod("warp_b", "warp_b", "1.0", "", ("warp.json", "{ 'streaks': 'warp/s.png', 'tint': 'nope' }"));
+            WriteMod("warp_a", "warp_a", "1.0", "", ("warp.json", "{ 'tunnel': 'warp/a.png', 'loop': 'warp/loop.ogg' }"));
+            WriteMod("warp_b", "warp_b", "1.0", "", ("warp.json", "{ 'detail': 'warp/d.png' }"));
             Assert.IsNull(ModWarp.Current, "none on");
             ScanAndEnable("warp_a");
             var a = ModWarp.Current;
             Assert.IsNotNull(a);
             Assert.AreEqual("warp/a.png", a.tunnel);
             Assert.AreEqual("warp/loop.ogg", a.loop);
-            Assert.IsTrue(a.tint.HasValue);
             ScanAndEnable("warp_a", "warp_b");
             var b = ModWarp.Current;
-            Assert.AreEqual("warp/s.png", b.streaks);
-            Assert.IsFalse(b.tint.HasValue, "a bad colour is left out");
+            Assert.AreEqual("warp/d.png", b.detail);
         }
     }
 }

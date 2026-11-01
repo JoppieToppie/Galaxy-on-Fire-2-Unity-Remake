@@ -142,6 +142,11 @@ namespace GoF2Remake.World
         MaterialPropertyBlock fadeBlock;
         /// <summary>How much of the sun's swell shows, and the camera's z the orbit planet's size goes by, in place of its own.</summary>
         [System.NonSerialized] public float swell = 1f;
+        /// <summary>How much of the lens flare shows (LensFlareView): it eases in with an arrival from between the systems, which
+        /// has none, or its glare greys the whole screen in one frame at the load.</summary>
+        [System.NonSerialized] public float flareShown = 1f;
+        /// <summary>The planets' and rings' size of their own: they grow on the way in from between the systems.</summary>
+        [System.NonSerialized] public float planetSize = 1f;
         [System.NonSerialized] public float? orbitZ;
 
         /// <summary>Everything turned by 'turn', the sun's light (with its streak) drawn along from 'sunFrom' as 'sunAt' goes to 1:
@@ -170,6 +175,12 @@ namespace GoF2Remake.World
                 b.r.SetPropertyBlock(fadeBlock);
             }
         }
+
+        /// <summary>Where the sun stands, seen from the camera.</summary>
+        public Vector3 SunDirection => sun.dir;
+
+        /// <summary>A planet's size of its own here, by its transform (PlanetTargets).</summary>
+        public float PlanetScale(Transform planet) => planets.Find(p => p.t == planet)?.scale ?? 0f;
 
         /// <summary>A level script's scale on the sun billboard (the supernova cutscenes: planets[0] x0.95 / x4 per frame).</summary>
         [System.NonSerialized] public float sunScaleFactor = 1f;
@@ -404,7 +415,7 @@ namespace GoF2Remake.World
             foreach (var p in planets)
             {
                 // StarSystem::render: not in the alien orbit or a planet ring orbit (the orbit planet stays at its size).
-                float k = p.orbitPlanet && !layout.ringOrbit && !layout.alienOrbit ? p.scale + zoom : p.scale;
+                float k = (p.orbitPlanet && !layout.ringOrbit && !layout.alienOrbit ? p.scale + zoom : p.scale) * planetSize;
                 if (!p.star) { Place(p, c, p.rot, Vector3.one * k); continue; }
                 // Remake mods: a star faces the camera with its roll, like the sun, and gets the sun's flare (render2D's
                 // intensity from its own screen position) at planetFlare: it swells a little and streaks sideways.
@@ -425,7 +436,7 @@ namespace GoF2Remake.World
                     p.starStreak.t.gameObject.SetActive(ef > 0f);
                 }
             }
-            foreach (var r in rings) Place(r, c, r.rot, Vector3.one * r.scale);
+            foreach (var r in rings) Place(r, c, r.rot, Vector3.one * (r.scale * planetSize));
         }
 
         /// <summary>The supernova sun's world-fixed rotation: facing 'dir' with game +x (Unity +x) as its up, as

@@ -1,0 +1,22 @@
+[
+    {
+        "id": "khador_slipstream",
+        "base": 85,
+        "name": "Khador Slipstream",
+        "description": "Khador's answer to his own drive: where the Khador Drive folds space shut behind the ship, this holds the fold open. Hold the charge and the ship slips through an orbit at many times its speed, paying in energy cells; anything solid ahead, a locked destination close by or a fight breaks the slipstream. Or leave the system altogether for the dark between the stars, where every system on the map can be flown to, an energy cell for each gate hop of the way.",
+        "techLevel": 10,
+        "occurrence": 0,
+        "price": [
+            1150000,
+            1265000
+        ],
+        "stats": {
+            "cruiseSpeed": 800,
+            "cruiseRange": 90000,
+            "cruiseChargeMs": 1500,
+            "energyCells": 1,
+            "interstellar": 1
+        },
+        "icon": "icons/khador_slipstream.png"
+    }
+]

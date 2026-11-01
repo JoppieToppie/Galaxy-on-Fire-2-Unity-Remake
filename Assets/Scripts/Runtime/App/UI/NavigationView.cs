@@ -63,6 +63,8 @@ namespace GoF2Remake.UI
         bool fastForwardPressed;
 
         public bool FastForwardPressed => fastForwardPressed;
+        /// <summary>The fast-forward button pressed or released by code (tests, automation), as a pointer would.</summary>
+        public void SetFastForwardPressed(bool pressed) => fastForwardPressed = pressed;
         public event System.Action AutopilotButton;
 
         // Looked up once per name: the markers ask for theirs every frame (a Resources.Load each, with its path string).
@@ -227,7 +229,7 @@ namespace GoF2Remake.UI
             foreach (var m in markers)
             {
                 var t = m.target;
-                if (t.hidden)
+                if (t.hidden || nav.ArrivalHeld)   // remake: an orbit's markers wait for its warp's end, or they give the load away
                 {
                     if (m.bracket != null) m.bracket.style.display = DisplayStyle.None;
                     if (m.icon != null) m.icon.style.display = DisplayStyle.None;

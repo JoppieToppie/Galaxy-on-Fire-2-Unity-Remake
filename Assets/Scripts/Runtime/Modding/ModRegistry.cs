@@ -5,6 +5,8 @@
 // mod's new entries get the numbers after them. Each "mod:id" key keeps its number for good, whatever is turned on later
 // or in which order, and a number is never handed out twice: a save holding a modded item finds it at the same number,
 // and a mod turned off leaves a placeholder at its numbers (ModContent) until it comes back.
+// So every number past the original tables belongs to this file, on every player's game differently, and the base game can't
+// claim one: what the remake adds goes through here as well, keyed "gof2:<id>" (ModManager.BaseContent).
 // Multiplayer sessions don't save, so they number their mods afresh in the session's order (the same on every player's
 // game) and never touch this file.
 

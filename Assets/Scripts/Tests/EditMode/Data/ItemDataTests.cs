@@ -44,10 +44,10 @@ namespace GoF2Remake.Tests
         [Test]
         public void ItemTextsOutsideTheTablesAreNotBorrowed()
         {
-            // The text blocks sit back to back: item 233's "name" would be the first medal's (GameNames).
-            Assert.AreEqual("#item233", GameNames.Item(233));
+            // The text blocks sit back to back: a number past the table would read another block's (GameNames).
+            Assert.AreEqual("#item300", GameNames.Item(300));
             Assert.AreEqual("#item-1", GameNames.Item(-1));
-            Assert.AreEqual("", GameNames.ItemDescription(233));
+            Assert.AreEqual("", GameNames.ItemDescription(300));
             Assert.AreEqual("#ship64", GameNames.Ship(64));
             Assert.AreEqual("", GameNames.ShipDescription(64));
         }

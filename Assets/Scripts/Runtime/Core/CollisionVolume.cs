@@ -60,6 +60,43 @@ namespace GoF2Remake.Flight
             return Mathf.Abs(d.x) < half.x && Mathf.Abs(d.y) < half.y && Mathf.Abs(d.z) < half.z;
         }
 
+        /// <summary>Remake: where the line from 'from' along 'dir' (a unit vector, both relative to the owner) enters this
+        /// volume, in the line's own metres: 0 from inside it, float.MaxValue when it misses or the volume lies behind.</summary>
+        public float RayEntry(Vector3 from, Vector3 dir) => sphere ? SphereEntry(from, dir, centre, radius) : BoxEntry(from, dir, centre, half);
+
+        /// <summary>The slab test: the line's entry into the axis-aligned box of half extents 'half' about 'centre'.</summary>
+        public static float BoxEntry(Vector3 from, Vector3 dir, Vector3 centre, Vector3 half)
+        {
+            float near = 0f, far = float.MaxValue;
+            for (int i = 0; i < 3; i++)
+            {
+                float f = from[i] - centre[i], d = dir[i];
+                if (Mathf.Abs(d) < 1e-6f)
+                {
+                    if (Mathf.Abs(f) > half[i]) return float.MaxValue;
+                    continue;
+                }
+                float t1 = (-half[i] - f) / d, t2 = (half[i] - f) / d;
+                if (t1 > t2) { float t = t1; t1 = t2; t2 = t; }
+                if (t1 > near) near = t1;
+                if (t2 < far) far = t2;
+                if (far < near) return float.MaxValue;
+            }
+            return near;
+        }
+
+        /// <summary>The line's entry into the sphere of 'radius' about 'centre'.</summary>
+        public static float SphereEntry(Vector3 from, Vector3 dir, Vector3 centre, float radius)
+        {
+            var m = from - centre;
+            float b = Vector3.Dot(m, dir), c = m.sqrMagnitude - radius * radius;
+            if (c <= 0f) return 0f;                       // inside
+            if (b > 0f) return float.MaxValue;            // the centre lies behind and we're outside
+            float disc = b * b - c;
+            if (disc < 0f) return float.MaxValue;         // misses
+            return -b - Mathf.Sqrt(disc);
+        }
+
         /// <summary>projectCollisionOnSurface: 'p' (relative to the owner) moved onto the surface.</summary>
         public Vector3 Project(Vector3 p)
         {
