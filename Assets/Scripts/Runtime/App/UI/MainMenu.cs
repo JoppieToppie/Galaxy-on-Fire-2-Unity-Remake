@@ -109,6 +109,7 @@ namespace GoF2Remake.UI
         Campaign pendingCampaign;
         /// <summary>Remake mods: the mod campaign picked (null: one of the three GoF2 campaigns).</summary>
         Modding.ModCampaigns.Def pendingModCampaign;
+        Modding.ModDlcs.Def pendingDlc;   // remake mods: a DLC's card (ModDlcs)
 
         ScrollView campaignCardScroll;
 

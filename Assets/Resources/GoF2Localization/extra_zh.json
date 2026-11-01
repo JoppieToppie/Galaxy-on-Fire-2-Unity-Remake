@@ -3047,5 +3047,9 @@
  "coopHostTitle": "主持战役",
  "coopHostButton": "主持战役",
  "coopSavedNone": "还没有保存的战役：主持将开始新的战役。",
- "coopSaved": "已保存：{0}，第{1}步"
+ "coopSaved": "已保存：{0}，第{1}步",
+ "modDlcCard": "DLC {0}  ·  模组：{1}",
+ "modsDlcEarlier": "提前游玩",
+ "modsDlcLater": "推后游玩",
+ "modsDlcPlace": "第{0}个DLC（共{1}个）：在{2}之后游玩。"
 }

@@ -29,6 +29,8 @@ namespace GoF2Remake.UI
         readonly VisualElement preview, detail;
         readonly Label name, meta, description, problems;
         readonly Button toggle, earlier, later, delete, edit;
+        /// <summary>A DLC mod's Play earlier / later buttons (its place in the DLCs' play order, ModDlcs).</summary>
+        readonly Button dlcEarlier, dlcLater;
         /// <summary>Edit in Mod Builder: the selected mod as a Mod Builder project (MainMenu: ModBuilderProjects.ImportInstalled);
         /// the button shows only when this is set.</summary>
         public Action<ModInfo> EditInBuilder;
@@ -105,6 +107,10 @@ namespace GoF2Remake.UI
             }, "mods-edit");   // Modified: its own class, so its text may wrap (MainMenu.uss)
             Add(actions, new VisualElement(), "mods-row-break");   // Modified: Delete on its own row, under Turn on / off
             delete = ActionButton(actions, T("modsDelete", "Delete"), AskDelete, "mods-delete");
+            // Remake mods: a DLC's place among the DLCs that play after Supernova (ModDlcs), the player's to change; beside
+            // Delete (its own row would push the detail into the footer on a TV or a phone). The place is in the meta lines.
+            dlcEarlier = ActionButton(actions, T("modsDlcEarlier", "Play earlier"), () => MoveDlc(-1));
+            dlcLater = ActionButton(actions, T("modsDlcLater", "Play later"), () => MoveDlc(1));
 
             var footer = Add(Panel, new VisualElement(), "mods-footer");
             note = Add(footer, new Label(), "mods-note");
@@ -260,6 +266,23 @@ namespace GoF2Remake.UI
             int i = ids.IndexOf(mod.Id);
             earlier.SetEnabled(i > 0);
             later.SetEnabled(i >= 0 && i < ids.Count - 1);
+            // A DLC that is on: its place in the play order.
+            int place = ModDlcs.Place(mod.Id), dlcs = ModDlcs.All().Count;
+            dlcEarlier.style.display = dlcLater.style.display = place > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            if (place > 0)
+            {
+                meta.text += "\n" + string.Format(T("modsDlcPlace", "DLC {0} of {1}: plays after {2}."), place, dlcs,
+                                                  place == 1 ? "Supernova" : ModDlcs.All()[place - 2].Name);
+                dlcEarlier.SetEnabled(place > 1);
+                dlcLater.SetEnabled(place < dlcs);
+            }
+        }
+
+        void MoveDlc(int delta)
+        {
+            if (selected == null) return;
+            ModDlcs.Move(selected, delta);
+            Refresh();
         }
 
         /// <summary>Delete: asks (naming the mods that need it, which go off with it), then ModImport.Delete.</summary>

@@ -3047,5 +3047,9 @@
  "coopHostTitle": "Kampagne hosten",
  "coopHostButton": "Kampagne hosten",
  "coopSavedNone": "Noch keine gespeicherte Kampagne: Hosten startet eine neue.",
- "coopSaved": "Gespeichert: {0}, Schritt {1}"
+ "coopSaved": "Gespeichert: {0}, Schritt {1}",
+ "modDlcCard": "DLC {0}  ·  ein Mod: {1}",
+ "modsDlcEarlier": "Früher spielen",
+ "modsDlcLater": "Später spielen",
+ "modsDlcPlace": "DLC {0} von {1}: folgt auf {2}."
 }

@@ -3047,5 +3047,9 @@
  "coopHostTitle": "अभियान होस्ट करें",
  "coopHostButton": "अभियान होस्ट करें",
  "coopSavedNone": "अभी कोई सहेजा गया अभियान नहीं: होस्ट करने पर नया शुरू होगा।",
- "coopSaved": "सहेजा गया: {0}, चरण {1}"
+ "coopSaved": "सहेजा गया: {0}, चरण {1}",
+ "modDlcCard": "DLC {0}  ·  एक मॉड: {1}",
+ "modsDlcEarlier": "पहले खेलें",
+ "modsDlcLater": "बाद में खेलें",
+ "modsDlcPlace": "DLC {0} / {1}: {2} के बाद खेला जाता है।"
 }

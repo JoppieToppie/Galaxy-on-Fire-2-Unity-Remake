@@ -1635,6 +1635,37 @@ story off.
 A campaign's mod usually depends on the mods with its galaxy, ships and items, so turning it on turns them on too. Saves
 remember the campaign; loading one asks for its mods like any modded save.
 
+## DLCs
+
+A mod can also go on with the game's own story, the way Valkyrie follows the main game and Supernova follows Valkyrie:
+`dlc.json` makes it a DLC. Its card sits with the game's three campaigns, right after Supernova. In a game that has
+reached the end of Supernova, the DLC begins by itself the next time the player flies (its intro, then its story).
+With several DLCs, they play one after the other.
+
+```json
+{
+    "name": "The Kepler Incident",
+    "description": "A signal from beyond the Void.",
+    "image": "dlc.png",
+    "quest": "kepler_story",
+    "index": 1,
+    "intro": "Keith, we're picking up something strange near Maissa.",
+    "introSpeaker": 6
+}
+```
+
+| Field | |
+|---|---|
+| `name`, `description` | The card's title and text (strings, or per language). |
+| `image`, `imageHover`, `showTitle` | The card, as for [campaigns](#campaigns). The card's plate says which DLC it is ("DLC 2"). |
+| `quest` | **Required.** The DLC's story: an event graph (see [Story missions and bar missions](#story-missions-and-bar-missions)), started as a mission. The DLC counts as played once it is done. |
+| `index` | Its place among the DLCs: 1 plays right after Supernova, 2 after that, and so on. Default: after the DLCs that give one. Players can change the order in the Mods browser (a DLC mod's **Play earlier** / **Play later**), and their order wins. |
+| `intro`, `introSpeaker` | Optional. The call that opens the DLC in a finished game: one page of text, said by a story speaker (a number, default 0). Without it the quest starts at once (its first node can be a dialogue of its own). |
+| `startStation`, `startShip`, `credits`, `equipment`, `cargo` | Optional, for a new game from the DLC's card. That game starts at the end of the whole story (every step up to Supernova's last played, the DLCs before this one counted as played), docked at Maissa in Supernova's ship and gear; these change the start like [campaigns'](#campaigns) fields. |
+
+A DLC needs a game whose GoF2 story is finished: it never starts in free play, in a mod campaign or in a multiplayer
+session. Only one DLC runs at a time; the next one begins once the one before it is done.
+
 ## New-game options
 
 `gameoptions.json` adds cards to the **Game options** panel of Start new game (after the difficulty and the economy), beside

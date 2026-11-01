@@ -3047,5 +3047,9 @@
  "coopHostTitle": "Załóż kampanię",
  "coopHostButton": "Załóż kampanię",
  "coopSavedNone": "Brak zapisanej kampanii: założenie rozpocznie nową.",
- "coopSaved": "Zapis: {0}, krok {1}"
+ "coopSaved": "Zapis: {0}, krok {1}",
+ "modDlcCard": "DLC {0}  ·  mod: {1}",
+ "modsDlcEarlier": "Graj wcześniej",
+ "modsDlcLater": "Graj później",
+ "modsDlcPlace": "DLC {0} z {1}: po {2}."
 }

@@ -164,6 +164,19 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   in Play mode with a local test campaign (Mods/test_campaign: Kepler, the Jedi Starfighter, the plasma weapons): the entry,
   the start (station, ship, credits, equipment), only Kepler visible, mod-only dealers, Jedi / Banshee traffic, missions
   inside Kepler, the quest running, save / load keeping it.
+- **Mod DLCs** (remake, 2026-11-01, the user's request: mods that go on after the last DLC; `ModDlcs`, a mod's `dlc.json`:
+  name, description, image, imageHover, showTitle, quest (required), index, intro, introSpeaker, startStation, startShip,
+  credits, equipment, cargo; the guide's "DLCs"): one play order for the DLCs that are on (`ModDlcs.All`): the player's
+  (PlayerPrefs `dlc_order`, set by the Mods browser's DLC row "DLC N of M: plays after X" with Play earlier / later,
+  `ModDlcs.Move`, the whole order saved), then each one's `index`, then load order. Cards with the three campaigns, right
+  after Supernova and before the mods' campaigns, in that order ("DLC N · a mod: X", `MainMenu.PickDlc`) → difficulty →
+  economy → `ModDlcs.Start`: `Story.StartCampaign(Supernova)` and every `Advance` to 162 (each step's own effects), docked
+  at Maissa (93) or its startStation, its ship / credits / gear if given, the DLCs before it counted as played (their
+  quests in `GraphQuestsDone`), its quest pending (`GraphQuestState.RestorePending`). In a finished game
+  (`ModDlcs.StoryFinished`: step 162, not free play, no mod campaign), `StorySpace.CheckAddonEntry` -> `CheckDlcEntry`
+  every 10 s in free flight (no level mission, freelance orbit, mining or autopilot; not in a session): `ModDlcs.Next` = the
+  first DLC not played, none while one runs; its intro (`OpenText`, the speaker's one page), then `GameHooks.StartQuest`.
+  A DLC is played once its quest is done (a failed one is offered again). Tests: `ModDlcsTests`.
 - **New-game options** (`ModGameOptions`, a mod's `gameoptions.json`: id, name, description, image, imageHover, showTitle,
   default): campaign-style cards in the Game options panel (`MainMenu.RefreshModOptions`: the panel goes wide, the toggles in
   a left column, the cards in a right one that scrolls sideways with "N options · scroll for more" past two, Start game under

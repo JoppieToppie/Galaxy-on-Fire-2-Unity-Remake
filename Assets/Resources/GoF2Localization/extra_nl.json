@@ -3047,5 +3047,9 @@
  "coopHostTitle": "Een campagne hosten",
  "coopHostButton": "Campagne hosten",
  "coopSavedNone": "Nog geen opgeslagen campagne: hosten begint een nieuwe.",
- "coopSaved": "Opgeslagen: {0}, stap {1}"
+ "coopSaved": "Opgeslagen: {0}, stap {1}",
+ "modDlcCard": "DLC {0}  ·  een mod: {1}",
+ "modsDlcEarlier": "Eerder spelen",
+ "modsDlcLater": "Later spelen",
+ "modsDlcPlace": "DLC {0} van {1}: komt na {2}."
 }

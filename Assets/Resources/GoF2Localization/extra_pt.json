@@ -3047,5 +3047,9 @@
  "coopHostTitle": "Hospedar uma campanha",
  "coopHostButton": "Hospedar campanha",
  "coopSavedNone": "Ainda não há campanha salva: hospedar começa uma nova.",
- "coopSaved": "Salva: {0}, passo {1}"
+ "coopSaved": "Salva: {0}, passo {1}",
+ "modDlcCard": "DLC {0}  ·  um mod: {1}",
+ "modsDlcEarlier": "Jogar antes",
+ "modsDlcLater": "Jogar depois",
+ "modsDlcPlace": "DLC {0} de {1}: jogado depois de {2}."
 }

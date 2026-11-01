@@ -3047,5 +3047,9 @@
  "coopHostTitle": "캠페인 호스트",
  "coopHostButton": "캠페인 호스트",
  "coopSavedNone": "저장된 캠페인이 아직 없습니다: 호스트하면 새로 시작합니다.",
- "coopSaved": "저장됨: {0}, {1}단계"
+ "coopSaved": "저장됨: {0}, {1}단계",
+ "modDlcCard": "DLC {0}  ·  모드: {1}",
+ "modsDlcEarlier": "먼저 플레이",
+ "modsDlcLater": "나중에 플레이",
+ "modsDlcPlace": "DLC {0}/{1}: {2} 다음에 플레이합니다."
 }

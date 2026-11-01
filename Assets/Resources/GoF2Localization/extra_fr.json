@@ -3047,5 +3047,9 @@
  "coopHostTitle": "Héberger une campagne",
  "coopHostButton": "Héberger la campagne",
  "coopSavedNone": "Pas encore de campagne sauvegardée : héberger en lance une nouvelle.",
- "coopSaved": "Sauvegarde : {0}, étape {1}"
+ "coopSaved": "Sauvegarde : {0}, étape {1}",
+ "modDlcCard": "DLC {0}  ·  un mod : {1}",
+ "modsDlcEarlier": "Jouer plus tôt",
+ "modsDlcLater": "Jouer plus tard",
+ "modsDlcPlace": "DLC {0} sur {1} : se joue après {2}."
 }

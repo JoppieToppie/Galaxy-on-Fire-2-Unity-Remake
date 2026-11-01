@@ -3047,5 +3047,9 @@
  "coopHostTitle": "Ospita una campagna",
  "coopHostButton": "Ospita campagna",
  "coopSavedNone": "Ancora nessuna campagna salvata: ospitare ne inizia una nuova.",
- "coopSaved": "Salvata: {0}, passo {1}"
+ "coopSaved": "Salvata: {0}, passo {1}",
+ "modDlcCard": "DLC {0}  ·  una mod: {1}",
+ "modsDlcEarlier": "Gioca prima",
+ "modsDlcLater": "Gioca dopo",
+ "modsDlcPlace": "DLC {0} di {1}: si gioca dopo {2}."
 }

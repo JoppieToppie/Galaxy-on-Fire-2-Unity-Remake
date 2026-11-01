@@ -3047,5 +3047,9 @@
  "coopHostTitle": "Organizar una campaña",
  "coopHostButton": "Organizar campaña",
  "coopSavedNone": "Aún no hay campaña guardada: al organizar empieza una nueva.",
- "coopSaved": "Guardada: {0}, paso {1}"
+ "coopSaved": "Guardada: {0}, paso {1}",
+ "modDlcCard": "DLC {0}  ·  un mod: {1}",
+ "modsDlcEarlier": "Jugar antes",
+ "modsDlcLater": "Jugar después",
+ "modsDlcPlace": "DLC {0} de {1}: se juega después de {2}."
 }

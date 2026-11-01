@@ -322,8 +322,34 @@ namespace GoF2Remake.World
             OpenText(text, 16, () => level.ReturnToLastDocked());
         }
 
+        /// <summary>Remake mods: the next mod DLC of a finished game (ModDlcs) is looked for this often in free flight.</summary>
+        const float DlcCheckMs = 10000f;
+        float dlcCheckMs;
+
+        /// <summary>Remake mods (ModDlcs): the game's own story is over (step 162): in free flight (no level mission, not mining,
+        /// no autopilot, single player) the next DLC not played yet begins like the add-ons' calls: its intro, then its quest.</summary>
+        void CheckDlcEntry()
+        {
+            if ((dlcCheckMs -= Time.deltaTime * 1000f) > 0f) return;
+            dlcCheckMs = DlcCheckMs;
+            if (NetSession.SessionGame || Story.IsLevelMission(Session.StationIndex) || level.FreelanceOrbit != null) return;
+            if (level.Mining != null && level.Mining.State != Flight.Mining.Phase.Idle) return;
+            if (level.Navigation != null && level.Navigation.Autopilot) return;
+            var next = Modding.ModDlcs.Next();
+            if (next == null) return;
+            void Begin()
+            {
+                string why = GameHooks.StartQuest?.Invoke(next.quest, true);
+                if (why != null) Debug.LogWarning($"StorySpace: the DLC {next.Id} couldn't start its quest {next.quest}: {why}");
+                else Debug.Log($"StorySpace: the DLC {next.Id} begins ({next.quest})");
+            }
+            if (!string.IsNullOrEmpty(next.Intro)) OpenText(next.Intro, next.introSpeaker, Begin);
+            else Begin();
+        }
+
         void CheckAddonEntry()
         {
+            if (Modding.ModDlcs.StoryFinished) { CheckDlcEntry(); return; }   // remake mods: the DLCs after the game's end
             int index = Story.Index;
             if (index != Story.GameWonIndex && index != Story.Dlc1WonIndex) return;
             if (Story.IsLevelMission(Session.StationIndex)) return;

@@ -3047,5 +3047,9 @@
  "coopHostTitle": "استضافة حملة",
  "coopHostButton": "استضافة الحملة",
  "coopSavedNone": "لا توجد حملة محفوظة بعد: الاستضافة تبدأ حملة جديدة.",
- "coopSaved": "محفوظة: {0}، الخطوة {1}"
+ "coopSaved": "محفوظة: {0}، الخطوة {1}",
+ "modDlcCard": "DLC {0}  ·  تعديل: {1}",
+ "modsDlcEarlier": "العب أبكر",
+ "modsDlcLater": "العب لاحقًا",
+ "modsDlcPlace": "DLC {0} من {1}: يُلعب بعد {2}."
 }

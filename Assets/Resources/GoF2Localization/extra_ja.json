@@ -3047,5 +3047,9 @@
  "coopHostTitle": "キャンペーンをホスト",
  "coopHostButton": "キャンペーンをホスト",
  "coopSavedNone": "保存されたキャンペーンはまだありません：ホストすると新しく始まります。",
- "coopSaved": "保存：{0}、ステップ{1}"
+ "coopSaved": "保存：{0}、ステップ{1}",
+ "modDlcCard": "DLC {0}  ·  MOD：{1}",
+ "modsDlcEarlier": "先にプレイ",
+ "modsDlcLater": "後でプレイ",
+ "modsDlcPlace": "DLC {0}/{1}：{2}の後にプレイ。"
 }

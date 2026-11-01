@@ -3047,5 +3047,9 @@
  "coopHostTitle": "Создать кампанию",
  "coopHostButton": "Создать кампанию",
  "coopSavedNone": "Сохранённой кампании пока нет: при создании начнётся новая.",
- "coopSaved": "Сохранено: {0}, шаг {1}"
+ "coopSaved": "Сохранено: {0}, шаг {1}",
+ "modDlcCard": "DLC {0}  ·  мод: {1}",
+ "modsDlcEarlier": "Играть раньше",
+ "modsDlcLater": "Играть позже",
+ "modsDlcPlace": "DLC {0} из {1}: идёт после {2}."
 }

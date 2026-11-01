@@ -79,6 +79,21 @@ namespace GoF2Remake.UI
                 new DragScroll(campaignCardScroll);   // a drag scrolls the cards sideways
             }
             row.Query(className: "mod-card").ForEach(e => e.RemoveFromHierarchy());
+            // The mods' DLCs first, right after Supernova, in their play order (ModDlcs: the Mods browser's DLC place).
+            var dlcs = Modding.ModDlcs.All();
+            for (int k = 0; k < dlcs.Count; k++)
+            {
+                var def = dlcs[k];
+                var b = ModCard(Modding.ModDlcs.Image(def), Modding.ModDlcs.ImageHover(def), def.showTitle, def.Name,
+                                string.Format(Localization.Extra("modDlcCard", "DLC {0}  ·  a mod: {1}"), k + 1, def.mod.Name));
+                b.AddToClassList("dlc-card");
+                b.tooltip = def.Description;
+                b.RegisterCallback<PointerDownEvent>(_ => Play(buttonPush), TrickleDown.TrickleDown);
+                b.clicked += () => { Play(buttonRelease); PickDlc(def); };
+                b.RegisterCallback<FocusInEvent>(_ => campaignCardScroll.ScrollTo(b));
+                HookFocusSound(b);
+                row.Add(b);
+            }
             var all = Modding.ModCampaigns.All();
             foreach (var c in all)
             {
@@ -92,7 +107,7 @@ namespace GoF2Remake.UI
                 HookFocusSound(b);
                 row.Add(b);
             }
-            int n = 3 + all.Count;
+            int n = 3 + dlcs.Count + all.Count;
             row.EnableInClassList("card-row--4", n == 4);
             row.EnableInClassList("card-row--many", n >= 5);
         }
@@ -162,8 +177,19 @@ namespace GoF2Remake.UI
             }
         }
 
+        /// <summary>A mod DLC's card: a game at the end of the whole story with the DLC's quest (ModDlcs.Start).</summary>
+        void PickDlc(Modding.ModDlcs.Def d)
+        {
+            pendingDlc = d;
+            pendingModCampaign = null;
+            pendingCampaign = Campaign.Supernova;
+            pendingStartIndex = -1;
+            OpenPanel("difficultyPanel");
+        }
+
         void PickModCampaign(Modding.ModCampaigns.Def c)
         {
+            pendingDlc = null;
             pendingModCampaign = c;
             pendingCampaign = Campaign.GalaxyOnFire2;
             pendingStartIndex = -1;
@@ -173,6 +199,7 @@ namespace GoF2Remake.UI
         void PickCampaign(Campaign c)
         {
             pendingModCampaign = null;
+            pendingDlc = null;
             pendingCampaign = c;
             pendingStartIndex = -1;
             OpenPanel("difficultyPanel");
@@ -306,6 +333,14 @@ namespace GoF2Remake.UI
             Modding.ModGameOptions.ApplyChoices();   // remake mods: the options picked in the Game options panel
             var db = Database.Load();
             // Remake mods: a mod's campaign (Modding.ModCampaigns): its start, docked at its station; no GoF2 story.
+            // Remake mods: a DLC (Modding.ModDlcs): the end of the whole story, then its quest.
+            if (pendingDlc != null)
+            {
+                string dlcScene = Modding.ModDlcs.Start(db, pendingDlc, out string dlcError);
+                if (dlcScene == null) { ShowNotice(pendingDlc.Name, dlcError); return; }
+                StartCoroutine(Leave(dlcScene));
+                return;
+            }
             if (pendingModCampaign != null)
             {
                 string modScene = Modding.ModCampaigns.Start(db, pendingModCampaign, out string error);
