@@ -368,11 +368,39 @@ namespace GoF2Remake.EditorTools
                     }
                 }
                 mat.SetFloat("_Metallic", 0f);
+                // Remake: "bump_alpha_glow" (material 99006, the remodelled Nivelian hangar's launch pads,
+                // hangar_nivelian_alt_alpha_add): the room's normal map, blended by the diffuse's alpha like the _alpha
+                // layers and glowing like them (they're unlit at _Glow 1: the diffuse as emission).
+                if (urp && m.shading == "bump_alpha_glow") MakeLitAlphaGlow(mat, main);
             }
             else mat.SetTexture("_MainTex", main);
 
             AssetDatabase.CreateAsset(mat, path);
             return mat;
+        }
+
+        /// <summary>URP Lit alpha-blended (straight alpha, no depth write, no shadows) with 'emission' as its emission map.</summary>
+        static void MakeLitAlphaGlow(Material mat, Texture2D emission)
+        {
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 0f);
+            mat.SetFloat("_BlendModePreserveSpecular", 0f);
+            mat.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_SrcBlendAlpha", (float)BlendMode.One);
+            mat.SetFloat("_DstBlendAlpha", (float)BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.renderQueue = (int)RenderQueue.Transparent;
+            mat.SetShaderPassEnabled("DepthOnly", false);
+            mat.SetShaderPassEnabled("ShadowCaster", false);
+            mat.SetTexture("_EmissionMap", emission);
+            mat.SetColor("_EmissionColor", Color.white);
+            mat.EnableKeyword("_EMISSION");
+            // URP 17.7's BaseShaderGUI keeps _EMISSION only with this flag: with None its ValidateMaterial (run whenever the
+            // Editor loads the material) turned the glow off again.
+            mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeDirectEmission;
         }
 
         [MenuItem("GoF2/Import/Reapply Import Settings", priority = 300)]

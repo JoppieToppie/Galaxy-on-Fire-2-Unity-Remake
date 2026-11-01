@@ -38,13 +38,17 @@ MESH[19080] = next(m for m in res['meshes'] if m['id'] == 19080 and 'mining_plan
 # Remake: the Terran hangar's fifth service bot (hangar_terran_bot_e_anim / _anim_add, a remake model) under the remake-only
 # ids 99004 / 99005 (also spliced into resources.json, materials 24070 / 20078); rules/assemblies_scenes.json's
 # hangar_terran_bot_e rule assembles it (StationLevel.BuildHangar spawns it on the room).
+# Remake: the remodelled Nivelian hangar's launch pads (hangar_nivelian_alt_alpha_add, the user's model, 2026-11-01) under
+# the remake-only id 99006 (also in resources.json, with its own material 99006 "bump_alpha_glow"); a child of the
+# hangar_nivelian rule in rules/assemblies_scenes.json.
 MODEL_OVERRIDE = {14401: 'Models/main/hangars/hangar_midorian_x6.fbx',
                   14402: 'Models/main/hangars/hangar_midorian_x6_shadow_alpha.fbx',
                   99001: 'Models/main/bars/bar_vossk_bot_a_anim_alpha.fbx',
                   99002: 'Models/main/bars/bar_vossk_bot_b_anim_alpha.fbx',
                   99003: 'Models/main/bars/bar_vossk_bot_c_anim_alpha.fbx',
                   99004: 'Models/main/hangars/hangar_terran_bot_e_anim.fbx',
-                  99005: 'Models/main/hangars/hangar_terran_bot_e_anim_add.fbx'}
+                  99005: 'Models/main/hangars/hangar_terran_bot_e_anim_add.fbx',
+                  99006: 'Models/main/hangars/hangar_nivelian_alt_alpha_add.fbx'}
 
 def model_of(mid):
     if mid in MODEL_OVERRIDE: return MODEL_OVERRIDE[mid]

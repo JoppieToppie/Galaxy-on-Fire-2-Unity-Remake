@@ -33,6 +33,7 @@ Transform:
   - {fileID: 1589671588786134880}
   - {fileID: 4472619064105219932}
   - {fileID: 2910114798245483630}
+  - {fileID: 8689915247301634513}
   - {fileID: 658218732526425466}
   - {fileID: 8214543083898092371}
   - {fileID: 6424454814088659359}
@@ -56,7 +57,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2186884dd228fc543b86769311f44436, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GoF2Remake.Visuals.AssembledObject
+  m_EditorClassIdentifier: GoF2.Space::GoF2Remake.Visuals.AssembledObject
   rootMeshId: 14378
   origin: Level::createScene @0xc2910, mode 0x17, UNK_00253e48[2] (4 slots, -1 = none); children DAT_00251fd0[2] + 0..UNK_00251fc0[2]-1
   lodDistancesGameUnits: []
@@ -624,6 +625,68 @@ PrefabInstance:
 Transform:
   m_CorrespondingSourceObject: {fileID: 6589335880976890547, guid: c8bb66599d3630e488d5a81475f66a43, type: 3}
   m_PrefabInstance: {fileID: 5583799370043368915}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1001 &6857042246931518629
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 466686079052644879}
+    m_Modifications:
+    - target: {fileID: 2860309645130022260, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2860309645130022260, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2860309645130022260, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2860309645130022260, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2860309645130022260, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2860309645130022260, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2860309645130022260, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2860309645130022260, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2860309645130022260, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2860309645130022260, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3240917017173780430, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+      propertyPath: m_Name
+      value: hangar_nivelian_alt_alpha_add
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+--- !u!4 &8689915247301634513 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2860309645130022260, guid: 27e86e45af4e34a45a71db19c71206e9, type: 3}
+  m_PrefabInstance: {fileID: 6857042246931518629}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &7205440238245297523
 PrefabInstance:

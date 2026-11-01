@@ -17166,6 +17166,24 @@
      "lods": []
     },
     {
+     "key": "layer_alpha_add",
+     "parent": "",
+     "mesh": 99006,
+     "model": "Models/main/hangars/hangar_nivelian_alt_alpha_add.fbx",
+     "material": 0,
+     "role": "layer_alpha_add",
+     "variant": "",
+     "condition": "",
+     "position": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "rotation": [],
+     "scale": [],
+     "lods": []
+    },
+    {
      "key": "hangar_prop",
      "parent": "",
      "mesh": 14403,

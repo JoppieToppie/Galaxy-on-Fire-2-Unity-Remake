@@ -8,6 +8,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: -9117994401145602609, guid: a99cf9f5e1406fd4f904d1fcc55ba3bc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: a9c03348ee9ffa44db9b1efedcd926db, type: 2}
     - target: {fileID: -9108240852455050006, guid: a99cf9f5e1406fd4f904d1fcc55ba3bc, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -52,6 +56,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7383280861691343538, guid: a99cf9f5e1406fd4f904d1fcc55ba3bc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: a9c03348ee9ffa44db9b1efedcd926db, type: 2}
+    - target: {fileID: -7108994526615123052, guid: a99cf9f5e1406fd4f904d1fcc55ba3bc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: a9c03348ee9ffa44db9b1efedcd926db, type: 2}
     - target: {fileID: -5478713943278776115, guid: a99cf9f5e1406fd4f904d1fcc55ba3bc, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -61,6 +73,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 2100000, guid: a9c03348ee9ffa44db9b1efedcd926db, type: 2}
     - target: {fileID: -5355927748614474032, guid: a99cf9f5e1406fd4f904d1fcc55ba3bc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: a9c03348ee9ffa44db9b1efedcd926db, type: 2}
+    - target: {fileID: -4100976755968871134, guid: a99cf9f5e1406fd4f904d1fcc55ba3bc, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: a9c03348ee9ffa44db9b1efedcd926db, type: 2}
@@ -88,6 +104,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: hangar_vossk_anim_add
       objectReference: {fileID: 0}
+    - target: {fileID: 1591509288472574026, guid: a99cf9f5e1406fd4f904d1fcc55ba3bc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: a9c03348ee9ffa44db9b1efedcd926db, type: 2}
     - target: {fileID: 1632700096274231143, guid: a99cf9f5e1406fd4f904d1fcc55ba3bc, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 

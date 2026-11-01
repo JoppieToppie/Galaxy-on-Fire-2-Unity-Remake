@@ -176,7 +176,7 @@ slots, ship heights, fighters per race, music) are in `StationTables`.
   facing the ring's centre, so the ships swing through the centre (every bend is a wide fillet) and fly into the bay 5 m
   up; the remodelled room's central column stands there, so they go round it instead, see "Vossk hangar, remodel").
   Arrival: from 450 m outside (growing from nothing, so nothing pops in where the opening shows space) through the
-  forcefield, level (the Nivelian hangar's six roof pillars, `StationTables.HangarLane.pillars` measured on its mesh,
+  forcefield, level (the Nivelian hangar's 12 roof pillars, `StationTables.HangarLane.pillars` measured on its mesh,
   are flown round: `HangarFlight.PillarRoute`, an A* over a 4 m grid keeping each pillar's radius + the ship's half
   width + 10 m clear and favouring the middle of the gaps, string-pulled, cached per pad and width; a player's report
   2026-10-16, ships flew through the pillar in front of the right pad; checked with every hangar ship's outline: 10.9 m
@@ -312,21 +312,45 @@ slots, ship heights, fighters per race, music) are in `StationTables`.
   take-off from slot 4.
 - **Vossk hangar, remodel** (remake, 2026-10-24, the user's files: new `hangar_vossk.aem` / `hangar_vossk_anim_add.aem`,
   converted with `Reference/tools/asset_conversion/convert_remodel.py`: aem2fbx.py's FBX and the sidecar format
-  PartAnimation reads; aem2fbx.py's own sidecar is the conversion's first format, which the game no longer reads): the room
-  made whole, a cylinder ~1.4 km across with a ring of bays on three tiers all round (floors at 268 m, 0 and a new bottom
-  tier at -270 m; hangar_vossk now three meshes), a column 100 m in radius at the hub (a base ring and two full-height struts
-  on the x axis; the remodelled anim_add's part12 the glowing core in it, pulsing in width, part13 a pulse running up it every
-  5.5 s), the ring lights (parts 3-5) turning full circles in ~16 s (no ping-pong for this room any more,
-  `StationLevel.BuildHangar`) and two more `extra`-fading sweeps (parts 14 / 15, staggered after part 6's: three sweeps in a
-  16 s loop). The old models replaced in place (same .meta GUIDs); the per-mesh prefabs' new parts got their file's
-  material (hangar_vossk 24074, anim_add 20071; no new textures). The portal and its lights are unchanged, so the lane's
-  gate and span are too. Pads (measured with rays on the assembled room): every 20 deg on the original slots' ring (10856
-  game units round the hub, game (0, 0, 10860)), none on the two lower tiers over the portal (70-110 deg): the original 9
-  slots kept, 40 more (`StationTables.ParkedSlots[1]`, 49 in all; `ParkedMax` 9 -> 18). The pad tops sit 1-2 m above the
-  slot heights; the lifts correct it per ship (hangar heights rebuilt: Vossk 71 -> 2500 entries, every other hangar
-  identical). The lane (`HangarLane.column` = 100): `HangarFlight.AroundColumn` takes the run from inside the portal to the
-  point in front of the bay straight where that clears the column (the ship's half width + 10 m), else along the tangents
-  onto a circle 1.1 x that round it, in steps of at most 30 deg, at the bay's height (the far bays: closest ~150 m from the
-  centre); the original's arc through the centre went through the column. Tests `HangarPillarTests`
-  (`VosskFlightsGoRoundTheColumn`: every pad, three ship sizes, both ways). Checked in Play mode at V'ikka: the fly-in onto
-  the turntable, NPC landings on far bays of all three tiers (round the column, parked at their heights).
+  PartAnimation reads; aem2fbx.py's own sidecar is the conversion's first format, which the game no longer reads): the
+  room made whole, a cylinder ~1.4 km across with a ring of bays on three tiers all round (floors at 268 m, 0 and a new
+  bottom tier at -270 m; hangar_vossk now three meshes), a column 100 m in radius at the hub (a base ring and two
+  full-height struts on the x axis). Its animated layer was redone 2026-11-01 (the user's fixed
+  `hangar_vossk_anim_add.aem`, same converter; 16 -> 21 parts): six ring lights (parts 3-8, raised 2986 units, turning
+  full circles in opposite pairs, 3-6 dark for a moment round heading 0 (`extra`); no ping-pong for this room any more,
+  `StationLevel.BuildHangar`), three `extra`-fading sweeps (parts 9-11, from 0 / 5.6 / 10.8 s), five static quads
+  (12-16), the column's glowing core (17, pulsing in width) and three pulses running up it (18-20, peaks at 1.0 / 6.2 /
+  11.4 s, parked at the column's ends between runs). One loop of 15.63 s for the lot: PartAnimation's length is its
+  longest part, the others hold their last key until it wraps, so the 5.2 s stagger keeps. The old models replaced in
+  place (same .meta GUIDs); the per-mesh prefabs' new parts got their file's material (hangar_vossk 24074, anim_add
+  20071; no new textures). The portal and its lights are unchanged, so the lane's gate and span are too. Pads (measured
+  with rays on the assembled room): every 20 deg on the original slots' ring (10856 game units round the hub, game (0,
+  0, 10860)), none on the two lower tiers over the portal (70-110 deg): the original 9 slots kept, 40 more
+  (`StationTables.ParkedSlots[1]`, 49 in all; `ParkedMax` 9 -> 18). The pad tops sit 1-2 m above the slot heights; the
+  lifts correct it per ship (hangar heights rebuilt: Vossk 71 -> 2500 entries, every other hangar identical). The lane
+  (`HangarLane.column` = 100): `HangarFlight.AroundColumn` takes the run from inside the portal to the point in front of
+  the bay straight where that clears the column (the ship's half width + 10 m), else along the tangents onto a circle
+  1.1 x that round it, in steps of at most 30 deg, at the bay's height (the far bays: closest ~150 m from the centre);
+  the original's arc through the centre went through the column. Tests `HangarPillarTests`
+  (`VosskFlightsGoRoundTheColumn`: every pad, three ship sizes, both ways). Checked in Play mode at V'ikka: the fly-in
+  onto the turntable, NPC landings on far bays of all three tiers (round the column, parked at their heights).
+- **Nivelian hangar, remodel** (remake, 2026-11-01, the user's files: a zip of every `hangar_nivelian*.aem` but the
+  bots, plus `hangar_nivelian_alt.aem` and `hangar_nivelian_alt_alpha_add.aem`; converted with `convert_remodel.py`).
+  The alt is the zip's main model with the six launch-pad tops cut out (2200-unit squares at y -46), which alt_alpha_add
+  holds as a layer of its own: `hangar_nivelian.fbx` is the alt (the zip's own main model unused), alt_alpha_add is
+  added beside the room's `_alpha` layer (not instead of it). The other 13 replace the originals in place (same .meta
+  GUIDs; x2 gained a second part, given 24073 in its per-mesh prefab). The pads: remake mesh id 99006 (`resources.json`,
+  `build_assemblies.py` MODEL_OVERRIDE, a `layer_alpha_add` child of the `hangar_nivelian` rule) with its own material
+  99006, shading `bump_alpha_glow` (`PrefabBuilder.MakeLitAlphaGlow`: URP Lit, the room's normal and metallic maps,
+  alpha-blended by the diffuse's alpha like the `_alpha` layers, the diffuse as emission for their glow; the GI flag
+  `RealtimeDirectEmission`, without which URP 17.7's material validation drops `_EMISSION` whenever the Editor loads
+  it). Drawn transparent the pads wrote no depth, so the ship shadows (a decal on the depth texture) fell on the pit 3.5
+  m under them and the pads, drawn after the decals, covered them: `StationLevel.DrawPadsWithDepth` swaps in a copy at
+  queue 2500 with depth (the validation turns it back off on the asset). Pads, measured with rays: the turntable and
+  five around it (Unity (0, ±204.8), (204.8, 0 / ±204.8); tops at -2.3 m, the floor round them -5.9 m), parked slots 2-4
+  game (0, 0, ±4096), (4096, 0, -4096) (`ParkedMax` 2 -> 5). Pillars, a slice of the mesh at 50 m: 12 in a 3 x 4 grid (x
+  -102.6 / 102.3 / 307.2, z ±102.4 / ±307.2, 5.7 m round; the original's 6 were the right two columns). The forcefield
+  is still where the lane's gate is (z -568, 4-152 m). Hangar heights rebuilt; the builder now counts `_alpha_add`
+  layers as solid (it skipped every `_add` as light, and the hulls fell into the pit): every pad lifts the original's
+  four ships as the original pads did. Tests `HangarPillarTests` (every pad, 12 pillars). Checked in Play mode at
+  Nehébru (station 0): the room, the pads, the player ship's shadow on the turntable.

@@ -154,8 +154,9 @@ namespace GoF2Remake.World
 
         /// <summary>UNK_00253ee8: parked ships = nextInt(max + 1). Remake: Midorian 5 (the original's 3), its remodelled
         /// room's third row of pads; Terran 5 (the original's 2), its remodelled room's three new pads; Vossk 18 (the
-        /// original's 9) of its remodelled room's 49 bays (ParkedSlots).</summary>
-        public static readonly int[] ParkedMax = { 5, 18, 2, 5, 0, 0, 0, 3, 0 };
+        /// original's 9) of its remodelled room's 49 bays; Nivelian 5 (the original's 2), its remodelled room's three new
+        /// pads (ParkedSlots).</summary>
+        public static readonly int[] ParkedMax = { 5, 18, 5, 5, 0, 0, 0, 3, 0 };
 
         /// <summary>Parked-ship slots (UNK_00253f10 ...); the ship's own height is added to y.</summary>
         public static readonly Vector3[][] ParkedSlots =
@@ -189,7 +190,14 @@ namespace GoF2Remake.World
                 new Vector3(3713, -5403, 21061), new Vector3(6978, -5403, 19176), new Vector3(9402, -5403, 16288), new Vector3(10691, -5403, 12745),
                 new Vector3(10691, -5403, 8975), new Vector3(9402, -5403, 5432), new Vector3(6978, -5403, 2544), new Vector3(3713, -5403, 659),
             },
-            new[] { new Vector3(4096, 0, 0), new Vector3(4096, 0, 4096) },
+            new[]
+            {
+                new Vector3(4096, 0, 0), new Vector3(4096, 0, 4096),
+                // Remake: the remodelled Nivelian room's new pads (2026-11-01, hangar_nivelian_alt_alpha_add), measured on
+                // its mesh with rays (the same pad as the original two, at their height): beside the turntable and the
+                // original two, one each side.
+                new Vector3(0, 0, 4096), new Vector3(0, 0, -4096), new Vector3(4096, 0, -4096),
+            },
             new[]
             {
                 new Vector3(-4096, 0, 0), new Vector3(0, 0, 4096), new Vector3(-4096, 0, 4096),
@@ -226,12 +234,15 @@ namespace GoF2Remake.World
             public float column;
         }
 
-        /// <summary>The Nivelian hangar's six roof pillars (x, z, radius), measured on hangar_nivelian's mesh (rays at 50 m
-        /// up: 5-7 m round, up to 148 m): a player's report 2026-10-16, ships flew through the one in front of the right pad.</summary>
+        /// <summary>The Nivelian hangar's roof pillars (x, z, radius), measured on hangar_nivelian's mesh (the original's six
+        /// with rays at 50 m up: 5-7 m round, up to 148 m; a player's report 2026-10-16, ships flew through the one in front
+        /// of the right pad). Modified: the remodelled room's twelve (2026-11-01, a slice of its mesh at 50 m: 5.7 m round),
+        /// a 3 x 4 grid round its six pads.</summary>
         static readonly Vector3[] NivelianPillars =
         {
-            new Vector3(99.6f, -304.9f, 8f), new Vector3(99.5f, -102.9f, 8f), new Vector3(99.3f, 101.8f, 8f),
-            new Vector3(303.4f, -306.9f, 8f), new Vector3(303.3f, -101.3f, 8f), new Vector3(304.6f, 103f, 8f),
+            new Vector3(-102.6f, -307.3f, 8f), new Vector3(-102.6f, -102.5f, 8f), new Vector3(-102.6f, 102.3f, 8f), new Vector3(-102.6f, 307.1f, 8f),
+            new Vector3(102.3f, -307.3f, 8f), new Vector3(102.3f, -102.5f, 8f), new Vector3(102.3f, 102.3f, 8f), new Vector3(102.3f, 307.1f, 8f),
+            new Vector3(307.2f, -307.3f, 8f), new Vector3(307.2f, -102.5f, 8f), new Vector3(307.2f, 102.3f, 8f), new Vector3(307.2f, 307.1f, 8f),
         };
 
         public static readonly HangarLane[] HangarLanes =

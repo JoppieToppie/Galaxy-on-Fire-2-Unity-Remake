@@ -1,5 +1,5 @@
 // HangarPillarTests.cs
-// Feature: CLAUDE.md "Station scene" > Hangar flights (remake): the Nivelian hangar's lanes steer round its six roof pillars
+// Feature: CLAUDE.md "Station scene" > Hangar flights (remake): the Nivelian hangar's lanes steer round its roof pillars
 // (StationTables.HangarLane.pillars, HangarFlight.AvoidPillars); a player's report 2026-10-16: ships flew through the pillar
 // in front of the right pad. Expected values: the pillars measured on hangar_nivelian's mesh (StationTables), the pads
 // (the turntable at the origin, ParkedSlots[2] through OrbitLayout.ToUnity); along every arrival and departure the ship's
@@ -20,7 +20,9 @@ namespace GoF2Remake.Tests
         [TearDown]
         public void TearDown() { if (ship != null) Object.DestroyImmediate(ship); }
 
-        static readonly Vector3[] NivelianPads = { new Vector3(0f, 8f, 0f), new Vector3(204.8f, 8f, 0f), new Vector3(204.8f, 8f, -204.8f) };
+        /// <summary>The Nivelian hangar's pads: the turntable and every parked slot (8 m up); [1] the right pad, (204.8, 0).</summary>
+        static readonly Vector3[] NivelianPads =
+            new[] { new Vector3(0f, 8f, 0f) }.Concat(StationTables.ParkedSlots[2].Select(s => OrbitLayout.ToUnity(s) + Vector3.up * 8f)).ToArray();
 
         /// <summary>The least gap (metres) between the ship's outline from above (a 'width' x 'length' rectangle round the
         /// pivot, facing along the path) and any pillar's surface over the flight's level part (the vertical part is over
@@ -61,7 +63,8 @@ namespace GoF2Remake.Tests
         {
             var lane = StationTables.HangarLanes[2];
             Assert.IsNotNull(lane.pillars);
-            Assert.AreEqual(6, lane.pillars.Length);
+            Assert.AreEqual(12, lane.pillars.Length);   // the remodelled room's (2026-11-01; the original's 6)
+            Assert.AreEqual(6, NivelianPads.Length);
             ship = GameObject.CreatePrimitive(PrimitiveType.Cube);
             size = new Vector3(width, 8f, length);
             foreach (var pad in NivelianPads)

@@ -12,7 +12,8 @@ prefabs + `LODGroup`).
 - Rules: `Reference/tools/asset_conversion/assemblies/rules/assemblies_{ships,stations,level,scenes}.json` +
   `*_notes.md` (functions, addresses, uncertainties). `build_assemblies.py` merges them into
   `Resources/GoF2Data/assemblies.json`; then run the menu item. Groups with no assembling code get a name-based assembly
-  (`origin` says so).
+  (`origin` says so). A full run no longer reproduces the committed file (2026-11-01: 215 lines elsewhere, LOD lists
+  among them, changed for one new part): to add a part, run it to a copy and splice that entry's part in.
 - `patch_resources.py` added 19 meshes the resource-table emulation had recorded as garbage (burning/wrecked supernova
   stations etc.), and (remake) the engine glows 17939 / 17941 of ships 39 / 41.
 - Ships (`Globals::getShipGroup(idx, race, isPlayer)`): the player ship uses `*_engine_glow_add` (17900+idx), NPCs

@@ -6,9 +6,9 @@
 // meshes the wide hulls cut into the Midorian pads' raised rims (the H'Soc's wings 1.9 m), and Midorian slot 2 / deep
 // science slot 2 are raised pedestals the table ignores.
 // Each ship's hull bottom (its lowest vertex per 0.6 m column; no additive / LOD meshes) is dropped from DropFrom above
-// its table height onto the room (MeshColliders on the room's meshes, not the additive light shafts; the alpha layers hold the Midorian rims,
-// the animated parts posed where the game shows them); the first contact is its rest height. In a preview scene: the
-// open scene is untouched.
+// its table height onto the room (MeshColliders on the room's meshes, not the additive light shafts; the alpha layers hold
+// the Midorian rims and the remodelled Nivelian pads, the animated parts posed where the game shows them); the first
+// contact is its rest height. In a preview scene: the open scene is untouched.
 
 using System.Collections.Generic;
 using System.IO;
@@ -57,7 +57,10 @@ namespace GoF2Remake.EditorTools
                     if (room == null) continue;
                     foreach (var mf in room.GetComponentsInChildren<MeshFilter>())
                     {
-                        if (mf.sharedMesh == null || mf.name.Contains("_add")) continue;   // the "_alpha" layers are solid too (the Midorian pad rims)
+                        // The "_alpha" layers are solid too (the Midorian pad rims), and so are the "_alpha_add" ones (the
+                        // remodelled Nivelian room's pads, hangar_nivelian_alt_alpha_add: without them the hulls fell to the pit
+                        // under them); the other "_add" layers are light.
+                        if (mf.sharedMesh == null || (mf.name.Contains("_add") && !mf.name.Contains("_alpha_add"))) continue;
                         mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
                     }
                     Physics.SyncTransforms();

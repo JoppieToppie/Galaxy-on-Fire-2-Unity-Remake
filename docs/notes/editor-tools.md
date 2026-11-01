@@ -104,9 +104,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   hangar's bot e: remake mesh ids 99004 / 99005 in `resources.json`, assembly `hangar_terran_bot_e`, spawned on the room
   by `StationLevel.BuildHangar`, see "Station scene", Hangar service bots). It reads `resources.json` and
   `assemblies.json` as they are, so a hand-added model needs its entries in both first, and in the generators too or
-  their next run drops it: `build_assemblies.py`'s MODEL_OVERRIDE (a remake-only id; 99001-99005 are taken) and a rule
+  their next run drops it: `build_assemblies.py`'s MODEL_OVERRIDE (a remake-only id; 99001-99006 are taken) and a rule
   in `rules/assemblies_*.json` (or a `name_groups.json` member). The `resources.json` entries (the per-mesh prefab's
-  material) are in no generator yet: `Reference/tools/asset_conversion/build_resources.py` would drop 99004 / 99005.
+  material) are in no generator yet: `Reference/tools/asset_conversion/build_resources.py` would drop 99004-99006.
   Then run the menu item (an existing prefab is never updated: delete it first to rebuild it, or use Assembled
   Prefabs).
 - **GoF2 > Import > Apply Emissive Glow To Materials**: `_Glow` = 4 on emissive/lights materials, 2.5 on additive ones,

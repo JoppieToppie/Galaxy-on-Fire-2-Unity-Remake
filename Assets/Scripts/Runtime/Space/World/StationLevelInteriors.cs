@@ -46,6 +46,25 @@ namespace GoF2Remake.World
                                                    : StationTables.ParkedMax[HangarIndex];
         int VisitorSlotCount => customBar != null ? customBar.visitors.Count : StationTables.VisitorSlots[BarRace].Length;
         Vector3 SlotFeet(int slot) => customBar != null ? customBar.visitors[slot] : OrbitLayout.ToUnity(StationTables.VisitorSlots[BarRace][slot]);
+        /// <summary>Remake: the remodelled Nivelian room's pads (hangar_nivelian_alt_alpha_add, material 99006: lit, blended,
+        /// glowing) are drawn in the opaque range with depth. The ship shadows (HangarShipShadow, a decal on the camera's depth
+        /// texture) lie on what the depth shows; as a transparent layer the pads wrote none, so the shadows fell on the pit
+        /// 3.5 m under them, outside their box, and the pads (drawn after the decals) covered them. URP's material validation
+        /// turns a transparent Lit material's depth back off whenever the Editor loads it, so the copy is made here.</summary>
+        static void DrawPadsWithDepth(GameObject room)
+        {
+            if (room == null) return;
+            foreach (var r in room.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                var m = r.sharedMaterial;
+                if (m == null || !r.name.StartsWith("hangar_nivelian_alt_alpha_add")) continue;
+                var c = new Material(m) { name = m.name + " (depth)" };
+                c.SetFloat("_ZWrite", 1f);
+                c.SetShaderPassEnabled("DepthOnly", true);
+                c.renderQueue = (int)RenderQueue.GeometryLast;   // after the pit under them, before the shadows (Transparent-10)
+                r.sharedMaterial = c;
+            }
+        }
         /// <summary>Remake: the Valkyrie battlestation hangar's v_hangar_battlestation_add_part32 / 33 sat off their place (their
         /// X keys are the absolute place while the import baked it into their vertices too): held at a local x placed by eye
         /// in the remake (their other keys still play).</summary>
@@ -108,6 +127,7 @@ namespace GoF2Remake.World
                 }
             SetupTerranBots(roomGo);
             if (customHangar == null) PlaceValkyrieHangarParts(roomGo);
+            DrawPadsWithDepth(roomGo);
             CollectRoomHighlights(roomGo);
 
             shipPivot = PadPosition(shipIndex);   // clear of the pad (remake)

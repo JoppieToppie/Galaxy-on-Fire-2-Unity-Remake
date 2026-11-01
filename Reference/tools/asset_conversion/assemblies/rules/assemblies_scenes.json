@@ -598,6 +598,20 @@
     "note": "separate PlayerStatic with the same world transform as the room (pos 0, rot (0,pi,0)); identity relative to root"
    },
    {
+    "mesh": 99006,
+    "model": "Models/main/hangars/hangar_nivelian_alt_alpha_add.fbx",
+    "role": "layer_alpha_add",
+    "variant": null,
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "rotation": null,
+    "scale": null,
+    "note": "remake: the remodelled room's launch pads (no resource id; 99006 is build_assemblies.py's MODEL_OVERRIDE), cut out of hangar_nivelian into their own glowing, blended layer; identity relative to root"
+   },
+   {
     "mesh": 14403,
     "model": "Models/main/hangars/hangar_nivelian_x1.fbx",
     "role": "hangar_prop",

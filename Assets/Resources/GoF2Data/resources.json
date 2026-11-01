@@ -1118,6 +1118,12 @@
    "materialId": 20078
   },
   {
+   "id": 99006,
+   "model": "Models/main/hangars/hangar_nivelian_alt_alpha_add.fbx",
+   "source": "remake: the remodelled Nivelian hangar's launch pads (no original resource id)",
+   "materialId": 99006
+  },
+  {
    "id": 14380,
    "model": "Models/main/hangars/hangar_terran_x1.fbx",
    "source": "data/assets/main/3d/meshes/hangars/hangar_terran_x1.aem",
@@ -11381,6 +11387,15 @@
    "textures": [
     "Textures/main/misc/rocket_emp_diffuse.png",
     "Textures/main/misc/rocket_emp_normal_specular.png"
+   ]
+  },
+  {
+   "id": 99006,
+   "shaderId": 28,
+   "shading": "bump_alpha_glow",
+   "textures": [
+    "Textures/main/hangars/hangar_nivelian_diffuse.png",
+    "Textures/main/hangars/hangar_nivelian_normal_specular.png"
    ]
   }
  ],
