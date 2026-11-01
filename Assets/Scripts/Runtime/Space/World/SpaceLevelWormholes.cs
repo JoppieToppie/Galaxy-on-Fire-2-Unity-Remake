@@ -341,11 +341,7 @@ namespace GoF2Remake.World
             // Remake: outside the system it left (or the Void), heading for the programmed destination (InterstellarSpace).
             if (Layout.interstellar)
             {
-                var from = InterstellarSpace.PositionOf(db, Layout.stationIndex);
-                var goal = db.Stations.Find(s => s.index == Session.ProgrammedStation) is StationData prog
-                           && db.Systems.Find(s => s.index == prog.system) is SystemData sys && sys.index != Layout.systemIndex && GalaxyMap.IsVisible(db, sys.index)
-                    ? InterstellarSpace.Position(sys) : Vector3.zero;
-                InterstellarSpace.Start(from, goal, out var at, out var forward);
+                var forward = InterstellarSpace.StartPose(db, Layout, out var at);
                 root.transform.SetPositionAndRotation(OrbitLayout.ToUnity(at), Quaternion.LookRotation(OrbitLayout.DirToUnity(forward), Vector3.up));
             }
             // Remake multiplayer: an admin's teleport into this orbit (NetTeleport) brings its own pose.
@@ -400,11 +396,8 @@ namespace GoF2Remake.World
             chase.positionCoefficient = 0.006f;         // TargetFollowCamera::resetShipHandling: position / look-at
             chase.rotationCoefficient = 0.005f;
             chase.Snap();
-            if (warpArrival)
-            {
-                chase.CarryView(Session.WarpView, Session.WarpViewTurn);
-                ctrl.Model.CarryCruiseLook(WarpSky.ArrivalCarryMs);
-            }
+            if (warpArrival || Session.RiftEntry) chase.CarryView(Session.WarpView, Session.WarpViewTurn);
+            if (warpArrival) ctrl.Model.CarryCruiseLook(WarpSky.ArrivalCarryMs);
             // PlayerEgo::checkForTurret: the turret-slot item on the ship's turret mount (remake: each on its own mount).
             turrets.Clear();
             turrets.AddRange(PlayerTurret.AttachAll(root, db, Session.ShipIndex, Session.Equipment, chase));
@@ -422,7 +415,12 @@ namespace GoF2Remake.World
             // MGame::OnInitialize: the engine loop (PlayerEgo+0x1c) and the boost sound (+0xd4).
             PlayerEngine.Attach(root, db, ctrl);
             // Level::initParticleSystems: the exhaust particles (remake debug: none on a freighter / capital ship, PlayerHull).
-            if (PlayerHull.OwnEngines(db)) ShipExhaust.Attach(root, db, ctrl, Session.ShipIndex);
+            if (PlayerHull.OwnEngines(db))
+            {
+                var exhaust = ShipExhaust.Attach(root, db, ctrl, Session.ShipIndex);
+                if (Session.RiftEntry) exhaust.Prime(KhadorTimeline.RiftDrawnFactor);
+                else if (warpArrival && Shop.MountedCruiseDrive(db) is ItemData arrivalDrive) exhaust.Prime(arrivalDrive.Attr(CruiseDrive.SpeedAttr) / 100f);
+            }
 
             // Modified: the Supernova Challenge's round opens with the arrival fly-in, as after a jump into a system, but
             // close (ChallengeFlyInLocal), gliding to the chase position in 2 s (the original's video, frame by frame);

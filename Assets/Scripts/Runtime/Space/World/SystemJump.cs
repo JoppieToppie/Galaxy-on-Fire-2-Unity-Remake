@@ -42,6 +42,9 @@ namespace GoF2Remake.World
         /// <summary>Remake: the Khador fx's whiteout, where the flight into interstellar space cuts (the rest of the fx would show
         /// the orbit left; the new level fades out of the same light, Visuals.WarpSky).</summary>
         public const float KhadorWhiteoutStartMs = 1500f, KhadorWhiteoutMs = 1860f;
+        /// <summary>Remake: how long the camera glides in behind the ship into interstellar space; the longest the hole may take
+        /// to fill the view, the fallback for a view it can't fill; a hull the animation fits without growing.</summary>
+        const float GlideMs = 1250f, RiftLatestMs = 6000f, FxMeters = 70f;
 
         public string spaceScene = "Space";
 
@@ -71,6 +74,12 @@ namespace GoF2Remake.World
         static int VoidCells(bool intoVoid) => (Session.IsExtreme ? 2 : 1) * (intoVoid ? 2 : 1);
         static int VoidCellsTaken => Session.IsExtreme ? 2 : 1;
         GameObject fx;
+        KhadorFx rift;
+        SpaceDust orbitFog;
+        Vector3 heldView;
+        Quaternion heldTurn = Quaternion.identity;
+        float riftCrossMs;
+        bool swapping;
         /// <summary>Remake: the Khador scene's frame, the ship's own rotation when the jump starts (its roll and pitch too): the
         /// fx's turn and the camera's place. The camera's drift and up follow the ship as it is turned (as the original's
         /// ship-space drift). The camera used the ship's frame for its place but the world's up to look, so a ship flying
@@ -81,7 +90,7 @@ namespace GoF2Remake.World
         Vector3 sceneDir = Vector3.forward;
 
         /// <summary>The HUD is hidden: docked to the gate or a jump scene running.</summary>
-        public bool Cinematic => state == State.AtGate || state == State.GateScene || state == State.KhadorScene;
+        public bool Cinematic => state == State.AtGate || state == State.GateScene || state == State.KhadorScene || swapping;
         public bool Charging => state == State.Charging;
         /// <summary>Remake: the ship is on its way through a jumpgate or the Khador Drive (the jump scenes; ThrottleGlow).</summary>
         public bool Traveling => state == State.GateScene || state == State.KhadorScene;
@@ -111,10 +120,11 @@ namespace GoF2Remake.World
             nav.InterstellarRequested += RequestInterstellar;
             nav.SystemReached += LeaveInterstellar;
             nav.TravelBusy = () => state != State.None || toInterstellar;
-            levelStart = Time.timeSinceLevelLoad;
+            levelStart = Time.time;
         }
 
-        /// <summary>The level clock at this level's start: not 0 after an additive swap (SpaceLevel.SwapScene).</summary>
+        /// <summary>The game clock at this level's start. Not timeSinceLevelLoad: that still reads the last level's time while a
+        /// level sets up (a Khador charge then waited out however long that level had run) and doesn't restart on a swap.</summary>
         float levelStart;
         PlayerHealth health;
 
@@ -140,7 +150,7 @@ namespace GoF2Remake.World
             if (health == null) health = ship.GetComponent<PlayerHealth>();
             if (health != null && health.Dead)
             {
-                if (state == State.Charging) state = State.None;
+                if (state == State.Charging) { state = State.None; EndChargeShow(); }
                 toInterstellar = false;
                 if (state == State.None) return;
             }
@@ -152,7 +162,7 @@ namespace GoF2Remake.World
                         if (GateBlocked != null && GateBlocked()) nav.Refuse();   // MGame::dockEvent: 525 on a mission
                         else DockToStream();
                     }
-                    else if ((Session.InstantJump || storyTarget.HasValue || toInterstellar) && (Time.timeSinceLevelLoad - levelStart) * 1000f > 5000f && !nav.Jumping && !nav.Paused && !nav.Conversation && !GoF2Remake.World.SpaceHooks.StarMapOpen)
+                    else if ((Session.InstantJump || storyTarget.HasValue || toInterstellar) && (Time.time - levelStart) * 1000f > 5000f && !nav.Jumping && !nav.Paused && !nav.Conversation && !GoF2Remake.World.SpaceHooks.StarMapOpen)
                         StartCharging();
                     break;
                 case State.AtGate:
@@ -162,6 +172,7 @@ namespace GoF2Remake.World
                 case State.Charging:
                     chargeMs += dtMs;
                     Haptics.Rumble(0.1f + 0.35f * ChargeRate);   // remake: the drive winding up
+                    UpdateChargeShow();
                     if (chargeMs >= GalaxyMap.ChargeMs) StartKhadorScene();
                     break;
                 case State.GateScene:
@@ -177,6 +188,13 @@ namespace GoF2Remake.World
             var cam = Camera.main;
             // Remake: the Khador scene's camera keeps the ship's up, so it rolls with the ship (turned by the player too).
             var up = state == State.KhadorScene ? ship.transform.up : Vector3.up;
+            if (rift != null)
+            {
+                // The view the jump began with, held on the ship: the chase camera's lag let the ship slide back and forth on
+                // screen as it eased off and was drawn in. So the ship stays put and the hole comes to it.
+                if (cam != null) cam.transform.SetPositionAndRotation(ship.transform.TransformPoint(heldView), ship.transform.rotation * heldTurn);
+                return;
+            }
             if (cam != null) cam.transform.rotation = Quaternion.LookRotation(ship.transform.position - cam.transform.position, up);
             if (cam != null && toInterstellar && state == State.KhadorScene) GlideBehindShip(cam);
         }
@@ -189,7 +207,7 @@ namespace GoF2Remake.World
             if (chase == null) return;
             float dtMs = Time.deltaTime * 1000f;
             sceneCam += ship.transform.rotation * (new Vector3(-5f, 2f, -5f) * dtMs * M);
-            float t = Mathf.SmoothStep(0f, 1f, animMs / KhadorWhiteoutStartMs);
+            float t = Mathf.SmoothStep(0f, 1f, animMs / GlideMs);
             chase.SteadyPose(sceneDir * (speed * M), dtMs, out var position, out var rotation);
             cam.transform.SetPositionAndRotation(Vector3.Lerp(sceneCam, position, t), Quaternion.Slerp(cam.transform.rotation, rotation, t));
             cam.fieldOfView = Mathf.Lerp(sceneFov, Aspect.VerticalFov(chase.baseFov, cam.aspect), t);
@@ -197,6 +215,58 @@ namespace GoF2Remake.World
 
         Vector3 sceneCam;
         float sceneFov;
+
+        // ---- the charge's show (remake; the original shows only the HUD's bar) --------------------------------------------
+
+        EmpSparks hullArcs;
+        KhadorFx.Gathering gathering;
+
+        /// <summary>The drive winding up: lightning crawling over the hull, from the EMP's bolts on the fx's own sheet, and at the
+        /// end the focus gathering where the beam will strike.</summary>
+        void UpdateChargeShow()
+        {
+            if (!toInterstellar) return;   // a plain jump's charge shows only the HUD's bar, as the original's
+            float rate = ChargeRate;
+            if (KhadorTimeline.ChargeArcs(rate) > 0f)
+            {
+                hullArcs ??= new EmpSparks(ship.transform);
+                hullArcs.SetEmitting(true);
+            }
+            if (KhadorTimeline.ChargeFocus(rate) > 0f)
+            {
+                if (gathering == null) gathering = KhadorFx.Gathering.Create(ship.transform, Vector3.forward * KhadorTimeline.RiftFocusUnits * M * FxScale(), Sheet());
+                if (gathering != null) gathering.SetCharge(rate);
+            }
+        }
+
+        void EndChargeShow()
+        {
+            hullArcs?.SetEmitting(false);
+            if (gathering != null) Destroy(gathering.gameObject);
+            gathering = null;
+        }
+
+        static Texture Sheet() => SheetOf(StarMapAssets.Load());
+
+        static Texture SheetOf(StarMapAssets a)
+        {
+            var look = a != null && a.khadorJump != null ? a.khadorJump.GetComponentInChildren<Renderer>(true)?.sharedMaterial : null;
+            return look != null && look.HasProperty("_MainTex") ? look.GetTexture("_MainTex") : null;
+        }
+
+        /// <summary>The ship's half span in game units, its model's largest half extent.</summary>
+        float HalfSpanUnits()
+        {
+            var b = new Bounds(ship.transform.position, Vector3.zero);
+            if (ship.visualModel != null)
+                foreach (var r in ship.visualModel.GetComponentsInChildren<MeshRenderer>())
+                    if (!r.name.Contains("_add")) b.Encapsulate(r.bounds);
+            float half = Mathf.Max(b.extents.x, Mathf.Max(b.extents.y, b.extents.z)) / M;
+            return half > 1f ? half : 700f;
+        }
+
+        /// <summary>The hole suits a ship up to FxMeters long; a bigger hull gets a bigger one, its focus clear of the bow.</summary>
+        float FxScale() => Mathf.Max(1f, HalfSpanUnits() * 2f * M / FxMeters);
 
         // ---- the jumpgate ----------------------------------------------------------------------------------
 
@@ -401,6 +471,11 @@ namespace GoF2Remake.World
             Arrive(false);
         }
 
+        /// <summary>The Khador scene is flying into its hole in space, no whiteout to cover it (Visuals.WarpSky).</summary>
+        public bool RiftOpen => rift != null;
+        /// <summary>The warp starting over this orbit as the ship is drawn into the hole, 0..1.</summary>
+        public float RiftWarp => rift != null ? KhadorTimeline.RiftWarp(animMs, riftCrossMs) : 0f;
+
         void StartCharging()
         {
             if (toInterstellar)
@@ -479,27 +554,67 @@ namespace GoF2Remake.World
 
         void StartKhadorFx()
         {
-            var fxPos = ship.transform.position + ship.transform.forward * 3000f * M;
+            EndChargeShow();
+            var fxPos = ship.transform.position + ship.transform.forward * KhadorTimeline.FocusUnits * M;
             // MGame::startJumpScene: the fx's setDirection(ship direction, (0, 1, 0)), upright in the world. Remake: in the
             // ship's own frame (sceneFrame), as the camera, so the scene is the same from a ship flying inverted or rolled.
             sceneFrame = ship.transform.rotation;
             sceneDir = ship.transform.forward;
-            ship.turnOnly = true;   // remake: the player turns the ship (and the camera's drift with it), not its path
             var fxRot = sceneFrame;
-            fx = SpawnKhadorFx(assets, fxPos, fxRot, out animLength);
+            rift = toInterstellar && !GoF2Remake.Data.VrFlags.Enabled ? OpenRift(ref fxPos, fxRot) : null;
+            if (rift == null) fx = SpawnKhadorFx(assets, fxPos, fxRot, out animLength);
             JumpFxStarted?.Invoke(false, fxPos, fxRot);
             activated = true;
             animMs = 0f;
+            ship.turnOnly = rift == null;   // remake: the player turns the ship (and the camera's drift with it), not its path
             var cam = Camera.main;
-            // game (-2000, 300, -2000), in the ship's frame
-            if (cam != null)
+            // game (-2000, 300, -2000), in the ship's frame. Into the hole the camera stays where it is behind the ship.
+            if (rift != null && cam != null)
+            {
+                if (chase != null && !chase.firstPerson)
+                {
+                    heldView = ship.transform.InverseTransformPoint(cam.transform.position);
+                    heldTurn = Quaternion.Inverse(ship.transform.rotation) * cam.transform.rotation;
+                }
+                else if (chase != null)   // from the cockpit: the view the next level's chase camera opens on
+                {
+                    chase.SteadyPose(sceneDir * (speed * M), 16f, out var position, out var rotation);
+                    heldView = ship.transform.InverseTransformPoint(position);
+                    heldTurn = Quaternion.Inverse(ship.transform.rotation) * rotation;
+                }
+            }
+            if (chase != null) chase.enabled = false;
+            if (rift == null)
+            {
+                if (cam != null) cam.fieldOfView = Aspect.VerticalFov(1.22f * Mathf.Rad2Deg, cam.aspect);
+            }
+            if (cam != null && rift == null)
             {
                 cam.transform.position = fxPos + sceneFrame * (new Vector3(2000f, 300f, -2000f) * M);
                 sceneCam = cam.transform.position;
                 sceneFov = cam.fieldOfView;
             }
-            Play(assets != null ? assets.khadorDrive : null);
+            if (rift != null) PlayCarried(assets != null ? assets.khadorDrive : null);
+            else Play(assets != null ? assets.khadorDrive : null);
             flashFelt = false;   // the rumble waits for the flash (KhadorFlashMs)
+        }
+
+        /// <summary>The Khador Slipstream's hole, further ahead than a jump's fx ('at' moved there); null should it be unable to
+        /// open, and that jump goes the old way. Every other Khador jump keeps the original's fx (SpawnKhadorFx), the user's call.</summary>
+        KhadorFx OpenRift(ref Vector3 at, Quaternion facing)
+        {
+            float fxScale = FxScale(), reach = KhadorTimeline.RiftFocusUnits * fxScale;
+            var place = ship.transform.position + ship.transform.forward * reach * M;
+            var drawn = KhadorFx.Create(place, facing, SheetOf(assets));
+            if (drawn == null) return null;
+            drawn.transform.localScale *= fxScale;
+            riftCrossMs = KhadorTimeline.RiftCrossMs(reach);
+            drawn.OpenRift(ship.transform, InterstellarSpace.StartRotation(db, FindAnyObjectByType<SpaceLevel>().Layout), riftCrossMs, HalfSpanUnits());
+            if (!drawn.HasRift) { Destroy(drawn.gameObject); return null; }
+            fx = drawn.gameObject;
+            animLength = KhadorTimeline.LengthMs;
+            at = place;
+            return drawn;
         }
 
         // ---- the jump scene --------------------------------------------------------------------------------
@@ -512,6 +627,7 @@ namespace GoF2Remake.World
             nav.SetAutopilot(null);
             ship.externalControl = true;
             if (weapons != null) weapons.Blocked = true;
+            if (toInterstellar) return;   // StartKhadorFx settles the camera
             if (chase != null) chase.enabled = false;
             var cam = Camera.main;
             if (cam != null) cam.fieldOfView = Aspect.VerticalFov(1.22f * Mathf.Rad2Deg, cam.aspect);
@@ -521,8 +637,15 @@ namespace GoF2Remake.World
         {
             bool gateScene = state == State.GateScene;
             var cam = Camera.main;
-            if (!hidden && cam != null)   // ship-space game (5, 2, -3 / -5) u/ms -> Unity local (-5, 2, -3 / -5)
+            if (!hidden && cam != null && rift == null)   // ship-space game (5, 2, -3 / -5) u/ms -> Unity local (-5, 2, -3 / -5)
                 cam.transform.position += ship.transform.rotation * (new Vector3(-5f, 2f, gateScene ? -3f : -5f) * dtMs * M);
+            if (rift != null)
+            {
+                speed = KhadorTimeline.RiftSpeed(animMs);   // drawn into the hole
+                // The orbit's fog lies in front of the hole, between it and the camera, and the next level has none.
+                if (orbitFog == null) orbitFog = FindAnyObjectByType<SpaceLevel>()?.Fog;
+                if (orbitFog != null) orbitFog.Fade(1f - Mathf.InverseLerp(KhadorTimeline.RingStartMs / KhadorTimeline.RiftRate, riftCrossMs, animMs));
+            }
             float step = speed * dtMs * M;
             // Remake: the Khador scene keeps its path while the player turns the ship (turnOnly).
             ship.transform.position += (gateScene ? ship.transform.forward : sceneDir) * step;
@@ -534,8 +657,8 @@ namespace GoF2Remake.World
             if (!activated) return;
             animMs += dtMs;
             // (at the latest at the end: a shorter mod animation)
-            if (!flashFelt && animMs >= Mathf.Min(gateScene ? GateFlashMs : KhadorFlashMs, animLength)) { flashFelt = true; Haptics.Play(Haptics.Jump); }   // remake
-            if (toInterstellar && animMs >= KhadorWhiteoutMs) { Arrive(false); return; }
+            if (!flashFelt && animMs >= (rift != null ? riftCrossMs : Mathf.Min(gateScene ? GateFlashMs : KhadorFlashMs, animLength))) { flashFelt = true; Haptics.Play(Haptics.Jump); }   // remake
+            if (toInterstellar && (rift != null ? rift.RiftFilled(cam) || animMs >= RiftLatestMs : animMs >= KhadorWhiteoutMs)) { Arrive(false); return; }
             if (!hidden && !toInterstellar && animMs > (gateScene ? 1000f : 1700f))
             {
                 hidden = true;
@@ -543,7 +666,7 @@ namespace GoF2Remake.World
                 ship.turnOnly = false;   // remake: the roll stops with the ship gone
                 if (ship.visualModel != null) ship.visualModel.gameObject.SetActive(false);
             }
-            if (animMs >= animLength)
+            if (animMs >= animLength && rift == null)   // into a hole the scene ends when the hole has filled the view
             {
                 if (sceneDone != null)   // Modified: a scene without a jump (PlayKhadorScene)
                 {
@@ -567,6 +690,12 @@ namespace GoF2Remake.World
                 // The station stays the one the ship left: a save or a load in there is this orbit.
                 toInterstellar = false;
                 Session.EnterInterstellar = true;
+                Session.RiftEntry = swapping = rift != null;   // no HUD for the frame left of this level
+                if (rift != null && chase != null && Camera.main != null)   // the view the hole showed
+                {
+                    Session.WarpView = ship.transform.InverseTransformPoint(Camera.main.transform.position);
+                    Session.WarpViewTurn = Quaternion.Inverse(ship.transform.rotation) * Camera.main.transform.rotation;
+                }
                 Session.ArrivedByTravel = Session.ArrivedBySystemJump = Session.LaunchedFromStation = false;
                 Session.InstantJump = false;
                 state = State.None;
@@ -594,6 +723,24 @@ namespace GoF2Remake.World
                 if (Session.WarpArrival) SpaceLevel.SwapScene(spaceScene);
                 else SceneManager.LoadScene(spaceScene);
             }
+        }
+
+        /// <summary>The jump's sound into the hole, played on over the level's end, as the swap comes before it has: at the
+        /// scene's rate, deeper, its blast (KhadorFlashMs into the clip) as the ship reaches the hole.</summary>
+        void PlayCarried(AudioClip clip)
+        {
+            if (clip == null) return;
+            clip = GoF2Remake.Modding.ModSounds.Get(clip);
+            var go = new GameObject("Khador sound");
+            DontDestroyOnLoad(go);
+            var source = go.AddComponent<AudioSource>();
+            source.playOnAwake = false;
+            source.clip = clip;
+            source.volume = Settings.SfxVolume;
+            source.pitch = KhadorTimeline.RiftRate;
+            float delayS = Mathf.Max(0f, riftCrossMs - KhadorFlashMs / source.pitch) / 1000f;
+            source.PlayDelayed(delayS);
+            Destroy(go, delayS + clip.length / source.pitch + 0.2f);
         }
 
         void Play(AudioClip clip)

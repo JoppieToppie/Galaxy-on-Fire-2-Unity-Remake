@@ -86,6 +86,28 @@ namespace GoF2Remake.Flight
             return e;
         }
 
+        /// <summary>Remake: the plume already burning on a warp arrival's first frame. The particles come per distance flown, so
+        /// a new level has none until it has moved, and the ship came in with its engines dark for that one frame. At a cruise's
+        /// speed the ring holds a full pool of the frame's own particles, strung along that frame's flight, so that is what it
+        /// starts with ('cruiseFactor': the speed the ship comes in at).</summary>
+        public void Prime(float cruiseFactor)
+        {
+            float reach = FlightModel.BaseSpeed * cruiseFactor * OriginalFrame.Ms * M;
+            float boost = ship != null && ship.Model != null ? ship.Model.BoostVisualPercent : 0f;
+            for (int i = 0; i < systems.Count; i++)
+            {
+                var ps = systems[i];
+                var main = ps.main;
+                main.startSize = baseSizes[i] * (1f + 0.5f * boost);
+                var from = ps.transform.position;
+                var back = -ps.transform.forward;
+                int count = main.maxParticles;
+                for (int n = 0; n < count; n++)
+                    ps.Emit(new ParticleSystem.EmitParams { position = from + back * (reach * n / count) }, 1);
+                ps.Simulate(0.008f, true, false, false);
+            }
+        }
+
         // Multiplayer: another player's ship (NetPlayer), its state from their game.
         Func<bool> remoteOn;
         Func<float> remoteBoost, remoteCloak;

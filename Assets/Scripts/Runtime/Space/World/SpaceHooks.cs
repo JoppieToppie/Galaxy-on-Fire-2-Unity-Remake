@@ -251,6 +251,10 @@ namespace GoF2Remake.World
         public static Func<Camera> VrEye;
         /// <summary>A dedicated server switches the menu scene off (DedicatedServer.ShutOff): true = it did.</summary>
         public static Func<Scene, bool> ServerShutOff;
+        /// <summary>A level swap keeps the flight HUD (FlightHud.KeepForSwap): out of the old scene before it goes, the new
+        /// scene's own HUD gone before it builds a panel, the kept one into the new scene once that is active.</summary>
+        public static Action KeepHud, DropNewHud;
+        public static Action<Scene> SettleHud;
         /// <summary>The scene's fog (Bootstrap.SetSceneFog: off below Quality High).</summary>
         public static Action<bool> SetSceneFog;
         /// <summary>A temporal upscaler (STP, DLSS, FSR 2+, MetalFX Temporal) is active.</summary>

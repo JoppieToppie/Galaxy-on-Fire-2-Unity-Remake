@@ -21,7 +21,8 @@ Shader "GoF2/WarpWeb"
             #pragma multi_compile_instancing
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            TEXTURE2D(_WarpArcs); SAMPLER(sampler_WarpArcs);
+            #include "Assets/Shaders/WarpWebCore.hlsl"
+
             float _WarpLevel, _WarpTime, _WarpKhador;
             float3 _WarpAxis;
 
@@ -42,16 +43,7 @@ Shader "GoF2/WarpWeb"
             half4 frag(Varyings i) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
-                float3 view = normalize(i.view), axis = normalize(_WarpAxis);
-                float3 x = normalize(cross(axis, abs(axis.y) < 0.9 ? float3(0, 1, 0) : float3(1, 0, 0)));
-                float3 y = cross(axis, x);
-                float ring = acos(clamp(dot(view, axis), -1.0, 1.0)) / PI;   // 0 ahead, 1 behind
-                float around = atan2(dot(view, y), dot(view, x)) / (2.0 * PI) + 0.5;
-                float u = abs(frac(around * 3.0 + _WarpTime * 0.06) * 2.0 - 1.0);
-                float v = abs(frac(ring * 2.2 - _WarpTime * 0.3) * 2.0 - 1.0);
-                half3 web = SAMPLE_TEXTURE2D_LOD(_WarpArcs, sampler_WarpArcs, float2(0.47 + u * 0.19, 0.62 + v * 0.18), 0).rgb;
-                web *= smoothstep(0.03, 0.14, ring) * (1.0 - smoothstep(0.32, 0.62, ring));
-                return half4(web * smoothstep(0.02, 0.4, ring) * _WarpLevel * 1.4 * _WarpKhador, 1);
+                return half4(WarpWeb(normalize(i.view), normalize(_WarpAxis), _WarpLevel, _WarpKhador, _WarpTime), 1);
             }
             ENDHLSL
         }

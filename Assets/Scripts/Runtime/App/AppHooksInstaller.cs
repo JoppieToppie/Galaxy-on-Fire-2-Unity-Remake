@@ -22,6 +22,9 @@ namespace GoF2Remake
                 StarMap.Open(db, mode, jumpDrive, closed, promptStation, -1, askVoid) != null;
             SpaceHooks.VrEye = () => VrRig.Current != null ? VrRig.Current.Eye : null;
             SpaceHooks.SetSceneFog = Bootstrap.SetSceneFog;
+            SpaceHooks.KeepHud = FlightHud.KeepForSwap;
+            SpaceHooks.DropNewHud = FlightHud.DropSceneHud;
+            SpaceHooks.SettleHud = FlightHud.SettleKept;
             SpaceHooks.TemporalUpscaler = () => Bootstrap.IsTemporal(Bootstrap.ActiveUpscaler);
 
             UiHooks.LatestDialogueProvider = () => DialogueView.Latest;

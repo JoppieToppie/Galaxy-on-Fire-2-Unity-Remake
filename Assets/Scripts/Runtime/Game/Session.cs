@@ -365,6 +365,9 @@ namespace GoF2Remake.Data
         public static bool WarpLocal;
         /// <summary>Remake: that arrival's ship against its course (Navigation.Leave), so the view doesn't turn at the swap.</summary>
         public static Quaternion WarpHeading = Quaternion.identity;
+        /// <summary>Remake: the ship came into interstellar space through the Khador Slipstream's hole: no light to fade out,
+        /// the frame was already this level's (World.KhadorFx).</summary>
+        public static bool RiftEntry;
         /// <summary>Remake: and the chase view in the ship's frame, so the ship stays where it is on the screen.</summary>
         public static Vector3 WarpView;
         public static Quaternion WarpViewTurn = Quaternion.identity;
@@ -563,6 +566,7 @@ namespace GoF2Remake.Data
             EnterInterstellar = false;
             WarpArrival = WarpLocal = false;
             WarpHeading = WarpViewTurn = Quaternion.identity;
+            RiftEntry = false;
             WarpView = Vector3.zero;
             WarpArrivalPoint = null;
             JumpgatesUsed = 0;
