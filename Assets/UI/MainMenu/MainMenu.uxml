@@ -40,14 +40,16 @@
                             <ui:VisualElement class="card-art card-art-hover card-supernova-hover" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
-                    <ui:Button name="ngPlusToggle" class="choice-button choice-button--toggle">
-                        <ui:Label name="ngPlusLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
-                        <ui:Label name="ngPlusDesc" class="choice-desc" picking-mode="Ignore" />
-                    </ui:Button>
-                    <ui:Button name="challengeButton" class="choice-button">
-                        <ui:Label name="challengeLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
-                        <ui:Label name="challengeDesc" class="choice-desc" picking-mode="Ignore" />
-                    </ui:Button>
+                    <ui:VisualElement name="campaignChoices" class="campaign-choices">
+                        <ui:Button name="ngPlusToggle" class="choice-button choice-button--toggle">
+                            <ui:Label name="ngPlusLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                            <ui:Label name="ngPlusDesc" class="choice-desc" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="challengeButton" class="choice-button">
+                            <ui:Label name="challengeLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                            <ui:Label name="challengeDesc" class="choice-desc" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
                     <ui:Button name="campaignBack" class="menu-button back-button gof-semibold" />
                 </ui:VisualElement>
 

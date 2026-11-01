@@ -2108,6 +2108,45 @@
     height: 368px;
 }
 
+/* Modified: a TV and a handheld draw the UI larger (UiLayout), leaving the panels ~690 / ~800 units of height: under the
+   full-size cards the Supernova Challenge (and New Game+) squashed to their borders and Back left the panel. Smaller cards
+   (a four-card row's, .card-row--4 below; on a TV those too, after .card-row--many), New Game+ beside the Challenge
+   rather than above it, and less padding. */
+.layout-handheld .campaign-card {
+    width: 220px;
+    height: 340px;
+}
+
+.layout-tv #campaignPanel,
+.layout-handheld #campaignPanel {
+    padding-top: 24px;
+    padding-bottom: 24px;
+}
+
+.layout-tv .campaign-choices,
+.layout-handheld .campaign-choices {
+    flex-direction: row;
+    margin-top: var(--space-m);
+}
+
+.layout-tv .campaign-choices > .choice-button,
+.layout-handheld .campaign-choices > .choice-button {
+    flex-grow: 1;
+    flex-basis: 0;
+}
+
+.layout-tv .campaign-choices > .choice-button--toggle,
+.layout-handheld .campaign-choices > .choice-button--toggle {
+    margin-top: 8px;
+    margin-right: var(--space-l);
+}
+
+/* Modified: likewise the Mods browser's picture gives way first on a TV, so the Delete row stays above the footer. */
+.layout-tv .mods-preview {
+    height: 220px;
+    min-height: 0;   /* a DLC's place line or a long path: the picture goes rather than the buttons onto the footer */
+}
+
 /* Remake mods: the loading screen (ModLoadingView) on the startup splash and the fade before a game. */
 .mod-loading {
     position: absolute;
@@ -2184,6 +2223,23 @@
     height: 272px;
     margin-right: var(--space-l);
     flex-shrink: 0;   /* the cards keep their size; the row scrolls */
+}
+
+/* Modified: a TV's cards, however many (see .layout-handheld .campaign-card). */
+.layout-tv .card-row .campaign-card {
+    width: 200px;
+    height: 310px;
+}
+
+/* The New Game+ toggle and the Supernova Challenge under the cards (beside each other on a TV or a handheld). */
+.campaign-choices {
+    flex-shrink: 0;
+}
+
+/* Modified: with New Game+ shown its content is just over the panels' 80 % height on a 16:9 desktop (Back sat on the
+   panel's edge): it may use the whole height between the top and the key hints (the host's bottom padding). */
+#campaignPanel {
+    max-height: 100%;
 }
 
 .mod-card {

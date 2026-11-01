@@ -59,6 +59,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   clipping). Root classes `layout-narrow` / `-square` / `-ultrawide` / `-compact` (< 1800 units wide: the main menu hides
   its column while a panel is open) / `-phone` / `-handheld` / `-tv`, `ui-large`. The screens call `UiLayout.Configure` (the
   overlays `UiLayout.Keep`) when the size or `UiLayout.Revision` changes. PlayerPrefs `debug_ui_device` forces a device class.
+  A TV leaves the main menu's panels ~690 units of height, a handheld ~800 (2026-11-01, MainMenu.uss): the campaign panel
+  there has smaller cards, New Game+ beside the Supernova Challenge (`.campaign-choices`) and, everywhere, up to the whole
+  height above the key hints (`#campaignPanel`, its content past 80 % with New Game+); the Mods browser's picture shrinks
+  to nothing on a TV so Delete stays above the footer.
   The safe area (`SafeArea.Pixels` = `UiLayout.OptionInsets`) adds Options > Graphics "Screen edge margin" (automatic: 5 %
   on a TV) and "Interface width" (16:9 / 21:9 by default / full: side bands on wider screens) to the device's cutouts.
   Button prompts are visible (no "i" popups any more): `MenuKeys.Bar` rows in menus and windows, the hint rows of the HUD,
