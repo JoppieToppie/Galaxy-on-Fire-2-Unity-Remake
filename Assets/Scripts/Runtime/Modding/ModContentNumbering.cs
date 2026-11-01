@@ -73,7 +73,7 @@ namespace GoF2Remake.Modding
             inheritedIcons.Clear();
 
             // Ships: the same, after the original 64.
-            shipIndex.Clear(); shipDefAt.Clear(); placeholderShips.Clear(); shipRenames.Clear(); shipRetags.Clear();
+            shipIndex.Clear(); shipDefAt.Clear(); placeholderShips.Clear(); shipRenames.Clear();
             int nextShip = originalShips;
             foreach (var mod in ModManager.Active)
                 foreach (var d in Parse(mod).ships)
@@ -88,11 +88,7 @@ namespace GoF2Remake.Modding
                     if (!shipIndex.ContainsKey(kv.Key) && kv.Value >= originalShips) placeholderShips[kv.Value] = kv.Key;
             foreach (var mod in ModManager.Active)
                 foreach (var d in Parse(mod).ships)
-                    if (d.overrideRef != null && TryResolveShip(d.overrideRef, out int t))
-                    {
-                        if (d.name != null || d.description != null) shipRenames[t] = d;
-                        if (d.hasTag) shipRetags[t] = d;
-                    }
+                    if (d.overrideRef != null && (d.name != null || d.description != null) && TryResolveShip(d.overrideRef, out int t)) shipRenames[t] = d;
         }
         /// <summary>A ship reference ("12" or "mod:id") to its number in the current numbering.</summary>
         public static bool TryResolveShip(string reference, out int index)
@@ -250,17 +246,6 @@ namespace GoF2Remake.Modding
             text ??= description ? "" : d.key;
             return true;
         }
-        /// <summary>Remake (TorchOP's request, 2026-10-23): the tag the lists show dim after a ship's name ("GoF3", "HD",
-        /// "Star Wars"), null = none. An override's "tag" (a later mod's winning) first, else a new ship's own "tag", else
-        /// its mod's "shipTag" (mod.json); "" clears it. Translated like the name (text/&lt;lang&gt;.json "ships.&lt;id&gt;.tag").</summary>
-        public static string ShipTag(int index)
-        {
-            EnsureMapping();
-            if (shipRetags.TryGetValue(index, out var d) || shipDefAt.TryGetValue(index, out d) && d.hasTag)
-                return NonEmpty(Translated(d.mod, $"ships.{d.localId ?? d.overrideRef}.tag", d.tag));
-            return shipDefAt.TryGetValue(index, out d) ? NonEmpty(ModManifest.Pick(d.mod.Manifest?.shipTag)) : null;
-        }
-        static string NonEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
         static int LookOf(int index, int depth)
         {
             if (!itemDefAt.TryGetValue(index, out var d) || depth > 16) return index;

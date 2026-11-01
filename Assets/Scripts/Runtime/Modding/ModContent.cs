@@ -74,9 +74,7 @@ namespace GoF2Remake.Modding
             public JObject json;
             public string where, localId, key, overrideRef, data;   // data: the entry as CustomShipData JSON (no texts / ids)
             public Dictionary<string, string> name, description;
-            /// <summary>Remake: "tag", shown dim after the ship's name in the lists (ShipTag); hasTag: given, "" too (none).</summary>
-            public Dictionary<string, string> tag;
-            public bool hasLounge, hasDealer, hasTag;
+            public bool hasLounge, hasDealer;
             public object sounds;   // "sounds" (ModShipSounds.ShipSounds, GameHooks.ParseShipSounds), null = none
             /// <summary>Remake mods: "race" naming a mod race (ModRaces), and "traffic": { "races" } entries that are
             /// mod races or race words, resolved in ShipData (the mod races are numbered once every mod is read).</summary>
@@ -115,7 +113,6 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, ShipDef> shipDefAt = new Dictionary<int, ShipDef>();
         static readonly Dictionary<int, string> placeholderShips = new Dictionary<int, string>();
         static readonly Dictionary<int, ShipDef> shipRenames = new Dictionary<int, ShipDef>();
-        static readonly Dictionary<int, ShipDef> shipRetags = new Dictionary<int, ShipDef>();   // overrides with a "tag"
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
@@ -209,7 +206,7 @@ namespace GoF2Remake.Modding
 
         static readonly HashSet<string> ShipFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "id", "override", "name", "description", "tag", "race", "armor", "cargo", "price", "priceDefault", "slots", "handling",
+            "id", "override", "name", "description", "race", "armor", "cargo", "price", "priceDefault", "slots", "handling",
             "hangarHeight", "mounts", "model", "icon", "modelLength", "modelYaw", "modelPitch", "modelRoll", "modelOffset", "engineGlowRadius", "engineGlowColor", "materials", "throttleGlow",
             "extraGlows", "lounge", "dealer", "traffic", "available", "npcTurrets", "flightStyle", "flight", "kit", "kitType", "build",
             "skins", "weaponColors",   // customizations of a ship without a kit (ModShipKits.CustomizationOf)
@@ -235,7 +232,7 @@ namespace GoF2Remake.Modding
                 {
                     mod = mod, json = o, where = where, localId = ModJson.Str(o, "id"), overrideRef = ModJson.Str(o, "override"),
                     name = ModJson.Text(o, "name"), description = ModJson.Text(o, "description"), hasLounge = ModJson.Has(o, "lounge"),
-                    hasDealer = ModJson.Has(o, "dealer"), tag = ModJson.Text(o, "tag"), hasTag = ModJson.Has(o, "tag"),
+                    hasDealer = ModJson.Has(o, "dealer"),
                 };
                 if ((d.localId == null) == (d.overrideRef == null))
                     throw new ModJsonException($"{where}: a ship needs either \"id\" (a new ship) or \"override\" (change an existing one)");
@@ -278,7 +275,7 @@ namespace GoF2Remake.Modding
                 }
                 // The rest as CustomShipData (JsonUtility reads it; the texts and ids are the mod's own; npcTurrets: ApplyShips).
                 var data = (JObject)o.DeepClone();
-                foreach (var k in new[] { "id", "override", "name", "description", "tag", "npcTurrets", "build", "sounds", "integrated", "subsystems" }) data.Remove(k);
+                foreach (var k in new[] { "id", "override", "name", "description", "npcTurrets", "build", "sounds", "integrated", "subsystems" }) data.Remove(k);
                 if (d.raceRef != null) data["race"] = -1;
                 if (data["traffic"] is JObject traffic && traffic["races"] is JArray races && races.Any(r => r.Type == JTokenType.String))
                 {
