@@ -523,6 +523,14 @@ namespace GoF2Remake.World
                 Traffic.OnHackWon(ship);   // a Supernova wreck's hidden blueprint, a mod's derelict
                 SpaceHooks.WreckHacked?.Invoke(Session.StationIndex, ship != null ? ship.Target.displayName ?? "" : "");   // remake: "on hacked"
             };
+            // MGame::OnUpdate / OnTouchEnd: docked at the Coromesk mining plant with no campaign mission, ore into cores.
+            Docking.Docked += () =>
+            {
+                if (Docking.Target == null || Docking.Target.DockingType != ObjectDocking.DropOff
+                    || !MiningPlant.Offered(Session.StationIndex, Layout.alienOrbit)) return;
+                Traffic.Ask(MiningPlant.Question(db), Localization.Get(134), Localization.Get(135),
+                            () => Traffic.Ask(MiningPlant.Result(MiningPlant.Convert()), null, null, null, null), null);
+            };
             if (storyOrbit)
             {
                 Campaign = new GameObject("Campaign").AddComponent<CampaignLevel>();

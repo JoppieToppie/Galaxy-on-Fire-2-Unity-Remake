@@ -86,6 +86,13 @@ logic (plain C#); `MiningView` draws the lock ring, ore plate, HUD messages and 
   (`MiningGame.LayerDurationMs`) at a rate scaled down to match, so a whole asteroid's ore stays the same; the beam's
   layer time the same (`Mining`). The ES2 importer gives its crystals 200 (ES2's 10 s against 5 s). Test
   `MiningGameTests.AnOresMiningTimeStretchesTheLayersForTheSameOre`.
+- **Ore into cores at the Mido Mining Plant** (`MiningPlant`, 2026-11-01; players' report: the remake never had it): docked
+  at the Coromesk plant (103) with an empty campaign mission (steps 107, 128-130 and from 162 on), not in the alien orbit
+  (`PlayerEgo::isDockedToMiningPlant` 0xadcb8), the docking asks 290 ("#" = 30, Extreme 100) with every ore in the hold
+  (286 without; `MGame::OnUpdate` 0x1ac778, `Traffic.Ask` from `SpaceLevel`'s `Docking.Docked`). Yes
+  (`MGame::OnTouchEnd` 0x1a98d8): ores 154-164 -> core = ore + 11 (Void crystals -> Void essence), Novanium 217 -> 218,
+  each full 30 t (100) of one ore -> 1 t of its core, the rest stays ore; then 291 + the cores, or 292. A mod's ore is
+  listed but not converted (the original's table). Test `MiningPlantTests`.
 - **Remake-only:** Var Hastra (78) always stocks a drill (IMT Extract 1.3) while there is no campaign; releasing the
   stick stops the drill's player movement (the original keeps the last input). The mining plant at 103 is a docking
   target (see "Supernova add-on"). The drill sound (`DrillSound`, event 1's layers by drill_speed = (LAYER_SPEEDS[layer]
