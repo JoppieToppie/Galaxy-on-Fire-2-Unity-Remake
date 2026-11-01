@@ -37,8 +37,8 @@ namespace GoF2Remake.UI
                 gameOverText.text = Localization.Extra("mbTestDead", "Tap to return to the Mod Builder.");
                 return;
             }
-            gameOverText.text = GoF2Remake.Events.EventRespawn.Active
-                ? Localization.Extra("mpRespawnEvent", "Respawning in space...")      // an event's respawn point (EventRespawn)
+            gameOverText.text = GoF2Remake.Events.EventRespawn.Active || GoF2Remake.Multiplayer.NetCoop.RespawnsInSpace
+                ? Localization.Extra("mpRespawnEvent", "Respawning in space...")      // an event's respawn point, a co-op guest beside the leader
                 : GoF2Remake.Multiplayer.NetGame.Active
                 ? Localization.Extra("mpRespawn", "Tap to respawn at the station.")   // multiplayer: no saves, docked again
                 : Localization.Get(Session.HasAutosave ? 196 : 199);

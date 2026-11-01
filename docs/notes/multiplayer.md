@@ -22,6 +22,8 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   NetState reaches it (`NetGame.EnterWorld`); each connecting player gets a NetPlayer. Nothing is saved in a session
   (`SaveGame.Save` refuses), so it never touches the single-player saves; a dedicated server keeps player profiles
   instead (see **Player profiles**).
+- **Co-op campaign** (the Host card's World: Co-op): the host's story for 2-4 players instead of the finished world; see
+  docs/notes/multiplayer-coop.md.
 - **The finished game's world** (`Session.UseCompletedWorld`, `Session.CompletedWorld`; set by `NetGame.PrepareSession` and
   `SaveGame.ApplyProfile`): free play (no story steps) at campaign index 162, so everything that reads the index sees the
   won game: the full shop stock and dealer ships (Kothar's 37 / 38 / 40, the Vossk 39 / 41, the carrier and Vossk battleship

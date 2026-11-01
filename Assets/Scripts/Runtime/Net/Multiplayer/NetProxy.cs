@@ -103,6 +103,10 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Flying (not dying, dead or gone): an event's living ship.</summary>
         public bool FlyingNow => St.life == Flying;
         public int RoleFlags => St.roleFlags;
+        /// <summary>RoleFlags' bit of a co-op story level's ship (NpcShip.StoryShip; FreelanceOrbit's roles are below it).</summary>
+        public const int StoryRole = 1 << 24;
+        /// <summary>A co-op story level's ship of the leader's: it goes when the leader leaves its orbit (never handed over).</summary>
+        public bool IsStoryShip => (RoleFlags & StoryRole) != 0;
         public bool IsFlying => St.life == Flying;
         public byte Life => St.life;
         public string Label => Spec?.label ?? "";
@@ -648,7 +652,7 @@ namespace GoF2Remake.Multiplayer
             if (ship.turnedEnemy) f |= NetProxyStatus.Turned;
             s.flags = f;
             s.cloak = (byte)Mathf.Clamp(Mathf.RoundToInt(ship.CloakPercent), 0, 100);
-            s.roleFlags = ship.MissionShip && NetOrbit.Current != null ? NetOrbit.Current.MissionRole(ship) : 0;
+            s.roleFlags = (ship.MissionShip && NetOrbit.Current != null ? NetOrbit.Current.MissionRole(ship) : 0) | (ship.StoryShip ? StoryRole : 0);
             int si = -1, sa = 0;
             if (emp && ship.HasCargo)
                 foreach (var c in ship.CargoList)

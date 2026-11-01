@@ -534,7 +534,9 @@ namespace GoF2Remake.World
             if (storyOrbit)
             {
                 Campaign = new GameObject("Campaign").AddComponent<CampaignLevel>();
-                Campaign.Setup(this, Traffic);
+                // Remake co-op: the leader (the host) runs the story level; a guest's shows the leader's (CampaignLevelCoop).
+                if (CoopCampaign.Guest) Campaign.SetupFollower(this, Traffic);
+                else Campaign.Setup(this, Traffic);
                 Navigation.SetRoute(Campaign.PlayerRoute);
             }
             else if (freelanceOrbit)
@@ -646,7 +648,7 @@ namespace GoF2Remake.World
             NetAuthority = false;
             if (Traffic == null) return;
             foreach (var s in Traffic.Ships)
-                if (s != null && !s.Gone && !s.MissionShip && !s.IsWingman && (Siege == null || !Siege.Owns(s))) s.Vanish();
+                if (s != null && !s.Gone && !s.MissionShip && !s.StoryShip && !s.IsWingman && (Siege == null || !Siege.Owns(s))) s.Vanish();
             Traffic.SetPassive(true);
         }
 
@@ -702,7 +704,7 @@ namespace GoF2Remake.World
             if (Session.Wingmen.Count > 0 && Session.WingmanContractMs > 0f) Session.WingmanContractMs = Mathf.Max(0f, Session.WingmanContractMs - Time.deltaTime * 1000f);
             if (Health == null) return;
             Health.invulnerable = launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Es2Busy || DockedInOrbit
-                                  || (Campaign != null && Campaign.PlayerInvulnerable) || (StorySpace != null && StorySpace.SuccessPending)
+                                  || (Campaign != null && (Campaign.PlayerInvulnerable || Campaign.CoopHeld)) || (StorySpace != null && StorySpace.SuccessPending)
                                   || GoF2Remake.World.SpaceHooks.Invulnerable;
             Collision.off = launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Es2Busy || DockedInOrbit
                             || (Campaign != null && Campaign.CollisionOff);   // PlayerEgo+0x144

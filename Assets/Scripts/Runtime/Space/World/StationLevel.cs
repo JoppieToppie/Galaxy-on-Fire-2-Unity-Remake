@@ -113,6 +113,8 @@ namespace GoF2Remake.World
         public Database Db => db;
         Transform hangarRoot, barRoot, playerShip;
         int shipIndex;
+        /// <summary>The ship on the turntable (ReplacePlayerShip).</summary>
+        public int ShownShip => shipIndex;
         Vector3 shipPivot;                    // Unity, the camera parent (0, Y[ship at entry], 0)
 
         // Turntable (ModStation +0xe0 / 120 px per rad), game yaw in radians.

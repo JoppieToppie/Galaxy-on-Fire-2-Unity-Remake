@@ -209,6 +209,29 @@ namespace GoF2Remake.World
         public static Func<float, bool> RespawnDue;
         public static Action Respawn;
 
+        // ---- the co-op campaign (NetCoop; CampaignLevel's leader and follower) ------------------------------------------
+
+        /// <summary>The leader's story level now (a few times a second while it runs): out to the crew in that orbit.</summary>
+        public static Action<CoopLevelState> CoopLevelState;
+        /// <summary>The leader's level showed radio line 'line' of step 'index' in 'station'.</summary>
+        public static Action<int, int, int> CoopRadioShown;
+        /// <summary>The leader's level route changed (station, points in game units, the index reached).</summary>
+        public static Action<int, List<Vector3>> CoopRoute;
+        /// <summary>The leader's cutscene camera (station, position, rotation, field of view).</summary>
+        public static Action<int, Vector3, Quaternion, float> CoopCamera;
+        /// <summary>The leader's level moved it on (station left, station reached, docked, by travel).</summary>
+        public static Action<int, int, bool, bool> CoopTravel;
+        /// <summary>The leader's level in 'station' failed (or the leader died in it): the crew's failure.</summary>
+        public static Action<int> CoopLevelFailed;
+        /// <summary>This game's story conversation opened / closed (the leader holds its level meanwhile).</summary>
+        public static Action<bool> CoopDialog;
+        /// <summary>The leader: a crew member in 'station' has a story conversation open (the level holds).</summary>
+        public static Func<int, bool> CoopHold;
+        /// <summary>The leader flies in 'station' (a follower's level waits for it).</summary>
+        public static Func<int, bool> CoopLeaderHere;
+        /// <summary>The leader's ship's pose in 'station' (false = not there).</summary>
+        public static StationPoseQuery CoopLeaderPose;
+
         public static bool NoDocking => EventNoDocking != null && EventNoDocking();
         public static bool NoJumps => EventNoJumps != null && EventNoJumps();
         public static bool Cinematic => EventCinematic != null && EventCinematic();

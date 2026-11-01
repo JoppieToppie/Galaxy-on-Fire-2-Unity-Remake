@@ -221,6 +221,7 @@ namespace GoF2Remake.Multiplayer
         internal void LeaveSquad(NetPlayer p)
         {
             if (!IsServer || p == null || p.SquadId == 0) return;
+            if (Coop) { NoticeToRpc(Localization.Extra("coopNoLeave", "The crew of a co-op campaign stays one squad."), RpcTarget.Single(p.OwnerClientId, RpcTargetUse.Temp)); return; }
             int id = p.SquadId;
             p.SetSquad(0);
             NetProfiles.SquadLeft(p.OwnerClientId);

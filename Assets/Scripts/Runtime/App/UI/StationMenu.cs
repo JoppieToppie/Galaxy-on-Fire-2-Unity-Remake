@@ -315,6 +315,7 @@ namespace GoF2Remake.UI
         bool hangarConfirmHeld;
 
         bool medalsChecked, wantedChecked;
+        int coopCatchUp;   // remake co-op: CoopCampaign.CatchUpSerial seen (CheckStory)
 
         readonly System.Collections.Generic.Queue<int> medalQueue = new System.Collections.Generic.Queue<int>();
         VisualElement dialogPicture;

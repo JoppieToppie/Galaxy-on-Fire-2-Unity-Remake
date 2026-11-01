@@ -145,6 +145,13 @@ namespace GoF2Remake.UI
             Set("mpWorldLabel", Localization.Extra("mpWorld", "World").ToUpperInvariant());
             Set("mpWorldFresh", Localization.Extra("mpWorldFresh", "Fresh").ToUpperInvariant());
             Set("mpWorldPersistent", Localization.Extra("mpWorldPersistent", "Persistent").ToUpperInvariant());
+            Set("mpWorldCoop", Localization.Extra("mpWorldCoop", "Co-op").ToUpperInvariant());
+            Set("mpCoopStrengthLabel", Localization.Extra("mpCoopStrength", "Enemies per player").ToUpperInvariant());
+            Set("mpCoopStrength0", Localization.Extra("mpDebugOff", "Off").ToUpperInvariant());
+            foreach (int pct in new[] { 25, 50, 100 }) Set("mpCoopStrength" + pct, "+" + pct + "%");
+            Set("mpCoopRewardsLabel", Localization.Extra("mpCoopRewards", "Story credits").ToUpperInvariant());
+            Set("mpCoopRewardsShared", Localization.Extra("mpCoopRewardsShared", "Shared").ToUpperInvariant());
+            Set("mpCoopRewardsFull", Localization.Extra("mpCoopRewardsFull", "Each in full").ToUpperInvariant());
             Set("mpModsOff", Localization.Extra("mpDebugOff", "Off").ToUpperInvariant());
             Set("mpModsOn", Localization.Extra("mpDebugAllowed", "Allowed").ToUpperInvariant());
             ApplyHostMods();

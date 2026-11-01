@@ -114,6 +114,8 @@ namespace GoF2Remake.Flight
             if (story && campaign == 7 && spec.race == Standing.Pirate) dmg = (int)(dmg * 0.5f);
             // The same campaign mission failed 3+ times in a row -> the hostile ships' guns x0.7.
             if (story && InCampaignLevel && Session.FailCount >= 3 && Session.LastFailedMission == campaign && !spec.alwaysFriend && !wingman) dmg = (int)(dmg * 0.7f);
+            // Remake co-op: the crew's enemies hit harder with more players (CoopCampaign.Strength).
+            if (!spec.alwaysFriend && !wingman) dmg = Mathf.RoundToInt(dmg * CoopCampaign.NpcDamageFactor);
             return Mathf.Max(1, dmg);
         }
 

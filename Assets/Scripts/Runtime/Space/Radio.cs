@@ -81,6 +81,20 @@ namespace GoF2Remake.Flight
         /// of the clips, by up to 5.7 s).</summary>
         public void HoldFor(float ms) { if (showing >= 0) durationMs = Mathf.Max(durationMs, ms); }
 
+        /// <summary>Remake co-op: a follower's radio (CampaignLevel.SetupFollower) tests no triggers of its own; the leader's
+        /// lines come in through ShowRemote.</summary>
+        public bool Remote { get; set; }
+        /// <summary>A line began to show (its index): the leader's level tells the crew.</summary>
+        public event Action<int> Shown;
+
+        /// <summary>Remake co-op: the leader's level showed line 'i': it shows here too (once).</summary>
+        public void ShowRemote(int i)
+        {
+            if (i < 0 || i >= lines.Count || triggered[i]) return;
+            triggered[i] = true;
+            waiting.Enqueue(i);
+        }
+
         /// <summary>LevelScript::skipCutscene: the first 'n' lines count as shown.</summary>
         public void MarkShown(int n)
         {
@@ -96,6 +110,7 @@ namespace GoF2Remake.Flight
 
         public void Update(float dtMs, IRadioWorld w)
         {
+            if (Remote) { UpdateShowing(dtMs); return; }
             // Types 0 / 0x19 watch the route every frame (also while another line shows): the edge is remembered.
             for (int i = 0; i < lines.Count; i++)
             {
@@ -120,8 +135,19 @@ namespace GoF2Remake.Flight
             if (showing < 0 && waiting.Count > 0) Show(waiting.Dequeue());
         }
 
+        void UpdateShowing(float dtMs)
+        {
+            if (showing >= 0)
+            {
+                showMs += dtMs;
+                if (showMs >= DelayMs + durationMs) { over[showing] = true; showing = -1; }
+            }
+            if (showing < 0 && waiting.Count > 0) Show(waiting.Dequeue());
+        }
+
         void Show(int i)
         {
+            Shown?.Invoke(i);
             showing = i;
             showMs = 0f;
             float perLine = StoryTable.UsesAlienFont(lines[i].speaker) ? AlienCharsPerLine : CharsPerLine;

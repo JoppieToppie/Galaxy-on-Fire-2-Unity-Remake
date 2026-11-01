@@ -218,6 +218,9 @@ namespace GoF2Remake.World
         public string ModelPath { get; set; }
         /// <summary>A freelance mission's ship (FreelanceOrbit): multiplayer never takes it over from its player.</summary>
         public bool MissionShip { get; set; }
+        /// <summary>Remake co-op: a story level's ship of the leader's (CampaignLevel): shown to the crew, never handed over
+        /// (it goes when the leader leaves the orbit), never dropped with the orbit's authority.</summary>
+        public bool StoryShip { get; set; }
         /// <summary>Multiplayer: this player's own stand-in, never shown to the others (a follower's copy of the mission's
         /// mining plant, FreelanceOrbit).</summary>
         public bool LocalOnly { get; set; }

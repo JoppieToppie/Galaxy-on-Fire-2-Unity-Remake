@@ -262,7 +262,8 @@ namespace GoF2Remake.Data
                 case StoryType.Purchase:
                     if (Index == 143 && atTarget && Session.PendingProducts.Exists(p => p.item == m.goodsItem && p.station == m.station)) return true;
                     return c.docked && atTarget && CargoOf(m.goodsItem) >= m.goodsAmount;
-                case StoryType.FreelanceCount: return Session.FreelanceCompleted >= m.value;
+                // Remake co-op (CoopCampaign): the crew's missions since the step began (its value is the count to reach).
+                case StoryType.FreelanceCount: return CoopCampaign.Active ? CoopCampaign.CrewMissions >= m.value : Session.FreelanceCompleted >= m.value;
                 case StoryType.CargoLoad: return CargoLoad() >= m.value;
                 case StoryType.ReachOrbit: return !c.docked && atTarget && c.levelMs >= 10000f;
                 case StoryType.WeaponAndArmor:
@@ -394,7 +395,7 @@ namespace GoF2Remake.Data
         /// <summary>Index + 1 with the new step's mission and side effects. Returns the new index.</summary>
         public static int Advance(Database db)
         {
-            int next = Index + 1;
+            int from = Index, next = from + 1;
             if (next == 53 || next == 129) next++;   // cases 52 / 128 run twice
             var previous = Session.StoryMission;
             Session.CampaignMission = next;
@@ -406,6 +407,7 @@ namespace GoF2Remake.Data
             if (step != null && step.type != -1 || next == GameWonIndex || next == Dlc1WonIndex || next == 128 || next == 130 || next >= LastIndex)
                 Session.StoryMission = StoryMission.From(step);
             ApplyStepEffects(db, next, previous);
+            CoopCampaign.OnAdvanced(from, next, previous != null && previous.won);   // remake co-op
             return next;
         }
 
@@ -429,7 +431,7 @@ namespace GoF2Remake.Data
                     break;
                 // Modified: three freelance missions before the Terran convoy arrives, as players remember the original
                 // (Status::nextCampaignMission case 0xc in this binary sets the count + 1).
-                case 13: Session.StoryMission.value = Session.FreelanceCompleted + StepThirteenMissions; break;
+                case 13: Session.StoryMission.value = (CoopCampaign.Active ? 0 : Session.FreelanceCompleted) + StepThirteenMissions; break;
                 case 23: RevealSystem(db, 6); break;                                        // Wolf-Reiser
                 case 24: Session.VoidInvasionSystem = 9; Session.VoidInvasionStation = 48; break;
                 case 25: Session.Unsaleable.Add(131); break;                            // Alien Remains
@@ -443,7 +445,7 @@ namespace GoF2Remake.Data
                 case 104: case 141: Blueprints.UnlockFromStory(db, n); break;                       // Gamma II, Chromo Plasma
                 case 42: Session.VoidInvasionSystem = Session.VoidInvasionStation = -10; break;
                 case 45:
-                    Session.Credits += 40000;
+                    Session.Credits += CoopCampaign.CatchingUp ? 0 : CoopCampaign.Share(40000);   // co-op: shared out (a catch-up: none)
                     Session.VoidInvasionSystem = Session.VoidInvasionStation = -10;
                     break;
                 // ---- Valkyrie (cases 0x2f-0x53) ----

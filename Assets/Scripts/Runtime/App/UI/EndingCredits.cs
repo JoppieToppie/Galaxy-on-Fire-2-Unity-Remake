@@ -11,6 +11,8 @@
 //                4000 ms, then rises on with the staff credits (text 48, centred, width - 100) under it
 //   the end      a fade out from 130 001 ms; past 136 000 ms, or a tap once the last line has shown:
 //                nextCampaignMission (-> 44) and the station again (Keith alone the next morning, 44's pages)
+// Remake co-op: every crew member plays it from their own success conversation of step 43 (StationMenu, StorySpace), the
+// session kept (the main menu scene doesn't leave it); a guest whose story caught up to 44 meanwhile doesn't advance again.
 
 using GoF2Remake.Data;
 using GoF2Remake.Flight;

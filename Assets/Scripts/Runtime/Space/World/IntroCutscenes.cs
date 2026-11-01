@@ -14,6 +14,10 @@
 // button reaches in this build (levelscript_cutscenes.md 3): index 0 = nextCampaignMission + setKills(3) + the flight
 // level again (the rescue), index 1 = straight to the station (module 5).
 // Not reproduced: the player engine sound.
+// Remake co-op (docs/notes/multiplayer-coop.md): the leader's game runs it as in single player, its pirates and Gunant's
+// salvager the crew's ships; a guest's game runs it as a follower (CampaignLevel.SetupFollower): the same cutscenes and
+// camera around its own Phantom, a little beside the leader's (Slot), nothing spawned, paced by the leader's radio lines
+// (its radio is the leader's, Radio.Remote), no skip, and at the end it waits for the leader's step (CampaignLevel).
 
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
@@ -38,6 +42,9 @@ namespace GoF2Remake.World
         float rescueTurn;
         GameObject fx;
         ShipSmoke smoke;
+        /// <summary>Remake co-op: a guest's copy (see the header); its ship's spot off the leader's (game units).</summary>
+        readonly bool follower;
+        readonly Vector3 slot;
 
         ShipController Ship => level.Player;
         Transform Player => level.Player.transform;
@@ -46,19 +53,27 @@ namespace GoF2Remake.World
         static Vector3 ToUnity(Vector3 game) => new Vector3(game.x, game.y, -game.z) * M;
         static Vector3 Dir(Vector3 game) => new Vector3(game.x, game.y, -game.z).normalized;
 
-        public IntroCutscenes(CampaignLevel campaignLevel, SpaceLevel spaceLevel, int storyIndex)
+        public IntroCutscenes(CampaignLevel campaignLevel, SpaceLevel spaceLevel, int storyIndex, bool coopFollower = false)
         {
             campaign = campaignLevel;
             level = spaceLevel;
             index = storyIndex;
+            follower = coopFollower;
+            slot = coopFollower ? Slot((int)(NetSession.LocalId % 4)) : Vector3.zero;
             assets = StoryAssets.Load();
             cam = new CutsceneCamera(level.mainCamera);
         }
 
         public CutsceneCamera Camera => cam;
 
-        /// <summary>The skip still does something (not already loading the next scene).</summary>
-        public bool CanSkip => !loading;
+        /// <summary>Remake co-op: a crew member's spot beside the leader's (game units): left, right, below.</summary>
+        static Vector3 Slot(int n) => n switch { 1 => new Vector3(-1800, 300, -1500), 2 => new Vector3(1800, 300, -1500), 3 => new Vector3(0, -900, -3000), _ => Vector3.zero };
+
+        /// <summary>A scripted spot (game units) for this game's ship and camera: the leader's, or a follower's beside it.</summary>
+        Vector3 S(Vector3 game) => game + slot;
+
+        /// <summary>The skip still does something (not already loading the next scene); the leader's alone in co-op.</summary>
+        public bool CanSkip => !loading && !follower;
 
         /// <summary>MGame::OnTouchEnd's skip branches (see the header).</summary>
         public void Skip()
@@ -102,7 +117,7 @@ namespace GoF2Remake.World
             // Pirates: ships 2 Hiro, 23 Azov, 2 Hiro at (50 000, 50 000, 50 000), asleep and invisible, always-enemy, no loot,
             // HP 150, exhausts hidden.
             int[] ships = { 2, 23, 2 };
-            foreach (int s in ships)
+            foreach (int s in follower ? new int[0] : ships)   // a co-op follower sees the leader's
             {
                 var p = campaign.SpawnShip(Standing.Pirate, s, new Vector3(50000, 50000, 50000), false,
                                            spec => { spec.inactive = true; spec.alwaysEnemy = true; spec.noLoot = true; spec.hitpoints = 150; });
@@ -111,8 +126,8 @@ namespace GoF2Remake.World
                 p.SetEngineSound(false);   // silent while they hide in the belt
             }
             // Player at (0, 0, -60 000) facing +Z, computer-controlled; camera (-1000, -500, -40 000) looking at it.
-            Player.SetPositionAndRotation(ToUnity(new Vector3(0, 0, -60000)), Quaternion.LookRotation(Dir(new Vector3(0, 0, 1)), Vector3.up));
-            cam.LookAt(new Vector3(-1000, -500, -40000), Player);
+            Player.SetPositionAndRotation(ToUnity(S(new Vector3(0, 0, -60000))), Quaternion.LookRotation(Dir(new Vector3(0, 0, 1)), Vector3.up));
+            cam.LookAt(S(new Vector3(-1000, -500, -40000)), Player);
             smoke = new ShipSmoke(Ship.visualModel != null ? Ship.visualModel : Player);
             campaign.PlayMusic(assets?.introAtmo, true);   // MenuTouchWindow::startGOF2: 143 IntroAtmo
             Step = 0;
@@ -121,15 +136,18 @@ namespace GoF2Remake.World
         void BuildRescue()
         {
             // The salvager: Midorian ship 30 at (300, 50, -6000), heading for the Phantom, asleep, engines off.
-            var g = campaign.SpawnShip(3, 30, new Vector3(300, 50, -6000), false, spec => { spec.inactive = true; spec.alwaysFriend = true; spec.nameText = 1599; });
-            g.Place(ToUnity(new Vector3(300, 50, -6000)), Dir(new Vector3(0, 0, 1)));
-            g.SetExhaust(false);
-            g.SetEngineSound(false);
+            if (!follower)   // a co-op follower sees the leader's
+            {
+                var g = campaign.SpawnShip(3, 30, new Vector3(300, 50, -6000), false, spec => { spec.inactive = true; spec.alwaysFriend = true; spec.nameText = 1599; });
+                g.Place(ToUnity(new Vector3(300, 50, -6000)), Dir(new Vector3(0, 0, 1)));
+                g.SetExhaust(false);
+                g.SetEngineSound(false);
+            }
             // Player frozen at the origin, rotation (0.462, 0.462, 1.5339) rad, exhaust off; camera (1500, 1600, -3000).
-            Player.SetPositionAndRotation(Vector3.zero, OrbitLayout.RotationToUnity(new Vector3(0.462f, 0.462f, 1.5339f)));
+            Player.SetPositionAndRotation(ToUnity(S(Vector3.zero)), OrbitLayout.RotationToUnity(new Vector3(0.462f, 0.462f, 1.5339f)));
             SetPlayerExhaust(false);
             playerSpeed = 0f;
-            cam.LookAt(new Vector3(1500, 1600, -3000), Player);
+            cam.LookAt(S(new Vector3(1500, 1600, -3000)), Player);
             campaign.Fade(true, Color.black, 5000f, fromOpaque: true);
             // Index 0's state 16 (and its skip) sets Globals::switch_to_target_setting before the new level, so
             // MGame::OnInitialize calls playMusicAndFadeOutCurrent(1): 141 stops and the system race's space track plays
@@ -217,8 +235,8 @@ namespace GoF2Remake.World
                         // the player (no setTarget): just behind the pirates, who talk in the foreground while Keith's ship
                         // passes in the distance (levelscript_cutscenes.md had -3000 for both -12000s, which put them behind
                         // the camera).
-                        Player.position = ToUnity(new Vector3(18000, -12000, -40000));
-                        cam.LookAt(new Vector3(-12000, 2000, -500), Player);
+                        Player.position = ToUnity(S(new Vector3(18000, -12000, -40000)));
+                        cam.LookAt(S(new Vector3(-12000, 2000, -500)), Player);
                         Vector3[] at = { new Vector3(-10000, 500, 0), new Vector3(-10000, -300, -1700), new Vector3(-10000, -200, 2000) };
                         ClearPirateBubble(at);
                         for (int i = 0; i < 3 && i < pirates.Count; i++)
@@ -343,11 +361,11 @@ namespace GoF2Remake.World
                     if (level.Asteroids != null) Object.Destroy(level.Asteroids.gameObject);
                     // LevelScript state 9 (0x167bd0): setDirection(parent, (0, 0, -1)) moves only the drifting parent node,
                     // then PlayerEgo::rotate(pi/4, pi/4, pi/4) turns the ship node in it (Tumble).
-                    Player.SetPositionAndRotation(Vector3.zero, Quaternion.LookRotation(Dir(new Vector3(0, 0, -1)), Vector3.up));
+                    Player.SetPositionAndRotation(ToUnity(S(Vector3.zero)), Quaternion.LookRotation(Dir(new Vector3(0, 0, -1)), Vector3.up));
                     wreckEuler = Vector3.zero;
                     Ship.modelHeld = true;   // ShipController's computer-controlled levelling leaves the model alone
                     Tumble(Mathf.PI / 4f);
-                    cam.LookAt(new Vector3(5000, 500, -10000), Player);
+                    cam.LookAt(S(new Vector3(5000, 500, -10000)), Player);
                     Step = 10;
                     break;
                 }
@@ -398,7 +416,8 @@ namespace GoF2Remake.World
                     if (Over(22)) { campaign.Fade(false, Color.black, 5000f); Step = 16; }
                     break;
                 case 16:
-                    if (!loading && campaign.FadeDone)
+                    // A co-op follower waits under the black for the leader's step 1 (CampaignLevel: then the rescue loads).
+                    if (!loading && campaign.FadeDone && !follower)
                     {
                         // nextCampaignMission (-> 1) and a new flight level: the rescue.
                         loading = true;

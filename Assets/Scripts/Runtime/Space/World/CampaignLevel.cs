@@ -21,7 +21,7 @@ using UnityEngine;
 
 namespace GoF2Remake.World
 {
-    public class CampaignLevel : MonoBehaviour, IRadioWorld
+    public partial class CampaignLevel : MonoBehaviour, IRadioWorld
     {
         const float M = 0.05f;
 
@@ -77,6 +77,22 @@ namespace GoF2Remake.World
             if (Intro != null && Intro.CanSkip) Intro.Skip();
             else supernova?.SkipCutscene();
         }
+        // Remake co-op (CampaignLevelCoop.cs): the leader's level shown to the crew, a follower's copy of it.
+        /// <summary>The story level of this game's Space level, null = none.</summary>
+        public static CampaignLevel Current { get; private set; }
+        /// <summary>A co-op guest's level: nothing built or scripted here, the leader's state shown (SetupFollower).</summary>
+        public bool Follower { get; private set; }
+        /// <summary>Co-op: the level waits for a crew member's story conversation (no clock, script, radio; the ships stopped).</summary>
+        public bool CoopHeld { get; private set; }
+        float coopSendMs, coopCameraMs, coopWaitNoticeMs, coopLeaderSeenAt = -1f, coopCamAt = -1f;
+        Route coopRouteSent;
+        int coopRouteIndexSent = -1;
+        bool coopWasCutscene;
+        Vector3 coopCamPos;
+        Quaternion coopCamRot = Quaternion.identity;
+        float coopCamFov = 60f;
+        readonly Dictionary<NpcShip, bool> coopFrozen = new Dictionary<NpcShip, bool>();
+
         AudioSource music;
         readonly AudioSource[] loops = new AudioSource[3];
         float fadeMs, fadeLength = 1f;
@@ -94,6 +110,7 @@ namespace GoF2Remake.World
         {
             level = spaceLevel;
             traffic = npcTraffic;
+            Current = this;
             BuiltIndex = Story.Index;
             music = gameObject.AddComponent<AudioSource>();
             music.playOnAwake = false;
@@ -105,6 +122,7 @@ namespace GoF2Remake.World
             traffic.ConnectPlayers(main != null ? main.PlayerExemptRace : -99);
             valkyrie?.AfterConnect();
             Radio = new Radio(Story.Step?.radio);
+            if (CoopCampaign.Leader) Radio.Shown += line => SpaceHooks.CoopRadioShown?.Invoke(CoopStation, BuiltIndex, line);   // the crew hears it too
             Debug.Log($"CampaignLevel: index {BuiltIndex}, {Ships.Count} ships, {Radio.Count} radio lines");
         }
 
@@ -128,6 +146,7 @@ namespace GoF2Remake.World
             var spec = new SpawnSpec { group = NpcGroup.Raider, race = race, ship = ship, position = waypoint + (jitter ? Jitter() : Vector3.zero) };
             setup?.Invoke(spec);
             var s = traffic.SpawnShip(spec);
+            if (s != null && CoopCampaign.Active) MarkStoryShip(s);   // the crew's: shown to them, tougher for more players
             Ships.Add(s);
             return s;
         }
@@ -176,12 +195,14 @@ namespace GoF2Remake.World
         void OnShipDied(NpcShip ship, bool byPlayer)
         {
             if (ship == null || !ship.Target.hostileToPlayer) return;
-            if (byPlayer) PlayerKills++; else NpcKills++;
+            // Multiplayer: another player's kill counts as the player's (a co-op crew member's, Target.killedByRemote).
+            if (byPlayer || ship.Target.killedByRemote) PlayerKills++; else NpcKills++;
         }
 
         void OnDestroy()
         {
             if (traffic != null) traffic.ShipDied -= OnShipDied;
+            if (Current == this) Current = null;
         }
 
         public bool DeadRange(int a, int b)
@@ -197,7 +218,10 @@ namespace GoF2Remake.World
             float dtMs = Time.deltaTime * 1000f;
             Navigation.SyncMusic(music, ref musicHeld);   // on through conversations, paused by the pause menu
             if (dtMs <= 0f) return;
-            MissionMs += dtMs;
+            if (Follower && intro == null) { FollowerTick(dtMs); return; }   // remake co-op: the leader's level shown
+            if (Follower && FollowIntroOn()) return;   // remake co-op: the prologue / rescue follower's own cutscenes
+            bool held = CoopCampaign.Leader && LeaderTick(dtMs);   // remake co-op: a crew member's story conversation
+            if (!held) MissionMs += dtMs;
             if (fading)
             {
                 fadeMs += dtMs;
@@ -209,6 +233,7 @@ namespace GoF2Remake.World
             // windows and the success check while the player lives; remake: LevelScript::process waits too, so a cutscene
             // or a story step can't play on under the game over).
             if (level.Health != null && level.Health.Dead) return;
+            if (held) return;
             if (intro != null && Story.Index == BuiltIndex) intro.Tick(dtMs);
             main?.Tick(Story.Index, dtMs);
             valkyrie?.Tick(Story.Index, dtMs);

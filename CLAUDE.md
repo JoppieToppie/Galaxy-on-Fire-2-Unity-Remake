@@ -42,6 +42,7 @@ This file holds only what every task needs. Everything about one area of the gam
 | [multiplayer-server.md](docs/notes/multiplayer-server.md) | Dedicated server, settings, moderation, profiles, persistent host, MOTD, news, web admin, server checks |
 | [multiplayer-factions.md](docs/notes/multiplayer-factions.md) | Factions, bank, claims, sieges, garrisons, tolls, VAT |
 | [multiplayer-social.md](docs/notes/multiplayer-social.md) | Squads, squad bar missions, arena matches, trades, distress calls |
+| [multiplayer-coop.md](docs/notes/multiplayer-coop.md) | The co-op campaign: hosting, the leader's story, catch-up, crew wins, story orbit followers, holds, failures |
 | [chat-and-commands.md](docs/notes/chat-and-commands.md) | Chat, chat commands, admin tools, selectors |
 | [event-graphs.md](docs/notes/event-graphs.md) | Events, event graph files and nodes, quests, bar missions, cutscenes, ship orders, wormholes |
 | [mods.md](docs/notes/mods.md) | Mod format, items, ships, numbers, saves, campaigns, options, flight styles, conditions, traffic, capital ships, mobile stations, ES2 docking, blueprints, browser, multiplayer |

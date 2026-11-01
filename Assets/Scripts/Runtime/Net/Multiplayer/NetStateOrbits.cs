@@ -103,6 +103,13 @@ namespace GoF2Remake.Multiplayer
                 int station = proxy != null ? proxy.Station : crate.Station;
                 if (!orbitRunners.TryGetValue(station, out ulong runner) || !here.TryGetValue(station, out var players)) continue;
                 bool ownerHere = players.Exists(p => p.OwnerClientId == obj.OwnerClientId);
+                // A co-op story level's ship: the leader's level left with it (the crew there sees the level end).
+                if (proxy != null && proxy.IsStoryShip && !ownerHere && proxy.Creator == obj.OwnerClientId)
+                {
+                    staleSince.Remove(obj.NetworkObjectId);
+                    obj.Despawn();
+                    continue;
+                }
                 // A disconnected player's object the host inherited while flying there: its game has no ship for it.
                 bool inherited = proxy != null && proxy.Creator != obj.OwnerClientId && !proxy.HandedOver;
                 bool mission = proxy != null && (proxy.IsMissionShip || proxy.IsJunk) && players.Exists(p => NetSquad.SameClient(proxy.Creator, p));

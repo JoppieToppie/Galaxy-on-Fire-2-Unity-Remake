@@ -246,6 +246,7 @@ namespace GoF2Remake.Data
             if (GameHooks.SplitReward != null) pay = GameHooks.SplitReward(m, pay);   // multiplayer: an equal share for everyone in the squad
             Standing.ApplyDelict(m.clientRace, -5);
             Session.FreelanceCompleted++;
+            CoopCampaign.FreelanceDone(m.netId);   // remake co-op: the crew's count for step 13 (a squad mission once)
             Session.Credits += pay;
             RecordChallenge(true);
             Discard();

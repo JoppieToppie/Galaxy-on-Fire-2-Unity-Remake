@@ -84,6 +84,7 @@ namespace GoF2Remake.Multiplayer
             manager = null;
             closing = quitAfter = worldEntered = transportConnected = sessionGame = lostHandled = false;
             Dedicated = false;
+            CoopSession = false;
             hostEndReason = null;
             JoinCode = null;
             hostAllocation = null;
@@ -195,7 +196,7 @@ namespace GoF2Remake.Multiplayer
         /// server browser's "x / max", and the connection approval turns away a player past it (a local session too).</summary>
         public static int MaxPlayers
         {
-            get => maxPlayers;
+            get => HostWantsCoop && !Dedicated ? Mathf.Min(maxPlayers, CoopCampaign.MaxCrew) : maxPlayers;   // a co-op campaign: 2-4
             set => maxPlayers = Mathf.Clamp(value, 2, MaxPlayersLimit);
         }
         static int maxPlayers = DefaultMaxPlayers;
@@ -376,6 +377,8 @@ namespace GoF2Remake.Multiplayer
             var relay = hostAllocation;
             hostAllocation = null;
             PrepareSession();
+            CoopSession = HostWantsCoop;
+            if (CoopSession) NetCoop.PrepareHost(CoopNewCampaign);   // the campaign's game (a new one, or the profile's)
             SetUpHostedWorld();
             if (!Dedicated)
             {
@@ -415,8 +418,37 @@ namespace GoF2Remake.Multiplayer
         /// server; else a fresh game nothing of which is kept.</summary>
         public static bool HostWantsPersistent { get; set; }
 
-        /// <summary>The session this game hosts is a persistent world (StartHost with HostWantsPersistent).</summary>
+        /// <summary>The session this game hosts is a persistent world (StartHost with HostWantsPersistent, or a co-op campaign).</summary>
         public static bool PersistentHost { get; private set; }
+
+        /// <summary>The Host card's World choice Co-op (PlayerPrefs "mp_persistent" 2): the host's co-op campaign, 2-4 players
+        /// (NetCoop, CoopCampaign), kept in CoopFolder like a persistent world.</summary>
+        public static bool HostWantsCoop { get; set; }
+
+        /// <summary>The co-op campaign to start: -1 = go on with the one in CoopFolder, else a new one of that Campaign (the
+        /// old folder is kept as CoopFolder + ".old").</summary>
+        public static int CoopNewCampaign { get; set; } = -1;
+
+        /// <summary>The co-op campaign's enemy strength, % per player past the first (the Host card, PlayerPrefs
+        /// "mp_coop_strength"; CoopCampaign.Strength; /coop changes it while hosting).</summary>
+        public static int CoopStrength
+        {
+            get => PlayerPrefs.GetInt("mp_coop_strength", CoopCampaign.DefaultStrength);
+            set => PlayerPrefs.SetInt("mp_coop_strength", Mathf.Clamp(value, 0, 200));
+        }
+
+        /// <summary>The co-op campaign's story credits are shared out across the crew (PlayerPrefs "mp_coop_split", on by default).</summary>
+        public static bool CoopSplitRewards
+        {
+            get => PlayerPrefs.GetInt("mp_coop_split", 1) != 0;
+            set => PlayerPrefs.SetInt("mp_coop_split", value ? 1 : 0);
+        }
+
+        /// <summary>The session this game hosts is a co-op campaign (StartHost with HostWantsCoop).</summary>
+        public static bool CoopSession { get; private set; }
+
+        /// <summary>Where the co-op campaign keeps the crew's profiles (the host's holds the story) and its summary.</summary>
+        public static string CoopFolder => System.IO.Path.Combine(GoF2Remake.GamePaths.Data, "CoopCampaign");
 
         /// <summary>Where a persistent hosted world keeps its files (the dedicated server's ServerProfiles layout).</summary>
         public static string HostedWorldFolder => System.IO.Path.Combine(GoF2Remake.GamePaths.Data, "HostedWorld");
@@ -424,13 +456,13 @@ namespace GoF2Remake.Multiplayer
         /// <summary>StartHost, before the NetState spawns: the persistent world's profiles and settings, or none.</summary>
         static void SetUpHostedWorld()
         {
-            PersistentHost = HostWantsPersistent;
-            NetProfiles.Configure(PersistentHost, NetProfiles.DefaultEarnPerMinute, PersistentHost ? HostedWorldFolder : null);
+            PersistentHost = HostWantsPersistent || CoopSession;
+            NetProfiles.Configure(PersistentHost, NetProfiles.DefaultEarnPerMinute, CoopSession ? CoopFolder : PersistentHost ? HostedWorldFolder : null);
             if (!PersistentHost) return;
             // The Host card's choices win over the saved settings (they are its "command line").
             NetServerSettings.Load(option => option == "-password" || option == "-maxplayers" || option == "-allowdebug" || option == "-name");
             NetProfiles.Start();   // the profiles, factions, bans and news (before NetState: it carries the world's id)
-            Debug.Log($"NetGame: hosting a persistent world in {HostedWorldFolder}.");
+            Debug.Log($"NetGame: hosting a {(CoopSession ? "co-op campaign" : "persistent world")} in {NetProfiles.Folder}.");
         }
 
         /// <summary>A dedicated server (DedicatedServer, the -server command line): the session's world without a player of
@@ -513,13 +545,23 @@ namespace GoF2Remake.Multiplayer
         internal static void EnterWorld(int seed = -1)
         {
             if (worldEntered) return;
-            worldEntered = true;
             if (seed >= 0) Seed = seed;
+            // A new co-op campaign: the crew gathers in its lobby (the menu) until the host's Start (NetCoop.OnStarted).
+            if (NetCoop.WaitsInLobby) { InLobby = true; return; }
+            InLobby = false;
+            worldEntered = true;
             Session.DockedFromSpace = false;
             NetMotd.RequestOnEnter();   // the server's message of the day (shown unless already seen)
+            // A co-op campaign's prologue starts in flight (step 0 in the Dareius belt), everything else docked.
+            string scene = NetCoop.StartsInFlight ? SpaceScene : StationScene;
             // The session's mods' ship models first (NetMods: a joining game has just turned the session's mods on).
-            Modding.ModShips.WhenReady(() => { if (Active) SceneManager.LoadScene(StationScene); });
+            Modding.ModShips.WhenReady(() => { if (Active) SceneManager.LoadScene(scene); });
         }
+
+        const string SpaceScene = "Space";
+
+        /// <summary>This game waits in a new co-op campaign's lobby (the main menu shows it, MainMenuMultiplayer).</summary>
+        public static bool InLobby { get; private set; }
 
         static bool closing, quitAfter, lostHandled;
         static string hostEndReason;
@@ -543,6 +585,7 @@ namespace GoF2Remake.Multiplayer
             // A persistent hosted world: the host's own game straight into its profile (no network in between).
             if (manager != null && manager.IsHost && PersistentHost && worldEntered && !closing) NetProfileClient.SaveHostNow();
             NetAudit.Tick(true);   // the server's shop runs still open, into the log
+            if (CoopSession && manager != null && manager.IsHost && worldEntered && !closing) NetCoop.WriteSummary();   // the menu's Continue
             NetChat.Clear();
             NetSquad.Clear();
             NetTradeClient.Clear();
@@ -575,6 +618,7 @@ namespace GoF2Remake.Multiplayer
         {
             closing = false;
             quitAfter = false;
+            InLobby = false;
             playersSpawned.Clear();
             if (manager == null) return;
             manager.OnClientConnectedCallback -= OnClientConnected;
@@ -775,8 +819,11 @@ namespace GoF2Remake.Multiplayer
             worldEntered = transportConnected = lostHandled = false;
             closing = quitAfter = false;
             sessionGame = true;
+            InLobby = false;
             Dedicated = false;
             PersistentHost = false;
+            CoopSession = false;
+            CoopCampaign.Reset();   // nothing of the last co-op session's story
             NetMods.BeginClient();   // no mods until the session's arrive (NetState) or the host picks its own (BeginHost)
             NetStock.Reset();
             NetArena.Reset();
@@ -977,6 +1024,7 @@ namespace GoF2Remake.Multiplayer
             if (lostHandled) return;
             lostHandled = true;
             Status = reason;
+            Session.EndingPending = false;   // a co-op crew member's credits cut off: the menu, not the ending again
             Shutdown();
             PopupPending = true;
             MenuRequest.OpenPanelOnStart = "multiplayerPanel";

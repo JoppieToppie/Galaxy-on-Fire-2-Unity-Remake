@@ -102,6 +102,7 @@ namespace GoF2Remake.World
         public void RideWormhole()
         {
             if (rode) return;
+            CoopLeaderMoved(Layout.alienOrbit ? Session.VoidReturnStation : Session.VoidOrbit, false, true);   // remake co-op: the crew rides too
             rode = riding = true;
             Leaving = true;
             Weapons?.StoreAmmo();
@@ -163,6 +164,7 @@ namespace GoF2Remake.World
         public void TravelTo(int station, bool streamOut = true)
         {
             if (Leaving) return;
+            CoopLeaderMoved(station, false, streamOut);   // remake co-op: the crew in this story orbit goes along
             Leaving = true;
             Weapons?.StoreAmmo();
             if (station == Session.VoidOrbit) Session.VoidReturnStation = Layout.stationIndex;
@@ -539,6 +541,52 @@ namespace GoF2Remake.World
             if (t >= 1f) { cam.SetPositionAndRotation(endPos, endRot); EndLaunchCamera(false); }   // the chase goes on from here
         }
         /// <summary>The last save (auto-save slot) after a failed mission, or the main menu without one.</summary>
+        /// <summary>Remake co-op: the leader's story level moved it on (a ride, a jump, docked by the story): the crew in this
+        /// orbit follows (NetCoop -> CampaignLevel.OnLeaderTravel).</summary>
+        void CoopLeaderMoved(int to, bool dock, bool streamOut)
+        {
+            if (!CoopCampaign.Leader || Campaign == null || Campaign.Follower || Layout == null || Leaving) return;
+            SpaceHooks.CoopTravel?.Invoke(Layout.stationIndex, to, dock, streamOut);
+        }
+
+        /// <summary>Remake co-op: step 43 won by the crew while this player flies: the ending's credits (EndingCredits, over the
+        /// main menu scene's backdrop; the session stays), then docked at the step's station (Thynome, where Keith's epilogue
+        /// 44 follows) rather than here (the Void's orbit has no station).</summary>
+        public void PlayEnding()
+        {
+            if (Leaving) return;
+            Leaving = true;
+            Weapons?.StoreAmmo();
+            int to = Story.Mission != null && Story.Mission.station >= 0 ? Story.Mission.station : Session.LastDockedStation;
+            if (to >= 0 && to < db.Stations.Count) Session.StationIndex = to;
+            Session.LaunchedFromStation = false;
+            Session.DockedFromSpace = false;
+            Session.EndingPending = true;
+            SceneManager.LoadScene("MainMenu");
+        }
+
+        /// <summary>Remake co-op: this orbit built again (a prologue follower into the rescue once the leader is there).</summary>
+        public void Reload()
+        {
+            if (Leaving) return;
+            Leaving = true;
+            Weapons?.StoreAmmo();
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+
+        /// <summary>Remake co-op: a failed story mission: back docked at the station last docked at (the session has no saves).</summary>
+        public void ReturnToLastDocked()
+        {
+            if (Leaving) return;
+            int docked = Session.LastDockedStation;
+            if (docked >= 0 && docked < db.Stations.Count) Session.StationIndex = docked;
+            Leaving = true;
+            Session.LaunchedFromStation = false;
+            Session.DockedFromSpace = false;
+            Cheats.Repair();
+            if (Application.CanStreamedLevelBeLoaded(stationScene)) SceneManager.LoadScene(stationScene);
+        }
+
         public void LoadLastSave()
         {
             if (Modding.ModBuilder.PlayTesting) { Modding.ModBuilder.EndPlayTest(); return; }   // a Mod Builder play test: back to the builder
@@ -550,6 +598,7 @@ namespace GoF2Remake.World
         /// fly-in; the story's own moves into a station (the rescue, arrests, "docked at ...") pass false.</summary>
         public void Dock(bool flyIn = false)
         {
+            if (!flyIn) CoopLeaderMoved(Session.StationIndex, true, false);   // remake co-op: the story's move into a station
             // Remake mods: the player's own docking near a mobile station (and not at the orbit's station) docks there.
             if (flyIn && MobileInRange is MobileStation near && !(Layout.hasStation && StationShown && leftDockRange && InDockRange))
             {

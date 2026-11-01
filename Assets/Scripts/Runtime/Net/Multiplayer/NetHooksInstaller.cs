@@ -58,6 +58,16 @@ namespace GoF2Remake.Multiplayer
             GameHooks.SessionFlightStyle = NetRules.TryGetFlight;
             GameHooks.EventFlightStyle = () => Events.EventFlight.Forced;   // PR #87: the Set Flight Model node, /flightstyle
 
+            // The co-op campaign (NetCoop; CoopCampaign).
+            GameHooks.CoopActive = () => NetCoop.Active;
+            GameHooks.CoopLeader = () => NetCoop.Leader;
+            GameHooks.CoopCrewSize = () => NetCoop.CrewSize;
+            GameHooks.CoopStepWon = NetCoop.ReportWon;
+            GameHooks.CoopAdvanced = NetCoop.ReportAdvanced;
+            GameHooks.CoopProgress = NetCoop.ReportProgress;
+            GameHooks.CoopPublish = NetCoop.Publish;
+            GameHooks.CoopFreelanceDone = NetCoop.ReportFreelance;
+
             InstallSpace();
         }
 
@@ -113,8 +123,19 @@ namespace GoF2Remake.Multiplayer
             SpaceHooks.EventSceneMusic = () => EventScreen.SceneMusic;
             SpaceHooks.QuietOrbit = EventRunner.QuietOrbit;
             SpaceHooks.RequestEventOffers = EventMissions.RequestOffers;
-            SpaceHooks.RespawnDue = EventRespawn.Due;
-            SpaceHooks.Respawn = EventRespawn.Go;
+            // An event's respawn point, else a co-op guest destroyed in the leader's story orbit (beside the leader).
+            SpaceHooks.RespawnDue = ms => EventRespawn.Due(ms) || NetCoop.RespawnDue(ms);
+            SpaceHooks.Respawn = () => { if (EventRespawn.Active) EventRespawn.Go(); else NetCoop.Respawn(); };
+            SpaceHooks.CoopLevelState = NetCoop.LevelState;
+            SpaceHooks.CoopRadioShown = NetCoop.Radio;
+            SpaceHooks.CoopRoute = NetCoop.Route;
+            SpaceHooks.CoopCamera = NetCoop.Camera;
+            SpaceHooks.CoopTravel = NetCoop.Travel;
+            SpaceHooks.CoopLevelFailed = NetCoop.LevelFailed;
+            SpaceHooks.CoopDialog = NetCoop.Dialog;
+            SpaceHooks.CoopHold = NetCoop.Hold;
+            SpaceHooks.CoopLeaderHere = NetCoop.LeaderHere;
+            SpaceHooks.CoopLeaderPose = NetCoop.LeaderPose;
             SpaceHooks.ServerShutOff = DedicatedServer.ShutOff;
         }
     }

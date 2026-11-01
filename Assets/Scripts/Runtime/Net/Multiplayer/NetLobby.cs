@@ -22,7 +22,7 @@ namespace GoF2Remake.Multiplayer
     {
         const float HeartbeatSeconds = 15f, CountSeconds = 5f;
         const string KeyVersion = "version", KeyProtocol = "protocol", KeyCode = "code", KeyHost = "host", KeyPlayers = "players", KeyServer = "server", KeyPassword = "password",
-            KeyMods = "mods", KeyModNames = "modnames", KeyPvp = "pvp", KeyRegion = "region";
+            KeyMods = "mods", KeyModNames = "modnames", KeyPvp = "pvp", KeyRegion = "region", KeyCoop = "coop";
 
         /// <summary>One listed session in the browser.</summary>
         public sealed class Entry
@@ -41,6 +41,8 @@ namespace GoF2Remake.Multiplayer
             /// <summary>Players fight anywhere (NetGame.FreePvp: "PvP") or only in arenas and sieges ("PvE"); null for a
             /// listing from before the key (no chip).</summary>
             public bool? pvp;
+            /// <summary>A co-op campaign (NetGame.CoopSession): 2-4 players playing the host's story.</summary>
+            public bool coop;
             public bool Full => players >= maxPlayers;
             /// <summary>The same code as this game (the fingerprint: the only ones it can join, whenever they were built; the
             /// Editor joins any, for testing). A listing from before the fingerprint has only its version.</summary>
@@ -88,6 +90,7 @@ namespace GoF2Remake.Multiplayer
                         [KeyModNames] = Public(Trim(NetMods.SessionNames, 300)),
                         [KeyPvp] = Public(NetGame.FreePvp ? "1" : "0"),
                         [KeyRegion] = Public(Trim(NetGame.HostRegion, 40)),
+                        [KeyCoop] = Public(NetGame.CoopSession ? "1" : "0"),
                     },
                 });
                 if (gen != generation || !NetGame.Active)
@@ -188,6 +191,7 @@ namespace GoF2Remake.Multiplayer
                         mods = Get(l, KeyMods) ?? "", modNames = Get(l, KeyModNames) ?? "",
                         pvp = Get(l, KeyPvp) switch { "1" => true, "0" => false, _ => (bool?)null },
                         region = Get(l, KeyRegion) ?? "",
+                        coop = Get(l, KeyCoop) == "1",
                     });
                 }
                 // This version's first (the query's order, the fullest first, within each).

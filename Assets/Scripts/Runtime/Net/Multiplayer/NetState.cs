@@ -68,6 +68,11 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<FixedString64Bytes> serverId = new NetworkVariable<FixedString64Bytes>();   // their key on the client
         readonly NetworkVariable<bool> freeForAll = new NetworkVariable<bool>();     // /pvp, an event's Free For All: every player an enemy
         readonly NetworkVariable<Unity.Collections.FixedString4096Bytes> sessionMods = new NetworkVariable<Unity.Collections.FixedString4096Bytes>();   // NetMods.SessionList
+        readonly NetworkVariable<bool> coop = new NetworkVariable<bool>();   // a co-op campaign (NetGame.CoopSession, NetCoop)
+        readonly NetworkVariable<FixedString4096Bytes> coopStory = new NetworkVariable<FixedString4096Bytes>();   // the leader's story (CoopCampaign.State)
+        readonly NetworkVariable<bool> coopStarted = new NetworkVariable<bool>(true);   // a new co-op campaign: false while the crew gathers (NetCoop's lobby)
+        /// <summary>Server, co-op: the players whose story conversation is open (the leader's level holds in their orbit).</summary>
+        readonly Dictionary<ulong, float> coopDialogs = new Dictionary<ulong, float>();
         readonly Dictionary<int, HashSet<int>> destroyed = new Dictionary<int, HashSet<int>>();
         readonly Dictionary<int, float> emptySince = new Dictionary<int, float>();   // orbit -> when its last player left (asteroid respawn)
         GameObject proxyPrefab, cratePrefab;
@@ -94,6 +99,27 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>Players may shoot each other anywhere (NetGame.FreePvp, -freepvp); else only in an arena match.</summary>
         public bool FreePvp => freePvp.Value;
+
+        /// <summary>The session is a co-op campaign (NetCoop): the host's story is the crew's.</summary>
+        public bool Coop => coop.Value;
+
+        /// <summary>A co-op campaign has begun (false: a new one's lobby, the world waits for the host's Start).</summary>
+        public bool CoopStarted => coopStarted.Value;
+
+        /// <summary>Server: the host started the campaign from its lobby.</summary>
+        internal void SetCoopStarted() { if (IsServer && !coopStarted.Value) coopStarted.Value = true; }
+
+        /// <summary>The leader's shared story as JSON (CoopCampaign.State), empty before the first.</summary>
+        public string CoopStory => coopStory.Value.ToString();
+
+        /// <summary>Server, co-op: the leader's story changed.</summary>
+        internal void SetCoopStory(string json)
+        {
+            if (!IsServer) return;
+            json ??= "";
+            if (System.Text.Encoding.UTF8.GetByteCount(json) > 4000) { Debug.LogWarning("NetState: the co-op story is too long to share"); return; }
+            if (coopStory.Value.ToString() != json) coopStory.Value = json;
+        }
 
         /// <summary>The session's gameplay rules (NetRules bits).</summary>
         public int Rules => rules.Value;
@@ -182,6 +208,9 @@ namespace GoF2Remake.Multiplayer
                 NetFactions.OnStateSpawned();   // the claims, now that this object exists
                 PirateReports.ServerReset();   // the Pirate activity board starts empty (filled by the next sweep)
                 sessionMods.Value = NetMods.SessionList;
+                coop.Value = NetGame.CoopSession;
+                coopStarted.Value = !NetCoop.LobbyWanted;   // a new campaign starts with the crew gathered
+                coopDialogs.Clear();
                 proxyPrefab = Resources.Load<GameObject>($"{NetGame.PrefabFolder}/NetProxy");
                 cratePrefab = Resources.Load<GameObject>($"{NetGame.PrefabFolder}/NetCrate");
                 NetRateLimit.Reset();
@@ -190,9 +219,12 @@ namespace GoF2Remake.Multiplayer
             // The session's Pirate activity board on every game (the host's too), now and whenever the server changes it.
             pirateBoard.OnValueChanged += (_, now) => PirateReports.ApplyShared(now.ToString());
             PirateReports.ApplyShared(pirateBoard.Value.ToString());
+            coopStory.OnValueChanged += (_, now) => NetCoop.OnStory(now.ToString());   // the leader's story reaching a guest
+            coopStarted.OnValueChanged += (_, now) => { if (now) NetCoop.OnStarted(); };   // the lobby's Start: into the world
             if (!IsServer)
             {
                 NetMods.ApplyFromServer(sessionMods.Value.ToString());   // the session's mods before the world is built
+                if (coop.Value) NetCoop.OnJoined(coopStory.Value.ToString());   // a co-op guest: the crew's story before the profile
                 // A server with profiles: the world waits for this player's profile (NetProfileClient.Begin -> EnterWorld).
                 if (profilesOn.Value) NetProfileClient.Begin(serverId.Value.ToString(), seed.Value);
                 else NetGame.EnterWorld(seed.Value);
@@ -306,6 +338,7 @@ namespace GoF2Remake.Multiplayer
         {
             NetStock.Flush();   // the shared stock that arrived, applied between frames (every player)
             NetTradeClient.Tick();   // this player's trade offer goes out, kept within the hold
+            NetCoop.Tick(this);   // a co-op campaign: the leader's story out, a guest's catch-up and progress
             if (!IsServer || !IsSpawned) return;
             NetTrade.Tick();      // trade requests and trades that ran out, sides that left the hangar
             NetAudit.Tick();      // the shop runs that stopped, into the money log

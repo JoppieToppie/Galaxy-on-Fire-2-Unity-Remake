@@ -100,11 +100,24 @@ namespace GoF2Remake.UI
             Bind("mpPvpOff", () => SetHostPvp(false));
             Bind("mpPvpOn", () => SetHostPvp(true));
             ApplyHostPvp();
-            // The hosted world (PlayerPrefs "mp_persistent", fresh by default): persistent keeps every player's progress, the
-            // factions, bans and news on this device (NetGame.HostWantsPersistent; the host is its master admin).
-            GoF2Remake.Multiplayer.NetGame.HostWantsPersistent = PlayerPrefs.GetInt("mp_persistent", 0) != 0;
-            Bind("mpWorldFresh", () => SetHostWorld(false));
-            Bind("mpWorldPersistent", () => SetHostWorld(true));
+            // The hosted world (PlayerPrefs "mp_persistent": 0 fresh by default, 1 persistent, 2 co-op): persistent keeps every
+            // player's progress, the factions, bans and news on this device (NetGame.HostWantsPersistent; the host is its
+            // master admin); co-op is the host's story campaign for 2-4 players (NetGame.HostWantsCoop, NetCoop).
+            int world = PlayerPrefs.GetInt("mp_persistent", 0);
+            GoF2Remake.Multiplayer.NetGame.HostWantsPersistent = world == 1;
+            GoF2Remake.Multiplayer.NetGame.HostWantsCoop = world == 2;
+            Bind("mpWorldFresh", () => SetHostWorld(0));
+            Bind("mpWorldPersistent", () => SetHostWorld(1));
+            Bind("mpWorldCoop", () => SetHostWorld(2));
+            // A co-op campaign's settings (shown with Co-op): the enemies' strength per player past the first
+            // (PlayerPrefs "mp_coop_strength", +50 % by default) and the story credits shared out or paid in full ("mp_coop_split").
+            foreach (int pct in GoF2Remake.Data.CoopCampaign.StrengthChoices)
+            {
+                int choice = pct;
+                Bind("mpCoopStrength" + pct, () => { GoF2Remake.Multiplayer.NetGame.CoopStrength = choice; ApplyHostWorld(); });
+            }
+            Bind("mpCoopRewardsShared", () => { GoF2Remake.Multiplayer.NetGame.CoopSplitRewards = true; ApplyHostWorld(); });
+            Bind("mpCoopRewardsFull", () => { GoF2Remake.Multiplayer.NetGame.CoopSplitRewards = false; ApplyHostWorld(); });
             ApplyHostWorld();
             // Modded content in the hosted session (PlayerPrefs "mp_allow_mods", off by default; NetMods.HostAllowsMods).
             GoF2Remake.Multiplayer.NetMods.HostAllowsMods = PlayerPrefs.GetInt("mp_allow_mods", 0) != 0;
@@ -124,7 +137,11 @@ namespace GoF2Remake.UI
             Bind("mpModePrivate", () => SetHostMode(HostMode.Private));
             Bind("mpModeLocal", () => SetHostMode(HostMode.Local));
             ApplyHostMode();
-            Bind("mpHost", () => WithName(() => StartCoroutine(LeaveForMultiplayer(null))));
+            Bind("mpHost", () => WithName(() =>
+            {
+                if (GoF2Remake.Multiplayer.NetGame.HostWantsCoop) AskCoopCampaign();   // which campaign the crew plays
+                else StartCoroutine(LeaveForMultiplayer(null));
+            }));
             Bind("mpJoin", () =>
             {
                 string address = mpAddress != null ? mpAddress.value.Trim() : "";
@@ -181,18 +198,118 @@ namespace GoF2Remake.UI
             root.Q<Button>("mpPvpOn")?.EnableInClassList("choice-segment--active", pvp);
         }
 
-        void SetHostWorld(bool persistent)
+        /// <summary>0 fresh, 1 persistent, 2 co-op campaign.</summary>
+        void SetHostWorld(int world)
         {
-            GoF2Remake.Multiplayer.NetGame.HostWantsPersistent = persistent;
-            PlayerPrefs.SetInt("mp_persistent", persistent ? 1 : 0);
+            GoF2Remake.Multiplayer.NetGame.HostWantsPersistent = world == 1;
+            GoF2Remake.Multiplayer.NetGame.HostWantsCoop = world == 2;
+            PlayerPrefs.SetInt("mp_persistent", world);
             ApplyHostWorld();
+            // A co-op campaign takes 2-4 players: the field shows what the session will allow.
+            var maxPlayers = root.Q<TextField>("mpMaxPlayers");
+            maxPlayers?.SetValueWithoutNotify(GoF2Remake.Multiplayer.NetGame.MaxPlayers.ToString());
         }
 
         void ApplyHostWorld()
         {
-            bool persistent = GoF2Remake.Multiplayer.NetGame.HostWantsPersistent;
-            root.Q<Button>("mpWorldFresh")?.EnableInClassList("choice-segment--active", !persistent);
+            bool persistent = GoF2Remake.Multiplayer.NetGame.HostWantsPersistent, coop = GoF2Remake.Multiplayer.NetGame.HostWantsCoop;
+            root.Q<Button>("mpWorldFresh")?.EnableInClassList("choice-segment--active", !persistent && !coop);
             root.Q<Button>("mpWorldPersistent")?.EnableInClassList("choice-segment--active", persistent);
+            root.Q<Button>("mpWorldCoop")?.EnableInClassList("choice-segment--active", coop);
+            int strength = GoF2Remake.Multiplayer.NetGame.CoopStrength;
+            foreach (int pct in GoF2Remake.Data.CoopCampaign.StrengthChoices)
+                root.Q<Button>("mpCoopStrength" + pct)?.EnableInClassList("choice-segment--active", strength == pct);
+            bool split = GoF2Remake.Multiplayer.NetGame.CoopSplitRewards;
+            root.Q<Button>("mpCoopRewardsShared")?.EnableInClassList("choice-segment--active", split);
+            root.Q<Button>("mpCoopRewardsFull")?.EnableInClassList("choice-segment--active", !split);
+            foreach (var row in new[] { "mpCoopStrengthRow", "mpCoopRewardsRow" })
+                if (root.Q(row) is VisualElement r) r.style.display = coop ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        static string CoopTitle => Localization.Extra("coopTitle", "Co-op campaign");
+
+        static string CampaignName(int campaign) => campaign switch { 1 => "Valkyrie", 2 => "Supernova", _ => "Galaxy on Fire 2" };
+
+        /// <summary>Hosting a co-op campaign: go on with the saved one (NetCoop's summary) or start a new one.</summary>
+        void AskCoopCampaign()
+        {
+            var saved = GoF2Remake.Multiplayer.NetCoop.ReadSummary();
+            if (saved == null) { AskNewCoopCampaign(); return; }
+            string crew = string.IsNullOrEmpty(saved.crew) ? "" : "\n" + string.Format(Localization.Extra("coopCrew", "Crew: {0}"), saved.crew);
+            ShowChoice(CoopTitle,
+                string.Format(Localization.Extra("coopContinueText", "Go on with the crew's {0} campaign at step {1}?"), CampaignName(saved.campaign), saved.index) + crew,
+                Localization.Extra("coopContinue", "Continue"), () => HostCoop(-1),
+                Localization.Extra("coopNew", "New campaign"), AskNewCoopCampaign);
+        }
+
+        void AskNewCoopCampaign()
+        {
+            string text = Localization.Extra("coopNewText", "Which campaign does the crew play? A saved co-op campaign is replaced (its files are kept as a backup).");
+            ShowChoice(CoopTitle, text, CampaignName(0), () => HostCoop(0), Localization.Extra("coopAddons", "Add-ons"),
+                () => ShowChoice(CoopTitle, text, CampaignName(1), () => HostCoop(1), CampaignName(2), () => HostCoop(2)));
+        }
+
+        /// <summary>A new co-op campaign's lobby (NetGame.InLobby): the menu's dialog lists the crew; the host's Start takes
+        /// everyone into the campaign at once (the main game's prologue in flight), Leave ends the session for this player
+        /// (the host's: for everyone).</summary>
+        IEnumerator CoopLobby()
+        {
+            fade.RemoveFromClassList("fade--on");
+            screen = MenuState.Menu;
+            StartCoroutine(FadeMusic(Settings.MusicVolume, 1f));
+            bool host = GoF2Remake.Multiplayer.NetGame.IsServer;
+            ShowDialog(CoopTitle, LobbyText(host), host ? () => StartCoopFromLobby() : (System.Action)null);
+            dialogNo = LeaveLobby;
+            var yes = root.Q<Button>("dialogYes");
+            var no = root.Q<Button>("dialogNo");
+            if (host) InputGlyph.SetText(yes, Localization.Extra("coopStart", "Start").ToUpperInvariant());
+            else yes.style.display = DisplayStyle.None;
+            InputGlyph.SetText(no, Localization.Extra("coopLeave", "Leave").ToUpperInvariant());
+            Select(host ? yes : no);
+            // Kept up to date while the crew comes and goes, until the host starts or the session ends.
+            while (GoF2Remake.Multiplayer.NetGame.Active && GoF2Remake.Multiplayer.NetGame.InLobby)
+            {
+                if (dialog.ClassListContains("dialog-backdrop--shown")) root.Q<Label>("dialogText").text = LobbyText(host);
+                yield return new WaitForSecondsRealtime(0.5f);
+            }
+            yes.style.display = StyleKeyword.Null;
+            if (dialog.ClassListContains("dialog-backdrop--shown")) CloseDialog();
+            if (GoF2Remake.Multiplayer.NetGame.Active)
+            {
+                // Into the world: the fade as for any start.
+                screen = MenuState.Leaving;
+                fade.AddToClassList("fade--on");
+                StartCoroutine(FadeMusic(0f, 1.2f));
+            }
+        }
+
+        static string LobbyText(bool host)
+        {
+            var crew = GoF2Remake.Multiplayer.NetCoop.CrewNames();
+            string list = string.Format(Localization.Extra("coopLobbyCrew", "Crew ({0}/{1}): {2}"), crew.Count,
+                                        GoF2Remake.Data.CoopCampaign.MaxCrew, string.Join(", ", crew));
+            string code = GoF2Remake.Multiplayer.NetGame.JoinCode;
+            if (host && !string.IsNullOrEmpty(code)) list += "\n" + string.Format(Localization.Extra("coopLobbyCode", "Join code: {0}"), code);
+            string wait = host ? Localization.Extra("coopLobbyHost", "Start once the crew is here: everyone begins the campaign together.")
+                               : string.Format(Localization.Extra("coopLobbyWait", "Waiting for {0} to start the campaign."), crew.Count > 0 ? crew[0] : "");
+            return list + "\n\n" + wait;
+        }
+
+        void StartCoopFromLobby()
+        {
+            if (GoF2Remake.Multiplayer.NetGame.Active && GoF2Remake.Multiplayer.NetGame.InLobby) GoF2Remake.Multiplayer.NetCoop.StartCampaign();
+        }
+
+        void LeaveLobby()
+        {
+            root.Q<Button>("dialogYes").style.display = StyleKeyword.Null;
+            GoF2Remake.Multiplayer.NetGame.Shutdown();
+        }
+
+        void HostCoop(int newCampaign)
+        {
+            GoF2Remake.Multiplayer.NetGame.CoopNewCampaign = newCampaign;
+            StartCoroutine(LeaveForMultiplayer(null));
         }
 
         void SetHostMods(bool allowed)
@@ -339,6 +456,7 @@ namespace GoF2Remake.UI
                     top.Add(tag);
                 }
                 if (entry.dedicated) Tag(Localization.Extra("mpServerTag", "Server"), null);
+                if (entry.coop) Tag(Localization.Extra("mpCoopTag", "Co-op"), "mp-server-tag--mods");   // a co-op campaign (NetCoop)
                 if (entry.password) Tag(Localization.Extra("mpPasswordTag", "Password"), "mp-server-tag--password");
                 if (entry.Modded) Tag(Localization.Extra("mpModdedTag", "Modded"), "mp-server-tag--mods");
                 if (entry.pvp.HasValue)   // players fight anywhere / only in arenas and sieges (NetGame.FreePvp)
@@ -577,6 +695,9 @@ namespace GoF2Remake.UI
                     StartCoroutine(FadeMusic(0f, 1.2f));
                 }
             }
+            // A new co-op campaign's lobby: the crew gathers here until the host starts (the scene change ends this).
+            while (started && GoF2Remake.Multiplayer.NetGame.Active && !GoF2Remake.Multiplayer.NetGame.InLobby) yield return null;
+            if (started && GoF2Remake.Multiplayer.NetGame.Active && GoF2Remake.Multiplayer.NetGame.InLobby) yield return CoopLobby();
             while (started && GoF2Remake.Multiplayer.NetGame.Active) yield return null;   // the scene change ends this
             SetMpStatus(GoF2Remake.Multiplayer.NetGame.Status);
             // The port was in use: the free one it found goes into the port field (hosting again uses it).

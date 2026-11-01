@@ -296,7 +296,10 @@ namespace GoF2Remake.Data
             Apply(s);
             Session.Difficulty = Session.DifficultyNormal;
             Session.Economy = Economy.Android;
-            Session.UseCompletedWorld();   // the session's world, whatever index the profile was saved with
+            // The session's world, whatever index the profile was saved with; a co-op campaign's is the story's own (its
+            // guests follow the leader's step, CoopCampaign).
+            if (CoopCampaign.Active) CoopCampaign.AfterProfile(NetSession.Db);
+            else Session.UseCompletedWorld();
             Session.FreelanceMission = new FreelanceMission();
             Session.Passengers = 0;
             Session.Cargo.RemoveAll(c => c.item == Freelance.SecureContainer);   // a Courier's containers (unsaleable)
