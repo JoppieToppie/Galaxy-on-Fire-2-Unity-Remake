@@ -84,7 +84,7 @@ namespace GoF2Remake.Flight
             // The button: the original fast-forward wins while it is allowed (the autopilot and the approaches).
             // Between the systems the autopilot holds it too: a crossing is the drive's whole flight (NavigationInterstellar).
             bool held = Interstellar ? fastForwardHeld || Autopilot : (fastForwardHeld && !CanFastForward) || (RunPlanet != null && runByAutopilot);
-            bool free = Cheats.FreeJumps || RunPlanet != null;   // a flight to a planet is the planet jump's: nothing to pay
+            bool free = Cheats.FreeJumps || RunFree;   // a flight to a planet is the planet jump's: nothing to pay
             var ev = Drive.Update(dtMs, held, DriveBlock, moved, Drive.State == CruiseDrive.Phase.Off && !held ? float.MaxValue : ObstacleAheadUnits(),
                                   LockedLandmarkUnits(), GalaxyMap.CellsInCargo(), free);
             switch (ev)

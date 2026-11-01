@@ -63,6 +63,7 @@ namespace GoF2Remake.World
         readonly Backdrop backdrop;
         readonly Vector3 carriedFrom;   // where the arrival starts
         readonly float startSize;
+        readonly float approachUnits;   // where the approach starts from the edge (the planets' growth starts there)
         readonly Quaternion facing;
         readonly Lights left, reached;
         readonly int field = Random.Range(1, int.MaxValue);
@@ -72,9 +73,17 @@ namespace GoF2Remake.World
         /// <summary>The sun's share of the blend: the star ahead's is what is left of it.</summary>
         public static float SunShown(float blend) => Mathf.Clamp01(blend / SunBy);
 
-        public SystemApproach(SpaceLevel level, OrbitLayout orbit, Vector3 arrivalAt, Quaternion facing, Transform parent, float startSize = InterstellarSpace.PlanetFarSize)
+        /// <summary>How far into the blend what the ship leaves has handed over to what it flies into: the orbit left's planets
+        /// and sun on a planet run (PlanetApproach), the other systems' stars between the systems (InterstellarField). The
+        /// user, 2026-11-01: at the full blend they went only as the ship was nearly there.</summary>
+        public const float HandOverBy = 0.125f;
+        public static float HandedOver(float blend) => Mathf.Clamp01(blend / HandOverBy);
+
+        public SystemApproach(SpaceLevel level, OrbitLayout orbit, Vector3 arrivalAt, Quaternion facing, Transform parent, float startSize = InterstellarSpace.PlanetFarSize,
+                              float approachUnits = InterstellarSpace.ApproachUnits)
         {
             this.startSize = startSize;
+            this.approachUnits = approachUnits;
             this.level = level;
             this.orbit = orbit;
             this.facing = facing;
@@ -183,7 +192,7 @@ namespace GoF2Remake.World
             var here = carriedFrom - facing * Vector3.forward * ahead;
             var back = Quaternion.Inverse(turn);
             root.SetPositionAndRotation(at - back * here, back);
-            float size = InterstellarSpace.ApproachSize(way.magnitude / OrbitLayout.MetersPerUnit, startSize);
+            float size = InterstellarSpace.ApproachSize(way.magnitude / OrbitLayout.MetersPerUnit, startSize, approachUnits);
             objects.Apply(size);
             if (shipRoot != null) shipRoot.SetPositionAndRotation(root.position, root.rotation);
 

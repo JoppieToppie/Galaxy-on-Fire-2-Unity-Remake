@@ -87,8 +87,8 @@ namespace GoF2Remake.World
                 var to = s.target.Position - eye;
                 float distance = Mathf.Max(1f, to.magnitude), at = Mathf.Min(distance, inner);
                 s.quad.SetPositionAndRotation(eye + to / distance * at, cam.transform.rotation);
-                // the star ahead gives way to the orbit's own sun (SystemApproach), the others to the orbit's sky
-                float left = s.target == blended ? 1f - SystemApproach.SunShown(blend) : 1f - blend;
+                // the star ahead gives way to the orbit's own sun (SystemApproach), the others early to the orbit's sky
+                float left = s.target == blended ? 1f - SystemApproach.SunShown(blend) : 1f - SystemApproach.HandedOver(blend);
                 s.quad.localScale = Vector3.one * (at * left * Mathf.Clamp(SunRadiusMeters / distance, MinAngle, MaxAngle));
             }
             UpdateSky(Time.deltaTime * 1000f);

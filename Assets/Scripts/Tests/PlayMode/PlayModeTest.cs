@@ -52,6 +52,15 @@ namespace GoF2Remake.Tests
             try { if (Directory.Exists(Sandbox)) Directory.Delete(Sandbox, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
 
+        /// <summary>The Khador Slipstream fitted (the game's own cruise drive, "gof2:khador_slipstream", numbered per player):
+        /// returns its item.</summary>
+        protected static int FitSlipstream()
+        {
+            int drive = Modding.ModContent.ItemIndexOf("gof2:khador_slipstream");
+            Session.Equipment.Add(new ItemStack(drive, 1));
+            return drive;
+        }
+
         /// <summary>Loads a scene by name and waits until it is the active scene and has run a few frames.</summary>
         protected static IEnumerator Load(string scene)
         {

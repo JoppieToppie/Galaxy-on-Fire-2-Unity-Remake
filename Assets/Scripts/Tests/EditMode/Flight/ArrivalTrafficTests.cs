@@ -43,17 +43,24 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void AScaledThingIsNeverCulledBySize()
+        public void AScaledThingIsNotCulledBySizeUntilRestored()
         {
             var go = new GameObject("lod");
             try
             {
                 var group = go.AddComponent<LODGroup>();
                 group.SetLODs(new[] { new LOD(0.5f, new Renderer[0]), new LOD(0.05f, new Renderer[0]) });
-                new ArrivalScale().Add(go.transform);
+                var first = new ArrivalScale();
+                first.Add(go.transform);
                 var levels = group.GetLODs();
                 Assert.AreEqual(0f, levels[1].screenRelativeTransitionHeight, "the last level stays to the smallest size");
                 Assert.AreEqual(0.5f, levels[0].screenRelativeTransitionHeight, 0.001f);
+                var second = new ArrivalScale();   // a stand-in's model, scaled again by the arrival's traffic
+                second.Add(go.transform);
+                second.Restore();
+                Assert.AreEqual(0.05f, group.GetLODs()[1].screenRelativeTransitionHeight, 0.001f, "culled as before once restored");
+                first.Restore();
+                Assert.AreEqual(0.05f, group.GetLODs()[1].screenRelativeTransitionHeight, 0.001f, "and only once");
             }
             finally { Object.DestroyImmediate(go); }
         }

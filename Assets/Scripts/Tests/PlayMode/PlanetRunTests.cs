@@ -5,7 +5,6 @@ using System.Collections;
 using System.Reflection;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
-using GoF2Remake.Modding;
 using GoF2Remake.UI;
 using GoF2Remake.World;
 using NUnit.Framework;
@@ -28,8 +27,7 @@ namespace GoF2Remake.Tests
             {
                 FreePlayAt(Station);
                 Session.Difficulty = Session.DifficultyNormal;
-                drive = ModContent.ItemIndexOf("gof2:khador_slipstream");
-                Session.Equipment.Add(new ItemStack(drive, 1));
+                drive = FitSlipstream();
                 if (cells > 0) Session.Cargo.Add(new ItemStack(GalaxyMap.EnergyCellItem, cells));
                 Cheats.FreeJumps = false;
                 Session.LaunchedFromStation = true;
@@ -179,6 +177,49 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(nav.Interact());
             Assert.IsTrue(nav.Jumping);
             Assert.IsNull(nav.RunPlanet);
+        }
+
+        [UnityTest]
+        public IEnumerator APlainKhadorDriveJumps()
+        {
+            yield return EnterOrbit(0);
+            Session.Equipment.Clear();
+            Session.Equipment.Add(new ItemStack(GalaxyMap.KhadorDriveItem, 1));
+            var space = Find<SpaceLevel>();
+            var nav = space.Navigation;
+            var planet = Planet(space);
+            yield return AimAt(space, planet);
+            yield return WaitFor(() => nav.Locked == planet, 10f, "the lock");
+            Assert.IsTrue(nav.Interact());
+            Assert.IsTrue(nav.Jumping, "the original's scene");
+            Assert.IsNull(nav.RunPlanet);
+        }
+
+        [UnityTest]
+        public IEnumerator AScriptedOrbitIsReachedByThePlainJump()
+        {
+            yield return EnterOrbit(8);
+            var space = Find<SpaceLevel>();
+            var nav = space.Navigation;
+            var planet = Planet(space);
+            var quiet = SpaceHooks.QuietOrbit;   // an event quest's orbit, as a story or freelance mission's would be
+            SpaceHooks.QuietOrbit = st => st == planet.station;
+            try
+            {
+                Assert.IsTrue(Navigation.ScriptedArrival(planet.station));
+                yield return AimAt(space, planet);
+                Hold(true);
+                yield return Run(2f);
+                Assert.IsNull(nav.RunPlanet, "the cruise doesn't take it as a run");
+                Hold(false);
+                yield return WaitFor(() => !nav.DriveCruising, 10f, "the cruise's end");
+                yield return AimAt(space, planet);
+                yield return WaitFor(() => nav.Locked == planet, 10f, "the lock");
+                Assert.IsTrue(nav.Interact());
+                Assert.IsTrue(nav.Jumping, "the original's scene");
+                Assert.IsNull(nav.RunPlanet);
+            }
+            finally { SpaceHooks.QuietOrbit = quiet; }
         }
 
         [UnityTest]

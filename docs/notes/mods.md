@@ -436,7 +436,9 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   to the player: `UserMods` is `Active` without it for the browser, a save's `mods`, a session's list and `ActiveSignature`; a mod
   can't take the id. `item.modded` stays true on it: that flag means "not in the original tables", which is what the original
   save export and the Mod Builder's base list need. A session numbers its mods first (`EnsureMapping`), so they keep the
-  numbers persistent hosts saw before. `BaseContentTests`; texts are English until they get `extra_<lang>` keys.
+  numbers persistent hosts saw before. `BaseContentTests`; texts are English until they get `extra_<lang>` keys. A
+  manifest that can't be read yet (Resources not ready in a fresh Editor) leaves it out instead of throwing out of
+  `Active`: `BaseContent` is null, `Active` isn't kept, and the read that finds it bumps `Revision` (review, 2026-11-01).
 - **Mod blueprints** (`ModBlueprints`, a mod's `blueprints.json`, parsed with the rest in `ModContent.Parse`): a "ship" or
   "item" product, ingredients, requiresShip (a skin: built only while flying that ship, which it rebuilds, the Kaamo upgrades
   kept), autocomplete (true / false / a price: `Blueprints.AutoCompletePrice` / `CanAutocomplete`, the hangar hides the row),

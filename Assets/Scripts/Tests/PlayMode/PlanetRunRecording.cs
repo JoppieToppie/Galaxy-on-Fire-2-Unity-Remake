@@ -7,7 +7,6 @@ using System.Collections;
 using System.IO;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
-using GoF2Remake.Modding;
 using GoF2Remake.World;
 using NUnit.Framework;
 using UnityEngine;
@@ -66,7 +65,7 @@ namespace GoF2Remake.Tests
             Directory.CreateDirectory(folder);
 
             FreePlayAt(Station);
-            Session.Equipment.Add(new ItemStack(ModContent.ItemIndexOf("gof2:khador_slipstream"), 1));
+            FitSlipstream();
             Session.Cargo.Add(new ItemStack(GalaxyMap.EnergyCellItem, 8));
             Cheats.FreeJumps = false;
             Session.LaunchedFromStation = true;

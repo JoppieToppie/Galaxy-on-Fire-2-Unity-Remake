@@ -353,7 +353,7 @@ namespace GoF2Remake.Events
                 lockedInput = true;
                 level.Navigation?.SetAutopilot(null);
             }
-            if (level.Weapons != null && !level.Weapons.Blocked) { level.Weapons.Blocked = true; blockedWeapons = true; }
+            if (level.Weapons != null && !level.Weapons.BlockSet) { level.Weapons.Blocked = true; blockedWeapons = true; }
             if (freeze && !player.externalControl) { player.externalControl = true; player.ExternalSpeedMetersPerSecond = 0f; froze = true; }
             else if (!freeze && froze) { player.externalControl = false; froze = false; }
         }

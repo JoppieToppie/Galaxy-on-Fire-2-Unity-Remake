@@ -37,14 +37,26 @@ namespace GoF2Remake.Modding
         static ModInfo builderProject;    // the Mod Builder's open project (ModBuilder), null = none
         static ModInfo baseContent;
 
-        /// <summary>The remake's own additions (Resources/GoF2Base, see the file comment).</summary>
+        static bool baseMissed;
+
+        /// <summary>The remake's own additions (Resources/GoF2Base, see the file comment). Null while its files can't be read
+        /// (Resources not ready in a fresh Editor, a build without the folder): the game goes on without them, Active isn't kept
+        /// meanwhile, and the read that finds them bumps Revision, so the numbering and the tables are made again with them.</summary>
         public static ModInfo BaseContent
         {
             get
             {
                 if (baseContent != null) return baseContent;
                 var source = new BaseContentSource();
-                return baseContent = new ModInfo(ModManifest.Read(source), source);
+                try { baseContent = new ModInfo(ModManifest.Read(source), source); }
+                catch (ModJsonException e)
+                {
+                    if (!baseMissed) Debug.LogWarning($"ModManager: the game's own content can't be read yet ({e.Message})");
+                    baseMissed = true;
+                    return null;
+                }
+                if (baseMissed) { baseMissed = false; Revision++; }
+                return baseContent;
             }
         }
 
@@ -201,14 +213,23 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>The mods whose content is in the game now, in the order it is applied.</summary>
-        public static IReadOnlyList<ModInfo> Active => active ??= WithBase(builderProject != null ? BuilderActive() : Resolve(sessionIds ?? EnabledIds));
+        public static IReadOnlyList<ModInfo> Active
+        {
+            get
+            {
+                if (active != null) return active;
+                var list = WithBase(builderProject != null ? BuilderActive() : Resolve(sessionIds ?? EnabledIds));
+                if (baseContent != null) active = list;   // without it, asked again until it can be read (BaseContent)
+                return list;
+            }
+        }
 
         /// <summary>Active without BaseContent: the mods as the player, a session and a save know them.</summary>
         public static List<ModInfo> UserMods => Active.Where(m => !m.IsBase).ToList();
 
         static List<ModInfo> WithBase(List<ModInfo> mods)
         {
-            mods.Insert(0, BaseContent);
+            if (BaseContent is ModInfo own && !own.Broken) mods.Insert(0, own);
             return mods;
         }
 

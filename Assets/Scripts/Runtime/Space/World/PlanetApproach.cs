@@ -44,7 +44,7 @@ namespace GoF2Remake.World
             if (want != null)
             {
                 float units = (nav.RunGoal - ship.position).magnitude / M;
-                goal = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(InterstellarSpace.ArriveUnits, InterstellarSpace.ApproachUnits, units));
+                goal = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(InterstellarSpace.ArriveUnits, Navigation.RunApproachUnits, units));
             }
             if (want != blended)
             {
@@ -58,8 +58,10 @@ namespace GoF2Remake.World
             blend = Mathf.MoveTowards(blend, goal, BlendPerMs * Time.deltaTime * 1000f);
             Shader.SetGlobalFloat("_SkyBlend", blended != null ? blend : 0f);
             if (blended == null) return;
-            level.Backdrop.Fade(1f - blend, 1f - blend);
-            level.Backdrop.flareShown = 1f - blend;
+            // This orbit's planets and sun go early, the next one's coming in as fast: the planet flown at never dims.
+            float handOver = SystemApproach.HandedOver(blend);
+            level.Backdrop.Fade(1f - handOver, 1f - handOver);
+            level.Backdrop.flareShown = 1f - handOver;
             level.Fog?.Fade(1f - blend);
             leaving?.Apply(1f - blend * blend);
             if (blend <= 0.001f && goal <= 0f) { approach?.Remove(); approach = null; return; }
@@ -67,8 +69,8 @@ namespace GoF2Remake.World
             if (way.sqrMagnitude < 1f) return;
             var turn = arrivalFacing * Quaternion.Inverse(Quaternion.LookRotation(way.normalized, Vector3.up));
             Shader.SetGlobalMatrix("_BlendRotation", blendedSky * Matrix4x4.Rotate(turn));
-            if (approach == null && goal > 0f && want == blended) approach = new SystemApproach(level, orbit, arrivalAt, arrivalFacing, transform, startSize);
-            approach?.Update(ship.position, way, turn, blend, sunFrom, blend);
+            if (approach == null && goal > 0f && want == blended) approach = new SystemApproach(level, orbit, arrivalAt, arrivalFacing, transform, startSize, Navigation.RunApproachUnits);
+            approach?.Update(ship.position, way, turn, blend, sunFrom, handOver);
         }
 
         void Load(Navigation.Target planet)

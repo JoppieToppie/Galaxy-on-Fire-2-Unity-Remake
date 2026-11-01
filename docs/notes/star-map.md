@@ -117,7 +117,8 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   is `LegUnits`, the average hop, so `InterstellarSpace.CellsFor` is about the Khador Drive's `GalaxyMap.EnergyCells`
   (`InterstellarSpaceTests`: 0.5 to 1.25 x over every pair); `CruiseDrive.keepLeg` keeps a paid leg over a stop. The
   autopilot holds the drive there (`Navigation.UpdateDrive`), `CanFastForward` is false. Within `ArriveUnits` (8 km):
-  `SystemJump.LeaveInterstellar` into `ArrivalStation` (the gate orbit); a story refusal
+  `SystemJump.LeaveInterstellar` into `ArrivalStation` (the gate orbit; an orbit a script sets up on
+  arrival, `Navigation.ScriptedArrival`, is loaded as after a jump with its arrival camera, not in the warp); a story refusal
   (`PlanetJumpRefused`) holds until the ship is back outside 1.5 x that. The leg that empties the hold says so (Extra `interstellarLastLeg`); no cells for the next leg: `FallOutOfSlipstream`
   at the nearest system, nobody strands. The Khador scene plays going in only and cuts at its whiteout
   (`SystemJump.KhadorWhiteoutMs`, 1860 ms, from a frame capture of the fx): the orbit stays plain through the charge and the
@@ -132,7 +133,8 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   facing (`OrbitLayout.ArrivalPose`) onto the way there: the real station, gate and asteroids (the same `Random` seed as the
   arrival's, `OrbitBuilder.SpawnAsteroids`) stand on it, built a frame apart, with no colliders or `Target`s. A `Backdrop` of its
   own fades in, turned the same way (`Backdrop.Turn` / `Fade`): the sun takes over from the star ahead (`SystemApproach.SunShown`)
-  and draws off the nose to its place in the orbit, the other stars shrink away, and the lights and the hull's gamma globals move
+  and draws off the nose to its place in the orbit, the other stars shrink away within the first eighth of the blend
+  (`SystemApproach.HandedOver`, the user, 2026-11-01: they went only near the arrival), and the lights and the hull's gamma globals move
   to the orbit's. The ship's heading against its course and the chase view in the ship's frame carry over (`Session.WarpHeading`,
   `WarpView`, `ChaseCamera.CarryView`), the boost look too (`FlightModel.CarryCruiseLook`: it fell to 0, a 20 degree zoom at the
   swap), the warp's flow and its sound (`WarpSky.CarrySound`). So frames either side of the swap match but for the HUD and the

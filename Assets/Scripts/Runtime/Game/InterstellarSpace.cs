@@ -103,8 +103,8 @@ namespace GoF2Remake.Data
 
         /// <summary>How big a system's planets and all else in it are of their own size on the way in, 'units' from it: a speck where the approach
         /// starts, half at the edge, at a steady rate of growth as a flight at a steady speed sees it.</summary>
-        public static float ApproachSize(float units, float from = PlanetFarSize) =>
-            from * Mathf.Pow(PlanetEdgeSize / from, Mathf.InverseLerp(ApproachUnits, ArriveUnits, units));
+        public static float ApproachSize(float units, float from = PlanetFarSize, float approachUnits = ApproachUnits) =>
+            from * Mathf.Pow(PlanetEdgeSize / from, Mathf.InverseLerp(approachUnits, ArriveUnits, units));
 
         /// <summary>And in the orbit, as the arrival eases out ('left' 1..0): on from the edge's size to their own, slowing with
         /// the ship.</summary>

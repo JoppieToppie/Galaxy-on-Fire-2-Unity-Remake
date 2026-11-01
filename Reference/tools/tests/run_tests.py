@@ -133,7 +133,9 @@ def main():
         return 1
 
     results = find(data, "Results") or []
-    failed = [r for r in results if r.get("Status") not in ("Passed", "Skipped")]
+    # A record's keys are capitalized or not as the summary's are (field() reads either).
+    field = lambda r, key: next((v for k, v in r.items() if k.lower() == key.lower()), None)
+    failed = [r for r in results if str(field(r, "Status")).lower() not in ("passed", "skipped")]
     count = lambda key: summary.get(key, summary.get(key.lower(), 0))
     print("{mode}: {p}/{t} passed, {f} failed, {s} skipped{i} ({sec:.0f} s){flt}".format(
         mode=a.mode, p=count("Passed"), t=count("Total"), f=count("Failed"), s=count("Skipped"),
@@ -141,12 +143,12 @@ def main():
         sec=time.time() - started, flt=" [filter {}]".format(a.filter) if a.filter else ""))
     for r in failed:
         print()
-        print("FAILED " + r.get("FullName", "?") + " (" + str(r.get("Status")) + ")")
-        message = (r.get("Message") or "").strip()
+        print("FAILED " + (field(r, "FullName") or "?") + " (" + str(field(r, "Status")) + ")")
+        message = (field(r, "Message") or "").strip()
         if message:
             message = message if len(message) <= MESSAGE_CHARS else message[:MESSAGE_CHARS] + " ..."
             print("  " + message.replace("\n", "\n  "))
-        for line in project_stack(r.get("StackTrace")):
+        for line in project_stack(field(r, "StackTrace")):
             print("    at " + line)
     if failed:
         print()

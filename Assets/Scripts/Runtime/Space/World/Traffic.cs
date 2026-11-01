@@ -79,7 +79,9 @@ namespace GoF2Remake.World
             fxRoot.SetParent(transform, false);
             IsStoryOrbit = storyOrbit;
             var flownPast = SystemApproach.TakeShips();
-            if (!storyOrbit && flownPast != null && oneAFrame)
+            bool wormholeHere = wormhole != null && wormhole.Visible;
+            // The approach planned without the orbit's wormhole, where a Void raid comes from (TrafficPlan): planned again here.
+            if (!storyOrbit && flownPast != null && oneAFrame && !wormholeHere)
             {
                 // The plan the approach made: the ones already out there first, in their place.
                 foreach (var spec in flownPast.FindAll(s => s.standIn != null)) waiting.Enqueue(spec);
@@ -88,7 +90,7 @@ namespace GoF2Remake.World
             else if (!storyOrbit)
             {
                 var plan = TrafficPlan.Build(db, StationIndex, sys, player != null ? new Vector3(player.transform.position.x, player.transform.position.y, -player.transform.position.z) / 0.05f : Vector3.zero,
-                                             wormhole != null && wormhole.Visible ? wormhole.GamePosition : (Vector3?)null);
+                                             wormholeHere ? wormhole.GamePosition : (Vector3?)null);
                 foreach (var spec in plan) waiting.Enqueue(spec);
             }
             if (!oneAFrame || waiting.Count == 0) SystemApproach.DropShips();
