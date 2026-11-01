@@ -1,0 +1,19 @@
+{
+    "name": "Unity.Netcode.TestHelpers.Runtime",
+    "rootNamespace": "GoF2Remake.EditorTools",
+    "references": [
+        "Unity.Netcode.Runtime",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

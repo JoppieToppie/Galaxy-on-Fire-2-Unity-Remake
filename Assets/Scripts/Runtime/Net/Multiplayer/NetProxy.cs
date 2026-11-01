@@ -1,29 +1,27 @@
 // NetProxy.cs
-// An orbit authority's NPC ship shown to the other players in that orbit (NetOrbit asks NetState to spawn one per living
-// ship of its traffic; the host spawns it owned by that player). The owner follows the ship's model and writes its pose,
-// race, standing toward the player (hostile / friend / neutral), hull fraction, hit cube, whether it is hidden (a
-// sleeping Most Wanted criminal, a level's hiding) and its cloak (a Specter's: drawn with NpcCloak's look, off the radar
-// from a quarter, still hit by shots and blasts, so another player's EMP breaks it); the others load the same assembled prefab (its Resources path) at that scale
-// and smooth its motion (NetSmoothing), but only while they are in that orbit themselves (else it is hidden). There it is a
-// Target in Target.NetShips, so the radar locks it and the HUD marks it like a traffic ship; hits on it (guns, missiles) go
-// to the owner's ship (Target.RemoteDamage), which takes them as its own player's hits. Its life follows the ship's state:
-// dying (the tumble or wreck animation: no marker, no lock, the pose still followed), dead (the explosion at its scale,
-// the model hidden unless it leaves a wreck: freighters, fixed objects), flying again after a relaunch. Its shots (every
-// gun, missiles and blasts included) are mirrored (NetShotSender -> NetShotMirror). Despawned when the ship leaves, or its
-// owner leaves the orbit (NetOrbit, NetState). Another player's EMP reaches the owner's ship too (NpcShip.OnRemoteEmp), an
-// EMP-disabled ship shows its lightning to everyone and, holding cargo, can be stolen from by the others' tractor beams
-// (its first cargo entry published, the stolen units taken off the owner's ship: StealUpRpc), and the player whose hit
-// destroyed it gets the kill (their own
-// standing and kill count, KillCreditRpc). The markers' colours follow each player's own standings and squad. A freelance
-// mission's ships look like any other ship to players outside the mission's team: no mission name on the lock plate
-// (the Hijacker, the Wanted target, the Challenge rival); their kills still help the team (NetMissions). A mission ship
-// also carries its part in the mission (FreelanceOrbit.RoleFlags) and its hull, so a squadmate taking the mission orbit
-// over adopts it with its role (FreelanceOrbit.Promote). When its game leaves the orbit the server hands a traffic ship
-// (HandOverable) to the orbit's runner (NetState.HandOver: the ownership changes, the proxy stays): the runner rebuilds
-// the ship where it flies and drives this proxy from then on (Bind), so the others see no change; the old owner keeps it
-// as a copy (OnLostOwnership). Its creator (the player whose game first had the ship) stays known after an owner change;
-// the host holding a disconnected player's proxies shows them like anyone else (viewer mode) until they are handed on or
-// swept. Its owner drops a proxy whose ship is gone before it spawned.
+// An orbit object (an NPC ship, a fixed object, a turret, a mission's space junk) of one player's game shown to the other
+// players in that orbit (NetOrbit asks NetState to spawn one per object; the host spawns it owned by that player). Only the
+// players flying in its orbit have it (NetInterest: Netcode's observers; a player arriving gets it with its state). Its
+// owner writes:
+//   its description once (ProxySpec: the model, scale, name, explosion, hit boxes, turret items, and the whole SpawnSpec it
+//     was made from with its cargo: written again only when that cargo or a reference to another proxy changes);
+//   its status when it changes (NetProxyStatus: race, standing toward the owner's player, hull, radius, hidden, life,
+//     cloak, EMP, stealable cargo, mission role, killer, waypoint) and the players it turned on (aggressors);
+//   its pose in the pose stream (NetPoses: unreliable, ~15 bytes, 10 Hz near another player, less far off or idle), not
+//     as NetworkVariables (docs/notes/multiplayer-sync.md "Bandwidth").
+// The others load the same model at that scale and smooth its motion (NetSmoothing). There it is a Target in
+// Target.NetShips, so the radar locks it and the HUD marks it like a traffic ship; hits on it (guns, missiles) go to the
+// owner's ship (Target.RemoteDamage), which takes them as its own player's hits. Its life follows the ship's state:
+// dying (no marker, no lock, the pose still followed), dead (the explosion at its scale, the model hidden unless it
+// leaves a wreck), flying again after a relaunch. Its shots are mirrored (NetShotSender -> NetShotMirror, NetShotData).
+// Another player's EMP reaches the owner's ship too (NpcShip.OnRemoteEmp), an EMP-disabled ship shows its lightning to
+// everyone and, holding cargo, can be stolen from by the others' tractor beams (StealUpRpc), and the player whose hit
+// destroyed it gets the kill (KillCreditRpc). The markers' colours follow each player's own standings and squad. A
+// freelance mission's ships look like any other ship to players outside the mission's team.
+// When its game leaves the orbit (docks, jumps, disconnects) the server hands it to the orbit's runner (NetState.HandOver:
+// the ownership changes, the proxy stays), every kind of object, not only flying traffic: the runner rebuilds it from its
+// description and status where its copy is, with the copy's speed (NetOrbit.AdoptHandedOver, Bind), so the others see no
+// change; a dying one finishes dying, a wreck stays a wreck (kept as is: the new owner drives the proxy without a ship).
 // Hits, EMP, shots and kill credits go through the server's checks (DamageUpRpc, ShotUpRpc, KillCreditUpRpc: the shooter
 // flies in this ship's orbit, sane values, a credit only for a player who hit it a moment ago, once).
 
@@ -38,62 +36,32 @@ using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
 {
-    public sealed class NetProxy : NetworkBehaviour, World.IOrbitProxy
+    public sealed class NetProxy : NetworkBehaviour, World.IOrbitProxy, INetPosed
     {
-        const byte Hostile = 0, Friend = 1, Neutral = 2;
-        const byte Flying = 0, Dying = 1, Dead = 2;
+        public const byte Hostile = 0, Friend = 1, Neutral = 2;
+        public const byte Flying = 0, Dying = 1, Dead = 2;
 
         static readonly NetworkVariableReadPermission Read = NetworkVariableReadPermission.Everyone;
         static readonly NetworkVariableWritePermission Owner = NetworkVariableWritePermission.Owner;
 
         readonly NetworkVariable<int> station = new NetworkVariable<int>(-1);   // server-written at spawn
         readonly NetworkVariable<int> localId = new NetworkVariable<int>(-1);
-        readonly NetworkVariable<Vector3> position = new NetworkVariable<Vector3>(default, Read, Owner);
-        readonly NetworkVariable<Quaternion> rotation = new NetworkVariable<Quaternion>(Quaternion.identity, Read, Owner);
-        readonly NetworkVariable<FixedString128Bytes> model = new NetworkVariable<FixedString128Bytes>(default, Read, Owner);
-        readonly NetworkVariable<Vector3> scale = new NetworkVariable<Vector3>(Vector3.one, Read, Owner);
-        readonly NetworkVariable<int> race = new NetworkVariable<int>(-1, Read, Owner);
-        readonly NetworkVariable<byte> relation = new NetworkVariable<byte>(Neutral, Read, Owner);
-        readonly NetworkVariable<float> hull = new NetworkVariable<float>(1f, Read, Owner);
-        readonly NetworkVariable<float> radius = new NetworkVariable<float>(50f, Read, Owner);
-        readonly NetworkVariable<bool> hidden = new NetworkVariable<bool>(false, Read, Owner);
-        readonly NetworkVariable<FixedString64Bytes> label = new NetworkVariable<FixedString64Bytes>(default, Read, Owner);
-        readonly NetworkVariable<byte> life = new NetworkVariable<byte>(Flying, Read, Owner);
-        readonly NetworkVariable<float> explosionScale = new NetworkVariable<float>(1f, Read, Owner);
-        readonly NetworkVariable<bool> leavesWreck = new NetworkVariable<bool>(false, Read, Owner);
-        // The owner's hit boxes (Target.boxes) by their volumes: -1 the cube, a static object's id (a killable capital ship,
-        // CapitalShips), or FreighterVolumes + ship * 16 + race (freighters, the battleship).
-        readonly NetworkVariable<int> hitVolume = new NetworkVariable<int>(-1, Read, Owner);
-        const int FreighterVolumes = 100000;
-        int boxesFor = -1;
-        // A takeover's spawn spec (NetOrbit): -1 = not taken over (fixed objects, turrets, story ships, wingmen).
-        readonly NetworkVariable<int> specShip = new NetworkVariable<int>(-1, Read, Owner);
-        readonly NetworkVariable<byte> specGroup = new NetworkVariable<byte>(0, Read, Owner);
-        readonly NetworkVariable<bool> specFreighter = new NetworkVariable<bool>(false, Read, Owner);
-        // Hostility toward the other players (NpcShip.aggressors, an always-hostile race), for their markers.
-        readonly NetworkVariable<FixedString128Bytes> aggressors = new NetworkVariable<FixedString128Bytes>(default, Read, Owner);
-        readonly NetworkVariable<bool> alwaysHostile = new NetworkVariable<bool>(false, Read, Owner);
-        readonly NetworkVariable<bool> empDisabled = new NetworkVariable<bool>(false, Read, Owner);
-        // While EMP-disabled with cargo (NpcShip.HasCargo): its first cargo entry, which another player's tractor beam may
-        // steal (CombatRadar, Target.NetStealable); -1 = none.
-        readonly NetworkVariable<int> stealItem = new NetworkVariable<int>(-1, Read, Owner);
-        readonly NetworkVariable<int> stealAmount = new NetworkVariable<int>(0, Read, Owner);
-        readonly NetworkVariable<byte> cloakPct = new NetworkVariable<byte>(0, Read, Owner);   // its cloak, 0..100 (a Specter's)
-        readonly NetworkVariable<int> junkKind = new NetworkVariable<int>(-1, Read, Owner);   // >= 0: a mission's space junk (CombatAssets.junk)
-        readonly NetworkVariable<bool> missionShip = new NetworkVariable<bool>(false, Read, Owner);   // a freelance mission's (NpcShip.MissionShip)
-        readonly NetworkVariable<int> roleFlags = new NetworkVariable<int>(0, Read, Owner);    // its mission role (FreelanceOrbit.RoleFlags)
-        readonly NetworkVariable<int> specHull = new NetworkVariable<int>(-1, Read, Owner);    // its max hull (a takeover keeps it)
-        readonly NetworkVariable<int> eventFlags = new NetworkVariable<int>(0, Read, Owner);   // an event's batch tag << 1 | spawned as an enemy (EventRunner)
-        readonly NetworkVariable<ulong> killer = new NetworkVariable<ulong>(ulong.MaxValue, Read, Owner);   // the player who destroyed it (EventRunner' kills)
         readonly NetworkVariable<ulong> creator = new NetworkVariable<ulong>(ulong.MaxValue);  // server-written at spawn: whose ship
         readonly NetworkVariable<bool> handedOver = new NetworkVariable<bool>(false);   // server-written: handed to an orbit's runner (NetState.HandOver)
-        // Remake (generic turrets): the turret items on its turret mounts, "ship:item,item" (NpcMountedTurrets.Pack), shown
-        // still on the copy (TurretCore.DisplayAll, like another player's turret).
-        readonly NetworkVariable<FixedString64Bytes> turrets = new NetworkVariable<FixedString64Bytes>(default, Read, Owner);
+        readonly NetworkVariable<FixedString4096Bytes> spec = new NetworkVariable<FixedString4096Bytes>(default, Read, Owner);   // ProxySpec, base64
+        readonly NetworkVariable<NetProxyStatus> status = new NetworkVariable<NetProxyStatus>(new NetProxyStatus { race = -1, relation = Neutral, hull = 65535, radius = 50f, stealItem = -1, killer = ulong.MaxValue }, Read, Owner);
+        // Hostility toward the other players (NpcShip.aggressors, client ids), for their markers and a takeover.
+        readonly NetworkVariable<FixedString128Bytes> aggressors = new NetworkVariable<FixedString128Bytes>(default, Read, Owner);
+        const int FreighterVolumes = 100000;
+        int boxesFor = -1;
 
         readonly NetSmoothing smoothing = new NetSmoothing();
+        readonly NetPoses.SendState poseSend = new NetPoses.SendState();
+        Vector3 posePosition;
+        Quaternion poseRotation = Quaternion.identity;
+        bool hasPose;
         NpcShip ship;
-        Target junk;   // the owner's space junk (a Junk removal mission), instead of a ship
+        Target junk;   // the owner's space junk (a Junk removal mission, or one taken over), instead of a ship
         GameObject visual;
         Target target;
         byte shownLife = Flying;
@@ -106,57 +74,86 @@ namespace GoF2Remake.Multiplayer
         // Its engine parts dark while the owner's ship is EMP-disabled (NpcShip.UpdateEmpEngines); playerEngines: which parts.
         bool playerEngines, enginesEmpOff;
         World.NpcCloak cloakLook;   // the cloak drawn on this copy (NpcCloak.Show), like another player's
+        string specRead;            // the spec text last decoded (Spec)
+        ProxySpec specCache;
+        float specCheckTimer, keptSince = -1f;
+
+        NetProxyStatus St => status.Value;
 
         public int Station => station.Value;
         /// <summary>Its race (Standing ids; -1 unknown).</summary>
-        public int Race => race.Value;
-        /// <summary>The player whose game has this ship (the owner at spawn; the host may own it after they left).</summary>
+        public int Race => St.race;
+        /// <summary>The player whose game first had this object (the owner at spawn), kept through handovers.</summary>
         public ulong Creator => creator.Value;
-        /// <summary>Owned here without a ship: its owner left the session and it passed to the host (NetState's sweep).</summary>
+        /// <summary>Owned here without a ship or junk behind it: handed over and not rebuilt (yet), or kept as it is (a wreck,
+        /// a dying ship finishing).</summary>
         public bool Orphan => IsSpawned && IsOwner && ship == null && junk == null;
-        /// <summary>Taken over by this player (NetOrbit): hidden here until the old owner's copy is gone.</summary>
+        /// <summary>Taken over by this player (FreelanceOrbit): hidden here until the old owner's copy is gone.</summary>
         public bool Adopted { get; private set; }
         /// <summary>A freelance mission's space junk (its id range, NetOrbit.JunkBase; known from the spawn).</summary>
-        public bool IsJunk => localId.Value >= NetOrbit.JunkBase;
-        public int JunkKind => junkKind.Value;
-        public bool IsMissionShip => missionShip.Value;
-        /// <summary>A player's hired wingman (their game's NPC).</summary>
-        public bool IsWingman => (NpcGroup)specGroup.Value == NpcGroup.Wingman;
+        public bool IsJunk => localId.Value >= NetOrbit.JunkBase || (Spec?.junkKind ?? -1) >= 0;
+        public int JunkKind => Spec?.junkKind ?? -1;
+        public bool IsMissionShip => Spec?.missionShip ?? false;
+        /// <summary>A player's hired wingman (their game's NPC): it goes with its player, never handed over.</summary>
+        public bool IsWingman => Spec?.wingman ?? false;
         /// <summary>The event batch that spawned it (EventRunner), 0 = none.</summary>
-        public int EventTag => eventFlags.Value >> 1;
-        /// <summary>The client id of the player who destroyed it (their own game's player, or another player's hit), MaxValue =
-        /// none yet or an NPC.</summary>
-        public ulong Killer => killer.Value;
+        public int EventTag => (Spec?.eventFlags ?? 0) >> 1;
+        /// <summary>The client id of the player who destroyed it, MaxValue = none yet or an NPC.</summary>
+        public ulong Killer => St.killer;
         /// <summary>Flying (not dying, dead or gone): an event's living ship.</summary>
-        public bool FlyingNow => life.Value == Flying;
-        public int RoleFlags => roleFlags.Value;
-        public bool IsFlying => life.Value == Flying;
-        public string Label => label.Value.ToString();
+        public bool FlyingNow => St.life == Flying;
+        public int RoleFlags => St.roleFlags;
+        public bool IsFlying => St.life == Flying;
+        public byte Life => St.life;
+        public string Label => Spec?.label ?? "";
         bool OtherGame => creator.Value != NetworkManager.LocalClientId;
-        /// <summary>A flying traffic ship the orbit's runner can rebuild from its spec, pose and hull (NetState.HandOver): not
-        /// junk, a mission ship, a fixed object, a turret, a convoy or Most Wanted ship, a wingman (specShip -1).</summary>
-        public bool HandOverable => !IsJunk && specShip.Value >= 0 && !missionShip.Value && life.Value == Flying;
-        /// <summary>The server handed it to this orbit's runner: its new owner rebuilds the ship (NetOrbit.AdoptHandedOver).</summary>
+        /// <summary>Its description (null before the owner's first arrives, or unreadable).</summary>
+        public ProxySpec Spec
+        {
+            get
+            {
+                string text = spec.Value.ToString();
+                if (text != specRead) { specRead = text; specCache = ProxySpec.Decode(text); }
+                return specCache;
+            }
+        }
+        /// <summary>Another game in the orbit can rebuild it (everything but a wingman, which goes with its player).</summary>
+        public bool HandOverable => !IsWingman && (Spec != null || localId.Value >= NetOrbit.JunkBase);
+        /// <summary>The server handed it to this orbit's runner: its new owner rebuilds it (NetOrbit.AdoptHandedOver).</summary>
         public bool HandedOver => handedOver.Value;
         /// <summary>Server: before the ownership change (HandOver).</summary>
         public void MarkHandedOver() { if (IsServer) handedOver.Value = true; }
         /// <summary>A flying mission ship (or the mining plant, junk) of another game, for a squadmate's takeover (FreelanceOrbit).</summary>
-        public bool MissionAdoptable => (missionShip.Value || IsJunk) && life.Value == Flying && !Adopted && OtherGame;
+        public bool MissionAdoptable => (IsMissionShip || IsJunk) && St.life == Flying && !Adopted && OtherGame;
+        /// <summary>The ship as a spawn of this game at 'gamePosition' (its whole spec; ship -1 = not a ship).</summary>
         public SpawnSpec AdoptSpec(Vector3 gamePosition)
         {
-            int f = roleFlags.Value;
-            return new SpawnSpec
-            {
-                group = (NpcGroup)specGroup.Value, race = race.Value, ship = specShip.Value, freighter = specFreighter.Value,
-                position = gamePosition, hitpoints = specHull.Value,
-                alwaysEnemy = (f & FreelanceOrbit.RoleAlwaysEnemy) != 0, alwaysFriend = (f & FreelanceOrbit.RoleAlwaysFriend) != 0,
-                stationary = (f & FreelanceOrbit.RoleStationary) != 0, noLoot = (f & FreelanceOrbit.RoleNoLoot) != 0,
-                eventTag = eventFlags.Value >> 1,   // an event's ship stays one (EventRunner counts it on)
-            };
+            var s = Spec?.spec;
+            if (s == null) return new SpawnSpec { ship = -1, position = gamePosition };
+            var copy = ProxySpecCopy(s);
+            copy.position = gamePosition;
+            if (Spec.maxHull > 0) copy.hitpoints = Spec.maxHull;
+            copy.capitalHost = copy.battleFoe = copy.routeAround = null;
+            return copy;
         }
-        public Vector3 WorldPosition => position.Value;
-        public Quaternion WorldRotation => rotation.Value;
-        public float HullFraction => hull.Value;
+        /// <summary>A fresh copy of a decoded spec (each rebuild gets its own).</summary>
+        static SpawnSpec ProxySpecCopy(SpawnSpec s)
+        {
+            var w = new WireWriter(256);
+            ProxySpec.WriteSpec(w, s);
+            return ProxySpec.ReadSpec(new WireReader(w.ToArray()));
+        }
+        /// <summary>Its pose: the owner's object, else the last one received.</summary>
+        public Vector3 WorldPosition => IsOwner && ship != null ? ship.Model.position : IsOwner && junk != null ? junk.transform.position : posePosition;
+        public Quaternion WorldRotation => IsOwner && ship != null ? ship.Model.rotation : IsOwner && junk != null ? junk.transform.rotation : poseRotation;
+        /// <summary>Where its copy is drawn here and how fast it moves (a rebuild starts there, NetOrbit.AdoptHandedOver).</summary>
+        public Vector3 ShownPosition => shown && hasPose ? transform.position : posePosition;
+        public Quaternion ShownRotation => shown && hasPose ? transform.rotation : poseRotation;
+        public Vector3 ShownVelocity => smoothing.Velocity;
+        public float HullFraction => St.HullFraction;
+        public NetProxyStatus Status => St;
+        /// <summary>The ship this game runs for it (null = another game's, or none).</summary>
+        public NpcShip BoundShip => IsOwner ? ship : null;
 
         public void MarkAdopted()
         {
@@ -171,11 +168,47 @@ namespace GoF2Remake.Multiplayer
             NetState.Instance?.AdoptedRpc(NetworkObjectId);
         }
         public int LocalId => localId.Value;
-        /// <summary>Host: when it was spawned (NetState's sweep waits for its owner's position to arrive).</summary>
+        /// <summary>Host: when it was spawned (NetState's sweep waits for its owner's pose to arrive).</summary>
         public float SpawnedAt { get; private set; }
 
         /// <summary>This proxy's ship as a Target here: the owner's NpcShip, else the proxy Target.</summary>
-        public Target LocalTarget => IsOwner ? (ship != null ? ship.Target : junk) : target;
+        public Target LocalTarget => IsOwner && !viewer ? (ship != null ? ship.Target : junk) : target;
+
+        // ---- the pose stream (NetPoses) -----------------------------------------------------------------------------
+
+        public NetPoses.SendState PoseSend => poseSend;
+        public int PoseStation => station.Value;
+
+        public bool CurrentPose(out Vector3 position, out Quaternion rotation, out bool hasLook, out PoseLook look)
+        {
+            hasLook = false;
+            look = default;
+            if (ship != null && !ship.Gone) { position = ship.Model.position; rotation = ship.Model.rotation; return true; }
+            if (junk != null) { position = junk.transform.position; rotation = junk.transform.rotation; return true; }
+            position = default;
+            rotation = Quaternion.identity;
+            return false;
+        }
+
+        public void ReceivePose(in PoseEntry entry, float gap, bool show)
+        {
+            posePosition = entry.position;
+            poseRotation = entry.rotation;
+            hasPose = true;
+            if (show && !IsOwner) smoothing.Push(entry.position, gap);
+        }
+
+        /// <summary>The server's last pose goes with the spawn to a player it is shown to (arriving in the orbit).</summary>
+        protected override void OnSynchronize<T>(ref BufferSerializer<T> serializer)
+        {
+            serializer.SerializeValue(ref hasPose);
+            if (!hasPose) return;
+            serializer.SerializeValue(ref posePosition);
+            serializer.SerializeValue(ref poseRotation);
+            if (serializer.IsReader) smoothing.Push(posePosition);
+        }
+
+        // ---- spawn, ownership ---------------------------------------------------------------------------------------
 
         /// <summary>Host, before spawning: the orbit and the owner's ship id (written in OnNetworkSpawn).</summary>
         public void Init(int stationIndex, int id)
@@ -187,6 +220,7 @@ namespace GoF2Remake.Multiplayer
         public override void OnNetworkSpawn()
         {
             DontDestroyOnLoad(gameObject);
+            NetPoses.Register(this);
             if (IsServer)
             {
                 station.Value = pendingStation;
@@ -194,7 +228,7 @@ namespace GoF2Remake.Multiplayer
                 creator.Value = OwnerClientId;
                 SpawnedAt = Time.unscaledTime;
             }
-            if (IsOwner)
+            if (IsOwner && creator.Value == NetworkManager.LocalClientId && !handedOver.Value)
             {
                 var orbit = NetOrbit.Current != null && NetOrbit.Current.Station == station.Value ? NetOrbit.Current : null;
                 if (orbit != null && localId.Value >= NetOrbit.JunkBase)
@@ -203,52 +237,74 @@ namespace GoF2Remake.Multiplayer
                     junk = orbit.Junk(localId.Value);
                     if (junk == null) { DropStale(); return; }
                     orbit.Register(this, junk);
-                    junkKind.Value = orbit.JunkKind(localId.Value);
-                    position.Value = junk.transform.position;
-                    rotation.Value = junk.transform.rotation;
-                    race.Value = Standing.Pirate;
-                    relation.Value = Hostile;
-                    alwaysHostile.Value = true;
-                    radius.Value = junk.radius;
-                    explosionScale.Value = 0.5f;
+                    WriteJunk(orbit.JunkKind(localId.Value));
                     return;
                 }
                 ship = orbit != null ? orbit.Ship(localId.Value) : null;
                 if (ship == null) { DropStale(); return; }   // the ship went (or the scene changed) before this spawned
-                NetOrbit.Current.Register(this, ship);
-                var m = ship.Model;
-                model.Value = ship.ModelPath ?? "";
-                scale.Value = m.lossyScale;
-                if (ship.MountedTurrets != null)
-                {
-                    var packed = NpcMountedTurrets.Pack(ship.Spec.ship, ship.MountedTurrets.Items);
-                    if (packed.Length <= 60) turrets.Value = packed;
-                }
-                position.Value = m.position;
-                rotation.Value = m.rotation;
-                label.Value = ship.Target != null && !string.IsNullOrEmpty(ship.Target.displayName) ? ship.Target.displayName : "";
-                explosionScale.Value = ship.IsFixed ? ship.Spec.explosionScale : ship.IsFreighter ? ship.FreighterExplosionScale : ship.FighterExplosionScale;   // NpcShip.UpdateDying
-                leavesWreck.Value = (ship.IsFixed || ship.IsFreighter) && !ship.Spec.modCapital;   // (a mod capital ship leaves none)
-                var spec = ship.Spec;
-                hitVolume.Value = spec.freighter ? FreighterVolumes + spec.ship * 16 + Mathf.Clamp(spec.race, 0, 15)
-                                : spec.capitalEnhanced && spec.fixedObject != null && spec.collisionId >= 0 ? spec.collisionId : -1;
-                bool adoptable = !ship.MissionShip && spec.fixedObject == null && spec.turretAssembly == null && spec.convoyRole == 0 && spec.dockingType == 0
-                                 && spec.wantedIndex < 0 && (spec.group == NpcGroup.Local || spec.group == NpcGroup.Raider
-                                 || spec.group == NpcGroup.Freighter || spec.group == NpcGroup.Escort);
-                // A mission ship keeps its spec too, for a squadmate's takeover of the mission (not fixed objects or turrets).
-                bool missionAdoptable = ship.MissionShip && spec.fixedObject == null && spec.turretAssembly == null;
-                specShip.Value = adoptable || missionAdoptable ? spec.ship : -1;
-                specGroup.Value = (byte)spec.group;
-                specFreighter.Value = spec.freighter;
-                missionShip.Value = ship.MissionShip;
-                specHull.Value = ship.Hp != null ? ship.Hp.maxHull : -1;
-                eventFlags.Value = spec.eventTag << 1 | (spec.alwaysEnemy ? 1 : 0);
+                orbit.Register(this, ship);
+                WriteSpec();
                 SendState();
-                sender = new NetShotSender(ShotUpRpc, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null);
+                sender = new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null);
                 sender.Hook(ship.Guns);
                 return;
             }
             InitViewer();
+        }
+
+        /// <summary>The owner's junk as the others see it.</summary>
+        void WriteJunk(int kind)
+        {
+            spec.Value = new ProxySpec { junkKind = kind, label = Target.JunkName, explosionScale = 0.5f }.Encode();
+            var s = St;
+            s.race = Standing.Pirate;
+            s.relation = Hostile;
+            s.flags = NetProxyStatus.AlwaysHostile;
+            s.radius = junk.radius;
+            status.Value = s;
+        }
+
+        /// <summary>The owner's ship as the others see it and as another game would rebuild it.</summary>
+        void WriteSpec()
+        {
+            var m = ship.Model;
+            var sp = ship.Spec;
+            var p = new ProxySpec
+            {
+                model = ship.ModelPath ?? "",
+                scale = m.lossyScale,
+                label = ship.Target != null && !string.IsNullOrEmpty(ship.Target.displayName) ? ship.Target.displayName : "",
+                explosionScale = ship.IsFixed ? sp.explosionScale : ship.IsFreighter ? ship.FreighterExplosionScale : ship.FighterExplosionScale,   // NpcShip.UpdateDying
+                leavesWreck = (ship.IsFixed || ship.IsFreighter) && !sp.modCapital,   // (a mod capital ship leaves none)
+                hitVolume = sp.freighter ? FreighterVolumes + sp.ship * 16 + Mathf.Clamp(sp.race, 0, 15)
+                          : sp.capitalEnhanced && sp.fixedObject != null && sp.collisionId >= 0 ? sp.collisionId : -1,
+                missionShip = ship.MissionShip,
+                maxHull = ship.Hp != null ? ship.Hp.maxHull : -1,
+                eventFlags = sp.eventTag << 1 | (sp.alwaysEnemy ? 1 : 0),
+                wingman = ship.IsWingman,
+                spec = sp,
+                cargo = new List<ItemStack>(),
+                hostRef = RefOf(sp.capitalHost), foeRef = RefOf(sp.battleFoe), aroundRef = RefOf(sp.routeAround),
+            };
+            foreach (var c in ship.CargoList) p.cargo.Add(new ItemStack(c.item, c.amount));
+            var capital = ship.GetComponent<CapitalShip>();
+            if (capital != null) { p.capitalLaunched = capital.Launched; p.capitalProvoked = capital.Provoked; }
+            if (ship.MountedTurrets != null)
+            {
+                var packed = NpcMountedTurrets.Pack(sp.ship, ship.MountedTurrets.Items);
+                if (packed.Length <= 60) p.turrets = packed;
+            }
+            string text = p.Encode();
+            if (System.Text.Encoding.UTF8.GetByteCount(text) > 4000) { p.spec.route = null; text = p.Encode(); }   // a very long route
+            if (spec.Value.ToString() != text) spec.Value = text;
+        }
+
+        /// <summary>The proxy of the ship made from 's' (0 = none, or not spawned yet: written again once it is).</summary>
+        ulong RefOf(SpawnSpec s)
+        {
+            if (s == null || NetOrbit.Current == null) return 0;
+            var proxy = NetOrbit.Current.ProxyOf(NetOrbit.Current.ShipOf(s));
+            return proxy != null && proxy.IsSpawned ? proxy.NetworkObjectId : 0;
         }
 
         /// <summary>The mirrored shots pass through the shooter's own side, like the real ones (its gun hits only its enemies,
@@ -257,14 +313,11 @@ namespace GoF2Remake.Multiplayer
         bool SameSide(Target t) =>
             t != null && target != null && !t.isPlayer && t.race >= 0 && t.race == target.race && t.GetComponent<NetPlayer>() == null;
 
-        /// <summary>A copy of another game's ship here: the Target, the smoothing, the shot mirror.</summary>
+        /// <summary>A copy of another game's object here: the Target, the smoothing, the shot mirror.</summary>
         void InitViewer()
         {
             if (viewer) return;
             viewer = true;
-            position.OnValueChanged += (_, p) => smoothing.Push(p);
-            // The spawn's default pose (a client owner's first values follow as a delta) isn't a position.
-            if (position.Value != Vector3.zero) smoothing.Push(position.Value);
             mirror = new NetShotMirror(null, () => target, SameSide);
             target = gameObject.AddComponent<Target>();
             target.isShip = true;
@@ -295,14 +348,18 @@ namespace GoF2Remake.Multiplayer
             if (ship != null && !ship.Gone) ship.Vanish();
             ship = null;
             junk = null;
+            keptSince = -1f;
             sender?.Unhook();
             sender = null;
             InitViewer();
         }
 
-        /// <summary>This orbit's runner rebuilt the ship it was handed (NetOrbit.AdoptHandedOver): the copy here goes and this
-        /// proxy follows the new ship, so the others keep seeing the same one.</summary>
-        public void Bind(NpcShip rebuilt)
+        /// <summary>This orbit's runner rebuilt the object it was handed (NetOrbit.AdoptHandedOver): the copy here goes and
+        /// this proxy follows the new ship (or junk), so the others keep seeing the same one.</summary>
+        public void Bind(NpcShip rebuilt) => BindTo(rebuilt, null);
+        public void Bind(Target rebuiltJunk) => BindTo(null, rebuiltJunk);
+
+        void BindTo(NpcShip rebuilt, Target rebuiltJunk)
         {
             if (viewer)
             {
@@ -324,11 +381,48 @@ namespace GoF2Remake.Multiplayer
                 if (visual != null) { Destroy(visual); visual = null; }
                 shown = false;
             }
+            keptSince = -1f;
+            poseSend.sent = false;   // the first pose of the rebuilt object goes at once
+            if (rebuiltJunk != null)
+            {
+                junk = rebuiltJunk;
+                NetOrbit.Current?.Register(this, rebuiltJunk);
+                return;
+            }
             ship = rebuilt;
             NetOrbit.Current?.Register(this, rebuilt);
             lastAggressors = -1;   // written again from the new ship
-            sender ??= new NetShotSender(ShotUpRpc, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null);
+            sender ??= new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null);
             sender.Hook(rebuilt.Guns);
+        }
+
+        /// <summary>NetOrbit.AdoptHandedOver: not rebuilt but kept as it is (a wreck, a ship finishing its death): this game
+        /// drives the proxy without a ship (KeepAsIs's clock).</summary>
+        public void KeepAsIs()
+        {
+            if (keptSince < 0f) keptSince = Time.unscaledTime;
+        }
+
+        public bool Kept => keptSince >= 0f;
+
+        /// <summary>Tests (MultiplayerSessionTests): as if this game had just been handed the object by another one: its ship
+        /// goes, the proxy is a copy at the ship's last pose (NetOrbit.SimulateHandOverForTest).</summary>
+        internal void ReleaseForTest()
+        {
+            if (ship == null && junk == null) return;
+            posePosition = WorldPosition;
+            poseRotation = WorldRotation;
+            hasPose = true;
+            smoothing.Push(posePosition);
+            var old = ship;
+            var oldJunk = junk;
+            ship = null;
+            junk = null;
+            sender?.Unhook();
+            sender = null;
+            if (old != null && !old.Gone) old.Vanish();
+            if (oldJunk != null) oldJunk.gameObject.SetActive(false);
+            InitViewer();
         }
 
         /// <summary>The owner has no ship for it (gone before the spawn, a scene change): it goes.</summary>
@@ -348,6 +442,7 @@ namespace GoF2Remake.Multiplayer
 
         public override void OnNetworkDespawn()
         {
+            NetPoses.Unregister(this);
             if (target != null) { Target.NetShips.Remove(target); Target.RadarObjects.Remove(target); }
             sender?.Unhook();
             mirror?.Clear();
@@ -356,20 +451,25 @@ namespace GoF2Remake.Multiplayer
             cloakLook = null;
         }
 
+        // ---- shots and hits -------------------------------------------------------------------------------------------
+
+        void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId) =>
+            ShotUpRpc(new NetShotData(item, position, velocity, up, lifetimeMs, homingDelayMs, targetId));
+
         /// <summary>The owner's NPC shot, through the server (only the ship's game sends its shots): checked and limited like
-        /// a player's (NetPlayer.ShotUpRpc).</summary>
+        /// a player's (NetPlayer.ShotUpRpc), then to the players in its orbit.</summary>
         [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable, InvokePermission = RpcInvokePermission.Owner)]
-        void ShotUpRpc(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId)
+        void ShotUpRpc(NetShotData shot)
         {
             if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Shot)) return;
-            if (!NetGuard.Shot(item, position, velocity, up, lifetimeMs, homingDelayMs)) { NetRateLimit.Reject(OwnerClientId, $"an NPC shot of item {item}"); return; }
-            ShotRpc(item, position, velocity, up, lifetimeMs, homingDelayMs, targetId);
+            if (!NetGuard.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs)) { NetRateLimit.Reject(OwnerClientId, $"an NPC shot of item {shot.item}"); return; }
+            if (NetInterest.OrbitGroup(this, station.Value, OwnerClientId, out var to)) ShotRpc(shot, to);
         }
 
-        [Rpc(SendTo.NotOwner, Delivery = RpcDelivery.Unreliable, InvokePermission = RpcInvokePermission.Server)]
-        void ShotRpc(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId)
+        [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable, InvokePermission = RpcInvokePermission.Server)]
+        void ShotRpc(NetShotData shot, RpcParams rpc = default)
         {
-            if (shown) mirror?.Shot(item, position, velocity, up, lifetimeMs, homingDelayMs, NetShots.Resolve(targetId));
+            if (shown) mirror?.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs, NetShots.Resolve(shot.targetId));
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
@@ -377,11 +477,11 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Shot)) return;
             if (!NetGuard.Item(item) || !NetGuard.Position(point)) { NetRateLimit.Reject(OwnerClientId, $"an NPC blast of item {item}"); return; }
-            BlastRpc(item, point);
+            if (NetInterest.OrbitGroup(this, station.Value, OwnerClientId, out var to)) BlastRpc(item, point, to);
         }
 
-        [Rpc(SendTo.NotOwner, InvokePermission = RpcInvokePermission.Server)]
-        void BlastRpc(int item, Vector3 point)
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void BlastRpc(int item, Vector3 point, RpcParams rpc = default)
         {
             if (shown) mirror?.Blast(item, point);
         }
@@ -417,7 +517,7 @@ namespace GoF2Remake.Multiplayer
             ship.Target.remoteKiller = shooter;  // and the raid news names them (NetOrbit)
             ship.Target.Damage(amount, true, hitVector);
             if (ship.Target.Alive) { ship.Target.killedByRemote = false; ship.Target.remoteKiller = ulong.MaxValue; }
-            if (!ship.Target.Alive) killer.Value = shooter;
+            if (!ship.Target.Alive) { var s = St; s.killer = shooter; status.Value = s; }
             if (!ship.Target.Alive && NetOrbit.Current != null) KillCreditUpRpc(shooter, ship.Race, NetOrbit.Current.SystemRace, hostile);
         }
 
@@ -445,7 +545,8 @@ namespace GoF2Remake.Multiplayer
         {
             ulong thief = rpc.Receive.SenderClientId;
             if (thief == OwnerClientId || !NetRateLimit.Allow(thief, NetRateLimit.Kind.Claim)) return;
-            if (!empDisabled.Value || item != stealItem.Value || amount < 1 || amount > stealAmount.Value)
+            var s = St;
+            if (!s.Has(NetProxyStatus.EmpDisabled) || item != s.stealItem || amount < 1 || amount > s.stealAmount)
             {
                 NetRateLimit.Reject(thief, $"a cargo steal of {amount} x {item}");
                 return;
@@ -461,8 +562,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>Remake: another player's repair beam healed this ship 'points' of hull (RepairBeam: a ship friendly to
-        /// them; before, the beams only saw the ships of the player's own game), through the server like a hit: only from
-        /// that orbit, a sane amount, at its rate.</summary>
+        /// them), through the server like a hit: only from that orbit, a sane amount, at its rate.</summary>
         [Rpc(SendTo.Server)]
         void HealUpRpc(int points, RpcParams rpc = default)
         {
@@ -520,59 +620,69 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
+        // ---- the owner's status ---------------------------------------------------------------------------------------
+
         void SendState()
         {
             var t = ship.Target;
             if (t == null) return;
-            if (race.Value != t.race) race.Value = t.race;
-            byte r = t.hostileToPlayer ? Hostile : t.friendToPlayer ? Friend : Neutral;
-            if (relation.Value != r) relation.Value = r;
-            float h = t.HullFraction;
-            if (Mathf.Abs(hull.Value - h) > 0.004f) hull.Value = h;
-            if (!Mathf.Approximately(radius.Value, t.radius)) radius.Value = t.radius;
-            // A cloaked ship isn't hidden here: the others draw its cloak and can still hit it (an EMP breaks it, a blind
-            // shot lands), as in its own game; only a level's or a sleeper's hiding hides the copy.
-            bool hide = ship.Hidden || ship.ScriptRadarHidden;
-            if (hidden.Value != hide) hidden.Value = hide;
-            byte pct = (byte)Mathf.Clamp(Mathf.RoundToInt(ship.CloakPercent), 0, 100);
-            if (cloakPct.Value != pct) cloakPct.Value = pct;
-            bool always = t.race == Standing.Pirate || t.race == Standing.Void || t.race == Standing.Specter;
-            if (alwaysHostile.Value != always) alwaysHostile.Value = always;
-            if (ship.aggressors.Count != lastAggressors)
-            {
-                lastAggressors = ship.aggressors.Count;
-                aggressors.Value = string.Join(",", ship.aggressors);
-            }
+            var s = St;
+            s.race = (short)t.race;
+            s.relation = t.hostileToPlayer ? Hostile : t.friendToPlayer ? Friend : Neutral;
+            s.hull = NetProxyStatus.Hull(t.HullFraction);
+            s.radius = t.radius;
             byte l = ship.Current == NpcShip.State.Dying ? Dying : ship.Current == NpcShip.State.Dead || ship.Gone ? Dead : Flying;
             // Destroyed by this game's own player (not an NPC's shot, not another player's: DamageRpc wrote that one).
-            if (l != Flying && life.Value == Flying && killer.Value == ulong.MaxValue && !t.killedByNpc && !t.killedByRemote && !t.Alive)
-                killer.Value = OwnerClientId;
-            if (life.Value != l) life.Value = l;
-            int role = ship.MissionShip && NetOrbit.Current != null ? NetOrbit.Current.MissionRole(ship) : 0;
-            if (roleFlags.Value != role) roleFlags.Value = role;
+            if (l != Flying && s.life == Flying && s.killer == ulong.MaxValue && !t.killedByNpc && !t.killedByRemote && !t.Alive)
+                s.killer = OwnerClientId;
+            s.life = l;
             bool emp = ship.Hp != null && ship.Hp.empDisabled && l == Flying;
-            if (empDisabled.Value != emp) empDisabled.Value = emp;
+            byte f = 0;
+            // A cloaked ship isn't hidden here: the others draw its cloak and can still hit it (an EMP breaks it, a blind
+            // shot lands), as in its own game; only a level's or a sleeper's hiding hides the copy.
+            if (ship.Hidden || ship.ScriptRadarHidden) f |= NetProxyStatus.Hidden;
+            if (t.race == Standing.Pirate || t.race == Standing.Void || t.race == Standing.Specter) f |= NetProxyStatus.AlwaysHostile;
+            if (emp) f |= NetProxyStatus.EmpDisabled;
+            if (ship.Asleep) f |= NetProxyStatus.Asleep;
+            if (ship.Inactive) f |= NetProxyStatus.Inactive;
+            if (ship.turnedEnemy) f |= NetProxyStatus.Turned;
+            s.flags = f;
+            s.cloak = (byte)Mathf.Clamp(Mathf.RoundToInt(ship.CloakPercent), 0, 100);
+            s.roleFlags = ship.MissionShip && NetOrbit.Current != null ? NetOrbit.Current.MissionRole(ship) : 0;
             int si = -1, sa = 0;
             if (emp && ship.HasCargo)
                 foreach (var c in ship.CargoList)
                     if (c.amount > 0) { si = c.item; sa = c.amount; break; }
-            if (stealItem.Value != si) stealItem.Value = si;
-            if (stealAmount.Value != sa) stealAmount.Value = sa;
+            s.stealItem = (short)si;
+            s.stealAmount = sa;
+            s.routeIndex = (byte)Mathf.Clamp(ship.RouteIndex, 0, 255);
+            s.empMs = (ushort)Mathf.Clamp(Mathf.RoundToInt((ship.Hp != null ? ship.Hp.EmpElapsedMs : 0f) / 100f), 0, 65535);   // (x 100 ms)
+            if (!s.Equals(St)) status.Value = s;
+            if (ship.aggressors.Count != lastAggressors)
+            {
+                lastAggressors = ship.aggressors.Count;
+                string list = string.Join(",", ship.aggressors);
+                if (list.Length > 120) list = list.Substring(0, list.LastIndexOf(',', 120));
+                aggressors.Value = list;
+            }
         }
+
+        // ---- the copies ------------------------------------------------------------------------------------------------
 
         /// <summary>The model arrives after the spawn when the owner is a client (its first values follow as a delta).</summary>
         bool wreckDamaged;
 
         void BuildVisual()
         {
-            if (visual != null || (IsJunk ? junkKind.Value < 0 : model.Value.Length == 0)) return;   // the owner's values first
+            var p = Spec;
+            if (visual != null || p == null || (p.junkKind < 0 && p.model.Length == 0)) return;   // the owner's values first
             GameObject prefab;
-            string path = model.Value.ToString();
+            string path = p.model;
             int wreck = -1;
-            if (junkKind.Value >= 0)
+            if (p.junkKind >= 0)
             {
                 var assets = CombatAssets.Load();
-                prefab = assets != null && assets.junk != null && junkKind.Value < assets.junk.Length ? assets.junk[junkKind.Value] : null;
+                prefab = assets != null && assets.junk != null && p.junkKind < assets.junk.Length ? assets.junk[p.junkKind] : null;
             }
             else if (path.StartsWith(NpcShip.TurretModelPrefix))
             {
@@ -596,7 +706,7 @@ namespace GoF2Remake.Multiplayer
             if (wreck >= 0) PartAnimation.HoldAllAtEnd(visual);
             if (path.StartsWith(NpcShip.TurretModelPrefix)) GunRig.StripForFx(visual);
             visual.transform.SetParent(transform, false);
-            var s = scale.Value;   // finite and within reason (the battleship is 2x, a capital ship more), else as modelled
+            var s = p.scale;   // finite and within reason (the battleship is 2x, a capital ship more), else as modelled
             bool sane = NetGuard.Finite(s) && Mathf.Abs(s.x) <= 100f && Mathf.Abs(s.y) <= 100f && Mathf.Abs(s.z) <= 100f;
             visual.transform.localScale = sane ? s : Vector3.one;
             var asm = visual.GetComponent<AssembledObject>();
@@ -604,17 +714,17 @@ namespace GoF2Remake.Multiplayer
                             && asm.playerVariantParts.Length > 0 && asm.playerVariantParts[0] != null;
             asm?.SetPlayerVariant(playerEngines);
             enginesEmpOff = false;
-            name = $"NetProxy {model.Value}";
+            name = $"NetProxy {path}";
             // Its turret items, still on their mounts (the owner's game aims and fires them; the shots are mirrored).
-            if (NpcMountedTurrets.Unpack(turrets.Value.ToString(), out int turretShip, out var turretItems))
+            if (NpcMountedTurrets.Unpack(p.turrets, out int turretShip, out var turretItems))
                 TurretCore.DisplayAll(NetGame.Db, turretShip, turretItems, visual.transform);
             visual.SetActive(shown);
             // Shots hit its real shape; a fighter's (a ship's model that leaves no wreck: not a freighter or a fixed object,
             // not a turret or junk) only with Precise ship collision (HullBody.flyableShip).
-            bool fighter = junkKind.Value < 0 && wreck < 0 && !leavesWreck.Value && path.Contains("/ships/");
-            if (target != null && !(radius.Value <= 0f && !IsJunk)) HullCollision.Attach(visual, target, null, fighter);   // a fighter turret: none
+            bool fighter = p.junkKind < 0 && wreck < 0 && !p.leavesWreck && path.Contains("/ships/");
+            if (target != null && !(St.radius <= 0f && !IsJunk)) HullCollision.Attach(visual, target, null, fighter);   // a fighter turret: none
             turretHullDetached = false;
-            if (prefab != null && junkKind.Value < 0 && wreck < 0) { cloakLook?.Dispose(); cloakLook = new World.NpcCloak(visual.transform); }
+            if (prefab != null && p.junkKind < 0 && wreck < 0) { cloakLook?.Dispose(); cloakLook = new World.NpcCloak(visual.transform); }
         }
 
         bool turretHullDetached;
@@ -625,12 +735,14 @@ namespace GoF2Remake.Multiplayer
             if (target != null) { target.enabled = on; target.untargetable = !on; }
             if (visual != null) visual.SetActive(on);
             if (!on) { mirror?.Clear(); sparks?.SetEmitting(false); }
-            else { smoothing.Snap(); shownLife = life.Value; }   // no explosion for a ship that died before we came
+            else { smoothing.Snap(); shownLife = St.life; }   // no explosion for a ship that died before we came
         }
 
         void ApplyTarget()
         {
-            target.race = race.Value;
+            var st = St;
+            var p = Spec;
+            target.race = st.race;
             // Toward this player: an always-hostile race, a ship this player's squad shot, or one hostile to its owner while
             // the owner is a squadmate; the owner's friends only through the squad too (else neutral).
             var me = NetPlayer.Local;
@@ -638,92 +750,110 @@ namespace GoF2Remake.Multiplayer
             bool mateOwner = me != null && NetSquad.Same(owner, me);
             bool shotBySquad = false;
             foreach (var id in Aggressors) if (NetSquad.SameClient(id, me)) { shotBySquad = true; break; }
+            bool empDisabled = st.Has(NetProxyStatus.EmpDisabled);
             // ... and this player's own standing toward its race (Standing.IsEnemy / IsFriend), which the owner's AI uses too.
-            target.hostileToPlayer = alwaysHostile.Value || shotBySquad || Standing.IsEnemy(race.Value) || (mateOwner && relation.Value == Hostile);
-            target.friendToPlayer = !target.hostileToPlayer && Standing.IsFriend(race.Value);
-            if (empDisabled.Value && sparks == null) sparks = new EmpSparks(transform);
-            sparks?.SetEmitting(empDisabled.Value);
-            if (empDisabled.Value != enginesEmpOff && visual != null)
+            target.hostileToPlayer = st.Has(NetProxyStatus.AlwaysHostile) || shotBySquad || Standing.IsEnemy(st.race) || (mateOwner && st.relation == Hostile);
+            target.friendToPlayer = !target.hostileToPlayer && Standing.IsFriend(st.race);
+            if (empDisabled && sparks == null) sparks = new EmpSparks(transform);
+            sparks?.SetEmitting(empDisabled);
+            if (empDisabled != enginesEmpOff && visual != null)
             {
-                enginesEmpOff = empDisabled.Value;
+                enginesEmpOff = empDisabled;
                 visual.GetComponent<AssembledObject>()?.SetExhaust(!enginesEmpOff, playerEngines);
             }
             // Dying / dead (a tumble, a wreck, destroyed junk): not alive here either, so shots pass it like on the owner's.
-            target.hp = life.Value == Flying ? Mathf.Max(0.001f, hull.Value) * target.maxHp : 0f;
-            target.netMaxHull = specHull.Value;   // the repair / transfusion beams' pick (RepairBeam)
-            target.radius = radius.Value;
-            if (boxesFor != hitVolume.Value)
+            target.hp = st.life == Flying ? Mathf.Max(0.001f, st.HullFraction) * target.maxHp : 0f;
+            target.netMaxHull = p != null ? p.maxHull : -1;   // the repair / transfusion beams' pick (RepairBeam)
+            target.radius = st.radius;
+            int volume = p != null ? p.hitVolume : -1;
+            if (boxesFor != volume)
             {
                 // The owner's hit boxes (NpcShip.Setup): shots hit the hull, not only the cube at its centre.
-                boxesFor = hitVolume.Value;
-                int v = boxesFor;
-                target.boxes = v >= FreighterVolumes ? NpcShip.LocalBoxes(CollisionVolume.ForFreighter((v - FreighterVolumes) / 16, (v - FreighterVolumes) % 16))
-                             : v >= 0 ? NpcShip.LocalBoxes(CollisionVolume.ForStaticObject(v)) : null;
+                boxesFor = volume;
+                target.boxes = volume >= FreighterVolumes ? NpcShip.LocalBoxes(CollisionVolume.ForFreighter((volume - FreighterVolumes) / 16, (volume - FreighterVolumes) % 16))
+                             : volume >= 0 ? NpcShip.LocalBoxes(CollisionVolume.ForStaticObject(volume)) : null;
             }
             // Its cloak (a Specter's): drawn like the owner's, off the radar and the lock from a quarter (NpcCloak.Hidden),
             // turrets and NPCs don't aim at it (Target.cloaked); still hit by shots and blasts.
-            float cloaked = life.Value == Flying ? cloakPct.Value : 0f;
+            float cloaked = st.life == Flying ? st.cloak : 0f;
             cloakLook?.Show(cloaked, Time.deltaTime * 1000f);
             target.cloaked = cloaked >= 25f;
             // A fighter turret (ships 45 / 51, radius 0 on the owner's side: Traffic.AttachFighterTurret) is nobody's target
             // and has no hull on the others' copies either; it had a marker and a hull bar there, soaked shots and, its
             // owner's turret being invulnerable, never died (Discord report "Indestructible turret").
-            bool fighterTurret = radius.Value <= 0f && !IsJunk;
+            bool fighterTurret = st.radius <= 0f && !IsJunk;
             if (fighterTurret && !turretHullDetached) { HullCollision.Detach(target); turretHullDetached = true; }
-            target.untargetable = hidden.Value || life.Value != Flying || cloaked >= 25f || fighterTurret;
+            bool hidden = st.Has(NetProxyStatus.Hidden);
+            target.untargetable = hidden || st.life != Flying || cloaked >= 25f || fighterTurret;
             // A mission ship's name only for the mission's team (its owner and their squad).
-            bool team = !missionShip.Value || NetSquad.SameClient(OwnerClientId, NetPlayer.Local);
+            bool team = !IsMissionShip || NetSquad.SameClient(OwnerClientId, NetPlayer.Local);
             // The owner's game writes the label (a wingman's name comes from its save): no rich-text tags reach the others'
             // lock plates (<size>, <color> to impersonate staff or cover the HUD).
-            target.displayName = IsJunk ? Target.JunkName : label.Value.Length > 0 && team ? NetNews.Safe(label.Value.ToString()) : null;
+            target.displayName = IsJunk ? Target.JunkName : Label.Length > 0 && team ? NetNews.Safe(Label) : null;
             // A steal candidate while it is disabled with cargo; a mission ship's cargo only for the mission's team (like its
             // crates, NetCrate).
-            bool stealable = TargetLockRules.RemoteStealable(empDisabled.Value, life.Value == Flying, team, stealItem.Value, stealAmount.Value);
-            target.netStealItem = stealable ? stealItem.Value : -1;
-            target.netStealAmount = stealable ? stealAmount.Value : 0;
-            if (life.Value != shownLife)
+            bool stealable = TargetLockRules.RemoteStealable(empDisabled, st.life == Flying, team, st.stealItem, st.stealAmount);
+            target.netStealItem = stealable ? st.stealItem : -1;
+            target.netStealAmount = stealable ? st.stealAmount : 0;
+            if (st.life != shownLife)
             {
                 // NpcShip.UpdateDying's end: the explosion (with its sound); a fighter's model goes with it.
-                if (life.Value == Dead) Explosion.Spawn(transform.position, explosionScale.Value);
-                shownLife = life.Value;
+                if (st.life == Dead) Explosion.Spawn(transform.position, p != null ? p.explosionScale : 1f);
+                shownLife = st.life;
             }
-            bool show = !hidden.Value && (life.Value != Dead || leavesWreck.Value);
+            bool leavesWreck = p != null && p.leavesWreck;
+            bool show = !hidden && (st.life != Dead || leavesWreck);
             // A fixed object's or freighter's copy keeps its hull through the death (no wreck animation here): it takes the
             // wreck's damaged material like the owner's wreck (CombatAssets.ApplyWreckDamage).
-            if (life.Value != Flying && leavesWreck.Value && !wreckDamaged && visual != null) { CombatAssets.ApplyWreckDamage(visual); wreckDamaged = true; }
+            if (st.life != Flying && leavesWreck && !wreckDamaged && visual != null) { CombatAssets.ApplyWreckDamage(visual); wreckDamaged = true; }
             if (visual != null && visual.activeSelf != show) visual.SetActive(show);
+        }
+
+        /// <summary>The owner of a proxy kept as it is (KeepAsIs): a dying ship finishes (dead after DyingSeconds: the
+        /// explosion everywhere), a dead one without a wreck goes a moment later, a wreck stays.</summary>
+        void UpdateKept()
+        {
+            const float DyingSeconds = 2.5f, GoneSeconds = 2f;
+            var s = St;
+            float since = Time.unscaledTime - keptSince;
+            if (s.life == Dying && since > DyingSeconds) { s.life = Dead; status.Value = s; keptSince = Time.unscaledTime; return; }
+            bool wreck = Spec != null && Spec.leavesWreck;
+            if (s.life == Dead && !wreck && since > GoneSeconds) { keptSince = float.MaxValue; DropStale(); }
         }
 
         void Update()
         {
             if (!IsSpawned) return;
+            if (IsOwner && viewer && keptSince >= 0f) UpdateKept();
             if (!IsOwner || viewer)
             {
                 var local = NetPlayer.Local;
-                bool here = local != null && local.InSpace && local.Station == station.Value && !Adopted;
+                bool here = local != null && local.InSpace && local.Station == station.Value && !Adopted && smoothing.Has;
                 if (here != shown) SetShown(here);
                 if (!shown) return;
                 BuildVisual();
-                smoothing.Apply(transform, rotation.Value);
+                smoothing.Apply(transform, poseRotation);
                 ApplyTarget();
                 mirror?.Update(Time.deltaTime * 1000f);
                 return;
             }
             if (junk != null)
             {
-                if ((position.Value - junk.transform.position).sqrMagnitude > 0.0001f) position.Value = junk.transform.position;
-                byte jl = junk.Alive ? Flying : Dead;
-                if (life.Value != jl) life.Value = jl;
-                float jh = junk.Alive ? 1f : 0f;
-                if (hull.Value != jh) hull.Value = jh;
+                var js = St;
+                js.life = junk.Alive ? Flying : Dead;
+                js.hull = (ushort)(junk.Alive ? 65535 : 0);
+                if (!js.Equals(St)) status.Value = js;
                 return;
             }
             if (ship == null) return;
             sender?.Hook(ship.Guns);   // a gun set later (the second slot, a level's SetGun)
-            var m = ship.Model;
-            if ((position.Value - m.position).sqrMagnitude > 0.0001f) position.Value = m.position;
-            if (Quaternion.Angle(rotation.Value, m.rotation) > 0.05f) rotation.Value = m.rotation;
             SendState();
+            // The description again when its cargo or a reference to another proxy changed (about once a second).
+            if ((specCheckTimer -= Time.unscaledDeltaTime) <= 0f)
+            {
+                specCheckTimer = 1f;
+                WriteSpec();
+            }
         }
     }
 }

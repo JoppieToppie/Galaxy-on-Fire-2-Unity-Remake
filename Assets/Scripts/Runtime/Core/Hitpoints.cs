@@ -86,6 +86,18 @@ namespace GoF2Remake.Flight
             return true;
         }
 
+        /// <summary>How long an EMP has kept it disabled (ms), 0 when it isn't.</summary>
+        public float EmpElapsedMs => empDisabled ? empTimer : 0f;
+
+        /// <summary>Multiplayer (a ship taken over from another game): disabled by an EMP 'elapsedMs' ago.</summary>
+        public void RestoreEmpDisabled(float elapsedMs)
+        {
+            if (hull <= 0) return;
+            empDisabled = true;
+            empTimer = elapsedMs > 0f ? elapsedMs : 0f;
+            emp = 0;
+        }
+
         /// <summary>Player::update: EMP recovery.</summary>
         public void Update(float dtMs)
         {

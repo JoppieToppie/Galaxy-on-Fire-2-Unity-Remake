@@ -78,6 +78,9 @@ namespace GoF2Remake.Flight
 
         /// <summary>A fixed object's crate: the 60 s start when its wreck animation ends (state 4).</summary>
         public void DelayExpiry(float ms) => ageMs -= ms;
+        /// <summary>Multiplayer: how long it has floated (ms; it expires at 60 s), carried over when another game takes it over
+        /// (NetCrate).</summary>
+        public float AgeMs { get => ageMs; set => ageMs = value; }
 
         Vector3 drift;
         float force, ageMs;

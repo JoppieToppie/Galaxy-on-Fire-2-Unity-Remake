@@ -54,7 +54,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   commands 32 / 512). Invitations are recorded on the server (an acceptance needs one, at most 60 s old); a mission is
   recorded with its team (only team members report results, a share capped by the reward); dealer ships need a
   reservation; a kill notice needs a hit from that killer within 30 s; proxies / crates spawn only for a player in that
-  orbit (at most 300 / 150 each); a client despawns only its own proxies and crates. A token bucket per client and
+  orbit (at most 300 / 150 each); a client despawns only its own proxies and crates; a pose batch (NetPoses) only for
+  objects the sender owns in the orbit it flies in (else the whole batch is dropped). A token bucket per client and
   request kind drops a flood (logged once a minute); 1500 weighted drops in a minute (shots 0.1, trades 0.2) kick the
   client. The host's own player is exempt. Still trusted (no server-side world): each player's own ship, credits, cargo,
   standing and position, damage within the cap, and the orbit authority's NPCs.

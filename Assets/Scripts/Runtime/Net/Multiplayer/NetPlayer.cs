@@ -41,7 +41,7 @@ using GoF2Remake.Events;
 namespace GoF2Remake.Multiplayer
 {
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
-    public sealed partial class NetPlayer : NetworkBehaviour, IPilot, World.IOrbitPeer
+    public sealed partial class NetPlayer : NetworkBehaviour, IPilot, World.IOrbitPeer, INetPosed
     {
         public enum Place : byte { None = 0, Space = 1, Hangar = 2, Departing = 3 }
 
@@ -51,12 +51,7 @@ namespace GoF2Remake.Multiplayer
         static readonly NetworkVariableReadPermission Read = NetworkVariableReadPermission.Everyone;
         static readonly NetworkVariableWritePermission Write = NetworkVariableWritePermission.Owner;
 
-        readonly NetworkVariable<Vector3> position = new NetworkVariable<Vector3>(default, Read, Write);
-        readonly NetworkVariable<Quaternion> rotation = new NetworkVariable<Quaternion>(Quaternion.identity, Read, Write);
         readonly NetworkVariable<int> ship = new NetworkVariable<int>(-1, Read, Write);
-        readonly NetworkVariable<float> hull = new NetworkVariable<float>(1f, Read, Write);
-        readonly NetworkVariable<float> shield = new NetworkVariable<float>(-1f, Read, Write);   // fractions, -1 = no such pool
-        readonly NetworkVariable<float> armor = new NetworkVariable<float>(-1f, Read, Write);
         readonly NetworkVariable<FixedString128Bytes> pilot = new NetworkVariable<FixedString128Bytes>(default, Read, Write);
         readonly NetworkVariable<int> station = new NetworkVariable<int>(-1, Read, Write);
         readonly NetworkVariable<byte> place = new NetworkVariable<byte>((byte)Place.None, Read, Write);
@@ -70,11 +65,6 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<bool> distress = new NetworkVariable<bool>(false, Read, Write);  // NetDistress: calls for help
         readonly NetworkVariable<bool> admin = new NetworkVariable<bool>(false);   // the server's: admin commands (NetCommands)
         readonly NetworkVariable<byte> staffRole = new NetworkVariable<byte>(0);   // the server's: the profile's role (NetModeration)
-        readonly NetworkVariable<bool> engine = new NetworkVariable<bool>(true, Read, Write);   // the engine glow shows
-        readonly NetworkVariable<float> boost = new NetworkVariable<float>(0f, Read, Write);    // 0..1 (FlightModel.BoostVisualPercent)
-        readonly NetworkVariable<float> cloak = new NetworkVariable<float>(0f, Read, Write);    // 0..100
-        readonly NetworkVariable<bool> phase = new NetworkVariable<bool>(false, Read, Write);   // a phase cloak is up (PlayerCloak.Phasing)
-        readonly NetworkVariable<bool> empShock = new NetworkVariable<bool>(false, Read, Write);
         readonly NetworkVariable<bool> visible = new NetworkVariable<bool>(true, Read, Write);   // the ship's model shows (gone in a jump, exploded)
         readonly NetworkVariable<int> standing0 = new NetworkVariable<int>(0, Read, Write);    // Session.Standing, the signature
         readonly NetworkVariable<int> standing1 = new NetworkVariable<int>(0, Read, Write);
@@ -106,9 +96,10 @@ namespace GoF2Remake.Multiplayer
         public static NetPlayer Local { get; private set; }
 
         public int Station => station.Value;
-        /// <summary>The ship's pose in its orbit (Unity space; the owner's ship), for NetTeleport.</summary>
-        public Vector3 Position => position.Value;
-        public Quaternion Rotation => rotation.Value;
+        /// <summary>The ship's pose in its orbit (Unity space; the owner's ship; elsewhere the pose stream's last, NetPoses),
+        /// for NetTeleport, the events, the commands.</summary>
+        public Vector3 Position => posePosition;
+        public Quaternion Rotation => poseRotation;
         public Place Where => (Place)place.Value;
         public bool InSpace => Where == Place.Space;
         /// <summary>Docked (taking off included).</summary>
@@ -129,7 +120,7 @@ namespace GoF2Remake.Multiplayer
         public int Signature => signature.Value;
         /// <summary>This player's standings toward mods'races (mod race key -> value): Standing.IsEnemyWith.</summary>
         public IReadOnlyDictionary<string, int> ModRaceStandings => IsOwner ? Session.ModRaceStanding : modRaceStandings;
-        public float CloakPercent => cloak.Value;
+        public float CloakPercent => look.cloak;
         /// <summary>The squad mission (FreelanceMission.netId) this player's level runs here, 0 = none.</summary>
         public long MissionRun => missionRun.Value;
         /// <summary>The squad mission (netId) this player holds, 0 = none (the reward split, NetMissions).</summary>
@@ -225,10 +216,10 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The asteroid this player's ship is landing on, sits on or drills (-1 = none): its spin stops for everyone
         /// (NetOrbit), like it does for the miner (Mining).</summary>
         public int LandedAsteroid => landedAsteroid.Value;
-        public float Hull => hull.Value;
+        public float Hull => WireQuant.Fraction(look.hull);
         /// <summary>Shield / armor fractions, -1 = the ship has none.</summary>
-        public float Shield => shield.Value;
-        public float Armor => armor.Value;
+        public float Shield => WireQuant.Fraction(look.shield);
+        public float Armor => WireQuant.Fraction(look.armor);
         /// <summary>Made an admin for the session by the host or the server console (the host's own player is one anyway,
         /// NetCommands.IsAdmin).</summary>
         public bool IsAdmin => admin.Value;
@@ -310,6 +301,7 @@ namespace GoF2Remake.Multiplayer
             if (IsServer) ship.OnValueChanged += (old, _) => PreviousShip = old;
             if (IsServer) SetStaffRole(NetModeration.RoleOfClient(OwnerClientId));   // signed in before the ship spawned
             if (IsServer) NetNews.SendAll(OwnerClientId);   // the sector's recent news for their ticker
+            NetPoses.Register(this);
             if (IsOwner)
             {
                 Local = this;
@@ -317,7 +309,7 @@ namespace GoF2Remake.Multiplayer
                 ship.Value = Session.ShipIndex;
                 pilot.Value = NetGame.Clean(NetGame.PlayerName);
                 NetModRaceStandings.Resend();
-                sender = new NetShotSender(ShotUpRpc, BlastUpRpc, () => level != null && level.Weapons != null ? level.Weapons.LockTarget : null);
+                sender = new NetShotSender(SendShot, BlastUpRpc, () => level != null && level.Weapons != null ? level.Weapons.LockTarget : null);
                 SceneManager.sceneLoaded += OnSceneLoaded;
                 admin.OnValueChanged += (_, on) => NetChat.Notice(on
                     ? Localization.Extra("mpYouAdmin", "You are now an admin: /kick is available (/help).")
@@ -325,12 +317,12 @@ namespace GoF2Remake.Multiplayer
                 FindLevel();
                 return;
             }
-            position.OnValueChanged += (_, p) => smoothing.Push(p);
             ship.OnValueChanged += (_, s) => BuildModel(s);
+            // Docked = repaired (the pose stream stops there, so its last hull would linger until the next launch's first pose).
+            place.OnValueChanged += (_, now) => { if (now != (byte)Place.Space) { look.hull = WireQuant.Fraction(1f); hasPose = false; } };
             turretItem.OnValueChanged += (_, _) => BuildTurret();
             weapons.OnValueChanged += (_, _) => BuildTurret();
             build.OnValueChanged += (_, _) => BuildModel(ship.Value);
-            smoothing.Push(position.Value);
 
             target = gameObject.AddComponent<Target>();
             target.isShip = true;
@@ -367,6 +359,8 @@ namespace GoF2Remake.Multiplayer
             // what they carried for the squad's mission to a squadmate (not when the whole session closes).
             if (IsServer && !IsOwner && NetState.Instance != null && !NetworkManager.ShutdownInProgress) NetState.Instance.HandOverMission(this);
             All.Remove(this);
+            NetPoses.Unregister(this);
+            if (!IsOwner) NetPoses.Forget(OwnerClientId);
             if (Local == this) Local = null;
             else if (!IsOwner && NetGame.Active && !NetGame.Dedicated)
             {
@@ -391,7 +385,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         GameObject turretModel, weaponModels;
-        static bool testDocked;
+        static bool testDocked, testLaunched;
 
         /// <summary>The mounted turret on the model (CutScene::checkForTurret's static turret: the shots are mirrored), and a
         /// kit ship's weapon models (ModHardpoints; the shots come mirrored from the owner's muzzles).</summary>
@@ -467,21 +461,25 @@ namespace GoF2Remake.Multiplayer
             if (alive && !own.Alive && !byNpc && NetState.Instance != null) NetState.Instance.DestroyedByRpc(shooter);
         }
 
+        void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId) =>
+            ShotUpRpc(new NetShotData(item, position, velocity, up, lifetimeMs, homingDelayMs, targetId));
+
         /// <summary>The owner's shot, through the server (only the owner sends this player's shots): checked (a weapon item,
-        /// finite values) and limited, then drawn by the others' mirrors. (Unchecked, any client could put shots on any
-        /// player's ship for everyone, or flood them.)</summary>
+        /// finite values) and limited, then drawn by the mirrors of the players in the same orbit (NetInterest). (Unchecked,
+        /// any client could put shots on any player's ship for everyone, or flood them.) Sent once, when fired (NetShotData):
+        /// every game flies its own copy.</summary>
         [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable, InvokePermission = RpcInvokePermission.Owner)]
-        void ShotUpRpc(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId)
+        void ShotUpRpc(NetShotData shot)
         {
             if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Shot)) return;
-            if (!NetGuard.Shot(item, position, velocity, up, lifetimeMs, homingDelayMs)) { NetRateLimit.Reject(OwnerClientId, $"a shot of item {item}"); return; }
-            ShotRpc(item, position, velocity, up, lifetimeMs, homingDelayMs, targetId);
+            if (!NetGuard.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs)) { NetRateLimit.Reject(OwnerClientId, $"a shot of item {shot.item}"); return; }
+            if (InSpace && NetInterest.OrbitGroup(this, Station, OwnerClientId, out var to)) ShotRpc(shot, to);
         }
 
-        [Rpc(SendTo.NotOwner, Delivery = RpcDelivery.Unreliable, InvokePermission = RpcInvokePermission.Server)]
-        void ShotRpc(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId)
+        [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable, InvokePermission = RpcInvokePermission.Server)]
+        void ShotRpc(NetShotData shot, RpcParams rpc = default)
         {
-            if (shown) mirror?.Shot(item, position, velocity, up, lifetimeMs, homingDelayMs, NetShots.Resolve(targetId));
+            if (shown) mirror?.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs, NetShots.Resolve(shot.targetId));
         }
 
         /// <summary>The owner's blast (a bomb's ignition), through the server like a shot.</summary>
@@ -490,11 +488,11 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Shot)) return;
             if (!NetGuard.Item(item) || !NetGuard.Position(point)) { NetRateLimit.Reject(OwnerClientId, $"a blast of item {item}"); return; }
-            BlastRpc(item, point);
+            if (InSpace && NetInterest.OrbitGroup(this, Station, OwnerClientId, out var to)) BlastRpc(item, point, to);
         }
 
-        [Rpc(SendTo.NotOwner, InvokePermission = RpcInvokePermission.Server)]
-        void BlastRpc(int item, Vector3 point)
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void BlastRpc(int item, Vector3 point, RpcParams rpc = default)
         {
             if (shown) mirror?.Blast(item, point);
         }
@@ -535,8 +533,8 @@ namespace GoF2Remake.Multiplayer
                                                             Modding.ModShipKits.MountsShown(Database.Load(), index, 3, kitBuild));
             asm = model.GetComponent<AssembledObject>();
             if (exhaust != null) Destroy(exhaust);
-            exhaust = ShipExhaust.AttachRemote(gameObject, Database.Shared, model.transform, index, () => shown && engine.Value && cloak.Value < 25f,
-                                               () => boost.Value, () => cloak.Value,
+            exhaust = ShipExhaust.AttachRemote(gameObject, Database.Shared, model.transform, index, () => shown && look.engine && look.cloak < 25,
+                                               () => Boost, () => look.cloak,
                                                mounts: kitBuild != null ? Modding.ModShipKits.MountsShown(Database.Shared, index, 3, kitBuild) : null);
             cloakLook?.Dispose();
             cloakLook = new World.NpcCloak(model.transform, keepEngine: true);
@@ -559,29 +557,29 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Remote, shown: the glow, the engine loop, the cloak and the EMP lightning from the owner's state.</summary>
         void ApplyLook(float dtMs)
         {
-            bool cloaked = cloak.Value > 0f, hidden = cloak.Value >= 25f;
-            asm?.SetExhaust(engine.Value && !hidden, true);
-            cloakLook?.Show(cloak.Value, dtMs);
+            bool cloaked = look.cloak > 0, hidden = look.cloak >= 25;
+            asm?.SetExhaust(look.engine && !hidden, true);
+            cloakLook?.Show(look.cloak, dtMs);
             if (target != null)
             {
                 target.cloaked = cloaked;          // NPCs keep chasing but hold their fire (Target.cloaked)
                 // Off the radar, its markers and the lock (a lock held is dropped, CombatRadar) as soon as the cloak engages,
                 // like the original's Player+0x5e; the auto turrets and sentries ignore it too.
                 target.untargetable = cloaked;
-                target.boosting = boost.Value > 0f;   // remake: a boost (or the cloak) shakes off the missiles homing on them (Gun)
-                target.phased = phase.Value;          // remake: a phase cloak: shots and blasts pass through
+                target.boosting = look.boost > 0;   // remake: a boost (or the cloak) shakes off the missiles homing on them (Gun)
+                target.phased = look.phase;          // remake: a phase cloak: shots and blasts pass through
             }
-            if (obstacle != null) obstacle.enabled = !phase.Value;   // and the local ship flies through it
+            if (obstacle != null) obstacle.enabled = !look.phase;   // and the local ship flies through it
             if (engineLoop != null)
             {
-                bool run = engine.Value && !hidden;
+                bool run = look.engine && !hidden;
                 engineLoop.volume = engineVolume;
-                engineLoop.pitch = 1f + 0.12f * boost.Value;
+                engineLoop.pitch = 1f + 0.12f * Boost;
                 if (run && !engineLoop.isPlaying) engineLoop.Play();
                 else if (!run && engineLoop.isPlaying) engineLoop.Stop();
             }
-            if (empShock.Value && sparks == null) sparks = new EmpSparks(transform);
-            sparks?.SetEmitting(empShock.Value);
+            if (look.empShock && sparks == null) sparks = new EmpSparks(transform);
+            sparks?.SetEmitting(look.empShock);
         }
 
         /// <summary>Another game's EMP on this player's ship, through the server like a hit (the same orbit, no squadmate, a
@@ -664,8 +662,8 @@ namespace GoF2Remake.Multiplayer
 
         void WritePools(float s, float a)
         {
-            if (Mathf.Abs(shield.Value - s) > 0.004f) shield.Value = s;
-            if (Mathf.Abs(armor.Value - a) > 0.004f) armor.Value = a;
+            look.shield = WireQuant.Fraction(s);
+            look.armor = WireQuant.Fraction(a);
         }
 
         void FindLevel()
@@ -691,20 +689,20 @@ namespace GoF2Remake.Multiplayer
                         NetChat.Notice(NetChat.JoinedText(DisplayName));
                 }
                 if (jumpedGate != null && (gateResetMs -= Time.deltaTime * 1000f) <= 0f) { SystemJump.ResetGate(jumpedGate); jumpedGate = null; }
-                bool show = SharesOrbit && visible.Value;
+                bool show = SharesOrbit && visible.Value && smoothing.Has;
                 // Their ship vanished after its death tumble: the explosion (PlayerEgo::explode, PlayerHealth at 3000 ms).
-                if (shown && !show && SharesOrbit && hull.Value <= 0f) Explosion.Spawn(transform.position, Database.Shared.Ship(ShipIndex)?.explosionScale ?? 1f);
+                if (shown && !show && SharesOrbit && Hull <= 0f) Explosion.Spawn(transform.position, Database.Shared.Ship(ShipIndex)?.explosionScale ?? 1f);
                 if (show != shown) SetShown(show);
-                if (InSpace && hull.Value <= 0f) NetAggression.Forget(OwnerClientId);   // destroyed: no longer this player's enemy
+                if (InSpace && Hull <= 0f) NetAggression.Forget(OwnerClientId);   // destroyed: no longer this player's enemy
                 ApplyEquipment(shown);   // the emergency bubble, the sentry copies (NetPlayerEquipment)
                 if (!shown) return;
-                smoothing.Apply(transform, rotation.Value);
+                smoothing.Apply(transform, poseRotation);
                 ApplyLook(Time.deltaTime * 1000f);
                 if (target != null)
                 {
-                    target.hp = hull.Value * target.maxHp;   // 0 = destroyed: no marker, no lock, no NPC after it
-                    target.netShield = shield.Value;          // their marker's shield bar and armor over the hull (CombatView)
-                    target.netArmor = armor.Value;
+                    target.hp = Hull * target.maxHp;   // 0 = destroyed: no marker, no lock, no NPC after it
+                    target.netShield = Shield;          // their marker's shield bar and armor over the hull (CombatView)
+                    target.netArmor = Armor;
                     bool mate = NetSquad.Same(this, Local);   // squadmates: green, out of each other's line of fire
                     target.friendToPlayer = mate;
                     target.playerProof = mate || !PvpWith(this);   // free roam: no player hurts another (NetArena)
@@ -729,7 +727,7 @@ namespace GoF2Remake.Multiplayer
                 modRaceStanding.Value = factionStandings;
             if (empShockMs > 0f) empShockMs -= Time.deltaTime * 1000f;
             bool shock = empShockMs > 0f;
-            if (empShock.Value != shock) empShock.Value = shock;
+            look.empShock = shock;
             bool vis = level == null || level.Player == null || level.Player.visualModel == null || level.Player.visualModel.gameObject.activeSelf;
             if (visible.Value != vis) visible.Value = vis;
             var jump = level != null ? level.SystemJump : null;
@@ -745,6 +743,7 @@ namespace GoF2Remake.Multiplayer
             Place now = docked ? Place.Hangar : level != null ? Place.Space : dock != null ? (dock.PlayerDeparting ? Place.Departing : Place.Hangar) : Place.None;
             int at = docked ? Session.StationIndex : level != null && level.Layout != null ? level.NetOrbitId : dock != null && dock.Layout != null ? dock.Layout.stationIndex : -1;
             if (place.Value != (byte)now) place.Value = (byte)now;
+            if (now != Place.Space) PoseSend.sent = false;   // back in space: the first pose goes at once
             if (station.Value != at) station.Value = at;
             bool runs = level != null && level.NetAuthority;
             if (authority.Value != runs) authority.Value = runs;
@@ -783,11 +782,12 @@ namespace GoF2Remake.Multiplayer
             if (missionCargo.Value != carried) missionCargo.Value = carried;
             // Testing (development builds): -mpdock / -mpaccept (NetGame).
             if (NetGame.TestDock && !testDocked && level != null && level.LaunchCameraOver && Time.timeSinceLevelLoad > 8f) { testDocked = true; level.Dock(true); }
+            if (NetGame.TestLaunch > 0f && !testLaunched && dock != null && now == Place.Hangar && Time.timeSinceLevelLoad > NetGame.TestLaunch) { testLaunched = true; dock.Launch(); }
             if (NetGame.TestAccept && now == Place.Hangar && NetSquad.Invites.Count > 0) NetSquad.Accept(NetSquad.Invites[NetSquad.Invites.Count - 1]);
             if (level == null)
             {
                 // Docked: repaired (the pools' presence stays as last seen in space).
-                if (dock != null) { if (hull.Value != 1f) hull.Value = 1f; WritePools(shield.Value < 0f ? -1f : 1f, armor.Value < 0f ? -1f : 1f); }
+                if (dock != null) { look.hull = WireQuant.Fraction(1f); WritePools(Shield < 0f ? -1f : 1f, Armor < 0f ? -1f : 1f); }
                 return;
             }
             if (localShip == null)
@@ -800,11 +800,12 @@ namespace GoF2Remake.Multiplayer
             foreach (var sentry in SentryGun.All) if (sentry != null && sentry.Gun != null) sender?.Hook(new[] { sentry.Gun });
             if (atObject.Value != ObjectDocking.PlayerDocked) atObject.Value = ObjectDocking.PlayerDocked;
             transform.SetPositionAndRotation(localShip.position, localShip.rotation);
-            if ((position.Value - localShip.position).sqrMagnitude > 0.0001f) position.Value = localShip.position;
-            if (Quaternion.Angle(rotation.Value, localShip.rotation) > 0.05f) rotation.Value = localShip.rotation;
+            posePosition = localShip.position;
+            poseRotation = localShip.rotation;
+            hasPose = true;
             var hp = level.Health != null && level.Health.Target != null ? level.Health.Target.hitpoints : null;
             float h = level.Health != null && level.Health.Target != null ? level.Health.Target.HullFraction : 1f;
-            if (Mathf.Abs(hull.Value - h) > 0.004f) hull.Value = h;
+            look.hull = WireQuant.Fraction(h);
             // The look the others see: the engine glow (off while mining, docking at an object, cloaked, dead), boost, cloak.
             var ownAsm = level.Player.visualModel != null ? level.Player.visualModel.GetComponent<AssembledObject>() : null;
             var glowPart = ownAsm != null && ownAsm.playerVariantParts != null && ownAsm.playerVariantParts.Length > 0 ? ownAsm.playerVariantParts[0] : null;
@@ -812,18 +813,20 @@ namespace GoF2Remake.Multiplayer
             bool glowOn = (glowPart == null || glowPart.activeInHierarchy) && (level.Health == null || !level.Health.Dead)
                           && (level.Player.Model == null || !level.Player.Model.EnginesOff);
             if (level.Health != null && level.Health.Dead) NetAggression.Clear();   // a respawn starts clean
-            if (engine.Value != glowOn) engine.Value = glowOn;
+            look.engine = glowOn;
             float b = level.Player.Model != null ? level.Player.Model.BoostVisualPercent : 0f;
-            // Back to 0 exactly when the boost ends (the others read > 0 as boosting: Target.boosting shakes off missiles).
-            if (Mathf.Abs(boost.Value - b) > 0.02f || (b == 0f && boost.Value != 0f)) boost.Value = b;
+            // 0 exactly when the boost ends (the others read > 0 as boosting: Target.boosting shakes off missiles); in steps of
+            // 1/16, so a boost ramp is a few sends, not one a frame.
+            look.boost = b <= 0f ? (byte)0 : (byte)Mathf.Clamp(Mathf.CeilToInt(b * 16f) * 16 - 1, 15, 255);
             float c = level.Cloak != null && level.Cloak.Rules != null ? level.Cloak.Rules.Percentage : 0f;
-            if (Mathf.Abs(cloak.Value - c) > 0.5f || (c == 0f && cloak.Value != 0f)) cloak.Value = c;
-            bool ph = level.Cloak != null && level.Cloak.Phasing;
-            if (phase.Value != ph) phase.Value = ph;
+            // In steps of 5 % (off the radar from 25 %), 0 exactly when it is off.
+            look.cloak = c <= 0f ? (byte)0 : (byte)Mathf.Clamp(Mathf.CeilToInt(c / 5f) * 5, 5, 100);
+            look.phase = level.Cloak != null && level.Cloak.Phasing;
             // The EMP lightning on the own ship too.
             if (shock && ownSparks == null) ownSparks = new EmpSparks(localShip);
             ownSparks?.SetEmitting(shock);
             WritePools(hp != null && hp.maxShield > 0 ? hp.shield / hp.maxShield : -1f, hp != null && hp.maxArmor > 0 ? (float)hp.armor / hp.maxArmor : -1f);
+            NetPoses.Tick(this);   // this game's poses (its ship, its orbit's NPCs and crates), as they are due
         }
     }
 }

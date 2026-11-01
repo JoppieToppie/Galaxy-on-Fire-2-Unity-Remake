@@ -109,7 +109,8 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   before the check don't use approval, which is part of Netcode's config hash, so they fail its handshake. Verified with
   a Windows build and the Editor: the version refusal, no / wrong / right password over Relay, the listing and its count.
 - **NetPlayer** (one per player): the owner writes where they are (station; `Place` Space / Hangar / Departing, from the
-  scene it is in and `StationLevel.PlayerDeparting`), ship, name, hull, and in space the pose. The others in the same
+  scene it is in and `StationLevel.PlayerDeparting`), ship and name; in space its pose, hull and look go in the pose
+  stream to the players in that orbit and the server only (`NetPoses`, docs/notes/multiplayer-sync.md "Bandwidth"). The others in the same
   orbit (`SharesOrbit`) see the ship model with the pilot name, lockable, a sphere `Obstacle` (1.6 x the model's bounding
   radius) the local ship slides along; elsewhere it is hidden. Remote motion is smoothed (`NetSmoothing`: velocity
   estimate, at most 250 ms ahead, eased, snapped beyond 250 m). It also writes its shield / armor fractions (-1 = none),
@@ -204,7 +205,8 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   edited script recompiles and ends the session) and a Windows development build (the Windows build profile, into
   `Build/Windows`) as client: `GoF2Remake.exe -screen-fullscreen 0 -screen-width 1280 -screen-height 720 -mpjoin 127.0.0.1
   -mpname Pilot2` (`-mpjoin`: the menu skips its intro and joins, again every 2 s until a host answers; development
-  builds also take `-mpdock` (docks once, a few seconds into the first flight after launching) and `-mpaccept` (accepts squad invitations
+  builds also take `-mpdock` (docks once, a few seconds into the first flight after launching), `-mplaunch N` (launches
+from the hangar once, N s after docking: the bandwidth measurement's client) and `-mpaccept` (accepts squad invitations
   while docked) and `-mptrade` (accepts trade requests while docked, offers 500 credits, accepts once the other side
   has) and `-mphost` (hosts from the menu), so the real hangar / squad flows run without a hand on the client
   (a phone: `adb shell "am start -n com.joppietoppie.gof2remake/com.unity3d.player.GoF2GameActivity -e unity

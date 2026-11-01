@@ -351,13 +351,16 @@ namespace GoF2Remake.Multiplayer
                 owned[obj.OwnerClientId] = n;
                 // A new one waits for its owner's position (sent at the tick, maybe after the spawn request).
                 if (Time.unscaledTime - (proxy != null ? proxy.SpawnedAt : crate.SpawnedAt) < 3f) continue;
-                bool orphan = proxy != null && proxy.Orphan;   // its owner left the session: the host holds it without a ship
-                if (!orphan && owners.TryGetValue(obj.OwnerClientId, out var owner) && owner.InSpace && owner.Station == station) { staleSince.Remove(obj.NetworkObjectId); continue; }
-                // Players still in that orbit get its ships (HandOver); what can't be handed on stays a few seconds.
+                // Its game flies there and runs it (an object the host inherited from a disconnected player waits for HandOver).
+                bool inherited = proxy != null && proxy.Creator != obj.OwnerClientId && !proxy.HandedOver;
+                if (!inherited && owners.TryGetValue(obj.OwnerClientId, out var owner) && owner.InSpace && owner.Station == station) { staleSince.Remove(obj.NetworkObjectId); continue; }
+                // Players still in that orbit get it (HandOver: every kind but a player's wingmen, which go with their
+                // player); nobody there any more: it goes (the next player builds the orbit anew).
                 bool watched = false;
                 foreach (var p in owners.Values) if (p.InSpace && p.Station == station) { watched = true; break; }
                 if (!staleSince.TryGetValue(obj.NetworkObjectId, out float since)) staleSince[obj.NetworkObjectId] = since = Time.unscaledTime;
-                if (!watched || Time.unscaledTime - since > 5f) stale.Add(obj);
+                float grace = proxy != null && proxy.IsWingman ? 5f : 20f;   // (a handover that didn't happen: never kept for ever)
+                if (!watched || Time.unscaledTime - since > grace) stale.Add(obj);
             }
             foreach (var obj in stale) { staleSince.Remove(obj.NetworkObjectId); if (obj.IsSpawned) obj.Despawn(); }
         }

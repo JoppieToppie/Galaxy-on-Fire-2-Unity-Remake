@@ -49,24 +49,74 @@ namespace GoF2Remake.Multiplayer
                 int orbit = p.InSpace && orbitRunners.TryGetValue(p.Station, out ulong id) && id == p.OwnerClientId ? p.Station : -1;
                 p.SetRunsOrbit(orbit);
             }
+            UpdateInterest();
             HandOver(here);
         }
-        /// <summary>Server: the traffic ships whose game left their orbit (or the session: the server holds those) go to the
-        /// orbit's runner, which rebuilds each where it flies and drives the same proxy from then on (NetOrbit.AdoptHandedOver),
-        /// so the others see no change. What a runner can't rebuild (fixed objects, turrets, mission, convoy and Most Wanted
-        /// ships: NetProxy.HandOverable) is left to the sweep.</summary>
+
+        /// <summary>Server: an orbit's NetProxy / NetCrate objects only for the players flying there and their owner
+        /// (NetInterest): a player arriving gets them spawned with their state and the server's last pose (OnSynchronize),
+        /// one leaving has them despawned. Before, every player of the session got every orbit's objects and updates.</summary>
+        void UpdateInterest()
+        {
+            var manager = NetworkManager;
+            interestObjects.Clear();
+            interestObjects.AddRange(manager.SpawnManager.SpawnedObjectsList);
+            foreach (var obj in interestObjects)
+            {
+                if (obj == null || !obj.IsSpawned) continue;
+                var proxy = obj.GetComponent<NetProxy>();
+                var crate = proxy == null ? obj.GetComponent<NetCrate>() : null;
+                if (proxy == null && crate == null) continue;
+                int station = proxy != null ? proxy.Station : crate.Station;
+                foreach (ulong client in manager.ConnectedClientsIds)
+                {
+                    if (client == NetworkManager.ServerClientId) continue;   // the host has everything
+                    bool want = NetInterest.Sees(client, obj.OwnerClientId, station), has = obj.IsNetworkVisibleTo(client);
+                    if (want == has) continue;
+                    try
+                    {
+                        if (want) obj.NetworkShow(client);
+                        else obj.NetworkHide(client);
+                    }
+                    catch (System.Exception e) { Debug.LogWarning($"NetState: showing object {obj.NetworkObjectId} to {client}: {e.Message}"); }
+                }
+            }
+        }
+
+        readonly List<NetworkObject> interestObjects = new List<NetworkObject>();
+        readonly Dictionary<ulong, float> handOverWait = new Dictionary<ulong, float>();
+        /// <summary>Server: every orbit object (NetProxy: ships, fixed objects, turrets, capital ships and their parts, junk,
+        /// wrecks; NetCrate) whose game left its orbit (docked, jumped, disconnected: the host holds those) goes to the orbit's
+        /// runner, which rebuilds it from its description where it is and drives the same proxy from then on
+        /// (NetOrbit.AdoptHandedOver, NetCrate's takeover), so the players still there see no change. Not a player's wingmen
+        /// (they go with their player, the sweep); a squad mission's ships wait a moment for a squadmate's promotion.</summary>
         void HandOver(Dictionary<int, List<NetPlayer>> here)
         {
             if (orbitRunners.Count == 0) return;
-            foreach (var obj in NetworkManager.SpawnManager.SpawnedObjectsList)
+            float now = Time.unscaledTime;
+            foreach (var obj in interestObjects)
             {
+                if (obj == null || !obj.IsSpawned) continue;
                 var proxy = obj.GetComponent<NetProxy>();
-                if (proxy == null || !orbitRunners.TryGetValue(proxy.Station, out ulong runner) || obj.OwnerClientId == runner || !proxy.HandOverable) continue;
-                bool ownerHere = false;
-                foreach (var p in here[proxy.Station]) if (p.OwnerClientId == obj.OwnerClientId) { ownerHere = true; break; }
-                if (ownerHere) continue;   // its game still flies there (a mission's ships, a stood-down runner's going)
-                proxy.MarkHandedOver();
-                obj.ChangeOwnership(runner);
+                var crate = proxy == null ? obj.GetComponent<NetCrate>() : null;
+                if (proxy == null && crate == null) continue;
+                int station = proxy != null ? proxy.Station : crate.Station;
+                if (!orbitRunners.TryGetValue(station, out ulong runner) || !here.TryGetValue(station, out var players)) continue;
+                bool ownerHere = players.Exists(p => p.OwnerClientId == obj.OwnerClientId);
+                // A disconnected player's object the host inherited while flying there: its game has no ship for it.
+                bool inherited = proxy != null && proxy.Creator != obj.OwnerClientId && !proxy.HandedOver;
+                bool mission = proxy != null && (proxy.IsMissionShip || proxy.IsJunk) && players.Exists(p => NetSquad.SameClient(proxy.Creator, p));
+                float waited = mission && handOverWait.TryGetValue(obj.NetworkObjectId, out float since) ? now - since : 0f;
+                var act = NetHandOverRule.Decide(ownerHere, crate != null, inherited, proxy != null && proxy.IsWingman, proxy == null || proxy.HandOverable, mission, waited);
+                if (act == NetHandOverRule.Act.Wait && !handOverWait.ContainsKey(obj.NetworkObjectId)) handOverWait[obj.NetworkObjectId] = now;
+                if (act != NetHandOverRule.Act.HandOver) continue;   // its game runs it, a squadmate's promotion, or the sweep's
+                handOverWait.Remove(obj.NetworkObjectId);
+                if (proxy != null) proxy.MarkHandedOver();
+                if (obj.OwnerClientId != runner)
+                {
+                    if (runner != NetworkManager.ServerClientId && !obj.IsNetworkVisibleTo(runner)) obj.NetworkShow(runner);
+                    obj.ChangeOwnership(runner);
+                }
                 staleSince.Remove(obj.NetworkObjectId);
             }
         }
@@ -131,7 +181,11 @@ namespace GoF2Remake.Multiplayer
                 if (cratePrefab == null) return;
                 var go = Instantiate(cratePrefab);
                 go.GetComponent<NetCrate>().Init(r.station, r.localId);
-                go.GetComponent<NetworkObject>().SpawnWithOwnership(r.client, false);
+                var obj = go.GetComponent<NetworkObject>();
+                obj.DontDestroyWithOwner = true;   // like the ships: the runner takes it over (HandOver)
+                int station = r.station;
+                obj.CheckObjectVisibility = client => NetInterest.Sees(client, obj.OwnerClientId, station);   // only that orbit's players
+                obj.SpawnWithOwnership(r.client, false);
                 n.crates++;
             }
             else
@@ -141,6 +195,8 @@ namespace GoF2Remake.Multiplayer
                 go.GetComponent<NetProxy>().Init(r.station, r.localId);
                 var obj = go.GetComponent<NetworkObject>();
                 obj.DontDestroyWithOwner = true;   // an owner who disconnects leaves it to the host: the others can take it over
+                int station = r.station;
+                obj.CheckObjectVisibility = client => NetInterest.Sees(client, obj.OwnerClientId, station);   // only that orbit's players
                 obj.SpawnWithOwnership(r.client, false);
                 n.proxies++;
             }

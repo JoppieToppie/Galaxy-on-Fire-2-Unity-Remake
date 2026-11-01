@@ -9,6 +9,10 @@
 // owner's own capture or the crate's expiry despawns it (NetOrbit). A claimant who leaves loses the claim. Only a player
 // flying in the crate's orbit may claim it (NetGuard), the claims are rate limited (NetRateLimit), the copies take only
 // items that exist from the owner's loot, and only the server may tell the owner to remove it.
+// Only the players in its orbit have it (NetInterest); its pose travels in the pose stream (NetPoses), its look, loot and
+// age in one value (data). When its game leaves the orbit the server hands it to the orbit's runner like the ships
+// (NetState.HandOver): the runner's copy becomes its real crate, with the age it had (OnGainedOwnership), so it neither
+// vanishes nor starts its 60 s over.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -21,7 +25,7 @@ using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
 {
-    public sealed class NetCrate : NetworkBehaviour, World.IOrbitCrate
+    public sealed class NetCrate : NetworkBehaviour, World.IOrbitCrate, INetPosed
     {
         const ulong NoClaim = ulong.MaxValue;
 
@@ -31,23 +35,112 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> station = new NetworkVariable<int>(-1);   // server-written at spawn
         readonly NetworkVariable<int> localId = new NetworkVariable<int>(-1);
         readonly NetworkVariable<ulong> claimant = new NetworkVariable<ulong>(NoClaim);   // server-written
-        readonly NetworkVariable<Vector3> position = new NetworkVariable<Vector3>(default, Read, Owner);
-        readonly NetworkVariable<Quaternion> rotation = new NetworkVariable<Quaternion>(Quaternion.identity, Read, Owner);
-        readonly NetworkVariable<int> race = new NetworkVariable<int>(-1, Read, Owner);
-        readonly NetworkVariable<int> look = new NetworkVariable<int>(-1, Read, Owner);   // Crate.look; -1 = not written yet
-        readonly NetworkVariable<FixedString512Bytes> loot = new NetworkVariable<FixedString512Bytes>(default, Read, Owner);   // "item:amount,..."
-        readonly NetworkVariable<bool> fromFriend = new NetworkVariable<bool>(false, Read, Owner);
-        readonly NetworkVariable<bool> missionCrate = new NetworkVariable<bool>(false, Read, Owner);
-        readonly NetworkVariable<bool> missionLoot = new NetworkVariable<bool>(false, Read, Owner);   // only the owner's squad takes it
+        // "race|look|flags|born|loot": Crate.race, Crate.look (-1 = not written yet), fromFriend 1 / missionCrate 2 /
+        // missionLoot 4 (only the owner's squad takes it), the server time it was made (s), "item:amount,...".
+        readonly NetworkVariable<FixedString512Bytes> data = new NetworkVariable<FixedString512Bytes>(default, Read, Owner);
+        string dataRead;
+        int race = -1, look = -1;
+        bool fromFriend, missionCrate, missionLoot;
+        double born;
+        string lootText = "";
+        Vector3 posePosition;
+        Quaternion poseRotation = Quaternion.identity;
+        bool hasPose;
+        readonly NetPoses.SendState poseSend = new NetPoses.SendState();
 
         readonly NetSmoothing smoothing = new NetSmoothing();
         Crate crate;          // the owner: the real crate; the others: the copy (while in the orbit)
         bool reported, wasPulling, adopted;
 
         /// <summary>A Recovery / Salvage container (a squadmate's takeover of the mission builds its own, FreelanceOrbit).</summary>
-        public bool IsMissionCrate => missionCrate.Value;
-        /// <summary>Its pose (Unity) as the owner last wrote it.</summary>
-        public Vector3 WorldPosition => position.Value;
+        public bool IsMissionCrate { get { ReadData(); return missionCrate; } }
+        /// <summary>Its pose (Unity): the owner's crate, else the stream's last.</summary>
+        public Vector3 WorldPosition => IsOwner && crate != null ? crate.transform.position : posePosition;
+
+        void ReadData()
+        {
+            string text = data.Value.ToString();
+            if (text == dataRead) return;
+            dataRead = text;
+            var parts = text.Split('|');
+            if (parts.Length < 5) return;
+            int.TryParse(parts[0], out race);
+            int.TryParse(parts[1], out look);
+            int.TryParse(parts[2], out int flags);
+            double.TryParse(parts[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out born);
+            fromFriend = (flags & 1) != 0;
+            missionCrate = (flags & 2) != 0;
+            missionLoot = (flags & 4) != 0;
+            lootText = parts[4];
+        }
+
+        static double ServerNow => NetworkManager.Singleton != null ? NetworkManager.Singleton.ServerTime.Time : 0d;
+
+        void WriteData()
+        {
+            int flags = (crate.fromFriend ? 1 : 0) | (crate.missionCrate ? 2 : 0) | (crate.missionLoot ? 4 : 0);
+            double madeAt = ServerNow - crate.AgeMs / 1000f;
+            string text = $"{crate.race}|{crate.look}|{flags}|{madeAt.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)}|{Encode(crate.loot)}";
+            if (data.Value.ToString() != text) data.Value = text;
+        }
+
+        // ---- the pose stream (NetPoses) -------------------------------------------------------------------------------
+
+        public NetPoses.SendState PoseSend => poseSend;
+        public int PoseStation => station.Value;
+
+        public bool CurrentPose(out Vector3 p, out Quaternion r, out bool hasLook, out PoseLook shipLook)
+        {
+            hasLook = false;
+            shipLook = default;
+            p = crate != null ? crate.transform.position : default;
+            r = crate != null ? crate.transform.rotation : Quaternion.identity;
+            return crate != null;
+        }
+
+        public void ReceivePose(in PoseEntry entry, float gap, bool show)
+        {
+            posePosition = entry.position;
+            poseRotation = entry.rotation;
+            hasPose = true;
+            if (show && !IsOwner) smoothing.Push(entry.position, gap);
+        }
+
+        /// <summary>The server's last pose goes with the spawn to a player it is shown to (arriving in the orbit).</summary>
+        protected override void OnSynchronize<T>(ref BufferSerializer<T> serializer)
+        {
+            serializer.SerializeValue(ref hasPose);
+            if (!hasPose) return;
+            serializer.SerializeValue(ref posePosition);
+            serializer.SerializeValue(ref poseRotation);
+            if (serializer.IsReader) smoothing.Push(posePosition);
+        }
+
+        /// <summary>Owned here through a handover (its game left the orbit, NetState.HandOver) or a disconnect (the host
+        /// holds it): the copy here becomes the real crate, as old as it was there (its expiry runs on), and NetOrbit keeps it
+        /// like its own. Not in its orbit: nothing (the server hands it on to someone there).</summary>
+        void TakeOverCopy()
+        {
+            if (NetOrbit.Current == null || NetOrbit.Current.Station != station.Value) return;
+            ReadData();
+            crate.remote = false;
+            crate.AgeMs = Mathf.Max(0f, (float)(ServerNow - born) * 1000f);
+            NetOrbit.Current.AdoptCrate(this, crate);
+            poseSend.sent = false;
+        }
+
+        public override void OnGainedOwnership() => ownedSince = Time.unscaledTime;
+
+        /// <summary>Handed to another game while this one still had it (a place that flickered): a copy again.</summary>
+        public override void OnLostOwnership()
+        {
+            if (crate == null || crate.remote) return;
+            crate.remote = true;
+            NetOrbit.Current?.ForgetCrate(crate);
+        }
+
+        float ownedSince = -1f;
+        bool despawnAsked;
 
         /// <summary>Taken over by this player (their own crate now stands in for it): no copy here any more.</summary>
         public void MarkAdopted()
@@ -86,6 +179,7 @@ namespace GoF2Remake.Multiplayer
         public override void OnNetworkSpawn()
         {
             DontDestroyOnLoad(gameObject);
+            NetPoses.Register(this);
             if (IsServer)
             {
                 station.Value = pendingStation;
@@ -102,20 +196,14 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             NetOrbit.Current.Register(this, crate);
-            position.Value = crate.transform.position;
-            rotation.Value = crate.transform.rotation;
-            race.Value = crate.race;
-            look.Value = crate.look;
-            loot.Value = Encode(crate.loot);
-            fromFriend.Value = crate.fromFriend;
-            missionCrate.Value = crate.missionCrate;
-            missionLoot.Value = crate.missionLoot;
+            WriteData();
             crate.PullStarted = () => ClaimRpc();
             if (crate.pulled) ClaimRpc();   // the owner's beam (an auto tractor) had it before the spawn
         }
 
         public override void OnNetworkDespawn()
         {
+            NetPoses.Unregister(this);
             if (!IsOwner && crate != null) Destroy(crate.gameObject);
         }
 
@@ -128,7 +216,8 @@ namespace GoF2Remake.Multiplayer
             // Only a player flying in the crate's orbit (a claim from elsewhere would hold every crate of the session back).
             if (!NetGuard.InOrbit(who, station.Value)) return;
             // Another player's mission loot: only the mission's team (the owner's squad) may claim it.
-            if (missionLoot.Value && !NetSquad.SameClient(who, NetSquad.Find(OwnerClientId))) return;
+            ReadData();
+            if (missionLoot && !NetSquad.SameClient(who, NetSquad.Find(OwnerClientId))) return;
             if (claimant.Value == NoClaim) claimant.Value = who;
         }
 
@@ -157,19 +246,20 @@ namespace GoF2Remake.Multiplayer
         /// <summary>A copy for this player (in the crate's orbit): built once the owner's values are here.</summary>
         void BuildCopy()
         {
-            if (crate != null || look.Value < 0) return;   // a shot asteroid's crate has race -1
+            ReadData();
+            if (crate != null || look < 0 || !hasPose) return;   // the owner's values and a pose first
             var assets = CombatAssets.Load();
-            var prefab = assets != null ? assets.CrateModel(look.Value, race.Value) : null;
-            var go = prefab != null ? Instantiate(prefab, position.Value, rotation.Value) : new GameObject();
+            var prefab = assets != null ? assets.CrateModel(look, race) : null;
+            var go = prefab != null ? Instantiate(prefab, posePosition, poseRotation) : new GameObject();
             go.name = "Crate (other player's)";
             crate = go.AddComponent<Crate>();
             crate.remote = true;
-            crate.race = race.Value;
-            crate.look = look.Value;
-            crate.fromFriend = fromFriend.Value;
-            crate.missionCrate = missionCrate.Value;
-            crate.missionLoot = missionLoot.Value;
-            foreach (var s in Decode(loot.Value.ToString())) crate.loot.Add(s);
+            crate.race = race;
+            crate.look = look;
+            crate.fromFriend = fromFriend;
+            crate.missionCrate = missionCrate;
+            crate.missionLoot = missionLoot;
+            foreach (var s in Decode(lootText)) crate.loot.Add(s);
             crate.PullStarted = () => ClaimRpc();
             crate.CapturedHere = () =>
             {
@@ -178,7 +268,6 @@ namespace GoF2Remake.Multiplayer
                 reported = true;
                 CapturedRpc();
             };
-            smoothing.Push(position.Value);
             smoothing.Snap();
             ApplyClaim(NetworkManager.LocalClientId);   // the claim rules from the first frame (an auto tractor grabs at once)
         }
@@ -191,11 +280,23 @@ namespace GoF2Remake.Multiplayer
             if (IsServer && claimant.Value != NoClaim && !NetOrbit.InOrbit(claimant.Value, station.Value)) claimant.Value = NoClaim;
             if (IsOwner)
             {
-                if (crate == null) return;   // NetOrbit asks for the despawn
+                if (crate != null && crate.remote) TakeOverCopy();
+                if (crate == null || crate.remote)
+                {
+                    // Handed to this game without a copy here (taken a moment before): gone.
+                    bool hereNow = NetOrbit.Current != null && NetOrbit.Current.Station == station.Value;
+                    if (crate == null && hereNow && ownedSince >= 0f && Time.unscaledTime - ownedSince > 2f && !despawnAsked
+                        && NetState.Instance != null && NetState.Instance.IsSpawned)
+                    {
+                        despawnAsked = true;
+                        NetState.Instance.DespawnRpc(NetworkObjectId);
+                    }
+                    return;   // (its own crate gone: NetOrbit asks for the despawn)
+                }
                 ApplyClaim(me);
                 TrackPull(me);
-                if ((position.Value - crate.transform.position).sqrMagnitude > 0.0001f) position.Value = crate.transform.position;
-                if (Quaternion.Angle(rotation.Value, crate.transform.rotation) > 0.5f) rotation.Value = crate.transform.rotation;
+                // Its loot when a beam took part of it (a steal crate, several kinds): the others' copies follow.
+                if ((lootCheck -= Time.unscaledDeltaTime) <= 0f) { lootCheck = 1f; WriteData(); }
                 return;
             }
             var local = NetPlayer.Local;
@@ -218,12 +319,11 @@ namespace GoF2Remake.Multiplayer
             TrackPull(me);
             if (!crate.pulled)
             {
-                if (position.Value != lastPosition) { smoothing.Push(position.Value); lastPosition = position.Value; }
-                smoothing.Apply(crate.transform, rotation.Value);
+                smoothing.Apply(crate.transform, poseRotation);
             }
         }
 
-        Vector3 lastPosition;
+        float lootCheck;
 
         void ApplyClaim(ulong me)
         {

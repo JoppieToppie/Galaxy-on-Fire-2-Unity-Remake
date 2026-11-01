@@ -162,7 +162,8 @@ namespace GoF2Remake.Events
             {
                 if (proxy == null || !proxy.IsSpawned || proxy.EventTag == 0) continue;
                 ships.Add(new Ship { tag = proxy.EventTag, station = proxy.Station, killer = proxy.Killer, flying = proxy.FlyingNow,
-                                     key = (long)proxy.OwnerClientId << 32 | (uint)proxy.LocalId, name = proxy.Label, position = ToGame(proxy.transform.position) });
+                                     key = (long)proxy.NetworkObjectId,   // (the same through a handover to another game)
+                                      name = proxy.Label, position = ToGame(proxy.WorldPosition) });   // (the pose stream's: a server draws nothing)
             }
             return ships;
         }

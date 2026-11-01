@@ -11,9 +11,12 @@
 //     others: one NetProxy per living ship (by its index in Traffic.Ships) and one NetCrate per crate, spawned for it by
 //     the host and owned by this player; despawned when the ship is gone or the crate taken / expired. The server says who
 //     runs each orbit (NetState.UpdateOrbitRunners, NetPlayer.RunsOrbit): of two players who built its traffic at once one
-//     stands down, and when the runner leaves the server picks the next player there and hands them its flying traffic
-//     ships' proxies (NetState.HandOver); the new runner rebuilds each where it flies (Traffic.Adopt, same model, race and
-//     hull) and drives the same proxy on (NetProxy.Bind), so the others see no change.
+//     stands down, and when the runner leaves the server picks the next player there and hands them every object it ran
+//     (NetState.HandOver: ships, fixed objects, turrets, capital ships and their parts, mission ships, junk, wrecks,
+//     crates); the new runner rebuilds each from its description and status where its copy is, with the copy's speed
+//     (AdoptHandedOver: Traffic.Adopt with the whole spec, hull, cargo, waypoint, EMP, sleep), a capital ship's parts made
+//     with it bound to the old parts' proxies, a wreck or a dying ship kept as it is, a crate's copy made its real crate
+//     (NetCrate), and drives the same proxies on (NetProxy.Bind), so the others see no change.
 //   A freelance mission's orbit (FreelanceOrbit) is this player's own NPCs whether or not they run the orbit: its ships and
 //     junk are shown to everyone here the same way (never taken over), and they spawn out of the others' view
 //     (OutOfSight).
@@ -487,7 +490,8 @@ namespace GoF2Remake.Multiplayer
             UpdateGarrison();
             FollowRunner();
             // This player's own NPCs: the orbit's traffic (the authority) or a freelance mission's (anyone).
-            bool ownNpcs = Authority || (level.Traffic != null && level.Traffic.Ships.Count > 0) || level.FreelanceOrbit != null;
+            bool ownNpcs = Authority || (level.Traffic != null && level.Traffic.Ships.Count > 0) || level.FreelanceOrbit != null
+                           || takenJunk.Count > 0 || crateIds.Count > 0;
             if (ownNpcs) UpdateNpcHooks(); else ClearNpcHooks();
             if (!ownNpcs) return;
             if ((scanTimer -= Time.unscaledDeltaTime) > 0f) return;
@@ -511,23 +515,201 @@ namespace GoF2Remake.Multiplayer
             else if (!Authority && runner == me) level.TakeOverNetAuthority();
         }
 
-        /// <summary>The traffic ships the server handed this player (their game left the orbit, NetState.HandOver): each
-        /// rebuilt where it flies, with its hull and the players it was after, driving the same proxy on.</summary>
+        /// <summary>How long a squad mission's own ships wait for FreelanceOrbit's promotion (with their roles) before they
+        /// are rebuilt as plain ships.</summary>
+        const float MissionPromotionSeconds = 5f;
+        readonly Dictionary<NetProxy, float> handedSince = new Dictionary<NetProxy, float>();
+        readonly List<NetProxy> handed = new List<NetProxy>();
+
+        /// <summary>The objects the server handed this player (their game left the orbit, NetState.HandOver), every kind:
+        /// each rebuilt from its description where its copy is drawn here, at the copy's speed, with its hull, cargo,
+        /// waypoint, sleep, EMP and the players it was after, driving the same proxy on (so the others see no change). A
+        /// capital ship first, then its parts: the parts its creation makes again (turrets, subsystems) take the old parts'
+        /// proxies, one already destroyed stays destroyed. A dying ship finishes dying, a wreck stays one (kept as they are).</summary>
         void AdoptHandedOver()
         {
             if (level.Traffic == null) return;
-            bool adopted = false;
+            handed.Clear();
+            float now = Time.unscaledTime;
             foreach (var proxy in FindObjectsByType<NetProxy>())
             {
-                if (!proxy.IsSpawned || !proxy.HandedOver || !proxy.Orphan || proxy.Station != Station || !proxy.HandOverable) continue;
-                var u = proxy.WorldPosition;
-                var ship = level.Traffic.Adopt(proxy.AdoptSpec(new Vector3(u.x, u.y, -u.z) / OrbitLayout.MetersPerUnit), proxy.WorldRotation, proxy.HullFraction);
-                foreach (var id in proxy.Aggressors) ship.aggressors.Add(id);   // still hostile to whom it was
+                if (!proxy.IsSpawned || !proxy.HandedOver || !proxy.Orphan || proxy.Kept || proxy.Adopted || proxy.Station != Station) continue;
+                if (!handedSince.ContainsKey(proxy)) handedSince[proxy] = now;
+                // A squad mission's ships while this game follows that mission: its promotion takes them with their roles.
+                if (level.FreelanceOrbit != null && (proxy.IsMissionShip || proxy.IsJunk) && now - handedSince[proxy] < MissionPromotionSeconds) continue;
+                handed.Add(proxy);
+            }
+            if (handed.Count == 0) return;
+            // Hosts before their parts (a part's spec points at its host's).
+            handed.Sort((a, b) => Depth(a).CompareTo(Depth(b)));
+            var built = new Dictionary<ulong, NpcShip>();
+            var taken = new HashSet<NetProxy>();
+            bool adopted = false;
+            foreach (var proxy in handed)
+            {
+                if (taken.Contains(proxy)) continue;
+                handedSince.Remove(proxy);
+                var p = proxy.Spec;
+                // Dying, dead or a wreck: as it is (its owner here finishes the death; a wreck stays where it is).
+                if (proxy.Life != NetProxy.Flying || (p == null && !proxy.IsJunk)) { proxy.KeepAsIs(); continue; }
+                var at = GamePosition(proxy.ShownPosition);
+                if (proxy.IsJunk)
+                {
+                    proxy.Bind(TakeJunk(p != null ? p.junkKind : 0, proxy.ShownPosition, proxy.ShownRotation));
+                    continue;
+                }
+                if (p.spec == null || p.wingman) { proxy.KeepAsIs(); continue; }
+                var spec = proxy.AdoptSpec(at);
+                spec.capitalHost = SpecOf(built, p.hostRef);
+                spec.battleFoe = SpecOf(built, p.foeRef);
+                spec.routeAround = SpecOf(built, p.aroundRef);
+                if (spec.capitalHost == null) spec.capitalPart = spec.capitalPart && p.hostRef == 0;   // its host is gone: a ship of its own
+                int before = level.Traffic.Ships.Count;
+                var st = proxy.Status;
+                var ship = level.Traffic.Adopt(spec, proxy.ShownRotation, st.HullFraction);
+                Restore(ship, proxy, p);
+                built[proxy.NetworkObjectId] = ship;
                 requestedShips.Add(level.Traffic.Ships.IndexOf(ship));   // its proxy is this one (no new spawn)
                 proxy.Bind(ship);
                 adopted = true;
+                // The parts its creation made again (a fighter turret, a mod capital ship's subsystems): the old parts' proxies.
+                for (int i = before; i < level.Traffic.Ships.Count; i++)
+                {
+                    var part = level.Traffic.Ships[i];
+                    if (part == null || part == ship) continue;
+                    NetProxy match = null;
+                    float best = float.MaxValue;
+                    foreach (var other in handed)
+                    {
+                        var op = other.Spec;
+                        if (taken.Contains(other) || other == proxy || op == null || op.hostRef != proxy.NetworkObjectId || op.model != (part.ModelPath ?? "")) continue;
+                        float d = (other.ShownPosition - part.transform.position).sqrMagnitude;
+                        if (d < best) { best = d; match = other; }
+                    }
+                    if (match != null)
+                    {
+                        taken.Add(match);
+                        handedSince.Remove(match);
+                        if (match.Life != NetProxy.Flying) { part.Vanish(); match.KeepAsIs(); continue; }
+                        var ms = match.Status;
+                        if (part.Hp != null && part.Hp.maxHull > 0) part.SetHull(Mathf.Clamp(Mathf.RoundToInt(part.Hp.maxHull * ms.HullFraction), 1, part.Hp.maxHull), false);
+                        Restore(part, match, match.Spec);
+                        built[match.NetworkObjectId] = part;
+                        requestedShips.Add(i);
+                        match.Bind(part);
+                    }
+                    // Destroyed before the handover (it had a proxy like every shown part): it stays destroyed.
+                    else if (!part.LocalOnly && !string.IsNullOrEmpty(part.ModelPath)) part.Vanish();
+                }
             }
             if (adopted) level.Traffic.ConnectPlayers();   // Level::connectPlayers: the adopted ships' enemy lists
+        }
+
+        /// <summary>Tests (MultiplayerSessionTests): this game hands its whole orbit to itself as if another game had run it
+        /// and left: every ship and junk let go (the proxies kept as copies at their last poses, marked handed over), every
+        /// crate a copy again; AdoptHandedOver and the crates' takeover then rebuild them.</summary>
+        internal void SimulateHandOverForTest()
+        {
+            foreach (var proxy in FindObjectsByType<NetProxy>())
+            {
+                if (!proxy.IsSpawned || !proxy.IsOwner || proxy.Station != Station) continue;
+                var ship = proxy.BoundShip;
+                if (ship != null) { proxies.Remove(ship); requestedShips.Remove(level.Traffic.Ships.IndexOf(ship)); }
+                proxy.ReleaseForTest();
+                proxy.MarkHandedOver();
+            }
+            foreach (var pair in new List<KeyValuePair<Crate, NetCrate>>(netCrates))
+            {
+                if (pair.Key == null || pair.Value == null) continue;
+                ForgetCrate(pair.Key);
+                pair.Key.remote = true;
+            }
+        }
+
+        static int Depth(NetProxy p)
+        {
+            var s = p.Spec;
+            return s == null ? 0 : (s.hostRef != 0 ? 2 : 0) + (s.foeRef != 0 || s.aroundRef != 0 ? 1 : 0);
+        }
+
+        static SpawnSpec SpecOf(Dictionary<ulong, NpcShip> built, ulong proxyId) =>
+            proxyId != 0 && built.TryGetValue(proxyId, out var s) && s != null ? s.Spec : null;
+
+        static Vector3 GamePosition(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / OrbitLayout.MetersPerUnit;
+
+        /// <summary>A rebuilt ship as it was in the old game: the players it was after, its cargo, speed, waypoint, sleep,
+        /// EMP and (a capital ship) its waves.</summary>
+        static void Restore(NpcShip ship, NetProxy proxy, ProxySpec p)
+        {
+            var st = proxy.Status;
+            foreach (var id in proxy.Aggressors) ship.aggressors.Add(id);   // still hostile to whom it was
+            if (p != null && p.cargo != null && p.spec != null && !p.spec.noLoot && p.spec.lootItem < 0)
+            {
+                var cargo = new List<ItemStack>();
+                foreach (var c in p.cargo) if (c.amount > 0 && NetGuard.Item(c.item)) cargo.Add(new ItemStack(c.item, c.amount));
+                ship.SetLoot(cargo);
+            }
+            // The copy's speed (Unity m/s) in game units per ms.
+            float speed = proxy.ShownVelocity.magnitude / OrbitLayout.MetersPerUnit / 1000f;
+            ship.RestoreState(speed, st.routeIndex, st.Has(NetProxyStatus.Asleep), st.Has(NetProxyStatus.Inactive), st.Has(NetProxyStatus.Turned),
+                              st.Has(NetProxyStatus.EmpDisabled), st.empMs * 100f);
+            if (p != null && (p.capitalLaunched > 0 || p.capitalProvoked)) ship.GetComponent<CapitalShip>()?.Restore(p.capitalLaunched, p.capitalProvoked);
+        }
+
+        // ---- junk and crates taken over ---------------------------------------------------------------------------
+
+        readonly List<Target> takenJunk = new List<Target>();
+
+        /// <summary>A freelance mission's space junk handed to this game outside that mission (its game left): the same
+        /// one-hit, always hostile target (FreelanceOrbit.SpawnJunk), counted for nobody's mission.</summary>
+        Target TakeJunk(int kind, Vector3 position, Quaternion rotation)
+        {
+            var assets = CombatAssets.Load();
+            var prefab = assets != null && assets.junk != null && kind >= 0 && kind < assets.junk.Length ? assets.junk[kind] : null;
+            var go = prefab != null ? Instantiate(prefab, position, rotation, level.transform) : new GameObject("Junk");
+            go.name = "Space junk (taken over)";
+            var t = go.AddComponent<Target>();
+            t.hp = t.maxHp = 1f;
+            t.radius = 600f * OrbitLayout.MetersPerUnit;
+            t.race = Standing.Pirate;
+            t.hostileToPlayer = true;
+            t.destroyedSound = CombatAssets.Pick(assets?.garbageExplosion);
+            t.displayName = Target.JunkName;
+            t.plateNameOnly = t.plateNoIcon = true;
+            t.Died += dead =>
+            {
+                ShipBurn.ManualBurst(dead.transform.position, 1f, 1600f, 1800f, 500f);   // FreelanceOrbit.SpawnJunk's burst
+                Target.RadarObjects.Remove(dead);
+            };
+            Target.RadarObjects.Add(t);
+            takenJunk.Add(t);
+            return t;
+        }
+
+        /// <summary>NetCrate: a crate handed to this game (its copy made the real crate): kept like this game's own.</summary>
+        public void AdoptCrate(NetCrate net, Crate crate)
+        {
+            if (crate == null || crateIds.ContainsKey(crate)) return;
+            int id = nextCrateId++;
+            crateIds[crate] = id;
+            crates[id] = crate;
+            netCrates[crate] = net;
+        }
+
+        /// <summary>NetCrate: handed on to another game while still here: its copy again, not this game's.</summary>
+        public void ForgetCrate(Crate crate)
+        {
+            if (crate == null || !crateIds.TryGetValue(crate, out int id)) return;
+            crates.Remove(id);
+            crateIds.Remove(crate);
+            netCrates.Remove(crate);
+        }
+
+        /// <summary>This game's ship made from 'spec' (a capital ship's reference), null = none.</summary>
+        public NpcShip ShipOf(SpawnSpec spec)
+        {
+            var ships = level != null && level.Traffic != null ? level.Traffic.Ships : null;
+            return spec == null || ships == null ? null : ships.Find(x => x != null && x.Spec == spec);
         }
 
         /// <summary>This player's own proxies of this orbit left from an earlier visit (or spawned after their ship went): they
@@ -538,7 +720,7 @@ namespace GoF2Remake.Multiplayer
         {
             ulong me = NetGame.LocalId;
             foreach (var proxy in FindObjectsByType<NetProxy>())
-                if (proxy.IsSpawned && proxy.IsOwner && proxy.Creator == me && proxy.Station == Station && proxy.Orphan && !proxy.Adopted && !proxy.HandedOver)
+                if (proxy.IsSpawned && proxy.IsOwner && proxy.Creator == me && proxy.Station == Station && proxy.Orphan && !proxy.Adopted && !proxy.HandedOver && !proxy.Kept)
                     state.DespawnRpc(proxy.NetworkObjectId);
         }
 
@@ -564,6 +746,20 @@ namespace GoF2Remake.Multiplayer
 
         void ScanJunk(NetState state)
         {
+            // Junk taken over from another game: its proxy goes a moment after it was destroyed.
+            for (int i = takenJunk.Count - 1; i >= 0; i--)
+            {
+                var t = takenJunk[i];
+                if (t != null && t.Alive) continue;
+                if (t != null && !junkDeadSince.TryGetValue(t, out float dead)) { junkDeadSince[t] = Time.unscaledTime; continue; }
+                if (t != null && Time.unscaledTime - junkDeadSince[t] < 1.5f) continue;
+                if (t != null && junkProxies.TryGetValue(t, out var jp))
+                {
+                    if (jp != null && jp.IsSpawned) state.DespawnRpc(jp.NetworkObjectId);
+                    junkProxies.Remove(t);
+                }
+                takenJunk.RemoveAt(i);
+            }
             var junk = level.FreelanceOrbit != null ? level.FreelanceOrbit.Junk : null;
             if (junk == null) return;
             for (int i = 0; i < junk.Count; i++)

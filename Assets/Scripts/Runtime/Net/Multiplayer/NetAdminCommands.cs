@@ -491,14 +491,14 @@ namespace GoF2Remake.Multiplayer
                 else if (RaceWord(words[i]) >= 0) race = RaceWord(words[i]);
                 else return Usage("provoke");
             }
-            var byOwner = new Dictionary<ulong, List<int>>();
+            var byOwner = new Dictionary<ulong, List<ulong>>();
             foreach (var p in UnityEngine.Object.FindObjectsByType<NetProxy>())
             {
                 if (p == null || !p.IsSpawned || !p.FlyingNow || p.IsWingman || p.Station != t.Station) continue;
                 if (race >= 0 && p.Race != race) continue;
                 if (within > 0f && (p.WorldPosition - t.Position).magnitude > within) continue;
-                if (!byOwner.TryGetValue(p.OwnerClientId, out var ids)) byOwner[p.OwnerClientId] = ids = new List<int>();
-                ids.Add(p.LocalId);
+                if (!byOwner.TryGetValue(p.OwnerClientId, out var ids)) byOwner[p.OwnerClientId] = ids = new List<ulong>();
+                ids.Add(p.NetworkObjectId);   // (its proxy: the ship's own game may have taken it over from another one)
             }
             int count = 0;
             foreach (var kv in byOwner)

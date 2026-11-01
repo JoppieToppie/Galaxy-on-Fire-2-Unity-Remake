@@ -8,3 +8,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("GoF2.App")]
 [assembly: InternalsVisibleTo("Assembly-CSharp-Editor")]
 [assembly: InternalsVisibleTo("GoF2.Tests")]
+[assembly: InternalsVisibleTo("GoF2.PlayModeTests")]

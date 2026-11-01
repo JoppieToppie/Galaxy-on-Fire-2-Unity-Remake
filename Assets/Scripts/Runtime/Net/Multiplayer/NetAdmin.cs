@@ -258,14 +258,15 @@ namespace GoF2Remake.Multiplayer
                 }
                 case Order.Provoke:
                 {
-                    // "client:id,id,...": this game's traffic ships by index turn on that player (and their squad).
-                    var traffic = level != null ? level.Traffic : null;
+                    // "client:id,id,...": this game's ships by their proxies (NetworkObject ids) turn on that player (and their
+                    // squad).
                     int colon = (text ?? "").IndexOf(':');
-                    if (traffic == null || colon <= 0 || !ulong.TryParse(text.Substring(0, colon), out ulong client)) return;
+                    var spawned = Unity.Netcode.NetworkManager.Singleton != null ? Unity.Netcode.NetworkManager.Singleton.SpawnManager : null;
+                    if (spawned == null || colon <= 0 || !ulong.TryParse(text.Substring(0, colon), out ulong client)) return;
                     foreach (string idText in text.Substring(colon + 1).Split(','))
                     {
-                        if (!int.TryParse(idText, out int id) || id < 0 || id >= traffic.Ships.Count) continue;
-                        var ship = traffic.Ships[id];
+                        if (!ulong.TryParse(idText, out ulong id) || !spawned.SpawnedObjects.TryGetValue(id, out var obj) || obj == null) continue;
+                        var ship = obj.GetComponent<NetProxy>()?.BoundShip;
                         if (ship != null) ship.aggressors.Add(client);
                     }
                     break;

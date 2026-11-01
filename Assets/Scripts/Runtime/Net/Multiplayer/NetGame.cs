@@ -16,10 +16,9 @@
 //                 authority) and shows them to the others there as NetProxy / NetCrate objects it owns; the others' levels
 //                 build no traffic. Asteroids: the same field for everyone, destruction shared.
 //   Shots, hits on proxies and crate claims go between the players in the same orbit (NetShotSender / NetShotMirror,
-//   NetProxy, NetCrate). Not yet: handing an orbit's NPCs over when its authority leaves (they go with it),
-//   player-versus-player damage, NPCs attacking other players than the authority. The players can't die (game over
-//   would load a save), nothing is saved to the single-player slots (SaveGame), and the game never pauses
-//   (Time.timeScale stays 1). A dedicated server keeps player profiles instead (NetProfiles / NetProfileClient).
+//   NetProxy, NetCrate); an orbit's objects, poses and shots reach only the players there (NetInterest, NetPoses), and
+//   when the game running an orbit leaves it the next runner takes every object over (NetState.HandOver). Nothing is
+//   saved to the single-player slots (SaveGame), and the game never pauses (Time.timeScale stays 1). A dedicated server keeps player profiles instead (NetProfiles / NetProfileClient).
 // Network prefabs: Resources/GoF2Net (GoF2 > Build > Network Prefabs).
 
 using System;
@@ -141,6 +140,11 @@ namespace GoF2Remake.Multiplayer
         /// side has.</summary>
         public static readonly bool TestDock = TestFlag("-mpdock"), TestAccept = TestFlag("-mpaccept"), TestHost = TestFlag("-mphost"),
                                     TestTrade = TestFlag("-mptrade");
+
+        /// <summary>Testing, development builds only: -mplaunch N launches from the hangar once, N seconds after docking (the
+        /// bandwidth measurement's client, docs/notes/multiplayer-sync.md "Bandwidth"); 0 = off.</summary>
+        public static readonly float TestLaunch =
+            Debug.isDebugBuild && float.TryParse(CommandLineValue("-mplaunch"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float seconds) ? Mathf.Max(1f, seconds) : 0f;
 
         static bool TestFlag(string flag) =>
             Debug.isDebugBuild && Array.Exists(Environment.GetCommandLineArgs(), a => string.Equals(a, flag, StringComparison.OrdinalIgnoreCase));
@@ -821,6 +825,9 @@ namespace GoF2Remake.Multiplayer
             {
                 NetworkTransport = transport, EnableSceneManagement = false, ConnectionApproval = true,
                 ConnectionData = Payload(),
+                // 20 Hz (Netcode's 30 by default): the NetworkVariables left are state that changes now and then; the poses
+                // travel in the pose stream at their own rates (NetPoses), so fewer packets for the same game.
+                TickRate = 20,
             };
             manager.ConnectionApprovalCallback = Approve;
             foreach (var name in PrefabNames)

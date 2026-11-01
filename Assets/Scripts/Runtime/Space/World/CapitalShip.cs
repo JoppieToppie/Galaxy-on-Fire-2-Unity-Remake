@@ -79,6 +79,14 @@ namespace GoF2Remake.World
         /// <summary>The ships it launched (the carrier's Inflicts).</summary>
         public int Launched => launched;
         public bool Provoked => provoked;
+
+        /// <summary>Multiplayer (NetOrbit.AdoptHandedOver): taken over from another game, where it had launched 'count' ships
+        /// and been provoked or not: its waves go on from there, not from the start.</summary>
+        public void Restore(int count, bool wasProvoked)
+        {
+            launched = Mathf.Max(launched, count);
+            if (wasProvoked) provoked = true;
+        }
         /// <summary>A fleet battle's capital ship whose enemy capital ship still stands (no docking meanwhile).</summary>
         public bool InBattle => ship != null && ship.Spec.fleetBattle
                                 && (foe == null ? traffic.FleetBattleRaging : foe.Target.Alive && !foe.Gone && foe.Current == NpcShip.State.Fly);
