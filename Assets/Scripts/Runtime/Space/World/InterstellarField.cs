@@ -1,11 +1,14 @@
 // InterstellarField.cs
 // Remake: the suns of the space between the systems (Data.InterstellarSpace, added by SpaceLevel): each system on the star
 // map as its sun, the map's own sun material on a quad kept inside the far plane, a beacon from afar growing as the ship
-// closes in. The warp itself is the sky's (Visuals.WarpSky). Nearing a system its own sky blends in over the one the ship left
-// (GoF2/SpaceSky _SkyBlend), the sky its orbit opens with, and the rest of the orbit comes with it (SystemApproach): what the
-// autopilot flies to (a dive into the Void too, Navigation.VoidDive: no sun, its orbit seeping in as it nears), else the
-// nearest. A change of target fades the last one out first. It is turned so that the way to the system is the way the ship
-// will face in the orbit, so the sky ahead is the same one on both sides of the load.
+// closes in. The warp itself is the sky's (Visuals.WarpSky). The space opens on the sky of the system left, and all the way
+// across a leg the next system's sky crossfades in over it (GoF2/SpaceSky _SkyBlend, InterstellarSpace.SkyShare, the user: the
+// sky shows the distance flown and the way out isn't a jump): what the autopilot flies to (a dive into the Void too,
+// Navigation.VoidDive: no sun, its orbit seeping in as it nears), else the nearest, and a system the flight passes on its way.
+// A system flown past stays: once the flight goes on to another its sky is the one to leave from (TakeOver). Near where the
+// ship is going the rest of the orbit comes too (SystemApproach). The sky is turned so that the way to the system is the way
+// the ship will face in the orbit, so the sky ahead is the same one on both sides of the load; past the closest point it
+// holds still, as that way swings round.
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -22,18 +25,25 @@ namespace GoF2Remake.World
 
         /// <summary>How fast a system's sky may change (per ms).</summary>
         const float BlendPerMs = 1f / 1500f, M = 0.05f;
+        /// <summary>How fast the system's sky may turn with the way to it (degrees per ms): a change of course, not a jump.</summary>
+        const float SkyTurnPerMs = 0.006f;
+        /// <summary>A sky more than this far in when the flight turns to another system is kept and left from; less fades back.</summary>
+        const float KeepShare = 0.5f;
 
         struct Sun { public Navigation.Target target; public Transform quad; }
 
         readonly List<Sun> suns = new List<Sun>();
         readonly Dictionary<int, Material> skies = new Dictionary<int, Material>();
+        readonly Dictionary<int, Matrix4x4> skyRotations = new Dictionary<int, Matrix4x4>();
         SpaceLevel level;
         Navigation nav;
         Transform ship;
         Database db;
         int origin;
+        Vector3 originAt;
         Navigation.Target blended;
-        float blend;
+        float blend, approachBlend;
+        Quaternion skyTurn = Quaternion.identity;
         OrbitLayout blendedLayout;
         Vector3 arrivalAt;
         Quaternion arrivalFacing = Quaternion.identity;
@@ -49,6 +59,8 @@ namespace GoF2Remake.World
             // out of the Void: beside the system it was entered from (InterstellarSpace.PositionOf)
             int left = level.Layout.stationIndex == Session.VoidOrbit ? Session.VoidReturnStation : level.Layout.stationIndex;
             origin = db.Stations.Find(s => s.index == left)?.system ?? level.Layout.systemIndex;
+            originAt = ship.position;
+            foreach (var t in nav.Targets) if (t.kind == Navigation.Kind.System && t.system == origin) originAt = t.Position;
             var materials = StarMapAssets.Load()?.sunMaterials;
             var mesh = Quad();
             foreach (var t in level.Navigation.Targets)
@@ -91,7 +103,8 @@ namespace GoF2Remake.World
                 float distance = Mathf.Max(1f, to.magnitude), at = Mathf.Min(distance, inner);
                 s.quad.SetPositionAndRotation(eye + to / distance * at, cam.transform.rotation);
                 // the star ahead gives way to the orbit's own sun (SystemApproach), the others early to the orbit's sky
-                float left = s.target == blended ? 1f - SystemApproach.SunShown(blend) : 1f - SystemApproach.HandedOver(blend);
+                float left = s.target == blended ? 1f - SystemApproach.SunShown(approachBlend) : 1f - SystemApproach.HandedOver(approachBlend);
+                left *= level.HudShown;   // none of them in the hole the ship came through: they come in after it, with the HUD
                 s.quad.localScale = Vector3.one * (at * left * Mathf.Clamp(SunRadiusMeters / distance, MinAngle, MaxAngle));
             }
             UpdateSky(Time.deltaTime * 1000f);
@@ -100,44 +113,77 @@ namespace GoF2Remake.World
         void UpdateSky(float dtMs)
         {
             if (ship == null) return;
-            var want = nav.AutopilotTarget != null && nav.AutopilotTarget.kind == Navigation.Kind.System ? nav.AutopilotTarget : Nearest();
-            float goal = 0f;
-            if (Approachable(want))
+            var want = NextSystem();
+            float goal = 0f, near = 0f;
+            if (want != null)
             {
                 float units = (want.Position - ship.position).magnitude / M;
-                goal = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(InterstellarSpace.ArriveUnits, InterstellarSpace.ApproachUnits, units));
+                // A system the autopilot only flies past shows its sky; its orbit comes only where the ship can arrive.
+                if (nav.AutopilotTarget == null || want == nav.AutopilotTarget)
+                    near = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(InterstellarSpace.ArriveUnits, InterstellarSpace.ApproachUnits, units));
+                goal = Mathf.Max(near, InterstellarSpace.SkyShare((originAt - ship.position).magnitude / M, units));
             }
             if (want != blended)
             {
-                if (blend > 0.001f) goal = 0f;   // the last one out first
-                else if (Approachable(want)) { Load(want); blended = want; }
+                near = 0f;
+                bool keep = blended != null && blended != nav.VoidDive && blend >= KeepShare;   // a dive called off leaves no Void behind
+                goal = keep ? 1f : 0f;
+                if (keep && blend >= 0.999f && approach == null) TakeOver();
+                if (blended == null || (!keep && blend <= 0.001f))
+                {
+                    blended = want;
+                    if (want != null) Load(want);
+                    blend = 0f;
+                }
             }
             blend = Mathf.MoveTowards(blend, goal, BlendPerMs * dtMs);
+            approachBlend = Mathf.MoveTowards(approachBlend, near, BlendPerMs * dtMs);
             Shader.SetGlobalFloat("_SkyBlend", blended != null ? blend : 0f);
-            if (blend <= 0.001f && goal <= 0f) { approach?.Remove(); approach = null; }
+            if (approachBlend <= 0.001f && near <= 0f) { approach?.Remove(); approach = null; }
             if (blended == null) return;
             var way = blended.Position - ship.position;
             if (way.sqrMagnitude < 1f) return;
             var turn = arrivalFacing * Quaternion.Inverse(Quaternion.LookRotation(way.normalized, Vector3.up));
-            Shader.SetGlobalMatrix("_BlendRotation", blendedSky * Matrix4x4.Rotate(turn));
-            if (approach == null && goal > 0f && want == blended) approach = new SystemApproach(level, blendedLayout, arrivalAt, arrivalFacing, transform);
-            approach?.Update(ship.position, way, turn, blend);
+            if (blend <= 0.001f) skyTurn = turn;
+            else if (nav.AutopilotTarget == blended || Vector3.Dot(way, ship.forward) > 0f) skyTurn = Quaternion.RotateTowards(skyTurn, turn, SkyTurnPerMs * dtMs);
+            Shader.SetGlobalMatrix("_BlendRotation", blendedSky * Matrix4x4.Rotate(skyTurn));
+            if (approach == null && near > 0f && want == blended && level.HudShown > 0f) approach = new SystemApproach(level, blendedLayout, arrivalAt, arrivalFacing, transform);
+            approach?.Update(ship.position, way, turn, approachBlend * level.HudShown);
         }
 
-        /// <summary>Not the system the ship has just left (it starts inside that one's approach); a dive into the Void always.</summary>
-        bool Approachable(Navigation.Target t) => t != null && (t == nav.VoidDive || t.system != origin);
-
-        Navigation.Target Nearest()
+        /// <summary>The system whose sky comes next: the one the autopilot flies to, unless the flight passes another first; else
+        /// the nearest. Never the one the sky is already.</summary>
+        Navigation.Target NextSystem()
         {
-            Navigation.Target best = null;
-            float nearest = float.MaxValue;
+            Navigation.Target nearest = null;
+            float best = float.MaxValue;
             foreach (var s in suns)
             {
-                if (s.target.hidden) continue;
+                if (s.target.hidden || s.target.system == origin) continue;
                 float d = (s.target.Position - ship.position).sqrMagnitude;
-                if (d < nearest) { nearest = d; best = s.target; }
+                if (d < best) { best = d; nearest = s.target; }
             }
-            return best;
+            var pilot = nav.AutopilotTarget;
+            var aim = pilot != null && pilot.kind == Navigation.Kind.System && (pilot == nav.VoidDive || pilot.system != origin) ? pilot : null;
+            if (aim == null) return nearest;
+            float close = InterstellarSpace.ApproachUnits * M;
+            return nearest != null && nearest != aim && best < close * close && (aim.Position - ship.position).sqrMagnitude > close * close ? nearest : aim;
+        }
+
+        /// <summary>The flight has gone on from the system blended in: its sky is now the sky, turned as it was seen, and the next
+        /// crossfades from it. Nothing changes on screen: the blend was full.</summary>
+        void TakeOver()
+        {
+            origin = blended.system;
+            originAt = blended.Position;
+            if (skies.TryGetValue(blended.system, out var sky) && sky != null)
+            {
+                sky.SetMatrix("_SkyRotation", blendedSky * Matrix4x4.Rotate(skyTurn));
+                RenderSettings.skybox = sky;
+            }
+            Shader.SetGlobalFloat("_SkyBlend", 0f);
+            blended = null;
+            blend = 0f;
         }
 
         /// <summary>The system's sky (as its arrival orbit builds it) into the shader's second set of layers.</summary>
@@ -147,9 +193,12 @@ namespace GoF2Remake.World
             layout.ArrivalPose(Session.StationIndex, out arrivalAt, out arrivalFacing);
             if (layout.alienOrbit) Session.WarpArrivalPoint = layout.hiddenJumpgate;   // drawn at random: the arrival keeps this one
             if (!skies.TryGetValue(system.system, out var sky))
+            {
                 skies[system.system] = sky = OrbitBuilder.MakeSky(layout);
+                if (sky != null) skyRotations[system.system] = sky.GetMatrix("_SkyRotation");
+            }
             if (sky == null) return;
-            blendedSky = sky.GetMatrix("_SkyRotation");
+            blendedSky = skyRotations[system.system];
             LoadBlendSky(sky);
         }
 
@@ -182,7 +231,7 @@ namespace GoF2Remake.World
         void OnDestroy()
         {
             approach?.Remove();
-            foreach (var sky in skies.Values) if (sky != null) Destroy(sky);
+            foreach (var sky in skies.Values) if (sky != null && sky != RenderSettings.skybox) Destroy(sky);
         }
     }
 }

@@ -74,8 +74,10 @@ namespace GoF2Remake.Visuals
             interstellar = level.Layout.interstellar;
             local = level.LocalArrival;
             arrivalMs = arriving ? ArrivalCarryMs : 0f;
-            if (interstellar) Light(EntryLight, EntryFadeMs, 1f);
+            riftMs = interstellar && Session.RiftEntry ? 0f : RiftHudMs;
+            if (interstellar) { if (!Session.RiftEntry) Light(EntryLight, EntryFadeMs, 1f); }
             else if (arriving && unseen) Light(ArrivalLight, ArrivalDissolveMs, ArrivalDissolve);
+            Session.RiftEntry = false;
             axis = ship.transform.forward;
             fog = arriving ? level.Fog : null;
             if (fog != null) fog.Fade(0f);
@@ -102,7 +104,8 @@ namespace GoF2Remake.Visuals
             Shader.SetGlobalTexture(Detail, Layer(warp, warp?.detail, ownDetail));
             Shader.SetGlobalTexture(Arcs, KhadorSheet() ?? Texture2D.blackTexture);
             MakeWeb();
-            Apply(Strength(0f, 0f));
+            // The level's first frame draws before its first LateUpdate: an arrival's sky is at full warp in that one too.
+            Apply(Strength(nav != null && nav.Drive != null ? nav.Drive.Level : 0f, arrivalMs / ArrivalCarryMs), false);
             if (warp == null) return;
             shot = gameObject.AddComponent<AudioSource>();
             shot.playOnAwake = false;
@@ -144,6 +147,12 @@ namespace GoF2Remake.Visuals
             web.receiveShadows = false;
             web.localBounds = new Bounds(Vector3.zero, Vector3.one * 1e7f);
         }
+
+        /// <summary>Through the Khador Slipstream's hole the view is unbroken, and the HUD comes back into it slowly, not at the
+        /// swap: 0 hidden .. 1.</summary>
+        public float HudShown => Mathf.InverseLerp(RiftHudStartMs, RiftHudMs, riftMs);
+        const float RiftHudStartMs = 500f, RiftHudMs = 1400f;
+        float riftMs = RiftHudMs;
 
         /// <summary>An arrival's warp is still easing out (SpaceLevel.WarpHolds).</summary>
         public bool Arriving => arrivalMs > 0f;
@@ -188,11 +197,11 @@ namespace GoF2Remake.Visuals
             return s * s * (3f - 2f * s);
         }
 
-        void Apply(float level)
+        void Apply(float level, bool rift)
         {
             Shader.SetGlobalFloat(Level, level);
             Shader.SetGlobalFloat(Time_, flow);
-            Shader.SetGlobalFloat(Khador, interstellar || (arrivalMs > 0f && !local) ? 1f : 0f);
+            Shader.SetGlobalFloat(Khador, interstellar || rift || (arrivalMs > 0f && !local) ? 1f : 0f);
             Shader.SetGlobalVector(Axis, axis);
         }
 
@@ -202,11 +211,15 @@ namespace GoF2Remake.Visuals
             float dtMs = Time.deltaTime * 1000f;
             arrivalMs = Mathf.Max(0f, arrivalMs - dtMs);
             lightMs = Mathf.Max(0f, lightMs - dtMs);
+            riftMs = Mathf.Min(riftMs + dtMs, RiftHudMs);
             float drive = nav != null && nav.Drive != null ? nav.Drive.Level : 0f;
             axis = Vector3.Slerp(axis, ship.transform.forward, 1f - Mathf.Exp(-AxisFollow * dtMs / 1000f)).normalized;
-            flow = Mathf.Repeat(flow + (IdleFlow + CruiseFlow * drive) * dtMs / 1000f, 1000f);
+            float rift = jump != null ? jump.RiftWarp : 0f;
+            // Into the hole the flow gathers with the warp: at the swap it is the full cruise's of the level that opens there.
+            flow = Mathf.Repeat(flow + (IdleFlow + CruiseFlow * Mathf.Max(drive, rift)) * dtMs / 1000f, 1000f);
             float level = Strength(drive, arrivalMs / ArrivalCarryMs);
-            Apply(level);
+            level = Mathf.Max(level, rift);
+            Apply(level, rift > 0f);
             if (fog != null)
             {
                 fog.Fade(1f - arrivalMs / ArrivalCarryMs);
@@ -246,7 +259,7 @@ namespace GoF2Remake.Visuals
         {
             float alpha = lightMs > 0f ? lightStrength * lightMs / lightStartMs : 0f;
             var colour = lightColour;
-            if (jump != null && jump.GoingInterstellar && jump.SceneMs > 0f)
+            if (jump != null && jump.GoingInterstellar && jump.SceneMs > 0f && !jump.RiftOpen)
             {
                 alpha = Mathf.InverseLerp(SystemJump.KhadorWhiteoutStartMs, SystemJump.KhadorWhiteoutMs, jump.SceneMs);
                 colour = EntryLight;

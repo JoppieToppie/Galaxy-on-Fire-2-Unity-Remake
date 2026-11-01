@@ -136,6 +136,32 @@ namespace GoF2Remake.Data
             position = from + forward * StartUnits;
         }
 
+        /// <summary>The ship's rotation (Unity) where it starts, in the space left from 'layout': SpaceLevel places it so, and the
+        /// Khador Slipstream's hole shows the warp as it will look from there (World.KhadorFx).</summary>
+        public static Quaternion StartRotation(Database db, OrbitLayout layout) => Quaternion.LookRotation(OrbitLayout.DirToUnity(StartPose(db, layout, out _)), Vector3.up);
+
+        /// <summary>The ship's start (game units) and its heading: out of the system left (beside the one the Void was entered from),
+        /// toward the programmed destination.</summary>
+        public static Vector3 StartPose(Database db, OrbitLayout layout, out Vector3 position)
+        {
+            var from = PositionOf(db, layout.stationIndex);
+            var goal = db.Stations.Find(s => s.index == Session.ProgrammedStation) is StationData prog
+                       && db.Systems.Find(s => s.index == prog.system) is SystemData sys && sys.index != layout.systemIndex && GalaxyMap.IsVisible(db, sys.index)
+                ? Position(sys) : Vector3.zero;
+            Start(from, goal, out position, out var forward);
+            return forward;
+        }
+
+        /// <summary>How far the sky has come from the last system's to the next one's, 'fromUnits' and 'toUnits' away: 0 at the
+        /// last one's edge, where a flight out starts, 1 at the next one's, where an arrival finds its sky. So a crossing shows
+        /// in the sky all the way, by the distance flown.</summary>
+        public static float SkyShare(float fromUnits, float toUnits)
+        {
+            float left = Mathf.Max(0f, fromUnits - StartUnits), ahead = Mathf.Max(0f, toUnits - ArriveUnits);
+            float share = left + ahead > 0f ? left / (left + ahead) : 1f;
+            return share * share * (3f - 2f * share);
+        }
+
         /// <summary>How far (metres) a ship carrying a cruise's speed flies while it eases to its own over 'ms' (the smoothstep's
         /// average is half way), the ship's own 100 m/s under it: an arrival starts this far out to end where arrivals do.</summary>
         public static float CarryMeters(int speedPercent, float ms) => (1f + (speedPercent / 100f - 1f) / 2f) * 100f * ms / 1000f;

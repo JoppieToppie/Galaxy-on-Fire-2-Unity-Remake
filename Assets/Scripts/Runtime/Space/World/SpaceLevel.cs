@@ -152,6 +152,8 @@ namespace GoF2Remake.World
         public Backdrop Backdrop { get; private set; }
         WarpSky warpSky;
         /// <summary>The warp holds everything: between the systems and until an arrival's has ended nobody fires or is hurt.</summary>
+        /// <summary>How much of the HUD shows as the ship comes out of the Khador Slipstream's hole (Visuals.WarpSky).</summary>
+        public float HudShown => warpSky != null ? warpSky.HudShown : 1f;
         public bool WarpHolds => (Layout != null && Layout.interstellar) || (warpSky != null && warpSky.Arriving);
         /// <summary>The orbit's fog sprites; null between the systems.</summary>
         public SpaceDust Fog { get; private set; }
@@ -274,6 +276,7 @@ namespace GoF2Remake.World
         public static void SwapScene(string scene)
         {
             replaced = SceneManager.GetActiveScene();
+            SpaceHooks.KeepHud?.Invoke();
             SceneManager.sceneLoaded += OnSwapped;
             SceneManager.LoadScene(scene, LoadSceneMode.Additive);
         }
@@ -282,6 +285,7 @@ namespace GoF2Remake.World
         {
             if (!replaced.IsValid() || !replaced.isLoaded) return;
             foreach (var root in replaced.GetRootGameObjects()) DestroyImmediate(root);
+            SpaceHooks.DropNewHud?.Invoke();
         }
 
         /// <summary>The new scene takes over: RenderSettings are the active scene's, so its sky and lights are set again.</summary>
@@ -291,6 +295,7 @@ namespace GoF2Remake.World
             var old = replaced;
             replaced = default;
             SceneManager.SetActiveScene(scene);
+            SpaceHooks.SettleHud?.Invoke(scene);
             if (old.IsValid() && old.isLoaded) SceneManager.UnloadSceneAsync(old);
             FindAnyObjectByType<SpaceLevel>()?.ApplySkyAndLights();
         }

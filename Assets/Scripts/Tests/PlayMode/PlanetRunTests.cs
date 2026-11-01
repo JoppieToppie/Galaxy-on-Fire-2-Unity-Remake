@@ -117,6 +117,26 @@ namespace GoF2Remake.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheHudGoesOnAcrossTheSwap()
+        {
+            yield return EnterOrbit(8);
+            var space = Find<SpaceLevel>();
+            var nav = space.Navigation;
+            var hud = Find<FlightHud>();
+            var planet = Planet(space);
+            yield return AimAt(space, planet);
+            yield return WaitFor(() => nav.Locked == planet, 10f, "the lock");
+            Assert.IsTrue(nav.Interact());
+            yield return WaitFor(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null, 60f, "the arrival");
+            yield return Run(0.5f);
+            var huds = Object.FindObjectsByType<FlightHud>(FindObjectsInactive.Include);
+            Assert.AreEqual(1, huds.Length, "one HUD");
+            Assert.AreSame(hud, huds[0], "the same one");
+            Assert.AreEqual(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), hud.gameObject.scene, "back in the level's scene");
+            Assert.AreSame(Find<SpaceLevel>(), typeof(FlightHud).GetField("level", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(hud), "on the new level");
+        }
+
+        [UnityTest]
         public IEnumerator TheJumpOnALockedPlanetIsTheRunInstead()
         {
             yield return EnterOrbit(8);

@@ -42,6 +42,7 @@ namespace GoF2Remake.UI
         bool lastTurretView, lastTurretAuto, lastShipLocked;
         VisualElement lockPlate;
         VisualElement root, safeArea, hints;
+        bool hudFading;
         VisualElement crosshair, dockPrompt, dockGlyph;
         VisualElement lockRingElement, navMarkers;   // queried once: two root.Q per frame were a fifth of the HUD's update
 
@@ -144,6 +145,57 @@ namespace GoF2Remake.UI
             // The per-scene PanelSettings clone: left alive, every Space load (jumps, launches) kept another UI Toolkit
             // panel (its atlas and GPU buffers) for the rest of the run.
             if (runtimePanel != null) Destroy(runtimePanel);
+        }
+
+        /// <summary>The HUD going on across a level swap (SpaceLevel.SwapScene). A new panel's first styling and layout took 54 ms
+        /// of the swap's frame, the largest part of its stall (621 elements, measured 2026-11-01), so the old HUD stays and takes
+        /// the new level the way a new one does, in Update. Not in a session or in VR: their views hang on a level's HUD.</summary>
+        static FlightHud kept;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetKept() => kept = null;
+
+        public static void KeepForSwap()
+        {
+            kept = null;
+            if (NetSession.Active || VrFlags.Enabled) return;
+            var hud = FindAnyObjectByType<FlightHud>();
+            if (hud == null || hud.root == null) return;
+            kept = hud;
+            DontDestroyOnLoad(hud.gameObject);
+        }
+
+        /// <summary>The old level is gone, the new one's Awake is starting: its scene's HUD goes before it builds a panel, and the kept
+        /// one lets go of the old level. Real nulls: a destroyed object passes a '?.'.</summary>
+        public static void DropSceneHud()
+        {
+            if (kept == null) return;
+            foreach (var hud in FindObjectsByType<FlightHud>(FindObjectsInactive.Include))
+                if (hud != kept) DestroyImmediate(hud.gameObject);
+            kept.level = null;
+            kept.ship = null;
+            kept.weapons = null;
+            kept.mining = null;
+            kept.docking = null;
+            kept.nav = null;
+            kept.jump = null;
+            kept.health = null;
+            kept.radar = null;
+            kept.traffic = null;
+            kept.story = null;
+            kept.freelance = null;
+            kept.chase = null;
+            kept.volatileCargo = null;
+            kept.orbitInfoFilled = false;
+            kept.radioShown = -1;
+            kept.shownChatter = null;
+        }
+
+        /// <summary>Back in a scene, so that leaving this level takes the HUD with it.</summary>
+        public static void SettleKept(Scene scene)
+        {
+            if (kept != null) SceneManager.MoveGameObjectToScene(kept.gameObject, scene);
+            kept = null;
         }
 
         /// <summary>The Mod Builder's screen in space (ModBuilder.InSpace), null otherwise.</summary>
@@ -659,7 +711,9 @@ namespace GoF2Remake.UI
             bool shipLocked = radar != null && radar.Locked != null;
             if (shipLocked != lastShipLocked) { lastShipLocked = shipLocked; BuildHints(InputMode.Current); }
             lockPlate.pickingMode = shipLocked && InputMode.Current == InputKind.Touch ? PickingMode.Position : PickingMode.Ignore;
-            root.EnableInClassList("hud-cinematic", (nav != null && nav.Jumping) || (jump != null && jump.Cinematic));   // jumps: no HUD
+            float hudShown = level != null ? level.HudShown : 1f;
+            root.EnableInClassList("hud-cinematic", (nav != null && nav.Jumping) || (jump != null && jump.Cinematic) || hudShown <= 0f);   // jumps: no HUD
+            if (hudShown < 1f != hudFading || hudFading) { hudFading = hudShown < 1f; safeArea.style.opacity = hudFading ? hudShown : StyleKeyword.Null; }
             // The Khador Drive's charge bar, shared with the cloak's "Cloak charging" (317, Hud::draw 0x1933f6).
             var cloak = level != null && level.Cloak != null ? level.Cloak.Rules : null;
             bool jumpCharging = jump != null && jump.Charging;

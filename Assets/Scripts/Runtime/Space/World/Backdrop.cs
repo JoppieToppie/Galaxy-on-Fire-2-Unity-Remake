@@ -356,7 +356,9 @@ namespace GoF2Remake.World
             flareIntensity = 0f;
             var sp = cam.WorldToScreenPoint(c + sun.dir * Distance);
             float W = Screen.width, H = Screen.height;
-            FlareVisible = sp.z > 0f && sp.x > -W && sp.x < 2f * W && sp.y > -H && sp.y < 2f * H;
+            // An orbit with no sun of its own (the space between the systems, InterstellarSpace.Clear) has no flare and no swell:
+            // both come from the sun's direction alone, so a flight toward it grew a stray sun and greyed the view with its glare.
+            FlareVisible = layout.sunScale > 0f && sp.z > 0f && sp.x > -W && sp.x < 2f * W && sp.y > -H && sp.y < 2f * H;
             SunScreen = new Vector2(sp.x, sp.y);
             if (FlareVisible)
             {

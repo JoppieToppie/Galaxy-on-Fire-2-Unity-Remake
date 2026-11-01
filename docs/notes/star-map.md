@@ -140,11 +140,23 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   `InterstellarSpaceTests` (the dive's), `InterstellarFlightTests.TheMenusDiveFallsIntoTheVoidUnseen`,
   `TurningTheAutopilotOffEndsTheDive`, `TheDriveFliesOutOfTheVoid`; recording
   `InterstellarRecording.FlyToTheVoidAndBackAndRecordIt`.
-  The Khador scene plays going in only and cuts at its whiteout
-  (`SystemJump.KhadorWhiteoutMs`, 1860 ms, from a frame capture of the fx): the orbit stays plain through the charge and the
-  animation (the user's call: no warp before it), the camera gliding from its side view to the chase camera's place behind
-  the ship, which stays in view (`SystemJump.GlideBehindShip`), and the new level fades out of the same light, on the same
-  view (`WarpSky.OnGUI`). An arrival
+  The Khador scene plays going in only, drawn anew as a **hole in space** (every other Khador jump, other players' and a capital
+  ship's retreat keep the original fx, `SpawnKhadorFx`, the user's call; `KhadorFx.OpenRift`,
+  `GoF2/KhadorRift`, `Core.KhadorTimeline`, the user, 2026-11-01, replacing the whiteout, the side view and the glide; some of it
+  after a reference clip of theirs: the tear, the fire inside it, the arcs): the camera stays held where it was behind the ship
+  (`SystemJump.heldView`: the chase camera's lag rubber-banded the ship on screen as its speed changed), the animation stands
+  7500 units ahead at 0.8 x its speed (`RiftFocusUnits`, `RiftRate`; half speed read as too slow), the ship eases back to 1.5 u/ms while
+  it forms and from 1.3 s is drawn in at up to 8 (`RiftSpeed`), the warp starting over the orbit's own sky as it goes (`RiftWarp`, `WarpSky`, the flow too), the web
+  drawing back so that shows. The ring is a tear (`KhadorRim`), its rim shared by the hole, the ring and the web's cut-out, with blue
+  fire inside it and arcs thrown out of it as the ship is drawn in. Inside it is already the next level: `Warp` and `WarpWeb` are the
+  same code as the level's (`SpaceSkyCore.hlsl`, `WarpWebCore.hlsl`), turned by `_RiftTurn` to the heading the level opens on
+  (`InterstellarSpace.StartRotation`). The hole draws first, before every opaque, with the depth of a plane past the ship
+  (`_RiftDepth`), so the orbit behind that plane fails the depth test and the ship still draws over it after flying through. When it
+  fills the view (`KhadorFx.RiftFilled`) the frame is the next level's and `SpaceLevel.SwapScene` goes (`Session.RiftEntry`: the view
+  carried, the plume primed, no light to fade); the HUD and the suns come back after it (`WarpSky.HudShown`). What would give it
+  away goes before the swap: the star, beam, sparks and flash by the crossing, the orbit's fog (it lies in front of the hole). The
+  jump's sound plays on over the swap at the slowed rate, its blast at the crossing (`SystemJump.PlayCarried`). VR, or a missing
+  shader, keeps the old way: the whiteout (`KhadorWhiteoutMs`), the glide and `WarpSky.OnGUI`. An arrival
   is `Session.WarpArrival`, at 8 km (`ArriveUnits`): the level changes at full warp, no scene, no fly-in camera, and the ship
   starts `CarryMeters` further out, flying in through the real orbit with the speed (`CruiseDrive.CarrySpeed`) and warp easing
   out over `WarpSky.ArrivalCarryMs`, to end at the normal arrival point. **Seamless by building the orbit on the way in**
@@ -158,14 +170,23 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   to the orbit's. The ship's heading against its course and the chase view in the ship's frame carry over (`Session.WarpHeading`,
   `WarpView`, `ChaseCamera.CarryView`), the boost look too (`FlightModel.CarryCruiseLook`: it fell to 0, a 20 degree zoom at the
   swap), the warp's flow and its sound (`WarpSky.CarrySound`). So frames either side of the swap match but for the HUD and the
-  first frames of the flames (checked frame by frame, 2026-10-31). A fall out of the slipstream has no approach: the old ice-blue
+  first frames of the flames (checked frame by frame, 2026-10-31). A level's first frame draws before its first LateUpdate and
+  its Update: `WarpSky.Setup` writes the arrival's full warp itself and `ShipExhaust.Prime` seeds the plume along a frame's flight (the
+  particles come per distance), as the engines went dark for that frame; the plume is still a little smaller there (2026-11-01). A fall out of the slipstream has no approach: the old ice-blue
   dissolve (`WarpSky.Setup`, 'unseen'). Not carried: `SkyLayers` (ring skies, storms). The lens flare eases in over the arrival (`Backdrop.flareShown`): this space has none, so its glare greyed the screen in one frame at the swap.
   **The swap's stall** (`SpaceLevel.SwapScene`, Editor, with the player's mods): a plain `LoadScene` held ~870 ms, ~600 of it
   the unused-asset sweep after `Awake`, so it loads additively (no sweep), destroys the old roots first thing in `Awake`
   (`ClearReplaced`; the two levels never run together) and sets the sky and lights again once the scene is active, as
   `RenderSettings` go by the active scene. Additive loads don't restart the level clock (`SystemJump.levelStart`). The
   tables are read on the way in (`SpaceLevel.PrepareArrival`) and traffic, 90-250 ms of `Awake`, comes in a ship a frame
-  (`Traffic.Setup` 'oneAFrame', not with a mission here or in multiplayer): 146 ms now, frames after it normal. The look (`Visuals.WarpSky`, the sky
+  (`Traffic.Setup` 'oneAFrame', not with a mission here or in multiplayer): 146 ms now, frames after it normal. The HUD
+  goes on across the swap (`FlightHud.KeepForSwap`, `SpaceHooks.KeepHud` / `DropNewHud` / `SettleHud`, not in a session or VR): a
+  new panel's first styling and layout was 54 ms of 621 elements, now ~9. It leaves the old scene before the load, the new scene's HUD
+  goes in `ClearReplaced` before it builds a panel (`SpaceLevel` runs first), it drops its level refs to real nulls so its Update
+  rebinds as a new HUD does, and it joins the new scene in `OnSwapped`, so a docking's scene change still takes it. Measured
+  2026-11-01, Editor, the player's mods: 127-200 ms before, 90-137 ms after; of that ~30 ms is the Editor loop, plus the Editor-only
+  `SinglePassBuildProcessScene`. A Linux Vulkan player, no mods, 4K, 60 Hz: 21-27 ms on eight hops, cold ones too, no frame over 33 ms. Destroying the old level is only ~16 ms (Traffic ~10). Other
+  stalls are the first use of a mod ship after the swap: `Traffic.Update`'s collision baking (~50 ms), a synchronous model load (~50). The look (`Visuals.WarpSky`, the sky
   shader `GoF2/SpaceSky`, 2026-10-31, from the shader data and the user's clip of the game): EVERSPACE 2's
   `M_TravelMode_WarpTunnel` uses distortion, its colours are the sky's, so no mesh: the sky is resampled in polar coordinates
   about the nose, squeezed into radial streaks in two crossfading phases, level 0 being the plain sky, so nothing cuts; ships,
@@ -190,9 +211,13 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   the game's own (`Data.WarpBands`, 2026-11-01: random phases through an inverse FFT, made once a run; the veins are field
   zero-crossings, as plain noise with ES2's spectrum came out clumpy), so the warp uses no ES2 art; a mod's `warp.json`
   (`ModWarp`) can replace them. The warp has no sound of its own, only a mod's. Nearing a
-  system (20 km) its sky blends in, `InterstellarField` loading it as the arrival orbit builds it (`OrbitBuilder.MakeSky`,
-  `_SkyBlend`, runtime layer modes for a mod's images), so an arrival finds the same sky; a new target fades the last out
-  first. The traffic ahead goes by what a ship is, never its source, so a mod's are in it (`Traffic.Carried`; the arrival takes the
+  system its sky blends in, `InterstellarField` loading it as the arrival orbit builds it (`OrbitBuilder.MakeSky`,
+  `_SkyBlend`, runtime layer modes for a mod's images), so an arrival finds the same sky. **The sky shows the distance flown**
+  (`InterstellarSpace.SkyShare`, the user, 2026-11-01): it opens on the sky of the system left and the next system's crossfades in over
+  the whole leg, edge to edge, what the autopilot flies to (a dive into the Void too, whose sky a dive called off doesn't keep), else the
+  nearest, and a system the flight passes within 20 km of on the way (`NextSystem`; under the autopilot only its sky, not its orbit). A system flown past stays (`TakeOver`: more than half in as the flight goes on to another, it finishes and its
+  sky becomes the sky, turned as it was seen), less fades back. Past the closest point the blended sky holds still, as the way to
+  the system swings round (`skyTurn`). The orbit comes with the old ramp, 20 km to 8 km (`approachBlend`). The traffic ahead goes by what a ship is, never its source, so a mod's are in it (`Traffic.Carried`; the arrival takes the
   approach's whole plan, as escorts name their hulls); what it can't build grows out of nothing (`ArrivalScale.Add` growIn), and
   LODGroups never cull what it scales (2026-11-01: they hid shrunk ships until they popped in). Stand-ins sleep
   (`SystemApproach.Sleep` / `Wake`: every MonoBehaviour, trail and particle system on them, a mod's or not): ES2's world-space
