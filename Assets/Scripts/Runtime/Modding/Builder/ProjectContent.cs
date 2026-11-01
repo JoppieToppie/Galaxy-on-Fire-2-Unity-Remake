@@ -70,9 +70,36 @@ namespace GoF2Remake.Modding
     }
 
     /// <summary>One items.json entry of a project.</summary>
+    /// <summary>weaponfx.json: a weapon effect of the mod's own, a look and sound based on a game weapon's ("base"), which
+    /// weapon items take with "fx": "<id>" (ModWeapons). Its JSON is an fx object with its "id", "name" and "base".</summary>
+    public class ProjectWeaponEffect : ProjectEntry
+    {
+        public ProjectWeaponEffect(JObject o) : base(o) { }
+
+        public string Id { get => S("id"); set => SetS("id", value); }
+        public string Name { get => S("name"); set => SetS("name", value); }
+        /// <summary>The game weapon its look starts from (what it leaves out is that weapon's; the builder's range fires it).</summary>
+        public int Base { get => N("base") ?? -1; set => SetN("base", value < 0 ? (int?)null : value); }
+    }
+
     public class ProjectItem : ProjectEntry
     {
         public ProjectItem(JObject o) : base(o) { }
+
+        /// <summary>"fx" naming one of the project's weapon effects (null: its own look, or the base's).</summary>
+        public string EffectId
+        {
+            get => json["fx"] is JValue v && v.Type == JTokenType.String ? (string)v : null;
+            set { if (string.IsNullOrEmpty(value)) json.Remove("fx"); else json["fx"] = value; }
+        }
+        /// <summary>"fx" naming a game weapon whose whole look and sound it takes (null: none).</summary>
+        public int? GameLook
+        {
+            get => json["fx"] is JValue v && v.Type == JTokenType.Integer ? (int)v : (int?)null;
+            set { if (value == null) json.Remove("fx"); else json["fx"] = value.Value; }
+        }
+        /// <summary>It takes a weapon effect or a game weapon's look rather than its own fx.</summary>
+        public bool TakesLook => EffectId != null || GameLook != null;
 
         public bool IsOverride => json["override"] != null;
         /// <summary>The game item an override changes (-1: another mod's "mod:id").</summary>

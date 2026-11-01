@@ -209,7 +209,7 @@ namespace GoF2Remake.UI
             else Note(itemPage, T("mbStatsNote", "Times in ms, speeds in game units per ms (20 = 1 m); range = speed x lifetime."));
 
             BuildExtraStats(it, original);
-            if (original.categoryId == 8) BuildTurretModel(it);
+            if (original.categoryId == 8 && !it.TakesLook) BuildTurretModel(it);
             if (original.TypeId <= 2) BuildLook(it, original);
 
             Heading(itemPage, T("mbTry", "Try it"));
@@ -393,6 +393,18 @@ namespace GoF2Remake.UI
         void BuildLook(ProjectItem it, ItemData original)
         {
             Heading(itemPage, T("mbLook", "Look and sound"));
+            // A weapon effect instead of its own look: one of the project's (items.json "fx": "<id>", made in the Weapon fx
+            // kind) or a game weapon's whole look and sound ("fx": <item number>).
+            var erow = Add(itemPage, new VisualElement(), "mbv-row");
+            Add(erow, new Label($"{T("mbWeaponEffect", "Weapon effect")}: {LookName(it)}"), "mbv-inline-label");
+            Act(erow, T("mbChoose", "Choose…"), () => ShowPicker(T("mbWeaponEffect", "Weapon effect"), EffectChoices(it), true), "mbv-step");
+            if (it.TakesLook)
+            {
+                Act(erow, "×", () => { it.EffectId = null; LookEdited(); }, "mbv-step");
+                Note(itemPage, it.EffectId != null ? T("mbEffectLookNote", "Its look and sound (a turret's model too) are the effect's: edit it in the Weapon fx kind.")
+                                                   : T("mbGameLookNote", "Its look and sound are that game weapon's, whole."));
+                return;
+            }
             // The weapons whose parts and sounds can be borrowed.
             List<(string, Texture2D, Action)> Weapons(Action<int> pick) =>
                 GameItemChoices(pick, index => !(Database.Shared.Item(index) is ItemData d) || d.TypeId > 2);
@@ -438,6 +450,37 @@ namespace GoF2Remake.UI
                 if (from != null) Act(row, "×", () => { it.SetSoundItem(k, null); LookEdited(); }, "mbv-step");
             }
             Note(itemPage, T("mbLookNote", "Borrow any game weapon's projectile, muzzle flash, impact or sounds; no files needed."));
+        }
+
+        /// <summary>The weapon effect it takes, for its page: one of the project's, a game weapon's, or none.</summary>
+        string LookName(ProjectItem it)
+        {
+            if (it.GameLook is int g) return string.Format(T("mbGameLook", "{0}'s (the game's)"), GameNames.Item(g));
+            if (it.EffectId == null) return T("mbNoEffect", "none, its own look");
+            var e = Project.FindWeaponEffect(it.EffectId);
+            return e == null ? it.EffectId : !string.IsNullOrEmpty(e.Name) ? e.Name : e.Id;
+        }
+
+        /// <summary>The effects a weapon can take: the project's own first, then every game weapon's look.</summary>
+        List<(string, Texture2D, Action)> EffectChoices(ProjectItem it)
+        {
+            void Take(Action set)
+            {
+                if (it.Get("fx") is Newtonsoft.Json.Linq.JObject own && own.HasValues)
+                    Status(T("mbEffectReplacesLook", "Its own look and sound gave way to the effect's (Undo brings them back)."), false);
+                set();
+                LookEdited();
+            }
+            var list = new List<(string, Texture2D, Action)>();
+            foreach (var e in Project.WeaponEffects)
+            {
+                var ef = e;
+                list.Add((!string.IsNullOrEmpty(ef.Name) ? ef.Name : ef.Id, ItemInfo.ItemIcon(Mathf.Max(0, ef.Base)), () => Take(() => it.EffectId = ef.Id)));
+            }
+            foreach (var (name, icon, pick) in GameItemChoices(index => Take(() => it.GameLook = index),
+                                                                index => !(Database.Shared.Item(index) is ItemData d) || d.TypeId > 2))
+                list.Add((string.Format(T("mbGameLook", "{0}'s (the game's)"), name), icon, pick));
+            return list;
         }
 
         void LookEdited(bool rebuild = true)

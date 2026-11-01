@@ -29,6 +29,18 @@ namespace GoF2Remake.UI
                 var it = Project.Items.FirstOrDefault(x => x.Ref == r);
                 if (it == null) return $"No item \"{id}\" in the project.";
                 currentFx = it;
+                currentEffect = null;
+                RebuildFx();
+                BuildFxPage();
+                RestartRange();
+                return null;
+            }
+            if (kindName == "weaponEffects" && kind == ModBuilder.Kind.WeaponFx)
+            {
+                var e = Project.FindWeaponEffect(id);
+                if (e == null) return $"No weapon effect \"{id}\" in the project.";
+                currentEffect = e;
+                currentFx = null;
                 RebuildFx();
                 BuildFxPage();
                 RestartRange();
@@ -40,7 +52,7 @@ namespace GoF2Remake.UI
         internal override JObject ExternalSelection()
         {
             var o = base.ExternalSelection();
-            o["entry"] = kind == ModBuilder.Kind.WeaponFx ? currentFx?.Ref : currentStation?.Ref;
+            o["entry"] = kind == ModBuilder.Kind.WeaponFx ? (currentEffect != null ? "effect:" + currentEffect.Id : currentFx?.Ref) : currentStation?.Ref;
             o["orbit"] = Session.StationIndex;
             if (kind == ModBuilder.Kind.WeaponFx) o["rangeFiring"] = !rangePaused;
             return o;
@@ -81,7 +93,7 @@ namespace GoF2Remake.UI
         internal override string ExternalRange(bool fire)
         {
             if (kind != ModBuilder.Kind.WeaponFx) return base.ExternalRange(fire);
-            if (currentFx == null) return "Pick a weapon first (select_entry items in the weapon fx kind).";
+            if (currentFx == null && currentEffect == null) return "Pick a weapon or an effect first (select_entry items or weaponEffects in the weapon fx kind).";
             rangePaused = !fire;
             BuildFxPage();
             if (fire) RestartRange();

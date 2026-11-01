@@ -51,6 +51,8 @@ namespace GoF2Remake.Modding
         }
 
         public const string ItemsFile = "items.json";
+        /// <summary>The mod's weapon effects (Modding.ModWeapons): looks and sounds an item takes with "fx": "<id>".</summary>
+        public const string WeaponEffectsFile = "weaponfx.json";
 
         /// <summary>One entry of a mod's items.json.</summary>
         public class ItemDef

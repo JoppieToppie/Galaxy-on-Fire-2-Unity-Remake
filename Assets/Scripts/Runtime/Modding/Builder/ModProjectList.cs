@@ -144,7 +144,7 @@ namespace GoF2Remake.Modding
                 p.Modified = Directory.GetLastWriteTimeUtc(folder);
                 foreach (var f in new[] { ModManifest.FileName, ModContent.ShipsFile, ModContent.ItemsFile, ModCharacters.File, BuilderFile,
                                           ModWorld.SystemsFile, ModWorld.StationsFile, InteriorsFile, ModBlueprints.File, ModGameOptions.File, CampaignFile, ProjectKit.File,
-                                          ModRaces.File, ModRaces.OldFile })
+                                          ModRaces.File, ModRaces.OldFile, ModContent.WeaponEffectsFile })
                 {
                     string path = Path.Combine(folder, f);
                     if (File.Exists(path)) { var t = File.GetLastWriteTimeUtc(path); if (t > p.Modified) p.Modified = t; }
@@ -167,6 +167,7 @@ namespace GoF2Remake.Modding
                 p.ReadList(File.Exists(Path.Combine(folder, ModRaces.File)) ? ModRaces.File : ModRaces.OldFile, o => p.Races.Add(new ProjectRace(o)));
                 p.ReadList(ModBlueprints.File, o => p.Blueprints.Add(new ProjectBlueprint(o)));
                 p.ReadList(ProjectKit.File, o => p.Kits.Add(new ProjectKit(o)));
+                p.ReadList(ModContent.WeaponEffectsFile, o => p.WeaponEffects.Add(new ProjectWeaponEffect(o)));
                 p.ReadList(ModGameOptions.File, o => p.GameOptions.Add(new ProjectGameOption(o)));
                 string campaign = Path.Combine(folder, CampaignFile);
                 if (File.Exists(campaign))
@@ -221,6 +222,7 @@ namespace GoF2Remake.Modding
             if (File.Exists(Path.Combine(Folder, ModRaces.OldFile))) File.Delete(Path.Combine(Folder, ModRaces.OldFile));   // the old name, now races.json
             WriteList(ModBlueprints.File, Blueprints.Select(c => c.ToJson()));
             WriteList(ProjectKit.File, Kits.Select(c => c.ToJson()));
+            WriteList(ModContent.WeaponEffectsFile, WeaponEffects.Select(c => c.ToJson()));
             WriteList(ModGameOptions.File, GameOptions.Select(c => c.ToJson()));
             string campaign = Path.Combine(Folder, CampaignFile);
             if (Campaign != null) Write(CampaignFile, Campaign.ToJson().ToString(Formatting.Indented));

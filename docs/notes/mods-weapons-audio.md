@@ -32,6 +32,14 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   unit long. Test `ModWeaponsTests.ABeamsSpriteRunsAlongTheBeamFacingTheCamera`; checked in an off-screen render. Loaded in the background with the rest
   (`ModLoading`, the menu's `Preload`). Verified in Play mode: the example's Plasma Lance (fired: violet bolts stretched
   along their flight, the flash at the gun, the ring impact, its own shot sound).
+- **Weapon effects** (2026-11-01, the user's request: the Weapon fx kind adds whole effects and changes a game weapon's):
+  `weaponfx.json` (`ModContent.WeaponEffectsFile`, `ModWeapons.Effects`): { "id", "name", "base", the fx fields }, keyed
+  "mod id:id"; an item takes one with items.json `"fx": "<id>"` / `"<mod id>:<id>"` (`ParseEffect`: `File` is weaponfx.json
+  meanwhile, for the messages; "id" / "name" / "base" no unknown fields), or a game weapon's whole look with `"fx": <item
+  number>` (a Def with only `look`). `Def.look` = the effect's base: `LoadOne` copies that item's WeaponFx parts, shots and
+  blast sounds over the item's own base copy before the effect's parts apply (so "the base's" part means the effect's
+  base), keeping the item's turret model and explosion type. The builder project's effects are also built on their own on
+  their base weapon (`Def.effect`, `ModWeapons.Effect(key)`) for the range. Tests `ModWeaponEffectsTests`.
 - **Missile turrets and salvos** (remake, for mods; a modder's missile turret, 2026-10-14, whose own source patch was
   folded in this way): stats `missiles` 105 (a plain gun's / turret's shots are homing missiles, `Gun.missiles`: `Homing`,
   `IsMissile` = the rocket burst on a hit (`GunRig.ShowImpact`) and the rocket smoke trail (`RocketTrail.For`), no shrink;

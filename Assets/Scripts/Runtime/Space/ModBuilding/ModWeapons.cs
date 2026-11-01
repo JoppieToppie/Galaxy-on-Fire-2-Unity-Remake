@@ -12,6 +12,11 @@
 // along the gun node (game units, on the model as made), "scale" and "offset" (the model moved off its mount, game units);
 // "item" instead of "model" is another item's turret model (a game turret's: no 3D file needed). Any "model" (a part's, the
 // turret's) may be "gof2:<model name>", one of the game's own models (Modding.GameModels).
+// Weapon effects (weaponfx.json, EffectsFile): a look and sound of their own, based on a game weapon ("base": what they leave
+// out is that weapon's), which any item takes with "fx": "<id>" (or "<mod id>:<id>" for another mod's); the item's turret
+// model and blast type stay its own; "fx": <item number> takes a game weapon's whole look and sound the same way. The
+// builder project's effects are also built on their own, on their base weapon, for
+// the Mod Builder's firing range (Effect).
 // Each item gets a WeaponFx of its own (a copy of the base item's, the parts and clips replaced), which WeaponFx.Load hands
 // to every gun (the player's, NPCs', turrets, sentry guns, other players' mirrored shots). The parts are built under a
 // hidden DontDestroyOnLoad holder (GunRig instantiates them); ModFxPart gives the sprites and models their lifetime,
@@ -31,7 +36,10 @@ namespace GoF2Remake.Modding
     public static class ModWeapons
     {
         const float M = 0.05f;
-        const string File = ModContent.ItemsFile;
+        /// <summary>The mods' weapon effects: a list of { "id", "name", "base", and the fx fields }.</summary>
+        public const string EffectsFile = ModContent.WeaponEffectsFile;
+        /// <summary>The file the entries being parsed come from (for the messages): items.json, weaponfx.json during an effect.</summary>
+        static string File = ModContent.ItemsFile;
 
         /// <summary>One part of an "fx": a sprite or a model, the base item's recoloured, or removed.</summary>
         public class Part
@@ -73,9 +81,25 @@ namespace GoF2Remake.Modding
             public int turretItem = -1;
             /// <summary>The turret model is resized or moved (its own or the base item's).</summary>
             public bool TurretReshaped => !Mathf.Approximately(turretScale, 1f) || turretOffset != Vector3.zero;
+            /// <summary>A weapon effect's "base": that item's parts and sounds where the effect leaves them out (-1 = the
+            /// item's own base's).</summary>
+            public int look = -1;
+            /// <summary>An effect built on its own (its key, "mod id:id"; the item is its base): Effect, not Fx.</summary>
+            public string effect;
+        }
+
+        /// <summary>A weapon effect of weaponfx.json.</summary>
+        public sealed class EffectDef
+        {
+            public ModInfo mod;
+            public JObject json;
+            public string id;
+            /// <summary>"base", the item its look starts from (-1: none given).</summary>
+            public int look = -1;
         }
 
         static readonly Dictionary<int, WeaponFx> made = new Dictionary<int, WeaponFx>();
+        static readonly Dictionary<string, WeaponFx> effectsMade = new Dictionary<string, WeaponFx>(System.StringComparer.OrdinalIgnoreCase);
         static readonly List<Object> owned = new List<Object>();
         static readonly List<GLTFast.GltfImport> imports = new List<GLTFast.GltfImport>();
         static GameObject holder;
@@ -86,7 +110,8 @@ namespace GoF2Remake.Modding
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
-            made.Clear(); owned.Clear(); imports.Clear(); greyed.Clear(); recolorBlit = null;
+            made.Clear(); effectsMade.Clear(); owned.Clear(); imports.Clear(); greyed.Clear(); recolorBlit = null;
+            File = ModContent.ItemsFile;
             holder = null; agent = null; quad = null; loadingRevision = loadedRevision = -1; Count = Done = 0;
         }
 
@@ -111,6 +136,14 @@ namespace GoF2Remake.Modding
             return made.TryGetValue(item, out var fx) ? fx : null;
         }
 
+        /// <summary>The builder project's weapon effect 'key' ("mod id:id") built on its base weapon (null: none, or not built
+        /// yet): the Mod Builder's range fires it.</summary>
+        public static WeaponFx Effect(string key)
+        {
+            if (loadedRevision != ModManager.Revision) { Preload(); return null; }
+            return key != null && effectsMade.TryGetValue(key, out var fx) ? fx : null;
+        }
+
         public static void Preload()
         {
             int rev = ModManager.Revision;
@@ -121,9 +154,11 @@ namespace GoF2Remake.Modding
 
         // ---- the "fx" entries ---------------------------------------------------------------------------------------
 
-        /// <summary>The "fx" of every item of the mods that are on (a later mod's fx for the same item wins).</summary>
+        /// <summary>The "fx" of every item of the mods that are on (a later mod's fx for the same item wins), an effect's
+        /// ("fx": "<id>") read from weaponfx.json; then the builder project's effects on their own (Effect).</summary>
         public static List<Def> Defs()
         {
+            var effects = Effects();
             var byItem = new Dictionary<int, Def>();
             foreach (var mod in ModManager.Active)
                 foreach (var d in ModContent.Parse(mod).items)
@@ -131,26 +166,96 @@ namespace GoF2Remake.Modding
                     if (!(ModJson.Get(d.json, "fx") is JToken fx)) continue;
                     int index = d.key != null ? ModContent.ItemIndexOf(d.key) : ModContent.TryResolveItem(d.overrideRef, out int t) ? t : -1;
                     if (index < 0) continue;
-                    try { byItem[index] = Parse(mod, fx, index, d.localId ?? d.overrideRef); }
+                    string label = d.localId ?? d.overrideRef;
+                    try
+                    {
+                        if (fx.Type == JTokenType.Integer)
+                        {
+                            // A game weapon's look and sound, whole (as an effect with only a "base").
+                            if (!ModContent.TryResolveItem(fx.ToString(), out int look))
+                                throw new ModJsonException($"{ModJson.Where(fx, File)}: \"fx\": there is no item {fx}");
+                            byItem[index] = new Def { mod = mod, item = index, label = label, where = ModJson.Where(fx, File), look = look };
+                            continue;
+                        }
+                        if (fx.Type != JTokenType.String) { byItem[index] = Parse(mod, fx, index, label); continue; }
+                        string name = (string)fx, key = name.Contains(':') ? name : mod.Id + ":" + name;
+                        if (!effects.TryGetValue(key, out var e))
+                            throw new ModJsonException($"{ModJson.Where(fx, File)}: \"fx\": there is no weapon effect \"{name}\" (in the {EffectsFile} of {(name.Contains(':') ? "a mod that is on" : "this mod")})");
+                        byItem[index] = ParseEffect(e, index, label);
+                    }
                     catch (ModJsonException e) { Warn(mod, e.Message); }
                 }
-            return new List<Def>(byItem.Values);
+            var defs = new List<Def>(byItem.Values);
+            var builder = ModManager.BuilderProject;
+            foreach (var e in effects.Values)
+            {
+                if (builder == null || e.mod != builder || e.look < 0) continue;
+                try
+                {
+                    var d = ParseEffect(e, e.look, e.id);
+                    d.effect = e.mod.Id + ":" + e.id;
+                    defs.Add(d);
+                }
+                catch (ModJsonException x) { Warn(e.mod, x.Message); }
+            }
+            return defs;
+        }
+
+        /// <summary>Every active mod's weapon effects (weaponfx.json) by key, "mod id:id".</summary>
+        public static Dictionary<string, EffectDef> Effects()
+        {
+            var all = new Dictionary<string, EffectDef>(System.StringComparer.OrdinalIgnoreCase);
+            foreach (var mod in ModManager.Active)
+            {
+                JToken file;
+                try { file = ModJson.Read(mod.Source, EffectsFile); }
+                catch (ModJsonException e) { Warn(mod, e.Message); continue; }
+                if (file == null) continue;
+                if (!(file is JArray list)) { Warn(mod, $"{EffectsFile}: a list [ {{ \"id\": ..., \"base\": ... }} ] of weapon effects"); continue; }
+                foreach (var o in list.OfType<JObject>())
+                {
+                    string id = ModJson.Get(o, "id")?.ToString();
+                    if (string.IsNullOrEmpty(id)) { Warn(mod, $"{ModJson.Where(o, EffectsFile)}: a weapon effect needs an \"id\""); continue; }
+                    var e = new EffectDef { mod = mod, json = o, id = id };
+                    if (ModJson.Get(o, "base") is JToken b && !ModContent.TryResolveItem(b.ToString(), out e.look))
+                    {
+                        Warn(mod, $"{ModJson.Where(b, EffectsFile)}: \"base\": there is no item {b}");
+                        e.look = -1;
+                    }
+                    all[mod.Id + ":" + id] = e;
+                }
+            }
+            return all;
+        }
+
+        static Def ParseEffect(EffectDef e, int item, string label)
+        {
+            string was = File;
+            File = EffectsFile;
+            try
+            {
+                var d = Parse(e.mod, e.json, item, label, true);
+                d.look = e.look;
+                return d;
+            }
+            finally { File = was; }
         }
 
         static readonly HashSet<string> FxFields = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
             { "projectile", "muzzle", "impact", "shot", "shotLoops", "explosionSound", "turret", "trail" };
+        static readonly HashSet<string> EffectFields = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase) { "id", "name", "base" };
         static readonly HashSet<string> PartFields = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
             { "sprite", "model", "texture", "size", "color", "glow", "additive", "lifetime", "grow", "fade", "spin", "alongFlight", "stretch", "rotate",
               "item", "scale" };
         static readonly HashSet<string> CopyFields = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase) { "item", "scale", "color", "glow" };
         static readonly HashSet<string> TurretFields = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase) { "model", "item", "muzzle", "shotStart", "scale", "offset" };
 
-        static Def Parse(ModInfo mod, JToken token, int item, string label)
+        static Def Parse(ModInfo mod, JToken token, int item, string label, bool effect = false)
         {
             string where = ModJson.Where(token, File);
-            if (!(token is JObject o)) throw new ModJsonException($"{where}: \"fx\" must be an object {{ ... }}");
+            if (!(token is JObject o)) throw new ModJsonException($"{where}: \"fx\" must be an object {{ ... }}, a weapon effect's id or a game item's number");
             foreach (var p in o.Properties())
-                if (!FxFields.Contains(p.Name)) mod.Warnings.Add($"{ModJson.Where(p, File)}: unknown fx field \"{p.Name}\" (ignored)");
+                if (!FxFields.Contains(p.Name) && !(effect && EffectFields.Contains(p.Name))) mod.Warnings.Add($"{ModJson.Where(p, File)}: unknown fx field \"{p.Name}\" (ignored)");
             var d = new Def
             {
                 mod = mod, item = item, label = label, where = where,
@@ -346,6 +451,7 @@ namespace GoF2Remake.Modding
             owned.Clear();
             greyed.Clear();
             made.Clear();
+            effectsMade.Clear();
             foreach (var i in imports) i.Dispose();
             imports.Clear();
             List<Def> defs;
@@ -394,6 +500,14 @@ namespace GoF2Remake.Modding
                 var fx = baseFx != null ? Object.Instantiate(baseFx) : ScriptableObject.CreateInstance<WeaponFx>();
                 fx.name = $"mod fx {d.mod.Id}:{d.label}";
                 fx.item = d.item;
+                if (d.look >= 0 && BaseFx(d.look) is WeaponFx look)
+                {
+                    // A weapon effect's base: its parts and sounds where the effect leaves them out (the item's turret
+                    // model and blast type stay).
+                    fx.projectile = look.projectile; fx.muzzleFlash = look.muzzleFlash; fx.impact = look.impact;
+                    fx.shot = look.shot; fx.shots = look.shots; fx.shotLoops = look.shotLoops;
+                    fx.explosionSound = look.explosionSound; fx.explosionSounds = look.explosionSounds;
+                }
                 if (d.projectile != null) fx.projectile = d.projectile.copy ? Copy(d, d.projectile, fx.projectile, 0) : built[0].Result;
                 if (d.muzzle != null) fx.muzzleFlash = d.muzzle.copy ? Copy(d, d.muzzle, fx.muzzleFlash, 1) : built[1].Result;
                 if (d.impact != null) fx.impact = d.impact.copy ? Copy(d, d.impact, fx.impact, 2) : built[2].Result;
@@ -453,8 +567,9 @@ namespace GoF2Remake.Modding
                 fx.turretMuzzleUnits = muzzle;
                 fx.turretShotUnits = shotStart;
                 owned.Add(fx);
-                made[d.item] = fx;
-                Debug.Log($"Mods: {d.mod.Id}: weapon fx for \"{d.label}\" (item {d.item})");
+                if (d.effect != null) effectsMade[d.effect] = fx;
+                else made[d.item] = fx;
+                Debug.Log($"Mods: {d.mod.Id}: weapon fx for \"{d.label}\" ({(d.effect != null ? "effect, on item " : "item ")}{d.item})");
             }
             catch (System.Exception e) when (rev == ModManager.Revision) { Warn(d.mod, $"{d.where}: {e.Message}"); if (!ModFileException.IsFileError(e)) Debug.LogException(e); }
             catch (System.Exception) { }   // a stale load (the mods changed meanwhile)

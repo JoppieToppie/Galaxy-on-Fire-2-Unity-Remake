@@ -341,10 +341,10 @@ namespace GoF2Remake.UI
             p.AudioFiles(ModProject.MusicFolder).Count + p.AudioFiles(ModProject.SoundsFolder).Count + p.AudioFiles(ModProject.VoicesFolder).Count
             + p.AudioFiles(ModProject.VoicesFolder + "/de").Count + p.AudioFiles(ModProject.VoicesFolder + "/en").Count;
 
-        /// <summary>The weapons with a look of their own (items.json "fx").</summary>
-        static int FxCount(ModProject p) => p.Items.Count(i => i.Get("fx") != null);
+        /// <summary>The weapons with a look of their own (items.json "fx") and the weapon effects (weaponfx.json).</summary>
+        static int FxCount(ModProject p) => p.Items.Count(i => i.Get("fx") != null) + p.WeaponEffects.Count;
 
-        static bool HasContent(ModProject p) => p.Ships.Count + p.Items.Count + p.Characters.Count + p.SkinShips().Count + p.Blueprints.Count + p.Quests.Count
+        static bool HasContent(ModProject p) => p.Ships.Count + p.Items.Count + p.WeaponEffects.Count + p.Characters.Count + p.SkinShips().Count + p.Blueprints.Count + p.Quests.Count
                                                + p.Systems.Count + p.Stations.Count + p.Interiors.Count + p.GameOptions.Count + AudioCount(p) > 0 || p.Campaign != null
                                                || p.EventGraphs().Count > 0;
 
@@ -385,7 +385,7 @@ namespace GoF2Remake.UI
                 {
                     ModBuilder.Kind.Ships => Count(selected.Ships.Count, "mbOneShip", "1 ship", "mbShipsN", "{0} ships"),
                     ModBuilder.Kind.Items => Count(selected.Items.Count, "mbOneItem", "1 item", "mbItemsN", "{0} items"),
-                    ModBuilder.Kind.WeaponFx => Count(FxCount(selected), "mbOneFx", "1 weapon", "mbFxN", "{0} weapons"),
+                    ModBuilder.Kind.WeaponFx => Count(FxCount(selected), "mbOneFx", "1 look", "mbFxN", "{0} looks"),
                     ModBuilder.Kind.Characters => Count(selected.Characters.Count, "mbOneCharacter", "1 character", "mbCharactersN", "{0} characters"),
                     ModBuilder.Kind.Skins => Count(selected.SkinShips().Count, "mbOneSkin", "1 skin", "mbSkinsN", "{0} skins"),
                     ModBuilder.Kind.Blueprints => Count(selected.Blueprints.Count, "mbOneBlueprint", "1 blueprint", "mbBlueprintsN", "{0} blueprints"),

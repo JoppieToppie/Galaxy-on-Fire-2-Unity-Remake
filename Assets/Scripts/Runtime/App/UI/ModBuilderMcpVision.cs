@@ -36,7 +36,7 @@ namespace GoF2Remake.UI
 {
     public static partial class ModBuilderMcp
     {
-        static readonly string[] SelectKinds = { "ships", "items", "characters", "skins", "blueprints", "kits", "gameOptions", "campaign", "interiors", "missions", "systems", "races", "stations", "weaponFx" };
+        static readonly string[] SelectKinds = { "ships", "items", "characters", "skins", "blueprints", "kits", "gameOptions", "campaign", "interiors", "missions", "systems", "races", "stations", "weaponFx", "weaponEffects" };
         static readonly string[] AngleNames = ModelViewer.Angles.Select(a => a.name).ToArray();
 
         static JObject StrArray(string description) => new JObject { ["type"] = "array", ["items"] = new JObject { ["type"] = "string" }, ["description"] = description };
@@ -79,7 +79,7 @@ namespace GoF2Remake.UI
             {
                 name = "select_entry", title = "Show an entry in the builder",
                 description = "Picks an entry as a click on its row would, going to its kind first: its page shows, and the turntable, room, map or orbit shows it. " +
-                              "Kinds: " + string.Join(", ", SelectKinds) + " (skins: the game ship's number; weaponFx: an item, fired on the range). " +
+                              "Kinds: " + string.Join(", ", SelectKinds) + " (skins: the game ship's number; weaponFx: an item, fired on the range; weaponEffects: an effect of weaponfx.json, fired on its base weapon). " +
                               "Options: ships {\"tab\": \"ship\" | \"hardpoints\" | \"loadout\"}, missions {\"graph\": true for the node graph, \"wide\": true}. 'capture' adds a screenshot.",
                 input = Input(("kind", Enum(SelectKinds), "the kind", true), ("id", "string", "an id, \"override:<n>\", a mission's name or a skinned ship's number", true),
                               ("options", new JObject { ["type"] = "object" }, "per kind (see above)", false),
@@ -133,7 +133,7 @@ namespace GoF2Remake.UI
             {
                 name = "weapon_range", title = "The weapon fx range",
                 description = "In space, the Weapon fx kind: a weapon of the project (its item id) fires from a parked ship at a target, again and again; 'fire' false pauses it. Answers with a screenshot unless 'capture' is false.",
-                input = Input(("item", "string", "the item's id or \"override:<n>\"", true), ("fire", "boolean", "fire (default) or pause", false), ("capture", "boolean", "answer with a screenshot (default true)", false)),
+                input = Input(("item", "string", "the item's id or \"override:<n>\", or \"effect:<id>\" for a weapon effect", true), ("fire", "boolean", "fire (default) or pause", false), ("capture", "boolean", "answer with a screenshot (default true)", false)),
                 run = WeaponRange, timeoutSeconds = 90f, noAsk = true,
             },
             new Tool
@@ -554,6 +554,7 @@ namespace GoF2Remake.UI
             "skins" => ModBuilder.Kind.Skins, "blueprints" => ModBuilder.Kind.Blueprints, "kits" => ModBuilder.Kind.Kits, "gameOptions" => ModBuilder.Kind.Campaigns,
             "campaign" => ModBuilder.Kind.Campaigns, "interiors" => ModBuilder.Kind.Interiors, "missions" => ModBuilder.Kind.Quests,
             "systems" => ModBuilder.Kind.Systems, "races" => ModBuilder.Kind.Races, "stations" => ModBuilder.Kind.Stations, "weaponFx" => ModBuilder.Kind.WeaponFx,
+            "weaponEffects" => ModBuilder.Kind.WeaponFx,
             _ => throw new ArgumentException("kind: one of " + string.Join(", ", SelectKinds)),
         };
 
@@ -632,7 +633,9 @@ namespace GoF2Remake.UI
             string id = Str(a, "item");
             WithKind(c, ModBuilder.Kind.WeaponFx, screen =>
             {
-                string err = screen.ExternalSelectEntry("items", id, null) ?? screen.ExternalRange(Flag(a, "fire", true));
+                // "effect:<id>": one of the project's weapon effects, fired on its base weapon.
+                bool effect = id != null && id.StartsWith("effect:");
+                string err = screen.ExternalSelectEntry(effect ? "weaponEffects" : "items", effect ? id.Substring(7) : id, null) ?? screen.ExternalRange(Flag(a, "fire", true));
                 if (err != null) { c.Fail(err); return; }
                 int f = Time.frameCount;
                 c.Wait(() => Time.frameCount > f + 45, () => Answer(c, Flag(a, "capture", true), false, Flag(a, "fire", true) ? $"{id} firing on the range" : "the range paused"));

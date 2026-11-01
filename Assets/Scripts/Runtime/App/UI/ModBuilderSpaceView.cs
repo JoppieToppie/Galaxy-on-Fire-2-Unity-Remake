@@ -90,11 +90,12 @@ namespace GoF2Remake.UI
 
         protected override Action BeforeUndo()
         {
-            string st = currentStation?.Ref, it = currentFx?.Ref;
+            string st = currentStation?.Ref, it = currentFx?.Ref, effect = currentEffect?.Id;
             return () =>
             {
                 currentStation = Project.Stations.FirstOrDefault(s => s.Ref == st) ?? Project.Stations.FirstOrDefault();
                 currentFx = Project.Items.FirstOrDefault(i => i.Ref == it);
+                currentEffect = effect != null ? Project.FindWeaponEffect(effect) : null;
                 OnReloaded();
             };
         }

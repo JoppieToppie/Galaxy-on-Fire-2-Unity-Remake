@@ -234,7 +234,7 @@ earlier). Only the fields you give change. Giving `name` or `description` rename
 | `stats` | The item's numbers, see below. |
 | `attributes` | The original game's attribute numbers directly: `{ "9": 14 }`. For anything `stats` has no name for. |
 | `defaultEconomy` | The same fields again, used when the player picked the Default Economy (the PC / Mac prices) for their game. |
-| `fx` | A weapon's own look and sound, see [Weapon effects](#weapon-effects). |
+| `fx` | A weapon's own look and sound; or a weapon effect's id from `weaponfx.json`, or a game weapon's number for its whole look. See [Weapon effects](#weapon-effects). |
 | `icon` | Its own shop icon: a PNG in the mod, 180 x 88 like the originals (frame and background included; copy one from `Assets/Resources/GoF2Icons` to start from), or one of the game's: `"gof2:item_046"`. Without it the item shows its base item's icon. An `override` with `icon` gives an original item a new one. |
 | `available` | A [condition](#conditions) that must hold before shops stock it or it turns up in loot (an `override` can hold back an original item too). |
 
@@ -557,7 +557,7 @@ the player's own ship, and no EMP for a turret or sentry.
 ### Weapon effects
 
 A weapon (a new one or an `override` of an original) can look and sound like its own thing with `fx`. Anything it leaves out
-stays its base item's. What the weapon *does* never changes: a beam stays a beam, a mine a mine, a homing missile homes.
+stays its base item's. Several weapons can share one look: see [Effects many weapons share](#effects-many-weapons-share-weaponfxjson). What the weapon *does* never changes: a beam stays a beam, a mine a mine, a homing missile homes.
 
 ```json
 {
@@ -635,6 +635,34 @@ beam's.
 
 The game loads them with the mod at the start (the loading screen waits). Every gun of that item uses them: the player's,
 NPC ships', turrets, sentry guns, and other players' in multiplayer.
+
+#### Effects many weapons share (weaponfx.json)
+
+A look made once can be given to several weapons. `weaponfx.json` lists the mod's own **weapon effects**: each has an
+`id`, a `name` (for you and the Mod Builder) and a `base`, the game weapon whose look and sounds it starts from; then any
+of the fields above. What an effect leaves out is its base weapon's, whatever weapon takes it.
+
+```json
+[
+    { "id": "violet_bolt", "name": "Violet bolt", "base": 0,
+      "projectile": { "color": [0.75, 0.45, 1.0] }, "impact": { "color": "#b070ff", "glow": 4 }, "shot": 46 }
+]
+```
+
+A weapon takes one with `"fx": "<id>"` in items.json instead of an object, or `"fx": "<mod id>:<id>"` for another mod's
+(list that mod in your `dependencies`). `"fx": <number>` takes a game weapon's whole look and sound, as an effect with
+only a `base` would:
+
+```json
+[
+    { "id": "violet_cannon", "base": 2, "name": "Violet Cannon", "fx": "violet_bolt" },
+    { "override": 5, "fx": 46 }
+]
+```
+
+The weapon still works like its own base item, and keeps its own turret model and blast; an effect's `turret`, `trail` and
+sounds apply to every weapon taking it. In the Mod Builder: **+ New weapon effect** in the Weapon fx kind, and a weapon's
+**Weapon effect** on its Items page (your effects first, then every game weapon's look).
 
 ## ships.json
 

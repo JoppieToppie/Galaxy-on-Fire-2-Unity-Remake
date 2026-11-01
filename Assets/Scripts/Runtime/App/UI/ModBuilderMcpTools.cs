@@ -43,6 +43,7 @@ namespace GoF2Remake.UI
             ("interiors", "interiors.json", "id", ModBuilder.Kind.Interiors),
             ("blueprints", "blueprints.json", "id", ModBuilder.Kind.Blueprints),
             ("kits", "shipkits.json", "id (a kit of ship parts; a ships.json ship flies it with kit / kitType / build)", ModBuilder.Kind.Kits),
+            ("weaponEffects", "weaponfx.json", "id (a look and sound of its own, from its base weapon's; an item takes it with \"fx\": \"<id>\")", ModBuilder.Kind.WeaponFx),
             ("gameOptions", "gameoptions.json", "id", ModBuilder.Kind.Campaigns),
             ("missions", "events/<name>.gof2mission", "name (the file name: letters, digits, _)", ModBuilder.Kind.Quests),
             ("campaign", "campaign.json", "(one per mod)", ModBuilder.Kind.Campaigns),
@@ -245,6 +246,7 @@ namespace GoF2Remake.UI
                     {
                         ["ships"] = p.Ships.Count, ["items"] = p.Items.Count, ["characters"] = p.Characters.Count, ["systems"] = p.Systems.Count,
                         ["stations"] = p.Stations.Count, ["interiors"] = p.Interiors.Count, ["races"] = p.Races.Count, ["blueprints"] = p.Blueprints.Count, ["kits"] = p.Kits.Count,
+                        ["weaponEffects"] = p.WeaponEffects.Count,
                         ["gameOptions"] = p.GameOptions.Count, ["missions"] = p.Quests.Count, ["campaign"] = p.Campaign != null,
                     },
                     ["dependencies"] = new JArray(p.Dependencies),

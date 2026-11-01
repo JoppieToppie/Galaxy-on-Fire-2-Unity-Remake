@@ -270,7 +270,14 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   "+ Add" too) and those changing what the game or the mod already has (class `mbv-change`: Change a game ship / item /
   station / system / weapon's look, Replace a game track / sound / line / character, Skin a game ship, the other
   textures, Make this mod a campaign, Change it) a filled pencil (`DrawPencil`), their texts without "+ " in every
-  language; `ScrollBars` puts the bar at the viewport's edge and `.gof-scroll-bar` centres itself with
+  language; Weapon fx gained "+ New weapon effect" (2026-11-01: a weapon effect of weaponfx.json, `ProjectWeaponEffect`,
+  `ModProject.WeaponEffects`, based on a game weapon picked; its page: name, base, the weapons using it, then the same
+  parts / trail / sounds editor through `Fx(make)` / `FxBase` / `FxFileId`; the range fires it on its base weapon,
+  `ModWeapons.Effect`; Remove effect clears the items' links, `RemoveWeaponEffect`). A weapon taking an effect or a game
+  look (`ProjectItem.EffectId` / `GameLook` / `TakesLook`) shows which, with "Edit the effect" / "Its own look instead";
+  the Items page's "Weapon effect" picks one of the project's effects or any game weapon's look (`EffectChoices`; a
+  turret taking one hides its turret model section: the effect's applies). AI tools: entry kind `weaponEffects`,
+  select_entry `weaponEffects`, the range's item `effect:<id>`; `ScrollBars` puts the bar at the viewport's edge and `.gof-scroll-bar` centres itself with
   `translate: -50%` (subtracting the snapped half width each layout fed back into the next: the bar's width flickered by a
   pixel twice a second).
 - **The builder translated** (2026-10-22): its 875 `Localization.Extra` texts in all 13 `extra_<lang>.json` (the kinds,

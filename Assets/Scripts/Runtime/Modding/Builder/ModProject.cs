@@ -81,6 +81,8 @@ namespace GoF2Remake.Modding
         public readonly List<ProjectBlueprint> Blueprints = new List<ProjectBlueprint>();
         /// <summary>shipkits.json: the customizable ships' kits of parts (ModShipKits).</summary>
         public readonly List<ProjectKit> Kits = new List<ProjectKit>();
+        /// <summary>weaponfx.json: the mod's own weapon effects (ModWeapons).</summary>
+        public readonly List<ProjectWeaponEffect> WeaponEffects = new List<ProjectWeaponEffect>();
         public readonly List<ProjectGameOption> GameOptions = new List<ProjectGameOption>();
         public readonly List<ProjectQuest> Quests = new List<ProjectQuest>();
         /// <summary>campaign.json, null = the mod has no campaign.</summary>
