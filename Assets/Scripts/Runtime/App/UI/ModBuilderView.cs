@@ -138,7 +138,7 @@ namespace GoF2Remake.UI
             newShip.SetEnabled(ModImport.Available);
             Act(left, T("mbNewShipGame", "+ New ship on a game model"), () => PickGameShip(T("mbNewShipGameTitle", "New ship on a game model"), NewShipOnGameModel), "mbv-add");
             Act(left, T("mbNewShipKit", "+ New ship from a kit"), NewShipFromKit, "mbv-add");
-            Act(left, T("mbChangeShip", "+ Change a game ship"), PickOriginal, "mbv-add");
+            Act(left, T("mbChangeShip", "Change a game ship"), PickOriginal, "mbv-add", "mbv-change");
             Act(left, T("mbRemoveShip", "Remove ship"), AskRemove, "mbv-danger", "mbv-remove");
 
             // ---- right: the selected ship ----

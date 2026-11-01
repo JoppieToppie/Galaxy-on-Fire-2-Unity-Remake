@@ -34,8 +34,8 @@ namespace GoF2Remake.UI
         {
             systemList = ListPanel(left, T("mbSystems", "Systems"));
             Act(left, T("mbNewSystem", "+ New system"), NewSystem, "mbv-add");
-            Act(left, T("mbChangeSystem", "+ Change a system"), () => PickRef(RefKind.System, T("mbChangeSystemTitle", "Change a system"), e => ChangeSystem(e.value),
-                                                                             e => !e.own && !Project.Systems.Any(s => s.IsOverride && s.OverrideRef == e.value)), "mbv-add");
+            Act(left, T("mbChangeSystem", "Change a system"), () => PickRef(RefKind.System, T("mbChangeSystemTitle", "Change a system"), e => ChangeSystem(e.value),
+                                                                             e => !e.own && !Project.Systems.Any(s => s.IsOverride && s.OverrideRef == e.value)), "mbv-add", "mbv-change");
             Act(left, T("mbRemoveSystem", "Remove"), AskRemoveSystem, "mbv-danger", "mbv-remove");
             systemPage = PagePanel(right);
         }
@@ -199,7 +199,7 @@ namespace GoF2Remake.UI
                     string reference = ModWorld.ActiveSystemKeys().FirstOrDefault(kv => kv.Key == pickedGameSystem).Value ?? pickedGameSystem.ToString();
                     Heading(systemPage, g?.name ?? "?");
                     Note(systemPage, T("mbGameSystemNote", "A system of the game (or of a mod this one depends on)."));
-                    Act(systemPage, T("mbChangeIt", "Change it"), () => ChangeSystem(reference));
+                    Act(systemPage, T("mbChangeIt", "Change it"), () => ChangeSystem(reference), "mbv-change");
                     Act(systemPage, T("mbAddGateTo", "+ A gate route from one of your systems to here"), () =>
                     {
                         var own = Project.Systems.FirstOrDefault(s => !s.IsOverride);

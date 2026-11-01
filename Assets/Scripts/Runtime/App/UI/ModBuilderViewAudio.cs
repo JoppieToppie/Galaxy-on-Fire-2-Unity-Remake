@@ -68,12 +68,12 @@ namespace GoF2Remake.UI
                     Heading(audioPage, T("mbMusic", "Music"));
                     Note(audioPage, T("mbMusicNote", "Named like a game track: it replaces it. Any other name is a new track."));
                     var mrow = Row(audioPage);
-                    Act(mrow, T("mbReplaceTrack", "+ Replace a game track"), () =>
+                    Act(mrow, T("mbReplaceTrack", "Replace a game track"), () =>
                     {
                         var choices = ModRefs.GameMusic.Select(t => (t, (Func<AudioClip>)(() => GameAudioIndex.Clip(t)), (Action)(() => PickAudio(T("mbPickMusic", "Choose the music file"), path =>
                         { Project.SetAudio(ModProject.MusicFolder, t, path); AudioChanged(); })))).ToList();
-                        ShowAudioPicker(T("mbReplaceTrack", "+ Replace a game track"), choices, Settings.MusicVolume);
-                    }, "mbv-add");
+                        ShowAudioPicker(T("mbReplaceTrack", "Replace a game track"), choices, Settings.MusicVolume);
+                    }, "mbv-add", "mbv-change");
                     Act(mrow, T("mbNewTrack", "+ New track"), () => AskText(T("mbNewTrack", "+ New track"), T("mbTrackName", "Its name (a-z, 0-9, _)"), "", name =>
                     {
                         string id = ModProject.Slug(name);
@@ -85,7 +85,7 @@ namespace GoF2Remake.UI
                     Heading(audioPage, T("mbSounds", "Sound effects"));
                     Note(audioPage, T("mbSoundsNote2", "Named like a game sound: it replaces it everywhere. Any other name is a new sound for your missions' Sound step. A weapon's shot is set on its item."));
                     var srow = Row(audioPage);
-                    Act(srow, T("mbReplaceSound", "+ Replace a game sound"), () =>
+                    Act(srow, T("mbReplaceSound", "Replace a game sound"), () =>
                     {
                         var choices = new List<(string, Func<AudioClip>, Action)>();
                         string folder = null;
@@ -97,8 +97,8 @@ namespace GoF2Remake.UI
                             string n = name;
                             choices.Add((n, () => GameAudioIndex.Clip(n), () => PickAudio(T("mbPickSound", "Choose the sound file"), path => { Project.SetAudio(ModProject.SoundsFolder, n, path); AudioChanged(); })));
                         }
-                        ShowAudioPicker(T("mbReplaceSound", "+ Replace a game sound"), choices, Settings.SfxVolume);
-                    }, "mbv-add");
+                        ShowAudioPicker(T("mbReplaceSound", "Replace a game sound"), choices, Settings.SfxVolume);
+                    }, "mbv-add", "mbv-change");
                     Act(srow, T("mbNewSound", "+ New sound"), () => AskText(T("mbNewSound", "+ New sound"), T("mbSoundName", "Its name (a-z, 0-9, _): the missions play it by this name"), "", name =>
                     {
                         string id = ModProject.Slug(name);
@@ -111,7 +111,7 @@ namespace GoF2Remake.UI
                     Note(audioPage, T("mbVoicesNote3", "Lines for your missions' conversations and radio, for every language or one: a player hears the one in their text language, else the one for every language. Named like one of the game's lines, a file replaces that line everywhere, the story's included."));
                     var vrow = Row(audioPage);
                     Act(vrow, T("mbNewVoice", "+ Voice line"), () => PickVoiceLanguage(T("mbNewVoice", "+ Voice line"), NewVoice), "mbv-add");
-                    Act(vrow, T("mbReplaceVoice", "+ Replace a game line"), () => PickVoiceLanguage(T("mbReplaceVoice", "+ Replace a game line"), ReplaceVoice), "mbv-add");
+                    Act(vrow, T("mbReplaceVoice", "Replace a game line"), () => PickVoiceLanguage(T("mbReplaceVoice", "Replace a game line"), ReplaceVoice), "mbv-add", "mbv-change");
                     Caption(audioPage, T("mbEveryLanguage", "Every language") + " (voices)");
                     FileRows(ModProject.VoicesFolder, n => UsedBy(n));
                     foreach (var (code, name) in LanguageTables.Offered)
@@ -149,7 +149,7 @@ namespace GoF2Remake.UI
             bool german = folder.EndsWith("/de") || (folder == ModProject.VoicesFolder && Settings.GermanVoices);
             var choices = names.Select(n => (n, (Func<AudioClip>)(() => assets?.OriginalVoice(n, german) ?? assets?.OriginalVoice(n, !german)), (Action)(() =>
                 PickAudio(T("mbPickVoice", "Choose the voice line"), path => { Project.SetAudio(folder, n, path); AudioChanged(); })))).ToList();
-            ShowAudioPicker(T("mbReplaceVoice", "+ Replace a game line"), choices, Settings.VoiceVolume);
+            ShowAudioPicker(T("mbReplaceVoice", "Replace a game line"), choices, Settings.VoiceVolume);
         }
 
         /// <summary>A picker of the game's audio as rows: ▶ plays the clip (again: stops it), the name picks it; a choice

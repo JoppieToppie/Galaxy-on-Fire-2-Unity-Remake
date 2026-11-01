@@ -38,7 +38,7 @@ namespace GoF2Remake.UI
             new DragScroll(scroll);
             itemList = scroll;
             Act(left, T("mbNewItem", "+ New item"), PickItemBase, "mbv-add");
-            Act(left, T("mbChangeItem", "+ Change a game item"), PickItemOverride, "mbv-add");
+            Act(left, T("mbChangeItem", "Change a game item"), PickItemOverride, "mbv-add", "mbv-change");
             Act(left, T("mbRemoveItem", "Remove item"), AskRemoveItem, "mbv-danger", "mbv-remove");
 
             var page = Add(right, new ScrollView(ScrollViewMode.Vertical), "mbv-right-scroll");

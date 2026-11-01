@@ -59,8 +59,8 @@ namespace GoF2Remake.UI
             var left = leftGroups[(int)ModBuilder.Kind.Stations];
             stationList = ListPanel(left, T("mbStations", "Stations"));
             Act(left, T("mbNewStation", "+ New station"), NewStation, "mbv-add");
-            Act(left, T("mbChangeStation", "+ Change a station"), () => PickRef(RefKind.Station, T("mbChangeStationTitle", "Change a station"), e => ChangeStation(e.value),
-                                                                                e => !e.own && !Project.Stations.Any(s => s.IsOverride && s.OverrideRef == e.value)), "mbv-add");
+            Act(left, T("mbChangeStation", "Change a station"), () => PickRef(RefKind.Station, T("mbChangeStationTitle", "Change a station"), e => ChangeStation(e.value),
+                                                                                e => !e.own && !Project.Stations.Any(s => s.IsOverride && s.OverrideRef == e.value)), "mbv-add", "mbv-change");
             Act(left, T("mbRemoveStation", "Remove"), AskRemoveStation, "mbv-danger", "mbv-remove");
             stationPage = PagePanel(rightGroups[(int)ModBuilder.Kind.Stations]);
             BuildFxPanels(leftGroups[(int)ModBuilder.Kind.WeaponFx], rightGroups[(int)ModBuilder.Kind.WeaponFx]);

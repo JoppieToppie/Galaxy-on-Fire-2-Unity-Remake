@@ -8,7 +8,7 @@
 //   optimize         the Optimize window (Modding.ModOptimizer): the project's models and textures made smaller, one undo step
 //   import_mod       an installed mod as a new project (ModProject.CopyMod, as the projects page's Import)
 //   replace_game_character   a character standing in for a story speaker, from that speaker's own portrait
-//                    (Portrait.RenderSpeaker) and name, as the Characters kind's "+ Replace a game character"
+//                    (Portrait.RenderSpeaker) and name, as the Characters kind's "Replace a game character"
 
 using System;
 using System.Collections.Generic;

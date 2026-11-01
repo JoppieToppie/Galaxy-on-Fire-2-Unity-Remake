@@ -1,7 +1,7 @@
 // ModBuilderSpaceViewFx.cs
 // The Mod Builder's Weapon fx kind (part of ModBuilderSpaceView), edited in space on a firing range: the project's weapons'
 // "fx" (items.json, Modding/README.md "Weapon effects"). Left: the project's weapons (new items and changes made in the Items
-// kind) and "+ Change a game weapon's look". Right: the projectile, the muzzle flash and the impact, each the base item's,
+// kind) and "Change a game weapon's look". Right: the projectile, the muzzle flash and the impact, each the base item's,
 // another weapon's (its size), the base's recoloured, a sprite of the project's (a PNG: size, stretch along the flight, colour,
 // glow, additive or not, lifetime, growth, fade, spin), a model (a .glb or the game's: size, colour, glow), or none; the shot
 // and blast sounds (the base's, another weapon's or the project's own files), the shot's looping. The range fires the weapon
@@ -32,7 +32,7 @@ namespace GoF2Remake.UI
         void BuildFxPanels(VisualElement left, VisualElement right)
         {
             fxList = ListPanel(left, T("mbFx", "Weapon fx"));
-            Act(left, T("mbChangeGameFx", "+ Change a game weapon's look"), PickGameWeapon, "mbv-add");
+            Act(left, T("mbChangeGameFx", "Change a game weapon's look"), PickGameWeapon, "mbv-add", "mbv-change");
             fxPage = PagePanel(right);
         }
 
@@ -75,7 +75,7 @@ namespace GoF2Remake.UI
                     BuildFxPage();
                 }));
             }
-            ShowPicker(T("mbChangeGameFx", "+ Change a game weapon's look"), choices, true);
+            ShowPicker(T("mbChangeGameFx", "Change a game weapon's look"), choices, true);
         }
 
         // ---- the fx object (live in the entry) ------------------------------------------------------------------

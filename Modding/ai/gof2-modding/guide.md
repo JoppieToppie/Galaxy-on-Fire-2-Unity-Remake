@@ -2010,7 +2010,7 @@ named can use them: a **Dialog** page, a **Radio** call, an **Ask** / **Vote** q
 | `mirrored` | `true`: drawn mirrored (the game mirrors Keith's portrait). |
 | `frame` | `false`: without the faint scanlines the game draws over every portrait (a light screen look, about 10 % dark lines). |
 | `background` | `false`: without the dark, half-transparent backdrop behind the picture. It only shows through transparent parts of your PNG (a cut-out character), so a full picture looks the same either way. |
-| `replaces` | A story character (`"Gunant Breh"`, `"Keith"`, or a speaker number) whose portrait this one takes everywhere, the game's own story included, and whose name too when this character has a `name` (the dialogue and radio headers, `%player%` for Keith). Other characters' lines that mention the old name, and the voices, stay. The Mod Builder's **+ Replace a game character…** starts one from that character's own portrait and name. |
+| `replaces` | A story character (`"Gunant Breh"`, `"Keith"`, or a speaker number) whose portrait this one takes everywhere, the game's own story included, and whose name too when this character has a `name` (the dialogue and radio headers, `%player%` for Keith). Other characters' lines that mention the old name, and the voices, stay. The Mod Builder's **Replace a game character…** starts one from that character's own portrait and name. |
 
 Name the character in a speaker slot by `vega`, by `frontier_systems:vega` (always unique, also across mods) or by its name
 (`Captain Vega`). `vega as Harbour Master` shows another name over the same face, like the story characters. In typed
@@ -2034,7 +2034,7 @@ the player's **auto-advance** option on), like the story's own voices.
 
 **Replace one of the game's lines**: name a file in `voices` like the line (`voices/MSG_MISSION_24_NO_EQUIPMENT_INSTALLED.ogg`)
 and it is spoken instead, everywhere the game uses that line, the story included. `voices/` replaces it in every language,
-`voices/<language>/` in that language only (a French file there gives French players a French line). The Mod Builder's Audio page lists the lines (**+ Replace a
+`voices/<language>/` in that language only (a French file there gives French players a French line). The Mod Builder's Audio page lists the lines (**Replace a
 game line**).
 
 ## Music
@@ -2130,7 +2130,7 @@ custom_veteran/
         glow_terran.png                (its lights only)
 ```
 
-In the Mod Builder: **Its own textures…** on the ship's Ship tab, or **+ Skin a game ship** in the Skins tab, which lists your
+In the Mod Builder: **Its own textures…** on the ship's Ship tab, or **Skin a game ship** in the Skins tab, which lists your
 ships on a game model too. Their Replace buttons write to that ship's folder.
 
 ### Planets, suns and rings

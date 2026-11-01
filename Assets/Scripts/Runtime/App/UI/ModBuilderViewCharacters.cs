@@ -35,7 +35,7 @@ namespace GoF2Remake.UI
             characterList = scroll;
             var add = Act(left, T("mbNewCharacter", "+ New character from a portrait…"), NewCharacter, "mbv-add");   // any image ImageImport reads
             add.SetEnabled(ModImport.Available);
-            Act(left, T("mbReplaceCharacter", "+ Replace a game character…"), ReplaceGameCharacter, "mbv-add");
+            Act(left, T("mbReplaceCharacter", "Replace a game character…"), ReplaceGameCharacter, "mbv-add", "mbv-change");
             Act(left, T("mbRemoveCharacter", "Remove character"), AskRemoveCharacter, "mbv-danger", "mbv-remove");
 
             var page = Add(right, new ScrollView(ScrollViewMode.Vertical), "mbv-right-scroll");

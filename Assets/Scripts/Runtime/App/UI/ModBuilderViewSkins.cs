@@ -1,14 +1,14 @@
 // ModBuilderViewSkins.cs
 // The Mod Builder's Skins kind (part of ModBuilderView): new looks for the game's ships, as Modding/README.md "Textures
 // (skins)" has them: a PNG in the mod's textures/ named like a game texture replaces it on every object that uses it
-// (Modding.ModTextures). Left: the ships the project re-skins (ModProject.SkinShips), "+ Skin a game ship", Remove. Right: the
+// (Modding.ModTextures). Left: the ships the project re-skins (ModProject.SkinShips), "Skin a game ship", Remove. Right: the
 // selected ship's textures, read off its model's materials (colour, normal map, metallic / smoothness, the lights and engine
 // glow layers, marked when other ships share them, and a freighter's / the battleship's burnt wreck set, CombatAssets'
 // wreckDamaged), each with its picture (the replacement, else the game's), Replace (a PNG
 // stored under the texture's exact name), Save original (the game's texture as a PNG to paint over, into the project's
 // templates/ folder, which Export leaves out) and × (back to the game's). The turntable and Test fly show the skinned ship
 // (ModBuilder.SkinShip). A change makes the game read the project again (the turntable ship is rebuilt with it).
-// The project's new ships on a game model ("+ Skin a game ship" lists them too; the Ships page's "Its own textures…") take
+// The project's new ships on a game model ("Skin a game ship" lists them too; the Ships page's "Its own textures…") take
 // textures of their own: each Replace goes to textures/ships/<id>/ (ModProject.ShipSkinScope), so the game's ship of that
 // model keeps its look (Modding.ModTextures, Database.ShipOwnTextures).
 
@@ -50,7 +50,7 @@ namespace GoF2Remake.UI
             scroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             new DragScroll(scroll);
             skinList = scroll;
-            Act(left, T("mbNewSkin", "+ Skin a game ship"), PickSkinShip, "mbv-add");
+            Act(left, T("mbNewSkin", "Skin a game ship"), PickSkinShip, "mbv-add", "mbv-change");
             Act(left, T("mbRemoveSkin", "Remove skin"), AskRemoveSkin, "mbv-danger", "mbv-remove");
             Act(left, T("mbOtherTextures", "Other textures…"), ShowOtherTextures, "mbv-add");
 
@@ -80,15 +80,15 @@ namespace GoF2Remake.UI
             var add = Row(scroll);
             if (ModImport.Available)
             {
-                Act(add, T("mbBackdropTexture", "+ A planet, sun or ring…"), () =>
+                Act(add, T("mbBackdropTexture", "A planet, sun or ring…"), () =>
                 {
                     var names = Resources.LoadAll<Material>("GoF2Backdrop").Select(m => m.mainTexture != null ? m.mainTexture.name : null)
                                          .Where(x => x != null).Distinct().OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
-                    ShowPicker(T("mbBackdropTexture", "+ A planet, sun or ring…"), names.Select(x => (x, (Texture2D)null, (Action)(() =>
+                    ShowPicker(T("mbBackdropTexture", "A planet, sun or ring…"), names.Select(x => (x, (Texture2D)null, (Action)(() =>
                         PickImage(x, png => { Project.SetSkinTexture(x, png); SkinChanged(); ShowOtherTextures(); })))).ToList(), true);
-                }, "mbv-add");
-                Act(add, T("mbTextureByName", "+ By its name…"), () => AskText(T("mbTextureByName", "+ By its name…"), T("mbTextureName", "The game texture's name"), "", x =>
-                    PickImage(x, png => { Project.SetSkinTexture(x.Trim(), png); SkinChanged(); ShowOtherTextures(); }), 80), "mbv-add");
+                }, "mbv-add", "mbv-change");
+                Act(add, T("mbTextureByName", "By its name…"), () => AskText(T("mbTextureByName", "By its name…"), T("mbTextureName", "The game texture's name"), "", x =>
+                    PickImage(x, png => { Project.SetSkinTexture(x.Trim(), png); SkinChanged(); ShowOtherTextures(); }), 80), "mbv-add", "mbv-change");
             }
 
             Heading(scroll, T("mbPlanetsAsStars", "Planets as stars (backdrop.json)"));

@@ -122,11 +122,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   included (`ModVoices.Replacement`, which `StoryAssets.Voice` asks first; loaded with the mods, `ModLoading`); mod lines
   and replacements in `voices/<language>/` for any of `LanguageTables.Offered` (`ModVoices.Languages`: with the voice option
   on auto the text language, then the game's bank de / en), `voices/` for every language. Builder: Audio's + New sound,
-  + Voice line / + Replace a game line with a language picker (each language's flag, a globe for every language:
+  + Voice line / Replace a game line with a language picker (each language's flag, a globe for every language:
   `UI.LanguageFlags`, painted in code, the game has no flag images); the pickers of the game's tracks, sounds and lines
   play each on ▶ (`ShowAudioPicker`: `Modding.GameAudioIndex`, Resources/GoF2ModBuilder, from GoF2 > Build > Mod Builder
   Audio Previews; `StoryAssets.OriginalVoice`; the quests' Sound step too), the station's music fading out meanwhile
-  and back in 3 s after the last one (`StationLevel.MusicHeld`); Characters' + Replace a game character (the speaker's own
+  and back in 3 s after the last one (`StationLevel.MusicHeld`); Characters' Replace a game character (the speaker's own
   portrait rendered to a PNG, `Portrait.RenderSpeaker`, and name). Tests `ModAudioNamesTests`.
 - **Voice-over** (`ModVoices`, `ModAudio`): "[voice <clip>]" in a Dialog page or a Radio line (`ModVoices.Take` in
   `NetAdmin.Apply`'s Dialog / Radio orders); the clip is an original voice line by its event name or a mod's

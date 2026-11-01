@@ -47,7 +47,7 @@ namespace GoF2Remake.UI
             Act(left, T("mbNewQuest", "+ New story mission"), () => NewQuest("quest"), "mbv-add");
             Act(left, T("mbNewMission", "+ New bar mission"), () => NewQuest("mission"), "mbv-add");
             Act(left, T("mbNewEvent", "+ New event"), () => NewQuest("event"), "mbv-add");
-            Act(left, T("mbImportGraph", "Import an event graph…"), ImportGraph, "mbv-add");
+            Act(left, "+ " + T("mbImportGraph", "Import an event graph…"), ImportGraph, "mbv-add");
             Act(left, T("mbRemoveQuest", "Remove"), AskRemoveQuest, "mbv-danger", "mbv-remove");
             questPage = PagePanel(right);
             BuildQuestGraph();

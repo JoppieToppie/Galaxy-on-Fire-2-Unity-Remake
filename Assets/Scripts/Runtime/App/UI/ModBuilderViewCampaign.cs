@@ -47,14 +47,14 @@ namespace GoF2Remake.UI
                 ListRow(campaignList, c.Name ?? Project.Name, T("mbCampaignSub", "A new game of its own"), currentOption == null,
                         () => { currentOption = null; RebuildCampaign(); BuildCampaignPage(); }, ProjectImage(c.Image), "mbv-card-thumb");
             else
-                Act(campaignList, T("mbMakeCampaign", "+ Make this mod a campaign"), () =>
+                Act(campaignList, T("mbMakeCampaign", "Make this mod a campaign"), () =>
                 {
                     Project.Campaign = new ProjectCampaign(new Newtonsoft.Json.Linq.JObject { ["name"] = Project.Name, ["startStation"] = Session.StationIndex, ["startShip"] = 10, ["credits"] = 10000 });
                     currentOption = null;
                     MarkDirty();
                     RebuildCampaign();
                     BuildCampaignPage();
-                }, "mbv-add");
+                }, "mbv-add", "mbv-change");
             if (Project.GameOptions.Count > 0) Heading(campaignList, T("mbGameOptions", "New-game options"));
             foreach (var op in Project.GameOptions)
             {

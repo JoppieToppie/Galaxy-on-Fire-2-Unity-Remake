@@ -266,7 +266,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `SafeArea.EdgeClass` (`KeepClear` gave them margins every 500 ms: they sat off their places on wide windows); a button
   text starting "+ " (or a lone + / − stepper) gets its sign drawn by Painter2D (`ModBuilderScreen.DrawSign`: the font's
   + snapped to unequal 1 / 2 px bars at the UI's non-integer scale; cyan for adding, white on hover, the rest of the text in
-  `mbv-button-label`); `ScrollBars` puts the bar at the viewport's edge and `.gof-scroll-bar` centres itself with
+  `mbv-button-label`); since 2026-11-01 only buttons that add carry the + ("+ Import an event graph…", the dependencies'
+  "+ Add" too) and those changing what the game or the mod already has (class `mbv-change`: Change a game ship / item /
+  station / system / weapon's look, Replace a game track / sound / line / character, Skin a game ship, the other
+  textures, Make this mod a campaign, Change it) a filled pencil (`DrawPencil`), their texts without "+ " in every
+  language; `ScrollBars` puts the bar at the viewport's edge and `.gof-scroll-bar` centres itself with
   `translate: -50%` (subtracting the snapped half width each layout fed back into the next: the bar's width flickered by a
   pixel twice a second).
 - **The builder translated** (2026-10-22): its 875 `Localization.Extra` texts in all 13 `extra_<lang>.json` (the kinds,
