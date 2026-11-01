@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
+using GoF2Remake.Modding;
 using UnityEngine;
 
 namespace GoF2Remake.Flight
@@ -82,33 +83,55 @@ namespace GoF2Remake.Flight
         static List<CollisionVolume> CapitalVolumes(int kind) => kind == SpawnSpec.CapitalBattleship ? CollisionVolume.ForFreighter(14, 0)
             : CollisionVolume.ForStaticObject(kind == SpawnSpec.CapitalCarrier ? 2005 : 2006);
         /// <summary>A capital ship of 'kind' (SpawnSpec.Capital*) at 'host' (game units) with its turrets, enhanced (escorts,
-        /// killable: World.CapitalShips) or as the original's; returns the host's index in the list.</summary>
+        /// killable: World.CapitalShips) or as the original's; returns the host's index in the list. Remake mods: a mod's
+        /// change to it (npcships.json "override": "battleship" / "carrier" / "vossk_battleship", ApplyNpcType): its hull
+        /// ("ship": a mod hull in its place, its turrets then its own), hardpoints, escorts, loot, dock, launches.</summary>
         public static int AddCapitalShipAt(Database db, List<SpawnSpec> list, int kind, Vector3 host, bool enhanced)
+        {
+            var type = ModNpcShips.Changed(NpcKeyOf(kind));
+            int first = list.Count;
+            if (type != null && type.ship >= 0)
+            {
+                var s = NpcHost(db, type, kind == SpawnSpec.CapitalVossk ? 1 : 0, host);
+                s.capital = kind;
+                list.Add(s);
+            }
+            else AddCapitalHull(list, kind, host, type?.hardpoints == null);
+            if (enhanced) GoF2Remake.World.CapitalShips.Enhance(db, list, first);
+            if (type != null)
+            {
+                ApplyNpcType(db, list, first, type, false);
+                // A hull of the mod's own has none of the game hull's pads: only its own (docking.pads).
+                if (type.ship >= 0 && list[first].spacePoints >= 0 && list[first].spacePoints < SpacePoints.NpcPadBase)
+                { list[first].dockingType = 0; list[first].spacePoints = -1; }
+            }
+            return first;
+        }
+        /// <summary>The game's capital ship hull of 'kind' at 'host' and (with 'turrets') its turrets, as the original builds them.</summary>
+        static void AddCapitalHull(List<SpawnSpec> list, int kind, Vector3 host, bool turrets)
         {
             int first = list.Count;
             if (kind == SpawnSpec.CapitalBattleship)
             {
                 list.Add(new SpawnSpec { group = NpcGroup.Special, race = 0, ship = 14, freighter = true, stationary = true, position = host,
                                          capital = SpawnSpec.CapitalBattleship });
-                foreach (var t in BattleshipTurrets) list.Add(Turret(0, host + t.pos, t.rot));
+                if (turrets) foreach (var t in BattleshipTurrets) list.Add(Turret(0, host + t.pos, t.rot));
             }
             else if (kind == SpawnSpec.CapitalCarrier)
             {
                 list.Add(new SpawnSpec { group = NpcGroup.Special, race = 0, ship = -1, position = host, fixedObject = "sn_carrier_terran_1",
                                          collisionId = 2005, hitRadius = 0f, hitpoints = 9999999, noLoot = true, stationary = true,
                                          capital = SpawnSpec.CapitalCarrier });
-                foreach (var t in CarrierTurrets) list.Add(Turret(0, host + t.pos, t.rot));
+                if (turrets) foreach (var t in CarrierTurrets) list.Add(Turret(0, host + t.pos, t.rot));
             }
             else
             {
                 list.Add(new SpawnSpec { group = NpcGroup.Special, race = 1, ship = -1, position = host, fixedObject = "sn_battleship_vossk",
                                          collisionId = 2006, hitRadius = 0f, hitpoints = 9999999, noLoot = true, stationary = true, nameText = 1667,
                                          capital = SpawnSpec.CapitalVossk });
-                foreach (var t in VosskTurrets) list.Add(Turret(1, host + t, Vector3.zero));
+                if (turrets) foreach (var t in VosskTurrets) list.Add(Turret(1, host + t, Vector3.zero));
             }
             for (int i = first + 1; i < list.Count; i++) { list[i].capitalPart = true; list[i].capitalHost = list[first]; }
-            if (enhanced) GoF2Remake.World.CapitalShips.Enhance(db, list, first);
-            return first;
         }
         static bool FleetBattleHere(int station, SystemData system, int sysRace, bool baseSystem, bool story)
         {

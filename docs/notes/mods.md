@@ -331,6 +331,41 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   station's stations.json `materials`, and an interiors.json room's, ignored their `material` filter
   (`ModStations.Build` / `ModInteriors.Build` passed no glTF material name to `ModShipBuilder.MaterialFor`), so such a
   station showed its model's own white materials.
+- **NPC ships** (remake, 2026-11-02, the user's request: "just like flyable ships", ships nobody flies, new or replaced, with
+  loot, escorts and their strength, hardpoints, spawn rate and places, a capital ship's docking and shop; `npcships.json`,
+  Modding/README.md "NPC ships"): `Modding.ModNpcShips` (Game layer; parsed in `ModContent.Parse` into `Parsed.npcShips`,
+  resolved per `ModManager.Revision` by `All()`, ModEncounters' pattern) holds the game's five types (`GameKeys`:
+  battleship, carrier, vossk_battleship, freighter, pirate_boss), every field unset, then the mods' overrides and own types
+  (`NpcShipType`, key "mod:id", `index` = its place in All()). The game's code reads only what a mod set, so without mods
+  (or with untouched fields) every random draw is the game's: `ModNpcShips.Chance(key, 30)` in `TrafficPlan.Build` (the
+  battleship / carrier / Vossk battleship 30 %), the freighters' `spawn.count` only when set, `Changed(key)` null when no
+  mod changed it. Spawning is `TrafficPlanNpcShips.cs` (a TrafficPlan partial: it uses ClearOfStation, RaiderSpawn):
+  `AddNpcType` (a host by `NpcHost`: a mod hull through `ModCapitalShips.Spawn`, a game freighter / battleship hull, a boss
+  as the pirate boss; a game capital hull by `AddCapitalHull`, split out of `AddCapitalShipAt`, its turrets enhanced like
+  `CapitalShips.Enhance`'s), `ApplyNpcType` (name, side, hull / hullFactor, gunFactor on its turrets, speed, explosion,
+  hardpoints drop the hull's turret specs, escorts, loot, dock, `SpawnSpec.CapitalMod` 4 + `capitalEnhanced` when
+  `NeedsCapitalShip`), `AddNpcEscorts` (a capital ship's `NpcLoop` round it, scaled to a mod hull; a freighter's
+  `SpawnSpec.escortLeader` / `escortOffset` = an `NpcOrder` Follow with fight, given in `Traffic.Create`; the game's
+  escorts of the host removed), `RollNpcLoot` (rolled at plan time into lootItem + extraLoot; `keep` = the game's roll
+  too; a capital ship's own crate is `CapitalShip.Attach`'s, skipped or merged), `AddModNpcShips` (new types by `spawn`,
+  after the freighters, not in the quiet orbits: 100-104, 108, 10, Loma, the loot orbits, an Informer orbit, the
+  supernova system before 0x9e; `replaceGame` drops the game's capital ship) and `NpcSpawnHolds`. Game overrides:
+  `AddCapitalShipAt` (a `ship` replaces the hull, its pads dropped unless its own), the freighter loop in `Build`, the
+  pirate boss in `AddPirateEventShips` (a reported boss keeps its name). Hardpoints are ships.json "subsystems"
+  (`ModContent.ReadSubsystems`, split out of ApplySubsystems; "position" for "position_engine", kind "turret" by default,
+  a turret without an item the game's Terran one): `Traffic.Create` attaches `CapitalSubsystems` with
+  `spec.npcType.hardpoints` before a mod hull's own (`GameHardpoints(look)` converts the game's turret tables for the
+  builder: the battleship's offsets are its frame, the carrier's / Vossk's objects (-x, y, -z)). Docking pads: custom
+  `SpacePoints` sets from `NpcPadBase` 100000 + the type's index (`ModNpcShips.Pads`: an approach point, default 2000
+  units above, and the dock point per pad), read by ObjectDocking and `CapitalShips.PadSet`. `CapitalShips`: `Killable`
+  (`NpcShipType.Killable`: every mod type, a game one given a hull or ship), `HasDeck` (`launches`; a game deck on a
+  replaced hull none), `LaunchShip` / `PerWave` / `LaunchTotal` / `LaunchGapMs`, `DockRefusal` (the type's standing,
+  raceShip, signature), `Store(race, dock)` (cells, ammo, `gear`, `sells` first, `Markup`, `Repairs`, `RepairPrice`),
+  `UnitPrice(db, item, store)`. `CapitalShip`: missiles only while `NpcShipType.Missiles`, launches from pads else the
+  hull's top. A freighter's `speed` (`NpcShip` freighter path, `UpdateOrder`'s own). `ProxySpec` bit 25 carries the
+  type's key (a handed-over ship keeps its rules). Debug page (Spawn): "Mod NPC ship" + "Spawn mod NPC ship"
+  (`DebugSpawner.SpawnNpcType`). The ships.json `traffic.capital` ships stay as they were. Tests `ModNpcShipsTests`. Not
+  yet seen in Play mode; not tested in multiplayer (docking at one runs only in the authority's game, as the carrier's).
 - **Turrets don't fire through their own ship** (remake, 2026-10-24, the user's request, for every turret):
   `TurretCore.Host` (the ship it sits on: NpcShip's turret objects their capital host (`Spec.capitalHost`) or the ship
   they ride on, `NpcMountedTurrets` / `PlayerTurret` their ship) and `TurretCore.Fire` checks, once the gun is ready, a

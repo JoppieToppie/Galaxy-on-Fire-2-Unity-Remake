@@ -23,6 +23,25 @@ namespace GoF2Remake.Modding
         public string KitIdFor(string name) => UniqueId(name, "kit", id => Kits.Any(s => s.Id == id));
         public string WeaponEffectIdFor(string name) => UniqueId(name, "effect", id => WeaponEffects.Any(s => s.Id == id));
         public string GameOptionIdFor(string name) => UniqueId(name, "option", id => GameOptions.Any(s => s.Id == id));
+        public string NpcShipIdFor(string name) => UniqueId(name, "npc", id => NpcShips.Any(s => s.LocalId == id));
+        /// <summary>A new NPC ship of 'kind' (ModNpcShips.Capital / Freighter / Boss) on a game hull ('looksLike') or a ship's.</summary>
+        public ProjectNpcShip AddNpcShip(string name, string kind, string looksLike, string ship)
+        {
+            var o = new JObject { ["id"] = NpcShipIdFor(name), ["kind"] = kind, ["name"] = name };
+            if (!string.IsNullOrEmpty(ship)) o["ship"] = ProjectEntry.RefToken(ship);
+            else if (!string.IsNullOrEmpty(looksLike)) o["looksLike"] = looksLike;
+            o["spawn"] = new JObject { ["chance"] = 20 };
+            var s = new ProjectNpcShip(o);
+            NpcShips.Add(s);
+            return s;
+        }
+        /// <summary>A change to one of the game's NPC ships (ModNpcShips.GameKeys) or another mod's ("mod:id").</summary>
+        public ProjectNpcShip AddNpcShipOverride(string key)
+        {
+            var s = new ProjectNpcShip(new JObject { ["override"] = key });
+            NpcShips.Add(s);
+            return s;
+        }
         /// <summary>A quest's file name: one word (a-z 0-9 _), unique among the project's quests and event graphs.</summary>
         public string QuestNameFor(string name) => UniqueId(name, "quest", id => Quests.Any(q => string.Equals(q.Name, id, StringComparison.OrdinalIgnoreCase))
                                                                           || File.Exists(Path.Combine(Folder, ProjectQuest.Folder, id + ".gof2event")));

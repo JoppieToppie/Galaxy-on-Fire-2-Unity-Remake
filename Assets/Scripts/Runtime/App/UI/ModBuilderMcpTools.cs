@@ -39,6 +39,7 @@ namespace GoF2Remake.UI
             ("characters", "characters.json", "id", ModBuilder.Kind.Characters),
             ("systems", "systems.json", "id or override", ModBuilder.Kind.Systems),
             ("stations", "stations.json", "id or override", ModBuilder.Kind.Stations),
+            ("npcShips", "npcships.json", "id (a new capital ship, freighter or boss) or override (battleship, carrier, vossk_battleship, freighter, pirate_boss or a mod's \"mod:id\")", ModBuilder.Kind.NpcShips),
             ("races", "races.json", "id (a race of the mod's own; list_races / put_race / set_race / delete_race work on them too)", ModBuilder.Kind.Races),
             ("interiors", "interiors.json", "id", ModBuilder.Kind.Interiors),
             ("blueprints", "blueprints.json", "id", ModBuilder.Kind.Blueprints),
@@ -245,7 +246,7 @@ namespace GoF2Remake.UI
                     ["entries"] = new JObject
                     {
                         ["ships"] = p.Ships.Count, ["items"] = p.Items.Count, ["characters"] = p.Characters.Count, ["systems"] = p.Systems.Count,
-                        ["stations"] = p.Stations.Count, ["interiors"] = p.Interiors.Count, ["races"] = p.Races.Count, ["blueprints"] = p.Blueprints.Count, ["kits"] = p.Kits.Count,
+                        ["stations"] = p.Stations.Count, ["npcShips"] = p.NpcShips.Count, ["interiors"] = p.Interiors.Count, ["races"] = p.Races.Count, ["blueprints"] = p.Blueprints.Count, ["kits"] = p.Kits.Count,
                         ["weaponEffects"] = p.WeaponEffects.Count,
                         ["gameOptions"] = p.GameOptions.Count, ["missions"] = p.Quests.Count, ["campaign"] = p.Campaign != null,
                     },

@@ -55,9 +55,14 @@ namespace GoF2Remake.Data
 
         static Dictionary<int, List<Point>> sets;
 
+        /// <summary>Remake mods: sets from here on are an NPC ship type's own docking pads (npcships.json "docking.pads",
+        /// Modding.ModNpcShips.Pads: set NpcPadBase + the type's index), in the same engine frame as the file's.</summary>
+        public const int NpcPadBase = 100000;
+
         /// <summary>The points of set n (empty when unknown). The first set of a number wins (the file lists 6 twice).</summary>
         public static List<Point> Set(int n)
         {
+            if (n >= NpcPadBase) return Modding.ModNpcShips.Pads(n - NpcPadBase);
             if (sets == null) Load();
             return sets.TryGetValue(n, out var list) ? list : new List<Point>();
         }

@@ -64,6 +64,7 @@ namespace GoF2Remake.UI
             Act(left, T("mbRemoveStation", "Remove"), AskRemoveStation, "mbv-danger", "mbv-remove");
             stationPage = PagePanel(rightGroups[(int)ModBuilder.Kind.Stations]);
             BuildFxPanels(leftGroups[(int)ModBuilder.Kind.WeaponFx], rightGroups[(int)ModBuilder.Kind.WeaponFx]);
+            BuildNpcPanels(leftGroups[(int)ModBuilder.Kind.NpcShips], rightGroups[(int)ModBuilder.Kind.NpcShips]);
             FinishLayout();
             currentStation = Project?.Stations.FirstOrDefault(s => s.Ref == ModBuilder.SpaceStationRef) ?? Project?.Stations.FirstOrDefault(s => StationNumberOf(s) == Session.StationIndex)
                              ?? Project?.Stations.FirstOrDefault();
@@ -78,6 +79,8 @@ namespace GoF2Remake.UI
             if (k == ModBuilder.Kind.AiTools) { StopRange(); return; }   // the AI tools' tab: the orbit stays as it is
             bool fx = k == ModBuilder.Kind.WeaponFx;
             if (level.Player != null) foreach (var r in level.Player.GetComponentsInChildren<Renderer>(true)) r.enabled = fx;   // the shooter only in the range
+            if (k == ModBuilder.Kind.NpcShips) { StopRange(); ShowNpcKind(); return; }
+            HideNpcKind();
             if (fx) { RebuildFx(); BuildFxPage(); StartRange(); }
             else { StopRange(); RebuildStations(); BuildStationPage(); FrameStation(); }
         }
@@ -85,22 +88,24 @@ namespace GoF2Remake.UI
         protected override void OnReloaded()
         {
             if (kind == ModBuilder.Kind.WeaponFx) { RebuildFx(); BuildFxPage(); RestartRange(); }
+            else if (kind == ModBuilder.Kind.NpcShips) { RebuildNpcList(); BuildNpcPage(); ShowNpcPreview(false); }
             else { RebuildStations(); BuildStationPage(); }
         }
 
         protected override Action BeforeUndo()
         {
-            string st = currentStation?.Ref, it = currentFx?.Ref, effect = currentEffect?.Id;
+            string st = currentStation?.Ref, it = currentFx?.Ref, effect = currentEffect?.Id, npc = currentNpc?.Ref;
             return () =>
             {
                 currentStation = Project.Stations.FirstOrDefault(s => s.Ref == st) ?? Project.Stations.FirstOrDefault();
+                currentNpc = Project.NpcShips.FirstOrDefault(s => s.Ref == npc) ?? Project.NpcShips.FirstOrDefault();
                 currentFx = Project.Items.FirstOrDefault(i => i.Ref == it);
                 currentEffect = effect != null ? Project.FindWeaponEffect(effect) : null;
                 OnReloaded();
             };
         }
 
-        protected override bool Dragging => dragging || panning;
+        protected override bool Dragging => dragging || panning || npcDragging;
 
         // ---- the camera -------------------------------------------------------------------------------------------
 
@@ -147,6 +152,7 @@ namespace GoF2Remake.UI
         {
             if (ModalOpen) return;
             last = ScreenPos();
+            if (kind == ModBuilder.Kind.NpcShips && NpcPointerDown(e.button)) { viewport.CapturePointer(e.pointerId); return; }   // a hardpoint or pad
             dragging = e.button == 0 || e.button == 1;
             panning = e.button == 2;
             viewport.CapturePointer(e.pointerId);
@@ -155,7 +161,8 @@ namespace GoF2Remake.UI
         void OnPointerMove(PointerMoveEvent e)
         {
             if (!viewport.HasPointerCapture(e.pointerId)) return;
-            if (!UiPointerButtons.AnyHeld(e)) { viewport.ReleasePointer(e.pointerId); dragging = panning = false; return; }
+            if (!UiPointerButtons.AnyHeld(e)) { viewport.ReleasePointer(e.pointerId); dragging = panning = false; NpcPointerUp(); return; }
+            if (npcDragging) { NpcPointerMove(); return; }
             var p = ScreenPos();
             var d = (p - last) * (1080f / Mathf.Max(1, Screen.height));
             last = p;
@@ -173,6 +180,7 @@ namespace GoF2Remake.UI
             if (!viewport.HasPointerCapture(e.pointerId)) return;
             viewport.ReleasePointer(e.pointerId);
             dragging = panning = false;
+            NpcPointerUp();
         }
 
         // ---- per frame ----------------------------------------------------------------------------------------
@@ -197,6 +205,7 @@ namespace GoF2Remake.UI
                 }
             }
             if (kind == ModBuilder.Kind.WeaponFx) UpdateRange(dt);
+            if (kind == ModBuilder.Kind.NpcShips) UpdateNpc(dt);
             // Touch: two fingers on the view pinch to zoom and move it (the first one went down on the view: not a panel).
             twoFingers = touch2.Read(out float zoom, out var pan) && (dragging || panning);
             if (twoFingers)
@@ -214,6 +223,7 @@ namespace GoF2Remake.UI
         {
             DisposeAi();
             StopRange();
+            DisposeNpc();
             SaveNow();
         }
 

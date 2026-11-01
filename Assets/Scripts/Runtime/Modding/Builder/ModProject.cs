@@ -86,6 +86,8 @@ namespace GoF2Remake.Modding
         /// <summary>weaponfx.json: the mod's own weapon effects (ModWeapons).</summary>
         public readonly List<ProjectWeaponEffect> WeaponEffects = new List<ProjectWeaponEffect>();
         public readonly List<ProjectGameOption> GameOptions = new List<ProjectGameOption>();
+        /// <summary>npcships.json: the mod's NPC ships, its own and its changes to the game's (ModNpcShips).</summary>
+        public readonly List<ProjectNpcShip> NpcShips = new List<ProjectNpcShip>();
         public readonly List<ProjectQuest> Quests = new List<ProjectQuest>();
         /// <summary>campaign.json, null = the mod has no campaign.</summary>
         public ProjectCampaign Campaign;

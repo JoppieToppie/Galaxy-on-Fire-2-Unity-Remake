@@ -152,6 +152,18 @@ namespace GoF2Remake.Flight
             int escorts = Random.Range(BossEscortsMin[t], BossEscortsMax[t] + 1);
             for (int i = 0; i < escorts; i++)
                 list.Add(new SpawnSpec { group = NpcGroup.Special, race = Standing.Pirate, ship = Fighter(), position = spawn + Jitter(), alwaysEnemy = true, pirateEvent = SpawnSpec.EventGuard });
+            // Remake mods: a mod's change to the pirate boss (npcships.json "override": "pirate_boss"): its hull, name, strength,
+            // escorts, loot; a reported boss keeps its name.
+            if (Modding.ModNpcShips.Changed(Modding.ModNpcShips.PirateBoss) is Modding.NpcShipType bt)
+            {
+                int bi = list.FindIndex(x => x.pirateEvent == SpawnSpec.EventBoss && x.sightingId == sightingId && x.position == spawn);
+                if (bi >= 0)
+                {
+                    if (bt.ship >= 0) list[bi].ship = bt.ship;
+                    ApplyNpcType(db, list, bi, bt, false);
+                    if (sighting != null) list[bi].name = sighting.name;
+                }
+            }
         }
     }
 }

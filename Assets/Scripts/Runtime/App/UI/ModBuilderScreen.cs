@@ -60,7 +60,7 @@ namespace GoF2Remake.UI
             ("mbShips", "Ships", ModBuilder.Kind.Ships), ("mbItems", "Items", ModBuilder.Kind.Items), ("mbFx", "Weapon fx", ModBuilder.Kind.WeaponFx),
             ("mbSkins", "Skins", ModBuilder.Kind.Skins), ("mbKits", "Ship kits", ModBuilder.Kind.Kits), ("mbBlueprints", "Blueprints", ModBuilder.Kind.Blueprints),
             ("mbCharacters", "Characters", ModBuilder.Kind.Characters), ("mbQuests", "Missions", ModBuilder.Kind.Quests), ("mbAudio", "Audio", ModBuilder.Kind.Audio),
-            ("mbSystems", "Systems", ModBuilder.Kind.Systems), ("mbModRaces", "Races", ModBuilder.Kind.Races), ("mbStations", "Stations", ModBuilder.Kind.Stations),
+            ("mbSystems", "Systems", ModBuilder.Kind.Systems), ("mbModRaces", "Races", ModBuilder.Kind.Races), ("mbStations", "Stations", ModBuilder.Kind.Stations), ("mbNpcShips", "NPC ships", ModBuilder.Kind.NpcShips),
             ("mbInteriors", "Hangars & bars", ModBuilder.Kind.Interiors), ("mbCampaigns", "Campaign", ModBuilder.Kind.Campaigns),
         };
 

@@ -97,7 +97,7 @@ namespace GoF2Remake.World
         {
             var c = host.gameObject.AddComponent<CapitalShip>();
             c.ship = host;
-            c.store = new CapitalShips.Store(host.Race);
+            c.store = new CapitalShips.Store(host.Race, host.Spec.npcType?.docking);   // remake mods: a type's own shop
             bySpec[host.Spec] = c;
             c.traffic = owner;
             c.db = db;
@@ -105,11 +105,26 @@ namespace GoF2Remake.World
             c.salvoMs = Random.Range(3000f, 15000f);   // the first salvo, each ship its own (two spawned together fired in step)
             host.Target.Damaged += c.OnDamaged;
             host.Target.Died += c.OnDied;
-            // Every enhanced host carries a crate (the Terran battleship had only a freighter's roll).
-            host.SetLoot(CapitalShips.RollLoot(db, out c.gearLoot));
+            // Every enhanced host carries a crate (the Terran battleship had only a freighter's roll). Remake mods: a type's own
+            // "loot" was rolled with its spec (TrafficPlan.RollNpcLoot), the game's crate added only with "keep".
+            var loot = host.Spec.npcType?.loot;
+            if (loot == null) host.SetLoot(CapitalShips.RollLoot(db, out c.gearLoot));
+            else if (loot.keep)
+            {
+                var all = CapitalShips.RollLoot(db, out c.gearLoot);
+                if (host.Spec.lootItem >= 0) CapitalShips.Add(all, host.Spec.lootItem, Mathf.Max(1, host.Spec.lootAmount));
+                if (host.Spec.extraLoot != null) foreach (var st in host.Spec.extraLoot) CapitalShips.Add(all, st.item, st.amount);
+                host.SetLoot(all);
+            }
             if (CapitalShips.HasDeck(host.Spec))
-                foreach (var p in SpacePoints.Set(CapitalShips.PadSet(host.Spec)))
-                    if (p.type == SpacePoints.Approach) c.pads.Add(SpacePoints.ToLocal(p.engine));
+            {
+                int set = CapitalShips.PadSet(host.Spec);
+                if (set >= 0)
+                    foreach (var p in SpacePoints.Set(set))
+                        if (p.type == SpacePoints.Approach) c.pads.Add(SpacePoints.ToLocal(p.engine));
+                // A hull without pads launches off its top (its hangar hardpoints launch on their own: CapitalSubsystems).
+                if (c.pads.Count == 0) c.pads.Add(Vector3.up * 3000f * M);
+            }
             return c;
         }
 
@@ -150,19 +165,19 @@ namespace GoF2Remake.World
             if (ship.Gone || !ship.Target.Alive || ship.Current != NpcShip.State.Fly) return;
             if (sinceAttackMs < float.MaxValue) sinceAttackMs += dtMs;
             if (ship.Spec.fleetBattle) UpdateBattle(dtMs);
-            UpdateMissiles(dtMs);
-            if (!CapitalShips.HasDeck(ship.Spec) || launched >= CapitalShips.CarrierInflicts || pads.Count == 0) return;
+            if (ship.Spec.npcType == null || ship.Spec.npcType.Missiles) UpdateMissiles(dtMs);   // remake mods: "missiles": false
+            if (!CapitalShips.HasDeck(ship.Spec) || launched >= CapitalShips.LaunchTotal(ship.Spec) || pads.Count == 0) return;
             if (sinceAttackMs >= CapitalShips.UnderAttackMs) return;
             waveMs -= dtMs;
             if (waveMs > 0f) return;
-            waveMs = CapitalShips.WaveMs;
+            waveMs = CapitalShips.LaunchGapMs(ship.Spec);
             Launch();
         }
 
         /// <summary>One wave of Inflicts (the carrier) / H'Socs (the Vossk battleship) off the pads, climbing out along its heading.</summary>
         void Launch()
         {
-            int n = Mathf.Min(CapitalShips.InflictsPerWave, CapitalShips.CarrierInflicts - launched);
+            int n = Mathf.Min(CapitalShips.PerWave(ship.Spec), CapitalShips.LaunchTotal(ship.Spec) - launched);
             bool hostile = ship.alwaysEnemy || ship.turnedEnemy;
             var up = ship.transform.up;
             var dir = (ship.transform.forward + up * 0.35f).normalized;
@@ -184,7 +199,9 @@ namespace GoF2Remake.World
             }
             launched += n;
             traffic.ConnectPlayers();
-            if (hostile)
+            if (hostile && ship.Spec.npcType?.launches != null)
+                traffic.Warn(string.Format(Localization.Extra("npcLaunch", "{0} is launching fighters!"), CapitalShips.HostName(ship)));
+            else if (hostile)
                 traffic.Warn(ship.Spec.capital == SpawnSpec.CapitalVossk
                     ? Localization.Extra("vosskLaunch", "The Vossk battleship is launching its H'Socs!")
                     : Localization.Extra("carrierLaunch", "The carrier is launching its Inflicts!"));

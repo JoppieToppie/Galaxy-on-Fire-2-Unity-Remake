@@ -108,6 +108,22 @@ namespace GoF2Remake.World
             return string.Format(Localization.Extra("debugShipSpawned", "{0} spawned."), CapitalName(kind));
         }
 
+        /// <summary>Remake mods: one of the mods' NPC ship types (npcships.json, Modding.ModNpcShips) with its turrets, escorts
+        /// and rules, about 3.5 km ahead of the player (a capital ship 2 hull lengths); the result text.</summary>
+        public static string SpawnNpcType(SpaceLevel level, Modding.NpcShipType type)
+        {
+            if (level == null || level.Traffic == null || level.Player == null) return Localization.Extra("debugNoFlight", "Only in flight.");
+            if (type == null) return Localization.Extra("debugNoNpcTypes", "No mod NPC ships are on.");
+            var p = level.Player.transform;
+            float ahead = 3500f;
+            if (type.ship >= 0 && type.kind != Modding.ModNpcShips.Boss) ahead = Mathf.Max(ahead, 2f * Modding.ModTraffic.HullLength(type.ship));
+            var list = new System.Collections.Generic.List<SpawnSpec>();
+            TrafficPlan.AddNpcType(level.Database, list, type, type.race >= 0 ? type.race : 0, ToGame(p.position + p.forward * ahead));
+            foreach (var s in list) level.Traffic.SpawnShip(s);
+            level.Traffic.ConnectPlayers();
+            return string.Format(Localization.Extra("debugShipSpawned", "{0} spawned."), type.name ?? type.key);
+        }
+
         public static string CapitalName(int kind) => kind == SpawnSpec.CapitalCarrier ? CapitalShips.CarrierName
             : kind == SpawnSpec.CapitalVossk ? $"{Localization.Get(407)} {Localization.Get(1667)}" : $"{Localization.Get(406)} {Localization.Get(1667)}";
 

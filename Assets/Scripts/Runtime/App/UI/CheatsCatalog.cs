@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using GoF2Remake.Data;
 using UIE = UnityEngine.UIElements;
 
@@ -421,7 +422,7 @@ namespace GoF2Remake.UI
 
         // ---- spawn any ship or object (the pause menu, in flight) ---------------------------------------------------
 
-        static int shipRace, shipPick, behaviourPick, objectCategory, objectPick, capitalPick, turretPick;
+        static int shipRace, shipPick, behaviourPick, objectCategory, objectPick, capitalPick, turretPick, npcTypePick;
         static readonly int[] Races = { 0, 1, 2, 3, Flight.Standing.Pirate, Flight.Standing.Void, Flight.Standing.Specter };
 
         static string RaceName(int race)
@@ -496,6 +497,15 @@ namespace GoF2Remake.UI
                     notify?.Invoke(World.DebugSpawner.SpawnCapital(level, capitalPick + 1, TurretItem()))),
                 Button("debugSpawnBattle", () => X("debugSpawnBattle", "Spawn fleet battle"), () =>
                     notify?.Invoke(World.DebugSpawner.SpawnFleetBattle(level))),
+                // Remake mods: the mods' own NPC ship types (npcships.json), whatever their spawn rules.
+                Choice("debugNpcType", () => X("debugNpcType", "Mod NPC ship"), false,
+                    () =>
+                    {
+                        var names = Modding.ModNpcShips.ModTypes().Select(t => t.name ?? t.key).ToArray();
+                        return names.Length > 0 ? names : new[] { X("debugNoNpcTypes", "No mod NPC ships are on.") };
+                    }, () => npcTypePick, i => npcTypePick = i),
+                Button("debugSpawnNpcType", () => X("debugSpawnNpcType", "Spawn mod NPC ship"), () =>
+                    notify?.Invoke(World.DebugSpawner.SpawnNpcType(level, Modding.ModNpcShips.ModTypes().ElementAtOrDefault(npcTypePick)))),
                 Choice("debugObjectCategory", () => X("debugObjectCategory", "Object type"), false,
                     () => categories.ToArray(), () => objectCategory, i => { objectCategory = i; objectPick = 0; }),
                 Choice("debugObject", () => X("debugObject", "Object"), false,

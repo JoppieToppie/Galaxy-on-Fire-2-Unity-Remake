@@ -38,6 +38,7 @@ namespace GoF2Remake.Modding
                 ["kits"] = new JArray(Kits.Select(c => c.ToJson())),
                 ["weaponEffects"] = new JArray(WeaponEffects.Select(c => c.ToJson())),
                 ["gameOptions"] = new JArray(GameOptions.Select(c => c.ToJson())),
+                ["npcShips"] = new JArray(NpcShips.Select(c => c.ToJson())),
                 ["campaign"] = Campaign != null ? (JToken)Campaign.ToJson() : JValue.CreateNull(),
                 ["quests"] = quests,
                 ["builder"] = b,
@@ -66,6 +67,7 @@ namespace GoF2Remake.Modding
             Kits.Clear(); Kits.AddRange(Objects(state, "kits").Select(o => new ProjectKit(o)));
             WeaponEffects.Clear(); WeaponEffects.AddRange(Objects(state, "weaponEffects").Select(o => new ProjectWeaponEffect(o)));
             GameOptions.Clear(); GameOptions.AddRange(Objects(state, "gameOptions").Select(o => new ProjectGameOption(o)));
+            NpcShips.Clear(); NpcShips.AddRange(Objects(state, "npcShips").Select(o => new ProjectNpcShip(o)));
             Campaign = state["campaign"] is JObject c ? new ProjectCampaign((JObject)c.DeepClone()) : null;
             Quests.Clear();
             if (state["quests"] is JObject qs)

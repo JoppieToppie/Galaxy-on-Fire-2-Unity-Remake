@@ -45,7 +45,7 @@ This file holds only what every task needs. Everything about one area of the gam
 | [multiplayer-coop.md](docs/notes/multiplayer-coop.md) | The co-op campaign: hosting, the leader's story, catch-up, crew wins, story orbit followers, holds, failures |
 | [chat-and-commands.md](docs/notes/chat-and-commands.md) | Chat, chat commands, admin tools, selectors |
 | [event-graphs.md](docs/notes/event-graphs.md) | Events, event graph files and nodes, quests, bar missions, cutscenes, ship orders, wormholes |
-| [mods.md](docs/notes/mods.md) | Mod format, items, ships, numbers, saves, campaigns, options, flight styles, conditions, traffic, capital ships, mobile stations, ES2 docking, blueprints, browser, multiplayer |
+| [mods.md](docs/notes/mods.md) | Mod format, items, ships, numbers, saves, campaigns, options, flight styles, conditions, traffic, capital ships, NPC ships, mobile stations, ES2 docking, blueprints, browser, multiplayer |
 | [mods-models.md](docs/notes/mods-models.md) | Ship models, how a ship is seen, engine effects, exhaust styles, textures / skins, image formats, loading |
 | [mods-ship-kits.md](docs/notes/mods-ship-kits.md) | Ship kits, builds, colours, skins, hardpoint models, engine flames, lateral thrusters, liveries, decals, engine trails |
 | [mods-world.md](docs/notes/mods-world.md) | Systems, stations, station models, planets, suns, skies, interiors, characters, mod races |

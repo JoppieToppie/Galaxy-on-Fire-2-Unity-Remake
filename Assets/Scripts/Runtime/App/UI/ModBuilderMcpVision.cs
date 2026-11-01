@@ -36,7 +36,7 @@ namespace GoF2Remake.UI
 {
     public static partial class ModBuilderMcp
     {
-        static readonly string[] SelectKinds = { "ships", "items", "characters", "skins", "blueprints", "kits", "gameOptions", "campaign", "interiors", "missions", "systems", "races", "stations", "weaponFx", "weaponEffects" };
+        static readonly string[] SelectKinds = { "ships", "items", "characters", "skins", "blueprints", "kits", "gameOptions", "campaign", "interiors", "missions", "systems", "races", "stations", "npcShips", "weaponFx", "weaponEffects" };
         static readonly string[] AngleNames = ModelViewer.Angles.Select(a => a.name).ToArray();
 
         static JObject StrArray(string description) => new JObject { ["type"] = "array", ["items"] = new JObject { ["type"] = "string" }, ["description"] = description };
@@ -554,7 +554,7 @@ namespace GoF2Remake.UI
             "skins" => ModBuilder.Kind.Skins, "blueprints" => ModBuilder.Kind.Blueprints, "kits" => ModBuilder.Kind.Kits, "gameOptions" => ModBuilder.Kind.Campaigns,
             "campaign" => ModBuilder.Kind.Campaigns, "interiors" => ModBuilder.Kind.Interiors, "missions" => ModBuilder.Kind.Quests,
             "systems" => ModBuilder.Kind.Systems, "races" => ModBuilder.Kind.Races, "stations" => ModBuilder.Kind.Stations, "weaponFx" => ModBuilder.Kind.WeaponFx,
-            "weaponEffects" => ModBuilder.Kind.WeaponFx,
+            "weaponEffects" => ModBuilder.Kind.WeaponFx, "npcShips" => ModBuilder.Kind.NpcShips,
             _ => throw new ArgumentException("kind: one of " + string.Join(", ", SelectKinds)),
         };
 

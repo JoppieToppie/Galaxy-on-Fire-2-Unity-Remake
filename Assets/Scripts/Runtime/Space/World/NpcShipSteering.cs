@@ -186,7 +186,7 @@ namespace GoF2Remake.World
             orderMs += dtMs;
             var o = order;
             var pos = transform.position;
-            float own = IsFreighter ? NpcTables.FreighterSpeed : baseSpeed;
+            float own = IsFreighter ? (Spec.speed > 0f ? Spec.speed : NpcTables.FreighterSpeed) : baseSpeed;
             float fly = o.speed > 0f ? o.speed : own;
             Vector3 goal;
             switch (o.kind)

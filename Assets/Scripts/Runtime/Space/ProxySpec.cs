@@ -150,7 +150,7 @@ namespace GoF2Remake.Flight
             Bit(10, s.eventWreck); Bit(11, s.guard); Bit(12, s.radarHidden); Bit(13, s.capitalPart); Bit(14, s.capitalEnhanced);
             Bit(15, s.fleetBattle); Bit(16, s.turretHunter); Bit(17, s.modCapital); Bit(18, s.route != null);
             Bit(19, s.turretItems != null); Bit(20, s.extraLoot != null); Bit(21, s.wreckPrefab != null);
-            Bit(22, s.name != null); Bit(23, s.fixedObject != null); Bit(24, s.turretAssembly != null);
+            Bit(22, s.name != null); Bit(23, s.fixedObject != null); Bit(24, s.turretAssembly != null); Bit(25, s.npcType != null);
             w.UInt(bits);
             w.VarInt(s.eventTag);
             w.VarInt(s.hitpoints);
@@ -197,6 +197,7 @@ namespace GoF2Remake.Flight
                 w.Bool(s.route.name != null);
                 if (s.route.name != null) w.Text(s.route.name);
             }
+            if (s.npcType != null) w.Text(s.npcType.key);   // remake mods: its NPC ship type (npcships.json), by key
         }
 
         /// <summary>WriteSpec's spec; wreckPrefab, when it had one, is the outpost wreck (the only one specs use).</summary>
@@ -254,6 +255,7 @@ namespace GoF2Remake.Flight
                 if (r.Bool()) route.name = r.Text();
                 s.route = route;
             }
+            if (Bit(25)) s.npcType = Modding.ModNpcShips.Get(r.Text());
             if (Bit(21))
             {
                 var assets = Application.isPlaying ? CombatAssets.Load() : null;

@@ -47,6 +47,7 @@
 using System.Collections.Generic;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
+using GoF2Remake.Modding;
 using GoF2Remake.UI;
 using UnityEngine;
 
@@ -92,14 +93,25 @@ namespace GoF2Remake.World
         static int Rank => Mathf.Min(Session.Rank, 20);
 
         /// <summary>A killable host (the carrier or the Vossk battleship; the Terran battleship was always killable).</summary>
-        public static bool Killable(SpawnSpec s) => s != null && s.capitalEnhanced && (s.capital == SpawnSpec.CapitalCarrier || s.capital == SpawnSpec.CapitalVossk);
+        public static bool Killable(SpawnSpec s) => s != null && s.capitalEnhanced && (s.capital == SpawnSpec.CapitalCarrier || s.capital == SpawnSpec.CapitalVossk
+                                                                                      || s.npcType?.Killable == true);   // remake mods: npcships.json
 
-        /// <summary>A host that launches fighters and takes ships aboard: the carrier and the Vossk battleship.</summary>
-        public static bool HasDeck(SpawnSpec s) => s != null && (s.capital == SpawnSpec.CapitalCarrier || s.capital == SpawnSpec.CapitalVossk);
+        /// <summary>A host that launches fighters and takes ships aboard: the carrier and the Vossk battleship. Remake mods: an
+        /// NPC ship type's "launches" (npcships.json); one with a hull of its own launches only by them.</summary>
+        public static bool HasDeck(SpawnSpec s) => s != null && (s.npcType?.launches != null
+            || ((s.capital == SpawnSpec.CapitalCarrier || s.capital == SpawnSpec.CapitalVossk) && !(s.npcType?.ship >= 0)));
 
         /// <summary>The fighters it launches (the carrier's Inflicts, the Vossk battleship's H'Socs) and its pads' set.</summary>
-        public static int LaunchShip(SpawnSpec s) => s.capital == SpawnSpec.CapitalVossk ? HSoc : Inflict;
-        public static int PadSet(SpawnSpec s) => s.capital == SpawnSpec.CapitalVossk ? VosskDeckPoints : DeckPoints;
+        public static int LaunchShip(SpawnSpec s) => s.npcType?.launches is NpcShipType.Launches l && l.ships.Count > 0 ? l.ships[Random.Range(0, l.ships.Count)]
+            : s.capital == SpawnSpec.CapitalVossk ? HSoc : Inflict;
+        /// <summary>Its pads' set: a type's own pads (SpacePoints.NpcPadBase), else the game hull's; -1 = none (a mod hull).</summary>
+        public static int PadSet(SpawnSpec s) => s.npcType?.docking is NpcShipType.Docking d && d.pads.Count > 0 ? SpacePoints.NpcPadBase + s.npcType.index
+            : s.npcType?.ship >= 0 || (s.capital == SpawnSpec.CapitalMod && s.fixedObject == null) ? -1
+            : s.capital == SpawnSpec.CapitalVossk ? VosskDeckPoints : DeckPoints;
+        /// <summary>The launches: per wave, in all, the waves' gap (ms): a type's "launches", else 5 / 15 / 20 s.</summary>
+        public static int PerWave(SpawnSpec s) => s.npcType?.launches?.perWave ?? InflictsPerWave;
+        public static int LaunchTotal(SpawnSpec s) => s.npcType?.launches?.total ?? CarrierInflicts;
+        public static float LaunchGapMs(SpawnSpec s) => s.npcType?.launches?.everyMs ?? WaveMs;
 
         /// <summary>TrafficPlan.AddCapitalShip with the option on: list[first] is the host, its turrets follow it.</summary>
         public static void Enhance(Database db, List<SpawnSpec> list, int first)
@@ -268,6 +280,16 @@ namespace GoF2Remake.World
                 return vossk ? Localization.Extra("vosskInBattle", "The Vossk battleship is in battle: its flight deck is closed.")
                              : Localization.Extra("carrierInBattle", "The carrier is in battle: its flight deck is closed.");
             int race = host.Race;
+            if (host.Spec.npcType?.docking is NpcShipType.Docking d)
+            {
+                // Remake mods: a type's own rules (npcships.json "docking": its standing, a ship of its race, a signature).
+                if (d.signature && Standing.SignatureRace == race) return null;
+                bool trusted = d.standingSet && race >= 0 && race <= 3 ? Standing.Toward(race) >= d.standing
+                             : d.standing <= -100 || Standing.IsFriend(race) || (d.standing <= 0 && !Standing.IsEnemy(race));
+                if (trusted && (!d.raceShip || Shop.RaceOfShip(Session.ShipIndex) == race)) return null;
+                return string.Format(Localization.Extra("npcDockRefused", "{0} only takes pilots its race trusts{1}."),
+                                     HostName(host), d.raceShip ? Localization.Extra("npcDockRaceShip", " in a ship of its race") : "");
+            }
             if (Standing.SignatureRace == race) return null;
             if (Standing.IsFriend(race) && Shop.RaceOfShip(Session.ShipIndex) == race) return null;
             return vossk ? Localization.Extra("vosskRefused", "The Vossk battleship only takes pilots the Vossk trust in a Vossk ship, or pilots with a Vossk signature.")
@@ -315,15 +337,23 @@ namespace GoF2Remake.World
             readonly Dictionary<int, int> left = new Dictionary<int, int>();
             List<int> gear;
             public readonly int race;
+            /// <summary>Remake mods: an NPC ship type's shop (npcships.json "docking"), null = the game's.</summary>
+            public readonly NpcShipType.Docking dock;
 
-            public Store(int race) => this.race = race;
+            public Store(int race, NpcShipType.Docking dock = null) { this.race = race; this.dock = dock; }
+
+            /// <summary>Its prices x the orbit station's; its repair and the price per point of hull / armour.</summary>
+            public float Markup => dock?.markup ?? ResupplyMarkup;
+            public bool Repairs => dock?.repair ?? true;
+            public int RepairPrice => dock?.repairPrice ?? RepairPerPoint;
 
             public int Left(Database db, int item)
             {
                 if (left.TryGetValue(item, out int n)) return n;
                 var it = db != null ? db.Item(item) : null;
                 n = it == null || IsBlueprintProduct(it) || (it.TypeId <= 3 && !RaceItem(db, it, race)) ? 0
-                  : item == GalaxyMap.EnergyCellItem ? Random.Range(CellsMin, CellsMax + 1) : Random.Range(AmmoMin, AmmoMax + 1);
+                  : item == GalaxyMap.EnergyCellItem ? Random.Range(dock?.cellsMin ?? CellsMin, (dock?.cellsMax ?? CellsMax) + 1)
+                  : Random.Range(dock?.ammoMin ?? AmmoMin, (dock?.ammoMax ?? AmmoMax) + 1);
                 left[item] = n;
                 return n;
             }
@@ -337,8 +367,17 @@ namespace GoF2Remake.World
                 if (gear != null) return gear;
                 gear = new List<int>();
                 if (db == null) return gear;
-                var pool = db.Items.FindAll(it => ArmoryItem(db, it, race));
-                for (int k = 0; k < (race == 1 ? VosskGear : TerranGear) && pool.Count > 0; k++)
+                // Remake mods: a type's own wares first ("sells": any item, its amount, its chance), then "gear" of its race's.
+                if (dock != null)
+                    foreach (var e in dock.sells)
+                    {
+                        if (db.Item(e.item) == null || gear.Contains(e.item) || Random.Range(0f, 100f) >= e.chance) continue;
+                        gear.Add(e.item);
+                        left[e.item] = Random.Range(e.min, e.max + 1);
+                    }
+                var pool = db.Items.FindAll(it => ArmoryItem(db, it, race) && !gear.Contains(it.index));
+                int count = dock != null && dock.gear >= 0 ? dock.gear : race == 1 ? VosskGear : TerranGear;
+                for (int k = 0; k < count && pool.Count > 0; k++)
                 {
                     var it = pool[Random.Range(0, pool.Count)];
                     pool.Remove(it);
@@ -387,10 +426,10 @@ namespace GoF2Remake.World
         {
             var list = new List<Offer>();
             var hp = health != null ? health.Hp : null;
-            if (hp != null)
+            if (hp != null && (store?.Repairs ?? true))
             {
                 int mh = Mathf.Max(0, hp.maxHull - hp.hull), ma = Mathf.Max(0, hp.maxArmor - hp.armor);
-                list.Add(new Offer { kind = OfferKind.Repair, missingHull = mh, missingArmor = ma, unitPrice = (mh + ma) * RepairPerPoint, room = mh + ma > 0 ? 1 : 0 });
+                list.Add(new Offer { kind = OfferKind.Repair, missingHull = mh, missingArmor = ma, unitPrice = (mh + ma) * (store?.RepairPrice ?? RepairPerPoint), room = mh + ma > 0 ? 1 : 0 });
             }
             foreach (var e in Session.Equipment)
             {
@@ -400,7 +439,7 @@ namespace GoF2Remake.World
                 foreach (var x in Session.Equipment) if (x.item == e.item) have += Mathf.Max(0, x.amount);
                 int stock = store != null ? store.Left(db, e.item) : -1;
                 bool wrongRace = store != null && !RaceItem(db, it, store.race);
-                list.Add(new Offer { kind = OfferKind.Ammo, item = e.item, have = have, unitPrice = UnitPrice(db, e.item), stock = stock,
+                list.Add(new Offer { kind = OfferKind.Ammo, item = e.item, have = have, unitPrice = UnitPrice(db, e.item, store), stock = stock,
                                      notStocked = store != null && (IsBlueprintProduct(it) || wrongRace), wrongRace = wrongRace,
                                      room = Limit(Mathf.Max(0, AmmoCap - have), stock) });
             }
@@ -412,20 +451,20 @@ namespace GoF2Remake.World
                 {
                     if (list.Exists(o => o.item == item)) continue;   // a mounted secondary: its rounds row
                     int stock = store.Left(db, item);
-                    list.Add(new Offer { kind = OfferKind.Gear, item = item, have = Shop.CargoOf(item), unitPrice = UnitPrice(db, item), stock = stock,
+                    list.Add(new Offer { kind = OfferKind.Gear, item = item, have = Shop.CargoOf(item), unitPrice = UnitPrice(db, item, store), stock = stock,
                                          room = Limit(Mathf.Max(0, Shop.FreeCargo(db)), stock) });
                 }
             }
             int cells = GalaxyMap.EnergyCellItem;
             int cellStock = store != null ? store.Left(db, cells) : -1;
-            list.Add(new Offer { kind = OfferKind.Cargo, item = cells, have = Shop.CargoOf(cells), unitPrice = UnitPrice(db, cells), stock = cellStock,
+            list.Add(new Offer { kind = OfferKind.Cargo, item = cells, have = Shop.CargoOf(cells), unitPrice = UnitPrice(db, cells, store), stock = cellStock,
                                  room = Limit(Mathf.Max(0, Shop.FreeCargo(db)), cellStock) });
             return list;
         }
 
         static int Limit(int room, int stock) => stock < 0 ? room : Mathf.Min(room, stock);
 
-        public static int UnitPrice(Database db, int item) => Mathf.Max(1, Mathf.RoundToInt(Price(db, item) * ResupplyMarkup));
+        public static int UnitPrice(Database db, int item, Store store = null) => Mathf.Max(1, Mathf.RoundToInt(Price(db, item) * (store?.Markup ?? ResupplyMarkup)));
 
         /// <summary>Buys up to 'units' of the offer, as many as its room, the store and the credits allow; 'bought' = the
         /// units bought (the repair: 1); the HUD message (the reason when nothing was bought).</summary>

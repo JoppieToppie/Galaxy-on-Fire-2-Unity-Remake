@@ -609,7 +609,7 @@ namespace GoF2Remake.World
             if (order != null && UpdateOrder(dtMs)) return;   // an event graph's order (NpcOrder)
             if (IsFreighter)
             {
-                if (!Hp.empDisabled) transform.position += transform.forward * NpcTables.FreighterSpeed * dtMs * M;
+                if (!Hp.empDisabled) transform.position += transform.forward * (Spec.speed > 0f ? Spec.speed : NpcTables.FreighterSpeed) * dtMs * M;   // remake mods: a type's "speed"
                 return;
             }
             reselectTimer += dtMs;

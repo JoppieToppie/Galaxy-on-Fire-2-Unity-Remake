@@ -24,6 +24,16 @@ namespace GoF2Remake.UI
                 PickStation(s);
                 return null;
             }
+            if (kindName == "npcShips")
+            {
+                var n = Project.NpcShips.FirstOrDefault(x => x.Ref == r);
+                if (n == null) return $"No NPC ship \"{id}\" in the project.";
+                currentNpc = n;
+                RebuildNpcList();
+                BuildNpcPage();
+                ShowNpcPreview(true);
+                return null;
+            }
             if (kindName == "items" && kind == ModBuilder.Kind.WeaponFx)
             {
                 var it = Project.Items.FirstOrDefault(x => x.Ref == r);
@@ -52,7 +62,8 @@ namespace GoF2Remake.UI
         internal override JObject ExternalSelection()
         {
             var o = base.ExternalSelection();
-            o["entry"] = kind == ModBuilder.Kind.WeaponFx ? (currentEffect != null ? "effect:" + currentEffect.Id : currentFx?.Ref) : currentStation?.Ref;
+            o["entry"] = kind == ModBuilder.Kind.WeaponFx ? (currentEffect != null ? "effect:" + currentEffect.Id : currentFx?.Ref)
+                       : kind == ModBuilder.Kind.NpcShips ? currentNpc?.Ref : currentStation?.Ref;
             o["orbit"] = Session.StationIndex;
             if (kind == ModBuilder.Kind.WeaponFx) o["rangeFiring"] = !rangePaused;
             return o;
@@ -68,7 +79,7 @@ namespace GoF2Remake.UI
             if (reset)
             {
                 aiView = false;
-                if (kind == ModBuilder.Kind.WeaponFx) RestartRange(); else FrameStation();
+                if (kind == ModBuilder.Kind.WeaponFx) RestartRange(); else if (kind == ModBuilder.Kind.NpcShips) FrameNpc(); else FrameStation();
                 return null;
             }
             var view = ModelViewer.Angles.FirstOrDefault(a => a.name == angle);

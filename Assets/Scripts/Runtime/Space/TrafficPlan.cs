@@ -100,7 +100,10 @@ namespace GoF2Remake.Flight
         public int empPoints = -1;         // the EMP pool (-1 = NpcTables.Emp)
         public bool modCapital;            // remake mods: a mod's capital ship or freighter (Modding.ModCapitalShips): its own
                                            // model and boxes, its turret items armed even parked, no wreck
-        public const int CapitalBattleship = 1, CapitalCarrier = 2, CapitalVossk = 3;
+        public Modding.NpcShipType npcType;   // remake mods: its NPC ship type (npcships.json, TrafficPlan.ApplyNpcType), null = none
+        public SpawnSpec escortLeader;     // ... a freighter's escort: follows it (NpcOrder Follow, Traffic.Create) ...
+        public Vector3 escortOffset;       // ... at this offset (game units: right, up, forward)
+        public const int CapitalBattleship = 1, CapitalCarrier = 2, CapitalVossk = 3, CapitalMod = 4;   // CapitalMod: a mod's type
     }
 
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
@@ -196,7 +199,14 @@ namespace GoF2Remake.Flight
             if (secEff == 3 && raidersOn && Session.Difficulty < 1f) raiders = Random.Range(0, 2) + 1;   // Easy / Normal
 
             int jumpers = 0, freighters = 0, x = 0;
-            if (station != 78) { jumpers = Random.Range(0, 2); freighters = Random.Range(0, 5); x = Random.Range(0, 2); }
+            var freighterType = Modding.ModNpcShips.Changed(Modding.ModNpcShips.FreighterKey);   // remake mods: a mod's freighters
+            if (station != 78)
+            {
+                jumpers = Random.Range(0, 2);
+                freighters = Random.Range(0, 5);
+                if (freighterType?.spawn != null && freighterType.spawn.countSet) freighters = Random.Range(freighterType.spawn.min, freighterType.spawn.max + 1);
+                x = Random.Range(0, 2);
+            }
             int local = (mido ? Random.Range(0, 2) : secEff) + x + freighters / 4;
             // The "big battle" (npc_traffic_ai.md 2.2): raiders on, campaign > 0x1f, 8 %: 9 raiders against 9 locals.
             if (raidersOn && cm > 0x1f && Random.Range(0, 100) < 8) raiders = local = 9;
@@ -259,9 +269,10 @@ namespace GoF2Remake.Flight
             }
             // The capital-ship specials (npc_combat_specials.md 2.1): the first freighter becomes the battleship / carrier
             // (Terran) or the Vossk battleship.
-            bool terran = sysRace == 0 && freighters > 0 && Random.Range(0, 100) < 30;
-            bool vossk = sysRace == 1 && freighters > 0 && Random.Range(0, 100) < 30 && cm > 0x8c;
-            bool carrier = terran && Random.Range(0, 100) < 30 && cm > 0x67;
+            // Remake mods: a mod's "spawn.chance" for the battleship / carrier / Vossk battleship (ModNpcShips) in place of 30.
+            bool terran = sysRace == 0 && freighters > 0 && Random.Range(0, 100) < Modding.ModNpcShips.Chance(Modding.ModNpcShips.Battleship, 30);
+            bool vossk = sysRace == 1 && freighters > 0 && Random.Range(0, 100) < Modding.ModNpcShips.Chance(Modding.ModNpcShips.VosskBattleship, 30) && cm > 0x8c;
+            bool carrier = terran && Random.Range(0, 100) < Modding.ModNpcShips.Chance(Modding.ModNpcShips.Carrier, 30) && cm > 0x67;
             // The supernova system (27) before campaign 0x9e (Status::inSupernovaSystem): nothing but the story's.
             if (story && system.index == 27 && cm < 0x9e) { local = jumpers = freighters = raiders = 0; raidersOn = terran = vossk = false; }
             // Remake (CapitalShips): now and then a fleet battle (a Terran and a Vossk capital ship with their wings) instead of
@@ -326,9 +337,23 @@ namespace GoF2Remake.Flight
                 var at = new Vector3(s * (Random.Range(0, 60000) - 80000), Random.Range(0, 40000) - 20000, Random.Range(0, 160000) - 80000);
                 int modShip = Modding.ModCapitalShips.PickFreighter(race, -1);   // remake mods: now and then a mod's freighter
                 if (modShip < 0 && modOnly) continue;   // (mods' ships only: no game freighter)
+                if (modShip < 0 && freighterType != null)
+                {
+                    // A mod's change to the game's freighters: its hull ("ship"), its rules (TrafficPlanNpcShips).
+                    int at0 = list.Count;
+                    list.Add(freighterType.ship >= 0 ? NpcHost(db, freighterType, race, at)
+                             : new SpawnSpec { group = NpcGroup.Freighter, race = race, ship = ship, freighter = true, position = at });
+                    ApplyNpcType(db, list, at0, freighterType, true);
+                    continue;
+                }
                 list.Add(modShip >= 0 ? Modding.ModCapitalShips.Spawn(modShip, race, at)
                        : new SpawnSpec { group = NpcGroup.Freighter, race = race, ship = ship, freighter = true, position = at });
             }
+            // Remake mods: the mods' own NPC ship types by their "spawn" rules (npcships.json); a "replaceGame" one comes in
+            // the game's capital ship's place. Not in the special orbits (the story's, the pirate havens, Loma).
+            bool quietOrbit = (station >= 100 && station <= 104) || station == 108 || station == 10 || system.index == 25 || lootOrbit
+                              || informer || (story && system.index == 27 && cm < 0x9e);
+            if (!quietOrbit && AddModNpcShips(db, list, station, system, sysRace, terran || vossk)) terran = vossk = carrier = false;
             if (terran || vossk) AddCapitalShip(db, list, terran, carrier, station);
             if (modCapital >= 0) AddModCapital(list, modCapital, sysRace, station);
             if (fleetBattle) AddFleetBattle(db, list, station);

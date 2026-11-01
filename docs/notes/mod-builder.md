@@ -174,6 +174,21 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   without one: `WeaponFx.trail` (`TrailLook`, not serialized), `RocketTrail.For(gun, look)`, `GunRig.EnableTrails`); a
   range where the parked ship fires at a target ship 300-450 m off, seen from the side (Gun + GunRig like NetShotMirror; the
   target's hit cube 35 m: at 900 m every shot hit as it left the gun). Tests: `ModBuilderKindsTests`.
+  **NPC ships** (2026-11-02, `ModBuilder.Kind.NpcShips` before AiTools, KindCount 16, `Place.Space`;
+  `ModBuilderSpaceViewNpc`, `ProjectNpcShip` (npcships.json, `ModProject.NpcShips`, undo key "npcShips", MCP entry kind
+  `npcShips`, select_entry too): + New NPC ship (a capital ship on the battleship's / carrier's / Vossk battleship's hull,
+  a freighter, a boss, or any of them on a ship's hull, `PickRef(RefKind.Ship)`), Change a game NPC ship (the five game
+  keys, another mod's by key), Remove. The page: name, kind, hull (a ship's or a game look), race, side, hull / hull x /
+  guns x / speed / explosion, missiles, retreat; hardpoints (the game hull's turrets copied in, back to the hull's own,
+  per point kind / XYZ / turret item / upside down / model / hull / name / a hangar's ships and timing); escorts; loot
+  (the game's / its own / nothing); where and how often (chance, count, races, systems, stations, security, ranks, story
+  steps, free play / story only, the game's capital ship's place, condition, distance, a place of its own; a game type
+  its chance, the freighters' count); dock and shop (pads, the game's pads copied in, standing, race ship, signature,
+  repair and its price, markup, cells, ammo, gear, sells); launches. The hull is built beside the orbit's station
+  (`PreviewSpec` -> `Traffic.AssemblyOf` -> `AssembledObject.LoadPrefab`, a mod hull retried every 0.5 s until built)
+  and the hangar's `ModBuilderGizmo` binds to it (hardpoints cyan / amber, pads red): a ball drags over the hull (Ctrl:
+  100-unit snap) or along its arrows, "Click the hull to add" a turret or a pad; every edit saves and re-reads the project
+  (the page and the preview follow). Not yet tried in Play mode.
   **Ship kits** (2026-10-16, #87's customizable ships as a builder kind; `ModBuilder.Kind.Kits`, before AiTools, KindCount
   14; `ModBuilderViewKits`, `ProjectKit` / `ProjectKitPart` in ProjectKits.cs, `ModProject.Kits`, file shipkits.json, in the
   undo steps as "kits", MCP entry kind `kits`): the kit (name, scale, yaw), its slots (add, rename, reorder, remove; a

@@ -252,14 +252,21 @@ namespace GoF2Remake.Modding
         static void ApplySubsystems(Database db, ModInfo mod, ShipDef d, int ship)
         {
             if (!(ModJson.Get(d.json, "subsystems") is JArray list)) return;
+            db.ShipSubsystems[ship] = ReadSubsystems(db, mod, list, ShipsFile, "object", false);
+        }
+        /// <summary>A "subsystems" list (ships.json) or "hardpoints" list (npcships.json, ModNpcShips: "position" for
+        /// "position_engine", 'defaultKind' "turret", a turret without an item the game's Terran turret when
+        /// 'turretWithoutItem').</summary>
+        public static List<CapitalSubsystem> ReadSubsystems(Database db, ModInfo mod, JArray list, string file, string defaultKind, bool turretWithoutItem)
+        {
             var parts = new List<CapitalSubsystem>();
             foreach (var e in list)
             {
-                string at = ModJson.Where(e, ShipsFile);
+                string at = ModJson.Where(e, file);
                 if (!(e is JObject o)) { Report(mod, $"{at}: each subsystem must be an object {{ \"kind\", \"position_engine\" }}"); continue; }
-                var p = new CapitalSubsystem { kind = (ModJson.Str(o, "kind") ?? "object").ToLowerInvariant(), name = ModJson.Str(o, "name"), model = ModJson.Str(o, "model") };
+                var p = new CapitalSubsystem { kind = (ModJson.Str(o, "kind") ?? defaultKind).ToLowerInvariant(), name = ModJson.Str(o, "name"), model = ModJson.Str(o, "model") };
                 if (p.kind != "turret" && p.kind != "object" && p.kind != "hangar") { Report(mod, $"{at}: \"kind\" must be \"turret\", \"object\" or \"hangar\""); continue; }
-                if (!(ModJson.Get(o, "position_engine") is JArray pos) || pos.Count < 3) { Report(mod, $"{at}: a subsystem needs \"position_engine\": [x, y, z]"); continue; }
+                if (!((ModJson.Get(o, "position_engine") ?? ModJson.Get(o, "position")) is JArray pos) || pos.Count < 3) { Report(mod, $"{at}: a subsystem needs \"position_engine\": [x, y, z]"); continue; }
                 p.position = new Vector3((float)pos[0], (float)pos[1], (float)pos[2]);
                 if (ModJson.Get(o, "turretUp") is JArray up && up.Count >= 3) p.up = new Vector3((float)up[0], (float)up[1], (float)up[2]);
                 else if (ModJson.Get(o, "upsideDown") is JValue ud && ud.Type == JTokenType.Boolean && (bool)ud) p.up = Vector3.down;
@@ -267,26 +274,26 @@ namespace GoF2Remake.Modding
                 if (ModJson.Get(o, "item") is JToken it)
                 {
                     string reference = it.Type == JTokenType.Integer ? ((int)it).ToString() : it.Type == JTokenType.String ? (string)it : null;
-                    if (reference == null || !TryResolveItem(reference, out int i) || db.Item(i) == null) { Report(mod, $"{at}: \"item\": {it} is no item"); continue; }
+                    if (reference == null || !TryResolveItem(reference, out int i) || db?.Item(i) == null) { Report(mod, $"{at}: \"item\": {it} is no item"); continue; }
                     if (db.Item(i).categoryId != 8 && db.Item(i).categoryId != 35) { Report(mod, $"{at}: \"item\": {db.Item(i).name} ({i}) is no turret"); continue; }
                     p.item = i;
                 }
-                if (p.kind == "turret" && p.item < 0) { Report(mod, $"{at}: a turret subsystem needs \"item\", its turret item"); continue; }
-                p.hull = ModJson.Int(o, "hull", -1, ShipsFile);
-                p.stage = ModJson.Int(o, "stage", 0, ShipsFile);
+                if (p.kind == "turret" && p.item < 0 && !turretWithoutItem) { Report(mod, $"{at}: a turret subsystem needs \"item\", its turret item"); continue; }
+                p.hull = ModJson.Int(o, "hull", -1, file);
+                p.stage = ModJson.Int(o, "stage", 0, file);
                 p.shields = ModJson.Get(o, "shields") is JValue sh && sh.Type == JTokenType.Boolean && (bool)sh;
                 float F(string k, float def) => ModJson.Get(o, k) is JValue v && (v.Type == JTokenType.Float || v.Type == JTokenType.Integer) ? (float)v : def;
                 p.weakspot = F("weakspot", 0f); p.bonus = F("bonus", 0f); p.scale = F("scale", 1f); p.radius = F("radius", -1f);
                 p.everyMs = Mathf.Max(3f, F("every", 25f)) * 1000f;
-                p.perWave = Mathf.Max(1, ModJson.Int(o, "perWave", 2, ShipsFile));
-                p.maxAlive = Mathf.Max(1, ModJson.Int(o, "maxAlive", 6, ShipsFile));
-                p.total = ModJson.Int(o, "total", -1, ShipsFile);
+                p.perWave = Mathf.Max(1, ModJson.Int(o, "perWave", 2, file));
+                p.maxAlive = Mathf.Max(1, ModJson.Int(o, "maxAlive", 6, file));
+                p.total = ModJson.Int(o, "total", -1, file);
                 if (ModJson.Get(o, "ships") is JArray ships)
                     foreach (var sh2 in ships) if (sh2.Type == JTokenType.Integer || sh2.Type == JTokenType.String) p.ships.Add(sh2.ToString());
                 if (p.kind == "hangar" && p.ships.Count == 0) { Report(mod, $"{at}: a hangar subsystem needs \"ships\", the ships it launches"); continue; }
                 parts.Add(p);
             }
-            db.ShipSubsystems[ship] = parts;
+            return parts;
         }
         /// <summary>Remake (a modder's request): ships.json "integrated", what a ship has built in like the Kothar ships' Khador
         /// Drive (37 / 38 / 40) and the Specter's / Scimitar's cloak (44 / 49): "khadorDrive" true / false (Database.IntegratedDrives:

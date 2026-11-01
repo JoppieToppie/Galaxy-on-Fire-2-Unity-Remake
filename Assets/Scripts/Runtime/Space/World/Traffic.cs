@@ -230,11 +230,16 @@ namespace GoF2Remake.World
                 && ship.MountedTurrets == null)
                 AttachFighterTurret(ship);
             if (spec.capital != 0 && spec.capitalEnhanced) CapitalShip.Attach(ship, this, db);   // remake option (CapitalShips)
-            // Remake mods: a mod capital ship's subsystems (turrets, shield generators, weak spots, hangars) on its hull.
-            if (spec.modCapital && db.ShipSubsystems.TryGetValue(spec.ship, out var subsystems) && subsystems.Count > 0)
-                CapitalSubsystems.Attach(ship, this, db, subsystems);
-            // ... one that jumps away instead of dying (ships.json "retreat": EVERSPACE 2's Dreadnought)
-            if (spec.modCapital && CustomShips.Get(spec.ship)?.retreat == true) CapitalRetreat.Attach(ship, this);
+            // Remake mods: a mod capital ship's subsystems (turrets, shield generators, weak spots, hangars) on its hull; an NPC
+            // ship type's "hardpoints" (npcships.json) instead of its hull's.
+            var subsystems = spec.npcType?.hardpoints;
+            if (subsystems == null && spec.modCapital) db.ShipSubsystems.TryGetValue(spec.ship, out subsystems);
+            if (subsystems != null && subsystems.Count > 0) CapitalSubsystems.Attach(ship, this, db, subsystems);
+            // ... one that jumps away instead of dying (ships.json "retreat": EVERSPACE 2's Dreadnought; npcships.json too)
+            if ((spec.modCapital && CustomShips.Get(spec.ship)?.retreat == true) || spec.npcType?.retreat == true) CapitalRetreat.Attach(ship, this);
+            // ... a freighter's escort follows it, fighting what it meets on the way (TrafficPlan.AddNpcEscorts).
+            if (spec.escortLeader != null && Ships.Find(x => x != null && x.Spec == spec.escortLeader) is NpcShip leader)
+                ship.SetOrder(new NpcOrder { kind = NpcOrder.Kind.Follow, leader = leader.transform, offset = spec.escortOffset, fight = true });
             return ship;
         }
 

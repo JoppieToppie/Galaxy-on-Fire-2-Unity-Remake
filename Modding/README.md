@@ -25,6 +25,7 @@ in the game:
 | Characters, Missions, Audio | the Space Lounge | portraits; story missions, bar missions and events in a node graph (or as a list of steps, below), Unity-made event graphs imported; music, sound effects and voice lines, each with ▶ |
 | Systems | the star map | every system shown: drag yours to their place, their gates, sky, sun, music, stations |
 | Stations, Weapon fx | in space | a station in its own orbit (model, size, turn, rooms, planet); weapons firing from one ship onto another |
+| NPC ships | in space | capital ships, freighters and bosses nobody flies, new or the game's changed: the hull beside the station, hardpoints and docking pads clicked onto it, escorts, loot, where and how often they come, the dock's shop, launches |
 | Hangars & bars | the room itself | a `.glb` room or one of the game's (its markers filled in), the markers clicked into the room, light, fog, lens |
 
 Wherever content names other content (a mission's speaker, a station's system, a blueprint's product, a campaign's ship) the
@@ -763,8 +764,9 @@ its hull that many times the Terran battleship's.
 
 Its race is its `race` (or the races in `"races"`). Its collision boxes are measured on the model: the hull cut along its
 length into 8 slices. The player and the shots still meet its real shape (unless Options > Gameplay "Ship collision" is
-Original). It leaves no wreck: it burns, explodes at its `explosionScale` and is gone. The capital ship enhancements
-(escorts, resupply, fleet battles) stay with the game's own capital ships. A capital ship's hardpoints carry at most 8 turrets
+Original). It leaves no wreck: it burns, explodes at its `explosionScale` and is gone. The capital ship enhancements'
+fleet battles stay with the game's own capital ships; escorts, a dock with a shop, launches and loot of its own are
+`npcships.json`'s ("NPC ships" below, `"ship"`: this hull). A capital ship's hardpoints carry at most 8 turrets
 in multiplayer copies, so give it 8 at most. Keep it under about 5 km: the flight level's far plane is 15 km.
 
 ### Capital ship subsystems
@@ -1100,6 +1102,88 @@ Any turret item can arm the NPC ships of a type, the game's own included (the Ve
     }
 ]
 ```
+
+## NPC ships (npcships.json)
+
+The ships nobody flies have a file of their own, as `ships.json` is for the ones a player flies: the capital ships,
+freighters and bosses of the orbits' traffic. An entry adds one (`"id"`) or changes one of the game's own (`"override"`:
+`"battleship"` the Terran battleship, `"carrier"` the Terran carrier, `"vossk_battleship"`, `"freighter"` every race's
+freighters, `"pirate_boss"` the pirate events' boss) or another mod's (`"mod_id:id"`). The Mod Builder's **NPC ships** kind
+edits them in space, the hull beside the orbit's station with its hardpoints and docking pads on it.
+
+```json
+[
+    { "id": "dreadnought", "kind": "capital", "ship": "my_mod:dread_hull", "name": "Dreadnought", "race": "terran",
+      "hullFactor": 2, "gunFactor": 1.5, "explosionScale": 14,
+      "hardpoints": [ { "position": [0, 3200, 9000], "item": 48 }, { "position": [0, -3000, 4000], "upsideDown": true },
+                      { "kind": "hangar", "model": "none", "position": [0, 0, -12000], "ships": [5], "every": 30 } ],
+      "escorts": { "count": [3, 5], "ships": [5, "my_mod:interceptor"], "strength": 1.5 },
+      "loot": { "items": [ { "item": 113, "amount": [6, 10] }, { "item": "my_mod:core", "chance": 25 } ], "cargoRolls": [1, 2] },
+      "spawn": { "chance": 15, "races": ["terran", "nivelian"], "security": [2, 3], "minRank": 6, "distance": [5, 9] },
+      "docking": { "pads": [ { "position": [0, 2600, -4000] }, { "position": [0, 2600, -7000] } ], "standing": 40,
+                   "raceShip": false, "markup": 1.5, "energyCells": [20, 30], "gear": 3,
+                   "sells": [ { "item": 37, "amount": [10, 20] }, { "item": "my_mod:core", "amount": 1, "chance": 50 } ] },
+      "launches": { "ships": [5], "perWave": 3, "total": 12, "every": 25 } },
+    { "id": "ore_hauler", "kind": "freighter", "name": "Ore hauler", "speed": 1.5,
+      "escorts": { "count": 2 }, "loot": { "items": [ { "item": 116, "amount": [8, 15] } ] }, "spawn": { "chance": 40 } },
+    { "override": "battleship", "spawn": { "chance": 50 }, "escorts": { "count": 4, "strength": 2 } },
+    { "override": "freighter", "spawn": { "count": [2, 6] }, "loot": { "keep": true, "cargoRolls": 1 } },
+    { "override": "pirate_boss", "name": "The Butcher", "ship": 45, "hullFactor": 1.5, "escorts": { "count": [4, 6] } }
+]
+```
+
+- **`kind`** (new ones): `"capital"` (the default) parks in its orbit with its turrets armed, can be destroyed (its hull
+  burns along its length, then a big blast; its turrets and parts go with it), carries a crate and fires missile salvos
+  (`"missiles": false` not); `"freighter"` cruises through the orbit like the game's freighters (`speed` in units a
+  millisecond, theirs 1); `"boss"` is a named fighter that comes for the player with its escorts, out where the pirate boss
+  comes (hostile unless `"hostile": false`; its hull and gun grow with the rank like the pirate boss's).
+- **The hull**: `"ship"`, a `ships.json` ship (a number or `"mod:id"`: a hull you made for it, which needs no dealer and is
+  then never sold; for a capital ship or freighter also the game's 13, 14, 15), or `"looksLike"` a game NPC ship's hull
+  (`"battleship"`, `"carrier"`, `"vossk_battleship"`, `"freighter"`: the race's). Without either: the kind's game hull.
+  An override's `"ship"` gives the game's ship your hull (the game's turrets and pads then leave it: give it hardpoints and
+  pads of its own).
+- **`name`** (or per language, `npcships.<id>.name` in `text/<lang>.json`) is on its lock plate. **`race`**: a game race
+  (`"terran"`, `"vossk"`, `"nivelian"`, `"midorian"`, `"pirates"`, `"void"` or 0-9) or a mod race; without one, the system's.
+  **`"hostile": true`** makes it always the player's enemy.
+- **`hull`** sets its hit points (x the difficulty), or **`hullFactor`** multiplies its default (a new capital ship: 5 x the
+  Terran battleship's, as the enhanced battleship has; a freighter: the freighter's; a boss: the pirate boss's).
+  **`gunFactor`** multiplies its guns' and turrets' damage. A game capital ship given a hull (or a ship) can be destroyed.
+- **`hardpoints`**: its turrets and other parts, in the format of `ships.json`'s `"subsystems"` (above) with `"position"`
+  (game units in the ship's frame), `"kind"` `"turret"` by default and a turret without an `"item"` the game's Terran
+  turret. They replace the hull's own turrets (the game hull's, or a ship's `npcTurrets`); a freighter carries them along.
+- **`escorts`**: `count` (a number or `[least, most]`; without it, a capital ship's 3 + rank / 7, a freighter's 2), `ships`
+  (without them, the dearer half of its race's fighters), their `race`, and `strength` (their hull and guns x it; or `hull`
+  and `gun` apart). A capital ship's loop round it, a freighter's follow it in formation and fight what attacks it, a boss's
+  fly with it. On a game ship they replace the game's escorts.
+- **`loot`**: `false` for nothing, or `items` (`amount` a number or `[least, most]`, `chance` in %, 100 by default) and
+  `cargoRolls` (a freighter's cargo rolls); `"keep": true` adds them to the game's own loot. Every kind of loot drops a crate
+  of its own.
+- **`spawn`** (new ones): `chance` (% of the orbits where the rest holds; 0 or none = never: the Debug page's **Spawn mod NPC
+  ship** brings it), `count` (how many when it comes, 1 by default), `races` (the system's race), `systems`, `stations`,
+  `security` (0 Dangerous .. 3 Secure), `minRank` / `maxRank`, `minStep` / `maxStep` (story steps), `freePlayOnly` /
+  `storyOnly`, `condition` (an expression like a mission's, see "Conditions"), and where: `"position": [x, y, z]` (game units
+  from the station, z ahead) or `"distance": [least, most]` (km in front of the station); else its kind's place (a capital
+  ship 4-8 km ahead, clear of the station; a freighter in the freighters' box; a boss where the pirate boss comes). A capital
+  ship's `"replaceGame": true` comes only where the game's capital ship would, in its place. Never in the story's special
+  orbits, the pirate havens or Loma. On the game's ships: `chance` replaces the 30 % of the orbits with freighters that get
+  the battleship, the carrier (once the battleship came) or the Vossk battleship; the freighters' `count` replaces their 0-4
+  an orbit; their races and places stay the game's.
+- **`docking`** (capital ships): it takes ships aboard to resupply them and sells from its shop, like the enhanced carrier.
+  `pads` (each `position`, its `approach` point, by default 2000 units above it, and `facing`, the docked ship's nose,
+  forward by default; without pads the carrier and the Vossk battleship keep their game pads, another hull has none and no
+  dock); who it takes: `standing` (the least standing with its race, -100..100, a friend from 71: the default), `raceShip`
+  (only in a ship of its race; true by default), `signature` (its race's signature lets anyone in; true); its shop: `repair`
+  (hull and armour, true) at `repairPrice` credits a point (10), `markup` (x the orbit station's prices, 1.25), `energyCells`
+  and `ammo` (rounds of each mounted secondary of its race) in stock, `gear` (how many of its race's weapons and equipment;
+  the game's 5 / 6 by default) and `sells` (any items: `item`, `amount`, `chance`). Not while it is hostile or in a battle.
+- **`launches`** (capital ships): `ships` it launches from its pads (else from the top of its hull) when attacked, `perWave`
+  every `every` seconds, `total` in all (5 / 20 s / 15 by default). A `"hangar"` hardpoint launches on its own while it is
+  hostile.
+- `"retreat": true` (capital ships): it jumps away instead of being destroyed, as `ships.json`'s.
+
+Game NPC ships keep everything an override leaves out, so a mod that changes only the battleship's chance changes nothing
+else. In multiplayer the orbit's authority builds them and the other players see copies (their docking is only tested in
+single player).
 
 ## Customizable ships
 
