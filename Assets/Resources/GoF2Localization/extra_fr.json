@@ -3041,7 +3041,7 @@
  "coopLobbyCode": "Code d'accès : {0}",
  "coopLobbyHost": "Lance quand l'équipage est là : tout le monde commence la campagne ensemble.",
  "coopLobbyWait": "En attente que {0} lance la campagne.",
- "coopIntro": "Jouez toute l'histoire ensemble : jusqu'à quatre pilotes, une campagne.",
+ "coopIntro": "Jouez toute l'histoire ensemble : une campagne pour tout l'équipage.",
  "coopBrowserTitle": "Campagnes ouvertes",
  "coopNoGames": "Aucune campagne coop ouverte pour l'instant. Héberges-en une ou rejoins-en une avec un code.",
  "coopHostTitle": "Héberger une campagne",

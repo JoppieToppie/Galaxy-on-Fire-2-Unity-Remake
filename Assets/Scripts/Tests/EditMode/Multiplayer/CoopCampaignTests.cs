@@ -86,7 +86,7 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(1f, CoopCampaign.HullFactor(1), 1e-4f);
             Assert.AreEqual(1.5f, CoopCampaign.HullFactor(2), 1e-4f);
             Assert.AreEqual(2.5f, CoopCampaign.HullFactor(4), 1e-4f);
-            Assert.AreEqual(2.5f, CoopCampaign.HullFactor(9), 1e-4f, "at most four players");
+            Assert.AreEqual(5f, CoopCampaign.HullFactor(9), 1e-4f, "a bigger crew than the default four");
             Assert.AreEqual(1f, CoopCampaign.HullFactor(0), 1e-4f);
         }
 
@@ -102,6 +102,20 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(2f, CoopCampaign.NpcDamageFactor, 1e-4f, "three players (the test's crew) at +100 %: half of it on the guns");
             GameHooks.CoopActive = () => false;
             Assert.AreEqual(1f, CoopCampaign.NpcDamageFactor, 1e-4f, "single player");
+        }
+
+        [Test]
+        public void GuestsTakeTheLeadersCrewLimit()
+        {
+            leader = true;
+            CoopCampaign.SetCrewLimit(8);
+            string json = LeaderAt(5);
+            CoopCampaign.SetCrewLimit(CoopCampaign.DefaultCrew);
+            GuestAt(5);
+            CoopCampaign.ApplyLeader(json, db);
+            Assert.AreEqual(8, CoopCampaign.CrewLimit, "the lobby's crew N / 8");
+            CoopCampaign.SetCrewLimit(500);
+            Assert.AreEqual(CoopCampaign.MaxCrew, CoopCampaign.CrewLimit, "a session's own limit at most");
         }
 
         [Test]

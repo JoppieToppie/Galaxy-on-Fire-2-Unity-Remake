@@ -1,6 +1,6 @@
 # Multiplayer: co-op campaign
 
-The story for 2-4 players (remake-only, 2026-11-01). Code: `Game/CoopCampaign.cs` (the rules, plain C#, tested by
+The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `Game/CoopCampaign.cs` (the rules, plain C#, tested by
 `CoopCampaignTests`), `Net/Multiplayer/NetCoop.cs` + `NetStateCoop.cs` (the session), `Space/World/CampaignLevelCoop.cs`
 (the story levels), `CoopCameraMirror`, `CoopLevelState`; hooks `GameHooks.Coop*` / `SpaceHooks.Coop*`.
 
@@ -10,13 +10,18 @@ The story for 2-4 players (remake-only, 2026-11-01). Code: `Game/CoopCampaign.cs
   main menu's own **Co-op campaign** button (after Start new game) opens the multiplayer panel as the co-op screen
   (`MainMenu.coopPanelMode`, `SetPanelMode` / `ApplyPanelMode`): its title and intro, the browser's "Open campaigns" (co-op
   listings only, `NetLobby.Entry.coop`), "Host a campaign" with the saved campaign under it (`mpCoopSaved`: campaign, step,
-  crew from coop.json), the co-op settings rows instead of World / Combat, Max players shown capped at 4, "Host campaign".
+  crew from coop.json), the co-op settings rows instead of World / Combat, its own Max players (below), "Host campaign".
   The Multiplayer button opens the plain screen (World: Fresh / Persistent, every listing). The menu reopens the screen
   the last session came from (`NetCoop.LastSessionWasCoop`); Back returns to the button that opened it. Checked with
   `UiShots` at all ten sizes (main menu and both screens).
 - **Hosting**: from the Co-op campaign screen (`NetGame.HostWantsCoop` while it is open); Host campaign then asks Continue (the saved campaign's step and crew, `NetCoop.ReadSummary`, coop.json) or
-  New campaign (Galaxy on Fire 2, or Add-ons: Valkyrie / Supernova; `NetGame.CoopNewCampaign`). Max players is capped at
-  4 (`NetGame.MaxPlayers`' getter, so Relay's allocation and the approval agree). Listed with a CO-OP tag (lobby key `coop`).
+  New campaign (Galaxy on Fire 2, or Add-ons: Valkyrie / Supernova; `NetGame.CoopNewCampaign`). Max players is the co-op
+  screen's own (`NetGame.CoopMaxPlayers`, PlayerPrefs `mp_coop_max_players`, 4 by default, up to the session limit of 100;
+  until 2026-11-01 capped at 4), which `NetGame.MaxPlayers` returns while co-op is hosted (so Relay's allocation and the
+  approval agree); the leader's State carries it (`CoopCampaign.CrewLimit`: the lobby's "crew N / limit"). Bigger crews
+  scale too: the hull and gun factors and the shared credits count every player in the session (up to 100), the
+  prologue's spots go on in rings of six around the leader's line (`IntroCutscenes.Slot`), the regroup after a cutscene
+  in rows of four. Listed with a CO-OP tag (lobby key `coop`).
   Not on a dedicated server.
 - **Difficulty and credits** (the host's settings, in the published State so every game uses them): enemy strength per
   player past the first (the Host card's "Enemies per player" Off / +25 / +50 / +100 %, PlayerPrefs `mp_coop_strength`, 50
@@ -47,7 +52,7 @@ The story for 2-4 players (remake-only, 2026-11-01). Code: `Game/CoopCampaign.cs
 - **The prologue and the rescue together** (steps 0 / 1, `IntroCutscenes`): the leader's game runs them as in single
   player, its three pirates and Gunant's salvager the crew's ships. A guest's level there is a follower that runs the same
   cutscenes and camera around its own Phantom (unkillable like the leader's), spawning nothing, a little beside the
-  leader's (`IntroCutscenes.Slot`: left, right, below), paced by the leader's radio lines (its radio is the leader's), so
+  leader's (`IntroCutscenes.Slot`: left, right, below, then rings), paced by the leader's radio lines (its radio is the leader's), so
   everyone watches the same story from their own ship and fights the leader's pirates together; the follower can't skip
   (the leader's skip moves everyone). At the prologue's end the follower waits under the black until the leader's step 1
   reaches it, then loads the rescue (`CampaignLevel.FollowIntroOn`, `SpaceLevel.Reload`); the rescue's end docks everyone

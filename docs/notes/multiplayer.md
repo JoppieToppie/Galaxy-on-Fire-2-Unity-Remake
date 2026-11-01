@@ -22,7 +22,7 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   NetState reaches it (`NetGame.EnterWorld`); each connecting player gets a NetPlayer. Nothing is saved in a session
   (`SaveGame.Save` refuses), so it never touches the single-player saves; a dedicated server keeps player profiles
   instead (see **Player profiles**).
-- **Co-op campaign** (the main menu's own Co-op campaign button): the host's story for 2-4 players instead of the finished world; see
+- **Co-op campaign** (the main menu's own Co-op campaign button): the host's story for a crew (4 players by default) instead of the finished world; see
   docs/notes/multiplayer-coop.md.
 - **The finished game's world** (`Session.UseCompletedWorld`, `Session.CompletedWorld`; set by `NetGame.PrepareSession` and
   `SaveGame.ApplyProfile`): free play (no story steps) at campaign index 162, so everything that reads the index sees the

@@ -84,6 +84,8 @@ namespace GoF2Remake.UI
                 maxPlayers.RegisterValueChangedCallback(e =>
                 {
                     if (!int.TryParse(e.newValue, out int n)) return;
+                    // The Co-op campaign screen keeps its own (4 by default, "mp_coop_max_players").
+                    if (coopPanelMode) { GoF2Remake.Multiplayer.NetGame.CoopMaxPlayers = n; return; }
                     GoF2Remake.Multiplayer.NetGame.MaxPlayers = n;
                     PlayerPrefs.SetInt("mp_max_players", GoF2Remake.Multiplayer.NetGame.MaxPlayers);
                 });
@@ -220,7 +222,7 @@ namespace GoF2Remake.UI
             GoF2Remake.Multiplayer.NetGame.HostWantsCoop = coop;
             ApplyPanelMode();
             ApplyHostWorld();
-            // A co-op campaign takes 2-4 players: the field shows what the session will allow.
+            // A co-op campaign has its own size (4 by default): the field shows the screen's.
             root.Q<TextField>("mpMaxPlayers")?.SetValueWithoutNotify(GoF2Remake.Multiplayer.NetGame.MaxPlayers.ToString());
         }
 
@@ -231,7 +233,7 @@ namespace GoF2Remake.UI
             void Text(string name, string text) { if (root.Q(name) is TextElement e) { if (e is Button b) InputGlyph.SetText(b, text); else e.text = text; } }
             bool coop = coopPanelMode;
             Text("multiplayerTitle", coop ? CoopTitle.ToUpperInvariant() : Localization.Extra("multiplayer", "Multiplayer").ToUpperInvariant());
-            Text("mpIntro", coop ? Localization.Extra("coopIntro", "Play the whole story together: up to four pilots, one campaign.")
+            Text("mpIntro", coop ? Localization.Extra("coopIntro", "Play the whole story together: one campaign for the whole crew.")
                                  : Localization.Extra("mpIntroShort", "Meet other pilots, form squads and fly missions together."));
             Text("mpJoinTitle", (coop ? Localization.Extra("coopBrowserTitle", "Open campaigns") : Localization.Extra("mpBrowserTitle", "Server browser")).ToUpperInvariant());
             Text("mpHostTitle", (coop ? Localization.Extra("coopHostTitle", "Host a campaign") : Localization.Extra("mpHostTitle", "Host a game")).ToUpperInvariant());
@@ -328,7 +330,7 @@ namespace GoF2Remake.UI
         {
             var crew = GoF2Remake.Multiplayer.NetCoop.CrewNames();
             string list = string.Format(Localization.Extra("coopLobbyCrew", "Crew ({0}/{1}): {2}"), crew.Count,
-                                        GoF2Remake.Data.CoopCampaign.MaxCrew, string.Join(", ", crew));
+                                        GoF2Remake.Data.CoopCampaign.CrewLimit, string.Join(", ", crew));
             string code = GoF2Remake.Multiplayer.NetGame.JoinCode;
             if (host && !string.IsNullOrEmpty(code)) list += "\n" + string.Format(Localization.Extra("coopLobbyCode", "Join code: {0}"), code);
             string wait = host ? Localization.Extra("coopLobbyHost", "Start once the crew is here: everyone begins the campaign together.")

@@ -237,7 +237,9 @@ namespace GoF2Remake.World
             if (!SpaceHooks.CoopLeaderPose(CoopStation, out var pos, out var rot)) return;
             var me = level.Player.transform;
             if ((me.position - pos).magnitude < CoopRegroupMeters) return;
-            var slot = new Vector3(((int)(NetSession.LocalId % 4) - 1.5f) * 60f, 20f, -120f);   // beside and behind the leader
+            // Beside and behind the leader: rows of four, each row farther back.
+            int n = (int)(NetSession.LocalId % 64), row = n / 4;
+            var slot = new Vector3((n % 4 - 1.5f) * 60f, 20f + 30f * row, -120f - 90f * row);
             me.SetPositionAndRotation(pos + rot * slot, rot);
             Debug.Log("CampaignLevel: back beside the leader after its cutscene");
         }

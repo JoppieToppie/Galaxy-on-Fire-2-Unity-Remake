@@ -1,6 +1,7 @@
 // NetCoop.cs
 // Remake multiplayer: the co-op campaign's networking (docs/notes/multiplayer-coop.md; the story rules: CoopCampaign).
-//   A co-op session is the host's campaign for 2-4 players (NetGame.CoopSession, the Host card's World "Co-op"): kept
+//   A co-op session is the host's campaign for its crew (NetGame.CoopSession, the main menu's Co-op campaign; 4 players by
+//     default, NetGame.CoopMaxPlayers): kept
 //     in NetGame.CoopFolder like a persistent world (every crew member's profile, the host's holds the story), its world
 //     the story's own (not the finished game's), every player in one squad (the crew: no friendly fire, shared bar
 //     missions, distress calls), the host the leader (its story is published, NetState.coopStory; it runs the story
@@ -107,6 +108,7 @@ namespace GoF2Remake.Multiplayer
             CoopCampaign.NewCampaign(NetGame.Db, (Campaign)Mathf.Clamp(newCampaign < 0 ? 0 : newCampaign, 0, 2));
             NetGame.ResetDb();   // the tables of the story's world (the finished world's Cronus price no more)
             CoopCampaign.SetSettings(NetGame.CoopStrength, NetGame.CoopSplitRewards);   // the Host card's
+            CoopCampaign.SetCrewLimit(NetGame.MaxPlayers);
         }
 
         const string CoopUsage = "/coop strength 0|25|50|100, /coop rewards shared|full";

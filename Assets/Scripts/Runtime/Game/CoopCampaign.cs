@@ -1,5 +1,5 @@
 // CoopCampaign.cs
-// Remake multiplayer: the co-op campaign (docs/notes/multiplayer-coop.md), the story as 2-4 players share it. The rules as
+// Remake multiplayer: the co-op campaign (docs/notes/multiplayer-coop.md), the story as a crew shares it (4 by default). The rules as
 // plain C#; the networking (NetCoop) fills GameHooks' co-op members and carries the messages.
 //   The leader (the host) owns the story: its Session's step, mission and the step's shared counters are the crew's
 //     (State, published whenever they change). Every game still keeps and advances its own story (Story.Advance) so the
@@ -30,7 +30,14 @@ namespace GoF2Remake.Data
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class CoopCampaign
     {
-        public const int MinCrew = 2, MaxCrew = 4;
+        /// <summary>A crew's default size (the Co-op campaign screen's Max players) and the largest (a session's, NetGame).</summary>
+        public const int DefaultCrew = 4, MaxCrew = 100;
+
+        /// <summary>The leader's session's player limit (in its State): the lobby's "crew N / limit".</summary>
+        public static int CrewLimit { get; private set; } = DefaultCrew;
+
+        /// <summary>The leader (NetCoop.PrepareHost): the session's player limit.</summary>
+        public static void SetCrewLimit(int limit) => CrewLimit = Mathf.Clamp(limit, 2, MaxCrew);
         /// <summary>A guest's own success conversation of the step the leader has just left: how long the catch-up waits for it.</summary>
         public const float CatchUpWaitSeconds = 120f;
         /// <summary>A guest ahead of the leader this long (an advance the leader didn't follow) is set back to the leader's step.</summary>
@@ -69,6 +76,7 @@ namespace GoF2Remake.Data
             /// <summary>The leader's settings: enemy strength (% per extra player), story rewards shared.</summary>
             public int strength = DefaultStrength;
             public bool splitRewards = true;
+            public int crewLimit = DefaultCrew;
             /// <summary>Where the leader last docked: a new guest's start.</summary>
             public int station = -1;
             /// <summary>The leader's own ship and loadout: a new guest's start.</summary>
@@ -115,6 +123,7 @@ namespace GoF2Remake.Data
             missionsCounted.Clear();
             Strength = DefaultStrength;
             SplitRewards = true;
+            CrewLimit = DefaultCrew;
         }
 
         /// <summary>A co-op campaign session runs.</summary>
@@ -235,6 +244,7 @@ namespace GoF2Remake.Data
                 campaign = (int)Session.Campaign,
                 strength = Strength,
                 splitRewards = SplitRewards,
+                crewLimit = CrewLimit,
                 station = Session.LastDockedStation >= 0 ? Session.LastDockedStation : Session.StationIndex,
             };
             // The kit: the leader's own ship (the parked one while a loaner is flown).
@@ -325,6 +335,7 @@ namespace GoF2Remake.Data
             leaderState = s;
             if (!Guest) return;
             SetSettings(s.strength, s.splitRewards);   // the leader's settings
+            SetCrewLimit(s.crewLimit);
             if (appliedFailSerial < 0) appliedFailSerial = s.failSerial;
             if (s.failSerial != appliedFailSerial)
             {
@@ -482,6 +493,7 @@ namespace GoF2Remake.Data
             if (s.station >= 0 && s.station < db.Stations.Count) Session.StationIndex = s.station;   // docked where the leader last docked
             Session.LaunchedFromStation = Session.ArrivedByTravel = false;   // (the prologue: in the belt like the leader)
             SetSettings(s.strength, s.splitRewards);
+            SetCrewLimit(s.crewLimit);
             leaderState = s;
             appliedFailSerial = s.failSerial;
             CatchUp(s, db);

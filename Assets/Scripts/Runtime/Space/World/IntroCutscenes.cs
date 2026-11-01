@@ -59,15 +59,28 @@ namespace GoF2Remake.World
             level = spaceLevel;
             index = storyIndex;
             follower = coopFollower;
-            slot = coopFollower ? Slot((int)(NetSession.LocalId % 4)) : Vector3.zero;
+            slot = coopFollower ? Slot((int)(NetSession.LocalId % 64)) : Vector3.zero;
             assets = StoryAssets.Load();
             cam = new CutsceneCamera(level.mainCamera);
         }
 
         public CutsceneCamera Camera => cam;
 
-        /// <summary>Remake co-op: a crew member's spot beside the leader's (game units): left, right, below.</summary>
-        static Vector3 Slot(int n) => n switch { 1 => new Vector3(-1800, 300, -1500), 2 => new Vector3(1800, 300, -1500), 3 => new Vector3(0, -900, -3000), _ => Vector3.zero };
+        /// <summary>Remake co-op: a crew member's spot beside the leader's (game units): left, right and below first, then
+        /// rings of six around the leader's line, each ring wider and farther back.</summary>
+        public static Vector3 Slot(int n)
+        {
+            switch (n)
+            {
+                case <= 0: return Vector3.zero;
+                case 1: return new Vector3(-1800, 300, -1500);
+                case 2: return new Vector3(1800, 300, -1500);
+                case 3: return new Vector3(0, -900, -3000);
+            }
+            int k = n - 4, ring = k / 6 + 1;
+            float a = (k % 6) * Mathf.PI / 3f + ring * 0.5f, r = 2400f * ring;
+            return new Vector3(Mathf.Cos(a) * r, Mathf.Sin(a) * r * 0.6f, -3000f - 1500f * ring);
+        }
 
         /// <summary>A scripted spot (game units) for this game's ship and camera: the leader's, or a follower's beside it.</summary>
         Vector3 S(Vector3 game) => game + slot;

@@ -196,10 +196,18 @@ namespace GoF2Remake.Multiplayer
         /// server browser's "x / max", and the connection approval turns away a player past it (a local session too).</summary>
         public static int MaxPlayers
         {
-            get => HostWantsCoop && !Dedicated ? Mathf.Min(maxPlayers, CoopCampaign.MaxCrew) : maxPlayers;   // a co-op campaign: 2-4
+            get => HostWantsCoop && !Dedicated ? CoopMaxPlayers : maxPlayers;   // a co-op campaign: its own (4 by default)
             set => maxPlayers = Mathf.Clamp(value, 2, MaxPlayersLimit);
         }
         static int maxPlayers = DefaultMaxPlayers;
+
+        /// <summary>A co-op campaign's size, the host included (the Co-op campaign screen's Max players, PlayerPrefs
+        /// "mp_coop_max_players"): 4 by default, up to the session limit; MaxPlayers while co-op is hosted.</summary>
+        public static int CoopMaxPlayers
+        {
+            get => Mathf.Clamp(PlayerPrefs.GetInt("mp_coop_max_players", CoopCampaign.DefaultCrew), 2, MaxPlayersLimit);
+            set => PlayerPrefs.SetInt("mp_coop_max_players", Mathf.Clamp(value, 2, MaxPlayersLimit));
+        }
 
         /// <summary>The game's version as shown (the build's date and time, BuildVersion); "editor" in the Editor.</summary>
         public static string Version => Application.isEditor ? "editor" : Application.version;
@@ -421,7 +429,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The session this game hosts is a persistent world (StartHost with HostWantsPersistent, or a co-op campaign).</summary>
         public static bool PersistentHost { get; private set; }
 
-        /// <summary>The Host card's World choice Co-op (PlayerPrefs "mp_persistent" 2): the host's co-op campaign, 2-4 players
+        /// <summary>The Co-op campaign screen is open (MainMenu's co-op mode): hosting starts the host's co-op campaign
         /// (NetCoop, CoopCampaign), kept in CoopFolder like a persistent world.</summary>
         public static bool HostWantsCoop { get; set; }
 

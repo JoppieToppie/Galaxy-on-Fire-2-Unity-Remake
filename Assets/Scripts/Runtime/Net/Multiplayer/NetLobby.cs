@@ -41,7 +41,7 @@ namespace GoF2Remake.Multiplayer
             /// <summary>Players fight anywhere (NetGame.FreePvp: "PvP") or only in arenas and sieges ("PvE"); null for a
             /// listing from before the key (no chip).</summary>
             public bool? pvp;
-            /// <summary>A co-op campaign (NetGame.CoopSession): 2-4 players playing the host's story.</summary>
+            /// <summary>A co-op campaign (NetGame.CoopSession): a crew playing the host's story.</summary>
             public bool coop;
             public bool Full => players >= maxPlayers;
             /// <summary>The same code as this game (the fingerprint: the only ones it can join, whenever they were built; the

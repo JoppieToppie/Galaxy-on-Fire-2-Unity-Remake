@@ -3041,7 +3041,7 @@
  "coopLobbyCode": "Kod dołączenia: {0}",
  "coopLobbyHost": "Rozpocznij, gdy załoga będzie na miejscu: wszyscy zaczną kampanię razem.",
  "coopLobbyWait": "Czekanie, aż {0} rozpocznie kampanię.",
- "coopIntro": "Przejdźcie razem całą historię: do czterech pilotów, jedna kampania.",
+ "coopIntro": "Przejdźcie razem całą historię: jedna kampania dla całej załogi.",
  "coopBrowserTitle": "Otwarte kampanie",
  "coopNoGames": "Brak otwartych kampanii kooperacyjnych. Załóż własną lub dołącz z kodem.",
  "coopHostTitle": "Załóż kampanię",
