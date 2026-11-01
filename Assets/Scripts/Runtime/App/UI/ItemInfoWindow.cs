@@ -158,7 +158,7 @@ namespace GoF2Remake.UI
             Begin();
             preview.Hide();
             icon.style.backgroundImage = new StyleBackground(ItemInfo.ItemIcon(item));
-            nameLabel.text = ItemInfo.ItemName(item);
+            nameLabel.text = ItemInfo.TaggedItemName(item);
             subLabel.text = $"{ItemInfo.Category(it)}  ·  {T(133)} {it.techLevel}";
             foreach (var (label, value) in ItemInfo.ItemStats(it)) Row(label, value);
             if (showPrice && price > 0) Row(T(132), ItemInfo.Credits(price));

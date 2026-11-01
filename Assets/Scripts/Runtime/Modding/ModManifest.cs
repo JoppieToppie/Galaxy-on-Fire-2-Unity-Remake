@@ -10,8 +10,8 @@
 //     "preview": "preview.png",          the browser's image (PNG / JPG, 16:9 looks best); default preview.png
 //     "website": "https://...",
 //     "credits": "Model: ... (license)",  shown in the browser (or per language): who made what the mod uses
-//     "shipTag": "GoF3",                 a dim tag after the names of the mod's new ships in the hangar and shop lists
-//                                        (or per language); a ship's own "tag" in ships.json wins (ModContent.ShipTag)
+//     "tag": "GoF3",                     a dim tag after the names of what the mod adds (ships, items, systems,
+//                                        stations) in the lists and on the star map (or per language; ModContent.TagOf)
 //     "dependencies": ["other_mod", "ship_pack>=1.2"]   mods that must be on too (and are applied first), with an
 //                                        optional lowest version; their content can be used by its key ("ship_pack:falcon":
 //                                        an item's / ship's "override" or "base", the event graphs' ship, item and station
@@ -39,8 +39,8 @@ namespace GoF2Remake.Modding
 
         public string id, version = "1.0", author, website, preview = "preview.png";
         public Dictionary<string, string> name, description, credits;
-        /// <summary>Remake (TorchOP's request, 2026-10-23): the tag shown after the names of the mod's new ships, null = none.</summary>
-        public Dictionary<string, string> shipTag;
+        /// <summary>Remake (TorchOP's request, 2026-10-23): the tag shown after the names of what the mod adds, null = none.</summary>
+        public Dictionary<string, string> tag;
         public List<string> dependencies = new List<string>();
         /// <summary>Files left out of the multiplayer check (see the header): "folder/", or a pattern with "*".</summary>
         public List<string> multiplayerIgnore = new List<string>();
@@ -117,7 +117,7 @@ namespace GoF2Remake.Modding
                 name = ModJson.Text(o, "name"),
                 description = ModJson.Text(o, "description"),
                 credits = ModJson.Text(o, "credits"),
-                shipTag = ModJson.Text(o, "shipTag"),
+                tag = ModJson.Text(o, "tag"),
                 version = ModJson.Str(o, "version", "1.0"),
                 author = ModJson.Str(o, "author"),
                 website = ModJson.Str(o, "website"),

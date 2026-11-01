@@ -1,7 +1,7 @@
-// ShipTagTests.cs
-// Feature: docs/notes/mods.md "Ship tags" (TorchOP's request, 2026-10-23): a dim tag after a ship's name in the lists
-// ("Veteran [GoF3]"): mod.json "shipTag" for the mod's new ships, ships.json "tag" for one ship (new or an override,
-// "" for none), a later mod's override winning (ModContent.ShipTag, UI.ItemInfo.TaggedShipName).
+// ModTagTests.cs
+// Feature: docs/notes/mods.md "Mod tags" (TorchOP's request, 2026-10-23): one tag per mod (mod.json "tag", a string or
+// per language), shown dim after the names of everything the mod adds ("Veteran [GoF3]"): its new ships, items, systems
+// and stations, never what it only overrides (ModContent.TagOf, GameNames.*Tag, UI.ItemInfo.WithTag).
 
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
@@ -10,40 +10,45 @@ using NUnit.Framework;
 
 namespace GoF2Remake.Tests
 {
-    public class ShipTagTests : SavesModsTest
+    public class ModTagTests : SavesModsTest
     {
-        const string Ships = "[ { 'id': 'plain', 'name': 'Plain', 'model': 'gof2:ship_005_terran' }, " +
-                             "{ 'id': 'own', 'name': 'Own', 'model': 'gof2:ship_005_terran', 'tag': 'Alliances' }, " +
-                             "{ 'id': 'none', 'name': 'None', 'model': 'gof2:ship_005_terran', 'tag': '' }, " +
-                             "{ 'override': '3', 'tag': 'HD' } ]";
+        void WriteTagged(string tag) =>
+            WriteMod("t", "t_tag", "1.0", tag,
+                     ("ships.json", "[ { 'id': 'veteran', 'name': 'Veteran', 'model': 'gof2:ship_005_terran' }, { 'override': '3', 'armor': 200 } ]"),
+                     ("items.json", "[ { 'id': 'gun', 'base': 2, 'name': 'Gun' }, { 'override': '4', 'price': 900 } ]"),
+                     ("systems.json", "[ { 'id': 'home', 'name': 'Home', 'race': 2, 'position': [50, 50, 50] } ]"),
+                     ("stations.json", "[ { 'id': 'port', 'system': 't_tag:home', 'name': 'Port' } ]"));
 
         [Test]
-        public void TheModsTagItsOwnTagAndOverrides()
+        public void EverythingTheModAddsCarriesItsTag()
         {
-            WriteMod("t", "t_tag", "1.0", ", 'shipTag': 'GoF3'", ("ships.json", Ships));
+            WriteTagged(", 'tag': 'GoF3'");
             ScanAndEnable("t_tag");
-            var mod = Installed("t_tag");
-            Assert.IsEmpty(mod.Errors, AllMessages(mod));
-            Assert.IsFalse(mod.Warnings.Exists(w => w.Contains("\"tag\"")), "\"tag\" is a known field");
+            Assert.IsEmpty(Installed("t_tag").Errors, AllMessages(Installed("t_tag")));
             Database.Load();
-            Assert.AreEqual("GoF3", GameNames.ShipTag(ModContent.ShipIndexOf("t_tag:plain")), "the mod's shipTag");
-            Assert.AreEqual("Alliances", GameNames.ShipTag(ModContent.ShipIndexOf("t_tag:own")), "its own tag wins");
-            Assert.IsNull(GameNames.ShipTag(ModContent.ShipIndexOf("t_tag:none")), "\"\" = none");
-            Assert.AreEqual("HD", GameNames.ShipTag(3), "an original ship tagged by an override");
-            Assert.IsNull(GameNames.ShipTag(4), "an original ship without one");
+            Assert.AreEqual("GoF3", GameNames.ShipTag(ModContent.ShipIndexOf("t_tag:veteran")));
+            Assert.AreEqual("GoF3", GameNames.ItemTag(ModContent.ItemIndexOf("t_tag:gun")));
+            Assert.AreEqual("GoF3", GameNames.SystemTag(ModWorld.SystemIndexOf("t_tag:home")));
+            Assert.AreEqual("GoF3", GameNames.StationTag(ModWorld.StationIndexOf("t_tag:port")));
+            Assert.IsNull(GameNames.ShipTag(3), "an original ship it only changes");
+            Assert.IsNull(GameNames.ItemTag(4), "an original item it only changes");
+            Assert.IsNull(GameNames.SystemTag(0));
+            Assert.IsNull(GameNames.StationTag(0));
+            Assert.AreEqual("Veteran", GameNames.Ship(ModContent.ShipIndexOf("t_tag:veteran")), "the name itself stays plain");
         }
 
         [Test]
-        public void ALaterModsOverrideRetagsAModShip()
+        public void NoTagNoneAndPerLanguage()
         {
-            WriteMod("t", "t_tag", "1.0", ", 'shipTag': 'GoF3'", ("ships.json", Ships));
-            WriteMod("u", "t_tag2", "1.0", ", 'dependencies': ['t_tag']",
-                     ("ships.json", "[ { 'override': 't_tag:plain', 'tag': { 'en': 'Star Wars', 'de': 'Sternenkriege' } } ]"));
-            ScanAndEnable("t_tag", "t_tag2");
-            Assert.IsEmpty(Installed("t_tag2").Errors, AllMessages(Installed("t_tag2")));
+            WriteTagged("");
+            ScanAndEnable("t_tag");
             Database.Load();
-            Assert.AreEqual(Localization.Language == "de" ? "Sternenkriege" : "Star Wars", GameNames.ShipTag(ModContent.ShipIndexOf("t_tag:plain")));
-            Assert.AreEqual("Plain", GameNames.Ship(ModContent.ShipIndexOf("t_tag:plain")), "the name stays");
+            Assert.IsNull(GameNames.ShipTag(ModContent.ShipIndexOf("t_tag:veteran")), "a mod without one");
+
+            WriteTagged(", 'tag': { 'en': 'Star Wars', 'de': 'Sternenkriege' }");
+            ModManager.Scan();
+            Database.Load();
+            Assert.AreEqual(Localization.Language == "de" ? "Sternenkriege" : "Star Wars", GameNames.ItemTag(ModContent.ItemIndexOf("t_tag:gun")));
         }
 
         [Test]

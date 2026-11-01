@@ -871,7 +871,7 @@ namespace GoF2Remake.UI
             Text(scroll, T("mbVersion", "Version"), Project.Version, 20, v => { if (v.Trim().Length > 0) { Project.Version = v.Trim(); MarkDirty(); } });
             Text(scroll, T("mbDescription", "Description"), Project.Description, 600, v => { Project.Description = v; MarkDirty(); }, true);
             Text(scroll, T("mbWebsite", "Website"), Project.Website, 200, v => { Project.Website = v; MarkDirty(); });
-            Text(scroll, T("mbModShipTag", "Ship tag (dim after its ships' names: GoF3, HD...)"), Project.ShipTag, 24, v => { Project.ShipTag = v; MarkDirty(); });
+            Text(scroll, T("mbModTag", "Tag (dim after the names of what it adds: GoF3, HD...)"), Project.Tag, 24, v => { Project.Tag = v; MarkDirty(); });
             Text(scroll, T("mbCredits", "Credits (who made what)"), Project.Credits, 2000, v => { Project.Credits = v; MarkDirty(); }, true);
             var row = Row(scroll);
             Add(row, new Label($"{T("mbPreview", "Picture")}: {Project.PreviewImage ?? T("mbNone", "none")}"), "mbv-inline-label");

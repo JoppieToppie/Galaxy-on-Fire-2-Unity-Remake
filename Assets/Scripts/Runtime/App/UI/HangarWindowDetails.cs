@@ -45,7 +45,7 @@ namespace GoF2Remake.UI
             {
                 var it = db.Item(item);
                 detailIcon.style.backgroundImage = new StyleBackground(ItemInfo.ItemIcon(item));
-                detailName.text = ItemInfo.ItemName(item);
+                detailName.text = ItemInfo.TaggedItemName(item);
                 detailSub.text = $"{ItemInfo.Category(it)}  ·  {T(133)} {it.techLevel}";
                 foreach (var (label, value) in ItemInfo.ItemStats(it)) AddStat(label, value);
                 detailText.text = ItemInfo.ItemText(db, it, hangar.SystemIndex);
@@ -134,7 +134,7 @@ namespace GoF2Remake.UI
             string T(int id) => Localization.Get(id);
             var it = db.Item(item);
             detailIcon.style.backgroundImage = new StyleBackground(ItemInfo.ItemIcon(item));
-            detailName.text = ItemInfo.ItemName(item);
+            detailName.text = ItemInfo.TaggedItemName(item);
             int bpShip = Modding.ModBlueprints.ShipOf(item);
             if (bpShip >= 0 && db.Ship(bpShip) is ShipData ship)
             {

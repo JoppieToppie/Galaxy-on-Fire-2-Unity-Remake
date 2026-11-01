@@ -246,6 +246,22 @@ namespace GoF2Remake.Modding
             text ??= description ? "" : d.key;
             return true;
         }
+        /// <summary>Remake (TorchOP's request, 2026-10-23): a mod's tag (mod.json "tag", a string or per language), shown dim
+        /// after the names of what it adds ("Veteran [GoF3]") to tell packs apart; null = none. One per mod: its new ships,
+        /// items, systems and stations (ShipTag, ItemTag, ModWorld.SystemTag / StationTag), never what it only changes.</summary>
+        public static string TagOf(ModInfo mod)
+        {
+            string s = ModManifest.Pick(mod?.Manifest?.tag);
+            return string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+        }
+        public static string ShipTag(int index) { EnsureMapping(); return shipDefAt.TryGetValue(index, out var d) ? TagOf(d.mod) : null; }
+        /// <summary>A ship blueprint's item: its ship's tag.</summary>
+        public static string ItemTag(int index)
+        {
+            EnsureMapping();
+            if (deedAt.TryGetValue(index, out var bp)) return TryResolveShip(bp.shipRef, out int ship) ? ShipTag(ship) : null;
+            return itemDefAt.TryGetValue(index, out var d) ? TagOf(d.mod) : null;
+        }
         static int LookOf(int index, int depth)
         {
             if (!itemDefAt.TryGetValue(index, out var d) || depth > 16) return index;

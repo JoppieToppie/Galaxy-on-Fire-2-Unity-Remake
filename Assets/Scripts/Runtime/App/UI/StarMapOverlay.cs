@@ -87,7 +87,7 @@ namespace GoF2Remake.UI
             {
                 if (s.index >= suns.Length || suns[s.index] == null) continue;
                 var it = MakeItem(false);
-                it.name.text = s.name;
+                it.name.text = ItemInfo.WithTag(s.name, GameNames.SystemTag(s.index));   // remake mods: the mod's tag, dim
                 // Multiplayer: a faction holding a station here (NetFactions).
                 string faction = GoF2Remake.Multiplayer.NetFactionsClient.SystemTag(db, s.index);
                 if (faction != null) it.name.text += $" [{faction}]";
@@ -126,7 +126,7 @@ namespace GoF2Remake.UI
             foreach (var p in planets)
             {
                 var it = MakeItem(true);
-                it.name.text = StationName(p.station, false);
+                it.name.text = ItemInfo.WithTag(StationName(p.station, false), GameNames.StationTag(p.station));
                 if (GoF2Remake.Multiplayer.NetFactionsClient.Owner(p.station, out string faction, out _)) it.name.text = $"[{faction}] {it.name.text}";
                 it.name.text += SquadMark(-1, p.station);   // multiplayer: squadmates at this station
                 it.name.text += MobileMark(-1, p.station);  // remake mods: a mobile station in this orbit now
@@ -269,7 +269,7 @@ namespace GoF2Remake.UI
             planetLore.style.opacity = alpha;
             if (st == loreStation) return;
             loreStation = st;
-            string name = db.Stations.Find(x => x.index == st)?.name ?? "";
+            string name = ItemInfo.WithTag(db.Stations.Find(x => x.index == st)?.name ?? "", GameNames.StationTag(st));
             string sub = Modding.ModWorld.Subtitle(st);
             planetLore.Q<Label>(className: "planet-lore-title").text = string.IsNullOrEmpty(sub) ? name : $"{name} · {sub}";
             planetLore.Q<Label>(className: "planet-lore-text").text = lore;
@@ -295,7 +295,7 @@ namespace GoF2Remake.UI
                 logo.style.backgroundImage = new StyleBackground(tex);
                 logo.style.width = modRace ? 120f : tex.width; logo.style.height = modRace ? 120f : tex.height;
             }
-            root.Q<Label>("systemName").text = sys.name;
+            root.Q<Label>("systemName").text = ItemInfo.WithTag(sys.name, GameNames.SystemTag(sys.index));
             var race = root.Q<Label>("systemRace");
             race.text = owned ? GoF2Remake.Flight.Standing.RaceName(sys.raceId) : "";
             race.style.display = owned ? DisplayStyle.Flex : DisplayStyle.None;

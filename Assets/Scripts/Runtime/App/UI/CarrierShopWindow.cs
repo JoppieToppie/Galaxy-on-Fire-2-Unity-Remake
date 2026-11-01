@@ -302,7 +302,7 @@ namespace GoF2Remake.UI
             {
                 var it = db.Item(o.item);
                 tex = ItemInfo.ItemIcon(o.item);
-                name.text = ItemInfo.ItemName(o.item);
+                name.text = ItemInfo.TaggedItemName(o.item);
                 if (o.notStocked) sub.Add(Badge(X("resupplyBadgeNotStocked", "NOT STOCKED"), "row-badge--cargo"));
                 else if (o.stock == 0) sub.Add(Badge(X("resupplyBadgeSoldOut", "SOLD OUT"), "row-badge--cargo"));
                 if (o.kind == CapitalShips.OfferKind.Ammo)
@@ -387,7 +387,7 @@ namespace GoF2Remake.UI
             }
             var it = db.Item(o.item);
             detailIcon.style.backgroundImage = new StyleBackground(ItemInfo.ItemIcon(o.item));
-            detailName.text = ItemInfo.ItemName(o.item);
+            detailName.text = ItemInfo.TaggedItemName(o.item);
             detailSub.text = $"{ItemInfo.Category(it)}  ·  {T(133)} {it.techLevel}";
             actionButton.style.display = DisplayStyle.None;
             tradeBox.style.display = DisplayStyle.Flex;
