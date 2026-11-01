@@ -57,12 +57,25 @@ namespace GoF2Remake.UI
                     slotChosen = true;
                     row.AddToClassList("slot-row--chosen");
                     row.schedule.Execute(() => row.RemoveFromClassList("slot-row--chosen")).ExecuteLater(SlotFlashMs);
-                    row.schedule.Execute(() => { slotChosen = false; LoadSlot(slot); }).ExecuteLater(SlotFlashMs * 2);
+                    row.schedule.Execute(() => { slotChosen = false; if (coopSlotPick) PickCoopSlot(slot); else LoadSlot(slot); }).ExecuteLater(SlotFlashMs * 2);
                 };
                 HookFocusSound(row);
                 list.Add(row);
             }
             SaveSlotRow.AttachHint(list);
+        }
+
+        /// <summary>The Load panel as itself, or as the co-op host's save picker (coopSlotPick, OpenCoopSlots): its own title,
+        /// none of the import / export rows.</summary>
+        void ApplyLoadPanelMode()
+        {
+            if (root == null) return;
+            if (root.Q<Label>("loadTitle") is Label title)
+                title.text = (coopSlotPick ? Localization.Extra("coopPickTitle", "Host a save") : Localization.Get(29)).ToUpperInvariant();
+            void Show(string name, bool on) { if (root.Q(name) is VisualElement e) e.style.display = on ? DisplayStyle.Flex : DisplayStyle.None; }
+            Show("saveTransferRow", !coopSlotPick);
+            Show("originalSaveRow", !coopSlotPick && Modding.ModImport.Available);
+            Show("saveTransferNote", !coopSlotPick && !SaveTransfer.HasFileDialog);
         }
 
         /// <summary>Remake: a slot held down (SaveSlotRow): deleted, the list rebuilt with the same row selected.</summary>

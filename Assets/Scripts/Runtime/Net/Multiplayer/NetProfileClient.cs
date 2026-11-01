@@ -158,6 +158,7 @@ namespace GoF2Remake.Multiplayer
         public static void Upload(bool handover = false)
         {
             if (!Active || waiting || Guest || (!Controller && !handover) || NetState.Instance == null || !NetState.Instance.IsSpawned) return;
+            if (SaveGame.HostSaves) return;   // the co-op host's game is in its save slots
             if (NetArenaClient.InMatch) return;   // nothing of an arena match is saved (its start uploaded the profile)
             uploadTimer = UploadSeconds;
             var parts = NetProfiles.Pack(SaveGame.ProfileJson());
@@ -165,10 +166,16 @@ namespace GoF2Remake.Multiplayer
             for (int i = 0; i < parts.Count; i++) NetState.Instance.UploadChunkRpc(seq, i, parts.Count, parts[i]);
         }
 
-        /// <summary>A persistent hosted world's host leaving: its game straight into its profile (NetProfiles.SaveHost).</summary>
+        /// <summary>A persistent hosted world's host leaving: its game straight into its profile (NetProfiles.SaveHost). The
+        /// co-op host's into the auto-save when docked (a save is made docked only, as in single player).</summary>
         public static void SaveHostNow()
         {
             if (!Active || waiting || Guest || !Controller || NetArenaClient.InMatch) return;
+            if (SaveGame.HostSaves)
+            {
+                if (SceneManager.GetActiveScene().name == StationScene) SaveGame.AutoSave();
+                return;
+            }
             NetProfiles.SaveHost(SaveGame.ProfileJson());
         }
 

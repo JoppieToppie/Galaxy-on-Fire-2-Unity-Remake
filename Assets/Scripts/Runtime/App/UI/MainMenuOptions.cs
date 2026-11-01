@@ -199,16 +199,12 @@ namespace GoF2Remake.UI
             Set("importSavesButton", Localization.Extra("importSaves", "Import saves").ToUpperInvariant());
             Set("importOriginalButton", Localization.Extra("importOriginalSave", "Import original save").ToUpperInvariant());
             Set("exportOriginalButton", Localization.Extra("exportOriginalSaves", "Export for original game").ToUpperInvariant());
-            var originalRow = root.Q("originalSaveRow");
-            if (originalRow != null) originalRow.style.display = Modding.ModImport.Available ? DisplayStyle.Flex : DisplayStyle.None;
             // Without a file dialog (Linux, Android) the files go to and come from the Transfer folder: shown under the buttons.
             var transferNote = root.Q<Label>("saveTransferNote");
             if (transferNote != null)
-            {
                 transferNote.text = SaveTransfer.HasFileDialog ? ""
                     : Localization.Extra("saveTransferFolder", "Exported saves go to, and are imported from:") + " " + SaveTransfer.TransferFolder;
-                transferNote.style.display = SaveTransfer.HasFileDialog ? DisplayStyle.None : DisplayStyle.Flex;
-            }
+            ApplyLoadPanelMode();   // the title and the rows of the Load panel or the co-op save picker
             Set("optionsTitle", T(31));
             Set("tabSound", OptionsCatalog.PageTitle(OptionPage.Sound).ToUpperInvariant());
             Set("tabGraphics", OptionsCatalog.PageTitle(OptionPage.Graphics).ToUpperInvariant());

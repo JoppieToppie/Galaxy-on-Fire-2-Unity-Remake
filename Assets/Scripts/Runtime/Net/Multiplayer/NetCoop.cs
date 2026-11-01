@@ -1,8 +1,9 @@
 // NetCoop.cs
 // Remake multiplayer: the co-op campaign's networking (docs/notes/multiplayer-coop.md; the story rules: CoopCampaign).
 //   A co-op session is the host's campaign for its crew (NetGame.CoopSession, the main menu's Co-op campaign; 4 players by
-//     default, NetGame.CoopMaxPlayers): kept
-//     in NetGame.CoopFolder like a persistent world (every crew member's profile, the host's holds the story), its world
+//     default, NetGame.CoopMaxPlayers): the host's own single-player game (a save slot it continued, or a new game; it
+//     saves into the slots as in single player, SaveGame.HostSaves), the guests' games kept in NetGame.CoopFolder like a
+//     persistent world's profiles; its world
 //     the story's own (not the finished game's), every player in one squad (the crew: no friendly fire, shared bar
 //     missions, distress calls), the host the leader (its story is published, NetState.coopStory; it runs the story
 //     levels). The host leaving ends the session as always.
@@ -10,7 +11,6 @@
 //   The levels' hooks (SpaceHooks.Coop*): the leader's story level's state, route, radio, cutscene camera and moves go to
 //     the crew in that orbit (NetState); a guest's story conversation holds the leader's level; a guest destroyed in the
 //     leader's story orbit comes back beside the leader (RespawnDue / Respawn), anywhere else docked as usual.
-//   The menu reads the campaign's summary (coop.json, written by the host: its step, campaign, crew, when).
 
 using System;
 using System.IO;
@@ -25,11 +25,11 @@ namespace GoF2Remake.Multiplayer
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class NetCoop
     {
-        const float StorySeconds = 0.1f, SquadSeconds = 1f, SummarySeconds = 30f, RespawnMs = 5000f;
-        static float storyTimer, squadTimer, summaryTimer;
+        const float StorySeconds = 0.1f, SquadSeconds = 1f, RespawnMs = 5000f;
+        static float storyTimer, squadTimer;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { storyTimer = squadTimer = summaryTimer = 0f; }
+        static void ResetStatics() { storyTimer = squadTimer = 0f; HostSave = null; hostSlot = -1; }
 
         /// <summary>The last session this game was in was a co-op campaign (the menu reopens the Co-op campaign screen after it).</summary>
         public static bool LastSessionWasCoop { get; internal set; }
@@ -88,10 +88,24 @@ namespace GoF2Remake.Multiplayer
 
         // ---- starting -----------------------------------------------------------------------------------------
 
-        /// <summary>NetGame.StartHost: the co-op campaign's game. 'newCampaign' >= 0: a new one of that Campaign (the old folder
-        /// kept as .old); -1: the one in CoopFolder (its host profile holds the story; with none yet, a new main campaign).</summary>
-        internal static void PrepareHost(int newCampaign)
+        /// <summary>The host's game as the profile its own sign-in gets (NetProfiles.SendProfile): the save slot it continued,
+        /// null = the new game PrepareHost made.</summary>
+        internal static string HostSave { get; private set; }
+        static int hostSlot = -1;
+
+        /// <summary>NetGame.StartHost: the co-op campaign's game. 'newCampaign' >= 0: a new game of that Campaign (the crew's
+        /// old games in CoopFolder kept as .old); -1: the single-player save in 'slot' (LoadHostSave reads it once the
+        /// session's mods are on). False (NetGame.Status says why): that slot can't be hosted.</summary>
+        internal static bool PrepareHost(int newCampaign, int slot)
         {
+            HostSave = null;
+            hostSlot = newCampaign >= 0 ? -1 : slot;
+            var save = hostSlot >= 0 ? SaveGame.Preview(hostSlot) : null;
+            if (newCampaign < 0 && !CoopCampaign.CanHost(save))
+            {
+                NetGame.Status = Localization.Extra("coopSlotRefused", "That save can't be hosted as a co-op campaign.");
+                return false;
+            }
             string folder = NetGame.CoopFolder;
             if (newCampaign >= 0 && Directory.Exists(folder))
             {
@@ -100,15 +114,44 @@ namespace GoF2Remake.Multiplayer
                     string old = folder + ".old";
                     if (Directory.Exists(old)) Directory.Delete(old, true);
                     Directory.Move(folder, old);
-                    Debug.Log($"NetCoop: the last co-op campaign is kept in {old}");
+                    Debug.Log($"NetCoop: the last crew's games are kept in {old}");
                 }
-                catch (Exception e) { Debug.LogWarning("NetCoop: couldn't put the last co-op campaign aside: " + e.Message); }
+                catch (Exception e) { Debug.LogWarning("NetCoop: couldn't put the last crew's games aside: " + e.Message); }
             }
-            // A new game of the campaign; a saved one replaces it when the host's profile arrives (SaveGame.ApplyProfile).
-            CoopCampaign.NewCampaign(NetGame.Db, (Campaign)Mathf.Clamp(newCampaign < 0 ? 0 : newCampaign, 0, 2));
+            // The campaign's start; the slot's game replaces it when the host's profile arrives (SaveGame.ApplyProfile).
+            CoopCampaign.NewCampaign(NetGame.Db, (Campaign)Mathf.Clamp(save != null ? save.campaign : newCampaign, 0, 2));
             NetGame.ResetDb();   // the tables of the story's world (the finished world's Cronus price no more)
             CoopCampaign.SetSettings(NetGame.CoopStrength, NetGame.CoopSplitRewards);   // the Host card's
             CoopCampaign.SetCrewLimit(NetGame.MaxPlayers);
+            SaveGame.BeginHostSaves(save);   // saved back under its own difficulty and economy
+            return true;
+        }
+
+        /// <summary>NetGame.StartHost, the session's mods on: the slot's game as the host's profile, its modded items put right
+        /// for them (ModSaves.Fix, as single player's Load) and checked like any profile. False (Status): it doesn't load.</summary>
+        internal static bool LoadHostSave()
+        {
+            if (hostSlot < 0) return true;
+            var save = SaveGame.Preview(hostSlot);
+            if (save != null) Modding.ModSaves.Fix(save);
+            string json = save != null ? JsonUtility.ToJson(save, false) : null;
+            string problem = "?";
+            if (json == null || !SaveGame.TryParse(json, NetGame.Db, out _, out problem))
+            {
+                NetGame.Status = string.Format(Localization.Extra("coopSlotBroken", "That save doesn't load: {0}."), problem);
+                return false;
+            }
+            HostSave = json;
+            Debug.Log($"NetCoop: hosting save slot {hostSlot} at step {save.campaignMission}");
+            return true;
+        }
+
+        /// <summary>The session ends: the host's game no more saves into the slots.</summary>
+        internal static void EndHost()
+        {
+            HostSave = null;
+            hostSlot = -1;
+            SaveGame.EndHostSaves();
         }
 
         const string CoopUsage = "/coop strength 0|25|50|100, /coop rewards shared|full";
@@ -173,7 +216,6 @@ namespace GoF2Remake.Multiplayer
             }
             if (!Leader) return;
             if ((squadTimer -= Time.unscaledDeltaTime) <= 0f) { squadTimer = SquadSeconds; KeepCrewSquad(state); }
-            if ((summaryTimer -= Time.unscaledDeltaTime) <= 0f) { summaryTimer = SummarySeconds; WriteSummary(); }
         }
 
         /// <summary>Server: every player is in the crew's squad (squads form only in a hangar otherwise).</summary>
@@ -279,44 +321,6 @@ namespace GoF2Remake.Multiplayer
             var behind = l.transform.forward * -1f;
             gamePos += new Vector3(behind.x, behind.y, -behind.z) * 3000f;   // a little behind the leader (game units)
             NetTeleport.Respawn(c.CoopStation, gamePos, 1500f);
-        }
-
-        // ---- the menu's summary ---------------------------------------------------------------------------------
-
-        [Serializable]
-        public class Summary
-        {
-            public int index = -1, campaign;
-            public string savedAtUtc = "", crew = "";
-        }
-
-        static string SummaryPath => Path.Combine(NetGame.CoopFolder, "coop.json");
-
-        /// <summary>The co-op campaign in CoopFolder, null = none.</summary>
-        public static Summary ReadSummary()
-        {
-            try
-            {
-                if (!File.Exists(SummaryPath)) return null;
-                var s = JsonUtility.FromJson<Summary>(File.ReadAllText(SummaryPath));
-                return s != null && s.index >= 0 ? s : null;
-            }
-            catch (Exception) { return null; }
-        }
-
-        /// <summary>The host: the campaign's step and crew for the menu (now and then, and when the session ends).</summary>
-        public static void WriteSummary()
-        {
-            if (!Leader) return;
-            var names = new System.Collections.Generic.List<string>();
-            foreach (var p in NetPlayer.All) if (p != null && p.IsSpawned) names.Add(p.DisplayName);
-            var s = new Summary { index = Story.Index, campaign = (int)Session.Campaign, savedAtUtc = DateTime.UtcNow.ToString("o"), crew = string.Join(", ", names) };
-            try
-            {
-                Directory.CreateDirectory(NetGame.CoopFolder);
-                File.WriteAllText(SummaryPath, JsonUtility.ToJson(s));
-            }
-            catch (Exception e) { Debug.LogWarning("NetCoop: couldn't write the summary: " + e.Message); }
         }
     }
 }

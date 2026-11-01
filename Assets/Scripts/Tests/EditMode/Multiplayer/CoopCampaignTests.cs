@@ -370,5 +370,56 @@ namespace GoF2Remake.Tests
             CoopCampaign.NewCampaign(db, Campaign.Valkyrie);
             Assert.AreEqual(Story.GameWonIndex, Story.Index, "the Valkyrie add-on's start");
         }
+
+        [Test]
+        public void TheHostContinuesOnlyTheThreeCampaignsWithoutHardcore()
+        {
+            Assert.IsFalse(CoopCampaign.CanHost(null), "an empty slot");
+            Assert.IsTrue(CoopCampaign.CanHost(new SaveData { campaign = (int)Campaign.Supernova }));
+            Assert.IsFalse(CoopCampaign.CanHost(new SaveData { hardcore = true }), "a death in a session ends nothing");
+            Assert.IsFalse(CoopCampaign.CanHost(new SaveData { modCampaign = "some_mod:story" }), "a mod's campaign");
+            Assert.IsFalse(CoopCampaign.CanHost(new SaveData { campaign = 7 }));
+        }
+
+        [Test]
+        public void TheHostsGameSavesIntoTheSlotsUnderItsOwnDifficultyAndEconomy()
+        {
+            Func<bool> oldActive = NetSession.ActiveProvider, oldGame = NetSession.SessionGameProvider;
+            try
+            {
+                NetSession.ActiveProvider = () => true;
+                NetSession.SessionGameProvider = () => true;
+                Assert.IsFalse(SaveGame.Save(3), "a session's game is never saved");
+                SaveGame.BeginHostSaves(new SaveData { difficulty = Session.DifficultyHard, economy = (int)Economy.Default, version = SaveData.CurrentVersion });
+                Assert.IsTrue(SaveGame.HostSaves);
+                Session.Difficulty = Session.DifficultyNormal;   // the session's rules
+                Session.Economy = Economy.Android;
+                Session.PlaySeconds = 60f;
+                Assert.IsTrue(SaveGame.Save(3), "the co-op host's game");
+                SaveGame.AutoSave();
+                foreach (int slot in new[] { 3, SaveGame.AutoSaveSlot })
+                {
+                    var saved = SaveGame.Preview(slot);
+                    Assert.IsNotNull(saved, "slot " + slot);
+                    Assert.AreEqual(Session.DifficultyHard, saved.difficulty, "the game's own difficulty");
+                    Assert.AreEqual((int)Economy.Default, saved.economy, "the game's own economy");
+                }
+                SaveGame.BeginHostSaves(null);   // a new game: the session's own rules
+                Assert.IsTrue(SaveGame.Save(4));
+                Assert.AreEqual(Session.DifficultyNormal, SaveGame.Preview(4).difficulty);
+                Assert.AreEqual((int)Economy.Android, SaveGame.Preview(4).economy);
+                SaveGame.EndHostSaves();
+                Assert.IsFalse(SaveGame.Save(5), "the session's end: no more");
+                SaveGame.BeginHostSaves(null);
+                NetSession.ActiveProvider = () => false;   // the connection went, the game still loaded
+                Assert.IsFalse(SaveGame.Save(5));
+            }
+            finally
+            {
+                SaveGame.EndHostSaves();
+                NetSession.ActiveProvider = oldActive;
+                NetSession.SessionGameProvider = oldGame;
+            }
+        }
     }
 }

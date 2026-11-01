@@ -185,7 +185,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>Why the last session ended or failed ("" = none), shown by the menu.</summary>
-        public static string Status { get; private set; } = "";
+        public static string Status { get; internal set; } = "";
 
         // ---- Unity Relay (online sessions) ------------------------------------------------------------------
 
@@ -386,7 +386,8 @@ namespace GoF2Remake.Multiplayer
             hostAllocation = null;
             PrepareSession();
             CoopSession = HostWantsCoop;
-            if (CoopSession) NetCoop.PrepareHost(CoopNewCampaign);   // the campaign's game (a new one, or the profile's)
+            // The co-op campaign's game: a new one, or the host's save slot (refused: Status says why).
+            if (CoopSession && !NetCoop.PrepareHost(CoopNewCampaign, CoopSlot)) { Shutdown(); return false; }
             SetUpHostedWorld();
             if (!Dedicated)
             {
@@ -395,6 +396,7 @@ namespace GoF2Remake.Multiplayer
                 NetRules.HostFlight = SessionRules.DefaultFlight;   // each player's own flight model; an admin's /flightmodel changes it
             }
             NetMods.BeginHost();   // the host's mods when modded content is allowed, else none
+            if (CoopSession && !NetCoop.LoadHostSave()) { Shutdown(); return false; }   // its items under the session's mods
             Seed = Environment.TickCount & 0x7fffffff;
             ushort port = HostPort;
             var m = EnsureManager();
@@ -433,9 +435,12 @@ namespace GoF2Remake.Multiplayer
         /// (NetCoop, CoopCampaign), kept in CoopFolder like a persistent world.</summary>
         public static bool HostWantsCoop { get; set; }
 
-        /// <summary>The co-op campaign to start: -1 = go on with the one in CoopFolder, else a new one of that Campaign (the
-        /// old folder is kept as CoopFolder + ".old").</summary>
+        /// <summary>The co-op campaign to start: -1 = go on with the host's save slot CoopSlot, else a new game of that
+        /// Campaign (the crew's old games in CoopFolder kept as CoopFolder + ".old").</summary>
         public static int CoopNewCampaign { get; set; } = -1;
+
+        /// <summary>The single-player save slot the host's co-op campaign continues (CoopNewCampaign -1).</summary>
+        public static int CoopSlot { get; set; } = -1;
 
         /// <summary>The co-op campaign's enemy strength, % per player past the first (the Host card, PlayerPrefs
         /// "mp_coop_strength"; CoopCampaign.Strength; /coop changes it while hosting).</summary>
@@ -455,7 +460,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The session this game hosts is a co-op campaign (StartHost with HostWantsCoop).</summary>
         public static bool CoopSession { get; private set; }
 
-        /// <summary>Where the co-op campaign keeps the crew's profiles (the host's holds the story) and its summary.</summary>
+        /// <summary>Where the co-op campaign keeps its guests' games (the host's own is in the save slots, SaveGame.HostSaves).</summary>
         public static string CoopFolder => System.IO.Path.Combine(GoF2Remake.GamePaths.Data, "CoopCampaign");
 
         /// <summary>Where a persistent hosted world keeps its files (the dedicated server's ServerProfiles layout).</summary>
@@ -592,8 +597,8 @@ namespace GoF2Remake.Multiplayer
             if (manager != null && !manager.IsServer && manager.IsConnectedClient && !closing) NetProfileClient.Upload();
             // A persistent hosted world: the host's own game straight into its profile (no network in between).
             if (manager != null && manager.IsHost && PersistentHost && worldEntered && !closing) NetProfileClient.SaveHostNow();
+            NetCoop.EndHost();   // the co-op host's game saves no more
             NetAudit.Tick(true);   // the server's shop runs still open, into the log
-            if (CoopSession && manager != null && manager.IsHost && worldEntered && !closing) NetCoop.WriteSummary();   // the menu's Continue
             NetChat.Clear();
             NetSquad.Clear();
             NetTradeClient.Clear();
@@ -831,6 +836,7 @@ namespace GoF2Remake.Multiplayer
             Dedicated = false;
             PersistentHost = false;
             CoopSession = false;
+            NetCoop.EndHost();
             NetCoop.LastSessionWasCoop = false;
             CoopCampaign.Reset();   // nothing of the last co-op session's story
             NetMods.BeginClient();   // no mods until the session's arrive (NetState) or the host picks its own (BeginHost)

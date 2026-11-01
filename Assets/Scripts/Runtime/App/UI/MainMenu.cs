@@ -654,6 +654,7 @@ namespace GoF2Remake.UI
             if (openPanel == panels["gameOptionsPanel"]) { OpenPanel("economyPanel"); return; }
             if (openPanel == panels["economyPanel"]) { OpenPanel("difficultyPanel"); return; }
             if (openPanel == panels["difficultyPanel"]) { OpenPanel(pendingStartIndex >= 0 && panels.ContainsKey("debugPanel") ? "debugPanel" : "campaignPanel"); return; }
+            if (coopSlotPick && openPanel == panels["loadPanel"]) { CloseCoopSlots(); return; }   // the co-op save picker: the co-op screen
             // The Mod Browser and the Mod Builder go back to the Mods hub.
             if (panels.TryGetValue(Modding.ModBuilder.ProjectsPanel, out var mbp) && openPanel == mbp)
             {
@@ -878,6 +879,9 @@ namespace GoF2Remake.UI
         /// clicks meanwhile are ignored (slotChosen).</summary>
         const long SlotFlashMs = 180;
         bool slotChosen;
+
+        /// <summary>The Load panel picks the save the co-op campaign continues (OpenCoopSlots) instead of loading one.</summary>
+        bool coopSlotPick;
 
         // ---- options ---------------------------------------------------------------------------
 

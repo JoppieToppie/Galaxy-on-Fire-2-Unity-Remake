@@ -149,12 +149,15 @@ namespace GoF2Remake.Multiplayer
         static void SendProfile(Login login, string newToken)
         {
             string json = "";
-            if (login.account != null)
+            // The co-op campaign's host plays its own save slot (or the new game it made, ""), never a profile here.
+            bool coopHost = NetGame.CoopSession && IsHostClient(login.client);
+            if (coopHost) json = NetCoop.HostSave ?? "";
+            else if (login.account != null)
                 try { if (File.Exists(ProfilePath(login.account.id))) json = File.ReadAllText(ProfilePath(login.account.id)); }
                 catch (Exception e) { Debug.LogError($"NetProfiles: profile {login.account.id} unreadable: {e.Message}"); }
             // A profile saved before the upgrade cap: cut back here too, so the game gets (and next uploads) the capped hull.
             SaveData saved = null;
-            int cut = json.Length > 0 && SaveGame.TryParse(json, NetGame.Db, out saved, out _) ? ClampMods(saved) : 0;
+            int cut = !coopHost && json.Length > 0 && SaveGame.TryParse(json, NetGame.Db, out saved, out _) ? ClampMods(saved) : 0;
             if (cut > 0)
             {
                 json = JsonUtility.ToJson(saved, false);

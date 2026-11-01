@@ -4,8 +4,10 @@
 // one); the host's Start opens the prologue in flight, led by this game (its pirates the crew's ships); skipping the
 // prologue and the rescue docks at Var Hastra; a launch into a story orbit runs the level as the leader (CampaignLevel, not
 // a follower) with its ships marked as the crew's (NpcShip.StoryShip); the ending's credits play in the session (the main
-// menu scene with Session.EndingPending, the session kept) and end docked at Thynome at step 44. The campaign's summary is
-// written for Continue.
+// menu scene with Session.EndingPending, the session kept) and end docked at Thynome at step 44. The host's new game is
+// saved into the auto-save slot as in single player (SaveGame.HostSaves), on the session's Normal / Android rules.
+// Hosting a save slot instead: no lobby, the host docked in the save's game at its step (the crew's story), played on
+// the session's rules and saved back under the save's own difficulty and economy.
 
 using System.Collections;
 using GoF2Remake.Data;
@@ -22,7 +24,7 @@ namespace GoF2Remake.Tests
     {
         string savedName;
         bool savedCoop;
-        int savedNew;
+        int savedNew, savedSlot;
 
         [SetUp]
         public void CoopHostSettings()
@@ -31,6 +33,7 @@ namespace GoF2Remake.Tests
             PlayerPrefs.SetString("mp_name", "Leader");
             savedCoop = NetGame.HostWantsCoop;
             savedNew = NetGame.CoopNewCampaign;
+            savedSlot = NetGame.CoopSlot;
         }
 
         [TearDown]
@@ -39,6 +42,7 @@ namespace GoF2Remake.Tests
             PlayerPrefs.SetString("mp_name", savedName);
             NetGame.HostWantsCoop = savedCoop;
             NetGame.CoopNewCampaign = savedNew;
+            NetGame.CoopSlot = savedSlot;
         }
 
         [UnityTest]
@@ -110,9 +114,56 @@ namespace GoF2Remake.Tests
             NetGame.ShutdownNow();
             yield return Run(1f);
             Assert.IsFalse(NetSession.Active, "the session ended");
-            var summary = NetCoop.ReadSummary();
-            Assert.IsNotNull(summary, "the menu's Continue");
-            Assert.GreaterOrEqual(summary.index, 7);
+            Assert.IsFalse(SaveGame.HostSaves, "no more saves after the session");
+            var saved = SaveGame.Preview(SaveGame.AutoSaveSlot);
+            Assert.IsNotNull(saved, "the host's game in the auto-save");
+            Assert.AreEqual(44, saved.campaignMission, "saved docked at Thynome when the host left");
+            Assert.AreEqual((int)Campaign.GalaxyOnFire2, saved.campaign);
+            Assert.AreEqual(Session.DifficultyNormal, saved.difficulty, "a new co-op game: the session's rules");
+            Assert.AreEqual((int)Economy.Android, saved.economy);
+        }
+
+        [UnityTest]
+        public IEnumerator HostContinuesASaveSlot()
+        {
+            yield return Load("MainMenu");
+            // A single-player game at step 7 on Extreme with the Default economy, in slot 3.
+            var db = Database.Load();
+            Session.ResetNewGame();
+            Story.StartNewGame(0);
+            while (Story.Index < 7) Story.Advance(db);
+            Session.StationIndex = 78;
+            Session.Difficulty = Session.DifficultyExtreme;
+            Session.Economy = Economy.Default;
+            Session.Credits = 123456;
+            Session.PlaySeconds = 600f;
+            Assert.IsTrue(SaveGame.Save(3));
+            Session.ResetNewGame();
+
+            NetGame.HostWantsCoop = true;
+            NetGame.CoopNewCampaign = -1;
+            NetGame.CoopSlot = 3;
+            Assert.IsTrue(NetGame.CanHost(), "the port is free");
+            Assert.IsTrue(NetGame.StartHost(), NetGame.Status);
+            yield return WaitFor(() => Find<StationLevel>() != null, 60f, "docked where the save was (no lobby for a save)");
+            yield return Run(2f);
+            Assert.IsTrue(CoopCampaign.Leader, "the host leads");
+            Assert.AreEqual(7, Story.Index, "the save's step");
+            Assert.AreEqual(123456, Session.Credits, "the save's credits");
+            Assert.AreEqual(Session.DifficultyNormal, Session.Difficulty, "the session's rules");
+            Assert.IsTrue(SaveGame.HostSaves);
+            Assert.AreEqual(7, CoopCampaign.FromJson(NetState.Instance.CoopStory).index, "the crew's story is the save's");
+
+            NetGame.Shutdown();
+            yield return Run(1f);
+            NetGame.ShutdownNow();
+            yield return Run(1f);
+            var saved = SaveGame.Preview(SaveGame.AutoSaveSlot);
+            Assert.IsNotNull(saved, "the host's game in the auto-save");
+            Assert.AreEqual(7, saved.campaignMission);
+            Assert.AreEqual(Session.DifficultyExtreme, saved.difficulty, "saved back under its own difficulty");
+            Assert.AreEqual((int)Economy.Default, saved.economy, "and its own economy");
+            Assert.AreEqual(Session.DifficultyExtreme, SaveGame.Preview(3).difficulty, "the slot it continued is left as it was");
         }
     }
 }

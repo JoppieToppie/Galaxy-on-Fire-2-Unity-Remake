@@ -238,19 +238,13 @@ namespace GoF2Remake.UI
             Text("mpJoinTitle", (coop ? Localization.Extra("coopBrowserTitle", "Open campaigns") : Localization.Extra("mpBrowserTitle", "Server browser")).ToUpperInvariant());
             Text("mpHostTitle", (coop ? Localization.Extra("coopHostTitle", "Host a campaign") : Localization.Extra("mpHostTitle", "Host a game")).ToUpperInvariant());
             Text("mpHost", (coop ? Localization.Extra("coopHostButton", "Host campaign") : Localization.Extra("mpHost", "Host")).ToUpperInvariant());
-            // The co-op screen: no World or Combat switch (the crew is one squad), the saved campaign under the title.
+            // The co-op screen: no World or Combat switch (the crew is one squad), where the host's game comes from under the title.
             foreach (var row in new[] { "mpWorldRow", "mpPvpRow" })
                 if (root.Q(row) is VisualElement r) r.style.display = coop ? DisplayStyle.None : DisplayStyle.Flex;
             if (root.Q<Label>("mpCoopSaved") is Label saved)
             {
                 saved.style.display = coop ? DisplayStyle.Flex : DisplayStyle.None;
-                if (coop)
-                {
-                    var s = GoF2Remake.Multiplayer.NetCoop.ReadSummary();
-                    saved.text = s == null ? Localization.Extra("coopSavedNone", "No saved campaign yet: hosting starts a new one.")
-                        : string.Format(Localization.Extra("coopSaved", "Saved: {0}, step {1}"), CampaignName(s.campaign), s.index)
-                          + (string.IsNullOrEmpty(s.crew) ? "" : "  ·  " + string.Format(Localization.Extra("coopCrew", "Crew: {0}"), s.crew));
-                }
+                if (coop) saved.text = Localization.Extra("coopSavesNote", "You host one of your saves or a new game, and it saves into your save slots as in single player.");
             }
         }
 
@@ -273,23 +267,72 @@ namespace GoF2Remake.UI
 
         static string CampaignName(int campaign) => campaign switch { 1 => "Valkyrie", 2 => "Supernova", _ => "Galaxy on Fire 2" };
 
-        /// <summary>Hosting a co-op campaign: go on with the saved one (NetCoop's summary) or start a new one.</summary>
+        /// <summary>Hosting a co-op campaign: one of the player's own saves (picked from the save slots, OpenCoopSlots) or a
+        /// new game. The host's game saves into the slots as in single player (SaveGame.HostSaves).</summary>
         void AskCoopCampaign()
         {
-            var saved = GoF2Remake.Multiplayer.NetCoop.ReadSummary();
-            if (saved == null) { AskNewCoopCampaign(); return; }
-            string crew = string.IsNullOrEmpty(saved.crew) ? "" : "\n" + string.Format(Localization.Extra("coopCrew", "Crew: {0}"), saved.crew);
-            ShowChoice(CoopTitle,
-                string.Format(Localization.Extra("coopContinueText", "Go on with the crew's {0} campaign at step {1}?"), CampaignName(saved.campaign), saved.index) + crew,
-                Localization.Extra("coopContinue", "Continue"), () => HostCoop(-1),
-                Localization.Extra("coopNew", "New campaign"), AskNewCoopCampaign);
+            bool any = false;
+            for (int i = 0; i < SaveGame.SlotCount && !any; i++) any = CoopCampaign.CanHost(SaveGame.Preview(i));
+            if (!any) { AskNewCoopCampaign(); return; }
+            ShowChoice(CoopTitle, Localization.Extra("coopHostText", "Play one of your saves with the crew, or start a new game?"),
+                Localization.Extra("coopFromSave", "Continue a save"), OpenCoopSlots,
+                Localization.Extra("coopNewGame", "New game"), AskNewCoopCampaign);
         }
 
         void AskNewCoopCampaign()
         {
-            string text = Localization.Extra("coopNewText", "Which campaign does the crew play? A saved co-op campaign is replaced (its files are kept as a backup).");
+            string text = Localization.Extra("coopNewText", "Which campaign does the crew play? Your new game saves over the auto-save when you dock, as in single player.");
             ShowChoice(CoopTitle, text, CampaignName(0), () => HostCoop(0), Localization.Extra("coopAddons", "Add-ons"),
                 () => ShowChoice(CoopTitle, text, CampaignName(1), () => HostCoop(1), CampaignName(2), () => HostCoop(2)));
+        }
+
+        /// <summary>The Load panel as the co-op host's save picker (coopSlotPick): a slot hosts the campaign from it.</summary>
+        void OpenCoopSlots()
+        {
+            coopSlotPick = true;
+            SyncSaveFolder(true);
+            BuildSlots();
+            ApplyLoadPanelMode();
+            OpenPanel("loadPanel");
+        }
+
+        /// <summary>A slot picked for the co-op campaign: refused when it can't be one (hardcore, a mod's campaign), else the
+        /// co-op screen again (its status line shows a failed start) and hosting, after the Load's warning on missing mods.</summary>
+        void PickCoopSlot(int slot)
+        {
+            var save = SaveGame.Preview(slot);
+            if (save == null) return;
+            if (!CoopCampaign.CanHost(save))
+            {
+                ShowNotice(CoopTitle, save.hardcore ? Localization.Extra("coopNoHardcore", "A hardcore game can't be played as a co-op campaign.")
+                                                    : Localization.Extra("coopNoModCampaign", "A mod's campaign can't be played as a co-op campaign."));
+                return;
+            }
+            void Host()
+            {
+                CloseCoopSlots();
+                GoF2Remake.Multiplayer.NetGame.CoopSlot = slot;
+                HostCoop(-1);
+            }
+            var missing = Modding.ModSaves.MissingMods(save);
+            if (!GoF2Remake.Multiplayer.NetMods.HostAllowsMods && save.mods != null)
+                foreach (var m in save.mods) if (!missing.Contains(m.name) && !missing.Contains(m.id)) missing.Add(string.IsNullOrEmpty(m.name) ? m.id : m.name);
+            if (missing.Count > 0)
+            {
+                ShowDialog(Localization.Extra("modsMissingTitle", "Mods missing"), string.Format(Localization.Extra("coopModsMissingText",
+                    "This game was saved with mods the session won't run: {0}.\nTheir items will be removed and refunded. Turn the mods on (and the Host card's Mods) to keep them.\n\nHost anyway?"),
+                    string.Join(", ", missing)), Host);
+                return;
+            }
+            Host();
+        }
+
+        /// <summary>From the co-op save picker back to the co-op screen.</summary>
+        void CloseCoopSlots()
+        {
+            coopSlotPick = false;
+            ApplyLoadPanelMode();
+            OpenPanel("multiplayerPanel");
         }
 
         /// <summary>A new co-op campaign's lobby (NetGame.InLobby): the menu's dialog lists the crew; the host's Start takes

@@ -9,13 +9,19 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
 - **The Co-op campaign screen** (2026-11-01, the user's request: the World switch's Co-op segment was easy to miss): the
   main menu's own **Co-op campaign** button (after Start new game) opens the multiplayer panel as the co-op screen
   (`MainMenu.coopPanelMode`, `SetPanelMode` / `ApplyPanelMode`): its title and intro, the browser's "Open campaigns" (co-op
-  listings only, `NetLobby.Entry.coop`), "Host a campaign" with the saved campaign under it (`mpCoopSaved`: campaign, step,
-  crew from coop.json), the co-op settings rows instead of World / Combat, its own Max players (below), "Host campaign".
+  listings only, `NetLobby.Entry.coop`), "Host a campaign" with a line under it on where the host's game comes from
+  (`mpCoopSaved`), the co-op settings rows instead of World / Combat, its own Max players (below), "Host campaign".
   The Multiplayer button opens the plain screen (World: Fresh / Persistent, every listing). The menu reopens the screen
   the last session came from (`NetCoop.LastSessionWasCoop`); Back returns to the button that opened it. Checked with
   `UiShots` at all ten sizes (main menu and both screens).
-- **Hosting**: from the Co-op campaign screen (`NetGame.HostWantsCoop` while it is open); Host campaign then asks Continue (the saved campaign's step and crew, `NetCoop.ReadSummary`, coop.json) or
-  New campaign (Galaxy on Fire 2, or Add-ons: Valkyrie / Supernova; `NetGame.CoopNewCampaign`). Max players is the co-op
+- **Hosting**: from the Co-op campaign screen (`NetGame.HostWantsCoop` while it is open); Host campaign then asks
+  Continue a save or New game (2026-11-01, the user's request: the host plays its own single-player game; with no save
+  that can be hosted, straight to New game). Continue a save opens the Load panel as a picker (`MainMenu.coopSlotPick`,
+  `OpenCoopSlots` / `PickCoopSlot`, `ApplyLoadPanelMode`: title "Host a save", no import / export rows, Back to the co-op
+  screen): a slot hosts with `NetGame.CoopSlot` (`CoopNewCampaign` -1), after the Load's warning when the save has mods the
+  session won't run (not on, or the Host card's Mods off). `CoopCampaign.CanHost` refuses a hardcore save (a death in a
+  session ends nothing) and a mod's campaign. New game asks the campaign (Galaxy on Fire 2, or Add-ons: Valkyrie /
+  Supernova; `NetGame.CoopNewCampaign`). Max players is the co-op
   screen's own (`NetGame.CoopMaxPlayers`, PlayerPrefs `mp_coop_max_players`, 4 by default, up to the session limit of 100;
   until 2026-11-01 capped at 4), which `NetGame.MaxPlayers` returns while co-op is hosted (so Relay's allocation and the
   approval agree); the leader's State carries it (`CoopCampaign.CrewLimit`: the lobby's "crew N / limit"). Bigger crews
@@ -33,11 +39,21 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
   host changes them while playing with `/coop strength 0|25|50|100` / `/coop rewards shared|full` (no argument shows them;
   announced to everyone, kept for the next session). The player count is the session's at the moment: hull when a level
   spawns its ships, guns when a ship gets them, a reward when it is paid. A catch-up pays no step rewards.
-- **Persistence**: a co-op session is a persistent hosted world in its own folder (`NetGame.CoopFolder`,
-  persistentDataPath/CoopCampaign; `NetGame.CoopSession` makes `PersistentHost` true): every crew member's profile, the
-  host's holding the story (`SaveGame.ApplyProfile` keeps the story's world: `CoopCampaign.AfterProfile`, not
-  `UseCompletedWorld`). A new campaign moves the old folder to `CoopCampaign.old`. `NetCoop.WriteSummary` (every 30 s and
-  when the host leaves) writes coop.json for the menu. Every session still plays on Normal and the Android economy.
+- **Persistence** (2026-11-01: the host's game in the save slots; until then the host's profile in CoopFolder and a
+  coop.json summary for a Continue): the host's game is its single-player game. `NetCoop.PrepareHost` reads the slot
+  (its campaign for `CoopCampaign.NewCampaign`), `LoadHostSave` (after `NetMods.BeginHost`) puts its modded items right
+  for the session's mods (`ModSaves.Fix`, as Load does) and checks it (`SaveGame.TryParse`; a failure ends the start with
+  `NetGame.Status`), and the host's own sign-in gets it as its profile (`NetProfiles.SendProfile`: `NetCoop.HostSave`, ""
+  for a new game; never the host's profile file), applied by `SaveGame.ApplyProfile` (the story's world:
+  `CoopCampaign.AfterProfile`, not `UseCompletedWorld`; its freelance mission and passengers dropped as for any profile).
+  While the session runs `SaveGame.HostSaves` lets it save as in single player: the auto-save on docking (slot 0, also
+  for a new game, which overwrites it as a single-player new game does), the station's Save game (shown for the host
+  only), and the auto-save when the host leaves docked (`NetProfileClient.SaveHostNow`; in flight nothing, saves are
+  docked only); never its profile (`NetProfileClient.Upload` returns). Each save keeps the slot's own difficulty and
+  economy (`BeginHostSaves`; a new game Normal / Android): the session plays Normal on the Android tables. The guests'
+  profiles stay a persistent hosted world in its own folder (`NetGame.CoopFolder`, persistentDataPath/CoopCampaign;
+  `NetGame.CoopSession` makes `PersistentHost` true), kept across hosted saves (a guest ahead of the host's step is set
+  back to it, `AfterProfile`); a New game moves it to `CoopCampaign.old` (the crew starts again too).
 - **Lobby** (a new campaign): the session opens with `NetState.CoopStarted` false (`NetCoop.LobbyWanted`), so
   `NetGame.EnterWorld` waits (`NetGame.InLobby`) and every game stays in the main menu, whose dialog lists the crew
   (`NetCoop.CrewNames`, the host first, the join code for the host), kept current every 0.5 s (`MainMenu.CoopLobby`). The

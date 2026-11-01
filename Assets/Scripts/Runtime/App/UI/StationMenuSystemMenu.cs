@@ -46,9 +46,11 @@ namespace GoF2Remake.UI
             // session allows it (made in every session: a server's admin may switch it on or off meanwhile, ShowSystemPage).
             if (Cheats.PageShown || GoF2Remake.Multiplayer.NetGame.Active)
                 debugButton = SystemButton(Localization.Extra("debugTitle", "Debug"), 5, () => ShowSystemPage(SysPage.Debug), systemMain);
-            // Multiplayer: a session's game is never saved, and no single-player save is loaded into it.
+            // Multiplayer: a session's game is never saved, and no single-player save is loaded into it; the co-op
+            // campaign's host saves its own game into the slots (SaveGame.HostSaves).
             if (GoF2Remake.Multiplayer.NetGame.Active)
-                foreach (var b in new[] { loadGameButton, saveGameButton }) if (b != null) b.style.display = DisplayStyle.None;
+                foreach (var b in new[] { loadGameButton, saveGameButton })
+                    if (b != null && !(b == saveGameButton && SaveGame.HostSaves)) b.style.display = DisplayStyle.None;
             // Hardcore: the game saves itself when docking (the auto-save) and nowhere else.
             if (Session.Hardcore && saveGameButton != null) saveGameButton.style.display = DisplayStyle.None;
             // The Debug page's scroll list (Options is an OptionsView, BuildOptionsView).

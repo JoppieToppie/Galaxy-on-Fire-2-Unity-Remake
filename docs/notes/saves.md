@@ -21,6 +21,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   Resume loads the newest slot, Load lists the slots with the original's preview fields; game over reloads slot 0.
   Manual saves: the station's system menu (Menu 172 via the Menu button, Esc on the main view or the controller's Menu:
   Save game 30 with the slot list, slot 0 refused with 487, overwrite asks 49, then 50; Back to Main Menu 522 / 523).
+- **The co-op campaign's host** (2026-11-01, `SaveGame.HostSaves`; docs/notes/multiplayer-coop.md "Persistence"): the one
+  session game that saves into the slots. The host continues a slot or starts a new game; while the session runs it
+  auto-saves on docking, the station's Save game is there, and leaving docked saves slot 0, each save under the slot's own
+  difficulty and economy (the session plays Normal / Android). Every other session game is never saved.
 - **Original game saves** (remake; the format `OriginalSave` + `OriginalRecord`, the mapping `OriginalSaveConvert`, the
   files `OriginalSaveTransfer`, all GoF2.Game; `OriginalSaveTests`, `OriginalSaveTransferTests`): the Android original's
   `gof2_save_game_N` (+ the unsigned `gof2_save_game_preview_N`) in

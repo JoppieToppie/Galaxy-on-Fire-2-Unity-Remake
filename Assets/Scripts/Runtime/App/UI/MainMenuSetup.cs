@@ -68,7 +68,7 @@ namespace GoF2Remake.UI
             newGameButton = Bind("newGameButton", () => OpenPanel("campaignPanel"));
             coopButton = Bind("coopButton", OpenCoop);
             multiplayerButton = Bind("multiplayerButton", OpenMultiplayer);
-            loadButton = Bind("loadButton", () => { SyncSaveFolder(true); BuildSlots(); OpenPanel("loadPanel"); });
+            loadButton = Bind("loadButton", () => { coopSlotPick = false; ApplyLoadPanelMode(); SyncSaveFolder(true); BuildSlots(); OpenPanel("loadPanel"); });
             // Remake: every save to one file and back (SaveTransfer), under the Load game list; main menu only (no game is
             // loaded here). After the click: the system's file dialog is modal.
             Bind("exportSavesButton", () => root.schedule.Execute(ExportSaves).ExecuteLater(1));

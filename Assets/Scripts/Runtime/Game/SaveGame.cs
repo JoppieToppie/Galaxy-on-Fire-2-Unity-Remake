@@ -125,10 +125,34 @@ namespace GoF2Remake.Data
         public class KnownPrice { public int item, price, system; }
     }
 
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class SaveGame
     {
         public const int SlotCount = 12;
         public const int AutoSaveSlot = 0;
+
+        // Remake (co-op campaign, NetCoop.PrepareHost): the hosting player's session game is its single-player game.
+        static bool hostSaves;
+        static float hostDifficulty;
+        static int hostEconomy;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => hostSaves = false;
+
+        /// <summary>Remake: the co-op campaign's host (NetCoop) plays a save slot it continued, or a new game, and saves into
+        /// the slots like single player while its session runs (the auto-save on docking, the station's Save game), each
+        /// save under the game's own difficulty and economy: the session plays Normal on the Android tables.</summary>
+        public static bool HostSaves => hostSaves && NetSession.Active;
+
+        /// <summary>The co-op host's game from 'from' (null = a new game: Normal, the Android economy) saves into the slots.</summary>
+        public static void BeginHostSaves(SaveData from)
+        {
+            hostSaves = true;
+            hostDifficulty = from != null ? from.difficulty : Session.DifficultyNormal;
+            hostEconomy = from != null ? (int)SaveEconomy(from) : (int)Economy.Android;
+        }
+
+        public static void EndHostSaves() => hostSaves = false;
 
         static string Dir => Path.Combine(GoF2Remake.GamePaths.Data, "Saves");
         static string PathOf(int slot) => Path.Combine(Dir, $"slot_{slot:00}.json");
@@ -162,13 +186,14 @@ namespace GoF2Remake.Data
         public static bool Save(int slot)
         {
             // Multiplayer: a session is a separate free-play game; it never overwrites the single-player saves (also not
-            // after its connection went, while its game is still loaded).
-            if (NetSession.SessionGame) return false;
+            // after its connection went, while its game is still loaded); the co-op campaign's host saves its own (HostSaves).
+            if (NetSession.SessionGame && !HostSaves) return false;
             if (Modding.ModManager.BuilderOpen) return false;   // the Mod Builder's throwaway game
             if (SupernovaChallenge.Active) return false;   // the Supernova Challenge's throwaway game (it never docks)
             // Hardcore: only the auto-save (no slot to go back to after a death).
             if (Session.Hardcore && slot != AutoSaveSlot) return false;
             var s = Capture();
+            if (HostSaves) { s.difficulty = hostDifficulty; s.economy = hostEconomy; }   // the game's own, not the session's
             Modding.ModSaves.Record(s, Database.Load());
             try
             {
@@ -226,8 +251,9 @@ namespace GoF2Remake.Data
         /// <summary>ModStation::autosave: slot 0, not for a game without playing time.</summary>
         public static void AutoSave()
         {
-            // Multiplayer: a server that keeps profiles gets the docked game instead (NetProfileClient; a no-op without).
-            if (NetSession.SessionGame) { GameHooks.ProfileUpload?.Invoke(); return; }
+            // Multiplayer: a server that keeps profiles gets the docked game instead (NetProfileClient; a no-op without);
+            // the co-op campaign's host saves slot 0 as in single player.
+            if (NetSession.SessionGame && !HostSaves) { GameHooks.ProfileUpload?.Invoke(); return; }
             if (Session.PlaySeconds <= 0f || Modding.ModManager.BuilderOpen || SupernovaChallenge.Active) return;
             Save(AutoSaveSlot);
         }

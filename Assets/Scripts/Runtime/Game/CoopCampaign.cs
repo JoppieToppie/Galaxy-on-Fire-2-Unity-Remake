@@ -475,6 +475,11 @@ namespace GoF2Remake.Data
             Session.ArrivedByTravel = false;
         }
 
+        /// <summary>A single-player save the co-op host may continue: one of the three campaigns, not hardcore (a death in a
+        /// session ends nothing) and not a mod's campaign (the crew's story is the original's steps).</summary>
+        public static bool CanHost(SaveData s) =>
+            s != null && s.campaign >= 0 && s.campaign <= (int)Campaign.Supernova && !s.hardcore && string.IsNullOrEmpty(s.modCampaign);
+
         /// <summary>A guest's game in a co-op session before its profile (an empty one keeps this): the story from the start,
         /// the leader's own ship and loadout, then caught up to the leader's step (every step's side effects).</summary>
         public static void PrepareGuest(State s, Database db)
