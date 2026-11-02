@@ -56,7 +56,9 @@ against the FEV's LGCY data, see "Sound").
   record 23 at the array); 144 (camera drift (0, 0.05, 0.28) u/ms, `translate` at 0x162efa, which Ghidra garbles;
   instant cloaks); 135 (every 75 s only the dead pirates come back, no
   cargo; 2 -> 3 on that tick); 102 (a Specter whose target died takes the first living dropship, else the player; instant cloaks);
-  91 (the wreck's 0x8e9 LOOP, and with 8 aboard after 180 s 0x8ea and its `_wrecked_anim` played once, unverified); 154 (the
+  91 (the wreck's 0x8e9 LOOP, and with 8 aboard within the level's first 180 s 0x8ea and its `_wrecked_anim` played
+  once: process 0x167530 takes the idle transform once t > 179999; it was read the other way round, so the break-up only
+  came with the wreck's end); 154 (the
   fighters creep 0.5 u/ms in state 1; turret view / free look / Liberator off, the auto turret off until control returns); 89 /
   81 clear the new station's attacked-friends flag. The Coromesk (103) rule: from campaign 0x55 (or 0x87) every start there is at
   (70 000, 0, 100 000) facing the station (`LevelScript::LevelScript` 0x160380, `SpaceLevel.SpawnPlayer`).
@@ -83,7 +85,9 @@ against the FEV's LGCY data, see "Sound").
   2026-10); docked (not hacking) the camera goes to free look by itself with the original's preset orbit, -98 / 35 px at
   3800 units, and the camera key cycles the manual turrets and free look (`PlayerEgo::approachDockingPoint` +0xb1,
   `MGame::OnUpdate` switchCamera(3); `setDockingState(2)` suppresses it; `ObjectDocking.Docked`,
-  `FreeLookCamera.EnterDockedLook` / `DockedView`; #132: the remake had no free look docked); the undock's end goes back to
+  `FreeLookCamera.EnterDockedLook` / `DockedView`; #132: the remake had no free look docked; free look turns the chase
+  camera on while docked, `chaseOnForDock`, as the turret view does: ObjectDocking keeps it off, so the orbit never moved
+  the camera, a player's report on Android); the undock's end goes back to
   the standard view; `PlayerTurret.GunsBlocked` ignores the docked ship's
   blocked guns; the chase camera is on for the view; the stick still reads under `externalControl`; the mouse aims it
   with mouse steering (`FlightHud.UpdateMouseSteering` leaves it on in a docked turret view) and the fire button fires

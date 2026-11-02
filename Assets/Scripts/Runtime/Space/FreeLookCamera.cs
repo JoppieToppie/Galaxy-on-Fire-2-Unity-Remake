@@ -231,6 +231,10 @@ namespace GoF2Remake.Flight
             distance = Mathf.Clamp(distance, MinDistance, MaxDistance);
             Place();
             if (chase == null) return;
+            // Modified: docked at an object the chase camera is off (ObjectDocking's look-at camera keeps the camera where it
+            // stopped), so the orbit never moved it, on any input: on for free look, as PlayerTurret does for its view.
+            chaseOnForDock = !chase.enabled && DockedView != null && DockedView();
+            if (chaseOnForDock) chase.enabled = true;
             chase.follow = anchor;
             chase.followOffset = new Vector3(0f, 0f, -distance * M);
             chase.followLookOffset = Vector3.zero;
@@ -242,8 +246,19 @@ namespace GoF2Remake.Flight
         {
             if (chase == null || chase.follow != anchor) return;
             chase.follow = null;
+            // Modified: still docked (a turret view next, the undock's ease-out): ObjectDocking's look-at camera again; its
+            // Release turns the chase camera back on.
+            if (chaseOnForDock)
+            {
+                chaseOnForDock = false;
+                var d = GetComponent<ObjectDocking>();
+                if (d != null && d.Busy && d.State != ObjectDocking.Phase.Approach) { chase.enabled = false; return; }
+            }
             chase.Snap();
         }
+
+        /// <summary>Modified: free look turned the chase camera on while docked at an object (EnterFreeLook).</summary>
+        bool chaseOnForDock;
 
         /// <summary>FlightHud: a touch drag off the controls (screen pixels, y up) goes to the camera in free look.</summary>
         public void TouchDrag(Vector2 deltaPixels, bool held)

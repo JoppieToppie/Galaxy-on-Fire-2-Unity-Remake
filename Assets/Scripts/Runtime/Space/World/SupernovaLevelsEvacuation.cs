@@ -276,8 +276,13 @@ namespace GoF2Remake.World
                 float d = Vector3.Distance(cam.Camera.position, wreckLoop.transform.position);
                 wreckLoop.volume = wreck != null && wreck.Target.Alive ? Mathf.Clamp01(1f - d / Sfx.AudibleMeters) * Settings.SfxVolume : 0f;
             }
-            // 8+ aboard after 180 s: sound 0x8ea once, and the wreck animates its second transform (the break-up, unverified).
-            if (!wreckBroken && Session.StoryCounter >= 8 && T > 179999f)
+            // 8+ aboard within the level's first 180 s: sound 0x8ea once, and the wreck animates its second transform (the
+            // break-up). Modified: LevelScript::process 0x167530 compares the 64-bit level time against 179999 as
+            // (179999 - t) < 0 and takes the first transform (+0x14) when that holds, so the break-up runs while t <= 179999,
+            // not after (a player's report: the freighter only broke up at the end; with 8 aboard inside 3 minutes the original
+            // starts it while the miners are still boarding). The original stops advancing it after 180 s; the remake lets it
+            // play out.
+            if (!wreckBroken && Session.StoryCounter >= 8 && T <= 179999f)
             {
                 wreckBroken = true;
                 if (sn != null && wreck != null) Sfx.PlayAt(sn.container, wreck.transform.position);
