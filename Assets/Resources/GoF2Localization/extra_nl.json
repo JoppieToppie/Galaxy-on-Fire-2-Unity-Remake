@@ -3090,5 +3090,13 @@
  "modsDlcLater": "Later spelen",
  "modsDlcPlace": "DLC {0} van {1}: komt na {2}.",
  "playOnInConversations": "Spel loopt door in gesprekken",
- "playOnInConversationsHelp": "Tijdens het vliegen blijft de wereld bewegen terwijl een gesprek open is. Je besturing wacht, niemand schiet en verhaalmissies wachten tot het sluit. Uit: het spel pauzeert."
+ "playOnInConversationsHelp": "Tijdens het vliegen blijft de wereld bewegen terwijl een gesprek open is. Je besturing wacht, niemand schiet en verhaalmissies wachten tot het sluit. Uit: het spel pauzeert.",
+ "debugKillTitle": "Vernietig om je heen",
+ "debugKillRange": "Bereik",
+ "debugKillFilter": "Vernietig",
+ "debugKillHostile": "Alleen vijanden",
+ "debugKillShips": "Alle schepen",
+ "debugKillEverything": "Alles (ook asteroïden)",
+ "debugKill": "Vernietig om je heen",
+ "debugKilled": "{0} vernietigd binnen {1}."
 }

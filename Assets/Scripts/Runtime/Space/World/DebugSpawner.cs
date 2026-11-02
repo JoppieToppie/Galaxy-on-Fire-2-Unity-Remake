@@ -1,8 +1,8 @@
 // DebugSpawner.cs
-// Remake-only testing tools for the pause menu's Debug page (CheatsCatalog.Spawns): put any ship (race, model, behaviour) or any
+// Remake-only testing tools for the pause menu's Debug page (CheatsCatalog.Spawns, .Destroy): put any ship (race, model, behaviour) or any
 // assembled object (assemblies.json: ships, stations, level props, effects...) in front of the player. Spawned ships are ordinary
 // traffic (Traffic.SpawnShip: they fight, drop loot, count for the music); objects are plain scenery (no collision, no lock)
-// that stays until the level is left. Nothing here is in the original.
+// that stays until the level is left; KillAround destroys what is around the player. Nothing here is in the original.
 
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
@@ -188,6 +188,44 @@ namespace GoF2Remake.World
         /// <summary>The objects with the original's collision volumes (CollisionVolume.ForStaticObject): the pirate outpost
         /// 1002 (Level::createStaticObject for the pirate bases and the Kaamo siege); -1 = none.</summary>
         static int StaticCollisionId(string assembly) => assembly == "station_pirates" ? 1002 : -1;
+
+        // ---- destroy around the player (CheatsCatalog.Destroy) -------------------------------------------------------
+
+        public enum KillFilter { Hostile, Ships, Everything }
+
+        /// <summary>The Debug page's range steps, metres.</summary>
+        public static readonly float[] KillRanges = { 10f, 25f, 50f, 100f, 250f, 500f, 1000f, 2000f, 3000f, 5000f, 10000f, 20000f, 30000f };
+
+        public static string RangeText(float metres) => metres < 1000f ? $"{metres:0} m" : $"{metres / 1000f:0.#} km";
+
+        /// <summary>Whether KillAround takes 't': alive, not the player nor another player (multiplayer), within 'metres' of
+        /// 'centre' (the nearest point of its hit boxes: a capital ship's centre can be a km away from its hull) and of the
+        /// kind 'what' asks for (hostile: anything hostile to the player, its turrets and sentry guns too; ships; everything
+        /// with a hit volume, asteroids and stations' guns as well).</summary>
+        public static bool KillsIt(Target t, Vector3 centre, float metres, KillFilter what)
+        {
+            if (t == null || !t.Alive || t.isPlayer || t.netPilot) return false;
+            if (what == KillFilter.Hostile && !t.hostileToPlayer) return false;
+            if (what == KillFilter.Ships && !t.isShip) return false;
+            return (t.NearestPoint(centre) - centre).sqrMagnitude <= metres * metres;
+        }
+
+        /// <summary>Remake (Debug page): every target KillsIt picks around the player, each taking a one-hit kill from the
+        /// player (the One-hit kills cheat's hit: loot, bounties and standing as if shot, the story's invulnerable ships
+        /// survive; a client's NPCs through the host); the result text.</summary>
+        public static string KillAround(SpaceLevel level, float metres, KillFilter what)
+        {
+            if (level == null || level.Player == null) return Localization.Extra("debugNoFlight", "Only in flight.");
+            var centre = level.Player.transform.position;
+            int killed = 0;
+            foreach (var t in Target.All.ToArray())   // a death takes it out of the list
+            {
+                if (!KillsIt(t, centre, metres, what)) continue;
+                t.Damage(99999999f, false, (t.transform.position - centre).normalized);
+                if (!t.Alive || t.RemoteDamage != null) killed++;
+            }
+            return string.Format(Localization.Extra("debugKilled", "{0} destroyed within {1}."), killed, RangeText(metres));
+        }
 
         public static string ShipName(Database db, int ship)
         {

@@ -3090,5 +3090,13 @@
  "modsDlcLater": "나중에 플레이",
  "modsDlcPlace": "DLC {0}/{1}: {2} 다음에 플레이합니다.",
  "playOnInConversations": "대화 중에도 게임 진행",
- "playOnInConversationsHelp": "비행 중 대화가 열려 있는 동안에도 세계가 계속 움직입니다. 대화가 닫힐 때까지 조작은 대기하고, 아무도 사격하지 않으며, 스토리 임무도 멈춥니다. 끄기: 게임이 일시 정지됩니다."
+ "playOnInConversationsHelp": "비행 중 대화가 열려 있는 동안에도 세계가 계속 움직입니다. 대화가 닫힐 때까지 조작은 대기하고, 아무도 사격하지 않으며, 스토리 임무도 멈춥니다. 끄기: 게임이 일시 정지됩니다.",
+ "debugKillTitle": "주변 파괴",
+ "debugKillRange": "범위",
+ "debugKillFilter": "파괴 대상",
+ "debugKillHostile": "적대 대상만",
+ "debugKillShips": "모든 함선",
+ "debugKillEverything": "전부 (소행성 포함)",
+ "debugKill": "주변 파괴",
+ "debugKilled": "{1} 이내에서 {0}개 파괴됨."
 }

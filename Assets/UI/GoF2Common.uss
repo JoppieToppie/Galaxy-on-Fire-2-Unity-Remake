@@ -911,6 +911,11 @@
     border-color: var(--gof-line);
 }
 
+/* A card under the Actions tab's button grid (Destroy around you). */
+.debug-card--below {
+    margin-top: var(--space-m);
+}
+
 .debug-columns > .debug-card--last {
     margin-right: 0;
 }

@@ -3090,5 +3090,13 @@
  "modsDlcLater": "Graj później",
  "modsDlcPlace": "DLC {0} z {1}: po {2}.",
  "playOnInConversations": "Gra trwa podczas rozmów",
- "playOnInConversationsHelp": "W locie świat porusza się dalej, gdy rozmowa jest otwarta. Sterowanie czeka, nikt nie strzela, a misje fabularne wstrzymują się do jej końca. Wyłączone: gra się zatrzymuje."
+ "playOnInConversationsHelp": "W locie świat porusza się dalej, gdy rozmowa jest otwarta. Sterowanie czeka, nikt nie strzela, a misje fabularne wstrzymują się do jej końca. Wyłączone: gra się zatrzymuje.",
+ "debugKillTitle": "Zniszcz wszystko wokół",
+ "debugKillRange": "Zasięg",
+ "debugKillFilter": "Zniszcz",
+ "debugKillHostile": "Tylko wrogów",
+ "debugKillShips": "Wszystkie statki",
+ "debugKillEverything": "Wszystko (też asteroidy)",
+ "debugKill": "Zniszcz wszystko wokół",
+ "debugKilled": "Zniszczono {0} w promieniu {1}."
 }

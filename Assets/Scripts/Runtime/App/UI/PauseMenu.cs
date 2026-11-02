@@ -700,6 +700,16 @@ namespace GoF2Remake.UI
                 {
                     var grid = Grid(content);
                     foreach (var def in CheatsCatalog.Actions(db, Notify, level)) Row(def, grid, "debug-grid-cell");
+                    // Destroy around you (World.DebugSpawner.KillAround): range and kind, then the button.
+                    if (level == null) break;
+                    var defs = CheatsCatalog.Destroy(level, Notify);
+                    var card = Card(content, X("debugKillTitle", "Destroy around you"));
+                    card.AddToClassList("debug-card--below");
+                    foreach (var def in defs) if (def.kind != OptionKind.Button) Row(def, card);
+                    var buttons = new VisualElement();
+                    buttons.AddToClassList("debug-buttons");
+                    card.Add(buttons);
+                    foreach (var def in defs) if (def.kind == OptionKind.Button) Row(def, buttons, "debug-action");
                     break;
                 }
                 case 2:

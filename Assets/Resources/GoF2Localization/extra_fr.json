@@ -3090,5 +3090,13 @@
  "modsDlcLater": "Jouer plus tard",
  "modsDlcPlace": "DLC {0} sur {1} : se joue après {2}.",
  "playOnInConversations": "Le jeu continue pendant les conversations",
- "playOnInConversationsHelp": "En vol, le monde continue de bouger pendant une conversation. Vos commandes attendent, personne ne tire et les missions de l'histoire restent en suspens jusqu'à sa fin. Désactivé : le jeu se met en pause."
+ "playOnInConversationsHelp": "En vol, le monde continue de bouger pendant une conversation. Vos commandes attendent, personne ne tire et les missions de l'histoire restent en suspens jusqu'à sa fin. Désactivé : le jeu se met en pause.",
+ "debugKillTitle": "Détruire autour de vous",
+ "debugKillRange": "Portée",
+ "debugKillFilter": "Détruire",
+ "debugKillHostile": "Hostiles seulement",
+ "debugKillShips": "Tous les vaisseaux",
+ "debugKillEverything": "Tout (astéroïdes compris)",
+ "debugKill": "Détruire autour de vous",
+ "debugKilled": "{0} détruits dans un rayon de {1}."
 }

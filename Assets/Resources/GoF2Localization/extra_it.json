@@ -3090,5 +3090,13 @@
  "modsDlcLater": "Gioca dopo",
  "modsDlcPlace": "DLC {0} di {1}: si gioca dopo {2}.",
  "playOnInConversations": "Il gioco continua durante i dialoghi",
- "playOnInConversationsHelp": "In volo, il mondo continua a muoversi mentre un dialogo è aperto. I tuoi comandi restano in attesa, nessuno spara e le missioni della storia si fermano finché non si chiude. Disattivato: il gioco va in pausa."
+ "playOnInConversationsHelp": "In volo, il mondo continua a muoversi mentre un dialogo è aperto. I tuoi comandi restano in attesa, nessuno spara e le missioni della storia si fermano finché non si chiude. Disattivato: il gioco va in pausa.",
+ "debugKillTitle": "Distruggi intorno a te",
+ "debugKillRange": "Raggio",
+ "debugKillFilter": "Distruggi",
+ "debugKillHostile": "Solo ostili",
+ "debugKillShips": "Tutte le navi",
+ "debugKillEverything": "Tutto (anche asteroidi)",
+ "debugKill": "Distruggi intorno a te",
+ "debugKilled": "{0} distrutti entro {1}."
 }

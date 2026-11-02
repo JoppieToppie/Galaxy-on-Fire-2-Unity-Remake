@@ -3090,5 +3090,13 @@
  "modsDlcLater": "推后游玩",
  "modsDlcPlace": "第{0}个DLC（共{1}个）：在{2}之后游玩。",
  "playOnInConversations": "对话时游戏继续",
- "playOnInConversationsHelp": "飞行中，对话打开时世界仍在运转。对话关闭前你的操作会等待，没有人开火，剧情任务也会暂停。关闭：游戏暂停。"
+ "playOnInConversationsHelp": "飞行中，对话打开时世界仍在运转。对话关闭前你的操作会等待，没有人开火，剧情任务也会暂停。关闭：游戏暂停。",
+ "debugKillTitle": "摧毁周围目标",
+ "debugKillRange": "范围",
+ "debugKillFilter": "摧毁",
+ "debugKillHostile": "仅敌对",
+ "debugKillShips": "所有飞船",
+ "debugKillEverything": "全部（包括小行星）",
+ "debugKill": "摧毁周围目标",
+ "debugKilled": "已摧毁 {1} 内的 {0} 个目标。"
 }

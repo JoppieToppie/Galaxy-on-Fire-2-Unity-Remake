@@ -3090,5 +3090,13 @@
  "modsDlcLater": "後でプレイ",
  "modsDlcPlace": "DLC {0}/{1}：{2}の後にプレイ。",
  "playOnInConversations": "会話中もゲームを進める",
- "playOnInConversationsHelp": "飛行中、会話が開いている間も世界は動き続けます。会話が閉じるまで操作は待機し、誰も撃たず、ストーリーミッションも止まります。オフ：ゲームが一時停止します。"
+ "playOnInConversationsHelp": "飛行中、会話が開いている間も世界は動き続けます。会話が閉じるまで操作は待機し、誰も撃たず、ストーリーミッションも止まります。オフ：ゲームが一時停止します。",
+ "debugKillTitle": "周囲を破壊",
+ "debugKillRange": "範囲",
+ "debugKillFilter": "破壊対象",
+ "debugKillHostile": "敵のみ",
+ "debugKillShips": "すべての船",
+ "debugKillEverything": "すべて（小惑星も）",
+ "debugKill": "周囲を破壊",
+ "debugKilled": "{1}以内で{0}個を破壊しました。"
 }

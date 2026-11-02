@@ -43,7 +43,12 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   +100 000 / +1 000 000 credits, repair (hull, shield, armor, gamma), secondaries to 50, +20 energy cells, reveal all
   systems, make peace (both standing axes 0, `AttackedStations` cleared), fill the Kaamo Club (`Cheats.FillKaamoClub`:
   owned, one of every item the storage takes (50 of each secondary; not the unsaleable story items) and a hull of every
-  ownable ship type, not 13 / 14 / 15 or the one flown; topped up, never doubled); **Give items** (item type, item (a
+  ownable ship type, not 13 / 14 / 15 or the one flown; topped up, never doubled); in flight under them **Destroy around
+  you** (`CheatsCatalog.Destroy`, `DebugSpawner.KillAround`, 2026-11-02): a range of 10 m - 30 km (`KillRanges`, measured
+  to the nearest hit box, so a capital ship counts by its hull) and Hostile only (`hostileToPlayer`: turrets and sentry
+  guns too) / All ships / Everything (asteroids, every Target); each takes the One-hit kills hit from the player (loot,
+  bounties and standing as if shot; the story's invulnerable ships survive; never the player or another player,
+  `netPilot`); **Give items** (item type, item (a
   grid of the type's shop icons with their names: a tap / click picks, the picked one framed and scrolled into view, two
   rows visible, the cells sharing each row's width; its stepper is an invisible focus stop for keys / controllers:
   selected, the grid is framed amber, left / right step through the icons and up / down a row

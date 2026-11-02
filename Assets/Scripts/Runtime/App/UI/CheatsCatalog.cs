@@ -59,6 +59,27 @@ namespace GoF2Remake.UI
             Button("cheatKaamo", () => X("cheatFillKaamo", "Fill the Kaamo Club (every item and ship)"), () => notify?.Invoke(Cheats.FillKaamoClub(db))),
         };
 
+        // ---- destroy around the player (the pause menu, in flight) ----------------------------------------------------
+
+        static int killRange = 6, killFilter;   // 1 km, hostile only
+
+        /// <summary>Range (10 m - 30 km), what to destroy, "Destroy around you" (World.DebugSpawner.KillAround).</summary>
+        public static List<OptionDef> Destroy(World.SpaceLevel level, Action<string> notify)
+        {
+            var ranges = World.DebugSpawner.KillRanges;
+            return new List<OptionDef>
+            {
+                Choice("debugKillRange", () => X("debugKillRange", "Range"), false,
+                    () => Array.ConvertAll(ranges, World.DebugSpawner.RangeText), () => killRange, i => killRange = i),
+                Choice("debugKillFilter", () => X("debugKillFilter", "Destroy"), false,
+                    () => new[] { X("debugKillHostile", "Hostile only"), X("debugKillShips", "All ships"), X("debugKillEverything", "Everything (asteroids too)") },
+                    () => killFilter, i => killFilter = i),
+                Button("debugKill", () => X("debugKill", "Destroy around you"), () =>
+                    notify?.Invoke(World.DebugSpawner.KillAround(level, ranges[Math.Clamp(killRange, 0, ranges.Length - 1)],
+                                                                 (World.DebugSpawner.KillFilter)killFilter))),
+            };
+        }
+
         static string Credits() => $"{X("cheatCreditsNow", "Credits")}: {Session.Credits:N0}";
 
         // ---- any item (the pause menu and the station) -----------------------------------------------------------
