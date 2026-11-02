@@ -161,6 +161,9 @@ namespace GoF2Remake.UI
                 case QuestFieldKind.System:
                     RefField(card, label, RefKind.System, Cur(), v => Set(string.IsNullOrEmpty(v) ? null : ProjectEntry.RefToken(v), true), null, f.optional);
                     break;
+                case QuestFieldKind.NpcShip:
+                    RefField(card, label, RefKind.NpcShip, Cur(), v => Set(string.IsNullOrEmpty(v) ? null : v, true), null, f.optional);
+                    break;
                 case QuestFieldKind.Item:
                     RefField(card, label, RefKind.Item, Cur(), v => Set(string.IsNullOrEmpty(v) ? null : ProjectEntry.RefToken(v), true), null, f.optional);
                     break;
@@ -366,6 +369,8 @@ namespace GoF2Remake.UI
                     Int(card, T("mbAmount", "Amount"), I("amount", 1), 1, 100000, v => { st["amount"] = v; QuestEdited(); });
                     RefField(card, T("mbDockedAtOptional", "Docked at (optional)"), RefKind.Station, S("station"), v => SetRef("station", v), T("mbAnywhere", "anywhere"));
                     Text(card, T("mbObjectiveOptional", "Objective meanwhile (optional)"), S("objective"), 300, v => SetS("objective", v));
+                    FlagButton(Row(card), T("mbCargoHandIn", "Hand it in (taken from the hold)"), st["take"]?.Type == JTokenType.Boolean && (bool)st["take"],
+                               v => { if (v) st["take"] = true; else st.Remove("take"); }, () => QuestEdited(true));
                     break;
                 case "reward":
                 {
@@ -478,6 +483,7 @@ namespace GoF2Remake.UI
                 string value = k == 1 ? "station" : k == 2 ? "any" : null;
                 FlagButton(takerRow, takerNames[k], k == takerIndex, _ => { q.Set("takers", value); QuestEdited(true); });
             }
+            Note(questPage, T("mbTakersNote", "One squad in the universe: while a squad is on it, no bar anywhere offers it until they finish or fail it. One per station: only the bar it was taken at. Either way that bar waits 30 minutes before offering it again."));
         }
         /// <summary>A track for a Music step: the game's (the event words) or a mod's.</summary>
         void PickMusicWord(Action<string> pick)

@@ -64,9 +64,23 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   stations' lore of the docked system in the station ticker in place of the game's two random items
   (`NewsTicker.Build`). The ES2 importer writes them from ES2's locations.CSV (Windows-1252, "|~"-separated). Tests
   `ModWorldTests.AStationsSubtitleAndLore`. Verified in Play mode at Union Bridge (the ticker, the map panel).
+  **Pirate-held stations** (remake, 2026-11-02, a modder's suggestion "systems that belong to pirates like Shima at the
+  start, but constantly"): systems.json `"pirateHeld": true` (`ModWorld.systemPirateHeld`) or a station's
+  `"orbit": { "pirateHeld": true | false }` (wins) = `ModWorld.PirateHeld`; `Data.PirateHold.Held` (not the Kaamo Club, not
+  for `PirateHold.FreedSeconds` 1800 of play after a win, not saved) makes `SpaceLevel` run `KaamoSiege.SetupHeld` instead
+  of the traffic: the Kaamo siege's outposts and pirates, docking / gate / Khador refused, radio 435 at 5 s and 439 on the
+  win (no Kaamo call, state or mission count); multiplayer as the Kaamo siege (one runner, `NetState.SiegeWonRpc` accepts a
+  marked station, its own news). Builder: Systems "Held by pirates", a station's orbit "Held by pirates" (as the system /
+  yes / no). Tests `ModWorldTests.StationPadsAndPirateHeldStations`.
   **Orbit layouts and map places** (remake, 2026-10-23, the user's request): stations.json `"orbit"` (`ModWorld.OrbitSpec`,
   `OrbitOf`; parsed with the rest, ores resolved in Apply) is applied by `OrbitLayout.ApplyMod` after the seeded layout:
-  station (`hasStation` / `stationObject`: dock, `"nodock"`, none), the visible jumpgate (a forced one at the spot
+  station (`hasStation` / `stationObject`: dock, `"nodock"`, none), docking pads outside (remake 2026-11-02, a modder's
+  suggestion: `"pads"` like npcships.json's, `OrbitSpec.pads` as `SpacePoints` sets from `SpacePoints.StationPadBase`
+  200000 + the station, `ModWorld.StationPads`; `SpaceLevel.SpawnStationPads` puts one model-less fixed `NpcShip` on the
+  station, "station_pads", `ObjectDocking.StationPad` 5, `SpawnSpec.stationPort`: nobody's enemy, `Target.untargetable`,
+  `LocalOnly` so every game builds its own; refused while the docking is restricted or pirates hold the station
+  (`ObjectDocking.Refusal`); docked: `SpaceHooks.PadDocked`, the events' "on pad"), pirates holding it (`"pirateHeld"`,
+  below), the visible jumpgate (a forced one at the spot
   `BuildGates` would roll for a gate orbit) and its position, `arrival` (`OrbitLayout.arrival`, first in
   `SpaceLevel.ArrivalPosition`), the asteroid field (`asteroidCount` 0 = none, also no autopilot entry; centre;
   `asteroidSpread` for `SpawnAsteroids`' cubes; type; `modOres` with weights: `OrbitBuilder.PickWeighted`, not the original's

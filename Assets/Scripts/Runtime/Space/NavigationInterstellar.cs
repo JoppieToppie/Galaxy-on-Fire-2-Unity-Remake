@@ -81,7 +81,7 @@ namespace GoF2Remake.Flight
 
         void RequestInterstellar()
         {
-            if ((JumpsBlocked != null && JumpsBlocked()) || Story.ForcedKhadorTarget(Session.StationIndex) != null) { Say(JumpRefusal); return; }
+            if ((JumpsBlocked != null && JumpsBlocked()) || (KhadorBlocked != null && KhadorBlocked()) || Story.ForcedKhadorTarget(Session.StationIndex) != null) { Say(JumpRefusal); return; }
             if (GalaxyMap.HasVolatileGoods) { Say(Localization.Get(612)); return; }
             InterstellarRequested?.Invoke();
         }

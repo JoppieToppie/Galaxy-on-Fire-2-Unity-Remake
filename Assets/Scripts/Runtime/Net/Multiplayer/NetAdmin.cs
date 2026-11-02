@@ -6,6 +6,9 @@
 //   /heal [players]                         hull, shield, armor and the gamma pool full
 //   /give [players] <item> [amount] [mount] items into the hold (an item index or name; 1..1000, default 1); "mount" docked:
 //                                           mounted like the hangar does (Cheats.GiveAndMount)
+//   /take [players] <item> [amount | all] [mounted]   remake: items out of the hold (a mission's hand-in; default all of
+//                                           them); "mounted": the mounted ones too, like the story takes the jump drive
+//                                           (Cheats.TakeItem)
 //   /credits [players] <amount>             credits added (negative: taken, never below 0)
 //   /standing [players] <race> <amount> [set]   the standing toward a game race or a mod's race moved by the
 //                                           amount (or set to it); NetAdminStanding.cs
@@ -26,6 +29,11 @@
 //                                           "turrets 48,182" (remake, generic turrets): turret items (numbers or mod:id) on
 //                                           the ships' turret mounts, aimed and fired by the NPC turrets' rules
 //                                           (World.NpcMountedTurrets; none = the type's, a mod's "npcTurrets");
+//                                           "hull 2.5" / "guns 1.5" (remake, a modder's suggestion): the ships' hull and gun
+//                                           damage scaled (DebugSpawner.Scale; 0.1..50);
+//   /spawn [players] type <key> [named <name>] [at x y z]   remake: an NPC ship type (npcships.json: battleship, carrier,
+//                                           vossk_battleship, freighter, pirate_boss or a mod's "mod:id") with its own
+//                                           hull, guns, escorts and turrets (DebugSpawner.SpawnNpcType)
 //                                           "wreck" [terran | vossk | nivelian | midorian] (remake): a hackable freighter
 //                                           wreck (TrafficPlan.HackableWreck, the race's own; any race at random), 1.5 km
 //                                           ahead or at x y z; hacking it fires the events' "on hacked" (once; it is only
@@ -72,7 +80,7 @@ namespace GoF2Remake.Multiplayer
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static partial class NetAdmin
     {
-        public enum Order : byte { Kill = 1, Heal = 2, Give = 3, Credits = 4, Spawn = 5, Ship = 6, Ammo = 7, Reveal = 8, Peace = 9, Cheat = 10, Object = 11, Title = 12, Timer = 13, Dialog = 14, Reward = 15, Scoreboard = 16, Sound = 17, Music = 18, Respawn = 19, Rules = 20, Ask = 21, Provoke = 22, Radio = 23, Waypoint = 24, Cutscene = 25, Camera = 26, Fade = 27, Letterbox = 28, Npc = 29, Flight = 30, Wreck = 31, System = 32, Wormhole = 33, Standing = 34 }
+        public enum Order : byte { Kill = 1, Heal = 2, Give = 3, Credits = 4, Spawn = 5, Ship = 6, Ammo = 7, Reveal = 8, Peace = 9, Cheat = 10, Object = 11, Title = 12, Timer = 13, Dialog = 14, Reward = 15, Scoreboard = 16, Sound = 17, Music = 18, Respawn = 19, Rules = 20, Ask = 21, Provoke = 22, Radio = 23, Waypoint = 24, Cutscene = 25, Camera = 26, Fade = 27, Letterbox = 28, Npc = 29, Flight = 30, Wreck = 31, System = 32, Wormhole = 33, Standing = 34, Take = 35, NpcType = 36 }
 
         const int MaxGive = 1000, MaxSpawn = 10, MaxCredits = 999999999;
         /// <summary>A /spawn name's length, and its separator in the order's text (taken out of names).</summary>
@@ -80,6 +88,9 @@ namespace GoF2Remake.Multiplayer
         const char NameSeparator = '|';
         /// <summary>/spawn's turret items in the order's text: "at" + TurretSeparator + "48,182" + the name.</summary>
         const char TurretSeparator = '~';
+        /// <summary>/spawn's hull and gun factors in the order's text: "at" + FactorSeparator + "2,1.5" + the turrets + the name.</summary>
+        const char FactorSeparator = '^';
+        const float MaxSpawnFactor = 50f;
         const int MaxSpawnTurrets = 4;
 
         static string X(string key, string english) => Localization.Extra(key, english);
@@ -144,6 +155,15 @@ namespace GoF2Remake.Multiplayer
                         NetChat.Notice(string.Format(X("mpAdmGaveYou", "{0} gave you {1} x {2}."), by, b, UI.ItemInfo.ItemName(a)));
                     }
                     break;
+                case Order.Take:
+                {
+                    // a: the item, b: the amount (0 = all), c: 1 = the mounted ones too. Silent when nothing was aboard.
+                    if (!NetGuard.Item(a)) return;
+                    int taken = Cheats.TakeItem(a, Mathf.Min(b, MaxGive * 100), c == 1, out bool unmounted);
+                    if (unmounted && level != null && level.Player != null) level.SwapPlayerShip(Session.ShipIndex);   // the loadout, guns and pools again
+                    if (taken > 0) NetChat.Notice(string.Format(X("mpAdmTookYou", "{0} took {1} x {2}."), by, taken, UI.ItemInfo.ItemName(a)));
+                    break;
+                }
                 case Order.Credits:
                     Session.Credits = (int)Mathf.Clamp((long)Session.Credits + a, 0L, MaxCredits);
                     NetChat.Notice(string.Format(a > 0 ? X("mpAdmCreditsYou", "{0} gave you {1} credits.") : X("mpAdmCreditsTakenYou", "{0} took {1} credits."),
@@ -154,8 +174,20 @@ namespace GoF2Remake.Multiplayer
                     if (level == null || NetGame.Db.Ship(a) == null || !CustomShips.Offered(a)) return;
                     string at = SplitName(text, out string shipName);
                     var turrets = SplitTurrets(ref at);
+                    var (hullFactor, gunFactor) = SplitFactors(ref at);
                     Notice(by, DebugSpawner.SpawnShip(level, b, a, (DebugSpawner.Behaviour)Mathf.Clamp(c & 0xff, 0, 3), Mathf.Clamp((c >> 8) & 0xf, 1, MaxSpawn),
-                        ParseAt(at), c >> 12, shipName, turrets));
+                        ParseAt(at), c >> 12, shipName, turrets, hullFactor, gunFactor));
+                    break;
+                }
+                case Order.NpcType:
+                {
+                    // text: the type's key + "@" + "x y z" (optional) + the name; a: the event batch.
+                    if (level == null) return;
+                    string spec = SplitName(text, out string typeName) ?? "";
+                    int sep = spec.IndexOf('@');
+                    var type = Modding.ModNpcShips.Get(sep < 0 ? spec : spec.Substring(0, sep));
+                    if (type == null) return;
+                    Notice(by, DebugSpawner.SpawnNpcType(level, type, sep < 0 ? null : ParseAt(spec.Substring(sep + 1)), typeName, a));
                     break;
                 }
                 case Order.Ship:

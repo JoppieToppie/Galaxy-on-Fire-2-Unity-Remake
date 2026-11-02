@@ -32,6 +32,9 @@ namespace GoF2Remake.Events
         Event,
         /// <summary>A star system: its number, its name or a mod's key "mod_id:id".</summary>
         System,
+        /// <summary>Remake: an NPC ship type of npcships.json (battleship, carrier, vossk_battleship, freighter, pirate_boss, a
+        /// mod's "mod_id:id").</summary>
+        NpcShip,
     }
 
     public sealed class QuestField
@@ -255,6 +258,9 @@ namespace GoF2Remake.Events
             return QuestReader.Join(new[] { "npc", r.Who, ship, verb }.Concat(rest).ToArray());
         }
 
+        /// <summary>/spawn's "hull 2" / "guns 1.5" from a field (empty or 1: nothing).</summary>
+        static string Factor(QuestReader r, string key) => r.Has(key) && r.Arg(key) is var a && a.Length > 0 && a != "1" ? key + " " + a : "";
+
         static string Opt(QuestReader r, string word, string key) => r.Has(key) && r.Arg(key).Length > 0 ? word + " " + r.Arg(key) : "";
 
         public static readonly List<QuestStepType> Types = new List<QuestStepType>
@@ -295,11 +301,11 @@ namespace GoF2Remake.Events
                 new[] { new QuestBlock("steps", "Do") }, F("seconds", QuestFieldKind.Float, "Every (seconds)", 10, min: 0.25f)),
             Block("on", "When something happens", "Steps each time the player is destroyed, docks, kills a ship, gets near a point...",
                 new[] { new QuestBlock("steps", "Do") },
-                C("trigger", "When", new[] { "died", "docked", "launched", "kill", "cleared", "entered", "near", "respawned", "hacked", "joined", "left", "pvpkill" },
+                C("trigger", "When", new[] { "died", "docked", "launched", "kill", "cleared", "entered", "near", "respawned", "hacked", "pad", "joined", "left", "pvpkill" },
                     new[] { "The player is destroyed", "The player docks", "The player launches", "A spawned ship is destroyed", "Every spawned enemy is gone",
                             "The player enters an orbit", "The player gets near a point", "The player respawns", "The player hacks a wreck",
-                            "A player joins", "A player leaves", "A player destroys another" }),
-                When(F("station", QuestFieldKind.Station, "Only at (optional)", optional: true), "trigger", "docked", "launched", "entered", "died", "kill", "respawned", "hacked"),
+                            "The player docks at a station's pad outside", "A player joins", "A player leaves", "A player destroys another" }),
+                When(F("station", QuestFieldKind.Station, "Only at (optional)", optional: true), "trigger", "docked", "launched", "entered", "died", "kill", "respawned", "hacked", "pad"),
                 When(F("station", QuestFieldKind.Station, "In the orbit of"), "trigger", "near"),
                 When(F("at", QuestFieldKind.Xyz, "The point (x y z)", "0 0 20000"), "trigger", "near"),
                 When(F("radius", QuestFieldKind.Float, "Within (metres)", 500, min: 1f), "trigger", "near")),
@@ -364,8 +370,9 @@ namespace GoF2Remake.Events
                 if (s.Length == 0) { r.Problem("pick the station."); return null; }
                 return "questorbit " + s + (r.step["on"] is JValue v && v.Type == JTokenType.Boolean && !(bool)v ? " off" : "");
             }, F("station", QuestFieldKind.Station, "Station"), F("on", QuestFieldKind.Bool, "Quiet (off: the traffic comes back)", true)),
-            Plain("restrict", "places", "Restrict travel", "No jumps, no docking, or both", r => QuestReader.Join("restrict", r.Who, r.S("what")),
-               Who(), C("what", "Refuse", new[] { "jumps", "docking", "all", "off" }, new[] { "Jumps", "Docking", "Both", "Nothing (lift it)" })),
+            Plain("restrict", "places", "Restrict travel", "No jumps, no docking, both, or only no Khador Drive", r => QuestReader.Join("restrict", r.Who, r.S("what")),
+               Who(), C("what", "Refuse", new[] { "jumps", "docking", "all", "khador", "off" },
+                        new[] { "Jumps", "Docking", "Both", "The Khador Drive only", "Nothing (lift it)" })),
             Plain("respawn", "places", "Respawn point", "Where a destroyed ship comes back, in space", r =>
             {
                 string st = r.Ref("station");
@@ -389,13 +396,25 @@ namespace GoF2Remake.Events
                 if (ship.Length == 0) { r.Problem("pick the ship."); return null; }
                 string name = r.S("name"), at = r.Xyz("at"), turrets = r.S("turrets").Replace(" ", "");
                 return QuestReader.Join("spawn", r.Who, ship, r.S("race"), r.Has("count") ? r.Arg("count") : "", r.Has("behaviour") ? r.S("behaviour") : "", turrets.Length > 0 ? "turrets " + turrets : "",
-                                        name.Length > 0 ? "named " + name : "", at.Length > 0 ? "at " + at : "");
+                                        Factor(r, "hull"), Factor(r, "guns"), name.Length > 0 ? "named " + name : "", at.Length > 0 ? "at " + at : "");
             }, Who(), F("ship", QuestFieldKind.Ship, "Ship"), F("count", QuestFieldKind.Int, "How many (empty: 1)", optional: true, min: 1, max: 10),
                new QuestField { key = "race", kind = QuestFieldKind.Race, english = "Flown by", values = Races, labels = RaceLabels, def = "", optional = true },
                C("behaviour", "Toward the player", new[] { "enemy", "neutral", "friendly", "standing" }, new[] { "Enemy", "Neutral", "Friendly", "By the standing" }),
                F("name", QuestFieldKind.Text, "Their name (on the lock plate; the orders use it)", optional: true),
                F("at", QuestFieldKind.Xyz, "At (x y z in the orbit; empty: ahead of the player)", optional: true),
-               F("turrets", QuestFieldKind.Text, "Turret items (numbers, a comma between)", optional: true)),
+               F("turrets", QuestFieldKind.Text, "Turret items (numbers, a comma between)", optional: true),
+               F("hull", QuestFieldKind.Float, "Hull x (empty: as usual; 2 = twice as tough)", optional: true, min: 0.1f, max: 50f),
+               F("guns", QuestFieldKind.Float, "Gun damage x (empty: as usual)", optional: true, min: 0.1f, max: 50f)),
+            // Remake (a modder's suggestion): an NPC ship type of the NPC ships kind, the pirate boss among the game's.
+            Plain("spawntype", "ships", "Spawn an NPC ship type", "A capital ship, freighter or boss of the NPC ships kind (the pirate boss too), with its own hull, guns and escorts", r =>
+            {
+                string type = r.Ref("npc");
+                if (type.Length == 0) { r.Problem("pick the NPC ship type."); return null; }
+                string name = r.S("name"), at = r.Xyz("at");
+                return QuestReader.Join("spawn", r.Who, "type", type, name.Length > 0 ? "named " + name : "", at.Length > 0 ? "at " + at : "");
+            }, Who(), F("npc", QuestFieldKind.NpcShip, "NPC ship type", "pirate_boss"),
+               F("name", QuestFieldKind.Text, "Its name (on the lock plate; the orders use it)", optional: true),
+               F("at", QuestFieldKind.Xyz, "At (x y z in the orbit; empty: 3.5 km ahead of the player)", optional: true)),
             Plain("wreck", "ships", "Hackable wreck", "A damaged freighter the player can dock at and hack (\"When something happens\": the player hacks a wreck)", r =>
             {
                 string name = r.S("name"), at = r.Xyz("at");
@@ -450,7 +469,15 @@ namespace GoF2Remake.Events
                 return QuestReader.Join("give", r.Who, item, r.Arg("amount"), r.B("mount") ? "mount" : "");
             }, Who(), F("item", QuestFieldKind.Item, "Item", 22), F("amount", QuestFieldKind.Int, "Amount", 1, min: 1, max: 1000),
                F("mount", QuestFieldKind.Bool, "Mount it (when docked)", false)),
-            Custom("cargo", "player", "Bring cargo", "Waits until the hold has it"),
+            // Remake (a modder's suggestion): /take, a hand-in; "mounted" takes the mounted ones too (a Khador Drive).
+            Plain("take", "player", "Take an item", "Out of the hold (a hand-in), or off the ship too", r =>
+            {
+                string item = r.Ref("item");
+                if (item.Length == 0) { r.Problem("pick the item."); return null; }
+                return QuestReader.Join("take", r.Who, item, r.Has("amount") ? r.Arg("amount") : "all", r.B("mounted") ? "mounted" : "");
+            }, Who(), F("item", QuestFieldKind.Item, "Item", 22), F("amount", QuestFieldKind.Int, "Amount (empty: all of them)", optional: true, min: 1, max: 100000),
+               F("mounted", QuestFieldKind.Bool, "Mounted ones too (a Khador Drive, a gun...)", false)),
+            Custom("cargo", "player", "Bring cargo", "Waits until the hold has it; handed in, it is taken"),
             Plain("credits", "player", "Credits", "Adds (or takes, below 0) credits without a box", r => QuestReader.Join("credits", r.Who, r.Arg("amount")),
                Who(), F("amount", QuestFieldKind.Int, "Credits", 1000, min: -999999999, max: 999999999)),
             Plain("ship", "player", "Change ship", "The player flies another hull (or their own again)", r =>

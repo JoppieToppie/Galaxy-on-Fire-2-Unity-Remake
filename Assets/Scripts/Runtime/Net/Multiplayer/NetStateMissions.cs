@@ -38,6 +38,15 @@ namespace GoF2Remake.Multiplayer
             if (pilot != null) GoF2Remake.Events.EventRunner.OnWreckHacked(pilot, station, name);
         }
         [Rpc(SendTo.Server)]
+        public void PadDockedRpc(int station, RpcParams rpc = default)
+        {
+            // A player's game docked at a station's pad outside: the events' "on pad" (checked: the sender is in that orbit).
+            ulong client = rpc.Receive.SenderClientId;
+            if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Kill) || !NetGuard.InOrbit(client, station)) return;
+            var pilot = GoF2Remake.Events.EventHost.Find(client);
+            if (pilot != null) GoF2Remake.Events.EventRunner.OnPadDocked(pilot, station);
+        }
+        [Rpc(SendTo.Server)]
         public void PirateSightingDoneRpc(int id, ulong killer, RpcParams rpc = default)
         {
             ulong client = rpc.Receive.SenderClientId;

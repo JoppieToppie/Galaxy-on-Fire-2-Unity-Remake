@@ -302,6 +302,7 @@ namespace GoF2Remake.UI
                 {
                     case QuestFieldKind.Station: s = RefLabel(RefKind.Station, s, s); break;
                     case QuestFieldKind.System: s = RefLabel(RefKind.System, s, s); break;
+                    case QuestFieldKind.NpcShip: s = RefLabel(RefKind.NpcShip, s, s); break;
                     case QuestFieldKind.Ship: s = RefLabel(RefKind.Ship, s, s); break;
                     case QuestFieldKind.Item: s = RefLabel(RefKind.Item, s, s); break;
                     case QuestFieldKind.Bool: s = (bool)v ? T("mb_" + f.key, f.english) : ""; break;

@@ -406,7 +406,10 @@ namespace GoF2Remake.Events
                     case "EventRestrictTravelNode":
                     {
                         bool jumps = Bool(n, "NoJumps"), docking = Bool(n, "NoDocking");
-                        Line(Join("restrict", Text(n, "Players"), jumps ? "jumps" : "", docking ? "docking" : "", !jumps && !docking ? "off" : ""));
+                        // Remake: No Khador Drive (older graphs have no such option: off); "jumps" covers it already.
+                        string k = Get(n, "NoKhador", false).Trim();
+                        bool khador = !jumps && (k == "1" || k.Equals("true", StringComparison.OrdinalIgnoreCase));
+                        Line(Join("restrict", Text(n, "Players"), jumps ? "jumps" : "", docking ? "docking" : "", khador ? "khador" : "", !jumps && !docking && !khador ? "off" : ""));
                         break;
                     }
                     case "EventScoreNode":
@@ -462,8 +465,21 @@ namespace GoF2Remake.Events
                         else if (scenery)   // an object: /spawn takes its whole name (no race, count or behaviour)
                             Line(Join("spawn", Text(n, "Players"), ship, named, at.Length > 0 ? "at " + at : ""));
                         else
+                        {
+                            // Remake: Hull / Guns (older graphs have neither: as usual).
+                            string Factor(string port) => IsWired(n, port) ? port.ToLowerInvariant() + " " + Arg(n, port)
+                                : n.values.ContainsKey(port) && Num(n, port) > 0 && Math.Abs(Num(n, port) - 1) > 1e-4 ? port.ToLowerInvariant() + " " + Arg(n, port) : "";
                             Line(Join("spawn", Text(n, "Players"), ship, race == EventRace.Maker ? "" : race.ToString().ToLowerInvariant(), count,
-                                ((EventBehaviour)Int(n, "Behaviour")).ToString().ToLowerInvariant(), named, at.Length > 0 ? "at " + at : ""));
+                                ((EventBehaviour)Int(n, "Behaviour")).ToString().ToLowerInvariant(), Factor("Hull"), Factor("Guns"), named, at.Length > 0 ? "at " + at : ""));
+                        }
+                        break;
+                    }
+                    case "EventSpawnTypeNode":   // remake: /spawn type
+                    {
+                        string type = Text(n, "Type");
+                        if (type.Length == 0 || type.Contains(" ")) Error(n, "Name the NPC ship type (one word: pirate_boss, mod_id:id...).");
+                        string name = Text(n, "Name"), at = Text(n, "At");
+                        Line(Join("spawn", Text(n, "Players"), "type", type, name.Length > 0 ? "named " + name : "", at.Length > 0 ? "at " + at : ""));
                         break;
                     }
                     case "EventRewardNode":
@@ -492,6 +508,13 @@ namespace GoF2Remake.Events
                         CheckName(n, Text(n, "Item"), EventNames.CheckItem);
                         Line(Join("give", Text(n, "Players"), Text(n, "Item"), Arg(n, "Amount"), Bool(n, "Mount") ? "mount" : ""));
                         break;
+                    case "EventTakeNode":   // remake: /take, a hand-in
+                    {
+                        CheckName(n, Text(n, "Item"), EventNames.CheckItem);
+                        string amount = IsWired(n, "Amount") || Num(n, "Amount") >= 1 ? Arg(n, "Amount") : "all";
+                        Line(Join("take", Text(n, "Players"), Text(n, "Item"), amount, Bool(n, "Mounted") ? "mounted" : ""));
+                        break;
+                    }
                     case "EventCreditsNode":
                         Line(Join("credits", Text(n, "Players"), Arg(n, "Amount")));
                         break;

@@ -84,12 +84,14 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   order and sends it to each target's own game, `NetState.AdminRpc`, server-only; in the chat the players may be left out
   = yourself): `/kill [players]` (in space, through god mode, "X was destroyed by Y" for everyone), `/heal [players]`
   (`Cheats.Repair`), `/give [players] <item> [amount] [mount]` (an item's number or name, 1..1000; "mount" docked:
-  `Cheats.GiveAndMount`), `/credits [players] <amount>` (negative takes, never below 0), `/standing [players] <race> <amount> [set]`
+  `Cheats.GiveAndMount`), `/take [players] <item> [amount | all] [mounted]` (remake, 2026-11-02: a hand-in, see
+  event-graphs.md "Hand-ins"), `/credits [players] <amount>` (negative takes, never below 0), `/standing [players] <race> <amount> [set]`
   (remake, 2026-10-28, `NetAdminStanding`: the standing toward a game race 0-3 (its axis, `Standing.Move`) or a mod's
   race (`ModRaces.SetStanding`; it travels by key in the order's text: numbers can differ between games) moved by the
   amount or set to it, -100..100, no Extreme doubling; pirates, the Void, Specters and a hostile mod race refused; the
   event graphs' Standing node and the quests' Standing step write it), `/spawn [players] <ship | object>
-  [race] [count] [enemy | friendly | neutral | standing] [turrets <item,item>] [at x y z]` (`DebugSpawner`: a ship's number or name as that game's
+  [race] [count] [enemy | friendly | neutral | standing] [turrets <item,item>] [hull <x>] [guns <x>] [at x y z]` or `/spawn type <npc type>`
+  (remake 2026-11-02: hull / guns factors and NPC ship types, see event-graphs.md "Stronger spawns") (`DebugSpawner`: a ship's number or name as that game's
   traffic, the race (a mod's race too, `Standing.RaceWord`) by default its maker's else pirates, 1..10 side by side, enemy by default; "turrets": turret items on the
   ships' turret mounts, `NpcMountedTurrets`, carried in the order's text after '~'; neutral = the remake's
   `SpawnSpec.alwaysNeutral` / `NpcShip.alwaysNeutral`, neither side whatever the standings until turned or shot, also toward

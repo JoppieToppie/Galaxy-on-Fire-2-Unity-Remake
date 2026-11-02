@@ -62,8 +62,22 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   [x y z] [spread <units>] [delay <s>] | off>`; Set / Clear Respawn Point): a destroyed ship comes back in space, repaired,
   after the delay (`EventRespawn`, `PlayerHealth` after the explosion, `NetTeleport.Respawn`; default 3 km in front of the
   station, `NetTeleport.RespawnSpot`: the launch spot is inside the bigger stations) instead of "Tap to respawn at the
-  station". **Travel restrictions** (`/restrict [players] <jumps | docking | all | off>`; Restrict Travel): `EventRules`,
-  in `Navigation.JumpsBlocked` (planet jumps, Khador Drive), `SystemJump.GateBlocked` and `SpaceLevel.DockingBlocked` (525).
+  station". **Travel restrictions** (`/restrict [players] <jumps | docking | all | khador | off>`; Restrict Travel): `EventRules`,
+  in `Navigation.JumpsBlocked` (planet jumps, Khador Drive), `SystemJump.GateBlocked` and `SpaceLevel.DockingBlocked` (525);
+  remake (2026-11-02, a modder's suggestion: the Valkyrie's last mission) "khador" (`EventRules.Khador`, the node's No Khador
+  Drive, the step's "The Khador Drive only") refuses the Khador Drive and the slipstream alone (`Navigation.KhadorBlocked`,
+  `SpaceHooks.NoKhador`), the gates and planet jumps open; "docking" also refuses a station's pads outside.
+  **Hand-ins** (same day): `/take [players] <item> [amount | all] [mounted]` (`NetAdmin.Order.Take` 35, `Cheats.TakeItem`: out
+  of the hold, all by default; "mounted" the mounted ones too, a secondary by its ammo, never a built-in item; the story's
+  unsaleable flag goes with the last one, as at step 78; a changed mount in space rebuilds the loadout, `SwapPlayerShip`);
+  the step Take an item, Bring cargo's "Hand it in" (`take @a <item> <amount>` after its wait), the node Take Item.
+  **Stronger spawns and NPC types** (same day): `/spawn ... hull <x> guns <x>` (0.1..50, `DebugSpawner.Scale`: the hull
+  points, a fighter's gun damage through its race's gun, `SetGun`; in the order's text after '^') and `/spawn [players] type
+  <key> [named <name>] [at x y z]` (`NetAdmin.Order.NpcType` 36, `DebugSpawner.SpawnNpcType`: an npcships.json type, the
+  game's five keys too, so `pirate_boss` is the pirate boss by rank; its escorts carry the event batch); the steps' hull /
+  guns and Spawn an NPC ship type (`spawntype`, `QuestFieldKind.NpcShip`, picker `RefKind.NpcShip`), the nodes' Hull / Guns
+  ports and Spawn NPC Type. **"on pad"** (same day): docked at a station's pad outside (`SpaceHooks.PadDocked`, in a
+  session `NetState.PadDockedRpc`, `EventTrigger.PlayerDocksAtPad`), the station as its orbit.
   **Make Hostile** (`/provoke [players] [race] [within <m>]`): the NPC ships around each player (NetProxy positions on the
   server) turn on that player and their squad: the ship's own game adds them to `NpcShip.aggressors` (neutral spawns too;
   `NetOrbit.HostileToLocalBySquad` counts the local player's own id). **Radio** (`/radio [players] <speaker> : <text>`):

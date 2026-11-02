@@ -51,6 +51,12 @@ namespace GoF2Remake.Modding
         /// <summary>"raiders": the game and mod races that raid it (empty = the game's pick).</summary>
         public List<string> Raiders { get => RaceList("raiders"); set => SetRaceList("raiders", value); }
         /// <summary>"traffic": "mod": only the mods' ships fly here. Off leaves another value ("all") as it is.</summary>
+        /// <summary>"pirateHeld": pirates hold every station of the system (Data.PirateHold).</summary>
+        public bool PirateHeld
+        {
+            get => json["pirateHeld"]?.Type == Newtonsoft.Json.Linq.JTokenType.Boolean && (bool)json["pirateHeld"];
+            set { if (value) json["pirateHeld"] = true; else json.Remove("pirateHeld"); }
+        }
         public bool ModTraffic
         {
             get => S("traffic") == "mod";

@@ -73,6 +73,7 @@ namespace GoF2Remake.Flight
         // Supernova story objects (PlayerFixedObject::setDockingType, KIPlayer::setSpacePoints, KIPlayer+0x70):
         public int dockingType;        // 0 none, 1 drop-off, 2 pick-up, 3 hackable (ObjectDocking)
         public int spacePoints = -1;   // the SpacePoints set (docks_hd.json)
+        public bool stationPort;       // remake mods: a station's docking pads (SpaceLevel.SpawnStationPads): no model, nobody's target
         public bool radarHidden;       // KIPlayer+0x70: no marker, no lock
         // The Most Wanted criminal (KIPlayer+0x3e / +0x44) and its escort (wingmen_wanted.md 2.6).
         public int wantedIndex = -1;

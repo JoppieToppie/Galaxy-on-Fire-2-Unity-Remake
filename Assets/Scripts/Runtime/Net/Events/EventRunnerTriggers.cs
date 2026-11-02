@@ -194,6 +194,12 @@ namespace GoF2Remake.Events
                 Fire("hacked", pilot.OwnerClientId, pilot.DisplayName, station, wreck ?? "");
             }
 
+            internal void OnPadDocked(IPilot pilot, int station)
+            {
+                if (ended || pilot == null || !InScope(pilot)) return;
+                Fire("pad", pilot.OwnerClientId, pilot.DisplayName, station);
+            }
+
             /// <summary>A trigger happened: each handler listening for it (in that station, if limited) starts its block.</summary>
             void Fire(string trigger, ulong player, string name, int station, string other = "")
             {

@@ -432,5 +432,41 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(m.volumes[1].sphere);
             Assert.AreEqual(10f, m.volumes[1].radius);
         }
+
+        // Remake (a modder's suggestions): a station's docking pads outside ("orbit.pads", SpacePoints.StationPadBase) and
+        // stations held by pirates (systems.json "pirateHeld", a station's "orbit.pirateHeld" wins; Data.PirateHold).
+        [Test]
+        public void StationPadsAndPirateHeldStations()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("systems.json", "[ { 'override': 15, 'pirateHeld': true } ]"), ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'pirateHeld': false, 'pads': [ { 'position': [100, 4000, -200] }, " +
+                "{ 'position': [0, 0, 9000], 'approach': [0, 0, 12000], 'facing': [0, 0, -2] } ] } } ]"));
+            ScanAndEnable("t_world");
+            var db = Database.Load();
+            var pads = ModWorld.StationPads(78);
+            Assert.AreEqual(4, pads.Count, "an approach and a dock point per pad");
+            Assert.AreEqual(SpacePoints.Approach, pads[0].type);
+            Assert.AreEqual(new Vector3(100, 6000, -200), pads[0].engine, "2000 units above the pad by default");
+            Assert.AreEqual(new Vector3(100, 4000, -200), pads[1].engine);
+            Assert.AreEqual(Vector3.forward, pads[1].dir);
+            Assert.AreEqual(new Vector3(0, 0, 12000), pads[2].engine);
+            Assert.AreEqual(Vector3.back, pads[3].dir, "facing normalized");
+            Assert.AreEqual(4, SpacePoints.Set(SpacePoints.StationPadBase + 78).Count);
+            Assert.IsEmpty(ModWorld.StationPads(79));
+            Assert.IsEmpty(SpacePoints.Set(SpacePoints.StationPadBase + 79));
+
+            int other = db.Stations.First(s => s.system == 15 && s.index != 78).index;
+            Assert.IsFalse(PirateHold.Marked(78, 15), "the station's own answer wins");
+            Assert.IsTrue(PirateHold.Marked(other, 15), "the system's");
+            Assert.IsFalse(PirateHold.Marked(70, db.Stations.Find(s => s.index == 70).system), "another system");
+            Assert.IsFalse(PirateHold.Marked(KaamoClub.Station, 15), "never the Kaamo Club (its own siege)");
+            Assert.IsTrue(PirateHold.Held(other, 15));
+            PirateHold.Freed(other);
+            Assert.IsFalse(PirateHold.Held(other, 15), "driven out for a while");
+            Assert.IsTrue(PirateHold.Marked(other, 15));
+        }
+
+        [Test] public void PadsAreAList() => StringAssert.Contains("\"pads\" must be a list", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'pads': 3 } } ]"));
+        [Test] public void APadNeedsAPosition() => StringAssert.Contains("a pad needs \"position\"", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'pads': [ { 'facing': [0, 0, 1] } ] } } ]"));
     }
 }

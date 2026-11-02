@@ -22,9 +22,10 @@ namespace GoF2Remake.World
         /// <summary>Ship 'ship' of 'race' 400 m ahead of the player (hostile / by the standings / friendly / neutral), or at
         /// 'at' (a Unity position in this orbit, multiplayer's /spawn ... at x y z); 'count' of them side by side, 60 m apart;
         /// 'name' (/spawn ... named): the lock plate's name (KIPlayer+0x18 as a literal, SpawnSpec.name), numbered for
-        /// several; the result text.</summary>
+        /// several; 'hullFactor' / 'gunFactor' (remake, /spawn ... hull / guns: a mission's tougher ships) scale its hull and
+        /// its gun's damage; the result text.</summary>
         public static string SpawnShip(SpaceLevel level, int race, int ship, Behaviour behaviour, int count = 1, Vector3? at = null, int eventTag = 0,
-                                       string name = null, System.Collections.Generic.IList<int> turrets = null)
+                                       string name = null, System.Collections.Generic.IList<int> turrets = null, float hullFactor = 1f, float gunFactor = 1f)
         {
             if (level == null || level.Traffic == null || level.Player == null) return Localization.Extra("debugNoFlight", "Only in flight.");
             var p = level.Player.transform;
@@ -65,6 +66,7 @@ namespace GoF2Remake.World
                     if (!string.IsNullOrEmpty(name)) spec.name = count > 1 ? $"{name} {i + 1}" : name;
                     if (turrets != null) spec.turretItems = new System.Collections.Generic.List<int>(turrets);
                 }
+                Scale(spec, hullFactor, gunFactor);
                 if (level.Traffic.SpawnShip(spec) != null) made++;
             }
             level.Traffic.ConnectPlayers();   // the new ships and the others see each other (targets, hit lists)
@@ -73,6 +75,22 @@ namespace GoF2Remake.World
             return made == 0 ? string.Format(Localization.Extra("debugSpawnFailed", "{0} couldn't be spawned."), shown)
                  : made == 1 ? string.Format(Localization.Extra("debugShipSpawned", "{0} spawned."), shown)
                  : string.Format(Localization.Extra("debugShipsSpawned", "{0} x {1} spawned."), made, shown);
+        }
+
+        /// <summary>A spawn's hull x 'hullFactor' (its own hull points, else its type's: TrafficPlan.ApplyNpcType's rule) and gun
+        /// damage x 'gunFactor' (a fighter without a gun of its own gets its race's, which NpcShip.SetGun scales).</summary>
+        public static void Scale(SpawnSpec spec, float hullFactor, float gunFactor)
+        {
+            if (!Mathf.Approximately(hullFactor, 1f) && hullFactor > 0f)
+            {
+                int baseHull = spec.hitpoints > 0 && spec.hitpoints < 9999999 ? spec.hitpoints : NpcTables.Hull(spec.freighter ? 1 : 0, spec.ship);
+                spec.hitpoints = Mathf.Max(1, Mathf.RoundToInt(baseHull * hullFactor));
+            }
+            if (!Mathf.Approximately(gunFactor, 1f) && gunFactor > 0f && !spec.freighter)
+            {
+                spec.gunFactor *= gunFactor;
+                if (spec.gunItem < 0) spec.gunItem = NpcTables.GunItemFor(spec.race, false);
+            }
         }
 
         /// <summary>Remake (events, quests: "spawn ... wreck"): a hackable freighter wreck (TrafficPlan.HackableWreck; race 0-3,
@@ -108,9 +126,11 @@ namespace GoF2Remake.World
             return string.Format(Localization.Extra("debugShipSpawned", "{0} spawned."), CapitalName(kind));
         }
 
-        /// <summary>Remake mods: one of the mods' NPC ship types (npcships.json, Modding.ModNpcShips) with its turrets, escorts
-        /// and rules, about 3.5 km ahead of the player (a capital ship 2 hull lengths); the result text.</summary>
-        public static string SpawnNpcType(SpaceLevel level, Modding.NpcShipType type)
+        /// <summary>Remake mods: one of the NPC ship types (npcships.json, Modding.ModNpcShips: the game's five, the pirate boss
+        /// among them, and the mods' own) with its turrets, escorts and rules, about 3.5 km ahead of the player (a capital ship
+        /// 2 hull lengths) or at 'at' (a Unity position in this orbit: events and missions, "spawn type ..."); 'name' its lock
+        /// plate's name, 'eventTag' the event's batch (its escorts too); the result text.</summary>
+        public static string SpawnNpcType(SpaceLevel level, Modding.NpcShipType type, Vector3? at = null, string name = null, int eventTag = 0)
         {
             if (level == null || level.Traffic == null || level.Player == null) return Localization.Extra("debugNoFlight", "Only in flight.");
             if (type == null) return Localization.Extra("debugNoNpcTypes", "No mod NPC ships are on.");
@@ -118,10 +138,13 @@ namespace GoF2Remake.World
             float ahead = 3500f;
             if (type.ship >= 0 && type.kind != Modding.ModNpcShips.Boss) ahead = Mathf.Max(ahead, 2f * Modding.ModTraffic.HullLength(type.ship));
             var list = new System.Collections.Generic.List<SpawnSpec>();
-            TrafficPlan.AddNpcType(level.Database, list, type, type.race >= 0 ? type.race : 0, ToGame(p.position + p.forward * ahead));
-            foreach (var s in list) level.Traffic.SpawnShip(s);
+            // A type without a race of its own: pirates for a boss (the pirate boss's), else Terran.
+            int race = type.race >= 0 ? type.race : type.kind == Modding.ModNpcShips.Boss ? Standing.Pirate : 0;
+            int first = TrafficPlan.AddNpcType(level.Database, list, type, race, ToGame(at ?? p.position + p.forward * ahead));
+            if (!string.IsNullOrEmpty(name) && first < list.Count) { list[first].name = name; list[first].nameText = -1; }
+            foreach (var s in list) { if (eventTag != 0) s.eventTag = eventTag; level.Traffic.SpawnShip(s); }
             level.Traffic.ConnectPlayers();
-            return string.Format(Localization.Extra("debugShipSpawned", "{0} spawned."), type.name ?? type.key);
+            return string.Format(Localization.Extra("debugShipSpawned", "{0} spawned."), !string.IsNullOrEmpty(name) ? name : type.name ?? type.key);
         }
 
         public static string CapitalName(int kind) => kind == SpawnSpec.CapitalCarrier ? CapitalShips.CarrierName

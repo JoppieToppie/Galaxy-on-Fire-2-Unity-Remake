@@ -252,6 +252,9 @@ namespace GoF2Remake.Flight
 
         /// <summary>Set by the level: planet jumps and the Khador Drive are refused (story, campaign_flow.md 7).</summary>
         public Func<bool> JumpsBlocked;
+        /// <summary>Set by the level (remake): the Khador Drive and the slipstream alone are refused (an event's Restrict Travel
+        /// "khador"), the planet jumps and the gate still open.</summary>
+        public Func<bool> KhadorBlocked;
         /// <summary>Set by the level: the HUD text for a jump JumpsBlocked refuses, null = 525 "Not possible on a mission."
         /// (42 in the Void: the way out is the wormhole, Story.EscapesByWormhole).</summary>
         public Func<string> JumpRefusalText;
@@ -519,7 +522,7 @@ namespace GoF2Remake.Flight
             }
             if (target.kind == Kind.KhadorDrive)
             {
-                if (JumpsBlocked != null && JumpsBlocked() && Story.ForcedKhadorTarget(Session.StationIndex) == null) { Say(JumpRefusal); return; }
+                if (((JumpsBlocked != null && JumpsBlocked()) || (KhadorBlocked != null && KhadorBlocked())) && Story.ForcedKhadorTarget(Session.StationIndex) == null) { Say(JumpRefusal); return; }
                 if (GalaxyMap.HasVolatileGoods) { Say(Localization.Get(612)); return; }   // MGame::UseKhadorDrive: ChoiceWindow 612
                 KhadorRequested?.Invoke();
                 return;

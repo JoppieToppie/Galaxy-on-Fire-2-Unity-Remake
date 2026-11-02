@@ -348,5 +348,40 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(NetAdmin.TryParseWormhole("78 to 70 for", out _));
             Assert.IsFalse(NetAdmin.TryParseWormhole("999 to 70", out _), "no such station");
         }
+
+        // Remake (a modder's suggestions): /take hands items in (single player: applied at once); /restrict khador;
+        // /spawn's hull / guns factors.
+        [Test]
+        public void TakeAndKhadorOnly()
+        {
+            Shop.AddToCargo(22, 10);
+            NetAdmin.Take("@a 22 4", Me);
+            Assert.AreEqual(6, Shop.CargoOf(22));
+            NetAdmin.Take("@a 22 all", Me);
+            Assert.AreEqual(0, Shop.CargoOf(22));
+            StringAssert.StartsWith("/take", NetAdmin.Take("@a", Me), "no item: the usage");
+            Assert.AreEqual("", NetAdmin.Restrict("@a khador", Me));
+            Assert.AreEqual("", NetAdmin.Restrict("@a off", Me));
+        }
+
+        [Test]
+        public void SpawnFactors()
+        {
+            var take = typeof(NetAdmin).GetMethod("TakeFactor", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            object[] Run(string rest, string word) { var a = new object[] { rest, word, 0f }; a = new object[] { a[0], a[1], a[2] }; bool ok = (bool)take.Invoke(null, a); return new object[] { ok, a[0], a[2] }; }
+            var r = Run("Hiro 3 enemy hull 2.5 guns x1.5", "hull");
+            Assert.IsTrue((bool)r[0]);
+            Assert.AreEqual("Hiro 3 enemy guns x1.5", r[1]);
+            Assert.AreEqual(2.5f, (float)r[2]);
+            r = Run((string)r[1], "guns");
+            Assert.AreEqual("Hiro 3 enemy", r[1]);
+            Assert.AreEqual(1.5f, (float)r[2], "an x before the number is fine");
+            r = Run("Hiro", "hull");
+            Assert.IsTrue((bool)r[0]);
+            Assert.AreEqual(1f, (float)r[2], "none: as usual");
+            Assert.IsFalse((bool)Run("Hiro hull", "hull")[0], "no number");
+            Assert.IsFalse((bool)Run("Hiro hull -2", "hull")[0]);
+            Assert.AreEqual(50f, (float)Run("Hiro hull 900", "hull")[2], "at most x50");
+        }
     }
 }

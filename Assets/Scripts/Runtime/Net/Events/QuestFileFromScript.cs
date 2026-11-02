@@ -407,7 +407,19 @@ namespace GoF2Remake.Events
                     return st;
                 }
                 case "restrict":
-                    return w.Count == 1 && new[] { "jumps", "docking", "all", "off" }.Contains(w[0]) ? new JObject { ["type"] = "restrict", ["what"] = w[0] } : null;
+                    return w.Count == 1 && new[] { "jumps", "docking", "all", "khador", "off" }.Contains(w[0]) ? new JObject { ["type"] = "restrict", ["what"] = w[0] } : null;
+                case "take":
+                {
+                    // take <item> <amount | all> [mounted] (QuestSteps "take")
+                    int end = w.Count;
+                    bool mounted = end > 0 && w[end - 1] == "mounted";
+                    if (mounted) end--;
+                    if (end < 2 || !(w[end - 1] == "all" || IsNumberOrExpr(w[end - 1]))) return null;
+                    var st = new JObject { ["type"] = "take", ["item"] = RefToken(string.Join(" ", w.Take(end - 1))) };
+                    if (w[end - 1] != "all") st["amount"] = NumOrText(w[end - 1]);
+                    if (mounted) st["mounted"] = true;
+                    return st;
+                }
                 case "wormhole":
                 {
                     if (w.Count == 1 && (w[0] == "close" || w[0] == "off")) return St("wormhole");
@@ -478,6 +490,15 @@ namespace GoF2Remake.Events
                     if (at >= 1 && at == w.Count - 4 && w.Skip(at + 1).All(IsNumberOrExpr)) { st["at"] = string.Join(" ", w.Skip(at + 1)); end = at; }
                     int named = w.IndexOf("named");
                     if (named >= 1 && named < end) { st["name"] = string.Join(" ", w.Skip(named + 1).Take(end - named - 1)); end = named; }
+                    if (end == 2 && w[0] == "type")
+                    {
+                        // spawn type <key> [named ...] [at x y z] (QuestSteps "spawntype")
+                        st["type"] = "spawntype";
+                        st["npc"] = w[1];
+                        return st;
+                    }
+                    foreach (string f in new[] { "guns", "hull" })
+                        if (end >= 3 && w[end - 2] == f && IsNumberOrExpr(w[end - 1])) { st[f] = NumOrText(w[end - 1]); end -= 2; }
                     int tur = w.IndexOf("turrets");
                     if (tur >= 1 && tur == end - 2) { st["turrets"] = w[tur + 1]; end = tur; }
                     if (end >= 2 && BehaviourWords.Contains(w[end - 1])) { st["behaviour"] = w[end - 1]; end--; }

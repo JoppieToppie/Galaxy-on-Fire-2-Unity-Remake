@@ -27,7 +27,8 @@
 // game's planet for "planet"), "mapRing" (true: a ring round the map's planet, like the planet ring orbits'), "mapPlace"
 // ({ "angle": degrees, "distance": map units }: the planet's place in the star map's system view, else the seeded one), "orbit"
 // (the orbit level's layout over the seeded one, OrbitSpec: station shown / without docking / none, the visible jumpgate and
-// its position, where travel arrives, the asteroid field (none, count, centre, spread, kind, ores), fog, the sun's and the
+// its position, where travel arrives, docking pads outside the station ("pads": [{ "position", "approach", "facing" }] like
+// npcships.json's: docked at like the story's objects, SpaceLevel.SpawnStationPads), the asteroid field (none, count, centre, spread, kind, ores), fog, the sun's and the
 // orbit planet's direction and size); systems: "sunTexture" (a PNG), "sunColor" [r, g, b]
 // 0..1 (the sun's light; default from "sky").
 // stations.json: { "id", "system": "mod:id" | number, "name", "techLevel" (0-10), "planet" (its planet texture: 0-22 or
@@ -85,7 +86,7 @@ namespace GoF2Remake.Modding
 
         static readonly HashSet<string> SystemFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "id", "override", "name", "race", "security", "visible", "position", "sky", "gates", "gateStation", "spaceMusic", "stationMusic",
-              "sunTexture", "sunColor", "skybox", "available", "traffic", "locals", "raiders", "jumpgate" };
+              "sunTexture", "sunColor", "skybox", "available", "traffic", "locals", "raiders", "jumpgate", "pirateHeld" };
         static readonly HashSet<string> StationFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "id", "override", "name", "system", "techLevel", "planet", "looksLike", "music", "model", "modelSize", "modelYaw", "modelCentre",
               "materials", "collision", "volumes", "interior", "planetTexture", "mapTexture", "mapRing", "mapPlace", "orbit", "hangar", "bar", "mobile",
@@ -212,6 +213,11 @@ namespace GoF2Remake.Modding
             public int station = -1;
             public bool? jumpgate;
             public Vector3? jumpgatePosition, arrival;
+            /// <summary>Remake (a modder's suggestion, the Luur mission's arms): docking pads outside the station, approach and
+            /// dock points (SpacePoints, set SpacePoints.StationPadBase + the station), null = none.</summary>
+            public List<SpacePoints.Point> pads;
+            /// <summary>Remake: pirates hold the station (Data.PirateHold), null = as its system says ("pirateHeld").</summary>
+            public bool? pirateHeld;
             /// <summary>false: no asteroid field.</summary>
             public bool? asteroids;
             public int? asteroidCount;
@@ -244,7 +250,7 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, MapPlace> mapPlaces = new Dictionary<int, MapPlace>();
 
         static readonly HashSet<string> OrbitFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet" };
+            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld" };
         static readonly HashSet<string> AsteroidFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "count", "centre", "center", "spread", "type", "ores" };
         static readonly string[] AsteroidTypes = { "rock", "void", "ice", "magma" };
@@ -276,6 +282,8 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, string> stationSubtitle = new Dictionary<int, string>(), stationLore = new Dictionary<int, string>();
         static readonly HashSet<int> modTrafficSystems = new HashSet<int>();
         static readonly Dictionary<int, List<int>> systemLocals = new Dictionary<int, List<int>>(), systemRaiders = new Dictionary<int, List<int>>();
+        /// <summary>systems.json "pirateHeld": pirates hold every station of the system (Data.PirateHold).</summary>
+        static readonly HashSet<int> systemPirateHeld = new HashSet<int>();
 
         // ---- mobile stations (MobileStations) -----------------------------------------------------------------------
 

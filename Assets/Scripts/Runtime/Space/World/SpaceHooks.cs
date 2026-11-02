@@ -132,6 +132,9 @@ namespace GoF2Remake.World
         /// <summary>The player hacked a wreck in this orbit (station, the wreck's name): an event's or quest's "on hacked"
         /// (EventRunner.OnWreckHacked; in a session through NetState.WreckHackedRpc).</summary>
         public static Action<int, string> WreckHacked;
+        /// <summary>Remake mods: the player docked at a station's pad outside (station): an event's or quest's "on pad"
+        /// (EventRunner.OnPadDocked; in a session through NetState.PadDockedRpc).</summary>
+        public static Action<int> PadDocked;
         /// <summary>A line in the multiplayer chat as a notice (NetChat.Notice).</summary>
         public static Action<string> Notice;
 
@@ -199,6 +202,8 @@ namespace GoF2Remake.World
 
         /// <summary>An event's Restrict Travel.</summary>
         public static Func<bool> EventNoDocking, EventNoJumps;
+        /// <summary>An event's Restrict Travel "khador": the Khador Drive (and the slipstream) only.</summary>
+        public static Func<bool> EventNoKhador;
         /// <summary>An event's cutscene holds the camera / makes the player invulnerable.</summary>
         public static Func<bool> EventCinematic, EventInvulnerable;
         /// <summary>An event's question is on screen: the controls and keys rest.</summary>
@@ -238,6 +243,7 @@ namespace GoF2Remake.World
 
         public static bool NoDocking => EventNoDocking != null && EventNoDocking();
         public static bool NoJumps => EventNoJumps != null && EventNoJumps();
+        public static bool NoKhador => EventNoKhador != null && EventNoKhador();
         public static bool Cinematic => EventCinematic != null && EventCinematic();
         public static bool Invulnerable => EventInvulnerable != null && EventInvulnerable();
         public static bool QuestionOpen => EventQuestionOpen != null && EventQuestionOpen();

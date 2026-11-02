@@ -174,6 +174,17 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   without one: `WeaponFx.trail` (`TrailLook`, not serialized), `RocketTrail.For(gun, look)`, `GunRig.EnableTrails`); a
   range where the parked ship fires at a target ship 300-450 m off, seen from the side (Gun + GunRig like NetShotMirror; the
   target's hit cube 35 m: at 900 m every shot hit as it left the gun). Tests: `ModBuilderKindsTests`.
+  **A modder's suggestions** (2026-11-02, le zoink's list on Discord): Stations' orbit section has "Held by pirates" and
+  "Docking pads outside the station" (a list: where the ship rests, its own approach point, its own facing, + Docking pad;
+  mods-world.md "Pirate-held stations" / the pads); in the shown orbit (Show its orbit) the jumpgate (cyan), arrivals
+  (amber) and pads (red) are `ModBuilderGizmo` balls bound to the station itself (`ModBuilderSpaceViewOrbit`: its 180 deg
+  turn makes `WeaponSystem.MountToLocal` + the station's rotation = `OrbitLayout.ToUnity`, so the balls' game units are the
+  orbit's), dragged over the hull or along the arrows (Ctrl: 100 units) and saved on release (the orbit built again).
+  Systems: "Held by pirates". Missions: Take an item, Bring cargo's "Hand it in", Restrict travel's "The Khador Drive only",
+  Spawn's hull x / gun damage x, Spawn an NPC ship type (an NPC ship type picker, `RefKind.NpcShip`: the game's five, the
+  project's, other mods'), When something happens "docks at a station's pad outside" (event-graphs.md). A bar mission's "Who
+  can take it" got a note: "One squad in the universe" (the default) was already the suggested "not while another squad
+  runs it" (`EventMissions.Offers` / `OnAccept`).
   **NPC ships** (2026-11-02, `ModBuilder.Kind.NpcShips` before AiTools, KindCount 16, `Place.Space`;
   `ModBuilderSpaceViewNpc`, `ProjectNpcShip` (npcships.json, `ModProject.NpcShips`, undo key "npcShips", MCP entry kind
   `npcShips`, select_entry too): + New NPC ship (a capital ship on the battleship's / carrier's / Vossk battleship's hull,

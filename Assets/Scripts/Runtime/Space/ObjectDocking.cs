@@ -37,6 +37,11 @@ namespace GoF2Remake.Flight
         public const int DropOff = 1, Pickup = 2, Hackable = 3;
         /// <summary>Remake: the carrier's resupply dock (World.CapitalShips; the flight HUD's resupply menu while docked).</summary>
         public const int Resupply = 4;
+        /// <summary>Remake mods: a station's docking pad outside (stations.json "orbit.pads", SpaceLevel.SpawnStationPads): no
+        /// transfer of its own; the events' "on pad" fires (SpaceHooks.PadDocked).</summary>
+        public const int StationPad = 5;
+        /// <summary>Set by the level: why this target refuses docking now (null: it doesn't), e.g. an event's Restrict Travel.</summary>
+        public Func<NpcShip, string> Refusal;
 
         const float M = 0.05f;
         const float EnterMs = 2000f, LeaveMs = 1500f, ApproachReachUnits = 1400f;
@@ -115,6 +120,7 @@ namespace GoF2Remake.Flight
                 string refusal = CapitalShips.DockRefusal(target);
                 if (refusal != null) { Say(refusal); return false; }
             }
+            if (Refusal?.Invoke(target) is string levelRefusal) { Say(levelRefusal); return false; }
             var points = SpacePoints.Set(target.SpacePointSet);
             if (!NearestPoints(target, points)) return false;
             Target = target;
@@ -272,7 +278,7 @@ namespace GoF2Remake.Flight
             if (chase != null && !PlayerTurret.ViewActive(gameObject)) chase.enabled = false;   // the turret view keeps its camera
             SetExhaust(false);
             // Remake: no sound at the carrier (Docking_Landing sounded like mining there; nothing fitting yet).
-            if (Target.DockingType != Resupply) Play(dockSound);
+            if (Target.DockingType != Resupply) Play(dockSound);   // (a station's pad too)
         }
 
         void UpdateEntering(float dtMs)

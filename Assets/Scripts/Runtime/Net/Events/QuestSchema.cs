@@ -28,7 +28,7 @@ namespace GoF2Remake.Events
                                 ("name", "string", "their name on the lock plate (ship orders use it)"), ("quiet", "boolean", "no other traffic there (default true)"),
                                 ("objective", "text", "the objective meanwhile (optional)") },
             ["cargo"] = new[] { ("item", "ref", "the item"), ("amount", "integer", "how many tonnes"), ("station", "ref", "docked there (optional)"),
-                                ("objective", "text", "the objective meanwhile (optional)") },
+                                ("objective", "text", "the objective meanwhile (optional)"), ("take", "boolean", "handed in: taken from the hold once there") },
             ["reward"] = new[] { ("credits", "number", "credits (or an expression)"), ("items", "items", "[{ item, amount }]"), ("title", "text", "the reward box's title") },
             ["checkpoint"] = new[] { ("name", "string", "its name (optional; one word)") },
             ["startquest"] = new[] { ("quest", "string", "the story mission's name (its file name)") },
@@ -58,6 +58,8 @@ namespace GoF2Remake.Events
                     s = Desc(new JObject { ["type"] = new JArray("number", "string") }, d + "; a number, or an expression as a string"); break;
                 case QuestFieldKind.Station: case QuestFieldKind.Ship: case QuestFieldKind.Item: case QuestFieldKind.System:
                     s = Ref(d + "; the game's number, its name, or a key \"mod_id:id\""); break;
+                case QuestFieldKind.NpcShip:
+                    s = Str(d + ": battleship, carrier, vossk_battleship, freighter, pirate_boss, or a mod's NPC ship key \"mod_id:id\""); break;
                 case QuestFieldKind.Choice: case QuestFieldKind.Race:
                     s = Desc(new JObject { ["type"] = "string", ["enum"] = new JArray(f.values) }, d + ": " + string.Join(", ", f.values.Select((v, i) => (v.Length == 0 ? "\"\"" : v) + " = " + f.labels[i]))); break;
                 case QuestFieldKind.LongText: case QuestFieldKind.Text: s = Text(d); break;

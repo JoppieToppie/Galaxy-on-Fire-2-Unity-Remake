@@ -22,7 +22,7 @@ namespace GoF2Remake.Events
     public enum EventScoreBy { Kills, Time, Points }
     public enum EventWinnerBy { Score, Kills, Time, Points }
     /// <summary>The On node's triggers, by EventRunner' words (TriggerWords).</summary>
-    public enum EventTrigger { PlayerDestroyed, PlayerDocked, PlayerLaunched, PlayerJoined, PlayerLeft, PlayerEntersOrbit, EventShipDestroyed, EnemiesCleared, PlayerKilledPlayer, PlayerRespawned, PlayerArrives, WreckHacked }
+    public enum EventTrigger { PlayerDestroyed, PlayerDocked, PlayerLaunched, PlayerJoined, PlayerLeft, PlayerEntersOrbit, EventShipDestroyed, EnemiesCleared, PlayerKilledPlayer, PlayerRespawned, PlayerArrives, WreckHacked, PlayerDocksAtPad }
     public enum EventRace { Maker, Terran, Vossk, Nivelian, Midorian, Pirate, Void, Specter }
     public enum EventBehaviour { Enemy, Friendly, Neutral, Standing }
     public enum EventCheat { God, Ammo, Cooldown, Boost, OneHit, Locks, Shopping, Jumps }
@@ -305,7 +305,7 @@ namespace GoF2Remake.Events
             }
 
             /// <summary>EventRunner' trigger words, by EventTrigger.</summary>
-            static readonly string[] TriggerWords = { "died", "docked", "launched", "joined", "left", "entered", "kill", "cleared", "pvpkill", "respawned", "near", "hacked" };
+            static readonly string[] TriggerWords = { "died", "docked", "launched", "joined", "left", "entered", "kill", "cleared", "pvpkill", "respawned", "near", "hacked", "pad" };
 
             // ---- the steps ----
 

@@ -31,6 +31,17 @@ namespace GoF2Remake.EditorTools
         public override void OnViewBuilt() => EventGraphPickers.Add(this, "Pick item...", EventGiveNode.Item, EventGraphPickers.Items);
     }
 
+    public class EventSpawnTypeNodeView : NodeView<EventSpawnTypeNode>
+    {
+        public override void OnViewBuilt() => EventGraphPickers.Add(this, "Pick NPC ship type...", EventSpawnTypeNode.Type,
+            () => GoF2Remake.Modding.ModNpcShips.All().ConvertAll(t => ((t.game ? "Game/" : "Mods/") + (t.name ?? t.key) + " (" + t.key + ")", t.key)));
+    }
+
+    public class EventTakeNodeView : NodeView<EventTakeNode>
+    {
+        public override void OnViewBuilt() => EventGraphPickers.Add(this, "Pick item...", EventTakeNode.Item, EventGraphPickers.Items);
+    }
+
     public class EventRewardNodeView : NodeView<EventRewardNode>
     {
         public override void OnViewBuilt() => EventGraphPickers.Add(this, "Add item...", EventRewardNode.Items, EventGraphPickers.Items, append: true);

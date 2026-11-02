@@ -257,6 +257,7 @@ namespace GoF2Remake.Events
                         string obj = Clean(Text(st, "objective"));
                         if (obj.Length > 0) Objective(obj, station);
                         Line($"wait until cargo({item}) >= {amount}" + (station.Length > 0 ? $" and docked({station}) > 0" : ""));
+                        if (Bool(st, "take", false)) Line($"take @a {item} {amount}");   // handed in (remake: QuestSteps "take")
                         break;
                     }
                     case "reward":

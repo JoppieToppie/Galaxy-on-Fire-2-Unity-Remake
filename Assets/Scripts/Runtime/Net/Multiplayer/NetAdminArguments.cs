@@ -94,6 +94,34 @@ namespace GoF2Remake.Multiplayer
             text = text.Substring(0, i);
             return list.Count > 0 ? list : null;
         }
+        /// <summary>/spawn's "&lt;word&gt; 2.5" (hull, guns): the factor (0.1..MaxSpawnFactor) taken off 'rest', 1 without one;
+        /// false = the word without a number after it.</summary>
+        static bool TakeFactor(ref string rest, string word, out float factor)
+        {
+            factor = 1f;
+            var words = new List<string>(rest.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+            int i = words.Count > 1 ? words.FindIndex(1, w => string.Equals(w, word, StringComparison.OrdinalIgnoreCase)) : -1;
+            if (i < 0) return true;
+            if (i + 1 >= words.Count) return false;
+            string n = words[i + 1].TrimStart('x', 'X');
+            if (!float.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out factor) || !NetGuard.Finite(factor) || factor <= 0f) return false;
+            factor = Mathf.Clamp(factor, 0.1f, MaxSpawnFactor);
+            words.RemoveRange(i, 2);
+            rest = string.Join(" ", words);
+            return true;
+        }
+        /// <summary>The order text's hull and gun factors (TakeFactor) taken off 'text' (the "at" part); 1 = unchanged.</summary>
+        static (float hull, float guns) SplitFactors(ref string text)
+        {
+            if (string.IsNullOrEmpty(text)) return (1f, 1f);
+            int i = text.IndexOf(FactorSeparator);
+            if (i < 0) return (1f, 1f);
+            var parts = text.Substring(i + 1).Split(',');
+            text = text.Substring(0, i);
+            float F(int k) => parts.Length > k && float.TryParse(parts[k], NumberStyles.Float, CultureInfo.InvariantCulture, out float f) && NetGuard.Finite(f)
+                ? Mathf.Clamp(f, 0.1f, MaxSpawnFactor) : 1f;
+            return (F(0), F(1));
+        }
         static bool TakeAt(ref string rest, out string at)
         {
             at = null;

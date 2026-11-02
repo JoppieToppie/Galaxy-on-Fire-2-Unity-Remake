@@ -153,6 +153,7 @@ namespace GoF2Remake.UI
             if (ModalOpen) return;
             last = ScreenPos();
             if (kind == ModBuilder.Kind.NpcShips && NpcPointerDown(e.button)) { viewport.CapturePointer(e.pointerId); return; }   // a hardpoint or pad
+            if (kind == ModBuilder.Kind.Stations && OrbitPointerDown(e.button)) { viewport.CapturePointer(e.pointerId); return; }   // a place of its orbit
             dragging = e.button == 0 || e.button == 1;
             panning = e.button == 2;
             viewport.CapturePointer(e.pointerId);
@@ -161,8 +162,9 @@ namespace GoF2Remake.UI
         void OnPointerMove(PointerMoveEvent e)
         {
             if (!viewport.HasPointerCapture(e.pointerId)) return;
-            if (!UiPointerButtons.AnyHeld(e)) { viewport.ReleasePointer(e.pointerId); dragging = panning = false; NpcPointerUp(); return; }
+            if (!UiPointerButtons.AnyHeld(e)) { viewport.ReleasePointer(e.pointerId); dragging = panning = false; NpcPointerUp(); OrbitPointerUp(); return; }
             if (npcDragging) { NpcPointerMove(); return; }
+            if (orbitDragging) { OrbitPointerMove(); return; }
             var p = ScreenPos();
             var d = (p - last) * (1080f / Mathf.Max(1, Screen.height));
             last = p;
@@ -181,6 +183,7 @@ namespace GoF2Remake.UI
             viewport.ReleasePointer(e.pointerId);
             dragging = panning = false;
             NpcPointerUp();
+            OrbitPointerUp();
         }
 
         // ---- per frame ----------------------------------------------------------------------------------------
@@ -206,6 +209,7 @@ namespace GoF2Remake.UI
             }
             if (kind == ModBuilder.Kind.WeaponFx) UpdateRange(dt);
             if (kind == ModBuilder.Kind.NpcShips) UpdateNpc(dt);
+            UpdateOrbitGizmo();   // the Stations kind's handles (gone in the other kinds)
             // Touch: two fingers on the view pinch to zoom and move it (the first one went down on the view: not a panel).
             twoFingers = touch2.Read(out float zoom, out var pan) && (dragging || panning);
             if (twoFingers)
@@ -224,6 +228,7 @@ namespace GoF2Remake.UI
             DisposeAi();
             StopRange();
             DisposeNpc();
+            HideOrbitGizmo();
             SaveNow();
         }
 
@@ -513,11 +518,51 @@ namespace GoF2Remake.UI
                        on => { if (on) o["jumpgatePosition"] = new JArray(0, 0, 90000); else o.Remove("jumpgatePosition"); Put(s, "orbit", o); }, () => { Edited(true); BuildStationPage(); });
             XyzRow(stationPage, T("mbOrbitGatePos", "Jumpgate at"), o, "jumpgatePosition", () => Save());
             Note(stationPage, T("mbOrbitGateNote", "Ships arriving through the routes still come to the system's gate orbit (Systems: the jumpgate's orbit)."));
+            Note(stationPage, T("mbOrbitDragNote", "In its orbit (Show its orbit) the jumpgate (cyan), the arrivals (amber) and the docking pads (red) are balls: drag one, or its arrows (Ctrl: 100-unit steps)."));
 
             // Arrivals.
             FlagButton(Row(stationPage), T("mbOrbitArrivalOwn", "Arrivals come in at a place of my own"), o["arrival"] != null,
                        on => { if (on) o["arrival"] = new JArray(0, 0, 100000); else o.Remove("arrival"); Put(s, "orbit", o); }, () => { Edited(true); BuildStationPage(); });
             XyzRow(stationPage, T("mbOrbitArrival", "Arrivals at (they face the station)"), o, "arrival", () => Save());
+
+            // Held by pirates (remake, Data.PirateHold): as the system says, or this station's own answer.
+            var heldToken = o["pirateHeld"];
+            int heldMode = heldToken == null || heldToken.Type != JTokenType.Boolean ? 0 : (bool)heldToken ? 1 : 2;
+            Segments(stationPage, T("mbOrbitPirateHeld", "Held by pirates"), new[] { T("mbOrbitHeldSystem", "As its system says"), T("mbOrbitHeldYes", "Yes"), T("mbOrbitHeldNo", "No") }, heldMode, n =>
+            {
+                if (n == 0) o.Remove("pirateHeld"); else o["pirateHeld"] = n == 1;
+                Save(true);
+            });
+
+            // Docking pads outside (remake, a modder's suggestion: dockable arms like the Luur mission's; SpaceLevel.SpawnStationPads).
+            Add(stationPage, new Label(T("mbOrbitPads", "Docking pads outside the station")), "mbv-inline-label");
+            Note(stationPage, T("mbOrbitPadsNote", "Docked at from space like the Luur mission's arms (the nearest free pad). A mission's \"When something happens\": the player docks at a station's pad outside. With \"Its model, no docking\" above they are the only way to dock."));
+            if (o["pads"] is JArray pads)
+                for (int i = 0; i < pads.Count; i++)
+                {
+                    if (!(pads[i] is JObject pad)) continue;
+                    var prow = Row(stationPage);
+                    Add(prow, new Label(string.Format(T("mbOrbitPadN", "Pad {0}"), i + 1)), "mbv-inline-label");
+                    Act(prow, "×", () => { pads.Remove(pad); if (pads.Count == 0) o.Remove("pads"); Save(true); }, "mbv-step");
+                    XyzRow(stationPage, T("mbOrbitPadAt", "Where the ship rests"), pad, "position", () => Save());
+                    FlagButton(Row(stationPage), T("mbOrbitPadApproachOwn", "Its own approach point (else 2000 units above the pad)"), pad["approach"] != null, on =>
+                    {
+                        if (on && pad["position"] is JArray at && at.Count >= 3) pad["approach"] = new JArray((double)at[0], (double)at[1] + 2000, (double)at[2]);
+                        else pad.Remove("approach");
+                        Put(s, "orbit", o);
+                    }, () => { Edited(true); BuildStationPage(); });
+                    XyzRow(stationPage, T("mbOrbitPadApproach", "Approach point"), pad, "approach", () => Save());
+                    FlagButton(Row(stationPage), T("mbOrbitPadFacingOwn", "Its own facing (else along z)"), pad["facing"] != null,
+                               on => { if (on) pad["facing"] = new JArray(0, 0, 1); else pad.Remove("facing"); Put(s, "orbit", o); }, () => { Edited(true); BuildStationPage(); });
+                    XyzRow(stationPage, T("mbOrbitPadFacing", "The ship's nose points along"), pad, "facing", () => Save());
+                }
+            Act(stationPage, T("mbOrbitAddPad", "+ Docking pad"), () =>
+            {
+                var list = o["pads"] as JArray ?? new JArray();
+                list.Add(new JObject { ["position"] = new JArray(0, 4000, 0) });
+                o["pads"] = list;
+                Save(true);
+            }, "mbv-add");
 
             // The asteroid field.
             var ast = o["asteroids"];

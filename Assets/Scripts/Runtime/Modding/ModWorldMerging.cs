@@ -22,7 +22,7 @@ namespace GoF2Remake.Modding
             stationModels.Clear(); gateModels.Clear(); stationInterior.Clear(); planetTextures.Clear(); sunTextures.Clear(); sunColors.Clear(); skyboxes.Clear();
             mapTextures.Clear(); mapRings.Clear(); orbits.Clear(); mapPlaces.Clear();
             stationHangar.Clear(); stationBar.Clear(); mobiles.Clear();
-            modTrafficSystems.Clear(); systemLocals.Clear(); systemRaiders.Clear();
+            modTrafficSystems.Clear(); systemLocals.Clear(); systemRaiders.Clear(); systemPirateHeld.Clear();
             if (systemAt.Count == 0 && stationAt.Count == 0 && missingSystems.Count == 0 && missingStations.Count == 0
                 && !ModManager.Active.Any(m => ModContent.Parse(m).systems.Count + ModContent.Parse(m).stations.Count > 0)) return;
             var gates = new List<(int a, int b)>();
@@ -63,6 +63,10 @@ namespace GoF2Remake.Modding
                         if (d.overrideRef != null && ModJson.Has(o, "race")) s.raceId = RaceOf(o, d, mod);
                         if (ModJson.Str(o, "traffic") == "mod") modTrafficSystems.Add(s.index);
                         else if (ModJson.Str(o, "traffic") == "all") modTrafficSystems.Remove(s.index);
+                        if (ModJson.Has(o, "pirateHeld"))
+                        {
+                            if (ModJson.Bool(o, "pirateHeld", false, d.file)) systemPirateHeld.Add(s.index); else systemPirateHeld.Remove(s.index);
+                        }
                         foreach (var (field, into) in new[] { ("locals", systemLocals), ("raiders", systemRaiders) })
                         {
                             if (!ModJson.Has(o, field)) continue;

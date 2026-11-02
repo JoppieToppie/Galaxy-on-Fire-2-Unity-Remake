@@ -17,7 +17,7 @@ using Newtonsoft.Json.Linq;
 
 namespace GoF2Remake.Modding
 {
-    public enum RefKind { Item, Ship, System, Station, Character, Quest, Music, Interior, Race }
+    public enum RefKind { Item, Ship, System, Station, Character, Quest, Music, Interior, Race, NpcShip }
 
     /// <summary>One thing a picker offers.</summary>
     public sealed class RefEntry
@@ -172,8 +172,18 @@ namespace GoF2Remake.Modding
                     foreach (var (word, race, name) in RaceWords)
                         l.Add(new RefEntry { value = word, name = Localization.Extra("race" + name, name), sub = race.ToString(), group = GameGroup });
                     break;
+                case RefKind.NpcShip:   // npcships.json's game types (ModNpcShips.GameKeys)
+                    foreach (var (key, name) in GameNpcShips) l.Add(new RefEntry { value = key, name = name, sub = key, group = GameGroup });
+                    break;
             }
         }
+
+        /// <summary>The game's NPC ship types (ModNpcShips.GameKeys) with their names.</summary>
+        public static readonly (string key, string name)[] GameNpcShips =
+        {
+            (ModNpcShips.Battleship, "Terran battleship"), (ModNpcShips.Carrier, "Terran carrier"), (ModNpcShips.VosskBattleship, "Vossk battleship"),
+            (ModNpcShips.FreighterKey, "Freighter"), (ModNpcShips.PirateBoss, "Pirate boss"),
+        };
 
         static string RaceName(int race) => race >= 0 && race < RaceNames.Length ? RaceNames[race] : "";
 
@@ -235,6 +245,10 @@ namespace GoF2Remake.Modding
                     foreach (var r in p.Races.Where(r => r.Id != null))
                         l.Add(new RefEntry { value = p.Key(r.Id), name = r.Name ?? r.Id, sub = ProjectRace.Looks[r.Look] + (r.Hostile ? ", hostile" : ""), group = g, own = true });
                     break;
+                case RefKind.NpcShip:
+                    foreach (var n in p.NpcShips.Where(n => !n.IsOverride && n.LocalId != null))
+                        l.Add(new RefEntry { value = p.Key(n.LocalId), name = n.Name ?? n.LocalId, sub = n.Kind, group = g, own = true });
+                    break;
             }
         }
 
@@ -289,6 +303,10 @@ namespace GoF2Remake.Modding
                         string n = System.IO.Path.GetFileNameWithoutExtension(f);
                         if (!GameMusic.Contains(n, StringComparer.OrdinalIgnoreCase)) l.Add(E(n, n));
                     }
+                    break;
+                case RefKind.NpcShip:
+                    foreach (var d in ModContent.Parse(m).npcShips.Where(d => d.localId != null))
+                        l.Add(E(d.key, (d.name != null ? ModManifest.Pick(d.name) : null) ?? d.localId, (string)d.json?["kind"]));
                     break;
                 case RefKind.Race:
                     foreach (var d in ModContent.Parse(m).races.Where(d => d.localId != null))

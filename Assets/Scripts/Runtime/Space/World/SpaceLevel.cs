@@ -483,6 +483,9 @@ namespace GoF2Remake.World
             // Remake: a Mod Builder test flight (Modding.ModBuilder): a quiet orbit with its own pirates (ModBuilderRange).
             // The builder's own work in space (Stations, Weapon fx: ModBuilder.InSpace) too, with nothing flying at all.
             bool builderTest = Modding.ModBuilder.TestFlying || Modding.ModBuilder.InSpace;
+            // Remake mods: a station its mod marks held by pirates (PirateHold): the Kaamo siege on every visit (KaamoSiege).
+            bool pirateHeld = !storyOrbit && !missionHere && !siege && !questOrbit && !builderTest && plainOrbit && !prologue && Layout.stationObject
+                              && PirateHold.Held(station, Layout.systemIndex);
             // The Supernova Challenge (mission type 0xb7, SupernovaChallenge): its own Specters and scenery, no traffic.
             bool challenge = SupernovaChallenge.Active && !storyOrbit && plainOrbit && !builderTest && !GoF2Remake.Data.NetSession.Active;
             // Level::assignGuns reads the level mission (Status+400): a campaign level or a freelance mission's type.
@@ -493,7 +496,7 @@ namespace GoF2Remake.World
             // ships (NetOrbit) and take them over if it leaves, never building new ones.
             // An arena: no NPCs, or with the Void fighters the alien orbit's own (run by the first player in the match's orbit).
             NetAuthority = GoF2Remake.Data.NetSession.Active && !interstellar && (arena == null || arena.voids) && GoF2Remake.World.SpaceHooks.IsOrbitEmpty(NetOrbitId);
-            ownPassive = storyOrbit || freelanceOrbit || siege || questOrbit || builderTest || challenge || interstellar || (arena != null && !arena.voids);
+            ownPassive = storyOrbit || freelanceOrbit || siege || pirateHeld || questOrbit || builderTest || challenge || interstellar || (arena != null && !arena.voids);
             Traffic.LevelMissionActive = () => (storyOrbit && Story.IsLevelMission(station)) || (missionHere && Freelance.IsMissionOrbit(station));
             Traffic.Setup(db, Layout, Health.Target, Station, ownPassive || (GoF2Remake.Data.NetSession.Active && !NetAuthority), Wormhole,
                           warpArrival && !missionHere && !GoF2Remake.Data.NetSession.Active);
@@ -531,6 +534,15 @@ namespace GoF2Remake.World
                 FreeLook.DockedView = () => DockedLook;
                 Docking.Docked += () => { if (DockedLook) FreeLook.EnterDockedLook(); };
             }
+            // Remake mods: a station's docking pads outside (stations.json "orbit.pads"): every game builds its own port.
+            if (plainOrbit && !prologue && !interstellar && Station != null) SpawnStationPads(station);
+            Docking.Refusal = t => t.DockingType == ObjectDocking.StationPad && (GoF2Remake.World.SpaceHooks.NoDocking || (Siege != null && Siege.Active))
+                ? Localization.Get(525) : null;
+            Docking.Docked += () =>
+            {
+                if (Docking.Target != null && Docking.Target.DockingType == ObjectDocking.StationPad)
+                    GoF2Remake.World.SpaceHooks.PadDocked?.Invoke(Session.StationIndex);   // the events' "on pad"
+            };
             Navigation.Docking = Docking;
             Navigation.Ships = Traffic.Ships;
             Collision.docking = Docking;
@@ -572,6 +584,11 @@ namespace GoF2Remake.World
                 if (GoF2Remake.Data.NetSession.Active && KaamoSiege.OtherRunsHere(station)) Siege.SetupFollower(this, Traffic);   // one siege per orbit
                 else Siege.Setup(this, Traffic);
             }
+            else if (pirateHeld)
+            {
+                Siege = new GameObject("Pirate hold").AddComponent<KaamoSiege>();
+                Siege.SetupHeld(this, Traffic, GoF2Remake.Data.NetSession.Active && KaamoSiege.OtherRunsHere(station));   // one siege per orbit
+            }
             else if (challenge)
             {
                 Challenge = new GameObject("Supernova Challenge").AddComponent<ChallengeOrbit>();
@@ -600,6 +617,7 @@ namespace GoF2Remake.World
                                             || GoF2Remake.World.SpaceHooks.NoJumps   // an event's Restrict Travel
                                             || (!Session.FreePlay && Story.Index == 65 && Layout.stationIndex == 100)   // escorting Khador (MGame::UseKhadorDrive)
                                             || Story.EscapesByWormhole(Layout.stationIndex);   // 42: the wormhole (#84)
+            Navigation.KhadorBlocked = () => GoF2Remake.World.SpaceHooks.NoKhador;   // an event's Restrict Travel "khador"
             Navigation.JumpRefusalText = () => Story.EscapesByWormhole(Layout.stationIndex) ? WormholeEscapeHint : null;
             // MGame::UseKhadorDrive 0x1a9480 has no Void rule of its own: the mission gate above (Story.BlocksJumps, 525) is the
             // only refusal, and in the alien orbit the drive returns to Status+0x84 (#26: the remake used to refuse it there

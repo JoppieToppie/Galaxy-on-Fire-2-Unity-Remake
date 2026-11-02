@@ -11,6 +11,9 @@
 //   MGame::successCheck 0x1b0620    the win: 458 (voice ..._ENEMIES_DEAD), missions completed +1, no reward
 //   MGame::dockEvent / UseKhadorDrive  while the siege runs: docking, the gate and the Khador Drive give 525
 // Remake: the siege keeps the player's freelance mission (the original overwrites the freelance slot with it).
+// Remake mods: the same siege on a station its mod marks held by pirates (Data.PirateHold, SetupHeld): every visit until
+// the outposts fall, no Kaamo call or state (a pirate's radio 435 instead, 439 when they are beaten), driven out for
+// PirateHold.FreedSeconds.
 // Multiplayer: one siege per orbit: the first player there with the siege to fight builds it (Running, NetPlayer.SiegeRun)
 // and everyone sees its outposts and pirates; another such player gets the follower view (SetupFollower: the call, docking
 // refused until it is won, the win when the runner's game wins it, NetState.SiegeWonRpc); a follower left alone builds it
@@ -45,6 +48,8 @@ namespace GoF2Remake.World
         readonly List<NpcShip> pirates = new List<NpcShip>();
         float levelMs, respawnMs;
         bool called, won;
+        /// <summary>A mod's pirate-held station (Data.PirateHold), not the Kaamo Club.</summary>
+        bool held;
 
         /// <summary>The siege still runs: docking, the gate and the Khador Drive are refused (525).</summary>
         public bool Active => !won;
@@ -66,6 +71,15 @@ namespace GoF2Remake.World
         }
 
         void OnDestroy() { if (Current == this) Current = null; }
+
+        /// <summary>A mod's pirate-held station (Data.PirateHold): the siege without the Kaamo Club's call and state;
+        /// 'follower': another player here runs it (multiplayer).</summary>
+        public void SetupHeld(SpaceLevel spaceLevel, Traffic orbitTraffic, bool follower)
+        {
+            held = true;
+            if (follower) SetupFollower(spaceLevel, orbitTraffic);
+            else Setup(spaceLevel, orbitTraffic);
+        }
 
         /// <summary>Multiplayer: another player here runs the siege: its call and its lock, nothing built.</summary>
         public void SetupFollower(SpaceLevel spaceLevel, Traffic orbitTraffic)
@@ -124,8 +138,12 @@ namespace GoF2Remake.World
             if (!called && levelMs >= 5000f && level.StartSequenceOver && level.StorySpace != null && !level.StorySpace.DialogueOpen)
             {
                 called = true;
-                Session.KaamoState = 1;   // set on the call, not on the win (the siege must be won before docking anyway)
-                level.StorySpace.ShowPages(KaamoClub.SiegeCall(), null);
+                if (held) traffic.RaceRadio(Localization.Get(435), Standing.Pirate);   // "Somebody's coming. Finish them off!"
+                else
+                {
+                    Session.KaamoState = 1;   // set on the call, not on the win (the siege must be won before docking anyway)
+                    level.StorySpace.ShowPages(KaamoClub.SiegeCall(), null);
+                }
             }
             if (!Running)
             {
@@ -184,9 +202,15 @@ namespace GoF2Remake.World
             won = true;
             if (Running && GoF2Remake.Data.NetSession.Active)
                 SpaceHooks.SiegeWon?.Invoke(level.Layout.stationIndex);   // the others here win it too
-            Session.FreelanceCompleted++;   // Status::incMissionCount
             var assets = CombatAssets.Load();
             if (level.Player != null) Sfx.PlayAt(assets != null ? assets.missionAccomplished : null, level.Player.transform.position);
+            if (held)
+            {
+                PirateHold.Freed(level.Layout.stationIndex);
+                traffic.RaceRadio(Localization.Get(439), Standing.Pirate);   // "Argh! You're gonna pay for this!"
+                return;
+            }
+            Session.FreelanceCompleted++;   // Status::incMissionCount
             level.StorySpace.ShowPages(KaamoClub.SiegeWon(), null);
         }
     }

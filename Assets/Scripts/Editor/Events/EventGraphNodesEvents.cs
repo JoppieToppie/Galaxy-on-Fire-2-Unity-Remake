@@ -182,12 +182,14 @@ namespace GoF2Remake.EditorTools
     [Node("Event", null, "Restrict Travel")]
     public class EventRestrictTravelNode : EventCommandNode
     {
-        public const string NoJumps = "NoJumps", NoDocking = "NoDocking";
+        public const string NoJumps = "NoJumps", NoDocking = "NoDocking", NoKhador = "NoKhador";
 
         protected override void OnDefineOptions(IOptionDefinitionContext context)
         {
             context.AddOption<bool>(NoJumps).WithDisplayName("No jumps").WithDefaultValue(true).WithTooltip("No planet jumps, jumpgate or Khador Drive (an admin's teleport still works).").Build();
             context.AddOption<bool>(NoDocking).WithDisplayName("No docking").WithDefaultValue(true).WithTooltip("No docking at a station.").Build();
+            context.AddOption<bool>(NoKhador).WithDisplayName("No Khador Drive").WithDefaultValue(false)
+                .WithTooltip("With No jumps off: only the Khador Drive is refused (the gates and planet jumps still work), like the Valkyrie's last mission.").Build();
         }
 
         protected override void DefineInputs(IPortDefinitionContext context) => PlayersIn(context);
@@ -256,7 +258,7 @@ namespace GoF2Remake.EditorTools
     [Node("Commands", null, "Spawn")]
     public class EventSpawnNode : EventCommandNode
     {
-        public const string Ship = "Ship", Count = "Count", At = "At", Race = "Race", Behaviour = "Behaviour", Name = "Name";
+        public const string Ship = "Ship", Count = "Count", At = "At", Race = "Race", Behaviour = "Behaviour", Name = "Name", Hull = "Hull", Guns = "Guns";
 
         protected override void OnDefineOptions(IOptionDefinitionContext context)
         {
@@ -273,6 +275,25 @@ namespace GoF2Remake.EditorTools
             TextIn(context, Name, "", "Optional: the name on the HUD (a ship's lock plate, numbered \"Name 1\", \"Name 2\"... for several; " +
                 "an object gets a marker with it), at most 32 characters. Empty = the usual name.");
             TextIn(context, At, "", "Empty = ahead of each player; else game coordinates \"x y z\" in their orbit.");
+            NumberIn(context, Hull, 1f, "Their hull x this (1 = as usual, 2 = twice as tough; 0.1..50).");
+            NumberIn(context, Guns, 1f, "Their gun damage x this (1 = as usual; 0.1..50).");
+        }
+    }
+
+    /// <summary>Remake: /spawn type: an NPC ship type of npcships.json (the pirate boss among the game's).</summary>
+    [Serializable]
+    [Node("Commands", null, "Spawn NPC Type")]
+    public class EventSpawnTypeNode : EventCommandNode
+    {
+        public const string Type = "Type", At = "At", Name = "Name";
+
+        protected override void DefineInputs(IPortDefinitionContext context)
+        {
+            PlayersIn(context);
+            TextIn(context, Type, "pirate_boss", "battleship, carrier, vossk_battleship, freighter, pirate_boss, or a mod's NPC ship \"mod_id:id\": " +
+                "its own hull, guns, escorts and turrets.");
+            TextIn(context, Name, "", "Optional: the name on its lock plate (the ship orders use it).");
+            TextIn(context, At, "", "Empty = 3.5 km ahead of each player; else game coordinates \"x y z\" in their orbit.");
         }
     }
 
@@ -319,6 +340,24 @@ namespace GoF2Remake.EditorTools
             PlayersIn(context);
             TextIn(context, Item, "", "An item's number or name.");
             NumberIn(context, Amount, 1f, "1..1000.");
+        }
+    }
+
+    /// <summary>Remake: /take (Cheats.TakeItem): items out of the hold, a mission's hand-in.</summary>
+    [Serializable]
+    [Node("Commands", null, "Take Item")]
+    public class EventTakeNode : EventCommandNode
+    {
+        public const string Item = "Item", Amount = "Amount", Mounted = "Mounted";
+
+        protected override void OnDefineOptions(IOptionDefinitionContext context) =>
+            context.AddOption<bool>(Mounted).WithTooltip("Mounted ones too (a Khador Drive, a gun), after the hold's.").Build();
+
+        protected override void DefineInputs(IPortDefinitionContext context)
+        {
+            PlayersIn(context);
+            TextIn(context, Item, "", "An item's number or name.");
+            NumberIn(context, Amount, 0f, "How many (0 = all of them).");
         }
     }
 

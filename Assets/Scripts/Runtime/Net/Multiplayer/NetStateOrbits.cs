@@ -313,13 +313,19 @@ namespace GoF2Remake.Multiplayer
         {
             ulong client = rpc.Receive.SenderClientId;
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Siege)) return;
-            if (station != KaamoClub.Station || !NetGuard.InOrbit(client, station)) { NetRateLimit.Reject(client, $"a siege won at {station}"); return; }
+            int system = NetGame.Db.Stations.Find(s => s.index == station)?.system ?? -1;
+            bool heldHere = PirateHold.Marked(station, system);   // remake mods: a pirate-held station's siege
+            if ((station != KaamoClub.Station && !heldHere) || !NetGuard.InOrbit(client, station)) { NetRateLimit.Reject(client, $"a siege won at {station}"); return; }
             // The news: everyone fighting there broke it.
             var heroes = new List<string>();
             foreach (var p in NetPlayer.All)
                 if (p != null && p.IsSpawned && p.InSpace && p.Station == station) heroes.Add(p.DisplayName);
-            NetNews.Post(NetNews.Kind.Defense, $"{NetNews.Names(heroes)} {(heroes.Count == 1 ? "breaks" : "break")} the pirate siege of the Kaamo Club ({NetNews.Place(station)})",
-                         station, "kaamo", 1800f);
+            if (heldHere)
+                NetNews.Post(NetNews.Kind.Defense, $"{NetNews.Names(heroes)} {(heroes.Count == 1 ? "drives" : "drive")} the pirates out of {NetNews.Place(station)}",
+                             station, "pirateHold" + station, 1800f);
+            else
+                NetNews.Post(NetNews.Kind.Defense, $"{NetNews.Names(heroes)} {(heroes.Count == 1 ? "breaks" : "break")} the pirate siege of the Kaamo Club ({NetNews.Place(station)})",
+                             station, "kaamo", 1800f);
             foreach (var p in NetPlayer.All)
                 if (p != null && p.IsSpawned && p.OwnerClientId != client && p.InSpace && p.Station == station)
                     SiegeWonToRpc(RpcTarget.Single(p.OwnerClientId, RpcTargetUse.Temp));

@@ -197,5 +197,51 @@ namespace GoF2Remake.Tests
             }
             finally { Cheats.ClearGranted(); }
         }
+
+        // Remake (a modder's suggestion: a mission's hand-in, the Valkyrie's last mission's Khador Drive): Cheats.TakeItem,
+        // /take and the missions' Take an item / Bring cargo's hand-in.
+        [Test]
+        public void TakeItemHandsCargoIn()
+        {
+            Cheats.GiveItem(5, 10);
+            Assert.AreEqual(4, Cheats.TakeItem(5, 4, false, out bool unmounted));
+            Assert.IsFalse(unmounted);
+            Assert.AreEqual(6, Shop.CargoOf(5));
+            Assert.AreEqual(6, Cheats.TakeItem(5, 0, false, out _), "0: all of them");
+            Assert.AreEqual(0, Shop.CargoOf(5));
+            Assert.AreEqual(0, Cheats.TakeItem(5, 3, false, out _), "none aboard");
+        }
+
+        [Test]
+        public void TakeItemTakesAMountedKhadorDrive()
+        {
+            int drive = GalaxyMap.KhadorDriveItem;
+            Session.Equipment.RemoveAll(e => e.item == drive);
+            Session.Equipment.Add(new ItemStack(drive, 1));
+            Session.Unsaleable.Add(drive);
+            Assert.AreEqual(0, Cheats.TakeItem(drive, 0, false, out bool unmounted), "the hold alone: the mounted one stays");
+            Assert.IsFalse(unmounted);
+            Assert.IsTrue(Session.Equipment.Exists(e => e.item == drive));
+            Assert.AreEqual(1, Cheats.TakeItem(drive, 0, true, out unmounted));
+            Assert.IsTrue(unmounted);
+            Assert.IsFalse(Session.Equipment.Exists(e => e.item == drive));
+            Assert.IsFalse(Session.Unsaleable.Contains(drive), "the story's flag goes with the last one");
+            // A mod hull's built-in item stays.
+            Session.Equipment.Add(new ItemStack(drive, 1) { builtIn = true });
+            Assert.AreEqual(0, Cheats.TakeItem(drive, 0, true, out unmounted));
+            Assert.IsFalse(unmounted);
+        }
+
+        [Test]
+        public void TakeItemTakesSecondaryAmmoByTheUnit()
+        {
+            Session.Equipment.RemoveAll(e => e.item == 37);
+            Session.Equipment.Add(new ItemStack(37, 30));
+            Cheats.GiveItem(37, 5);
+            Assert.AreEqual(12, Cheats.TakeItem(37, 12, true, out bool unmounted), "the hold's 5 first, then 7 of the mounted 30");
+            Assert.IsTrue(unmounted);
+            Assert.AreEqual(0, Shop.CargoOf(37));
+            Assert.AreEqual(23, Session.Equipment.Find(e => e.item == 37).amount);
+        }
     }
 }

@@ -101,6 +101,10 @@ namespace GoF2Remake.Modding
         public static bool MapRing(int station) => mapRings.Contains(station);
         /// <summary>The station's orbit layout from its mod, null: the game's.</summary>
         public static OrbitSpec OrbitOf(int station) => orbits.TryGetValue(station, out var o) ? o : null;
+        /// <summary>A station's docking pads outside (stations.json "orbit.pads"), empty = none.</summary>
+        public static List<SpacePoints.Point> StationPads(int station) => OrbitOf(station)?.pads ?? new List<SpacePoints.Point>();
+        /// <summary>Pirates hold 'station' of 'system' (stations.json "orbit.pirateHeld", else systems.json "pirateHeld").</summary>
+        public static bool PirateHeld(int station, int system) => OrbitOf(station)?.pirateHeld ?? systemPirateHeld.Contains(system);
         /// <summary>The station's planet place on the star map, null: the game's.</summary>
         public static MapPlace MapPlaceOf(int station) => mapPlaces.TryGetValue(station, out var p) ? p : null;
         static Vector3? Xyz(JObject o, string key, string where)
@@ -134,6 +138,26 @@ namespace GoF2Remake.Modding
             }
             s.jumpgatePosition = Xyz(o, "jumpgatePosition", where);
             s.arrival = Xyz(o, "arrival", where);
+            if (ModJson.Get(o, "pirateHeld") is JToken held)
+            {
+                if (held.Type != JTokenType.Boolean) throw new ModJsonException($"{where}: orbit \"pirateHeld\" is true or false");
+                s.pirateHeld = (bool)held;
+            }
+            if (ModJson.Get(o, "pads") is JToken padsToken)
+            {
+                // Like npcships.json's "docking.pads": the approach 2000 units above the pad unless given, facing game +z.
+                if (!(padsToken is JArray padList)) throw new ModJsonException($"{where}: orbit \"pads\" must be a list [ {{ \"position\": [x, y, z] }} ]");
+                s.pads = new List<SpacePoints.Point>();
+                foreach (var pt in padList)
+                {
+                    if (!(pt is JObject po) || !(Xyz(po, "position", where) is Vector3 at)) throw new ModJsonException($"{where}: orbit \"pads\": a pad needs \"position\"");
+                    var facing = Xyz(po, "facing", where) is Vector3 f && f.sqrMagnitude > 1e-6f ? f.normalized : Vector3.forward;
+                    var approach = Xyz(po, "approach", where) ?? at + new Vector3(0f, 2000f, 0f);
+                    s.pads.Add(new SpacePoints.Point { type = SpacePoints.Approach, engine = approach, dir = facing });
+                    s.pads.Add(new SpacePoints.Point { type = SpacePoints.Dock, engine = at, dir = facing });
+                }
+                if (s.pads.Count == 0) s.pads = null;
+            }
             var ast = ModJson.Get(o, "asteroids");
             if (ast != null && ast.Type == JTokenType.Boolean) s.asteroids = (bool)ast;
             else if (ast is JObject a)

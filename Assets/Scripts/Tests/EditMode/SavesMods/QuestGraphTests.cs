@@ -282,5 +282,64 @@ namespace GoF2Remake.Tests
             p.Backdrop = null;
             Assert.IsNull(p.Backdrop);
         }
+
+        // Remake (a modder's suggestions): the hand-in, Take an item, Restrict travel "khador", a spawn's hull / guns and
+        // Spawn an NPC ship type; each line comes back as its step.
+        [Test]
+        public void HandInTakeKhadorAndNpcTypeStepsComeBack()
+        {
+            var cargo = QuestSteps.New("cargo");
+            cargo["item"] = 22; cargo["amount"] = 5; cargo["station"] = 78; cargo["take"] = true;
+            var take = QuestSteps.New("take");
+            take["item"] = 85; take["mounted"] = true;
+            var some = QuestSteps.New("take");
+            some["item"] = 22; some["amount"] = 3;
+            var restrict = QuestSteps.New("restrict");
+            restrict["what"] = "khador";
+            var spawn = QuestSteps.New("spawn");
+            spawn["ship"] = 2; spawn["hull"] = 2; spawn["guns"] = 1.5;
+            var boss = QuestSteps.New("spawntype");
+            boss["npc"] = "pirate_boss"; boss["name"] = "Red"; boss["at"] = "0 0 9000";
+            var problems = new List<string>();
+            string script = QuestFile.Compile(Quest(cargo, take, some, restrict, spawn, boss), problems);
+            CollectionAssert.IsEmpty(problems, script);
+            var lines = Lines(script);
+            foreach (var l in new[] { "wait until cargo(22) >= 5 and docked(78) > 0", "take @a 22 5", "take @a 85 all mounted", "take @a 22 3",
+                                      "restrict @a khador", "spawn @a 2 enemy hull 2 guns 1.5", "spawn @a type pirate_boss named Red at 0 0 9000" })
+                CollectionAssert.Contains(lines, l, script);
+            Assert.IsNull(RunnerError(script), script);
+
+            var back = ((JArray)QuestFile.FromScript(script, "T", new List<string>())["steps"]).OfType<JObject>().ToList();
+            var takes = back.Where(s => (string)s["type"] == "take").ToList();
+            Assert.AreEqual(3, takes.Count, string.Join("\n", back));
+            Assert.AreEqual("85", takes[1]["item"].ToString());
+            Assert.IsNull(takes[1]["amount"], "all");
+            Assert.IsTrue((bool)takes[1]["mounted"]);
+            Assert.AreEqual(3.0, (double)takes[2]["amount"]);
+            Assert.AreEqual("khador", (string)back.Single(s => (string)s["type"] == "restrict")["what"]);
+            var sp = back.Single(s => (string)s["type"] == "spawn");
+            Assert.AreEqual(2.0, (double)sp["hull"]);
+            Assert.AreEqual(1.5, (double)sp["guns"]);
+            Assert.AreEqual("2", sp["ship"].ToString());
+            var bt = back.Single(s => (string)s["type"] == "spawntype");
+            Assert.AreEqual("pirate_boss", (string)bt["npc"]);
+            Assert.AreEqual("Red", (string)bt["name"]);
+            Assert.AreEqual("0 0 9000", (string)bt["at"]);
+        }
+
+        // Remake: "When something happens" on a station's pad outside (stations.json "orbit.pads").
+        [Test]
+        public void APadTriggerCompiles()
+        {
+            var on = QuestSteps.New("on");
+            on["trigger"] = "pad";
+            on["station"] = 78;
+            on["steps"] = new JArray(QuestSteps.New("heal"));
+            var problems = new List<string>();
+            string script = QuestFile.Compile(Quest(on), problems);
+            CollectionAssert.IsEmpty(problems, script);
+            CollectionAssert.Contains(Lines(script), "on pad 78", script);
+            Assert.IsNull(RunnerError(script), script);
+        }
     }
 }

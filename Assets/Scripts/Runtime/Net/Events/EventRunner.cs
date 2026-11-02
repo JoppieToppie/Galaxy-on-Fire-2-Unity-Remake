@@ -185,7 +185,7 @@ namespace GoF2Remake.Events
         }
 
 
-        static readonly string[] Triggers = { "died", "docked", "launched", "joined", "left", "entered", "kill", "cleared", "pvpkill", "respawned", "near", "hacked" };
+        static readonly string[] Triggers = { "died", "docked", "launched", "joined", "left", "entered", "kill", "cleared", "pvpkill", "respawned", "near", "hacked", "pad" };
         static readonly string[] MissionKeys = { "title", "offer", "client", "reward", "players", "stations", "kind", "starts", "chance", "takers", "repeat" };
 
         /// <summary>A bar mission's details: the Start node's Mission settings (the "mission &lt;key&gt; &lt;value&gt;" lines).</summary>
@@ -334,6 +334,13 @@ namespace GoF2Remake.Events
         public static void OnWreckHacked(IPilot pilot, int station, string wreck)
         {
             foreach (var r in runs.ToArray()) r.OnWreckHacked(pilot, station, wreck);
+        }
+
+        /// <summary>Remake mods: a player docked at a station's pad outside (SpaceHooks.PadDocked; in a session
+        /// NetState.PadDockedRpc, checked): "on pad" in every run the player is in.</summary>
+        public static void OnPadDocked(IPilot pilot, int station)
+        {
+            foreach (var r in runs.ToArray()) r.OnPadDocked(pilot, station);
         }
 
         // ---- bar missions (EventMissions) ----

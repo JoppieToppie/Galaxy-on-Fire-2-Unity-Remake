@@ -342,7 +342,7 @@ namespace GoF2Remake.World
                 // wingman's list, so its shots hit same-race freighters and the battleship; Discord report 2026-10-19: escorts'
                 // EMP shots flew through big ships). Not the other wingmen (the original's stray hits on them: left out).
                 foreach (var o in Ships)
-                    if (o != s && (o.Race != s.Race || (s.IsWingman && !o.IsWingman)) && !o.Spec.deadButSelectable) s.enemies.Add(o.Target);
+                    if (o != s && (o.Race != s.Race || (s.IsWingman && !o.IsWingman)) && !o.Spec.deadButSelectable && !o.Spec.stationPort) s.enemies.Add(o.Target);
             }
         }
 

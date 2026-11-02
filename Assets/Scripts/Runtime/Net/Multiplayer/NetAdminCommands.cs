@@ -119,6 +119,22 @@ namespace GoF2Remake.Multiplayer
             Send(t, Order.Give, item, amount, mount ? 1 : 0, by, $"gave {amount} x item {item}{(mount ? " (mounted)" : "")}");
             return string.Format(X("mpAdmGave", "Gave {0} {1} x {2}."), t.DisplayName, amount, UI.ItemInfo.ItemName(item));
         });
+        /// <summary>Remake: /take [players] &lt;item&gt; [amount | all] [mounted]: items out of their hold (a mission's hand-in),
+        /// all of them by default; "mounted" takes mounted ones too (the Khador Drive for a mission without it).</summary>
+        public static string Take(string args, IPilot by) => ForTargets(args, by, true, (t, rest) =>
+        {
+            rest = rest.Trim();
+            bool mounted = rest.EndsWith(" mounted", StringComparison.OrdinalIgnoreCase);
+            if (mounted) rest = rest.Substring(0, rest.Length - 8).Trim();
+            int amount = 0;
+            if (rest.EndsWith(" all", StringComparison.OrdinalIgnoreCase)) rest = rest.Substring(0, rest.Length - 4).Trim();
+            else if (!ParseAmount(ref rest, 0, MaxGive * 100, out amount)) return Usage("take");
+            if (rest.Length == 0) return Usage("take");
+            int item = FindItem(rest, out string error);
+            if (item < 0) return error;
+            Send(t, Order.Take, item, amount, mounted ? 1 : 0, by, $"took {(amount > 0 ? amount.ToString() : "all")} x item {item}{(mounted ? " (mounted too)" : "")}");
+            return string.Format(X("mpAdmTook", "Taking {1} x {2} from {0}."), t.DisplayName, amount > 0 ? amount.ToString() : X("mpAdmAll", "all"), UI.ItemInfo.ItemName(item));
+        });
         public static string Credits(string args, IPilot by) => ForTargets(args, by, true, (t, rest) =>
         {
             if (!int.TryParse(rest.Trim(), out int amount) || amount == 0) return Usage("credits");
@@ -133,7 +149,23 @@ namespace GoF2Remake.Multiplayer
             if (!TakeName(ref rest, out string name)) return Usage("spawn");
             if (!TakeAt(ref rest, out string at)) return Usage("spawn");
             if (!TakeTurrets(ref rest, out var turrets, out string turretError)) return turretError ?? Usage("spawn");
-            string named = (turrets != null ? TurretSeparator + string.Join(",", turrets) : "") + (name != null ? NameSeparator + name : "");
+            if (!TakeFactor(ref rest, "hull", out float hullFactor) || !TakeFactor(ref rest, "guns", out float gunFactor)) return Usage("spawn");
+            // Remake: "type <key>": an NPC ship type (npcships.json; the game's battleship, carrier, vossk_battleship,
+            // freighter, pirate_boss, or a mod's "mod:id"), with its own hull, guns, escorts and turrets.
+            var typeWords = rest.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (typeWords.Length == 2 && string.Equals(typeWords[0], "type", StringComparison.OrdinalIgnoreCase))
+            {
+                var type = Modding.ModNpcShips.Get(typeWords[1]) ?? Modding.ModNpcShips.Get(typeWords[1].ToLowerInvariant());
+                if (type == null)
+                    return string.Format(X("mpAdmNoNpcType", "No NPC ship type \"{0}\" (battleship, carrier, vossk_battleship, freighter, pirate_boss or a mod's mod:id)."), typeWords[1]);
+                int typeTag = EventRunner.NewBatch(1, true);
+                Send(t, Order.NpcType, typeTag, 0, 0, by, $"spawned NPC type {type.key}{(at != null ? " at " + at : "")}{(name != null ? " named " + name : "")}",
+                    type.key + (at != null ? "@" + at : "") + (name != null ? NameSeparator + name : ""));
+                return string.Format(X("mpAdmSpawnedType", "Spawning {0} at {1}."), name ?? type.name ?? type.key, t.DisplayName);
+            }
+            string factors = Mathf.Approximately(hullFactor, 1f) && Mathf.Approximately(gunFactor, 1f) ? ""
+                : FactorSeparator + string.Format(CultureInfo.InvariantCulture, "{0},{1}", hullFactor, gunFactor);
+            string named = factors + (turrets != null ? TurretSeparator + string.Join(",", turrets) : "") + (name != null ? NameSeparator + name : "");
             // From the end: the behaviour, the count and the race, in any order; the rest is the ship.
             var words = new List<string>(rest.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
             if (words.Count == 0) return Usage("spawn");
@@ -451,7 +483,8 @@ namespace GoF2Remake.Multiplayer
             EventRunner.NoteRespawnSet();
             return "";
         });
-        /// <summary>/restrict [players] &lt;jumps | docking | off&gt; ...: no jumps (planet, gate, Khador) and / or no docking for them.</summary>
+        /// <summary>/restrict [players] &lt;jumps | docking | khador | off&gt; ...: no jumps (planet, gate, Khador) and / or no docking for
+        /// them; "khador" the Khador Drive alone.</summary>
         public static string Restrict(string args, IPilot by) => ForTargets(args, by, true, (t, rest) =>
         {
             int flags = 0;
@@ -460,6 +493,7 @@ namespace GoF2Remake.Multiplayer
                 if (w == "jumps" || w == "jump") flags |= EventRules.Jumps;
                 else if (w == "docking" || w == "dock") flags |= EventRules.Docking;
                 else if (w == "all") flags |= EventRules.Jumps | EventRules.Docking;
+                else if (w == "khador") flags |= EventRules.Khador;   // remake: the Khador Drive only
                 else if (w != "off") return Usage("restrict");
             }
             Send(t, Order.Rules, flags, 0, 0, by, $"travel restricted ({flags})");

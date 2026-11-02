@@ -262,6 +262,8 @@ namespace GoF2Remake.UI
                           T("mbModRaceRaidersNone", "The game's pick: pirates, or an enemy of its owner."));
             FlagButton(Row(systemPage), T("mbModRaceModTraffic", "Only the mods' ships fly here"), s.ModTraffic, v => s.ModTraffic = v, () => SystemEdited());
             Note(systemPage, T("mbModRaceModTrafficNote", "No game freighters, pirate outposts or bosses; its raiders are those above."));
+            FlagButton(Row(systemPage), T("mbPirateHeld", "Held by pirates"), s.PirateHeld, v => s.PirateHeld = v, () => SystemEdited());
+            Note(systemPage, T("mbPirateHeldNote", "Every station here is besieged like the Kaamo Club at the start, on every visit: pirate outposts and pirates, no docking, gate or Khador Drive until the outposts fall. Driven out, they come back after 30 minutes. A station's orbit can say otherwise."));
         }
 
         /// <summary>A list of races (game races by word, or by number when 'numbers'; mod races by key): each with ×, and
