@@ -246,7 +246,9 @@
                                     <ui:Button name="mpCoopStrength0" class="choice-segment gof-semibold" />
                                     <ui:Button name="mpCoopStrength25" class="choice-segment gof-semibold" />
                                     <ui:Button name="mpCoopStrength50" class="choice-segment gof-semibold" />
-                                    <ui:Button name="mpCoopStrength100" class="choice-segment choice-segment--last gof-semibold" />
+                                    <ui:Button name="mpCoopStrength100" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopStrength150" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopStrength200" class="choice-segment choice-segment--last gof-semibold" />
                                 </ui:VisualElement>
                             </ui:VisualElement>
                             <ui:VisualElement name="mpCoopRewardsRow" class="mp-debug-row">

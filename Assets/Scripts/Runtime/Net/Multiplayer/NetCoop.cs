@@ -154,14 +154,14 @@ namespace GoF2Remake.Multiplayer
             SaveGame.EndHostSaves();
         }
 
-        const string CoopUsage = "/coop strength 0|25|50|100, /coop rewards shared|full";
+        const string CoopUsage = "/coop strength 0|25|50|100|150|200, /coop rewards shared|full";
 
         /// <summary>The co-op settings as a line for the chat.</summary>
         static string SettingsText() => string.Format(Localization.Extra("coopSettingsNow", "Enemies: +{0}% per extra player. Story credits: {1}."),
             CoopCampaign.Strength,
             CoopCampaign.SplitRewards ? Localization.Extra("mpCoopRewardsShared", "Shared") : Localization.Extra("mpCoopRewardsFull", "Each in full"));
 
-        /// <summary>/coop [strength 0 | 25 | 50 | 100] [rewards shared | full]: the host's co-op settings while playing (kept for
+        /// <summary>/coop [strength 0 | 25 | 50 | 100 | 150 | 200] [rewards shared | full]: the host's co-op settings while playing (kept for
         /// the next session too); no argument shows them. Everyone hears a change.</summary>
         internal static string Command(string args, IPilot by)
         {

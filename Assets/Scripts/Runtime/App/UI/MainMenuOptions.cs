@@ -148,7 +148,8 @@ namespace GoF2Remake.UI
             Set("mpWorldPersistent", Localization.Extra("mpWorldPersistent", "Persistent").ToUpperInvariant());
             Set("mpCoopStrengthLabel", Localization.Extra("mpCoopStrength", "Enemies per player").ToUpperInvariant());
             Set("mpCoopStrength0", Localization.Extra("mpDebugOff", "Off").ToUpperInvariant());
-            foreach (int pct in new[] { 25, 50, 100 }) Set("mpCoopStrength" + pct, "+" + pct + "%");
+            foreach (int pct in GoF2Remake.Data.CoopCampaign.StrengthChoices)
+                if (pct > 0) Set("mpCoopStrength" + pct, "+" + pct + "%");
             Set("mpCoopRewardsLabel", Localization.Extra("mpCoopRewards", "Story credits").ToUpperInvariant());
             Set("mpCoopRewardsShared", Localization.Extra("mpCoopRewardsShared", "Shared").ToUpperInvariant());
             Set("mpCoopRewardsFull", Localization.Extra("mpCoopRewardsFull", "Each in full").ToUpperInvariant());

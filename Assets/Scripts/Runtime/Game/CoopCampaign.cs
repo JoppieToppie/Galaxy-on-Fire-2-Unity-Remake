@@ -43,7 +43,7 @@ namespace GoF2Remake.Data
         /// <summary>A guest ahead of the leader this long (an advance the leader didn't follow) is set back to the leader's step.</summary>
         public const float AheadSeconds = 120f;
         /// <summary>The Strength choices (% per player past the first) and the default.</summary>
-        public static readonly int[] StrengthChoices = { 0, 25, 50, 100 };
+        public static readonly int[] StrengthChoices = { 0, 25, 50, 100, 150, 200 };
         public const int DefaultStrength = 50;
 
         /// <summary>The session's enemy strength: % more per player past the first (the leader's setting, in its State).</summary>

@@ -98,6 +98,11 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(4f, CoopCampaign.HullFactor(4, 100), 1e-4f);
             Assert.AreEqual(1.25f, CoopCampaign.DamageFactor(2, 50), 1e-4f);
             Assert.AreEqual(2.5f, CoopCampaign.DamageFactor(4, 100), 1e-4f);
+            Assert.AreEqual(5.5f, CoopCampaign.HullFactor(4, 150), 1e-4f);
+            Assert.AreEqual(7f, CoopCampaign.HullFactor(4, 200), 1e-4f);
+            Assert.AreEqual(4f, CoopCampaign.DamageFactor(4, 200), 1e-4f);
+            CoopCampaign.SetSettings(200, true);
+            Assert.AreEqual(200, CoopCampaign.Strength, "the highest choice is kept");
             CoopCampaign.SetSettings(100, true);
             Assert.AreEqual(2f, CoopCampaign.NpcDamageFactor, 1e-4f, "three players (the test's crew) at +100 %: half of it on the guns");
             GameHooks.CoopActive = () => false;
