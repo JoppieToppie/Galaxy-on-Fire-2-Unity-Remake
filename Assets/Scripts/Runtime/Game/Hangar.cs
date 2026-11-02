@@ -198,6 +198,12 @@ namespace GoF2Remake.Data
                 if (used[type] < Slots(type)) used[type]++;
                 else { drop.Add(e); int n = UnitsOf(db, e); if (n > 0) Shop.AddToCargo(e.item, n); moved++; }
             }
+            // Modified: one jump drive aboard: a mod jump drive (GalaxyMap.IsKhadorDrive) mounted on a ship with the Khador
+            // Drive built in (a hull bought or swapped with one fitted) goes to the hold (CanMount refuses it there).
+            if (GalaxyMap.HasIntegratedDrive(Session.ShipIndex))
+                foreach (var e in Session.Equipment)
+                    if (!drop.Contains(e) && !e.builtIn && e.item != GalaxyMap.KhadorDriveItem && GalaxyMap.IsKhadorDrive(e.item) && IsSaleable(e.item))
+                    { drop.Add(e); Shop.AddToCargo(e.item, Mathf.Max(1, e.amount)); moved++; }
             if (moved > 0) Session.Equipment = Session.Equipment.Where(e => !drop.Contains(e)).ToList();
             // An item in a slot past the ship's (a hull with fewer slots) to the first empty one it has.
             for (int type = 0; type <= 3; type++)
@@ -488,6 +494,9 @@ namespace GoF2Remake.Data
             if (it == null || CargoOf(item) <= 0) return Result.NothingToSell;
             int type = it.TypeId;
             if (type > 3) return Result.NotMountable;
+            // Modified: one jump drive aboard: a mod jump drive (based on the Khador Drive) doesn't go on a ship with the Khador
+            // Drive built in; a mounted Khador Drive and a mod one swap (category 18 is one per ship).
+            if (GalaxyMap.IsKhadorDrive(item) && GalaxyMap.HasIntegratedDrive(Session.ShipIndex)) return Result.NotMountable;
             // A one-per-ship item the ship has built in (a shield, a scanner...): it takes the built-in one's place, no slot
             // (SyncBuiltIn sets the built-in one aside); one fitted there already is swapped as usual.
             if (InBuiltInPlace(db, new ItemStack(item, 1)))

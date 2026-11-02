@@ -521,7 +521,10 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   failure (sounds 157 / 158 / 161, a growing camera rumble, the ship at `failHandling`, `ShipController.impairment`) for
   `failMs`, then the jump with `failTexture` to a random visible station, out anywhere within `failRadiusKm` of it clear of
   the obstacles and asteroids (`SpaceLevel.DriveFailPoint`). While the effect hides the ship it is phased and untargetable
-  (`SpaceLevel.SetSceneHidden`; the gate's and the Khador Drive's scenes unchanged). Not tested in multiplayer.
+  (`SpaceLevel.SetSceneHidden`; the gate's and the Khador Drive's scenes unchanged). One jump drive aboard: category 18 is
+  one per ship (a Khador Drive and a mod one swap), and a mod one doesn't go on a ship with the drive built in
+  (`Hangar.CanMount`, "driveBuiltIn"; `FitToSlots` moves one there to the hold). The star map's drive-or-gates question
+  names the mod drive. Not tested in multiplayer.
 - **Mod blueprints** (`ModBlueprints`, a mod's `blueprints.json`, parsed with the rest in `ModContent.Parse`): a "ship" or
   "item" product, ingredients, requiresShip (a skin: built only while flying that ship, which it rebuilds, the Kaamo upgrades
   kept), autocomplete (true / false / a price: `Blueprints.AutoCompletePrice` / `CanAutocomplete`, the hangar hides the row),

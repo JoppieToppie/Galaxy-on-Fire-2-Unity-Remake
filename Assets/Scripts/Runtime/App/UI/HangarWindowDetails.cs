@@ -88,7 +88,9 @@ namespace GoF2Remake.UI
                 else if (selected.kind == RowKind.CargoItem)
                 {
                     var r = hangar.CanMount(item, out _);
-                    ShowAction(T(281).ToUpperInvariant(), r == Hangar.Result.Ok || r == Hangar.Result.Swap);
+                    // Modified: a jump drive on a ship with one built in stays pressable: it says why (HangarWindowActions).
+                    bool driveBuiltIn = r == Hangar.Result.NotMountable && GalaxyMap.IsKhadorDrive(item) && GalaxyMap.HasIntegratedDrive(Session.ShipIndex);
+                    ShowAction(T(281).ToUpperInvariant(), r == Hangar.Result.Ok || r == Hangar.Result.Swap || driveBuiltIn);
                 }
             }
             else if (selected.ship >= 0)

@@ -170,7 +170,10 @@ namespace GoF2Remake.UI
                 // Remake (jumpgate route planning, "or when you don't want to use one"): the drive or the gates, No cancels.
                 if (gateJumps > 0)
                 {
-                    ShowDialog(travelTo, () => Choose(station, true), null, yesText: T(1359).ToUpperInvariant(),
+                    // Modified: a mod jump drive by its own name (ModJumpFx.ActiveDrive).
+                    var modDrive = ModJumpFx.ActiveDrive();
+                    string driveName = modDrive != null ? GameNames.Item(modDrive.item) : T(1359);
+                    ShowDialog(travelTo, () => Choose(station, true), null, yesText: driveName.ToUpperInvariant(),
                                altText: Localization.Extra("mapRouteGates", "Jumpgates").ToUpperInvariant(), onAlt: () => TravelByGates(station, true));
                     return;
                 }
@@ -277,12 +280,16 @@ namespace GoF2Remake.UI
             dialogBackCancels = altText != null && !info;
             root.Q<Label>("dialogText").text = text;
             dialogYes.text = info ? Localization.Extra("ok", "OK") : yesText ?? T(134).ToUpperInvariant();
-            dialogNo.style.display = info ? DisplayStyle.None : DisplayStyle.Flex;
+            // Modified: a choice between two ways (the drive or the gates, the fastest or the safest route): the two answers
+            // stacked in the middle, No replaced by a Back button at the dialog's top left (Esc / B close it as before).
+            dialogNo.style.display = info || dialogBackCancels ? DisplayStyle.None : DisplayStyle.Flex;
             if (dialogAlt != null)
             {
                 dialogAlt.text = altText ?? "";
                 dialogAlt.style.display = dialogBackCancels ? DisplayStyle.Flex : DisplayStyle.None;
             }
+            dialog.Q(className: "map-dialog")?.EnableInClassList("map-dialog--choice", dialogBackCancels);
+            if (dialogBack != null) dialogBack.style.display = dialogBackCancels ? DisplayStyle.Flex : DisplayStyle.None;
             dialog.AddToClassList("map-dialog-backdrop--shown");
             dialogFocus = noFirst && !info ? DialogButtons.Count - 1 : 0;
             HighlightDialog();
@@ -320,7 +327,7 @@ namespace GoF2Remake.UI
             {
                 var list = new List<Button> { dialogYes };
                 if (!dialogInfo && dialogBackCancels && dialogAlt != null) list.Add(dialogAlt);
-                if (!dialogInfo) list.Add(dialogNo);
+                if (!dialogInfo && !dialogBackCancels) list.Add(dialogNo);   // Modified: a choice dialog's No is its Back button
                 return list;
             }
         }
