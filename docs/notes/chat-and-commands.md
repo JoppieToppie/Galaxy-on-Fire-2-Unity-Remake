@@ -66,7 +66,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   the sender; the dedicated server's console runs the very same table (`NetCommands.RunOnServer` with no issuer: every
   right, named "Server"; `list` = players, `say` = g). Only what changes or reads this game stays local: `/help` (the
   commands this player can run, `available`), `/netstats`, `/pos` (the orbit and the game coordinates /tp takes), `/sos`
-  and `/assist` (`NetDistress`). The arena (`/duel` ..., `/leave` leaves a queue or match before the squad), profile
+  and `/assist` (`NetDistress`), `/follow` (`NetFollow`). The arena (`/duel` ..., `/leave` leaves a queue or match before the squad), profile
   (`/link` ...), faction (`/faction`, `/c`) and moderation commands are rows of the same table calling their own
   handlers; the station window's buttons send them as chat lines, which `SendChatRpc` runs through
   `NetCommands.RunOnServer`. Server

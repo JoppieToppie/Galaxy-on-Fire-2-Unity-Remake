@@ -601,6 +601,7 @@ namespace GoF2Remake.Multiplayer
             NetAudit.Tick(true);   // the server's shop runs still open, into the log
             NetChat.Clear();
             NetSquad.Clear();
+            NetFollow.Clear();
             NetTradeClient.Clear();
             worldEntered = false;
             if (manager == null || closing) return;

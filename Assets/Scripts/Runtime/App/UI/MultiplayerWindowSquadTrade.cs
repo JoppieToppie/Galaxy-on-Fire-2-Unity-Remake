@@ -18,7 +18,7 @@ namespace GoF2Remake.UI
         {
             var sb = new System.Text.StringBuilder();
             var me = NetPlayer.Local;
-            sb.Append(me != null ? $"{me.SquadId}|{me.Station}|{me.InHangar}|{me.InSpace}|{NetDistress.Active}" : "-");
+            sb.Append(me != null ? $"{me.SquadId}|{me.Station}|{me.InHangar}|{me.InSpace}|{NetDistress.Active}|{NetFollow.Following}" : "-");
             foreach (var m in NetSquad.Members()) sb.Append('|').Append(m.OwnerClientId).Append(m.DisplayName).Append(NetCommands.WhereText(m)).Append(m.Distress);
             foreach (var i in NetSquad.Invites) sb.Append("|i").Append(i.from);
             foreach (var p in NetPlayer.All)
@@ -53,6 +53,10 @@ namespace GoF2Remake.UI
                     var caller = m;
                     if (!m.IsOwner && m.Distress)
                         row.Add(Btn(Localization.Extra("mpHelpButton", "Help"), () => { string msg = NetDistress.Help(caller); if (!string.IsNullOrEmpty(msg)) status.text = msg; squadKey = ""; }, "squad-button--accept"));
+                    // Follow them from orbit to orbit (NetFollow), or stop.
+                    if (!m.IsOwner)
+                        row.Add(Btn(NetFollow.IsFollowing(m) ? Localization.Extra("mpUnfollowButton", "Stop following") : Localization.Extra("mpFollowButton", "Follow"),
+                                    () => { status.text = NetFollow.Toggle(caller) ?? ""; squadKey = ""; }, NetFollow.IsFollowing(m) ? null : "squad-button--accept"));
                     body.Add(row);
                 }
                 var leave = Row();

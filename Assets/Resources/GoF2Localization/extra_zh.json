@@ -3103,5 +3103,18 @@
  "mapRouteGates": "星门",
  "mapRouteFastest": "最快路线",
  "mapRouteSafest": "最安全路线",
- "mapRouteJumpCount": "{0} 次跳跃"
+ "mapRouteJumpCount": "{0} 次跳跃",
+ "mpFollowCoop": "在合作战役中，船员已经跟随队长的剧情。",
+ "mpFollowSquad": "只能跟随小队队友：请先组建小队（停靠时：/squad invite <飞行员>）。",
+ "mpFollowStarted": "正在跟随{0}：当其跃迁到其他轨道或星系时，你会随后跟上。",
+ "mpFollowStopped": "你已停止跟随{0}。",
+ "mpFollowLost": "{0}已不在你的小队中：你已停止跟随。",
+ "mpFollowOwnWay": "你设定了自己的目的地：已停止跟随{0}。",
+ "mpFollowGoing": "正在跟随{0}：{1}",
+ "mpFollowEntry": "跟随{0}",
+ "mpUnfollowEntry": "停止跟随{0}",
+ "mpFollowButton": "跟随",
+ "mpUnfollowButton": "停止跟随",
+ "mpCmdFollow": "队友跃迁到其他轨道或星系时随后跟上；不带名字：停止跟随",
+ "mpFollowNobody": "你没有跟随任何人。/follow <队友> 可跟随一名队友。"
 }

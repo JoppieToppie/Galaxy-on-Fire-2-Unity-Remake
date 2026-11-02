@@ -718,6 +718,7 @@ namespace GoF2Remake.Multiplayer
             WriteEquipment();   // max hull, emergency clock, sentries (NetPlayerEquipment)
             if (tollStation.Value != NetFactionsClient.TollStation) tollStation.Value = NetFactionsClient.TollStation;
             NetDistress.Tick(this);
+            NetFollow.Tick(this);
             if (distress.Value != NetDistress.Active) distress.Value = NetDistress.Active;
             if (ship.Value != Session.ShipIndex) ship.Value = Session.ShipIndex;   // bought another
             if (standing0.Value != Session.Standing[0]) standing0.Value = Session.Standing[0];

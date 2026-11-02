@@ -3103,5 +3103,18 @@
  "mapRouteGates": "ジャンプゲート",
  "mapRouteFastest": "最速ルート",
  "mapRouteSafest": "最も安全なルート",
- "mapRouteJumpCount": "{0}回のジャンプ"
+ "mapRouteJumpCount": "{0}回のジャンプ",
+ "mpFollowCoop": "協力キャンペーンでは、クルーはすでにリーダーのストーリーに従っています。",
+ "mpFollowSquad": "追従できるのは分隊の仲間だけです。まず分隊を組んでください（ドック中: /squad invite <パイロット>）。",
+ "mpFollowStarted": "{0}に追従中: 別の軌道や星系へジャンプしたら後を追います。",
+ "mpFollowStopped": "{0}への追従をやめました。",
+ "mpFollowLost": "{0}はもう分隊にいません。追従をやめました。",
+ "mpFollowOwnWay": "自分の目的地を設定したため、{0}への追従をやめました。",
+ "mpFollowGoing": "{0}に追従中: {1}",
+ "mpFollowEntry": "{0}に追従",
+ "mpUnfollowEntry": "{0}への追従をやめる",
+ "mpFollowButton": "追従",
+ "mpUnfollowButton": "追従をやめる",
+ "mpCmdFollow": "分隊の仲間が別の軌道や星系へジャンプするたびに後を追う。名前なし: やめる",
+ "mpFollowNobody": "誰にも追従していません。/follow <仲間> で追従します。"
 }

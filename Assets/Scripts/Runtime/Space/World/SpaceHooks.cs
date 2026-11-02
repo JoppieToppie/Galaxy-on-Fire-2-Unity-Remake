@@ -170,6 +170,10 @@ namespace GoF2Remake.World
         public static Func<ulong, string> HelpSquadmate;
         /// <summary>Arriving by travel at a squadmate's distress call: beside them.</summary>
         public static StationPoseQuery DistressArrival;
+        /// <summary>Follow a squadmate from orbit to orbit, or stop when it is the one followed (by client id; its message);
+        /// the one followed (ulong.MaxValue = nobody). Multiplayer.NetFollow.</summary>
+        public static Func<ulong, string> FollowSquadmate;
+        public static Func<ulong> FollowedSquadmate;
         /// <summary>A teleport's pose for this arrival (NetTeleport.TakePose).</summary>
         public static PoseQuery TeleportPose;
 

@@ -3103,5 +3103,18 @@
  "mapRouteGates": "بوابات القفز",
  "mapRouteFastest": "أسرع طريق",
  "mapRouteSafest": "أكثر طريق أمانًا",
- "mapRouteJumpCount": "{0} قفزات"
+ "mapRouteJumpCount": "{0} قفزات",
+ "mpFollowCoop": "في حملة اللعب التعاوني يتبع الطاقم قصة القائد أصلًا.",
+ "mpFollowSquad": "يمكنك تتبع رفاق السرب فقط: كوّن سربًا أولًا (وأنت راسٍ: /squad invite <الطيار>).",
+ "mpFollowStarted": "تتبع {0}: عندما يقفز إلى مدار أو نظام آخر، تلحق به.",
+ "mpFollowStopped": "توقفت عن تتبع {0}.",
+ "mpFollowLost": "لم يعد {0} في سربك: توقفت عن تتبعه.",
+ "mpFollowOwnWay": "وجهة خاصة بك: توقفت عن تتبع {0}.",
+ "mpFollowGoing": "تتبع {0}: {1}",
+ "mpFollowEntry": "تتبع {0}",
+ "mpUnfollowEntry": "إيقاف تتبع {0}",
+ "mpFollowButton": "تتبع",
+ "mpUnfollowButton": "إيقاف التتبع",
+ "mpCmdFollow": "يلحق برفيق السرب كلما قفز إلى مدار أو نظام آخر؛ دون اسم: يتوقف",
+ "mpFollowNobody": "أنت لا تتبع أحدًا. ‏/follow <رفيق> لتتبع أحدهم."
 }

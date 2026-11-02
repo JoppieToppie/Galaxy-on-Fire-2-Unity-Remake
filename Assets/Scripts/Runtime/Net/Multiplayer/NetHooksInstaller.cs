@@ -109,6 +109,8 @@ namespace GoF2Remake.Multiplayer
             SpaceHooks.ToggleDistress = NetDistress.Toggle;
             SpaceHooks.HelpSquadmate = client => NetDistress.Help(NetSquad.Find(client));
             SpaceHooks.DistressArrival = NetDistress.ArrivalNear;
+            SpaceHooks.FollowSquadmate = client => NetFollow.Toggle(NetSquad.Find(client));
+            SpaceHooks.FollowedSquadmate = () => NetFollow.Following;
             SpaceHooks.TeleportPose = NetTeleport.TakePose;
             SpaceHooks.ArenaProvider = () => NetArenaClient.Current;
             SpaceHooks.InArenaMatch = () => NetArenaClient.InMatch;

@@ -327,6 +327,8 @@ namespace GoF2Remake.Multiplayer
                 description = () => X("mpCmdSos", "in space: calls your squad for help, or ends the call") },
             new Command { name = "assist", usage = "<player>", arg = Arg.Player, available = Everyone, local = Assist,
                 description = () => X("mpCmdAssist", "flies to a squadmate calling for help") },
+            new Command { name = "follow", usage = "[<player>]", arg = Arg.Player, optional = true, available = Everyone, local = Follow,
+                description = () => X("mpCmdFollow", "goes after a squadmate whenever they jump to another orbit or system; no name: stops") },
             new Command { name = "squad", usage = "[invite <player> | accept | decline | leave]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Squad, description = () => X("mpCmdSquad", "your squad; invite a pilot docked at your station, answer an invitation, leave") },
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
@@ -538,6 +540,17 @@ namespace GoF2Remake.Multiplayer
             var caller = MatchPlayer(who, out _) as NetPlayer;
             NetChat.Notice(caller != null && NetSquad.Same(caller, NetPlayer.Local) ? NetDistress.Help(caller) ?? ""
                 : string.Format(X("mpHelpNoMate", "No squadmate called \"{0}\"."), who));
+        }
+
+        /// <summary>/follow: follow a squadmate from orbit to orbit, or (no name, or the one followed) stop (NetFollow).</summary>
+        static void Follow(string who)
+        {
+            who = (who ?? "").Trim();
+            if (who.Length == 0) { NetChat.Notice(NetFollow.Stop() ?? X("mpFollowNobody", "You aren't following anyone. /follow <squadmate> follows one.")); return; }
+            var mate = MatchPlayer(who, out _) as NetPlayer;
+            if (mate == null || mate == NetPlayer.Local || !NetSquad.Same(mate, NetPlayer.Local))
+                NetChat.Notice(string.Format(X("mpHelpNoMate", "No squadmate called \"{0}\"."), who));
+            else NetChat.Notice(NetFollow.Toggle(mate) ?? "");
         }
 
         static string X(string key, string english) => Localization.Extra(key, english);

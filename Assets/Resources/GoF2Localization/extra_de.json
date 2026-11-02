@@ -3103,5 +3103,18 @@
  "mapRouteGates": "Sprungtore",
  "mapRouteFastest": "Schnellste Route",
  "mapRouteSafest": "Sicherste Route",
- "mapRouteJumpCount": "{0} Sprünge"
+ "mapRouteJumpCount": "{0} Sprünge",
+ "mpFollowCoop": "In der Koop-Kampagne folgt die Crew schon der Geschichte des Anführers.",
+ "mpFollowSquad": "Du kannst nur Staffelkameraden folgen: bilde zuerst eine Staffel (angedockt: /squad invite <Pilot>).",
+ "mpFollowStarted": "Du folgst {0}: springt er in einen anderen Orbit oder ein anderes System, fliegst du hinterher.",
+ "mpFollowStopped": "Du folgst {0} nicht mehr.",
+ "mpFollowLost": "{0} ist nicht mehr in deiner Staffel: du folgst ihm nicht mehr.",
+ "mpFollowOwnWay": "Ein eigenes Ziel: du folgst {0} nicht mehr.",
+ "mpFollowGoing": "Du folgst {0}: {1}",
+ "mpFollowEntry": "{0} folgen",
+ "mpUnfollowEntry": "{0} nicht mehr folgen",
+ "mpFollowButton": "Folgen",
+ "mpUnfollowButton": "Nicht mehr folgen",
+ "mpCmdFollow": "fliegt einem Staffelkameraden hinterher, sobald er in einen anderen Orbit oder ein anderes System springt; ohne Namen: hört auf",
+ "mpFollowNobody": "Du folgst niemandem. /follow <Staffelkamerad> folgt einem."
 }

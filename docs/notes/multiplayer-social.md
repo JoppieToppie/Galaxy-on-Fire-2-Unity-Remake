@@ -126,3 +126,17 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   the quick (actions) menu (E / D-pad left / the touch quick menu button; `Navigation.ActionEntries`, kind `Assist`):
   "Help <name>" for each squadmate calling, the answer as a HUD message; and a pulsing banner at the top
   (`TerritoryView`, under a siege's) with who calls for help and where. Not tested in a build yet.
+- **Following a squadmate** (`NetFollow`, the user's request 2026-11-02): Follow / Stop following on each squadmate's
+  row of the squad window (flight HUD and station, `SquadView`) and the Multiplayer window's Squad tab, the quick menu's
+  "Follow <name>" / "Stop following <name>" (kind `Follow`, `SpaceHooks.FollowSquadmate` / `FollowedSquadmate`), or
+  `/follow <name>` (`/follow` alone stops). While this pilot is in space and free (`NetFollow.Ready`: the launch camera
+  over, no jump charging or under way, no arrival warp, cutscene, conversation, docking or object docking, not between
+  the systems or in an arena), each time the followed pilot is placed (in space or docked) in another orbit, this game
+  sets out after them the distress Help's way (`NetDistress.TravelTo`: the Khador Drive with the cells, else the
+  autopilot to their planet or the gate route) and arrives beside them (`ArrivalNear`); docked it waits, the launch then
+  goes after them. One trip per place they go (`goingTo`): the autopilot switched off on the way stays off, and a planet
+  jump of one's own away from them isn't undone, until they move on. Ends: Stop following, a destination of one's own
+  (`Session.ProgrammedStation` set to another station, e.g. the star map's pick), the followed pilot leaving the squad
+  or the game, this pilot leaving the squad, the session (`NetGame` -> `NetFollow.Clear`). Squadmates only (a stranger
+  can't be trailed across the galaxy in PvP), never into an arena match, not in the co-op campaign. The rule:
+  `NetFollow.Decide` (`NetFollowTests`). Not tested with two games yet.

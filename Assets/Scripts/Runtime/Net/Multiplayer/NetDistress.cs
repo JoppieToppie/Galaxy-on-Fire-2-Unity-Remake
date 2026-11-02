@@ -11,7 +11,7 @@
 //   docked: the launch first (the same programmed station, like the star map's pick).
 // Arriving in the caller's orbit by that jump, the helper comes out ArrivalDistance from the caller, facing them
 // (SpaceLevel.SpawnPlayer), instead of at the far arrival point. The star map marks the squad (UI.StarMap: a green dot
-// with the names, red with a distress call).
+// with the names, red with a distress call). Following a squadmate (NetFollow) travels the same way (TravelTo).
 
 using GoF2Remake.Data;
 using GoF2Remake.World;
@@ -69,16 +69,22 @@ namespace GoF2Remake.Multiplayer
             if (caller == null || me == null || caller == me) return null;
             if (!caller.InSpace || NetArena.IsArenaOrbit(caller.Station))
                 return string.Format(Localization.Extra("mpHelpNotInSpace", "{0} isn't in space."), caller.DisplayName);
-            int station = caller.Station;
-            var db = NetGame.Db;
-            if (me.InSpace && me.Station == station) return string.Format(Localization.Extra("mpHelpHere", "{0} is in this orbit."), caller.DisplayName);
+            if (me.InSpace && me.Station == caller.Station) return string.Format(Localization.Extra("mpHelpHere", "{0} is in this orbit."), caller.DisplayName);
             var level = Object.FindAnyObjectByType<SpaceLevel>();
-            var dock = level == null ? Object.FindAnyObjectByType<StationLevel>() : null;
             if (level != null && (level.SystemJump == null || level.SystemJump.Cinematic || level.SystemJump.Charging || (level.Navigation != null && level.Navigation.Jumping)))
                 return Localization.Extra("mpHelpBusy", "Not now: a jump is under way.");
+            return TravelTo(caller, level, level == null ? Object.FindAnyObjectByType<StationLevel>() : null);
+        }
+
+        /// <summary>Help, and NetFollow's jump after the followed pilot: program 'target''s station and go there the fastest
+        /// way (the header); arriving there by that jump, next to them. 'dock' = docked: the launch first. Its message.</summary>
+        internal static string TravelTo(NetPlayer target, SpaceLevel level, StationLevel dock)
+        {
+            int station = target.Station;
+            var db = NetGame.Db;
             int from = db.Stations.Find(s => s.index == Session.StationIndex)?.system ?? -1;
             int to = db.Stations.Find(s => s.index == station)?.system ?? -1;
-            helping = caller.OwnerClientId;
+            helping = target.OwnerClientId;
             helpStation = station;
             Session.ProgrammedStation = station;
             Session.InstantJump = false;
@@ -90,11 +96,11 @@ namespace GoF2Remake.Multiplayer
                 {
                     Session.InstantJump = true;
                     Session.EnergyCellsForNextJump = cells;
-                    how = string.Format(Localization.Extra("mpHelpKhador", "Khador Drive to {0} ({1} energy cells)."), caller.DisplayName, cells);
+                    how = string.Format(Localization.Extra("mpHelpKhador", "Khador Drive to {0} ({1} energy cells)."), target.DisplayName, cells);
                 }
-                else how = string.Format(Localization.Extra("mpHelpNoCells", "Too few energy cells for the Khador Drive ({0}): the autopilot flies to {1}."), cells, caller.DisplayName);
+                else how = string.Format(Localization.Extra("mpHelpNoCells", "Too few energy cells for the Khador Drive ({0}): the autopilot flies to {1}."), cells, target.DisplayName);
             }
-            else how = string.Format(Localization.Extra("mpHelpAutopilot", "The autopilot flies to {0}."), caller.DisplayName);
+            else how = string.Format(Localization.Extra("mpHelpAutopilot", "The autopilot flies to {0}."), target.DisplayName);
             if (dock != null) dock.Launch();                                   // the launch, then the programmed station
             else if (level != null && !Session.InstantJump) level.Navigation?.ContinueToProgrammedStation();
             // (in space with a jump: SystemJump starts charging on its own, Session.InstantJump)

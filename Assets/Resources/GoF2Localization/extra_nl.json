@@ -3103,5 +3103,18 @@
  "mapRouteGates": "Sprongpoorten",
  "mapRouteFastest": "Snelste route",
  "mapRouteSafest": "Veiligste route",
- "mapRouteJumpCount": "{0} sprongen"
+ "mapRouteJumpCount": "{0} sprongen",
+ "mpFollowCoop": "In de co-op-campagne volgt de crew het verhaal van de leider al.",
+ "mpFollowSquad": "Je kunt alleen squadgenoten volgen: vorm eerst een squad (aangemeerd: /squad invite <piloot>).",
+ "mpFollowStarted": "Je volgt {0}: springen ze naar een andere baan of een ander stelsel, dan ga je hen achterna.",
+ "mpFollowStopped": "Je volgt {0} niet meer.",
+ "mpFollowLost": "{0} zit niet meer in je squad: je volgt hen niet meer.",
+ "mpFollowOwnWay": "Een eigen bestemming: je volgt {0} niet meer.",
+ "mpFollowGoing": "Je volgt {0}: {1}",
+ "mpFollowEntry": "{0} volgen",
+ "mpUnfollowEntry": "Stoppen met {0} volgen",
+ "mpFollowButton": "Volgen",
+ "mpUnfollowButton": "Niet meer volgen",
+ "mpCmdFollow": "gaat een squadgenoot achterna zodra die naar een andere baan of een ander stelsel springt; zonder naam: stopt",
+ "mpFollowNobody": "Je volgt niemand. /follow <squadgenoot> volgt er een."
 }

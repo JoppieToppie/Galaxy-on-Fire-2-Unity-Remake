@@ -3103,5 +3103,18 @@
  "mapRouteGates": "Portes supraluminiques",
  "mapRouteFastest": "Route la plus rapide",
  "mapRouteSafest": "Route la plus sûre",
- "mapRouteJumpCount": "{0} sauts"
+ "mapRouteJumpCount": "{0} sauts",
+ "mpFollowCoop": "Dans la campagne coopérative, l'équipage suit déjà l'histoire du chef.",
+ "mpFollowSquad": "Vous ne pouvez suivre que des coéquipiers : formez d'abord une escouade (à quai : /squad invite <pilote>).",
+ "mpFollowStarted": "Vous suivez {0} : s'il saute vers une autre orbite ou un autre système, vous le suivez.",
+ "mpFollowStopped": "Vous ne suivez plus {0}.",
+ "mpFollowLost": "{0} n'est plus dans votre escouade : vous ne le suivez plus.",
+ "mpFollowOwnWay": "Une destination à vous : vous ne suivez plus {0}.",
+ "mpFollowGoing": "Vous suivez {0} : {1}",
+ "mpFollowEntry": "Suivre {0}",
+ "mpUnfollowEntry": "Ne plus suivre {0}",
+ "mpFollowButton": "Suivre",
+ "mpUnfollowButton": "Ne plus suivre",
+ "mpCmdFollow": "suit un coéquipier dès qu'il saute vers une autre orbite ou un autre système ; sans nom : arrête",
+ "mpFollowNobody": "Vous ne suivez personne. /follow <coéquipier> en suit un."
 }

@@ -3103,5 +3103,18 @@
  "mapRouteGates": "Hiperwrota",
  "mapRouteFastest": "Najszybsza trasa",
  "mapRouteSafest": "Najbezpieczniejsza trasa",
- "mapRouteJumpCount": "Skoki: {0}"
+ "mapRouteJumpCount": "Skoki: {0}",
+ "mpFollowCoop": "W kampanii kooperacyjnej załoga i tak podąża za historią lidera.",
+ "mpFollowSquad": "Możesz podążać tylko za członkami eskadry: najpierw utwórz eskadrę (zadokowany: /squad invite <pilot>).",
+ "mpFollowStarted": "Podążasz za: {0}. Gdy skoczy na inną orbitę lub do innego systemu, polecisz za nim.",
+ "mpFollowStopped": "Nie podążasz już za: {0}.",
+ "mpFollowLost": "{0} nie jest już w twojej eskadrze: nie podążasz już za nim.",
+ "mpFollowOwnWay": "Własny cel: nie podążasz już za: {0}.",
+ "mpFollowGoing": "Podążasz za: {0}. {1}",
+ "mpFollowEntry": "Podążaj: {0}",
+ "mpUnfollowEntry": "Przestań podążać: {0}",
+ "mpFollowButton": "Podążaj",
+ "mpUnfollowButton": "Przestań podążać",
+ "mpCmdFollow": "leci za członkiem eskadry, gdy skoczy na inną orbitę lub do innego systemu; bez nazwy: przestaje",
+ "mpFollowNobody": "Nie podążasz za nikim. /follow <członek eskadry> podąża za nim."
 }

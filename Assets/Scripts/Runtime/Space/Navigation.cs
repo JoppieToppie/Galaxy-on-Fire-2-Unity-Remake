@@ -53,7 +53,9 @@ namespace GoF2Remake.Flight
                            Distress, Assist,
             /// <summary>Remake multiplayer: a named object (/spawn ... named, DebugSpawner.SpawnObject): its name and distance
             /// near the crosshair like a landmark's, never locked or flown to.</summary>
-            Marker }
+            Marker,
+            /// <summary>Remake multiplayer: follow a squadmate from orbit to orbit, or stop (NetFollow).</summary>
+            Follow }
 
         public class Target
         {
@@ -66,7 +68,7 @@ namespace GoF2Remake.Flight
             public bool hidden;              // not drawn and not lockable now (the wormhole while invisible)
             public string name;
             public NpcShip dockingShip;     // docking targets: the object
-            public ulong client;             // multiplayer Assist: the squadmate calling for help
+            public ulong client;             // multiplayer Assist / Follow: the squadmate calling for help / to follow
             public bool freelance;          // waypoints: a freelance mission's route (the white freelance icon, not the gold story one)
             public bool eventWaypoint;      // waypoints: the event's own one (SetEventWaypoint), beside the player route
             public int techLevel = -1;      // stations: the tech level its marker shows (-1 = the orbit's station's)
@@ -438,6 +440,13 @@ namespace GoF2Remake.Flight
                     if (m != null && !m.IsOwner && m.Distress)
                         list.Add(new Target { kind = Kind.Assist, client = m.OwnerClientId,
                                               name = string.Format(Localization.Extra("mpHelpEntry", "Help {0}"), m.DisplayName) });
+                // Follow each squadmate from orbit to orbit (NetFollow), or stop following the one followed.
+                ulong followed = GoF2Remake.World.SpaceHooks.FollowedSquadmate?.Invoke() ?? ulong.MaxValue;
+                foreach (var m in GoF2Remake.World.SpaceHooks.Squad)
+                    if (m != null && !m.IsOwner)
+                        list.Add(new Target { kind = Kind.Follow, client = m.OwnerClientId,
+                                              name = string.Format(m.OwnerClientId == followed ? Localization.Extra("mpUnfollowEntry", "Stop following {0}")
+                                                                                              : Localization.Extra("mpFollowEntry", "Follow {0}"), m.DisplayName) });
             }
             return list;
         }
@@ -486,6 +495,12 @@ namespace GoF2Remake.Flight
             if (target.kind == Kind.Assist)
             {
                 string msg = GoF2Remake.World.SpaceHooks.HelpSquadmate?.Invoke(target.client);
+                if (!string.IsNullOrEmpty(msg)) Say(msg);
+                return;
+            }
+            if (target.kind == Kind.Follow)
+            {
+                string msg = GoF2Remake.World.SpaceHooks.FollowSquadmate?.Invoke(target.client);
                 if (!string.IsNullOrEmpty(msg)) Say(msg);
                 return;
             }

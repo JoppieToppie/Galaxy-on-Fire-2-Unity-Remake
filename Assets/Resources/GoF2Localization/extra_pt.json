@@ -3103,5 +3103,18 @@
  "mapRouteGates": "Portais",
  "mapRouteFastest": "Rota mais rápida",
  "mapRouteSafest": "Rota mais segura",
- "mapRouteJumpCount": "{0} saltos"
+ "mapRouteJumpCount": "{0} saltos",
+ "mpFollowCoop": "Na campanha cooperativa a tripulação já segue a história do líder.",
+ "mpFollowSquad": "Só pode seguir colegas de esquadrão: forme um esquadrão primeiro (atracado: /squad invite <piloto>).",
+ "mpFollowStarted": "Seguindo {0}: quando saltar para outra órbita ou outro sistema, você vai atrás.",
+ "mpFollowStopped": "Você deixou de seguir {0}.",
+ "mpFollowLost": "{0} não está mais no seu esquadrão: você deixou de segui-lo.",
+ "mpFollowOwnWay": "Um destino seu: você deixou de seguir {0}.",
+ "mpFollowGoing": "Seguindo {0}: {1}",
+ "mpFollowEntry": "Seguir {0}",
+ "mpUnfollowEntry": "Deixar de seguir {0}",
+ "mpFollowButton": "Seguir",
+ "mpUnfollowButton": "Deixar de seguir",
+ "mpCmdFollow": "vai atrás de um colega de esquadrão quando ele salta para outra órbita ou outro sistema; sem nome: para",
+ "mpFollowNobody": "Você não está seguindo ninguém. /follow <colega> segue um."
 }
