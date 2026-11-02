@@ -102,7 +102,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `ios-bookmark:<base64>`), opened again for each sync and then plain file calls. UWP: FolderPicker, the folder in the
   FutureAccessList under a token of its own per pick (`uwp-folder:<token>`), its files through Windows.Storage (waited on
   from Unity's app thread). Desktop: a plain folder (Editor OpenFolderPanel, Windows SHBrowseForFolderW on an STA worker
-  thread, Linux zenity / kdialog, macOS osascript). Not mirrored: Mods, the Transfer folder, mod_registry.json (`ModSaves.Fix` renumbers by key). Tests
+  thread, Linux zenity / kdialog, macOS NSOpenPanel in folder mode, `FileDialog.OpenFolder`, in place of osascript). Not mirrored: Mods, the Transfer folder, mod_registry.json (`ModSaves.Fix` renumbers by key). Tests
   `SaveFolderTests` (a sandbox folder as the other device; `SaveFolder.TestTarget` / `StoreOverride`, never the player's
   choice while `GamePaths.Override` is set). Verified in the Editor (Windows); not yet run on Android, iOS, UWP, Linux or
   macOS.

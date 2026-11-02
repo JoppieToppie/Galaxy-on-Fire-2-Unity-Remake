@@ -559,7 +559,9 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   temporaryCachePath/ModImport (Android: `ModImportActivity`, `Assets/Plugins/Android/ModImportActivity.java`, a see-through
   activity around ACTION_OPEN_DOCUMENT that copies on a worker thread and is polled through its static fields, registered
   in the unityLibrary manifest by the Editor's `AndroidModImportActivity`; Windows: `FileDialog.Open(title, filter, exts)`;
-  Linux: zenity, else kdialog, on a worker thread; macOS: osascript's choose file; UWP: `FileOpenPicker` on the UI thread;
+  Linux: zenity, else kdialog, on a worker thread; macOS: AppKit's NSOpenPanel, modal like Windows (`FileDialog.Mac`,
+  objc_msgSend; osascript's choose file on a worker thread lost the pick: the Mod Builder's .glb picked, then nothing,
+  2026-11-02); UWP: `FileOpenPicker` on the UI thread;
   the Editor: its open panel; iOS: the document picker, `Plugins/iOS/FileImportPicker.mm`, which moves the system's
   "asCopy" copy out of tmp/<bundle id>-Inbox (copied, it stayed there as a second copy); `ModImport.Available`),
   `Inspect` reads it as a zip mod (mod.json, a valid id),

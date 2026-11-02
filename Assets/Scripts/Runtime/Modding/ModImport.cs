@@ -4,7 +4,7 @@
 //   Android   ModImportActivity (Assets/Plugins/Android): the document picker, which does the copy itself
 //   Windows   FileDialog's comdlg32 open dialog (modal, like the saves' import)
 //   Linux     zenity, else kdialog (a worker thread runs it; neither installed: an error naming the Mods folder)
-//   macOS     osascript's "choose file" (a worker thread)
+//   macOS     AppKit's NSOpenPanel (FileDialog, modal like Windows; osascript's "choose file" on a worker thread lost the pick)
 //   UWP       Windows.Storage.Pickers.FileOpenPicker on the UI thread
 //   iOS       the document picker (Plugins/iOS/FileImportPicker.mm), which copies the file itself; the Files app also
 //             shows the game's Documents folder (Mods inside it, IosPlayerSetup's UIFileSharingEnabled)
@@ -52,7 +52,7 @@ namespace GoF2Remake.Modding
             catch (Exception e) { return new Picked { error = e.Message }; }
         }
 
-#if UNITY_STANDALONE_LINUX || UNITY_STANDALONE_OSX
+#if UNITY_STANDALONE_LINUX
         /// <summary>Runs a picker program and returns what it printed (the path), "" when cancelled; throws
         /// Win32Exception when the program isn't installed.</summary>
         static string RunPicker(string exe, string args)
@@ -109,7 +109,7 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>Opens the picker; the returned poll is called until it answers (non-null): at once for the modal
-        /// dialogs (the Editor, Windows), when the activity / program / picker is done elsewhere.</summary>
+        /// dialogs (the Editor, Windows, macOS), when the activity / program / picker is done elsewhere.</summary>
         public static Func<Picked> Pick() => Pick(Title, "Galaxy on Fire 2 mods", Extensions);
 
         /// <summary>The picker for any file kind (the Mod Builder's models): 'title', the filter's name and its extensions
@@ -146,8 +146,14 @@ namespace GoF2Remake.Modding
                 }
             }, folder);
 #elif UNITY_STANDALONE_OSX
-            return PickWithProgram(() => RunPicker("osascript",
-                $"-e \"POSIX path of (choose file with prompt \\\"{Title}:\\\")\""), folder);
+            Picked result;
+            try
+            {
+                string p = Data.FileDialog.Open(Title, filterName, extensions);
+                result = string.IsNullOrEmpty(p) ? new Picked { cancelled = true } : CopyIn(p, folder);
+            }
+            catch (Exception e) { result = new Picked { error = e.Message }; }
+            return () => result;
 #elif UNITY_WSA && ENABLE_WINMD_SUPPORT
             Picked result = null;
             try { Directory.CreateDirectory(folder); } catch { }

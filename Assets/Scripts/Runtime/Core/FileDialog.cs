@@ -1,7 +1,8 @@
 // FileDialog.cs
 // Remake-only: the system's save / open file dialog for SaveTransfer (and, on Windows, the mod browser's Import mod). The Editor uses EditorUtility's panels; a Windows
 // player calls comdlg32's GetSaveFileNameW / GetOpenFileNameW (modal: the game waits while it is open). Elsewhere there
-// is no dialog (Available false) and SaveTransfer uses its Transfer folder.
+// is no dialog (Available false) and SaveTransfer uses its Transfer folder. A macOS player has AppKit's open panel for
+// ModImport and SaveFolderPicker alone (Open with a title, OpenFolder).
 
 using System;
 using System.IO;
@@ -47,16 +48,99 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Asks for a file to read with its own title and filter ('extensions' without the dots; the Mods' Import
-        /// mod). Windows player only (the Editor and the other platforms have their own pickers, Modding.ModImport). Null:
-        /// cancelled / no dialog.</summary>
+        /// mod). Windows and macOS players only (the Editor and the other platforms have their own pickers,
+        /// Modding.ModImport). Null: cancelled / no dialog; macOS throws when its panel can't be shown.</summary>
         public static string Open(string title, string filterName, params string[] extensions)
         {
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
             return Win32.Show(false, null, extensions.Length > 0 ? extensions[0] : "", title, filterName, extensions);
+#elif UNITY_STANDALONE_OSX && !UNITY_EDITOR
+            return Mac.Show(title, extensions, false);
 #else
             return null;
 #endif
         }
+
+        /// <summary>Asks for a folder (SaveFolderPicker). macOS player only. Null: cancelled / no dialog; throws when the
+        /// panel can't be shown.</summary>
+        public static string OpenFolder(string title)
+        {
+#if UNITY_STANDALONE_OSX && !UNITY_EDITOR
+            return Mac.Show(title, null, true);
+#else
+            return null;
+#endif
+        }
+
+#if UNITY_STANDALONE_OSX && !UNITY_EDITOR
+        /// <summary>AppKit's NSOpenPanel through the Objective-C runtime (libobjc's objc_msgSend, as MacGameControllers reads
+        /// GameController: nothing to compile on a Mac), run modal on the main thread, which is AppKit's in a Mac player.
+        /// It replaced osascript's choose file on a worker thread, whose pick never reached the game (2026-11-02: the Mod
+        /// Builder's .glb picked, then nothing). A file chosen in the game's own panel is also the player's choice to macOS's
+        /// privacy checks, so one in Downloads / Documents / Desktop reads without a prompt.</summary>
+        static class Mac
+        {
+            const string LibObjc = "/usr/lib/libobjc.A.dylib";
+            const long ModalResponseOk = 1;   // NSModalResponseOK
+
+            [DllImport(LibObjc)] static extern IntPtr objc_getClass(string name);
+            [DllImport(LibObjc)] static extern IntPtr sel_registerName(string name);
+            [DllImport(LibObjc)] static extern IntPtr objc_autoreleasePoolPush();
+            [DllImport(LibObjc)] static extern void objc_autoreleasePoolPop(IntPtr pool);
+            // objc_msgSend with each signature it is called with (BOOL arguments as a byte: bool on arm64, signed char on x86_64).
+            [DllImport(LibObjc, EntryPoint = "objc_msgSend")] static extern IntPtr Send(IntPtr self, IntPtr sel);
+            [DllImport(LibObjc, EntryPoint = "objc_msgSend")] static extern IntPtr Send(IntPtr self, IntPtr sel, IntPtr arg);
+            [DllImport(LibObjc, EntryPoint = "objc_msgSend")] static extern void SendFlag(IntPtr self, IntPtr sel, byte flag);
+            [DllImport(LibObjc, EntryPoint = "objc_msgSend")] static extern long SendLong(IntPtr self, IntPtr sel);
+            [DllImport(LibObjc, EntryPoint = "objc_msgSend")] static extern byte SendBool(IntPtr self, IntPtr sel, IntPtr arg);
+
+            static IntPtr S(string name) => sel_registerName(name);
+
+            static IntPtr NSString(string s)
+            {
+                IntPtr utf8 = Marshal.StringToCoTaskMemUTF8(s ?? "");
+                try { return Send(objc_getClass("NSString"), S("stringWithUTF8String:"), utf8); }
+                finally { Marshal.FreeCoTaskMem(utf8); }
+            }
+
+            /// <summary>The panel for one file ('extensions' without the dots; none or "*": any file) or one folder; the
+            /// chosen path, null when cancelled.</summary>
+            public static string Show(string title, string[] extensions, bool folder)
+            {
+                IntPtr panelClass = objc_getClass("NSOpenPanel");
+                if (panelClass == IntPtr.Zero) throw new Exception("no NSOpenPanel");
+                IntPtr pool = objc_autoreleasePoolPush();
+                try
+                {
+                    IntPtr panel = Send(panelClass, S("openPanel"));
+                    if (panel == IntPtr.Zero) throw new Exception("NSOpenPanel didn't open");
+                    SendFlag(panel, S("setCanChooseFiles:"), (byte)(folder ? 0 : 1));
+                    SendFlag(panel, S("setCanChooseDirectories:"), (byte)(folder ? 1 : 0));
+                    SendFlag(panel, S("setCanCreateDirectories:"), (byte)(folder ? 1 : 0));
+                    SendFlag(panel, S("setAllowsMultipleSelection:"), 0);
+                    if (!string.IsNullOrEmpty(title)) Send(panel, S("setMessage:"), NSString(title));
+                    // setAllowedFileTypes: is deprecated since macOS 12 (allowedContentTypes needs UTTypes) but still filters;
+                    // asked first, since an unknown selector raises an Objective-C exception, which C# can't catch.
+                    bool filter = !folder && extensions != null && extensions.Length > 0
+                                  && Array.TrueForAll(extensions, e => !string.IsNullOrEmpty(e) && e != "*");
+                    IntPtr selTypes = S("setAllowedFileTypes:");
+                    if (filter && SendBool(panel, S("respondsToSelector:"), selTypes) != 0)
+                    {
+                        IntPtr types = Send(objc_getClass("NSMutableArray"), S("array"));
+                        foreach (var e in extensions) Send(types, S("addObject:"), NSString(e));
+                        Send(panel, selTypes, types);
+                    }
+                    if (SendLong(panel, S("runModal")) != ModalResponseOk) return null;
+                    IntPtr url = Send(panel, S("URL"));
+                    IntPtr path = url == IntPtr.Zero ? IntPtr.Zero : Send(url, S("path"));
+                    IntPtr utf8 = path == IntPtr.Zero ? IntPtr.Zero : Send(path, S("UTF8String"));
+                    string p = utf8 == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(utf8);
+                    return string.IsNullOrEmpty(p) ? null : p;
+                }
+                finally { objc_autoreleasePoolPop(pool); }
+            }
+        }
+#endif
 
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
         static class Win32

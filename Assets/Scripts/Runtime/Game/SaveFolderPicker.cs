@@ -4,7 +4,7 @@
 //   Editor    EditorUtility.OpenFolderPanel
 //   Windows   shell32's SHBrowseForFolderW on a worker thread of its own (an STA for the dialog's COM)
 //   Linux     zenity --directory, else kdialog --getexistingdirectory (a worker thread)
-//   macOS     osascript's choose folder
+//   macOS     AppKit's NSOpenPanel in folder mode (FileDialog.OpenFolder, modal; osascript's choose folder lost the pick)
 //   Android   SaveFolderActivity (the Storage Access Framework's ACTION_OPEN_DOCUMENT_TREE, a persistable grant)
 //   iOS       the document picker in folder mode (Plugins/iOS/SaveFolderPicker.mm), kept as a security-scoped bookmark
 //   UWP       FolderPicker, the folder kept in the FutureAccessList under a token of its own
@@ -50,7 +50,10 @@ namespace GoF2Remake.Data
                 }
             }, false);
 #elif UNITY_STANDALONE_OSX
-            return OnThread(() => RunPicker("osascript", $"-e \"POSIX path of (choose folder with prompt \\\"{title}:\\\")\""), false);
+            Picked result;
+            try { result = FromPath(FileDialog.OpenFolder(title)); }
+            catch (Exception e) { result = new Picked { error = e.Message }; }
+            return () => result;
 #elif UNITY_ANDROID
             try
             {
@@ -120,7 +123,7 @@ namespace GoF2Remake.Data
         [DllImport("__Internal")] static extern string GoF2SaveFolder_Error();
 #endif
 
-#if !UNITY_EDITOR && (UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX || UNITY_STANDALONE_OSX)
+#if !UNITY_EDITOR && (UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX)
         static Func<Picked> OnThread(Func<string> run, bool sta)
         {
             Picked result = null;
@@ -136,7 +139,7 @@ namespace GoF2Remake.Data
         }
 #endif
 
-#if !UNITY_EDITOR && (UNITY_STANDALONE_LINUX || UNITY_STANDALONE_OSX)
+#if !UNITY_EDITOR && UNITY_STANDALONE_LINUX
         static string RunPicker(string exe, string args)
         {
             var info = new System.Diagnostics.ProcessStartInfo(exe, args)
