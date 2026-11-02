@@ -552,12 +552,24 @@ namespace GoF2Remake.World
                 SpaceHooks.WreckHacked?.Invoke(Session.StationIndex, ship != null ? ship.Target.displayName ?? "" : "");   // remake: "on hacked"
             };
             // MGame::OnUpdate / OnTouchEnd: docked at the Coromesk mining plant with no campaign mission, ore into cores.
+            // Remake: one menu with every option instead of the original's Yes / No (players' wish): two sections listing
+            // the hold's ore (what each makes) and Space Waste (what sorting it costs), then the actions that do something
+            // now (converting with a core to make, sorting with a ton paid for), Leave. Each comes back to it.
+            void PlantMenu()
+            {
+                var entries = new System.Collections.Generic.List<(string label, System.Action action)>();
+                if (MiningPlant.CoresMade() > 0)
+                    entries.Add((MiningPlant.ConvertEntry, () => Traffic.Ask(MiningPlant.Result(MiningPlant.Convert()), null, null, PlantMenu, null)));
+                if (WasteProcessing.Tons(db) > 0)
+                    entries.Add((WasteProcessing.MenuEntry(db), () => Traffic.ShowSorting(WasteProcessing.Process(db), db, PlantMenu)));
+                entries.Add((MiningPlant.LeaveEntry, null));
+                Traffic.ShowMenu(MiningPlant.Title, new System.Collections.Generic.List<MenuSection> { MiningPlant.Section(db), WasteProcessing.Section(db) }, entries);
+            }
             Docking.Docked += () =>
             {
                 if (Docking.Target == null || Docking.Target.DockingType != ObjectDocking.DropOff
                     || !MiningPlant.Offered(Session.StationIndex, Layout.alienOrbit)) return;
-                Traffic.Ask(MiningPlant.Question(db), Localization.Get(134), Localization.Get(135),
-                            () => Traffic.Ask(MiningPlant.Result(MiningPlant.Convert()), null, null, null, null), null);
+                PlantMenu();
             };
             if (storyOrbit)
             {

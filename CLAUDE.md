@@ -24,7 +24,7 @@ This file holds only what every task needs. Everything about one area of the gam
 | [supernova.md](docs/notes/supernova.md) | Steps 84-162, object docking, hacking, gas clouds, Most Wanted, Specters, the Supernova Challenge |
 | [bar-and-freelance.md](docs/notes/bar-and-freelance.md) | Agents, lounge chat, freelance missions, Missions window, blueprints, wingmen, medals |
 | [kaamo-club.md](docs/notes/kaamo-club.md) | The siege, purchase, storage and stored hulls |
-| [mining.md](docs/notes/mining.md) | Asteroids, the lock, approach, minigame, payout, the mining beam |
+| [mining.md](docs/notes/mining.md) | Asteroids, the lock, approach, minigame, payout, the mining beam, the Mining Plant and its waste sorting |
 | [station-scene.md](docs/notes/station-scene.md) | Hangar, lounge, station menu, Inspect ship, hangar flights, parking heights, ship shadows, the remodelled hangars |
 | [shop.md](docs/notes/shop.md) | Economies, prices, stock, cargo, mounting, ships, held trades, item details |
 | [weapons.md](docs/notes/weapons.md) | Guns, special weapons, turrets, homing, smoke trails, explosions, pooling |

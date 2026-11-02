@@ -258,6 +258,31 @@ namespace GoF2Remake.UI
         /// <summary>A ChoiceWindow in flight (MGame+0x90): the pause menu's choice page, the game paused.</summary>
         void OnChoiceRequested(string text, string yes, string no, System.Action onYes, System.Action onNo)
             => pauseMenu?.Ask(level, text, yes, no, onYes, onNo, traffic != null ? traffic.ChoiceTitle : null);   // Modified: its title
+        /// <summary>Remake: the Mining Plant's waste sorting, on the pause menu's result page (WasteProcessing).</summary>
+        void OnWasteSorted(WasteProcessing.Sorting sorting, Database db, System.Action closed) => pauseMenu?.ShowSorting(level, sorting, db, closed);
+        /// <summary>The sorting page's soft tone as a lot shows (LotTones), pitched by its tier.</summary>
+        void PlayLotTone(WasteProcessing.FindTier tier)
+        {
+            if (!lotTones.TryGetValue(tier, out var clip) || clip == null) lotTones[tier] = clip = LotTones.Clip(tier);
+            PlayUi(clip, LotTones.Shape(tier).volume);
+        }
+        /// <summary>Remake: a menu of every option at once (the Mining Plant's), on the question window.</summary>
+        void OnMenuRequested(string title, List<MenuSection> sections, List<(string label, System.Action action)> entries) =>
+            pauseMenu?.Choose(level, title, sections, entries);
+        /// <summary>The sorting page's one sound once every lot shows, the best find's: the fanfare (Exceptional), the
+        /// hacking-solved sound (Rare), the sell sound (any other find), the question window's (nothing usable).</summary>
+        void PlaySortingSound(WasteProcessing.FindTier best)
+        {
+            var a = CombatAudio.Load();
+            if (a == null) return;
+            PlayUi(best switch
+            {
+                WasteProcessing.FindTier.Exceptional => a.wasteExceptional,
+                WasteProcessing.FindTier.Rare => a.wasteRare,
+                WasteProcessing.FindTier.None => a.messageInfo,
+                _ => a.wasteFound,
+            });
+        }
         void OnCombatMessage(string text, int colour) => miningView?.ShowMessage(text, colour);
     }
 }

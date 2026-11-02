@@ -198,10 +198,12 @@ namespace GoF2Remake.UI
             return rows;
         }
 
-        /// <summary>Item description (1041 + index) and "Known price range:" with the lowest and highest price seen.</summary>
+        /// <summary>Item description (1041 + index) and "Known price range:" with the lowest and highest price seen; Space
+        /// Waste once the Mining Plant is built: where it is sorted (remake, WasteProcessing).</summary>
         public static string ItemText(Database db, ItemData it, int currentSystem)
         {
             string text = GameNames.ItemDescription(it.index);
+            if (it.index == WasteProcessing.Waste && WasteProcessing.PlantBuilt) text += "\n\n" + WasteProcessing.Hint;   // remake
             bool lo = Session.LowestKnownPrice.TryGetValue(it.index, out var low);
             bool hi = Session.HighestKnownPrice.TryGetValue(it.index, out var high);
             if (!lo && !hi) return text;

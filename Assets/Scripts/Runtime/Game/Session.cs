@@ -245,6 +245,10 @@ namespace GoF2Remake.Data
         public static bool Hardcore;
         /// <summary>This game's identity (a new one at every new game; saved), so a hardcore death finds every slot of the run.</summary>
         public static string RunId = "";
+        /// <summary>Remake: the Space Waste tons the Mining Plant has sorted in this game (WasteProcessing: the next ton's
+        /// roll), the empty ones in a row since the last find and the tons since the last rare find (its bad-luck caps;
+        /// all saved).</summary>
+        public static int WasteTons, WasteDry, WasteSinceRare;
         /// <summary>Remake mods: the mods' new-game options switched on for this game ("mod_id:option_id",
         /// Modding.ModGameOptions; saved).</summary>
         public static HashSet<string> ModGameOptions = new HashSet<string>();
@@ -495,6 +499,7 @@ namespace GoF2Remake.Data
             ModCampaign = "";
             Hardcore = false;
             RunId = System.Guid.NewGuid().ToString("N");
+            WasteTons = WasteDry = WasteSinceRare = 0;
             ModGameOptions = new HashSet<string>();
             ShipBuilds = new Dictionary<string, string>();
             GraphQuestsDone = new HashSet<string>();

@@ -154,6 +154,10 @@ namespace GoF2Remake.EditorTools
             audio.autopilotOn = FindClip(clips, "Autopilot_Activate");
             audio.autopilotOff = FindClip(clips, "Autopilot_Deactivate");
             audio.jumpToPlanet = FindClip(clips, "Jump_to_planets");
+            // the waste sorting page's best-find sound (remake, WasteProcessing)
+            audio.wasteFound = FindClip(clips, "Button_Sell");
+            audio.wasteRare = FindClip(clips, "Hacking_Solved");
+            audio.wasteExceptional = FindClip(clips, "Mission_Accomplished");
             EditorUtility.SetDirty(audio);
 
             BuildCrosshair();

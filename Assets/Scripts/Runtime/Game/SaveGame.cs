@@ -120,6 +120,9 @@ namespace GoF2Remake.Data
         /// <summary>v17: the Pirate activity board (PirateReports).</summary>
         public List<PirateSighting> pirateSightings;
         public int nextPirateSightingId;
+        // (remake, no version of its own: older saves have none) the Space Waste tons sorted and the bad-luck counters
+        // (Session.WasteTons / WasteDry / WasteSinceRare)
+        public int wasteTons, wasteDry, wasteSinceRare;
 
         [Serializable]
         public class KnownPrice { public int item, price, system; }
@@ -365,6 +368,7 @@ namespace GoF2Remake.Data
                 modGameOptions = new List<string>(Session.ModGameOptions),
                 shipBuilds = Session.ShipBuilds.Select(kv => kv.Key + "|" + kv.Value).ToList(),
                 pirateSightings = new List<PirateSighting>(Session.PirateSightings), nextPirateSightingId = Session.NextPirateSightingId,
+                wasteTons = Session.WasteTons, wasteDry = Session.WasteDry, wasteSinceRare = Session.WasteSinceRare,
                 campaignMission = Session.CampaignMission,
                 station = Session.StationIndex,
                 previousStation = Session.PreviousStationIndex,
@@ -602,6 +606,9 @@ namespace GoF2Remake.Data
             if (NetSession.Active) PirateReports.ApplyShared(GameHooks.SharedPirateBoard?.Invoke());
             else Session.PirateSightings = s.pirateSightings != null ? s.pirateSightings.FindAll(p => p != null) : new List<PirateSighting>();
             Session.NextPirateSightingId = s.nextPirateSightingId;
+            Session.WasteTons = s.wasteTons;
+            Session.WasteDry = s.wasteDry;
+            Session.WasteSinceRare = s.wasteSinceRare;
             Session.StoryMission = s.storyMission ?? new StoryMission();
             Session.StoryStepStart = s.storyStepStart;
             Session.StoryRadioPending = s.storyRadioPending;

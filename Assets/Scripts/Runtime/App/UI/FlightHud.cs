@@ -214,6 +214,8 @@ namespace GoF2Remake.UI
             if (jump != null) jump.Message -= OnMiningMessage;
             if (traffic != null) traffic.Message -= OnMiningMessage;
             if (traffic != null) traffic.ChoiceRequested -= OnChoiceRequested;
+            if (traffic != null) traffic.WasteSorted -= OnWasteSorted;
+            if (traffic != null) traffic.MenuRequested -= OnMenuRequested;
             if (radar != null) radar.Message -= OnRadarMessage;
             if (health != null) health.GameOverStarted -= OnGameOver;
             panelRenderer?.UnregisterUIReloadCallback(OnUIReload);
@@ -315,6 +317,8 @@ namespace GoF2Remake.UI
             pauseMenu.InfoSound = () => PlayUi(CombatAudio.Load()?.messageInfo);
             pauseMenu.HoverSound = PlayHover;   // Modified: the menus' hover / arrow sound
             pauseMenu.ButtonSound = PlayButton;
+            pauseMenu.SortingSound = PlaySortingSound;
+            pauseMenu.LotSound = PlayLotTone;
             pauseMenu.Photo = new PhotoMode(root, this) { ButtonSound = PlayButton };
             radioBox = root.Q("radio");
             screenFade = root.Q("screenFade");
@@ -613,6 +617,8 @@ namespace GoF2Remake.UI
                 traffic = level.Traffic;
                 if (traffic != null) traffic.Message += OnMiningMessage;
                 if (traffic != null) traffic.ChoiceRequested += OnChoiceRequested;
+                if (traffic != null) traffic.WasteSorted += OnWasteSorted;
+                if (traffic != null) traffic.MenuRequested += OnMenuRequested;
                 if (level.Hints != null) level.Hints.HintRequested += text => OnChoiceRequested(text, null, null, null, null);
                 if (level.Hints != null) level.Hints.Message += text => OnCombatMessage(text, 1);
                 if (level.FreeLook != null) level.FreeLook.Message += OnMiningMessage;
@@ -860,6 +866,8 @@ namespace GoF2Remake.UI
             // ---- button sounds (TouchButton::OnTouchBegin 124 Button_Push / OnTouchEnd 123 Button_Release) -------------
 
         AudioSource uiSource;
+        /// <summary>The waste sorting page's lot tones by tier, made on first use (LotTones).</summary>
+        readonly System.Collections.Generic.Dictionary<WasteProcessing.FindTier, AudioClip> lotTones = new System.Collections.Generic.Dictionary<WasteProcessing.FindTier, AudioClip>();
 
         /// <summary>Modified: a click sounds as in the main menu: only the release, on the click (a pointer press's push is left
         /// out, but in the carrier's shop window), once per frame.</summary>

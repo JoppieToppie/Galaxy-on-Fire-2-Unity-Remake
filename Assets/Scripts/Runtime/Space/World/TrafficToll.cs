@@ -14,6 +14,20 @@ namespace GoF2Remake.World
     {
         /// <summary>A yes / no question in flight through the HUD's ChoiceWindow (the Loma toll's; TerritoryView's toll).</summary>
         public void Ask(string text, string yes, string no, Action onYes, Action onNo) => ChoiceRequested?.Invoke(text, yes, no, onYes, onNo);
+        /// <summary>Remake: the Mining Plant has sorted space waste (WasteProcessing): the HUD's result page (PauseMenu);
+        /// without one, the answer as a message. 'closed' once it is dismissed.</summary>
+        public event Action<WasteProcessing.Sorting, Database, Action> WasteSorted;
+        public void ShowSorting(WasteProcessing.Sorting sorting, Database db, Action closed)
+        {
+            if (WasteSorted != null) WasteSorted(sorting, db, closed);
+            else Ask(WasteProcessing.Result(db, sorting), null, null, closed, null);
+        }
+        /// <summary>Remake: a menu of every option at once through the HUD's question window (the Mining Plant's,
+        /// PauseMenu.Choose): its sections (headings, lines, item rows), each entry's text as shown and its action; Back
+        /// takes the last entry.</summary>
+        public event Action<string, List<MenuSection>, List<(string label, Action action)>> MenuRequested;
+        public void ShowMenu(string title, List<MenuSection> sections, List<(string label, Action action)> entries) =>
+            MenuRequested?.Invoke(title, sections, entries);
         /// <summary>Modified: a question with a title, its answers side by side (the Supernova Challenge's end, like the
         /// original's ChoiceWindow 1.2: "Supernova Challenge" over the text, Yes and No in a row). ChoiceTitle is set while
         /// ChoiceRequested runs.</summary>

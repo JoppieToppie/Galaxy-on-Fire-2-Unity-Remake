@@ -159,6 +159,8 @@ namespace GoF2Remake.UI
         /// pauseSounds) until it is answered; Back picks the second answer. 'no' null = a message with one button.</summary>
         public void Ask(SpaceLevel spaceLevel, string text, string yes, string no, Action onYes, Action onNo, string title = null)
         {
+            sorting = null;
+            choiceEntries = null;
             choiceTitle = title;   // Modified: a titled question has its answers side by side
             choiceText = text;
             choiceYes = yes;
@@ -167,6 +169,205 @@ namespace GoF2Remake.UI
             choiceOnNo = onNo;
             if (!IsOpen) Open(spaceLevel);
             Show(Page.Choice);
+        }
+
+        /// <summary>Remake: a menu's sections and entries (Choose), null for a question.</summary>
+        List<MenuSection> choiceSections;
+        List<(string label, Action action)> choiceEntries;
+
+        /// <summary>Remake: a menu of every option at once in the question window (the Mining Plant's: what the hold's ore and
+        /// waste would give, then ore into cores, waste sorting, leave): 'sections' over the entries (BuildSection),
+        /// 'entries' as shown (their own case), each closing the window before its action; Back takes the last.</summary>
+        public void Choose(SpaceLevel spaceLevel, string title, List<MenuSection> sections, List<(string label, Action action)> entries)
+        {
+            sorting = null;
+            choiceTitle = title;
+            choiceText = null;
+            choiceSections = sections;
+            choiceYes = choiceNo = null;
+            choiceOnYes = choiceOnNo = null;
+            choiceEntries = entries;
+            if (!IsOpen) Open(spaceLevel);
+            Show(Page.Choice);
+        }
+
+        /// <summary>A menu section (Choose): its heading in amber, its line, then its rows like the cargo page's (icon, name,
+        /// tons) with the note beside each, cyan when the menu's action does something with it, dimmed otherwise (what is
+        /// missing); its 'empty' line without rows.</summary>
+        void BuildSection(MenuSection section)
+        {
+            Text(section.heading.ToUpperInvariant(), "pause-heading");
+            if (!string.IsNullOrEmpty(section.text)) Text(section.text, "menu-section-text");
+            if (section.rows.Count == 0) { Text(section.empty, "menu-section-empty"); return; }
+            foreach (var r in section.rows)
+            {
+                var row = new VisualElement { pickingMode = PickingMode.Ignore };
+                row.AddToClassList("pause-cargo-row");
+                var icon = new VisualElement { pickingMode = PickingMode.Ignore };
+                icon.AddToClassList("pause-cargo-icon");
+                var tex = ItemInfo.ItemIcon(r.item);
+                if (tex != null) icon.style.backgroundImage = new StyleBackground(tex);
+                row.Add(icon);
+                var name = new Label(GameNames.Item(r.item)) { pickingMode = PickingMode.Ignore };
+                name.AddToClassList("pause-cargo-name");
+                row.Add(name);
+                var amount = new Label(r.amount) { pickingMode = PickingMode.Ignore };
+                amount.AddToClassList("pause-cargo-amount");
+                row.Add(amount);
+                var note = new Label(r.note) { pickingMode = PickingMode.Ignore };
+                note.AddToClassList("menu-row-note");
+                note.EnableInClassList("menu-row-note--ready", r.ready);
+                row.Add(note);
+                body.Add(row);
+            }
+        }
+
+        // ---- the Mining Plant's waste sorting (remake, WasteProcessing) --------------------------------------------------
+
+        WasteProcessing.Sorting sorting;
+        Database sortingDb;
+        /// <summary>The result page's one sound, when every ton has gone through: the best find's (set by FlightHud).</summary>
+        public Action<WasteProcessing.FindTier> SortingSound;
+        /// <summary>A soft tone as a ton with a find lights, by its tier (set by FlightHud: LotTones); none while skipping.</summary>
+        public Action<WasteProcessing.FindTier> LotSound;
+        /// <summary>While the tons are still going through: shows the rest at once (OK / Back then skip, a second press closes).</summary>
+        Action finishReveal;
+        /// <summary>One ton every this many ms on the result page, faster for a big load so all of it goes through in about
+        /// RevealAllMs (Settings.ReduceMotion: all at once); a rare find waits RareSuspenseMs, its square charging; the last
+        /// SlowLast tons slow down like a reel coming to a stop. A find's tone at most every ToneGap seconds (a fast run).</summary>
+        const int TonMs = 70, TonMinMs = 8, RevealAllMs = 8000, RareSuspenseMs = 1400, SlowLast = 5;
+        const float ToneGap = 0.09f;
+        /// <summary>The grid: a square a ton, TonsPerRow a row, SquarePx each with its margins; it scrolls past GridHeight
+        /// (a big load), following the ton being sorted. The finds' list scrolls past FindsHeight, so the page itself stays
+        /// put (its heading, the fees, OK).</summary>
+        const int TonsPerRow = 40;
+        const float SquarePx = 14f, GridHeight = 196f, FindsHeight = 220f;
+
+        /// <summary>The result page of a waste sorting: every ton going through, one big grid of squares gone through one
+        /// by one, a ton that found something lit in its tier's colour, the finds best first with their tier names (so not
+        /// the colour alone), a rare / exceptional find's line, then the fees beside what the finds are worth. A page
+        /// of the question window: OK closes, the game paused meanwhile.</summary>
+        public void ShowSorting(SpaceLevel spaceLevel, WasteProcessing.Sorting result, Database db, Action closed)
+        {
+            choiceTitle = WasteProcessing.Title.ToUpperInvariant();
+            choiceText = choiceYes = choiceNo = null;
+            choiceOnYes = closed;
+            choiceOnNo = null;
+            choiceEntries = null;
+            sorting = result;
+            sortingDb = db;
+            if (!IsOpen) Open(spaceLevel);
+            Show(Page.Choice);
+        }
+
+        void BuildSorting()
+        {
+            var s = sorting;
+            var db = sortingDb ?? Database.Shared;
+            Label highlight = null;
+            string line = WasteProcessing.Highlight(s);
+            if (line != null)
+            {
+                highlight = Text(line.ToUpperInvariant(), "pause-heading");
+                highlight.AddToClassList("waste-tier--" + (int)s.Best);
+                highlight.style.visibility = Visibility.Hidden;
+            }
+            Text(WasteProcessing.Heading(s));
+            // Every ton (players: "show all space trash being processed", "each one a square", "scroll for large amounts",
+            // "one big grid of squares", "just go through each item"): a square a ton, gone through one by one, a ton that
+            // found something lit in its tier's colour as it is reached; the grid scrolls past GridHeight and follows.
+            var grid = new ScrollView(ScrollViewMode.Vertical) { horizontalScrollerVisibility = ScrollerVisibility.Hidden };
+            grid.AddToClassList("waste-grid-box");
+            grid.contentContainer.AddToClassList("waste-grid");
+            grid.contentContainer.style.width = TonsPerRow * SquarePx;
+            int gridRows = (s.Tons + TonsPerRow - 1) / TonsPerRow;
+            grid.style.height = Mathf.Min(gridRows * SquarePx + 2f, GridHeight);
+            body.Add(grid);
+            var squares = new List<VisualElement>();
+            for (int k = 0; k < s.Tons; k++)
+            {
+                var square = new VisualElement { pickingMode = PickingMode.Ignore };
+                square.AddToClassList("waste-ton");
+                grid.Add(square);
+                squares.Add(square);
+            }
+            var rows = new List<(VisualElement row, int ton)>();
+            if (s.found.Count > 0)
+            {
+                var list = new ScrollView(ScrollViewMode.Vertical) { horizontalScrollerVisibility = ScrollerVisibility.Hidden };
+                list.AddToClassList("pause-scroll");
+                FitToContent(list, FindsHeight);
+                body.Add(list);
+                foreach (var f in s.found)
+                {
+                    var row = new VisualElement { pickingMode = PickingMode.Ignore };
+                    row.AddToClassList("pause-cargo-row");
+                    var icon = new VisualElement { pickingMode = PickingMode.Ignore };
+                    icon.AddToClassList("pause-cargo-icon");
+                    var tex = ItemInfo.ItemIcon(f.item);
+                    if (tex != null) icon.style.backgroundImage = new StyleBackground(tex);
+                    row.Add(icon);
+                    var name = new Label(GameNames.Item(f.item)) { pickingMode = PickingMode.Ignore };
+                    name.AddToClassList("pause-cargo-name");
+                    row.Add(name);
+                    var amount = new Label($"{f.amount} t") { pickingMode = PickingMode.Ignore };
+                    amount.AddToClassList("pause-cargo-amount");
+                    row.Add(amount);
+                    var tier = new Label(WasteProcessing.TierName(f.tier)) { pickingMode = PickingMode.Ignore };
+                    tier.AddToClassList("waste-tier-label");
+                    tier.AddToClassList("waste-tier--" + (int)f.tier);
+                    row.Add(tier);
+                    row.style.display = DisplayStyle.None;   // until its ton is reached: no gaps in the list meanwhile
+                    list.Add(row);
+                    rows.Add((row, f.firstTon));
+                }
+            }
+            var summary = Text(WasteProcessing.Summary(db, s), "pause-subheading");
+            summary.style.visibility = Visibility.Hidden;
+
+            int shown = 0;
+            float lastTone = -1f;
+            // 'skipping': the rest at once (OK / Back, Settings.ReduceMotion): no tones.
+            void Step(bool skipping)
+            {
+                if (shown >= squares.Count) return;
+                var t = s.tons[shown];
+                var square = squares[shown];
+                square.AddToClassList("waste-ton--done");
+                square.RemoveFromClassList("waste-ton--charging");
+                if (t != WasteProcessing.FindTier.None)
+                {
+                    square.AddToClassList("waste-ton--" + (int)t);
+                    if (t >= WasteProcessing.FindTier.Rare) square.AddToClassList("waste-ton--flash");
+                    if (!skipping && Time.realtimeSinceStartup - lastTone >= ToneGap) { lastTone = Time.realtimeSinceStartup; LotSound?.Invoke(t); }
+                }
+                foreach (var (row, ton) in rows) if (ton == shown) row.style.display = DisplayStyle.Flex;
+                if (++shown < squares.Count) return;
+                if (highlight != null) highlight.style.visibility = Visibility.Visible;
+                summary.style.visibility = Visibility.Visible;
+                finishReveal = null;
+                SortingSound?.Invoke(s.Best);   // one sound, the best find's
+            }
+            // A ton at a time; a rare find keeps the player waiting a moment first, its square charging.
+            int stepMs = Mathf.Clamp(RevealAllMs / Mathf.Max(1, squares.Count), TonMinMs, TonMs);
+            void Next()
+            {
+                if (shown >= squares.Count) return;
+                int ton = shown;
+                int left = squares.Count - ton;   // the last SlowLast: x1.5, x2 .. of a ton's time
+                int ms = left <= SlowLast ? Mathf.RoundToInt(TonMs * (1f + 0.5f * (SlowLast + 1 - left))) : stepMs;
+                if (ton % TonsPerRow == 0) grid.ScrollTo(squares[ton]);   // a big load: the grid follows, a row at a time
+                void Show() { if (shown == ton) { Step(false); Next(); } }   // not when skipped meanwhile
+                if (s.tons[ton] >= WasteProcessing.FindTier.Rare)
+                {
+                    squares[ton].AddToClassList("waste-ton--charging");
+                    body.schedule.Execute(Show).StartingIn(RareSuspenseMs);
+                }
+                else body.schedule.Execute(Show).StartingIn(ms);
+            }
+            finishReveal = () => { while (shown < squares.Count) Step(true); };
+            if (Settings.ReduceMotion || squares.Count == 0) { finishReveal(); return; }
+            Next();
         }
 
         public void Open(SpaceLevel spaceLevel)
@@ -205,6 +406,10 @@ namespace GoF2Remake.UI
             if (!IsOpen) return;
             if (Photo != null && Photo.Active) Photo.Exit();
             IsOpen = false;
+            sorting = null;
+            choiceEntries = null;
+            choiceSections = null;
+            finishReveal = null;
             backdrop.RemoveFromClassList("pause-backdrop--shown");
             AudioListener.pause = audioWasPaused;
             if (level != null && level.Navigation != null) level.Navigation.PauseMenuOpen = false;   // restores its own time scale
@@ -264,9 +469,33 @@ namespace GoF2Remake.UI
                     return;
                 case Page.Choice:
                     title.text = choiceTitle ?? "";
-                    Text(choiceText);
-                    InfoSound?.Invoke();
-                    Item((choiceYes ?? Localization.Extra("ok", "OK")).ToUpperInvariant(), () => { Close(); var a = choiceOnYes; choiceOnYes = choiceOnNo = null; a?.Invoke(); });
+                    finishReveal = null;
+                    if (choiceEntries != null)
+                    {
+                        // Remake: a menu of every option at once (the Mining Plant's); Back takes the last entry.
+                        if (choiceSections != null) foreach (var section in choiceSections) BuildSection(section);
+                        InfoSound?.Invoke();
+                        var gap = new VisualElement { pickingMode = PickingMode.Ignore };   // the actions apart from the lists
+                        gap.AddToClassList("menu-section-gap");
+                        body.Add(gap);
+                        foreach (var (label, action) in choiceEntries)
+                        {
+                            var act = action;
+                            Item(label, () => { Close(); act?.Invoke(); });
+                            // centred like the first and last, whose A / B prompts centre them (InputGlyph.PadPrompt)
+                            items[items.Count - 1].style.unityTextAlign = TextAnchor.MiddleCenter;
+                        }
+                        if (items.Count > 1) InputGlyph.PadPrompt(items[0] as Button, PadButton.A, true);
+                        InputGlyph.PadPrompt(items[items.Count - 1] as Button, PadButton.B);
+                        break;
+                    }
+                    if (sorting != null) BuildSorting(); else Text(choiceText);
+                    if (sorting == null) InfoSound?.Invoke();   // a sorting has its own sounds (SortingSound)
+                    Item((choiceYes ?? Localization.Extra("ok", "OK")).ToUpperInvariant(), () =>
+                    {
+                        if (finishReveal != null) { finishReveal(); return; }   // a sorting's lots still showing: the rest at once
+                        Close(); var a = choiceOnYes; choiceOnYes = choiceOnNo = null; a?.Invoke();
+                    });
                     InputGlyph.PadPrompt(items[items.Count - 1] as Button, PadButton.A, true);
                     if (choiceNo != null)
                     {

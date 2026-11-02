@@ -1120,6 +1120,113 @@
     color: #FFFFFF;
 }
 
+/* Remake: an in-flight menu's sections (PauseMenu.BuildSection, the Mining Plant's): a line under the heading, the
+   cargo-style rows with a note beside each (cyan: the menu's action does something with it; dimmed: what is missing),
+   a line when there is nothing to list, a gap before the actions. */
+.menu-section-text {
+    font-size: var(--text-body);
+    color: var(--gof-text-dim);
+    white-space: normal;
+    margin: 0 0 6px 0;
+}
+
+.menu-section-empty {
+    font-size: var(--text-body);
+    color: var(--gof-text-dim);
+    -unity-font-style: italic;
+    white-space: normal;
+    margin: 2px 0 10px 0;
+}
+
+.menu-row-note {
+    min-width: 200px;
+    margin-left: var(--space-l);
+    font-size: var(--text-small);
+    color: var(--gof-text-dim);
+    -unity-text-align: middle-right;
+    white-space: normal;
+}
+
+.menu-row-note--ready {
+    color: var(--gof-cyan);
+    -unity-font-style: bold;
+}
+
+.menu-section-gap {
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.ui-large .menu-section-text,
+.ui-large .menu-section-empty {
+    font-size: var(--text-label);
+}
+
+.ui-large .menu-row-note {
+    font-size: var(--text-body);
+}
+
+/* Remake: the Mining Plant's waste sorting (PauseMenu.BuildSorting, WasteProcessing). One big grid, a square a ton
+   (faint until the plant gets to it, then dark for junk or lit in its find's tier colour: the usual loot colours, grey,
+   green, blue, purple, gold; the finds' list names the tiers); forty a row (PauseMenu.TonsPerRow, SquarePx = 12 + 2
+   margin), the grid scrolling past PauseMenu.GridHeight. */
+.waste-grid-box {
+    flex-shrink: 0;
+    margin: 4px 0 10px 0;
+}
+
+.waste-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-self: center;
+}
+
+.waste-ton {
+    width: 12px;
+    height: 12px;
+    margin: 1px;
+    border-width: 1px;
+    border-radius: 2px;
+    border-color: rgba(0, 0, 0, 0);
+    background-color: var(--gof-cyan-faint);
+    transition-property: background-color, scale, border-color;
+    transition-duration: 0.12s, 0.2s, 0.2s;
+}
+
+.waste-ton--done { background-color: #3F4750; }   /* junk: darker than Scrap's grey */
+
+.waste-ton--charging {
+    border-color: var(--gof-amber);
+    scale: 1.15 1.15;
+    transition-duration: 0.3s, 1.4s, 0.3s;
+}
+
+.waste-ton--flash {
+    border-color: #FFFFFF;
+    scale: 1.15 1.15;
+}
+
+.waste-ton--1 { background-color: #A9B4BF; }
+.waste-ton--2 { background-color: #66D47A; }
+.waste-ton--3 { background-color: #4FB0FF; }
+.waste-ton--4 { background-color: #B888FF; }
+.waste-ton--5 { background-color: #FFC44D; }
+
+.waste-tier-label {
+    min-width: 140px;
+    margin-left: var(--space-l);
+    font-size: var(--text-small);
+    letter-spacing: 1px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-right;
+}
+
+.waste-tier--1 { color: #A9B4BF; }
+.waste-tier--2 { color: #66D47A; }
+.waste-tier--3 { color: #4FB0FF; }
+.waste-tier--4 { color: #B888FF; }
+.waste-tier--5 { color: #FFC44D; }
+
 .pause-option {
     margin: 4px 0;
     padding: 8px 16px;

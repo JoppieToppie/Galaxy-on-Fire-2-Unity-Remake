@@ -30,6 +30,9 @@ namespace GoF2Remake.Flight
         public AudioClip autopilotOn;
         public AudioClip autopilotOff;
         public AudioClip jumpToPlanet;   // 5 Jump_to_planets (autopilot_travel.md 3.5)
+        /// <summary>Remake: the Mining Plant's waste sorting page, its one sound for the best find (FlightHud.PlaySortingSound):
+        /// Scrap .. Valuable Button_Sell, Rare Hacking_Solved, Exceptional Mission_Accomplished.</summary>
+        public AudioClip wasteFound, wasteRare, wasteExceptional;
 
         public static CombatAudio Load() => Resources.Load<CombatAudio>($"{WeaponFx.ResourcesFolder}/CombatAudio");
     }

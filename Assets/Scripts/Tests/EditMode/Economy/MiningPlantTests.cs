@@ -1,8 +1,9 @@
 // MiningPlantTests.cs
 // Feature: the Mido Mining Plant at Coromesk (103) turns ore into cores (MiningPlant).
 // Expected: PlayerEgo::isDockedToMiningPlant 0xadcb8 (station 0x67, Mission::isEmpty, not the alien orbit), MGame::OnUpdate
-// 0x1ac778 (290 with the ratio, the ores in the hold or 286), MGame::OnTouchEnd 0x1a98d8 (ores 0x9a..0xa4 -> +0xb, Novanium
-// 0xd9 -> 0xda, 30 t per core, Status::hardCoreMode 100 t; 291 + the cores, or 292).
+// 0x1ac778 (remake: the menu's ore section, each ore in the hold and what it makes, in place of 290), MGame::OnTouchEnd
+// 0x1a98d8 (ores 0x9a..0xa4 -> +0xb, Novanium 0xd9 -> 0xda, 30 t per core, Status::hardCoreMode 100 t; 291 + the cores, or
+// 292).
 
 using GoF2Remake.Data;
 using NUnit.Framework;
@@ -68,13 +69,25 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void TheQuestionListsTheOreInTheHold()
+        public void TheMenuListsTheOreAndWhatItMakes()
         {
-            string empty = MiningPlant.Question(Db);
-            StringAssert.Contains("30", empty);
-            StringAssert.EndsWith(Localization.Get(286), empty);
+            var empty = MiningPlant.Section(Db);
+            StringAssert.Contains("30", empty.text, "the ratio");
+            Assert.AreEqual(0, empty.rows.Count);
+            Assert.AreEqual(0, MiningPlant.CoresMade(), "nothing to convert: the menu leaves the action out");
             Shop.AddToCargo(217, 62);
-            StringAssert.EndsWith("62t " + GameNames.Item(217), MiningPlant.Question(Db));
+            Shop.AddToCargo(154, 29);
+            Shop.AddToCargo(97, 5);   // not ore
+            var s = MiningPlant.Section(Db);
+            Assert.AreEqual(2, s.rows.Count, "only the ore");
+            var novanium = s.rows.Find(r => r.item == 217);
+            Assert.AreEqual("62 t", novanium.amount);
+            Assert.IsTrue(novanium.ready);
+            StringAssert.Contains("2 t " + GameNames.Item(218), novanium.note, "what it makes");
+            var gold = s.rows.Find(r => r.item == 154);
+            Assert.IsFalse(gold.ready);
+            StringAssert.Contains("1", gold.note, "1 t more for a core");
+            Assert.AreEqual(2, MiningPlant.CoresMade());
         }
     }
 }
