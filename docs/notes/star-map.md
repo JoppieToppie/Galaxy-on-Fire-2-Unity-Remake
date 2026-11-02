@@ -102,8 +102,10 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   `StarMap.dialogAlt`) / NO, and Esc / B close it unanswered (`dialogBackCancels`); short of cells, 582 offers the gates
   for any system they reach (the original only for a neighbour). **Fastest or safest** (the user, 2026-11-02, chosen when
   travelling, no option): the routes are A* (`GalaxyMap.RoutePath`; `SystemPath`, the original's BFS until then, is its
-  fewest-jumps run, the same jump counts and, on the base map, the same routes); the safest adds 1 per security level
-  below Secure of each system entered (`JumpCost`: Dangerous 4 .. Secure 1). Where it differs from the fastest, the map
+  fewest-jumps run, the same jump counts and, on the base map, the same routes); the safest adds each entered system's
+  `GalaxyMap.Danger`: 1 per security level below Secure (Dangerous 3 .. Secure 0) and 3 more in an enemy race's system
+  (`EnemyTerritory`: an owned system whose race `Standing.IsEnemy`, the user's addition: its fighters attack, its
+  stations fine). Where it differs from the fastest, the map
   draws it in the Secure green under the yellow one, the energy line adds "Safest route: N jumps", and the travel dialog
   (`StarMap.TravelByGates`, also behind the drive dialog's JUMPGATES and 582) asks FASTEST ROUTE / SAFEST ROUTE / NO (Extra
   `mapRouteFastest` / `mapRouteSafest` / `mapRouteJumpCount`). The pick rides `StarMapResult.safestRoute` into

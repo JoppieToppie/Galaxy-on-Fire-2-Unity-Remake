@@ -233,6 +233,39 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(safest.Length - 1, GalaxyMap.GateJumps(Db, a, b, true));
         }
 
+        // The Terrans (race 0: Aquila 7, Union 11, Magnetar 14, Augmenta 19, Buntta 8) hostile: the safest route leaves their
+        // systems for the others' (expected: scratchpad safe_enemy.py, Dijkstra with 3 more danger in an enemy's system).
+        [TestCase(7, 0, new[] { 7, 11, 14, 19, 8, 0 }, new[] { 7, 11, 9, 2, 0 })]
+        [TestCase(8, 9, new[] { 8, 19, 9 }, new[] { 8, 2, 9 })]
+        public void SafestRouteAvoidsAnEnemyRacesSystems(int a, int b, int[] calm, int[] hostile)
+        {
+            AllVisible();
+            var axes = (int[])Session.Standing.Clone();
+            try
+            {
+                Assert.AreEqual(calm, GalaxyMap.RoutePath(Db, a, b, true).ToArray(), "new game standing");
+                Session.Standing[0] = -100;   // the Terrans hate the player, the Vossk like them
+                Assert.IsTrue(GalaxyMap.EnemyTerritory(Sys(19)));
+                Assert.IsFalse(GalaxyMap.EnemyTerritory(Sys(3)), "Vossk");
+                Assert.AreEqual(hostile, GalaxyMap.RoutePath(Db, a, b, true).ToArray());
+                Assert.AreEqual(GalaxyMap.SystemPath(Db, a, b).Count, GalaxyMap.RoutePath(Db, a, b, false).Count, "the fastest ignores standing");
+            }
+            finally { Session.Standing = axes; }
+        }
+
+        [Test]
+        public void AnUnownedSystemIsNoEnemyTerritory()
+        {
+            var axes = (int[])Session.Standing.Clone();
+            try
+            {
+                Session.Standing[0] = -100;
+                Assert.AreEqual(0, Sys(24).raceId, "Skavac lists the Terrans");
+                Assert.IsFalse(GalaxyMap.EnemyTerritory(Sys(24)), "but no one owns it");
+            }
+            finally { Session.Standing = axes; }
+        }
+
         [Test]
         public void SafestNeverTakesMoreDangerOrFewerJumps()
         {

@@ -182,8 +182,8 @@ namespace GoF2Remake.Data
         public static List<int> SystemPath(Database db, int a, int b) => RoutePath(db, a, b, false);
 
         /// <summary>Remake (jumpgate route planning): [a .. b] through visible systems by A*, null if unreachable or a == b.
-        /// Every jump costs 1; 'safest' adds 1 per security level below Secure of the system it enters (JumpCost), so the
-        /// route goes round a Dangerous system for up to three more jumps.</summary>
+        /// Every jump costs 1; 'safest' adds the Danger of the system it enters (JumpCost: its security, and the player's
+        /// standing with its race), so the route goes round a Dangerous system for up to three more jumps.</summary>
         public static List<int> RoutePath(Database db, int a, int b, bool safest)
         {
             if (a == b) return null;
@@ -237,16 +237,25 @@ namespace GoF2Remake.Data
             return null;
         }
 
-        /// <summary>A gate jump into 'to': 1, and on the safest route 1 more per security level below Secure (Dangerous 4, Risky
-        /// 3, Average 2, Secure 1; SecurityOf, so the Kaamo Club's system once the siege is over is Secure).</summary>
-        public static float JumpCost(SystemData to, bool safest) => safest ? 1f + (3 - Mathf.Clamp(SecurityOf(to), 0, 3)) : 1f;
+        /// <summary>A gate jump into 'to': 1, and on the safest route its Danger on top.</summary>
+        public static float JumpCost(SystemData to, bool safest) => safest ? 1f + Danger(to) : 1f;
 
-        /// <summary>The danger of a route: the security levels below Secure of the systems it enters (0 = all Secure).</summary>
+        /// <summary>How dangerous a system is to the player (the safest route's extra cost): 1 per security level below Secure
+        /// (Dangerous 3 .. Secure 0; SecurityOf, so the Kaamo Club's system once the siege is over is Secure), and 3 more where
+        /// its race is the player's enemy (EnemyTerritory): its local fighters attack and its stations fine, however secure.</summary>
+        public static int Danger(SystemData s) => s == null ? 0 : 3 - Mathf.Clamp(SecurityOf(s), 0, 3) + (EnemyTerritory(s) ? EnemyDanger : 0);
+        public const int EnemyDanger = 3;
+
+        /// <summary>The system's race (an owned system's: HasOwner) is the player's enemy now (Standing.IsEnemy: beyond -70 on
+        /// its axis, or against a signature; a mod race's own rule).</summary>
+        public static bool EnemyTerritory(SystemData s) => s != null && HasOwner(s.index) && Flight.Standing.IsEnemy(s.raceId);
+
+        /// <summary>The danger of a route: the Danger of the systems it enters (0 = all Secure and none an enemy's).</summary>
         public static int RouteDanger(Database db, List<int> path)
         {
             int danger = 0;
             if (path == null) return 0;
-            for (int i = 1; i < path.Count; i++) danger += 3 - Mathf.Clamp(SecurityOf(db.Systems.Find(s => s.index == path[i])), 0, 3);
+            for (int i = 1; i < path.Count; i++) danger += Danger(db.Systems.Find(s => s.index == path[i]));
             return danger;
         }
 
