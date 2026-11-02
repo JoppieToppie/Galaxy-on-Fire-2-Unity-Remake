@@ -12,11 +12,23 @@ namespace GoF2Remake.Modding
 {
     public static partial class ModContent
     {
+        // Modified: true while EnsureMapping loads the tables for the original counts.
+        static bool loadingForCounts;
+
         /// <summary>The numbers of the active mods' content (again after ModManager.Revision changes).</summary>
         static void EnsureMapping()
         {
             if (mappedRevision == ModManager.Revision && originalItems >= 0 && originalShips >= 0) return;
-            if (originalItems < 0 || originalShips < 0) { Database.Load(); if (originalItems < 0 || originalShips < 0) return; }   // Load sets them
+            if (originalItems < 0 || originalShips < 0)
+            {
+                // Modified: Load applies the mods, which calls this again; with the tables not readable yet (an asset import
+                // before Resources/GoF2Data is imported, e.g. a rebuilt Library) the counts stay unset and the two recursed
+                // until the Editor crashed with a stack overflow. Load once at a time.
+                if (loadingForCounts) return;
+                loadingForCounts = true;
+                try { Database.Load(); } finally { loadingForCounts = false; }
+                if (originalItems < 0 || originalShips < 0) return;   // Load sets them
+            }
             _ = ModManager.Active;   // read first: the first read may scan the mods, a new revision, and map all this again inside the loops
             mappedRevision = ModManager.Revision;
             itemIndex.Clear(); itemDefAt.Clear(); placeholderItems.Clear(); itemLook.Clear(); itemRenames.Clear(); deedAt.Clear();
