@@ -326,6 +326,7 @@ namespace GoF2Remake.Multiplayer
 
             target = gameObject.AddComponent<Target>();
             target.isShip = true;
+            target.netPilot = true;
             target.customDeath = true;
             target.maxHp = 100f;
             // This player's weapons hitting them count toward them being this player's enemy too (NetAggression, both ways); an NPC's shot

@@ -92,6 +92,9 @@ namespace GoF2Remake.Flight
         /// <summary>Multiplayer: another player's shield / armor fractions (NetPlayer), drawn on their marker (CombatView);
         /// -1 = no such pool (and every NPC).</summary>
         [NonSerialized] public float netShield = -1f, netArmor = -1f;
+        /// <summary>Multiplayer: another player's ship (NetPlayer, not a proxied NPC or sentry): its marker carries the pilot's
+        /// name (CombatView), so players stand apart from the NPCs of the same colour.</summary>
+        [NonSerialized] public bool netPilot;
         /// <summary>The player's cloak (Player+0x5e set by PlayerEgo::toggleCloaking): NPCs keep it as their target but don't
         /// fire, turrets don't aim at it, sleepers don't wake for it.</summary>
         [NonSerialized] public bool cloaked;

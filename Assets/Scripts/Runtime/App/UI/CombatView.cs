@@ -39,8 +39,12 @@ namespace GoF2Remake.UI
             public VisualElement dot, bar, fill, bracket, emp, empFill;
             public VisualElement shieldBar, shieldFill, armorFill;   // another player's pools, made on first use (DrawPools)
             public Label distance;
+            public Label pilot;   // another player's name over their marker, made on first use (DrawPilotName)
             public bool used;
-            public int distanceKey = int.MinValue, labelLook = -1;   // the label as last written (FarShipMarkers.DistanceKey)
+            public int distanceKey = int.MinValue, labelLook = -1, pilotLook = -1;   // the labels as last written (FarShipMarkers.DistanceKey)
+            // Where DrawShip last put the marker: on screen, its centre x and the top of what it drew (panel px).
+            public bool onScreen;
+            public float x, top;
         }
 
         readonly VisualElement layer, lockRing, lockPlate, lockClass, statusPanel, shieldRow, shieldIcon, shieldFill, hullIcon, hullFill, armorFill,
@@ -255,8 +259,10 @@ namespace GoF2Remake.UI
                     if (o != null && o.Alive && !o.untargetable)
                     {
                         var m = Get(o);
-                        DrawShip(m, o.transform.position, o.hostileToPlayer ? 0 : o.friendToPlayer ? 1 : 2, o.HullFraction, radar.Locked == o, cam, origin, centre);
+                        int f = o.hostileToPlayer ? 0 : o.friendToPlayer ? 1 : 2;
+                        DrawShip(m, o.transform.position, f, o.HullFraction, radar.Locked == o, cam, origin, centre);
                         DrawPools(m, o.netShield, o.netArmor, radar.Locked == o);
+                        if (o.netPilot) DrawPilotName(m, o.displayName, f, radar.Locked == o);
                     }
                 foreach (var o in Target.RadarObjects)
                     if (o != null && o.Alive && !o.untargetable)
@@ -324,12 +330,14 @@ namespace GoF2Remake.UI
                     m.dot.RemoveFromHierarchy(); m.bar.RemoveFromHierarchy(); m.fill.RemoveFromHierarchy();
                     m.bracket.RemoveFromHierarchy(); m.distance.RemoveFromHierarchy(); m.emp.RemoveFromHierarchy(); m.empFill.RemoveFromHierarchy();
                     m.shieldBar?.RemoveFromHierarchy(); m.shieldFill?.RemoveFromHierarchy(); m.armorFill?.RemoveFromHierarchy();
+                    m.pilot?.RemoveFromHierarchy();
                     (gone ??= new List<Object>()).Add(kv.Key);
                     continue;
                 }
                 Show(m.dot, false); Show(m.bar, false); Show(m.fill, false); Show(m.bracket, false); Show(m.distance, false);
                 Show(m.emp, false); Show(m.empFill, false);
                 HidePools(m);
+                if (m.pilot != null) Show(m.pilot, false);
             }
             if (gone != null) foreach (var k in gone) markers.Remove(k);
         }
@@ -398,6 +406,9 @@ namespace GoF2Remake.UI
         void DrawShip(Marker m, Vector3 world, int faction, float hull, bool locked, Camera cam, Vector2 origin, Vector2 centre, bool dotOnly = false)
         {
             bool onScreen = Project(cam, world, origin, centre, out var p, out bool near);
+            m.onScreen = onScreen;
+            m.x = p.x;
+            m.top = p.y - 40.5f;   // near: the lock bracket's top (whether locked or not, so a name over it doesn't jump)
             // VR: no dots on the radar ellipse (it would reach onto the cockpit's displays): the dashboard's scope has them.
             if (!onScreen && Vr.VrMode.Enabled)
             {
@@ -443,6 +454,7 @@ namespace GoF2Remake.UI
                     m.dot.style.width = w;
                     m.dot.style.height = h;
                     Place(m.dot, p.x - w / 2f, p.y - look.rise - h / 2f);
+                    m.top = p.y - look.rise - h / 2f;
                 }
                 if (distance) DrawDistance(m, world, faction, locked, cam, p);
             }
@@ -469,6 +481,37 @@ namespace GoF2Remake.UI
             }
             Place(m.distance, p.x - 61f, p.y + FarShipMarkers.LabelTop(farStyle, locked));
         }
+
+        /// <summary>Remake (multiplayer, players' feedback 2026-10-22: other players were yellow like any neutral NPC): another
+        /// player's name ("[TAG] Name") over their on-screen marker, near or far, in the marker's colour. Off screen the radar
+        /// ellipse's dot stays as it is. The text and colour are written only when they change.</summary>
+        void DrawPilotName(Marker m, string name, int faction, bool locked)
+        {
+            bool on = m.onScreen && !string.IsNullOrEmpty(name);
+            if (m.pilot == null)
+            {
+                if (!on) return;
+                m.pilot = new Label { pickingMode = PickingMode.Ignore, usageHints = UsageHints.DynamicTransform };
+                m.pilot.AddToClassList("combat-label");
+                m.pilot.AddToClassList("combat-label--pilot");
+                m.pilot.AddToClassList("gof-semibold");
+                layer.Add(m.pilot);
+            }
+            Show(m.pilot, on);
+            if (!on) return;
+            if (m.pilot.text != name) m.pilot.text = name;
+            if (faction != m.pilotLook)
+            {
+                m.pilotLook = faction;
+                for (int i = 0; i < 3; i++) m.pilot.EnableInClassList(LabelFaction[i], i == faction);
+            }
+            // Its bottom 4 px over the marker (the label's box is PilotLabelHeight high, its width centred by the USS).
+            Place(m.pilot, m.x - PilotLabelWidth / 2f, m.top - PilotLabelHeight - 4f);
+            if (locked && layer.IndexOf(m.pilot) != layer.childCount - 1) m.pilot.BringToFront();
+        }
+
+        // .combat-label--pilot's box (FlightHud.uss).
+        const float PilotLabelWidth = 240f, PilotLabelHeight = 22f;
 
         /// <summary>Radar::draw (ship_combat.md 7.2): a near ship's EMP bar 8 px under its hull bar while EMP &lt; max.</summary>
         void DrawEmp(Marker m, float emp)

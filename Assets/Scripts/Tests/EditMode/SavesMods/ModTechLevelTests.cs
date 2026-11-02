@@ -137,7 +137,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void WithoutModsTheOutpostGearIsTheOriginalTable()
         {
-            var high = new[] { 11, 58, 59, 49, 54, 67 };
+            var high = new[] { 11, 58, 59, 49, 54, 67, 90 };
             var db = Database.Load();
             Assert.IsEmpty(Shop.AboveTopTech(db));
             for (int r = 0; r < 100; r++)

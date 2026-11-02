@@ -287,7 +287,8 @@ battle spawns in 156 ms with its hulls.
   voiced Alice / Keith talks (tables 0x2541c8 / 0x2543a0). **Loma's toll** (`SetupLoma` / `UpdateLomaToll`, radio kinds
   9-0xd, 448-456): the pirates ask cargo value × 2 / 5 / 10 / 20 % (448, #P / #C) in a ChoiceWindow (`PauseMenu.Ask`,
   the game paused); paid = neutral pirates for the visit (`Session.LomaTollPaid`), refused or a pirate hit = hostile.
-- **Docking fine** (`StationMenu.CheckDockingFine`, `ModStation::OnInitialize`): an enemy race's station asks |standing|
+- **Docking fine** (`StationMenu.CheckDockingFine`, `ModStation::OnInitialize`; never at a station the pilot's own
+  multiplayer faction holds, `NetFactionsClient.LocalHolds`, players' feedback 2026-10-22): an enemy race's station asks |standing|
   / 100 · 2800 ± 100 (205), a station whose forces the player attacked rank · 150 + 1000 (206), ×10 Extreme; No =
   straight back into space, not enough credits = 203. Not after a load (`ModStation::setGameLoaded` +0xac,
   `Session.ArrivedByLoad`, set by `SaveGame.Load`; #131: the fine came at every load of a save made there). The attack

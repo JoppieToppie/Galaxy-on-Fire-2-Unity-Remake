@@ -979,6 +979,17 @@
     -unity-text-align: upper-center;
 }
 
+/* Remake (multiplayer, CombatView.DrawPilotName): another player's name over their marker, in the marker's colour; the
+   box's size is CombatView's PilotLabelWidth / PilotLabelHeight. */
+.combat-label--pilot {
+    width: 240px;
+    height: 22px;
+    font-size: var(--text-caption);
+    -unity-text-align: lower-center;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
 .combat-label--enemy {
     color: #FF4A2E;
 }

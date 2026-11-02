@@ -150,7 +150,15 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   of the costliest goods, 5 two pieces of the best equipment + 8-12 t, and at every tier the pirates' stash, freighter
   cargo rolls 1 / 2 / 2 / 3 / 4 (`TrafficPlan.OutpostStashRolls`; a player's report 2026-10-16: an outpost gave 1 t of
   something); bosses x0.35 .. x2.4 hull, gun x1 .. x3, 0 / 1 / 2-3 / 4-5 / 6-7 escorts, 1-2 .. 10-16 t of goods (the
-  costliest from tier 4), speed 4 at tier 5; the bounty x0.5 / 0.8 / 1 / 1.5 / 2.5 (`PirateReports.Bounty`). Loot of
+  costliest from tier 4), speed 4 at tier 5; the bounty x0.5 / 0.8 / 1 / 1.5 / 2.5 (`PirateReports.Bounty`). Players'
+  feedback 2026-10-22 ("bosses aren't worth it beside outposts", "the droppable blueprint weapons are too limited"): a
+  boss's stash rolls 0 / 0 / 1 / 2 / 3 (`TrafficPlan.BossStashRolls`), and from tier 4 the outpost's equipment
+  (`OutpostGear`) too; tier 4 / 5 events of both kinds add a munitions stack (`TrafficPlan.Munitions`: Amour Rocket /
+  Intelli Jet 20-40, from rank 10 or tier 5 Intelli Jet 30-50 / AMR Extinctor 15-30); the equipment tables gained the
+  128MJ Railgun (low) and Gunant's Drill (high); multiplayer's finished world (`Session.CompletedWorld`, so a single
+  player still meets them in their campaigns) adds the add-ons' gear (low Berger FlaK 9-9, AGT 20mm; high Icarus,
+  Disruptor, SunFire o50, Archimedes, Matador TS, Pandora Leech, PE Proton / Ambipolar-5) and munitions (SG-100; high
+  Shock Blast, SG-400); never the Kaamo Club's own items or a time extender. Loot of
   several kinds drops a crate per kind, thrown apart at 3x a crate's push in directions spread over a sphere
   (`NpcShip.DropCrate`, `Crate.Launch`; a crate holds all of one thing), and a crate of several stacks gives every one
   (`CombatRadar.Capture`; the capital ships' crates gave only the first).

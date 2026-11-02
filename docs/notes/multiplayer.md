@@ -120,6 +120,9 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   near, a second frame of the faction's bar 11 px above the hull bar with the shield in the status bar's cyan, and the hull
   bar's fill in the status bar's red with the yellow armor over it (shield, armor, then hull drain, `Player::damage`); a
   pool of -1 is left out, NPC markers (both -1) are unchanged.
+- **Players on the HUD** (players' feedback 2026-10-22: a player looked like any neutral NPC): another player's on-screen
+  marker, near or far, carries their "[TAG] Name" above it in the marker's colour (`CombatView.DrawPilotName`,
+  `Target.netPilot` set by `NetPlayer`; not the proxied NPCs or sentries); off screen the radar ellipse's dot is unchanged.
 - **Players against players**: another player is a yellow (neutral) marker until one of the two attacks the other
   (weapons or EMP, 3 hits or 50 damage within 10 s, so a stray shot doesn't count: the victim's game counts in
   `NetPlayer.HitRpc` / `EmpRpc`, the attacker's game in `RemoteDamage` / `RemoteEmp`): then both are enemies to each

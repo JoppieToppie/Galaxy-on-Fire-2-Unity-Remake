@@ -20,11 +20,13 @@ namespace GoF2Remake.Flight
         /// the original's tables alone, with the same random draws.</summary>
         public static List<int> OutpostGear(Database db, int tier, int rank)
         {
-            var table = tier == 5 || rank >= 10 ? DangerousLootHigh : DangerousLootLow;
-            var gear = new List<int> { table[Random.Range(0, table.Length)] };
+            bool high = tier == 5 || rank >= 10;
+            var table = new List<int>(high ? DangerousLootHigh : DangerousLootLow);
+            if (Session.CompletedWorld) table.AddRange(high ? AddOnLootHigh : AddOnLootLow);
+            var gear = new List<int> { table[Random.Range(0, table.Count)] };
             if (tier != 5) return gear;
-            int second = table[Random.Range(0, table.Length)];
-            if (second == gear[0]) second = table[(System.Array.IndexOf(table, second) + 1) % table.Length];
+            int second = table[Random.Range(0, table.Count)];
+            if (second == gear[0]) second = table[(table.IndexOf(second) + 1) % table.Count];
             gear.Add(second);
             var top = Shop.AboveTopTech(db);
             for (int k = 0; k < gear.Count && top.Count > 0; k++)
@@ -35,6 +37,36 @@ namespace GoF2Remake.Flight
                 top.Remove(it);
             }
             return gear;
+        }
+
+        /// <summary>A tier 4 / 5 event's munitions stack (MunitionsLow / High by OutpostGear's rank rule, the add-ons' in
+        /// multiplayer's finished world).</summary>
+        public static ItemStack Munitions(int tier, int rank)
+        {
+            bool high = tier == 5 || rank >= 10;
+            var table = new List<(int item, int min, int max)>(high ? MunitionsHigh : MunitionsLow);
+            if (Session.CompletedWorld) table.AddRange(high ? AddOnMunitionsHigh : AddOnMunitionsLow);
+            var m = table[Random.Range(0, table.Count)];
+            return new ItemStack(m.item, Random.Range(m.min, m.max + 1));
+        }
+
+        /// <summary>Remake (a player's report 2026-10-16: an outpost gave 1 t of something, less than a freighter): the pirates'
+        /// stash, 'rolls' freighter cargo rolls (NpcTables.RollLoot) after the event's own stacks, each kind once (a kind the
+        /// crate's first item or one of its first 'ownStacks' extra stacks already gives is left out).</summary>
+        static void AddStash(Database db, List<ItemStack> extra, int rolls, int lootItem)
+        {
+            int ownStacks = extra.Count;
+            for (int tries = 0; rolls > 0 && tries < 30; tries++)
+            {
+                var hold = NpcTables.RollLoot(db, true);
+                if (hold.Count == 0) continue;
+                rolls--;
+                foreach (var s in hold)
+                {
+                    if (s.item == lootItem || extra.FindIndex(x => x.item == s.item) is int found && found >= 0 && found < ownStacks) continue;
+                    GoF2Remake.World.CapitalShips.Add(extra, s.item, s.amount);
+                }
+            }
         }
         static bool InStoryline(int station) => PirateEventRules.InStoryline(station);
         /// <param name="hasRaiders">The orbit already has a raider group: no unreported event on top of it (a reported
@@ -59,7 +91,8 @@ namespace GoF2Remake.Flight
         /// <summary>The event's ships by its threat tier (1 Minor .. 5 Extremely dangerous, PirateReports.TierName): the outpost
         /// with its guards (more by tier), its turrets (2 from tier 3, 4 at tier 4, all 6 at tier 5), its hull (x0.4 .. x2) and
         /// its crate (equipment from tier 4); or the boss (hull x0.35 .. x2.4, its gun x1 .. x3, 0 .. 7 escorts, the dearer
-        /// fighters from tier 4, more and costlier goods). Public for testing (spawned with Traffic.SpawnShip).</summary>
+        /// fighters from tier 4, more and costlier goods, a stash from tier 3, the outpost's equipment and munitions from tier
+        /// 4). Public for testing (spawned with Traffic.SpawnShip).</summary>
         public static void AddPirateEventShips(List<SpawnSpec> list, bool outpostEvent, int tier, PirateSighting sighting = null)
         {
             tier = Mathf.Clamp(tier, 1, PirateReports.MaxTier);
@@ -88,23 +121,10 @@ namespace GoF2Remake.Flight
                     for (int g = 1; g < gear.Count; g++) extra.Add(new ItemStack(gear[g], 1));
                     extra.Add(new ItemStack(DangerousBossLoot[Random.Range(0, DangerousBossLoot.Length)],
                                             tier == 5 ? Random.Range(8, 13) : Random.Range(3, 7)));
+                    extra.Add(Munitions(tier, rank));
                 }
                 else if (tier == 3) extra.Add(new ItemStack(BossLoot[Random.Range(0, BossLoot.Length)], Random.Range(2, 5)));
-                // Remake (a player's report 2026-10-16: an outpost gave 1 t of something, less than a freighter): the pirates' stash,
-                // freighter cargo rolls by tier (NpcTables.RollLoot) after the tier's own stacks, each kind once (a kind the tier
-                // already gives is left out).
-                int tierStacks = extra.Count;
-                for (int rolls = OutpostStashRolls[t], tries = 0; rolls > 0 && tries < 30; tries++)
-                {
-                    var hold = NpcTables.RollLoot(db, true);
-                    if (hold.Count == 0) continue;
-                    rolls--;
-                    foreach (var s in hold)
-                    {
-                        if (s.item == loot.item || extra.FindIndex(x => x.item == s.item) is int found && found >= 0 && found < tierStacks) continue;
-                        GoF2Remake.World.CapitalShips.Add(extra, s.item, s.amount);
-                    }
-                }
+                AddStash(db, extra, OutpostStashRolls[t], loot.item);
                 list.Add(new SpawnSpec
                 {
                     group = NpcGroup.Outpost, race = Standing.Pirate, ship = -1, position = at,
@@ -141,11 +161,22 @@ namespace GoF2Remake.Flight
             int hull = Mathf.Max(1, (int)((15 * rank + 1500 + 4 * 45) * Session.DifficultyFactor * BossHullFactor[t]));
             int gun = rank < 5 ? 23 : rank < 10 ? 15 : rank < 15 ? 26 : 21;   // Micro Gun MKII, H'nookk, Scram Cannon, Tyrfing
             var bossLoot = tier >= 4 ? DangerousBossLoot : BossLoot;
+            int bossGoods = bossLoot[Random.Range(0, bossLoot.Length)];
+            // Remake (players' feedback 2026-10-22: high-tier bosses weren't worth it beside the outposts): from tier 4 the
+            // outpost's equipment and munitions, from tier 3 a stash (BossStashRolls).
+            var bossExtra = new List<ItemStack>();
+            if (tier >= 4)
+            {
+                foreach (var g in OutpostGear(db, tier, rank)) bossExtra.Add(new ItemStack(g, 1));
+                bossExtra.Add(Munitions(tier, rank));
+            }
+            AddStash(db, bossExtra, BossStashRolls[t], bossGoods);
             list.Add(new SpawnSpec
             {
                 group = NpcGroup.Special, race = Standing.Pirate, ship = Modding.ModTraffic.PickBoss(BossShips[Random.Range(0, BossShips.Length)]), position = spawn,
                 hitpoints = hull, nameText = 1606, speed = tier == 5 ? 4f : 3.5f, gunItem = gun, gunFactor = BossGunFactor[t], alwaysEnemy = true,
-                lootItem = bossLoot[Random.Range(0, bossLoot.Length)], lootAmount = Random.Range(BossLootMin[t], BossLootMax[t] + 1),
+                lootItem = bossGoods, lootAmount = Random.Range(BossLootMin[t], BossLootMax[t] + 1),
+                extraLoot = bossExtra.Count > 0 ? bossExtra : null,
                 pirateEvent = SpawnSpec.EventBoss, eventTier = tier, sightingId = sightingId,
                 name = sighting != null ? sighting.name : null,   // a reported boss goes by its name (the lock plate, its call)
             });

@@ -10,7 +10,8 @@
 // the boss: (15 rank + 1680) x difficulty, x0.35 .. x2.4, gun x1 .. x3, 0 / 1 / 2-3 / 4-5 / 6-7 escorts, 1-2 .. 10-16 t,
 // speed 3.5 (4 at tier 5), 30 km further out than the raiders, ships Darkzov / Mantis / Wasp / Tyrion; bounties
 // (outpost 10 000 / boss 4000 + 1500 per rank) x0.5 / 0.8 / 1 / 1.5 / 2.5, a report x1.25, in hundreds; tiers: below rank
-// 4 never 5; Dangerous systems lean high. The outpost hull is kaamo_club.md 3.2's 5 x (4 cm + 15 rank + 20). Where only
+// 4 never 5; Dangerous systems lean high. Players' feedback 2026-10-22: a boss's stash rolls 0 / 0 / 1 / 2 / 3 and from
+// tier 4 the outpost's equipment, both kinds' munitions stack from tier 4, the add-ons' gear in the finished world only. The outpost hull is kaamo_club.md 3.2's 5 x (4 cm + 15 rank + 20). Where only
 // the code defines a number (the middle tiers' factors) the tests check order (monotonic) instead.
 
 using System.Collections.Generic;
@@ -380,27 +381,28 @@ namespace GoF2Remake.Tests
                 Assert.That(t3.extraLoot[0].amount >= 2 && t3.extraLoot[0].amount <= 4);
 
                 var t4 = Event(true, 4)[0];   // rank 5: the lower table
-                CollectionAssert.Contains(new[] { 8, 21, 30, 27, 53 }, t4.lootItem);
+                CollectionAssert.Contains(Low, t4.lootItem);
                 Assert.GreaterOrEqual(t4.lootAmount, 1);
-                stash[3] += Stash(t4, 1);
+                stash[3] += Stash(t4, 2);
                 CollectionAssert.Contains(new[] { 113, 108 }, t4.extraLoot[0].item);
                 Assert.That(t4.extraLoot[0].amount >= 3 && t4.extraLoot[0].amount <= 6);
+                AssertMunitions(t4.extraLoot[1], false);
 
                 var t5 = Event(true, 5)[0];   // the best equipment whatever the rank, two different pieces
-                var high = new[] { 11, 58, 59, 49, 54, 67 };
-                CollectionAssert.Contains(high, t5.lootItem);
-                stash[4] += Stash(t5, 2);
-                CollectionAssert.Contains(high, t5.extraLoot[0].item);
+                CollectionAssert.Contains(High, t5.lootItem);
+                stash[4] += Stash(t5, 3);
+                CollectionAssert.Contains(High, t5.extraLoot[0].item);
                 Assert.AreNotEqual(t5.lootItem, t5.extraLoot[0].item);
                 CollectionAssert.Contains(new[] { 113, 108 }, t5.extraLoot[1].item);
                 Assert.That(t5.extraLoot[1].amount >= 8 && t5.extraLoot[1].amount <= 12);
+                AssertMunitions(t5.extraLoot[2], true);
             }
             // a player's report 2026-10-16 (an outpost gave 1 t of something): a freighter's cargo rolls by tier, 1 / 2 / 2 / 3 / 4
             CollectionAssert.AreEqual(new[] { 1, 2, 2, 3, 4 }, TrafficPlan.OutpostStashRolls);
             for (int t = 0; t < 5; t++) Assert.Greater(stash[t] / 40f, 8f * TrafficPlan.OutpostStashRolls[t] * 0.8f, "tier " + (t + 1));
             Assert.Greater(stash[4], stash[0]);
             InFreePlay(10);
-            for (int k = 0; k < 20; k++) CollectionAssert.Contains(new[] { 11, 58, 59, 49, 54, 67 }, Event(true, 4)[0].lootItem, "rank 10: the upper table");
+            for (int k = 0; k < 20; k++) CollectionAssert.Contains(High, Event(true, 4)[0].lootItem, "rank 10: the upper table");
         }
 
         [Test]
@@ -487,6 +489,97 @@ namespace GoF2Remake.Tests
                 Assert.Greater(escorts[i], escorts[i - 1]);
                 Assert.Greater(lootMax[i], lootMax[i - 1]);
             }
+        }
+
+        // ---- the equipment and munitions (players' feedback 2026-10-22) ---------------------------------------------
+
+        static readonly int[] Low = { 8, 21, 30, 27, 53, 25 }, High = { 11, 58, 59, 49, 54, 67, 90 };
+        static readonly int[] AddOnLow = { 177, 180 }, AddOnHigh = { 178, 183, 193, 182, 224, 223, 198, 199 };
+
+        static void AssertMunitions(ItemStack m, bool high, bool addOns = false)
+        {
+            // Amour Rocket / Intelli Jet 20-40; from rank 10 or tier 5 Intelli Jet 30-50 / AMR Extinctor 15-30; the finished
+            // world adds the SG-100 3-6, from 10 the Shock Blast 5-10 / SG-400 3-6.
+            var (min, max) = m.item switch
+            {
+                33 when !high => (20, 40), 37 when !high => (20, 40), 211 when !high && addOns => (3, 6),
+                37 when high => (30, 50), 46 when high => (15, 30), 226 when high && addOns => (5, 10), 212 when high && addOns => (3, 6),
+                _ => (-1, -1),
+            };
+            Assert.Greater(min, 0, $"munitions {m.item} (high {high}, add-ons {addOns})");
+            Assert.That(m.amount >= min && m.amount <= max, $"{m.item} x{m.amount}");
+        }
+
+        [Test]
+        public void BossLootByTier()
+        {
+            // Tier 1 / 2 goods alone; tier 3 a stash; tier 4 / 5 the outpost's equipment (one / two pieces) and munitions, then
+            // the stash (one roll fewer than an outpost's).
+            InFreePlay(5);
+            CollectionAssert.AreEqual(new[] { 0, 0, 1, 2, 3 }, TrafficPlan.BossStashRolls);
+            Random.InitState(50);
+            for (int k = 0; k < 40; k++)
+            {
+                for (int t = 1; t <= 2; t++) Assert.IsNull(Event(false, t)[0].extraLoot, "tier " + t);
+                var t3 = Event(false, 3)[0];
+                Assert.IsNotNull(t3.extraLoot);
+                Assert.Greater(Stash(t3, 0), 0);
+
+                var t4 = Event(false, 4)[0];
+                CollectionAssert.Contains(Low, t4.extraLoot[0].item);
+                Assert.AreEqual(1, t4.extraLoot[0].amount);
+                AssertMunitions(t4.extraLoot[1], false);
+                Assert.Greater(Stash(t4, 2), 0);
+
+                var t5 = Event(false, 5)[0];
+                CollectionAssert.Contains(High, t5.extraLoot[0].item);
+                CollectionAssert.Contains(High, t5.extraLoot[1].item);
+                Assert.AreNotEqual(t5.extraLoot[0].item, t5.extraLoot[1].item);
+                AssertMunitions(t5.extraLoot[2], true);
+                Assert.Greater(Stash(t5, 3), 0);
+            }
+        }
+
+        [Test]
+        public void TheAddOnsGearDropsInTheFinishedWorldOnly()
+        {
+            // A single player meets the Valkyrie / Supernova gear in those campaigns: only multiplayer's finished world
+            // (Session.CompletedWorld) adds it to the tables, and never the Kaamo Club's own or a time extender.
+            InFreePlay(5);
+            Random.InitState(60);
+            var seen = new HashSet<int>();
+            for (int k = 0; k < 200; k++)
+            {
+                seen.UnionWith(TrafficPlan.OutpostGear(Db, 4, 5));
+                seen.UnionWith(TrafficPlan.OutpostGear(Db, 5, 5));
+                AssertMunitions(TrafficPlan.Munitions(4, 5), false);
+                AssertMunitions(TrafficPlan.Munitions(5, 5), true);
+            }
+            CollectionAssert.AreEquivalent(Low.Concat(High), seen);
+            Session.CompletedWorld = true;
+            try
+            {
+                seen.Clear();
+                var munitions = new HashSet<int>();
+                for (int k = 0; k < 400; k++)
+                {
+                    seen.UnionWith(TrafficPlan.OutpostGear(Db, 4, 5));
+                    seen.UnionWith(TrafficPlan.OutpostGear(Db, 5, 5));
+                    var m4 = TrafficPlan.Munitions(4, 5);
+                    var m5 = TrafficPlan.Munitions(5, 5);
+                    AssertMunitions(m4, false, true);
+                    AssertMunitions(m5, true, true);
+                    munitions.Add(m4.item); munitions.Add(m5.item);
+                }
+                CollectionAssert.AreEquivalent(Low.Concat(High).Concat(AddOnLow).Concat(AddOnHigh), seen);
+                CollectionAssert.AreEquivalent(new[] { 33, 37, 211, 46, 226, 212 }, munitions);
+                foreach (int i in seen)
+                {
+                    Assert.AreNotEqual(Shop.TimeExtenderCategory, Db.Item(i).categoryId);
+                    CollectionAssert.DoesNotContain(new[] { 200, 220, 208, 213, 216, 228, 229, 230, 231 }, i, "the Kaamo Club's own");
+                }
+            }
+            finally { Session.CompletedWorld = false; }
         }
 
         [TestCase(0, 23)]

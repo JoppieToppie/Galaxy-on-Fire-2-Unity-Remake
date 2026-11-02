@@ -404,6 +404,9 @@ namespace GoF2Remake.UI
             int race = sys != null ? sys.raceId : -1;
             if (st == 100 || st == 101 || st == 108 || level.Station.system == 25 || race < 0 || race > 3 || PirateBases.StationHasBase(st)) return false;
             if (!Session.FreePlay && Session.CampaignMission == 0x30) return false;
+            // Remake, multiplayer (players' feedback 2026-10-22): a station the pilot's own faction holds never fines them;
+            // its fighters already count them as friends (NpcShip.TerritoryToLocal).
+            if (GoF2Remake.Multiplayer.NetFactionsClient.LocalHolds(st)) return false;
             bool enemy = GoF2Remake.Flight.Standing.IsEnemy(race);
             bool attacked = Session.AttackedStations.Contains(st);
             if (!enemy && !attacked) return false;

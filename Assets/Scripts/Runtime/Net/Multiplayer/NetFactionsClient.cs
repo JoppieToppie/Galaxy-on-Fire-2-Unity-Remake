@@ -171,6 +171,13 @@ namespace GoF2Remake.Multiplayer
             return false;
         }
 
+        /// <summary>The local pilot's faction holds 'station' (false outside a session or without a faction).</summary>
+        public static bool LocalHolds(int station)
+        {
+            string tag = NetPlayer.Local != null ? NetPlayer.Local.FactionTag : null;
+            return !string.IsNullOrEmpty(tag) && Owner(station, out string owner, out _) && tag == owner;
+        }
+
         /// <summary>"[TAG] Name" of the station's faction, "" = none.</summary>
         public static string OwnerText(int station) => Owner(station, out string tag, out string name) ? $"[{tag}] {name}" : "";
 

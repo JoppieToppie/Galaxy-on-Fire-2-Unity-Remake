@@ -433,10 +433,28 @@ namespace GoF2Remake.Flight
         static readonly int[] BossLoot = { 113, 108, 107, 102, 101 };   // Implants, Vossk Organs, Organs, Rare Plants / Animals
         static readonly int[] DangerousBossLoot = { 113, 108 };          // Implants, Vossk Organs
         /// <summary>A Dangerous outpost's crate: one piece of equipment by the player's rank (below 10: Berger Converge IV,
-        /// Tyrfing Blaster, MaxHeat o20, Mass Driver MD 10, Beamshield II; from 10: M6 A3 "Wolverine", D'iol, T'yol, L'ksaar,
-        /// Fluxed Matter Shield, Rhoda Blackhole).</summary>
-        static readonly int[] DangerousLootLow = { 8, 21, 30, 27, 53 };
-        static readonly int[] DangerousLootHigh = { 11, 58, 59, 49, 54, 67 };
+        /// Tyrfing Blaster, MaxHeat o20, Mass Driver MD 10, Beamshield II, 128MJ Railgun; from 10: M6 A3 "Wolverine", D'iol,
+        /// T'yol, L'ksaar, Fluxed Matter Shield, Rhoda Blackhole, Gunant's Drill). The railgun and the drill: players'
+        /// feedback 2026-10-22 ("the set of blueprint weapons that can be dropped is too limited").</summary>
+        static readonly int[] DangerousLootLow = { 8, 21, 30, 27, 53, 25 };
+        static readonly int[] DangerousLootHigh = { 11, 58, 59, 49, 54, 67, 90 };
+        /// <summary>The same feedback: the add-ons' gear joins those tables in multiplayer's finished world only
+        /// (Session.CompletedWorld; a single player meets it in the Valkyrie and Supernova campaigns). Below 10: Berger FlaK
+        /// 9-9, Berger AGT 20mm; from 10: Icarus Heavy AS, Disruptor Laser, SunFire o50, HH-AT "Archimedes", Matador TS,
+        /// Pandora Leech, PE Proton, PE Ambipolar-5. Never the Kaamo Club's own (Shop's KaamoSpecials) or a time extender.</summary>
+        static readonly int[] AddOnLootLow = { 177, 180 };
+        static readonly int[] AddOnLootHigh = { 178, 183, 193, 182, 224, 223, 198, 199 };
+        /// <summary>The same feedback: a tier 4 / 5 event's munitions, one stack (item, least, most) beside its equipment, by
+        /// the same rank rule: Amour Rocket, Intelli Jet; from 10: Intelli Jet, AMR Extinctor. Multiplayer's finished world adds
+        /// the Berger SG-100 sentry gun; from 10 the Shock Blast and the Berger SG-400.</summary>
+        static readonly (int item, int min, int max)[] MunitionsLow = { (33, 20, 40), (37, 20, 40) };
+        static readonly (int item, int min, int max)[] MunitionsHigh = { (37, 30, 50), (46, 15, 30) };
+        static readonly (int item, int min, int max)[] AddOnMunitionsLow = { (211, 3, 6) };
+        static readonly (int item, int min, int max)[] AddOnMunitionsHigh = { (226, 5, 10), (212, 3, 6) };
+        /// <summary>The same feedback (bosses gave goods alone, outposts stacks of everything): a boss's stash, freighter cargo
+        /// rolls by tier, one fewer than an outpost's (OutpostStashRolls) from tier 3; tier 4 / 5 also the outpost's equipment
+        /// and munitions.</summary>
+        public static readonly int[] BossStashRolls = { 0, 0, 1, 2, 3 };
         /// <summary>Remake mods: the odds (1 in N) that a tier-5 outpost's piece of equipment is a mod's tech level 11+ gear.</summary>
         public const int TopTechOdds = 3;
 
