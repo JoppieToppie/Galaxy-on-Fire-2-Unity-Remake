@@ -89,6 +89,13 @@ namespace GoF2Remake.UI
                 e.StopPropagation();
                 root.focusController?.IgnoreEvent(e);
             }, TrickleDown.TrickleDown);
+            // So are Space and Enter (the UI's Submit, MenuConfirm): a typed space pressed no button.
+            root.RegisterCallback<NavigationSubmitEvent>(e =>
+            {
+                if (!TextFieldKeys.IsTyping(e, root.focusController?.focusedElement as VisualElement)) return;
+                e.StopPropagation();
+                root.focusController?.IgnoreEvent(e);
+            }, TrickleDown.TrickleDown);
             BuildViewport(root);
 
             // ---- top bar ----

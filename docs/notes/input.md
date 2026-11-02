@@ -83,6 +83,14 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 - **D-pad taps** (`DpadTapNavigation`): UI Toolkit's runtime input samples UI/Navigate once a frame and drops a D-pad
   press released within the frame (the Steam controller's trackpad D-pad); the main and station menus send those taps
   (`wasPressedThisFrame` and already up) to the panel as NavigationMoveEvents.
+- **Space confirms** (remake, a player's request on Discord, 2026-10-25; `MenuConfirm`, Space/UI): Space and the numpad's
+  Enter confirm in every menu, like Enter. The scenes' `InputSystemUIInputModule` uses the package's DefaultInputActions,
+  whose UI/Submit is `*/{Submit}`: on the keyboard only Enter has that usage. `MenuConfirm` gives each module a copy of
+  its actions (on every scene load, one copy per asset) with `<Keyboard>/space` and `<Keyboard>/numpadEnter` added to
+  UI/Submit; the screens that read their keys themselves take `MenuConfirm.Pressed` / `Held` (hangar window, carrier
+  shop, ship customizing; the pause menu, dialogues, star map, event screens and settings confirm had Space already).
+  Left out on purpose, as Space fires there: the flight's autopilot menu, the action prompt and the chat key. A typed
+  space stays in its field: the main menu, station and Mod Builder roots drop a submit while `TextFieldKeys.IsTyping`.
 - **Right stick scrolls the texts** (remake, #169, `StickScroll`): in the main and station menus the right stick, up and
   down, scrolls the shown scroll view that overflows and doesn't hold the focus (the lounge's dialogue, the shop's and
   the item window's descriptions; a focused list scrolls to its focus); of several, the last in the document. Pushed

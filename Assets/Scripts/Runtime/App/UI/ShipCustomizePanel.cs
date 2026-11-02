@@ -556,7 +556,7 @@ namespace GoF2Remake.UI
             bool Pressed(Func<Keyboard, bool> k, Func<Gamepad, bool> p) => (kb != null && k(kb)) || (pad != null && p(pad));
             if (Pressed(k => k.escapeKey.wasPressedThisFrame || k.backspaceKey.wasPressedThisFrame, p => p.buttonEast.wasPressedThisFrame))
             { ClickSound?.Invoke(); Cancelled?.Invoke(); return; }
-            if (Pressed(k => k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame, p => p.buttonSouth.wasPressedThisFrame))
+            if (Pressed(MenuConfirm.Pressed, p => p.buttonSouth.wasPressedThisFrame))
             { ClickSound?.Invoke(); Applied?.Invoke(); return; }
             var stick = pad != null ? pad.leftStick.ReadValue() + pad.dpad.ReadValue() : Vector2.zero;
             int v = (kb != null && (kb.upArrowKey.isPressed || kb.wKey.isPressed) ? 1 : 0) - (kb != null && (kb.downArrowKey.isPressed || kb.sKey.isPressed) ? 1 : 0)

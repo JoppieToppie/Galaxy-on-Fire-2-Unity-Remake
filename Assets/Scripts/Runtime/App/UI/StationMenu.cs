@@ -278,6 +278,8 @@ namespace GoF2Remake.UI
             // The hangar window keeps its own selection; Enter / A are read in Update, so no button may also take them.
             root.RegisterCallback<NavigationSubmitEvent>(e =>
             {
+                // Space typed into a field (the Mod Builder's) is a space, not a press of the menu's button (MenuConfirm).
+                if (TextFieldKeys.IsTyping(e, root.focusController?.focusedElement as VisualElement)) { e.StopPropagation(); root.focusController?.IgnoreEvent(e); return; }
                 if (!HangarOpen || DialogOpen || GoF2Remake.Multiplayer.NetChat.Typing) return;
                 e.StopPropagation();
                 root.focusController?.IgnoreEvent(e);
@@ -694,10 +696,10 @@ namespace GoF2Remake.UI
                 }
                 hangarWindow.HoldDirections(System.Math.Sign(v), System.Math.Sign(h), dtMs);
                 hangarWindow.Update(dtMs);
-                if (hangarConfirmHeld && !(kb != null && (kb.enterKey.isPressed || kb.numpadEnterKey.isPressed || kb.spaceKey.isPressed))
+                if (hangarConfirmHeld && !MenuConfirm.Held(kb)
                     && !(pad != null && pad.buttonSouth.isPressed))
                     hangarConfirmHeld = false;
-                if (!hangarConfirmHeld && ((kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) || (pad != null && pad.buttonSouth.wasPressedThisFrame)))
+                if (!hangarConfirmHeld && (MenuConfirm.Pressed(kb) || (pad != null && pad.buttonSouth.wasPressedThisFrame)))
                     hangarWindow.Action();
                 else if ((kb != null && kb.xKey.wasPressedThisFrame) || (pad != null && pad.buttonWest.wasPressedThisFrame))
                     hangarWindow.SecondaryAction();   // Sell a stored hull (Kaamo Club)

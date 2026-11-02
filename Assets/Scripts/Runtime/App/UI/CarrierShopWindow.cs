@@ -487,7 +487,7 @@ namespace GoF2Remake.UI
                              || (pad != null && (pad.dpad.right.isPressed || pad.buttonSouth.isPressed));
             bool rightPressed = (kb != null && (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame))
                                 || (pad != null && (pad.dpad.right.wasPressedThisFrame || pad.buttonSouth.wasPressedThisFrame));
-            if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) { Buy(1); return; }
+            if (MenuConfirm.Pressed(kb)) { Buy(1); return; }
             if (rightPressed) { heldKey = true; BeginHold(); return; }
             if (!rightHeld) heldKey = false;
             if ((heldKey || heldPointer >= 0) && selected >= 0 && rows[selected].offer.kind != CapitalShips.OfferKind.Repair)
