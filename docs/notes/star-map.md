@@ -133,8 +133,11 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   play (`SystemJump.toInterstellar`), then `Session.EnterInterstellar` reloads Space, read once in `SpaceLevel.Awake`:
   `InterstellarSpace.Clear` empties the orbit left (`OrbitLayout.interstellar`), which stays `Session.StationIndex`, so a
   save or load is that orbit and the flag is never saved. No wingmen, traffic, story (`StorySpace`), encounters, wormholes;
-  `plainOrbit` in `Awake` marks what an arena and this space both leave out. Multiplayer: everyone here shares
-  `InterstellarSpace.OrbitId` (`SpaceLevel.NetOrbitId`). Each visible system is a `Kind.System` target and a sun
+  `plainOrbit` in `Awake` marks what an arena and this space both leave out. **Single player only** (2026-11-02, the user:
+  "else disable the item in mp"): `InterstellarSpace.Drive` is null in a session, so no menu entry; the item still cruises in
+  the orbits. It wasn't safe: a squadmate's Follow or a distress call from here set out for `InterstellarSpace.OrbitId`
+  (90000) as a station (`NetDistress.TravelTo`), and the approach's asteroids weren't the session's seeded field. The
+  plumbing stays (`SpaceLevel.NetOrbitId` gives 90000 here) should it come back. Each visible system is a `Kind.System` target and a sun
   (`InterstellarField`: the map's sun material, kept inside the far plane); `GalaxyMap.Visibility` decides, every frame,
   so bought coordinates, the story, an event's hide and a mod's `available` all hold here. Scale 240 units a map unit
   (the average hop, 2510 on the map, is 30 km; the galaxy +-66 km around the origin, centred for floats' sake). A leg

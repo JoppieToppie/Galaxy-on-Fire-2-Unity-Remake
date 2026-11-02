@@ -57,9 +57,12 @@ namespace GoF2Remake.Data
             public Vector3 position;   // game units
         }
 
-        /// <summary>The mounted cruise drive when it flies this space, null otherwise: mounting it is the only switch.</summary>
+        /// <summary>The mounted cruise drive when it flies this space, null otherwise: mounting it is the only switch. Never in a
+        /// multiplayer session (the user, 2026-11-02): a squadmate's Follow or a distress call would set out for this space's
+        /// orbit id as if it were a station, so there the drive cruises inside the orbits only, as its planet runs do.</summary>
         public static ItemData Drive(Database db)
         {
+            if (NetSession.Active) return null;
             var it = Shop.MountedCruiseDrive(db);
             return it != null && it.Attr(Flight.CruiseDrive.InterstellarAttr) > 0 ? it : null;
         }

@@ -112,6 +112,14 @@ namespace GoF2Remake.Tests
             Session.Equipment = new List<ItemStack> { new ItemStack(ii, 1) };
             Assert.AreEqual(ii, InterstellarSpace.Drive(db).index);
             Assert.IsFalse(GalaxyMap.HasJumpDrive(db), "it opens no shortcut around the Khador Drive's story checks");
+            var old = NetSession.ActiveProvider;
+            try
+            {
+                NetSession.ActiveProvider = () => true;
+                Assert.IsNull(InterstellarSpace.Drive(db), "a multiplayer session: no flight between the systems");
+                Assert.AreEqual(ii, Shop.MountedCruiseDrive(db).index, "it still cruises inside the orbits");
+            }
+            finally { NetSession.ActiveProvider = old; }
             Session.Equipment = new List<ItemStack>();
             Assert.IsNull(InterstellarSpace.Drive(db), "in the hold it does nothing");
         }
