@@ -1,9 +1,8 @@
 # Running a dedicated server
 
 A dedicated server hosts a Galaxy on Fire 2 Unity Remake multiplayer session without anyone playing on that machine.
-It is the normal Windows or Linux build of the game, started with `-server`. No extra download is needed. For Linux
-there is also a server-only build without the game's graphics and sound (see
-[Linux server-only build](#linux-server-only-build)).
+It is the normal Windows or Linux build of the game, started with `-server`. No extra download is needed. There are also server-only builds for Linux and Windows without the game's graphics and sound (see
+[Linux server-only build](#linux-server-only-build) and [Windows server-only build](#windows-server-only-build)).
 
 This guide covers setting the server up, its command-line options, the settings you can change while it runs, the
 server console, the files it keeps, and running it as a Linux service. For what players can do in a session (factions,
@@ -13,6 +12,7 @@ arenas, distress calls and their chat commands), see [Playing together](docs/MUL
 
 - [Quick start](#quick-start)
 - [Linux server-only build](#linux-server-only-build)
+- [Windows server-only build](#windows-server-only-build)
 - [Docker](#docker)
 - [Online or local network](#online-or-local-network)
 - [Command-line options](#command-line-options)
@@ -85,6 +85,19 @@ the same and zips it as `Build/Release/GoF2Remake-LinuxServer-<version>.zip`, th
 
 Running it is as above: edit and run `start-server.sh`, or start `./GoF2Server.x86_64` with the same options. It starts
 as a server without `-server`; `-batchmode -nographics` are implied.
+
+## Windows server-only build
+
+The same server-only build for Windows (64-bit): no textures, shaders or sounds, the same server code and options.
+
+Releases have it ready to download: `GoF2Remake-WindowsServer-<version>.zip` on the release page. Unzip it, edit the
+settings at the top of `GoF2Server\Start Dedicated Server.bat` (right-click, Edit) and double-click it. The server opens
+its own console window, which shows who joins and the chat and takes the console commands. You can also start
+`GoF2Server.exe` with the options below; it starts as a server without `-server`.
+
+Making it yourself (once the Unity Hub module **Windows Dedicated Server Build Support** is installed for the Editor
+version): **GoF2 > Build > Windows Dedicated Server** builds into `Build/WindowsServer/`, and **GoF2 > Build > Windows
+Dedicated Server (Release Zip)** zips it as `Build/Release/GoF2Remake-WindowsServer-<version>.zip`.
 
 ## Docker
 

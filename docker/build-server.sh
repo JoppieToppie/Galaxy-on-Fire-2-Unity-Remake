@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the Linux dedicated server from this checkout in Docker (LinuxServerBuild): Build/LinuxServer/GoF2Server.x86_64.
+# Builds the Linux dedicated server from this checkout in Docker (ServerBuild): Build/LinuxServer/GoF2Server.x86_64.
 # Needs Docker and a Unity account: UNITY_EMAIL / UNITY_PASSWORD (a Personal licence, activated for the build and returned
 # afterwards). The editor image (docker/editor.Dockerfile) is built on first use for ProjectSettings/ProjectVersion.txt's
 # version; the import cache is the Docker volume gof2-server-library (the first build imports every asset). The Unity log
@@ -23,7 +23,7 @@ docker run --rm --shm-size 2g --user "$(id -u):$(id -g)" -e HOME=/tmp/home -e UN
       --username "$UNITY_EMAIL" --password "$UNITY_PASSWORD" > /tmp/activate.log 2>&1 || { cat /tmp/activate.log; exit 1; }
     # The build runs the project'\''s Editor scripts: they never see the account (only the licensing calls get it).
     env -u UNITY_EMAIL -u UNITY_PASSWORD "$U" -batchmode -nographics -quit -projectPath /project -buildTarget Linux64 -standaloneBuildSubtarget Server \
-      -executeMethod GoF2Remake.EditorTools.LinuxServerBuild.Batch -logFile /project/Logs/server-build.log; rc=$?
+      -executeMethod GoF2Remake.EditorTools.ServerBuild.Batch -logFile /project/Logs/server-build.log; rc=$?
     "$U" -batchmode -nographics -quit -returnlicense -username "$UNITY_EMAIL" -password "$UNITY_PASSWORD" \
       -projectPath /tmp/licence -logFile /tmp/return.log; grep -iE "returned|error" /tmp/return.log
     exit $rc'

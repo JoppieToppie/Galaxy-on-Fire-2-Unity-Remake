@@ -115,7 +115,8 @@ platforms get the same one.
 Windows builds use IL2CPP, which needs Visual Studio 2022 (or newer) with the **Desktop development with C++** workload
 and a Windows 10 / 11 SDK. Android and Linux builds don't need it. The UWP build also needs Visual Studio's
 **C++ Universal Windows Platform tools** (see `docs/notes/platforms.md`, UWP), and the Linux dedicated server the Hub module
-**Linux Dedicated Server Build Support** (GoF2 > Build > Linux Dedicated Server).
+**Linux Dedicated Server Build Support** (GoF2 > Build > Linux Dedicated Server), the Windows one **Windows Dedicated
+Server Build Support** (GoF2 > Build > Windows Dedicated Server).
 
 #### Scene lighting (environment reflections)
 
@@ -133,7 +134,7 @@ never touched. Only the **exact same game version** can play together.
 
 - **[Playing together](docs/MULTIPLAYER.md)**: joining and hosting, chat, squads, missions, shops, factions, owning
   stations, arena fights, admins and every chat command.
-- **[Running a dedicated server](SERVER.md)**: setting one up (each release also has a Linux server download and a
+- **[Running a dedicated server](SERVER.md)**: setting one up (each release also has Linux and Windows server downloads and a
   Docker image, `ghcr.io/joppietoppie/gof2-server`), its options and console, the message of the day, becoming its
   admin, its files.
 - **[How multiplayer works](docs/MULTIPLAYER-DEV.md)**: the code, for programmers.

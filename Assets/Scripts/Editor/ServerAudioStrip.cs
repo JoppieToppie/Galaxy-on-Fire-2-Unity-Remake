@@ -1,5 +1,5 @@
 // ServerAudioStrip.cs
-// The Linux dedicated server build without the game's audio (LinuxServerBuild). Unity ships everything under Resources, and
+// The Linux / Windows dedicated server builds without the game's audio (ServerBuild). Unity ships everything under Resources, and
 // a few assets there hold nearly every AudioClip (StoryAssets' voices, CombatAssets, EventAudio, CombatAudio, the weapon
 // fx...: 4346 of the 4418 clips, 171 MB of resources.resource in a server build); the dedicated server optimizations strip
 // textures and shaders but not audio. A server plays nothing (DedicatedServer mutes the process) and reads only sound names,
@@ -22,7 +22,7 @@ namespace GoF2Remake.EditorTools
     {
         const string BackupFolder = "Library/GoF2ServerAudioBackup";
 
-        /// <summary>Set by LinuxServerBuild around its BuildPlayer call: the scenes of that build lose their clips.</summary>
+        /// <summary>Set by ServerBuild around its BuildPlayer call: the scenes of that build lose their clips.</summary>
         public static bool Active;
 
         /// <summary>Clears the AudioClip references of every asset under a Resources folder (backed up first). Returns how

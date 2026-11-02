@@ -31,7 +31,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 - **GoF2 > Build > Star Map Assets**: `Resources/GoF2StarMap/StarMapAssets` (`StarMapAssets`). Also run by Create Space
   Scene, and by Create Station Scene when missing.
 - **GoF2 > Build > Network Prefabs**: `Resources/GoF2Net`, the multiplayer network prefabs (see "Multiplayer").
-- **GoF2 > Build > Linux Dedicated Server** (`LinuxServerBuild`): `Build/LinuxServer/GoF2Server.x86_64`, Unity's
+- **GoF2 > Build > Linux Dedicated Server** (`ServerBuild`): `Build/LinuxServer/GoF2Server.x86_64`, Unity's
   Dedicated Server build (Linux, subtarget Server, IL2CPP, the dedicated server optimizations on: no texture / shader
   data; no audio either: `ServerAudioStrip` clears the AudioClip references of the Resources assets for the build, 4346
   clips / 171 MB, backed up in `Library/GoF2ServerAudioBackup` and put back afterwards (also on the next Editor load
@@ -42,14 +42,14 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   Server Build Support"; switches the active target for the build and back: the menu items switch, wait for the scripts
   to recompile and build after the domain reload (SessionState carries the job), since the toolchain packages only join
   the Linux build while the scripts are compiled for Linux (`UnityEditor.Sysroot` behind `UNITY_STANDALONE_LINUX_API`;
-  built in the switch's own call: "No Linux sysroot found for x64"); `LinuxServerBuild.Busy` / `LastResult` for scripts.
+  built in the switch's own call: "No Linux sysroot found for x64"); `ServerBuild.Busy` / `LastResult` for scripts.
   The game's code is 10 % of the server's generated C++ (packages, UI Toolkit, .NET and IL2CPP's generics the rest), so
   splitting client code into assemblies the server leaves out was judged not worth its refactor (2026-10-14).
-  `LinuxServerBuild.Batch` is its command line (exits 1 on a failed build). Docker (`docker/`, SERVER.md "Docker"):
+  `ServerBuild.Batch` is its command line (exits 1 on a failed build). Docker (`docker/`, SERVER.md "Docker"):
   `build-server.sh` builds it in GameCI's base image with the Editor of `ProjectVersion.txt` (the account only for the
   licence calls, never in the Editor's environment); **GoF2 > Build > Linux Dedicated Server (Release Zip)**
-  (`LinuxServerBuild.ReleaseZip`) is the same build as `Build/Release/GoF2Remake-LinuxServer-<tag>.zip` (top folder
-  GoF2Server, the tag = GOF2_BUILD_VERSION's date; the entries marked as made on Unix with their modes,
+  (`ServerBuild.StartLinuxReleaseZip`) is the same build as `Build/Release/GoF2Remake-LinuxServer-<tag>.zip` (top folder
+  GoF2Server, the tag = GOF2_BUILD_VERSION's date, else the commit's; the entries marked as made on Unix with their modes,
   `MarkMadeOnUnix`: .NET writes the host it runs on and unzip ignored the modes), built with a release's other platforms
   and attached to it. Every published release runs `.github/workflows/server-image.yml`: with that zip in the release it
   unpacks it (only `docker/` checked out, no licence) into the image, so the image is the release's own build; without
@@ -58,6 +58,14 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   to the release; either way it checks the server starts and pushes `ghcr.io/joppietoppie/gof2-server:<tag>` and
   `:latest` (not for a pre-release). The release tag must be the commit the release was built from, or the fingerprints
   differ.
+- **GoF2 > Build > Windows Dedicated Server** / **(Release Zip)** (`ServerBuild`, 2026-11-02): the same server build for
+  Windows x64 (IL2CPP, no textures / shaders / audio, the first scene only): `Build/WindowsServer/GoF2Server.exe`, a
+  console program (WinConsole finds its console and reads the commands there), `Start Dedicated Server.bat` beside it
+  (`DedicatedServerLaunchers`, it opens the server in its own console window); the zip is
+  `Build/Release/GoF2Remake-WindowsServer-<tag>.zip` (top folder GoF2Server), `ServerBuild.StartWindowsReleaseZip`.
+  Needs the Hub module "Windows Dedicated Server Build Support" (`unity install-modules -e <version> -m windows-server`;
+  the Editor found it without a restart). No compile wait: Windows is the Editor's own platform, so it builds at once
+  when Windows is active. Not in Docker or the server image (Linux only).
 - **GoF2 > Build > Backend Build Profiles** (`BuildProfilesBuilder`): `Assets/Settings/Build Profiles`, a profile per graphics
   backend, copies of the platform's profile with one API as a Player Settings override, and one each for macOS and iOS, Metal
   alone (`platforms.md` "Build times"). Run again after changing the Player Settings (an override is a frozen copy of them) or

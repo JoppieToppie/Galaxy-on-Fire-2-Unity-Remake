@@ -90,7 +90,7 @@ namespace GoF2Remake.Multiplayer
 
         static bool Detect() =>
 #if UNITY_SERVER
-            true;   // the Linux Dedicated Server build (GoF2 > Build > Linux Dedicated Server): always a server
+            true;   // the Linux / Windows Dedicated Server builds (GoF2 > Build > ... Dedicated Server): always a server
 #else
             HasFlag("-server") || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(EnvironmentSwitch));
 #endif

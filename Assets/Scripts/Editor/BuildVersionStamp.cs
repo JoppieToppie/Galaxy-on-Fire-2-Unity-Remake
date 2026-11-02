@@ -79,7 +79,7 @@ namespace GoF2Remake.EditorTools
         }
 
         /// <summary>The HEAD commit's time in UTC as yyyy.MM.dd.HHmm (the same on every machine and time zone); null without git.</summary>
-        static string CommitStamp()
+        internal static string CommitStamp()
         {
             if (!long.TryParse(Run("log -1 --format=%ct"), out long seconds)) return null;
             return System.DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime
