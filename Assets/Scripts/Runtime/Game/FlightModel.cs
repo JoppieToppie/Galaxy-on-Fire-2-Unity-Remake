@@ -464,7 +464,7 @@ namespace GoF2Remake.Flight
         void UpdateFreeBoost(float dtMs)
         {
             if (!hasBooster) { IsBoosting = false; CurrentSpeed = TopSpeed; return; }
-            if (Data.Cheats.NoBoostCooldown) boostEnergy = 1f;
+            if (Data.Cheats.NoEquipmentCooldown) boostEnergy = 1f;
             // An emptied pool doesn't restart while the key is still held (EVERSPACE 2 answers a boost on an empty pool
             // with a refusal sound): release and press again.
             if (!BoostHeld) boostSpent = false;
@@ -905,7 +905,7 @@ namespace GoF2Remake.Flight
             {
                 IsBoosting = false;
                 CurrentSpeed = TopSpeed;
-                boostTimerMs = Data.Cheats.NoBoostCooldown ? 0 : -boostRechargeMs;   // remake debug: no recharge
+                boostTimerMs = Data.Cheats.NoEquipmentCooldown ? 0 : -boostRechargeMs;   // remake debug: no recharge
             }
         }
 

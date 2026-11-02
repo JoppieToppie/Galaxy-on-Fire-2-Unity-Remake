@@ -70,7 +70,7 @@
  "cheatMountDocked": "Le montage fonctionne à quai ; l'objet est dans la soute.",
  "cheatMounted": "Monté.",
  "cheatMountedSwap": "Monté ; l'ancien est dans la soute.",
- "cheatNoBoostCooldown": "Boost sans temps de recharge",
+ "cheatNoEquipmentCooldown": "Équipement sans temps de recharge",
  "cheatNoPrimaryCooldown": "Armes principales sans temps de recharge",
  "cheatNoSecondaryCooldown": "Armes secondaires sans temps de recharge",
  "cheatNoSlot": "Aucun emplacement libre : l'objet est dans la soute.",

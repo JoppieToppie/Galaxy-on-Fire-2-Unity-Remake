@@ -103,7 +103,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   lock candidate; local to that player's game); the event graph's Spawn node has a Name port for it, empty = none, old
   graphs without the port compile as before), `/ship [players] <ship | own>` (`PlayerHull.Fly` / `Restore`: any
   hull of the debug Ships tab, docked only ownable ones), `/ammo`, `/reveal`, `/peace [players]`, `/cheat [players] <god | ammo |
-  cooldown | primary | boost | onehit | locks | shopping | jumps> [on | off]` (`Cheats.Grant`: that player's flag for the session, not
+  cooldown | primary | equipment | onehit | locks | shopping | jumps> [on | off]` (`Cheats.Grant`: that player's flag for the session, not
   saved, whatever the session allows), `/mute <players> [minutes]` / `/unmute` (the server drops their chat and whispers;
   never the host's player, only the host / console mutes an admin), `/title [players] <text> [| subtitle] [for <seconds>]`
   ("clear") and `/timer [players] <seconds | m:ss> [label]` ("stop"): `EventScreen`, its own panel over every scene, a big

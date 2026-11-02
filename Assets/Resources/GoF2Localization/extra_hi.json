@@ -63,7 +63,7 @@
   "cheatMountDocked": "माउंट करना डॉक होने पर ही होता है; यह होल्ड में है।",
   "cheatMounted": "माउंट किया गया।",
   "cheatMountedSwap": "माउंट किया गया; पुराना होल्ड में है।",
-  "cheatNoBoostCooldown": "बूस्ट कूलडाउन नहीं",
+  "cheatNoEquipmentCooldown": "उपकरण कूलडाउन नहीं",
   "cheatNoPrimaryCooldown": "प्राथमिक हथियार कूलडाउन नहीं",
   "cheatNoSecondaryCooldown": "द्वितीयक हथियार कूलडाउन नहीं",
   "cheatNoSlot": "कोई खाली स्लॉट नहीं: यह होल्ड में है।",

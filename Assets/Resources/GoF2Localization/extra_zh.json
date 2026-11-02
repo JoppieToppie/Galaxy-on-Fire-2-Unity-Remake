@@ -63,7 +63,7 @@
   "cheatMountDocked": "只有停靠时才能安装；它已放入货舱。",
   "cheatMounted": "已安装。",
   "cheatMountedSwap": "已安装；旧的已放入货舱。",
-  "cheatNoBoostCooldown": "推进无冷却",
+  "cheatNoEquipmentCooldown": "装备无冷却",
   "cheatNoPrimaryCooldown": "主武器无冷却",
   "cheatNoSecondaryCooldown": "副武器无冷却",
   "cheatNoSlot": "没有空槽位：它已放入货舱。",

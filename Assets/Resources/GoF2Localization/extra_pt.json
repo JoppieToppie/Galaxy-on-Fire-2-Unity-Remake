@@ -70,7 +70,7 @@
  "cheatMountDocked": "A montagem funciona quando atracado; o item está no compartimento de carga.",
  "cheatMounted": "Montado.",
  "cheatMountedSwap": "Montado; o antigo está no compartimento de carga.",
- "cheatNoBoostCooldown": "Turbo sem tempo de recarga",
+ "cheatNoEquipmentCooldown": "Equipamento sem tempo de recarga",
  "cheatNoPrimaryCooldown": "Arma primária sem tempo de recarga",
  "cheatNoSecondaryCooldown": "Arma secundária sem tempo de recarga",
  "cheatNoSlot": "Nenhum encaixe livre: o item está no compartimento de carga.",

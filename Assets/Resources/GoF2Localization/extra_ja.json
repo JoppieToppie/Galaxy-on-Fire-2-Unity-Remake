@@ -66,7 +66,7 @@
  "cheatMountDocked": "装備はドッキング中のみ可能。貨物室に入れました。",
  "cheatMounted": "装備しました。",
  "cheatMountedSwap": "装備しました。古いものは貨物室にあります。",
- "cheatNoBoostCooldown": "ブーストのクールダウンなし",
+ "cheatNoEquipmentCooldown": "装備のクールダウンなし",
  "cheatNoPrimaryCooldown": "メインウエポンのクールダウンなし",
  "cheatNoSecondaryCooldown": "サブウエポンのクールダウンなし",
  "cheatNoSlot": "空きスロットがありません：貨物室に入れました。",

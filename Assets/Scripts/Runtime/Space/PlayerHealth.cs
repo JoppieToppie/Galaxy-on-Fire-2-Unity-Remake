@@ -165,7 +165,8 @@ namespace GoF2Remake.Flight
         bool TryEmergency()
         {
             if (!hasEmergency || emergencyMs > 0f || Dead) return false;
-            hasEmergency = false;
+            bool keep = Cheats.NoEquipmentCooldown;   // remake debug: not used up, it saves again once its shield ends
+            hasEmergency = keep;
             Hp.hull = 1;
             Target.hp = 1;
             emergencyMs = emergencyLength;
@@ -173,7 +174,7 @@ namespace GoF2Remake.Flight
             // used up for good (the one mounted: a mod's emergency system based on 185 too, which a check of 185 kept for ever)
             int used = emergencyItem;
             int at = Session.Equipment.FindIndex(e => e.item == used);
-            if (at >= 0) Session.Equipment.RemoveAt(at);
+            if (at >= 0 && !keep) Session.Equipment.RemoveAt(at);
             // 1115 Invincibile is a loop: PlayerEgo::update stops it when the shield ends.
             if (assets != null && assets.invincibility != null)
             {

@@ -140,7 +140,7 @@ namespace GoF2Remake.Flight
             float dtMs = Time.deltaTime * 1000f * TimeExtender.PlayerFactor;
             if (dtMs <= 0f) return;   // paused
             if (action.WasPressedThisFrame()) Use();
-            switch (Rules.Update(dtMs))
+            switch (Rules.Update(dtMs, Cheats.NoEquipmentCooldown))   // remake debug: no cooldown
             {
                 case Cloak.Event.Engaged:
                     target.cloaked = true;

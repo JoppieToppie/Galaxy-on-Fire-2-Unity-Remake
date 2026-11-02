@@ -99,6 +99,23 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void NoEquipmentCooldownEndsTheCooldownAtOnce()
+        {
+            // Remake debug (Cheats.NoEquipmentCooldown, PlayerCloak): the cooldown is over in the next update, "Cloak ready";
+            // the charge and the cloak itself keep their times.
+            var c = UTool();
+            c.TryStart(1);
+            Assert.AreEqual(Cloak.Event.None, c.Update(1000f, true), "the charge still takes its time");
+            c.Update(1001f, true);
+            Assert.AreEqual(Cloak.Event.None, c.Update(5000f, true), "and so does the cloak");
+            c.Update(5001f, true);
+            Assert.AreEqual(Cloak.Phase.Cooldown, c.State);
+            Assert.AreEqual(Cloak.Event.Ready, c.Update(1f, true));
+            Assert.IsTrue(c.Available);
+            Assert.IsTrue(c.TryStart(1), "cloaks again straight away");
+        }
+
+        [Test]
         public void TimelineLengthOfTheShadowNinja()
         {
             // 3500 ms charge, 40000 ms cloaked, 12000 ms cooldown on Extreme

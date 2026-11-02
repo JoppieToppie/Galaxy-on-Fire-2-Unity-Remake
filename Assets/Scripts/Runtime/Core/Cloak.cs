@@ -81,7 +81,8 @@ namespace GoF2Remake.Flight
 
         public enum Event { None, Engaged, Ended, Ready }
 
-        public Event Update(float dtMs)
+        /// <summary>'skipCooldown' (remake debug, Cheats.NoEquipmentCooldown): a cooldown ends at once.</summary>
+        public Event Update(float dtMs, bool skipCooldown = false)
         {
             switch (State)
             {
@@ -94,7 +95,7 @@ namespace GoF2Remake.Flight
                     if (Timer > durationMs) { State = Phase.Cooldown; Timer = 0f; CooldownLeft = cooldownMs; return Event.Ended; }
                     break;
                 case Phase.Cooldown:
-                    CooldownLeft -= dtMs;
+                    CooldownLeft -= skipCooldown ? CooldownLeft : dtMs;
                     if (CooldownLeft <= 0f) { CooldownLeft = 0f; State = Phase.Ready; return Event.Ready; }
                     break;
             }

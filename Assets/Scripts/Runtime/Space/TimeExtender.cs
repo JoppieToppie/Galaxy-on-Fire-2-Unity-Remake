@@ -120,7 +120,7 @@ namespace GoF2Remake.Flight
             else if (state < 0f)
             {
                 state -= dt;
-                if (state < -cooldownMs) { state = 0f; flashMs = 2000f; }
+                if (state < -cooldownMs || Cheats.NoEquipmentCooldown) { state = 0f; flashMs = 2000f; }   // remake debug: no cooldown
             }
         }
 

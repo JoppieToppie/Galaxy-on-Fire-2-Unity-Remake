@@ -66,7 +66,7 @@
  "cheatMountDocked": "장착은 도킹 중에만 가능합니다. 화물칸에 넣었습니다.",
  "cheatMounted": "장착했습니다.",
  "cheatMountedSwap": "장착했습니다. 이전 것은 화물칸에 있습니다.",
- "cheatNoBoostCooldown": "부스트 재사용 대기시간 없음",
+ "cheatNoEquipmentCooldown": "장비 재사용 대기시간 없음",
  "cheatNoPrimaryCooldown": "주 무기 재사용 대기시간 없음",
  "cheatNoSecondaryCooldown": "보조 무기 재사용 대기시간 없음",
  "cheatNoSlot": "빈 슬롯이 없습니다: 화물칸에 넣었습니다.",

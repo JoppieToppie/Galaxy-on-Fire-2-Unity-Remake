@@ -32,8 +32,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   place) or that place (docked, never at an empty orbit or a refusing station). Steps only reached inside another (42,
   46, 53, 107, 129, 149 / 150) aren't offered (`Story.MissionSelectStart`). On the right the cheat toggles (`Cheats`,
   PlayerPrefs `cheat_*`, rows from `CheatsCatalog` through `OptionControl`): god mode (`Target.Damage` /
-  `PlayerHealth.Kill`, no gamma drain, volatile goods safe), infinite ammo (`WeaponSystem`), no boost cooldown
-  (`FlightModel.UpdateBoost`: ready again as a boost ends), no primary weapon cooldown (`WeaponSystem` reloads the held
+  `PlayerHealth.Kill`, no gamma drain, volatile goods safe), infinite ammo (`WeaponSystem`), no equipment cooldown
+  (`Cheats.NoEquipmentCooldown`, players' wish 2026-11-02 "also boosters"; it replaced "no boost cooldown": the booster
+  ready again as a boost ends, `FlightModel.UpdateBoost`; the cloak's cooldown over at once, `Cloak.Update`'s
+  skipCooldown from `PlayerCloak`, the energy cells still paid; the time extender's, `TimeExtender`; the emergency system
+  not used up, it saves again once its shield ends, `PlayerHealth.TryEmergency`), no primary weapon cooldown (`WeaponSystem` reloads the held
   primaries as fast as their bullet pool sustains, `Gun.SustainedReloadMs` = lifetime / pool: reloaded every frame they
   emptied the pool in a burst and waited out a lifetime), no secondary weapon cooldown (`WeaponSystem.FireSecondary`:
   the reload skipped; the pool still limits rockets / bombs in flight), one-hit kills (the player's hits;

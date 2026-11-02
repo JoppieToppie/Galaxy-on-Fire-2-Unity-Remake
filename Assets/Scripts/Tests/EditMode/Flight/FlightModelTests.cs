@@ -34,8 +34,8 @@ namespace GoF2Remake.Tests
 
         static SettingsScope<bool> NoBoostCheat()
         {
-            var s = new SettingsScope<bool>(() => Cheats.NoBoostCooldown, v => Cheats.NoBoostCooldown = v);
-            Cheats.NoBoostCooldown = false;
+            var s = new SettingsScope<bool>(() => Cheats.NoEquipmentCooldown, v => Cheats.NoEquipmentCooldown = v);
+            Cheats.NoEquipmentCooldown = false;
             return s;
         }
 

@@ -70,7 +70,7 @@
  "cheatMountDocked": "Установка работает при стыковке; предмет в трюме.",
  "cheatMounted": "Установлено.",
  "cheatMountedSwap": "Установлено; старый предмет в трюме.",
- "cheatNoBoostCooldown": "Форсаж без перезарядки",
+ "cheatNoEquipmentCooldown": "Оборудование без перезарядки",
  "cheatNoPrimaryCooldown": "Основное оружие без перезарядки",
  "cheatNoSecondaryCooldown": "Вспомогательное оружие без перезарядки",
  "cheatNoSlot": "Нет свободного слота: предмет в трюме.",

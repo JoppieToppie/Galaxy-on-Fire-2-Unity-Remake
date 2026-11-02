@@ -177,7 +177,7 @@ namespace GoF2Remake.Multiplayer
                 run = NetAdmin.SystemShow, description = () => X("mpCmdSystem", "admins: shows or hides a system on their star map until reset") },
             new Command { name = "peace", usage = "[players]", arg = Arg.Player, optional = true, self = true, available = () => LocalIsAdmin, allowed = IsAdmin,
                 run = (a, by) => NetAdmin.Simple(a, by, NetAdmin.Order.Peace), description = () => X("mpCmdPeace", "admins: neutral standings, no station grudges") },
-            new Command { name = "cheat", usage = "[players] <god | ammo | cooldown | primary | boost | onehit | locks | shopping | jumps> [on | off]", arg = Arg.PlayerText,
+            new Command { name = "cheat", usage = "[players] <god | ammo | cooldown | primary | equipment | onehit | locks | shopping | jumps> [on | off]", arg = Arg.PlayerText,
                 self = true, available = () => LocalIsAdmin, allowed = IsAdmin, run = NetAdmin.Cheat,
                 description = () => X("mpCmdCheat", "admins: a debug toggle for a player, this session only (toggled without on / off)") },
             new Command { name = "title", usage = "[players] <text> [| subtitle] [for <seconds>]", arg = Arg.PlayerText, self = true,

@@ -107,8 +107,8 @@ namespace GoF2Remake.Tests
         {
             // The Me'al (x3.2 in free flight): after the boost the braking grows with (speed / top)^1.67, so it sheds
             // two thirds of the gap in a second (320 -> 174 m/s, by hand) where the plain 34.6 m/s^2 would take six.
-            using var cheat = new SettingsScope<bool>(() => Cheats.NoBoostCooldown, v => Cheats.NoBoostCooldown = v);
-            Cheats.NoBoostCooldown = false;
+            using var cheat = new SettingsScope<bool>(() => Cheats.NoEquipmentCooldown, v => Cheats.NoEquipmentCooldown = v);
+            Cheats.NoEquipmentCooldown = false;
             var m = Model(boostSpeed: 200, boostMs: 20000);
             Fly(m, 3000f, Thrust());
             m.BoostHeld = true;

@@ -70,7 +70,7 @@
  "cheatMountDocked": "Einbauen geht nur angedockt; es liegt im Frachtraum.",
  "cheatMounted": "Eingebaut.",
  "cheatMountedSwap": "Eingebaut; das alte liegt im Frachtraum.",
- "cheatNoBoostCooldown": "Keine Boost-Abklingzeit",
+ "cheatNoEquipmentCooldown": "Keine Abklingzeit für Ausrüstung",
  "cheatNoPrimaryCooldown": "Keine Abklingzeit für Primärwaffen",
  "cheatNoSecondaryCooldown": "Keine Abklingzeit für Sekundärwaffen",
  "cheatNoSlot": "Kein freier Platz: es liegt im Frachtraum.",

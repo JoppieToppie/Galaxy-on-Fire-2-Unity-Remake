@@ -47,7 +47,7 @@
 //   /system [players] <system> <show | hide | reset>   one system on (or off) their map, over what is revealed and a mod's
 //                                           "available" condition, until reset (GalaxyMap.SetShown, saved); a player in a
 //                                           hidden system is taken out (SpaceLevel)
-//   /cheat [players] <flag> [on | off]      a debug toggle for the session (god, ammo, cooldown, boost, onehit, locks,
+//   /cheat [players] <flag> [on | off]      a debug toggle for the session (god, ammo, cooldown, equipment, onehit, locks,
 //                                           shopping, jumps; no on / off: toggled), whatever the session allows
 //   /title [players] <text> [| subtitle] [for <seconds>]   a big title on their screens (EventScreen; 4 s by default;
 //                                           "clear" takes it away)
