@@ -208,7 +208,7 @@ namespace GoF2Remake.UI
                 {
                     root.AddToClassList("map-dialog-only");
                     ShowDialog($"{T(574)}: {StationName(promptStation)}\n{T(421)}",
-                               () => Close(new StarMapResult { station = promptStation }), RevealMap);
+                               () => Close(new StarMapResult { station = promptStation, safestRoute = Session.RouteSafest }), RevealMap);   // (the route picked with it)
                 }
                 else RevealMap();
             }
@@ -266,6 +266,7 @@ namespace GoF2Remake.UI
             {
                 int from = routeFrom >= 0 ? routeFrom : currentSystem, to = SystemOf(focusStation);
                 routePath = to >= 0 && from != to ? GalaxyMap.SystemPath(db, from, to) : null;
+                if (travel && routeFrom < 0) safeRoutePath = SafeAlternative(from, to, routePath);   // remake: the other way to travel
                 routeSegment = 0;
             }
             if (revealSystem >= 0 && revealSystem < suns.Length && suns[revealSystem] != null)

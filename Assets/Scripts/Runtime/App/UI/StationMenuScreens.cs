@@ -179,6 +179,7 @@ namespace GoF2Remake.UI
                 return;
             }
             Session.ProgrammedStation = result.station == Session.StationIndex ? -1 : result.station;
+            Session.RouteSafest = result.safestRoute;
             Session.InstantJump = result.instantJump;
             Session.EnergyCellsForNextJump = result.instantJump ? result.cells : 0;
             if (RefuseLaunchForStory()) return;

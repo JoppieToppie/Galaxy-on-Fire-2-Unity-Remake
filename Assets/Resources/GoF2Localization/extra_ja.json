@@ -3100,5 +3100,8 @@
  "debugKill": "周囲を破壊",
  "debugKilled": "{1}以内で{0}個を破壊しました。",
  "mapRouteJumps": "ジャンプゲートでのジャンプ：{0}",
- "mapRouteGates": "ジャンプゲート"
+ "mapRouteGates": "ジャンプゲート",
+ "mapRouteFastest": "最速ルート",
+ "mapRouteSafest": "最も安全なルート",
+ "mapRouteJumpCount": "{0}回のジャンプ"
 }

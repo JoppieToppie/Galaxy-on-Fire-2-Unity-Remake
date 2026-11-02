@@ -3100,5 +3100,8 @@
  "debugKill": "आसपास सब नष्ट करें",
  "debugKilled": "{1} के भीतर {0} नष्ट किए गए।",
  "mapRouteJumps": "जंपगेट जंप: {0}",
- "mapRouteGates": "जंपगेट"
+ "mapRouteGates": "जंपगेट",
+ "mapRouteFastest": "सबसे तेज़ रास्ता",
+ "mapRouteSafest": "सबसे सुरक्षित रास्ता",
+ "mapRouteJumpCount": "{0} जंप"
 }

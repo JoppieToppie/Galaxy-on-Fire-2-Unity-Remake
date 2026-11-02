@@ -3100,5 +3100,8 @@
  "debugKill": "Zniszcz wszystko wokół",
  "debugKilled": "Zniszczono {0} w promieniu {1}.",
  "mapRouteJumps": "Skoki przez hiperwrota: {0}",
- "mapRouteGates": "Hiperwrota"
+ "mapRouteGates": "Hiperwrota",
+ "mapRouteFastest": "Najszybsza trasa",
+ "mapRouteSafest": "Najbezpieczniejsza trasa",
+ "mapRouteJumpCount": "Skoki: {0}"
 }

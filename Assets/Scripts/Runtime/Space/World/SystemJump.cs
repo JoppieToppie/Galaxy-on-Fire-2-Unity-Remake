@@ -286,7 +286,7 @@ namespace GoF2Remake.World
             // without asking: the route was confirmed on the map and at its first gate.
             if (prog >= 0 && prog == Session.RouteDestination && prog != Session.StationIndex)
             {
-                OnGateMapClosed(new StarMapResult { station = prog });
+                OnGateMapClosed(new StarMapResult { station = prog, safestRoute = Session.RouteSafest });
                 return;
             }
             bool opened = SpaceHooks.OpenStarMap != null && SpaceHooks.OpenStarMap(db, StarMapMode.Gate, false, OnGateMapClosed, prog >= 0 && prog != Session.StationIndex ? prog : -1, false);
@@ -299,7 +299,8 @@ namespace GoF2Remake.World
             if (result.station >= 0)
             {
                 Session.ProgrammedStation = result.station;
-                int hop = GalaxyMap.NextHop(db, Session.StationIndex, result.station);
+                Session.RouteSafest = result.safestRoute;
+                int hop = GalaxyMap.NextHop(db, Session.StationIndex, result.station, result.safestRoute);
                 hopping = hop != result.station;
                 StartGateScene(hop);
                 return;
@@ -424,6 +425,7 @@ namespace GoF2Remake.World
                 if (r.toVoid) { storyTarget = Session.VoidOrbit; jumpCells = VoidCells(true); storyForced = false; return; }
                 if (r.station < 0) return;
                 Session.ProgrammedStation = r.station;
+                Session.RouteSafest = r.safestRoute;
                 if (r.instantJump) { Session.InstantJump = true; Session.EnergyCellsForNextJump = r.cells; }
                 else nav.ContinueToProgrammedStation();
             }, -1, askVoid);

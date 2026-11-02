@@ -353,6 +353,9 @@ namespace GoF2Remake.Data
         /// <summary>Remake (jumpgate route planning): the programmed station a gate hop kept, the route under way toward it; while
         /// ProgrammedStation is still that one, its next gate jumps on without asking (SystemJump). -1 = none; never saved.</summary>
         public static int RouteDestination = -1;
+        /// <summary>Remake: the route to the programmed station goes round the dangerous systems (picked in the travel dialog,
+        /// StarMapResult.safestRoute), not the fewest jumps: every gate on the way takes GalaxyMap.NextHop's safest hop.</summary>
+        public static bool RouteSafest;
 
         /// <summary>Level doInstantJump / energyCellsForNextJump: the Khador Drive charges for the programmed station
         /// (another system) 5 s into the level, using that many energy cells.</summary>
@@ -565,6 +568,7 @@ namespace GoF2Remake.Data
             VisitedStations = new HashSet<int> { 78 };
             ProgrammedStation = -1;
             RouteDestination = -1;
+            RouteSafest = false;
             InstantJump = false;
             EnergyCellsForNextJump = 0;
             EnterInterstellar = false;

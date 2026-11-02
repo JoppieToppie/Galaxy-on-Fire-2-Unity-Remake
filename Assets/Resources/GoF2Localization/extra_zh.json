@@ -3100,5 +3100,8 @@
  "debugKill": "摧毁周围目标",
  "debugKilled": "已摧毁 {1} 内的 {0} 个目标。",
  "mapRouteJumps": "星门跳跃：{0}",
- "mapRouteGates": "星门"
+ "mapRouteGates": "星门",
+ "mapRouteFastest": "最快路线",
+ "mapRouteSafest": "最安全路线",
+ "mapRouteJumpCount": "{0} 次跳跃"
 }

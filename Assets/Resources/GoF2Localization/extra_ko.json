@@ -3100,5 +3100,8 @@
  "debugKill": "주변 파괴",
  "debugKilled": "{1} 이내에서 {0}개 파괴됨.",
  "mapRouteJumps": "점프게이트 점프: {0}",
- "mapRouteGates": "점프게이트"
+ "mapRouteGates": "점프게이트",
+ "mapRouteFastest": "가장 빠른 경로",
+ "mapRouteSafest": "가장 안전한 경로",
+ "mapRouteJumpCount": "점프 {0}회"
 }

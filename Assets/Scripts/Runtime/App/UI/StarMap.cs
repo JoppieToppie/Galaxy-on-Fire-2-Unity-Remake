@@ -145,6 +145,8 @@ namespace GoF2Remake.UI
         bool GateRoutes => travel || mode == StarMapMode.Station || mode == StarMapMode.Gate;
         /// <summary>The route to the selected system the map draws, outside a Mission map (that one keeps its target's).</summary>
         bool PlansRoute => GateRoutes && mode != StarMapMode.Mission;
+        /// <summary>The safest route to the selection (or a travelling Mission map's target) where it isn't routePath, else null.</summary>
+        List<int> safeRoutePath;
         Action<StarMapResult> onClosed;
         int promptStation = -1, focusStation = -1;
         bool askVoid;

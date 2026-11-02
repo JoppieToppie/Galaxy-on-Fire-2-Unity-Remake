@@ -3100,5 +3100,8 @@
  "debugKill": "دمّر ما حولك",
  "debugKilled": "تم تدمير {0} ضمن {1}.",
  "mapRouteJumps": "القفزات عبر البوابات: {0}",
- "mapRouteGates": "بوابات القفز"
+ "mapRouteGates": "بوابات القفز",
+ "mapRouteFastest": "أسرع طريق",
+ "mapRouteSafest": "أكثر طريق أمانًا",
+ "mapRouteJumpCount": "{0} قفزات"
 }

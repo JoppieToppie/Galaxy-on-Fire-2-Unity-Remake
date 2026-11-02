@@ -3100,5 +3100,8 @@
  "debugKill": "Alles im Umkreis zerstören",
  "debugKilled": "{0} zerstört im Umkreis von {1}.",
  "mapRouteJumps": "Sprungtor-Sprünge: {0}",
- "mapRouteGates": "Sprungtore"
+ "mapRouteGates": "Sprungtore",
+ "mapRouteFastest": "Schnellste Route",
+ "mapRouteSafest": "Sicherste Route",
+ "mapRouteJumpCount": "{0} Sprünge"
 }

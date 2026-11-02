@@ -217,6 +217,50 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(target, GalaxyMap.NextHop(Db, GateStation(20), target), "the last gate jumps to the destination");
         }
 
+        // Expected routes: Dijkstra over every system (scratchpad safe_routes.py), the pairs with a single cheapest route
+        // either way. Security: 2 Behon 1, 9 Weymire 2, 11 Union 2, 8 Buntta 2, 19 Augmenta 3, 14 Magnetar 3, 16 Prospero 1,
+        // 12 Oom'bak 2.
+        [TestCase(0, 7, new[] { 0, 2, 9, 11, 7 }, new[] { 0, 8, 19, 14, 11, 7 })]
+        [TestCase(9, 13, new[] { 9, 11, 16, 13 }, new[] { 9, 19, 14, 12, 13 })]
+        [TestCase(7, 0, new[] { 7, 11, 9, 2, 0 }, new[] { 7, 11, 14, 19, 8, 0 })]
+        public void SafestRouteGoesRoundTheDangerousSystems(int a, int b, int[] fastest, int[] safest)
+        {
+            AllVisible();
+            Assert.AreEqual(fastest, GalaxyMap.RoutePath(Db, a, b, false).ToArray());
+            Assert.AreEqual(fastest, GalaxyMap.SystemPath(Db, a, b).ToArray(), "SystemPath is the fewest jumps");
+            Assert.AreEqual(safest, GalaxyMap.RoutePath(Db, a, b, true).ToArray());
+            Assert.Less(GalaxyMap.RouteDanger(Db, safest.ToList()), GalaxyMap.RouteDanger(Db, fastest.ToList()));
+            Assert.AreEqual(safest.Length - 1, GalaxyMap.GateJumps(Db, a, b, true));
+        }
+
+        [Test]
+        public void SafestNeverTakesMoreDangerOrFewerJumps()
+        {
+            AllVisible();
+            for (int a = 0; a < 34; a++)
+                for (int b = 0; b < 34; b++)
+                {
+                    var fast = GalaxyMap.RoutePath(Db, a, b, false);
+                    var safe = GalaxyMap.RoutePath(Db, a, b, true);
+                    Assert.AreEqual(fast == null, safe == null, $"{a}->{b} reachable either way");
+                    if (fast == null) continue;
+                    Assert.GreaterOrEqual(safe.Count, fast.Count, $"{a}->{b}");
+                    Assert.LessOrEqual(GalaxyMap.RouteDanger(Db, safe), GalaxyMap.RouteDanger(Db, fast), $"{a}->{b}");
+                    for (int k = 1; k < safe.Count; k++) Assert.IsTrue(Sys(safe[k - 1]).jumpRoutesTo.Contains(safe[k]), $"{a}->{b}");
+                }
+        }
+
+        [Test]
+        public void TheSafestRoutesHopsFollowIt()
+        {
+            AllVisible();
+            int target = StationIn(7);
+            Assert.AreEqual(GateStation(2), GalaxyMap.NextHop(Db, StationIn(0), target), "fastest: through Behon");
+            Assert.AreEqual(GateStation(8), GalaxyMap.NextHop(Db, StationIn(0), target, true), "safest: through Buntta");
+            Assert.AreEqual(GateStation(19), GalaxyMap.NextHop(Db, GateStation(8), target, true));
+            Assert.AreEqual(GateStation(14), GalaxyMap.NextHop(Db, GateStation(19), target, true));
+        }
+
         [Test]
         public void NextHopIsTheDestinationWhereTheOriginalsGateWent()
         {

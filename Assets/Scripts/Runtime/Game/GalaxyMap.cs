@@ -3,7 +3,9 @@
 //   StarMap::StarMap 0xd6880        galaxy-view sun position per system (integer-truncated game units)
 //   SolarSystem::systemIsInSystemRoutes 0x180c86   which systems the gate map can enter (the current one or a gate route)
 //   SystemPathFinder 0x14062e..     BFS over jumpRoutesTo, only into visible systems; energy cells = gate jumps, 4 when the
-//                                   gates can't reach it, x2 in hardcore (StarMap::OnTouchBegin)
+//                                   gates can't reach it, x2 in hardcore (StarMap::OnTouchBegin). Remake: A* over the same
+//                                   graph (the same jump counts; among routes of equal length it may take another), which
+//                                   also finds the jumpgate route planner's safest route (RoutePath)
 //   StarMap::initStarSystem 0xd7810 system-view layout: java.util.Random(system * 1000), a free slot per station, radius
 //                                   6400 + rand(5600) + 1600 (+ rand(5600) + 1600 per next planet), then one orbit yaw each
 //   Ship::hasJumpDrive 0x1a39a4     item 85 fitted, or the integrated drive of ships 37 Cronus, 38 Typhon, 40 Nemesis
@@ -175,17 +177,44 @@ namespace GoF2Remake.Data
 
         public static bool IsInRoutes(SystemData from, int to) => from != null && (from.index == to || from.jumpRoutesTo.Contains(to));
 
-        /// <summary>SystemPathFinder::getSystemPath: [a .. b] through visible systems, null if unreachable or a == b.</summary>
-        public static List<int> SystemPath(Database db, int a, int b)
+        /// <summary>SystemPathFinder::getSystemPath: [a .. b] through visible systems with the fewest gate jumps, null if
+        /// unreachable or a == b.</summary>
+        public static List<int> SystemPath(Database db, int a, int b) => RoutePath(db, a, b, false);
+
+        /// <summary>Remake (jumpgate route planning): [a .. b] through visible systems by A*, null if unreachable or a == b.
+        /// Every jump costs 1; 'safest' adds 1 per security level below Secure of the system it enters (JumpCost), so the
+        /// route goes round a Dangerous system for up to three more jumps.</summary>
+        public static List<int> RoutePath(Database db, int a, int b, bool safest)
         {
             if (a == b) return null;
             var visible = Visibility(db);
+            var systems = new Dictionary<int, SystemData>();
+            foreach (var s in db.Systems) systems[s.index] = s;
+            if (!systems.TryGetValue(b, out var goal)) return null;
+            // The heuristic: the map distance left over the longest gate link. No jump covers more and none costs less than 1,
+            // so it never overestimates (and is consistent: a closed system is never reopened).
+            float longest = 0f;
+            foreach (var s in db.Systems)
+                foreach (int m in s.jumpRoutesTo)
+                    if (systems.TryGetValue(m, out var t)) longest = Mathf.Max(longest, MapDistance(s, t));
+            float H(int n) => longest > 0f && systems.TryGetValue(n, out var s) ? MapDistance(s, goal) / longest : 0f;
+
+            var cost = new Dictionary<int, float> { [a] = 0f };
             var prev = new Dictionary<int, int> { [a] = -1 };
-            var queue = new Queue<int>();
-            queue.Enqueue(a);
-            while (queue.Count > 0)
+            var open = new List<int> { a };
+            var closed = new HashSet<int>();
+            while (open.Count > 0)
             {
-                int n = queue.Dequeue();
+                // the lowest cost + heuristic; ties: the nearer the target, then the lower index (the same route every time)
+                int pick = 0;
+                for (int i = 1; i < open.Count; i++)
+                {
+                    float fi = cost[open[i]] + H(open[i]), fp = cost[open[pick]] + H(open[pick]);
+                    if (fi < fp - 1e-4f || (Mathf.Abs(fi - fp) <= 1e-4f && (H(open[i]) < H(open[pick]) - 1e-4f
+                        || (Mathf.Abs(H(open[i]) - H(open[pick])) <= 1e-4f && open[i] < open[pick])))) pick = i;
+                }
+                int n = open[pick];
+                open.RemoveAt(pick);
                 if (n == b)
                 {
                     var path = new List<int> { b };
@@ -193,38 +222,61 @@ namespace GoF2Remake.Data
                     path.Reverse();
                     return path;
                 }
-                var sys = db.Systems.Find(s => s.index == n);
-                if (sys == null) continue;
+                closed.Add(n);
+                if (!systems.TryGetValue(n, out var sys)) continue;
                 foreach (int m in sys.jumpRoutesTo)
-                    if (m >= 0 && m < visible.Length && visible[m] && !prev.ContainsKey(m)) { prev[m] = n; queue.Enqueue(m); }
+                {
+                    if (m < 0 || m >= visible.Length || !visible[m] || closed.Contains(m) || !systems.TryGetValue(m, out var next)) continue;
+                    float c = cost[n] + JumpCost(next, safest);
+                    if (cost.TryGetValue(m, out var known) && known <= c) continue;
+                    cost[m] = c;
+                    prev[m] = n;
+                    if (!open.Contains(m)) open.Add(m);
+                }
             }
             return null;
         }
+
+        /// <summary>A gate jump into 'to': 1, and on the safest route 1 more per security level below Secure (Dangerous 4, Risky
+        /// 3, Average 2, Secure 1; SecurityOf, so the Kaamo Club's system once the siege is over is Secure).</summary>
+        public static float JumpCost(SystemData to, bool safest) => safest ? 1f + (3 - Mathf.Clamp(SecurityOf(to), 0, 3)) : 1f;
+
+        /// <summary>The danger of a route: the security levels below Secure of the systems it enters (0 = all Secure).</summary>
+        public static int RouteDanger(Database db, List<int> path)
+        {
+            int danger = 0;
+            if (path == null) return 0;
+            for (int i = 1; i < path.Count; i++) danger += 3 - Mathf.Clamp(SecurityOf(db.Systems.Find(s => s.index == path[i])), 0, 3);
+            return danger;
+        }
+
+        static float MapDistance(SystemData a, SystemData b) => Vector3.Distance(SunPosition(a), SunPosition(b));
 
         /// <summary>Remake (jumpgate route planning, players' suggestion 2026-10-17): the gates reach system b from a, one jump or
         /// several (a == b counts).</summary>
         public static bool GateReachable(Database db, int a, int b) =>
             IsInRoutes(db.Systems.Find(s => s.index == a), b) || SystemPath(db, a, b) != null;
 
-        /// <summary>Remake: the gate jumps from system a to b, 0 when a == b or the gates don't reach it.</summary>
-        public static int GateJumps(Database db, int a, int b)
+        /// <summary>Remake: the gate jumps from system a to b on the fewest-jumps or the safest route, 0 when a == b or the gates
+        /// don't reach it.</summary>
+        public static int GateJumps(Database db, int a, int b, bool safest = false)
         {
             if (a == b) return 0;
-            if (IsInRoutes(db.Systems.Find(s => s.index == a), b)) return 1;
-            var path = SystemPath(db, a, b);
+            var path = RoutePath(db, a, b, safest);
             return path != null ? path.Count - 1 : 0;
         }
 
         /// <summary>Remake: where the gate of the station 'from' jumps for the destination 'to': the destination itself in a gate
-        /// neighbour (the original's only case: its maps program nothing further), else the gate orbit of the next system on the
-        /// gate route (SystemPath), where the autopilot flies on to the next gate. The original's gate took the ship straight to
-        /// any programmed station, any distance.</summary>
-        public static int NextHop(Database db, int from, int to)
+        /// neighbour on the fewest-jumps route (the original's only case: its maps program nothing further), else the gate orbit of
+        /// the next system on the gate route (RoutePath, the safest one when 'safest': it may leave a neighbour's gate unused),
+        /// where the autopilot flies on to the next gate. The original's gate took the ship straight to any programmed station,
+        /// any distance.</summary>
+        public static int NextHop(Database db, int from, int to, bool safest = false)
         {
             int a = db.Stations.Find(s => s.index == from)?.system ?? -1;
             int b = db.Stations.Find(s => s.index == to)?.system ?? -1;
-            if (a < 0 || b < 0 || IsInRoutes(db.Systems.Find(s => s.index == a), b)) return to;
-            var path = SystemPath(db, a, b);
+            if (a < 0 || b < 0 || (!safest && IsInRoutes(db.Systems.Find(s => s.index == a), b))) return to;
+            var path = RoutePath(db, a, b, safest);
             if (path == null || path.Count < 3) return to;
             int gateStation = db.Systems.Find(s => s.index == path[1])?.jumpgateStation ?? -1;
             return gateStation >= 0 ? gateStation : to;

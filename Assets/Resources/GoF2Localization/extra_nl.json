@@ -3100,5 +3100,8 @@
  "debugKill": "Vernietig om je heen",
  "debugKilled": "{0} vernietigd binnen {1}.",
  "mapRouteJumps": "Sprongen via poorten: {0}",
- "mapRouteGates": "Sprongpoorten"
+ "mapRouteGates": "Sprongpoorten",
+ "mapRouteFastest": "Snelste route",
+ "mapRouteSafest": "Veiligste route",
+ "mapRouteJumpCount": "{0} sprongen"
 }

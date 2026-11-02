@@ -260,7 +260,8 @@ namespace GoF2Remake.UI
             }
             else if (route)
             {
-                energyLine.text = RouteJumpsText(routePath.Count - 1);
+                energyLine.text = safeRoutePath == null ? RouteJumpsText(routePath.Count - 1)
+                    : $"{RouteJumpsText(routePath.Count - 1)}  ·  {RouteSafestText}: {JumpCountText(safeRoutePath.Count - 1)}";
                 energyLine.EnableInClassList("energy-line--short", false);
             }
             touch.MarkDirtyRepaint();
@@ -348,6 +349,16 @@ namespace GoF2Remake.UI
             lastRouteT = t;
             float a = fade / 255f;
             p2d.lineWidth = 3f;
+            // Remake: the safest route, where it differs, steady in the Secure colour under the fastest one.
+            if (safeRoutePath != null)
+            {
+                p2d.strokeColor = new Color(0f, 237f / 255f, 0f, a * 0.8f);
+                for (int i = 0; i + 1 < safeRoutePath.Count; i++)
+                {
+                    var from = suns[safeRoutePath[i]]; var to = suns[safeRoutePath[i + 1]];
+                    if (from != null && to != null) DrawSegment(p2d, from.position, to.position);
+                }
+            }
             p2d.strokeColor = new Color(1f, 1f, 0f, a);
             for (int i = 0; i < routeSegment; i++)
             {

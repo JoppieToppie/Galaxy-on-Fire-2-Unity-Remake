@@ -3100,5 +3100,8 @@
  "debugKill": "Destruir ao seu redor",
  "debugKilled": "{0} destruídos em {1}.",
  "mapRouteJumps": "Saltos por portal: {0}",
- "mapRouteGates": "Portais"
+ "mapRouteGates": "Portais",
+ "mapRouteFastest": "Rota mais rápida",
+ "mapRouteSafest": "Rota mais segura",
+ "mapRouteJumpCount": "{0} saltos"
 }

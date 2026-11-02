@@ -100,7 +100,15 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   destination dialog names the jumps when there is more than one. With a drive, where the gates reach the target, the
   dialog's answers are KHADOR DRIVE / JUMPGATES (Extra `mapRouteGates`, a third button made at runtime,
   `StarMap.dialogAlt`) / NO, and Esc / B close it unanswered (`dialogBackCancels`); short of cells, 582 offers the gates
-  for any system they reach (the original only for a neighbour). The ship then goes gate by gate (`GalaxyMap.NextHop`,
+  for any system they reach (the original only for a neighbour). **Fastest or safest** (the user, 2026-11-02, chosen when
+  travelling, no option): the routes are A* (`GalaxyMap.RoutePath`; `SystemPath`, the original's BFS until then, is its
+  fewest-jumps run, the same jump counts and, on the base map, the same routes); the safest adds 1 per security level
+  below Secure of each system entered (`JumpCost`: Dangerous 4 .. Secure 1). Where it differs from the fastest, the map
+  draws it in the Secure green under the yellow one, the energy line adds "Safest route: N jumps", and the travel dialog
+  (`StarMap.TravelByGates`, also behind the drive dialog's JUMPGATES and 582) asks FASTEST ROUTE / SAFEST ROUTE / NO (Extra
+  `mapRouteFastest` / `mapRouteSafest` / `mapRouteJumpCount`). The pick rides `StarMapResult.safestRoute` into
+  `Session.RouteSafest` (never saved), which every gate's `NextHop` takes. The ship then goes gate by gate
+  (`GalaxyMap.NextHop`,
   see "Mission maps"): the first gate asks as ever, every later one jumps on unasked while the programmed station is the
   one the hop kept (`Session.RouteDestination`, set in `SystemJump.Arrive`, never saved); the arrival camera still plays
   in each system. Tests `GalaxyMapTests` (route planning).

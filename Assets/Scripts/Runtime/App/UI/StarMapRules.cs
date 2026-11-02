@@ -34,11 +34,12 @@ namespace GoF2Remake.UI
             PlanRoute(system);
         }
         /// <summary>Remake (jumpgate route planning): the yellow route to a selected system past the gate neighbours (the
-        /// neighbours keep the original's pulse), drawn as the Mission map's.</summary>
+        /// neighbours keep the original's pulse), drawn as the Mission map's, and the safest route in green where it differs.</summary>
         void PlanRoute(int system)
         {
             if (!PlansRoute) return;
             routePath = system >= 0 && !GalaxyMap.IsInRoutes(current, system) ? GalaxyMap.SystemPath(db, currentSystem, system) : null;
+            safeRoutePath = SafeAlternative(currentSystem, system, routePath);
             routeSegment = 0;
         }
         /// <summary>The gates reach the system from here: a gate neighbour, or (GateRoutes) any system on a gate route.</summary>
@@ -152,7 +153,7 @@ namespace GoF2Remake.UI
                 // Ship::hasVolatileGoods: no Khador Drive; a gate neighbour (remake: any system on a gate route) is still
                 // reached through the jumpgate.
                 if (!GateReachable(system)) { ShowDialog(T(612), null, null, true); return; }
-                ShowDialog(travelTo, () => Choose(station, false), null);
+                TravelByGates(station, false);
                 return;
             }
             if (jumpDrive && otherSystem)
@@ -162,7 +163,7 @@ namespace GoF2Remake.UI
                 if (cellsInCargo < cells && cells != 1 && gateJumps == 0) { ShowDialog(T(579), null, null, true); return; }
                 if (cellsInCargo < cells)
                 {
-                    ShowDialog(gateJumps > 1 ? $"{T(582)}\n{RouteJumpsText(gateJumps)}" : T(582), () => Choose(station, false), null);
+                    ShowDialog(gateJumps > 1 ? $"{T(582)}\n{RouteJumpsText(gateJumps)}" : T(582), () => TravelByGates(station, true), null);
                     return;
                 }
                 if (noGate && cellsInCargo < 2 * cells) { ShowDialog(T(581), () => Choose(station, true), null); return; }
@@ -170,19 +171,51 @@ namespace GoF2Remake.UI
                 if (gateJumps > 0)
                 {
                     ShowDialog(travelTo, () => Choose(station, true), null, yesText: T(1359).ToUpperInvariant(),
-                               altText: Localization.Extra("mapRouteGates", "Jumpgates").ToUpperInvariant(), onAlt: () => Choose(station, false));
+                               altText: Localization.Extra("mapRouteGates", "Jumpgates").ToUpperInvariant(), onAlt: () => TravelByGates(station, true));
                     return;
                 }
+                ShowDialog(travelTo, () => Choose(station, true), null);
+                return;
             }
-            ShowDialog(travelTo, () => Choose(station, jumpDrive && otherSystem), null);
+            TravelByGates(station, false);
+        }
+        /// <summary>Remake (jumpgate route planning): to 'station' by the gates (or within this system). Where the safest route
+        /// differs from the fastest, the dialog asks which: FASTEST ROUTE / SAFEST ROUTE / NO; else the plain "Destination: X /
+        /// Travel to this station?" ('asked': the destination is already confirmed, so straight on).</summary>
+        void TravelByGates(int station, bool asked)
+        {
+            int system = SystemOf(station);
+            var fast = system != currentSystem ? GalaxyMap.RoutePath(db, currentSystem, system, false) : null;
+            var safe = SafeAlternative(currentSystem, system, fast);
+            if (safe == null)
+            {
+                if (asked) Choose(station, false);
+                else ShowDialog(DestinationText(station, fast != null ? fast.Count - 1 : 0), () => Choose(station, false), null);
+                return;
+            }
+            string text = $"{T(574)}: {StationName(station)}\n{RouteFastestText}: {JumpCountText(fast.Count - 1)}\n"
+                        + $"{RouteSafestText}: {JumpCountText(safe.Count - 1)}\n{T(421)}";
+            ShowDialog(text, () => Choose(station, false), null, yesText: RouteFastestText.ToUpperInvariant(),
+                       altText: RouteSafestText.ToUpperInvariant(), onAlt: () => Choose(station, false, true));
+        }
+        /// <summary>The safest route from a to b where it isn't the fastest one ('fast'), else null.</summary>
+        List<int> SafeAlternative(int a, int b, List<int> fast)
+        {
+            if (fast == null) return null;
+            var safe = GalaxyMap.RoutePath(db, a, b, true);
+            return safe != null && !System.Linq.Enumerable.SequenceEqual(safe, fast) ? safe : null;
         }
         /// <summary>"Destination: X / Travel to this station?", with the gate jumps between when the route takes more than one
         /// (remake).</summary>
         string DestinationText(int station, int gateJumps) =>
             gateJumps > 1 ? $"{T(574)}: {StationName(station)}\n{RouteJumpsText(gateJumps)}\n{T(421)}" : $"{T(574)}: {StationName(station)}\n{T(421)}";
         static string RouteJumpsText(int jumps) => string.Format(Localization.Extra("mapRouteJumps", "Jumpgate jumps: {0}"), jumps);
-        void Choose(int station, bool instant) =>
-            Close(new StarMapResult { station = station, instantJump = instant && SystemOf(station) != currentSystem, cells = cells });
+        static string JumpCountText(int jumps) => string.Format(Localization.Extra("mapRouteJumpCount", "{0} jumps"), jumps);
+        static string RouteFastestText => Localization.Extra("mapRouteFastest", "Fastest route");
+        static string RouteSafestText => Localization.Extra("mapRouteSafest", "Safest route");
+        void Choose(int station, bool instant, bool safest = false) =>
+            Close(new StarMapResult { station = station, instantJump = instant && SystemOf(station) != currentSystem, cells = cells,
+                                      safestRoute = safest && !instant });
         bool DialogOpen => dialog != null && dialog.ClassListContains("map-dialog-backdrop--shown");
         /// <summary>Layout::initHelpWindow over the map (the station's first-visit hints 628 / 631). Asked right after Open, the
         /// overlay isn't built yet (PanelRenderer builds it in its reload callback): the hint waits for it. It threw there,

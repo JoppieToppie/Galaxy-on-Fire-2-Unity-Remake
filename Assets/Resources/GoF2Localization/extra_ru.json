@@ -3100,5 +3100,8 @@
  "debugKill": "Уничтожить всё вокруг",
  "debugKilled": "Уничтожено: {0} в радиусе {1}.",
  "mapRouteJumps": "Прыжков через ретрансляторы: {0}",
- "mapRouteGates": "Ретрансляторы"
+ "mapRouteGates": "Ретрансляторы",
+ "mapRouteFastest": "Самый быстрый маршрут",
+ "mapRouteSafest": "Самый безопасный маршрут",
+ "mapRouteJumpCount": "Прыжков: {0}"
 }
