@@ -3141,5 +3141,7 @@
  "mbOrbitHeldSystem": "성계 설정대로",
  "mbOrbitHeldYes": "예",
  "mbOrbitHeldNo": "아니오",
- "mbOrbitDragNote": "그 궤도(궤도 보기)에서 점프 게이트(청록), 도착 지점(호박), 도킹 패드(빨강)는 공입니다: 공이나 화살표를 끌어 옮기세요 (Ctrl: 100 단위)."
+ "mbOrbitDragNote": "그 궤도(궤도 보기)에서 점프 게이트(청록), 도착 지점(호박), 도킹 패드(빨강)는 공입니다: 공이나 화살표를 끌어 옮기세요 (Ctrl: 100 단위).",
+ "medalsEarned": "메달 {1}개 중 {0}개 획득, 그중 금메달 {2}개",
+ "medalProgress": "진행도: {0} / {1}"
 }

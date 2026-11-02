@@ -3141,5 +3141,7 @@
  "mbOrbitHeldSystem": "Wie ihr System",
  "mbOrbitHeldYes": "Ja",
  "mbOrbitHeldNo": "Nein",
- "mbOrbitDragNote": "In ihrem Orbit (Ihren Orbit zeigen) sind das Sprungtor (cyan), die Ankünfte (bernstein) und die Andockplattformen (rot) Kugeln: Zieh eine oder ihre Pfeile (Strg: 100er-Schritte)."
+ "mbOrbitDragNote": "In ihrem Orbit (Ihren Orbit zeigen) sind das Sprungtor (cyan), die Ankünfte (bernstein) und die Andockplattformen (rot) Kugeln: Zieh eine oder ihre Pfeile (Strg: 100er-Schritte).",
+ "medalsEarned": "{0} von {1} Medaillen errungen, davon {2} in Gold",
+ "medalProgress": "Fortschritt: {0} / {1}"
 }

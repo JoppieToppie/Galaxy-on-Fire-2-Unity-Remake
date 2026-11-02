@@ -3141,5 +3141,7 @@
  "mbOrbitHeldSystem": "Comme son système",
  "mbOrbitHeldYes": "Oui",
  "mbOrbitHeldNo": "Non",
- "mbOrbitDragNote": "Dans son orbite (Afficher son orbite), le portail (cyan), les arrivées (ambre) et les plateformes d'amarrage (rouge) sont des boules : fais-en glisser une, ou ses flèches (Ctrl : pas de 100)."
+ "mbOrbitDragNote": "Dans son orbite (Afficher son orbite), le portail (cyan), les arrivées (ambre) et les plateformes d'amarrage (rouge) sont des boules : fais-en glisser une, ou ses flèches (Ctrl : pas de 100).",
+ "medalsEarned": "{0} médailles obtenues sur {1}, dont {2} en or",
+ "medalProgress": "Progression : {0} / {1}"
 }

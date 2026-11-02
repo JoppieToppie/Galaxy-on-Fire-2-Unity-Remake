@@ -3141,5 +3141,7 @@
  "mbOrbitHeldSystem": "Zoals zijn stelsel zegt",
  "mbOrbitHeldYes": "Ja",
  "mbOrbitHeldNo": "Nee",
- "mbOrbitDragNote": "In zijn baan (Zijn baan tonen) zijn de springpoort (cyaan), de aankomsten (amber) en de aanmeerplatforms (rood) bollen: sleep er een, of zijn pijlen (Ctrl: stappen van 100)."
+ "mbOrbitDragNote": "In zijn baan (Zijn baan tonen) zijn de springpoort (cyaan), de aankomsten (amber) en de aanmeerplatforms (rood) bollen: sleep er een, of zijn pijlen (Ctrl: stappen van 100).",
+ "medalsEarned": "{0} van {1} medailles behaald, waarvan {2} goud",
+ "medalProgress": "Voortgang: {0} / {1}"
 }

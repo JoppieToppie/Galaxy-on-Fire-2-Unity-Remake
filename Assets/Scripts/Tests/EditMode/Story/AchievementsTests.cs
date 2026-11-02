@@ -384,5 +384,79 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(2, Session.Medals[4]);
             Assert.IsTrue(Session.EliteFlags.Contains(40));
         }
+
+        // ---- Remake: the Status window's progress toward the next grade (Achievements.NextGrade) ----
+
+        [Test]
+        public void ProgressClimbsFromBronzeToGold()
+        {
+            Session.Medals = new int[45];
+            Session.Kills = 30;
+            Assert.IsTrue(Achievements.NextGrade(Db, 4, out int grade, out int count, out int target, out float fraction));
+            Assert.AreEqual((3, 30, 50), (grade, count, target), "none yet: bronze next");
+            Assert.AreEqual(0.6f, fraction, 1e-4f);
+            Session.Medals[4] = 3;
+            Achievements.NextGrade(Db, 4, out grade, out _, out target, out _);
+            Assert.AreEqual((2, 100), (grade, target), "bronze: silver next");
+            Session.Medals[4] = 2;
+            Achievements.NextGrade(Db, 4, out grade, out _, out target, out _);
+            Assert.AreEqual((1, 250), (grade, target), "silver: gold next");
+            Session.Medals[4] = 1;
+            Assert.IsFalse(Achievements.NextGrade(Db, 4, out _, out _, out _, out _), "gold: nothing left");
+        }
+
+        [Test]
+        public void AStrictMedalStaysShortOfFullAtTheThreshold()
+        {
+            Session.Medals = new int[45];
+            Session.ContainersDelivered = 25;
+            Achievements.NextGrade(Db, 5, out _, out _, out int target, out float fraction);
+            Assert.AreEqual(25, target);
+            Assert.Less(fraction, 1f, "\"more than 25\": 25 isn't there yet");
+            Session.ContainersDelivered = 26;
+            Achievements.NextGrade(Db, 5, out _, out _, out _, out fraction);
+            Assert.AreEqual(1f, fraction);
+        }
+
+        [TestCase(0)] [TestCase(1)] [TestCase(22)] [TestCase(28)] [TestCase(30)] [TestCase(38)] [TestCase(40)] [TestCase(41)]
+        [TestCase(42)] [TestCase(44)]
+        public void MedalsWithoutACountUpHaveNoProgress(int medal)
+        {
+            Session.Medals = new int[45];
+            Assert.IsFalse(Achievements.NextGrade(Db, medal, out _, out _, out _, out _));
+        }
+
+        [Test]
+        public void GoldOnlyMedalsAimAtGold()
+        {
+            Session.Medals = new int[45];
+            Session.AcceptedBlindRisk = 4;
+            Assert.IsTrue(Achievements.NextGrade(Db, 33, out int grade, out int count, out int target, out _));
+            Assert.AreEqual((1, 4, 10), (grade, count, target));
+            Session.BattleshipsDestroyed = 3;
+            Assert.IsTrue(Achievements.NextGrade(Db, 39, out grade, out count, out target, out _), "Destroyer Destroyer counts up");
+            Assert.AreEqual((1, 3, 20), (grade, count, target));
+        }
+
+        [Test]
+        public void ChampionCountsTheOtherBaseMedals()
+        {
+            Session.Medals = new int[45];
+            for (int i = 0; i < 10; i++) Session.Medals[i] = 3;
+            Session.Medals[40] = 1;   // an elite medal doesn't count
+            Assert.IsTrue(Achievements.NextGrade(Db, 35, out _, out int count, out int target, out _));
+            Assert.AreEqual((10, 35), (count, target));
+            Assert.AreEqual((11, 1), Achievements.Earned());
+        }
+
+        [Test]
+        public void AMissingMedalsHintGivesItsNextGrade()
+        {
+            Session.Medals = new int[45];
+            StringAssert.Contains("50", Achievements.Hint(4));
+            StringAssert.DoesNotContain("250", Achievements.Hint(4), "bronze's 50 kills, not gold's 250");
+            Session.Medals[4] = 2;
+            StringAssert.Contains("100", Achievements.Hint(4), "an earned medal keeps its own grade's threshold");
+        }
     }
 }

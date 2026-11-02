@@ -299,8 +299,41 @@
 }
 
 .medal--selected .medal-pressed,
-.can-hover .medal--earned:hover .medal-pressed {
+.can-hover .medal:hover .medal-pressed {
     display: flex;
+}
+
+/* Remake: the medals earned above the grid, and under a medal short of gold the bar toward its next grade (the fill
+   tinted in that grade's colour by StatusWindow.ProgressBar) with "count / target". */
+.medal-summary {
+    margin-bottom: var(--space-s);
+    font-size: var(--text-small);
+    color: var(--gof-text-dim);
+}
+
+.medal-progress {
+    width: 228px;
+    margin-top: var(--space-xs);
+    flex-direction: row;
+    align-items: center;
+}
+
+.medal-progress-bar {
+    flex-grow: 1;
+    height: 6px;
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.medal-progress-fill {
+    height: 100%;
+}
+
+.medal-progress-count {
+    margin-left: var(--space-s);
+    font-size: var(--text-small);
+    color: var(--gof-text-dim);
 }
 
 .medal-name {

@@ -3141,5 +3141,7 @@
  "mbOrbitHeldSystem": "Como diga su sistema",
  "mbOrbitHeldYes": "Sí",
  "mbOrbitHeldNo": "No",
- "mbOrbitDragNote": "En su órbita (Mostrar su órbita) el portal (cian), las llegadas (ámbar) y las plataformas de atraque (rojo) son bolas: arrastra una o sus flechas (Ctrl: pasos de 100)."
+ "mbOrbitDragNote": "En su órbita (Mostrar su órbita) el portal (cian), las llegadas (ámbar) y las plataformas de atraque (rojo) son bolas: arrastra una o sus flechas (Ctrl: pasos de 100).",
+ "medalsEarned": "{0} de {1} medallas conseguidas, {2} de ellas de oro",
+ "medalProgress": "Progreso: {0} / {1}"
 }

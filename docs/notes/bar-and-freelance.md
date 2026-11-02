@@ -140,6 +140,15 @@ generator).
   counter against the gold threshold (remake: at most 100), when the counter's caller shows it: 38 from 30 % at each
   10 %, 39 at every kill below twice the threshold, 40 at each 10 %, 41-44 once reached; none in multiplayer. Test
   `AchievementsTests.SupernovaMedalProgressShowsInFlightAsTheOriginalDoes`.
+- **Medal progress in the Status window** (remake, a player's request 2026-11-02; `Achievements.NextGrade` /
+  `NextGradeOf` / `Earned`, `StatusWindow.ProgressBar`): "n of 45 medals earned, g of them gold" above the grid
+  (`medalsEarned`); under each medal short of gold a bar toward its next grade (none -> its lowest grade, bronze or a
+  one-grade medal's gold; then one up), filled in that grade's tint, with "count / target"; a strict medal stays short
+  of full until it passes the threshold. No bar for 0, 1 (Survivor's "at most"), the one-off 22 / 28 / 30 and the elite
+  streaks 38 / 40-42 / 44 (they live in one flight); 35 Champion counts the other base medals. Every medal now
+  reacts: a missing one's hint gives its next grade's threshold, plus "Progress: n / t" (`medalProgress`); the
+  Barkeeper's missing drinks show at every grade short of gold (the original: silver only), below silver as one
+  paragraph (up to 22 lines pushed the grid out of the window). Tests `AchievementsTests`.
 - **The Supernova medals pay too**: `ModStation::checkMedals` pays `DAT_00251ff0[grade]` = {0, 5000, 2500, 1000} for
   every new medal of the 45 (none on Hardcore), and the elite medals only have a gold grade (thresholds [t, -1, -1]), so
   each pays 5000 in the original as well; its medal window just never shows the amount (`ChoiceWindow::setMedal`: the

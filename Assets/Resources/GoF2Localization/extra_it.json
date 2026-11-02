@@ -3141,5 +3141,7 @@
  "mbOrbitHeldSystem": "Come dice il suo sistema",
  "mbOrbitHeldYes": "Sì",
  "mbOrbitHeldNo": "No",
- "mbOrbitDragNote": "Nella sua orbita (Mostra la sua orbita) il portale (ciano), gli arrivi (ambra) e le piattaforme d'attracco (rosso) sono sfere: trascinane una o le sue frecce (Ctrl: passi di 100)."
+ "mbOrbitDragNote": "Nella sua orbita (Mostra la sua orbita) il portale (ciano), gli arrivi (ambra) e le piattaforme d'attracco (rosso) sono sfere: trascinane una o le sue frecce (Ctrl: passi di 100).",
+ "medalsEarned": "{0} medaglie ottenute su {1}, di cui {2} d'oro",
+ "medalProgress": "Progresso: {0} / {1}"
 }

@@ -3141,5 +3141,7 @@
  "mbOrbitHeldSystem": "按其星系",
  "mbOrbitHeldYes": "是",
  "mbOrbitHeldNo": "否",
- "mbOrbitDragNote": "在其轨道中（显示其轨道），跳跃门（青色）、抵达点（琥珀色）和停靠平台（红色）是小球：拖动小球或它的箭头（Ctrl：每步 100）。"
+ "mbOrbitDragNote": "在其轨道中（显示其轨道），跳跃门（青色）、抵达点（琥珀色）和停靠平台（红色）是小球：拖动小球或它的箭头（Ctrl：每步 100）。",
+ "medalsEarned": "已获得 {0} / {1} 枚勋章，其中 {2} 枚金质",
+ "medalProgress": "进度：{0} / {1}"
 }

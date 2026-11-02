@@ -6,7 +6,8 @@
 //          emblem tinted while that race is hostile), 577 Statistics (568 missions, 176 kills, 552 asteroids, 559 cargo
 //          salvaged, 557 stations, 3235 battleships | 564 jumpgates, 558 goods produced, 560 ore, 561 cores, 567 wingmen)
 //   right  168 Medals: 45 plates in three columns, coloured by grade (Achievements); an earned medal shows its hint
-//          (1552 + i, # = the threshold of its grade)
+//          (1552 + i, # = the threshold of its grade). Remake: the count earned above them, a bar toward the next grade
+//          under each medal short of gold (Achievements.NextGrade), and a missing medal's hint too (its next grade's)
 // Fire power: Shop.FirePower, Ship::refreshValue's sum (verified in the iOS build: the sorts of the mask 0x200010F, the
 // Nirai mod's factors, x 1000). Medal images: GoF2 > Build > HUD Images (GoF2Hud/medal_*). Plain class driven by
 // StationMenu.
@@ -179,6 +180,17 @@ namespace GoF2Remake.UI
             var column = root.Q(className: "status-right");
             if (column != null) column.style.display = medals ? DisplayStyle.Flex : DisplayStyle.None;
             if (!medals) { hint.text = ""; hint.style.display = DisplayStyle.None; menu.Focus(close); return; }
+            // Remake (a player's request 2026-11-02): how many are earned above the grid, and under each medal short of
+            // gold a bar toward its next grade, tinted in that grade's colour, with the count.
+            if (summary == null)
+            {
+                summary = new Label { pickingMode = PickingMode.Ignore };
+                summary.AddToClassList("medal-summary");
+                scroll.parent.Insert(scroll.parent.IndexOf(scroll), summary);
+            }
+            var (earned, gold) = Achievements.Earned();
+            summary.text = string.Format(Localization.Extra("medalsEarned", "{0} of {1} medals earned, {2} of them gold"),
+                                         earned, Achievements.Count, gold);
             for (int i = 0; i < Achievements.Count; i++)
             {
                 int medal = i;
@@ -199,12 +211,13 @@ namespace GoF2Remake.UI
                 n.AddToClassList("medal-name");
                 n.AddToClassList("gof-semibold");
                 m.Add(n);
+                if (Achievements.NextGrade(db, i, out int next, out int count, out int target, out float fraction))
+                    m.Add(ProgressBar(elite, next, count, target, fraction));
                 // TouchButton enabled by level: earned medals react, the elite ones (36-44) always (their hint then uses
-                // the grade-1 threshold).
-                bool reacts = grade > 0 || elite;
-                m.clicked += () => { if (reacts) { menu.PlayRelease(); ShowHint(medal); } };
+                // the grade-1 threshold). Modified: every medal, so a missing one tells what it takes.
+                m.clicked += () => { menu.PlayRelease(); ShowHint(medal); };
                 // The keys / a controller move the focus through the grid: the list follows it (#45: it never scrolled).
-                m.RegisterCallback<FocusInEvent>(_ => { if (reacts) ShowHint(medal); scroll?.ScrollTo(m); });
+                m.RegisterCallback<FocusInEvent>(_ => { ShowHint(medal); scroll?.ScrollTo(m); });
                 grid.Add(m);
                 medalButtons.Add(m);
             }
@@ -277,8 +290,34 @@ namespace GoF2Remake.UI
         {
             selectedMedal = medal;
             for (int i = 0; i < medalButtons.Count; i++) medalButtons[i].EnableInClassList("medal--selected", i == medal);
-            hint.text = $"{T(1507 + medal)}\n{Achievements.Hint(medal)}";
+            string progress = Achievements.NextGrade(level.Database, medal, out _, out int count, out int target, out _)
+                ? string.Format(Localization.Extra("medalProgress", "Progress: {0} / {1}"), count.ToString("#,0"), target.ToString("#,0"))
+                : null;
+            hint.text = $"{T(1507 + medal)}\n{Achievements.Hint(medal, progress)}";
             hint.style.display = DisplayStyle.Flex;
+        }
+
+        Label summary;
+
+        /// <summary>Remake: the bar toward the medal's next grade, filled in that grade's tint, and "count / target".</summary>
+        static VisualElement ProgressBar(bool elite, int grade, int count, int target, float fraction)
+        {
+            var row = new VisualElement { pickingMode = PickingMode.Ignore };
+            row.AddToClassList("medal-progress");
+            var bar = new VisualElement { pickingMode = PickingMode.Ignore };
+            bar.AddToClassList("medal-progress-bar");
+            var fill = new VisualElement { pickingMode = PickingMode.Ignore };
+            fill.AddToClassList("medal-progress-fill");
+            fill.style.width = Length.Percent(fraction * 100f);
+            var tint = MedalTint(elite, grade);
+            tint.a = 1f;
+            fill.style.backgroundColor = tint;
+            bar.Add(fill);
+            row.Add(bar);
+            var text = new Label($"{Mathf.Min(count, target):#,0} / {target:#,0}") { pickingMode = PickingMode.Ignore };
+            text.AddToClassList("medal-progress-count");
+            row.Add(text);
+            return row;
         }
 
 

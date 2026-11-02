@@ -137,6 +137,57 @@ namespace GoF2Remake.Data
         /// <summary>Achievements::hasMedal(i, 1): the counters stop once the medal is earned.</summary>
         public static bool Has(int medal) => Grade(medal) != 0;
 
+        /// <summary>The grade a medal earns next: from none the lowest grade it has (bronze, or gold for the one-grade
+        /// medals), then one up; 0 once gold.</summary>
+        public static int NextGradeOf(int medal)
+        {
+            int grade = Grade(medal);
+            if (grade == 1) return 0;
+            for (int g = grade == 0 ? 3 : grade - 1; g >= 1; g--) if (Thresholds[medal, g - 1] >= 0) return g;
+            return 0;
+        }
+
+        /// <summary>Remake (the Status window's progress bars, a player's request 2026-11-02): the medal's counter against
+        /// the threshold of its next grade. False when the medal is gold, isn't counted up (0 Veteran, 1 Survivor's "at
+        /// most", the one-off 22 / 28 / 30, the elite streaks 38 / 40 / 41 / 42 / 44 that live in one flight) or the remake
+        /// doesn't track it. 35 Champion counts the other base medals earned. A strict medal ("more than #") stays short
+        /// of full until its counter passes the threshold.</summary>
+        public static bool NextGrade(Database db, int medal, out int grade, out int count, out int target, out float fraction)
+        {
+            grade = NextGradeOf(medal);
+            count = target = 0;
+            fraction = 0f;
+            if (grade == 0 || medal == 1 || medal == 38 || medal == 40 || medal == 41 || medal == 42 || medal == 44) return false;
+            target = Thresholds[medal, grade - 1];
+            int? c;
+            if (medal == 35)
+            {
+                int earned = 0;
+                for (int i = 0; i < BaseCount; i++) if (i != 35 && Grade(i) != 0) earned++;
+                c = earned;
+                target = BaseCount - 1;
+            }
+            else c = Counter(db, medal);
+            if (c == null || target <= 1) { target = 0; return false; }
+            count = Mathf.Max(0, c.Value);
+            fraction = Mathf.Clamp01(count / (float)target);
+            if (Strict(medal) && count <= target) fraction = Mathf.Min(fraction, 0.99f);
+            return true;
+        }
+
+        /// <summary>The medals earned (any grade) and the gold ones, of all 45.</summary>
+        public static (int earned, int gold) Earned()
+        {
+            int earned = 0, gold = 0;
+            for (int i = 0; i < Count; i++)
+            {
+                int g = Grade(i);
+                if (g != 0) earned++;
+                if (g == 1) gold++;
+            }
+            return (earned, gold);
+        }
+
         static int SystemsVisited(Database db)
         {
             var systems = new HashSet<int>();
@@ -216,16 +267,24 @@ namespace GoF2Remake.Data
             }
         }
 
-        /// <summary>StatusWindow's hint: 1552 + i with # = the earned grade's threshold.</summary>
-        public static string Hint(int medal)
+        /// <summary>StatusWindow's hint: 1552 + i with # = the earned grade's threshold. Modified: a medal not earned yet
+        /// (the original shows no hint for it, but the elite ones' with gold) gives the threshold of the grade it earns next.
+        /// <paramref name="progress"/> (the Status window's "Progress: n / t") goes right under the requirement.</summary>
+        public static string Hint(int medal, string progress = null)
         {
             int grade = Grade(medal);
-            string text = Localization.Get(1552 + medal).Replace("#", Threshold(medal, Mathf.Max(1, grade)).ToString("#,0"));
-            // getMedalHintText: the silver Barkeeper lists the drinks still missing (276 + 1406 + j).
-            if (medal == 9 && grade == 2)
+            int shown = grade != 0 ? grade : Mathf.Max(1, NextGradeOf(medal));
+            string text = Localization.Get(1552 + medal).Replace("#", Threshold(medal, shown).ToString("#,0"));
+            if (progress != null) text += "\n" + progress;
+            // getMedalHintText: the silver Barkeeper lists the drinks still missing (276 + 1406 + j). Modified: below
+            // silver too (none or bronze), so the list shows what is still missing at every grade short of gold; there up
+            // to 22 drinks, so one paragraph of names instead of a line each (it pushed the medal grid out of the window).
+            if (medal == 9 && grade != 1)
             {
-                text += "\n\n" + Localization.Get(276);
-                for (int j = 0; j < 22; j++) if (!Session.BoozeTypes.Contains(132 + j)) text += "\n- " + Localization.Get(1406 + j);
+                var missing = new List<string>();
+                for (int j = 0; j < 22; j++) if (!Session.BoozeTypes.Contains(132 + j)) missing.Add(Localization.Get(1406 + j));
+                text += "\n\n" + Localization.Get(276)
+                      + (grade == 2 ? "\n- " + string.Join("\n- ", missing) : " " + string.Join(", ", missing));
             }
             return text;
         }

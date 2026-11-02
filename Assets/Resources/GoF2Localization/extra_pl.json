@@ -3141,5 +3141,7 @@
  "mbOrbitHeldSystem": "Jak jej system",
  "mbOrbitHeldYes": "Tak",
  "mbOrbitHeldNo": "Nie",
- "mbOrbitDragNote": "Na jej orbicie (Pokaż jej orbitę) wrota (cyjan), przyloty (bursztyn) i platformy dokujące (czerwień) są kulami: przeciągnij jedną lub jej strzałki (Ctrl: kroki po 100)."
+ "mbOrbitDragNote": "Na jej orbicie (Pokaż jej orbitę) wrota (cyjan), przyloty (bursztyn) i platformy dokujące (czerwień) są kulami: przeciągnij jedną lub jej strzałki (Ctrl: kroki po 100).",
+ "medalsEarned": "Zdobyte medale: {0} z {1}, w tym złote: {2}",
+ "medalProgress": "Postęp: {0} / {1}"
 }
