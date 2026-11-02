@@ -421,7 +421,12 @@
 /* Modified: a choice between two ways (the drive or the gates, the fastest or the safest route): the two answers stacked in
    the middle, a Back button at the top right in place of No (StarMapRules.ShowDialog). */
 .map-dialog--choice {
-    padding-top: 84px;
+    max-width: 640px;
+}
+
+/* the text keeps to the top, clear of the Back button beside it */
+.map-dialog--choice .map-dialog-text {
+    margin-right: 120px;
 }
 
 .map-dialog--choice .map-dialog-buttons {
@@ -436,9 +441,12 @@
 
 .map-dialog-back {
     position: absolute;
-    right: 16px;
-    top: 16px;
-    min-width: 120px;
+    right: 14px;
+    top: 14px;
+    min-width: 0;
+    padding: 8px 16px;
+    font-size: var(--text-body);
+    letter-spacing: 3px;
 }
 
 /* ---- remake mods: the selected planet's lore (stations.json "description"), under the system block ----------------- */
