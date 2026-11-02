@@ -48,7 +48,8 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   programmed station, or for another system with a drive the Khador charge.
 - **Jumpgate** (`MGame::dockEvent`): the autopilot to the gate entering its sphere (7500, Vossk 11250) hides the HUD and
   pauses; with a programmed station "Destination: X / Travel to this station?" (Yes preselected), No or no destination
-  opens the map in gate mode (only the current system and its gate neighbours, any station there). Backing out puts the
+  opens the map in gate mode (only the current system and its gate neighbours, any station there; remake: any system on
+  a gate route, "Jumpgate route planning"). Backing out puts the
   ship past the gate with the controls back. Remake (#37): a destroyed ship takes no gate and its Khador charge stops
   (shot down entering the gate it still jumped, repaired).
 - **Gate jump scene** (`MGame::startJumpScene` / `updateJumpScene`, ~6.3 s): ship at gate - (0, 0, 10000) facing game +Z
@@ -69,7 +70,8 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   end (~4 s). Cells = gate jumps on the shortest route through visible systems, 4 without one, x2 on Extreme.
 - **Arrival** from another system: the hidden gate in the gate orbit, else (0, 0, 100000), facing the station, with the
   7 s fly-in camera; the orbit information (race logo, station, "<System> System", security level in its colour) shows
-  during it. The programmed station is cleared: no autopilot leg follows a system jump.
+  during it. The programmed station is cleared: no autopilot leg follows a system jump (remake: but a gate route's hop,
+  "Jumpgate route planning").
 - **Loma** (system 25, the Valkyrie add-on's black market; gates to Aquila, Union and Shima): on the map from a new game's
   start and after every load (`Status::resetGame` / `GameRecord::load` show it whenever the Valkyrie add-on is owned, and
   the remake owns both; `GalaxyMap.Visibility`, `SaveGame`), not only in the add-on campaigns. In the orbit: 6-9 pirates
@@ -84,12 +86,24 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   (remake, players' suggestion: the Missions window's map travels, `StarMap.Open`'s allowTravel,
   `StationMenu.CanTravelFromMap` / `TravelFromMap`: confirming a station is the Map button's departure with the station
   programmed, the Khador rules with a drive; without one a target past the gate neighbours is reached along the gate
-  route: each gate's prompt names the destination and jumps to the next system's gate orbit (`SystemJump.NextHop`;
+  route: the first gate's prompt names the destination and jumps to the next system's gate orbit (`GalaxyMap.NextHop`;
   `Arrive` keeps the programmed station on a hop, so the autopilot flies on to the next gate; the original's gate jumped
   straight to a far programmed station, which the Distress Help used); the lounge's offer maps stay view only), centred
   on the target, the yellow route along the gate path (finished segments opaque, the current one grows with alpha 255·t
   on the 0.99 s pulse, the next when t wraps); the Wanted map starts it at the criminal's last-seen system (`setStart`).
   A gateless start system (Mido) has no route, like the original.
+- **Jumpgate route planning** (remake, 2026-11-02, players' suggestion on Discord 2026-10-17: "build a route through
+  multiple systems and let autopilot just fly it all along from Pan to Aquila"): the station's Map and the gate's map
+  take any system the gates reach (`StarMap.GateRoutes`, `GalaxyMap.GateReachable`), not only the gate neighbours; the
+  Khador map keeps the original's rules. A selected system past the neighbours shows the yellow route (`PlanRoute`, drawn
+  as the Mission map's) and, without a drive, "Jumpgate jumps: N" on the energy line (Extra `mapRouteJumps`); the
+  destination dialog names the jumps when there is more than one. With a drive, where the gates reach the target, the
+  dialog's answers are KHADOR DRIVE / JUMPGATES (Extra `mapRouteGates`, a third button made at runtime,
+  `StarMap.dialogAlt`) / NO, and Esc / B close it unanswered (`dialogBackCancels`); short of cells, 582 offers the gates
+  for any system they reach (the original only for a neighbour). The ship then goes gate by gate (`GalaxyMap.NextHop`,
+  see "Mission maps"): the first gate asks as ever, every later one jumps on unasked while the programmed station is the
+  one the hop kept (`Session.RouteDestination`, set in `SystemJump.Arrive`, never saved); the arrival camera still plays
+  in each system. Tests `GalaxyMapTests` (route planning).
 - **Reveal** (the lounge's bought coordinates, `revealSystem`): the camera on the new system, hidden (no label, lines or
   input) for 4000 ms while its sun grows (remake: to the normal size), then selected; view only.
   The coordinates and the story's steps reveal through `GalaxyMap.Reveal` (`Status::setSystemVisibility`), which writes

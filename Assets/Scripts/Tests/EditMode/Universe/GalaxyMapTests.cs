@@ -3,7 +3,7 @@
 // gate routes, SystemPathFinder's BFS through visible systems, energy cells for a Khador jump: gate jumps on the route, 4
 // without one, x2 on Extreme; the Khador Drive item 85 / ships 37 / 38 / 40 and the remake's free-play rule for gateless
 // systems; volatile goods 209 / 204; the galaxy-view sun positions; the system view's planets, java.util.Random(system *
-// 1000)), plus the security / owner rules of the map's labels.
+// 1000)), plus the security / owner rules of the map's labels and the remake's jumpgate route planning (GateJumps, NextHop).
 // Expected numbers: Reference/tools/starmap/starmap_tables.py (gate_path, energy_cells, sun_position, system_map; run with
 // python -I, generator gen/starmap_expected.py in the session scratchpad) and Reference/research/starmap_travel.md
 // ("No owner" systems 23 / 24 / 26 / 32 / 33, 7.2 energy cells, Ship::hasJumpDrive); the initially visible systems from
@@ -176,6 +176,57 @@ namespace GoF2Remake.Tests
                     Assert.IsNotNull(back, "gates work both ways");
                     Assert.AreEqual(p.Count, back.Count, $"{a}<->{b} same length both ways");
                 }
+        }
+
+        // ---- jumpgate route planning (remake) -------------------------------------------------------------------
+
+        static int StationIn(int system, int not = -1) => Db.Stations.First(s => s.system == system && s.index != not).index;
+        static int GateStation(int system) => Sys(system).jumpgateStation;
+
+        [Test]
+        public void GateJumpsCountTheRoute()
+        {
+            AllVisible();
+            Assert.AreEqual(0, GalaxyMap.GateJumps(Db, 2, 2));
+            Assert.AreEqual(1, GalaxyMap.GateJumps(Db, 0, 8), "a gate neighbour");
+            Assert.AreEqual(5, GalaxyMap.GateJumps(Db, 0, 31));
+            Assert.AreEqual(0, GalaxyMap.GateJumps(Db, 15, 3), "gateless Mido");
+            Assert.IsTrue(GalaxyMap.GateReachable(Db, 0, 31));
+            Assert.IsTrue(GalaxyMap.GateReachable(Db, 3, 3));
+            Assert.IsFalse(GalaxyMap.GateReachable(Db, 28, 22), "to gateless Beidan");
+        }
+
+        [Test]
+        public void GateRoutesOnlyThroughVisibleSystems()
+        {
+            // new game: 3 is two jumps from 2 (through 8), 21 can't be reached
+            Assert.AreEqual(2, GalaxyMap.GateJumps(Db, 2, 3));
+            Assert.IsFalse(GalaxyMap.GateReachable(Db, 3, 21));
+            Assert.AreEqual(0, GalaxyMap.GateJumps(Db, 3, 21));
+        }
+
+        [Test]
+        public void NextHopIsTheNextSystemsGateOrbit()
+        {
+            AllVisible();
+            // 0 -> 31: 0, 8, 3, 5, 20, 31: the first hop lands in 8's gate orbit, then 3's, 5's, 20's, then the station itself
+            int target = StationIn(31);
+            Assert.AreEqual(GateStation(8), GalaxyMap.NextHop(Db, StationIn(0), target));
+            Assert.AreEqual(GateStation(3), GalaxyMap.NextHop(Db, GateStation(8), target));
+            Assert.AreEqual(GateStation(20), GalaxyMap.NextHop(Db, GateStation(5), target));
+            Assert.AreEqual(target, GalaxyMap.NextHop(Db, GateStation(20), target), "the last gate jumps to the destination");
+        }
+
+        [Test]
+        public void NextHopIsTheDestinationWhereTheOriginalsGateWent()
+        {
+            AllVisible();
+            int neighbour = StationIn(8);
+            Assert.AreEqual(neighbour, GalaxyMap.NextHop(Db, StationIn(0), neighbour), "a gate neighbour");
+            int here = StationIn(0);
+            Assert.AreEqual(here, GalaxyMap.NextHop(Db, StationIn(0, here), here), "this system");
+            int beidan = StationIn(22);
+            Assert.AreEqual(beidan, GalaxyMap.NextHop(Db, StationIn(28), beidan), "no gate route: straight there");
         }
 
         // ---- energy cells (StarMap::OnTouchBegin) ---------------------------------------------------------------

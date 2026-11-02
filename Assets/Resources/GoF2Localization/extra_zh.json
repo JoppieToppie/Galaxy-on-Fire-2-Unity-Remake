@@ -3098,5 +3098,7 @@
  "debugKillShips": "所有飞船",
  "debugKillEverything": "全部（包括小行星）",
  "debugKill": "摧毁周围目标",
- "debugKilled": "已摧毁 {1} 内的 {0} 个目标。"
+ "debugKilled": "已摧毁 {1} 内的 {0} 个目标。",
+ "mapRouteJumps": "星门跳跃：{0}",
+ "mapRouteGates": "星门"
 }

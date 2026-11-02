@@ -39,12 +39,9 @@ namespace GoF2Remake.UI
 
             if (DialogOpen)
             {
-                if (!dialogInfo && (left || right || (kb != null && (kb.aKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame))))
-                {
-                    dialogFocus = 1 - dialogFocus;
-                    HighlightDialog();
-                }
-                if (confirm) AnswerDialog(dialogFocus == 0);
+                if (!dialogInfo && (left || (kb != null && kb.aKey.wasPressedThisFrame))) MoveDialogFocus(-1);
+                else if (!dialogInfo && (right || (kb != null && kb.dKey.wasPressedThisFrame))) MoveDialogFocus(1);
+                if (confirm) AnswerFocused();
                 return;
             }
             if (world == null || zoomDir != 0) return;

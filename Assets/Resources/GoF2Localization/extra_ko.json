@@ -3098,5 +3098,7 @@
  "debugKillShips": "모든 함선",
  "debugKillEverything": "전부 (소행성 포함)",
  "debugKill": "주변 파괴",
- "debugKilled": "{1} 이내에서 {0}개 파괴됨."
+ "debugKilled": "{1} 이내에서 {0}개 파괴됨.",
+ "mapRouteJumps": "점프게이트 점프: {0}",
+ "mapRouteGates": "점프게이트"
 }

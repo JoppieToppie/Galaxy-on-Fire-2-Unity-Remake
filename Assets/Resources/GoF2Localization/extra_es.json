@@ -3098,5 +3098,7 @@
  "debugKillShips": "Todas las naves",
  "debugKillEverything": "Todo (también asteroides)",
  "debugKill": "Destruir a tu alrededor",
- "debugKilled": "{0} destruidos en {1}."
+ "debugKilled": "{0} destruidos en {1}.",
+ "mapRouteJumps": "Saltos por puerta: {0}",
+ "mapRouteGates": "Puertas de salto"
 }

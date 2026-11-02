@@ -3098,5 +3098,7 @@
  "debugKillShips": "Tutte le navi",
  "debugKillEverything": "Tutto (anche asteroidi)",
  "debugKill": "Distruggi intorno a te",
- "debugKilled": "{0} distrutti entro {1}."
+ "debugKilled": "{0} distrutti entro {1}.",
+ "mapRouteJumps": "Salti tramite portale: {0}",
+ "mapRouteGates": "Portali"
 }

@@ -3098,5 +3098,7 @@
  "debugKillShips": "كل السفن",
  "debugKillEverything": "كل شيء (والكويكبات أيضًا)",
  "debugKill": "دمّر ما حولك",
- "debugKilled": "تم تدمير {0} ضمن {1}."
+ "debugKilled": "تم تدمير {0} ضمن {1}.",
+ "mapRouteJumps": "القفزات عبر البوابات: {0}",
+ "mapRouteGates": "بوابات القفز"
 }

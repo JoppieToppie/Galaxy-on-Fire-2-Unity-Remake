@@ -403,16 +403,18 @@
     white-space: normal;
     font-size: var(--text-subhead);
     color: var(--gof-text);
-    margin-bottom: 28px;
+    margin-bottom: 20px;   /* + the buttons' margin-top: 28 */
 }
 
 .map-dialog-buttons {
     flex-direction: row;
+    flex-wrap: wrap;   /* three answers (the drive, the gates, No) on a phone */
     justify-content: flex-end;
 }
 
 .map-dialog-button {
     margin-left: var(--space-m);
+    margin-top: var(--space-s);
     min-width: 160px;
 }
 

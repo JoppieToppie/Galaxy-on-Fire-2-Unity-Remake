@@ -3098,5 +3098,7 @@
  "debugKillShips": "すべての船",
  "debugKillEverything": "すべて（小惑星も）",
  "debugKill": "周囲を破壊",
- "debugKilled": "{1}以内で{0}個を破壊しました。"
+ "debugKilled": "{1}以内で{0}個を破壊しました。",
+ "mapRouteJumps": "ジャンプゲートでのジャンプ：{0}",
+ "mapRouteGates": "ジャンプゲート"
 }

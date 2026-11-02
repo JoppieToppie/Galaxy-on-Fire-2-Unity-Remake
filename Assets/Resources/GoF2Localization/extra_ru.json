@@ -3098,5 +3098,7 @@
  "debugKillShips": "Все корабли",
  "debugKillEverything": "Всё (и астероиды)",
  "debugKill": "Уничтожить всё вокруг",
- "debugKilled": "Уничтожено: {0} в радиусе {1}."
+ "debugKilled": "Уничтожено: {0} в радиусе {1}.",
+ "mapRouteJumps": "Прыжков через ретрансляторы: {0}",
+ "mapRouteGates": "Ретрансляторы"
 }

@@ -201,6 +201,35 @@ namespace GoF2Remake.Data
             return null;
         }
 
+        /// <summary>Remake (jumpgate route planning, players' suggestion 2026-10-17): the gates reach system b from a, one jump or
+        /// several (a == b counts).</summary>
+        public static bool GateReachable(Database db, int a, int b) =>
+            IsInRoutes(db.Systems.Find(s => s.index == a), b) || SystemPath(db, a, b) != null;
+
+        /// <summary>Remake: the gate jumps from system a to b, 0 when a == b or the gates don't reach it.</summary>
+        public static int GateJumps(Database db, int a, int b)
+        {
+            if (a == b) return 0;
+            if (IsInRoutes(db.Systems.Find(s => s.index == a), b)) return 1;
+            var path = SystemPath(db, a, b);
+            return path != null ? path.Count - 1 : 0;
+        }
+
+        /// <summary>Remake: where the gate of the station 'from' jumps for the destination 'to': the destination itself in a gate
+        /// neighbour (the original's only case: its maps program nothing further), else the gate orbit of the next system on the
+        /// gate route (SystemPath), where the autopilot flies on to the next gate. The original's gate took the ship straight to
+        /// any programmed station, any distance.</summary>
+        public static int NextHop(Database db, int from, int to)
+        {
+            int a = db.Stations.Find(s => s.index == from)?.system ?? -1;
+            int b = db.Stations.Find(s => s.index == to)?.system ?? -1;
+            if (a < 0 || b < 0 || IsInRoutes(db.Systems.Find(s => s.index == a), b)) return to;
+            var path = SystemPath(db, a, b);
+            if (path == null || path.Count < 3) return to;
+            int gateStation = db.Systems.Find(s => s.index == path[1])?.jumpgateStation ?? -1;
+            return gateStation >= 0 ? gateStation : to;
+        }
+
         /// <summary>StarMap::OnTouchBegin: energy cells for a Khador jump from system a to b ('noGate': the target has no gate
         /// route at all, warning 581).</summary>
         public static int EnergyCells(Database db, int a, int b, out bool noGate)

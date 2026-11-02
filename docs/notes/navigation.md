@@ -31,7 +31,8 @@ the player ship) and `NavigationView` (flight HUD).
 - **Programmed destination** (`Session.ProgrammedStation`, from the star map;
   `LevelScript::setAutoPilotToProgrammedStation`): at the end of the launch / arrival camera the autopilot flies to its
   planet in this system (the planet lock then jumps by itself), or in another system to the gate (gate orbit) or the
-  gate station's planet. Arriving at the destination's orbit clears it.
+  gate station's planet. Arriving at the destination's orbit clears it. Remake: a destination past the gate neighbours
+  is flown to gate by gate, each later gate jumping on unasked (star-map.md "Jumpgate route planning").
 - **Planet jump** (planet locked + action, no confirmation): sound 5, the camera freezes and looks at the ship, straight
   on at 8 u/ms for 3 s, HUD hidden, then `Space` reloads in that station's orbit (`Session.StationIndex`,
   `PreviousStationIndex`, `ArrivedByTravel`): arrival at 4x the previous station's planet billboard (~4 km), or the

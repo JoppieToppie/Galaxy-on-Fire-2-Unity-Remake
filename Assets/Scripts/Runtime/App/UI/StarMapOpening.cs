@@ -104,6 +104,15 @@ namespace GoF2Remake.UI
             sideButtons = root.Q("mapSideButtons");
             dialogYes = root.Q<Button>("dialogYes");
             dialogNo = root.Q<Button>("dialogNo");
+            // Remake: a third answer between Yes and No (ShowDialog's altText), hidden until a dialog has one.
+            dialogAlt = root.Q<Button>("dialogAlt");
+            if (dialogAlt == null && dialogNo != null)
+            {
+                dialogAlt = new Button { name = "dialogAlt" };
+                foreach (var c in new[] { "map-button", "map-dialog-button", "gof-semibold" }) dialogAlt.AddToClassList(c);
+                dialogNo.parent.Insert(dialogNo.parent.IndexOf(dialogNo), dialogAlt);
+            }
+            if (dialogAlt != null) dialogAlt.style.display = DisplayStyle.None;
             root.Q<Label>("mapTitle").text = T(177).ToUpperInvariant();
             // Modified: opened from a station's Map: "STATION | MAP" (SetStationTitle), as the station's views.
             var mapTitleLabel = root.Q<Label>("mapTitle");
@@ -145,7 +154,7 @@ namespace GoF2Remake.UI
             keyButton.text = T(400).ToUpperInvariant();
             voidButton.text = VoidButtonText;
             dialogNo.text = T(135).ToUpperInvariant();
-            foreach (var b in new[] { backButton, keyButton, zoomButton, voidButton, dialogYes, dialogNo })
+            foreach (var b in new[] { backButton, keyButton, zoomButton, voidButton, dialogYes, dialogAlt, dialogNo })
             {
                 b.focusable = false;
                 b.RegisterCallback<PointerDownEvent>(_ => Play(assets.buttonPush), TrickleDown.TrickleDown);
@@ -162,6 +171,7 @@ namespace GoF2Remake.UI
             touch.RegisterCallback<PointerCancelEvent>(e => pinch.Remove(e.pointerId), TrickleDown.TrickleDown);
             dialogYes.clicked += () => AnswerDialog(true);
             dialogNo.clicked += () => AnswerDialog(false);
+            dialogAlt.clicked += AnswerAlt;
             touch.RegisterCallback<PointerDownEvent>(OnPointerDown);
             touch.RegisterCallback<PointerMoveEvent>(OnPointerMove);
             touch.RegisterCallback<PointerUpEvent>(e => OnPointerUp(e.pointerId, true));

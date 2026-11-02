@@ -3098,5 +3098,7 @@
  "debugKillShips": "Alle Schiffe",
  "debugKillEverything": "Alles (auch Asteroiden)",
  "debugKill": "Alles im Umkreis zerstören",
- "debugKilled": "{0} zerstört im Umkreis von {1}."
+ "debugKilled": "{0} zerstört im Umkreis von {1}.",
+ "mapRouteJumps": "Sprungtor-Sprünge: {0}",
+ "mapRouteGates": "Sprungtore"
 }

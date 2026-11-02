@@ -3098,5 +3098,7 @@
  "debugKillShips": "Tous les vaisseaux",
  "debugKillEverything": "Tout (astéroïdes compris)",
  "debugKill": "Détruire autour de vous",
- "debugKilled": "{0} détruits dans un rayon de {1}."
+ "debugKilled": "{0} détruits dans un rayon de {1}.",
+ "mapRouteJumps": "Sauts par porte : {0}",
+ "mapRouteGates": "Portes supraluminiques"
 }

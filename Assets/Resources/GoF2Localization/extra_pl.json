@@ -3098,5 +3098,7 @@
  "debugKillShips": "Wszystkie statki",
  "debugKillEverything": "Wszystko (też asteroidy)",
  "debugKill": "Zniszcz wszystko wokół",
- "debugKilled": "Zniszczono {0} w promieniu {1}."
+ "debugKilled": "Zniszczono {0} w promieniu {1}.",
+ "mapRouteJumps": "Skoki przez hiperwrota: {0}",
+ "mapRouteGates": "Hiperwrota"
 }

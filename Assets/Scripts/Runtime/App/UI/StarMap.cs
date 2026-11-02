@@ -137,8 +137,14 @@ namespace GoF2Remake.UI
         public StarMapMode Mode => mode;
         bool jumpDrive;
         /// <summary>Remake (players' suggestion): a Mission map that can travel: confirming a station programs it like the
-        /// station's map, and a target past the gate neighbours is reached along the gate route (SystemJump.NextHop).</summary>
+        /// station's map, and a target past the gate neighbours is reached along the gate route (GalaxyMap.NextHop).</summary>
         bool travel;
+        /// <summary>Remake (jumpgate route planning, players' suggestion 2026-10-17): the station's and the gate's maps (and a
+        /// travelling Mission map) take any system the gates reach, not only the gate neighbours: the yellow route shows the
+        /// way, and the ship goes gate by gate (SystemJump, GalaxyMap.NextHop); with a drive the gates are the other choice.</summary>
+        bool GateRoutes => travel || mode == StarMapMode.Station || mode == StarMapMode.Gate;
+        /// <summary>The route to the selected system the map draws, outside a Mission map (that one keeps its target's).</summary>
+        bool PlansRoute => GateRoutes && mode != StarMapMode.Mission;
         Action<StarMapResult> onClosed;
         int promptStation = -1, focusStation = -1;
         bool askVoid;
@@ -286,8 +292,12 @@ namespace GoF2Remake.UI
         Vector2Int lastSafeScreen;
         Label energyLine;
         Button backButton, keyButton, zoomButton, voidButton, dialogYes, dialogNo;
-        Action dialogAction, dialogNoAction;
+        /// <summary>Remake: the dialog's third answer between Yes and No (the gates beside the drive), made at runtime.</summary>
+        Button dialogAlt;
+        Action dialogAction, dialogNoAction, dialogAltAction;
         bool dialogInfo;
+        /// <summary>Back (Esc / B) closes the dialog without answering: its No is a choice, not a cancel (the drive or the gates).</summary>
+        bool dialogBackCancels;
         int dialogFocus;
         readonly Dictionary<int, Item> systemItems = new Dictionary<int, Item>();
         readonly List<Item> planetItems = new List<Item>();

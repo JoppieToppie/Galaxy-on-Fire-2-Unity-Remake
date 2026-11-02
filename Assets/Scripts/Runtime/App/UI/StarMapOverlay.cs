@@ -250,11 +250,18 @@ namespace GoF2Remake.UI
             systemHeader.style.opacity = systemAlpha;
             int energySystem = inSystem ? zoomSystem : selected;
             bool energy = jumpDrive && energySystem >= 0 && energySystem != currentSystem && cells > 0;
-            energyLine.style.display = energy ? DisplayStyle.Flex : DisplayStyle.None;
+            // Remake (jumpgate route planning): without a drive the line counts the gate jumps of the planned route.
+            bool route = !energy && PlansRoute && routePath != null && energySystem == selected;
+            energyLine.style.display = energy || route ? DisplayStyle.Flex : DisplayStyle.None;
             if (energy)
             {
                 energyLine.text = $"{T(578)} {cells} / {cellsInCargo}";
                 energyLine.EnableInClassList("energy-line--short", cellsInCargo < cells);
+            }
+            else if (route)
+            {
+                energyLine.text = RouteJumpsText(routePath.Count - 1);
+                energyLine.EnableInClassList("energy-line--short", false);
             }
             touch.MarkDirtyRepaint();
         }
@@ -332,7 +339,8 @@ namespace GoF2Remake.UI
                 DrawSegment(p2d, suns[currentSystem].position, target + t * (suns[currentSystem].position - target));
             }
         }
-        /// <summary>StarMap::draw, mission mode: the route segment by segment on the pulse's cycle (+0xe8 advances when t wraps).</summary>
+        /// <summary>StarMap::draw, mission mode: the route segment by segment on the pulse's cycle (+0xe8 advances when t wraps).
+        /// Remake: also the planned gate route to the selection on the station's and the gate's maps (PlanRoute).</summary>
         void DrawMissionRoute(Painter2D p2d, float t)
         {
             if (routePath == null || routePath.Count < 2) return;

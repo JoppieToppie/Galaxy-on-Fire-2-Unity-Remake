@@ -3098,5 +3098,7 @@
  "debugKillShips": "सभी जहाज़",
  "debugKillEverything": "सब कुछ (क्षुद्रग्रह भी)",
  "debugKill": "आसपास सब नष्ट करें",
- "debugKilled": "{1} के भीतर {0} नष्ट किए गए।"
+ "debugKilled": "{1} के भीतर {0} नष्ट किए गए।",
+ "mapRouteJumps": "जंपगेट जंप: {0}",
+ "mapRouteGates": "जंपगेट"
 }
