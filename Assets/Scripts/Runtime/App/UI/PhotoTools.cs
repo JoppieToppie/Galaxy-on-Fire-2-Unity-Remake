@@ -180,7 +180,8 @@ namespace GoF2Remake.UI
                 get = () => PhotoSettings.Focus, set = v => PhotoSettings.Focus = v, format = v => Metres(PhotoSettings.FocusMetresOf(v)),
                 fromShown = PhotoSettings.FocusOfMetres, defaultValue = () => 0.5f,
                 visible = () => PhotoSettings.Dof == PhotoSettings.DofMode.Manual };
-            yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoBlur", "Blur"), min = 0f, max = 1f,
+            // Remake (a player's request, 2026-11): up to 500 %: past 100 % (URP's most) Visuals.PhotoBlurPass adds more.
+            yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoBlur", "Blur"), min = 0f, max = PhotoSettings.MaxBlur,
                 get = () => PhotoSettings.Blur, set = v => PhotoSettings.Blur = v, format = Pct, defaultValue = () => 0.5f,
                 visible = () => PhotoSettings.Dof >= PhotoSettings.DofMode.Ship };
             yield return new OptionDef { kind = OptionKind.Choice, label = () => T("photoBloom", "Bloom"),
@@ -678,6 +679,7 @@ namespace GoF2Remake.UI
         void DestroyEffects()
         {
             Visuals.ClassicBloomPass.Suppressed = false;
+            Visuals.PhotoBlurPass.Clear();
             if (camData != null) camData.volumeLayerMask = savedMask;
             camData = null;
             if (volumeGo != null) UnityEngine.Object.Destroy(volumeGo);
@@ -694,7 +696,8 @@ namespace GoF2Remake.UI
             if (dof.active)
             {
                 float toShip = shipCentre != null ? Mathf.Max(0.5f, Vector3.Distance(cam.transform.position, shipCentre())) : 50f;
-                float blur = PhotoSettings.Blur;
+                // URP's part (0..1), then ours (100-500 % as 0..1).
+                float blur = Mathf.Min(1f, PhotoSettings.Blur), extra = Mathf.Clamp01((PhotoSettings.Blur - 1f) / (PhotoSettings.MaxBlur - 1f));
                 bool bokeh = mode == PhotoSettings.DofMode.Manual && !Application.isMobilePlatform;
                 dof.mode.Override(mode == PhotoSettings.DofMode.Off ? DepthOfFieldMode.Off : bokeh ? DepthOfFieldMode.Bokeh : DepthOfFieldMode.Gaussian);
                 if (mode == PhotoSettings.DofMode.Ship)
@@ -706,6 +709,7 @@ namespace GoF2Remake.UI
                     dof.gaussianEnd.Override(start + Mathf.Lerp(shipRadius * 30f + 400f, shipRadius * 1.5f + 5f, blur));
                     dof.gaussianMaxRadius.Override(Mathf.Lerp(0.6f, 1.5f, blur));
                     dof.highQualitySampling.Override(true);
+                    Visuals.PhotoBlurPass.Set(cam, extra, start, start + shipRadius * 1.5f + 5f);
                 }
                 else if (mode == PhotoSettings.DofMode.Manual)
                 {
@@ -717,8 +721,11 @@ namespace GoF2Remake.UI
                     dof.gaussianEnd.Override(focus * Mathf.Lerp(6f, 1.3f, blur) + 2f);
                     dof.gaussianMaxRadius.Override(Mathf.Lerp(0.6f, 1.5f, blur));
                     dof.highQualitySampling.Override(true);
+                    Visuals.PhotoBlurPass.Set(cam, extra, focus, focus * 1.3f + 2f);
                 }
+                else Visuals.PhotoBlurPass.Clear();
             }
+            else Visuals.PhotoBlurPass.Clear();
             // Over the game's own brightness (Bootstrap.ApplyPostProcessing's postExposure on the scene volumes).
             color.active = PhotoSettings.Exposure != 0f || PhotoSettings.Contrast != 0f || PhotoSettings.Saturation != 0f;
             color.postExposure.overrideState = PhotoSettings.Exposure != 0f;

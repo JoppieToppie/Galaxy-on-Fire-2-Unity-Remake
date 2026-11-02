@@ -140,9 +140,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   rows are `OptionControl`s): orbit / free, field of view (from the camera's own at each entry), roll (-180..180,
   holding level and the quarter turns, `PhotoTools.SnapRoll`), the free camera's speed, depth of field (Default = the
   game's / Off / On the ship = Gaussian sharp over the hull / Manual = Bokeh at a focus distance, 1 m-3 km, Gaussian on
-  phones) with its blur, bloom (Default = the game's option / Off / Custom with an amount x0..3: a URP Bloom override of
-  the
-  intensity only, so the threshold and scatter stay the game's; anything but Default also holds the original bloom pass back,
+  phones) with its blur (0-500 %, a player's request 2026-11: URP caps its Gaussian radius at 1.5 and its Bokeh at 14 px,
+  both reached at 100 %; past it `Visuals.PhotoBlurPass` (shader `GoF2PostFx/PhotoBlur`, before the post-processing,
+  on the photo camera only) blurs what lies past the focus again at a quarter size, weighted by depth so the sharp ship
+  adds no halo, wider and more rounds up to 500 %), bloom (Default = the game's option / Off / Custom with an amount
+  x0..3: a URP Bloom override of the intensity only, so the threshold and scatter stay the game's; anything but Default also holds the original bloom pass back,
   `Visuals.ClassicBloomPass.Suppressed`, which no volume reaches), the sun's lens flare (Action Freeze only: Default = the
   Graphics option / Off / On, `PhotoSettings.FlareShown` read by `FlightHud`; players' request 2026-10-22: the flare stayed
   over the photos, `.hud-photo` hides the HUD but not the flare's layer), exposure (over `Settings.BrightnessExposure`),

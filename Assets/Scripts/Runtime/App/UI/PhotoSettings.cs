@@ -33,7 +33,8 @@ namespace GoF2Remake.UI
         public static float Speed = 1f;      // the free camera's, x
         public static DofMode Dof;
         public static float Focus = 0.5f;    // 0..1: 1 .. MaxFocusMetres, exponential (FocusMetres)
-        public static float Blur = 0.5f;     // 0..1
+        public static float Blur = 0.5f;     // 0..MaxBlur: 1 = URP's depth of field at its most, past it Visuals.PhotoBlurPass
+        public const float MaxBlur = 5f;
         public static float Exposure;        // EV
         public static float Contrast;        // -50..50
         public static float Saturation;      // -100..100
