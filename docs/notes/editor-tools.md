@@ -66,6 +66,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   Needs the Hub module "Windows Dedicated Server Build Support" (`unity install-modules -e <version> -m windows-server`;
   the Editor found it without a restart). No compile wait: Windows is the Editor's own platform, so it builds at once
   when Windows is active. Not in Docker or the server image (Linux only).
+- **NetcodeBuildFolderGuard** (no menu item, before every build): Netcode's build step deletes
+  `Assets/netcode-build-assets-temp` from the disk alone, so a build right after another (no refresh between) failed to
+  write its script order and the player threw IndexOutOfRangeException in GhostBehaviourTypeManager at startup
+  (2026-11-02, the release's Windows build after the Windows server). The guard refreshes the AssetDatabase first.
 - **GoF2 > Build > Backend Build Profiles** (`BuildProfilesBuilder`): `Assets/Settings/Build Profiles`, a profile per graphics
   backend, copies of the platform's profile with one API as a Player Settings override, and one each for macOS and iOS, Metal
   alone (`platforms.md` "Build times"). Run again after changing the Player Settings (an override is a frozen copy of them) or
