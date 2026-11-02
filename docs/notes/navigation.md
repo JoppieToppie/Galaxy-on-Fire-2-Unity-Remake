@@ -123,3 +123,5 @@ the player ship) and `NavigationView` (flight HUD).
   player route not finished: the autopilot follows the route, "Target: Waypoint"), "Destination: X"; then every named
   docking target (also in the alien orbit). The original's only restriction is no menu in mission type 0xb7 (the
   Supernova Challenge, see "Supernova add-on").
+  Remake: where the menu would be empty (the alien orbit: no docking target there, `Navigation.MenuEmpty`) the autopilot
+  button is dimmed (`nav-button--dim`) and Q / the button don't open it; it still turns a running autopilot off.
