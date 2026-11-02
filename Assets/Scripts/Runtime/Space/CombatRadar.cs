@@ -548,7 +548,9 @@ namespace GoF2Remake.Flight
 
         void Publish()
         {
-            if (nav != null) nav.ShipLockActive = Busy || Salvaging != null;   // Radar+8 / +0x1c
+            if (nav == null) return;
+            nav.ShipLockActive = Busy || Salvaging != null;   // Radar+8 / +0x1c
+            nav.ShipLocked = Locked != null ? Locked.transform : null;   // remake: fast-forward to a ship that holds still
         }
 
         static bool InBox(Camera cam, Vector3 crosshair, float box, Vector3 world, out float dist)

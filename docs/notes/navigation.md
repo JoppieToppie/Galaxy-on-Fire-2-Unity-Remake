@@ -80,6 +80,14 @@ the player ship) and `NavigationView` (flight HUD).
   camera / controller rumble, the boost sound's start and stop; without a booster item 71's boost sound,
   `PlayerEngine.cruiseClip`: a new pilot's Betty has none), while `IsBoosting` (missile evasion, the recharge, volatile
   goods) stays the real boost's.
+  **To a stationary lock** (remake, 2026-11-02, the user's; `Navigation.LockFastForward`): in manual flight too, under the
+  same rules (>= 20000 units from it, no hostiles, not the time extender), with a stationary object locked
+  (`StillLockUnits`): the station, the jumpgate or a waypoint, or a docking target, the locked asteroid (`Mining.Locked`)
+  or the locked ship (`CombatRadar` publishes `Navigation.ShipLocked`) once it has moved under 0.01 units / ms for 500 ms
+  (`Core/StillLock`, so a proxy's jitter passes and a ship on its way doesn't). Not a planet (the backdrop's, never reached:
+  its lock jumps), nor with a cruise drive fitted (the button stays the drive's), mining, docking or a planet run. The
+  touch button shows (`NavigationView`) and the hint row gains "FAST FORWARD (HOLD)" / "CRUISE (HOLD)" (`FlightHud`'s
+  `lastLockFastForward`). No heading check: away from it the distance rule alone holds.
 - **Cruise drive** (remake, `Flight.CruiseDrive` rules + `NavigationCruiseDrive`; a mod item based on the Khador Drive
   with `cruiseSpeed` 133 > 0, `Shop.IsCruiseDrive`, its own one-per-ship kind `Shop.KindOf` = `CruiseDrive.Kind` beside the
   Khador Drive; the ES2 importer's `drives` part, Modding/README.md "Cruise drives"): the fast-forward

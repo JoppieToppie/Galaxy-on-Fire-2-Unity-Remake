@@ -366,7 +366,7 @@ namespace GoF2Remake.UI
             bool visible = touch && nav != null && !nav.Jumping && (miningPhase == Mining.Phase.Idle || approach)
                            && (Session.FreePlay || Session.CampaignMission > 1);
             navButtons.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
-            bool canFf = active && nav.CanFastForward;
+            bool canFf = (active || (nav != null && nav.LockFastForward && !nav.Jumping)) && nav.CanFastForward;   // remake: a stationary lock too
             var ext = nav != null ? nav.Extender : null;
             // Remake: a mounted cruise drive takes the slot in manual flight (NavigationCruiseDrive); the clock keeps it
             // while the extender runs (no drive then); the extender stays on its key and in the quick menu.

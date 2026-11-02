@@ -97,7 +97,7 @@ namespace GoF2Remake.UI
         Label jumpChargeLabel;
         bool lastCloakCharging, lastDriveCharging;
         bool orbitInfoFilled;
-        bool lastAutopilot;
+        bool lastAutopilot, lastLockFastForward;
         VisualElement autopilotMenu, autopilotMenuItems;
         readonly System.Collections.Generic.List<(Button button, Navigation.Target target)> menuButtons = new System.Collections.Generic.List<(Button, Navigation.Target)>();
         int menuIndex, lastMenuMove, menuOpenedFrame;
@@ -716,6 +716,8 @@ namespace GoF2Remake.UI
             if (radar != null && !Navigation.PressesBlocked && GameControls.UnlockTarget.WasPressedThisFrame()) UnlockTarget();
             bool shipLocked = radar != null && radar.Locked != null;
             if (shipLocked != lastShipLocked) { lastShipLocked = shipLocked; BuildHints(InputMode.Current); }
+            bool lockFf = nav != null && !autopilot && nav.CanFastForward;   // remake: fast-forward to a stationary lock (its hint)
+            if (lockFf != lastLockFastForward) { lastLockFastForward = lockFf; BuildHints(InputMode.Current); }
             lockPlate.pickingMode = shipLocked && InputMode.Current == InputKind.Touch ? PickingMode.Position : PickingMode.Ignore;
             float hudShown = level != null ? level.HudShown : 1f;
             root.EnableInClassList("hud-cinematic", (nav != null && nav.Jumping) || (jump != null && jump.Cinematic) || hudShown <= 0f);   // jumps: no HUD

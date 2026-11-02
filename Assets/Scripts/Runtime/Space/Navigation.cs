@@ -17,7 +17,8 @@
 //   MGame+0x160 fast-forward      held button: the whole game runs 5x (Time.timeScale) while the autopilot or an asteroid
 //                                 approach runs and the target is >= 20000 units away; releasing, arriving or the
 //                                 autopilot ending stops it, and hostile ships around block it (Radar+0x54); remake,
-//                                 multiplayer: a cruise mode instead, only the player's ship 5x as fast (Cruise)
+//                                 multiplayer: a cruise mode instead, only the player's ship 5x as fast (Cruise);
+//                                 remake: also by hand toward a stationary locked object (LockFastForward)
 //   Hud::initHudMenu(3) 0x18e080  the autopilot menu (autopilot button while the autopilot is off; the game pauses):
 //                                 549 "Asteroid field" (not in the alien orbit; flies to the field centre and, like the
 //                                 original, keeps going until switched off), "<name> Station" (not in empty orbits),
@@ -303,6 +304,8 @@ namespace GoF2Remake.Flight
         public bool LandmarkLocked => Locked != null && Locked.kind != Kind.Planet && Locked.kind != Kind.Waypoint;
         /// <summary>CombatRadar has a ship / crate candidate this frame or a crate on the tractor beam.</summary>
         [NonSerialized] public bool ShipLockActive;
+        /// <summary>CombatRadar's ship lock this frame, null = none (StillLockUnits).</summary>
+        [NonSerialized] public Transform ShipLocked;
         /// <summary>Radar+0x54: hostile ships around (Traffic): no fast-forward.</summary>
         [NonSerialized] public bool HostilesPresent;
         public bool AboutToReach { get; private set; }
@@ -539,7 +542,8 @@ namespace GoF2Remake.Flight
 
         /// <summary>MGame::OnTouchBegin key 0x100: allowed while the autopilot, an asteroid approach or the approach to an
         /// object's docking point runs (PlayerEgo::isDockingToDockingPoint; the remake left that one out, a player's report at
-        /// 135's mining plant), not within 20000 units of the target, and no hostile ships.</summary>
+        /// 135's mining plant), not within 20000 units of the target, and no hostile ships. Remake: in manual flight too with
+        /// a stationary object locked (LockFastForward).</summary>
         public bool CanFastForward
         {
             get
@@ -549,8 +553,37 @@ namespace GoF2Remake.Flight
                 if (mining != null && mining.Target != null && mining.State == Mining.Phase.Approaching)
                     return (mining.Target.transform.position - ship.transform.position).magnitude / M >= AboutToReachUnits;
                 if (Docking != null && Docking.ApproachDistanceUnits >= AboutToReachUnits) return true;
-                return false;
+                return LockFastForward;
             }
+        }
+
+        /// <summary>Remake (the user's): fast-forward (multiplayer: the cruise) in manual flight toward a stationary locked
+        /// object at least AboutToReachUnits away (StillLockUnits). Not with a cruise drive fitted (the button is the
+        /// drive's there, NavigationCruiseDrive), nor while mining, docking or flying a planet run.</summary>
+        public bool LockFastForward =>
+            Drive == null && stillLockUnits >= AboutToReachUnits && !ArrivalHeld && RunPlanet == null
+            && (mining == null || mining.State == Mining.Phase.Idle) && (Docking == null || !Docking.Busy);
+
+        readonly StillLock stillLock = new StillLock();
+        float stillLockUnits = -1f;
+
+        /// <summary>Game units to the stationary locked object, -1 = none: the station, the jumpgate or a waypoint (fixed
+        /// points), else a docking target, the locked asteroid or the locked ship once it holds still (StillLock). Not a
+        /// planet: the backdrop's, never reached by flying (its lock jumps), nor a mobile station on its way.</summary>
+        float StillLockUnits(float dtMs)
+        {
+            Transform moving = null;
+            var l = Locked;
+            if (l != null && l.kind != Kind.Planet)
+            {
+                if (l.transform == null) { stillLock.Clear(); return (l.Position - ship.transform.position).magnitude / M; }
+                moving = l.transform;
+            }
+            else if (mining != null && mining.Locked != null) moving = mining.Locked.transform;
+            else if (ShipLocked != null) moving = ShipLocked;
+            if (moving == null) { stillLock.Clear(); return -1f; }
+            var p = moving.position;
+            return stillLock.Update(moving, p / M, dtMs) ? (p - ship.transform.position).magnitude / M : -1f;
         }
 
         // ---- per frame -----------------------------------------------------------------------------------------
@@ -576,6 +609,7 @@ namespace GoF2Remake.Flight
             if (Autopilot) AboutToReach = RunPlanet == null && (AutopilotTarget.Position - ship.transform.position).magnitude / M < AboutToReachUnits;
             if (MenuOpen) return;   // paused
             UpdateLock(dtMs);
+            stillLockUnits = StillLockUnits(dtMs);
             UpdateInterstellar();
             UpdatePlanetRun();
             SetFastForward(fastForwardHeld && CanFastForward);
