@@ -289,6 +289,7 @@ namespace GoF2Remake.UI
                 // main menu scene); nextCampaignMission (-> 44) and the station module follow when it is over.
                 Session.Credits += reward;
                 Session.EndingPending = true;
+                Speedrun.Reached(SpeedrunRoute.MainEndingStep);   // remake: the ending ends a main game speedrun
                 BackToMenu();
                 return;
             }

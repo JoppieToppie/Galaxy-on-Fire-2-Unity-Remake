@@ -542,6 +542,33 @@ namespace GoF2Remake.Data
         /// <summary>Remake (#40): the story step at the bottom right (StoryStepLabel), for bug reports; off by default.</summary>
         public static bool ShowStoryStep { get => GetBool("showStoryStep", true); set => SetBool("showStoryStep", value); }
 
+        /// <summary>Remake (players' request): the speedrun timer with splits (Speedrun, SpeedrunOverlay); a new game starts a run.</summary>
+        public static bool SpeedrunTimer { get => GetBool("speedrunTimer", false); set => SetBool("speedrunTimer", value); }
+        /// <summary>Remake: the speedrun splits at every story step instead of the chapters (SpeedrunRoute; from the next run).</summary>
+        public static bool SpeedrunEverySplit { get => GetBool("speedrunSplits", false); set => SetBool("speedrunSplits", value); }
+        /// <summary>Remake: a speedrun runs on through the add-ons to Supernova's end instead of ending with its campaign.</summary>
+        public static bool SpeedrunAllCampaigns { get => GetBool("speedrunLength", false); set => SetBool("speedrunLength", value); }
+        /// <summary>Remake: the speedrun's splits and personal best by the time without loading (LiveSplit's game time), not real time.</summary>
+        public static bool SpeedrunGameTime { get => GetBool("speedrunTiming", false); set => SetBool("speedrunTiming", value); }
+        /// <summary>Remake: what the speedrun's splits compare against (Speedrun.Comparisons' keys: "pb", "best", "last", "none",
+        /// "attempt:&lt;id&gt;", "file:&lt;name&gt;.lss"). Read uncached: the overlay asks twice a second at most.</summary>
+        public static string SpeedrunCompare
+        {
+            get => PlayerPrefs.GetString(Prefix + "speedrunCompare", "pb");
+            set
+            {
+                value = string.IsNullOrEmpty(value) ? "pb" : value;
+                if (value == SpeedrunCompare) return;
+                PlayerPrefs.SetString(Prefix + "speedrunCompare", value);
+                PlayerPrefs.Save();
+                Changed?.Invoke();
+            }
+        }
+        /// <summary>Remake: where the speedrun timer sits (FpsPosition's places), the top left by default.</summary>
+        public static int SpeedrunPosition { get => Mathf.Clamp(Mathf.RoundToInt(Get("speedrunPosition", FpsTopLeft)), FpsTopLeft, FpsBottomRight); set => Set("speedrunPosition", Mathf.Clamp(value, FpsTopLeft, FpsBottomRight)); }
+        /// <summary>Remake (desktop): the speedrun's start, splits and resets also sent to LiveSplit's TCP server (LiveSplitLink).</summary>
+        public static bool SpeedrunLiveSplit { get => GetBool("speedrunLiveSplit", false); set => SetBool("speedrunLiveSplit", value); }
+
         /// <summary>Language code of Localization/text_{code}.json.</summary>
         public static string Language
         {
@@ -581,7 +608,8 @@ namespace GoF2Remake.Data
         {
             "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "cloakBay", "informerOriginalRule",
             "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "smarterNpcTargeting", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
-            "farShipMarkers", "markerDistance",
+            "farShipMarkers", "markerDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
+            "speedrunPosition", "speedrunLiveSplit",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
         public static readonly string[] AccessibilityKeys = { "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers" };

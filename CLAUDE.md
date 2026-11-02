@@ -33,6 +33,7 @@ This file holds only what every task needs. Everything about one area of the gam
 | [ui.md](docs/notes/ui.md) | UI Toolkit, the design document, scaling, accessibility, aspect ratios |
 | [input.md](docs/notes/input.md) | Keyboard, key bindings, controllers, input modes, pause menu, Action Freeze and photo tools, touch controls, hints, cameras, cockpit view, gyro, haptics, mouse steering |
 | [free-flight.md](docs/notes/free-flight.md) | The EVERSPACE 2-style flight option and its key layout |
+| [speedrun.md](docs/notes/speedrun.md) | The speedrun timer, splits, routes, the runs folder (.lss), comparisons, the LiveSplit link |
 | [saves.md](docs/notes/saves.md) | Difficulty, save slots, original-game saves, deleting, export / import, save folder, Hardcore, New Game+ |
 | [options.md](docs/notes/options.md) | Text tables and languages, the story step label, every option, bloom, frame rate, graphics presets, texture quality, upscalers |
 | [platforms.md](docs/notes/platforms.md) | Discord, app icon, Android, iOS, UWP, Vulkan pre-transform, version, update check, hitch logger |

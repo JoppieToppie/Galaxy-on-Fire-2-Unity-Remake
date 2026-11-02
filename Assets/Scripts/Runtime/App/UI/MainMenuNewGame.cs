@@ -353,6 +353,7 @@ namespace GoF2Remake.UI
             // MenuTouchWindow::startGOF2 / startValkyrie / startSupernova: the story's first step (Story).
             string scene = Story.StartCampaign(db, pendingCampaign);
             if (newGamePlus && ngPlusSave != null) NewGamePlus.Apply(ngPlusSave);   // remake: New Game+ carries over
+            Speedrun.NewGame(pendingCampaign, pendingDifficulty, newGamePlus && ngPlusSave != null);   // remake: the speedrun timer's run
             StartCoroutine(Leave(scene));
         }
     }

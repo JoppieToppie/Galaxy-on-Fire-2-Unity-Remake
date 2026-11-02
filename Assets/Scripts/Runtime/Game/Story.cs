@@ -129,6 +129,7 @@ namespace GoF2Remake.Data
         /// <summary>Status::resetGame: index 0, the prologue mission (Mission(4, 0, 78)).</summary>
         public static void StartNewGame(int index = 0)
         {
+            Speedrun.NewGameStarting();   // remake: a speedrun still going ends with any new game
             Session.CampaignMission = index;
             Session.StoryMission = StoryMission.From(StoryTable.Step(index));
             Session.StoryStepStart = Session.PlaySeconds;
@@ -410,6 +411,7 @@ namespace GoF2Remake.Data
                 Session.StoryMission = StoryMission.From(step);
             ApplyStepEffects(db, next, previous);
             CoopCampaign.OnAdvanced(from, next, previous != null && previous.won);   // remake co-op
+            Speedrun.Reached(next);   // remake: the speedrun timer's splits
             return next;
         }
 

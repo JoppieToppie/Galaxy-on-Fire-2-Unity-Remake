@@ -399,6 +399,7 @@ namespace GoF2Remake.UI
                 () => Settings.ShowStoryStep, v => Settings.ShowStoryStep = v);
             storyStep.description = () => X("showStoryStepHelp", "The current story step at the bottom right, for bug reports.");
             list.Add(storyStep);
+            AddSpeedrun(list);
             var dyingCargo = Toggle("dyingCargoMarkers", OptionPage.Gameplay, () => X("dyingCargoMarkers", "Salvage markers on dying ships"),
                 () => Settings.DyingCargoMarkers, v => Settings.DyingCargoMarkers = v);
             dyingCargo.description = () => X("dyingCargoMarkersHelp", "A dying ship with cargo shows container markers before it explodes.");

@@ -91,6 +91,9 @@ namespace GoF2Remake.Tests
             Settings.SoundKeys.Concat(Settings.GraphicsKeys).Concat(Settings.ControlsKeys).Concat(Settings.GameplayKeys).Concat(Settings.AccessibilityKeys)
                 .Concat(new[] { "tiltCalX", "tiltCalZ", "tiltCalibrated" }).Distinct();
 
+        /// <summary>The keys in those groups Settings keeps as text (restored as floats they lost their value).</summary>
+        static readonly HashSet<string> TextKeys = new HashSet<string> { "uiFont", "speedrunCompare" };
+
         /// <summary>Settings' PlayerPrefs read cache (private): emptied after the prefs are written behind its back.</summary>
         public static void ClearSettingsCache()
         {
@@ -107,7 +110,7 @@ namespace GoF2Remake.Tests
 
             public PrefsSnapshot()
             {
-                foreach (var k in SettingFloatKeys) Keep(SettingsPrefix + k, false);
+                foreach (var k in SettingFloatKeys) Keep(SettingsPrefix + k, TextKeys.Contains(k));
                 Keep(SettingsPrefix + "language", true);
                 Keep(SettingsPrefix + "voiceLanguage", true);
                 Keep(ControlsPrefsKey, true);
