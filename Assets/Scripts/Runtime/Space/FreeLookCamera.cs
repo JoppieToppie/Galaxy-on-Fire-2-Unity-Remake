@@ -70,6 +70,10 @@ namespace GoF2Remake.Flight
         /// <summary>FlightHud: the cursor is captured for mouse steering, so in free look plain mouse movement orbits the
         /// camera (remake: the PC version has no mouse free look; the middle button held does the same without it).</summary>
         [NonSerialized] public bool mouseLook;
+        /// <summary>Modified: FlightHud: the pointer is over a HUD control or the hacking puzzle, where a left press is a click,
+        /// not the docked orbit's drag.</summary>
+        [NonSerialized] public Func<bool> pointerOverHud;
+        bool leftDrag;   // Modified: docked at an object, the left button held from off the HUD orbits the camera
 
         /// <summary>'turret' is unused since the turrets are looked up on the player (PlayerTurret.On); kept for the callers.</summary>
         public static FreeLookCamera Attach(GameObject player, ChaseCamera chase, PlayerTurret turret = null)
@@ -312,7 +316,12 @@ namespace GoF2Remake.Flight
             // The mouse's movement, not the cursor's position (that stops at the screen edge and never moves while captured):
             // with the middle button held, or always with the cursor captured for mouse steering (FlightHud, mouseLook).
             var mouse = Mouse.current;
-            if (mouse != null && (mouseLook || mouse.middleButton.isPressed))
+            // Modified: docked at an object (Supernova 91's freighters, the hacking docks) the guns are off, so the left button
+            // drags the orbit like the original's touch drag (the middle button still does); a press on a HUD button or the
+            // hacking puzzle stays a click.
+            if (mouse == null || !mouse.leftButton.isPressed || !ObjectDocking.PlayerDocked) leftDrag = false;
+            else if (mouse.leftButton.wasPressedThisFrame) leftDrag = pointerOverHud == null || !pointerOverHud();
+            if (mouse != null && (mouseLook || mouse.middleButton.isPressed || leftDrag))
             {
                 var d = Settings.MouseMove(mouse.delta.ReadValue()) * scale;
                 delta += new Vector2(d.x, -d.y);
