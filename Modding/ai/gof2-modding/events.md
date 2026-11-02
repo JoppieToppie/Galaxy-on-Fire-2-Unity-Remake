@@ -17,7 +17,8 @@ Expressions (If, While, Wait Until, Set Variable, `{...}` in texts, Starts when,
 == != < <= > >=, and / or / not, random(a, b), min, max, floor, count(<players>), alive(ship name), distance(ship name, x,
 y, z), the state words enemies, ships, players, inspace, docked, dead, time, toppoints, missionstation, and this game's
 campaign, credits, rank, station, system, ship, kills, cargo(item), has(item), visited(station), quest(name),
-option(mod:id), won(main | valkyrie | supernova), systemsvisited.
+option(mod:id), won(main | valkyrie | supernova), systemsvisited, medals(gold | silver | bronze | any | allgold |
+allsupernova), bought(ship).
 
 ## Commands
 
@@ -596,7 +597,8 @@ Flow: no input (starts a flow of its own); out: Next.
 |---|---|---|---|---|
 | option | Description | Text |  | What the event is (written as # lines at the top of the script). |
 | option | Kind | Choice: Event / BarMission / StoryMission |  | Event: started by /event (with a Mission title it is offered as a bar mission, as before). Bar Mission: offered by a Space Lounge visitor (multiplayer squads and single player). Story Mission: single player, like the story: starts by itself when Starts when holds, lasts across saves (Checkpoint), shows its Mission title and objective in the Missions window; Mission Complete finishes it for good, Mission Failed loads the last save. |
-| option | Starts when | Text |  | A story mission: the condition that starts it, checked every second in a game (an expression: "campaign >= 20", "visited(Kepler Prime)", "quest(first_contact) == 2", "credits > 50000"). Empty: at once; "never": only by another graph's Start Mission. |
+| option | Starts when | Text |  | A story mission: the condition that starts it, checked every second in a game (an expression: "campaign >= 20", "visited(Kepler Prime)", "quest(first_contact) == 2", "credits > 50000"). Empty: at once; "never": only by another graph's Start Mission. A bar mission (single player): no bar offers it until it holds. |
+| option | Only once | Yes/No |  | A bar mission (single player): once completed, no bar offers it again in this game (a failed or discarded one is offered again). |
 | option | Comes again after (minutes) | Number |  | A story mission that comes again (an encounter): this many minutes of playing time after it was done, as soon as Starts when holds then (add a chance to it, random(1, 300) == 1, for a random moment). 0: once. |
 | option | Mission title | Text |  | Set it to offer this event as a bar mission: a visitor in the multiplayer Space Lounge offers it, and it runs for the squad that takes it (its selectors, counts, triggers and scoreboard cover only them). Empty: only /event starts it, for everyone. |
 | option | Offer text | Text |  | What the visitor says about the job. |
@@ -856,6 +858,7 @@ leading `/`, the dedicated server's console without it. `[players]` is a player'
 | /standing | [players] <race> <amount> [set] | admins: moves the standing toward a race, a mod's too (set: to the amount) |
 | /spawn | [players] <ship / object / wreck> [race] [count] [enemy / friendly / neutral / standing] [turrets <item,item>] [named <name>] [at x y z] | admins: NPC ships or an object, ahead or at x y z (enemy by default; named: a HUD name) |
 | /ship | [players] <ship / own> | admins: flies any ship of the debug Ships tab (its number or name; own = back) |
+| /lend | [players] <ship [keep] / back> | admins: a loaner, the own ship parked (keep: its items move over; back = the own ship again) |
 | /ammo | [players] | admins: every mounted secondary to 50 |
 | /reveal | [players] | admins: every system on the star map |
 | /system | [players] <system> <show / hide / reset> | admins: shows or hides a system on their star map until reset |

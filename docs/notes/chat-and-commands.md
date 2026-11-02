@@ -102,7 +102,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   (`Navigation.Kind.Marker` on the model's centre: bracket, name and distance near the crosshair like a landmark, never a
   lock candidate; local to that player's game); the event graph's Spawn node has a Name port for it, empty = none, old
   graphs without the port compile as before), `/ship [players] <ship | own>` (`PlayerHull.Fly` / `Restore`: any
-  hull of the debug Ships tab, docked only ownable ones), `/ammo`, `/reveal`, `/peace [players]`, `/cheat [players] <god | ammo |
+  hull of the debug Ships tab, docked only ownable ones), `/lend [players] <ship> [keep] | back` (remake mods, 2026-11-02:
+  an event's loaner, the own ship parked, given back when the graph ends; docs/notes/mods.md), `/ammo`, `/reveal`, `/peace [players]`, `/cheat [players] <god | ammo |
   cooldown | primary | equipment | onehit | locks | shopping | jumps> [on | off]` (`Cheats.Grant`: that player's flag for the session, not
   saved, whatever the session allows), `/mute <players> [minutes]` / `/unmute` (the server drops their chat and whispers;
   never the host's player, only the host / console mutes an admin), `/title [players] <text> [| subtitle] [for <seconds>]`

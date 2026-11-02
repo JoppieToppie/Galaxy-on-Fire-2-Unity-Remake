@@ -3171,5 +3171,13 @@
  "plantWastePerTon": "{0} pro Tonne. Was noch brauchbar ist, gehört dir.",
  "plantWasteNoneHeld": "Kein Weltraumschrott im Laderaum.",
  "plantWasteAll": "alles für {0}",
- "plantWastePart": "{0} t für {1}"
+ "plantWastePart": "{0} t für {1}",
+ "mbOnlyOnce": "Nur einmal: keine Bar bietet ihn nach dem Abschluss erneut an",
+ "mpAdmLend": "{0} erhält die {1} als Leihschiff.",
+ "mpAdmLendBack": "{0} bekommt das eigene Schiff zurück.",
+ "mpAdmLendNoShip": "Die {0} kann nicht verliehen werden: kein Pilot kann sie besitzen.",
+ "mpAdmLendBusy": "Du fliegst schon ein Leihschiff.",
+ "mpAdmLendYou": "Du fliegst die {0} als Leihschiff.",
+ "mpAdmLendBackYou": "Dein eigenes Schiff ist zurück.",
+ "mpCmdLend": "Admins: ein Leihschiff, das eigene Schiff wird geparkt (keep: seine Ausrüstung kommt mit; back = wieder das eigene Schiff)"
 }

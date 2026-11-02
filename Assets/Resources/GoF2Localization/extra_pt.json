@@ -3171,5 +3171,13 @@
  "plantWastePerTon": "{0} por tonelada. O que ainda puder ser usado é seu.",
  "plantWasteNoneHeld": "Nenhum lixo espacial no porão de carga.",
  "plantWasteAll": "tudo por {0}",
- "plantWastePart": "{0} t por {1}"
+ "plantWastePart": "{0} t por {1}",
+ "mbOnlyOnce": "Só uma vez: nenhum bar a oferece de novo depois de concluída",
+ "mpAdmLend": "{0} recebe a {1} emprestada.",
+ "mpAdmLendBack": "{0} recebe a própria nave de volta.",
+ "mpAdmLendNoShip": "A {0} não pode ser emprestada: nenhum piloto pode tê-la.",
+ "mpAdmLendBusy": "Você já pilota uma nave emprestada.",
+ "mpAdmLendYou": "Você pilota a {0} emprestada.",
+ "mpAdmLendBackYou": "Sua própria nave voltou.",
+ "mpCmdLend": "admins: uma nave emprestada, a própria estacionada (keep: o equipamento passa para ela; back = a própria de novo)"
 }

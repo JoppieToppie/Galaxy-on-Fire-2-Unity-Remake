@@ -97,6 +97,31 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   4-beam tractor based on 69 and a booster based on 73, at Dis): four blue beams at once on four crates, six crates in, the
   one past the range left; the booster's sound index 2 (73's); a quest's `wreck` spawned "Hulk", its `on hacked` paid and
   showed "Hacked Hulk" after the hack (`HackWon` invoked; the hacking game itself not played). Not tested in multiplayer.
+- **A modder's requests, 2026-11-02** (Modding/README.md "Conditions", "Loaner ships", "Multi-grab tractor beams"):
+  **Conditions** `medals(gold | silver | bronze | any)` (counts over `Session.Medals`), `medals(allgold | allsupernova)`
+  (`Achievements.GotAllGoldMedals` / `GotAllSupernovaMedals`) and `bought(ship)` (`EventRunner.GameState`; ship by
+  `NetAdmin.FindShip`): `Session.ShipsBought`, refs "12" / "mod:id" (`Session.ShipRef`, so no renumbering fix-up), saved
+  (`SaveData.shipsBought`), added by `Hangar.SwitchTo` for every caller but a stored Kaamo hull (dealer, lounge seller,
+  Keep, a blueprint's ship); ships bought before 2026-11-02 don't count. **Thynome with every gold medal**: the VoidX first
+  in the dealer's usual roll (`Shop.GenerateShips`, `Story.OnDocked` inserts it) where `getShipBuyList` gives it alone, so
+  Thynome's other ships and the mods' `dealer` ships stay. **Bar missions** (single player, `EventMissions.Startable` in
+  `Offers` and `AcceptLocal`): "mission starts" (the Start node's Starts when, `never` = no bar) and "mission once"
+  (`MissionInfo.once`; the Start node's Only once, a .gof2mission's `"once": true`; `GraphQuestState.once` carries the name
+  through a chain, `CompleteMission` adds it to `GraphQuestsDone`, so `quest(name)` reads 2); a session's bars ignore both.
+  **Event loaners**: `/lend [players] <ship> [keep] | back` (`NetAdmin.Lend`, `Order.Lend` 37; only `PlayerHull` ships
+  with `playerShip`, no `traffic.capital`), the quest step `lend`: `Story.LendForEvent` parks the own ship as the story's
+  loaners (`ParkedShip.lentBy` = the graph, `lentKeep`), a fresh hull or with keep the player's items; the run notes it
+  (`EventRunner.NoteLoaner`, `eventLoaner`) and `End` sends `Lend -1` (single player also when the loaner is the graph's
+  but the run restarted from a checkpoint); `Story.CheckEventLoaner` on load gives it back without the run under way;
+  `HangarUnlocked` false in free play too for an event's loaner. In flight `SpaceLevel.SwapPlayerShip` (the pools keep
+  their share), docked `StationLevel.ReplacePlayerShip`. **Tractor beams**: items.json `tractorColor` (attr 136 = 0x1000000
+  | rgb, `ModContent.TractorColorValue`) tints every beam (`ModWeapons.Tint`: the grey texture copy and `_Color`, as a fx
+  part's `color`); stats `tractorNoLock` 137: no crate candidates in `CombatRadar.Update`, the extra-beam picking runs with
+  one beam too; a steal still locks the EMP'd ship at attr 24 (the modder's 1-hour lock time had stopped steals). Tests
+  `EventExpressionTests`, `EventBarMissionOfferTests`, `EventLoanerTests`, `HangarShipTests`, `ModEquipmentLookTests`,
+  `ShopStockTests`, `StoryRulesTests`; Play mode `ModderRequestsFlightTests` (an npcships.json capital on the battleship's
+  hull with three hardpoints: three turret parts, one destroyed alone, the rest gone with the hull, its escorts; a loaner
+  swapped in flight and back; the beam's materials tinted). Not tested in multiplayer.
 - **Built-in equipment and a steady engine glow** (remake, a modder's requests, 2026-10-16): ships.json `integrated` (new
   ships and overrides; `ModContent.ApplyIntegrated`): `khadorDrive` true / false (`Database.IntegratedDrives`, defaults
   37 / 38 / 40, `Ship::hasJumpDriveIntegrated`; read by `GalaxyMap.HasIntegratedDrive` through `Database.Shared`) and
@@ -364,8 +389,10 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   `UnitPrice(db, item, store)`. `CapitalShip`: missiles only while `NpcShipType.Missiles`, launches from pads else the
   hull's top. A freighter's `speed` (`NpcShip` freighter path, `UpdateOrder`'s own). `ProxySpec` bit 25 carries the
   type's key (a handed-over ship keeps its rules). Debug page (Spawn): "Mod NPC ship" + "Spawn mod NPC ship"
-  (`DebugSpawner.SpawnNpcType`). The ships.json `traffic.capital` ships stay as they were. Tests `ModNpcShipsTests`. Not
-  yet seen in Play mode; not tested in multiplayer (docking at one runs only in the authority's game, as the carrier's).
+  (`DebugSpawner.SpawnNpcType`). The ships.json `traffic.capital` ships stay as they were. Tests `ModNpcShipsTests`; Play
+  mode `ModderRequestsFlightTests` (2026-11-02: a capital type's hardpoints as separate turret parts, its escorts); its
+  docking, shop and launches not yet seen in Play mode; not tested in multiplayer (docking at one runs only in the
+  authority's game, as the carrier's).
 - **Turrets don't fire through their own ship** (remake, 2026-10-24, the user's request, for every turret):
   `TurretCore.Host` (the ship it sits on: NpcShip's turret objects their capital host (`Spec.capitalHost`) or the ship
   they ride on, `NpcMountedTurrets` / `PlayerTurret` their ship) and `TurretCore.Fire` checks, once the gun is ready, a

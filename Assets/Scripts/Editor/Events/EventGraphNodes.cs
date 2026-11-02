@@ -82,7 +82,7 @@ namespace GoF2Remake.EditorTools
         public const string Description = "Description", MissionTitle = "MissionTitle", MissionOffer = "MissionOffer",
             MissionClient = "MissionClient", MissionReward = "MissionReward", MissionStations = "MissionStations",
             MinPlayers = "MinPlayers", MaxPlayers = "MaxPlayers", Kind = "Kind", StartsWhen = "StartsWhen", MissionChance = "MissionChance",
-            MissionTakers = "MissionTakers", RepeatMinutes = "RepeatMinutes";
+            MissionTakers = "MissionTakers", RepeatMinutes = "RepeatMinutes", OnlyOnce = "OnlyOnce";
         protected override bool HasIn => false;
 
         protected override void OnDefineOptions(IOptionDefinitionContext context)
@@ -95,7 +95,10 @@ namespace GoF2Remake.EditorTools
                 "Missions window; Mission Complete finishes it for good, Mission Failed loads the last save.").Build();
             context.AddOption<string>(StartsWhen).WithDisplayName("Starts when").WithTooltip("A story mission: the condition that starts it, checked " +
                 "every second in a game (an expression: \"campaign >= 20\", \"visited(Kepler Prime)\", \"quest(first_contact) == 2\", " +
-                "\"credits > 50000\"). Empty: at once; \"never\": only by another graph's Start Mission.").Delayed().Build();
+                "\"credits > 50000\"). Empty: at once; \"never\": only by another graph's Start Mission. A bar mission (single player): " +
+                "no bar offers it until it holds.").Delayed().Build();
+            context.AddOption<bool>(OnlyOnce).WithDisplayName("Only once").WithTooltip("A bar mission (single player): once completed, " +
+                "no bar offers it again in this game (a failed or discarded one is offered again).").Build();
             context.AddOption<float>(RepeatMinutes).WithDisplayName("Comes again after (minutes)").WithTooltip("A story mission that " +
                 "comes again (an encounter): this many minutes of playing time after it was done, as soon as Starts when holds then " +
                 "(add a chance to it, random(1, 300) == 1, for a random moment). 0: once.").Delayed().Build();

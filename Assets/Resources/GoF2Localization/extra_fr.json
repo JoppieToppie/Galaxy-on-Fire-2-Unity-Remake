@@ -3171,5 +3171,13 @@
  "plantWastePerTon": "{0} la tonne. Ce qui peut encore servir est à vous.",
  "plantWasteNoneHeld": "Aucun déchet spatial dans votre cale.",
  "plantWasteAll": "le tout pour {0}",
- "plantWastePart": "{0} t pour {1}"
+ "plantWastePart": "{0} t pour {1}",
+ "mbOnlyOnce": "Une seule fois : aucun bar ne la propose plus une fois accomplie",
+ "mpAdmLend": "{0} reçoit le {1} en prêt.",
+ "mpAdmLendBack": "{0} récupère son propre vaisseau.",
+ "mpAdmLendNoShip": "Le {0} ne peut pas être prêté : aucun pilote ne peut le posséder.",
+ "mpAdmLendBusy": "Tu pilotes déjà un vaisseau prêté.",
+ "mpAdmLendYou": "Tu pilotes le {0} en prêt.",
+ "mpAdmLendBackYou": "Ton propre vaisseau est de retour.",
+ "mpCmdLend": "admins : un vaisseau prêté, le sien garé (keep : son équipement passe dessus ; back = le sien à nouveau)"
 }

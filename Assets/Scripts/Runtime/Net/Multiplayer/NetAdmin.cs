@@ -80,7 +80,7 @@ namespace GoF2Remake.Multiplayer
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static partial class NetAdmin
     {
-        public enum Order : byte { Kill = 1, Heal = 2, Give = 3, Credits = 4, Spawn = 5, Ship = 6, Ammo = 7, Reveal = 8, Peace = 9, Cheat = 10, Object = 11, Title = 12, Timer = 13, Dialog = 14, Reward = 15, Scoreboard = 16, Sound = 17, Music = 18, Respawn = 19, Rules = 20, Ask = 21, Provoke = 22, Radio = 23, Waypoint = 24, Cutscene = 25, Camera = 26, Fade = 27, Letterbox = 28, Npc = 29, Flight = 30, Wreck = 31, System = 32, Wormhole = 33, Standing = 34, Take = 35, NpcType = 36 }
+        public enum Order : byte { Kill = 1, Heal = 2, Give = 3, Credits = 4, Spawn = 5, Ship = 6, Ammo = 7, Reveal = 8, Peace = 9, Cheat = 10, Object = 11, Title = 12, Timer = 13, Dialog = 14, Reward = 15, Scoreboard = 16, Sound = 17, Music = 18, Respawn = 19, Rules = 20, Ask = 21, Provoke = 22, Radio = 23, Waypoint = 24, Cutscene = 25, Camera = 26, Fade = 27, Letterbox = 28, Npc = 29, Flight = 30, Wreck = 31, System = 32, Wormhole = 33, Standing = 34, Take = 35, NpcType = 36, Lend = 37 }
 
         const int MaxGive = 1000, MaxSpawn = 10, MaxCredits = 999999999;
         /// <summary>A /spawn name's length, and its separator in the order's text (taken out of names).</summary>
@@ -195,6 +195,23 @@ namespace GoF2Remake.Multiplayer
                     var hull = PlayerHull.Offered(NetGame.Db).Find(h => h.key == text);
                     if (hull != null) Notice(by, PlayerHull.Fly(hull, level, docked));
                     break;
+                case Order.Lend:
+                {
+                    // a: the ship (-1: the own one back), b: 1 = keep (the player's items move over), text: the graph that
+                    // lends it ("": typed in the chat). Then the flown ship rebuilt where the player is.
+                    bool done = a < 0 ? Story.ReturnEventLoaner(string.IsNullOrEmpty(text) ? null : text)
+                              : NetGame.Db.Ship(a) != null && Story.LendForEvent(a, string.IsNullOrEmpty(text) ? "/lend" : text, b == 1);
+                    if (!done)
+                    {
+                        if (a >= 0) Notice(by, X("mpAdmLendBusy", "You already fly a loaner."));
+                        break;
+                    }
+                    if (level != null && level.Player != null) level.SwapPlayerShip(Session.ShipIndex);
+                    else docked?.ReplacePlayerShip(Session.ShipIndex);
+                    NetChat.Notice(a < 0 ? X("mpAdmLendBackYou", "Your own ship is back.")
+                                         : string.Format(X("mpAdmLendYou", "You fly the {0} on loan."), DebugSpawner.ShipName(NetGame.Db, a)));
+                    break;
+                }
                 case Order.Ammo:
                     Cheats.RefillAmmo(NetGame.Db);
                     NetChat.Notice(string.Format(X("mpAdmAmmoYou", "{0} refilled your secondaries."), by));

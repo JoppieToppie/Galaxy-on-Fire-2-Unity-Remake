@@ -28,7 +28,11 @@
     },
     "startsWhen": {
       "type": "string",
-      "description": "a story mission's start: \"\" at once, \"never\" only by a startquest step, else a condition (visited(78), quest(other) == 2, campaign >= 20...)"
+      "description": "a story mission's start: \"\" at once, \"never\" only by a startquest step, else a condition (visited(78), quest(other) == 2, campaign >= 20...); a bar mission (single player): no bar offers it until it holds"
+    },
+    "once": {
+      "type": "boolean",
+      "description": "a bar mission (single player): once completed, no bar offers it again in this game (quest(name) then reads 2)"
     },
     "reward": {
       "type": "integer",
@@ -585,11 +589,12 @@
                 "near",
                 "respawned",
                 "hacked",
+                "pad",
                 "joined",
                 "left",
                 "pvpkill"
               ],
-              "description": "When: died = The player is destroyed, docked = The player docks, launched = The player launches, kill = A spawned ship is destroyed, cleared = Every spawned enemy is gone, entered = The player enters an orbit, near = The player gets near a point, respawned = The player respawns, hacked = The player hacks a wreck, joined = A player joins, left = A player leaves, pvpkill = A player destroys another",
+              "description": "When: died = The player is destroyed, docked = The player docks, launched = The player launches, kill = A spawned ship is destroyed, cleared = Every spawned enemy is gone, entered = The player enters an orbit, near = The player gets near a point, respawned = The player respawns, hacked = The player hacks a wreck, pad = The player docks at a station's pad outside, joined = A player joins, left = A player leaves, pvpkill = A player destroys another",
               "default": "died"
             },
             "station": {
@@ -1237,7 +1242,7 @@
         {
           "type": "object",
           "title": "Restrict travel",
-          "description": "No jumps, no docking, or both",
+          "description": "No jumps, no docking, both, or only no Khador Drive",
           "properties": {
             "type": {
               "const": "restrict"
@@ -1253,9 +1258,10 @@
                 "jumps",
                 "docking",
                 "all",
+                "khador",
                 "off"
               ],
-              "description": "Refuse: jumps = Jumps, docking = Docking, all = Both, off = Nothing (lift it)",
+              "description": "Refuse: jumps = Jumps, docking = Docking, all = Both, khador = The Khador Drive only, off = Nothing (lift it)",
               "default": "jumps"
             },
             "pos": {
@@ -1536,6 +1542,71 @@
             "turrets": {
               "$ref": "#/$defs/text",
               "description": "Turret items (numbers, a comma between)"
+            },
+            "hull": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ],
+                  "description": "Hull x (empty: as usual; 2 = twice as tough); a number, or an expression as a string"
+                },
+                {
+                  "$ref": "#/$defs/wire"
+                }
+              ],
+              "description": "Hull x (empty: as usual; 2 = twice as tough); a number, or an expression as a string"
+            },
+            "guns": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ],
+                  "description": "Gun damage x (empty: as usual); a number, or an expression as a string"
+                },
+                {
+                  "$ref": "#/$defs/wire"
+                }
+              ],
+              "description": "Gun damage x (empty: as usual); a number, or an expression as a string"
+            },
+            "pos": {
+              "type": "array",
+              "description": "the node's place in the builder's graph view [x, y] (optional)"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "title": "Spawn an NPC ship type",
+          "description": "A capital ship, freighter or boss of the NPC ships kind (the pirate boss too), with its own hull, guns and escorts",
+          "properties": {
+            "type": {
+              "const": "spawntype"
+            },
+            "who": {
+              "$ref": "#/$defs/who",
+              "description": "For",
+              "default": "@a"
+            },
+            "npc": {
+              "type": "string",
+              "description": "NPC ship type: battleship, carrier, vossk_battleship, freighter, pirate_boss, or a mod's NPC ship key \"mod_id:id\"",
+              "default": "pirate_boss"
+            },
+            "name": {
+              "$ref": "#/$defs/text",
+              "description": "Its name (on the lock plate; the orders use it)"
+            },
+            "at": {
+              "type": "string",
+              "description": "At (x y z in the orbit; empty: 3.5 km ahead of the player); \"x y z\" in game units (20 = 1 m)"
             },
             "pos": {
               "type": "array",
@@ -2047,8 +2118,58 @@
         },
         {
           "type": "object",
+          "title": "Take an item",
+          "description": "Out of the hold (a hand-in), or off the ship too",
+          "properties": {
+            "type": {
+              "const": "take"
+            },
+            "who": {
+              "$ref": "#/$defs/who",
+              "description": "For",
+              "default": "@a"
+            },
+            "item": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "description": "Item; the game's number, its name, or a key \"mod_id:id\"",
+              "default": 22
+            },
+            "amount": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ],
+                  "description": "Amount (empty: all of them); a number, or an expression as a string"
+                },
+                {
+                  "$ref": "#/$defs/wire"
+                }
+              ],
+              "description": "Amount (empty: all of them); a number, or an expression as a string"
+            },
+            "mounted": {
+              "type": "boolean",
+              "description": "Mounted ones too (a Khador Drive, a gun...)",
+              "default": false
+            },
+            "pos": {
+              "type": "array",
+              "description": "the node's place in the builder's graph view [x, y] (optional)"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
           "title": "Bring cargo",
-          "description": "Waits until the hold has it",
+          "description": "Waits until the hold has it; handed in, it is taken",
           "properties": {
             "type": {
               "const": "cargo"
@@ -2074,6 +2195,10 @@
             "objective": {
               "$ref": "#/$defs/text",
               "description": "the objective meanwhile (optional)"
+            },
+            "take": {
+              "type": "boolean",
+              "description": "handed in: taken from the hold once there"
             },
             "pos": {
               "type": "array",
@@ -2146,6 +2271,45 @@
                 "string"
               ],
               "description": "Ship; the game's number, its name, or a key \"mod_id:id\""
+            },
+            "pos": {
+              "type": "array",
+              "description": "the node's place in the builder's graph view [x, y] (optional)"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "title": "Lend a ship",
+          "description": "The own ship parked, a loaner flown until the mission ends",
+          "properties": {
+            "type": {
+              "const": "lend"
+            },
+            "who": {
+              "$ref": "#/$defs/who",
+              "description": "For",
+              "default": "@a"
+            },
+            "back": {
+              "type": "boolean",
+              "description": "Their own ship back now",
+              "default": false
+            },
+            "hull": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "description": "Ship; the game's number, its name, or a key \"mod_id:id\""
+            },
+            "keep": {
+              "type": "boolean",
+              "description": "Their equipment and cargo move over",
+              "default": false
             },
             "pos": {
               "type": "array",

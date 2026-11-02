@@ -486,6 +486,16 @@ namespace GoF2Remake.Events
                 if (s.Length == 0) { r.Problem("pick the ship."); return null; }
                 return QuestReader.Join("ship", r.Who, s);
             }, Who(), F("own", QuestFieldKind.Bool, "Their own ship again", false), When(F("hull", QuestFieldKind.Ship, "Ship"), "own", "False", "false", "")),
+            // Remake: /lend (NetAdmin.Lend), a trial mission's loaner like the Valkyrie's S'Kanarr: given back when the mission ends
+            Plain("lend", "player", "Lend a ship", "The own ship parked, a loaner flown until the mission ends", r =>
+            {
+                if (r.B("back")) return QuestReader.Join("lend", r.Who, "back");
+                string s = r.Ref("hull");
+                if (s.Length == 0) { r.Problem("pick the ship."); return null; }
+                return QuestReader.Join("lend", r.Who, s, r.B("keep") ? "keep" : "");
+            }, Who(), F("back", QuestFieldKind.Bool, "Their own ship back now", false),
+               When(F("hull", QuestFieldKind.Ship, "Ship"), "back", "False", "false", ""),
+               When(F("keep", QuestFieldKind.Bool, "Their equipment and cargo move over", false), "back", "False", "false", "")),
             Plain("heal", "player", "Repair", "Hull, shield and armor full", r => QuestReader.Join("heal", r.Who), Who()),
             Plain("ammo", "player", "Refill ammo", "Every secondary to 50", r => QuestReader.Join("ammo", r.Who), Who()),
             Plain("kill", "player", "Destroy the ship", "The player's ship is destroyed", r => QuestReader.Join("kill", r.Who), Who()),

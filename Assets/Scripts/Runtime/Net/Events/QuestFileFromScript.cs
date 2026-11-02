@@ -83,6 +83,7 @@ namespace GoF2Remake.Events
                             case "title": o["title"] = v; titled = true; break;
                             case "kind": kind = v.ToLowerInvariant() == "quest" ? "quest" : v.ToLowerInvariant() == "mission" ? "mission" : "event"; break;
                             case "starts": o["startsWhen"] = v; break;
+                            case "once": o["once"] = true; break;
                             case "repeat":
                                 if (double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out double rp)) o["repeat"] = rp;
                                 break;

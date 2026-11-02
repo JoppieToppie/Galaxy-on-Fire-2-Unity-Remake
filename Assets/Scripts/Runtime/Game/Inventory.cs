@@ -102,6 +102,8 @@ namespace GoF2Remake.Data
         public List<int> mods = new List<int>();
         public int hull = -1, armor = -1;
         public float shield = -1f;
+        public string lentBy = "";   // remake mods: the event graph whose "lend" step lent the loaner ("": the story)
+        public bool lentKeep;        // ... with "keep": the items aboard the loaner are the player's and go back with this ship
     }
 
     [Serializable]

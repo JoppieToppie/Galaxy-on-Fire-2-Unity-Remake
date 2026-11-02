@@ -71,6 +71,9 @@ namespace GoF2Remake.Events
                         if (eventWormhole) EventHost.Send(p.OwnerClientId, NetAdmin.Order.Wormhole, 0, 0, 0, "close", "Server");
                         if (eventCutscene) EventHost.Send(p.OwnerClientId, NetAdmin.Order.Cutscene, 0, 0, 0, "end", "Server");
                         if (eventFade) EventHost.Send(p.OwnerClientId, NetAdmin.Order.Fade, 0, 0, 0, "clear", "Server");
+                        // (single player: a run started again from a save's checkpoint lent it before that checkpoint)
+                        if (eventLoaner || (EventHost.Local && Session.ParkedShip != null && Session.ParkedShip.lentBy == running))
+                            EventHost.Send(p.OwnerClientId, NetAdmin.Order.Lend, -1, 0, 0, running, "Server");
                     }
                     if (eventPvp) EventHost.SetFreeForAll(false);
                 }
@@ -225,6 +228,7 @@ namespace GoF2Remake.Events
                 {
                     Session.GraphQuests.Remove(record);
                     if (record.kind == GraphQuestState.KindQuest) QuestDone(running, info);
+                    else if (!string.IsNullOrEmpty(record.once)) Session.GraphQuestsDone.Add(record.once);   // "Only once": never offered again
                     record = null;
                 }
                 End();

@@ -351,6 +351,13 @@ namespace GoF2Remake.Data
         /// <summary>Galaxy::getVisited: stations the player has docked at (the star map's "Already visited" tick).</summary>
         public static HashSet<int> VisitedStations = new HashSet<int> { 78 };
 
+        /// <summary>Remake mods (the conditions' bought(ship)): the ships the player has bought or built in this game, by
+        /// reference ("12", a mod's "mod:id": the same whatever number the mod's ship has now). Saved.</summary>
+        public static HashSet<string> ShipsBought = new HashSet<string>();
+
+        /// <summary>A ship's reference in ShipsBought.</summary>
+        public static string ShipRef(int ship) => Modding.ModContent.ShipKey(ship) ?? ship.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
         /// <summary>Level::programmedStation: the destination picked on the star map, -1 = none. The autopilot routes to it
         /// after the launch / arrival camera (LevelScript::setAutoPilotToProgrammedStation).</summary>
         public static int ProgrammedStation = -1;
@@ -571,6 +578,7 @@ namespace GoF2Remake.Data
             SystemVisible = null;
             SystemShown = new Dictionary<int, bool>();
             VisitedStations = new HashSet<int> { 78 };
+            ShipsBought = new HashSet<string>();
             ProgrammedStation = -1;
             RouteDestination = -1;
             RouteSafest = false;

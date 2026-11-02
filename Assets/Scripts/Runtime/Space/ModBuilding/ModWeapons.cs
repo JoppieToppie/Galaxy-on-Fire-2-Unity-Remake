@@ -110,7 +110,7 @@ namespace GoF2Remake.Modding
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
-            made.Clear(); effectsMade.Clear(); owned.Clear(); imports.Clear(); greyed.Clear(); recolorBlit = null;
+            made.Clear(); effectsMade.Clear(); owned.Clear(); imports.Clear(); greyed.Clear(); tints.Clear(); recolorBlit = null;
             File = ModContent.ItemsFile;
             holder = null; agent = null; quad = null; loadingRevision = loadedRevision = -1; Count = Done = 0;
         }
@@ -450,6 +450,7 @@ namespace GoF2Remake.Modding
             foreach (var o in owned) if (o != null) Object.Destroy(o);
             owned.Clear();
             greyed.Clear();
+            tints.Clear();
             made.Clear();
             effectsMade.Clear();
             foreach (var i in imports) i.Dispose();
@@ -883,6 +884,35 @@ namespace GoF2Remake.Modding
                 r.sharedMaterials = mats;
             }
             return copy;
+        }
+
+        static readonly Dictionary<(Material, Color), Material> tints = new Dictionary<(Material, Color), Material>();
+
+        /// <summary>Remake mods (items.json "tractorColor", Flight.CombatRadar): an effect object's effect materials tinted
+        /// like a weapon fx part's "color", in place: the grey copy of the texture, _Color the colour with the material's
+        /// own opacity. The copies are kept per material and colour until the mods load again.</summary>
+        public static void Tint(GameObject go, Color color)
+        {
+            if (go == null) return;
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    var m = mats[i];
+                    if (m == null || !IsEffect(m)) continue;
+                    if (!tints.TryGetValue((m, color), out var tinted) || tinted == null)
+                    {
+                        tinted = new Material(m) { name = m.name + " (tinted)" };
+                        if (m.mainTexture != null) tinted.mainTexture = Grey(m.mainTexture);
+                        tinted.SetColor("_Color", new Color(color.r, color.g, color.b, m.GetColor("_Color").a));
+                        owned.Add(tinted);
+                        tints[(m, color)] = tinted;
+                    }
+                    mats[i] = tinted;
+                }
+                r.sharedMaterials = mats;
+            }
         }
 
         static bool IsEffect(Material m) =>

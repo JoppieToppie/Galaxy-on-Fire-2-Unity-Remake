@@ -3,7 +3,8 @@
 // based on an original sounds and looks like it. The boost sound goes by the booster's look (PlayerEgo::PlayerEgo +0xd4:
 // boosters 71-74 -> sounds 0-3 = events 38-41, 195 -> 4 = 1102; any other booster like 71); a mod booster based on 73
 // sounds like 73 (it was silent). A tractor beam's "tractorTargets" (attr 122) is how many crates it pulls at once
-// (1..8, 1 without it), "tractorRange" (attr 123) how far its extra beams reach. A weapon's "shieldDamage" (attr 124) is its
+// (1..8, 1 without it), "tractorRange" (attr 123) how far its extra beams reach; "tractorColor" (attr 136) tints its beams and
+// "tractorNoLock" (attr 137) keeps the scanner off crates (a modder's request, 2026-11-02). A weapon's "shieldDamage" (attr 124) is its
 // damage to a shield in percent; the Disruptor Laser (183) and items based on it 200 (remake, its description; a players'
 // request 2026-10-16), the NPCs' generic guns 100.
 // Expected values: the original's table (PlayerEngine's header), the remake-only attribute numbers (ItemStats).
@@ -22,6 +23,8 @@ namespace GoF2Remake.Tests
             WriteMod("eq", "t_eq", "1.0", "", ("items.json", @"[
                 { 'id': 'boost', 'base': 73, 'name': 'Boost' },
                 { 'id': 'pull', 'base': 69, 'name': 'Pull', 'stats': { 'tractorTargets': 4, 'tractorRange': 50000 } },
+                { 'id': 'tint', 'base': 68, 'name': 'Tint', 'tractorColor': '#ff8000', 'stats': { 'tractorNoLock': 1 } },
+                { 'id': 'tint2', 'base': 68, 'name': 'Tint 2', 'tractorColor': [0, 128, 255] },
                 { 'id': 'many', 'base': 68, 'name': 'Many', 'stats': { 'tractorTargets': 99 } },
                 { 'id': 'void', 'base': 183, 'name': 'Void Disruptor', 'fx': { 'projectile': { 'item': 5 }, 'muzzle': { 'item': 5 }, 'impact': { 'item': 5 } } },
                 { 'id': 'soft', 'base': 0, 'name': 'Soft', 'stats': { 'shieldDamage': 50 } },
@@ -64,6 +67,23 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(50000, pull.Attr(CombatRadar.TractorRangeAttr));
             Assert.AreEqual(69, pull.Look, "its beam is the base's");
             Assert.AreEqual(CombatRadar.MaxTractorTargets, CombatRadar.TractorTargets(db.Item(ModContent.ItemIndexOf("t_eq:many"))), "at most 8");
+        }
+
+        [Test]
+        public void TractorColorAndNoLock()
+        {
+            // items.json "tractorColor" (attr 136 = 0x1000000 | rgb), stats "tractorNoLock" (attr 137).
+            var db = ModOn();
+            Assert.AreEqual(CombatRadar.TractorNoLockAttr, ItemStats.IdOf("tractorNoLock"));
+            Assert.IsNull(CombatRadar.BeamColor(db.Item(68)), "the original's beam keeps its colours");
+            Assert.IsNull(CombatRadar.BeamColor(null));
+            var tint = db.Item(ModContent.ItemIndexOf("t_eq:tint"));
+            Assert.AreEqual(new UnityEngine.Color(1f, 128f / 255f, 0f, 1f), CombatRadar.BeamColor(tint));
+            Assert.AreEqual(1, tint.Attr(CombatRadar.TractorNoLockAttr));
+            Assert.AreEqual(new UnityEngine.Color(0f, 128f / 255f, 1f, 1f), CombatRadar.BeamColor(db.Item(ModContent.ItemIndexOf("t_eq:tint2"))));
+            Assert.AreEqual(0, db.Item(68).Attr(CombatRadar.TractorNoLockAttr));
+            Assert.AreEqual(0x1000000, ModContent.TractorColorValue(new Newtonsoft.Json.Linq.JValue("000000")), "black is a colour too");
+            Assert.AreEqual(-1, ModContent.TractorColorValue(new Newtonsoft.Json.Linq.JValue("orange")));
         }
 
         [Test]

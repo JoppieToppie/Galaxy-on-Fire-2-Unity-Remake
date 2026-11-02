@@ -378,7 +378,7 @@ plays one with `[voice <clip>]` in its text (English or German by the player's v
 | MISSION_END_42_3 | 42 | 0 Keith T. Maxwell | Calm down Carla! Listen, everything's done, the galaxy is saved, and I'm coming to your place for our date now. Be ready! |
 | MISSION_END_43_0 | 43 | 0 Keith T. Maxwell | Carla! Are you waiting for someone? |
 | MISSION_END_43_1 | 43 | 6 Carla | How about a drink stranger? |
-| MISSION_END_44_0 | 44 | 0 Keith T. Maxwell | Wow, what a night. I might have had a drop too much. And Carla! Good god. Never thought she'd could knock 'em back like that. |
+| MISSION_END_44_0 | 44 | 0 Keith T. Maxwell | Wow, what a night. I might have had a drop too much. And Carla! Good God. Never thought she'd could knock 'em back like that. |
 | MISSION_END_44_1 | 44 | 0 Keith T. Maxwell | Hey, where is she? I don't even remember her leaving. |
 | MISSION_END_44_2_b | 44 | 0 Keith T. Maxwell | Oh, a note:  "Keith darling, maybe I should have told you that yesterday was my last day on Thynome. I'm working on another secret project at a different research facility, so please don't try to find me. All the best for now! Someone with your talents is always needed, all over the galaxy. Thanks for last night - maybe we can do it again sometime.  Carla.  P.S. As final payment for your services to Deep Science, we'll transfer another 40,000 Credits to your account." |
 | MISSION_END_44_3 | 44 | 0 Keith T. Maxwell | Hmm. What was the payment for anyway? I'm good, but I'm not that good.  Can't help feeling that I've just been used, though. Oh well, whatever. Time for another drink. I hope I can find my way back to the bar. Maybe I'll see if I can land another job while I'm there... |
@@ -936,7 +936,7 @@ plays one with `[voice <clip>]` in its text (English or German by the player's v
 | RADIO_106_3 | 106 | 0 Keith T. Maxwell | Hold on there, Khador. There's one of those stealth fighters. His radar must have been damaged by the energy burst, he doesn't seem to notice us... |
 | RADIO_106_4 | 106 | 0 Keith T. Maxwell | A good opportunity to follow him and get to the bottom of this. |
 | RADIO_106_5 | 106 | 0 Keith T. Maxwell | On second thoughts, maybe not... Let's get back to Thynome, for now. |
-| MISSION_END_108_0 | 108 | 6 Carla | Keith, thank the Goddesses you're safe! I got such a fright! |
+| MISSION_END_108_0 | 108 | 6 Carla | Keith, thank the goddesses you're safe! I got such a fright! |
 | MISSION_END_108_1 | 108 | 0 Keith T. Maxwell | Yeah, well that proved to be a very interesting trip on a number of levels. Khador is taking it all quite badly, I think he might need time to recover. |
 | MISSION_END_108_2 | 108 | 6 Carla | It seems that he has locked himself in his lab. I imagine his scientific pride has taken a massive blow. |
 | MISSION_END_108_3 | 108 | 0 Keith T. Maxwell | While Khador's out of commission, do you have any other ideas for counter-measures? This could escalate the Midorian situation. |
@@ -1230,7 +1230,7 @@ plays one with `[voice <clip>]` in its text (English or German by the player's v
 | MISSION_END_146_5 | 146 | 20 Khador | There is one obvious candidate... But I'm not certain that you would appreciate the suggestion, Dr. Paolini... |
 | MISSION_END_146_6 | 146 | 6 Carla | What is it, Khador? Quick-thinking is what we need right now. |
 | MISSION_END_146_7 | 146 | 20 Khador | Well... Valkyrie! |
-| MISSION_END_146_8 | 146 | 6 Carla | Oh, Gods, no! |
+| MISSION_END_146_8 | 146 | 6 Carla | Oh, gods, no! |
 | MISSION_END_146_9 | 146 | 0 Keith T. Maxwell | Khador's right, Carla. Valkyrie is about the only ready-made structure with a thick enough hull to support the array this close to the supernova. Looks like I'll have to pay your sister a visit! |
 | MISSION_END_146_10 | 146 | 6 Carla | Just do whatever needs to be done, Keith. Get Valkyrie back here, and don't fall for any of Alice's ruses. You know what she's like. |
 | MISSION_END_146_11 | 146 | 0 Keith T. Maxwell | I know how to handle her... |

@@ -57,7 +57,7 @@ namespace GoF2Remake.Tests
                     case "startevent": st["event"] = "waves"; break;
                     case "spawn": st["ship"] = 2; break;
                     case "shipgoto": case "shiproute": case "shipfollow": case "shipattack": case "shipaction": st["ship"] = "Raider"; break;
-                    case "ship": st["hull"] = 10; break;
+                    case "ship": case "lend": st["hull"] = 10; break;
                     case "set": st["variable"] = "x"; break;
                     case "command": st["line"] = "heal @a"; break;
                     case "note": st["text"] = "a note"; break;

@@ -2,7 +2,8 @@
 // Feature: CLAUDE.md "Multiplayer" > Event graph bar missions: not every bar offers a graph's bar mission. Its
 // "mission chance" (the Start node's Offer chance %, default 35) is rolled per station and kept for
 // EventMissions.OfferSeconds, so docking again rolls nothing; once taken at a station that bar drops it for as long. The
-// visitor's plate names the mission only once the player has talked to them, like a freelance agent's.
+// visitor's plate names the mission only once the player has talked to them, like a freelance agent's. Single player: a
+// bar mission's "Starts when" holds before any bar offers it, and with "Only once" a completed one isn't offered again.
 // Expected values: the rules as documented there (0 = never, 100 = always, the roll stable for its period).
 
 using System.Collections.Generic;
@@ -113,6 +114,54 @@ namespace GoF2Remake.Tests
             string script = QuestFile.Compile(quest, new List<string>());
             StringAssert.Contains("mission chance 15", script);
             Assert.AreEqual(15, (int)QuestFile.FromScript(script, "T", new List<string>())["chance"]);
+        }
+
+        // Remake (a modder's request, 2026-11-02), single player: a bar mission's "Starts when" and "Only once".
+
+        [Test]
+        public void ABarMissionWaitsForItsStartCondition()
+        {
+            var m = Mission("courier", 100);
+            m.starts = "credits >= 5000";
+            Session.Credits = 4999;
+            Assert.IsFalse(EventMissions.Startable(m));
+            Session.Credits = 5000;
+            Assert.IsTrue(EventMissions.Startable(m));
+            m.starts = "never";
+            Assert.IsFalse(EventMissions.Startable(m), "never: no bar offers it");
+            m.starts = "nosuchword > 1";
+            Assert.IsFalse(EventMissions.Startable(m), "a broken condition is false");
+        }
+
+        [Test]
+        public void AnOnlyOnceBarMissionIsDoneOnceCompleted()
+        {
+            var m = Mission("courier", 100);
+            Assert.IsTrue(EventMissions.Startable(m));
+            Session.GraphQuestsDone.Add("courier");
+            Assert.IsTrue(EventMissions.Startable(m), "without Only once it comes again");
+            m.once = true;
+            Assert.IsFalse(EventMissions.Startable(m));
+        }
+
+        [Test]
+        public void StartsAndOnceAreLinesInEveryForm()
+        {
+            var info = Info("mission kind mission\nmission title T\nmission starts visited(78)\nmission once\ncomplete\n");
+            Assert.AreEqual("visited(78)", info.starts);
+            Assert.IsTrue(info.once);
+            Assert.IsFalse(Info("mission kind mission\nmission title T\ncomplete\n").once);
+            var g = U.WithStart(("Kind", ((int)EventKind.BarMission).ToString()), ("MissionTitle", "Hideout"), ("StartsWhen", "rank >= 3"), ("OnlyOnce", "True"));
+            var lines = U.Lines(EventGraphScript.Compile(g, new List<EventGraphScript.Problem>()));
+            CollectionAssert.Contains(lines, "mission starts rank >= 3");
+            CollectionAssert.Contains(lines, "mission once");
+            var quest = new JObject { ["format"] = "gof2quest", ["title"] = "T", ["kind"] = "mission", ["startsWhen"] = "rank >= 3", ["once"] = true, ["steps"] = new JArray() };
+            string script = QuestFile.Compile(quest, new List<string>());
+            StringAssert.Contains("mission starts rank >= 3", script);
+            StringAssert.Contains("mission once", script);
+            var back = QuestFile.FromScript(script, "T", new List<string>());
+            Assert.AreEqual("rank >= 3", (string)back["startsWhen"]);
+            Assert.IsTrue((bool)back["once"]);
         }
 
         [Test]

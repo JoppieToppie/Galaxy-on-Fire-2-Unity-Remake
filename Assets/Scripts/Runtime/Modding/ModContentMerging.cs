@@ -419,6 +419,7 @@ namespace GoF2Remake.Modding
             }
             if (ModJson.Has(o, "vosskOnly")) SetAttr(it, 60, ModJson.Bool(o, "vosskOnly", false, F) ? 1 : 0);
             if (ModJson.Has(o, "alwaysSoldAt")) SetAttr(it, 61, ModJson.Int(o, "alwaysSoldAt", -1, F));
+            if (ModJson.Get(o, "tractorColor") is JToken tc && TractorColorValue(tc) is int rgb && rgb >= 0) SetAttr(it, 136, rgb);   // Flight.CombatRadar
             if (ModJson.Get(o, "stats") is JObject st)
                 foreach (var prop in st.Properties()) SetAttr(it, ItemStats.IdOf(prop.Name), ModJson.Int(st, prop.Name, 0, F));
             if (ModJson.Get(o, "attributes") is JObject at)

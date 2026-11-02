@@ -30,5 +30,6 @@ namespace GoF2Remake.Data
         public List<int> quietOrbits = new List<int>();
         public int station = -1;        // a bar mission: where it was taken
         public string offer = "";       // a bar mission: its offer (EventMissions' entry), for the Missions window
+        public string once = "";        // a "mission once" bar mission: its name, done for good when the run succeeds
     }
 }

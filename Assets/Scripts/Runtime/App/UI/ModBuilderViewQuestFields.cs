@@ -459,6 +459,10 @@ namespace GoF2Remake.UI
         }
         void BuildMissionOffer(ProjectQuest q)
         {
+            // Single player: no bar offers it until Starts holds ("never": only a Start Mission step's chain); Only once.
+            BuildStartsWhen(q);
+            FlagButton(Row(questPage), T("mbOnlyOnce", "Only once: no bar offers it again once completed"), q.Get("once") is JValue once && once.Type == JTokenType.Boolean && (bool)once,
+                       v => { q.Set("once", v ? (JToken)true : null); QuestEdited(); });
             Text(questPage, T("mbOffer", "What the visitor says"), q.Offer, 600, v => { q.Offer = v; QuestEdited(); }, true);
             RefField(questPage, T("mbClient", "The client"), RefKind.Character, q.Client, v => { q.Client = v; QuestEdited(true); }, T("mbClientAny", "someone of the station's race"));
             Caption(questPage, T("mbOfferedAt", "Offered at"));

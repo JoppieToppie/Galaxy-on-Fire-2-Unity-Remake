@@ -3171,5 +3171,13 @@
  "plantWastePerTon": "톤당 {0}. 아직 쓸 만한 것은 당신 것입니다.",
  "plantWasteNoneHeld": "화물 저장고에 우주 쓰레기가 없습니다.",
  "plantWasteAll": "전부 {0}",
- "plantWastePart": "{0} t, {1}"
+ "plantWastePart": "{0} t, {1}",
+ "mbOnlyOnce": "한 번만: 완료하면 어느 바도 다시 제안하지 않음",
+ "mpAdmLend": "{0}에게 {1}을(를) 빌려줍니다.",
+ "mpAdmLendBack": "{0}이(가) 자신의 함선을 돌려받습니다.",
+ "mpAdmLendNoShip": "{0}은(는) 빌려줄 수 없습니다: 어떤 조종사도 소유할 수 없는 함선입니다.",
+ "mpAdmLendBusy": "이미 빌린 함선을 조종하고 있습니다.",
+ "mpAdmLendYou": "빌린 {0}을(를) 조종합니다.",
+ "mpAdmLendBackYou": "자신의 함선이 돌아왔습니다.",
+ "mpCmdLend": "관리자: 대여 함선, 자신의 함선은 정박 (keep: 장비가 옮겨짐, back = 다시 자신의 함선)"
 }

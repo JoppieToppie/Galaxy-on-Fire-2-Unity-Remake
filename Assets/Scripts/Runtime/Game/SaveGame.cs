@@ -123,6 +123,8 @@ namespace GoF2Remake.Data
         // (remake, no version of its own: older saves have none) the Space Waste tons sorted and the bad-luck counters
         // (Session.WasteTons / WasteDry / WasteSinceRare)
         public int wasteTons, wasteDry, wasteSinceRare;
+        // (remake, no version of its own) the ships bought or built, by reference (Session.ShipsBought: "12", "mod:id")
+        public List<string> shipsBought;
 
         [Serializable]
         public class KnownPrice { public int item, price, system; }
@@ -369,6 +371,7 @@ namespace GoF2Remake.Data
                 shipBuilds = Session.ShipBuilds.Select(kv => kv.Key + "|" + kv.Value).ToList(),
                 pirateSightings = new List<PirateSighting>(Session.PirateSightings), nextPirateSightingId = Session.NextPirateSightingId,
                 wasteTons = Session.WasteTons, wasteDry = Session.WasteDry, wasteSinceRare = Session.WasteSinceRare,
+                shipsBought = new List<string>(Session.ShipsBought),
                 campaignMission = Session.CampaignMission,
                 station = Session.StationIndex,
                 previousStation = Session.PreviousStationIndex,
@@ -609,6 +612,7 @@ namespace GoF2Remake.Data
             Session.WasteTons = s.wasteTons;
             Session.WasteDry = s.wasteDry;
             Session.WasteSinceRare = s.wasteSinceRare;
+            Session.ShipsBought = new HashSet<string>(s.shipsBought ?? new List<string>());
             Session.StoryMission = s.storyMission ?? new StoryMission();
             Session.StoryStepStart = s.storyStepStart;
             Session.StoryRadioPending = s.storyRadioPending;
@@ -694,6 +698,7 @@ namespace GoF2Remake.Data
             {
                 Session.ParkedShip = s.hasParkedShip ? s.parkedShip : null;   // JsonUtility writes an empty object for null
                 Session.StoryTargets = s.storyTargets ?? new List<int>();
+                Story.CheckEventLoaner();   // remake mods: an event's loaner without its run under way goes back
             }
             if (s.version >= 7)
             {

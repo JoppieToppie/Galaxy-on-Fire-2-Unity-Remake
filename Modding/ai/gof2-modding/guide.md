@@ -235,6 +235,7 @@ earlier). Only the fields you give change. Giving `name` or `description` rename
 | `lowestPriceSystem`, `highestPriceSystem` | System numbers where it's cheapest and dearest. |
 | `vosskOnly` | `true`: only Vossk systems sell it. |
 | `alwaysSoldAt` | A station number that always stocks it, whatever its tech level (78 = Var Hastra, the starting station; -1 = none). |
+| `tractorColor` | A tractor beam's colour, `"#rrggbb"` or `[r, g, b]` (0-255): its beams are drawn in it (see [Multi-grab tractor beams](#multi-grab-tractor-beams)). |
 | `stats` | The item's numbers, see below. |
 | `attributes` | The original game's attribute numbers directly: `{ "9": 14 }`. For anything `stats` has no name for. |
 | `defaultEconomy` | The same fields again, used when the player picked the Default Economy (the PC / Mac prices) for their game. |
@@ -317,6 +318,7 @@ energy cells.
 | `freeBoostFactor` | 121 | Free flight's boost top speed in hundredths of the top speed (350 = x3.5) instead of the booster's own |
 | `tractorTargets` | 122 | Tractor beams: how many containers it pulls at once, 1 to 8 (default 1; see [Multi-grab tractor beams](#multi-grab-tractor-beams)) |
 | `tractorRange` | 123 | Multi-grab tractor beams: how far the extra beams reach for containers (game units, 20 per metre; default 30000 = 1.5 km) |
+| `tractorNoLock` | 137 | Tractor beams: 1 = the scanner never locks a container; every beam takes containers by itself (see [Multi-grab tractor beams](#multi-grab-tractor-beams)) |
 | `shieldDamage` | 124 | A weapon's damage to a shield in percent (default 100; the Disruptor Laser and items based on it 200). What the shield doesn't absorb hits the armor and hull at the plain damage. Only ships with a shield feel it: the players (each other in multiplayer), not the game's NPCs |
 | `echoDelayMs` | 127 | A second, weaker blast at each hit, this many ms after it (0 or none = no echo; see [Echo blasts](#echo-blasts)) |
 | `echoPercent` | 128 | The echo's damage, EMP and size in percent of the shot's (default 50) |
@@ -494,6 +496,11 @@ pulling while you mine or fly the autopilot. With no lock running, all of the be
 view, and they leave a mission container alone while the hold is full. In multiplayer each container is claimed as usual,
 so two players never pull the same one.
 
+With `"tractorNoLock": 1` the scanner leaves containers alone altogether: it never locks one, so it is always free for
+ships, and every beam (a single one too) takes containers by itself as the extra beams do. An EMP-disabled ship's cargo
+is still taken the usual way, by locking the ship for the beam's `tractorLockMs`, so keep that short. `"tractorColor"`
+(an item field, not a stat) draws the beams in a colour of your own: `"#ff8000"` or `[255, 128, 0]`.
+
 ```json
 {
     "id": "octopus_mk2",
@@ -501,7 +508,8 @@ so two players never pull the same one.
     "name": "AB-6 Hydra",
     "techLevel": 8,
     "price": [210000, 240000],
-    "stats": { "tractorTargets": 4, "tractorRange": 40000, "tractorLockMs": 400 }
+    "tractorColor": "#40c0ff",
+    "stats": { "tractorTargets": 4, "tractorRange": 40000, "tractorLockMs": 400, "tractorNoLock": 1 }
 }
 ```
 
@@ -724,7 +732,7 @@ styles](#exhaust-styles)), 4 manoeuvring jet (`"direction": [x, y, z]`, the way 
 | `engineFx` | Optional. A Galaxy on Fire 3 style engine effect at every exhaust instead of the flame and its particles, see [Engine effect](#engine-effect). For effects any ship can wear, see [Exhaust styles](#exhaust-styles). |
 | `lounge` | Optional. A visitor in the Space Lounges sells it: in systems of `systemRace` (-1 = any), from story step `minCampaign` (in free play from rank `minRank`), `chance` % each time a bar fills with new visitors. |
 | `npcTurrets` | Optional, also in an `override`. Turret items (numbers or `"mod:id"`, e.g. `[ 48, "my_mod:flak" ]`) the **NPC** ships of this type carry on its turret mounts (`slotType` 2), the n-th item on the n-th mount: in space they aim and fire by themselves at whatever that ship is hostile to (your own turret model, missiles and salvos included), and parked in a hangar they show them. Items that are no turret, or more items than mounts, give a warning. The game's own NPC ships carry none; the Bloodstar (45) and the Rhino (51) swap their built-in turret for yours. |
-| `dealer` | Optional. The ordinary ship dealers may stock it: `{ "chance": 2, "systemRace": -1, "minTechLevel": 0 }`, `chance` % (decimals allowed) each time a station's dealer list is made, at stations of `systemRace` systems (-1 = any) with at least that tech level (above 10: the tech level 10 stations). Not the special yards (Kothar, Quineros, Thynome...). |
+| `dealer` | Optional. The ordinary ship dealers may stock it: `{ "chance": 2, "systemRace": -1, "minTechLevel": 0 }`, `chance` % (decimals allowed) each time a station's dealer list is made, at stations of `systemRace` systems (-1 = any) with at least that tech level (above 10: the tech level 10 stations). Not the special yards (Kothar, Quineros...); Thynome's dealer is an ordinary one, the VoidX added to it once every gold medal is won. |
 | `traffic` | Optional. How NPC fighters fly it: `{ "weight": 1, "races": [8] }`. With the Gameplay option "Mod ships in traffic" (Off / 10 / 25 % (default) / 50 %) that share of the game's NPC fighters (patrols, raiders, pirates, escorts, guards) fly one of the mods' ships of their race instead, picked by `weight` (0 = never); `races` are the races whose fighters fly it (0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirates, 9 Void, or [races](#races); default its own `race`). A mod race's fighters always fly one of the mods' ships, whatever the option. Only ships up to 150 m long, available now (`available`), with their model loaded. Their hull and guns stay those of the fighter they replace. Freighters and capital ships aren't replaced, and a [campaign's](#campaigns) `trafficShips` win. A [customizable ship](#customizable-ships)'s NPCs each fly a random build of it (parts the type may fit, a tier, one of the kit's colour presets or random palette colours, now and then a skin); `"randomBuild": false` keeps them to its default build. The builds use the parts already loaded, and every docking loads a few more in the background, so the variety grows as you play. `"boss": true` makes it a boss hull instead: it never flies as an ordinary fighter, and the pirate bosses (Pirate outposts and bosses, the Pirate activity board) fly it at the same option's chance, up to 400 m long; give it `npcTurrets` to arm its turret mounts. Their hull, guns and escorts stay the pirate boss's. `"capital": "battleship"` or `"freighter"` makes it a capital ship instead, see [Capital ships and freighters](#capital-ships-and-freighters). |
 | `available` | Optional. A [condition](#conditions) that must hold before it is sold anywhere (dealers and lounges), and before NPCs fly it. |
 | `sounds` | Optional. The ship's own engine and boost sounds, see [Ship sounds](#ship-sounds). |
@@ -1161,7 +1169,7 @@ edits them in space, the hull beside the orbit's station with its hardpoints and
   `cargoRolls` (a freighter's cargo rolls); `"keep": true` adds them to the game's own loot. Every kind of loot drops a crate
   of its own.
 - **`spawn`** (new ones): `chance` (% of the orbits where the rest holds; 0 or none = never: the Debug page's **Spawn mod NPC
-  ship** brings it), `count` (how many when it comes, 1 by default), `races` (the system's race), `systems`, `stations`,
+  ship** or a mission's `spawntype` step (`/spawn type mod_id:id`) brings it), `count` (how many when it comes, 1 by default), `races` (the system's race), `systems`, `stations`,
   `security` (0 Dangerous .. 3 Secure), `minRank` / `maxRank`, `minStep` / `maxStep` (story steps), `freePlayOnly` /
   `storyOnly`, `condition` (an expression like a mission's, see "Conditions"), and where: `"position": [x, y, z]` (game units
   from the station, z ahead) or `"distance": [least, most]` (km in front of the station); else its kind's place (a capital
@@ -1513,6 +1521,7 @@ New star systems and their stations. Both are lists: `"id"` adds one, `"override
 | `traffic` | `"mod"`: only the mods' ships fly here. No game freighters (the mods' freighters of the system's race take their place, or none), no pirate outposts or bosses, and the raiders are the system's `raiders`. Default: the game's traffic. |
 | `locals` | The races (the game's or mods') whose patrols fly here, e.g. `["guild", "allies"]`. Default: the system's `race`. |
 | `raiders` | The races (the game's or mods') that raid it, e.g. `["gang"]`. Default: the game's pick (pirates, or the system race's enemy). |
+| `pirateHeld` | `true`: pirates hold every station of the system (a station's `orbit` can say otherwise), see the orbit's `pirateHeld`. |
 | `security` | 0 (lawless) to 3 (secure): how many raiders show up. |
 | `visible` | On the star map from the start (default true). A hidden system can't be reached yet. |
 | `available` | A condition (the expressions of [Conditions](#conditions)) for a system that comes and goes: while it holds the system is on the star map, while it doesn't it is hidden, whatever was revealed, with its routes and jumps. A player inside when it disappears is told so and, 4 seconds later, taken to the nearest system on the map. For example `"available": "quest(smuggler_run) == 1"`: only while that story mission or bar mission is under way. |
@@ -1641,6 +1650,8 @@ ahead of it; pitch up from the horizon.
 | `fog` | `false` no fog, or `{ "color": [r, g, b] (0..1), "end": units }`: the haze some systems have (the game's end 50 000-150 000). |
 | `sun` | `[yaw, pitch]`: the sun's direction in this orbit (and the light, the flare, the skybox's `sunAligned`). |
 | `planet` | `{ "size": x the game's, "yaw", "pitch" }`: the orbit's own planet. |
+| `pads` | Docking pads outside the station, docked at from space like the arms in the Luur mission: `[ { "position": [x, y, z], "approach": [x, y, z], "facing": [x, y, z] } ]`. `position` is where the ship rests, `approach` where it comes in from (default 2000 units above the pad), `facing` where its nose points (default `z`). The player docks at the nearest free one ("DOCK" on the station's pads target); missions hear it as `on pad` (see the steps). With `"station": "nodock"` they are the only way to dock. |
+| `pirateHeld` | `true`: pirates hold this station on every visit, like the Kaamo Club at the start (four pirate outposts and their fighters; no docking, jumpgate or Khador Drive until the outposts fall). Driven out, they come back after 30 minutes of play. `false` keeps the station free in a system that is `pirateHeld`. |
 
 ```json
 {
@@ -1829,12 +1840,17 @@ the event graphs' expression language and is checked when it matters (a shop's s
 | `rank`, `credits`, `kills`, `station`, `system`, `ship` | The player's rank, credits, kills, where they are docked / flying, the ship they fly. |
 | `visited(station)`, `has(item)`, `cargo(item)`, `quest(name)` | A station docked at; how many of an item the player has (mounted too) / has in the hold; a mission under way (1) or done (2). |
 | `docked(station)`, `inorbit(station)` | How many of the players are docked at that station now / alive in its orbit (single player: 1 or 0). |
+| `medals(gold)`, `medals(silver)`, `medals(bronze)`, `medals(any)` | How many medals the player holds of that grade (`any`: earned at all). |
+| `medals(allgold)`, `medals(allsupernova)` | 1 with every medal of the main game gold (what puts the VoidX at Thynome), or those and the nine Supernova medals too. |
+| `bought(ship)` | 1 once the player has bought (or built from a blueprint) that ship in this game: a number, a name or `"mod_id:id"`. Ships bought before this word existed don't count. |
 
 Combine them with `and`, `or`, `not`, comparisons and arithmetic:
 
 ```json
 "available": "option(canon_ships:canon_ships) and systemsvisited >= 2"
 "available": "option(canon_ships:canon_ships) and won(supernova)"
+"available": "bought(my_mod:raptor_mk2)"
+"available": "medals(allgold)"
 ```
 
 A condition the game can't read counts as false, and the mod shows a warning in the Mods screen.
@@ -2026,6 +2042,9 @@ The file name (without `.gof2event`) is the graph's name; keep it one word. The 
   on it no bar anywhere offers it), **One Per Station** (taking it takes it out of that bar for 30 minutes, other stations
   still offer it) or **Anyone** (any number of squads, at the same station too). The visitor's plate names the mission only once you have talked to them. When it ends
   with **Mission Complete** or **Mission Failed** the client sends their message, like the game's own freelance missions.
+  In single player, **Starts when** works for a bar mission too: no bar offers it until it holds (`never`: only another
+  graph's **Start Mission** starts it), and **Only once** keeps it out of the bars for good once it was completed (a failed
+  or discarded one is offered again; `quest(<name>)` then reads 2). A multiplayer session's bars ignore both.
   In single player it is the player's one mission, like the game's freelance missions: it shows in the
   Missions window's Freelance panel with **Discard**, and a success counts like a freelance mission (only missions for one
   pilot are offered there: **Min pilots** 1). In multiplayer the squad takes it together.
@@ -2043,8 +2062,8 @@ Nodes made for missions:
 Everything else is the event graphs' toolbox: **Dialog** (conversations with portraits, see [Voice-over](#voice-over)), **Radio**,
 **Spawn** (ships, friendly or hostile, named; objects as scenery; `wreck`: a hackable freighter wreck), **Wait Until**, **On**
 triggers (docked, entered an orbit, destroyed, a spawned ship destroyed, all enemies cleared, arriving near a point, a wreck
-hacked), **Set Waypoint**, **Open Wormhole** / **Close Wormhole** (see below), **Restrict Travel**,
-**Give Item**, **Reward**, **Title**, **Timer**, **Play Music**, **Set Flight Model** (free flight or the original for a race
+hacked, docked at a station's pad outside), **Set Waypoint**, **Open Wormhole** / **Close Wormhole** (see below), **Restrict Travel**,
+**Give Item**, **Take Item** (a hand-in; Mounted takes mounted ones too), **Spawn NPC Type**, **Reward**, **Title**, **Timer**, **Play Music**, **Set Flight Model** (free flight or the original for a race
 or a chase, undone when the graph ends; see [Flight styles](#flight-styles)) and more. Game values for conditions: `campaign` (the story
 step, -1 without one), `credits`, `rank`, `station`, `system`, `ship`, `kills`, `freeflight` (1 in free flight), and the functions `cargo(item)`, `has(item)`
 (in the hold or mounted), `visited(station)` and `quest(name)` (0 not started, 1 under way, 2 done); items and stations by
@@ -2124,7 +2143,8 @@ shows it). It can be written by hand too:
 }
 ```
 
-`kind` is `quest`, `mission` (a bar mission: `offer`, `client`, `stations`, `players` [min, max] as the Start node's) or
+`kind` is `quest`, `mission` (a bar mission: `offer`, `client`, `stations`, `players` [min, max] as the Start node's, and
+in single player `startsWhen` and `"once": true`, see above) or
 `event` (started by `/event <name>` or another one's Next event step). A `quest` with `"repeat": <minutes>` (the Start node's
 "Comes again after", the builder's "Comes again after (minutes of play)") is an encounter that comes back: done, it isn't
 done for good but starts again that many minutes of playing time later, as soon as its `startsWhen` holds (add a chance to
@@ -2139,10 +2159,10 @@ the default; `@trigger` the player a When block is about; any selector). The ste
 | Group | Steps (fields) |
 |---|---|
 | Story | `dialog` (pages: speaker, text, voice), `radio` (speaker, text, voice), `objective` (text, station), `title` (title, subtitle, seconds), `note` (text: a comment) |
-| Flow | `wait` (seconds), `waituntil` (condition, timeout), `if` (condition, `then`, `else`), `while` (condition, `steps`), `repeat` (count, as, `steps`), `parallel` (`steps`: beside the rest), `every` (seconds, `steps`), `on` (trigger: died, docked, launched, kill, cleared, entered, near, respawned, hacked, joined, left, pvpkill; station; near: at "x y z", radius; `steps`), `ask` / `vote` (question, speaker, seconds, `answers`: [{ text, steps }]; a vote's `none` runs when nobody voted), `random` (`branches`: [{ weight, steps }]), `set` (variable, value), `checkpoint` (name), `startquest` (mission), `startevent` (event, settings), `complete` (reward, title), `fail` (title), `stop` |
-| Places | `goto` (station, `dock` true: docked there, false: in its orbit, objective), `waypoint` (station, at), `wormhole` (station, at, to, void, seconds; no station: closed), `target` (station), `questorbit` (station, on), `system` (system, action: show / hide / reset), `restrict` (what: jumps / docking / all / off), `respawn` (station, at, spread, delay), `teleport` (station, dock, at) |
-| Ships | `fight` (station, ships: ship / count / race / behaviour, name, quiet; ends when none is left), `spawn` (ship, count, race, behaviour, name, at, turrets), `wreck` (race, name, at: a hackable freighter wreck), `shipgoto` (ship, to, speed, radius, fight, then), `shiproute` (ship, route "place / place", loop, ...), `shipfollow` (ship, leader, offset, escort, speed), `shipattack` (ship, target), `shipaction` (ship, action: hold / resume / jump / dock / flee, seconds), `provoke` (race, within) |
-| The player | `reward` (credits, items, title), `give` (item, amount, mount), `cargo` (item, amount, station: waits until the hold has it), `credits` (amount), `ship` (hull, own), `heal`, `ammo`, `kill`, `reveal`, `peace` |
+| Flow | `wait` (seconds), `waituntil` (condition, timeout), `if` (condition, `then`, `else`), `while` (condition, `steps`), `repeat` (count, as, `steps`), `parallel` (`steps`: beside the rest), `every` (seconds, `steps`), `on` (trigger: died, docked, launched, kill, cleared, entered, near, respawned, hacked, pad (docked at a station's pad outside), joined, left, pvpkill; station; near: at "x y z", radius; `steps`), `ask` / `vote` (question, speaker, seconds, `answers`: [{ text, steps }]; a vote's `none` runs when nobody voted), `random` (`branches`: [{ weight, steps }]), `set` (variable, value), `checkpoint` (name), `startquest` (mission), `startevent` (event, settings), `complete` (reward, title), `fail` (title), `stop` |
+| Places | `goto` (station, `dock` true: docked there, false: in its orbit, objective), `waypoint` (station, at), `wormhole` (station, at, to, void, seconds; no station: closed), `target` (station), `questorbit` (station, on), `system` (system, action: show / hide / reset), `restrict` (what: jumps / docking / all / khador (only the Khador Drive) / off), `respawn` (station, at, spread, delay), `teleport` (station, dock, at) |
+| Ships | `fight` (station, ships: ship / count / race / behaviour, name, quiet; ends when none is left), `spawn` (ship, count, race, behaviour, name, at, turrets, hull, guns: their hull and gun damage x that), `spawntype` (npc: an [NPC ship type](#npc-ships) like `pirate_boss` or `mod_id:id`, name, at), `wreck` (race, name, at: a hackable freighter wreck), `shipgoto` (ship, to, speed, radius, fight, then), `shiproute` (ship, route "place / place", loop, ...), `shipfollow` (ship, leader, offset, escort, speed), `shipattack` (ship, target), `shipaction` (ship, action: hold / resume / jump / dock / flee, seconds), `provoke` (race, within) |
+| The player | `reward` (credits, items, title), `give` (item, amount, mount), `cargo` (item, amount, station: waits until the hold has it; `take`: then handed in, out of the hold), `take` (item, amount: empty for all, mounted: the mounted ones too, e.g. the Khador Drive), `credits` (amount), `ship` (hull, own), `lend` (hull, keep, back: see [Loaner ships](#loaner-ships)), `heal`, `ammo`, `kill`, `reveal`, `peace` |
 | Cutscenes | `cutscene` (letterbox, freeze, invulnerable), `camera` (from, to, seconds, look, follow, fov, shake), `chasecamera`, `cutsceneend`, `fade` (direction: out / in / clear, seconds, colour), `letterbox` (on) |
 | Sound and screen | `music` (track), `sound` (sound), `timer` (seconds, label, stop) |
 | Score | `points` (amount), `scoreboard` (show, title), `score` (mode), `winner` (mode), `pvp` (on) |
@@ -2152,6 +2172,25 @@ Places (camera, ship orders) are written as for the [cutscenes](#cutscenes). A f
 `{ "$value": "v1" }`, the node in `"values"`: `[ { "id": "v1", "type": "compare", "op": ">=", "a": { "$value": "v2" }, "b": 5 } ]`.
 The graph view keeps each node's place (`"pos"`), the chains wired to nothing (`"loose"`) and the Start node's place.
 Conditions also know `docked(<station>)` and `inorbit(<station>)`.
+
+### Loaner ships
+
+A trial mission can lend the player a ship, as the Valkyrie story lends the S'Kanarr: the **Lend a ship** step (`lend`,
+the command `/lend [players] <ship> [keep] | back`). The player's own ship is parked with its equipment, cargo and damage,
+and they fly the loaner: a fresh hull with an empty hold and nothing mounted (mount its guns with **Give Item**'s
+Mount), or with **keep** the player's own equipment and cargo moved over. Meanwhile the hangar is closed, so the loaner
+can't be sold or traded in. When the mission ends (complete, failed, discarded or stopped) the own ship comes back by
+itself, with everything it had; a fresh loaner's guns and cargo go with it (a **keep** loaner's come back with the
+player). **Their own ship back now** ends the loan before that. Only one loaner at a time, and only a ship a player can
+own (no freighters or capital ships). Lent while docked, the hangar shows the loaner; lent in flight, the ship changes
+where it is. Loading a save made with a loaner whose mission isn't under way in it gives the own ship back.
+
+```json
+{ "type": "lend", "hull": "my_mod:prototype" },
+{ "type": "give", "item": 48, "amount": 1, "mount": true },
+{ "type": "goto", "station": 78 },
+{ "type": "complete" }
+```
 
 ### Moving ships
 

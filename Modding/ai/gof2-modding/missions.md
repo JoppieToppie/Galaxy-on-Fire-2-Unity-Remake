@@ -98,7 +98,7 @@ Steps again and again beside the rest, until the mission ends
 
 Steps each time the player is destroyed, docks, kills a ship, gets near a point...
 
-- `trigger`: When: died = The player is destroyed, docked = The player docks, launched = The player launches, kill = A spawned ship is destroyed, cleared = Every spawned enemy is gone, entered = The player enters an orbit, near = The player gets near a point, respawned = The player respawns, hacked = The player hacks a wreck, joined = A player joins, left = A player leaves, pvpkill = A player destroys another. Default `died`.
+- `trigger`: When: died = The player is destroyed, docked = The player docks, launched = The player launches, kill = A spawned ship is destroyed, cleared = Every spawned enemy is gone, entered = The player enters an orbit, near = The player gets near a point, respawned = The player respawns, hacked = The player hacks a wreck, pad = The player docks at a station's pad outside, joined = A player joins, left = A player leaves, pvpkill = A player destroys another. Default `died`.
 - `station` (wirable): Only at (optional); the game's number, its name, or a key "mod_id:id".
 - `at`: The point (x y z); "x y z" in game units (20 = 1 m). Default `0 0 20000`.
 - `radius` (wirable): Within (metres); a number, or an expression as a string. Default `500`.
@@ -222,9 +222,9 @@ No normal traffic in an orbit (for the mission's own ships)
 
 ### `restrict`: Restrict travel
 
-No jumps, no docking, or both
+No jumps, no docking, both, or only no Khador Drive
 
-- `what`: Refuse: jumps = Jumps, docking = Docking, all = Both, off = Nothing (lift it). Default `jumps`.
+- `what`: Refuse: jumps = Jumps, docking = Docking, all = Both, khador = The Khador Drive only, off = Nothing (lift it). Default `jumps`.
 
 ### `respawn`: Respawn point
 
@@ -266,6 +266,16 @@ Ships (or an object) beside the player, named for the ship orders
 - `name`: Their name (on the lock plate; the orders use it).
 - `at`: At (x y z in the orbit; empty: ahead of the player); "x y z" in game units (20 = 1 m).
 - `turrets`: Turret items (numbers, a comma between).
+- `hull` (wirable): Hull x (empty: as usual; 2 = twice as tough); a number, or an expression as a string.
+- `guns` (wirable): Gun damage x (empty: as usual); a number, or an expression as a string.
+
+### `spawntype`: Spawn an NPC ship type
+
+A capital ship, freighter or boss of the NPC ships kind (the pirate boss too), with its own hull, guns and escorts
+
+- `npc`: NPC ship type: battleship, carrier, vossk_battleship, freighter, pirate_boss, or a mod's NPC ship key "mod_id:id". Default `pirate_boss`.
+- `name`: Its name (on the lock plate; the orders use it).
+- `at`: At (x y z in the orbit; empty: 3.5 km ahead of the player); "x y z" in game units (20 = 1 m).
 
 ### `wreck`: Hackable wreck
 
@@ -348,14 +358,23 @@ Into the hold, without a box
 - `amount` (wirable): Amount; a number, or an expression as a string. Default `1`.
 - `mount`: Mount it (when docked). Default `False`.
 
+### `take`: Take an item
+
+Out of the hold (a hand-in), or off the ship too
+
+- `item`: Item; the game's number, its name, or a key "mod_id:id". Default `22`.
+- `amount` (wirable): Amount (empty: all of them); a number, or an expression as a string.
+- `mounted`: Mounted ones too (a Khador Drive, a gun..). Default `False`.
+
 ### `cargo`: Bring cargo
 
-Waits until the hold has it
+Waits until the hold has it; handed in, it is taken
 
 - `item`: the item.
 - `amount`: how many tonnes.
 - `station`: docked there (optional).
 - `objective`: the objective meanwhile (optional).
+- `take`: handed in: taken from the hold once there.
 
 ### `credits`: Credits
 
@@ -369,6 +388,14 @@ The player flies another hull (or their own again)
 
 - `own`: Their own ship again. Default `False`.
 - `hull`: Ship; the game's number, its name, or a key "mod_id:id".
+
+### `lend`: Lend a ship
+
+The own ship parked, a loaner flown until the mission ends
+
+- `back`: Their own ship back now. Default `False`.
+- `hull`: Ship; the game's number, its name, or a key "mod_id:id".
+- `keep`: Their equipment and cargo move over. Default `False`.
 
 ### `heal`: Repair
 

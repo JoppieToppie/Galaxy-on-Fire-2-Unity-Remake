@@ -228,6 +228,30 @@ namespace GoF2Remake.Multiplayer
             Send(t, Order.Ship, 0, 0, 0, by, $"swapped the ship to {hull.key}", hull.key);
             return string.Format(X("mpAdmShip", "{0} flies the {1}."), t.DisplayName, HullName(hull));
         });
+        /// <summary>/lend [players] &lt;ship&gt; [keep] | back (remake mods: trial missions with a loaner, as the Valkyrie's
+        /// S'Kanarr): the own ship parked (Story.LendForEvent), the loaner a fresh hull with an empty hold ('keep': the player's
+        /// equipment and cargo move over); "back" gives the own ship back. A graph's lend is given back when it ends.</summary>
+        public static string Lend(string args, IPilot by) => ForTargets(args, by, true, (t, rest) =>
+        {
+            var words = new List<string>(rest.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+            if (words.Count == 0) return Usage("lend");
+            string graph = EventRunner.NoteLoaner();   // the run lending it gives it back when it ends ("" typed in the chat)
+            if (words.Count == 1 && string.Equals(words[0], "back", StringComparison.OrdinalIgnoreCase))
+            {
+                Send(t, Order.Lend, -1, 0, 0, by, "own ship given back", graph);
+                return string.Format(X("mpAdmLendBack", "{0} gets their own ship back."), t.DisplayName);
+            }
+            bool keep = words.Count > 1 && string.Equals(words[words.Count - 1], "keep", StringComparison.OrdinalIgnoreCase);
+            if (keep) words.RemoveAt(words.Count - 1);
+            int ship = FindShip(string.Join(" ", words), out string error);
+            if (ship < 0) return error;
+            // Only a ship a player can own (the hangar shows it): no freighters, capital ships or objects.
+            if (!PlayerHull.Offered(NetGame.Db).Exists(h => h.stats == ship && h.playerShip)
+                || !string.IsNullOrEmpty(CustomShips.Get(ship)?.traffic?.capital))
+                return string.Format(X("mpAdmLendNoShip", "The {0} can't be lent: no pilot can own it."), DebugSpawner.ShipName(NetGame.Db, ship));
+            Send(t, Order.Lend, ship, keep ? 1 : 0, 0, by, $"lent the ship {ship}{(keep ? " (keep)" : "")}", graph);
+            return string.Format(X("mpAdmLend", "{0} is lent the {1}."), t.DisplayName, DebugSpawner.ShipName(NetGame.Db, ship));
+        });
         public static string Cheat(string args, IPilot by) => ForTargets(args, by, true, (t, rest) =>
         {
             var words = rest.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);

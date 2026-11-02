@@ -121,7 +121,7 @@ namespace GoF2Remake.Events
                 {
                     Session.GraphQuests.Remove(record);
                     if (record.kind == GraphQuestState.KindQuest) QuestDone(running, info);
-                    next = new GraphQuestState { name = name, kind = record.kind, title = record.title, station = record.station, offer = record.offer };
+                    next = new GraphQuestState { name = name, kind = record.kind, title = record.title, station = record.station, offer = record.offer, once = record.once };
                     Session.GraphQuests.Add(next);
                     record = null;
                 }

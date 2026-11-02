@@ -3,8 +3,8 @@
 // evaluated outside any event by EventRunner.Condition (the quests' "Starts when", the mods' "available"): numbers,
 // arithmetic, comparisons, and / or / not (and && || !), random(a, b), min, max, floor, count(<players>), the game-state
 // words (campaign, credits, rank, station, system, ship, kills, players, enemies, time, toppoints, missionstation,
-// systemsvisited) and cargo(), has(), visited(), quest(), option(), won(). Empty = true; nonzero = true; a bad expression
-// is false with an error.
+// systemsvisited) and cargo(), has(), visited(), quest(), option(), won(), medals() and bought(). Empty = true; nonzero =
+// true; a bad expression is false with an error.
 // Expected values: hand calculation; the won() thresholds from CLAUDE.md (the main game is won at step 45, the Valkyrie
 // add-on at 84, the Supernova add-on at its last step 162; or the multiplayer finished world); the station / system
 // numbers of the game's tables.
@@ -257,6 +257,40 @@ namespace GoF2Remake.Tests
             Holds("quest(finished) == 2");
             Holds("quest(underway) == 1");
             Holds("quest(unknown) == 0");
+        }
+
+        [Test]
+        public void MedalsByGrade()
+        {
+            Session.Medals = new int[Achievements.Count];
+            Holds("medals(any) == 0");
+            Fails("medals(allgold)");
+            Session.Medals[0] = 1; Session.Medals[1] = 2; Session.Medals[2] = 3; Session.Medals[3] = 1;
+            Holds("medals(gold) == 2");
+            Holds("medals(silver) == 1");
+            Holds("medals(bronze) == 1");
+            Holds("medals(any) == 4");
+            Fails("medals(allgold)");
+            for (int i = 0; i < Achievements.BaseCount; i++) Session.Medals[i] = 1;
+            Holds("medals(allgold)");
+            Holds("medals(gold) == " + Achievements.BaseCount);
+            Fails("medals(allsupernova)");
+            for (int i = Achievements.BaseCount; i < Achievements.Count; i++) Session.Medals[i] = 1;
+            Holds("medals(allsupernova)");
+            Bad("medals(platinum)");
+        }
+
+        [Test]
+        public void BoughtShips()
+        {
+            EventsTestUtil.RequireEnglish();
+            Session.ShipsBought.Clear();
+            Fails("bought(9)");
+            Session.ShipsBought.Add(Session.ShipRef(9));
+            Holds("bought(9)");
+            Holds("bought(H'Soc)");
+            Fails("bought(0)");
+            Bad("bought(no such ship at all)");
         }
 
         [Test]

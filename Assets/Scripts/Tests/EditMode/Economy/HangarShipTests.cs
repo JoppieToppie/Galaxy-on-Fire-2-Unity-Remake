@@ -42,6 +42,16 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ABoughtShipCountsForTheModsConditions()
+        {
+            // Session.ShipsBought (the conditions' bought(ship)): bought from the dealer, by reference.
+            Session.ShipsBought.Clear();
+            var h = Dis(9);
+            Assert.IsTrue(h.BuyShip(9));
+            CollectionAssert.AreEquivalent(new[] { "9" }, Session.ShipsBought);
+        }
+
+        [Test]
         public void EquipmentMovesToTheNewSlotsAndTheRestToTheHold()
         {
             // a Betty (1 / 1 / 0 / 3): the second laser and the booster don't fit

@@ -169,6 +169,8 @@ namespace GoF2Remake.Multiplayer
                 description = () => X("mpCmdSpawn", "admins: NPC ships or an object, ahead or at x y z (enemy by default; named: a HUD name; hull / guns: scaled; type: an NPC ship type)") },
             new Command { name = "ship", usage = "[players] <ship | own>", arg = Arg.PlayerText, self = true, available = () => LocalIsAdmin, allowed = IsAdmin,
                 run = NetAdmin.Ship, description = () => X("mpCmdShip", "admins: flies any ship of the debug Ships tab (its number or name; own = back)") },
+            new Command { name = "lend", usage = "[players] <ship [keep] | back>", arg = Arg.PlayerText, self = true, available = () => LocalIsAdmin, allowed = IsAdmin,
+                run = NetAdmin.Lend, description = () => X("mpCmdLend", "admins: a loaner, the own ship parked (keep: its items move over; back = the own ship again)") },
             new Command { name = "ammo", usage = "[players]", arg = Arg.Player, optional = true, self = true, available = () => LocalIsAdmin, allowed = IsAdmin,
                 run = (a, by) => NetAdmin.Simple(a, by, NetAdmin.Order.Ammo), description = () => X("mpCmdAmmo", "admins: every mounted secondary to 50") },
             new Command { name = "reveal", usage = "[players]", arg = Arg.Player, optional = true, self = true, available = () => LocalIsAdmin, allowed = IsAdmin,

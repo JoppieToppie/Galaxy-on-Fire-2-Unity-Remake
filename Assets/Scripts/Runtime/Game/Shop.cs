@@ -496,13 +496,15 @@ namespace GoF2Remake.Data
                     if (Session.CompletedWorld || (entries[k] < Session.Wanted.Count && Session.Wanted[entries[k]].terminated)) ships.Add(45 + k);
                 return ships;
             }
-            if (station == 10 && (Achievements.GotAllGoldMedals || Session.CompletedWorld)) return new List<int> { 8 };   // Thynome: the VoidX
+            // Thynome: the VoidX with every gold medal. getShipBuyList gives it alone; the remake (a modder's request,
+            // 2026-11-02) puts it first in the dealer's usual roll, so Thynome's other ships and the mods' dealer ships stay.
+            bool voidX = station == 10 && (Achievements.GotAllGoldMedals || Session.CompletedWorld);
             int race = RaceOfSystem(db, system);
             // Android 2.0.16: rnd 6 ships (+1 at 41), 1 in 6 an empty dealer, a duplicate roll dropped; iOS 1.1.19 (the Default
             // economy): rnd 4 + 2 (+1 at 41), never empty, a duplicate rolled again.
             bool ios = Session.Economy == Economy.Default;
             int n = (ios ? Random.Range(0, 4) + 2 : Random.Range(0, 6)) + (station == 41 ? 1 : 0);
-            if (n == 0) return ships;   // getShipBuyList: no rolls, no extras either
+            if (n == 0) { if (voidX) ships.Add(8); return ships; }   // getShipBuyList: no rolls, no extras either
             for (int i = 0; i < n; i++)
             {
                 int ship, tries = 0;
@@ -534,6 +536,7 @@ namespace GoF2Remake.Data
             if (race == 0 && Random.Range(0, 8) == 0) ships.Add(51);
             if (system == 17) foreach (int s in new[] { 42, 43, 52 }) if (Random.Range(0, 3) == 0) ships.Add(s);
             Modding.ModUnlocks.AddDealerShips(db, station, race, ships);   // remake mods: ships.json "dealer"
+            if (voidX) ships.Insert(0, 8);
             return ships.Distinct().ToList();
         }
 

@@ -47,7 +47,8 @@ namespace GoF2Remake.Events
             "enemies", "ships", "time", "missionstation", "toppoints", "players", "inspace", "docked", "dead", "campaign", "credits",
             "rank", "station", "system", "ship", "kills", "systemsvisited", "random", "min", "max", "floor", "count", "alive", "distance",
             "cargo", "has", "visited", "quest", "option", "won", "inorbit", "and", "or", "not", "main", "valkyrie", "supernova",
-            "randomstation", "stationname", "systemname", "standing",
+            "randomstation", "stationname", "systemname", "standing", "medals", "bought", "gold", "silver", "bronze", "any",
+            "allgold", "allsupernova",
         };
 
         public static bool IsName(string s) => !string.IsNullOrEmpty(s) && Regex.IsMatch(s, "^[A-Za-z_][A-Za-z0-9_]*$");
@@ -110,6 +111,10 @@ namespace GoF2Remake.Events
                 {
                     Line("mission kind mission");
                     Line("mission title " + title);
+                    // Single player: offered only while startsWhen holds; once: never again once completed.
+                    string barStarts = Str(o, "startsWhen").Trim();
+                    if (barStarts.Length > 0) Line("mission starts " + Expr(barStarts));
+                    if (Bool(o, "once", false)) Line("mission once");
                     string offer = Lines(Text(o, "offer"));
                     if (offer.Length > 0) Line("mission offer " + offer);
                     string client = Clean(Str(o, "client"));

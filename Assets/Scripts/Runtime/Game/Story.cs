@@ -362,8 +362,10 @@ namespace GoF2Remake.Data
         /// <summary>ModStation::OnKeyPress (the menu buttons, 528 "Not available." otherwise): no Hangar in a loaner (48, 49,
         /// 56), no Lounge at 49, no Map at 48 / 49. Remake (#46): no Hangar while any loaner is flown (Session.ParkedShip): the
         /// K'Suukk docks at 54 and the S'Kanarr at 57, where the original opens the success conversation the same frame (the
-        /// remake waits a second after the landing), and a quick tap on Hangar sold the loaner's guns or the loaner itself.</summary>
-        public static bool HangarUnlocked => Session.FreePlay || (Index >= 5 && Index != 48 && Index != 49 && Index != 56 && Session.ParkedShip == null);
+        /// remake waits a second after the landing), and a quick tap on Hangar sold the loaner's guns or the loaner itself.
+        /// Remake mods: an event's loaner (LendForEvent) locks it in free play too.</summary>
+        public static bool HangarUnlocked => Session.FreePlay ? Session.ParkedShip == null || string.IsNullOrEmpty(Session.ParkedShip.lentBy)
+                                           : Index >= 5 && Index != 48 && Index != 49 && Index != 56 && Session.ParkedShip == null;
         public static bool MapUnlocked => Session.FreePlay || (Index >= 9 && Index != 15 && Index != 48 && Index != 49);
         public static bool LoungeUnlocked(int station) => station != 100 && station != 101 && (Session.FreePlay || (Index >= 13 && Index != 15 && Index != 49))
                                                           && !GoF2Remake.Modding.ModWorld.NoBar(station);   // remake mods: "bar": "none"
@@ -562,6 +564,57 @@ namespace GoF2Remake.Data
             Session.ParkedShip = null;
         }
 
+        // ---- remake mods: an event graph's loaner (the "lend" step, NetAdmin.Order.Lend) -------------------------------
+        // The Valkyrie's loaners for the mods' trial missions: the own ship parked as the story parks it (the Hangar locked
+        // meanwhile, HangarUnlocked), the loaner a fresh hull with an empty hold ('keep': the player's equipment moves over
+        // instead), given back when the graph that lent it ends (EventRun.End) or a save without that run under way loads.
+
+        /// <summary>Lends 'ship' for the event graph 'by'. False while another loaner is flown (the story's or an event's).</summary>
+        public static bool LendForEvent(int ship, string by, bool keep)
+        {
+            if (Session.ParkedShip != null) return false;
+            var equipment = keep ? Session.Equipment.Where(e => !e.builtIn).ToArray() : new ItemStack[0];
+            var cargo = keep ? Session.Cargo : null;
+            ParkOwnShip();
+            Session.ParkedShip.lentBy = by ?? "";
+            Session.ParkedShip.lentKeep = keep;
+            if (keep)
+            {
+                // The own ship keeps nothing: its items fly on the loaner and come back with the own ship.
+                Session.ParkedShip.equipment = new List<ItemStack>();
+                Session.ParkedShip.cargo = new List<ItemStack>();
+            }
+            LendShip(ship, equipment);
+            if (cargo != null) Session.Cargo = cargo;
+            return true;
+        }
+
+        /// <summary>The own ship back from an event's loaner ('by': only the one that graph lent; null: any event's). With
+        /// 'keep' loaners the items aboard go back with it; a fresh loaner's are lost with the hull, as the story's.</summary>
+        public static bool ReturnEventLoaner(string by)
+        {
+            var p = Session.ParkedShip;
+            if (p == null || string.IsNullOrEmpty(p.lentBy) || (by != null && p.lentBy != by)) return false;
+            var equipment = Session.Equipment.Where(e => !e.builtIn).ToList();
+            var cargo = Session.Cargo;
+            RestoreOwnShip();
+            if (p.lentKeep)
+            {
+                Session.Equipment = equipment;
+                Session.Cargo = cargo;
+            }
+            Hangar.SyncBuiltIn(Database.Shared);   // the own hull's built-in items again
+            return true;
+        }
+
+        /// <summary>SaveGame.Apply: an event's loaner whose graph isn't under way in the save (no lasting run to give it back)
+        /// is given back at once.</summary>
+        public static void CheckEventLoaner()
+        {
+            var p = Session.ParkedShip;
+            if (p != null && !string.IsNullOrEmpty(p.lentBy) && !Session.GraphQuests.Exists(q => q.name == p.lentBy)) ReturnEventLoaner(null);
+        }
+
         /// <summary>Item::setUnsaleable on the first jump drive (mounted, else in the hold).</summary>
         static void SetJumpDriveSaleable(Database db, bool saleable)
         {
@@ -627,8 +680,13 @@ namespace GoF2Remake.Data
                 if (Dlc1Won || (Index >= 80 && Index <= 84)) { AddDealerShip(100, 37); AddDealerShip(100, 38); AddDealerShip(100, 40); }
             }
             if (stock == null) return;
-            // ModStation::OnInitialize, every docking: Thynome's VoidX for all gold medals ...
-            if (station == 10 && Achievements.GotAllGoldMedals && (stock.ships == null || !stock.ships.Contains(8))) { stock.ships = new List<int> { 8 }; stock.PruneShipMods(); }
+            // ModStation::OnInitialize, every docking: Thynome's VoidX for all gold medals (the original's list is the VoidX
+            // alone; the remake adds it to the dealer's ships, as Shop.GenerateShips does) ...
+            if (station == 10 && Achievements.GotAllGoldMedals && (stock.ships == null || !stock.ships.Contains(8)))
+            {
+                stock.ships ??= new List<int>();
+                stock.ships.Insert(0, 8);
+            }
             // ... after the game is won, Void Crystals (the Khador Drive blueprint's ingredient) when the player has no drive ...
             if (station == 10 && GameWon && CargoOf(85) == 0 && !Session.Equipment.Exists(e => e.item == 85)
                 && !stock.items.Exists(s => s.item == 85 || s.item == 164))

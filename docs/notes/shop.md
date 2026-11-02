@@ -133,7 +133,8 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
 - The Supernova wrecks' hidden blueprints (hacking): see "Supernova add-on".
 - **Dealer extras** (`Shop.GenerateShips`, `getShipBuyList` 0xa0eb8): none in the supernova system (no stock either);
   Kothar after Valkyrie exactly 37 / 38 / 40; Quineros (107) every pirate ship plus 45-48 for the terminated Most Wanted
-  6 / 12 / 18 / 24; Thynome (10) the VoidX alone with every gold medal (re-rolled on docking); a roll of 0 ships gives
+  6 / 12 / 18 / 24; Thynome (10) the VoidX alone with every gold medal (re-rolled on docking; remake, a modder's request
+  2026-11-02: the VoidX first beside the dealer's usual roll, see docs/notes/mods.md); a roll of 0 ships gives
   none; after Valkyrie the Vossk dealers 1/2 each 39 / 41 and every Vossk fighter roll 60 / 25 / 15 % 9 / 41 / 39
   (`NpcTables.RandomFighter`, traffic too); Katashán (120) after 158: 44 (Extreme or all Supernova medals) and 49.
   Docking fix-ups (`Story.OnDocked`): 50 Void Crystals at Thynome after the game is won for a player without a Khador

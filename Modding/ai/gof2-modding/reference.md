@@ -112,7 +112,7 @@ recipe in the original (see Blueprints).
 | 82 | Telta Ecoscan | equipment | Scanner | 3 | 40 | 7900-8256 | lockTimeMs 3000, showClassAAsteroids 0, radarShowsCargo 1, alwaysSoldAt 11 |  |
 | 83 | Hiroto Proscan | equipment | Scanner | 6 | 20 | 33500-36850 | lockTimeMs 1800, showClassAAsteroids 0, radarShowsCargo 1, alwaysSoldAt 11 |  |
 | 84 | Hiroto Ultrascan | equipment | Scanner | 7 | 20 | 175200-179204 | lockTimeMs 1800, showClassAAsteroids 1, radarShowsCargo 1, alwaysSoldAt 11 |  |
-| 85 | Khador Drive | equipment | Jump drive | 10 | 0 | 624803-662923 | attr 37 5000, energyCells 1 | yes |
+| 85 | Khador Drive | equipment | Jump drive | 10 | 0 | 624803-662923 | cruiseChargeMs 5000, energyCells 1 | yes |
 | 86 | IMT Extract 1.3 | equipment | Mining laser | 2 | 70 | 480-528 | drillSpeed 30, miningYield 60, alwaysSoldAt 8 |  |
 | 87 | IMT Extract 2.7 | equipment | Mining laser | 6 | 50 | 20280-22308 | drillSpeed 40, miningYield 60, alwaysSoldAt 8 |  |
 | 88 | K'yuul | equipment | Mining laser | 7 | 30 | 40820-44902 | drillSpeed 50, miningYield 75, vosskOnly, alwaysSoldAt 8 |  |
@@ -312,7 +312,7 @@ A new item keeps its `base` item's category (and works like it): pick a base of 
 ## Item stats (attribute numbers)
 
 The stat names items.json's `stats` takes and their attribute numbers (`attributes` takes the numbers). 100+ are the
-remake's own. The original's attributes without a name: 37, 56, 57, 58, 59 (set only through raw
+remake's own. The original's attributes without a name: 56, 57, 58, 59 (set only through raw
 `attributes`); 60 = Vossk-made (`vosskOnly`), 61 = always sold at that station (`alwaysSoldAt`).
 
 | Attr | Stat name | Used by items |
@@ -344,6 +344,7 @@ remake's own. The original's attributes without a name: 37, 56, 57, 58, 59 (set 
 | 34 | cabins | 91, 92, 93 |
 | 35 | cloakDurationMs | 94, 95, 96 |
 | 36 | cloakChargeMs | 94, 95, 96 |
+| 37 | cruiseChargeMs | 85 |
 | 38 | energyCells | 85, 94, 95, 96 |
 | 39 | fireRateFactor | 186, 187 |
 | 40 | damageFactor | 186, 187 |
@@ -388,6 +389,10 @@ remake's own. The original's attributes without a name: 37, 56, 57, 58, 59 (set 
 | 130 | echoExplosion |  |
 | 131 | missileDefense |  |
 | 132 | miningTime |  |
+| 133 | cruiseSpeed |  |
+| 134 | cruiseRange |  |
+| 135 | interstellar |  |
+| 137 | tractorNoLock |  |
 
 ## Blueprints
 
@@ -761,11 +766,8 @@ The PC / Mac / iPhone numbers where they differ from the Android ones above (And
 
 | Ship # | Name | Changes |
 |---|---|---|
-| 0 | Betty | price 16200 -> 16038 |
 | 1 | Teneta | price 100320 -> 125400 |
-| 3 | Badger | price 39100 -> 38709 |
 | 4 | Dace | price 188480 -> 235600 |
-| 6 | Hector | price 38400 -> 38016 |
 | 7 | Anaan | price 141520 -> 176900 |
 | 8 | VoidX | price 4057950 -> 8115900 |
 | 9 | H'Soc | price 120000 -> 150000 |
@@ -775,8 +777,8 @@ The PC / Mac / iPhone numbers where they differ from the Android ones above (And
 | 16 | Kinzer | price 1418733 -> 2128100 |
 | 17 | Ward | price 1103200 -> 1654800 |
 | 18 | Hatsuyuki | price 137520 -> 171900 |
-| 19 | Nuyang II | price 626467 -> 930303 |
-| 20 | Cicero | price 42000 -> 51975 |
+| 19 | Nuyang II | price 626467 -> 939700 |
+| 20 | Cicero | price 42000 -> 52500 |
 | 21 | Aegir | price 1808600 -> 2712900 |
 | 22 | Groza | price 201280 -> 251600 |
 | 23 | Azov | price 49520 -> 61900 |
@@ -786,7 +788,7 @@ The PC / Mac / iPhone numbers where they differ from the Android ones above (And
 | 27 | Taipan | price 80080 -> 100100 |
 | 28 | Veteran | price 1658933 -> 2488400 |
 | 29 | Mantis | price 2363886 -> 4136800 |
-| 30 | Berger CrossXT | price 70560 -> 87318 |
+| 30 | Berger CrossXT | price 70560 -> 88200 |
 | 31 | Salvéhn | price 75600 -> 94500 |
 | 33 | Furious | price 60640 -> 75800 |
 | 34 | Razor 6 | price 235920 -> 294900 |
@@ -799,22 +801,22 @@ The PC / Mac / iPhone numbers where they differ from the Android ones above (And
 | 42 | Vol Noor | price 84000 -> 105000 |
 | 43 | Wraith | price 1166667 -> 1750000 |
 | 44 | Specter | price 12000000 -> 30000000 |
-| 45 | Bloodstar | price 5400000 -> 13365000 |
-| 46 | Blue Fyre | price 2571429 -> 4455000 |
-| 47 | Gator Custom | price 2971429 -> 5148000 |
-| 48 | Amboss | price 3400000 -> 6732000 |
+| 45 | Bloodstar | price 5400000 -> 13500000 |
+| 46 | Blue Fyre | price 2571429 -> 4500000 |
+| 47 | Gator Custom | price 2971429 -> 5200000 |
+| 48 | Amboss | price 3400000 -> 6800000 |
 | 49 | Scimitar | price 3314286 -> 5800000 |
 | 51 | Rhino | price 466667 -> 700000 |
 | 52 | Gryphon | price 1400000 -> 2100000 |
 | 54 | Na'srrk | price 3085714 -> 5400000 |
 | 55 | Groza Mk II | price 3565000 -> 7130000 |
-| 56 | Berger Cross Special | price 3705000 -> 7355900 |
+| 56 | Berger Cross Special | price 3705000 -> 7410000 |
 | 57 | Kinzer RS | price 4465000 -> 8930000 |
 | 58 | Phantom XT | price 3715000 -> 7430000 |
 | 59 | Teneta R.E.D. | price 3805000 -> 7610000 |
 | 60 | Darkzov | price 3618000 -> 7236000 |
 | 61 | Ghost | price 3333333 -> 6000000 |
-| 62 | Dark Angel | price 3650000 -> 7277000 |
+| 62 | Dark Angel | price 3650000 -> 7300000 |
 | 63 | N'Tirrk | price 200000 -> 250000 |
 
 ## Systems
@@ -1596,7 +1598,7 @@ items.json fx (see the guide's "The game's own models").
 
 | Model | Pack | Textures |
 |---|---|---|
-| hangar_terran | main | hangar_terran_diffuse, hangar_terran_metallic_smoothness, hangar_terran_normal_specular |
+| hangar_terran | main | hangar_terran_alpha_diffuse, hangar_terran_diffuse, hangar_terran_metallic_smoothness, hangar_terran_normal_specular |
 | hangar_vossk | main | hangar_vossk_anim_add_diffuse, hangar_vossk_diffuse, hangar_vossk_metallic_smoothness, hangar_vossk_normal_specular |
 | hangar_nivelian | main | hangar_nivelian_diffuse, hangar_nivelian_metallic_smoothness, hangar_nivelian_normal_specular |
 | hangar_midorian | main | hangar_midorian_diffuse, hangar_midorian_metallic_smoothness, hangar_midorian_normal_specular |
@@ -1704,7 +1706,7 @@ items.json fx (see the guide's "The game's own models").
 Planets, suns and rings in the sky (replace with `textures/<name>.png`, one whole disc, transparent edge). A station's
 `planet` N uses `planet_0NN_big` / `_small` (24-26 the Supernova's `sn_planet_0NN_*`).
 
-planet_000_big, planet_000_small, planet_001_big, planet_001_small, planet_002_big, planet_002_small, planet_003_big, planet_003_small, planet_004_big, planet_004_small, planet_005_big, planet_005_small, planet_006_big, planet_006_small, planet_007_big, planet_007_small, planet_008_big, planet_008_small, planet_009_big, planet_009_small, planet_010_big, planet_010_small, planet_011_big, planet_011_small, planet_012_big, planet_012_small, planet_013_big, planet_013_small, planet_014_big, planet_014_small, planet_015_big, planet_015_small, planet_016_big, planet_016_small, planet_017_big, planet_017_small, planet_018_big, planet_018_small, planet_019_big, planet_019_small, planet_void_big, planet_void_small, sn_planet_024_big, sn_planet_024_small, sn_planet_025_big, sn_planet_025_small, sn_planet_026_big, sn_planet_026_small, sn_planet_ring, sn_sun_011, sn_sun_explosion_core, sn_sun_explosion_ring, sun_000, sun_001, sun_002, sun_003, sun_004, sun_005, sun_006, sun_007, sun_008, sun_009, sun_010, v_planet_020_big, v_planet_020_small, v_planet_021_big, v_planet_021_small, v_planet_022_big, v_planet_022_small
+planet_000_big, planet_000_small, planet_001_big, planet_001_small, planet_002_big, planet_002_small, planet_003_big, planet_003_small, planet_004_big, planet_004_small, planet_005_big, planet_005_small, planet_006_big, planet_006_small, planet_007_big, planet_007_small, planet_008_big, planet_008_small, planet_009_big, planet_009_small, planet_010_big, planet_010_small, planet_011_big, planet_011_small, planet_012_big, planet_012_small, planet_013_big, planet_013_small, planet_014_big, planet_014_small, planet_015_big, planet_015_small, planet_016_big, planet_016_small, planet_017_big, planet_017_small, planet_018_big, planet_018_small, planet_019_big, planet_019_small, planet_void_big, planet_void_small, sn_planet_024_big, sn_planet_024_small, sn_planet_025_big, sn_planet_025_small, sn_planet_026_big, sn_planet_026_small, sn_planet_ring, sn_sun_011, sn_sun_012, sn_sun_explosion_core, sn_sun_explosion_ring, sun_000, sun_001, sun_002, sun_003, sun_004, sun_005, sun_006, sun_007, sun_008, sun_009, sun_010, v_planet_020_big, v_planet_020_small, v_planet_021_big, v_planet_021_small, v_planet_022_big, v_planet_022_small
 
 ## Music
 

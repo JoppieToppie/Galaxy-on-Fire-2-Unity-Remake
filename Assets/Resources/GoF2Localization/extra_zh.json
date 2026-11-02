@@ -3171,5 +3171,13 @@
  "plantWastePerTon": "每吨 {0}。还能用的东西都归你。",
  "plantWasteNoneHeld": "货仓中没有太空废物。",
  "plantWasteAll": "全部 {0}",
- "plantWastePart": "{0} t，{1}"
+ "plantWastePart": "{0} t，{1}",
+ "mbOnlyOnce": "仅一次：完成后不再有酒吧提供",
+ "mpAdmLend": "{0}借用了{1}。",
+ "mpAdmLendBack": "{0}取回了自己的飞船。",
+ "mpAdmLendNoShip": "{0}无法出借：没有飞行员能拥有它。",
+ "mpAdmLendBusy": "你已经在驾驶借来的飞船。",
+ "mpAdmLendYou": "你在驾驶借来的{0}。",
+ "mpAdmLendBackYou": "你自己的飞船回来了。",
+ "mpCmdLend": "管理员：借用飞船，自己的飞船停放（keep：装备随之转移；back = 换回自己的飞船）"
 }

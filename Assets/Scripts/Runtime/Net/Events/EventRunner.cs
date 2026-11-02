@@ -186,7 +186,7 @@ namespace GoF2Remake.Events
 
 
         static readonly string[] Triggers = { "died", "docked", "launched", "joined", "left", "entered", "kill", "cleared", "pvpkill", "respawned", "near", "hacked", "pad" };
-        static readonly string[] MissionKeys = { "title", "offer", "client", "reward", "players", "stations", "kind", "starts", "chance", "takers", "repeat" };
+        static readonly string[] MissionKeys = { "title", "offer", "client", "reward", "players", "stations", "kind", "starts", "chance", "takers", "repeat", "once" };
 
         /// <summary>A bar mission's details: the Start node's Mission settings (the "mission &lt;key&gt; &lt;value&gt;" lines).</summary>
         public sealed class MissionInfo
@@ -204,6 +204,9 @@ namespace GoF2Remake.Events
             public EventMissionTakers takers;
             public int kind = -1;   // "mission kind": 0 event, 1 bar mission, 2 quest (-1: not given, a bar mission when titled)
             public float repeatMinutes;   // "mission repeat": a quest that comes again this many minutes of playing time after it was done (0: once)
+            // Remake (a modder's request, 2026-11-02), single player: a bar mission's "mission starts" is the condition before
+            // any bar offers it; "mission once": done with success, no bar offers it again in this game (Session.GraphQuestsDone).
+            public bool once;
             public bool builtIn;    // one of the game's own examples (Resources/GoF2Events): multiplayer only
             public bool IsMission => kind == 1 || (kind < 0 && title.Length > 0);
             public bool IsQuest => kind == 2;
@@ -281,6 +284,8 @@ namespace GoF2Remake.Events
         internal static void NoteWormholeSet() { if (executing != null) executing.eventWormhole = true; }
         internal static void NoteCutsceneSet() { if (executing != null) executing.eventCutscene = true; }
         internal static void NoteFadeSet() { if (executing != null) executing.eventFade = true; }
+        /// <summary>NetAdmin.Lend: the run lends ships (given back when it ends); its graph's name, "" outside an event.</summary>
+        internal static string NoteLoaner() { if (executing == null) return ""; executing.eventLoaner = true; return executing.running ?? ""; }
 
         /// <summary>NetAdmin.Spawn, while a script's spawn line runs: a new batch tag of that run for 'count' ships to one
         /// player (0 when no event is running the command).</summary>
@@ -390,6 +395,7 @@ namespace GoF2Remake.Events
             public readonly int station;   // a mission: where it was taken (-1: none)
             public bool ended;
             public bool eventPvp, eventRespawn, eventRules, eventWaypoint, eventWormhole, eventCutscene, eventFade, eventFlight;   // it turned the free for all on / set respawn points / restricted travel / a waypoint
+            public bool eventLoaner;   // it lent ships ("lend"): each player's own ship back when it ends
             public GraphQuestState record;   // single player's lasting run (a quest, a bar mission): what a save keeps (null: none)
             public string objective = "";
             public int target = -1;
@@ -544,7 +550,8 @@ namespace GoF2Remake.Events
                     {
                         while (i < s.Length && (char.IsLetterOrDigit(s[i]) || s[i] == '_')) i++;
                         string name = s.Substring(start, i - start).ToLowerInvariant();
-                        if ((name == "cargo" || name == "has" || name == "visited" || name == "quest" || name == "option" || name == "won" || name == "standing") && Peek('('))
+                        if ((name == "cargo" || name == "has" || name == "visited" || name == "quest" || name == "option" || name == "won" || name == "standing"
+                             || name == "medals" || name == "bought") && Peek('('))
                         {
                             // An item / station / quest by number or name: the text up to its ")" ({expression} parts filled in).
                             Sym("(");
@@ -663,6 +670,30 @@ namespace GoF2Remake.Events
                         if (race < 0) throw new Exception($"standing({arg}): terran, vossk, nivelian, midorian or a mod's race.");
                         bool fixedEnemy = Modding.ModRaces.Is(race) ? Modding.ModRaces.Get(race)?.hostile ?? true : race > 3;
                         return fixedEnemy ? -100 : Flight.Standing.RawToward(race);
+                    }
+                    // medals(gold | silver | bronze | any): how many medals the player holds of that grade (Session.Medals: 1
+                    // gold, 2 silver, 3 bronze); medals(allgold): 1 with every base medal gold (Achievements.GotAllGoldMedals,
+                    // Thynome's VoidX), medals(allsupernova): the nine elite ones too (the Specter at Katashán).
+                    if (name == "medals")
+                    {
+                        string which = arg.ToLowerInvariant();
+                        if (which == "allgold") return Achievements.GotAllGoldMedals ? 1 : 0;
+                        if (which == "allsupernova") return Achievements.GotAllSupernovaMedals ? 1 : 0;
+                        int grade = which switch
+                        {
+                            "gold" => 1, "silver" => 2, "bronze" => 3, "any" => 0,
+                            _ => throw new Exception($"medals({arg}): gold, silver, bronze, any, allgold or allsupernova."),
+                        };
+                        int count = 0;
+                        if (Session.Medals != null) foreach (int m in Session.Medals) if (grade == 0 ? m != 0 : m == grade) count++;
+                        return count;
+                    }
+                    // bought(<ship>): 1 once the player has bought (or built) that ship in this game (Session.ShipsBought).
+                    if (name == "bought")
+                    {
+                        int ship = NetAdmin.FindShip(arg, out string shipError);
+                        if (ship < 0) throw new Exception(shipError ?? arg);
+                        return Session.ShipsBought.Contains(Session.ShipRef(ship)) ? 1 : 0;
                     }
                     if (name == "visited")
                     {

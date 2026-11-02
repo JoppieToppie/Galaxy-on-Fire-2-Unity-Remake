@@ -3171,5 +3171,13 @@
  "plantWastePerTon": "1 tにつき{0}。まだ使える物はあなたの物です。",
  "plantWasteNoneHeld": "貨物室に宇宙ゴミがありません。",
  "plantWasteAll": "全部で{0}",
- "plantWastePart": "{0} tを{1}で"
+ "plantWastePart": "{0} tを{1}で",
+ "mbOnlyOnce": "一度だけ：完了後はどのバーも再び依頼しない",
+ "mpAdmLend": "{0}に{1}を貸し出します。",
+ "mpAdmLendBack": "{0}は自分の船を取り戻します。",
+ "mpAdmLendNoShip": "{0}は貸し出せません：どのパイロットも所有できない船です。",
+ "mpAdmLendBusy": "すでに借りた船に乗っています。",
+ "mpAdmLendYou": "借りた{0}に乗っています。",
+ "mpAdmLendBackYou": "自分の船が戻りました。",
+ "mpCmdLend": "管理者：貸し出し船、自分の船は駐機（keep：装備を移す、back = 自分の船に戻る）"
 }

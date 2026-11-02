@@ -562,10 +562,12 @@ namespace GoF2Remake.Data
         /// report): 'dismount' = a bought hull (dealer, lounge seller, Kaamo "Keep", a blueprint's ship) starts bare: the
         /// saleable items go to the hold (secondaries with their ammo) for the player to mount again or sell; the story's
         /// unsaleable items stay mounted (they can't be demounted, 323). The original moves them onto the new hull, which
-        /// single player keeps: the bare hull is a multiplayer session's rule only.</summary>
-        void SwitchTo(int ship, List<int> mods, List<ItemStack> mount = null, bool dismount = false)
+        /// single player keeps: the bare hull is a multiplayer session's rule only. 'bought' (every caller but a stored hull
+        /// taken out of the Kaamo Club): the ship counts as bought for the mods' bought(ship) (Session.ShipsBought).</summary>
+        void SwitchTo(int ship, List<int> mods, List<ItemStack> mount = null, bool dismount = false, bool bought = true)
         {
             dismount &= NetSession.Active;
+            if (bought) Session.ShipsBought.Add(Session.ShipRef(ship));
             var mounted = (mount ?? Session.Equipment).Where(e => !e.builtIn).ToList();   // the old hull's built-ins stay with it
             Session.ShipIndex = ship;
             Session.ShipMods = mods != null ? new List<int>(mods) : new List<int>();
@@ -672,10 +674,10 @@ namespace GoF2Remake.Data
             var storedGear = stored.equipment ?? new List<ItemStack>();
             var kept = EquipmentToStore();
             var old = new StoredShip(Session.ShipIndex, 0, Session.ShipMods, kept);
-            if (kept != null) SwitchTo(stored.ship, stored.mods, Session.Equipment.Concat(storedGear).ToList());   // the story's items first
+            if (kept != null) SwitchTo(stored.ship, stored.mods, Session.Equipment.Concat(storedGear).ToList(), bought: false);   // the story's items first
             else
             {
-                SwitchTo(stored.ship, stored.mods);
+                SwitchTo(stored.ship, stored.mods, bought: false);
                 KaamoClub.AddToStorage(storedGear);
             }
             Session.KaamoShips[index] = old;

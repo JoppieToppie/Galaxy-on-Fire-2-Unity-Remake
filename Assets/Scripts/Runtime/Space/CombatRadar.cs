@@ -46,6 +46,10 @@
 //               free for ships (the manual salvage, a steal or an auto mode still has the first beam; with none running the
 //               extra beams take all N). Not in the turret view; a crate only while the hold has room. The
 //               beam's look is its item's look (a mod's tractor beam draws its base's beam).
+//               Remake (a modder's request, 2026-11-02): attr 137 "tractorNoLock" 1: the scanner never locks a crate (the
+//               ship lock is never taken from it), every beam picks crates by itself as the extra ones do (one beam too);
+//               an EMP-disabled ship is still locked for a steal at the beam's lock time. Attr 136 (items.json
+//               "tractorColor", 0x1000000 | rgb): the beams tinted that colour (ModWeapons.Tint, as a weapon fx's "color").
 //   readout     a scanner with attr 31 = 1 (Ecoscan / Proscan / Ultrascan, Radar+0x1a5): a new ship lock within 24000 units
 //               per axis shows the ship's first cargo entry like a pickup ("<n>t <item>", Hud::catchCargo), or "Nothing to
 //               salvage." (542, HUD event 0x16) when it has no cargo list; nothing when every entry is empty. Remake: the
@@ -62,7 +66,7 @@ namespace GoF2Remake.Flight
     {
         const float M = 0.05f, CrosshairDistanceMeters = 22000f * M, PullSpeed = 10f, CaptureUnits = 400f, SalvageRingDelay = 500f;
         /// <summary>Remake-only tractor beam attributes (Modding.ItemStats "tractorTargets" / "tractorRange").</summary>
-        public const int TractorTargetsAttr = 122, TractorRangeAttr = 123, MaxTractorTargets = 8;
+        public const int TractorTargetsAttr = 122, TractorRangeAttr = 123, MaxTractorTargets = 8, TractorColorAttr = 136, TractorNoLockAttr = 137;
         public const float DefaultTractorRangeUnits = 30000f;
 
         public bool HasScanner { get; private set; }
@@ -123,6 +127,8 @@ namespace GoF2Remake.Flight
         readonly System.Collections.Generic.List<Pull> extra = new System.Collections.Generic.List<Pull>();
         int tractorTargets = 1;
         float tractorRangeUnits = DefaultTractorRangeUnits;
+        bool tractorNoLock;
+        Color? beamColor;
         /// <summary>The crates the extra beams pull now (tractorTargets).</summary>
         public int ExtraPulls => extra.Count;
 
@@ -164,6 +170,8 @@ namespace GoF2Remake.Flight
                 tractorMode = tractor.Attr(23);
                 tractorTargets = TractorTargets(tractor);
                 tractorRangeUnits = tractor.Attr(TractorRangeAttr, (int)DefaultTractorRangeUnits);
+                tractorNoLock = tractor.Attr(TractorNoLockAttr) == 1;
+                beamColor = BeamColor(tractor);
             }
             sfx = gameObject.AddComponent<AudioSource>();
             sfx.playOnAwake = false;
@@ -186,11 +194,20 @@ namespace GoF2Remake.Flight
         public static int TractorTargets(ItemData tractor) =>
             tractor == null ? 0 : Mathf.Clamp(tractor.Attr(TractorTargetsAttr, 1), 1, MaxTractorTargets);
 
+        /// <summary>The beam's colour (attr 136, items.json "tractorColor"), null = its texture's own.</summary>
+        public static Color? BeamColor(ItemData tractor)
+        {
+            int v = tractor != null ? tractor.Attr(TractorColorAttr) : 0;
+            if ((v & 0x1000000) == 0) return null;
+            return new Color(((v >> 16) & 255) / 255f, ((v >> 8) & 255) / 255f, (v & 255) / 255f, 1f);
+        }
+
         Transform MakeBeam()
         {
             if (beamPrefab == null) return null;
             var go = Instantiate(beamPrefab);
             go.name = "Tractor beam";
+            if (beamColor is Color tint) GoF2Remake.Modding.ModWeapons.Tint(go, tint);
             GunRig.StripForFx(go);
             GunRig.EnableFades(go);   // its keys pulse the width 1..1.5 and the `extra` opacity 25..50 %
             go.SetActive(false);
@@ -300,7 +317,8 @@ namespace GoF2Remake.Flight
                     // there is nothing to lock) and a non-hostile one; only a new hostile ship still comes first. Before, the
                     // locked enemy, usually in the box beside the container it dropped, kept the tractor beam off it.
                     bool crateFirst = smart && (best == null || best == Locked || !best.hostileToPlayer);
-                    if ((best == null || crateFirst) && bestSteal == null)
+                    // tractorNoLock: crates are the beams' own business, never a lock (the ship lock stays free).
+                    if ((best == null || crateFirst) && bestSteal == null && !tractorNoLock)
                     {
                         bestD = float.MaxValue;
                         foreach (var cr in Crate.All)
@@ -447,7 +465,7 @@ namespace GoF2Remake.Flight
                 if (p.beam != null) Destroy(p.beam.gameObject);
                 Capture(c);
             }
-            if (keep && pick && tractorItem >= 0 && tractorTargets > 1)
+            if (keep && pick && tractorItem >= 0 && (tractorTargets > 1 || tractorNoLock))
             {
                 int free = tractorTargets - (Salvaging != null ? 1 : 0) - extra.Count;
                 bool room = Shop.FreeCargo(db) > 0;

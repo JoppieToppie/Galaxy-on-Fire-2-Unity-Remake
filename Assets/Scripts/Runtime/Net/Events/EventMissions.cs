@@ -213,8 +213,9 @@ namespace GoF2Remake.Events
         static void AcceptLocal(Offer o)
         {
             var info = EventRunner.MissionGraphs().Find(m => m.name == o.name);
-            if (info == null || (!Offered(info, o.station) && !PlayTested(o.name))) { EventHost.NoticeTo(LocalPilot.Instance, X("mpEventMissionGone", "That mission isn't offered here any more.")); return; }
-            var record = new GraphQuestState { name = o.name, kind = GraphQuestState.KindMission, title = o.title, station = o.station, offer = o.entry };
+            if (info == null || ((!Offered(info, o.station) || !Startable(info)) && !PlayTested(o.name))) { EventHost.NoticeTo(LocalPilot.Instance, X("mpEventMissionGone", "That mission isn't offered here any more.")); return; }
+            var record = new GraphQuestState { name = o.name, kind = GraphQuestState.KindMission, title = o.title, station = o.station, offer = o.entry,
+                                               once = info.once ? o.name : "" };
             Session.GraphQuests.Add(record);
             string why = EventRunner.StartMission(o.name, new HashSet<ulong> { 0 }, o.station, LocalPilot.Instance, record);
             if (why != null) { Session.GraphQuests.Remove(record); EventHost.NoticeTo(LocalPilot.Instance, why); return; }
@@ -366,11 +367,24 @@ namespace GoF2Remake.Events
                 if (singlePlayer && PlayTested(m.name)) list.Add(Entry(m, station));   // the builder's play test: here for sure
                 else
                 // Single player: the mods' and the Events folder's graphs for one pilot (the built-ins are multiplayer examples).
-                if ((m.stations.Count == 0 || m.stations.Contains(station)) && (!singlePlayer || (m.minPlayers <= 1 && !m.builtIn))
+                if ((m.stations.Count == 0 || m.stations.Contains(station)) && (!singlePlayer || (m.minPlayers <= 1 && !m.builtIn && Startable(m)))
                     && (m.takers != EventMissionTakers.OneInUniverse || !EventRunner.MissionTaken(m.name))   // one squad in the universe
                     && OfferEntry(m, station) is string entry)
                     list.Add(entry);
             return string.Join(GS.ToString(), list);
+        }
+
+        /// <summary>Single player (remake, a modder's request): a bar mission's "Starts when" holds and, with "Only once", it
+        /// isn't done yet. A session's bars ignore both: the server has no one player's game to ask.</summary>
+        internal static bool Startable(EventRunner.MissionInfo m)
+        {
+            if (m.once && Session.GraphQuestsDone.Contains(m.name)) return false;
+            string when = (m.starts ?? "").Trim();
+            if (when.Equals("never", StringComparison.OrdinalIgnoreCase)) return false;
+            if (when.Length == 0) return true;
+            if (EventRunner.Condition(when, out string error)) return true;
+            if (error != null) Debug.LogWarning($"Event: bar mission {m.name}'s start condition: {error}");
+            return false;
         }
 
         /// <summary>Server: a player takes the mission 'name' at 'station' for their squad (or alone).</summary>

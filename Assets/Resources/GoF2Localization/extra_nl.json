@@ -3171,5 +3171,13 @@
  "plantWastePerTon": "{0} per ton. Wat nog bruikbaar is, is van jou.",
  "plantWasteNoneHeld": "Geen ruimteafval in je laadruim.",
  "plantWasteAll": "alles voor {0}",
- "plantWastePart": "{0} t voor {1}"
+ "plantWastePart": "{0} t voor {1}",
+ "mbOnlyOnce": "Maar één keer: geen bar biedt hem opnieuw aan zodra hij voltooid is",
+ "mpAdmLend": "{0} krijgt de {1} te leen.",
+ "mpAdmLendBack": "{0} krijgt het eigen schip terug.",
+ "mpAdmLendNoShip": "De {0} kan niet uitgeleend worden: geen piloot kan hem bezitten.",
+ "mpAdmLendBusy": "Je vliegt al een leenschip.",
+ "mpAdmLendYou": "Je vliegt de {0} te leen.",
+ "mpAdmLendBackYou": "Je eigen schip is terug.",
+ "mpCmdLend": "admins: een leenschip, het eigen schip geparkeerd (keep: de uitrusting gaat mee; back = weer het eigen schip)"
 }

@@ -42,6 +42,9 @@ namespace GoF2Remake.Modding
             // A tractor beam (sort 13) with tractorTargets 2+ pulls that many crates at once, by itself, within tractorRange
             // game units, without the salvage lock (Flight.CombatRadar's extra beams; like the transfusion beams' attr 55).
             ["tractorTargets"] = 122, ["tractorRange"] = 123,
+            // tractorNoLock 1: the scanner never locks a crate, every beam picks crates by itself (an EMP'd ship is still
+            // locked for a steal). Attribute 136 is items.json's "tractorColor" (0x1000000 | rgb), set as a colour, not here.
+            ["tractorNoLock"] = 137,
             // A weapon's damage to a shield in percent (Flight.Gun.ShieldFactor; default 100, the Disruptor Laser and items
             // based on it 200): the part the shield doesn't absorb hits the armor and hull at its plain value.
             ["shieldDamage"] = 124,

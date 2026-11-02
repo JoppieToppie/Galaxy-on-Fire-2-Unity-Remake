@@ -305,7 +305,16 @@ namespace GoF2Remake.Tests
         {
             Session.CompletedWorld = true;
             Session.CampaignMission = 162;
-            Assert.AreEqual(new[] { 8 }, Ships(10).ToArray());
+            // The VoidX first, the dealer's usual roll after it (the original sells the VoidX alone there).
+            bool others = false;
+            for (int r = 0; r < Rolls; r++)
+            {
+                var ships = Ships(10);
+                Assert.AreEqual(8, ships[0]);
+                Assert.AreEqual(1, ships.Count(s => s == 8));
+                others |= ships.Count > 1;
+            }
+            Assert.IsTrue(others, "Thynome's other ships stay");
         }
 
         [Test]

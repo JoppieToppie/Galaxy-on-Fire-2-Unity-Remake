@@ -1,8 +1,8 @@
 // ProjectQuest.cs
 // Remake-only: a quest or bar mission made in the Mod Builder: events/<name>.gof2quest, a JSON list of steps the game turns
 // into an event graph's script when it loads it (Events.QuestFile; Modding/README.md "Quests made in the Mod Builder"):
-//   { "format": "gof2quest", "title", "kind": "quest" | "mission", "startsWhen" (quests), "reward", "offer", "client",
-//     "stations": [...], "players": [min, max] (bar missions), "steps": [ { "type": "dialog", ... }, ... ] }
+//   { "format": "gof2quest", "title", "kind": "quest" | "mission", "startsWhen", "reward", "offer", "client",
+//     "stations": [...], "players": [min, max], "once" (bar missions), "steps": [ { "type": "dialog", ... }, ... ] }
 // The step types and their fields are QuestFile's. Like the other entries a JObject with typed accessors; the steps stay
 // JObjects (the builder edits their fields by name). Plain C#.
 

@@ -340,6 +340,8 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Story.HangarUnlocked, "#46: any loaner flown");
             Session.FreePlay = true;
             Assert.IsTrue(Story.HangarUnlocked);
+            Session.ParkedShip.lentBy = "trial";
+            Assert.IsFalse(Story.HangarUnlocked, "an event's loaner, free play too");
         }
 
         [Test]
@@ -804,7 +806,10 @@ namespace GoF2Remake.Tests
             for (int i = 0; i < Achievements.BaseCount; i++) Session.Medals[i] = 1;
             var stock = new StationStock { station = 10, ships = new List<int> { 3, 4 } };
             Story.OnDocked(Db, 10, stock);
-            CollectionAssert.AreEqual(new[] { 8 }, stock.ships);
+            // The original's list is the VoidX alone; the remake keeps the dealer's other ships beside it.
+            CollectionAssert.AreEqual(new[] { 8, 3, 4 }, stock.ships);
+            Story.OnDocked(Db, 10, stock);
+            CollectionAssert.AreEqual(new[] { 8, 3, 4 }, stock.ships, "added once");
         }
 
         [Test]

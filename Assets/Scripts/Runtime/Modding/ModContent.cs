@@ -161,8 +161,24 @@ namespace GoF2Remake.Modding
         {
             "id", "override", "base", "name", "description", "techLevel", "occurrence", "stock", "minPrice", "maxPrice", "price",
             "lowestPriceSystem", "highestPriceSystem", "vosskOnly", "alwaysSoldAt", "stats", "attributes", "defaultEconomy", "fx", "icon",
-            "available",
+            "available", "tractorColor",
         };
+
+        /// <summary>items.json "tractorColor" ("#rrggbb", "rrggbb" or [r, g, b] 0-255) as attribute 136's value
+        /// (0x1000000 | rgb; Flight.CombatRadar tints the beams), -1 = not a colour.</summary>
+        public static int TractorColorValue(JToken t)
+        {
+            if (t is JValue v && v.Type == JTokenType.String)
+            {
+                string s = ((string)v).Trim().TrimStart('#');
+                if (s.Length == 6 && int.TryParse(s, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out int rgb))
+                    return 0x1000000 | rgb;
+                return -1;
+            }
+            if (t is JArray a && a.Count == 3 && a.All(x => x.Type == JTokenType.Integer && (int)x >= 0 && (int)x <= 255))
+                return 0x1000000 | ((int)a[0] << 16) | ((int)a[1] << 8) | (int)a[2];
+            return -1;
+        }
 
         static void ParseItems(ModInfo mod, Parsed p)
         {
@@ -356,6 +372,8 @@ namespace GoF2Remake.Modding
             // "stock": how many units a shop holds (Shop.ModStock), a number or [least, most].
             if (Range(o, "stock", out int smin, out int smax) && (smin < 1 || smax < smin || smax > Shop.MaxStock))
                 mod.Warnings.Add($"{where}: \"stock\" {smin} to {smax} must be 1 to {Shop.MaxStock}, least first (clamped)");
+            if (ModJson.Get(o, "tractorColor") is JToken tc && TractorColorValue(tc) < 0)
+                mod.Warnings.Add($"{where}: \"tractorColor\" must be \"#rrggbb\" or [r, g, b] (0-255): ignored");
             if (ModJson.Get(o, "stats") is JToken st)
             {
                 if (!(st is JObject so)) throw new ModJsonException($"{where}: \"stats\" must be an object {{ \"damage\": 12 }}");

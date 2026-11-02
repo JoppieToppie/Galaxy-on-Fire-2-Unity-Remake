@@ -226,6 +226,7 @@ namespace GoF2Remake.Events
                         info.kind = v.Equals("quest", StringComparison.OrdinalIgnoreCase) ? 2 : v.Equals("mission", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                         break;
                     case "starts": info.starts = v; break;
+                    case "once": info.once = v.Length == 0 || v == "1" || v.Equals("true", StringComparison.OrdinalIgnoreCase); break;
                     case "repeat":
                         if (double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out double rm)) info.repeatMinutes = Mathf.Max(0f, (float)rm);
                         break;

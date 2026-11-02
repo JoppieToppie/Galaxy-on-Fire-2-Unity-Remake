@@ -409,7 +409,8 @@ namespace GoF2Remake.EditorTools
             sb.AppendLine("== != < <= > >=, and / or / not, random(a, b), min, max, floor, count(<players>), alive(ship name), distance(ship name, x,");
             sb.AppendLine("y, z), the state words enemies, ships, players, inspace, docked, dead, time, toppoints, missionstation, and this game's");
             sb.AppendLine("campaign, credits, rank, station, system, ship, kills, cargo(item), has(item), visited(station), quest(name),");
-            sb.AppendLine("option(mod:id), won(main | valkyrie | supernova), systemsvisited.");
+            sb.AppendLine("option(mod:id), won(main | valkyrie | supernova), systemsvisited, medals(gold | silver | bronze | any | allgold |");
+            sb.AppendLine("allsupernova), bought(ship).");
             sb.AppendLine();
 
             var nodes = classes.Values.Where(c => !c.isAbstract && c.category != null).ToList();
