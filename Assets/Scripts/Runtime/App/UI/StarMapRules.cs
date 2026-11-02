@@ -281,7 +281,7 @@ namespace GoF2Remake.UI
             root.Q<Label>("dialogText").text = text;
             dialogYes.text = info ? Localization.Extra("ok", "OK") : yesText ?? T(134).ToUpperInvariant();
             // Modified: a choice between two ways (the drive or the gates, the fastest or the safest route): the two answers
-            // stacked in the middle, No replaced by a Back button at the dialog's top left (Esc / B close it as before).
+            // stacked in the middle, No replaced by a Back button at the dialog's top right (Esc / B close it as before).
             dialogNo.style.display = info || dialogBackCancels ? DisplayStyle.None : DisplayStyle.Flex;
             if (dialogAlt != null)
             {
@@ -346,7 +346,9 @@ namespace GoF2Remake.UI
         }
         void HighlightDialog()
         {
-            bool keys = InputMode.Current != InputKind.Touch;
+            // Modified: not while the mouse points (its hover shows where it is): the first answer looked selected under no
+            // cursor.
+            bool keys = InputMode.Current != InputKind.Touch && !InputMode.MousePointing;
             var buttons = DialogButtons;
             foreach (var b in new[] { dialogYes, dialogAlt, dialogNo })
                 b?.EnableInClassList("map-button--focus", keys && buttons.IndexOf(b) == dialogFocus);
@@ -390,6 +392,7 @@ namespace GoF2Remake.UI
             {
                 yawVel = pitchVel = 0f;
                 int k = PlanetAt(p);
+                pressedPlanet = k;   // Modified (OnPointerUp)
                 if (k >= 0) { selectedPlanet = k; Play(assets.planetPush); }
             }
         }
@@ -466,7 +469,10 @@ namespace GoF2Remake.UI
             else
             {
                 if (Mathf.Abs(yawVel) <= 150f && Mathf.Abs(pitchVel) <= 150f) yawVel = pitchVel = 0f;
-                if (selectedPlanet >= 0)
+                // Modified: only a press on a planet selects or confirms it; a tap beside the selected one confirmed it (the
+                // selection was still set), now it lets it go.
+                if (pressedPlanet < 0) { if (!dragged) selectedPlanet = frontPlanet = -1; }
+                else if (selectedPlanet >= 0)
                 {
                     if (selectedPlanet == frontPlanet) Confirm(selectedPlanet);
                     else { Play(assets.planetRelease); autoRotate = true; }

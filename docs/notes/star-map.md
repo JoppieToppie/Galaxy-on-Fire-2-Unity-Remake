@@ -75,7 +75,7 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   the 5 s); the autopilot menu's Destination entry is hidden while a jump charges or waits (it flew to the jumpgate, and
   near it the gate jumped instead). Mod jump drives: see mods.md "Jump drives".
 - **Choice dialogs** (remake, KiritoJPK, 2026-11): the map's two-way questions (the drive or the gates, the fastest or the
-  safest route) stack their two answers in the middle and have a Back button at the top left in place of No
+  safest route) stack their two answers in the middle and have a Back button at the top right in place of No
   (`StarMapRules.ShowDialog`, `.map-dialog--choice`, `dialogBack`; up / down move between them too; Esc / B close it).
 - **Arrival** from another system: the hidden gate in the gate orbit, else (0, 0, 100000), facing the station, with the
   7 s fly-in camera; the orbit information (race logo, station, "<System> System", security level in its colour) shows

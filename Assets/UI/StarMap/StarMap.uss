@@ -419,7 +419,7 @@
 }
 
 /* Modified: a choice between two ways (the drive or the gates, the fastest or the safest route): the two answers stacked in
-   the middle, a Back button at the top left in place of No (StarMapRules.ShowDialog). */
+   the middle, a Back button at the top right in place of No (StarMapRules.ShowDialog). */
 .map-dialog--choice {
     padding-top: 84px;
 }
@@ -436,7 +436,7 @@
 
 .map-dialog-back {
     position: absolute;
-    left: 16px;
+    right: 16px;
     top: 16px;
     min-width: 120px;
 }

@@ -113,7 +113,7 @@ namespace GoF2Remake.UI
                 dialogNo.parent.Insert(dialogNo.parent.IndexOf(dialogNo), dialogAlt);
             }
             if (dialogAlt != null) dialogAlt.style.display = DisplayStyle.None;
-            // Modified: a choice dialog's Back, at its top left (ShowDialog), in place of No.
+            // Modified: a choice dialog's Back, at its top right (ShowDialog), in place of No.
             var dialogBox = dialog.Q(className: "map-dialog");
             dialogBack = dialogBox?.Q<Button>("dialogBack");
             if (dialogBox != null && dialogBack == null)
