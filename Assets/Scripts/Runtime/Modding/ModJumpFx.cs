@@ -12,6 +12,8 @@
 // voice line (StoryAssets.Voice) as the charge starts. "endHoldMs": the scene holds this long after the effect, the camera
 // drifting on, before the next area loads. "arrivalFx": true, the ship comes into the next orbit with the prologue's 2D
 // hyper_drive effect in the drive's texture (hidden and held still until 2500 ms; the arrival camera waits for the effect).
+// "volatileExplodes": true, with volatile goods aboard (204 / 209) using the drive blows the ship up instead of the Khador
+// Drive's refusal (612, "the drive's heat may cause an explosion").
 // While the drive's effect hides the ship (on leaving, from the meeting point on; on arriving, until it shows) enemy shots
 // fly through it and nothing targets it.
 // Failures: "failChance" per gate jump of the route (0.03 = 3 % for a neighbour, 6 % two systems away...; x2 on Extreme, as the
@@ -72,7 +74,7 @@ namespace GoF2Remake.Modding
             public int item;   // the drive's item number
             public string data, texture, where, sound, chargeVoice;
             public float endHoldMs, startDelayMs;
-            public bool freeJumps, noVoid, arrivalFx;
+            public bool freeJumps, noVoid, arrivalFx, volatileExplodes;
             public float cellsFactor = 1f;
             public float failChance, failMax = 1f, failNoRoute, failMs = 16500f, failRumbleFromMs = 5500f, failRumble = 1f;
             public float failHandling = 1f, failRadiusKm = 20f;
@@ -144,6 +146,7 @@ namespace GoF2Remake.Modding
             s.startDelayMs = Mathf.Max(0f, (float?)o["startDelayMs"] ?? 0f);
             s.failRumble = Mathf.Clamp((float?)o["failRumble"] ?? 1f, 0f, 2f);
             s.arrivalFx = (bool?)o["arrivalFx"] ?? false;
+            s.volatileExplodes = (bool?)o["volatileExplodes"] ?? false;
             s.failRadiusKm = Mathf.Clamp((float?)o["failRadiusKm"] ?? 20f, 4f, 100f);
             if (string.IsNullOrEmpty(s.data)) throw new ModJsonException($"{where}: jumpFx needs \"data\"");
             s.scale = (float?)o["scale"] ?? s.scale;

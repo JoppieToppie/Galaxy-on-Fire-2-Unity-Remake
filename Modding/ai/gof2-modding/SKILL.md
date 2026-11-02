@@ -159,7 +159,7 @@ items.json's own names (`loadingTimeMs`, `range`, `projectileSpeed`...) work too
 A jump drive: an item based on the Khador Drive 85 (no cruiseSpeed) jumps like it; its "jumpFx" gives it its own effect and
 rules: { data (meshes + keyframes, Blender frame, game units), texture, scale, glow, meetMs, meetDepth, sound ("gof2:timeJump"),
 endHoldMs, arrivalFx (true: the prologue's 2D hyper drive effect brings the ship into the next orbit), startDelayMs,
-chargeVoice (a story voice clip), cellsFactor (x the Khador Drive's cells), freeJumps, noVoid, failChance (per gate jump of
+chargeVoice (a story voice clip), cellsFactor (x the Khador Drive's cells), freeJumps, noVoid, volatileExplodes (volatile goods aboard: using it blows the ship up), failChance (per gate jump of
 the route, x2 Extreme, at most failMax), failNoRoute, failMs, failHandling, failRumbleFromMs, failRumble, failTexture,
 failRadiusKm (a failed jump lands near a random station, default 20) }. A Khador Drive aboard jumps instead.
 

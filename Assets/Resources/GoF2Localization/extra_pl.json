@@ -2,6 +2,7 @@
  "driveQueued": "Napęd skokowy: oczekiwanie na systemy...",
  "driveNoVoid": "Ten napęd skokowy nie może opuścić Void.",
  "driveFailure": "Awaria napędu skokowego!",
+ "driveVolatile": "Lotny ładunek eksplodował!",
  "driveBuiltIn": "Ten statek ma już wbudowany napęd skokowy.",
  "mapMobileLeaves": "odlatuje za {0} min",
  "animatedDialogue": "Animowane dialogi",

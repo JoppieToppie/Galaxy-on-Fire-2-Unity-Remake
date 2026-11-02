@@ -518,6 +518,7 @@ the drive built in) jumps with that instead. `"jumpFx"` gives the drive its own 
 | `chargeVoice` | A story voice line (by its clip name) as the charge starts; `RADIO_0_12` is the prologue's "Activating hyperdrive." |
 | `cellsFactor` | x the Khador Drive's energy cells (Extreme's x2 included). `freeJumps: true`: none at all. |
 | `noVoid` | `true`: no jump into the Void, and none out of it (the story's own jumps still go). |
+| `volatileExplodes` | `true`: with volatile goods aboard (Red Plasma 204, K'mirkk Toad Mutagen 209) using the drive blows the ship up, where the Khador Drive refuses (its message warns the heat may cause an explosion). |
 | `failChance` | The chance a jump fails, per gate jump of the route (0.03 = 3 % to a neighbour, 6 % two systems away...; x2 on Extreme), at most `failMax`. |
 | `failNoRoute` | The chance from or to a system without jumpgate routes. |
 | `failMs`, `failHandling`, `failRumbleFromMs`, `failRumble` | A failing jump: when the charge ends, the prologue's hyperdrive failure (its explosion, rumble and broken engine) for `failMs`, the ship flying at `failHandling` of its speed and turning, the camera shaking from `failRumbleFromMs`, growing over 4 s to `failRumble` (1 = the prologue's, a full boost ~0.16). |

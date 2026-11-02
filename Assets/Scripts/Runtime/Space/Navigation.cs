@@ -528,7 +528,19 @@ namespace GoF2Remake.Flight
             if (target.kind == Kind.KhadorDrive)
             {
                 if (((JumpsBlocked != null && JumpsBlocked()) || (KhadorBlocked != null && KhadorBlocked())) && Story.ForcedKhadorTarget(Session.StationIndex) == null) { Say(JumpRefusal); return; }
-                if (GalaxyMap.HasVolatileGoods) { Say(Localization.Get(612)); return; }   // MGame::UseKhadorDrive: ChoiceWindow 612
+                if (GalaxyMap.HasVolatileGoods)
+                {
+                    // Modified: a mod jump drive with "volatileExplodes" (ModJumpFx) isn't refused: its charge's heat sets the
+                    // volatile goods off (612 says the Khador Drive's would), and the ship blows up.
+                    if (GoF2Remake.Modding.ModJumpFx.ActiveDrive() is GoF2Remake.Modding.ModJumpFx.Spec vd && vd.volatileExplodes
+                        && GetComponent<PlayerHealth>() is PlayerHealth hp && !hp.Dead)
+                    {
+                        Say(Localization.Extra("driveVolatile", "The volatile cargo ignited!"), HudMessageKind.Normal);
+                        hp.Kill();
+                        return;
+                    }
+                    Say(Localization.Get(612)); return;   // MGame::UseKhadorDrive: ChoiceWindow 612
+                }
                 KhadorRequested?.Invoke();
                 return;
             }

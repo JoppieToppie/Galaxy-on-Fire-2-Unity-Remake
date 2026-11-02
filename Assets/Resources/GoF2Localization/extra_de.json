@@ -2,6 +2,7 @@
  "driveQueued": "Sprungantrieb: warte auf die Systeme...",
  "driveNoVoid": "Dieser Sprungantrieb kann das Void nicht verlassen.",
  "driveFailure": "Sprungantrieb-Ausfall!",
+ "driveVolatile": "Die explosive Fracht hat sich entzündet!",
  "driveBuiltIn": "Dieses Schiff hat bereits einen Sprungantrieb eingebaut.",
  "mapMobileLeaves": "zieht in {0} Min. weiter",
  "animatedDialogue": "Animierte Dialoge",

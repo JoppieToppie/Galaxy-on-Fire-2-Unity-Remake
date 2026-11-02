@@ -2,6 +2,7 @@
  "driveQueued": "跃迁引擎：等待系统就绪……",
  "driveNoVoid": "这个跃迁引擎无法离开Void。",
  "driveFailure": "跃迁引擎故障！",
+ "driveVolatile": "易爆货物被引燃了！",
  "driveBuiltIn": "这艘飞船已内置跃迁引擎。",
  "mapMobileLeaves": "{0}分钟后离开",
   "animatedDialogue": "动画对话",
