@@ -176,15 +176,89 @@ float4 GetBaseMapST()           { return _BaseMap_ST; }
 float4 GetBaseMapTexelSize()    { return _BaseMap_TexelSize; }
 float4 GetDetailAlbedoMapST()   { return _DetailAlbedoMap_ST; }
 
+// Modified: bicubic (cubic B-spline, 4 bilinear taps) instead of bilinear while a texture is magnified (closer
+// than one texel per pixel): the big hulls' diagonal texture edges (UV islands mapped at an angle) showed as stair-step
+// stripes up close, made stronger by the hull's rim / reflection terms. Minified it is the plain sample (mipmaps).
+// _GoF2HullBicubicOff (global) = 1 turns it off.
+float _GoF2HullBicubicOff;
+half4 GoF2SampleBicubic(TEXTURE2D_PARAM(tex, samp), float2 uv)
+{
+    float w, h;
+    tex.GetDimensions(w, h);
+    float2 size = float2(w, h);
+    float2 dx = ddx(uv), dy = ddy(uv);
+    float texelsPerPixel = max(length(dx * size), length(dy * size));
+    if (_GoF2HullBicubicOff > 0.5 || texelsPerPixel > 1.0)
+        return SAMPLE_TEXTURE2D_GRAD(tex, samp, uv, dx, dy);
+    float2 st = uv * size - 0.5;
+    float2 i = floor(st);
+    float2 f = st - i;
+    float2 f2 = f * f, f3 = f2 * f;
+    float2 w0 = (1.0 - 3.0 * f + 3.0 * f2 - f3) / 6.0;
+    float2 w1 = (4.0 - 6.0 * f2 + 3.0 * f3) / 6.0;
+    float2 w2 = (1.0 + 3.0 * f + 3.0 * f2 - 3.0 * f3) / 6.0;
+    float2 w3 = f3 / 6.0;
+    float2 g0 = w0 + w1, g1 = w2 + w3;
+    float2 p0 = (i - 0.5 + w1 / g0) / size;
+    float2 p1 = (i + 1.5 + w3 / g1) / size;
+    half4 a = SAMPLE_TEXTURE2D_GRAD(tex, samp, float2(p0.x, p0.y), dx, dy);
+    half4 b = SAMPLE_TEXTURE2D_GRAD(tex, samp, float2(p1.x, p0.y), dx, dy);
+    half4 c = SAMPLE_TEXTURE2D_GRAD(tex, samp, float2(p0.x, p1.y), dx, dy);
+    half4 d = SAMPLE_TEXTURE2D_GRAD(tex, samp, float2(p1.x, p1.y), dx, dy);
+    return g0.y * (g0.x * a + g1.x * b) + g1.y * (g0.x * c + g1.x * d);
+}
+
+// Modified: Catmull-Rom (5 bilinear taps, the corner taps dropped): sharp, for the colour map, where the B-spline's
+// blur showed most. Same magnified-only rule as above.
+half4 GoF2SampleCatmullRom(TEXTURE2D_PARAM(tex, samp), float2 uv)
+{
+    float w, h;
+    tex.GetDimensions(w, h);
+    float2 size = float2(w, h);
+    float2 dx = ddx(uv), dy = ddy(uv);
+    float texelsPerPixel = max(length(dx * size), length(dy * size));
+    if (_GoF2HullBicubicOff > 0.5 || texelsPerPixel > 1.0)
+        return SAMPLE_TEXTURE2D_GRAD(tex, samp, uv, dx, dy);
+    float2 pos = uv * size;
+    float2 t1 = floor(pos - 0.5) + 0.5;
+    float2 f = pos - t1;
+    float2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+    float2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+    float2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+    float2 w3 = f * f * (-0.5 + 0.5 * f);
+    float2 w12 = w1 + w2;
+    float2 t0 = (t1 - 1.0) / size;
+    float2 t3 = (t1 + 2.0) / size;
+    float2 t12 = (t1 + w2 / w12) / size;
+    half4 r = SAMPLE_TEXTURE2D_GRAD(tex, samp, float2(t12.x, t0.y), dx, dy) * (w12.x * w0.y)
+            + SAMPLE_TEXTURE2D_GRAD(tex, samp, float2(t0.x, t12.y), dx, dy) * (w0.x * w12.y)
+            + SAMPLE_TEXTURE2D_GRAD(tex, samp, t12, dx, dy) * (w12.x * w12.y)
+            + SAMPLE_TEXTURE2D_GRAD(tex, samp, float2(t3.x, t12.y), dx, dy) * (w3.x * w12.y)
+            + SAMPLE_TEXTURE2D_GRAD(tex, samp, float2(t12.x, t3.y), dx, dy) * (w12.x * w3.y);
+    float sum = w12.x * w0.y + w0.x * w12.y + w12.x * w12.y + w3.x * w12.y + w12.x * w3.y;
+    return max(r / sum, 0.0);
+}
+
+// Modified: the sharper filtering only on the materials that turn on _GOF2_BICUBIC (the Valkyrie battlestation's hull,
+// AssetImport.UsesBicubic): everything else keeps the plain bilinear sample and pays nothing.
+#if defined(_GOF2_BICUBIC)
+half4 SampleBaseMap(float2 uv)          { return GoF2SampleCatmullRom(TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap), uv); }
+half4 SampleBumpMap(float2 uv)          { return GoF2SampleBicubic(TEXTURE2D_ARGS(_BumpMap, sampler_BumpMap), uv); }
+#else
 half4 SampleBaseMap(float2 uv)          { return SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv); }
 half4 SampleBumpMap(float2 uv)          { return SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uv); }
+#endif
 half4 SampleEmissionMap(float2 uv)      { return SAMPLE_TEXTURE2D(_EmissionMap, sampler_EmissionMap, uv); }
 half4 SampleParallaxMap(float2 uv)      { return SAMPLE_TEXTURE2D(_ParallaxMap, sampler_ParallaxMap, uv); }
 half4 SampleOcclusionMap(float2 uv)     { return SAMPLE_TEXTURE2D(_OcclusionMap, sampler_OcclusionMap, uv); }
 half4 SampleDetailMask(float2 uv)       { return SAMPLE_TEXTURE2D(_DetailMask, sampler_DetailMask, uv); }
 half4 SampleDetailAlbedoMap(float2 uv)  { return SAMPLE_TEXTURE2D(_DetailAlbedoMap, sampler_DetailAlbedoMap, uv); }
 half4 SampleDetailNormalMap(float2 uv)  { return SAMPLE_TEXTURE2D(_DetailNormalMap, sampler_DetailNormalMap, uv); }
+#if defined(_GOF2_BICUBIC)
+half4 SampleMetallicGlossMap(float2 uv) { return GoF2SampleBicubic(TEXTURE2D_ARGS(_MetallicGlossMap, sampler_MetallicGlossMap), uv); }
+#else
 half4 SampleMetallicGlossMap(float2 uv) { return SAMPLE_TEXTURE2D(_MetallicGlossMap, sampler_MetallicGlossMap, uv); }
+#endif
 half4 SampleSpecGlossMap(float2 uv)     { return SAMPLE_TEXTURE2D(_SpecGlossMap, sampler_SpecGlossMap, uv); }
 half4 SampleClearCoatMap(float2 uv)     { return SAMPLE_TEXTURE2D(_ClearCoatMap, sampler_ClearCoatMap, uv); }
 

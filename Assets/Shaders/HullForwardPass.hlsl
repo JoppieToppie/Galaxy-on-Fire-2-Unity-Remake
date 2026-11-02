@@ -160,7 +160,7 @@ void HullPassFragment(
 
 #if defined(_METALLICSPECGLOSSMAP) && !defined(_GOF2_PBR)
     {
-        half spec = SAMPLE_TEXTURE2D(_MetallicGlossMap, sampler_MetallicGlossMap, input.uv).a;
+        half spec = SampleMetallicGlossMap(input.uv).a;   // Modified: bicubic like the surface data (_GOF2_BICUBIC)
         half reflectTex = spec * spec;
         half3 n = inputData.normalWS;
         half3 v = inputData.viewDirectionWS;
