@@ -110,6 +110,10 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   first), changing places with the item there; with the mouse or a pen a mounted row dragged onto another slot row of its
   type does the same (`HangarWindow.HookSlotDrag`; touch keeps the list's scrolling). Tests `HangarSlotTests`. Not tested
   in multiplayer.
+- **Shop icons** (`Resources/GoF2Icons`, players' report 2026-11: less sharp than the original's): the same 178 x 86
+  cells the original's HD build draws, but imported at normal quality (DXT5), whose 4x4 blocks smeared the striped
+  frames and fine lines. `ImportPostprocessor.ShopIcon` imports the folder as BC7 (ASTC 4x4 on Android), the same size in
+  memory, no mipmaps. The lists still draw them at 0.8-2x (148 x 72 rows at 1080p, larger with the screen).
 - **Hangar opened with A / Enter** (#104, `StationMenu.hangarConfirmHeld`): the window ignores Enter / A until the press that
   opened it is released; the Hangar button took the press, and in the same frame the window bought its first row.
 - **Ships:** price -1 % in systems of the ship's race; trade-in at full price; remake (players' report), in a

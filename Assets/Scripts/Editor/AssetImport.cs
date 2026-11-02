@@ -34,10 +34,26 @@ namespace GoF2Remake.EditorTools
             || path.StartsWith("Assets/Resources/GoF2Hud/") || path.StartsWith("Assets/UI/")
             || (path.StartsWith(ImportSettings.Root + "/Textures/") && name.Contains("cubemap"));
 
+        /// <summary>The shop icons (Build Item Icons / Hull Icons, Resources/GoF2Icons): BC7 (ASTC 4x4 on Android) instead of
+        /// the normal quality's DXT5, same size in memory; a player's report (2026-11): its 4x4 blocks smeared the striped
+        /// frames and the icons' fine lines, so they looked less sharp than the original's (the same 178 x 86 cells, drawn
+        /// uncompressed). No mipmaps: the lists draw them at 0.8-2x.</summary>
+        static void ShopIcon(TextureImporter ti)
+        {
+            ti.textureType = TextureImporterType.Default;
+            ti.mipmapEnabled = false;
+            ti.alphaIsTransparency = true;
+            ti.wrapMode = TextureWrapMode.Clamp;
+            ti.npotScale = TextureImporterNPOTScale.None;
+            ti.textureCompression = TextureImporterCompression.CompressedHQ;
+            ti.ignoreMipmapLimit = true;   // the Texture quality option leaves them whole (they have no mips anyway)
+        }
+
         void OnPreprocessTexture()
         {
             string name = Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
             if (KeepsFullMips(assetPath, name)) ((TextureImporter)assetImporter).ignoreMipmapLimit = true;
+            if (assetPath.StartsWith(ItemIconBuilder.OutDir + "/")) { ShopIcon((TextureImporter)assetImporter); return; }
             if (!assetPath.StartsWith(ImportSettings.Root + "/Textures/")) return;
             var ti = (TextureImporter)assetImporter;
             ti.maxTextureSize = 2048;

@@ -79,7 +79,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   original interface atlases (rects in `Reference/research/mining.md`, `autopilot_travel.md`, `starmap_travel.md`). Also
   run by Create Space Scene.
 - **GoF2 > Build > Item Icons**: `Resources/GoF2Icons`, one icon per item and ship cut from the original atlases per
-  `Reference/research/item_icons.json` (see "Shop").
+  `Reference/research/item_icons.json` (see "Shop"). The folder imports as BC7 / ASTC 4x4 (`ImportPostprocessor.ShopIcon`,
+  "Shop icons" in shop.md).
 - **GoF2 > Build > Hull Icons** (`HullIconBuilder`): `Resources/GoF2Icons/hull_<key>.png`, shop-style icons for the
   hulls without a shop image (the Debug Ships tab's "Not normally flyable": the freighters, the Terran battleship, the
   carrier, the Vossk battleship, the Valkyrie battlestation, the Void mother ship; 13-15's own images are a "?"): each
