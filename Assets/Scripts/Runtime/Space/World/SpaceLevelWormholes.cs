@@ -348,12 +348,12 @@ namespace GoF2Remake.World
             // "failRadiusKm" of the station (20 km: 320000 game units, Navigation.FormatDistance's metres are units / 16), clear
             // of the station, the gate and the asteroids, facing the station. With "arrivalFx" the drive's jump (failed or not)
             // ends with the 2D hyper_drive fx bringing the ship in (BeginDriveArrival).
-            var arrivalDrive = (Session.DriveArrival || Session.DriveFailArrival) && Session.ArrivedByTravel && !Layout.interstellar && !warpArrival
+            var jumpDriveSpec = (Session.DriveArrival || Session.DriveFailArrival) && Session.ArrivedByTravel && !Layout.interstellar && !warpArrival
                 ? Modding.ModJumpFx.ActiveDrive() : null;
-            bool driveFailed = arrivalDrive != null && Session.DriveFailArrival;
-            bool driveArrival = arrivalDrive != null && arrivalDrive.arrivalFx;
+            bool driveFailed = jumpDriveSpec != null && Session.DriveFailArrival;
+            bool driveArrival = jumpDriveSpec != null && jumpDriveSpec.arrivalFx;
             Session.DriveArrival = Session.DriveFailArrival = false;
-            if (driveFailed && DriveFailPoint(arrivalDrive.failRadiusKm * 16000f, out var failAt))
+            if (driveFailed && DriveFailPoint(jumpDriveSpec.failRadiusKm * 16000f, out var failAt))
                 root.transform.SetPositionAndRotation(failAt, Quaternion.LookRotation(-failAt.normalized, Vector3.up));
             // Remake multiplayer: an admin's teleport into this orbit (NetTeleport) brings its own pose.
             if (SpaceHooks.TeleportPose != null && SpaceHooks.TeleportPose(out var tpPos, out var tpRot)) root.transform.SetPositionAndRotation(tpPos, tpRot);
