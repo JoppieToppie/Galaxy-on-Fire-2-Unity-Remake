@@ -338,6 +338,9 @@ namespace GoF2Remake.UI
                                                                         : $"{T("shopSell", "SELL")} / {T("shopBuy", "BUY")}";
                 string tabs = $"{Localization.Get(183)} / {Localization.Get(store ? 186 : 185)} / {Localization.Get(272)}".ToUpperInvariant(), confirm = T("hudConfirm", "CONFIRM");
                 string sellShip = T("kaamoSellShip", "SELL SHIP");
+                // Remake: the Ship tab's X moves a mounted item to its next slot (HangarWindow.SecondaryAction).
+                bool shipTab = hangarWindow != null && hangarWindow.ShipTab;
+                string move = T("shopMoveSlot", "MOVE");
                 string info = Localization.Get(390).ToUpperInvariant();   // the details window's "Info" (ItemInfoWindow)
                 if (kind == InputKind.KeyboardMouse)
                 {
@@ -347,6 +350,7 @@ namespace GoF2Remake.UI
                     Hint(tabs, InputGlyph.Key("Q"), InputGlyph.Key("E"));
                     Hint(info, InputGlyph.Key("I"));
                     if (store) Hint(sellShip, InputGlyph.Key("X"));
+                    if (shipTab) Hint(move, InputGlyph.Key("X"));
                     Hint(T("hudBack", "BACK"), InputGlyph.Key("ESC"));
                 }
                 else if (kind == InputKind.Gamepad)
@@ -357,6 +361,7 @@ namespace GoF2Remake.UI
                     Hint(tabs, InputGlyph.Pad(PadButton.LeftBumper), InputGlyph.Pad(PadButton.RightBumper));
                     Hint(info, InputGlyph.Pad(PadButton.Y));
                     if (store) Hint(sellShip, InputGlyph.Pad(PadButton.X));
+                    if (shipTab) Hint(move, InputGlyph.Pad(PadButton.X));
                     Hint(T("hudBack", "BACK"), InputGlyph.Pad(PadButton.B));
                 }
                 return;

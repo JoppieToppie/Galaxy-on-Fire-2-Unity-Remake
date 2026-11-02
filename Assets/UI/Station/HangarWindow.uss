@@ -238,6 +238,16 @@
     border-left-color: var(--gof-cyan);
 }
 
+/* remake: a mounted item dragged to another slot (HangarWindow.HookSlotDrag): the row carried, and the slot it would go to */
+.list-row--dragging {
+    opacity: 0.55;
+}
+
+.list-row--drop-target {
+    background-color: var(--gof-amber-soft);
+    border-left-color: var(--gof-amber);
+}
+
 .list-row--cargo {
     background-color: rgba(0, 0, 0, 0);
     border-top-width: 1px;
@@ -709,6 +719,20 @@
 
 .detail-action--secondary:active {
     background-color: #FF4A3A;
+}
+
+/* remake: the Ship tab's MOVE (a mounted item to its next slot) in that place: nothing to warn of, so cyan, not red */
+.detail-action--move {
+    background-color: var(--gof-cyan-faint);
+    border-color: var(--gof-cyan);
+}
+
+.can-hover .detail-action--move:hover {
+    background-color: var(--button-primary-focus-fill);
+}
+
+.detail-action--move:active {
+    background-color: var(--button-press-fill);
 }
 
 .detail-action--disabled {

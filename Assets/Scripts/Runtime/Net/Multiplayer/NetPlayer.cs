@@ -176,25 +176,30 @@ namespace GoF2Remake.Multiplayer
             return System.Text.Encoding.UTF8.GetByteCount(text) <= 500 ? text : "";
         }
 
-        /// <summary>The primary and secondary weapon items of 'equipment' in their order (at most 12 of each, within the
-        /// variable's 128 bytes); "" = none.</summary>
+        /// <summary>The primary and secondary weapon items of 'equipment' on their mounts, -1 for an empty slot between two
+        /// (at most 12 of each, within the variable's 128 bytes); "" = none.</summary>
         public static string PackWeapons(Database db, System.Collections.Generic.IList<ItemStack> equipment)
         {
-            string List(bool secondary) => string.Join(",", Modding.ModHardpoints.WeaponItems(db, equipment, secondary).Take(12).Select(i => i.index));
+            string List(bool secondary) => string.Join(",", Modding.ModHardpoints.WeaponItems(db, equipment, secondary).Take(12).Select(i => i?.index ?? -1));
             string text = List(false) + "|" + List(true);
             if (text == "|") return "";
             if (text.Length > 120) text = text.Substring(0, text.LastIndexOf(',', 120));   // never a cut number
             return text;
         }
 
-        /// <summary>PackWeapons' text as equipment stacks (unknown or unreadable numbers left out).</summary>
+        /// <summary>PackWeapons' text as equipment stacks, each in the slot of its place (an empty slot's -1, unknown or
+        /// unreadable numbers left out; an older version's text has no -1: its weapons side by side).</summary>
         public static System.Collections.Generic.List<ItemStack> WeaponStacks(Database db, string packed)
         {
             var list = new System.Collections.Generic.List<ItemStack>();
             if (string.IsNullOrEmpty(packed) || db == null) return list;
-            foreach (var part in packed.Split('|', ','))
-                if (int.TryParse(part, out int n) && db.Item(n) is ItemData it && (it.type == "primary" || it.type == "secondary"))
-                    list.Add(new ItemStack(n, 1));
+            foreach (var half in packed.Split('|'))
+            {
+                var parts = half.Split(',');
+                for (int place = 0; place < parts.Length; place++)
+                    if (int.TryParse(parts[place], out int n) && n >= 0 && db.Item(n) is ItemData it && (it.type == "primary" || it.type == "secondary"))
+                        list.Add(new ItemStack(n, 1) { slot = place + 1 });
+            }
             return list;
         }
 

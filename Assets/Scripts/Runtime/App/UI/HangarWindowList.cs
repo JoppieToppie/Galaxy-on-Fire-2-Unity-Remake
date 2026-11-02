@@ -161,12 +161,14 @@ namespace GoF2Remake.UI
                 for (int type = 0; type <= 3; type++)
                 {
                     int slots = hangar.SlotCount(type);
-                    var mounted = hangar.MountedOfType(type);
+                    // Ship::getSlotPos: each item in its own slot, an emptied one staying where it is (Hangar.SlotsOfType).
+                    var places = hangar.SlotsOfType(type);
                     var cargo = Session.Cargo.Where(s => s.amount > 0 && hangar.TypeOf(s.item) == type).Select(s => s.item).ToList();
-                    if (slots == 0 && mounted.Count == 0 && cargo.Count == 0) continue;
+                    if (slots == 0 && places.Length == 0 && cargo.Count == 0) continue;
                     AddHeader(T(typeHeaders[type]));
-                    foreach (int e in mounted) AddRow(new Row { kind = RowKind.Slot, equipment = e, item = Session.Equipment[e].item, type = type });
-                    for (int n = mounted.Count; n < slots; n++) AddRow(new Row { kind = RowKind.Slot, type = type, equipment = -1 - n });
+                    for (int n = 0; n < places.Length; n++)
+                        if (places[n] >= 0) AddRow(new Row { kind = RowKind.Slot, equipment = places[n], item = Session.Equipment[places[n]].item, type = type, place = n });
+                        else if (n < slots) AddRow(new Row { kind = RowKind.Slot, type = type, equipment = -1 - n, place = n });
                     // Remake: the hold's candidates under their own sub-header (284 "Available in cargo"), styled apart from
                     // the mounted slots.
                     if (cargo.Count > 0)
@@ -197,15 +199,19 @@ namespace GoF2Remake.UI
             list.schedule.Execute(() => { list.scrollOffset = new Vector2(0f, scroll); ScrollToSelected(); });
             ShowDetails();
             UpdateFooter();
-            // Remake: the key hints say TAKE / ADD in the ingredients view (StationMenu.BuildHints asks EditingBlueprint).
-            if (hintsForIngredients != EditingBlueprint)
+            // Remake: the key hints say TAKE / ADD in the ingredients view (StationMenu.BuildHints asks EditingBlueprint), and
+            // MOVE on the Ship tab (ShipTab).
+            if (hintsForIngredients != EditingBlueprint || hintsForShipTab != ShipTab)
             {
                 hintsForIngredients = EditingBlueprint;
+                hintsForShipTab = ShipTab;
                 menu.RefreshCredits();   // rebuilds the hints
             }
         }
         /// <summary>Remake: the ingredients view is shown (its trade arrows are TAKE / ADD).</summary>
         public bool EditingBlueprint => IsOpen && editing >= 0;
+        /// <summary>Remake: the Ship tab is shown (X moves a mounted item to its next slot, SecondaryAction).</summary>
+        public bool ShipTab => IsOpen && tab == Tab.Ship && !StorageMode;
         /// <summary>Remake (PR #166): the ingredients view's actions, centred under the list in place of the Autocomplete row:
         /// 185 Shop / 186 Store (that tab with the recipe's goods marked), Autocomplete (195, a mod's blueprint may have none) and
         /// Complete. Each is a row of its own, so up / down reach them and Enter / A does them like any row's action; a click /
@@ -563,8 +569,10 @@ namespace GoF2Remake.UI
             if (bpAmount != null) e.Add(bpAmount);
             // ListItemWindow's "i" (image 0x470) on the selected row: Remake, left out (the details panel shows it all; the
             // keyboard's I / the controller's Y still open the item window).
+            if (row.kind == RowKind.Slot && row.place >= 0) HookSlotDrag(row, e);
             e.RegisterCallback<ClickEvent>(ev =>
             {
+                if (dragMoved) { dragMoved = false; return; }   // the end of a slot drag, not a click
                 Select(row, true);
                 // Remake: a double click / double tap on the Ship tab mounts a hold item or demounts a mounted one (the action
                 // button's Mount 281 / Demount 282, when it is enabled).

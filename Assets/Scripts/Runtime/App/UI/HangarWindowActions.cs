@@ -197,6 +197,13 @@ namespace GoF2Remake.UI
         {
             // Remake: X / the left arrow (an ingredient's TAKE).
             if (selected != null && (selected.kind == RowKind.ShopItem || selected.kind == RowKind.Ingredient)) { Trade(-1); return; }
+            // Remake (players' feedback): a mounted item's MOVE, to the next slot of its type (the last one to the first).
+            if (selected != null && selected.kind == RowKind.Slot && selected.equipment >= 0)
+            {
+                int next = hangar.NextSlot(selected.equipment);
+                if (next >= 0) MoveSlot(selected.equipment, next);
+                return;
+            }
             if (selected == null || selected.kind != RowKind.StoredShip) return;
             int index = selected.equipment;
             menu.PlayRelease();
@@ -208,6 +215,73 @@ namespace GoF2Remake.UI
                 Rebuild();
             });
         }
+        /// <summary>Remake: the mounted item at 'equipment' to slot 'place' of its type (Hangar.MoveToSlot); it stays
+        /// selected in its new row.</summary>
+        void MoveSlot(int equipment, int place)
+        {
+            if (!hangar.MoveToSlot(equipment, place)) return;
+            menu.PlayClip(menu.shopMount);   // the hangar ship's weapon models follow (StationLevel.RefreshTurret)
+            Rebuild();
+        }
+
+        /// <summary>Remake: a mounted Ship tab row dragged onto another slot row of its type (mounted or empty) with the
+        /// mouse or a pen moves the item there (touch keeps the list's scrolling: MOVE does it there).</summary>
+        void HookSlotDrag(Row row, VisualElement e)
+        {
+            e.RegisterCallback<PointerDownEvent>(ev =>
+            {
+                if (row.equipment < 0 || ev.button != 0 || ev.pointerType == UnityEngine.UIElements.PointerType.touch || dragPointer >= 0) return;
+                dragRow = row;
+                dragPointer = ev.pointerId;
+                dragStart = ev.position;
+                dragging = false;
+                dragMoved = false;
+                e.CapturePointer(ev.pointerId);
+            });
+            e.RegisterCallback<PointerMoveEvent>(ev =>
+            {
+                if (ev.pointerId != dragPointer || dragRow != row) return;
+                if (!dragging && ((Vector2)ev.position - dragStart).magnitude < 12f) return;
+                if (!dragging) { dragging = true; e.AddToClassList("list-row--dragging"); }
+                var over = RowAt(ev.position);
+                var target = over != null && over != row && over.kind == RowKind.Slot && over.type == row.type && over.place >= 0 ? over : null;
+                if (target == dragTarget) return;
+                dragTarget?.element.RemoveFromClassList("list-row--drop-target");
+                dragTarget = target;
+                dragTarget?.element.AddToClassList("list-row--drop-target");
+            });
+            e.RegisterCallback<PointerUpEvent>(ev =>
+            {
+                if (ev.pointerId != dragPointer) return;
+                var target = dragging ? dragTarget : null;
+                dragMoved = dragging;
+                EndSlotDrag(e);
+                if (target != null) MoveSlot(row.equipment, target.place);
+            });
+            e.RegisterCallback<PointerCaptureOutEvent>(_ => { if (dragRow == row) EndSlotDrag(e); });
+        }
+
+        void EndSlotDrag(VisualElement e)
+        {
+            if (dragPointer >= 0 && e.HasPointerCapture(dragPointer)) e.ReleasePointer(dragPointer);
+            e.RemoveFromClassList("list-row--dragging");
+            dragTarget?.element.RemoveFromClassList("list-row--drop-target");
+            dragRow = dragTarget = null;
+            dragPointer = -1;
+            dragging = false;
+        }
+
+        /// <summary>The list row under a panel position (null = none).</summary>
+        Row RowAt(Vector2 position)
+        {
+            for (var v = list.panel?.Pick(position); v != null; v = v.parent)
+            {
+                var r = rows.Find(x => x.element == v);
+                if (r != null) return r;
+            }
+            return null;
+        }
+
         public bool StorageMode => hangar != null && hangar.Storage;
         void HookArrow(VisualElement arrow, int direction)
         {

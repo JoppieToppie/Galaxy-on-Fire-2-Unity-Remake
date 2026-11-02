@@ -240,24 +240,30 @@ namespace GoF2Remake.Flight
             // EventI::getPitch). The Nirai Overdrive (+20 % fire rate) raises the primaries' shots by 0.8 octaves; the
             // Overcharge (-10 %) gives a negative value the original skips: no change (#76).
             primaryPitch = 1f - fireRate > 0f ? Mathf.Pow(2f, 4f * (1f - fireRate)) : 1f;
-            int p = 0, s = 0;
+            // Level::createPlayer: each gun on the mount of its slot (Gun::setOffset(mounts[Ship::getSlotPos])), an empty slot
+            // between two weapons leaving its mount empty (Hangar.MountOrder).
+            var primaryOrder = Hangar.MountOrder(db, equipment, 0);
+            var secondaryOrder = Hangar.MountOrder(db, equipment, 1);
             // Remake mods (ModHardpoints): a mount showing a kit's weapon model fires from that model's muzzle.
             var primaryItems = Modding.ModHardpoints.WeaponItems(db, equipment, false);
             var secondaryItems = Modding.ModHardpoints.WeaponItems(db, equipment, true);
-            for (int e = 0; e < equipment.Count; e++)
+            // In slot order, like the original's walk over Ship+0x6c (the secondaries' selection order too).
+            var guns = new List<(int e, int slot)>();
+            for (int n = 0; n < primaryOrder.Count; n++) if (primaryOrder[n] >= 0) guns.Add((primaryOrder[n], n));
+            for (int n = 0; n < secondaryOrder.Count; n++) if (secondaryOrder[n] >= 0) guns.Add((secondaryOrder[n], n));
+            foreach (var (e, slot) in guns)
             {
                 var item = db.Item(equipment[e].item);
                 if (item == null) continue;
                 bool secondary = item.type == "secondary";
                 if (item.type != "primary" && !secondary) continue;
                 var mounts = secondary ? secondaryMounts : primaryMounts;
-                int slot = secondary ? s++ : p++;
                 // Remake: more weapons than the model has mounts (a mod's or a Kaamo upgrade's extra slots) reuse the mounts in
                 // turn, the ship's centre without any; they were skipped, so an extra secondary could be neither selected nor fired.
                 var at = mounts.Count > 0 ? MountToLocal(mounts[slot % mounts.Count]) : Vector3.zero;
                 if (mounts.Count > 0)
                 {
-                    var shown = (secondary ? secondaryItems : primaryItems)[slot % mounts.Count];   // the mount's model is its first weapon's
+                    var shown = (secondary ? secondaryItems : primaryItems)[slot % mounts.Count] ?? item;   // the mount's model is its first weapon's
                     at += Modding.ModHardpoints.MuzzleOffset(shipIndex, shown, secondary, mounts[slot % mounts.Count]);
                 }
                 var gun = new Gun(item, at, secondary);

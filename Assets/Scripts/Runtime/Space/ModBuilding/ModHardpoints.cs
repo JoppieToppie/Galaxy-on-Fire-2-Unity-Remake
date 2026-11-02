@@ -305,7 +305,7 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>Each primary / secondary mount's "nodes" (WeaponMount.nodes: its pylon in the ship's model) shown while the
-        /// mount carries a weapon (the n-th weapon of its type on the n-th mount), hidden while it is empty ('equipment' null:
+        /// mount carries a weapon (each weapon on the mount of its slot, Hangar.MountOrder), hidden while it is empty ('equipment' null:
         /// every one hidden, the weapon models hidden by the build).</summary>
         static void ShowMountNodes(Database db, int ship, IList<ItemStack> equipment, Transform shipModel, ModShipKits.Build shown)
         {
@@ -319,24 +319,27 @@ namespace GoF2Remake.Modding
                     byName = new Dictionary<string, Transform>();
                     foreach (var t in shipModel.GetComponentsInChildren<Transform>(true)) byName.TryAdd(t.name, t);
                 }
-                int used = equipment == null ? 0 : WeaponItems(db, equipment, secondary).Count;
+                var items = equipment == null ? new List<ItemData>() : WeaponItems(db, equipment, secondary);
                 for (int i = 0; i < mounts.Count; i++)
                 {
                     if (mounts[i].nodes == null) continue;
+                    bool used = i < items.Count && items[i] != null;
                     foreach (var n in mounts[i].nodes)
-                        if (n != null && byName.TryGetValue(n, out var node) && node.gameObject.activeSelf != i < used) node.gameObject.SetActive(i < used);
+                        if (n != null && byName.TryGetValue(n, out var node) && node.gameObject.activeSelf != used) node.gameObject.SetActive(used);
                 }
             }
         }
 
-        /// <summary>The primary (or secondary) weapon items of the equipment in their order (WeaponSystem.Setup's).</summary>
+        /// <summary>The primary (or secondary) weapon item on each mount (WeaponSystem.Setup's), null for an empty slot
+        /// between two weapons (Hangar.MountOrder: each weapon on the mount of its slot, as Level::createPlayer does).</summary>
         public static List<ItemData> WeaponItems(Database db, IList<ItemStack> equipment, bool secondary)
         {
             var list = new List<ItemData>();
-            foreach (var e in equipment)
+            if (equipment == null) return list;
+            foreach (int i in Hangar.MountOrder(db, equipment, secondary ? 1 : 0))
             {
-                var it = db.Item(e.item);
-                if (it != null && it.type == (secondary ? "secondary" : "primary")) list.Add(it);
+                var it = i >= 0 ? db.Item(equipment[i].item) : null;
+                list.Add(it != null && it.type == (secondary ? "secondary" : "primary") ? it : null);
             }
             return list;
         }

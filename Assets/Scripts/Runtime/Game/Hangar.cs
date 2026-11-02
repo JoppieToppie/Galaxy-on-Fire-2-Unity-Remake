@@ -183,22 +183,33 @@ namespace GoF2Remake.Data
             if (s == null) return 0;
             int Slots(int type) => type switch { 0 => s.primary, 1 => s.secondary, 2 => s.turret, 3 => s.equipment + Session.ModLevel(2) + BaySlot(db, Session.ShipIndex, Session.Equipment), _ => int.MaxValue };
             int TypeOfItem(int item) => db.Item(item)?.TypeId ?? 4;
+            PinSlots(db, Session.Equipment);
             var used = new int[5];
             foreach (var e in Session.Equipment) if (TakesSlot(db, e) && !IsSaleable(e.item)) used[Mathf.Clamp(TypeOfItem(e.item), 0, 4)]++;
-            var keep = new List<ItemStack>();
+            // In slot order, so what goes is what sits in the last slots (an item past them first takes an empty one below).
+            var bySlot = Enumerable.Range(0, Session.Equipment.Count).OrderBy(i => Session.Equipment[i].slot).ToList();
+            var drop = new HashSet<ItemStack>();
             int moved = 0;
-            foreach (var e in Session.Equipment)
+            foreach (int i in bySlot)
             {
+                var e = Session.Equipment[i];
                 int type = Mathf.Clamp(TypeOfItem(e.item), 0, 4);
-                if (!TakesSlot(db, e)) { keep.Add(e); continue; }   // built in, or in a built-in one's place: no slot (SyncBuiltIn)
-                if (!IsSaleable(e.item) || used[type] < Slots(type))
-                {
-                    if (IsSaleable(e.item)) used[type]++;
-                    keep.Add(e);
-                }
-                else { int n = UnitsOf(db, e); if (n > 0) Shop.AddToCargo(e.item, n); moved++; }
+                if (!TakesSlot(db, e) || !IsSaleable(e.item)) continue;   // no slot (SyncBuiltIn), or the story's: it stays
+                if (used[type] < Slots(type)) used[type]++;
+                else { drop.Add(e); int n = UnitsOf(db, e); if (n > 0) Shop.AddToCargo(e.item, n); moved++; }
             }
-            if (moved > 0) Session.Equipment = keep;
+            if (moved > 0) Session.Equipment = Session.Equipment.Where(e => !drop.Contains(e)).ToList();
+            // An item in a slot past the ship's (a hull with fewer slots) to the first empty one it has.
+            for (int type = 0; type <= 3; type++)
+            {
+                var stacks = Session.Equipment.Where(e => HasSlot(db, e) && TypeOfItem(e.item) == type).ToList();
+                foreach (var e in stacks.Where(x => x.slot > Slots(type)).OrderBy(x => x.slot).ToList())
+                {
+                    int free = 1;
+                    while (free <= Slots(type) && stacks.Exists(x => x.slot == free)) free++;
+                    if (free <= Slots(type)) e.slot = free;
+                }
+            }
             return moved;
         }
 
@@ -206,9 +217,113 @@ namespace GoF2Remake.Data
         public List<int> MountedOfType(int type)
         {
             var list = new List<int>();
+            var at = SlotPositions(db, Session.Equipment);
             for (int i = 0; i < Session.Equipment.Count; i++)
-                if (TakesSlot(db, Session.Equipment[i]) && TypeOf(Session.Equipment[i].item) == type) list.Add(i);
+                if (at[i] >= 0 && TypeOf(Session.Equipment[i].item) == type) list.Add(i);
+            list.Sort((a, b) => at[a].CompareTo(at[b]));
             return list;
+        }
+
+        /// <summary>The slots of this type, each the index into Session.Equipment of the item in it or -1 when it is empty
+        /// (the Ship tab's rows): SlotCount long, longer while more is mounted than the ship has slots (FitToSlots).</summary>
+        public int[] SlotsOfType(int type)
+        {
+            var at = SlotPositions(db, Session.Equipment);
+            int length = SlotCount(type);
+            for (int i = 0; i < at.Length; i++) if (at[i] >= 0 && TypeOf(Session.Equipment[i].item) == type) length = Mathf.Max(length, at[i] + 1);
+            var slots = new int[length];
+            for (int n = 0; n < length; n++) slots[n] = -1;
+            for (int i = 0; i < at.Length; i++) if (at[i] >= 0 && TypeOf(Session.Equipment[i].item) == type) slots[at[i]] = i;
+            return slots;
+        }
+
+        // ---- slot positions ------------------------------------------------------------------------------------
+
+        static int TypeOfItem(Database db, int item) => db?.Item(item)?.TypeId ?? 4;
+
+        static bool HasSlot(Database db, ItemStack e) => TakesSlot(db, e) && TypeOfItem(db, e.item) <= 3;
+
+        /// <summary>Ship::getSlotPos 0x1a3f8c: each mounted stack's place among its type's slots (0-based; -1 = none: built
+        /// in, in a built-in one's place, not mountable). The original keeps one place per slot (Ship+0x6c, null when empty):
+        /// Ship::removeEquipment 0x1a3e4c empties the slot and leaves the others where they are, Ship::addEquipment 0x1a4088
+        /// fills the type's first empty one, and Level::createPlayer puts each gun on the mount of its slot (Gun::setOffset).
+        /// Remake: a stack's 'slot' says its place; one without (0, or a place another stack took first) gets the first free
+        /// one, in list order (so an old save's gear stays in the order it had).</summary>
+        public static int[] SlotPositions(Database db, IList<ItemStack> equipment)
+        {
+            var at = new int[equipment?.Count ?? 0];
+            var taken = new HashSet<(int type, int place)>();
+            for (int i = 0; i < at.Length; i++)
+            {
+                at[i] = -1;
+                var e = equipment[i];
+                if (e.slot > 0 && HasSlot(db, e) && taken.Add((TypeOfItem(db, e.item), e.slot - 1))) at[i] = e.slot - 1;
+            }
+            for (int i = 0; i < at.Length; i++)
+            {
+                if (at[i] >= 0 || !HasSlot(db, equipment[i])) continue;
+                int type = TypeOfItem(db, equipment[i].item), p = 0;
+                while (!taken.Add((type, p))) p++;
+                at[i] = p;
+            }
+            return at;
+        }
+
+        /// <summary>Writes SlotPositions into the stacks' 'slot' (0 on the ones without a slot), so a later removal leaves its
+        /// slot empty instead of moving the others up. Done before every change of the mounted items and on docking.</summary>
+        public static void PinSlots(Database db, IList<ItemStack> equipment)
+        {
+            if (equipment == null) return;
+            var at = SlotPositions(db, equipment);
+            for (int i = 0; i < at.Length; i++) equipment[i].slot = at[i] + 1;
+        }
+
+        /// <summary>The weapons of 'type' (0 primary, 1 secondary) on the ship's mounts: the index into 'equipment' of each
+        /// mount's weapon, -1 for an empty slot between them (Level::createPlayer: Gun::setOffset(mounts[getSlotPos])). The
+        /// ship's built-in ones (remake mods; they add to its slots) take the first mounts, the slots follow.</summary>
+        public static List<int> MountOrder(Database db, IList<ItemStack> equipment, int type)
+        {
+            var order = new List<int>();
+            if (equipment == null) return order;
+            for (int i = 0; i < equipment.Count; i++)
+                if (equipment[i].builtIn && TypeOfItem(db, equipment[i].item) == type) order.Add(i);
+            int first = order.Count;
+            var at = SlotPositions(db, equipment);
+            for (int i = 0; i < at.Length; i++)
+            {
+                if (at[i] < 0 || TypeOfItem(db, equipment[i].item) != type) continue;
+                while (order.Count <= first + at[i]) order.Add(-1);
+                order[first + at[i]] = i;
+            }
+            return order;
+        }
+
+        /// <summary>Remake (players' feedback): the mounted item at 'equipmentIndex' to slot 'place' of its type, changing
+        /// places with the item there (if any). Empty slots stay where they are, as in the original; this only adds a way to
+        /// rearrange without demounting.</summary>
+        public bool MoveToSlot(int equipmentIndex, int place)
+        {
+            if (equipmentIndex < 0 || equipmentIndex >= Session.Equipment.Count) return false;
+            var e = Session.Equipment[equipmentIndex];
+            if (!HasSlot(db, e)) return false;
+            int type = TypeOf(e.item);
+            if (place < 0 || place >= SlotCount(type)) return false;
+            PinSlots(db, Session.Equipment);
+            if (e.slot == place + 1) return false;
+            var other = Session.Equipment.Find(x => x != e && x.slot == place + 1 && HasSlot(db, x) && TypeOf(x.item) == type);
+            if (other != null) other.slot = e.slot;
+            e.slot = place + 1;
+            return true;
+        }
+
+        /// <summary>The slot after the one of the mounted item at 'equipmentIndex' (the last one wraps to the first); -1 when
+        /// its type has a single slot or the item has none (the Ship tab's MOVE).</summary>
+        public int NextSlot(int equipmentIndex)
+        {
+            if (equipmentIndex < 0 || equipmentIndex >= Session.Equipment.Count) return -1;
+            var e = Session.Equipment[equipmentIndex];
+            int at = SlotPositions(db, Session.Equipment)[equipmentIndex], count = SlotCount(TypeOf(e.item));
+            return at < 0 || count <= 1 ? -1 : (at + 1) % count;
         }
 
         /// <summary>Indices into Session.Equipment of the flown ship's built-in items and of the fitted items in their places
@@ -280,6 +395,7 @@ namespace GoF2Remake.Data
                 changed = true;
             }
             if (changed) Session.SelectedSecondary = -1;
+            PinSlots(db, Session.Equipment);   // the slots as they are now: an item used up in flight leaves its slot empty
             return changed;
         }
 
@@ -400,7 +516,8 @@ namespace GoF2Remake.Data
         public bool Mount(int item)
         {
             if (CanMount(item, out _) != Result.Ok) return false;
-            MountFromCargo(item);
+            PinSlots(db, Session.Equipment);
+            MountFromCargo(item);   // Ship::addEquipment: into the type's first empty slot
             SyncBuiltIn(db);   // in a built-in one's place: that one steps aside
             return true;
         }
@@ -409,8 +526,11 @@ namespace GoF2Remake.Data
         public bool Swap(int equipmentIndex, int item)
         {
             if (equipmentIndex < 0 || equipmentIndex >= Session.Equipment.Count || CargoOf(item) <= 0 || Session.Equipment[equipmentIndex].builtIn) return false;
+            PinSlots(db, Session.Equipment);
+            int slot = Session.Equipment[equipmentIndex].slot;
             Demount(equipmentIndex);
             MountFromCargo(item);
+            Session.Equipment[Session.Equipment.Count - 1].slot = slot;   // the new one in the old one's slot
             SyncBuiltIn(db);
             return true;
         }
@@ -422,6 +542,7 @@ namespace GoF2Remake.Data
             stack.amount -= amount;
             if (stack.amount <= 0) Session.Cargo.Remove(stack);
             Session.Equipment.Add(new ItemStack(item, amount));
+            PinSlots(db, Session.Equipment);   // the new stack's slot: the first free one
             Session.SeenItems.Add(item);
         }
 
@@ -431,6 +552,7 @@ namespace GoF2Remake.Data
             if (equipmentIndex < 0 || equipmentIndex >= Session.Equipment.Count) return;
             var e = Session.Equipment[equipmentIndex];
             if (e.builtIn) return;   // built into the ship (SyncBuiltIn)
+            PinSlots(db, Session.Equipment);   // Ship::removeEquipment: its slot stays empty, the others stay where they are
             Session.Equipment.RemoveAt(equipmentIndex);
             // HangarWindow::demountItem: a secondary goes with its ammo, nothing when it is empty (#132: Max(1, ...) handed
             // out a free missile); other items as 1 unit.
@@ -573,11 +695,23 @@ namespace GoF2Remake.Data
             Session.ShipMods = mods != null ? new List<int>(mods) : new List<int>();
             Session.Equipment = new List<ItemStack>();
             Session.SelectedSecondary = -1;
+            // The flown ship's keep their slots' order on the new hull (what sits in the last slots goes to the hold), packed
+            // below; a stored hull's gear goes in list order (the story's first).
+            var at = SlotPositions(db, mounted);
+            for (int i = 0; i < mounted.Count; i++) mounted[i].slot = mount == null ? at[i] + 1 : 0;
+            var listOrder = new List<ItemStack>(mounted);
+            if (mount == null) mounted = Enumerable.Range(0, mounted.Count).OrderBy(i => at[i]).Select(i => listOrder[i]).ToList();
             foreach (var e in mounted)
             {
                 int type = TypeOf(e.item);
                 if ((!dismount || !IsSaleable(e.item)) && (MountedOfType(type).Count < SlotCount(type) || BayTakes(db, ship, e.item, Session.Equipment))) Session.Equipment.Add(e);
                 else if (UnitsOf(db, e) > 0) AddToCargo(e.item, UnitsOf(db, e));
+            }
+            Session.Equipment = Session.Equipment.OrderBy(e => listOrder.IndexOf(e)).ToList();
+            for (int type = 0; type <= 3; type++)
+            {
+                int n = 0;
+                foreach (var e in Session.Equipment.Where(x => HasSlot(db, x) && TypeOf(x.item) == type).OrderBy(x => x.slot).ToList()) e.slot = ++n;
             }
             SyncBuiltIn(db);   // the new hull's own
         }

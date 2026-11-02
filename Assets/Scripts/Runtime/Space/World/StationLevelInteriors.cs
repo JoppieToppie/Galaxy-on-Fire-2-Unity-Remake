@@ -259,8 +259,8 @@ namespace GoF2Remake.World
         void RefreshTurret(bool force)
         {
             string items = string.Join(",", GoF2Remake.Flight.PlayerTurret.TurretItems(db, Session.Equipment)) + "|"
-                         + string.Join(",", Modding.ModHardpoints.WeaponItems(db, Session.Equipment, false).Select(i => i.index)) + "|"
-                         + string.Join(",", Modding.ModHardpoints.WeaponItems(db, Session.Equipment, true).Select(i => i.index));
+                         + string.Join(",", Modding.ModHardpoints.WeaponItems(db, Session.Equipment, false).Select(i => i?.index ?? -1)) + "|"
+                         + string.Join(",", Modding.ModHardpoints.WeaponItems(db, Session.Equipment, true).Select(i => i?.index ?? -1));
             if (!force && items == turretItems) return;
             turretItems = items;
             if (turret != null) Destroy(turret);

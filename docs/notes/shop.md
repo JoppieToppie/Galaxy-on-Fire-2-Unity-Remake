@@ -92,6 +92,24 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   header; a a passenger cabin can't be demounted while the other cabins couldn't seat the passengers aboard (323,
   `HangarWindow::selectItem` 0x178e20); a double click / double tap mounts or demounts (the Mount / Demount button's
   action; a controller's confirm button does the same).
+- **Slot positions** (players' feedback 2026-11: the gear "snapped" to the next free slot, the original's didn't):
+  `Ship+0x6c` is one place per slot, null when empty. `Ship::removeEquipment` 0x1a3e4c empties the slot and leaves
+  the others where they are; `Ship::addEquipment` 0x1a4088 fills the type's first empty one; `Level::createPlayer` puts
+  each gun on the mount of its slot (`Gun::setOffset(mounts[Ship::getSlotPos])`). The remake's list kept no gaps until
+  then, so a demount moved every later gun one mount along. Now `ItemStack.slot` (1-based, 0 = none yet: the first free
+  one, so old saves keep their order) holds it: `Hangar.SlotPositions` reads it, `PinSlots` writes it before every
+  mount / demount / swap and in `SyncBuiltIn` (levels start, docking), so an item used up in flight leaves its slot
+  empty too. `Hangar.MountOrder` (built-ins first, then the slots, -1 for a gap) is what `WeaponSystem.Setup` (guns in
+  slot order, the secondaries' selection order too) and `ModHardpoints.WeaponItems` (null for a gap: kit weapon models,
+  pylon nodes, the parking height) read; `NetPlayer.PackWeapons` sends a gap as -1 (an older peer skips it: its weapons
+  side by side). The Ship tab lists each slot in place (`Hangar.SlotsOfType`, Empty slot rows between). A swap (287)
+  puts the new item in the old one's slot. `FitToSlots` drops what sits in the last slots and moves an item past a
+  smaller hull's slots into an empty one below; a new hull (`SwitchTo`) takes the gear in its slots' order, packed. Turrets
+  keep the original's single turret position. Remake: MOVE (`shopMoveSlot`, the second action button in cyan, X / the
+  controller's X, `Hangar.NextSlot` / `MoveToSlot`) takes a mounted item to the next slot of its type (the last to the
+  first), changing places with the item there; with the mouse or a pen a mounted row dragged onto another slot row of its
+  type does the same (`HangarWindow.HookSlotDrag`; touch keeps the list's scrolling). Tests `HangarSlotTests`. Not tested
+  in multiplayer.
 - **Hangar opened with A / Enter** (#104, `StationMenu.hangarConfirmHeld`): the window ignores Enter / A until the press that
   opened it is released; the Hangar button took the press, and in the same frame the window bought its first row.
 - **Ships:** price -1 % in systems of the ship's race; trade-in at full price; remake (players' report), in a

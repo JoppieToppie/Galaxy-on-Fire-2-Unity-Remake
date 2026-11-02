@@ -49,6 +49,8 @@ namespace GoF2Remake.UI
         {
             public RowKind kind;
             public int item = -1, ship = -1, equipment = -1, type = -1;
+            /// <summary>A Ship tab slot row's slot among its type's (Hangar.SlotsOfType), -1 for any other row.</summary>
+            public int place = -1;
             public VisualElement element;
             public bool Selectable => kind != RowKind.Header;
             public bool Same(Row o) => o != null && o.kind == kind && o.item == item && o.ship == ship && o.type == type
@@ -80,7 +82,7 @@ namespace GoF2Remake.UI
         /// <summary>Remake: the ingredients view's Autocomplete and Complete buttons (rows of their own, AddProductionActions).</summary>
         Label productionComplete, productionAutocomplete;
         /// <summary>Remake: the key hints were last built for the ingredients view (TAKE / ADD).</summary>
-        bool hintsForIngredients;
+        bool hintsForIngredients, hintsForShipTab;
         readonly List<Row> rows = new List<Row>();
         Hangar hangar;
         Row selected;
@@ -95,6 +97,13 @@ namespace GoF2Remake.UI
 
         // Held trade arrow or key (HangarWindow::update 0x172626); heldPointer -2 = a key / the D-pad.
         int heldDirection, heldPointer = -1;
+        /// <summary>Remake (players' feedback): a mounted item dragged to another slot of its type with the mouse or a pen
+        /// (HookSlotDrag): the row pressed, the pointer, where it went down, the row under it; dragMoved eats the click that
+        /// ends the drag.</summary>
+        Row dragRow, dragTarget;
+        int dragPointer = -1;
+        Vector2 dragStart;
+        bool dragging, dragMoved;
         float heldMs;
         int holdTotal, holdDone;   // HeldTrade: the stack counted at the press, the units traded since
         const int KeyHold = -2;

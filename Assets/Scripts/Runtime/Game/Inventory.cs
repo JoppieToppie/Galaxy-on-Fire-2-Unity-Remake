@@ -19,9 +19,12 @@ namespace GoF2Remake.Data
         /// <summary>Remake mods: built into the flown ship (ships.json "integrated": "items", Hangar.SyncBuiltIn): it works
         /// like a mounted item but takes no slot and can't be demounted, sold, stored or moved to another ship.</summary>
         public bool builtIn;
+        /// <summary>A mounted stack's place among its type's slots, 1-based (Ship::getSlotPos + 1); 0 = none yet: it takes
+        /// the first free one (old saves, starting gear). Hangar.SlotPositions reads it, Hangar.PinSlots writes it.</summary>
+        public int slot;
 
         public ItemStack(int item, int amount) { this.item = item; this.amount = amount; }
-        public ItemStack Clone() => new ItemStack(item, amount) { builtIn = builtIn };
+        public ItemStack Clone() => new ItemStack(item, amount) { builtIn = builtIn, slot = slot };
     }
 
     [Serializable]
