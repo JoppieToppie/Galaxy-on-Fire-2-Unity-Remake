@@ -1,4 +1,7 @@
 {
+ "driveQueued": "Sprongaandrijving: wacht op de systemen...",
+ "driveNoVoid": "Deze sprongaandrijving kan de Void niet verlaten.",
+ "driveFailure": "Sprongaandrijving faalt!",
  "mapMobileLeaves": "vertrekt over {0} min",
  "animatedDialogue": "Geanimeerde dialogen",
  "antiAliasing": "Anti-aliasing",

@@ -113,6 +113,8 @@ namespace GoF2Remake.Flight
 
         /// <summary>Speed this frame in m/s (after world scaling).</summary>
         public float SpeedMetersPerSecond { get; private set; }
+        /// <summary>Modified: the ship's own clock factor (1 = normal): a mod jump drive's failure slows its flight and turns.</summary>
+        [System.NonSerialized] public float impairment = 1f;
 
         Vector2 externalSteer;
         float bankAngle, tiltAngle;
@@ -256,7 +258,8 @@ namespace GoF2Remake.Flight
             Model.Sensitivity = tiltMode ? Data.Settings.TiltSensitivity : mouseSteering ? 2.7f : sensitivity;
             // PlayerEgo::left / right / up / down on Extreme (+0x235): the live cargo load against Ship::getMaxLoad.
             if (stats != null && stats.cargoAffectsHandling) stats.cargoLoad = Data.Shop.CargoLoad();
-            float dtMs = Time.deltaTime * 1000f * TimeExtender.PlayerFactor;   // MGame+0x44: the player's dt
+            // Modified: x impairment (a mod jump drive's failure, SystemJump: the ship flies and turns at a tenth).
+            float dtMs = Time.deltaTime * 1000f * TimeExtender.PlayerFactor * impairment;   // MGame+0x44: the player's dt
             Model.UpdateCruise(Navigation.Cruising, dtMs);   // remake, multiplayer: cruise looks like a boost
             if (externalControl)
             {

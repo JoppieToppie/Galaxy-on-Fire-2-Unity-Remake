@@ -531,7 +531,7 @@ namespace GoF2Remake.World
         }
 
         /// <summary>A turret object's homing target: a turret item firing missiles homes on what it aims at.</summary>
-        Target TurretHoming => turretPicking != null && turretPicking.Current is Target t && t.Alive && !t.cloaked ? t : null;
+        Target TurretHoming => turretPicking != null && turretPicking.Current is Target t && t.Alive && !t.cloaked && !t.untargetable ? t : null;   // Modified: untargetable
 
         /// <summary>Remake debug (PlayerHull): one of the turrets on the player's own hull.</summary>
         public bool PlayerOwned { get; private set; }
@@ -669,7 +669,7 @@ namespace GoF2Remake.World
         float gunBase = 3f, gunSpeed = NpcTables.GunSpeed;
 
         /// <summary>RocketGun::seekEnemy for an NPC: its current target (PlayerFighter+0x34), while it attacks.</summary>
-        Target HomingTarget => attacking && target != null && target.Alive && !target.cloaked ? target : null;
+        Target HomingTarget => attacking && target != null && target.Alive && !target.cloaked && !target.untargetable ? target : null;   // Modified: untargetable
 
         /// <summary>The target SetOnlyEnemy gave (Player::setEnemy), null when none.</summary>
         public Target ScriptEnemy { get; private set; }

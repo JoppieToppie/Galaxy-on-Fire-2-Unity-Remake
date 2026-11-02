@@ -410,7 +410,9 @@ namespace GoF2Remake.Flight
                 if (eventRoute != null && eventRoute.Waypoint != null && eventTarget != null)
                     list.Add(new Target { kind = Kind.Waypoint, name = eventRoute.name ?? Localization.Get(573), eventWaypoint = true });
                 int prog = Session.ProgrammedStation;
-                if (prog >= 0 && prog != layout.stationIndex)
+                // Modified: not while the jump drive charges or waits to (the programmed station is its target: the entry flew
+                // to the jumpgate, and near it the gate jumped instead).
+                if (prog >= 0 && prog != layout.stationIndex && !Session.InstantJump && !(TravelBusy != null && TravelBusy()))
                     list.Add(new Target { kind = Kind.Destination, station = prog,
                                           name = $"{Localization.Get(574)}: {db.Stations.Find(s => s.index == prog)?.name}" });
             }
@@ -428,7 +430,7 @@ namespace GoF2Remake.Flight
             if (HasWingmen != null && HasWingmen()) list.Add(new Target { kind = Kind.Wingmen, name = Localization.Get(306) });
             if (Cloak != null) list.Add(new Target { kind = Kind.Cloak, name = Cloak.ItemName, disabled = !Cloak.Rules.Available });
             // Remake: not while docked at an object (it holds the ship: undock first).
-            if (!Interstellar && GalaxyMap.HasJumpDrive(db) && (Docking == null || Docking.State == ObjectDocking.Phase.Idle || Docking.State == ObjectDocking.Phase.Approach)) list.Add(new Target { kind = Kind.KhadorDrive, name = Localization.Get(1359) });
+            if (!Interstellar && GalaxyMap.HasJumpDrive(db) && (Docking == null || Docking.State == ObjectDocking.Phase.Idle || Docking.State == ObjectDocking.Phase.Approach)) list.Add(new Target { kind = Kind.KhadorDrive, name = GoF2Remake.Modding.ModJumpFx.ActiveDrive() is GoF2Remake.Modding.ModJumpFx.Spec jd ? GameNames.Item(jd.item) : Localization.Get(1359) });   // Modified: a mod drive by its own name
             AddSlipstreamEntry(list);   // remake: the mounted drive that flies between the systems (NavigationInterstellar)
             // Remake: the time extender too (the original has it only on its own touch slot), so one menu holds every
             // device: secondaries, wingmen, cloak, Khador Drive and the time extender (half-transparent while recharging).

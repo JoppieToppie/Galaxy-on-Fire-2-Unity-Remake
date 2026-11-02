@@ -79,7 +79,7 @@ namespace GoF2Remake.World
             var docking = level.Docking;
 
             if (!Seen(0x17) && Shop.FirstMounted(db, 14) != null && cm >= 2) { First(0x17); Show(596, true); return; }
-            if (!Seen(0x21) && (GalaxyMap.HasIntegratedDrive(Session.ShipIndex) || Session.Equipment.Exists(e => e.item == GalaxyMap.KhadorDriveItem)))
+            if (!Seen(0x21) && (GalaxyMap.HasIntegratedDrive(Session.ShipIndex) || Session.Equipment.Exists(e => GalaxyMap.IsKhadorDrive(e.item))))
             { First(0x21); Show(590, true); return; }   // Ship::hasJumpDrive (a real drive, not the remake's gateless rule)
             if (!Seen(0x22) && PlayerCloak.HasCloak(db, Session.ShipIndex)) { First(0x22); Show(593, true); return; }
             if (!Seen(0x20) && !level.Navigation.Autopilot && cm > 9 && !levelMission) { First(0x20); Show(584, true); return; }

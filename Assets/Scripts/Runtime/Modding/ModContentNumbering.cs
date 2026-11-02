@@ -279,6 +279,16 @@ namespace GoF2Remake.Modding
             if (!itemDefAt.TryGetValue(index, out var d) || depth > 16) return index;
             return TryResolveItem(d.baseRef, out int b) && b != index ? LookOf(b, depth + 1) : index;
         }
+        /// <summary>Modified: a mod item's items.json entry (a new item or a change to one), for the fields only a feature
+        /// reads (ModJumpFx's "jumpFx").</summary>
+        public static bool ItemEntry(int index, out ModInfo mod, out JObject json, out string where)
+        {
+            EnsureMapping();
+            ItemDef d = itemDefAt.TryGetValue(index, out var nd) ? nd : itemRenames.TryGetValue(index, out var rd) ? rd : null;
+            mod = d?.mod; json = d?.json; where = d?.where;
+            return d != null && d.json != null;
+        }
+
         /// <summary>An item reference ("12" or "mod:id") to its number in the current numbering.</summary>
         public static bool TryResolveItem(string reference, out int index)
         {

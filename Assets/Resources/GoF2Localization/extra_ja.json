@@ -1,4 +1,7 @@
 {
+ "driveQueued": "ジャンプドライブ：システム待機中...",
+ "driveNoVoid": "このジャンプドライブはヴォイドから出られない。",
+ "driveFailure": "ジャンプドライブ故障！",
  "mapMobileLeaves": "あと{0}分で移動",
  "animatedDialogue": "会話アニメーション",
  "antiAliasing": "アンチエイリアス",

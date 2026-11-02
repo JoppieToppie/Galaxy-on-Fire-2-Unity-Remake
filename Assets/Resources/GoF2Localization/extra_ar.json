@@ -1,4 +1,7 @@
 {
+ "driveQueued": "محرك القفز: بانتظار الأنظمة...",
+ "driveNoVoid": "لا يستطيع محرك القفز هذا مغادرة الفراغ.",
+ "driveFailure": "عطل في محرك القفز!",
  "mapMobileLeaves": "يغادر خلال {0} دقيقة",
  "animatedDialogue": "حوار متحرك",
  "antiAliasing": "تنعيم الحواف",

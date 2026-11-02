@@ -68,6 +68,12 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   `GoF2Hud/charge_frame` / `charge_fill`, #48) once the level is 5 s old, then the `khador_jump` fx (15026, scale 2)
   3000 units ahead, camera at fx + R(-2000, 300, -2000) drifting (5, 2, -5), ship hidden at 1700 ms, reload at the fx
   end (~4 s). Cells = gate jumps on the shortest route through visible systems, 4 without one, x2 on Extreme.
+- **Khador Drive start delay** (remake, KiritoJPK, 2026-11): a jump asked for once the orbit's first 5 s are over waits
+  2 s before it charges (`SystemJump.StartDelayOver`; one asked for earlier has waited already; a mod jump drive's
+  `startDelayMs` in its place); the drive's key pressed during the launch / arrival fly-in waits for it to end instead of
+  being lost (`FlightHud.khadorQueued`, "Jump drive: waiting for the systems...", also when the Void's way back waits for
+  the 5 s); the autopilot menu's Destination entry is hidden while a jump charges or waits (it flew to the jumpgate, and
+  near it the gate jumped instead). Mod jump drives: see mods.md "Jump drives".
 - **Arrival** from another system: the hidden gate in the gate orbit, else (0, 0, 100000), facing the station, with the
   7 s fly-in camera; the orbit information (race logo, station, "<System> System", security level in its colour) shows
   during it. The programmed station is cleared: no autopilot leg follows a system jump (remake: but a gate route's hop,

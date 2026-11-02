@@ -1,4 +1,7 @@
 {
+ "driveQueued": "Napęd skokowy: oczekiwanie na systemy...",
+ "driveNoVoid": "Ten napęd skokowy nie może opuścić Void.",
+ "driveFailure": "Awaria napędu skokowego!",
  "mapMobileLeaves": "odlatuje za {0} min",
  "animatedDialogue": "Animowane dialogi",
  "antiAliasing": "Wygładzanie krawędzi",

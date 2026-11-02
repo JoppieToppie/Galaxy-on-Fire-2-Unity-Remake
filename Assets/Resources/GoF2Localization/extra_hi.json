@@ -1,4 +1,7 @@
 {
+ "driveQueued": "जंप ड्राइव: सिस्टम का इंतज़ार...",
+ "driveNoVoid": "यह जंप ड्राइव Void से बाहर नहीं निकल सकती।",
+ "driveFailure": "जंप ड्राइव ख़राब!",
  "mapMobileLeaves": "{0} मिनट में रवाना",
   "animatedDialogue": "एनिमेटेड संवाद",
   "antiAliasing": "एंटी-एलियासिंग",

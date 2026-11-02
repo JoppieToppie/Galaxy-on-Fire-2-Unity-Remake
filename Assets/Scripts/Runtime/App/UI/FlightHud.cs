@@ -575,7 +575,16 @@ namespace GoF2Remake.UI
             if (menuKeys && GameControls.AutopilotMenu.WasPressedThisFrame()) OnAutopilotButton();
             else if (menuKeys && GameControls.ActionsMenu.WasPressedThisFrame()) OnActionsButton();
             else if (menuKeys && GameControls.Wingmen.WasPressedThisFrame()) OpenMenuEntry(Navigation.Kind.Wingmen);
-            else if (menuKeys && GameControls.KhadorDrive.WasPressedThisFrame()) OpenMenuEntry(nav != null && nav.MenuEntries(true).Exists(t => t.kind == Navigation.Kind.KhadorDrive) ? Navigation.Kind.KhadorDrive : Navigation.Kind.Slipstream);
+            else if (menuKeys && GameControls.KhadorDrive.WasPressedThisFrame()) OpenKhadorEntry();
+            // Modified: the jump drive's key pressed during the launch / arrival fly-in waits for it to end instead of being
+            // lost (players pressed it again and again on arriving); the jump itself then charges once the level is 5 s old
+            // (SystemJump), so one press is enough.
+            if (!menuKeys && nav != null && (level == null || !level.Cutscene) && GameControls.KhadorDrive.WasPressedThisFrame())
+            {
+                if (!khadorQueued) miningView?.ShowMessage(Localization.Extra("driveQueued", "Jump drive: waiting for the systems..."));
+                khadorQueued = true;
+            }
+            else if (menuKeys && khadorQueued) { khadorQueued = false; OpenKhadorEntry(); }
             bool freeLookNow = level != null && level.FreeLook != null && level.FreeLook.FreeLookActive;
             if (GameControls.MouseSteering.WasPressedThisFrame()
                 && !(freeLookNow && GameControls.MouseSteering.activeControl?.device is Mouse))

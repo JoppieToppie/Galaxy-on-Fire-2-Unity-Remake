@@ -1,4 +1,7 @@
 {
+ "driveQueued": "Sprungantrieb: warte auf die Systeme...",
+ "driveNoVoid": "Dieser Sprungantrieb kann das Void nicht verlassen.",
+ "driveFailure": "Sprungantrieb-Ausfall!",
  "mapMobileLeaves": "zieht in {0} Min. weiter",
  "animatedDialogue": "Animierte Dialoge",
  "antiAliasing": "Kantenglättung",

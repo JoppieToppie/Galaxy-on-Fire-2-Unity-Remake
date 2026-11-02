@@ -755,10 +755,14 @@ namespace GoF2Remake.World
             if (Weapons != null) Weapons.WarpHeld = warpHolds;
             Navigation.ArrivalHeld = warpSky != null && warpSky.Arriving;
             if (Traffic != null) Traffic.HoldFire = warpHolds || Navigation.ConversationRuns;   // remake: a conversation the game runs on through
-            Health.invulnerable = warpHolds || launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Es2Busy || DockedInOrbit
+            Health.invulnerable = warpHolds || launchCameraMs > 0f || DriveArriving || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Es2Busy || DockedInOrbit
                                   || (Campaign != null && (Campaign.PlayerInvulnerable || Campaign.Held)) || (StorySpace != null && StorySpace.SuccessPending)
                                   || GoF2Remake.World.SpaceHooks.Invulnerable || Navigation.ConversationRuns;
-            Collision.off = warpHolds || launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Es2Busy || DockedInOrbit
+            // Modified: while a mod drive's jump has hidden the ship (vanished into its effect, or not yet out of the arrival fx),
+            // enemy shots fly through it (Target.phased) and nothing targets it (untargetable: NPC fighters, turrets and
+            // sentries drop it). The gate's and the Khador Drive's scenes are left as they are.
+            SetSceneHidden((SystemJump != null && SystemJump.ModDriveHidden) || DriveArrivalHidden);
+            Collision.off = warpHolds || launchCameraMs > 0f || DriveArriving || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Es2Busy || DockedInOrbit
                             || (Campaign != null && Campaign.CollisionOff);   // PlayerEgo+0x144
             Collision.ignoreGate = Navigation.GoingToGate;
             // Hostiles, or a radio line on screen, block fast-forward (MGame::OnUpdate).
@@ -837,6 +841,7 @@ namespace GoF2Remake.World
         {
             if (Player == null || (Health != null && Health.Dead)) return;
             if (!InDockRange) leftDockRange = true;
+            UpdateDriveArrival();   // Modified: a mod drive's arrival fx
             foreach (var m in Mobiles) if (m != null && !m.LeftRange && !m.InRange(Player.transform.position)) m.LeftRange = true;
             // Remake mods: the autopilot to a mobile station docks within its range.
             if (DockedInOrbit || Es2Busy) return;   // EVERSPACE 2's docking / take-off flies the ship
@@ -867,6 +872,13 @@ namespace GoF2Remake.World
             if (!Settings.LaunchCamera) { EndLaunchCamera(true); return; }
             // LevelScript::skipSequence 0x16f57c only sets the fly-in clock to 7001: the next frame ends it like the natural
             // end (setLookAtCam(false), no resetCamera), so the chase camera eases in from where the camera is.
+            if (DriveArriving)
+            {
+                // Modified: the arrival camera's clock starts once a mod drive's arrival fx is over (no skipping meanwhile).
+                var hc = mainCamera.transform;
+                hc.rotation = Quaternion.LookRotation(Player.transform.position - hc.position, Player.transform.up);
+                return;
+            }
             if (Time.timeScale > 0f && PlayerTriedToFly()) { EndLaunchCamera(false); return; }
             launchCameraMs -= Time.deltaTime * 1000f;
             var cam = mainCamera.transform;
@@ -876,6 +888,19 @@ namespace GoF2Remake.World
         }
 
         GameObject spaceEventSystem;
+
+        bool sceneHidden;
+        /// <summary>Modified: the player's Target out of reach (phased, untargetable) while a mod drive's jump hides the ship;
+        /// re-set every frame so a cloak ending meanwhile can't clear it, and given back as the cloak has it
+        /// (PlayerCloak.Phasing) afterwards.</summary>
+        void SetSceneHidden(bool on)
+        {
+            var t = Health != null ? Health.Target : null;
+            if (t == null) return;
+            if (on) { t.phased = true; t.untargetable = true; }
+            else if (sceneHidden) { t.phased = Cloak != null && Cloak.Phasing; t.untargetable = false; }
+            sceneHidden = on;
+        }
 
         void OnDestroy()
         {

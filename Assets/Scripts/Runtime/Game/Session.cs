@@ -316,6 +316,12 @@ namespace GoF2Remake.Data
 
         /// <summary>Level::initStreamOutPosition: false = undocking from the station, true = arriving by travel.</summary>
         public static bool ArrivedByTravel;
+        /// <summary>Modified: a mod jump drive's jump failed (SystemJump): the arrival comes out anywhere near the station
+        /// (SpaceLevel.DriveFailPoint).</summary>
+        public static bool DriveFailArrival;
+        /// <summary>Modified: the arrival of a mod jump drive's jump (failed or not; ModJumpFx "arrivalFx"): the ship comes in
+        /// with the 2D hyper_drive fx in the drive's own texture (SpaceLevel.BeginDriveArrival).</summary>
+        public static bool DriveArrival;
 
         /// <summary>Set by the station's launch button: the flight level starts with the launch camera
         /// (LevelScript: a fixed camera 9000 units ahead watches the ship fly past for 7 s).</summary>

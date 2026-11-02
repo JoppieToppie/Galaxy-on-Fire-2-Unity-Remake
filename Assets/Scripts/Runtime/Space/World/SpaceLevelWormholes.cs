@@ -344,6 +344,17 @@ namespace GoF2Remake.World
                 var forward = InterstellarSpace.StartPose(db, Layout, out var at);
                 root.transform.SetPositionAndRotation(OrbitLayout.ToUnity(at), Quaternion.LookRotation(OrbitLayout.DirToUnity(forward), Vector3.up));
             }
+            // Modified: a mod jump drive's failed jump (SystemJump, Session.DriveFailArrival) comes out anywhere within its
+            // "failRadiusKm" of the station (20 km: 320000 game units, Navigation.FormatDistance's metres are units / 16), clear
+            // of the station, the gate and the asteroids, facing the station. With "arrivalFx" the drive's jump (failed or not)
+            // ends with the 2D hyper_drive fx bringing the ship in (BeginDriveArrival).
+            var arrivalDrive = (Session.DriveArrival || Session.DriveFailArrival) && Session.ArrivedByTravel && !Layout.interstellar && !warpArrival
+                ? Modding.ModJumpFx.ActiveDrive() : null;
+            bool driveFailed = arrivalDrive != null && Session.DriveFailArrival;
+            bool driveArrival = arrivalDrive != null && arrivalDrive.arrivalFx;
+            Session.DriveArrival = Session.DriveFailArrival = false;
+            if (driveFailed && DriveFailPoint(arrivalDrive.failRadiusKm * 16000f, out var failAt))
+                root.transform.SetPositionAndRotation(failAt, Quaternion.LookRotation(-failAt.normalized, Vector3.up));
             // Remake multiplayer: an admin's teleport into this orbit (NetTeleport) brings its own pose.
             if (SpaceHooks.TeleportPose != null && SpaceHooks.TeleportPose(out var tpPos, out var tpRot)) root.transform.SetPositionAndRotation(tpPos, tpRot);
             var ctrl = root.AddComponent<ShipController>();
@@ -429,6 +440,98 @@ namespace GoF2Remake.World
             if (challengeFlyIn) Session.ArrivedByTravel = true;
             if (warpArrival) { launchTravel = true; Session.LaunchedFromStation = Session.ArrivedByTravel = false; }
             else if (Session.LaunchedFromStation || Session.ArrivedByTravel) StartLaunchCamera();
+            if (driveArrival) BeginDriveArrival(driveFailed);
+        }
+
+        // Modified: a mod drive's arrival (ModJumpFx "arrivalFx"; IntroCutscenes' time jump end, steps 10 / 11): sound 159, the
+        // 2D hyper_drive fx at the ship, the ship hidden and held still until 2500 ms; the arrival camera's clock waits for the
+        // fx to end.
+        const float DriveFailMinUnits = 60000f, DriveShowMs = 2500f;
+        float driveArrivalMs = -1f, driveArrivalLength;
+        bool driveHolding;
+        GameObject driveFx;
+        readonly System.Collections.Generic.List<Material> driveFxMaterials = new System.Collections.Generic.List<Material>();
+        /// <summary>A mod drive's arrival fx is still running (the ship invulnerable, the arrival camera waiting).</summary>
+        public bool DriveArriving => driveArrivalMs >= 0f;
+        /// <summary>The ship is still hidden in the arrival fx (until DriveShowMs).</summary>
+        public bool DriveArrivalHidden => driveArrivalMs >= 0f && driveHolding;
+
+        /// <summary>A random point within 'maxUnits' (game units) of the station, not inside it, the gate or an asteroid.</summary>
+        bool DriveFailPoint(float maxUnits, out Vector3 at)
+        {
+            for (int i = 0; i < 80; i++)
+            {
+                var p = Random.onUnitSphere * Random.Range(DriveFailMinUnits, Mathf.Max(maxUnits, DriveFailMinUnits)) * M;
+                if (DriveFailClear(p)) { at = p; return true; }
+            }
+            at = default;
+            return false;
+        }
+
+        static readonly Vector3[] DriveFailProbe = { Vector3.zero, Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
+
+        static bool DriveFailClear(Vector3 p)
+        {
+            const float margin = 400f;   // metres around the ship
+            foreach (var o in Obstacle.All)
+            {
+                if (o == null || !o.isActiveAndEnabled) continue;
+                foreach (var d in DriveFailProbe) if (o.Touches(p + d * margin, out _)) return false;
+            }
+            foreach (var t in Target.All)
+                if (t != null && t.isAsteroid && (t.transform.position - p).magnitude < t.radius * 1.8f + margin) return false;
+            return true;
+        }
+
+        void BeginDriveArrival(bool failed)
+        {
+            driveArrivalMs = 0f;
+            driveArrivalLength = 3000f;
+            driveHolding = true;
+            Player.externalControl = true;
+            Player.ExternalSpeedMetersPerSecond = 0f;
+            if (Player.visualModel != null) Player.visualModel.gameObject.SetActive(false);
+            var assets = StoryAssets.Load();
+            Sfx.PlayAt(assets?.timeJumpEnd, Player.transform.position);   // 159
+            if (assets == null || assets.hyperDrive == null) return;
+            driveFx = Instantiate(assets.hyperDrive, Player.transform.position, mainCamera.transform.rotation * Quaternion.Euler(0f, 180f, 0f));
+            // The mounted mod drive's own texture: its "texture", or "failTexture" after a failure (the game's own, purple,
+            // when it names none); copies of the fx's materials before PartAnimation copies them for the fades.
+            var drive = Modding.ModJumpFx.ActiveDrive();
+            string path = drive == null ? null : failed ? drive.failTexture : drive.texture;
+            var tex = string.IsNullOrEmpty(path) ? null : Modding.ModMaterials.Texture(drive.mod, path, false);
+            if (tex != null) tex.wrapMode = TextureWrapMode.Repeat;   // the hyper_drive meshes map past 0..1 (AssetImport.FxRepeats)
+            if (tex != null)
+                foreach (var r in driveFx.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (r.sharedMaterial == null || !r.sharedMaterial.HasProperty("_MainTex")) continue;
+                    var m = new Material(r.sharedMaterial);
+                    m.SetTexture("_MainTex", tex);
+                    driveFxMaterials.Add(m);
+                    r.sharedMaterial = m;
+                }
+            GunRig.EnableFades(driveFx);
+            float len = PartAnimation.PlayOnce(driveFx);
+            if (len > 0f) driveArrivalLength = len;
+        }
+
+        void UpdateDriveArrival()
+        {
+            if (driveArrivalMs < 0f) return;
+            driveArrivalMs += Time.deltaTime * 1000f;
+            if (driveFx != null) driveFx.transform.rotation = mainCamera.transform.rotation * Quaternion.Euler(0f, 180f, 0f);   // +z at the viewer
+            if (driveHolding && driveArrivalMs >= DriveShowMs)
+            {
+                driveHolding = false;
+                if (Player.visualModel != null) Player.visualModel.gameObject.SetActive(true);
+                Player.externalControl = false;
+            }
+            if (driveArrivalMs < Mathf.Max(driveArrivalLength, DriveShowMs)) return;
+            if (driveFx != null) Destroy(driveFx);
+            driveFx = null;
+            foreach (var m in driveFxMaterials) if (m != null) Destroy(m);
+            driveFxMaterials.Clear();
+            driveArrivalMs = -1f;
         }
         /// <summary>Level::init with initStreamOutPosition (space_level_setup.md 4): into the gate orbit at the hidden gate
         /// (landmark 2); else 4 x the planet billboard (-20000 * dir) of the station the player came from, or (0, 0, 100000)

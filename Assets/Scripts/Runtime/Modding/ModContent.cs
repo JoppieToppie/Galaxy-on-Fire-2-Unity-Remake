@@ -161,7 +161,7 @@ namespace GoF2Remake.Modding
         {
             "id", "override", "base", "name", "description", "techLevel", "occurrence", "stock", "minPrice", "maxPrice", "price",
             "lowestPriceSystem", "highestPriceSystem", "vosskOnly", "alwaysSoldAt", "stats", "attributes", "defaultEconomy", "fx", "icon",
-            "available", "tractorColor",
+            "available", "tractorColor", "jumpFx",   // Modified: "jumpFx", a jump drive's own effect (ModJumpFx)
         };
 
         /// <summary>items.json "tractorColor" ("#rrggbb", "rrggbb" or [r, g, b] 0-255) as attribute 136's value

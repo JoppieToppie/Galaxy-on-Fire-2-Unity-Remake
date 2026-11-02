@@ -1,4 +1,7 @@
 {
+ "driveQueued": "Motor de salto: aguardando os sistemas...",
+ "driveNoVoid": "Este motor de salto não consegue sair do Void.",
+ "driveFailure": "Falha no motor de salto!",
  "mapMobileLeaves": "parte em {0} min",
  "animatedDialogue": "Diálogo animado",
  "antiAliasing": "Anti-aliasing",
