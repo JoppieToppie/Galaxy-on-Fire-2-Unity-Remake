@@ -2,7 +2,6 @@
  "driveQueued": "Sprongaandrijving: wacht op de systemen...",
  "driveNoVoid": "Deze sprongaandrijving kan de Void niet verlaten.",
  "driveFailure": "Sprongaandrijving faalt!",
- "driveVolatile": "De vluchtige lading is ontploft!",
  "driveBuiltIn": "Dit schip heeft al een ingebouwde sprongaandrijving.",
  "mapMobileLeaves": "vertrekt over {0} min",
  "animatedDialogue": "Geanimeerde dialogen",

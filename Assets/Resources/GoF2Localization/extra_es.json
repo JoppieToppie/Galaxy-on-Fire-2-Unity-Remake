@@ -2,7 +2,6 @@
  "driveQueued": "Motor de salto: esperando a los sistemas...",
  "driveNoVoid": "Este motor de salto no puede salir del Void.",
  "driveFailure": "¡Fallo del motor de salto!",
- "driveVolatile": "¡La carga volátil se ha inflamado!",
  "driveBuiltIn": "Esta nave ya tiene un motor de salto integrado.",
  "mapMobileLeaves": "se va en {0} min",
  "animatedDialogue": "Diálogo animado",
