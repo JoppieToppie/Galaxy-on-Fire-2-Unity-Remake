@@ -219,6 +219,24 @@
                                 <ui:TextField name="mpMaxPlayers" class="debug-filter mp-max-players" />
                             </ui:VisualElement>
                             <ui:VisualElement class="mp-switch-grid">
+                            <ui:VisualElement name="mpCoopStrengthRow" class="mp-debug-row mp-debug-row--wide">
+                                <ui:Label name="mpCoopStrengthLabel" class="mp-label mp-debug-label gof-semibold" />
+                                <ui:VisualElement class="choice-segments mp-debug-segments">
+                                    <ui:Button name="mpCoopStrength0" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopStrength25" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopStrength50" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopStrength100" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopStrength150" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopStrength200" class="choice-segment choice-segment--last gof-semibold" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="mpCoopRewardsRow" class="mp-debug-row">
+                                <ui:Label name="mpCoopRewardsLabel" class="mp-label mp-debug-label gof-semibold" />
+                                <ui:VisualElement class="choice-segments mp-debug-segments">
+                                    <ui:Button name="mpCoopRewardsShared" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopRewardsFull" class="choice-segment choice-segment--last gof-semibold" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
                             <ui:VisualElement class="mp-debug-row">
                                 <ui:Label name="mpDebugLabel" class="mp-label mp-debug-label gof-semibold" />
                                 <ui:VisualElement class="choice-segments mp-debug-segments">
@@ -238,24 +256,6 @@
                                 <ui:VisualElement class="choice-segments mp-debug-segments">
                                     <ui:Button name="mpWorldFresh" class="choice-segment gof-semibold" />
                                     <ui:Button name="mpWorldPersistent" class="choice-segment choice-segment--last gof-semibold" />
-                                </ui:VisualElement>
-                            </ui:VisualElement>
-                            <ui:VisualElement name="mpCoopStrengthRow" class="mp-debug-row">
-                                <ui:Label name="mpCoopStrengthLabel" class="mp-label mp-debug-label gof-semibold" />
-                                <ui:VisualElement class="choice-segments mp-debug-segments">
-                                    <ui:Button name="mpCoopStrength0" class="choice-segment gof-semibold" />
-                                    <ui:Button name="mpCoopStrength25" class="choice-segment gof-semibold" />
-                                    <ui:Button name="mpCoopStrength50" class="choice-segment gof-semibold" />
-                                    <ui:Button name="mpCoopStrength100" class="choice-segment gof-semibold" />
-                                    <ui:Button name="mpCoopStrength150" class="choice-segment gof-semibold" />
-                                    <ui:Button name="mpCoopStrength200" class="choice-segment choice-segment--last gof-semibold" />
-                                </ui:VisualElement>
-                            </ui:VisualElement>
-                            <ui:VisualElement name="mpCoopRewardsRow" class="mp-debug-row">
-                                <ui:Label name="mpCoopRewardsLabel" class="mp-label mp-debug-label gof-semibold" />
-                                <ui:VisualElement class="choice-segments mp-debug-segments">
-                                    <ui:Button name="mpCoopRewardsShared" class="choice-segment gof-semibold" />
-                                    <ui:Button name="mpCoopRewardsFull" class="choice-segment choice-segment--last gof-semibold" />
                                 </ui:VisualElement>
                             </ui:VisualElement>
                             <ui:VisualElement class="mp-debug-row">

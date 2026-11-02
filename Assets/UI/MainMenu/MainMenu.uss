@@ -1226,6 +1226,14 @@
     margin: 0 0 8px 0;
 }
 
+.mp-switch-grid .mp-debug-row--wide {   /* the co-op enemy strength: six choices need the whole row */
+    width: 100%;
+}
+
+.mp-switch-grid .mp-debug-row--wide .mp-debug-segments .choice-segment {
+    flex-basis: 0;   /* the six equally wide */
+}
+
 .mp-switch-grid .mp-debug-label {
     min-width: 0;
     margin: 0 0 4px 0;

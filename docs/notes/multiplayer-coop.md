@@ -31,7 +31,8 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
   Not on a dedicated server.
 - **Difficulty and credits** (the host's settings, in the published State so every game uses them): enemy strength per
   player past the first (the Host card's "Enemies per player" Off / +25 / +50 / +100 / +150 / +200 %, PlayerPrefs
-  `mp_coop_strength`, 50 by default; `CoopCampaign.Strength`; +150 / +200 added 2026-11-02, the user's request): story level enemies' hull x (1 + s x (players - 1)) (`HullFactor`), every hostile
+  `mp_coop_strength`, 50 by default; `CoopCampaign.Strength`; +150 / +200 added 2026-11-02, the user's request; its row
+  takes the switch grid's whole width, first, `.mp-debug-row--wide`: six choices in half a row overflowed): story level enemies' hull x (1 + s x (players - 1)) (`HullFactor`), every hostile
   NPC's guns in a co-op session x (1 + s / 2 x (players - 1)) (`DamageFactor`, `NpcTables`' gun damage; not friends or
   wingmen); and the story credits (the Host card's "Story credits" Shared / Each in full, `mp_coop_split`, shared by
   default; `CoopCampaign.Share`): a step's reward (docked or in flight) and the game-won bonus of 45 are divided by the
