@@ -3,6 +3,7 @@
  "driveNoVoid": "Questo motore di salto non può lasciare il Void.",
  "driveFailure": "Guasto al motore di salto!",
  "driveBuiltIn": "Questa nave ha già un motore di salto integrato.",
+ "driveVolatile": "Non puoi usare il {0} quando trasporti merci instabili. La carica genera troppo calore e potrebbe portare a un'esplosione.",
  "mapMobileLeaves": "parte tra {0} min",
  "animatedDialogue": "Dialoghi animati",
  "antiAliasing": "Anti-aliasing",

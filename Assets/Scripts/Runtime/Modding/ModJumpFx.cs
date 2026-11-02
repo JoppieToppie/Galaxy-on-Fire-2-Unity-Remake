@@ -107,6 +107,16 @@ namespace GoF2Remake.Modding
             return Mounted();
         }
 
+        /// <summary>Modified: Ship::hasVolatileGoods's refusal (text 612) with the drive that would jump by its own name: 612
+        /// names the Khador Drive, so a mod drive takes "driveVolatile" with its item name.</summary>
+        public static string VolatileRefusal()
+        {
+            var drive = ActiveDrive();
+            if (drive == null) return Localization.Get(612);
+            return string.Format(Localization.Extra("driveVolatile", "You can't use the {0} when transporting volatile goods. The "
+                + "charging of the drive generates too much heat and could lead to an explosion."), GameNames.Item(drive.item));
+        }
+
         /// <summary>An item's "jumpFx", read and its data parsed once per mod revision (null = none or unreadable).</summary>
         public static Spec For(int item)
         {

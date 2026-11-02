@@ -524,7 +524,8 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   (`SpaceLevel.SetSceneHidden`; the gate's and the Khador Drive's scenes unchanged). One jump drive aboard: category 18 is
   one per ship (a Khador Drive and a mod one swap), and a mod one doesn't go on a ship with the drive built in
   (`Hangar.CanMount`, "driveBuiltIn"; `FitToSlots` moves one there to the hold). The star map's drive-or-gates question
-  names the mod drive. Not tested in multiplayer.
+  names the mod drive, and so does the volatile goods refusal (612 names the Khador Drive: `ModJumpFx.VolatileRefusal`,
+  "driveVolatile"). Not tested in multiplayer.
 - **Mod blueprints** (`ModBlueprints`, a mod's `blueprints.json`, parsed with the rest in `ModContent.Parse`): a "ship" or
   "item" product, ingredients, requiresShip (a skin: built only while flying that ship, which it rebuilds, the Kaamo upgrades
   kept), autocomplete (true / false / a price: `Blueprints.AutoCompletePrice` / `CanAutocomplete`, the hangar hides the row),

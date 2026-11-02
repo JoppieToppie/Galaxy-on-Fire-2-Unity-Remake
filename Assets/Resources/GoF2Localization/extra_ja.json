@@ -3,6 +3,7 @@
  "driveNoVoid": "このジャンプドライブはヴォイドから出られない。",
  "driveFailure": "ジャンプドライブ故障！",
  "driveBuiltIn": "この船にはジャンプドライブが内蔵されている。",
+ "driveVolatile": "揮発性商品の輸送中は{0}を使用できません。ドライブの帯電によって過熱し、爆発する場合があります。",
  "mapMobileLeaves": "あと{0}分で移動",
  "animatedDialogue": "会話アニメーション",
  "antiAliasing": "アンチエイリアス",

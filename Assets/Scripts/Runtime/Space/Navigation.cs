@@ -528,7 +528,7 @@ namespace GoF2Remake.Flight
             if (target.kind == Kind.KhadorDrive)
             {
                 if (((JumpsBlocked != null && JumpsBlocked()) || (KhadorBlocked != null && KhadorBlocked())) && Story.ForcedKhadorTarget(Session.StationIndex) == null) { Say(JumpRefusal); return; }
-                if (GalaxyMap.HasVolatileGoods) { Say(Localization.Get(612)); return; }   // MGame::UseKhadorDrive: ChoiceWindow 612
+                if (GalaxyMap.HasVolatileGoods) { Say(GoF2Remake.Modding.ModJumpFx.VolatileRefusal()); return; }   // MGame::UseKhadorDrive: ChoiceWindow 612 (Modified: by the mod drive's name)
                 KhadorRequested?.Invoke();
                 return;
             }

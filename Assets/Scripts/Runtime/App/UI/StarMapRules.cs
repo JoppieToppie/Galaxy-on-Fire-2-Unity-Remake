@@ -152,7 +152,7 @@ namespace GoF2Remake.UI
             {
                 // Ship::hasVolatileGoods: no Khador Drive; a gate neighbour (remake: any system on a gate route) is still
                 // reached through the jumpgate.
-                if (!GateReachable(system)) { ShowDialog(T(612), null, null, true); return; }
+                if (!GateReachable(system)) { ShowDialog(ModJumpFx.VolatileRefusal(), null, null, true); return; }   // Modified: the mod drive by name
                 TravelByGates(station, false);
                 return;
             }
