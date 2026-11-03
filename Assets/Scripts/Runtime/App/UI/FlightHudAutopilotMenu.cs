@@ -43,8 +43,23 @@ namespace GoF2Remake.UI
             menuPointer = false;   // Modified: opened with a key / button: its first entry is highlighted
             autopilotMenu.EnableInClassList("autopilot-menu--actions", actions);   // Modified: the actions menu (E) on the right
             autopilotMenu.AddToClassList("autopilot-menu--shown");
+            if (autopilotMenuScroll != null) autopilotMenuScroll.scrollOffset = Vector2.zero;
             HighlightMenu();
             BuildHints(InputMode.Current);
+        }
+        /// <summary>Remake: the menu no taller than the space between its top and the bottom of its container (16 units
+        /// spare); its entries' ScrollView shrinks to fit and scrolls the rest.</summary>
+        void FitAutopilotMenu()
+        {
+            if (autopilotMenu?.parent == null) return;
+            float room = autopilotMenu.parent.layout.height;
+            if (float.IsNaN(room) || room <= 0f) return;
+            float y = autopilotMenu.layout.y;
+            if (float.IsNaN(y) || y < 0f) y = 0f;
+            float max = Mathf.Max(120f, room - y - 16f);
+            var current = autopilotMenu.style.maxHeight;
+            if (current.keyword == StyleKeyword.Undefined && Mathf.Abs(current.value.value - max) < 0.5f) return;
+            autopilotMenu.style.maxHeight = max;
         }
         /// <summary>Hud::drawMenu: under the quick menu (type 0), with a cloak or a jump drive on the ship, the energy cells in the
         /// hold (Hud+0x21c, cargo 122, counted by Hud::initHudMenu(0)) as the cell's icon and "X <count>": what the cloak and the
@@ -141,6 +156,12 @@ namespace GoF2Remake.UI
             if (under >= 0) menuIndex = under;
             int marked = !keys ? -1 : menuPointer ? under : menuIndex;
             for (int i = 0; i < menuButtons.Count; i++) menuButtons[i].button.EnableInClassList("autopilot-menu-item--selected", i == marked);
+            // Remake: the keys' / controller's highlight scrolled into view (not the mouse's: the list would move under it).
+            if (autopilotMenuScroll != null && marked >= 0 && marked < menuButtons.Count && !menuPointer && !DragScroll.PointerActive)
+            {
+                var b = menuButtons[marked].button;
+                autopilotMenuScroll.schedule.Execute(() => { if (b.panel != null && b.parent == autopilotMenuItems) autopilotMenuScroll.ScrollTo(b); });   // after the layout of fresh entries
+            }
         }
         VisualElement MenuButtonAt(VisualElement t)
         {

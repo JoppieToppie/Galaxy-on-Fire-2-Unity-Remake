@@ -99,6 +99,7 @@ namespace GoF2Remake.UI
         bool orbitInfoFilled;
         bool lastAutopilot, lastLockFastForward;
         VisualElement autopilotMenu, autopilotMenuItems;
+        ScrollView autopilotMenuScroll;   // Remake: the entries scroll when they don't fit under the menu's top (FitAutopilotMenu)
         readonly System.Collections.Generic.List<(Button button, Navigation.Target target)> menuButtons = new System.Collections.Generic.List<(Button, Navigation.Target)>();
         int menuIndex, lastMenuMove, menuOpenedFrame;
         WeaponSystem weapons;
@@ -357,6 +358,24 @@ namespace GoF2Remake.UI
                 if (menuPointer) HighlightMenu();
             });
             autopilotMenuItems = root.Q("autopilotMenuItems");
+            // Remake (Discord: "Khador slipstream menu" / "Splitstream"): the entries in a ScrollView capped to the screen's
+            // height below the menu's top; a long list (the slipstream's systems in interstellar space, a phone's tall
+            // interface) ran off the bottom with no way to reach its last entries. Touch drags (the ScrollView's own), mouse
+            // drags and the wheel (DragScroll) scroll it; the keys / a controller scroll the highlighted entry into view
+            // (HighlightMenu).
+            autopilotMenuScroll = new ScrollView(ScrollViewMode.Vertical)
+            {
+                focusable = false,
+                horizontalScrollerVisibility = ScrollerVisibility.Hidden,
+                verticalScrollerVisibility = ScrollerVisibility.Auto,
+            };
+            autopilotMenuScroll.style.flexShrink = 1;
+            autopilotMenuScroll.style.minHeight = 0;
+            autopilotMenuItems.parent.Insert(autopilotMenuItems.parent.IndexOf(autopilotMenuItems), autopilotMenuScroll);
+            autopilotMenuScroll.Add(autopilotMenuItems);
+            autopilotMenuScroll.AddManipulator(new DragScroll(autopilotMenuScroll));
+            autopilotMenu.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());
+            autopilotMenu.parent?.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());
             root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).ToUpperInvariant();   // Autopilot
             var menuIcon = Resources.Load<Texture2D>("GoF2Hud/autopilot_title");
             if (menuIcon != null) root.Q("autopilotMenuIcon").style.backgroundImage = new StyleBackground(menuIcon);
