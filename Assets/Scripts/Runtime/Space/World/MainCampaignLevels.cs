@@ -561,6 +561,11 @@ namespace GoF2Remake.World
                     if (Triggered(0))
                     {
                         EnterCutscene();
+                        // The probe outruns the ship (3 u/ms against the base 2): the original's computer-controlled ship flies
+                        // at 0xb8, whose boost runs out, but the remake holds the speed at the scene's start for the whole
+                        // scene, so a boosting player (x3.5) kept up with or passed the probe instead of watching it rush
+                        // ahead (#224). Carry at most the unboosted top speed.
+                        playerSpeed = Mathf.Min(playerSpeed, Ship.Model.TopSpeed);
                         if (assets != null && assets.scannerProbe != null)
                         {
                             probe = Object.Instantiate(assets.scannerProbe, Player.position + Player.forward * 300f * M, Player.rotation);
