@@ -406,8 +406,9 @@ namespace GoF2Remake.UI
             hangarButton.EnableInClassList("station-button--current", HangarOpen);
             loungeButton.EnableInClassList("station-button--current", inLounge);
             RefreshViewTitle();
-            // Inspect ship: the hangar's view only (not in the lounge, nor in VR, which stands in the room already).
-            inspectButton.style.display = inLounge || Vr.VrMode.Enabled ? DisplayStyle.None : StyleKeyword.Null;
+            // Inspect ship: wherever the ship is docked, the lounge too (it goes to the hangar's view for it and back after,
+            // BeginInspect); not in VR, which stands in the room already.
+            inspectButton.style.display = Vr.VrMode.Enabled ? DisplayStyle.None : StyleKeyword.Null;
             RefreshCustomizeButton();
             dragVelocity = 0f;
             lounge?.OnViewChanged();

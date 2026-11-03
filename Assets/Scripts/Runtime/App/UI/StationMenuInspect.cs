@@ -45,11 +45,24 @@ namespace GoF2Remake.UI
             root.Add(inspectOverlay);   // the last child: over the blocker that keeps the menu's own input out meanwhile
         }
 
+        /// <summary>Remake: Inspect ship opened from the lounge, which it goes back to when it ends.</summary>
+        bool inspectFromLounge;
+
         void BeginInspect()
         {
-            if (level == null || level.View != StationView.Hangar || ArrivalPending || UiBlocked || DialogOpen || SystemMenuOpen
+            if (level == null || ArrivalPending || UiBlocked || DialogOpen || SystemMenuOpen
                 || HangarOpen || StarMap.IsOpen || (storyDialogue != null && storyDialogue.IsOpen)) return;
-            if (!level.BeginInspect()) return;
+            // Remake: from the lounge too (docked anywhere), through the hangar's view, where the ship stands
+            bool fromLounge = level.View == StationView.Lounge;
+            if (fromLounge && (level.IntroPlaying || (lounge != null && lounge.ChatOpen))) return;
+            if (fromLounge) level.SetView(StationView.Hangar);
+            else if (level.View != StationView.Hangar) return;
+            if (!level.BeginInspect())
+            {
+                if (fromLounge) level.SetView(StationView.Lounge);
+                return;
+            }
+            if (!customizing) inspectFromLounge = fromLounge;   // Customize opens it from the hangar's view only
             if (!customizing) level.InspectFrameX = 0.5f;   // re-entered while a Customize screen's turn is blending back
             inspectDragging = false;
             inspectFling = Vector2.zero;
@@ -79,6 +92,8 @@ namespace GoF2Remake.UI
             level.EndInspect();
             if (inspectOverlay != null) inspectOverlay.RemoveFromClassList("inspect-overlay--shown");
             root.RemoveFromClassList("station-inspecting");
+            if (inspectFromLounge && level.View == StationView.Hangar) level.SetView(StationView.Lounge);   // where it was opened
+            inspectFromLounge = false;
             Select(inspectButton);   // back where it was opened (keys / controller)
         }
 
