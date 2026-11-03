@@ -283,7 +283,7 @@ namespace GoF2Remake.Data
 
             r.visitedStations = new bool[db.Stations.Count];
             foreach (int v in s.visitedStations ?? new List<int>()) if (v >= 0 && v < r.visitedStations.Length) r.visitedStations[v] = true;
-            r.credits = s.credits;
+            r.credits = (int)System.Math.Min(int.MaxValue, System.Math.Max(0L, s.credits));   // the original's int (remake: 64-bit)
             r.rating = 0;
             r.playingTimeMs = (long)(s.playSeconds * 1000.0);
             r.kills = s.kills; r.missionCount = s.freelanceCompleted; r.goodsProduced = s.goodsProduced;

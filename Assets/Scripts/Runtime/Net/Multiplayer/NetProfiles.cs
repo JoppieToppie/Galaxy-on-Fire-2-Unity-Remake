@@ -226,9 +226,9 @@ namespace GoF2Remake.Multiplayer
                 AdjustWorth(id, delta);   // no saved game yet: its first upload carries the credits
                 return true;
             }
-            long now = save.credits + delta;
+            long now = Session.SaturatingAdd(save.credits, delta);
             if (now < 0) return false;
-            save.credits = (int)Math.Min(int.MaxValue, now);
+            save.credits = now;
             if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
             AdjustWorth(id, delta);
             return true;

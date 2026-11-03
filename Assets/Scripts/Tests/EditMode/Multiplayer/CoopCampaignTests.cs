@@ -157,7 +157,7 @@ namespace GoF2Remake.Tests
             Session.ResetNewGame();
             Story.StartNewGame(0);
             while (Story.Index < Story.GameWonIndex - 1) Story.Advance(db);
-            int before = Session.Credits;
+            long before = Session.Credits;
             Story.Advance(db);
             Assert.AreEqual(before + 13334, Session.Credits, "40 000 for a crew of three");
         }

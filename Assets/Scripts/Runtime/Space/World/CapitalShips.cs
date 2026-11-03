@@ -489,7 +489,7 @@ namespace GoF2Remake.World
                      : o.stock == 0 ? Localization.Extra("resupplySoldOut", "Sold out.")
                      : o.kind != OfferKind.Ammo ? Localization.Extra("resupplyHoldFull", "The hold is full.")
                      : string.Format(Localization.Extra("resupplyAmmoCap", "Topped up: {0} is the most you can take on here."), AmmoCap);
-            int n = Mathf.Min(units, o.room, Session.Credits / Mathf.Max(1, o.unitPrice));
+            int n = (int)System.Math.Min(Mathf.Min(units, o.room), Session.Credits / Mathf.Max(1, o.unitPrice));
             if (n <= 0) return NotEnough;
             Session.Credits -= n * o.unitPrice;
             if (o.kind == OfferKind.Ammo)

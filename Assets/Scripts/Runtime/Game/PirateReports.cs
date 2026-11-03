@@ -285,7 +285,7 @@ namespace GoF2Remake.Data
 
         public static string SystemName(Database db, int system) => db.Systems.Find(x => x.index == system)?.name ?? "?";
 
-        static string ItemInfoCredits(int n) => GameNames.Credits(n);
+        static string ItemInfoCredits(long n) => GameNames.Credits(n);
 
         // ---- boss names ------------------------------------------------------------------------------------------
 

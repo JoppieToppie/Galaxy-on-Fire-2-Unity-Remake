@@ -252,7 +252,7 @@ namespace GoF2Remake.Modding
             TestFlying = InSpace = false;
             PreviewInterior = null;
             Cheats.ClearGranted();
-            Session.Credits = Mathf.Max(Session.Credits, 100000);
+            Session.Credits = System.Math.Max(Session.Credits, 100000L);
             Session.LaunchedFromStation = false;
             Session.DockedFromSpace = false;
             Debug.Log("Mod Builder: play test");

@@ -435,7 +435,7 @@ namespace GoF2Remake.Data
             bool free = !Storage && Stock.FreeOf(item) > 0;   // step 67's gifted mines (StationStock.freeUnits)
             int price = Storage || Cheats.FreeShopping || free ? 0 : PriceOf(item);
             if (GameHooks.FactionBuyPrice != null && !free) price = GameHooks.FactionBuyPrice(Station, price);   // multiplayer: a faction station's cut / tax
-            if (Session.Credits < price) { need = price - Session.Credits; return Result.NoCredits; }
+            if (Session.Credits < price) { need = (int)(price - Session.Credits); return Result.NoCredits; }
             row.amount--;
             if (row.amount <= 0) Stock.items.Remove(row);
             if (free) Stock.TakeFree(item);
@@ -473,7 +473,7 @@ namespace GoF2Remake.Data
         static void ChangeCredits(int delta)
         {
             if (Mathf.Abs(delta) > 1000000000) return;
-            Session.Credits = Mathf.Max(0, Session.Credits + delta);
+            Session.Credits = System.Math.Max(0L, Session.SaturatingAdd(Session.Credits, delta));
         }
 
         static void AddToCargo(int item, int amount) => Shop.AddToCargo(item, amount);
@@ -599,7 +599,7 @@ namespace GoF2Remake.Data
             if (Session.Passengers > 0) return Result.Passengers;   // 336
             if (ship == Session.ShipIndex) return Result.SameShip;
             int cost = Cheats.FreeShopping ? 0 : BuyShipPrice(ship) - ShipPrice(Session.ShipIndex);
-            if (Session.Credits < cost) { need = cost - Session.Credits; return Result.NoCredits; }
+            if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
             return Result.Ok;
         }
 
@@ -726,7 +726,7 @@ namespace GoF2Remake.Data
             if (Session.Passengers > 0) return Result.Passengers;   // 336
             if (ship == Session.ShipIndex) return Result.SameShip;
             int cost = Cheats.FreeShopping ? 0 : price - ShipPrice(Session.ShipIndex);
-            if (Session.Credits < cost) { need = cost - Session.Credits; return Result.NoCredits; }
+            if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
             return Result.Ok;
         }
 
@@ -745,7 +745,7 @@ namespace GoF2Remake.Data
             if (ship == Session.ShipIndex) return Result.SameShip;
             if (KaamoClub.HasShip(Session.ShipIndex)) return Result.AlreadyStored;   // 328
             int cost = Cheats.FreeShopping ? 0 : price;
-            if (Session.Credits < cost) { need = cost - Session.Credits; return Result.NoCredits; }
+            if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
             return Result.Ok;
         }
 
@@ -769,7 +769,7 @@ namespace GoF2Remake.Data
             need = 0;
             if (KaamoClub.HasShip(Session.ShipIndex)) return Result.AlreadyStored;   // 328 (the old ship's type)
             int cost = Cheats.FreeShopping ? 0 : BuyShipPrice(ship);
-            if (Session.Credits < cost) { need = cost - Session.Credits; return Result.NoCredits; }
+            if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
             return Result.Ok;
         }
 

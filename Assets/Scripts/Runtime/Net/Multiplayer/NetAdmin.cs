@@ -165,7 +165,7 @@ namespace GoF2Remake.Multiplayer
                     break;
                 }
                 case Order.Credits:
-                    Session.Credits = (int)Mathf.Clamp((long)Session.Credits + a, 0L, MaxCredits);
+                    Session.Credits = Math.Max(0L, Session.SaturatingAdd(Session.Credits, a));   // remake: up to the 64-bit top
                     NetChat.Notice(string.Format(a > 0 ? X("mpAdmCreditsYou", "{0} gave you {1} credits.") : X("mpAdmCreditsTakenYou", "{0} took {1} credits."),
                         by, Math.Abs(a)));
                     break;

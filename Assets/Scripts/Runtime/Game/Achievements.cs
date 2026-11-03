@@ -60,7 +60,7 @@ namespace GoF2Remake.Data
                 case 18: return Session.PassengersDelivered;
                 case 23: { int n = 0; foreach (var e in Session.Equipment) if (db.Item(e.item)?.TypeId == 0) n++; return n; }
                 case 24: return Session.CratesSalvaged;
-                case 25: return Session.HighestCredits;
+                case 25: return (int)System.Math.Min(int.MaxValue, Session.HighestCredits);   // remake: 64-bit credits
                 case 26: return Session.AgentsTalkedTo;
                 case 27: return Session.WingmenHired;
                 case 28: { int n = 0; for (int r = 0; r < 4; r++) if (Standing.IsEnemy(r)) n++; return n; }

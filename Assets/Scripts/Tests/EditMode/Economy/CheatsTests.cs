@@ -15,14 +15,34 @@ namespace GoF2Remake.Tests
     public class CheatsTests : EconomyTest
     {
         [Test]
-        public void AddCreditsIsCappedBelowABillion()
+        public void AddCreditsSaturatesAtThe64BitTop()
         {
             Session.Credits = 5;
             Cheats.AddCredits(100000);
-            Assert.AreEqual(100005, Session.Credits);
+            Assert.AreEqual(100005L, Session.Credits);
             Session.Credits = 999990000;
             Cheats.AddCredits(1000000);
-            Assert.AreEqual(999999999, Session.Credits);
+            Assert.AreEqual(1000990000L, Session.Credits, "past the old billion cap");
+            Session.Credits = long.MaxValue - 10;
+            Cheats.AddCredits(1000000);
+            Assert.AreEqual(long.MaxValue, Session.Credits);
+        }
+
+        [Test]
+        public void CreditsNeverWrapRound()
+        {
+            Session.Credits = long.MaxValue - 5;
+            Session.Credits += 100;   // a plain sum that wraps: the setter keeps the top
+            Assert.AreEqual(long.MaxValue, Session.Credits);
+            Session.Credits -= 1000;
+            Assert.AreEqual(long.MaxValue - 1000, Session.Credits);
+            Session.Credits = 50;
+            Session.Credits -= 80;   // a debt stays a small negative, not the top
+            Assert.AreEqual(-30L, Session.Credits);
+            Assert.AreEqual(long.MinValue, Session.SaturatingAdd(long.MinValue + 3, -10));
+            Assert.AreEqual("9,223,372,036,854,775,807$", GameNames.Credits(long.MaxValue).Replace(".", ","));
+            Assert.AreEqual("-9,223,372,036,854,775,808$", GameNames.Credits(long.MinValue).Replace(".", ","));
+            Session.Credits = 0;
         }
 
         [Test]

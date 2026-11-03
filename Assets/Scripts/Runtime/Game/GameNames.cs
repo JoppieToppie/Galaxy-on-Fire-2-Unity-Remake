@@ -31,10 +31,12 @@ namespace GoF2Remake.Data
             Modding.ModContent.ShipText(ship, true, out var t) ? t : ship >= 0 && ship < OriginalShips ? Localization.Get(ShipDescriptionBase + ship) : "";
 
         /// <summary>Layout::formatCredits: thousands separated, "$" after ("," in English, "." in the other languages).</summary>
-        public static string Credits(int value)
+        public static string Credits(long value)
         {
             string sep = Localization.Language == "en" ? "," : ".";
-            string digits = UnityEngine.Mathf.Abs(value).ToString("#,0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", sep);
+            // Remake: 64-bit credits; long.MinValue has no positive counterpart, so its magnitude as an unsigned number.
+            ulong magnitude = value < 0 ? (ulong)(-(value + 1)) + 1UL : (ulong)value;
+            string digits = magnitude.ToString("#,0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", sep);
             return (value < 0 ? "-" : "") + digits + "$";
         }
     }

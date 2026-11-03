@@ -499,7 +499,8 @@ namespace GoF2Remake.UI
         // Read every frame and written only when a value changed. Hidden under the hangar, Missions and Status windows
         // (StationMenu.uss) and with the rest of the menu under the star map and while it is flown away.
         Label fundsCargo, fundsCredits;
-        int shownCredits = int.MinValue, shownLoad = int.MinValue, shownMaxLoad = int.MinValue;
+        long shownCredits = long.MinValue;   // remake: 64-bit credits
+        int shownLoad = int.MinValue, shownMaxLoad = int.MinValue;
 
         void Update()
         {

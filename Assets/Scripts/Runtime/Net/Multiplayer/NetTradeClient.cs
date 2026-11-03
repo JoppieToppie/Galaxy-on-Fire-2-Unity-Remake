@@ -131,7 +131,7 @@ namespace GoF2Remake.Multiplayer
         public static void SetCredits(int credits)
         {
             if (Current == null || Current.phase != NetTrade.Phase.Open) return;
-            credits = Mathf.Clamp(credits, 0, Mathf.Max(0, Session.Credits));
+            credits = (int)Math.Max(0L, Math.Min(credits, Session.Credits));
             if (credits == draft.credits) return;
             draft.credits = credits;
             Changed();
@@ -239,7 +239,7 @@ namespace GoF2Remake.Multiplayer
         internal static void OnDeliver(int id, int[] packed, bool refund, string partnerName)
         {
             var offer = NetTrade.Offer.Unpack(packed);
-            Session.Credits = (int)Math.Min(int.MaxValue, (long)Session.Credits + offer.credits);
+            Session.AddCredits(offer.credits);   // saturating at the 64-bit top
             foreach (var s in offer.items) if (NetGame.Db.Item(s.item) != null) Shop.AddToCargo(s.item, s.amount);
             if (refund) NetChat.Notice(X("mpTradeRefunded", "You got your offer back."));
             else NetChat.Notice(string.Format(X("mpTradeDone", "Trade with {0} complete: you got {1}."), partnerName, Describe(offer)));
@@ -290,7 +290,7 @@ namespace GoF2Remake.Multiplayer
                 }
                 // Sold or used meanwhile: the offer shrinks to what is left.
                 bool trimmed = false;
-                if (draft.credits > Session.Credits) { draft.credits = Mathf.Max(0, Session.Credits); trimmed = true; }
+                if (draft.credits > Session.Credits) { draft.credits = (int)Math.Max(0L, Session.Credits); trimmed = true; }
                 for (int i = draft.items.Count - 1; i >= 0; i--)
                 {
                     int have = Shop.CargoOf(draft.items[i].item);

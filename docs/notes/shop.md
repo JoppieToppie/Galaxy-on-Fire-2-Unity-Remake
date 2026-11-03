@@ -125,6 +125,13 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   panel's ship stats of a dealer or stored hull carry the original's comparison arrows against the ship flown
   (`ItemInfo.ShipStatsCompared`, the Kaamo upgrades counted on both sides; the original shows them only in its item
   window); a Shop tab row of an item the hold has gets the Ship tab's cargo look (amber edge, IN CARGO).
+- **64-bit credits** (remake, the user's request 2026-11-03): `Session.Credits` / `HighestCredits` and the save's `credits` /
+  `highestCredits` are longs, up to `Session.MaxCredits` = long.MaxValue (9 223 372 036 854 775 807; the original's an
+  int, the cheats capped at 999 999 999). Overflow: `Session.Credits` is a property whose setter keeps long.MaxValue when
+  a sum wraps (positive credits set to below long.MinValue / 2), so any `Credits += x` saturates; `Session.AddCredits` /
+  `SaturatingAdd` clamp explicitly (cheats, admin gifts, trades, profile moves). `GameNames.Credits(long)` formats the
+  whole range. Prices, rewards and the multiplayer trade offers stay ints; an original-format export clamps to int.MaxValue
+  (`OriginalSaveConvert`); medal 25 reads the highest credits clamped to an int. Tests `CheatsTests`.
 - **New game:** 0 credits, like the original (sell starting gear to get money). `Session.CampaignMission` is a free-play
   20 (past the tutorial locks) until there is a campaign. Var Hastra always stocks a drill and energy cells then
   (remake-only, see "Mining" and "Star map and system travel").

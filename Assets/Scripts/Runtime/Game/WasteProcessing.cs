@@ -281,7 +281,7 @@ namespace GoF2Remake.Data
         public static bool Offered() => Shop.CargoOf(Waste) > 0;
 
         /// <summary>The tons sorted now: all of the hold's waste, as much as the credits pay for.</summary>
-        public static int Tons(Database db) => System.Math.Max(0, System.Math.Min(Shop.CargoOf(Waste), Session.Credits / Fee(db)));
+        public static int Tons(Database db) => System.Math.Max(0, (int)System.Math.Min(Shop.CargoOf(Waste), Session.Credits / Fee(db)));
 
         /// <summary>FNV-1a of the run id: string.GetHashCode differs between runs of the game.</summary>
         static ulong Hash(string s)

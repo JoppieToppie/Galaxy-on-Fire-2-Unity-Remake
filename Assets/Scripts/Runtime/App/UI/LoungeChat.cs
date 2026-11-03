@@ -66,7 +66,7 @@ namespace GoF2Remake.Data
         bool askedRisk, askedMap;
 
         static string T(int id) => Localization.Get(id);
-        static string C(int credits) => ItemInfo.Credits(credits);
+        static string C(long credits) => ItemInfo.Credits(credits);
 
         /// <summary>'smallTalkUsed': SpaceLounge+0x58, the small-talk lines said during this lounge visit.</summary>
         public LoungeChat(Database db, Agent agent, int station, HashSet<int> smallTalkUsed)

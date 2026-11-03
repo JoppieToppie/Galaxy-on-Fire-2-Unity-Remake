@@ -258,7 +258,7 @@ namespace GoF2Remake.World
             int maxHull = Modding.ModShipKits.Armor(db.Ship(Session.ShipIndex), 100) + 40 * Session.ModLevel(0);
             Session.LastArrivalHullPercent = Session.PlayerHull < 0 ? 100 : Mathf.RoundToInt(100f * Session.PlayerHull / Mathf.Max(1, maxHull));
             Session.ArrivedWithoutGear = Achievements.NoWeaponOrEquipment(db);   // Harum-Scarum: the loadout docked with
-            Session.HighestCredits = Mathf.Max(Session.HighestCredits, Session.Credits);
+            Session.HighestCredits = System.Math.Max(Session.HighestCredits, Session.Credits);
             Session.PlayerHull = Session.PlayerArmor = -1;
             Session.PlayerShield = -1f;
             // The gamma pool too: launching sets Status +0x68 to -1 (ModStation::OnTouchEnd, StarMap::depart), so a docked

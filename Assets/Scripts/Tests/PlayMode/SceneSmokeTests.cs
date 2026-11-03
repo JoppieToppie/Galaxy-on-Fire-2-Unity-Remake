@@ -144,7 +144,7 @@ namespace GoF2Remake.Tests
             SaveGame.AutoSave();
             string saves = Path.Combine(Sandbox, "Saves");
             Assert.IsTrue(Directory.Exists(saves) && Directory.GetFiles(saves).Length > 0, "the auto-save in the sandbox");
-            int credits = Session.Credits;
+            long credits = Session.Credits;
             Session.Credits = 1;
             Assert.IsTrue(SaveGame.Load(SaveGame.AutoSaveSlot), "loading it back");
             Assert.AreEqual(credits, Session.Credits);

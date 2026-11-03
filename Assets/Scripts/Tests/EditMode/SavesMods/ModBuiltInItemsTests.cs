@@ -17,7 +17,8 @@ namespace GoF2Remake.Tests
     {
         const string ModId = "t_builtin";
         const int Phantom = 10, Laser = 2, Missiles = 36, Booster = 73, Shield = 54, Commodity = 164;
-        int savedShip, savedCredits, savedSecondary;
+        int savedShip, savedSecondary;
+        long savedCredits;
         List<ItemStack> savedEquipment, savedCargo;
         List<int> savedMods;
 

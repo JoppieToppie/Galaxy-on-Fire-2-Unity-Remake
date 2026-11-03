@@ -372,7 +372,7 @@ namespace GoF2Remake.Multiplayer
                 list.Add((item, amount));
             }
             credits = Mathf.Clamp(credits, 0, MaxCredits);
-            if (credits > 0) Session.Credits = (int)Math.Min((long)Session.Credits + credits, MaxCredits);
+            if (credits > 0) Session.AddCredits(credits);   // saturating at the 64-bit top
             EventScreen.ShowReward(heading, credits, list);
         }
         /// <summary>"&lt;speaker&gt; : &lt;text&gt;": the speaker's spec and the colon it ends at, trying each colon in turn so a mod

@@ -223,7 +223,8 @@ namespace GoF2Remake.UI
         void UpdateFunds()
         {
             if (fundsCargo == null || fundsCredits == null || level == null || level.Database == null) return;
-            int credits = Session.Credits, load = Shop.CargoLoad(), max = Shop.MaxLoad(level.Database);
+            long credits = Session.Credits;
+            int load = Shop.CargoLoad(), max = Shop.MaxLoad(level.Database);
             if (credits != shownCredits)
             {
                 shownCredits = credits;

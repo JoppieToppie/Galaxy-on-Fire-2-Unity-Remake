@@ -494,7 +494,7 @@ namespace GoF2Remake.Data
             // The campaign's start (the Phantom, no credits) rather than the multiplayer pilot's Betty and 10000 (#229); the
             // leader's kit replaces the ship and loadout below. A guest joining past the rescue keeps the free-play credits
             // (a catch-up pays no rewards).
-            int credits = Session.Credits;
+            long credits = Session.Credits;
             Session.ResetStartShip();
             if (s != null && s.index > 1) Session.Credits = credits;
             if (s == null) return;

@@ -82,9 +82,10 @@ namespace GoF2Remake.Data
 
         // ---- actions ----------------------------------------------------------------------------------------------
 
-        public static void AddCredits(int amount)
+        public static void AddCredits(long amount)
         {
-            Session.Credits = (int)System.Math.Min((long)Session.Credits + amount, 999999999L);   // not Mathf.Min: a float rounds 999 999 999 up to 1e9
+            // Remake: up to the 64-bit top (Session.MaxCredits; was 999 999 999), saturating there.
+            Session.AddCredits(amount);
         }
 
         /// <summary>Hull, shield and armor full (the live ship too, in flight), the gamma pool refilled.</summary>

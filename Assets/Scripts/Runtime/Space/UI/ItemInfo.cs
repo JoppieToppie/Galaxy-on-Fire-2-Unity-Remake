@@ -41,7 +41,7 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>Layout::formatCredits: thousands separated, "$" after ("," in English, "." in the other languages).</summary>
-        public static string Credits(int value) => GameNames.Credits(value);
+        public static string Credits(long value) => GameNames.Credits(value);
 
         public static string ItemName(int item) => GameNames.Item(item);
         public static string ShipName(int ship) => GameNames.Ship(ship);
