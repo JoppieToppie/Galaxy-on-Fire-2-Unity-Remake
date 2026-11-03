@@ -244,6 +244,8 @@ namespace GoF2Remake.UI
             itemRow.Add(itemRight);
             itemRow.style.display = DisplayStyle.None;
             detailsPanel?.Add(itemRow);
+            // Remake: a short panel (a phone at a larger interface size) scrolls a ship's view and stats with its description.
+            detailScroll.RegisterCallback<GeometryChangedEvent>(_ => FitDescription());
             shipPreview.Element.AddToClassList("detail-preview");
             // Remake: framed like the item window's view (its proportions, distance and floor under the ship).
             shipPreview.KeepAspect = true;
@@ -263,6 +265,11 @@ namespace GoF2Remake.UI
         readonly VisualElement detailsPanel, itemRow;
         readonly ScrollView itemStats;
         readonly VisualElement itemRight;
+        /// <summary>Remake: a ship's view and stats sit inside the description's scroll (FitDescription).</summary>
+        bool previewScrolls;
+        /// <summary>Remake: the least height of a ship's description (its title and about three lines) before its view and
+        /// stats scroll with it; DescSlack keeps it from flipping back and forth at the edge.</summary>
+        const float MinDescHeight = 130f, DescSlack = 40f;
 
         /// <summary>Remake: a click / tap on the turning ship shows it alone in the item window's box.</summary>
         void OpenShipView()
@@ -303,12 +310,12 @@ namespace GoF2Remake.UI
             if (panel != null)
             {
                 // The description: under the ship's row, or the right half of the item's row at the bottom.
-                if (ship3d)
+                if (ship3d) PlacePreviewRow();
+                else
                 {
-                    int at = panel.IndexOf(previewRow) + 1;
-                    if (detailScroll.parent != panel || panel.IndexOf(detailScroll) != at) panel.Insert(at, detailScroll);
+                    if (previewRow.parent != panel) PlacePreviewRow();
+                    if (detailScroll.parent != itemRight) itemRight.Insert(0, detailScroll);
                 }
-                else if (detailScroll.parent != itemRight) itemRight.Insert(0, detailScroll);
                 itemRow.style.display = ship3d ? DisplayStyle.None : DisplayStyle.Flex;
                 detailScroll.EnableInClassList("detail-scroll--side", !ship3d);
                 // The action buttons: centred in the space under the ship's view, else back above the item's row.
@@ -321,6 +328,41 @@ namespace GoF2Remake.UI
                 }
             }
             FitActions();
+        }
+
+        /// <summary>Remake: a ship's row (view and stats) under its head and the description under it; or, on a panel too
+        /// short for both (a phone at 100 % interface size or more: the row took all the height and the description and
+        /// its Kaamo Club mods were squeezed to nothing), the row at the top of the description's scroll.</summary>
+        void PlacePreviewRow()
+        {
+            var panel = detailsPanel;
+            if (panel == null) return;
+            bool inScroll = previewScrolls && shipPreview.Shown;
+            int at = panel.IndexOf(detailIcon.parent) + 1;
+            if (inScroll)
+            {
+                if (previewRow.parent != detailScroll.contentContainer || detailScroll.contentContainer.IndexOf(previewRow) != 0)
+                    detailScroll.contentContainer.Insert(0, previewRow);
+            }
+            else if (previewRow.parent != panel || panel.IndexOf(previewRow) != at) panel.Insert(at, previewRow);
+            if (!shipPreview.Shown) return;
+            int scrollAt = inScroll ? at : at + 1;
+            if (detailScroll.parent != panel || panel.IndexOf(detailScroll) != scrollAt) panel.Insert(scrollAt, detailScroll);
+        }
+
+        /// <summary>Remake: moves a ship's row into the description's scroll when the description gets under MinDescHeight,
+        /// and back out when it would keep that much (and DescSlack) beside it.</summary>
+        void FitDescription()
+        {
+            if (!shipPreview.Shown || detailScroll.parent != detailsPanel) return;
+            float h = detailScroll.layout.height;
+            if (float.IsNaN(h)) return;
+            bool want = previewScrolls
+                ? h - previewRow.layout.height - previewRow.resolvedStyle.marginTop < MinDescHeight + DescSlack
+                : h < MinDescHeight;
+            if (want == previewScrolls) return;
+            previewScrolls = want;
+            PlacePreviewRow();
         }
 
         // ---- open / close ------------------------------------------------------------------------------------
