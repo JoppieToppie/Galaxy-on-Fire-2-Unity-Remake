@@ -56,6 +56,17 @@
     color: var(--gof-text);
 }
 
+/* The highlighted entry (keys / controller) and a pressed / hovered one on the lit bar (TouchButton style 4); the
+   remake's cyan fill under .autopilot-menu-item--selected lost to the plain bar above. */
+.ui-style-original .autopilot-menu-item.autopilot-menu-item--selected,
+.ui-style-original .autopilot-menu-item:active,
+.ui-style-original .can-hover .autopilot-menu-item:hover,
+.ui-style-original.can-hover .autopilot-menu-item:hover {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
 /* Original: the menus' titles on the dialogue's name strip (f74: ~27 px, a shade lighter, a line under it), the full
    width of the window, the title small and in its own case. */
 .ui-style-original .autopilot-menu-head {
@@ -168,7 +179,10 @@
     border-left-color: rgba(0, 0, 0, 0);
 }
 
-.ui-style-original .pause-option.autopilot-menu-item--selected {
+.ui-style-original .pause-option.autopilot-menu-item--selected,
+.ui-style-original .pause-option:active,
+.ui-style-original .can-hover .pause-option:hover,
+.ui-style-original.can-hover .pause-option:hover {
     background-image: url("project://database/Assets/UI/Original/og_row_on.png");
     background-color: rgba(0, 0, 0, 0);
     border-left-color: rgba(0, 0, 0, 0);
@@ -464,11 +478,12 @@
 
 /* ==== Dialogue.uss: drawBox 7 (dialogue_cutscenes.md 1.2) ============================================================ */
 
-/* Original (f74 / f45 / f58): a compact window centred on the screen, 348x242 at 1080p drawn here 1.3x (452x316) so the
-   text stays readable; near-black body at ~88 %, a 1 px steel outline, square corners; the scene dims behind it. */
+/* Original (f74 / f45 / f58): a compact window centred on the screen, 348x242 at 1080p (in the panel's units, like the
+   other Original screens; the 1.3x it had on top came out 1.6x the original's); near-black body at ~88 %, a 1 px
+   steel outline, square corners; the scene dims behind it. */
 .ui-style-original .dialogue-box {
-    width: 452px;
-    height: 316px;
+    width: 348px;
+    height: 242px;
     background-image: none;
     background-color: rgba(13, 19, 25, 0.90);
     border-width: 1px;
@@ -479,9 +494,9 @@
     border-top-color: rgb(92, 102, 112);
 }
 
-/* The name strip: ~27 px (35 here) a shade lighter, a line under it, the name small at the left in its own case. */
+/* The name strip: ~27 px, a shade lighter, a line under it, the name small at the left in its own case. */
 .ui-style-original .dialogue-header {
-    height: 35px;
+    height: 27px;
     background-image: none;
     background-color: rgb(28, 36, 44);
     border-bottom-width: 1px;
@@ -495,14 +510,14 @@
     color: #E6EAEE;
 }
 
-/* The portrait ~91x124 at (16, 36) in a 1 px frame: the 160x200 layers scaled to 120x150. */
+/* The portrait ~91x124 at (16, 36) in a 1 px frame: the 160x200 layers scaled to 92x115. */
 .ui-style-original .dialogue-body {
-    padding: 12px 12px 0 20px;
+    padding: 8px 9px 0 12px;
 }
 
 .ui-style-original .dialogue-body .portrait {
-    width: 122px;
-    height: 152px;
+    width: 94px;
+    height: 117px;
     border-width: 1px;
     border-color: rgb(42, 50, 58);
     background-color: rgb(8, 22, 28);
@@ -511,17 +526,17 @@
 .ui-style-original .dialogue-body .portrait-layers,
 .ui-style-original .dialogue-body .portrait-frame {
     transform-origin: left top;
-    scale: 0.75 0.75;
+    scale: 0.575 0.575;
 }
 
 .ui-style-original .dialogue-body .portrait--mirrored .portrait-layers {
-    scale: -0.75 0.75;
-    translate: 120px 0;
+    scale: -0.575 0.575;
+    translate: 92px 0;
 }
 
 /* The text right of the portrait, small, ragged right. */
 .ui-style-original .dialogue-text-scroll {
-    margin-left: 12px;
+    margin-left: 10px;
 }
 
 .ui-style-original .dialogue-text {
@@ -529,11 +544,11 @@
     color: #E6EAEE;
 }
 
-/* Back / Skip / Next in a row at the bottom right, 28 px (36 here) high, 8 px apart (f58). */
+/* Back / Skip / Next in a row at the bottom right, 28 px high, 8 px apart (f58). */
 .ui-style-original .dialogue-footer {
-    height: 52px;
+    height: 40px;
     justify-content: flex-end;
-    padding: 0 9px;
+    padding: 0 8px;
 }
 
 .ui-style-original .dialogue-button {
@@ -542,11 +557,11 @@
     -unity-slice-right: 12;
     -unity-slice-top: 0;
     -unity-slice-bottom: 0;
-    -unity-slice-scale: 0.6px;
-    height: 36px;
+    -unity-slice-scale: 0.47px;
+    height: 28px;
     min-width: 0;
-    margin-left: 10px;
-    padding: 0 12px;
+    margin-left: 8px;
+    padding: 0 10px;
     font-size: var(--text-body);
     letter-spacing: 0.5px;
     background-color: rgba(0, 0, 0, 0);
@@ -555,21 +570,21 @@
     color: #FFFFFF;
 }
 
-/* Skip: the plain bar, ~146 wide (190 here). */
+/* Skip: the plain bar (~146 wide in f58; 130 here so Back, Skip and Next fit the window's width together). */
 .ui-style-original #dialogueSkip {
-    width: 190px;
+    width: 130px;
 }
 
-/* Back: the arrow-pointed left end (f58), Next / Yes: the arrow-pointed right end (f74), ~89 wide (116 here). */
+/* Back: the arrow-pointed left end (f58), Next / Yes: the arrow-pointed right end (f74), ~89 wide. */
 .ui-style-original #dialogueBack {
     background-image: url("project://database/Assets/UI/Original/og_fl_back.png");
     -unity-slice-left: 28;
     -unity-slice-right: 12;
     -unity-slice-top: 0;
     -unity-slice-bottom: 0;
-    -unity-slice-scale: 0.6px;
-    width: 116px;
-    padding: 0 12px 0 22px;
+    -unity-slice-scale: 0.47px;
+    width: 89px;
+    padding: 0 10px 0 18px;
 }
 
 .ui-style-original #dialogueNext {
@@ -578,9 +593,9 @@
     -unity-slice-right: 28;
     -unity-slice-top: 0;
     -unity-slice-bottom: 0;
-    -unity-slice-scale: 0.6px;
-    width: 116px;
-    padding: 0 22px 0 12px;
+    -unity-slice-scale: 0.47px;
+    width: 89px;
+    padding: 0 18px 0 10px;
 }
 
 .ui-style-original .dialogue-button--primary {
@@ -622,7 +637,7 @@
 
 /* The AUTO toggle (remake): small, square-cornered, at the strip's right end, the original's check box for its light. */
 .ui-style-original .dialogue-auto {
-    height: 26px;
+    height: 22px;
     min-width: 0;
     padding: 0 8px 0 2px;
     background-color: rgba(4, 4, 6, 0.55);
