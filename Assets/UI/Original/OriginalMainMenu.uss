@@ -11,7 +11,8 @@
 
 /* Original: no shading panel on the left, the space scene uncovered; the logo top-centre (f3: 372 x 137 at y 95). The
    logo keeps its box's centre (MainMenu.PlaceTitleLogo centres it in the Original style). */
-.ui-style-original .side-shade {
+.ui-style-original .menu-root .side-shade ,
+.ui-style-original.menu-root .side-shade {
     display: none;
 }
 

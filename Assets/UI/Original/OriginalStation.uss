@@ -35,7 +35,7 @@
 }
 
 /* Menu (the system menu), its Back and the lounge's Back: the glossy bar. */
-.ui-style-original .station-menu-button,
+.ui-style-original .station-root .station-menu-button,
 .ui-style-original .system-menu-close,
 .ui-style-original .lounge-back {
     background-image: url("project://database/Assets/UI/Original/og_button.png");
@@ -51,10 +51,10 @@
     color: var(--gof-text);
 }
 
-.ui-style-original .station-menu-button:focus,
-.ui-style-original .station-menu-button:active,
-.ui-style-original .can-hover .station-menu-button:hover,
-.ui-style-original.can-hover .station-menu-button:hover,
+.ui-style-original .station-root .station-menu-button:focus,
+.ui-style-original .station-root .station-menu-button:active,
+.ui-style-original .can-hover .station-root .station-menu-button:hover,
+.ui-style-original.can-hover .station-root .station-menu-button:hover,
 .ui-style-original .system-menu-close:focus,
 .ui-style-original .system-menu-close:active,
 .ui-style-original .can-hover .system-menu-close:hover,
@@ -434,7 +434,7 @@
 
 /* Original: the header bar, y 0-30, opaque #070B10 -> #0C131B, a 1 px line #1E2A36 under it (the remake's top scrim
    becomes the bar; it fades with the menu for Inspect ship as before). */
-.ui-style-original .top-shade {
+.ui-style-original .station-root .top-shade {
     height: 30px;
     scale: 1 1;
     background-image: none;
@@ -444,7 +444,7 @@
 }
 
 /* Original: the footer bar, y 1043-1080 (37 px), opaque #070B10, a 1 px line #1E2A36 over it. */
-.ui-style-original .bottom-shade {
+.ui-style-original .station-root .bottom-shade {
     height: 37px;
     background-image: none;
     background-color: rgb(7, 11, 16);
@@ -453,7 +453,7 @@
 }
 
 /* Original: the left sidebar, x 0-180, from the header down to the footer, #0A0F15 at 88 %, a hard right edge. */
-.ui-style-original .side-shade {
+.ui-style-original .station-root .side-shade {
     top: 30px;
     bottom: 37px;
     width: 180px;
@@ -501,7 +501,7 @@
 }
 
 /* Original: the footer's "Game Options" button, 159x31 at the bottom left with an arrow-pointed left end. */
-.ui-style-original .station-menu-button,
+.ui-style-original .station-root .station-menu-button,
 .ui-style-original .lounge-back {
     position: absolute;
     left: 5px;
@@ -524,10 +524,10 @@
     color: #E6EAEE;
 }
 
-.ui-style-original .station-menu-button:focus,
-.ui-style-original .station-menu-button:active,
-.ui-style-original .can-hover .station-menu-button:hover,
-.ui-style-original.can-hover .station-menu-button:hover,
+.ui-style-original .station-root .station-menu-button:focus,
+.ui-style-original .station-root .station-menu-button:active,
+.ui-style-original .can-hover .station-root .station-menu-button:hover,
+.ui-style-original.can-hover .station-root .station-menu-button:hover,
 .ui-style-original .lounge-back:focus,
 .ui-style-original .lounge-back:active,
 .ui-style-original .can-hover .lounge-back:hover,
@@ -537,8 +537,8 @@
 }
 
 /* The lounge has its Back in the footer's corner (s13): the Game Options button moves left of the header's help there. */
-.ui-style-original.lounge-open .station-menu-button,
-.ui-style-original .lounge-open .station-menu-button {
+.ui-style-original.lounge-open .station-root .station-menu-button,
+.ui-style-original .lounge-open .station-root .station-menu-button {
     left: auto;
     right: 62px;
     top: 0;
@@ -549,11 +549,11 @@
     -unity-slice-left: 4;
 }
 
-.ui-style-original.lounge-open .station-menu-button:focus,
-.ui-style-original .lounge-open .station-menu-button:focus,
-.ui-style-original.can-hover.lounge-open .station-menu-button:hover,
-.ui-style-original .can-hover.lounge-open .station-menu-button:hover,
-.ui-style-original.can-hover.lounge-open .station-menu-button:hover {
+.ui-style-original.lounge-open .station-root .station-menu-button:focus,
+.ui-style-original .lounge-open .station-root .station-menu-button:focus,
+.ui-style-original.can-hover.lounge-open .station-root .station-menu-button:hover,
+.ui-style-original .can-hover.lounge-open .station-root .station-menu-button:hover,
+.ui-style-original.can-hover.lounge-open .station-root .station-menu-button:hover {
     background-image: url("project://database/Assets/UI/Original/og_st_button_on.png");
 }
 
@@ -916,4 +916,61 @@
     font-size: var(--text-body);
     letter-spacing: 0.5px;
     -unity-font-style: normal;
+}
+
+/* ---- Second pass, checked in Unity -------------------------------------------------------------------------- */
+
+/* The credits end left of the launch button (its key glyph and label make it ~120 px wide, not the original's 58). */
+.ui-style-original .station-funds {
+    right: 128px;
+}
+
+/* Original (s13): the conversation is a compact block left of the screen's centre (x 451-853, y 562 of 1080: 402 px
+   wide), the portrait ~104 x 130 at its left, the text right of it, the answers under the text; never docked to an edge. */
+.ui-style-original .chat-window,
+.ui-style-original .chat-window--left {
+    width: 420px;
+    left: 23.5%;
+    right: auto;
+    top: 52%;
+    bottom: auto;
+    max-height: 46%;
+}
+
+.ui-style-original .chat-body {
+    padding: 3px 8px 0 3px;
+}
+
+.ui-style-original .chat-body .chat-portrait {
+    width: 106px;
+    height: 132px;
+    margin-right: 9px;
+    background-color: rgb(8, 22, 28);
+    overflow: hidden;
+}
+
+.ui-style-original .chat-body .chat-portrait .portrait-layers,
+.ui-style-original .chat-body .chat-portrait .portrait-frame {
+    transform-origin: left top;
+    scale: 0.65 0.65;
+}
+
+.ui-style-original .chat-body .portrait--mirrored .portrait-layers {
+    scale: -0.65 0.65;
+    translate: 104px 0;
+}
+
+.ui-style-original .chat-scroll {
+    min-height: 124px;
+    max-height: 220px;
+}
+
+/* The answers in the text's column (the original's lower panel holds the player's portrait at the left). */
+.ui-style-original .chat-choices {
+    padding: 6px 8px 4px 118px;
+}
+
+.ui-style-original .station-button.chat-choice {
+    height: 30px;
+    margin: 0 0 6px 0;
 }
