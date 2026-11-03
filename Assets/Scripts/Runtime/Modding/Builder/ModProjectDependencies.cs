@@ -122,7 +122,8 @@ namespace GoF2Remake.Modding
         /// A ships.json "icon" that isn't this file is the modder's own and is never replaced.</summary>
         public (string file, string key)? GeneratedIcon(ProjectShip s) =>
             Section("icons")[s.Ref] is JObject o ? ((string)o["file"], (string)o["key"]) : ((string, string)?)null;
-        /// <summary>Writes a generated icon to icons/&lt;id&gt;.png and makes it the ship's icon.</summary>
+        /// <summary>Writes a generated icon to icons/&lt;id&gt;.png and makes it the ship's icon. The PNG's hash goes with it,
+        /// so a file the modder put in its place later (their own art under the same name) is told apart (CustomIcon).</summary>
         public void SetGeneratedIcon(ProjectShip s, byte[] png, string key)
         {
             string dir = Path.Combine(Folder, "icons");
@@ -130,7 +131,27 @@ namespace GoF2Remake.Modding
             string file = "icons/" + (s.LocalId ?? "ship") + ".png";
             File.WriteAllBytes(Path.Combine(Folder, file), png);
             s.Icon = file;
-            Section("icons")[s.Ref] = new JObject { ["file"] = file, ["key"] = key };
+            Section("icons")[s.Ref] = new JObject { ["file"] = file, ["key"] = key, ["hash"] = IconHash(png) };
+        }
+        /// <summary>Whether the ship's icon is the modder's own, never drawn over except by Recreate icon: a ships.json "icon"
+        /// that isn't the builder's file, or the builder's file whose bytes are no longer the ones it wrote (replaced by hand).
+        /// A record from before hashes were kept can't tell, so its existing file counts as the modder's too.</summary>
+        public bool CustomIcon(ProjectShip s)
+        {
+            if (string.IsNullOrEmpty(s.Icon)) return false;
+            var made = GeneratedIcon(s);
+            if (made == null || made.Value.file != s.Icon) return true;
+            string path = Path.Combine(Folder, s.Icon);
+            if (!File.Exists(path)) return false;   // nothing there to keep
+            string hash = Section("icons")[s.Ref]?["hash"]?.ToString();
+            if (string.IsNullOrEmpty(hash)) return true;
+            try { return IconHash(File.ReadAllBytes(path)) != hash; }
+            catch (IOException) { return true; }
+        }
+        static string IconHash(byte[] png)
+        {
+            using var sha = System.Security.Cryptography.SHA1.Create();
+            return Convert.ToBase64String(sha.ComputeHash(png));
         }
         /// <summary>The turn the builder's icon of a ship is drawn with (0 / 90 / 180 / 270 degrees about its up axis, the Ship
         /// tab's buttons beside Recreate icon), for a model whose nose doesn't come out at the bottom left.</summary>
