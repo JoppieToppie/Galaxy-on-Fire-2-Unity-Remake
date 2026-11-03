@@ -1,1 +1,440 @@
-/* Interface style Original (GoF2Original.uss): the rules for HangarWindow.uss (hangar shop / ship / cargo / blueprints, item details). */
+/* Interface style Original (GoF2Original.uss): the rules for HangarWindow.uss (hangar shop / ship / cargo / blueprints, item
+   details; the carrier's shop and the lounge chat's close button share its classes). The original's hangar pieces
+   (Reference/research/shop.md 2.1-2.3, Reference/tools/shop/build_item_icons.py), composited into 3-slice images:
+     og_tab / og_tab_press / og_tab_on   TouchButton style 3, the Ship / Shop / Blueprints tabs: caps 0x465 / 0x466 + middle
+                     0x464 (pressed 0x469 / 0x468 / 0x46a, current tab 0x46d / 0x46c / 0x46e), 320 x 60, slices L60 R60
+     og_action(_on)  style 7, the details' buttons (Buy ship, Sell this item, Demount, Edit, Autocomplete): caps 0x6b1 /
+                     0x6b2 + middle 0x6b0 (pressed 0x6b6 / 0x6ad / 0x6b5), 448 x 106, slices L74 R74
+     og_sell(_on)    style 8, sell one (the arrow to the station, left): 0x6ae + 0x6b0 + 0x6b2 (pressed 0x6b3 / 0x6b5 /
+                     0x6ad), 488 x 106, slices L114 R74
+     og_buy(_on)     style 9, buy one (the arrow to the ship, right): 0x6b1 + 0x6b0 + 0x6af (pressed 0x6b6 / 0x6b5 / 0x6b4),
+                     488 x 106, slices L74 R114
+   and the shared pieces: list rows drawBox 3 / 4 (og_row / og_row_on), the trade box and the details' name box drawBox 1
+   (og_plate), the bar under the tabs and the footer bar (og_header / og_footer), the list headers and the description
+   titles on the header's title plate (og_title_plate), the footer's load and credits on the title plate drawBox 0
+   (og_title). The remake's states (focus, hover, drag, mounted, owned, cargo) keep their own marks: the amber piece for
+   selected / pressed / hovered, a steel or amber left edge for mounted rows and drop targets. */
+
+/* ---- window: the tabs on the header bar, the footer bar ----------------------------------------------------------- */
+
+.ui-style-original .hangar-top {
+    background-image: url("project://database/Assets/UI/Original/og_header.png");
+    background-repeat: repeat-x;
+    background-size: 332px 60px;
+    background-position-y: bottom;
+    border-bottom-color: var(--gof-line);
+    padding-bottom: 6px;
+}
+
+.ui-style-original .hangar-tab {
+    background-image: url("project://database/Assets/UI/Original/og_tab.png");
+    -unity-slice-left: 60;
+    -unity-slice-right: 60;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.8px;
+    background-color: rgba(0, 0, 0, 0);
+    border-bottom-width: 0;
+    border-bottom-color: rgba(0, 0, 0, 0);
+    padding: 12px 40px;
+    color: var(--gof-text-dim);
+}
+
+.ui-style-original .can-hover .hangar-tab:hover,
+.ui-style-original.can-hover .hangar-tab:hover {
+    color: #FFFFFF;
+}
+
+.ui-style-original .hangar-tab:active {
+    background-image: url("project://database/Assets/UI/Original/og_tab_press.png");
+    color: #FFFFFF;
+}
+
+.ui-style-original .hangar-tab--active,
+.ui-style-original .can-hover .hangar-tab--active:hover,
+.ui-style-original.can-hover .hangar-tab--active:hover {
+    background-image: url("project://database/Assets/UI/Original/og_tab_on.png");
+    border-bottom-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* The close / undock button and the item window's back: the stations' steel-blue glossy bar, amber when hovered or
+   pressed. */
+.ui-style-original .hangar-close,
+.ui-style-original .info-back {
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    padding: 8px 32px;
+    color: var(--gof-text);
+}
+
+.ui-style-original .can-hover .hangar-close:hover,
+.ui-style-original.can-hover .hangar-close:hover,
+.ui-style-original .hangar-close:active,
+.ui-style-original .can-hover .info-back:hover,
+.ui-style-original.can-hover .info-back:hover,
+.ui-style-original .info-back:active {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+.ui-style-original .hangar-footer {
+    background-image: url("project://database/Assets/UI/Original/og_footer.png");
+    background-repeat: repeat-x;
+    background-size: 332px 74px;
+    background-position-y: top;
+    border-top-color: var(--gof-line);
+}
+
+/* The load and the credits on the title plate (drawBox 0); the credits keep the amber, an overload its red. */
+.ui-style-original .footer-cargo,
+.ui-style-original .footer-credits,
+.ui-style-original .footer-restock {
+    background-image: url("project://database/Assets/UI/Original/og_title.png");
+    -unity-slice-left: 34;
+    -unity-slice-right: 34;
+    -unity-slice-top: 12;
+    -unity-slice-bottom: 12;
+    -unity-slice-scale: 0.75px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    padding: 8px 24px;
+}
+
+.ui-style-original .footer-cargo {
+    color: var(--gof-text);
+}
+
+.ui-style-original .footer-cargo--over {
+    color: #FF6B5E;
+    -unity-background-image-tint-color: #FFB4AC;
+}
+
+.ui-style-original .footer-credits {
+    color: var(--gof-amber);
+}
+
+/* ---- list: drawBox 3 rows, drawBox 4 for the selected one ---------------------------------------------------------- */
+
+.ui-style-original .hangar-list {
+    border-right-color: var(--gof-line);
+}
+
+.ui-style-original .list-header {
+    background-image: url("project://database/Assets/UI/Original/og_title_plate.png");
+    -unity-slice-left: 40;
+    -unity-slice-right: 160;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 0.7px;
+    background-color: rgba(0, 0, 0, 0);
+    margin: 12px 8px 4px 8px;
+    padding: 8px 20px;
+    color: #FFFFFF;
+}
+
+.ui-style-original .list-header--sub {
+    background-image: none;
+    margin: 0;
+    padding: 8px 20px 4px 32px;
+    color: var(--gof-amber);
+}
+
+.ui-style-original .list-row {
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.8px;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+}
+
+/* The Ship tab's mounted items (and a blueprint's goods in the shop): a steel left edge; the hold's items dimmer and
+   indented as in the remake. */
+.ui-style-original .list-row--mounted,
+.ui-style-original .list-row--blueprint-material {
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: var(--gof-cyan);
+}
+
+.ui-style-original .list-row--cargo {
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.6);
+}
+
+.ui-style-original .list-row--owned {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #8FC4FF;
+}
+
+.ui-style-original .can-hover .list-row:hover,
+.ui-style-original.can-hover .list-row:hover {
+    background-color: rgba(157, 191, 219, 0.06);
+}
+
+.ui-style-original .list-row--drop-target {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: var(--gof-amber);
+}
+
+.ui-style-original .list-row--selected,
+.ui-style-original .can-hover .list-row--selected:hover,
+.ui-style-original.can-hover .list-row--selected:hover {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #FFFFFF;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .list-row--blueprint-material.list-row--selected {
+    border-left-color: var(--gof-amber);
+}
+
+.ui-style-original .list-bar-track {
+    background-color: rgba(128, 142, 156, 0.18);
+    border-radius: 0;
+}
+
+.ui-style-original .list-bar-thumb {
+    background-color: rgba(157, 191, 219, 0.55);
+    border-radius: 0;
+}
+
+.ui-style-original .can-hover .list-bar-thumb:hover,
+.ui-style-original.can-hover .list-bar-thumb:hover,
+.ui-style-original .list-bar-thumb--dragging {
+    background-color: var(--gof-amber);
+}
+
+.ui-style-original .row-badge {
+    border-radius: 0;
+}
+
+/* The blueprints' progress bar (0x475-0x477 in the original): a square steel bar. */
+.ui-style-original .bp-bar {
+    background-color: rgba(128, 142, 156, 0.25);
+    border-width: 1px;
+    border-color: var(--gof-line);
+    border-radius: 0;
+}
+
+.ui-style-original .bp-bar-fill {
+    background-color: var(--gof-cyan);
+}
+
+/* A blueprint the hold helps: the original's green. */
+.ui-style-original .row-name--helps {
+    color: #00ED00;
+}
+
+/* ---- details: the trade box on the section plate, the arrows and buttons of styles 7 / 8 / 9 --------------------- */
+
+.ui-style-original .detail-preview,
+.ui-style-original .info-preview {
+    background-color: rgb(4, 6, 10);
+    border-color: var(--gof-line);
+}
+
+.ui-style-original .trade-box {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.75px;
+    background-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+}
+
+.ui-style-original .trade-arrow {
+    background-image: url("project://database/Assets/UI/Original/og_sell.png");
+    -unity-slice-left: 114;
+    -unity-slice-right: 74;
+    -unity-slice-top: 30;
+    -unity-slice-bottom: 30;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    padding: 0 20px 0 52px;   /* the label clear of the arrow's point (68 units wide at this scale) */
+    overflow: hidden;
+}
+
+.ui-style-original .trade-arrow--buy {
+    background-image: url("project://database/Assets/UI/Original/og_buy.png");
+    -unity-slice-left: 74;
+    -unity-slice-right: 114;
+    padding: 0 52px 0 20px;
+}
+
+.ui-style-original .can-hover .trade-arrow:hover,
+.ui-style-original.can-hover .trade-arrow:hover,
+.ui-style-original .trade-arrow--pressed,
+.ui-style-original .can-hover .trade-arrow--pressed:hover,
+.ui-style-original.can-hover .trade-arrow--pressed:hover {
+    background-image: url("project://database/Assets/UI/Original/og_sell_on.png");
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .can-hover .trade-arrow--buy:hover,
+.ui-style-original.can-hover .trade-arrow--buy:hover,
+.ui-style-original .trade-arrow--buy.trade-arrow--pressed,
+.ui-style-original .can-hover .trade-arrow--buy.trade-arrow--pressed:hover,
+.ui-style-original.can-hover .trade-arrow--buy.trade-arrow--pressed:hover {
+    background-image: url("project://database/Assets/UI/Original/og_buy_on.png");
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .can-hover .trade-arrow--disabled:hover,
+.ui-style-original.can-hover .trade-arrow--disabled:hover {
+    background-image: url("project://database/Assets/UI/Original/og_sell.png");
+}
+
+.ui-style-original .can-hover .trade-arrow--buy.trade-arrow--disabled:hover,
+.ui-style-original.can-hover .trade-arrow--buy.trade-arrow--disabled:hover {
+    background-image: url("project://database/Assets/UI/Original/og_buy.png");
+}
+
+.ui-style-original .detail-action {
+    background-image: url("project://database/Assets/UI/Original/og_action.png");
+    -unity-slice-left: 74;
+    -unity-slice-right: 74;
+    -unity-slice-top: 30;
+    -unity-slice-bottom: 30;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    color: #FFFFFF;
+}
+
+.ui-style-original .can-hover .detail-action:hover,
+.ui-style-original.can-hover .detail-action:hover,
+.ui-style-original .detail-action:active,
+.ui-style-original .manufacturing-action.list-row--selected,
+.ui-style-original .manufacturing-complete.list-row--selected {
+    background-image: url("project://database/Assets/UI/Original/og_action_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* The storage's Sell (a warning, red in the remake): the same bar tinted red. */
+.ui-style-original .detail-action--secondary {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #FF9C94;
+    color: #FFD0CC;
+}
+
+.ui-style-original .can-hover .detail-action--secondary:hover,
+.ui-style-original.can-hover .detail-action--secondary:hover,
+.ui-style-original .detail-action--secondary:active {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #FF9C94;
+}
+
+/* The Ship tab's MOVE in that place: nothing to warn of, the plain bar. */
+.ui-style-original .detail-action--move,
+.ui-style-original .can-hover .detail-action--move:hover,
+.ui-style-original.can-hover .detail-action--move:hover,
+.ui-style-original .detail-action--move:active {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #FFFFFF;
+    color: #FFFFFF;
+}
+
+.ui-style-original .manufacturing-shop,
+.ui-style-original .manufacturing-autocomplete {
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .stat-row {
+    border-bottom-color: rgba(128, 142, 156, 0.22);
+}
+
+.ui-style-original .kaamo-mods {
+    border-left-color: var(--gof-amber);
+}
+
+/* ---- the item window (ListItemWindow): a window of its own, the name on the section plate ------------------------- */
+
+.ui-style-original .info-box {
+    background-image: url("project://database/Assets/UI/Original/og_panel_bg.png");
+    background-repeat: repeat;
+    background-size: 320px 320px;
+    background-color: rgb(4, 4, 6);
+    border-width: 1px;
+    border-color: var(--gof-line);
+    border-radius: 0;
+}
+
+.ui-style-original .info-help {
+    color: var(--gof-text-dim);
+}
+
+.ui-style-original .info-name-box {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.75px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+}
+
+.ui-style-original .info-sub {
+    color: var(--gof-cyan);
+}
+
+.ui-style-original .info-row {
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .info-row-label {
+    color: var(--gof-text-dim);
+}
+
+/* The description title (the item window's and, with .detail-desc-title, the hangar details'): the title plate. */
+.ui-style-original .info-desc-title {
+    background-image: url("project://database/Assets/UI/Original/og_title_plate.png");
+    -unity-slice-left: 40;
+    -unity-slice-right: 160;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 0.7px;
+    background-color: rgba(0, 0, 0, 0);
+    padding: 8px 16px;
+}
+
+.ui-style-original .info-desc-title.detail-desc-title {
+    border-bottom-width: 0;
+    color: #FFFFFF;
+}
+
+.ui-style-original .info-text {
+    color: var(--gof-text);
+}
