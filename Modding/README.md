@@ -522,6 +522,7 @@ the drive built in) jumps with that instead. `"jumpFx"` gives the drive its own 
 | `failNoRoute` | The chance from or to a system without jumpgate routes. |
 | `failMs`, `failHandling`, `failRumbleFromMs`, `failRumble` | A failing jump: when the charge ends, the prologue's hyperdrive failure (its explosion, rumble and broken engine) for `failMs`, the ship flying at `failHandling` of its speed and turning, the camera shaking from `failRumbleFromMs`, growing over 4 s to `failRumble` (1 = the prologue's, a full boost ~0.16). |
 | `failTexture` | The effect's image for a failed jump. |
+| `failVoice`, `failVoiceChance`, `failVoiceMs` | A story voice line (like `chargeVoice`) `failVoiceMs` into a failure, at `failVoiceChance` (0 to 1, default 1) per failure: `"failVoice": "RADIO_0_15", "failVoiceChance": 0.1` is the prologue pilot's "Hey, what's happening?" one failure in ten. |
 | `failRadiusKm` | A failed jump lands at a random station of a system on the map, the ship coming out anywhere within this distance of it (default 20 km, as the HUD counts), clear of the station, the gate and the asteroids. |
 
 While the drive's effect hides the ship (leaving, from the moment it vanishes; arriving, until it shows) enemy shots fly

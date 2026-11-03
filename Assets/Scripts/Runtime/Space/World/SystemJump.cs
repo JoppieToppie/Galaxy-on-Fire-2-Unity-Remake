@@ -767,6 +767,7 @@ namespace GoF2Remake.World
         float failElapsed;
         GoF2Remake.Modding.ModJumpFx.Spec failDrive;
         AudioSource failRumble, failEngine;
+        bool failVoicePending;   // Modified: the drive's failVoice still to say (ModJumpFx "failVoice", rolled at the start)
 
         /// <summary>Whether this jump fails: the mounted mod drive's failChance per gate jump of the route (x2 on Extreme, at
         /// most failMax), failNoRoute from or to a system without jumpgate routes. Never a story jump or interstellar space.</summary>
@@ -801,6 +802,8 @@ namespace GoF2Remake.World
             failEngine = Held(story != null ? story.engineBroken : null, 0.115f, true);
             Message?.Invoke(Localization.Extra("driveFailure", "Jump drive failure!"));
             if (failDrive != null) ship.impairment = failDrive.failHandling;   // the failing engines: a tenth of the speed and turning
+            failVoicePending = failDrive != null && !string.IsNullOrEmpty(failDrive.failVoice)
+                               && UnityEngine.Random.value < failDrive.failVoiceChance;
         }
 
         AudioSource Held(AudioClip clip, float eventVolume, bool loop)
@@ -822,6 +825,13 @@ namespace GoF2Remake.World
             var d = failDrive;
             float rumble = d != null ? Mathf.Clamp01((failElapsed - d.failRumbleFromMs) / 4000f) * d.failRumble : 0f;
             if (rumble > 0f && chase != null) chase.Rumble(rumble);
+            if (failVoicePending && d != null && failElapsed >= d.failVoiceMs)
+            {
+                failVoicePending = false;   // Modified: the pilot's line (ModJumpFx "failVoice"), as the chargeVoice is played
+                var story = StoryAssets.Load();
+                var voice = story != null ? story.Voice(d.failVoice) : null;
+                if (voice != null) sfx.PlayOneShot(voice, Settings.VoiceVolume);
+            }
             if (d != null && failElapsed < d.failMs) return;
             if (failEngine != null) { failEngine.Stop(); Destroy(failEngine); failEngine = null; }   // IntroCutscenes: StopLoop(1) at the jump
             ship.impairment = 1f;

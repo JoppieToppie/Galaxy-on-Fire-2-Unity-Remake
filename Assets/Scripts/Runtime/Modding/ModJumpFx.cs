@@ -20,7 +20,8 @@
 // "failRumbleFromMs" and growing over 4 s up to "failRumble", 1 = the prologue's) for "failMs", the ship flying at
 // "failHandling" of its speed and turning; then the jump with "failTexture" to a random station of a system on the map, the
 // ship coming out anywhere within "failRadiusKm" (default 20, as the HUD counts) of the station, clear of the station, the
-// gate and the asteroids.
+// gate and the asteroids. "failVoice": a story voice line "failVoiceMs" into the failure, at "failVoiceChance" (0..1,
+// default 1) per failure (the prologue pilot's "Hey, what's happening?" is RADIO_0_15).
 // "data": the effect's parts (made by the Blender tools of the hyper drive conversion): { "length_ms", "objects": [ { "name",
 // "verts", "faces", "uvs" (per face corner), "keys" { "posX".."sclZ", "extra" (opacity 0..1): [[ms, value], ...] }, "base"
 // { "parent_loc", "parent_scale", "parent_rotY" }, "billboard" } ] }, in Blender's frame (Z up, the viewer on +Y), game
@@ -77,6 +78,8 @@ namespace GoF2Remake.Modding
             public float failChance, failMax = 1f, failNoRoute, failMs = 16500f, failRumbleFromMs = 5500f, failRumble = 1f;
             public float failHandling = 1f, failRadiusKm = 20f;
             public string failTexture;
+            public string failVoice;                               // Modified: a story voice line as a failure starts
+            public float failVoiceChance = 1f, failVoiceMs;
             public float scale = 0.5f, glow = 2.5f, meetMs = 2300f, meetDepth = 8200f;
             public float lengthMs;
             public List<Part> parts;
@@ -150,6 +153,9 @@ namespace GoF2Remake.Modding
             s.failRumbleFromMs = Mathf.Max(0f, (float?)o["failRumbleFromMs"] ?? s.failRumbleFromMs);
             s.failTexture = (string)o["failTexture"];
             s.chargeVoice = (string)o["chargeVoice"];
+            s.failVoice = (string)o["failVoice"];
+            s.failVoiceChance = Mathf.Clamp01((float?)o["failVoiceChance"] ?? 1f);
+            s.failVoiceMs = Mathf.Max(0f, (float?)o["failVoiceMs"] ?? 0f);
             s.failHandling = Mathf.Clamp((float?)o["failHandling"] ?? 1f, 0.01f, 1f);
             s.startDelayMs = Mathf.Max(0f, (float?)o["startDelayMs"] ?? 0f);
             s.failRumble = Mathf.Clamp((float?)o["failRumble"] ?? 1f, 0f, 2f);
