@@ -438,7 +438,7 @@ namespace GoF2Remake.Modding
                 var mounts = shown != null ? ModShipKits.MountsShown(db, ship, 2, shown) : db.MountsOf(ship, 2);
                 var turrets = Flight.PlayerTurret.TurretItems(db, equipment);
                 for (int i = 0; i < turrets.Count && i < mounts.Count; i++)
-                    if (mounts[i].builtIn && mounts[i].upsideDown)
+                    if (turrets[i] >= 0 && mounts[i].builtIn && mounts[i].upsideDown)
                         Add(ModShips.PartTemplate(kit, kit.hardpoints.turret), Flight.WeaponSystem.MountToLocal(mounts[i]), Quaternion.Euler(0f, 0f, 180f));
             }
             return low;
