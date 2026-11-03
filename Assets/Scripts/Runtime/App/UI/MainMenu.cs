@@ -768,8 +768,8 @@ namespace GoF2Remake.UI
         string menuNumbersKey;
 
         /// <summary>Interface style Original: the title menu's entries carry the original's dim number in front ("1." at the
-        /// left end of the bar), counted over the shown entries; Exit has none (it sits in the corner). The labels are always
-        /// there and empty in the Remake style; checked twice a second so a style switch in Options shows at once.</summary>
+        /// left end of the bar), counted over the shown entries; Exit has none (it sits in the corner). Modified: the labels only
+        /// in the Original style (none in the Remake's); checked twice a second so a style switch in Options shows at once.</summary>
         void RefreshMenuNumbers()
         {
             if (mainButtons == null) return;
@@ -783,6 +783,14 @@ namespace GoF2Remake.UI
                 if (shown) n++;
                 key.Append(shown ? '1' : '0');
                 var num = b.Q<Label>(className: "mm-og-num");
+                // Modified: only in the Original style. A child in a Button switches off the measuring of its own text, so
+                // the row's height came from its padding alone (the text standing out of it): the Remake style's rows,
+                // which have no minimum height (the Original's bars and a phone's rows do), lay on top of each other.
+                if (!on)
+                {
+                    num?.RemoveFromHierarchy();
+                    continue;
+                }
                 if (num == null)
                 {
                     num = new Label { pickingMode = PickingMode.Ignore };
