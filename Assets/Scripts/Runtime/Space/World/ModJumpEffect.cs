@@ -131,7 +131,10 @@ namespace GoF2Remake.World
                         * Quaternion.AngleAxis(p.Eval("rotZ", t, 0f) * Mathf.Rad2Deg, Vector3.forward);   // Rx * Ry * Rz (the same
                 // matrices as the data's), then conjugated by the axis swap
                 var scl = new Vector3(p.Eval("sclX", t, 1f), p.Eval("sclY", t, 1f), p.Eval("sclZ", t, 1f));
-                n.node.localPosition = Swap(loc);
+                // Modified: a moving billboard (the hyper drive's three light points) moves its camera-facing pivot, so the
+                // turn to the camera spins it in place instead of swinging its path round the holder.
+                if (p.billboard) { n.face.localPosition = Swap(loc); n.node.localPosition = Vector3.zero; }
+                else n.node.localPosition = Swap(loc);
                 n.node.localRotation = Swap(rot);
                 n.node.localScale = Swap(scl);
                 float op = Mathf.Max(0f, p.Eval("extra", t, 1f));
