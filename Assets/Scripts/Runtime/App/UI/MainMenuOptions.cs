@@ -27,11 +27,11 @@ namespace GoF2Remake.UI
             ShowDialog(Localization.Get(497), OptionsCatalog.ResetQuestion, () => { OptionsCatalog.ResetPage(page); RefreshTexts(); });
             dialogAlt = () => { Settings.ResetToDefaults(); RefreshTexts(); };
             var yes = root.Q<Button>("dialogYes");
-            InputGlyph.SetText(yes, OptionsCatalog.ResetTabLabel(page).ToUpperInvariant());
+            InputGlyph.SetText(yes, OptionsCatalog.ResetTabLabel(page).UiCaps());
             var alt = root.Q<Button>("dialogAlt");
-            InputGlyph.SetText(alt, OptionsCatalog.ResetAllLabel.ToUpperInvariant());
+            InputGlyph.SetText(alt, OptionsCatalog.ResetAllLabel.UiCaps());
             alt.style.display = DisplayStyle.Flex;
-            InputGlyph.SetText(root.Q<Button>("dialogNo"), Localization.Get(425).ToUpperInvariant());   // Cancel
+            InputGlyph.SetText(root.Q<Button>("dialogNo"), Localization.Get(425).UiCaps());   // Cancel
             Select(yes);
         }
 
@@ -103,7 +103,7 @@ namespace GoF2Remake.UI
 
         void RefreshTexts()
         {
-            string T(int id) => Localization.Get(id).ToUpperInvariant();
+            string T(int id) => Localization.Get(id).UiCaps();
             void Set(string name, string text)
             {
                 var e = root.Q<TextElement>(name);
@@ -115,63 +115,63 @@ namespace GoF2Remake.UI
             Set("newGameButton", T(28));
             Set("loadButton", T(29));
             Set("optionsButton", T(31));
-            Set("modsButton", Localization.Extra("modsButton", "Mods").ToUpperInvariant());
+            Set("modsButton", Localization.Extra("modsButton", "Mods").UiCaps());
             if (modBrowser != null && modPanelsLanguage != Settings.Language) BuildModPanels();   // Modified: the mod panels in the new language
             Set("aboutButton", T(43));
             Set("exitButton", T(33));
-            Set("debugButton", Localization.Extra("debugButton", "Debug").ToUpperInvariant());
-            foreach (var n in new[] { "campaignBack", "difficultyBack", "economyBack", "gameOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack" }) Set(n, "‹  " + T(170));
-            string mp = Localization.Extra("multiplayer", "Multiplayer").ToUpperInvariant();
+            Set("debugButton", Localization.Extra("debugButton", "Debug").UiCaps());
+            foreach (var n in new[] { "campaignBack", "difficultyBack", "economyBack", "gameOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack" }) Set(n, (Settings.OriginalUi ? "" : "‹  ") + T(170));   // Original: the arrow is the button's own pointed end
+            string mp = Localization.Extra("multiplayer", "Multiplayer").UiCaps();
             Set("multiplayerButton", mp);
-            Set("coopButton", Localization.Extra("coopTitle", "Co-op campaign").ToUpperInvariant());
+            Set("coopButton", Localization.Extra("coopTitle", "Co-op campaign").UiCaps());
             Set("multiplayerTitle", mp);
-            Set("mpBadge", Localization.Extra("mpExperimental", "Experimental").ToUpperInvariant());
+            Set("mpBadge", Localization.Extra("mpExperimental", "Experimental").UiCaps());
             Set("mpIntro", Localization.Extra("mpIntroShort", "Meet other pilots, form squads and fly missions together."));
-            Set("mpNameLabel", Localization.Extra("mpNameLabel", "Pilot name").ToUpperInvariant());
+            Set("mpNameLabel", Localization.Extra("mpNameLabel", "Pilot name").UiCaps());
             if (mpName != null) mpName.textEdition.placeholder = Localization.Extra("mpNamePlaceholder", "Your pilot name");
-            Set("mpHostTitle", Localization.Extra("mpHostTitle", "Host a game").ToUpperInvariant());
-            Set("mpModePublic", Localization.Extra("mpModePublic", "Public").ToUpperInvariant());
-            Set("mpModePrivate", Localization.Extra("mpModePrivate", "Invite only").ToUpperInvariant());
-            Set("mpModeLocal", Localization.Extra("mpModeLocal", "Local network").ToUpperInvariant());
+            Set("mpHostTitle", Localization.Extra("mpHostTitle", "Host a game").UiCaps());
+            Set("mpModePublic", Localization.Extra("mpModePublic", "Public").UiCaps());
+            Set("mpModePrivate", Localization.Extra("mpModePrivate", "Invite only").UiCaps());
+            Set("mpModeLocal", Localization.Extra("mpModeLocal", "Local network").UiCaps());
             ApplyHostMode();
             var hostPw = root.Q<TextField>("mpHostPassword");
             if (hostPw != null) hostPw.textEdition.placeholder = Localization.Extra("mpHostPasswordNone", "No password");   // empty: anyone joins
-            Set("mpMaxPlayersLabel", Localization.Extra("mpMaxPlayers", "Max players").ToUpperInvariant());
-            Set("mpDebugLabel", Localization.Extra("mpDebugMenu", "Debug menu").ToUpperInvariant());
-            Set("mpDebugOff", Localization.Extra("mpDebugOff", "Off").ToUpperInvariant());
-            Set("mpDebugOn", Localization.Extra("mpDebugAllowed", "Allowed").ToUpperInvariant());
-            Set("mpPvpLabel", Localization.Extra("mpCombat", "Combat").ToUpperInvariant());
-            Set("mpPvpOff", Localization.Extra("mpPve", "PvE").ToUpperInvariant());
-            Set("mpPvpOn", Localization.Extra("mpPvp", "PvP").ToUpperInvariant());
-            Set("mpWorldLabel", Localization.Extra("mpWorld", "World").ToUpperInvariant());
-            Set("mpWorldFresh", Localization.Extra("mpWorldFresh", "Fresh").ToUpperInvariant());
-            Set("mpWorldPersistent", Localization.Extra("mpWorldPersistent", "Persistent").ToUpperInvariant());
-            Set("mpCoopStrengthLabel", Localization.Extra("mpCoopStrength", "Enemies per player").ToUpperInvariant());
-            Set("mpCoopStrength0", Localization.Extra("mpDebugOff", "Off").ToUpperInvariant());
+            Set("mpMaxPlayersLabel", Localization.Extra("mpMaxPlayers", "Max players").UiCaps());
+            Set("mpDebugLabel", Localization.Extra("mpDebugMenu", "Debug menu").UiCaps());
+            Set("mpDebugOff", Localization.Extra("mpDebugOff", "Off").UiCaps());
+            Set("mpDebugOn", Localization.Extra("mpDebugAllowed", "Allowed").UiCaps());
+            Set("mpPvpLabel", Localization.Extra("mpCombat", "Combat").UiCaps());
+            Set("mpPvpOff", Localization.Extra("mpPve", "PvE").UiCaps());
+            Set("mpPvpOn", Localization.Extra("mpPvp", "PvP").UiCaps());
+            Set("mpWorldLabel", Localization.Extra("mpWorld", "World").UiCaps());
+            Set("mpWorldFresh", Localization.Extra("mpWorldFresh", "Fresh").UiCaps());
+            Set("mpWorldPersistent", Localization.Extra("mpWorldPersistent", "Persistent").UiCaps());
+            Set("mpCoopStrengthLabel", Localization.Extra("mpCoopStrength", "Enemies per player").UiCaps());
+            Set("mpCoopStrength0", Localization.Extra("mpDebugOff", "Off").UiCaps());
             foreach (int pct in GoF2Remake.Data.CoopCampaign.StrengthChoices)
                 if (pct > 0) Set("mpCoopStrength" + pct, "+" + pct + "%");
-            Set("mpCoopRewardsLabel", Localization.Extra("mpCoopRewards", "Story credits").ToUpperInvariant());
-            Set("mpCoopRewardsShared", Localization.Extra("mpCoopRewardsShared", "Shared").ToUpperInvariant());
-            Set("mpCoopRewardsFull", Localization.Extra("mpCoopRewardsFull", "Each in full").ToUpperInvariant());
-            Set("mpModsOff", Localization.Extra("mpDebugOff", "Off").ToUpperInvariant());
-            Set("mpModsOn", Localization.Extra("mpDebugAllowed", "Allowed").ToUpperInvariant());
+            Set("mpCoopRewardsLabel", Localization.Extra("mpCoopRewards", "Story credits").UiCaps());
+            Set("mpCoopRewardsShared", Localization.Extra("mpCoopRewardsShared", "Shared").UiCaps());
+            Set("mpCoopRewardsFull", Localization.Extra("mpCoopRewardsFull", "Each in full").UiCaps());
+            Set("mpModsOff", Localization.Extra("mpDebugOff", "Off").UiCaps());
+            Set("mpModsOn", Localization.Extra("mpDebugAllowed", "Allowed").UiCaps());
             ApplyHostMods();
             if (mpJoinPassword != null) mpJoinPassword.textEdition.placeholder = Localization.Extra("mpJoinPasswordHint", "Password");
-            Set("mpPortLabel", Localization.Extra("mpPortLabel", "Port").ToUpperInvariant());
-            Set("mpHost", Localization.Extra("mpHost", "Host").ToUpperInvariant());
-            Set("mpJoinTitle", Localization.Extra("mpBrowserTitle", "Server browser").ToUpperInvariant());
-            Set("mpJoinText", Localization.Extra("mpJoinCodeLabel", "Or join with a code or an address").ToUpperInvariant());
+            Set("mpPortLabel", Localization.Extra("mpPortLabel", "Port").UiCaps());
+            Set("mpHost", Localization.Extra("mpHost", "Host").UiCaps());
+            Set("mpJoinTitle", Localization.Extra("mpBrowserTitle", "Server browser").UiCaps());
+            Set("mpJoinText", Localization.Extra("mpJoinCodeLabel", "Or join with a code or an address").UiCaps());
             if (mpAddress != null) mpAddress.textEdition.placeholder = "ABC123  /  192.168.1.20";
-            Set("mpJoin", Localization.Extra("mpJoin", "Join").ToUpperInvariant());
+            Set("mpJoin", Localization.Extra("mpJoin", "Join").UiCaps());
             ApplyPanelMode();   // the Co-op campaign screen's own title and texts
 
             Set("campaignTitle", T(103));
-            Set("debugTitle", Localization.Extra("debugTitle", "Debug").ToUpperInvariant());
+            Set("debugTitle", Localization.Extra("debugTitle", "Debug").UiCaps());
             Set("debugBack", "‹  " + T(170));
-            Set("debugCheatsTitle", Localization.Extra("debugCheats", "Cheats").ToUpperInvariant());
+            Set("debugCheatsTitle", Localization.Extra("debugCheats", "Cheats").UiCaps());
             Set("debugNote", Localization.Extra("debugNote", "Credits, repairs, ammo and more: the Debug page of the pause and station menus."));
             foreach (var c in debugControls) c.Refresh();
-            Set("debugMissionsTitle", Localization.Extra("missionSelect", "Start at mission").ToUpperInvariant());
+            Set("debugMissionsTitle", Localization.Extra("missionSelect", "Start at mission").UiCaps());
             if (missionFilter != null) missionFilter.textEdition.placeholder = Localization.Extra("missionSearch", "Search: a step number, a station, a word...");
             Set("difficultyTitle", T(517));
             Set("easyLabel", T(518));
@@ -180,13 +180,13 @@ namespace GoF2Remake.UI
             Set("normalDesc", Localization.Extra("normalDesc", "The classic Galaxy on Fire 2 experience."));
             Set("hardLabel", T(520));
             Set("hardDesc", Localization.Extra("hardDesc", "Tougher enemies in bigger groups; the economy as on Normal."));
-            Set("economyTitle", Localization.Extra("economyTitle", "Select the economy").ToUpperInvariant());
-            Set("gameOptionsTitle", Localization.Extra("gameOptionsTitle", "Game options").ToUpperInvariant());
-            Set("gameOptionsStartLabel", Localization.Extra("gameOptionsStart", "Start game").ToUpperInvariant());
-            Set("economyDefaultLabel", Session.EconomyName(Economy.Default).ToUpperInvariant());
+            Set("economyTitle", Localization.Extra("economyTitle", "Select the economy").UiCaps());
+            Set("gameOptionsTitle", Localization.Extra("gameOptionsTitle", "Game options").UiCaps());
+            Set("gameOptionsStartLabel", Localization.Extra("gameOptionsStart", "Start game").UiCaps());
+            Set("economyDefaultLabel", Session.EconomyName(Economy.Default).UiCaps());
             Set("economyDefaultDesc", Localization.Extra("economyDefaultDesc",
                 "PC / Mac / iPhone prices: cheaper goods and blueprints, dearer ships."));
-            Set("economyAndroidLabel", Session.EconomyName(Economy.Android).ToUpperInvariant());
+            Set("economyAndroidLabel", Session.EconomyName(Economy.Android).UiCaps());
             Set("economyAndroidDesc", Localization.Extra("economyAndroidDesc",
                 "Android prices: dearer goods and gear, bigger blueprints, cheaper ships."));
             RefreshKaamoToggle();
@@ -196,10 +196,10 @@ namespace GoF2Remake.UI
             Set("extremeLabel", T(25));
             Set("extremeDesc", Localization.Extra("extremeDesc", "For veterans: tougher enemies and a harsher economy."));
             Set("loadTitle", T(29));
-            Set("exportSavesButton", Localization.Extra("exportSaves", "Export saves").ToUpperInvariant());
-            Set("importSavesButton", Localization.Extra("importSaves", "Import saves").ToUpperInvariant());
-            Set("importOriginalButton", Localization.Extra("importOriginalSave", "Import original save").ToUpperInvariant());
-            Set("exportOriginalButton", Localization.Extra("exportOriginalSaves", "Export for original game").ToUpperInvariant());
+            Set("exportSavesButton", Localization.Extra("exportSaves", "Export saves").UiCaps());
+            Set("importSavesButton", Localization.Extra("importSaves", "Import saves").UiCaps());
+            Set("importOriginalButton", Localization.Extra("importOriginalSave", "Import original save").UiCaps());
+            Set("exportOriginalButton", Localization.Extra("exportOriginalSaves", "Export for original game").UiCaps());
             // Without a file dialog (Linux, Android) the files go to and come from the Transfer folder: shown under the buttons.
             var transferNote = root.Q<Label>("saveTransferNote");
             if (transferNote != null)
@@ -207,12 +207,12 @@ namespace GoF2Remake.UI
                     : Localization.Extra("saveTransferFolder", "Exported saves go to, and are imported from:") + " " + SaveTransfer.TransferFolder;
             ApplyLoadPanelMode();   // the title and the rows of the Load panel or the co-op save picker
             Set("optionsTitle", T(31));
-            Set("tabSound", OptionsCatalog.PageTitle(OptionPage.Sound).ToUpperInvariant());
-            Set("tabGraphics", OptionsCatalog.PageTitle(OptionPage.Graphics).ToUpperInvariant());
-            Set("tabControls", OptionsCatalog.PageTitle(OptionPage.Controls).ToUpperInvariant());
-            Set("tabBindings", OptionsCatalog.PageTitle(OptionPage.Bindings).ToUpperInvariant());
-            Set("tabGameplay", OptionsCatalog.PageTitle(OptionPage.Gameplay).ToUpperInvariant());
-            Set("tabAccessibility", OptionsCatalog.PageTitle(OptionPage.Accessibility).ToUpperInvariant());
+            Set("tabSound", OptionsCatalog.PageTitle(OptionPage.Sound).UiCaps());
+            Set("tabGraphics", OptionsCatalog.PageTitle(OptionPage.Graphics).UiCaps());
+            Set("tabControls", OptionsCatalog.PageTitle(OptionPage.Controls).UiCaps());
+            Set("tabBindings", OptionsCatalog.PageTitle(OptionPage.Bindings).UiCaps());
+            Set("tabGameplay", OptionsCatalog.PageTitle(OptionPage.Gameplay).UiCaps());
+            Set("tabAccessibility", OptionsCatalog.PageTitle(OptionPage.Accessibility).UiCaps());
             Set("tabLanguage", T(0));
             Set("optionsDefaults", T(497));
             Set("aboutTitle", T(43));

@@ -1285,3 +1285,75 @@
 .manufacturing-autocomplete.row-autocomplete--expensive {
     color: #FF6B5E;
 }
+
+/* ---- remake: the Kaamo Club VIP Card (HangarWindowKaamoVip) ---------------------------------------------------------- */
+
+/* The storage's search box and sort button on the header bar, after the tabs. */
+.hangar-tools {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0 8px 0 8px;
+}
+
+.hangar-search {
+    width: 260px;
+    min-width: 110px;
+    flex-shrink: 1;
+    margin: 0 8px 0 0;
+}
+
+.hangar-sort {
+    min-height: 36px;
+    margin: 0;
+    padding: 4px 14px;
+    font-size: var(--text-small);
+    color: var(--gof-text);
+    white-space: nowrap;
+    flex-shrink: 0;
+    background-color: rgba(0, 0, 0, 0.35);
+    border-width: 1px;
+    border-color: rgba(216, 236, 247, 0.25);
+    border-radius: 2px;
+}
+
+.can-hover .hangar-sort:hover {
+    color: #FFFFFF;
+    border-color: var(--gof-amber);
+}
+
+.hangar-sort:active {
+    background-color: rgba(255, 166, 48, 0.16);
+}
+
+.layout-phone .hangar-search {
+    width: 170px;
+}
+
+/* The card for sale at the top of the Store: an amber edge. */
+.list-row--vip {
+    border-left-color: var(--gof-amber);
+}
+
+/* AT KAAMO: a dealer's ship of a type parked at the club, with the map's orange house (dark badge so the house shows). */
+.row-badge--kaamo {
+    flex-direction: row;
+    align-items: center;
+    color: #FFB35C;
+    background-color: rgba(255, 154, 60, 0.16);
+    border-width: 1px;
+    border-color: rgba(255, 154, 60, 0.7);
+}
+
+.row-badge-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+    flex-shrink: 0;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.row-badge-text {
+    color: #FFB35C;
+}

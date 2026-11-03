@@ -199,7 +199,13 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   (`PreviewSpec` -> `Traffic.AssemblyOf` -> `AssembledObject.LoadPrefab`, a mod hull retried every 0.5 s until built)
   and the hangar's `ModBuilderGizmo` binds to it (hardpoints cyan / amber, pads red): a ball drags over the hull (Ctrl:
   100-unit snap) or along its arrows, "Click the hull to add" a turret or a pad; every edit saves and re-reads the project
-  (the page and the preview follow). Not yet tried in Play mode.
+  (the page and the preview follow). Not yet tried in Play mode. Size (2026-11-03, the user's request "a model size
+  adjustment like in the ship menu"): Size (x the hull's) and Scale -10% / +10% / Its own size write `"scale"`; the
+  preview's pivot is scaled, so the gizmo's points (in the hull's own frame) grow with it as the game's do, and the page
+  shows its length / width / height in metres. "Compare with…" (the same request: "spawns another ship of your choosing
+  next to it"): a game NPC hull, another of the project's NPC ships (at its size) or any ship (`ModRefs.List(RefKind.Ship)`,
+  no dependency added; another mod's only while it is on) parked beside it on the far side from the station, centres
+  level, both framed; "No comparison" removes it.
   **Ship kits** (2026-10-16, #87's customizable ships as a builder kind; `ModBuilder.Kind.Kits`, before AiTools, KindCount
   14; `ModBuilderViewKits`, `ProjectKit` / `ProjectKitPart` in ProjectKits.cs, `ModProject.Kits`, file shipkits.json, in the
   undo steps as "kits", MCP entry kind `kits`): the kit (name, scale, yaw), its slots (add, rename, reorder, remove; a

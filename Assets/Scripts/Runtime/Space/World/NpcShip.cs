@@ -385,7 +385,7 @@ namespace GoF2Remake.World
             // Radar::drawCurrentLock compares the name with 0x64b "Hijacker" / 0x67f "Informer" (and the Wanted flag): those are
             // red (a player's report: only the Most Wanted criminals were).
             Target.plateRed = spec.wantedIndex >= 0 || spec.nameText == 1611 || spec.nameText == 1663;
-            Target.radius = (spec.hitRadius > 0f ? spec.hitRadius : NpcTables.HitRadiusUnits) * M;
+            Target.radius = (spec.hitRadius > 0f ? spec.hitRadius : NpcTables.HitRadiusUnits) * M * spec.HullScale;
             Target.hitpoints = new Hitpoints(spec.hitpoints > 0 ? spec.hitpoints : NpcTables.Hull(kind, spec.ship));
             Target.hitpoints.SetEmp(spec.empPoints > 0 ? spec.empPoints : NpcTables.Emp(kind), NpcTables.EmpRecoveryMs(kind));   // also with a hull override
             Target.hp = Target.maxHp = Target.hitpoints.maxHull;
@@ -401,14 +401,14 @@ namespace GoF2Remake.World
             {
                 obstacle = gameObject.AddComponent<Obstacle>();
                 obstacle.projectFromVolume = false;
-                obstacle.volumes = CollisionVolume.ForFreighter(spec.ship, spec.race);
+                obstacle.volumes = CollisionVolume.Scaled(CollisionVolume.ForFreighter(spec.ship, spec.race), spec.HullScale);
                 Target.boxes = LocalBoxes(obstacle.volumes);
             }
             else if (spec.fixedObject != null && spec.collisionId >= 0)
             {
                 obstacle = gameObject.AddComponent<Obstacle>();
                 obstacle.projectFromVolume = false;
-                obstacle.volumes = CollisionVolume.ForStaticObject(spec.collisionId);
+                obstacle.volumes = CollisionVolume.Scaled(CollisionVolume.ForStaticObject(spec.collisionId), spec.HullScale);
                 // Remake (CapitalShips): a killable capital ship is hit on its collision boxes, not the +-1000 cube at its centre.
                 if (spec.capitalEnhanced) Target.boxes = LocalBoxes(obstacle.volumes);
             }

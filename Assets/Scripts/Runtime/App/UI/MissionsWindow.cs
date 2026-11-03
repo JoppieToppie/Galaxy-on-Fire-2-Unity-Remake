@@ -79,12 +79,12 @@ namespace GoF2Remake.UI
             storyMap = Bind("storyMap", () => ShowOnMap(storyMapTarget, storyMap));
             freelanceMap = Bind("freelanceMap", () => ShowOnMap(Freelance.Active ? Freelance.MapStation : GoF2Remake.Events.EventRunner.LocalMissionTarget, freelanceMap));
             discard = Bind("freelanceDiscard", AskDiscard);
-            root.Q<Label>("missionsTitle").text = T(129).ToUpperInvariant();
-            root.Q<Label>("storyHeading").text = T(555).ToUpperInvariant();
-            root.Q<Label>("freelanceHeading").text = T(556).ToUpperInvariant();
-            close.text = Localization.Extra("hudBack", "BACK");
-            storyMap.text = freelanceMap.text = T(424).ToUpperInvariant();
-            discard.text = T(423).ToUpperInvariant();
+            root.Q<Label>("missionsTitle").text = T(129).UiCaps();
+            root.Q<Label>("storyHeading").text = T(555).UiCaps();
+            root.Q<Label>("freelanceHeading").text = T(556).UiCaps();
+            close.text = Localization.Extra("hudBack", "BACK").OgCase();
+            storyMap.text = freelanceMap.text = T(424).UiCaps();
+            discard.text = T(423).UiCaps();
 
             missionsBody = root.Q("missionsBody");
             wantedBody = root.Q("wantedBody");
@@ -99,10 +99,10 @@ namespace GoF2Remake.UI
             wantedTab = Bind("wantedTab", () => ShowTab(Tab.Wanted));
             pirateTab = Bind("pirateTab", () => ShowTab(Tab.Pirates));
             wantedMap = Bind("wantedMap", () => { if (tab == Tab.Pirates) ShowPirateOnMap(); else ShowWantedOnMap(); });
-            missionsTab.text = T(129).ToUpperInvariant();
-            wantedTab.text = T(3219).ToUpperInvariant();
-            pirateTab.text = Localization.Extra("pirateBoardTab", "Pirate activity").ToUpperInvariant();
-            wantedMap.text = T(424).ToUpperInvariant();
+            missionsTab.text = T(129).UiCaps();
+            wantedTab.text = T(3219).UiCaps();
+            pirateTab.text = Localization.Extra("pirateBoardTab", "Pirate activity").UiCaps();
+            wantedMap.text = T(424).UiCaps();
         }
 
         ScrollView Scroll(string name)
@@ -127,16 +127,16 @@ namespace GoF2Remake.UI
         /// (StationMenu.RefreshTexts on Localization.Changed). What Open / Fill writes already reads it as it goes.</summary>
         public void RefreshTexts()
         {
-            root.Q<Label>("missionsTitle").text = T(129).ToUpperInvariant();
-            root.Q<Label>("storyHeading").text = T(555).ToUpperInvariant();
-            root.Q<Label>("freelanceHeading").text = T(556).ToUpperInvariant();
-            close.text = Localization.Extra("hudBack", "BACK");
-            storyMap.text = freelanceMap.text = T(424).ToUpperInvariant();
-            discard.text = T(423).ToUpperInvariant();
-            missionsTab.text = T(129).ToUpperInvariant();
-            wantedTab.text = T(3219).ToUpperInvariant();
-            pirateTab.text = Localization.Extra("pirateBoardTab", "Pirate activity").ToUpperInvariant();
-            wantedMap.text = T(424).ToUpperInvariant();
+            root.Q<Label>("missionsTitle").text = T(129).UiCaps();
+            root.Q<Label>("storyHeading").text = T(555).UiCaps();
+            root.Q<Label>("freelanceHeading").text = T(556).UiCaps();
+            close.text = Localization.Extra("hudBack", "BACK").OgCase();
+            storyMap.text = freelanceMap.text = T(424).UiCaps();
+            discard.text = T(423).UiCaps();
+            missionsTab.text = T(129).UiCaps();
+            wantedTab.text = T(3219).UiCaps();
+            pirateTab.text = Localization.Extra("pirateBoardTab", "Pirate activity").UiCaps();
+            wantedMap.text = T(424).UiCaps();
             if (IsOpen) Fill();
         }
 
@@ -192,7 +192,7 @@ namespace GoF2Remake.UI
             wantedTab.EnableInClassList("missions-tab--active", tab == Tab.Wanted);
             pirateTab.EnableInClassList("missions-tab--active", tab == Tab.Pirates);
             root.Q<Label>("missionsTitle").text = (tab == Tab.Wanted ? T(3219) : tab == Tab.Pirates
-                ? Localization.Extra("pirateBoardTab", "Pirate activity") : T(129)).ToUpperInvariant();
+                ? Localization.Extra("pirateBoardTab", "Pirate activity") : T(129)).UiCaps();
             missionsBody.EnableInClassList("missions-body--hidden", wantedShown);
             wantedBody.EnableInClassList("missions-body--hidden", !wantedShown);
             root.Q<Label>("wantedListHeading").text = tab == Tab.Pirates ? Localization.Extra("pirateListHeading", "Reported sightings") : T(3221);
@@ -206,13 +206,13 @@ namespace GoF2Remake.UI
             var parts = new List<string>();
             if (story) parts.Add(Story.ObjectiveText(db));
             var quests = GoF2Remake.Events.EventRunner.Quests();
-            foreach (var q in quests) parts.Add(q.title.ToUpperInvariant() + (q.objective.Length > 0 ? "\n" + q.objective : ""));
+            foreach (var q in quests) parts.Add(q.title.UiCaps() + (q.objective.Length > 0 ? "\n" + q.objective : ""));
             storyText.text = parts.Count > 0 ? string.Join("\n\n", parts) : Localization.Extra("missionsNoStory", "No story mission right now.");   // the original: 174 "-BLANK-"
             // Remake multiplayer (no story there): the event graph mission the squad is on (EventMissions).
             var eventMission = GoF2Remake.Events.EventMissions.Active;
             bool inSession = GoF2Remake.Multiplayer.NetGame.Active;
             if (!story && quests.Count == 0 && eventMission != null && inSession)
-                storyText.text = eventMission.title.ToUpperInvariant() + "\n" + string.Format(Localization.Extra("mpMissionCardBy", "Accepted by {0}"), eventMission.by)
+                storyText.text = eventMission.title.UiCaps() + "\n" + string.Format(Localization.Extra("mpMissionCardBy", "Accepted by {0}"), eventMission.by)
                                  + "\n\n" + GoF2Remake.Events.EventMissions.ActiveText;
             storyMapTarget = story && !Session.StoryMission.IsEmpty && Session.StoryMission.visible ? Story.MapTarget : -1;
             if (storyMapTarget < 0) { int k = quests.FindIndex(q => q.target >= 0); storyMapTarget = k >= 0 ? quests[k].target : -1; }
@@ -229,7 +229,7 @@ namespace GoF2Remake.UI
             else if (graphMission != null && graphMission.speakerId >= 0) Portrait.ShowSpeaker(portrait, graphMission.speakerId, graphMission.speakerId == 0);
             if (graphMission != null)
             {
-                freelanceClient.text = graphMission.clientName.ToUpperInvariant();
+                freelanceClient.text = graphMission.clientName.UiCaps();
                 freelanceWhere.text = (db.Stations.Find(s => s.index == graphMission.station)?.name ?? "") + "\n" + graphMission.title;
                 string objective = GoF2Remake.Events.EventRunner.LocalMissionObjective;
                 freelanceText.text = (objective.Length > 0 ? objective + "\n\n" : "") + GoF2Remake.Events.EventMissions.ActiveText;
@@ -238,7 +238,7 @@ namespace GoF2Remake.UI
             }
             else
             {
-                freelanceClient.text = active ? m.clientName.ToUpperInvariant() : "";
+                freelanceClient.text = active ? m.clientName.UiCaps() : "";
                 string station = active ? db.Stations.Find(s => s.index == m.clientStation)?.name ?? "" : "";
                 freelanceWhere.text = active ? $"{station}\n{m.Name}" : "";
                 freelanceText.text = active ? FreelanceText(db, m) : Localization.Extra("missionsNoFreelance", "No mission taken. The visitors in a Space Lounge offer work.");
@@ -364,7 +364,7 @@ namespace GoF2Remake.UI
                 return;
             }
             Portrait.Show(wantedPortrait, w.portraitParts, false);
-            wantedName.text = w.name.ToUpperInvariant();
+            wantedName.text = w.name.UiCaps();
             bool dead = st != null && st.terminated;
             wantedStatus.text = $"{T(3226)} {(dead ? T(3227) : T(3228))}";
             wantedBounty.text = $"{T(3225)} {ItemInfo.Credits(w.reward)}";
@@ -426,7 +426,7 @@ namespace GoF2Remake.UI
                 return;
             }
             Portrait.ShowSpeaker(wantedPortrait, 9, false);   // the Pirate Boss face
-            wantedName.text = PirateTitle(s).ToUpperInvariant();
+            wantedName.text = PirateTitle(s).UiCaps();
             string status = s.done ? (s.boss ? T(3227) : Localization.Extra("pirateStatusDestroyed", "Destroyed"))
                                    : Localization.Extra("pirateStatusReported", "Reported");
             wantedStatus.text = $"{T(3226)} {status}";

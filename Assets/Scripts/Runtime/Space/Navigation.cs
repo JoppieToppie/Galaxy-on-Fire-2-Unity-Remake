@@ -836,7 +836,8 @@ namespace GoF2Remake.Flight
 
         void SetFastForward(bool on)
         {
-            bool session = GoF2Remake.Data.NetSession.Active;
+            // Remake: Options > Gameplay "Fast-forward" = Ship cruise gives single player the multiplayer cruise too.
+            bool session = GoF2Remake.Data.NetSession.Active || Settings.FastForwardCruise;
             FastForward = on && !session;
             Cruise = on && session;
             ApplyTimeScale();

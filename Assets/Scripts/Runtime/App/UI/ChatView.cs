@@ -160,7 +160,7 @@ namespace GoF2Remake.UI
                 Suspend();
             });
             row.Add(field);
-            sendButton = new Button(SendLine) { text = Localization.Extra("mpChatSend", "Send").ToUpperInvariant() };
+            sendButton = new Button(SendLine) { text = Localization.Extra("mpChatSend", "Send").UiCaps() };
             sendButton.AddToClassList("chat-channel");
             sendButton.AddToClassList("chat-send");
             row.Add(sendButton);
@@ -480,7 +480,7 @@ namespace GoF2Remake.UI
         {
             if (tab == null) return;
             // The name alone (players' report: "CHAT B" read as part of the name; Enter and "/" open it too).
-            tab.text = Localization.Extra("mpChat", "Chat").ToUpperInvariant();
+            tab.text = Localization.Extra("mpChat", "Chat").UiCaps();
             string sendKey = GoF2Remake.Flight.GameControls.KeyText(GoF2Remake.Flight.GameControls.ChatSend, false);
             string channelKey = GoF2Remake.Flight.GameControls.KeyText(GoF2Remake.Flight.GameControls.ChatChannel, false);
             var hints = new System.Collections.Generic.List<string>();
@@ -496,7 +496,7 @@ namespace GoF2Remake.UI
         {
             var c = NetChat.SendingNow;
             shownChannel = c;
-            channel.text = NetChat.ChannelName(c).ToUpperInvariant();
+            channel.text = NetChat.ChannelName(c).UiCaps();
             channel.EnableInClassList("chat-channel--global", c == NetChat.Channel.Global);
             channel.EnableInClassList("chat-channel--faction", c == NetChat.Channel.Faction);
             channel.EnableInClassList("chat-channel--squad", c == NetChat.Channel.Squad);

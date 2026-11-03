@@ -192,16 +192,93 @@ namespace GoF2Remake.Modding
                 if (path == null) throw new Exception("can't be read");
                 type = TypeOf(file, sniffed);
                 if (type == AudioType.UNKNOWN) throw new Exception("not an .ogg, .wav or .mp3 file");
-                using var req = UnityWebRequestMultimedia.GetAudioClip(new Uri(path).AbsoluteUri, type);
-                if (req.downloadHandler is DownloadHandlerAudioClip handler) handler.compressed = compressed;
-                var op = req.SendWebRequest();
-                while (!op.isDone) await Awaitable.NextFrameAsync();
-                if (req.result != UnityWebRequest.Result.Success) throw new Exception(req.error);
-                clip = DownloadHandlerAudioClip.GetContent(req);
-                if (clip != null) clip.name = Path.GetFileNameWithoutExtension(file);
+                // #208: on Android every picked sound came back "couldn't be played" (the weapon kept its game sound). The
+                // escaped file URI is tried first, then the plain "file://" + path some Android players want; a WAV that
+                // Unity's decoder still refuses is decoded here (PCM / float, DecodeWav), so one format always works.
+                string error = null;
+                foreach (string url in Urls(path))
+                {
+                    using var req = UnityWebRequestMultimedia.GetAudioClip(url, type);
+                    if (req.downloadHandler is DownloadHandlerAudioClip handler) handler.compressed = compressed;
+                    var op = req.SendWebRequest();
+                    while (!op.isDone) await Awaitable.NextFrameAsync();
+                    if (req.result == UnityWebRequest.Result.Success)
+                    {
+                        try { clip = DownloadHandlerAudioClip.GetContent(req); } catch (Exception e) { error = e.Message; }
+                        if (clip != null && clip.loadState != AudioDataLoadState.Failed && clip.length > 0f) break;
+                        if (clip != null) { Gone(clip); clip = null; }
+                        error ??= "the clip couldn't be decoded";
+                    }
+                    else error = req.error;
+                }
+                if (clip == null && type == AudioType.WAV)
+                {
+                    var wav = await System.Threading.Tasks.Task.Run(() => DecodeWav(File.ReadAllBytes(path)));
+                    if (wav != null)
+                    {
+                        clip = AudioClip.Create(Path.GetFileNameWithoutExtension(file), wav.Value.samples.Length / wav.Value.channels, wav.Value.channels, wav.Value.rate, false);
+                        clip.SetData(wav.Value.samples, 0);
+                    }
+                }
+                if (clip == null) throw new Exception(error ?? "the clip couldn't be decoded");
+                clip.name = Path.GetFileNameWithoutExtension(file);
             }
-            catch (Exception e) { Debug.LogWarning($"Mods: {mod.Id}: {file}: {e.Message}"); clip = null; }
+            catch (Exception e) { Debug.LogWarning($"Mods: {mod.Id}: {file}: {e.Message}"); LastError = e.Message; clip = null; }
             done?.Invoke(clip);
+        }
+
+        /// <summary>Why the last file that failed to load did (shown by the Mod Builder's preview; null: none yet).</summary>
+        public static string LastError { get; private set; }
+
+        /// <summary>The URLs a file on disk is read from: the escaped file URI, then (an absolute Unix path, Android's)
+        /// "file://" + the path as it is.</summary>
+        internal static List<string> Urls(string path)
+        {
+            var urls = new List<string> { new Uri(path).AbsoluteUri };
+            if (path.StartsWith("/", StringComparison.Ordinal) && !urls.Contains("file://" + path)) urls.Add("file://" + path);
+            return urls;
+        }
+
+        /// <summary>A RIFF/WAVE file's samples (PCM 8 / 16 / 24 / 32 bit, IEEE float 32 bit, also as WAVE_FORMAT_EXTENSIBLE),
+        /// interleaved, -1..1; null when it is none of them (any thread).</summary>
+        internal static (float[] samples, int channels, int rate)? DecodeWav(byte[] b)
+        {
+            if (b == null || b.Length < 12 || Sniff(b, 12) != AudioType.WAV) return null;
+            int format = 0, channels = 0, rate = 0, bits = 0, pos = 12;
+            while (pos + 8 <= b.Length)
+            {
+                string id = System.Text.Encoding.ASCII.GetString(b, pos, 4);
+                int size = BitConverter.ToInt32(b, pos + 4);
+                int body = pos + 8;
+                if (size < 0) return null;
+                if (id == "fmt " && size >= 16 && body + 16 <= b.Length)
+                {
+                    format = BitConverter.ToUInt16(b, body);
+                    channels = BitConverter.ToUInt16(b, body + 2);
+                    rate = BitConverter.ToInt32(b, body + 4);
+                    bits = BitConverter.ToUInt16(b, body + 14);
+                    if (format == 0xFFFE && size >= 26 && body + 26 <= b.Length) format = BitConverter.ToUInt16(b, body + 24);
+                }
+                else if (id == "data")
+                {
+                    if (channels <= 0 || rate <= 0 || (format != 1 && format != 3)) return null;
+                    int bytes = bits / 8;
+                    if (bytes < 1 || bytes > 4 || (format == 3 && bits != 32)) return null;
+                    int len = (int)Math.Min((long)size, b.Length - body);
+                    int count = len / bytes / channels * channels;
+                    if (count <= 0) return null;
+                    var s = new float[count];
+                    for (int i = 0, o = body; i < count; i++, o += bytes)
+                        s[i] = format == 3 ? BitConverter.ToSingle(b, o)
+                             : bytes == 1 ? (b[o] - 128) / 128f
+                             : bytes == 2 ? BitConverter.ToInt16(b, o) / 32768f
+                             : bytes == 3 ? ((b[o] << 8 | b[o + 1] << 16 | b[o + 2] << 24) >> 8) / 8388608f
+                             : BitConverter.ToInt32(b, o) / 2147483648f;
+                    return (s, channels, rate);
+                }
+                pos = body + size + (size & 1);
+            }
+            return null;
         }
     }
 }

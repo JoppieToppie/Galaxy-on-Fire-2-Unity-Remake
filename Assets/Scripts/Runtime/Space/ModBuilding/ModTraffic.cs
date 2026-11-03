@@ -5,7 +5,7 @@
 // option "Mod ships in traffic" sets (Settings.ModShipTraffic; Off / 10 / 25 / 50 %). A mod campaign's own "trafficShips"
 // win over it. Candidates: every ship of the mods that are on with that "race" (0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian,
 // 8 pirates and the minor races, 9 Void; the Specters none), available now (its "available" condition, ModUnlocks), its model
-// built (ModShips) and no longer than MaxLength (a 300 m cruiser doesn't patrol as a fighter); weighted by ships.json
+// built (ModShips; a "gof2:<model>" clone: the game's prefab) and no longer than MaxLength (a 300 m cruiser doesn't patrol as a fighter); weighted by ships.json
 // "traffic": { "weight": 1, "races": [8] } ("weight": 0 = never; "races" = the races that fly it, default its own). A
 // strong fighter (a capital ship's escort) is one of the dearer half. NPC hulls and guns don't depend on the ship flown
 // (NpcTables), so only the look changes. A customizable (kit) ship's NPCs fly random builds of it (RandomBuild, Traffic.Create:
@@ -208,27 +208,47 @@ namespace GoF2Remake.Modding
             if (lengthRevision != ModManager.Revision) { lengths.Clear(); lengthRevision = ModManager.Revision; }
             if (lengths.TryGetValue(ship, out var have)) return have;
             float length = 0f;
+            bool found = false;
             foreach (var (index, _, template) in ModShips.Built)
             {
                 if (index != ship || template == null) continue;
-                var root = template.transform.worldToLocalMatrix;
-                var b = new Bounds(); bool any = false;
-                foreach (var mf in template.GetComponentsInChildren<MeshFilter>(true))
-                {
-                    if (mf.sharedMesh == null || mf.name.StartsWith("engine")) continue;
-                    var m = root * mf.transform.localToWorldMatrix;
-                    var mb = mf.sharedMesh.bounds;
-                    for (int i = 0; i < 8; i++)
-                    {
-                        var p = m.MultiplyPoint3x4(mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) * 2 - 1, (i & 2) - 1, (i & 4) / 2f - 1)));
-                        if (!any) { b = new Bounds(p, Vector3.zero); any = true; } else b.Encapsulate(p);
-                    }
-                }
-                length = any ? b.size.z : 0f;
+                length = Measure(template);
+                found = true;
                 break;
+            }
+            // A mod ship on one of the game's own models ("model": "gof2:<name>", Database.ShipModels, a clone of a game
+            // ship) has no built template (ModShips builds nothing for it): measure the game's prefab instead (#236: such
+            // ships never flew in traffic, their length stayed 0).
+            if (!found)
+            {
+                var db = Database.Load();
+                if (db != null && db.ShipModels.TryGetValue(ship, out var gameModel) && GameModels.Find(db, gameModel) is AssemblyData entry)
+                {
+                    var prefab = Visuals.AssembledObject.LoadPrefab(entry);
+                    if (prefab != null) length = Measure(prefab);
+                }
             }
             if (length > 0f) lengths[ship] = length;   // (not built yet: asked again next time)
             return length;
+        }
+
+        /// <summary>A template's length along its nose (Unity metres, its meshes' bounds without the engine glows; 0: none).</summary>
+        static float Measure(GameObject template)
+        {
+            var root = template.transform.worldToLocalMatrix;
+            var b = new Bounds(); bool any = false;
+            foreach (var mf in template.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null || mf.name.StartsWith("engine")) continue;
+                var m = root * mf.transform.localToWorldMatrix;
+                var mb = mf.sharedMesh.bounds;
+                for (int i = 0; i < 8; i++)
+                {
+                    var p = m.MultiplyPoint3x4(mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) * 2 - 1, (i & 2) - 1, (i & 4) / 2f - 1)));
+                    if (!any) { b = new Bounds(p, Vector3.zero); any = true; } else b.Encapsulate(p);
+                }
+            }
+            return any ? b.size.z : 0f;
         }
     }
 }

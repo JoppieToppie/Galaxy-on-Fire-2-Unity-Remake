@@ -86,7 +86,7 @@ namespace GoF2Remake.UI
             var box = new VisualElement();
             box.AddToClassList("settings-confirm__box");
             overlay.Add(box);
-            var title = new Label(X("keepSettingsTitle", "Keep these settings?").ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+            var title = new Label(X("keepSettingsTitle", "Keep these settings?").UiCaps()) { pickingMode = PickingMode.Ignore };
             title.AddToClassList("settings-confirm__title");
             title.AddToClassList("gof-semibold");
             box.Add(title);
@@ -105,8 +105,8 @@ namespace GoF2Remake.UI
             revert.AddToClassList("gof-semibold");
             InputGlyph.PadPrompt(keep, PadButton.A, true);
             InputGlyph.PadPrompt(revert, PadButton.B);
-            InputGlyph.SetText(keep, X("keepSettings", "Keep").ToUpperInvariant());
-            InputGlyph.SetText(revert, X("revertSettings", "Revert").ToUpperInvariant());
+            InputGlyph.SetText(keep, X("keepSettings", "Keep").UiCaps());
+            InputGlyph.SetText(revert, X("revertSettings", "Revert").UiCaps());
             keep.RegisterCallback<PointerEnterEvent>(_ => Select(false));
             revert.RegisterCallback<PointerEnterEvent>(_ => Select(true));
             buttons.Add(keep);

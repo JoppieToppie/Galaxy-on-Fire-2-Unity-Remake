@@ -476,7 +476,7 @@ namespace GoF2Remake.Flight
                     float best = reach2;
                     foreach (var cr in Crate.All)
                     {
-                        if (cr == null || cr.pulled || cr == Salvaging || cr.Stolen || cr.claimedByOther || !cr.HasLoot) continue;
+                        if (cr == null || cr.pulled || cr == Salvaging || cr.Stolen || cr.jettisoned || cr.claimedByOther || !cr.HasLoot) continue;
                         if (!room && NeedsRoom(cr)) continue;   // it would only come back: the hold has no room for it
                         float d = (cr.transform.position - transform.position).sqrMagnitude;
                         if (d < best) { best = d; pickCrate = cr; }
@@ -533,7 +533,7 @@ namespace GoF2Remake.Flight
             bool room = Shop.FreeCargo(db) > 0;
             foreach (var cr in Crate.All)
             {
-                if (cr.Stolen || !cr.HasLoot || cr.claimedByOther || (!room && NeedsRoom(cr))) continue;
+                if (cr.Stolen || cr.jettisoned || !cr.HasLoot || cr.claimedByOther || (!room && NeedsRoom(cr))) continue;
                 if (onScreenOnly)
                 {
                     if (cam == null) return;
@@ -648,13 +648,13 @@ namespace GoF2Remake.Flight
             n = Mathf.Min(n, entry.amount);
             bool friend = ship != null ? ship.Target.friendToPlayer : crate.fromFriend;
             if (friend && traffic != null) traffic.FriendCargoStolen = true;   // Level::stealFriendCargo
-            Standing.ApplyDelict(crate.race, 2);                               // Standing::applyStealCargo
+            if (!crate.jettisoned) Standing.ApplyDelict(crate.race, 2);        // Standing::applyStealCargo (#176: not the player's own)
             entry.amount -= n;
             ship?.StealFrom(entry.item, n);
             remoteShip?.RemoteSteal?.Invoke(entry.item, n);   // multiplayer: off the owner's ship (NetProxy)
             var mounted = db.Item(entry.item)?.TypeId == 1 ? Session.Equipment.Find(e => e.item == entry.item) : null;
             if (mounted != null) mounted.amount += n; else Shop.AddToCargo(entry.item, n);
-            Session.CratesSalvaged += n;   // Status::crateCaptured
+            if (!crate.jettisoned) Session.CratesSalvaged += n;   // Status::crateCaptured (#176: not the player's own cargo back)
             if (crate.missionCrate && Freelance.Active)
             {
                 Session.Unsaleable.Add(entry.item);   // the client's container (also a squadmate's capture, multiplayer)
@@ -676,7 +676,7 @@ namespace GoF2Remake.Flight
                     more.amount -= k;
                     var mountedMore = db.Item(more.item)?.TypeId == 1 ? Session.Equipment.Find(e => e.item == more.item) : null;
                     if (mountedMore != null) mountedMore.amount += k; else Shop.AddToCargo(more.item, k);
-                    Session.CratesSalvaged += k;
+                    if (!crate.jettisoned) Session.CratesSalvaged += k;
                     if (crate.race == Standing.Void) Session.AlienRemainsCollected += k;
                     else if (Session.IsBooze(more.item)) Session.BoozeTypes.Add(more.item);
                     Message?.Invoke($"{k}t {GameNames.Item(more.item)}", 2, HudMessageKind.Gain);

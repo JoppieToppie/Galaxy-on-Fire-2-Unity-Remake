@@ -202,7 +202,7 @@ namespace GoF2Remake.UI
             if (!officer) return;
             var row = Row();
             void Set(int v) { vatEdit[c.station] = v; Rebuild(); }
-            row.Add(Text("    " + Localization.Extra("mpPanelVatRate", "VAT"), 14, Color.white));
+            row.Add(Text("    " + Localization.Extra("mpPanelVatRate", "VAT").OgCase(), 14, Color.white));
             row.Add(Btn("−", () => Set(Mathf.Max(0, edit - 1)), null));
             row.Add(Text(edit + "%", 16, Accent));
             row.Add(Btn("+", () => Set(Mathf.Min(NetFactions.MaxVat, edit + 1)), null));
@@ -288,7 +288,7 @@ namespace GoF2Remake.UI
             }
             Section(Localization.Extra("mpPanelLinkHere", "Use another device's profile here"));
             var row = Row();
-            row.Add(Field(Localization.Extra("mpPanelCode", "Code"), linkText, 6, 140, v => linkText = v.ToUpperInvariant()));
+            row.Add(Field(Localization.Extra("mpPanelCode", "Code"), linkText, 6, 140, v => linkText = v.UiCaps()));
             var f = new Toggle(Localization.Extra("mpPanelForce", "Replace this device's own progress")) { value = force };
             f.RegisterValueChangedCallback(e => force = e.newValue);
             row.Add(f);

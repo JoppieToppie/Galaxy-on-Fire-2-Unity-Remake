@@ -83,7 +83,7 @@ namespace GoF2Remake.UI
             chatScroll.verticalScrollerVisibility = ScrollerVisibility.Auto;
             chatScroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             chatClose = root.Q<Button>("chatClose");
-            chatClose.text = Localization.Extra("hudBack", "BACK");
+            chatClose.text = Localization.Extra("hudBack", "BACK").OgCase();
             chatClose.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
             chatClose.clicked += () => { menu.PlayRelease(); CloseChat(); };
         }
@@ -113,7 +113,7 @@ namespace GoF2Remake.UI
         /// (StationMenu.RefreshTexts on Localization.Changed). What Open / Build writes already reads it as it goes.</summary>
         public void RefreshTexts()
         {
-            if (chatClose != null) chatClose.text = Localization.Extra("hudBack", "BACK");
+            if (chatClose != null) chatClose.text = Localization.Extra("hudBack", "BACK").OgCase();
             if (built) Build();   // the visitors' plates and roles; one never shown builds in the new language anyway
         }
 
@@ -260,7 +260,7 @@ namespace GoF2Remake.UI
             menu.PlayVoice(StoryAssets.Load()?.Voice(chat.VoiceName()));   // SpaceLounge::getSoundId
             root.AddToClassList("chat-open");
             var (plateName, plateRole) = LoungeChat.Plate(a);
-            chatName.text = plateName.ToUpperInvariant();
+            chatName.text = plateName.UiCaps();
             chatSub.text = plateRole.Length > 0 ? plateRole : T(406 + a.race);
             var eventOffer = GoF2Remake.Events.EventMissions.OfferOf(a);
             if (eventOffer?.character != null)

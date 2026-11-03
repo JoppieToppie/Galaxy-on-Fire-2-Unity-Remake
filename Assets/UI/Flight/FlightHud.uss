@@ -1007,6 +1007,16 @@
     color: #F4D255;
 }
 
+/* Remake (#216): the player's wingmen blue (CombatView tints their marker images the same), violet when the colour-blind
+   markers already make friends blue. */
+.combat-label--wingman {
+    color: #4FB2FF;
+}
+
+.ui-colorblind .combat-label--wingman {
+    color: #B77BFF;
+}
+
 /* The cloak entry while cloaked / charging / recharging (TouchButton+0xa7: half-transparent, no taps). */
 .autopilot-menu-item--disabled {
     opacity: 0.4;

@@ -201,14 +201,21 @@
 
 /* Larger text (Options > Accessibility): the prompt row may take two lines, the menu's entries need their whole width. */
 .ui-text-150.menu-root--panel .panel-host,
+.ui-text-160.menu-root--panel .panel-host,
 .ui-text-175.menu-root--panel .panel-host,
+.ui-text-190.menu-root--panel .panel-host,
 .ui-text-200.menu-root--panel .panel-host {
     padding-bottom: 150px;
 }
 
 .ui-text-130 .main-column,
+.ui-text-135 .main-column,
+.ui-text-140 .main-column,
+.ui-text-145 .main-column,
 .ui-text-150 .main-column,
+.ui-text-160 .main-column,
 .ui-text-175 .main-column,
+.ui-text-190 .main-column,
 .ui-text-200 .main-column {
     width: auto;
     min-width: 30%;

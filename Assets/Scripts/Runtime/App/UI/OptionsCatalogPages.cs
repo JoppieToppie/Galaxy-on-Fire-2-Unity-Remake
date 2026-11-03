@@ -168,13 +168,13 @@ namespace GoF2Remake.UI
             // Remake: the interface's size, width and edge margin (UiLayout, docs/UI-DESIGN.md "Scaling").
             list.Add(Confirmed(Choice("uiScale", OptionPage.Accessibility, () => X("uiScale", "Interface size"), false,
                 () => System.Array.ConvertAll(UiScaleSteps, p => p + " %"),
-                () => Mathf.Max(0, System.Array.IndexOf(UiScaleSteps, Settings.UiScalePercent)), i => Settings.UiScalePercent = UiScaleSteps[Mathf.Clamp(i, 0, UiScaleSteps.Length - 1)],
+                () => Mathf.Max(0, UiLayout.NearestStep(UiScaleSteps, Settings.UiScalePercent)), i => Settings.UiScalePercent = UiScaleSteps[Mathf.Clamp(i, 0, UiScaleSteps.Length - 1)],
                 () => X("uiScaleHelp", "Makes text, buttons and the HUD bigger or smaller. 100 % already suits your screen."))));
             // Remake (docs/UI-DESIGN.md "Accessibility"): the text alone up to 200 % (XAG 101), high contrast, reduced motion,
             // colour-blind markers.
             list.Add(Confirmed(Choice("uiTextScale", OptionPage.Accessibility, () => X("uiTextScale", "Text size"), false,
                 () => System.Array.ConvertAll(UiTextSteps, p => p + " %"),
-                () => Mathf.Max(0, System.Array.IndexOf(UiTextSteps, Settings.UiTextScalePercent)), i => Settings.UiTextScalePercent = UiTextSteps[Mathf.Clamp(i, 0, UiTextSteps.Length - 1)],
+                () => Mathf.Max(0, UiLayout.NearestStep(UiTextSteps, Settings.UiTextScalePercent)), i => Settings.UiTextScalePercent = UiTextSteps[Mathf.Clamp(i, 0, UiTextSteps.Length - 1)],
                 () => X("uiTextScaleHelp", "Makes only the text bigger; long texts wrap or scroll."))));
             // Remake (the user's request, 2026-10-24): the interface font (UiFont), Klavika or one the player imported or has
             // installed; the import's and removal's rows under it.
@@ -214,6 +214,22 @@ namespace GoF2Remake.UI
                 () => Settings.ColorblindMarkers, v => Settings.ColorblindMarkers = v);
             colorblind.description = () => X("colorblindMarkersHelp", "Friendly ships are blue instead of green.");
             list.Add(colorblind);
+            // Remake: the game mouse cursor's size (GameCursor); desktop only, phones have none.
+            if (!Application.isMobilePlatform)
+            {
+                var cursorSize = Choice("cursorSize", OptionPage.Accessibility, () => X("cursorSize", "Cursor size"), false,
+                    () => System.Array.ConvertAll(CursorSizeSteps, p => p + " %"),
+                    () => Mathf.Max(0, UiLayout.NearestStep(CursorSizeSteps, Settings.CursorSizePercent)),
+                    i => Settings.CursorSizePercent = CursorSizeSteps[Mathf.Clamp(i, 0, CursorSizeSteps.Length - 1)],
+                    () => X("cursorSizeHelp", "The size of the game mouse cursor (Graphics > Game mouse cursor)."));
+                list.Add(cursorSize);
+            }
+            // Remake (players' wish): the original game's look for every menu, the remake's screens and features kept
+            // (Settings.OriginalUi, GoF2Original.uss).
+            list.Add(Choice("originalUi", OptionPage.Graphics, () => X("uiStyle", "Interface style"), true,
+                () => new[] { X("uiStyleRemake", "Remake"), X("uiStyleOriginal", "Original") },
+                () => Settings.OriginalUi ? 1 : 0, i => Settings.OriginalUi = i == 1,
+                () => X("uiStyleHelp", "Remake: the remake's look. Original: the original game's panels, buttons and colours; the menus keep every new feature.")));
             list.Add(Choice("uiWidth", OptionPage.Graphics, () => X("uiWidth", "Interface width"), true,
                 () => new[] { "16:9", "21:9", X("uiWidthFull", "Full width") },
                 () => Settings.UiWidth, i => Settings.UiWidth = i,
@@ -446,6 +462,12 @@ namespace GoF2Remake.UI
                 () => Settings.KaamoKeepsEquipment, v => Settings.KaamoKeepsEquipment = v);
             kaamoGear.description = () => X("kaamoKeepsEquipmentHelp", "A ship parked in the Kaamo Club keeps its weapons and equipment.");
             list.Add(SessionRule(kaamoGear));
+            // Remake (players' suggestion): the Kaamo Club VIP Card's shop tools (KaamoClub.VipFeatures): search, sorting, a Ships
+            // tab in the club's storage, a Kaamo marker on dealers' ships already stored there.
+            list.Add(Choice("kaamoVip", OptionPage.Gameplay, () => X("kaamoVip", "Kaamo Club VIP Card"), false,
+                () => new[] { X("kaamoVipCard", "Buy at the club"), X("kaamoVipAlways", "Always on"), X("kaamoVipOff", "Off") },
+                () => Settings.KaamoVipMode, i => Settings.KaamoVipMode = i,
+                () => X("kaamoVipOptionHelp", "The VIP Card adds a search box and sorting to the Kaamo Club's Store, a Ships tab for your stored ships, and a Kaamo marker on ships you already keep there. Buy at the club: the card is sold in the Store tab. Always on: no card needed. Off: the original club.")));
             var cloakBay = Toggle("cloakBay", OptionPage.Gameplay, () => X("cloakBay", "Cloak bay on cloaking ships"),
                 () => Settings.CloakBay, v => Settings.CloakBay = v);
             cloakBay.description = () => X("cloakBayHelp", "On the Specter and Scimitar a mounted cloak takes no equipment slot.");
@@ -480,6 +502,12 @@ namespace GoF2Remake.UI
             // Remake: a conversation in flight doesn't pause the game (Navigation.ConversationRuns; the story level holds).
             list.Add(Toggle("playOnInConversations", OptionPage.Gameplay, () => X("playOnInConversations", "Game runs in conversations"),
                 () => Settings.PlayOnInConversations, v => Settings.PlayOnInConversations = v));
+            // Remake (Navigation.SetFastForward): single player's held fast-forward as the original's time speedup or as
+            // multiplayer's cruise, where only your ship speeds up.
+            list.Add(Choice("fastForwardMode", OptionPage.Gameplay, () => X("fastForwardMode", "Fast-forward"), true,
+                () => new[] { X("fastForwardTime", "Time speedup"), X("fastForwardCruise", "Ship cruise") },
+                () => Settings.FastForwardCruise ? 1 : 0, i => Settings.FastForwardCruise = i == 1,
+                () => X("fastForwardModeHelp", "Time speedup: the whole game runs 5x while you hold it. Ship cruise: only your ship flies 5x as fast, everything else keeps its pace, as in multiplayer.")));
             // The key and controller button hints everywhere: the flight HUD, the menus' prompt bars, the station, the star map,
             // Inspect ship and Action Freeze (it was "Button hints in flight", though the menus' bars read it too).
             var inputHints = Toggle("inputHints", OptionPage.Gameplay, () => X("inputHints", "Button hints"),

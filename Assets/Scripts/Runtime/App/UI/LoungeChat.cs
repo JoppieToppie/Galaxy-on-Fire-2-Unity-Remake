@@ -340,8 +340,12 @@ namespace GoF2Remake.Data
                     string trade = net >= 0
                         ? Localization.Extra("loungeShipTradeIn", "With your #SHIP_NAME traded in, that's #C.")
                         : Localization.Extra("loungeShipTradeInBack", "With your #SHIP_NAME traded in, you get #C back.");
+                    // Remake (the Kaamo Club VIP Card): a type already parked at the club says so.
+                    string atKaamo = KaamoClub.VipFeatures && KaamoClub.HasShip(a.sellShip)
+                        ? "\n" + string.Format(Localization.Extra("loungeShipAtKaamo", "(You already keep a {0} at the Kaamo Club.)"), ItemInfo.ShipName(a.sellShip))
+                        : "";
                     return T(intro) + "\n" + T(line).Replace("#Q", "1").Replace("#P", ItemInfo.ShipName(a.sellShip)).Replace("#C", C(a.sellPrice))
-                         + " " + trade.Replace("#SHIP_NAME", ItemInfo.ShipName(Session.ShipIndex)).Replace("#C", C(Math.Abs(net)));
+                         + " " + trade.Replace("#SHIP_NAME", ItemInfo.ShipName(Session.ShipIndex)).Replace("#C", C(Math.Abs(net))) + atKaamo;
                 }
                 case AgentOffer.ShipDealer:
                     // 912 "I have a very unique ship on offer." + (remake) the ship and its price in the item line.

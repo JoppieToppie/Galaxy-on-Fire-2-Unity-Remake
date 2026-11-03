@@ -119,17 +119,17 @@ namespace GoF2Remake.Flight
         {
             var list = new List<PlayerTurret>();
             var mounts = db.MountsOf(shipIndex, 2);
-            int m = 0;
-            foreach (int item in TurretItems(db, equipment))
+            var items = TurretItems(db, equipment);
+            // Each turret on the mount of its slot (#230: rearranged turrets move with their slot), an empty slot's mount bare.
+            for (int m = 0; m < items.Count && m < mounts.Count; m++)
             {
-                if (m >= mounts.Count) break;
-                var it = db.Item(item);
+                var it = items[m] >= 0 ? db.Item(items[m]) : null;
+                if (it == null) continue;
                 var fx = WeaponFx.Load(it.index);
                 if (fx == null || (fx.turretMounted == null && !mounts[m].builtIn)) continue;
                 var t = player.AddComponent<PlayerTurret>();
                 t.Setup(it, fx, mounts[m], m, chase, shipIndex);
                 list.Add(t);
-                m++;
             }
             return list;
         }
@@ -166,21 +166,32 @@ namespace GoF2Remake.Flight
         /// <summary>The turret-slot item (category 8 / 35) of this equipment, or -1 (the first one).</summary>
         public static int TurretItem(Database db, IList<ItemStack> equipment)
         {
-            var items = TurretItems(db, equipment);
-            return items.Count > 0 ? items[0] : -1;
+            foreach (int item in TurretItems(db, equipment)) if (item >= 0) return item;
+            return -1;
         }
 
-        /// <summary>Every turret-slot item (category 8 / 35) of this equipment, in equipment (= mount) order.</summary>
+        /// <summary>Every turret-slot item (category 8 / 35) of this equipment in mount order: the n-th entry is the turret on
+        /// the n-th slot-2 mount, -1 for an empty slot between two turrets (Hangar.MountOrder, as the guns: each on the mount
+        /// of its slot, so a turret moved to another slot moves to that mount, #230). A turret stack without a slot follows.</summary>
         public static List<int> TurretItems(Database db, IList<ItemStack> equipment)
         {
             var list = new List<int>();
             if (db == null || equipment == null) return list;
-            foreach (var e in equipment)
+            bool IsTurret(int i)
             {
-                if (e == null) continue;
-                var it = db.Item(e.item);
-                if (it != null && (it.categoryId == 8 || it.categoryId == 35)) list.Add(it.index);
+                var it = equipment[i] != null ? db.Item(equipment[i].item) : null;
+                return it != null && (it.categoryId == 8 || it.categoryId == 35);
             }
+            var placed = new HashSet<int>();
+            if (!equipment.Contains(null))
+                foreach (int i in Hangar.MountOrder(db, equipment, 2))
+                {
+                    if (i >= 0 && IsTurret(i) && placed.Add(i)) list.Add(db.Item(equipment[i].item).index);
+                    else list.Add(-1);
+                }
+            while (list.Count > 0 && list[list.Count - 1] < 0) list.RemoveAt(list.Count - 1);
+            for (int i = 0; i < equipment.Count; i++)
+                if (!placed.Contains(i) && IsTurret(i)) list.Add(db.Item(equipment[i].item).index);
             return list;
         }
 
@@ -203,6 +214,7 @@ namespace GoF2Remake.Flight
             for (int m = 0; m < items.Count && m < mounts.Count; m++)
             {
                 int item = items[m];
+                if (item < 0) continue;   // an empty slot between two turrets
                 var kitTurret = mounts[m].builtIn ? Modding.ModHardpoints.TurretModel(shipIndex, db.Item(item), shown) : null;
                 if (mounts[m].builtIn && kitTurret == null) continue;
                 if (!mounts[m].builtIn && TurretCore.DisplayPrefab(db, item, out _) == null) continue;

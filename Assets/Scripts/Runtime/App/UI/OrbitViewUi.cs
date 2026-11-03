@@ -24,7 +24,7 @@ namespace GoF2Remake.UI
         /// <summary>The footer's Back button; 'push' plays the press sound (the click plays its own).</summary>
         public static Button Back(Action back, Action push)
         {
-            var b = new Button(back) { text = Localization.Extra("hudBack", "BACK"), focusable = false };
+            var b = new Button(back) { text = Localization.Extra("hudBack", "BACK").OgCase(), focusable = false };
             b.AddToClassList("orbit-view-back");
             b.AddToClassList("gof-semibold");
             if (push != null) b.RegisterCallback<PointerDownEvent>(_ => push(), TrickleDown.TrickleDown);

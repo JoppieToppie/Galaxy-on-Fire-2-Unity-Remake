@@ -1644,6 +1644,18 @@
     white-space: nowrap;
 }
 
+/* The caret, the selection and the placeholder (#224): without Unity's default theme a field had no visible caret on the
+   dark boxes and its placeholder read like typed text (or not at all); the text-edit popups looked like no field. */
+.unity-base-text-field__input {
+    --unity-cursor-color: #FFFFFF;
+    --unity-selection-color: rgba(255, 166, 48, 0.45);
+}
+
+.unity-base-text-field__input--placeholder,
+.unity-base-text-field__input--placeholder .unity-text-element {
+    color: rgba(216, 236, 247, 0.45);
+}
+
 /* The shared text field (docs/UI-DESIGN.md "Controls"): a dark box with a faint outline, amber with the focus, so a field
    reads as one before anything is typed (the multiplayer window's fields had no box: their values read as labels). */
 .gof-field .unity-base-text-field__input {
@@ -1911,7 +1923,62 @@
     color: var(--gof-text);
 }
 
-/* Options > Accessibility "Text size": the type scale times the step, the layout unchanged (XAG 101: text to 200 %). */
+/* Options > Accessibility "Text size": the type scale times the step, the layout unchanged (XAG 101: text to 200 %).
+   One class per step of UiLayout.TextSteps (finer steps on a TV, #237). */
+.ui-text-105 {
+    --glyph-key: 36px;
+    --glyph-face: 38px;
+    --glyph-face-r: 19px;
+    --glyph-stick: 42px;
+    --glyph-stick-r: 21px;
+    --glyph-trigger: 34px;
+    --glyph-bumper: 31px;
+    --glyph-bumper-r: 16px;
+    --glyph-menu: 31px;
+    --glyph-menu-r: 16px;
+    --glyph-sm-key: 23px;
+    --glyph-sm-key-r: 12px;
+    --glyph-sm-stick: 25px;
+    --glyph-sm-stick-r: 13px;
+    --glyph-sm-bumper: 21px;
+    --glyph-sm-bumper-r: 10px;
+    --text-caption: 17px;
+    --text-small: 19px;
+    --text-body: 21px;
+    --text-label: 23px;
+    --text-subhead: 25px;
+    --text-heading: 29px;
+    --text-title: 36px;
+    --text-display: 67px;
+}
+
+.ui-text-110 {
+    --glyph-key: 37px;
+    --glyph-face: 40px;
+    --glyph-face-r: 20px;
+    --glyph-stick: 44px;
+    --glyph-stick-r: 22px;
+    --glyph-trigger: 35px;
+    --glyph-bumper: 33px;
+    --glyph-bumper-r: 16px;
+    --glyph-menu: 33px;
+    --glyph-menu-r: 16px;
+    --glyph-sm-key: 24px;
+    --glyph-sm-key-r: 12px;
+    --glyph-sm-stick: 26px;
+    --glyph-sm-stick-r: 13px;
+    --glyph-sm-bumper: 22px;
+    --glyph-sm-bumper-r: 11px;
+    --text-caption: 18px;
+    --text-small: 20px;
+    --text-body: 22px;
+    --text-label: 24px;
+    --text-subhead: 26px;
+    --text-heading: 31px;
+    --text-title: 37px;
+    --text-display: 70px;
+}
+
 .ui-text-115 {
     --glyph-key: 39px;
     --glyph-face: 41px;
@@ -1937,6 +2004,60 @@
     --text-heading: 32px;
     --text-title: 39px;
     --text-display: 74px;
+}
+
+.ui-text-120 {
+    --glyph-key: 41px;
+    --glyph-face: 43px;
+    --glyph-face-r: 22px;
+    --glyph-stick: 48px;
+    --glyph-stick-r: 24px;
+    --glyph-trigger: 38px;
+    --glyph-bumper: 36px;
+    --glyph-bumper-r: 18px;
+    --glyph-menu: 36px;
+    --glyph-menu-r: 18px;
+    --glyph-sm-key: 26px;
+    --glyph-sm-key-r: 13px;
+    --glyph-sm-stick: 29px;
+    --glyph-sm-stick-r: 14px;
+    --glyph-sm-bumper: 24px;
+    --glyph-sm-bumper-r: 12px;
+    --text-caption: 19px;
+    --text-small: 22px;
+    --text-body: 24px;
+    --text-label: 26px;
+    --text-subhead: 29px;
+    --text-heading: 34px;
+    --text-title: 41px;
+    --text-display: 77px;
+}
+
+.ui-text-125 {
+    --glyph-key: 42px;
+    --glyph-face: 45px;
+    --glyph-face-r: 22px;
+    --glyph-stick: 50px;
+    --glyph-stick-r: 25px;
+    --glyph-trigger: 40px;
+    --glyph-bumper: 37px;
+    --glyph-bumper-r: 19px;
+    --glyph-menu: 37px;
+    --glyph-menu-r: 19px;
+    --glyph-sm-key: 27px;
+    --glyph-sm-key-r: 14px;
+    --glyph-sm-stick: 30px;
+    --glyph-sm-stick-r: 15px;
+    --glyph-sm-bumper: 25px;
+    --glyph-sm-bumper-r: 12px;
+    --text-caption: 20px;
+    --text-small: 22px;
+    --text-body: 25px;
+    --text-label: 27px;
+    --text-subhead: 30px;
+    --text-heading: 35px;
+    --text-title: 42px;
+    --text-display: 80px;
 }
 
 .ui-text-130 {
@@ -1966,6 +2087,87 @@
     --text-display: 83px;
 }
 
+.ui-text-135 {
+    --glyph-key: 46px;
+    --glyph-face: 49px;
+    --glyph-face-r: 24px;
+    --glyph-stick: 54px;
+    --glyph-stick-r: 27px;
+    --glyph-trigger: 43px;
+    --glyph-bumper: 40px;
+    --glyph-bumper-r: 20px;
+    --glyph-menu: 40px;
+    --glyph-menu-r: 20px;
+    --glyph-sm-key: 30px;
+    --glyph-sm-key-r: 15px;
+    --glyph-sm-stick: 32px;
+    --glyph-sm-stick-r: 16px;
+    --glyph-sm-bumper: 27px;
+    --glyph-sm-bumper-r: 13px;
+    --text-caption: 22px;
+    --text-small: 24px;
+    --text-body: 27px;
+    --text-label: 30px;
+    --text-subhead: 32px;
+    --text-heading: 38px;
+    --text-title: 46px;
+    --text-display: 86px;
+}
+
+.ui-text-140 {
+    --glyph-key: 48px;
+    --glyph-face: 50px;
+    --glyph-face-r: 25px;
+    --glyph-stick: 56px;
+    --glyph-stick-r: 28px;
+    --glyph-trigger: 45px;
+    --glyph-bumper: 42px;
+    --glyph-bumper-r: 21px;
+    --glyph-menu: 42px;
+    --glyph-menu-r: 21px;
+    --glyph-sm-key: 31px;
+    --glyph-sm-key-r: 15px;
+    --glyph-sm-stick: 34px;
+    --glyph-sm-stick-r: 17px;
+    --glyph-sm-bumper: 28px;
+    --glyph-sm-bumper-r: 14px;
+    --text-caption: 22px;
+    --text-small: 25px;
+    --text-body: 28px;
+    --text-label: 31px;
+    --text-subhead: 34px;
+    --text-heading: 39px;
+    --text-title: 48px;
+    --text-display: 90px;
+}
+
+.ui-text-145 {
+    --glyph-key: 49px;
+    --glyph-face: 52px;
+    --glyph-face-r: 26px;
+    --glyph-stick: 58px;
+    --glyph-stick-r: 29px;
+    --glyph-trigger: 46px;
+    --glyph-bumper: 43px;
+    --glyph-bumper-r: 22px;
+    --glyph-menu: 43px;
+    --glyph-menu-r: 22px;
+    --glyph-sm-key: 32px;
+    --glyph-sm-key-r: 16px;
+    --glyph-sm-stick: 35px;
+    --glyph-sm-stick-r: 17px;
+    --glyph-sm-bumper: 29px;
+    --glyph-sm-bumper-r: 14px;
+    --text-caption: 23px;
+    --text-small: 26px;
+    --text-body: 29px;
+    --text-label: 32px;
+    --text-subhead: 35px;
+    --text-heading: 41px;
+    --text-title: 49px;
+    --text-display: 93px;
+}
+
 .ui-text-150 {
     --glyph-key: 51px;
     --glyph-face: 54px;
@@ -1993,6 +2195,33 @@
     --text-display: 96px;
 }
 
+.ui-text-160 {
+    --glyph-key: 54px;
+    --glyph-face: 58px;
+    --glyph-face-r: 29px;
+    --glyph-stick: 64px;
+    --glyph-stick-r: 32px;
+    --glyph-trigger: 51px;
+    --glyph-bumper: 48px;
+    --glyph-bumper-r: 24px;
+    --glyph-menu: 48px;
+    --glyph-menu-r: 24px;
+    --glyph-sm-key: 35px;
+    --glyph-sm-key-r: 18px;
+    --glyph-sm-stick: 38px;
+    --glyph-sm-stick-r: 19px;
+    --glyph-sm-bumper: 32px;
+    --glyph-sm-bumper-r: 16px;
+    --text-caption: 26px;
+    --text-small: 29px;
+    --text-body: 32px;
+    --text-label: 35px;
+    --text-subhead: 38px;
+    --text-heading: 45px;
+    --text-title: 54px;
+    --text-display: 102px;
+}
+
 .ui-text-175 {
     --glyph-key: 60px;
     --glyph-face: 63px;
@@ -2018,6 +2247,33 @@
     --text-heading: 49px;
     --text-title: 60px;
     --text-display: 112px;
+}
+
+.ui-text-190 {
+    --glyph-key: 65px;
+    --glyph-face: 68px;
+    --glyph-face-r: 34px;
+    --glyph-stick: 76px;
+    --glyph-stick-r: 38px;
+    --glyph-trigger: 61px;
+    --glyph-bumper: 57px;
+    --glyph-bumper-r: 28px;
+    --glyph-menu: 57px;
+    --glyph-menu-r: 28px;
+    --glyph-sm-key: 42px;
+    --glyph-sm-key-r: 21px;
+    --glyph-sm-stick: 46px;
+    --glyph-sm-stick-r: 23px;
+    --glyph-sm-bumper: 38px;
+    --glyph-sm-bumper-r: 19px;
+    --text-caption: 30px;
+    --text-small: 34px;
+    --text-body: 38px;
+    --text-label: 42px;
+    --text-subhead: 46px;
+    --text-heading: 53px;
+    --text-title: 65px;
+    --text-display: 122px;
 }
 
 .ui-text-200 {

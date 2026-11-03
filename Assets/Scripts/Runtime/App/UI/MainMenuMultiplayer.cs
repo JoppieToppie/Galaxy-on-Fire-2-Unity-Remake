@@ -232,12 +232,12 @@ namespace GoF2Remake.UI
             if (root == null) return;
             void Text(string name, string text) { if (root.Q(name) is TextElement e) { if (e is Button b) InputGlyph.SetText(b, text); else e.text = text; } }
             bool coop = coopPanelMode;
-            Text("multiplayerTitle", coop ? CoopTitle.ToUpperInvariant() : Localization.Extra("multiplayer", "Multiplayer").ToUpperInvariant());
+            Text("multiplayerTitle", coop ? CoopTitle.UiCaps() : Localization.Extra("multiplayer", "Multiplayer").UiCaps());
             Text("mpIntro", coop ? Localization.Extra("coopIntro", "Play the whole story together: one campaign for the whole crew.")
                                  : Localization.Extra("mpIntroShort", "Meet other pilots, form squads and fly missions together."));
-            Text("mpJoinTitle", (coop ? Localization.Extra("coopBrowserTitle", "Open campaigns") : Localization.Extra("mpBrowserTitle", "Server browser")).ToUpperInvariant());
-            Text("mpHostTitle", (coop ? Localization.Extra("coopHostTitle", "Host a campaign") : Localization.Extra("mpHostTitle", "Host a game")).ToUpperInvariant());
-            Text("mpHost", (coop ? Localization.Extra("coopHostButton", "Host campaign") : Localization.Extra("mpHost", "Host")).ToUpperInvariant());
+            Text("mpJoinTitle", (coop ? Localization.Extra("coopBrowserTitle", "Open campaigns") : Localization.Extra("mpBrowserTitle", "Server browser")).UiCaps());
+            Text("mpHostTitle", (coop ? Localization.Extra("coopHostTitle", "Host a campaign") : Localization.Extra("mpHostTitle", "Host a game")).UiCaps());
+            Text("mpHost", (coop ? Localization.Extra("coopHostButton", "Host campaign") : Localization.Extra("mpHost", "Host")).UiCaps());
             // The co-op screen: no World or Combat switch (the crew is one squad), where the host's game comes from under the title.
             foreach (var row in new[] { "mpWorldRow", "mpPvpRow" })
                 if (root.Q(row) is VisualElement r) r.style.display = coop ? DisplayStyle.None : DisplayStyle.Flex;
@@ -348,9 +348,9 @@ namespace GoF2Remake.UI
             dialogNo = LeaveLobby;
             var yes = root.Q<Button>("dialogYes");
             var no = root.Q<Button>("dialogNo");
-            if (host) InputGlyph.SetText(yes, Localization.Extra("coopStart", "Start").ToUpperInvariant());
+            if (host) InputGlyph.SetText(yes, Localization.Extra("coopStart", "Start").UiCaps());
             else yes.style.display = DisplayStyle.None;
-            InputGlyph.SetText(no, Localization.Extra("coopLeave", "Leave").ToUpperInvariant());
+            InputGlyph.SetText(no, Localization.Extra("coopLeave", "Leave").UiCaps());
             Select(host ? yes : no);
             // Kept up to date while the crew comes and goes, until the host starts or the session ends.
             while (GoF2Remake.Multiplayer.NetGame.Active && GoF2Remake.Multiplayer.NetGame.InLobby)
@@ -415,7 +415,7 @@ namespace GoF2Remake.UI
             {
                 int n = Modding.ModManager.SinglePlayerActive.Count;
                 label.text = (n == 0 ? Localization.Extra("mpMods", "Mods")
-                    : string.Format(Localization.Extra("mpModsCount", "Mods ({0} on)"), n)).ToUpperInvariant();
+                    : string.Format(Localization.Extra("mpModsCount", "Mods ({0} on)"), n)).UiCaps();
             }
         }
 
@@ -427,7 +427,7 @@ namespace GoF2Remake.UI
             var scroll = root.Q<ScrollView>("mpHostScroll");
             var more = root.Q<Label>("mpHostMore");
             if (scroll == null || more == null) return;
-            more.text = "▼ " + Localization.Extra("mpMoreOptions", "More options").ToUpperInvariant();
+            more.text = "▼ " + Localization.Extra("mpMoreOptions", "More options").UiCaps();
             void Update()
             {
                 float hidden = scroll.contentContainer.layout.height - scroll.contentViewport.layout.height;
@@ -537,7 +537,7 @@ namespace GoF2Remake.UI
                 top.Add(name);
                 void Tag(string text, string extra)
                 {
-                    var tag = new Label(text.ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+                    var tag = new Label(text.UiCaps()) { pickingMode = PickingMode.Ignore };
                     tag.AddToClassList("mp-server-tag");
                     if (extra != null) tag.AddToClassList(extra);
                     top.Add(tag);
@@ -666,7 +666,7 @@ namespace GoF2Remake.UI
             dialogField.textEdition.placeholder = Localization.Extra("mpNamePlaceholder", "Your pilot name");
             dialogField.style.display = DisplayStyle.Flex;
             InputGlyph.SetText(root.Q<Button>("dialogYes"), "OK");
-            InputGlyph.SetText(root.Q<Button>("dialogNo"), Localization.Get(170).ToUpperInvariant());   // Back
+            InputGlyph.SetText(root.Q<Button>("dialogNo"), Localization.Get(170).UiCaps());   // Back
             dialogCheck = () =>
             {
                 string name = GoF2Remake.Multiplayer.NetGame.Clean(dialogField.value);

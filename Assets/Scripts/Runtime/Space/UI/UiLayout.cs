@@ -45,6 +45,28 @@ namespace GoF2Remake.UI
             return Mathf.Round(px * TextScale);
         }
 
+        /// <summary>Remake: the Original interface style's sheets (Resources/GoF2UI/OriginalStyle.uss), added after the sheets
+        /// on the screen's root and on every element under it that has its own (a template's Dialogue.uss). UI Toolkit lets
+        /// a sheet attached lower in the tree win over the panel's theme whatever the specificity, so from the theme alone
+        /// the Original rules lost every property a screen's own sheet sets too (sizes, positions, images).</summary>
+        static void AttachOriginalSheets(VisualElement root)
+        {
+            if (originalSheet == null) originalSheet = Resources.Load<StyleSheet>("GoF2UI/OriginalStyle");
+            if (originalSheet == null) return;
+            AttachLast(root);
+            root.Query<VisualElement>().ForEach(e => { if (e != root && e.styleSheets.count > 0) AttachLast(e); });
+        }
+
+        static void AttachLast(VisualElement e)
+        {
+            var set = e.styleSheets;
+            if (set.count > 0 && set[set.count - 1] == originalSheet) return;
+            if (set.Contains(originalSheet)) set.Remove(originalSheet);
+            set.Add(originalSheet);
+        }
+
+        static StyleSheet originalSheet;
+
         /// <summary>Set by UwpDisplay on an Xbox (a TV across the room), or by the debug override.</summary>
         public static bool TvDetected;
 
@@ -53,7 +75,8 @@ namespace GoF2Remake.UI
         public static int Revision => Settings.UiScalePercent * 1000 + Settings.UiWidth * 100 + Mathf.RoundToInt(Settings.UiMarginPercent * 10f)
                                       + (TvDetected ? 7 : 0) + DebugDevice() * 13 + Settings.UiTextScalePercent * 100000
                                       + (Settings.HighContrast ? 1 : 0) * 30000000 + (Settings.ReduceMotion ? 1 : 0) * 60000000
-                                      + (Settings.ColorblindMarkers ? 1 : 0) * 120000000 + UiFont.Revision + settle * 7919;
+                                      + (Settings.ColorblindMarkers ? 1 : 0) * 120000000
+                                      + (Settings.OriginalUi ? 1 : 0) * 240000000 + UiFont.Revision + settle * 7919;
 
         /// <summary>Modified: the first layout of a run could come too early (in the Editor's Play mode the panel kept its old
         /// scale until the screen size or an option changed: going full screen or picking the font again fixed it). A panel
@@ -106,8 +129,20 @@ namespace GoF2Remake.UI
         /// style sheets, Type for code.</summary>
         public static float TextScale => Settings.UiTextScalePercent / 100f;
 
-        /// <summary>The text size classes GoF2Common.uss defines (ui-text-115 ...), each redefining the --text-* tokens.</summary>
-        public static readonly int[] TextSteps = { 115, 130, 150, 175, 200 };
+        /// <summary>The text size classes GoF2Common.uss defines (ui-text-105 ...), each redefining the --text-* tokens.
+        /// Modified (#237): finer steps (5 % up to 150) than the first 115 / 130 / 150 / 175 / 200, which were all either too
+        /// big or too small on a TV; Options > Accessibility "Text size" offers 100 and these.</summary>
+        public static readonly int[] TextSteps = { 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 160, 175, 190, 200 };
+
+        /// <summary>The step of 'steps' nearest to 'value' (a stored percentage between two steps snaps to one), the lower
+        /// on a tie; -1 for none.</summary>
+        public static int NearestStep(int[] steps, int value)
+        {
+            int best = -1;
+            for (int i = 0; i < steps.Length; i++)
+                if (best < 0 || Mathf.Abs(steps[i] - value) < Mathf.Abs(steps[best] - value)) best = i;
+            return best;
+        }
 
         /// <summary>PlayerPrefs "debug_ui_device": 0 = detect, 1 desktop, 2 handheld, 3 phone, 4 TV (testing the layouts in
         /// the Editor at any Game view size; MainMenu.simulatePhone still forces a phone too).</summary>
@@ -124,8 +159,10 @@ namespace GoF2Remake.UI
             // UnityEngine.Device: the Device Simulator's phone in the Editor (UnityEngine.Application stays the Editor there).
             if (UnityEngine.Device.Application.isMobilePlatform) return Inches(w, h) < 7.5f ? Device.Phone : Device.Desktop;
             if (TvDetected) return Device.Tv;
-            // Steam sets SteamDeck=1 on the Deck; any other small desktop screen whose dpi says so counts too.
-            if (System.Environment.GetEnvironmentVariable("SteamDeck") == "1") return Device.Handheld;
+            // Steam sets SteamDeck=1 on the Deck (GOF2_STEAMDECK=1 once SteamDeckRelaunch has restarted the Linux player
+            // without it, #232); any other small desktop screen whose dpi says so counts too.
+            if (System.Environment.GetEnvironmentVariable("SteamDeck") == "1"
+                || System.Environment.GetEnvironmentVariable("GOF2_STEAMDECK") == "1") return Device.Handheld;
             if (Application.platform == RuntimePlatform.LinuxPlayer && Screen.dpi > 150f && Inches(w, h) < 9f) return Device.Handheld;
             return Device.Desktop;
         }
@@ -201,10 +238,15 @@ namespace GoF2Remake.UI
                 root.EnableInClassList("ui-scale-up2", r.scale >= 1.4f);
                 // Accessibility (docs/UI-DESIGN.md): the text size class, high contrast, reduced motion, colour-blind markers.
                 int text = Settings.UiTextScalePercent;
-                foreach (var step in TextSteps) root.EnableInClassList("ui-text-" + step, step == text);
+                // The nearest class: a percentage between two steps (an old or hand-edited setting) still gets one.
+                int nearest = text < 103 ? -1 : NearestStep(TextSteps, text);
+                for (int i = 0; i < TextSteps.Length; i++) root.EnableInClassList("ui-text-" + TextSteps[i], i == nearest);
                 root.EnableInClassList("ui-high-contrast", Settings.HighContrast);
                 root.EnableInClassList("ui-reduce-motion", Settings.ReduceMotion);
                 root.EnableInClassList("ui-colorblind", Settings.ColorblindMarkers);
+                // Remake: Options > Graphics "Interface style" Original (GoF2Original.uss).
+                root.EnableInClassList("ui-style-original", Settings.OriginalUi);
+                AttachOriginalSheets(root);
                 UiFont.Apply(root);   // Options > Accessibility "Interface font"
                 // Modified: soon after a scene loads, checked again once it has been drawn (settle).
                 if (settings != null && Time.realtimeSinceStartup - sceneStart < SettleChecks[SettleChecks.Length - 1])

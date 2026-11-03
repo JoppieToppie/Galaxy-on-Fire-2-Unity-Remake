@@ -136,8 +136,7 @@ namespace GoF2Remake.UI
             Act(row, "+90°", () => { Project.SetIconTurn(s, Project.IconTurn(s) + 90); Redraw(); });
             int turn = Project.IconTurn(s);
             if (turn != 0) Add(row, new Label($"{turn}°"), "mbv-inline-label");
-            var made = Project.GeneratedIcon(s);
-            Note(ship, !string.IsNullOrEmpty(s.Icon) && (made == null || made.Value.file != s.Icon)
+            Note(ship, Project.CustomIcon(s)
                 ? T("mbIconOwn", "Your own icon: Recreate icon draws one from the model instead.")
                 : T("mbIconMade", "Drawn from the model, nose to the bottom left, whenever the model, its turn or its textures change."));
         }
@@ -153,7 +152,7 @@ namespace GoF2Remake.UI
             string key = IconKey(s);
             if (!force)
             {
-                if (!string.IsNullOrEmpty(s.Icon) && (made == null || made.Value.file != s.Icon)) return false;   // the modder's own
+                if (Project.CustomIcon(s)) return false;   // the modder's own (also their art saved over the builder's file)
                 if (made != null && made.Value.key == key && System.IO.File.Exists(System.IO.Path.Combine(Project.Folder, made.Value.file))) return false;
             }
             var db = Database.Shared;

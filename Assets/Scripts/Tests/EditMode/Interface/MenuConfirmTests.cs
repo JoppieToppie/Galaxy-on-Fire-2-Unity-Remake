@@ -42,6 +42,27 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void TheCopysNavigateLeavesOutTheRightStick()
+        {
+            var source = new DefaultInputActions().asset;
+            var copy = MenuConfirm.WithSubmitKeys(source);
+            try
+            {
+                var navigate = copy.FindAction("UI/Navigate");
+                foreach (var b in navigate.bindings)
+                    Assert.IsFalse(MenuConfirm.IsRightStick(b.path), "the right stick scrolls texts, it doesn't move the focus (#235)");
+                foreach (var b in navigate.bindings)
+                    Assert.IsFalse(MenuConfirm.IsJoystick(b.path), "a joystick's resting axis held the navigation down");
+                Assert.IsTrue(Binds(navigate, "<Gamepad>/leftStick/up") || Binds(navigate, "<Gamepad>/leftStick"), "the left stick stays");
+            }
+            finally
+            {
+                Object.DestroyImmediate(copy);
+                Object.DestroyImmediate(source);
+            }
+        }
+
+        [Test]
         public void AModuleIsPatchedOnce()
         {
             var go = new GameObject("MenuConfirmTests", typeof(EventSystem));

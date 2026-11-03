@@ -1,0 +1,984 @@
+/* Interface style Original (GoF2Original.uss): the rules for StationMenu.uss, Lounge.uss, Status.uss (station main view, lounge, missions, status).
+   The original station (Reference/research/station_interior.md, lounge_ui.md; shots s14 / s13): the header bar 0x4ff with
+   the station's name on the title plate 0x474, a dark left panel with the system's info, five steel-blue glossy menu
+   buttons (TouchButton style 0, amber while pressed), the green launch button bottom-right (style 0xc: 0x472 / 0x473,
+   here og_launch(_on): its left cap and the mirrored left cap, the undock icon left out for the remake's label), the
+   footer bar 0x507 under the ticker. The lounge: square-cornered scanline windows with a thin steel line, the answers as
+   the glossy bars, Okay green (0x00ed00) and No thanks red (0xff2a00, a little lighter here to read on the bar). Lists
+   take the hangar's rows (drawBox 3 / 4), section headings the section plate (drawBox 1), info boxes and fields the
+   title plate (drawBox 0). */
+
+/* ---- Header: the top bar and the title plate ------------------------------------------------------------------ */
+
+.ui-style-original .top-bar {
+    background-image: url("project://database/Assets/UI/Original/og_header.png");
+    background-repeat: repeat-x;
+    background-size: 332px 100%;
+    padding-bottom: 8px;
+}
+
+.ui-style-original .station-title {
+    background-image: url("project://database/Assets/UI/Original/og_title_plate.png");
+    -unity-slice-left: 24;
+    -unity-slice-right: 140;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 0.5px;
+    margin-left: -14px;
+    padding: 4px 72px 4px 14px;
+    color: #FFFFFF;
+}
+
+.ui-style-original .view-title {
+    border-left-color: var(--gof-line);
+    color: var(--gof-text-dim);
+}
+
+/* Menu (the system menu), its Back and the lounge's Back: the glossy bar. */
+.ui-style-original .station-root .station-menu-button,
+.ui-style-original .system-menu-close,
+.ui-style-original .lounge-back {
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-left-width: 0;
+    border-radius: 0;
+    color: var(--gof-text);
+}
+
+.ui-style-original .station-root .station-menu-button:focus,
+.ui-style-original .station-root .station-menu-button:active,
+.ui-style-original .can-hover .station-root .station-menu-button:hover,
+.ui-style-original.can-hover .station-root .station-menu-button:hover,
+.ui-style-original .system-menu-close:focus,
+.ui-style-original .system-menu-close:active,
+.ui-style-original .can-hover .system-menu-close:hover,
+.ui-style-original.can-hover .system-menu-close:hover,
+.ui-style-original .lounge-back:focus,
+.ui-style-original .lounge-back:active,
+.ui-style-original .can-hover .lounge-back:hover,
+.ui-style-original.can-hover .lounge-back:hover {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* ---- Credits and cargo: the title plate, white as the original's footer --------------------------------------- */
+
+.ui-style-original .station-funds-cargo,
+.ui-style-original .station-funds-credits {
+    background-image: url("project://database/Assets/UI/Original/og_title.png");
+    -unity-slice-left: 34;
+    -unity-slice-right: 34;
+    -unity-slice-top: 12;
+    -unity-slice-bottom: 12;
+    -unity-slice-scale: 0.75px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    color: var(--gof-text);
+}
+
+.ui-style-original .station-funds-credits {
+    color: #FFFFFF;
+}
+
+.ui-style-original .station-funds-cargo--over {
+    color: #FF6B5E;
+    -unity-background-image-tint-color: #FF9A90;
+}
+
+/* ---- Left panel: the system's info on the section plate ------------------------------------------------------- */
+
+.ui-style-original .station-info {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+    border-radius: 0;
+}
+
+.ui-style-original .info-system {
+    color: #FFFFFF;
+}
+
+.ui-style-original .info-line {
+    color: var(--gof-text);
+}
+
+/* ---- Station buttons (menu, dialog answers, Missions' Show on map, the system menu's rows): the glossy bar ---- */
+
+.ui-style-original .station-button {
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.88);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-left-width: 0;
+    border-left-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+    color: var(--gof-text);
+}
+
+/* The screen showing: the bar at full brightness, white text (the original marks none; the remake has a cyan edge). */
+.ui-style-original .station-button--current {
+    -unity-background-image-tint-color: #FFFFFF;
+    background-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* Focus, hover and pressed: amber. The label stays put (the original's buttons don't slide). */
+.ui-style-original .station-button:focus,
+.ui-style-original .station-button:active,
+.ui-style-original .can-hover .station-button:hover,
+.ui-style-original.can-hover .station-button:hover {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    -unity-background-image-tint-color: #FFFFFF;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+    padding-left: 20px;
+}
+
+.ui-style-original .station-button.chat-choice:focus,
+.ui-style-original .can-hover .station-button.chat-choice:hover,
+.ui-style-original.can-hover .station-button.chat-choice:hover {
+    padding-left: 16px;
+}
+
+/* The answers' colours (TouchButton): Okay green, No thanks / Discard red, in every state. */
+.ui-style-original .station-button.chat-choice--ok,
+.ui-style-original .station-button.chat-choice--ok:focus,
+.ui-style-original .station-button.chat-choice--ok:active,
+.ui-style-original .can-hover .station-button.chat-choice--ok:hover,
+.ui-style-original.can-hover .station-button.chat-choice--ok:hover {
+    color: #00ED00;
+}
+
+.ui-style-original .station-button.chat-choice--no,
+.ui-style-original .station-button.chat-choice--no:focus,
+.ui-style-original .station-button.chat-choice--no:active,
+.ui-style-original .can-hover .station-button.chat-choice--no:hover,
+.ui-style-original.can-hover .station-button.chat-choice--no:hover {
+    color: #FF4020;
+}
+
+.ui-style-original .station-button.missions-discard,
+.ui-style-original .station-button.missions-discard:focus,
+.ui-style-original .station-button.missions-discard:active,
+.ui-style-original .can-hover .station-button.missions-discard:hover,
+.ui-style-original.can-hover .station-button.missions-discard:hover {
+    color: #FF6A5A;
+}
+
+/* ---- Launch: the original's green button (0x472), amber while focused / pressed (0x473) ------------------------- */
+
+.ui-style-original .launch-button {
+    background-image: url("project://database/Assets/UI/Original/og_launch.png");
+    -unity-slice-left: 38;
+    -unity-slice-right: 38;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 1px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    color: #FFFFFF;
+}
+
+.ui-style-original .launch-button:focus,
+.ui-style-original .launch-button:active,
+.ui-style-original .can-hover .launch-button:hover,
+.ui-style-original.can-hover .launch-button:hover {
+    background-image: url("project://database/Assets/UI/Original/og_launch_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* ---- News ticker: the footer bar ------------------------------------------------------------------------------ */
+
+.ui-style-original .station-ticker {
+    background-image: url("project://database/Assets/UI/Original/og_footer.png");
+    background-repeat: repeat-x;
+    background-size: 332px 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    border-top-width: 0;
+    border-bottom-width: 0;
+}
+
+.ui-style-original .station-ticker-text {
+    color: var(--gof-text-dim);
+}
+
+/* ---- Confirmation dialog and system menu: opaque tiles (#31: nothing reads through them) ---------------------- */
+
+.ui-style-original .station-dialog,
+.ui-style-original .system-menu {
+    background-color: rgb(4, 4, 6);
+    -unity-background-image-tint-color: #FFFFFF;
+}
+
+.ui-style-original .system-menu-title {
+    color: #FFFFFF;
+}
+
+/* ---- New medal toast: the scanline tile (its border colours stay the grade's, set in code) -------------------- */
+
+.ui-style-original .medal-toast {
+    background-image: url("project://database/Assets/UI/Original/og_panel_bg.png");
+    background-repeat: repeat;
+    background-size: 320px 320px;
+    background-color: rgb(6, 6, 9);
+    border-radius: 0;
+}
+
+.ui-style-original .medal-toast--flash {
+    -unity-background-image-tint-color: #FFD9A0;
+}
+
+/* ---- Lounge: name tags, the visitor drawer and rows ----------------------------------------------------------- */
+
+.ui-style-original .lounge-tag {
+    background-image: url("project://database/Assets/UI/Original/og_title.png");
+    -unity-slice-left: 34;
+    -unity-slice-right: 34;
+    -unity-slice-top: 12;
+    -unity-slice-bottom: 12;
+    -unity-slice-scale: 0.75px;
+    background-color: rgba(0, 0, 0, 0.35);
+    border-width: 0;
+    border-radius: 0;
+}
+
+.ui-style-original .lounge-tag--selected {
+    -unity-background-image-tint-color: #FFC98A;
+    background-color: rgba(40, 26, 6, 0.5);
+}
+
+.ui-style-original .lounge-drawer-tab {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+    border-radius: 0;
+}
+
+.ui-style-original .lounge-drawer-tab:focus,
+.ui-style-original .can-hover .lounge-drawer-tab:hover,
+.ui-style-original.can-hover .lounge-drawer-tab:hover {
+    -unity-background-image-tint-color: #FFC98A;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* The rows keep the remake's dark scrim under the faint row (over the lit bars the names need it). */
+.ui-style-original .lounge-row {
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(4, 4, 6, 0.85);
+    border-left-width: 0;
+    border-radius: 0;
+}
+
+.ui-style-original .lounge-row:focus,
+.ui-style-original .lounge-row--selected,
+.ui-style-original .can-hover .lounge-row:hover,
+.ui-style-original.can-hover .lounge-row:hover {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(10, 7, 3, 0.85);
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .lounge-row-sub {
+    color: var(--gof-text-dim);
+}
+
+/* ---- Chat window: the scanline window (GoF2Original.uss), its header on the top bar --------------------------- */
+
+.ui-style-original .chat-header {
+    background-image: url("project://database/Assets/UI/Original/og_header.png");
+    background-repeat: repeat-x;
+    background-size: 332px 100%;
+    background-color: rgba(0, 0, 0, 0);
+    border-bottom-color: var(--gof-line);
+}
+
+.ui-style-original .chat-name {
+    color: #FFFFFF;
+}
+
+.ui-style-original .chat-text {
+    color: var(--gof-text);
+}
+
+/* ---- Missions window: tabs as the glossy bar, headings on the section plate, the wanted list as rows ---------- */
+
+.ui-style-original .missions-title {
+    color: #FFFFFF;
+}
+
+.ui-style-original .missions-tab {
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-bottom-width: 0;
+    border-radius: 0;
+    color: var(--gof-text-dim);
+}
+
+.ui-style-original .missions-tab--active,
+.ui-style-original .missions-tab:focus,
+.ui-style-original .missions-tab:active {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+.ui-style-original .can-hover .missions-tab:hover,
+.ui-style-original.can-hover .missions-tab:hover {
+    color: #FFFFFF;
+}
+
+.ui-style-original .missions-heading,
+.ui-style-original .status-plate {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    padding: 6px 14px;
+    color: #FFFFFF;
+}
+
+.ui-style-original .wanted-row {
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+    border-radius: 0;
+}
+
+.ui-style-original .wanted-row--selected,
+.ui-style-original .wanted-row:focus,
+.ui-style-original .can-hover .wanted-row:hover,
+.ui-style-original.can-hover .wanted-row:hover {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+/* ---- Status window: info boxes and the medal hint on the title plate ------------------------------------------ */
+
+.ui-style-original .status-box,
+.ui-style-original .medal-hint {
+    background-image: url("project://database/Assets/UI/Original/og_title.png");
+    -unity-slice-left: 34;
+    -unity-slice-right: 34;
+    -unity-slice-top: 12;
+    -unity-slice-bottom: 12;
+    -unity-slice-scale: 0.75px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+}
+
+.ui-style-original .stat-line-label,
+.ui-style-original .rep-name,
+.ui-style-original .medal-summary,
+.ui-style-original .medal-progress-count {
+    color: var(--gof-text-dim);
+}
+
+.ui-style-original .rep-track,
+.ui-style-original .rep-fill,
+.ui-style-original .medal-progress-bar {
+    border-radius: 0;
+}
+
+/* ================================================================================================================
+   Layout pass: the original Full HD station view (s14.jpg, f175.jpg; ogref/SPEC.md "Station menu"). These rules come
+   after the skin above and replace its plates where the original has plain text.
+   ================================================================================================================ */
+
+/* Original: the header bar, y 0-30, opaque #070B10 -> #0C131B, a 1 px line #1E2A36 under it (the remake's top scrim
+   becomes the bar; it fades with the menu for Inspect ship as before). */
+.ui-style-original .station-root .top-shade {
+    height: 30px;
+    scale: 1 1;
+    background-image: none;
+    background-color: rgb(6, 8, 8);
+    border-bottom-width: 1px;
+    border-bottom-color: #1E2A36;
+}
+
+/* Original: the footer bar, y 1043-1080 (37 px), opaque #070B10, a 1 px line #1E2A36 over it. */
+.ui-style-original .station-root .bottom-shade {
+    height: 37px;
+    background-image: none;
+    background-color: rgb(5, 6, 6);
+    border-top-width: 1px;
+    border-top-color: #1E2A36;
+}
+
+/* Original: the left sidebar, x 0-180, from the header down to the footer, #0A0F15 at 88 %, a hard right edge. */
+.ui-style-original .station-root .side-shade {
+    top: 30px;
+    bottom: 37px;
+    width: 180px;
+    background-image: none;
+    background-color: rgba(8, 8, 7, 0.9);
+}
+
+/* The header's row over the whole screen (picking ignored), so the Game Options button can sit in the footer. */
+.ui-style-original .top-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    padding: 0;
+    align-items: flex-start;
+    background-image: none;
+}
+
+/* Original: "Psa Tori Station" at x 11 in the 30 px bar, ~15 px regular, title case, no plate. */
+.ui-style-original .station-title {
+    height: 30px;
+    margin: 0;
+    padding: 0 0 0 11px;
+    background-image: none;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-left;
+    -unity-font-style: normal;
+    text-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    color: #E6EAEE;
+}
+
+/* The remake's view title (Space Lounge, Hangar...) after the name, dim, no amber divider. */
+.ui-style-original .view-title {
+    height: 30px;
+    margin-left: 14px;
+    padding-left: 0;
+    border-left-width: 0;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-left;
+    text-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    color: #8C9BA8;
+}
+
+/* Original: the footer's "Game Options" button, 159x31 at the bottom left with an arrow-pointed left end. */
+.ui-style-original .station-root .station-menu-button,
+.ui-style-original .lounge-back {
+    position: absolute;
+    left: 5px;
+    bottom: 3px;
+    width: 159px;
+    height: 31px;
+    min-width: 0;
+    margin: 0;
+    padding: 0 6px 0 14px;
+    background-image: url("project://database/Assets/UI/Original/og_st_back.png");
+    -unity-slice-left: 16;
+    -unity-slice-right: 4;
+    -unity-slice-top: 4;
+    -unity-slice-bottom: 4;
+    -unity-slice-scale: 1px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-center;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+.ui-style-original .station-root .station-menu-button:focus,
+.ui-style-original .station-root .station-menu-button:active,
+.ui-style-original .can-hover .station-root .station-menu-button:hover,
+.ui-style-original.can-hover .station-root .station-menu-button:hover,
+.ui-style-original .lounge-back:focus,
+.ui-style-original .lounge-back:active,
+.ui-style-original .can-hover .lounge-back:hover,
+.ui-style-original.can-hover .lounge-back:hover {
+    background-image: url("project://database/Assets/UI/Original/og_st_back_on.png");
+    color: #FFFFFF;
+}
+
+/* The lounge has its Back in the footer's corner (s13): the Game Options button moves left of the header's help there. */
+.ui-style-original.lounge-open .station-root .station-menu-button,
+.ui-style-original .lounge-open .station-root .station-menu-button {
+    left: auto;
+    right: 62px;
+    top: 0;
+    bottom: auto;
+    width: 130px;
+    height: 30px;
+    background-image: url("project://database/Assets/UI/Original/og_st_button.png");
+    -unity-slice-left: 4;
+}
+
+.ui-style-original.lounge-open .station-root .station-menu-button:focus,
+.ui-style-original .lounge-open .station-root .station-menu-button:focus,
+.ui-style-original.can-hover.lounge-open .station-root .station-menu-button:hover,
+.ui-style-original .can-hover.lounge-open .station-root .station-menu-button:hover,
+.ui-style-original.can-hover.lounge-open .station-root .station-menu-button:hover {
+    background-image: url("project://database/Assets/UI/Original/og_st_button_on.png");
+}
+
+/* Original: the help "?" in the header's top-right corner (x 1862-1920). */
+.ui-style-original .station-lounge-help {
+    position: absolute;
+    right: 0;
+    top: 0;
+    margin: 0;
+}
+
+/* Original: cargo plain text centred in the footer, credits plain text right-aligned ending left of Launch. */
+.ui-style-original .station-funds {
+    left: 0;
+    right: 62px;
+    top: auto;
+    bottom: 0;
+    height: 37px;
+}
+
+.ui-style-original .station-funds-cargo,
+.ui-style-original .station-funds-credits {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0;
+    background-image: none;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+.ui-style-original .station-funds-cargo {
+    left: 0;
+    right: 0;
+    -unity-text-align: middle-center;
+}
+
+.ui-style-original .station-funds-credits {
+    right: 0;
+    -unity-text-align: middle-right;
+}
+
+.ui-style-original .station-funds-cargo--over {
+    color: #FF6B5E;
+}
+
+/* Original: the sidebar's contents, full height between the bars. */
+.ui-style-original .side-panel {
+    left: 0;
+    top: 30px;
+    bottom: 37px;
+    width: 180px;
+}
+
+.ui-style-original.layout-phone .side-panel,
+.ui-style-original .layout-phone .side-panel {
+    width: 180px;
+}
+
+/* Original: emblem ~48x50 at (5, 40), the three lines at x 59, ~15 px with a 21 px pitch, no plate, no cyan edge. */
+.ui-style-original .station-info {
+    padding: 10px 4px 0 5px;
+    background-image: none;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+}
+
+.ui-style-original .station-info--emblem {
+    align-items: flex-start;
+}
+
+.ui-style-original .info-race-icon {
+    width: 48px;
+    height: 50px;
+    margin-right: 6px;
+}
+
+.ui-style-original .info-system,
+.ui-style-original .info-line {
+    margin: 0;
+    height: 21px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-left;
+    -unity-font-style: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    color: #E6EAEE;
+}
+
+/* Original: the menu buttons stacked at the sidebar's bottom, 168x27 at x 6, 36 px pitch, ending 7 px over the footer. */
+.ui-style-original .station-buttons {
+    padding: 0 6px 7px 6px;
+}
+
+.ui-style-original .station-buttons .station-button {
+    height: 27px;
+    margin: 9px 0 0 0;
+    padding: 0 8px;
+    background-image: url("project://database/Assets/UI/Original/og_st_button.png");
+    -unity-slice-left: 4;
+    -unity-slice-right: 4;
+    -unity-slice-top: 4;
+    -unity-slice-bottom: 4;
+    -unity-slice-scale: 1px;
+    -unity-background-image-tint-color: #FFFFFF;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-left;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+/* Focus, hover and pressed: the bronze bar, the label stays put (no slide). */
+.ui-style-original .station-buttons .station-button:focus,
+.ui-style-original .station-buttons .station-button:active,
+.ui-style-original .can-hover .station-buttons .station-button:hover,
+.ui-style-original.can-hover .station-buttons .station-button:hover {
+    background-image: url("project://database/Assets/UI/Original/og_st_button_on.png");
+    padding-left: 8px;
+    color: #FFFFFF;
+}
+
+/* Original: the launch button in the far bottom-right corner, ~58x34 green with a slanted left edge; the remake's label
+   and key glyph kept, small. */
+.ui-style-original .launch-button {
+    right: 0;
+    bottom: 0;
+    height: 36px;
+    min-width: 58px;
+    padding: 0 8px 0 18px;
+    background-image: url("project://database/Assets/UI/Original/og_st_launch.png");
+    -unity-slice-left: 16;
+    -unity-slice-right: 4;
+    -unity-slice-top: 4;
+    -unity-slice-bottom: 4;
+    -unity-slice-scale: 1px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+}
+
+.ui-style-original .launch-button:focus,
+.ui-style-original .launch-button:active,
+.ui-style-original .can-hover .launch-button:hover,
+.ui-style-original.can-hover .launch-button:hover {
+    background-image: url("project://database/Assets/UI/Original/og_st_launch_on.png");
+    scale: 1 1;
+}
+
+/* The key hints left of Launch: just over the footer, clear of the sidebar. */
+.ui-style-original .station-hints {
+    right: 70px;
+    bottom: 64px;
+}
+
+/* Original: the news ticker as plain dim text just above the footer, no strip (x from the sidebar's edge). */
+.ui-style-original .station-ticker {
+    left: 180px;
+    bottom: 37px;
+    height: 24px;
+    background-image: none;
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 0;
+    border-bottom-width: 0;
+}
+
+.ui-style-original .station-ticker-text {
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    color: rgba(154, 164, 174, 0.75);
+}
+
+/* ---- Lounge (s13): header and footer bars only, the visitors right, the dialogue as two stacked square panels ---- */
+
+.ui-style-original .lounge-list {
+    top: 44px;
+    right: 12px;
+}
+
+.ui-style-original .lounge-rows {
+    width: 300px;
+}
+
+.ui-style-original .lounge-row {
+    margin: 0 0 4px 0;
+    padding: 4px 10px;
+    background-image: none;
+    background-color: rgba(8, 12, 20, 0.85);
+    border-width: 1px;
+    border-color: #3A4F66;
+}
+
+.ui-style-original .lounge-row:focus,
+.ui-style-original .lounge-row--selected,
+.ui-style-original .can-hover .lounge-row:hover,
+.ui-style-original.can-hover .lounge-row:hover {
+    margin-left: 0;
+    background-image: none;
+    background-color: rgba(62, 44, 24, 0.9);
+    border-color: #7A5530;
+}
+
+.ui-style-original .lounge-row-name {
+    font-size: var(--text-caption);
+    color: #E6EAEE;
+}
+
+.ui-style-original .lounge-row-sub {
+    font-size: var(--text-caption);
+    color: #8C9BA8;
+}
+
+.ui-style-original .lounge-drawer-tab {
+    width: 28px;
+    height: 56px;
+    margin: 0 4px 0 0;
+    background-image: none;
+    background-color: rgba(8, 12, 20, 0.85);
+    border-width: 1px;
+    border-color: #3A4F66;
+    border-radius: 0;
+}
+
+.ui-style-original .lounge-drawer-arrow {
+    font-size: var(--text-body);
+}
+
+/* Original: the dialogue window, square, body #080C14 ~88 %, 1 px steel line, no cyan top edge; small text. */
+.ui-style-original .chat-window {
+    width: 620px;
+    bottom: 80px;
+    background-image: none;
+    background-color: rgba(8, 12, 20, 0.88);
+    border-width: 1px;
+    border-top-width: 1px;
+    border-color: #3A4F66;
+    border-top-color: #3A4F66;
+}
+
+.ui-style-original .chat-header {
+    height: 27px;
+    padding: 0 0 0 7px;
+    background-image: none;
+    background-color: #1C242C;
+    border-bottom-width: 1px;
+    border-bottom-color: #3A444E;
+}
+
+.ui-style-original .chat-name {
+    font-size: var(--text-caption);
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+.ui-style-original .chat-sub {
+    font-size: var(--text-caption);
+    color: #8C9BA8;
+}
+
+.ui-style-original .chat-body {
+    padding: 8px 10px 0 8px;
+}
+
+.ui-style-original .chat-portrait {
+    border-width: 1px;
+    border-color: #2A323A;
+    border-radius: 0;
+}
+
+.ui-style-original .chat-text {
+    font-size: var(--text-caption);
+    color: #E6EAEE;
+}
+
+/* Original: the answers as 30 px glossy bars, text centred, Okay green / No thanks red (the colours above). */
+.ui-style-original .chat-choices {
+    border-top-width: 1px;
+    border-top-color: #3A4F66;
+    padding-top: 6px;
+    padding-bottom: 8px;
+}
+
+.ui-style-original .station-button.chat-choice {
+    height: 30px;
+    margin: 0 0 6px 0;
+    padding: 0 10px;
+    background-image: url("project://database/Assets/UI/Original/og_st_button.png");
+    -unity-slice-left: 4;
+    -unity-slice-right: 4;
+    -unity-slice-top: 4;
+    -unity-slice-bottom: 4;
+    -unity-slice-scale: 1px;
+    font-size: var(--text-caption);
+    -unity-text-align: middle-center;
+}
+
+.ui-style-original .station-button.chat-choice:focus,
+.ui-style-original .station-button.chat-choice:active,
+.ui-style-original .can-hover .station-button.chat-choice:hover,
+.ui-style-original.can-hover .station-button.chat-choice:hover {
+    background-image: url("project://database/Assets/UI/Original/og_st_button_on.png");
+    padding-left: 10px;
+}
+
+/* ---- Missions and Status windows: thin steel line, no cyan top edge, small regular text ----------------------- */
+
+.ui-style-original .missions-window,
+.ui-style-original .status-window {
+    border-width: 1px;
+    border-top-width: 1px;
+    border-color: #3E4B57;
+    border-top-color: #3E4B57;
+    border-radius: 0;
+}
+
+.ui-style-original .missions-title {
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+.ui-style-original .missions-tab {
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+}
+
+.ui-style-original .missions-heading,
+.ui-style-original .status-plate {
+    height: 20px;
+    padding: 0 6px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-left;
+    -unity-font-style: normal;
+}
+
+/* ---- Confirmation and system menu: no amber / cyan top edge, a thin steel line ------------------------------- */
+
+.ui-style-original .station-dialog,
+.ui-style-original .system-menu {
+    border-width: 1px;
+    border-top-width: 1px;
+    border-color: #5C6670;
+    border-top-color: #5C6670;
+}
+
+.ui-style-original .station-dialog-text {
+    font-size: var(--text-caption);
+}
+
+.ui-style-original .system-menu-title {
+    font-size: var(--text-body);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+}
+
+/* ---- Second pass, checked in Unity -------------------------------------------------------------------------- */
+
+/* The credits end left of the launch button (its key glyph and label make it ~120 px wide, not the original's 58). */
+.ui-style-original .station-funds {
+    right: 128px;
+}
+
+/* Original (s13): the conversation is a compact block left of the screen's centre (x 451-853, y 562 of 1080: 402 px
+   wide), the portrait ~104 x 130 at its left, the text right of it, the answers under the text; never docked to an edge. */
+.ui-style-original .chat-window,
+.ui-style-original .chat-window--left {
+    width: 420px;
+    left: 23.5%;
+    right: auto;
+    top: 52%;
+    bottom: auto;
+    max-height: 46%;
+}
+
+.ui-style-original .chat-body {
+    padding: 3px 8px 0 3px;
+}
+
+.ui-style-original .chat-body .chat-portrait {
+    width: 106px;
+    height: 132px;
+    margin-right: 9px;
+    background-color: rgb(8, 22, 28);
+    overflow: hidden;
+}
+
+.ui-style-original .chat-body .chat-portrait .portrait-layers,
+.ui-style-original .chat-body .chat-portrait .portrait-frame {
+    transform-origin: left top;
+    scale: 0.65 0.65;
+}
+
+.ui-style-original .chat-body .portrait--mirrored .portrait-layers {
+    scale: -0.65 0.65;
+    translate: 104px 0;
+}
+
+.ui-style-original .chat-scroll {
+    min-height: 124px;
+    max-height: 220px;
+}
+
+/* The answers in the text's column (the original's lower panel holds the player's portrait at the left). */
+.ui-style-original .chat-choices {
+    padding: 6px 8px 4px 118px;
+}
+
+.ui-style-original .station-button.chat-choice {
+    height: 30px;
+    margin: 0 0 6px 0;
+}
+
+/* Second pass, checked in Unity: the lounge's "?" is placed in code (relative, 40 px, at the strip's top-right end), so
+   the absolute placement above never applied and it hung out of the 30 px strip, flush with the screen's edge. Scaled to
+   the original's small button and centred on the strip. */
+.ui-style-original .station-root .station-lounge-help {
+    scale: 0.6 0.6;
+    translate: -6px -5px;
+}

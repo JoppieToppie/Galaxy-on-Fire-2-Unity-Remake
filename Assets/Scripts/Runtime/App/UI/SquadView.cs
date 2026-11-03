@@ -115,7 +115,7 @@ namespace GoF2Remake.UI
             codePlate.AddToClassList("station-info");
             codePlate.AddToClassList("squad-code");
             if (sheet != null) codePlate.styleSheets.Add(sheet);
-            var title = new Label(Localization.Extra("mpJoinCode", "Join code").ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+            var title = new Label(Localization.Extra("mpJoinCode", "Join code").UiCaps()) { pickingMode = PickingMode.Ignore };
             title.AddToClassList("info-line");
             title.AddToClassList("squad-code-title");
             codePlate.Add(title);
@@ -130,7 +130,7 @@ namespace GoF2Remake.UI
             {
                 if (NetGame.JoinCode == null) return;
                 GUIUtility.systemCopyBuffer = NetGame.JoinCode;
-                copyButton.text = Localization.Extra("mpCopied", "copied").ToUpperInvariant();
+                copyButton.text = Localization.Extra("mpCopied", "copied").UiCaps();
             }, null);
             row.Add(copyButton);
             codePlate.Add(row);
@@ -145,7 +145,7 @@ namespace GoF2Remake.UI
             if (code != null && codeLabel.text != code)
             {
                 codeLabel.text = code;
-                copyButton.text = Localization.Extra("mpCopy", "copy").ToUpperInvariant();
+                copyButton.text = Localization.Extra("mpCopy", "copy").UiCaps();
             }
         }
 
@@ -174,7 +174,7 @@ namespace GoF2Remake.UI
             var popup = new VisualElement();
             popup.AddToClassList("squad-invite");
             if (sheet != null) popup.styleSheets.Add(sheet);
-            var heading = new Label(title.ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+            var heading = new Label(title.UiCaps()) { pickingMode = PickingMode.Ignore };
             heading.AddToClassList("panel-title");
             heading.AddToClassList("squad-invite-title");
             popup.Add(heading);
@@ -198,7 +198,7 @@ namespace GoF2Remake.UI
         /// answer the popup) and with its controller glyph inside it (A only on the focused one, like a dialog's).</summary>
         static Button PopupButton(string text, System.Action onClick, bool primary)
         {
-            var b = new Button(onClick) { text = text.ToUpperInvariant(), focusable = true };
+            var b = new Button(onClick) { text = text.UiCaps(), focusable = true };
             b.AddToClassList("gof-button");
             if (primary) b.AddToClassList("gof-button--primary");
             InputGlyph.PadPrompt(b, primary ? PadButton.A : PadButton.B, primary);
@@ -207,7 +207,7 @@ namespace GoF2Remake.UI
 
         static Button MakeButton(string text, System.Action onClick, string cls, bool focusable = false)
         {
-            var b = new Button(onClick) { text = text.ToUpperInvariant(), focusable = focusable };
+            var b = new Button(onClick) { text = text.UiCaps(), focusable = focusable };
             b.AddToClassList("squad-button");
             if (cls != null) b.AddToClassList(cls);
             return b;
@@ -272,7 +272,7 @@ namespace GoF2Remake.UI
             if (key != squadKey)
             {
                 squadKey = key;
-                squadHeader.text = $"{Localization.Extra("mpSquad", "Squad").ToUpperInvariant()} ({members.Count})  {(squadCollapsed ? "+" : "-")}";
+                squadHeader.text = $"{Localization.Extra("mpSquad", "Squad").UiCaps()} ({members.Count})  {(squadCollapsed ? "+" : "-")}";
                 squadBody.Clear();
                 bars.Clear();
                 squadBody.style.display = squadCollapsed ? DisplayStyle.None : DisplayStyle.Flex;
@@ -357,7 +357,7 @@ namespace GoF2Remake.UI
             string key = sb.ToString();
             if (key == pilotsKey) return;
             pilotsKey = key;
-            pilotsHeader.text = $"{Localization.Extra("mpPilotsHere", "Pilots in this hangar").ToUpperInvariant()} ({pilots.Count})  {(pilotsCollapsed ? "+" : "-")}";
+            pilotsHeader.text = $"{Localization.Extra("mpPilotsHere", "Pilots in this hangar").UiCaps()} ({pilots.Count})  {(pilotsCollapsed ? "+" : "-")}";
             pilotsBody.Clear();
             pilotsBody.style.display = pilotsCollapsed ? DisplayStyle.None : DisplayStyle.Flex;
             int shown = 0;

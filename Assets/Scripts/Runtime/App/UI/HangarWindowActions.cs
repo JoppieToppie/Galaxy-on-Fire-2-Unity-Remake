@@ -86,6 +86,9 @@ namespace GoF2Remake.UI
                 case RowKind.Complete:
                     Complete();
                     break;
+                case RowKind.VipCard:
+                    AskBuyVip();   // remake: the Kaamo Club VIP Card
+                    break;
                 case RowKind.Slot when selected.equipment >= 0:
                 {
                     int item = Session.Equipment[selected.equipment].item;

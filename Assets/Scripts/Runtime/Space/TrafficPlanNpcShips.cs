@@ -151,6 +151,18 @@ namespace GoF2Remake.Flight
             if (t.hardpoints != null)
                 for (int i = list.Count - 1; i > first; i--)   // its hardpoints replace the hull's turrets (CapitalSubsystems)
                     if (list[i].capitalHost == host && list[i].group == NpcGroup.Turret) list.RemoveAt(i);
+            if (!Mathf.Approximately(t.scale, 1f))
+            {
+                // Its size: the model (NpcShip.Setup; its boxes by SpawnSpec.HullScale), the game hull's turrets out from its
+                // centre and as big.
+                host.scale *= t.scale;
+                for (int i = first + 1; i < list.Count; i++)
+                    if (list[i].capitalHost == host && list[i].group == NpcGroup.Turret)
+                    {
+                        list[i].position = host.position + (list[i].position - host.position) * t.scale;
+                        list[i].scale *= t.scale;
+                    }
+            }
             if (t.escorts != null) AddNpcEscorts(db, list, host, t, ownEscorts);
             RollNpcLoot(db, host, t);
             if (t.kind == ModNpcShips.Capital)
@@ -214,9 +226,9 @@ namespace GoF2Remake.Flight
         static Route NpcLoop(SpawnSpec host, int start)
         {
             var loop = World.CapitalShips.LoopAround(host, host.position, start);
-            if (!host.modCapital) return loop;
-            float length = ModTraffic.HullLength(host.ship) / 0.05f;   // metres -> game units
-            float r = Mathf.Max(0.6f, length / 70000f);
+            if (!host.modCapital && Mathf.Approximately(host.HullScale, 1f)) return loop;
+            float r = host.modCapital ? Mathf.Max(0.6f, ModTraffic.HullLength(host.ship) / 0.05f / 70000f) : 1f;   // metres -> game units
+            r *= Mathf.Max(1f, host.HullScale);   // wider round a bigger hull
             for (int k = 0; k < loop.points.Count; k++) loop.points[k] = host.position + (loop.points[k] - host.position) * r;
             return loop;
         }
@@ -310,7 +322,7 @@ namespace GoF2Remake.Flight
             else roll = () => new Vector3(Random.Range(0, 80000) - 40000, Random.Range(0, 10000) - 5000, Random.Range(0, 80000) + 80000);
             var volumes = t.ship >= 0 ? CollisionVolume.ForFreighter(t.ship, race)
                         : CapitalKindOf(t.BaseKey) is int k && k != 0 ? CapitalVolumes(k) : CollisionVolume.ForFreighter(15, race);
-            return ClearOfStation(station, volumes, roll);
+            return ClearOfStation(station, CollisionVolume.Scaled(volumes, t.scale), roll);
         }
     }
 }

@@ -159,6 +159,8 @@ namespace GoF2Remake.Data
         /// <summary>Status+0x114 (Reference/research/kaamo_club.md 2): the Kaamo Club, 0 not owned, 1 Mkkt Bkkt's call
         /// heard, 2 purchasable, 3 owned.</summary>
         public static int KaamoState;
+        /// <summary>Remake: the Kaamo Club VIP Card was bought (KaamoClub.VipFeatures; saved, carried into New Game+).</summary>
+        public static bool KaamoVip;
         /// <summary>Status+0xf4: the selected secondary weapon item (-1 = none), kept while it stays mounted.</summary>
         public static int SelectedSecondary = -1;
         /// <summary>Status+200: nukes detonated (medal 20).</summary>
@@ -481,6 +483,16 @@ namespace GoF2Remake.Data
         /// <summary>GameRecord::load(last save): back to the docked state of the auto-save.</summary>
         public static bool LoadAutosave() => SaveGame.Load(SaveGame.AutoSaveSlot);
 
+        /// <summary>Status::resetGame's ship, loadout, cargo and credits alone: the Phantom, its weapons and equipment, an
+        /// empty hold, no credits (a co-op campaign's start after the multiplayer session's free-play start, CoopCampaign).</summary>
+        public static void ResetStartShip()
+        {
+            ShipIndex = 10;
+            Equipment = StartEquipment();
+            Cargo = new List<ItemStack>();
+            Credits = 0;
+        }
+
         public static void ResetNewGame()
         {
             PlaySeconds = 0f;
@@ -533,6 +545,7 @@ namespace GoF2Remake.Data
             CoreTypesMined = new HashSet<int>();
             ShipMods = new List<int>();
             KaamoState = 0;
+            KaamoVip = false;
             SelectedSecondary = -1;
             BombsDetonated = 0;
             PirateBaseDestroyed = new bool[4];

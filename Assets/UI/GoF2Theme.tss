@@ -1,1 +1,6 @@
 @import url("project://database/Assets/UI/GoF2Common.uss");
+@import url("project://database/Assets/UI/GoF2Original.uss");
+@import url("project://database/Assets/UI/Original/OriginalMainMenu.uss");
+@import url("project://database/Assets/UI/Original/OriginalStation.uss");
+@import url("project://database/Assets/UI/Original/OriginalHangar.uss");
+@import url("project://database/Assets/UI/Original/OriginalFlight.uss");

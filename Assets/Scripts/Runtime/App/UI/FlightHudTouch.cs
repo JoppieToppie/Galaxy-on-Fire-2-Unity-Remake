@@ -106,7 +106,7 @@ namespace GoF2Remake.UI
                 f.cursor = cursorMode;
                 bool cinematic = level.Cutscene || !level.LaunchCameraOver || (nav != null && nav.Jumping) || (jump != null && jump.Cinematic);
                 f.cinematic = cinematic;
-                f.mode = cinematic || (carrierShop != null && carrierShop.IsOpen) ? TouchControls.Mode.PauseOnly
+                f.mode = cinematic || (carrierShop != null && carrierShop.IsOpen) || (dockedMenu != null && dockedMenu.IsOpen) ? TouchControls.Mode.PauseOnly
                        : nav != null && nav.MenuOpen ? TouchControls.Mode.MenuOpen : TouchControls.Mode.Full;
                 touchNavShown = f.mode != TouchControls.Mode.PauseOnly;
                 var phase = mining != null ? mining.State : Mining.Phase.Idle;

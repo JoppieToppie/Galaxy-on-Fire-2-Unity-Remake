@@ -45,6 +45,8 @@ namespace GoF2Remake.Vr
         public static float LeftGrip => lGrip != null ? lGrip.ReadValue<float>() : 0f;
         /// <summary>The right grip (VrRig: grabbing with the laser), 0..1.</summary>
         public static float RightGrip => rGrip != null ? rGrip.ReadValue<float>() : 0f;
+        /// <summary>Both thumbsticks clicked together (VrRig: recentre the view, #205).</summary>
+        public static bool BothSticksClicked => lClick != null && rClick != null && lClick.IsPressed() && rClick.IsPressed();
 
         static InputAction Add(string name, string type, params string[] paths)
         {

@@ -565,9 +565,32 @@ namespace GoF2Remake.World
                 entries.Add((MiningPlant.LeaveEntry, null));
                 Traffic.ShowMenu(MiningPlant.Title, new System.Collections.Generic.List<MenuSection> { MiningPlant.Section(db), WasteProcessing.Section(db) }, entries);
             }
+            // Remake: outside VR the plant's options are the HUD's docked menu (the station menu's look, ObjectDocking.Options):
+            // each its own window, Back to the docked menu; VR keeps the one menu above.
+            void PlantPage(string title, MenuSection section, string entry, System.Func<bool> ready, System.Action act)
+            {
+                var entries = new System.Collections.Generic.List<(string label, System.Action action)>();
+                if (ready()) entries.Add((entry, act));
+                entries.Add((Localization.Extra("hudBack", "BACK"), null));
+                Traffic.ShowMenu(title, new System.Collections.Generic.List<MenuSection> { section }, entries);
+            }
+            void OrePage() => PlantPage(MiningPlant.Title, MiningPlant.Section(db), MiningPlant.ConvertEntry, () => MiningPlant.CoresMade() > 0,
+                                        () => Traffic.Ask(MiningPlant.Result(MiningPlant.Convert()), null, null, OrePage, null));
+            void WastePage() => PlantPage(MiningPlant.Title, WasteProcessing.Section(db), WasteProcessing.MenuEntry(db), () => WasteProcessing.Tons(db) > 0,
+                                          () => Traffic.ShowSorting(WasteProcessing.Process(db), db, WastePage));
+            Docking.Options = t =>
+            {
+                if (GoF2Remake.Data.VrFlags.Enabled || t == null || t.DockingType != ObjectDocking.DropOff
+                    || !MiningPlant.Offered(Session.StationIndex, Layout.alienOrbit)) return null;
+                return new System.Collections.Generic.List<(string label, System.Action open)>
+                {
+                    (MiningPlant.ConvertEntry, OrePage),
+                    (Localization.Extra("plantSortWasteButton", "Sort space waste").ToUpperInvariant(), WastePage),
+                };
+            };
             Docking.Docked += () =>
             {
-                if (Docking.Target == null || Docking.Target.DockingType != ObjectDocking.DropOff
+                if (!GoF2Remake.Data.VrFlags.Enabled || Docking.Target == null || Docking.Target.DockingType != ObjectDocking.DropOff
                     || !MiningPlant.Offered(Session.StationIndex, Layout.alienOrbit)) return;
                 PlantMenu();
             };

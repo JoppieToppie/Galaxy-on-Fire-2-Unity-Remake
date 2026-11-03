@@ -127,8 +127,13 @@ namespace GoF2Remake.UI
         static readonly float[] RenderScales = { 0.5f, 0.67f, 0.75f, 0.8f, 0.9f, 1f, 1.25f, 1.5f, 2f };
         static readonly int[] MsaaSamples = { 1, 2, 4, 8 };
         /// <summary>Options > Graphics "Interface size" and "Screen edge margin" (UiLayout).</summary>
-        static readonly int[] UiScaleSteps = { 80, 90, 100, 110, 125, 150 };
-        static readonly int[] UiTextSteps = { 100, 115, 130, 150, 175, 200 };
+        // Modified (#237): 5 % steps (the first 80 / 90 / 100 / 110 / 125 / 150 and 100 / 115 / 130 / 150 / 175 / 200 were too
+        // coarse on a TV); the old values are all among them, the range and the 100 % default unchanged.
+        static readonly int[] UiScaleSteps = { 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150 };
+        /// <summary>Options > Accessibility "Text size": 100 % and UiLayout.TextSteps (each a ui-text-N class in GoF2Common.uss).</summary>
+        /// <summary>Options > Accessibility "Cursor size" (GameCursor).</summary>
+        static readonly int[] CursorSizeSteps = { 50, 60, 70, 80, 90, 100, 115, 130, 150, 175, 200 };
+        static readonly int[] UiTextSteps = { 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 160, 175, 190, 200 };
         static readonly float[] UiMarginSteps = { -1f, 0f, 2.5f, 5f, 7.5f, 10f };
 
         /// <summary>The options of this platform, page by page.</summary>

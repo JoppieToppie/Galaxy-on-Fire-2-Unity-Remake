@@ -1,0 +1,1230 @@
+/* Interface style Original (GoF2Original.uss): the rules for HangarWindow.uss (hangar shop / ship / cargo / blueprints, item
+   details; the carrier's shop and the lounge chat's close button share its classes). The original's hangar pieces
+   (Reference/research/shop.md 2.1-2.3, Reference/tools/shop/build_item_icons.py), composited into 3-slice images:
+     og_tab / og_tab_press / og_tab_on   TouchButton style 3, the Ship / Shop / Blueprints tabs: caps 0x465 / 0x466 + middle
+                     0x464 (pressed 0x469 / 0x468 / 0x46a, current tab 0x46d / 0x46c / 0x46e), 320 x 60, slices L60 R60
+     og_action(_on)  style 7, the details' buttons (Buy ship, Sell this item, Demount, Edit, Autocomplete): caps 0x6b1 /
+                     0x6b2 + middle 0x6b0 (pressed 0x6b6 / 0x6ad / 0x6b5), 448 x 106, slices L74 R74
+     og_sell(_on)    style 8, sell one (the arrow to the station, left): 0x6ae + 0x6b0 + 0x6b2 (pressed 0x6b3 / 0x6b5 /
+                     0x6ad), 488 x 106, slices L114 R74
+     og_buy(_on)     style 9, buy one (the arrow to the ship, right): 0x6b1 + 0x6b0 + 0x6af (pressed 0x6b6 / 0x6b5 / 0x6b4),
+                     488 x 106, slices L74 R114
+   and the shared pieces: list rows drawBox 3 / 4 (og_row / og_row_on), the trade box and the details' name box drawBox 1
+   (og_plate), the bar under the tabs and the footer bar (og_header / og_footer), the list headers and the description
+   titles on the header's title plate (og_title_plate), the footer's load and credits on the title plate drawBox 0
+   (og_title). The remake's states (focus, hover, drag, mounted, owned, cargo) keep their own marks: the amber piece for
+   selected / pressed / hovered, a steel or amber left edge for mounted rows and drop targets. */
+
+/* ---- window: the tabs on the header bar, the footer bar ----------------------------------------------------------- */
+
+.ui-style-original .hangar-top {
+    background-image: url("project://database/Assets/UI/Original/og_header.png");
+    background-repeat: repeat-x;
+    background-size: 332px 60px;
+    background-position-y: bottom;
+    border-bottom-color: var(--gof-line);
+    padding-bottom: 6px;
+}
+
+.ui-style-original .hangar-tab {
+    background-image: url("project://database/Assets/UI/Original/og_tab.png");
+    -unity-slice-left: 60;
+    -unity-slice-right: 60;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.8px;
+    background-color: rgba(0, 0, 0, 0);
+    border-bottom-width: 0;
+    border-bottom-color: rgba(0, 0, 0, 0);
+    padding: 12px 40px;
+    color: var(--gof-text-dim);
+}
+
+.ui-style-original .can-hover .hangar-tab:hover,
+.ui-style-original.can-hover .hangar-tab:hover {
+    color: #FFFFFF;
+}
+
+.ui-style-original .hangar-tab:active {
+    background-image: url("project://database/Assets/UI/Original/og_tab_press.png");
+    color: #FFFFFF;
+}
+
+.ui-style-original .hangar-tab--active,
+.ui-style-original .can-hover .hangar-tab--active:hover,
+.ui-style-original.can-hover .hangar-tab--active:hover {
+    background-image: url("project://database/Assets/UI/Original/og_tab_on.png");
+    border-bottom-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* The close / undock button and the item window's back: the stations' steel-blue glossy bar, amber when hovered or
+   pressed. */
+.ui-style-original .hangar-close,
+.ui-style-original .info-back {
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    padding: 8px 32px;
+    color: var(--gof-text);
+}
+
+.ui-style-original .can-hover .hangar-close:hover,
+.ui-style-original.can-hover .hangar-close:hover,
+.ui-style-original .hangar-close:active,
+.ui-style-original .can-hover .info-back:hover,
+.ui-style-original.can-hover .info-back:hover,
+.ui-style-original .info-back:active {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+.ui-style-original .hangar-footer {
+    background-image: url("project://database/Assets/UI/Original/og_footer.png");
+    background-repeat: repeat-x;
+    background-size: 332px 74px;
+    background-position-y: top;
+    border-top-color: var(--gof-line);
+}
+
+/* The load and the credits on the title plate (drawBox 0); the credits keep the amber, an overload its red. */
+.ui-style-original .footer-cargo,
+.ui-style-original .footer-credits,
+.ui-style-original .footer-restock {
+    background-image: url("project://database/Assets/UI/Original/og_title.png");
+    -unity-slice-left: 34;
+    -unity-slice-right: 34;
+    -unity-slice-top: 12;
+    -unity-slice-bottom: 12;
+    -unity-slice-scale: 0.75px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    padding: 8px 24px;
+}
+
+.ui-style-original .footer-cargo {
+    color: var(--gof-text);
+}
+
+.ui-style-original .footer-cargo--over {
+    color: #FF6B5E;
+    -unity-background-image-tint-color: #FFB4AC;
+}
+
+.ui-style-original .footer-credits {
+    color: var(--gof-amber);
+}
+
+/* ---- list: drawBox 3 rows, drawBox 4 for the selected one ---------------------------------------------------------- */
+
+.ui-style-original .hangar-list {
+    border-right-color: var(--gof-line);
+}
+
+.ui-style-original .list-header {
+    background-image: url("project://database/Assets/UI/Original/og_title_plate.png");
+    -unity-slice-left: 40;
+    -unity-slice-right: 160;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 0.7px;
+    background-color: rgba(0, 0, 0, 0);
+    margin: 12px 8px 4px 8px;
+    padding: 8px 20px;
+    color: #FFFFFF;
+}
+
+.ui-style-original .list-header--sub {
+    background-image: none;
+    margin: 0;
+    padding: 8px 20px 4px 32px;
+    color: var(--gof-amber);
+}
+
+.ui-style-original .list-row {
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.8px;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+}
+
+/* The Ship tab's mounted items (and a blueprint's goods in the shop): a steel left edge; the hold's items dimmer and
+   indented as in the remake. */
+.ui-style-original .list-row--mounted,
+.ui-style-original .list-row--blueprint-material {
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: var(--gof-cyan);
+}
+
+.ui-style-original .list-row--cargo {
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.6);
+}
+
+.ui-style-original .list-row--owned {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #8FC4FF;
+}
+
+.ui-style-original .can-hover .list-row:hover,
+.ui-style-original.can-hover .list-row:hover {
+    background-color: rgba(157, 191, 219, 0.06);
+}
+
+.ui-style-original .list-row--drop-target {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: var(--gof-amber);
+}
+
+.ui-style-original .list-row--selected,
+.ui-style-original .can-hover .list-row--selected:hover,
+.ui-style-original.can-hover .list-row--selected:hover {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #FFFFFF;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .list-row--blueprint-material.list-row--selected {
+    border-left-color: var(--gof-amber);
+}
+
+.ui-style-original .list-bar-track {
+    background-color: rgba(128, 142, 156, 0.18);
+    border-radius: 0;
+}
+
+.ui-style-original .list-bar-thumb {
+    background-color: rgba(157, 191, 219, 0.55);
+    border-radius: 0;
+}
+
+.ui-style-original .can-hover .list-bar-thumb:hover,
+.ui-style-original.can-hover .list-bar-thumb:hover,
+.ui-style-original .list-bar-thumb--dragging {
+    background-color: var(--gof-amber);
+}
+
+.ui-style-original .row-badge {
+    border-radius: 0;
+}
+
+/* The blueprints' progress bar (0x475-0x477 in the original): a square steel bar. */
+.ui-style-original .bp-bar {
+    background-color: rgba(128, 142, 156, 0.25);
+    border-width: 1px;
+    border-color: var(--gof-line);
+    border-radius: 0;
+}
+
+.ui-style-original .bp-bar-fill {
+    background-color: var(--gof-cyan);
+}
+
+/* A blueprint the hold helps: the original's green. */
+.ui-style-original .row-name--helps {
+    color: #00ED00;
+}
+
+/* ---- details: the trade box on the section plate, the arrows and buttons of styles 7 / 8 / 9 --------------------- */
+
+.ui-style-original .detail-preview,
+.ui-style-original .info-preview {
+    background-color: rgb(4, 6, 10);
+    border-color: var(--gof-line);
+}
+
+.ui-style-original .trade-box {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.75px;
+    background-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+}
+
+.ui-style-original .trade-arrow {
+    background-image: url("project://database/Assets/UI/Original/og_sell.png");
+    -unity-slice-left: 114;
+    -unity-slice-right: 74;
+    -unity-slice-top: 30;
+    -unity-slice-bottom: 30;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    padding: 0 20px 0 52px;   /* the label clear of the arrow's point (68 units wide at this scale) */
+    overflow: hidden;
+}
+
+.ui-style-original .trade-arrow--buy {
+    background-image: url("project://database/Assets/UI/Original/og_buy.png");
+    -unity-slice-left: 74;
+    -unity-slice-right: 114;
+    padding: 0 52px 0 20px;
+}
+
+.ui-style-original .can-hover .trade-arrow:hover,
+.ui-style-original.can-hover .trade-arrow:hover,
+.ui-style-original .trade-arrow--pressed,
+.ui-style-original .can-hover .trade-arrow--pressed:hover,
+.ui-style-original.can-hover .trade-arrow--pressed:hover {
+    background-image: url("project://database/Assets/UI/Original/og_sell_on.png");
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .can-hover .trade-arrow--buy:hover,
+.ui-style-original.can-hover .trade-arrow--buy:hover,
+.ui-style-original .trade-arrow--buy.trade-arrow--pressed,
+.ui-style-original .can-hover .trade-arrow--buy.trade-arrow--pressed:hover,
+.ui-style-original.can-hover .trade-arrow--buy.trade-arrow--pressed:hover {
+    background-image: url("project://database/Assets/UI/Original/og_buy_on.png");
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .can-hover .trade-arrow--disabled:hover,
+.ui-style-original.can-hover .trade-arrow--disabled:hover {
+    background-image: url("project://database/Assets/UI/Original/og_sell.png");
+}
+
+.ui-style-original .can-hover .trade-arrow--buy.trade-arrow--disabled:hover,
+.ui-style-original.can-hover .trade-arrow--buy.trade-arrow--disabled:hover {
+    background-image: url("project://database/Assets/UI/Original/og_buy.png");
+}
+
+.ui-style-original .detail-action {
+    background-image: url("project://database/Assets/UI/Original/og_action.png");
+    -unity-slice-left: 74;
+    -unity-slice-right: 74;
+    -unity-slice-top: 30;
+    -unity-slice-bottom: 30;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    color: #FFFFFF;
+}
+
+.ui-style-original .can-hover .detail-action:hover,
+.ui-style-original.can-hover .detail-action:hover,
+.ui-style-original .detail-action:active,
+.ui-style-original .manufacturing-action.list-row--selected,
+.ui-style-original .manufacturing-complete.list-row--selected {
+    background-image: url("project://database/Assets/UI/Original/og_action_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* The storage's Sell (a warning, red in the remake): the same bar tinted red. */
+.ui-style-original .detail-action--secondary {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #FF9C94;
+    color: #FFD0CC;
+}
+
+.ui-style-original .can-hover .detail-action--secondary:hover,
+.ui-style-original.can-hover .detail-action--secondary:hover,
+.ui-style-original .detail-action--secondary:active {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #FF9C94;
+}
+
+/* The Ship tab's MOVE in that place: nothing to warn of, the plain bar. */
+.ui-style-original .detail-action--move,
+.ui-style-original .can-hover .detail-action--move:hover,
+.ui-style-original.can-hover .detail-action--move:hover,
+.ui-style-original .detail-action--move:active {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #FFFFFF;
+    color: #FFFFFF;
+}
+
+.ui-style-original .manufacturing-shop,
+.ui-style-original .manufacturing-autocomplete {
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .stat-row {
+    border-bottom-color: rgba(128, 142, 156, 0.22);
+}
+
+.ui-style-original .kaamo-mods {
+    border-left-color: var(--gof-amber);
+}
+
+/* ---- the item window (ListItemWindow): a window of its own, the name on the section plate ------------------------- */
+
+.ui-style-original .info-box {
+    background-image: url("project://database/Assets/UI/Original/og_panel_bg.png");
+    background-repeat: repeat;
+    background-size: 320px 320px;
+    background-color: rgb(4, 4, 6);
+    border-width: 1px;
+    border-color: var(--gof-line);
+    border-radius: 0;
+}
+
+.ui-style-original .info-help {
+    color: var(--gof-text-dim);
+}
+
+.ui-style-original .info-name-box {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.75px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+}
+
+.ui-style-original .info-sub {
+    color: var(--gof-cyan);
+}
+
+.ui-style-original .info-row {
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .info-row-label {
+    color: var(--gof-text-dim);
+}
+
+/* The description title (the item window's and, with .detail-desc-title, the hangar details'): the title plate. */
+.ui-style-original .info-desc-title {
+    background-image: url("project://database/Assets/UI/Original/og_title_plate.png");
+    -unity-slice-left: 40;
+    -unity-slice-right: 160;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 0.7px;
+    background-color: rgba(0, 0, 0, 0);
+    padding: 8px 16px;
+}
+
+.ui-style-original .info-desc-title.detail-desc-title {
+    border-bottom-width: 0;
+    color: #FFFFFF;
+}
+
+.ui-style-original .info-text {
+    color: var(--gof-text);
+}
+
+
+/* ==== Layout like the original's Full HD hangar (Reference frames f212 / f99 Ship tab, f208 Shop + Info, f105 Info,
+   f103 row actions; measured in ogref/SPEC.md "Hangar / Shop"). These rules come after the skin above and replace it
+   where the two differ. */
+
+/* The new elements (HangarWindow: the window's title, the details' "Info" tab): the Remake has none. */
+.hangar-og-title,
+.hangar-og-info {
+    display: none;
+}
+
+/* Original: no key-hint strip under the hangar (the window fills the screen). */
+.ui-style-original.input-keyboard.hangar-open .station-hints,
+.ui-style-original.input-gamepad.hangar-open .station-hints,
+.ui-style-original .input-keyboard.hangar-open .station-hints,
+.ui-style-original .input-gamepad.hangar-open .station-hints {
+    display: none;
+}
+
+/* Original: the whole screen near-black (#0B0F12) with the scanline grain, no 3D hangar behind it. */
+.ui-style-original .hangar-window {
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    border-width: 0;
+    border-top-width: 0;
+    background-color: rgb(11, 15, 18);
+}
+
+/* Original: the 30 px header bar (#18232B -> #0E161C, bottom line #26343E). */
+.ui-style-original .hangar-window > .hangar-top {
+    height: 30px;
+    flex-shrink: 0;
+    align-items: stretch;
+    padding: 0;
+    border-bottom-width: 0;
+    background-image: url("project://database/Assets/UI/Original/og_hg_bar.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position-y: top;
+}
+
+/* Original: "Hangar" at x 11, small, title case, no plate. */
+.ui-style-original .hangar-og-title {
+    display: flex;
+    flex-grow: 1;
+    flex-shrink: 1;
+    padding: 0 0 0 11px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    color: #E6EAEE;
+    -unity-text-align: middle-left;
+    -unity-font-style: normal;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.ui-style-original .hangar-window > .hangar-top > .hangar-top-spacer {
+    flex-grow: 0;
+    width: 0;
+}
+
+/* The carrier's shop has no title: its tab left, Undock right as before. */
+.ui-style-original .carrier-shop > .hangar-top > .hangar-top-spacer {
+    flex-grow: 1;
+}
+
+/* Original: the Ship / Shop / Blueprints tabs flush top-right, 30 px high, the slanted tab piece at its own size. */
+.ui-style-original .hangar-window .hangar-tab {
+    height: 30px;
+    margin: 0 -8px 0 0;
+    padding: 0 26px;
+    -unity-slice-scale: 0.5px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-center;
+    -unity-font-style: normal;
+    color: #D6DEE3;
+}
+
+.ui-style-original .hangar-window .hangar-tab--active,
+.ui-style-original .can-hover .hangar-window .hangar-tab--active:hover,
+.ui-style-original.can-hover .hangar-window .hangar-tab--active:hover {
+    color: #FFFFFF;
+}
+
+/* Original: the "?" right of the tabs, at the bar's end. */
+.ui-style-original .hangar-window .window-help {
+    align-self: center;
+    margin: 0 10px 0 16px;
+}
+
+/* Original: Back with the arrow-pointed left end (x 6-98, 30 px) at the footer bar's left; on the carrier, Undock in the
+   same piece on the header bar. */
+.ui-style-original .hangar-window .hangar-close {
+    height: 30px;
+    margin: 0;
+    padding: 0 22px 0 28px;
+    background-image: url("project://database/Assets/UI/Original/og_hg_back.png");
+    -unity-slice-left: 28;
+    -unity-slice-right: 6;
+    -unity-slice-top: 8;
+    -unity-slice-bottom: 8;
+    -unity-slice-scale: 0.5px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-center;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+.ui-style-original .can-hover .hangar-window .hangar-close:hover,
+.ui-style-original.can-hover .hangar-window .hangar-close:hover,
+.ui-style-original .hangar-window .hangar-close:active,
+.ui-style-original .hangar-window .hangar-close:focus {
+    background-image: url("project://database/Assets/UI/Original/og_hg_back_on.png");
+    color: #FFFFFF;
+}
+
+/* Original: the ~36 px footer bar (#0E161C -> #070B10, top line #1E2A36): Back left, the load centred, the credits right,
+   plain text (no boxes). */
+.ui-style-original .hangar-window > .hangar-footer {
+    height: 36px;
+    flex-shrink: 0;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 0 10px 0 6px;
+    border-top-width: 0;
+    background-image: url("project://database/Assets/UI/Original/og_hg_footer.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position-y: top;
+}
+
+.ui-style-original .hangar-window .footer-cargo,
+.ui-style-original .hangar-window .footer-credits,
+.ui-style-original .hangar-window .footer-restock {
+    background-image: none;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    padding: 0;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+.ui-style-original .hangar-window .footer-cargo {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    -unity-text-align: middle-center;
+}
+
+.ui-style-original .hangar-window .footer-cargo--over {
+    color: #FF6B5E;
+}
+
+.ui-style-original .hangar-window .footer-restock {
+    position: absolute;
+    right: 220px;
+    top: 0;
+    bottom: 0;
+    -unity-text-align: middle-right;
+    color: #8C9BA8;
+}
+
+.ui-style-original .hangar-window .footer-credits {
+    margin-left: auto;
+    -unity-text-align: middle-right;
+}
+
+/* ---- the list: one centred column (x 389-1530 at 1080p), the details panel beside it ---------------------------- */
+
+.ui-style-original .hangar-window > .hangar-body {
+    justify-content: center;
+    padding: 2px 20px 8px 20px;   /* the first plate at y 60 (30 px bar + 28 px header margin) */
+}
+
+.ui-style-original .hangar-list,
+.ui-style-original.layout-compact .hangar-list {
+    width: 58%;
+    max-width: 1142px;
+    flex-shrink: 1;
+    border-right-width: 0;
+}
+
+.ui-style-original.layout-compact .hangar-list {
+    width: 52%;
+}
+
+/* Original: section plates 20 px tall, the column's width, steel (#33444F -> #1F2B33, 1 px #4D606C), sentence case. */
+.ui-style-original .list-header {
+    height: 20px;
+    flex-shrink: 0;
+    margin: 28px 0 0 0;   /* about 28 px between a section's last row and the next plate (the body's top padding is less) */
+    padding: 0 6px;
+    background-image: url("project://database/Assets/UI/Original/og_hg_plate.png");
+    -unity-slice-left: 4;
+    -unity-slice-right: 4;
+    -unity-slice-top: 4;
+    -unity-slice-bottom: 4;
+    -unity-slice-scale: 0.5px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-left;
+    -unity-font-style: normal;
+    color: #E6E8EA;
+}
+
+.ui-style-original .list-header--sub {
+    height: auto;
+    background-image: none;
+    margin: 6px 0 0 0;
+    padding: 2px 6px;
+    color: #C08A50;
+}
+
+/* Original: rows 46 px + 2 px gap, dark slate (#1A2329 -> #141B20), square, no edge marks. */
+.ui-style-original .list-row {
+    height: 46px;
+    margin: 2px 0 0 0;
+    padding: 0;
+    border-left-width: 0;
+    background-image: url("project://database/Assets/UI/Original/og_hg_row.png");
+    -unity-slice-left: 4;
+    -unity-slice-right: 4;
+    -unity-slice-top: 4;
+    -unity-slice-bottom: 4;
+    -unity-slice-scale: 0.5px;
+    -unity-background-image-tint-color: #FFFFFF;
+}
+
+.ui-style-original .list-row--mounted {
+    border-left-width: 0;
+}
+
+.ui-style-original .list-row--blueprint-material,
+.ui-style-original .list-row--drop-target {
+    border-left-width: 2px;
+}
+
+.ui-style-original .list-row--cargo {
+    margin-left: 40px;
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.7);
+}
+
+.ui-style-original .list-row--owned {
+    -unity-background-image-tint-color: #B4CCE0;
+}
+
+.ui-style-original .can-hover .list-row:hover,
+.ui-style-original.can-hover .list-row:hover {
+    background-image: url("project://database/Assets/UI/Original/og_hg_plate.png");
+    -unity-background-image-tint-color: #C0CAD2;
+}
+
+/* Original: the selected row warm brown (#3E2C18 -> #1E1812) with a 1 px amber rim (#7A5530). */
+.ui-style-original .list-row--selected,
+.ui-style-original .can-hover .list-row--selected:hover,
+.ui-style-original.can-hover .list-row--selected:hover,
+.ui-style-original .list-row--drop-target {
+    background-image: url("project://database/Assets/UI/Original/og_hg_row_on.png");
+    -unity-background-image-tint-color: #FFFFFF;
+}
+
+/* Original: the icon box ~86 x 46 at the row's left (the icons carry the category's striped backdrop). */
+.ui-style-original .row-icon,
+.ui-style-original.ui-scale-up .row-icon,
+.ui-style-original.ui-scale-up2 .row-icon {
+    width: 86px;
+    height: 46px;
+}
+
+.ui-style-original.layout-phone .list-row {
+    height: 64px;
+}
+
+.ui-style-original.layout-phone .row-icon {
+    width: 120px;
+    height: 64px;
+}
+
+/* Original: name on line 1 (#E4EAEE), price on line 2 below it (light grey, f212 / f99), x 10 right of the icon. */
+.ui-style-original .row-texts {
+    align-self: stretch;
+    justify-content: flex-start;
+    margin-left: 10px;
+    padding-top: 3px;
+}
+
+.ui-style-original .row-name {
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+    color: #E4EAEE;
+}
+
+.ui-style-original .row-name--empty {
+    color: #E4EAEE;
+}
+
+.ui-style-original .row-name-line {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.ui-style-original .row-price-sep {
+    display: none;
+}
+
+.ui-style-original .row-price,
+.ui-style-original .row-price--inline {
+    min-width: 0;
+    margin: 2px 0 0 0;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+    -unity-text-align: middle-left;
+    color: #A2A8AC;
+}
+
+/* A ship's price (the row's own child): under the name, like the items'. */
+.ui-style-original .list-row > .row-price {
+    position: absolute;
+    left: 96px;
+    top: 24px;
+}
+
+.ui-style-original .row-price--expensive,
+.ui-style-original .row-price--inline.row-price--expensive {
+    color: #FF6B5E;
+}
+
+/* The remake's category and badges at the text's right end, small and dim (the original had a dot for mounted). */
+.ui-style-original .row-sub {
+    position: absolute;
+    right: 8px;
+    top: 0;
+    bottom: 0;
+    margin-top: 0;
+    align-items: center;
+}
+
+.ui-style-original .row-sub-text {
+    font-size: var(--text-caption);
+    color: #7E8A96;
+}
+
+.ui-style-original .row-badge {
+    padding: 0 6px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+}
+
+.ui-style-original .row-qty {
+    width: 64px;
+    font-size: var(--text-caption);
+    -unity-font-style: normal;
+    -unity-text-align: middle-center;
+    color: #8C9BA8;
+}
+
+/* Original: the small steel "i" button (~60 x 44) at the selected row's right end. */
+.ui-style-original .row-info {
+    width: 60px;
+    height: 44px;
+    margin: 0 1px 0 8px;
+    border-width: 0;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+    background-image: url("project://database/Assets/UI/Original/og_hg_steel.png");
+    -unity-slice-left: 6;
+    -unity-slice-right: 6;
+    -unity-slice-top: 6;
+    -unity-slice-bottom: 6;
+    -unity-slice-scale: 0.5px;
+    font-size: var(--text-label);
+    -unity-font-style: normal;
+    color: #FFFFFF;
+}
+
+.ui-style-original .can-hover .row-info:hover,
+.ui-style-original.can-hover .row-info:hover,
+.ui-style-original .row-info:active {
+    background-image: url("project://database/Assets/UI/Original/og_hg_steel_on.png");
+}
+
+/* ---- the details: drawn like the original's Info popup (f208 / f105) ---------------------------------------------- */
+
+.ui-style-original .hangar-details,
+.ui-style-original.layout-compact .hangar-details {
+    width: 36%;
+    max-width: 650px;
+    flex-shrink: 0;
+    margin-left: 16px;
+    padding: 0 5px 6px 5px;
+    background-color: rgb(10, 14, 18);
+    border-width: 1px;
+    border-color: rgb(62, 75, 87);
+}
+
+.ui-style-original.layout-compact .hangar-details {
+    width: 46%;
+}
+
+/* Original: the popup's "Info" tab, fading out to the right on the 28 px title bar. */
+.ui-style-original .hangar-og-info {
+    display: flex;
+    flex-shrink: 0;
+    align-self: flex-start;
+    height: 28px;
+    margin: 0 0 5px -5px;
+    padding: 0 64px 0 11px;
+    background-image: url("project://database/Assets/UI/Original/og_hg_infotab.png");
+    -unity-slice-left: 8;
+    -unity-slice-right: 80;
+    -unity-slice-top: 6;
+    -unity-slice-bottom: 6;
+    -unity-slice-scale: 0.5px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-left;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+/* Original: the header plate, icon left, name right (317 x 44 in the popup). */
+.ui-style-original .detail-head {
+    min-height: 44px;
+    padding: 0 8px 0 0;
+    background-image: url("project://database/Assets/UI/Original/og_hg_plate.png");
+    -unity-slice-left: 4;
+    -unity-slice-right: 4;
+    -unity-slice-top: 4;
+    -unity-slice-bottom: 4;
+    -unity-slice-scale: 0.5px;
+}
+
+.ui-style-original .detail-icon,
+.ui-style-original.ui-scale-up .detail-icon,
+.ui-style-original.ui-scale-up2 .detail-icon {
+    width: 92px;
+    height: 44px;
+}
+
+.ui-style-original .detail-name {
+    font-size: var(--text-small);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+    -unity-text-align: middle-right;
+    color: #FFFFFF;
+}
+
+.ui-style-original .detail-sub {
+    margin-top: 0;
+    font-size: var(--text-caption);
+    -unity-text-align: middle-right;
+    color: #8C9BA8;
+}
+
+.ui-style-original .trade-box {
+    margin-top: 6px;
+    padding: 4px 8px;
+}
+
+.ui-style-original .trade-side-label,
+.ui-style-original .trade-side-note {
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    color: #8C9BA8;
+}
+
+.ui-style-original .trade-side-value,
+.ui-style-original .trade-price,
+.ui-style-original .trade-arrow-label {
+    font-size: var(--text-small);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+}
+
+.ui-style-original .trade-price {
+    color: #A2A8AC;
+}
+
+.ui-style-original .trade-price--expensive {
+    color: #FF6B5E;
+}
+
+.ui-style-original .detail-action {
+    margin-top: 6px;
+    padding: 8px 24px;
+    -unity-slice-scale: 0.4px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+}
+
+.ui-style-original .detail-scroll,
+.ui-style-original .detail-item-row {
+    margin-top: 6px;
+}
+
+/* Original: stat rows label-left / value-right, 23 px pitch, no lines. */
+.ui-style-original .stat-row {
+    padding: 3px 6px;
+    border-bottom-width: 0;
+}
+
+.ui-style-original .stat-label {
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    color: #9EA6AE;
+}
+
+.ui-style-original .stat-value {
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+.ui-style-original .stat-arrow {
+    width: 40px;
+    height: 22px;
+}
+
+.ui-style-original .detail-preview {
+    background-color: rgb(4, 6, 10);
+    border-color: rgb(42, 48, 54);
+}
+
+/* Original: the "Description" plate and the text under it (~14 px, #C4C9CE). */
+.ui-style-original .info-desc-title,
+.ui-style-original .info-desc-title.detail-desc-title {
+    margin-top: 6px;
+    min-height: 30px;
+    padding: 0 6px;
+    background-image: url("project://database/Assets/UI/Original/og_hg_plate.png");
+    -unity-slice-left: 4;
+    -unity-slice-right: 4;
+    -unity-slice-top: 4;
+    -unity-slice-bottom: 4;
+    -unity-slice-scale: 0.5px;
+    border-bottom-width: 0;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-left;
+    -unity-font-style: normal;
+    color: #E6E8EA;
+}
+
+.ui-style-original .detail-text,
+.ui-style-original .info-text {
+    margin-top: 6px;
+    padding: 0 6px;
+    font-size: var(--text-caption);
+    color: #C4C9CE;
+}
+
+.ui-style-original .kaamo-mod-line {
+    font-size: var(--text-caption);
+}
+
+/* ---- the item window: the original's Info popup (~650 x 402, here a little larger for the remake's stats) --------- */
+
+.ui-style-original .info-backdrop {
+    background-color: rgba(0, 0, 0, 0.55);
+}
+
+.ui-style-original .info-box {
+    width: 860px;
+    height: 540px;
+    padding: 0 5px;
+    background-color: rgb(10, 14, 18);
+    border-width: 1px;
+    border-color: rgb(62, 75, 87);
+}
+
+.ui-style-original.layout-phone .info-box {
+    width: 100%;
+    height: 100%;
+}
+
+.ui-style-original .info-box--view,
+.ui-style-original.layout-phone .info-box--view {
+    width: 1300px;
+    height: 800px;
+}
+
+/* Original: the "Info" tab on the title bar. */
+.ui-style-original .info-header {
+    flex-shrink: 0;
+    align-self: flex-start;
+    height: 28px;
+    margin: 0 0 0 -5px;
+    padding: 0 64px 0 11px;
+    background-image: url("project://database/Assets/UI/Original/og_hg_infotab.png");
+    -unity-slice-left: 8;
+    -unity-slice-right: 80;
+    -unity-slice-top: 6;
+    -unity-slice-bottom: 6;
+    -unity-slice-scale: 0.5px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-left;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+.ui-style-original .info-help {
+    margin: 4px 6px 6px 6px;
+    font-size: var(--text-caption);
+    color: #7E8A96;
+}
+
+.ui-style-original .info-left {
+    width: 49.5%;
+    margin-right: 1%;
+}
+
+.ui-style-original .info-right {
+    width: 49.5%;
+    background-color: rgba(255, 255, 255, 0.025);
+}
+
+.ui-style-original .info-name-box {
+    min-height: 44px;
+    margin-bottom: 2px;
+    padding: 0 8px 0 0;
+    background-image: url("project://database/Assets/UI/Original/og_hg_plate.png");
+    -unity-slice-left: 4;
+    -unity-slice-right: 4;
+    -unity-slice-top: 4;
+    -unity-slice-bottom: 4;
+    -unity-slice-scale: 0.5px;
+}
+
+.ui-style-original .info-icon,
+.ui-style-original.ui-scale-up .info-icon,
+.ui-style-original.ui-scale-up2 .info-icon {
+    width: 92px;
+    height: 44px;
+    margin-right: 8px;
+}
+
+.ui-style-original .info-name {
+    font-size: var(--text-small);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+}
+
+.ui-style-original .info-sub {
+    font-size: var(--text-caption);
+    color: #8C9BA8;
+}
+
+/* Original: label-left / value-right rows, 23 px pitch, no plates. */
+.ui-style-original .info-row {
+    height: 23px;
+    margin: 0;
+    padding: 0 6px;
+    background-image: none;
+}
+
+.ui-style-original .info-row-label {
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    color: #9EA6AE;
+}
+
+.ui-style-original .info-row-value {
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+.ui-style-original .info-row-arrow {
+    width: 40px;
+    height: 22px;
+}
+
+.ui-style-original .info-preview {
+    border-color: rgb(42, 48, 54);
+}
+
+.ui-style-original .info-desc-title {
+    margin-top: 0;
+    min-height: 44px;
+}
+
+/* Original: the popup's footer strip (~36 px) with Back's arrow-pointed left end. */
+.ui-style-original .info-footer {
+    height: 36px;
+    flex-shrink: 0;
+    margin: 6px -5px 0 -5px;
+    padding: 0 6px;
+    background-image: url("project://database/Assets/UI/Original/og_hg_footer.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+}
+
+.ui-style-original .info-back {
+    height: 30px;
+    padding: 0 22px 0 28px;
+    background-image: url("project://database/Assets/UI/Original/og_hg_back.png");
+    -unity-slice-left: 28;
+    -unity-slice-right: 6;
+    -unity-slice-top: 8;
+    -unity-slice-bottom: 8;
+    -unity-slice-scale: 0.5px;
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-center;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+.ui-style-original .can-hover .info-back:hover,
+.ui-style-original.can-hover .info-back:hover,
+.ui-style-original .info-back:active {
+    background-image: url("project://database/Assets/UI/Original/og_hg_back_on.png");
+    color: #FFFFFF;
+}
+
+/* ---- Second pass, checked in Unity -------------------------------------------------------------------------- */
+
+/* The name takes the row's whole text width: sized to its text, the tracking wasn't measured and every name was cut
+   short with an ellipsis ("Nirai Impulse E..."). */
+.ui-style-original .row-name-line {
+    align-items: stretch;
+}
+
+.ui-style-original .row-name {
+    letter-spacing: 0;
+}
+
+/* The "?" as the original's small help button (about 24 px) inside the 30 px bar: its size is set in code (34 px, so the
+   Remake keeps it), which stuck out of the bar's top; scaled down instead. Also the Status and Missions windows' "?". */
+.ui-style-original .window-help {
+    scale: 0.7 0.7;
+}
+
+/* Remake, the Kaamo Club VIP Card (HangarWindowKaamoVip): the storage's search box and sort button between the title and
+   the tabs, sized to the 30 px bar; the sort button the small steel button. */
+.ui-style-original .hangar-window > .hangar-top > .hangar-tools {
+    align-self: center;
+    margin: 0 10px 0 6px;
+}
+
+.ui-style-original .hangar-search .unity-base-text-field__input {
+    min-height: 24px;
+    height: 24px;
+    padding: 0 10px;
+    font-size: var(--text-caption);
+}
+
+.ui-style-original .hangar-sort {
+    height: 24px;
+    min-height: 24px;
+    padding: 0 14px;
+    border-width: 0;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+    background-image: url("project://database/Assets/UI/Original/og_hg_steel.png");
+    -unity-slice-left: 6;
+    -unity-slice-right: 6;
+    -unity-slice-top: 6;
+    -unity-slice-bottom: 6;
+    -unity-slice-scale: 0.5px;
+    font-size: var(--text-caption);
+    -unity-font-style: normal;
+    color: #FFFFFF;
+}
+
+.ui-style-original .can-hover .hangar-sort:hover,
+.ui-style-original.can-hover .hangar-sort:hover,
+.ui-style-original .hangar-sort:active {
+    background-image: url("project://database/Assets/UI/Original/og_hg_steel_on.png");
+}
+
+.ui-style-original .row-badge--kaamo {
+    border-width: 1px;
+}

@@ -91,6 +91,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   shop, ship customizing; the pause menu, dialogues, star map, event screens and settings confirm had Space already).
   Left out on purpose, as Space fires there: the flight's autopilot menu, the action prompt and the chat key. A typed
   space stays in its field: the main menu, station and Mod Builder roots drop a submit while `TextFieldKeys.IsTyping`.
+  The copy's UI/Navigate also drops the right stick (#235, see below) and the `<Joystick>/stick` composite (Discord
+  "Input stuck from UI"): Navigate is pass-through, its value the control that changed last, so a joystick axis resting
+  off centre held it at down and the menus walked down until W / S took over. The game reads no joystick elsewhere.
 - **Right stick scrolls the texts** (remake, #169, `StickScroll`): in the main and station menus the right stick, up and
   down, scrolls the shown scroll view that overflows and doesn't hold the focus (the lounge's dialogue, the shop's and
   the item window's descriptions; a focused list scrolls to its focus); of several, the last in the document. Pushed

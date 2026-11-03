@@ -120,13 +120,13 @@ namespace GoF2Remake.UI
             {
                 dialogBack = new Button { name = "dialogBack", focusable = false };
                 foreach (var c in new[] { "map-button", "map-dialog-back", "gof-semibold" }) dialogBack.AddToClassList(c);
-                dialogBack.text = Localization.Extra("hudBack", "BACK");
+                dialogBack.text = Localization.Extra("hudBack", "BACK").OgCase();
                 dialogBack.RegisterCallback<PointerDownEvent>(_ => Play(assets.buttonPush), TrickleDown.TrickleDown);
                 dialogBack.clicked += CloseDialog;   // (Answer plays the release)
                 dialogBox.Insert(0, dialogBack);
             }
             if (dialogBack != null) dialogBack.style.display = DisplayStyle.None;
-            root.Q<Label>("mapTitle").text = T(177).ToUpperInvariant();
+            root.Q<Label>("mapTitle").text = T(177).UiCaps();
             // Modified: opened from a station's Map: "STATION | MAP" (SetStationTitle), as the station's views.
             var mapTitleLabel = root.Q<Label>("mapTitle");
             if (mapTitleLabel != null && mapTitleLabel.parent.Q<Label>("mapViewTitle") == null)
@@ -163,10 +163,10 @@ namespace GoF2Remake.UI
                 header.Add(spacer);
             }
             RefreshHelp();
-            backButton.text = Localization.Extra("hudBack", "BACK");
-            keyButton.text = T(400).ToUpperInvariant();
+            backButton.text = Localization.Extra("hudBack", "BACK").OgCase();
+            keyButton.text = T(400).UiCaps();
             voidButton.text = VoidButtonText;
-            dialogNo.text = T(135).ToUpperInvariant();
+            dialogNo.text = T(135).UiCaps();
             foreach (var b in new[] { backButton, keyButton, zoomButton, voidButton, dialogYes, dialogAlt, dialogNo })
             {
                 b.focusable = false;
@@ -239,15 +239,22 @@ namespace GoF2Remake.UI
             if (!askVoid || DialogOpen || world == null) return;
             ShowDialog(T(422), () => Close(new StarMapResult { station = -1, toVoid = true }), null, noFirst: true);
         }
-        static string VoidButtonText => Localization.Extra("mapVoidJump", "Jump to the Void").ToUpperInvariant();
+        static string VoidButtonText => Localization.Extra("mapVoidJump", "Jump to the Void").UiCaps();
         /// <summary>Modified: the footer's right-hand column (Jump to the Void, Full map / Close up, Key) as wide as the widest
         /// label any of them can show, so the buttons keep their size when the Full map one turns into Close up or one of
         /// them hides.</summary>
         void FitSideButtons()
         {
             if (sideButtons == null || keyButton == null) return;
+            // Modified: the Original style puts them in a row (OriginalFlight.uss), each sized to its label: the row as wide as
+            // they are together (the column's width cut Key off at the screen's edge).
+            if (Settings.OriginalUi)
+            {
+                if (sideButtons.style.width.keyword != StyleKeyword.Auto) sideButtons.style.width = StyleKeyword.Auto;
+                return;
+            }
             float w = 0f;
-            foreach (var text in new[] { VoidButtonText, Localization.Extra("mapFullMap", "FULL MAP"), Localization.Extra("mapCloseUp", "CLOSE UP"), T(400).ToUpperInvariant() })
+            foreach (var text in new[] { VoidButtonText, Localization.Extra("mapFullMap", "FULL MAP").OgCase(), Localization.Extra("mapCloseUp", "CLOSE UP").OgCase(), T(400).UiCaps() })
                 w = Mathf.Max(w, keyButton.MeasureTextSize(text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x);
             if (!(w > 0f)) return;
             var s = keyButton.resolvedStyle;

@@ -15,6 +15,9 @@
 //   hit arcs: blue while the shield holds, red without, 300 ms, on the ellipse's left / right / top / bottom
 //   remake options (players' request): a far ship's on-screen marker as the original's dot, a hollow ring or a small dot above
 //     it, and its distance under every far marker (FarShipMarkers, Settings.FarShipMarkers / MarkerDistance)
+//   remake (#216, players' request): the player's own wingmen (Target.wingman) in blue instead of the friend green (the
+//     original has no separate colour: Radar::draw follows the enemy / friend bytes only), the friend images tinted
+//     (MarkerTex); with "Colour-blind markers" (friends already blue) they are violet
 //   remake mods: a mod's textures/<name> replaces any of these images by its GoF2Hud name (ModTextures.Hud)
 // Positions are HD pixels = panel units.
 
@@ -55,7 +58,8 @@ namespace GoF2Remake.UI
         readonly Texture2D[] lockFrames = new Texture2D[24];
         readonly Dictionary<Object, Marker> markers = new Dictionary<Object, Marker>();
         readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
-        static readonly string[] Faction = { "enemy", "friend", "neutral" };
+        // 3: the player's wingmen (remake #216): the friend images, tinted (FactionTextures).
+        static readonly string[] Faction = { "enemy", "friend", "neutral", "friend" };
 
         /// <summary>A faction's marker images, looked up once: DrawShip runs per ship per frame, and building the names
         /// ("ship_bar_enemy"...) each time allocated strings.</summary>
@@ -66,11 +70,11 @@ namespace GoF2Remake.UI
         int platePct = -1, plateRace = int.MinValue;
         string plateName, plateText;
         Texture2D plateIcon;
-        readonly MarkerTextures[] factionTextures = new MarkerTextures[3];
+        readonly MarkerTextures[] factionTextures = new MarkerTextures[4];
         // The far marker options, read once per frame (Update).
         int farStyle;
         bool farDistance;
-        static readonly string[] LabelFaction = { "combat-label--enemy", "combat-label--friend", "combat-label--neutral" };
+        static readonly string[] LabelFaction = { "combat-label--enemy", "combat-label--friend", "combat-label--neutral", "combat-label--wingman" };
 
         MarkerTextures FactionTextures(int faction)
         {
@@ -84,23 +88,27 @@ namespace GoF2Remake.UI
             var t = factionTextures[faction];
             if (t != null) return t;
             string f = Faction[faction];
-            bool blue = cb && faction == 1;
+            // Friends blue with the option; wingmen (#216) blue, or violet when the friends already are.
+            var tint = faction == 1 ? (cb ? Tint.Blue : Tint.None) : faction == 3 ? (cb ? Tint.Violet : Tint.Blue) : Tint.None;
             return factionTextures[faction] = new MarkerTextures
             {
-                bar = MarkerTex($"ship_bar_{f}", blue), fill = MarkerTex($"ship_fill_{f}", blue), bracket = MarkerTex($"ship_bracket_{f}", blue),
-                ring = MarkerTex($"ship_ring_{f}", blue), dot = MarkerTex($"ship_dot_{f}", blue), openRing = MarkerTex($"ship_ring_open_{f}", blue),
+                bar = MarkerTex($"ship_bar_{f}", tint), fill = MarkerTex($"ship_fill_{f}", tint), bracket = MarkerTex($"ship_bracket_{f}", tint),
+                ring = MarkerTex($"ship_ring_{f}", tint), dot = MarkerTex($"ship_dot_{f}", tint), openRing = MarkerTex($"ship_ring_open_{f}", tint),
             };
         }
 
         bool colorblind;
 
-        /// <summary>A marker image; 'blue': the green friendly one turned blue (red-green colour blindness reads green and red
-        /// alike, blue stands apart from both), made once from the GPU copy (the HUD images aren't readable).</summary>
-        Texture2D MarkerTex(string name, bool blue)
+        enum Tint { None, Blue, Violet }
+
+        /// <summary>A marker image; Blue: the green friendly one turned blue (red-green colour blindness reads green and red
+        /// alike, blue stands apart from both; also the wingmen's, #216), Violet: the wingmen's with colour-blind markers on.
+        /// Made once from the GPU copy (the HUD images aren't readable).</summary>
+        Texture2D MarkerTex(string name, Tint tint)
         {
             var src = Tex(name);
-            if (!blue || src == null) return src;
-            string key = "cb:" + name;
+            if (tint == Tint.None || src == null) return src;
+            string key = (tint == Tint.Violet ? "violet:" : "cb:") + name;
             if (textures.TryGetValue(key, out var done)) return done;
             var rt = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
             Graphics.Blit(src, rt);
@@ -115,9 +123,18 @@ namespace GoF2Remake.UI
             {
                 var c = px[i];
                 byte g = c.g;
-                c.g = (byte)(g * 0.62f);          // green -> an azure blue, its brightness kept
-                c.b = (byte)Mathf.Max(c.b, g);
-                c.r = (byte)(c.r * 0.5f);
+                if (tint == Tint.Violet)
+                {
+                    c.r = (byte)Mathf.Max(c.r, g * 0.72f);   // green -> violet, its brightness kept
+                    c.g = (byte)(g * 0.4f);
+                    c.b = (byte)Mathf.Max(c.b, g);
+                }
+                else
+                {
+                    c.g = (byte)(g * 0.62f);          // green -> an azure blue, its brightness kept
+                    c.b = (byte)Mathf.Max(c.b, g);
+                    c.r = (byte)(c.r * 0.5f);
+                }
                 px[i] = c;
             }
             t.SetPixels32(px);
@@ -251,7 +268,7 @@ namespace GoF2Remake.UI
                             continue;
                         }
                         if (s.Gone || !s.Target.Alive || s.Hidden || s.Asleep || s.RadarHidden || s.OffersDocking || s.Target.untargetable) continue;
-                        int f = s.Target.hostileToPlayer ? 0 : s.Target.friendToPlayer ? 1 : 2;
+                        int f = s.Target.hostileToPlayer ? 0 : s.Target.friendToPlayer ? (s.Target.wingman ? 3 : 1) : 2;
                         DrawShip(Get(s), s.transform.position, f, s.Target.HullFraction, radar.Locked == s.Target, cam, origin, centre);
                         DrawEmp(Get(s), s.Hp != null ? s.Hp.EmpFraction : 1f);
                     }
@@ -470,7 +487,7 @@ namespace GoF2Remake.UI
             {
                 m.labelLook = look;
                 m.distance.EnableInClassList("combat-label--far", !locked);
-                for (int i = 0; i < 3; i++) m.distance.EnableInClassList(LabelFaction[i], !locked && i == faction);
+                for (int i = 0; i < LabelFaction.Length; i++) m.distance.EnableInClassList(LabelFaction[i], !locked && i == faction);
             }
             float units = (world - camPos).magnitude / M;
             int key = FarShipMarkers.DistanceKey(units);
@@ -503,7 +520,7 @@ namespace GoF2Remake.UI
             if (faction != m.pilotLook)
             {
                 m.pilotLook = faction;
-                for (int i = 0; i < 3; i++) m.pilot.EnableInClassList(LabelFaction[i], i == faction);
+                for (int i = 0; i < LabelFaction.Length; i++) m.pilot.EnableInClassList(LabelFaction[i], i == faction);
             }
             // Its bottom 4 px over the marker (the label's box is PilotLabelHeight high, its width centred by the USS).
             Place(m.pilot, m.x - PilotLabelWidth / 2f, m.top - PilotLabelHeight - 4f);

@@ -153,6 +153,7 @@ namespace GoF2Remake.World
         public void MakeWingman(int slot, bool armed)
         {
             IsWingman = true;
+            Target.wingman = true;   // remake (#216): the HUD's blue wingman markers
             wingSlot = slot;
             wingCommand = 1;
             alwaysFriend = true;

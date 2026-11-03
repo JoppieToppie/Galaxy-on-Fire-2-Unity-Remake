@@ -17,7 +17,7 @@ namespace GoF2Remake.UI
     {
         Button SystemButton(string text, int index, System.Action action, VisualElement parent)
         {
-            var b = new Button { text = text.ToUpperInvariant() };
+            var b = new Button { text = text.UiCaps() };
             b.AddToClassList("station-button");
             b.AddToClassList("gof-semibold");
             b.RegisterCallback<PointerDownEvent>(_ => Play(buttonPush), TrickleDown.TrickleDown);
@@ -63,7 +63,7 @@ namespace GoF2Remake.UI
             systemOptions.Add(optionsScroll);
             // "‹ Back" at the bottom left, the Options window's (OptionsView); the keys go in the divided row under it
             // (BuildStationDebug).
-            optionsBack = SystemButton("‹  " + Localization.Extra("hudBack", "BACK"), -1, () => ShowSystemPage(SysPage.Main), systemOptions);
+            optionsBack = SystemButton("‹  " + Localization.Extra("hudBack", "BACK").OgCase(), -1, () => ShowSystemPage(SysPage.Main), systemOptions);
             optionsBack.AddToClassList("system-menu-back");
             systemMain.parent.Add(systemOptions);
         }
@@ -103,7 +103,7 @@ namespace GoF2Remake.UI
             {
                 int tab = i;
                 // Modified: focusable, so the keys / a controller reach the tab row (up from the first row; left / right switch).
-                var b = new Button { text = names[i].ToUpperInvariant(), focusable = true };
+                var b = new Button { text = names[i].UiCaps(), focusable = true };
                 if (i == stationDebugTab) activeDebugTab = b;
                 b.AddToClassList("debug-tab");
                 b.AddToClassList("gof-semibold");
@@ -160,7 +160,7 @@ namespace GoF2Remake.UI
                     // Fly any ship (World.PlayerHull): docked only a ship the player can normally own.
                     var defs = CheatsCatalog.Hulls(db, null, level, Notify);
                     var card = Box(optionsScroll.contentContainer, "debug-card");
-                    var title = new Label(X("debugShipsTitle", "Fly any ship").ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+                    var title = new Label(X("debugShipsTitle", "Fly any ship").UiCaps()) { pickingMode = PickingMode.Ignore };
                     title.AddToClassList("debug-card-title");
                     title.AddToClassList("gof-semibold");
                     card.Add(title);
@@ -174,7 +174,7 @@ namespace GoF2Remake.UI
                     // Ship presets (ShipPresets): docked, a preset of a ship the hangar can't take is refused.
                     var defs = CheatsCatalog.Presets(db, null, level, Notify);
                     var card = Box(optionsScroll.contentContainer, "debug-card");
-                    var title = new Label(X("debugPresetsTitle", "Ship presets").ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+                    var title = new Label(X("debugPresetsTitle", "Ship presets").UiCaps()) { pickingMode = PickingMode.Ignore };
                     title.AddToClassList("debug-card-title");
                     title.AddToClassList("gof-semibold");
                     card.Add(title);
@@ -187,7 +187,7 @@ namespace GoF2Remake.UI
                 {
                     var defs = CheatsCatalog.Items(db, level.Stock, Notify);
                     var card = Box(optionsScroll.contentContainer, "debug-card");
-                    var title = new Label(names[2].ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+                    var title = new Label(names[2].UiCaps()) { pickingMode = PickingMode.Ignore };
                     title.AddToClassList("debug-card-title");
                     title.AddToClassList("gof-semibold");
                     card.Add(title);
@@ -245,8 +245,8 @@ namespace GoF2Remake.UI
             if (page == SysPage.Options) BuildOptionsView();
             int title = page == SysPage.Save ? 30 : page == SysPage.Load ? 29 : page == SysPage.Options ? 31 : 172;   // Menu
             var titleLabel = root.Q<Label>("systemMenuTitle");
-            titleLabel.text = page == SysPage.Debug ? Localization.Extra("debugTitle", "Debug").ToUpperInvariant()
-                                                    : Localization.Get(title).ToUpperInvariant();
+            titleLabel.text = page == SysPage.Debug ? Localization.Extra("debugTitle", "Debug").UiCaps()
+                                                    : Localization.Get(title).UiCaps();
             // The Debug page is a window like Options (OptionsView): the amber accent under its title.
             if (debugAccent == null && titleLabel.parent != null)
             {

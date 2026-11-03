@@ -42,8 +42,8 @@ namespace GoF2Remake.UI
 {
     public partial class HangarWindow
     {
-        public enum Tab { Ship, Shop, Blueprints }
-        enum RowKind { Header, ShopItem, ShopShip, OwnShip, Slot, CargoItem, Blueprint, Pending, Ingredient, Autocomplete, StoredShip, ShopLink, Complete }
+        public enum Tab { Ship, Shop, Blueprints, Ships }   // Ships: the Kaamo Club VIP Card's tab (HangarWindowKaamoVip)
+        enum RowKind { Header, ShopItem, ShopShip, OwnShip, Slot, CargoItem, Blueprint, Pending, Ingredient, Autocomplete, StoredShip, ShopLink, Complete, VipCard }
 
         class Row
         {
@@ -114,6 +114,11 @@ namespace GoF2Remake.UI
 
         public bool IsOpen { get; private set; }
 
+        /* Original: the window's name on the header bar and the details' "Info" tab (hidden in the Remake,
+           OriginalHangar.uss); Back's place on the header bar, for the Remake (Open puts it in the footer bar). */
+        readonly Label ogTitle, ogInfo;
+        readonly VisualElement closeTop;
+
         public HangarWindow(StationMenu menu, StationLevel level, VisualElement root)
         {
             this.menu = menu;
@@ -172,14 +177,14 @@ namespace GoF2Remake.UI
             tradeStockLabel = root.Q<Label>("tradeStockLabel");
             tradeCargoLabel = root.Q<Label>("tradeCargoLabel");
 
-            string T(int id) => Localization.Get(id).ToUpperInvariant();
+            string T(int id) => Localization.Get(id).UiCaps();
             tabShip.text = T(183);
             tabShop.text = T(185);
             tabBlueprints.text = T(272);
             sellLabel = root.Q<Label>("sellLabel");
             buyLabel = root.Q<Label>("buyLabel");
             closeButton = root.Q<Button>("hangarClose");
-            closeButton.text = Localization.Extra("hudBack", "BACK");
+            closeButton.text = Localization.Extra("hudBack", "BACK").OgCase();
 
             // Modified: the main menu's click sound (the release) on the tabs.
             tabShip.clicked += () => { menu.PlayRelease(); SetTab(Tab.Ship); };
@@ -193,6 +198,14 @@ namespace GoF2Remake.UI
             help.style.position = Position.Relative;
             help.style.width = help.style.height = 34f;
             hangarClose.parent.Insert(hangarClose.parent.IndexOf(hangarClose), help);
+            closeTop = hangarClose.parent;
+            ogTitle = new Label { pickingMode = PickingMode.Ignore };
+            ogTitle.AddToClassList("hangar-og-title");
+            closeTop.Insert(0, ogTitle);
+            BuildVipTools(root);   // remake: the Kaamo Club VIP Card's Ships tab, search box and sort button
+            ogInfo = new Label { pickingMode = PickingMode.Ignore };
+            ogInfo.AddToClassList("hangar-og-info");
+            details.Insert(0, ogInfo);
             actionButton.clicked += Action;
             if (actionButton2 != null) actionButton2.clicked += SecondaryAction;
             // Remake: inside a blueprint the trade arrows are TAKE / ADD.
@@ -244,6 +257,8 @@ namespace GoF2Remake.UI
             itemRow.Add(itemRight);
             itemRow.style.display = DisplayStyle.None;
             detailsPanel?.Add(itemRow);
+            // Remake: a short panel (a phone at a larger interface size) scrolls a ship's view and stats with its description.
+            detailScroll.RegisterCallback<GeometryChangedEvent>(_ => FitDescription());
             shipPreview.Element.AddToClassList("detail-preview");
             // Remake: framed like the item window's view (its proportions, distance and floor under the ship).
             shipPreview.KeepAspect = true;
@@ -263,6 +278,11 @@ namespace GoF2Remake.UI
         readonly VisualElement detailsPanel, itemRow;
         readonly ScrollView itemStats;
         readonly VisualElement itemRight;
+        /// <summary>Remake: a ship's view and stats sit inside the description's scroll (FitDescription).</summary>
+        bool previewScrolls;
+        /// <summary>Remake: the least height of a ship's description (its title and about three lines) before its view and
+        /// stats scroll with it; DescSlack keeps it from flipping back and forth at the edge.</summary>
+        const float MinDescHeight = 130f, DescSlack = 40f;
 
         /// <summary>Remake: a click / tap on the turning ship shows it alone in the item window's box.</summary>
         void OpenShipView()
@@ -291,7 +311,7 @@ namespace GoF2Remake.UI
             // controls; other items keep both at the bottom.
             bool ship3d = shipPreview.Shown;
             previewRow.style.display = ship3d ? DisplayStyle.Flex : DisplayStyle.None;
-            detailDescTitle.text = Localization.Get(280).ToUpperInvariant();
+            detailDescTitle.text = Localization.Get(280).UiCaps();
             detailDescTitle.style.display = DisplayStyle.Flex;
             // A ship's head is empty: its view and stats say it (the item window's hint 643 stood there until 2026-10-18).
             detailName.style.display = ship3d ? DisplayStyle.None : DisplayStyle.Flex;
@@ -303,12 +323,12 @@ namespace GoF2Remake.UI
             if (panel != null)
             {
                 // The description: under the ship's row, or the right half of the item's row at the bottom.
-                if (ship3d)
+                if (ship3d) PlacePreviewRow();
+                else
                 {
-                    int at = panel.IndexOf(previewRow) + 1;
-                    if (detailScroll.parent != panel || panel.IndexOf(detailScroll) != at) panel.Insert(at, detailScroll);
+                    if (previewRow.parent != panel) PlacePreviewRow();
+                    if (detailScroll.parent != itemRight) itemRight.Insert(0, detailScroll);
                 }
-                else if (detailScroll.parent != itemRight) itemRight.Insert(0, detailScroll);
                 itemRow.style.display = ship3d ? DisplayStyle.None : DisplayStyle.Flex;
                 detailScroll.EnableInClassList("detail-scroll--side", !ship3d);
                 // The action buttons: centred in the space under the ship's view, else back above the item's row.
@@ -323,23 +343,59 @@ namespace GoF2Remake.UI
             FitActions();
         }
 
+        /// <summary>Remake: a ship's row (view and stats) under its head and the description under it; or, on a panel too
+        /// short for both (a phone at 100 % interface size or more: the row took all the height and the description and
+        /// its Kaamo Club mods were squeezed to nothing), the row at the top of the description's scroll.</summary>
+        void PlacePreviewRow()
+        {
+            var panel = detailsPanel;
+            if (panel == null) return;
+            bool inScroll = previewScrolls && shipPreview.Shown;
+            int at = panel.IndexOf(detailIcon.parent) + 1;
+            if (inScroll)
+            {
+                if (previewRow.parent != detailScroll.contentContainer || detailScroll.contentContainer.IndexOf(previewRow) != 0)
+                    detailScroll.contentContainer.Insert(0, previewRow);
+            }
+            else if (previewRow.parent != panel || panel.IndexOf(previewRow) != at) panel.Insert(at, previewRow);
+            if (!shipPreview.Shown) return;
+            int scrollAt = inScroll ? at : at + 1;
+            if (detailScroll.parent != panel || panel.IndexOf(detailScroll) != scrollAt) panel.Insert(scrollAt, detailScroll);
+        }
+
+        /// <summary>Remake: moves a ship's row into the description's scroll when the description gets under MinDescHeight,
+        /// and back out when it would keep that much (and DescSlack) beside it.</summary>
+        void FitDescription()
+        {
+            if (!shipPreview.Shown || detailScroll.parent != detailsPanel) return;
+            float h = detailScroll.layout.height;
+            if (float.IsNaN(h)) return;
+            bool want = previewScrolls
+                ? h - previewRow.layout.height - previewRow.resolvedStyle.marginTop < MinDescHeight + DescSlack
+                : h < MinDescHeight;
+            if (want == previewScrolls) return;
+            previewScrolls = want;
+            PlacePreviewRow();
+        }
+
         // ---- open / close ------------------------------------------------------------------------------------
 
         /// <summary>Modified: the labels set while this window was built, read again from the table loaded now
         /// (StationMenu.RefreshTexts on Localization.Changed). What Open / Rebuild writes already reads it as it goes.</summary>
         public void RefreshTexts()
         {
-            string T(int id) => Localization.Get(id).ToUpperInvariant();
+            string T(int id) => Localization.Get(id).UiCaps();
             tabShip.text = T(183);
             tabShop.text = T(185);
             tabBlueprints.text = T(272);
-            if (closeButton != null) closeButton.text = Localization.Extra("hudBack", "BACK");
-            if (detailDescTitle != null) detailDescTitle.text = Localization.Get(280).ToUpperInvariant();
+            if (closeButton != null) closeButton.text = Localization.Extra("hudBack", "BACK").OgCase();
+            if (detailDescTitle != null) detailDescTitle.text = Localization.Get(280).UiCaps();
+            RefreshVipTexts();
             if (IsOpen)
             {
                 // Not SetTab: it commits pending trades and auto-equips (game actions, not a re-label). Rebuild only lays
                 // the rows out again, keeping the selection and the scroll.
-                tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).ToUpperInvariant();   // "Store" at the owned club
+                tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).UiCaps();   // "Store" at the owned club
                 Rebuild();
             }
         }
@@ -347,14 +403,27 @@ namespace GoF2Remake.UI
         public void Open()
         {
             IsOpen = true;
+            PlaceBack();
             hangar = new Hangar(level.Database, level.Stock);   // prices are recomputed on every open, like the original
-            tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).ToUpperInvariant();   // "Store" at the owned club
+            tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).UiCaps();   // "Store" at the owned club
+            ResetVipTools();
             ClearBlueprintShopHighlight();
             selected = null;
             tabScroll.Clear();
             tabSelected.Clear();
             tabSelectedIndex.Clear();
             Rebuild();
+        }
+
+        /* Original (f212 / f208): Back at the footer bar's left end, the cargo and credits beside it; the Remake keeps it on
+           the header bar. Checked on every open, so a change of the interface style takes effect the next time. */
+        void PlaceBack()
+        {
+            ogTitle.text = Localization.Get(167);
+            ogInfo.text = Localization.Get(390);
+            var footer = cargoLabel.parent;
+            if (Settings.OriginalUi) { if (closeButton.parent != footer) footer.Insert(0, closeButton); }
+            else if (closeButton.parent != closeTop) closeTop.Add(closeButton);
         }
 
         /// <summary>Multiplayer: the shared stock changed (another player's trade, the reset): the list again.</summary>
@@ -382,6 +451,7 @@ namespace GoF2Remake.UI
             if (!IsOpen) return;
             AutoEquip();
             if (HasPending) Revert();
+            if (searchFocused) { searchField.Blur(); SetSearchFocus(false); }
             IsOpen = false;
             ClearBlueprintShopHighlight();
             editing = -1;
@@ -420,6 +490,7 @@ namespace GoF2Remake.UI
 
         public void SetTab(Tab t)
         {
+            if (t == Tab.Ships && !VipTools) return;   // the VIP Card's tab, only with its perks at the club
             if (tab == t && rows.Count > 0 && editing < 0) return;
             if (tab == Tab.Shop && t != Tab.Shop) ClearBlueprintShopHighlight();
             // Confirm freight for the entire pending shipment before leaving the recipe.

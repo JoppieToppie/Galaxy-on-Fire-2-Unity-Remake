@@ -71,7 +71,7 @@ namespace GoF2Remake.UI
         {
             if (root == null) return;
             if (root.Q<Label>("loadTitle") is Label title)
-                title.text = (coopSlotPick ? Localization.Extra("coopPickTitle", "Host a save") : Localization.Get(29)).ToUpperInvariant();
+                title.text = (coopSlotPick ? Localization.Extra("coopPickTitle", "Host a save") : Localization.Get(29)).UiCaps();
             void Show(string name, bool on) { if (root.Q(name) is VisualElement e) e.style.display = on ? DisplayStyle.Flex : DisplayStyle.None; }
             Show("saveTransferRow", !coopSlotPick);
             Show("originalSaveRow", !coopSlotPick && Modding.ModImport.Available);

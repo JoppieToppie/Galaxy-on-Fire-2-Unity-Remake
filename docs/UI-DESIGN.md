@@ -96,6 +96,23 @@ pages' own classes, which match it.
   a More button after it lists every tab in the options' drop-down (`ChoicePopup`). Tabs are never cut off with no
   sign of the rest.
 
+### Interface style: Original (`GoF2Original.uss`)
+
+Options > Graphics "Interface style" (`Settings.OriginalUi`, default Remake) puts `.ui-style-original` on every screen's
+root (`UiLayout.Configure`, part of `UiLayout.Revision`). The screens, layouts, scaling and features stay the remake's;
+only the skin changes, to the original game's own pieces cut from the Android HD atlases into `Assets/UI/Original`
+(`og_*.png`, sources and image ids in the sheet's header): the scanline tile for windows, the steel-blue 3-slice button
+that turns amber when focused, hovered or pressed (the original only showed it pressed), the hangar's list rows, the
+section and title plates, the check box, the header and footer bars, steel-grey lines and white text. The pieces are
+9-sliced (`-unity-slice-*`, `-unity-slice-scale`), so they scale with the interface like every other rule.
+
+- Every rule sits under `.ui-style-original` (one class more than the remake's rule it replaces) in `GoF2Original.uss`
+  (tokens and the shared classes) and `Assets/UI/Original/<Screen>.uss` (one sheet per screen sheet), all imported by
+  `GoF2Theme.tss`. A new screen class that has a box, a button or a list row gets its original look there too.
+- Hover rules are written twice, `.ui-style-original .can-hover .x:hover` and `.ui-style-original.can-hover .x:hover`
+  (the class may be on the same root or an ancestor).
+- Inline styles (code-built panels such as the flight's docked menu) keep the remake's look.
+
 ### Motion
 
 Panels fade and slide 40 px in over 0.28 s with ease-out cubic. Focus changes ease over 0.18 s. Menus that leave the

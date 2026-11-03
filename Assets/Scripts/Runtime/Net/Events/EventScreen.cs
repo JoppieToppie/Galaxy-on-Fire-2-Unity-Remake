@@ -623,7 +623,7 @@ namespace GoF2Remake.Events
             {
                 var (t, text, closed) = pendingMotd.Value;
                 pendingMotd = null;
-                motdTitle.text = t.ToUpperInvariant();
+                motdTitle.text = t.UiCaps();
                 motdText.text = text;
                 // The longest line fits the window's width (JetBrains Mono: 0.6 em a character), 14..22.
                 int cols = 1;
@@ -654,7 +654,7 @@ namespace GoF2Remake.Events
             bool on = f.Length >= 3 && int.TryParse(f[0], out _);
             questionPortrait.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
             answerRow.style.paddingLeft = on ? 196 : 20;
-            questionName.text = Localization.Extra("mpAskTitle", "Question").ToUpperInvariant();
+            questionName.text = Localization.Extra("mpAskTitle", "Question").UiCaps();
             if (!on) return;
             SpeakerSpec.TryParse(spec, '\u001e', out var who);
             int id = who.id;
@@ -668,7 +668,7 @@ namespace GoF2Remake.Events
                 Portrait.ShowSpeaker(questionPortrait, id, id == 0);
                 if (name.Length == 0) name = StoryTable.SpeakerName(id);
             }
-            questionName.text = name.ToUpperInvariant();
+            questionName.text = name.UiCaps();
             StylePortrait(questionPortrait, 160, 200);
         }
 
@@ -713,7 +713,7 @@ namespace GoF2Remake.Events
             {
                 var c = pendingCard.Value;
                 pendingCard = null;
-                cardHeader.text = c.header.ToUpperInvariant();
+                cardHeader.text = c.header.UiCaps();
                 cardTitle.text = c.title;
                 cardBy.text = c.by;
                 cardBy.style.display = c.by.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
@@ -810,7 +810,7 @@ namespace GoF2Remake.Events
             bool on = scoreText.Length > 0;
             scoreBox.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
             if (!on) return;
-            scoreTitle.text = lines[0].ToUpperInvariant();
+            scoreTitle.text = lines[0].UiCaps();
             scoreRows.Clear();
             string me = NetPlayer.Local != null ? NetPlayer.Local.DisplayName : null;
             for (int i = 1; i < lines.Length; i++)
@@ -851,7 +851,7 @@ namespace GoF2Remake.Events
             {
                 var (heading, credits, items) = pendingReward.Value;
                 pendingReward = null;
-                rewardTitle.text = heading.ToUpperInvariant();
+                rewardTitle.text = heading.UiCaps();
                 rewardCredits.text = credits > 0 ? "+ " + ItemInfo.Credits(credits) : "";
                 rewardCredits.style.display = credits > 0 ? DisplayStyle.Flex : DisplayStyle.None;
                 rewardItems.Clear();
@@ -926,7 +926,7 @@ namespace GoF2Remake.Events
             timerBox.style.display = timerOn ? DisplayStyle.Flex : DisplayStyle.None;
             if (timerOn)
             {
-                if (pending) { timerLabel.text = timerText.ToUpperInvariant(); timerLabel.style.display = timerText.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None; }
+                if (pending) { timerLabel.text = timerText.UiCaps(); timerLabel.style.display = timerText.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None; }
                 int left = Mathf.CeilToInt(Mathf.Max(0f, timerEnd - eventNow));
                 timerValue.text = $"{left / 60}:{left % 60:00}";
                 timerValue.style.color = left <= 10 ? new Color(1f, 0.7f, 0.25f) : Color.white;

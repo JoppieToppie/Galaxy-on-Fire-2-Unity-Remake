@@ -233,7 +233,7 @@ namespace GoF2Remake.UI
             {
                 shownLoad = load;
                 shownMaxLoad = max;
-                fundsCargo.text = $"{Localization.Get(184).ToUpperInvariant()}  {load} / {max} t";   // 184 Cargo, as the hangar's footer
+                fundsCargo.text = $"{Localization.Get(184).UiCaps()}  {load} / {max} t";   // 184 Cargo, as the hangar's footer
                 fundsCargo.EnableInClassList("station-funds-cargo--over", load > max);
             }
         }

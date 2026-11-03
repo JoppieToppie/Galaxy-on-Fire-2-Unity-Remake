@@ -206,7 +206,7 @@ namespace GoF2Remake.UI
                 if (t == Tab.Squad) name = Localization.Extra("mpTabSquad", "Squad");
                 if (t == Tab.Trade) name = Localization.Extra("mpTabTrade", "Trade");
                 // Rework (docs/UI-DESIGN.md "Tabs"): the shared tab look (it was a row of small boxed buttons).
-                var b = new Button(() => SelectTab(t)) { text = name.ToUpperInvariant() };
+                var b = new Button(() => SelectTab(t)) { text = name.UiCaps() };
                 b.AddToClassList("tab-button");
                 b.AddToClassList("gof-semibold");
                 b.EnableInClassList("tab-button--active", t == tab);

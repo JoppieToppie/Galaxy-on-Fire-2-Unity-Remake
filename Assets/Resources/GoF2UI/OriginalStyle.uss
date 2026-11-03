@@ -1,0 +1,10 @@
+/* Interface style Original: its sheets as one, which UiLayout.Configure adds to every screen root (and every element there
+   that carries its own sheets), after the screen's own sheets. UI Toolkit lets a sheet attached lower in the tree win over
+   the panel's theme whatever the selectors' specificity, so through the theme alone (GoF2Theme.tss) the Original rules lost
+   every property the screens' sheets also set (sizes, positions, images). Every rule in them is under .ui-style-original,
+   so they change nothing in the Remake style. */
+@import url("project://database/Assets/UI/GoF2Original.uss");
+@import url("project://database/Assets/UI/Original/OriginalMainMenu.uss");
+@import url("project://database/Assets/UI/Original/OriginalStation.uss");
+@import url("project://database/Assets/UI/Original/OriginalHangar.uss");
+@import url("project://database/Assets/UI/Original/OriginalFlight.uss");

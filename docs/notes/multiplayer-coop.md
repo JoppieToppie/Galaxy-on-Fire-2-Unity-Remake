@@ -60,7 +60,9 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
   (`NetCoop.CrewNames`, the host first, the join code for the host), kept current every 0.5 s (`MainMenu.CoopLobby`). The
   host's Start (`NetCoop.StartCampaign`) sets the flag and everyone enters the world at once (`OnStarted`); Leave ends the
   session for that player (the host's: for all). A player joining after the Start enters at once; Continue has no lobby.
-- **Starting**: the host's game is `CoopCampaign.NewCampaign`: the main game at step 0, the prologue in flight in the
+- **Starting**: the host's game is `CoopCampaign.NewCampaign`: resetGame's Phantom and no credits (`Session.ResetStartShip`,
+  replacing the multiplayer pilot's Betty and 10000 so step 1's docking still gives Betty with Gunant's Drill), the main
+  game at step 0, the prologue in flight in the
   Dareius belt (`NetCoop.StartsInFlight`: EnterWorld loads Space, not Station), the add-ons docked; a saved campaign's
   host profile replaces it. A joining guest (`NetState.OnNetworkSpawn` -> `NetCoop.OnJoined` before its profile): a new
   game caught up from step 0 to the leader's (`PrepareGuest`: every step's side effects), the leader's own ship and
