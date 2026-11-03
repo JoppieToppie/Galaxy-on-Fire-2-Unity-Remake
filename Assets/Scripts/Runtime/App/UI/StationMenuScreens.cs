@@ -381,6 +381,7 @@ namespace GoF2Remake.UI
             InputGlyph.SetText(root.Q<Button>("loungeBack"), Localization.Extra("hudBack", "BACK"));
             InputGlyph.SetText(dialogNo, T(135).UiCaps());
             root.Q<Button>("menuButton").text = Localization.Extra("hudMenu", "MENU");
+            if (Settings.OriginalUi) OriginalStationTexts();
             root.Q<Label>("systemMenuTitle").text = T(172).UiCaps();       // Menu
             saveGameButton.text = T(30).UiCaps();                          // Save game
             mainMenuButton.text = Modding.ModBuilder.PlayTesting ? Localization.Extra("mbBackToBuilder", "Back to Mod Builder").UiCaps()
@@ -398,6 +399,27 @@ namespace GoF2Remake.UI
             status?.RefreshTexts();
             lounge?.RefreshTexts();
             BuildHints(InputMode.Current);
+        }
+        /// <summary>Interface style Original (OriginalStation.uss): the menu buttons numbered and in the table's case as the
+        /// original's "1. Hangar" ... "5. Status" (the number dim), the remake's extra entries numbered on after them, the
+        /// Menu button as the original's footer "Game Options" and the remake's own capitals in sentence case.</summary>
+        void OriginalStationTexts()
+        {
+            int n = 0;
+            foreach (var b in new[] { hangarButton, loungeButton, mapButton, missionsButton, statusButton, inspectButton, customizeButton })
+                if (b != null) b.text = $"<color=#7E8A96>{++n}.</color> {SentenceCase(b.text)}";
+            root.Q<Button>("menuButton").text = Localization.Extra("stationGameOptions", "Game Options");
+            // The launch button's label (a Label child next to its key glyphs, InputGlyph.WithGlyphs).
+            var launchLabel = launchButton.Q<Label>(className: "glyph-button-label");
+            if (launchLabel != null) launchLabel.text = SentenceCase(launchLabel.text);
+            InputGlyph.SetText(root.Q<Button>("loungeBack"), SentenceCase(Localization.Extra("hudBack", "BACK")));
+        }
+        /// <summary>A remake label written in capitals ("INSPECT SHIP") as the original writes its labels ("Inspect ship");
+        /// a label that has lower case letters already stays as it is.</summary>
+        static string SentenceCase(string text)
+        {
+            if (string.IsNullOrEmpty(text) || text != text.ToUpperInvariant()) return text;
+            return text.Substring(0, 1) + text.Substring(1).ToLowerInvariant();
         }
         void OnViewChanged()
         {
