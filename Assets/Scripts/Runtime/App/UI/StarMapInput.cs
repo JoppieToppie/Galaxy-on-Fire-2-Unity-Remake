@@ -191,7 +191,7 @@ namespace GoF2Remake.UI
             string X(string key, string english) => Localization.Extra(key, english);
             string select = X("hudSelect", "SELECT"), back = X("hudBack", "BACK"), confirm = X("hudConfirm", "CONFIRM");
             string zoom = X("mapZoomIn", "ZOOM IN"), moveText = X("mapMove", "MOVE"), turn = X("mapTurn", "TURN");
-            string key = T(400).ToUpperInvariant();
+            string key = T(400).UiCaps();
             if (DialogOpen)
             {
                 if (kind == InputKind.KeyboardMouse)

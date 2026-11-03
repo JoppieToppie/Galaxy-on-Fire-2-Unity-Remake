@@ -23,7 +23,7 @@ namespace GoF2Remake.UI
             autopilotMenuItems.Clear();
             menuButtons.Clear();
             menuActions.Clear();
-            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(actions ? 172 : 571).ToUpperInvariant();   // Menu / Autopilot
+            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(actions ? 172 : 571).UiCaps();   // Menu / Autopilot
             foreach (var t in nav.MenuEntries(actions))
             {
                 var target = t;
@@ -95,7 +95,7 @@ namespace GoF2Remake.UI
         /// keys; the station menu's entries are numbered the same way).</summary>
         static string MenuLabel(int index, string text)
         {
-            text = text.ToUpperInvariant();
+            text = text.UiCaps();
             return InputMode.Current == InputKind.KeyboardMouse && index < 8 ? $"{index + 1}. {text}" : text;
         }
         void CloseAutopilotMenu()
@@ -316,7 +316,7 @@ namespace GoF2Remake.UI
             autopilotMenuItems.Clear();
             menuButtons.Clear();
             menuActions.Clear();
-            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(306).ToUpperInvariant();
+            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(306).UiCaps();
             foreach (var (command, text) in new[] { (1, 307), (3, 308), (2, 309), (0, Session.WingmanShowEmp ? 311 : 310) })
             {
                 int cmd = command;
@@ -324,7 +324,7 @@ namespace GoF2Remake.UI
                 {
                     traffic.CommandWingmen(cmd, level.Radar != null ? level.Radar.Locked : null, nav.PlayerRoute);
                     CloseAutopilotMenu();
-                    root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).ToUpperInvariant();
+                    root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).UiCaps();
                 };
                 var b = new Button { text = MenuLabel(menuButtons.Count, Localization.Get(text)) };
                 b.AddToClassList("autopilot-menu-item");
@@ -346,7 +346,7 @@ namespace GoF2Remake.UI
             autopilotMenuItems.Clear();
             menuButtons.Clear();
             menuActions.Clear();
-            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(266).ToUpperInvariant();
+            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(266).UiCaps();
             int selected = 0;
             foreach (int item in weapons.SecondaryItems())
             {
@@ -355,7 +355,7 @@ namespace GoF2Remake.UI
                 {
                     weapons.SelectSecondary(it);
                     CloseAutopilotMenu();
-                    root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).ToUpperInvariant();
+                    root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).UiCaps();
                 };
                 if (it == weapons.SelectedSecondary) selected = menuButtons.Count;
                 var b = new Button { text = MenuLabel(menuButtons.Count, $"{ItemInfo.ItemName(it)} ({weapons.AmmoOf(it)})") };

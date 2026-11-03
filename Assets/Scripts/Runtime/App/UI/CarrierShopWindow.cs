@@ -82,7 +82,7 @@ namespace GoF2Remake.UI
             UiHover.Hook(window, () => HoverSound?.Invoke());   // Modified
             window.style.display = DisplayStyle.None;
             var top = El("hangar-top");
-            tab = new Button { text = CapitalShips.CarrierName.ToUpperInvariant(), focusable = false };
+            tab = new Button { text = CapitalShips.CarrierName.UiCaps(), focusable = false };
             tab.AddToClassList("hangar-tab");
             tab.AddToClassList("hangar-tab--active");
             tab.AddToClassList("gof-semibold");
@@ -115,7 +115,7 @@ namespace GoF2Remake.UI
             tradeBox = El("trade-box");
             var left = El("trade-side");
             storeLabel = Lbl("trade-side-label");
-            storeLabel.text = CapitalShips.CarrierName.ToUpperInvariant();
+            storeLabel.text = CapitalShips.CarrierName.UiCaps();
             tradeLeft = Lbl("trade-side-value", true);
             tradeLeft.text = "∞";
             left.Add(storeLabel);
@@ -130,7 +130,7 @@ namespace GoF2Remake.UI
             tradePrice = Lbl("trade-price", true);
             var right = El("trade-side", "trade-side--right");
             var rightLabel = Lbl("trade-side-label");
-            rightLabel.text = T(183).ToUpperInvariant();
+            rightLabel.text = T(183).UiCaps();
             tradeRight = Lbl("trade-side-value", true);
             tradeNote = Lbl("trade-side-note");
             right.Add(rightLabel);
@@ -205,7 +205,7 @@ namespace GoF2Remake.UI
         {
             host = ship;
             store = ship != null ? ship.GetComponent<CapitalShip>()?.store : null;
-            string name = CapitalShips.HostName(ship).ToUpperInvariant();
+            string name = CapitalShips.HostName(ship).UiCaps();
             tab.text = name;
             storeLabel.text = name;
             closeButton.text = FromMenu ? X("hudBack", "BACK") : X("hudUndock", "UNDOCK");
@@ -256,7 +256,7 @@ namespace GoF2Remake.UI
             for (int i = 0; i < rows.Count; i++) rows[i].row.EnableInClassList("list-row--selected", i == selected);
             list.schedule.Execute(() => { list.scrollOffset = new Vector2(0f, scroll); ScrollToSelected(); });
             ShowDetails();
-            cargoLabel.text = $"{T(184).ToUpperInvariant()}  {Shop.CargoLoad()} / {Shop.MaxLoad(db)} t";
+            cargoLabel.text = $"{T(184).UiCaps()}  {Shop.CargoLoad()} / {Shop.MaxLoad(db)} t";
             creditsLabel.text = ItemInfo.Credits(Session.Credits);
         }
 
@@ -272,7 +272,7 @@ namespace GoF2Remake.UI
 
         void AddHeader(string text)
         {
-            var l = new Label(text.ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+            var l = new Label(text.UiCaps()) { pickingMode = PickingMode.Ignore };
             l.AddToClassList("list-header");
             l.AddToClassList("gof-semibold");
             list.Add(l);

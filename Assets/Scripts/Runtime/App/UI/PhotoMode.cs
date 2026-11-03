@@ -68,7 +68,7 @@ namespace GoF2Remake.UI
             overlay = new VisualElement { pickingMode = PickingMode.Ignore };
             overlay.AddToClassList("photo-overlay");
             var title = OrbitViewUi.Title();
-            title.text = Localization.Get(59).ToUpperInvariant();   // Action Freeze
+            title.text = Localization.Get(59).UiCaps();   // Action Freeze
             overlay.Add(title);
             message = OrbitViewUi.Message();
             overlay.Add(message);

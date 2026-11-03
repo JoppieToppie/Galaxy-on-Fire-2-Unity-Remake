@@ -49,7 +49,7 @@ namespace GoF2Remake.UI
         /// <summary>The defaults prompt reset this tab or every tab (Default settings, 497).</summary>
         public event Action DefaultsRestored;
 
-        static string T(int id) => Localization.Get(id).ToUpperInvariant();
+        static string T(int id) => Localization.Get(id).UiCaps();
 
         readonly Action back;
 
@@ -76,7 +76,7 @@ namespace GoF2Remake.UI
                 if (!defs.Exists(d => d.page == page)) continue;
                 var tab = new Tab { page = page };
                 int index = tabs.Count;
-                tab.button = new Button { text = OptionsCatalog.PageTitle(page).ToUpperInvariant(), focusable = focusableRows };
+                tab.button = new Button { text = OptionsCatalog.PageTitle(page).UiCaps(), focusable = focusableRows };
                 tab.button.AddToClassList("tab-button");
                 tab.button.AddToClassList("gof-semibold");
                 tab.button.clicked += () => SelectTab(index);
@@ -134,9 +134,9 @@ namespace GoF2Remake.UI
             question = new Label(OptionsCatalog.ResetQuestion) { pickingMode = PickingMode.Ignore };
             question.AddToClassList("options-reset-question");
             prompt.Add(question);
-            CancelButton = PromptButton(Localization.Get(425).ToUpperInvariant(), () => CloseResetPrompt());   // Cancel
+            CancelButton = PromptButton(Localization.Get(425).UiCaps(), () => CloseResetPrompt());   // Cancel
             ResetTabButton = PromptButton("", () => Reset(false));
-            ResetAllButton = PromptButton(OptionsCatalog.ResetAllLabel.ToUpperInvariant(), () => Reset(true));
+            ResetAllButton = PromptButton(OptionsCatalog.ResetAllLabel.UiCaps(), () => Reset(true));
             ResetAllButton.AddToClassList("options-reset-all");
             prompt.style.display = DisplayStyle.None;
             footer.Add(prompt);
@@ -158,13 +158,13 @@ namespace GoF2Remake.UI
         public void RefreshTexts()
         {
             title.text = T(31);
-            foreach (var tab in tabs) tab.button.text = OptionsCatalog.PageTitle(tab.page).ToUpperInvariant();
+            foreach (var tab in tabs) tab.button.text = OptionsCatalog.PageTitle(tab.page).UiCaps();
             InputGlyph.SetText(BackButton, "‹  " + T(170));
             DefaultsButton.text = T(497);
             question.text = OptionsCatalog.ResetQuestion;
-            CancelButton.text = Localization.Get(425).ToUpperInvariant();
-            ResetTabButton.text = OptionsCatalog.ResetTabLabel(tabs[TabIndex].page).ToUpperInvariant();
-            ResetAllButton.text = OptionsCatalog.ResetAllLabel.ToUpperInvariant();
+            CancelButton.text = Localization.Get(425).UiCaps();
+            ResetTabButton.text = OptionsCatalog.ResetTabLabel(tabs[TabIndex].page).UiCaps();
+            ResetAllButton.text = OptionsCatalog.ResetAllLabel.UiCaps();
             RefreshAll();
         }
 
@@ -222,7 +222,7 @@ namespace GoF2Remake.UI
         void OpenResetPrompt()
         {
             if (tabs.Count == 0) return;
-            ResetTabButton.text = OptionsCatalog.ResetTabLabel(tabs[TabIndex].page).ToUpperInvariant();
+            ResetTabButton.text = OptionsCatalog.ResetTabLabel(tabs[TabIndex].page).UiCaps();
             BackButton.style.display = DisplayStyle.None;
             DefaultsButton.style.display = DisplayStyle.None;
             prompt.style.display = DisplayStyle.Flex;
@@ -287,7 +287,7 @@ namespace GoF2Remake.UI
                 tabs[i].scroll.EnableInClassList("tab-page--active", i == TabIndex);
             }
             tabs[TabIndex].scroll.scrollOffset = Vector2.zero;
-            if (ResetPromptOpen) ResetTabButton.text = OptionsCatalog.ResetTabLabel(tabs[TabIndex].page).ToUpperInvariant();
+            if (ResetPromptOpen) ResetTabButton.text = OptionsCatalog.ResetTabLabel(tabs[TabIndex].page).UiCaps();
             if (notify) TabChanged?.Invoke();
         }
 

@@ -124,7 +124,7 @@ namespace GoF2Remake.UI
         {
             if (chatChannel == null) return;
             var c = NetChat.SendingNow;
-            chatChannel.text = NetChat.ChannelName(c).ToUpperInvariant();
+            chatChannel.text = NetChat.ChannelName(c).UiCaps();
             chatChannel.style.color = c == NetChat.Channel.Global ? new Color(0.94f, 0.7f, 0.35f)
                                     : c == NetChat.Channel.Faction ? new Color(0.56f, 0.89f, 0.56f)
                                     : c == NetChat.Channel.Squad ? new Color(1f, 0.62f, 0.8f) : Accent;
@@ -165,7 +165,7 @@ namespace GoF2Remake.UI
         /// <summary>A section's title (Section adds it to the tab; the Trade tab's columns take their own).</summary>
         static Label Heading(string title)
         {
-            var l = Text(title.ToUpperInvariant(), 15, Accent);
+            var l = Text(title.UiCaps(), 15, Accent);
             l.style.marginTop = 16;
             l.style.marginBottom = 4;
             l.style.letterSpacing = 1;
@@ -204,7 +204,7 @@ namespace GoF2Remake.UI
         }
         static Button Btn(string text, Action onClick, string cls)
         {
-            var b = new Button(onClick) { text = text.ToUpperInvariant() };
+            var b = new Button(onClick) { text = text.UiCaps() };
             b.AddToClassList("squad-button");
             if (cls != null) b.AddToClassList(cls);
             b.style.marginLeft = 6;

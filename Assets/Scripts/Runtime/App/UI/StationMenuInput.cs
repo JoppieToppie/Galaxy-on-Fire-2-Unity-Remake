@@ -134,7 +134,7 @@ namespace GoF2Remake.UI
                 : missions != null && missions.IsOpen ? Localization.Get(129)
                 : status != null && status.IsOpen ? Localization.Get(169)
                 : level.View == StationView.Lounge ? Localization.Get(398) : "";
-            t = t.ToUpperInvariant();
+            t = t.UiCaps();
             if (viewTitle.text == t) return;
             viewTitle.text = t;
             viewTitle.style.display = t.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
@@ -336,12 +336,12 @@ namespace GoF2Remake.UI
                 string select = T("hudSelect", "SELECT"), trade = ingredients ? $"{T("shopTake", "TAKE")} / {T("bpAdd", "ADD")}"
                                                                 : store ? $"{T("shopStore", "STORE")} / {T("shopTake", "TAKE")}"
                                                                         : $"{T("shopSell", "SELL")} / {T("shopBuy", "BUY")}";
-                string tabs = $"{Localization.Get(183)} / {Localization.Get(store ? 186 : 185)} / {Localization.Get(272)}".ToUpperInvariant(), confirm = T("hudConfirm", "CONFIRM");
+                string tabs = $"{Localization.Get(183)} / {Localization.Get(store ? 186 : 185)} / {Localization.Get(272)}".UiCaps(), confirm = T("hudConfirm", "CONFIRM");
                 string sellShip = T("kaamoSellShip", "SELL SHIP");
                 // Remake: the Ship tab's X moves a mounted item to its next slot (HangarWindow.SecondaryAction).
                 bool shipTab = hangarWindow != null && hangarWindow.ShipTab;
                 string move = T("shopMoveSlot", "MOVE");
-                string info = Localization.Get(390).ToUpperInvariant();   // the details window's "Info" (ItemInfoWindow)
+                string info = Localization.Get(390).UiCaps();   // the details window's "Info" (ItemInfoWindow)
                 if (kind == InputKind.KeyboardMouse)
                 {
                     Hint(select, InputGlyph.Key("W"), InputGlyph.Key("S"));

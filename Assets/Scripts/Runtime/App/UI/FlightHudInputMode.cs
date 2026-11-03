@@ -181,10 +181,10 @@ namespace GoF2Remake.UI
                 if (weapons != null && weapons.CanCycleSecondary) Hint(T("hudSwitchSecondary", "SWITCH"), GameControls.SwitchSecondary);
                 if (radar != null && radar.Locked != null) Hint(T("hudUnlock", "UNLOCK"), GameControls.UnlockTarget);
                 Hint(T("hudFreeLook", "FREE LOOK"), GameControls.FreeLookHold);
-                if (FirstAuto() != null) Hint(Localization.Get(37).ToUpperInvariant(), GameControls.AutoTurret);
+                if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), GameControls.AutoTurret);
                 if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.Camera);
                 CockpitHint(pad);
-                if (!SupernovaChallenge.Active) Hint(Localization.Get(571).ToUpperInvariant(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
+                if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
                 if (nav != null && nav.MenuEntries(true).Count > 0) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);
                 Hint(T("hudMenu", "MENU"), menuKey);
                 return;
@@ -205,10 +205,10 @@ namespace GoF2Remake.UI
             Hint(T("hudRoll", "ROLL"), GameControls.Roll);
             Hint(T("hudLevel", "LEVEL"), GameControls.LevelOut);
             // Remake: a ship may carry an auto turret and a manual one at once: a hint for each kind it has.
-            if (FirstAuto() != null) Hint(Localization.Get(37).ToUpperInvariant(), GameControls.AutoTurret);
+            if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), GameControls.AutoTurret);
             if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.Camera);
             CockpitHint(pad);
-            if (!SupernovaChallenge.Active) Hint(Localization.Get(571).ToUpperInvariant(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
+            if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
             if (nav != null && nav.MenuEntries(true).Count > 0) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);
             Hint(T("hudMenu", "MENU"), menuKey);
         }
@@ -217,7 +217,7 @@ namespace GoF2Remake.UI
         void CockpitHint(bool pad)
         {
             if (VrFlags.Enabled) return;
-            string T(string key, string english) => Localization.Extra(key, english).ToUpperInvariant();
+            string T(string key, string english) => Localization.Extra(key, english).UiCaps();
             if (pad) Hint(T("hudCockpit", "COCKPIT") + " (" + T("hudHold", "HOLD") + ")", GameControls.Camera);
             else Hint(T("hudCockpit", "COCKPIT"), GameControls.CockpitView);
         }

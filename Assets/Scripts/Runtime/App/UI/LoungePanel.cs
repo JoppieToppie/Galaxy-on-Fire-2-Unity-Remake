@@ -260,7 +260,7 @@ namespace GoF2Remake.UI
             menu.PlayVoice(StoryAssets.Load()?.Voice(chat.VoiceName()));   // SpaceLounge::getSoundId
             root.AddToClassList("chat-open");
             var (plateName, plateRole) = LoungeChat.Plate(a);
-            chatName.text = plateName.ToUpperInvariant();
+            chatName.text = plateName.UiCaps();
             chatSub.text = plateRole.Length > 0 ? plateRole : T(406 + a.race);
             var eventOffer = GoF2Remake.Events.EventMissions.OfferOf(a);
             if (eventOffer?.character != null)

@@ -128,7 +128,7 @@ namespace GoF2Remake.UI
             tint.a = 1f;
             toast.style.borderTopColor = tint;
             toast.style.borderLeftColor = toast.style.borderRightColor = toast.style.borderBottomColor = new Color(tint.r, tint.g, tint.b, 0.55f);
-            Line(Localization.Get(353).ToUpperInvariant(), "medal-toast-title").style.color = tint;
+            Line(Localization.Get(353).UiCaps(), "medal-toast-title").style.color = tint;
             Line(Localization.Get(1507 + m), "medal-toast-name");
             if (reward > 0) Line($"+{reward:N0} $", "medal-toast-reward");
             Line(Localization.Extra(InputMode.Current == InputKind.Touch ? "medalToastTap" : "medalToastClick",

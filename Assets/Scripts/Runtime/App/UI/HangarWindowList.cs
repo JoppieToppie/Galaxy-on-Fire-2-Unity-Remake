@@ -94,7 +94,7 @@ namespace GoF2Remake.UI
             pendingScroll = null;
             rows.Clear();
             list.Clear();
-            string T(int id) => Localization.Get(id).ToUpperInvariant();
+            string T(int id) => Localization.Get(id).UiCaps();
             int[] typeHeaders = { 265, 266, 267, 269, 270 };
 
             if (tab == Tab.Shop)
@@ -126,7 +126,7 @@ namespace GoF2Remake.UI
                 if (editing >= 0)
                 {
                     // Tab 4 (HangarList::fillIngredientsList 0x14378c): the product, its ingredients, Autocomplete.
-                    AddHeader(ItemInfo.ItemName(editing).ToUpperInvariant());
+                    AddHeader(ItemInfo.ItemName(editing).UiCaps());
                     var parts = db.Item(editing).blueprint;
                     for (int k = 0; k < parts.Count; k++) AddRow(new Row { kind = RowKind.Ingredient, item = parts[k].item, type = k });
                     AddProductionActions();  // COMPLETE / AUTOCOMPLETE / SHOP, persistent recipe view.
@@ -221,10 +221,10 @@ namespace GoF2Remake.UI
             var actions = new VisualElement { pickingMode = PickingMode.Ignore };
             actions.AddToClassList("manufacturing-actions");
             list.Add(actions);
-            AddProductionRow(actions, RowKind.ShopLink, Localization.Get(hangar.Storage ? 186 : 185).ToUpperInvariant(), "manufacturing-shop");   // the tab's name
+            AddProductionRow(actions, RowKind.ShopLink, Localization.Get(hangar.Storage ? 186 : 185).UiCaps(), "manufacturing-shop");   // the tab's name
             productionAutocomplete = Blueprints.CanAutocomplete(editing)
                 ? AddProductionRow(actions, RowKind.Autocomplete, "", "manufacturing-autocomplete") : null;
-            productionComplete = AddProductionRow(actions, RowKind.Complete, Localization.Extra("bpComplete", "Complete").ToUpperInvariant(),
+            productionComplete = AddProductionRow(actions, RowKind.Complete, Localization.Extra("bpComplete", "Complete").UiCaps(),
                                                   "manufacturing-complete");
             RefreshProductionActions();
         }
@@ -256,7 +256,7 @@ namespace GoF2Remake.UI
             if (productionAutocomplete != null)
             {
                 int price = Blueprints.AutoCompletePrice(level.Database, editing);
-                productionAutocomplete.text = Localization.Extra("bpAutocomplete", "Autocomplete").ToUpperInvariant()
+                productionAutocomplete.text = Localization.Extra("bpAutocomplete", "Autocomplete").UiCaps()
                     + "\n" + ItemInfo.Credits(price);
                 productionAutocomplete.EnableInClassList("row-autocomplete--expensive", price > Session.Credits);
             }
@@ -467,7 +467,7 @@ namespace GoF2Remake.UI
                     subText.text = "";
                     bpAmount = new VisualElement { pickingMode = PickingMode.Ignore };
                     bpAmount.AddToClassList("row-bp-amount");
-                    var bpLabel = new Label(Localization.Get(271).ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+                    var bpLabel = new Label(Localization.Get(271).UiCaps()) { pickingMode = PickingMode.Ignore };
                     bpLabel.AddToClassList("row-bp-amount-label");
                     var bpValue = new Label($"{invested} / {total} t") { pickingMode = PickingMode.Ignore };
                     bpValue.AddToClassList("row-bp-amount-value");
@@ -477,7 +477,7 @@ namespace GoF2Remake.UI
                     // pointer they go on Complete or on leaving the view.
                     if (Pending(row.item) > 0)
                     {
-                        var freight = Badge(Localization.Extra("bpFreight", "Freight").ToUpperInvariant(), "row-badge--freight");
+                        var freight = Badge(Localization.Extra("bpFreight", "Freight").UiCaps(), "row-badge--freight");
                         freight.pickingMode = PickingMode.Position;
                         freight.RegisterCallback<ClickEvent>(ev => { ev.StopPropagation(); menu.PlayRelease(); Commit(null); });
                         bpAmount.Add(freight);

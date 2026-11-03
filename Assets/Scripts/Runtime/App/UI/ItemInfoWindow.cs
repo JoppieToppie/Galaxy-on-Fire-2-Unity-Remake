@@ -113,7 +113,7 @@ namespace GoF2Remake.UI
             root.Add(backdrop);
             backdrop.RegisterCallback<GeometryChangedEvent>(_ => KeepClear());
 
-            back.text = T(170).ToUpperInvariant();
+            back.text = T(170).UiCaps();
         }
 
         // ---- content --------------------------------------------------------------------------------------
@@ -121,9 +121,9 @@ namespace GoF2Remake.UI
         void Begin()
         {
             box.RemoveFromClassList("info-box--view");
-            header.text = T(390).ToUpperInvariant();
+            header.text = T(390).UiCaps();
             help.text = T(643);
-            descTitle.text = T(280).ToUpperInvariant();
+            descTitle.text = T(280).UiCaps();
             stats.Clear();
             ItemInfo.FillModLines(modLines, null);
             textScroll.scrollOffset = Vector2.zero;

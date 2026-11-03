@@ -271,7 +271,7 @@ namespace GoF2Remake.UI
             jumpChargeFill = root.Q("jumpChargeFill");
             orbitInfo = root.Q("orbitInfo");
             jumpChargeLabel = root.Q<Label>("jumpChargeLabel");
-            jumpChargeLabel.text = Localization.Get(318).ToUpperInvariant();   // Drive charging
+            jumpChargeLabel.text = Localization.Get(318).UiCaps();   // Drive charging
             jumpChargeStripes = root.Q("jumpChargeStripes");
             var chargeFrame = Resources.Load<Texture2D>("GoF2Hud/charge_frame");
             var chargeFill = Resources.Load<Texture2D>("GoF2Hud/charge_fill");
@@ -333,7 +333,7 @@ namespace GoF2Remake.UI
             radioShown = -1;
             gameOver = root.Q("gameOver");
             gameOverText = root.Q<Label>("gameOverText");
-            root.Q<Label>("gameOverTitle").text = Localization.Get(319).ToUpperInvariant();   // Game Over
+            root.Q<Label>("gameOverTitle").text = Localization.Get(319).UiCaps();   // Game Over
             gameOver.RegisterCallback<PointerDownEvent>(_ => LoadLastSave());
             navView.AutopilotButton += OnAutopilotButton;
             autopilotMenu = root.Q("autopilotMenu");
@@ -379,7 +379,7 @@ namespace GoF2Remake.UI
             autopilotMenuScroll.AddManipulator(new DragScroll(autopilotMenuScroll));
             autopilotMenu.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());
             autopilotMenu.parent?.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());
-            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).ToUpperInvariant();   // Autopilot
+            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).UiCaps();   // Autopilot
             var menuIcon = Resources.Load<Texture2D>("GoF2Hud/autopilot_title");
             if (menuIcon != null) root.Q("autopilotMenuIcon").style.backgroundImage = new StyleBackground(menuIcon);
             BuildTouchControls();
@@ -397,9 +397,9 @@ namespace GoF2Remake.UI
         public void RefreshTexts()
         {
             if (root == null) return;
-            if (jumpChargeLabel != null) jumpChargeLabel.text = Localization.Get(318).ToUpperInvariant();   // Drive charging
-            root.Q<Label>("gameOverTitle").text = Localization.Get(319).ToUpperInvariant();                // Game Over
-            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).ToUpperInvariant();           // Autopilot
+            if (jumpChargeLabel != null) jumpChargeLabel.text = Localization.Get(318).UiCaps();   // Drive charging
+            root.Q<Label>("gameOverTitle").text = Localization.Get(319).UiCaps();                // Game Over
+            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).UiCaps();           // Autopilot
             root.Q<Label>("dockLabel").text = Localization.Extra("hudDock", "DOCK");
             BuildHints(InputMode.Current);
         }
@@ -774,7 +774,7 @@ namespace GoF2Remake.UI
                 lastCloakCharging = cloakCharging;
                 lastDriveCharging = driveCharging;
                 jumpChargeLabel.text = (driveCharging ? string.Format(Localization.Extra("hudCruiseDriveCharging", "{0} charging"), GoF2Remake.Data.GameNames.Item(drive.item))
-                                        : cloakCharging ? Localization.Get(317) : Localization.Get(318)).ToUpperInvariant();
+                                        : cloakCharging ? Localization.Get(317) : Localization.Get(318)).UiCaps();
             }
             // Hud::draw: half-width min(1, rate x 1.05) x 194 either side of the centre, the stripes' middle first.
             float chargeRate = jumpCharging ? jump.ChargeRate : cloakCharging ? cloak.ChargeRate : driveCharging ? drive.ChargeRate : -1f;
@@ -829,7 +829,7 @@ namespace GoF2Remake.UI
             {
                 bool on = docking != null && docking.TransferLabel != null;
                 transferCounter.EnableInClassList("transfer-counter--hidden", !on);
-                if (on) transferCounter.text = $"{docking.TransferLabel.ToUpperInvariant()}  {docking.TransferDone} / {docking.TransferTotal}";
+                if (on) transferCounter.text = $"{docking.TransferLabel.UiCaps()}  {docking.TransferDone} / {docking.TransferTotal}";
             }
             lockRingElement.style.left = crosshair.style.left;
             lockRingElement.style.top = crosshair.style.top;

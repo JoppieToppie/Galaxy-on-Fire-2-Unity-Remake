@@ -157,7 +157,7 @@ namespace GoF2Remake.UI
             int index = radio.VisibleIndex;
             if (line == null || index == radioShown) return;
             radioShown = index;
-            radioSpeaker.text = StoryTable.SpeakerName(line.speaker).ToUpperInvariant();
+            radioSpeaker.text = StoryTable.SpeakerName(line.speaker).UiCaps();
             string lineText = Localization.Get(line.text);
             bool alien = StoryTable.UsesAlienFont(line.speaker);
             AlienText.Set(radioText, lineText, alien);

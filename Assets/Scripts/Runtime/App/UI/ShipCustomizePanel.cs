@@ -125,7 +125,7 @@ namespace GoF2Remake.UI
             this.ship = ship;
             this.type = type;
             build = current.Clone();
-            title.text = string.Format(X("kitCustomizeTitle", "CUSTOMIZE {0}"), shipName.ToUpperInvariant());
+            title.text = string.Format(X("kitCustomizeTitle", "CUSTOMIZE {0}"), shipName.UiCaps());
             help.text = X("kitCustomizeHelp", "Up / down: part. Left / right: change. Enter: apply. Esc: cancel.");
             row = 0;
             BuildRows();
@@ -205,7 +205,7 @@ namespace GoF2Remake.UI
             ls.flexDirection = FlexDirection.Row; ls.alignItems = Align.Center; ls.height = 38;
             ls.borderBottomWidth = 1; ls.borderBottomColor = Line;
             ls.paddingLeft = ls.paddingRight = 6;
-            var name = new Label(label.ToUpperInvariant());
+            var name = new Label(label.UiCaps());
             name.AddToClassList("gof-semibold");
             name.style.width = 210; name.style.fontSize = UiLayout.Type(20); name.style.color = new Color(1f, 1f, 1f, 0.75f);
             NoWrap(name);

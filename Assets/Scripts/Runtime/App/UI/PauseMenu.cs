@@ -60,7 +60,7 @@ namespace GoF2Remake.UI
         /// <summary>The entry (or the Options page's row / tab / footer button) under the mouse, null over nothing.</summary>
         VisualElement pointerItem;
 
-        static string T(int id) => Localization.Get(id).ToUpperInvariant();
+        static string T(int id) => Localization.Get(id).UiCaps();
 
         public PauseMenu(VisualElement root, Action backToMenu)
         {
@@ -196,7 +196,7 @@ namespace GoF2Remake.UI
         /// missing); its 'empty' line without rows.</summary>
         void BuildSection(MenuSection section)
         {
-            Text(section.heading.ToUpperInvariant(), "pause-heading");
+            Text(section.heading.UiCaps(), "pause-heading");
             if (!string.IsNullOrEmpty(section.text)) Text(section.text, "menu-section-text");
             if (section.rows.Count == 0) { Text(section.empty, "menu-section-empty"); return; }
             foreach (var r in section.rows)
@@ -249,7 +249,7 @@ namespace GoF2Remake.UI
         /// of the question window: OK closes, the game paused meanwhile.</summary>
         public void ShowSorting(SpaceLevel spaceLevel, WasteProcessing.Sorting result, Database db, Action closed)
         {
-            choiceTitle = WasteProcessing.Title.ToUpperInvariant();
+            choiceTitle = WasteProcessing.Title.UiCaps();
             choiceText = choiceYes = choiceNo = null;
             choiceOnYes = closed;
             choiceOnNo = null;
@@ -268,7 +268,7 @@ namespace GoF2Remake.UI
             string line = WasteProcessing.Highlight(s);
             if (line != null)
             {
-                highlight = Text(line.ToUpperInvariant(), "pause-heading");
+                highlight = Text(line.UiCaps(), "pause-heading");
                 highlight.AddToClassList("waste-tier--" + (int)s.Best);
                 highlight.style.visibility = Visibility.Hidden;
             }
@@ -462,16 +462,16 @@ namespace GoF2Remake.UI
                     Item(T(31), () => Show(Page.Options));
                     // Remake: the Debug page once the main menu's Debug panel has been opened (Cheats); in multiplayer only
                     // when the session allows it.
-                    if (Cheats.PageShown) Item(Localization.Extra("debugTitle", "Debug").ToUpperInvariant(), () => Show(Page.Debug));
+                    if (Cheats.PageShown) Item(Localization.Extra("debugTitle", "Debug").UiCaps(), () => Show(Page.Debug));
                     var campaign = level != null ? level.Campaign : null;
                     if (campaign != null && campaign.CanSkipCutscene) Item(T(395), () => { Close(); campaign.SkipCutscene(); });
                     // MGame::setCinematicMode: not while a cutscene holds the camera.
                     if (Photo != null && level != null && !level.Cutscene) Item(T(59), () => Show(Page.Photo));
                     // Remake: a Mod Builder test flight goes back to the builder's hangar instead (Modding.ModBuilder).
                     if (Modding.ModBuilder.TestFlying)
-                        Item(Localization.Extra("mbBackToBuilder", "Back to Mod Builder").ToUpperInvariant(), () => { Close(); Modding.ModBuilder.EndTestFlight(false); });
+                        Item(Localization.Extra("mbBackToBuilder", "Back to Mod Builder").UiCaps(), () => { Close(); Modding.ModBuilder.EndTestFlight(false); });
                     else if (Modding.ModBuilder.PlayTesting)   // a play test: back to the builder's hangar
-                        Item(Localization.Extra("mbBackToBuilder", "Back to Mod Builder").ToUpperInvariant(), () => { Close(); ModBuilderPlay.End(); });
+                        Item(Localization.Extra("mbBackToBuilder", "Back to Mod Builder").UiCaps(), () => { Close(); ModBuilderPlay.End(); });
                     else Item(T(522), () => Show(Page.Quit));
                     break;
                 case Page.Photo:
@@ -504,7 +504,7 @@ namespace GoF2Remake.UI
                     }
                     if (sorting != null) BuildSorting(); else Text(choiceText);
                     if (sorting == null) InfoSound?.Invoke();   // a sorting has its own sounds (SortingSound)
-                    Item((choiceYes ?? Localization.Extra("ok", "OK")).ToUpperInvariant(), () =>
+                    Item((choiceYes ?? Localization.Extra("ok", "OK")).UiCaps(), () =>
                     {
                         if (finishReveal != null) { finishReveal(); return; }   // a sorting's lots still showing: the rest at once
                         Close(); var a = choiceOnYes; choiceOnYes = choiceOnNo = null; a?.Invoke();
@@ -512,7 +512,7 @@ namespace GoF2Remake.UI
                     InputGlyph.PadPrompt(items[items.Count - 1] as Button, PadButton.A, true);
                     if (choiceNo != null)
                     {
-                        Item(choiceNo.ToUpperInvariant(), () => { Close(); var a = choiceOnNo; choiceOnYes = choiceOnNo = null; a?.Invoke(); });
+                        Item(choiceNo.UiCaps(), () => { Close(); var a = choiceOnNo; choiceOnYes = choiceOnNo = null; a?.Invoke(); });
                         InputGlyph.PadPrompt(items[items.Count - 1] as Button, PadButton.B);
                         // Modified: a titled question (the Supernova Challenge's end) has Yes and No side by side, as the
                         // original's ChoiceWindow; left / right move between them (TickKeys).
@@ -555,7 +555,7 @@ namespace GoF2Remake.UI
                     BackItem(() => Show(Page.Main));
                     break;
                 case Page.Jettison:
-                    title.text = Localization.Extra("cargoJettison", "Jettison").ToUpperInvariant();
+                    title.text = Localization.Extra("cargoJettison", "Jettison").UiCaps();
                     BuildJettison();
                     BackItem(() => Show(Page.Cargo));
                     break;
@@ -563,7 +563,7 @@ namespace GoF2Remake.UI
                     BuildOptions();
                     return;
                 case Page.Debug:
-                    title.text = Localization.Extra("debugTitle", "Debug").ToUpperInvariant();
+                    title.text = Localization.Extra("debugTitle", "Debug").UiCaps();
                     accent.style.display = DisplayStyle.Flex;
                     BuildDebug();
                     BackItem(() => Show(Page.Main));
@@ -710,8 +710,8 @@ namespace GoF2Remake.UI
             if (have <= 0 || !CanJettison(jettisonItem)) { Text(Localization.Extra("cargoEmpty", "The cargo hold is empty.")); return; }
             Text($"{GameNames.Item(jettisonItem)} · {have} t", "pause-heading");
             Text(Localization.Extra("cargoJettisonHint", "Thrown out in a container behind the ship. A tractor beam can take it back."));
-            Item(Localization.Extra("cargoJettisonAll", "Jettison all ({0} t)").Replace("{0}", have.ToString()).ToUpperInvariant(), () => DoJettison(have));
-            if (have > 1) Item(Localization.Extra("cargoJettisonOne", "Jettison 1 t").ToUpperInvariant(), () => DoJettison(1));
+            Item(Localization.Extra("cargoJettisonAll", "Jettison all ({0} t)").Replace("{0}", have.ToString()).UiCaps(), () => DoJettison(have));
+            if (have > 1) Item(Localization.Extra("cargoJettisonOne", "Jettison 1 t").UiCaps(), () => DoJettison(1));
         }
 
         void DoJettison(int amount)
@@ -918,7 +918,7 @@ namespace GoF2Remake.UI
             for (int i = 0; i < names.Count; i++)
             {
                 int tab = i;
-                var b = new Button { text = names[i].ToUpperInvariant(), focusable = false };
+                var b = new Button { text = names[i].UiCaps(), focusable = false };
                 b.AddToClassList("debug-tab");
                 b.AddToClassList("gof-semibold");
                 b.EnableInClassList("debug-tab--active", i == debugTab);
@@ -974,7 +974,7 @@ namespace GoF2Remake.UI
             {
                 var card = new VisualElement();
                 card.AddToClassList("debug-card");
-                var h = new Label(heading.ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+                var h = new Label(heading.UiCaps()) { pickingMode = PickingMode.Ignore };
                 h.AddToClassList("debug-card-title");
                 h.AddToClassList("gof-semibold");
                 card.Add(h);

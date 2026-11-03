@@ -769,8 +769,8 @@ namespace GoF2Remake.UI
             bool shown = UpdateCheck.Available && screen == MenuState.Menu && openPanel == null;
             if (UpdateCheck.Available)
                 updateButton.text = string.IsNullOrEmpty(UpdateCheck.LatestTag)
-                    ? Localization.Extra("updateAvailable", "Update available").ToUpperInvariant()
-                    : $"{Localization.Extra("updateAvailable", "Update available").ToUpperInvariant()}  ·  {UpdateCheck.LatestTag}";
+                    ? Localization.Extra("updateAvailable", "Update available").UiCaps()
+                    : $"{Localization.Extra("updateAvailable", "Update available").UiCaps()}  ·  {UpdateCheck.LatestTag}";
             updateRow.EnableInClassList("update-row--shown", shown);
             updateButton.focusable = shown;
         }
@@ -814,7 +814,7 @@ namespace GoF2Remake.UI
         {
             if (!dialog.ClassListContains("dialog-backdrop--shown")) dialogReturn = root.focusController?.focusedElement as VisualElement;
             dialogYes = onYes;
-            root.Q<Label>("dialogTitle").text = title.ToUpperInvariant();
+            root.Q<Label>("dialogTitle").text = title.UiCaps();
             root.Q<Label>("dialogText").text = text;
             dialog.AddToClassList("dialog-backdrop--shown");
             Play(infoSound);
@@ -851,15 +851,15 @@ namespace GoF2Remake.UI
             {
                 // The reset choice: back to Yes / No.
                 alt.style.display = DisplayStyle.None;
-                InputGlyph.SetText(no, Localization.Get(135).ToUpperInvariant());
-                InputGlyph.SetText(root.Q<Button>("dialogYes"), Localization.Get(134).ToUpperInvariant());
+                InputGlyph.SetText(no, Localization.Get(135).UiCaps());
+                InputGlyph.SetText(root.Q<Button>("dialogYes"), Localization.Get(134).UiCaps());
             }
             dialogAlt = null;
             if (no.style.display == DisplayStyle.None || dialogField != null && dialogField.style.display == DisplayStyle.Flex)
             {
                 no.style.display = StyleKeyword.Null;
-                InputGlyph.SetText(no, Localization.Get(135).ToUpperInvariant());
-                InputGlyph.SetText(root.Q<Button>("dialogYes"), Localization.Get(134).ToUpperInvariant());
+                InputGlyph.SetText(no, Localization.Get(135).UiCaps());
+                InputGlyph.SetText(root.Q<Button>("dialogYes"), Localization.Get(134).UiCaps());
             }
             if (dialogField != null) dialogField.style.display = StyleKeyword.Null;
             dialog.RemoveFromClassList("dialog-backdrop--shown");
@@ -970,11 +970,11 @@ namespace GoF2Remake.UI
             ShowDialog(title, text, onYes);
             dialogAlt = onAlt;
             var yes = root.Q<Button>("dialogYes");
-            InputGlyph.SetText(yes, yesLabel.ToUpperInvariant());
+            InputGlyph.SetText(yes, yesLabel.UiCaps());
             var alt = root.Q<Button>("dialogAlt");
-            InputGlyph.SetText(alt, altLabel.ToUpperInvariant());
+            InputGlyph.SetText(alt, altLabel.UiCaps());
             alt.style.display = DisplayStyle.Flex;
-            InputGlyph.SetText(root.Q<Button>("dialogNo"), Localization.Get(425).ToUpperInvariant());   // Cancel
+            InputGlyph.SetText(root.Q<Button>("dialogNo"), Localization.Get(425).UiCaps());   // Cancel
             Select(yes);
         }
 

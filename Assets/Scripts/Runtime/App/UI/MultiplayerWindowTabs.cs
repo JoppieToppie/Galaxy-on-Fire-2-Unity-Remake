@@ -288,7 +288,7 @@ namespace GoF2Remake.UI
             }
             Section(Localization.Extra("mpPanelLinkHere", "Use another device's profile here"));
             var row = Row();
-            row.Add(Field(Localization.Extra("mpPanelCode", "Code"), linkText, 6, 140, v => linkText = v.ToUpperInvariant()));
+            row.Add(Field(Localization.Extra("mpPanelCode", "Code"), linkText, 6, 140, v => linkText = v.UiCaps()));
             var f = new Toggle(Localization.Extra("mpPanelForce", "Replace this device's own progress")) { value = force };
             f.RegisterValueChangedCallback(e => force = e.newValue);
             row.Add(f);

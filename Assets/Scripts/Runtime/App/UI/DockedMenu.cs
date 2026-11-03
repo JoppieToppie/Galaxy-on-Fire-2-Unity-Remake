@@ -79,7 +79,7 @@ namespace GoF2Remake.UI
         /// <summary>Opens with 'heading' over 'entries' (each a button's text and its action, in order).</summary>
         public void Open(string heading, List<(string label, Action action)> entries)
         {
-            title.text = (heading ?? "").ToUpperInvariant();
+            title.text = (heading ?? "").UiCaps();
             column.Clear();
             buttons.Clear();
             bool numbers = InputMode.Current == InputKind.KeyboardMouse;
@@ -87,7 +87,7 @@ namespace GoF2Remake.UI
             {
                 int index = i;
                 var e = entries[i];
-                string text = (e.label ?? "").ToUpperInvariant();
+                string text = (e.label ?? "").UiCaps();
                 var b = new Button(() => { pointer = true; Choose(index); }) { text = numbers && i < 9 ? $"{i + 1}. {text}" : text, focusable = false };
                 b.AddToClassList("gof-semibold");
                 var bs = b.style;

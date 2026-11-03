@@ -172,7 +172,7 @@ namespace GoF2Remake.UI
             tradeStockLabel = root.Q<Label>("tradeStockLabel");
             tradeCargoLabel = root.Q<Label>("tradeCargoLabel");
 
-            string T(int id) => Localization.Get(id).ToUpperInvariant();
+            string T(int id) => Localization.Get(id).UiCaps();
             tabShip.text = T(183);
             tabShop.text = T(185);
             tabBlueprints.text = T(272);
@@ -298,7 +298,7 @@ namespace GoF2Remake.UI
             // controls; other items keep both at the bottom.
             bool ship3d = shipPreview.Shown;
             previewRow.style.display = ship3d ? DisplayStyle.Flex : DisplayStyle.None;
-            detailDescTitle.text = Localization.Get(280).ToUpperInvariant();
+            detailDescTitle.text = Localization.Get(280).UiCaps();
             detailDescTitle.style.display = DisplayStyle.Flex;
             // A ship's head is empty: its view and stats say it (the item window's hint 643 stood there until 2026-10-18).
             detailName.style.display = ship3d ? DisplayStyle.None : DisplayStyle.Flex;
@@ -371,17 +371,17 @@ namespace GoF2Remake.UI
         /// (StationMenu.RefreshTexts on Localization.Changed). What Open / Rebuild writes already reads it as it goes.</summary>
         public void RefreshTexts()
         {
-            string T(int id) => Localization.Get(id).ToUpperInvariant();
+            string T(int id) => Localization.Get(id).UiCaps();
             tabShip.text = T(183);
             tabShop.text = T(185);
             tabBlueprints.text = T(272);
             if (closeButton != null) closeButton.text = Localization.Extra("hudBack", "BACK");
-            if (detailDescTitle != null) detailDescTitle.text = Localization.Get(280).ToUpperInvariant();
+            if (detailDescTitle != null) detailDescTitle.text = Localization.Get(280).UiCaps();
             if (IsOpen)
             {
                 // Not SetTab: it commits pending trades and auto-equips (game actions, not a re-label). Rebuild only lays
                 // the rows out again, keeping the selection and the scroll.
-                tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).ToUpperInvariant();   // "Store" at the owned club
+                tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).UiCaps();   // "Store" at the owned club
                 Rebuild();
             }
         }
@@ -390,7 +390,7 @@ namespace GoF2Remake.UI
         {
             IsOpen = true;
             hangar = new Hangar(level.Database, level.Stock);   // prices are recomputed on every open, like the original
-            tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).ToUpperInvariant();   // "Store" at the owned club
+            tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).UiCaps();   // "Store" at the owned club
             ClearBlueprintShopHighlight();
             selected = null;
             tabScroll.Clear();

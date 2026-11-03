@@ -270,7 +270,7 @@ namespace GoF2Remake.UI
             var p = new VisualElement { name = "modsHubPanel" };
             p.AddToClassList("panel");
             p.usageHints = UsageHints.DynamicTransform;
-            var title = new Label(Localization.Extra("modsButton", "Mods").ToUpperInvariant());
+            var title = new Label(Localization.Extra("modsButton", "Mods").UiCaps());
             title.AddToClassList("panel-title");
             title.AddToClassList("gof-semibold");
             p.Add(title);
@@ -281,7 +281,7 @@ namespace GoF2Remake.UI
             {
                 var b = new Button();
                 b.AddToClassList("choice-button");
-                var t = new Label(heading.ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+                var t = new Label(heading.UiCaps()) { pickingMode = PickingMode.Ignore };
                 t.AddToClassList("choice-title");
                 t.AddToClassList("gof-semibold");
                 b.Add(t);
@@ -299,7 +299,7 @@ namespace GoF2Remake.UI
             modsHubBuilder = Choice(Localization.Extra("mbTitle", "Mod Builder"),
                 Localization.Extra("modBuilderDesc", "Make ships, items, characters and more in the game, test them, then export them."),
                 () => OpenPanel(Modding.ModBuilder.ProjectsPanel));
-            var back = new Button(Back) { text = "‹  " + Localization.Get(170).ToUpperInvariant() };
+            var back = new Button(Back) { text = "‹  " + Localization.Get(170).UiCaps() };
             back.AddToClassList("menu-button");
             back.AddToClassList("back-button");
             back.AddToClassList("gof-semibold");
