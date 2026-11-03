@@ -74,7 +74,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   station camera runs URP's TAA (`StationLevel.ApplyAntialiasing`), with MSAA SMAA. So on Android 100 % with MSAA off gets
   MSAA 2x (`Bootstrap.AppliedMsaa`; the option still shows Off), and under a temporal upscaler (MSAA off) 94 %
   (`AppliedRenderScale` / `AndroidFullScale`: URP renders a scale within 5 % of 1 as exactly 1, `kRenderScaleThreshold`).
-  Not yet checked on a phone.
+  The MSAA 2x didn't help every phone (#163: a Mali-G57 still half black, then fully black after a restart), while 90 %,
+  125 % and 200 % work everywhere, so since 2026-11-03 Android's 100 % is always drawn at 94 % (`AppliedRenderScale`, with
+  or without a temporal upscaler) and `AppliedMsaa` leaves MSAA as picked. Not yet checked on a phone.
 - **Android Vulkan device filter** (`Assets/Settings/VulkanDeviceFilters.asset`, Player settings > Android > Vulkan Device
   Filtering Asset, `PlayerSettings.Android.androidVulkanDeviceFilterListAsset`; 2026-11-01): one deny entry, device name
   `Adreno[^0-9]*[56][0-9][0-9]` and Android version `^([7-9]|10)([.][0-9.]*)?$`, so Adreno 5xx / 6xx phones on Android 10
