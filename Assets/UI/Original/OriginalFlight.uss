@@ -1,1 +1,385 @@
-/* Interface style Original (GoF2Original.uss): the rules for FlightHud.uss, StarMap.uss, Dialogue.uss, Ending.uss (flight menus, star map, dialogue boxes). */
+/* Interface style Original (GoF2Original.uss): the rules for FlightHud.uss, StarMap.uss, Dialogue.uss, Ending.uss (flight menus, star map, dialogue boxes).
+   Only the menus are skinned here: the HUD's markers, crosshair, bars and buttons already draw the original's images.
+   The windows themselves (.autopilot-menu, .pause-panel, .map-dialog, .key-box, .dialogue-box, .dialogue-confirm-box,
+   .hangar-window for the carrier's shop) take the scanline tile and the steel line from GoF2Original.uss; this sheet
+   drops the remake's amber / cyan edges that the shared rule leaves on one side, and gives the buttons, rows and headers
+   their original pieces:
+     menu entries, map buttons, dialogue buttons   og_button / og_button_on (TouchButton style 0 / 4)
+     cargo / jettison rows, the pause options      og_row / og_row_on (drawBox 3 / 4)
+     window titles, the dialogue / radio header     og_title_plate (0x474, drawBox 7's header plate, at its own size)
+     the key hints, the planet lore                 og_title / og_plate (drawBox 0 / 1)
+     the dialogue's AUTO light                      og_check / og_check_on (TouchButton style 0xd) */
+
+/* ==== FlightHud.uss ================================================================================================ */
+
+/* ---- Autopilot / actions menu (Hud::initHudMenu(3)): one TouchButton per entry -------------------------------------- */
+
+.ui-style-original .autopilot-menu--actions {
+    border-right-width: 1px;
+    border-right-color: var(--gof-line);
+}
+
+.ui-style-original .autopilot-menu-item {
+    margin: 3px 0;
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-left-width: 0;
+    border-left-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+    padding-left: 28px;
+    padding-right: 28px;
+    color: var(--gof-text);
+}
+
+.ui-style-original .autopilot-menu-item--selected,
+.ui-style-original .autopilot-menu-item:active,
+.ui-style-original .can-hover .autopilot-menu-item:hover,
+.ui-style-original.can-hover .autopilot-menu-item:hover {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* Touch (no can-hover): the remake's plain :hover tinted the row; the bar stays steel blue there. */
+.ui-style-original .autopilot-menu-item:hover {
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .autopilot-menu-item--disabled {
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.55);
+}
+
+/* The menus' titles (the autopilot menu's, the pause menu's): white on the header plate that fades out to the right. */
+.ui-style-original .autopilot-menu-head {
+    background-image: url("project://database/Assets/UI/Original/og_title_plate.png");
+    background-repeat: no-repeat;
+    background-size: 274px 60px;
+    background-position-x: left;
+    background-position-y: center;
+    min-height: 60px;
+    padding-left: 10px;
+}
+
+.ui-style-original .autopilot-menu-title {
+    color: #FFFFFF;
+}
+
+.ui-style-original .pause-title {
+    background-image: url("project://database/Assets/UI/Original/og_title_plate.png");
+    background-repeat: no-repeat;
+    background-size: 274px 60px;
+    background-position-x: left;
+    background-position-y: center;
+    min-height: 60px;
+    padding-left: 10px;
+    -unity-text-align: middle-left;
+    color: #FFFFFF;
+}
+
+.ui-style-original .pause-panel--wide > .pause-title {
+    color: #FFFFFF;
+}
+
+/* ---- Pause menu (MenuTouchWindow mode 1): the window, its sections, the cargo / jettison rows ------------------------ */
+
+.ui-style-original .pause-panel--wide {
+    border-left-color: var(--gof-line);
+}
+
+.ui-style-original .pause-cargo-row {
+    border-bottom-color: var(--gof-line);
+}
+
+/* A cargo row that is a button (Jettison, PauseMenu.BuildCargo): the hangar's list row, warm while selected. */
+.ui-style-original .autopilot-menu-item.pause-cargo-row {
+    margin: 2px 0;
+    padding: 6px 16px;
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    border-bottom-width: 0;
+}
+
+.ui-style-original .autopilot-menu-item.pause-cargo-row.autopilot-menu-item--selected,
+.ui-style-original .autopilot-menu-item.pause-cargo-row:active,
+.ui-style-original .can-hover .autopilot-menu-item.pause-cargo-row:hover,
+.ui-style-original.can-hover .autopilot-menu-item.pause-cargo-row:hover {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+}
+
+/* The pause menu's option rows (the Debug page, the ChoiceRows): list rows too. */
+.ui-style-original .pause-option {
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .pause-option.autopilot-menu-item--selected {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .pause-option .choice-value {
+    color: var(--gof-cyan);
+}
+
+.ui-style-original .pause-option.autopilot-menu-item--selected .choice-value {
+    color: #FFFFFF;
+}
+
+.ui-style-original .debug-action.autopilot-menu-item--selected .option-button {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* ---- Key hints row (keyboard / controller): each hint on a small title plate (drawBox 0) instead of the grey box ---- */
+
+.ui-style-original .hints .hint {
+    background-image: url("project://database/Assets/UI/Original/og_title.png");
+    -unity-slice-left: 34;
+    -unity-slice-right: 34;
+    -unity-slice-top: 12;
+    -unity-slice-bottom: 12;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    padding: 3px 10px;
+}
+
+/* ==== StarMap.uss ================================================================================================== */
+
+/* ---- Buttons (Back, Jump to the Void, Full map, Key, the dialog's answers): the steel-blue bar ---------------------- */
+
+.ui-style-original .map-button {
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    color: var(--gof-text);
+}
+
+.ui-style-original .map-button--focus,
+.ui-style-original .map-button:active,
+.ui-style-original .can-hover .map-button:hover,
+.ui-style-original.can-hover .map-button:hover {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+.ui-style-original .map-button:hover {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* The Khador map's Jump to the Void: the bar tinted the Void's violet (its violet border is gone with the image). */
+.ui-style-original #voidButton {
+    -unity-background-image-tint-color: #C8A8FF;
+}
+
+.ui-style-original #voidButton.map-button--focus,
+.ui-style-original #voidButton:active,
+.ui-style-original .can-hover #voidButton:hover,
+.ui-style-original.can-hover #voidButton:hover {
+    -unity-background-image-tint-color: #FFFFFF;
+}
+
+/* ---- Header: the "| MAP" divider in steel grey, not amber -------------------------------------------------------- */
+
+.ui-style-original .map-view-title {
+    border-left-color: var(--gof-line);
+}
+
+/* ---- The ChoiceWindow and the key legend: the tile from GoF2Original.uss; no amber top edge ------------------------ */
+
+.ui-style-original .map-dialog,
+.ui-style-original .key-box {
+    border-top-width: 1px;
+    border-top-color: var(--gof-line);
+}
+
+/* ---- Key hints (keyboard / controller) ---------------------------------------------------------------------------- */
+
+.ui-style-original .map-hints .hint {
+    background-image: url("project://database/Assets/UI/Original/og_title.png");
+    -unity-slice-left: 34;
+    -unity-slice-right: 34;
+    -unity-slice-top: 12;
+    -unity-slice-bottom: 12;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+}
+
+/* ---- The selected planet's lore (remake): the section plate (drawBox 1) -------------------------------------------- */
+
+.ui-style-original .planet-lore {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+    border-radius: 0;
+}
+
+/* ==== Dialogue.uss: drawBox 7 (dialogue_cutscenes.md 1.2) ============================================================ */
+
+/* The window: the scanline tile (GoF2Original.uss) inside drawBGBorder's blue line (0x484 / 0x483), here a 1 px line in
+   its colour all round (the box's own background is the tile, so the 9-slice og_frame can't go on it). */
+.ui-style-original .dialogue-box {
+    border-width: 1px;
+    border-color: rgba(84, 152, 215, 0.55);
+}
+
+/* The header: the plate 0x474 at its own size at the top left, the speaker's name 10 px in, on the tile. */
+.ui-style-original .dialogue-header {
+    background-image: url("project://database/Assets/UI/Original/og_title_plate.png");
+    background-repeat: no-repeat;
+    background-size: 274px 60px;
+    background-position-x: left;
+    background-position-y: top;
+    background-color: rgba(0, 0, 0, 0);
+    border-bottom-width: 0;
+    padding-left: 10px;
+}
+
+.ui-style-original .dialogue-speaker {
+    color: #FFFFFF;
+}
+
+/* Back / Skip / Next and the confirm's Yes / No: TouchButton style 4, amber while focused or pressed. */
+.ui-style-original .dialogue-button {
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    color: var(--gof-text);
+}
+
+.ui-style-original .dialogue-button--primary {
+    border-width: 0;
+    color: #FFFFFF;
+    transition-property: -unity-background-image-tint-color;
+    transition-duration: 0.6s;
+}
+
+.ui-style-original .dialogue-button:focus,
+.ui-style-original .dialogue-button:active,
+.ui-style-original .can-hover .dialogue-button:hover,
+.ui-style-original.can-hover .dialogue-button:hover {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* Next "breathes" once the page has typed in: the bar brightens instead of the remake's cyan fill. */
+.ui-style-original .dialogue-button--ready {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #D8ECFF;
+}
+
+/* The AUTO toggle: a square-cornered steel box with the original's check box for its light. */
+.ui-style-original .dialogue-auto {
+    background-color: rgba(4, 4, 6, 0.55);
+    border-color: var(--gof-line);
+    border-radius: 0;
+}
+
+.ui-style-original .dialogue-auto--on {
+    background-color: rgba(4, 4, 6, 0.55);
+    border-color: var(--gof-cyan-soft);
+}
+
+.ui-style-original .can-hover .dialogue-auto:hover,
+.ui-style-original.can-hover .dialogue-auto:hover,
+.ui-style-original .dialogue-auto:focus {
+    border-color: var(--gof-amber);
+}
+
+.ui-style-original .dialogue-auto-dot {
+    width: 22px;
+    height: 21px;
+    margin: 0 6px 0 4px;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+    background-image: url("project://database/Assets/UI/Original/og_check.png");
+}
+
+.ui-style-original .dialogue-auto--on .dialogue-auto-dot {
+    background-color: rgba(0, 0, 0, 0);
+    background-image: url("project://database/Assets/UI/Original/og_check_on.png");
+}
+
+.ui-style-original .dialogue-confirm-box {
+    border-top-width: 1px;
+    border-top-color: var(--gof-line);
+}
+
+/* ---- Radio (Radio::draw, also the ending's Brent): drawBox 7 drawn translucent ----------------------------------- */
+
+.ui-style-original .radio {
+    background-image: url("project://database/Assets/UI/Original/og_panel_bg.png");
+    background-repeat: repeat;
+    background-size: 320px 320px;
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.72);
+    background-color: rgba(4, 4, 6, 0.30);
+    border-width: 1px;
+    border-color: rgba(84, 152, 215, 0.45);
+    border-radius: 0;
+}
+
+.ui-style-original .radio-header {
+    background-image: url("project://database/Assets/UI/Original/og_title_plate.png");
+    background-repeat: no-repeat;
+    background-size: 228px 50px;
+    background-position-x: left;
+    background-position-y: top;
+    border-bottom-width: 0;
+    padding-left: 10px;
+}
+
+.ui-style-original .radio-speaker {
+    color: #FFFFFF;
+}
+
+/* ==== Ending.uss ==================================================================================================== */
+
+/* The credits are plain white text over space in the original too; Brent's radio box is the radio rule above. */
+.ui-style-original .ending-text {
+    color: #FFFFFF;
+}
