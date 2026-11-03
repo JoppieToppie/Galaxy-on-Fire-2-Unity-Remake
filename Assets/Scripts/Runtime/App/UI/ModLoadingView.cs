@@ -17,7 +17,7 @@ namespace GoF2Remake.UI
         {
             root = new VisualElement { pickingMode = PickingMode.Ignore };
             root.AddToClassList("mod-loading");
-            title = new Label(Data.Localization.Extra("modsLoading", "Loading mods").ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+            title = new Label(Data.Localization.Extra("modsLoading", "Loading mods").UiCaps()) { pickingMode = PickingMode.Ignore };
             title.AddToClassList("mod-loading__title");
             title.AddToClassList("gof-semibold");
             var track = new VisualElement { pickingMode = PickingMode.Ignore };

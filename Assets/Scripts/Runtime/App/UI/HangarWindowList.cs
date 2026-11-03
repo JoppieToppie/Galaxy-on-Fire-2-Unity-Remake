@@ -78,12 +78,13 @@ namespace GoF2Remake.UI
             list.scrollOffset = new Vector2(list.scrollOffset.x, t * ListScrollMax);
             UpdateListBar();
         }
-        public void NextTab() => SetTab(tab == Tab.Ship ? Tab.Shop : tab == Tab.Shop ? Tab.Blueprints : Tab.Ship);
-        public void PrevTab() => SetTab(tab == Tab.Ship ? Tab.Blueprints : tab == Tab.Shop ? Tab.Ship : Tab.Shop);
+        public void NextTab() => SetTab(StepTab(1));
+        public void PrevTab() => SetTab(StepTab(-1));
         // ---- list --------------------------------------------------------------------------------------------
         void Rebuild()
         {
             if (!IsOpen) return;
+            UpdateVipTools();   // remake: the VIP Card's Ships tab and tools (a Ships tab without them falls back to the Store)
             tabShip.EnableInClassList("hangar-tab--active", tab == Tab.Ship);
             tabShop.EnableInClassList("hangar-tab--active", tab == Tab.Shop);
             tabBlueprints.EnableInClassList("hangar-tab--active", tab == Tab.Blueprints);
@@ -94,17 +95,22 @@ namespace GoF2Remake.UI
             pendingScroll = null;
             rows.Clear();
             list.Clear();
-            string T(int id) => Localization.Get(id).ToUpperInvariant();
+            string T(int id) => Localization.Get(id).UiCaps();
             int[] typeHeaders = { 265, 266, 267, 269, 270 };
 
             if (tab == Tab.Shop)
             {
                 if (hangar.Storage)
                 {
-                    // Station::getShips(108): the parked hulls.
-                    if (Session.KaamoShips.Count > 0) AddHeader(T(173));
-                    for (int i = 0; i < Session.KaamoShips.Count; i++)
-                        AddRow(new Row { kind = RowKind.StoredShip, ship = Session.KaamoShips[i].ship, equipment = i });
+                    // Remake: the Kaamo Club VIP Card, for sale at the top of the Store (HangarWindowKaamoVip).
+                    if (KaamoClub.VipForSale) AddRow(new Row { kind = RowKind.VipCard });
+                    // Station::getShips(108): the parked hulls (remake: in the Ships tab with the VIP Card's perks).
+                    if (!VipTools)
+                    {
+                        if (Session.KaamoShips.Count > 0) AddHeader(T(173));
+                        for (int i = 0; i < Session.KaamoShips.Count; i++)
+                            AddRow(new Row { kind = RowKind.StoredShip, ship = Session.KaamoShips[i].ship, equipment = i });
+                    }
                 }
                 else if (hangar.Stock.ships.Count > 0)
                 {
@@ -112,21 +118,26 @@ namespace GoF2Remake.UI
                     foreach (int s in hangar.Stock.ships) AddRow(new Row { kind = RowKind.ShopShip, ship = s });
                 }
                 var items = hangar.ShopItems();
+                int listed = 0;
                 for (int type = 0; type <= 4; type++)
                 {
-                    var ofType = items.Where(i => hangar.TypeOf(i) == type).ToList();
+                    // Remake: with the VIP Card's perks the storage's search and order (SortItems keeps the list's own without).
+                    var ofType = SortItems(items.Where(i => hangar.TypeOf(i) == type && ItemMatches(i)));
                     if (ofType.Count == 0) continue;
                     AddHeader(T(typeHeaders[type]));
                     foreach (int i in ofType) AddRow(new Row { kind = RowKind.ShopItem, item = i, type = type });
+                    listed += ofType.Count;
                 }
+                if (listed == 0 && VipTools && search.Length > 0) AddNote(NoMatchText());
             }
+            else if (tab == Tab.Ships) AddStoredShipsTab();   // remake: the VIP Card's Ships tab
             else if (tab == Tab.Blueprints)
             {
                 var db = level.Database;
                 if (editing >= 0)
                 {
                     // Tab 4 (HangarList::fillIngredientsList 0x14378c): the product, its ingredients, Autocomplete.
-                    AddHeader(ItemInfo.ItemName(editing).ToUpperInvariant());
+                    AddHeader(ItemInfo.ItemName(editing).UiCaps());
                     var parts = db.Item(editing).blueprint;
                     for (int k = 0; k < parts.Count; k++) AddRow(new Row { kind = RowKind.Ingredient, item = parts[k].item, type = k });
                     AddProductionActions();  // COMPLETE / AUTOCOMPLETE / SHOP, persistent recipe view.
@@ -201,10 +212,11 @@ namespace GoF2Remake.UI
             UpdateFooter();
             // Remake: the key hints say TAKE / ADD in the ingredients view (StationMenu.BuildHints asks EditingBlueprint), and
             // MOVE on the Ship tab (ShipTab).
-            if (hintsForIngredients != EditingBlueprint || hintsForShipTab != ShipTab)
+            if (hintsForIngredients != EditingBlueprint || hintsForShipTab != ShipTab || hintsForVip != SearchTab)
             {
                 hintsForIngredients = EditingBlueprint;
                 hintsForShipTab = ShipTab;
+                hintsForVip = SearchTab;   // SEARCH / SORT
                 menu.RefreshCredits();   // rebuilds the hints
             }
         }
@@ -221,10 +233,10 @@ namespace GoF2Remake.UI
             var actions = new VisualElement { pickingMode = PickingMode.Ignore };
             actions.AddToClassList("manufacturing-actions");
             list.Add(actions);
-            AddProductionRow(actions, RowKind.ShopLink, Localization.Get(hangar.Storage ? 186 : 185).ToUpperInvariant(), "manufacturing-shop");   // the tab's name
+            AddProductionRow(actions, RowKind.ShopLink, Localization.Get(hangar.Storage ? 186 : 185).UiCaps(), "manufacturing-shop");   // the tab's name
             productionAutocomplete = Blueprints.CanAutocomplete(editing)
                 ? AddProductionRow(actions, RowKind.Autocomplete, "", "manufacturing-autocomplete") : null;
-            productionComplete = AddProductionRow(actions, RowKind.Complete, Localization.Extra("bpComplete", "Complete").ToUpperInvariant(),
+            productionComplete = AddProductionRow(actions, RowKind.Complete, Localization.Extra("bpComplete", "Complete").UiCaps(),
                                                   "manufacturing-complete");
             RefreshProductionActions();
         }
@@ -256,7 +268,7 @@ namespace GoF2Remake.UI
             if (productionAutocomplete != null)
             {
                 int price = Blueprints.AutoCompletePrice(level.Database, editing);
-                productionAutocomplete.text = Localization.Extra("bpAutocomplete", "Autocomplete").ToUpperInvariant()
+                productionAutocomplete.text = Localization.Extra("bpAutocomplete", "Autocomplete").UiCaps()
                     + "\n" + ItemInfo.Credits(price);
                 productionAutocomplete.EnableInClassList("row-autocomplete--expensive", price > Session.Credits);
             }
@@ -348,14 +360,14 @@ namespace GoF2Remake.UI
                     var it = db.Item(row.item);
                     tex = ItemInfo.ItemIcon(row.item);
                     name.text = ItemInfo.TaggedItemName(row.item);
-                    if (!Session.SeenItems.Contains(row.item)) sub.Add(Badge(Localization.Extra("shopNew", "NEW"), "row-badge--new"));
-                    else if (hangar.IsMounted(row.item)) sub.Add(Badge(Localization.Extra("shopMounted", "MOUNTED"), "row-badge--mounted"));
+                    if (!Session.SeenItems.Contains(row.item)) sub.Add(Badge(Localization.Extra("shopNew", "NEW").OgCase(), "row-badge--new"));
+                    else if (hangar.IsMounted(row.item)) sub.Add(Badge(Localization.Extra("shopMounted", "MOUNTED").OgCase(), "row-badge--mounted"));
                     // Remake (#62): what the player has in the hold is marked like the Ship tab's cargo rows (amber edge, IN CARGO),
                     // so their own goods stand out from the station's.
                     if (hangar.CargoOf(row.item) > 0)
                     {
                         e.AddToClassList("list-row--owned");   // Remake: tinted blue in place (the cargo outline shifted it right)
-                        sub.Add(Badge(Localization.Extra("shopInCargo", "IN CARGO"), "row-badge--cargo"));
+                        sub.Add(Badge(Localization.Extra("shopInCargo", "IN CARGO").OgCase(), "row-badge--cargo"));
                     }
                     // The trade mode's two amounts: Remake, the station's at the row's left edge and the ship's at its right
                     // (the original's columns), under the name only the category.
@@ -379,11 +391,16 @@ namespace GoF2Remake.UI
                     price.text = ItemInfo.Credits(hangar.StoredPrice(row.equipment));   // the sell value
                     break;
                 }
+                case RowKind.VipCard:
+                    FillVipRow(e, name, subText, price, out tex);
+                    break;
                 case RowKind.ShopShip:
                 {
                     tex = ItemInfo.ShipIcon(row.ship);
                     name.text = ItemInfo.TaggedShipName(row.ship);
                     subText.text = ItemInfo.ShipRaceText(row.ship) + (hangar.Stock.ModsOf(row.ship).Count > 0 ? "  (+)" : "");
+                    // Remake (the VIP Card): a type already parked at the Kaamo Club carries the map's house.
+                    if (MarkAtKaamo(row.ship)) sub.Add(KaamoBadge());
                     int delta = hangar.BuyShipPrice(row.ship) - hangar.ShipPrice(Session.ShipIndex);   // trade-in difference
                     // Remake: the ship's own price on the row (the buy button still shows what it costs after the trade-in);
                     // red while the trade-in difference is more than the credits.
@@ -405,8 +422,8 @@ namespace GoF2Remake.UI
                     tex = ItemInfo.ItemIcon(stack.item);
                     name.text = ItemInfo.WithTag(ItemInfo.ItemName(stack.item) + (stack.amount > 1 ? $" ({stack.amount})" : ""), GameNames.ItemTag(stack.item));
                     subText.text = ItemInfo.Category(db.Item(stack.item));
-                    sub.Insert(0, stack.builtIn ? Badge(Localization.Extra("shopBuiltIn", "BUILT IN"), "row-badge--mounted")
-                                                : Badge(Localization.Extra("shopMounted", "MOUNTED"), "row-badge--mounted"));
+                    sub.Insert(0, stack.builtIn ? Badge(Localization.Extra("shopBuiltIn", "BUILT IN").OgCase(), "row-badge--mounted")
+                                                : Badge(Localization.Extra("shopMounted", "MOUNTED").OgCase(), "row-badge--mounted"));
                     // A fitted item in a built-in one's place: which one it stands in for (it is back when this is demounted).
                     if (!stack.builtIn && Hangar.InBuiltInPlace(db, stack)
                         && db.BuiltInItems(Session.ShipIndex).Find(b => db.Item(b.item)?.categoryId == db.Item(stack.item)?.categoryId) is ItemStack replaced)
@@ -422,7 +439,7 @@ namespace GoF2Remake.UI
                     tex = ItemInfo.ItemIcon(row.item);
                     name.text = ItemInfo.TaggedItemName(row.item);   // Remake: the amount at the row's right edge (was "(n)" here)
                     subText.text = ItemInfo.Category(db.Item(row.item));   // the sub-header says "Available in cargo"
-                    sub.Insert(0, Badge(Localization.Extra("shopInCargo", "IN CARGO"), "row-badge--cargo"));
+                    sub.Insert(0, Badge(Localization.Extra("shopInCargo", "IN CARGO").OgCase(), "row-badge--cargo"));
                     break;
                 }
                 case RowKind.Blueprint:
@@ -467,7 +484,7 @@ namespace GoF2Remake.UI
                     subText.text = "";
                     bpAmount = new VisualElement { pickingMode = PickingMode.Ignore };
                     bpAmount.AddToClassList("row-bp-amount");
-                    var bpLabel = new Label(Localization.Get(271).ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+                    var bpLabel = new Label(Localization.Get(271).UiCaps()) { pickingMode = PickingMode.Ignore };
                     bpLabel.AddToClassList("row-bp-amount-label");
                     var bpValue = new Label($"{invested} / {total} t") { pickingMode = PickingMode.Ignore };
                     bpValue.AddToClassList("row-bp-amount-value");
@@ -477,7 +494,7 @@ namespace GoF2Remake.UI
                     // pointer they go on Complete or on leaving the view.
                     if (Pending(row.item) > 0)
                     {
-                        var freight = Badge(Localization.Extra("bpFreight", "Freight").ToUpperInvariant(), "row-badge--freight");
+                        var freight = Badge(Localization.Extra("bpFreight", "Freight").UiCaps(), "row-badge--freight");
                         freight.pickingMode = PickingMode.Position;
                         freight.RegisterCallback<ClickEvent>(ev => { ev.StopPropagation(); menu.PlayRelease(); Commit(null); });
                         bpAmount.Add(freight);
@@ -491,7 +508,7 @@ namespace GoF2Remake.UI
                         if (stock > 0)
                         {
                             // Remake: "SOLD HERE | 120t" (the station's amount); a click / tap opens the shop on it.
-                            var soldHere = Badge($"{Localization.Extra("bpSoldHere", "SOLD HERE")} | {stock}t", "row-badge--stock");
+                            var soldHere = Badge($"{Localization.Extra("bpSoldHere", "SOLD HERE").OgCase()} | {stock}t", "row-badge--stock");
                             soldHere.AddToClassList("row-badge--link");
                             soldHere.pickingMode = PickingMode.Position;
                             int shopItem = row.item;
@@ -517,7 +534,7 @@ namespace GoF2Remake.UI
                 sub.AddToClassList("row-sub--trailing");
             }
             // Remake: the price beside the name ("Name | 354$") instead of at the row's right edge; ships keep it there.
-            bool shipPrice = row.kind == RowKind.ShopShip || row.kind == RowKind.StoredShip;
+            bool shipPrice = row.kind == RowKind.ShopShip || row.kind == RowKind.StoredShip || row.kind == RowKind.VipCard;
             if (price.text.Length > 0 && !shipPrice)
             {
                 var nameLine = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -569,6 +586,15 @@ namespace GoF2Remake.UI
             if (bpAmount != null) e.Add(bpAmount);
             // ListItemWindow's "i" (image 0x470) on the selected row: Remake, left out (the details panel shows it all; the
             // keyboard's I / the controller's Y still open the item window).
+            /* Original (f212 / f103): the steel "i" button at the selected row's right end opens the item window. */
+            if (Settings.OriginalUi && (row.item >= 0 || row.ship >= 0 || (row.kind == RowKind.Slot && row.equipment >= 0)))
+            {
+                var info = new Button { text = "i", focusable = false };
+                info.AddToClassList("row-info");
+                info.clicked += () => { Select(row, false); OpenInfo(); };
+                info.RegisterCallback<ClickEvent>(ev => ev.StopPropagation());
+                e.Add(info);
+            }
             if (row.kind == RowKind.Slot && row.place >= 0) HookSlotDrag(row, e);
             e.RegisterCallback<ClickEvent>(ev =>
             {

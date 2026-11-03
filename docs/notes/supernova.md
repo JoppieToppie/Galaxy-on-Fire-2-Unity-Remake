@@ -85,9 +85,7 @@ against the FEV's LGCY data, see "Sound").
   2026-10); docked (not hacking) the camera goes to free look by itself with the original's preset orbit, -98 / 35 px at
   3800 units, and the camera key cycles the manual turrets and free look (`PlayerEgo::approachDockingPoint` +0xb1,
   `MGame::OnUpdate` switchCamera(3); `setDockingState(2)` suppresses it; `ObjectDocking.Docked`,
-  `FreeLookCamera.EnterDockedLook` / `DockedView`; #132: the remake had no free look docked; free look turns the chase
-  camera on while docked, `chaseOnForDock`, as the turret view does: ObjectDocking keeps it off, so the orbit never moved
-  the camera, a player's report on Android); the undock's end goes back to
+  `FreeLookCamera.EnterDockedLook` / `DockedView`; #132: the remake had no free look docked); the undock's end goes back to
   the standard view; `PlayerTurret.GunsBlocked` ignores the docked ship's
   blocked guns; the chase camera is on for the view; the stick still reads under `externalControl`; the mouse aims it
   with mouse steering (`FlightHud.UpdateMouseSteering` leaves it on in a docked turret view) and the fire button fires

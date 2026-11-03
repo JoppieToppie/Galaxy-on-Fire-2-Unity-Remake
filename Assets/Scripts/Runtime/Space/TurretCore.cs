@@ -233,7 +233,7 @@ namespace GoF2Remake.Flight
             GameObject root = null;
             for (int m = 0; m < items.Count && m < mounts.Count; m++)
             {
-                if (DisplayPrefab(db, items[m], out _) == null) continue;
+                if (items[m] < 0 || DisplayPrefab(db, items[m], out _) == null) continue;   // < 0: an empty slot (PlayerTurret.TurretItems)
                 if (root == null)
                 {
                     root = new GameObject("Turrets");

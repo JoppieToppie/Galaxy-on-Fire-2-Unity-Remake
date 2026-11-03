@@ -124,7 +124,7 @@ namespace GoF2Remake.UI
                 if (chatter == shownChatter) return;
                 shownChatter = chatter;
                 radioShown = -1;
-                radioSpeaker.text = chatter.speaker.ToUpperInvariant();
+                radioSpeaker.text = chatter.speaker.UiCaps();
                 bool chatterAlien = chatter.portrait == null && chatter.character == null && StoryTable.UsesAlienFont(chatter.speakerId);
                 AlienText.Set(radioText, chatter.text, chatterAlien);
                 if (chatter.character != null) Portrait.ShowCharacter(radioPortrait, Modding.ModCharacters.Find(chatter.character), false);
@@ -141,7 +141,7 @@ namespace GoF2Remake.UI
             radioBox.EnableInClassList("radio--shown", line != null);
             if (line == null || index == radioShown) { if (line == null) radioShown = -1; return; }
             radioShown = index;
-            radioSpeaker.text = StoryTable.SpeakerName(line.speaker).ToUpperInvariant();
+            radioSpeaker.text = StoryTable.SpeakerName(line.speaker).UiCaps();
             string lineText = Localization.Get(line.text);
             bool lineAlien = StoryTable.UsesAlienFont(line.speaker);
             AlienText.Set(radioText, lineText, lineAlien);

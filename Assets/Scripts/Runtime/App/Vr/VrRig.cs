@@ -5,7 +5,7 @@
 // the logical camera every frame (after all camera scripts), with the headset's pose on top (Input System
 // TrackedPoseDriver, seated: the tracking origin is the head's start). Outside flight the rig keeps only the camera's yaw
 // (a level horizon). The simulation (-vrsim) has no headset: right mouse drag looks around.
-// The floating screen (VrPanels: every UI panel on a quad): with a headset 1.9 m wide, 2 m ahead (in flight it fills the
+// The floating screen (VrPanels: every UI panel on a quad): with a headset 2.3 m wide, 2 m ahead (in flight it fills the
 // scene camera's view at 2 m, so the HUD's markers sit on what they mark); in the simulation it fills the view, so the
 // desktop mouse lines up with it. The right controller's laser points at it (VrPad's virtual mouse, the trigger clicks).
 // The star map draws into a texture on the screen too (its own 3D scene switches the level's cameras off).
@@ -14,6 +14,10 @@
 // is but with a level horizon (only its yaw, never its pitch or roll; within 20 deg of the camera's heading the rig doesn't
 // turn at all, beyond it turns at most 40 deg/s), the cockpit switched off (the hull shows again), and every cut (the camera
 // jumping 60 m or 30 deg in a frame, entering or leaving the cutscene) masked by a fade from black (0.3 s).
+// Recentre (#205): the head and the hands sit under a tracking space whose offset puts the headset's current pose (its
+// position and heading) on the rig's origin, so the eyes are where the scene camera is (the HUD's markers on what they
+// mark) and straight ahead is the ship's nose. Done once when tracking starts, and again on Home (keyboard) or both
+// thumbsticks clicked together; kept across scenes.
 
 using GoF2Remake.UI;
 using UnityEngine;
@@ -31,7 +35,7 @@ namespace GoF2Remake.Vr
         public const int UiLayer = 29;
         /// <summary>Drawn by the scene cameras but not the eye: the player's hull while seated in the cockpit.</summary>
         public const int HiddenLayer = 28;
-        const float ScreenDistance = 2f, ScreenWidth = 1.9f, LaserLength = 8f;
+        const float ScreenDistance = 2f, ScreenWidth = 2.3f, LaserLength = 8f;
         const float CutDistance = 60f, CutAngle = 30f, YawDeadZone = 20f, YawRate = 40f, FadeSeconds = 0.3f;
         const float ModalWidth = 1.6f, ModalSimDistance = 0.3f;
 
@@ -39,7 +43,7 @@ namespace GoF2Remake.Vr
         public static VrRig Current { get; private set; }
 
         Camera logical, eye;
-        Transform head, leftHand, rightHand, screen, mapScreen;
+        Transform tracking, head, leftHand, rightHand, screen, mapScreen;
         VrPanels panels;
         LineRenderer laser;
         RenderTexture mapTexture;
@@ -62,7 +66,11 @@ namespace GoF2Remake.Vr
         public bool Cinematic { get; private set; }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Current = null; DebugLook = null; }
+        static void ResetStatics() { Current = null; DebugLook = null; trackingOffset = null; }
+
+        /// <summary>The tracking space's offset (local to the rig) from the last recentre; null = not recentred yet.</summary>
+        static Pose? trackingOffset;
+        bool recentreWasDown;
 
         /// <summary>Testing (the simulation): a fixed look (degrees: x yaw, y pitch up) instead of the mouse's; null = the mouse.</summary>
         public static Vector2? DebugLook;
@@ -96,8 +104,11 @@ namespace GoF2Remake.Vr
             logical = cam;
             flight = inFlight;
 
+            tracking = new GameObject("VR Tracking Space").transform;
+            tracking.SetParent(transform, false);
+            if (trackingOffset.HasValue) tracking.SetLocalPositionAndRotation(trackingOffset.Value.position, trackingOffset.Value.rotation);
             head = new GameObject("VR Head").transform;
-            head.SetParent(transform, false);
+            head.SetParent(tracking, false);
             eye = head.gameObject.AddComponent<Camera>();
             eye.CopyFrom(cam);
             head.localPosition = Vector3.zero;   // CopyFrom moves the eye onto the camera's pose too
@@ -187,7 +198,7 @@ namespace GoF2Remake.Vr
         Transform Hand(string name, string usage)
         {
             var t = new GameObject(name).transform;
-            t.SetParent(transform, false);
+            t.SetParent(tracking, false);
             var tpd = t.gameObject.AddComponent<TrackedPoseDriver>();
             var pos = new InputAction(name + " position", expectedControlType: "Vector3");
             pos.AddBinding($"<XRController>{{{usage}}}/pointerPosition");
@@ -220,6 +231,7 @@ namespace GoF2Remake.Vr
         {
             if (logical == null || panels == null) return;   // Init didn't finish (#115: it threw, and this threw every frame)
             Follow();
+            UpdateRecentre();
             UpdateFade();
             panels.Update();
             PlaceScreen();
@@ -271,6 +283,32 @@ namespace GoF2Remake.Vr
             }
         }
 
+        /// <summary>Recentre on Home or both thumbsticks clicked; the first time on the first tracked frame.</summary>
+        void UpdateRecentre()
+        {
+            if (!VrMode.Headset) return;
+            var kb = Keyboard.current;
+            bool down = (kb != null && kb.homeKey.isPressed) || VrPad.BothSticksClicked;
+            bool pressed = down && !recentreWasDown;
+            recentreWasDown = down;
+            bool tracked = head.localPosition != Vector3.zero || head.localRotation != Quaternion.identity;
+            if (pressed || (!trackingOffset.HasValue && tracked)) Recentre();
+        }
+
+        /// <summary>The headset's current pose onto the rig's origin: its position, and its heading (yaw only, the horizon
+        /// stays level).</summary>
+        public void Recentre()
+        {
+            if (head == null || tracking == null) return;
+            var f = head.localRotation * Vector3.forward;
+            float yaw = new Vector2(f.x, f.z).sqrMagnitude > 0.01f ? Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg : 0f;
+            var rot = Quaternion.Euler(0f, -yaw, 0f);
+            var pos = -(rot * head.localPosition);
+            tracking.SetLocalPositionAndRotation(pos, rot);
+            trackingOffset = new Pose(pos, rot);
+            fadeAlpha = Mathf.Max(fadeAlpha, 0.5f);
+        }
+
         /// <summary>A cutscene holds the scene camera: a level script's, the fly-in, a jump scene or the death camera, and the
         /// camera isn't on the seat (some scripts keep the pilot's view).</summary>
         bool CutsceneHolds()
@@ -313,7 +351,7 @@ namespace GoF2Remake.Vr
         }
 
         /// <summary>The floating screen 2 m ahead: in flight and in the simulation as big as the logical camera's view at that
-        /// distance (the HUD's markers line up), else 1.9 m wide.</summary>
+        /// distance (the HUD's markers line up), else 2.3 m wide.</summary>
         void PlaceScreen()
         {
             float aspect = panels.Aspect;

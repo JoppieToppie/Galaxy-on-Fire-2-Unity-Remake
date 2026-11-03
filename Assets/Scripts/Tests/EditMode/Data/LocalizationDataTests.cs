@@ -54,13 +54,7 @@ namespace GoF2Remake.Tests
         static IEnumerable<TestCaseData> AllLanguages()
         {
             foreach (var c in MenuLanguages) yield return new TestCaseData(c).SetName("TextTableHasEveryId_" + c);
-            foreach (var c in OtherLanguages)
-            {
-                var d = new TestCaseData(c).SetName("TextTableHasEveryId_" + c);
-                // text_ar.json has 3291 texts (ids 3291-3400 missing); not offered in the menu.
-                if (c == "ar") d.Ignore("text_ar.json lacks ids 3291-3400; Arabic isn't offered in the menu.");
-                yield return d;
-            }
+            foreach (var c in OtherLanguages) yield return new TestCaseData(c).SetName("TextTableHasEveryId_" + c);
         }
 
         [TestCaseSource(nameof(AllLanguages))]

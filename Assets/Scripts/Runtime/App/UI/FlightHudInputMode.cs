@@ -74,19 +74,39 @@ namespace GoF2Remake.UI
             string T(string key, string english) => Localization.Extra(key, english);
             // The menus' own keys are fixed (arrows / D-pad, Enter / A, Esc / B / Menu); the rest are GameControls' bindings.
             var menuKey = pad ? InputGlyph.Pad(PadButton.Menu) : InputGlyph.Key("ESC");
+            // Remake: from the docked menu the resupply window's Esc / B go back to it.
+            bool fromDocked = dockedMenu != null && dockedMenu.IsOpen;
             if (carrierShop != null && carrierShop.IsOpen)
             {
                 // The carrier's resupply window (CarrierShopWindow): its own keys.
+                string leave = fromDocked ? T("hudBack", "BACK") : T("hudUndock", "UNDOCK");
                 if (!pad)
                 {
                     Hint(T("hudSelect", "SELECT"), InputGlyph.Key("↑"), InputGlyph.Key("↓"));
                     Hint(T("shopBuy", "BUY"), InputGlyph.Key("→"), InputGlyph.Key("ENTER", true));
-                    Hint(T("hudUndock", "UNDOCK"), InputGlyph.Key("ESC"));
+                    Hint(leave, InputGlyph.Key("ESC"));
                 }
                 else
                 {
                     Hint(T("hudSelect", "SELECT"), InputGlyph.Pad(PadButton.DPad));
                     Hint(T("shopBuy", "BUY"), InputGlyph.Pad(PadButton.A));
+                    Hint(leave, InputGlyph.Pad(PadButton.B));
+                }
+                return;
+            }
+            if (fromDocked)
+            {
+                // Remake: the docked menu (DockedMenu), the station menu's keys; Esc / B undock.
+                if (!pad)
+                {
+                    Hint(T("hudSelect", "SELECT"), InputGlyph.Key("↑"), InputGlyph.Key("↓"));
+                    Hint(T("hudConfirm", "CONFIRM"), InputGlyph.Key("ENTER", true), InputGlyph.Key("1-9", true));
+                    Hint(T("hudUndock", "UNDOCK"), InputGlyph.Key("ESC"));
+                }
+                else
+                {
+                    Hint(T("hudSelect", "SELECT"), InputGlyph.Pad(PadButton.DPad));
+                    Hint(T("hudConfirm", "CONFIRM"), InputGlyph.Pad(PadButton.A));
                     Hint(T("hudUndock", "UNDOCK"), InputGlyph.Pad(PadButton.B));
                 }
                 return;
@@ -120,9 +140,9 @@ namespace GoF2Remake.UI
                 Hint(T("hudTurretExit", "CHASE VIEW"), GameControls.Camera);
                 return;
             }
-            // Multiplayer: the held button is a cruise mode (Navigation.Cruise), not a fast-forward.
-            // Between the systems it is the drive's.
-            string ff = (NetSession.Active || (nav != null && nav.Interstellar) ? T("hudCruise", "CRUISE") : T("hudFastForward", "FAST FORWARD")) + " (" + T("hudHold", "HOLD") + ")";
+            // Multiplayer (or single player with Options > Gameplay "Fast-forward" = Ship cruise): the held button is a cruise
+            // mode (Navigation.Cruise), not a fast-forward. Between the systems it is the drive's.
+            string ff = (NetSession.Active || Settings.FastForwardCruise || (nav != null && nav.Interstellar) ? T("hudCruise", "CRUISE") : T("hudFastForward", "FAST FORWARD")) + " (" + T("hudHold", "HOLD") + ")";
             if (lastAutopilot)
             {
                 // Autopilot: throttle, boost and guns still work; fast-forward is held. Off: the autopilot key, or the
@@ -161,10 +181,10 @@ namespace GoF2Remake.UI
                 if (weapons != null && weapons.CanCycleSecondary) Hint(T("hudSwitchSecondary", "SWITCH"), GameControls.SwitchSecondary);
                 if (radar != null && radar.Locked != null) Hint(T("hudUnlock", "UNLOCK"), GameControls.UnlockTarget);
                 Hint(T("hudFreeLook", "FREE LOOK"), GameControls.FreeLookHold);
-                if (FirstAuto() != null) Hint(Localization.Get(37).ToUpperInvariant(), GameControls.AutoTurret);
+                if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), GameControls.AutoTurret);
                 if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.Camera);
                 CockpitHint(pad);
-                if (!SupernovaChallenge.Active) Hint(Localization.Get(571).ToUpperInvariant(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
+                if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
                 if (nav != null && nav.MenuEntries(true).Count > 0) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);
                 Hint(T("hudMenu", "MENU"), menuKey);
                 return;
@@ -185,10 +205,10 @@ namespace GoF2Remake.UI
             Hint(T("hudRoll", "ROLL"), GameControls.Roll);
             Hint(T("hudLevel", "LEVEL"), GameControls.LevelOut);
             // Remake: a ship may carry an auto turret and a manual one at once: a hint for each kind it has.
-            if (FirstAuto() != null) Hint(Localization.Get(37).ToUpperInvariant(), GameControls.AutoTurret);
+            if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), GameControls.AutoTurret);
             if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.Camera);
             CockpitHint(pad);
-            if (!SupernovaChallenge.Active) Hint(Localization.Get(571).ToUpperInvariant(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
+            if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
             if (nav != null && nav.MenuEntries(true).Count > 0) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);
             Hint(T("hudMenu", "MENU"), menuKey);
         }
@@ -197,7 +217,7 @@ namespace GoF2Remake.UI
         void CockpitHint(bool pad)
         {
             if (VrFlags.Enabled) return;
-            string T(string key, string english) => Localization.Extra(key, english).ToUpperInvariant();
+            string T(string key, string english) => Localization.Extra(key, english).UiCaps();
             if (pad) Hint(T("hudCockpit", "COCKPIT") + " (" + T("hudHold", "HOLD") + ")", GameControls.Camera);
             else Hint(T("hudCockpit", "COCKPIT"), GameControls.CockpitView);
         }
@@ -217,7 +237,7 @@ namespace GoF2Remake.UI
             keys.AddToClassList("hint-keys");
             foreach (var g in glyphs) keys.Add(g);
             h.Add(keys);
-            var l = new Label(label) { pickingMode = PickingMode.Ignore };
+            var l = new Label(label.OgCase()) { pickingMode = PickingMode.Ignore };
             l.AddToClassList("hint-label");
             l.AddToClassList("gof-semibold");
             h.Add(l);

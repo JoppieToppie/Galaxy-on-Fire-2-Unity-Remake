@@ -122,7 +122,7 @@ namespace GoF2Remake.UI
             var prompts = new VisualElement { pickingMode = PickingMode.Ignore };
             prompts.AddToClassList("prompt-bar");
             prompts.AddToClassList("pad-keyboard__prompts");
-            string X(string key, string english) => Localization.Extra(key, english).ToUpperInvariant();
+            string X(string key, string english) => Localization.Extra(key, english).UiCaps();
             prompts.Add(MenuKeys.Hint(X("kbType", "Type"), InputGlyph.Pad(PadButton.A)));
             prompts.Add(MenuKeys.Hint(X("kbDelete", "Delete"), InputGlyph.Pad(PadButton.B)));
             prompts.Add(MenuKeys.Hint(X("kbSpace", "Space"), InputGlyph.Pad(PadButton.X)));
@@ -155,7 +155,7 @@ namespace GoF2Remake.UI
                     rows[r][c].text = keys[r][c].ToString();
                     rows[r][c].EnableInClassList("pad-keyboard__key--sel", row == r && col == c);
                 }
-            string X(string key, string english) => Localization.Extra(key, english).ToUpperInvariant();
+            string X(string key, string english) => Localization.Extra(key, english).UiCaps();
             for (int i = 0; i < Bottom.Length; i++)
             {
                 bottom[i].text = Bottom[i].what switch

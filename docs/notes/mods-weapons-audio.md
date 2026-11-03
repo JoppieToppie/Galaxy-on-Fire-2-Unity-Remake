@@ -107,6 +107,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   named by its type. Tests `ModAudioTypeTests`. The content decides before the name is checked (`ModAudio.TypeOf(file,
   sniffed)`, #208): the Weapon fx page's "Sound file…" had saved a picked sound as `fx/<item>.tmp` (`AddFile` keeps the
   copy's extension), which the name alone refused, so the weapon kept its game sound on the new build too.
+  Still "couldn't be played" on Android for every format (#208): `ModAudio.Read` now tries the escaped file URI, then
+  `"file://" + path` (`ModAudio.Urls`), rejects a clip whose load failed, and decodes a WAV itself when Unity's decoder
+  refuses it (`ModAudio.DecodeWav`: PCM 8-32 bit, float); the preview's message adds the reason (`ModAudio.LastError`).
 - **Ship and weapon sounds** (`ModShipSounds`): ships.json `"sounds"` (a new ship or an override; `ShipDef.sounds`,
   `ModContent.ShipSounds`) = engine / boostStart / boostLoop / boostStop / charger, each a file, a list (random) or { file(s),
   volume, pitch } with a value or [from, to]; a kit hardpoint rule's `"sound"` { shot, loop, release } (`Rule.sound`,

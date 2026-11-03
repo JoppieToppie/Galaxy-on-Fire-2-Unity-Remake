@@ -58,10 +58,11 @@ namespace GoF2Remake.UI
             inspectMessage.text = "";
             SetInspectUiHidden(false);
             if (root.focusController?.focusedElement is VisualElement f) f.Blur();
-            inspectTitle.text = GameNames.Ship(Session.ShipIndex).ToUpperInvariant();
+            inspectTitle.text = GameNames.Ship(Session.ShipIndex).UiCaps();
             var insp = level.Inspect;
             inspectTools.Collide = level.RoomMove;   // Modified: the free camera stops at the hangar's walls too
-            inspectTools.Begin(Camera.main, level.PlayerShip, () => insp.Centre, insp.Radius, insp.Radius * 6f, insp.FloorY,
+            // Modified (#181): the free camera's reach, 15 ship radii (was 6); the walls above keep it in the room.
+            inspectTools.Begin(Camera.main, level.PlayerShip, () => insp.Centre, insp.Radius, insp.Radius * 15f, insp.FloorY,
                                () => (insp.OrbitPosition, insp.OrbitRotation), true);
             BuildInspectHints(InputMode.Current);
             if (inspectOverlay != null) inspectOverlay.AddToClassList("inspect-overlay--shown");

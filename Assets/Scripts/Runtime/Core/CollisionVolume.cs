@@ -277,6 +277,16 @@ namespace GoF2Remake.Flight
         public static Func<int, int, List<CollisionVolume>> ShipVolumes;
 
         /// <summary>A freighter's boxes (Level::createShip): Terran / pirate 0, Vossk 1, Nivelian 2, Midorian 3.</summary>
+        /// <summary>Remake mods: copies of 'volumes' 'k' times as big about the owner (an NPC ship type's "scale");
+        /// 'volumes' itself at 1.</summary>
+        public static List<CollisionVolume> Scaled(List<CollisionVolume> volumes, float k)
+        {
+            if (volumes == null || Mathf.Approximately(k, 1f)) return volumes;
+            var list = new List<CollisionVolume>(volumes.Count);
+            foreach (var v in volumes) list.Add(new CollisionVolume { sphere = v.sphere, centre = v.centre * k, half = v.half * k, radius = v.radius * k });
+            return list;
+        }
+
         public static List<CollisionVolume> ForFreighter(int ship, int race)
         {
             if (ship > 15 && ShipVolumes?.Invoke(ship, race) is List<CollisionVolume> own) return own;

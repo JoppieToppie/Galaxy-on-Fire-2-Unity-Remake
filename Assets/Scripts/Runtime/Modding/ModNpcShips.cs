@@ -5,7 +5,7 @@
 //   [ { "id": "dreadnought", "kind": "capital" | "freighter" | "boss", "ship": n | "mod:id" (its hull: a ships.json ship)
 //       or "looksLike": "battleship" | "carrier" | "vossk_battleship" | "freighter" (a game NPC hull), "name", "race",
 //       "hostile", "hull" (hitpoints, x the difficulty) or "hullFactor", "gunFactor", "speed" (u/ms), "explosionScale",
-//       "missiles", "retreat",
+//       "missiles", "retreat", "scale" (its size: x the hull's, its hardpoints and pads with it),
 //       "hardpoints": [ { "kind": "turret" | "object" | "hangar", "position": [x, y, z], "item", "upsideDown", "hull", ... } ]
 //                     (ships.json "subsystems" in the ship's frame; they replace its turrets),
 //       "escorts": { "count": n | [min, max], "ships": [n | "mod:id"], "race", "strength" (hull and gun x), "hull", "gun" },
@@ -53,6 +53,7 @@ namespace GoF2Remake.Modding
         public float gunFactor = 1f;
         public float speed = -1f;
         public float explosionScale = -1f;
+        public float scale = 1f;        // its size: x the hull's (the model, its boxes, hardpoints, turrets and pads)
         public bool? missiles;          // capital ships' missile salvos (null: enhanced capital ships have them, new ones too)
         public bool retreat;
         public List<CapitalSubsystem> hardpoints;   // null = its own turrets
@@ -130,6 +131,8 @@ namespace GoF2Remake.Modding
         public static readonly string[] Kinds = { Capital, Freighter, Boss };
         /// <summary>The hulls "looksLike" takes.</summary>
         public static readonly string[] Looks = { Battleship, Carrier, VosskBattleship, FreighterKey };
+        /// <summary>"scale"'s range (x the hull's size).</summary>
+        public const float MinScale = 0.05f, MaxScale = 10f;
 
         public class Def
         {
@@ -143,7 +146,7 @@ namespace GoF2Remake.Modding
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "id", "override", "kind", "ship", "looksLike", "name", "race", "hostile", "hull", "hullFactor", "gunFactor", "speed",
-            "explosionScale", "missiles", "retreat", "hardpoints", "escorts", "loot", "spawn", "docking", "launches",
+            "explosionScale", "scale", "missiles", "retreat", "hardpoints", "escorts", "loot", "spawn", "docking", "launches",
         };
         static readonly string[] SpawnFields = { "chance", "count", "races", "systems", "stations", "security", "minRank", "maxRank",
                                                  "minStep", "maxStep", "freePlayOnly", "storyOnly", "condition", "position", "distance", "replaceGame" };
@@ -186,7 +189,7 @@ namespace GoF2Remake.Modding
                 if (ModJson.Str(o, "looksLike") is string look && Array.IndexOf(Looks, look.ToLowerInvariant()) < 0)
                     throw new ModJsonException($"{where}: \"looksLike\" must be one of {string.Join(", ", Looks)}");
                 foreach (var f in new[] { "hull" }) ModJson.Int(o, f, 0, File);
-                foreach (var f in new[] { "hullFactor", "gunFactor", "speed", "explosionScale" }) ModJson.Float(o, f, 0f, File);
+                foreach (var f in new[] { "hullFactor", "gunFactor", "speed", "explosionScale", "scale" }) ModJson.Float(o, f, 0f, File);
                 foreach (var f in new[] { "hostile", "missiles", "retreat" }) ModJson.Bool(o, f, false, File);
                 foreach (var f in new[] { "hardpoints" })
                     if (ModJson.Get(o, f) is JToken h && !(h is JArray)) throw new ModJsonException($"{where}: \"{f}\" must be a list [ {{ \"position\": [x, y, z] }} ]");
@@ -311,6 +314,12 @@ namespace GoF2Remake.Modding
             t.gunFactor = Mathf.Max(0f, ModJson.Float(o, "gunFactor", t.gunFactor, File));
             t.speed = ModJson.Float(o, "speed", t.speed, File);
             t.explosionScale = ModJson.Float(o, "explosionScale", t.explosionScale, File);
+            if (ModJson.Has(o, "scale"))
+            {
+                float k = ModJson.Float(o, "scale", 1f, File);
+                if (k < MinScale || k > MaxScale) Warn(mod, $"{d.where}: \"scale\" {k} is outside {MinScale}..{MaxScale} (clamped)");
+                t.scale = Mathf.Clamp(k, MinScale, MaxScale);
+            }
             if (ModJson.Has(o, "missiles")) t.missiles = ModJson.Bool(o, "missiles", true, File);
             t.retreat = ModJson.Bool(o, "retreat", t.retreat, File);
             if (ModJson.Get(o, "hardpoints") is JArray hp) t.hardpoints = ModContent.ReadSubsystems(db, mod, hp, File, "turret", true);

@@ -31,10 +31,11 @@ namespace GoF2Remake.UI
             if (sellButton.parent != sellHome) sellHome.Insert(Mathf.Min(sellHomeIndex, sellHome.childCount), sellButton);
             if (buyButton.parent != buyHome) buyHome.Insert(Mathf.Min(buyHomeIndex, buyHome.childCount), buyButton);
             buyButton.RemoveFromClassList("trade-arrow--under");
-            sellLabel.text = Localization.Extra("shopSell", "SELL").ToUpperInvariant();
+            sellLabel.text = Localization.Extra("shopSell", "SELL").UiCaps();
             tradeBox.RemoveFromClassList("trade-box--ingredient");
             if (selected == null) return;
             string T(int id) => Localization.Get(id);
+            if (selected.kind == RowKind.VipCard) { ShowVipDetails(); return; }   // remake: the Kaamo Club VIP Card
 
             int item = selected.kind == RowKind.Slot && selected.equipment >= 0 ? Session.Equipment[selected.equipment].item : selected.item;
             if (item >= 0 && tab == Tab.Blueprints)
@@ -54,11 +55,11 @@ namespace GoF2Remake.UI
                 if (selected.kind == RowKind.ShopItem)
                 {
                     tradeBox.RemoveFromClassList("trade-box--hidden");
-                    tradeStockLabel.text = T(136).ToUpperInvariant();
-                    tradeCargoLabel.text = T(183).ToUpperInvariant();
+                    tradeStockLabel.text = T(136).UiCaps();
+                    tradeCargoLabel.text = T(183).UiCaps();
                     bool store = hangar.Storage;
-                    sellLabel.text = "‹ " + (store ? Localization.Extra("shopStore", "STORE") : Localization.Extra("shopSell", "SELL"));
-                    buyLabel.text = (store ? Localization.Extra("shopTake", "TAKE") : Localization.Extra("shopBuy", "BUY")) + " ›";
+                    sellLabel.text = "‹ " + (store ? Localization.Extra("shopStore", "STORE").OgCase() : Localization.Extra("shopSell", "SELL").OgCase());
+                    buyLabel.text = (store ? Localization.Extra("shopTake", "TAKE").OgCase() : Localization.Extra("shopBuy", "BUY").OgCase()) + " ›";
                     int stock = hangar.StockOf(item), cargo = hangar.CargoOf(item), price = hangar.BuyPriceOf(item);
                     tradeStock.text = $"{stock} t";
                     tradeCargo.text = $"{cargo} t";
@@ -76,11 +77,11 @@ namespace GoF2Remake.UI
                 }
                 else if (selected.kind == RowKind.Slot)
                 {
-                    ShowAction(T(282).ToUpperInvariant(), !(selected.equipment >= 0 && Session.Equipment[selected.equipment].builtIn));
+                    ShowAction(T(282).UiCaps(), !(selected.equipment >= 0 && Session.Equipment[selected.equipment].builtIn));
                     // Remake (players' feedback): MOVE to the next slot of its type, for a type with more than one slot.
                     if (actionButton2 != null && selected.equipment >= 0 && hangar.NextSlot(selected.equipment) >= 0)
                     {
-                        SetActionText(actionButton2, Localization.Extra("shopMoveSlot", "MOVE"));
+                        SetActionText(actionButton2, Localization.Extra("shopMoveSlot", "MOVE").OgCase());
                         actionButton2.RemoveFromClassList("detail-action--hidden");
                         actionButton2.AddToClassList("detail-action--move");
                     }
@@ -88,7 +89,7 @@ namespace GoF2Remake.UI
                 else if (selected.kind == RowKind.CargoItem)
                 {
                     var r = hangar.CanMount(item, out _);
-                    ShowAction(T(281).ToUpperInvariant(), r == Hangar.Result.Ok || r == Hangar.Result.Swap);
+                    ShowAction(T(281).UiCaps(), r == Hangar.Result.Ok || r == Hangar.Result.Swap);
                 }
             }
             else if (selected.ship >= 0)
@@ -110,16 +111,16 @@ namespace GoF2Remake.UI
                 if (selected.kind == RowKind.ShopShip)
                 {
                     int delta = hangar.BuyShipPrice(selected.ship) - hangar.ShipPrice(Session.ShipIndex);
-                    ShowAction($"{T(301).ToUpperInvariant()}   {ItemInfo.Credits(delta)}", true);
+                    ShowAction($"{T(301).UiCaps()}   {ItemInfo.Credits(delta)}", true);
                     ItemInfo.FillModLines(detailMods, hangar.Stock.ModsOf(selected.ship));   // a traded-in hull's mods
                 }
                 else if (selected.kind == RowKind.StoredShip)
                 {
                     // Row buttons 1 "Use" (332) and 10 "Sell" (330).
-                    ShowAction(T(332).ToUpperInvariant(), selected.ship != Session.ShipIndex);
+                    ShowAction(T(332).UiCaps(), selected.ship != Session.ShipIndex);
                     if (actionButton2 != null)
                     {
-                        SetActionText(actionButton2, $"{T(330).ToUpperInvariant()}   {ItemInfo.Credits(hangar.StoredPrice(selected.equipment))}");
+                        SetActionText(actionButton2, $"{T(330).UiCaps()}   {ItemInfo.Credits(hangar.StoredPrice(selected.equipment))}");
                         actionButton2.RemoveFromClassList("detail-action--hidden");
                     }
                     ItemInfo.FillModLines(detailMods, Session.KaamoShips[selected.equipment].mods);
@@ -165,7 +166,7 @@ namespace GoF2Remake.UI
             switch (selected.kind)
             {
                 case RowKind.Blueprint:
-                    ShowAction(T(283).ToUpperInvariant(), true);   // Edit
+                    ShowAction(T(283).UiCaps(), true);   // Edit
                     break;
                 case RowKind.Autocomplete:
                 case RowKind.ShopLink:
@@ -180,14 +181,14 @@ namespace GoF2Remake.UI
                     int invested = Blueprints.Invested(db, st, selected.type) + Pending(item);
                     int cargo = hangar.CargoOf(item);
                     tradeBox.RemoveFromClassList("trade-box--hidden");
-                    tradeStockLabel.text = T(183).ToUpperInvariant();
-                    tradeCargoLabel.text = T(271).ToUpperInvariant();
+                    tradeStockLabel.text = T(183).UiCaps();
+                    tradeCargoLabel.text = T(271).UiCaps();
                     // Remake (PR #166): laid out like the shop: the hold, TAKE, ADD, the blueprint. TAKE gives back units
                     // waiting to be shipped, or at the production station the player's own (Blueprints.Withdrawable: never
                     // the story's pre-invested goods).
                     tradeBox.AddToClassList("trade-box--ingredient");
-                    sellLabel.text = "‹ " + Localization.Extra("shopTake", "TAKE").ToUpperInvariant();
-                    buyLabel.text = Localization.Extra("bpAdd", "ADD").ToUpperInvariant() + " ›";
+                    sellLabel.text = "‹ " + Localization.Extra("shopTake", "TAKE").UiCaps();
+                    buyLabel.text = Localization.Extra("bpAdd", "ADD").UiCaps() + " ›";
                     tradeStock.text = $"{cargo} t";
                     tradeCargo.text = $"{invested} / {total} t";
                     tradePrice.text = "";
@@ -485,21 +486,21 @@ namespace GoF2Remake.UI
                 restockLabel.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
             }
             if (!show) return;
-            string text = $"{Localization.Extra("hangarShipment", "Next shipment").ToUpperInvariant()}  {Eta(reset)}";
-            if (rare >= 0f) text += $"   {Localization.Extra("hangarRareRestock", "Rare goods").ToUpperInvariant()}  {Eta(rare)}";
+            string text = $"{Localization.Extra("hangarShipment", "Next shipment").UiCaps()}  {Eta(reset)}";
+            if (rare >= 0f) text += $"   {Localization.Extra("hangarRareRestock", "Rare goods").UiCaps()}  {Eta(rare)}";
             if (restockLabel.text != text) restockLabel.text = text;
         }
         /// <summary>A shipment's estimate from its scheduled seconds.</summary>
         static string Eta(float seconds)
         {
-            if (seconds <= 0f) return Localization.Extra("hangarEtaDue", "any moment").ToUpperInvariant();
-            if (seconds <= 90f) return Localization.Extra("hangarEtaSoon", "soon").ToUpperInvariant();
-            return string.Format(Localization.Extra("hangarEtaMinutes", "~{0} min"), Mathf.CeilToInt(seconds / 60f)).ToUpperInvariant();
+            if (seconds <= 0f) return Localization.Extra("hangarEtaDue", "any moment").UiCaps();
+            if (seconds <= 90f) return Localization.Extra("hangarEtaSoon", "soon").UiCaps();
+            return string.Format(Localization.Extra("hangarEtaMinutes", "~{0} min"), Mathf.CeilToInt(seconds / 60f)).UiCaps();
         }
         void UpdateFooter()
         {
             UpdateRestock();
-            cargoLabel.text = $"{Localization.Get(184).ToUpperInvariant()}  {hangar.Load} / {hangar.MaxLoad} t";
+            cargoLabel.text = $"{Localization.Get(184).UiCaps()}  {hangar.Load} / {hangar.MaxLoad} t";
             cargoLabel.EnableInClassList("footer-cargo--over", hangar.Overloaded);
             creditsLabel.text = ItemInfo.Credits(Session.Credits);
         }

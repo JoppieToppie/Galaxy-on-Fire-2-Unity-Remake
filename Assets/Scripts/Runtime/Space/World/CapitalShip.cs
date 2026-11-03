@@ -121,9 +121,9 @@ namespace GoF2Remake.World
                 int set = CapitalShips.PadSet(host.Spec);
                 if (set >= 0)
                     foreach (var p in SpacePoints.Set(set))
-                        if (p.type == SpacePoints.Approach) c.pads.Add(SpacePoints.ToLocal(p.engine));
+                        if (p.type == SpacePoints.Approach) c.pads.Add(SpacePoints.ToLocal(p.engine) * host.Spec.HullScale);
                 // A hull without pads launches off its top (its hangar hardpoints launch on their own: CapitalSubsystems).
-                if (c.pads.Count == 0) c.pads.Add(Vector3.up * 3000f * M);
+                if (c.pads.Count == 0) c.pads.Add(Vector3.up * 3000f * M * host.Spec.HullScale);
             }
             return c;
         }

@@ -447,6 +447,16 @@ namespace GoF2Remake.Data
         /// nothing fires, the story level holds); off = the original's pause (MGame::OnUpdate halts for the dialogue window).</summary>
         public static bool PlayOnInConversations { get => GetBool("playOnInConversations", false); set => SetBool("playOnInConversations", value); }
 
+        /// <summary>Remake: single player's held fast-forward as multiplayer's cruise (Navigation.Cruise: only the player's ship
+        /// flies 5x, the world keeps its pace); off = the original's time speedup (the whole game 5x). Multiplayer always cruises.</summary>
+        public static bool FastForwardCruise { get => GetBool("fastForwardCruise", false); set => SetBool("fastForwardCruise", value); }
+
+        /// <summary>Remake (players' suggestion): the Kaamo Club VIP Card's shop tools (KaamoClub.VipFeatures): KaamoVipCard =
+        /// the card is bought in the club's Store tab (default), KaamoVipAlways = on without it, KaamoVipOff = never (the
+        /// original's club).</summary>
+        public static int KaamoVipMode { get => Mathf.Clamp(Mathf.RoundToInt(Get("kaamoVip", KaamoVipCard)), 0, 2); set => Set("kaamoVip", Mathf.Clamp(value, 0, 2)); }
+        public const int KaamoVipCard = 0, KaamoVipAlways = 1, KaamoVipOff = 2;
+
         /// <summary>Remake: the dialogue and radio text types in with pacing, shouting, actions and tinted names
         /// (TextReveal); off = the original's plain page at once.</summary>
         public static bool AnimatedDialogue { get => GetBool("animatedDialogue", true); set => SetBool("animatedDialogue", value); }
@@ -488,6 +498,8 @@ namespace GoF2Remake.Data
         public static bool ShowFps { get => GetBool("showFps", false); set => SetBool("showFps", value); }
         /// <summary>Modified: the mouse cursor drawn in the interface's style (GameCursor) instead of the system's.</summary>
         public static bool GameCursor { get => GetBool("gameCursor", true); set => SetBool("gameCursor", value); }
+        /// <summary>Remake: the game mouse cursor's size in percent (Options > Accessibility "Cursor size", GameCursor).</summary>
+        public static int CursorSizePercent { get => Mathf.Clamp(Mathf.RoundToInt(Get("cursorSize", 100f)), 50, 200); set => Set("cursorSize", Mathf.Clamp(value, 50, 200)); }
 
         /// <summary>Remake: where the FPS counter sits (Options > Graphics "FPS counter position", FpsCounter): the four corners
         /// and the middles of the four sides, top centre by default.</summary>
@@ -504,6 +516,10 @@ namespace GoF2Remake.Data
         /// <summary>Remake: Options > Accessibility "High contrast": opaque panels, brighter secondary text and lines
         /// (GoF2Common.uss .ui-high-contrast).</summary>
         public static bool HighContrast { get => GetBool("highContrast", false); set => SetBool("highContrast", value); }
+        /// <summary>Remake (players' wish): Options > Graphics "Interface style" Original: the menus drawn with the original game's
+        /// panels, buttons and colours (UiLayout's root class ui-style-original, GoF2Original.uss); the layouts and the remake's
+        /// screens and features stay. Off (default) = the remake's look.</summary>
+        public static bool OriginalUi { get => GetBool("originalUi", false); set => SetBool("originalUi", value); }
 
         /// <summary>Remake: Options > Accessibility "Reduce motion": no sliding / fading UI transitions (.ui-reduce-motion,
         /// the station menu's fly-out).</summary>
@@ -596,7 +612,7 @@ namespace GoF2Remake.Data
         {
             "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality",
             "msaa", "textureQuality", "brightness", "bloom", "bloomStyle", "hangarShadows", "lods", "hangarDof", "lensFlare", "npcPlayerEngines", "fov",
-            "cameraShake", "originalChaseCamera", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
+            "cameraShake", "originalChaseCamera", "originalUi", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
         };
         public static readonly string[] ControlsKeys =
         {
@@ -606,13 +622,13 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] GameplayKeys =
         {
-            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "cloakBay", "informerOriginalRule",
-            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "smarterNpcTargeting", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
+            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule",
+            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "smarterNpcTargeting", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
             "speedrunPosition", "speedrunLiveSplit",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
-        public static readonly string[] AccessibilityKeys = { "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers" };
+        public static readonly string[] AccessibilityKeys = { "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers", "cursorSize" };
 
         /// <summary>These options back to their defaults.</summary>
         public static void Reset(IEnumerable<string> keys)

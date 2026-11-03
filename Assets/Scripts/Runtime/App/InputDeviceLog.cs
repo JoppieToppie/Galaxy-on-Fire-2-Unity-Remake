@@ -18,7 +18,7 @@ namespace GoF2Remake
         {
             if (Application.isEditor || Multiplayer.DedicatedServer.Enabled) return;
             string Env(string name) => System.Environment.GetEnvironmentVariable(name) ?? "-";
-            Debug.Log($"Input: {Application.platform}, Steam Deck {Env("SteamDeck")}, desktop {Env("XDG_CURRENT_DESKTOP")}, " +
+            Debug.Log($"Input: {Application.platform}, Steam Deck {Env("SteamDeck")} (relaunched {Env(SteamDeckRelaunch.Marker)}), desktop {Env("XDG_CURRENT_DESKTOP")}, " +
                       $"gamescope {Env("GAMESCOPE_WAYLAND_DISPLAY")}, run in background {Application.runInBackground}, " +
                       $"unfocused {InputSystem.settings.backgroundBehavior}, focused {Application.isFocused}");
             foreach (var d in InputSystem.devices) Log("present", d);

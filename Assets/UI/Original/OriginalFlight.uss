@@ -1,0 +1,784 @@
+/* Interface style Original (GoF2Original.uss): the rules for FlightHud.uss, StarMap.uss, Dialogue.uss, Ending.uss (flight menus, star map, dialogue boxes).
+   Only the menus are skinned here: the HUD's markers, crosshair, bars and buttons already draw the original's images.
+   The windows themselves (.autopilot-menu, .pause-panel, .map-dialog, .key-box, .dialogue-box, .dialogue-confirm-box,
+   .hangar-window for the carrier's shop) take the scanline tile and the steel line from GoF2Original.uss; this sheet
+   drops the remake's amber / cyan edges that the shared rule leaves on one side, and gives the buttons, rows and headers
+   their original pieces:
+     menu entries, map buttons, dialogue buttons   og_button / og_button_on (TouchButton style 0 / 4)
+     cargo / jettison rows, the pause options      og_row / og_row_on (drawBox 3 / 4)
+     window titles, the dialogue / radio header     og_title_plate (0x474, drawBox 7's header plate, at its own size)
+     the key hints, the planet lore                 og_title / og_plate (drawBox 0 / 1)
+     the dialogue's AUTO light                      og_check / og_check_on (TouchButton style 0xd)
+   and three pieces of its own, drawn after the original Full HD frames (2x, 200x60 for a 30 px bar, sliced 0.6):
+     og_fl_back(_on)   the Back button with the arrow-pointed left end (f58 dialogue, f215 map footer)
+     og_fl_next(_on)   the Next button with the arrow-pointed right end (f74 / f58 dialogue)
+     og_fl_bar(_on)    the plain square-cornered steel bar (Skip, Key, the popups' answers)
+   Layout follows the measured original (Reference: ogref SPEC.md "Dialogue" / "Map"): the dialogue a compact centred
+   window, the map a thin header strip and footer bar, the flight menus small windows with name strips. */
+
+/* ==== FlightHud.uss ================================================================================================ */
+
+/* ---- Autopilot / actions menu (Hud::initHudMenu(3)): one TouchButton per entry -------------------------------------- */
+
+/* Original: the menu windows (f74's dialogue frame): the scanline tile inside a 1 px steel line all round, compact. */
+.ui-style-original .autopilot-menu {
+    min-width: 320px;
+    padding: 0 8px 8px 8px;
+    border-width: 1px;
+    border-left-width: 1px;
+    border-color: rgb(92, 102, 112);
+    border-left-color: rgb(92, 102, 112);
+}
+
+.ui-style-original .autopilot-menu--actions {
+    border-right-width: 1px;
+    border-right-color: rgb(92, 102, 112);
+}
+
+/* Original: small glossy steel bars (the station menu's 168x27 entries, 9 px apart), small regular text. */
+.ui-style-original .autopilot-menu-item {
+    min-height: 28px;
+    margin: 0 0 6px 0;
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.55px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-left-width: 0;
+    border-left-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+    padding: 0 12px;
+    font-size: var(--text-body);
+    letter-spacing: 0.5px;
+    color: var(--gof-text);
+}
+
+/* The highlighted entry (keys / controller) and a pressed / hovered one on the lit bar (TouchButton style 4); the
+   remake's cyan fill under .autopilot-menu-item--selected lost to the plain bar above. */
+.ui-style-original .autopilot-menu-item.autopilot-menu-item--selected,
+.ui-style-original .autopilot-menu-item:active,
+.ui-style-original .can-hover .autopilot-menu-item:hover,
+.ui-style-original.can-hover .autopilot-menu-item:hover {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* Original: the menus' titles on the dialogue's name strip (f74: ~27 px, a shade lighter, a line under it), the full
+   width of the window, the title small and in its own case. */
+.ui-style-original .autopilot-menu-head {
+    background-image: none;
+    background-color: rgb(28, 36, 44);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(58, 68, 78);
+    min-height: 30px;
+    margin: 0 -8px 8px -8px;
+    padding: 0 8px;
+}
+
+.ui-style-original .autopilot-menu-icon {
+    width: 42px;
+    height: 26px;
+    margin-right: 6px;
+}
+
+.ui-style-original .autopilot-menu-title {
+    font-size: var(--text-body);
+    letter-spacing: 0.5px;
+    color: #E6EAEE;
+}
+
+.ui-style-original .pause-title {
+    background-image: none;
+    background-color: rgb(28, 36, 44);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(58, 68, 78);
+    min-height: 30px;
+    margin: -8px -10px 8px -10px;
+    padding: 0 8px;
+    -unity-text-align: middle-left;
+    font-size: var(--text-body);
+    letter-spacing: 0.5px;
+    color: #E6EAEE;
+}
+
+.ui-style-original .pause-panel--wide > .pause-title {
+    margin: -8px -10px 8px -10px;
+    font-size: var(--text-body);
+    letter-spacing: 0.5px;
+    color: #E6EAEE;
+}
+
+/* ---- Pause menu (MenuTouchWindow mode 1): the window, its sections, the cargo / jettison rows ------------------------ */
+
+.ui-style-original .pause-panel {
+    width: 420px;
+    padding: 8px 10px 10px 10px;
+    border-width: 1px;
+    border-left-width: 1px;
+    border-color: rgb(92, 102, 112);
+    border-left-color: rgb(92, 102, 112);
+}
+
+.ui-style-original .pause-panel--wide {
+    width: 1180px;
+    border-left-color: rgb(92, 102, 112);
+}
+
+/* Original: section headings small and regular, in the original's light text (no bold amber caps). */
+.ui-style-original .pause-heading {
+    font-size: var(--text-body);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+    color: #E6EAEE;
+}
+
+.ui-style-original .pause-heading--red {
+    font-size: var(--text-body);
+    letter-spacing: 0.5px;
+    -unity-font-style: normal;
+}
+
+.ui-style-original .pause-cargo-row {
+    border-bottom-color: var(--gof-line);
+}
+
+/* A cargo row that is a button (Jettison, PauseMenu.BuildCargo): the hangar's list row, warm while selected. */
+.ui-style-original .autopilot-menu-item.pause-cargo-row {
+    margin: 2px 0;
+    padding: 6px 16px;
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    border-bottom-width: 0;
+}
+
+.ui-style-original .autopilot-menu-item.pause-cargo-row.autopilot-menu-item--selected,
+.ui-style-original .autopilot-menu-item.pause-cargo-row:active,
+.ui-style-original .can-hover .autopilot-menu-item.pause-cargo-row:hover,
+.ui-style-original.can-hover .autopilot-menu-item.pause-cargo-row:hover {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+}
+
+/* The pause menu's option rows (the Debug page, the ChoiceRows): list rows too. */
+.ui-style-original .pause-option {
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .pause-option.autopilot-menu-item--selected,
+.ui-style-original .pause-option:active,
+.ui-style-original .can-hover .pause-option:hover,
+.ui-style-original.can-hover .pause-option:hover {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .pause-option .choice-value {
+    color: var(--gof-cyan);
+}
+
+.ui-style-original .pause-option.autopilot-menu-item--selected .choice-value {
+    color: #FFFFFF;
+}
+
+.ui-style-original .debug-action.autopilot-menu-item--selected .option-button {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* ---- Key hints row (keyboard / controller): each hint on a small title plate (drawBox 0) instead of the grey box ---- */
+
+.ui-style-original .hints .hint {
+    background-image: url("project://database/Assets/UI/Original/og_title.png");
+    -unity-slice-left: 34;
+    -unity-slice-right: 34;
+    -unity-slice-top: 12;
+    -unity-slice-bottom: 12;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    padding: 3px 10px;
+}
+
+/* ==== StarMap.uss ================================================================================================== */
+
+/* ---- Buttons (Back, Jump to the Void, Full map, Key, the dialog's answers): the steel-blue bar ---------------------- */
+
+.ui-style-original .map-button {
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    color: var(--gof-text);
+}
+
+.ui-style-original .map-button--focus,
+.ui-style-original .map-button:active,
+.ui-style-original .can-hover .map-button:hover,
+.ui-style-original.can-hover .map-button:hover {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+.ui-style-original .map-button:hover {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* Original: Back on the arrow-pointed bar (f215: 92x28 at the bottom left), the others on the plain bar; small text. */
+.ui-style-original .map-footer .map-button,
+.ui-style-original .map-side-buttons .map-button,
+.ui-style-original .map-dialog .map-button {
+    background-image: url("project://database/Assets/UI/Original/og_fl_bar.png");
+    -unity-slice-left: 12;
+    -unity-slice-right: 12;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 0.6px;
+    height: 28px;
+    min-width: 92px;
+    padding: 0 14px;
+    font-size: var(--text-body);
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.ui-style-original .map-footer .map-button--focus,
+.ui-style-original .map-footer .map-button:active,
+.ui-style-original .can-hover .map-footer .map-button:hover,
+.ui-style-original.can-hover .map-footer .map-button:hover,
+.ui-style-original .map-dialog .map-button--focus,
+.ui-style-original .map-dialog .map-button:active,
+.ui-style-original .can-hover .map-dialog .map-button:hover,
+.ui-style-original.can-hover .map-dialog .map-button:hover {
+    background-image: url("project://database/Assets/UI/Original/og_fl_bar_on.png");
+}
+
+.ui-style-original .map-footer #backButton {
+    background-image: url("project://database/Assets/UI/Original/og_fl_back.png");
+    -unity-slice-left: 28;
+    -unity-slice-right: 12;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 0.6px;
+    padding: 0 12px 0 22px;
+}
+
+.ui-style-original .map-footer #backButton.map-button--focus,
+.ui-style-original .map-footer #backButton:active,
+.ui-style-original .can-hover .map-footer #backButton:hover,
+.ui-style-original.can-hover .map-footer #backButton:hover {
+    background-image: url("project://database/Assets/UI/Original/og_fl_back_on.png");
+}
+
+/* The Khador map's Jump to the Void: the bar tinted the Void's violet (its violet border is gone with the image). */
+.ui-style-original #voidButton {
+    -unity-background-image-tint-color: #C8A8FF;
+}
+
+.ui-style-original #voidButton.map-button--focus,
+.ui-style-original #voidButton:active,
+.ui-style-original .can-hover #voidButton:hover,
+.ui-style-original.can-hover #voidButton:hover {
+    -unity-background-image-tint-color: #FFFFFF;
+}
+
+/* ---- Header (f215): a 30 px strip across the top, near black with a line under it, "Map" small at x 11 ---------- */
+
+.ui-style-original .map-header {
+    height: 30px;
+    padding: 0 0 0 11px;
+    background-color: rgba(9, 14, 20, 0.94);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(30, 42, 54);
+}
+
+/* The remake's invisible copy of the station's Menu button only sized the header: the strip has its own height. */
+.ui-style-original .map-header .map-header-spacer {
+    display: none;
+}
+
+.ui-style-original .map-title {
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    color: #E6EAEE;
+    text-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .map-view-title {
+    margin-left: 10px;
+    padding-left: 10px;
+    border-left-width: 1px;
+    border-left-color: rgb(58, 68, 78);
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+    color: #8C9BA8;
+    text-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+/* The "?" at the strip's right end, as the original's help button (x 1862-1920): kept in the 30 px strip. */
+.ui-style-original .map-help {
+    margin-top: -5px;
+    margin-bottom: -5px;
+    margin-right: 9px;
+}
+
+/* System block (f215): emblem at (5, 33) right under the strip, three small lines beside it, 15 px pitch. */
+.ui-style-original .system-header {
+    left: 5px;
+    top: 36px;
+}
+
+.ui-style-original .system-logo {
+    margin-right: 6px;
+}
+
+.ui-style-original .system-name {
+    font-size: var(--text-caption);
+    margin-bottom: 1px;
+}
+
+.ui-style-original .system-line {
+    font-size: var(--text-caption);
+    margin-bottom: 1px;
+}
+
+.ui-style-original .energy-line {
+    bottom: 52px;
+    font-size: var(--text-body);
+    text-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+/* ---- Footer (f215): a 36 px bar across the bottom, a line over it; Back at the left end, the map's buttons in a row at
+   the right end; the key legend pops up above them instead of growing the bar. ---------------------------------------- */
+
+.ui-style-original .map-footer {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-height: 36px;
+    padding: 4px 6px;
+    align-items: center;
+    background-color: rgba(9, 14, 20, 0.94);
+    border-top-width: 1px;
+    border-top-color: rgb(30, 42, 54);
+}
+
+.ui-style-original .map-side {
+    flex-direction: row;
+    align-items: center;
+}
+
+.ui-style-original .map-side-buttons {
+    flex-direction: row;
+    align-items: center;
+}
+
+.ui-style-original #zoomButton,
+.ui-style-original #keyButton {
+    margin-top: 0;
+    margin-left: 8px;
+}
+
+.ui-style-original .map-side .key-box {
+    position: absolute;
+    right: 0;
+    bottom: 40px;
+    margin-bottom: 0;
+}
+
+.ui-style-original .key-label {
+    font-size: var(--text-caption);
+}
+
+/* ---- The ChoiceWindow and the key legend: the tile from GoF2Original.uss; no amber top edge ------------------------ */
+
+.ui-style-original .map-dialog,
+.ui-style-original .key-box {
+    border-top-width: 1px;
+    border-top-color: rgb(62, 75, 87);
+    border-color: rgb(62, 75, 87);
+}
+
+/* Original: the popups (f208 Info window, f178 Help): a compact window, a 28 px strip along its top edge (here the top
+   border in the strip's colour: the ChoiceWindow has no title line), small text, the answers small bars at the right. */
+.ui-style-original .map-dialog {
+    max-width: 520px;
+    padding: 14px 12px 10px 14px;
+    border-top-width: 28px;
+    border-top-color: rgb(28, 36, 44);
+}
+
+.ui-style-original .map-dialog-text {
+    font-size: var(--text-body);
+    color: #E6EAEE;
+    margin-bottom: 10px;
+}
+
+.ui-style-original .map-dialog-button {
+    margin-left: 8px;
+    margin-top: 6px;
+    min-width: 110px;
+}
+
+/* ---- Key hints (keyboard / controller) ---------------------------------------------------------------------------- */
+
+.ui-style-original .map-hints .hint {
+    margin: 0 3px;
+    background-image: url("project://database/Assets/UI/Original/og_title.png");
+    -unity-slice-left: 34;
+    -unity-slice-right: 34;
+    -unity-slice-top: 12;
+    -unity-slice-bottom: 12;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+}
+
+/* ---- The selected planet's lore (remake): the section plate (drawBox 1) -------------------------------------------- */
+
+.ui-style-original .planet-lore {
+    left: 5px;
+    top: 100px;
+    width: 420px;
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+    border-radius: 0;
+}
+
+/* ==== Dialogue.uss: drawBox 7 (dialogue_cutscenes.md 1.2) ============================================================ */
+
+/* Original (f74 / f45 / f58): a compact window centred on the screen, 348x242 at 1080p (in the panel's units, like the
+   other Original screens; the 1.3x it had on top came out 1.6x the original's); near-black body at ~88 %, a 1 px
+   steel outline, square corners; the scene dims behind it. */
+.ui-style-original .dialogue-box {
+    width: 348px;
+    height: 242px;
+    background-image: none;
+    background-color: rgba(13, 19, 25, 0.90);
+    border-width: 1px;
+    border-left-width: 1px;
+    border-top-width: 1px;
+    border-color: rgb(92, 102, 112);
+    border-left-color: rgb(92, 102, 112);
+    border-top-color: rgb(92, 102, 112);
+}
+
+/* The name strip: ~27 px, a shade lighter, a line under it, the name small at the left in its own case. */
+.ui-style-original .dialogue-header {
+    height: 27px;
+    background-image: none;
+    background-color: rgb(28, 36, 44);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(58, 68, 78);
+    padding: 0 6px 0 9px;
+}
+
+.ui-style-original .dialogue-speaker {
+    font-size: var(--text-body);
+    letter-spacing: 0.5px;
+    color: #E6EAEE;
+}
+
+/* The portrait ~91x124 at (16, 36) in a 1 px frame: the 160x200 layers scaled to 92x115. */
+.ui-style-original .dialogue-body {
+    padding: 8px 9px 0 12px;
+}
+
+.ui-style-original .dialogue-body .portrait {
+    width: 94px;
+    height: 117px;
+    border-width: 1px;
+    border-color: rgb(42, 50, 58);
+    background-color: rgb(8, 22, 28);
+}
+
+.ui-style-original .dialogue-body .portrait-layers,
+.ui-style-original .dialogue-body .portrait-frame {
+    transform-origin: left top;
+    scale: 0.575 0.575;
+}
+
+.ui-style-original .dialogue-body .portrait--mirrored .portrait-layers {
+    scale: -0.575 0.575;
+    translate: 92px 0;
+}
+
+/* The text right of the portrait, small, ragged right. */
+.ui-style-original .dialogue-text-scroll {
+    margin-left: 10px;
+}
+
+.ui-style-original .dialogue-text {
+    font-size: var(--text-caption);
+    color: #E6EAEE;
+}
+
+/* Back / Skip / Next in a row at the bottom right, 28 px high, 8 px apart (f58). */
+.ui-style-original .dialogue-footer {
+    height: 40px;
+    justify-content: flex-end;
+    padding: 0 8px;
+}
+
+.ui-style-original .dialogue-button {
+    background-image: url("project://database/Assets/UI/Original/og_fl_bar.png");
+    -unity-slice-left: 12;
+    -unity-slice-right: 12;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 0.47px;
+    height: 28px;
+    min-width: 0;
+    margin-left: 8px;
+    padding: 0 10px;
+    font-size: var(--text-body);
+    letter-spacing: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    color: #FFFFFF;
+}
+
+/* Skip: the plain bar (~146 wide in f58; 130 here so Back, Skip and Next fit the window's width together). */
+.ui-style-original #dialogueSkip {
+    width: 130px;
+}
+
+/* Back: the arrow-pointed left end (f58), Next / Yes: the arrow-pointed right end (f74), ~89 wide. */
+.ui-style-original #dialogueBack {
+    background-image: url("project://database/Assets/UI/Original/og_fl_back.png");
+    -unity-slice-left: 28;
+    -unity-slice-right: 12;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 0.47px;
+    width: 89px;
+    padding: 0 10px 0 18px;
+}
+
+.ui-style-original #dialogueNext {
+    background-image: url("project://database/Assets/UI/Original/og_fl_next.png");
+    -unity-slice-left: 12;
+    -unity-slice-right: 28;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 0.47px;
+    width: 89px;
+    padding: 0 18px 0 10px;
+}
+
+.ui-style-original .dialogue-button--primary {
+    border-width: 0;
+    color: #FFFFFF;
+    transition-property: -unity-background-image-tint-color;
+    transition-duration: 0.6s;
+}
+
+.ui-style-original .dialogue-button:focus,
+.ui-style-original .dialogue-button:active,
+.ui-style-original .can-hover .dialogue-button:hover,
+.ui-style-original.can-hover .dialogue-button:hover {
+    background-image: url("project://database/Assets/UI/Original/og_fl_bar_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+.ui-style-original #dialogueBack:focus,
+.ui-style-original #dialogueBack:active,
+.ui-style-original .can-hover #dialogueBack:hover,
+.ui-style-original.can-hover #dialogueBack:hover {
+    background-image: url("project://database/Assets/UI/Original/og_fl_back_on.png");
+}
+
+.ui-style-original #dialogueNext:focus,
+.ui-style-original #dialogueNext:active,
+.ui-style-original .can-hover #dialogueNext:hover,
+.ui-style-original.can-hover #dialogueNext:hover {
+    background-image: url("project://database/Assets/UI/Original/og_fl_next_on.png");
+}
+
+/* Next "breathes" once the page has typed in: the bar brightens instead of the remake's cyan fill. */
+.ui-style-original .dialogue-button--ready {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #D8ECFF;
+}
+
+/* The AUTO toggle (remake): small, square-cornered, at the strip's right end, the original's check box for its light. */
+.ui-style-original .dialogue-auto {
+    height: 22px;
+    min-width: 0;
+    padding: 0 8px 0 2px;
+    background-color: rgba(4, 4, 6, 0.55);
+    border-color: var(--gof-line);
+    border-radius: 0;
+}
+
+.ui-style-original .dialogue-auto-label {
+    font-size: var(--text-caption);
+    letter-spacing: 0.5px;
+}
+
+.ui-style-original .dialogue-auto--on {
+    background-color: rgba(4, 4, 6, 0.55);
+    border-color: var(--gof-cyan-soft);
+}
+
+.ui-style-original .can-hover .dialogue-auto:hover,
+.ui-style-original.can-hover .dialogue-auto:hover,
+.ui-style-original .dialogue-auto:focus {
+    border-color: var(--gof-amber);
+}
+
+.ui-style-original .dialogue-auto-dot {
+    width: 18px;
+    height: 17px;
+    margin: 0 5px 0 3px;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+    background-image: url("project://database/Assets/UI/Original/og_check.png");
+}
+
+.ui-style-original .dialogue-auto--on .dialogue-auto-dot {
+    background-color: rgba(0, 0, 0, 0);
+    background-image: url("project://database/Assets/UI/Original/og_check_on.png");
+}
+
+.ui-style-original .dialogue-auto .dialogue-pad-glyph {
+    width: 20px;
+    height: 20px;
+    margin: 0 5px 0 0;
+}
+
+/* The confirm (Skip the conversation?): the same compact window, small text, Yes on the Next piece, No on the bar. */
+.ui-style-original .dialogue-confirm-box {
+    width: 452px;
+    padding: 14px 12px 10px 14px;
+    background-image: none;
+    background-color: rgba(13, 19, 25, 0.92);
+    border-width: 1px;
+    border-top-width: 28px;
+    border-color: rgb(92, 102, 112);
+    border-top-color: rgb(28, 36, 44);
+}
+
+.ui-style-original .dialogue-confirm-text {
+    font-size: var(--text-body);
+    color: #E6EAEE;
+    margin-bottom: 12px;
+}
+
+.ui-style-original .dialogue-confirm-buttons .dialogue-button {
+    min-width: 116px;
+    margin-left: 8px;
+}
+
+.ui-style-original #dialogueConfirmYes {
+    background-image: url("project://database/Assets/UI/Original/og_fl_next.png");
+    -unity-slice-left: 12;
+    -unity-slice-right: 28;
+    -unity-slice-top: 0;
+    -unity-slice-bottom: 0;
+    -unity-slice-scale: 0.6px;
+    padding: 0 22px 0 12px;
+}
+
+.ui-style-original #dialogueConfirmYes:focus,
+.ui-style-original #dialogueConfirmYes:active,
+.ui-style-original .can-hover #dialogueConfirmYes:hover,
+.ui-style-original.can-hover #dialogueConfirmYes:hover {
+    background-image: url("project://database/Assets/UI/Original/og_fl_next_on.png");
+}
+
+/* ---- Radio (Radio::draw, also the ending's Brent): drawBox 7 drawn translucent ----------------------------------- */
+
+.ui-style-original .radio {
+    background-image: url("project://database/Assets/UI/Original/og_panel_bg.png");
+    background-repeat: repeat;
+    background-size: 320px 320px;
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.72);
+    background-color: rgba(4, 4, 6, 0.30);
+    border-width: 1px;
+    border-top-width: 1px;
+    border-color: rgb(92, 102, 112);
+    border-top-color: rgb(92, 102, 112);
+    border-radius: 0;
+}
+
+/* Original: the radio's name on the dialogue's strip (f58), small and in its own case. */
+.ui-style-original .radio-header {
+    height: 32px;
+    background-image: none;
+    background-color: rgb(28, 36, 44);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(58, 68, 78);
+    padding: 0 9px;
+}
+
+.ui-style-original .radio-speaker {
+    font-size: var(--text-body);
+    letter-spacing: 0.5px;
+    color: #E6EAEE;
+}
+
+.ui-style-original .radio-text {
+    font-size: var(--text-caption);
+}
+
+/* ==== Ending.uss ==================================================================================================== */
+
+/* The credits are plain white text over space in the original too; Brent's radio box is the radio rule above. */
+.ui-style-original .ending-text {
+    color: #FFFFFF;
+}
+
+/* ---- Second pass, checked in Unity -------------------------------------------------------------------------------- */
+
+/* The "?" (40 px, set in code) as the original's small help button inside the 30 px strip, clear of the screen's edge. */
+.ui-style-original .map-help {
+    scale: 0.6 0.6;
+}
+
+/* The footer row: the key hints give up their room before the map's buttons do; Key ran off the screen's right edge. */
+.ui-style-original .map-footer .map-hints {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.ui-style-original .map-footer > #backButton,
+.ui-style-original .map-footer .map-side,
+.ui-style-original .map-side-buttons .map-button {
+    flex-shrink: 0;
+}

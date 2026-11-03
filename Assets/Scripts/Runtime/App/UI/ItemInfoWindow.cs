@@ -13,6 +13,9 @@
 //          release over 3 px keeps turning x0.9 per frame, stops at 1 px
 //   close  the footer's Back (170)
 // Remake input: mouse / touch drag, A / D or the right stick turn; Esc / B back. Plain class owned by StationMenu.
+// Remake (#224): the backdrop is padded by the device's safe area (SafeArea.Panel), so the full-screen box on a phone
+// stays clear of punch holes and rounded corners (its Back at the bottom left was cut off); the backdrop is added to the
+// station's root, outside the safe-area element the rest of the station sits in.
 
 using GoF2Remake.Data;
 using UnityEngine;
@@ -108,8 +111,9 @@ namespace GoF2Remake.UI
             box.Add(footer);
             backdrop.Add(box);
             root.Add(backdrop);
+            backdrop.RegisterCallback<GeometryChangedEvent>(_ => KeepClear());
 
-            back.text = T(170).ToUpperInvariant();
+            back.text = T(170).UiCaps();
         }
 
         // ---- content --------------------------------------------------------------------------------------
@@ -117,14 +121,28 @@ namespace GoF2Remake.UI
         void Begin()
         {
             box.RemoveFromClassList("info-box--view");
-            header.text = T(390).ToUpperInvariant();
+            header.text = T(390).UiCaps();
             help.text = T(643);
-            descTitle.text = T(280).ToUpperInvariant();
+            descTitle.text = T(280).UiCaps();
             stats.Clear();
             ItemInfo.FillModLines(modLines, null);
             textScroll.scrollOffset = Vector2.zero;
             IsOpen = true;
             backdrop.AddToClassList("info-backdrop--shown");
+            backdrop.schedule.Execute(KeepClear);   // the device may have turned while it was hidden
+        }
+
+        /// <summary>The backdrop's padding: the device's safe-area insets (none in VR, its panels are drawn into textures).
+        /// The box's 100 % size on phones resolves inside the padding.</summary>
+        void KeepClear()
+        {
+            if (backdrop.panel == null || !(backdrop.layout.width > 0f)) return;
+            var p = SafeArea.Panel(backdrop, Screen.width, Screen.height, Vr.VrMode.Enabled);
+            var s = backdrop.style;
+            s.paddingLeft = p.x;
+            s.paddingRight = p.y;
+            s.paddingTop = p.z;
+            s.paddingBottom = p.w;
         }
 
         void Row(string label, string value, int compare = 2)

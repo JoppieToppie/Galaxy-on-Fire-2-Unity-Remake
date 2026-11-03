@@ -71,7 +71,7 @@ namespace GoF2Remake.UI
             Panel.usageHints = UsageHints.DynamicTransform;
 
             var titleRow = Add(Panel, new VisualElement(), "mods-title-row");
-            Add(titleRow, new Label(T("modBrowser", "Mod Browser").ToUpperInvariant()), "panel-title", "gof-semibold");
+            Add(titleRow, new Label(T("modBrowser", "Mod Browser").UiCaps()), "panel-title", "gof-semibold");
             Add(titleRow, new VisualElement(), "mp-title-spacer");
             count = Add(titleRow, new Label(), "mods-count");
             Add(Panel, new VisualElement(), "panel-accent");
@@ -120,7 +120,7 @@ namespace GoF2Remake.UI
             ActionButton(footer, T("modsRefresh", "Refresh"), () => { ModManager.Scan(); Rebuild(); }, "mods-footer-button");
             // When something looks wrong after a mod changed: the cached textures, hangar shadows and unpacked zips are made again.
             if (rebuildCache != null) ActionButton(footer, T("modsRebuildCache", "Rebuild cache"), rebuildCache, "mods-footer-button");
-            var backButton = Add(Panel, new Button(back) { text = "‹  " + Localization.Get(170).ToUpperInvariant() }, "menu-button", "back-button", "gof-semibold");
+            var backButton = Add(Panel, new Button(back) { text = "‹  " + Localization.Get(170).UiCaps() }, "menu-button", "back-button", "gof-semibold");
             hookFocus(backButton);
 
             host.Add(Panel);
@@ -135,7 +135,7 @@ namespace GoF2Remake.UI
 
         Button ActionButton(VisualElement parent, string text, Action onClick, string extra = null)
         {
-            var b = new Button(() => { click(); onClick(); }) { text = text.ToUpperInvariant() };
+            var b = new Button(() => { click(); onClick(); }) { text = text.UiCaps() };
             b.AddToClassList("mods-action");
             if (extra != null) b.AddToClassList(extra);
             hookFocus(b);
@@ -209,9 +209,9 @@ namespace GoF2Remake.UI
                 if (!rows.TryGetValue(m.Id, out var row)) continue;
                 var badge = row.Q<Label>(className: "mods-badge");
                 bool on = ModManager.IsEnabled(m.Id), works = active.Contains(m);
-                badge.text = m.Broken ? T("modsError", "Error").ToUpperInvariant()
-                    : on && !works ? T("modsProblem", "Can't load").ToUpperInvariant()
-                    : on ? T("on", "On").ToUpperInvariant() : T("off", "Off").ToUpperInvariant();
+                badge.text = m.Broken ? T("modsError", "Error").UiCaps()
+                    : on && !works ? T("modsProblem", "Can't load").UiCaps()
+                    : on ? T("on", "On").UiCaps() : T("off", "Off").UiCaps();
                 badge.EnableInClassList("mods-badge--on", on && works);
                 badge.EnableInClassList("mods-badge--error", m.Broken || on && !works);
                 row.EnableInClassList("mods-row--selected", m.Id == selected);
@@ -235,7 +235,7 @@ namespace GoF2Remake.UI
             meta.text = string.Join("  ·  ", metaParts) + "\n" + Shown(mod.Source.Location);   // where it is installed
             description.text = mod.Manifest?.Description ?? "";
             if (!string.IsNullOrEmpty(mod.Manifest?.Credits))
-                description.text += "\n\n" + T("modsCredits", "Credits").ToUpperInvariant() + "\n" + mod.Manifest.Credits;
+                description.text += "\n\n" + T("modsCredits", "Credits").UiCaps() + "\n" + mod.Manifest.Credits;
             var lines = new List<string>();
             bool isOn = ModManager.IsEnabled(mod.Id);
             if (mod.Broken) lines.AddRange(mod.Errors.Select(e => "× " + e));
@@ -256,7 +256,7 @@ namespace GoF2Remake.UI
             if (mod.Warnings.Count > 8) lines.Add($"! … {mod.Warnings.Count - 8} more (see the log)");
             problems.text = string.Join("\n", lines);
             problems.style.display = lines.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;
-            toggle.text = (isOn ? T("modsTurnOff", "Turn off") : T("modsTurnOn", "Turn on")).ToUpperInvariant();
+            toggle.text = (isOn ? T("modsTurnOff", "Turn off") : T("modsTurnOn", "Turn on")).UiCaps();
             toggle.SetEnabled(!mod.Broken || isOn);
             delete.SetEnabled(mod.Source != null);
             edit.style.display = EditInBuilder != null ? DisplayStyle.Flex : DisplayStyle.None;

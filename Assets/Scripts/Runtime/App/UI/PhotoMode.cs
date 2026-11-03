@@ -68,7 +68,7 @@ namespace GoF2Remake.UI
             overlay = new VisualElement { pickingMode = PickingMode.Ignore };
             overlay.AddToClassList("photo-overlay");
             var title = OrbitViewUi.Title();
-            title.text = Localization.Get(59).ToUpperInvariant();   // Action Freeze
+            title.text = Localization.Get(59).UiCaps();   // Action Freeze
             overlay.Add(title);
             message = OrbitViewUi.Message();
             overlay.Add(message);
@@ -100,6 +100,7 @@ namespace GoF2Remake.UI
             chase = cam.GetComponent<ChaseCamera>();
             chaseWasEnabled = chase != null && chase.enabled;
             if (chase != null) chase.enabled = false;
+            ObjectDocking.CameraHeld = true;   // Remake: docked, the docking's look-at leaves the camera to the photo tools
             savedPos = cam.transform.position;
             savedRot = cam.transform.rotation;
             // Start from where the chase camera is: its yaw / pitch around the ship, the distance clamped.
@@ -139,6 +140,7 @@ namespace GoF2Remake.UI
             overlay.RemoveFromClassList("photo-overlay--shown");
             if (cam != null) { cam.transform.position = savedPos; cam.transform.rotation = savedRot; }
             if (chase != null) chase.enabled = chaseWasEnabled;
+            ObjectDocking.CameraHeld = false;
             Exited?.Invoke();
         }
 

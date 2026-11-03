@@ -221,6 +221,10 @@ each). Controllers and touch are fully supported. The in-game hints show the but
 or with a controller the game doesn't recognise, add the game to Steam (Add a Non-Steam Game) and start it from there:
 Steam Input then presents the controls as an Xbox controller.
 
+**Steam Deck, started from Steam:** Steam sets `SteamDeck=1`, which makes the Unity Linux player stall at ~0 FPS
+(#232). The game restarts itself once without it (you may see the window open twice). If it still stalls, set the
+shortcut's Launch Options to `env -u SteamDeck %command%`.
+
 ## Project layout
 
 ```

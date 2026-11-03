@@ -203,7 +203,7 @@ namespace GoF2Remake.UI
                            || NetTradeClient.Requests.Count > 0 || (NetTradeClient.Current != null && !(isOpen && tab == Tab.Trade));
             bool unread = unreadChat && !(isOpen && tab == Tab.Chat);
             string label = plate == plateButton ? Localization.Extra("mpMultiplayer", "Multiplayer") : Localization.Extra("mpFactionArena", "Faction · Arena");
-            plateButton.text = (label + (waiting || unread ? "  •" : "")).ToUpperInvariant();
+            plateButton.text = (label + (waiting || unread ? "  •" : "")).UiCaps();
             if (isOpen && tab == Tab.Squad && SquadKey() != squadKey) Rebuild();
             if (isOpen && tab == Tab.Trade && TradeKey() != tradeKey && !Busy) Rebuild();
             // The plate's dot needs a snapshot now and then even while the window is closed.
@@ -234,7 +234,7 @@ namespace GoF2Remake.UI
             bool show = NetGame.Active && (NetDistress.Active || (me != null && me.InSpace && NetSquad.LocalSquad != 0 && !NetArena.IsArenaOrbit(me.Station)));
             sosButton.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
             if (!show) return;
-            string text = (NetDistress.Active ? Localization.Extra("mpDistressEnd", "End the call") : Localization.Extra("mpDistressCall", "Distress call")).ToUpperInvariant();
+            string text = (NetDistress.Active ? Localization.Extra("mpDistressEnd", "End the call") : Localization.Extra("mpDistressCall", "Distress call")).UiCaps();
             if (sosButton.text != text) sosButton.text = text;
             sosButton.EnableInClassList("squad-button--leave", !NetDistress.Active);
         }

@@ -470,6 +470,10 @@ namespace GoF2Remake.Data
             Session.FreePlay = false;
             Session.CompletedWorld = false;
             Session.Campaign = campaign;
+            // Status::resetGame's Phantom and no credits, not the multiplayer pilot's Betty and 10000 (NetGame.PrepareSession):
+            // the prologue is flown in the Phantom, and step 1's docking (Story.OnDocked) swaps it for Betty with Gunant's
+            // Drill only when the ship isn't Betty already (#229). The add-ons set their own ship and loadout.
+            Session.ResetStartShip();
             Story.StartCampaign(db, campaign);
             Session.LaunchedFromStation = false;
             Session.ArrivedByTravel = false;
@@ -487,6 +491,12 @@ namespace GoF2Remake.Data
             Session.FreePlay = false;
             Session.CompletedWorld = false;
             Story.StartNewGame(0);
+            // The campaign's start (the Phantom, no credits) rather than the multiplayer pilot's Betty and 10000 (#229); the
+            // leader's kit replaces the ship and loadout below. A guest joining past the rescue keeps the free-play credits
+            // (a catch-up pays no rewards).
+            int credits = Session.Credits;
+            Session.ResetStartShip();
+            if (s != null && s.index > 1) Session.Credits = credits;
             if (s == null) return;
             Session.Campaign = (Campaign)Mathf.Clamp(s.campaign, 0, 2);
             if (s.kitShip >= 0 && db.Ship(s.kitShip) != null)

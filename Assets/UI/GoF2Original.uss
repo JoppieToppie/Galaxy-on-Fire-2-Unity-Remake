@@ -1,0 +1,284 @@
+/* GoF2 remake: Options > Graphics "Interface style" Original (Settings.OriginalUi; UiLayout sets .ui-style-original on
+   every screen's root). The same screens, layouts and features as the remake's look, drawn with the original game's own
+   interface pieces (Assets/UI/Original, cut from gof2_interface_iphone4.png / gof2_interface2_ipad_large.png, the
+   Android HD build's atlases; Reference/research/mainmenu_notes.md "Buttons" / "Frame pieces", Layout::drawBox):
+     og_panel_bg     0x47e, the scanline tile of every window (drawBox 2 / 7, drawBG), tiled at its 320 px
+     og_button(_on)  TouchButton style 0 / 4: caps 1116 / 1117 + middle 1115 (pressed 1122 / 1123 / 1121), the steel-blue
+                     bar that turns amber while pressed (the original has no focus: here focus and hover take it too)
+     og_row(_on)     drawBox 3 / 4, the hangar's list rows (cap 0x6b9 / 0x6b7 + tile 0x6b8 / 0x6bc, the right cap mirrored)
+     og_plate        drawBox 1, the section plate (cap 0x6bb + tile 0x6ba)
+     og_title        drawBox 0, the title plate (cap 0x482 + tile 0x481)
+     og_header / og_footer / og_title_plate   the top bar 0x4ff, the footer 0x507, the header's title plate 0x474
+     og_check(_on)   TouchButton style 0xd, the check box 0x517 / 0x518
+     og_frame        drawBox 7's border (corner 0x484 + edge 0x483) as a 9-slice
+   Every rule is under .ui-style-original, one class more than the remake's own rules, so it wins over the screens' sheets
+   without !important; hover rules are written for .can-hover on the same root and on an ancestor. A screen's own rules
+   are in the "Screens" part below (one block per sheet). docs/UI-DESIGN.md "Interface style". */
+
+/* ---- Tokens ---------------------------------------------------------------------------------------------------- */
+
+.ui-style-original {
+    --gof-cyan: #9DBFDB;                          /* the original's light steel blue (titles, values, lines) */
+    --gof-cyan-soft: rgba(157, 191, 219, 0.40);
+    --gof-cyan-faint: rgba(157, 191, 219, 0.12);
+    --gof-amber: #F7A43A;                         /* the pressed buttons' orange */
+    --gof-amber-soft: rgba(247, 164, 58, 0.30);
+    --gof-text: #F2F4F6;                          /* the original's white text */
+    --gof-text-dim: rgba(226, 231, 236, 0.74);
+    --gof-text-disabled: rgba(226, 231, 236, 0.42);
+    --gof-panel: rgba(9, 9, 12, 0.96);
+    --gof-line: rgba(128, 142, 156, 0.50);        /* steel grey borders instead of cyan */
+    --button-fill: rgba(0, 0, 0, 0);
+    --button-line: rgba(0, 0, 0, 0);
+    --button-radius: 0;
+    --button-focus-fill: rgba(0, 0, 0, 0);
+    --button-focus-line: rgba(0, 0, 0, 0);
+    --button-press-fill: rgba(0, 0, 0, 0);
+    --button-press-text: #FFFFFF;
+    --button-primary-fill: rgba(0, 0, 0, 0);
+    --button-primary-line: rgba(0, 0, 0, 0);
+    --button-primary-focus-fill: rgba(0, 0, 0, 0);
+
+    /* The original HD versions' interface text is small and regular weight (about 15 px at 1080p, Klavika, sentence and
+       title case, a little tracking); the remake's scale is a step bigger everywhere. Display stays for the big numbers. */
+    --text-caption: 15px;
+    --text-small: 16px;
+    --text-body: 17px;
+    --text-label: 18px;
+    --text-subhead: 19px;
+    --text-heading: 21px;
+    --text-title: 24px;
+}
+
+/* No bold in the original's menus: the semibold helper reads as the body weight. */
+.ui-style-original .gof-semibold {
+    -unity-font-style: normal;
+}
+
+/* ---- Windows: the scanline tile, a thin steel border, square corners ------------------------------------------ */
+
+.ui-style-original .options-panel,
+.ui-style-original .panel,
+.ui-style-original .dialog,
+.ui-style-original .choice-popup,
+.ui-style-original .photo-panel,
+.ui-style-original .gof-toast,
+.ui-style-original .pad-keyboard__box,
+.ui-style-original .missions-window,
+.ui-style-original .status-window,
+.ui-style-original .chat-window,
+.ui-style-original .dialogue-box,
+.ui-style-original .dialogue-confirm-box,
+.ui-style-original .autopilot-menu,
+.ui-style-original .map-dialog,
+.ui-style-original .key-box,
+.ui-style-original .hangar-window,
+.ui-style-original .system-menu,
+.ui-style-original .pause-panel,
+.ui-style-original .station-dialog,
+.ui-style-original .mpw-window {
+    background-image: url("project://database/Assets/UI/Original/og_panel_bg.png");
+    background-repeat: repeat;
+    background-size: 320px 320px;
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.96);
+    background-color: rgba(4, 4, 6, 0.55);
+    border-width: 1px;
+    border-left-width: 1px;
+    border-color: var(--gof-line);
+    border-left-color: var(--gof-line);
+    border-radius: 0;
+}
+
+/* Titles: light steel on the original's white, no amber accent line (the original has none). */
+.ui-style-original .panel-title {
+    color: #FFFFFF;
+    letter-spacing: 3px;
+}
+
+.ui-style-original .panel-accent {
+    height: 1px;
+    width: 100%;
+    background-color: var(--gof-line);
+}
+
+/* ---- Buttons: the steel-blue bar, amber while focused / hovered / pressed ------------------------------------- */
+
+.ui-style-original .gof-button,
+.ui-style-original .option-item .option-button,
+.ui-style-original .photo-saved-button,
+.ui-style-original .menu-button,
+.ui-style-original .tab-button,
+.ui-style-original .choice-segment {
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-left-width: 0;
+    border-bottom-width: 0;
+    border-radius: 0;
+    color: var(--gof-text);
+}
+
+.ui-style-original .gof-button:focus,
+.ui-style-original .gof-button:active,
+.ui-style-original .gof-button.options-selected,
+.ui-style-original .can-hover .gof-button:hover,
+.ui-style-original.can-hover .gof-button:hover,
+.ui-style-original .option-item .option-button:focus,
+.ui-style-original .option-item .option-button:active,
+.ui-style-original .can-hover .option-item .option-button:hover,
+.ui-style-original.can-hover .option-item .option-button:hover,
+.ui-style-original .photo-saved-button:hover,
+.ui-style-original .photo-saved-button:active,
+.ui-style-original .menu-button:focus,
+.ui-style-original .menu-button:active,
+.ui-style-original .menu-button.options-selected,
+.ui-style-original .can-hover .menu-button:hover,
+.ui-style-original.can-hover .menu-button:hover,
+.ui-style-original .tab-button--active,
+.ui-style-original .tab-button.options-selected,
+.ui-style-original .input-gamepad .tab-button:focus,
+.ui-style-original.input-gamepad .tab-button:focus,
+.ui-style-original .choice-segment--active,
+.ui-style-original .choice-row:focus .choice-segment--active,
+.ui-style-original .autopilot-menu-item--selected .choice-segment--active {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* Hover on a tab or a segment that isn't the active one: white text only, as the remake (the bar stays steel blue). */
+.ui-style-original .can-hover .tab-button:hover,
+.ui-style-original.can-hover .tab-button:hover,
+.ui-style-original .can-hover .choice-segment:hover,
+.ui-style-original.can-hover .choice-segment:hover {
+    background-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* The menus' rows slid in by the focus in the remake; the original's buttons stay put. */
+.ui-style-original .menu-button:focus,
+.ui-style-original .menu-button.options-selected,
+.ui-style-original .can-hover .menu-button:hover,
+.ui-style-original.can-hover .menu-button:hover {
+    padding-left: 20px;
+}
+
+.ui-style-original .menu-button {
+    color: var(--gof-text);
+}
+
+.ui-style-original .menu-button:disabled,
+.ui-style-original .gof-button:disabled {
+    color: var(--gof-text-disabled);
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.55);
+}
+
+/* ---- List rows: drawBox 3 (normal) / 4 (selected) ------------------------------------------------------------- */
+
+.ui-style-original .option-row,
+.ui-style-original .slot-row,
+.ui-style-original .choice-popup-item {
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    border-left-width: 0;
+    border-left-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+}
+
+.ui-style-original .slot-row {
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    border-bottom-width: 0;
+}
+
+.ui-style-original .option-row:focus,
+.ui-style-original .option-row.options-selected,
+.ui-style-original .can-hover .option-row:hover,
+.ui-style-original.can-hover .option-row:hover,
+.ui-style-original .slot-row:focus,
+.ui-style-original .can-hover .slot-row:hover,
+.ui-style-original.can-hover .slot-row:hover,
+.ui-style-original .slot-list .slot-row.slot-row--chosen,
+.ui-style-original .can-hover .choice-popup-item:hover,
+.ui-style-original.can-hover .choice-popup-item:hover,
+.ui-style-original .choice-popup-item:active,
+.ui-style-original .choice-popup-item--current {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .can-hover .option-row.unity-disabled:hover,
+.ui-style-original.can-hover .option-row.unity-disabled:hover {
+    background-image: none;
+}
+
+/* ---- Fields: the dark slate title plate (drawBox 0), orange-tinted while focused ------------------------------- */
+
+.ui-style-original .choice-dropdown,
+.ui-style-original .unity-base-text-field__input {
+    background-image: url("project://database/Assets/UI/Original/og_title.png");
+    -unity-slice-left: 34;
+    -unity-slice-right: 34;
+    -unity-slice-top: 12;
+    -unity-slice-bottom: 12;
+    -unity-slice-scale: 0.75px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+}
+
+.ui-style-original .can-hover .choice-dropdown:hover,
+.ui-style-original.can-hover .choice-dropdown:hover,
+.ui-style-original .choice-dropdown:active,
+.ui-style-original .choice-row:focus .choice-dropdown,
+.ui-style-original .autopilot-menu-item--selected .choice-dropdown,
+.ui-style-original .unity-base-text-field:focus .unity-base-text-field__input {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: #FFC98A;
+}
+
+/* ---- Check boxes: TouchButton style 0xd -------------------------------------------------------------------------- */
+
+.ui-style-original .unity-toggle__checkmark {
+    width: 30px;
+    height: 29px;
+    background-image: url("project://database/Assets/UI/Original/og_check.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+}
+
+.ui-style-original .unity-toggle:checked .unity-toggle__checkmark {
+    background-image: url("project://database/Assets/UI/Original/og_check_on.png");
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .unity-toggle:focus .unity-toggle__checkmark,
+.ui-style-original .options-selected .unity-toggle__checkmark,
+.ui-style-original .can-hover .unity-toggle:hover .unity-toggle__checkmark,
+.ui-style-original.can-hover .unity-toggle:hover .unity-toggle__checkmark {
+    -unity-background-image-tint-color: #FFD6A0;
+}
+
+/* ---- Sliders: the original's orange knob -------------------------------------------------------------------------- */
+
+.ui-style-original .unity-base-slider__dragger {
+    border-radius: 3px;
+    background-color: #C9D6E2;
+}
+
+.ui-style-original .unity-base-slider__tracker {
+    border-radius: 0;
+    background-color: rgba(128, 142, 156, 0.45);
+}
+
+/* The screens' own classes: Assets/UI/Original/Original<Screen>.uss (imported after this sheet by GoF2Theme.tss). */

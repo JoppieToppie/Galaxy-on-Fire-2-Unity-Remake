@@ -95,6 +95,10 @@ namespace GoF2Remake.Flight
         /// <summary>Multiplayer: another player's ship (NetPlayer, not a proxied NPC or sentry): its marker carries the pilot's
         /// name (CombatView), so players stand apart from the NPCs of the same colour.</summary>
         [NonSerialized] public bool netPilot;
+        /// <summary>Remake (#216, players' request): one of the player's own wingmen (NpcShip.MakeWingman). The original draws
+        /// them in the plain friend green; the HUD markers (CombatView) and the VR scope (VrRadar) draw them blue so they stand
+        /// apart from the other allies (a battleship's escorts, a fleet battle).</summary>
+        [NonSerialized] public bool wingman;
         /// <summary>The player's cloak (Player+0x5e set by PlayerEgo::toggleCloaking): NPCs keep it as their target but don't
         /// fire, turrets don't aim at it, sleepers don't wake for it.</summary>
         [NonSerialized] public bool cloaked;

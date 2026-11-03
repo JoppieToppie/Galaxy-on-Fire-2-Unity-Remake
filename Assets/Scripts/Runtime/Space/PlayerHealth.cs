@@ -98,7 +98,7 @@ namespace GoF2Remake.Flight
             int armor = armorItem != null ? armorItem.Attr(20) : 0;
             HasShield = shield > 0;
             HasArmor = armor > 0;
-            if (repair != null) { hasRepair = true; bool mk2 = repair.Look != 75; repairHullMs = mk2 ? 420f : 600f; repairArmorMs = mk2 ? 700f : 1000f; }
+            if (repair != null) { hasRepair = true; RepairRates(repair, out repairHullMs, out repairArmorMs); }
 
             Target = gameObject.AddComponent<Target>();
             Target.isPlayer = true;
@@ -125,6 +125,15 @@ namespace GoF2Remake.Flight
             SetupBlaze(db);
         }
 
+        /// <summary>PlayerEgo::update's repair bot: hull +1 per 'hullMs', then armor +2 per 'armorMs' (the Mk II's 420 / 700 ms,
+        /// else 600 / 1000); the item details' per-second rows read it too (ItemInfo).</summary>
+        public static void RepairRates(ItemData repair, out float hullMs, out float armorMs)
+        {
+            bool mk2 = repair != null && repair.Look != 75;
+            hullMs = mk2 ? 420f : 600f;
+            armorMs = mk2 ? 700f : 1000f;
+        }
+
         /// <summary>Remake debug: the hull, shield and armor maxima, the shield recharge, the repair bots, the emergency system
         /// and the shield injector from the ship and equipment now (the Ships tab's hull swap, a preset loaded in flight;
         /// Setup's rules). 'keepFractions': each pool keeps its share of the new maximum (the Ships tab), else all full (a
@@ -145,7 +154,7 @@ namespace GoF2Remake.Flight
             HasShield = shield > 0;
             HasArmor = armor > 0;
             hasRepair = repair != null;
-            if (repair != null) { bool mk2 = repair.Look != 75; repairHullMs = mk2 ? 420f : 600f; repairArmorMs = mk2 ? 700f : 1000f; }
+            if (repair != null) RepairRates(repair, out repairHullMs, out repairArmorMs);
             Hp.maxHull = hull; Hp.hull = keepFractions ? Mathf.Clamp(Mathf.RoundToInt(hull * hullShare), 1, hull) : hull;
             Hp.maxShield = shield; Hp.shield = keepFractions ? shield * shieldShare : shield;
             Hp.maxArmor = armor; Hp.armor = keepFractions ? Mathf.RoundToInt(armor * armorShare) : armor;

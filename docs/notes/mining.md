@@ -108,6 +108,17 @@ logic (plain C#); `MiningView` draws the lock ring, ore plate, HUD messages and 
   now: CONVERT ORE TO CORES with a core to make (`MiningPlant.CoresMade`; the original's Yes: 291 / 292), SORT SPACE
   WASTE: n t for the fees with a ton paid for (choosing it pays), LEAVE (Back too). Each action comes back to the menu.
   Its entries are centred (the first and last carry the A / B prompts, which centre a button).
+- **The docked menu** (remake, 2026-11-03; players' wish: the station hangar's kind of menu when docked at the carrier or
+  the Mining Plant): docked at an object with options, the flight HUD shows `UI.DockedMenu` (built in code, inline styles):
+  the object's name over a column of buttons, its own options, then Inspect ship and Undock. The carrier / Vossk
+  battleship: Resupply (`CarrierShopWindow`, its close button and Esc / B now BACK to the menu); the Mining Plant
+  (`ObjectDocking.Options`, set by `SpaceLevel`): Convert ore to cores and Sort space waste, each its own page of the pause
+  menu's question window (`PauseMenu.Choose`: that section, its action when it does something, Back). Inspect ship is
+  Action Freeze's photo tools opened straight (`PauseMenu.OpenInspect`: Back closes the pause menu, back to the docked
+  menu); `ObjectDocking.CameraHeld` (set by `PhotoMode`) keeps the docking's look-at off the photo camera, the pause
+  menu's own Action Freeze while docked too. Keys: up / down, Enter / A, 1-9, Esc / B undock (the guns blocked on the way
+  out as before). The game waits under it (`Navigation.OpenMenu(force)`; multiplayer runs on). VR keeps the old flow
+  (the resupply window at once, the plant's one menu). Other dock types (story transfers, hacking, pads) are unchanged.
 - **Space Waste sorting at the Mining Plant** (`WasteProcessing`, remake-only, 2026-11-02; players' suggestion on Discord):
   the plant menu's entry sorts the Space Waste (99) in the hold for a fee, a gamble. Every ton is sorted on its own
   (players: "just go through each item"; first 10 t lots, dropped): it pays the fee and is junk or one ton of something

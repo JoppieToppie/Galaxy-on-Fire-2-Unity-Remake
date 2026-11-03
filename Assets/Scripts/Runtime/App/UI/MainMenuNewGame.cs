@@ -44,7 +44,7 @@ namespace GoF2Remake.UI
             {
                 var plate = new VisualElement { pickingMode = PickingMode.Ignore };
                 plate.AddToClassList("mod-card__plate");
-                var t = new Label(title.ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+                var t = new Label(title.UiCaps()) { pickingMode = PickingMode.Ignore };
                 t.AddToClassList("mod-card__title");
                 t.AddToClassList("gof-semibold");
                 plate.Add(t);
@@ -166,7 +166,7 @@ namespace GoF2Remake.UI
                 {
                     bool on = Modding.ModGameOptions.Chosen(def);
                     b.EnableInClassList("mod-option-card--on", on);
-                    badge.text = (on ? Localization.Extra("modOptionOn", "On") : Localization.Extra("modOptionOff", "Off")).ToUpperInvariant();
+                    badge.text = (on ? Localization.Extra("modOptionOn", "On") : Localization.Extra("modOptionOff", "Off")).UiCaps();
                 }
                 Show();
                 b.RegisterCallback<PointerDownEvent>(_ => Play(buttonPush), TrickleDown.TrickleDown);
@@ -232,7 +232,7 @@ namespace GoF2Remake.UI
             b.EnableInClassList("choice-button--on", hardcoreNext);
             var label = root.Q<Label>("hardcoreLabel");
             if (label != null)
-                label.text = $"{Localization.Extra("hardcoreTitle", "Hardcore")}: {(hardcoreNext ? Localization.Extra("hardcoreOn", "Permadeath") : Localization.Extra("hardcoreOff", "Off"))}".ToUpperInvariant();
+                label.text = $"{Localization.Extra("hardcoreTitle", "Hardcore")}: {(hardcoreNext ? Localization.Extra("hardcoreOn", "Permadeath") : Localization.Extra("hardcoreOff", "Off"))}".UiCaps();
             var desc = root.Q<Label>("hardcoreDesc");
             if (desc != null)
                 desc.text = Localization.Extra("hardcoreDesc",
@@ -245,7 +245,7 @@ namespace GoF2Remake.UI
         void RefreshChallenge()
         {
             var label = root.Q<Label>("challengeLabel");
-            if (label != null) label.text = Localization.Get(293).ToUpperInvariant();
+            if (label != null) label.text = Localization.Get(293).UiCaps();
             var desc = root.Q<Label>("challengeDesc");
             if (desc == null) return;
             int best = SupernovaChallenge.Highscore;
@@ -265,7 +265,7 @@ namespace GoF2Remake.UI
             b.EnableInClassList("choice-button--on", newGamePlus);
             var label = root.Q<Label>("ngPlusLabel");
             if (label != null)
-                label.text = $"{Localization.Extra("ngPlus", "New Game+")}: {(newGamePlus ? Localization.Extra("on", "On") : Localization.Extra("off", "Off"))}".ToUpperInvariant();
+                label.text = $"{Localization.Extra("ngPlus", "New Game+")}: {(newGamePlus ? Localization.Extra("on", "On") : Localization.Extra("off", "Off"))}".UiCaps();
             var desc = root.Q<Label>("ngPlusDesc");
             if (desc != null && ngPlusSave != null)
                 desc.text = string.Format(Localization.Extra("ngPlusDesc",
@@ -281,7 +281,7 @@ namespace GoF2Remake.UI
             b.EnableInClassList("choice-button--on", on);
             var label = root.Q<Label>("kaamoLabel");
             if (label != null)
-                label.text = $"{Localization.Get(78)}: {(on ? Localization.Extra("kaamoOwned", "Owned from the start") : Localization.Extra("kaamoNotOwned", "Win it in the game"))}".ToUpperInvariant();
+                label.text = $"{Localization.Get(78)}: {(on ? Localization.Extra("kaamoOwned", "Owned from the start") : Localization.Extra("kaamoNotOwned", "Win it in the game"))}".UiCaps();
             var desc = root.Q<Label>("kaamoDesc");
             if (desc != null)
                 desc.text = Localization.Extra("kaamoDesc",
@@ -298,7 +298,7 @@ namespace GoF2Remake.UI
             b.EnableInClassList("choice-button--on", on);
             var label = root.Q<Label>("tutorialLabel");
             if (label != null)
-                label.text = $"{Localization.Extra("tutorialTitle", "Tutorials")}: {(on ? Localization.Extra("tutorialOn", "On") : Localization.Extra("tutorialOff", "Off"))}".ToUpperInvariant();
+                label.text = $"{Localization.Extra("tutorialTitle", "Tutorials")}: {(on ? Localization.Extra("tutorialOn", "On") : Localization.Extra("tutorialOff", "Off"))}".UiCaps();
             var desc = root.Q<Label>("tutorialDesc");
             if (desc != null)
                 desc.text = Localization.Extra("tutorialDesc",
@@ -315,7 +315,7 @@ namespace GoF2Remake.UI
             b.EnableInClassList("choice-button--on", on);
             var label = root.Q<Label>("capitalLabel");
             if (label != null)
-                label.text = $"{Localization.Extra("capitalTitle", "Capital ships")}: {(on ? Localization.Extra("capitalOn", "Enhanced") : Localization.Extra("capitalOff", "Original"))}".ToUpperInvariant();
+                label.text = $"{Localization.Extra("capitalTitle", "Capital ships")}: {(on ? Localization.Extra("capitalOn", "Enhanced") : Localization.Extra("capitalOff", "Original"))}".UiCaps();
             var desc = root.Q<Label>("capitalDesc");
             if (desc != null)
                 desc.text = Localization.Extra("capitalDesc",

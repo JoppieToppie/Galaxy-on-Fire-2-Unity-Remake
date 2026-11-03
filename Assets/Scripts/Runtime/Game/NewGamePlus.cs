@@ -76,6 +76,7 @@ namespace GoF2Remake.Data
             if (old.ship >= 0 && !ships.Exists(x => x.ship == old.ship))
                 ships.Add(new StoredShip(old.ship, old.ship < Shop.ShipRace.Length ? Shop.ShipRace[old.ship] : 0, new List<int>(old.shipMods ?? new List<int>())));
             Session.KaamoState = 3;
+            Session.KaamoVip = old.kaamoVip;   // remake: the VIP Card stays with the club
             Session.KaamoItems = items;
             Session.KaamoShips = ships;
         }

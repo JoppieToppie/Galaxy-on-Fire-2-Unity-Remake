@@ -99,6 +99,7 @@ namespace GoF2Remake.UI
         bool orbitInfoFilled;
         bool lastAutopilot, lastLockFastForward;
         VisualElement autopilotMenu, autopilotMenuItems;
+        ScrollView autopilotMenuScroll;   // Remake: the entries scroll when they don't fit under the menu's top (FitAutopilotMenu)
         readonly System.Collections.Generic.List<(Button button, Navigation.Target target)> menuButtons = new System.Collections.Generic.List<(Button, Navigation.Target)>();
         int menuIndex, lastMenuMove, menuOpenedFrame;
         WeaponSystem weapons;
@@ -246,6 +247,9 @@ namespace GoF2Remake.UI
             safeArea = root.Q("safeArea");
             hints = root.Q("hints");
             carrierShop = null;   // its elements went with the old tree (made again when the carrier is docked at)
+            // Remake: the docked menu too; open, it is made again (the menu's pause let go first so it can reopen).
+            if (dockedMenu != null && dockedMenu.IsOpen) { nav?.CloseMenu(); resupplyShown = false; }
+            dockedMenu = null;
             InputGlyph.TrackHintsOption(hints);   // Options > Gameplay: "Button hints in flight"
             if (GoF2Remake.Multiplayer.NetGame.Active)
             {
@@ -267,7 +271,7 @@ namespace GoF2Remake.UI
             jumpChargeFill = root.Q("jumpChargeFill");
             orbitInfo = root.Q("orbitInfo");
             jumpChargeLabel = root.Q<Label>("jumpChargeLabel");
-            jumpChargeLabel.text = Localization.Get(318).ToUpperInvariant();   // Drive charging
+            jumpChargeLabel.text = Localization.Get(318).UiCaps();   // Drive charging
             jumpChargeStripes = root.Q("jumpChargeStripes");
             var chargeFrame = Resources.Load<Texture2D>("GoF2Hud/charge_frame");
             var chargeFill = Resources.Load<Texture2D>("GoF2Hud/charge_fill");
@@ -329,7 +333,7 @@ namespace GoF2Remake.UI
             radioShown = -1;
             gameOver = root.Q("gameOver");
             gameOverText = root.Q<Label>("gameOverText");
-            root.Q<Label>("gameOverTitle").text = Localization.Get(319).ToUpperInvariant();   // Game Over
+            root.Q<Label>("gameOverTitle").text = Localization.Get(319).UiCaps();   // Game Over
             gameOver.RegisterCallback<PointerDownEvent>(_ => LoadLastSave());
             navView.AutopilotButton += OnAutopilotButton;
             autopilotMenu = root.Q("autopilotMenu");
@@ -357,7 +361,26 @@ namespace GoF2Remake.UI
                 if (menuPointer) HighlightMenu();
             });
             autopilotMenuItems = root.Q("autopilotMenuItems");
-            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).ToUpperInvariant();   // Autopilot
+            // Remake (Discord: "Khador slipstream menu" / "Splitstream"): the entries in a ScrollView capped to the screen's
+            // height below the menu's top; a long list (the slipstream's systems in interstellar space, a phone's tall
+            // interface) ran off the bottom with no way to reach its last entries. Touch drags (the ScrollView's own), mouse
+            // drags and the wheel (DragScroll) scroll it; the keys / a controller scroll the highlighted entry into view
+            // (HighlightMenu).
+            autopilotMenuScroll = new ScrollView(ScrollViewMode.Vertical)
+            {
+                focusable = false,
+                horizontalScrollerVisibility = ScrollerVisibility.Hidden,
+                verticalScrollerVisibility = ScrollerVisibility.Auto,
+            };
+            autopilotMenuScroll.style.flexShrink = 1;
+            autopilotMenuScroll.style.minHeight = 0;
+            autopilotMenuItems.parent.Insert(autopilotMenuItems.parent.IndexOf(autopilotMenuItems), autopilotMenuScroll);
+            autopilotMenuScroll.Add(autopilotMenuItems);
+            autopilotMenuScroll.AddManipulator(new DragScroll(autopilotMenuScroll));
+            autopilotMenu.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());
+            autopilotMenu.parent?.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());
+            autopilotMenuItems.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());   // entries added / removed
+            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).UiCaps();   // Autopilot
             var menuIcon = Resources.Load<Texture2D>("GoF2Hud/autopilot_title");
             if (menuIcon != null) root.Q("autopilotMenuIcon").style.backgroundImage = new StyleBackground(menuIcon);
             BuildTouchControls();
@@ -375,10 +398,10 @@ namespace GoF2Remake.UI
         public void RefreshTexts()
         {
             if (root == null) return;
-            if (jumpChargeLabel != null) jumpChargeLabel.text = Localization.Get(318).ToUpperInvariant();   // Drive charging
-            root.Q<Label>("gameOverTitle").text = Localization.Get(319).ToUpperInvariant();                // Game Over
-            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).ToUpperInvariant();           // Autopilot
-            root.Q<Label>("dockLabel").text = Localization.Extra("hudDock", "DOCK");
+            if (jumpChargeLabel != null) jumpChargeLabel.text = Localization.Get(318).UiCaps();   // Drive charging
+            root.Q<Label>("gameOverTitle").text = Localization.Get(319).UiCaps();                // Game Over
+            root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).UiCaps();           // Autopilot
+            root.Q<Label>("dockLabel").text = Localization.Extra("hudDock", "DOCK").OgCase();
             BuildHints(InputMode.Current);
         }
 
@@ -486,7 +509,7 @@ namespace GoF2Remake.UI
             bool mapOpen = StarMap.IsOpen;
             root.EnableInClassList("hud-map", mapOpen);
             root.EnableInClassList("hud-paused", pauseMenu != null && pauseMenu.IsOpen);   // the menu has its own prompts
-            root.EnableInClassList("hud-shop", carrierShop != null && carrierShop.IsOpen);   // the carrier's resupply window
+            root.EnableInClassList("hud-shop", (carrierShop != null && carrierShop.IsOpen) || (dockedMenu != null && dockedMenu.IsOpen));   // the carrier's resupply window, the docked menu
             int hudMode = Settings.HudMode;   // Options > Gameplay "Flight HUD" (immersion): FlightHud.uss hides the markings
             root.EnableInClassList("hud-minimal", hudMode == Settings.HudMinimal);
             root.EnableInClassList("hud-off", hudMode == Settings.HudOff);
@@ -522,6 +545,23 @@ namespace GoF2Remake.UI
             bool challenge = level != null && level.Challenge != null;
             challengeView?.Update(challenge);
             root.EnableInClassList("hud-challenge", challenge);   // the top plates move under the score
+            if (dockedMenu != null && dockedMenu.IsOpen)
+            {
+                // Remake: the docked menu (DockedMenu): under an option's window (the resupply window, the pause menu's pages:
+                // the plant's, Inspect ship) it hides and that window has the keys; the docking ended another way (the object
+                // destroyed, a level script): all of it goes without an undock.
+                if (docking == null || !docking.IsDocked) { CloseDockedMenu(false); }
+                else
+                {
+                    bool sub = (carrierShop != null && carrierShop.IsOpen) || pauseMenu.IsOpen;
+                    dockedMenu.SetShown(!sub);
+                    if (sub != dockedSubShown) { dockedSubShown = sub; BuildHints(InputMode.Current); }
+                    if (carrierShop != null && carrierShop.IsOpen) carrierShop.Tick();
+                    else if (pauseMenu.IsOpen) pauseMenu.Tick();
+                    else dockedMenu.Tick();
+                    return;
+                }
+            }
             if (carrierShop != null && carrierShop.IsOpen)
             {
                 // The docking ended another way (the carrier destroyed, a level script): the window goes without an undock.
@@ -691,10 +731,10 @@ namespace GoF2Remake.UI
 
             // The action prompt: navigation (autopilot / jump) first, then mining (lock / approach / minigame), else docking.
             string prompt = docking != null ? docking.PromptText : null;
-            if (prompt == null && DockBeforeLock) prompt = Localization.Extra("hudDock", "DOCK");
+            if (prompt == null && DockBeforeLock) prompt = Localization.Extra("hudDock", "DOCK").OgCase();
             if (prompt == null && nav != null) prompt = nav.PromptText;
             if (prompt == null && mining != null) prompt = mining.PromptText;
-            if (prompt == null && level.CanDock) prompt = Localization.Extra("hudDock", "DOCK");
+            if (prompt == null && level.CanDock) prompt = Localization.Extra("hudDock", "DOCK").OgCase();
             // Touch: no prompt, the fire button is the action button (its arrow shows when fire acts).
             dockPrompt.EnableInClassList("dock-prompt--hidden", prompt == null || InputMode.Current == InputKind.Touch || cursorMode);   // touch / cursor: the arrow on fire
             if (prompt != null) dockLabel.text = prompt;
@@ -736,7 +776,7 @@ namespace GoF2Remake.UI
                 lastCloakCharging = cloakCharging;
                 lastDriveCharging = driveCharging;
                 jumpChargeLabel.text = (driveCharging ? string.Format(Localization.Extra("hudCruiseDriveCharging", "{0} charging"), GoF2Remake.Data.GameNames.Item(drive.item))
-                                        : cloakCharging ? Localization.Get(317) : Localization.Get(318)).ToUpperInvariant();
+                                        : cloakCharging ? Localization.Get(317) : Localization.Get(318)).UiCaps();
             }
             // Hud::draw: half-width min(1, rate x 1.05) x 194 either side of the centre, the stripes' middle first.
             float chargeRate = jumpCharging ? jump.ChargeRate : cloakCharging ? cloak.ChargeRate : driveCharging ? drive.ChargeRate : -1f;
@@ -776,14 +816,22 @@ namespace GoF2Remake.UI
             miningView.UpdateGame(mining, Time.deltaTime * 1000f);
             hackingView?.Update(docking);
             // Remake (CapitalShips): docked at the carrier, its resupply window opens (closing it undocks).
+            // Remake: outside VR the docked menu instead (DockedMenu: the carrier's Resupply, an object's own options from
+            // ObjectDocking.Options such as the Mining Plant's, Inspect ship, Undock); VR keeps the resupply window at once.
             bool atCarrier = docking != null && docking.IsDocked && docking.Target != null && docking.Target.DockingType == ObjectDocking.Resupply;
-            if (atCarrier && !resupplyShown && nav != null && !nav.MenuOpen) { resupplyShown = true; OpenCarrierShop(); }
+            if (docking != null && docking.IsDocked && docking.Target != null && !resupplyShown && nav != null && !nav.MenuOpen && !pauseMenu.IsOpen)
+            {
+                var options = Vr.VrMode.Enabled || docking.Options == null ? null : docking.Options(docking.Target);
+                if (atCarrier || (options != null && options.Count > 0)) resupplyShown = true;
+                if (atCarrier && Vr.VrMode.Enabled) OpenCarrierShop();
+                else if (resupplyShown) OpenDockedMenu(atCarrier, options);
+            }
             else if (docking == null || !docking.Busy) resupplyShown = false;
             if (transferCounter != null)
             {
                 bool on = docking != null && docking.TransferLabel != null;
                 transferCounter.EnableInClassList("transfer-counter--hidden", !on);
-                if (on) transferCounter.text = $"{docking.TransferLabel.ToUpperInvariant()}  {docking.TransferDone} / {docking.TransferTotal}";
+                if (on) transferCounter.text = $"{docking.TransferLabel.UiCaps()}  {docking.TransferDone} / {docking.TransferTotal}";
             }
             lockRingElement.style.left = crosshair.style.left;
             lockRingElement.style.top = crosshair.style.top;
@@ -813,6 +861,9 @@ namespace GoF2Remake.UI
 
         bool resupplyShown;
         CarrierShopWindow carrierShop;
+        /// <summary>Remake: the docked menu (DockedMenu); an option's window is over it (its hints are that window's).</summary>
+        DockedMenu dockedMenu;
+        bool dockedSubShown;
 
         AudioSource shopAmbience;
 

@@ -235,34 +235,36 @@ namespace GoF2Remake.Flight
             distance = Mathf.Clamp(distance, MinDistance, MaxDistance);
             Place();
             if (chase == null) return;
-            // Modified: docked at an object the chase camera is off (ObjectDocking's look-at camera keeps the camera where it
-            // stopped), so the orbit never moved it, on any input: on for free look, as PlayerTurret does for its view.
-            chaseOnForDock = !chase.enabled && DockedView != null && DockedView();
-            if (chaseOnForDock) chase.enabled = true;
             chase.follow = anchor;
             chase.followOffset = new Vector3(0f, 0f, -distance * M);
             chase.followLookOffset = Vector3.zero;
             chase.followRigid = false;
             chase.followUsesUp = true;
+            // Docked at an object the chase camera is off (ObjectDocking's look-at camera): free look moved only the anchor
+            // the disabled camera never followed, so the docked free look (a Supernova freighter, a mining station) showed
+            // the fixed look-at view and dragging did nothing (Discord report). On for the orbit, as PlayerTurret's view.
+            if (DockingHoldsCamera && !chase.scriptCamera) chase.enabled = true;
         }
 
         void ExitFreeLook()
         {
             if (chase == null || chase.follow != anchor) return;
             chase.follow = null;
-            // Modified: still docked (a turret view next, the undock's ease-out): ObjectDocking's look-at camera again; its
-            // Release turns the chase camera back on.
-            if (chaseOnForDock)
-            {
-                chaseOnForDock = false;
-                var d = GetComponent<ObjectDocking>();
-                if (d != null && d.Busy && d.State != ObjectDocking.Phase.Approach) { chase.enabled = false; return; }
-            }
             chase.Snap();
+            if (DockingHoldsCamera && !chase.scriptCamera) chase.enabled = false;   // back to ObjectDocking's look-at camera
         }
 
-        /// <summary>Modified: free look turned the chase camera on while docked at an object (EnterFreeLook).</summary>
-        bool chaseOnForDock;
+        ObjectDocking docking;
+        /// <summary>An object docking's ease-in, docked or undocking: ObjectDocking has turned the chase camera off.</summary>
+        bool DockingHoldsCamera
+        {
+            get
+            {
+                if (docking == null) docking = GetComponent<ObjectDocking>();
+                return docking != null && (docking.State == ObjectDocking.Phase.Entering || docking.State == ObjectDocking.Phase.Docked
+                                           || docking.State == ObjectDocking.Phase.Leaving);
+            }
+        }
 
         /// <summary>FlightHud: a touch drag off the controls (screen pixels, y up) goes to the camera in free look.</summary>
         public void TouchDrag(Vector2 deltaPixels, bool held)

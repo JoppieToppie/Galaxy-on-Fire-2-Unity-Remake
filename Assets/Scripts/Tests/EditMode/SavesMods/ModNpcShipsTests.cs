@@ -2,7 +2,8 @@
 // Feature: Modding/README.md "NPC ships" (npcships.json, Modding.ModNpcShips, TrafficPlanNpcShips): a mod's new NPC ships
 // (a capital ship, freighter or boss on a game hull or a ships.json ship) with their hardpoints, escorts, loot, spawn rules,
 // docking pads and shop; its changes to the game's own (the battleship's chance and turrets, the freighters' speed); the
-// game's types untouched without mods; a bad kind breaks the mod, an unknown field warns.
+// game's types untouched without mods; a bad kind breaks the mod, an unknown field warns; "scale" grows the hull and its
+// turrets about its centre (clamped, with a warning, past its range).
 
 using System.Linq;
 using GoF2Remake.Data;
@@ -172,6 +173,39 @@ namespace GoF2Remake.Tests
             StringAssert.Contains("\"wings\"", w);
             StringAssert.Contains("\"often\"", w);
             StringAssert.Contains("\"nothing\"", w);
+        }
+
+        [Test]
+        public void ScaleGrowsTheHullAndItsTurrets()
+        {
+            ModOn(@"[ { 'id': 'big', 'looksLike': 'carrier', 'scale': 2 }, { 'id': 'plain', 'looksLike': 'carrier' },
+                      { 'id': 'huge', 'looksLike': 'carrier', 'scale': 50 } ]");
+            Assert.IsFalse(Installed(Mod).Broken, AllMessages(Installed(Mod)));
+            StringAssert.Contains("\"scale\" 50", AllMessages(Installed(Mod)), "out of range warns");
+            Assert.AreEqual(ModNpcShips.MaxScale, ModNpcShips.Get(Mod + ":huge").scale, "clamped");
+            var db = Database.Load();
+            var at = new Vector3(0, 0, 100000);
+            var big = new System.Collections.Generic.List<SpawnSpec>();
+            var plain = new System.Collections.Generic.List<SpawnSpec>();
+            var host = big[TrafficPlan.AddNpcType(db, big, ModNpcShips.Get(Mod + ":big"), 0, at)];
+            var plainHost = plain[TrafficPlan.AddNpcType(db, plain, ModNpcShips.Get(Mod + ":plain"), 0, at)];
+            Assert.AreEqual(2f, host.scale);
+            Assert.AreEqual(2f, host.HullScale);
+            Assert.AreEqual(1f, plainHost.HullScale);
+            var t2 = big.Where(s => s.group == NpcGroup.Turret).ToList();
+            var t1 = plain.Where(s => s.group == NpcGroup.Turret).ToList();
+            Assert.AreEqual(t1.Count, t2.Count);
+            for (int i = 0; i < t1.Count; i++)
+            {
+                Assert.Less(Vector3.Distance(at + (t1[i].position - at) * 2f, t2[i].position), 0.01f, "twice as far out");
+                Assert.AreEqual(t1[i].scale * 2f, t2[i].scale, 1e-4f);
+            }
+            var box = new System.Collections.Generic.List<CollisionVolume> { CollisionVolume.Box(new Vector3(1, 2, 3), Vector3.one) };
+            var scaled = CollisionVolume.Scaled(box, 2f);
+            Assert.AreNotSame(box, scaled);
+            Assert.AreEqual(new Vector3(2, 4, 6), scaled[0].centre);
+            Assert.AreEqual(Vector3.one * 2f, scaled[0].half);
+            Assert.AreSame(box, CollisionVolume.Scaled(box, 1f));
         }
     }
 }

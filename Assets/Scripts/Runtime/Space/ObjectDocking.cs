@@ -71,6 +71,13 @@ namespace GoF2Remake.Flight
         /// <summary>The ease-in finished: docked (PlayerEgo::approachDockingPoint sets +0x1c4 = 1 and, unless a script set
         /// docking state 2, +0xb1: MGame::OnUpdate switches to free look).</summary>
         public event Action Docked;
+        /// <summary>Remake: the docked object's own options for the HUD's docked menu (FlightHud.DockedMenu, the station menu's
+        /// look): each a button's text and what it opens; null or empty for none (the carrier's Resupply is the HUD's own).
+        /// Set by SpaceLevel (the Mining Plant's); asked once docked.</summary>
+        public Func<NpcShip, List<(string label, Action open)>> Options;
+        /// <summary>Remake: something else holds the camera while docked (the docked menu's Inspect ship, Action Freeze:
+        /// PhotoMode): LateUpdate doesn't turn it back to the ship.</summary>
+        public static bool CameraHeld;
 
         /// <summary>While approaching: game units from the ship to the approach point, else -1 (Navigation.CanFastForward).</summary>
         public float ApproachDistanceUnits => State == Phase.Approach && Target != null && ship != null
@@ -189,13 +196,14 @@ namespace GoF2Remake.Flight
             bool found = false, free = false;
             takenPoint = -1;
             var local = target.transform.InverseTransformPoint(ship.transform.position);
+            float k = target.Spec.HullScale;   // remake mods: an NPC ship type's size moves its pads with its hull
             for (int i = 0; i < points.Count; i++)
             {
                 var p = points[i];
                 if (p.type != SpacePoints.Approach) continue;
                 bool isFree = !SpacePoints.IsTaken(target.transform, i);
                 if (free && !isFree) continue;
-                var l = ToLocal(p.engine);
+                var l = ToLocal(p.engine) * k;
                 float d = (l - local).sqrMagnitude;
                 if (d < best || (isFree && !free)) { best = d; approachLocal = l; found = true; free = isFree; takenPoint = isFree ? i : -1; }
             }
@@ -205,7 +213,7 @@ namespace GoF2Remake.Flight
             foreach (var p in points)
             {
                 if (p.type != SpacePoints.Dock) continue;
-                var l = ToLocal(p.engine);
+                var l = ToLocal(p.engine) * k;
                 float d = (l - approachLocal).sqrMagnitude;
                 if (d < best) { best = d; dockLocal = l; dockDirLocal = SpacePoints.DirToLocal(p.dir); found = true; }
             }
@@ -241,6 +249,7 @@ namespace GoF2Remake.Flight
             // TargetFollowCamera::setLookAtCam(true): the camera stays where it is and keeps the ship in view.
             if (State != Phase.Entering && State != Phase.Docked && State != Phase.Leaving) return;
             if (PlayerTurret.ViewActive(gameObject)) return;   // the turret view's camera (docked: the original allows it)
+            if (CameraHeld) return;   // Remake: the photo camera (PhotoMode)
             // Modified: nor while a level's cutscene camera holds the view (CutsceneCamera sets scriptCamera): it turned that
             // camera back to the docked ship every frame (a player's report, step 92: the Specters' entrance showed the ship
             // at the freighter for seconds instead of them).

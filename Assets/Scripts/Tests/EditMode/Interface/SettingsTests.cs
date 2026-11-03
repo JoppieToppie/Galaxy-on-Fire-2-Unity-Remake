@@ -240,11 +240,13 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void AndroidAtOneHundredPercentGetsMsaa()
+        public void AndroidAtOneHundredPercentDrawsFarEnoughBelowItForUrp()
         {
-            // MSAA off -> 2x on Android at 100 %, the scale left alone.
-            Assert.AreEqual(2, Bootstrap.AppliedMsaa(1, 1f, true, false));
-            Assert.AreEqual(1f, Bootstrap.AppliedRenderScale(1f, true, false));
+            // #163: Android's 100 % is drawn at 94 % (URP's render-scale-1 path left part of the screen black), MSAA as picked.
+            Assert.AreEqual(Bootstrap.AndroidFullScale, Bootstrap.AppliedRenderScale(1f, true, false));
+            Assert.GreaterOrEqual(Mathf.Abs(1f - Bootstrap.AppliedRenderScale(1f, true, false)), 0.05f);
+            Assert.AreEqual(1, Bootstrap.AppliedMsaa(1, 1f, true, false));
+            Assert.AreEqual(1.25f, Bootstrap.AppliedRenderScale(1.25f, true, false));
             // The player's own MSAA, other scales, other platforms: as picked.
             Assert.AreEqual(4, Bootstrap.AppliedMsaa(4, 1f, true, false));
             Assert.AreEqual(1, Bootstrap.AppliedMsaa(1, 0.9f, true, false));

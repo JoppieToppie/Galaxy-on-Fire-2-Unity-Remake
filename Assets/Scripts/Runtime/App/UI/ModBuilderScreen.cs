@@ -623,6 +623,7 @@ namespace GoF2Remake.UI
                 ok(v);
             }
             field.RegisterCallback<KeyDownEvent>(e => { if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { e.StopPropagation(); Done(); } }, TrickleDown.TrickleDown);
+            PhoneKeyboard.Attach(field, () => { Done(); return false; });   // phones (#224): the system's input box, Done = OK
             Act(row, T("mbOk", "OK"), Done);
             Act(row, T("mbCancel", "Cancel"), CloseModal);
             modal.AddToClassList("mbv-modal--shown");

@@ -311,9 +311,9 @@ namespace GoF2Remake.UI
             if (pressAnyKey == null) return;
             pressAnyKey.text = InputMode.Current switch
             {
-                InputKind.Gamepad => Localization.Extra("pressAnyButton", "PRESS ANY BUTTON"),
-                InputKind.Touch => Localization.Extra("tapToStart", "TAP TO START"),
-                _ => Localization.Extra("pressAnyKey", "PRESS ANY KEY"),
+                InputKind.Gamepad => Localization.Extra("pressAnyButton", "PRESS ANY BUTTON").OgCase(),
+                InputKind.Touch => Localization.Extra("tapToStart", "TAP TO START").OgCase(),
+                _ => Localization.Extra("pressAnyKey", "PRESS ANY KEY").OgCase(),
             };
         }
 
@@ -570,10 +570,13 @@ namespace GoF2Remake.UI
             float aspect = logoTex != null && logoTex.height > 0 ? (float)logoTex.width / logoTex.height : 953f / 360f;
             float imgW = Mathf.Min(el.width, el.height * aspect);     // scale-to-fit, left aligned
             var imgCenter = new Vector2(el.x + imgW * 0.5f, el.y + el.height * 0.5f);
+            // Interface style Original: the logo sits top-centre, centred in its box (OriginalMainMenu.uss).
+            bool centred = Settings.OriginalUi;
+            if (centred) imgCenter.x = el.x + el.width * 0.5f;
             float targetW = Mathf.Min(p.width * 0.56f, p.height * 0.34f * aspect);
             float k = targetW / imgW;
             var target = new Vector2(p.width * 0.5f, p.height * 0.41f);
-            logo.style.transformOrigin = new TransformOrigin(Length.Pixels(imgW * 0.5f), Length.Percent(50f));
+            logo.style.transformOrigin = new TransformOrigin(centred ? Length.Percent(50f) : Length.Pixels(imgW * 0.5f), Length.Percent(50f));
             logo.style.translate = new Translate(target.x - imgCenter.x, target.y - imgCenter.y);
             logo.style.scale = new Scale(new Vector2(k, k));
             // First placement happens without animation; transitions are enabled afterwards.
@@ -755,10 +758,53 @@ namespace GoF2Remake.UI
         /// text and its tap zone at the bottom left (.main-column--full).</summary>
         void UpdateColumnFit()
         {
+            RefreshMenuNumbers();
             if (mainColumn == null) return;
             bool resume = resumeButton != null && !resumeButton.ClassListContains("menu-button--gone");
             bool debug = debugButton != null && !debugButton.ClassListContains("menu-button--gone");
             mainColumn.EnableInClassList("main-column--full", resume && debug);
+        }
+
+        string menuNumbersKey;
+
+        /// <summary>Interface style Original: the title menu's entries carry the original's dim number in front ("1." at the
+        /// left end of the bar), counted over the shown entries; Exit has none (it sits in the corner). The labels are always
+        /// there and empty in the Remake style; checked twice a second so a style switch in Options shows at once.</summary>
+        void RefreshMenuNumbers()
+        {
+            if (mainButtons == null) return;
+            bool on = Settings.OriginalUi;
+            int n = 0;
+            var key = new System.Text.StringBuilder(on ? "o" : "r");
+            foreach (var child in mainButtons.Children())
+            {
+                if (child is not Button b || b.name == "exitButton") continue;
+                bool shown = !b.ClassListContains("menu-button--gone");
+                if (shown) n++;
+                key.Append(shown ? '1' : '0');
+                var num = b.Q<Label>(className: "mm-og-num");
+                if (num == null)
+                {
+                    num = new Label { pickingMode = PickingMode.Ignore };
+                    num.AddToClassList("mm-og-num");
+                    num.style.position = Position.Absolute;
+                    b.Add(num);
+                }
+                num.text = on && shown ? n + "." : "";
+            }
+            menuNumbersKey = key.ToString();
+        }
+
+        void WatchMenuNumbers()
+        {
+            mainButtons?.schedule.Execute(() =>
+            {
+                if (mainButtons == null) return;
+                var key = new System.Text.StringBuilder(Settings.OriginalUi ? "o" : "r");
+                foreach (var child in mainButtons.Children())
+                    if (child is Button b && b.name != "exitButton") key.Append(b.ClassListContains("menu-button--gone") ? '0' : '1');
+                if (key.ToString() != menuNumbersKey) RefreshMenuNumbers();
+            }).Every(500);
         }
 
         /// <summary>"Update available" (UpdateCheck): in the menu, a newer release out and no panel open (the panels reach
@@ -769,8 +815,8 @@ namespace GoF2Remake.UI
             bool shown = UpdateCheck.Available && screen == MenuState.Menu && openPanel == null;
             if (UpdateCheck.Available)
                 updateButton.text = string.IsNullOrEmpty(UpdateCheck.LatestTag)
-                    ? Localization.Extra("updateAvailable", "Update available").ToUpperInvariant()
-                    : $"{Localization.Extra("updateAvailable", "Update available").ToUpperInvariant()}  ·  {UpdateCheck.LatestTag}";
+                    ? Localization.Extra("updateAvailable", "Update available").UiCaps()
+                    : $"{Localization.Extra("updateAvailable", "Update available").UiCaps()}  ·  {UpdateCheck.LatestTag}";
             updateRow.EnableInClassList("update-row--shown", shown);
             updateButton.focusable = shown;
         }
@@ -814,7 +860,7 @@ namespace GoF2Remake.UI
         {
             if (!dialog.ClassListContains("dialog-backdrop--shown")) dialogReturn = root.focusController?.focusedElement as VisualElement;
             dialogYes = onYes;
-            root.Q<Label>("dialogTitle").text = title.ToUpperInvariant();
+            root.Q<Label>("dialogTitle").text = title.UiCaps();
             root.Q<Label>("dialogText").text = text;
             dialog.AddToClassList("dialog-backdrop--shown");
             Play(infoSound);
@@ -851,15 +897,15 @@ namespace GoF2Remake.UI
             {
                 // The reset choice: back to Yes / No.
                 alt.style.display = DisplayStyle.None;
-                InputGlyph.SetText(no, Localization.Get(135).ToUpperInvariant());
-                InputGlyph.SetText(root.Q<Button>("dialogYes"), Localization.Get(134).ToUpperInvariant());
+                InputGlyph.SetText(no, Localization.Get(135).UiCaps());
+                InputGlyph.SetText(root.Q<Button>("dialogYes"), Localization.Get(134).UiCaps());
             }
             dialogAlt = null;
             if (no.style.display == DisplayStyle.None || dialogField != null && dialogField.style.display == DisplayStyle.Flex)
             {
                 no.style.display = StyleKeyword.Null;
-                InputGlyph.SetText(no, Localization.Get(135).ToUpperInvariant());
-                InputGlyph.SetText(root.Q<Button>("dialogYes"), Localization.Get(134).ToUpperInvariant());
+                InputGlyph.SetText(no, Localization.Get(135).UiCaps());
+                InputGlyph.SetText(root.Q<Button>("dialogYes"), Localization.Get(134).UiCaps());
             }
             if (dialogField != null) dialogField.style.display = StyleKeyword.Null;
             dialog.RemoveFromClassList("dialog-backdrop--shown");
@@ -970,11 +1016,11 @@ namespace GoF2Remake.UI
             ShowDialog(title, text, onYes);
             dialogAlt = onAlt;
             var yes = root.Q<Button>("dialogYes");
-            InputGlyph.SetText(yes, yesLabel.ToUpperInvariant());
+            InputGlyph.SetText(yes, yesLabel.UiCaps());
             var alt = root.Q<Button>("dialogAlt");
-            InputGlyph.SetText(alt, altLabel.ToUpperInvariant());
+            InputGlyph.SetText(alt, altLabel.UiCaps());
             alt.style.display = DisplayStyle.Flex;
-            InputGlyph.SetText(root.Q<Button>("dialogNo"), Localization.Get(425).ToUpperInvariant());   // Cancel
+            InputGlyph.SetText(root.Q<Button>("dialogNo"), Localization.Get(425).UiCaps());   // Cancel
             Select(yes);
         }
 

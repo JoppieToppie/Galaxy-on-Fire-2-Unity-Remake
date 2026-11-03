@@ -40,6 +40,8 @@ namespace GoF2Remake.Modding
         public float GunFactor { get => F("gunFactor") ?? 1f; set => SetF("gunFactor", Mathf.Approximately(value, 1f) ? (float?)null : value); }
         public float? Speed { get => F("speed"); set => SetF("speed", value); }
         public float? ExplosionScale { get => F("explosionScale"); set => SetF("explosionScale", value); }
+        /// <summary>Its size, x the hull's (1 = unset).</summary>
+        public float Scale { get => F("scale") ?? 1f; set => SetF("scale", Mathf.Approximately(value, 1f) ? (float?)null : value); }
         public bool Missiles { get => B("missiles", true); set => SetB("missiles", value, true); }
         public bool Retreat { get => B("retreat", false); set => SetB("retreat", value, false); }
 

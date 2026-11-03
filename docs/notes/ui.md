@@ -69,7 +69,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   hangar, star map and orbit views, B / A glyphs inside Back and dialog buttons (`InputGlyph.PadPrompt`, text through
   `InputGlyph.SetText`).
 - **Accessibility** (Options' own tab, `OptionPage.Accessibility`, `Settings.AccessibilityKeys`): Interface size, Text
-  size 100-200 % (root classes `ui-text-N` redefine the `--text-*` / `--glyph-*` tokens; `ui-root` re-applies the body size
+  size 100-200 % (5 % steps to 150, then 160 / 175 / 190 / 200; Interface size 80-150 % in 5 % steps, #237; root classes `ui-text-N` redefine the `--text-*` / `--glyph-*` tokens; `ui-root` re-applies the body size
   under them), High contrast (`ui-high-contrast`), Reduce motion (`ui-reduce-motion`, the station's / Mod Builder's
   menu animations), Colour-blind markers (friends blue, `CombatView.MarkerTex`). **Interface font** (2026-10-24, the
   user's request; `UiFont`, Space/UI; `Settings.UiFont`: "" Klavika, "file:<name>" a file imported into

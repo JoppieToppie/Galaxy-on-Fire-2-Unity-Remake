@@ -57,6 +57,20 @@ namespace GoF2Remake.Flight
         [System.NonSerialized] public System.Action PullStarted;
         /// <summary>A mirror of another game's crate (NetCrate): it neither drifts nor expires by itself.</summary>
         [System.NonSerialized] public bool remote;
+        /// <summary>Remake (#176): the player's own cargo thrown out in flight (PauseMenu's cargo hold, Jettison). The auto
+        /// tractor beams leave it alone, and taking it back costs no standing and counts toward no salvage statistic.</summary>
+        [System.NonSerialized] public bool jettisoned;
+
+        /// <summary>Remake (#176): throws 'amount' t of a cargo item out behind 'ship' in a container of 'race'
+        /// (the player's own goods, Crate.jettisoned), drifting away backwards. The caller takes it off the hold.</summary>
+        public static Crate Jettison(Transform ship, int item, int amount, int race)
+        {
+            var back = -ship.forward;
+            var crate = Spawn(ship.position + back * 30f, new[] { new ItemStack(item, amount) }, race, LookContainer);
+            crate.jettisoned = true;
+            crate.Launch(back, 1f);
+            return crate;
+        }
 
         /// <summary>KIPlayer::createCrate's type: the model. 0 the race's container, 1 the rock 0x421e asteroid_01_junk (a shot
         /// asteroid), 2 its Void variant 0x421f, 3 the space junk's 0x4218.</summary>

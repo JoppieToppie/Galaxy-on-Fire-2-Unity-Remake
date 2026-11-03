@@ -44,4 +44,20 @@ Research: `Reference/research/kaamo_club.md` (states, the siege, docking convers
   `Status::resetGame` sets state 3 while it is bought) is the new game's toggle in the Game options panel after the
   economy (with Hardcore and Start game) (`MainMenu.KaamoFromStart`, PlayerPrefs `newgame_kaamo`): the club owned from
   the start, no siege, no purchase.
+- **VIP Card** (remake, players' suggestion: Discord #suggestions "Kaamo Club features", 2026-10-25): the original's second
+  in-app purchase "Kaamo Club VIP Card" (texts 80 / 90 / 95, `options[0x38]`: the Kaamo dealers at half price, i.e. x2
+  without it, `blueprints_mods.md` 2.2; the remake always charged the card's price) is a card bought with credits:
+  `KaamoClub.VipPrice` 1 000 000 $, the Store tab's first row while `KaamoClub.VipForSale` (club owned, not bought, option
+  on "Buy at the club"), its perks in the details, BUY -> Yes / No -> `KaamoClub.BuyVip` -> a welcome. `Session.KaamoVip`
+  (save field `kaamoVip`, no version: older saves have none; New Game+ keeps it). Options > Gameplay "Kaamo Club VIP Card"
+  (`Settings.KaamoVipMode`, local): Buy at the club (default) / Always on (no card) / Off (the original club, nothing below).
+  With its perks (`KaamoClub.VipFeatures`), only in the club's storage (the stations' shops stay the original's,
+  `HangarWindowKaamoVip`): a search box and a sort button on the header bar (the Remake's after the tabs, the Original's
+  between its title and the tabs; F / R, the controller's right / left stick press: the search opens `PadKeyboard`; the game's
+  keys rest while typing, `NetChat.SetTyping`, Enter / Esc / a press elsewhere end it); the search matches name, category /
+  race and a mod's tag, the sort is the club's order / A-Z / value (items: the middle of the price range, ships: the sell
+  value; highest first) / race (ships) or type (items), kept while the game runs; the stored hulls move to a Ships tab of
+  their own (key 4, Q / E walk Ship, Store, Ships, Blueprints), the Store keeps the goods. Everywhere else a dealer's ship
+  of a type parked at the club carries an AT KAAMO badge with the map's house (`map_home`), and a lounge seller's ship
+  says so in the offer (`loungeShipAtKaamo`). No multiplayer handling: the flag rides in the save / profile.
 - Not wired in the original and left out: advert 189, the 478 hint (no shop to jump to), radio 3162 / 3163 (voiced, never sent).

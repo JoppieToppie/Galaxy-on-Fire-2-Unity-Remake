@@ -233,8 +233,8 @@ namespace GoF2Remake.UI
             dialogAction = onYes;
             dialogNoAction = null;
             root.Q<Label>("dialogText").text = text;
-            InputGlyph.SetText(dialogYes, info ? Localization.Extra("ok", "OK") : Localization.Get(134).ToUpperInvariant());
-            InputGlyph.SetText(dialogNo, Localization.Get(135).ToUpperInvariant());
+            InputGlyph.SetText(dialogYes, info ? Localization.Extra("ok", "OK").OgCase() : Localization.Get(134).UiCaps());
+            InputGlyph.SetText(dialogNo, Localization.Get(135).UiCaps());
             dialogNo.style.display = info ? DisplayStyle.None : DisplayStyle.Flex;
             dialog.AddToClassList("station-dialog-backdrop--shown");
             Play(infoSound);
@@ -259,8 +259,8 @@ namespace GoF2Remake.UI
         {
             ShowDialog(text, onYes);
             dialogNoAction = onNo;
-            InputGlyph.SetText(dialogYes, yes.ToUpperInvariant());
-            InputGlyph.SetText(dialogNo, no.ToUpperInvariant());
+            InputGlyph.SetText(dialogYes, yes.UiCaps());
+            InputGlyph.SetText(dialogNo, no.UiCaps());
         }
 
         void CloseDialog()
@@ -349,7 +349,7 @@ namespace GoF2Remake.UI
             var st = level != null ? level.Station : null;
             string T(int id) => Localization.Get(id);
             root.Q<Label>("stationTitle").text = st == null ? "" : ItemInfo.WithTag(   // remake mods: the mod's tag, dim (as it reads)
-                (st.index == 101 || Modding.ModWorld.IsMobile(st.index) ? st.name : $"{st.name} {T(136)}").ToUpperInvariant(), GameNames.StationTag(st.index));   // no suffix for station 101 or a mobile station (a ship)
+                (st.index == 101 || Modding.ModWorld.IsMobile(st.index) ? st.name : $"{st.name} {T(136)}").UiCaps(), GameNames.StationTag(st.index));   // no suffix for station 101 or a mobile station (a ship)
             root.Q<Label>("systemName").text = st == null ? "" : ItemInfo.WithTag($"{st.systemName} {T(137)}", GameNames.SystemTag(st.system));
             // Multiplayer: the faction holding this station (NetFactions).
             string holder = st == null ? "" : GoF2Remake.Multiplayer.NetFactionsClient.OwnerText(st.index);
@@ -361,43 +361,65 @@ namespace GoF2Remake.UI
             raceLabel.style.display = raceLabel.text.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             ShowRaceIcon(raceLabel.parent, race, st != null ? st.index : -1);
             shownCredits = shownLoad = shownMaxLoad = int.MinValue;   // the funds plates again in this language (UpdateFunds)
-            hangarButton.text = T(167).ToUpperInvariant();
-            loungeButton.text = T(398).ToUpperInvariant();
-            mapButton.text = T(177).ToUpperInvariant();
-            missionsButton.text = T(129).ToUpperInvariant();
-            statusButton.text = T(169).ToUpperInvariant();
-            inspectButton.text = Localization.Extra("stationInspect", "INSPECT SHIP");
-            customizeButton.text = Localization.Extra("stationCustomize", "CUSTOMIZE SHIP");
+            hangarButton.text = T(167).UiCaps();
+            loungeButton.text = T(398).UiCaps();
+            mapButton.text = T(177).UiCaps();
+            missionsButton.text = T(129).UiCaps();
+            statusButton.text = T(169).UiCaps();
+            inspectButton.text = Localization.Extra("stationInspect", "INSPECT SHIP").OgCase();
+            customizeButton.text = Localization.Extra("stationCustomize", "CUSTOMIZE SHIP").OgCase();
             // Remake: its key on the button, L with keys and mouse, X with a controller (the root's input-* class picks one).
             // The glyphs are children of the button, which then holds its text in a Label of its own, so it is built again
             // rather than relabelled: setting .text on a button with children leaves the old Label in place.
             launchButton.Clear();
-            launchButton.text = Localization.Extra("stationLaunch", "LAUNCH");
+            launchButton.text = Localization.Extra("stationLaunch", "LAUNCH").OgCase();
             var launchKey = InputGlyph.Key("L");
             launchKey.AddToClassList("launch-glyph--key");
             var launchPad = InputGlyph.Pad(PadButton.X);
             launchPad.AddToClassList("launch-glyph--pad");
             InputGlyph.WithGlyphs(launchButton, launchKey, launchPad);
-            InputGlyph.SetText(root.Q<Button>("loungeBack"), Localization.Extra("hudBack", "BACK"));
-            InputGlyph.SetText(dialogNo, T(135).ToUpperInvariant());
-            root.Q<Button>("menuButton").text = Localization.Extra("hudMenu", "MENU");
-            root.Q<Label>("systemMenuTitle").text = T(172).ToUpperInvariant();       // Menu
-            saveGameButton.text = T(30).ToUpperInvariant();                          // Save game
-            mainMenuButton.text = Modding.ModBuilder.PlayTesting ? Localization.Extra("mbBackToBuilder", "Back to Mod Builder").ToUpperInvariant()
-                                : T(522).ToUpperInvariant();                       // Back to Main Menu
-            InputGlyph.SetText(systemClose, Localization.Extra("hudBack", "BACK"));
-            InputGlyph.SetText(saveBack, Localization.Extra("hudBack", "BACK"));
+            InputGlyph.SetText(root.Q<Button>("loungeBack"), Localization.Extra("hudBack", "BACK").OgCase());
+            InputGlyph.SetText(dialogNo, T(135).UiCaps());
+            root.Q<Button>("menuButton").text = Localization.Extra("hudMenu", "MENU").OgCase();
+            if (Settings.OriginalUi) OriginalStationTexts();
+            root.Q<Label>("systemMenuTitle").text = T(172).UiCaps();       // Menu
+            saveGameButton.text = T(30).UiCaps();                          // Save game
+            mainMenuButton.text = Modding.ModBuilder.PlayTesting ? Localization.Extra("mbBackToBuilder", "Back to Mod Builder").UiCaps()
+                                : T(522).UiCaps();                       // Back to Main Menu
+            InputGlyph.SetText(systemClose, Localization.Extra("hudBack", "BACK").OgCase());
+            InputGlyph.SetText(saveBack, Localization.Extra("hudBack", "BACK").OgCase());
             // The system menu's own entries (BuildSystemExtras names them as it builds them).
-            if (newGameButton != null) newGameButton.text = T(28).ToUpperInvariant();
-            if (loadGameButton != null) loadGameButton.text = T(29).ToUpperInvariant();
-            if (optionsButton != null) optionsButton.text = T(31).ToUpperInvariant();
-            if (aboutButton != null) aboutButton.text = T(43).ToUpperInvariant();
+            if (newGameButton != null) newGameButton.text = T(28).UiCaps();
+            if (loadGameButton != null) loadGameButton.text = T(29).UiCaps();
+            if (optionsButton != null) optionsButton.text = T(31).UiCaps();
+            if (aboutButton != null) aboutButton.text = T(43).UiCaps();
             RefreshViewTitle();
             hangarWindow?.RefreshTexts();
             missions?.RefreshTexts();
             status?.RefreshTexts();
             lounge?.RefreshTexts();
             BuildHints(InputMode.Current);
+        }
+        /// <summary>Interface style Original (OriginalStation.uss): the menu buttons numbered and in the table's case as the
+        /// original's "1. Hangar" ... "5. Status" (the number dim), the remake's extra entries numbered on after them, the
+        /// Menu button as the original's footer "Game Options" and the remake's own capitals in sentence case.</summary>
+        void OriginalStationTexts()
+        {
+            int n = 0;
+            foreach (var b in new[] { hangarButton, loungeButton, mapButton, missionsButton, statusButton, inspectButton, customizeButton })
+                if (b != null) b.text = $"<color=#7E8A96>{++n}.</color> {SentenceCase(b.text)}";
+            root.Q<Button>("menuButton").text = Localization.Extra("stationGameOptions", "Game Options");
+            // The launch button's label (a Label child next to its key glyphs, InputGlyph.WithGlyphs).
+            var launchLabel = launchButton.Q<Label>(className: "glyph-button-label");
+            if (launchLabel != null) launchLabel.text = SentenceCase(launchLabel.text);
+            InputGlyph.SetText(root.Q<Button>("loungeBack"), SentenceCase(Localization.Extra("hudBack", "BACK").OgCase()));
+        }
+        /// <summary>A remake label written in capitals ("INSPECT SHIP") as the original writes its labels ("Inspect ship");
+        /// a label that has lower case letters already stays as it is.</summary>
+        static string SentenceCase(string text)
+        {
+            if (string.IsNullOrEmpty(text) || text != text.ToUpperInvariant()) return text;
+            return text.Substring(0, 1) + text.Substring(1).ToLowerInvariant();
         }
         void OnViewChanged()
         {

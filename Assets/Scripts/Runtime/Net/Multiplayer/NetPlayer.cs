@@ -143,6 +143,7 @@ namespace GoF2Remake.Multiplayer
         /// (0 = none), so a single turret is its item index, as before.</summary>
         public static int PackTurrets(System.Collections.Generic.IList<int> items)
         {
+            if (items != null && items.Contains(-1)) items = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Where(items, i => i >= 0));   // empty slots (PlayerTurret.TurretItems)
             if (items == null || items.Count == 0 || items[0] < 0) return -1;
             int second = items.Count > 1 && items[1] >= 0 ? items[1] + 1 : 0;
             return (items[0] & 0xffff) | ((second & 0x7fff) << 16);

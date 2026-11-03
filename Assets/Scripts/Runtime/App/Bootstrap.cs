@@ -155,11 +155,12 @@ namespace GoF2Remake
             ApplyDisplay();
         }
 
-        // Android at 100 % render scale (#45, reported again with 2026.10.23 with PreTransformGuard in place): with MSAA off
-        // part of the screen stops updating; with MSAA on, or below 100 %, it doesn't (the user's tests on a phone). The
-        // cause is still unknown: URP renders through its intermediate texture with post-processing on anyway
-        // (UniversalRenderer.RequiresIntermediateColorTexture), so the guard changed nothing. So 100 % gets MSAA 2x behind
-        // the option's back, which keeps showing Off; under a temporal upscaler, which needs MSAA off, it is drawn at 94 %.
+        // Android at 100 % render scale (#45, #163): since Vulkan pre-transform went back on (2026.10.23) part of the screen
+        // stays black / frozen at exactly 100 % (rotating the phone 180 degrees shows the other part), on Mali, Exynos and
+        // Tensor phones; any other scale (90 %, 125 %, 200 %) is fine. PreTransformGuard (the intermediate texture) didn't
+        // help, MSAA 2x at 100 % (2026.10.24) helped on some phones and not on others (a Mali-G57). URP's render-scale-1 path
+        // is the one that breaks, so on Android 100 % is drawn at 94 % (AndroidFullScale), outside URP's 5 % snap to 1, the
+        // same path as every other working scale. The option keeps showing 100 %; MSAA stays as picked.
 
         static bool Android => Application.platform == RuntimePlatform.Android;
         static float PickedRenderScale => Settings.RenderScale > 0f ? Settings.RenderScale : defaultRenderScale;
@@ -167,17 +168,16 @@ namespace GoF2Remake
         /// <summary>URP draws a scale within 5 % of 1 as exactly 1 (UniversalRenderPipeline's kRenderScaleThreshold 0.05).</summary>
         static bool AtFullScale(float scale) => Mathf.Abs(scale - 1f) < 0.05f;
 
-        /// <summary>The render scale URP gets for the one picked: Android's 100 % under a temporal upscaler is
-        /// <see cref="AndroidFullScale"/> (5 % or more off 1, and 0.95f sits on that edge in float).</summary>
+        /// <summary>The render scale URP gets for the one picked: Android's 100 % is <see cref="AndroidFullScale"/> (5 % or
+        /// more off 1, and 0.95f sits on that edge in float), with or without a temporal upscaler.</summary>
         public static float AppliedRenderScale(float picked, bool android, bool temporal) =>
-            android && temporal && AtFullScale(picked) ? AndroidFullScale : picked;
+            android && AtFullScale(picked) ? AndroidFullScale : picked;
 
         public const float AndroidFullScale = 0.94f;
 
-        /// <summary>The MSAA samples URP gets for the ones picked (after the temporal upscalers' 1): Android's 100 % with MSAA
-        /// off gets 2x.</summary>
-        public static int AppliedMsaa(int picked, float pickedScale, bool android, bool temporal) =>
-            android && !temporal && picked <= 1 && AtFullScale(pickedScale) ? 2 : picked;
+        /// <summary>The MSAA samples URP gets for the ones picked (after the temporal upscalers' 1): as picked. (Android's
+        /// 100 % with MSAA off got 2x from 2026.10.24 until AppliedRenderScale took over, #163.)</summary>
+        public static int AppliedMsaa(int picked, float pickedScale, bool android, bool temporal) => picked;
 
         // ---- upscaler ----------------------------------------------------------------------------------------
 
@@ -192,8 +192,8 @@ namespace GoF2Remake
 #else
             // FSR 1 only below 100 % (#45: on Android FSR at 100 % or more left part of the screen frozen; at those scales
             // there is nothing to upscale). The cause was thought to be the scene drawn straight to the pre-rotated back buffer, which
-            // PreTransformGuard was meant to prevent (it doesn't: see AppliedMsaa); this guard stays until FSR at 100 % is
-            // checked on a phone.
+            // PreTransformGuard was meant to prevent (it doesn't: see AppliedRenderScale); this guard stays until FSR at 100 %
+            // is checked on a phone. (Android's 100 % is drawn at 94 % now, so FSR 1 upscales those last 6 % there.)
             urp.upscalingFilter = upscaler == Settings.UpscalerFsr && urp.renderScale < 0.999f ? UpscalingFilterSelection.FSR
                 : upscaler == Settings.UpscalerStp ? UpscalingFilterSelection.STP : UpscalingFilterSelection.Auto;
 #endif

@@ -100,6 +100,32 @@ namespace GoF2Remake.Data
             }
         }
 
+        // ---- the VIP Card (remake) -----------------------------------------------------------------------------
+
+        /// <summary>Remake (players' suggestion, Discord "Kaamo Club features"): the original's second in-app purchase, the
+        /// "Kaamo Club VIP Card" (texts 80 / 90 / 95, options[0x38]: the Kaamo dealers at half price), comes back as a card
+        /// bought with credits in the club's Store tab. It gives the club the shop tools the players asked for: a search box
+        /// and sorting in the Store, the stored hulls in a Ships tab of their own, and a Kaamo marker on every dealer's ship
+        /// of a type already parked at the club. The remake's Kaamo prices were already the card's, so it changes no price.
+        /// Options > Gameplay "Kaamo Club VIP Card" (Settings.KaamoVipMode): bought at the club (default), always on, or off.</summary>
+        public const int VipPrice = 1000000;
+
+        /// <summary>The VIP Card's tools are on: the option's "Always", or its default with the card bought.</summary>
+        public static bool VipFeatures => Settings.KaamoVipMode == Settings.KaamoVipAlways
+                                          || (Settings.KaamoVipMode == Settings.KaamoVipCard && Session.KaamoVip);
+
+        /// <summary>The Store tab offers the card: the club owned, the option at "bought at the club", not bought yet.</summary>
+        public static bool VipForSale => Owned && Settings.KaamoVipMode == Settings.KaamoVipCard && !Session.KaamoVip;
+
+        /// <summary>The card bought: VipPrice off the credits. False when there aren't enough or it is no longer for sale.</summary>
+        public static bool BuyVip()
+        {
+            if (!VipForSale || Session.Credits < VipPrice) return false;
+            Session.Credits -= VipPrice;
+            Session.KaamoVip = true;
+            return true;
+        }
+
         /// <summary>Agent 26 (offer 10): the dealer's ships the player neither flies nor stores.</summary>
         public static List<int> DealerCandidates() =>
             DealerShips.Where(s => s != Session.ShipIndex && !HasShip(s)).ToList();

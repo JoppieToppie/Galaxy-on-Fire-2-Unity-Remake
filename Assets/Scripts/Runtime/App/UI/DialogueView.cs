@@ -107,11 +107,11 @@ namespace GoF2Remake.UI
             next = Bind("dialogueNext", Next);
             confirmYes = Bind("dialogueConfirmYes", () => { HideConfirm(); Close(true); });
             confirmNo = Bind("dialogueConfirmNo", HideConfirm);
-            back.text = Localization.Get(179).ToUpperInvariant();
-            skip.text = Localization.Get(395).ToUpperInvariant();
+            back.text = Localization.Get(179).UiCaps();
+            skip.text = Localization.Get(395).UiCaps();
             confirmText.text = Localization.Get(396);
-            confirmYes.text = Localization.Get(134).ToUpperInvariant();
-            confirmNo.text = Localization.Get(135).ToUpperInvariant();
+            confirmYes.text = Localization.Get(134).UiCaps();
+            confirmNo.text = Localization.Get(135).UiCaps();
             // With a controller every button shows its glyph (remake: nothing showed that Y skips).
             PadGlyph(back, PadButton.B);
             PadGlyph(skip, PadButton.Y);
@@ -134,7 +134,7 @@ namespace GoF2Remake.UI
             autoGlyph.AddToClassList("dialogue-pad-glyph");
             autoGlyph.pickingMode = PickingMode.Ignore;
             auto.Add(autoGlyph);
-            var autoLabel = new Label(Localization.Extra("dialogueAuto", "AUTO"));
+            var autoLabel = new Label(Localization.Extra("dialogueAuto", "AUTO").OgCase());
             autoLabel.AddToClassList("dialogue-auto-label");
             autoLabel.AddToClassList("gof-semibold");
             autoLabel.pickingMode = PickingMode.Ignore;
@@ -209,7 +209,7 @@ namespace GoF2Remake.UI
         void LoadPage()
         {
             var p = pages[page];
-            string who = (p.agentName ?? StoryTable.SpeakerName(p.speaker)).ToUpperInvariant();
+            string who = (p.agentName ?? StoryTable.SpeakerName(p.speaker)).UiCaps();
             speaker.text = who;
             bool alien = p.agentName == null && StoryTable.UsesAlienFont(p.speaker);
             AlienText.Set(text, p.text, alien);
@@ -236,7 +236,7 @@ namespace GoF2Remake.UI
             skip.EnableInClassList("dialogue-button--hidden", message || pages.Count <= 1);
             auto.EnableInClassList("dialogue-button--hidden", message || pages.Count <= 1);
             RefreshAuto();
-            nextLabel.text = (message ? Localization.Get(524) : Localization.Get(last ? 181 : 180)).ToUpperInvariant();
+            nextLabel.text = (message ? Localization.Get(524) : Localization.Get(last ? 181 : 180)).UiCaps();
             pauseMs = 0f;
             PageShown?.Invoke(p.textId);
             if (voice != null)

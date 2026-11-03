@@ -177,7 +177,7 @@ namespace GoF2Remake.UI
             bool sys = systemView || zoomDir > 0;
             if (zoomButton != null)
             {
-                zoomButton.text = overview ? Localization.Extra("mapCloseUp", "CLOSE UP") : Localization.Extra("mapFullMap", "FULL MAP");
+                zoomButton.text = overview ? Localization.Extra("mapCloseUp", "CLOSE UP").OgCase() : Localization.Extra("mapFullMap", "FULL MAP").OgCase();
                 bool zoomShown = !sys && !revealing && builder == null;   // the builder's map: none of the map's own buttons
                 zoomButton.style.display = zoomShown ? DisplayStyle.Flex : DisplayStyle.None;
                 // Both push to the right edge: the Key button sits right after the Full map button while that shows.
@@ -191,7 +191,7 @@ namespace GoF2Remake.UI
             string X(string key, string english) => Localization.Extra(key, english);
             string select = X("hudSelect", "SELECT"), back = X("hudBack", "BACK"), confirm = X("hudConfirm", "CONFIRM");
             string zoom = X("mapZoomIn", "ZOOM IN"), moveText = X("mapMove", "MOVE"), turn = X("mapTurn", "TURN");
-            string key = T(400).ToUpperInvariant();
+            string key = T(400).UiCaps();
             if (DialogOpen)
             {
                 if (kind == InputKind.KeyboardMouse)
@@ -241,7 +241,7 @@ namespace GoF2Remake.UI
             keys.AddToClassList("hint-keys");
             foreach (var g in glyphs) keys.Add(g);
             h.Add(keys);
-            var l = new Label(label) { pickingMode = PickingMode.Ignore };
+            var l = new Label(label.OgCase()) { pickingMode = PickingMode.Ignore };
             l.AddToClassList("hint-label");
             l.AddToClassList("gof-semibold");
             h.Add(l);

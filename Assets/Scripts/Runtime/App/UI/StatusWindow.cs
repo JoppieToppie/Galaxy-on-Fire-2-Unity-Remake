@@ -43,11 +43,11 @@ namespace GoF2Remake.UI
             grid = root.Q("medalGrid");
             hint = root.Q<Label>("medalHint");
             close = root.Q<Button>("statusClose");
-            close.text = Localization.Extra("hudBack", "BACK");
+            close.text = Localization.Extra("hudBack", "BACK").OgCase();
             close.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
             close.clicked += () => { menu.PlayRelease(); Close(); };
-            root.Q<Label>("statusTitle").text = T(169).ToUpperInvariant();
-            root.Q<Label>("medalsTitle").text = T(168).ToUpperInvariant();
+            root.Q<Label>("statusTitle").text = T(169).UiCaps();
+            root.Q<Label>("medalsTitle").text = T(168).UiCaps();
             // Modified: as the Missions window: two tabs, Status and Medals, in place of the title (one page at a time), and a
             // "?" beside Back with the help of the tab shown (640 / 641 the status, 647 the medals; the hint box under the
             // medals now shows only a picked medal's hint). The medals' own title gives way to their tab.
@@ -82,9 +82,9 @@ namespace GoF2Remake.UI
         /// (StationMenu.RefreshTexts on Localization.Changed). What Open / Build writes already reads it as it goes.</summary>
         public void RefreshTexts()
         {
-            close.text = Localization.Extra("hudBack", "BACK");
-            if (statusTab != null) statusTab.text = T(169).ToUpperInvariant();
-            if (medalsTab != null) medalsTab.text = T(168).ToUpperInvariant();
+            close.text = Localization.Extra("hudBack", "BACK").OgCase();
+            if (statusTab != null) statusTab.text = T(169).UiCaps();
+            if (medalsTab != null) medalsTab.text = T(168).UiCaps();
             if (IsOpen) { Build(); ShowTab(showMedals); }
         }
 
@@ -325,7 +325,7 @@ namespace GoF2Remake.UI
 
         static Label Plate(VisualElement parent, string text)
         {
-            var l = new Label(text.ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
+            var l = new Label(text.UiCaps()) { pickingMode = PickingMode.Ignore };
             l.AddToClassList("status-plate");
             l.AddToClassList("gof-semibold");
             parent.Add(l);
@@ -340,7 +340,7 @@ namespace GoF2Remake.UI
 
         Button TabButton(string text, bool medals)
         {
-            var b = new Button { text = text.ToUpperInvariant() };
+            var b = new Button { text = text.UiCaps() };
             b.AddToClassList("missions-tab");
             b.AddToClassList("gof-semibold");
             b.clicked += () => { menu.PlayRelease(); ShowTab(medals); };
