@@ -96,7 +96,8 @@ namespace GoF2Remake.UI
         static string MenuLabel(int index, string text)
         {
             text = text.UiCaps();
-            return InputMode.Current == InputKind.KeyboardMouse && index < 8 ? $"{index + 1}. {text}" : text;
+            // Interface style Original: numbered with every input, as the original's menu windows.
+            return (InputMode.Current == InputKind.KeyboardMouse || Settings.OriginalUi) && index < 8 ? $"{index + 1}. {text}" : text;
         }
         void CloseAutopilotMenu()
         {

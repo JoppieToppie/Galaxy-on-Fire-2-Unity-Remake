@@ -473,6 +473,10 @@ namespace GoF2Remake.UI
                     else if (Modding.ModBuilder.PlayTesting)   // a play test: back to the builder's hangar
                         Item(Localization.Extra("mbBackToBuilder", "Back to Mod Builder").UiCaps(), () => { Close(); ModBuilderPlay.End(); });
                     else Item(T(522), () => Show(Page.Quit));
+                    // Interface style Original: the entries numbered "1.", "2.", ... like the original's menu windows.
+                    if (Settings.OriginalUi)
+                        for (int i = 0; i < items.Count; i++)
+                            if (items[i] is Button nb) nb.text = $"{i + 1}. {nb.text}";
                     break;
                 case Page.Photo:
                     backdrop.RemoveFromClassList("pause-backdrop--shown");
