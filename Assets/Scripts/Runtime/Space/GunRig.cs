@@ -1,7 +1,7 @@
 // GunRig.cs
 // The visuals of one Gun (weapons.md 5): a projectile instance per bullet slot (ObjectGun), the muzzle flash on the
 // mount, a small pool of impact effects. Plain C#, shared by the player's WeaponSystem and the NPC ships.
-// Blasters and thermo guns face the camera; lasers, cannons and rockets point along their flight. Projectiles shrink over
+// Blasters, thermo guns and turrets face the camera; lasers, cannons and rockets point along their flight. Projectiles shrink over
 // their last 1000 ms (Gun.VisualScale). Effects never cast shadows or cull by LOD.
 // Beams (BeamGun::update 0x1a6b04): one mesh 1 unit long along +Z, scaled (1, 1, beam length) along the direction chosen
 // at fire time, following the mount, its animation restarted per shot and hidden when it ends. Mines are drawn at x0.7
@@ -60,7 +60,9 @@ namespace GoF2Remake.Flight
             this.fxRoot = fxRoot;
             ship = muzzleParent;
             if (gun.echo != null) gun.Echoed += ShowEcho;
-            billboard = gun.kind == Gun.Kind.Blaster || gun.kind == Gun.Kind.Thermo;
+            // ObjectGun::ObjectGun 0x18c020: +0x4c = (0x85 >> (sort - 1)) & 1, i.e. blasters (1), thermo guns (3) and turrets (8)
+            // take the camera's rotation in ObjectGun::render (turret shots were drawn along their flight, edge-on: flat).
+            billboard = gun.kind == Gun.Kind.Blaster || gun.kind == Gun.Kind.Thermo || gun.kind == Gun.Kind.Turret;
             projectiles = new Transform[gun.bullets.Length];
             if (fx != null && fx.projectile != null)
                 for (int i = 0; i < projectiles.Length; i++)
