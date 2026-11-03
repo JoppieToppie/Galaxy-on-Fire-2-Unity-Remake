@@ -496,6 +496,12 @@ namespace GoF2Remake.UI
             // Remake: a conversation in flight doesn't pause the game (Navigation.ConversationRuns; the story level holds).
             list.Add(Toggle("playOnInConversations", OptionPage.Gameplay, () => X("playOnInConversations", "Game runs in conversations"),
                 () => Settings.PlayOnInConversations, v => Settings.PlayOnInConversations = v));
+            // Remake (Navigation.SetFastForward): single player's held fast-forward as the original's time speedup or as
+            // multiplayer's cruise, where only your ship speeds up.
+            list.Add(Choice("fastForwardMode", OptionPage.Gameplay, () => X("fastForwardMode", "Fast-forward"), true,
+                () => new[] { X("fastForwardTime", "Time speedup"), X("fastForwardCruise", "Ship cruise") },
+                () => Settings.FastForwardCruise ? 1 : 0, i => Settings.FastForwardCruise = i == 1,
+                () => X("fastForwardModeHelp", "Time speedup: the whole game runs 5x while you hold it. Ship cruise: only your ship flies 5x as fast, everything else keeps its pace, as in multiplayer.")));
             // The key and controller button hints everywhere: the flight HUD, the menus' prompt bars, the station, the star map,
             // Inspect ship and Action Freeze (it was "Button hints in flight", though the menus' bars read it too).
             var inputHints = Toggle("inputHints", OptionPage.Gameplay, () => X("inputHints", "Button hints"),

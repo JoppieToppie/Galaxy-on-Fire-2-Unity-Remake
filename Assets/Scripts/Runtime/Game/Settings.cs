@@ -447,6 +447,10 @@ namespace GoF2Remake.Data
         /// nothing fires, the story level holds); off = the original's pause (MGame::OnUpdate halts for the dialogue window).</summary>
         public static bool PlayOnInConversations { get => GetBool("playOnInConversations", false); set => SetBool("playOnInConversations", value); }
 
+        /// <summary>Remake: single player's held fast-forward as multiplayer's cruise (Navigation.Cruise: only the player's ship
+        /// flies 5x, the world keeps its pace); off = the original's time speedup (the whole game 5x). Multiplayer always cruises.</summary>
+        public static bool FastForwardCruise { get => GetBool("fastForwardCruise", false); set => SetBool("fastForwardCruise", value); }
+
         /// <summary>Remake: the dialogue and radio text types in with pacing, shouting, actions and tinted names
         /// (TextReveal); off = the original's plain page at once.</summary>
         public static bool AnimatedDialogue { get => GetBool("animatedDialogue", true); set => SetBool("animatedDialogue", value); }
@@ -613,7 +617,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GameplayKeys =
         {
             "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "cloakBay", "informerOriginalRule",
-            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "smarterNpcTargeting", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
+            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "smarterNpcTargeting", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
             "speedrunPosition", "speedrunLiveSplit",
         };

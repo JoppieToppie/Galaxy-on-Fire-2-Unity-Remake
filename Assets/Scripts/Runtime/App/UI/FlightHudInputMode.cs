@@ -140,9 +140,9 @@ namespace GoF2Remake.UI
                 Hint(T("hudTurretExit", "CHASE VIEW"), GameControls.Camera);
                 return;
             }
-            // Multiplayer: the held button is a cruise mode (Navigation.Cruise), not a fast-forward.
-            // Between the systems it is the drive's.
-            string ff = (NetSession.Active || (nav != null && nav.Interstellar) ? T("hudCruise", "CRUISE") : T("hudFastForward", "FAST FORWARD")) + " (" + T("hudHold", "HOLD") + ")";
+            // Multiplayer (or single player with Options > Gameplay "Fast-forward" = Ship cruise): the held button is a cruise
+            // mode (Navigation.Cruise), not a fast-forward. Between the systems it is the drive's.
+            string ff = (NetSession.Active || Settings.FastForwardCruise || (nav != null && nav.Interstellar) ? T("hudCruise", "CRUISE") : T("hudFastForward", "FAST FORWARD")) + " (" + T("hudHold", "HOLD") + ")";
             if (lastAutopilot)
             {
                 // Autopilot: throttle, boost and guns still work; fast-forward is held. Off: the autopilot key, or the
