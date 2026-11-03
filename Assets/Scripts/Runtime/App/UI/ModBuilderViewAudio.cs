@@ -277,7 +277,7 @@ namespace GoF2Remake.UI
             playing = path;
             ModAudio.Load(mod, path, clip =>
             {
-                if (playing != path || clip == null) { if (clip == null) Status(T("mbAudioUnreadable", "The file couldn't be played."), true); return; }
+                if (playing != path || clip == null) { if (clip == null) Status(T("mbAudioUnreadable", "The file couldn't be played.") + (ModAudio.LastError != null ? " (" + ModAudio.LastError + ")" : ""), true); return; }
                 EnsurePreviewSource();
                 level.MusicHeld = true;
                 audioPreview.clip = clip;
