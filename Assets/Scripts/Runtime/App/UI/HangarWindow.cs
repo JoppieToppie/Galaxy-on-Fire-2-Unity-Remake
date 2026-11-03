@@ -42,8 +42,8 @@ namespace GoF2Remake.UI
 {
     public partial class HangarWindow
     {
-        public enum Tab { Ship, Shop, Blueprints }
-        enum RowKind { Header, ShopItem, ShopShip, OwnShip, Slot, CargoItem, Blueprint, Pending, Ingredient, Autocomplete, StoredShip, ShopLink, Complete }
+        public enum Tab { Ship, Shop, Blueprints, Ships }   // Ships: the Kaamo Club VIP Card's tab (HangarWindowKaamoVip)
+        enum RowKind { Header, ShopItem, ShopShip, OwnShip, Slot, CargoItem, Blueprint, Pending, Ingredient, Autocomplete, StoredShip, ShopLink, Complete, VipCard }
 
         class Row
         {
@@ -202,6 +202,7 @@ namespace GoF2Remake.UI
             ogTitle = new Label { pickingMode = PickingMode.Ignore };
             ogTitle.AddToClassList("hangar-og-title");
             closeTop.Insert(0, ogTitle);
+            BuildVipTools(root);   // remake: the Kaamo Club VIP Card's Ships tab, search box and sort button
             ogInfo = new Label { pickingMode = PickingMode.Ignore };
             ogInfo.AddToClassList("hangar-og-info");
             details.Insert(0, ogInfo);
@@ -389,6 +390,7 @@ namespace GoF2Remake.UI
             tabBlueprints.text = T(272);
             if (closeButton != null) closeButton.text = Localization.Extra("hudBack", "BACK").OgCase();
             if (detailDescTitle != null) detailDescTitle.text = Localization.Get(280).UiCaps();
+            RefreshVipTexts();
             if (IsOpen)
             {
                 // Not SetTab: it commits pending trades and auto-equips (game actions, not a re-label). Rebuild only lays
@@ -404,6 +406,7 @@ namespace GoF2Remake.UI
             PlaceBack();
             hangar = new Hangar(level.Database, level.Stock);   // prices are recomputed on every open, like the original
             tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).UiCaps();   // "Store" at the owned club
+            ResetVipTools();
             ClearBlueprintShopHighlight();
             selected = null;
             tabScroll.Clear();
@@ -448,6 +451,7 @@ namespace GoF2Remake.UI
             if (!IsOpen) return;
             AutoEquip();
             if (HasPending) Revert();
+            if (searchFocused) { searchField.Blur(); SetSearchFocus(false); }
             IsOpen = false;
             ClearBlueprintShopHighlight();
             editing = -1;
@@ -486,6 +490,7 @@ namespace GoF2Remake.UI
 
         public void SetTab(Tab t)
         {
+            if (t == Tab.Ships && !VipTools) return;   // the VIP Card's tab, only with its perks at the club
             if (tab == t && rows.Count > 0 && editing < 0) return;
             if (tab == Tab.Shop && t != Tab.Shop) ClearBlueprintShopHighlight();
             // Confirm freight for the entire pending shipment before leaving the recipe.

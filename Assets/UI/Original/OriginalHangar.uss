@@ -1186,3 +1186,45 @@
 .ui-style-original .window-help {
     scale: 0.7 0.7;
 }
+
+/* Remake, the Kaamo Club VIP Card (HangarWindowKaamoVip): the storage's search box and sort button between the title and
+   the tabs, sized to the 30 px bar; the sort button the small steel button. */
+.ui-style-original .hangar-window > .hangar-top > .hangar-tools {
+    align-self: center;
+    margin: 0 10px 0 6px;
+}
+
+.ui-style-original .hangar-search .unity-base-text-field__input {
+    min-height: 24px;
+    height: 24px;
+    padding: 0 10px;
+    font-size: var(--text-caption);
+}
+
+.ui-style-original .hangar-sort {
+    height: 24px;
+    min-height: 24px;
+    padding: 0 14px;
+    border-width: 0;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+    background-image: url("project://database/Assets/UI/Original/og_hg_steel.png");
+    -unity-slice-left: 6;
+    -unity-slice-right: 6;
+    -unity-slice-top: 6;
+    -unity-slice-bottom: 6;
+    -unity-slice-scale: 0.5px;
+    font-size: var(--text-caption);
+    -unity-font-style: normal;
+    color: #FFFFFF;
+}
+
+.ui-style-original .can-hover .hangar-sort:hover,
+.ui-style-original.can-hover .hangar-sort:hover,
+.ui-style-original .hangar-sort:active {
+    background-image: url("project://database/Assets/UI/Original/og_hg_steel_on.png");
+}
+
+.ui-style-original .row-badge--kaamo {
+    border-width: 1px;
+}

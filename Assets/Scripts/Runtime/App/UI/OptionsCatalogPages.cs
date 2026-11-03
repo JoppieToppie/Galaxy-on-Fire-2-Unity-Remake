@@ -462,6 +462,12 @@ namespace GoF2Remake.UI
                 () => Settings.KaamoKeepsEquipment, v => Settings.KaamoKeepsEquipment = v);
             kaamoGear.description = () => X("kaamoKeepsEquipmentHelp", "A ship parked in the Kaamo Club keeps its weapons and equipment.");
             list.Add(SessionRule(kaamoGear));
+            // Remake (players' suggestion): the Kaamo Club VIP Card's shop tools (KaamoClub.VipFeatures): search, sorting, a Ships
+            // tab in the club's storage, a Kaamo marker on dealers' ships already stored there.
+            list.Add(Choice("kaamoVip", OptionPage.Gameplay, () => X("kaamoVip", "Kaamo Club VIP Card"), false,
+                () => new[] { X("kaamoVipCard", "Buy at the club"), X("kaamoVipAlways", "Always on"), X("kaamoVipOff", "Off") },
+                () => Settings.KaamoVipMode, i => Settings.KaamoVipMode = i,
+                () => X("kaamoVipOptionHelp", "The VIP Card adds a search box and sorting to the Kaamo Club's Store, a Ships tab for your stored ships, and a Kaamo marker on ships you already keep there. Buy at the club: the card is sold in the Store tab. Always on: no card needed. Off: the original club.")));
             var cloakBay = Toggle("cloakBay", OptionPage.Gameplay, () => X("cloakBay", "Cloak bay on cloaking ships"),
                 () => Settings.CloakBay, v => Settings.CloakBay = v);
             cloakBay.description = () => X("cloakBayHelp", "On the Specter and Scimitar a mounted cloak takes no equipment slot.");

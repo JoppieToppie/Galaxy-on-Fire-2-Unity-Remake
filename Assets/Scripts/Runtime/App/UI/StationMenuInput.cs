@@ -336,7 +336,12 @@ namespace GoF2Remake.UI
                 string select = T("hudSelect", "SELECT"), trade = ingredients ? $"{T("shopTake", "TAKE")} / {T("bpAdd", "ADD")}"
                                                                 : store ? $"{T("shopStore", "STORE")} / {T("shopTake", "TAKE")}"
                                                                         : $"{T("shopSell", "SELL")} / {T("shopBuy", "BUY")}";
-                string tabs = $"{Localization.Get(183)} / {Localization.Get(store ? 186 : 185)} / {Localization.Get(272)}".UiCaps(), confirm = T("hudConfirm", "CONFIRM");
+                // Remake: the Kaamo Club VIP Card's Ships tab, search and sort (HangarWindowKaamoVip).
+                bool vip = hangarWindow != null && hangarWindow.VipTools;
+                string tabs = (vip ? $"{Localization.Get(183)} / {Localization.Get(186)} / {Localization.Get(173)} / {Localization.Get(272)}"
+                                   : $"{Localization.Get(183)} / {Localization.Get(store ? 186 : 185)} / {Localization.Get(272)}").UiCaps(), confirm = T("hudConfirm", "CONFIRM");
+                string searchHint = T("hudSearch", "SEARCH"), sortHint = T("hudSort", "SORT");
+                bool searchTab = hangarWindow != null && hangarWindow.SearchTab;
                 string sellShip = T("kaamoSellShip", "SELL SHIP");
                 // Remake: the Ship tab's X moves a mounted item to its next slot (HangarWindow.SecondaryAction).
                 bool shipTab = hangarWindow != null && hangarWindow.ShipTab;
@@ -351,6 +356,7 @@ namespace GoF2Remake.UI
                     Hint(info, InputGlyph.Key("I"));
                     if (store) Hint(sellShip, InputGlyph.Key("X"));
                     if (shipTab) Hint(move, InputGlyph.Key("X"));
+                    if (searchTab) { Hint(searchHint, InputGlyph.Key("F")); Hint(sortHint, InputGlyph.Key("R")); }
                     Hint(T("hudBack", "BACK"), InputGlyph.Key("ESC"));
                 }
                 else if (kind == InputKind.Gamepad)
@@ -362,6 +368,7 @@ namespace GoF2Remake.UI
                     Hint(info, InputGlyph.Pad(PadButton.Y));
                     if (store) Hint(sellShip, InputGlyph.Pad(PadButton.X));
                     if (shipTab) Hint(move, InputGlyph.Pad(PadButton.X));
+                    if (searchTab) { Hint(searchHint, InputGlyph.Pad(PadButton.RightStickPress)); Hint(sortHint, InputGlyph.Pad(PadButton.LeftStickPress)); }
                     Hint(T("hudBack", "BACK"), InputGlyph.Pad(PadButton.B));
                 }
                 return;

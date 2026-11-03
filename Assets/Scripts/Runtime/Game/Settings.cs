@@ -451,6 +451,12 @@ namespace GoF2Remake.Data
         /// flies 5x, the world keeps its pace); off = the original's time speedup (the whole game 5x). Multiplayer always cruises.</summary>
         public static bool FastForwardCruise { get => GetBool("fastForwardCruise", false); set => SetBool("fastForwardCruise", value); }
 
+        /// <summary>Remake (players' suggestion): the Kaamo Club VIP Card's shop tools (KaamoClub.VipFeatures): KaamoVipCard =
+        /// the card is bought in the club's Store tab (default), KaamoVipAlways = on without it, KaamoVipOff = never (the
+        /// original's club).</summary>
+        public static int KaamoVipMode { get => Mathf.Clamp(Mathf.RoundToInt(Get("kaamoVip", KaamoVipCard)), 0, 2); set => Set("kaamoVip", Mathf.Clamp(value, 0, 2)); }
+        public const int KaamoVipCard = 0, KaamoVipAlways = 1, KaamoVipOff = 2;
+
         /// <summary>Remake: the dialogue and radio text types in with pacing, shouting, actions and tinted names
         /// (TextReveal); off = the original's plain page at once.</summary>
         public static bool AnimatedDialogue { get => GetBool("animatedDialogue", true); set => SetBool("animatedDialogue", value); }
@@ -616,7 +622,7 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] GameplayKeys =
         {
-            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "cloakBay", "informerOriginalRule",
+            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule",
             "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "smarterNpcTargeting", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
             "speedrunPosition", "speedrunLiveSplit",

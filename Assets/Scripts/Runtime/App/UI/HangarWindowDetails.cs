@@ -35,6 +35,7 @@ namespace GoF2Remake.UI
             tradeBox.RemoveFromClassList("trade-box--ingredient");
             if (selected == null) return;
             string T(int id) => Localization.Get(id);
+            if (selected.kind == RowKind.VipCard) { ShowVipDetails(); return; }   // remake: the Kaamo Club VIP Card
 
             int item = selected.kind == RowKind.Slot && selected.equipment >= 0 ? Session.Equipment[selected.equipment].item : selected.item;
             if (item >= 0 && tab == Tab.Blueprints)

@@ -78,12 +78,13 @@ namespace GoF2Remake.UI
             list.scrollOffset = new Vector2(list.scrollOffset.x, t * ListScrollMax);
             UpdateListBar();
         }
-        public void NextTab() => SetTab(tab == Tab.Ship ? Tab.Shop : tab == Tab.Shop ? Tab.Blueprints : Tab.Ship);
-        public void PrevTab() => SetTab(tab == Tab.Ship ? Tab.Blueprints : tab == Tab.Shop ? Tab.Ship : Tab.Shop);
+        public void NextTab() => SetTab(StepTab(1));
+        public void PrevTab() => SetTab(StepTab(-1));
         // ---- list --------------------------------------------------------------------------------------------
         void Rebuild()
         {
             if (!IsOpen) return;
+            UpdateVipTools();   // remake: the VIP Card's Ships tab and tools (a Ships tab without them falls back to the Store)
             tabShip.EnableInClassList("hangar-tab--active", tab == Tab.Ship);
             tabShop.EnableInClassList("hangar-tab--active", tab == Tab.Shop);
             tabBlueprints.EnableInClassList("hangar-tab--active", tab == Tab.Blueprints);
@@ -101,10 +102,15 @@ namespace GoF2Remake.UI
             {
                 if (hangar.Storage)
                 {
-                    // Station::getShips(108): the parked hulls.
-                    if (Session.KaamoShips.Count > 0) AddHeader(T(173));
-                    for (int i = 0; i < Session.KaamoShips.Count; i++)
-                        AddRow(new Row { kind = RowKind.StoredShip, ship = Session.KaamoShips[i].ship, equipment = i });
+                    // Remake: the Kaamo Club VIP Card, for sale at the top of the Store (HangarWindowKaamoVip).
+                    if (KaamoClub.VipForSale) AddRow(new Row { kind = RowKind.VipCard });
+                    // Station::getShips(108): the parked hulls (remake: in the Ships tab with the VIP Card's perks).
+                    if (!VipTools)
+                    {
+                        if (Session.KaamoShips.Count > 0) AddHeader(T(173));
+                        for (int i = 0; i < Session.KaamoShips.Count; i++)
+                            AddRow(new Row { kind = RowKind.StoredShip, ship = Session.KaamoShips[i].ship, equipment = i });
+                    }
                 }
                 else if (hangar.Stock.ships.Count > 0)
                 {
@@ -112,14 +118,19 @@ namespace GoF2Remake.UI
                     foreach (int s in hangar.Stock.ships) AddRow(new Row { kind = RowKind.ShopShip, ship = s });
                 }
                 var items = hangar.ShopItems();
+                int listed = 0;
                 for (int type = 0; type <= 4; type++)
                 {
-                    var ofType = items.Where(i => hangar.TypeOf(i) == type).ToList();
+                    // Remake: with the VIP Card's perks the storage's search and order (SortItems keeps the list's own without).
+                    var ofType = SortItems(items.Where(i => hangar.TypeOf(i) == type && ItemMatches(i)));
                     if (ofType.Count == 0) continue;
                     AddHeader(T(typeHeaders[type]));
                     foreach (int i in ofType) AddRow(new Row { kind = RowKind.ShopItem, item = i, type = type });
+                    listed += ofType.Count;
                 }
+                if (listed == 0 && VipTools && search.Length > 0) AddNote(NoMatchText());
             }
+            else if (tab == Tab.Ships) AddStoredShipsTab();   // remake: the VIP Card's Ships tab
             else if (tab == Tab.Blueprints)
             {
                 var db = level.Database;
@@ -201,10 +212,11 @@ namespace GoF2Remake.UI
             UpdateFooter();
             // Remake: the key hints say TAKE / ADD in the ingredients view (StationMenu.BuildHints asks EditingBlueprint), and
             // MOVE on the Ship tab (ShipTab).
-            if (hintsForIngredients != EditingBlueprint || hintsForShipTab != ShipTab)
+            if (hintsForIngredients != EditingBlueprint || hintsForShipTab != ShipTab || hintsForVip != SearchTab)
             {
                 hintsForIngredients = EditingBlueprint;
                 hintsForShipTab = ShipTab;
+                hintsForVip = SearchTab;   // SEARCH / SORT
                 menu.RefreshCredits();   // rebuilds the hints
             }
         }
@@ -379,11 +391,16 @@ namespace GoF2Remake.UI
                     price.text = ItemInfo.Credits(hangar.StoredPrice(row.equipment));   // the sell value
                     break;
                 }
+                case RowKind.VipCard:
+                    FillVipRow(e, name, subText, price, out tex);
+                    break;
                 case RowKind.ShopShip:
                 {
                     tex = ItemInfo.ShipIcon(row.ship);
                     name.text = ItemInfo.TaggedShipName(row.ship);
                     subText.text = ItemInfo.ShipRaceText(row.ship) + (hangar.Stock.ModsOf(row.ship).Count > 0 ? "  (+)" : "");
+                    // Remake (the VIP Card): a type already parked at the Kaamo Club carries the map's house.
+                    if (MarkAtKaamo(row.ship)) sub.Add(KaamoBadge());
                     int delta = hangar.BuyShipPrice(row.ship) - hangar.ShipPrice(Session.ShipIndex);   // trade-in difference
                     // Remake: the ship's own price on the row (the buy button still shows what it costs after the trade-in);
                     // red while the trade-in difference is more than the credits.
@@ -517,7 +534,7 @@ namespace GoF2Remake.UI
                 sub.AddToClassList("row-sub--trailing");
             }
             // Remake: the price beside the name ("Name | 354$") instead of at the row's right edge; ships keep it there.
-            bool shipPrice = row.kind == RowKind.ShopShip || row.kind == RowKind.StoredShip;
+            bool shipPrice = row.kind == RowKind.ShopShip || row.kind == RowKind.StoredShip || row.kind == RowKind.VipCard;
             if (price.text.Length > 0 && !shipPrice)
             {
                 var nameLine = new VisualElement { pickingMode = PickingMode.Ignore };
