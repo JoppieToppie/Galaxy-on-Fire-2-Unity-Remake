@@ -102,6 +102,9 @@ namespace GoF2Remake.Flight
         public bool modCapital;            // remake mods: a mod's capital ship or freighter (Modding.ModCapitalShips): its own
                                            // model and boxes, its turret items armed even parked, no wreck
         public Modding.NpcShipType npcType;   // remake mods: its NPC ship type (npcships.json, TrafficPlan.ApplyNpcType), null = none
+        /// <summary>Remake mods: its NPC ship type's size (npcships.json "scale"): its collision boxes, hit radius, hardpoints and
+        /// docking pads scale with it (the model by 'scale', set with it in ApplyNpcType). 1 = none.</summary>
+        public float HullScale => npcType != null && npcType.scale > 0f ? npcType.scale : 1f;
         public SpawnSpec escortLeader;     // ... a freighter's escort: follows it (NpcOrder Follow, Traffic.Create) ...
         public Vector3 escortOffset;       // ... at this offset (game units: right, up, forward)
         public const int CapitalBattleship = 1, CapitalCarrier = 2, CapitalVossk = 3, CapitalMod = 4;   // CapitalMod: a mod's type

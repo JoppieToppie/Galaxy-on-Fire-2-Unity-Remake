@@ -1150,6 +1150,9 @@ edits them in space, the hull beside the orbit's station with its hardpoints and
 - **The hull**: `"ship"`, a `ships.json` ship (a number or `"mod:id"`: a hull you made for it, which needs no dealer and is
   then never sold; for a capital ship or freighter also the game's 13, 14, 15), or `"looksLike"` a game NPC ship's hull
   (`"battleship"`, `"carrier"`, `"vossk_battleship"`, `"freighter"`: the race's). Without either: the kind's game hull.
+- **`scale`**: its size, x the hull's (1; 0.05 to 10). The model, its collision boxes, its hardpoints, the game hull's turrets
+  and its docking pads all grow with it, so positions stay in the hull's own size: a carrier at `"scale": 2` keeps its
+  pads where they were on the deck. In the Mod Builder: Size, and "Compare with…" to park another hull beside it.
   An override's `"ship"` gives the game's ship your hull (the game's turrets and pads then leave it: give it hardpoints and
   pads of its own).
 - **`name`** (or per language, `npcships.<id>.name` in `text/<lang>.json`) is on its lock plate. **`race`**: a game race

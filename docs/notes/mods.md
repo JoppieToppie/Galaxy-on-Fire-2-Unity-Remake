@@ -368,8 +368,11 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   `AddNpcType` (a host by `NpcHost`: a mod hull through `ModCapitalShips.Spawn`, a game freighter / battleship hull, a boss
   as the pirate boss; a game capital hull by `AddCapitalHull`, split out of `AddCapitalShipAt`, its turrets enhanced like
   `CapitalShips.Enhance`'s), `ApplyNpcType` (name, side, hull / hullFactor, gunFactor on its turrets, speed, explosion,
-  hardpoints drop the hull's turret specs, escorts, loot, dock, `SpawnSpec.CapitalMod` 4 + `capitalEnhanced` when
-  `NeedsCapitalShip`), `AddNpcEscorts` (a capital ship's `NpcLoop` round it, scaled to a mod hull; a freighter's
+  hardpoints drop the hull's turret specs, `scale` (2026-11-03: `host.scale` x it, the game hull's turret specs moved out
+  from its centre and scaled; `SpawnSpec.HullScale` (from `npcType`) scales its `CollisionVolume.Scaled` boxes and hit
+  radius in `NpcShip.Setup`, `CapitalSubsystems`' points / sizes / radii, `ObjectDocking.NearestPoints`' and
+  `CapitalShip`'s pads, the escort loop, `CapitalRetreat`'s length and the spawn point's clearance), escorts, loot, dock,
+  `SpawnSpec.CapitalMod` 4 + `capitalEnhanced` when `NeedsCapitalShip`), `AddNpcEscorts` (a capital ship's `NpcLoop` round it, scaled to a mod hull; a freighter's
   `SpawnSpec.escortLeader` / `escortOffset` = an `NpcOrder` Follow with fight, given in `Traffic.Create`; the game's
   escorts of the host removed), `RollNpcLoot` (rolled at plan time into lootItem + extraLoot; `keep` = the game's roll
   too; a capital ship's own crate is `CapitalShip.Attach`'s, skipped or merged), `AddModNpcShips` (new types by `spawn`,

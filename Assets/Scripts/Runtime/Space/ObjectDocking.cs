@@ -196,13 +196,14 @@ namespace GoF2Remake.Flight
             bool found = false, free = false;
             takenPoint = -1;
             var local = target.transform.InverseTransformPoint(ship.transform.position);
+            float k = target.Spec.HullScale;   // remake mods: an NPC ship type's size moves its pads with its hull
             for (int i = 0; i < points.Count; i++)
             {
                 var p = points[i];
                 if (p.type != SpacePoints.Approach) continue;
                 bool isFree = !SpacePoints.IsTaken(target.transform, i);
                 if (free && !isFree) continue;
-                var l = ToLocal(p.engine);
+                var l = ToLocal(p.engine) * k;
                 float d = (l - local).sqrMagnitude;
                 if (d < best || (isFree && !free)) { best = d; approachLocal = l; found = true; free = isFree; takenPoint = isFree ? i : -1; }
             }
@@ -212,7 +213,7 @@ namespace GoF2Remake.Flight
             foreach (var p in points)
             {
                 if (p.type != SpacePoints.Dock) continue;
-                var l = ToLocal(p.engine);
+                var l = ToLocal(p.engine) * k;
                 float d = (l - approachLocal).sqrMagnitude;
                 if (d < best) { best = d; dockLocal = l; dockDirLocal = SpacePoints.DirToLocal(p.dir); found = true; }
             }

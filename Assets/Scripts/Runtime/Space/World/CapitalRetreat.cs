@@ -109,6 +109,6 @@ namespace GoF2Remake.World
         }
 
         /// <summary>The ship's length along its bow in metres (ModTraffic.HullLength).</summary>
-        float Length() => Mathf.Max(FxMeters, Modding.ModTraffic.HullLength(host.Spec.ship));
+        float Length() => Mathf.Max(FxMeters, Modding.ModTraffic.HullLength(host.Spec.ship) * host.Spec.HullScale);
     }
 }

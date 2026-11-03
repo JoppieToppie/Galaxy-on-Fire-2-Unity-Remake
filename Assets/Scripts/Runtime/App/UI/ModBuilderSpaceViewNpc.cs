@@ -6,7 +6,9 @@
 // its launches. The hull shows beside the orbit's station (its model as the orbit would build it: Traffic.AssemblyOf) with
 // its hardpoints (cyan turrets, amber objects and hangars) and docking pads (red) as the hangar's gizmo draws them
 // (World.ModBuilderGizmo): a ball drags over the hull or along its arrows; with "Click the hull to add" on, a click on the
-// hull adds one there. Positions are game units in the ship's frame like ships.json's mounts.
+// hull adds one there. Positions are game units in the ship's frame like ships.json's mounts (at its own size: "scale"
+// grows the hull, its hardpoints and pads together). "Compare with…" parks another hull (a game NPC hull, another of the
+// project's NPC ships, any ship) beside it, at its own size, to see the two side by side.
 
 using System;
 using System.Collections.Generic;
@@ -35,6 +37,13 @@ namespace GoF2Remake.UI
         bool npcDragging;
         /// <summary>What a click on the hull adds: 0 nothing, 1 a turret, 2 a docking pad.</summary>
         int npcPlace;
+        // The hull beside it to compare with: its name, how it is built and its size (null = none).
+        string cmpName;
+        Func<SpawnSpec> cmpSpec;
+        Func<float> cmpScale;
+        GameObject cmpPreview;
+        string cmpKey;
+        float cmpRetryMs;
 
         static string[] NpcKindNames => new[] { T("mbNpcCapital", "Capital ship"), T("mbNpcFreighter", "Freighter"), T("mbNpcBoss", "Boss") };
         static string GameNpcName(string key) => key switch
@@ -73,6 +82,9 @@ namespace GoF2Remake.UI
             if (npcPreview != null) Destroy(npcPreview);
             npcPreview = null;
             npcPreviewKey = null;
+            Destroy(cmpPreview);
+            cmpPreview = null;
+            cmpKey = null;
             if (npcGizmo != null) npcGizmo.Bind(null, null);
         }
 
@@ -325,7 +337,140 @@ namespace GoF2Remake.UI
                 Note(npcPage, T("mbNpcFreighterLooks", "Each race's freighter keeps its own model unless a ship's hull replaces them all."));
             if (ship != null && s.Kind != ModNpcShips.Boss)
                 Note(npcPage, T("mbNpcShipHullNote", "A ship with \"traffic\": { \"capital\" } in ships.json flies on its own too; a ship with no dealer is never sold."));
-            Act(npcPage, T("mbNpcFrame", "Frame the hull"), () => FrameNpc(), "mbv-step");
+            // Its size, as the ships kind's Scale: the model, its boxes, hardpoints and pads (ModNpcShips "scale").
+            Float(npcPage, T("mbNpcScale", "Size (x the hull's)"), s.Scale, ModNpcShips.MinScale, ModNpcShips.MaxScale, v => SetNpcScale(s, v));
+            var srow = Row(npcPage);
+            Add(srow, new Label(T("mbScale", "Scale")), "mbv-inline-label");
+            Act(srow, "−10%", () => SetNpcScale(s, s.Scale / 1.1f), "mbv-step");
+            Act(srow, "+10%", () => SetNpcScale(s, s.Scale * 1.1f), "mbv-step");
+            if (!Mathf.Approximately(s.Scale, 1f)) Act(srow, T("mbNpcOwnSize", "Its own size"), () => SetNpcScale(s, 1f), "mbv-step");
+            if (npcPreview != null)
+            {
+                var b = HullBounds(npcPreview);
+                Note(npcPage, string.Format(T("mbNpcSizeNote", "About {0:0} m long, {1:0} m wide and {2:0} m high. Its hardpoints and docking pads grow with it."),
+                                            b.size.z, b.size.x, b.size.y));
+            }
+            var crow = Row(npcPage);
+            Act(crow, T("mbNpcFrame", "Frame the hull"), () => FrameNpc(), "mbv-step");
+            Act(crow, T("mbNpcCompare", "Compare with…"), PickCompare, "mbv-step");
+            if (cmpName != null)
+            {
+                Act(crow, T("mbNpcCompareOff", "No comparison"), () => { SetCompare(null, null, null); BuildNpcPage(); }, "mbv-step");
+                Note(npcPage, string.Format(T("mbNpcComparing", "Beside it: {0}."), cmpName));
+            }
+        }
+
+        void SetNpcScale(ProjectNpcShip s, float v)
+        {
+            v = Mathf.Clamp(Mathf.Round(v * 100f) / 100f, ModNpcShips.MinScale, ModNpcShips.MaxScale);
+            if (Mathf.Approximately(v, s.Scale)) return;
+            s.Scale = v;
+            MarkDirty();
+            RequestReload(true);
+            ShowNpcPreview(true);
+            BuildNpcPage();
+        }
+
+        // ---- the hull to compare with -------------------------------------------------------------------------------
+
+        /// <summary>"Compare with…": a game NPC hull, another of the project's NPC ships or any ship (the game's, this mod's,
+        /// an enabled mod's; picking one adds no dependency).</summary>
+        void PickCompare()
+        {
+            var choices = new List<(string, Texture2D, Action)>
+            {
+                (T("mbNpcCompareGame", "The game's NPC hulls"), null, null),
+            };
+            void GameHull(string name, Func<SpawnSpec> make) => choices.Add((name, null, () => SetCompare(name, make, () => 1f)));
+            GameHull(GameNpcName(ModNpcShips.Battleship), () => new SpawnSpec { ship = 14, race = 0, freighter = true });
+            GameHull(GameNpcName(ModNpcShips.Carrier), () => new SpawnSpec { ship = -1, fixedObject = "sn_carrier_terran_1" });
+            GameHull(GameNpcName(ModNpcShips.VosskBattleship), () => new SpawnSpec { ship = -1, fixedObject = "sn_battleship_vossk" });
+            GameHull(T("mbNpcTerranFreighter", "Terran freighter"), () => new SpawnSpec { ship = 15, race = 0, freighter = true });
+            GameHull(T("mbNpcVosskFreighter", "Vossk freighter"), () => new SpawnSpec { ship = 13, race = 1, freighter = true });
+            var others = Project.NpcShips.Where(o => o != currentNpc).ToList();
+            if (others.Count > 0)
+            {
+                choices.Add((T("mbNpcCompareOwn", "This mod's NPC ships"), null, null));
+                foreach (var o in others)
+                {
+                    var other = o;
+                    string name = NpcTitle(other);
+                    choices.Add((name, null, () => SetCompare(name, () => PreviewSpec(other, NpcType(other)), () => other.Scale)));
+                }
+            }
+            string group = null;
+            foreach (var e in ModRefs.List(RefKind.Ship, Project))
+            {
+                if (!ModContent.TryResolveShip(e.value, out int ship)) continue;   // another mod's that isn't on
+                if (e.group != group)
+                {
+                    group = e.group;
+                    choices.Add((e.group == ModRefs.GameGroup ? T("mbNpcCompareShips", "The game's ships") : e.own ? string.Format(T("mbFromThisMod", "This mod: {0}"), e.group)
+                                 : string.Format(T("mbNpcCompareMod", "Mod: {0}"), e.group), null, null));
+                }
+                string name = e.name;
+                int n = ship;
+                choices.Add((string.IsNullOrEmpty(e.sub) ? e.name : $"{e.name}\n{e.sub}", RefIcon(RefKind.Ship, e), () => SetCompare(name, () => CompareShipSpec(n), () => 1f)));
+            }
+            ShowPicker(T("mbNpcCompare", "Compare with…"), choices, true);
+        }
+
+        /// <summary>A ship's hull as the orbits build it: the battleship and the freighters as their NPC hulls, any other ship
+        /// (a mod's: its built model, a kit ship one of its builds) as it flies.</summary>
+        static SpawnSpec CompareShipSpec(int ship) => ship == 13 || ship == 14 || ship == 15
+            ? new SpawnSpec { ship = ship, race = ship == 13 ? 1 : 0, freighter = true }
+            : new SpawnSpec { ship = ship, race = 0 };
+
+        void SetCompare(string name, Func<SpawnSpec> spec, Func<float> scale)
+        {
+            cmpName = name;
+            cmpSpec = spec;
+            cmpScale = scale;
+            Destroy(cmpPreview);
+            cmpPreview = null;
+            cmpKey = null;
+            if (spec == null) { FrameNpc(); return; }
+            ShowCompare();
+            FrameNpc();
+            BuildNpcPage();
+        }
+
+        /// <summary>The hull to compare with, built when its look or size changed, parked beside the current one (on the far side
+        /// from the station), its centre level with it.</summary>
+        void ShowCompare()
+        {
+            if (cmpSpec == null || npcPreview == null) { Destroy(cmpPreview); cmpPreview = null; cmpKey = null; return; }
+            var spec = cmpSpec();
+            float k = Mathf.Clamp(cmpScale?.Invoke() ?? 1f, ModNpcShips.MinScale, ModNpcShips.MaxScale);
+            var entry = spec != null ? Traffic.AssemblyOf(Database.Shared, spec) : null;
+            string key = (entry?.name ?? "?") + "|" + k;
+            if (key != cmpKey || cmpPreview == null)
+            {
+                Destroy(cmpPreview);
+                cmpPreview = null;
+                cmpKey = null;
+                var prefab = entry != null ? AssembledObject.LoadPrefab(entry) : null;
+                if (prefab == null) { cmpRetryMs = 500f; return; }   // a mod hull still building: again soon
+                cmpKey = key;
+                cmpPreview = HullModel("Compare preview", prefab, spec.fixedObject != null, k);
+            }
+            var hull = HullBounds(npcPreview);
+            var other = HullBounds(cmpPreview);
+            float gap = Mathf.Max(20f, 0.1f * Mathf.Max(hull.size.x, other.size.x));
+            var want = hull.center + Vector3.left * (hull.extents.x + other.extents.x + gap);
+            cmpPreview.transform.position += want - other.center;
+        }
+
+        /// <summary>A hull's model under a pivot turned as the orbit turns it (a fixed object by its rotation, a ship facing game
+        /// +Z), 'scale' times its size.</summary>
+        static GameObject HullModel(string name, GameObject prefab, bool fixedObject, float scale)
+        {
+            var go = new GameObject(name);
+            go.transform.rotation = fixedObject ? OrbitLayout.RotationToUnity(Vector3.zero) : Quaternion.Euler(0f, 180f, 0f);
+            go.transform.localScale = Vector3.one * scale;
+            var model = UnityEngine.Object.Instantiate(prefab, go.transform, false);
+            model.GetComponent<AssembledObject>()?.SetPlayerVariant(false);
+            return go;
         }
 
         void BuildNpcSide(ProjectNpcShip s, bool isNew, string kind)
@@ -723,7 +868,8 @@ namespace GoF2Remake.UI
             var spec = PreviewSpec(s, NpcType(s));
             var db = Database.Shared;
             var entry = Traffic.AssemblyOf(db, spec);
-            string key = (entry?.name ?? "?") + "|" + s.Ref;
+            float scale = Mathf.Clamp(s.Scale, ModNpcShips.MinScale, ModNpcShips.MaxScale);
+            string key = (entry?.name ?? "?") + "|" + s.Ref + "|" + scale;
             if (key != npcPreviewKey || npcPreview == null)
             {
                 Destroy(npcPreview);
@@ -731,10 +877,8 @@ namespace GoF2Remake.UI
                 var prefab = AssembledObject.LoadPrefab(entry);
                 if (prefab == null) { npcPreviewKey = null; npcRetryMs = 500f; npcGizmo.Bind(null, null); return; }   // a mod hull still building: again soon
                 npcPreviewKey = key;
-                npcPreview = new GameObject("NPC ship preview");
-                npcPreview.transform.rotation = spec.fixedObject != null ? OrbitLayout.RotationToUnity(Vector3.zero) : Quaternion.Euler(0f, 180f, 0f);
-                var model = UnityEngine.Object.Instantiate(prefab, npcPreview.transform, false);
-                model.GetComponent<AssembledObject>()?.SetPlayerVariant(false);
+                // At its size: the pivot scaled, so the gizmo's points (in the hull's own frame) grow with it as in the game.
+                npcPreview = HullModel("NPC ship preview", prefab, spec.fixedObject != null, scale);
                 // Beside the station, clear of it.
                 var hull = HullBounds(npcPreview);
                 var st = level.Station != null ? HullBounds(level.Station) : new Bounds(Vector3.zero, Vector3.one * 200f);
@@ -743,6 +887,7 @@ namespace GoF2Remake.UI
             }
             FillNpcMounts();
             npcGizmo.Bind(npcPreview.transform, npcMounts);
+            ShowCompare();
             if (frame) FrameNpc();
         }
 
@@ -762,6 +907,7 @@ namespace GoF2Remake.UI
         {
             if (npcPreview == null) return;
             var b = HullBounds(npcPreview);
+            if (cmpPreview != null) b.Encapsulate(HullBounds(cmpPreview));   // both in view
             pivot = b.center;
             radius = Mathf.Clamp(b.extents.magnitude, 20f, 20000f);
             distance = radius * 2.4f;
@@ -772,6 +918,12 @@ namespace GoF2Remake.UI
         void UpdateNpc(float dt)
         {
             if (npcPreview == null && currentNpc != null && (npcRetryMs -= dt) <= 0f) { npcRetryMs = 500f; ShowNpcPreview(true); }
+            if (cmpPreview == null && cmpSpec != null && npcPreview != null && (cmpRetryMs -= dt) <= 0f)
+            {
+                cmpRetryMs = 500f;
+                ShowCompare();
+                if (cmpPreview != null) FrameNpc();
+            }
             if (npcGizmo != null && !npcDragging && Pointer.current != null) npcGizmo.Hover(ScreenPos());
         }
 

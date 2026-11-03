@@ -101,6 +101,7 @@ namespace GoF2Remake.World
         {
             int rank = Mathf.Min(Session.Rank, 20);
             float diff = Session.DifficultyFactor;
+            float k = host.Spec.HullScale;   // an NPC ship type's size: its hardpoints out from the pivot and as big
             for (int i = 0; i < specs.Count; i++)
             {
                 var d = specs[i];
@@ -110,12 +111,13 @@ namespace GoF2Remake.World
                     position_engine = new[] { Mathf.RoundToInt(d.position.x), Mathf.RoundToInt(d.position.y), Mathf.RoundToInt(d.position.z) },
                     turretUp = new[] { d.up.x, d.up.y, d.up.z },
                 };
-                var worldPos = host.transform.TransformPoint(Flight.WeaponSystem.MountToLocal(mount));
+                var localPos = Flight.WeaponSystem.MountToLocal(mount) * k;
+                var worldPos = host.transform.TransformPoint(localPos);
                 var worldRot = host.transform.rotation * mount.TurretTurn;
                 if (d.kind != "turret" && string.Equals(d.model, "none", System.StringComparison.OrdinalIgnoreCase))
                 {
                     // A launch point alone (a hangar deck without a part of its own to shoot off).
-                    parts.Add(new Part { data = d, localPos = Flight.WeaponSystem.MountToLocal(mount), localUp = mount.TurretTurn * Vector3.up, waveMs = d.everyMs * 0.5f });
+                    parts.Add(new Part { data = d, localPos = localPos, localUp = mount.TurretTurn * Vector3.up, waveMs = d.everyMs * 0.5f });
                     continue;
                 }
                 int baseHull = Mathf.RoundToInt((500 + 50 * rank) * diff);
@@ -123,11 +125,11 @@ namespace GoF2Remake.World
                 var spec = new SpawnSpec
                 {
                     group = NpcGroup.Turret, race = host.Race, ship = -1, position = new Vector3(worldPos.x, worldPos.y, -worldPos.z) / M,
-                    hitpoints = hull, noLoot = true, stationary = true, scale = d.scale,
+                    hitpoints = hull, noLoot = true, stationary = true, scale = d.scale * k,
                     alwaysEnemy = host.Spec.alwaysEnemy, alwaysFriend = host.Spec.alwaysFriend, alwaysNeutral = host.Spec.alwaysNeutral,
                     capitalPart = true, capitalHost = host.Spec, eventTag = host.Spec.eventTag,
                     name = string.IsNullOrEmpty(d.name) ? null : d.name, nameText = string.IsNullOrEmpty(d.name) ? (d.kind == "turret" ? 1666 : 1665) : -1,
-                    hitRadius = d.radius,
+                    hitRadius = d.radius * k,
                 };
                 if (d.kind == "turret") { spec.turretAssembly = "turret_002_static"; spec.turretItem = d.item; }
                 else spec.fixedObject = ObjectModel(d.model);
