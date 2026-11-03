@@ -48,7 +48,8 @@ namespace GoF2Remake.UI
             BuildHints(InputMode.Current);
         }
         /// <summary>Remake: the menu no taller than the space between its top and the bottom of its container (16 units
-        /// spare); its entries' ScrollView shrinks to fit and scrolls the rest.</summary>
+        /// spare); its entries' ScrollView as tall as the entries within that and scrolls the rest. Modified: the ScrollView's
+        /// height set from its entries; left to the layout it shrank to ~40 units, one entry and a half in view.</summary>
         void FitAutopilotMenu()
         {
             if (autopilotMenu?.parent == null) return;
@@ -58,8 +59,12 @@ namespace GoF2Remake.UI
             if (float.IsNaN(y) || y < 0f) y = 0f;
             float max = Mathf.Max(120f, room - y - 16f);
             var current = autopilotMenu.style.maxHeight;
-            if (current.keyword == StyleKeyword.Undefined && Mathf.Abs(current.value.value - max) < 0.5f) return;
-            autopilotMenu.style.maxHeight = max;
+            if (current.keyword != StyleKeyword.Undefined || Mathf.Abs(current.value.value - max) >= 0.5f) autopilotMenu.style.maxHeight = max;
+            if (autopilotMenuScroll == null || autopilotMenuItems == null) return;
+            float entries = autopilotMenuItems.layout.height, chrome = autopilotMenu.layout.height - autopilotMenuScroll.layout.height;
+            if (float.IsNaN(entries) || float.IsNaN(chrome)) return;
+            float h = Mathf.Max(0f, Mathf.Min(entries, max - chrome));
+            if (Mathf.Abs(autopilotMenuScroll.resolvedStyle.height - h) > 0.5f) autopilotMenuScroll.style.height = h;
         }
         /// <summary>Hud::drawMenu: under the quick menu (type 0), with a cloak or a jump drive on the ship, the energy cells in the
         /// hold (Hud+0x21c, cargo 122, counted by Hud::initHudMenu(0)) as the cell's icon and "X <count>": what the cloak and the

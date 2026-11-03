@@ -379,6 +379,7 @@ namespace GoF2Remake.UI
             autopilotMenuScroll.AddManipulator(new DragScroll(autopilotMenuScroll));
             autopilotMenu.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());
             autopilotMenu.parent?.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());
+            autopilotMenuItems.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());   // entries added / removed
             root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).UiCaps();   // Autopilot
             var menuIcon = Resources.Load<Texture2D>("GoF2Hud/autopilot_title");
             if (menuIcon != null) root.Q("autopilotMenuIcon").style.backgroundImage = new StyleBackground(menuIcon);
