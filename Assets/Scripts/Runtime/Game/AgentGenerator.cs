@@ -292,7 +292,7 @@ namespace GoF2Remake.Data
 
         /// <summary>Modified (mods): a story character selling a blueprint a mod took over (blueprints.json, the same item) waits
         /// for that blueprint's "available" condition, like the mod's own sources (Gunant's drill at Var Hastra held back until
-        /// the Khador Drive is built). One the player already knows still stands there with nothing left.</summary>
+        /// the Khador Drive's blueprint is known). One the player already knows still stands there with nothing left.</summary>
         static bool StorySellerAvailable(StoryAgentData s)
         {
             if (s.sellBlueprint < 0 || Session.UnlockedBlueprints.Contains(s.sellBlueprint)) return true;

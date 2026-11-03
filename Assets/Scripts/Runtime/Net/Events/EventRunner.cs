@@ -551,7 +551,7 @@ namespace GoF2Remake.Events
                         while (i < s.Length && (char.IsLetterOrDigit(s[i]) || s[i] == '_')) i++;
                         string name = s.Substring(start, i - start).ToLowerInvariant();
                         if ((name == "cargo" || name == "has" || name == "visited" || name == "quest" || name == "option" || name == "won" || name == "standing"
-                             || name == "medals" || name == "bought" || name == "produced") && Peek('('))
+                             || name == "medals" || name == "bought" || name == "produced" || name == "unlocked") && Peek('('))
                         {
                             // An item / station / quest by number or name: the text up to its ")" ({expression} parts filled in).
                             Sym("(");
@@ -705,6 +705,9 @@ namespace GoF2Remake.Events
                     if (item < 0) throw new Exception(error ?? arg);
                     // Modified: produced(<item>): how often the player has built that blueprint in this game
                     // (BlueprintState.timesProduced; 0 for one never started).
+                    // Modified: unlocked(<item>): 1 once the player knows that item's blueprint (Blueprints.IsUnlocked: bought,
+                    // found or the story's, e.g. the Khador Drive's at step 34).
+                    if (name == "unlocked") return Blueprints.IsUnlocked(item) ? 1 : 0;
                     if (name == "produced")
                     {
                         var bp = Session.Blueprints.Find(b => b.item == item);
