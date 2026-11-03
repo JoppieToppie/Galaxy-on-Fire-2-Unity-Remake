@@ -236,6 +236,10 @@ namespace GoF2Remake.Flight
             chase.followLookOffset = Vector3.zero;
             chase.followRigid = false;
             chase.followUsesUp = true;
+            // Docked at an object the chase camera is off (ObjectDocking's look-at camera): free look moved only the anchor
+            // the disabled camera never followed, so the docked free look (a Supernova freighter, a mining station) showed
+            // the fixed look-at view and dragging did nothing (Discord report). On for the orbit, as PlayerTurret's view.
+            if (DockingHoldsCamera && !chase.scriptCamera) chase.enabled = true;
         }
 
         void ExitFreeLook()
@@ -243,6 +247,19 @@ namespace GoF2Remake.Flight
             if (chase == null || chase.follow != anchor) return;
             chase.follow = null;
             chase.Snap();
+            if (DockingHoldsCamera && !chase.scriptCamera) chase.enabled = false;   // back to ObjectDocking's look-at camera
+        }
+
+        ObjectDocking docking;
+        /// <summary>An object docking's ease-in, docked or undocking: ObjectDocking has turned the chase camera off.</summary>
+        bool DockingHoldsCamera
+        {
+            get
+            {
+                if (docking == null) docking = GetComponent<ObjectDocking>();
+                return docking != null && (docking.State == ObjectDocking.Phase.Entering || docking.State == ObjectDocking.Phase.Docked
+                                           || docking.State == ObjectDocking.Phase.Leaving);
+            }
         }
 
         /// <summary>FlightHud: a touch drag off the controls (screen pixels, y up) goes to the camera in free look.</summary>
