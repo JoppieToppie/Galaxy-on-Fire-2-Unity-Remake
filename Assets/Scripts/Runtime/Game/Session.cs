@@ -475,6 +475,16 @@ namespace GoF2Remake.Data
         /// <summary>GameRecord::load(last save): back to the docked state of the auto-save.</summary>
         public static bool LoadAutosave() => SaveGame.Load(SaveGame.AutoSaveSlot);
 
+        /// <summary>Status::resetGame's ship, loadout, cargo and credits alone: the Phantom, its weapons and equipment, an
+        /// empty hold, no credits (a co-op campaign's start after the multiplayer session's free-play start, CoopCampaign).</summary>
+        public static void ResetStartShip()
+        {
+            ShipIndex = 10;
+            Equipment = StartEquipment();
+            Cargo = new List<ItemStack>();
+            Credits = 0;
+        }
+
         public static void ResetNewGame()
         {
             PlaySeconds = 0f;
