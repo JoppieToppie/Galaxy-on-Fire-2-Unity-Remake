@@ -22,7 +22,7 @@ namespace GoF2Remake.UI
 {
     public class PauseMenu
     {
-        enum Page { Main, Missions, Cargo, Options, Quit, Photo, Choice, Debug }
+        enum Page { Main, Missions, Cargo, Jettison, Options, Quit, Photo, Choice, Debug }
 
         readonly VisualElement backdrop, panel;
         VisualElement body, pagePrompts;
@@ -541,6 +541,11 @@ namespace GoF2Remake.UI
                     BuildCargo();
                     BackItem(() => Show(Page.Main));
                     break;
+                case Page.Jettison:
+                    title.text = Localization.Extra("cargoJettison", "Jettison").ToUpperInvariant();
+                    BuildJettison();
+                    BackItem(() => Show(Page.Cargo));
+                    break;
                 case Page.Options:
                     BuildOptions();
                     return;
@@ -677,7 +682,39 @@ namespace GoF2Remake.UI
             if (shown == 0) Text(Localization.Extra("wantedNoneMoving", "No criminals are on the move."));
         }
 
-        /// <summary>The cargo hold: every cargo stack with its tonnage, and the load against the capacity.</summary>
+        /// <summary>Remake (#176): the cargo item the Jettison page throws out.</summary>
+        int jettisonItem = -1;
+
+        /// <summary>Remake (#176): cargo can be thrown out while flying (not in a cutscene); never what the story made
+        /// unsaleable (Gunant's Drill, the Alien Remains ...: Session.Unsaleable), which the story still needs.</summary>
+        bool CanJettison(int item) => level != null && level.Player != null && !level.Cutscene && !Session.Unsaleable.Contains(item);
+
+        /// <summary>Remake (#176): the chosen cargo stack: throw all of it or 1 t out in a container behind the ship
+        /// (Crate.Jettison), which a tractor beam can take back.</summary>
+        void BuildJettison()
+        {
+            int have = Shop.CargoOf(jettisonItem);
+            if (have <= 0 || !CanJettison(jettisonItem)) { Text(Localization.Extra("cargoEmpty", "The cargo hold is empty.")); return; }
+            Text($"{GameNames.Item(jettisonItem)} · {have} t", "pause-heading");
+            Text(Localization.Extra("cargoJettisonHint", "Thrown out in a container behind the ship. A tractor beam can take it back."));
+            Item(Localization.Extra("cargoJettisonAll", "Jettison all ({0} t)").Replace("{0}", have.ToString()).ToUpperInvariant(), () => DoJettison(have));
+            if (have > 1) Item(Localization.Extra("cargoJettisonOne", "Jettison 1 t").ToUpperInvariant(), () => DoJettison(1));
+        }
+
+        void DoJettison(int amount)
+        {
+            int item = jettisonItem;
+            amount = Mathf.Min(amount, Shop.CargoOf(item));
+            if (amount > 0 && CanJettison(item))
+            {
+                Shop.RemoveFromCargo(item, amount);
+                Crate.Jettison(level.Player.transform, item, amount, 0);   // a Terran container: the player's own
+            }
+            Show(Shop.CargoOf(item) > 0 ? Page.Jettison : Page.Cargo);
+        }
+
+        /// <summary>The cargo hold: every cargo stack with its tonnage, and the load against the capacity. Remake (#176): a
+        /// stack that can be thrown out is an entry opening the Jettison page.</summary>
         void BuildCargo()
         {
             var db = level != null ? level.Database : null;
@@ -700,6 +737,21 @@ namespace GoF2Remake.UI
                 var amount = new Label($"{s.amount} t") { pickingMode = PickingMode.Ignore };
                 amount.AddToClassList("pause-cargo-amount");
                 row.Add(amount);
+                if (CanJettison(s.item))
+                {
+                    // An entry like Item's (the highlight, the keys, a click), laid out as the cargo row.
+                    int item = s.item;
+                    Action open = () => { jettisonItem = item; Show(Page.Jettison); };
+                    var b = new Button { focusable = false };
+                    b.AddToClassList("autopilot-menu-item");
+                    b.AddToClassList("pause-cargo-row");
+                    while (row.childCount > 0) b.Add(row[0]);
+                    b.clicked += open;
+                    scroll.Add(b);
+                    items.Add(b);
+                    actions.Add(open);
+                    continue;
+                }
                 scroll.Add(row);
             }
         }
@@ -1044,7 +1096,7 @@ namespace GoF2Remake.UI
             if (back)
             {
                 if (page == Page.Choice) actions[actions.Count - 1]?.Invoke();   // the second answer (or the only one)
-                else if (page == Page.Main) Close(); else Show(Page.Main);
+                else if (page == Page.Main) Close(); else Show(page == Page.Jettison ? Page.Cargo : Page.Main);
                 return;
             }
             // The Debug page's tabs: Q / E, LB / RB.
