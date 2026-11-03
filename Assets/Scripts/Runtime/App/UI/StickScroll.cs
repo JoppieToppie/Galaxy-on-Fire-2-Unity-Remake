@@ -6,6 +6,9 @@
 // hangar's ship turning (StationMenu, ItemInfoWindow): a stick pushed more sideways than up or down scrolls nothing. The
 // hosts call Watch with their document's root (MainMenu, StationMenu) and say when the stick is theirs (not while Inspect
 // ship's camera has it). The flight HUD and the star map are left out: the right stick steers and turns the map there.
+// #235: the stick no longer also moves the focus (MenuConfirm takes it out of UI/Navigate: the lounge's accept / decline
+// toggled while its dialogue scrolled), and a view already at its end in the stick's direction passes the stick on to the
+// one before it (the item window's stat rows, overflowing with a large text size, scroll after its description).
 
 using System;
 using System.Collections.Generic;
@@ -45,7 +48,7 @@ namespace GoF2Remake.UI
             float y = Mathf.Abs(s.y);
             if (y < DeadZone || y < Mathf.Abs(s.x)) return;
             if (active != null && !active()) return;
-            var view = Pick(root, root.panel.focusController?.focusedElement as VisualElement);
+            var view = Pick(root, root.panel.focusController?.focusedElement as VisualElement, s.y > 0f ? -1 : 1);
             if (view == null) return;
             float max = ScrollMax(view);
             float step = Mathf.Sign(s.y) * (y - DeadZone) / (1f - DeadZone) * Speed * Time.unscaledDeltaTime;
@@ -53,20 +56,30 @@ namespace GoF2Remake.UI
             view.scrollOffset = new Vector2(offset.x, Mathf.Clamp(offset.y - step, 0f, max));   // stick up: toward the top
         }
 
-        /// <summary>The scroll view the stick moves: shown, overflowing, without the focus; the last of them; null = none.</summary>
-        public static ScrollView Pick(VisualElement root, VisualElement focused)
+        /// <summary>The scroll view the stick moves: shown, overflowing, without the focus; the last of them; null = none.
+        /// With a direction (-1 up, 1 down) one already at its end that way passes on to one before it beside it (under its
+        /// parent's parent: the item window's two columns, not a page behind a window) (#235); with all of them at their
+        /// ends the last stays picked.</summary>
+        public static ScrollView Pick(VisualElement root, VisualElement focused, int direction = 0)
         {
             views.Clear();
             root.Query<ScrollView>().ToList(views);
+            ScrollView last = null;
             for (int i = views.Count - 1; i >= 0; i--)
             {
                 var v = views[i];
                 if (v.mode == ScrollViewMode.Horizontal || ScrollMax(v) < 1f || !Shown(v)) continue;
                 if (focused != null && v.Contains(focused)) continue;
-                return v;
+                if (last != null && (last.parent?.parent == null || !last.parent.parent.Contains(v))) continue;
+                if (direction == 0 || !AtEnd(v, direction)) return v;
+                if (last == null) last = v;
             }
-            return null;
+            return last;
         }
+
+        /// <summary>Scrolled all the way up (direction -1) or down (1).</summary>
+        static bool AtEnd(ScrollView v, int direction) =>
+            direction < 0 ? v.scrollOffset.y <= 0.5f : v.scrollOffset.y >= ScrollMax(v) - 0.5f;
 
         static float ScrollMax(ScrollView v)
         {

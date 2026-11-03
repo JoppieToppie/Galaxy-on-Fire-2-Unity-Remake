@@ -6,6 +6,9 @@
 // its actions with Space and the numpad's Enter added to UI/Submit (the package's DefaultInputActions stays untouched);
 // the screens that read their keys themselves take Pressed(kb). Not the flight's own keys: Space fires there (the
 // autopilot menu, the action prompt), and a typed space stays in its text field (TextFieldKeys.IsTyping).
+// Remake (#235): the same copy takes the controller's right stick out of UI/Navigate (the actions bind it beside the left
+// stick and the d-pad): it scrolls the long texts (StickScroll) and turns the hangar's ship, and moving the focus with it
+// too toggled the lounge's accept / decline while the dialogue scrolled. The left stick and the d-pad still navigate.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -64,12 +67,14 @@ namespace GoF2Remake.UI
             module.actionsAsset = copy;   // the setter moves every action reference over and keeps them enabled
         }
 
-        /// <summary>A copy of 'source' whose UI/Submit also takes SubmitKeys.</summary>
+        /// <summary>A copy of 'source' whose UI/Submit also takes SubmitKeys and whose UI/Navigate leaves out the right
+        /// stick (#235).</summary>
         public static InputActionAsset WithSubmitKeys(InputActionAsset source)
         {
             var copy = Object.Instantiate(source);
             copy.name = source.name;
             copy.hideFlags = HideFlags.DontSave;
+            WithoutRightStick(copy.FindAction("UI/Navigate"));
             var submit = copy.FindAction("UI/Submit");
             if (submit == null) return copy;
             foreach (var path in SubmitKeys)
@@ -79,6 +84,24 @@ namespace GoF2Remake.UI
                 if (!bound) submit.AddBinding(path);
             }
             return copy;
+        }
+
+        /// <summary>The right stick: a binding to it or to one of its directions (a 2D composite's part).</summary>
+        public static bool IsRightStick(string path) =>
+            path != null && path.StartsWith("<Gamepad>/rightStick", System.StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Erases the action's right stick bindings; a composite left with no parts goes too.</summary>
+        static void WithoutRightStick(InputAction action)
+        {
+            if (action == null) return;
+            for (int i = action.bindings.Count - 1; i >= 0; i--)
+                if (IsRightStick(action.bindings[i].path)) action.ChangeBinding(i).Erase();
+            for (int i = action.bindings.Count - 1; i >= 0; i--)
+            {
+                if (!action.bindings[i].isComposite) continue;
+                bool parts = i + 1 < action.bindings.Count && action.bindings[i + 1].isPartOfComposite;
+                if (!parts) action.ChangeBinding(i).Erase();
+            }
         }
     }
 }
