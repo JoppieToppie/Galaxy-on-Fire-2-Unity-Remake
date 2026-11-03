@@ -287,7 +287,15 @@ namespace GoF2Remake.UI
             Place(energyClip, barX, BarY);
             energyClip.style.width = BarWidth * game.Energy01;
             energyClip.style.height = 14f;
-            float pulse = game.OutsideMs >= 834f ? Mathf.Abs(Mathf.Sin(Time.unscaledTime * 1000f * 10f)) : 1f;
+            // |sin(playing time ms * 10)| (Layout::getPulseValue(10)) jumps to a new random-looking value whenever the time
+            // moves, so it flickers once per frame. Remake: sampled once per original frame (60 Hz), so at high frame rates
+            // the bar flickers at the original's speed instead of every rendered frame.
+            float pulse = 1f;
+            if (game.OutsideMs >= 834f)
+            {
+                long ms = (long)(System.Math.Floor(Time.unscaledTime * 1000.0 / OriginalFrame.Ms) * OriginalFrame.Ms);
+                pulse = (float)System.Math.Abs(System.Math.Sin(ms * 10.0));
+            }
             energyFill.style.unityBackgroundImageTintColor = new Color(1f, pulse, pulse);
             Place(energyLabel, c.x - 13.5f, BarY - 3f - 8f);
 
