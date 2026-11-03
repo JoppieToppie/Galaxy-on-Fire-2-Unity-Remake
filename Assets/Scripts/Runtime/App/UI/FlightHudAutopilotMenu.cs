@@ -134,6 +134,13 @@ namespace GoF2Remake.UI
                 CloseAutopilotMenu();
                 return;
             }
+            // Remake (#224): a tap or click outside the menu closes it (on a phone nothing else could: the touch actions
+            // button is hidden while a HUD menu is open).
+            if (autopilotMenu.ClassListContains("autopilot-menu--shown") && PressedOutsideMenu())
+            {
+                CloseAutopilotMenu();
+                return;
+            }
             int move = 0;
             if (kb != null && (kb.wKey.wasPressedThisFrame || kb.upArrowKey.wasPressedThisFrame)) move = -1;
             if (kb != null && (kb.sKey.wasPressedThisFrame || kb.downArrowKey.wasPressedThisFrame)) move = 1;
@@ -171,6 +178,27 @@ namespace GoF2Remake.UI
                 if (menuIndex < menuActions.Count && menuActions[menuIndex] != null) menuActions[menuIndex]();
                 else ChooseMenuTarget(menuButtons[menuIndex].target);
             }
+        }
+        /// <summary>A finger or the (free) mouse went down this frame somewhere other than the menu or the HUD's own buttons
+        /// (the touch controls, the pause button, the autopilot button, the chat), which keep their own taps.</summary>
+        bool PressedOutsideMenu()
+        {
+            if (root?.panel == null) return false;
+            var ts = Touchscreen.current;
+            if (ts != null)
+                foreach (var t in ts.touches)
+                    if (t.press.wasPressedThisFrame && OutsideMenu(t.position.ReadValue())) return true;
+            var mouse = Mouse.current;
+            return mouse != null && UnityEngine.Cursor.lockState != CursorLockMode.Locked
+                   && mouse.leftButton.wasPressedThisFrame && OutsideMenu(mouse.position.ReadValue());
+        }
+        bool OutsideMenu(Vector2 screen)
+        {
+            var picked = root.panel.Pick(RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(screen.x, Screen.height - screen.y)));
+            for (var e = picked; e != null; e = e.parent)
+                if (e == autopilotMenu || e.ClassListContains("touch-abs") || e.ClassListContains("touch-pause") || e.ClassListContains("nav-button")
+                    || e.ClassListContains("chat") || e.ClassListContains("squad") || e.ClassListContains("squad-invite")) return false;
+            return true;
         }
         void ChooseMenuTarget(Navigation.Target target)
         {
