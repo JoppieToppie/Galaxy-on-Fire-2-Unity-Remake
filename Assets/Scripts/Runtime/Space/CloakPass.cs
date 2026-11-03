@@ -67,7 +67,11 @@ namespace GoF2Remake.Visuals
         {
             static readonly ShaderTagId DepthTag = new ShaderTagId("GoF2CloakDepth");
 
-            public DepthPass() => renderPassEvent = RenderPassEvent.BeforeRenderingTransparents;
+            public DepthPass()
+            {
+                renderPassEvent = RenderPassEvent.BeforeRenderingTransparents;
+                requiresIntermediateTexture = true;   // see the CloakPass constructor
+            }
 
             class Data { public RendererListHandle list; }
 
@@ -91,7 +95,16 @@ namespace GoF2Remake.Visuals
             }
         }
 
-        CloakPass() => renderPassEvent = RenderPassEvent.AfterRenderingTransparents;
+        /// <summary>Remake (#224): the pass asks for URP's intermediate colour texture (PreTransformGuard's way). Without it URP
+        /// draws straight to the back buffer whenever nothing else needs that texture (render scale 100 % without MSAA: the
+        /// usual phone settings when the Vulkan pre-transform guard isn't active, e.g. OpenGL ES), both passes return at their
+        /// isActiveTargetBackBuffer check, and the cloaked hull and the emergency system's bubble were never drawn. Only while
+        /// something is cloaked or shielded, so the extra blit costs nothing otherwise.</summary>
+        CloakPass()
+        {
+            renderPassEvent = RenderPassEvent.AfterRenderingTransparents;
+            requiresIntermediateTexture = true;
+        }
 
         class PassData
         {
