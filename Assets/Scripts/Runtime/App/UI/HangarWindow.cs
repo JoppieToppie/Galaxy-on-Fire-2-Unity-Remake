@@ -114,6 +114,11 @@ namespace GoF2Remake.UI
 
         public bool IsOpen { get; private set; }
 
+        /* Original: the window's name on the header bar and the details' "Info" tab (hidden in the Remake,
+           OriginalHangar.uss); Back's place on the header bar, for the Remake (Open puts it in the footer bar). */
+        readonly Label ogTitle, ogInfo;
+        readonly VisualElement closeTop;
+
         public HangarWindow(StationMenu menu, StationLevel level, VisualElement root)
         {
             this.menu = menu;
@@ -193,6 +198,13 @@ namespace GoF2Remake.UI
             help.style.position = Position.Relative;
             help.style.width = help.style.height = 34f;
             hangarClose.parent.Insert(hangarClose.parent.IndexOf(hangarClose), help);
+            closeTop = hangarClose.parent;
+            ogTitle = new Label { pickingMode = PickingMode.Ignore };
+            ogTitle.AddToClassList("hangar-og-title");
+            closeTop.Insert(0, ogTitle);
+            ogInfo = new Label { pickingMode = PickingMode.Ignore };
+            ogInfo.AddToClassList("hangar-og-info");
+            details.Insert(0, ogInfo);
             actionButton.clicked += Action;
             if (actionButton2 != null) actionButton2.clicked += SecondaryAction;
             // Remake: inside a blueprint the trade arrows are TAKE / ADD.
@@ -389,6 +401,7 @@ namespace GoF2Remake.UI
         public void Open()
         {
             IsOpen = true;
+            PlaceBack();
             hangar = new Hangar(level.Database, level.Stock);   // prices are recomputed on every open, like the original
             tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).UiCaps();   // "Store" at the owned club
             ClearBlueprintShopHighlight();
@@ -397,6 +410,17 @@ namespace GoF2Remake.UI
             tabSelected.Clear();
             tabSelectedIndex.Clear();
             Rebuild();
+        }
+
+        /* Original (f212 / f208): Back at the footer bar's left end, the cargo and credits beside it; the Remake keeps it on
+           the header bar. Checked on every open, so a change of the interface style takes effect the next time. */
+        void PlaceBack()
+        {
+            ogTitle.text = Localization.Get(167);
+            ogInfo.text = Localization.Get(390);
+            var footer = cargoLabel.parent;
+            if (Settings.OriginalUi) { if (closeButton.parent != footer) footer.Insert(0, closeButton); }
+            else if (closeButton.parent != closeTop) closeTop.Add(closeButton);
         }
 
         /// <summary>Multiplayer: the shared stock changed (another player's trade, the reset): the list again.</summary>

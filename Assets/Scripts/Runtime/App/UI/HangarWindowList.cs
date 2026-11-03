@@ -569,6 +569,15 @@ namespace GoF2Remake.UI
             if (bpAmount != null) e.Add(bpAmount);
             // ListItemWindow's "i" (image 0x470) on the selected row: Remake, left out (the details panel shows it all; the
             // keyboard's I / the controller's Y still open the item window).
+            /* Original (f212 / f103): the steel "i" button at the selected row's right end opens the item window. */
+            if (Settings.OriginalUi && (row.item >= 0 || row.ship >= 0 || (row.kind == RowKind.Slot && row.equipment >= 0)))
+            {
+                var info = new Button { text = "i", focusable = false };
+                info.AddToClassList("row-info");
+                info.clicked += () => { Select(row, false); OpenInfo(); };
+                info.RegisterCallback<ClickEvent>(ev => ev.StopPropagation());
+                e.Add(info);
+            }
             if (row.kind == RowKind.Slot && row.place >= 0) HookSlotDrag(row, e);
             e.RegisterCallback<ClickEvent>(ev =>
             {
