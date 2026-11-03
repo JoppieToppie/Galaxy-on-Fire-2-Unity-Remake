@@ -1,1 +1,454 @@
 /* Interface style Original (GoF2Original.uss): the rules for MainMenu.uss (title menu, saves, options, mods, multiplayer, Mod Builder). */
+
+/* The pieces (Assets/UI/Original, GoF2Original.uss header): og_button(_on) for every button, og_row(_on) for every list
+   row, og_plate for boxes inside a window (cards, tiles, choices), og_title for fields, og_title_plate behind the panels'
+   titles, the scanline tile for the windows. The remake's primary actions (Start, Join, Host, Enable, Update) take the
+   colour of the original's green launch button by tinting the steel-blue bar green; focus, hover and press are amber
+   everywhere. The menu root may be the element that carries .ui-style-original or one of its children, so its rules are
+   written for both. */
+
+/* ---- Title menu column ---------------------------------------------------------------------------------------- */
+
+/* The remake's pressed state (.menu-root .menu-button:active) ties with the shared rule: amber bar, no fill. */
+.ui-style-original .menu-root .menu-button:active,
+.ui-style-original.menu-root .menu-button:active {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+.ui-style-original .main-buttons .menu-button {
+    margin: 5px 0;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.ui-style-original .main-column--dimmed .menu-button {
+    opacity: 0.45;
+}
+
+.ui-style-original .press-any-key {
+    color: #FFFFFF;
+    letter-spacing: 6px;
+}
+
+.ui-style-original .footer-text {
+    color: rgba(157, 191, 219, 0.80);
+}
+
+/* ---- Panels ------------------------------------------------------------------------------------------------------ */
+
+/* The window tile comes from GoF2Original.uss; the remake's 3 px cyan left edge becomes the 1 px steel line. */
+.ui-style-original .panel-host .panel {
+    border-width: 1px;
+    border-left-width: 1px;
+    border-color: var(--gof-line);
+    border-left-color: var(--gof-line);
+    border-radius: 0;
+}
+
+/* A panel's title sits on the header's title plate (0x474, fading out to the right), as the original's screen titles. */
+.ui-style-original .panel-host .panel-title {
+    background-image: url("project://database/Assets/UI/Original/og_title_plate.png");
+    -unity-slice-left: 40;
+    -unity-slice-right: 120;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.6px;
+    background-color: rgba(0, 0, 0, 0);
+    padding-left: 14px;
+    padding-right: 72px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    color: #FFFFFF;
+}
+
+.ui-style-original .section-header {
+    color: var(--gof-cyan);
+}
+
+.ui-style-original .language-button--active {
+    color: var(--gof-amber);
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.ui-style-original .about-text {
+    color: var(--gof-text);
+}
+
+/* ---- Load: the save slots (og_row from GoF2Original.uss), amber while pressed or chosen ----------------------- */
+
+.ui-style-original .menu-root .slot-list .slot-row:active,
+.ui-style-original.menu-root .slot-list .slot-row:active,
+.ui-style-original .menu-root .slot-list .slot-row.slot-row--chosen,
+.ui-style-original.menu-root .slot-list .slot-row.slot-row--chosen {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* ---- New game: campaign cards and the choices ------------------------------------------------------------------ */
+
+.ui-style-original .campaign-card {
+    border-radius: 0;
+}
+
+.ui-style-original .can-hover .campaign-card:hover,
+.ui-style-original.can-hover .campaign-card:hover,
+.ui-style-original .campaign-card:focus,
+.ui-style-original .campaign-card:active {
+    border-color: var(--gof-amber);
+}
+
+.ui-style-original .mod-card {
+    border-color: var(--gof-line);
+    border-radius: 0;
+}
+
+.ui-style-original .mod-option-card--on {
+    border-color: var(--gof-amber);
+}
+
+.ui-style-original .mod-card__plate {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0.55);
+    border-top-width: 0;
+}
+
+.ui-style-original .mod-option-card__badge {
+    border-radius: 0;
+    border-color: var(--gof-line);
+}
+
+/* Difficulty / economy / game options: the section plate, the warm selected row while focused. */
+.ui-style-original .choice-button {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-left-width: 0;
+    border-radius: 0;
+}
+
+.ui-style-original .can-hover .choice-button:hover,
+.ui-style-original.can-hover .choice-button:hover,
+.ui-style-original .choice-button:focus,
+.ui-style-original .choice-button:active {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+/* A toggle that is on keeps a thin amber edge (the plate alone can't show it), its title amber as the remake. */
+.ui-style-original .choice-button--toggle {
+    border-left-width: 0;
+}
+
+.ui-style-original .choice-button--toggle.choice-button--on {
+    border-left-width: 3px;
+    border-left-color: var(--gof-amber);
+}
+
+.ui-style-original .choice-title {
+    color: #FFFFFF;
+}
+
+.ui-style-original .choice-button--on .choice-title,
+.ui-style-original .choice-button--danger .choice-title {
+    color: var(--gof-amber);
+}
+
+/* Start game: the glossy bar, green like the original's launch button; amber while focused / pressed. */
+.ui-style-original .choice-button--start {
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    -unity-background-image-tint-color: rgb(150, 255, 140);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-left-width: 0;
+    border-radius: 0;
+}
+
+.ui-style-original .can-hover .choice-button--start:hover,
+.ui-style-original.can-hover .choice-button--start:hover,
+.ui-style-original .choice-button--start:focus,
+.ui-style-original .choice-button--start:active {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    -unity-background-image-tint-color: rgb(255, 255, 255);
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+}
+
+.ui-style-original .choice-button--start .choice-desc {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* ---- Buttons in the panels: mods, Mod Builder, multiplayer, the update button ------------------------------- */
+
+.ui-style-original .mods-action,
+.ui-style-original .mp-action,
+.ui-style-original .update-button {
+    background-image: url("project://database/Assets/UI/Original/og_button.png");
+    -unity-slice-left: 50;
+    -unity-slice-right: 54;
+    -unity-slice-top: 24;
+    -unity-slice-bottom: 24;
+    -unity-slice-scale: 0.6px;
+    -unity-background-image-tint-color: rgb(255, 255, 255);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    color: var(--gof-text);
+}
+
+/* The primary ones (enable a mod / open a project, Join, Host, Update): the green bar. */
+.ui-style-original .mods-toggle,
+.ui-style-original .mp-join-button,
+.ui-style-original .mp-host-button,
+.ui-style-original .update-button {
+    -unity-background-image-tint-color: rgb(150, 255, 140);
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+/* Disable a mod / delete: the bar tinted red. */
+.ui-style-original .mods-toggle--on,
+.ui-style-original .mods-delete {
+    -unity-background-image-tint-color: rgb(255, 150, 135);
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+.ui-style-original .can-hover .mods-action:hover,
+.ui-style-original.can-hover .mods-action:hover,
+.ui-style-original .mods-action:focus,
+.ui-style-original .mods-action:active,
+.ui-style-original .can-hover .mods-toggle:hover,
+.ui-style-original.can-hover .mods-toggle:hover,
+.ui-style-original .mods-toggle:focus,
+.ui-style-original .can-hover .mods-delete:hover,
+.ui-style-original.can-hover .mods-delete:hover,
+.ui-style-original .mods-delete:focus,
+.ui-style-original .can-hover .mp-action:hover,
+.ui-style-original.can-hover .mp-action:hover,
+.ui-style-original .mp-action:focus,
+.ui-style-original .menu-root .mp-action:active,
+.ui-style-original.menu-root .mp-action:active,
+.ui-style-original .can-hover .mp-join-button:hover,
+.ui-style-original.can-hover .mp-join-button:hover,
+.ui-style-original .mp-join-button:focus,
+.ui-style-original .can-hover .mp-host-button:hover,
+.ui-style-original.can-hover .mp-host-button:hover,
+.ui-style-original .mp-host-button:focus,
+.ui-style-original .can-hover .update-button:hover,
+.ui-style-original.can-hover .update-button:hover,
+.ui-style-original .update-button:focus,
+.ui-style-original .menu-root .update-button:active,
+.ui-style-original.menu-root .update-button:active {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png");
+    -unity-background-image-tint-color: rgb(255, 255, 255);
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: #FFFFFF;
+}
+
+.ui-style-original .mods-action:disabled,
+.ui-style-original .mp-action:disabled {
+    color: var(--gof-text-disabled);
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.55);
+}
+
+/* ---- Lists: mods, Mod Builder projects, multiplayer servers / addresses, debug missions (drawBox 3 / 4) ------- */
+
+.ui-style-original .mods-list,
+.ui-style-original .mp-server-list,
+.ui-style-original .mp-browser .mp-server-list {
+    background-color: rgba(0, 0, 0, 0.30);
+    border-width: 1px;
+    border-color: var(--gof-line);
+    border-radius: 0;
+}
+
+.ui-style-original .mods-row,
+.ui-style-original .mp-address-row,
+.ui-style-original .debug-mission {
+    background-image: url("project://database/Assets/UI/Original/og_row.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-left-width: 0;
+    border-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+}
+
+/* The selected mod / project: the warm row with a cyan edge; the focused / hovered one has an amber edge. */
+.ui-style-original .mods-row--selected {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 3px;
+    border-left-color: var(--gof-cyan);
+}
+
+.ui-style-original .mods-row:focus,
+.ui-style-original .can-hover .mods-row:hover,
+.ui-style-original.can-hover .mods-row:hover,
+.ui-style-original .mp-address-row:focus,
+.ui-style-original .can-hover .mp-address-row:hover,
+.ui-style-original.can-hover .mp-address-row:hover,
+.ui-style-original .debug-mission:focus,
+.ui-style-original .can-hover .debug-mission:hover,
+.ui-style-original.can-hover .debug-mission:hover {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 3px;
+    border-left-color: var(--gof-amber);
+}
+
+.ui-style-original .mp-server-row--full {
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.6);
+}
+
+.ui-style-original .mods-thumb,
+.ui-style-original .mods-preview {
+    border-radius: 0;
+    border-color: var(--gof-line);
+}
+
+.ui-style-original .mods-badge,
+.ui-style-original .mp-badge,
+.ui-style-original .mp-server-tag {
+    border-radius: 0;
+}
+
+/* ---- Multiplayer: the Host / Browse cards on the section plate ------------------------------------------------ */
+
+.ui-style-original .mp-card {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+}
+
+.ui-style-original .mp-card-title {
+    color: #FFFFFF;
+    letter-spacing: 3px;
+}
+
+/* ---- Mod Builder: the kind tiles (section plate, the warm row while focused), the fields (title plate) ------- */
+
+.ui-style-original .mb-kind {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5px;
+    -unity-background-image-tint-color: rgb(255, 255, 255);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-left-width: 0;
+    border-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+}
+
+.ui-style-original .can-hover .mb-kind:hover,
+.ui-style-original.can-hover .mb-kind:hover,
+.ui-style-original .mb-kind:focus {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png");
+    -unity-slice-left: 75;
+    -unity-slice-right: 75;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 3px;
+    border-left-color: var(--gof-amber);
+}
+
+.ui-style-original .mb-kind--soon,
+.ui-style-original .mb-kind:disabled {
+    -unity-background-image-tint-color: rgba(255, 255, 255, 0.45);
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+}
+
+.ui-style-original .mb-section {
+    color: var(--gof-cyan);
+}
+
+.ui-style-original .mb-thumb {
+    background-color: rgba(0, 0, 0, 0.35);
+    border-width: 1px;
+    border-color: var(--gof-line);
+}
+
+/* The remake's field rules (.mb-field / .debug-filter .unity-base-text-field__input) tie with the shared one. */
+.ui-style-original .mb-field .unity-base-text-field__input,
+.ui-style-original .debug-filter .unity-base-text-field__input {
+    background-image: url("project://database/Assets/UI/Original/og_title.png");
+    -unity-slice-left: 34;
+    -unity-slice-right: 34;
+    -unity-slice-top: 12;
+    -unity-slice-bottom: 12;
+    -unity-slice-scale: 0.75px;
+    -unity-background-image-tint-color: rgb(255, 255, 255);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    color: var(--gof-text);
+}
+
+.ui-style-original .mb-field:focus .unity-base-text-field__input,
+.ui-style-original .debug-filter:focus .unity-base-text-field__input {
+    -unity-background-image-tint-color: #FFC98A;
+    border-width: 0;
+}
+
+/* ---- Dialogs ------------------------------------------------------------------------------------------------------ */
+
+/* The window tile from GoF2Original.uss; the remake's 3 px amber top edge becomes the steel line. */
+.ui-style-original .dialog {
+    border-top-width: 1px;
+    border-top-color: var(--gof-line);
+    border-radius: 0;
+}
+
+/* ---- Mod loading ---------------------------------------------------------------------------------------------- */
+
+.ui-style-original .mod-loading__track {
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0.45);
+}
