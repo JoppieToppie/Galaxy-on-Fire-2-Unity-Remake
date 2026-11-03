@@ -725,7 +725,7 @@
     height: 64px;
 }
 
-/* Original: name on line 1 (#E4EAEE), price on line 2 below it (orange #E07A28), x 10 right of the icon. */
+/* Original: name on line 1 (#E4EAEE), price on line 2 below it (light grey, f212 / f99), x 10 right of the icon. */
 .ui-style-original .row-texts {
     align-self: stretch;
     justify-content: flex-start;
@@ -761,7 +761,7 @@
     letter-spacing: 0.5px;
     -unity-font-style: normal;
     -unity-text-align: middle-left;
-    color: #E07A28;
+    color: #A2A8AC;
 }
 
 /* A ship's price (the row's own child): under the name, like the items'. */
@@ -925,7 +925,7 @@
 }
 
 .ui-style-original .trade-price {
-    color: #E07A28;
+    color: #A2A8AC;
 }
 
 .ui-style-original .trade-price--expensive {

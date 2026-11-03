@@ -438,7 +438,7 @@
     height: 30px;
     scale: 1 1;
     background-image: none;
-    background-color: rgb(9, 14, 20);
+    background-color: rgb(6, 8, 8);
     border-bottom-width: 1px;
     border-bottom-color: #1E2A36;
 }
@@ -447,7 +447,7 @@
 .ui-style-original .station-root .bottom-shade {
     height: 37px;
     background-image: none;
-    background-color: rgb(7, 11, 16);
+    background-color: rgb(5, 6, 6);
     border-top-width: 1px;
     border-top-color: #1E2A36;
 }
@@ -458,7 +458,7 @@
     bottom: 37px;
     width: 180px;
     background-image: none;
-    background-color: rgba(10, 15, 21, 0.88);
+    background-color: rgba(8, 8, 7, 0.9);
 }
 
 /* The header's row over the whole screen (picking ignored), so the Game Options button can sit in the footer. */
