@@ -97,6 +97,7 @@ namespace GoF2Remake.UI
             SyncSaveFolder(true);
             resumeButton.EnableInClassList("menu-button--gone", SaveGame.MostRecentSlot() < 0);   // only with a save
             UpdateColumnFit();
+            WatchMenuNumbers();
             updateRow = root.Q("updateRow");
             updateButton = Bind("updateButton", () => Application.OpenURL(UpdateCheck.ReleaseUrl ?? UpdateCheck.ReleasesPage));
 
