@@ -1230,6 +1230,8 @@
  "showFps": "FPS 표시",
   "gameCursor": "게임 마우스 커서",
   "gameCursorHelp": "인터페이스 스타일의 마우스 커서. 끄면 시스템 커서를 사용합니다.",
+  "cursorSize": "커서 크기",
+  "cursorSizeHelp": "게임 마우스 커서의 크기(그래픽 > 게임 마우스 커서).",
  "showStoryStep": "스토리 단계 표시",
  "showStoryStepHelp": "오른쪽 아래에 현재 스토리 단계 표시(버그 신고용).",
  "slot": "슬롯",

@@ -1234,6 +1234,8 @@
  "showFps": "FPS tonen",
   "gameCursor": "Spelcursor",
   "gameCursorHelp": "Een muisaanwijzer in de stijl van de interface; uit: die van het systeem.",
+  "cursorSize": "Cursorgrootte",
+  "cursorSizeHelp": "De grootte van de spelcursor (Graphics > Spelcursor).",
  "showStoryStep": "Verhaalstap tonen",
  "showStoryStepHelp": "De huidige verhaalstap rechtsonder, voor bugmeldingen.",
  "slot": "Plek",

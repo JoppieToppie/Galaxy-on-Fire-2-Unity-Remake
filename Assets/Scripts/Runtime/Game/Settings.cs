@@ -488,6 +488,8 @@ namespace GoF2Remake.Data
         public static bool ShowFps { get => GetBool("showFps", false); set => SetBool("showFps", value); }
         /// <summary>Modified: the mouse cursor drawn in the interface's style (GameCursor) instead of the system's.</summary>
         public static bool GameCursor { get => GetBool("gameCursor", true); set => SetBool("gameCursor", value); }
+        /// <summary>Remake: the game mouse cursor's size in percent (Options > Accessibility "Cursor size", GameCursor).</summary>
+        public static int CursorSizePercent { get => Mathf.Clamp(Mathf.RoundToInt(Get("cursorSize", 100f)), 50, 200); set => Set("cursorSize", Mathf.Clamp(value, 50, 200)); }
 
         /// <summary>Remake: where the FPS counter sits (Options > Graphics "FPS counter position", FpsCounter): the four corners
         /// and the middles of the four sides, top centre by default.</summary>
@@ -612,7 +614,7 @@ namespace GoF2Remake.Data
             "speedrunPosition", "speedrunLiveSplit",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
-        public static readonly string[] AccessibilityKeys = { "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers" };
+        public static readonly string[] AccessibilityKeys = { "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers", "cursorSize" };
 
         /// <summary>These options back to their defaults.</summary>
         public static void Reset(IEnumerable<string> keys)

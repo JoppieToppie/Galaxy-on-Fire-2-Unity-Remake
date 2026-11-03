@@ -1,7 +1,8 @@
 // GameCursor.cs
 // Modified: the mouse cursor in the interface's style (Options > Graphics "Game mouse cursor", Settings.GameCursor, on by
 // default): a pointer symmetric about its 62 degree axis, in the menus' colours: a dark blue fill lit a little along its
-// edge, a cyan outline (the buttons' line colour) and a soft cyan glow. Drawn in code at the screen's scale (32 px at 1080 lines, 48 at 1440, 64 at 2160), so it is sharp at any resolution, and set as the
+// edge, a cyan outline (the buttons' line colour) and a soft cyan glow. Drawn in code at the screen's scale (remake: 24 px at 1080 lines at 100 %, was 32, times Options > Accessibility
+// "Cursor size", Settings.CursorSizePercent), so it is sharp at any resolution, and set as the
 // hardware cursor (Cursor.SetCursor): it follows the mouse with no lag, and shows and hides as the system's did
 // (InputMode.CursorShown, the flight's mouse steering). The original has no cursor of its own (the PC version used the
 // system's). Desktop only; not on a dedicated server.
@@ -39,7 +40,8 @@ namespace GoF2Remake.UI
             if (Settings.GameCursor && SizeFor(Screen.height) != madeSize) Apply();
         }
 
-        static int SizeFor(int height) => Mathf.Clamp(Mathf.RoundToInt(32f * height / 1080f / 8f) * 8, 24, 96);
+        // Modified: 24 px at 1080 lines (32 was a bit large), times the Cursor size option, in 2 px steps.
+        static int SizeFor(int height) => Mathf.Clamp(Mathf.RoundToInt(24f * height / 1080f * Settings.CursorSizePercent / 100f / 2f) * 2, 12, 128);
 
         void Apply()
         {

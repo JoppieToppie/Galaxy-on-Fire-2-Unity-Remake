@@ -1235,6 +1235,8 @@
  "showFps": "FPS anzeigen",
   "gameCursor": "Spiel-Mauszeiger",
   "gameCursorHelp": "Ein Mauszeiger im Stil der Oberfläche; aus: der des Systems.",
+  "cursorSize": "Zeigergröße",
+  "cursorSizeHelp": "Die Größe des Spiel-Mauszeigers (Grafik > Spiel-Mauszeiger).",
  "showStoryStep": "Story-Schritt anzeigen",
  "showStoryStepHelp": "Der aktuelle Story-Schritt unten rechts, für Fehlerberichte.",
  "slot": "Platz",

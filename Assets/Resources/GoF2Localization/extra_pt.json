@@ -1234,6 +1234,8 @@
  "showFps": "Mostrar FPS",
  "gameCursor": "Cursor do jogo",
  "gameCursorHelp": "Um cursor do mouse no estilo da interface; desligado, o do sistema.",
+ "cursorSize": "Tamanho do cursor",
+ "cursorSizeHelp": "O tamanho do cursor do jogo (Gráficos > Cursor do jogo).",
  "showStoryStep": "Mostrar etapa da história",
  "showStoryStepHelp": "A etapa atual da história no canto inferior direito, para relatar bugs.",
  "slot": "Espaço",

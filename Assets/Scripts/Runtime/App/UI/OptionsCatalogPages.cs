@@ -214,6 +214,16 @@ namespace GoF2Remake.UI
                 () => Settings.ColorblindMarkers, v => Settings.ColorblindMarkers = v);
             colorblind.description = () => X("colorblindMarkersHelp", "Friendly ships are blue instead of green.");
             list.Add(colorblind);
+            // Remake: the game mouse cursor's size (GameCursor); desktop only, phones have none.
+            if (!Application.isMobilePlatform)
+            {
+                var cursorSize = Choice("cursorSize", OptionPage.Accessibility, () => X("cursorSize", "Cursor size"), false,
+                    () => System.Array.ConvertAll(CursorSizeSteps, p => p + " %"),
+                    () => Mathf.Max(0, UiLayout.NearestStep(CursorSizeSteps, Settings.CursorSizePercent)),
+                    i => Settings.CursorSizePercent = CursorSizeSteps[Mathf.Clamp(i, 0, CursorSizeSteps.Length - 1)],
+                    () => X("cursorSizeHelp", "The size of the game mouse cursor (Graphics > Game mouse cursor)."));
+                list.Add(cursorSize);
+            }
             list.Add(Choice("uiWidth", OptionPage.Graphics, () => X("uiWidth", "Interface width"), true,
                 () => new[] { "16:9", "21:9", X("uiWidthFull", "Full width") },
                 () => Settings.UiWidth, i => Settings.UiWidth = i,

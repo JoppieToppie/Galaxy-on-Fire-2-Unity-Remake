@@ -1234,6 +1234,8 @@
  "showFps": "Pokaż FPS",
   "gameCursor": "Kursor gry",
   "gameCursorHelp": "Kursor myszy w stylu interfejsu; wyłączony: systemowy.",
+  "cursorSize": "Rozmiar kursora",
+  "cursorSizeHelp": "Rozmiar kursora myszy gry (Grafika > Kursor gry).",
  "showStoryStep": "Pokaż krok fabuły",
  "showStoryStepHelp": "Bieżący krok fabuły w prawym dolnym rogu, do zgłoszeń błędów.",
  "slot": "Miejsce",

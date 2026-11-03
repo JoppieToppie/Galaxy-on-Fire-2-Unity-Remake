@@ -1160,6 +1160,8 @@
   "showFps": "显示FPS",
   "gameCursor": "游戏鼠标指针",
   "gameCursorHelp": "界面风格的鼠标指针；关闭时使用系统指针。",
+  "cursorSize": "光标大小",
+  "cursorSizeHelp": "游戏鼠标光标的大小（图形 > 游戏鼠标光标）。",
   "showStoryStep": "显示剧情步骤",
   "slot": "槽位",
   "slotDeleteHintKeys": "按住 Delete 键或按住存档即可删除",

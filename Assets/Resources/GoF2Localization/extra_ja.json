@@ -1230,6 +1230,8 @@
  "showFps": "FPSを表示",
   "gameCursor": "ゲーム用マウスカーソル",
   "gameCursorHelp": "インターフェースのスタイルのマウスカーソル。オフにするとシステムのカーソル。",
+  "cursorSize": "カーソルのサイズ",
+  "cursorSizeHelp": "ゲームのマウスカーソルの大きさ（グラフィック > ゲームのマウスカーソル）。",
  "showStoryStep": "ストーリーのステップを表示",
  "showStoryStepHelp": "右下に現在のストーリーステップを表示（バグ報告用）。",
  "slot": "スロット",

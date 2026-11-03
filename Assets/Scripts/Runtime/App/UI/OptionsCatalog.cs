@@ -131,6 +131,8 @@ namespace GoF2Remake.UI
         // coarse on a TV); the old values are all among them, the range and the 100 % default unchanged.
         static readonly int[] UiScaleSteps = { 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150 };
         /// <summary>Options > Accessibility "Text size": 100 % and UiLayout.TextSteps (each a ui-text-N class in GoF2Common.uss).</summary>
+        /// <summary>Options > Accessibility "Cursor size" (GameCursor).</summary>
+        static readonly int[] CursorSizeSteps = { 50, 60, 70, 80, 90, 100, 115, 130, 150, 175, 200 };
         static readonly int[] UiTextSteps = { 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 160, 175, 190, 200 };
         static readonly float[] UiMarginSteps = { -1f, 0f, 2.5f, 5f, 7.5f, 10f };
 
