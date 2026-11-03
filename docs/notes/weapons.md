@@ -25,7 +25,9 @@ is generated from it by `Reference/tools/weapons/build_weapon_fx.py`; **GoF2 > B
   radar's on-screen flag, KIPlayer+0x72, so a missile went straight once its target left the view, a shortcut of the
   original's radar pass). NPC guns use the same class (see "NPCs and combat"); `GunRig` draws projectiles, muzzle
   flashes and impacts for both; the muzzle flash points along the ship's nose with the camera's up (`ObjectGun::update`;
-  turrets: the turret's matrix).
+  turrets: the turret's matrix). Blasters, thermo guns and turret shots face the camera (`ObjectGun::ObjectGun` +0x4c),
+  but not a turret shot modelled as a streak along its flight (`GunRig.AlongFlight`: meshes over twice as long along +Z
+  as across, the Archimedes' projectile_023): facing the camera its tail ran out from the screen centre, 2026-11-03).
 - `WeaponSystem` (player): primaries fire independently while held (the looping shot sounds end like their FMOD events
   on release: "loop and play to end" cannons / thermo / Hammerhead turrets finish the shot in progress, the "cutoff" DLC
   turrets fade 50-100 ms; `LoopRelease`), secondary one per release (ammo = item amount, `Session.EquipmentAmounts`).

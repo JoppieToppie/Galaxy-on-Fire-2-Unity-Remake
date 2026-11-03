@@ -1,7 +1,7 @@
 // GunRig.cs
 // The visuals of one Gun (weapons.md 5): a projectile instance per bullet slot (ObjectGun), the muzzle flash on the
 // mount, a small pool of impact effects. Plain C#, shared by the player's WeaponSystem and the NPC ships.
-// Blasters, thermo guns and turrets face the camera; lasers, cannons and rockets point along their flight. Projectiles shrink over
+// Blasters, thermo guns and turrets face the camera (not a turret shot modelled as a streak); lasers, cannons and rockets point along their flight. Projectiles shrink over
 // their last 1000 ms (Gun.VisualScale). Effects never cast shadows or cull by LOD.
 // Beams (BeamGun::update 0x1a6b04): one mesh 1 unit long along +Z, scaled (1, 1, beam length) along the direction chosen
 // at fire time, following the mount, its animation restarted per shot and hidden when it ends. Mines are drawn at x0.7
@@ -62,7 +62,10 @@ namespace GoF2Remake.Flight
             if (gun.echo != null) gun.Echoed += ShowEcho;
             // ObjectGun::ObjectGun 0x18c020: +0x4c = (0x85 >> (sort - 1)) & 1, i.e. blasters (1), thermo guns (3) and turrets (8)
             // take the camera's rotation in ObjectGun::render (turret shots were drawn along their flight, edge-on: flat).
-            billboard = gun.kind == Gun.Kind.Blaster || gun.kind == Gun.Kind.Thermo || gun.kind == Gun.Kind.Turret;
+            // Modified: not a turret shot modelled as a streak along its flight (the Archimedes' projectile_023, 950 units
+            // long and 175 wide): facing the camera its length pointed into the screen, a tail running away from the centre.
+            billboard = gun.kind == Gun.Kind.Blaster || gun.kind == Gun.Kind.Thermo
+                        || (gun.kind == Gun.Kind.Turret && (fx == null || !AlongFlight(fx.projectile)));
             projectiles = new Transform[gun.bullets.Length];
             if (fx != null && fx.projectile != null)
                 for (int i = 0; i < projectiles.Length; i++)
@@ -172,6 +175,29 @@ namespace GoF2Remake.Flight
 
         static (PartAnimation[], Modding.ModFxPart[]) Parts(GameObject go) =>
             (go.GetComponentsInChildren<PartAnimation>(true), go.GetComponentsInChildren<Modding.ModFxPart>(true));
+
+        /// <summary>Modified: a projectile model drawn along its flight: its meshes reach more than twice as far along +Z as
+        /// across it (a streak or comet; a flat camera-facing sprite is as long as it is wide).</summary>
+        static bool AlongFlight(GameObject projectile)
+        {
+            if (projectile == null) return false;
+            var root = projectile.transform;
+            bool any = false;
+            var b = new Bounds();
+            foreach (var mf in projectile.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null) continue;
+                var mb = mf.sharedMesh.bounds;
+                var m = root.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                for (int c = 0; c < 8; c++)
+                {
+                    var corner = mb.center + Vector3.Scale(mb.extents, new Vector3((c & 1) == 0 ? -1 : 1, (c & 2) == 0 ? -1 : 1, (c & 4) == 0 ? -1 : 1));
+                    var pt = m.MultiplyPoint3x4(corner);
+                    if (!any) { b = new Bounds(pt, Vector3.zero); any = true; } else b.Encapsulate(pt);
+                }
+            }
+            return any && b.size.z > 2f * Mathf.Max(b.size.x, b.size.y);
+        }
 
         public static float MaxLength(GameObject go)
         {
