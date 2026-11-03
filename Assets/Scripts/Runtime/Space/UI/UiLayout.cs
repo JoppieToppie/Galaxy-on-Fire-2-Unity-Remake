@@ -45,6 +45,28 @@ namespace GoF2Remake.UI
             return Mathf.Round(px * TextScale);
         }
 
+        /// <summary>Remake: the Original interface style's sheets (Resources/GoF2UI/OriginalStyle.uss), added after the sheets
+        /// on the screen's root and on every element under it that has its own (a template's Dialogue.uss). UI Toolkit lets
+        /// a sheet attached lower in the tree win over the panel's theme whatever the specificity, so from the theme alone
+        /// the Original rules lost every property a screen's own sheet sets too (sizes, positions, images).</summary>
+        static void AttachOriginalSheets(VisualElement root)
+        {
+            if (originalSheet == null) originalSheet = Resources.Load<StyleSheet>("GoF2UI/OriginalStyle");
+            if (originalSheet == null) return;
+            AttachLast(root);
+            root.Query<VisualElement>().ForEach(e => { if (e != root && e.styleSheets.count > 0) AttachLast(e); });
+        }
+
+        static void AttachLast(VisualElement e)
+        {
+            var set = e.styleSheets;
+            if (set.count > 0 && set[set.count - 1] == originalSheet) return;
+            if (set.Contains(originalSheet)) set.Remove(originalSheet);
+            set.Add(originalSheet);
+        }
+
+        static StyleSheet originalSheet;
+
         /// <summary>Set by UwpDisplay on an Xbox (a TV across the room), or by the debug override.</summary>
         public static bool TvDetected;
 
@@ -224,6 +246,7 @@ namespace GoF2Remake.UI
                 root.EnableInClassList("ui-colorblind", Settings.ColorblindMarkers);
                 // Remake: Options > Graphics "Interface style" Original (GoF2Original.uss).
                 root.EnableInClassList("ui-style-original", Settings.OriginalUi);
+                AttachOriginalSheets(root);
                 UiFont.Apply(root);   // Options > Accessibility "Interface font"
                 // Modified: soon after a scene loads, checked again once it has been drawn (settle).
                 if (settings != null && Time.realtimeSinceStartup - sceneStart < SettleChecks[SettleChecks.Length - 1])
