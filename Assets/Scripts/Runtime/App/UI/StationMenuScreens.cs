@@ -233,7 +233,7 @@ namespace GoF2Remake.UI
             dialogAction = onYes;
             dialogNoAction = null;
             root.Q<Label>("dialogText").text = text;
-            InputGlyph.SetText(dialogYes, info ? Localization.Extra("ok", "OK") : Localization.Get(134).UiCaps());
+            InputGlyph.SetText(dialogYes, info ? Localization.Extra("ok", "OK").OgCase() : Localization.Get(134).UiCaps());
             InputGlyph.SetText(dialogNo, Localization.Get(135).UiCaps());
             dialogNo.style.display = info ? DisplayStyle.None : DisplayStyle.Flex;
             dialog.AddToClassList("station-dialog-backdrop--shown");
@@ -366,28 +366,28 @@ namespace GoF2Remake.UI
             mapButton.text = T(177).UiCaps();
             missionsButton.text = T(129).UiCaps();
             statusButton.text = T(169).UiCaps();
-            inspectButton.text = Localization.Extra("stationInspect", "INSPECT SHIP");
-            customizeButton.text = Localization.Extra("stationCustomize", "CUSTOMIZE SHIP");
+            inspectButton.text = Localization.Extra("stationInspect", "INSPECT SHIP").OgCase();
+            customizeButton.text = Localization.Extra("stationCustomize", "CUSTOMIZE SHIP").OgCase();
             // Remake: its key on the button, L with keys and mouse, X with a controller (the root's input-* class picks one).
             // The glyphs are children of the button, which then holds its text in a Label of its own, so it is built again
             // rather than relabelled: setting .text on a button with children leaves the old Label in place.
             launchButton.Clear();
-            launchButton.text = Localization.Extra("stationLaunch", "LAUNCH");
+            launchButton.text = Localization.Extra("stationLaunch", "LAUNCH").OgCase();
             var launchKey = InputGlyph.Key("L");
             launchKey.AddToClassList("launch-glyph--key");
             var launchPad = InputGlyph.Pad(PadButton.X);
             launchPad.AddToClassList("launch-glyph--pad");
             InputGlyph.WithGlyphs(launchButton, launchKey, launchPad);
-            InputGlyph.SetText(root.Q<Button>("loungeBack"), Localization.Extra("hudBack", "BACK"));
+            InputGlyph.SetText(root.Q<Button>("loungeBack"), Localization.Extra("hudBack", "BACK").OgCase());
             InputGlyph.SetText(dialogNo, T(135).UiCaps());
-            root.Q<Button>("menuButton").text = Localization.Extra("hudMenu", "MENU");
+            root.Q<Button>("menuButton").text = Localization.Extra("hudMenu", "MENU").OgCase();
             if (Settings.OriginalUi) OriginalStationTexts();
             root.Q<Label>("systemMenuTitle").text = T(172).UiCaps();       // Menu
             saveGameButton.text = T(30).UiCaps();                          // Save game
             mainMenuButton.text = Modding.ModBuilder.PlayTesting ? Localization.Extra("mbBackToBuilder", "Back to Mod Builder").UiCaps()
                                 : T(522).UiCaps();                       // Back to Main Menu
-            InputGlyph.SetText(systemClose, Localization.Extra("hudBack", "BACK"));
-            InputGlyph.SetText(saveBack, Localization.Extra("hudBack", "BACK"));
+            InputGlyph.SetText(systemClose, Localization.Extra("hudBack", "BACK").OgCase());
+            InputGlyph.SetText(saveBack, Localization.Extra("hudBack", "BACK").OgCase());
             // The system menu's own entries (BuildSystemExtras names them as it builds them).
             if (newGameButton != null) newGameButton.text = T(28).UiCaps();
             if (loadGameButton != null) loadGameButton.text = T(29).UiCaps();
@@ -412,7 +412,7 @@ namespace GoF2Remake.UI
             // The launch button's label (a Label child next to its key glyphs, InputGlyph.WithGlyphs).
             var launchLabel = launchButton.Q<Label>(className: "glyph-button-label");
             if (launchLabel != null) launchLabel.text = SentenceCase(launchLabel.text);
-            InputGlyph.SetText(root.Q<Button>("loungeBack"), SentenceCase(Localization.Extra("hudBack", "BACK")));
+            InputGlyph.SetText(root.Q<Button>("loungeBack"), SentenceCase(Localization.Extra("hudBack", "BACK").OgCase()));
         }
         /// <summary>A remake label written in capitals ("INSPECT SHIP") as the original writes its labels ("Inspect ship");
         /// a label that has lower case letters already stays as it is.</summary>

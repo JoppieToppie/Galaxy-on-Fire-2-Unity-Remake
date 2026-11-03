@@ -63,7 +63,7 @@ namespace GoF2Remake.UI
             systemOptions.Add(optionsScroll);
             // "‹ Back" at the bottom left, the Options window's (OptionsView); the keys go in the divided row under it
             // (BuildStationDebug).
-            optionsBack = SystemButton("‹  " + Localization.Extra("hudBack", "BACK"), -1, () => ShowSystemPage(SysPage.Main), systemOptions);
+            optionsBack = SystemButton("‹  " + Localization.Extra("hudBack", "BACK").OgCase(), -1, () => ShowSystemPage(SysPage.Main), systemOptions);
             optionsBack.AddToClassList("system-menu-back");
             systemMain.parent.Add(systemOptions);
         }

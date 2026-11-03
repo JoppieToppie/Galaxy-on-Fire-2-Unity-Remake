@@ -400,7 +400,7 @@ namespace GoF2Remake.UI
             if (jumpChargeLabel != null) jumpChargeLabel.text = Localization.Get(318).UiCaps();   // Drive charging
             root.Q<Label>("gameOverTitle").text = Localization.Get(319).UiCaps();                // Game Over
             root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).UiCaps();           // Autopilot
-            root.Q<Label>("dockLabel").text = Localization.Extra("hudDock", "DOCK");
+            root.Q<Label>("dockLabel").text = Localization.Extra("hudDock", "DOCK").OgCase();
             BuildHints(InputMode.Current);
         }
 
@@ -729,10 +729,10 @@ namespace GoF2Remake.UI
 
             // The action prompt: navigation (autopilot / jump) first, then mining (lock / approach / minigame), else docking.
             string prompt = docking != null ? docking.PromptText : null;
-            if (prompt == null && DockBeforeLock) prompt = Localization.Extra("hudDock", "DOCK");
+            if (prompt == null && DockBeforeLock) prompt = Localization.Extra("hudDock", "DOCK").OgCase();
             if (prompt == null && nav != null) prompt = nav.PromptText;
             if (prompt == null && mining != null) prompt = mining.PromptText;
-            if (prompt == null && level.CanDock) prompt = Localization.Extra("hudDock", "DOCK");
+            if (prompt == null && level.CanDock) prompt = Localization.Extra("hudDock", "DOCK").OgCase();
             // Touch: no prompt, the fire button is the action button (its arrow shows when fire acts).
             dockPrompt.EnableInClassList("dock-prompt--hidden", prompt == null || InputMode.Current == InputKind.Touch || cursorMode);   // touch / cursor: the arrow on fire
             if (prompt != null) dockLabel.text = prompt;

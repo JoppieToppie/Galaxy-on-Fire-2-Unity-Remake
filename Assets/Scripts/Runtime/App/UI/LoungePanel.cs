@@ -83,7 +83,7 @@ namespace GoF2Remake.UI
             chatScroll.verticalScrollerVisibility = ScrollerVisibility.Auto;
             chatScroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             chatClose = root.Q<Button>("chatClose");
-            chatClose.text = Localization.Extra("hudBack", "BACK");
+            chatClose.text = Localization.Extra("hudBack", "BACK").OgCase();
             chatClose.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
             chatClose.clicked += () => { menu.PlayRelease(); CloseChat(); };
         }
@@ -113,7 +113,7 @@ namespace GoF2Remake.UI
         /// (StationMenu.RefreshTexts on Localization.Changed). What Open / Build writes already reads it as it goes.</summary>
         public void RefreshTexts()
         {
-            if (chatClose != null) chatClose.text = Localization.Extra("hudBack", "BACK");
+            if (chatClose != null) chatClose.text = Localization.Extra("hudBack", "BACK").OgCase();
             if (built) Build();   // the visitors' plates and roles; one never shown builds in the new language anyway
         }
 

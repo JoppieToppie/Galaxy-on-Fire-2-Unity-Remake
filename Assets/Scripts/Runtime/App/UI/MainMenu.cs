@@ -311,9 +311,9 @@ namespace GoF2Remake.UI
             if (pressAnyKey == null) return;
             pressAnyKey.text = InputMode.Current switch
             {
-                InputKind.Gamepad => Localization.Extra("pressAnyButton", "PRESS ANY BUTTON"),
-                InputKind.Touch => Localization.Extra("tapToStart", "TAP TO START"),
-                _ => Localization.Extra("pressAnyKey", "PRESS ANY KEY"),
+                InputKind.Gamepad => Localization.Extra("pressAnyButton", "PRESS ANY BUTTON").OgCase(),
+                InputKind.Touch => Localization.Extra("tapToStart", "TAP TO START").OgCase(),
+                _ => Localization.Extra("pressAnyKey", "PRESS ANY KEY").OgCase(),
             };
         }
 

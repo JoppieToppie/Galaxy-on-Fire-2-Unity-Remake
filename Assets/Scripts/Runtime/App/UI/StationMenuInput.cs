@@ -380,7 +380,7 @@ namespace GoF2Remake.UI
             keys.AddToClassList("hint-keys");
             foreach (var g in glyphs) keys.Add(g);
             h.Add(keys);
-            var l = new Label(label) { pickingMode = PickingMode.Ignore };
+            var l = new Label(label.OgCase()) { pickingMode = PickingMode.Ignore };
             l.AddToClassList("hint-label");
             l.AddToClassList("gof-semibold");
             h.Add(l);

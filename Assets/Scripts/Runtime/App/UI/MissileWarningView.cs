@@ -95,7 +95,7 @@ namespace GoF2Remake.UI
             if (!allowed || player == null || cam == null || missiles.Count == 0 || layer.panel == null) { Hide(); return; }
             shown = true;
             banner.RemoveFromClassList("missile-warning--hidden");
-            title.text = missiles.Count == 1 ? Localization.Extra("missileIncoming", "INCOMING MISSILE")
+            title.text = missiles.Count == 1 ? Localization.Extra("missileIncoming", "INCOMING MISSILE").OgCase()
                        : string.Format(Localization.Extra("missileIncomingCount", "INCOMING MISSILES ×{0}"), missiles.Count);
             if (InputMode.Current != hintKind) BuildHint();
             hintRow.style.display = hasBooster ? DisplayStyle.Flex : DisplayStyle.None;   // no booster, no way to shake them off
@@ -169,7 +169,7 @@ namespace GoF2Remake.UI
             hintRow.Clear();
             if (hintKind != InputKind.Touch)
                 foreach (var g in InputGlyph.For(GameControls.Boost, hintKind)) hintRow.Add(g);
-            var l = new Label(Localization.Extra("missileBoostHint", "BOOST TO EVADE")) { pickingMode = PickingMode.Ignore };
+            var l = new Label(Localization.Extra("missileBoostHint", "BOOST TO EVADE").OgCase()) { pickingMode = PickingMode.Ignore };
             l.AddToClassList("missile-warning-hint-label");
             l.AddToClassList("gof-semibold");
             hintRow.Add(l);

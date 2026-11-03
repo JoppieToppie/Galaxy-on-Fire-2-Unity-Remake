@@ -134,7 +134,7 @@ namespace GoF2Remake.UI
             autoGlyph.AddToClassList("dialogue-pad-glyph");
             autoGlyph.pickingMode = PickingMode.Ignore;
             auto.Add(autoGlyph);
-            var autoLabel = new Label(Localization.Extra("dialogueAuto", "AUTO"));
+            var autoLabel = new Label(Localization.Extra("dialogueAuto", "AUTO").OgCase());
             autoLabel.AddToClassList("dialogue-auto-label");
             autoLabel.AddToClassList("gof-semibold");
             autoLabel.pickingMode = PickingMode.Ignore;

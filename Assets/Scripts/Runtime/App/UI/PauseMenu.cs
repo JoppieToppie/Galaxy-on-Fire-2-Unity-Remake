@@ -508,7 +508,7 @@ namespace GoF2Remake.UI
                     }
                     if (sorting != null) BuildSorting(); else Text(choiceText);
                     if (sorting == null) InfoSound?.Invoke();   // a sorting has its own sounds (SortingSound)
-                    Item((choiceYes ?? Localization.Extra("ok", "OK")).UiCaps(), () =>
+                    Item((choiceYes ?? Localization.Extra("ok", "OK").OgCase()).UiCaps(), () =>
                     {
                         if (finishReveal != null) { finishReveal(); return; }   // a sorting's lots still showing: the rest at once
                         Close(); var a = choiceOnYes; choiceOnYes = choiceOnNo = null; a?.Invoke();

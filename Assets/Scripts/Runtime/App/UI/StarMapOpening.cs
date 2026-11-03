@@ -150,7 +150,7 @@ namespace GoF2Remake.UI
                 header.Add(spacer);
             }
             RefreshHelp();
-            backButton.text = Localization.Extra("hudBack", "BACK");
+            backButton.text = Localization.Extra("hudBack", "BACK").OgCase();
             keyButton.text = T(400).UiCaps();
             voidButton.text = VoidButtonText;
             dialogNo.text = T(135).UiCaps();
@@ -234,7 +234,7 @@ namespace GoF2Remake.UI
         {
             if (sideButtons == null || keyButton == null) return;
             float w = 0f;
-            foreach (var text in new[] { VoidButtonText, Localization.Extra("mapFullMap", "FULL MAP"), Localization.Extra("mapCloseUp", "CLOSE UP"), T(400).UiCaps() })
+            foreach (var text in new[] { VoidButtonText, Localization.Extra("mapFullMap", "FULL MAP").OgCase(), Localization.Extra("mapCloseUp", "CLOSE UP").OgCase(), T(400).UiCaps() })
                 w = Mathf.Max(w, keyButton.MeasureTextSize(text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x);
             if (!(w > 0f)) return;
             var s = keyButton.resolvedStyle;

@@ -124,6 +124,7 @@ namespace GoF2Remake.UI
         {
             if (button == null) return;
             var label = button.Q<Label>(className: "glyph-button-label");
+            text = text.OgCase();   // Original style: "Back", not "BACK" (UiCase)
             if (label != null) label.text = text;
             else button.text = text;
         }

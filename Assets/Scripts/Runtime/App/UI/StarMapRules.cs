@@ -276,7 +276,7 @@ namespace GoF2Remake.UI
             dialogInfo = info;
             dialogBackCancels = altText != null && !info;
             root.Q<Label>("dialogText").text = text;
-            dialogYes.text = info ? Localization.Extra("ok", "OK") : yesText ?? T(134).UiCaps();
+            dialogYes.text = info ? Localization.Extra("ok", "OK").OgCase() : yesText ?? T(134).UiCaps();
             dialogNo.style.display = info ? DisplayStyle.None : DisplayStyle.Flex;
             if (dialogAlt != null)
             {

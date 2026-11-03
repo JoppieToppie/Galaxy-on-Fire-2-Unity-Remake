@@ -348,14 +348,14 @@ namespace GoF2Remake.UI
                     var it = db.Item(row.item);
                     tex = ItemInfo.ItemIcon(row.item);
                     name.text = ItemInfo.TaggedItemName(row.item);
-                    if (!Session.SeenItems.Contains(row.item)) sub.Add(Badge(Localization.Extra("shopNew", "NEW"), "row-badge--new"));
-                    else if (hangar.IsMounted(row.item)) sub.Add(Badge(Localization.Extra("shopMounted", "MOUNTED"), "row-badge--mounted"));
+                    if (!Session.SeenItems.Contains(row.item)) sub.Add(Badge(Localization.Extra("shopNew", "NEW").OgCase(), "row-badge--new"));
+                    else if (hangar.IsMounted(row.item)) sub.Add(Badge(Localization.Extra("shopMounted", "MOUNTED").OgCase(), "row-badge--mounted"));
                     // Remake (#62): what the player has in the hold is marked like the Ship tab's cargo rows (amber edge, IN CARGO),
                     // so their own goods stand out from the station's.
                     if (hangar.CargoOf(row.item) > 0)
                     {
                         e.AddToClassList("list-row--owned");   // Remake: tinted blue in place (the cargo outline shifted it right)
-                        sub.Add(Badge(Localization.Extra("shopInCargo", "IN CARGO"), "row-badge--cargo"));
+                        sub.Add(Badge(Localization.Extra("shopInCargo", "IN CARGO").OgCase(), "row-badge--cargo"));
                     }
                     // The trade mode's two amounts: Remake, the station's at the row's left edge and the ship's at its right
                     // (the original's columns), under the name only the category.
@@ -405,8 +405,8 @@ namespace GoF2Remake.UI
                     tex = ItemInfo.ItemIcon(stack.item);
                     name.text = ItemInfo.WithTag(ItemInfo.ItemName(stack.item) + (stack.amount > 1 ? $" ({stack.amount})" : ""), GameNames.ItemTag(stack.item));
                     subText.text = ItemInfo.Category(db.Item(stack.item));
-                    sub.Insert(0, stack.builtIn ? Badge(Localization.Extra("shopBuiltIn", "BUILT IN"), "row-badge--mounted")
-                                                : Badge(Localization.Extra("shopMounted", "MOUNTED"), "row-badge--mounted"));
+                    sub.Insert(0, stack.builtIn ? Badge(Localization.Extra("shopBuiltIn", "BUILT IN").OgCase(), "row-badge--mounted")
+                                                : Badge(Localization.Extra("shopMounted", "MOUNTED").OgCase(), "row-badge--mounted"));
                     // A fitted item in a built-in one's place: which one it stands in for (it is back when this is demounted).
                     if (!stack.builtIn && Hangar.InBuiltInPlace(db, stack)
                         && db.BuiltInItems(Session.ShipIndex).Find(b => db.Item(b.item)?.categoryId == db.Item(stack.item)?.categoryId) is ItemStack replaced)
@@ -422,7 +422,7 @@ namespace GoF2Remake.UI
                     tex = ItemInfo.ItemIcon(row.item);
                     name.text = ItemInfo.TaggedItemName(row.item);   // Remake: the amount at the row's right edge (was "(n)" here)
                     subText.text = ItemInfo.Category(db.Item(row.item));   // the sub-header says "Available in cargo"
-                    sub.Insert(0, Badge(Localization.Extra("shopInCargo", "IN CARGO"), "row-badge--cargo"));
+                    sub.Insert(0, Badge(Localization.Extra("shopInCargo", "IN CARGO").OgCase(), "row-badge--cargo"));
                     break;
                 }
                 case RowKind.Blueprint:
@@ -491,7 +491,7 @@ namespace GoF2Remake.UI
                         if (stock > 0)
                         {
                             // Remake: "SOLD HERE | 120t" (the station's amount); a click / tap opens the shop on it.
-                            var soldHere = Badge($"{Localization.Extra("bpSoldHere", "SOLD HERE")} | {stock}t", "row-badge--stock");
+                            var soldHere = Badge($"{Localization.Extra("bpSoldHere", "SOLD HERE").OgCase()} | {stock}t", "row-badge--stock");
                             soldHere.AddToClassList("row-badge--link");
                             soldHere.pickingMode = PickingMode.Position;
                             int shopItem = row.item;

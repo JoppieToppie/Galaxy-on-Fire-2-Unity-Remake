@@ -43,7 +43,7 @@ namespace GoF2Remake.UI
             grid = root.Q("medalGrid");
             hint = root.Q<Label>("medalHint");
             close = root.Q<Button>("statusClose");
-            close.text = Localization.Extra("hudBack", "BACK");
+            close.text = Localization.Extra("hudBack", "BACK").OgCase();
             close.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
             close.clicked += () => { menu.PlayRelease(); Close(); };
             root.Q<Label>("statusTitle").text = T(169).UiCaps();
@@ -82,7 +82,7 @@ namespace GoF2Remake.UI
         /// (StationMenu.RefreshTexts on Localization.Changed). What Open / Build writes already reads it as it goes.</summary>
         public void RefreshTexts()
         {
-            close.text = Localization.Extra("hudBack", "BACK");
+            close.text = Localization.Extra("hudBack", "BACK").OgCase();
             if (statusTab != null) statusTab.text = T(169).UiCaps();
             if (medalsTab != null) medalsTab.text = T(168).UiCaps();
             if (IsOpen) { Build(); ShowTab(showMedals); }

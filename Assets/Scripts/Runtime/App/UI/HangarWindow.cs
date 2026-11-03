@@ -184,7 +184,7 @@ namespace GoF2Remake.UI
             sellLabel = root.Q<Label>("sellLabel");
             buyLabel = root.Q<Label>("buyLabel");
             closeButton = root.Q<Button>("hangarClose");
-            closeButton.text = Localization.Extra("hudBack", "BACK");
+            closeButton.text = Localization.Extra("hudBack", "BACK").OgCase();
 
             // Modified: the main menu's click sound (the release) on the tabs.
             tabShip.clicked += () => { menu.PlayRelease(); SetTab(Tab.Ship); };
@@ -387,7 +387,7 @@ namespace GoF2Remake.UI
             tabShip.text = T(183);
             tabShop.text = T(185);
             tabBlueprints.text = T(272);
-            if (closeButton != null) closeButton.text = Localization.Extra("hudBack", "BACK");
+            if (closeButton != null) closeButton.text = Localization.Extra("hudBack", "BACK").OgCase();
             if (detailDescTitle != null) detailDescTitle.text = Localization.Get(280).UiCaps();
             if (IsOpen)
             {

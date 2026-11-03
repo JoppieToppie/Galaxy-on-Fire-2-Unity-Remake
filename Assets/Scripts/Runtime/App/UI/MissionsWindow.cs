@@ -82,7 +82,7 @@ namespace GoF2Remake.UI
             root.Q<Label>("missionsTitle").text = T(129).UiCaps();
             root.Q<Label>("storyHeading").text = T(555).UiCaps();
             root.Q<Label>("freelanceHeading").text = T(556).UiCaps();
-            close.text = Localization.Extra("hudBack", "BACK");
+            close.text = Localization.Extra("hudBack", "BACK").OgCase();
             storyMap.text = freelanceMap.text = T(424).UiCaps();
             discard.text = T(423).UiCaps();
 
@@ -130,7 +130,7 @@ namespace GoF2Remake.UI
             root.Q<Label>("missionsTitle").text = T(129).UiCaps();
             root.Q<Label>("storyHeading").text = T(555).UiCaps();
             root.Q<Label>("freelanceHeading").text = T(556).UiCaps();
-            close.text = Localization.Extra("hudBack", "BACK");
+            close.text = Localization.Extra("hudBack", "BACK").OgCase();
             storyMap.text = freelanceMap.text = T(424).UiCaps();
             discard.text = T(423).UiCaps();
             missionsTab.text = T(129).UiCaps();

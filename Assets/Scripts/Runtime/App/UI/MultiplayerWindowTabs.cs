@@ -202,7 +202,7 @@ namespace GoF2Remake.UI
             if (!officer) return;
             var row = Row();
             void Set(int v) { vatEdit[c.station] = v; Rebuild(); }
-            row.Add(Text("    " + Localization.Extra("mpPanelVatRate", "VAT"), 14, Color.white));
+            row.Add(Text("    " + Localization.Extra("mpPanelVatRate", "VAT").OgCase(), 14, Color.white));
             row.Add(Btn("−", () => Set(Mathf.Max(0, edit - 1)), null));
             row.Add(Text(edit + "%", 16, Accent));
             row.Add(Btn("+", () => Set(Mathf.Min(NetFactions.MaxVat, edit + 1)), null));

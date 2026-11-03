@@ -167,8 +167,8 @@ namespace GoF2Remake.UI
             var entries = new List<(string label, System.Action action)>();
             if (atCarrier) entries.Add((Localization.Extra("hudResupply", "Resupply"), OpenCarrierShop));
             if (options != null) foreach (var o in options) entries.Add((o.label, o.open));
-            if (pauseMenu != null && pauseMenu.Photo != null) entries.Add((Localization.Extra("stationInspect", "INSPECT SHIP"), () => pauseMenu.OpenInspect(level)));
-            entries.Add((Localization.Extra("hudUndock", "UNDOCK"), () => CloseDockedMenu(true)));
+            if (pauseMenu != null && pauseMenu.Photo != null) entries.Add((Localization.Extra("stationInspect", "INSPECT SHIP").OgCase(), () => pauseMenu.OpenInspect(level)));
+            entries.Add((Localization.Extra("hudUndock", "UNDOCK").OgCase(), () => CloseDockedMenu(true)));
             string name = atCarrier ? CapitalShips.HostName(docking.Target) : docking.Target.Target != null ? docking.Target.Target.displayName : null;
             dockedMenu.Open(string.IsNullOrEmpty(name) ? Localization.Extra("hudDocked", "Docked") : name, entries);
             dockedSubShown = false;

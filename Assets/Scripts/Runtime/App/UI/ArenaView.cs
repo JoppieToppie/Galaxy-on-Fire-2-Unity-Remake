@@ -81,7 +81,7 @@ namespace GoF2Remake.UI
             panel.style.display = m != null ? DisplayStyle.Flex : DisplayStyle.None;
             if (m == null) { banner.style.display = DisplayStyle.None; return; }
 
-            title.text = (m.kind == NetArena.Kind.Duel ? Localization.Extra("mpArenaDuel", "DUEL") : Localization.Extra("mpArenaFfa", "FREE-FOR-ALL"))
+            title.text = (m.kind == NetArena.Kind.Duel ? Localization.Extra("mpArenaDuel", "DUEL").OgCase() : Localization.Extra("mpArenaFfa", "FREE-FOR-ALL").OgCase())
                          + $"  ·  {string.Format(Localization.Extra("mpArenaFirstTo", "first to {0}"), m.killLimit)}";
             int secs = Mathf.CeilToInt(m.phaseLeft);
             clock.text = m.phase == NetArena.Phase.Fighting ? $"{secs / 60}:{secs % 60:00}" : "";
@@ -105,7 +105,7 @@ namespace GoF2Remake.UI
             string big = null;
             if (m.result != null) big = m.result;
             else if (m.phase == NetArena.Phase.Loading) big = Localization.Extra("mpArenaWaiting", "Waiting for the other pilots...");
-            else if (m.phase == NetArena.Phase.Countdown) big = secs > 0 ? secs.ToString() : Localization.Extra("mpArenaFight", "FIGHT!");
+            else if (m.phase == NetArena.Phase.Countdown) big = secs > 0 ? secs.ToString() : Localization.Extra("mpArenaFight", "FIGHT!").OgCase();
             else if (level != null && level.Health != null && level.Health.Dead) big = Localization.Extra("mpArenaRespawn", "Respawning...");
             banner.style.display = big != null ? DisplayStyle.Flex : DisplayStyle.None;
             banner.style.fontSize = UiLayout.Type(m.result != null ? 26 : 40);

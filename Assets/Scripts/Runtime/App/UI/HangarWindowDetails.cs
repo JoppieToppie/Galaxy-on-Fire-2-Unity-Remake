@@ -57,8 +57,8 @@ namespace GoF2Remake.UI
                     tradeStockLabel.text = T(136).UiCaps();
                     tradeCargoLabel.text = T(183).UiCaps();
                     bool store = hangar.Storage;
-                    sellLabel.text = "‹ " + (store ? Localization.Extra("shopStore", "STORE") : Localization.Extra("shopSell", "SELL"));
-                    buyLabel.text = (store ? Localization.Extra("shopTake", "TAKE") : Localization.Extra("shopBuy", "BUY")) + " ›";
+                    sellLabel.text = "‹ " + (store ? Localization.Extra("shopStore", "STORE").OgCase() : Localization.Extra("shopSell", "SELL").OgCase());
+                    buyLabel.text = (store ? Localization.Extra("shopTake", "TAKE").OgCase() : Localization.Extra("shopBuy", "BUY").OgCase()) + " ›";
                     int stock = hangar.StockOf(item), cargo = hangar.CargoOf(item), price = hangar.BuyPriceOf(item);
                     tradeStock.text = $"{stock} t";
                     tradeCargo.text = $"{cargo} t";
@@ -80,7 +80,7 @@ namespace GoF2Remake.UI
                     // Remake (players' feedback): MOVE to the next slot of its type, for a type with more than one slot.
                     if (actionButton2 != null && selected.equipment >= 0 && hangar.NextSlot(selected.equipment) >= 0)
                     {
-                        SetActionText(actionButton2, Localization.Extra("shopMoveSlot", "MOVE"));
+                        SetActionText(actionButton2, Localization.Extra("shopMoveSlot", "MOVE").OgCase());
                         actionButton2.RemoveFromClassList("detail-action--hidden");
                         actionButton2.AddToClassList("detail-action--move");
                     }
