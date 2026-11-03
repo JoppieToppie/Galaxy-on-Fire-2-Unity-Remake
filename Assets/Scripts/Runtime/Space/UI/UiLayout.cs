@@ -53,7 +53,8 @@ namespace GoF2Remake.UI
         public static int Revision => Settings.UiScalePercent * 1000 + Settings.UiWidth * 100 + Mathf.RoundToInt(Settings.UiMarginPercent * 10f)
                                       + (TvDetected ? 7 : 0) + DebugDevice() * 13 + Settings.UiTextScalePercent * 100000
                                       + (Settings.HighContrast ? 1 : 0) * 30000000 + (Settings.ReduceMotion ? 1 : 0) * 60000000
-                                      + (Settings.ColorblindMarkers ? 1 : 0) * 120000000 + UiFont.Revision + settle * 7919;
+                                      + (Settings.ColorblindMarkers ? 1 : 0) * 120000000
+                                      + (Settings.OriginalUi ? 1 : 0) * 240000000 + UiFont.Revision + settle * 7919;
 
         /// <summary>Modified: the first layout of a run could come too early (in the Editor's Play mode the panel kept its old
         /// scale until the screen size or an option changed: going full screen or picking the font again fixed it). A panel
@@ -221,6 +222,8 @@ namespace GoF2Remake.UI
                 root.EnableInClassList("ui-high-contrast", Settings.HighContrast);
                 root.EnableInClassList("ui-reduce-motion", Settings.ReduceMotion);
                 root.EnableInClassList("ui-colorblind", Settings.ColorblindMarkers);
+                // Remake: Options > Graphics "Interface style" Original (GoF2Original.uss).
+                root.EnableInClassList("ui-style-original", Settings.OriginalUi);
                 UiFont.Apply(root);   // Options > Accessibility "Interface font"
                 // Modified: soon after a scene loads, checked again once it has been drawn (settle).
                 if (settings != null && Time.realtimeSinceStartup - sceneStart < SettleChecks[SettleChecks.Length - 1])
