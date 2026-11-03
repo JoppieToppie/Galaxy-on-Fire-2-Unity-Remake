@@ -36,6 +36,7 @@ namespace GoF2Remake.UI
                 autopilotMenuItems.Add(b);
                 menuButtons.Add((b, target));
             }
+            if (actions) AddEnergyCellCount();
             menuIndex = 0;
             lastMenuMove = 0;
             menuOpenedFrame = Time.frameCount;
@@ -44,6 +45,36 @@ namespace GoF2Remake.UI
             autopilotMenu.AddToClassList("autopilot-menu--shown");
             HighlightMenu();
             BuildHints(InputMode.Current);
+        }
+        /// <summary>Hud::drawMenu: under the quick menu (type 0), with a cloak or a jump drive on the ship, the energy cells in the
+        /// hold (Hud+0x21c, cargo 122, counted by Hud::initHudMenu(0)) as the cell's icon and "X <count>": what the cloak and the
+        /// drives pay with. Remake: shown when the menu holds the cloak, the Khador Drive or the slipstream drive. In the
+        /// items' list, which the secondary and wingmen pages clear.</summary>
+        void AddEnergyCellCount()
+        {
+            if (!menuButtons.Exists(m => m.target != null && (m.target.kind == Navigation.Kind.Cloak || m.target.kind == Navigation.Kind.KhadorDrive
+                                                               || m.target.kind == Navigation.Kind.Slipstream))) return;
+            var row = new VisualElement { pickingMode = PickingMode.Ignore };
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            row.style.justifyContent = Justify.Center;
+            row.style.marginTop = 10;
+            var icon = ItemInfo.ItemIcon(GalaxyMap.EnergyCellItem);
+            if (icon != null)
+            {
+                var image = new VisualElement { pickingMode = PickingMode.Ignore };
+                image.style.width = 44;
+                image.style.height = 44;
+                image.style.marginRight = 8;
+                image.style.backgroundImage = new StyleBackground(icon);
+                row.Add(image);
+            }
+            var count = new Label("X " + Shop.CargoOf(GalaxyMap.EnergyCellItem)) { pickingMode = PickingMode.Ignore };
+            count.AddToClassList("gof-semibold");
+            count.style.color = Color.white;
+            count.style.fontSize = 26;
+            row.Add(count);
+            autopilotMenuItems.Add(row);
         }
         /// <summary>An entry's text; with keys and mouse numbered "1." to "8." like the PC version's menus (its "Menu select 1-8"
         /// keys; the station menu's entries are numbered the same way).</summary>
