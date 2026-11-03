@@ -38,6 +38,21 @@
     --button-primary-fill: rgba(0, 0, 0, 0);
     --button-primary-line: rgba(0, 0, 0, 0);
     --button-primary-focus-fill: rgba(0, 0, 0, 0);
+
+    /* The original HD versions' interface text is small and regular weight (about 15 px at 1080p, Klavika, sentence and
+       title case, a little tracking); the remake's scale is a step bigger everywhere. Display stays for the big numbers. */
+    --text-caption: 15px;
+    --text-small: 16px;
+    --text-body: 17px;
+    --text-label: 18px;
+    --text-subhead: 19px;
+    --text-heading: 21px;
+    --text-title: 24px;
+}
+
+/* No bold in the original's menus: the semibold helper reads as the body weight. */
+.ui-style-original .gof-semibold {
+    -unity-font-style: normal;
 }
 
 /* ---- Windows: the scanline tile, a thin steel border, square corners ------------------------------------------ */
