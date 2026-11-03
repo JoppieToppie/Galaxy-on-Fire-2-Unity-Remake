@@ -9,6 +9,10 @@
 // Remake (#235): the same copy takes the controller's right stick out of UI/Navigate (the actions bind it beside the left
 // stick and the d-pad): it scrolls the long texts (StickScroll) and turns the hangar's ship, and moving the focus with it
 // too toggled the lounge's accept / decline while the dialogue scrolled. The left stick and the d-pad still navigate.
+// Remake (Discord "Input stuck from UI", PC): the copy's UI/Navigate also leaves out the generic joystick (<Joystick>/stick,
+// a flight stick, HOTAS, wheel or a pad the Input System doesn't know as a gamepad), which nothing else in the game reads
+// (InputDeviceLog). UI/Navigate is a pass-through action: its value is the control that changed last, so a joystick axis
+// resting off centre held it at "down" and the menus walked down on their own until W or S (a newer change) took over.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -68,13 +72,13 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>A copy of 'source' whose UI/Submit also takes SubmitKeys and whose UI/Navigate leaves out the right
-        /// stick (#235).</summary>
+        /// stick (#235) and the generic joystick (a resting axis held the menus' navigation down).</summary>
         public static InputActionAsset WithSubmitKeys(InputActionAsset source)
         {
             var copy = Object.Instantiate(source);
             copy.name = source.name;
             copy.hideFlags = HideFlags.DontSave;
-            WithoutRightStick(copy.FindAction("UI/Navigate"));
+            WithoutRightStick(copy.FindAction("UI/Navigate"));   // Modified: and without the joystick
             var submit = copy.FindAction("UI/Submit");
             if (submit == null) return copy;
             foreach (var path in SubmitKeys)
@@ -90,12 +94,16 @@ namespace GoF2Remake.UI
         public static bool IsRightStick(string path) =>
             path != null && path.StartsWith("<Gamepad>/rightStick", System.StringComparison.OrdinalIgnoreCase);
 
-        /// <summary>Erases the action's right stick bindings; a composite left with no parts goes too.</summary>
+        /// <summary>A generic joystick (not a gamepad): a binding to one of its controls.</summary>
+        public static bool IsJoystick(string path) =>
+            path != null && path.StartsWith("<Joystick>", System.StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Erases the action's right stick and joystick bindings; a composite left with no parts goes too.</summary>
         static void WithoutRightStick(InputAction action)
         {
             if (action == null) return;
             for (int i = action.bindings.Count - 1; i >= 0; i--)
-                if (IsRightStick(action.bindings[i].path)) action.ChangeBinding(i).Erase();
+                if (IsRightStick(action.bindings[i].path) || IsJoystick(action.bindings[i].path)) action.ChangeBinding(i).Erase();
             for (int i = action.bindings.Count - 1; i >= 0; i--)
             {
                 if (!action.bindings[i].isComposite) continue;
