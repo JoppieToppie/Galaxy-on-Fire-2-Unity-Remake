@@ -247,6 +247,9 @@ namespace GoF2Remake.UI
             safeArea = root.Q("safeArea");
             hints = root.Q("hints");
             carrierShop = null;   // its elements went with the old tree (made again when the carrier is docked at)
+            // Remake: the docked menu too; open, it is made again (the menu's pause let go first so it can reopen).
+            if (dockedMenu != null && dockedMenu.IsOpen) { nav?.CloseMenu(); resupplyShown = false; }
+            dockedMenu = null;
             InputGlyph.TrackHintsOption(hints);   // Options > Gameplay: "Button hints in flight"
             if (GoF2Remake.Multiplayer.NetGame.Active)
             {
@@ -505,7 +508,7 @@ namespace GoF2Remake.UI
             bool mapOpen = StarMap.IsOpen;
             root.EnableInClassList("hud-map", mapOpen);
             root.EnableInClassList("hud-paused", pauseMenu != null && pauseMenu.IsOpen);   // the menu has its own prompts
-            root.EnableInClassList("hud-shop", carrierShop != null && carrierShop.IsOpen);   // the carrier's resupply window
+            root.EnableInClassList("hud-shop", (carrierShop != null && carrierShop.IsOpen) || (dockedMenu != null && dockedMenu.IsOpen));   // the carrier's resupply window, the docked menu
             int hudMode = Settings.HudMode;   // Options > Gameplay "Flight HUD" (immersion): FlightHud.uss hides the markings
             root.EnableInClassList("hud-minimal", hudMode == Settings.HudMinimal);
             root.EnableInClassList("hud-off", hudMode == Settings.HudOff);
@@ -541,6 +544,23 @@ namespace GoF2Remake.UI
             bool challenge = level != null && level.Challenge != null;
             challengeView?.Update(challenge);
             root.EnableInClassList("hud-challenge", challenge);   // the top plates move under the score
+            if (dockedMenu != null && dockedMenu.IsOpen)
+            {
+                // Remake: the docked menu (DockedMenu): under an option's window (the resupply window, the pause menu's pages:
+                // the plant's, Inspect ship) it hides and that window has the keys; the docking ended another way (the object
+                // destroyed, a level script): all of it goes without an undock.
+                if (docking == null || !docking.IsDocked) { CloseDockedMenu(false); }
+                else
+                {
+                    bool sub = (carrierShop != null && carrierShop.IsOpen) || pauseMenu.IsOpen;
+                    dockedMenu.SetShown(!sub);
+                    if (sub != dockedSubShown) { dockedSubShown = sub; BuildHints(InputMode.Current); }
+                    if (carrierShop != null && carrierShop.IsOpen) carrierShop.Tick();
+                    else if (pauseMenu.IsOpen) pauseMenu.Tick();
+                    else dockedMenu.Tick();
+                    return;
+                }
+            }
             if (carrierShop != null && carrierShop.IsOpen)
             {
                 // The docking ended another way (the carrier destroyed, a level script): the window goes without an undock.
@@ -794,8 +814,16 @@ namespace GoF2Remake.UI
             miningView.UpdateGame(mining, Time.deltaTime * 1000f);
             hackingView?.Update(docking);
             // Remake (CapitalShips): docked at the carrier, its resupply window opens (closing it undocks).
+            // Remake: outside VR the docked menu instead (DockedMenu: the carrier's Resupply, an object's own options from
+            // ObjectDocking.Options such as the Mining Plant's, Inspect ship, Undock); VR keeps the resupply window at once.
             bool atCarrier = docking != null && docking.IsDocked && docking.Target != null && docking.Target.DockingType == ObjectDocking.Resupply;
-            if (atCarrier && !resupplyShown && nav != null && !nav.MenuOpen) { resupplyShown = true; OpenCarrierShop(); }
+            if (docking != null && docking.IsDocked && docking.Target != null && !resupplyShown && nav != null && !nav.MenuOpen && !pauseMenu.IsOpen)
+            {
+                var options = Vr.VrMode.Enabled || docking.Options == null ? null : docking.Options(docking.Target);
+                if (atCarrier || (options != null && options.Count > 0)) resupplyShown = true;
+                if (atCarrier && Vr.VrMode.Enabled) OpenCarrierShop();
+                else if (resupplyShown) OpenDockedMenu(atCarrier, options);
+            }
             else if (docking == null || !docking.Busy) resupplyShown = false;
             if (transferCounter != null)
             {
@@ -831,6 +859,9 @@ namespace GoF2Remake.UI
 
         bool resupplyShown;
         CarrierShopWindow carrierShop;
+        /// <summary>Remake: the docked menu (DockedMenu); an option's window is over it (its hints are that window's).</summary>
+        DockedMenu dockedMenu;
+        bool dockedSubShown;
 
         AudioSource shopAmbience;
 

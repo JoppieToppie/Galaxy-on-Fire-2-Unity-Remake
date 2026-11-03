@@ -40,7 +40,7 @@ namespace GoF2Remake.UI
         readonly ScrollView list, detailScroll;
         readonly Label detailName, detailSub, detailText, tradeLeft, tradeRight, tradeNote, tradePrice, cargoLabel, creditsLabel;
         readonly VisualElement detailMods = ItemInfo.NewModBlock();   // the ship's Kaamo Club mods, under the repair's text
-        readonly Button actionButton, tab;
+        readonly Button actionButton, tab, closeButton;
         readonly Label storeLabel;
         NpcShip host;
         CapitalShips.Store store;
@@ -59,6 +59,9 @@ namespace GoF2Remake.UI
         const float MoveAfterMs = 350f, MoveEveryMs = 80f;
 
         public bool IsOpen { get; private set; }
+        /// <summary>Remake: opened from the docked menu (FlightHud.DockedMenu): closing goes back to it, the close button
+        /// reads Back instead of Undock (read by Open).</summary>
+        public bool FromMenu;
         /// <summary>Modified: the menus' hover sound on the window's tab (FlightHud; UiHover: tabs and side menus only).</summary>
         public Action HoverSound;
 
@@ -85,7 +88,7 @@ namespace GoF2Remake.UI
             tab.AddToClassList("gof-semibold");
             top.Add(tab);
             top.Add(El("hangar-top-spacer"));
-            var close = new Button(() => { playButton?.Invoke(false); Close(); }) { text = X("hudUndock", "UNDOCK"), focusable = false };
+            var close = closeButton = new Button(() => { playButton?.Invoke(false); Close(); }) { text = X("hudUndock", "UNDOCK"), focusable = false };
             close.AddToClassList("hangar-close");
             close.AddToClassList("gof-semibold");
             top.Add(close);
@@ -205,6 +208,7 @@ namespace GoF2Remake.UI
             string name = CapitalShips.HostName(ship).ToUpperInvariant();
             tab.text = name;
             storeLabel.text = name;
+            closeButton.text = FromMenu ? X("hudBack", "BACK") : X("hudUndock", "UNDOCK");
             IsOpen = true;
             openedFrame = Time.frameCount;
             selected = -1;

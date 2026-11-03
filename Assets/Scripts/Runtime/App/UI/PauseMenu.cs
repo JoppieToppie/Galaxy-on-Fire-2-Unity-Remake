@@ -395,6 +395,17 @@ namespace GoF2Remake.UI
             Show(Page.Main);
         }
 
+        /// <summary>Remake: opened straight into the photo tools for the docked menu's Inspect ship (FlightHud.DockedMenu);
+        /// Back closes the menu (back to the docked menu) instead of going to the pause page.</summary>
+        bool inspectOnly;
+        public void OpenInspect(SpaceLevel spaceLevel)
+        {
+            if (IsOpen || Photo == null) return;
+            Open(spaceLevel);
+            inspectOnly = true;
+            Show(Page.Photo);
+        }
+
         /// <summary>A scene change with the menu open (a multiplayer session ending): the sound comes back.</summary>
         void OnDestroy()
         {
@@ -406,6 +417,7 @@ namespace GoF2Remake.UI
             if (!IsOpen) return;
             if (Photo != null && Photo.Active) Photo.Exit();
             IsOpen = false;
+            inspectOnly = false;
             sorting = null;
             choiceEntries = null;
             choiceSections = null;
@@ -465,6 +477,7 @@ namespace GoF2Remake.UI
                 case Page.Photo:
                     backdrop.RemoveFromClassList("pause-backdrop--shown");
                     Photo.Enter(level);
+                    if (!Photo.Active && inspectOnly) { Close(); return; }   // Remake: Inspect ship (OpenInspect)
                     if (!Photo.Active) { backdrop.AddToClassList("pause-backdrop--shown"); Show(Page.Main); }
                     return;
                 case Page.Choice:
@@ -1071,7 +1084,11 @@ namespace GoF2Remake.UI
             if (page == Page.Photo)
             {
                 // Back leaves state 0xd for the pause page; the game stays paused.
-                if (Photo == null || !Photo.Tick()) { backdrop.AddToClassList("pause-backdrop--shown"); Show(Page.Main); openedFrame = Time.frameCount; }
+                if (Photo == null || !Photo.Tick())
+                {
+                    if (inspectOnly) { Close(); return; }   // Remake: Inspect ship goes back to the docked menu (OpenInspect)
+                    backdrop.AddToClassList("pause-backdrop--shown"); Show(Page.Main); openedFrame = Time.frameCount;
+                }
                 return;
             }
             var kb = GoF2Remake.Multiplayer.NetChat.Keys;

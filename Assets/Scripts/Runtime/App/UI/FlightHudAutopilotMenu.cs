@@ -114,9 +114,15 @@ namespace GoF2Remake.UI
             weapons?.SetPrimaryHeld(false);
             carrierShop ??= new CarrierShopWindow(safeArea ?? root, level.Database, health, PlayButton, PlayUi,
                                                   text => miningView?.ShowMessage(text), OnCarrierShopClosed) { HoverSound = PlayHover };
+            carrierShop.FromMenu = dockedMenu != null && dockedMenu.IsOpen;
             carrierShop.Open(docking != null ? docking.Target : null);
             BuildHints(InputMode.Current);
-            // Inside the carrier: the station hangar's ambience under the window (it plays through the paused game).
+            StartShopAmbience();
+        }
+        /// <summary>Inside the carrier: the station hangar's ambience under the window (it plays through the paused game).</summary>
+        void StartShopAmbience()
+        {
+            if (shopAmbience != null && shopAmbience.isPlaying) return;   // Remake: already under the docked menu
             var atmo = CombatAudio.Load()?.hangarAtmo;
             if (atmo != null)
             {
@@ -137,10 +143,51 @@ namespace GoF2Remake.UI
         /// (ObjectDocking.Release), so nothing is fired into the carrier's deck on the way out.</summary>
         void OnCarrierShopClosed()
         {
+            // Remake: from the docked menu, back to it (its Undock undocks).
+            if (dockedMenu != null && dockedMenu.IsOpen) { BuildHints(InputMode.Current); return; }
             if (shopAmbience != null) shopAmbience.Stop();
             nav?.CloseMenu();
             docking?.Undock();
             if (weapons != null) weapons.Blocked = true;
+            BuildHints(InputMode.Current);
+        }
+        /// <summary>Remake: the docked menu in the station menu's look (DockedMenu) while docked at an object with options:
+        /// the object's name, the carrier's Resupply (the resupply window, CarrierShopWindow) or the object's own options
+        /// (ObjectDocking.Options: the Mining Plant's pages), Inspect ship (the photo tools, PauseMenu.OpenInspect), Undock.
+        /// The game waits under it like under the resupply window (Navigation.OpenMenu(force); multiplayer runs on).</summary>
+        void OpenDockedMenu(bool atCarrier, List<(string label, System.Action open)> options)
+        {
+            if (nav == null || level == null || docking == null || docking.Target == null) return;
+            nav.OpenMenu(false, true);
+            if (!nav.MenuOpen) return;
+            touch?.ReleaseAll();
+            weapons?.SetPrimaryHeld(false);
+            dockedMenu ??= new DockedMenu(safeArea ?? root, PlayButton, PlayHover);
+            var entries = new List<(string label, System.Action action)>();
+            if (atCarrier) entries.Add((Localization.Extra("hudResupply", "Resupply"), OpenCarrierShop));
+            if (options != null) foreach (var o in options) entries.Add((o.label, o.open));
+            if (pauseMenu != null && pauseMenu.Photo != null) entries.Add((Localization.Extra("stationInspect", "INSPECT SHIP"), () => pauseMenu.OpenInspect(level)));
+            entries.Add((Localization.Extra("hudUndock", "UNDOCK"), () => CloseDockedMenu(true)));
+            string name = atCarrier ? CapitalShips.HostName(docking.Target) : docking.Target.Target != null ? docking.Target.Target.displayName : null;
+            dockedMenu.Open(string.IsNullOrEmpty(name) ? Localization.Extra("hudDocked", "Docked") : name, entries);
+            dockedSubShown = false;
+            BuildHints(InputMode.Current);
+            if (atCarrier) StartShopAmbience();
+        }
+        /// <summary>The docked menu closes: 'undock' from its Undock (the guns blocked on the way out, as from the resupply
+        /// window), otherwise the docking ended another way and every window over it goes too.</summary>
+        void CloseDockedMenu(bool undock)
+        {
+            dockedMenu?.Hide();
+            carrierShop?.Hide();
+            if (!undock && pauseMenu != null && pauseMenu.IsOpen) pauseMenu.Close();
+            if (shopAmbience != null) shopAmbience.Stop();
+            nav?.CloseMenu();
+            if (undock)
+            {
+                docking?.Undock();
+                if (weapons != null) weapons.Blocked = true;
+            }
             BuildHints(InputMode.Current);
         }
         void HideAutopilotMenu()

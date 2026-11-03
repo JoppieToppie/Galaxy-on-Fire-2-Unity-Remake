@@ -74,19 +74,39 @@ namespace GoF2Remake.UI
             string T(string key, string english) => Localization.Extra(key, english);
             // The menus' own keys are fixed (arrows / D-pad, Enter / A, Esc / B / Menu); the rest are GameControls' bindings.
             var menuKey = pad ? InputGlyph.Pad(PadButton.Menu) : InputGlyph.Key("ESC");
+            // Remake: from the docked menu the resupply window's Esc / B go back to it.
+            bool fromDocked = dockedMenu != null && dockedMenu.IsOpen;
             if (carrierShop != null && carrierShop.IsOpen)
             {
                 // The carrier's resupply window (CarrierShopWindow): its own keys.
+                string leave = fromDocked ? T("hudBack", "BACK") : T("hudUndock", "UNDOCK");
                 if (!pad)
                 {
                     Hint(T("hudSelect", "SELECT"), InputGlyph.Key("↑"), InputGlyph.Key("↓"));
                     Hint(T("shopBuy", "BUY"), InputGlyph.Key("→"), InputGlyph.Key("ENTER", true));
-                    Hint(T("hudUndock", "UNDOCK"), InputGlyph.Key("ESC"));
+                    Hint(leave, InputGlyph.Key("ESC"));
                 }
                 else
                 {
                     Hint(T("hudSelect", "SELECT"), InputGlyph.Pad(PadButton.DPad));
                     Hint(T("shopBuy", "BUY"), InputGlyph.Pad(PadButton.A));
+                    Hint(leave, InputGlyph.Pad(PadButton.B));
+                }
+                return;
+            }
+            if (fromDocked)
+            {
+                // Remake: the docked menu (DockedMenu), the station menu's keys; Esc / B undock.
+                if (!pad)
+                {
+                    Hint(T("hudSelect", "SELECT"), InputGlyph.Key("↑"), InputGlyph.Key("↓"));
+                    Hint(T("hudConfirm", "CONFIRM"), InputGlyph.Key("ENTER", true), InputGlyph.Key("1-9", true));
+                    Hint(T("hudUndock", "UNDOCK"), InputGlyph.Key("ESC"));
+                }
+                else
+                {
+                    Hint(T("hudSelect", "SELECT"), InputGlyph.Pad(PadButton.DPad));
+                    Hint(T("hudConfirm", "CONFIRM"), InputGlyph.Pad(PadButton.A));
                     Hint(T("hudUndock", "UNDOCK"), InputGlyph.Pad(PadButton.B));
                 }
                 return;
