@@ -1,7 +1,8 @@
 // VrRadar.cs
 // Remake VR: the cockpit's radar scope in the middle of the dashboard (VrCockpit; the original has no scope: its radar is
 // the HUD's markers and the ellipse). Top-down around the ship, forward up: the ships within 3 km (60 000 units) as dots,
-// red hostile / green friendly / yellow neutral (Target.hostileToPlayer / friendToPlayer, like the HUD markers), the
+// red hostile / green friendly / yellow neutral (Target.hostileToPlayer / friendToPlayer, like the HUD markers; the
+// player's wingmen blue, Target.wingman, #216), the
 // distance square-root scaled (near ones spread out), farther ones on the rim; the station cyan at the orbit's origin; the
 // player a white dot in the middle. Ships only with a scanner (CombatRadar.HasScanner, as the HUD's ship markers);
 // cloaked, hidden and untargetable ships never. A dot above the ship is a little bigger, below a little smaller.
@@ -17,7 +18,7 @@ namespace GoF2Remake.Vr
         const float Radius = 0.085f, DotSize = 0.009f, RangeMetres = 3000f;
 
         readonly List<Transform> dots = new List<Transform>();
-        Material red, green, yellow, cyan, white, disc;
+        Material red, green, blue, yellow, cyan, white, disc;
         Texture2D discTexture;
         Transform stationDot;
 
@@ -30,6 +31,7 @@ namespace GoF2Remake.Vr
             bg.localPosition = new Vector3(0f, 0f, 0.0005f);
             red = Dot(new Color(1f, 0.25f, 0.15f));
             green = Dot(new Color(0.3f, 1f, 0.35f));
+            blue = Dot(new Color(0.31f, 0.7f, 1f));   // the wingmen (#216), the HUD's blue friend label #4FB2FF
             yellow = Dot(new Color(1f, 0.85f, 0.25f));
             cyan = Dot(new Color(0.3f, 0.9f, 1f));
             white = Dot(Color.white);
@@ -116,7 +118,7 @@ namespace GoF2Remake.Vr
                         d.gameObject.SetActive(true);
                         d.localPosition = OnScope(ship, t.transform.position, out float k);
                         d.localScale = new Vector3(DotSize * k, DotSize * k, 1f);
-                        d.GetComponent<MeshRenderer>().sharedMaterial = t.hostileToPlayer ? red : t.friendToPlayer ? green : yellow;
+                        d.GetComponent<MeshRenderer>().sharedMaterial = t.hostileToPlayer ? red : t.friendToPlayer ? (t.wingman ? blue : green) : yellow;
                     }
             }
             for (int i = used; i < dots.Count; i++) if (dots[i].gameObject.activeSelf) dots[i].gameObject.SetActive(false);
@@ -124,7 +126,7 @@ namespace GoF2Remake.Vr
 
         void OnDestroy()
         {
-            foreach (var m in new[] { red, green, yellow, cyan, white, disc }) if (m != null) Destroy(m);
+            foreach (var m in new[] { red, green, blue, yellow, cyan, white, disc }) if (m != null) Destroy(m);
             if (discTexture != null) Destroy(discTexture);
         }
     }
