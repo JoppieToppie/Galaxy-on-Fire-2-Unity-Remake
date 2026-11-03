@@ -124,8 +124,10 @@ namespace GoF2Remake.UI
             // UnityEngine.Device: the Device Simulator's phone in the Editor (UnityEngine.Application stays the Editor there).
             if (UnityEngine.Device.Application.isMobilePlatform) return Inches(w, h) < 7.5f ? Device.Phone : Device.Desktop;
             if (TvDetected) return Device.Tv;
-            // Steam sets SteamDeck=1 on the Deck; any other small desktop screen whose dpi says so counts too.
-            if (System.Environment.GetEnvironmentVariable("SteamDeck") == "1") return Device.Handheld;
+            // Steam sets SteamDeck=1 on the Deck (GOF2_STEAMDECK=1 once SteamDeckRelaunch has restarted the Linux player
+            // without it, #232); any other small desktop screen whose dpi says so counts too.
+            if (System.Environment.GetEnvironmentVariable("SteamDeck") == "1"
+                || System.Environment.GetEnvironmentVariable("GOF2_STEAMDECK") == "1") return Device.Handheld;
             if (Application.platform == RuntimePlatform.LinuxPlayer && Screen.dpi > 150f && Inches(w, h) < 9f) return Device.Handheld;
             return Device.Desktop;
         }

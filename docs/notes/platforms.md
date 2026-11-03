@@ -174,3 +174,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   The iOS profile builds here, IL2CPP included, as far as the Xcode project (2026-10-31: 1671 variants, 105 s, 11 min with the
   first iOS import of every asset, no errors); compiling and signing that project needs a Mac. `Linux Server` keeps its Development tick (the menu's
   Linux Dedicated Server build passes its own options).
+- **Steam Deck relaunch** (remake, `SteamDeckRelaunch`, GoF2.App; #232): Steam sets `SteamDeck=1` for every launch on the
+  Deck, and Unity 7000.0.0a12's Linux player then selects a Steam Deck presentation path (the variable's only reference in
+  `UnityPlayer.so`, next to the Xdbe strings) that stalls the render loop at ~0 FPS. The engine reads it before managed code,
+  so the Linux player (not the Editor or a server) re-execs `/proc/self/exe` once at SubsystemRegistration without it, leaving
+  `GOF2_STEAMDECK=1` (the loop guard, also read by `UiLayout.Detect` and `InputDeviceLog`). `GOF2_KEEP_STEAMDECK=1` skips it;
+  players' fallback is the launch option `env -u SteamDeck %command%`.
