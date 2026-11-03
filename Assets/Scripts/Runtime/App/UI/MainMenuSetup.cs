@@ -49,6 +49,9 @@ namespace GoF2Remake.UI
                     e.StopPropagation();
                     ConfirmDialog();
                 }, TrickleDown.TrickleDown);
+                // Phones (#224): the game's own keyboard with the system's input box (as the chat's), and its Done is OK;
+                // UI Toolkit's own soft keyboard came up full screen with no box, caret or placeholder.
+                PhoneKeyboard.Attach(dialogField, () => { ConfirmDialog(); return false; });
             }
             mainColumn = root.Q("mainColumn");
             mainButtons = root.Q("mainButtons");

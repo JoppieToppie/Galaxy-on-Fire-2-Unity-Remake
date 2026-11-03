@@ -1644,6 +1644,18 @@
     white-space: nowrap;
 }
 
+/* The caret, the selection and the placeholder (#224): without Unity's default theme a field had no visible caret on the
+   dark boxes and its placeholder read like typed text (or not at all); the text-edit popups looked like no field. */
+.unity-base-text-field__input {
+    --unity-cursor-color: #FFFFFF;
+    --unity-selection-color: rgba(255, 166, 48, 0.45);
+}
+
+.unity-base-text-field__input--placeholder,
+.unity-base-text-field__input--placeholder .unity-text-element {
+    color: rgba(216, 236, 247, 0.45);
+}
+
 /* The shared text field (docs/UI-DESIGN.md "Controls"): a dark box with a faint outline, amber with the focus, so a field
    reads as one before anything is typed (the multiplayer window's fields had no box: their values read as labels). */
 .gof-field .unity-base-text-field__input {
