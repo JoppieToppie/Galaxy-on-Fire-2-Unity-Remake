@@ -3225,5 +3225,6 @@
  "speedrunResetHelp": "Завершает забег сейчас и сохраняет его как незаконченную попытку.",
  "speedrunFolder": "Открыть папку забегов",
  "speedrunFolderHelp": "Забеги сохраняются как файлы сплитов LiveSplit (.lss) для LiveSplit и splits.io. Положите сюда другие файлы .lss, чтобы сравнивать с ними.",
- "speedrunNewPb": "Новый личный рекорд!"
+ "speedrunNewPb": "Новый личный рекорд!",
+ "stationGameOptions": "Настройки игры"
 }

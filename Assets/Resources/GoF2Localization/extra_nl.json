@@ -3225,5 +3225,6 @@
  "speedrunResetHelp": "Beëindigt de run nu en bewaart hem als onafgemaakte poging.",
  "speedrunFolder": "Runsmap openen",
  "speedrunFolderHelp": "Runs worden bewaard als LiveSplit-splitbestanden (.lss) voor LiveSplit en splits.io. Zet hier andere .lss-bestanden neer om ermee te vergelijken.",
- "speedrunNewPb": "Nieuw persoonlijk record!"
+ "speedrunNewPb": "Nieuw persoonlijk record!",
+ "stationGameOptions": "Spelopties"
 }

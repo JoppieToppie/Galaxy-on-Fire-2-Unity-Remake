@@ -3225,5 +3225,6 @@
  "speedrunResetHelp": "रन को अभी खत्म करता है और अधूरे प्रयास के रूप में रखता है।",
  "speedrunFolder": "रन फ़ोल्डर खोलें",
  "speedrunFolderHelp": "रन LiveSplit और splits.io के लिए LiveSplit स्प्लिट फ़ाइलों (.lss) के रूप में सहेजे जाते हैं। तुलना के लिए दूसरी .lss फ़ाइलें यहाँ रखें।",
- "speedrunNewPb": "नया व्यक्तिगत सर्वश्रेष्ठ!"
+ "speedrunNewPb": "नया व्यक्तिगत सर्वश्रेष्ठ!",
+ "stationGameOptions": "गेम विकल्प"
 }

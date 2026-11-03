@@ -3225,5 +3225,6 @@
  "speedrunResetHelp": "Kończy run teraz i zachowuje go jako nieukończoną próbę.",
  "speedrunFolder": "Otwórz folder runów",
  "speedrunFolderHelp": "Runy są zapisywane jako pliki międzyczasów LiveSplit (.lss) dla LiveSplit i splits.io. Umieść tu inne pliki .lss, aby się z nimi porównywać.",
- "speedrunNewPb": "Nowy rekord osobisty!"
+ "speedrunNewPb": "Nowy rekord osobisty!",
+ "stationGameOptions": "Opcje gry"
 }

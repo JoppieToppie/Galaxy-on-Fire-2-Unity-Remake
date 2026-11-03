@@ -3225,5 +3225,6 @@
  "speedrunResetHelp": "ينهي المحاولة الآن ويحفظها كمحاولة غير مكتملة.",
  "speedrunFolder": "فتح مجلد المحاولات",
  "speedrunFolderHelp": "تُحفظ المحاولات كملفات تقسيمات LiveSplit (.lss) لـ LiveSplit وsplits.io. ضع ملفات .lss أخرى هنا للمقارنة بها.",
- "speedrunNewPb": "أفضل رقم شخصي جديد!"
+ "speedrunNewPb": "أفضل رقم شخصي جديد!",
+ "stationGameOptions": "خيارات اللعبة"
 }

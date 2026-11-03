@@ -3225,5 +3225,6 @@
  "speedrunResetHelp": "Beendet den Run jetzt und behält ihn als unvollendeten Versuch.",
  "speedrunFolder": "Run-Ordner öffnen",
  "speedrunFolderHelp": "Runs werden als LiveSplit-Splitdateien (.lss) für LiveSplit und splits.io gespeichert. Lege andere .lss-Dateien hier ab, um mit ihnen zu vergleichen.",
- "speedrunNewPb": "Neue persönliche Bestzeit!"
+ "speedrunNewPb": "Neue persönliche Bestzeit!",
+ "stationGameOptions": "Spieloptionen"
 }

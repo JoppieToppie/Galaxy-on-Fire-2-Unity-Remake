@@ -3225,5 +3225,6 @@
  "speedrunResetHelp": "지금 런을 끝내고 완료하지 못한 시도로 보관합니다.",
  "speedrunFolder": "런 폴더 열기",
  "speedrunFolderHelp": "런은 LiveSplit과 splits.io용 LiveSplit 스플릿 파일(.lss)로 저장됩니다. 비교할 다른 .lss 파일을 여기에 넣으세요.",
- "speedrunNewPb": "새 개인 최고 기록!"
+ "speedrunNewPb": "새 개인 최고 기록!",
+ "stationGameOptions": "게임 옵션"
 }

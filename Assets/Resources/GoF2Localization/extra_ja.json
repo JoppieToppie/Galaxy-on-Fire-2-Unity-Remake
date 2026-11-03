@@ -3225,5 +3225,6 @@
  "speedrunResetHelp": "今すぐランを終了し、未完了の試行として保存します。",
  "speedrunFolder": "ランフォルダを開く",
  "speedrunFolderHelp": "ランは LiveSplit のスプリットファイル（.lss）として保存され、LiveSplit や splits.io で使えます。比較したい他の .lss ファイルはここに置いてください。",
- "speedrunNewPb": "自己ベスト更新！"
+ "speedrunNewPb": "自己ベスト更新！",
+ "stationGameOptions": "ゲームオプション"
 }
