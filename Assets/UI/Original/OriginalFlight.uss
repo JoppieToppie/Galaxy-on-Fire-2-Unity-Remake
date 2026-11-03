@@ -747,3 +747,23 @@
 .ui-style-original .ending-text {
     color: #FFFFFF;
 }
+
+/* ---- Second pass, checked in Unity -------------------------------------------------------------------------------- */
+
+/* The "?" (40 px, set in code) as the original's small help button inside the 30 px strip, clear of the screen's edge. */
+.ui-style-original .map-help {
+    scale: 0.6 0.6;
+}
+
+/* The footer row: the key hints give up their room before the map's buttons do; Key ran off the screen's right edge. */
+.ui-style-original .map-footer .map-hints {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.ui-style-original .map-footer > #backButton,
+.ui-style-original .map-footer .map-side,
+.ui-style-original .map-side-buttons .map-button {
+    flex-shrink: 0;
+}

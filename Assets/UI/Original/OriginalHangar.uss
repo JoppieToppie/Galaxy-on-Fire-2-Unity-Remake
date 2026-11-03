@@ -1168,3 +1168,21 @@
     background-image: url("project://database/Assets/UI/Original/og_hg_back_on.png");
     color: #FFFFFF;
 }
+
+/* ---- Second pass, checked in Unity -------------------------------------------------------------------------- */
+
+/* The name takes the row's whole text width: sized to its text, the tracking wasn't measured and every name was cut
+   short with an ellipsis ("Nirai Impulse E..."). */
+.ui-style-original .row-name-line {
+    align-items: stretch;
+}
+
+.ui-style-original .row-name {
+    letter-spacing: 0;
+}
+
+/* The "?" as the original's small help button (about 24 px) inside the 30 px bar: its size is set in code (34 px, so the
+   Remake keeps it), which stuck out of the bar's top; scaled down instead. Also the Status and Missions windows' "?". */
+.ui-style-original .window-help {
+    scale: 0.7 0.7;
+}

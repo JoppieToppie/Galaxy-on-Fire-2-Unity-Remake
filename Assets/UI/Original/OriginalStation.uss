@@ -974,3 +974,11 @@
     height: 30px;
     margin: 0 0 6px 0;
 }
+
+/* Second pass, checked in Unity: the lounge's "?" is placed in code (relative, 40 px, at the strip's top-right end), so
+   the absolute placement above never applied and it hung out of the 30 px strip, flush with the screen's edge. Scaled to
+   the original's small button and centred on the strip. */
+.ui-style-original .station-root .station-lounge-help {
+    scale: 0.6 0.6;
+    translate: -6px -5px;
+}
