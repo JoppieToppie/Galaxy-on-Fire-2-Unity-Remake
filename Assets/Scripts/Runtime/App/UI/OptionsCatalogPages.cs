@@ -168,13 +168,13 @@ namespace GoF2Remake.UI
             // Remake: the interface's size, width and edge margin (UiLayout, docs/UI-DESIGN.md "Scaling").
             list.Add(Confirmed(Choice("uiScale", OptionPage.Accessibility, () => X("uiScale", "Interface size"), false,
                 () => System.Array.ConvertAll(UiScaleSteps, p => p + " %"),
-                () => Mathf.Max(0, System.Array.IndexOf(UiScaleSteps, Settings.UiScalePercent)), i => Settings.UiScalePercent = UiScaleSteps[Mathf.Clamp(i, 0, UiScaleSteps.Length - 1)],
+                () => Mathf.Max(0, UiLayout.NearestStep(UiScaleSteps, Settings.UiScalePercent)), i => Settings.UiScalePercent = UiScaleSteps[Mathf.Clamp(i, 0, UiScaleSteps.Length - 1)],
                 () => X("uiScaleHelp", "Makes text, buttons and the HUD bigger or smaller. 100 % already suits your screen."))));
             // Remake (docs/UI-DESIGN.md "Accessibility"): the text alone up to 200 % (XAG 101), high contrast, reduced motion,
             // colour-blind markers.
             list.Add(Confirmed(Choice("uiTextScale", OptionPage.Accessibility, () => X("uiTextScale", "Text size"), false,
                 () => System.Array.ConvertAll(UiTextSteps, p => p + " %"),
-                () => Mathf.Max(0, System.Array.IndexOf(UiTextSteps, Settings.UiTextScalePercent)), i => Settings.UiTextScalePercent = UiTextSteps[Mathf.Clamp(i, 0, UiTextSteps.Length - 1)],
+                () => Mathf.Max(0, UiLayout.NearestStep(UiTextSteps, Settings.UiTextScalePercent)), i => Settings.UiTextScalePercent = UiTextSteps[Mathf.Clamp(i, 0, UiTextSteps.Length - 1)],
                 () => X("uiTextScaleHelp", "Makes only the text bigger; long texts wrap or scroll."))));
             // Remake (the user's request, 2026-10-24): the interface font (UiFont), Klavika or one the player imported or has
             // installed; the import's and removal's rows under it.

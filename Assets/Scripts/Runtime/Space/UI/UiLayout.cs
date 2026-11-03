@@ -106,8 +106,20 @@ namespace GoF2Remake.UI
         /// style sheets, Type for code.</summary>
         public static float TextScale => Settings.UiTextScalePercent / 100f;
 
-        /// <summary>The text size classes GoF2Common.uss defines (ui-text-115 ...), each redefining the --text-* tokens.</summary>
-        public static readonly int[] TextSteps = { 115, 130, 150, 175, 200 };
+        /// <summary>The text size classes GoF2Common.uss defines (ui-text-105 ...), each redefining the --text-* tokens.
+        /// Modified (#237): finer steps (5 % up to 150) than the first 115 / 130 / 150 / 175 / 200, which were all either too
+        /// big or too small on a TV; Options > Accessibility "Text size" offers 100 and these.</summary>
+        public static readonly int[] TextSteps = { 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 160, 175, 190, 200 };
+
+        /// <summary>The step of 'steps' nearest to 'value' (a stored percentage between two steps snaps to one), the lower
+        /// on a tie; -1 for none.</summary>
+        public static int NearestStep(int[] steps, int value)
+        {
+            int best = -1;
+            for (int i = 0; i < steps.Length; i++)
+                if (best < 0 || Mathf.Abs(steps[i] - value) < Mathf.Abs(steps[best] - value)) best = i;
+            return best;
+        }
 
         /// <summary>PlayerPrefs "debug_ui_device": 0 = detect, 1 desktop, 2 handheld, 3 phone, 4 TV (testing the layouts in
         /// the Editor at any Game view size; MainMenu.simulatePhone still forces a phone too).</summary>
@@ -203,7 +215,9 @@ namespace GoF2Remake.UI
                 root.EnableInClassList("ui-scale-up2", r.scale >= 1.4f);
                 // Accessibility (docs/UI-DESIGN.md): the text size class, high contrast, reduced motion, colour-blind markers.
                 int text = Settings.UiTextScalePercent;
-                foreach (var step in TextSteps) root.EnableInClassList("ui-text-" + step, step == text);
+                // The nearest class: a percentage between two steps (an old or hand-edited setting) still gets one.
+                int nearest = text < 103 ? -1 : NearestStep(TextSteps, text);
+                for (int i = 0; i < TextSteps.Length; i++) root.EnableInClassList("ui-text-" + TextSteps[i], i == nearest);
                 root.EnableInClassList("ui-high-contrast", Settings.HighContrast);
                 root.EnableInClassList("ui-reduce-motion", Settings.ReduceMotion);
                 root.EnableInClassList("ui-colorblind", Settings.ColorblindMarkers);
