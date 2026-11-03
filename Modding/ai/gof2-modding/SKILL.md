@@ -161,7 +161,8 @@ rules: { data (meshes + keyframes, Blender frame, game units), texture, scale, g
 endHoldMs, arrivalFx (true: the prologue's 2D hyper drive effect brings the ship into the next orbit), startDelayMs,
 chargeVoice (a story voice clip), cellsFactor (x the Khador Drive's cells), freeJumps, noVoid, failChance (per gate jump of
 the route, x2 Extreme, at most failMax), failNoRoute, failMs, failHandling, failRumbleFromMs, failRumble, failTexture,
-failVoice / failVoiceChance / failVoiceMs (a story voice line in a failure, at that chance), failRadiusKm (a failed jump lands near a random station, default 20) }. A Khador Drive aboard jumps instead.
+failVoice / failVoiceChance / failVoiceMs (a story voice line in a failure, at that chance; failLine / failSpeaker:
+in the radio box with that text and face), failRadiusKm (a failed jump lands near a random station, default 20) }. A Khador Drive aboard jumps instead.
 
 ### Weapon fx
 

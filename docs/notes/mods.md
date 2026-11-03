@@ -522,7 +522,8 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   (`SpaceLevel.BeginDriveArrival`: hidden and held 2.5 s, the arrival camera's clock waits for the fx). Failures
   (`failChance` per gate jump of the route, x2 Extreme, at most `failMax`; `failNoRoute`): the prologue's hyperdrive
   failure (sounds 157 / 158 / 161, a growing camera rumble, the ship at `failHandling`, `ShipController.impairment`) for
-  `failMs` (`failVoice` at `failVoiceChance`, `failVoiceMs` in: the Hyper Drive mod's RADIO_0_15, 10 %), then the jump
+  `failMs` (`failVoice` at `failVoiceChance`, `failVoiceMs` in: the Hyper Drive mod's RADIO_0_15, 10 %; `failLine` /
+  `failSpeaker`: in the radio box, `Traffic.Say`, queued 2 s early as the box shows 2 s after), then the jump
   with `failTexture` to a random visible station, out anywhere within `failRadiusKm` of it clear of
   the obstacles and asteroids (`SpaceLevel.DriveFailPoint`). While the effect hides the ship it is phased and untargetable
   (`SpaceLevel.SetSceneHidden`; the gate's and the Khador Drive's scenes unchanged). One jump drive aboard: category 18 is

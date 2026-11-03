@@ -825,12 +825,22 @@ namespace GoF2Remake.World
             var d = failDrive;
             float rumble = d != null ? Mathf.Clamp01((failElapsed - d.failRumbleFromMs) / 4000f) * d.failRumble : 0f;
             if (rumble > 0f && chase != null) chase.Rumble(rumble);
-            if (failVoicePending && d != null && failElapsed >= d.failVoiceMs)
+            // Modified: the pilot's line (ModJumpFx "failVoice"). With "failLine" in the radio box, Keith's face and the text
+            // (it shows 2 s after it is queued, its voice with it: queued that much earlier); else only the voice.
+            float voiceAt = d != null && d.failLine >= 0 ? Mathf.Max(0f, d.failVoiceMs - 2000f) : d != null ? d.failVoiceMs : 0f;
+            if (failVoicePending && d != null && failElapsed >= voiceAt)
             {
-                failVoicePending = false;   // Modified: the pilot's line (ModJumpFx "failVoice"), as the chargeVoice is played
-                var story = StoryAssets.Load();
-                var voice = story != null ? story.Voice(d.failVoice) : null;
-                if (voice != null) sfx.PlayOneShot(voice, Settings.VoiceVolume);
+                failVoicePending = false;
+                var traffic = d.failLine >= 0 ? FindAnyObjectByType<SpaceLevel>()?.Traffic : null;
+                if (traffic != null)
+                    traffic.Say(new Traffic.Chatter { text = Localization.Get(d.failLine), speakerId = d.failSpeaker,
+                                                      speaker = StoryTable.SpeakerName(d.failSpeaker), voice = d.failVoice });
+                else
+                {
+                    var story = StoryAssets.Load();
+                    var voice = story != null ? story.Voice(d.failVoice) : null;
+                    if (voice != null) sfx.PlayOneShot(voice, Settings.VoiceVolume);
+                }
             }
             if (d != null && failElapsed < d.failMs) return;
             if (failEngine != null) { failEngine.Stop(); Destroy(failEngine); failEngine = null; }   // IntroCutscenes: StopLoop(1) at the jump
