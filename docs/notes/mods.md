@@ -241,10 +241,11 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
 - **Conditions** (`Events.EventRunner.Condition(expression, out error)`: the event graphs' expression language outside an
   event, a throwaway run like the quests' "Starts when"; new words `option(mod:id)`, `won(main | valkyrie | supernova)`
   (or the multiplayer finished world), `systemsvisited` (distinct systems of `Session.VisitedStations`), `standing(race)`
-  (2026-10-28: a game race's or a mod race's standing, `Standing.RawToward`; the always-hostile sides -100)): items.json /
-  ships.json "available" (new entries and overrides; `ModUnlocks.ItemAvailable` in `Shop.GenerateItems` and
-  `NpcTables.RollLoot`, `ShipAvailable` in `Shop.GenerateShips` and the lounge ship sellers), blueprints' "available"; an
-  unreadable one is false with a warning on its mod. ships.json "dealer" { chance %, systemRace, minTechLevel }
+  (2026-10-28: a game race's or a mod race's standing, `Standing.RawToward`; the always-hostile sides -100), 2026-11-03
+  `produced(item)` (`BlueprintState.timesProduced`)): items.json / ships.json "available" (new entries and overrides;
+  `ModUnlocks.ItemAvailable` in `Shop.GenerateItems` and `NpcTables.RollLoot`, `ShipAvailable` in `Shop.GenerateShips`
+  and the lounge ship sellers), blueprints' "available" (also the story seller of a game blueprint a mod takes over:
+  `AgentGenerator.StorySellerAvailable`, e.g. Gunant's drill); an unreadable one is false with a warning on its mod. ships.json "dealer" { chance %, systemRace, minTechLevel }
   (`CustomShipData.dealer`, `ModUnlocks.AddDealerShips` at the end of `Shop.GenerateShipsOriginal`'s ordinary path: not the
   special yards).
 - **Mod ships in traffic** (`ModTraffic`, Options > Gameplay "Mod ships in traffic", `Settings.ModShipTraffic`: Off / 10 /
