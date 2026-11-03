@@ -233,6 +233,13 @@ namespace GoF2Remake.UI
         void FitSideButtons()
         {
             if (sideButtons == null || keyButton == null) return;
+            // Modified: the Original style puts them in a row (OriginalFlight.uss), each sized to its label: the row as wide as
+            // they are together (the column's width cut Key off at the screen's edge).
+            if (Settings.OriginalUi)
+            {
+                if (sideButtons.style.width.keyword != StyleKeyword.Auto) sideButtons.style.width = StyleKeyword.Auto;
+                return;
+            }
             float w = 0f;
             foreach (var text in new[] { VoidButtonText, Localization.Extra("mapFullMap", "FULL MAP").OgCase(), Localization.Extra("mapCloseUp", "CLOSE UP").OgCase(), T(400).UiCaps() })
                 w = Mathf.Max(w, keyButton.MeasureTextSize(text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x);
