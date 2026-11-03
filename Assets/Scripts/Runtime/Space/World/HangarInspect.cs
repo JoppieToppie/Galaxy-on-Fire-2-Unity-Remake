@@ -16,7 +16,7 @@ namespace GoF2Remake.World
     {
         const float BlendMs = 900f;             // hangar camera <-> orbit
         const float FocusRadii = 2.1f;          // the distance it zooms to on entering, in ship radii
-        const float MinRadii = 1.15f, MaxRadii = 4f;
+        const float MinRadii = 1.15f, MaxRadii = 10f;   // Modified: was 4 (#181); the walls stop it now (Blocked)
         const float MaxPitch = 1.45f;           // rad (~83 deg): never straight over the top
         const float FloorClearance = 1.5f;      // m above the hull's lowest point
         const float ZoomEase = 0.008f;          // per ms
