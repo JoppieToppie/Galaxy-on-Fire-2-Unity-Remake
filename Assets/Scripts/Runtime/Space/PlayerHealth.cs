@@ -311,8 +311,8 @@ namespace GoF2Remake.Flight
         //  - Its textures with each texel's colour ^ BlazeGlowPower (Hidden/GoF2/SunGamma, as the star map's suns): added in
         //    linear space, the image's dim tail showed out to the edges of its planes; the original adds it in gamma space,
         //    where it fades out inside them.
-        //  - A second material, GoF2/BlazeHaze, bends the frame behind the blaze (the ship among it) through CloakPass's
-        //    copy of it, while the blaze shows.
+        //  - The iOS version's heat haze: GoF2/BlazeHaze bends the frame behind the blaze (the ship among it) through
+        //    CloakPass's copy of it, and the flames themselves (GoF2/BlazeAdditive) are drawn after it in that pass, unbent.
         const float BlazeGlowPower = 1.2f;
         readonly System.Collections.Generic.List<UnityEngine.Object> blazeMade = new System.Collections.Generic.List<UnityEngine.Object>();
         Material gammaBlit;
@@ -321,23 +321,39 @@ namespace GoF2Remake.Flight
         void SoftenBlaze(GameObject part)
         {
             var hazeShader = Resources.Load<Shader>("GoF2Combat/BlazeHaze");
+            var addShader = Resources.Load<Shader>("GoF2Combat/BlazeAdditive");
             foreach (var r in part.GetComponentsInChildren<Renderer>(true))
             {
                 var mats = r.sharedMaterials;
                 if (mats.Length == 0 || mats[0] == null) continue;
                 var from = mats[0];
                 var tex = from.mainTexture;
-                var soft = new Material(from) { name = from.name + " (soft)" };
-                blazeMade.Add(soft);
                 var rt = GammaCopy(tex);
-                if (rt != null) soft.mainTexture = rt;
-                if (hazeShader != null && tex != null)
+                if (hazeShader != null && addShader != null && tex != null)
                 {
+                    // The flames first (PartAnimation reads the renderer's first material: the fade's _Color, the UV scroll's
+                    // _MainTex_ST), drawn after the haze by their queues.
+                    var flames = new Material(addShader) { name = from.name + " (blaze)" };
+                    flames.mainTexture = rt != null ? rt : tex;
+                    flames.mainTextureScale = from.mainTextureScale;
+                    flames.mainTextureOffset = from.mainTextureOffset;
+                    if (from.HasProperty("_Color")) flames.SetColor("_Color", from.GetColor("_Color"));
+                    if (from.HasProperty("_Glow")) flames.SetFloat("_Glow", from.GetFloat("_Glow"));
+                    if (from.HasProperty("_UseVertexColor")) flames.SetFloat("_UseVertexColor", from.GetFloat("_UseVertexColor"));
                     var haze = new Material(hazeShader) { name = from.name + " (haze)", mainTexture = tex };
+                    haze.mainTextureScale = from.mainTextureScale;
+                    haze.mainTextureOffset = from.mainTextureOffset;
+                    blazeMade.Add(flames);
                     blazeMade.Add(haze);
-                    r.sharedMaterials = new[] { soft, haze };
+                    r.sharedMaterials = new[] { flames, haze };
                 }
-                else r.sharedMaterial = soft;
+                else
+                {
+                    var soft = new Material(from) { name = from.name + " (soft)" };
+                    if (rt != null) soft.mainTexture = rt;
+                    blazeMade.Add(soft);
+                    r.sharedMaterial = soft;
+                }
             }
         }
 
