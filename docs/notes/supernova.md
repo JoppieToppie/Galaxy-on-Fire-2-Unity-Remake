@@ -99,9 +99,9 @@ against the FEV's LGCY data, see "Sound").
   Unity's right, every side camera and side spawn of 87-158 stood on the wrong side, 92's shots shown by a player;
   92 ev7 keeps the player's speed; 91's hull debris (sn_cargo_001_midorian_wrecked parts 3-13, never played: not an
   "_anim" model, and *_glow_anim_add with it) drifts off once, from the player within 1.5 km, `wreckDebris`; 92's freighter jump
-  and 102's carrier sound go with them, `Sfx.PlayOn` / `SfxFollow`; the freighters (91's wreck, 92's, 94's: `Static`
-  with a cargo_001 model) are radar ships too, plated "Midorian NN%" (`NpcShip.ShipMarker`, `DockingOnly`), their name
-  the docking target's (`DockingName`); marked as the docking target, the ship lock on it goes (`CombatRadar`));
+  and 102's carrier sound go with them, `Sfx.PlayOn` / `SfxFollow`; every ship one docks at (freighters, carriers,
+  battleships; not stations, platforms, containers, junk) is a radar ship too, plated "<race> NN%" (`NpcShip.ShipMarker`,
+  `DockingOnly`), its name the docking target's (`DockingName`); marked as the docking target, the ship lock on it goes (`CombatRadar`));
   the undock's end goes back to
   the standard view; `PlayerTurret.GunsBlocked` ignores the docked ship's
   blocked guns; the chase camera is on for the view; the stick still reads under `externalControl`; the mouse aims it

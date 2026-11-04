@@ -283,6 +283,15 @@ namespace GoF2Remake.World
         public bool ShipMarker { get; set; }
         /// <summary>Modified: the docking target's name when it differs from the ship plate's (ShipMarker); null = displayName.</summary>
         public string DockingName { get; set; }
+        /// <summary>A docking object that is a ship: a fixed object but a station, a platform, a container or a junk field,
+        /// or a ship spawned with a docking type.</summary>
+        static bool DockingShip(SpawnSpec spec)
+        {
+            var f = spec.fixedObject;
+            if (string.IsNullOrEmpty(f)) return spec.dockingType > 0;
+            return !(f.Contains("station") || f.Contains("container") || f.Contains("junk") || f.Contains("platform"));
+        }
+
         /// <summary>Kept off the radar's ship markers and locks: a docking target that isn't one (ShipMarker).</summary>
         public bool DockingOnly => OffersDocking && !ShipMarker;
         public int SpacePointSet => Spec.spacePoints;
@@ -398,6 +407,11 @@ namespace GoF2Remake.World
             Target.hitpoints.SetEmp(spec.empPoints > 0 ? spec.empPoints : NpcTables.Emp(kind), NpcTables.EmpRecoveryMs(kind));   // also with a hull override
             Target.hp = Target.maxHp = Target.hitpoints.maxHull;
             Target.displayName = !string.IsNullOrEmpty(spec.name) ? spec.name : spec.nameText >= 0 ? Localization.Get(spec.nameText) : null;
+            // Modified: a ship one docks at (a freighter, a carrier, a battleship; not a station, platform, container or junk
+            // field) stays an ordinary ship on the radar, plated "<race> NN%", its name the docking target's alone (a player's
+            // comparison with the original: the Supernova freighters).
+            ShipMarker = DockingShip(spec);
+            if (ShipMarker && !Target.plateNameOnly) { DockingName = Target.displayName; Target.displayName = null; }
             if (spec.speed > 0f) speed = baseSpeed = spec.speed;
             alwaysEnemy = spec.alwaysEnemy;
             alwaysFriend = spec.alwaysFriend;
