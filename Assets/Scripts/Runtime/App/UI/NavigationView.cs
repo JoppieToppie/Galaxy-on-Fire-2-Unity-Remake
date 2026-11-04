@@ -283,7 +283,13 @@ namespace GoF2Remake.UI
                 // Landmarks: labels near the centre; elsewhere the jumpgate icon on the radar ellipse, the station nothing.
                 bool station = t.kind == Navigation.Kind.Station && t.station != Session.VoidOrbit;
                 float lx = station ? 50f : 10f;
-                if (t.kind == Navigation.Kind.DockingTarget && m.name.text != t.name) m.name.text = t.name;   // renamed by the level
+                // Modified: a ship one docks at (NpcShip.ShipMarker) shows only its ring and distance, as the original's docking
+                // marker; its name is the autopilot list's (a player's comparison: "Damaged Freighter" stood beside it).
+                if (t.kind == Navigation.Kind.DockingTarget)
+                {
+                    string label = t.dockingShip != null && t.dockingShip.ShipMarker ? "" : t.name;
+                    if (m.name.text != label) m.name.text = label;   // renamed by the level
+                }
                 // Modified: a friendly docking object (the story's freighters and platforms are always-friend static objects)
                 // in the friend's green, as the original's radar draws them among the ships (a player's report: grey at 91 / 92).
                 bool friendly = t.kind == Navigation.Kind.DockingTarget && t.dockingShip != null && t.dockingShip.Target.friendToPlayer
