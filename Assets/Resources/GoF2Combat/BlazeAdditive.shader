@@ -10,6 +10,7 @@ Shader "GoF2/BlazeAdditive"
         _Color ("Color", Color) = (1, 1, 1, 1)
         _Glow ("Glow", Float) = 1
         _UseVertexColor ("Use vertex colour", Float) = 0
+        _EdgeFade ("Edge-on fade (0 = none)", Float) = 0.5
     }
     SubShader
     {
@@ -31,16 +32,19 @@ Shader "GoF2/BlazeAdditive"
                 float4 _MainTex_ST;
                 float4 _UVOffset;
                 float4 _Color;
-                float _Glow, _UseVertexColor;
+                float _Glow, _UseVertexColor, _EdgeFade;
             CBUFFER_END
 
-            struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; };
-            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; };
+            struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float2 uv : TEXCOORD0; float4 color : COLOR; };
+            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; float3 normalWS : TEXCOORD1; float3 viewWS : TEXCOORD2; };
 
             Varyings vert(Attributes i)
             {
                 Varyings o;
-                o.positionCS = TransformObjectToHClip(i.positionOS.xyz);
+                float3 ws = TransformObjectToWorld(i.positionOS.xyz);
+                o.positionCS = TransformWorldToHClip(ws);
+                o.normalWS = TransformObjectToWorldNormal(i.normalOS);
+                o.viewWS = GetWorldSpaceViewDir(ws);
                 o.uv = i.uv * _MainTex_ST.xy + _MainTex_ST.zw - _UVOffset.xy;
                 o.color = lerp(float4(1, 1, 1, 1), i.color, _UseVertexColor);
                 return o;
@@ -49,6 +53,9 @@ Shader "GoF2/BlazeAdditive"
             half4 frag(Varyings i) : SV_Target
             {
                 half4 c = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv) * i.color * _Color;
+                // Modified: the sides seen edge-on fade, so the cone's outline has no polygon steps (MeshSmoother's normals).
+                float facing = abs(dot(normalize(i.normalWS), normalize(i.viewWS)));
+                c.a *= pow(saturate(facing), _EdgeFade);
                 return half4(c.rgb * _Glow, c.a);
             }
             ENDHLSL

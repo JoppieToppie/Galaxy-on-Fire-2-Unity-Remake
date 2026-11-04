@@ -308,12 +308,12 @@ namespace GoF2Remake.Flight
         }
 
         // Modified: the blaze's soft edge and its heat haze (a player's comparison with the original).
-        //  - Its textures with each texel's colour ^ BlazeGlowPower (Hidden/GoF2/SunGamma, as the star map's suns): added in
+        //  - Its textures with each texel's colour ^ BlazeGlowPower (1.5: the player's pick) (Hidden/GoF2/SunGamma, as the star map's suns): added in
         //    linear space, the image's dim tail showed out to the edges of its planes; the original adds it in gamma space,
         //    where it fades out inside them.
         //  - The iOS version's heat haze: GoF2/BlazeHaze bends the frame behind the blaze (the ship among it) through
         //    CloakPass's copy of it, and the flames themselves (GoF2/BlazeAdditive) are drawn after it in that pass, unbent.
-        const float BlazeGlowPower = 1.2f;
+        const float BlazeGlowPower = 1.5f;
         readonly System.Collections.Generic.List<UnityEngine.Object> blazeMade = new System.Collections.Generic.List<UnityEngine.Object>();
         Material gammaBlit;
         bool blazeHaze;
@@ -322,6 +322,15 @@ namespace GoF2Remake.Flight
         {
             var hazeShader = Resources.Load<Shader>("GoF2Combat/BlazeHaze");
             var addShader = Resources.Load<Shader>("GoF2Combat/BlazeAdditive");
+            // The cone rounded: its polygons showed along the silhouette (a player's request); two levels of Phong
+            // tessellation with smooth normals (MeshSmoother), which GoF2/BlazeAdditive also fades the edge-on sides by.
+            foreach (var mf in part.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var smooth = GoF2Remake.Visuals.MeshSmoother.Smooth(mf.sharedMesh, 2);
+                if (smooth == null) continue;
+                blazeMade.Add(smooth);
+                mf.sharedMesh = smooth;
+            }
             foreach (var r in part.GetComponentsInChildren<Renderer>(true))
             {
                 var mats = r.sharedMaterials;
