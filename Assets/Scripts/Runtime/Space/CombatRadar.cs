@@ -105,6 +105,14 @@ namespace GoF2Remake.Flight
         Database db;
         ShipController ship;
         Navigation nav;
+        /// <summary>Modified: 't' is the ship the docking flies to or holds (the autopilot menu's docking target: ObjectDocking's
+        /// approach), no ship lock on it meanwhile (a player's report: its reticle stayed through the approach).</summary>
+        bool DockingAt(Target t)
+        {
+            var d = nav != null ? nav.Docking : null;
+            return t != null && d != null && d.Busy && d.Target != null && d.Target.Target == t;
+        }
+
         static Target DockingTargetOf(Navigation.Target t) =>
             t != null && t.kind == Navigation.Kind.DockingTarget && t.dockingShip != null ? t.dockingShip.Target : null;
         Mining mining;
@@ -232,7 +240,7 @@ namespace GoF2Remake.Flight
             if (Locked != null && (!Locked.Alive || !Locked.gameObject.activeInHierarchy || Locked.untargetable || Locked.cloaked)) Locked = null;
             // Modified: the ship marked as the docking target (a Supernova freighter, NpcShip.ShipMarker) drops its ship lock:
             // the docking target's marker takes over (a player's comparison with the original: its reticle stayed).
-            if (Locked != null && nav != null && (DockingTargetOf(nav.Locked) == Locked || DockingTargetOf(nav.AutopilotTarget) == Locked)) Locked = null;
+            if (Locked != null && nav != null && (DockingTargetOf(nav.Locked) == Locked || DockingTargetOf(nav.AutopilotTarget) == Locked || DockingAt(Locked))) Locked = null;
             if (weapons != null) weapons.LockTarget = Locked;
             // PlayerEgo::isInTurretMode: the turret view neither locks ships nor keeps the tractor beam pulling.
             bool turretView = weapons != null && weapons.TurretView;
@@ -299,7 +307,7 @@ namespace GoF2Remake.Flight
                             }
                             // KIPlayer untargetable (a Rhino's / Myfft's turret, Level::createFighterTurrets): no lock; it was
                             // locked, dropped and locked again every frame, so the Rhino under it couldn't be scanned.
-                            if (s.Gone || !s.Target.Alive || s.Hidden || s.RadarHidden || s.DockingOnly || s.Asleep || s.Target.untargetable) continue;
+                            if (s.Gone || !s.Target.Alive || s.Hidden || s.RadarHidden || s.DockingOnly || s.Asleep || s.Target.untargetable || DockingAt(s.Target)) continue;
                             if (!InBox(cam, c, box, s.transform.position, out float d)) continue;
                             // KIPlayer+0x20: a disabled ship with cargo is salvage (it wins over the ship locks).
                             if (s.Hp.empDisabled && s.HasCargo) { if (d < stealD && !StealingFrom(s.Target)) { stealD = d; bestSteal = s.Target; } }
