@@ -399,6 +399,8 @@ namespace GoF2Remake.UI
             Image(autopilotButton, active || nav != null && nav.MenuOpen ? autopilotOn : autopilotOff);
             // Hud::draw ~0x1926f6: the Supernova Challenge (0xb7) leaves the autopilot button out (its menu isn't offered).
             autopilotButton.style.visibility = SupernovaChallenge.Active && !active ? Visibility.Hidden : Visibility.Visible;
+            // Modified: dimmed where its menu has nothing to offer (the Void, Navigation.MenuEmpty), unless it turns something off.
+            autopilotButton.EnableInClassList("nav-button--dim", !active && nav != null && !nav.MenuOpen && nav.MenuEmpty);
         }
 
         // By the translate, not left / top: the markers move every frame, and left / top ran the panel's layout each time.

@@ -466,7 +466,11 @@ namespace GoF2Remake.Flight
         /// <summary>MGame::OnTouchEnd's autopilot button: not in the Supernova Challenge (mission type 0xb7: Hud::initHudMenu(3)
         /// isn't opened and Hud::draw leaves the button out).</summary>
         public bool CanOpenMenu => !Autopilot && !Jumping && !paused && (mining == null || mining.State == Mining.Phase.Idle) && (Docking == null || !Docking.Busy)
-                                   && !SupernovaChallenge.Active;
+                                   && !SupernovaChallenge.Active && !MenuEmpty;
+        /// <summary>Modified: the autopilot menu would have no entry: in the alien orbit (Hud::initHudMenu(3) offers nothing
+        /// there but the named docking targets, and the Void has none), so its button is dimmed and does nothing.</summary>
+        public bool MenuEmpty => layout != null && layout.alienOrbit && !Interstellar
+                                 && !Targets.Exists(t => t.kind == Kind.DockingTarget && !t.hidden && !string.IsNullOrEmpty(t.name));
         /// <summary>MGame::OnTouchEnd, quick menu button (key 4): refused only while mining (PlayerEgo::isMining), so it opens
         /// on the autopilot and docked at an object too (remake: not while jumping, easing in or out of a docking or hacking;
         /// docked it was refused until a player's report at 135's mining plant).</summary>
