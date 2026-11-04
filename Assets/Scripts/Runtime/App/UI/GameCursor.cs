@@ -3,7 +3,8 @@
 // default): a pointer symmetric about its 62 degree axis, in the menus' colours: a dark blue fill lit a little along its
 // edge, a cyan outline (the buttons' line colour) and a soft cyan glow. Drawn in code at the screen's scale (remake: 24 px at 1080 lines at 100 %, was 32, times Options > Accessibility
 // "Cursor size", Settings.CursorSizePercent), so it is sharp at any resolution, and set as the
-// hardware cursor (Cursor.SetCursor): it follows the mouse with no lag, and shows and hides as the system's did
+// hardware cursor (Cursor.SetCursor; Modified: a software one at any Cursor size but 100 %, which the system's own cursor
+// size would undo): it follows the mouse with no lag, and shows and hides as the system's did
 // (InputMode.CursorShown, the flight's mouse steering). The original has no cursor of its own (the PC version used the
 // system's). Desktop only; not on a dedicated server.
 
@@ -18,6 +19,7 @@ namespace GoF2Remake.UI
         static GameCursor instance;
         Texture2D texture;
         int madeSize = -1;
+        CursorMode madeMode = CursorMode.Auto;
         bool applied;
         float nextCheck;
 
@@ -47,11 +49,16 @@ namespace GoF2Remake.UI
         {
             if (!Settings.GameCursor)
             {
-                if (applied) Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+                if (applied) Cursor.SetCursor(null, Vector2.zero, madeMode);
                 applied = false;
                 return;
             }
             int size = SizeFor(Screen.height);
+            // Modified: the system shows a hardware cursor at its own cursor size (Windows scales the texture to it), so the
+            // Cursor size option only made it sharper or blurrier, never bigger (a player's report): any size but 100 % is
+            // drawn by Unity instead (CursorMode.ForceSoftware), at the texture's own size.
+            var mode = Settings.CursorSizePercent == 100 ? CursorMode.Auto : CursorMode.ForceSoftware;
+            if (mode != madeMode) { madeMode = mode; applied = false; }
             if (size != madeSize || texture == null)
             {
                 if (texture != null) Destroy(texture);
@@ -60,7 +67,7 @@ namespace GoF2Remake.UI
                 applied = false;
             }
             if (applied) return;
-            Cursor.SetCursor(texture, new Vector2(size * 3.6f / 32f, size * 2.9f / 32f), CursorMode.Auto);   // the outline's tip
+            Cursor.SetCursor(texture, new Vector2(size * 3.6f / 32f, size * 2.9f / 32f), mode);   // the outline's tip
             applied = true;
         }
 

@@ -63,6 +63,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 - **Mouse cursor and controller** (remake, a player's request): on desktop the cursor hides while a controller is in use and
   comes back with the mouse (`InputMode.CursorShown`, applied in `InputMode.OnEvent`; `FlightHud.UpdateMouseSteering` keeps
   to it).
+- **Game mouse cursor size** (`GameCursor`, Options > Accessibility "Cursor size"): a hardware cursor is shown at the
+  system's cursor size (Windows scales the texture to it), so any size but 100 % is a software cursor
+  (`CursorMode.ForceSoftware`), drawn at the texture's own size; before, the option only made it sharper or blurrier.
 - **Input device log** (remake, `InputDeviceLog`; #194, a Steam Deck's controller "not working in Game Mode", no more
   details): a player's log names each controller the Input System sees, as a gamepad or as a joystick the `<Gamepad>`
   bindings ignore (an SDL device on Linux can come up as one), as it comes and goes; the window's focus changes (the
