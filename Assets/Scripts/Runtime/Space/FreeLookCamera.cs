@@ -225,8 +225,12 @@ namespace GoF2Remake.Flight
         {
             dockedSaved = false;
             if (Current == Mode.FreeLook) return;
+            // Modified: the orbit starts where the docking's camera is (a player's request: the original's preset orbit,
+            // -98 / 35 px at 3800 units, moved the camera away from the docking view when free look took over).
+            bool fromCamera = OrbitFromCamera(out float cx, out float cy, out float cd);
             Set(Mode.FreeLook);
-            px = -98f; py = 35f; distance = 3800f;
+            if (fromCamera) { px = cx; py = cy; distance = cd; }
+            else { px = -98f; py = 35f; distance = 3800f; }
             Place();
         }
 
@@ -250,6 +254,24 @@ namespace GoF2Remake.Flight
             fling = Vector2.zero; wheel = 0f;
             chase.followRigid = false;
             Place();
+            return true;
+        }
+
+        /// <summary>Modified: the orbit (px, py, distance) that puts the free look's camera where the camera is now, in the ship's
+        /// frame (Place's inverse: the camera at anchor * (0, 0, -distance), anchor = Euler(-0.005 py, 0.005 px)); false when
+        /// there is no camera or it sits on the ship.</summary>
+        bool OrbitFromCamera(out float x, out float y, out float d)
+        {
+            x = y = d = 0f;
+            if (chase == null) return false;
+            var v = transform.InverseTransformDirection(chase.transform.position - anchor.position);
+            float len = v.magnitude;
+            if (len < 0.5f) return false;
+            var u = -v / len;   // the anchor's forward
+            float pitch = Mathf.Asin(Mathf.Clamp(-u.y, -1f, 1f)), yaw = Mathf.Atan2(u.x, u.z);
+            x = yaw / 0.005f;
+            y = Mathf.Clamp(-pitch / 0.005f, -200f, 200f);
+            d = Mathf.Clamp(len / M, MinDistance, MaxDistance);
             return true;
         }
 

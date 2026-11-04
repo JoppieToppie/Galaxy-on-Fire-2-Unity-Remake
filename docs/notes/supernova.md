@@ -93,7 +93,8 @@ against the FEV's LGCY data, see "Sound").
   out of the hulls (`FreeLookCamera.ClampCamera` through `ChaseCamera.followClamp`, after the easing: a sphere swept from
   the ship, `HullCollision.CameraHit`, the own ship and flyable ships left out; under Original collision the volumes; a cutscene
   ending while docked eases the camera back to the orbit it had before, `CutsceneCamera.Release` -> `ResumeDockedLook`,
-  LevelScript 92 ev5: no resetCamera, lookBehind + free look);
+  LevelScript 92 ev5: no resetCamera, lookBehind + free look; the docked orbit starts where the docking's camera is,
+  `OrbitFromCamera`, not at the preset -98 / 35 px, 3800 units, a player's request);
   the undock's end goes back to
   the standard view; `PlayerTurret.GunsBlocked` ignores the docked ship's
   blocked guns; the chase camera is on for the view; the stick still reads under `externalControl`; the mouse aims it
