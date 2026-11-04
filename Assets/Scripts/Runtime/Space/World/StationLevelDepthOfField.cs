@@ -104,17 +104,18 @@ namespace GoF2Remake.World
             if (dof.mode.value != mode) dof.mode.value = mode;
             dof.gaussianMaxRadius.value = Mathf.Lerp(1f, 1.5f, inspect);
         }
+        /// <summary>Remake: the rooms' thin, glossy parts (the Nivelian bar stools, the Midorian window frames) shimmered as the
+        /// camera swayed: SMAA works within one frame. The station camera takes URP's temporal AA instead (its slow camera
+        /// and still rooms are where TAA has nothing to smear) while the Post-process AA option is SMAA, unless a temporal
+        /// upscaler (DLSS, FSR 2+, STP) already anti-aliases or MSAA is on (URP's TAA needs it off); then SMAA as before.
+        /// FXAA / off as picked. ScreenAntialiasing follows the options from here on.</summary>
         void ApplyAntialiasing()
         {
             if (mainCamera == null) return;
             var data = UnityEngine.Rendering.Universal.CameraExtensions.GetUniversalAdditionalCameraData(mainCamera);
             if (data == null) return;
-            var urp = GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
-            bool msaa = urp != null && urp.msaaSampleCount > 1;
-            data.antialiasing = (GoF2Remake.World.SpaceHooks.TemporalUpscaler != null && GoF2Remake.World.SpaceHooks.TemporalUpscaler()) || msaa
-                ? UnityEngine.Rendering.Universal.AntialiasingMode.SubpixelMorphologicalAntiAliasing
-                : UnityEngine.Rendering.Universal.AntialiasingMode.TemporalAntiAliasing;
             data.antialiasingQuality = UnityEngine.Rendering.Universal.AntialiasingQuality.High;
+            ScreenAntialiasing.Register(mainCamera, prefersTemporal: true);
         }
         /// <summary>Game camera rotation, order 2 (Ry * Rx * Rz, looking down local -Z) -> Unity (looking down +Z).</summary>
         static Quaternion CameraRotation(float x, float y, float z) =>

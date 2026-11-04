@@ -126,6 +126,7 @@ namespace GoF2Remake.Vr
             dst.renderPostProcessing = src.renderPostProcessing;
             dst.antialiasing = src.antialiasing;
             dst.antialiasingQuality = src.antialiasingQuality;
+            Visuals.ScreenAntialiasing.Follow(eye, cam);   // the Post-process AA option, as the camera it stands in for
             dst.volumeLayerMask = src.volumeLayerMask;
             dst.volumeTrigger = head;
             dst.renderShadows = src.renderShadows;

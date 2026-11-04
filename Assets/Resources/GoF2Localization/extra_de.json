@@ -3282,5 +3282,11 @@
  "speedrunFolder": "Run-Ordner öffnen",
  "speedrunFolderHelp": "Runs werden als LiveSplit-Splitdateien (.lss) für LiveSplit und splits.io gespeichert. Lege andere .lss-Dateien hier ab, um mit ihnen zu vergleichen.",
  "speedrunNewPb": "Neue persönliche Bestzeit!",
- "stationGameOptions": "Spieloptionen"
+ "stationGameOptions": "Spieloptionen",
+ "postAntiAliasing": "Nachbearbeitungs-AA",
+ "postAaSmaa": "SMAA: glättet alle Kanten des fertigen Bilds, schärfer als FXAA. Stationen nutzen temporales AA, wo es geht.",
+ "postAaFxaa": "FXAA: die günstigste Kantenglättung des ganzen Bilds, etwas weicher als SMAA.",
+ "postAaOff": "Keine Glättung des fertigen Bilds; MSAA glättet weiterhin die Kanten der Modelle.",
+ "postAaTaa": "TAA: glättet Kanten über mehrere Bilder, am ruhigsten an dünnen Teilen; schnelle Bewegung kann verwischen. Schaltet MSAA aus.",
+ "postAaTaaByUpscaler": "Der Upscaler glättet bereits über mehrere Bilder: statt TAA wird SMAA verwendet."
 }

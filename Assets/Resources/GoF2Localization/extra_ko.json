@@ -3282,5 +3282,11 @@
  "speedrunFolder": "런 폴더 열기",
  "speedrunFolderHelp": "런은 LiveSplit과 splits.io용 LiveSplit 스플릿 파일(.lss)로 저장됩니다. 비교할 다른 .lss 파일을 여기에 넣으세요.",
  "speedrunNewPb": "새 개인 최고 기록!",
- "stationGameOptions": "게임 옵션"
+ "stationGameOptions": "게임 옵션",
+ "postAntiAliasing": "후처리 AA",
+ "postAaSmaa": "SMAA: 최종 화면의 모든 가장자리를 부드럽게 하며 FXAA보다 선명합니다. 정거장에서는 가능하면 시간적 AA를 씁니다.",
+ "postAaFxaa": "FXAA: 화면 전체의 가장자리를 가장 적은 부담으로 부드럽게 하며 SMAA보다 약간 흐립니다.",
+ "postAaOff": "최종 화면을 부드럽게 하지 않습니다. MSAA는 계속 모델의 가장자리를 부드럽게 합니다.",
+ "postAaTaa": "TAA: 여러 프레임에 걸쳐 가장자리를 부드럽게 하며 가는 부분에서 가장 안정적입니다. 빠른 움직임은 번질 수 있습니다. MSAA를 끕니다.",
+ "postAaTaaByUpscaler": "업스케일러가 이미 여러 프레임에 걸쳐 부드럽게 합니다. TAA 대신 SMAA를 씁니다."
 }

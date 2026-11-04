@@ -47,6 +47,6 @@ namespace GoF2Remake.UI
             return sb.ToString();
         }
 
-        static readonly string[] Abbreviations = { "OK", "VR", "UI", "HUD", "FPS", "HDR", "MSAA", "DLSS", "FSR", "MK", "II", "III", "IV", "ESC", "LB", "RB", "LT", "RT", "ID", "AI", "NPC", "XP" };
+        static readonly string[] Abbreviations = { "OK", "VR", "UI", "HUD", "FPS", "HDR", "MSAA", "SMAA", "FXAA", "TAA", "AA", "DLSS", "FSR", "MK", "II", "III", "IV", "ESC", "LB", "RB", "LT", "RT", "ID", "AI", "NPC", "XP" };
     }
 }

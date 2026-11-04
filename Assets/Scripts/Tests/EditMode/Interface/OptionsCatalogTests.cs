@@ -13,7 +13,9 @@ using System.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using GoF2Remake.UI;
+using GoF2Remake.Visuals;
 using NUnit.Framework;
+using UnityEngine.Rendering.Universal;
 
 namespace GoF2Remake.Tests
 {
@@ -289,6 +291,27 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void PostProcessAaPicksTheCameraModeAndTaaOnlyWhereUrpRunsIt()
+        {
+            Settings.ResetToDefaults();
+            Assert.AreEqual(Settings.PostAaSmaa, Settings.PostAntialiasing, "the scenes' SMAA by default");
+            Settings.PostAntialiasing = 9;
+            Assert.AreEqual(Settings.PostAaOff, Settings.PostAntialiasing, "clamped to the last choice");
+
+            static AntialiasingMode M(int o, bool prefersTaa = false, bool upscaler = false, bool msaa = false) =>
+                ScreenAntialiasing.Mode(o, prefersTaa, upscaler, msaa);
+            Assert.AreEqual(AntialiasingMode.SubpixelMorphologicalAntiAliasing, M(Settings.PostAaSmaa));
+            Assert.AreEqual(AntialiasingMode.FastApproximateAntialiasing, M(Settings.PostAaFxaa));
+            Assert.AreEqual(AntialiasingMode.FastApproximateAntialiasing, M(Settings.PostAaFxaa, prefersTaa: true), "the station camera too");
+            Assert.AreEqual(AntialiasingMode.None, M(Settings.PostAaOff, prefersTaa: true));
+            Assert.AreEqual(AntialiasingMode.TemporalAntiAliasing, M(Settings.PostAaTaa));
+            Assert.AreEqual(AntialiasingMode.SubpixelMorphologicalAntiAliasing, M(Settings.PostAaTaa, msaa: true), "URP's TAA needs MSAA off");
+            Assert.AreEqual(AntialiasingMode.SubpixelMorphologicalAntiAliasing, M(Settings.PostAaTaa, upscaler: true), "a temporal upscaler anti-aliases");
+            Assert.AreEqual(AntialiasingMode.TemporalAntiAliasing, M(Settings.PostAaSmaa, prefersTaa: true), "the station camera under SMAA");
+            Assert.AreEqual(AntialiasingMode.SubpixelMorphologicalAntiAliasing, M(Settings.PostAaSmaa, prefersTaa: true, msaa: true));
+        }
+
+        [Test]
         public void TheGraphicsPresetsSetTheirOptionsAndAChangeShowsCustom()
         {
             Settings.ResetToDefaults();
@@ -303,7 +326,9 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Settings.NpcPlayerEngines);
             Assert.AreEqual(0.67f, Settings.RenderScale, 1e-4f);
             Assert.AreEqual(1, Settings.TextureQuality, "half-size textures");
+            Assert.AreEqual(Settings.PostAaFxaa, Settings.PostAntialiasing, "Low: FXAA, the cheapest post-process AA");
             Settings.ApplyPreset(Settings.PresetMedium);
+            Assert.AreEqual(Settings.PostAaSmaa, Settings.PostAntialiasing);
             Assert.AreEqual(Settings.PresetMedium, OptionsCatalog.CurrentPreset());
             Settings.LensFlare = false;
             Assert.AreEqual(Settings.PresetCustom, OptionsCatalog.CurrentPreset(), "one option changed: Custom");

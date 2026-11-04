@@ -1,7 +1,7 @@
 // Bootstrap.cs
 // Process-wide startup settings, applied before the first scene loads, and the options that act on the whole process
 // (Settings), re-applied whenever the settings change: frame rate, master volume, window mode and resolution, render
-// scale, upscaler and MSAA (the URP asset), the Quality option's detail (LOD bias) and fog, the stick dead zone, and
+// scale, upscaler and MSAA (the URP asset), the post-process AA (ScreenAntialiasing), the Quality option's detail (LOD bias) and fog, the stick dead zone, and
 // bloom / brightness on every scene's global post-processing volume.
 // The URP assets themselves are saved with STP selected: URP strips STP's compute shaders from a player build unless a
 // pipeline asset uses it (STPResourceStripper). Players never see that value: the upscaler option replaces it before the
@@ -125,7 +125,11 @@ namespace GoF2Remake
 #endif
         }
 
-        static void OnSceneLoaded(Scene scene, LoadSceneMode mode) => ApplyPostProcessing();
+        static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            ApplyPostProcessing();
+            Visuals.ScreenAntialiasing.RegisterScene(scene);   // the Post-process AA option on its screen cameras
+        }
 
         static bool focused = true;
 
@@ -204,6 +208,9 @@ namespace GoF2Remake
             bool temporal = IsTemporal(upscaler);
             int msaa = AppliedMsaa(temporal ? 1 : Settings.Msaa > 0 ? Settings.Msaa : defaultMsaa, PickedRenderScale, Android, temporal);
             if (urp.msaaSampleCount != msaa) urp.msaaSampleCount = msaa;
+            // The Post-process AA option (SMAA / FXAA / off) on the screen cameras; after the MSAA and the upscaler, which
+            // decide whether the station camera can take TAA.
+            Visuals.ScreenAntialiasing.ApplyAll();
         }
 
         /// <summary>The framework's id for an upscaler option (UpscalerFramework).</summary>

@@ -3282,5 +3282,11 @@
  "speedrunFolder": "ランフォルダを開く",
  "speedrunFolderHelp": "ランは LiveSplit のスプリットファイル（.lss）として保存され、LiveSplit や splits.io で使えます。比較したい他の .lss ファイルはここに置いてください。",
  "speedrunNewPb": "自己ベスト更新！",
- "stationGameOptions": "ゲームオプション"
+ "stationGameOptions": "ゲームオプション",
+ "postAntiAliasing": "ポストプロセス AA",
+ "postAaSmaa": "SMAA：最終画像のすべての輪郭を滑らかにします。FXAA よりシャープです。ステーションでは可能な限りテンポラル AA を使います。",
+ "postAaFxaa": "FXAA：画面全体の輪郭を最も軽い負荷で滑らかにします。SMAA より少しぼやけます。",
+ "postAaOff": "最終画像を滑らかにしません。MSAA はモデルの輪郭を引き続き滑らかにします。",
+ "postAaTaa": "TAA：複数フレームにわたって輪郭を滑らかにし、細い部分で最も安定します。速い動きはにじむことがあります。MSAA をオフにします。",
+ "postAaTaaByUpscaler": "アップスケーラーがすでに複数フレームで滑らかにしています。TAA の代わりに SMAA を使います。"
 }

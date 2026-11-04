@@ -3282,5 +3282,11 @@
  "speedrunFolder": "Abrir la carpeta de runs",
  "speedrunFolderHelp": "Los runs se guardan como archivos de splits de LiveSplit (.lss) para LiveSplit y splits.io. Pon aquí otros archivos .lss para compararte con ellos.",
  "speedrunNewPb": "¡Nuevo récord personal!",
- "stationGameOptions": "Opciones de juego"
+ "stationGameOptions": "Opciones de juego",
+ "postAntiAliasing": "AA de posprocesado",
+ "postAaSmaa": "SMAA: suaviza todos los bordes de la imagen final, más nítido que FXAA. Las estaciones usan AA temporal cuando pueden.",
+ "postAaFxaa": "FXAA: el suavizado de bordes más barato de toda la imagen, algo más blando que SMAA.",
+ "postAaOff": "Sin suavizado de la imagen final; el MSAA sigue suavizando los bordes de los modelos.",
+ "postAaTaa": "TAA: suaviza los bordes a lo largo de varios fotogramas, lo más estable en piezas finas; el movimiento rápido puede emborronarse. Desactiva el MSAA.",
+ "postAaTaaByUpscaler": "El escalador ya suaviza a lo largo de varios fotogramas: se usa SMAA en lugar de TAA."
 }

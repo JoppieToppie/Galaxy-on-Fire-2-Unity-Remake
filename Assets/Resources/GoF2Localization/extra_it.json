@@ -3282,5 +3282,11 @@
  "speedrunFolder": "Apri la cartella delle run",
  "speedrunFolderHelp": "Le run vengono salvate come file di split LiveSplit (.lss) per LiveSplit e splits.io. Metti qui altri file .lss per confrontarti con essi.",
  "speedrunNewPb": "Nuovo record personale!",
- "stationGameOptions": "Opzioni di gioco"
+ "stationGameOptions": "Opzioni di gioco",
+ "postAntiAliasing": "AA in post-elaborazione",
+ "postAaSmaa": "SMAA: ammorbidisce ogni bordo dell'immagine finale, più nitido dell'FXAA. Le stazioni usano l'AA temporale quando possono.",
+ "postAaFxaa": "FXAA: l'anti-aliasing dell'intera immagine più economico, un po' più morbido dell'SMAA.",
+ "postAaOff": "Nessun ammorbidimento dell'immagine finale; l'MSAA ammorbidisce comunque i bordi dei modelli.",
+ "postAaTaa": "TAA: ammorbidisce i bordi su più fotogrammi, il più stabile sulle parti sottili; i movimenti veloci possono sbavare. Disattiva l'MSAA.",
+ "postAaTaaByUpscaler": "L'upscaler ammorbidisce già su più fotogrammi: si usa l'SMAA al posto del TAA."
 }

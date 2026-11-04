@@ -118,6 +118,8 @@ namespace GoF2Remake.UI
                 i =>
                 {
                     if (i > 0 && Bootstrap.IsTemporal(Bootstrap.ActiveUpscaler)) Settings.Upscaler = Settings.UpscalerOff;
+                    // URP's TAA needs MSAA off: the Post-process AA option's TAA goes back to SMAA
+                    if (i > 0 && Settings.PostAntialiasing == Settings.PostAaTaa) Settings.PostAntialiasing = Settings.PostAaSmaa;
                     Settings.Msaa = MsaaSamples[i];
                 },
                 () => Bootstrap.IsTemporal(Bootstrap.ActiveUpscaler)
@@ -125,6 +127,27 @@ namespace GoF2Remake.UI
                     : X("msaaHelp", "Smooths the jagged edges of models. More samples look smoother and cost more."));
             msaa.enabled = () => !Bootstrap.IsTemporal(Bootstrap.ActiveUpscaler);
             list.Add(msaa);
+            // Remake: the finished image's anti-aliasing on the screen cameras (Visuals.ScreenAntialiasing): SMAA as the scenes
+            // had it, FXAA (cheaper, softer; the Low preset), TAA or none. On top of MSAA, and of a temporal upscaler as before.
+            // URP's TAA needs MSAA off: picking TAA turns MSAA off, picking MSAA takes TAA back to SMAA; under a temporal
+            // upscaler TAA draws as SMAA (the upscaler anti-aliases) and the help says so.
+            list.Add(Choice("postAa", OptionPage.Graphics, () => X("postAntiAliasing", "Post-process AA"), true,
+                () => new[] { "SMAA", "FXAA", "TAA", X("off", "Off") },
+                () => Settings.PostAntialiasing,
+                i =>
+                {
+                    if (i == Settings.PostAaTaa && (Settings.Msaa > 0 ? Settings.Msaa : Bootstrap.DefaultMsaa) > 1) Settings.Msaa = 1;
+                    Settings.PostAntialiasing = i;
+                },
+                () => Settings.PostAntialiasing switch
+                {
+                    Settings.PostAaFxaa => X("postAaFxaa", "FXAA: the cheapest edge smoothing of the whole image, a little softer than SMAA."),
+                    Settings.PostAaTaa => Bootstrap.IsTemporal(Bootstrap.ActiveUpscaler)
+                        ? X("postAaTaaByUpscaler", "The upscaler already smooths over several frames: SMAA is used instead of TAA.")
+                        : X("postAaTaa", "TAA: smooths edges over several frames, the steadiest on thin parts; fast motion can smear. Turns MSAA off."),
+                    Settings.PostAaOff => X("postAaOff", "No smoothing of the finished image; MSAA still smooths the models' edges."),
+                    _ => X("postAaSmaa", "SMAA: smooths every edge of the finished image, sharper than FXAA. Stations use temporal AA where they can."),
+                }));
             // Remake: the textures' mipmap levels skipped on loading (Settings.TextureQuality); less memory on phones.
             list.Add(Choice("textureQuality", OptionPage.Graphics, () => X("textureQuality", "Texture quality"), true,
                 () => new[] { X("textureFull", "Full"), X("textureHalf", "Half"), X("textureQuarter", "Quarter") },

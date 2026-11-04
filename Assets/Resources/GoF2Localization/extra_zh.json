@@ -3282,5 +3282,11 @@
  "speedrunFolder": "打开速通文件夹",
  "speedrunFolderHelp": "速通保存为 LiveSplit 分段文件（.lss），可用于 LiveSplit 和 splits.io。将其他 .lss 文件放在这里即可与之对比。",
  "speedrunNewPb": "新的个人最佳！",
- "stationGameOptions": "游戏选项"
+ "stationGameOptions": "游戏选项",
+ "postAntiAliasing": "后处理抗锯齿",
+ "postAaSmaa": "SMAA：平滑最终画面的所有边缘，比 FXAA 更清晰。空间站在可行时使用时间性抗锯齿。",
+ "postAaFxaa": "FXAA：开销最低的全画面边缘平滑，比 SMAA 略柔和。",
+ "postAaOff": "不平滑最终画面；MSAA 仍会平滑模型的边缘。",
+ "postAaTaa": "TAA：跨多帧平滑边缘，细小部件最稳定；快速运动可能出现拖影。会关闭 MSAA。",
+ "postAaTaaByUpscaler": "超分辨率技术已跨多帧平滑画面：将使用 SMAA 代替 TAA。"
 }

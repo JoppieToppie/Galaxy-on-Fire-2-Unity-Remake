@@ -284,6 +284,7 @@ namespace GoF2Remake.UI
                 "renderScale" => Settings.RenderScale > 0f ? Settings.RenderScale : Bootstrap.DefaultRenderScale,
                 "upscaler" => Settings.Upscaler,
                 "msaa" => Settings.Msaa > 0 ? Settings.Msaa : Bootstrap.DefaultMsaa,
+                "postAa" => Settings.PostAntialiasing,
                 "bloomStyle" => Settings.BloomStyle,
                 "hangarShadows" => Settings.HangarShadows,
                 "hangarDof" => Settings.HangarDepthOfField ? 1f : 0f,

@@ -559,10 +559,6 @@ namespace GoF2Remake.World
             else if (go != null) go.transform.SetPositionAndRotation(unityPos, unityRot);
             return go;
         }
-        /// <summary>Remake: the rooms' thin, glossy parts (the Nivelian bar stools, the Midorian window frames) shimmered as the
-        /// camera swayed: SMAA works within one frame. The station camera takes URP's temporal AA instead (its slow camera
-        /// and still rooms are where TAA has nothing to smear), unless a temporal upscaler (DLSS, FSR 2+, STP) already
-        /// anti-aliases or MSAA is on (URP's TAA needs it off); then SMAA as before. Again when the options change.</summary>
         /// <summary>Remake mods: a customizable ship's parts arrived (loaded on demand, ModShips.EnsureBuild): the turntable shows
         /// the player's build. Also a mod ship whose model wasn't built yet when the hangar opened (a save loaded while the mods
         /// still loaded, a player's report: the Phantom stood in until the next docking): its own model now.</summary>

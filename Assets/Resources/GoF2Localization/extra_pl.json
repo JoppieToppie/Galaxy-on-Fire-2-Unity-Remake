@@ -3282,5 +3282,11 @@
  "speedrunFolder": "Otwórz folder runów",
  "speedrunFolderHelp": "Runy są zapisywane jako pliki międzyczasów LiveSplit (.lss) dla LiveSplit i splits.io. Umieść tu inne pliki .lss, aby się z nimi porównywać.",
  "speedrunNewPb": "Nowy rekord osobisty!",
- "stationGameOptions": "Opcje gry"
+ "stationGameOptions": "Opcje gry",
+ "postAntiAliasing": "AA w postprocesie",
+ "postAaSmaa": "SMAA: wygładza wszystkie krawędzie gotowego obrazu, ostrzejsze niż FXAA. Stacje używają czasowego AA, gdy mogą.",
+ "postAaFxaa": "FXAA: najtańsze wygładzanie całego obrazu, nieco bardziej miękkie niż SMAA.",
+ "postAaOff": "Bez wygładzania gotowego obrazu; MSAA nadal wygładza krawędzie modeli.",
+ "postAaTaa": "TAA: wygładza krawędzie w kilku klatkach, najstabilniejsze na cienkich elementach; szybki ruch może się rozmazywać. Wyłącza MSAA.",
+ "postAaTaaByUpscaler": "Upscaler już wygładza w kilku klatkach: zamiast TAA używane jest SMAA."
 }

@@ -3282,5 +3282,11 @@
  "speedrunFolder": "Ouvrir le dossier des runs",
  "speedrunFolderHelp": "Les runs sont enregistrés en fichiers de splits LiveSplit (.lss) pour LiveSplit et splits.io. Place d'autres fichiers .lss ici pour t'y comparer.",
  "speedrunNewPb": "Nouveau record personnel !",
- "stationGameOptions": "Options du jeu"
+ "stationGameOptions": "Options du jeu",
+ "postAntiAliasing": "AA en post-traitement",
+ "postAaSmaa": "SMAA : lisse tous les bords de l'image finale, plus net que le FXAA. Les stations utilisent l'AA temporel quand c'est possible.",
+ "postAaFxaa": "FXAA : le lissage de toute l'image le moins coûteux, un peu plus doux que le SMAA.",
+ "postAaOff": "Aucun lissage de l'image finale ; le MSAA lisse toujours les bords des modèles.",
+ "postAaTaa": "TAA : lisse les bords sur plusieurs images, le plus stable sur les pièces fines ; les mouvements rapides peuvent baver. Désactive le MSAA.",
+ "postAaTaaByUpscaler": "L'upscaler lisse déjà sur plusieurs images : le SMAA est utilisé à la place du TAA."
 }

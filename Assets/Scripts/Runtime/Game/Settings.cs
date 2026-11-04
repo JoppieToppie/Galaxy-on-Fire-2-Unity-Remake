@@ -90,6 +90,13 @@ namespace GoF2Remake.Data
         /// <summary>MSAA samples (1 = off, 2, 4, 8); 0 = the platform's render pipeline asset.</summary>
         public static int Msaa { get => Mathf.RoundToInt(Get("msaa", Default("msaa", 0f))); set => Set("msaa", value); }
 
+        /// <summary>Remake: the anti-aliasing of the finished image on the cameras that draw the game (Visuals.
+        /// ScreenAntialiasing), on top of MSAA (the models' edges only): 0 SMAA (the scenes' cameras as built; the station
+        /// camera takes URP's TAA where it can), 1 FXAA (cheaper, a little softer; the Low preset), 2 TAA (URP's temporal AA
+        /// on every camera; needs MSAA off and no temporal upscaler, else SMAA), 3 off.</summary>
+        public static int PostAntialiasing { get => Mathf.Clamp(Mathf.RoundToInt(Get("postAa", Default("postAa", PostAaSmaa))), 0, 3); set => Set("postAa", Mathf.Clamp(value, 0, 3)); }
+        public const int PostAaSmaa = 0, PostAaFxaa = 1, PostAaTaa = 2, PostAaOff = 3;
+
         // The original's "Quality" option (504; texts 507-512: Low = smoke off, fog off, detail low; Medium = smoke off, fog
         // off, detail medium; High = everything on, the default, Globals::init options+0x28 = 1.0) split into its parts
         // (remake, the user's request 2026-10-23: it doubled the Graphics preset). A player who had set it keeps what it meant
@@ -183,23 +190,23 @@ namespace GoF2Remake.Data
 
         public static readonly string[] PresetKeys =
         {
-            "renderScale", "upscaler", "msaa", "bloomStyle", "hangarShadows", "hangarDof", "lensFlare", "npcPlayerEngines", "lods",
+            "renderScale", "upscaler", "msaa", "postAa", "bloomStyle", "hangarShadows", "hangarDof", "lensFlare", "npcPlayerEngines", "lods",
             "textureQuality", "fireSmoke", "fog", "detailDistance", "textureFiltering",
         };
 
         // One row per preset, in PresetKeys' order. Low / Medium as the original's Quality Low / Medium (fire, smoke and fog
         // off, detail distance x0.35 / x0.6); render scale with FSR 1 sharpening it back up (only where the device runs FSR,
-        // Bootstrap.ActiveUpscaler); MSAA 1 = off (the flight camera's SMAA stays); bloom off on Low (both blooms are
-        // full-screen passes). Ultra: 150 % render scale (200 % is in the row, but four times the pixels of 100 % with MSAA 8x
-        // is past most GPUs), MSAA 8x, every hangar ship's shadow, depth of field, no made levels of detail, detail distance
-        // x2, 16x filtering.
+        // Bootstrap.ActiveUpscaler); MSAA 1 = off (the cameras' post anti-aliasing stays: FXAA on Low, the cheapest, else
+        // SMAA); bloom off on Low (both blooms are full-screen passes). Ultra: 150 % render scale (200 % is in the row, but
+        // four times the pixels of 100 % with MSAA 8x is past most GPUs), MSAA 8x, every hangar ship's shadow, depth of
+        // field, no made levels of detail, detail distance x2, 16x filtering.
         static readonly float[][] Presets =
         {
-            //      scale  upscaler     msaa bloom        hangar shadows       dof lens npcEng lods textures fire fog detail filter
-            new[] { 0.67f, UpscalerFsr, 1f, BloomOff,    HangarShadowsOff,    0f, 0f, 0f, 1f, 1f, 0f, 0f, 0f, 1f },
-            new[] { 0.8f,  UpscalerFsr, 1f, BloomRemake, HangarShadowsPlayer, 0f, 1f, 0f, 1f, 0f, 0f, 0f, 1f, 1f },
-            new[] { 1f,    UpscalerOff, 1f, BloomRemake, HangarShadowsPlayer, 0f, 1f, 1f, 1f, 0f, 1f, 1f, 2f, 2f },
-            new[] { 1.5f,  UpscalerOff, 8f, BloomRemake, HangarShadowsAll,    1f, 1f, 1f, 0f, 0f, 1f, 1f, 3f, 3f },
+            //      scale  upscaler     msaa post aa     bloom        hangar shadows       dof lens npcEng lods textures fire fog detail filter
+            new[] { 0.67f, UpscalerFsr, 1f, PostAaFxaa, BloomOff,    HangarShadowsOff,    0f, 0f, 0f, 1f, 1f, 0f, 0f, 0f, 1f },
+            new[] { 0.8f,  UpscalerFsr, 1f, PostAaSmaa, BloomRemake, HangarShadowsPlayer, 0f, 1f, 0f, 1f, 0f, 0f, 0f, 1f, 1f },
+            new[] { 1f,    UpscalerOff, 1f, PostAaSmaa, BloomRemake, HangarShadowsPlayer, 0f, 1f, 1f, 1f, 0f, 1f, 1f, 2f, 2f },
+            new[] { 1.5f,  UpscalerOff, 8f, PostAaSmaa, BloomRemake, HangarShadowsAll,    1f, 1f, 1f, 0f, 0f, 1f, 1f, 3f, 3f },
         };
 
         /// <summary>'key''s value in 'preset' (PresetLow..PresetUltra).</summary>
@@ -734,7 +741,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GraphicsKeys =
         {
             "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality",
-            "msaa", "textureQuality", "brightness", "bloom", "bloomStyle", "hangarShadows", "lods", "hangarDof", "lensFlare", "npcPlayerEngines", "fov",
+            "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "hangarShadows", "lods", "hangarDof", "lensFlare", "npcPlayerEngines", "fov",
             "cameraShake", "originalChaseCamera", "originalUi", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
         };
         public static readonly string[] ControlsKeys =

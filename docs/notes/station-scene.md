@@ -60,7 +60,8 @@ slots, ship heights, fighters per race, music) are in `StationTables`.
     picking is off then, and a row keeping the focus (closed with the mouse) gives it up.
   - Lighting: the system's sun, with skybox ambient.
   - Anti-aliasing (remake, `StationLevel.ApplyAntialiasing`, both rooms): URP's TAA on the station camera, SMAA when a temporal
-    upscaler (DLSS / FSR 2+ / STP) is active or MSAA is on; the thin glossy parts (the Nivelian bar stools, the Midorian
+    upscaler (DLSS / FSR 2+ / STP) is active or MSAA is on (with the Post-process AA option at SMAA, its default; FXAA, TAA
+    and Off as picked, `ScreenAntialiasing` registers the camera as preferring TAA); the thin glossy parts (the Nivelian bar stools, the Midorian
     window frames) shimmered under SMAA as the camera swayed. Flight keeps SMAA.
   - The Terran bot loops; the Midorian prop replays at random.
   - Remake: the Vossk bar's bartender arms. The original ships `bar_vossk_bot_a/b/c_anim_alpha` without resource ids and

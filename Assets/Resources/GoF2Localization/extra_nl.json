@@ -3282,5 +3282,11 @@
  "speedrunFolder": "Runsmap openen",
  "speedrunFolderHelp": "Runs worden bewaard als LiveSplit-splitbestanden (.lss) voor LiveSplit en splits.io. Zet hier andere .lss-bestanden neer om ermee te vergelijken.",
  "speedrunNewPb": "Nieuw persoonlijk record!",
- "stationGameOptions": "Spelopties"
+ "stationGameOptions": "Spelopties",
+ "postAntiAliasing": "Nabewerkings-AA",
+ "postAaSmaa": "SMAA: strijkt elke rand van het eindbeeld glad, scherper dan FXAA. Stations gebruiken temporele AA waar dat kan.",
+ "postAaFxaa": "FXAA: de goedkoopste randafvlakking van het hele beeld, iets zachter dan SMAA.",
+ "postAaOff": "Geen afvlakking van het eindbeeld; MSAA strijkt de randen van modellen nog steeds glad.",
+ "postAaTaa": "TAA: strijkt randen glad over meerdere beelden, het rustigst op dunne delen; snelle beweging kan uitsmeren. Zet MSAA uit.",
+ "postAaTaaByUpscaler": "De upscaler strijkt al glad over meerdere beelden: SMAA wordt gebruikt in plaats van TAA."
 }

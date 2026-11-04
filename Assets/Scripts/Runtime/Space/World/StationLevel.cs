@@ -281,8 +281,6 @@ namespace GoF2Remake.World
             {
                 ApplyAntialiasing();
                 SetupDepthOfField();
-                Settings.Changed -= ApplyAntialiasing;
-                Settings.Changed += ApplyAntialiasing;
 
                 OrbitBuilder.SetupSky(Layout);   // the system's sky shows through the openings of both rooms
                 // Modified: no swell or streak in the station: the hangar camera facing the sun through an opening blew it up
@@ -354,7 +352,6 @@ namespace GoF2Remake.World
         {
             if (orbitDocked && hangarRoot != null) Destroy(hangarRoot.gameObject);   // it rode on the station in the orbit's scene
             Modding.ModShips.ModelsChanged -= OnModShipModels;
-            Settings.Changed -= ApplyAntialiasing;
             if (dofProfile != null) Destroy(dofProfile);
             var copies = new HashSet<Material>();
             foreach (var (_, _, matte) in roomHighlights) foreach (var m in matte) copies.Add(m);
