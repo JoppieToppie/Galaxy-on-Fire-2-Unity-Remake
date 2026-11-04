@@ -117,7 +117,21 @@ namespace GoF2Remake.World
 
         /// <summary>Level::createStaticObject: a dockable (or plain) story object, friendly, unkillable, never moving; its
         /// getBoundingVolume id (the player is pushed out of it, fighters steer around it).</summary>
-        NpcShip Static(string assembly, Vector3 at, Vector3 rotation, int nameText, int dockingType, int points, System.Action<SpawnSpec> setup = null) =>
+        NpcShip Static(string assembly, Vector3 at, Vector3 rotation, int nameText, int dockingType, int points, System.Action<SpawnSpec> setup = null)
+        {
+            var o = StaticObject(assembly, at, rotation, nameText, dockingType, points, setup);
+            // Modified: the freighters (91's wreck, 92's and 94's) are ships on the radar, plated "Midorian NN%"; their name is
+            // the docking target's (PlayerFixedObject::setName; a player's comparison with the original).
+            if (o != null && assembly.Contains("cargo_001"))
+            {
+                o.ShipMarker = true;
+                o.DockingName = o.Target.displayName;
+                o.Target.displayName = null;
+            }
+            return o;
+        }
+
+        NpcShip StaticObject(string assembly, Vector3 at, Vector3 rotation, int nameText, int dockingType, int points, System.Action<SpawnSpec> setup) =>
             c.SpawnShip(3, -1, at, false, s =>
             {
                 s.group = NpcGroup.Special; s.fixedObject = assembly; s.rotation = rotation; s.nameText = nameText; s.dockingType = dockingType;

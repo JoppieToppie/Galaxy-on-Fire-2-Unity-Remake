@@ -225,12 +225,18 @@ namespace GoF2Remake.Flight
         {
             dockedSaved = false;
             if (Current == Mode.FreeLook) return;
-            // Modified: the orbit starts where the docking's camera is (a player's request: the original's preset orbit,
-            // -98 / 35 px at 3800 units, moved the camera away from the docking view when free look took over).
+            // Modified: the orbit starts where the docking's camera is and glides from there to the original's preset orbit
+            // (-98 / 35 px at 3800 units), as the original's camera moves over to it (a player's comparison: the remake
+            // jumped there; then, starting where the docking view was, it never went over). Dragging stops the glide.
             bool fromCamera = OrbitFromCamera(out float cx, out float cy, out float cd);
             Set(Mode.FreeLook);
-            if (fromCamera) { px = cx; py = cy; distance = cd; }
-            else { px = -98f; py = 35f; distance = 3800f; }
+            px = -98f; py = 35f; distance = 3800f;
+            if (fromCamera)
+            {
+                cx = px + Mathf.Repeat(cx - px + FullTurnPx * 0.5f, FullTurnPx) - FullTurnPx * 0.5f;   // the short way round
+                px = cx; py = cy; distance = cd;
+                dockGlide = true;
+            }
             Place();
         }
 
@@ -239,6 +245,8 @@ namespace GoF2Remake.Flight
         // setRotationAroundTarget + setFreeLookMode), so TargetFollowCamera eases from there back to the ship: the camera
         // flies back to the orbit it had before the cutscene instead of jumping to it (a player's comparison).
         float dockedPx, dockedPy, dockedDistance;
+        bool dockGlide;   // EnterDockedLook: easing over to the preset orbit
+        const float FullTurnPx = 2f * Mathf.PI / 0.005f, DockGlideMs = 450f;
         bool dockedSaved;
 
         /// <summary>CutsceneCamera.Release: docked (not hacking, nothing blocking free look), free look again on the orbit it
@@ -297,6 +305,7 @@ namespace GoF2Remake.Flight
         {
             if (chase == null || chase.follow != anchor) return;
             if (DockingHoldsCamera) { dockedPx = px; dockedPy = py; dockedDistance = distance; dockedSaved = true; }   // ResumeDockedLook
+            dockGlide = false;
             chase.follow = null;
             if (chase.followClamp == (Func<Vector3, Vector3, Vector3>)ClampCamera) chase.followClamp = null;
             // Modified: not when a level's cutscene took the camera (CutsceneCamera sets scriptCamera; its Cutscene ends free
@@ -435,6 +444,16 @@ namespace GoF2Remake.Flight
             // (the Invert orbit Y option still flips it back).
             delta.y = -delta.y;
             delta = GoF2Remake.Data.Settings.OrbitTurn(delta);   // #121: the camera views' own inversion
+            if (dockGlide)
+            {
+                if (held || delta.sqrMagnitude > 0.01f || wheel != 0f || Mathf.Abs(zoom) > 0.01f || !DockingHoldsCamera) dockGlide = false;
+                else
+                {
+                    float k = 1f - Mathf.Exp(-Time.deltaTime * 1000f / DockGlideMs);
+                    px = Mathf.Lerp(px, -98f, k); py = Mathf.Lerp(py, 35f, k); distance = Mathf.Lerp(distance, 3800f, k);
+                    if (Mathf.Abs(px + 98f) < 0.5f && Mathf.Abs(py - 35f) < 0.5f && Mathf.Abs(distance - 3800f) < 5f) dockGlide = false;
+                }
+            }
             px += delta.x;
             py = Mathf.Clamp(py + delta.y, -200f, 200f);
             distance = Mathf.Clamp(distance, MinDistance, MaxDistance);

@@ -244,7 +244,7 @@ namespace GoF2Remake.Flight
             {
                 if (t.kind != Kind.DockingTarget) continue;
                 var s = t.dockingShip;
-                t.name = s != null ? s.Target.displayName ?? "" : "";
+                t.name = s != null ? s.DockingName ?? s.Target.displayName ?? "" : "";
                 // a hostile or fighting carrier is a ship then (NpcShip.OffersDocking, CapitalShips.DeckOpen)
                 t.hidden = s == null || s.Gone || !s.Target.Alive || !s.OffersDocking || s.RadarHidden || s.Hidden || s.Inactive;
                 if (t.hidden && (Locked == t || Candidate == t)) { Locked = Candidate = null; LockTimer = 0f; }

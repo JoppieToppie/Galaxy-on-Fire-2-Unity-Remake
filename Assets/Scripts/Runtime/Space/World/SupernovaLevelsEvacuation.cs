@@ -312,7 +312,7 @@ namespace GoF2Remake.World
             switch (Step)
             {
                 case 0:
-                    if (Triggered(3) && wreck != null) { wreck.Wake(); wreck.RadarHidden = false; wreck.DockingType = 0; wreck.Target.displayName = Localization.Get(3211); Step = 1; }
+                    if (Triggered(3) && wreck != null) { wreck.Wake(); wreck.RadarHidden = false; wreck.DockingType = 0; wreck.DockingName = Localization.Get(3211); Step = 1; }
                     // Remake: the damaged freighter is a docking target from the start of its call (dock type 0 can't dock):
                     break;
                 case 1:
@@ -375,7 +375,7 @@ namespace GoF2Remake.World
                     var s0 = S(0);
                     cam.LookAt(G(s0) + GameDir(s0.transform) * 7000f + GameRight(s0.transform) * 700f + GameUp(s0.transform) * 300f, s0.transform);
                     freighter.DockingType = 0;
-                    freighter.Target.displayName = "";
+                    freighter.DockingName = "";
                     Step = 2;
                     break;
                 case 2:
