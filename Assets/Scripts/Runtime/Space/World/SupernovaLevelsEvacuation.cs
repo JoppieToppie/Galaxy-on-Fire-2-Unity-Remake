@@ -360,7 +360,7 @@ namespace GoF2Remake.World
                     break;
                 case 2:
                     Fly(slow);
-                    if (Triggered(5)) { var s = S(0); cam.LookAt(G(s) + GameDir(s.transform) * 3900f - GameRight(s.transform) * 500f + GameUp(s.transform) * 400f, s.transform);   // Modified: right side, as above Step = 3; }
+                    if (Triggered(5)) { var s = S(0); cam.LookAt(G(s) + GameDir(s.transform) * 3900f - GameRight(s.transform) * 500f + GameUp(s.transform) * 400f, s.transform); Step = 3; }   // Modified: right side, as above
                     break;
                 case 3:
                     Fly(mid);
