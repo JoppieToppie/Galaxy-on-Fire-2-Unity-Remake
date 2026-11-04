@@ -240,6 +240,7 @@ namespace GoF2Remake.Flight
             chase.followLookOffset = Vector3.zero;
             chase.followRigid = false;
             chase.followUsesUp = true;
+            chase.followClamp = ClampCamera;
             // Docked at an object the chase camera is off (ObjectDocking's look-at camera): free look moved only the anchor
             // the disabled camera never followed, so the docked free look (a Supernova freighter, a mining station) showed
             // the fixed look-at view and dragging did nothing (Discord report). On for the orbit, as PlayerTurret's view.
@@ -250,6 +251,7 @@ namespace GoF2Remake.Flight
         {
             if (chase == null || chase.follow != anchor) return;
             chase.follow = null;
+            if (chase.followClamp == (Func<Vector3, Vector3, Vector3>)ClampCamera) chase.followClamp = null;
             // Modified: not when a level's cutscene took the camera (CutsceneCamera sets scriptCamera; its Cutscene ends free
             // look through Blocked): the snap put the camera behind the ship, over the cutscene's look-at position placed
             // the same frame, so the docked free look at 92 / 94 (Tadram's freighter, Luur's station) left the Specters'
@@ -257,6 +259,33 @@ namespace GoF2Remake.Flight
             if (chase.scriptCamera) return;
             chase.Snap();
             if (DockingHoldsCamera && !chase.scriptCamera) chase.enabled = false;   // back to ObjectDocking's look-at camera
+        }
+
+        // Modified: docked at an object (a freighter, a station, a carrier) the orbit could put the camera inside its hull
+        // (the original's too). The camera is kept on this side of the first hull between the ship and it: the hull meshes
+        // (HullCollision.CameraHit, a sphere of CameraRadius swept out from the ship, the player's own ship and fighters left
+        // out), or without them (Options > Gameplay "Ship collision": Original) the objects' collision volumes it doesn't
+        // start inside. Applied after the chase camera's easing, so it never shows the inside while catching up.
+        const float CameraRadius = 2f, CameraMinMeters = 1f;
+
+        Vector3 ClampCamera(Vector3 pivot, Vector3 position)
+        {
+            if (chase == null || chase.follow != anchor || !DockingHoldsCamera) return position;   // the free look's orbit only
+            var d = position - pivot;
+            float len = d.magnitude;
+            if (len < 0.01f) return position;
+            var dir = d / len;
+            float hit = HullCollision.CameraHit(pivot, dir, len, CameraRadius, transform) - CameraRadius * 0.5f;
+            var all = Obstacle.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var o = all[i];
+                if (o == null || (o.hull != null && o.hull.Active)) continue;   // a hull: CameraHit
+                float t = o.RayDistance(pivot, dir);
+                if (t > 0f && t < float.MaxValue) hit = Mathf.Min(hit, t - CameraRadius);
+            }
+            if (hit >= len) return position;
+            return pivot + dir * Mathf.Max(CameraMinMeters, hit);
         }
 
         ObjectDocking docking;

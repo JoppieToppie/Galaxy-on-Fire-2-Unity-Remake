@@ -149,6 +149,9 @@ namespace GoF2Remake.Flight
         [System.NonSerialized] public Transform follow;
         [System.NonSerialized] public Vector3 followOffset, followLookOffset;
         [System.NonSerialized] public bool followRigid, followUsesUp;
+        /// <summary>Modified: moves the eased 'follow' position (pivot = follow's position, the camera's place) clear of what
+        /// it mustn't enter (FreeLookCamera.ClampCamera: the docked object's hull). Null = none.</summary>
+        [System.NonSerialized] public System.Func<Vector3, Vector3, Vector3> followClamp;
         /// <summary>A constant rumble on top (PlayerEgo::update: 0.2 while the Liberator is steered).</summary>
         [System.NonSerialized] public float constantRumble;
         /// <summary>A level script's look-at camera (CutsceneCamera) holds the camera: the launch / arrival camera leaves it
@@ -216,6 +219,7 @@ namespace GoF2Remake.Flight
                 float k = followRigid ? 1f : 1f - Mathf.Exp(-0.01f * dtMs);
                 transform.position = Vector3.Lerp(transform.position, fp, k);
                 transform.rotation = Quaternion.Slerp(transform.rotation, fr, k);
+                if (followClamp != null) transform.position = followClamp(follow.position, transform.position);
                 BeginJitter();
                 if (rumble > 0f)
                 {
