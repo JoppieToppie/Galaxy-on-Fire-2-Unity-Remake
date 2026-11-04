@@ -15,6 +15,8 @@ namespace GoF2Remake.Visuals
     {
         /// <summary>How far an edge's midpoint moves to the smooth surface (Phong tessellation's alpha, 0..1).</summary>
         const float Shape = 0.75f;
+        /// <summary>A vertex whose faces' normals sum to less than this share of their lengths is a sharp point.</summary>
+        const float SharpRatio = 0.75f;
 
         public static Mesh Smooth(Mesh src, int levels)
         {
@@ -23,7 +25,7 @@ namespace GoF2Remake.Visuals
             var uv = new List<Vector2>(src.uv);
             var col = new List<Color>(src.colors);
             bool hasUv = uv.Count == pos.Count, hasCol = col.Count == pos.Count;
-            var nrm = SmoothNormals(pos, src.triangles, src.normals);
+            var nrm = SmoothNormals(pos, src.triangles, src.normals, out var sharp);
             var tris = new List<int>(src.triangles);
 
             for (int l = 0; l < levels; l++)
@@ -36,11 +38,14 @@ namespace GoF2Remake.Visuals
                     if (mid.TryGetValue(key, out int m)) return m;
                     Vector3 pa = pos[a], pb = pos[b], na = nrm[a], nb = nrm[b];
                     var c = (pa + pb) * 0.5f;
-                    var qa = c - Vector3.Dot(c - pa, na) * na;
-                    var qb = c - Vector3.Dot(c - pb, nb) * nb;
+                    // A sharp point (the cone's tip, its faces turned every way round it) keeps its edges straight: its
+                    // averaged normal's tangent plane would flatten them into petals (a player's report: spikes at the tip).
+                    var qa = sharp[a] ? c : c - Vector3.Dot(c - pa, na) * na;
+                    var qb = sharp[b] ? c : c - Vector3.Dot(c - pb, nb) * nb;
                     pos.Add(Vector3.Lerp(c, (qa + qb) * 0.5f, Shape));
                     var n = na + nb;
                     nrm.Add(n.sqrMagnitude > 1e-12f ? n.normalized : na);
+                    sharp.Add(false);
                     if (hasUv) uv.Add((uv[a] + uv[b]) * 0.5f);
                     if (hasCol) col.Add((col[a] + col[b]) * 0.5f);
                     m = pos.Count - 1;
@@ -73,8 +78,9 @@ namespace GoF2Remake.Visuals
         /// <summary>One normal per place: the faces' normals (area weighted) touching any vertex at the vertex's position, each
         /// turned to the vertex's own normal from the file (a double-sided effect has an inner and an outer copy of a place,
         /// whose faces would cancel out), summed.</summary>
-        static List<Vector3> SmoothNormals(List<Vector3> pos, int[] tris, Vector3[] given)
+        static List<Vector3> SmoothNormals(List<Vector3> pos, int[] tris, Vector3[] given, out List<bool> sharp)
         {
+            sharp = new List<bool>(pos.Count);
             var faces = new Dictionary<Vector3Int, List<Vector3>>();
             Vector3Int Key(Vector3 p) => new Vector3Int(Mathf.RoundToInt(p.x * 1e4f), Mathf.RoundToInt(p.y * 1e4f), Mathf.RoundToInt(p.z * 1e4f));
             for (int i = 0; i + 2 < tris.Length; i += 3)
@@ -93,8 +99,11 @@ namespace GoF2Remake.Visuals
             {
                 var own = hasGiven ? given[i] : Vector3.zero;
                 var s = Vector3.zero;
+                float total = 0f;
                 if (faces.TryGetValue(Key(pos[i]), out var list))
-                    foreach (var n in list) s += hasGiven && Vector3.Dot(n, own) < 0f ? -n : n;
+                    foreach (var n in list) { s += hasGiven && Vector3.Dot(n, own) < 0f ? -n : n; total += n.magnitude; }
+                // Its faces pointing many ways (the summed normal much shorter than their lengths): a sharp point.
+                sharp.Add(total > 0f && s.magnitude < SharpRatio * total);
                 result.Add(s.sqrMagnitude > 1e-12f ? s.normalized : (hasGiven ? own : Vector3.up));
             }
             return result;
