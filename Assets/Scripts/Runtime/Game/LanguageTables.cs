@@ -18,7 +18,7 @@ namespace GoF2Remake.Data
         /// <summary>Modified: the languages the menus offer, in their order (every table the asset above references); the
         /// main menu's scene builder writes its language buttons from this list and Options reads its language row from it,
         /// so the two agree. Korean, Japanese and Arabic (the original's own tables, the remake's texts in extra_<lang>.json)
-        /// offered since 2026-11-04; Arabic's table still has the add-on campaigns' dialogue in English.</summary>
+        /// offered since 2026-11-04; what Arabic's table had left in English (the add-on campaigns) translated by the remake.</summary>
         public static readonly (string code, string name)[] Offered =
         {
             ("en", "English"), ("de", "Deutsch"), ("fr", "Français"), ("es", "Español"),

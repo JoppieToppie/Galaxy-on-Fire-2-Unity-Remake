@@ -19,8 +19,12 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   RefreshTexts too. "Default settings" keeps the language (`Settings.ResetToDefaults`; the row is in
   `OptionsCatalogTests.NotSettings`): English, German, French, Spanish, Italian, Dutch, Polish, Russian, Portuguese
   (Brazil), Simplified Chinese, Hindi, Korean, Japanese, Arabic (the last three the original's tables, offered since
-  2026-11-04: every table is offered; Arabic's still has ~1240 texts in English, mostly the add-on campaigns' dialogue
-  (ids 2466-3228), and the menus keep their left-to-right layout: TextCore joins the letters and orders the words
+  2026-11-04: every table is offered; Arabic's ~1250 texts the original left in English, mostly the add-on campaigns'
+  dialogue (ids 2466-3228), translated by the remake the same day; then every original Arabic row checked against its
+  English (2026-11-05): ~510 corrected (rows shifted by one, e.g. 229-237, 1236-1239, 1817-1820, 2191-2193, 2261-2265;
+  older texts, e.g. an older Liberator mission; meanings turned round; key placeholders lost with the mobile controls
+  texts; Latin and digits stored reversed, "RMA" for AMR, "00002" for 20000; "hangar" as المعسكر, now المرآب); the language names, credits and the gibberish / Void cipher lines (1838, 1917, 1945,
+  1952, 3054...) stay as in every table), and the menus keep their left-to-right layout: TextCore joins the letters and orders the words
   right to left, but a closing full stop lands at the right end, checked in Play mode). The UI fonts (Klavika, Inter) have no CJK, Hangul,
   Arabic or Devanagari glyphs: those come from
   the system's fonts through TextCore's OS font fallback (`TextSettings.fallbackOSFontAssets`), with correct Devanagari

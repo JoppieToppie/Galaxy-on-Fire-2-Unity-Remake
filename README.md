@@ -77,7 +77,8 @@ without a headset so far. A build's version is the date and time of its release 
   - Upscaling: FSR 1 and STP everywhere they are supported, NVIDIA DLSS and AMD FSR 2 / 3 / 4 on Windows, MetalFX on
     macOS and iOS.
   - Discord Rich Presence on Windows: your Discord status shows what you are doing in the game.
-  - Dutch, Simplified Chinese and Hindi translations, the original's Korean, Japanese and Arabic (the remake's own texts
+  - Dutch, Simplified Chinese and Hindi translations, the original's Korean, Japanese and Arabic (Arabic completed:
+    the add-on campaigns the original left in English) (the remake's own texts
     in all 14 languages), and a choice between
     German and English voices.
   - Debug tools (Options > Gameplay): jump to any story step, cheats, give items, spawn ships and objects, fly any hull
