@@ -67,9 +67,10 @@ namespace GoF2Remake.World
             var wreck = Static("sn_cargo_001_midorian_wrecked", new Vector3(-20000, 0, 60000), new Vector3(0, 5.4978f, 0), -1, 0, 3,
                                s => { s.hitpoints = Mathf.Max(1, NpcTables.Hull(1, 15) / 20); s.inactive = true; });
             wreck.RadarHidden = true;
-            // Modified: setHitpoints(default / 20) sets the hull, not its maximum: the plate reads "Midorian 4%" (a player's
-            // comparison with the original; 100 % with the reduced hull as the maximum).
-            wreck.Target.hitpoints.maxHull = NpcTables.Hull(1, 15);
+            // Modified: setHitpoints(default / 20) sets the hull, not its maximum: the plate reads "Midorian 4%" in the original
+            // (a player's comparison; 100 % with the reduced hull as the maximum). The maximum the original measures against
+            // isn't recovered (the remake's hull formula gives 5 %): 25x the hull shows its 4 %.
+            wreck.Target.hitpoints.maxHull = wreck.Target.hitpoints.hull * 25;
             wreck.Target.maxHp = wreck.Target.hitpoints.maxHull;
             c.FailObjective = () => c.ShipDestroyed(0);   // Objective(1, 0): the wreck destroyed
             // PlayerFixedObject::update animates the wreck's +0x14 transform; +0xc (the *_wrecked_anim root) only from the
