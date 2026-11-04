@@ -223,10 +223,34 @@ namespace GoF2Remake.Flight
         /// (MGame+0x110 / +0x114 = -98 / 35 px, +0xb8 = 3800 units).</summary>
         public void EnterDockedLook()
         {
+            dockedSaved = false;
             if (Current == Mode.FreeLook) return;
             Set(Mode.FreeLook);
             px = -98f; py = 35f; distance = 3800f;
             Place();
+        }
+
+        // Modified: a level's cutscene ending while docked (92's Specter entrance): LevelScript ev5's end keeps the camera where
+        // the cutscene left it (setLookAtCam(false), no resetCamera) and, docked, goes back to free look (lookBehind +
+        // setRotationAroundTarget + setFreeLookMode), so TargetFollowCamera eases from there back to the ship: the camera
+        // flies back to the orbit it had before the cutscene instead of jumping to it (a player's comparison).
+        float dockedPx, dockedPy, dockedDistance;
+        bool dockedSaved;
+
+        /// <summary>CutsceneCamera.Release: docked (not hacking, nothing blocking free look), free look again on the orbit it
+        /// had when the cutscene took the camera (the preset one without), eased in from where the camera is; false = not
+        /// docked (the caller snaps the chase camera behind the ship).</summary>
+        public bool ResumeDockedLook()
+        {
+            if (DockedView == null || !DockedView() || (Blocked != null && Blocked()) || !DockingHoldsCamera) return false;
+            if (Current != Mode.FreeLook) Set(Mode.FreeLook, false);
+            if (Current != Mode.FreeLook || chase == null || chase.follow != anchor) return false;
+            if (dockedSaved) { px = dockedPx; py = dockedPy; distance = dockedDistance; }
+            else { px = -98f; py = 35f; distance = 3800f; }
+            fling = Vector2.zero; wheel = 0f;
+            chase.followRigid = false;
+            Place();
+            return true;
         }
 
         void EnterFreeLook()
@@ -250,6 +274,7 @@ namespace GoF2Remake.Flight
         void ExitFreeLook()
         {
             if (chase == null || chase.follow != anchor) return;
+            if (DockingHoldsCamera) { dockedPx = px; dockedPy = py; dockedDistance = distance; dockedSaved = true; }   // ResumeDockedLook
             chase.follow = null;
             if (chase.followClamp == (Func<Vector3, Vector3, Vector3>)ClampCamera) chase.followClamp = null;
             // Modified: not when a level's cutscene took the camera (CutsceneCamera sets scriptCamera; its Cutscene ends free

@@ -91,7 +91,9 @@ against the FEV's LGCY data, see "Sound").
   dollied along Specter 0 at 1.7 u/ms so the three pass it slowly, then still in ev5: `CutsceneCamera.Fixed`,
   `TrackSpecters`; it used to stand still turning after them, swinging round as they passed); the docked orbit keeps the camera
   out of the hulls (`FreeLookCamera.ClampCamera` through `ChaseCamera.followClamp`, after the easing: a sphere swept from
-  the ship, `HullCollision.CameraHit`, the own ship and flyable ships left out; under Original collision the volumes);
+  the ship, `HullCollision.CameraHit`, the own ship and flyable ships left out; under Original collision the volumes; a cutscene
+  ending while docked eases the camera back to the orbit it had before, `CutsceneCamera.Release` -> `ResumeDockedLook`,
+  LevelScript 92 ev5: no resetCamera, lookBehind + free look);
   the undock's end goes back to
   the standard view; `PlayerTurret.GunsBlocked` ignores the docked ship's
   blocked guns; the chase camera is on for the view; the stick still reads under `externalControl`; the mouse aims it

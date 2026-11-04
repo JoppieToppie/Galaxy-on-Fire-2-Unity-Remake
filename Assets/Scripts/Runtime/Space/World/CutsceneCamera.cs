@@ -72,7 +72,13 @@ namespace GoF2Remake.World
             RumbleAmplitude = 50;
             dolly = Vector3.zero;
             Fixed = false;
-            if (chase != null) { chase.scriptCamera = false; chase.enabled = true; chase.Snap(); }
+            if (chase == null) return;
+            chase.scriptCamera = false;
+            chase.enabled = true;
+            // Modified: docked at an object the camera eases back from here to the free look's orbit (FreeLookCamera.ResumeDockedLook)
+            var free = chase.target != null ? chase.target.GetComponent<FreeLookCamera>() : null;
+            if (free != null && free.ResumeDockedLook()) return;
+            chase.Snap();
         }
 
         public void LateTick(float dtMs)
