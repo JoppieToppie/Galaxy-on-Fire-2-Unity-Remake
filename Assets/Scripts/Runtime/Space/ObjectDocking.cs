@@ -425,7 +425,9 @@ namespace GoF2Remake.Flight
             ship.autopilotTarget = null;
             SetExhaust(true);
             if (weapons != null) weapons.Blocked = false;
-            if (chase != null) { chase.enabled = true; chase.Snap(); }
+            // Modified: not behind the ship at once when the docked free look holds the camera: it eases over from there
+            // (FreeLookCamera, a player's request: the undock kept the orbit, then jumped to the chase view).
+            if (chase != null) { chase.enabled = true; if (chase.follow == null) chase.Snap(); }
         }
 
         /// <summary>The player's engine glow (as Mining: the player-variant parts of the model).</summary>
