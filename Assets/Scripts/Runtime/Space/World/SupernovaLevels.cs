@@ -83,7 +83,10 @@ namespace GoF2Remake.World
         static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / M;
         static Vector3 Dir(Vector3 game) => new Vector3(game.x, game.y, -game.z).normalized;
         static Vector3 GameDir(Transform t) => new Vector3(t.forward.x, t.forward.y, -t.forward.z);
-        static Vector3 GameRight(Transform t) => new Vector3(t.right.x, t.right.y, -t.right.z);
+        // Modified: AEGeometry::getRightVector is Unity's left: the (x, y, -z) mirror turns the original's right-handed frame
+        // into Unity's left-handed one, so its right (up x dir there) comes out as -right here (S(y x z) = -(Sy x Sz)). Every
+        // camera and spawn placed to a ship's side stood on the wrong one (a player's comparison with the original, 92).
+        static Vector3 GameRight(Transform t) => new Vector3(-t.right.x, -t.right.y, t.right.z);
         static Vector3 GameUp(Transform t) => new Vector3(t.up.x, t.up.y, -t.up.z);
         Vector3 PlayerGame => ToGame(Player.position);
         Vector3 PlayerDirGame => GameDir(Player);
@@ -99,6 +102,9 @@ namespace GoF2Remake.World
         {
             if (Session.FreePlay) return null;
             if (index == 89) return new Vector3(-100000, 0, -50000);
+            // Modified: Level::createAsteroids' mission 0x5b at station 0x6e (Valpatro) case, missing here: the field stood at
+            // the station's seeded place, on the other side of the supernova (a player's comparison with the original).
+            if (index == 91 && station == 110) return new Vector3(60000, 0, 50000);
             if (index == 114 && station == 83) return new Vector3(30000, 0, 80000);
             if (index == 145 && station == 112) return new Vector3(50000, 0, 70000);
             if (index == 154 && alien) return new Vector3(-70000, 0, 30000);
@@ -374,6 +380,10 @@ namespace GoF2Remake.World
 
         // 91 (process 9556-9762).
         readonly List<PartAnimation> wreckAnims = new List<PartAnimation>();
+        // Modified: 91's hull debris, held until the player is within WreckDebrisMeters (1.5 km = 30000 units) of the wreck.
+        readonly List<PartAnimation> wreckDebris = new List<PartAnimation>();
+        bool wreckDebrisStarted;
+        const float WreckDebrisMeters = 1500f;
         AudioSource wreckLoop;
         bool wreckBroken;
 

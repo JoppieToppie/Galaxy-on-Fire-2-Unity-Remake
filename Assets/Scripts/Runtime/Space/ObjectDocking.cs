@@ -91,6 +91,7 @@ namespace GoF2Remake.Flight
         Database db;
         ShipController ship;
         ChaseCamera chase;
+        bool easeCamera;
         WeaponSystem weapons;
         CombatAudio sounds;
         AudioSource sfx;
@@ -156,6 +157,10 @@ namespace GoF2Remake.Flight
             Hacking = null;
             TransferLabel = null;
             State = Phase.Leaving;
+            // Modified: undocking, the camera stays where it is (the docked free look's orbit, which FreeLookCamera ends, or the
+            // docked view), turning after the ship (LateUpdate's look-at), and eases back behind it at the end instead of
+            // snapping there (a player's request).
+            easeCamera = chase != null && !chase.scriptCamera;
             phaseMs = 0f;
             fromPos = ship.transform.position;
             fromRot = ship.transform.rotation;
@@ -425,7 +430,15 @@ namespace GoF2Remake.Flight
             ship.autopilotTarget = null;
             SetExhaust(true);
             if (weapons != null) weapons.Blocked = false;
-            if (chase != null) { chase.enabled = true; chase.Snap(); }
+            // Modified: not behind the ship at once after an undock (easeCamera): the chase camera
+            // eases over from where it is (a player's request: it jumped there).
+            if (chase != null)
+            {
+                chase.enabled = true;
+                if (!easeCamera && chase.follow == null) chase.Snap();
+                else if (easeCamera) chase.SoftReturn(500f);
+            }
+            easeCamera = false;
         }
 
         /// <summary>The player's engine glow (as Mining: the player-variant parts of the model).</summary>

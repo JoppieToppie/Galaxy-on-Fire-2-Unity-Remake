@@ -56,7 +56,9 @@ against the FEV's LGCY data, see "Sound").
   record 23 at the array); 144 (camera drift (0, 0.05, 0.28) u/ms, `translate` at 0x162efa, which Ghidra garbles;
   instant cloaks); 135 (every 75 s only the dead pirates come back, no
   cargo; 2 -> 3 on that tick); 102 (a Specter whose target died takes the first living dropship, else the player; instant cloaks);
-  91 (the wreck's 0x8e9 LOOP, and with 8 aboard after 180 s 0x8ea and its `_wrecked_anim` played once, unverified); 154 (the
+  91 (the wreck's 0x8e9 LOOP, and with 8 aboard within the level's first 180 s 0x8ea and its `_wrecked_anim` played
+  once: process 0x167530 takes the idle transform once t > 179999; it was read the other way round, so the break-up only
+  came with the wreck's end; a break-up started at the end plays 0x8ea too); 154 (the
   fighters creep 0.5 u/ms in state 1; turret view / free look / Liberator off, the auto turret off until control returns); 89 /
   81 clear the new station's attacked-friends flag. The Coromesk (103) rule: from campaign 0x55 (or 0x87) every start there is at
   (70 000, 0, 100 000) facing the station (`LevelScript::LevelScript` 0x160380, `SpaceLevel.SpawnPlayer`).
@@ -83,7 +85,26 @@ against the FEV's LGCY data, see "Sound").
   2026-10); docked (not hacking) the camera goes to free look by itself with the original's preset orbit, -98 / 35 px at
   3800 units, and the camera key cycles the manual turrets and free look (`PlayerEgo::approachDockingPoint` +0xb1,
   `MGame::OnUpdate` switchCamera(3); `setDockingState(2)` suppresses it; `ObjectDocking.Docked`,
-  `FreeLookCamera.EnterDockedLook` / `DockedView`; #132: the remake had no free look docked); the undock's end goes back to
+  `FreeLookCamera.EnterDockedLook` / `DockedView`; #132: the remake had no free look docked; a cutscene starting while
+  docked (92's and 94's Specter entrances) ends that free look without snapping the camera behind the ship, which put it
+  over the cutscene's look-at camera, `ExitFreeLook`; 92's second shot (ev3 / ev4) is a fixed camera, `setFixed(true)`,
+  dollied along Specter 0 at 1.7 u/ms so the three pass it slowly, then still in ev5: `CutsceneCamera.Fixed`,
+  `TrackSpecters`; it used to stand still turning after them, swinging round as they passed); the docked orbit keeps the camera
+  out of the hulls (`FreeLookCamera.ClampCamera` through `ChaseCamera.followClamp`, after the easing: a sphere swept from
+  the ship, `HullCollision.CameraHit`, the own ship and flyable ships left out; under Original collision the volumes; a cutscene
+  ending while docked eases the camera back to the orbit it had before, `CutsceneCamera.Release` -> `ResumeDockedLook`,
+  LevelScript 92 ev5: no resetCamera, lookBehind + free look; the docked orbit starts where the docking's camera is,
+  `OrbitFromCamera`, and glides over to the preset -98 / 35 px, 3800 units, as the original's camera does, `dockGlide`;
+  `SupernovaLevels.GameRight` is the original's getRightVector, Unity's left (the mirror turns the handedness): it was
+  Unity's right, every side camera and side spawn of 87-158 stood on the wrong side, 92's shots shown by a player;
+  92 ev7 keeps the player's speed; 91's hull debris (sn_cargo_001_midorian_wrecked parts 3-13, never played: not an
+  "_anim" model, and *_glow_anim_add with it) drifts off once, from the player within 1.5 km, `wreckDebris`; 92's freighter jump
+  and 102's carrier sound go with them, `Sfx.PlayOn` / `SfxFollow`; every ship one docks at (freighters, carriers,
+  battleships) and every story station / platform spawned with a docking type (not pads, outposts, containers, junk) is a
+  radar ship too, plated "<race> NN%" (`NpcShip.ShipMarker`, `DockingOnly`), its name the docking target's (`DockingName`),
+  its docking ring only as the autopilot's target, locked the action docks there (`Navigation.ShipLockDocking`); NPCs leave
+  those stations alone (`Target.npcIgnored`); the crosshair hides during a docking's approach; marked as the docking target, the ship lock on it goes (`CombatRadar`));
+  the undock's end goes back to
   the standard view; `PlayerTurret.GunsBlocked` ignores the docked ship's
   blocked guns; the chase camera is on for the view; the stick still reads under `externalControl`; the mouse aims it
   with mouse steering (`FlightHud.UpdateMouseSteering` leaves it on in a docked turret view) and the fire button fires

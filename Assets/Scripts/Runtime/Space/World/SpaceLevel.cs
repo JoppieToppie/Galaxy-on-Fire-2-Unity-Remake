@@ -518,7 +518,7 @@ namespace GoF2Remake.World
             if (FreeLook != null)
                 FreeLook.Blocked = () => Cutscene || !LaunchCameraOver || (Mining != null && Mining.State != Mining.Phase.Idle)
                                          // the approach is an autopilot leg; docked (not hacking) free look is the view (#132)
-                                         || (Docking != null && Docking.Busy && Docking.State != ObjectDocking.Phase.Approach && !DockedLook)
+                                         || (Docking != null && Docking.Busy && Docking.State != ObjectDocking.Phase.Approach && Docking.State != ObjectDocking.Phase.Leaving && !DockedLook)   // Modified: the undock keeps the docked free look (FreeLookCamera)
                                          || (Navigation != null && Navigation.Jumping)
                                          || (SystemJump != null && SystemJump.Cinematic) || (Health != null && Health.Dead);
             // MGame::switchCamera / PlayerEgo::setTurretMode refuse the turret view only while docking to an asteroid, mining,

@@ -244,6 +244,10 @@ namespace GoF2Remake.UI
                 var sp = cam.WorldToScreenPoint(t.Position);
                 bool onScreen = sp.z > 0f && sp.x >= 0f && sp.y >= 0f && sp.x <= w && sp.y <= h;
                 bool nearCentre = onScreen && Mathf.Abs(sp.x - w / 2f) < w / 6f && Mathf.Abs(sp.y - h / 2f) < w / 6f;
+                // Modified: a ship one docks at (NpcShip.ShipMarker) is a radar ship like any other: its docking ring and
+                // distance only while it is the autopilot's target (the autopilot menu) or the docking target lock (a player's
+                // comparison: it came on the radar marked).
+                if (t.kind == Navigation.Kind.DockingTarget && t.dockingShip != null && t.dockingShip.ShipMarker && nav.Locked != t && nav.AutopilotTarget != t) nearCentre = false;
                 Vector2 p = onScreen ? RuntimePanelUtils.CameraTransformWorldToPanel(layer.panel, t.Position, cam) - origin : Vector2.zero;
                 bool planet = t.kind == Navigation.Kind.Planet;
 
@@ -283,7 +287,13 @@ namespace GoF2Remake.UI
                 // Landmarks: labels near the centre; elsewhere the jumpgate icon on the radar ellipse, the station nothing.
                 bool station = t.kind == Navigation.Kind.Station && t.station != Session.VoidOrbit;
                 float lx = station ? 50f : 10f;
-                if (t.kind == Navigation.Kind.DockingTarget && m.name.text != t.name) m.name.text = t.name;   // renamed by the level
+                // Modified: a ship one docks at (NpcShip.ShipMarker) shows only its ring and distance, as the original's docking
+                // marker; its name is the autopilot list's (a player's comparison: "Damaged Freighter" stood beside it).
+                if (t.kind == Navigation.Kind.DockingTarget)
+                {
+                    string label = t.dockingShip != null && t.dockingShip.ShipMarker ? "" : t.name;
+                    if (m.name.text != label) m.name.text = label;   // renamed by the level
+                }
                 // Modified: a friendly docking object (the story's freighters and platforms are always-friend static objects)
                 // in the friend's green, as the original's radar draws them among the ships (a player's report: grey at 91 / 92).
                 bool friendly = t.kind == Navigation.Kind.DockingTarget && t.dockingShip != null && t.dockingShip.Target.friendToPlayer

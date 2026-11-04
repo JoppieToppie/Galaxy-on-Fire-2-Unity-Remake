@@ -283,6 +283,27 @@ namespace GoF2Remake.Flight
             return false;
         }
 
+        /// <summary>Modified (the docked free look's camera, FreeLookCamera.ClampCamera): a sphere of 'radius' metres swept from
+        /// 'from' along 'dir' (unit) up to 'reach': the distance to the first shown hull it runs into, not a flyable ship's
+        /// (fighters passing by don't push the camera) nor one under 'ignore' (the player's own ship), whatever the ship
+        /// collision mode takes for the player; float.MaxValue = none.</summary>
+        public static float CameraHit(Vector3 from, Vector3 dir, float reach, float radius, Transform ignore)
+        {
+            if (bodies.Count == 0 || reach <= 0f) return float.MaxValue;
+            Sync();
+            int n = Physics.SphereCastNonAlloc(from, radius, dir, hits, reach, HullMask, QueryTriggerInteraction.Ignore);
+            float best = float.MaxValue;
+            for (int i = 0; i < n; i++)
+            {
+                if (hits[i].distance <= 0f || hits[i].distance >= best) continue;
+                var c = hits[i].collider;
+                var b = BodyOf(c);
+                if (b == null || !b.Active || b.flyableShip || (ignore != null && c.transform.IsChildOf(ignore)) || !Shown(c)) continue;
+                best = hits[i].distance;
+            }
+            return best;
+        }
+
         /// <summary>The hull colliders within 'radius' of 'centre' into 'buffer'; their count.</summary>
         public static int Overlap(Vector3 centre, float radius, Collider[] buffer)
         {

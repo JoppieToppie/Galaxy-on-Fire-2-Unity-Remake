@@ -70,6 +70,10 @@ namespace GoF2Remake.Flight
         /// <summary>FlightHud: the cursor is captured for mouse steering, so in free look plain mouse movement orbits the
         /// camera (remake: the PC version has no mouse free look; the middle button held does the same without it).</summary>
         [NonSerialized] public bool mouseLook;
+        /// <summary>Modified: FlightHud: the pointer is over a HUD control or the hacking puzzle, where a left press is a click,
+        /// not the docked orbit's drag.</summary>
+        [NonSerialized] public Func<bool> pointerOverHud;
+        bool leftDrag;   // Modified: docked at an object, the left button held from off the HUD orbits the camera
 
         /// <summary>'turret' is unused since the turrets are looked up on the player (PlayerTurret.On); kept for the callers.</summary>
         public static FreeLookCamera Attach(GameObject player, ChaseCamera chase, PlayerTurret turret = null)
@@ -219,10 +223,76 @@ namespace GoF2Remake.Flight
         /// (MGame+0x110 / +0x114 = -98 / 35 px, +0xb8 = 3800 units).</summary>
         public void EnterDockedLook()
         {
-            if (Current == Mode.FreeLook) return;
+            dockedSaved = false;
+            if (Current == Mode.FreeLook) { dockedView = true; return; }
+            // Modified: the orbit starts where the docking's camera is and glides from there to the original's preset orbit
+            // (-98 / 35 px at 3800 units), as the original's camera moves over to it (a player's comparison: the remake
+            // jumped there; then, starting where the docking view was, it never went over). Dragging stops the glide.
+            bool fromCamera = OrbitFromCamera(out float cx, out float cy, out float cd);
             Set(Mode.FreeLook);
-            px = -98f; py = 35f; distance = 3800f;
+            dockedView = true;
+            px = DockPx; py = DockPy; distance = 3800f;
+            if (fromCamera)
+            {
+                cx = px + Mathf.Repeat(cx - px + FullTurnPx * 0.5f, FullTurnPx) - FullTurnPx * 0.5f;   // the short way round
+                px = cx; py = cy; distance = cd;
+                dockGlide = true;
+            }
             Place();
+        }
+
+        // Modified: a level's cutscene ending while docked (92's Specter entrance): LevelScript ev5's end keeps the camera where
+        // the cutscene left it (setLookAtCam(false), no resetCamera) and, docked, goes back to free look (lookBehind +
+        // setRotationAroundTarget + setFreeLookMode), so TargetFollowCamera eases from there back to the ship: the camera
+        // flies back to the orbit it had before the cutscene instead of jumping to it (a player's comparison).
+        float dockedPx, dockedPy, dockedDistance;
+        bool dockGlide;   // EnterDockedLook: easing over to the preset orbit
+        // Modified: the free look the docking started: the undock ends it where the camera is, no snap behind the ship (a
+        // player's request); ObjectDocking's look-at keeps the ship in view, then the chase camera eases over.
+        bool dockedView, easeOut;
+        const float FullTurnPx = 2f * Mathf.PI / 0.005f, DockGlideMs = 450f;
+        // Modified: the docked orbit's yaw: the preset -98 px from the bow, not the stern. LevelScript::lookBehind turns the
+        // camera round before the free look (92 ev5), and the original's docked view looks at the ship from in front (a
+        // player's screenshot); from behind it looked over the ship's tail.
+        const float DockPx = -98f + FullTurnPx * 0.5f;
+        // Modified: and above the ship: the remake's orbit pitch runs opposite the original's (Place, the free look's inverted
+        // up / down), so its +35 px put the camera under the hull (a player's screenshot).
+        const float DockPy = -35f;
+        bool dockedSaved;
+
+        /// <summary>CutsceneCamera.Release: docked (not hacking, nothing blocking free look), free look again on the orbit it
+        /// had when the cutscene took the camera (the preset one without), eased in from where the camera is; false = not
+        /// docked (the caller snaps the chase camera behind the ship).</summary>
+        public bool ResumeDockedLook()
+        {
+            if (DockedView == null || !DockedView() || (Blocked != null && Blocked()) || !DockingHoldsCamera) return false;
+            if (Current != Mode.FreeLook) Set(Mode.FreeLook, false);
+            if (Current != Mode.FreeLook || chase == null || chase.follow != anchor) return false;
+            dockedView = true;
+            if (dockedSaved) { px = dockedPx; py = dockedPy; distance = dockedDistance; }
+            else { px = DockPx; py = DockPy; distance = 3800f; }
+            fling = Vector2.zero; wheel = 0f;
+            chase.followRigid = false;
+            Place();
+            return true;
+        }
+
+        /// <summary>Modified: the orbit (px, py, distance) that puts the free look's camera where the camera is now, in the ship's
+        /// frame (Place's inverse: the camera at anchor * (0, 0, -distance), anchor = Euler(-0.005 py, 0.005 px)); false when
+        /// there is no camera or it sits on the ship.</summary>
+        bool OrbitFromCamera(out float x, out float y, out float d)
+        {
+            x = y = d = 0f;
+            if (chase == null) return false;
+            var v = transform.InverseTransformDirection(chase.transform.position - anchor.position);
+            float len = v.magnitude;
+            if (len < 0.5f) return false;
+            var u = -v / len;   // the anchor's forward
+            float pitch = Mathf.Asin(Mathf.Clamp(-u.y, -1f, 1f)), yaw = Mathf.Atan2(u.x, u.z);
+            x = yaw / 0.005f;
+            y = Mathf.Clamp(-pitch / 0.005f, -200f, 200f);
+            d = Mathf.Clamp(len / M, MinDistance, MaxDistance);
+            return true;
         }
 
         void EnterFreeLook()
@@ -236,6 +306,7 @@ namespace GoF2Remake.Flight
             chase.followLookOffset = Vector3.zero;
             chase.followRigid = false;
             chase.followUsesUp = true;
+            chase.followClamp = ClampCamera;
             // Docked at an object the chase camera is off (ObjectDocking's look-at camera): free look moved only the anchor
             // the disabled camera never followed, so the docked free look (a Supernova freighter, a mining station) showed
             // the fixed look-at view and dragging did nothing (Discord report). On for the orbit, as PlayerTurret's view.
@@ -245,9 +316,47 @@ namespace GoF2Remake.Flight
         void ExitFreeLook()
         {
             if (chase == null || chase.follow != anchor) return;
+            if (DockingHoldsCamera) { dockedPx = px; dockedPy = py; dockedDistance = distance; dockedSaved = true; }   // ResumeDockedLook
+            dockGlide = false;
+            dockedView = false;
+            bool ease = easeOut;
+            easeOut = false;
             chase.follow = null;
-            chase.Snap();
+            if (chase.followClamp == (Func<Vector3, Vector3, Vector3>)ClampCamera) chase.followClamp = null;
+            // Modified: not when a level's cutscene took the camera (CutsceneCamera sets scriptCamera; its Cutscene ends free
+            // look through Blocked): the snap put the camera behind the ship, over the cutscene's look-at position placed
+            // the same frame, so the docked free look at 92 / 94 (Tadram's freighter, Luur's station) left the Specters'
+            // entrance seen from behind the player, the fighters far off in the background (a player's report).
+            if (chase.scriptCamera) return;
+            if (!ease) chase.Snap();
             if (DockingHoldsCamera && !chase.scriptCamera) chase.enabled = false;   // back to ObjectDocking's look-at camera
+        }
+
+        // Modified: docked at an object (a freighter, a station, a carrier) the orbit could put the camera inside its hull
+        // (the original's too). The camera is kept on this side of the first hull between the ship and it: the hull meshes
+        // (HullCollision.CameraHit, a sphere of CameraRadius swept out from the ship, the player's own ship and fighters left
+        // out), or without them (Options > Gameplay "Ship collision": Original) the objects' collision volumes it doesn't
+        // start inside. Applied after the chase camera's easing, so it never shows the inside while catching up.
+        const float CameraRadius = 2f, CameraMinMeters = 1f;
+
+        Vector3 ClampCamera(Vector3 pivot, Vector3 position)
+        {
+            if (chase == null || chase.follow != anchor || !DockingHoldsCamera) return position;   // the free look's orbit only
+            var d = position - pivot;
+            float len = d.magnitude;
+            if (len < 0.01f) return position;
+            var dir = d / len;
+            float hit = HullCollision.CameraHit(pivot, dir, len, CameraRadius, transform) - CameraRadius * 0.5f;
+            var all = Obstacle.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var o = all[i];
+                if (o == null || (o.hull != null && o.hull.Active)) continue;   // a hull: CameraHit
+                float t = o.RayDistance(pivot, dir);
+                if (t > 0f && t < float.MaxValue) hit = Mathf.Min(hit, t - CameraRadius);
+            }
+            if (hit >= len) return position;
+            return pivot + dir * Mathf.Max(CameraMinMeters, hit);
         }
 
         ObjectDocking docking;
@@ -297,6 +406,9 @@ namespace GoF2Remake.Flight
             // The turret view ended on its own (mining, blocked guns): back to the standard mode.
             if (Current == Mode.Turret && (CurrentTurret == null || !CurrentTurret.InTurretView)) { Current = Mode.Standard; turretIndex = 0; Set(Base, false); }
             if (Current != Mode.FreeLook) return;
+            // The undock: the orbit ends, the camera staying where it is (ObjectDocking's look-at turns it after the ship, and
+            // its end lets the chase camera ease over).
+            if (chase != null && !chase.scriptCamera && (DockingHoldsCamera ? docking.State == ObjectDocking.Phase.Leaving : dockedView)) { easeOut = true; Set(Base, false); return; }
             if (Blocked != null && Blocked()) { Set(Base, false); return; }
             if (chase != null && chase.follow != anchor && chase.follow != null) { Current = Mode.Standard; Set(Base, false); return; }   // taken over (the Liberator)
             if (halted || Navigation.InputHalted) return;   // a menu's sticks and keys aren't the orbit's
@@ -314,7 +426,12 @@ namespace GoF2Remake.Flight
             // The mouse's movement, not the cursor's position (that stops at the screen edge and never moves while captured):
             // with the middle button held, or always with the cursor captured for mouse steering (FlightHud, mouseLook).
             var mouse = Mouse.current;
-            if (mouse != null && (mouseLook || mouse.middleButton.isPressed))
+            // Modified: docked at an object (Supernova 91's freighters, the hacking docks) the guns are off, so the left button
+            // drags the orbit like the original's touch drag (the middle button still does); a press on a HUD button or the
+            // hacking puzzle stays a click.
+            if (mouse == null || !mouse.leftButton.isPressed || !ObjectDocking.PlayerDocked) leftDrag = false;
+            else if (mouse.leftButton.wasPressedThisFrame) leftDrag = pointerOverHud == null || !pointerOverHud();
+            if (mouse != null && (mouseLook || mouse.middleButton.isPressed || leftDrag))
             {
                 var d = Settings.MouseMove(mouse.delta.ReadValue()) * scale;
                 delta += new Vector2(d.x, -d.y);
@@ -345,6 +462,16 @@ namespace GoF2Remake.Flight
             // (the Invert orbit Y option still flips it back).
             delta.y = -delta.y;
             delta = GoF2Remake.Data.Settings.OrbitTurn(delta);   // #121: the camera views' own inversion
+            if (dockGlide)
+            {
+                if (held || delta.sqrMagnitude > 0.01f || wheel != 0f || Mathf.Abs(zoom) > 0.01f || !DockingHoldsCamera) dockGlide = false;
+                else
+                {
+                    float k = 1f - Mathf.Exp(-Time.deltaTime * 1000f / DockGlideMs);
+                    px = Mathf.Lerp(px, DockPx, k); py = Mathf.Lerp(py, DockPy, k); distance = Mathf.Lerp(distance, 3800f, k);
+                    if (Mathf.Abs(px - DockPx) < 0.5f && Mathf.Abs(py - DockPy) < 0.5f && Mathf.Abs(distance - 3800f) < 5f) dockGlide = false;
+                }
+            }
             px += delta.x;
             py = Mathf.Clamp(py + delta.y, -200f, 200f);
             distance = Mathf.Clamp(distance, MinDistance, MaxDistance);

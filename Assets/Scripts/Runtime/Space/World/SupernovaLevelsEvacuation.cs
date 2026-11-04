@@ -67,12 +67,26 @@ namespace GoF2Remake.World
             var wreck = Static("sn_cargo_001_midorian_wrecked", new Vector3(-20000, 0, 60000), new Vector3(0, 5.4978f, 0), -1, 0, 3,
                                s => { s.hitpoints = Mathf.Max(1, NpcTables.Hull(1, 15) / 20); s.inactive = true; });
             wreck.RadarHidden = true;
+            // Modified: setHitpoints(default / 20) sets the hull, not its maximum: the plate reads "Midorian 4%" in the original
+            // (a player's comparison; 100 % with the reduced hull as the maximum). The maximum the original measures against
+            // isn't recovered (the remake's hull formula gives 5 %): 25x the hull shows its 4 %.
+            wreck.Target.hitpoints.maxHull = wreck.Target.hitpoints.hull * 25;
+            wreck.Target.maxHp = wreck.Target.hitpoints.maxHull;
             c.FailObjective = () => c.ShipDestroyed(0);   // Objective(1, 0): the wreck destroyed
             // PlayerFixedObject::update animates the wreck's +0x14 transform; +0xc (the *_wrecked_anim root) only from the
             // break-up on (below): held until then.
             wreckAnims.Clear();
+            wreckDebris.Clear();
             foreach (var a in wreck.GetComponentsInChildren<PartAnimation>(true))
-                if (a.gameObject.name.Contains("wrecked_anim")) { a.Hold(); wreckAnims.Add(a); }
+            {
+                if (a.gameObject.name.Contains("wrecked_anim")) { a.Hold(); wreckAnims.Add(a); continue; }
+                // Modified: the hull's own debris (sn_cargo_001_midorian_wrecked parts 3-13 and their glow in
+                // *_glow_anim_add) drift off only once the player comes within 1.5 km (a player's comparison with the
+                // original): played from the level's start they were long gone when the player arrived.
+                var n = a.gameObject.name.Replace("(Clone)", "").Trim();
+                if (n == "sn_cargo_001_midorian_wrecked" || n == "sn_cargo_001_midorian_wrecked_glow_anim_add") { a.Hold(); wreckDebris.Add(a); }
+            }
+            wreckDebrisStarted = false;
             wreckBroken = false;
             // FMOD 3D event 0x8e9 LOOP kept at the wreck every frame.
             wreckLoop = wreck.gameObject.AddComponent<AudioSource>();
@@ -276,8 +290,25 @@ namespace GoF2Remake.World
                 float d = Vector3.Distance(cam.Camera.position, wreckLoop.transform.position);
                 wreckLoop.volume = wreck != null && wreck.Target.Alive ? Mathf.Clamp01(1f - d / Sfx.AudibleMeters) * Settings.SfxVolume : 0f;
             }
-            // 8+ aboard after 180 s: sound 0x8ea once, and the wreck animates its second transform (the break-up, unverified).
-            if (!wreckBroken && Session.StoryCounter >= 8 && T > 179999f)
+            // 8+ aboard within the level's first 180 s: sound 0x8ea once, and the wreck animates its second transform (the
+            // break-up). Modified: LevelScript::process 0x167530 compares the 64-bit level time against 179999 as
+            // (179999 - t) < 0 and takes the first transform (+0x14) when that holds, so the break-up runs while t <= 179999,
+            // not after (a player's report: the freighter only broke up at the end; with 8 aboard inside 3 minutes the original
+            // starts it while the miners are still boarding). The original stops advancing it after 180 s; the remake lets it
+            // play out.
+            if (!wreckDebrisStarted && wreck != null && Vector3.Distance(Player.position, wreck.transform.position) <= WreckDebrisMeters)
+            {
+                wreckDebrisStarted = true;
+                foreach (var a in wreckDebris)
+                {
+                    if (a == null) continue;
+                    // The hull model's prefab doesn't play (AssetImport plays "_anim" models only) and loops: once, the pieces
+                    // gone at its end (scale 0) instead of coming back every minute.
+                    if (a.gameObject.name.Replace("(Clone)", "").Trim() == "sn_cargo_001_midorian_wrecked") a.loop = false;
+                    a.Restart();
+                }
+            }
+            if (!wreckBroken && Session.StoryCounter >= 8 && T <= 179999f)
             {
                 wreckBroken = true;
                 if (sn != null && wreck != null) Sfx.PlayAt(sn.container, wreck.transform.position);
@@ -286,7 +317,7 @@ namespace GoF2Remake.World
             switch (Step)
             {
                 case 0:
-                    if (Triggered(3) && wreck != null) { wreck.Wake(); wreck.RadarHidden = false; wreck.DockingType = 0; wreck.Target.displayName = Localization.Get(3211); Step = 1; }
+                    if (Triggered(3) && wreck != null) { wreck.Wake(); wreck.RadarHidden = false; wreck.DockingType = 0; wreck.DockingName = Localization.Get(3211); Step = 1; }
                     // Remake: the damaged freighter is a docking target from the start of its call (dock type 0 can't dock):
                     break;
                 case 1:
@@ -315,6 +346,9 @@ namespace GoF2Remake.World
                     if (!wreckBroken)
                     {
                         wreckBroken = true;
+                        // Modified: with its sound (0x8ea CONTAINER) as at the 180 s rule's break-up (a player's report: the
+                        // breaking's sound was missing).
+                        if (sn != null && wreck != null) Sfx.PlayAt(sn.container, wreck.transform.position);
                         foreach (var a in wreckAnims) if (a != null) { a.loop = false; a.Restart(); }
                     }
                     if (wreck != null) wreck.Target.Damage(9999999, true, Vector3.zero);
@@ -346,7 +380,7 @@ namespace GoF2Remake.World
                     var s0 = S(0);
                     cam.LookAt(G(s0) + GameDir(s0.transform) * 7000f + GameRight(s0.transform) * 700f + GameUp(s0.transform) * 300f, s0.transform);
                     freighter.DockingType = 0;
-                    freighter.Target.displayName = "";
+                    freighter.DockingName = "";
                     Step = 2;
                     break;
                 case 2:
@@ -355,10 +389,12 @@ namespace GoF2Remake.World
                     break;
                 case 3:
                     Fly(mid);
+                    TrackSpecters();
                     if (Over(5)) { for (int i = 0; i < 3; i++) { S(i).CloakingPossible = true; S(i).Cloak(18000f); } Step = 4; }
                     break;
-                case 4: Fly(mid); if (stepMs >= 2000f) Step = 5; break;
+                case 4: Fly(mid); TrackSpecters(); if (stepMs >= 2000f) Step = 5; break;
                 case 5:
+                    cam.SetDolly(Vector3.zero);   // ev5: the camera stays fixed where it is while they dash off
                     Fly(fast);
                     if (stepMs < 2000f) break;
                     for (int i = 0; i < 3; i++) if (S(i) != null) S(i).scriptedSpeed = -1f;
@@ -369,7 +405,7 @@ namespace GoF2Remake.World
                 case 7:
                     if (!Triggered(8)) break;
                     level.Docking?.Undock();
-                    EnterCutscene(false);
+                    EnterCutscene(true);   // Modified: Keith's ship flies on (the remake stopped it; a player's comparison)
                     cam.LookAt(PlayerGame + PlayerDirGame * 7000f + GameRight(Player) * 700f, Player);
                     Step = 8;
                     break;
@@ -380,7 +416,7 @@ namespace GoF2Remake.World
                         cam.LookAt(G(freighter) + GameDir(freighter.transform) * 10000f + GameRight(freighter.transform) * 4800f, freighter.transform);
                         timerMs = 0f;
                         freighterSpeed = 2f;
-                        if (sn != null) Sfx.PlayAt(sn.carrierJump, freighter.transform.position);   // 0x8c9 CS_92_FreighterJump
+                        if (sn != null) Sfx.PlayOn(sn.carrierJump, freighter.transform);   // 0x8c9 CS_92_FreighterJump, Modified: going with the freighter
                         Step = 9;
                     }
                     break;
@@ -392,6 +428,18 @@ namespace GoF2Remake.World
                     if (timerMs >= 7000f) { LeaveCutscene(); if (freighter != null) { freighter.SetVisible(false); freighter.Deactivate(); } Step = 11; }
                     break;
             }
+        }
+
+        // Modified: 92's ev3 / ev4 (process 5640-6166): the camera is fixed (setFixed(true): it no longer turns to Specter 0)
+        // and the script moves it each frame by Specter 0's dir * 1.7 dt, right * -0.03 dt and up * 0.0002 dt, so the
+        // three fly slowly past it (2.0-2.3 u/ms). Without it the camera stood still and kept turning after Specter 0,
+        // which passed it within two seconds and swung the view round (a player's report: "the camera moves twice").
+        void TrackSpecters()
+        {
+            var s = S(0);
+            if (s == null) return;
+            cam.Fixed = true;
+            cam.SetDolly(GameDir(s.transform) * 1.7f - GameRight(s.transform) * 0.03f + GameUp(s.transform) * 0.0002f);
         }
 
         // 94 (process 6167-6348).
@@ -509,7 +557,7 @@ namespace GoF2Remake.World
                     SetPlayerVisible(false);
                     cam.LookAt(G(carrier) + new Vector3(9000, -7000, 40000), carrier.transform);
                     for (int i = 2; i <= 9; i++) Remove(S(i));
-                    if (sn != null) Sfx.PlayAt(sn.carrierJump, carrier.transform.position);
+                    if (sn != null) Sfx.PlayOn(sn.carrierJump, carrier.transform);   // Modified: the sound goes with it
                     Step = 5;
                     break;
                 case 5:

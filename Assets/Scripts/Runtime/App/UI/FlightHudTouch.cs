@@ -56,6 +56,19 @@ namespace GoF2Remake.UI
                     || e.ClassListContains("chat") || e.ClassListContains("squad") || e.ClassListContains("squad-invite")) return true;
             return false;
         }
+        /// <summary>Modified: FreeLookCamera.pointerOverHud: a HUD control (MouseOverControls) or the hacking puzzle's click area
+        /// under the mouse, where a left press clicks instead of dragging the docked orbit.</summary>
+        bool PointerOverHud()
+        {
+            if (MouseOverControls()) return true;
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (mouse == null || root?.panel == null) return false;
+            var sp = mouse.position.ReadValue();
+            var picked = root.panel.Pick(RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(sp.x, Screen.height - sp.y)));
+            for (var e = picked; e != null && e != root; e = e.parent)
+                if (e.ClassListContains("hacking-abs") || e.ClassListContains("nav-button")) return true;
+            return false;
+        }
         bool Drilling => mining != null && mining.State == Mining.Phase.Mining;
         bool MiningOrDocked => (mining != null && mining.State != Mining.Phase.Idle) || (docking != null && docking.Busy);
         /// <summary>MGame::OnTouchBegin on the fire button: with a landmark, planet or docking target locked the autopilot /

@@ -244,7 +244,7 @@ namespace GoF2Remake.Flight
             {
                 if (t.kind != Kind.DockingTarget) continue;
                 var s = t.dockingShip;
-                t.name = s != null ? s.Target.displayName ?? "" : "";
+                t.name = s != null ? s.DockingName ?? s.Target.displayName ?? "" : "";
                 // a hostile or fighting carrier is a ship then (NpcShip.OffersDocking, CapitalShips.DeckOpen)
                 t.hidden = s == null || s.Gone || !s.Target.Alive || !s.OffersDocking || s.RadarHidden || s.Hidden || s.Inactive;
                 if (t.hidden && (Locked == t || Candidate == t)) { Locked = Candidate = null; LockTimer = 0f; }
@@ -304,6 +304,9 @@ namespace GoF2Remake.Flight
         public bool LandmarkLocked => Locked != null && Locked.kind != Kind.Planet && Locked.kind != Kind.Waypoint;
         /// <summary>CombatRadar has a ship / crate candidate this frame or a crate on the tractor beam.</summary>
         [NonSerialized] public bool ShipLockActive;
+        /// <summary>Modified: the ship locked by the scanner when it is one to dock at now (NpcShip.ShipMarker, OffersDocking):
+        /// the action docks there, as a docking target lock does.</summary>
+        public NpcShip ShipLockDocking => ShipLocked != null && ShipLocked.TryGetComponent<NpcShip>(out var s) && s.ShipMarker && s.OffersDocking && !s.Inactive ? s : null;
         /// <summary>CombatRadar's ship lock this frame, null = none (StillLockUnits).</summary>
         [NonSerialized] public Transform ShipLocked;
         /// <summary>Radar+0x54: hostile ships around (Traffic): no fast-forward.</summary>
@@ -315,7 +318,7 @@ namespace GoF2Remake.Flight
         public string PromptText =>
             Jumping ? null
             : Autopilot ? Localization.Extra("hudAutopilotOff", "AUTOPILOT OFF")
-            : Locked == null ? null
+            : Locked == null ? (ShipLockDocking != null ? Localization.Extra("hudDock", "DOCK") : null)
             : Locked.kind == Kind.Planet ? Localization.Extra("hudJump", "JUMP")
             : Locked.kind == Kind.DockingTarget ? Localization.Extra("hudDock", "DOCK")
             : layout != null && layout.alienOrbit ? null   // MGame::OnTouchBegin: no autopilot to the Void station
@@ -686,6 +689,9 @@ namespace GoF2Remake.Flight
                     {
                         if (t.kind == Kind.Planet || t.kind == Kind.Wormhole || t.kind == Kind.Marker || t.hidden || Autopilot) continue;
                         if (t.kind == Kind.Waypoint && ShipLockActive) continue;   // remake: a ship / junk / crate in the box wins
+                        // Modified: a ship one docks at (NpcShip.ShipMarker) is scanned as a ship (CombatRadar), its docking target
+                        // reached through the autopilot menu or the ship lock's dock action (ShipLockDocking).
+                        if (t.kind == Kind.DockingTarget && t.dockingShip != null && t.dockingShip.ShipMarker) continue;
                         var p = cam.WorldToScreenPoint(t.Position);
                         if (p.z <= 0f || p.x < 0f || p.y < 0f || p.x > w || p.y > h) continue;
                         if (Mathf.Abs(p.x - w / 2f) >= centre || Mathf.Abs(p.y - h / 2f) >= centre) continue;
@@ -753,6 +759,8 @@ namespace GoF2Remake.Flight
                 SetAutopilot(null);
                 return true;
             }
+            var lockDock = Locked == null ? ShipLockDocking : null;
+            if (lockDock != null) { SetAutopilot(null); Docking?.Dock(lockDock); return true; }
             if (Locked == null) return false;
             if (layout.alienOrbit && !ActsInAlienOrbit(Locked.kind)) return false;
             if (Locked.kind == Kind.Planet && JumpsBlocked != null && JumpsBlocked()) { Say(JumpRefusal); return false; }

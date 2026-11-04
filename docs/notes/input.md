@@ -256,7 +256,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   unaffected.
 - **Free look with the mouse** (remake): with mouse steering the cursor stays captured in free look and plain mouse movement
   orbits the camera (`FreeLookCamera.mouseLook`, the mouse delta), the ship's mouse steering pauses; the middle button held
-  works without mouse steering. Hangar tabs: Q / LB left, E / RB right (both used to go right).
+  works without mouse steering; docked at an object (`ObjectDocking.PlayerDocked`, the guns off) the left button held
+  drags it too, like the original's touch drag, unless pressed on a HUD button or the hacking puzzle
+  (`FreeLookCamera.pointerOverHud`, `FlightHud.PointerOverHud`). Hangar tabs: Q / LB left, E / RB right (both used to go right).
 - **Camera views' own inversion** (remake, #121; Options > Controls "Camera views: invert up / down" / "left / right",
   `Settings.InvertOrbitY` / `InvertOrbitX`, off by default; `Settings.OrbitTurn`): the cameras turned round the ship or
   looked around by a drag, a stick or keys (free look, Action Freeze, Inspect ship, the photo tools' free camera, the Mod
