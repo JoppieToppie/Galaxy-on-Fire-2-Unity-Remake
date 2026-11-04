@@ -6,6 +6,7 @@
 // surface would, while the original vertices stay where they were. UVs, colours and normals are interpolated; a midpoint
 // is shared by the triangles on both sides of its edge, so no cracks open. The second UV channel's x is 0 on the open
 // edges and 1 inside (OpenEdges), for a shader to fade a hole's rim.
+// A mesh lying on a sphere (within 3 %: the blaze glow's cap) is put onto it exactly, its normals radial.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -28,6 +29,12 @@ namespace GoF2Remake.Visuals
             bool hasUv = uv.Count == pos.Count, hasCol = col.Count == pos.Count;
             var nrm = SmoothNormals(pos, src.triangles, src.normals, out var sharp);
             var edge = OpenEdges(pos, src.triangles);
+            // A part of a sphere (the blaze's cones are caps of one, radius 0.5): every point onto it and its normals radial,
+            // instead of Phong's guess, which bulged where the file's triangles are uneven (a belly near the glow's centre, a
+            // player's report).
+            bool sphere = FitSphere(pos, out var centre, out float radius);
+            if (sphere)
+                for (int i = 0; i < pos.Count; i++) (pos[i], nrm[i]) = OnSphere(pos[i], nrm[i], centre, radius);
             var tris = new List<int>(src.triangles);
 
             for (int l = 0; l < levels; l++)
@@ -44,9 +51,10 @@ namespace GoF2Remake.Visuals
                     // averaged normal's tangent plane would flatten them into petals (a player's report: spikes at the tip).
                     var qa = sharp[a] ? c : c - Vector3.Dot(c - pa, na) * na;
                     var qb = sharp[b] ? c : c - Vector3.Dot(c - pb, nb) * nb;
-                    pos.Add(Vector3.Lerp(c, (qa + qb) * 0.5f, Shape));
                     var n = na + nb;
-                    nrm.Add(n.sqrMagnitude > 1e-12f ? n.normalized : na);
+                    n = n.sqrMagnitude > 1e-12f ? n.normalized : na;
+                    if (sphere) { var (sp, sn) = OnSphere(c, n, centre, radius); pos.Add(sp); nrm.Add(sn); }
+                    else { pos.Add(Vector3.Lerp(c, (qa + qb) * 0.5f, Shape)); nrm.Add(n); }
                     sharp.Add(false);
                     edge.Add((edge[a] + edge[b]) * 0.5f);
                     if (hasUv) uv.Add((uv[a] + uv[b]) * 0.5f);
@@ -79,6 +87,52 @@ namespace GoF2Remake.Visuals
             mesh.SetTriangles(tris, 0);
             mesh.RecalculateBounds();
             return mesh;
+        }
+
+        static (Vector3, Vector3) OnSphere(Vector3 p, Vector3 n, Vector3 centre, float radius)
+        {
+            var d = p - centre;
+            if (d.sqrMagnitude < 1e-12f) return (p, n);
+            d.Normalize();
+            return (centre + d * radius, Vector3.Dot(d, n) < 0f ? -d : d);
+        }
+
+        /// <summary>The sphere through the points (least squares: x^2 + y^2 + z^2 = 2 c.x x + 2 c.y y + 2 c.z z + k); true when
+        /// every point lies within 3 % of its radius of it.</summary>
+        static bool FitSphere(List<Vector3> pos, out Vector3 centre, out float radius)
+        {
+            centre = Vector3.zero; radius = 0f;
+            if (pos.Count < 8) return false;
+            var a = new double[4, 5];
+            foreach (var p in pos)
+            {
+                double[] row = { 2 * p.x, 2 * p.y, 2 * p.z, 1 };
+                double rhs = (double)p.x * p.x + (double)p.y * p.y + (double)p.z * p.z;
+                for (int i = 0; i < 4; i++)
+                {
+                    for (int j = 0; j < 4; j++) a[i, j] += row[i] * row[j];
+                    a[i, 4] += row[i] * rhs;
+                }
+            }
+            for (int c = 0; c < 4; c++)   // Gauss-Jordan with partial pivoting
+            {
+                int piv = c;
+                for (int r = c + 1; r < 4; r++) if (System.Math.Abs(a[r, c]) > System.Math.Abs(a[piv, c])) piv = r;
+                if (System.Math.Abs(a[piv, c]) < 1e-12) return false;
+                for (int k = 0; k < 5; k++) { var t = a[c, k]; a[c, k] = a[piv, k]; a[piv, k] = t; }
+                for (int r = 0; r < 4; r++)
+                {
+                    if (r == c) continue;
+                    double f = a[r, c] / a[c, c];
+                    for (int k = c; k < 5; k++) a[r, k] -= f * a[c, k];
+                }
+            }
+            centre = new Vector3((float)(a[0, 4] / a[0, 0]), (float)(a[1, 4] / a[1, 1]), (float)(a[2, 4] / a[2, 2]));
+            double r2 = a[3, 4] / a[3, 3] + centre.sqrMagnitude;
+            if (r2 <= 0) return false;
+            radius = (float)System.Math.Sqrt(r2);
+            foreach (var p in pos) if (Mathf.Abs((p - centre).magnitude - radius) > 0.03f * radius) return false;
+            return true;
         }
 
         /// <summary>Per vertex 0 on the mesh's open edges (an edge only one face has, by position: the UV seams' copies don't
