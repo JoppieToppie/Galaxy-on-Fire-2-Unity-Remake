@@ -48,7 +48,7 @@ namespace GoF2Remake.Events
             "rank", "station", "system", "ship", "kills", "systemsvisited", "random", "min", "max", "floor", "count", "alive", "distance",
             "cargo", "has", "visited", "quest", "option", "won", "inorbit", "and", "or", "not", "main", "valkyrie", "supernova",
             "randomstation", "stationname", "systemname", "standing", "medals", "bought", "gold", "silver", "bronze", "any",
-            "allgold", "allsupernova",
+            "allgold", "allsupernova", "produced", "unlocked",
         };
 
         public static bool IsName(string s) => !string.IsNullOrEmpty(s) && Regex.IsMatch(s, "^[A-Za-z_][A-Za-z0-9_]*$");

@@ -118,7 +118,7 @@ namespace GoF2Remake.Data
                 foreach (var s in AgentData.StoryAgents)
                     // Generator::createAgents: Sao Perula's (106, Miguel Parham, the Liberator blueprint) only once the
                     // Valkyrie add-on is won (Status::dlc1Won).
-                    if (s.station == station && (s.station != 106 || Story.Dlc1Won)) story.Add(s);
+                    if (s.station == station && (s.station != 106 || Story.Dlc1Won) && StorySellerAvailable(s)) story.Add(s);
 
             int n = story.Count;
             if (station != 108) n = R(2) + story.Count + 3 < 5 ? story.Count + 3 + R(2) : 5;
@@ -288,6 +288,16 @@ namespace GoF2Remake.Data
                 agents[i] = new Agent { name = RandomName(f.look, true), race = f.look, modRace = f.race, station = station, offer = AgentOffer.Diplomat,
                                         portrait = CreatePortrait(true, f.look), costs = DiplomatCosts(f.race) };
             }
+        }
+
+        /// <summary>Modified (mods): a story character selling a blueprint a mod took over (blueprints.json, the same item) waits
+        /// for that blueprint's "available" condition, like the mod's own sources (Gunant's drill at Var Hastra held back until
+        /// the Khador Drive's blueprint is known). One the player already knows still stands there with nothing left.</summary>
+        static bool StorySellerAvailable(StoryAgentData s)
+        {
+            if (s.sellBlueprint < 0 || Session.UnlockedBlueprints.Contains(s.sellBlueprint)) return true;
+            var mod = Modding.ModBlueprints.Of(s.sellBlueprint);
+            return mod == null || Modding.ModBlueprints.Available(mod);
         }
 
         static Agent StoryAgent(Database db, StoryAgentData s)
