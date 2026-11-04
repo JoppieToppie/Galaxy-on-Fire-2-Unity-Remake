@@ -156,6 +156,14 @@ the Disruptor 183 and items based on it 200; only ships with a shield: players, 
 tractor beam's beam).
 items.json's own names (`loadingTimeMs`, `range`, `projectileSpeed`...) work too. An unknown stat name is an error.
 
+A jump drive: an item based on the Khador Drive 85 (no cruiseSpeed) jumps like it; its "jumpFx" gives it its own effect and
+rules: { data (meshes + keyframes, Blender frame, game units), texture, scale, glow, meetMs, meetDepth, sound ("gof2:timeJump"),
+endHoldMs, arrivalFx (true: the prologue's 2D hyper drive effect brings the ship into the next orbit), startDelayMs,
+chargeVoice (a story voice clip), cellsFactor (x the Khador Drive's cells), freeJumps, noVoid, failChance (per gate jump of
+the route, x2 Extreme, at most failMax), failNoRoute, failMs, failHandling, failRumbleFromMs, failRumble, failTexture,
+failVoice / failVoiceChance / failVoiceMs (a story voice line in a failure, at that chance; failLine / failSpeaker:
+in the radio box with that text and face), failRadiusKm (a failed jump lands near a random station, default 20) }. A Khador Drive aboard jumps instead.
+
 ### Weapon fx
 
 ```json

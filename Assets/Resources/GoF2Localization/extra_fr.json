@@ -1,4 +1,9 @@
 {
+ "driveQueued": "Moteur de saut : en attente des systèmes...",
+ "driveNoVoid": "Ce moteur de saut ne peut pas quitter le Void.",
+ "driveFailure": "Défaillance du moteur de saut !",
+ "driveBuiltIn": "Ce vaisseau a déjà un moteur de saut intégré.",
+ "driveVolatile": "Vous ne pouvez pas utiliser le {0} lorsque vous transportez des matières explosives, car la chaleur dégagée par son chargement peut déclencher une explosion.",
  "mapMobileLeaves": "part dans {0} min",
  "animatedDialogue": "Dialogues animés",
  "antiAliasing": "Anticrénelage",

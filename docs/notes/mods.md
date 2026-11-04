@@ -512,6 +512,25 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   numbers persistent hosts saw before. `BaseContentTests`; texts are English until they get `extra_<lang>` keys. A
   manifest that can't be read yet (Resources not ready in a fresh Editor) leaves it out instead of throwing out of
   `Active`: `BaseContent` is null, `Active` isn't kept, and the read that finds it bumps `Revision` (review, 2026-11-01).
+- **Jump drives** (`ModJumpFx` (Game), `World.ModJumpEffect`, `SystemJump`; items.json `"jumpFx"`, Modding/README.md
+  "Jump drives"; KiritoJPK's Hyper Drive mod): an item based on the Khador Drive (85) without `cruiseSpeed` is a jump drive
+  (`GalaxyMap.IsKhadorDrive`, the quick menu entry under its own name); the Khador Drive itself (or a built-in one) aboard
+  jumps instead (`ModJumpFx.ActiveDrive`). Its `jumpFx`: a 3D effect from keyframed mesh data (Blender frame, game units;
+  the ship flies into it and vanishes at its meeting point at `meetMs`, the camera drifting on for `endHoldMs`), its
+  sound, a start delay, a charge voice, `cellsFactor` / `freeJumps` (`GalaxyMap.EnergyCells` / `FreeJumps`), `noVoid`;
+  `arrivalFx`: the prologue's 2D hyper_drive fx brings the ship into the next orbit in the drive's texture
+  (`SpaceLevel.BeginDriveArrival`: hidden and held 2.5 s, the arrival camera's clock waits for the fx). Failures
+  (`failChance` per gate jump of the route, x2 Extreme, at most `failMax`; `failNoRoute`): the prologue's hyperdrive
+  failure (sounds 157 / 158 / 161, a growing camera rumble, the ship at `failHandling`, `ShipController.impairment`) for
+  `failMs` (`failVoice` at `failVoiceChance`, `failVoiceMs` in: the Hyper Drive mod's RADIO_0_15, 10 %; `failLine` /
+  `failSpeaker`: in the radio box, `Traffic.Say`, queued 2 s early as the box shows 2 s after), then the jump
+  with `failTexture` to a random visible station, out anywhere within `failRadiusKm` of it clear of
+  the obstacles and asteroids (`SpaceLevel.DriveFailPoint`). While the effect hides the ship it is phased and untargetable
+  (`SpaceLevel.SetSceneHidden`; the gate's and the Khador Drive's scenes unchanged). One jump drive aboard: category 18 is
+  one per ship (a Khador Drive and a mod one swap), and a mod one doesn't go on a ship with the drive built in
+  (`Hangar.CanMount`, "driveBuiltIn"; `FitToSlots` moves one there to the hold). The star map's drive-or-gates question
+  names the mod drive, and so does the volatile goods refusal (612 names the Khador Drive: `ModJumpFx.VolatileRefusal`,
+  "driveVolatile"). Not tested in multiplayer.
 - **Mod blueprints** (`ModBlueprints`, a mod's `blueprints.json`, parsed with the rest in `ModContent.Parse`): a "ship" or
   "item" product, ingredients, requiresShip (a skin: built only while flying that ship, which it rebuilds, the Kaamo upgrades
   kept), autocomplete (true / false / a price: `Blueprints.AutoCompletePrice` / `CanAutocomplete`, the hangar hides the row),

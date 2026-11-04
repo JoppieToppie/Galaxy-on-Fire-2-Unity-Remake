@@ -1,4 +1,9 @@
 {
+ "driveQueued": "Napęd skokowy: oczekiwanie na systemy...",
+ "driveNoVoid": "Ten napęd skokowy nie może opuścić Void.",
+ "driveFailure": "Awaria napędu skokowego!",
+ "driveBuiltIn": "Ten statek ma już wbudowany napęd skokowy.",
+ "driveVolatile": "Nie możesz użyć {0}, transportując towary niestabilne. Ładowanie napędu wytwarza zbyt wiele ciepła i może prowadzić do eksplozji.",
  "mapMobileLeaves": "odlatuje za {0} min",
  "animatedDialogue": "Animowane dialogi",
  "antiAliasing": "Wygładzanie krawędzi",

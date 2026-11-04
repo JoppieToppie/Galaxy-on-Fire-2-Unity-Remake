@@ -110,7 +110,7 @@ namespace GoF2Remake.World
             }
             var target = turretPicking.Update(dtMs, enemies, transform.position);
             if (turretPicking.JustPicked) turretTargetFixed = target != null && IsTurretTarget(target);
-            if (target == null || target.cloaked) return;   // handleTurret: no turning toward a cloaked target
+            if (target == null || target.cloaked || target.untargetable) return;   // handleTurret: no turning toward a cloaked target (Modified: nor one a jump scene hides)
             var at = Spec.capitalEnhanced && target.boxes != null && target.boxes.Length > 0 ? TurretAimPoint(target, turretCore.GunPosition)
                    : turretTargetFixed ? AimAt(target, dtMs)
                    : TurretTargeting.LeadPoint(target) + (AimAt(target, dtMs) - target.transform.position);   // led, at a spot on it

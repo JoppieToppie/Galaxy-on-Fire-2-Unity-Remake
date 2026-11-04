@@ -1,4 +1,9 @@
 {
+ "driveQueued": "跃迁引擎：等待系统就绪……",
+ "driveNoVoid": "这个跃迁引擎无法离开Void。",
+ "driveFailure": "跃迁引擎故障！",
+ "driveBuiltIn": "这艘飞船已内置跃迁引擎。",
+ "driveVolatile": "运输挥发性货物时不能使用{0}。这种驱动器充电时会产生大量热量，可能引起爆炸。",
  "mapMobileLeaves": "{0}分钟后离开",
   "animatedDialogue": "动画对话",
   "antiAliasing": "抗锯齿",

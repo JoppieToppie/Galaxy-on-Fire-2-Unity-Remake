@@ -113,6 +113,19 @@ namespace GoF2Remake.UI
                 dialogNo.parent.Insert(dialogNo.parent.IndexOf(dialogNo), dialogAlt);
             }
             if (dialogAlt != null) dialogAlt.style.display = DisplayStyle.None;
+            // Modified: a choice dialog's Back, at its top right (ShowDialog), in place of No.
+            var dialogBox = dialog.Q(className: "map-dialog");
+            dialogBack = dialogBox?.Q<Button>("dialogBack");
+            if (dialogBox != null && dialogBack == null)
+            {
+                dialogBack = new Button { name = "dialogBack", focusable = false };
+                foreach (var c in new[] { "map-button", "map-dialog-back", "gof-semibold" }) dialogBack.AddToClassList(c);
+                dialogBack.text = Localization.Extra("hudBack", "BACK").OgCase();
+                dialogBack.RegisterCallback<PointerDownEvent>(_ => Play(assets.buttonPush), TrickleDown.TrickleDown);
+                dialogBack.clicked += CloseDialog;   // (Answer plays the release)
+                dialogBox.Insert(0, dialogBack);
+            }
+            if (dialogBack != null) dialogBack.style.display = DisplayStyle.None;
             root.Q<Label>("mapTitle").text = T(177).UiCaps();
             // Modified: opened from a station's Map: "STATION | MAP" (SetStationTitle), as the station's views.
             var mapTitleLabel = root.Q<Label>("mapTitle");

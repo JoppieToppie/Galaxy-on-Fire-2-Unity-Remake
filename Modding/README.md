@@ -483,6 +483,53 @@ Challenge) or, in multiplayer, an orbit another player runs. `encounters.json` a
 | `ships` | How many: pirates, the trader's escorts, the derelict's crates, the distress call's raiders, the flyby's wing. |
 | `name` | The signal's name on the HUD (a string or per language, like an item's). |
 
+### Jump drives
+
+An item based on the Khador Drive (85) without `cruiseSpeed` is a jump drive: it opens the star map from the quick menu
+(its own name on the entry), charges and jumps like the Khador Drive. A ship carrying the Khador Drive itself (or one with
+the drive built in) jumps with that instead. `"jumpFx"` gives the drive its own effect and rules (every field optional but
+`data`):
+
+```json
+{
+    "id": "hyperdrive",
+    "base": 85,
+    "name": "Hyper Drive",
+    "jumpFx": {
+        "data": "fx/hyperdrive_3d.json", "texture": "fx/hyper_drive.png", "scale": 0.5, "glow": 2.5,
+        "meetMs": 2300, "meetDepth": 8200, "sound": "gof2:timeJump", "endHoldMs": 2000, "arrivalFx": true,
+        "startDelayMs": 2000, "chargeVoice": "RADIO_0_12", "cellsFactor": 2, "noVoid": true,
+        "failChance": 0.03, "failMax": 0.5, "failNoRoute": 0.25, "failTexture": "fx/hyper_drive_purple.png",
+        "failHandling": 0.1, "failMs": 16500, "failRumbleFromMs": 5500, "failRumble": 0.25
+    }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `data` | The effect's parts: a JSON file of meshes with their keyframes (`objects`: `name`, `verts`, `faces`, `uvs` per face corner, `keys` `posX`..`sclZ` and `extra` (opacity 0..1) as `[[ms, value], ...]`, `base` `{ parent_loc, parent_scale, parent_rotY }`, `billboard`), in Blender's frame (Z up, the viewer on +Y), game units. The ship flies into it along -Y. |
+| `texture` | The effect's image (additive). |
+| `scale`, `glow` | The effect's size (x the data) and brightness (HDR, for bloom). |
+| `meetMs`, `meetDepth` | The ship reaches the point (0, -`meetDepth`, 0) of the effect at `meetMs` after it starts, and vanishes there. |
+| `sound` | `gof2:<name>`, a sound of the game's story assets (`timeJump`: the prologue's time jump) in place of the Khador jump's. |
+| `endHoldMs` | The scene holds this long after the effect (the camera drifting on) before the next area loads. |
+| `arrivalFx` | `true`: the ship comes into the next orbit with the prologue's 2D hyper drive effect in this drive's texture (or `failTexture`), hidden and held still for 2.5 s; the arrival camera starts once it has played. `texture` must then have the layout of the game's `hyper_drive.png`. |
+| `startDelayMs` | A jump asked for waits this long before it charges (the Khador Drive's own is 2000; not on top of an orbit's first 5 seconds). |
+| `chargeVoice` | A story voice line (by its clip name) as the charge starts; `RADIO_0_12` is the prologue's "Activating hyperdrive." |
+| `cellsFactor` | x the Khador Drive's energy cells (Extreme's x2 included). `freeJumps: true`: none at all. |
+| `noVoid` | `true`: no jump into the Void, and none out of it (the story's own jumps still go). |
+| `failChance` | The chance a jump fails, per gate jump of the route (0.03 = 3 % to a neighbour, 6 % two systems away...; x2 on Extreme), at most `failMax`. |
+| `failNoRoute` | The chance from or to a system without jumpgate routes. |
+| `failMs`, `failHandling`, `failRumbleFromMs`, `failRumble` | A failing jump: when the charge ends, the prologue's hyperdrive failure (its explosion, rumble and broken engine) for `failMs`, the ship flying at `failHandling` of its speed and turning, the camera shaking from `failRumbleFromMs`, growing over 4 s to `failRumble` (1 = the prologue's, a full boost ~0.16). |
+| `failTexture` | The effect's image for a failed jump. |
+| `failVoice`, `failVoiceChance`, `failVoiceMs` | A story voice line (like `chargeVoice`) `failVoiceMs` into a failure, at `failVoiceChance` (0 to 1, default 1) per failure: `"failVoice": "RADIO_0_15", "failVoiceChance": 0.1` is the prologue pilot's "Hey, what's happening?" one failure in ten. |
+| `failLine`, `failSpeaker` | With `failVoice`: the line also comes in the radio box, its text (a text number) with a story speaker's face and name (default 0, Keith): `"failLine": 1689`. |
+| `failRadiusKm` | A failed jump lands at a random station of a system on the map, the ship coming out anywhere within this distance of it (default 20 km, as the HUD counts), clear of the station, the gate and the asteroids. |
+
+While the drive's effect hides the ship (leaving, from the moment it vanishes; arriving, until it shows) enemy shots fly
+through it and nothing targets it. The `stats` show the drive's values in the shop: `"energyCells": 2` for a drive that
+costs twice the Khador Drive's cells (the Khador Drive shows 1).
+
 ### Multi-grab tractor beams
 
 A tractor beam (an item based on one of the tractor beams, 68 to 70 or 194) with `"tractorTargets": 2` or more pulls that

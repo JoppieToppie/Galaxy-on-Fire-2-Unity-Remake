@@ -1,4 +1,9 @@
 {
+ "driveQueued": "Sprungantrieb: warte auf die Systeme...",
+ "driveNoVoid": "Dieser Sprungantrieb kann das Void nicht verlassen.",
+ "driveFailure": "Sprungantrieb-Ausfall!",
+ "driveBuiltIn": "Dieses Schiff hat bereits einen Sprungantrieb eingebaut.",
+ "driveVolatile": "Du kannst den {0} nicht benutzen, während du explosive Güter an Bord hast. Der Aufladevorgang des Antriebs verursacht zu viel Hitze und könnte zu einer Explosion der Güter führen.",
  "mapMobileLeaves": "zieht in {0} Min. weiter",
  "animatedDialogue": "Animierte Dialoge",
  "antiAliasing": "Kantenglättung",

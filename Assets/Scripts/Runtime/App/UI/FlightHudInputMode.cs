@@ -36,6 +36,13 @@ namespace GoF2Remake.UI
             dockGlyph.Clear();
             foreach (var g in InputGlyph.For(GameControls.Action, kind)) dockGlyph.Add(g);
         }
+        /// <summary>Modified: a jump drive key press waiting for the fly-in to end (FlightHud.Update).</summary>
+        bool khadorQueued;
+
+        /// <summary>The jump drive's key: the Khador Drive's entry, else the slipstream's.</summary>
+        void OpenKhadorEntry() =>
+            OpenMenuEntry(nav != null && nav.MenuEntries(true).Exists(t => t.kind == Navigation.Kind.KhadorDrive) ? Navigation.Kind.KhadorDrive : Navigation.Kind.Slipstream);
+
         /// <summary>A menu entry straight from its key (V Wingmen, K Khador Drive): the autopilot menu opens on it; nothing
         /// when the entry isn't offered.</summary>
         void OpenMenuEntry(Navigation.Kind kind)

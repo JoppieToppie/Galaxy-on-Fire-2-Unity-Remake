@@ -64,7 +64,7 @@ namespace GoF2Remake.Flight
             JustPicked = false;
             pickMs += dtMs;
             bool pick = rule == Rule.Timed ? pickMs > intervalMs
-                : pickMs >= intervalMs || Current == null || !Current.Alive || !Current.isActiveAndEnabled || Current.cloaked;
+                : pickMs >= intervalMs || Current == null || !Current.Alive || !Current.isActiveAndEnabled || Current.cloaked || Current.untargetable;   // Modified: untargetable (a jump scene) too
             if (pick)
             {
                 pickMs = 0f;

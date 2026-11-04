@@ -1,4 +1,9 @@
 {
+ "driveQueued": "점프 드라이브: 시스템 대기 중...",
+ "driveNoVoid": "이 점프 드라이브로는 Void를 벗어날 수 없다.",
+ "driveFailure": "점프 드라이브 고장!",
+ "driveBuiltIn": "이 함선에는 이미 점프 드라이브가 내장되어 있다.",
+ "driveVolatile": "휘발성 화물을 운반할 때는 {0}을(를) 사용할 수 없습니다. 드라이브를 충전하면 비행선이 과열되어 폭발을 일으킬 수 있습니다.",
  "mapMobileLeaves": "{0}분 후 이동",
  "animatedDialogue": "대화 애니메이션",
  "antiAliasing": "안티에일리어싱",

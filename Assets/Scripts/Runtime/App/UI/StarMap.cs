@@ -294,6 +294,10 @@ namespace GoF2Remake.UI
         Vector2Int lastSafeScreen;
         Label energyLine;
         Button backButton, keyButton, zoomButton, voidButton, dialogYes, dialogNo;
+        /// <summary>Modified: a choice dialog's Back, at its top right (ShowDialog).</summary>
+        Button dialogBack;
+        /// <summary>Modified: the planet the current press began on in the system view, -1 none (OnPointerUp).</summary>
+        int pressedPlanet = -1;
         /// <summary>Remake: the dialog's third answer between Yes and No (the gates beside the drive), made at runtime.</summary>
         Button dialogAlt;
         Action dialogAction, dialogNoAction, dialogAltAction;

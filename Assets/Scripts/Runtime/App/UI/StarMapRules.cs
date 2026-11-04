@@ -152,7 +152,7 @@ namespace GoF2Remake.UI
             {
                 // Ship::hasVolatileGoods: no Khador Drive; a gate neighbour (remake: any system on a gate route) is still
                 // reached through the jumpgate.
-                if (!GateReachable(system)) { ShowDialog(T(612), null, null, true); return; }
+                if (!GateReachable(system)) { ShowDialog(ModJumpFx.VolatileRefusal(), null, null, true); return; }   // Modified: the mod drive by name
                 TravelByGates(station, false);
                 return;
             }
@@ -170,7 +170,10 @@ namespace GoF2Remake.UI
                 // Remake (jumpgate route planning, "or when you don't want to use one"): the drive or the gates, No cancels.
                 if (gateJumps > 0)
                 {
-                    ShowDialog(travelTo, () => Choose(station, true), null, yesText: T(1359).UiCaps(),
+                    // Modified: a mod jump drive by its own name (ModJumpFx.ActiveDrive).
+                    var modDrive = ModJumpFx.ActiveDrive();
+                    string driveName = modDrive != null ? GameNames.Item(modDrive.item) : T(1359);
+                    ShowDialog(travelTo, () => Choose(station, true), null, yesText: driveName.UiCaps(),
                                altText: Localization.Extra("mapRouteGates", "Jumpgates").UiCaps(), onAlt: () => TravelByGates(station, true));
                     return;
                 }
@@ -277,12 +280,16 @@ namespace GoF2Remake.UI
             dialogBackCancels = altText != null && !info;
             root.Q<Label>("dialogText").text = text;
             dialogYes.text = info ? Localization.Extra("ok", "OK").OgCase() : yesText ?? T(134).UiCaps();
-            dialogNo.style.display = info ? DisplayStyle.None : DisplayStyle.Flex;
+            // Modified: a choice between two ways (the drive or the gates, the fastest or the safest route): the two answers
+            // stacked in the middle, No replaced by a Back button at the dialog's top right (Esc / B close it as before).
+            dialogNo.style.display = info || dialogBackCancels ? DisplayStyle.None : DisplayStyle.Flex;
             if (dialogAlt != null)
             {
                 dialogAlt.text = altText ?? "";
                 dialogAlt.style.display = dialogBackCancels ? DisplayStyle.Flex : DisplayStyle.None;
             }
+            dialog.Q(className: "map-dialog")?.EnableInClassList("map-dialog--choice", dialogBackCancels);
+            if (dialogBack != null) dialogBack.style.display = dialogBackCancels ? DisplayStyle.Flex : DisplayStyle.None;
             dialog.AddToClassList("map-dialog-backdrop--shown");
             dialogFocus = noFirst && !info ? DialogButtons.Count - 1 : 0;
             HighlightDialog();
@@ -320,7 +327,7 @@ namespace GoF2Remake.UI
             {
                 var list = new List<Button> { dialogYes };
                 if (!dialogInfo && dialogBackCancels && dialogAlt != null) list.Add(dialogAlt);
-                if (!dialogInfo) list.Add(dialogNo);
+                if (!dialogInfo && !dialogBackCancels) list.Add(dialogNo);   // Modified: a choice dialog's No is its Back button
                 return list;
             }
         }
@@ -339,7 +346,9 @@ namespace GoF2Remake.UI
         }
         void HighlightDialog()
         {
-            bool keys = InputMode.Current != InputKind.Touch;
+            // Modified: not while the mouse points (its hover shows where it is): the first answer looked selected under no
+            // cursor.
+            bool keys = InputMode.Current != InputKind.Touch && !InputMode.MousePointing;
             var buttons = DialogButtons;
             foreach (var b in new[] { dialogYes, dialogAlt, dialogNo })
                 b?.EnableInClassList("map-button--focus", keys && buttons.IndexOf(b) == dialogFocus);
@@ -383,6 +392,7 @@ namespace GoF2Remake.UI
             {
                 yawVel = pitchVel = 0f;
                 int k = PlanetAt(p);
+                pressedPlanet = k;   // Modified (OnPointerUp)
                 if (k >= 0) { selectedPlanet = k; Play(assets.planetPush); }
             }
         }
@@ -459,7 +469,10 @@ namespace GoF2Remake.UI
             else
             {
                 if (Mathf.Abs(yawVel) <= 150f && Mathf.Abs(pitchVel) <= 150f) yawVel = pitchVel = 0f;
-                if (selectedPlanet >= 0)
+                // Modified: only a press on a planet selects or confirms it; a tap beside the selected one confirmed it (the
+                // selection was still set), now it lets it go.
+                if (pressedPlanet < 0) { if (!dragged) selectedPlanet = frontPlanet = -1; }
+                else if (selectedPlanet >= 0)
                 {
                     if (selectedPlanet == frontPlanet) Confirm(selectedPlanet);
                     else { Play(assets.planetRelease); autoRotate = true; }

@@ -41,6 +41,9 @@ namespace GoF2Remake.UI
             {
                 if (!dialogInfo && (left || (kb != null && kb.aKey.wasPressedThisFrame))) MoveDialogFocus(-1);
                 else if (!dialogInfo && (right || (kb != null && kb.dKey.wasPressedThisFrame))) MoveDialogFocus(1);
+                // Modified: the two answers stacked (a choice dialog): up / down too.
+                else if (!dialogInfo && dialogBackCancels && (up || (kb != null && kb.wKey.wasPressedThisFrame))) MoveDialogFocus(-1);
+                else if (!dialogInfo && dialogBackCancels && (down || (kb != null && kb.sKey.wasPressedThisFrame))) MoveDialogFocus(1);
                 if (confirm) AnswerFocused();
                 return;
             }

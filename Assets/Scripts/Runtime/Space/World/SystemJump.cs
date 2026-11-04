@@ -50,7 +50,7 @@ namespace GoF2Remake.World
 
         public string spaceScene = "Space";
 
-        enum State { None, AtGate, Charging, GateScene, KhadorScene }
+        enum State { None, AtGate, Charging, GateScene, KhadorScene, Failing }   // Modified: Failing, a mod drive's failed jump
 
         Database db;
         Navigation nav;
@@ -62,6 +62,10 @@ namespace GoF2Remake.World
         AudioSource sfx;
         State state;
         float chargeMs, animMs, animLength, speed;
+        /// <summary>Modified: when the ship vanishes in the Khador scene (1700 ms; a mounted drive's own effect, ModJumpFx:
+        /// its meetMs, when the ship reaches the effect's meeting point).</summary>
+        float khadorHideMs = 1700f;
+        bool khadorModFx;   // Modified: the running Khador scene plays a mod drive's own effect
         bool activated, hidden, flashFelt;
         int targetStation;
         /// <summary>A Khador jump without the map (the Void in or out, Story.ForcedKhadorTarget): charging, then the jump, to
@@ -96,6 +100,9 @@ namespace GoF2Remake.World
         public bool Charging => state == State.Charging;
         /// <summary>Remake: the ship is on its way through a jumpgate or the Khador Drive (the jump scenes; ThrottleGlow).</summary>
         public bool Traveling => state == State.GateScene || state == State.KhadorScene;
+        /// <summary>Modified: a mod drive's jump scene after the ship vanished into its effect (the gate's and the Khador
+        /// Drive's scenes are left as they are).</summary>
+        public bool ModDriveHidden => state == State.KhadorScene && khadorModFx && hidden;
         /// <summary>PlayerEgo::getDriveChargeRate: 0..1 while charging.</summary>
         public float ChargeRate => Mathf.Clamp01(chargeMs / GalaxyMap.ChargeMs);
         public event Action<string> Message;
@@ -123,11 +130,33 @@ namespace GoF2Remake.World
             nav.SystemReached += LeaveInterstellar;
             nav.TravelBusy = () => state != State.None || toInterstellar;
             levelStart = Time.time;
+            // Modified: a mounted mod drive's effect read now, not on the first press (its data and textures: the menu's
+            // click sound stuttered while they loaded).
+            var preload = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            if (preload != null)
+            {
+                GoF2Remake.Modding.ModMaterials.Texture(preload.mod, preload.texture, false);
+                if (!string.IsNullOrEmpty(preload.failTexture)) GoF2Remake.Modding.ModMaterials.Texture(preload.mod, preload.failTexture, false);
+            }
         }
 
         /// <summary>The game clock at this level's start. Not timeSinceLevelLoad: that still reads the last level's time while a
         /// level sets up (a Khador charge then waited out however long that level had run) and doesn't restart on a swap.</summary>
         float levelStart;
+        /// <summary>Modified: when the pending jump was first seen (Time.time; -1 = none).</summary>
+        float requestedAt = -1f;
+
+        /// <summary>Modified: the Khador Drive's own start delay (remake): a jump asked for once the level's first 5 s are over
+        /// waits KhadorStartDelayMs before it charges (one asked for earlier has waited for those already); a mod drive's
+        /// "startDelayMs" (ModJumpFx) in its place.</summary>
+        const float KhadorStartDelayMs = 2000f;
+        bool StartDelayOver()
+        {
+            var d = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            float delay = d != null ? d.startDelayMs : KhadorStartDelayMs;
+            if (delay <= 0f || (requestedAt - levelStart) * 1000f <= 5000f) return true;
+            return (Time.time - requestedAt) * 1000f >= delay;
+        }
         PlayerHealth health;
 
         /// <summary>Set by the level: the gate refuses the jump (the Kaamo siege).</summary>
@@ -153,19 +182,23 @@ namespace GoF2Remake.World
             if (health != null && health.Dead)
             {
                 if (state == State.Charging) { state = State.None; EndChargeShow(); }
+                if (state == State.Failing) { StopFailure(); state = State.None; }   // Modified
                 toInterstellar = false;
                 if (state == State.None) return;
             }
             switch (state)
             {
                 case State.None:
+                    if ((Session.InstantJump || storyTarget.HasValue || toInterstellar) && requestedAt < 0f) requestedAt = Time.time;   // Modified (StartDelayOver)
                     if (nav.ReachedGate)
                     {
                         if (GateBlocked != null && GateBlocked()) nav.Refuse();   // MGame::dockEvent: 525 on a mission
                         else DockToStream();
                     }
-                    else if ((Session.InstantJump || storyTarget.HasValue || toInterstellar) && (Time.time - levelStart) * 1000f > 5000f && !nav.Jumping && !nav.Paused && !nav.Conversation && !GoF2Remake.World.SpaceHooks.StarMapOpen)
+                    else if ((Session.InstantJump || storyTarget.HasValue || toInterstellar) && (Time.time - levelStart) * 1000f > 5000f && !nav.Jumping && !nav.Paused && !nav.Conversation && !GoF2Remake.World.SpaceHooks.StarMapOpen
+                             && StartDelayOver())
                         StartCharging();
+                    if (!Session.InstantJump && !storyTarget.HasValue && !toInterstellar) requestedAt = -1f;
                     break;
                 case State.AtGate:
                     // dockToStream: input locked, the ship keeps moving at its speed (the game is paused while asking).
@@ -175,11 +208,17 @@ namespace GoF2Remake.World
                     chargeMs += dtMs;
                     Haptics.Rumble(0.1f + 0.35f * ChargeRate);   // remake: the drive winding up
                     UpdateChargeShow();
-                    if (chargeMs >= GalaxyMap.ChargeMs) StartKhadorScene();
+                    if (chargeMs >= GalaxyMap.ChargeMs)
+                    {
+                        if (RollFailure()) StartFailure(); else StartKhadorScene();   // Modified: a mod drive may fail
+                    }
                     break;
                 case State.GateScene:
                 case State.KhadorScene:
                     UpdateScene(dtMs);
+                    break;
+                case State.Failing:
+                    UpdateFailure(dtMs);
                     break;
             }
         }
@@ -396,6 +435,15 @@ namespace GoF2Remake.World
             if (state != State.None || nav.Jumping || storyTarget.HasValue) return;
             var forced = Story.ForcedKhadorTarget(Session.StationIndex);
             bool inVoid = Session.StationIndex == Session.VoidOrbit;
+            // Modified: a mod drive with "noVoid" (ModJumpFx) can't take the ship out of the Void (only the story's own jump, or
+            // the Debug panel's free jumps), nor into it (the map's Jump to the Void button, askVoid below).
+            var modDrive = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            bool noVoid = modDrive != null && modDrive.noVoid;
+            if (inVoid && noVoid && !forced.HasValue && !Cheats.FreeJumps)
+            {
+                Message?.Invoke(Localization.Extra("driveNoVoid", "This jump drive can't leave the Void."));
+                return;
+            }
             if (forced.HasValue || inVoid)
             {
                 // MGame::UseKhadorDrive: in the Void straight back to Status+0x84 (100 at index 80); index 78: programmedStation =
@@ -407,6 +455,8 @@ namespace GoF2Remake.World
                 storyTarget = forced ?? Session.VoidReturnStation;
                 jumpCells = VoidCells(!inVoid);
                 storyForced = forced.HasValue;
+                // Modified: the jump waits for the level's first 5 s (Update): say so, the press wasn't lost.
+                if ((Time.time - levelStart) * 1000f <= 5000f) Message?.Invoke(Localization.Extra("driveQueued", "Jump drive: waiting for the systems..."));
                 return;
             }
             nav.Paused = true;
@@ -417,7 +467,7 @@ namespace GoF2Remake.World
             // drive from the Debug panel reaches the Void early. Free play and multiplayer sessions too (Void Crystals), but
             // only with a real drive: free play's gateless-system stand-in (GalaxyMap.HasJumpDrive) doesn't reach the Void.
             // Remake: the map opens at once and its Jump to the Void button asks 422 (StarMap.AskVoid).
-            bool askVoid = GalaxyMap.HasIntegratedDrive(Session.ShipIndex) || Session.Equipment.Exists(e => e.item == GalaxyMap.KhadorDriveItem);
+            bool askVoid = !noVoid && (GalaxyMap.HasIntegratedDrive(Session.ShipIndex) || Session.Equipment.Exists(e => GalaxyMap.IsKhadorDrive(e.item)));
             bool opened = SpaceHooks.OpenStarMap != null && SpaceHooks.OpenStarMap(db, StarMapMode.Khador, true, r =>
             {
                 nav.Paused = false;
@@ -477,7 +527,7 @@ namespace GoF2Remake.World
             if (toInterstellar)
             {
                 int leg = nav.Drive != null ? nav.Drive.cellsPerLeg : 1;
-                if (!Cheats.FreeJumps && GalaxyMap.CellsInCargo() < leg)
+                if (!GalaxyMap.FreeJumps && GalaxyMap.CellsInCargo() < leg)
                 {
                     Message?.Invoke(Localization.Get(579));
                     toInterstellar = false;
@@ -501,7 +551,7 @@ namespace GoF2Remake.World
             int cells = storyTarget.HasValue ? jumpCells : Session.EnergyCellsForNextJump;
             // Into the Void it asks for two shares but takes one (startChargingJumpDrive 0x1a9710).
             int taken = storyTarget == Session.VoidOrbit ? VoidCellsTaken : cells;
-            if (Cheats.FreeJumps) cells = taken = 0;   // remake: the Debug panel's free jumps
+            if (GalaxyMap.FreeJumps) cells = taken = 0;   // remake: the Debug panel's free jumps (Modified: or a mod drive's)
             if (GalaxyMap.CellsInCargo() < cells)
             {
                 // Remake: the story's own jumps (78 into the Void, 80 out of it) take what there is instead of stranding the player.
@@ -519,8 +569,18 @@ namespace GoF2Remake.World
             GalaxyMap.RemoveCells(cells);
             if (cells > 0) Message?.Invoke($"-{cells}t {Localization.Get(1396)}");
             Play(assets != null ? assets.jumpgateCharge : null);
+            // Modified: a mod drive's voice as its charge starts (ModJumpFx "chargeVoice", e.g. the prologue's ship computer:
+            // "Activating hyperdrive.").
+            var voiceDrive = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            if (voiceDrive != null && !string.IsNullOrEmpty(voiceDrive.chargeVoice))
+            {
+                var story = StoryAssets.Load();
+                var voice = story != null ? story.Voice(voiceDrive.chargeVoice) : null;
+                if (voice != null) sfx.PlayOneShot(voice, Settings.VoiceVolume);
+            }
             chargeMs = 0f;
             state = State.Charging;
+            requestedAt = -1f;
             ChargeStarted?.Invoke();
         }
 
@@ -558,7 +618,23 @@ namespace GoF2Remake.World
             sceneDir = ship.transform.forward;
             var fxRot = sceneFrame;
             rift = toInterstellar && !GoF2Remake.Data.VrFlags.Enabled ? OpenRift(ref fxPos, fxRot) : null;
-            if (rift == null) fx = SpawnKhadorFx(assets, fxPos, fxRot, out animLength);
+            // Modified: a mounted drive's own jump effect (Modding.ModJumpFx), set so the ship, flying on at BaseSpeed, reaches
+            // its meeting point at meetMs; the camera stays the Khador Drive's (around fxPos). Not into interstellar space,
+            // which has its own hole.
+            var modSpec = toInterstellar ? null : GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            khadorHideMs = 1700f;
+            khadorModFx = false;
+            if (rift == null && modSpec != null)
+            {
+                var meet = ship.transform.position + sceneDir * (BaseSpeed * modSpec.meetMs * M);
+                var modRot = Quaternion.LookRotation(-sceneDir, sceneFrame * Vector3.up);   // its front toward the ship
+                var modFx = ModJumpEffect.Spawn(modSpec, meet - modRot * ModJumpEffect.MeetOffset(modSpec), modRot, jumpFailed ? modSpec.failTexture : null);
+                fx = modFx.gameObject;
+                animLength = Mathf.Max(modFx.LengthMs, modSpec.meetMs) + modSpec.endHoldMs;   // then the next area loads
+                khadorHideMs = modSpec.meetMs;
+                khadorModFx = true;
+            }
+            else if (rift == null) fx = SpawnKhadorFx(assets, fxPos, fxRot, out animLength);
             JumpFxStarted?.Invoke(false, fxPos, fxRot);
             activated = true;
             animMs = 0f;
@@ -591,7 +667,12 @@ namespace GoF2Remake.World
                 sceneFov = cam.fieldOfView;
             }
             if (rift != null) PlayCarried(assets != null ? assets.khadorDrive : null);
-            else Play(assets != null ? assets.khadorDrive : null);
+            else
+            {
+                // Modified: a mod drive's own sound (ModJumpFx "sound"), else the Khador jump's.
+                var modSound = khadorModFx ? GoF2Remake.Modding.ModJumpFx.Sound(modSpec) : null;
+                Play(modSound != null ? modSound : assets != null ? assets.khadorDrive : null);
+            }
             flashFelt = false;   // the rumble waits for the flash (KhadorFlashMs)
         }
 
@@ -633,7 +714,8 @@ namespace GoF2Remake.World
         {
             bool gateScene = state == State.GateScene;
             var cam = Camera.main;
-            if (!hidden && cam != null && rift == null)   // ship-space game (5, 2, -3 / -5) u/ms -> Unity local (-5, 2, -3 / -5)
+            // Modified: a mod drive's effect keeps the camera drifting off after the ship vanished, to its end and the hold after.
+            if ((!hidden || (!gateScene && khadorModFx)) && cam != null && rift == null)   // ship-space game (5, 2, -3 / -5) u/ms -> Unity local (-5, 2, -3 / -5)
                 cam.transform.position += ship.transform.rotation * (new Vector3(-5f, 2f, gateScene ? -3f : -5f) * dtMs * M);
             if (rift != null)
             {
@@ -655,10 +737,12 @@ namespace GoF2Remake.World
             // (at the latest at the end: a shorter mod animation)
             if (!flashFelt && animMs >= (rift != null ? riftCrossMs : Mathf.Min(gateScene ? GateFlashMs : KhadorFlashMs, animLength))) { flashFelt = true; Haptics.Play(Haptics.Jump); }   // remake
             if (toInterstellar && (rift != null ? rift.RiftFilled(cam) || animMs >= RiftLatestMs : animMs >= KhadorWhiteoutMs)) { Arrive(false); return; }
-            if (!hidden && !toInterstellar && animMs > (gateScene ? 1000f : 1700f))
+            if (!hidden && !toInterstellar && animMs > (gateScene ? 1000f : khadorHideMs))
             {
                 hidden = true;
-                speed = HiddenSpeed;
+                // Modified: a mod drive's effect: the ship stops where it vanished (the meeting point), so the camera, which keeps
+                // looking at it, stays on the effect; the Khador Drive's ship shoots off (HiddenSpeed) and the camera turns after it.
+                speed = !gateScene && khadorModFx ? 0f : HiddenSpeed;
                 ship.turnOnly = false;   // remake: the roll stops with the ship gone
                 if (ship.visualModel != null) ship.visualModel.gameObject.SetActive(false);
             }
@@ -675,6 +759,112 @@ namespace GoF2Remake.World
                 }
                 Arrive(gateScene);
             }
+        }
+
+        // ---- Modified: a mod drive's failed jump (ModJumpFx "fail*") ------------------------------------------------------
+
+        bool jumpFailed;
+        float failElapsed;
+        GoF2Remake.Modding.ModJumpFx.Spec failDrive;
+        AudioSource failRumble, failEngine;
+        bool failVoicePending;   // Modified: the drive's failVoice still to say (ModJumpFx "failVoice", rolled at the start)
+
+        /// <summary>Whether this jump fails: the mounted mod drive's failChance per gate jump of the route (x2 on Extreme, at
+        /// most failMax), failNoRoute from or to a system without jumpgate routes. Never a story jump or interstellar space.</summary>
+        bool RollFailure()
+        {
+            jumpFailed = false;
+            failDrive = null;
+            if (toInterstellar || storyTarget.HasValue) return false;
+            var d = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            if (d == null || (d.failChance <= 0f && d.failNoRoute <= 0f)) return false;
+            int from = db.Stations.Find(s => s.index == Session.StationIndex)?.system ?? -1;
+            int to = db.Stations.Find(s => s.index == Session.ProgrammedStation)?.system ?? -1;
+            var a = db.Systems.Find(s => s.index == from);
+            var b = db.Systems.Find(s => s.index == to);
+            var path = a != null && b != null && a.jumpRoutesTo.Count > 0 && b.jumpRoutesTo.Count > 0 ? GalaxyMap.SystemPath(db, from, to) : null;
+            float chance = path == null ? d.failNoRoute : Mathf.Min(d.failMax, d.failChance * (path.Count - 1) * (Session.IsExtreme ? 2 : 1));
+            bool failed = UnityEngine.Random.value < chance;
+            if (failed) failDrive = d;
+            return failed;
+        }
+
+        /// <summary>The prologue's hyperdrive failure (IntroCutscenes states 5 / 6: 157 Cutscenes_Explosion, 158
+        /// Rumble_CutScene_01, 161 Engine_09_Broken looped, the camera rumbling up over 4 s), without its camera or the held
+        /// ship: the player flies on. Then the jump, to a random station (failMs).</summary>
+        void StartFailure()
+        {
+            state = State.Failing;
+            failElapsed = 0f;
+            var story = StoryAssets.Load();
+            Sfx.PlayAt(story != null ? story.cutsceneExplosion : null, ship.transform.position);
+            failRumble = Held(story != null ? story.rumble : null, 0.624f, false);
+            failEngine = Held(story != null ? story.engineBroken : null, 0.115f, true);
+            Message?.Invoke(Localization.Extra("driveFailure", "Jump drive failure!"));
+            if (failDrive != null) ship.impairment = failDrive.failHandling;   // the failing engines: a tenth of the speed and turning
+            failVoicePending = failDrive != null && !string.IsNullOrEmpty(failDrive.failVoice)
+                               && UnityEngine.Random.value < failDrive.failVoiceChance;
+        }
+
+        AudioSource Held(AudioClip clip, float eventVolume, bool loop)
+        {
+            if (clip == null) return null;
+            var src = gameObject.AddComponent<AudioSource>();
+            src.playOnAwake = false;
+            src.spatialBlend = 0f;
+            src.loop = loop;
+            src.clip = GoF2Remake.Modding.ModSounds.Get(clip);
+            src.volume = Mathf.Min(1f, eventVolume * Sfx.EventGain) * Settings.SfxVolume;
+            src.Play();
+            return src;
+        }
+
+        void UpdateFailure(float dtMs)
+        {
+            failElapsed += dtMs;
+            var d = failDrive;
+            float rumble = d != null ? Mathf.Clamp01((failElapsed - d.failRumbleFromMs) / 4000f) * d.failRumble : 0f;
+            if (rumble > 0f && chase != null) chase.Rumble(rumble);
+            // Modified: the pilot's line (ModJumpFx "failVoice"). With "failLine" in the radio box, Keith's face and the text
+            // (it shows 2 s after it is queued, its voice with it: queued that much earlier); else only the voice.
+            float voiceAt = d != null && d.failLine >= 0 ? Mathf.Max(0f, d.failVoiceMs - 2000f) : d != null ? d.failVoiceMs : 0f;
+            if (failVoicePending && d != null && failElapsed >= voiceAt)
+            {
+                failVoicePending = false;
+                var traffic = d.failLine >= 0 ? FindAnyObjectByType<SpaceLevel>()?.Traffic : null;
+                if (traffic != null)
+                    traffic.Say(new Traffic.Chatter { text = Localization.Get(d.failLine), speakerId = d.failSpeaker,
+                                                      speaker = StoryTable.SpeakerName(d.failSpeaker), voice = d.failVoice });
+                else
+                {
+                    var story = StoryAssets.Load();
+                    var voice = story != null ? story.Voice(d.failVoice) : null;
+                    if (voice != null) sfx.PlayOneShot(voice, Settings.VoiceVolume);
+                }
+            }
+            if (d != null && failElapsed < d.failMs) return;
+            if (failEngine != null) { failEngine.Stop(); Destroy(failEngine); failEngine = null; }   // IntroCutscenes: StopLoop(1) at the jump
+            ship.impairment = 1f;
+            int target = FailTarget();
+            Session.ProgrammedStation = target;
+            jumpFailed = true;
+            StartKhadorScene();
+        }
+
+        void StopFailure()
+        {
+            if (ship != null) ship.impairment = 1f;
+            if (failEngine != null) { failEngine.Stop(); Destroy(failEngine); failEngine = null; }
+            if (failRumble != null) { failRumble.Stop(); Destroy(failRumble); failRumble = null; }
+        }
+
+        /// <summary>A random station of a system on the map (not this one, nor an orbit without a station).</summary>
+        int FailTarget()
+        {
+            var visible = GalaxyMap.Visibility(db);
+            var list = db.Stations.FindAll(s => s.index != Session.StationIndex && s.system >= 0 && s.system < visible.Length
+                                               && visible[s.system] && !OrbitLayout.IsEmptyOrbit(s.index, Session.WorldIndex));
+            return list.Count > 0 ? list[UnityEngine.Random.Range(0, list.Count)].index : Session.ProgrammedStation;
         }
 
         /// <summary>Status::departStation(programmedStation), Level::setInitStreamOut, reload in the target orbit.</summary>
@@ -705,6 +895,9 @@ namespace GoF2Remake.World
             Session.PreviousStationIndex = Session.StationIndex;
             Session.StationIndex = targetStation;
             Session.ArrivedByTravel = true;
+            Session.DriveFailArrival = jumpFailed;   // Modified: a failed mod jump comes out somewhere near the station
+            Session.DriveArrival = khadorModFx && !viaGate;   // Modified: a mod drive's jump arrives with its effect (ModJumpFx "arrivalFx")
+            jumpFailed = false;
             Session.ArrivedBySystemJump = !Session.WarpLocal;
             Session.LaunchedFromStation = false;
             if (viaGate) Session.JumpgatesUsed++;

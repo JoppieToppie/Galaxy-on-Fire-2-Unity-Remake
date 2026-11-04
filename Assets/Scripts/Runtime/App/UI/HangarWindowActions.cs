@@ -112,6 +112,9 @@ namespace GoF2Remake.UI
                 {
                     int item = selected.item;
                     var r = hangar.CanMount(item, out int swapWith);
+                    // Modified: a jump drive on a ship with one built in (Hangar.CanMount).
+                    if (r == Hangar.Result.NotMountable && GalaxyMap.IsKhadorDrive(item) && GalaxyMap.HasIntegratedDrive(Session.ShipIndex))
+                    { menu.ShowToast(Localization.Extra("driveBuiltIn", "This ship has a jump drive built in.")); break; }
                     if (r == Hangar.Result.Swap)
                     {
                         string text = Localization.Get(287).Replace("#ITEM1", ItemInfo.ItemName(Session.Equipment[swapWith].item))
