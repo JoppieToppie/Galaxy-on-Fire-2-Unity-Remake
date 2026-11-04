@@ -63,7 +63,7 @@ namespace GoF2Remake.Data
         public static ItemData Drive(Database db)
         {
             if (NetSession.Active) return null;
-            var it = Shop.MountedCruiseDrive(db);
+            var it = Shop.WorkingCruiseDrive(db);   // remake: not a Khador Slipstream the options switch off
             return it != null && it.Attr(Flight.CruiseDrive.InterstellarAttr) > 0 ? it : null;
         }
 

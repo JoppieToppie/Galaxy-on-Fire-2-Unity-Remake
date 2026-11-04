@@ -3114,6 +3114,8 @@
  "fastForwardTime": "시간 가속",
  "fastForwardCruise": "함선 순항",
  "fastForwardModeHelp": "시간 가속: 누르고 있는 동안 게임 전체가 5배 빠르게 진행됩니다. 함선 순항: 내 함선만 5배 빠르게 날고 나머지는 속도를 유지합니다(멀티플레이와 동일).",
+ "khadorSlipstream": "Khador Slipstream",
+ "khadorSlipstreamHelp": "궤도를 순항하고 성계 사이를 비행하는 카도르의 드라이브와, 타이놈에서의 설계도 제안. 끄기: 카도르가 제안하지 않으며, 장착된 드라이브는 아무 일도 하지 않습니다.",
  "kaamoVip": "카모 클럽 VIP 카드",
  "kaamoVipCard": "클럽에서 구매",
  "kaamoVipAlways": "항상 켜기",

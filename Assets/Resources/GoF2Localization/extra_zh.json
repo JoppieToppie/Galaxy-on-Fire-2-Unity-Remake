@@ -3114,6 +3114,8 @@
  "fastForwardTime": "时间加速",
  "fastForwardCruise": "飞船巡航",
  "fastForwardModeHelp": "时间加速：按住时整个游戏以5倍速运行。飞船巡航：只有你的飞船以5倍速飞行，其他一切保持原速，与多人模式相同。",
+ "khadorSlipstream": "Khador Slipstream",
+ "khadorSlipstreamHelp": "卡多尔的引擎，可在轨道内巡航并在星系之间飞行，以及他在泰诺姆出售的蓝图。关闭：卡多尔不再提供，已安装的引擎不起作用。",
  "kaamoVip": "卡莫俱乐部VIP卡",
  "kaamoVipCard": "在俱乐部购买",
  "kaamoVipAlways": "始终开启",

@@ -3114,6 +3114,8 @@
  "fastForwardTime": "Przyspieszenie czasu",
  "fastForwardCruise": "Przelot statku",
  "fastForwardModeHelp": "Przyspieszenie czasu: cała gra działa 5x szybciej, dopóki przytrzymujesz przycisk. Przelot statku: tylko twój statek leci 5x szybciej, reszta zachowuje swoje tempo, jak w trybie wieloosobowym.",
+ "khadorSlipstream": "Khador Slipstream",
+ "khadorSlipstreamHelp": "Napęd Khadora, który przelatuje przez orbitę i lata między systemami, oraz jego oferta schematu na Thynome. Wyłączone: Khador go nie oferuje, a zamontowany nic nie robi.",
  "kaamoVip": "Karta VIP Kaamo Club",
  "kaamoVipCard": "Kup w klubie",
  "kaamoVipAlways": "Zawsze włączona",

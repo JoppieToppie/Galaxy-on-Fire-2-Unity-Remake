@@ -3114,6 +3114,8 @@
  "fastForwardTime": "Acelerar o tempo",
  "fastForwardCruise": "Cruzeiro da nave",
  "fastForwardModeHelp": "Acelerar o tempo: o jogo inteiro corre 5x mais rápido enquanto você segura. Cruzeiro da nave: só a sua nave voa 5x mais rápido, o resto mantém o ritmo, como no multijogador.",
+ "khadorSlipstream": "Khador Slipstream",
+ "khadorSlipstreamHelp": "O motor de Khador que cruza uma órbita e voa entre os sistemas, e a sua oferta do projeto em Thynome. Desligado: Khador não o oferece e um montado não faz nada.",
  "kaamoVip": "Cartão VIP do Kaamo Club",
  "kaamoVipCard": "Comprar no clube",
  "kaamoVipAlways": "Sempre ativo",

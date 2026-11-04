@@ -68,6 +68,20 @@ namespace GoF2Remake.Data
         /// <summary>The mounted cruise drive, null without one.</summary>
         public static ItemData MountedCruiseDrive(Database db) => FirstMounted(db, Flight.CruiseDrive.Kind);
 
+        /// <summary>Remake: the base game's Khador Slipstream (Modding "Base content").</summary>
+        public const string SlipstreamKey = "gof2:khador_slipstream";
+
+        /// <summary>Remake: the item is the base game's Khador Slipstream and Options > Gameplay "Khador Slipstream" is off
+        /// (Settings.KhadorSlipstream): it stays in the hold and on the ship, but does nothing.</summary>
+        public static bool SlipstreamOff(int item) => item >= 0 && !Settings.KhadorSlipstream && item == Modding.ModContent.ItemIndexOf(SlipstreamKey);
+
+        /// <summary>The mounted cruise drive when it may fly (not a Khador Slipstream switched off), null otherwise.</summary>
+        public static ItemData WorkingCruiseDrive(Database db)
+        {
+            var it = MountedCruiseDrive(db);
+            return it != null && !SlipstreamOff(it.index) ? it : null;
+        }
+
         /// <summary>The original's top tech level, of its items and its stations alike (stations 0-10, items 1-10).</summary>
         public const int TopTech = 10;
         /// <summary>Remake mods: the highest tech level a mod item may have (ModContent warns and clamps).</summary>

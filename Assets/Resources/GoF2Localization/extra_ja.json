@@ -3114,6 +3114,8 @@
  "fastForwardTime": "時間加速",
  "fastForwardCruise": "巡航",
  "fastForwardModeHelp": "時間加速：押している間、ゲーム全体が5倍速で進みます。巡航：自分の船だけが5倍速で飛び、他はそのままのペースで動きます（マルチプレイと同じ）。",
+ "khadorSlipstream": "Khador Slipstream",
+ "khadorSlipstreamHelp": "軌道内を巡航し、星系間を飛行するカドールのドライブと、サイノームでの設計図の提供。オフ：カドールは提供せず、搭載済みのものも何もしません。",
  "kaamoVip": "カーモ・クラブ VIPカード",
  "kaamoVipCard": "クラブで購入",
  "kaamoVipAlways": "常にオン",

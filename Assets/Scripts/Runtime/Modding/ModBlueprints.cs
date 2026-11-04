@@ -282,7 +282,7 @@ namespace GoF2Remake.Modding
         public static int ShipOf(int item) => deedShip.TryGetValue(item, out int s) ? s : -1;
 
         /// <summary>Its "available" condition holds in this game.</summary>
-        public static bool Available(Def d) => ModUnlocks.Holds(d.mod, d.available, d.where);
+        public static bool Available(Def d) => !Shop.SlipstreamOff(d.product) && ModUnlocks.Holds(d.mod, d.available, d.where);   // remake: Settings.KhadorSlipstream
 
         /// <summary>Blueprints.AutoCompletePrice: a mod's own price (or none: false).</summary>
         public static bool AutocompleteOverride(int product, out bool allowed, out int price)

@@ -53,7 +53,9 @@ namespace GoF2Remake.Flight
 
         void SetupDrive(Database database)
         {
-            var it = Shop.MountedCruiseDrive(database);
+            // Remake: a Khador Slipstream the options switch off does nothing, but in interstellar space (it brought the ship
+            // here, and the option can change in the pause menu: the ship would be stranded).
+            var it = layout.interstellar ? Shop.MountedCruiseDrive(database) : Shop.WorkingCruiseDrive(database);
             Drive = it == null ? null
                 : new CruiseDrive(it.index, it.Attr(CruiseDrive.SpeedAttr),
                                   layout.interstellar ? (int)InterstellarSpace.LegUnits : it.Attr(CruiseDrive.RangeAttr, 60000),

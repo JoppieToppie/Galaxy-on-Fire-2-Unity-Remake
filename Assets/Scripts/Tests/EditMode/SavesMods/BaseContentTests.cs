@@ -86,6 +86,29 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void TheGameplayOptionSwitchesItOff()
+        {
+            var db = Database.Load();
+            int product = ModContent.ItemIndexOf(Key);
+            bool Sold() => AgentGenerator.CreateAgents(db, 10).Exists(a => a.offer == AgentOffer.SellBlueprint && a.sellBlueprint == product);
+            Session.FreePlay = true;
+            Session.Equipment = new System.Collections.Generic.List<ItemStack> { new ItemStack(product, 1) };
+            using (new SettingsScope<bool>(() => Settings.KhadorSlipstream, v => Settings.KhadorSlipstream = v))
+            {
+                Settings.KhadorSlipstream = true;
+                Assert.IsTrue(Sold());
+                Assert.AreEqual(product, Shop.WorkingCruiseDrive(db)?.index);
+                Assert.IsNotNull(InterstellarSpace.Drive(db));
+                Settings.KhadorSlipstream = false;
+                Assert.IsFalse(Sold(), "Khador doesn't offer it");
+                Assert.AreEqual(product, Shop.MountedCruiseDrive(db)?.index, "a mounted one stays on the ship");
+                Assert.IsNull(Shop.WorkingCruiseDrive(db), "but doesn't cruise");
+                Assert.IsNull(InterstellarSpace.Drive(db), "nor leave the system");
+                Assert.IsFalse(Shop.SlipstreamOff(GalaxyMap.KhadorDriveItem), "only the Khador Slipstream");
+            }
+        }
+
+        [Test]
         public void ItsIconIsItsOwn()
         {
             var png = ModManager.BaseContent.Source.ReadBytes("icons/khador_slipstream.png");

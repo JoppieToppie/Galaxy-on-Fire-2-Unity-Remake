@@ -213,6 +213,7 @@ namespace GoF2Remake.UI
             ["autoAdvance"] = ("autoPlayDialogueHelp", "Conversations turn the page by themselves once a line has been spoken or read. AUTO in a conversation switches it too."),
             ["animatedDialogue"] = ("animatedDialogueHelp", "Dialogue types in letter by letter, with names and items in colour. Off: each page appears at once."),
             ["playOnInConversations"] = ("playOnInConversationsHelp", "In flight, the world keeps moving while a conversation is open. Your controls wait, nothing fires and story missions hold until it closes. Off: the game pauses."),
+            ["khadorSlipstream"] = ("khadorSlipstreamHelp", "Khador's drive that cruises through an orbit and flies between the systems, and his offer of its blueprint at Thynome. Off: Khador doesn't offer it, and a mounted one does nothing."),
             ["discordPresence"] = ("discordPresenceHelp", "Shows your ship, location and mission on your Discord profile."),
             ["language"] = ("languageHelp", "The language of every text in the game."),
         };

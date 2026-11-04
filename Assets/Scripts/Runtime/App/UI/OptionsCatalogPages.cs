@@ -508,6 +508,9 @@ namespace GoF2Remake.UI
                 () => new[] { X("fastForwardTime", "Time speedup"), X("fastForwardCruise", "Ship cruise") },
                 () => Settings.FastForwardCruise ? 1 : 0, i => Settings.FastForwardCruise = i == 1,
                 () => X("fastForwardModeHelp", "Time speedup: the whole game runs 5x while you hold it. Ship cruise: only your ship flies 5x as fast, everything else keeps its pace, as in multiplayer.")));
+            // Remake (Shop.SlipstreamOff): the base game's Khador Slipstream, the cruise drive that also flies between the systems.
+            list.Add(Toggle("khadorSlipstream", OptionPage.Gameplay, () => X("khadorSlipstream", "Khador Slipstream"),
+                () => Settings.KhadorSlipstream, v => Settings.KhadorSlipstream = v));
             // The key and controller button hints everywhere: the flight HUD, the menus' prompt bars, the station, the star map,
             // Inspect ship and Action Freeze (it was "Button hints in flight", though the menus' bars read it too).
             var inputHints = Toggle("inputHints", OptionPage.Gameplay, () => X("inputHints", "Button hints"),

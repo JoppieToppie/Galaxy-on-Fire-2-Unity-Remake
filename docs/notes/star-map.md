@@ -138,7 +138,14 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
 - **Interstellar space** (`InterstellarSpace`, 2026-10-31, the user's idea; no original behaviour): a mounted cruise drive
   with attr 135 (`CruiseDrive.InterstellarAttr`, the base game's Khador Slipstream, "Base content" in mods.md, one drive for both cruises:
   Khador sells the blueprint in Thynome's lounge, from step 84 or in free play, as Kothar has none, `Story.LoungeUnlocked`) adds a quick menu entry
-  (`Navigation.Kind.Slipstream`, `NavigationInterstellar`); no option, the item is the switch. The Khador charge and scene
+  (`Navigation.Kind.Slipstream`, `NavigationInterstellar`); mounting it is the switch. **Options > Gameplay "Khador
+  Slipstream"** (`Settings.KhadorSlipstream`, on by default, 2026-11-04, the user: "put the new slipstream feature under a
+  gameplay toggle"): off, the base item is left out of play without leaving the numbering or the saves (`Shop.SlipstreamOff`):
+  `ModBlueprints.Available` is false for it, so Khador doesn't offer the blueprint (one already bought stays known), and
+  `Shop.WorkingCruiseDrive` (`InterstellarSpace.Drive`, `NavigationCruiseDrive.SetupDrive`) skips a mounted one: no cruise,
+  planet run or menu entry. In interstellar space `SetupDrive` keeps it whatever the option says (switched off from the
+  pause menu there, the ship would be stranded); the next orbit reads the option. A mod's cruise drive is its mod's to
+  switch (test `BaseContentTests.TheGameplayOptionSwitchesItOff`). The Khador charge and scene
   play (`SystemJump.toInterstellar`), then `Session.EnterInterstellar` reloads Space, read once in `SpaceLevel.Awake`:
   `InterstellarSpace.Clear` empties the orbit left (`OrbitLayout.interstellar`), which stays `Session.StationIndex`, so a
   save or load is that orbit and the flag is never saved. No wingmen, traffic, story (`StorySpace`), encounters, wormholes;

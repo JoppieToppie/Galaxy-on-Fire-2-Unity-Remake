@@ -3114,6 +3114,8 @@
  "fastForwardTime": "Accélération du temps",
  "fastForwardCruise": "Croisière du vaisseau",
  "fastForwardModeHelp": "Accélération du temps : tout le jeu tourne 5x plus vite tant que vous maintenez la touche. Croisière du vaisseau : seul votre vaisseau vole 5x plus vite, le reste garde son rythme, comme en multijoueur.",
+ "khadorSlipstream": "Khador Slipstream",
+ "khadorSlipstreamHelp": "Le propulseur de Khador qui traverse une orbite et vole entre les systèmes, et son offre du plan à Thynome. Désactivé : Khador ne le propose pas, et un propulseur monté ne fait rien.",
  "kaamoVip": "Carte VIP du Kaamo Club",
  "kaamoVipCard": "Achat au club",
  "kaamoVipAlways": "Toujours activée",

@@ -3114,6 +3114,8 @@
  "fastForwardTime": "Zeitbeschleunigung",
  "fastForwardCruise": "Schiffs-Reiseflug",
  "fastForwardModeHelp": "Zeitbeschleunigung: Das ganze Spiel läuft 5x so schnell, solange du die Taste hältst. Schiffs-Reiseflug: Nur dein Schiff fliegt 5x so schnell, alles andere behält sein Tempo, wie im Mehrspieler.",
+ "khadorSlipstream": "Khador Slipstream",
+ "khadorSlipstreamHelp": "Khadors Antrieb, der durch einen Orbit gleitet und zwischen den Systemen fliegt, und sein Angebot der Blaupause auf Thynome. Aus: Khador bietet ihn nicht an, und ein eingebauter tut nichts.",
  "kaamoVip": "Kaamo Club VIP-Karte",
  "kaamoVipCard": "An der Station kaufen",
  "kaamoVipAlways": "Immer an",
