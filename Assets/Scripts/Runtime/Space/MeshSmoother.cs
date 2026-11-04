@@ -20,8 +20,12 @@ namespace GoF2Remake.Visuals
         /// <summary>A vertex whose faces' normals sum to less than this share of their lengths is a sharp point.</summary>
         const float SharpRatio = 0.75f;
 
-        public static Mesh Smooth(Mesh src, int levels)
+        public static Mesh Smooth(Mesh src, int levels) => Smooth(src, levels, out _);
+
+        /// <summary>'onSphere': the mesh lay on a sphere and was rounded onto it.</summary>
+        public static Mesh Smooth(Mesh src, int levels, out bool onSphere)
         {
+            onSphere = false;
             if (src == null || !src.isReadable) return null;
             var pos = new List<Vector3>(src.vertices);
             var uv = new List<Vector2>(src.uv);
@@ -33,6 +37,7 @@ namespace GoF2Remake.Visuals
             // instead of Phong's guess, which bulged where the file's triangles are uneven (a belly near the glow's centre, a
             // player's report).
             bool sphere = FitSphere(pos, out var centre, out float radius);
+            onSphere = sphere;
             if (sphere)
                 for (int i = 0; i < pos.Count; i++) (pos[i], nrm[i]) = OnSphere(pos[i], nrm[i], centre, radius);
             var tris = new List<int>(src.triangles);

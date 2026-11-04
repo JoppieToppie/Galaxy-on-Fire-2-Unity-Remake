@@ -325,10 +325,12 @@ namespace GoF2Remake.Flight
             // The cone rounded: its polygons showed along the silhouette (a player's request); two levels of Phong
             // tessellation with smooth normals (MeshSmoother), which GoF2/BlazeAdditive also fades the edge-on sides by.
             var smoothed = new System.Collections.Generic.HashSet<GameObject>();
+            var round = new System.Collections.Generic.HashSet<GameObject>();
             foreach (var mf in part.GetComponentsInChildren<MeshFilter>(true))
             {
-                var smooth = GoF2Remake.Visuals.MeshSmoother.Smooth(mf.sharedMesh, 2);
+                var smooth = GoF2Remake.Visuals.MeshSmoother.Smooth(mf.sharedMesh, 2, out bool onSphere);
                 if (smooth == null) continue;
+                if (onSphere) round.Add(mf.gameObject);
                 blazeMade.Add(smooth);
                 mf.sharedMesh = smooth;
                 smoothed.Add(mf.gameObject);
@@ -354,6 +356,9 @@ namespace GoF2Remake.Flight
                     // The cone's open centre fades out toward its rim (MeshSmoother's open-edge channel): its cut showed as a
                     // ring round the core (a player's report).
                     flames.SetFloat("_OpenEdges", smoothed.Contains(r.gameObject) ? 1f : 0f);
+                    // A cap rounded onto its sphere (the glow) has a clean outline already: no edge-on fade, which made a
+                    // bright spot follow the view (a hot core when looking along it) and flicker as the camera moved.
+                    if (round.Contains(r.gameObject)) flames.SetFloat("_EdgeFade", 0f);
                     var haze = new Material(hazeShader) { name = from.name + " (haze)", mainTexture = tex };
                     haze.mainTextureScale = from.mainTextureScale;
                     haze.mainTextureOffset = from.mainTextureOffset;
