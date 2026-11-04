@@ -230,7 +230,7 @@ namespace GoF2Remake.Flight
             // jumped there; then, starting where the docking view was, it never went over). Dragging stops the glide.
             bool fromCamera = OrbitFromCamera(out float cx, out float cy, out float cd);
             Set(Mode.FreeLook);
-            px = DockPx; py = 35f; distance = 3800f;
+            px = DockPx; py = DockPy; distance = 3800f;
             if (fromCamera)
             {
                 cx = px + Mathf.Repeat(cx - px + FullTurnPx * 0.5f, FullTurnPx) - FullTurnPx * 0.5f;   // the short way round
@@ -251,6 +251,9 @@ namespace GoF2Remake.Flight
         // camera round before the free look (92 ev5), and the original's docked view looks at the ship from in front (a
         // player's screenshot); from behind it looked over the ship's tail.
         const float DockPx = -98f + FullTurnPx * 0.5f;
+        // Modified: and above the ship: the remake's orbit pitch runs opposite the original's (Place, the free look's inverted
+        // up / down), so its +35 px put the camera under the hull (a player's screenshot).
+        const float DockPy = -35f;
         bool dockedSaved;
 
         /// <summary>CutsceneCamera.Release: docked (not hacking, nothing blocking free look), free look again on the orbit it
@@ -262,7 +265,7 @@ namespace GoF2Remake.Flight
             if (Current != Mode.FreeLook) Set(Mode.FreeLook, false);
             if (Current != Mode.FreeLook || chase == null || chase.follow != anchor) return false;
             if (dockedSaved) { px = dockedPx; py = dockedPy; distance = dockedDistance; }
-            else { px = DockPx; py = 35f; distance = 3800f; }
+            else { px = DockPx; py = DockPy; distance = 3800f; }
             fling = Vector2.zero; wheel = 0f;
             chase.followRigid = false;
             Place();
@@ -454,8 +457,8 @@ namespace GoF2Remake.Flight
                 else
                 {
                     float k = 1f - Mathf.Exp(-Time.deltaTime * 1000f / DockGlideMs);
-                    px = Mathf.Lerp(px, DockPx, k); py = Mathf.Lerp(py, 35f, k); distance = Mathf.Lerp(distance, 3800f, k);
-                    if (Mathf.Abs(px - DockPx) < 0.5f && Mathf.Abs(py - 35f) < 0.5f && Mathf.Abs(distance - 3800f) < 5f) dockGlide = false;
+                    px = Mathf.Lerp(px, DockPx, k); py = Mathf.Lerp(py, DockPy, k); distance = Mathf.Lerp(distance, 3800f, k);
+                    if (Mathf.Abs(px - DockPx) < 0.5f && Mathf.Abs(py - DockPy) < 0.5f && Mathf.Abs(distance - 3800f) < 5f) dockGlide = false;
                 }
             }
             px += delta.x;
