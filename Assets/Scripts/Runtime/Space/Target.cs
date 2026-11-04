@@ -49,6 +49,9 @@ namespace GoF2Remake.Flight
         public bool hostileToPlayer, friendToPlayer;
         [Tooltip("Player+0x5e: NPCs don't attack it.")]
         public bool untargetable;
+        /// <summary>Modified: never an NPC's target (NpcShip.Valid): a story station one docks at, which the original's fighters
+        /// leave alone like a station (a player's report: the Specters went for Luur's platform once it was a radar ship).</summary>
+        [NonSerialized] public bool npcIgnored;
         /// <summary>KIPlayer+0x3d (the pirate outposts): mines neither trigger on nor pull toward it.</summary>
         public bool mineProof;
         /// <summary>Radar::drawCurrentLock: the Hijacker (1611) and the Informer (1663) show their name alone; they and a Most

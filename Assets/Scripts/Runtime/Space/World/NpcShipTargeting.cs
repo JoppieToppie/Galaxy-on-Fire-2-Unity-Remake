@@ -41,7 +41,7 @@ namespace GoF2Remake.World
             return Mathf.Abs(d.x) < r && Mathf.Abs(d.y) < r && Mathf.Abs(d.z) < r;
         }
 
-        static bool Valid(Target t) => t != null && t.Targetable;
+        static bool Valid(Target t) => t != null && t.Targetable && !t.npcIgnored;
 
         /// <summary>State 5 (sleeping): a hostile sleeper wakes when the player (or the steered Liberator) comes within its
         /// detect range per axis (+-50 000 by default, not while the player is cloaked) or within +-25 000 (cloaked too);

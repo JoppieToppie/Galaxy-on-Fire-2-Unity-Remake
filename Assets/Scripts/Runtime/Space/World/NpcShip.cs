@@ -283,6 +283,14 @@ namespace GoF2Remake.World
         public bool ShipMarker { get; set; }
         /// <summary>Modified: the docking target's name when it differs from the ship plate's (ShipMarker); null = displayName.</summary>
         public string DockingName { get; set; }
+        /// <summary>Modified: a story station or platform one docks at (no pad): NPCs leave it alone (Target.npcIgnored).</summary>
+        static bool DockingStation(SpawnSpec spec)
+        {
+            var f = spec.fixedObject;
+            return !string.IsNullOrEmpty(f) && (f.Contains("station") || f.Contains("platform"))
+                && spec.dockingType > 0 && spec.dockingType != ObjectDocking.StationPad;
+        }
+
         /// <summary>A docking object shown as a radar ship: a fixed ship (freighter, carrier, battleship), a station or platform
         /// spawned with a docking type (Modified: the story's docking stations too, a player's request; not the pirate
         /// outposts, which have none, nor a station's pads), or a ship spawned with a docking type; never a container or a
@@ -415,6 +423,7 @@ namespace GoF2Remake.World
             // "<race> NN%", its name the docking target's alone (a player's
             // comparison with the original: the Supernova freighters).
             ShipMarker = DockingShip(spec);
+            Target.npcIgnored = DockingStation(spec);
             if (ShipMarker && !Target.plateNameOnly) { DockingName = Target.displayName; Target.displayName = null; }
             if (spec.speed > 0f) speed = baseSpeed = spec.speed;
             alwaysEnemy = spec.alwaysEnemy;
