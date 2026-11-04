@@ -408,7 +408,7 @@ namespace GoF2Remake.Flight
             if (Current != Mode.FreeLook) return;
             // The undock: the orbit ends, the camera staying where it is (ObjectDocking's look-at turns it after the ship, and
             // its end lets the chase camera ease over).
-            if (dockedView && chase != null && !chase.scriptCamera && (!DockingHoldsCamera || docking.State == ObjectDocking.Phase.Leaving)) { easeOut = true; Set(Base, false); return; }
+            if (chase != null && !chase.scriptCamera && (DockingHoldsCamera ? docking.State == ObjectDocking.Phase.Leaving : dockedView)) { easeOut = true; Set(Base, false); return; }
             if (Blocked != null && Blocked()) { Set(Base, false); return; }
             if (chase != null && chase.follow != anchor && chase.follow != null) { Current = Mode.Standard; Set(Base, false); return; }   // taken over (the Liberator)
             if (halted || Navigation.InputHalted) return;   // a menu's sticks and keys aren't the orbit's
