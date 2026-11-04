@@ -264,7 +264,9 @@ slots, ship heights, fighters per race, music) are in `StationTables`.
   flashed the Nivelian bar and the Midorian bar for a frame on every wrap, parked the Terran gutter lights on the
   player's pad and made the loops jump; the remade Vossk bar's streaks are keyed at 33 / 533 ms: `loopStartMs` 33, the
   first key (the original's started at 500 ms)); rotations swing back and forth
-  (`pingPongRotation`: the Vossk ring lights' 57 deg sweep stays clear of the portal) and the `_anim` layers fade by
+  (`pingPongRotation`: the Vossk ring lights' 57 deg sweep stays clear of the portal; not a rotation that ends where its
+  loop starts, `RotationLoopsWhole`: the Kothar hangar's eight v_hangar_deep_science_anim_add rings turn full circles and
+  swung back they reversed on every other loop) and the `_anim` layers fade by
   their `extra` channel (the Vossk portal light).
 - **Hangar service bots** (remake; the original never shows them: `CutScene+0x38` is never filled): the Terran hangar's
   five (`hangar_terran_bot_a..d_anim` from the beta, re-animated with the remodel, and the remake's bot e; each with its

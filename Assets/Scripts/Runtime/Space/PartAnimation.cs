@@ -434,6 +434,20 @@ namespace GoF2Remake.Visuals
             return new Quaternion(q.x, q.y, q.z, q.w);
         }
 
+        int loopsWhole = -1;   // Modified: RotationLoopsWhole's answer, worked out once
+        /// <summary>Modified: every rotation track ends where the loop starts (within 1 deg: a whole number of turns), so the
+        /// loop wraps seamlessly and pingPongRotation has nothing to hide.</summary>
+        bool RotationLoopsWhole()
+        {
+            if (loopsWhole >= 0) return loopsWhole == 1;
+            loopsWhole = 1;
+            float start = Mathf.Clamp(loopStartMs, 0f, lengthMs);
+            foreach (var tk in tracks)
+                if ((tk.rot[0] != null || tk.rot[1] != null || tk.rot[2] != null) && tk.rotTimes != null && tk.rotTimes.Length > 1
+                    && Quaternion.Angle(RotationAt(tk, start), RotationAt(tk, lengthMs)) > 1f) { loopsWhole = 0; break; }
+            return loopsWhole == 1;
+        }
+
         /// <summary>ModelOrientationPostprocessor turned the vertices (-x, y, -z): offsets in the part's frame turn with them.</summary>
         static Vector3 ImportFlip(Vector3 v) => new Vector3(-v.x, v.y, -v.z);
 
@@ -485,7 +499,9 @@ namespace GoF2Remake.Visuals
                 }
                 if (tk.rot[0] != null || tk.rot[1] != null || tk.rot[2] != null)
                 {
-                    float rt = pingPongRotation && loop && (Loops & 1) == 1
+                    // Modified: not a rotation that ends where its loop starts (a full turn, the remodelled Kothar hangar's
+                    // v_hangar_deep_science_anim_add rings): swung back it turned the other way on every other loop.
+                    float rt = pingPongRotation && loop && (Loops & 1) == 1 && !RotationLoopsWhole()
                         ? Mathf.Clamp(loopStartMs, 0f, lengthMs - 1f) + lengthMs - timeMs : timeMs;
                     tk.tr.localRotation = tk.baseRot * RotationAt(tk, rt);
                 }
