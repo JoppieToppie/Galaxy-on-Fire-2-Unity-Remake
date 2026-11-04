@@ -115,6 +115,9 @@ namespace GoF2Remake.Flight
         [Tooltip("The gamma shield's blaze around the ship in the supernova system (meshes 18803 sn_ship_blaze_flames_anim_add " +
                  "and 18802 sn_ship_blaze_glow_anim_add, PlayerEgo::PlayerEgo).")]
         public GameObject gammaBlazeFlames, gammaBlazeGlow;
+        [Tooltip("Modified: sn_ship_blaze_flames_normal (texture 11759): loaded by the Android build but used by no material; " +
+                 "the remake's blaze haze bends the scene by it (GoF2/BlazeHaze), as the iOS build's blaze seems to.")]
+        public Texture2D gammaBlazeNormal;
         [Tooltip("The cloak (sound 30 Cloak_02) and the time extender (1120 TimeShift_Start, 1119 TimeShift_01b at the end).")]
         public AudioClip cloak, timeShift, timeShiftEnd;
         [Tooltip("The cloak's shader (GoF2/Cloak) and dissolve map (Textures/main/fx/cloak_map.png).")]

@@ -300,19 +300,134 @@ namespace GoF2Remake.Flight
                 if (prefab == null) continue;
                 var part = Instantiate(prefab, blaze.transform, false);
                 GunRig.StripForFx(part);
+                SoftenBlaze(part);
             }
             var r = ship.visualModel != null ? ship.visualModel.GetComponentInChildren<Renderer>() : null;
             float radiusUnits = r != null ? r.bounds.extents.magnitude / M : 1500f;   // the bubble's radius too
             blaze.transform.localScale = Vector3.one * radiusUnits * 1.75f;
         }
 
+        // Modified: the blaze's soft edge and its heat haze (a player's comparison with the original).
+        //  - Its textures with each texel's colour ^ BlazeGlowPower (1.5: the player's pick) (Hidden/GoF2/SunGamma, as the star map's suns): added in
+        //    linear space, the image's dim tail showed out to the edges of its planes; the original adds it in gamma space,
+        //    where it fades out inside them.
+        //  - The iOS version's heat haze: GoF2/BlazeHaze bends the frame behind the blaze (the ship among it) through
+        //    CloakPass's copy of it, and the flames themselves (GoF2/BlazeAdditive) are drawn after it in that pass, unbent.
+        const float BlazeGlowPower = 1.5f;
+        readonly System.Collections.Generic.List<UnityEngine.Object> blazeMade = new System.Collections.Generic.List<UnityEngine.Object>();
+        Material gammaBlit;
+        bool blazeHaze;
+
+        void SoftenBlaze(GameObject part)
+        {
+            var hazeShader = Resources.Load<Shader>("GoF2Combat/BlazeHaze");
+            var addShader = Resources.Load<Shader>("GoF2Combat/BlazeAdditive");
+            // The cone rounded: its polygons showed along the silhouette (a player's request); two levels of Phong
+            // tessellation with smooth normals (MeshSmoother), which GoF2/BlazeAdditive also fades the edge-on sides by.
+            var smoothed = new System.Collections.Generic.HashSet<GameObject>();
+            var round = new System.Collections.Generic.HashSet<GameObject>();
+            foreach (var mf in part.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var smooth = GoF2Remake.Visuals.MeshSmoother.Smooth(mf.sharedMesh, 2, out bool onSphere);
+                if (smooth == null) continue;
+                if (onSphere) round.Add(mf.gameObject);
+                blazeMade.Add(smooth);
+                mf.sharedMesh = smooth;
+                smoothed.Add(mf.gameObject);
+            }
+            foreach (var r in part.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                if (mats.Length == 0 || mats[0] == null) continue;
+                var from = mats[0];
+                var tex = from.mainTexture;
+                var rt = GammaCopy(tex);
+                if (hazeShader != null && addShader != null && tex != null)
+                {
+                    // The flames first (PartAnimation reads the renderer's first material: the fade's _Color, the UV scroll's
+                    // _MainTex_ST), drawn after the haze by their queues.
+                    var flames = new Material(addShader) { name = from.name + " (blaze)" };
+                    flames.mainTexture = rt != null ? rt : tex;
+                    flames.mainTextureScale = from.mainTextureScale;
+                    flames.mainTextureOffset = from.mainTextureOffset;
+                    if (from.HasProperty("_Color")) flames.SetColor("_Color", from.GetColor("_Color"));
+                    if (from.HasProperty("_Glow")) flames.SetFloat("_Glow", from.GetFloat("_Glow"));
+                    if (from.HasProperty("_UseVertexColor")) flames.SetFloat("_UseVertexColor", from.GetFloat("_UseVertexColor"));
+                    // The cone's open centre fades out toward its rim (MeshSmoother's open-edge channel): its cut showed as a
+                    // ring round the core (a player's report).
+                    flames.SetFloat("_OpenEdges", smoothed.Contains(r.gameObject) ? 1f : 0f);
+                    // A cap rounded onto its sphere (the glow) has a clean outline already: no edge-on fade, which made a
+                    // bright spot follow the view (a hot core when looking along it) and flicker as the camera moved.
+                    if (round.Contains(r.gameObject)) flames.SetFloat("_EdgeFade", 0f);
+                    var haze = new Material(hazeShader) { name = from.name + " (haze)", mainTexture = tex };
+                    // Modified: the bend by sn_ship_blaze_flames_normal (CombatAssets.gammaBlazeNormal), else the noise.
+                    if (assets.gammaBlazeNormal != null)
+                    {
+                        haze.SetTexture("_NormalMap", assets.gammaBlazeNormal);
+                        haze.SetFloat("_UseNormalMap", 1f);
+                    }
+                    haze.mainTextureScale = from.mainTextureScale;
+                    haze.mainTextureOffset = from.mainTextureOffset;
+                    blazeMade.Add(flames);
+                    blazeMade.Add(haze);
+                    r.sharedMaterials = new[] { flames, haze };
+                }
+                else
+                {
+                    var soft = new Material(from) { name = from.name + " (soft)" };
+                    if (rt != null) soft.mainTexture = rt;
+                    blazeMade.Add(soft);
+                    r.sharedMaterial = soft;
+                }
+            }
+        }
+
+        Texture GammaCopy(Texture tex)
+        {
+            if (tex == null) return null;
+            if (gammaBlit == null)
+            {
+                var shader = Resources.Load<Shader>("GoF2StarMap/SunGamma");
+                if (shader == null) return null;
+                gammaBlit = new Material(shader);
+                blazeMade.Add(gammaBlit);
+            }
+            var rt = new RenderTexture(tex.width, tex.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
+            {
+                name = tex.name + " (soft)", useMipMap = true, autoGenerateMips = true,
+                wrapMode = tex.wrapMode, filterMode = tex.filterMode, anisoLevel = tex.anisoLevel,
+            };
+            gammaBlit.SetFloat("_Power", BlazeGlowPower);
+            Graphics.Blit(tex, rt, gammaBlit);
+            blazeMade.Add(rt);
+            return rt;
+        }
+
+        void SetBlazeHaze(bool on)
+        {
+            if (blazeHaze == on) return;
+            blazeHaze = on;
+            GoF2Remake.Visuals.CloakPass.Request(this, on);
+        }
+
+        void DestroyBlaze()
+        {
+            SetBlazeHaze(false);
+            if (blaze != null) Destroy(blaze);
+            blaze = null;
+            foreach (var o in blazeMade) if (o != null) Destroy(o);
+            blazeMade.Clear();
+            gammaBlit = null;
+        }
+
         void LateUpdate()
         {
             if (blaze == null) return;
-            if (Dead || (blazeLevel != null && blazeLevel.Navigation != null && blazeLevel.Navigation.Jumping)) { Destroy(blaze); blaze = null; return; }
+            if (Dead || (blazeLevel != null && blazeLevel.Navigation != null && blazeLevel.Navigation.Jumping)) { DestroyBlaze(); return; }
             // Remake: hidden with the ship (the jump scenes hide its model: the Khador Drive's fx, the gate).
             bool shown = ship.visualModel == null || ship.visualModel.gameObject.activeInHierarchy;
             if (blaze.activeSelf != shown) blaze.SetActive(shown);
+            SetBlazeHaze(shown);
             if (!shown) return;
             var model = ship.visualModel != null ? ship.visualModel : transform;
             var pos = model.position;
@@ -376,6 +491,7 @@ namespace GoF2Remake.Flight
         void OnDestroy()
         {
             OpaqueTexture.Request(this, false);
+            DestroyBlaze();   // Modified: the blaze's material copies and its CloakPass request
             EmergencyActive = false;
             bubble?.Hide();   // (its CloakPass request stayed when the ship went inside the bubble's time: docking, a jump)
             // Docking / jumping saves the ship state to Status (MGame::dockEvent, departStation).

@@ -154,7 +154,9 @@ namespace GoF2Remake.EditorTools
                             // Modified: the hangar rooms (not their glow layers): Inspect ship's camera stops at their walls
                             // (StationLevel.AddRoomColliders).
                             || (assetPath.Replace('\\', '/').Contains("/hangars/") && !assetPath.Contains("_add") && !assetPath.Contains("_anim"))
-                            || (assetPath.Contains("/skyboxes/sn_skybox_") && assetPath.Contains("_flares_"));
+                            || (assetPath.Contains("/skyboxes/sn_skybox_") && assetPath.Contains("_flares_"))
+                            // Modified: the gamma shield blaze's cones, which MeshSmoother rounds (PlayerHealth.SoftenBlaze).
+                            || assetPath.Contains("/sn_ship_blaze_");
         }
 
         /// <summary>A model whose meshes become collision hulls (HullCollision): ships, stations, jumpgates, turrets and the

@@ -100,6 +100,13 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   The blaze (`PlayerHealth.SetupBlaze`, `PlayerEgo::PlayerEgo` 0xa5d8c / `PlayerEgo::update` 0xa9b7c): in the supernova system or
   Luur's orbit with a gamma shield mounted, meshes 18803 + 18802 (`sn_ship_blaze_flames / glow_anim_add`, `CombatAssets.gammaBlaze*`)
   around the ship, scaled by its bounding radius x 1.75 (`PlayerEgo::setShip` +0x3c), turned to the sun's light direction (up
-  0, 1, 0), ship 8 300 units ahead, animated; gone on death and the planet jump.
+  0, 1, 0), ship 8 300 units ahead, animated; gone on death and the planet jump. Its textures with the colour ^ 1.5
+  (Hidden/GoF2/SunGamma, as the star map's suns: the dim tail showed to the planes' edges in linear space) and a second
+  material, GoF2/BlazeHaze (Resources/GoF2Combat), bending the frame behind it through CloakPass's copy with a rising
+  ripple of noise or, by default, sn_ship_blaze_flames_normal (texture 11759: in Android's resource list, used by no
+  material; `CombatAssets.gammaBlazeNormal`, `_UseNormalMap`), a heat haze over the ship (the iOS version's, from a video; Android's data has the blaze plain
+  additive); the flames are drawn after it in that pass (GoF2/BlazeAdditive), so they stay unbent; its cones rounded at
+  load (`MeshSmoother`: smooth normals, two levels of Phong tessellation; the models imported readable) and their
+  edge-on sides faded (`_EdgeFade`), no polygons on the outline.
 - Spectral filters, gas clouds and plasma collectors: see "Supernova add-on".
 - Not yet: the cloak's exhaust colour and the "not enough cells" window (a HUD message stands in), the menu button's ready flash.
