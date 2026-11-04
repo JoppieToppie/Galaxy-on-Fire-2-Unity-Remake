@@ -148,7 +148,10 @@ namespace GoF2Remake.UI
             // PlayerEgo::draw 0xae4d0: on the autopilot (+0x158, setAutoPilot) only the throttle is drawn, no crosshair,
             // except in the turret view (#85: the remake kept it). Transparent, not hidden: the throttle gauge and the lock
             // rings still take its place.
-            crosshair.EnableInClassList("crosshair--autopilot", nav != null && nav.Autopilot && !turretView);
+            // Modified: the docking's approach is the autopilot too (PlayerEgo::approachDockingPoint flies it; the autopilot
+            // menu's docking targets start it without Navigation's autopilot): a player's report, the crosshair stayed.
+            bool approach = docking != null && docking.State == ObjectDocking.Phase.Approach;
+            crosshair.EnableInClassList("crosshair--autopilot", ((nav != null && nav.Autopilot) || approach) && !turretView);
             if (!visible) return;
             var p = RuntimePanelUtils.CameraTransformWorldToPanel(crosshair.panel, aim, cam);
             var parent = crosshair.parent.worldBound;
