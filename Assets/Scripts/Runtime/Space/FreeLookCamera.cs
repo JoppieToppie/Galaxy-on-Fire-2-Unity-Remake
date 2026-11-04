@@ -247,8 +247,8 @@ namespace GoF2Remake.Flight
         // flies back to the orbit it had before the cutscene instead of jumping to it (a player's comparison).
         float dockedPx, dockedPy, dockedDistance;
         bool dockGlide;   // EnterDockedLook: easing over to the preset orbit
-        // Modified: the free look the docking started: it lasts through the undock and ends with it, the chase camera easing
-        // over from the orbit to its place behind the ship instead of snapping there (a player's request).
+        // Modified: the free look the docking started: the undock ends it where the camera is, no snap behind the ship (a
+        // player's request); ObjectDocking's look-at keeps the ship in view, then the chase camera eases over.
         bool dockedView, easeOut;
         const float FullTurnPx = 2f * Mathf.PI / 0.005f, DockGlideMs = 450f;
         // Modified: the docked orbit's yaw: the preset -98 px from the bow, not the stern. LevelScript::lookBehind turns the
@@ -406,7 +406,9 @@ namespace GoF2Remake.Flight
             // The turret view ended on its own (mining, blocked guns): back to the standard mode.
             if (Current == Mode.Turret && (CurrentTurret == null || !CurrentTurret.InTurretView)) { Current = Mode.Standard; turretIndex = 0; Set(Base, false); }
             if (Current != Mode.FreeLook) return;
-            if (dockedView && !DockingHoldsCamera && chase != null && !chase.scriptCamera) { easeOut = true; Set(Base, false); return; }   // the undock is over
+            // The undock: the orbit ends, the camera staying where it is (ObjectDocking's look-at turns it after the ship, and
+            // its end lets the chase camera ease over).
+            if (dockedView && chase != null && !chase.scriptCamera && (!DockingHoldsCamera || docking.State == ObjectDocking.Phase.Leaving)) { easeOut = true; Set(Base, false); return; }
             if (Blocked != null && Blocked()) { Set(Base, false); return; }
             if (chase != null && chase.follow != anchor && chase.follow != null) { Current = Mode.Standard; Set(Base, false); return; }   // taken over (the Liberator)
             if (halted || Navigation.InputHalted) return;   // a menu's sticks and keys aren't the orbit's
