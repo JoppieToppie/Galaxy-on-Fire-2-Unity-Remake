@@ -141,7 +141,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   files (music/, sounds/, voices/); all in the undo steps. **References** (`ModRefs`): every picker of other content
   (`PickRef` / `RefField`) lists the game's, the project's own (by key) and every other installed mod's (read from its files,
   on or off); another mod's pick makes it a dependency (`ModProject.AddDependency`, with the installed version as the lowest),
-  `ModsNamed` the mods the files name. **Test fly** only in Ships, Items and Skins (`ModBuilderView.Flies`); Blueprints /
+  `ModsNamed` the mods the files name. **Test fly** in Ships, Items and Skins (`ModBuilderView.Flies`) and NPC ships; Blueprints /
   Campaign show their ship on the turntable (`ModBuilder.PreviewShip` / `PreviewLoadout`). **Play** (`ModBuilderPlay`,
   `ModBuilder.PlayTesting`): a play test, the game with the project on (the station menu, traffic, quests:
   `LocalEvents` runs no quests in the builder otherwise), from the builder's station, the campaign's start or a quest under
@@ -206,6 +206,18 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   next to it"): a game NPC hull, another of the project's NPC ships (at its size) or any ship (`ModRefs.List(RefKind.Ship)`,
   no dependency added; another mod's only while it is on) parked beside it on the far side from the station, centres
   level, both framed; "No comparison" removes it.
+  Test fly (2026-11-05, the user's request: "drops the player in a flyable ship with the mod NPC ship in game as they
+  would normally fly"; the MCP's test_fly too, `ModBuilderSpaceViewAi.ExternalTestFly`): the page's Test fly button
+  (`TestFlyNpc`: the project saved and read again, refused while the type isn't read) -> `ModBuilder.StartNpcTestFlight`:
+  the builder's ship and loadout and cheats as a ship's test flight, the take-off camera from the builder's station
+  straight from the space view (`LaunchedFromStation`), `ModBuilder.TestNpcShip` the type's key; `ModBuilderRange` then
+  spawns that type instead of the pirates (`DebugSpawner.SpawnNpcType` with its `spawned` list: `TrafficPlan.AddNpcType`,
+  escorts, turrets, orders as the game's) and again 6 s after its host is gone; a type not read falls back to the pirates.
+  Docking (the user's request "in test fly also allow docking"): `CapitalShips.DockRefusal` waives the deck's trust rules
+  during it (not a hostile ship's or one in battle), and the flight has 100,000 credits for the deck's shop, the
+  builder's own put back at the end. Docking at the station, Esc > Back to Mod Builder or a death end it
+  (`EndTestFlight`: back to the NPC ships kind in space, `ReloadSpace`; the dock via the hangar's `OnDocked` and
+  `SelectKind`), on the same entry (`ModBuilder.ReturnNpcShip`). Not yet tried in Play mode.
   **Ship kits** (2026-10-16, #87's customizable ships as a builder kind; `ModBuilder.Kind.Kits`, before AiTools, KindCount
   14; `ModBuilderViewKits`, `ProjectKit` / `ProjectKitPart` in ProjectKits.cs, `ModProject.Kits`, file shipkits.json, in the
   undo steps as "kits", MCP entry kind `kits`): the kit (name, scale, yaw), its slots (add, rename, reorder, remove; a

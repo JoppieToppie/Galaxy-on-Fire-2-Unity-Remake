@@ -59,6 +59,16 @@ namespace GoF2Remake.UI
             return base.ExternalSelectEntry(kindName, id, options);
         }
 
+        /// <summary>The MCP's test_fly in the NPC ships kind: the current entry's test flight (TestFlyNpc).</summary>
+        internal override string ExternalTestFly()
+        {
+            if (kind != ModBuilder.Kind.NpcShips) return base.ExternalTestFly();
+            if (currentNpc == null) return "Add an NPC ship first (or select_entry one).";
+            if (ModBuilder.TestFlying) return "A take-off is already under way.";
+            TestFlyNpc();
+            return ModBuilder.TestFlying ? null : "The NPC ship couldn't be read: the builder's status line and the project's messages say why.";
+        }
+
         internal override JObject ExternalSelection()
         {
             var o = base.ExternalSelection();

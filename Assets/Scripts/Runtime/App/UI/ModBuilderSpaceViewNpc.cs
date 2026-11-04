@@ -8,7 +8,8 @@
 // (World.ModBuilderGizmo): a ball drags over the hull or along its arrows; with "Click the hull to add" on, a click on the
 // hull adds one there. Positions are game units in the ship's frame like ships.json's mounts (at its own size: "scale"
 // grows the hull, its hardpoints and pads together). "Compare with…" parks another hull (a game NPC hull, another of the
-// project's NPC ships, any ship) beside it, at its own size, to see the two side by side.
+// project's NPC ships, any ship) beside it, at its own size, to see the two side by side. Test fly takes off with the
+// entry's type in the orbit, flying as the game spawns it (ModBuilder.StartNpcTestFlight, World.ModBuilderRange).
 
 using System;
 using System.Collections.Generic;
@@ -95,6 +96,12 @@ namespace GoF2Remake.UI
             npcList.Clear();
             if (Project == null) return;
             if (currentNpc != null && !Project.NpcShips.Contains(currentNpc)) currentNpc = null;
+            // Back from its test flight: the entry it flew with.
+            if (ModBuilder.ReturnNpcShip != null)
+            {
+                currentNpc = Project.NpcShips.FirstOrDefault(n => NpcKey(n) == ModBuilder.ReturnNpcShip) ?? currentNpc;
+                ModBuilder.ReturnNpcShip = null;
+            }
             currentNpc ??= Project.NpcShips.FirstOrDefault();
             foreach (var npc in Project.NpcShips)
             {
@@ -281,6 +288,8 @@ namespace GoF2Remake.UI
             var s = currentNpc;
             if (s == null) { Note(npcPage, T("mbPickNpcShip", "Add an NPC ship on the left to start.")); return; }
             var t = NpcType(s);
+            Act(npcPage, T("mbTestFly", "Test fly"), TestFlyNpc);
+            Note(npcPage, T("mbTestFlyNpcNote", "Takes off from the builder's station in your test ship and brings this NPC ship in as the game spawns it (its escorts, turrets and orders), again 6 s after it is gone. A capital ship with docking pads takes you aboard whatever its rules (100,000 credits for its shop). Dock at the station, or Esc > Back to Mod Builder, to come back here."));
             JsonButton(npcPage, s.Json, () => { NpcEdited(); RebuildNpcList(); },
                        T("mbJsonNpcNote", "Also in npcships.json: every hardpoint field of ships.json's \"subsystems\" (shields, weakspot, stage, hangar ships)."));
             bool isNew = !s.IsOverride;
@@ -956,6 +965,21 @@ namespace GoF2Remake.UI
             npcDragging = false;
             npcGizmo?.EndDrag();
             NpcEdited();
+        }
+
+        /// <summary>Test fly (ModBuilder.StartNpcTestFlight): the project read again, then the take-off with this entry's type
+        /// in the orbit (World.ModBuilderRange).</summary>
+        void TestFlyNpc()
+        {
+            var s = currentNpc;
+            if (s == null) return;
+            SaveNow();
+            ModBuilder.Reload();   // the game flies what the files say now
+            if (ModManager.BuilderProject == null || ModManager.BuilderProject.Broken) { ShowProblems(); return; }
+            string key = NpcKey(s);
+            if (ModNpcShips.Get(key) == null) { Status(T("mbNpcNotRead", "The game hasn't read it yet (or the messages above say what is wrong)."), true); return; }
+            Status(T("mbPreparing", "Preparing the test flight…"), false);
+            ModBuilder.StartNpcTestFlight(key);
         }
 
         void DisposeNpc()

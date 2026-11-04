@@ -279,6 +279,9 @@ namespace GoF2Remake.World
             if (InBattle(host))
                 return vossk ? Localization.Extra("vosskInBattle", "The Vossk battleship is in battle: its flight deck is closed.")
                              : Localization.Extra("carrierInBattle", "The carrier is in battle: its flight deck is closed.");
+            // Remake: the Mod Builder's NPC ship test flight docks whatever the deck's rules (the user's request: "in test
+            // fly also allow docking"; the builder's game has no standings worth the name).
+            if (Modding.ModBuilder.TestNpcShip != null) return null;
             int race = host.Race;
             if (host.Spec.npcType?.docking is NpcShipType.Docking d)
             {

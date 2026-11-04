@@ -247,7 +247,7 @@ namespace GoF2Remake.UI
         internal virtual bool CameraSettled => true;
 
         internal virtual string ExternalEngines(float level) => "The engines are only on the hangar's turntable ship.";
-        internal virtual string ExternalTestFly() => "Test fly is in the hangar's Ships, Items and Skins.";
+        internal virtual string ExternalTestFly() => "Test fly is in the hangar's Ships, Items and Skins, and in NPC ships.";
         internal virtual string ExternalRange(bool fire) => "The weapon range is in space, in the Weapon fx kind.";
         internal virtual string ExternalHangar(string which, out string done) { done = null; return "The hangar is picked in the hangar's kinds."; }
         internal virtual string ExternalHardpoint(JObject a, out JObject done) { done = null; return "Hardpoints are edited in the Ships kind, in the hangar."; }

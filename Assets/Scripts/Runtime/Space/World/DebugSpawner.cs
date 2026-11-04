@@ -129,8 +129,10 @@ namespace GoF2Remake.World
         /// <summary>Remake mods: one of the NPC ship types (npcships.json, Modding.ModNpcShips: the game's five, the pirate boss
         /// among them, and the mods' own) with its turrets, escorts and rules, about 3.5 km ahead of the player (a capital ship
         /// 2 hull lengths) or at 'at' (a Unity position in this orbit: events and missions, "spawn type ..."); 'name' its lock
-        /// plate's name, 'eventTag' the event's batch (its escorts too); the result text.</summary>
-        public static string SpawnNpcType(SpaceLevel level, Modding.NpcShipType type, Vector3? at = null, string name = null, int eventTag = 0)
+        /// plate's name, 'eventTag' the event's batch (its escorts too); the result text. 'spawned' (Mod Builder's NPC ship test
+        /// flight, ModBuilderRange): the ships made, the type's own (its host) first.</summary>
+        public static string SpawnNpcType(SpaceLevel level, Modding.NpcShipType type, Vector3? at = null, string name = null, int eventTag = 0,
+                                          System.Collections.Generic.List<NpcShip> spawned = null)
         {
             if (level == null || level.Traffic == null || level.Player == null) return Localization.Extra("debugNoFlight", "Only in flight.");
             if (type == null) return Localization.Extra("debugNoNpcTypes", "No mod NPC ships are on.");
@@ -142,7 +144,13 @@ namespace GoF2Remake.World
             int race = type.race >= 0 ? type.race : type.kind == Modding.ModNpcShips.Boss ? Standing.Pirate : 0;
             int first = TrafficPlan.AddNpcType(level.Database, list, type, race, ToGame(at ?? p.position + p.forward * ahead));
             if (!string.IsNullOrEmpty(name) && first < list.Count) { list[first].name = name; list[first].nameText = -1; }
-            foreach (var s in list) { if (eventTag != 0) s.eventTag = eventTag; level.Traffic.SpawnShip(s); }
+            for (int i = first; i < list.Count; i++)
+            {
+                var s = list[i];
+                if (eventTag != 0) s.eventTag = eventTag;
+                var ship = level.Traffic.SpawnShip(s);
+                if (spawned != null && ship != null && (i == first || spawned.Count > 0)) spawned.Add(ship);
+            }
             level.Traffic.ConnectPlayers();
             return string.Format(Localization.Extra("debugShipSpawned", "{0} spawned."), !string.IsNullOrEmpty(name) ? name : type.name ?? type.key);
         }

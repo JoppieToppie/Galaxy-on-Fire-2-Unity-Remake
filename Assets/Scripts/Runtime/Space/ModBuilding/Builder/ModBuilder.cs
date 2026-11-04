@@ -191,9 +191,18 @@ namespace GoF2Remake.Modding
         /// <summary>A test flight runs (between Test fly and landing back in the builder).</summary>
         public static bool TestFlying { get; private set; }
 
+        /// <summary>The NPC ship type (its key, ModNpcShips) a test flight from the NPC ships kind meets in place of the
+        /// pirates (World.ModBuilderRange), null = a ship's test flight.</summary>
+        public static string TestNpcShip => TestFlying ? testNpcShip : null;
+        static string testNpcShip;
+        static long creditsBefore;
+        /// <summary>The NPC ships kind's entry to show again once its test flight is over (its key), null = none.</summary>
+        public static string ReturnNpcShip { get; set; }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
+            testNpcShip = null; ReturnNpcShip = null;
             Active = TestFlying = InSpace = PlayTesting = false; Project = null; Ship = null; History = null; OpenKind = Kind.Ships; SkinShip = -1;
             InteriorIsBar = false; PreviewInterior = null; SpaceStation = -1; shownSpaceStation = -1; PreviewShip = -1; PreviewLoadout = null; RoomViewSet = false; SpaceStationRef = null; PreviewBuild = null;
         }
@@ -416,15 +425,50 @@ namespace GoF2Remake.Modding
             Cheats.ClearGranted();
             Cheats.Grant("godMode", TestGodMode);
             Cheats.Grant("infiniteAmmo", TestInfiniteAmmo);
+            testNpcShip = null;
             TestFlying = true;
             Debug.Log($"Mod Builder: test flight in ship {Session.ShipIndex}");
         }
 
-        /// <summary>Back in the builder's hangar from a test flight ('flyIn': the ship flies in through the forcefield).</summary>
+        /// <summary>Test fly in the NPC ships kind (the user's request: "drops the player in a flyable ship with the mod NPC
+        /// ship in game as they would normally fly"): the builder's ship and loadout as for a ship's test flight, taking off
+        /// from the builder's station straight from the space view (the take-off camera), where World.ModBuilderRange brings
+        /// 'npcKey''s type in as the game spawns it (escorts, orders, turrets) instead of the pirates. Its end (docking, the
+        /// pause menu, a death) comes back to the NPC ships kind on that entry (ReturnNpcShip).</summary>
+        public static void StartNpcTestFlight(string npcKey)
+        {
+            StartTestFlight();
+            testNpcShip = npcKey;
+            ReturnNpcShip = npcKey;
+            // Credits for its shop when docked (CapitalShips.DockRefusal lets the flight dock; the builder's game has none),
+            // taken back at the end.
+            creditsBefore = Session.Credits;
+            Session.Credits = System.Math.Max(Session.Credits, 100000L);
+            InSpace = false;
+            Session.ArrivedByTravel = false;
+            Session.LaunchedFromStation = true;
+            Session.Es2TakeOff = false;
+            Session.DockedFromSpace = false;
+            Debug.Log($"Mod Builder: NPC ship test flight with {npcKey}");
+            SceneManager.LoadScene("Space");
+        }
+
+        /// <summary>Back in the builder's hangar from a test flight ('flyIn': the ship flies in through the forcefield); an NPC
+        /// ship's test flight goes back to the NPC ships kind in space.</summary>
         public static void EndTestFlight(bool flyIn)
         {
+            bool npc = TestNpcShip != null;
+            if (npc) Session.Credits = creditsBefore;
             TestFlying = false;
+            testNpcShip = null;
             Cheats.ClearGranted();
+            if (npc && Project != null)
+            {
+                ApplyShip();   // the flight's wear undone
+                OpenKind = Kind.NpcShips;
+                ReloadSpace(SpaceStation);
+                return;
+            }
             Session.StationIndex = Station;
             Session.DockedFromSpace = flyIn;
             SceneManager.LoadScene("Station");
@@ -433,7 +477,9 @@ namespace GoF2Remake.Modding
         /// <summary>The scene the builder was left in has landed: whatever the flight did is undone (ammo spent, damage).</summary>
         public static void OnDocked()
         {
+            if (TestNpcShip != null) Session.Credits = creditsBefore;
             TestFlying = false;
+            testNpcShip = null;
             Cheats.ClearGranted();
             ApplyShip();
         }
