@@ -20,6 +20,7 @@ namespace GoF2Remake.UI
         Texture2D texture;
         int madeSize = -1;
         CursorMode madeMode = CursorMode.Auto;
+        bool madeLinear;
         bool applied;
         float nextCheck;
 
@@ -81,10 +82,13 @@ namespace GoF2Remake.UI
             int size = TextureSize(Screen.height);
             var mode = Hardware ? CursorMode.Auto : CursorMode.ForceSoftware;   // Modified: SoftwareSize
             if (mode != madeMode) { madeMode = mode; applied = false; }
-            if (size != madeSize || texture == null)
+            if (size != madeSize || texture == null || madeLinear != !Hardware)
             {
                 if (texture != null) Destroy(texture);
-                texture = Draw(size);
+                // Modified: the software cursor's texture read as linear: Unity drew its sRGB colours decoded once more than the
+                // system shows the hardware one's, a darker blue at every size but 100 % (a player's report).
+                madeLinear = !Hardware;
+                texture = Draw(size, madeLinear);
                 madeSize = size;
                 applied = false;
             }
@@ -100,9 +104,9 @@ namespace GoF2Remake.UI
             new Vector2(4f, 3.6f), new Vector2(24.09f, 19.30f), new Vector2(12.92f, 20.38f), new Vector2(5.78f, 29.04f),
         };
 
-        static Texture2D Draw(int size)
+        static Texture2D Draw(int size, bool linear)
         {
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = "GameCursor", filterMode = FilterMode.Bilinear };
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false, linear) { name = "GameCursor", filterMode = FilterMode.Bilinear };
             var px = new Color32[size * size];
             float unit = 32f / size;   // box units per pixel
             var fill = new Color(0.03f, 0.10f, 0.17f, 0.92f);
