@@ -66,7 +66,9 @@ namespace GoF2Remake.UI
 #endif
 
         static bool Hardware => Settings.CursorSizePercent == 100;
-        static int TextureSize(int height) => Hardware ? SizeFor(height) : SoftwareSize(height);
+        // The hardware texture drawn at the system's cursor size itself: drawn at 24 px a 1080 line screen and scaled up by
+        // Windows to its 32 px or more, it came out blurrier than the software sizes (a player's report).
+        static int TextureSize(int height) => Hardware ? SystemCursorSize(height) : SoftwareSize(height);
 
         void Apply()
         {
