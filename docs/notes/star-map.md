@@ -139,7 +139,8 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   with attr 135 (`CruiseDrive.InterstellarAttr`, the base game's Khador Slipstream, "Base content" in mods.md, one drive for both cruises:
   Khador sells the blueprint in Thynome's lounge, from step 84 or in free play, as Kothar has none, `Story.LoungeUnlocked`) adds a quick menu entry
   (`Navigation.Kind.Slipstream`, `NavigationInterstellar`); mounting it is the switch. **Options > Gameplay "Khador
-  Slipstream"** (`Settings.KhadorSlipstream`, on by default, 2026-11-04, the user: "put the new slipstream feature under a
+  Slipstream"** (`Settings.KhadorSlipstream`, off by default and on in the Remake experience, options.md "Game experience";
+  2026-11-04, the user: "put the new slipstream feature under a
   gameplay toggle"): off, the base item is left out of play without leaving the numbering or the saves (`Shop.SlipstreamOff`):
   `ModBlueprints.Available` is false for it, so Khador doesn't offer the blueprint (one already bought stays known), and
   `Shop.WorkingCruiseDrive` (`InterstellarSpace.Drive`, `NavigationCruiseDrive.SetupDrive`) skips a mounted one: no cruise,

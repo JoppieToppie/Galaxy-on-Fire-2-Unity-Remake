@@ -46,6 +46,8 @@ namespace GoF2Remake
 #endif
             // A dedicated server (-server): no menu, rendering options, sound or desktop extras, only the server.
             if (Multiplayer.DedicatedServer.Enabled) { Multiplayer.DedicatedServer.Boot(); return; }
+            // Remake: an install played before the Original experience became the default keeps its options (once).
+            Settings.MigrateExperienceDefaults();
             int editorVSync = QualitySettings.vSyncCount;
             if (Application.isMobilePlatform) Screen.sleepTimeout = SleepTimeout.NeverSleep;   // no screen dimming while playing
             urp = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;

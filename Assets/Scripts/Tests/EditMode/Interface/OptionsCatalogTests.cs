@@ -155,6 +155,7 @@ namespace GoF2Remake.Tests
                     default:
                         int n = o.choices().Length;
                         if (o.id == "graphicsPreset") n = Settings.PresetCustom;   // Custom only reads back, it sets nothing
+                        if (o.id == "gameExperience") n = Settings.ExperienceCustom;
                         for (int i = 0; i < n; i++)
                         {
                             o.setIndex(i);
@@ -361,7 +362,7 @@ namespace GoF2Remake.Tests
                 Assert.IsFalse(Settings.NpcPlayerEngines, "the other ships' engines the original's");
                 Assert.AreEqual(SessionRules.CollisionOriginal, Settings.ShipCollision, "no hull meshes on phones");
                 Settings.OverrideAndroidDefaults(false);
-                Assert.AreEqual(SessionRules.CollisionMixed, Settings.ShipCollision);
+                Assert.AreEqual(SessionRules.CollisionOriginal, Settings.ShipCollision, "the Original experience everywhere");
                 Assert.AreEqual(FrameRate.VSync, Settings.FrameRate, "elsewhere V-Sync");
                 Assert.IsTrue(Settings.NpcPlayerEngines);
             }

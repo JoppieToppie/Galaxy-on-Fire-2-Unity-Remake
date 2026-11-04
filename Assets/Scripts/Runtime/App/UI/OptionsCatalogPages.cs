@@ -403,10 +403,25 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>All()'s Options > Gameplay rows.</summary>
+        /// <summary>The "Game experience" row's choices, in Settings.Experience* order (Custom last; MainMenu's welcome too).</summary>
+        public static string[] ExperienceNames() => new[]
+        {
+            X("experienceOriginal", "Original"), X("experienceCosmetic", "Cosmetic"), X("experienceRemake", "Remake"), X("presetCustom", "Custom"),
+        };
+
         static void AddGameplay(List<OptionDef> list)
         {
-            list.Add(Toggle("launchCamera", OptionPage.Gameplay, () => X("launchCamera", "Launch and arrival camera"),
-                () => Settings.LaunchCamera, v => Settings.LaunchCamera = v));
+            // Remake (the user's request, 2026-11-04): Original / Cosmetic / Remake set the experience options at once
+            // (Settings.ApplyExperience); the row shows the one they match, else Custom (picking Custom sets nothing). Every
+            // row below reads off (or its first choice) = the original game.
+            list.Add(Choice("gameExperience", OptionPage.Gameplay, () => X("gameExperience", "Game experience"), true,
+                ExperienceNames, Settings.CurrentExperience, i => Settings.ApplyExperience(i),
+                () => X("gameExperienceHelp", "Original: the game as it was, nothing added. Cosmetic: the original plus the remake's presentation, like ships flying in and out of the hangars and animated dialogue. Remake: every new feature on. Change any option below and it becomes Custom.")));
+            // The original's fly-past camera, as a "skip" so that off is the original (Settings.LaunchCamera).
+            var skipLaunch = Toggle("launchCamera", OptionPage.Gameplay, () => X("skipLaunchCamera", "Skip launch and arrival camera"),
+                () => !Settings.LaunchCamera, v => Settings.LaunchCamera = !v);
+            skipLaunch.description = () => X("skipLaunchCameraHelp", "Straight to the chase camera when you launch or arrive. Off: a camera watches your ship fly past, as in the original.");
+            list.Add(skipLaunch);
             list.Add(Toggle("hangarFlights", OptionPage.Gameplay, () => X("hangarFlights", "Hangar arrival and take-off"),
                 () => Settings.HangarFlights, v => Settings.HangarFlights = v));
             list.Add(Toggle("tutorialHints", OptionPage.Gameplay, () => X("tutorialHints", "Tutorials"),
@@ -416,9 +431,10 @@ namespace GoF2Remake.UI
             storyStep.description = () => X("showStoryStepHelp", "The current story step at the bottom right, for bug reports.");
             list.Add(storyStep);
             AddSpeedrun(list);
-            var dyingCargo = Toggle("dyingCargoMarkers", OptionPage.Gameplay, () => X("dyingCargoMarkers", "Salvage markers on dying ships"),
-                () => Settings.DyingCargoMarkers, v => Settings.DyingCargoMarkers = v);
-            dyingCargo.description = () => X("dyingCargoMarkersHelp", "A dying ship with cargo shows container markers before it explodes.");
+            // The original's crate markers, as a "hide" so that off is the original (Settings.DyingCargoMarkers).
+            var dyingCargo = Toggle("dyingCargoMarkers", OptionPage.Gameplay, () => X("hideSalvageMarkers", "Hide salvage markers on dying ships"),
+                () => !Settings.DyingCargoMarkers, v => Settings.DyingCargoMarkers = !v);
+            dyingCargo.description = () => X("hideSalvageMarkersHelp", "A dying ship with cargo shows no container markers before it explodes. Off: it does, as in the original.");
             list.Add(dyingCargo);
             var cloakLoses = Toggle("cloakLosesPursuers", OptionPage.Gameplay, () => X("cloakLosesPursuers", "Cloak shakes off pursuers"),
                 () => Settings.CloakLosesPursuers, v => Settings.CloakLosesPursuers = v);
@@ -435,8 +451,8 @@ namespace GoF2Remake.UI
             // Remake (players' report: fighters hard to hit since the mesh collision): every hull's real shape, the flyable ships
             // on the original's hit cube, or the original's volumes everywhere (Settings.ShipCollision, Flight.HullCollision.Mode).
             list.Add(SessionRule(Choice("shipCollision", OptionPage.Gameplay, () => X("shipCollision", "Ship collision"), true,
-                () => new[] { X("shipCollisionExact", "Exact shape"), X("shipCollisionMixed", "Mixed"), X("shipCollisionOriginal", "Original") },
-                () => Settings.ShipCollision, i => Settings.ShipCollision = i,
+                () => new[] { X("shipCollisionOriginal", "Original"), X("shipCollisionMixed", "Mixed"), X("shipCollisionExact", "Exact shape") },
+                () => SessionRules.CollisionOriginal - Settings.ShipCollision, i => Settings.ShipCollision = SessionRules.CollisionOriginal - i,   // the original first
                 () => X("shipCollisionHelp", "Exact: real shapes everywhere. Mixed: fighters use boxes, big ships keep real shapes. Original: boxes and spheres."))));
             var pirateEvents = Toggle("pirateEvents", OptionPage.Gameplay, () => X("pirateEvents", "Pirate outposts and bosses"),
                 () => Settings.PirateEvents, v => Settings.PirateEvents = v);
@@ -465,25 +481,26 @@ namespace GoF2Remake.UI
             // Remake (players' suggestion): the Kaamo Club VIP Card's shop tools (KaamoClub.VipFeatures): search, sorting, a Ships
             // tab in the club's storage, a Kaamo marker on dealers' ships already stored there.
             list.Add(Choice("kaamoVip", OptionPage.Gameplay, () => X("kaamoVip", "Kaamo Club VIP Card"), false,
-                () => new[] { X("kaamoVipCard", "Buy at the club"), X("kaamoVipAlways", "Always on"), X("kaamoVipOff", "Off") },
-                () => Settings.KaamoVipMode, i => Settings.KaamoVipMode = i,
+                () => new[] { X("kaamoVipOff", "Off"), X("kaamoVipCard", "Buy at the club"), X("kaamoVipAlways", "Always on") },
+                () => (Settings.KaamoVipMode + 1) % 3, i => Settings.KaamoVipMode = (i + 2) % 3,   // Off (the original) first
                 () => X("kaamoVipOptionHelp", "The VIP Card adds a search box and sorting to the Kaamo Club's Store, a Ships tab for your stored ships, and a Kaamo marker on ships you already keep there. Buy at the club: the card is sold in the Store tab. Always on: no card needed. Off: the original club.")));
             var cloakBay = Toggle("cloakBay", OptionPage.Gameplay, () => X("cloakBay", "Cloak bay on cloaking ships"),
                 () => Settings.CloakBay, v => Settings.CloakBay = v);
             cloakBay.description = () => X("cloakBayHelp", "On the Specter and Scimitar a mounted cloak takes no equipment slot.");
             list.Add(SessionRule(cloakBay));
-            // #28: the Informer mission's rule for other ships dying after the spy.
-            list.Add(SessionRule(Choice("informerRule", OptionPage.Gameplay, () => X("informerRule", "Informer missions"), true,
-                () => new[] { X("informerRemake", "Remake"), X("informerOriginal", "Original") },
-                () => Settings.InformerOriginalRule ? 1 : 0, i => Settings.InformerOriginalRule = i == 1,
-                () => X("informerRuleHelp", "Remake: once the spy is dead, other kills don't count. Original: any kill before docking fails it."))));
-            list.Add(Choice("targetLock", OptionPage.Gameplay, () => X("targetLock", "Target lock"), true,
-                () => new[] { X("targetLockSmart", "Smart"), X("targetLockOriginal", "Original") },
-                () => Settings.OriginalTargetLock ? 1 : 0, i => Settings.OriginalTargetLock = i == 1,
-                () => X("targetLockPriorityHelp", "Smart: hostile ships first, then the one nearest the crosshair. Original: the first ship in the box.") + " "
+            // #28: the Informer mission's rule for other ships dying after the spy; off = the original's.
+            var informer = Toggle("informerRule", OptionPage.Gameplay, () => X("lenientInformer", "Lenient informer missions"),
+                () => !Settings.InformerOriginalRule, v => Settings.InformerOriginalRule = !v);
+            informer.description = () => X("lenientInformerHelp", "Once the spy is dead, other kills no longer fail the mission. Off: any kill before docking fails it, as in the original.");
+            list.Add(SessionRule(informer));
+            // The remake's smarter lock; off = the original's (Settings.OriginalTargetLock).
+            var smartLock = Toggle("targetLock", OptionPage.Gameplay, () => X("smartTargetLock", "Smart target lock"),
+                () => !Settings.OriginalTargetLock, v => Settings.OriginalTargetLock = !v);
+            smartLock.description = () => X("smartTargetLockHelp", "Hostile ships first, then the one nearest the crosshair. Off: the first ship in the box, as in the original.") + " "
                       + X("targetLockBeams", "Beam lasers then aim only at hostiles or your lock.") + " "
                       + X("targetLockAsteroids", "Asteroids: the one under the crosshair first.") + " "
-                      + X("targetLockUnlock", "Unlock target (U) drops the lock; on touch, tap the lock plate.")));
+                      + X("targetLockUnlock", "Unlock target (U) drops the lock; on touch, tap the lock plate.");
+            list.Add(smartLock);
             // Remake (players' suggestion): the Smart lock's hold on an enemy, its own option (CombatRadar, TargetLockRules).
             var keepEnemy = Toggle("keepEnemyLock", OptionPage.Gameplay, () => X("keepEnemyLock", "Keep enemy lock"),
                 () => Settings.KeepEnemyLock, v => Settings.KeepEnemyLock = v);

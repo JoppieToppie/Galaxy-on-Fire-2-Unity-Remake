@@ -615,6 +615,7 @@ namespace GoF2Remake.UI
                 FocusFirst(mainButtons);
             }).ExecuteLater(200);
             root.schedule.Execute(() => mainButtons.RemoveFromClassList("main-buttons--revealing")).ExecuteLater(1200);
+            ScheduleWelcome();   // remake: the first start's welcome screen (MainMenuWelcome)
         }
 
         // ---- panels ----------------------------------------------------------------------------

@@ -82,7 +82,7 @@ namespace GoF2Remake.Tests
 
         // ---- PlayerPrefs ------------------------------------------------------------------------------------------
 
-        const string SettingsPrefix = "gof2.";
+        public const string SettingsPrefix = "gof2.";
         public const string ControlsPrefsKey = "controls_bindings";
 
         /// <summary>Every Settings key stored as a float (the five reset groups but the voice language, plus the tilt
@@ -113,6 +113,8 @@ namespace GoF2Remake.Tests
                 foreach (var k in SettingFloatKeys) Keep(SettingsPrefix + k, TextKeys.Contains(k));
                 Keep(SettingsPrefix + "language", true);
                 Keep(SettingsPrefix + "voiceLanguage", true);
+                // The game experience's migration and the welcome screen (Settings.MigrateExperienceDefaults, WelcomeShown).
+                foreach (var k in new[] { "experienceDefaults", "experienceDefaults.played", "welcomeShown" }) Keep(SettingsPrefix + k, false);
                 Keep(ControlsPrefsKey, true);
             }
 

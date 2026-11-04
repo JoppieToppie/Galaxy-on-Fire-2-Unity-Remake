@@ -157,6 +157,29 @@ verified on a Mac or an iPhone.
   original also blooms its HUD (drawn into the same FBO); the remake's UI Toolkit HUD doesn't.
 - Frame rate option (`Settings.FrameRate`: 30 / 60 / 120 / Uncapped / V-Sync, default V-Sync; 60 on Android, the user's choice
   2026-10-22: a 120 Hz phone at 120 heats up and throttles) is applied by `Bootstrap.ApplyFrameRate`.
+- **Game experience** (remake, 2026-11-04, the Gameplay tab's first row, after a player's request: "a preset 'Vanilla'
+  toggle ... vanilla should be default"; `Settings.ExperienceKeys` / `ApplyExperience` / `CurrentExperience`): Original /
+  Cosmetic / Remake set the experience options at once; the row shows the one they match, else Custom (picking it sets
+  nothing; one changed option makes it Custom, like the graphics preset). **Original is every option's default**, so a
+  fresh install plays the original game: no hangar flights or animated dialogue, the original's lock, informer rule, ship
+  collision and Kaamo Club, no pirate events, capital ship enhancements, cloak rules, smarter NPCs, conversations running,
+  ship cruise or Khador Slipstream. Cosmetic = that plus hangar flights and animated dialogue; Remake = every addition on
+  (Mixed collision, the VIP Card bought at the club). The original's own launch camera and salvage markers are on in all
+  three (turned off, Custom). Not in it: utilities and HUD looks (tutorials, button hints, HUD mode / size / opacity, far
+  ship marker style, auto-play dialogue, which AUTO also switches, speedrun, story step, Discord, difficulty, mods).
+  **Every row reads off (or its first choice) = the original**: the launch camera and salvage markers became "Skip ..." /
+  "Hide ..." toggles, the target lock and informer rule toggles ("Smart target lock", "Lenient informer missions"), the
+  collision and VIP Card choices list Original / Off first; only the UI maps them, the stored keys keep their meaning.
+  **Players from before keep their options**: `MigrateExperienceDefaults` (Bootstrap, once, key `experienceDefaults`) stores
+  the old default of every experience option never set when the install was played before (any option stored or a save
+  slot; Android's collision stays Original), so their row shows Remake-like values or Custom. A dedicated server's rules are
+  `NetRules.Defaults`, untouched; a player host's are its options (`LocalRules`). Tests `GameExperienceTests`.
+- **Welcome screen** (remake, 2026-11-04, `MainMenuWelcome`): on the first start, 1.3 s after the main buttons come in (not
+  over a panel), the menu's own dialog: what the remake is and where things are (Options > Gameplay, Controls / Key
+  bindings, Mods, Multiplayer and Co-op, named by their buttons' own texts), Next, then "How do you want to play?" with
+  Remake / Cosmetic / Original (No = Original, so Back / B / Esc keep the default; the focus starts there).
+  `Settings.WelcomeShown` marks it seen. An install played before (`Settings.FreshInstall` false) gets one notice that adds
+  where the new row is and that its options are kept.
 - **Graphics preset** (remake, 2026-10-22, the Graphics tab's first row; `Settings.PresetKeys` / `ApplyPreset`,
   `OptionsCatalog.CurrentPreset`): Low / Medium / High (the original's texts 507-509) and Ultra (2026-10-23) set render
   scale, upscaler, MSAA, bloom, hangar shadows, hangar depth of field, lens flare, other ships' engines, levels of detail,

@@ -62,7 +62,7 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(Settings.AutoAdvanceDialogue, "AUTO on by default");
             Assert.IsTrue(Settings.NpcPlayerEngines, "other ships' engines like yours: on");
             Assert.IsTrue(Settings.DyingCargoMarkers, "salvage markers: on");
-            Assert.IsFalse(Settings.OriginalTargetLock, "target lock: Smart");
+            Assert.IsTrue(Settings.OriginalTargetLock, "target lock: the original's (the Original experience)");
             Assert.IsTrue(Settings.KeepEnemyLock, "the Smart lock's hold on an enemy: on, as before it was its own option");
             Assert.IsFalse(Settings.KeyAutofire, "double-press autofire: off");
             Assert.IsFalse(Settings.LevelPitch, "level out levels the roll only, like the original");
@@ -79,19 +79,18 @@ namespace GoF2Remake.Tests
         {
             AllDefaults();
             Assert.IsFalse(Settings.CloakLosesPursuers, "off by default");
-            Assert.IsTrue(Settings.PirateEvents, "on by default");
+            // The Original experience by default (2026-11-04): every remake rule off.
+            Assert.IsFalse(Settings.PirateEvents, "off by default");
             Assert.IsFalse(Settings.CapitalShips, "off by default");
-            Assert.IsFalse(Settings.InformerOriginalRule, "Remake by default");
-            Assert.IsTrue(Settings.KaamoStacking, "on by default");
+            Assert.IsTrue(Settings.InformerOriginalRule, "the original's by default");
+            Assert.IsFalse(Settings.KaamoStacking, "off by default");
             Assert.AreEqual(5, Settings.KaamoMaxLevel, "upgrade limit 5 by default");
-            Assert.IsTrue(Settings.KaamoKeepsEquipment, "on by default");
-            Assert.IsTrue(Settings.CloakBay, "on by default");
-            Assert.IsTrue(Settings.EmpBreaksCloak, "on by default");
+            Assert.IsFalse(Settings.KaamoKeepsEquipment, "off by default");
+            Assert.IsFalse(Settings.CloakBay, "off by default");
+            Assert.IsFalse(Settings.EmpBreaksCloak, "off by default");
             Assert.IsFalse(Settings.SmarterNpcTargeting, "the original's targeting by default (#121)");
-            Assert.AreEqual(SessionRules.CollisionMixed, Settings.ShipCollision, "Mixed by default");
-            int expected = SessionRules.PirateEvents | SessionRules.KaamoStacking | SessionRules.KaamoKeepsEquipment
-                         | SessionRules.CloakBay | SessionRules.EmpBreaksCloak;
-            Assert.AreEqual(expected, Settings.LocalRules());
+            Assert.AreEqual(SessionRules.CollisionOriginal, Settings.ShipCollision, "Original by default");
+            Assert.AreEqual(SessionRules.WithCollision(SessionRules.InformerOriginalRule, SessionRules.CollisionOriginal), Settings.LocalRules());
         }
 
         [Test]
@@ -116,7 +115,8 @@ namespace GoF2Remake.Tests
         {
             // Options > Gameplay "Ship collision" (Flight.HullCollision.Mode / Takes, HullBody.flyableShip / Collides).
             AllDefaults();
-            Assert.AreEqual(SessionRules.CollisionMixed, Flight.HullCollision.Mode, "Mixed by default");
+            Assert.AreEqual(SessionRules.CollisionOriginal, Flight.HullCollision.Mode, "Original by default");
+            Settings.ShipCollision = SessionRules.CollisionMixed;
             Assert.IsFalse(Flight.HullCollision.Takes(true), "Mixed: the flyable ships' cube and sphere");
             Assert.IsTrue(Flight.HullCollision.Takes(false), "Mixed: the rest on their real shape");
             Settings.ShipCollision = SessionRules.CollisionExact;
