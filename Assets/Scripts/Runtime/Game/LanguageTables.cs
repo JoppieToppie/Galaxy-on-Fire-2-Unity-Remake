@@ -15,14 +15,15 @@ namespace GoF2Remake.Data
 
         public static LanguageTables Load() => Resources.Load<LanguageTables>(ResourceName);
 
-        /// <summary>Modified: the languages the menus offer, in their order. The asset above references every text_*.json,
-        /// Japanese, Korean and Arabic included, which are not offered (not checked in game); the main menu's scene builder
-        /// writes its language buttons from this list and Options reads its language row from it, so the two agree.</summary>
+        /// <summary>Modified: the languages the menus offer, in their order (every table the asset above references); the
+        /// main menu's scene builder writes its language buttons from this list and Options reads its language row from it,
+        /// so the two agree. Korean, Japanese and Arabic (the original's own tables, the remake's texts in extra_<lang>.json)
+        /// offered since 2026-11-04; Arabic's table still has the add-on campaigns' dialogue in English.</summary>
         public static readonly (string code, string name)[] Offered =
         {
             ("en", "English"), ("de", "Deutsch"), ("fr", "Français"), ("es", "Español"),
             ("it", "Italiano"), ("nl", "Nederlands"), ("pl", "Polski"), ("ru", "Русский"), ("pt", "Português (Brasil)"),
-            ("zh", "简体中文"), ("hi", "हिन्दी"),
+            ("zh", "简体中文"), ("hi", "हिन्दी"), ("ko", "한국어"), ("ja", "日本語"), ("ar", "العربية"),
         };
 
         /// <summary>Modified: the text table for a language code (null when the asset has none).</summary>

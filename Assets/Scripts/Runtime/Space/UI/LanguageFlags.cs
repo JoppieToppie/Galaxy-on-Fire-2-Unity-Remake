@@ -3,7 +3,8 @@
 // languages (LanguageTables.Offered; Japanese too), and a globe for "every language" ("*"), painted in code (the game has no
 // flag images): each flag a function of the point (x right, y down, 0..1) evaluated at 3 x 3 points per texel. Simplified
 // where a detail wouldn't read at this size: Spain without its arms, the Union Jack's red diagonals centred, the Chinese stars
-// upright, the Ashoka Chakra's 24 spokes drawn plainly. Hindi shows India's flag, Portuguese (Brazil) Brazil's. 3:2 textures,
+// upright, the Ashoka Chakra's 24 spokes drawn plainly. Hindi shows India's flag, Portuguese (Brazil) Brazil's, Korean South
+// Korea's (the taegeuk and the four trigrams to the official proportions). Arabic has none (no one country's). 3:2 textures,
 // made once per run; null for a language without a flag.
 
 using System;
@@ -80,6 +81,7 @@ namespace GoF2Remake.UI
                 case "pt": return Brazil;
                 case "zh": return China;
                 case "hi": return India;
+                case "ko": return Korea;
                 case "*": return Globe;
                 default: return null;
             }
@@ -143,6 +145,49 @@ namespace GoF2Remake.UI
                 return Hex(0xFFFFFF);
             }
             return Hex(band == 0 ? 0xFF9933 : 0x138808);
+        }
+
+        static Color Korea(float x, float y)
+        {
+            // In flag units (1.5 wide, 1 high, y down), from the centre. The taegeuk is half the flag's height across, its
+            // axis along the upper-left / lower-right diagonal: red above, blue below, the red head toward the hoist.
+            float dx = (x - 0.5f) * 1.5f, dy = y - 0.5f;
+            const float R = 0.25f;
+            float ax = 0.75f / 0.9014f, ay = 0.5f / 0.9014f;   // the diagonal, normalised (|(0.75, 0.5)| = 0.9014)
+            float u = dx * ax + dy * ay, v = dx * ay - dy * ax;   // along the diagonal, and across it (> 0 above)
+            if (dx * dx + dy * dy <= R * R)
+            {
+                float hu = R * 0.5f;
+                if ((u + hu) * (u + hu) + v * v <= hu * hu) return Hex(0xCD2E3A);
+                if ((u - hu) * (u - hu) + v * v <= hu * hu) return Hex(0x0047A0);
+                return Hex(v > 0f ? 0xCD2E3A : 0x0047A0);
+            }
+            // The trigrams on the diagonals, a quarter of the circle's width out from it: three bars 1/24 high with 1/48
+            // between them, 1/4 long, a broken bar split by 1/48. Upper left geon (solid), lower right gon (broken), upper
+            // right gam (broken, solid, broken), lower left ri (solid, broken, solid).
+            // Each point belongs to the diagonal it is nearer: this one, or (0.75, -0.5) toward the upper right.
+            float bu = dx * ax - dy * ay, bv = dx * ay + dy * ax;
+            float along, across;
+            bool[] broken;
+            if (Mathf.Abs(v) <= Mathf.Abs(bv))
+            {
+                along = Mathf.Abs(u); across = v;
+                broken = u < 0f ? new[] { false, false, false } : new[] { true, true, true };
+            }
+            else
+            {
+                along = Mathf.Abs(bu); across = bv;
+                broken = bu > 0f ? new[] { true, false, true } : new[] { false, true, false };
+            }
+            const float bar = 1f / 24f, gap = 1f / 48f, start = R * 1.5f;
+            if (Mathf.Abs(across) <= 0.125f && along >= start && along <= start + 3f * bar + 2f * gap)
+            {
+                float t = along - start;
+                int i = (int)(t / (bar + gap));
+                if (i < 3 && t - i * (bar + gap) <= bar && !(broken[i] && Mathf.Abs(across) < gap * 0.5f))
+                    return Hex(0x000000);
+            }
+            return Hex(0xFFFFFF);
         }
 
         static Color Globe(float x, float y)

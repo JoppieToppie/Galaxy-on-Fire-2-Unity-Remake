@@ -1,7 +1,7 @@
 // LocalizationDataTests.cs
 // CLAUDE.md "Data" (Localization/text_<lang>.json, a plain array: index = the original's text id) and "UI and platforms"
 // (14 tables; the menu offers English, German, French, Spanish, Italian, Dutch, Polish, Russian, Portuguese (Brazil),
-// Simplified Chinese and Hindi; Resources/GoF2LanguageTables references every text_*.json; the remake's own texts per
+// Simplified Chinese, Hindi, Korean, Japanese and Arabic; Resources/GoF2LanguageTables references every text_*.json; the remake's own texts per
 // language in Resources/GoF2Localization/extra_<lang>.json, a { key: text } object of the Extra calls, English being the
 // code's fallback). Every table must carry the English table's ids (a missing id shows as "#id"); every extra_<lang>.json
 // key must be one the code asks for (a key no code uses is a stale translation).
@@ -19,9 +19,25 @@ namespace GoF2Remake.Tests
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public class LocalizationDataTests
     {
-        static readonly string[] MenuLanguages = { "en", "de", "fr", "es", "it", "nl", "pl", "ru", "pt", "zh", "hi" };
-        /// <summary>Tables that exist but the menu doesn't offer (not checked in game).</summary>
-        static readonly string[] OtherLanguages = { "ar", "ja", "ko" };
+        static readonly string[] MenuLanguages = { "en", "de", "fr", "es", "it", "nl", "pl", "ru", "pt", "zh", "hi", "ko", "ja", "ar" };
+        /// <summary>Tables that exist but the menu doesn't offer (none since 2026-11-04).</summary>
+        static readonly string[] OtherLanguages = { };
+
+        [Test]
+        public void TheMenuOffersTheseLanguages()
+        {
+            CollectionAssert.AreEqual(MenuLanguages, LanguageTables.Offered.Select(l => l.code).ToArray());
+        }
+
+        [Test]
+        public void EveryOfferedLanguageHasAFlag()
+        {
+            // The Mod Builder's voice line languages show one per language (LanguageFlags); Arabic has none (no one
+            // country's).
+            foreach (var (code, _) in LanguageTables.Offered)
+                if (code == "ar") Assert.IsNull(GoF2Remake.UI.LanguageFlags.Of(code), code);
+                else Assert.IsNotNull(GoF2Remake.UI.LanguageFlags.Of(code), code);
+        }
 
         static List<object> Table(string code) =>
             (List<object>)DataUiTestKit.ParseJson(DataUiTestKit.ReadAsset($"Assets/Localization/text_{code}.json"));
