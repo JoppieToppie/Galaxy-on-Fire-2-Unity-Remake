@@ -71,8 +71,17 @@ namespace GoF2Remake.World
             // PlayerFixedObject::update animates the wreck's +0x14 transform; +0xc (the *_wrecked_anim root) only from the
             // break-up on (below): held until then.
             wreckAnims.Clear();
+            wreckDebris.Clear();
             foreach (var a in wreck.GetComponentsInChildren<PartAnimation>(true))
-                if (a.gameObject.name.Contains("wrecked_anim")) { a.Hold(); wreckAnims.Add(a); }
+            {
+                if (a.gameObject.name.Contains("wrecked_anim")) { a.Hold(); wreckAnims.Add(a); continue; }
+                // Modified: the hull's own debris (sn_cargo_001_midorian_wrecked parts 3-13 and their glow in
+                // *_glow_anim_add) drift off only once the player comes within 1.5 km (a player's comparison with the
+                // original): played from the level's start they were long gone when the player arrived.
+                var n = a.gameObject.name.Replace("(Clone)", "").Trim();
+                if (n == "sn_cargo_001_midorian_wrecked" || n == "sn_cargo_001_midorian_wrecked_glow_anim_add") { a.Hold(); wreckDebris.Add(a); }
+            }
+            wreckDebrisStarted = false;
             wreckBroken = false;
             // FMOD 3D event 0x8e9 LOOP kept at the wreck every frame.
             wreckLoop = wreck.gameObject.AddComponent<AudioSource>();
@@ -282,6 +291,18 @@ namespace GoF2Remake.World
             // not after (a player's report: the freighter only broke up at the end; with 8 aboard inside 3 minutes the original
             // starts it while the miners are still boarding). The original stops advancing it after 180 s; the remake lets it
             // play out.
+            if (!wreckDebrisStarted && wreck != null && Vector3.Distance(Player.position, wreck.transform.position) <= WreckDebrisMeters)
+            {
+                wreckDebrisStarted = true;
+                foreach (var a in wreckDebris)
+                {
+                    if (a == null) continue;
+                    // The hull model's prefab doesn't play (AssetImport plays "_anim" models only) and loops: once, the pieces
+                    // gone at its end (scale 0) instead of coming back every minute.
+                    if (a.gameObject.name.Replace("(Clone)", "").Trim() == "sn_cargo_001_midorian_wrecked") a.loop = false;
+                    a.Restart();
+                }
+            }
             if (!wreckBroken && Session.StoryCounter >= 8 && T <= 179999f)
             {
                 wreckBroken = true;

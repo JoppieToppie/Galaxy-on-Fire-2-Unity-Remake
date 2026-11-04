@@ -377,6 +377,10 @@ namespace GoF2Remake.World
 
         // 91 (process 9556-9762).
         readonly List<PartAnimation> wreckAnims = new List<PartAnimation>();
+        // Modified: 91's hull debris, held until the player is within WreckDebrisMeters (1.5 km = 30000 units) of the wreck.
+        readonly List<PartAnimation> wreckDebris = new List<PartAnimation>();
+        bool wreckDebrisStarted;
+        const float WreckDebrisMeters = 1500f;
         AudioSource wreckLoop;
         bool wreckBroken;
 
