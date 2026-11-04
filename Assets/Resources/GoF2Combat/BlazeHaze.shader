@@ -14,6 +14,8 @@ Shader "GoF2/BlazeHaze"
         _Strength ("Strength (screen fraction)", Float) = 0.006
         _Scale ("Ripple scale", Float) = 6
         _Speed ("Rise speed", Float) = 0.35
+        _NormalMap ("Bend map (sn_ship_blaze_flames_normal)", 2D) = "bump" {}
+        _UseNormalMap ("Bend by the map (1) or by noise (0)", Float) = 0
     }
     SubShader
     {
@@ -29,13 +31,15 @@ Shader "GoF2/BlazeHaze"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
+            TEXTURE2D(_NormalMap); SAMPLER(sampler_NormalMap);
             TEXTURE2D_X(_GoF2CloakScene); SAMPLER(sampler_GoF2CloakScene);
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
                 float4 _UVOffset;
-                float _Strength, _Scale, _Speed;
+                float _Strength, _Scale, _Speed, _UseNormalMap;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
@@ -70,6 +74,9 @@ Shader "GoF2/BlazeHaze"
                 float2 bend = float2(Noise(p + float2(0.0, -t * 2.0)) + 0.5 * Noise(p * 2.1 + float2(5.2, -t * 3.1)),
                                      Noise(p + float2(3.7, -t * 2.3)) + 0.5 * Noise(p * 1.9 + float2(1.3, -t * 2.7)));
                 bend = (bend / 1.5 - 0.5) * 2.0;
+                // Modified: or the blaze's own normal map, scrolled with the flames (the iOS build's heat haze, it seems).
+                float2 mapped = UnpackNormal(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, i.uv)).xy;
+                bend = lerp(bend, mapped, _UseNormalMap);
                 float2 suv = GetNormalizedScreenSpaceUV(i.positionCS);
                 half3 scene = SAMPLE_TEXTURE2D_X(_GoF2CloakScene, sampler_GoF2CloakScene, UnityStereoTransformScreenSpaceTex(saturate(suv + bend * _Strength * m))).rgb;
                 return half4(scene, m);

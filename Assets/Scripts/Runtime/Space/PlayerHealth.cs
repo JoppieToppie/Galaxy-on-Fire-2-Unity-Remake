@@ -360,6 +360,12 @@ namespace GoF2Remake.Flight
                     // bright spot follow the view (a hot core when looking along it) and flicker as the camera moved.
                     if (round.Contains(r.gameObject)) flames.SetFloat("_EdgeFade", 0f);
                     var haze = new Material(hazeShader) { name = from.name + " (haze)", mainTexture = tex };
+                    // Modified: the bend by sn_ship_blaze_flames_normal (CombatAssets.gammaBlazeNormal), else the noise.
+                    if (assets.gammaBlazeNormal != null)
+                    {
+                        haze.SetTexture("_NormalMap", assets.gammaBlazeNormal);
+                        haze.SetFloat("_UseNormalMap", 1f);
+                    }
                     haze.mainTextureScale = from.mainTextureScale;
                     haze.mainTextureOffset = from.mainTextureOffset;
                     blazeMade.Add(flames);

@@ -86,6 +86,7 @@ namespace GoF2Remake.EditorTools
             a.shieldBubbleShader = Shader.Find("GoF2/ShieldBubble");
             a.gammaBlazeFlames = Prefab("Prefabs/supernova/fx/sn_ship_blaze_flames_anim_add.prefab");
             a.gammaBlazeGlow = Prefab("Prefabs/supernova/fx/sn_ship_blaze_glow_anim_add.prefab");
+            a.gammaBlazeNormal = AssetDatabase.LoadAssetAtPath<Texture2D>($"{Root}/Textures/supernova/fx/sn_ship_blaze_flames_normal.png");   // Modified
             a.invincibility = Clip("DLC_SFX/Invincibility_01.ogg");
             a.injectorInit = Clip("DLC2_SFX/PlasmaInjector_Init_02.ogg");
             a.injectorLoop = Clip("DLC2_SFX/PlasmaInjector_Loop_03.ogg");

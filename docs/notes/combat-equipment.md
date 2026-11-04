@@ -103,7 +103,8 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   0, 1, 0), ship 8 300 units ahead, animated; gone on death and the planet jump. Its textures with the colour ^ 1.5
   (Hidden/GoF2/SunGamma, as the star map's suns: the dim tail showed to the planes' edges in linear space) and a second
   material, GoF2/BlazeHaze (Resources/GoF2Combat), bending the frame behind it through CloakPass's copy with a rising
-  ripple of noise, a heat haze over the ship (the iOS version's, from a video; Android's data has the blaze plain
+  ripple of noise or, by default, sn_ship_blaze_flames_normal (texture 11759: in Android's resource list, used by no
+  material; `CombatAssets.gammaBlazeNormal`, `_UseNormalMap`), a heat haze over the ship (the iOS version's, from a video; Android's data has the blaze plain
   additive); the flames are drawn after it in that pass (GoF2/BlazeAdditive), so they stay unbent; its cones rounded at
   load (`MeshSmoother`: smooth normals, two levels of Phong tessellation; the models imported readable) and their
   edge-on sides faded (`_EdgeFade`), no polygons on the outline.
