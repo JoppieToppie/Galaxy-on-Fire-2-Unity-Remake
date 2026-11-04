@@ -364,6 +364,8 @@ namespace GoF2Remake.Visuals
             return Mathf.Max(longest, Modding.ModFxPart.RestartAll(modParts));   // a mod weapon's sprites / models
         }
 
+        static bool Finite(float f) => !float.IsNaN(f) && !float.IsInfinity(f) && Mathf.Abs(f) < 1e18f;
+
         static float Eval(AnimationKey[] k, float t, float fallback)
         {
             if (k == null || k.Length == 0) return fallback;
@@ -470,6 +472,9 @@ namespace GoF2Remake.Visuals
                     // explosion's debris streak (explosion_debris_anim_add) stretches sclZ 45x along its length (engine Z) while it
                     // flies about as far; swapped, the 45x went across its width and every streak became a 2.9 km line.
                     var v = new Vector3(Eval(tk.scl[0], timeMs, 1), Eval(tk.scl[1], timeMs, 1), Eval(tk.scl[2], timeMs, 1));
+                    // Modified: a part keyed with NaN / infinite scale (sn_cargo_001_midorian_wrecked part11) is shown at none:
+                    // Unity refused the assignment with an error every frame (thousands in the Console at 91).
+                    if (!Finite(v.x) || !Finite(v.y) || !Finite(v.z)) v = Vector3.zero;
                     tk.tr.localScale = Vector3.Scale(tk.baseScale, v);
                 }
                 // The UV scroll channels (v5_0 u, v5_1 v; 100 = one texture) run on every mesh, as the engine animates them
