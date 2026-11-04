@@ -250,6 +250,11 @@ namespace GoF2Remake.Flight
         {
             if (chase == null || chase.follow != anchor) return;
             chase.follow = null;
+            // Modified: not when a level's cutscene took the camera (CutsceneCamera sets scriptCamera; its Cutscene ends free
+            // look through Blocked): the snap put the camera behind the ship, over the cutscene's look-at position placed
+            // the same frame, so the docked free look at 92 / 94 (Tadram's freighter, Luur's station) left the Specters'
+            // entrance seen from behind the player, the fighters far off in the background (a player's report).
+            if (chase.scriptCamera) return;
             chase.Snap();
             if (DockingHoldsCamera && !chase.scriptCamera) chase.enabled = false;   // back to ObjectDocking's look-at camera
         }

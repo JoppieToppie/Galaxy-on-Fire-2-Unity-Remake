@@ -320,6 +320,9 @@ namespace GoF2Remake.World
                     if (!wreckBroken)
                     {
                         wreckBroken = true;
+                        // Modified: with its sound (0x8ea CONTAINER) as at the 180 s rule's break-up (a player's report: the
+                        // breaking's sound was missing).
+                        if (sn != null && wreck != null) Sfx.PlayAt(sn.container, wreck.transform.position);
                         foreach (var a in wreckAnims) if (a != null) { a.loop = false; a.Restart(); }
                     }
                     if (wreck != null) wreck.Target.Damage(9999999, true, Vector3.zero);

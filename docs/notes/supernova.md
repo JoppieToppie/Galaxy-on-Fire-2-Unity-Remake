@@ -58,7 +58,7 @@ against the FEV's LGCY data, see "Sound").
   cargo; 2 -> 3 on that tick); 102 (a Specter whose target died takes the first living dropship, else the player; instant cloaks);
   91 (the wreck's 0x8e9 LOOP, and with 8 aboard within the level's first 180 s 0x8ea and its `_wrecked_anim` played
   once: process 0x167530 takes the idle transform once t > 179999; it was read the other way round, so the break-up only
-  came with the wreck's end); 154 (the
+  came with the wreck's end; a break-up started at the end plays 0x8ea too); 154 (the
   fighters creep 0.5 u/ms in state 1; turret view / free look / Liberator off, the auto turret off until control returns); 89 /
   81 clear the new station's attacked-friends flag. The Coromesk (103) rule: from campaign 0x55 (or 0x87) every start there is at
   (70 000, 0, 100 000) facing the station (`LevelScript::LevelScript` 0x160380, `SpaceLevel.SpawnPlayer`).
@@ -85,7 +85,9 @@ against the FEV's LGCY data, see "Sound").
   2026-10); docked (not hacking) the camera goes to free look by itself with the original's preset orbit, -98 / 35 px at
   3800 units, and the camera key cycles the manual turrets and free look (`PlayerEgo::approachDockingPoint` +0xb1,
   `MGame::OnUpdate` switchCamera(3); `setDockingState(2)` suppresses it; `ObjectDocking.Docked`,
-  `FreeLookCamera.EnterDockedLook` / `DockedView`; #132: the remake had no free look docked); the undock's end goes back to
+  `FreeLookCamera.EnterDockedLook` / `DockedView`; #132: the remake had no free look docked; a cutscene starting while
+  docked (92's and 94's Specter entrances) ends that free look without snapping the camera behind the ship, which put it
+  over the cutscene's look-at camera, `ExitFreeLook`); the undock's end goes back to
   the standard view; `PlayerTurret.GunsBlocked` ignores the docked ship's
   blocked guns; the chase camera is on for the view; the stick still reads under `externalControl`; the mouse aims it
   with mouse steering (`FlightHud.UpdateMouseSteering` leaves it on in a docked turret view) and the fire button fires
