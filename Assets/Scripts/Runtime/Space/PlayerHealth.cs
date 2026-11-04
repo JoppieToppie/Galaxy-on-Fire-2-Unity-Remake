@@ -300,19 +300,93 @@ namespace GoF2Remake.Flight
                 if (prefab == null) continue;
                 var part = Instantiate(prefab, blaze.transform, false);
                 GunRig.StripForFx(part);
+                SoftenBlaze(part);
             }
             var r = ship.visualModel != null ? ship.visualModel.GetComponentInChildren<Renderer>() : null;
             float radiusUnits = r != null ? r.bounds.extents.magnitude / M : 1500f;   // the bubble's radius too
             blaze.transform.localScale = Vector3.one * radiusUnits * 1.75f;
         }
 
+        // Modified: the blaze's soft edge and its heat haze (a player's comparison with the original).
+        //  - Its textures with each texel's colour ^ BlazeGlowPower (Hidden/GoF2/SunGamma, as the star map's suns): added in
+        //    linear space, the image's dim tail showed out to the edges of its planes; the original adds it in gamma space,
+        //    where it fades out inside them.
+        //  - A second material, GoF2/BlazeHaze, bends the frame behind the blaze (the ship among it) through CloakPass's
+        //    copy of it, while the blaze shows.
+        const float BlazeGlowPower = 1.2f;
+        readonly System.Collections.Generic.List<UnityEngine.Object> blazeMade = new System.Collections.Generic.List<UnityEngine.Object>();
+        Material gammaBlit;
+        bool blazeHaze;
+
+        void SoftenBlaze(GameObject part)
+        {
+            var hazeShader = Resources.Load<Shader>("GoF2Combat/BlazeHaze");
+            foreach (var r in part.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                if (mats.Length == 0 || mats[0] == null) continue;
+                var from = mats[0];
+                var tex = from.mainTexture;
+                var soft = new Material(from) { name = from.name + " (soft)" };
+                blazeMade.Add(soft);
+                var rt = GammaCopy(tex);
+                if (rt != null) soft.mainTexture = rt;
+                if (hazeShader != null && tex != null)
+                {
+                    var haze = new Material(hazeShader) { name = from.name + " (haze)", mainTexture = tex };
+                    blazeMade.Add(haze);
+                    r.sharedMaterials = new[] { soft, haze };
+                }
+                else r.sharedMaterial = soft;
+            }
+        }
+
+        Texture GammaCopy(Texture tex)
+        {
+            if (tex == null) return null;
+            if (gammaBlit == null)
+            {
+                var shader = Resources.Load<Shader>("GoF2StarMap/SunGamma");
+                if (shader == null) return null;
+                gammaBlit = new Material(shader);
+                blazeMade.Add(gammaBlit);
+            }
+            var rt = new RenderTexture(tex.width, tex.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
+            {
+                name = tex.name + " (soft)", useMipMap = true, autoGenerateMips = true,
+                wrapMode = tex.wrapMode, filterMode = tex.filterMode, anisoLevel = tex.anisoLevel,
+            };
+            gammaBlit.SetFloat("_Power", BlazeGlowPower);
+            Graphics.Blit(tex, rt, gammaBlit);
+            blazeMade.Add(rt);
+            return rt;
+        }
+
+        void SetBlazeHaze(bool on)
+        {
+            if (blazeHaze == on) return;
+            blazeHaze = on;
+            GoF2Remake.Visuals.CloakPass.Request(this, on);
+        }
+
+        void DestroyBlaze()
+        {
+            SetBlazeHaze(false);
+            if (blaze != null) Destroy(blaze);
+            blaze = null;
+            foreach (var o in blazeMade) if (o != null) Destroy(o);
+            blazeMade.Clear();
+            gammaBlit = null;
+        }
+
         void LateUpdate()
         {
             if (blaze == null) return;
-            if (Dead || (blazeLevel != null && blazeLevel.Navigation != null && blazeLevel.Navigation.Jumping)) { Destroy(blaze); blaze = null; return; }
+            if (Dead || (blazeLevel != null && blazeLevel.Navigation != null && blazeLevel.Navigation.Jumping)) { DestroyBlaze(); return; }
             // Remake: hidden with the ship (the jump scenes hide its model: the Khador Drive's fx, the gate).
             bool shown = ship.visualModel == null || ship.visualModel.gameObject.activeInHierarchy;
             if (blaze.activeSelf != shown) blaze.SetActive(shown);
+            SetBlazeHaze(shown);
             if (!shown) return;
             var model = ship.visualModel != null ? ship.visualModel : transform;
             var pos = model.position;
@@ -376,6 +450,7 @@ namespace GoF2Remake.Flight
         void OnDestroy()
         {
             OpaqueTexture.Request(this, false);
+            DestroyBlaze();   // Modified: the blaze's material copies and its CloakPass request
             EmergencyActive = false;
             bubble?.Hide();   // (its CloakPass request stayed when the ship went inside the bubble's time: docking, a jump)
             // Docking / jumping saves the ship state to Status (MGame::dockEvent, departStation).
