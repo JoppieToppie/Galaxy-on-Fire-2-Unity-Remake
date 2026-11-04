@@ -366,6 +366,29 @@ namespace GoF2Remake.Visuals
 
         static bool Finite(float f) => !float.IsNaN(f) && !float.IsInfinity(f) && Mathf.Abs(f) < 1e18f;
 
+        /// <summary>Modified: Eval for a UV scroll channel, where a sawtooth's reset is one original frame long (the wreck's
+        /// glow, sn_cargo_001_midorian_wrecked_glow_anim_add part0: 12.5 -> 0 over ~830 ms, then back to 12.5 in 33 ms). At the
+        /// original's 30 fps that reset is a jump; interpolated at the remake's frame rate it showed as a quick scroll back, the
+        /// loop visible (a player's report). A segment of at most a frame turning against the next one is taken as a jump.</summary>
+        static float EvalScroll(AnimationKey[] k, float t, float fallback)
+        {
+            if (k == null || k.Length == 0) return fallback;
+            if (t <= k[0].t) return k[0].v;
+            for (int i = 1; i < k.Length; i++)
+                if (t <= k[i].t)
+                {
+                    float span = k[i].t - k[i - 1].t;
+                    if (span <= 0f) return k[i].v;
+                    if (span <= 40f && i + 1 < k.Length)   // a key frame of the files' 30 fps (33.3 ms)
+                    {
+                        float d = k[i].v - k[i - 1].v, next = k[i + 1].v - k[i].v;
+                        if (d * next < 0f) return t - k[i - 1].t < span * 0.5f ? k[i - 1].v : k[i].v;   // the reset: a jump
+                    }
+                    return Mathf.Lerp(k[i - 1].v, k[i].v, (t - k[i - 1].t) / span);
+                }
+            return k[k.Length - 1].v;
+        }
+
         static float Eval(AnimationKey[] k, float t, float fallback)
         {
             if (k == null || k.Length == 0) return fallback;
@@ -505,7 +528,7 @@ namespace GoF2Remake.Visuals
                     }
                     if (uvAnimated && tk.uvMode != 0)
                     {
-                        float u = tk.uv != null ? Eval(tk.uv, timeMs, 0f) / 100f : 0f, v = tk.uvY != null ? Eval(tk.uvY, timeMs, 0f) / 100f : 0f;
+                        float u = tk.uv != null ? EvalScroll(tk.uv, timeMs, 0f) / 100f : 0f, v = tk.uvY != null ? EvalScroll(tk.uvY, timeMs, 0f) / 100f : 0f;
                         // GoF2/SkyLayer subtracts _UVOffset; the Shader Graphs take _MainTex_ST the same way round.
                         var uvValue = tk.uvMode == 1 ? new Vector4(u, v, 0f, 0f) : new Vector4(tk.baseST.x, tk.baseST.y, tk.baseST.z - u, tk.baseST.w - v);
                         int uvId = tk.uvMode == 1 ? UVOffsetId : MainTexStId;
