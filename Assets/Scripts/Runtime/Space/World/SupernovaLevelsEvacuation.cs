@@ -352,15 +352,14 @@ namespace GoF2Remake.World
                     for (int i = 0; i < 3; i++) { Show(S(i), f + offs[i], new Vector3(1, 0, 0)); S(i).scriptedSpeed = slow[i]; }
                     EnterCutscene(true);
                     var s0 = S(0);
-                    // Modified: on the Specters' other side (a player's comparison with the original: the camera is on their right).
-                    cam.LookAt(G(s0) + GameDir(s0.transform) * 7000f - GameRight(s0.transform) * 700f + GameUp(s0.transform) * 300f, s0.transform);
+                    cam.LookAt(G(s0) + GameDir(s0.transform) * 7000f + GameRight(s0.transform) * 700f + GameUp(s0.transform) * 300f, s0.transform);
                     freighter.DockingType = 0;
                     freighter.Target.displayName = "";
                     Step = 2;
                     break;
                 case 2:
                     Fly(slow);
-                    if (Triggered(5)) { var s = S(0); cam.LookAt(G(s) + GameDir(s.transform) * 3900f - GameRight(s.transform) * 500f + GameUp(s.transform) * 400f, s.transform); Step = 3; }   // Modified: right side, as above
+                    if (Triggered(5)) { var s = S(0); cam.LookAt(G(s) + GameDir(s.transform) * 3900f + GameRight(s.transform) * 500f + GameUp(s.transform) * 400f, s.transform); Step = 3; }
                     break;
                 case 3:
                     Fly(mid);
@@ -380,7 +379,7 @@ namespace GoF2Remake.World
                 case 7:
                     if (!Triggered(8)) break;
                     level.Docking?.Undock();
-                    EnterCutscene(false);
+                    EnterCutscene(true);   // Modified: Keith's ship flies on (the remake stopped it; a player's comparison)
                     cam.LookAt(PlayerGame + PlayerDirGame * 7000f + GameRight(Player) * 700f, Player);
                     Step = 8;
                     break;
@@ -414,7 +413,7 @@ namespace GoF2Remake.World
             var s = S(0);
             if (s == null) return;
             cam.Fixed = true;
-            cam.SetDolly(GameDir(s.transform) * 1.7f + GameRight(s.transform) * 0.03f + GameUp(s.transform) * 0.0002f);   // the side mirrored too
+            cam.SetDolly(GameDir(s.transform) * 1.7f - GameRight(s.transform) * 0.03f + GameUp(s.transform) * 0.0002f);
         }
 
         // 94 (process 6167-6348).
