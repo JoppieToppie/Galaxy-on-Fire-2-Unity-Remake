@@ -436,7 +436,7 @@ namespace GoF2Remake.Flight
             {
                 chase.enabled = true;
                 if (!easeCamera && chase.follow == null) chase.Snap();
-                else if (easeCamera) chase.SoftReturn(2500f);
+                else if (easeCamera) chase.SoftReturn(500f);
             }
             easeCamera = false;
         }
