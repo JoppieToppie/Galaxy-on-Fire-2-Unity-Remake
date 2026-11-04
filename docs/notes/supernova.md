@@ -87,7 +87,9 @@ against the FEV's LGCY data, see "Sound").
   `MGame::OnUpdate` switchCamera(3); `setDockingState(2)` suppresses it; `ObjectDocking.Docked`,
   `FreeLookCamera.EnterDockedLook` / `DockedView`; #132: the remake had no free look docked; a cutscene starting while
   docked (92's and 94's Specter entrances) ends that free look without snapping the camera behind the ship, which put it
-  over the cutscene's look-at camera, `ExitFreeLook`); the undock's end goes back to
+  over the cutscene's look-at camera, `ExitFreeLook`; 92's second shot (ev3 / ev4) is a fixed camera, `setFixed(true)`,
+  dollied along Specter 0 at 1.7 u/ms so the three pass it slowly, then still in ev5: `CutsceneCamera.Fixed`,
+  `TrackSpecters`; it used to stand still turning after them, swinging round as they passed); the undock's end goes back to
   the standard view; `PlayerTurret.GunsBlocked` ignores the docked ship's
   blocked guns; the chase camera is on for the view; the stick still reads under `externalControl`; the mouse aims it
   with mouse steering (`FlightHud.UpdateMouseSteering` leaves it on in a docked turret view) and the fire button fires

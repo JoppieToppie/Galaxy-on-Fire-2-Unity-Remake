@@ -28,6 +28,9 @@ namespace GoF2Remake.World
         /// (TargetFollowCamera::update); A is 50 unless a level sets RumbleAmplitude.</summary>
         public float Rumble { get; set; }
         public int RumbleAmplitude { get; set; } = 50;
+        /// <summary>Modified: TargetFollowCamera::setFixed(true): the camera keeps its orientation (update stops aiming at
+        /// the target); the dolly still moves it (the script's setLocal of the moved matrix). Release clears it.</summary>
+        public bool Fixed { get; set; }
         public Transform Camera => cam != null ? cam.transform : null;
 
         public CutsceneCamera(Camera camera)
@@ -50,6 +53,7 @@ namespace GoF2Remake.World
             target = follow;
             lookPoint = unityPoint;
             dolly = Vector3.zero;
+            Fixed = false;
             cam.fieldOfView = Aspect.VerticalFov(1.22f * Mathf.Rad2Deg, cam.aspect);
             Aim(0f);
         }
@@ -67,6 +71,7 @@ namespace GoF2Remake.World
             Rumble = 0f;
             RumbleAmplitude = 50;
             dolly = Vector3.zero;
+            Fixed = false;
             if (chase != null) { chase.scriptCamera = false; chase.enabled = true; chase.Snap(); }
         }
 
@@ -74,7 +79,7 @@ namespace GoF2Remake.World
         {
             if (!Active || cam == null) return;
             cam.transform.position += ToUnity(dolly) * dtMs;
-            Aim(dtMs);
+            if (!Fixed) Aim(dtMs);
         }
 
         void Aim(float dtMs)

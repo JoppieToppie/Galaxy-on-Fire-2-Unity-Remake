@@ -363,10 +363,12 @@ namespace GoF2Remake.World
                     break;
                 case 3:
                     Fly(mid);
+                    TrackSpecters();
                     if (Over(5)) { for (int i = 0; i < 3; i++) { S(i).CloakingPossible = true; S(i).Cloak(18000f); } Step = 4; }
                     break;
-                case 4: Fly(mid); if (stepMs >= 2000f) Step = 5; break;
+                case 4: Fly(mid); TrackSpecters(); if (stepMs >= 2000f) Step = 5; break;
                 case 5:
+                    cam.SetDolly(Vector3.zero);   // ev5: the camera stays fixed where it is while they dash off
                     Fly(fast);
                     if (stepMs < 2000f) break;
                     for (int i = 0; i < 3; i++) if (S(i) != null) S(i).scriptedSpeed = -1f;
@@ -400,6 +402,18 @@ namespace GoF2Remake.World
                     if (timerMs >= 7000f) { LeaveCutscene(); if (freighter != null) { freighter.SetVisible(false); freighter.Deactivate(); } Step = 11; }
                     break;
             }
+        }
+
+        // Modified: 92's ev3 / ev4 (process 5640-6166): the camera is fixed (setFixed(true): it no longer turns to Specter 0)
+        // and the script moves it each frame by Specter 0's dir * 1.7 dt, right * -0.03 dt and up * 0.0002 dt, so the
+        // three fly slowly past it (2.0-2.3 u/ms). Without it the camera stood still and kept turning after Specter 0,
+        // which passed it within two seconds and swung the view round (a player's report: "the camera moves twice").
+        void TrackSpecters()
+        {
+            var s = S(0);
+            if (s == null) return;
+            cam.Fixed = true;
+            cam.SetDolly(GameDir(s.transform) * 1.7f - GameRight(s.transform) * 0.03f + GameUp(s.transform) * 0.0002f);
         }
 
         // 94 (process 6167-6348).
