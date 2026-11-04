@@ -94,11 +94,14 @@ against the FEV's LGCY data, see "Sound").
   the ship, `HullCollision.CameraHit`, the own ship and flyable ships left out; under Original collision the volumes; a cutscene
   ending while docked eases the camera back to the orbit it had before, `CutsceneCamera.Release` -> `ResumeDockedLook`,
   LevelScript 92 ev5: no resetCamera, lookBehind + free look; the docked orbit starts where the docking's camera is,
-  `OrbitFromCamera`, not at the preset -98 / 35 px, 3800 units, a player's request;
+  `OrbitFromCamera`, and glides over to the preset -98 / 35 px, 3800 units, as the original's camera does, `dockGlide`;
   `SupernovaLevels.GameRight` is the original's getRightVector, Unity's left (the mirror turns the handedness): it was
   Unity's right, every side camera and side spawn of 87-158 stood on the wrong side, 92's shots shown by a player;
   92 ev7 keeps the player's speed; 91's hull debris (sn_cargo_001_midorian_wrecked parts 3-13, never played: not an
-  "_anim" model, and *_glow_anim_add with it) drifts off once, from the player within 1.5 km, `wreckDebris`; 92's freighter jump and 102's carrier sound go with them, `Sfx.PlayOn` / `SfxFollow`);
+  "_anim" model, and *_glow_anim_add with it) drifts off once, from the player within 1.5 km, `wreckDebris`; 92's freighter jump
+  and 102's carrier sound go with them, `Sfx.PlayOn` / `SfxFollow`; the freighters (91's wreck, 92's, 94's: `Static`
+  with a cargo_001 model) are radar ships too, plated "Midorian NN%" (`NpcShip.ShipMarker`, `DockingOnly`), their name
+  the docking target's (`DockingName`); marked as the docking target, the ship lock on it goes (`CombatRadar`));
   the undock's end goes back to
   the standard view; `PlayerTurret.GunsBlocked` ignores the docked ship's
   blocked guns; the chase camera is on for the view; the stick still reads under `externalControl`; the mouse aims it
