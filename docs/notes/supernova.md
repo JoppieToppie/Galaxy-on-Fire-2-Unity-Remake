@@ -97,7 +97,7 @@ against the FEV's LGCY data, see "Sound").
   `OrbitFromCamera`, not at the preset -98 / 35 px, 3800 units, a player's request;
   `SupernovaLevels.GameRight` is the original's getRightVector, Unity's left (the mirror turns the handedness): it was
   Unity's right, every side camera and side spawn of 87-158 stood on the wrong side, 92's shots shown by a player;
-  92 ev7 keeps the player's speed);
+  92 ev7 keeps the player's speed; 92's freighter jump and 102's carrier sound go with them, `Sfx.PlayOn` / `SfxFollow`);
   the undock's end goes back to
   the standard view; `PlayerTurret.GunsBlocked` ignores the docked ship's
   blocked guns; the chase camera is on for the view; the stick still reads under `externalControl`; the mouse aims it

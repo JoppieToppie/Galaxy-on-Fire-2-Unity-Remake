@@ -390,7 +390,7 @@ namespace GoF2Remake.World
                         cam.LookAt(G(freighter) + GameDir(freighter.transform) * 10000f + GameRight(freighter.transform) * 4800f, freighter.transform);
                         timerMs = 0f;
                         freighterSpeed = 2f;
-                        if (sn != null) Sfx.PlayAt(sn.carrierJump, freighter.transform.position);   // 0x8c9 CS_92_FreighterJump
+                        if (sn != null) Sfx.PlayOn(sn.carrierJump, freighter.transform);   // 0x8c9 CS_92_FreighterJump, Modified: going with the freighter
                         Step = 9;
                     }
                     break;
@@ -531,7 +531,7 @@ namespace GoF2Remake.World
                     SetPlayerVisible(false);
                     cam.LookAt(G(carrier) + new Vector3(9000, -7000, 40000), carrier.transform);
                     for (int i = 2; i <= 9; i++) Remove(S(i));
-                    if (sn != null) Sfx.PlayAt(sn.carrierJump, carrier.transform.position);
+                    if (sn != null) Sfx.PlayOn(sn.carrierJump, carrier.transform);   // Modified: the sound goes with it
                     Step = 5;
                     break;
                 case 5:

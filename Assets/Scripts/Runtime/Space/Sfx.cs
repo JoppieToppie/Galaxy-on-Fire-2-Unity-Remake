@@ -46,20 +46,43 @@ namespace GoF2Remake.Flight
         /// <summary>How far to one side a sound fully left / right of the camera is panned.</summary>
         public const float PanAmount = 0.85f;
 
-        public static void PlayAt(AudioClip clip, Vector3 position, float volume = 1f)
+        public static void PlayAt(AudioClip clip, Vector3 position, float volume = 1f) => Play(clip, position, volume);
+
+        /// <summary>Modified: a one-shot that stays on a moving object (the original's 3D event on its geometry: 92's
+        /// freighter and 102's carrier jumping away): its volume and pan follow 'follow' while it plays (SfxFollow).</summary>
+        public static void PlayOn(AudioClip clip, Transform follow, float volume = 1f)
         {
-            if (clip == null) return;
+            if (follow == null) return;
+            var src = Play(clip, follow.position, volume);
+            if (src == null) return;
+            var f = src.GetComponent<SfxFollow>();
+            if (f == null) f = src.gameObject.AddComponent<SfxFollow>();
+            f.Begin(src, follow, volume);
+        }
+
+        /// <summary>The voice's volume for a sound of 'volume' at 'position' (the linear fall-off to AudibleMeters).</summary>
+        public static float VolumeAt(Vector3 position, float volume)
+        {
             var cam = Camera.main;
             float d = cam != null ? Vector3.Distance(cam.transform.position, position) : 0f;
-            float v = volume * Mathf.Clamp01(1f - d / AudibleMeters) * Settings.SfxVolume;
-            if (v <= 0.01f) return;
+            return volume * Mathf.Clamp01(1f - d / AudibleMeters) * Settings.SfxVolume;
+        }
+
+        static AudioSource Play(AudioClip clip, Vector3 position, float volume)
+        {
+            if (clip == null) return null;
+            float v = VolumeAt(position, volume);
+            if (v <= 0.01f) return null;
             var src = Voice(v);
-            if (src == null) return;   // every voice busy with a louder sound
+            if (src == null) return null;   // every voice busy with a louder sound
+            var follow = src.GetComponent<SfxFollow>();
+            if (follow != null) follow.enabled = false;   // a voice taken over: no longer the moving object's
             src.transform.position = position;
             src.clip = GoF2Remake.Modding.ModSounds.Get(clip);
             src.volume = v;
             src.panStereo = Pan(position);   // Modified: heard from its side
             src.Play();
+            return src;
         }
 
         /// <summary>A free voice, else the quietest one if it is quieter than 'volume'; null = none.</summary>
