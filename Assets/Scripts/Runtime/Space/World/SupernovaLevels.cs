@@ -102,6 +102,9 @@ namespace GoF2Remake.World
         {
             if (Session.FreePlay) return null;
             if (index == 89) return new Vector3(-100000, 0, -50000);
+            // Modified: Level::createAsteroids' mission 0x5b at station 0x6e (Valpatro) case, missing here: the field stood at
+            // the station's seeded place, on the other side of the supernova (a player's comparison with the original).
+            if (index == 91 && station == 110) return new Vector3(60000, 0, 50000);
             if (index == 114 && station == 83) return new Vector3(30000, 0, 80000);
             if (index == 145 && station == 112) return new Vector3(50000, 0, 70000);
             if (index == 154 && alien) return new Vector3(-70000, 0, 30000);
