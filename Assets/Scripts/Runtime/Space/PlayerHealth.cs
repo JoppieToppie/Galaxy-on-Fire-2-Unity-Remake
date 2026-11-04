@@ -324,12 +324,14 @@ namespace GoF2Remake.Flight
             var addShader = Resources.Load<Shader>("GoF2Combat/BlazeAdditive");
             // The cone rounded: its polygons showed along the silhouette (a player's request); two levels of Phong
             // tessellation with smooth normals (MeshSmoother), which GoF2/BlazeAdditive also fades the edge-on sides by.
+            var smoothed = new System.Collections.Generic.HashSet<GameObject>();
             foreach (var mf in part.GetComponentsInChildren<MeshFilter>(true))
             {
                 var smooth = GoF2Remake.Visuals.MeshSmoother.Smooth(mf.sharedMesh, 2);
                 if (smooth == null) continue;
                 blazeMade.Add(smooth);
                 mf.sharedMesh = smooth;
+                smoothed.Add(mf.gameObject);
             }
             foreach (var r in part.GetComponentsInChildren<Renderer>(true))
             {
@@ -349,6 +351,9 @@ namespace GoF2Remake.Flight
                     if (from.HasProperty("_Color")) flames.SetColor("_Color", from.GetColor("_Color"));
                     if (from.HasProperty("_Glow")) flames.SetFloat("_Glow", from.GetFloat("_Glow"));
                     if (from.HasProperty("_UseVertexColor")) flames.SetFloat("_UseVertexColor", from.GetFloat("_UseVertexColor"));
+                    // The cone's open centre fades out toward its rim (MeshSmoother's open-edge channel): its cut showed as a
+                    // ring round the core (a player's report).
+                    flames.SetFloat("_OpenEdges", smoothed.Contains(r.gameObject) ? 1f : 0f);
                     var haze = new Material(hazeShader) { name = from.name + " (haze)", mainTexture = tex };
                     haze.mainTextureScale = from.mainTextureScale;
                     haze.mainTextureOffset = from.mainTextureOffset;

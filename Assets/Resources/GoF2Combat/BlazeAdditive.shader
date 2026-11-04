@@ -11,6 +11,7 @@ Shader "GoF2/BlazeAdditive"
         _Glow ("Glow", Float) = 1
         _UseVertexColor ("Use vertex colour", Float) = 0
         _EdgeFade ("Edge-on fade (0 = none)", Float) = 0.5
+        _OpenEdges ("Fade to the open edges (UV1.x; MeshSmoother's meshes)", Float) = 0
     }
     SubShader
     {
@@ -32,11 +33,11 @@ Shader "GoF2/BlazeAdditive"
                 float4 _MainTex_ST;
                 float4 _UVOffset;
                 float4 _Color;
-                float _Glow, _UseVertexColor, _EdgeFade;
+                float _Glow, _UseVertexColor, _EdgeFade, _OpenEdges;
             CBUFFER_END
 
-            struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float2 uv : TEXCOORD0; float4 color : COLOR; };
-            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; float3 normalWS : TEXCOORD1; float3 viewWS : TEXCOORD2; };
+            struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float2 uv : TEXCOORD0; float2 uv1 : TEXCOORD1; float4 color : COLOR; };
+            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; float3 normalWS : TEXCOORD1; float3 viewWS : TEXCOORD2; float edge : TEXCOORD3; };
 
             Varyings vert(Attributes i)
             {
@@ -47,6 +48,7 @@ Shader "GoF2/BlazeAdditive"
                 o.viewWS = GetWorldSpaceViewDir(ws);
                 o.uv = i.uv * _MainTex_ST.xy + _MainTex_ST.zw - _UVOffset.xy;
                 o.color = lerp(float4(1, 1, 1, 1), i.color, _UseVertexColor);
+                o.edge = i.uv1.x;
                 return o;
             }
 
@@ -56,6 +58,8 @@ Shader "GoF2/BlazeAdditive"
                 // Modified: the sides seen edge-on fade, so the cone's outline has no polygon steps (MeshSmoother's normals).
                 float facing = abs(dot(normalize(i.normalWS), normalize(i.viewWS)));
                 c.a *= pow(saturate(facing), _EdgeFade);
+                // ... and toward the mesh's open edges (MeshSmoother: 0 on the rim of the cone's hole, round the core).
+                c.a *= lerp(1.0, smoothstep(0.0, 1.0, i.edge), _OpenEdges);
                 return half4(c.rgb * _Glow, c.a);
             }
             ENDHLSL
