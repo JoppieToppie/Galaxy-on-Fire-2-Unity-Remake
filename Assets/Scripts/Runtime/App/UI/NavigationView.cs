@@ -244,6 +244,9 @@ namespace GoF2Remake.UI
                 var sp = cam.WorldToScreenPoint(t.Position);
                 bool onScreen = sp.z > 0f && sp.x >= 0f && sp.y >= 0f && sp.x <= w && sp.y <= h;
                 bool nearCentre = onScreen && Mathf.Abs(sp.x - w / 2f) < w / 6f && Mathf.Abs(sp.y - h / 2f) < w / 6f;
+                // Modified: a ship one docks at (NpcShip.ShipMarker) is a radar dot like any ship until the scanner has locked it
+                // as the docking target: only then its ring and distance (a player's comparison: it came on the radar marked).
+                if (t.kind == Navigation.Kind.DockingTarget && t.dockingShip != null && t.dockingShip.ShipMarker && nav.Locked != t) nearCentre = false;
                 Vector2 p = onScreen ? RuntimePanelUtils.CameraTransformWorldToPanel(layer.panel, t.Position, cam) - origin : Vector2.zero;
                 bool planet = t.kind == Navigation.Kind.Planet;
 
