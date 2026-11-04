@@ -432,7 +432,12 @@ namespace GoF2Remake.Flight
             if (weapons != null) weapons.Blocked = false;
             // Modified: not behind the ship at once after an undock (easeCamera): the chase camera
             // eases over from where it is (a player's request: it jumped there).
-            if (chase != null) { chase.enabled = true; if (!easeCamera && chase.follow == null) chase.Snap(); }
+            if (chase != null)
+            {
+                chase.enabled = true;
+                if (!easeCamera && chase.follow == null) chase.Snap();
+                else if (easeCamera) chase.SoftReturn(2500f);
+            }
             easeCamera = false;
         }
 

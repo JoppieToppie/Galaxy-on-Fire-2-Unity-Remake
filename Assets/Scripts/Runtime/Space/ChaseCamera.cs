@@ -267,6 +267,13 @@ namespace GoF2Remake.Flight
             }
             bool original = GoF2Remake.Data.Settings.OriginalChaseCamera;
             float posEase = original ? Ease(posK, dtMs) : Follow(posK, dtMs), rotEase = original ? Ease(rotK, dtMs) : Follow(rotK, dtMs);
+            if (easeInMs > 0f)   // Modified: SoftReturn
+            {
+                easeInMs = Mathf.Max(0f, easeInMs - dtMs);
+                float f = Mathf.Lerp(0.06f, 1f, Mathf.SmoothStep(0f, 1f, 1f - easeInMs / Mathf.Max(1f, easeInTotalMs)));
+                posEase *= f;
+                rotEase *= f;
+            }
             slide = Vector3.Lerp(slide, targetSlide, posEase);
 
             // Remake: a cruise's extra speed is carried, so the follow trails as at the ship's own speed: its lag grows with the
@@ -376,8 +383,15 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>Snap behind the ship (use after spawning / undocking).</summary>
+        /// <summary>Modified: the follow comes back gently over 'ms' (its easing slowed to 6 % at first, back to normal by the
+        /// end): the camera gliding over to its place behind the ship from where another view left it (the undock, a
+        /// player's request: the plain follow got there too briskly). Snap cancels it.</summary>
+        public void SoftReturn(float ms) { easeInMs = easeInTotalMs = ms; }
+        float easeInMs, easeInTotalMs;
+
         public void Snap()
         {
+            easeInMs = 0f;
             if (target == null) return;
             var ship = target.transform;
             PlaceBehind();
