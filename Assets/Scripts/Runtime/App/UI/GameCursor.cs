@@ -3,8 +3,8 @@
 // default): a pointer symmetric about its 62 degree axis, in the menus' colours: a dark blue fill lit a little along its
 // edge, a cyan outline (the buttons' line colour) and a soft cyan glow. Drawn in code at the screen's scale (remake: 24 px at 1080 lines at 100 %, was 32, times Options > Accessibility
 // "Cursor size", Settings.CursorSizePercent), so it is sharp at any resolution, and set as the
-// cursor (Cursor.SetCursor; Modified: a software one, drawn by Unity, as the system shows a hardware one at its own cursor
-// size, which undid the Cursor size option): it shows and hides as the system's did
+// hardware cursor at 100 % (Cursor.SetCursor; Modified: a software one, drawn by Unity, at the other Cursor sizes, scaled
+// from the size the system shows the hardware one at): it shows and hides as the system's did
 // (InputMode.CursorShown, the flight's mouse steering). The original has no cursor of its own (the PC version used the
 // system's). Desktop only; not on a dedicated server.
 
@@ -39,11 +39,34 @@ namespace GoF2Remake.UI
         {
             if (Time.unscaledTime < nextCheck) return;
             nextCheck = Time.unscaledTime + 1f;   // a resolution or window size change
-            if (Settings.GameCursor && SizeFor(Screen.height) != madeSize) Apply();
+            if (Settings.GameCursor && TextureSize(Screen.height) != madeSize) Apply();
         }
 
-        // Modified: 24 px at 1080 lines (32 was a bit large), times the Cursor size option, in 2 px steps.
-        static int SizeFor(int height) => Mathf.Clamp(Mathf.RoundToInt(24f * height / 1080f * Settings.CursorSizePercent / 100f / 2f) * 2, 12, 128);
+        // Modified: 24 px at 1080 lines (32 was a bit large), in 2 px steps: the 100 % texture, the hardware cursor's.
+        static int SizeFor(int height) => Mathf.Clamp(Mathf.RoundToInt(24f * height / 1080f / 2f) * 2, 12, 128);
+
+        // Modified: Options > Accessibility "Cursor size". At 100 % the hardware cursor, the system's way: it shows the texture
+        // at the system's cursor size (Windows scales it to SM_CXCURSOR), so the other sizes, drawn by Unity
+        // (CursorMode.ForceSoftware) at the texture's own size, are that size times the option (a player's request: the
+        // option only made the hardware cursor sharper or blurrier, never bigger or smaller).
+        static int SoftwareSize(int height) => Mathf.Clamp(Mathf.RoundToInt(SystemCursorSize(height) * Settings.CursorSizePercent / 100f / 2f) * 2, 12, 256);
+
+        /// <summary>How big the system shows a hardware cursor, in screen pixels: Windows' SM_CXCURSOR, else the 100 % texture's.</summary>
+        static int SystemCursorSize(int height)
+        {
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+            try { int s = GetSystemMetrics(13); if (s > 0) return s; } catch (System.Exception) { }
+#endif
+            return SizeFor(height);
+        }
+
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern int GetSystemMetrics(int index);
+#endif
+
+        static bool Hardware => Settings.CursorSizePercent == 100;
+        static int TextureSize(int height) => Hardware ? SizeFor(height) : SoftwareSize(height);
 
         void Apply()
         {
@@ -53,11 +76,8 @@ namespace GoF2Remake.UI
                 applied = false;
                 return;
             }
-            int size = SizeFor(Screen.height);
-            // Modified: the system shows a hardware cursor at its own cursor size (Windows scales the texture to it), so the
-            // Cursor size option only made it sharper or blurrier, never bigger (a player's report), and 100 % stood out of
-            // the other steps' sizes: Unity draws it (CursorMode.ForceSoftware), at the texture's own size, at every size.
-            const CursorMode mode = CursorMode.ForceSoftware;
+            int size = TextureSize(Screen.height);
+            var mode = Hardware ? CursorMode.Auto : CursorMode.ForceSoftware;   // Modified: SoftwareSize
             if (mode != madeMode) { madeMode = mode; applied = false; }
             if (size != madeSize || texture == null)
             {
