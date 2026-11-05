@@ -12,6 +12,7 @@ Shader "GoF2/BlazeAdditive"
         _UseVertexColor ("Use vertex colour", Float) = 0
         _EdgeFade ("Edge-on fade (0 = none)", Float) = 0.5
         _OpenEdges ("Fade to the open edges (UV1.x; MeshSmoother's meshes)", Float) = 0
+        _Opacity ("Opacity", Float) = 1
     }
     SubShader
     {
@@ -33,7 +34,7 @@ Shader "GoF2/BlazeAdditive"
                 float4 _MainTex_ST;
                 float4 _UVOffset;
                 float4 _Color;
-                float _Glow, _UseVertexColor, _EdgeFade, _OpenEdges;
+                float _Glow, _UseVertexColor, _EdgeFade, _OpenEdges, _Opacity;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float2 uv : TEXCOORD0; float2 uv1 : TEXCOORD1; float4 color : COLOR; };
@@ -60,6 +61,7 @@ Shader "GoF2/BlazeAdditive"
                 c.a *= pow(saturate(facing), _EdgeFade);
                 // ... and toward the mesh's open edges (MeshSmoother: 0 on the rim of the cone's hole, round the core).
                 c.a *= lerp(1.0, smoothstep(0.0, 1.0, i.edge), _OpenEdges);
+                c.a *= _Opacity;   // Modified: the blaze at half (PlayerHealth.BlazeOpacity)
                 return half4(c.rgb * _Glow, c.a);
             }
             ENDHLSL

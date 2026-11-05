@@ -300,7 +300,7 @@ namespace GoF2Remake.Flight
                 if (prefab == null) continue;
                 var part = Instantiate(prefab, blaze.transform, false);
                 GunRig.StripForFx(part);
-                SoftenBlaze(part);
+                SoftenBlaze(part, BlazeOpacity);
             }
             var r = ship.visualModel != null ? ship.visualModel.GetComponentInChildren<Renderer>() : null;
             float radiusUnits = r != null ? r.bounds.extents.magnitude / M : 1500f;   // the bubble's radius too
@@ -318,7 +318,10 @@ namespace GoF2Remake.Flight
         Material gammaBlit;
         bool blazeHaze;
 
-        void SoftenBlaze(GameObject part)
+        /// <summary>Modified: the blaze (sn_ship_blaze_flames and _glow) at half its strength (a player's pick).</summary>
+        const float BlazeOpacity = 0.5f;
+
+        void SoftenBlaze(GameObject part, float opacity)
         {
             var hazeShader = Resources.Load<Shader>("GoF2Combat/BlazeHaze");
             var addShader = Resources.Load<Shader>("GoF2Combat/BlazeAdditive");
@@ -356,6 +359,7 @@ namespace GoF2Remake.Flight
                     // The cone's open centre fades out toward its rim (MeshSmoother's open-edge channel): its cut showed as a
                     // ring round the core (a player's report).
                     flames.SetFloat("_OpenEdges", smoothed.Contains(r.gameObject) ? 1f : 0f);
+                    flames.SetFloat("_Opacity", opacity);
                     // A cap rounded onto its sphere (the glow) has a clean outline already: no edge-on fade, which made a
                     // bright spot follow the view (a hot core when looking along it) and flicker as the camera moved.
                     if (round.Contains(r.gameObject)) flames.SetFloat("_EdgeFade", 0f);
