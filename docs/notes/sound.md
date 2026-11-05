@@ -31,7 +31,8 @@ waves, `WeaponFx.Shot` / `ExplosionSound` pick one at random; the sentry deploy 
   0.025/s; at 1 the ship explodes; 35 Selfdestruct_Warning beeps by it (the spawn intensity envelope 0 below 0.2, then
   0.18 → 0.66, which libfmodevent turns into (e^(5.7865 v) − 1) · 0.3078: a beep every 1.7 s at 0.2, almost continuous
   at 1; +3 st); 3202 warns 5 s in (`FlightHints`).
-- **Music rules** (`Traffic.UpdateMusic`, `Radar::draw` 0x157c6c): nothing switches while 143 IntroAtmo plays; at 0x91 a calm orbit keeps the battle track.
+- **Music rules** (`Traffic.UpdateMusic`, `Radar::draw` 0x157c6c): nothing switches while 143 IntroAtmo plays; at 0x91 a calm orbit keeps the battle track;
+  single battle tracks can be turned off (Options > Sound, `MusicTracks`, see "Music tracks off").
 - **Flight UI**: buttons in the pause / autopilot menus, the Menu button and the dialogue click 124 / 123; the pause
   menu's confirmation 126. Step 15's success page 1833 (or skipping it) stops the music for 136 and loops 162 Alert
   (`StationMenu.StartVoidAlarm`).

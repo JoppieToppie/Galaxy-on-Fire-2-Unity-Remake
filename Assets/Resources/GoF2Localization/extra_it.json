@@ -3326,5 +3326,14 @@
  "medalsDesc": "No: nessuna medaglia in questa partita. Il VoidX arriva allora con la vittoria nella storia principale, lo Specter e i fuochi d'artificio con la fine di Supernova.",
  "noMedalsVoidX": "Per la tua vittoria sui Void, Deep Science ti fornirà il prototipo di un caccia Void restaurato. Lo puoi acquistare a Thynome.",
  "noMedalsFireworks": "Hai superato la crisi della Supernova: come ricompensa ecco un nuovo progetto per dei fuochi d'artificio.",
- "noMedalsTag": "SENZA MEDAGLIE"
+ "noMedalsTag": "SENZA MEDAGLIE",
+ "musicBattleLow": "Musica di battaglia: pochi nemici",
+ "musicBattleMedium": "Musica di battaglia: diversi nemici",
+ "musicBattleFull": "Musica di battaglia: molti nemici",
+ "musicVoidBattle": "Musica di battaglia: il Void",
+ "musicSpecters1": "Musica di battaglia: Specter",
+ "musicSpecters2": "Musica di battaglia: molti Specter",
+ "musicWanted": "Musica di battaglia: criminale Most Wanted",
+ "musicTrackHelp": "Disattivo: questo brano non suona più; continua la musica tranquilla dell'orbita.",
+ "musicTrackSpecialHelp": "Disattivo: questo brano non suona più; al suo posto suona la solita musica di battaglia."
 }

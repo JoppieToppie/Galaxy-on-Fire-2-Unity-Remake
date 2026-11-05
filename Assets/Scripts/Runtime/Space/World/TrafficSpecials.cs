@@ -307,16 +307,15 @@ namespace GoF2Remake.World
             // Radar::draw 0x157c6c: while 143 IntroAtmo plays nothing switches.
             var introAtmo = StoryAssets.Load()?.introAtmo;
             if (introAtmo != null && music.clip == introAtmo && music.isPlaying) { music.volume = fade * Settings.MusicVolume * GoF2Remake.World.SpaceHooks.SceneMusic; return; }
-            int cat = HostileCount <= 0 ? 0 : HostileCount <= 2 ? 1 : HostileCount <= 4 ? 2 : 3;
-            if (cat < 2 && FleetBattleRaging) cat = 2;   // remake (CapitalShips): a fleet battle plays the battle music
-            // At campaign 0x91 (the plasma array's destruction) a calm orbit never brings the calm track back.
-            if (cat == 0 && musicCategory > 0 && !Session.FreePlay && Session.CampaignMission == 0x91) cat = musicCategory;
-            // Radar::draw: an uncovered Most Wanted criminal -> 151; hostile Specters (race 10) -> 149 / 150.
-            if (cat > 0 && WantedUncovered) cat = 4;
-            else if (cat > 0 && SpectersHostile) cat = cat >= 3 ? 6 : 5;
-            // A battle track that plays is kept until the orbit is calm (the 0xe071 set: 136, 140-142, 149-151); only an
-            // uncovered criminal switches to 151.
-            if (cat > 0 && musicCategory > 0 && cat != 4) cat = musicCategory;
+            // In the alien orbit, at a Void-attacked station and at campaign 0x10 every fight is 136 Space_Combat_Void.
+            bool voidBattle = VoidAttack || (!Session.FreePlay && Session.CampaignMission == 0x10);
+            // Radar::draw's category (MusicTracks.Category, which skips the tracks turned off in Options > Sound):
+            // 1-2 / 3-4 / 5+ hostiles the battle tracks (a fleet battle at least Medium, remake CapitalShips), at
+            // campaign 0x91 (the plasma array's destruction) a calm orbit never brings the calm track back, an uncovered
+            // Most Wanted criminal 151, hostile Specters (race 10) 149 / 150; a battle track that plays is kept until
+            // the orbit is calm, only 151 takes over.
+            int cat = MusicTracks.Category(HostileCount, FleetBattleRaging, musicCategory,
+                !Session.FreePlay && Session.CampaignMission == 0x91, WantedUncovered, SpectersHostile, voidBattle, MusicTracks.On);
             if (cat != musicCategory && cat != pendingCategory) pendingCategory = cat;
             if (pendingCategory >= 0)
             {
@@ -327,8 +326,6 @@ namespace GoF2Remake.World
                     pendingCategory = -1;
                     var sn = SupernovaAssets.Load();
                     var story = StoryAssets.Load();
-                    // In the alien orbit, at a Void-attacked station and at campaign 0x10 every fight is 136 Space_Combat_Void.
-                    bool voidBattle = VoidAttack || (!Session.FreePlay && Session.CampaignMission == 0x10);
                     var clip = musicCategory == 0 ? CalmClip()
                              : musicCategory == 4 ? sn?.wantedMusic
                              : voidBattle ? story?.voidBattle

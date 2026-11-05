@@ -3326,5 +3326,14 @@
  "medalsDesc": "बंद: इस गेम में कोई मेडल नहीं। तब VoidX मुख्य कहानी जीतने पर मिलेगा, और Specter व आतिशबाज़ी Supernova पूरा करने पर।",
  "noMedalsVoidX": "Void पर आपकी जीत के लिए Deep Science आपको एक बहाल किए गए Void फ़ाइटर अंतरिक्ष जहाज़ का प्रोटोटाइप देगा। आप इसे Thynome में खरीद सकते हैं।",
  "noMedalsFireworks": "आपने Supernova संकट को अंत तक झेला: इनाम के तौर पर आपको आतिशबाज़ी का एक नया ब्लूप्रिंट मिला है।",
- "noMedalsTag": "बिना मेडल"
+ "noMedalsTag": "बिना मेडल",
+ "musicBattleLow": "युद्ध संगीत: कम दुश्मन",
+ "musicBattleMedium": "युद्ध संगीत: कई दुश्मन",
+ "musicBattleFull": "युद्ध संगीत: बहुत सारे दुश्मन",
+ "musicVoidBattle": "युद्ध संगीत: Void",
+ "musicSpecters1": "युद्ध संगीत: Specters",
+ "musicSpecters2": "युद्ध संगीत: बहुत सारे Specters",
+ "musicWanted": "युद्ध संगीत: Most Wanted अपराधी",
+ "musicTrackHelp": "बंद: यह ट्रैक अब नहीं बजता; कक्षा का शांत संगीत चलता रहता है।",
+ "musicTrackSpecialHelp": "बंद: यह ट्रैक अब नहीं बजता; इसकी जगह सामान्य युद्ध संगीत बजता है।"
 }

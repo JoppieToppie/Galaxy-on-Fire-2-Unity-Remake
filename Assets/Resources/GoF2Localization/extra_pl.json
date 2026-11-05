@@ -3326,5 +3326,14 @@
  "medalsDesc": "Wył.: brak medali w tej grze. VoidX przychodzi wtedy z wygraniem głównej historii, a Specter i fajerwerki z ukończeniem Supernova.",
  "noMedalsVoidX": "Za twoje zwycięstwo nad Voidami Towarzystwo Naukowe oferuje ci prototyp odbudowanego statku Voidów. Możesz go kupić w Thynome.",
  "noMedalsFireworks": "Przetrwałeś kryzys Supernowej: w nagrodę otrzymujesz nowy plan budowy fajerwerków.",
- "noMedalsTag": "BEZ MEDALI"
+ "noMedalsTag": "BEZ MEDALI",
+ "musicBattleLow": "Muzyka walki: niewielu wrogów",
+ "musicBattleMedium": "Muzyka walki: kilku wrogów",
+ "musicBattleFull": "Muzyka walki: wielu wrogów",
+ "musicVoidBattle": "Muzyka walki: Void",
+ "musicSpecters1": "Muzyka walki: Specterzy",
+ "musicSpecters2": "Muzyka walki: wielu Specterów",
+ "musicWanted": "Muzyka walki: przestępca Most Wanted",
+ "musicTrackHelp": "Wył.: ten utwór już nie gra; spokojna muzyka orbity gra dalej.",
+ "musicTrackSpecialHelp": "Wył.: ten utwór już nie gra; zamiast niego gra zwykła muzyka walki."
 }

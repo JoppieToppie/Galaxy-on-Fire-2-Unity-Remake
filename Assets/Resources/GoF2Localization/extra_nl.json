@@ -3326,5 +3326,14 @@
  "medalsDesc": "Uit: geen medailles in dit spel. De VoidX komt dan met het winnen van het hoofdverhaal, de Specter en het vuurwerk met het uitspelen van Supernova.",
  "noMedalsVoidX": "Voor je overwinning op de Void geeft Deep Science je een prototype van een gerestaureerde Void-jager. Je kunt hem kopen op Thynome.",
  "noMedalsFireworks": "Je hebt de Supernova-crisis doorstaan: als beloning heb je een nieuwe bouwtekening voor vuurwerk gekregen.",
- "noMedalsTag": "ZONDER MEDAILLES"
+ "noMedalsTag": "ZONDER MEDAILLES",
+ "musicBattleLow": "Gevechtsmuziek: weinig vijanden",
+ "musicBattleMedium": "Gevechtsmuziek: meerdere vijanden",
+ "musicBattleFull": "Gevechtsmuziek: veel vijanden",
+ "musicVoidBattle": "Gevechtsmuziek: de Void",
+ "musicSpecters1": "Gevechtsmuziek: Specters",
+ "musicSpecters2": "Gevechtsmuziek: veel Specters",
+ "musicWanted": "Gevechtsmuziek: Most Wanted-crimineel",
+ "musicTrackHelp": "Uit: dit nummer speelt niet meer; de rustige muziek van de baan speelt door.",
+ "musicTrackSpecialHelp": "Uit: dit nummer speelt niet meer; de gewone gevechtsmuziek speelt in plaats daarvan."
 }

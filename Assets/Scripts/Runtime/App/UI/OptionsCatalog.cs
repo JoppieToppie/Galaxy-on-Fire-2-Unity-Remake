@@ -136,6 +136,18 @@ namespace GoF2Remake.UI
         static readonly int[] UiTextSteps = { 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 160, 175, 190, 200 };
         static readonly float[] UiMarginSteps = { -1f, 0f, 2.5f, 5f, 7.5f, 10f };
 
+        /// <summary>Options > Sound's music track rows: track, Localization.Extra key, English label.</summary>
+        static readonly (string track, string key, string english)[] MusicTrackRows =
+        {
+            (MusicTracks.BattleLow, "musicBattleLow", "Battle music: few enemies"),
+            (MusicTracks.BattleMedium, "musicBattleMedium", "Battle music: several enemies"),
+            (MusicTracks.BattleFull, "musicBattleFull", "Battle music: many enemies"),
+            (MusicTracks.VoidBattle, "musicVoidBattle", "Battle music: the Void"),
+            (MusicTracks.Specters1, "musicSpecters1", "Battle music: Specters"),
+            (MusicTracks.Specters2, "musicSpecters2", "Battle music: many Specters"),
+            (MusicTracks.Wanted, "musicWanted", "Battle music: Most Wanted criminal"),
+        };
+
         /// <summary>The options of this platform, page by page.</summary>
         public static List<OptionDef> All()
         {
@@ -161,6 +173,18 @@ namespace GoF2Remake.UI
             if (!Application.isMobilePlatform)
                 list.Add(Toggle("muteInBackground", OptionPage.Sound, () => X("muteInBackground", "Mute in background"),
                     () => Settings.MuteInBackground, v => Settings.MuteInBackground = v));
+
+            // Remake (a player's request, 2026-11-04): single flight music tracks off (MusicTracks); a battle track off
+            // leaves the calm track playing.
+            foreach (var (track, key, english) in MusicTrackRows)
+            {
+                string t = track;
+                list.Add(Described(Toggle("musicTrack_" + t, OptionPage.Sound, () => X(key, english),
+                    () => Settings.MusicTrackOn(t), v => Settings.SetMusicTrackOn(t, v)),
+                    t == MusicTracks.Specters1 || t == MusicTracks.Specters2 || t == MusicTracks.Wanted
+                        ? () => X("musicTrackSpecialHelp", "Off: this track no longer plays; the usual battle music plays instead.")
+                        : () => X("musicTrackHelp", "Off: this track no longer plays; the calm music of the orbit goes on instead.")));
+            }
 
             AddGraphics(list);
             AddControls(list);

@@ -3326,5 +3326,14 @@
  "medalsDesc": "끄기: 이 게임에는 메달이 없습니다. 그러면 VoidX는 메인 스토리를 이기면, Specter와 폭죽은 초신성을 끝내면 얻습니다.",
  "noMedalsVoidX": "Void에 대한 승리를 기려 Deep Science쪽에서 당신에게 복원된 Void 전투 비행선 원형을 제공할 것 입니다. Thynome에서 구매할 수 있습니다.",
  "noMedalsFireworks": "초신성 위기를 끝까지 이겨냈습니다. 보상으로 폭죽용 블루프린트가 제공됩니다.",
- "noMedalsTag": "메달 없음"
+ "noMedalsTag": "메달 없음",
+ "musicBattleLow": "전투 음악: 적 소수",
+ "musicBattleMedium": "전투 음악: 적 여럿",
+ "musicBattleFull": "전투 음악: 적 다수",
+ "musicVoidBattle": "전투 음악: Void",
+ "musicSpecters1": "전투 음악: Specter",
+ "musicSpecters2": "전투 음악: 다수의 Specter",
+ "musicWanted": "전투 음악: Most Wanted 범죄자",
+ "musicTrackHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 궤도의 잔잔한 음악이 계속됩니다.",
+ "musicTrackSpecialHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 대신 일반 전투 음악이 재생됩니다."
 }

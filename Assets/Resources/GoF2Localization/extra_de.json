@@ -3326,5 +3326,14 @@
  "medalsDesc": "Aus: keine Medaillen in diesem Spiel. Die VoidX gibt es dann mit dem Sieg in der Hauptgeschichte, den Specter und das Feuerwerk mit dem Ende von Supernova.",
  "noMedalsVoidX": "Für Deinen Sieg über die Void stellt Dir die Forschungsabteilung Deep Science den Prototyp eines restaurierten Void-Jägers zur Verfügung. Du kannst ihn auf Thynome kaufen.",
  "noMedalsFireworks": "Du hast die Supernova-Krise durchgestanden: Als Belohnung erhältst du einen neuen Bauplan für einen Satz Feuerwerkskörper.",
- "noMedalsTag": "OHNE MEDAILLEN"
+ "noMedalsTag": "OHNE MEDAILLEN",
+ "musicBattleLow": "Kampfmusik: wenige Gegner",
+ "musicBattleMedium": "Kampfmusik: mehrere Gegner",
+ "musicBattleFull": "Kampfmusik: viele Gegner",
+ "musicVoidBattle": "Kampfmusik: die Void",
+ "musicSpecters1": "Kampfmusik: Specters",
+ "musicSpecters2": "Kampfmusik: viele Specters",
+ "musicWanted": "Kampfmusik: Most-Wanted-Verbrecher",
+ "musicTrackHelp": "Aus: Dieses Stück spielt nicht mehr; die ruhige Musik des Orbits läuft weiter.",
+ "musicTrackSpecialHelp": "Aus: Dieses Stück spielt nicht mehr; stattdessen spielt die übliche Kampfmusik."
 }

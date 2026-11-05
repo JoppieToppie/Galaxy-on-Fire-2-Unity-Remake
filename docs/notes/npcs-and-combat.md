@@ -208,6 +208,13 @@ simulates an orbit's traffic) and `ship_combat.md` (+ `Reference/tools/combat/co
   Space_Battle_Low / Medium / Full (136 in the alien orbit, at an attacked station and at campaign 0x10; 151 for an
   uncovered criminal, 149 / 150 for Specters). A battle track that plays is kept until the orbit is calm (only 151 takes
   over). Hostiles also block fast-forward. Docked: station 10 at 0x9f plays 144.
+- **Music tracks off** (remake, a Discord player's request 2026-11-04; `MusicTracks`, Options > Sound, one toggle per
+  track, all on by default; `Settings.MusicTrackOn`, keys `musicTrack.<id>` in `Settings.SoundKeys`): the rules above are
+  `MusicTracks.Category` (pure, `MusicTracksTests`), which skips a turned-off track: Battle Low / Medium / Full (140-142)
+  or the Void's 136 off leaves the calm track playing (or keeps the battle track already playing, as before, until the
+  orbit is calm); Specters 149 / 150 or the criminal's 151 off gives the battle track the ship count picks (the calm one
+  if that is off too). A playing track turned off gives way at once. Only `Traffic`'s choice: the scripted story music
+  (`CampaignLevel.PlayMusic`, step 15's Void alarm `StationMenu.StartVoidAlarm`, 80's battlestation jump) ignores them.
 - **Music at 102** (the dropships): the level plays 0x8c0 over its opening cutscene, then hands the music to `Traffic`
   (`Radar::draw` 0x157c6c: the calm track at the target is the 2241 loop, and the attacking Specters' 149 / 150 replace it,
   since the loop isn't in the battle set); the level kept its loop through the attacks.

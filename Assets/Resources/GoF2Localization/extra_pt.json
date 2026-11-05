@@ -3326,5 +3326,14 @@
  "medalsDesc": "Desligado: sem medalhas neste jogo. A VoidX vem então com a vitória na história principal, e o Specter e os fogos de artifício com o fim de Supernova.",
  "noMedalsVoidX": "Pela sua vitória sobre os voidianos, a Deep Science fornecerá a você um protótipo de um caça restaurado dos voidianos. Você pode comprá-lo em Thynome.",
  "noMedalsFireworks": "Você superou a crise da Supernova: como recompensa, você recebe um novo diagrama de fogos de artifício.",
- "noMedalsTag": "SEM MEDALHAS"
+ "noMedalsTag": "SEM MEDALHAS",
+ "musicBattleLow": "Música de combate: poucos inimigos",
+ "musicBattleMedium": "Música de combate: vários inimigos",
+ "musicBattleFull": "Música de combate: muitos inimigos",
+ "musicVoidBattle": "Música de combate: o Void",
+ "musicSpecters1": "Música de combate: Specters",
+ "musicSpecters2": "Música de combate: muitos Specters",
+ "musicWanted": "Música de combate: criminoso Most Wanted",
+ "musicTrackHelp": "Desligado: esta faixa não toca mais; a música calma da órbita continua.",
+ "musicTrackSpecialHelp": "Desligado: esta faixa não toca mais; toca a música de combate habitual no lugar."
 }

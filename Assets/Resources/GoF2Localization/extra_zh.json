@@ -3326,5 +3326,14 @@
  "medalsDesc": "关：本局游戏没有勋章。VoidX 将在赢得主线故事后解锁，Specter 和烟花在完成超新星后解锁。",
  "noMedalsVoidX": "为表彰您战胜Void，Deep Science的研究部门将为您提供一艘修复的Void战机原型。您可在Thynome太空站买到它。",
  "noMedalsFireworks": "您挺过了超新星危机！您将得到Fireworks的蓝图，作为奖励。",
- "noMedalsTag": "无勋章"
+ "noMedalsTag": "无勋章",
+ "musicBattleLow": "战斗音乐：少量敌人",
+ "musicBattleMedium": "战斗音乐：若干敌人",
+ "musicBattleFull": "战斗音乐：大量敌人",
+ "musicVoidBattle": "战斗音乐：Void",
+ "musicSpecters1": "战斗音乐：Specter",
+ "musicSpecters2": "战斗音乐：大量 Specter",
+ "musicWanted": "战斗音乐：Most Wanted 罪犯",
+ "musicTrackHelp": "关闭：不再播放此曲目，轨道的平静音乐继续播放。",
+ "musicTrackSpecialHelp": "关闭：不再播放此曲目，改为播放常规战斗音乐。"
 }
