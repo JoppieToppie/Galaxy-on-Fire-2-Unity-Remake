@@ -9,11 +9,11 @@
 //                   pinch moves forward / back, two fingers dragged slide the camera.
 //   Camera settings a panel at the left (Tab, the controller's View or the hint): orbit / free, field of view, roll, the
 //                   free camera's speed, depth of field (the game's, off, on the ship, a focus distance) with its blur,
-//                   bloom (the game's, off, its own amount), the sun's lens flare (flight only), exposure, contrast,
-//                   saturation, white balance, vignette, film grain, chromatic aberration, lens distortion, hide the
-//                   ship, a thirds grid, a frame (16:9,
-//                   21:9, 4:3, 1:1, 9:16: the screenshot is cut to it) and the screenshot's size (the screen's, x2 or
-//                   x4), Reset; PhotoSettings keeps them for the run.
+//                   the shutter angle (motion blur, flight only), zoom blur, bloom (the game's, off, its own amount),
+//                   the sun's lens flare (flight only), exposure, contrast, saturation, white balance, vignette, film grain,
+//                   chromatic aberration, lens distortion, hide the ship, a thirds grid, a frame (16:9, 21:9, 4:3, 1:1,
+//                   9:16: the screenshot is cut to it) and the screenshot's size (the screen's, x2 or x4), Reset;
+//                   PhotoSettings keeps them for the run.
 //   Effects         a global URP volume of its own on layer 26 at priority 1000 (over the game's and the hangar's depth of
 //                   field), its profile made in code: URP keeps the effects' shaders in a build only because
 //                   Assets/Settings/PhotoModeShaders.asset has them on.
@@ -66,6 +66,10 @@ namespace GoF2Remake.UI
         FilmGrain grain;
         UnityEngine.Rendering.Universal.Bloom bloom;
         WhiteBalance white;
+        SplitToning split;
+        ChannelMixer mixer;
+        ShadowsMidtonesHighlights tones;
+        LiftGammaGain lgg;
         ChromaticAberration aberration;
         LensDistortion distortion;
         UniversalAdditionalCameraData camData;
@@ -99,6 +103,7 @@ namespace GoF2Remake.UI
         public PhotoTools(VisualElement overlay, Action<bool> sound)
         {
             this.sound = sound;
+            Visuals.PhotoMotionPass.Track();   // the ships' velocities kept from now on, for a freeze's motion blur
             frame = new VisualElement { pickingMode = PickingMode.Ignore };
             frame.AddToClassList("photo-frame");
             for (int i = 0; i < 4; i++) { bars[i] = new VisualElement { pickingMode = PickingMode.Ignore }; bars[i].AddToClassList("photo-frame-bar"); frame.Add(bars[i]); }
@@ -180,10 +185,23 @@ namespace GoF2Remake.UI
                 get = () => PhotoSettings.Focus, set = v => PhotoSettings.Focus = v, format = v => Metres(PhotoSettings.FocusMetresOf(v)),
                 fromShown = PhotoSettings.FocusOfMetres, defaultValue = () => 0.5f,
                 visible = () => PhotoSettings.Dof == PhotoSettings.DofMode.Manual };
-            // Remake (a player's request, 2026-11): up to 500 %: past 100 % (URP's most) Visuals.PhotoBlurPass adds more.
+            // Remake (a player's request, 2026-11): up to 300 % (500 % before): past 100 % (URP's most) Visuals.PhotoBlurPass
+            // adds more.
             yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoBlur", "Blur"), min = 0f, max = PhotoSettings.MaxBlur,
                 get = () => PhotoSettings.Blur, set = v => PhotoSettings.Blur = v, format = Pct, defaultValue = () => 0.5f,
                 visible = () => PhotoSettings.Dof >= PhotoSettings.DofMode.Ship };
+            // Remake (a player's request, 2026-11): motion blur from the ships' velocities before the freeze
+            // (Visuals.PhotoMotionPass). Flight only: nothing moves in the hangar.
+            // Past 360 deg a long exposure (a player's request, 2026-11), up to 2 s; a typed number is an angle.
+            yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoShutter", "Shutter angle"), min = 0f, max = PhotoSettings.MaxShutter,
+                get = () => PhotoSettings.Shutter, set = v => PhotoSettings.Shutter = Mathf.Round(v),
+                fromShown = v => Mathf.Clamp(v, 0f, PhotoSettings.LongFrom),
+                format = v => PhotoSettings.ShutterText(v, T("photoOff", "Off")), defaultValue = () => 0f, visible = () => !hangar,
+                description = () => T("photoShutterHelp", "Motion blur: how long the shutter stays open, as a film camera's angle at 24 frames a second (180° is the film look, 1/48 s). What was moving when the game froze streaks: in the orbit the camera flies with your ship, so the world rushes past it; the free camera stands still and the ships streak by. Past 360° it becomes a long exposure, up to 2 s, for long light trails.") };
+            // Remake (a player's request, 2026-11): the background streaks out from the ship (Visuals.PhotoZoomPass).
+            yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoZoomBlur", "Zoom blur"), min = 0f, max = 1f,
+                get = () => PhotoSettings.Zoom, set = v => PhotoSettings.Zoom = v, format = Pct, defaultValue = () => 0f,
+                description = () => T("photoZoomBlurHelp", "The look of a lens zoomed while the picture is taken: everything behind your ship streaks out from it, the ship stays sharp.") };
             yield return new OptionDef { kind = OptionKind.Choice, label = () => T("photoBloom", "Bloom"),
                 choices = () => new[] { T("photoDofGame", "Default"), T("photoOff", "Off"), T("photoCustom", "Custom") },
                 getIndex = () => (int)PhotoSettings.Bloom, setIndex = i => PhotoSettings.Bloom = (PhotoSettings.BloomMode)i, defaultValue = () => 0f };
@@ -212,6 +230,25 @@ namespace GoF2Remake.UI
             yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoTint", "Tint"), min = -100f, max = 100f,
                 get = () => PhotoSettings.Tint, set = v => PhotoSettings.Tint = Mathf.Abs(v) < 2f ? 0f : v, format = v => Signed(Mathf.Round(v)),
                 defaultValue = () => 0f, description = () => T("photoTintHelp", "The white balance's other axis: below 0 greener, above 0 more magenta.") };
+            // Remake (a player's request 2026-11, "more cool settings"): film looks and a photo editor's tone sliders.
+            yield return new OptionDef { kind = OptionKind.Choice, label = () => T("photoGrade", "Look"),
+                choices = () => new[] { T("photoGradeNone", "None"), T("photoGradeTealOrange", "Teal & orange"), T("photoGradeNoir", "Noir"),
+                                        T("photoGradeSepia", "Sepia"), T("photoGradeVintage", "Vintage"), T("photoGradeCold", "Cold"),
+                                        T("photoGradeWarm", "Warm"), T("photoGradeBleach", "Bleach bypass"), T("photoGradeCross", "Cross process") },
+                getIndex = () => (int)PhotoSettings.Look, setIndex = i => PhotoSettings.Look = (PhotoSettings.LookMode)i, defaultValue = () => 0f,
+                description = () => T("photoGradeHelp", "A film grade over the other settings: Teal & orange like a blockbuster, Noir and Sepia in black and white, Bleach bypass grey and hard, Cross process with blue shadows and yellow lights.") };
+            yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoShadows", "Shadows"), min = -100f, max = 100f,
+                get = () => PhotoSettings.Shadows, set = v => PhotoSettings.Shadows = Mathf.Abs(v) < 1f ? 0f : v, format = v => Signed(Mathf.Round(v)),
+                defaultValue = () => 0f, description = () => T("photoShadowsHelp", "Brightens (above 0) or deepens (below 0) the dark parts only.") };
+            yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoHighlights", "Highlights"), min = -100f, max = 100f,
+                get = () => PhotoSettings.Highlights, set = v => PhotoSettings.Highlights = Mathf.Abs(v) < 1f ? 0f : v, format = v => Signed(Mathf.Round(v)),
+                defaultValue = () => 0f, description = () => T("photoHighlightsHelp", "Brightens (above 0) or tames (below 0) the bright parts only.") };
+            yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoFade", "Fade"), min = 0f, max = 1f,
+                get = () => PhotoSettings.Fade, set = v => PhotoSettings.Fade = v, format = Pct, defaultValue = () => 0f,
+                description = () => T("photoFadeHelp", "Lifts the blacks to a soft grey, like an old print.") };
+            yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoHue", "Hue"), min = -180f, max = 180f,
+                get = () => PhotoSettings.Hue, set = v => PhotoSettings.Hue = Mathf.Abs(v) < 2f ? 0f : v, format = v => Signed(Mathf.Round(v)) + "°",
+                defaultValue = () => 0f, description = () => T("photoHueHelp", "Turns every colour around the colour wheel: a red nebula turns green, then blue.") };
             yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoVignette", "Vignette"), min = 0f, max = 0.6f,
                 get = () => PhotoSettings.Vignette, set = v => PhotoSettings.Vignette = v, format = v => Pct(v / 0.6f), defaultValue = () => 0f };
             yield return new OptionDef { kind = OptionKind.Slider, label = () => T("photoGrain", "Film grain"), min = 0f, max = 1f,
@@ -665,6 +702,10 @@ namespace GoF2Remake.UI
             grain = profile.Add<FilmGrain>(false);
             bloom = profile.Add<UnityEngine.Rendering.Universal.Bloom>(false);
             white = profile.Add<WhiteBalance>(false);
+            split = profile.Add<SplitToning>(false);
+            mixer = profile.Add<ChannelMixer>(false);
+            tones = profile.Add<ShadowsMidtonesHighlights>(false);
+            lgg = profile.Add<LiftGammaGain>(false);
             aberration = profile.Add<ChromaticAberration>(false);
             distortion = profile.Add<LensDistortion>(false);
             vignette.color.Override(Color.black);
@@ -680,6 +721,8 @@ namespace GoF2Remake.UI
         {
             Visuals.ClassicBloomPass.Suppressed = false;
             Visuals.PhotoBlurPass.Clear();
+            Visuals.PhotoMotionPass.Clear();
+            Visuals.PhotoZoomPass.Clear();
             if (camData != null) camData.volumeLayerMask = savedMask;
             camData = null;
             if (volumeGo != null) UnityEngine.Object.Destroy(volumeGo);
@@ -697,7 +740,7 @@ namespace GoF2Remake.UI
             {
                 float toShip = shipCentre != null ? Mathf.Max(0.5f, Vector3.Distance(cam.transform.position, shipCentre())) : 50f;
                 // URP's part (0..1), then ours (100-500 % as 0..1).
-                float blur = Mathf.Min(1f, PhotoSettings.Blur), extra = Mathf.Clamp01((PhotoSettings.Blur - 1f) / (PhotoSettings.MaxBlur - 1f));
+                float blur = Mathf.Min(1f, PhotoSettings.Blur), extra = PhotoSettings.ExtraBlur;
                 bool bokeh = mode == PhotoSettings.DofMode.Manual && !Application.isMobilePlatform;
                 dof.mode.Override(mode == PhotoSettings.DofMode.Off ? DepthOfFieldMode.Off : bokeh ? DepthOfFieldMode.Bokeh : DepthOfFieldMode.Gaussian);
                 if (mode == PhotoSettings.DofMode.Ship)
@@ -726,14 +769,49 @@ namespace GoF2Remake.UI
                 else Visuals.PhotoBlurPass.Clear();
             }
             else Visuals.PhotoBlurPass.Clear();
+            // Motion blur: the orbit camera flies with the ship (its velocity), the free one stands.
+            if (!hangar && PhotoSettings.Shutter > 0f)
+                Visuals.PhotoMotionPass.Set(cam, PhotoSettings.ExposureSeconds, Free ? Vector3.zero : Visuals.PhotoMotionPass.PlayerVelocity());
+            else Visuals.PhotoMotionPass.Clear();
+            // Zoom blur: out from the ship's middle on the screen (the screen's when it is behind the camera), sharp over the hull.
+            if (PhotoSettings.Zoom > 0f && shipCentre != null)
+            {
+                var c = shipCentre();
+                var vp = cam.WorldToViewportPoint(c);
+                var at = vp.z > 0f ? new Vector2(vp.x, vp.y) : new Vector2(0.5f, 0.5f);
+                float start = Mathf.Max(0.5f, vp.z) + shipRadius * 1.1f;
+                Visuals.PhotoZoomPass.Set(cam, PhotoSettings.Zoom, at, start, start + shipRadius * 1.5f + 5f);
+            }
+            else Visuals.PhotoZoomPass.Clear();
             // Over the game's own brightness (Bootstrap.ApplyPostProcessing's postExposure on the scene volumes).
-            color.active = PhotoSettings.Exposure != 0f || PhotoSettings.Contrast != 0f || PhotoSettings.Saturation != 0f;
+            // The look's saturation and contrast add to the sliders' (URP's -100..100).
+            var look = PhotoSettings.LookOf(PhotoSettings.Look);
+            float contrast = Mathf.Clamp(PhotoSettings.Contrast + look.contrast, -100f, 100f);
+            float saturation = Mathf.Clamp(PhotoSettings.Saturation + look.saturation, -100f, 100f);
+            color.active = PhotoSettings.Exposure != 0f || contrast != 0f || saturation != 0f || PhotoSettings.Hue != 0f;
             color.postExposure.overrideState = PhotoSettings.Exposure != 0f;
             color.postExposure.value = Settings.BrightnessExposure + PhotoSettings.Exposure;
-            color.contrast.overrideState = PhotoSettings.Contrast != 0f;
-            color.contrast.value = PhotoSettings.Contrast;
-            color.saturation.overrideState = PhotoSettings.Saturation != 0f;
-            color.saturation.value = PhotoSettings.Saturation;
+            color.contrast.overrideState = contrast != 0f;
+            color.contrast.value = contrast;
+            color.saturation.overrideState = saturation != 0f;
+            color.saturation.value = saturation;
+            color.hueShift.overrideState = PhotoSettings.Hue != 0f;
+            color.hueShift.value = PhotoSettings.Hue;
+            split.active = look.Splits;
+            split.shadows.Override(look.shadows);
+            split.highlights.Override(look.highlights);
+            split.balance.Override(look.balance);
+            mixer.active = look.Mixes;
+            mixer.redOutRedIn.Override(look.mixRed.x); mixer.redOutGreenIn.Override(look.mixRed.y); mixer.redOutBlueIn.Override(look.mixRed.z);
+            mixer.greenOutRedIn.Override(look.mixGreen.x); mixer.greenOutGreenIn.Override(look.mixGreen.y); mixer.greenOutBlueIn.Override(look.mixGreen.z);
+            mixer.blueOutRedIn.Override(look.mixBlue.x); mixer.blueOutGreenIn.Override(look.mixBlue.y); mixer.blueOutBlueIn.Override(look.mixBlue.z);
+            // Shadows / highlights: the brightness offset (w) of URP's shadows-midtones-highlights; Fade: lift's offset.
+            tones.active = PhotoSettings.Shadows != 0f || PhotoSettings.Highlights != 0f;
+            tones.shadows.Override(new Vector4(1f, 1f, 1f, PhotoSettings.Shadows / 100f));
+            tones.highlights.Override(new Vector4(1f, 1f, 1f, PhotoSettings.Highlights / 100f));
+            float fade = Mathf.Clamp01(PhotoSettings.Fade + look.fade);
+            lgg.active = fade > 0f;
+            lgg.lift.Override(new Vector4(1f, 1f, 1f, fade * 0.025f));   // space is mostly black: 0.1 already greyed it all
             // Bloom: the game's own (the Graphics option, on the scene volumes and the original pass), none, or the
             // photo's own amount over the scene's (threshold and scatter stay the game's: only the intensity is
             // overridden). The original bloom pass reads no volume, so it is held back for anything but Default.

@@ -276,6 +276,86 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void TheShutterAngleIsAFilmCamerasAt24FramesASecond()
+        {
+            Assert.AreEqual(0f, PhotoSettings.ExposureOf(0f));
+            Assert.AreEqual(1f / 48f, PhotoSettings.ExposureOf(180f), 1e-6f, "180 deg: half a 24 fps frame");
+            Assert.AreEqual(1f / 24f, PhotoSettings.ExposureOf(360f), 1e-6f);
+            Assert.AreEqual("Off", PhotoSettings.ShutterText(0f, "Off"));
+            Assert.AreEqual("180° · 1/48 s", PhotoSettings.ShutterText(180f, "Off"));
+            Assert.AreEqual("45° · 1/192 s", PhotoSettings.ShutterText(45f, "Off"));
+            Assert.IsTrue(OptionControl.TryNumber("180° · 1/48 s", out float typed));
+            Assert.AreEqual(180f, typed, "the box edits the angle");
+        }
+
+        [Test]
+        public void PastAFullTurnTheShutterIsALongExposureUpToTwoSeconds()
+        {
+            float lastFrame = PhotoSettings.ExposureOf(PhotoSettings.LongFrom);
+            Assert.AreEqual(1f / 24f, lastFrame, 1e-6f, "it carries on from 360 deg without a jump");
+            Assert.AreEqual(PhotoSettings.MaxLongSeconds, PhotoSettings.ExposureOf(PhotoSettings.MaxShutter), 1e-4f);
+            Assert.AreEqual(PhotoSettings.MaxLongSeconds, PhotoSettings.ExposureOf(10000f), 1e-4f, "never past the longest");
+            float halfway = PhotoSettings.ExposureOf((PhotoSettings.LongFrom + PhotoSettings.MaxShutter) / 2f);
+            Assert.AreEqual(Mathf.Sqrt(lastFrame * PhotoSettings.MaxLongSeconds), halfway, 1e-4f, "even in photographic stops");
+            float previous = 0f;
+            for (float s = 0f; s <= PhotoSettings.MaxShutter; s += 10f)
+            {
+                float e = PhotoSettings.ExposureOf(s);
+                Assert.GreaterOrEqual(e, previous, "longer all the way along the slider");
+                previous = e;
+            }
+            Assert.AreEqual("1/24 s", PhotoSettings.ShutterText(361f, "Off"));
+            Assert.AreEqual("1/3 s", PhotoSettings.ShutterText(540f, "Off"));
+            Assert.AreEqual("2 s", PhotoSettings.ShutterText(720f, "Off"));
+            Assert.AreEqual("360° · 1/24 s", PhotoSettings.ShutterText(360f, "Off"));
+            PhotoSettings.Shutter = 90f;
+            PhotoSettings.Zoom = 0.5f;
+            PhotoSettings.Reset();
+            Assert.AreEqual(0f, PhotoSettings.Shutter, "Reset turns the motion blur off");
+            Assert.AreEqual(0f, PhotoSettings.Zoom, "and the zoom blur");
+        }
+
+        [Test]
+        public void TheLooksGradeOverTheSlidersAndResetClearsThem()
+        {
+            var none = PhotoSettings.LookOf(PhotoSettings.LookMode.None);
+            Assert.IsFalse(none.Splits); Assert.IsFalse(none.Mixes);
+            Assert.AreEqual(0f, none.saturation); Assert.AreEqual(0f, none.contrast); Assert.AreEqual(0f, none.fade);
+            var noir = PhotoSettings.LookOf(PhotoSettings.LookMode.Noir);
+            Assert.IsTrue(noir.Mixes, "black and white through the mixer, which the Saturation slider comes after");
+            Assert.AreEqual(noir.mixRed, noir.mixGreen); Assert.AreEqual(noir.mixRed, noir.mixBlue);
+            Assert.AreEqual(100f, noir.mixRed.x + noir.mixRed.y + noir.mixRed.z, 1e-3f, "the brightness kept");
+            var sepia = PhotoSettings.LookOf(PhotoSettings.LookMode.Sepia);
+            Assert.Greater(sepia.mixRed.magnitude, sepia.mixBlue.magnitude, "warmer than grey");
+            Assert.IsTrue(PhotoSettings.LookOf(PhotoSettings.LookMode.TealOrange).Splits);
+            foreach (PhotoSettings.LookMode m in System.Enum.GetValues(typeof(PhotoSettings.LookMode)))
+            {
+                var d = PhotoSettings.LookOf(m);
+                Assert.That(d.saturation, Is.InRange(-100f, 100f), m.ToString());
+                Assert.That(d.contrast, Is.InRange(-100f, 100f), m.ToString());
+                Assert.That(d.fade, Is.InRange(0f, 1f), m.ToString());
+            }
+            PhotoSettings.Look = PhotoSettings.LookMode.Vintage;
+            PhotoSettings.Shadows = 20f; PhotoSettings.Highlights = -20f; PhotoSettings.Fade = 0.3f; PhotoSettings.Hue = 90f;
+            PhotoSettings.Reset();
+            Assert.AreEqual(PhotoSettings.LookMode.None, PhotoSettings.Look);
+            Assert.AreEqual(0f, PhotoSettings.Shadows + PhotoSettings.Highlights + PhotoSettings.Fade + PhotoSettings.Hue);
+        }
+
+        [Test]
+        public void TheBlurStopsAt300PercentAndLooksAsItDidBefore()
+        {
+            Assert.AreEqual(3f, PhotoSettings.MaxBlur);
+            float saved = PhotoSettings.Blur;
+            try
+            {
+                PhotoSettings.Blur = 1f; Assert.AreEqual(0f, PhotoSettings.ExtraBlur);
+                PhotoSettings.Blur = 3f; Assert.AreEqual(0.5f, PhotoSettings.ExtraBlur, 1e-6f, "300 % is halfway to the old 500 %");
+            }
+            finally { PhotoSettings.Blur = saved; }
+        }
+
+        [Test]
         public void ATypedValueIsReadInTheBoxsUnit()
         {
             Assert.IsTrue(OptionControl.TryNumber("46°", out float deg)); Assert.AreEqual(46f, deg);

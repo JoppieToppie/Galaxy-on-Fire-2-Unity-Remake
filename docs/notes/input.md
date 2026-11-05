@@ -143,17 +143,45 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   rows are `OptionControl`s): orbit / free, field of view (from the camera's own at each entry), roll (-180..180,
   holding level and the quarter turns, `PhotoTools.SnapRoll`), the free camera's speed, depth of field (Default = the
   game's / Off / On the ship = Gaussian sharp over the hull / Manual = Bokeh at a focus distance, 1 m-3 km, Gaussian on
-  phones) with its blur (0-500 %, a player's request 2026-11: URP caps its Gaussian radius at 1.5 and its Bokeh at 14 px,
-  both reached at 100 %; past it `Visuals.PhotoBlurPass` (shader `GoF2PostFx/PhotoBlur`, before the post-processing,
-  on the photo camera only) blurs what lies past the focus again at a quarter size, weighted by depth so the sharp ship
-  adds no halo, wider and more rounds up to 500 %), bloom (Default = the game's option / Off / Custom with an amount
+  phones) with its blur (0-300 %, a player's request 2026-11, 500 % at first and cut back to 300 % the same month, each
+  percentage looking as before (`PhotoSettings.ExtraBlur` still divides by the old 400 %): URP caps its Gaussian radius
+  at 1.5 and its Bokeh at 14 px, both reached at 100 %; past it `Visuals.PhotoBlurPass` (shader `GoF2PostFx/PhotoBlur`,
+  before the post-processing, on the photo camera only) blurs what lies past the focus again at a quarter size, weighted
+  by depth so the sharp ship adds no halo, wider and more rounds as it grows), the **shutter angle** (Action Freeze
+  only, a player's request 2026-11: motion blur, 0 = Off .. 360 deg, a film camera's at 24 fps, so 180 deg = 1/48 s;
+  the slider goes on to 720 as a long exposure, the same player's request: at 1/24 s the orbit's world barely
+  streaked, 4 m of travel at 100 m/s against asteroids hundreds of metres off; 1/24 s to 2 s evenly in stops, shown as
+  a time, a typed number is an angle, `PhotoSettings.ExposureSeconds`; the world is frozen and URP's motion blur
+  compares frames, so `Visuals.PhotoMotionPass` keeps every ship's velocity (Target.All's ships and the player,
+  sampled once a rendered frame while Time.deltaTime > 0; a jump over 5 km/s keeps the old one) from `PhotoTools`'
+  creation on and blurs the frozen frame itself: shader `GoF2PostFx/PhotoMotion`, a McGuire 2012 reconstruction filter
+  (velocity from the depth and up to 32 spheres around the moving ships nearest the camera, from their renderers'
+  bounds; tile max at a 24th of the picture's height up to 1/24 s, a 5th at 2 s (log of the exposure between), which
+  is also the longest half-streak; 3 x 3 neighbour max; a 32-sample gather that keeps a sharp foreground's edge; a
+  long exposure that carries a near point behind the camera halves its travel until both ends are in front); the orbit
+  camera moves with the player's ship, so the world streaks past a sharp ship, the free camera stands, so the ships
+  streak; translation only, a turning ship blurs as if flying straight; the sky and far objects barely move, as in a
+  real tracking shot), **zoom blur** (0-100 %, a player's request
+  2026-11 with a picture of a station before a streaking red nebula: a lens zoomed during the exposure, the original's
+  never-used radial blur 0x1400002 in spirit; `Visuals.PhotoZoomPass`, shader `GoF2PostFx/PhotoZoom`: 48 jittered
+  samples toward the ship's point on the screen (the screen's middle when the ship is behind the camera), up to 45 %
+  of the way, what lies past the ship weighted in by depth like the depth of field's "On the ship" and the samples
+  weighted the same, so the sharp hull never smears into the streaks; no physical motion, so the sky streaks too),
+  bloom (Default = the game's option / Off / Custom with an amount
   x0..3: a URP Bloom override of the intensity only, so the threshold and scatter stay the game's; anything but Default also holds the original bloom pass back,
   `Visuals.ClassicBloomPass.Suppressed`, which no volume reaches), the sun's lens flare (Action Freeze only: Default = the
   Graphics option / Off / On, `PhotoSettings.FlareShown` read by `FlightHud`; players' request 2026-10-22: the flare stayed
   over the photos, `.hud-photo` hides the HUD but not the flare's layer), exposure (over `Settings.BrightnessExposure`),
   contrast, saturation, white balance (the temperature shown in kelvin like a photo editor's, `PhotoSettings.Kelvin`: URP's
   -100..100 through its white point and McCamy's formula, 6500 K neutral, about 2600-35 800 K, higher warmer; the tint
-  -100..100, magenta +), vignette, film grain, chromatic aberration, lens distortion (-100..100 %, barrel +; the unclear
+  -100..100, magenta +), a **look** (a player's request 2026-11, "more cool settings": None / Teal & orange / Noir /
+  Sepia / Vintage / Cold / Warm / Bleach bypass / Cross process, `PhotoSettings.LookOf`: URP split toning, a channel
+  mixer for Noir and Sepia (LutBuilderHdr mixes before the saturation, so the Saturation slider can't grey a sepia
+  out, and split toning comes before both), saturation / contrast added to the sliders' and a fade; text keys
+  `photoGrade*`, as `photoLook` was already the free camera's "look" hint), shadows and highlights (-100..100, the w
+  of URP's ShadowsMidtonesHighlights), fade (Lift Gamma Gain's lift w = fade x 0.025: 0.075 already turned space
+  grey), hue (-180..180, Color Adjustments' hue shift; all of these are colour grading in the LUT, which URP never
+  strips), vignette, film grain, chromatic aberration, lens distortion (-100..100 %, barrel +; the unclear
   rows with a "?" description), hide the ship (its renderers moved to layer 28, which the camera then leaves out: the
   engine parts are switched every frame), composition guides (`PhotoGuides`, plain C#, polylines in the frame's pixels
   drawn by Painter2D: thirds, quarters, the golden ratio grid, the golden spiral with its rectangles (the frame cut

@@ -34,7 +34,17 @@ namespace GoF2Remake.UI
         public static DofMode Dof;
         public static float Focus = 0.5f;    // 0..1: 1 .. MaxFocusMetres, exponential (FocusMetres)
         public static float Blur = 0.5f;     // 0..MaxBlur: 1 = URP's depth of field at its most, past it Visuals.PhotoBlurPass
-        public const float MaxBlur = 5f;
+        public const float MaxBlur = 3f;     // a player's request (2026-11): 300 %, past it the background was a smear
+        /// <summary>Blur over 100 % as Visuals.PhotoBlurPass's amount (0..1): 500 % was its most when the slider went that far,
+        /// kept so a percentage looks as it did.</summary>
+        public static float ExtraBlur => Mathf.Clamp01((Blur - 1f) / 4f);
+        /// <summary>Motion blur (Visuals.PhotoMotionPass): 0..360 the shutter angle in degrees (0 = off), a film camera's at
+        /// ShutterFps; on to MaxShutter a long exposure (a player's request, 2026-11: the orbit's world barely streaked in
+        /// a 24th of a second), 1/24 s to MaxLongSeconds evenly in photographic stops.</summary>
+        public static float Shutter;
+        public const float LongFrom = 360f, MaxShutter = 720f, ShutterFps = 24f, MaxLongSeconds = 2f;
+        /// <summary>Zoom blur, 0..1: the background streaks out from the ship (Visuals.PhotoZoomPass).</summary>
+        public static float Zoom;
         public static float Exposure;        // EV
         public static float Contrast;        // -50..50
         public static float Saturation;      // -100..100
@@ -45,6 +55,10 @@ namespace GoF2Remake.UI
         public static FlareMode Flare;
         public static float Temperature;     // -100..100, warmer +
         public static float Tint;            // -100..100, magenta +
+        public static LookMode Look;
+        public static float Fade;            // 0..1, the blacks lifted (a faded print)
+        public static float Shadows, Highlights;   // -100..100, brighter +
+        public static float Hue;             // -180..180 degrees
         public static float Aberration;      // 0..1
         public static float Distortion;      // -1..1, barrel +
         public static bool HideShip;
@@ -65,11 +79,14 @@ namespace GoF2Remake.UI
             Dof = DofMode.Game;
             Focus = 0.5f;
             Blur = 0.5f;
+            Shutter = Zoom = 0f;
             Exposure = Contrast = Saturation = Vignette = Grain = 0f;
             Bloom = BloomMode.Game;
             BloomAmount = 1f;
             Flare = FlareMode.Game;
             Temperature = Tint = Aberration = Distortion = 0f;
+            Look = LookMode.None;
+            Fade = Shadows = Highlights = Hue = 0f;
             HideShip = false;
             Guides = PhotoGuides.Mode.Off;
             GuideCorner = 0;
@@ -81,6 +98,83 @@ namespace GoF2Remake.UI
         /// one is open ('photo': Action Freeze is on).</summary>
         public static bool FlareShown(bool photo) =>
             photo && Flare != FlareMode.Game ? Flare == FlareMode.On : Data.Settings.LensFlare;
+
+        /// <summary>Film looks (a player's request 2026-11, "more cool settings"): URP colour grading on top of the panel's
+        /// own sliders: split toning (LutBuilderHdr: before the channel mixer and the saturation), a channel mixer for the
+        /// black and white ones (so the Saturation slider can't undo them), saturation / contrast added to the sliders' and
+        /// a lift of the blacks.</summary>
+        public enum LookMode { None, TealOrange, Noir, Sepia, Vintage, Cold, Warm, BleachBypass, CrossProcess }
+
+        public struct LookDef
+        {
+            public Color shadows, highlights;   // split toning, grey (0.5) = none
+            public float balance;               // -100..100, highlights +
+            public float saturation, contrast;  // added to the sliders'
+            public float fade;                  // added to Fade
+            public Vector3 mixRed, mixGreen, mixBlue;   // the channel mixer's rows in percent; zero = none
+            public bool Mixes => mixRed != Vector3.zero;
+            public bool Splits => shadows != Grey || highlights != Grey;
+        }
+
+        static readonly Color Grey = new Color(0.5f, 0.5f, 0.5f);
+        static readonly Vector3 Luma = new Vector3(30f, 59f, 11f);
+
+        public static LookDef LookOf(LookMode look)
+        {
+            var d = new LookDef { shadows = Grey, highlights = Grey };
+            switch (look)
+            {
+                case LookMode.TealOrange:   // the blockbuster grade: teal shadows, orange lights
+                    d.shadows = new Color(0.1f, 0.55f, 0.6f); d.highlights = new Color(1f, 0.62f, 0.3f);
+                    d.saturation = 10f; d.contrast = 12f; break;
+                case LookMode.Noir:
+                    d.mixRed = d.mixGreen = d.mixBlue = Luma; d.contrast = 35f; break;
+                case LookMode.Sepia:        // the classic sepia matrix
+                    d.mixRed = new Vector3(39.3f, 76.9f, 18.9f); d.mixGreen = new Vector3(34.9f, 68.6f, 16.8f);
+                    d.mixBlue = new Vector3(27.2f, 53.4f, 13.1f); d.fade = 0.15f; break;
+                case LookMode.Vintage:
+                    d.shadows = new Color(0.45f, 0.4f, 0.62f); d.highlights = new Color(1f, 0.85f, 0.55f);
+                    d.saturation = -30f; d.contrast = -10f; d.fade = 0.35f; break;
+                case LookMode.Cold:
+                    d.shadows = new Color(0.25f, 0.42f, 0.72f); d.highlights = new Color(0.62f, 0.8f, 1f);
+                    d.saturation = -10f; d.contrast = 8f; break;
+                case LookMode.Warm:
+                    d.shadows = new Color(0.62f, 0.42f, 0.3f); d.highlights = new Color(1f, 0.78f, 0.45f);
+                    d.saturation = 8f; break;
+                case LookMode.BleachBypass:   // the silver kept in the print: grey, hard, gritty
+                    d.saturation = -60f; d.contrast = 40f; break;
+                case LookMode.CrossProcess:   // slide film in negative chemistry: blue shadows, yellow-green lights
+                    d.shadows = new Color(0.2f, 0.32f, 0.72f); d.highlights = new Color(0.92f, 1f, 0.5f);
+                    d.saturation = 25f; d.contrast = 15f; d.balance = 15f; break;
+            }
+            return d;
+        }
+
+        /// <summary>The shutter's open time in seconds: up to LongFrom the angle's share of a frame at ShutterFps (180 deg =
+        /// 1/48 s), past it 1/24 s x (MaxLongSeconds x 24)^t, t 0..1 over the rest of the slider.</summary>
+        public static float ExposureSeconds => ExposureOf(Shutter);
+        public static float ExposureOf(float shutter)
+        {
+            shutter = Mathf.Clamp(shutter, 0f, MaxShutter);
+            if (shutter <= LongFrom) return shutter / 360f / ShutterFps;
+            float t = (shutter - LongFrom) / (MaxShutter - LongFrom);
+            return Mathf.Pow(MaxLongSeconds * ShutterFps, t) / ShutterFps;
+        }
+
+        /// <summary>The shutter as the panel shows it: an angle with its open time ("180° · 1/48 s"), a long exposure as a
+        /// time alone ("1/4 s", "1.5 s"), 'off' at 0.</summary>
+        public static string ShutterText(float shutter, string off)
+        {
+            if (shutter <= LongFrom)
+            {
+                int deg = Mathf.RoundToInt(shutter);
+                if (deg <= 0) return off;
+                return $"{deg}° · 1/{Mathf.RoundToInt(360f * ShutterFps / deg)} s";
+            }
+            float s = ExposureOf(shutter);
+            if (s < 0.95f) return $"1/{Mathf.RoundToInt(1f / s)} s";
+            return (Mathf.Round(s * 10f) / 10f).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " s";
+        }
 
         /// <summary>The manual focus distance in metres.</summary>
         public static float FocusMetres => FocusMetresOf(Focus);
