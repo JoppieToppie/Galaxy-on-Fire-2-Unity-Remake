@@ -18,6 +18,9 @@ namespace GoF2Remake.UI
         static AudioSource source;
         static AudioListener listener;
 
+        /// <summary>The theme's source until the menu takes it (StartupSplash keeps it audible while it mutes the rest).</summary>
+        public static AudioSource Playing => source;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {

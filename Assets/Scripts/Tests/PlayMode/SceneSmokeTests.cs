@@ -44,7 +44,14 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(music != null && music.isPlaying, "the menu theme plays with the first logo");
             yield return WaitFor(() => SceneManager.GetActiveScene().name == "MainMenu", 30f, "the menu scene");
             Assert.IsTrue(StartupSplash.Running, "the menu came in while a logo was shown");
+            yield return null;   // the splash's LateUpdate has seen the menu's sources
+            Assert.IsFalse(music.mute, "the theme is heard under the logos");
+            foreach (var s in Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude))
+                if (s != music) Assert.IsTrue(s.mute, $"only the theme is heard under the logos: {s.name}");
             yield return WaitFor(() => !StartupSplash.Running, 30f, "the end of the logos");
+            yield return null;
+            foreach (var s in Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude))
+                Assert.IsFalse(s.mute, $"unmuted after the logos: {s.name}");
             Assert.GreaterOrEqual(Time.realtimeSinceStartup - start, 5f, "two logos of 3 s each");
             var menu = Find<MainMenu>();
             Assert.IsNotNull(menu, "MainMenu");

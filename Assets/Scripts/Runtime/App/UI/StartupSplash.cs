@@ -5,7 +5,8 @@
 // (ModLoading.Preload) and the MainMenu scene loads behind the logos. The menu builds its backdrop orbit as it wakes
 // (MenuBackground: a frozen frame of seconds in the Editor), so its scene comes in while a logo is held (fully shown, its
 // zoom stops for that moment) rather than on black after the logos: the splash stays on top of it (DontDestroyOnLoad, its
-// panel sorted over the menu's), and the menu waits for it (Running) before its title. Any key or button skips to the
+// panel sorted over the menu's), and the menu waits for it (Running) before its title. Only the theme is heard meanwhile
+// (MuteAllButMusic: the menu's sounds stay muted until the logos are gone). Any key or button skips to the
 // next logo. Straight to the menu for a -mpjoin / -mphost test and in a VR headset (the panel draws on the screen only);
 // a dedicated server switches the scene off (DedicatedServer.ShutOff). The panel is built in code (no UXML).
 
@@ -47,6 +48,9 @@ namespace GoF2Remake.UI
         AsyncOperation menuLoad;
         System.IDisposable anyKey;
         bool skip, held, activated;
+        /// <summary>Every source muted while the logos show (MuteAllButMusic), unmuted as the splash goes.</summary>
+        readonly System.Collections.Generic.List<AudioSource> muted = new();
+        MainMenu menu;
 
         void Awake()
         {
@@ -80,7 +84,33 @@ namespace GoF2Remake.UI
             panelRenderer?.UnregisterUIReloadCallback(OnUIReload);
             if (emptyTree != null) Destroy(emptyTree);
             if (runtimePanel != null) Destroy(runtimePanel);
+            foreach (var s in muted)
+                if (s != null) s.mute = false;
+            muted.Clear();
             Running = false;
+        }
+
+        void LateUpdate() => MuteAllButMusic();
+
+        /// <summary>Modified: only the menu theme is heard while the logos show. The menu scene loads (and plays its
+        /// backdrop orbit's sounds) behind them, so every other source is muted as it appears (before the audio update
+        /// that would play it), the theme (SplashMusic's source, then the menu's music source once it takes it) excepted.
+        /// Muted, not paused: a one-shot runs out unheard instead of all of them playing at once when the logos are gone.</summary>
+        void MuteAllButMusic()
+        {
+            if (menu == null)
+            {
+                var menus = FindObjectsByType<MainMenu>(FindObjectsInactive.Exclude);
+                if (menus.Length > 0) menu = menus[0];
+            }
+            var theme = SplashMusic.Playing;
+            var menuMusic = menu != null ? menu.musicSource : null;
+            foreach (var s in FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude))
+            {
+                if (s.mute || s == theme || s == menuMusic) continue;
+                s.mute = true;
+                muted.Add(s);
+            }
         }
 
         void OnUIReload(PanelRenderer renderer, VisualElement root, int version)

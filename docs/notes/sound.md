@@ -66,7 +66,10 @@ waves, `WeaponFx.Shot` / `ExplosionSound` pick one at random; the sentry deploy 
   twice). `MainMenu` adopts the playing source as its music source (`SplashMusic.Take` moves it into the menu scene; it
   used to destroy it and seek a second stream to the same point: a gap or a doubling). A mod's menu theme fades in over
   it (`MainMenu.SwapMusic`: 1 s out, 1.5 s in; it cut in hard), also when it finishes loading later; the newest
-  `FadeMusic` wins (leaving the menu stops a swap).
+  `FadeMusic` wins (leaving the menu stops a swap). Nothing else is heard while the logos show (2026-11-05,
+  `StartupSplash.MuteAllButMusic`): every other `AudioSource` (the menu scene loading behind them, its backdrop orbit)
+  is muted in `LateUpdate` as it appears and unmuted when the splash goes; muted rather than `AudioListener.pause`, which
+  would hold the one-shots and play them all at once afterwards. Nothing else in the game sets `AudioSource.mute`.
 - The rescue (index 1) plays the system race's space track (index 0's state 16 sets `Globals::switch_to_target_setting`:
   `playMusicAndFadeOutCurrent(1)`, Mido 137); 141 Space_Battle_Medium is the time jump's arrival only.
 - Not yet: the generic event volumes of the older SFX; the loop waves' seams (many SFX loops end some samples past their
