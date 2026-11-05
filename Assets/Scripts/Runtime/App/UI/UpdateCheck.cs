@@ -6,6 +6,8 @@
 // "Update available" button at the bottom centre that opens the release's page. The Editor's version is "editor", so
 // nothing is checked there unless MainMenu.editorTestVersion pretends one. A failed request (offline, rate limit) is
 // tried again the next time the menu is entered.
+// The release's files (assets) are kept: on Windows / Linux the button updates in place when the release carries this
+// platform's patch manifest (GamePatcher, CLAUDE.md "Update patcher"), else it opens the page.
 
 using System;
 using System.Text.RegularExpressions;
@@ -17,7 +19,7 @@ namespace GoF2Remake.UI
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class UpdateCheck
     {
-        public const string Repository = "JoppieToppie/Galaxy-on-Fire-2-Unity-Remake";
+        public const string Repository = PatchManifest.Repository;
         const string LatestApi = "https://api.github.com/repos/" + Repository + "/releases/latest";
         /// <summary>Where the button goes when the release didn't name its own page.</summary>
         public const string ReleasesPage = "https://github.com/" + Repository + "/releases/latest";
@@ -42,6 +44,7 @@ namespace GoF2Remake.UI
             running = done = false;
             Available = false;
             LatestTag = ReleaseUrl = null;
+            assets = null;
             Changed = null;
         }
 
@@ -52,6 +55,27 @@ namespace GoF2Remake.UI
             public string html_url;
             public bool draft;
             public bool prerelease;
+            public Asset[] assets;
+        }
+
+        [Serializable]
+        class Asset
+        {
+            public string name;
+            public string browser_download_url;
+            public long size;
+        }
+
+        static Asset[] assets;
+
+        /// <summary>The newest release's file named 'name' (case-insensitive): its download URL and size, or null.</summary>
+        public static (string url, long size)? ReleaseFile(string name)
+        {
+            if (assets == null || string.IsNullOrEmpty(name)) return null;
+            foreach (var a in assets)
+                if (a != null && string.Equals(a.name, name, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(a.browser_download_url))
+                    return (a.browser_download_url, a.size);
+            return null;
         }
 
         /// <summary>"yyyy.MM.dd" with anything after it (the build's ".HHmm", a tag's suffix) as yyyyMMdd; false for
@@ -110,6 +134,7 @@ namespace GoF2Remake.UI
                 if (release == null || release.draft || release.prerelease || string.IsNullOrEmpty(release.tag_name)) return;
                 LatestTag = release.tag_name.Trim();
                 ReleaseUrl = string.IsNullOrEmpty(release.html_url) ? ReleasesPage : release.html_url;
+                assets = release.assets;
                 Available = IsNewer(LatestTag, buildVersion);
                 if (Available) Debug.Log($"UpdateCheck: {LatestTag} is out (this build {buildVersion})");
                 Changed?.Invoke();

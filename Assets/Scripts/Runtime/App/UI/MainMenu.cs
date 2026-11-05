@@ -868,6 +868,8 @@ namespace GoF2Remake.UI
         /// <summary>What had the focus when the dialog opened: closing gives it back (CloseDialog). The panel's first item
         /// got it instead, and in the Mod Browser focusing the top row selects it, so No on Delete moved the selection.</summary>
         VisualElement dialogReturn;
+        /// <summary>The dialog's Yes / No buttons read something else (the updater's): CloseDialog puts Yes / No back.</summary>
+        bool dialogRelabelled;
 
         void ShowDialog(string title, string text, Action onYes)
         {
@@ -914,8 +916,9 @@ namespace GoF2Remake.UI
                 InputGlyph.SetText(root.Q<Button>("dialogYes"), Localization.Get(134).UiCaps());
             }
             dialogAlt = null;
-            if (no.style.display == DisplayStyle.None || dialogField != null && dialogField.style.display == DisplayStyle.Flex)
+            if (no.style.display == DisplayStyle.None || dialogRelabelled || dialogField != null && dialogField.style.display == DisplayStyle.Flex)
             {
+                dialogRelabelled = false;
                 no.style.display = StyleKeyword.Null;
                 InputGlyph.SetText(no, Localization.Get(135).UiCaps());
                 InputGlyph.SetText(root.Q<Button>("dialogYes"), Localization.Get(134).UiCaps());

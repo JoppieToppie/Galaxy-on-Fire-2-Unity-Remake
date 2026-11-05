@@ -135,6 +135,86 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   than the build counts. Then "Update available · <tag>" shows at the bottom centre (`.update-row`, only while no panel is
   open; Down from the last menu row reaches it) and opens the release page (`Application.OpenURL`). A failed request is tried
   again on the next menu entry. The Editor ("editor") checks only with `MainMenu.editorTestVersion` set (e.g. 2026.09.29.2200).
+- **Update patcher** (remake, 2026-11-05, players asked not to download 1.5 GB per update; `GamePatcher`, `MainMenuUpdate`,
+  `AndroidUpdateInstaller` + Plugins/Android `UpdateInstaller` / `UpdateApkProvider`, `UwpAppInstaller`, Core `PatchChunker` /
+  `PatchManifest` / `PatchInstall` / `PatchPublish`, `GamePatchTests`): the "Update available" button updates in place on
+  every platform where the release carries the way to (else, and for a read-only game folder, it opens the release page):
+  Windows / Linux `GoF2Remake-<platform>-<tag>.patch.json` (changed chunks, files swapped after quitting), Android
+  `GoF2Remake-Android-<tag>.patch.json` (changed chunks, the APK rebuilt and handed to Android's installer), UWP
+  `GoF2Remake-UWP.appinstaller` (Windows' App Installer). Everything is a GitHub release file: no other server (2026-11-05,
+  first planned on the user's NAS). Why chunks: Unity packs all of `Resources/` into one
+  `resources.assets.resS` (2.7 GB, 1.1 GB zipped), which any asset change rewrites with shifted offsets; a code-only
+  release still changed 122 of 1,467 MB zipped (10.23 -> 10.24), an asset release 1,425 MB.
+  - Chunks: content-defined (FastCDC gear hash; the gear table is fixed, never change it or every published chunk is cut
+    differently from the game's), id = first 16 bytes of SHA-256 as hex. An insertion only renews the chunks around it.
+    Size per file (`PatchChunker.BitsFor`, `PatchFile.bits`): 512 KB normal (128 KB - 2 MB), 16 KB (4 - 64 KB) for Unity's
+    serialized files (`*.assets`, globalgamemanagers, level*: they hold .resS offsets, so changes are scattered) and the APK
+    (13,000 separately packed zip entries).
+  - Packs: each publish writes the chunks no earlier release had into one file per platform, uploaded with the release as
+    `GoF2Remake-<platform>-<tag>.pack` (raw deflate, or stored when that's no smaller); the manifest names each chunk's pack
+    as "<tag>/<name>" under `packBase` (`PatchManifest.ReleaseDownloads`, github.com/<repo>/releases/download/) and its
+    offset; a chunk is published once for all platforms and releases. The game plans range requests
+    (`PatchInstall.PlanRanges`: neighbours up to 256 KB apart joined, at most 16 MB a request, four at a time): one release
+    behind it is mostly one sequential read of the newest pack; further behind it reads the pieces it needs from older
+    releases' packs. GitHub's download link answers 302 to its file host, which answers `Range` with 206 (checked with
+    UnityWebRequest on the real 11.02 zip, 2026-11-05: the header survives the redirect, 16 MB in 0.5 s). A 200 for a part is
+    refused. Python's http.server ignores Range: test locally with a range-aware one. Release files are limited to 2 GB
+    each (a first, full pack is ~1.5 GB).
+  - Trust: the manifest (file list, chunk ids / sizes / packs / offsets, `packBase`, `removed`) comes from the GitHub release;
+    every downloaded chunk is checked against the hash the manifest names. Paths and
+    pack names are checked (relative, no `..`, nothing a shell would read: they go into the apply script).
+  - In game (Windows / Linux / Android): button -> manifest -> `PatchInstall.Scan` (thread) cuts the files of the new build
+    the game has -> "downloads N instead of the full <zip / APK size>" (Update / Release page / Cancel) -> range downloads,
+    each chunk checked, kept in `_update/chunks` (an interrupted try keeps them) -> `Assemble` (thread) writes each changed
+    file whole into `_update/files` from local + downloaded chunks, checking every chunk again. Disk space checked first
+    (changed files + download + 64 MB).
+  - Apply, Windows / Linux: running files are locked, so `<game>/_update/apply.cmd` / `apply.sh` waits for the game's PID to
+    end, moves each file in (30 tries a second apart), deletes the manifest's `removed` files, removes `_update` (kept when
+    a move failed) and with "restart" starts the player again (Linux through `setsid` when present, `chmod +x` on `exec`
+    files). Later = the script runs from `Application.quitting`.
+  - Apply, Android: the manifest's one file is the APK (`PatchManifest.ApkName`); the chunks it shares are read from the
+    installed APK (`Application.dataPath`), the work folder is `persistentDataPath/_update`, and the rebuilt APK is byte for
+    byte the published one, so its signature holds. Install: Android 8+ first needs the app's "Install unknown apps" switch
+    (`patchAllowInstalls` opens it), then `UpdateInstaller.install` opens the APK in the package installer through
+    `UpdateApkProvider` (content://<package>.gof2update/<name>, read only, only files in `_update/files`) and Android asks
+    the player. Manifest: REQUEST_INSTALL_PACKAGES and the provider, added by the Editor's `AndroidUpdateInstallerManifest`.
+    The same signing key as the installed APK is needed (as for any APK update): the releases so far are signed with
+    the build machine's Android Debug key (cert SHA-256 6b1560d3..., 2026-11-05), so a lost debug.keystore or a build from
+    another machine makes Android refuse the update, patched or downloaded.
+  - Multiplayer: the fingerprint (`BuildFingerprint`) hashes the runtime sources, not the compiled code, so the platform-only
+    updater code (`#if UNITY_ANDROID` / `ENABLE_WINMD_SUPPORT`) doesn't split platforms; a patched install is byte-identical
+    to the release, fingerprint included.
+  - Apply, UWP: a package can't change its files, and its .msix can't be rebuilt from the installed files (they're stored
+    unpacked, the package compressed and signed). Windows' App Installer updates it from an .appinstaller that names the
+    package's web address and downloads only the blocks that changed (64 KB blocks per file: good for code releases,
+    poorer when the .resS shifts). `GamePatcher.OpenAppInstaller` downloads the release's .appinstaller to
+    temporaryCachePath and opens it (`Launcher.LaunchFileAsync` on the UI thread; if Windows refuses that file type, the
+    browser gets its URL). The .appinstaller's `OnLaunch` (24 h) also lets Windows check by itself when the game was
+    installed from it. Untested on a real UWP install (2026-11-05): only compiled for WSA.
+  - The next start deletes an `_update` whose state.json names the running version (`PatchInstall.CleanUpAppliedIn`). Builds
+    from before the patcher (2026.11.02 and older) can't patch: one last full download.
+  - Release side: GoF2 > Build > Update Patch (`PatchPublisherWindow`, editor-tools.md) after the builds writes the
+    release files into Build/Release beside the zips: per chunked platform (Build/Release/<Windows|Linux>/GoF2Remake, the
+    newest .apk in Build/Release or Build/Release/Android) `GoF2Remake-<platform>-<tag>.pack` + `.patch.json`, for UWP (the
+    newest .msix under Build/Release/UWP) `GoF2Remake-UWP-<tag>.msix` + `GoF2Remake-UWP.appinstaller` (its own Uri is
+    releases/latest/download/GoF2Remake-UWP.appinstaller, so Windows' OnLaunch check finds the newest; the package Uri is
+    this release's). Upload them all with `gh release create`. What earlier releases published comes from their .patch.json
+    files, fetched from GitHub into `Library/GoF2PatchHistory` before each publish (`FetchHistory`, `fetched.txt` remembers
+    which); a rebuild under the same tag writes that platform's pack anew and drops the superseded manifest from the history.
+    The tag defaults to the build version's date (`PatchPublish.TagOf`); set it in the window when the release day differs.
+    Versions come from globalgamemanagers (the APK's `assets/bin/Data/globalgamemanagers`) and the msix's AppxManifest.xml.
+  - Editor tests: `GamePatcher.TestInstallDir` = a build folder treats it as the game's (the Editor's platform),
+    `TestApkPath` = an APK as the installed one (Android; TestInstallDir is then the app's data), `TestManifestUrl` = the
+    manifest instead of the release's; pump Prepare / Download from `EditorApplication.update` (no Play mode). Keep the
+    Editor in front: in the background its update loop barely runs and a download crawled at 0.15 MB/s. Player scripts for
+    Android / WSA / Linux compile without switching with `PlayerBuildInterface.CompilePlayerScripts` (WSA returns an empty
+    list but writes the assemblies); the Java plugin with the Editor's OpenJDK javac against the SDK's android.jar.
+  - Measured on the real releases (2026-11-05), 10.24 -> 11.02 (skies, reflections and hangars rebuilt): Windows 376 MB
+    instead of the 1,492 MB zip (resources.assets.resS ~305 MB of genuinely new textures, GameAssembly.dll ~32 MB at any
+    chunk size: IL2CPP moves its code everywhere; resources.assets 19 MB in 16 KB chunks); Android 237 MB instead of the
+    1,170 MB APK (manifest 6.6 MB). Packs: 3,448 chunks in 24 requests. End to end through GamePatcher against a local
+    range server: Windows staged 26 files, the apply script (started as the game starts it) swapped them in under a second,
+    and the 10.24 folder hashed identical to 11.02 (104 files); a cancelled download resumed with its chunks kept.
 - **Hitch logger** (`HitchLogger`, development builds only; in the Editor with PlayerPrefs `debug_hitchlog` = 1): frames
   over 33 ms on the real clock to `persistentDataPath/hitches.log` (scene, seconds since its load, campaign step /
   station, tags load / GC / focus, a summary per scene) and `GraphicsSettings.logWhenShaderIsCompiled` on, so logcat

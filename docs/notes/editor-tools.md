@@ -66,6 +66,15 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   Needs the Hub module "Windows Dedicated Server Build Support" (`unity install-modules -e <version> -m windows-server`;
   the Editor found it without a restart). No compile wait: Windows is the Editor's own platform, so it builds at once
   when Windows is active. Not in Docker or the server image (Linux only).
+- **GoF2 > Build > Update Patch** (`PatchPublisherWindow`, Core `PatchPublish`, 2026-11-05): for the in-game updater
+  (platforms.md "Update patcher"), run after the release builds; everything goes into Build/Release beside the zips, to
+  upload with them to the GitHub release. Windows / Linux (`Build/Release/<platform>/GoF2Remake`) and Android (the newest
+  .apk in Build/Release or Build/Release/Android): cut into chunks, the ones no earlier release published packed into
+  `GoF2Remake-<platform>-<tag>.pack` (all cores), plus `GoF2Remake-<platform>-<tag>.patch.json`. UWP (the newest .msix under
+  Build/Release/UWP): `GoF2Remake-UWP-<tag>.msix` and `GoF2Remake-UWP.appinstaller`. First it fetches the earlier releases'
+  .patch.json files from GitHub into `Library/GoF2PatchHistory` (what they published; offline it uses what is there). The
+  tag defaults to the builds' version date. From an eval: `PatchPublisherWindow.StartAll(tag or null)`, then poll `.Busy` /
+  `.LastResult`.
 - **NetcodeBuildFolderGuard** (no menu item, before every build): Netcode's build step deletes
   `Assets/netcode-build-assets-temp` from the disk alone, so a build right after another (no refresh between) failed to
   write its script order and the player threw IndexOutOfRangeException in GhostBehaviourTypeManager at startup

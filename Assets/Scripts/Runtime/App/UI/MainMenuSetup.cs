@@ -99,7 +99,7 @@ namespace GoF2Remake.UI
             UpdateColumnFit();
             WatchMenuNumbers();
             updateRow = root.Q("updateRow");
-            updateButton = Bind("updateButton", () => Application.OpenURL(UpdateCheck.ReleaseUrl ?? UpdateCheck.ReleasesPage));
+            updateButton = Bind("updateButton", UpdatePressed);   // in place where it can (MainMenuUpdate), else the release page
 
             foreach (var n in new[] { "campaignPanel", "difficultyPanel", "economyPanel", "gameOptionsPanel", "loadPanel", "optionsPanel", "aboutPanel", "multiplayerPanel" })
             {
