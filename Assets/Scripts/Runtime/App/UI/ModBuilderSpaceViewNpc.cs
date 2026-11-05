@@ -32,6 +32,8 @@ namespace GoF2Remake.UI
         ProjectNpcShip currentNpc;
         GameObject npcPreview;
         string npcPreviewKey;
+        /// <summary>The template the preview was copied from (StaleHull).</summary>
+        GameObject npcPrefab;
         float npcRetryMs;
         ModBuilderGizmo npcGizmo;
         readonly List<WeaponMount> npcMounts = new List<WeaponMount>();
@@ -44,6 +46,7 @@ namespace GoF2Remake.UI
         Func<float> cmpScale;
         GameObject cmpPreview;
         string cmpKey;
+        GameObject cmpPrefab;
         float cmpRetryMs;
 
         static string[] NpcKindNames => new[] { T("mbNpcCapital", "Capital ship"), T("mbNpcFreighter", "Freighter"), T("mbNpcBoss", "Boss") };
@@ -453,7 +456,7 @@ namespace GoF2Remake.UI
             float k = Mathf.Clamp(cmpScale?.Invoke() ?? 1f, ModNpcShips.MinScale, ModNpcShips.MaxScale);
             var entry = spec != null ? Traffic.AssemblyOf(Database.Shared, spec) : null;
             string key = (entry?.name ?? "?") + "|" + k;
-            if (key != cmpKey || cmpPreview == null)
+            if (key != cmpKey || cmpPreview == null || StaleHull(cmpPrefab, entry))
             {
                 Destroy(cmpPreview);
                 cmpPreview = null;
@@ -461,6 +464,7 @@ namespace GoF2Remake.UI
                 var prefab = entry != null ? AssembledObject.LoadPrefab(entry) : null;
                 if (prefab == null) { cmpRetryMs = 500f; return; }   // a mod hull still building: again soon
                 cmpKey = key;
+                cmpPrefab = prefab;
                 cmpPreview = HullModel("Compare preview", prefab, spec.fixedObject != null, k);
             }
             var hull = HullBounds(npcPreview);
@@ -879,26 +883,36 @@ namespace GoF2Remake.UI
             var entry = Traffic.AssemblyOf(db, spec);
             float scale = Mathf.Clamp(s.Scale, ModNpcShips.MinScale, ModNpcShips.MaxScale);
             string key = (entry?.name ?? "?") + "|" + s.Ref + "|" + scale;
-            if (key != npcPreviewKey || npcPreview == null)
+            if (key != npcPreviewKey || npcPreview == null || StaleHull(npcPrefab, entry))
             {
                 Destroy(npcPreview);
                 npcPreview = null;
                 var prefab = AssembledObject.LoadPrefab(entry);
                 if (prefab == null) { npcPreviewKey = null; npcRetryMs = 500f; npcGizmo.Bind(null, null); return; }   // a mod hull still building: again soon
+                // Framed when the look changed; the same hull copied again from its new template (StaleHull) keeps the camera.
+                if (key != npcPreviewKey) frame = true;
                 npcPreviewKey = key;
+                npcPrefab = prefab;
                 // At its size: the pivot scaled, so the gizmo's points (in the hull's own frame) grow with it as in the game.
                 npcPreview = HullModel("NPC ship preview", prefab, spec.fixedObject != null, scale);
                 // Beside the station, clear of it.
                 var hull = HullBounds(npcPreview);
                 var st = level.Station != null ? HullBounds(level.Station) : new Bounds(Vector3.zero, Vector3.one * 200f);
                 npcPreview.transform.position = st.center + Vector3.left * (st.extents.magnitude + hull.extents.magnitude + 200f) - (hull.center - npcPreview.transform.position);
-                frame = true;
             }
             FillNpcMounts();
             npcGizmo.Bind(npcPreview.transform, npcMounts);
             ShowCompare();
             if (frame) FrameNpc();
         }
+
+        /// <summary>The template a preview was copied from has been replaced: every edit has the game read the project again,
+        /// and that destroys the mods' ship templates with their meshes and materials (ModShips.Release), so a copy made
+        /// before showed nothing but the gizmo's balls (a tester's report, 2026-11-05: a mod hull's turrets with no hull).
+        /// Only once the mods' models are built again (ModShips.Ready, OnReloaded): meanwhile LoadPrefab hands back a
+        /// stand-in.</summary>
+        static bool StaleHull(GameObject prefab, AssemblyData entry) =>
+            entry != null && ModShips.Ready && AssembledObject.LoadPrefab(entry) != prefab;
 
         static Bounds HullBounds(GameObject go)
         {

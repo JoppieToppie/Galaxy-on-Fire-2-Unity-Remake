@@ -199,7 +199,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   (`PreviewSpec` -> `Traffic.AssemblyOf` -> `AssembledObject.LoadPrefab`, a mod hull retried every 0.5 s until built)
   and the hangar's `ModBuilderGizmo` binds to it (hardpoints cyan / amber, pads red): a ball drags over the hull (Ctrl:
   100-unit snap) or along its arrows, "Click the hull to add" a turret or a pad; every edit saves and re-reads the project
-  (the page and the preview follow). Not yet tried in Play mode. Size (2026-11-03, the user's request "a model size
+  (the page and the preview follow). A mod hull's preview (and the compared one) is copied again when its template was
+  replaced (`StaleHull`, once `ModShips.Ready`): that reload destroys the mods' templates with their meshes and materials
+  (`ModShips.Release`), and the old copy kept its key, so only the gizmo's balls showed (a tester's report, 2026-11-05;
+  a kit hull hid it, its key changing with its rolled colours). Size (2026-11-03, the user's request "a model size
   adjustment like in the ship menu"): Size (x the hull's) and Scale -10% / +10% / Its own size write `"scale"`; the
   preview's pivot is scaled, so the gizmo's points (in the hull's own frame) grow with it as the game's do, and the page
   shows its length / width / height in metres. "Compare with…" (the same request: "spawns another ship of your choosing
