@@ -946,6 +946,25 @@
     margin-top: 6px;
 }
 
+/* The selected row's actions under it (HangarWindow.PlaceRowActions): the original's style-7 bars at the list's width,
+   one row's pitch each, as its "Actions" rows (HangarList::fillBuyList). */
+.ui-style-original .row-actions {
+    margin: 2px 0 0 0;
+    padding: 0;
+}
+
+.ui-style-original .row-actions--mounted {
+    border-left-width: 0;
+    padding-left: 0;
+}
+
+.ui-style-original .row-actions .detail-action--row {
+    height: 40px;
+    margin: 0 1px;
+    padding: 0 24px;
+    font-size: var(--text-caption);
+}
+
 /* Original: stat rows label-left / value-right, 23 px pitch, no lines. */
 .ui-style-original .stat-row {
     padding: 3px 6px;

@@ -739,6 +739,29 @@
     opacity: 0.35;
 }
 
+/* Remake (a player's feedback 2026-11-03, the original's "Actions" rows): the selected row's Mount / Demount / Move (or
+   Edit...) right under it in the list (HangarWindow.PlaceRowActions), side by side, as wide as the row. */
+.row-actions {
+    flex-direction: row;
+    margin: 0 8px 6px 8px;
+    padding: 4px 0 0 0;
+}
+
+.row-actions--mounted {
+    border-left-width: 3px;
+    border-left-color: var(--gof-cyan);
+    padding-left: 8px;
+}
+
+.row-actions .detail-action--row {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin: 0 var(--space-xs);
+    padding: var(--space-s) var(--space-m);
+    font-size: var(--text-label);
+    -unity-text-align: middle-center;
+}
+
 .detail-scroll {
     flex-grow: 1;
     margin-top: var(--space-l);

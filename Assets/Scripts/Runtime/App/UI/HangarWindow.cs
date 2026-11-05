@@ -255,6 +255,8 @@ namespace GoF2Remake.UI
             itemRight = new VisualElement();
             itemRight.AddToClassList("detail-item-right");
             itemRow.Add(itemRight);
+            rowActions = new VisualElement { pickingMode = PickingMode.Ignore };
+            rowActions.AddToClassList("row-actions");
             itemRow.style.display = DisplayStyle.None;
             detailsPanel?.Add(itemRow);
             // Remake: a short panel (a phone at a larger interface size) scrolls a ship's view and stats with its description.
@@ -278,6 +280,9 @@ namespace GoF2Remake.UI
         readonly VisualElement detailsPanel, itemRow;
         readonly ScrollView itemStats;
         readonly VisualElement itemRight;
+        /// <summary>Remake (a player's feedback 2026-11-03): any other row's actions (Mount / Demount / Move, Edit...) in the
+        /// list right under the selected row, as the original's "Actions" rows (HangarList::fillBuyList); PlaceRowActions.</summary>
+        readonly VisualElement rowActions;
         /// <summary>Remake: a ship's view and stats sit inside the description's scroll (FitDescription).</summary>
         bool previewScrolls;
         /// <summary>Remake: the least height of a ship's description (its title and about three lines) before its view and
@@ -331,13 +336,15 @@ namespace GoF2Remake.UI
                 }
                 itemRow.style.display = ship3d ? DisplayStyle.None : DisplayStyle.Flex;
                 detailScroll.EnableInClassList("detail-scroll--side", !ship3d);
-                // The action buttons: centred in the space under the ship's view, else back above the item's row.
+                // The action buttons: centred in the space under the ship's view, else in the list under the selected row
+                // (PlaceRowActions, once ShowDetails has picked them; they sat under the item's description until 2026-11-05).
                 foreach (var b in new[] { actionButton, actionButton2 })
                 {
                     if (b == null) continue;
                     if (ship3d && b.parent != actionArea) actionArea.Add(b);
-                    else if (!ship3d && b.parent != itemRight) itemRight.Add(b);
+                    else if (!ship3d && b.parent != rowActions) rowActions.Add(b);
                     b.EnableInClassList("detail-action--side", ship3d);
+                    b.EnableInClassList("detail-action--row", !ship3d);
                 }
             }
             FitActions();

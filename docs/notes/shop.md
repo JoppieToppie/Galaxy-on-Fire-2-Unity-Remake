@@ -97,6 +97,14 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   header; a a passenger cabin can't be demounted while the other cabins couldn't seat the passengers aboard (323,
   `HangarWindow::selectItem` 0x178e20); a double click / double tap mounts or demounts (the Mount / Demount button's
   action; a controller's confirm button does the same).
+- **Row actions** (a player's feedback 2026-11-03: the Mount / Demount buttons sat "way off to the right of the slots"):
+  the original turns a tapped slot into its own little list (`HangarList::fillBuyList` 0x14348c: 277 Selected, the row,
+  278 Actions with 279 Sell this item and 282 Demount as style-7 button rows drawn at the rows' place by
+  `HangarWindow::render`, then 284 Available in cargo). The remake keeps its list and puts the selected row's actions
+  (Mount / Demount and MOVE, a blueprint's Edit, the VIP Card's Buy) in a row right under it (`HangarWindow.rowActions`,
+  `PlaceRowActions` after every `ShowDetails`; `.row-actions`, `.detail-action--row`; the Original style's `og_action`
+  bars at the list's width); they sat under the item's description in the details panel until 2026-11-05. A ship's
+  Buy / Use / Sell stay under its turning view.
 - **Slot positions** (players' feedback 2026-11: the gear "snapped" to the next free slot, the original's didn't):
   `Ship+0x6c` is one place per slot, null when empty. `Ship::removeEquipment` 0x1a3e4c empties the slot and leaves
   the others where they are; `Ship::addEquipment` 0x1a4088 fills the type's first empty one; `Level::createPlayer` puts

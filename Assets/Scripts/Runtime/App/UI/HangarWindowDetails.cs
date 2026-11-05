@@ -15,6 +15,30 @@ namespace GoF2Remake.UI
     {
         void ShowDetails()
         {
+            FillDetails();
+            PlaceRowActions();
+        }
+        /// <summary>Remake (a player's feedback 2026-11-03: the Mount / Demount buttons "way off to the right of the slots"):
+        /// the selected row's actions in a row of their own right under it in the list, as the original lists "Actions" (278)
+        /// with Sell this item (279) and Demount (282) under a selected slot (HangarList::fillBuyList 0x14348c, drawn as
+        /// style-7 buttons at the rows' place by HangarWindow::render). A ship's stay under its view (UpdatePreview).</summary>
+        void PlaceRowActions()
+        {
+            bool Shown(Button b) => b != null && b.parent == rowActions && !b.ClassListContains("detail-action--hidden");
+            var e = selected?.element;
+            rowActions.RemoveFromHierarchy();
+            if (!IsOpen || (!Shown(actionButton) && !Shown(actionButton2)) || e?.parent == null || !list.contentContainer.Contains(e)) return;
+            e.parent.Insert(e.parent.IndexOf(e) + 1, rowActions);
+            rowActions.EnableInClassList("row-actions--mounted", e.ClassListContains("list-row--mounted"));
+            // The buttons in view too when the row is at the list's bottom edge.
+            list.schedule.Execute(() =>
+            {
+                if (rowActions.panel != null && list.contentContainer.Contains(rowActions) && !float.IsNaN(rowActions.layout.height))
+                    list.ScrollTo(rowActions);
+            });
+        }
+        void FillDetails()
+        {
             var db = level.Database;
             detailStats.Clear();
             detailText.text = "";
