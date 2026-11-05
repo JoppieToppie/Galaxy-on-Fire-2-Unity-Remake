@@ -81,7 +81,10 @@ generator).
   station's Map does), Discard (418). The story text is every step's objective (`MissionsWindow::init` 0x17a604:
   DAT_00258f68[index] below 0xa4), hidden and empty missions too (step 13's "find work in the Space Lounge" before the
   convoy); the map button only for a visible mission with a target. The pause menu's Missions page the same. Remake: a
-  "Pirate activity" tab beside Most Wanted (see "NPCs and combat", Pirate activity board).
+  "Pirate activity" tab beside Most Wanted (see "NPCs and combat", Pirate activity board). Remake (a player's suggestion
+  2026-11-03): on those two tabs Show on map sits right under the details' text at its left edge
+  (`.missions-scroll--fit` / `.missions-footer--under` in Lounge.uss), not in the panel's bottom-right corner; a long
+  text still scrolls with the button in view. The Missions tab keeps its buttons bottom-right.
 - **Blueprints** (`Blueprints`, the hangar's Blueprints tab 272): 25 products keyed by item (items.json ingredients),
   per-ingredient progress, production station (first investment; 212), 200 $ per unit shipping from another station
   (288; volatile 204 / 209 refused, 289), 210 / 223 need gate routes (528), Autocomplete `int(qty*maxPrice*1.25)` (iOS 1.1.19, the Default economy: `int(max(remaining value, qty*maxPrice)*1.4)`; 210:

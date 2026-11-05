@@ -142,10 +142,10 @@
                                 <ui:Label name="wantedBounty" class="chat-sub" picking-mode="Ignore" />
                             </ui:VisualElement>
                         </ui:VisualElement>
-                        <ui:ScrollView name="wantedScroll" class="chat-scroll missions-scroll">
+                        <ui:ScrollView name="wantedScroll" class="chat-scroll missions-scroll missions-scroll--fit">
                             <ui:Label name="wantedText" class="chat-text" picking-mode="Ignore" />
                         </ui:ScrollView>
-                        <ui:VisualElement class="missions-footer" picking-mode="Ignore">
+                        <ui:VisualElement class="missions-footer missions-footer--under" picking-mode="Ignore">
                             <ui:Button name="wantedMap" class="station-button chat-choice gof-semibold" />
                         </ui:VisualElement>
                     </ui:VisualElement>

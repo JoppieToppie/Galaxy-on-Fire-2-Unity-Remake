@@ -342,6 +342,21 @@
     margin-left: var(--space-m);
 }
 
+/* Most Wanted / Pirate Activity details (a player's suggestion 2026-11-03): Show on map right under the description, at
+   its left edge, instead of the panel's bottom-right corner; a long description still scrolls with the button in view. */
+.missions-scroll--fit {
+    flex-grow: 0;
+    flex-shrink: 1;
+}
+
+.missions-footer--under {
+    justify-content: flex-start;
+}
+
+.missions-footer--under .chat-choice {
+    margin-left: 0;
+}
+
 .missions-discard {
     color: #FF6A5A;
 }
