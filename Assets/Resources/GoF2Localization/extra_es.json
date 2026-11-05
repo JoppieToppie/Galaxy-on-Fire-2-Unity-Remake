@@ -3319,5 +3319,14 @@
  "barRobots": "Robots del bar",
  "barRobotsHelp": "Los robots que trabajan en los bares terrícolas y vossk.",
  "autoJumpgate": "El piloto automático usa las puertas de salto",
- "autoJumpgateHelp": "Con un destino fijado, el piloto automático cruza la puerta de salto hacia él sin preguntar. Desactivado: la puerta pregunta primero, como en el original."
+ "autoJumpgateHelp": "Con un destino fijado, el piloto automático cruza la puerta de salto hacia él sin preguntar. Desactivado: la puerta pregunta primero, como en el original.",
+ "musicBattleLow": "Música de combate: pocos enemigos",
+ "musicBattleMedium": "Música de combate: varios enemigos",
+ "musicBattleFull": "Música de combate: muchos enemigos",
+ "musicVoidBattle": "Música de combate: el Void",
+ "musicSpecters1": "Música de combate: Specters",
+ "musicSpecters2": "Música de combate: muchos Specters",
+ "musicWanted": "Música de combate: criminal Most Wanted",
+ "musicTrackHelp": "Desactivado: esta pista ya no suena; sigue la música tranquila de la órbita.",
+ "musicTrackSpecialHelp": "Desactivado: esta pista ya no suena; en su lugar suena la música de combate habitual."
 }

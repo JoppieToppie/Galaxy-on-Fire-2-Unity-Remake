@@ -3319,5 +3319,14 @@
  "barRobots": "Roboty w barze",
  "barRobotsHelp": "Roboty przy pracy w barach Terran i Vossków.",
  "autoJumpgate": "Autopilot przelatuje przez hiperwrota",
- "autoJumpgateHelp": "Gdy cel jest ustawiony, autopilot bez pytania przelatuje przez hiperwrota w jego stronę. Wyłączone: wrota najpierw pytają, jak w oryginale."
+ "autoJumpgateHelp": "Gdy cel jest ustawiony, autopilot bez pytania przelatuje przez hiperwrota w jego stronę. Wyłączone: wrota najpierw pytają, jak w oryginale.",
+ "musicBattleLow": "Muzyka walki: niewielu wrogów",
+ "musicBattleMedium": "Muzyka walki: kilku wrogów",
+ "musicBattleFull": "Muzyka walki: wielu wrogów",
+ "musicVoidBattle": "Muzyka walki: Void",
+ "musicSpecters1": "Muzyka walki: Specterzy",
+ "musicSpecters2": "Muzyka walki: wielu Specterów",
+ "musicWanted": "Muzyka walki: przestępca Most Wanted",
+ "musicTrackHelp": "Wył.: ten utwór już nie gra; spokojna muzyka orbity gra dalej.",
+ "musicTrackSpecialHelp": "Wył.: ten utwór już nie gra; zamiast niego gra zwykła muzyka walki."
 }

@@ -3319,5 +3319,14 @@
  "barRobots": "Robot del bar",
  "barRobotsHelp": "I robot al lavoro nei bar terrestri e vossk.",
  "autoJumpgate": "Il pilota automatico usa i portali",
- "autoJumpgateHelp": "Con una destinazione impostata, il pilota automatico attraversa il portale verso di essa senza chiedere. Disattivato: il portale chiede prima, come nell'originale."
+ "autoJumpgateHelp": "Con una destinazione impostata, il pilota automatico attraversa il portale verso di essa senza chiedere. Disattivato: il portale chiede prima, come nell'originale.",
+ "musicBattleLow": "Musica di battaglia: pochi nemici",
+ "musicBattleMedium": "Musica di battaglia: diversi nemici",
+ "musicBattleFull": "Musica di battaglia: molti nemici",
+ "musicVoidBattle": "Musica di battaglia: il Void",
+ "musicSpecters1": "Musica di battaglia: Specter",
+ "musicSpecters2": "Musica di battaglia: molti Specter",
+ "musicWanted": "Musica di battaglia: criminale Most Wanted",
+ "musicTrackHelp": "Disattivo: questo brano non suona più; continua la musica tranquilla dell'orbita.",
+ "musicTrackSpecialHelp": "Disattivo: questo brano non suona più; al suo posto suona la solita musica di battaglia."
 }

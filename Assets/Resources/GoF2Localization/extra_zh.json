@@ -3319,5 +3319,14 @@
  "barRobots": "酒吧机器人",
  "barRobotsHelp": "在Terran人和Vossk人的酒吧里工作的机器人。",
  "autoJumpgate": "自动飞行穿越星门",
- "autoJumpgateHelp": "设定目的地后，自动飞行器会不经询问穿过星门飞向目的地。关闭：星门先询问，与原版相同。"
+ "autoJumpgateHelp": "设定目的地后，自动飞行器会不经询问穿过星门飞向目的地。关闭：星门先询问，与原版相同。",
+ "musicBattleLow": "战斗音乐：少量敌人",
+ "musicBattleMedium": "战斗音乐：若干敌人",
+ "musicBattleFull": "战斗音乐：大量敌人",
+ "musicVoidBattle": "战斗音乐：Void",
+ "musicSpecters1": "战斗音乐：Specter",
+ "musicSpecters2": "战斗音乐：大量 Specter",
+ "musicWanted": "战斗音乐：Most Wanted 罪犯",
+ "musicTrackHelp": "关闭：不再播放此曲目，轨道的平静音乐继续播放。",
+ "musicTrackSpecialHelp": "关闭：不再播放此曲目，改为播放常规战斗音乐。"
 }

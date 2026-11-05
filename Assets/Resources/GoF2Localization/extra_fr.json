@@ -3319,5 +3319,14 @@
  "barRobots": "Robots du bar",
  "barRobotsHelp": "Les robots au travail dans les bars terriens et vossks.",
  "autoJumpgate": "Le pilote automatique prend les portes",
- "autoJumpgateHelp": "Avec une destination définie, le pilote automatique franchit la porte supraluminique vers elle sans demander. Désactivé : la porte demande d'abord, comme dans l'original."
+ "autoJumpgateHelp": "Avec une destination définie, le pilote automatique franchit la porte supraluminique vers elle sans demander. Désactivé : la porte demande d'abord, comme dans l'original.",
+ "musicBattleLow": "Musique de combat : peu d'ennemis",
+ "musicBattleMedium": "Musique de combat : plusieurs ennemis",
+ "musicBattleFull": "Musique de combat : beaucoup d'ennemis",
+ "musicVoidBattle": "Musique de combat : le Void",
+ "musicSpecters1": "Musique de combat : Specters",
+ "musicSpecters2": "Musique de combat : nombreux Specters",
+ "musicWanted": "Musique de combat : criminel Most Wanted",
+ "musicTrackHelp": "Désactivé : ce morceau ne joue plus ; la musique calme de l'orbite continue.",
+ "musicTrackSpecialHelp": "Désactivé : ce morceau ne joue plus ; la musique de combat habituelle le remplace."
 }

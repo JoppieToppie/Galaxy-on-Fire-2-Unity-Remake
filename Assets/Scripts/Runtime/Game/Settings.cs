@@ -664,6 +664,10 @@ namespace GoF2Remake.Data
         public static bool MarkerDistance { get => GetBool("markerDistance", false); set => SetBool("markerDistance", value); }
         /// <summary>Remake: every primary weapon item sounds its own shots (the original: only the first primary gun).</summary>
         public static bool EachWeaponSound { get => GetBool("eachWeaponSound", false); set => SetBool("eachWeaponSound", value); }
+        /// <summary>Remake (a player's request, 2026-11-04): a flight music track plays (default) or is skipped (MusicTracks:
+        /// a battle track off leaves the calm track playing).</summary>
+        public static bool MusicTrackOn(string track) => GetBool(MusicTracks.Key(track), true);
+        public static void SetMusicTrackOn(string track, bool on) => SetBool(MusicTracks.Key(track), on);
         /// <summary>Remake: the touch fire button's double-press autofire latch on the keyboard / mouse / controller fire
         /// binding (the PC version had none).</summary>
         public static bool KeyAutofire { get => GetBool("keyAutofire", false); set => SetBool("keyAutofire", value); }
@@ -787,7 +791,9 @@ namespace GoF2Remake.Data
         // key goes in its tab's list. Not reset: the text language and the tilt calibration (taken on the device, not an
         // option); the Key bindings tab resets the bindings (GameControls), the in-game Difficulty and Debug tools rows are
         // the game's / Cheats' state.
-        public static readonly string[] SoundKeys = { "masterVolume", "musicVolume", "sfxVolume", "voiceVolume", "eachWeaponSound", "muteInBackground" };
+        public static readonly string[] SoundKeys = { "masterVolume", "musicVolume", "sfxVolume", "voiceVolume", "eachWeaponSound", "muteInBackground",
+            "musicTrack.battleLow", "musicTrack.battleMedium", "musicTrack.battleFull", "musicTrack.voidBattle", "musicTrack.specters1",
+            "musicTrack.specters2", "musicTrack.wanted" };
         public static readonly string[] GraphicsKeys =
         {
             "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality",

@@ -3319,5 +3319,14 @@
  "barRobots": "바 로봇",
  "barRobotsHelp": "Terran과 Vossk 바에서 일하는 로봇.",
  "autoJumpgate": "자동조종이 점프게이트 통과",
- "autoJumpgateHelp": "목적지가 설정되어 있으면 자동조종이 묻지 않고 점프게이트를 통과해 그곳으로 향합니다. 끄기: 원작처럼 게이트가 먼저 묻습니다."
+ "autoJumpgateHelp": "목적지가 설정되어 있으면 자동조종이 묻지 않고 점프게이트를 통과해 그곳으로 향합니다. 끄기: 원작처럼 게이트가 먼저 묻습니다.",
+ "musicBattleLow": "전투 음악: 적 소수",
+ "musicBattleMedium": "전투 음악: 적 여럿",
+ "musicBattleFull": "전투 음악: 적 다수",
+ "musicVoidBattle": "전투 음악: Void",
+ "musicSpecters1": "전투 음악: Specter",
+ "musicSpecters2": "전투 음악: 다수의 Specter",
+ "musicWanted": "전투 음악: Most Wanted 범죄자",
+ "musicTrackHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 궤도의 잔잔한 음악이 계속됩니다.",
+ "musicTrackSpecialHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 대신 일반 전투 음악이 재생됩니다."
 }

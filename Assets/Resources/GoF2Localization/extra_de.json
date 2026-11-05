@@ -3319,5 +3319,14 @@
  "barRobots": "Bar-Roboter",
  "barRobotsHelp": "Die Roboter bei der Arbeit in den Bars der Terraner und Vossk.",
  "autoJumpgate": "Autopilot nimmt Sprungtore",
- "autoJumpgateHelp": "Mit gesetztem Ziel fliegt der Autopilot ohne Nachfrage durch das Sprungtor dorthin. Aus: Das Tor fragt zuerst, wie im Original."
+ "autoJumpgateHelp": "Mit gesetztem Ziel fliegt der Autopilot ohne Nachfrage durch das Sprungtor dorthin. Aus: Das Tor fragt zuerst, wie im Original.",
+ "musicBattleLow": "Kampfmusik: wenige Gegner",
+ "musicBattleMedium": "Kampfmusik: mehrere Gegner",
+ "musicBattleFull": "Kampfmusik: viele Gegner",
+ "musicVoidBattle": "Kampfmusik: die Void",
+ "musicSpecters1": "Kampfmusik: Specters",
+ "musicSpecters2": "Kampfmusik: viele Specters",
+ "musicWanted": "Kampfmusik: Most-Wanted-Verbrecher",
+ "musicTrackHelp": "Aus: Dieses Stück spielt nicht mehr; die ruhige Musik des Orbits läuft weiter.",
+ "musicTrackSpecialHelp": "Aus: Dieses Stück spielt nicht mehr; stattdessen spielt die übliche Kampfmusik."
 }
