@@ -3313,5 +3313,9 @@
  "postAaTaa": "TAA: suaviza los bordes a lo largo de varios fotogramas, lo más estable en piezas finas; el movimiento rápido puede emborronarse. Desactiva el MSAA.",
  "postAaTaaByUpscaler": "El escalador ya suaviza a lo largo de varios fotogramas: se usa SMAA en lugar de TAA.",
  "bombArming": "Distancia de armado de bombas",
- "bombArmingHelp": "Las bombas solo estallan por contacto tras volar 100 m, así una nave junto a tu proa no detona una al lanzarla. Desactivado: como en el original."
+ "bombArmingHelp": "Las bombas solo estallan por contacto tras volar 100 m, así una nave junto a tu proa no detona una al lanzarla. Desactivado: como en el original.",
+ "hangarRobots": "Robots del hangar",
+ "hangarRobotsHelp": "Robots de servicio vuelan por los hangares terrícolas y nivelianos.",
+ "barRobots": "Robots del bar",
+ "barRobotsHelp": "Los robots que trabajan en los bares terrícolas y vossk."
 }

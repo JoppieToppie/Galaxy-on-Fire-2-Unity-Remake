@@ -72,6 +72,25 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(-1f, Settings.TouchLeftHeight, "-1 = the original's place");
             Assert.AreEqual(-1f, Settings.TouchRightHeight);
             Assert.AreEqual("auto", Settings.VoiceLanguage, "voices as the text");
+            Assert.IsTrue(Settings.HangarRobots, "the hangars' service bots: on");
+            Assert.IsTrue(Settings.BarRobots, "the bars' robots: on");
+        }
+
+        /// <summary>The Hangar robots / Bar robots toggles (2026-11-05): stored, reset with the Graphics tab, rows there.</summary>
+        [Test]
+        public void RobotOptions()
+        {
+            AllDefaults();
+            Settings.HangarRobots = false;
+            Settings.BarRobots = false;
+            Assert.IsFalse(Settings.HangarRobots);
+            Assert.IsFalse(Settings.BarRobots);
+            CollectionAssert.IsSubsetOf(new[] { "hangarRobots", "barRobots" }, Settings.GraphicsKeys, "Default settings resets them with the Graphics tab");
+            Settings.Reset(Settings.GraphicsKeys);
+            Assert.IsTrue(Settings.HangarRobots && Settings.BarRobots, "back on after Default settings");
+            var rows = GoF2Remake.UI.OptionsCatalog.All().Where(o => o.id == "hangarRobots" || o.id == "barRobots").ToList();
+            Assert.AreEqual(2, rows.Count);
+            Assert.IsTrue(rows.All(o => o.page == GoF2Remake.UI.OptionPage.Graphics && o.kind == GoF2Remake.UI.OptionKind.Toggle));
         }
 
         [Test]

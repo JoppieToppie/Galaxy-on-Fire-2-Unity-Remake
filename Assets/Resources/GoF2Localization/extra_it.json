@@ -3313,5 +3313,9 @@
  "postAaTaa": "TAA: ammorbidisce i bordi su più fotogrammi, il più stabile sulle parti sottili; i movimenti veloci possono sbavare. Disattiva l'MSAA.",
  "postAaTaaByUpscaler": "L'upscaler ammorbidisce già su più fotogrammi: si usa l'SMAA al posto del TAA.",
  "bombArming": "Distanza di innesco delle bombe",
- "bombArmingHelp": "Le bombe esplodono al contatto solo dopo 100 m di volo, così una nave vicino alla prua non ne fa esplodere una al lancio. Disattivato: come nell'originale."
+ "bombArmingHelp": "Le bombe esplodono al contatto solo dopo 100 m di volo, così una nave vicino alla prua non ne fa esplodere una al lancio. Disattivato: come nell'originale.",
+ "hangarRobots": "Robot dell'hangar",
+ "hangarRobotsHelp": "Robot di servizio volano negli hangar terrestri e niveliani.",
+ "barRobots": "Robot del bar",
+ "barRobotsHelp": "I robot al lavoro nei bar terrestri e vossk."
 }

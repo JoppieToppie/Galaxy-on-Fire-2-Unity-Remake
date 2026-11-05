@@ -213,6 +213,35 @@ namespace GoF2Remake.World
                 terranBotParts.Add(parts);
             }
             if (terranBotParts.Count > 0) terranBots = new TerranHangarBots(terranBotParts.Count, () => Random.value);
+            hangarRobotsShown = true;
+            ApplyRobotOptions();
+        }
+        /// <summary>Remake (the user's request, 2026-11-05): Options > Graphics "Hangar robots" / "Bar robots"
+        /// (Settings.HangarRobots / BarRobots), read every frame so a change from the station's Options page shows at once.
+        /// Off hides the bots and drops their schedulers; on again starts them afresh (the first flight within 1.5 s, the
+        /// arms back in their rest poses, the first plays within 4 s).</summary>
+        void ApplyRobotOptions()
+        {
+            bool hangar = Settings.HangarRobots;
+            if (hangar != hangarRobotsShown)
+            {
+                hangarRobotsShown = hangar;
+                foreach (var parts in terranBotParts)
+                    foreach (var a in parts) if (a != null) a.gameObject.SetActive(false);   // a bot shows only while it flies
+                terranBots = hangar && terranBotParts.Count > 0 ? new TerranHangarBots(terranBotParts.Count, () => Random.value) : null;
+            }
+            bool bar = Settings.BarRobots;
+            if (bar != barRobotsShown)
+            {
+                barRobotsShown = bar;
+                foreach (var a in barBotParts) if (a != null) a.gameObject.SetActive(bar);
+                if (vosskBotA != null && vosskBotB != null && vosskBotC != null)
+                {
+                    vosskBotC.gameObject.SetActive(false);   // one end-arm animation shows at a time (BuildBar)
+                    vosskBots = bar ? new VosskBarBots(() => Random.value) : null;
+                    vosskBotsPosed = false;                  // UpdateVosskBots puts them in their rest poses again
+                }
+            }
         }
         /// <summary>Modified: one Terran bot flies at a time (TerranHangarBots); it shows while it flies.</summary>
         void UpdateTerranBots(float dtMs)

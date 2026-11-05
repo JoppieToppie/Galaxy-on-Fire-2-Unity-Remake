@@ -3313,5 +3313,9 @@
  "postAaTaa": "TAA : lisse les bords sur plusieurs images, le plus stable sur les pièces fines ; les mouvements rapides peuvent baver. Désactive le MSAA.",
  "postAaTaaByUpscaler": "L'upscaler lisse déjà sur plusieurs images : le SMAA est utilisé à la place du TAA.",
  "bombArming": "Distance d'armement des bombes",
- "bombArmingHelp": "Les bombes n'explosent au contact qu'après 100 m de vol : un vaisseau près de votre nez ne peut plus en déclencher une au lancement. Désactivé : comme dans l'original."
+ "bombArmingHelp": "Les bombes n'explosent au contact qu'après 100 m de vol : un vaisseau près de votre nez ne peut plus en déclencher une au lancement. Désactivé : comme dans l'original.",
+ "hangarRobots": "Robots du hangar",
+ "hangarRobotsHelp": "Des robots de service traversent les hangars terriens et niveliens.",
+ "barRobots": "Robots du bar",
+ "barRobotsHelp": "Les robots au travail dans les bars terriens et vossks."
 }

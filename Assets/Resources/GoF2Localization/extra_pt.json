@@ -3313,5 +3313,9 @@
  "postAaTaa": "TAA: suaviza as bordas ao longo de vários quadros, o mais estável em peças finas; movimentos rápidos podem borrar. Desativa o MSAA.",
  "postAaTaaByUpscaler": "O upscaler já suaviza ao longo de vários quadros: usa-se SMAA em vez de TAA.",
  "bombArming": "Distância de armamento das bombas",
- "bombArmingHelp": "As bombas só explodem por contato após voar 100 m, para que uma nave perto do nariz não detone uma no lançamento. Desligado: como no original."
+ "bombArmingHelp": "As bombas só explodem por contato após voar 100 m, para que uma nave perto do nariz não detone uma no lançamento. Desligado: como no original.",
+ "hangarRobots": "Robôs do hangar",
+ "hangarRobotsHelp": "Robôs de serviço voam pelos hangares terranos e nivelianos.",
+ "barRobots": "Robôs do bar",
+ "barRobotsHelp": "Os robôs trabalhando nos bares terranos e vossk."
 }

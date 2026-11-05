@@ -3313,5 +3313,9 @@
  "postAaTaa": "TAA: 여러 프레임에 걸쳐 가장자리를 부드럽게 하며 가는 부분에서 가장 안정적입니다. 빠른 움직임은 번질 수 있습니다. MSAA를 끕니다.",
  "postAaTaaByUpscaler": "업스케일러가 이미 여러 프레임에 걸쳐 부드럽게 합니다. TAA 대신 SMAA를 씁니다.",
  "bombArming": "폭탄 무장 거리",
- "bombArmingHelp": "폭탄은 100 m를 날아간 뒤에만 접촉으로 터지므로, 기수 근처의 함선이 발사 순간 폭탄을 터뜨리지 않습니다. 끄기: 원작과 같음."
+ "bombArmingHelp": "폭탄은 100 m를 날아간 뒤에만 접촉으로 터지므로, 기수 근처의 함선이 발사 순간 폭탄을 터뜨리지 않습니다. 끄기: 원작과 같음.",
+ "hangarRobots": "격납고 로봇",
+ "hangarRobotsHelp": "Terran과 Nivelian 격납고에서 정비 로봇이 날아다닙니다.",
+ "barRobots": "바 로봇",
+ "barRobotsHelp": "Terran과 Vossk 바에서 일하는 로봇."
 }

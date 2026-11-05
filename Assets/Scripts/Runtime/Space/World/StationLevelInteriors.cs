@@ -398,6 +398,14 @@ namespace GoF2Remake.World
                     vosskBotC.gameObject.SetActive(false);   // the end arm's other animation: one arm shows at a time
                 }
             }
+            // Remake (2026-11-05): the bar's robots, for the Bar robots option (ApplyRobotOptions): the Terran bar's looping
+            // bot (bar_terran_bot_anim + _anim_add) and the Vossk bar's arms.
+            barBotParts.Clear();
+            if (room != null && customBar == null)
+                foreach (var a in room.GetComponentsInChildren<PartAnimation>(true))
+                    if (a.gameObject.name.StartsWith("bar_terran_bot_") || a.gameObject.name.StartsWith("bar_vossk_bot_")) barBotParts.Add(a);
+            barRobotsShown = true;
+            ApplyRobotOptions();
 
             // One visitor per agent (Generator::createAgents, kept with the stock): slot nextInt(7) re-rolled until free,
             // the mesh by the agent's race (Level::createScene 0xc2b3e: a Midorian with a Nivelian face uses the Nivelian

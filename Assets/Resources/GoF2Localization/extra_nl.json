@@ -3313,5 +3313,9 @@
  "postAaTaa": "TAA: strijkt randen glad over meerdere beelden, het rustigst op dunne delen; snelle beweging kan uitsmeren. Zet MSAA uit.",
  "postAaTaaByUpscaler": "De upscaler strijkt al glad over meerdere beelden: SMAA wordt gebruikt in plaats van TAA.",
  "bombArming": "Bom-activeringsafstand",
- "bombArmingHelp": "Bommen gaan pas bij contact af na 100 m vlucht, zodat een schip vlak voor je neus er geen laat ontploffen bij de lancering. Uit: zoals in het origineel."
+ "bombArmingHelp": "Bommen gaan pas bij contact af na 100 m vlucht, zodat een schip vlak voor je neus er geen laat ontploffen bij de lancering. Uit: zoals in het origineel.",
+ "hangarRobots": "Hangarrobots",
+ "hangarRobotsHelp": "Servicerobots vliegen door de Terraanse en Nivelianse hangars.",
+ "barRobots": "Barrobots",
+ "barRobotsHelp": "De robots aan het werk in de Terraanse en Vossk-bars."
 }

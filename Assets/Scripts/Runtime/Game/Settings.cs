@@ -166,6 +166,12 @@ namespace GoF2Remake.Data
         /// ship (default). Off also drops the station camera's depth texture they read.</summary>
         public static int HangarShadows { get => Mathf.Clamp(Mathf.RoundToInt(Get("hangarShadows", Default("hangarShadows", HangarShadowsPlayer))), 0, 2); set => Set("hangarShadows", Mathf.Clamp(value, 0, 2)); }
         public const int HangarShadowsOff = 0, HangarShadowsPlayer = 1, HangarShadowsAll = 2;
+        /// <summary>Remake (the user's request, 2026-11-05): the hangars' service robots (the Terran and Nivelian hangars' bots,
+        /// TerranHangarBots). Off: none fly. On by default (StationLevel.ApplyRobotOptions, live while docked).</summary>
+        public static bool HangarRobots { get => GetBool("hangarRobots", true); set => SetBool("hangarRobots", value); }
+        /// <summary>Remake (2026-11-05): the bars' robots (the Terran bar's bot, the Vossk bar's bartender arms, VosskBarBots).
+        /// Off: hidden. On by default.</summary>
+        public static bool BarRobots { get => GetBool("barRobots", true); set => SetBool("barRobots", value); }
         /// <summary>Remake: levels of detail (AutoLods): far objects drawn with fewer triangles, the original's LOD meshes
         /// and the ones made from the models (the game's prebaked, the mods' at run time). Off: every model at full detail
         /// (LOD 0, as the original binary's AEGeometry::updateLod). On by default on every platform (the user's choice,
@@ -779,7 +785,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GraphicsKeys =
         {
             "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality",
-            "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "hangarShadows", "lods", "hangarDof", "lensFlare", "npcPlayerEngines", "fov",
+            "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "npcPlayerEngines", "fov",
             "cameraShake", "originalChaseCamera", "originalUi", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
         };
         public static readonly string[] ControlsKeys =

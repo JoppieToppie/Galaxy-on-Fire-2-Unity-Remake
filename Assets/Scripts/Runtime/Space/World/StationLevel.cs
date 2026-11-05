@@ -144,6 +144,10 @@ namespace GoF2Remake.World
         // the Nivelian hangar's a to c the same way.
         TerranHangarBots terranBots;
         readonly List<List<PartAnimation>> terranBotParts = new List<List<PartAnimation>>();
+        // Remake (2026-11-05): the Hangar robots / Bar robots options as the rooms show them (ApplyRobotOptions), and the
+        // bar's robots (the Terran bar's bot and its glow layer, the Vossk bar's three arm animations).
+        bool hangarRobotsShown = true, barRobotsShown = true;
+        readonly List<PartAnimation> barBotParts = new List<PartAnimation>();
         CycleSound mainViewAtmo, loungeAtmo, hangarAtmo;
         bool hangarWindowOpen;
 
@@ -462,6 +466,7 @@ namespace GoF2Remake.World
                 midorianTimer = 0f;
                 if (Random.value < 0.3f) midorianProp.Restart();
             }
+            ApplyRobotOptions();
             if (View == StationView.Lounge && vosskBots != null) UpdateVosskBots(dtMs);
             if (View == StationView.Hangar && terranBots != null) UpdateTerranBots(dtMs);
 

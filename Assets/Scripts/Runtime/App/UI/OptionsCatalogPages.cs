@@ -177,6 +177,15 @@ namespace GoF2Remake.UI
                 () => Settings.HangarDepthOfField, v => Settings.HangarDepthOfField = v);
             hangarDof.description = () => X("hangarDofHelp", "In the hangar your ship stays sharp and the room behind it blurs.");
             list.Add(hangarDof);
+            // Remake (the user's request, 2026-11-05): the station rooms' robots (StationLevel.ApplyRobotOptions).
+            var hangarRobots = Toggle("hangarRobots", OptionPage.Graphics, () => X("hangarRobots", "Hangar robots"),
+                () => Settings.HangarRobots, v => Settings.HangarRobots = v);
+            hangarRobots.description = () => X("hangarRobotsHelp", "Service robots fly through the Terran and Nivelian hangars.");
+            list.Add(hangarRobots);
+            var barRobots = Toggle("barRobots", OptionPage.Graphics, () => X("barRobots", "Bar robots"),
+                () => Settings.BarRobots, v => Settings.BarRobots = v);
+            barRobots.description = () => X("barRobotsHelp", "The robots at work in the Terran and Vossk bars.");
+            list.Add(barRobots);
             list.Add(Toggle("lensFlare", OptionPage.Graphics, () => X("lensFlare", "Lens flare"), () => Settings.LensFlare, v => Settings.LensFlare = v));
             list.Add(Toggle("npcPlayerEngines", OptionPage.Graphics, () => X("npcPlayerEngines", "Other ships' engines like yours"),
                 () => Settings.NpcPlayerEngines, v => Settings.NpcPlayerEngines = v));

@@ -33,6 +33,14 @@ slots, ship heights, fighters per race, music) are in `StationTables`.
     unless a volume profile asset has it on (the code-made profile isn't seen):
     `Assets/Settings/HangarDepthOfFieldShaders.asset` (Bokeh on, used by nothing) keeps them; without it the builds
     logged "BokehDepthOfField ... has been stripped" and showed no blur.
+  - **Robot options** (remake, the user's request, 2026-11-05; Graphics "Hangar robots" / "Bar robots",
+    `Settings.HangarRobots` / `BarRobots`, keys `hangarRobots` / `barRobots`, both on by default, not in the graphics
+    or experience presets): off hides the Terran and Nivelian hangars' service bots (`TerranHangarBots`' parts, its
+    scheduler dropped) and the bars' robots (the Terran bar's `bar_terran_bot_anim` + `_anim_add`, the Vossk bar's
+    `bar_vossk_bot_*` arms, `VosskBarBots` dropped). `StationLevel.ApplyRobotOptions` reads them every frame, so the
+    station's Options page shows a change at once; on again starts the schedulers afresh (arms back in their rest poses).
+    A mod hangar's bots follow it when named like the Terran / Nivelian ones (`SetupTerranBots` collects them by name);
+    a mod bar (`customBar`) is left alone. Test `SettingsTests.RobotOptions`.
 - **Space Lounge:**
   - 3-4 generic visitors (the race and gender rules of `Generator::createAgent`) on random slots, as camera-facing billboards with a glow and a floor shadow.
     Remake (#174, `StationLevel.UpdateBillboards`): upright (turned about the vertical only; the original's look-at with

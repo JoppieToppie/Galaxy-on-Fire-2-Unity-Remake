@@ -3313,5 +3313,9 @@
  "postAaTaa": "TAA: wygładza krawędzie w kilku klatkach, najstabilniejsze na cienkich elementach; szybki ruch może się rozmazywać. Wyłącza MSAA.",
  "postAaTaaByUpscaler": "Upscaler już wygładza w kilku klatkach: zamiast TAA używane jest SMAA.",
  "bombArming": "Dystans uzbrojenia bomb",
- "bombArmingHelp": "Bomby wybuchają przy kontakcie dopiero po 100 m lotu, więc statek tuż przed dziobem nie odpali jej przy starcie. Wył.: jak w oryginale."
+ "bombArmingHelp": "Bomby wybuchają przy kontakcie dopiero po 100 m lotu, więc statek tuż przed dziobem nie odpali jej przy starcie. Wył.: jak w oryginale.",
+ "hangarRobots": "Roboty w hangarze",
+ "hangarRobotsHelp": "Roboty serwisowe latają po hangarach Terran i Nivelian.",
+ "barRobots": "Roboty w barze",
+ "barRobotsHelp": "Roboty przy pracy w barach Terran i Vossków."
 }
