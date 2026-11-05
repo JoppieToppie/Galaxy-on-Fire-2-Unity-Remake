@@ -3319,5 +3319,6 @@
  "barRobots": "Robots du bar",
  "barRobotsHelp": "Les robots au travail dans les bars terriens et vossks.",
  "autoJumpgate": "Le pilote automatique prend les portes",
- "autoJumpgateHelp": "Avec une destination définie, le pilote automatique franchit la porte supraluminique vers elle sans demander. Désactivé : la porte demande d'abord, comme dans l'original."
+ "autoJumpgateHelp": "Avec une destination définie, le pilote automatique franchit la porte supraluminique vers elle sans demander. Désactivé : la porte demande d'abord, comme dans l'original.",
+ "statLoadingTime": "Temps de chargement"
 }

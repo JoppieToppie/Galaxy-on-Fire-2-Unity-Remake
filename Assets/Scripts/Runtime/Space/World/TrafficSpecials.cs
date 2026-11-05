@@ -96,6 +96,7 @@ namespace GoF2Remake.World
             TurnWantedHostile();
             var w = WantedOf(wantedShip);
             if (w == null) return;
+            WantedRadio();
             if (w.index == 0) { WantedLine(3134, -1, w); WantedLine(3135, w.index, w); }
             else if (w.index == 1) { WantedLine(3139, -1, w); WantedLine(3140, w.index, w); }
             else WantedLine(3141 + UnityEngine.Random.Range(0, 5), -1, w);
@@ -115,7 +116,12 @@ namespace GoF2Remake.World
             wantedAttacked = true;
             TurnWantedHostile();
             var w = WantedOf(s);
-            if (w == null) return;
+            // Remake (a player's report 2026-11-03, steps 129 / 130): uncoverWanted doesn't set the flag (Level+0x29c), so in
+            // the original the first hit after a lock greeted the criminal a second time ("Damn it. Someone found me!" twice,
+            // "negotiations Keith T. Maxwell style" twice). The storyline pairs are both first contact: after the lock's, the hit
+            // says nothing. Wanted 2 / 6 still taunt (Keith's uncover line is no repeat of it).
+            if (w == null || (wantedUncovered && WantedBoard.IsStoryline(w.index))) return;
+            WantedRadio();
             if (w.index == 0) { WantedLine(3132, w.index, w); WantedLine(3133, -1, w); }
             else if (w.index == 1) { WantedLine(3136, w.index, w); WantedLine(3137, -1, w); WantedLine(3138, w.index, w); }
             else if ((w.index | 4) == 6) WantedLine(3146 + UnityEngine.Random.Range(0, 5), w.index, w);   // only wanted 2 and 6 taunt
@@ -140,7 +146,15 @@ namespace GoF2Remake.World
             }
             int reward = WantedBoard.OnKilled(db, w.index);
             if (reward > 0) BountyCollected?.Invoke(reward);
+            WantedRadio();
             WantedLine(3151 + UnityEngine.Random.Range(0, 5), -1, w);   // Level::killWanted: "a job well done"
+        }
+        /// <summary>Level::createRadioMessage replaces the level's radio list: a wanted message cuts the lines still waiting or
+        /// showing (the remake queued them after each other, so a lock, a hit and a kill played one long conversation).</summary>
+        void WantedRadio()
+        {
+            chatterQueue.Clear();
+            chatter = null;
         }
         /// <summary>Level::createRadioMessage(0x10 / 0x11 / 0x12): Keith (speaker 0) or the criminal (image 10000 + i: its face).</summary>
         void WantedLine(int text, int wantedSpeaker, WantedData w)
