@@ -173,10 +173,10 @@ namespace GoF2Remake.UI
             StatLine(b, T(561), Session.CoresMined.ToString());
             StatLine(b, T(567), Session.WingmenHired.ToString());
 
-            // Medals (none in multiplayer: the column is hidden).
+            // Medals (none in multiplayer or a game without medals: the column is hidden).
             grid.Clear();
             medalButtons.Clear();
-            bool medals = !GoF2Remake.Multiplayer.NetGame.Active;
+            bool medals = MedalsShown;
             var column = root.Q(className: "status-right");
             if (column != null) column.style.display = medals ? DisplayStyle.Flex : DisplayStyle.None;
             if (!medals) { hint.text = ""; hint.style.display = DisplayStyle.None; menu.Focus(close); return; }
@@ -336,7 +336,7 @@ namespace GoF2Remake.UI
 
         Button statusTab, medalsTab;
         bool showMedals;
-        static bool MedalsShown => !GoF2Remake.Multiplayer.NetGame.Active;   // none in multiplayer
+        static bool MedalsShown => !GoF2Remake.Multiplayer.NetGame.Active && !Session.NoMedals;   // none in multiplayer or a game without medals
 
         Button TabButton(string text, bool medals)
         {

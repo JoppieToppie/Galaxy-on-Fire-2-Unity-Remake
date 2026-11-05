@@ -114,7 +114,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   (`SaveGame.Save` refuses other slots, the station hides Save game); the player's death (`FlightHud.OnGameOver`, not in
   sessions or with an event's respawn point) deletes every slot of the run at once (`SaveGame.DeleteRun`: closing the
   game on the death screen keeps nothing) and Tap returns to the main menu; mission and quest failures still reload the
-  auto-save; the slot rows say HARDCORE.
+  auto-save; the slot rows say HARDCORE. Below it **Medals** (On / Off, `MainMenu.noMedalsNext`, on whenever a
+  difficulty is picked): off starts a game without medals (`Session.NoMedals`, save v18 `noMedals`, older saves have
+  medals; the slot rows say NO MEDALS), the VoidX and the Specter / fireworks then come with the story; see
+  docs/notes/bar-and-freelance.md "A game without medals".
 - **New Game+** (remake, GitHub #4, `NewGamePlus`): with a finished game in the slots (main game past 44, Valkyrie past
   83, Supernova at 162; the newest one) the campaign panel shows a "New Game+" toggle (off each time it opens). Turned
   on, the new game (after the campaign's first step) gets the old credits added, the unlocked blueprints and the medals

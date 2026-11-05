@@ -3319,5 +3319,10 @@
  "barRobots": "Robots del bar",
  "barRobotsHelp": "Los robots que trabajan en los bares terrícolas y vossk.",
  "autoJumpgate": "El piloto automático usa las puertas de salto",
- "autoJumpgateHelp": "Con un destino fijado, el piloto automático cruza la puerta de salto hacia él sin preguntar. Desactivado: la puerta pregunta primero, como en el original."
+ "autoJumpgateHelp": "Con un destino fijado, el piloto automático cruza la puerta de salto hacia él sin preguntar. Desactivado: la puerta pregunta primero, como en el original.",
+ "medalsTitle": "Medallas",
+ "medalsDesc": "No: sin medallas en esta partida. La VoidX llega entonces al ganar la historia principal, y el Specter y los fuegos artificiales al terminar Supernova.",
+ "noMedalsVoidX": "Por tu victoria sobre los Void, Deep Science te proporcionará un prototipo de un caza Void restaurado. Puedes comprarlo en Thynome.",
+ "noMedalsFireworks": "Has superado la crisis de la Supernova: como recompensa has conseguido nuevos planos de los fuegos artificiales.",
+ "noMedalsTag": "SIN MEDALLAS"
 }

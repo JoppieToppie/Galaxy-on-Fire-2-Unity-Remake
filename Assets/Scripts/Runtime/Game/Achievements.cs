@@ -5,7 +5,9 @@
 // earned grade). 0 Veteran is preset gold; 35 Champion comes with all other base medals; 36-44 are the Supernova medals.
 // 22 Harum-Scarum: docking from campaign 8 with no weapon (types 0-2) or no equipment item (type 3) mounted
 // (initCheckEquipmentAndWeapons 0x182388). The elite medals 38 / 40 / 41 / 42 / 44 are flags set in flight when their
-// counter reaches the gold threshold (Session.OreStreak etc., Elite()). Plain C#.
+// counter reaches the gold threshold (Session.OreStreak etc., Elite()). Remake: a game without medals (Session.NoMedals,
+// the new game's choice) awards and shows none (Enabled), and the content they unlock comes from the story
+// (VoidXUnlocked, SupernovaUnlocked). Plain C#.
 
 using System.Collections.Generic;
 using GoF2Remake.Flight;
@@ -31,6 +33,18 @@ namespace GoF2Remake.Data
 
         /// <summary>Achievements::getValue(i, grade): the threshold shown in the hint.</summary>
         public static int Threshold(int medal, int grade) => grade >= 1 && grade <= 3 ? Thresholds[medal, grade - 1] : 0;
+
+        /// <summary>Medals are awarded and shown: not in multiplayer, not in a game started without medals
+        /// (Session.NoMedals, remake; a player's request 2026-11-04).</summary>
+        public static bool Enabled => !NetSession.Active && !Session.NoMedals;
+
+        /// <summary>Thynome's VoidX (and the all-gold hint 650): every base medal gold (gotAllGoldMedals); in a game
+        /// without medals the main story won (Story.GameWonIndex: a Valkyrie or Supernova start counts it won too).</summary>
+        public static bool VoidXUnlocked => Session.NoMedals ? !Session.FreePlay && Story.GameWon : GotAllGoldMedals;
+
+        /// <summary>The fireworks blueprint (232) and Katashán's Specter: every gold and Supernova medal
+        /// (gotAllSupernovaMedals); in a game without medals the Supernova story finished (Story.LastIndex).</summary>
+        public static bool SupernovaUnlocked => Session.NoMedals ? !Session.FreePlay && Story.Index >= Story.LastIndex : GotAllSupernovaMedals;
 
         public static int Grade(int medal) => Session.Medals != null && medal < Session.Medals.Length ? Session.Medals[medal] : 0;
 
@@ -99,7 +113,7 @@ namespace GoF2Remake.Data
         /// ignite, Player::damageEmp): at the gold threshold its Status flag is set; checkForNewMedal awards it on docking.</summary>
         public static void Elite(int medal, int count)
         {
-            if (NetSession.Active) return;   // no medals in multiplayer
+            if (!Enabled) return;   // no medals in multiplayer or a game without them
             Progress(medal, count);
             if (Grade(medal) == 0 && count >= Thresholds[medal, 0]) Session.EliteFlags.Add(medal);
         }
@@ -118,7 +132,7 @@ namespace GoF2Remake.Data
         /// <summary>Progress's line, or null when the original shows none for this count.</summary>
         public static string ProgressText(int medal, int count)
         {
-            if (NetSession.Active || medal < BaseCount || medal >= Count || Has(medal)) return null;
+            if (!Enabled || medal < BaseCount || medal >= Count || Has(medal)) return null;
             int max = Thresholds[medal, 0];
             if (max <= 0 || count <= 0) return null;
             int percent = (int)(count / (float)max * 100f);
@@ -201,7 +215,7 @@ namespace GoF2Remake.Data
         {
             if (Session.Medals == null || Session.Medals.Length != Count) Session.Medals = new int[Count];
             var improved = new List<int>();
-            if (NetSession.Active) return improved;   // multiplayer: no medals (nor their rewards)
+            if (!Enabled) return improved;   // multiplayer, a game without medals: none (nor their rewards)
             if (Session.Medals[0] == 0) Session.Medals[0] = 1;   // Veteran: preset gold (Achievements::init)
             for (int i = 1; i < Count; i++)
             {

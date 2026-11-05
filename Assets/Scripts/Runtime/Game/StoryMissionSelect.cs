@@ -202,6 +202,7 @@ namespace GoF2Remake.Data
             foreach (int h in shown) Session.Hints.Add(h);
             if (supernova) { Session.Hints.Add(0x26); Session.Hints.Add(0x31); Session.Hints.Add(0x39); }
             if (Session.Medals == null || Session.Medals.Length != Achievements.Count) Session.Medals = new int[Achievements.Count];
+            if (Session.NoMedals) return;   // remake: a game without medals gets none
             Session.Medals[23] = 3;
             Session.Medals[30] = 1;
         }

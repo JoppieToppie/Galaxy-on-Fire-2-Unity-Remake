@@ -683,9 +683,10 @@ namespace GoF2Remake.Data
                 if (Dlc1Won || (Index >= 80 && Index <= 84)) { AddDealerShip(100, 37); AddDealerShip(100, 38); AddDealerShip(100, 40); }
             }
             if (stock == null) return;
-            // ModStation::OnInitialize, every docking: Thynome's VoidX for all gold medals (the original's list is the VoidX
+            // ModStation::OnInitialize, every docking: Thynome's VoidX for all gold medals (Achievements.VoidXUnlocked: a game
+            // without medals has it once the main story is won; the original's list is the VoidX
             // alone; the remake adds it to the dealer's ships, as Shop.GenerateShips does) ...
-            if (station == 10 && Achievements.GotAllGoldMedals && (stock.ships == null || !stock.ships.Contains(8)))
+            if (station == 10 && Achievements.VoidXUnlocked && (stock.ships == null || !stock.ships.Contains(8)))
             {
                 stock.ships ??= new List<int>();
                 stock.ships.Insert(0, 8);

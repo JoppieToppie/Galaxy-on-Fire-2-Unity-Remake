@@ -191,6 +191,7 @@ namespace GoF2Remake.UI
                 "Android prices: dearer goods and gear, bigger blueprints, cheaper ships."));
             RefreshKaamoToggle();
             RefreshHardcoreToggle();
+            RefreshMedalsToggle();
             RefreshTutorialToggle();
             RefreshCapitalToggle();
             Set("extremeLabel", T(25));

@@ -1889,7 +1889,7 @@ the event graphs' expression language and is checked when it matters (a shop's s
 | `visited(station)`, `has(item)`, `cargo(item)`, `quest(name)` | A station docked at; how many of an item the player has (mounted too) / has in the hold; a mission under way (1) or done (2). |
 | `docked(station)`, `inorbit(station)` | How many of the players are docked at that station now / alive in its orbit (single player: 1 or 0). |
 | `medals(gold)`, `medals(silver)`, `medals(bronze)`, `medals(any)` | How many medals the player holds of that grade (`any`: earned at all). |
-| `medals(allgold)`, `medals(allsupernova)` | 1 with every medal of the main game gold (what puts the VoidX at Thynome), or those and the nine Supernova medals too. |
+| `medals(allgold)`, `medals(allsupernova)` | 1 with every medal of the main game gold (what puts the VoidX at Thynome), or those and the nine Supernova medals too. In a game started without medals: 1 once the main story is won, or the Supernova story finished. |
 | `bought(ship)` | 1 once the player has bought (or built from a blueprint) that ship in this game: a number, a name or `"mod_id:id"`. Ships bought before this word existed don't count. |
 | `produced(item)` | How many times the player has built that item's blueprint in this game (a number, a name or `"mod_id:id"`): `produced(85) > 0` once the Khador Drive is built. |
 | `unlocked(item)` | 1 once the player knows that item's blueprint (bought, found or given by the story): `unlocked(85)` from the story step that hands over the Khador Drive's. |

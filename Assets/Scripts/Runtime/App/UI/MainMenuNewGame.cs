@@ -127,7 +127,7 @@ namespace GoF2Remake.UI
                 left.AddToClassList("game-options-left");
                 var anchor = panel.Q("gameOptionsStart");
                 anchor.parent.Insert(anchor.parent.IndexOf(anchor), body);
-                foreach (var name in new[] { "kaamoToggle", "hardcoreToggle", "tutorialToggle", "capitalToggle" })
+                foreach (var name in new[] { "kaamoToggle", "hardcoreToggle", "medalsToggle", "tutorialToggle", "capitalToggle" })
                     if (panel.Q(name) is VisualElement e) left.Add(e);
                 body.Add(left);
                 var right = new VisualElement();
@@ -209,7 +209,9 @@ namespace GoF2Remake.UI
         {
             pendingDifficulty = difficulty;
             hardcoreNext = false;   // never carried over from an earlier new game: chosen each time
+            noMedalsNext = false;   // likewise
             RefreshHardcoreToggle();
+            RefreshMedalsToggle();
             OpenPanel("economyPanel");
         }
 
@@ -237,6 +239,23 @@ namespace GoF2Remake.UI
             if (desc != null)
                 desc.text = Localization.Extra("hardcoreDesc",
                     "One life: saves only on docking; if your ship is destroyed, this game's saves are deleted.");
+        }
+
+        /// <summary>Remake (a player's request 2026-11-04): medals on (the original) or none in this game (Session.NoMedals):
+        /// no medals, toasts or Medals tab, the VoidX with the main story won and the Specter / fireworks with the Supernova
+        /// story finished (Achievements.VoidXUnlocked / SupernovaUnlocked).</summary>
+        void RefreshMedalsToggle()
+        {
+            var b = root.Q<Button>("medalsToggle");
+            if (b == null) return;
+            b.EnableInClassList("choice-button--on", !noMedalsNext);
+            var label = root.Q<Label>("medalsLabel");
+            if (label != null)
+                label.text = $"{Localization.Extra("medalsTitle", "Medals")}: {(noMedalsNext ? Localization.Extra("off", "Off") : Localization.Extra("on", "On"))}".UiCaps();
+            var desc = root.Q<Label>("medalsDesc");
+            if (desc != null)
+                desc.text = Localization.Extra("medalsDesc",
+                    "Off: no medals in this game. The VoidX then comes with winning the main story, the Specter and the fireworks with finishing Supernova.");
         }
 
         /// <summary>The Supernova Challenge's entry under the campaign cards (the remake's: the original offered it nowhere,
@@ -326,6 +345,7 @@ namespace GoF2Remake.UI
         {
             Session.ResetNewGame();   // Status::resetGame: Phantom at Var Hastra (Mido)
             Session.Hardcore = hardcoreNext;   // remake: permadeath (a new RunId came with ResetNewGame)
+            Session.NoMedals = noMedalsNext;   // remake: a game without medals (before the campaign start's add-on medals)
             Session.Campaign = pendingCampaign;
             Session.Difficulty = pendingDifficulty;
             Session.Economy = economy;   // before the Database: it loads that economy's tables

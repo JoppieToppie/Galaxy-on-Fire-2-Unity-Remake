@@ -99,7 +99,8 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   showed "Hacked Hulk" after the hack (`HackWon` invoked; the hacking game itself not played). Not tested in multiplayer.
 - **A modder's requests, 2026-11-02** (Modding/README.md "Conditions", "Loaner ships", "Multi-grab tractor beams"):
   **Conditions** `medals(gold | silver | bronze | any)` (counts over `Session.Medals`), `medals(allgold | allsupernova)`
-  (`Achievements.GotAllGoldMedals` / `GotAllSupernovaMedals`) and `bought(ship)` (`EventRunner.GameState`; ship by
+  (`Achievements.VoidXUnlocked` / `SupernovaUnlocked`: the medals, or in a game without medals the story's gates, see
+  docs/notes/bar-and-freelance.md "A game without medals") and `bought(ship)` (`EventRunner.GameState`; ship by
   `NetAdmin.FindShip`): `Session.ShipsBought`, refs "12" / "mod:id" (`Session.ShipRef`, so no renumbering fix-up), saved
   (`SaveData.shipsBought`), added by `Hangar.SwitchTo` for every caller but a stored Kaamo hull (dealer, lounge seller,
   Keep, a blueprint's ship); ships bought before 2026-11-02 don't count. **Thynome with every gold medal**: the VoidX first

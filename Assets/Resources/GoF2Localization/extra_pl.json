@@ -3319,5 +3319,10 @@
  "barRobots": "Roboty w barze",
  "barRobotsHelp": "Roboty przy pracy w barach Terran i Vossków.",
  "autoJumpgate": "Autopilot przelatuje przez hiperwrota",
- "autoJumpgateHelp": "Gdy cel jest ustawiony, autopilot bez pytania przelatuje przez hiperwrota w jego stronę. Wyłączone: wrota najpierw pytają, jak w oryginale."
+ "autoJumpgateHelp": "Gdy cel jest ustawiony, autopilot bez pytania przelatuje przez hiperwrota w jego stronę. Wyłączone: wrota najpierw pytają, jak w oryginale.",
+ "medalsTitle": "Medale",
+ "medalsDesc": "Wył.: brak medali w tej grze. VoidX przychodzi wtedy z wygraniem głównej historii, a Specter i fajerwerki z ukończeniem Supernova.",
+ "noMedalsVoidX": "Za twoje zwycięstwo nad Voidami Towarzystwo Naukowe oferuje ci prototyp odbudowanego statku Voidów. Możesz go kupić w Thynome.",
+ "noMedalsFireworks": "Przetrwałeś kryzys Supernowej: w nagrodę otrzymujesz nowy plan budowy fajerwerków.",
+ "noMedalsTag": "BEZ MEDALI"
 }

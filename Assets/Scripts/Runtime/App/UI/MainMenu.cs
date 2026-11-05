@@ -695,6 +695,10 @@ namespace GoF2Remake.UI
         /// <summary>Remake: the next new game is hardcore (permadeath, Session.Hardcore): off whenever a difficulty is picked.</summary>
         bool hardcoreNext;
 
+        /// <summary>Remake (a player's request 2026-11-04): the next new game has no medals (Session.NoMedals): off whenever a
+        /// difficulty is picked.</summary>
+        bool noMedalsNext;
+
         // Remake (GitHub #4, NewGamePlus): with a finished game in the save slots, the campaign panel offers New Game+.
         bool newGamePlus;
         SaveData ngPlusSave;

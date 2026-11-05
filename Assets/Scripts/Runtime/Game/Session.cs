@@ -249,6 +249,10 @@ namespace GoF2Remake.Data
         public static bool Hardcore;
         /// <summary>This game's identity (a new one at every new game; saved), so a hardcore death finds every slot of the run.</summary>
         public static string RunId = "";
+        /// <summary>Remake (a player's request 2026-11-04): a game started without medals, the new game's choice (MainMenu):
+        /// none are awarded or shown (Achievements.Enabled), and what they unlock comes from the story instead
+        /// (Achievements.VoidXUnlocked / SupernovaUnlocked). Saved; older saves have medals.</summary>
+        public static bool NoMedals;
         /// <summary>Remake: the Space Waste tons the Mining Plant has sorted in this game (WasteProcessing: the next ton's
         /// roll), the empty ones in a row since the last find and the tons since the last rare find (its bad-luck caps;
         /// all saved).</summary>
@@ -544,6 +548,7 @@ namespace GoF2Remake.Data
             GraphQuests = new List<GraphQuestState>();
             ModCampaign = "";
             Hardcore = false;
+            NoMedals = false;
             RunId = System.Guid.NewGuid().ToString("N");
             WasteTons = WasteDry = WasteSinceRare = 0;
             ModGameOptions = new HashSet<string>();

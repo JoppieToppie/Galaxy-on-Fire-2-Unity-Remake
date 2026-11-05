@@ -70,16 +70,29 @@ namespace GoF2Remake.UI
 
         /// <summary>ModStation::checkHints 0xee500: once each, one per frame: 0x1a all base medals (649), 0x1b all gold (650),
         /// all gold + the Supernova medals while blueprint 232 is locked (651, unlocked, autosave), 0x3a after campaign 0xa1
-        /// with all gold + Supernova medals (or on Extreme) the Specter on sale at Katashun (3233, autosave).</summary>
+        /// with all gold + Supernova medals (or on Extreme) the Specter on sale at Katashun (3233, autosave). Remake: a game
+        /// without medals (Session.NoMedals) gets no 649 and the VoidX / fireworks with the story (Achievements.VoidXUnlocked /
+        /// SupernovaUnlocked), told by texts of its own that don't mention medals.</summary>
         bool CheckMedalHints()
         {
             if (level == null || Session.FreePlay) return false;
             string text = null;
-            if (!Session.Hints.Contains(0x1a) && Achievements.GotAllMedals) { Session.Hints.Add(0x1a); text = Localization.Get(649); }
-            else if (!Session.Hints.Contains(0x1b) && Achievements.GotAllGoldMedals) { Session.Hints.Add(0x1b); text = Localization.Get(650); }
-            else if (!Session.UnlockedBlueprints.Contains(232) && Achievements.GotAllGoldMedals && Achievements.GotAllSupernovaMedals)
-            { Blueprints.Unlock(232); Session.Autosave(); text = Localization.Get(651); }
-            else if (!Session.Hints.Contains(0x3a) && Session.CampaignMission > 0xa1 && (Session.IsExtreme || (Achievements.GotAllGoldMedals && Achievements.GotAllSupernovaMedals)))
+            bool none = Session.NoMedals;
+            if (!none && !Session.Hints.Contains(0x1a) && Achievements.GotAllMedals) { Session.Hints.Add(0x1a); text = Localization.Get(649); }
+            else if (!Session.Hints.Contains(0x1b) && Achievements.VoidXUnlocked)
+            {
+                Session.Hints.Add(0x1b);
+                text = none ? Localization.Extra("noMedalsVoidX", "For your victory over the Void, Deep Science will provide you with a prototype of a restored Void fighter spaceship. You can buy it at Thynome.")
+                            : Localization.Get(650);
+            }
+            else if (!Session.UnlockedBlueprints.Contains(232) && Achievements.SupernovaUnlocked)
+            {
+                Blueprints.Unlock(232);
+                Session.Autosave();
+                text = none ? Localization.Extra("noMedalsFireworks", "For seeing the Supernova crisis through, you received a new blueprint for fireworks.")
+                            : Localization.Get(651);
+            }
+            else if (!Session.Hints.Contains(0x3a) && Session.CampaignMission > 0xa1 && (Session.IsExtreme || Achievements.SupernovaUnlocked))
             { Session.Hints.Add(0x3a); Session.Autosave(); text = Localization.Get(3233); }
             if (text == null) return false;
             ShowDialog(text, null, true);

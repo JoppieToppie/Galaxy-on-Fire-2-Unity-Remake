@@ -677,8 +677,10 @@ namespace GoF2Remake.Events
                     if (name == "medals")
                     {
                         string which = arg.ToLowerInvariant();
-                        if (which == "allgold") return Achievements.GotAllGoldMedals ? 1 : 0;
-                        if (which == "allsupernova") return Achievements.GotAllSupernovaMedals ? 1 : 0;
+                        // A game without medals (Session.NoMedals): the gates the story opens instead (the main story won,
+                        // the Supernova story finished), so content behind them stays reachable.
+                        if (which == "allgold") return Achievements.VoidXUnlocked ? 1 : 0;
+                        if (which == "allsupernova") return Achievements.SupernovaUnlocked ? 1 : 0;
                         int grade = which switch
                         {
                             "gold" => 1, "silver" => 2, "bronze" => 3, "any" => 0,

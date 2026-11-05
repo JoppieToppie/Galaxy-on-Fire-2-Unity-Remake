@@ -100,6 +100,10 @@
                         <ui:Label name="hardcoreLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
                         <ui:Label name="hardcoreDesc" class="choice-desc" picking-mode="Ignore" />
                     </ui:Button>
+                    <ui:Button name="medalsToggle" class="choice-button choice-button--toggle">
+                        <ui:Label name="medalsLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                        <ui:Label name="medalsDesc" class="choice-desc" picking-mode="Ignore" />
+                    </ui:Button>
                     <ui:Button name="tutorialToggle" class="choice-button choice-button--toggle">
                         <ui:Label name="tutorialLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
                         <ui:Label name="tutorialDesc" class="choice-desc" picking-mode="Ignore" />

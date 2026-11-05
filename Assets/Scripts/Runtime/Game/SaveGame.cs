@@ -17,7 +17,7 @@ namespace GoF2Remake.Data
     [Serializable]
     public class SaveData
     {
-        public const int CurrentVersion = 17;
+        public const int CurrentVersion = 18;
 
         public int version = CurrentVersion;
         public string savedAtUtc;
@@ -124,6 +124,9 @@ namespace GoF2Remake.Data
         /// <summary>v17: the Pirate activity board (PirateReports).</summary>
         public List<PirateSighting> pirateSightings;
         public int nextPirateSightingId;
+        // version 18: a game without medals (Session.NoMedals; older saves have medals, and a build that knew no version 18
+        // would have awarded them)
+        public bool noMedals;
         // (remake, no version of its own: older saves have none) the Space Waste tons sorted and the bad-luck counters
         // (Session.WasteTons / WasteDry / WasteSinceRare)
         public int wasteTons, wasteDry, wasteSinceRare;
@@ -370,6 +373,7 @@ namespace GoF2Remake.Data
                 graphQuestRepeats = Session.GraphQuestRepeats.Select(kv => kv.Key + "|" + kv.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList(),
                 modCampaign = Session.ModCampaign ?? "",
                 hardcore = Session.Hardcore,
+                noMedals = Session.NoMedals,
                 runId = Session.RunId ?? "",
                 modGameOptions = new List<string>(Session.ModGameOptions),
                 shipBuilds = Session.ShipBuilds.Select(kv => kv.Key + "|" + kv.Value).ToList(),
@@ -542,6 +546,7 @@ namespace GoF2Remake.Data
             }
             Session.ResetNewGame();
             Session.Hardcore = s.hardcore;
+            Session.NoMedals = s.noMedals;
             if (!string.IsNullOrEmpty(s.runId)) Session.RunId = s.runId;   // an older save keeps the new id ResetNewGame made
             Session.PlaySeconds = s.playSeconds;
             Session.Campaign = (Campaign)s.campaign;

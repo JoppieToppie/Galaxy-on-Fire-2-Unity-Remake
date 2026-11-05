@@ -153,4 +153,17 @@ generator).
   every new medal of the 45 (none on Hardcore), and the elite medals only have a gold grade (thresholds [t, -1, -1]), so
   each pays 5000 in the original as well; its medal window just never shows the amount (`ChoiceWindow::setMedal`: the
   name and the hint), the remake's toast does. Kept (a player's report 2026-10-25 thought they paid nothing).
+- **A game without medals** (remake, a player's request on Discord 2026-11-04; `Session.NoMedals`, the new game's
+  "Medals: On / Off" toggle, see docs/notes/saves.md "Hardcore"): `Achievements.Enabled` is false, so `Check` awards none
+  (not even the preset Veteran), `Elite` sets no flag, no HUD progress, no toasts or rewards, the Status window hides the
+  medal column and the Medals tab (`StatusWindow.MedalsShown`), the add-on starts give no 23 / 30 and New Game+ carries
+  none in. The counters still count (the statistics). What the medals open comes from the story instead
+  (`Achievements.VoidXUnlocked` / `SupernovaUnlocked`, medals or story by the flag, never in free play): Thynome's VoidX
+  (`Shop.GenerateShips`, `Story.OnDocked`) once the main story is won (`Story.GameWon`, so a Valkyrie / Supernova start
+  has it at once), the fireworks blueprint 232 and Katashán's Specter (44, hint 0x3a / 3233) once the Supernova story is
+  finished (index 162). `StationMenu.CheckMedalHints` skips 649 (all medals: the wingman fans who pay stay a medal
+  reward) and tells the VoidX and the fireworks in texts of its own without medals (`noMedalsVoidX`,
+  `noMedalsFireworks`; 650 / 651 congratulate on the medals). The event conditions `medals(allgold | allsupernova)` read
+  the same gates, so mod content behind them stays reachable; `medals(gold ...)` counts 0. Save v18 (`noMedals`; older
+  saves have medals); the slot rows say NO MEDALS. Tests `NoMedalsTests`.
 - Type 15 Ore Mining (unreachable in the original's generator) is only rolled in multiplayer sessions (see "Multiplayer").

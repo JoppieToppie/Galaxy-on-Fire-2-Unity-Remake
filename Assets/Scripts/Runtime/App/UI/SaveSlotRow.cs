@@ -44,7 +44,8 @@ namespace GoF2Remake.UI
                 var st = db.Stations.Find(x => x.index == save.station);
                 var ship = db.Ship(save.ship);
                 subText = $"{st?.name} · {st?.systemName}  ·  {ship?.name}  ·  {Session.DifficultyName(save.difficulty)}, {Session.EconomyName(SaveGame.SaveEconomy(save))}"
-                          + (save.hardcore ? "  ·  " + Localization.Extra("hardcoreTag", "HARDCORE").OgCase() : "");
+                          + (save.hardcore ? "  ·  " + Localization.Extra("hardcoreTag", "HARDCORE").OgCase() : "")
+                          + (save.noMedals ? "  ·  " + Localization.Extra("noMedalsTag", "NO MEDALS").OgCase() : "");
             }
             else if (slot == SaveGame.AutoSaveSlot) subText = emptyAutoSaveHint;
             if (subText != null)

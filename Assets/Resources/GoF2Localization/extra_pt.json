@@ -3319,5 +3319,10 @@
  "barRobots": "Robôs do bar",
  "barRobotsHelp": "Os robôs trabalhando nos bares terranos e vossk.",
  "autoJumpgate": "O piloto automático usa os portais",
- "autoJumpgateHelp": "Com um destino definido, o piloto automático atravessa o portal rumo a ele sem perguntar. Desligado: o portal pergunta primeiro, como no original."
+ "autoJumpgateHelp": "Com um destino definido, o piloto automático atravessa o portal rumo a ele sem perguntar. Desligado: o portal pergunta primeiro, como no original.",
+ "medalsTitle": "Medalhas",
+ "medalsDesc": "Desligado: sem medalhas neste jogo. A VoidX vem então com a vitória na história principal, e o Specter e os fogos de artifício com o fim de Supernova.",
+ "noMedalsVoidX": "Pela sua vitória sobre os voidianos, a Deep Science fornecerá a você um protótipo de um caça restaurado dos voidianos. Você pode comprá-lo em Thynome.",
+ "noMedalsFireworks": "Você superou a crise da Supernova: como recompensa, você recebe um novo diagrama de fogos de artifício.",
+ "noMedalsTag": "SEM MEDALHAS"
 }
