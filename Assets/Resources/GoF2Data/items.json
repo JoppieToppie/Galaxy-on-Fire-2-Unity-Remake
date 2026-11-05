@@ -2232,7 +2232,7 @@
  {
   "index": 32,
   "name": "Jet Rocket",
-  "description": "Missiles, which have no guidance system, are better used at close range. The jet version is cheap and powerful and always worth having on-board for emergencies.",
+  "description": "Rockets, which have no guidance system, are better used at close range. The jet version is cheap and powerful and always worth having on-board for emergencies.",
   "type": "secondary",
   "category": "Rocket",
   "categoryId": 4,
