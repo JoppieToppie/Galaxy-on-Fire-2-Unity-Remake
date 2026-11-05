@@ -3,7 +3,8 @@
 // default): a pointer symmetric about its 62 degree axis, in the menus' colours: a dark blue fill lit a little along its
 // edge, a cyan outline (the buttons' line colour) and a soft cyan glow. Drawn in code at the screen's scale (remake: 24 px at 1080 lines at 100 %, was 32, times Options > Accessibility
 // "Cursor size", Settings.CursorSizePercent), so it is sharp at any resolution, and set as the
-// hardware cursor (Cursor.SetCursor): it follows the mouse with no lag, and shows and hides as the system's did
+// hardware cursor at 100 % (Cursor.SetCursor; Modified: a software one, drawn by Unity, at the other Cursor sizes, scaled
+// from the size the system shows the hardware one at): it shows and hides as the system's did
 // (InputMode.CursorShown, the flight's mouse steering). The original has no cursor of its own (the PC version used the
 // system's). Desktop only; not on a dedicated server.
 
@@ -18,6 +19,8 @@ namespace GoF2Remake.UI
         static GameCursor instance;
         Texture2D texture;
         int madeSize = -1;
+        CursorMode madeMode = CursorMode.Auto;
+        bool madeLinear;
         bool applied;
         float nextCheck;
 
@@ -37,30 +40,60 @@ namespace GoF2Remake.UI
         {
             if (Time.unscaledTime < nextCheck) return;
             nextCheck = Time.unscaledTime + 1f;   // a resolution or window size change
-            if (Settings.GameCursor && SizeFor(Screen.height) != madeSize) Apply();
+            if (Settings.GameCursor && TextureSize(Screen.height) != madeSize) Apply();
         }
 
-        // Modified: 24 px at 1080 lines (32 was a bit large), times the Cursor size option, in 2 px steps.
-        static int SizeFor(int height) => Mathf.Clamp(Mathf.RoundToInt(24f * height / 1080f * Settings.CursorSizePercent / 100f / 2f) * 2, 12, 128);
+        // Modified: 24 px at 1080 lines (32 was a bit large), in 2 px steps: the 100 % texture, the hardware cursor's.
+        static int SizeFor(int height) => Mathf.Clamp(Mathf.RoundToInt(24f * height / 1080f / 2f) * 2, 12, 128);
+
+        // Modified: Options > Accessibility "Cursor size". At 100 % the hardware cursor, the system's way: it shows the texture
+        // at the system's cursor size (Windows scales it to SM_CXCURSOR), so the other sizes, drawn by Unity
+        // (CursorMode.ForceSoftware) at the texture's own size, are that size times the option (a player's request: the
+        // option only made the hardware cursor sharper or blurrier, never bigger or smaller).
+        static int SoftwareSize(int height) => Mathf.Clamp(Mathf.RoundToInt(SystemCursorSize(height) * Settings.CursorSizePercent / 100f / 2f) * 2, 12, 256);
+
+        /// <summary>How big the system shows a hardware cursor, in screen pixels: Windows' SM_CXCURSOR, else the 100 % texture's.</summary>
+        static int SystemCursorSize(int height)
+        {
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+            try { int s = GetSystemMetrics(13); if (s > 0) return s; } catch (System.Exception) { }
+#endif
+            return SizeFor(height);
+        }
+
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern int GetSystemMetrics(int index);
+#endif
+
+        static bool Hardware => Settings.CursorSizePercent == 100;
+        // The hardware texture drawn at the system's cursor size itself: drawn at 24 px a 1080 line screen and scaled up by
+        // Windows to its 32 px or more, it came out blurrier than the software sizes (a player's report).
+        static int TextureSize(int height) => Hardware ? SystemCursorSize(height) : SoftwareSize(height);
 
         void Apply()
         {
             if (!Settings.GameCursor)
             {
-                if (applied) Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+                if (applied) Cursor.SetCursor(null, Vector2.zero, madeMode);
                 applied = false;
                 return;
             }
-            int size = SizeFor(Screen.height);
-            if (size != madeSize || texture == null)
+            int size = TextureSize(Screen.height);
+            var mode = Hardware ? CursorMode.Auto : CursorMode.ForceSoftware;   // Modified: SoftwareSize
+            if (mode != madeMode) { madeMode = mode; applied = false; }
+            if (size != madeSize || texture == null || madeLinear != !Hardware)
             {
                 if (texture != null) Destroy(texture);
-                texture = Draw(size);
+                // Modified: the software cursor's texture read as linear: Unity drew its sRGB colours decoded once more than the
+                // system shows the hardware one's, a darker blue at every size but 100 % (a player's report).
+                madeLinear = !Hardware;
+                texture = Draw(size, madeLinear);
                 madeSize = size;
                 applied = false;
             }
             if (applied) return;
-            Cursor.SetCursor(texture, new Vector2(size * 3.6f / 32f, size * 2.9f / 32f), CursorMode.Auto);   // the outline's tip
+            Cursor.SetCursor(texture, new Vector2(size * 3.6f / 32f, size * 2.9f / 32f), mode);   // the outline's tip
             applied = true;
         }
 
@@ -71,9 +104,9 @@ namespace GoF2Remake.UI
             new Vector2(4f, 3.6f), new Vector2(24.09f, 19.30f), new Vector2(12.92f, 20.38f), new Vector2(5.78f, 29.04f),
         };
 
-        static Texture2D Draw(int size)
+        static Texture2D Draw(int size, bool linear)
         {
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = "GameCursor", filterMode = FilterMode.Bilinear };
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false, linear) { name = "GameCursor", filterMode = FilterMode.Bilinear };
             var px = new Color32[size * size];
             float unit = 32f / size;   // box units per pixel
             var fill = new Color(0.03f, 0.10f, 0.17f, 0.92f);
