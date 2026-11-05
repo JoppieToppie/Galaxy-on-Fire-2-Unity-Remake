@@ -16,7 +16,12 @@ logic (plain C#); `MiningView` draws the lock ring, ore plate, HUD messages and 
   Novanium couldn't be mined. Remake: the explosion billboard (0x4213, `asteroid_explosion.png`) is shared by Explosion
   types 2 and 3 and its fragment cell is Void-crystal purple, so the ordinary asteroids (type 0) use a rock-coloured
   copy (`Resources/GoF2Combat/asteroid_explosion_rock.png` from `Reference/tools/combat/make_rock_explosion.py`,
-  `Target.explosionTexture`); the Void asteroids keep the purple.
+  `Target.explosionTexture`); the Void asteroids keep the purple. Beidan's (Kothar's) ice asteroid cloud
+  (`v_asteroid_ice_explosion_anim_alpha` part 0) keys its fade 199.5 -> 99.5: the original's colour byte
+  (`Transform::InternUpdate`, (int)(v * 2.55) * 0x1010101) wraps past 255, so it fades out like the others; the remake
+  clamped it to full strength until the cloud vanished at once (Discord report 2026-11-03). `PartAnimation.IsOffsetExtra`
+  / `ExtraOpacity` wrap it, leaving out the original's flash back to full strength in the last ~90 ms. Test
+  `AsteroidExplosionFadeTests`.
 - **Lock:** needs a drill (category 19) mounted; the crosshair box (+-w/16) must hold the asteroid for the scanner's
   lock time (attr 29, 8000 ms without) - 200 ms. The action prompt then says Mine. Without a drill (`Radar::draw`
   0x157b00: hudEvent 0x14, the original keeps the ring full and repeats it every frame) the remake says 541 "No drill

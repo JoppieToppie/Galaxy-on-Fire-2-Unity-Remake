@@ -106,7 +106,7 @@ namespace GoF2Remake.Visuals
             return m;
         }
 
-        class Track { public Transform tr; public AnimationKey[][] pos = new AnimationKey[3][]; public AnimationKey[][] rot = new AnimationKey[3][]; public AnimationKey[][] scl = new AnimationKey[3][]; public float[] rotTimes; public Vector3 basePos; public Quaternion baseRot; public Vector3 baseScale; public AnimationKey[] extra, uv, uvY; public bool signedExtra; public Renderer renderer; public MaterialPropertyBlock block; public int fadeMode; public int fadeProperty = ColorId; public Color baseColor; public int uvMode; public Vector4 baseST; public bool initialised; public Material own, from; }
+        class Track { public Transform tr; public AnimationKey[][] pos = new AnimationKey[3][]; public AnimationKey[][] rot = new AnimationKey[3][]; public AnimationKey[][] scl = new AnimationKey[3][]; public float[] rotTimes; public Vector3 basePos; public Quaternion baseRot; public Vector3 baseScale; public AnimationKey[] extra, uv, uvY; public bool signedExtra, offsetExtra; public Renderer renderer; public MaterialPropertyBlock block; public int fadeMode; public int fadeProperty = ColorId; public Color baseColor; public int uvMode; public Vector4 baseST; public bool initialised; public Material own, from; }
         readonly List<Track> tracks = new List<Track>();
         float timeMs, lengthMs, extraMs;
 
@@ -131,7 +131,7 @@ namespace GoF2Remake.Visuals
                 {
                     if (c.keys == null || c.keys.Length == 0 || string.IsNullOrEmpty(c.target) || c.target.Length < 4) continue;
                     foreach (var key in c.keys) if (key.t > 0f) loadPoseMs = Mathf.Min(loadPoseMs, key.t);
-                    if (c.target == "extra") { tk.extra = c.keys; extraMs = Mathf.Max(extraMs, c.keys[c.keys.Length - 1].t); tk.signedExtra = IsSignedExtra(c.keys); continue; }   // not in the length: the transform channels set it
+                    if (c.target == "extra") { tk.extra = c.keys; extraMs = Mathf.Max(extraMs, c.keys[c.keys.Length - 1].t); tk.signedExtra = IsSignedExtra(c.keys); tk.offsetExtra = IsOffsetExtra(c.keys); continue; }   // not in the length: the transform channels set it
                     // The UV scrolls set the length too: the burning stations' fire and smoke have no other keys.
                     if (c.target == "v5_0" || c.target == "v5_1")
                     {
@@ -220,6 +220,30 @@ namespace GoF2Remake.Visuals
             float min = float.MaxValue, max = float.MinValue;
             foreach (var k in keys) { min = Mathf.Min(min, k.v); max = Mathf.Max(max, k.v); }
             return min < 0f && max <= 0f;
+        }
+
+        /// <summary>Remake: an `extra` channel keyed a hundred too high, 199.5 -> 99.5 (only the Kothar / Beidan ice
+        /// asteroid's explosion cloud, v_asteroid_ice_explosion_anim_alpha part 0; Discord report 2026-11-03: the cloud
+        /// stayed at full strength and vanished at once). Transform::InternUpdate 0x7e720's colour (int)(v * 2.55) * 0x1010101
+        /// keeps the low byte, so the original wraps past 255 and the cloud fades out like the other asteroids'. Channels
+        /// that only overshoot 100 by a key (the EMP blast, the Mining Plant's fire) aren't this.</summary>
+        public static bool IsOffsetExtra(AnimationKey[] keys)
+        {
+            if (keys == null || keys.Length == 0) return false;
+            float min = float.MaxValue, max = float.MinValue;
+            foreach (var k in keys) { min = Mathf.Min(min, k.v); max = Mathf.Max(max, k.v); }
+            return min >= 99f && max > 150f && max <= 200f;
+        }
+
+        /// <summary>The opacity (0..1) of an `extra` value: 0..100 clamped; a signed channel (IsSignedExtra) as the iOS
+        /// build's colour byte wraps; an offset one (IsOffsetExtra) as every build's wraps past 255, the remake leaving out
+        /// the last hundredth under 100.4 (back to full strength for the animation's last ~90 ms, a flash of the whole cloud
+        /// before it is gone).</summary>
+        public static float ExtraOpacity(float e, bool signedExtra, bool offsetExtra)
+        {
+            if (signedExtra && e < 0f) return Mathf.Clamp01((256f + e * 2.55f) / 255f);
+            if (offsetExtra) { int n = (int)(e * 2.55f); return n >= 256 ? Mathf.Clamp01((n & 0xff) / 255f) : 0f; }
+            return Mathf.Clamp01(e / 100f);
         }
 
         /// <summary>Remake: some part's `extra` channel is keyed in -100..0 (IsSignedExtra): a light the original's
@@ -532,8 +556,9 @@ namespace GoF2Remake.Visuals
                     {
                         float e = Eval(tk.extra, timeMs, 100f);
                         // A signed channel (IsSignedExtra) as the iOS build shows it: the colour byte wraps, so -100 is
-                        // almost dark, it brightens toward 0 and is dark again at 0 exactly.
-                        float f = tk.signedExtra && e < 0f ? Mathf.Clamp01((256f + e * 2.55f) / 255f) : Mathf.Clamp01(e / 100f);
+                        // almost dark, it brightens toward 0 and is dark again at 0 exactly; an offset one (IsOffsetExtra)
+                        // wraps past 100.
+                        float f = ExtraOpacity(e, tk.signedExtra, tk.offsetExtra);
                         if (tk.fadeMode == 0) { if (own != null) own.SetFloat(FadeId, f); else tk.block.SetFloat(FadeId, f); }
                         else if (tk.fadeMode > 0)
                         {
