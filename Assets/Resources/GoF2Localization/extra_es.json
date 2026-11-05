@@ -3090,6 +3090,7 @@
  "mpCoopTag": "Coop",
  "coopTitle": "Campaña cooperativa",
  "coopNewText": "¿Qué campaña juega la tripulación? Tu nueva partida sobrescribe el guardado automático al acoplar, como en un jugador.",
+ "coopEconomyText": "¿Con qué economía juega la tripulación? La partida de cada miembro usa sus precios.",
  "coopHostText": "¿Jugar una de tus partidas guardadas con la tripulación o empezar una nueva partida?",
  "coopFromSave": "Continuar una partida",
  "coopNewGame": "Nueva partida",

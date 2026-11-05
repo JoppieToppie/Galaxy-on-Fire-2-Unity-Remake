@@ -118,12 +118,17 @@ namespace GoF2Remake.Multiplayer
                 }
                 catch (Exception e) { Debug.LogWarning("NetCoop: couldn't put the last crew's games aside: " + e.Message); }
             }
+            // The session's economy: the slot's own, or the new game's pick (NetState carries it to the guests).
+            var economy = CoopCampaign.HostEconomy(save, NetGame.CoopEconomy);
+            Session.Economy = NetSession.Economy = economy;
+            NetGame.ResetDb();
+            Debug.Log($"NetCoop: the campaign plays the {economy} economy");
             // The campaign's start; the slot's game replaces it when the host's profile arrives (SaveGame.ApplyProfile).
             CoopCampaign.NewCampaign(NetGame.Db, (Campaign)Mathf.Clamp(save != null ? save.campaign : newCampaign, 0, 2));
             NetGame.ResetDb();   // the tables of the story's world (the finished world's Cronus price no more)
             CoopCampaign.SetSettings(NetGame.CoopStrength, NetGame.CoopSplitRewards);   // the Host card's
             CoopCampaign.SetCrewLimit(NetGame.MaxPlayers);
-            SaveGame.BeginHostSaves(save);   // saved back under its own difficulty and economy
+            SaveGame.BeginHostSaves(save, economy);   // saved back under its own difficulty and economy
             return true;
         }
 

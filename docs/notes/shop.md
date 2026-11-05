@@ -21,7 +21,12 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   signatures 500 000 / 7500 (Android: only at 107, attr 61), shields / armor / repair bots ~×2.5, blueprint recipes several
   times the ingredients (Khador Drive 200 / 10 Pyresium), starter weapons / scanner / drill cheaper, ships ×0.5-0.8; a few
   stats (mining lasers' attrs 32 / 33, PE Proton 17 / 49-51), tech levels and Night Owl's 3 / 2 secondary slots.
-  Multiplayer sessions always use Android (the shared stock). The save slots show difficulty and economy.
+  Multiplayer sessions use Android (the shared stock), but a co-op campaign plays the host's economy (2026-11-05, a
+  Discord player's question: `NetSession.Economy`, the hosted save's or the new game's pick; NetState's spawn data
+  carries it to every guest before its tables load, see docs/notes/multiplayer-coop.md "Economy"). Free roam, persistent
+  worlds and dedicated servers stay Android: their balance (the Betty + 10 000 start, `Database.CronusSessionPrice`,
+  faction VAT and tolls, rewards) is tuned on the Android prices, a persistent world's profiles all grew under them, and
+  a server has no setting for it. The save slots show difficulty and economy.
 - **Prices** are deterministic per station: min + distance factor * (max - min) +- 2 %. The original draws the +- 2 %
   from `java.util.Random(station)` reseeded per list (cargo, mounted, stock), so an item's price depended on its list
   place and a unit bought from the stock could sell for more from the hold (a multiplayer report: Garuda at Thynome

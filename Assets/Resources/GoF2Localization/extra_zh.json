@@ -3090,6 +3090,7 @@
  "mpCoopTag": "合作",
  "coopTitle": "合作战役",
  "coopNewText": "机组要玩哪个战役？新游戏会像单人游戏一样，在停靠时覆盖自动存档。",
+ "coopEconomyText": "船员使用哪种经济？每位船员的游戏都使用它的价格。",
  "coopHostText": "与机组一起玩你的某个存档，还是开始新游戏？",
  "coopFromSave": "继续存档",
  "coopNewGame": "新游戏",

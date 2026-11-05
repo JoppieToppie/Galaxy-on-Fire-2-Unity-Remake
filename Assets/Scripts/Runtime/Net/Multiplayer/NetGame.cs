@@ -105,7 +105,9 @@ namespace GoF2Remake.Multiplayer
         {
             get
             {
-                if (db == null || dbMods != Modding.ModManager.Revision) { db = Database.Load(); dbMods = Modding.ModManager.Revision; }
+                // Also again for another economy (a co-op campaign's, set after the session's first look-up).
+                if (db == null || dbMods != Modding.ModManager.Revision || db.Economy != Session.Economy)
+                { db = Database.Load(); dbMods = Modding.ModManager.Revision; }
                 return db;
             }
         }
@@ -438,6 +440,10 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The co-op campaign to start: -1 = go on with the host's save slot CoopSlot, else a new game of that
         /// Campaign (the crew's old games in CoopFolder kept as CoopFolder + ".old").</summary>
         public static int CoopNewCampaign { get; set; } = -1;
+
+        /// <summary>A new co-op campaign's economy (the host's pick after the campaign; a continued save keeps its own,
+        /// CoopCampaign.HostEconomy).</summary>
+        public static Economy CoopEconomy { get; set; } = Economy.Default;
 
         /// <summary>The single-player save slot the host's co-op campaign continues (CoopNewCampaign -1).</summary>
         public static int CoopSlot { get; set; } = -1;
@@ -848,7 +854,9 @@ namespace GoF2Remake.Multiplayer
             NetNews.Reset();
             Session.ResetNewGame();
             Session.Difficulty = Session.DifficultyNormal;   // every session plays on Normal (the shared stock, NPCs, rewards)
-            Session.Economy = Economy.Android;               // and on one economy (the shared stock's prices)
+            // ... and on one economy (the shared stock's prices): Android, but in a co-op campaign the host's (NetCoop.PrepareHost;
+            // a guest's from NetState). Free roam stays Android (docs/notes/shop.md "Economy").
+            Session.Economy = NetSession.Economy = Economy.Android;
             Session.UseCompletedWorld();   // free play in the finished game's world (every dealer ship, Ginoya after the supernova)
             ResetDb();   // the session's tables (Database.Load reads CompletedWorld: the Cronus' price)
             Session.StationIndex = Station;

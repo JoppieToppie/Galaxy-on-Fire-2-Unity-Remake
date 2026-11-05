@@ -11,6 +11,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using GoF2Remake.Data;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
@@ -22,7 +23,8 @@ namespace GoF2Remake.Multiplayer
     {
         const float HeartbeatSeconds = 15f, CountSeconds = 5f;
         const string KeyVersion = "version", KeyProtocol = "protocol", KeyCode = "code", KeyHost = "host", KeyPlayers = "players", KeyServer = "server", KeyPassword = "password",
-            KeyMods = "mods", KeyModNames = "modnames", KeyPvp = "pvp", KeyRegion = "region", KeyCoop = "coop";
+            KeyMods = "mods", KeyModNames = "modnames", KeyPvp = "pvp", KeyRegion = "region", KeyCoop = "coop",
+            KeyEconomy = "economy";
 
         /// <summary>One listed session in the browser.</summary>
         public sealed class Entry
@@ -43,6 +45,9 @@ namespace GoF2Remake.Multiplayer
             public bool? pvp;
             /// <summary>A co-op campaign (NetGame.CoopSession): a crew playing the host's story.</summary>
             public bool coop;
+            /// <summary>The session's economy (NetSession.Economy: a co-op campaign's may be Default); null for a listing from
+            /// before the key (Android, as every session was then).</summary>
+            public Economy? economy;
             public bool Full => players >= maxPlayers;
             /// <summary>The same code as this game (the fingerprint: the only ones it can join, whenever they were built; the
             /// Editor joins any, for testing). A listing from before the fingerprint has only its version.</summary>
@@ -91,6 +96,7 @@ namespace GoF2Remake.Multiplayer
                         [KeyPvp] = Public(NetGame.FreePvp ? "1" : "0"),
                         [KeyRegion] = Public(Trim(NetGame.HostRegion, 40)),
                         [KeyCoop] = Public(NetGame.CoopSession ? "1" : "0"),
+                        [KeyEconomy] = Public(NetSession.EconomyCode(NetSession.Economy).ToString()),
                     },
                 });
                 if (gen != generation || !NetGame.Active)
@@ -192,6 +198,7 @@ namespace GoF2Remake.Multiplayer
                         pvp = Get(l, KeyPvp) switch { "1" => true, "0" => false, _ => (bool?)null },
                         region = Get(l, KeyRegion) ?? "",
                         coop = Get(l, KeyCoop) == "1",
+                        economy = byte.TryParse(Get(l, KeyEconomy), out byte eco) ? NetSession.EconomyFromCode(eco) : (Economy?)null,
                     });
                 }
                 // This version's first (the query's order, the fullest first, within each).

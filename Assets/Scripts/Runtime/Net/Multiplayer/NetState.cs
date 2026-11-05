@@ -71,6 +71,7 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<bool> coop = new NetworkVariable<bool>();   // a co-op campaign (NetGame.CoopSession, NetCoop)
         readonly NetworkVariable<FixedString4096Bytes> coopStory = new NetworkVariable<FixedString4096Bytes>();   // the leader's story (CoopCampaign.State)
         readonly NetworkVariable<bool> coopStarted = new NetworkVariable<bool>(true);   // a new co-op campaign: false while the crew gathers (NetCoop's lobby)
+        readonly NetworkVariable<byte> economy = new NetworkVariable<byte>();   // NetSession.Economy (EconomyCode): Android but in a co-op campaign
         /// <summary>Server, co-op: the players whose story conversation is open (the leader's level holds in their orbit).</summary>
         readonly Dictionary<ulong, float> coopDialogs = new Dictionary<ulong, float>();
         readonly Dictionary<int, HashSet<int>> destroyed = new Dictionary<int, HashSet<int>>();
@@ -209,6 +210,7 @@ namespace GoF2Remake.Multiplayer
                 PirateReports.ServerReset();   // the Pirate activity board starts empty (filled by the next sweep)
                 sessionMods.Value = NetMods.SessionList;
                 coop.Value = NetGame.CoopSession;
+                economy.Value = NetSession.EconomyCode(NetSession.Economy);
                 coopStarted.Value = !NetCoop.LobbyWanted;   // a new campaign starts with the crew gathered
                 coopDialogs.Clear();
                 proxyPrefab = Resources.Load<GameObject>($"{NetGame.PrefabFolder}/NetProxy");
@@ -223,6 +225,9 @@ namespace GoF2Remake.Multiplayer
             coopStarted.OnValueChanged += (_, now) => { if (now) NetCoop.OnStarted(); };   // the lobby's Start: into the world
             if (!IsServer)
             {
+                // The session's economy first (a co-op campaign's may be Default): every table loaded from here on is its.
+                Session.Economy = NetSession.Economy = NetSession.EconomyFromCode(economy.Value);
+                if (NetSession.Economy != Economy.Android) Debug.Log($"NetState: the session plays the {NetSession.Economy} economy");
                 NetMods.ApplyFromServer(sessionMods.Value.ToString());   // the session's mods before the world is built
                 if (coop.Value) NetCoop.OnJoined(coopStory.Value.ToString());   // a co-op guest: the crew's story before the profile
                 // A server with profiles: the world waits for this player's profile (NetProfileClient.Begin -> EnterWorld).
