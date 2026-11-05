@@ -598,7 +598,7 @@ namespace GoF2Remake.UI
                 if (st != 0) { status.StepTab(st); return; }
             }
             if (lounge != null && lounge.Active != root.ClassListContains("lounge-open")) lounge.OnViewChanged();   // also under a dialog
-            if (StarMap.IsOpen) return;   // the map has its own input
+            if (StarMap.IsOpen) { CoopCampaign.ConversationDelayed(); return; }   // the map has its own input
             if (storyDialogue != null && storyDialogue.IsOpen)
             {
                 // The Menu button over a conversation: it waits (voice, typing, auto-advance) and the menu takes the keys.

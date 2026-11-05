@@ -222,6 +222,89 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void GuestOneStepBehindKeepsTheCrewsWin()
+        {
+            // The host mounts its weapons (6) while the guest still reads step 5's conversation (a player's report).
+            string json = LeaderAt(7);
+            GuestAt(5);
+            CoopCampaign.OnStepWon(6);
+            Assert.IsFalse(CoopCampaign.RemoteWon, "not this game's step yet");
+            Story.Mission.won = true;   // step 5's own conversation closes
+            Story.Advance(db);
+            Assert.AreEqual(6, Story.Index);
+            Assert.IsTrue(CoopCampaign.RemoteWon, "step 6's conversation opens here too");
+            CoopCampaign.ApplyLeader(json, db);
+            Assert.AreEqual(6, Story.Index, "the catch-up waits for it");
+        }
+
+        [Test]
+        public void CatchUpStopsAtEachStepTheCrewWon()
+        {
+            string json = LeaderAt(8);
+            GuestAt(5);
+            CoopCampaign.OnStepWon(6);
+            CoopCampaign.OnStepWon(7);
+            CoopCampaign.ApplyLeader(json, db);
+            Assert.AreEqual(6, Story.Index, "the silent catch-up stops at the first step the crew won");
+            Assert.IsTrue(CoopCampaign.RemoteWon);
+            Story.Mission.won = true;
+            Story.Advance(db);   // its conversation closes
+            Assert.AreEqual(7, Story.Index);
+            Assert.IsTrue(CoopCampaign.RemoteWon, "then the next one");
+            CoopCampaign.GuestTick(db);
+            Assert.AreEqual(7, Story.Index);
+            CoopCampaign.CatchUpTo(8, db);
+            Assert.AreEqual(8, Story.Index, "the leader's level moving the crew on doesn't wait");
+            Assert.IsFalse(CoopCampaign.RemoteWon);
+        }
+
+        [Test]
+        public void AnOpenSuccessConversationHoldsTheCatchUpAndAdvancesOnce()
+        {
+            string json = LeaderAt(11);
+            GuestAt(10);
+            Story.Mission.won = true;
+            CoopCampaign.SuccessOpened(10);
+            CoopCampaign.ApplyLeader(json, db);
+            Assert.AreEqual(10, Story.Index);
+            Assert.IsTrue(CoopCampaign.SuccessClosed(10), "closed on its own step: it advances");
+            CoopCampaign.SuccessOpened(10);
+            CoopCampaign.CatchUpTo(11, db);
+            Assert.AreEqual(11, Story.Index, "the leader's level took the crew along");
+            Assert.IsFalse(CoopCampaign.SuccessClosed(10), "its close doesn't advance a second time");
+            Assert.IsEmpty(advanced, "nothing for the leader to follow");
+        }
+
+        [Test]
+        public void GuestAheadOfTheLeaderFindsNothingComplete()
+        {
+            string json = LeaderAt(11);
+            GuestAt(12);
+            CoopCampaign.ApplyLeader(json, db);
+            Assert.IsTrue(CoopCampaign.AheadOfLeader, "docked at Kernstal it doesn't win step 12 before the leader has shown 11");
+            GuestAt(11);
+            CoopCampaign.ApplyLeader(json, db);
+            Assert.IsFalse(CoopCampaign.AheadOfLeader);
+            leader = true;
+            Assert.IsFalse(CoopCampaign.AheadOfLeader, "never the leader");
+        }
+
+        [Test]
+        public void AFailedChainForgetsTheCrewsWins()
+        {
+            string before = LeaderAt(23), failed = LeaderAt(24, s => s.failSerial = 1);
+            GuestAt(23);
+            CoopCampaign.ApplyLeader(before, db);
+            CoopCampaign.OnStepWon(24);
+            Story.Mission.won = true;   // the guest reads its own step 23 conversation
+            CoopCampaign.ApplyLeader(failed, db);   // the leader's 25 failed: back to 24, to be won again
+            Assert.AreEqual(23, Story.Index);
+            Story.Advance(db);
+            Assert.AreEqual(24, Story.Index);
+            Assert.IsFalse(CoopCampaign.RemoteWon);
+        }
+
+        [Test]
         public void GuestProgressIsSentAndMerged()
         {
             string json = LeaderAt(116, s => s.mission.value = 1);

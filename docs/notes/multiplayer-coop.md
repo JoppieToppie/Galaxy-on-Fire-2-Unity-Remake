@@ -80,10 +80,18 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
   `StoryCounter`, step 59's `StoryTargets`, the Void invasion's station, step 13's crew missions, a fail serial) are
   published as JSON in `NetState.coopStory` whenever they change (`LeaderTick`). Every game still advances its own story
   (`Story.Advance`), so loaner ships, blueprints, revealed systems, cargo changes and rewards reach each player.
-  - A guest behind the leader catches up silently (`CatchUp`: Advance without conversations), except the one step whose
-    success conversation it is about to show (120 s at most); one ahead (it closed that conversation first) waits; ahead
-    for over 120 s it is set to the leader's step. After a catch-up the docked station swaps the turntable ship and the
-    menu's story locks (`CatchUpSerial`, `StationMenu.CheckStory`).
+  - A guest behind the leader catches up silently (`CatchUp`: Advance without conversations), but stops at every step won
+    here or by the crew whose success conversation it hasn't shown (`crewWon`: the leader's won steps are kept even when
+    the guest is still on an earlier one; 120 s at most per step, the clock starting again while a docked window, the
+    hangar or the star map keeps it from opening, `ConversationDelayed`). Until 2026-11-05 only the step one behind
+    waited, and a win arriving while the guest was a step behind was dropped: step 6's weapons conversation never opened
+    for a guest still reading step 5's (a player's report). While that conversation is open (`SuccessOpened`, in flight
+    from the success pause) nothing catches up but the leader's moves (`CatchUpTo`); its close then advances only if the
+    step is still the one shown (`SuccessClosed`, else the reward alone): closing it advanced a second time, the leader
+    followed that "own advance" and skipped step 11, getting step 12's conversation as it left Kernstal (the same report).
+    One ahead (it closed that conversation first) waits and finds no step complete meanwhile (`AheadOfLeader`, docked
+    and in flight); ahead for over 120 s it is set to the leader's step. After a catch-up the docked station swaps the
+    turntable ship and the menu's story locks (`CatchUpSerial`, `StationMenu.CheckStory`).
   - A guest's changes to the shared counters go to the leader as a `Progress` (`GuestTick`'s `Diff`) and come back merged
     (`Merge`: OR for the bit steps 116 / 125 / 148, else added; convoy targets marked done).
   - **Any crew member completes a step**: its game's check (`StationMenu.CheckStory` docked, `StorySpace.CheckSuccess` in

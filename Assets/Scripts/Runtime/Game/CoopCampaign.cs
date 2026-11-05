@@ -4,9 +4,9 @@
 //   The leader (the host) owns the story: its Session's step, mission and the step's shared counters are the crew's
 //     (State, published whenever they change). Every game still keeps and advances its own story (Story.Advance) so the
 //     step's side effects (loaner ships, blueprints, revealed systems, rewards, cargo) happen to every player.
-//   A guest behind the leader catches up silently (Advance without conversations), except for the one step whose own
-//     success conversation it is about to show (CatchUpWaitSeconds at most); one ahead (it closed that conversation
-//     first) waits for the leader. A guest's own changes to the step's shared counters (the mission value: bars searched,
+//   A guest behind the leader catches up silently (Advance without conversations), stopping at each step won here or by
+//     the crew whose success conversation it hasn't shown (CatchUpWaitSeconds at most each; never under one that is open);
+//     one ahead (it closed that conversation first) waits for the leader and finds no step complete meanwhile. A guest's own changes to the step's shared counters (the mission value: bars searched,
 //     units evacuated, freighters scanned; the story counter; step 59's convoy targets) go to the leader as a Progress
 //     and come back merged.
 //   Any crew member's game may find a step complete (ReportWon: docked at the target, the cargo aboard...): the leader
@@ -97,7 +97,12 @@ namespace GoF2Remake.Data
         static State leaderState;      // a guest: the last State from the leader
         static State baseline;         // a guest: the shared fields after the last State applied or Progress sent
         static string lastPublished;   // the leader: the last State sent
-        static int remoteWon = -1;
+        // The steps the crew won that this game hasn't shown the success conversation of yet: the current one, and the
+        // later ones the leader won while this game was still on an earlier step (a guest one step behind dropped the
+        // leader's word: step 6's weapons conversation never opened for a guest, a player's report 2026-11-04).
+        static readonly HashSet<int> crewWon = new HashSet<int>();
+        static int successOpen = -1;   // this game's success conversation of that step is on screen (or about to open)
+        static int waitingIndex = -1;
         static float waitingSince = -1f, aheadSince = -1f;
         static bool catchingUp;
         static int appliedFailSerial = -1;
@@ -113,7 +118,8 @@ namespace GoF2Remake.Data
         {
             leaderState = baseline = null;
             lastPublished = null;
-            remoteWon = -1;
+            crewWon.Clear();
+            successOpen = waitingIndex = -1;
             waitingSince = aheadSince = -1f;
             catchingUp = false;
             appliedFailSerial = -1;
@@ -181,16 +187,46 @@ namespace GoF2Remake.Data
             GameHooks.CoopStepWon?.Invoke(index);
         }
 
-        /// <summary>The leader: step 'index' is won (by any crew member). This game opens its success conversation where it is.</summary>
+        /// <summary>The leader: step 'index' is won (by any crew member). This game opens its success conversation where it is,
+        /// now or, still on an earlier step, once it gets there.</summary>
         public static void OnStepWon(int index)
         {
-            if (!Active || Story.Mission == null || Story.Mission.IsEmpty) return;
-            if (index == Story.Index && !Story.Mission.won) remoteWon = index;
+            if (!Active || index < Story.Index) return;
+            crewWon.Add(index);
         }
 
         /// <summary>Another crew member won the current step and this game hasn't shown its conversation yet.</summary>
-        public static bool RemoteWon => Active && remoteWon >= 0 && remoteWon == Story.Index && Story.Mission != null
+        public static bool RemoteWon => Active && crewWon.Contains(Story.Index) && Story.Mission != null
                                         && !Story.Mission.won && !Story.Mission.IsEmpty;
+
+        /// <summary>A guest on a later step than the leader's (it closed a success conversation first): it waits for the
+        /// leader there and finds no step complete meanwhile (StationMenu / StorySpace). Docked at Kernstal ahead of the
+        /// leader, a guest won step 12 before the leader had shown 11.</summary>
+        public static bool AheadOfLeader => Guest && leaderState != null && Story.Index > leaderState.index;
+
+        /// <summary>This game's success conversation of step 'index' opens (in flight from the success pause on): no catch-up
+        /// moves the step on under it.</summary>
+        public static void SuccessOpened(int index) { if (Active) successOpen = index; }
+
+        /// <summary>That conversation closed: false when the step moved on under it all the same (the leader's level took the
+        /// crew along, CatchUpTo), so its close advances nothing; true outside a session. Closing it advanced a second time,
+        /// from the caught-up step, which the leader followed (FollowGuestAdvance): the host skipped step 11 and got step 12's
+        /// conversation leaving Kernstal, a player's report 2026-11-04.</summary>
+        public static bool SuccessClosed(int index)
+        {
+            successOpen = -1;
+            return !Active || Story.Index == index;
+        }
+
+        /// <summary>A scene starts (Story.ReopenUnshownSuccess): a conversation the last one cut off is gone.</summary>
+        public static void SceneStarted() => successOpen = -1;
+
+        /// <summary>A docked game can't open a conversation now (a window or the hangar open): the catch-up's wait for its
+        /// success conversation starts again, so browsing the shop doesn't lose it.</summary>
+        public static void ConversationDelayed()
+        {
+            if (waitingIndex >= 0) waitingSince = Time.unscaledTime;
+        }
 
         // ---- advancing ----------------------------------------------------------------------------------------------
 
@@ -199,7 +235,7 @@ namespace GoF2Remake.Data
         public static void OnAdvanced(int from, int to, bool wasWon)
         {
             if (!Active) return;
-            if (remoteWon == from) remoteWon = -1;
+            crewWon.RemoveWhere(i => i < to);
             if (Leader || catchingUp || wasWon) return;
             GameHooks.CoopAdvanced?.Invoke(from);
         }
@@ -321,7 +357,7 @@ namespace GoF2Remake.Data
             if (!Leader) return;
             Story.RepairCheckpoint();
             if (Story.Mission != null) Story.Mission.won = false;
-            remoteWon = -1;
+            crewWon.Clear();
             failSerial++;
         }
 
@@ -340,6 +376,7 @@ namespace GoF2Remake.Data
             if (s.failSerial != appliedFailSerial)
             {
                 appliedFailSerial = s.failSerial;
+                crewWon.Clear();   // the chain's steps are won again
                 if (Story.Index > s.index) ForceTo(s);   // the failed chain starts again
             }
             CatchUp(s, db);
@@ -366,15 +403,20 @@ namespace GoF2Remake.Data
 
         static void CatchUp(State s, Database db, bool now = false)
         {
-            if (Story.Index >= s.index) { waitingSince = -1f; return; }
-            // This game's own success conversation of the step the leader just left: it runs first (its moves, its reward).
-            bool ownSuccess = Story.Index == s.index - 1 && (Story.Mission != null && Story.Mission.won || RemoteWon);
-            if (ownSuccess && !now)
+            if (Story.Index >= s.index) { waitingIndex = -1; return; }
+            if (!now)
             {
-                if (waitingSince < 0f) waitingSince = Time.unscaledTime;
-                if (Time.unscaledTime - waitingSince < CatchUpWaitSeconds) return;
+                // This game's success conversation of a step the leader has left is on screen: closing it advances.
+                if (successOpen == Story.Index) return;
+                // A step won here or by the crew whose conversation this game hasn't shown: it runs first (its moves, its
+                // reward), CatchUpWaitSeconds at most (a game that can't open it).
+                if (Story.Mission != null && Story.Mission.won || RemoteWon)
+                {
+                    if (waitingIndex != Story.Index) { waitingIndex = Story.Index; waitingSince = Time.unscaledTime; }
+                    if (Time.unscaledTime - waitingSince < CatchUpWaitSeconds) return;
+                }
             }
-            waitingSince = -1f;
+            waitingIndex = -1;
             int from = Story.Index;
             catchingUp = true;
             try
@@ -384,10 +426,11 @@ namespace GoF2Remake.Data
                     int before = Story.Index;
                     Story.Advance(db);
                     if (Story.Index <= before) break;
+                    if (!now && crewWon.Contains(Story.Index)) break;   // a step the crew won: its conversation first
                 }
             }
             finally { catchingUp = false; }
-            remoteWon = -1;
+            crewWon.RemoveWhere(i => i < Story.Index);
             CatchUpSerial++;
             Debug.Log($"CoopCampaign: caught up from step {from} to {Story.Index}");
         }
@@ -408,7 +451,7 @@ namespace GoF2Remake.Data
             Session.StoryMission = Clone(s.mission);
             Session.StoryMission.won = false;
             Session.StoryStepStart = Session.PlaySeconds;
-            remoteWon = -1;
+            crewWon.Clear();
             aheadSince = -1f;
             Overwrite(s);
         }
@@ -422,7 +465,7 @@ namespace GoF2Remake.Data
             var l = s.mission ?? new StoryMission();
             m.type = l.type; m.reward = l.reward; m.station = l.station; m.value = l.value;
             m.goodsItem = l.goodsItem; m.goodsAmount = l.goodsAmount; m.visible = l.visible;
-            if (l.won && !m.won) remoteWon = s.index;
+            if (l.won && !m.won) crewWon.Add(s.index);
             Session.StoryCounter = s.counter;
             Session.StoryTargets.Clear();
             if (s.targets != null) Session.StoryTargets.AddRange(s.targets);

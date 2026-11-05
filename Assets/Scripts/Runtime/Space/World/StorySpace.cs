@@ -56,7 +56,7 @@ namespace GoF2Remake.World
         const float SuccessPauseMs = 1500f;
         float successPauseMs = -1f;
         List<DialoguePage> pendingSuccess;
-        int pendingReward;
+        int pendingReward, pendingIndex;
         public bool SuccessPending => successPauseMs >= 0f;
 
         public void Setup(SpaceLevel spaceLevel, CampaignLevel campaignLevel)
@@ -78,8 +78,13 @@ namespace GoF2Remake.World
                 successPauseMs -= Time.deltaTime * 1000f;
                 if (successPauseMs >= 0f) return;
                 successPauseMs = -1f;
-                int reward = pendingReward;
-                Open(pendingSuccess, _ => AfterSuccess(reward));
+                int reward = pendingReward, shown = pendingIndex;
+                Open(pendingSuccess, _ =>
+                {
+                    // Remake co-op: the leader's level took the crew past this step meanwhile: its reward, no second advance.
+                    if (CoopCampaign.SuccessClosed(shown)) AfterSuccess(reward);
+                    else Session.Credits += CoopCampaign.Share(reward);
+                });
                 pendingSuccess = null;
                 return;
             }
@@ -196,6 +201,7 @@ namespace GoF2Remake.World
             // This level's orbit (Session.StationIndex already names the next one on the frame a ride / jump starts).
             var ctx = new StoryContext { docked = false, levelMs = levelMs, station = level.Layout.stationIndex };
             bool levelWon = campaign != null && Story.Index == campaign.BuiltIndex && campaign.Won;
+            if (CoopCampaign.AheadOfLeader) return;   // remake co-op: this game waits for the leader's step
             bool remote = CoopCampaign.RemoteWon;   // remake co-op: another crew member's game won it
             if (Story.Mission.won || !(remote || Story.IsComplete(level.Database, ctx) || levelWon)) return;
             Story.Mission.won = true;
@@ -215,6 +221,8 @@ namespace GoF2Remake.World
             {
                 pendingSuccess = success;
                 pendingReward = reward;
+                pendingIndex = Story.Index;
+                CoopCampaign.SuccessOpened(pendingIndex);   // remake co-op: no catch-up under it
                 successPauseMs = SuccessPauseMs;
                 if (level.Health != null) level.Health.invulnerable = true;   // from this frame on (SpaceLevel keeps it set)
             }

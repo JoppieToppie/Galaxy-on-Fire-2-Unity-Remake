@@ -217,6 +217,7 @@ namespace GoF2Remake.UI
                 station = level.Station.index,
             };
             if (ctx.inLounge && SpecialLounge(ctx.station)) return true;
+            if (CoopCampaign.AheadOfLeader) return false;   // remake co-op: this game waits for the leader's step
             bool remote = CoopCampaign.RemoteWon;   // remake co-op: another crew member's game won the step
             if (!remote && !Story.IsComplete(level.Database, ctx)) return false;
             Story.Mission.won = true;
@@ -226,14 +227,29 @@ namespace GoF2Remake.UI
             var step = Story.Step;
             var success = step != null ? StoryTable.Shown(step.success) : null;
             if (success != null && success.Count > 0)
+            {
+                int shown = Story.Index, reward = Story.Mission.reward;
+                CoopCampaign.SuccessOpened(shown);
                 storyDialogue.Show(success, skipped =>
                 {
+                    // Remake co-op: the leader's level took the crew past this step meanwhile: its reward, no second advance.
+                    if (!CoopCampaign.SuccessClosed(shown)) { AfterOvertakenSuccess(reward); return; }
                     // DialogueWindow::OnTouchEnd: skipping step 15's conversation starts the alarm too.
                     if (skipped && !Session.FreePlay && Session.CampaignMission == 0xf) StartVoidAlarm();
                     AfterStorySuccess();
                 });
+            }
             else AfterStorySuccess();
             return true;
+        }
+
+        /// <summary>Remake co-op: a success conversation whose step a catch-up already left (CoopCampaign.SuccessClosed).</summary>
+        void AfterOvertakenSuccess(int reward)
+        {
+            Session.Credits += CoopCampaign.Share(reward);
+            if (level.ShownShip != Session.ShipIndex) level.ReplacePlayerShip(Session.ShipIndex);
+            ApplyStoryLocks();
+            Select(launchButton);
         }
 
         /// <summary>ModStation::OnUpdate's lounge searches (campaign_flow.md 3.1 5): at 116 the Pescal Inartu bars other than
@@ -521,7 +537,11 @@ namespace GoF2Remake.UI
         /// window is open; true when something opened.</summary>
         bool RunDockingChecks()
         {
-            if (DialogOpen || SystemMenuOpen || HangarOpen) return false;
+            if (DialogOpen || SystemMenuOpen || HangarOpen)
+            {
+                CoopCampaign.ConversationDelayed();   // remake co-op: a crew's success conversation waits for the window
+                return false;
+            }
             arrivalChecksRun = true;
             if (CheckPirateBase() || CheckDockingFine() || CheckStory() || CheckFreelance() || CheckKaamo() || CheckPendingProducts()) return true;
             if (!storyDialogue.IsOpen && (CheckRescue() || CheckMedals() || CheckMedalHints())) return true;

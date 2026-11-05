@@ -242,6 +242,7 @@ namespace GoF2Remake.Data
         /// opens) and the save kept the step won: no check reported it again, the Valkyrie story stopped there for good.</summary>
         public static void ReopenUnshownSuccess()
         {
+            CoopCampaign.SceneStarted();   // remake co-op: no conversation of the last scene is open any more
             var m = Mission;
             if (m == null || !m.won || Session.FreePlay) return;
             m.won = false;
