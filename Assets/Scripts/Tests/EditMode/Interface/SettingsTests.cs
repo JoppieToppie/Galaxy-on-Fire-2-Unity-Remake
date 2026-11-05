@@ -93,6 +93,30 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(rows.All(o => o.page == GoF2Remake.UI.OptionPage.Graphics && o.kind == GoF2Remake.UI.OptionKind.Toggle));
         }
 
+        /// <summary>Autopilot takes jumpgates (Discord, 2026-11-04): on by default, reset with the Gameplay tab, a row there; the
+        /// gate jumps on toward a destination elsewhere unasked while it is on (SystemJump.GateJumpsUnasked), and off only on
+        /// a route under way, as before.</summary>
+        [Test]
+        public void AutoJumpgateOption()
+        {
+            AllDefaults();
+            Assert.IsTrue(Settings.AutoJumpgate, "on by default");
+            Settings.AutoJumpgate = false;
+            Assert.IsFalse(Settings.AutoJumpgate);
+            CollectionAssert.Contains(Settings.GameplayKeys, "autoJumpgate");
+            Settings.Reset(Settings.GameplayKeys);
+            Assert.IsTrue(Settings.AutoJumpgate, "back on after Default settings");
+            var row = GoF2Remake.UI.OptionsCatalog.All().Single(o => o.id == "autoJumpgate");
+            Assert.AreEqual(GoF2Remake.UI.OptionPage.Gameplay, row.page);
+            Assert.AreEqual(GoF2Remake.UI.OptionKind.Toggle, row.kind);
+
+            Assert.IsTrue(GoF2Remake.World.SystemJump.GateJumpsUnasked(30, 4, -1, true), "the first gate, option on");
+            Assert.IsFalse(GoF2Remake.World.SystemJump.GateJumpsUnasked(30, 4, -1, false), "the first gate, option off: it asks");
+            Assert.IsTrue(GoF2Remake.World.SystemJump.GateJumpsUnasked(30, 4, 30, false), "a later gate on the route: unasked as ever");
+            Assert.IsFalse(GoF2Remake.World.SystemJump.GateJumpsUnasked(-1, 4, -1, true), "no destination: the gate's map");
+            Assert.IsFalse(GoF2Remake.World.SystemJump.GateJumpsUnasked(4, 4, 4, true), "the destination is here: the gate's map");
+        }
+
         [Test]
         public void SessionRuleDefaults()
         {

@@ -3317,5 +3317,7 @@
  "hangarRobots": "Robots del hangar",
  "hangarRobotsHelp": "Robots de servicio vuelan por los hangares terrícolas y nivelianos.",
  "barRobots": "Robots del bar",
- "barRobotsHelp": "Los robots que trabajan en los bares terrícolas y vossk."
+ "barRobotsHelp": "Los robots que trabajan en los bares terrícolas y vossk.",
+ "autoJumpgate": "El piloto automático usa las puertas de salto",
+ "autoJumpgateHelp": "Con un destino fijado, el piloto automático cruza la puerta de salto hacia él sin preguntar. Desactivado: la puerta pregunta primero, como en el original."
 }

@@ -561,6 +561,12 @@ namespace GoF2Remake.UI
                 () => new[] { X("fastForwardTime", "Time speedup"), X("fastForwardCruise", "Ship cruise") },
                 () => Settings.FastForwardCruise ? 1 : 0, i => Settings.FastForwardCruise = i == 1,
                 () => X("fastForwardModeHelp", "Time speedup: the whole game runs 5x while you hold it. Ship cruise: only your ship flies 5x as fast, everything else keeps its pace, as in multiplayer.")));
+            // Remake (Discord, 2026-11-04; SystemJump.DockToStream): the autopilot takes the jumpgate toward a set destination
+            // without the gate's "Travel to this station?".
+            var autoJumpgate = Toggle("autoJumpgate", OptionPage.Gameplay, () => X("autoJumpgate", "Autopilot takes jumpgates"),
+                () => Settings.AutoJumpgate, v => Settings.AutoJumpgate = v);
+            autoJumpgate.description = () => X("autoJumpgateHelp", "With a destination set, the autopilot flies through the jumpgate toward it without asking. Off: the gate asks first, as in the original.");
+            list.Add(autoJumpgate);
             // Remake (Shop.SlipstreamOff): the base game's Khador Slipstream, the cruise drive that also flies between the systems.
             list.Add(Toggle("khadorSlipstream", OptionPage.Gameplay, () => X("khadorSlipstream", "Khador Slipstream"),
                 () => Settings.KhadorSlipstream, v => Settings.KhadorSlipstream = v));

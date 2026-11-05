@@ -3317,5 +3317,7 @@
  "hangarRobots": "हैंगर रोबोट",
  "hangarRobotsHelp": "Terran और Nivelian हैंगरों में सर्विस रोबोट उड़ते हैं।",
  "barRobots": "बार रोबोट",
- "barRobotsHelp": "Terran और Vossk बारों में काम करते रोबोट।"
+ "barRobotsHelp": "Terran और Vossk बारों में काम करते रोबोट।",
+ "autoJumpgate": "ऑटोपायलट जंपगेट से गुज़रे",
+ "autoJumpgateHelp": "गंतव्य तय होने पर ऑटोपायलट बिना पूछे जंपगेट से होकर उसकी ओर उड़ता है। बंद: गेट पहले पूछता है, मूल गेम की तरह।"
 }

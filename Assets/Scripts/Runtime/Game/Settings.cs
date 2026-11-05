@@ -469,6 +469,12 @@ namespace GoF2Remake.Data
         /// flies 5x, the world keeps its pace); off = the original's time speedup (the whole game 5x). Multiplayer always cruises.</summary>
         public static bool FastForwardCruise { get => GetBool("fastForwardCruise", false); set => SetBool("fastForwardCruise", value); }
 
+        /// <summary>Remake (Discord, BlackSrarzOP, 2026-11-04: "remove the prompt when auto traveling past a jumpgate"): the
+        /// autopilot reaching the gate with a destination set (Session.ProgrammedStation elsewhere) jumps on toward it
+        /// (SystemJump.DockToStream); off = the original's "Destination: X / Travel to this station?" (MGame::dockEvent). A
+        /// utility, on by default, not in the game experience presets.</summary>
+        public static bool AutoJumpgate { get => GetBool("autoJumpgate", true); set => SetBool("autoJumpgate", value); }
+
         /// <summary>Remake: the base game's Khador Slipstream (gof2:khador_slipstream, Shop.SlipstreamOff); off = the game without
         /// it: Khador doesn't offer its blueprint and a mounted one neither cruises nor leaves the system. Mod drives keep theirs.</summary>
         public static bool KhadorSlipstream { get => GetBool("khadorSlipstream", false); set => SetBool("khadorSlipstream", value); }
@@ -797,7 +803,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GameplayKeys =
         {
             "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule",
-            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "khadorSlipstream", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
+            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
             "speedrunPosition", "speedrunLiveSplit",
         };

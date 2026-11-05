@@ -27,7 +27,8 @@ the player ship) and `NavigationView` (flight HUD).
   the rate is also the yaw rate +0x27c, which the model banks from, so handed back the ship eases out of the turn),
   throttle reset to 100 % once, stick ignored, throttle / boost / guns still work. Within 16000 units of the station it
   docks by itself. Action again (or the touch autopilot button) = "Autopilot Off" + sound 29. Reaching the gate opens
-  the jumpgate flow (see "Star map and system travel").
+  the jumpgate flow (see "Star map and system travel"; with a destination set it jumps on unasked by default, the option
+  "Autopilot takes jumpgates", star-map.md "Jumpgate").
 - **Programmed destination** (`Session.ProgrammedStation`, from the star map;
   `LevelScript::setAutoPilotToProgrammedStation`): at the end of the launch / arrival camera the autopilot flies to its
   planet in this system (the planet lock then jumps by itself), or in another system to the gate (gate orbit) or the

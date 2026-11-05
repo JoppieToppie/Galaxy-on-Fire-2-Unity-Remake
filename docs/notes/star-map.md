@@ -50,7 +50,11 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   pauses; with a programmed station "Destination: X / Travel to this station?" (Yes preselected), No or no destination
   opens the map in gate mode (only the current system and its gate neighbours, any station there; remake: any system on
   a gate route, "Jumpgate route planning"). Backing out puts the
-  ship past the gate with the controls back. Remake (#37): a destroyed ship takes no gate and its Khador charge stops
+  ship past the gate with the controls back. **Autopilot takes jumpgates** (remake, Discord BlackSrarzOP 2026-11-04:
+  "remove the prompt when auto traveling past a jumpgate"; Options > Gameplay, `Settings.AutoJumpgate`, key `autoJumpgate`,
+  on by default, a utility outside the game experience presets): with a programmed station elsewhere the gate takes the
+  question as Yes and jumps on (`SystemJump.GateJumpsUnasked`); off = the original's question. No destination still opens
+  the gate's map. Test `SettingsTests.AutoJumpgateOption`. Remake (#37): a destroyed ship takes no gate and its Khador charge stops
   (shot down entering the gate it still jumped, repaired).
 - **Gate jump scene** (`MGame::startJumpScene` / `updateJumpScene`, ~6.3 s): ship at gate - (0, 0, 10000) facing game +Z
   at 2 u/ms, fixed look-at camera at gate + (-2000, 300, -6000) drifting (5, 2, -3) u/ms; when it passes gate z - 10000
@@ -120,7 +124,7 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   `mapRouteFastest` / `mapRouteSafest` / `mapRouteJumpCount`). The pick rides `StarMapResult.safestRoute` into
   `Session.RouteSafest` (never saved), which every gate's `NextHop` takes. The ship then goes gate by gate
   (`GalaxyMap.NextHop`,
-  see "Mission maps"): the first gate asks as ever, every later one jumps on unasked while the programmed station is the
+  see "Mission maps"): the first gate asks as ever (unless Autopilot takes jumpgates is on, "Jumpgate"), every later one jumps on unasked while the programmed station is the
   one the hop kept (`Session.RouteDestination`, set in `SystemJump.Arrive`, never saved); the arrival camera still plays
   in each system. Tests `GalaxyMapTests` (route planning).
 - **Reveal** (the lounge's bought coordinates, `revealSystem`): the camera on the new system, hidden (no label, lines or

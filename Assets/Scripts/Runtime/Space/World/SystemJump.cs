@@ -322,8 +322,10 @@ namespace GoF2Remake.World
             nav.Paused = true;
             int prog = Session.ProgrammedStation;
             // Remake (jumpgate route planning): on a route under way (a hop kept the destination) the gate jumps on toward it
-            // without asking: the route was confirmed on the map and at its first gate.
-            if (prog >= 0 && prog == Session.RouteDestination && prog != Session.StationIndex)
+            // without asking: the route was confirmed on the map and at its first gate. Remake (Settings.AutoJumpgate, Discord
+            // 2026-11-04): the first gate too, its "Destination: X / Travel to this station?" taken as Yes (the destination
+            // was picked on the map already); off, it asks as the original did.
+            if (GateJumpsUnasked(prog, Session.StationIndex, Session.RouteDestination, Settings.AutoJumpgate))
             {
                 OnGateMapClosed(new StarMapResult { station = prog, safestRoute = Session.RouteSafest });
                 return;
@@ -331,6 +333,11 @@ namespace GoF2Remake.World
             bool opened = SpaceHooks.OpenStarMap != null && SpaceHooks.OpenStarMap(db, StarMapMode.Gate, false, OnGateMapClosed, prog >= 0 && prog != Session.StationIndex ? prog : -1, false);
             if (!opened) OnGateMapClosed(new StarMapResult { station = -1 });
         }
+
+        /// <summary>DockToStream: the gate jumps on toward the programmed station without its "Travel to this station?" (a
+        /// destination elsewhere, and a route under way or Settings.AutoJumpgate); else it asks, or opens the map without one.</summary>
+        public static bool GateJumpsUnasked(int programmed, int currentStation, int routeDestination, bool autoJumpgate) =>
+            programmed >= 0 && programmed != currentStation && (programmed == routeDestination || autoJumpgate);
 
         void OnGateMapClosed(StarMapResult result)
         {

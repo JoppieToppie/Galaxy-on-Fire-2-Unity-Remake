@@ -3317,5 +3317,7 @@
  "hangarRobots": "Robots du hangar",
  "hangarRobotsHelp": "Des robots de service traversent les hangars terriens et niveliens.",
  "barRobots": "Robots du bar",
- "barRobotsHelp": "Les robots au travail dans les bars terriens et vossks."
+ "barRobotsHelp": "Les robots au travail dans les bars terriens et vossks.",
+ "autoJumpgate": "Le pilote automatique prend les portes",
+ "autoJumpgateHelp": "Avec une destination définie, le pilote automatique franchit la porte supraluminique vers elle sans demander. Désactivé : la porte demande d'abord, comme dans l'original."
 }

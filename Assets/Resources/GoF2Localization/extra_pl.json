@@ -3317,5 +3317,7 @@
  "hangarRobots": "Roboty w hangarze",
  "hangarRobotsHelp": "Roboty serwisowe latają po hangarach Terran i Nivelian.",
  "barRobots": "Roboty w barze",
- "barRobotsHelp": "Roboty przy pracy w barach Terran i Vossków."
+ "barRobotsHelp": "Roboty przy pracy w barach Terran i Vossków.",
+ "autoJumpgate": "Autopilot przelatuje przez hiperwrota",
+ "autoJumpgateHelp": "Gdy cel jest ustawiony, autopilot bez pytania przelatuje przez hiperwrota w jego stronę. Wyłączone: wrota najpierw pytają, jak w oryginale."
 }

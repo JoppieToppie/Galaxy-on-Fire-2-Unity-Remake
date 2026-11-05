@@ -3317,5 +3317,7 @@
  "hangarRobots": "격납고 로봇",
  "hangarRobotsHelp": "Terran과 Nivelian 격납고에서 정비 로봇이 날아다닙니다.",
  "barRobots": "바 로봇",
- "barRobotsHelp": "Terran과 Vossk 바에서 일하는 로봇."
+ "barRobotsHelp": "Terran과 Vossk 바에서 일하는 로봇.",
+ "autoJumpgate": "자동조종이 점프게이트 통과",
+ "autoJumpgateHelp": "목적지가 설정되어 있으면 자동조종이 묻지 않고 점프게이트를 통과해 그곳으로 향합니다. 끄기: 원작처럼 게이트가 먼저 묻습니다."
 }
