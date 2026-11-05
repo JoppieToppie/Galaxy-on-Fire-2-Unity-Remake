@@ -3090,6 +3090,7 @@
  "mpCoopTag": "Coop",
  "coopTitle": "Campanha cooperativa",
  "coopNewText": "Qual campanha a tripulação joga? Seu novo jogo substitui o salvamento automático ao atracar, como no modo solo.",
+ "coopEconomyText": "Com qual economia a tripulação joga? O jogo de cada membro usa os preços dela.",
  "coopHostText": "Jogar um dos seus jogos salvos com a tripulação ou começar um novo jogo?",
  "coopFromSave": "Continuar um jogo salvo",
  "coopNewGame": "Novo jogo",

@@ -150,15 +150,16 @@ namespace GoF2Remake.Data
 
         /// <summary>Remake: the co-op campaign's host (NetCoop) plays a save slot it continued, or a new game, and saves into
         /// the slots like single player while its session runs (the auto-save on docking, the station's Save game), each
-        /// save under the game's own difficulty and economy: the session plays Normal on the Android tables.</summary>
+        /// save under the game's own difficulty and economy: the session plays Normal, on the game's economy
+        /// (NetSession.Economy, CoopCampaign.HostEconomy).</summary>
         public static bool HostSaves => hostSaves && NetSession.Active;
 
-        /// <summary>The co-op host's game from 'from' (null = a new game: Normal, the Android economy) saves into the slots.</summary>
-        public static void BeginHostSaves(SaveData from)
+        /// <summary>The co-op host's game from 'from' (null = a new game: Normal, the economy the host picked) saves into the slots.</summary>
+        public static void BeginHostSaves(SaveData from, Economy newGame = Economy.Android)
         {
             hostSaves = true;
             hostDifficulty = from != null ? from.difficulty : Session.DifficultyNormal;
-            hostEconomy = from != null ? (int)SaveEconomy(from) : (int)Economy.Android;
+            hostEconomy = (int)CoopCampaign.HostEconomy(from, newGame);
         }
 
         public static void EndHostSaves() => hostSaves = false;
@@ -323,14 +324,15 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Multiplayer: a server profile into the session's game (already checked by TryParse), under the session's
-        /// rules (NetGame.PrepareSession: free play on Normal, the Android economy). A squad mission, its Courier containers
-        /// and passengers don't outlive the session they belonged to; the game starts docked where the profile was (an orbit
+        /// rules (NetGame.PrepareSession: free play on Normal, the session's economy: NetSession.Economy, Android but in a
+        /// co-op campaign; a profile saved under the other economy keeps its items, credits and blueprints). A squad mission,
+        /// its Courier containers and passengers don't outlive the session they belonged to; the game starts docked where the profile was (an orbit
         /// that isn't a station: Var Hastra).</summary>
         public static void ApplyProfile(SaveData s)
         {
             Apply(s);
             Session.Difficulty = Session.DifficultyNormal;
-            Session.Economy = Economy.Android;
+            Session.Economy = NetSession.Economy;
             // The session's world, whatever index the profile was saved with; a co-op campaign's is the story's own (its
             // guests follow the leader's step, CoopCampaign).
             if (CoopCampaign.Active) CoopCampaign.AfterProfile(NetSession.Db);

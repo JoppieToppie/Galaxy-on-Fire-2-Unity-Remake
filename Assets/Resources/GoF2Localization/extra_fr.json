@@ -3090,6 +3090,7 @@
  "mpCoopTag": "Coop",
  "coopTitle": "Campagne coop",
  "coopNewText": "Quelle campagne l'équipage joue-t-il ? Ta nouvelle partie remplace la sauvegarde automatique à l'amarrage, comme en solo.",
+ "coopEconomyText": "Avec quelle économie l'équipage joue-t-il ? La partie de chaque membre utilise ses prix.",
  "coopHostText": "Jouer une de tes sauvegardes avec l'équipage, ou commencer une nouvelle partie ?",
  "coopFromSave": "Continuer une sauvegarde",
  "coopNewGame": "Nouvelle partie",

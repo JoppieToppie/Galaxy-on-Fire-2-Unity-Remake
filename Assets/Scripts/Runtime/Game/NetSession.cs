@@ -42,7 +42,20 @@ namespace GoF2Remake.Data
         /// <summary>The session's clock in seconds (Netcode's server time), -1 = not connected.</summary>
         public static double ServerTime => ServerTimeProvider != null ? ServerTimeProvider() : -1;
 
-        /// <summary>NetGame.Db: the session's tables (the Android economy); outside a session the shared ones.</summary>
+        /// <summary>The economy the session's games play on (Session.Economy under the session's rules, SaveGame.ApplyProfile):
+        /// the Android tables in every free-roam session and on a dedicated server (NetGame.PrepareSession); a co-op campaign
+        /// the host's (the save it continues, or its new game's pick: NetCoop.PrepareHost), which NetState's spawn data
+        /// carries to every guest before its world or profile is made (NetState.OnNetworkSpawn), so prices, stats and the
+        /// shared stock are the same on every machine.</summary>
+        public static Economy Economy = Economy.Android;
+
+        /// <summary>The economy as NetState carries it: 0 Android (also a value it doesn't know), 1 Default.</summary>
+        public static byte EconomyCode(Economy e) => (byte)(e == Economy.Default ? 1 : 0);
+
+        /// <summary>NetState's economy byte as the economy: 1 Default, anything else Android.</summary>
+        public static Economy EconomyFromCode(byte code) => code == 1 ? Economy.Default : Economy.Android;
+
+        /// <summary>NetGame.Db: the session's tables (in its economy, Economy); outside a session the shared ones.</summary>
         public static Database Db => DbProvider != null ? DbProvider() : Database.Shared;
     }
 }

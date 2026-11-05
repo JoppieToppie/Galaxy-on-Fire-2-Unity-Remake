@@ -3090,6 +3090,7 @@
  "mpCoopTag": "Co-op",
  "coopTitle": "Co-opcampagne",
  "coopNewText": "Welke campagne speelt de bemanning? Je nieuwe spel overschrijft bij het aanmeren de automatische opslag, zoals in singleplayer.",
+ "coopEconomyText": "Met welke economie speelt de bemanning? Het spel van elk bemanningslid gebruikt die prijzen.",
  "coopHostText": "Een van je opgeslagen spellen met de bemanning spelen, of een nieuw spel beginnen?",
  "coopFromSave": "Opgeslagen spel voortzetten",
  "coopNewGame": "Nieuw spel",

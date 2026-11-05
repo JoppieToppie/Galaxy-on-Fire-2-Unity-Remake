@@ -3090,6 +3090,7 @@
  "mpCoopTag": "Koop",
  "coopTitle": "Koop-Kampagne",
  "coopNewText": "Welche Kampagne spielt die Crew? Dein neues Spiel überschreibt beim Andocken den automatischen Spielstand, wie im Einzelspieler.",
+ "coopEconomyText": "Mit welcher Wirtschaft spielt die Crew? Das Spiel jedes Crewmitglieds nutzt ihre Preise.",
  "coopHostText": "Eines deiner Spiele mit der Crew spielen oder ein neues Spiel starten?",
  "coopFromSave": "Spielstand fortsetzen",
  "coopNewGame": "Neues Spiel",

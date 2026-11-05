@@ -3090,6 +3090,7 @@
  "mpCoopTag": "Koop",
  "coopTitle": "Kampania kooperacyjna",
  "coopNewText": "Którą kampanię gra załoga? Nowa gra nadpisze zapis automatyczny przy dokowaniu, jak w grze jednoosobowej.",
+ "coopEconomyText": "Na jakiej ekonomii gra załoga? Gra każdego członka załogi używa jej cen.",
  "coopHostText": "Zagrać z załogą w jeden ze swoich zapisów czy zacząć nową grę?",
  "coopFromSave": "Kontynuuj zapis",
  "coopNewGame": "Nowa gra",

@@ -3090,6 +3090,7 @@
  "mpCoopTag": "Coop",
  "coopTitle": "Campagna cooperativa",
  "coopNewText": "Quale campagna gioca l'equipaggio? La nuova partita sovrascrive il salvataggio automatico all'attracco, come in single player.",
+ "coopEconomyText": "Con quale economia gioca l'equipaggio? La partita di ogni membro usa i suoi prezzi.",
  "coopHostText": "Giocare uno dei tuoi salvataggi con l'equipaggio o iniziare una nuova partita?",
  "coopFromSave": "Continua un salvataggio",
  "coopNewGame": "Nuova partita",

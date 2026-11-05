@@ -527,6 +527,10 @@ namespace GoF2Remake.Data
         public static bool CanHost(SaveData s) =>
             s != null && s.campaign >= 0 && s.campaign <= (int)Campaign.Supernova && !s.hardcore && string.IsNullOrEmpty(s.modCampaign);
 
+        /// <summary>The co-op campaign's economy (NetSession.Economy): a continued save keeps its own (SaveGame.SaveEconomy,
+        /// Android before save version 10), a new game plays the one the host picked.</summary>
+        public static Economy HostEconomy(SaveData save, Economy newGame) => save != null ? SaveGame.SaveEconomy(save) : newGame;
+
         /// <summary>A guest's game in a co-op session before its profile (an empty one keeps this): the story from the start,
         /// the leader's own ship and loadout, then caught up to the leader's step (every step's side effects).</summary>
         public static void PrepareGuest(State s, Database db)

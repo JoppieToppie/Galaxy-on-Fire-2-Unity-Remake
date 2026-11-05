@@ -21,7 +21,7 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
   screen): a slot hosts with `NetGame.CoopSlot` (`CoopNewCampaign` -1), after the Load's warning when the save has mods the
   session won't run (not on, or the Host card's Mods off). `CoopCampaign.CanHost` refuses a hardcore save (a death in a
   session ends nothing) and a mod's campaign. New game asks the campaign (Galaxy on Fire 2, or Add-ons: Valkyrie /
-  Supernova; `NetGame.CoopNewCampaign`). Max players is the co-op
+  Supernova; `NetGame.CoopNewCampaign`), then the economy (below). Max players is the co-op
   screen's own (`NetGame.CoopMaxPlayers`, PlayerPrefs `mp_coop_max_players`, 4 by default, up to the session limit of 100;
   until 2026-11-01 capped at 4), which `NetGame.MaxPlayers` returns while co-op is hosted (so Relay's allocation and the
   approval agree); the leader's State carries it (`CoopCampaign.CrewLimit`: the lobby's "crew N / limit"). Bigger crews
@@ -51,10 +51,28 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
   for a new game, which overwrites it as a single-player new game does), the station's Save game (shown for the host
   only), and the auto-save when the host leaves docked (`NetProfileClient.SaveHostNow`; in flight nothing, saves are
   docked only); never its profile (`NetProfileClient.Upload` returns). Each save keeps the slot's own difficulty and
-  economy (`BeginHostSaves`; a new game Normal / Android): the session plays Normal on the Android tables. The guests'
+  economy (`BeginHostSaves`; a new game Normal and the economy picked): the session plays Normal on the game's economy
+  ("Economy" below). The guests'
   profiles stay a persistent hosted world in its own folder (`NetGame.CoopFolder`, persistentDataPath/CoopCampaign;
   `NetGame.CoopSession` makes `PersistentHost` true), kept across hosted saves (a guest ahead of the host's step is set
   back to it, `AfterProfile`); a New game moves it to `CoopCampaign.old` (the crew starts again too).
+- **Economy** (2026-11-05, a Discord player's question: "will co-op get the PC economy?"): a co-op campaign plays the
+  host's game's economy (`NetSession.Economy`, `CoopCampaign.HostEconomy`): a continued save its own
+  (`SaveGame.SaveEconomy`, Android before save version 10), a new game the one the host picks after the campaign
+  (`MainMenu.AskCoopEconomy`: PC economy or Android economy with single player's two descriptions,
+  `NetGame.CoopEconomy`). `NetCoop.PrepareHost` sets `Session.Economy` before the campaign's tables load; NetState
+  carries it in its spawn data (the `economy` byte, `NetSession.EconomyCode`: 0 Android, the variable's default, 1
+  Default), and a guest's `OnNetworkSpawn` sets it before the session's mods, `NetCoop.OnJoined` and its profile, so
+  every game loads the same item and ship tables: prices (each game prices its own windows, `Shop.PriceList`), stats,
+  the stock the host rolls (`NetStock`: the Default economy's stock factor and AB-1 rule, `Shop`) and the Loma price
+  match on every machine. No approval check is needed: the exact-version check already refuses another build, and the
+  guest takes the session's economy whatever its own. `SaveGame.ApplyProfile` applies a profile under the session's
+  economy (no more always Android), so a guest's persistent profile in CoopFolder keeps working across campaigns of
+  either economy (the item numbers are the same; credits and items carry over, blueprint progress through
+  `Blueprints.Fit`). `NetGame.Db` loads again when the economy changes after its first use. The lobby dialog names the
+  economy, and the Open campaigns list tags each campaign with it (lobby key `economy`; none for a listing from before).
+  Free roam stays Android (docs/notes/shop.md "Economy" says why). Tested by `CoopCampaignTests` (the pick, the byte,
+  a guest's tables, a profile across economies); not with two games yet.
 - **Lobby** (a new campaign): the session opens with `NetState.CoopStarted` false (`NetCoop.LobbyWanted`), so
   `NetGame.EnterWorld` waits (`NetGame.InLobby`) and every game stays in the main menu, whose dialog lists the crew
   (`NetCoop.CrewNames`, the host first, the join code for the host), kept current every 0.5 s (`MainMenu.CoopLobby`). The

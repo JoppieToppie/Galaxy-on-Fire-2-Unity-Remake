@@ -124,7 +124,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   (`Batch.down`), not just the ones present: a player leaving the orbit right after the spawn unloads their traffic, and
   Pirate Hideout paid out in 13 s (a log of 2026-10-12). The batch keeps the orbits it was seen in, so the players leaving
   them still ends the event (`CheckEmpty`; a mission fails). A completion logs its time and the players' kills.
-- **Shared shop stock** (`NetStock`): every station's items and dealer ships are one list for all players, kept by the
+- **Shared shop stock** (`NetStock`; every game in the session on one economy, Android or a co-op campaign's,
+  docs/notes/multiplayer-coop.md "Economy"): every station's items and dealer ships are one list for all players, kept by the
   host: made with the single-player rules (`Shop.GenerateItems` / `GenerateShips`) the first time anyone docks there and
   made again every 15 minutes (`NetStock.ResetSeconds`; no 3-station re-roll or re-docking nibble in sessions); rare
   goods (commodities with a max price of 5000+: Buskat, Vossk Organs, Implants...; a report: Buskat back at Sao Perula

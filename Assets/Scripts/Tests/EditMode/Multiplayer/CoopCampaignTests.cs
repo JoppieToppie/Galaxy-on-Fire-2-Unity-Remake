@@ -3,11 +3,14 @@
 // catching up to it with every step's own side effects, the wait for a guest's own success conversation, a guest's progress
 // on the step's shared counters and the leader's merge (bits at 116 / 125 / 148, counts elsewhere, convoy targets), the
 // leader following a guest's own advance, step 13's crew missions, a won step reported by another crew member, a failed
-// level's checkpoint, and the story levels' hull factor. The hooks stand in for the session (no network).
+// level's checkpoint, the story levels' hull factor, and the economy (the hosted save's or the new game's pick, the byte
+// NetState carries, a guest's tables matching the host's, a profile applied under the session's economy). The hooks stand
+// in for the session (no network).
 
 using System;
 using System.Collections.Generic;
 using GoF2Remake.Data;
+using GoF2Remake.Multiplayer;
 using NUnit.Framework;
 
 namespace GoF2Remake.Tests
@@ -502,6 +505,10 @@ namespace GoF2Remake.Tests
                 Assert.AreEqual((int)Economy.Android, SaveGame.Preview(4).economy);
                 SaveGame.EndHostSaves();
                 Assert.IsFalse(SaveGame.Save(5), "the session's end: no more");
+                SaveGame.BeginHostSaves(null, Economy.Default);   // a new game the host picked the PC economy for
+                Session.Economy = Economy.Default;
+                Assert.IsTrue(SaveGame.Save(6));
+                Assert.AreEqual((int)Economy.Default, SaveGame.Preview(6).economy, "the new game's pick");
                 SaveGame.BeginHostSaves(null);
                 NetSession.ActiveProvider = () => false;   // the connection went, the game still loaded
                 Assert.IsFalse(SaveGame.Save(5));
@@ -512,6 +519,90 @@ namespace GoF2Remake.Tests
                 NetSession.ActiveProvider = oldActive;
                 NetSession.SessionGameProvider = oldGame;
             }
+        }
+
+        // ---- the economy (NetSession.Economy: the host's, carried to the guests by NetState) ----
+
+        [Test]
+        public void TheCampaignPlaysTheSavesEconomyOrTheNewGamesPick()
+        {
+            var pc = new SaveData { version = SaveData.CurrentVersion, economy = (int)Economy.Default };
+            var android = new SaveData { version = SaveData.CurrentVersion, economy = (int)Economy.Android };
+            Assert.AreEqual(Economy.Default, CoopCampaign.HostEconomy(pc, Economy.Android), "a save keeps its own");
+            Assert.AreEqual(Economy.Android, CoopCampaign.HostEconomy(android, Economy.Default));
+            Assert.AreEqual(Economy.Android, CoopCampaign.HostEconomy(new SaveData { version = 9, economy = (int)Economy.Default }, Economy.Default),
+                "a save from before version 10 played the Android tables");
+            Assert.AreEqual(Economy.Default, CoopCampaign.HostEconomy(null, Economy.Default), "a new game: the host's pick");
+            Assert.AreEqual(Economy.Android, CoopCampaign.HostEconomy(null, Economy.Android));
+        }
+
+        [Test]
+        public void TheEconomyCrossesTheHandshakeIntact()
+        {
+            foreach (Economy e in Enum.GetValues(typeof(Economy)))
+                Assert.AreEqual(e, NetSession.EconomyFromCode(NetSession.EconomyCode(e)), e.ToString());
+            Assert.AreEqual(Economy.Android, NetSession.EconomyFromCode(0), "NetState's default: every free-roam session");
+            Assert.AreEqual(Economy.Android, NetSession.EconomyFromCode(7), "a value this build doesn't know");
+            Assert.AreEqual(0, NetSession.EconomyCode(Economy.Android), "Android is the variable's default, as before the economy was sent");
+        }
+
+        [Test]
+        public void AGuestLoadsTheHostsTables()
+        {
+            var savedNet = NetSession.Economy;
+            try
+            {
+                Session.Economy = Economy.Default;   // the host
+                var host = Database.Load();
+                Session.Economy = NetSession.EconomyFromCode(NetSession.EconomyCode(Economy.Default));   // a guest, from NetState
+                var guest = Database.Load();
+                Session.Economy = Economy.Android;
+                var android = Database.Load();
+                Assert.AreEqual(Economy.Default, guest.Economy);
+                Assert.AreEqual(host.Items.Count, guest.Items.Count);
+                int differ = 0;
+                for (int i = 0; i < host.Items.Count; i++)
+                {
+                    Assert.AreEqual(host.Items[i].minPrice, guest.Items[i].minPrice, "item " + i);
+                    Assert.AreEqual(host.Items[i].maxPrice, guest.Items[i].maxPrice, "item " + i);
+                    if (host.Items[i].maxPrice != android.Items[i].maxPrice) differ++;
+                }
+                for (int i = 0; i < host.Ships.Count; i++) Assert.AreEqual(host.Ships[i].price, guest.Ships[i].price, "ship " + i);
+                Assert.Greater(differ, 50, "the Default tables aren't the Android ones (the handshake matters)");
+                // NetGame.Db, the session's look-ups, follows the economy set after its first use.
+                NetGame.ResetDb();
+                Assert.AreEqual(Economy.Android, NetGame.Db.Economy);
+                Session.Economy = Economy.Default;
+                Assert.AreEqual(Economy.Default, NetGame.Db.Economy, "read again for the co-op campaign's economy");
+            }
+            finally
+            {
+                NetSession.Economy = savedNet;
+                NetGame.ResetDb();
+            }
+        }
+
+        [Test]
+        public void AProfileAppliesUnderTheSessionsEconomy()
+        {
+            var savedNet = NetSession.Economy;
+            try
+            {
+                Session.Economy = Economy.Android;
+                Session.Credits = 12345;
+                string json = SaveGame.ProfileJson();   // a guest's profile from an Android campaign
+                Session.Economy = NetSession.Economy = Economy.Default;   // this campaign plays the PC economy
+                var db = Database.Load();
+                Assert.IsTrue(SaveGame.TryParse(json, db, out var profile, out string problem), "a persistent profile keeps working: " + problem);
+                Assert.AreEqual((int)Economy.Android, profile.economy);
+                SaveGame.ApplyProfile(profile);
+                Assert.AreEqual(Economy.Default, Session.Economy, "the session's economy, not the profile's");
+                Assert.AreEqual(12345, Session.Credits, "the profile's own game");
+                NetSession.Economy = Economy.Android;   // and back in an Android session
+                SaveGame.ApplyProfile(profile);
+                Assert.AreEqual(Economy.Android, Session.Economy);
+            }
+            finally { NetSession.Economy = savedNet; }
         }
     }
 }
