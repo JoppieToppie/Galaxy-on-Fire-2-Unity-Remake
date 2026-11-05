@@ -67,6 +67,10 @@ namespace GoF2Remake.UI
         /// <summary>Attributes the details never list (index, type, price systems, occurrence, prices, Vossk flag, home station).</summary>
         static readonly HashSet<int> Hidden = new HashSet<int> { 0, 1, 4, 5, 6, 7, 8, 60, 61, 100, 102, 103 };
 
+        /// <summary>Remake (a player's report 2026-11-03): the millisecond rows (a gun's reload, a booster's, cloak's or time
+        /// extender's recharge) read "Loading time"; the original's label 149 says "Loading speed" for a time.</summary>
+        static string LoadingTime => Localization.Extra("statLoadingTime", "Loading time");
+
         /// <summary>ListItemWindow::set, items: label (DAT_0025875c) and value + unit (LISTITEMWINDOW_UNITS) per attribute.</summary>
         public static List<(string label, string value)> ItemStats(ItemData it)
         {
@@ -86,7 +90,7 @@ namespace GoF2Remake.UI
                     case 9: rows.Add((T(146), v.ToString())); break;
                     case 10: rows.Add((T(138), v.ToString())); break;
                     case 11:
-                        rows.Add((T(149), $"{v} ms"));
+                        rows.Add((LoadingTime, $"{v} ms"));
                         if ((it.TypeId == 0 || it.TypeId == 2 || it.categoryId == 39) && v > 0)
                         {
                             int dmg = it.HasAttr(9) ? it.Attr(9) : it.Attr(10);
@@ -120,7 +124,7 @@ namespace GoF2Remake.UI
                         rows.Add((Localization.Extra("statFullRecharge", "Full recharge"), $"{v} ms"));
                         rows.Add((Localization.Extra("statShieldPerSecond", "Shield per second"), (it.Attr(18) * 1000f / v).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)));
                         break;
-                    case 19: case 26: case 36: case 37: case 43: rows.Add((T(149), $"{v} ms")); break;
+                    case 19: case 26: case 36: case 37: case 43: rows.Add((LoadingTime, $"{v} ms")); break;
                     case 21: rows.Add((T(140), $"{v} %")); break;
                     case 22: case 25: case 28: case 46: case 54: case 56: rows.Add((T(157), $"{v} %")); break;
                     case 24: case 29: rows.Add((T(141), $"{v} ms")); break;

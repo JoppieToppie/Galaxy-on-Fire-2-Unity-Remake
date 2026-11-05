@@ -3320,6 +3320,7 @@
  "barRobotsHelp": "在Terran人和Vossk人的酒吧里工作的机器人。",
  "autoJumpgate": "自动飞行穿越星门",
  "autoJumpgateHelp": "设定目的地后，自动飞行器会不经询问穿过星门飞向目的地。关闭：星门先询问，与原版相同。",
+ "statLoadingTime": "再充时间",
  "medalsTitle": "勋章",
  "medalsDesc": "关：本局游戏没有勋章。VoidX 将在赢得主线故事后解锁，Specter 和烟花在完成超新星后解锁。",
  "noMedalsVoidX": "为表彰您战胜Void，Deep Science的研究部门将为您提供一艘修复的Void战机原型。您可在Thynome太空站买到它。",

@@ -3320,6 +3320,7 @@
  "barRobotsHelp": "Les robots au travail dans les bars terriens et vossks.",
  "autoJumpgate": "Le pilote automatique prend les portes",
  "autoJumpgateHelp": "Avec une destination définie, le pilote automatique franchit la porte supraluminique vers elle sans demander. Désactivé : la porte demande d'abord, comme dans l'original.",
+ "statLoadingTime": "Temps de chargement",
  "medalsTitle": "Médailles",
  "medalsDesc": "Non : aucune médaille dans cette partie. Le VoidX arrive alors avec la victoire dans l'histoire principale, le Specter et les feux d'artifice avec la fin de Supernova.",
  "noMedalsVoidX": "Pour votre victoire sur les Void, Deep Science vous fournira un prototype d'un vaisseau de combat Void restauré. Vous pouvez l'acheter sur Thynome.",

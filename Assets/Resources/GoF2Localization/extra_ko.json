@@ -3320,6 +3320,7 @@
  "barRobotsHelp": "Terran과 Vossk 바에서 일하는 로봇.",
  "autoJumpgate": "자동조종이 점프게이트 통과",
  "autoJumpgateHelp": "목적지가 설정되어 있으면 자동조종이 묻지 않고 점프게이트를 통과해 그곳으로 향합니다. 끄기: 원작처럼 게이트가 먼저 묻습니다.",
+ "statLoadingTime": "로딩 시간",
  "medalsTitle": "메달",
  "medalsDesc": "끄기: 이 게임에는 메달이 없습니다. 그러면 VoidX는 메인 스토리를 이기면, Specter와 폭죽은 초신성을 끝내면 얻습니다.",
  "noMedalsVoidX": "Void에 대한 승리를 기려 Deep Science쪽에서 당신에게 복원된 Void 전투 비행선 원형을 제공할 것 입니다. Thynome에서 구매할 수 있습니다.",

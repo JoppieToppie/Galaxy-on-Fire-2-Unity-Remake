@@ -137,7 +137,11 @@ against the FEV's LGCY data, see "Sound").
 - **Most Wanted** (`WantedBoard` plain C#, `Session.Wanted`, the Missions window's Most Wanted tab; save v7): criminals activate
   and move between stations (`WantedBoard.Move` on arrivals); in their orbit the criminal and escorts (`TrafficPlan.AddWanted`:
   hull 15 x min(rank, 20) + hp + 180, speed 4.5, its own gun x4) hide until locked; the storyline criminals surrender below 1/3
-  hull at 128 / 130; a kill pays the bounty (3206). Music `wantedMusic`.
+  hull at 128 / 130; a kill pays the bounty (3206). Music `wantedMusic`. Radio (a player's report 2026-11-03, steps
+  129 / 130: lines repeated): each wanted message (uncover 0x12, attack 0x10, kill) replaces the lines waiting or showing,
+  as `Level::createRadioMessage` does (`Traffic.WantedRadio`; the remake had queued them all), and for the storyline 0 / 1
+  a first hit after the lock's uncover says nothing (remake: `uncoverWanted` never sets Level+0x29c, so the original
+  greeted twice, "Damn it. Someone found me!" both times; wanted 2 / 6 keep their taunt).
 - **Specters** (race 10): `NpcCloak` (the player cloak's look, 2000 ms fades, off radar from 25 % and, remake, cloaked
   for everyone's targeting from there (`Target.cloaked`, the player's rule: turrets, auto turrets and sentry guns don't
   aim at it, fighters and wingmen chase it but hold fire, missiles lose their lock; the original only took it off the
