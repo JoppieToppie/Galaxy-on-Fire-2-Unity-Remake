@@ -1199,6 +1199,7 @@
   "updateAvailable": "有可用更新",
   "patchChecking": "正在检查哪些文件已更改… {0} %",
   "patchDownloading": "正在下载… {0} / {1}",
+  "patchSpeed": "{0}/秒 · 剩余 {1}",
   "patchAssembling": "正在准备新文件… {0} %",
   "patchReady": "此更新只需下载 {0}，而不是完整的 {1}，随后将重新启动游戏。",
   "patchReadyShort": "此更新将下载 {0}，随后重新启动游戏。",

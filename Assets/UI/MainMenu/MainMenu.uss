@@ -1968,6 +1968,27 @@
     -unity-text-align: upper-left;
 }
 
+/* Remake: the in-game updater's progress (MainMenuUpdate) under the dialog's text, hidden in the other dialogs. The
+   hangar's blueprint bar (.bp-bar) in the dialog's amber. */
+.dialog-progress {
+    display: none;
+    height: 8px;
+    margin: -8px 0 var(--space-xl) 0;
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.dialog-progress--shown {
+    display: flex;
+}
+
+.dialog-progress-fill {
+    height: 100%;
+    width: 0;
+    background-color: var(--gof-amber);
+}
+
 /* The pilot name prompt's field (MainMenu.NeedsName), hidden in the other dialogs. */
 .dialog-field {
     display: none;

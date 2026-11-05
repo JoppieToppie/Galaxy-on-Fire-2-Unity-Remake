@@ -1270,6 +1270,7 @@
  "updateAvailable": "アップデートがあります",
  "patchChecking": "変更されたファイルを確認中… {0} %",
  "patchDownloading": "ダウンロード中… {0} / {1}",
+ "patchSpeed": "{0}/秒 · 残り {1}",
  "patchAssembling": "新しいファイルを準備中… {0} %",
  "patchReady": "このアップデートは完全版の {1} ではなく {0} をダウンロードし、その後ゲームを再起動します。",
  "patchReadyShort": "このアップデートは {0} をダウンロードし、その後ゲームを再起動します。",

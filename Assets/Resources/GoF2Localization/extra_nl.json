@@ -1278,6 +1278,7 @@
  "updateAvailable": "Update beschikbaar",
  "patchChecking": "Controleren welke bestanden zijn gewijzigd… {0} %",
  "patchDownloading": "Downloaden… {0} van {1}",
+ "patchSpeed": "{0}/s · nog {1}",
  "patchAssembling": "De nieuwe bestanden voorbereiden… {0} %",
  "patchReady": "Deze update downloadt {0} in plaats van de volledige {1} en start daarna het spel opnieuw.",
  "patchReadyShort": "Deze update downloadt {0} en start daarna het spel opnieuw.",

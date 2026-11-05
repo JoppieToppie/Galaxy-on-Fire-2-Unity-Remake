@@ -1278,6 +1278,7 @@
  "updateAvailable": "Atualização disponível",
  "patchChecking": "Verificando quais arquivos mudaram… {0} %",
  "patchDownloading": "Baixando… {0} de {1}",
+ "patchSpeed": "{0}/s · faltam {1}",
  "patchAssembling": "Preparando os novos arquivos… {0} %",
  "patchReady": "Esta atualização baixa {0} em vez dos {1} do jogo completo e depois reinicia o jogo.",
  "patchReadyShort": "Esta atualização baixa {0} e depois reinicia o jogo.",

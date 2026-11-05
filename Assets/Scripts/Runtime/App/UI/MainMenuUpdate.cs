@@ -47,14 +47,25 @@ namespace GoF2Remake.UI
 
         static string Percent(float f) => Mathf.FloorToInt(Mathf.Clamp01(f) * 100f).ToString();
 
+        /// <summary>"0:42" / "12:05" / "1:02:09" (a clock reads the same in every language).</summary>
+        public static string ClockText(float seconds)
+        {
+            int s = Mathf.Max(0, Mathf.CeilToInt(seconds));
+            return s >= 3600 ? $"{s / 3600}:{s / 60 % 60:00}:{s % 60:00}" : $"{s / 60}:{s % 60:00}";
+        }
+
         static string UpdateProgressText()
         {
             switch (GamePatcher.State)
             {
                 case GamePatcher.Phase.Downloading:
                     long total = GamePatcher.Install?.DownloadBytes ?? 0;
-                    return string.Format(X("patchDownloading", "Downloading… {0} of {1}"),
-                        SizeText((long)(GamePatcher.Progress * total)), SizeText(total));
+                    string text = string.Format(X("patchDownloading", "Downloading… {0} of {1}"),
+                        SizeText(GamePatcher.Transferred), SizeText(total));
+                    if (GamePatcher.BytesPerSecond > 0f && GamePatcher.SecondsLeft >= 0f)
+                        text += "\n" + string.Format(X("patchSpeed", "{0}/s · {1} left"),
+                            SizeText((long)GamePatcher.BytesPerSecond), ClockText(GamePatcher.SecondsLeft));
+                    return text;
                 case GamePatcher.Phase.Assembling:
                     return string.Format(X("patchAssembling", "Preparing the new files… {0} %"), Percent(GamePatcher.Progress));
                 case GamePatcher.Phase.Fetching when GamePatcher.KindHere == GamePatcher.Kind.AppInstaller:
@@ -85,11 +96,22 @@ namespace GoF2Remake.UI
         {
             var run = StartCoroutine(step);
             yield return null;
+            var bar = root.Q("dialogProgress");
+            var fill = root.Q("dialogProgressFill");
             while (GamePatcher.Working)
             {
-                if (updateProgressShown) root.Q<Label>("dialogText").text = UpdateProgressText();
+                if (updateProgressShown)
+                {
+                    root.Q<Label>("dialogText").text = UpdateProgressText();
+                    // The bar while there is something to measure: checking the files, downloading, preparing them.
+                    var phase = GamePatcher.State;
+                    bool measured = phase == GamePatcher.Phase.Scanning || phase == GamePatcher.Phase.Downloading || phase == GamePatcher.Phase.Assembling;
+                    bar?.EnableInClassList("dialog-progress--shown", measured);
+                    if (fill != null) fill.style.width = Length.Percent(Mathf.Clamp01(GamePatcher.Progress) * 100f);
+                }
                 yield return null;
             }
+            bar?.RemoveFromClassList("dialog-progress--shown");
             yield return run;
         }
 

@@ -167,7 +167,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
     the game has -> "downloads N instead of the full <zip / APK size>" (Update / Release page / Cancel) -> range downloads,
     each chunk checked, kept in `_update/chunks` (an interrupted try keeps them) -> `Assemble` (thread) writes each changed
     file whole into `_update/files` from local + downloaded chunks, checking every chunk again. Disk space checked first
-    (changed files + download + 64 MB).
+    (changed files + download + 64 MB). The dialog (the menu's own) shows a progress bar (`dialogProgress`, hidden by
+    `CloseDialog`) while checking, downloading and preparing, and while downloading "<got> of <total>" with the speed over
+    the last 4 s (real time) and the time left as a clock (`patchSpeed`, `GamePatcher.BytesPerSecond` / `SecondsLeft`).
   - Apply, Windows / Linux: running files are locked, so `<game>/_update/apply.cmd` / `apply.sh` waits for the game's PID to
     end, moves each file in (30 tries a second apart), deletes the manifest's `removed` files, removes `_update` (kept when
     a move failed) and with "restart" starts the player again (Linux through `setsid` when present, `chmod +x` on `exec`

@@ -153,6 +153,19 @@ namespace GoF2Remake.Tests
         // ---- tests ----------------------------------------------------------------------------------------------------
 
         [Test]
+        public void DownloadTexts()
+        {
+            // The download dialog's sizes and time left (MainMenuUpdate): a clock reads the same in every language.
+            Assert.AreEqual("0:00", MainMenu.ClockText(-3f));
+            Assert.AreEqual("0:43", MainMenu.ClockText(42.2f), "rounded up: never 0:00 while bytes are left");
+            Assert.AreEqual("12:05", MainMenu.ClockText(725f));
+            Assert.AreEqual("1:02:09", MainMenu.ClockText(3729f));
+            Assert.AreEqual("0.5 MB", MainMenu.SizeText(512 * 1024));
+            Assert.AreEqual("376 MB", MainMenu.SizeText(394_142_360));
+            Assert.AreEqual("1.5 GB", MainMenu.SizeText(1_564_978_043));
+        }
+
+        [Test]
         public void ManifestChecks()
         {
             Assert.IsTrue(PatchManifest.IsSafePath("GoF2Remake_Data/resources.assets.resS"));

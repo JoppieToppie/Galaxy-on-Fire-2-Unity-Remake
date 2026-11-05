@@ -42,6 +42,15 @@ namespace GoF2Remake.UI
         /// <summary>0..1 of the current phase.</summary>
         public static float Progress { get; private set; }
         public static long Downloaded { get; private set; }
+        /// <summary>While downloading: bytes so far (finished requests and those under way).</summary>
+        public static long Transferred { get; private set; }
+        /// <summary>While downloading: the speed over the last few seconds, bytes a second (0 until known).</summary>
+        public static float BytesPerSecond { get; private set; }
+        /// <summary>While downloading: seconds left at that speed (-1 until known).</summary>
+        public static float SecondsLeft { get; private set; }
+
+        /// <summary>The speed is averaged over this long, so it doesn't jump with each finished request.</summary>
+        const float SpeedWindow = 4f;
 
         public static bool Working => State == Phase.Fetching || State == Phase.Scanning || State == Phase.Downloading || State == Phase.Assembling;
 
@@ -63,7 +72,9 @@ namespace GoF2Remake.UI
             NoSpace = false;
             Install = null;
             Progress = 0f;
-            Downloaded = 0;
+            Downloaded = Transferred = 0;
+            BytesPerSecond = 0f;
+            SecondsLeft = -1f;
             cancel = null;
             applyOnQuit = false;
             TestInstallDir = TestManifestUrl = TestApkPath = null;
@@ -277,8 +288,11 @@ namespace GoF2Remake.UI
             if (install == null || State != Phase.Ready) yield break;
             cancel = new CancellationTokenSource();
             State = Phase.Downloading;
-            Downloaded = 0;
+            Downloaded = Transferred = 0;
+            BytesPerSecond = 0f;
+            SecondsLeft = -1f;
             Progress = 0f;
+            var samples = new Queue<(float time, long bytes)>();
             var queue = new Queue<PatchRange>(install.Ranges);
             var tries = new Dictionary<PatchRange, int>();
             var running = new List<(UnityWebRequest request, PatchRange range)>();
@@ -314,7 +328,9 @@ namespace GoF2Remake.UI
                         }
                         request.Dispose();
                     }
-                    Progress = Mathf.Clamp01((float)(Downloaded + inFlight) / total);
+                    Transferred = Math.Min(Downloaded + inFlight, total);
+                    Progress = Mathf.Clamp01((float)Transferred / total);
+                    UpdateSpeed(samples, total);
                     yield return null;
                 }
             }
@@ -345,6 +361,20 @@ namespace GoF2Remake.UI
             State = Phase.Staged;
             Progress = 1f;
             Debug.Log("GamePatcher: " + install.Manifest.version + " staged");
+        }
+
+        /// <summary>BytesPerSecond / SecondsLeft from the bytes over the last SpeedWindow seconds (real time: a paused or
+        /// slowed game doesn't change it).</summary>
+        static void UpdateSpeed(Queue<(float time, long bytes)> samples, long total)
+        {
+            float now = Time.realtimeSinceStartup;
+            samples.Enqueue((now, Transferred));
+            while (samples.Count > 2 && now - samples.Peek().time > SpeedWindow) samples.Dequeue();
+            var (first, firstBytes) = samples.Peek();
+            float span = now - first;
+            if (span < 0.5f) return;   // too soon to say
+            BytesPerSecond = Math.Max(0f, (Transferred - firstBytes) / span);
+            SecondsLeft = BytesPerSecond > 1f ? (total - Transferred) / BytesPerSecond : -1f;
         }
 
         /// <summary>A finished range download: each of its chunks handed to the install. Null, or what was wrong.</summary>

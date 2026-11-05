@@ -924,6 +924,7 @@ namespace GoF2Remake.UI
                 InputGlyph.SetText(root.Q<Button>("dialogYes"), Localization.Get(134).UiCaps());
             }
             if (dialogField != null) dialogField.style.display = StyleKeyword.Null;
+            root.Q("dialogProgress")?.RemoveFromClassList("dialog-progress--shown");   // the updater's (MainMenuUpdate)
             dialog.RemoveFromClassList("dialog-backdrop--shown");
             dialogYes = dialogNo = null;
             dialogCheck = null;

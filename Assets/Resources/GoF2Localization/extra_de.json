@@ -1279,6 +1279,7 @@
  "updateAvailable": "Update verfügbar",
  "patchChecking": "Prüfe, welche Dateien sich geändert haben… {0} %",
  "patchDownloading": "Lade herunter… {0} von {1}",
+ "patchSpeed": "{0}/s · noch {1}",
  "patchAssembling": "Bereite die neuen Dateien vor… {0} %",
  "patchReady": "Dieses Update lädt {0} statt der vollen {1} herunter und startet das Spiel dann neu.",
  "patchReadyShort": "Dieses Update lädt {0} herunter und startet das Spiel dann neu.",

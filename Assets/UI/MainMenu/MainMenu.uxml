@@ -299,6 +299,9 @@
                 <ui:Label name="dialogTitle" class="panel-title gof-semibold" />
                 <ui:VisualElement class="panel-accent" />
                 <ui:Label name="dialogText" class="dialog-text" />
+                <ui:VisualElement name="dialogProgress" class="dialog-progress" picking-mode="Ignore">
+                    <ui:VisualElement name="dialogProgressFill" class="dialog-progress-fill" picking-mode="Ignore" />
+                </ui:VisualElement>
                 <ui:TextField name="dialogField" class="debug-filter dialog-field" />
                 <ui:VisualElement class="dialog-buttons">
                     <ui:Button name="dialogYes" class="menu-button dialog-button gof-semibold" />
