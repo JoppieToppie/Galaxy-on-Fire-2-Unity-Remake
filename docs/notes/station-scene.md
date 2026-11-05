@@ -140,7 +140,8 @@ slots, ship heights, fighters per race, music) are in `StationTables`.
   flies out meanwhile (the UI animation, `UiBlocked`), a footer keeps Back and the hints row at the top right the
   controls; Hide UI (H, the controller's Y; a short click / tap or H / Y brings it back, a drag still turns) and
   Screenshot (Enter / P, the controller's A: `PhotoMode.Store`, no UI in it, 55 / 56) are clickable hints (taps on
-  touch). Back: Esc, Backspace, B, 6 / I, the right stick press. The depth of field focuses on the hull's centre
+  touch); the screenshot keys count only once let go after it opens (`OrbitViewUi.ShotPressed`, Action Freeze too: the
+  Enter / A that chose Inspect ship took a screenshot as well, a player's report 2026-11-04). Back: Esc, Backspace, B, 6 / I, the right stick press. The depth of field focuses on the hull's centre
   meanwhile and turns Gaussian (also in the Mod Builder's orbit): sharp to a little past the hull, the room behind
   blurred (300 mm at f/2 kept ~6 m sharp up close, a 50 mm lens at the orbit's ~80 m blurred nothing). Leaving the
   hangar view drops it (`HangarInspect.Reset`); a take-off ends it. The rooms are only modelled where the original

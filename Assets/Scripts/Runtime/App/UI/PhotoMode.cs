@@ -47,7 +47,7 @@ namespace GoF2Remake.UI
         bool chaseWasEnabled;
         float px, py, distance, wheel, messageMs;
         Vector2 fling, lastPointer;
-        bool dragging, capturing, uiHidden;
+        bool dragging, capturing, uiHidden, shotLatched;
         float dragTravel;
         InputKind hintsKind = (InputKind)(-1);
         int draggingFinger = -1;
@@ -96,6 +96,7 @@ namespace GoF2Remake.UI
             cam = Camera.main;
             if (cam == null) return;
             Active = true;
+            shotLatched = true;   // the Enter / A that chose it in a menu isn't a screenshot too (OrbitViewUi.ShotPressed)
             target = level.Player.transform;
             chase = cam.GetComponent<ChaseCamera>();
             chaseWasEnabled = chase != null && chase.enabled;
@@ -158,8 +159,7 @@ namespace GoF2Remake.UI
             {
                 if ((kb != null && (kb.escapeKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame)) || (pad != null && pad.buttonEast.wasPressedThisFrame))
                 { Exit(); return false; }
-                if ((kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame))
-                    || (pad != null && pad.buttonSouth.wasPressedThisFrame)) Save();
+                if (OrbitViewUi.ShotPressed(kb, pad, ref shotLatched)) Save();
                 if ((kb != null && kb.hKey.wasPressedThisFrame) || (pad != null && pad.buttonNorth.wasPressedThisFrame))
                 { ButtonSound?.Invoke(false); SetUiHidden(!uiHidden); }
             }

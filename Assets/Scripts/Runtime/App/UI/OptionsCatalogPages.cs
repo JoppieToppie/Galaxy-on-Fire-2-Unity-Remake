@@ -467,6 +467,10 @@ namespace GoF2Remake.UI
                 () => Settings.EmpBreaksCloak, v => Settings.EmpBreaksCloak = v);
             empCloak.description = () => X("empBreaksCloakHelp", "An EMP hit drops a cloak at once, also one still charging.");
             list.Add(SessionRule(empCloak));
+            var bombArming = Toggle("bombArming", OptionPage.Gameplay, () => X("bombArming", "Bomb arming distance"),
+                () => Settings.BombArming, v => Settings.BombArming = v);
+            bombArming.description = () => X("bombArmingHelp", "Bombs only go off on contact after flying 100 m, so a ship near your nose can't set one off at launch. Off: as in the original.");
+            list.Add(bombArming);
             var smartTargeting = Toggle("smarterNpcTargeting", OptionPage.Gameplay, () => X("smarterNpcTargeting", "Smarter NPC targeting"),
                 () => Settings.SmarterNpcTargeting, v => Settings.SmarterNpcTargeting = v);
             smartTargeting.description = () => X("smarterNpcTargetingHelp", "Enemy fighters spread over nearby targets instead of all going for you.");

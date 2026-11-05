@@ -3288,5 +3288,7 @@
  "postAaFxaa": "FXAA: die günstigste Kantenglättung des ganzen Bilds, etwas weicher als SMAA.",
  "postAaOff": "Keine Glättung des fertigen Bilds; MSAA glättet weiterhin die Kanten der Modelle.",
  "postAaTaa": "TAA: glättet Kanten über mehrere Bilder, am ruhigsten an dünnen Teilen; schnelle Bewegung kann verwischen. Schaltet MSAA aus.",
- "postAaTaaByUpscaler": "Der Upscaler glättet bereits über mehrere Bilder: statt TAA wird SMAA verwendet."
+ "postAaTaaByUpscaler": "Der Upscaler glättet bereits über mehrere Bilder: statt TAA wird SMAA verwendet.",
+ "bombArming": "Bomben-Scharfschaltdistanz",
+ "bombArmingHelp": "Bomben zünden bei Kontakt erst nach 100 m Flug, damit ein Schiff vor deinem Bug keine beim Abschuss auslöst. Aus: wie im Original."
 }

@@ -455,7 +455,7 @@ namespace GoF2Remake.UI
         PhotoTools inspectTools;
         Label inspectTitle, inspectMessage;
         Button inspectBack;
-        bool inspectDragging, inspectUiHidden, inspectCapturing;
+        bool inspectDragging, inspectUiHidden, inspectCapturing, inspectShotLatched;
         Vector2 inspectLast, inspectFling;
         float inspectPinch = -1f, inspectDragTravel, inspectMessageMs;
 

@@ -3288,5 +3288,7 @@
  "postAaFxaa": "FXAA : le lissage de toute l'image le moins coûteux, un peu plus doux que le SMAA.",
  "postAaOff": "Aucun lissage de l'image finale ; le MSAA lisse toujours les bords des modèles.",
  "postAaTaa": "TAA : lisse les bords sur plusieurs images, le plus stable sur les pièces fines ; les mouvements rapides peuvent baver. Désactive le MSAA.",
- "postAaTaaByUpscaler": "L'upscaler lisse déjà sur plusieurs images : le SMAA est utilisé à la place du TAA."
+ "postAaTaaByUpscaler": "L'upscaler lisse déjà sur plusieurs images : le SMAA est utilisé à la place du TAA.",
+ "bombArming": "Distance d'armement des bombes",
+ "bombArmingHelp": "Les bombes n'explosent au contact qu'après 100 m de vol : un vaisseau près de votre nez ne peut plus en déclencher une au lancement. Désactivé : comme dans l'original."
 }

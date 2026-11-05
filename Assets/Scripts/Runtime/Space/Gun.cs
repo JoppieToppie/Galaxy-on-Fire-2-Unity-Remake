@@ -140,6 +140,16 @@ namespace GoF2Remake.Flight
         bool Coasts => kind == Kind.Rocket || kind == Kind.Missile || kind == Kind.ClusterMissile;
         /// <summary>Sorts 6 / 7 / 34: slow bombs that go off at the end of life, on contact or on the next press.</summary>
         public bool IsBomb => kind == Kind.EmpBomb || kind == Kind.Nuke || kind == Kind.Ionizing;
+        /// <summary>Remake (Settings.BombArming): how far a bomb flies before its contact fuse works (2000 units, 100 m): a
+        /// fighter's hit cube is +-1000 units, so with an enemy near the nose the original's bomb went off 35-65 m in front
+        /// of the player at once (players' report, 2026-11-04).</summary>
+        public const float BombArmingUnits = 2000f;
+
+        /// <summary>A bomb that has flown 'ageMs' at 'speedUnitsPerMs' may go off on contact: always under the original's
+        /// rule ('arming' off), else once past BombArmingUnits.</summary>
+        public static bool BombArmed(float ageMs, float speedUnitsPerMs, bool arming) =>
+            !arming || ageMs * speedUnitsPerMs >= BombArmingUnits;
+
         /// <summary>Rockets, missiles and bombs kill asteroids outright (9999) and keep flying.</summary>
         bool KillsAsteroids => Coasts || IsBomb || kind == Kind.ShockBlast;
         float FreeLimit => Coasts ? -CoastMs : 0f;
@@ -508,10 +518,12 @@ namespace GoF2Remake.Flight
             // station's object) real hull: its boxes, grown by the fuse's x1.5-x3, filled the sky around the 102 carrier.
             bool scatter = kind == Kind.ScatterGun;
             bool hulls = HullCollision.Any;
+            // Remake (Settings.BombArming): an unarmed bomb meets no hull and no ship; it still kills asteroids (the loop).
+            bool unarmed = IsBomb && !BombArmed(b.age, speedUnitsPerMs, Settings.BombArming);
             castTargets = targets;
             mayHitFn ??= t => MayHit(t, castTargets);   // one delegate per gun, not one per shot and frame
             mayHitBigFn ??= t => BigTarget(t) && MayHit(t, castTargets);
-            if (hulls && HullCollision.Cast(from, b.position, HullShotRadius, scatter ? mayHitBigFn : mayHitFn, out var hullTarget, out var hullPoint))
+            if (hulls && !unarmed && HullCollision.Cast(from, b.position, HullShotRadius, scatter ? mayHitBigFn : mayHitFn, out var hullTarget, out var hullPoint))
             {
                 if (IsBomb) { Ignite(targets); return; }   // contact: area damage, no direct hit
                 b.timer = -1e9f;   // gone
@@ -521,7 +533,7 @@ namespace GoF2Remake.Flight
                 return;
             }
             // Remake: a hull target with a hit sphere (Target.hitSphereRadius: the player's collision probe) is hit within it too.
-            if (hulls)
+            if (hulls && !unarmed)
             {
                 // Only the players' probes have one: the grid keeps them apart (TargetGrid.Spheres), the first of the list wins.
                 var withSphere = Gridded(targets) ? TargetGrid.Spheres(frame) : targets;
@@ -574,6 +586,7 @@ namespace GoF2Remake.Flight
                     Hit?.Invoke(i, target, point);
                     continue;
                 }
+                if (IsBomb && unarmed) continue;   // not armed yet: flies on through the ship's cube
                 if (IsBomb) { Ignite(targets); return; }   // contact: area damage, no direct hit
                 b.timer = -1e9f;   // gone
                 Hit?.Invoke(i, target, point);

@@ -3288,5 +3288,7 @@
  "postAaFxaa": "FXAA: a suavização de bordas mais barata da imagem inteira, um pouco mais suave que o SMAA.",
  "postAaOff": "Sem suavização da imagem final; o MSAA continua suavizando as bordas dos modelos.",
  "postAaTaa": "TAA: suaviza as bordas ao longo de vários quadros, o mais estável em peças finas; movimentos rápidos podem borrar. Desativa o MSAA.",
- "postAaTaaByUpscaler": "O upscaler já suaviza ao longo de vários quadros: usa-se SMAA em vez de TAA."
+ "postAaTaaByUpscaler": "O upscaler já suaviza ao longo de vários quadros: usa-se SMAA em vez de TAA.",
+ "bombArming": "Distância de armamento das bombas",
+ "bombArmingHelp": "As bombas só explodem por contato após voar 100 m, para que uma nave perto do nariz não detone uma no lançamento. Desligado: como no original."
 }

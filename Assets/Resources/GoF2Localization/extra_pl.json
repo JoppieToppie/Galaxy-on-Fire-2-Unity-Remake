@@ -3288,5 +3288,7 @@
  "postAaFxaa": "FXAA: najtańsze wygładzanie całego obrazu, nieco bardziej miękkie niż SMAA.",
  "postAaOff": "Bez wygładzania gotowego obrazu; MSAA nadal wygładza krawędzie modeli.",
  "postAaTaa": "TAA: wygładza krawędzie w kilku klatkach, najstabilniejsze na cienkich elementach; szybki ruch może się rozmazywać. Wyłącza MSAA.",
- "postAaTaaByUpscaler": "Upscaler już wygładza w kilku klatkach: zamiast TAA używane jest SMAA."
+ "postAaTaaByUpscaler": "Upscaler już wygładza w kilku klatkach: zamiast TAA używane jest SMAA.",
+ "bombArming": "Dystans uzbrojenia bomb",
+ "bombArmingHelp": "Bomby wybuchają przy kontakcie dopiero po 100 m lotu, więc statek tuż przed dziobem nie odpali jej przy starcie. Wył.: jak w oryginale."
 }

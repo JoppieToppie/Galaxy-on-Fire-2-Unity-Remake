@@ -3288,5 +3288,7 @@
  "postAaFxaa": "FXAA：开销最低的全画面边缘平滑，比 SMAA 略柔和。",
  "postAaOff": "不平滑最终画面；MSAA 仍会平滑模型的边缘。",
  "postAaTaa": "TAA：跨多帧平滑边缘，细小部件最稳定；快速运动可能出现拖影。会关闭 MSAA。",
- "postAaTaaByUpscaler": "超分辨率技术已跨多帧平滑画面：将使用 SMAA 代替 TAA。"
+ "postAaTaaByUpscaler": "超分辨率技术已跨多帧平滑画面：将使用 SMAA 代替 TAA。",
+ "bombArming": "炸弹解保距离",
+ "bombArmingHelp": "炸弹飞行 100 米后才会触碰引爆，因此机头附近的舰船不会在发射时引爆它。关闭：与原版相同。"
 }

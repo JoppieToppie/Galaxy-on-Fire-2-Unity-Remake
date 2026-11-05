@@ -12,6 +12,22 @@ namespace GoF2Remake.UI
 {
     public static class OrbitViewUi
     {
+        /// <summary>The Screenshot keys (Enter, Numpad Enter, P, the controller's A) down.</summary>
+        public static bool ShotKeysDown(UnityEngine.InputSystem.Keyboard kb, UnityEngine.InputSystem.Gamepad pad) =>
+            (kb != null && (kb.enterKey.isPressed || kb.numpadEnterKey.isPressed || kb.pKey.isPressed))
+            || (pad != null && pad.buttonSouth.isPressed);
+
+        /// <summary>A Screenshot key pressed this frame, unless 'latched': the press that opened the view (Enter / A on the
+        /// menu's Inspect ship or Action Freeze) took a screenshot too (players' report, 2026-11-04). The latch, set as the
+        /// view opens, clears once those keys are all up.</summary>
+        public static bool ShotPressed(UnityEngine.InputSystem.Keyboard kb, UnityEngine.InputSystem.Gamepad pad, ref bool latched)
+        {
+            if (latched && !ShotKeysDown(kb, pad)) latched = false;
+            if (latched) return false;
+            return (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame))
+                   || (pad != null && pad.buttonSouth.wasPressedThisFrame);
+        }
+
         public static Label Title()
         {
             var l = new Label { pickingMode = PickingMode.Ignore };

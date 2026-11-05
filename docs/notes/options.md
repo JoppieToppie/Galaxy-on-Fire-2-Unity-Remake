@@ -171,7 +171,7 @@ verified on a Mac or an iPhone.
   nothing; one changed option makes it Custom, like the graphics preset). **Original is every option's default**, so a
   fresh install plays the original game: no hangar flights or animated dialogue, the original's lock, informer rule, ship
   collision and Kaamo Club, no pirate events, capital ship enhancements, cloak rules, smarter NPCs, conversations running,
-  ship cruise or Khador Slipstream. Cosmetic = that plus hangar flights and animated dialogue; Remake = every addition on
+  ship cruise, Khador Slipstream or bomb arming (weapons.md "Bomb arming"). Cosmetic = that plus hangar flights and animated dialogue; Remake = every addition on
   (Mixed collision, the VIP Card bought at the club). The original's own launch camera and salvage markers are on in all
   three (turned off, Custom). Not in it: utilities and HUD looks (tutorials, button hints, HUD mode / size / opacity, far
   ship marker style, auto-play dialogue, which AUTO also switches, speedrun, story step, Discord, difficulty, mods).
@@ -182,6 +182,10 @@ verified on a Mac or an iPhone.
   the old default of every experience option never set when the install was played before (any option stored or a save
   slot; Android's collision stays Original), so their row shows Remake-like values or Custom. A dedicated server's rules are
   `NetRules.Defaults`, untouched; a player host's are its options (`LocalRules`). Tests `GameExperienceTests`.
+  **An option added to the presets later** goes into `AddedExperienceKeys` (and a column of every row and of
+  `DefaultsBefore`): the migration's version 2 (`ExperienceVersion`) gives an install migrated before it the preset's
+  value when its other options match one (`KeepPresetForAddedKeys`), so a Remake player's row doesn't turn Custom; bump
+  the version for the next one. First: `bombArming` (2026-11-05).
 - **Welcome screen** (remake, 2026-11-04, `MainMenuWelcome`): on the first start, 1.3 s after the main buttons come in (not
   over a panel), the menu's own dialog: what the remake is and where things are (Options > Gameplay, Controls / Key
   bindings, Mods, Multiplayer and Co-op, named by their buttons' own texts), Next, then "How do you want to play?" with

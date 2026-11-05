@@ -101,6 +101,40 @@ namespace GoF2Remake.Tests
             }
         }
 
+        /// <summary>An install migrated before an experience option existed (version 1), with 'preset' applied then and
+        /// 'change' made after: the new option never stored.</summary>
+        static void MigratedBeforeTheOption(int preset, System.Action change = null)
+        {
+            NothingStored();
+            Settings.ApplyExperience(preset);
+            change?.Invoke();
+            PlayerPrefs.DeleteKey(DataUiTestKit.SettingsPrefix + "bombArming");
+            PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "experienceDefaults", 1f);
+            DataUiTestKit.ClearSettingsCache();
+        }
+
+        [Test]
+        public void AnOptionAddedLaterKeepsThePlayersPreset()
+        {
+            MigratedBeforeTheOption(Settings.ExperienceRemake);
+            Assert.AreEqual(Settings.ExperienceCustom, Settings.CurrentExperience(), "the new option at its original default");
+            Settings.MigrateExperienceDefaults();
+            Assert.IsTrue(Settings.BombArming, "the Remake preset's value");
+            Assert.AreEqual(Settings.ExperienceRemake, Settings.CurrentExperience());
+            Settings.BombArming = false;
+            Settings.MigrateExperienceDefaults();
+            Assert.IsFalse(Settings.BombArming, "once only");
+        }
+
+        [Test]
+        public void AnOptionAddedLaterStaysTheOriginalsForACustomPlayer()
+        {
+            MigratedBeforeTheOption(Settings.ExperienceRemake, () => Settings.CapitalShips = false);
+            Settings.MigrateExperienceDefaults();
+            Assert.IsFalse(Settings.BombArming);
+            Assert.AreEqual(Settings.ExperienceCustom, Settings.CurrentExperience());
+        }
+
         [Test]
         public void AnInstallPlayedBeforeKeepsItsOptions()
         {

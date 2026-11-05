@@ -56,6 +56,7 @@ namespace GoF2Remake.UI
             inspectPinch = -1f;
             inspectMessageMs = 0f;
             inspectMessage.text = "";
+            inspectShotLatched = true;   // the Enter / A that chose Inspect ship isn't a screenshot too
             SetInspectUiHidden(false);
             if (root.focusController?.focusedElement is VisualElement f) f.Blur();
             inspectTitle.text = GameNames.Ship(Session.ShipIndex).UiCaps();
@@ -261,9 +262,7 @@ namespace GoF2Remake.UI
                 { EndInspect(); return; }
                 if ((kb != null && kb.hKey.wasPressedThisFrame) || (pad != null && pad.buttonNorth.wasPressedThisFrame))
                 { Play(buttonRelease); SetInspectUiHidden(!inspectUiHidden); }
-                if ((kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame))
-                    || (pad != null && pad.buttonSouth.wasPressedThisFrame))
-                    TakeInspectScreenshot();
+                if (OrbitViewUi.ShotPressed(kb, pad, ref inspectShotLatched)) TakeInspectScreenshot();
             }
             if (inspectMessageMs > 0f && (inspectMessageMs -= Time.unscaledDeltaTime * 1000f) <= 0f) inspectMessage.text = "";
             if (!customize && inspectTools.Free) return;   // the free camera took the input above; the orbit rests

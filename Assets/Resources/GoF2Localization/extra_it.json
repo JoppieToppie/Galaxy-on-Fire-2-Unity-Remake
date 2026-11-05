@@ -3288,5 +3288,7 @@
  "postAaFxaa": "FXAA: l'anti-aliasing dell'intera immagine più economico, un po' più morbido dell'SMAA.",
  "postAaOff": "Nessun ammorbidimento dell'immagine finale; l'MSAA ammorbidisce comunque i bordi dei modelli.",
  "postAaTaa": "TAA: ammorbidisce i bordi su più fotogrammi, il più stabile sulle parti sottili; i movimenti veloci possono sbavare. Disattiva l'MSAA.",
- "postAaTaaByUpscaler": "L'upscaler ammorbidisce già su più fotogrammi: si usa l'SMAA al posto del TAA."
+ "postAaTaaByUpscaler": "L'upscaler ammorbidisce già su più fotogrammi: si usa l'SMAA al posto del TAA.",
+ "bombArming": "Distanza di innesco delle bombe",
+ "bombArmingHelp": "Le bombe esplodono al contatto solo dopo 100 m di volo, così una nave vicino alla prua non ne fa esplodere una al lancio. Disattivato: come nell'originale."
 }
