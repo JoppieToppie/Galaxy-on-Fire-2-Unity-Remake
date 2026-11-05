@@ -300,7 +300,7 @@ namespace GoF2Remake.Flight
                 if (prefab == null) continue;
                 var part = Instantiate(prefab, blaze.transform, false);
                 GunRig.StripForFx(part);
-                SoftenBlaze(part, prefab == assets.gammaBlazeFlames ? BlazeFlamesOpacity : 1f);
+                SoftenBlaze(part, BlazeOpacity);
             }
             var r = ship.visualModel != null ? ship.visualModel.GetComponentInChildren<Renderer>() : null;
             float radiusUnits = r != null ? r.bounds.extents.magnitude / M : 1500f;   // the bubble's radius too
@@ -318,8 +318,8 @@ namespace GoF2Remake.Flight
         Material gammaBlit;
         bool blazeHaze;
 
-        /// <summary>Modified: sn_ship_blaze_flames at half its strength (a player's pick: the flames over the ship too strong).</summary>
-        const float BlazeFlamesOpacity = 0.5f;
+        /// <summary>Modified: the blaze (sn_ship_blaze_flames and _glow) at half its strength (a player's pick).</summary>
+        const float BlazeOpacity = 0.5f;
 
         void SoftenBlaze(GameObject part, float opacity)
         {

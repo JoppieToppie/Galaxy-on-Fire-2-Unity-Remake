@@ -61,7 +61,7 @@ Shader "GoF2/BlazeAdditive"
                 c.a *= pow(saturate(facing), _EdgeFade);
                 // ... and toward the mesh's open edges (MeshSmoother: 0 on the rim of the cone's hole, round the core).
                 c.a *= lerp(1.0, smoothstep(0.0, 1.0, i.edge), _OpenEdges);
-                c.a *= _Opacity;   // Modified: the flames at half (PlayerHealth.BlazeFlamesOpacity)
+                c.a *= _Opacity;   // Modified: the blaze at half (PlayerHealth.BlazeOpacity)
                 return half4(c.rgb * _Glow, c.a);
             }
             ENDHLSL
