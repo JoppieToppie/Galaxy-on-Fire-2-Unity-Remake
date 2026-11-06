@@ -104,9 +104,9 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(5.5f, CoopCampaign.HullFactor(4, 150), 1e-4f);
             Assert.AreEqual(7f, CoopCampaign.HullFactor(4, 200), 1e-4f);
             Assert.AreEqual(4f, CoopCampaign.DamageFactor(4, 200), 1e-4f);
-            CoopCampaign.SetSettings(200, true);
+            CoopCampaign.SetSettings(200, 0, true);
             Assert.AreEqual(200, CoopCampaign.Strength, "the highest choice is kept");
-            CoopCampaign.SetSettings(100, true);
+            CoopCampaign.SetSettings(100, 0, true);
             Assert.AreEqual(2f, CoopCampaign.NpcDamageFactor, 1e-4f, "three players (the test's crew) at +100 %: half of it on the guns");
             GameHooks.CoopActive = () => false;
             Assert.AreEqual(1f, CoopCampaign.NpcDamageFactor, 1e-4f, "single player");
@@ -133,7 +133,7 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(10000, CoopCampaign.Share(10000, 3, false), "each in full");
             Assert.AreEqual(10000, CoopCampaign.Share(10000, 1, true), "alone");
             Assert.AreEqual(0, CoopCampaign.Share(0, 4, true));
-            CoopCampaign.SetSettings(50, true);
+            CoopCampaign.SetSettings(50, 0, true);
             Assert.AreEqual(1000, CoopCampaign.Share(3000), "the session's crew of three");
             GameHooks.CoopActive = () => false;
             Assert.AreEqual(3000, CoopCampaign.Share(3000), "single player keeps the whole reward");
@@ -143,19 +143,65 @@ namespace GoF2Remake.Tests
         public void GuestsTakeTheLeadersSettings()
         {
             leader = true;
-            CoopCampaign.SetSettings(100, false);
+            CoopCampaign.SetSettings(100, 150, false);
             string json = LeaderAt(20);
-            CoopCampaign.SetSettings(CoopCampaign.DefaultStrength, true);
+            CoopCampaign.SetSettings(CoopCampaign.DefaultStrength, CoopCampaign.DefaultSpawns, true);
             GuestAt(20);
             CoopCampaign.ApplyLeader(json, db);
             Assert.AreEqual(100, CoopCampaign.Strength);
+            Assert.AreEqual(150, CoopCampaign.Spawns, "the spawning is its own setting");
             Assert.IsFalse(CoopCampaign.SplitRewards);
+        }
+
+        [Test]
+        public void AStateFromBeforeTheSpawningSettingSpawnsNoExtras()
+        {
+            var s = CoopCampaign.FromJson("{\"index\":20,\"strength\":100,\"splitRewards\":true}");
+            Assert.AreEqual(100, s.strength);
+            Assert.AreEqual(CoopCampaign.DefaultSpawns, s.spawns);
+            Assert.AreEqual(0, CoopCampaign.DefaultSpawns, "Off: the story levels' own ships");
+        }
+
+        [Test]
+        public void SpawnsAddShipsPerExtraPlayer()
+        {
+            Assert.AreEqual(1f, CoopCampaign.SpawnFactor(4, 0), 1e-4f, "Off");
+            Assert.AreEqual(1f, CoopCampaign.SpawnFactor(1, 200), 1e-4f, "alone");
+            Assert.AreEqual(2.5f, CoopCampaign.SpawnFactor(4, 50), 1e-4f);
+            Assert.AreEqual(7f, CoopCampaign.SpawnFactor(4, 200), 1e-4f);
+
+            float carry = 0f;
+            Assert.AreEqual(0, CoopCampaign.ExtraShips(ref carry, 4, 0), "Off adds none");
+            Assert.AreEqual(1, CoopCampaign.ExtraShips(ref carry, 2, 100), "+100 % with two players: one copy each");
+            carry = 0f;
+            int total = 0;
+            for (int i = 0; i < 6; i++) total += CoopCampaign.ExtraShips(ref carry, 2, 50);
+            Assert.AreEqual(3, total, "+50 % with two players: one for every second ship");
+            carry = 0f;
+            total = 0;
+            for (int i = 0; i < 4; i++) total += CoopCampaign.ExtraShips(ref carry, 4, 50);
+            Assert.AreEqual(6, total, "four ships for four players at +50 %: ten in all");
+            carry = 0f;
+            total = 0;
+            for (int i = 0; i < 4; i++) total += CoopCampaign.ExtraShips(ref carry, 3, 25);
+            Assert.AreEqual(2, total, "a fraction carried over, never lost");
+        }
+
+        [Test]
+        public void StrengthAndSpawnsAreSeparate()
+        {
+            CoopCampaign.SetSettings(0, 200, true);
+            Assert.AreEqual(0, CoopCampaign.Strength);
+            Assert.AreEqual(200, CoopCampaign.Spawns);
+            Assert.AreEqual(1f, CoopCampaign.NpcDamageFactor, 1e-4f, "more ships, no stronger guns");
+            CoopCampaign.SetSettings(100, 500, true);
+            Assert.AreEqual(200, CoopCampaign.Spawns, "+200 % at most");
         }
 
         [Test]
         public void TheGameWonBonusIsShared()
         {
-            CoopCampaign.SetSettings(50, true);
+            CoopCampaign.SetSettings(50, 0, true);
             leader = true;
             Session.ResetNewGame();
             Story.StartNewGame(0);

@@ -146,10 +146,14 @@ namespace GoF2Remake.UI
             Set("mpWorldLabel", Localization.Extra("mpWorld", "World").UiCaps());
             Set("mpWorldFresh", Localization.Extra("mpWorldFresh", "Fresh").UiCaps());
             Set("mpWorldPersistent", Localization.Extra("mpWorldPersistent", "Persistent").UiCaps());
-            Set("mpCoopStrengthLabel", Localization.Extra("mpCoopStrength", "Enemies per player").UiCaps());
+            Set("mpCoopStrengthLabel", Localization.Extra("mpCoopStrength", "Enemy strength per player").UiCaps());
             Set("mpCoopStrength0", Localization.Extra("mpDebugOff", "Off").UiCaps());
             foreach (int pct in GoF2Remake.Data.CoopCampaign.StrengthChoices)
                 if (pct > 0) Set("mpCoopStrength" + pct, "+" + pct + "%");
+            Set("mpCoopSpawnsLabel", Localization.Extra("mpCoopSpawns", "Enemy ships per player").UiCaps());
+            Set("mpCoopSpawns0", Localization.Extra("mpDebugOff", "Off").UiCaps());
+            foreach (int pct in GoF2Remake.Data.CoopCampaign.SpawnChoices)
+                if (pct > 0) Set("mpCoopSpawns" + pct, "+" + pct + "%");
             Set("mpCoopRewardsLabel", Localization.Extra("mpCoopRewards", "Story credits").UiCaps());
             Set("mpCoopRewardsShared", Localization.Extra("mpCoopRewardsShared", "Shared").UiCaps());
             Set("mpCoopRewardsFull", Localization.Extra("mpCoopRewardsFull", "Each in full").UiCaps());

@@ -456,6 +456,14 @@ namespace GoF2Remake.Multiplayer
             set => PlayerPrefs.SetInt("mp_coop_strength", Mathf.Clamp(value, 0, 200));
         }
 
+        /// <summary>The co-op campaign's enemy spawning, % more hostile ships per player past the first (the Host card,
+        /// PlayerPrefs "mp_coop_spawns", Off by default; CoopCampaign.Spawns; /coop changes it while hosting).</summary>
+        public static int CoopSpawns
+        {
+            get => PlayerPrefs.GetInt("mp_coop_spawns", CoopCampaign.DefaultSpawns);
+            set => PlayerPrefs.SetInt("mp_coop_spawns", Mathf.Clamp(value, 0, 200));
+        }
+
         /// <summary>The co-op campaign's story credits are shared out across the crew (PlayerPrefs "mp_coop_split", on by default).</summary>
         public static bool CoopSplitRewards
         {

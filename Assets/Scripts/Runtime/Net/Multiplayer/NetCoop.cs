@@ -126,7 +126,7 @@ namespace GoF2Remake.Multiplayer
             // The campaign's start; the slot's game replaces it when the host's profile arrives (SaveGame.ApplyProfile).
             CoopCampaign.NewCampaign(NetGame.Db, (Campaign)Mathf.Clamp(save != null ? save.campaign : newCampaign, 0, 2));
             NetGame.ResetDb();   // the tables of the story's world (the finished world's Cronus price no more)
-            CoopCampaign.SetSettings(NetGame.CoopStrength, NetGame.CoopSplitRewards);   // the Host card's
+            CoopCampaign.SetSettings(NetGame.CoopStrength, NetGame.CoopSpawns, NetGame.CoopSplitRewards);   // the Host card's
             CoopCampaign.SetCrewLimit(NetGame.MaxPlayers);
             SaveGame.BeginHostSaves(save, economy);   // saved back under its own difficulty and economy
             return true;
@@ -159,33 +159,38 @@ namespace GoF2Remake.Multiplayer
             SaveGame.EndHostSaves();
         }
 
-        const string CoopUsage = "/coop strength 0|25|50|100|150|200, /coop rewards shared|full";
+        const string CoopUsage = "/coop strength 0|25|50|100|150|200, /coop spawns 0|25|50|100|150|200, /coop rewards shared|full";
 
         /// <summary>The co-op settings as a line for the chat.</summary>
-        static string SettingsText() => string.Format(Localization.Extra("coopSettingsNow", "Enemies: +{0}% per extra player. Story credits: {1}."),
-            CoopCampaign.Strength,
+        static string SettingsText() => string.Format(
+            Localization.Extra("coopSettingsNow", "Enemy strength: +{0}% per extra player. Enemy ships: +{1}% per extra player. Story credits: {2}."),
+            CoopCampaign.Strength, CoopCampaign.Spawns,
             CoopCampaign.SplitRewards ? Localization.Extra("mpCoopRewardsShared", "Shared") : Localization.Extra("mpCoopRewardsFull", "Each in full"));
 
-        /// <summary>/coop [strength 0 | 25 | 50 | 100 | 150 | 200] [rewards shared | full]: the host's co-op settings while playing (kept for
-        /// the next session too); no argument shows them. Everyone hears a change.</summary>
+        /// <summary>/coop [strength 0 | 25 | 50 | 100 | 150 | 200] [spawns 0 | 25 | 50 | 100 | 150 | 200] [rewards shared | full]: the
+        /// host's co-op settings while playing (kept for the next session too); no argument shows them. Everyone hears a
+        /// change. A new spawns value counts from the next ship the level spawns.</summary>
         internal static string Command(string args, IPilot by)
         {
             if (!Active) return Localization.Extra("coopNotCoop", "This session isn't a co-op campaign.");
             var words = (args ?? "").Trim().ToLowerInvariant().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             if (words.Length == 0) return SettingsText() + " " + CoopUsage;
             if (words.Length % 2 != 0) return CoopUsage;
-            int strength = CoopCampaign.Strength;
+            int strength = CoopCampaign.Strength, spawns = CoopCampaign.Spawns;
             bool split = CoopCampaign.SplitRewards;
             for (int i = 0; i + 1 < words.Length; i += 2)
             {
                 string value = words[i + 1].TrimStart('+').TrimEnd('%');
+                if (value == "off") value = "0";
                 if (words[i] == "strength" && int.TryParse(value, out int pct) && pct >= 0 && pct <= 200) strength = pct;
+                else if ((words[i] == "spawns" || words[i] == "ships") && int.TryParse(value, out int more) && more >= 0 && more <= 200) spawns = more;
                 else if (words[i] == "rewards" && (value == "shared" || value == "split")) split = true;
                 else if (words[i] == "rewards" && value == "full") split = false;
                 else return CoopUsage;
             }
-            CoopCampaign.SetSettings(strength, split);
+            CoopCampaign.SetSettings(strength, spawns, split);
             NetGame.CoopStrength = strength;
+            NetGame.CoopSpawns = spawns;
             NetGame.CoopSplitRewards = split;
             string text = SettingsText();
             NetState.Instance?.Announce(text);

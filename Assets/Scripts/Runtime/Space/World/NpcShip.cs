@@ -103,6 +103,8 @@ namespace GoF2Remake.World
         /// no lock. Freighters are PlayerFixedObjects like the fixed objects, whose sleepers stay visible.</summary>
         public bool Hidden => forcedHidden || (Asleep && !IsFixed && !IsFreighter && Target.hostileToPlayer && Session.CampaignMission > 1);
         bool forcedHidden;
+        /// <summary>A level script hid it (SetVisible(false)).</summary>
+        public bool HiddenByScript => forcedHidden;
 
         /// <summary>KIPlayer::setVisible (cutscenes): hidden ships have no model, marker or lock.</summary>
         public void SetVisible(bool visible)

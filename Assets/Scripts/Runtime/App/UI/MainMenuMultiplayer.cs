@@ -110,11 +110,17 @@ namespace GoF2Remake.UI
             Bind("mpWorldFresh", () => SetHostWorld(0));
             Bind("mpWorldPersistent", () => SetHostWorld(1));
             // A co-op campaign's settings (shown with Co-op): the enemies' strength per player past the first
-            // (PlayerPrefs "mp_coop_strength", +50 % by default) and the story credits shared out or paid in full ("mp_coop_split").
+            // (PlayerPrefs "mp_coop_strength", +50 % by default), how many more enemy ships per player past the first
+            // ("mp_coop_spawns", Off by default) and the story credits shared out or paid in full ("mp_coop_split").
             foreach (int pct in GoF2Remake.Data.CoopCampaign.StrengthChoices)
             {
                 int choice = pct;
                 Bind("mpCoopStrength" + pct, () => { GoF2Remake.Multiplayer.NetGame.CoopStrength = choice; ApplyHostWorld(); });
+            }
+            foreach (int pct in GoF2Remake.Data.CoopCampaign.SpawnChoices)
+            {
+                int choice = pct;
+                Bind("mpCoopSpawns" + pct, () => { GoF2Remake.Multiplayer.NetGame.CoopSpawns = choice; ApplyHostWorld(); });
             }
             Bind("mpCoopRewardsShared", () => { GoF2Remake.Multiplayer.NetGame.CoopSplitRewards = true; ApplyHostWorld(); });
             Bind("mpCoopRewardsFull", () => { GoF2Remake.Multiplayer.NetGame.CoopSplitRewards = false; ApplyHostWorld(); });
@@ -256,10 +262,13 @@ namespace GoF2Remake.UI
             int strength = GoF2Remake.Multiplayer.NetGame.CoopStrength;
             foreach (int pct in GoF2Remake.Data.CoopCampaign.StrengthChoices)
                 root.Q<Button>("mpCoopStrength" + pct)?.EnableInClassList("choice-segment--active", strength == pct);
+            int spawns = GoF2Remake.Multiplayer.NetGame.CoopSpawns;
+            foreach (int pct in GoF2Remake.Data.CoopCampaign.SpawnChoices)
+                root.Q<Button>("mpCoopSpawns" + pct)?.EnableInClassList("choice-segment--active", spawns == pct);
             bool split = GoF2Remake.Multiplayer.NetGame.CoopSplitRewards;
             root.Q<Button>("mpCoopRewardsShared")?.EnableInClassList("choice-segment--active", split);
             root.Q<Button>("mpCoopRewardsFull")?.EnableInClassList("choice-segment--active", !split);
-            foreach (var row in new[] { "mpCoopStrengthRow", "mpCoopRewardsRow" })
+            foreach (var row in new[] { "mpCoopStrengthRow", "mpCoopSpawnsRow", "mpCoopRewardsRow" })
                 if (root.Q(row) is VisualElement r) r.style.display = coop ? DisplayStyle.Flex : DisplayStyle.None;
         }
 

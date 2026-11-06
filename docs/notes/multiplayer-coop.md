@@ -30,16 +30,33 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
   in rows of four. Listed with a CO-OP tag (lobby key `coop`).
   Not on a dedicated server.
 - **Difficulty and credits** (the host's settings, in the published State so every game uses them): enemy strength per
-  player past the first (the Host card's "Enemies per player" Off / +25 / +50 / +100 / +150 / +200 %, PlayerPrefs
+  player past the first (the Host card's "Enemy strength per player" Off / +25 / +50 / +100 / +150 / +200 %, PlayerPrefs
   `mp_coop_strength`, 50 by default; `CoopCampaign.Strength`; +150 / +200 added 2026-11-02, the user's request; its row
-  takes the switch grid's whole width, first, `.mp-debug-row--wide`: six choices in half a row overflowed): story level enemies' hull x (1 + s x (players - 1)) (`HullFactor`), every hostile
-  NPC's guns in a co-op session x (1 + s / 2 x (players - 1)) (`DamageFactor`, `NpcTables`' gun damage; not friends or
-  wingmen); and the story credits (the Host card's "Story credits" Shared / Each in full, `mp_coop_split`, shared by
-  default; `CoopCampaign.Share`): a step's reward (docked or in flight) and the game-won bonus of 45 are divided by the
+  takes the switch grid's whole width, first, `.mp-debug-row--wide`: six choices in half a row overflowed): story level
+  enemies' hull x (1 + s x (players - 1)) (`HullFactor`), every hostile NPC's guns in a co-op session
+  x (1 + s / 2 x (players - 1)) (`DamageFactor`, `NpcTables`' gun damage; not friends or wingmen).
+- **Enemy ships** (2026-11-06, the user's request: strength and spawning as two settings instead of one): the Host card's
+  "Enemy ships per player" (the row under strength, the same six choices, PlayerPrefs `mp_coop_spawns`, Off by default
+  so a crew plays the story's own numbers unless the host asks; `CoopCampaign.Spawns`, the State's `spawns`, a State
+  from before it reads Off): a story level's hostile ships x (1 + p x (players - 1)) (`SpawnFactor`). The leader's
+  `CampaignLevel.SpawnShip` adds the copies (`ExtraSpecs` / `SpawnExtras` in `CampaignLevelCoop`; `ExtraShips` keeps
+  the fraction across the level's spawns, so +50 % with two players adds one for every second ship) beside each plain
+  hostile fighter (`Copyable`: hostile race or alwaysEnemy, a Raider with a stock model; never a named character, an
+  unkillable one, a freighter, a fixed object, a turret, a capital ship or its parts, a mission crate's carrier, steps
+  0 / 1's choreography). Copies are not in `Ships` (the scripts' indices, radio triggers and objectives stay the
+  original's) and count for no kill objective (`OnShipDied`); hull x `HullFactor` like the rest. Each copy mirrors its
+  original every frame (`MirrorExtras`): woken by the script (or the crew close by) it wakes too, put beside the original
+  when it was parked far away (the waves waiting at -500 000); deactivated, hidden, frozen, holding fire or turned enemy
+  likewise; the hold freezes them too. Once the original dies the copy fights on. Waves the scripts spawn later get
+  their copies at that moment; ships a script spawns straight through the traffic get none. `/coop spawns <n>` counts
+  from the level's next spawn. Not tested with two games yet (the rules by `CoopCampaignTests`).
+- **Story credits** (the Host card's "Story credits" Shared / Each in full, `mp_coop_split`, shared by default;
+  `CoopCampaign.Share`): a step's reward (docked or in flight) and the game-won bonus of 45 are divided by the
   players in the session, rounded up, each game paying its own share; bar missions split as squads always do. The
-  host changes them while playing with `/coop strength 0|25|50|100|150|200` / `/coop rewards shared|full` (no argument shows them;
-  announced to everyone, kept for the next session). The player count is the session's at the moment: hull when a level
-  spawns its ships, guns when a ship gets them, a reward when it is paid. A catch-up pays no step rewards.
+  host changes the three while playing with `/coop strength 0|25|50|100|150|200` / `/coop spawns 0|25|...|200` /
+  `/coop rewards shared|full` (no argument shows them; announced to everyone, kept for the next session). The player
+  count is the session's at the moment: hull and extra ships when a level spawns its ships, guns when a ship gets them,
+  a reward when it is paid. A catch-up pays no step rewards.
 - **Persistence** (2026-11-01: the host's game in the save slots; until then the host's profile in CoopFolder and a
   coop.json summary for a Continue): the host's game is its single-player game. `NetCoop.PrepareHost` reads the slot
   (its campaign for `CoopCampaign.NewCampaign`), `LoadHostSave` (after `NetMods.BeginHost`) puts its modded items right
@@ -132,7 +149,8 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
 - **Story orbits**: the leader runs the story level as in single player (`CampaignLevel.Setup`); its ships are
   `NpcShip.StoryShip` (shown to the crew like a freelance mission's ships, `NetProxy.StoryRole` in the role flags; never
   handed over: when the leader leaves the orbit the server despawns them, `NetState.HandOver`; never dropped with the orbit
-  authority), hostile ones' hull x `CoopCampaign.HullFactor` (the Strength setting above). Another player's kill
+  authority), hostile ones' hull x `CoopCampaign.HullFactor` (the Strength setting above), their copies by the Spawns
+  setting ("Enemy ships" above). Another player's kill
   counts as the player's (`Target.killedByRemote` in `CampaignLevel.OnShipDied`).
   - A guest's level is a **follower** (`SpaceLevel`: `CoopCampaign.Guest` -> `CampaignLevel.SetupFollower`): nothing
     built or scripted; the leader sends 4 times a second its state (`CoopLevelState`: cutscene, invulnerable, hold, mission

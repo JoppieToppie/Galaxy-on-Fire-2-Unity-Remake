@@ -1233,7 +1233,7 @@
     margin: 0 0 8px 0;
 }
 
-.mp-switch-grid .mp-debug-row--wide {   /* the co-op enemy strength: six choices need the whole row */
+.mp-switch-grid .mp-debug-row--wide {   /* the co-op enemy strength and enemy ships: six choices need the whole row */
     width: 100%;
 }
 

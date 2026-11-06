@@ -93,6 +93,11 @@ namespace GoF2Remake.World
         Quaternion coopCamRot = Quaternion.identity;
         float coopCamFov = 60f;
         readonly Dictionary<NpcShip, bool> coopFrozen = new Dictionary<NpcShip, bool>();
+        /// <summary>The co-op Spawns setting's extra ships (not in Ships: the scripts' indices stay the original's) and what
+        /// each mirrors; the fraction of a ship the level's spawns still owe.</summary>
+        readonly List<CoopExtra> coopExtras = new List<CoopExtra>();
+        readonly HashSet<NpcShip> coopExtraShips = new HashSet<NpcShip>();
+        float coopSpawnCarry;
 
         AudioSource music;
         readonly AudioSource[] loops = new AudioSource[3];
@@ -146,9 +151,11 @@ namespace GoF2Remake.World
         {
             var spec = new SpawnSpec { group = NpcGroup.Raider, race = race, ship = ship, position = waypoint + (jitter ? Jitter() : Vector3.zero) };
             setup?.Invoke(spec);
+            var extras = CoopCampaign.Leader ? ExtraSpecs(spec) : null;   // remake co-op: more of them for a bigger crew
             var s = traffic.SpawnShip(spec);
             if (s != null && CoopCampaign.Active) MarkStoryShip(s);   // the crew's: shown to them, tougher for more players
             Ships.Add(s);
+            if (s != null && extras != null) SpawnExtras(s, extras);
             return s;
         }
 
@@ -196,6 +203,7 @@ namespace GoF2Remake.World
         void OnShipDied(NpcShip ship, bool byPlayer)
         {
             if (ship == null || !ship.Target.hostileToPlayer) return;
+            if (coopExtraShips.Contains(ship)) return;   // remake co-op: an extra ship counts for no objective
             // Multiplayer: another player's kill counts as the player's (a co-op crew member's, Target.killedByRemote).
             if (byPlayer || ship.Target.killedByRemote) PlayerKills++; else NpcKills++;
         }

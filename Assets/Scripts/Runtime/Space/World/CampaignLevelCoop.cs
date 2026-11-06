@@ -1,7 +1,8 @@
 // CampaignLevelCoop.cs
 // CampaignLevel: the co-op campaign (docs/notes/multiplayer-coop.md; part of the partial CampaignLevel, its fields are in
 // CampaignLevel.cs). The leader (the host) runs the story level as in single player; its ships are the crew's
-// (NpcShip.StoryShip: shown to everyone in the orbit, hostile ones tougher by CoopCampaign.HullFactor), and a few times a
+// (NpcShip.StoryShip: shown to everyone in the orbit, hostile ones tougher by CoopCampaign.HullFactor, and more of its plain
+// hostile fighters by CoopCampaign.Spawns: SpawnExtras, copies that follow their original's script), and a few times a
 // second it tells the crew in that orbit what its level shows (CoopLevelState: the cutscene and its camera, the clock and
 // time limit, the route, the fade, the radio lines). While a crew member there reads a story conversation the level holds
 // (Held: no clock, script or radio, its ships stopped, the crew can't be hurt), as single player pauses the game.
@@ -33,6 +34,94 @@ namespace GoF2Remake.World
                 s.SetHull(Mathf.RoundToInt(s.Hp.maxHull * factor));
         }
 
+        // ---- the Spawns setting's extra ships --------------------------------------------------------------------
+
+        /// <summary>One extra ship and the level's ship it copies: it wakes, freezes, holds its fire and hides as that one
+        /// does, so a script's wave brings its extras along.</summary>
+        sealed class CoopExtra
+        {
+            public NpcShip original, ship;
+            public Vector3 offset;   // game units, in the original's frame: where it goes when the script wakes the original
+            public bool wasAsleep, wasHidden;
+        }
+
+        /// <summary>A plain hostile fighter of the level (not a named character, an unkillable one, a freighter, a turret,
+        /// a custom model or the prologue's choreography): one the Spawns setting may add copies of.</summary>
+        bool Copyable(SpawnSpec s) =>
+            BuiltIndex > 1 && s.group == NpcGroup.Raider && s.ship >= 0 && !s.alwaysFriend && !s.alwaysNeutral
+            && (s.alwaysEnemy || s.race == Standing.Specter || Standing.IsEnemy(s.race))
+            && s.nameText < 0 && string.IsNullOrEmpty(s.name) && (s.hitpoints < 0 || s.hitpoints < 1000000)
+            && !s.freighter && !s.stationary && s.fixedObject == null && s.turretAssembly == null && s.turretItem < 0
+            && s.capital == 0 && !s.capitalPart && s.missionCrate < 0 && s.dockingType == 0 && s.wantedIndex < 0
+            && !s.radarHidden && !s.startsDead && !s.deadButSelectable;
+
+        /// <summary>The leader, before a level ship spawns: the copies the Spawns setting owes for it (null = none).</summary>
+        List<SpawnSpec> ExtraSpecs(SpawnSpec spec)
+        {
+            if (CoopCampaign.Spawns <= 0 || !Copyable(spec)) return null;
+            int n = CoopCampaign.ExtraShips(ref coopSpawnCarry, CoopCampaign.CrewSize, CoopCampaign.Spawns);
+            if (n <= 0) return null;
+            var list = new List<SpawnSpec>(n);
+            for (int i = 0; i < n; i++) list.Add(spec.Clone());
+            return list;
+        }
+
+        /// <summary>The copies beside the level's ship: the crew's like it, not in Ships (the scripts' indices and objectives
+        /// stay the original's).</summary>
+        void SpawnExtras(NpcShip original, List<SpawnSpec> specs)
+        {
+            foreach (var spec in specs)
+            {
+                var offset = new Vector3(Random.Range(-3000f, 3000f), Random.Range(-3000f, 3000f), Random.Range(-3000f, 3000f));
+                spec.position += offset;
+                var s = traffic.SpawnShip(spec);
+                if (s == null) continue;
+                MarkStoryShip(s);
+                coopExtraShips.Add(s);
+                coopExtras.Add(new CoopExtra
+                {
+                    original = original, ship = s, offset = offset,
+                    wasAsleep = original.Asleep, wasHidden = original.HiddenByScript,
+                });
+                if (Held) { coopFrozen[s] = s.frozen; s.frozen = true; }
+            }
+        }
+
+        /// <summary>The leader, every frame: each extra does what the script did to its original since the last frame.</summary>
+        void MirrorExtras()
+        {
+            for (int i = coopExtras.Count - 1; i >= 0; i--)
+            {
+                var x = coopExtras[i];
+                if (x.ship == null || x.ship.Gone) { coopExtras.RemoveAt(i); if (x.ship != null) coopExtraShips.Remove(x.ship); continue; }
+                var o = x.original;
+                // The original dead or gone: the extra fights on as it is.
+                if (o == null || o.Gone || o.Current != NpcShip.State.Fly || x.ship.Current != NpcShip.State.Fly) continue;
+                if (x.wasAsleep != o.Asleep)
+                {
+                    x.wasAsleep = o.Asleep;
+                    if (!o.Asleep && x.ship.Asleep)
+                    {
+                        // Woken (by its script, or the crew close by): the extra too, beside it when the script brought it in
+                        // from far away.
+                        x.ship.Wake();
+                        if ((x.ship.transform.position - o.transform.position).sqrMagnitude > 1500f * 1500f)
+                            x.ship.transform.SetPositionAndRotation(o.transform.position + o.transform.rotation * (x.offset * M), o.transform.rotation);
+                    }
+                    else if (o.Inactive && !x.ship.Inactive) x.ship.Deactivate();
+                }
+                if (x.wasHidden != o.HiddenByScript)
+                {
+                    x.wasHidden = o.HiddenByScript;
+                    x.ship.SetVisible(!x.wasHidden);
+                }
+                if (!Held) x.ship.frozen = o.frozen;
+                x.ship.shootingEnabled = o.shootingEnabled;
+                if (o.alwaysEnemy) x.ship.alwaysEnemy = true;
+                if (o.turnedEnemy) x.ship.turnedEnemy = true;
+            }
+        }
+
         // ---- the leader --------------------------------------------------------------------------------------------
 
         /// <summary>The leader, every frame: the hold, the state and the cutscene camera out. True = held this frame.</summary>
@@ -40,6 +129,7 @@ namespace GoF2Remake.World
         {
             bool hold = !Cutscene && SpaceHooks.CoopHold != null && SpaceHooks.CoopHold(CoopStation);
             if (hold != Held) SetHeld(hold);
+            if (coopExtras.Count > 0) MirrorExtras();
             if ((coopSendMs -= dtMs) <= 0f || Cutscene != coopWasCutscene)
             {
                 coopSendMs = CoopSendMs;
@@ -81,6 +171,8 @@ namespace GoF2Remake.World
                 coopFrozen.Clear();
                 foreach (var s in Ships)
                     if (s != null && !s.Gone && s.Target.Alive) { coopFrozen[s] = s.frozen; s.frozen = true; }
+                foreach (var x in coopExtras)
+                    if (x.ship != null && !x.ship.Gone && x.ship.Target.Alive) { coopFrozen[x.ship] = x.ship.frozen; x.ship.frozen = true; }
             }
             else
             {

@@ -234,6 +234,17 @@
                                     <ui:Button name="mpCoopStrength200" class="choice-segment choice-segment--last gof-semibold" />
                                 </ui:VisualElement>
                             </ui:VisualElement>
+                            <ui:VisualElement name="mpCoopSpawnsRow" class="mp-debug-row mp-debug-row--wide">
+                                <ui:Label name="mpCoopSpawnsLabel" class="mp-label mp-debug-label gof-semibold" />
+                                <ui:VisualElement class="choice-segments mp-debug-segments">
+                                    <ui:Button name="mpCoopSpawns0" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopSpawns25" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopSpawns50" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopSpawns100" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopSpawns150" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpCoopSpawns200" class="choice-segment choice-segment--last gof-semibold" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
                             <ui:VisualElement name="mpCoopRewardsRow" class="mp-debug-row">
                                 <ui:Label name="mpCoopRewardsLabel" class="mp-label mp-debug-label gof-semibold" />
                                 <ui:VisualElement class="choice-segments mp-debug-segments">

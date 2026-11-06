@@ -17,9 +17,11 @@
 //   A failed mission (the leader's level failed, or the leader died in it): the leader's step goes back to its checkpoint
 //     (Story.RepairCheckpoint) and every guest's to the leader's (failSerial).
 //   A new guest starts with the leader's own ship and loadout (the kit) and catches up from step 0.
-//   The host's two settings (the Host card, /coop), in the State for every game: how much stronger the enemies get per
-//     player past the first (Strength: their hull in story levels, every hostile NPC's guns at half that), and whether a
-//     story step's credits are shared out across the crew or paid to each in full (SplitRewards).
+//   The host's three settings (the Host card, /coop), in the State for every game: how much stronger the enemies get per
+//     player past the first (Strength: their hull in story levels, every hostile NPC's guns at half that), how many more
+//     hostile ships a story level spawns per player past the first (Spawns: extra copies of its hostile fighters,
+//     CampaignLevel.SpawnExtras), and whether a story step's credits are shared out across the crew or paid to each in
+//     full (SplitRewards). Strength and Spawns were one setting until 2026-11-06 (the user's request: two).
 
 using System;
 using System.Collections.Generic;
@@ -45,16 +47,23 @@ namespace GoF2Remake.Data
         /// <summary>The Strength choices (% per player past the first) and the default.</summary>
         public static readonly int[] StrengthChoices = { 0, 25, 50, 100, 150, 200 };
         public const int DefaultStrength = 50;
+        /// <summary>The Spawns choices (% more hostile ships per player past the first) and the default (Off: the story
+        /// levels' own ships, as before the setting).</summary>
+        public static readonly int[] SpawnChoices = { 0, 25, 50, 100, 150, 200 };
+        public const int DefaultSpawns = 0;
 
         /// <summary>The session's enemy strength: % more per player past the first (the leader's setting, in its State).</summary>
         public static int Strength { get; private set; } = DefaultStrength;
+        /// <summary>The session's enemy spawning: % more hostile ships in a story level per player past the first.</summary>
+        public static int Spawns { get; private set; } = DefaultSpawns;
         /// <summary>The session's story rewards are shared out across the crew (else each player gets them in full).</summary>
         public static bool SplitRewards { get; private set; } = true;
 
         /// <summary>The leader (the Host card at the start, /coop later): the session's settings.</summary>
-        public static void SetSettings(int strength, bool splitRewards)
+        public static void SetSettings(int strength, int spawns, bool splitRewards)
         {
             Strength = Mathf.Clamp(strength, 0, 200);
+            Spawns = Mathf.Clamp(spawns, 0, 200);
             SplitRewards = splitRewards;
         }
 
@@ -73,8 +82,10 @@ namespace GoF2Remake.Data
             public int crewMissions;
             public int failSerial;
             public int campaign;
-            /// <summary>The leader's settings: enemy strength (% per extra player), story rewards shared.</summary>
+            /// <summary>The leader's settings: enemy strength and spawning (% per extra player), story rewards shared. A
+            /// State from before the spawning setting reads DefaultSpawns.</summary>
             public int strength = DefaultStrength;
+            public int spawns = DefaultSpawns;
             public bool splitRewards = true;
             public int crewLimit = DefaultCrew;
             /// <summary>Where the leader last docked: a new guest's start.</summary>
@@ -128,6 +139,7 @@ namespace GoF2Remake.Data
             failSerial = 0;
             missionsCounted.Clear();
             Strength = DefaultStrength;
+            Spawns = DefaultSpawns;
             SplitRewards = true;
             CrewLimit = DefaultCrew;
         }
@@ -158,6 +170,19 @@ namespace GoF2Remake.Data
 
         /// <summary>This game's hostile NPCs' guns in a co-op session (NpcTables): 1 outside one.</summary>
         public static float NpcDamageFactor => Active ? DamageFactor(CrewSize) : 1f;
+
+        /// <summary>A story level's hostile ships for 'crew' players: x (1 + Spawns % per player past the first).</summary>
+        public static float SpawnFactor(int crew, int spawns) => 1f + spawns / 100f * (Mathf.Clamp(crew, 1, MaxCrew) - 1);
+
+        /// <summary>How many extra copies of the hostile ship a story level spawns now: the whole part of what the level's
+        /// spawns owe so far ('carry' keeps the fraction, so +50 % with two players adds one ship for every second one).</summary>
+        public static int ExtraShips(ref float carry, int crew, int spawns)
+        {
+            carry += SpawnFactor(crew, spawns) - 1f;
+            int n = Mathf.FloorToInt(carry + 1e-4f);
+            carry -= n;
+            return Mathf.Max(0, n);
+        }
 
         /// <summary>A story reward as this player gets it: shared out across the crew (rounded up), or in full.</summary>
         public static int Share(int reward) => Share(reward, Active ? CrewSize : 1, SplitRewards);
@@ -279,6 +304,7 @@ namespace GoF2Remake.Data
                 failSerial = failSerial,
                 campaign = (int)Session.Campaign,
                 strength = Strength,
+                spawns = Spawns,
                 splitRewards = SplitRewards,
                 crewLimit = CrewLimit,
                 station = Session.LastDockedStation >= 0 ? Session.LastDockedStation : Session.StationIndex,
@@ -370,7 +396,7 @@ namespace GoF2Remake.Data
             if (s == null || s.index < 0) return;
             leaderState = s;
             if (!Guest) return;
-            SetSettings(s.strength, s.splitRewards);   // the leader's settings
+            SetSettings(s.strength, s.spawns, s.splitRewards);   // the leader's settings
             SetCrewLimit(s.crewLimit);
             if (appliedFailSerial < 0) appliedFailSerial = s.failSerial;
             if (s.failSerial != appliedFailSerial)
@@ -554,7 +580,7 @@ namespace GoF2Remake.Data
             }
             if (s.station >= 0 && s.station < db.Stations.Count) Session.StationIndex = s.station;   // docked where the leader last docked
             Session.LaunchedFromStation = Session.ArrivedByTravel = false;   // (the prologue: in the belt like the leader)
-            SetSettings(s.strength, s.splitRewards);
+            SetSettings(s.strength, s.spawns, s.splitRewards);
             SetCrewLimit(s.crewLimit);
             leaderState = s;
             appliedFailSerial = s.failSerial;

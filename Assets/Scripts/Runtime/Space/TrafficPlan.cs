@@ -24,6 +24,15 @@ namespace GoF2Remake.Flight
 
     public class SpawnSpec
     {
+        /// <summary>Remake co-op (CampaignLevel.SpawnExtras): a copy for another ship of the same kind; no stand-in model.</summary>
+        public SpawnSpec Clone()
+        {
+            var c = (SpawnSpec)MemberwiseClone();
+            c.standIn = null;
+            c.standInAsleep = null;
+            return c;
+        }
+
         public NpcGroup group;
         public int race, ship;
         public bool freighter;
