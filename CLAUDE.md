@@ -59,7 +59,7 @@ This file holds only what every task needs. Everything about one area of the gam
 
 ## Environment
 
-- Unity **7000.0** (alpha 7000.0.0a12, from 6000.7.0b3 on 2026-10-06, a8 on 2026-10-10, a9 on 2026-10-14, a10 on 2026-10-16, a12 on 2026-10-23; .NET CoreCLR instead of Mono), **URP 17.7**, Windows.
+- Unity **7000.0** (alpha 7000.0.0a16, from 6000.7.0b3 on 2026-10-06, a8 on 2026-10-10, a9 on 2026-10-14, a10 on 2026-10-16, a12 on 2026-10-23, a16 on 2026-11-06; .NET CoreCLR instead of Mono), **URP 17.7**, Windows.
 - **Embedded `Packages/com.unity.netcode`** (Netcode for Entities 7.1.0, which Netcode for GameObjects 3.1 pulls in; copied
   without its docs and tests): a9's built-in Entities 6.7 dropped the DOTS Hierarchy window, so the registry package's
   `Editor/Authoring/HierarchyDrawers.cs` didn't compile; its `DotsHierarchyItemDecorator` is removed there. Delete the folder
