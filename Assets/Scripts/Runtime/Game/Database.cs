@@ -184,7 +184,9 @@ namespace GoF2Remake.Data
         public float fxScale;
         /// <summary>Remake mods, an exhaust mount (slotType 3) or a booster point (slotType 5, EVERSPACE 2's SKT_Booster sockets):
         /// the socket's scale in EVERSPACE 2 (its largest axis; 0 = 1), which sizes the engine light, trail and glow there
-        /// (Modding.Es2EngineVfx).</summary>
+        /// (Modding.Es2EngineVfx); a contrail point (slotType 6, EVERSPACE 2's SKT_Contrail sockets, Modding.Es2Contrails): the
+        /// ribbon's width and, capped at 1, its opacity. A headlight fixture (slotType 7, EVERSPACE 2's SKT_HeadLight sockets,
+        /// Modding.Es2Headlights) has a 'direction' like a jet's: the way it shines.</summary>
         public float socketScale;
     }
     [System.Serializable] public class WeaponMountSet { public int ship; public string shipName; public List<WeaponMount> mounts; }
@@ -249,6 +251,7 @@ namespace GoF2Remake.Data
     {
         public bool glow = true;
         public bool trails = true;
+        public bool contrails = true;   // EVERSPACE 2's ContrailsEnabled: the wing-tip contrails while boosting (Modding.Es2Contrails)
     }
 
     /// <summary>Remake mods: one subsystem of a capital ship (ships.json "subsystems"; World.CapitalSubsystems): a target of
@@ -305,6 +308,10 @@ namespace GoF2Remake.Data
         /// (instead of the Terran battleship / the Vossk battleship, and in Nivelian / Midorian systems, which have none),
         /// "freighter" = it cruises among the orbits' freighters. Either way it never flies as a fighter. Empty = a fighter.</summary>
         public string capital;
+        /// <summary>Remake (2026-11-03): its role in a fight (Flight.NpcRoles, EVERSPACE 2's drone types): "sniper", "detonator",
+        /// "webber", "shieldCharger", "armorLink", "antiMissile", "jumpSuppressor", "lootDrone" (never a fighter: the loot drone encounter's,
+        /// Modding.ModTraffic.PickLootDrone); empty = an ordinary fighter.</summary>
+        public string role;
     }
 
     /// <summary>Remake mods: a mod ship in the ordinary ship dealers' lists (Shop.GenerateShips): each time a station's dealer

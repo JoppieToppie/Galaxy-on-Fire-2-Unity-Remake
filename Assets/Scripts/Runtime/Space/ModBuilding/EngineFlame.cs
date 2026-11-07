@@ -50,6 +50,7 @@ namespace GoF2Remake.Modding
         static readonly int LevelId = Shader.PropertyToID("_FlameLevel");
         static readonly int OverrideId = Shader.PropertyToID("_BoostOverride");
         static readonly int SteerId = Shader.PropertyToID("_SteerBend");
+        static readonly int TravelId = Shader.PropertyToID("_Travel");
 
         readonly List<(Renderer r, int index, Vector4 dir)> flames = new List<(Renderer, int, Vector4)>();
         /// <summary>The model's own flames stay off (a customized exhaust replaces them).</summary>
@@ -70,6 +71,10 @@ namespace GoF2Remake.Modding
         public float Boost { get; private set; }
         /// <summary>The ship boosts (or travels) this frame.</summary>
         public bool Boosting { get; private set; }
+        /// <summary>EVERSPACE 2's TravelMode custom primitive data (index 21), 0..1: the player's cruise (FlightModel.CruiseVisual,
+        /// the cruise drive and the fast-forward cruise). The flame material stretches by 1 + 4 x it and turns to its
+        /// TravelModeEngineColor (the shader's _Travel / _TravelColor), lit whatever the thrust, as ES2's travel mode does.</summary>
+        public float Travel { get; private set; }
         /// <summary>The ship's velocity, world space, metres a second.</summary>
         public Vector3 Velocity { get; private set; }
         /// <summary>The local player's ship (EVERSPACE 2's BP_Ship_Player: input-driven, eased; its engine lights, veil trails
@@ -175,6 +180,7 @@ namespace GoF2Remake.Modding
                 block.SetFloat(LevelId, level);
                 block.SetFloat(OverrideId, boostOverride ? 1f : 0f);
                 block.SetVector(SteerId, steer);
+                block.SetFloat(TravelId, Travel);
                 r.SetPropertyBlock(block, index);
             }
         }
@@ -227,6 +233,7 @@ namespace GoF2Remake.Modding
             }
             Input = input;
             Boosting = boostTarget > 0f;
+            Travel = Pilot && m != null ? m.CruiseVisual : 0f;   // ES2's TravelMode: the player's cruise
             if (Pilot)
             {
                 // VInterpTo toward the target, faster while the target is the bigger

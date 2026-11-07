@@ -152,6 +152,39 @@ namespace GoF2Remake.Flight
             foreach (var r in rigs) if (r.gun.isSecondary && r.gun.itemIndex == item && r.stack != null) n += Mathf.Max(0, r.stack.amount);
             return n;
         }
+        /// <summary>Remake (2026-11-02, the restock device after EVERSPACE 2's Secondaries Restock): 'rounds' more for the selected
+        /// secondary's mounted stack; the rounds added (0: none selected).</summary>
+        public int Restock(int rounds)
+        {
+            if (SelectedSecondary < 0 || rounds <= 0) return 0;
+            foreach (var r in rigs)
+                if (r.gun.isSecondary && r.gun.itemIndex == SelectedSecondary && r.stack != null) { r.stack.amount = Mathf.Max(0, r.stack.amount) + rounds; return rounds; }
+            return 0;
+        }
+
+        /// <summary>Remake mods (an anti-missile drone, NpcRoles): the nearest of this ship's live homing missiles within 'reachM' of
+        /// 'from' is shot down (its burst as the point defense's); false = none in reach.</summary>
+        public bool ShootDownMissile(Vector3 from, float reachM)
+        {
+            Gun best = null;
+            int bi = -1;
+            float bd = reachM * reachM;
+            foreach (var r in rigs)
+            {
+                var g = r.gun;
+                if (!g.isSecondary || !g.Homing || g.Mirror) continue;
+                for (int i = 0; i < g.bullets.Length; i++)
+                {
+                    if (!g.IsActive(i)) continue;
+                    float d = (g.bullets[i].position - from).sqrMagnitude;
+                    if (d < bd) { bd = d; best = g; bi = i; }
+                }
+            }
+            if (best == null) return false;
+            PointDefense.Exploded?.Invoke(best.ShootDown(bi));
+            return true;
+        }
+
         /// <summary>The flight menu's pick (MGame::OnTouchEnd, keys 0x2000 / 0x4000 / 0x8000 / 0x10000).</summary>
         public void SelectSecondary(int item)
         {
@@ -179,6 +212,16 @@ namespace GoF2Remake.Flight
         public event Action<float> PrimaryDamageDealt;
         /// <summary>Remake (the strike charge, PlayerDevices): the primary guns' damage x this.</summary>
         [NonSerialized] public float DamageBoost = 1f;
+        /// <summary>Remake mods (FlightBonus.fullStopDamage, EVERSPACE 2's full-stop weapon bonus): the primary guns' damage x the
+        /// flight model's factor while the ship stands still (FlightModel.WeaponDamageFactor).</summary>
+        float FlightDamageFactor
+        {
+            get
+            {
+                if (shipController == null) shipController = GetComponent<ShipController>();
+                return shipController != null && shipController.Model != null ? shipController.Model.WeaponDamageFactor : 1f;
+            }
+        }
         /// <summary>Locked target for homing missiles (the radar's ship lock, CombatRadar).</summary>
         public Target LockTarget { get; set; }
         /// <summary>The player's own hittable object: never hit by its own guns.</summary>
@@ -597,11 +640,17 @@ namespace GoF2Remake.Flight
             bool missile = r.gun.isSecondary;
             bool wasAlive = target.Alive;
             target.lastPlayerWeapon = r.gun.itemIndex;
-            float damage = missile && target.isAsteroid ? 9999f : missile ? r.gun.damage : r.gun.damage * DamageBoost;
+            float damage = missile && target.isAsteroid ? 9999f : missile ? r.gun.damage : r.gun.damage * DamageBoost * FlightDamageFactor;
             if (!missile && wasAlive && target.isShip) PrimaryDamageDealt?.Invoke(damage);
             if (Cheats.OneHitKills && !target.isPlayer) damage = 99999999f;
             target.Damage(damage, false, r.gun.bullets[bullet].velocity, r.gun.shieldFactor);
-            if (r.gun.slowMs > 0f && target.Alive && !target.isPlayer) target.SlowBy?.Invoke(r.gun.slowMs, r.gun.slowFactor, false);   // remake mods: slowMs
+            if (r.gun.slowMs > 0f && target.Alive && !target.isPlayer) target.SlowBy?.Invoke(r.gun.slowMs, r.gun.slowFactor, r.gun.slowFreeze);   // remake mods: slowMs (slowFreeze: no turning)
+            // remake mods (2026-11-02): EVERSPACE 2's corrosion / infestation and destabilization (TargetDebuffs)
+            if (target.Alive && target.isShip && !target.isPlayer)
+            {
+                if (r.gun.dotDamage > 0f && r.gun.dotMs > 0f) TargetDebuffs.For(target).AddDot(r.gun.dotDamage, r.gun.dotMs, r.gun.itemIndex);
+                if (r.gun.vulnerablePercent > 0f && r.gun.vulnerableMs > 0f) TargetDebuffs.For(target).AddVulnerability(r.gun.vulnerablePercent, r.gun.vulnerableMs);
+            }
             if (wasAlive && !target.Alive && target.isAsteroid) { Session.AsteroidsDestroyed++; CountAsteroidMedals(r.gun); }   // Status+0xd8
             ApplyEmp(target, (int)r.gun.emp);
             r.visuals.ShowImpact(point);
@@ -639,12 +688,12 @@ namespace GoF2Remake.Flight
 
         /// <summary>Remake (Flight.Device, PlayerDevices): a device's damage and EMP on one target, credited to the player
         /// like a shot of 'item' (the kill, standing, the crosshair's hit flash).</summary>
-        public void DeviceHit(Target target, float damage, int emp, Vector3 direction, int item)
+        public void DeviceHit(Target target, float damage, int emp, Vector3 direction, int item, float shieldFactor = 1f)
         {
             if (target == null || !target.Alive) return;
             target.lastPlayerWeapon = item;
             if (Cheats.OneHitKills && !target.isPlayer && damage > 0f) damage = 99999999f;
-            if (damage > 0f) target.Damage(damage, false, direction);
+            if (damage > 0f) target.Damage(damage, false, direction, shieldFactor);
             ApplyEmp(target, emp);
             if (damage > 0f) Hit?.Invoke();
         }

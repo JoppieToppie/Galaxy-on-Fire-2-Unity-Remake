@@ -103,6 +103,42 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void TheChargerEndsACooldownAndAConsumableHasNone()
+        {
+            // EVERSPACE 2's Device Charger: Devices.ResetCooldowns; a consumable (one use per unit) with no cooldown given
+            var d = new Device(302, Device.Type.AreaEmp, 0, 60000);
+            Assert.IsFalse(d.ResetCooldown(), "nothing to end while ready");
+            d.TryFire();
+            Assert.AreEqual(Device.Phase.Cooldown, d.State);
+            Assert.IsTrue(d.ResetCooldown());
+            Assert.IsTrue(d.Available);
+            var c = new Device(303, Device.Type.HullRepair, 0, 0);
+            Assert.IsTrue(c.TryFire());
+            Assert.AreEqual(Device.Event.Ready, c.Update(10f), "a 0 ms cooldown is over on the next frame");
+            Assert.IsTrue(c.Available);
+            Assert.AreEqual(18, Device.TypeCount);
+        }
+
+        [Test]
+        public void ABlinkStopsShortOfWhatIsInTheWay()
+        {
+            // ES2's GetTargetOffset: the whole distance with nothing hit, else SafetyMargin (10 m) and the ship's radius short of the hit
+            Assert.AreEqual(500f, Device.Blink(500f, float.MaxValue, 8f));
+            Assert.AreEqual(500f, Device.Blink(500f, 500f, 8f), "a hit at the end is no hit");
+            Assert.AreEqual(282f, Device.Blink(500f, 300f, 8f), 1e-4f);
+            Assert.LessOrEqual(Device.Blink(500f, 15f, 8f), 0f, "no room: refused");
+        }
+
+        [Test]
+        public void ARepairRestoresAShareOfTheLayerRoundedUp()
+        {
+            Assert.AreEqual(25, PlayerDevices.RepairPoints(100, 25));
+            Assert.AreEqual(1, PlayerDevices.RepairPoints(3, 10), "at least a point");
+            Assert.AreEqual(100, PlayerDevices.RepairPoints(100, 100), "to full");
+            Assert.AreEqual(0, PlayerDevices.RepairPoints(0, 50), "no such layer");
+        }
+
+        [Test]
         public void TheWaveGrowsToItsRadius()
         {
             Assert.AreEqual(0f, Device.WaveRadius(0f, 2500f, 9120f), 1e-3f);

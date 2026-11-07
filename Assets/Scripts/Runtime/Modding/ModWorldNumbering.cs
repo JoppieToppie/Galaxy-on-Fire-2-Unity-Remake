@@ -168,6 +168,99 @@ namespace GoF2Remake.Modding
                 }
                 if (s.pads.Count == 0) s.pads = null;
             }
+            // Remake (2026-11-03): hazard volumes, EVERSPACE 2's heat volumes and radiation fields (World.HazardZones)
+            if (ModJson.Get(o, "hazards") is JToken hz)
+            {
+                if (!(hz is JArray hzList)) throw new ModJsonException($"{where}: orbit \"hazards\" must be a list [ {{ \"kind\": \"heat\" | \"radiation\", \"centre\", \"radius\" }} ]");
+                s.hazards = new List<HazardSpec>();
+                foreach (var e in hzList)
+                {
+                    if (!(e is JObject h)) throw new ModJsonException($"{where}: a hazard is {{ \"kind\", \"centre\", \"radius\" }}");
+                    foreach (var p in h.Properties())
+                        if (p.Name != "kind" && p.Name != "centre" && p.Name != "center" && p.Name != "radius" && p.Name != "dps") Report(mod, $"{where}: unknown hazard field \"{p.Name}\" (ignored)");
+                    var kindName = ModJson.Str(h, "kind") ?? "";
+                    HazardKind kind;
+                    if (kindName.Equals("heat", StringComparison.OrdinalIgnoreCase)) kind = HazardKind.Heat;
+                    else if (kindName.Equals("radiation", StringComparison.OrdinalIgnoreCase)) kind = HazardKind.Radiation;
+                    else throw new ModJsonException($"{where}: a hazard's \"kind\" is \"heat\" or \"radiation\"");
+                    var centre = Xyz(h, "centre", where) ?? Xyz(h, "center", where);
+                    if (!centre.HasValue) throw new ModJsonException($"{where}: a hazard needs \"centre\": [x, y, z]");
+                    s.hazards.Add(new HazardSpec
+                    {
+                        kind = kind, centre = centre.Value,
+                        radius = Mathf.Clamp(ModJson.Float(h, "radius", 20000f, StationsFile), 1000f, 400000f),
+                        dps = Mathf.Max(0f, ModJson.Float(h, "dps", 10f, StationsFile)),
+                    });
+                }
+                if (s.hazards.Count == 0) s.hazards = null;
+            }
+            // Remake (2026-11-03): a wreck field, EVERSPACE 2's (World.WreckField)
+            if (ModJson.Get(o, "wrecks") is JToken wr)
+            {
+                if (wr.Type == JTokenType.Boolean) s.wreckCount = (bool)wr ? 12 : 0;
+                else if (wr is JObject w)
+                {
+                    foreach (var p in w.Properties())
+                        if (p.Name != "count" && p.Name != "centre" && p.Name != "center" && p.Name != "spread") Report(mod, $"{where}: unknown wrecks field \"{p.Name}\" (ignored)");
+                    s.wreckCount = Mathf.Clamp(ModJson.Int(w, "count", 12, StationsFile), 0, 60);
+                    s.wreckCentre = Xyz(w, "centre", where) ?? Xyz(w, "center", where);
+                    if (ModJson.Has(w, "spread")) s.wreckSpread = Mathf.Clamp(ModJson.Float(w, "spread", 60000f, StationsFile), 5000f, 400000f);
+                }
+                else throw new ModJsonException($"{where}: orbit \"wrecks\" is true, false or {{ \"count\", \"centre\", \"spread\" }}");
+            }
+            // Remake (2026-11-03): traffic lanes, EVERSPACE 2's spline traffic (World.TrafficLanes)
+            if (ModJson.Get(o, "lanes") is JToken ln)
+            {
+                if (!(ln is JArray lnList)) throw new ModJsonException($"{where}: orbit \"lanes\" must be a list [ {{ \"points\": [[x, y, z], ...] }} ]");
+                s.lanes = new List<LaneSpec>();
+                foreach (var e in lnList)
+                {
+                    if (!(e is JObject l)) throw new ModJsonException($"{where}: a lane is {{ \"points\", \"ships\", \"count\", \"speed\", \"loop\", \"twoLanes\" }}");
+                    foreach (var p in l.Properties())
+                        if (p.Name != "points" && p.Name != "ships" && p.Name != "count" && p.Name != "speed" && p.Name != "loop" && p.Name != "twoLanes")
+                            Report(mod, $"{where}: unknown lane field \"{p.Name}\" (ignored)");
+                    if (!(ModJson.Get(l, "points") is JArray pts) || pts.Count < 2)
+                        throw new ModJsonException($"{where}: a lane needs \"points\": at least two [x, y, z]");
+                    var lane = new LaneSpec { points = new List<Vector3>() };
+                    foreach (var pt in pts)
+                    {
+                        if (!(pt is JArray a) || a.Count != 3 || a.Any(v => v.Type != JTokenType.Integer && v.Type != JTokenType.Float))
+                            throw new ModJsonException($"{where}: a lane's points are [x, y, z] (game units)");
+                        var v3 = new Vector3((float)a[0], (float)a[1], (float)a[2]);
+                        if (Mathf.Abs(v3.x) > 1e6f || Mathf.Abs(v3.y) > 1e6f || Mathf.Abs(v3.z) > 1e6f) throw new ModJsonException($"{where}: a lane's point lies too far out (at most 1000000 units)");
+                        lane.points.Add(v3);
+                    }
+                    if (ModJson.Get(l, "ships") is JArray sh)
+                    {
+                        lane.ships = new List<string>();
+                        foreach (var r in sh) if (r.Type == JTokenType.String || r.Type == JTokenType.Integer) lane.ships.Add(r.ToString());
+                        if (lane.ships.Count == 0) lane.ships = null;
+                    }
+                    lane.count = Mathf.Clamp(ModJson.Int(l, "count", Flight.TrafficLane.DefaultCount, StationsFile), 1, 40);
+                    lane.speed = Mathf.Clamp(ModJson.Float(l, "speed", Flight.TrafficLane.DefaultSpeedMps, StationsFile), 5f, 1000f);
+                    lane.loop = ModJson.Bool(l, "loop", true, StationsFile);
+                    lane.twoLanes = ModJson.Bool(l, "twoLanes", true, StationsFile);
+                    s.lanes.Add(lane);
+                }
+                if (s.lanes.Count == 0) s.lanes = null;
+                else if (s.lanes.Count > 12) throw new ModJsonException($"{where}: at most 12 lanes an orbit");
+            }
+            // Remake (2026-11-03): closed containers, EVERSPACE 2's (World.LootContainer)
+            if (ModJson.Get(o, "containers") is JToken ct)
+            {
+                if (ct.Type == JTokenType.Boolean) s.containerCount = (bool)ct ? 6 : 0;
+                else if (ct is JObject c)
+                {
+                    foreach (var p in c.Properties())
+                        if (p.Name != "count" && p.Name != "centre" && p.Name != "center" && p.Name != "spread" && p.Name != "bulletproof")
+                            Report(mod, $"{where}: unknown containers field \"{p.Name}\" (ignored)");
+                    s.containerCount = Mathf.Clamp(ModJson.Int(c, "count", 6, StationsFile), 0, 40);
+                    s.containerCentre = Xyz(c, "centre", where) ?? Xyz(c, "center", where);
+                    if (ModJson.Has(c, "spread")) s.containerSpread = Mathf.Clamp(ModJson.Float(c, "spread", 40000f, StationsFile), 5000f, 400000f);
+                    if (ModJson.Has(c, "bulletproof")) s.containerBulletproof = Mathf.Clamp01(ModJson.Float(c, "bulletproof", 0.3f, StationsFile));
+                }
+                else throw new ModJsonException($"{where}: orbit \"containers\" is true, false or {{ \"count\", \"centre\", \"spread\", \"bulletproof\" }}");
+            }
             var ast = ModJson.Get(o, "asteroids");
             if (ast != null && ast.Type == JTokenType.Boolean) s.asteroids = (bool)ast;
             else if (ast is JObject a)

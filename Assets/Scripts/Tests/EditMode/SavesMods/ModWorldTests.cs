@@ -488,6 +488,110 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(PirateHold.Marked(other, 15));
         }
 
+        // Remake (2026-11-03, EVERSPACE 2's wreck fields): a station's "orbit.wrecks" (World.WreckField).
+        [Test]
+        public void AnOrbitsWreckField()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'wrecks': { 'count': 20, 'centre': [1000, 0, 5000], 'spread': 30000 } } }, { 'override': 79, 'orbit': { 'wrecks': true } }, " +
+                "{ 'override': 80, 'orbit': { 'wrecks': { 'count': 500 } } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var a = ModWorld.OrbitOf(78);
+            Assert.AreEqual(20, a.wreckCount);
+            Assert.AreEqual(new Vector3(1000, 0, 5000), a.wreckCentre);
+            Assert.AreEqual(30000f, a.wreckSpread);
+            Assert.AreEqual(12, ModWorld.OrbitOf(79).wreckCount, "true: the default field");
+            Assert.IsNull(ModWorld.OrbitOf(79).wreckCentre);
+            Assert.AreEqual(60, ModWorld.OrbitOf(80).wreckCount, "at most 60");
+            Assert.AreEqual(0, ModWorld.OrbitOf(81)?.wreckCount ?? 0, "none unless asked for");
+            Assert.IsNotEmpty(GoF2Remake.World.WreckField.Loot(null), "an empty roll: Space Waste");
+        }
+
+        [Test]
+        public void AnOrbitsHazards()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'hazards': [ { 'kind': 'heat', 'centre': [0, 0, 20000], 'radius': 8000, 'dps': 15 }, { 'kind': 'Radiation', 'centre': [5000, 0, 0] } ] } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var h = ModWorld.OrbitOf(78).hazards;
+            Assert.AreEqual(2, h.Count);
+            Assert.AreEqual(ModWorld.HazardKind.Heat, h[0].kind);
+            Assert.AreEqual(8000f, h[0].radius);
+            Assert.AreEqual(15f, h[0].dps);
+            Assert.AreEqual(ModWorld.HazardKind.Radiation, h[1].kind, "any case");
+            Assert.AreEqual(20000f, h[1].radius, "the default radius");
+        }
+
+        [Test] public void AHazardNeedsAKnownKind() => StringAssert.Contains("\"kind\" is \"heat\" or \"radiation\"", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'hazards': [ { 'kind': 'lava', 'centre': [0, 0, 0] } ] } } ]"));
+
+        // Remake (2026-11-03, EVERSPACE 2's item containers): a station's "orbit.containers" (World.LootContainer).
+        [Test]
+        public void AnOrbitsContainers()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'containers': { 'count': 9, 'centre': [1000, 0, 5000], 'spread': 20000, 'bulletproof': 0.5 } } }, " +
+                "{ 'override': 79, 'orbit': { 'containers': true } }, { 'override': 80, 'orbit': { 'containers': { 'count': 500, 'bulletproof': 3 } } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var a = ModWorld.OrbitOf(78);
+            Assert.AreEqual(9, a.containerCount);
+            Assert.AreEqual(new Vector3(1000, 0, 5000), a.containerCentre);
+            Assert.AreEqual(20000f, a.containerSpread);
+            Assert.AreEqual(0.5f, a.containerBulletproof);
+            Assert.AreEqual(6, ModWorld.OrbitOf(79).containerCount, "true: the default six");
+            Assert.AreEqual(0.3f, ModWorld.OrbitOf(79).containerBulletproof, "a third of them bulletproof by default");
+            Assert.AreEqual(40, ModWorld.OrbitOf(80).containerCount, "at most 40");
+            Assert.AreEqual(1f, ModWorld.OrbitOf(80).containerBulletproof, "a share, at most all");
+            Assert.AreEqual(0, ModWorld.OrbitOf(81)?.containerCount ?? 0, "none unless asked for");
+            Assert.AreEqual(360f, GoF2Remake.World.LootContainer.OpenRangeM, 1e-3f, "ES2's 100 m interact radius x 3.6");
+        }
+
+        // Remake (2026-11-03, EVERSPACE 2's spline traffic): a station's "orbit.lanes" (World.TrafficLanes).
+        [Test]
+        public void AnOrbitsTrafficLanes()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'lanes': [ { 'points': [[0, 0, 0], [0, 0, 20000], [20000, 0, 20000]], 'ships': ['3', 'x:y'], 'count': 6, 'speed': 120, 'loop': false, 'twoLanes': false }, " +
+                "{ 'points': [[0, 0, 0], [5000, 0, 0]], 'count': 99 } ] } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var l = ModWorld.OrbitOf(78).lanes;
+            Assert.AreEqual(2, l.Count);
+            Assert.AreEqual(3, l[0].points.Count);
+            Assert.AreEqual(new Vector3(20000, 0, 20000), l[0].points[2]);
+            CollectionAssert.AreEqual(new[] { "3", "x:y" }, l[0].ships);
+            Assert.AreEqual(6, l[0].count);
+            Assert.AreEqual(120f, l[0].speed);
+            Assert.IsFalse(l[0].loop);
+            Assert.IsFalse(l[0].twoLanes);
+            Assert.AreEqual(40, l[1].count, "at most 40 ships a lane");
+            Assert.IsNull(l[1].ships, "the system race's fighters");
+            Assert.AreEqual(80f, l[1].speed, "ES2's 8000 cm/s");
+            Assert.IsTrue(l[1].loop && l[1].twoLanes, "ES2's ClosedLoop and TwoLanes");
+        }
+
+        [Test] public void ALaneNeedsTwoPoints() => StringAssert.Contains("a lane needs \"points\"", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'lanes': [ { 'points': [[0, 0, 0]] } ] } } ]"));
+
+        [Test]
+        public void ALanesPathRunsThroughItsPoints()
+        {
+            var lane = new GoF2Remake.Flight.TrafficLane(new System.Collections.Generic.List<Vector3> { Vector3.zero, new Vector3(0, 0, 100) }, true);
+            Assert.IsFalse(lane.Loop, "two points: an open path");
+            Assert.AreEqual(100f, lane.Length, 1e-3f);
+            Assert.AreEqual(95f, lane.Position(10f, 95f, out bool back), 1e-3f, "turns over at the end");
+            Assert.IsTrue(back);
+            var sq = new GoF2Remake.Flight.TrafficLane(new System.Collections.Generic.List<Vector3> { Vector3.zero, new Vector3(100, 0, 0), new Vector3(100, 0, 100), new Vector3(0, 0, 100) }, true);
+            Assert.IsTrue(sq.Loop);
+            sq.Sample(sq.Length, out var end, out _);
+            Assert.AreEqual(0f, end.magnitude, 1e-3f, "a loop ends where it began");
+        }
+
+        [Test] public void ContainersAreAFieldOrAFlag() => StringAssert.Contains("\"containers\" is true, false or", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'containers': 3 } } ]"));
+
+        [Test] public void WrecksAreAFieldOrAFlag() => StringAssert.Contains("\"wrecks\" is true, false or", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'wrecks': 3 } } ]"));
+
         [Test] public void PadsAreAList() => StringAssert.Contains("\"pads\" must be a list", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'pads': 3 } } ]"));
         [Test] public void APadNeedsAPosition() => StringAssert.Contains("a pad needs \"position\"", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'pads': [ { 'facing': [0, 0, 1] } ] } } ]"));
     }

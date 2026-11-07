@@ -111,7 +111,9 @@ namespace GoF2Remake.Tests
             int ii = ModContent.ItemIndexOf(Mod + ":slipstream_ii");
             Session.Equipment = new List<ItemStack> { new ItemStack(ii, 1) };
             Assert.AreEqual(ii, InterstellarSpace.Drive(db).index);
-            Assert.IsFalse(GalaxyMap.HasJumpDrive(db), "it opens no shortcut around the Khador Drive's story checks");
+            // The user, 2026-11-03: it replaces the Khador Drive on the ship, so it makes its jumps too (GalaxyMap.HasSlipstream);
+            // the story's checks are the jump's own (SystemJump, Navigation.KhadorBlocked), whichever drive makes it.
+            Assert.IsTrue(GalaxyMap.HasJumpDrive(db), "the Khador Drive's jumps too");
             var old = NetSession.ActiveProvider;
             try
             {

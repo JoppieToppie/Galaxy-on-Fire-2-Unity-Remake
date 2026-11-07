@@ -110,7 +110,37 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   `WeaponSystem.DamageBoost` on primaries; deflector (7) sets `Target.Deflects`: `Gun.Strike` (every hit site) asks it
   first, and an NPC's shot (not a mirror) turns into a homing shot back at its shooter from a pool `Gun` per
   look (a beam is only stopped), credited through `WeaponSystem.DeviceHit` (kill credit, standing, hit flash). Re-attached with a new hull
-  (`SpaceLevel.AttachDevices`, `DevicesChanged` for the HUD's messages). Not yet: the shots / beams / waves seen by the
+  (`SpaceLevel.AttachDevices`, `DevicesChanged` for the HUD's messages). Remake 2026-11-02, EVERSPACE 2's consumables as
+  types 8-12 (decompiled BP_Consumable_SmokeBomb + BP_SmokeBombFIeld + BP_Condition_Debuff_SmokeScreen (the field hides the
+  pawns inside it, IsHiddenByActor, and drops their sensing to 200 m), _ArmorRepair (armour to ratio 1), _NanoInjector (the
+  base class's condition by EffectPercent: here a hull share), _SecondariesRestock (ammo + trunc(max x EffectPercent)),
+  _DeviceCharger (Devices.ResetCooldowns); ES2's item numbers aren't on disk, so the mods give their own): `SensorCloud` sets
+  the player's `Target.cloaked` while inside (restored from `PlayerCloak` after), `HullRepair` / `ArmorRepair`
+  (`RepairPoints`), `Restock` (`WeaponSystem.Restock`), `DeviceCharger` (`Device.ResetCooldown`); `deviceConsumable` (164):
+  one use per unit, the mounted stack's amount (Hangar.Stacked: mounted whole, bought ones join it, `PlayerDevices.Spend`
+  removes the item at 0; a running cloud's item is dropped when its run ends); `deviceAmmo` (165). The cloud itself isn't
+  drawn (only the shock burst at the drop); the enemies inside the cloud don't lose their aim as in ES2. Types 13-18, ES2's
+  cooldown devices (decompiled BP_Device_Corrosion_Injector + BP_Condition_Debuff_Corrosion (a 0.95 s timer dealing
+  shield-piercing kinetic damage = the intensity), BP_Device_Teleporter (GetTargetOffset: a sphere trace forward by
+  DEVICE_RANGE, the way kept SafetyMargin 1000 cm + the radius short of a hit), BP_Device_Spectral_Shift (the blink and a
+  sphere trace of DEVICE_RANGE_2 along it dealing the device's energy + kinetic damage), BP_Device_FusionHook (aim dot 0.95,
+  PullDelay 0.3, MinDistance 20000 cm, MaxAngleDot 0.8, MaxVelocity 80000 cm/s, the target pulled by 80000 cm/s^2 x
+  clamp(d / 20000), the owner by AccelerationForward^1.5 / 15), BP_Condition_Debuff_QuantumTether (the tethered ship's damage
+  dealt to the enemies within Range as a chain reaction; a jump to a random one when it dies), BP_Device_Quantum_Entangler
+  (the owner's incoming damage summed, dealt to the target at the end x ReturnDamageMultiplier)): `Corrosion` (DeviceHit with
+  shieldFactor 0), `Teleport` / `SpectralShift` (`BlinkDistance`: HullCollision.Sweep, the landmarks' volumes sampled, the
+  asteroids as spheres; `Device.Blink`), `FusionHook` (both pulled by position each frame, speeds ramping by ES2's
+  accelerations; another game's ship isn't moved), `QuantumTether` (Target.Damaged / Died), `Entangler` (the player's
+  Target.Damaged summed). `deviceRange2` (166). The legendary modes and masteries of these devices are left out.
+  Weapon debuffs (remake 2026-11-02, EVERSPACE 2's debuff conditions, decompiled BP_Condition_Debuff_Frozen (DisableControls),
+  _Webbed (linear / angular damping +2: a slow), _Destabilized (+0.2 incoming damage per token on every layer, intensity
+  stacking), _Corrosion (0.95 s timer) and _Infested (1 s timer), shield-piercing damage = the intensity; the launchers'
+  ApplyConditionClass: Cryo -> Frozen, Web -> Webbed, Destabilizer -> Destabilized, Corrosion -> Corrosion, Spore -> Confused,
+  Exorciser -> an Exorcism buildup (a slow at its end)): `Gun.slowFreeze` (167, `SlowBy`'s noTurn), `dotDamage` / `dotMs`
+  (168 / 169) and `vulnerablePercent` / `vulnerableMs` (170 / 171) on the player's direct hits on NPC ships
+  (`WeaponSystem.OnHit` -> `TargetDebuffs` running `Debuffs`: stacks, `Target.vulnerability` in `Target.Damage`). Not taken:
+  Confused (the spore's: NPCs turning on each other), the armour breaker (no condition: a plain missile in ES2's blueprint),
+  blasts and mines applying them (direct hits only). Not yet: the shots / beams / waves seen by the
   other players, the deflector against other players, NPC devices (GoF3's bosses), translations of the texts.
   `cloakCooldownMs` (attr 160) gives a cloak its own cooldown (`Cloak` constructor; GoF3's Hiroto Cloak 60 s, no cells).
 - **Shield injector** (227): an empty shield takes 30 t Blue Plasma (202, "-30t Blue Plasma") and refills at 0.15 per ms; sounds 2258 / 2257 / 2259.

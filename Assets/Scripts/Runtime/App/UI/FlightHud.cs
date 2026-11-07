@@ -745,6 +745,8 @@ namespace GoF2Remake.UI
             if (prompt == null && DockBeforeLock) prompt = Localization.Extra("hudDock", "DOCK").OgCase();
             if (prompt == null && nav != null) prompt = nav.PromptText;
             if (prompt == null && mining != null) prompt = mining.PromptText;
+            if (prompt == null && GoF2Remake.World.LootContainer.InReach(ship != null ? ship.transform : null) != null)   // remake mods
+                prompt = Localization.Extra("hudOpen", "OPEN").OgCase();
             if (prompt == null && level.CanDock) prompt = Localization.Extra("hudDock", "DOCK").OgCase();
             // Touch: no prompt, the fire button is the action button (its arrow shows when fire acts).
             dockPrompt.EnableInClassList("dock-prompt--hidden", prompt == null || InputMode.Current == InputKind.Touch || cursorMode);   // touch / cursor: the arrow on fire

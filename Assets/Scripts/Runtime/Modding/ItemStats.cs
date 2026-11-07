@@ -63,18 +63,27 @@ namespace GoF2Remake.Modding
             // costs (Flight.CruiseDrive, Navigation; Modding/README.md "Cruise drives").
             // interstellar 1: it also flies the space between the systems (InterstellarSpace).
             ["cruiseSpeed"] = 133, ["cruiseRange"] = 134, ["cruiseChargeMs"] = 37, ["interstellar"] = 135,
+            // EVERSPACE 2's ship passives on any mounted item, both flight styles (Modding.ModFlight, FlightBonus): fullStopDamage
+            // = the primary guns' damage in % more while the ship stands still; lowSpeedResistance = damage taken in % less once
+            // it has flown slower than 30 m/s for a second (FlightModel.WeaponDamageFactor / DamageTakenFactor).
+            ["fullStopDamage"] = 138, ["lowSpeedResistance"] = 139,
             // An active device (Flight.Device; Modding/README.md "Devices"): device is its type (1 area EMP, 2 EMP shot, 3
             // shield disruptor, 4 overcharger area, 5 overcharger beam, 6 strike charge, 7 deflector), the rest its numbers
             // (radius in game units, slow = the speed left in percent, shield cost in percent of the maximum shield).
             ["device"] = 150, ["deviceCooldownMs"] = 151, ["deviceDurationMs"] = 152, ["deviceRadius"] = 153, ["deviceGrowMs"] = 154,
             ["deviceSlowPercent"] = 155, ["deviceShieldCost"] = 156, ["deviceDamagePercent"] = 157, ["deviceCharge"] = 158,
             ["deviceConeDeg"] = 159,
+            // Remake (2026-11-02): EVERSPACE 2's consumables as devices (Flight.Device 8-12)
+            ["deviceConsumable"] = 164, ["deviceAmmo"] = 165, ["deviceRange2"] = 166,
             // A cloak's cooldown in ms in place of the difficulty's 5-12 s (Flight.Cloak; GoF3's Hiroto Cloak 60 s).
             ["cloakCooldownMs"] = 160,
             // A weapon's hits go past the shield to the armor and hull (1; Flight.Gun.ShieldFactor 0, Hitpoints.Damage), or slow
             // the ship hit to slowPercent of its speed for slowMs (Target.SlowBy; turning still allowed): GoF3's
             // AbilityBypassShield and AbilitySlowdown.
             ["shieldBypass"] = 161, ["slowMs"] = 162, ["slowPercent"] = 163,
+            // EVERSPACE 2's weapon debuffs (2026-11-02; Flight.Gun, Flight.Debuffs): the slow freezes (no turning), damage over
+            // time past the shield, the damage the ship takes raised (stacking)
+            ["slowFreeze"] = 167, ["dotDamage"] = 168, ["dotMs"] = 169, ["vulnerablePercent"] = 170, ["vulnerableMs"] = 171,
             // items.json's statList names
             ["steerable"] = 15, ["handling"] = 17,
             ["loadingTimeMs"] = 11, ["range"] = 12, ["projectileSpeed"] = 13, ["magnitude"] = 14, ["shieldRegenTime"] = 19,

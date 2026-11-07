@@ -112,6 +112,8 @@ namespace GoF2Remake.World
             else if (hit.isPlayer && ObjectDocking.PlayerDocked) dmg = (int)(dmg * 0.75f);
             else if (!hit.isPlayer && RemoteDockedAtObject != null && RemoteDockedAtObject(hit)) dmg = (int)(dmg * 0.75f);   // multiplayer
             hit.Damage(dmg, true, g.bullets[bullet].velocity);
+            // remake mods: a webber's hit slows the player's ship (NpcRoles)
+            if (Role == NpcRoles.Role.Webber && hit.isPlayer && Target.hostileToPlayer) hit.SlowBy?.Invoke(NpcRoles.WebMs, NpcRoles.WebSpeedFactor, false);
             if (g.emp > 0f) EmpBreaksCloak(hit);
             if (g.emp > 0f && !hit.isPlayer && hit.hitpoints != null) hit.hitpoints.DamageEmp((int)g.emp);
             r.ShowImpact(point);
