@@ -2,7 +2,8 @@
 // Feature: docs/notes/npcs-and-combat.md "GoF3 dogfighting", Options > Gameplay "NPC dogfighting" (Flight.Gof3Dogfight, after
 // GoF3's AIJob_Fight / Tease / ChasePrey and NPCBankingSystem): attack runs end in a veer-off (or a short hold-back) inside
 // the break-off range or when their time is up; a fighter behind its target chases it at 1.6x; one in front of its nose
-// teases now and then, holding fire; hits start a 1.8 s roll, invulnerable for 1.5 s, by the difficulty's chance.
+// teases now and then, holding fire; hits start a 1.8 s roll, invulnerable for 1.5 s, by the hull's base chance capped by
+// the difficulty; on Easy fighters slow down in the player's sights.
 
 using GoF2Remake.Flight;
 using NUnit.Framework;
@@ -102,9 +103,22 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(0f, Gof3Dogfight.EvadeChance(0f, false), "Easy");
             Assert.AreEqual(0.15f, Gof3Dogfight.EvadeChance(0.5f, false), "Normal: GoF3's Medium cap");
             Assert.AreEqual(0.25f, Gof3Dogfight.EvadeChance(1f, false), "Hard");
-            Assert.AreEqual(0.33f, Gof3Dogfight.EvadeChance(1.5f, false), "Extreme: the fighters' whole chance");
-            Assert.AreEqual(0.66f, Gof3Dogfight.EvadeChance(0.5f, true), "a boss");
+            Assert.AreEqual(0.33f, Gof3Dogfight.EvadeChance(1.5f, false), "Extreme (GoF3's boss column, 0.66 cap): a fighter's whole 0.33");
+            Assert.AreEqual(0.66f, Gof3Dogfight.EvadeChance(1.5f, false, 1f), "Extreme: a T3+ gunship's 1.0 to the cap");
+            Assert.AreEqual(0.25f, Gof3Dogfight.EvadeChance(1f, false, 1f), "Hard: capped");
+            Assert.AreEqual(0f, Gof3Dogfight.EvadeChance(1.5f, false, 0f), "a scout or a T1-T2 hull never rolls");
+            Assert.AreEqual(0.1f, Gof3Dogfight.EvadeChance(0.5f, false, 0.1f), 1e-6f, "GoF3's bosses: 0.1");
+            Assert.AreEqual(0.33f, Gof3Dogfight.EvadeChance(0.5f, true), "a boss on the boss column: its base");
             Assert.AreEqual(0f, Gof3Dogfight.EvadeChance(0f, true));
+        }
+
+        [Test]
+        public void OnEasyFightersSlowDownInThePlayersSights()
+        {
+            Assert.AreEqual(1f, Gof3Dogfight.EasySlowdown(Gof3Dogfight.EasySlowRange + 1f, 1f, 0f), "too far");
+            Assert.AreEqual(1f, Gof3Dogfight.EasySlowdown(1000f, 0.2f, 0f), "outside its sights");
+            Assert.AreEqual(Gof3Dogfight.EasySlowMin, Gof3Dogfight.EasySlowdown(1000f, 0.9f, 0f), "crossing: a third");
+            Assert.AreEqual(0.8f, Gof3Dogfight.EasySlowdown(1000f, 0.9f, -0.8f), 1e-6f, "head-on: |heading . heading|");
         }
 
         [Test]

@@ -492,12 +492,23 @@ namespace GoF2Remake.UI
                 () => Settings.SmarterNpcTargeting, v => Settings.SmarterNpcTargeting = v);
             smartTargeting.description = () => X("smarterNpcTargetingHelp", "Enemy fighters spread over nearby targets instead of all going for you.");
             list.Add(SessionRule(smartTargeting));
-            // Remake (the GoF3 roadmap's G6): GoF2's fighters, or Galaxy on Fire 3's for the mods' GoF3 hulls or for every one
-            // (Settings.NpcDogfight, Flight.Gof3Dogfight).
+            // Remake (the GoF3 roadmap's G6; ES2's 2026-11-06): GoF2's fighters, or Galaxy on Fire 3's / EVERSPACE 2's for the mods'
+            // hulls that ask for them or for every one (Settings.NpcDogfight, Flight.Gof3Dogfight, Flight.Es2Dogfight).
             list.Add(SessionRule(Choice("npcDogfight", OptionPage.Gameplay, () => X("npcDogfight", "NPC dogfighting"), true,
-                () => new[] { X("npcDogfightOriginal", "Original"), X("npcDogfightModHulls", "GoF3 on mod hulls"), X("npcDogfightAll", "GoF3 for all") },
+                () => new[] { X("npcDogfightOriginal", "Original"), X("npcDogfightModHullsOwn", "Mod hulls' own"), X("npcDogfightAll", "GoF3 for all"),
+                              X("npcDogfightEs2All", "ES2 for all") },
                 () => Settings.NpcDogfight, i => Settings.NpcDogfight = i,
-                () => X("npcDogfightHelp", "GoF3: fighters make attack runs and veer off, sit on your tail, lead their shots and barrel-roll away from hits."))));
+                () => X("npcDogfightHelp2", "GoF3: attack runs, veering off, tailing you, barrel rolls on hits. ES2: runs past you, gaining distance, evading when tailed, fleeing when nearly dead."))));
+            // Remake (2026-11-06): EVERSPACE 2's aim (Settings.Es2Aiming, Flight.Es2Aim / Es2Director), apart from the dogfighting.
+            var es2Aiming = Toggle("es2Aiming", OptionPage.Gameplay, () => X("es2Aiming", "EVERSPACE 2 NPC aiming"),
+                () => Settings.Es2Aiming, v => Settings.Es2Aiming = v);
+            es2Aiming.description = () => X("es2AimingHelp", "NPCs lead their shots, re-aiming faster on higher difficulties; of a crowd on you only a few shoot at once. Off: as in the original.");
+            list.Add(SessionRule(es2Aiming));
+            // Remake (2026-11-06): EVERSPACE 2's physics flight for NPC ships (Settings.Es2NpcFlight, Flight.Es2NpcFlight).
+            var es2Flight = Toggle("es2NpcFlight", OptionPage.Gameplay, () => X("es2NpcFlight", "EVERSPACE 2 NPC flight"),
+                () => Settings.Es2NpcFlight, v => Settings.Es2NpcFlight = v);
+            es2Flight.description = () => X("es2NpcFlightHelp", "NPC ships fly with momentum, ease out of turns and steer round asteroids and stations. Off: as in the original.");
+            list.Add(SessionRule(es2Flight));
             // Remake (players' report: fighters hard to hit since the mesh collision): every hull's real shape, the flyable ships
             // on the original's hit cube, or the original's volumes everywhere (Settings.ShipCollision, Flight.HullCollision.Mode).
             list.Add(SessionRule(Choice("shipCollision", OptionPage.Gameplay, () => X("shipCollision", "Ship collision"), true,

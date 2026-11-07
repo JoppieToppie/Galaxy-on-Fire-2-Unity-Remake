@@ -9,21 +9,24 @@ namespace GoF2Remake.Data
         public const int CloakLosesPursuers = 1, PirateEvents = 2, CapitalShips = 4, InformerOriginalRule = 8,
                          KaamoStacking = 16, KaamoKeepsEquipment = 32, CloakBay = 64, EmpBreaksCloak = 128,
                          SmarterNpcTargeting = 256, PreciseShipCollision = 512, OriginalCollision = 1024,
-                         DogfightOriginal = 2048, DogfightEvery = 4096;
+                         DogfightOriginal = 2048, DogfightEvery = 4096, Es2Aiming = 8192, DogfightEs2 = 16384, Es2NpcFlight = 32768;
 
-        /// <summary>Remake (the GoF3 roadmap's G6): how NPC fighters fight (Settings.NpcDogfight, Flight.Gof3Dogfight), two
-        /// bits: DogfightOriginal = GoF2's everywhere, DogfightEvery = GoF3's for every fighter, neither = GoF3's for the
-        /// hulls that ask for it (ships.json "traffic": { "ai": "gof3" }; the default, so a session without the bits has it).</summary>
-        public const int DogfightOriginalMode = 0, DogfightModHulls = 1, DogfightAll = 2, DefaultDogfight = DogfightModHulls;
+        /// <summary>Remake (the GoF3 roadmap's G6; ES2's added 2026-11-06): how NPC fighters fight (Settings.NpcDogfight,
+        /// Flight.Gof3Dogfight / Es2Dogfight), three bits: DogfightOriginal = GoF2's everywhere, DogfightEvery = GoF3's for every
+        /// fighter, DogfightEs2 = EVERSPACE 2's for every fighter, none = the hulls' own (ships.json "traffic": { "ai": "gof3" /
+        /// "es2" }; the default, so a session without the bits has it).</summary>
+        public const int DogfightOriginalMode = 0, DogfightModHulls = 1, DogfightAll = 2, DogfightEs2All = 3, DefaultDogfight = DogfightModHulls;
 
         public static int DogfightOf(int rules) =>
-            (rules & DogfightOriginal) != 0 ? DogfightOriginalMode : (rules & DogfightEvery) != 0 ? DogfightAll : DogfightModHulls;
+            (rules & DogfightOriginal) != 0 ? DogfightOriginalMode : (rules & DogfightEs2) != 0 ? DogfightEs2All
+            : (rules & DogfightEvery) != 0 ? DogfightAll : DogfightModHulls;
 
         public static int WithDogfight(int rules, int mode)
         {
-            rules &= ~(DogfightOriginal | DogfightEvery);
+            rules &= ~(DogfightOriginal | DogfightEvery | DogfightEs2);
             if (mode == DogfightOriginalMode) rules |= DogfightOriginal;
             else if (mode == DogfightAll) rules |= DogfightEvery;
+            else if (mode == DogfightEs2All) rules |= DogfightEs2;
             return rules;
         }
 

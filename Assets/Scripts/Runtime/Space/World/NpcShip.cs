@@ -287,6 +287,25 @@ namespace GoF2Remake.World
         Target dogTarget;
         Vector3 dogTargetLast, dogTargetVel;
         bool rollInvulnerable;
+        /// <summary>Remake options (NpcShipEs2): EVERSPACE 2's aim (Settings.Es2Aiming; null = GoF2's) with its aim point and
+        /// reticule, its noise and suppression seed, the attackers on its target counted every half second; EVERSPACE 2's way of
+        /// fighting (Settings.NpcDogfight; null = another) with its zig-zag leg and the leg's age.</summary>
+        Es2Aim es2Aim;
+        Target es2AimFor;
+        Vector3 es2AimPoint, es2Reticule;
+        int es2Seed, es2Attackers;
+        float es2CountMs;
+        Es2Dogfight es2Fight;
+        Vector3 es2Leg;
+        float es2LegMs;
+        /// <summary>Remake option (Settings.Es2NpcFlight, NpcShipEs2Flight): it flies on EVERSPACE 2's physics: its velocity (units
+        /// a second), yaw and pitch rates (degrees a second), the last path test's direction and speed factor (straight = the
+        /// wanted direction itself), the time to the next test, the frame it last flew so.</summary>
+        bool es2Flight;
+        Vector3 es2Vel, es2PathDir, es2PathWanted;
+        float es2YawRate, es2PitchRate, es2PathSpeed = 1f, es2PathMs;
+        bool es2PathStraight = true;
+        int es2FlownFrame = -2;
         WingmanCrew wingCrew;
         int[] wingFace;
         bool wingHelpSaid;
@@ -554,6 +573,8 @@ namespace GoF2Remake.World
         {
             var list = (db?.Ship(spec.ship) as CustomShipData)?.traffic?.secondaries;
             if (list == null) return;
+            // GoF3's Easy (NPCFactory::getSecondaryWeaponNPCAmmount, secondaryWeaponNPCCapMultiplier 0.5): half carry none
+            if (dogfight != null && Session.Difficulty < 0.25f && Random.value >= Gof3Dogfight.EasySecondaryShare) return;
             foreach (var s in list)
             {
                 if (s == null || !s.Carried(Session.Rank, Random.value)) continue;
