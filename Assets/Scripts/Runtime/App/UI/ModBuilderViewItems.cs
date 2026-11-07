@@ -283,7 +283,26 @@ namespace GoF2Remake.UI
                     T("mbStatNoteTractorRange", "How far the extra beams reach for containers (20 = 1 m)."));
             }
             if (item.categoryId == 21)
+            {
                 Add(104, 0, 0, 1, T("mbStatNotePhase", "While cloaked the ship passes through everything and nothing hits it."), true);
+                Add(Flight.Cloak.CooldownAttr, 0, 0, 600000, T("mbStatNoteCloakCooldown", "Its own cooldown in ms (0 = the difficulty's 5-12 s)."));
+            }
+            if (item.categoryId == 20)
+            {
+                // A seatless cabin (cabinSize 0) made an active device (Flight.Device, PlayerDevices).
+                Add(Flight.Device.TypeAttr, 0, 0, Flight.Device.TypeCount, T("mbStatNoteDevice",
+                    "An active device (with cabinSize 0): 1 EMP wave, 2 EMP shot, 3 shield disruptor, 4 overcharger area, 5 overcharger beam, 6 strike charge, 7 deflector."));
+                Add(Flight.Device.CooldownAttr, Flight.Device.DefaultCooldownMs, 0, 600000);
+                Add(Flight.Device.DurationAttr, 8000, 0, 120000, T("mbStatNoteDeviceDuration", "How long it runs (the slow, the boost, the deflector); 0 = at once."));
+                Add(Flight.Device.RadiusAttr, 9120, 0, 200000, T("mbStatNoteDeviceRadius", "Its reach (20 = 1 m)."));
+                Add(Flight.Device.GrowAttr, 2500, 0, 20000);
+                Add(Flight.Device.SlowAttr, 25, 0, 100, T("mbStatNoteDeviceSlow", "The speed an EMP device leaves its targets, in percent."));
+                Add(Flight.Device.ShieldCostAttr, 66, 0, 100, T("mbStatNoteDeviceShield", "The overcharger's cost in percent of the maximum shield."));
+                Add(Flight.Device.DamagePercentAttr, 100, 0, 1000, T("mbStatNoteDeviceDamage",
+                    "The overcharger's damage in percent of the shield spent, the strike charge's boost, the deflector's turned-back shots."));
+                Add(Flight.Device.ChargeAttr, 0, 0, 100000, T("mbStatNoteDeviceCharge", "The strike charge: the damage dealt that fills it."));
+                Add(Flight.Device.ConeAttr, 30, 1, 180);
+            }
             return list;
         }
 

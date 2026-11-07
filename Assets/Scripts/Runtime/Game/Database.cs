@@ -235,6 +235,11 @@ namespace GoF2Remake.Data
         /// <summary>A mod capital ship that jumps away when its hull is depleted instead of being destroyed (World.CapitalRetreat:
         /// EVERSPACE 2's Dreadnought), so an encounter with it can come again.</summary>
         public bool retreat;
+        /// <summary>Remake mods: the loot container this ship leaves when it dies or is robbed (Modding.ModCrates): a glTF / GLB
+        /// file in the mod, drawn in place of its race's container, as big as that container unless 'crateSize' (its largest
+        /// extent, game units) says otherwise; none = the race's.</summary>
+        public string crate;
+        public float crateSize;
     }
 
     /// <summary>Remake mods: EVERSPACE 2's per-ship switches of its engine effects (a ship blueprint's SpawnEngineGlow /
@@ -339,6 +344,16 @@ namespace GoF2Remake.Data
         public float detailTiling = 1f, detailNormalScale = 1f;
         public float tiling = 1f;  // remake mods: the main textures repeat this many times over the UVs (EVERSPACE 2's plating 'Tiling')
         public float opacity;   // 0 / 1 = opaque; below 1 a see-through surface (glass: premultiplied, so reflections stay bright)
+        // remake mods: the specular workflow (URP's specular setup) in place of metallic: 'specularGlossiness' a map of the
+        // specular colour (RGB, sRGB) and smoothness (A, x 'smoothness'), or 'specularColor' (RGB) without one. Galaxy on
+        // Fire 3's hulls light this way (a coloured specular over the diffuse, not a metal).
+        public string specularGlossiness;
+        public float[] specularColor;
+        // With a specular map or colour, GoF3's own terms (GoF2/Hull's GoF3ShipShader, Modding/README.md "materials"): how much
+        // the surroundings reflect (GoF3's Environment_Amount, default 1) and its rim light (default 1), GoF3's
+        // Specular_Multiplier on the highlight (default 1) and 'multiplierInMap' when the map already carries it.
+        public float environment = 1f, rim = 1f, highlightMultiplier = 1f;
+        public bool multiplierInMap;
         public bool doubleSided;   // both faces drawn (models with one-sided panels the camera can see from behind)
         public bool engine;        // its emission shows only while the engines run (dark on a ship parked in a hangar)
         // With "engine": its share of the glow at throttle 0 (0..1); 1 = steady like the game's own engine glow, lit
@@ -353,6 +368,12 @@ namespace GoF2Remake.Data
         // A nozzle shimmer (GoF2/ModNozzleShimmer): an additive layer over the nozzle's glowing faces, the glow pattern
         // (emission) times flameNoise scrolling along it; with "engine" it follows the engines like the glow.
         public bool shimmer;
+        // An additive glow layer (GoF2/ModGlow): its emission (or diffuse) texture x emissionColor x emissionIntensity x the
+        // mesh's vertex colours (not with ignoreVertexColors), added to what is behind it, scrolling by scroll [u, v] a second
+        // (Galaxy on Fire 3's gate glows and electricity).
+        public bool additive;
+        public float[] scroll;
+        public bool ignoreVertexColors;
         // Battle damage embers: a mask (PNG) set as this material's emission when it has none, glowing ember-orange with the
         // ship's hull damage (DamageEmbers: from a third of the hull lost, flickering).
         public string damageEmission;
@@ -449,6 +470,15 @@ namespace GoF2Remake.Data
         public bool male;
         public int ship, weapon, hitpoints, loot, lootAmount, reward, requiredBounties, requiredMission, numWingmen;
         public int[] portraitParts;
+        // Remake mods (Modding.ModWanted, a mod's wanted.json): its key ("mod_id:id"; null = the game's), its own texts and
+        // face (a mod character), the systems it roams (null = anywhere), its trips' length in systems, a rocket launcher, and
+        // when it is on its board ("available", a condition); its escorts' ships (null = the race's fighters), its own fight
+        // music (a mod track) and what it says when uncovered.
+        [System.NonSerialized] public string key, description, character, available, availableWhere, music, taunt;
+        [System.NonSerialized] public int[] systems, escorts;
+        [System.NonSerialized] public int routeMin = 2, routeMax = 4, secondary = -1;
+        [System.NonSerialized] public Modding.ModInfo mod;
+        public bool IsMod => key != null;
     }
 
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]

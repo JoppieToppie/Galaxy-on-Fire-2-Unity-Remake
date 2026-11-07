@@ -16,7 +16,7 @@ namespace GoF2Remake.Flight
         /// at half that hull.</summary>
         static void AddWanted(List<SpawnSpec> list, WantedData w, Vector3 wpLocal)
         {
-            int race = w.race < 4 ? w.race : Standing.Pirate;
+            int race = w.race < 4 || (w.IsMod && Modding.ModRaces.Is(w.race)) ? w.race : Standing.Pirate;   // (a mod's own race)
             int h = 15 * Mathf.Min(Session.Rank, 20) + w.hitpoints + 4 * 45;
             int hull = (int)(h * Session.DifficultyFactor);
             list.Add(new SpawnSpec
@@ -24,10 +24,11 @@ namespace GoF2Remake.Flight
                 group = NpcGroup.Local, race = race, ship = w.ship, position = wpLocal + Jitter(), hitpoints = hull, name = w.name,
                 lootItem = w.loot, lootAmount = w.lootAmount, wantedIndex = w.index, speed = 4.5f, gunItem = w.weapon, gunFactor = 4f,
                 // Level::assignGuns: the wanted's flying ships 45-48 add a rocket gun (item 31 G'liissk, 4 x damage).
-                secondaryItem = w.ship >= 45 && w.ship <= 48 ? 31 : -1, secondaryFactor = 4f,
+                secondaryItem = w.IsMod ? w.secondary : w.ship >= 45 && w.ship <= 48 ? 31 : -1, secondaryFactor = 4f,   // (a mod's: its "secondary")
             });
-            for (int i = 0; i < w.numWingmen; i++)
-                list.Add(new SpawnSpec { group = NpcGroup.Escort, race = race, ship = NpcTables.RandomFighter(race), position = wpLocal + Jitter(),
+            for (int i = 0; i < w.numWingmen; i++)   // (a mod's "escorts": its ships in turn)
+                list.Add(new SpawnSpec { group = NpcGroup.Escort, race = race, position = wpLocal + Jitter(),
+                                         ship = w.escorts != null ? w.escorts[i % w.escorts.Length] : NpcTables.RandomFighter(race),
                                          hitpoints = hull / 2, wantedEscortOf = w.index });
         }
         /// <summary>[0] the freighter "Arms delivery" (1664) parked at C = (+-(80000..109999), -6000..-3001, 120000..169999),

@@ -273,5 +273,19 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(h.DamageEmp(100));
             Assert.AreEqual(40, h.emp);
         }
+
+        [Test]
+        public void AFactorOfZeroGoesPastTheShield()
+        {
+            // GoF3's AbilityBypassShield (a mod weapon's shieldBypass: Gun.ShieldFactor 0)
+            var h = new Hitpoints(100, 50, 30);
+            Assert.IsFalse(h.Damage(40, 0f));
+            Assert.AreEqual(50f, h.shield, "the shield untouched");
+            Assert.AreEqual(0, h.armor);
+            Assert.AreEqual(90, h.hull, "the armor's 30, then 10 off the hull");
+            Assert.IsTrue(h.Damage(200, 0f));
+            Assert.AreEqual(0, h.hull);
+            Assert.AreEqual(50f, h.shield);
+        }
     }
 }

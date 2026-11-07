@@ -53,7 +53,7 @@ namespace GoF2Remake.Flight
             var item = Shop.FirstMounted(db, 21) ?? (db.IntegratedCloak(ship) >= 0 ? db.Item(db.IntegratedCloak(ship)) : null);
             if (item == null) return null;
             var c = player.AddComponent<PlayerCloak>();
-            c.Rules = new Cloak(item.index, item.Attr(35, 10000), item.Attr(36, 2000), item.Attr(38, 1), Session.Difficulty);
+            c.Rules = new Cloak(item.index, item.Attr(35, 10000), item.Attr(36, 2000), item.Attr(38, 1), Session.Difficulty, item.Attr(Cloak.CooldownAttr));
             c.ItemName = GameNames.Item(item.index);
             c.Phases = item.Attr(PhaseAttr) > 0;
             c.target = target;
@@ -129,7 +129,7 @@ namespace GoF2Remake.Flight
                 Message?.Invoke($"{Localization.Get(583)} {Rules.cells}.");
                 return;
             }
-            if (free) return;
+            if (free || Rules.cells <= 0) return;   // (a mod's cloak may need none: GoF3's Hiroto Cloak)
             Shop.RemoveFromCargo(Cloak.EnergyCellItem, Rules.cells);
             Message?.Invoke($"-{Rules.cells}t {GameNames.Item(Cloak.EnergyCellItem)}");
         }

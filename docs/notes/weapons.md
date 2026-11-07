@@ -113,6 +113,12 @@ is generated from it by `Reference/tools/weapons/build_weapon_fx.py`; **GoF2 > B
   the capital turrets aiming and firing (9 of 13 at once), a battleship built from item 48's turrets firing at the Vossk
   side, a sentry picking a raider, the manual turret view (47) with the crosshair on the barrel, the hangar's turntable
   with the mod turret, a parked NPC Veteran and Rhino with theirs.
+- **Shield bypass and slowing weapons** (remake, for mods, 2026-11-02: GoF3's AbilityBypassShield / AbilitySlowdown, the GoF3
+  Ships mod's Hunter-XT and Slowdeath): `shieldBypass` (161) makes `Gun.ShieldFactor` 0, which `Hitpoints.Damage` takes as past
+  the shield (armor, then hull; the shield untouched; `NetPlayer.HitUpRpc` lets the 0 through); `slowMs` / `slowPercent`
+  (162 / 163, `Gun.slowMs` / `slowFactor`) slow the ship hit in `WeaponSystem.OnHit` through `Target.SlowBy` with turning
+  still allowed (`Slow.Apply`'s noTurn false; the EMP devices' stop the turning too). NPCs have no shield, so the bypass
+  counts against players. Tests `HitpointsTests.AFactorOfZeroGoesPastTheShield`, `DeviceTests.AWeaponsSlowLetsTheShipTurn`.
 - **Homing missiles near their goal** (remake, `Gun.Update`; user report): `RocketGun::seekEnemy` steers by (goal dir -
   dir) / k a frame at a constant speed, which can't turn tighter than ~150 m at 18 u/ms, so a missile passing its target
   (no ±1000-unit hit cube with the hull meshes) or reaching a salvo's spot in empty space inside a hull's hit boxes

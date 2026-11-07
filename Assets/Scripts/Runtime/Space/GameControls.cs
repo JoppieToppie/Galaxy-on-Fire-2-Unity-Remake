@@ -63,7 +63,8 @@ namespace GoF2Remake.Flight
             FirePrimary, FireSecondary, SwitchSecondary, UnlockTarget, Action, AutopilotMenu, ActionsMenu, Wingmen, KhadorDrive, FastForward,
             Camera, CockpitView, AutoTurret, Cloak, TimeExtender, MouseSteering, Chat, ChatSend, ChatChannel, Screenshot,
             HudToggle, MultiplayerWindow, DistressCall,
-            Thrust, StrafeAxis, Hover, Dampeners, FreeLookHold;
+            Thrust, StrafeAxis, Hover, Dampeners, FreeLookHold,
+            Device1, Device2, Device3;
 
         static string X(string key, string english) => Localization.Extra(key, english);
 
@@ -155,6 +156,11 @@ namespace GoF2Remake.Flight
                 new string[] { null, null }, padParts: new string[] { null, null });
             Dampeners = Button("dampeners", () => X("ctlDampeners", "Inertial dampeners on / off"), null, null, null);
             FreeLookHold = Button("freeLookHold", () => X("ctlFreeLookHold", "Free look (hold)"), null, null, null);
+            // Remake: the first three active devices (PlayerDevices, mod items; Flight.Device) on 4 / 5 / 6, free in both layouts
+            // (1-3 roll and level out). No controller default (every button is taken): the quick menu (D-pad left) has them.
+            Device1 = Button("device1", () => X("ctlDevice1", "Device 1"), "<Keyboard>/4", null, null);
+            Device2 = Button("device2", () => X("ctlDevice2", "Device 2"), "<Keyboard>/5", null, null);
+            Device3 = Button("device3", () => X("ctlDevice3", "Device 3"), "<Keyboard>/6", null, null);
 
             bool Free() => loadedStyle == FlightStyles.Free;
             foreach (var r in rows)

@@ -56,6 +56,10 @@ float4 _DecalParams;
 half4 _DecalColor1;
 half4 _DecalColor2;
 half4 _DecalColor3;
+// GoF2: a mod specular material's GoF3 terms (ModMaterials, HullForwardPass.hlsl GoF3ShipShader): x environment (GoF3's
+// Environment_Amount), y rim light, z GoF3's Specular_Multiplier, w 1 = the map carries that multiplier (GoF3's ship bodies:
+// the whole specular x it) / 0 = the map doesn't (glass, capital-ship parts: the highlight x it).
+half4 _GoF3Params;
 UNITY_TEXTURE_STREAMING_DEBUG_VARS;
 CBUFFER_END
 

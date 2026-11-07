@@ -228,6 +228,9 @@ simulates an orbit's traffic) and `ship_combat.md` (+ `Reference/tools/combat/co
 - **Mesh collision** (remake, 2026-10; an option with three modes, Mixed by default, below; `HullCollision` +
   `HullBody`, Unity physics): every ship (NPC, player, other players, proxies, mods' glTF ships), station, jumpgate,
   turret and story / static object gets MeshColliders on its own LOD 0 meshes (not the additive / light / glow layers)
+  (a lower level by name is `_lod_` + a number above 0 or AutoLods' `_lod_gen`, `HullCollision.LowerLodName`; until
+  2026-11-02 any `_lod_` was, so GoF3's `..._lod_000_body` meshes left the GoF3 Systems mod's stations, gates and traffic
+  without a hull and the player met the box round the whole model, km wide)
   on layer 24, under a kinematic Rigidbody on the model's root (no simulation is needed: the queries sync the transforms
   once a frame); the hull models are imported with Read/Write for it (`AssetImport.IsHullModel`: ships, stations,
   jumpgates, turrets, misc; a mod's glTF is readable), each mesh cooked once (`Physics.BakeMesh`). Shots
