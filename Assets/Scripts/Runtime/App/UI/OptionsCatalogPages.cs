@@ -299,7 +299,11 @@ namespace GoF2Remake.UI
             // A toggle: off = the original's flight and key layout, untouched.
             var freeFlight = Toggle("flightStyle", OptionPage.Controls, () => X("flightStyleFree", "Free flight (EVERSPACE 2 style)"),
                 () => Settings.FlightStyle == FlightStyles.Free, v => Settings.FlightStyle = v ? FlightStyles.Free : FlightStyles.Original);
-            freeFlight.description = () => (FlightStyles.Forced ? FlightStyleForcedNote() + " " : "") + X("flightStyleHelp", "Free flight: W / S thrust, A / D strafe, Space / Ctrl up and down, Q / E roll, Shift boost, Z dampeners. Own key layout.");
+            freeFlight.description = () => (FlightStyles.Forced ? FlightStyleForcedNote() + " " : "") + X("flightStyleHelp", "Free flight: W / S thrust, A / D strafe, Space / Ctrl up and down, Q / E roll, Shift boost, Z dampeners. Own key layout.")
+                // Remake: free flight's touch layout (TouchControlsFreeFlight), on a touch device.
+                + (Application.isMobilePlatform || InputMode.Current == InputKind.Touch
+                    ? " " + X("flightStyleTouchHelp", "Touch: the stick thrusts and strafes, drag the screen (or the held fire button) to aim, the buttons beside the stick go up, down and switch the dampeners; the ship rolls itself level.")
+                    : "");
             list.Add(freeFlight);
             // MenuTouchWindow state 8: 490 Touch / 491 Accelerometer pictures (options[0x11]), 492 Steering Calibration
             // (493, then OK stores the device's position), the sensitivity slider per mode (+0x14 / +0x18).

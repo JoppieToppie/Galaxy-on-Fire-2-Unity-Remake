@@ -13,7 +13,8 @@
 // built-in actions wins, so both can be used at the same time (FlightHud's touch stick does this).
 // Remake: free flight (Settings.FlightStyle, after EVERSPACE 2; FlightModel.StepFree) with the keyboard / mouse or a
 // controller: GameControls' Thrust / Strafe / Hover / Roll held, the stick or the mouse's virtual joystick aims, the boost
-// held, Dampeners toggles the inertial dampeners. Touch, tilt and VR keep the original style; so do the autopilot, the
+// held, Dampeners toggles the inertial dampeners. On touch (remake) the touch controls' free-flight layout: SetTouchFree's
+// move / up-down / boost and SetSteer's aim. Tilt and VR keep the original style; so do the autopilot, the
 // launch / arrival camera, the turret view, the dodge and computer control, which hand the ship back where they left it.
 
 using GoF2Remake.UI;
@@ -35,10 +36,32 @@ namespace GoF2Remake.Flight
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { Dampeners = true; DampenersChanged = null; }
 
-        /// <summary>Free flight is in use for this ship now: the style (the option, or a mod's / an event's), the player's own input (keyboard / mouse or a
-        /// controller; touch, tilt and VR keep the original style).</summary>
+        /// <summary>Free flight is in use for this ship now: the style (the option, or a mod's / an event's), the player's own input (keyboard / mouse, a
+        /// controller or, remake, the touch controls' free-flight layout; tilt and VR keep the original style).</summary>
         public bool FreeFlightActive => Data.FlightStyles.Current == Data.FlightStyles.Free && useBuiltInInput && !tiltMode
-                                        && UI.InputMode.Current != UI.InputKind.Touch && !Data.VrFlags.Enabled;
+                                        && !Data.VrFlags.Enabled;
+        /// <summary>Free flight on the touch controls (TouchControlsFreeFlight): the stick moves, a drag aims, no roll input, so
+        /// EVERSPACE 2's auto-roll is on (ES2 turns it on per device, a controller yes).</summary>
+        public bool TouchFree => FreeFlightActive && UI.InputMode.Current == UI.InputKind.Touch;
+
+        Vector2 touchMove;
+        float touchHover;
+        bool touchBoost, touchBoostWas;
+        /// <summary>The touch controls' free-flight input (FlightHud): the stick's thrust (y) and strafe (x), up / down, the boost
+        /// button held. Added to the bindings' axes in StepFree; zero when touch isn't in use.</summary>
+        public void SetTouchFree(Vector2 move, float hover, bool boost)
+        {
+            touchMove = Vector2.ClampMagnitude(move, 1f);
+            touchHover = Mathf.Clamp(hover, -1f, 1f);
+            touchBoost = boost;
+        }
+
+        /// <summary>Free flight's dampeners switched (the Dampeners binding, the touch controls' button).</summary>
+        public void ToggleDampeners()
+        {
+            Dampeners = !Dampeners;
+            DampenersChanged?.Invoke(Dampeners);
+        }
 
         [Header("Ship")]
         public FlightStats stats = new FlightStats();
@@ -158,9 +181,12 @@ namespace GoF2Remake.Flight
         /// dry unlatches (a fresh press starts the next).</summary>
         bool BoostInput(bool live)
         {
-            if (!Data.Settings.BoostToggle) { boostLatched = false; return live && GameControls.Boost.IsPressed(); }
+            // The touch boost button (SetTouchFree): held like the key, its press an edge of its own.
+            bool touchPressed = touchBoost && !touchBoostWas;
+            touchBoostWas = touchBoost;
+            if (!Data.Settings.BoostToggle) { boostLatched = false; return live && (GameControls.Boost.IsPressed() || touchBoost); }
             if (Model.BoostRanDry || !live) boostLatched = false;
-            if (live && GameControls.Boost.WasPressedThisFrame()) boostLatched = boostLatched ? false : Model.CanStartBoost;
+            if (live && (GameControls.Boost.WasPressedThisFrame() || touchPressed)) boostLatched = boostLatched ? false : Model.CanStartBoost;
             return boostLatched;
         }
         public void AlignToHorizon() => Model.AlignToHorizon();
@@ -289,7 +315,7 @@ namespace GoF2Remake.Flight
             if (useBuiltInInput) GameControls.ApplyStyle();
             Model.TiltMode = tiltMode;
             Model.LevelPitch = Data.Settings.LevelPitch;
-            Model.AutoRoll = Data.Settings.AutoRoll;   // remake: EVERSPACE 2's auto-roll in free flight
+            Model.AutoRoll = Data.Settings.AutoRoll || TouchFree;   // remake: EVERSPACE 2's auto-roll in free flight (touch: always)
             Model.Mass = mass;
             // PlayerEgo::up / right with the mouse cursor: the ramp divisor is 12, i.e. (3.3 - sens) x 20 with sens 2.7.
             Model.Sensitivity = tiltMode ? Data.Settings.TiltSensitivity : mouseSteering ? 2.7f : sensitivity;
@@ -444,16 +470,12 @@ namespace GoF2Remake.Flight
         void StepFree(Vector2 aim, float dtMs)
         {
             bool live = useBuiltInInput && !Navigation.InputHalted;
-            if (live && GameControls.Dampeners.WasPressedThisFrame())
-            {
-                Dampeners = !Dampeners;
-                DampenersChanged?.Invoke(Dampeners);
-            }
+            if (live && GameControls.Dampeners.WasPressedThisFrame()) ToggleDampeners();
             var input = new FlightModel.FreeInput
             {
-                thrust = live ? GameControls.Thrust.ReadValue<float>() : 0f,
-                strafe = live ? GameControls.StrafeAxis.ReadValue<float>() : 0f,
-                hover = live ? GameControls.Hover.ReadValue<float>() : 0f,
+                thrust = live ? Mathf.Clamp(GameControls.Thrust.ReadValue<float>() + touchMove.y, -1f, 1f) : 0f,
+                strafe = live ? Mathf.Clamp(GameControls.StrafeAxis.ReadValue<float>() + touchMove.x, -1f, 1f) : 0f,
+                hover = live ? Mathf.Clamp(GameControls.Hover.ReadValue<float>() + touchHover, -1f, 1f) : 0f,
                 roll = live ? Mathf.Clamp(GameControls.Roll.ReadValue<float>() + touchRoll, -1f, 1f) : 0f,
                 aim = aim,
                 dampeners = Dampeners,

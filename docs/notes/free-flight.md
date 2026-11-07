@@ -48,7 +48,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   dampeners even with them off, until the player thrusts). With the dampeners off the thrust never pushes past the top
   speed (the game's cap: what is asked, or the speed it already had). The sideways part of the
   move goes to `StrafeSlide`, so the chase camera stays square behind a sliding ship. `ShipController.FreeFlightActive`: the
-  option with keyboard / mouse or a controller (touch, tilt and VR keep the original); the autopilot, the launch / arrival
+  option with keyboard / mouse, a controller or touch (see "Free flight on touch"; tilt and VR keep the original); the
+  autopilot, the launch / arrival
   camera, the turret view, the dodge and computer control (mining, object docking) run the original path and hand back
   the velocity (`SyncFree`). Mods can tune each style or set the style (see "Mods", Flight styles). The mouse: EVERSPACE
   2's virtual joystick (`ReadVirtualStick`: the mouse moves a reticle
@@ -80,6 +81,22 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   stopped in 1.48 s; the boost 209 / 306 / 320 m/s at +1 / +2 / +3 s, braking 33 m/s^2 after it; the heading turning
   153.1 deg/s (125 x sqrt(1.5), the square root of then; now 169); the mouse's yaw the offset's horizontal share of the radius x the top rate (94.1 / 55.6
   deg/s for 232 / 137 px of 377), nothing back in the dead zone.
+- **Free flight on touch** (remake, 2026-11-06, the user's request: there was no way to strafe on a phone; `TouchControlsFreeFlight`,
+  `Frame.freeFlight`, `ShipController.TouchFree` / `SetTouchFree`): with the free flight style and touch input (not tilt)
+  the touch controls take a layout after the controller's, as EVERSPACE 2 has no touch version: the stick thrusts (up /
+  down) and strafes (left / right), linear, its double tap still levelling out; the empty screen aims, a floating stick
+  whose centre is where the finger went down (offset over `AimRadius` 140 panel units, a 10 unit dead zone, linear like
+  ES2's mouse virtual joystick: it keeps turning while held off centre; a faint ring and dot, `.touch-aim-ring`); the held
+  fire button aims too by the thumb's offset (a 26 unit dead zone so a plain press doesn't turn), so one thumb shoots
+  and aims; a column right of the stick's touch area: the dampeners pill (amber while on, `ToggleDampeners`), up and
+  down held (`UpDown`); the boost button is held (`BoostHeld`, a press of its own for `Settings.BoostToggle`); a quick
+  sideways flick still dodges, released within 250 ms (`FreeDodgeSeconds`: the original's 600 ms took aiming drags for
+  dodges); free look's drag orbits as before. No throttle drag and no roll buttons: auto-roll is always on there
+  (`Model.AutoRoll = Settings.AutoRoll || TouchFree`, as ES2 turns it on for a controller). The flight HUD hands the
+  stick, up / down and boost to `SetTouchFree` (added to the bindings' axes in `StepFree`) and the aim to `SetSteer`,
+  and clears them wherever it clears the steering (death, cutscenes, docked). The option's help adds a touch sentence on
+  a touch device (`flightStyleTouchHelp`, 13 languages). Tests `TouchFreeFlightTests` (the aim's dead zone, linear
+  growth, clamp, axes). Not yet played on a device.
 - **Auto-roll** (remake, 2026-11-02, Options > Controls "Auto-roll to the horizon (free flight)", `Settings.AutoRoll`, off by
   default; `FlightModel.AutoRoll` / `AutoRollInput`, after EVERSPACE 2's `UShipMovementComponent::GenerateAutoRollInput`,
   decompiled, with the numbers from the component's constructor named by the SDK dump's field layout: `MaxAutoRollInput`

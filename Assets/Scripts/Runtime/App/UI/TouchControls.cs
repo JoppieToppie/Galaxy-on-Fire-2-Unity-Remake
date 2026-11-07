@@ -32,6 +32,8 @@
 // switch key / D-pad, a tap on the plate, the quick menu) shows it for 2 s (touch: at the button, else above the plate);
 // while shown its icons take a tap / click. The original picks a secondary only in the quick menu's second level
 // (Hud::initHudMenu(1)), which stays.
+// Remake, free flight on touch (Frame.freeFlight; TouchControlsFreeFlight.cs): the stick moves the ship (thrust / strafe), a
+// drag on the empty screen or on the held fire button aims, a column beside the stick holds up / down and the dampeners.
 
 using System;
 using System.Collections.Generic;
@@ -42,7 +44,7 @@ using UnityEngine.UIElements;
 namespace GoF2Remake.UI
 {
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
-    public sealed class TouchControls
+    public sealed partial class TouchControls
     {
         /// <summary>What reacts this frame: nothing, only the pause button (cutscenes, the launch camera), nothing but the
         /// stick drawn (a HUD menu is open), or everything.</summary>
@@ -69,6 +71,8 @@ namespace GoF2Remake.UI
             public bool gauge;                   // keyboard / controller flight: the throttle gauge without the touch controls
             public bool cursor;                  // the PC cursor mode: the buttons without the stick and the gestures
             public bool cinematic;               // a cutscene / launch camera / jump scene: the pause button nearly invisible
+            public bool freeFlight;              // remake: free flight's touch layout (move stick, aim drag, up / down, dampeners)
+            public bool dampeners;               // free flight's inertial dampeners are on (the button lit)
         }
 
         /// <summary>The pause button's opacity during a cutscene (remake: the original draws it opaque; lit while held).</summary>
@@ -91,6 +95,7 @@ namespace GoF2Remake.UI
         public Action<float> SetThrust;
         public Action<Vector2, bool> FreeLookDrag; // screen-pixel delta (y up), still held
         public Action<float> FreeLookPinch;        // two-finger span change in screen pixels
+        public Action DampenersToggled;            // free flight: the dampeners button tapped
 
         /// <summary>The stick, offset / 94 per axis (x right, y up), not squared.</summary>
         public Vector2 Stick { get; private set; }
@@ -98,6 +103,13 @@ namespace GoF2Remake.UI
         public bool FireHeld => autofire || (firePointer >= 0 && !fireSwallowed);
         /// <summary>The pause button (in the HUD root): the top readout keeps left of it while it shows (FlightHud).</summary>
         public VisualElement PauseButton => pause;
+        /// <summary>Free flight: the aim (x right, y up, -1..1), from a drag on the empty screen or on the held fire button,
+        /// whichever is further out (TouchControlsFreeFlight).</summary>
+        public Vector2 Aim => gestureAim.sqrMagnitude >= fireAim.sqrMagnitude ? gestureAim : fireAim;
+        /// <summary>Free flight: the up / down buttons held, +1 up, -1 down.</summary>
+        public float UpDown => frame.freeFlight && frame.mode == Mode.Full ? (held.Contains(upButton) ? 1f : 0f) - (held.Contains(downButton) ? 1f : 0f) : 0f;
+        /// <summary>Free flight: the boost button is held (the boost is held in free flight, not a press).</summary>
+        public bool BoostHeld => frame.freeFlight && frame.mode == Mode.Full && held.Contains(boost);
 
         const float S0 = 415f, F0 = 365f;   // Globals::Globals: the Android defaults
         const float StickTravel = 94f, StickHitX = 112f, StickHitY = 216f;
@@ -138,6 +150,11 @@ namespace GoF2Remake.UI
         /// (Settings.FloatingTouchStick).</summary>
         Vector2 stickHome;
         Frame frame;
+        // Free flight (TouchControlsFreeFlight): the aim ring, the up / down / dampeners column, the aiming fingers.
+        VisualElement aimBase, aimKnob, upButton, downButton, dampButton;
+        Label dampLabel;
+        int aimPointer = -1;
+        Vector2 aimStart, fireStart, gestureAim, fireAim;
 
         static Texture2D Tex(string name) => Resources.Load<Texture2D>("GoF2Hud/" + name);
 
@@ -175,6 +192,7 @@ namespace GoF2Remake.UI
             stickBase = Image(layer, Tex("touch_stick_base"), false);
             knob = Image(layer, knobOff, false);
             HookStick();
+            BuildFreeFlight();
             cluster = Image(layer, clusterBottom, false);
             camera = Button(Image(layer, camOff[3]), () => CameraPressed?.Invoke(), () => CameraReleased?.Invoke(), () => CameraCancelled?.Invoke());
             turret = Button(Image(layer, turretOff), null, () => TurretReleased?.Invoke());
@@ -300,6 +318,8 @@ namespace GoF2Remake.UI
                 firePointer = e.pointerId;
                 fire.CapturePointer(firePointer);
                 fireSwallowed = false;
+                fireStart = layer.WorldToLocal(e.position);
+                fireAim = Vector2.zero;
                 e.StopPropagation();
                 // An action (autopilot, jump, approach) also ends autofire (remake: it resumed by itself afterwards).
                 if (FirePressed != null && FirePressed()) { fireSwallowed = true; autofire = false; lastFirePress = -10f; return; }
@@ -310,10 +330,18 @@ namespace GoF2Remake.UI
                 if (id != firePointer) return;
                 if (fire.HasPointerCapture(firePointer)) fire.ReleasePointer(firePointer);
                 firePointer = -1;
+                fireAim = Vector2.zero;
             }
+            // Free flight: the held fire button aims too, by the thumb's offset from where it went down (as a shooter's fire
+            // button), so the right thumb can shoot and aim at once.
+            fire.RegisterCallback<PointerMoveEvent>(e =>
+            {
+                if (e.pointerId != firePointer || !frame.freeFlight) return;
+                fireAim = FreeAim((Vector2)layer.WorldToLocal(e.position) - fireStart, FireAimDeadZone);
+            });
             fire.RegisterCallback<PointerUpEvent>(e => Up(e.pointerId));
             fire.RegisterCallback<PointerCancelEvent>(e => Up(e.pointerId));
-            fire.RegisterCallback<PointerCaptureOutEvent>(_ => firePointer = -1);
+            fire.RegisterCallback<PointerCaptureOutEvent>(_ => { firePointer = -1; fireAim = Vector2.zero; });
         }
 
         /// <summary>Hud::touchBegin / touchMove on the stick: the knob follows the finger up to 94 px, the value is the offset
@@ -380,9 +408,10 @@ namespace GoF2Remake.UI
                 gestures[e.pointerId] = new Gesture
                 {
                     start = e.localPosition, last = e.localPosition, startTime = Time.unscaledTime,
-                    dodge = frame.standardCamera, throttle = !frame.freeLook,
+                    dodge = frame.standardCamera, throttle = !frame.freeLook && !frame.freeFlight,
                 };
                 gestureZone.CapturePointer(e.pointerId);
+                if (frame.freeFlight && !frame.freeLook) BeginAim(e.pointerId, e.localPosition);
             });
             gestureZone.RegisterCallback<PointerMoveEvent>(e =>
             {
@@ -399,6 +428,7 @@ namespace GoF2Remake.UI
                 if (frame.freeLook) FreeLookDrag?.Invoke(ToScreenDelta(p - g.last), true);
                 g.last = p;
                 if (frame.freeLook) return;
+                if (e.pointerId == aimPointer) MoveAim(p);
                 // MGame::maneuverTouchMove: more than h/320 * 90 up or down cancels the dodge.
                 if (g.dodge && Mathf.Abs(p.y - g.start.y) > Height / 320f * 90f) g.dodge = false;
                 if (!g.throttle || GetThrust == null || SetThrust == null) return;
@@ -415,7 +445,7 @@ namespace GoF2Remake.UI
             });
             gestureZone.RegisterCallback<PointerUpEvent>(e => EndGesture(e.pointerId, e.localPosition, true));
             gestureZone.RegisterCallback<PointerCancelEvent>(e => EndGesture(e.pointerId, e.localPosition, false));
-            gestureZone.RegisterCallback<PointerCaptureOutEvent>(e => gestures.Remove(e.pointerId));
+            gestureZone.RegisterCallback<PointerCaptureOutEvent>(e => { gestures.Remove(e.pointerId); if (e.pointerId == aimPointer) EndAim(); });
         }
 
         float Span()
@@ -444,11 +474,14 @@ namespace GoF2Remake.UI
             if (!gestures.TryGetValue(pointerId, out var g)) return;
             gestures.Remove(pointerId);
             if (gestureZone.HasPointerCapture(pointerId)) gestureZone.ReleasePointer(pointerId);
+            if (pointerId == aimPointer) EndAim();
             if (frame.freeLook) { FreeLookDrag?.Invoke(Vector2.zero, false); return; }
             // MGame::maneuverTouchEnd 0x1a7eac: within 600 ms, more than w/480 * 70 sideways, less than h/320 * 90 up or down.
             if (!released || !g.dodge || g.dragging || frame.mode != Mode.Full) return;
             float dx = p.x - g.start.x;
-            if (Time.unscaledTime - g.startTime > 0.6f || Mathf.Abs(dx) <= Width / 480f * 70f) return;
+            // Free flight: only a quick flick (an aiming drag is held longer), FreeDodgeSeconds.
+            float window = frame.freeFlight ? FreeDodgeSeconds : 0.6f;
+            if (Time.unscaledTime - g.startTime > window || Mathf.Abs(dx) <= Width / 480f * 70f) return;
             if (Mathf.Abs(p.y - g.start.y) > Height / 320f * 90f) return;
             Dodge?.Invoke(dx < 0f ? 1 : 2);
         }
@@ -456,8 +489,10 @@ namespace GoF2Remake.UI
         /// <summary>Hud::releaseAllKeys: the stick back to the centre, fire and the buttons let go, the gestures dropped.</summary>
         public void ReleaseAll()
         {
-            foreach (var e in new[] { stickArea, fire, gestureZone, camera, turret, menu, secondary, boost, pause })
+            foreach (var e in new[] { stickArea, fire, gestureZone, camera, turret, menu, secondary, boost, pause, upButton, downButton, dampButton })
                 ReleaseCaptures(e);
+            EndAim();
+            fireAim = Vector2.zero;
             ReleaseStick();
             firePointer = -1;
             ReleaseSecondary();
@@ -738,6 +773,7 @@ namespace GoF2Remake.UI
             secondaryPos = bg + (left ? new Vector2(-2f, 189f) : new Vector2(144f, 298f));
             Place(secondary, secondaryPos);
             Place(boost, boostPos);
+            LayoutFreeFlight();
             Place(plate, new Vector2(w / 2f - 187f, h - 37f));
             if (navButtons != null)   // FF at (40, S - 180), autopilot (40, S); the cursor mode's at the bottom left
                 Place(navButtons, frame.cursor ? new Vector2(32f, h - 309f) : new Vector2(32f, Mathf.Max(0f, S - 180f)));
@@ -787,6 +823,7 @@ namespace GoF2Remake.UI
             stickBase.style.opacity = stickAlpha;
             knob.style.opacity = stickAlpha;
             Show(gestureZone, full && !f.cursor);
+            DrawFreeFlight(full && !f.cursor && f.freeFlight, !f.steeringMissile);
 
             // With a HUD menu open everything after the stick is invisible (alpha 0).
             bool rest = full && !f.steeringMissile;

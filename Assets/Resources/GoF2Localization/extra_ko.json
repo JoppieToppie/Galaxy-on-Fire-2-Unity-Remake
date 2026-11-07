@@ -3375,5 +3375,6 @@
  "musicSpecters2": "전투 음악: 다수의 Specter",
  "musicWanted": "전투 음악: Most Wanted 범죄자",
  "musicTrackHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 궤도의 잔잔한 음악이 계속됩니다.",
- "musicTrackSpecialHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 대신 일반 전투 음악이 재생됩니다."
+ "musicTrackSpecialHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 대신 일반 전투 음악이 재생됩니다.",
+ "flightStyleTouchHelp": "터치: 스틱으로 추진과 측면 이동, 화면(또는 누르고 있는 발사 버튼)을 드래그해 조준, 스틱 옆 버튼으로 상승·하강과 댐퍼 전환. 함선은 스스로 수평을 맞춥니다."
 }

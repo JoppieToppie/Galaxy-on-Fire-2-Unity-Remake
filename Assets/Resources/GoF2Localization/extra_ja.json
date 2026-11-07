@@ -3375,5 +3375,6 @@
  "musicSpecters2": "戦闘BGM：多数のSpecter",
  "musicWanted": "戦闘BGM：Most Wanted の犯罪者",
  "musicTrackHelp": "オフ：この曲は流れなくなり、軌道の穏やかな音楽が続きます。",
- "musicTrackSpecialHelp": "オフ：この曲は流れなくなり、代わりに通常の戦闘BGMが流れます。"
+ "musicTrackSpecialHelp": "オフ：この曲は流れなくなり、代わりに通常の戦闘BGMが流れます。",
+ "flightStyleTouchHelp": "タッチ：スティックで推進と横移動、画面（または押したままの発射ボタン）をドラッグして照準、スティック横のボタンで上昇・下降とダンパー切替。機体は自動で水平に戻ります。"
 }

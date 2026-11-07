@@ -3375,5 +3375,6 @@
  "musicSpecters2": "Muzyka walki: wielu Specterów",
  "musicWanted": "Muzyka walki: przestępca Most Wanted",
  "musicTrackHelp": "Wył.: ten utwór już nie gra; spokojna muzyka orbity gra dalej.",
- "musicTrackSpecialHelp": "Wył.: ten utwór już nie gra; zamiast niego gra zwykła muzyka walki."
+ "musicTrackSpecialHelp": "Wył.: ten utwór już nie gra; zamiast niego gra zwykła muzyka walki.",
+ "flightStyleTouchHelp": "Dotyk: drążek daje ciąg i przesuwa w bok, przeciąganie po ekranie (lub po przytrzymanym przycisku ognia) celuje, przyciski obok drążka wznoszą, opuszczają i przełączają tłumiki; statek sam wyrównuje przechył."
 }

@@ -499,7 +499,7 @@ namespace GoF2Remake.UI
             {
                 hudHiddenDocked = dockedInOrbit;
                 root.style.display = dockedInOrbit ? DisplayStyle.None : DisplayStyle.Flex;
-                if (dockedInOrbit) { touch?.ReleaseAll(); ship?.SetSteer(Vector2.zero); weapons?.SetPrimaryHeld(false); }
+                if (dockedInOrbit) { touch?.ReleaseAll(); ship?.SetSteer(Vector2.zero); ship?.SetTouchFree(Vector2.zero, 0f, false); weapons?.SetPrimaryHeld(false); }
             }
             if (dockedInOrbit) return;
             missileWarning?.Hide();   // shown again below while missiles fly at the player and the HUD shows
@@ -550,7 +550,7 @@ namespace GoF2Remake.UI
                 // Nor the docking's transfer counter or hacking board (their state comes back with the next HUD frame).
                 transferCounter?.EnableInClassList("transfer-counter--hidden", true);
                 hackingView?.Update(null);
-                ship?.SetSteer(Vector2.zero);
+                ship?.SetSteer(Vector2.zero); ship?.SetTouchFree(Vector2.zero, 0f, false);
                 storyDialogue.Tick(Time.unscaledDeltaTime * 1000f);
                 return;
             }
@@ -732,7 +732,7 @@ namespace GoF2Remake.UI
                 // The transfer counter sits on the root, outside what hud-cinematic hides (#131: "9 / 10 unloaded" stayed up through
                 // 92's Specter cutscene, which starts the frame the last evacuee is unloaded; Hud::draw doesn't run then).
                 transferCounter?.EnableInClassList("transfer-counter--hidden", true);
-                ship.SetSteer(Vector2.zero);
+                ship.SetSteer(Vector2.zero); ship.SetTouchFree(Vector2.zero, 0f, false);
                 UpdateGameOver();
                 return;
             }
@@ -747,7 +747,7 @@ namespace GoF2Remake.UI
                 // The transfer counter sits on the root, outside what hud-cinematic hides (#131: "9 / 10 unloaded" stayed up through
                 // 92's Specter cutscene, which starts the frame the last evacuee is unloaded; Hud::draw doesn't run then).
                 transferCounter?.EnableInClassList("transfer-counter--hidden", true);
-                ship.SetSteer(Vector2.zero);
+                ship.SetSteer(Vector2.zero); ship.SetTouchFree(Vector2.zero, 0f, false);
                 weapons?.SetPrimaryHeld(false);
                 combatView.Update(radar, traffic, health, Camera.main, true, false);
                 UpdateRadio();
@@ -845,7 +845,10 @@ namespace GoF2Remake.UI
             var raw = touchMode && touch != null ? touch.Stick : Vector2.zero;
             var touchStick = tilt ? TiltSteering.Steer() : new Vector2(Mathf.Sign(raw.x) * raw.x * raw.x, Mathf.Sign(raw.y) * raw.y * raw.y);
             if (Vr.VrControls.Steer.HasValue) touchStick = Vr.VrControls.Steer.Value;   // VR: the cockpit's stick, held
-            ship.SetSteer(touchStick);
+            // Remake: free flight on touch (TouchControlsFreeFlight): the stick thrusts and strafes (linear), the drag aims.
+            bool touchFree = touchMode && touch != null && ship.TouchFree;
+            ship.SetTouchFree(touchFree ? raw : Vector2.zero, touchFree ? touch.UpDown : 0f, touchFree && touch.BoostHeld);
+            ship.SetSteer(touchFree ? touch.Aim : touchStick);
             mining?.SetTouchInput(touchStick);
 
             if ((touchMode || cursorMode) && touch != null) weapons?.SetPrimaryHeld(touch.FireHeld);   // fire held or autofire latched

@@ -3375,5 +3375,6 @@
  "musicSpecters2": "Musique de combat : nombreux Specters",
  "musicWanted": "Musique de combat : criminel Most Wanted",
  "musicTrackHelp": "Désactivé : ce morceau ne joue plus ; la musique calme de l'orbite continue.",
- "musicTrackSpecialHelp": "Désactivé : ce morceau ne joue plus ; la musique de combat habituelle le remplace."
+ "musicTrackSpecialHelp": "Désactivé : ce morceau ne joue plus ; la musique de combat habituelle le remplace.",
+ "flightStyleTouchHelp": "Tactile : le stick pousse et se déplace latéralement, glisser sur l'écran (ou sur le bouton de tir maintenu) vise, les boutons à côté du stick montent, descendent et basculent les amortisseurs ; le vaisseau se remet à l'horizontale tout seul."
 }

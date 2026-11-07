@@ -245,6 +245,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   the pause button in cutscenes, jumps and the launch camera; only the stick under the autopilot menu. The autopilot /
   fast-forward block (`NavigationView`'s `navButtons`) goes with them (`TouchControls.Update` hides it in Off /
   PauseOnly, `FlightHud.touchNavShown`): it stayed over the pause menu and cutscenes.
+  With the free flight style the stick, the empty screen, fire and boost work differently and a column of up / down /
+  dampeners joins the stick (see "Free flight on touch" in docs/notes/free-flight.md).
 - **Flight hints** (`FlightHints`, the original's hint chain: 596 / 590 / 593 / 584 / 637 / 648 / 619 / 1725 / 620 / 621
   / 617 / 636, the Nivelian 443 / 444 radio, 599-609, the volatile 3202 and red plasma 3161; keyboard variants +1,
   `KeyTokens`): each once (`Session.Hints`), in a ChoiceWindow that pauses the game. Remake: the tutorial popups (these,

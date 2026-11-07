@@ -3375,5 +3375,6 @@
  "musicSpecters2": "Musica di battaglia: molti Specter",
  "musicWanted": "Musica di battaglia: criminale Most Wanted",
  "musicTrackHelp": "Disattivo: questo brano non suona più; continua la musica tranquilla dell'orbita.",
- "musicTrackSpecialHelp": "Disattivo: questo brano non suona più; al suo posto suona la solita musica di battaglia."
+ "musicTrackSpecialHelp": "Disattivo: questo brano non suona più; al suo posto suona la solita musica di battaglia.",
+ "flightStyleTouchHelp": "Touch: lo stick dà spinta e sposta di lato, trascinare sullo schermo (o sul pulsante di fuoco tenuto premuto) mira, i pulsanti accanto allo stick salgono, scendono e attivano gli smorzatori; la nave si raddrizza da sola."
 }

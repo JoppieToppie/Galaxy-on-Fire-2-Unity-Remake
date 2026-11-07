@@ -3375,5 +3375,6 @@
  "musicSpecters2": "Kampfmusik: viele Specters",
  "musicWanted": "Kampfmusik: Most-Wanted-Verbrecher",
  "musicTrackHelp": "Aus: Dieses Stück spielt nicht mehr; die ruhige Musik des Orbits läuft weiter.",
- "musicTrackSpecialHelp": "Aus: Dieses Stück spielt nicht mehr; stattdessen spielt die übliche Kampfmusik."
+ "musicTrackSpecialHelp": "Aus: Dieses Stück spielt nicht mehr; stattdessen spielt die übliche Kampfmusik.",
+ "flightStyleTouchHelp": "Touch: Der Stick gibt Schub und fliegt seitlich, Ziehen auf dem Bildschirm (oder am gehaltenen Feuerknopf) zielt, die Knöpfe neben dem Stick steigen, sinken und schalten die Dämpfer; das Schiff rollt sich selbst waagerecht."
 }

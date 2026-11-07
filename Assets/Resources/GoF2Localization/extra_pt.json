@@ -3375,5 +3375,6 @@
  "musicSpecters2": "Música de combate: muitos Specters",
  "musicWanted": "Música de combate: criminoso Most Wanted",
  "musicTrackHelp": "Desligado: esta faixa não toca mais; a música calma da órbita continua.",
- "musicTrackSpecialHelp": "Desligado: esta faixa não toca mais; toca a música de combate habitual no lugar."
+ "musicTrackSpecialHelp": "Desligado: esta faixa não toca mais; toca a música de combate habitual no lugar.",
+ "flightStyleTouchHelp": "Toque: o stick dá impulso e desloca para o lado, arrastar no ecrã (ou no botão de disparo premido) aponta, os botões ao lado do stick sobem, descem e ligam os amortecedores; a nave nivela-se sozinha."
 }
