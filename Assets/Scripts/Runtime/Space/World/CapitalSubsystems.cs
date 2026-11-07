@@ -12,7 +12,8 @@
 // energy fields) show, hidden once the last generator falls; a "weakspot" part passes its hits on to the hull x that factor
 // and its death takes "bonus" of the hull's maximum; a part of a higher "stage" can't be harmed while one of a lower stage
 // stands (ES2's encounter stages). A retreating ship (CapitalRetreat) halts them: they stop firing and launching, its hangars'
-// fighters jump out, and they leave with it. Parts take the ship's side: hostile when it is, turned when it turns. Only the game running
+// fighters jump out (ES2's BP_Dreadnought_Command_JumpOut: TimeUntilJumpOut 3 s on, then one at random every 0.1-0.3 s; the
+// rest at once should the ship be gone first), and they leave with it. Parts take the ship's side: hostile when it is, turned when it turns. Only the game running
 // the orbit's NPCs builds them (Traffic.Create); the other players see them as proxies.
 
 using System.Collections.Generic;
@@ -28,6 +29,8 @@ namespace GoF2Remake.World
         /// <summary>A hangar launches only while the player is this close (game units, 7.5 km).</summary>
         const float LaunchReachUnits = 150000f;
         const float ShieldWarnMs = 6000f;
+        /// <summary>ES2's BP_Dreadnought_Command_JumpOut: TimeUntilJumpOut, then the escorts one by one RandomFloatInRange(0.1, 0.3) apart.</summary>
+        public const float EscortJumpDelayMs = 3000f, EscortJumpGapMinMs = 100f, EscortJumpGapMaxMs = 300f;
         const string DefaultObjectModel = "v_station_battlestation_shield";
 
         class Part
@@ -49,6 +52,8 @@ namespace GoF2Remake.World
         readonly List<Part> parts = new List<Part>();
         readonly List<Renderer> fields = new List<Renderer>();
         bool built, shieldsUp, dead, halted;
+        readonly List<NpcShip> escaping = new List<NpcShip>();
+        float escapeMs;
         float sinceWarnMs = ShieldWarnMs;
 
         /// <summary>Any part marked "shields" still stands (the hull takes shieldedDamage).</summary>
@@ -66,6 +71,7 @@ namespace GoF2Remake.World
 
         void Update()
         {
+            if (halted && !dead) { UpdateEscape(Time.deltaTime * 1000f); return; }
             if (host == null || dead || halted) return;
             if (!built) { built = true; Build(); }
             float dtMs = Time.deltaTime * 1000f;
@@ -232,14 +238,28 @@ namespace GoF2Remake.World
             foreach (var p in parts)
             {
                 if (Standing(p)) { p.ship.shootingEnabled = false; p.ship.Target.invulnerable = true; }
-                foreach (var f in p.flying) if (f != null && !f.Gone && f.Target.Alive) f.JumpOut();
+                foreach (var f in p.flying) if (f != null && !f.Gone && f.Target.Alive) escaping.Add(f);
             }
+            escapeMs = -EscortJumpDelayMs;
+        }
+
+        /// <summary>The escorts' jump-out: after EscortJumpDelayMs one at random, then one every EscortJumpGap*Ms.</summary>
+        void UpdateEscape(float dtMs)
+        {
+            escaping.RemoveAll(f => f == null || f.Gone || !f.Target.Alive);
+            if (escaping.Count == 0 || (escapeMs += dtMs) < 0f) return;
+            int i = Random.Range(0, escaping.Count);
+            escaping[i].JumpOut();
+            escaping.RemoveAt(i);
+            escapeMs = -Random.Range(EscortJumpGapMinMs, EscortJumpGapMaxMs);
         }
 
         /// <summary>CapitalRetreat: the ship has jumped away, its parts with it (nobody's kills).</summary>
         public void LeaveWithHost()
         {
             dead = true;
+            foreach (var f in escaping) if (f != null && !f.Gone && f.Target.Alive) f.JumpOut();
+            escaping.Clear();
             foreach (var p in parts)
                 if (Standing(p)) { p.ship.Target.killedByNpc = true; p.ship.Vanish(); }
         }

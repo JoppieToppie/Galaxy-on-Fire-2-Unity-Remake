@@ -51,8 +51,18 @@ namespace GoF2Remake.World
         bool lootAwake;
         float fleeMs = -1f, chargeMs = -1f;
 
+        /// <summary>Remake (World.RiftEncounter): a rift mutator's speed on this ship (Evasive, Strength in Death); 1 = none.</summary>
+        [System.NonSerialized] public float roleSpeedFactor = 1f;
+
+        /// <summary>Its gun's damage a second (0 without one): what the rift's blasts are measured in.</summary>
+        public float GunDps => gun != null ? gun.damage * 1000f / Mathf.Max(1f, NpcTables.GunReloadMs) : 0f;
+
+        /// <summary>Remake (a rift boss's Evasive Drift): a panic boost now, as after heavy damage.</summary>
+        public void BoostAway() { boostTimer = 10000f; panic = true; }
+
         void SetupRole(SpawnSpec spec)
         {
+            roleSpeedFactor = 1f;
             Role = NpcRoles.Parse(spec.role ?? (db?.Ship(spec.ship) as CustomShipData)?.traffic?.role);
             if (Role == NpcRoles.Role.JumpSuppressor && !suppressors.Contains(this)) suppressors.Add(this);
         }
@@ -132,13 +142,28 @@ namespace GoF2Remake.World
             }
             else if (Role == NpcRoles.Role.ArmorLink)
             {
-                Unlink();
-                foreach (var t in Target.All)
+                // ES2's link drone holds one leader: here the nearest ally in reach, kept while it stays in reach
+                Target lead = linked.Count > 0 && linked[0] != null && Ally(linked[0], out _)
+                              && (linked[0].transform.position - transform.position).sqrMagnitude <= r2 ? linked[0] : null;
+                if (lead == null)
                 {
-                    if (!Ally(t, out _) || (t.transform.position - transform.position).sqrMagnitude > r2) continue;
-                    if (t.damageFactor != 1f) continue;   // (another rule's factor, a capital ship's shield, stays)
-                    t.damageFactor = NpcRoles.LinkDamageFactor;
-                    linked.Add(t);
+                    Unlink();
+                    float best = r2;
+                    foreach (var t in Target.All)
+                    {
+                        if (!Ally(t, out _) || t.damageFactor != 1f) continue;   // (another rule's factor, a capital ship's shield, stays)
+                        float d = (t.transform.position - transform.position).sqrMagnitude;
+                        if (d <= best) { best = d; lead = t; }
+                    }
+                    if (lead == null) return;
+                    lead.damageFactor = NpcRoles.LinkDamageFactor;
+                    linked.Add(lead);
+                }
+                var hp = lead.hitpoints;
+                if (hp != null && hp.hull < hp.maxHull)
+                {
+                    hp.hull = Mathf.Min(hp.maxHull, hp.hull + Mathf.Max(1, Mathf.RoundToInt(hp.maxHull * NpcRoles.LinkRepairShare * step / 1000f)));
+                    lead.hp = hp.hull;
                 }
             }
         }
@@ -182,7 +207,7 @@ namespace GoF2Remake.World
             var t = target;
             if (t == null || !t.Alive || !attacking) return;
             if ((t.transform.position - transform.position).sqrMagnitude > NpcRoles.TriggerM * NpcRoles.TriggerM) return;
-            float dmg = NpcRoles.BlastDamage(gun != null ? gun.damage : 10f);
+            float dmg = NpcRoles.BlastDamage(GunDps > 0f ? GunDps : 10f);
             float b2 = NpcRoles.BlastM * NpcRoles.BlastM;
             var pos = transform.position;
             var all = Target.All;

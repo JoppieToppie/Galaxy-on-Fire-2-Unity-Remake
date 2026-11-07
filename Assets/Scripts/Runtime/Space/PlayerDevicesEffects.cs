@@ -89,9 +89,18 @@ namespace GoF2Remake.Flight
                     foreach (var o in devices) if (o != e && o.rules.State == Device.Phase.Cooldown) return true;
                     Message?.Invoke(string.Format(Localization.Extra("deviceNoCooldowns", "{0}: no device is cooling down"), e.name));
                     return false;
+                case Device.Type.RepairKit:
+                    if (Overheat.AnyHot) return true;
+                    Message?.Invoke(string.Format(Localization.Extra("deviceNothingToRepair", "{0}: nothing to repair"), e.name));
+                    return false;
+                case Device.Type.Recovery:
+                    if (PlayerDebuffs.Any) return true;
+                    Message?.Invoke(string.Format(Localization.Extra("deviceNoDebuff", "{0}: no debuff on the ship"), e.name));
+                    return false;
                 case Device.Type.Corrosion:
                 case Device.Type.QuantumTether:
                 case Device.Type.Entangler:
+                case Device.Type.Virus:
                     if (LockWithin(e) != null) return true;
                     Message?.Invoke(string.Format(Localization.Extra("deviceNoTarget", "{0}: no ship locked in reach"), e.name));
                     return false;
@@ -263,8 +272,29 @@ namespace GoF2Remake.Flight
                 {
                     var hp = self.hitpoints;
                     if (hp == null) break;
+                    if (e.rules.durationMs > 0f)   // (over its duration: UpdateRunning)
+                    {
+                        repairEntry = e; repairTotal = RepairPoints(hp.maxHull, e.damagePercent); repairDone = 0;
+                        break;
+                    }
                     hp.hull = Mathf.Min(hp.maxHull, hp.hull + RepairPoints(hp.maxHull, e.damagePercent));
                     self.hp = hp.hull;
+                    break;
+                }
+                case Device.Type.RepairKit:
+                    Overheat.CoolRandom(Random.value);
+                    break;
+                case Device.Type.Recovery:
+                    PlayerDebuffs.Lift();
+                    break;
+                case Device.Type.Virus:
+                {
+                    var t = LockWithin(e);
+                    infected.Clear();
+                    if (t == null) break;
+                    infected.Add(t);
+                    virusEntry = e; virusSpreadMs = 0f;
+                    ShowBeam(t);
                     break;
                 }
                 case Device.Type.ArmorRepair:
@@ -394,6 +424,21 @@ namespace GoF2Remake.Flight
                 case Device.Type.Corrosion:
                     corroding = null; corrosionEntry = null;
                     break;
+                case Device.Type.HullRepair:
+                    if (repairEntry == e) { Repair(repairTotal - repairDone); repairEntry = null; }   // (what is left, at its end)
+                    break;
+                case Device.Type.Virus:
+                    if (virusEntry != e) break;
+                    // every infected ship takes the virus's damage (ES2's 95 + 60 against its raider's 310 hull points)
+                    float dmg = NpcTables.Hull(0, 0) * e.damagePercent / 100f;
+                    foreach (var t in infected)
+                    {
+                        if (!Affects(t)) continue;
+                        Explosion.Spawn(t.transform.position, 0.5f, false);
+                        weapons?.DeviceHit(t, dmg, 0, (t.transform.position - transform.position).normalized, e.item.index);
+                    }
+                    infected.Clear(); virusEntry = null;
+                    break;
                 case Device.Type.FusionHook:
                     hooked = null; hookEntry = null;
                     break;
@@ -460,6 +505,42 @@ namespace GoF2Remake.Flight
             }
             if (tetherEntry != null && tetherEntry.rules.Active && tethered == null)
                 if (tetherEntry.rules.Cancel()) End(tetherEntry);
+            if (repairEntry != null && repairEntry.rules.Active)
+                Repair(Mathf.FloorToInt(repairTotal * Mathf.Clamp01(repairEntry.rules.Timer / Mathf.Max(1f, repairEntry.rules.durationMs))) - repairDone);
+            if (virusEntry != null && virusEntry.rules.Active && infected.Count < Device.VirusMaxTargets
+                && (virusSpreadMs += dtMs) >= Mathf.Max(100f, virusEntry.growMs > 0 ? virusEntry.growMs : 1000f))
+            {
+                virusSpreadMs = 0f;
+                // the nearest hostile ship within deviceRadius of an infected one catches it
+                float r = virusEntry.radius * M, best = r * r;
+                Target next = null;
+                foreach (var o in Target.All)
+                {
+                    if (!Affects(o) || infected.Contains(o)) continue;
+                    foreach (var i in infected)
+                    {
+                        if (!Affects(i)) continue;
+                        float d = (o.transform.position - i.transform.position).sqrMagnitude;
+                        if (d <= best) { best = d; next = o; }
+                    }
+                }
+                if (next != null) { infected.Add(next); ShowBeam(next); }
+            }
+        }
+
+        // the nanobots' repair over time, the virus's infected ships
+        Entry repairEntry, virusEntry;
+        int repairTotal, repairDone;
+        float virusSpreadMs;
+        readonly List<Target> infected = new List<Target>();
+
+        void Repair(int points)
+        {
+            var hp = self != null ? self.hitpoints : null;
+            if (hp == null || points <= 0) return;
+            repairDone += points;
+            hp.hull = Mathf.Min(hp.maxHull, hp.hull + points);
+            self.hp = hp.hull;
         }
 
         /// <summary>The ship's own cloak's state back on Target.cloaked once the cloud no longer hides it.</summary>

@@ -21,8 +21,8 @@ namespace GoF2Remake.Flight
     {
         public const string Pirates = "pirates", Trader = "trader", Derelict = "derelict", Distress = "distress", Flyby = "flyby", Quest = "quest";
         /// <summary>Remake (2026-11-03, for mods; not in the game's own table): EVERSPACE 2's encounter types (World.CruiseEncounterSpawner).</summary>
-        public const string Battle = "battle", Trap = "trap", Stash = "stash", Depot = "depot", HighRisk = "highrisk", LootDrone = "lootdrone";
-        public static readonly string[] Kinds = { Pirates, Trader, Derelict, Distress, Flyby, Quest, Battle, Trap, Stash, Depot, HighRisk, LootDrone };
+        public const string Battle = "battle", Trap = "trap", Stash = "stash", Depot = "depot", HighRisk = "highrisk", LootDrone = "lootdrone", Rift = "rift";
+        public static readonly string[] Kinds = { Pirates, Trader, Derelict, Distress, Flyby, Quest, Battle, Trap, Stash, Depot, HighRisk, LootDrone, Rift };
         /// <summary>Where an entry takes the ship between the systems (Entry.interstellar).</summary>
         public const string InSpace = "space", AtSystem = "system", Either = "either", Never = "never";
         public static readonly string[] Places = { InSpace, AtSystem, Either, Never };
@@ -46,8 +46,16 @@ namespace GoF2Remake.Flight
             public string name;
             /// <summary>Between the systems: InSpace, AtSystem, Either (null) or Never.</summary>
             public string interstellar;
+            /// <summary>Kind "rift" (2026-11-04): the ships its boss may fly (one at random) and its hull in pirate raiders' hulls
+            /// (EVERSPACE 2's hit points over its Outlaw raider's 310); null = the pirate boss.</summary>
+            public List<RiftBoss> bosses;
             public bool StopsTheDrive => kind != Flyby && kind != Quest;
         }
+
+        /// <summary>A rift boss: its ship, its hull in pirate raiders' hulls, the race it flies for (a race word or a mod
+        /// race's "mod:id"; null = the stage's side), which its stage then is, and a fighter boss's gun and missiles (item
+        /// references; null = the pirate boss's gun, no missiles).</summary>
+        public sealed class RiftBoss { public string ship, race, weapon, secondary; public float raiders = 8f; }
 
         public const float CheckIntervalMs = 5000f, MinCruiseMs = 6000f, CooldownMs = 90000f;
         public const int ChancePercent = 10, MaxPerOrbit = 2;
@@ -61,6 +69,11 @@ namespace GoF2Remake.Flight
             new Entry { id = Distress, kind = Distress, weight = 20, visible = true, minRank = 2, security = new[] { 0, 1, 2 } },
             new Entry { id = Flyby, kind = Flyby, weight = 10, interstellar = InSpace },
         };
+
+        /// <summary>Remake (2026-11-04): the rift (World.RiftEncounter, EVERSPACE 2's Ancient Rifts), the remake's own entry and
+        /// chance: a signal from rank 5 (ES2's rifts open after its story's start), four stages, the last its boss's. Not in the
+        /// game's table: it joins it once a mod adds rift bosses (Modding.ModEncounters), and mods only add to its pool.</summary>
+        public static Entry RiftEntry() => new Entry { id = Rift, kind = Rift, weight = 4, visible = true, minRank = 5, ships = 4 };
 
         readonly List<Entry> table;
         float cruiseMs, sinceCheckMs, cooldownMs;

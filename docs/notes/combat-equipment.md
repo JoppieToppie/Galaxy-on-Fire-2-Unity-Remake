@@ -114,7 +114,9 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   types 8-12 (decompiled BP_Consumable_SmokeBomb + BP_SmokeBombFIeld + BP_Condition_Debuff_SmokeScreen (the field hides the
   pawns inside it, IsHiddenByActor, and drops their sensing to 200 m), _ArmorRepair (armour to ratio 1), _NanoInjector (the
   base class's condition by EffectPercent: here a hull share), _SecondariesRestock (ammo + trunc(max x EffectPercent)),
-  _DeviceCharger (Devices.ResetCooldowns); ES2's item numbers aren't on disk, so the mods give their own): `SensorCloud` sets
+  _DeviceCharger (Devices.ResetCooldowns); the mods give the numbers, the ES2 importer ES2's own from its items.CSV (its
+  DataFiles in pakchunk0-Windows.pak, 2026-11-04), its Restock flat rounds (GoF2's secondaries have no maximum to take
+  ES2's share of)): `SensorCloud` sets
   the player's `Target.cloaked` while inside (restored from `PlayerCloak` after), `HullRepair` / `ArmorRepair`
   (`RepairPoints`), `Restock` (`WeaponSystem.Restock`), `DeviceCharger` (`Device.ResetCooldown`); `deviceConsumable` (164):
   one use per unit, the mounted stack's amount (Hangar.Stacked: mounted whole, bought ones join it, `PlayerDevices.Spend`

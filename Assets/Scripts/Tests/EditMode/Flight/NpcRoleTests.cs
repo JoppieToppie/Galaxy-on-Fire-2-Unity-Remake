@@ -42,14 +42,16 @@ namespace GoF2Remake.Tests
         {
             Assert.AreEqual(72f, NpcRoles.TriggerM, 1e-3f, "ES2's 20 m trigger x 3.6");
             Assert.AreEqual(360f, NpcRoles.BlastM, 1e-3f, "ES2's 100 m blast x 3.6");
-            Assert.AreEqual(120f, NpcRoles.BlastDamage(12f), 1e-3f);
+            Assert.AreEqual(12f * 100f / 55f, NpcRoles.BlastDamage(12f), 1e-3f, "ES2's 50 + 50 against the raider's 31 + 24 DPS");
         }
 
         [Test]
         public void TheShieldChargerRepairsAShareOfTheHullASecond()
         {
-            Assert.AreEqual(10f, NpcRoles.Repair(200, 1000f), 1e-3f, "5 % a second");
-            Assert.AreEqual(2.5f, NpcRoles.Repair(200, 250f), 1e-3f);
+            Assert.AreEqual(200f * 16f / 310f, NpcRoles.Repair(200, 1000f), 1e-3f, "ES2's 16 shield a second against the raider's 310");
+            Assert.AreEqual(50f * 16f / 310f, NpcRoles.Repair(200, 250f), 1e-3f);
+            Assert.AreEqual(310f / 410f, NpcRoles.LinkDamageFactor, 1e-5f, "the link's +100 armour against 310");
+            Assert.AreEqual(5f / 310f, NpcRoles.LinkRepairShare, 1e-6f);
         }
 
         [Test]

@@ -312,6 +312,18 @@ namespace GoF2Remake.Data
         /// "webber", "shieldCharger", "armorLink", "antiMissile", "jumpSuppressor", "lootDrone" (never a fighter: the loot drone encounter's,
         /// Modding.ModTraffic.PickLootDrone); empty = an ordinary fighter.</summary>
         public string role;
+        /// <summary>Remake (2026-11-04): what its NPCs drop besides their cargo (EVERSPACE 2's loot_npcs.csv): each entry by its
+        /// chance, at most lootDrops of them (0 = any number); a Void ship's too, which carries no cargo. Null = none.</summary>
+        public CustomLoot[] loot;
+        public int lootDrops;
+    }
+
+    /// <summary>A ships.json "traffic.loot" entry: 'item' (a reference, "155" or "mod:id"), its chance 0..1, min..max of it.</summary>
+    [System.Serializable] public class CustomLoot
+    {
+        public string item;
+        public float chance = 1f;
+        public int min = 1, max = 1;
     }
 
     /// <summary>Remake mods: a mod ship in the ordinary ship dealers' lists (Shop.GenerateShips): each time a station's dealer

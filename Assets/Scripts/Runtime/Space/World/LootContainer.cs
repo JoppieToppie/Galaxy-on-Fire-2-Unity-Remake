@@ -7,6 +7,8 @@
 // Either opens with the action key (F) within OpenRangeM, in front of the ship (ES2's InteractComponent: InteractRadius 100 m
 // x the ES2 ships' 3.6, no hold: InteractChargeDuration 0, bMustBeOnScreen). Its marker and lock are the radar's objects'
 // (Target.RadarObjects), neutral. ES2's secure containers (OpenOnUnlocked: energized through conductors) aren't here.
+// Loot: ES2's loot_types.CSV, a "Container" LootRolls 1-3 drops, a "RareContainer" (here the bulletproof one) 2-4: as many
+// freighter loot rolls.
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -65,8 +67,11 @@ namespace GoF2Remake.World
             return c;
         }
 
-        /// <summary>Lays out the orbit's containers (stations.json "orbit.containers"; none without), each a freighter's loot roll,
-        /// a bulletproof one two (remake pick: the one that takes flying up to it); the number placed.</summary>
+        /// <summary>ES2's loot_types.CSV: how many drops a container leaves (its Container / RareContainer rows' first two cells).</summary>
+        public const int RollsMin = 1, RollsMax = 3, BulletproofRollsMin = 2, BulletproofRollsMax = 4;
+
+        /// <summary>Lays out the orbit's containers (stations.json "orbit.containers"; none without), each RollsMin..RollsMax
+        /// freighter loot rolls, a bulletproof one BulletproofRollsMin..Max; the number placed.</summary>
         public static int SpawnOrbit(Database db, OrbitLayout layout)
         {
             var spec = layout != null ? Modding.ModWorld.OrbitOf(layout.stationIndex) : null;
@@ -77,8 +82,9 @@ namespace GoF2Remake.World
             for (int i = 0; i < spec.containerCount; i++)
             {
                 bool proof = Random.value < spec.containerBulletproof;
-                var cargo = WreckField.Loot(db);
-                if (proof) cargo.AddRange(WreckField.Loot(db));
+                var cargo = new List<ItemStack>();
+                int rolls = proof ? Random.Range(BulletproofRollsMin, BulletproofRollsMax + 1) : Random.Range(RollsMin, RollsMax + 1);
+                for (int k = 0; k < rolls; k++) cargo.AddRange(WreckField.Loot(db));
                 var at = centre + new Vector3(Random.Range(-half, half), Random.Range(-half, half) * 0.3f, Random.Range(-half, half));
                 Spawn(OrbitLayout.ToUnity(at), cargo, proof, race);
             }

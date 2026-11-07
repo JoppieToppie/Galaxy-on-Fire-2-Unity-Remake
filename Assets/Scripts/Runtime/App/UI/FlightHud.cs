@@ -843,8 +843,10 @@ namespace GoF2Remake.UI
             if (transferCounter != null)
             {
                 bool on = docking != null && docking.TransferLabel != null;
-                transferCounter.EnableInClassList("transfer-counter--hidden", !on);
+                string rift = on ? null : GoF2Remake.World.RiftEncounter.HudLine;   // remake mods: a rift run's stage, points, resolve
+                transferCounter.EnableInClassList("transfer-counter--hidden", !on && rift == null);
                 if (on) transferCounter.text = $"{docking.TransferLabel.UiCaps()}  {docking.TransferDone} / {docking.TransferTotal}";
+                else if (rift != null) transferCounter.text = rift.UiCaps();
             }
             lockRingElement.style.left = crosshair.style.left;
             lockRingElement.style.top = crosshair.style.top;

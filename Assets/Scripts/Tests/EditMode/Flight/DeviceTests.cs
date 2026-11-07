@@ -116,7 +116,7 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(c.TryFire());
             Assert.AreEqual(Device.Event.Ready, c.Update(10f), "a 0 ms cooldown is over on the next frame");
             Assert.IsTrue(c.Available);
-            Assert.AreEqual(18, Device.TypeCount);
+            Assert.AreEqual(21, Device.TypeCount);
         }
 
         [Test]

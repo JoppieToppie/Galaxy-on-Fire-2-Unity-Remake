@@ -45,7 +45,8 @@ namespace GoF2Remake.Flight
             /// <summary>Smoke Bomb: a sensor cloud of deviceRadius around the ship for deviceDurationMs (grown over deviceGrowMs,
             /// ES2's 2 s): while the ship is inside, the enemies lose it (as under a cloak: no fire, no missile locks).</summary>
             SensorCloud = 8,
-            /// <summary>Nano Injector: deviceDamagePercent % of the hull's maximum repaired at once (only with hull missing).</summary>
+            /// <summary>Nano Injector: deviceDamagePercent % of the hull's maximum repaired at once (only with hull missing); with a
+            /// deviceDurationMs, over that time (ES2's Nanobots: their consumable_effect over consumable_duration).</summary>
             HullRepair = 9,
             /// <summary>Armor Repair: deviceDamagePercent % of the armour's maximum repaired at once (ES2: to full; only with
             /// armour missing).</summary>
@@ -73,9 +74,21 @@ namespace GoF2Remake.Flight
             /// <summary>Quantum Entangler: for deviceDurationMs the damage the ship takes is summed and, at the end, dealt to the
             /// locked ship x deviceDamagePercent / 100 (nothing if it died first).</summary>
             Entangler = 18,
+            // Remake (2026-11-04): more of EVERSPACE 2's consumables and devices.
+            /// <summary>Nano Repair Kit: one of the ship's overheated items (Flight.Overheat) works again at once (ES2: "repairs a
+            /// random damaged equipment item"; only with one overheated).</summary>
+            RepairKit = 19,
+            /// <summary>System Recovery Routine: the debuffs on the ship lifted (Flight.PlayerDebuffs; only with one on).</summary>
+            Recovery = 20,
+            /// <summary>Annihilator Virus: the locked ship (within deviceRadius) is infected; every deviceGrowMs the virus spreads to
+            /// the nearest hostile ship within deviceRadius of an infected one, up to VirusMaxTargets; after deviceDurationMs every
+            /// infected ship takes deviceDamagePercent % of a pirate raider's hull (ES2: 95 + 60 against its raider's 310).</summary>
+            Virus = 21,
         }
 
-        public const int TypeCount = 18;
+        public const int TypeCount = 21;
+        /// <summary>The Annihilator Virus's most ships (its description's 6).</summary>
+        public const int VirusMaxTargets = 6;
         /// <summary>The remake attributes (Modding.ItemStats).</summary>
         public const int TypeAttr = 150, CooldownAttr = 151, DurationAttr = 152, RadiusAttr = 153, GrowAttr = 154,
                          SlowAttr = 155, ShieldCostAttr = 156, DamagePercentAttr = 157, ChargeAttr = 158, ConeAttr = 159;

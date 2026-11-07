@@ -505,6 +505,9 @@ namespace GoF2Remake.Flight
                     if (b >= 0) OnShot(r, Sounds(r));
                 }
                 gun.Update(dtMs, Target.All, homing);
+                // remake (2026-11-04): overheated guns reload at Overheat.DamagedFactor (a rift's Overheated Systems)
+                if (!gun.isSecondary && GoF2Remake.Flight.Overheat.Hot(GoF2Remake.Flight.Overheat.Slot.Primary))
+                    gun.reloadAcc -= dtMs * (1f - GoF2Remake.Flight.Overheat.DamagedFactor);
                 r.visuals.UpdateVisuals(dtMs, cam, transform.forward);
                 if (r.loop != null)
                 {
@@ -640,7 +643,9 @@ namespace GoF2Remake.Flight
             bool missile = r.gun.isSecondary;
             bool wasAlive = target.Alive;
             target.lastPlayerWeapon = r.gun.itemIndex;
-            float damage = missile && target.isAsteroid ? 9999f : missile ? r.gun.damage : r.gun.damage * DamageBoost * FlightDamageFactor;
+            float damage = missile && target.isAsteroid ? 9999f
+                : missile ? r.gun.damage * GoF2Remake.Flight.Overheat.Factor(GoF2Remake.Flight.Overheat.Slot.Secondary)   // (remake: overheated, Overheat)
+                : r.gun.damage * DamageBoost * FlightDamageFactor;
             if (!missile && wasAlive && target.isShip) PrimaryDamageDealt?.Invoke(damage);
             if (Cheats.OneHitKills && !target.isPlayer) damage = 99999999f;
             target.Damage(damage, false, r.gun.bullets[bullet].velocity, r.gun.shieldFactor);

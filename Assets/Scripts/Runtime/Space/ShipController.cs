@@ -146,6 +146,8 @@ namespace GoF2Remake.Flight
         public void Boost() => Model.Boost();
 
         float webMs, webFactor = 1f;
+        System.Func<bool> webbed;
+        void OnDestroy() { if (webbed != null) GoF2Remake.Flight.PlayerDebuffs.Unregister(webbed); }
         /// <summary>Remake mods: a webber drone's slow on the ship's moves (NpcRoles.WebSpeedFactor while it lasts), 1 = none.</summary>
         public float WebFactor => webMs > 0f ? webFactor : 1f;
 
@@ -269,6 +271,11 @@ namespace GoF2Remake.Flight
                 selfTarget = GetComponent<Target>();
                 // remake mods: a webber drone's hit slows the ship (NpcRoles): its moves x the factor for that long
                 if (selfTarget != null) selfTarget.SlowBy = (ms, factor, noTurn) => { webFactor = webMs > 0f ? Mathf.Min(webFactor, factor) : factor; webMs = Mathf.Max(webMs, ms); };
+                if (selfTarget != null && webbed == null)
+                {
+                    webbed = () => webMs > 0f;
+                    GoF2Remake.Flight.PlayerDebuffs.Register(webbed, () => webMs = 0f);   // (a System Recovery Routine lifts it)
+                }
             }
             if (webMs > 0f) webMs -= Time.deltaTime * 1000f;
             if (selfTarget != null)

@@ -2,7 +2,8 @@
 // Remake (2026-11-03): a cruise encounter that ends in a fight won (CruiseEncounterSpawner's battle and high-risk area, after
 // EVERSPACE 2's encounter tasks and BP_EncounterBase.GiveEncounterRewards): watches the raiders it spawned; when they are
 // all gone the pilot is paid, "Encounter won: +N cr". A high-risk area sends its next wave first (each the size of the first,
-// at the area), and after the last one leaves a crate of three loot rolls. The player flying off (past LeaveM from the
+// at the area), and after the last one leaves a crate of BossRollsMin..BossRollsMax loot rolls (ES2's loot_types.CSV
+// "HighRiskAreaBoss": 8-14 drops). The player flying off (past LeaveM from the
 // area) or the level ending stops it, unpaid (ES2's bFailIfPlayerLeaves).
 
 using System.Collections.Generic;
@@ -15,6 +16,8 @@ namespace GoF2Remake.World
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public class EncounterWatch : MonoBehaviour
     {
+        /// <summary>A high-risk area's crate: ES2's loot_types.CSV "HighRiskAreaBoss" drops.</summary>
+        public const int BossRollsMin = 8, BossRollsMax = 14;
         public const float LeaveM = 15000f;
         const float M = 0.05f;
 
@@ -69,7 +72,8 @@ namespace GoF2Remake.World
             {
                 var db = level.Database ?? Database.Shared;
                 var cargo = new List<ItemStack>();
-                for (int k = 0; k < 3; k++)
+                int rolls = Random.Range(BossRollsMin, BossRollsMax + 1);
+                for (int k = 0; k < rolls; k++)
                     foreach (var s in NpcTables.RollLoot(db, true))
                     {
                         var have = cargo.Find(x => x.item == s.item);

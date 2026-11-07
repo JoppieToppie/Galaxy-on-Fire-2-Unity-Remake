@@ -358,8 +358,13 @@ namespace GoF2Remake.Flight
         /// <summary>Free flight: the boost's top speed, of the forward one, by the booster: its original boost speed
         /// (PlayerEgo's int(2 b / 100) + 2 u/ms, over the base 2) x 3.2 / 3, so the Me'al boosts like EVERSPACE 2's
         /// measured x3.2: Linear / Cyclotron x1.6, Synchrotron x2.67, Polytron x4.27.</summary>
-        float FreeBoostFactor => Style.boostFactor > 0 ? Style.boostFactor / 100f   // a mod's (ModFlight)
-            : boostSpeedValue > BaseSpeed ? boostSpeedValue / BaseSpeed * FreeBoostScale : FreeBoostFallback;
+        float FreeBoostFactor => OverheatedBoost(Style.boostFactor > 0 ? Style.boostFactor / 100f   // a mod's (ModFlight)
+            : boostSpeedValue > BaseSpeed ? boostSpeedValue / BaseSpeed * FreeBoostScale : FreeBoostFallback);
+
+        /// <summary>Remake (2026-11-04): an overheated booster (Flight.Overheat, a rift's Overheated Systems) boosts at
+        /// DamagedFactor of its speed, never below the unboosted top speed.</summary>
+        static float OverheatedBoost(float factor) =>
+            GoF2Remake.Flight.Overheat.Hot(GoF2Remake.Flight.Overheat.Slot.Booster) ? Mathf.Max(1f, factor * GoF2Remake.Flight.Overheat.DamagedFactor) : factor;
 
         /// <summary>Free flight: the top turn rate (rad / ms) for this ship: EVERSPACE 2's 125 deg/s at handling 100,
         /// scaled by (H / 20)^0.75, softly capped there (a tenth of what lies above, FreeTurnAboveShare), then the
@@ -538,7 +543,7 @@ namespace GoF2Remake.Flight
             else
             {
                 IsBoosting = false;
-                boostEnergy = Mathf.Min(1f, boostEnergy + (boostRechargeMs > 0 ? dtMs / boostRechargeMs : 1f));
+                boostEnergy = Mathf.Min(1f, boostEnergy + (boostRechargeMs > 0 ? dtMs * GoF2Remake.Flight.Overheat.Factor(GoF2Remake.Flight.Overheat.Slot.Booster) / boostRechargeMs : 1f));
             }
             CurrentSpeed = IsBoosting ? TopSpeed * FreeBoostFactor : TopSpeed;
             freeBoostVisual = Mathf.MoveTowards(freeBoostVisual, IsBoosting ? 1f : 0f, dtMs / 200f);
@@ -670,6 +675,8 @@ namespace GoF2Remake.Flight
             Throttle = 1f;   // MGame::OnTouchEnd HUD element 2: full throttle first, then the boost
             boostTimerMs = 0;
             CurrentSpeed = boostSpeedValue * Style.speedScale;
+            if (GoF2Remake.Flight.Overheat.Hot(GoF2Remake.Flight.Overheat.Slot.Booster))   // remake: overheated (Overheat)
+                CurrentSpeed = Mathf.Max(TopSpeed, CurrentSpeed * GoF2Remake.Flight.Overheat.DamagedFactor);
             IsBoosting = true;
         }
 
@@ -983,6 +990,8 @@ namespace GoF2Remake.Flight
             // Timer counts up every frame; negative values mean "recharging" (PlayerEgo::update).
             int dt = Mathf.RoundToInt(dtMs);
             if (boostTimerMs < 0 && boostTimerMs + dt * 3 > 0) boostTimerMs = 0;
+            if (boostTimerMs < 0 && GoF2Remake.Flight.Overheat.Hot(GoF2Remake.Flight.Overheat.Slot.Booster))   // remake: overheated, recharging slower
+                dt = Mathf.RoundToInt(dt * GoF2Remake.Flight.Overheat.DamagedFactor);
             boostTimerMs += dt;
 
             if (IsBoosting && boostTimerMs > boostDurationMs)

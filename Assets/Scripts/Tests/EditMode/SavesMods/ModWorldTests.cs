@@ -512,11 +512,13 @@ namespace GoF2Remake.Tests
         public void AnOrbitsHazards()
         {
             WriteMod("w", "t_world", "1.0", "", ("stations.json",
-                "[ { 'override': 78, 'orbit': { 'hazards': [ { 'kind': 'heat', 'centre': [0, 0, 20000], 'radius': 8000, 'dps': 15 }, { 'kind': 'Radiation', 'centre': [5000, 0, 0] } ] } } ]"));
+                "[ { 'override': 78, 'orbit': { 'hazards': [ { 'kind': 'heat', 'centre': [0, 0, 20000], 'radius': 8000, 'dps': 15 }, { 'kind': 'Radiation', 'centre': [5000, 0, 0] }, { 'kind': 'heat', 'centre': [0, 0, 0], 'raiderDps': 3.6 } ] } } ]"));
             ScanAndEnable("t_world");
             Database.Load();
             var h = ModWorld.OrbitOf(78).hazards;
-            Assert.AreEqual(2, h.Count);
+            Assert.AreEqual(3, h.Count);
+            Assert.AreEqual(3.6f, h[2].raiderDps, 1e-5f, "as raiders' gunfire");
+            Assert.AreEqual(0f, h[0].raiderDps);
             Assert.AreEqual(ModWorld.HazardKind.Heat, h[0].kind);
             Assert.AreEqual(8000f, h[0].radius);
             Assert.AreEqual(15f, h[0].dps);
@@ -546,6 +548,8 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(1f, ModWorld.OrbitOf(80).containerBulletproof, "a share, at most all");
             Assert.AreEqual(0, ModWorld.OrbitOf(81)?.containerCount ?? 0, "none unless asked for");
             Assert.AreEqual(360f, GoF2Remake.World.LootContainer.OpenRangeM, 1e-3f, "ES2's 100 m interact radius x 3.6");
+            Assert.AreEqual((1, 3), (GoF2Remake.World.LootContainer.RollsMin, GoF2Remake.World.LootContainer.RollsMax), "ES2's loot_types.CSV Container");
+            Assert.AreEqual((2, 4), (GoF2Remake.World.LootContainer.BulletproofRollsMin, GoF2Remake.World.LootContainer.BulletproofRollsMax), "... RareContainer");
         }
 
         // Remake (2026-11-03, EVERSPACE 2's spline traffic): a station's "orbit.lanes" (World.TrafficLanes).
@@ -570,6 +574,18 @@ namespace GoF2Remake.Tests
             Assert.IsNull(l[1].ships, "the system race's fighters");
             Assert.AreEqual(80f, l[1].speed, "ES2's 8000 cm/s");
             Assert.IsTrue(l[1].loop && l[1].twoLanes, "ES2's ClosedLoop and TwoLanes");
+        }
+
+        // Remake (2026-11-04): an orbit's EVERSPACE 2 location level (its encounters' pay, CruiseEncounterSpawner.Es2Level).
+        [Test]
+        public void AnOrbitsLevel()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json", "[ { 'override': 78, 'orbit': { 'level': 17 } }, { 'override': 79, 'orbit': { 'level': 99 } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            Assert.AreEqual(17, ModWorld.OrbitOf(78).level);
+            Assert.AreEqual(30, ModWorld.OrbitOf(79).level, "ES2's MaxPlayerLevel at most");
+            Assert.AreEqual(1500, GoF2Remake.World.CruiseEncounterSpawner.BattlePay(5), "800 + 4200 x 5 / 30, down to 50");
         }
 
         [Test] public void ALaneNeedsTwoPoints() => StringAssert.Contains("a lane needs \"points\"", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'lanes': [ { 'points': [[0, 0, 0]] } ] } } ]"));
