@@ -1,7 +1,7 @@
 // ModTagTests.cs
 // Feature: docs/notes/mods.md "Mod tags" (TorchOP's request, 2026-10-23): one tag per mod (mod.json "tag", a string or
 // per language), shown dim after the names of everything the mod adds ("Veteran [GoF3]"): its new ships, items, systems
-// and stations, never what it only overrides (ModContent.TagOf, GameNames.*Tag, UI.ItemInfo.WithTag).
+// stations and Most Wanted criminals, never what it only overrides (ModContent.TagOf, GameNames.*Tag, UI.ItemInfo.WithTag).
 
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
@@ -17,7 +17,8 @@ namespace GoF2Remake.Tests
                      ("ships.json", "[ { 'id': 'veteran', 'name': 'Veteran', 'model': 'gof2:ship_005_terran' }, { 'override': '3', 'armor': 200 } ]"),
                      ("items.json", "[ { 'id': 'gun', 'base': 2, 'name': 'Gun' }, { 'override': '4', 'price': 900 } ]"),
                      ("systems.json", "[ { 'id': 'home', 'name': 'Home', 'race': 2, 'position': [50, 50, 50] } ]"),
-                     ("stations.json", "[ { 'id': 'port', 'system': 't_tag:home', 'name': 'Port' } ]"));
+                     ("stations.json", "[ { 'id': 'port', 'system': 't_tag:home', 'name': 'Port' } ]"),
+                     ("wanted.json", "[ { 'id': 'boss', 'name': 'Boss', 'ship': 't_tag:veteran' } ]"));
 
         [Test]
         public void EverythingTheModAddsCarriesItsTag()
@@ -30,6 +31,10 @@ namespace GoF2Remake.Tests
             Assert.AreEqual("GoF3", GameNames.ItemTag(ModContent.ItemIndexOf("t_tag:gun")));
             Assert.AreEqual("GoF3", GameNames.SystemTag(ModWorld.SystemIndexOf("t_tag:home")));
             Assert.AreEqual("GoF3", GameNames.StationTag(ModWorld.StationIndexOf("t_tag:port")));
+            var boss = Database.Shared.Wanted.Find(w => w.key == "t_tag:boss");
+            Assert.AreEqual("GoF3", GameNames.WantedTag(boss), "its Most Wanted criminal");
+            StringAssert.StartsWith("BOSS <alpha=", ItemInfo.TaggedWantedName(boss, true), "upper case, the tag as it reads");
+            Assert.IsNull(GameNames.WantedTag(Database.Shared.Wanted[2]), "the game's own criminal");
             Assert.IsNull(GameNames.ShipTag(3), "an original ship it only changes");
             Assert.IsNull(GameNames.ItemTag(4), "an original item it only changes");
             Assert.IsNull(GameNames.SystemTag(0));

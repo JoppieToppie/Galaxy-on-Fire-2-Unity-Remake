@@ -20,6 +20,10 @@
 //                                          which wins campaign 128 / 130
 //   Generator::getShipBuyList 0xa0eb8      Quineros (107) sells ship 45 / 46 / 47 / 48 once wanted 6 / 12 / 18 / 24 is dead (3232)
 // Movement uses UnityEngine.Random (the original's generator is time-seeded).
+// Remake mods (Modding.ModWanted, wanted.json): their criminals follow db.Wanted's 25 with a key; their state is by that key
+// (Session.ModWanted), they are listed while their "available" holds (free play too) at the stations of their "systems",
+// else of their board's race, become active once enough of that board's mod criminals are dead (Session.ModBounties), and
+// travel "route" systems between stations of any usable system, the mods' too (or of their "systems").
 
 using System;
 using System.Collections.Generic;
@@ -36,21 +40,75 @@ namespace GoF2Remake.Data
         public int current = -1, travelsTo = -1, lastSeen = -1;
     }
 
+    /// <summary>A mod criminal's state in a save (by its key: Session.ModWanted).</summary>
+    [Serializable]
+    public class ModWantedSave
+    {
+        public string key;
+        public WantedState state;
+
+        public static List<ModWantedSave> From(Dictionary<string, WantedState> d)
+        {
+            var list = new List<ModWantedSave>();
+            foreach (var kv in d) list.Add(new ModWantedSave { key = kv.Key, state = kv.Value });
+            return list;
+        }
+
+        public static Dictionary<string, WantedState> To(List<ModWantedSave> list)
+        {
+            var d = new Dictionary<string, WantedState>();
+            if (list != null) foreach (var e in list) if (!string.IsNullOrEmpty(e?.key) && e.state != null) d[e.key] = e.state;
+            return d;
+        }
+    }
+
     public static class WantedBoard
     {
         public const int StorylineFirst = 128, StorylineSecond = 130, AllBoards = 162;
         static readonly int[] Excluded = { 6, 25, 26, 27, 28 };
 
+        /// <summary>The game's entries (they come first; a mod's follow with a key).</summary>
+        static int Originals(Database db)
+        {
+            int n = 0;
+            while (n < db.Wanted.Count && !db.Wanted[n].IsMod) n++;
+            return n;
+        }
+
         static void Ensure(Database db)
         {
-            while (Session.Wanted.Count < db.Wanted.Count) Session.Wanted.Add(new WantedState());
+            int n = Originals(db);
+            while (Session.Wanted.Count < n) Session.Wanted.Add(new WantedState());
         }
 
         public static WantedState State(Database db, int index)
         {
+            if (index < 0 || index >= db.Wanted.Count) return null;
+            var w = db.Wanted[index];
+            if (w.IsMod)
+            {
+                if (!Session.ModWanted.TryGetValue(w.key, out var s)) Session.ModWanted[w.key] = s = new WantedState();
+                return s;
+            }
             Ensure(db);
-            return index >= 0 && index < Session.Wanted.Count ? Session.Wanted[index] : null;
+            return index < Session.Wanted.Count ? Session.Wanted[index] : null;
         }
+
+        static bool Off(int station) => station == Session.VoidOrbit || station == 108;
+
+        /// <summary>Remake mods: a mod criminal is on this station's board now (its systems', else its board race's; its
+        /// "available" holding; free play too).</summary>
+        public static bool ModListed(Database db, WantedData w, int station)
+        {
+            if (w == null || !w.IsMod || Off(station)) return false;
+            var sys = SystemOf(db, station);
+            if (sys == null) return false;
+            bool here = w.systems != null ? Array.IndexOf(w.systems, sys.index) >= 0 : sys.raceId == w.board;
+            return here && Modding.ModUnlocks.Holds(w.mod, w.available, w.availableWhere);
+        }
+
+        /// <summary>The game's criminals count now (the Supernova add-on's: never in free play).</summary>
+        static bool OriginalsOn => !Session.FreePlay;
 
         static int SystemRace(Database db, int station)
         {
@@ -65,9 +123,9 @@ namespace GoF2Remake.Data
         /// <summary>Status::wantedBoardAccessible.</summary>
         public static bool Accessible(Database db, int station)
         {
-            if (Session.FreePlay || station == Session.VoidOrbit || station == 108) return false;
+            if (Off(station)) return false;
             int race = SystemRace(db, station);
-            return db.Wanted.Exists(w => w.board == race && w.requiredMission <= Session.CampaignMission);
+            return db.Wanted.Exists(w => w.IsMod ? ModListed(db, w, station) : OriginalsOn && w.board == race && w.requiredMission <= Session.CampaignMission);
         }
 
         /// <summary>WantedWindow::init: the rows of the station's board.</summary>
@@ -77,14 +135,15 @@ namespace GoF2Remake.Data
             int campaign = Session.CampaignMission;
             var list = new List<WantedData>();
             foreach (var w in db.Wanted)
-                if (w.board == race && (w.board == 0 ? campaign >= StorylineFirst : campaign >= AllBoards)) list.Add(w);
+                if (w.IsMod ? ModListed(db, w, station) : OriginalsOn && w.board == race && (w.board == 0 ? campaign >= StorylineFirst : campaign >= AllBoards)) list.Add(w);
             return list;
         }
 
         /// <summary>The storyline row the board marks (entry 0 at 128, entry 1 at 130), -1 = none.</summary>
         public static int StorylineRow => Session.CampaignMission == StorylineFirst ? 0 : Session.CampaignMission == StorylineSecond ? 1 : -1;
 
-        static (int lo, int hi) PathBounds(int i) => IsStoryline(i) ? (2, 4) : ((i - 1) % 6 / 3 + 2, (i - 1) % 6 / 2 + 4);
+        static (int lo, int hi) PathBounds(Database db, int i) => db.Wanted[i].IsMod ? (db.Wanted[i].routeMin, db.Wanted[i].routeMax)
+            : IsStoryline(i) ? (2, 4) : ((i - 1) % 6 / 3 + 2, (i - 1) % 6 / 2 + 4);
 
         static bool Usable(Database db, SystemData sys, bool[] visible) =>
             sys != null && sys.jumpRoutesTo != null && sys.jumpRoutesTo.Count > 0 && sys.index < visible.Length && visible[sys.index]
@@ -97,6 +156,20 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Globals::getRandomStation with the route rules: a random station (nextInt(135)) of a usable system.</summary>
+        /// <summary>Remake mods: a random station of a usable system of the criminal's "systems", else of any (the mods' too).</summary>
+        static int RandomModStation(Database db, bool[] visible, WantedData w, int notSystem)
+        {
+            var pool = new List<SystemData>();
+            foreach (var sys in db.Systems)
+                if (sys.index != notSystem && Usable(db, sys, visible) && (w.systems == null || Array.IndexOf(w.systems, sys.index) >= 0)) pool.Add(sys);
+            if (pool.Count == 0) return -1;
+            var pick = pool[Random.Range(0, pool.Count)];
+            return pick.stations[Random.Range(0, pick.stations.Count)];
+        }
+
+        static int RandomStation(Database db, bool[] visible, int notSystem, WantedData w)
+            => w != null && w.IsMod ? RandomModStation(db, visible, w, notSystem) : RandomStation(db, visible, notSystem);
+
         static int RandomStation(Database db, bool[] visible, int notSystem)
         {
             for (int guard = 0; guard < 2000; guard++)
@@ -111,7 +184,7 @@ namespace GoF2Remake.Data
         /// <summary>Status::activateNewWanted: how many became active at this station.</summary>
         public static int ActivateNew(Database db, int station)
         {
-            if (Session.FreePlay || station == Session.VoidOrbit || station == 108) return 0;
+            if (Off(station)) return 0;
             Ensure(db);
             int race = SystemRace(db, station);
             int campaign = Session.CampaignMission;
@@ -120,20 +193,27 @@ namespace GoF2Remake.Data
             for (int i = 0; i < db.Wanted.Count; i++)
             {
                 var w = db.Wanted[i];
-                var st = Session.Wanted[i];
-                if (w.board != race || w.requiredMission > campaign || (IsStoryline(i) && campaign > w.requiredMission)) continue;
-                // Remake: a save whose storyline criminal died without giving up (before Traffic.WantedKilled won the
-                // step on that blow too) waits at 128 / 130 for a dead man: he is back on his route.
-                if (IsStoryline(i) && st.terminated) st.terminated = false;
-                if (st.active || st.terminated || w.requiredBounties > Session.CollectedBounties[Mathf.Clamp(w.board, 0, 3)]) continue;
-                var (lo, hi) = PathBounds(i);
+                var st = State(db, i);
+                if (w.IsMod)
+                {
+                    if (!ModListed(db, w, station) || st.active || st.terminated || w.requiredBounties > Session.ModBounties[Mathf.Clamp(w.board, 0, 3)]) continue;
+                }
+                else
+                {
+                    if (!OriginalsOn || w.board != race || w.requiredMission > campaign || (IsStoryline(i) && campaign > w.requiredMission)) continue;
+                    // Remake: a save whose storyline criminal died without giving up (before Traffic.WantedKilled won the
+                    // step on that blow too) waits at 128 / 130 for a dead man: he is back on his route.
+                    if (IsStoryline(i) && st.terminated) st.terminated = false;
+                    if (st.active || st.terminated || w.requiredBounties > Session.CollectedBounties[Mathf.Clamp(w.board, 0, 3)]) continue;
+                }
+                var (lo, hi) = PathBounds(db, i);
                 List<int> path = null;
                 int s1 = -1, s2 = -1;
                 for (int guard = 0; guard < 500 && path == null; guard++)
                 {
-                    s1 = RandomStation(db, visible, -1);
+                    s1 = RandomStation(db, visible, -1, w);
                     if (s1 < 0) break;
-                    s2 = RandomStation(db, visible, SystemOf(db, s1).index);
+                    s2 = RandomStation(db, visible, SystemOf(db, s1).index, w);
                     if (s2 < 0) break;
                     var p = GalaxyMap.SystemPath(db, SystemOf(db, s1).index, SystemOf(db, s2).index);
                     if (p != null && p.Count >= lo && p.Count <= hi) path = p;
@@ -152,12 +232,14 @@ namespace GoF2Remake.Data
         /// <summary>Status::moveWanted, on entering 'entering' (the orbit change is real: see the header).</summary>
         public static void Move(Database db, int entering, int programmed)
         {
-            if (Session.FreePlay || db.Wanted.Count == 0) return;
+            if (db.Wanted.Count == 0) return;
             Ensure(db);
             var visible = GalaxyMap.Visibility(db);
-            for (int i = 0; i < Session.Wanted.Count && i < db.Wanted.Count; i++)
+            for (int i = 0; i < db.Wanted.Count; i++)
             {
-                var st = Session.Wanted[i];
+                if (!db.Wanted[i].IsMod && !OriginalsOn) continue;
+                var st = State(db, i);
+                if (st == null) continue;
                 if (!st.active || st.terminated || st.current < 0) continue;
                 if (st.current == entering || st.current == programmed) continue;   // you find it there
                 var curSys = SystemOf(db, st.current);
@@ -167,10 +249,10 @@ namespace GoF2Remake.Data
                 {
                     // Arrived last time: a new trip (the criminal stays put this step).
                     st.lastSeen = st.current;
-                    var (lo, hi) = PathBounds(i);
+                    var (lo, hi) = PathBounds(db, i);
                     for (int guard = 0; guard < 500; guard++)
                     {
-                        int s = RandomStation(db, visible, curSys.index);
+                        int s = RandomStation(db, visible, curSys.index, db.Wanted[i]);
                         if (s < 0) break;
                         var p = GalaxyMap.SystemPath(db, curSys.index, SystemOf(db, s).index);
                         if (p != null && p.Count >= lo && p.Count <= hi) { st.travelsTo = s; break; }
@@ -189,13 +271,14 @@ namespace GoF2Remake.Data
         /// <summary>Status::getWantedInCurrentOrbit 0xb916c: an active criminal at this station (the lowest requiredBounties).</summary>
         public static WantedData InOrbit(Database db, int station)
         {
-            if (Session.FreePlay || db.Wanted.Count == 0) return null;
+            if (db.Wanted.Count == 0) return null;
             Ensure(db);
             WantedData best = null;
             for (int i = 0; i < db.Wanted.Count; i++)
             {
-                var st = Session.Wanted[i];
-                if (!st.active || st.terminated || st.current != station) continue;
+                if (!db.Wanted[i].IsMod && !OriginalsOn) continue;
+                var st = State(db, i);
+                if (st == null || !st.active || st.terminated || st.current != station) continue;
                 if (best == null || db.Wanted[i].requiredBounties < best.requiredBounties) best = db.Wanted[i];
             }
             return best;
@@ -209,7 +292,8 @@ namespace GoF2Remake.Data
             var w = db.Wanted[index];
             st.terminated = true;
             st.active = false;
-            Session.CollectedBounties[Mathf.Clamp(w.board, 0, 3)]++;
+            if (w.IsMod) Session.ModBounties[Mathf.Clamp(w.board, 0, 3)]++;   // remake mods: their own tally
+            else Session.CollectedBounties[Mathf.Clamp(w.board, 0, 3)]++;
             Session.Credits += w.reward;
             return w.reward;
         }

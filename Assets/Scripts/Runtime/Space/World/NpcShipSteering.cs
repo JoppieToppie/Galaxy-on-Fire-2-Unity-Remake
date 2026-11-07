@@ -55,10 +55,11 @@ namespace GoF2Remake.World
             // Turned and fired at a spot on the target's model (AimAt); the break-off range measured to its centre.
             var aimPos = attacking && !followingWaypoint && target != null ? AimAt(target, dtMs) : targetPos;
             var dir = aimPos - transform.position;
+            if (RoleFlees) dir = transform.position - FleeFrom.transform.position;   // (remake: a loot drone runs, NpcShipRoles)
             // PlayerFighter::update's fly state: the player docked at an object (PlayerEgo::isDockedToDockingPoint) is circled
             // at +-12000 instead of +-8000, and not fired at while it is above the ship (0xf2cfa).
             bool dockedPlayer = target != null && target.isPlayer && ObjectDocking.PlayerDocked;
-            if (target != null && !followingWaypoint)
+            if (target != null && !followingWaypoint && RoleBreaksOff)   // (remake: a detonator flies into it, NpcShipRoles)
             {
                 float r = (dockedPlayer ? 12000f : NpcTables.BreakOffRange) * M;
                 var toCentre = targetPos - transform.position;
@@ -71,10 +72,10 @@ namespace GoF2Remake.World
             if (attacking && !followingWaypoint && target != null)
             {
                 if (target.untargetable || target.cloaked) attacking = false;   // a cloaked ship: chased, never fired at
-                else
+                else if (RoleFires)   // (remake: the support drones and the detonator hold their guns, NpcShipRoles)
                 {
                     var d = aimPos - transform.position;
-                    float fr = NpcTables.FireRange * M;
+                    float fr = NpcTables.FireRange * M * RoleRangeFactor;   // (remake: a sniper's reach)
                     if (Mathf.Abs(local.x) < NpcTables.FireCone && Mathf.Abs(local.y) < NpcTables.FireCone
                         && Mathf.Abs(d.x) < fr && Mathf.Abs(d.y) < fr && Mathf.Abs(d.z) < fr)
                     {
@@ -98,7 +99,8 @@ namespace GoF2Remake.World
 
             var fwd = transform.forward;
             // LevelScript::process: during the launch / arrival camera every wingman drifts (KIPlayer+0x129, no steering).
-            bool noSteer = drift || (IsWingman && traffic != null && traffic.LaunchCameraRunning != null && traffic.LaunchCameraRunning());
+            bool noSteer = drift || (IsWingman && traffic != null && traffic.LaunchCameraRunning != null && traffic.LaunchCameraRunning())
+                           || !slow.CanTurn;   // remake: an EMP device's slow
             if (!noSteer && !Hp.empDisabled)
             {
                 var delta = dirN - fwd;
@@ -127,7 +129,7 @@ namespace GoF2Remake.World
             if (model != null) model.localRotation = Quaternion.AngleAxis(bank * Mathf.PI / 4096f * Mathf.Rad2Deg, Vector3.forward);
             if (levelling) Roll(dtMs);
 
-            if (!Hp.empDisabled) transform.position += transform.forward * speed * dtMs * M;
+            if (!Hp.empDisabled) transform.position += transform.forward * speed * slow.SpeedFactor * dtMs * M;
         }
 
         /// <summary>Gives the ship an order (null: back to its own AI). Wakes a sleeper, lets a parked ship fly; "hold" is

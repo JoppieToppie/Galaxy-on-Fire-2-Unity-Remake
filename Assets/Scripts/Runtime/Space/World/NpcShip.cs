@@ -267,6 +267,9 @@ namespace GoF2Remake.World
         ShipSmoke smoke;
         ShipBurn burn;
         EmpSparks sparks;
+        /// <summary>Remake (Flight.Device's EMP devices, a slowing weapon): slower, and no turning for a device, while it runs
+        /// (Target.SlowBy).</summary>
+        Slow slow;
         bool smoking;   // PlayerFighter +0x1f4
 
         // wingman (KIPlayer+0xd8 / +0xdc / +0xe0 / +0xe4)
@@ -420,6 +423,8 @@ namespace GoF2Remake.World
             Target.hitpoints = new Hitpoints(spec.hitpoints > 0 ? spec.hitpoints : NpcTables.Hull(kind, spec.ship));
             Target.hitpoints.SetEmp(spec.empPoints > 0 ? spec.empPoints : NpcTables.Emp(kind), NpcTables.EmpRecoveryMs(kind));   // also with a hull override
             Target.hp = Target.maxHp = Target.hitpoints.maxHull;
+            Target.SlowBy = (ms, factor, noTurn) => { if (Target.Alive && !Target.phased) slow.Apply(ms, factor, noTurn); };
+            SetupRole(spec);   // remake mods: its traffic role (NpcShipRoles)
             Target.displayName = !string.IsNullOrEmpty(spec.name) ? spec.name : spec.nameText >= 0 ? Localization.Get(spec.nameText) : null;
             // Modified: a ship or story station one docks at (DockingShip) stays an ordinary ship on the radar, plated
             // "<race> NN%", its name the docking target's alone (a player's
@@ -481,6 +486,7 @@ namespace GoF2Remake.World
                 foreach (var st in spec.extraLoot) if (st != null && st.amount > 0) loot.Add(new ItemStack(st.item, st.amount));
                 multiKindLoot = true;
             }
+            SetupRoleLoot();   // remake mods: a loot drone's pieces (NpcShipRoles)
 
             sfx = gameObject.AddComponent<AudioSource>();
             Setup3D(sfx);
@@ -562,6 +568,7 @@ namespace GoF2Remake.World
             route = (Spec.route ?? Route.DefaultPatrol(Spec.race)).Clone();
             // PlayerFighter::revive 0xf3de0: a revived Void ship or Specter carries nothing (the Void's remains come at death).
             loot = Spec.noLoot || Race == Standing.Void || Race == Standing.Specter ? new List<ItemStack>() : RollLoot();
+            SetupRoleLoot();
             crate = null;
             crateDropped = false;
             if (engine != null && engine.clip != null) engine.Play();
@@ -575,6 +582,7 @@ namespace GoF2Remake.World
 
         void OnDestroy()
         {
+            TeardownRole();
             cloak?.Dispose();
             EngineVoices.Unregister(engine);
         }
@@ -614,6 +622,7 @@ namespace GoF2Remake.World
             if (Current == State.Dying) { UpdateSmoke(); UpdateDying(dtMs); return; }
             UpdateRelations();
             Hp.Update(dtMs);
+            slow.Tick(dtMs);
             // PlayerFighter::handleCloaking: race 10 only (Harval's Scimitar cloaks as a Specter, at 158); scripted ships too.
             if (Race == Standing.Specter) cloak?.Update(dtMs, !Asleep && !inactive, panic, Hp.empDisabled);
             // Remake: a cloaked ship can't be targeted, whoever flies it. The original's cloaked Specter only leaves the
@@ -629,6 +638,8 @@ namespace GoF2Remake.World
             if (Asleep) { UpdateSleep(); return; }
             if (IsTurret) { UpdateTurret(dtMs); return; }
             if (parked || frozen) return;   // parked: a target that neither flies nor shoots
+            UpdateRole(dtMs);   // remake mods: a drone's role (NpcShipRoles)
+            if (!Target.Alive) return;   // (a detonator went off)
             if (scriptedSpeed >= 0f)
             {
                 // AEGeometry::moveForward never touches the fighter's speed (+0x1e0): released, the AI flies at its own
@@ -646,7 +657,7 @@ namespace GoF2Remake.World
             if (order != null && UpdateOrder(dtMs)) return;   // an event graph's order (NpcOrder)
             if (IsFreighter)
             {
-                if (!Hp.empDisabled) transform.position += transform.forward * (Spec.speed > 0f ? Spec.speed : NpcTables.FreighterSpeed) * dtMs * M;   // remake mods: a type's "speed"
+                if (!Hp.empDisabled) transform.position += transform.forward * (Spec.speed > 0f ? Spec.speed : NpcTables.FreighterSpeed) * slow.SpeedFactor * dtMs * M;   // remake mods: a type's "speed"
                 return;
             }
             reselectTimer += dtMs;
@@ -674,7 +685,7 @@ namespace GoF2Remake.World
         /// <summary>PlayerFighter::update 0xf3138: the EMP spark systems emit while the ship is disabled.</summary>
         void UpdateSparks()
         {
-            bool on = Hp.empDisabled;
+            bool on = Hp.empDisabled || slow.Active;   // remake: an EMP device's slow sparks too
             if (on && sparks == null) sparks = new EmpSparks(transform);
             sparks?.SetEmitting(on);
         }

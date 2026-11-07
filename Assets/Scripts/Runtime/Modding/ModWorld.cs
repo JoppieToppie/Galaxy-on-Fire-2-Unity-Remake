@@ -70,6 +70,8 @@ namespace GoF2Remake.Modding
         }
 
         static int originalSystems = -1, originalStations = -1, mappedRevision = -1;
+        /// <summary>EnsureMapping is loading the tables to learn the originals' counts.</summary>
+        static bool loadingOriginals;
         static readonly Dictionary<string, int> systemIndex = new Dictionary<string, int>(StringComparer.Ordinal);
         static readonly Dictionary<string, int> stationIndex = new Dictionary<string, int>(StringComparer.Ordinal);
         static readonly Dictionary<int, Def> systemAt = new Dictionary<int, Def>(), stationAt = new Dictionary<int, Def>();
@@ -207,8 +209,37 @@ namespace GoF2Remake.Modding
 
         /// <summary>A station's orbit level laid out by its mod (stations.json "orbit"), applied by OrbitLayout.Build over the
         /// seeded layout; null fields keep the game's. Positions in game units around the station (the orbit's centre).</summary>
+        /// <summary>Remake (2026-11-03): an orbit's hazard volume (stations.json "orbit.hazards", Flight.Hazards).</summary>
+        public enum HazardKind { Heat, Radiation }
+        public sealed class HazardSpec
+        {
+            public HazardKind kind;
+            public Vector3 centre;
+            /// <summary>Game units.</summary>
+            public float radius;
+            /// <summary>Heat: the damage a second at the centre.</summary>
+            public float dps;
+        }
+
+        /// <summary>Remake (2026-11-03): an orbit's traffic lane (stations.json "orbit.lanes", World.TrafficLanes).</summary>
+        public sealed class LaneSpec
+        {
+            /// <summary>Game units, at least two.</summary>
+            public List<Vector3> points;
+            /// <summary>Ship references ("12", "mod:id") its ships look like, null = the system race's fighters.</summary>
+            public List<string> ships;
+            public int count = Flight.TrafficLane.DefaultCount;
+            /// <summary>Unity metres a second.</summary>
+            public float speed = Flight.TrafficLane.DefaultSpeedMps;
+            public bool loop = true, twoLanes = true;
+        }
+
         public sealed class OrbitSpec
         {
+            /// <summary>Remake (2026-11-03, EVERSPACE 2's spline traffic): null = none.</summary>
+            public List<LaneSpec> lanes;
+            /// <summary>Remake (2026-11-03, EVERSPACE 2's heat volumes and radiation fields): null = none.</summary>
+            public List<HazardSpec> hazards;
             /// <summary>-1 the game's; 0 no station (an empty orbit); 1 a station to dock at; 2 its model without docking.</summary>
             public int station = -1;
             public bool? jumpgate;
@@ -218,6 +249,17 @@ namespace GoF2Remake.Modding
             public List<SpacePoints.Point> pads;
             /// <summary>Remake: pirates hold the station (Data.PirateHold), null = as its system says ("pirateHeld").</summary>
             public bool? pirateHeld;
+            /// <summary>Remake (2026-11-03, EVERSPACE 2's wreck fields): this many salvageable wreck containers (0 = none),
+            /// within wreckSpread (game units, a cube's side) of wreckCentre (World.WreckField).</summary>
+            public int wreckCount;
+            public Vector3? wreckCentre;
+            public float wreckSpread = 60000f;
+            /// <summary>Remake (2026-11-03, EVERSPACE 2's item containers): this many closed containers (0 = none) within
+            /// containerSpread (game units, a cube's side) of containerCentre, containerBulletproof of them bulletproof
+            /// (World.LootContainer).</summary>
+            public int containerCount;
+            public Vector3? containerCentre;
+            public float containerSpread = 40000f, containerBulletproof = 0.3f;
             /// <summary>false: no asteroid field.</summary>
             public bool? asteroids;
             public int? asteroidCount;
@@ -235,6 +277,15 @@ namespace GoF2Remake.Modding
             public Vector2? sun;
             /// <summary>The orbit's own planet: its size (x the game's), yaw / pitch (degrees, 0 = straight ahead as the game's).</summary>
             public float? planetSize, planetYaw, planetPitch;
+            /// <summary>The sky's turn in this orbit ([x, y, z] Unity degrees, as the system's skybox "rotation"), over the
+            /// system's "rotation" / "sunAligned" and the game's per-station turn; null: those.</summary>
+            public Vector3? skyRotation;
+            /// <summary>The orbit's own sky (the system skybox's fields), in place of the system's; null: the system's.</summary>
+            public Skybox skybox;
+            /// <summary>The second light (GoF2's LIGHT1, the planet's): its colour (gamma, 0..2, black = none) and direction
+            /// (yaw / pitch as "sun"); null: the game's. The scene's ambient (gamma 0..1), null: 0.15 x the sun's.</summary>
+            public Color? light2Color, ambient;
+            public Vector2? light2Direction;
         }
 
         /// <summary>A planet's place in the star map's system view (stations.json "mapPlace").</summary>
@@ -250,7 +301,7 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, MapPlace> mapPlaces = new Dictionary<int, MapPlace>();
 
         static readonly HashSet<string> OrbitFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld" };
+            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld", "skyRotation", "skybox", "light2", "ambient", "wrecks", "hazards", "containers", "lanes" };
         static readonly HashSet<string> AsteroidFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "count", "centre", "center", "spread", "type", "ores" };
         static readonly string[] AsteroidTypes = { "rock", "void", "ice", "magma" };

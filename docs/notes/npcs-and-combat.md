@@ -228,6 +228,9 @@ simulates an orbit's traffic) and `ship_combat.md` (+ `Reference/tools/combat/co
 - **Mesh collision** (remake, 2026-10; an option with three modes, Mixed by default, below; `HullCollision` +
   `HullBody`, Unity physics): every ship (NPC, player, other players, proxies, mods' glTF ships), station, jumpgate,
   turret and story / static object gets MeshColliders on its own LOD 0 meshes (not the additive / light / glow layers)
+  (a lower level by name is `_lod_` + a number above 0 or AutoLods' `_lod_gen`, `HullCollision.LowerLodName`; until
+  2026-11-02 any `_lod_` was, so GoF3's `..._lod_000_body` meshes left the GoF3 Systems mod's stations, gates and traffic
+  without a hull and the player met the box round the whole model, km wide)
   on layer 24, under a kinematic Rigidbody on the model's root (no simulation is needed: the queries sync the transforms
   once a frame); the hull models are imported with Read/Write for it (`AssetImport.IsHullModel`: ships, stations,
   jumpgates, turrets, misc; a mod's glTF is readable), each mesh cooked once (`Physics.BakeMesh`). Shots
@@ -411,3 +414,28 @@ battle spawns in 156 ms with its hulls.
   pirates) and the text's line: the radio chatter (426-431, 445-447, the pirate base 435-440, the Nivelian hints 443 /
   444), the freelance briefing / success / failure / return (370-389) and the wingmen's goodbye (313). The GENERIC bank
   is in the story assets (**GoF2 > Build > Story Assets**). A set without the recording stays silent (Vossk 313).
+- **Drone roles** (remake 2026-11-03, for mods; ships.json `traffic.role`, `CustomTraffic.role`; `Flight.NpcRoles` plain +
+  `NpcShipRoles` (NpcShip part)), after EVERSPACE 2's drone types (EDroneType; decompiled BP_Outlaw_SniperDrone (sensing
+  4000 m, sniper aiming), BP_Outlaw_DetonatorDrone (a 2000 cm trigger sphere, ApplyESRadialDamage 10000 cm, 1e8 kinetic to
+  itself), BP_WebberDrone_Base + BP_Condition_Debuff_Webbed (linear / angular damping +2), BP_ShieldChargeDrone_Base and
+  BP_AntiMissileDrone_Base (their guns allowed while their support abilities run: the native AI aims them at allies /
+  missiles), BP_Outlaw_LinkDrone_Armor, BP_Outlaw_JumpSuppressorDrone (JumpSuppressorComponent enabled from BeginPlay until
+  it dies, its marker seen from 100 km)): sniper (fire range x2.5), detonator (no break-off or fire; within 72 m of its
+  target: 10 x its gun's damage to every ship and the player within 360 m, then its own hull, nobody's kill), webber (its
+  hits on the player: `Target.SlowBy` -> `ShipController.WebFactor` 0.5 for 4 s on the ship's moves), shieldCharger (no
+  fire; 5 %/s of the hull of same-race ships within 1.5 km), armorLink (no fire; `Target.damageFactor` 0.5 on those while
+  in reach, left alone where another rule set it), antiMissile (no fire; `WeaponSystem.ShootDownMissile` on the player's
+  nearest homing missile within 2.9 km each second), jumpSuppressor (no fire; `NpcShip.JumpSuppressed` holds
+  `SystemJump.StartCharging` with "Jump suppressed", the story's forced jumps excepted). ES2's metres x3.6 as its ships'.
+  The amounts ES2 keeps in NPC levelling data (blast, repair, slow strength, link share) are the remake's picks. Not done:
+  the support drones' beams drawn, ES2's frost shield, defusal, stealth and split drones. Tests `NpcRoleTests`.
+  lootDrone (2026-11-03, decompiled BP_LootDrone: NumLoot RandomIntegerInRange(4, 7), DropPercentages i / n x RandomFloat(1 -
+  1 / n, 1 + 1 / n) clamped 0.05..1 checked on each health change, a piece (LootDrop.AddLootFromItems + DropLoot) and
+  BP_Explosion_ProximityMine (no damage set: effect only) each, OnAiEndIdle -> FleeDelayMin..Max 5..10 s -> JumpDrive
+  StartJumpFocus (OrbitJumpChargeDuration 6 s), ApplyEMP AbortJumpFocus, RemoveEMP starts it again): no fire; its cargo
+  plus freighter rolls make 4-7 one-stack pieces (`multiKindLoot`, so what is left drops a crate a piece at death);
+  `NpcRoles.DropThresholds`, checked below the full hull, throws a piece (`MakeCrate` + `Launch`, `Explosion.Spawn` x0.5);
+  found (hit, or the player in its detection box) it steers away from the player (`RoleFlees`, no break-off) and after the delay and charge
+  `JumpOut` (state 6, gone with the rest, nobody's kill). Never a traffic fighter (`ModTraffic.Scan`); the cruise drive's
+  `lootdrone` encounter flies it, neutral; the other ships leave it out of their enemy lists (`Traffic.ConnectPlayers`, ES2's
+  bIgnoredByAI). Not done: ES2's jump charge effect and sound, its marker kept in range once found.

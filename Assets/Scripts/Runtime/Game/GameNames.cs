@@ -26,6 +26,8 @@ namespace GoF2Remake.Data
         public static string ItemTag(int item) => Modding.ModContent.ItemTag(item);
         public static string SystemTag(int system) => Modding.ModWorld.SystemTag(system);
         public static string StationTag(int station) => Modding.ModWorld.StationTag(station);
+        /// <summary>A mod's Most Wanted criminal (Modding.ModWanted): its mod's tag.</summary>
+        public static string WantedTag(WantedData w) => w != null && w.IsMod ? Modding.ModContent.TagOf(w.mod) : null;
 
         public static string ShipDescription(int ship) =>
             Modding.ModContent.ShipText(ship, true, out var t) ? t : ship >= 0 && ship < OriginalShips ? Localization.Get(ShipDescriptionBase + ship) : "";

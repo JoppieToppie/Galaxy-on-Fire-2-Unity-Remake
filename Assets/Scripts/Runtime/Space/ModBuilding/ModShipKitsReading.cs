@@ -223,11 +223,12 @@ namespace GoF2Remake.Modding
                         {
                             material = ModJson.Str(mo, "material"), diffuse = ModJson.Str(mo, "diffuse"), emission = ModJson.Str(mo, "emission"),
                             metallicSmoothness = ModJson.Str(mo, "metallicSmoothness"), normal = ModJson.Str(mo, "normal"),
+                            specularGlossiness = ModJson.Str(mo, "specularGlossiness"),
                             color = Rgb(mo, "color", mwhere), emissionColor = Rgb(mo, "emissionColor", mwhere),
                             emissionIntensity = ModJson.Float(mo, "emissionIntensity", 1f, file),
                         };
                         if (string.IsNullOrEmpty(m.material)) throw new ModJsonException($"{mwhere}: \"material\" is missing (the model's material name, or part of it)");
-                        foreach (var path in new[] { m.diffuse, m.emission, m.metallicSmoothness, m.normal })
+                        foreach (var path in new[] { m.diffuse, m.emission, m.metallicSmoothness, m.specularGlossiness, m.normal })
                             if (!string.IsNullOrEmpty(path) && !mod.Source.Exists(path)) throw new ModJsonException($"{mwhere}: the texture \"{path}\" isn't in the mod");
                         skin.materials.Add(m);
                     }

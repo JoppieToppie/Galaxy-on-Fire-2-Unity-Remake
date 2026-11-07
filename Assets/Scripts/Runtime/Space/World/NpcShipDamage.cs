@@ -112,6 +112,8 @@ namespace GoF2Remake.World
             else if (hit.isPlayer && ObjectDocking.PlayerDocked) dmg = (int)(dmg * 0.75f);
             else if (!hit.isPlayer && RemoteDockedAtObject != null && RemoteDockedAtObject(hit)) dmg = (int)(dmg * 0.75f);   // multiplayer
             hit.Damage(dmg, true, g.bullets[bullet].velocity);
+            // remake mods: a webber's hit slows the player's ship (NpcRoles)
+            if (Role == NpcRoles.Role.Webber && hit.isPlayer && Target.hostileToPlayer) hit.SlowBy?.Invoke(NpcRoles.WebMs, NpcRoles.WebSpeedFactor, false);
             if (g.emp > 0f) EmpBreaksCloak(hit);
             if (g.emp > 0f && !hit.isPlayer && hit.hitpoints != null) hit.hitpoints.DamageEmp((int)g.emp);
             r.ShowImpact(point);
@@ -340,10 +342,11 @@ namespace GoF2Remake.World
         public Crate CreateStealCrate()
         {
             if (!HasCargo) return null;
-            var prefab = assets != null ? assets.Crate(Race) : null;
-            var go = prefab != null ? Instantiate(prefab, transform.position, Random.rotation) : new GameObject("Crate");
+            string model = Modding.ModCrates.KeyOf(Spec.ship);   // a mod ship's own container
+            var go = Crate.Model(Crate.LookContainer, Race, model, transform.position, Random.rotation);
             go.name = "Stolen cargo";
             var c = go.AddComponent<Crate>();
+            c.model = model;
             c.Setup(loot, Race);
             c.stolenFrom = this;
             c.pulled = true;
@@ -393,10 +396,11 @@ namespace GoF2Remake.World
 
         Crate MakeCrate(List<ItemStack> items)
         {
-            var prefab = assets.Crate(Race);
-            var go = prefab != null ? Instantiate(prefab, transform.position, Random.rotation) : new GameObject("Crate");
+            string model = Modding.ModCrates.KeyOf(Spec.ship);   // a mod ship's own container
+            var go = Crate.Model(Crate.LookContainer, Race, model, transform.position, Random.rotation);
             go.name = "Crate";
             var c = go.AddComponent<Crate>();
+            c.model = model;
             c.Setup(items, Race);
             c.fromFriend = Target.friendToPlayer;
             c.missionCrate = Spec.missionCrate >= 0;

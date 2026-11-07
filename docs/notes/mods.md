@@ -167,10 +167,11 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
 - **Mod tags** (remake, TorchOP's request 2026-10-23: tell SH / HD / Alliances / GoF3 content apart; the user: one tag
   per mod, for everything, not just ships): mod.json `"tag"` (`ModContent.TagOf`, a string or per language) on all a mod
   adds, never on what it only overrides: `GameNames.ShipTag` / `ItemTag` (a ship blueprint's item: its ship's) /
-  `SystemTag` / `StationTag` (`ModWorld`). `ItemInfo.WithTag` adds it as rich text (`<alpha=#80><size=80%>`, the tag in
+  `SystemTag` / `StationTag` (`ModWorld`) / `WantedTag` (a mod's Most Wanted criminal, 2026-11-02). `ItemInfo.WithTag` adds it as rich text (`<alpha=#80><size=80%>`, the tag in
   `<noparse>`; `TaggedShipName`, `TaggedItemName`): the hangar / shop / cargo / Kaamo / pending rows, the hangar details,
   the carrier shop, the item window, the status screen, the star map's system and planet names, its system panel and
-  planet lore title, the docked station's title and system line (after `ToUpperInvariant`). Everywhere else (toasts,
+  planet lore title, the docked station's title and system line (after `ToUpperInvariant`), the Most Wanted board's rows
+  and details and the pause menu's Most Wanted page (`TaggedWantedName`; not the radio or the HUD). Everywhere else (toasts,
   dialogs, selectors, chat, saves) keeps the plain name. Mod Builder: Mod details' "Tag". Tests `ModTagTests`.
 - **Numbers** (`ModRegistry`, `persistentDataPath/mod_registry.json`, outside the Mods folder): single player gives each "mod:id" key the next free
   number after the original table (233+) for good; a key whose mod is off gets a placeholder (`ModContent.IsMissingItem`:
@@ -224,8 +225,16 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   flight, free flight or both. Items: attributes 110-121 (`ItemStats`): `flightScope` (110: 0 both, 1 original, 2 free) keeps
   the item's booster / Steering Nozzle attributes 25-28 to one style; % bonuses `topSpeed` / `turnRate` / `strafeSpeed` (both,
   111-113), `original*` (114-116), `free*` + `freeAcceleration` (117-120) and `freeBoostFactor` (121, x100, instead of the
-  booster's).
-  Ships (new or override): `flightStyle` and `flight` { topSpeed, turnRate, strafeSpeed, acceleration, boostFactor, original {},
+  booster's); `fullStopDamage` / `lowSpeedResistance` (138 / 139, both styles, 2026-11-02: EVERSPACE 2's ship passives from
+  `BP_Ship_Player`'s `TickItemEffects`: the primaries' damage x (1 + %) while the velocity is nearly zero
+  (`FlightModel.AtFullStop` / `WeaponDamageFactor`, `WeaponSystem.FlightDamageFactor`), the hits on the ship x (1 - %) once
+  it has flown at or below 30 m/s (3000 cm/s) for 1 s (ES2's 1 s timer; `FlightModel.DamageTakenFactor` ->
+  `Target.damageFactor` on the player's ship, set by `ShipController` each frame); both styles, so the original's throttle
+  at 0 counts as a full stop).
+  Mounts (2026-11-02): `slotType` 6 contrail point and 7 headlight fixture (EVERSPACE 2's `SKT_Contrail` / `SKT_HeadLight`
+  sockets, the ES2 importer writes them; `Modding.Es2Contrails` / `Es2Headlights`, see free-flight.md); `es2Engine.contrails`.
+  Ships (new or override): `flightStyle` and `flight` { topSpeed, turnRate, strafeSpeed, acceleration, boostFactor,
+  fullStopDamage, lowSpeedResistance, original {},
   free {} } (`ShipData.flightStyle` / `flightBoth` / `flightOriginal` / `flightFree`, non-serialized, set by
   `ModFlight.ApplyShip`). `Database.BuildFlightStats` fills `FlightStats.original` / `free` (`FlightTuning`: the style's
   booster, agility and summed `FlightBonus`; the ship's first, so an item's freeBoostFactor wins); `FlightModel.Configure`

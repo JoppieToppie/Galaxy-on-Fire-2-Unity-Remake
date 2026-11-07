@@ -144,6 +144,23 @@ namespace GoF2Remake.Flight
         }
         public void SetThrottle(float t) => Model.SetThrottle(t);
         public void Boost() => Model.Boost();
+
+        float webMs, webFactor = 1f;
+        /// <summary>Remake mods: a webber drone's slow on the ship's moves (NpcRoles.WebSpeedFactor while it lasts), 1 = none.</summary>
+        public float WebFactor => webMs > 0f ? webFactor : 1f;
+
+        bool boostLatched;
+        /// <summary>Free flight's boost input: the key held, or with Settings.BoostToggle a press to start and a press to stop
+        /// (EVERSPACE 2's AESPlayerController::InputStartBoosting with GetBoostAsToggle: a press while boosting stops it, else it
+        /// starts one; its StartBoosting returns silently on an empty pool, so a press then latches nothing). A boost that ran
+        /// dry unlatches (a fresh press starts the next).</summary>
+        bool BoostInput(bool live)
+        {
+            if (!Data.Settings.BoostToggle) { boostLatched = false; return live && GameControls.Boost.IsPressed(); }
+            if (Model.BoostRanDry || !live) boostLatched = false;
+            if (live && GameControls.Boost.WasPressedThisFrame()) boostLatched = boostLatched ? false : Model.CanStartBoost;
+            return boostLatched;
+        }
         public void AlignToHorizon() => Model.AlignToHorizon();
 
         /// <summary>The accelerometer steers (FlightHud): the tilt sensitivity and pitch factors apply.</summary>
@@ -247,12 +264,25 @@ namespace GoF2Remake.Flight
         {
             UpdateEngineParts();
             // Remake: a boost shakes off the homing missiles locked on this ship (Gun, Target.boosting).
-            if (selfTarget == null) selfTarget = GetComponent<Target>();
-            if (selfTarget != null) selfTarget.boosting = Model.IsBoosting;
+            if (selfTarget == null)
+            {
+                selfTarget = GetComponent<Target>();
+                // remake mods: a webber drone's hit slows the ship (NpcRoles): its moves x the factor for that long
+                if (selfTarget != null) selfTarget.SlowBy = (ms, factor, noTurn) => { webFactor = webMs > 0f ? Mathf.Min(webFactor, factor) : factor; webMs = Mathf.Max(webMs, ms); };
+            }
+            if (webMs > 0f) webMs -= Time.deltaTime * 1000f;
+            if (selfTarget != null)
+            {
+                selfTarget.boosting = Model.IsBoosting;
+                // Remake mods (FlightBonus.lowSpeedResistance, EVERSPACE 2's low-speed damage reduction): the hits on this ship
+                // x the model's factor (Target.Damage scales by damageFactor before the pools).
+                selfTarget.damageFactor = Model.DamageTakenFactor;
+            }
             // A mod or an event can switch the flight style in flight (Modding.ModFlight): its key layout follows.
             if (useBuiltInInput) GameControls.ApplyStyle();
             Model.TiltMode = tiltMode;
             Model.LevelPitch = Data.Settings.LevelPitch;
+            Model.AutoRoll = Data.Settings.AutoRoll;   // remake: EVERSPACE 2's auto-roll in free flight
             Model.Mass = mass;
             // PlayerEgo::up / right with the mouse cursor: the ramp divisor is 12, i.e. (3.3 - sens) x 20 with sens 2.7.
             Model.Sensitivity = tiltMode ? Data.Settings.TiltSensitivity : mouseSteering ? 2.7f : sensitivity;
@@ -271,7 +301,7 @@ namespace GoF2Remake.Flight
                     SteerInput = turretSteer;
                 }
                 Model.FreeFlight = FreeFlightActive;
-                Model.BoostHeld = Model.FreeFlight && useBuiltInInput && !inputLocked && !Navigation.InputHalted && GameControls.Boost.IsPressed();
+                Model.BoostHeld = Model.FreeFlight && BoostInput(useBuiltInInput && !inputLocked && !Navigation.InputHalted);
                 Model.TickBoost(dtMs);   // PlayerEgo::update: the boost and its recharge run on (the mining approach boosts)
                 SpeedMetersPerSecond = ExternalSpeedMetersPerSecond;
                 Model.SyncFree(transform.forward, ExternalSpeedMetersPerSecond / 1000f / metersPerUnit);
@@ -310,7 +340,7 @@ namespace GoF2Remake.Flight
                 SteerInput = Vector2.zero;
                 transform.Rotate(0f, heading * Mathf.Rad2Deg, 0f, Space.Self);
                 ManeuverSlide = -transform.right * (slide * metersPerUnit);
-                transform.position += transform.forward * (mr.forwardUnits * metersPerUnit) + ManeuverSlide;
+                transform.position += (transform.forward * (mr.forwardUnits * metersPerUnit) + ManeuverSlide) * WebFactor;
                 SpeedMetersPerSecond = dtMs > 0f ? mr.forwardUnits * metersPerUnit / (dtMs / 1000f) : 0f;
                 if (Model.FreeFlight && dtMs > 0f) Model.SyncFree(transform.forward, mr.forwardUnits / dtMs);
                 UpdateVisualBank();
@@ -339,7 +369,7 @@ namespace GoF2Remake.Flight
             // Model convention: +x = yaw left, +y = pitch down. Map "stick right = turn right".
             var model = new Vector2(invertYaw ? steer.x : -steer.x, invertPitch ? steer.y : -steer.y);
 
-            Model.BoostHeld = Model.FreeFlight && live && GameControls.Boost.IsPressed();
+            Model.BoostHeld = Model.FreeFlight && BoostInput(live);
             if (Model.FreeFlight && autopilotTarget == null && !inputLocked && !steeringLocked)
             {
                 // In free look the stick (the right one in this layout) and the mouse turn the camera: the ship flies on.
@@ -381,8 +411,8 @@ namespace GoF2Remake.Flight
                     transform.Rotate(0f, 0f, -roll * rollDegreesPerSecond * Model.RollScale * dtMs / 1000f, Space.Self);
                 }
             }
-            transform.position += transform.forward * (r.forwardUnits * metersPerUnit)
-                                + transform.right * (r.sidePushUnits * metersPerUnit);
+            transform.position += (transform.forward * (r.forwardUnits * metersPerUnit)
+                                + transform.right * (r.sidePushUnits * metersPerUnit)) * WebFactor;
             // The PC version's held strafe (bindings 3350 / 3351 "Strafe left / right"): not while the controls are locked.
             // Remake: on the autopilot too (it slides the ship sideways; the autopilot keeps correcting the heading).
             if (live && !steeringLocked)
@@ -430,7 +460,7 @@ namespace GoF2Remake.Flight
             }
             var r = Model.StepFree(input, dtMs, transform.rotation, transform.up, transform.right);
             transform.Rotate(r.pitchDeg, -r.yawDeg, r.rollDeg, Space.Self);
-            var move = r.move * metersPerUnit + transform.right * (r.sidePushUnits * metersPerUnit);
+            var move = (r.move * metersPerUnit + transform.right * (r.sidePushUnits * metersPerUnit)) * WebFactor;
             transform.position += move;
             // The chase camera keeps the sideways part of the move (TargetFollowCamera::translateNoUpdate, as for the
             // strafe): it trails the ship's forward motion and stays square behind it while it slides.

@@ -150,7 +150,7 @@ namespace GoF2Remake.UI
                     Image(m.bracket, Tex("bracket"));
                     layer.Add(m.bracket);
                 }
-                if (t.kind == Navigation.Kind.Jumpgate || t.kind == Navigation.Kind.System || t.kind == Navigation.Kind.Waypoint || wormhole || (t.kind == Navigation.Kind.Planet && t.station == gateStation))
+                if (t.kind == Navigation.Kind.Jumpgate || (t.kind == Navigation.Kind.System && t.planetOf == null) || t.kind == Navigation.Kind.Waypoint || wormhole || (t.kind == Navigation.Kind.Planet && t.station == gateStation))
                 {
                     m.icon = new VisualElement { pickingMode = PickingMode.Ignore, usageHints = UsageHints.DynamicTransform };
                     m.icon.AddToClassList("nav-abs");
@@ -301,16 +301,22 @@ namespace GoF2Remake.UI
                 m.name.EnableInClassList("combat-label--friend", friendly);
                 m.bracket?.EnableInClassList("nav-bracket--friend", friendly);
                 m.name.style.display = nearCentre ? DisplayStyle.Flex : DisplayStyle.None;
-                if (m.distance != null) m.distance.style.display = nearCentre ? DisplayStyle.Flex : DisplayStyle.None;
+                // Remake: between the systems the distances may be off (Settings.InterstellarDistance).
+                bool distance = nearCentre && (!nav.Interstellar || Settings.InterstellarDistance);
+                if (m.distance != null) m.distance.style.display = distance ? DisplayStyle.Flex : DisplayStyle.None;
                 if (m.tech != null) m.tech.style.display = nearCentre ? DisplayStyle.Flex : DisplayStyle.None;
                 if (nearCentre)
                 {
                     Place(m.name, p.x + lx, p.y);
                     if (m.tech != null) Place(m.tech, p.x + lx, p.y + 30f);
-                    if (m.distance != null)
+                    if (m.distance != null && distance)
                     {
                         Place(m.distance, p.x + lx, p.y + (station ? 60f : 30f));
-                        m.distance.text = Navigation.FormatDistance((t.Position - cam.transform.position).magnitude / M);
+                        float units = (t.Position - cam.transform.position).magnitude / M;
+                        // remake: light years between the systems (at the hops' scale, so a zone's edge changes nothing), a planet
+                        // near enough in the orbit's km
+                        m.distance.text = !nav.Interstellar || (t.planetOf != null && units < InterstellarSpace.PlanetKmUnits) ? Navigation.FormatDistance(units)
+                                        : InterstellarSpace.FormatLightYears(units, nav.WorldScale);
                     }
                 }
                 if (m.icon != null)
@@ -339,8 +345,10 @@ namespace GoF2Remake.UI
                 lockOre.text = locked.name;
                 lockOre.EnableInClassList("lock-ore--wanted", false);   // the shared plate's criminal red (CombatView) stayed on (Discord 2026-10-17)
                 // The remake's lockable waypoint shows its own marker, not the system's race icon (#28).
+                // Remake: between the systems a system (or one of its planets) shows its own race, not the orbit left's.
                 var icon = locked.kind == Navigation.Kind.Planet ? null
                          : locked.kind == Navigation.Kind.Waypoint ? Tex(locked.freelance ? "map_freelance" : "map_story")
+                         : locked.kind == Navigation.Kind.System && locked.system >= 0 ? RaceIcon(RaceOfSystem(locked.system))
                          : RaceIcon(systemRace);
                 lockClass.style.display = icon != null ? DisplayStyle.Flex : DisplayStyle.None;
                 Image(lockClass, icon);
@@ -356,6 +364,13 @@ namespace GoF2Remake.UI
             if (d.sqrMagnitude < 1e-6f) d = Vector2.down;
             float k = Mathf.Sqrt(d.x * d.x / (EllipseX * EllipseX) + d.y * d.y / (EllipseY * EllipseY));
             return centre + d / k;
+        }
+
+        /// <summary>A system's race for its badge (Hud::drawOrbitInformation's rule: an owned system's race, else none).</summary>
+        static int RaceOfSystem(int system)
+        {
+            var s = GoF2Remake.Data.Database.Shared.Systems.Find(x => x.index == system);
+            return s != null && GoF2Remake.Data.GalaxyMap.HasOwner(system) ? s.raceId : -1;
         }
 
         Texture2D RaceIcon(int race)
