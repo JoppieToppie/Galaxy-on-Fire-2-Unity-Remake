@@ -118,5 +118,144 @@ namespace GoF2Remake.Tests
             Fly(m, 50f, Thrust(0f));   // the boost ends
             Assert.AreEqual(174f, Fly(m, 1000f, Thrust(0f)), 8f);
         }
+
+        [Test]
+        public void ABoostThatRunsDryReportsItForOneFrameAndWaitsForAFreshPress()
+        {
+            // EVERSPACE 2's tick: the energy at 0 while boosting stops the boost (TryToBoostWithEnergyDepletedSound); its
+            // StartBoosting returns silently on an empty pool; here the pool restarts from a fifth full on a fresh press.
+            using var cheat = new SettingsScope<bool>(() => Cheats.NoEquipmentCooldown, v => Cheats.NoEquipmentCooldown = v);
+            Cheats.NoEquipmentCooldown = false;
+            var m = Model(boostSpeed: 200, boostMs: 1000);
+            Assert.IsTrue(m.CanStartBoost, "a full pool");
+            m.BoostHeld = true;
+            int dryFrames = 0;
+            for (int i = 0; i < 120; i++)
+            {
+                m.StepFree(Thrust(), Step, Quaternion.identity, Vector3.up, Vector3.right);
+                if (m.BoostRanDry) dryFrames++;
+            }
+            Assert.AreEqual(1, dryFrames, "reported on the one frame the pool empties (1 s of boost in 1.2 s of frames)");
+            Assert.IsFalse(m.IsBoosting);
+            Assert.IsFalse(m.CanStartBoost, "spent while the key is still held");
+            m.BoostHeld = false;
+            Fly(m, 3000f, Thrust());   // recharges 0.3 of 10 s: past the fifth it restarts from
+            Assert.IsTrue(m.CanStartBoost, "released and a fifth full again");
+            m.BoostHeld = true;
+            Fly(m, 50f, Thrust());
+            Assert.IsTrue(m.IsBoosting);
+        }
+
+        // ---- EVERSPACE 2's auto-roll (FlightModel.AutoRoll: GenerateAutoRollInput's numbers from the component's constructor:
+        // at most 0.15 of the roll rate once the bank passes 15 deg, until within 3 deg, held back 2 s after a steep pitch)
+
+        /// <summary>The bank as the model measures it: the right wing's drop against the horizon, degrees, 0 level.</summary>
+        static float BankDeg(Quaternion rotation)
+        {
+            var right = rotation * Vector3.right; var up = rotation * Vector3.up;
+            return Mathf.Atan2(-right.y, up.y) * Mathf.Rad2Deg;
+        }
+
+        /// <summary>Flies 'ms' with the input, turning the ship as ShipController does (Rotate(pitch, -yaw, roll) in its own
+        /// frame); returns the rotation and the largest roll of one step (degrees).</summary>
+        static (Quaternion rotation, float maxRollStep) Turn(FlightModel m, float ms, FlightModel.FreeInput input, Quaternion rotation)
+        {
+            float maxRoll = 0f;
+            for (float t = 0; t < ms - 0.01f; t += Step)
+            {
+                var r = m.StepFree(input, Step, rotation, rotation * Vector3.up, rotation * Vector3.right);
+                rotation = rotation * Quaternion.Euler(r.pitchDeg, -r.yawDeg, r.rollDeg);
+                maxRoll = Mathf.Max(maxRoll, Mathf.Abs(r.rollDeg));
+            }
+            return (rotation, maxRoll);
+        }
+
+        [Test]
+        public void AutoRollLevelsABankedShipAtAFifteenthOfTheRollRate()
+        {
+            var m = Model();
+            m.AutoRoll = true;
+            var banked = Quaternion.AngleAxis(40f, Vector3.forward);
+            Assert.AreEqual(40f, Mathf.Abs(BankDeg(banked)), 0.01f, "a 40 deg bank to start");
+            var (rotation, maxRollStep) = Turn(m, 6000f, Thrust(0f), banked);
+            Assert.LessOrEqual(Mathf.Abs(BankDeg(rotation)), 3.5f, "within the 3 deg tolerance");
+            // 0.15 x 125 deg/s at handling 100 = 18.75 deg/s: 0.1875 deg per 10 ms step at most
+            Assert.LessOrEqual(maxRollStep, 0.19f, "never faster than MaxAutoRollInput 0.15 of the roll rate");
+            Assert.Greater(maxRollStep, 0.15f, "and close to it while the bank is past 15 deg");
+        }
+
+        [Test]
+        public void AutoRollIsOffByDefaultAndRestsInsideTheThreshold()
+        {
+            var m = Model();
+            var (rotation, _) = Turn(m, 3000f, Thrust(0f), Quaternion.AngleAxis(40f, Vector3.forward));
+            Assert.AreEqual(40f, Mathf.Abs(BankDeg(rotation)), 0.01f, "off: the bank stays");
+            m.AutoRoll = true;
+            (rotation, _) = Turn(m, 3000f, Thrust(0f), Quaternion.AngleAxis(10f, Vector3.forward));
+            Assert.AreEqual(10f, Mathf.Abs(BankDeg(rotation)), 0.01f, "a 10 deg lean is under RollAngleThreshold 15: no roll");
+        }
+
+        [Test]
+        public void AutoRollEasesInAgainTwoSecondsAfterAPitchInput()
+        {
+            var m = Model();
+            m.AutoRoll = true;
+            var banked = Quaternion.AngleAxis(60f, Vector3.forward);
+            // a full pitch input (beyond PitchInputThreshold 0.9) resets the ease-in timer to EaseInTime 2 s
+            var (rotation, _) = Turn(m, 300f, new FlightModel.FreeInput { aim = new Vector2(0f, 1f), dampeners = true }, banked);
+            float before = Mathf.Abs(BankDeg(rotation));
+            (rotation, _) = Turn(m, 500f, Thrust(0f), rotation);
+            float early = before - Mathf.Abs(BankDeg(rotation));
+            (rotation, _) = Turn(m, 1000f, Thrust(0f), rotation);
+            float mid = Mathf.Abs(BankDeg(rotation));
+            (rotation, _) = Turn(m, 500f, Thrust(0f), rotation);
+            float late = mid - Mathf.Abs(BankDeg(rotation));
+            Assert.Less(early, late * 0.5f, $"the first half second ({early:0.00} deg) rolls far less than the one after 1.5 s ({late:0.00} deg)");
+            (rotation, _) = Turn(m, 6000f, Thrust(0f), rotation);
+            Assert.LessOrEqual(Mathf.Abs(BankDeg(rotation)), 3.5f, "level in the end");
+        }
+
+        // ---- EVERSPACE 2's full-stop and low-speed passives (FlightBonus.fullStopDamage / lowSpeedResistance)
+
+        static FlightModel ModelWith(float fullStopDamage, float lowSpeedResistance)
+        {
+            var s = new FlightStats { handling = 100f, boostRechargeMs = 10000 };
+            s.original = s.ForStyle(false);
+            s.free = s.ForStyle(true);
+            s.free.bonus.fullStopDamage = s.original.bonus.fullStopDamage = fullStopDamage;
+            s.free.bonus.lowSpeedResistance = s.original.bonus.lowSpeedResistance = lowSpeedResistance;
+            var m = new FlightModel { FreeFlight = true };
+            m.Configure(s);
+            return m;
+        }
+
+        [Test]
+        public void FullStopRaisesThePrimaryDamageOnlyWhileStandingStill()
+        {
+            var m = ModelWith(30f, 0f);
+            Fly(m, 100f, Thrust(0f));
+            Assert.IsTrue(m.AtFullStop);
+            Assert.AreEqual(1.3f, m.WeaponDamageFactor, 1e-4f);
+            Fly(m, 500f, Thrust());
+            Assert.IsFalse(m.AtFullStop);
+            Assert.AreEqual(1f, m.WeaponDamageFactor, 1e-4f);
+            Fly(m, 5000f, Thrust(0f));   // braked to rest again
+            Assert.AreEqual(1.3f, m.WeaponDamageFactor, 1e-4f);
+        }
+
+        [Test]
+        public void LowSpeedResistanceComesASecondAfterDroppingBelowThirtyMetresASecond()
+        {
+            var m = ModelWith(0f, 20f);
+            Fly(m, 5000f, Thrust());
+            Assert.AreEqual(1f, m.DamageTakenFactor, 1e-4f, "at 100 m/s");
+            // braking at 34.6 m/s^2 from 100 m/s: below 30 m/s after ~2.0 s, the resistance a second later
+            Fly(m, 2500f, Thrust(0f));
+            Assert.AreEqual(1f, m.DamageTakenFactor, 1e-4f, "below 30 m/s for only half a second");
+            Fly(m, 1000f, Thrust(0f));
+            Assert.AreEqual(0.8f, m.DamageTakenFactor, 1e-4f, "20 % less damage taken after a second");
+            Fly(m, 2000f, Thrust());
+            Assert.AreEqual(1f, m.DamageTakenFactor, 1e-4f, "gone at once above 30 m/s");
+        }
     }
 }

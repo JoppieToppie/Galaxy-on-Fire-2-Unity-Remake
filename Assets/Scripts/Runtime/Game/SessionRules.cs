@@ -8,7 +8,24 @@ namespace GoF2Remake.Data
     {
         public const int CloakLosesPursuers = 1, PirateEvents = 2, CapitalShips = 4, InformerOriginalRule = 8,
                          KaamoStacking = 16, KaamoKeepsEquipment = 32, CloakBay = 64, EmpBreaksCloak = 128,
-                         SmarterNpcTargeting = 256, PreciseShipCollision = 512, OriginalCollision = 1024;
+                         SmarterNpcTargeting = 256, PreciseShipCollision = 512, OriginalCollision = 1024,
+                         DogfightOriginal = 2048, DogfightEvery = 4096;
+
+        /// <summary>Remake (the GoF3 roadmap's G6): how NPC fighters fight (Settings.NpcDogfight, Flight.Gof3Dogfight), two
+        /// bits: DogfightOriginal = GoF2's everywhere, DogfightEvery = GoF3's for every fighter, neither = GoF3's for the
+        /// hulls that ask for it (ships.json "traffic": { "ai": "gof3" }; the default, so a session without the bits has it).</summary>
+        public const int DogfightOriginalMode = 0, DogfightModHulls = 1, DogfightAll = 2, DefaultDogfight = DogfightModHulls;
+
+        public static int DogfightOf(int rules) =>
+            (rules & DogfightOriginal) != 0 ? DogfightOriginalMode : (rules & DogfightEvery) != 0 ? DogfightAll : DogfightModHulls;
+
+        public static int WithDogfight(int rules, int mode)
+        {
+            rules &= ~(DogfightOriginal | DogfightEvery);
+            if (mode == DogfightOriginalMode) rules |= DogfightOriginal;
+            else if (mode == DogfightAll) rules |= DogfightEvery;
+            return rules;
+        }
 
         /// <summary>Remake: the ship collision mode (Settings.ShipCollision), carried in sessions by two bits:
         /// PreciseShipCollision = Exact, OriginalCollision = Original (it wins), neither = Mixed.

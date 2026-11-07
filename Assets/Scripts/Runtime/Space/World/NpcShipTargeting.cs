@@ -30,6 +30,7 @@ namespace GoF2Remake.World
             if (territory > 0 && !turnedEnemy) { hostile = false; friend = true; }
             else if (territory < 0) { hostile = true; friend = false; }
             if (alwaysFriend) { hostile = false; friend = true; }
+            if (mindControlMs > 0f) { hostile = true; friend = false; }   // remake mods: a boss's mind control (NpcDevices)
             Target.hostileToPlayer = hostile;
             Target.friendToPlayer = friend;
         }

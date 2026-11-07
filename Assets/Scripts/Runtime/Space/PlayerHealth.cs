@@ -518,7 +518,7 @@ namespace GoF2Remake.Flight
             Hp.vulnerable = !invulnerable;
             UpdateEmergency(dtMs);
             UpdateGamma(dtMs);
-            Hp.RegenerateShield(dtMs, shieldRechargeMs);
+            Hp.RegenerateShield(dtMs * GoF2Remake.Flight.Overheat.Factor(GoF2Remake.Flight.Overheat.Slot.Shield), shieldRechargeMs);   // (remake: overheated, Overheat)
             UpdateInjector(dtMs);
             if (hasRepair) Hp.Repair(dtMs, repairHullMs, repairArmorMs);
             Target.hp = Hp.hull;

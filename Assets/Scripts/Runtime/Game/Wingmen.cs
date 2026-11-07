@@ -21,6 +21,7 @@ namespace GoF2Remake.Data
             var names = new List<string> { agent.name };
             names.AddRange(agent.wingmen);
             Session.Wingmen = names;
+            Session.WingmanShips = agent.wingmanShips != null ? new List<int>(agent.wingmanShips) : new List<int>();
             Session.WingmanRace = agent.race;
             Session.WingmanContractMs = ContractMs;
             Session.WingmanPortrait = agent.portrait != null ? (int[])agent.portrait.Clone() : new int[5];
@@ -30,6 +31,8 @@ namespace GoF2Remake.Data
         /// <summary>Level::wingmanDied: the name leaves the list; the last one ends the contract.</summary>
         public static void Died(string name)
         {
+            int i = Session.Wingmen.IndexOf(name);
+            if (i >= 0 && i < Session.WingmanShips.Count) Session.WingmanShips.RemoveAt(i);
             Session.Wingmen.Remove(name);
             if (Session.Wingmen.Count == 0) Dismiss();
         }
@@ -38,6 +41,7 @@ namespace GoF2Remake.Data
         public static void Dismiss()
         {
             Session.Wingmen = new List<string>();
+            Session.WingmanShips = new List<int>();
             Session.WingmanContractMs = 0f;
         }
     }

@@ -32,7 +32,7 @@ namespace GoF2Remake.Modding
     public static class ModMaterials
     {
         static readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
-        static readonly Dictionary<Color32, Texture2D> solids = new Dictionary<Color32, Texture2D>();
+        static readonly Dictionary<(Color32, bool), Texture2D> solids = new Dictionary<(Color32, bool), Texture2D>();
         static readonly List<Object> made = new List<Object>();
 
         /// <summary>The override tag on a material whose emission map is its "damageEmission" mask (DamageEmbers drives only
@@ -56,12 +56,15 @@ namespace GoF2Remake.Modding
         /// <summary>Everything made for the mods' ships goes (the mods changed).</summary>
         public static void Release()
         {
-            foreach (var o in made) if (o != null) Object.Destroy(o);
+            foreach (var o in made) if (o != null) Gone(o);
             made.Clear();
             textures.Clear();
             solids.Clear();
             pending.Clear();   // what is still loading is dropped when it ends (Store: the revision changed)
         }
+
+        // (edit mode too: the Editor's tests and tools make mod materials, where Destroy isn't allowed)
+        static void Gone(Object o) { if (Application.isPlaying) Object.Destroy(o); else Object.DestroyImmediate(o); }
 
         /// <summary>The build reads normal maps' X from alpha (Android's normal map encoding, see the header).</summary>
         public static bool NormalsInAlpha =>
@@ -423,12 +426,12 @@ namespace GoF2Remake.Modding
         static Texture2D Solid(Color c, bool linear = true)
         {
             Color32 k = c;
-            if (solids.TryGetValue(k, out var t) && t != null) return t;
+            if (solids.TryGetValue((k, linear), out var t) && t != null) return t;
             t = new Texture2D(1, 1, TextureFormat.RGBA32, false, linear) { name = "mod solid " + k };
             t.SetPixel(0, 0, c);
             t.Apply(false, true);
             made.Add(t);
-            return solids[k] = t;
+            return solids[(k, linear)] = t;
         }
 
         /// <summary>A copy of a template material, released with the rest when the mods change (EngineFx's).</summary>
@@ -445,6 +448,38 @@ namespace GoF2Remake.Modding
         static Color Rgb(float[] v, Color fallback) => v != null && v.Length >= 3 ? new Color(v[0], v[1], v[2], 1f) : fallback;
 
         /// <summary>A ships.json material entry (CustomShipMaterial, see CustomShipBuilder in PR #34 for the original).</summary>
+        static readonly int GoF3ParamsId = Shader.PropertyToID("_GoF3Params");
+
+        /// <summary>A material with an emission map or colour draws it: _EMISSION on its copy, whatever the template holds. The
+        /// templates' keyword is lost whenever the Editor re-saves them (a shader reimport did, 2026-11-02: every mod room and
+        /// glow went dark, the Manticore's hangar a flat grey with GoF3's baked lighting in its emission); ModAssetsGuard
+        /// only restores it before a build.</summary>
+        static void Glowing(Material m)
+        {
+            m.EnableKeyword("_EMISSION");
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+        }
+
+        static readonly int Es2WearId = Shader.PropertyToID("_Es2Wear"), Es2Wear2Id = Shader.PropertyToID("_Es2Wear2"), Es2GrungeId = Shader.PropertyToID("_Es2Grunge");
+
+        /// <summary>EVERSPACE 2's structure layers (CustomShipMaterial "wear" / "grunge", GoF2/Hull's Es2StructureLayers): on
+        /// with either map; off (_Es2Wear2.z 0) otherwise, as the templates have it.</summary>
+        static void Es2Layers(ModInfo mod, CustomShipMaterial e, Material m)
+        {
+            if (string.IsNullOrEmpty(e.wear) && string.IsNullOrEmpty(e.grunge)) return;
+            var wear = Texture(mod, e.wear, true);
+            m.SetTexture("_Es2WearMap", wear != null ? wear : Solid(new Color(0f, 0f, 0f, 0f)));
+            m.SetTexture("_Es2WearNormalMap", Texture(mod, e.wearNormal, true, normal: true));
+            var noise = Texture(mod, e.wearNoise, true);
+            m.SetTexture("_Es2WearNoiseMap", noise != null ? noise : Solid(Color.white));
+            var grunge = Texture(mod, e.grunge, true);
+            m.SetTexture("_Es2GrungeMap", grunge != null ? grunge : Solid(Color.white));
+            // without a wear map nothing wears (a cap of 0: the threshold below every mask)
+            m.SetVector(Es2WearId, new Vector4(Mathf.Max(0.01f, e.wearTiling), Mathf.Max(0.01f, e.wearExponent), wear != null ? Mathf.Clamp01(e.wearCap) : 0f, Mathf.Max(0f, e.wearWidth)));
+            m.SetVector(Es2Wear2Id, new Vector4(Mathf.Clamp01(e.wearBrightness), Mathf.Max(0f, e.wearMetal), 1f, e.baseRoughness >= 0f ? Mathf.Clamp01(e.baseRoughness) : -1f));
+            m.SetVector(Es2GrungeId, new Vector4(grunge != null ? Mathf.Clamp01(e.grungeAmount) : 0f, Mathf.Max(0.01f, e.grungeTiling), Mathf.Max(0f, e.rimBoost), 0f));
+        }
+
         public static Material FromSpec(ModInfo mod, CustomShipMaterial e, string name)
         {
             var a = ModAssets.Get();
@@ -452,13 +487,15 @@ namespace GoF2Remake.Modding
             if (e.flame) return Flame(mod, e, name, a);
             if (e.hologram) return Hologram(mod, e, name, a);
             if (e.shimmer) return Shimmer(mod, e, name, a);
+            if (e.additive) return Glow(mod, e, name, a);
             bool clip = e.alphaClip > 0f, glass = e.opacity > 0f && e.opacity < 1f;
             var dAlb = Texture(mod, e.detailAlbedo, true);
             var dNrm = Texture(mod, e.detailNormal, true, normal: true);
             // Battle damage charring takes the detail layer when the entry has no detail maps of its own.
             var cAlb = dAlb == null && dNrm == null ? Texture(mod, e.damageDetail, false) : null;
             var cNrm = cAlb != null ? Texture(mod, e.damageNormal, true, normal: true) : null;
-            var m = Copy(a.Lit(clip && !glass, glass, dAlb != null || dNrm != null || cAlb != null), name);
+            bool specular = !string.IsNullOrEmpty(e.specularGlossiness) || (e.specularColor != null && e.specularColor.Length >= 3);
+            var m = Copy(a.Lit(clip && !glass, glass, dAlb != null || dNrm != null || cAlb != null, specular), name);
             m.SetTexture("_DetailAlbedoMap", null);
             m.SetTexture("_DetailNormalMap", null);
             var diffuse = Texture(mod, e.diffuse, false);
@@ -476,9 +513,21 @@ namespace GoF2Remake.Modding
             var nrm = Texture(mod, e.normal, true, normal: true);
             m.SetTexture("_BumpMap", nrm);
             m.SetFloat("_BumpScale", e.normalScale > 0f ? e.normalScale : 1f);
-            var ms = Texture(mod, e.metallicSmoothness, true);
-            m.SetTexture("_MetallicGlossMap", ms != null ? ms : Solid(new Color(e.metallic >= 0f ? e.metallic : 0f, 0f, 0f, 1f)));
+            if (specular)
+            {
+                // URP's specular setup: the map's RGB the specular colour (sRGB), its A the smoothness (x _Smoothness)
+                var sg = Texture(mod, e.specularGlossiness, false);
+                m.SetTexture("_SpecGlossMap", sg != null ? sg : Solid(Rgb(e.specularColor, new Color(0.2f, 0.2f, 0.2f)), false));
+                m.SetColor("_SpecColor", Color.white);
+                m.SetVector(GoF3ParamsId, ModGlbImages.GoF3Params(e.environment, e.rim, e.highlightMultiplier, e.multiplierInMap));
+            }
+            else
+            {
+                var ms = Texture(mod, e.metallicSmoothness, true);
+                m.SetTexture("_MetallicGlossMap", ms != null ? ms : Solid(new Color(e.metallic >= 0f ? e.metallic : 0f, 0f, 0f, 1f)));
+            }
             m.SetFloat("_Smoothness", e.smoothness);
+            Es2Layers(mod, e, m);
             var em = Texture(mod, e.emission, false);
             bool emColor = e.emissionColor != null && e.emissionColor.Length >= 3;
             if (em != null || emColor)
@@ -487,6 +536,7 @@ namespace GoF2Remake.Modding
                 var ec = Rgb(e.emissionColor, Color.white) * e.emissionIntensity;
                 ec.a = 1f;
                 m.SetColor("_EmissionColor", ec);
+                Glowing(m);
             }
             else m.SetColor("_EmissionColor", Color.black);
             if (em == null && !emColor && !string.IsNullOrEmpty(e.damageEmission))
@@ -562,6 +612,22 @@ namespace GoF2Remake.Modding
             return m;
         }
 
+        /// <summary>An "additive" entry: a copy of GoF2/ModGlow, its texture (emission, else diffuse) x emissionColor (else
+        /// color, else white) x emissionIntensity x the vertex colours, scrolling by "scroll".</summary>
+        static Material Glow(ModInfo mod, CustomShipMaterial e, string name, ModAssets a)
+        {
+            if (a.glow == null) { Debug.LogWarning("Mods: no glow template (GoF2 > Build > Mod Assets)"); return null; }
+            var m = Copy(a.glow, name);
+            float k = e.emissionIntensity > 0f ? e.emissionIntensity : 1f;
+            var c = Rgb(e.emissionColor, Rgb(e.color, Color.white)) * k; c.a = 1f;
+            m.SetColor("_EmissionColor", c);
+            var tex = Texture(mod, e.emission ?? e.diffuse, false);
+            if (tex != null) { tex.wrapMode = TextureWrapMode.Repeat; m.SetTexture("_EmissionMap", tex); }
+            if (e.scroll != null && e.scroll.Length >= 2) m.SetVector("_Scroll", new Vector4(e.scroll[0], e.scroll[1], 0f, 0f));
+            m.SetFloat("_UseVertexColor", e.ignoreVertexColors ? 0f : 1f);
+            return m;
+        }
+
         /// <summary>A "shimmer" entry: a copy of GoF2/ModNozzleShimmer in the entry's colour (emissionColor x emissionIntensity,
         /// the kit colour slots' emission target too), its glow pattern (emission) and noise (flameNoise).</summary>
         static Material Shimmer(ModInfo mod, CustomShipMaterial e, string name, ModAssets a)
@@ -582,13 +648,14 @@ namespace GoF2Remake.Modding
         /// when the mods' loader made it (ModGltf: compressed, metallic-roughness and normal maps already converted); else
         /// glTFast's own texture, converted here on the GPU.</summary>
         public static Material FromGltf(GLTFast.Schema.MaterialBase g, GLTFast.IGltfReadable gltf,
-            System.Func<int, ModGlbImages.Role, float, float, Texture2D> images = null)
+            System.Func<int, ModGlbImages.Role, float, float, Texture2D> images = null, Vector4? gof3 = null)
         {
             var a = ModAssets.Get();
             if (a == null) return null;
             var mode = g.GetAlphaMode();
             bool clip = mode == GLTFast.Schema.MaterialBase.AlphaMode.Mask, glass = mode == GLTFast.Schema.MaterialBase.AlphaMode.Blend;
-            var m = Copy(a.Lit(clip, glass, false), string.IsNullOrEmpty(g.name) ? "glTF material" : g.name);
+            var sgx = g.Extensions?.KHR_materials_pbrSpecularGlossiness;
+            var m = Copy(a.Lit(clip, glass, false, sgx != null), string.IsNullOrEmpty(g.name) ? "glTF material" : g.name);
             bool ours = false;   // the last Tex came from 'images'
             var pbr = g.PbrMetallicRoughness;
             float metal = pbr != null ? Mathf.Clamp01(pbr.metallicFactor) : 0f, rough = pbr != null ? Mathf.Clamp01(pbr.roughnessFactor) : 1f;
@@ -611,8 +678,26 @@ namespace GoF2Remake.Modding
             var baseMap = pbr != null ? Tex(pbr.BaseColorTexture, "_BaseMap") : null;
             m.SetTexture("_BaseMap", baseMap);
             m.SetTexture("_MainTex", baseMap);
-            var mr = pbr != null ? Tex(pbr.MetallicRoughnessTexture, "_MetallicGlossMap", ModGlbImages.Role.MetallicRoughness) : null;
-            if (mr != null && ours)
+            var mr = pbr != null && sgx == null ? Tex(pbr.MetallicRoughnessTexture, "_MetallicGlossMap", ModGlbImages.Role.MetallicRoughness) : null;
+            if (sgx != null)
+            {
+                // KHR_materials_pbrSpecularGlossiness (Galaxy on Fire 3's hulls): URP's specular setup. Its diffuse
+                // is the base colour; the specular-glossiness map (RGB specular, sRGB; A glossiness) goes in as it is,
+                // its factors as _SpecColor (x the map) and _Smoothness.
+                var diffuse = Tex(sgx.diffuseTexture, "_BaseMap");
+                if (diffuse != null) { m.SetTexture("_BaseMap", diffuse); m.SetTexture("_MainTex", diffuse); }
+                if (sgx.diffuseFactor != null && sgx.diffuseFactor.Length >= 4)
+                    m.SetColor("_BaseColor", new Color(sgx.diffuseFactor[0], sgx.diffuseFactor[1], sgx.diffuseFactor[2], sgx.diffuseFactor[3]));
+                var sg = Tex(sgx.specularGlossinessTexture, "_SpecGlossMap");
+                var f = sgx.specularFactor != null && sgx.specularFactor.Length >= 3
+                    ? new Color(sgx.specularFactor[0], sgx.specularFactor[1], sgx.specularFactor[2], 1f) : Color.white;
+                // (glTF's factor is linear; SetColor takes sRGB and linearises it)
+                if (sg != null) { m.SetTexture("_SpecGlossMap", sg); m.SetColor("_SpecColor", f.gamma); }
+                else { m.SetTexture("_SpecGlossMap", Solid(f.gamma, false)); m.SetColor("_SpecColor", Color.white); }
+                m.SetFloat("_Smoothness", sgx.glossinessFactor);
+                m.SetVector(GoF3ParamsId, gof3 ?? ModGlbImages.GoF3Params(1f, 1f, 1f, false));   // its "extras" (ModGlbImages)
+            }
+            else if (mr != null && ours)
             {
                 m.SetTexture("_MetallicGlossMap", mr);
                 m.SetFloat("_Smoothness", 1f);
@@ -646,6 +731,7 @@ namespace GoF2Remake.Modding
             {
                 m.SetTexture("_EmissionMap", emMap);
                 m.SetColor("_EmissionColor", emMap != null && emissive.maxColorComponent <= 0f ? Color.white : emissive);
+                Glowing(m);
             }
             else m.SetColor("_EmissionColor", Color.black);
             if (clip) m.SetFloat("_Cutoff", g.alphaCutoff);

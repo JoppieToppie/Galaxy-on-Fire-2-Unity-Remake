@@ -434,6 +434,18 @@ namespace GoF2Remake.Events
                     if (w[to + 1] == "void") st["void"] = true; else st["to"] = RefToken(w[to + 1]);
                     return st;
                 }
+                case "pickup":
+                {
+                    // pickup <station> <x y z> [named <name>] | remove <name> | clear (QuestSteps "pickup")
+                    if (w.Count == 1 && w[0] == "clear") { var c = St("pickup"); c["action"] = "clear"; return c; }
+                    if (w.Count >= 2 && w[0] == "remove") return new JObject { ["type"] = "pickup", ["action"] = "remove", ["name"] = string.Join(" ", w.Skip(1)) };
+                    if (w.Count < 4 || !w.Skip(1).Take(3).All(IsNumberOrExpr)) return null;
+                    var st = new JObject { ["type"] = "pickup", ["station"] = RefToken(w[0]), ["at"] = string.Join(" ", w.Skip(1).Take(3)) };
+                    int k = 4;
+                    if (w.Count > k && w[k] == "unmarked") { st["marked"] = false; k++; }
+                    if (w.Count > k) { if (w[k] != "named" || w.Count < k + 2) return null; st["name"] = string.Join(" ", w.Skip(k + 1)); }
+                    return st;
+                }
                 case "waypoint":
                     if (w.Count == 1 && w[0] == "off") return St("waypoint");
                     return w.Count == 4 && w.Skip(1).All(IsNumberOrExpr) ? new JObject { ["type"] = "waypoint", ["station"] = RefToken(w[0]), ["at"] = string.Join(" ", w.Skip(1)) } : null;

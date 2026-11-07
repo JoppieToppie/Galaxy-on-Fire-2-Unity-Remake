@@ -90,8 +90,10 @@ the player ship) and `NavigationView` (flight HUD).
   touch button shows (`NavigationView`) and the hint row gains "FAST FORWARD (HOLD)" / "CRUISE (HOLD)" (`FlightHud`'s
   `lastLockFastForward`). No heading check: away from it the distance rule alone holds.
 - **Cruise drive** (remake, `Flight.CruiseDrive` rules + `NavigationCruiseDrive`; a mod item based on the Khador Drive
-  with `cruiseSpeed` 133 > 0, `Shop.IsCruiseDrive`, its own one-per-ship kind `Shop.KindOf` = `CruiseDrive.Kind` beside the
-  Khador Drive; the ES2 importer's `drives` part, Modding/README.md "Cruise drives"): the fast-forward
+  with `cruiseSpeed` 133 > 0, `Shop.IsCruiseDrive`, its own one-per-ship kind `Shop.KindOf` = `CruiseDrive.Kind`, but one
+  drive a ship (the user, 2026-11-03): mounting it over a Khador Drive or another cruise drive is the hangar's swap (287,
+  `Shop.Replaces` / `IsDrive`), and so is a Khador Drive over it; a ship that carried both before keeps them; the ES2
+  importer's `drives` part, Modding/README.md "Cruise drives"): the fast-forward
   button in manual flight (the original fast-forward keeps it on the autopilot and the approaches). A fresh press held for
   attr 37 ms charges (the Khador bar, Extra `hudCruiseDriveCharging`), then one leg's energy cells (attr 38, x2 Extreme, 0
   with free jumps; `GalaxyMap.RemoveCells`, "-1t Energy Cells", 583 + the cells when short) and the forward speed x attr
@@ -120,6 +122,264 @@ the player ship) and `NavigationView` (flight HUD).
   the system's race (`NpcTables.RandomFreighter`) + 2 locals, derelict 2-4 junk crates with a freighter's loot roll (empty:
   energy cells), distress a local under attack by 1 + rank / 8 raiders, flyby 3 locals of a random race; names Extra
   `encounter*`. Modelled on No Man's Sky's pulse encounters and EVERSPACE 2's signals (behaviour only).
+  Remake 2026-11-03: six more kinds for mods' entries (not in the game's table, whose weights still add to 100), after
+  EVERSPACE 2's encounters (decompiled BP_Encounter_FactionBattle (a battle task, GivesCreditsReward / GiveRenown),
+  _Trap (SpawnFactorNPCs 1.25, ChanceForTwoGroups 0.2, the second group 650 m ahead in a 20 deg cone), _HiddenStash (an
+  invisible container of spawn group 75 found by a detect-signal task), _ResourceDepot (SpawnFactorNPCs 1.5, Resources 3,
+  Containers 2), _HighRiskArea (waves, respawns, boss loot, bFailIfPlayerLeaves), BP_EncounterBase's
+  CalculateRewardCredits): `battle`, `trap` (named as an unknown signal), `stash`, `depot`, `highrisk`, `lootdrone` (a
+  mod's loot drone, `ModTraffic.PickLootDrone`, else a pirate fighter with `SpawnSpec.role` "lootDrone"; neutral as a pirate
+  (`alwaysNeutral`), after ES2's Freelancer drone that never turns hostile; see the drone roles in npcs-and-combat.md)
+  (`CruiseEncounterSpawner`; `EncounterWatch` pays `BattlePay` when the battle's raiders are gone: ES2's own UMissionLib::CalculateRewardCredits, (800 + 4200 x level / MaxPlayerLevel 30) x RewardCreditsFactor 1, down to 50, the level the orbit's `level` (stations.json: an ES2 location's own, the importer's) or else the station's tech level x 3 (`Es2Level`); the high-risk area the same, runs the
+  high-risk area's three waves and its crate of 8-14 loot rolls, ES2's HighRiskAreaBoss drops in its loot_types.CSV,
+  `EncounterWatch.BossRolls*`, and stops unpaid past 15 km). Counts are the remake's picks (ES2 places its groups by
+  spawn_groups.CSV at the location's level). The ES2 importer's mod writes them (encounters.json). Not done: ES2's
+  Scavenger Baiting, Incursion and Rift (Leviathan encounters are left out on purpose).
+  `minesweeper` (2026-11-06, ES2's BP_Encounter_Minesweeper with BP_Job_MineSweeper_Task_01's StuckFreighterVariant): a
+  freighter of the system's race (`stationary`, group Special) inside one BP_Minefield_BiggerRadius (`MinesweeperRadius`:
+  30 000 cm x 0.2 x 3.6) of "ships" kinetic `OrbitMine`s (default 40, MaxMineAmount), marked on the radar, kept
+  `MinesweeperClearM` from the hull; `World.MinesweeperWatch` pays `BattlePay` when every mine is gone (shot or set off),
+  "Minefield cleared"; the freighter destroyed fails it; past `EncounterWatch.LeaveM` it lapses. The importer's entry: weight
+  5, rank 4+, security 0-1 (mines add danger). Tests `AMinesweepersFieldKeepsItsMinesApart`. Not tried in game.
+  `challenge` (2026-11-06, ES2's BP_Encounter_ShootingChallenge / BP_Job_ShootingChallenge_Task_01): a Challenger (a local
+  fighter of the system's race named so, `SpawnSpec.gunItem` / `gunFactor` `ChallengerDamageFactor` 3:
+  ChallengerDealDamageFactor) and NumGroups 4-5 groups of 1 + rank / 12 (at most 2) raiders round the place ("ships" in
+  all); `World.ChallengeWatch` scores each raider's death by `Target.killedByNpc` (an NPC's kill is the challenger's), the
+  score on the HUD; all gone, `Outcome`: more for the player pays half a `BattlePay` (ES2 gives XP only: GoF2 has none),
+  fewer loses, a tie brings one more raider (AdditionalEnemy); leaving past `LeaveM` abandons it (bFailIfPlayerLeaves).
+  The importer's entry: weight 5, security 0-2. Test `TheShootingChallengeGoesToTheBetterShot`. Not tried in game.
+  `needy` (2026-11-06, ES2's BP_Encounter_ItemsNeeded "Ship In Need" / BP_Job_ItemsNeeded_Task_01): a freighter or fighter
+  of the system's race (half each: ES2's freelancer or its freighter; `stationary`, group Special) at 10-40 % hull, no
+  shield, needing "ships" (default `ShipInNeed.Need` 3) units of a repair good (ES2's ValidHealItems, here
+  `ShipInNeed.Items`: Nanotech 121, Medical Supplies 98; `Pick`: one the pilot carries enough of, else some of, else
+  either). `World.ShipInNeed`: within `NoticeM` 2 km its request on the HUD; in reach ahead with enough aboard the action
+  prompt "HELP" (FlightHud's chain after the carry puzzle) hands it over (`Shop.RemoveFromCargo`), the hull repairs at
+  `RepairPerS` 75 (EnqueueHullRepair) and `BattlePay` is paid (GivesCreditsReward); the ship lost or the pilot past
+  `LeaveM` ends it. The importer's entry: weight 6, any security (no danger). Test `AShipInNeedAsksForWhatThePilotCarries`.
+  Not tried in game.
+  Encounter music (2026-11-06, ES2's DA_MusicSet_Rift_001 / _HighRiskSector_001 / _Dreadnought): an entry's `music` (a mod
+  track; a rift entry's sets the rift's, the first mod's) starts `World.EncounterMusic` at the spawn; while it runs
+  (`Current`) the orbit's battle music (TrafficSpecials) plays that track instead of the system's `battleMusic` / the
+  game's; it ends past `EncounterWatch.LeaveM` or after `CalmS` 15 s without hostiles once `GraceS` 20 s have passed
+  (`StillOn`), a newer encounter's replacing it. The importer writes es2_rift, es2_highrisk (and the Dreadnought raid's
+  es2_dreadnought, its mission's music step) from those sets' 3Battle layers. Tests `AnEncountersMusicLastsWhileItsFightDoes`,
+  `ModEncountersTests.AnEncounterMayHaveItsOwnMusic`. Not heard in game.
+  The `stash` and `depot` crates stay until emptied (`Crate.keep`), not the crates' 60 s.
+  **Between the systems** (2026-11-03, the user: "encounters should pull you out either in their own space or the nearest
+  system"; `CruiseEncounters.Between`): the same table rolls on an interstellar leg (single player, as that space is), the
+  security the system left's, but not on the way out, on a dive into the Void, or while a system's orbit is built ahead
+  (`Navigation.ApproachRuns`, set by `InterstellarField`). Every entry pulls the ship out, the drive dropped and the
+  autopilot off ("X disengaged: Pirates"): **deep space** (`InSpace`): `OutOfSlipstream`, the warp eases out over
+  `PullOutMs` 2500 (`WarpSky.Strength`; `SpaceLevel.WarpHolds` holds fire and damage until it ends, and the drive is blocked),
+  then the encounter is there `AmbushAheadUnits` ahead; the warp comes back with the drive's ramp and the flag clears at
+  full cruise. **Nearest system** (`AtSystem`): "Pulled out of the slipstream at X" (Extra `interstellarPulledOut`), the
+  fall-out's way in (`Leave`), the entry carried in `Session.CarriedEncounter` and met ahead once the arrival's warp has
+  ended (`ArrivalHeld`), counted as that orbit's (`Came`: its cooldown); dropped if that orbit rolls none. Only to a system
+  `CruiseEncounterRules` allows, with no scripted arrival (`ScriptedArrival`) or story refusal (`PlanetJumpRefused`).
+  An entry's `interstellar`: pirates, derelict and flyby `space`, trader and distress either (50 / 50, deep space when the
+  system won't have it), a quest always the system (its graph needs an orbit), `never` keeps it out.
+- **Wreck fields** (remake 2026-11-03, for mods; stations.json `orbit.wrecks` -> `ModWorld.OrbitSpec.wreckCount /
+  wreckCentre / wreckSpread`, `World.WreckField.Spawn` with the gas clouds in `SpaceLevelWormholes`): after EVERSPACE 2's wreck
+  field locations (Wreck Field, Ghost Fleet, Warship Remains: war wrecks among loot containers), each visit lays out
+  `count` (1-60, default 12) wreck containers (the junk crate look) at random in the field's cube (`spread`, default
+  60000; a third as tall), each a freighter's loot roll or 1-5 Space Waste (item 99), kept until emptied (`Crate.keep`). Not
+  in the alien orbit or interstellar space. Wreck hulls (2026-11-05, `models` / `materials` / `hulks` / `size` ->
+  `wreckModels` ...; `WreckField.SpawnHulks`): `hulks` (default 2 x the models, at most 8) of the mod's glTF models among
+  the containers, the largest model `size` game units at its largest side (default 8000) and the others in proportion
+  as authored (x0.85-1.15; `ModCrates.ExtentOf(key)`), turned at random, placed by a
+  `System.Random` seeded by the station (the same for every player), each an `Obstacle` with one box of its bounds
+  (`ModCrates.LocalBounds`, `rotates`: turned with it); loaded with the mod crates (`ModWorld.ContainerModels`), none
+  placed before they are (`ModCrates.Ready`). The ES2 importer gives its wreck-field locations one, with ES2's wreck
+  meshes; its outlaw strongholds are pirate-held orbits (`pirateHeld`: outposts and guards).
+- **Rifts** (remake 2026-11-04, for mods; encounter kind `rift`, `Flight.RiftRun` plain + `World.RiftEncounter`; the HUD's
+  transfer counter line shows `RiftEncounter.HudLine`): after EVERSPACE 2's Ancient Rifts, read in its code (decompiled
+  BP_Encounter_Rift and UGameplayLib::GetRandomRiftMutatorForNextStage, mutators.csv's LootQualityBonus / bAllowedInHighRiskAreas /
+  bAllowedInRifts / bAllowedOnlyForRiftBosses, attributes.CSV's mutator names and texts, the values on its Signal Decoder
+  items): stages (ships, default 4; the last the boss's) in the orbit where the signal was (ES2 jumps through portals into
+  new locations: here the stage's survivors vanish); a fight stage's target GetTargetKillPointCount 15, 21, 26, 30, 35, 35,
+  40, 40, 45, 45 + 0..5, MinEnemiesAlive trunc(x 0.4) raiders kept alive (a fifth strong fighters), kill points by
+  EPawnType (drone 0.5, fighter 1, cruiser 1.5, capital 2), resolve +0.10 / 0.12 / 0.15 / 0.20 a kill, drained 0.016/s
+  after RESOLVE_DELAY 10 s (not on the boss's stage); run dry, the stage goes on unmastered; one mutator a stage from the
+  second on, uniformly among the rift's not yet in play (the boss's stage among the boss's; ES2's three portals offer one
+  each and the pilot picks, here the rift does). Mutators done: Enemy Regen (GetScaledHitpoints(5)/s against a raider's 200:
+  2.5 % of the hull a second), Evasive (+50 % speed: `NpcShip.roleSpeedFactor`), No EMP (`SpawnSpec.empPoints`), Jarred
+  Sensors (the plate's race), Hidden Health (`plateNameOnly`), Explosive Death (50 kinetic + 70 energy against a raider's 31 +
+  24 DPS: 2.2 s of the dying ship's gun, `NpcShip.GunDps`, within its size clamp 20-50 m x 15 x 3.6, falling off), Repair On
+  Kill (20 %), Strength in Death (+5 % speed and hull, at most 10), Nearsighted / Farsighted (`Target.damageFactor` 0.5
+  beyond 1080 m / within 1800 m), No Lock (`untargetable`), Vengeance (a `detonator` role drone a kill, invulnerable with
+  Explosive Death); the boss's Quantum Mend (teleport every 15-30 s, repairing until hit), Evasive Drift (`NpcShip.BoostAway`
+  as often), Guardians (two strong fighters, the boss invulnerable while one lives). The boss: one of the entry's `bosses` (ES2's GetBossClassAndLevel picks its destroyer, drone carriers, Okkar corvette or
+  Redeemer battleship), a capital ship parked (`ModCapitalShips.Spawn`), its hull `raiders` x `NpcTables.Hull(0, 0)`; else the
+  pirate boss's hull formula and guns. Won: a crate of loot_types.CSV's RiftBoss 14-18 rolls x `RiftRun.LootFactor` (0.5 + 0.5 x the
+  mastered share, after GetLootQuantityFactor) and `BattlePay`. Not done: Mines on Death (2-3 mines, 40 + 40, 100 m), Overheated
+  Systems, Corrosive Death, Burst Bulbs, Phase Barrier, Stasis Snares, Apocalypse; the portals' choice; ES2's lunacy,
+  nightmare mode and loot quality.
+- **Containers** (remake 2026-11-03, for mods; stations.json `orbit.containers` -> `ModWorld.OrbitSpec.containerCount /
+  containerCentre / containerSpread / containerBulletproof`, `World.LootContainer.SpawnOrbit` with the wreck field): after
+  EVERSPACE 2's BP_ItemContainer (EContainerType OpenOnHit: ReceiveAnyDamage by the player or within 2 km ->
+  OpenContainerAndDropItsLoot; OpenOnInteract, "Bulletproof Container", CanBeHit off; their InteractComponent:
+  InteractRadius 10000 cm, InteractChargeDuration 0, bMustBeOnScreen, from the native constructor), the game's container
+  model x3 as a radar object (`Target.RadarObjects`, neutral, lock plate "Container" / "Bulletproof container"): a shootable
+  one has 1 hp and opens when it dies (the junk's burst), a bulletproof one is `invulnerable`; the action key (`FlightHud`'s
+  prompt chain after mining: "OPEN", `LootContainer.InReach`, 360 m ahead of the ship) opens either. Opened, each stack
+  is a crate of its own (`Crate.keep`, launched x2); the opened bulletproof shell stays without its Target. Loot: a
+  freighter loot rolls (`WreckField.Loot`) by ES2's loot_types.CSV: a Container's 1-3 drops, a RareContainer's (the
+  bulletproof one here) 2-4 (`LootContainer.RollsMin` ...). Not done:
+  ES2's secure containers (OpenOnUnlocked, energized through conductors; the importer counts its armoured ones as
+  bulletproof), its loot menu (everything spills), the open animation.
+  Fixed loot (2026-11-05, EVERSPACE 2's unique_loot.csv): `containers.loot` (`OrbitSpec.containerLoot`, item references
+  and amounts) on top of the rolls, an entry a container in turn (the bulletproof ones first), skipped once its key
+  (`LootContainer.FixedLootKey`: station:entry) is in `Session.FixedLootTaken`, saved as `fixedLootTaken`, added when its
+  container opens. Test `ModWorldTests.AnOrbitsFixedContainerLoot`. Models (2026-11-05, ES2's SK_Container_Generic_*):
+  `containers.model` / `bulletproofModel` (`OrbitSpec.containerModel` / `containerProofModel`, checked in the mod) load with
+  the mod crates (`ModWorld.ContainerModels` -> `ModCrates.LoadAll`; "<mod id>|<path>" keys), `LootContainer.Spawn`'s
+  modelKey through `Crate.Model`, fitted to the race's container x `ModelScale`; `containers.materials` (ships.json's form)
+  applied to the template as on a station model (`ModCrates.ApplyMaterials`). Test `AnOrbitsContainerModels`.
+  Cloaked containers (2026-11-06, EVERSPACE 2's BP_Activity_InvisibleContainer / BP_InvisibleItemContainer, es2_re kismet):
+  `containers.cloaked` (`OrbitSpec.containerCloaked`, at most 10 places, on top of `count`) are bulletproof ones (ES2's
+  OpenOnInteract) with a rare container's rolls, first in line for the fixed loot, under the cloak (BP_Condition_Buff_Cloaked:
+  `NpcCloak` with `anySurface`, any shader's texture) within `LootContainer.ShimmerM` (2 km) of the camera and not drawn
+  beyond (the cloak's opaque texture stays off), no marker or lock (`Target.cloaked`, out of `RadarObjects`, skipped by
+  `InReach`) until `Reveal`. `World.CloakedContainers` on the player's ship: within `NearbyM` (BP_Activity_Detect_Base's
+  DistanceToPlayer 200 000 cm, at the places' 1:1 scale) "Container nearby" once (its WarningHeaderText), within `RevealM`
+  (the container's InteractRadius 4000 cm x 3.6, below `OpenRangeM`) the marker (ShowMarker); opened, "Container found"
+  (FoundContainer) and the empty shell shows. Left out: ES2's success sound, the location-secret count. Not tried in game.
+  Secure containers (2026-11-06, EVERSPACE 2's BP_ItemContainer_Armored with ShotTriggersRequired, BP_ShotTrigger, es2_re
+  kismet): `containers.secure` (`OrbitSpec.containerSecure`: at most 6, each `at`, 1-8 `triggers`, `ordered`, `retrigger`
+  seconds) are bulletproof ones with a rare container's rolls (fixed loot after the cloaked ones'), `Locked` (skipped by
+  `InReach`) until `Flight.ShotTriggerChain` has every trigger lit at once: a player's hit lights one (BP_ShotTrigger's
+  DamageLimit: a `Target` with `HitFilter` 0, `Damaged` by the player); `ordered` (ShotTriggerChainPreviousOne): a hit while
+  the one before is dark puts out it and those before (OnReset); `retrigger` (Retriggerable, RegtriggerDelay 3 s): a lit one
+  goes dark after it. Then `Unlock` bursts it open (`ShipBurn.ManualBurst`, `Open`). `World.ShotTrigger`: a 7.2 m sphere
+  (ES2's ~2 m x 3.6) flickering red, steady green when lit (MI_Blockout_Glow_Red_Flicker / _Green), no marker or lock.
+  Energy sockets (2026-11-06, ES2's EnergyOrbsRequired / EnergyCoilSocketsRequired, BP_EnergyOrb_Socket, BP_EnergyCoil_Socket,
+  BP_EnergyOrb_Dispenser, BP_Portable_Component): a secure container's `sockets` (at most 4, each `at` and `orb` = its
+  dispenser's place or `coil` = a loose coil's) must all be filled too (`CheckUnlock`; triggers optional). `World.EnergySocket`
+  takes the first sphere or coil of its kind within `ConnectM` (ConnectionDistance 1000 cm x 3.6) and keeps it (`Portable.Seat`).
+  `World.Portable`: carried `CarryBehindM` 30 m behind the ship (a lerp, the magnetic field), a sphere gone after `OrbLifeS` 40 s
+  (EnergyOrbLifetime) unless seated. `World.OrbDispenser` hands a new sphere (straight onto the ship) while none of its own
+  is about. `World.CarryPuzzle`: the HUD's prompt after the containers' OPEN (FlightHud / `Interact`): carrying, "DROP";
+  else a loose one or a ready dispenser within `OpenRangeM` ahead, "GRAB". Markers: dispensers, sockets and loose ones are
+  radar objects (ES2's HUD markers). Throwing (PortableComponent::Detach bFling / bKeepMomentum): while carrying, the HUD
+  sets `WeaponSystem.PrimaryBlocked` (left to mining's when it's mining) and a primary fire press (`GameControls.FirePrimary`)
+  throws it (`CarryPuzzle.Throw`, `Portable.Release(true)`: its carried velocity + `FlingMs`, FlingStrength 20 000 cm/s x 3.6,
+  along the nose); DROP lets it go with its velocity; loose, it drifts on with `Portable.Damping` 0.2 (the rift mines' UE
+  damping), and a socket takes it in passing. Not on touch (the fire button is SetPrimaryHeld). Test
+  `AThrownSphereKeepsItsMomentumAndFliesOn`.
+  Conductors (2026-11-06, ES2's ConductorReceiverRequired, UConductorComponent in ES2_classes.hpp, BP_Conductor_Source /
+  _Static / _Portable / _Receiver): a secure container's `conductors` (`ConductorSpec`: `sources`, `statics`, `portables`,
+  `receivers`, at most 12 each, `[x, y, z]` or `[x, y, z, radius]`; `radius` 4000 / `receiverRadius` 40 game units, the
+  blueprints' 20 000 / 200 cm) must have every receiver energized too. `Flight.ConductorGraph.Energized`: two nodes link when
+  either lies in the other's sphere, a breadth-first walk from the sources (`feeder`: each node's link back, for the beams).
+  `World.ConductorNet` runs it each frame: a reached receiver charges `ChargeS` 1.5 s (ChargeTime) and stays energized while
+  reached; all energized, every container on the net checks (`CheckUnlock`); nets with the same places are shared (`Key`).
+  Beams: a LineRenderer from each energized node to its feeder; nodes glow when energized; sources and receivers are radar
+  objects. Portable conductors are `Portable.Kind.Conductor` (carried, dropped or thrown like a coil, never socketed), slowing
+  with `ConductorDamping` 0.1 or `ConductingDamping` 3 while energized (NormalDamping / ConductingDamping). Tests
+  `ConductorsCarryEnergyAlongLinkedChains`, `ModWorldTests.ASecureContainersConductors`.
+  Puzzle sounds (2026-11-06, ES2's cues): `containers.sounds` (`OrbitSpec.containerSounds`, roles
+  `ModWorld.PuzzleSoundRoles`: grab, hold, drop, throw, dispenser, conductor, unlock, each a mod sound) set by
+  `LootContainer.SpawnOrbit` (`World.PuzzleSounds.Use`, null = silent); 3D (`MinM` 60 / `MaxM` 1500 m, linear) at the
+  object: grab (S_SC_Grab_Hold) and the hold loop while carried, drop (S_SC_Grab_Leggo) / throw (S_SC_Grab_Throw), the
+  dispenser's loop (S_SC_OrbDispenser_Loop), an energized receiver's hum (S_SC_3D_ConductorBeam), the secure container
+  opening (S_SC_Container_Armored). ES2's shot triggers have no TriggerSound placed: silent there too. The importer writes
+  es2_puzzle_<role> from the cues' waves on every orbit with secure containers. Test `AnOrbitsPuzzleSounds`. Left out: the Okkar pipes' box shape
+  (the importer gives them a sphere), seesaw toggles, conductor capsules, layers in the remake (the importer filters by
+  them), the trigger sound, the multi-activation links, the sockets' laser beams and the fire / ice orb variants' fields. Tests
+  `HazardTests.ShotTriggers*` / `ASocketTakesItsKindWithinReach`, `ModWorldTests.AnOrbitsSecureContainers` /
+  `ASecureContainersEnergySockets`. Not tried in game.
+- **Traffic lanes** (remake 2026-11-03, for mods; stations.json `orbit.lanes` -> `ModWorld.LaneSpec`, `Flight.TrafficLane`
+  plain (a Catmull-Rom path walked by distance, 16 chords a segment; open paths turn over at their ends),
+  `World.TrafficLanes` attached with the containers): after EVERSPACE 2's BP_SplineTraffic (Count 10, BaseSpeed 8000 cm/s,
+  TwoLanes with LaneOffset 2000 cm (x3.6 here, for the ships' size), ClosedLoop / DoUTurns, UnitHealth 50, RespawnDelay
+  30 s, a destroyed unit TryTriggerWantedSystem(1); its units are SM_Traffic_* static meshes, physics-knocked when rammed):
+  the ships are the lane's `ships` or the system race's fighters (`NpcTables.RandomFighter`), models only plus a Target of
+  `TrafficLanes.HitPoints` (ES2's UnitHealth 50 over its raider's 310 of a pirate raider's hull, `NpcTables.Hull(0, 0)`) with no marker; destroyed: `Explosion.Spawn` x0.6,
+  `Standing.ApplyDelict(system race, 1)` unless an NPC did it, back after 30 s. Not done: ramming them aside, their engine
+  sound, ES2's random glow colours and its traffic meshes.
+- **Hazard volumes** (remake 2026-11-03, for mods; stations.json `orbit.hazards` -> `ModWorld.HazardSpec`, `Flight.Hazards`
+  plain, `World.HazardZones` on the player's ship, attached with the wreck field): after EVERSPACE 2's BP_HeatDamageVolume
+  (DamagePerSecondMax 200 x (1 - d / SphereRadius)^DamageFalloffExponent 2 each DamageInterval 0.25 s; its overheat buildup
+  into Scorching, equipment efficiency, not taken) and BP_RadiationField (BuildupDuration 5 s into
+  BP_Condition_Debuff_Radiated: MaxHitpoints_Hull x 0.85 a token, TokenLimit 10, kept beyond the location, docking removes
+  it): `heat` (dps x falloff, through the shield, `Target.Damage` as an NPC hit; `raiderDps` instead: that many x
+  `NpcTables.RaiderGunDps`, ES2's DamagePerSecondMax 200 being GetScaledDamage by the location level like its NPCs' DPS, so
+  200 / the Outlaw raider's 55), `radiation` (`Hazards.RadiationTokens`,
+  the hull capped at maxHull x 0.85^n in every orbit, `StationLevel` clears it on docking). HUD lines on entering and per
+  token. 2026-11-06, ES2's BP_FrostField / BP_CorrosionField / BP_DamageField:
+  `frost` (BP_Condition_Buildup_Frost: `Hazards.FrostStep`, 5 s inside -> frozen 6 s as the web's slow, `Target.SlowBy` at
+  `FrozenFactor` 0.15; drains over DrainDuration 60 s), `corrosion` (the rift field's rule: `RiftRun.CorrosionDebuffS` 8 s
+  after leaving, a tick every `CorrosionTickS` 0.95 s past the shield of `raiderDps` x `RaiderGunDps`, default
+  `CorrosionTickSeconds` = intensity 5 / 55; `PlayerDebuffs` lifts it), `damage` (DamagePerSecond 20 a second, no falloff;
+  the importer gives ES2's capsule as a sphere of its radius). Not done: ES2's lightning fields (a storm effect), acid
+  sacks, lightning plants and meltable ice (props with ES2's models), the energy restore fields (in no ES2 level).
+  Looks (2026-11-06, `World.HazardLooks`, after ES2's fields: particles and an inside post-process, no surface; the
+  materials' compiled shaders read in es2_re/fxmat, ShaderDump + disasm): Unity particle systems in the volume's space, its
+  sphere the emitter, prewarmed. Clouds are GoF2/HazardCloud (additive; the Center vertex stream seeds each one;
+  procedural noise for ES2's textures): mode 0 M_CorrosionField_Cloud (2 octaves of |gradient noise| at uv x 3 drifting
+  with time x 0.2, ^1.5 squared, in the disc 1 - 2 r), mode 1 M_RadiationField_Cloud (dots where one octave of simplex
+  noise at uv x 20 peaks, x 10 saturated, in a noise-wobbled disc), mode 2 M_WebField_Plasma (a flowed noise squared,
+  ^ 1 / disc^3: wisps). Colours ES2's: corrosion P_CorrosionField (0.84, 1, 0.09; 5 clouds/s for 2-4 s, 1-2 x the radius;
+  bubbles of particles.png cell 3), radiation NS_RadiationField (RadiationColor (1, 1, 0.39); sparks, cell 61), frost
+  NS_FrostField (0.19, 0.77, 1; wisps, glints), heat a faint turbulence haze (remake: ES2's heat volumes have none),
+  damage GoF2's fire sprites and embers (ES2's: the burning mining prop). The corrosion clouds' refraction is left out.
+  Inside (GoF2/HazardVolume, added, the volume's sphere drawn Cull Front / ZTest Always while the camera is within it):
+  frost M_Condition_Frozen_PostProcess (vignette (|uv - 0.5|)^1.5 through the contrast curve 3, x the frost revealed by
+  saturate((f - (1 - Opacity)) / Opacity), x f^2; procedural ice cells for T_Grunge_Frost_001's R; Opacity = the buildup,
+  whole while frozen), radiation M_Condition_Radiated_PostProcess (the edges' glow, two scrolling noises ^ 1 / distance x
+  RadiationColor x 5 x Opacity^1.5, a grain x 0.3 x distance^3 and sparse noise blobs x Opacity^2; Opacity 0.3 -> 1
+  toward the next dose); heat BP_HeatDamageVolume's BloomIntensity 2: a global Volume at priority 60 with the scene's bloom
+  x 2, its weight the camera's depth (1 within 85 % of the radius).
+- **Lightning storms** (remake 2026-11-06, for mods; stations.json `orbit.storm` -> `ModWorld.StormSpec`, `World.OrbitStorm`
+  attached with the ambience): after EVERSPACE 2's BP_LightningField (AttachToCamera, Frequency 1, Radius 400 000 cm,
+  HeightPercent 1, VolumeSurfaceOnly, ThunderSoundSpawnChance 0.2) and P_LightningField: flashes at random
+  (`NextFlashMs`: exponential, `frequency` a second) on a cylinder round the camera (`FlashOffset`, `radius` game units,
+  kept within 0.8 x the far plane), each a glow (particles.png cell 3, 1-10 km for 0.1-0.2 s) and a bolt (khador_jump's
+  big bolt, EmpSparks' tile 11; 2-6 km for 0.25-1 s) x `scale`, blue-violet (0.1, 0.34, 1) to orange (1, 0.29, 0.05) over
+  the life x `intensity` (ES2's ColorOverLife); a mod `thunder` sound 0.4-2 s after a flash at `thunderChance`. Effects
+  only: no damage or EMP.
+- **Minefields** (remake 2026-11-06, for mods; stations.json `orbit.minefields` -> `ModWorld.MinefieldSpec`,
+  `World.OrbitMinefield` lays them after the storm, one `World.OrbitMine` each): after EVERSPACE 2's BP_Minefield (Radius
+  25 000 cm, AverageMineDistance 12 000, MaxMineAmount 40; 60 kinetic + 60 energy, _Web 10 + 5 with WebDuration 4, _Cryo
+  90 + 30) and its proximity mines. `count` (1-40) mines at random in the `radius` sphere round `centre` (`Places`: uniform in
+  the ball, the best of 8 tries kept 0.48 x radius x (40 / count)^(1/3) apart, ES2's spacing share), still but bobbing, the
+  rift's mines' numbers (`RiftRun.Mine*`: armed after 1 s, a 0.5 s blinking fuse within 360 m, a 144 m blast less towards
+  the edge) and drawn as them (`RiftHazards.Sphere`), coloured by kind. The field's size is at the mines' 3.6 scale too
+  (default `radius` 18000 units: ES2's 25 000 cm x 0.2 x 3.6; the importer likewise): ES2 spaces its mines 120 m apart
+  against a 100 m trigger, and at 1:1 against the 360 m trigger a whole field went off at once. A shot sets a mine off
+  (a one-hit `Target`, BP_ProximityMine_Base's Health). The blast is `raiderSeconds` x
+  `NpcTables.RaiderGunDps` (default by kind, `RaiderSeconds`: ES2's BaseDamage over a raider's 55, 120 / 55, a web mine
+  15 / 55); a web mine also webs (`NpcRoles.WebSpeedFactor` 4 s), a cryo one freezes (`Hazards.FrozenMs` / `FrozenFactor`),
+  a corrosion one leaves Corrosive Death's small `RiftField`, a thermal one reaches 1.5 x. Player's ship only. They add
+  danger, so `Laid` gates each field per visit: the system's security <= `maxSecurity` (default 1, risky or dangerous),
+  `Session.Rank` >= `minRank` (default 4) and a roll under `share` (default 0.5). Not tried in game.
+- **Orbit props** (remake 2026-11-06, for mods; stations.json `orbit.props` -> `ModWorld.PropSpec`, `orbit.propMaterials`,
+  `World.OrbitProps.Spawn` after the wreck field): static models (the mod's glTF, loaded with the mod crates:
+  `ModWorld.ContainerModels`) at `at`, turned by `rotation` (Unity's Euler degrees in the orbit's Unity frame:
+  `Quaternion.Euler`) and fitted to `size` game units at their largest side (`ModCrates.InstantiateFitted`), each a box
+  `Obstacle` in its own frame as the wreck hulls; at most 60 an orbit. First for EVERSPACE 2's unique asteroids: the
+  importer's `sectors.level_props` (the 16 most placed SM_Asteroid_Rock_*_Unique_* meshes, their placed rotation from UE's
+  rotator through `unity_euler`, scale x the mesh bounds; 878 rocks in 89 orbits). Test `ModWorldTests.AnOrbitsProps`.
+  A rock's mesh frame is the glTF's (asymmetric props' facing not checked). Not tried in game.
+- **Acid pouches** (remake 2026-11-06, for mods; stations.json `orbit.acidSacks` -> `OrbitSpec.acidSacks`,
+  `World.AcidSackBase.LayOrbit` after the minefields): after EVERSPACE 2's BP_AcidSack_Base / BP_AcidSack "Acid Pouch" (es2_re
+  kismet). Each base (a dark green sphere, `StalkM`) grows a pouch (`Portable.Kind.AcidSack`); every SpitIntervalMin..Max
+  8-13 s it charges SpitChargeDuration 2 s and spits its ConditionField, BP_CorrosionField (`AcidSackBase.Corrosion`:
+  Corrosive Death's small `RiftField` on the player plus `World.ShipCorrosion` on the NPC ships inside, the rift's ticks).
+  GRAB pulls it off (CarryPuzzle); thrown (primary fire) it bursts on the first NPC ship within `Portable.BurstM` 30 m or
+  after `BurstAfterS` 8 s (its ImpactEvent: BP_Explosion_Corrosion and the same field); a taken pouch grows again
+  MinRegenerationTime..Max 4-6 s + RegenerationDuration 2 s later. The importer spreads each location's bases x 3.6 about
+  their centre (the field's scale). Tests `AcidCorrodesNpcShipsNotThePlayersOrProps`, `ModWorldTests.AnOrbitsAcidPouches`.
+  Left out: the pouches' mesh and cable, the spit's charge swelling. Not tried in game.
+- **Ambience zones** (remake 2026-11-05, for mods; stations.json `orbit.ambience` -> `ModWorld.AmbienceSpec`,
+  `World.OrbitAmbience`, attached with the hazards): after EVERSPACE 2's BP_MusicTrigger OverrideAmbience (its inner /
+  outer spheres round stations, factories, cargo wrecks, wreck fields: a SoundCue looping one of its waves by
+  SoundNodeRandom, a SoundNodeDelay of DelayMin..Max over a SoundNodeRandom of adds mixed in at its InputVolume). Each zone:
+  two 2D AudioSources (its loop from a random start, its adds as PlayOneShot), volume x `OrbitAmbience.Weight` (1 within
+  `radius` of `centre`, fading to 0 over half the radius more; no centre: everywhere) x `Settings.SfxVolume`; the clips are
+  the mods' (a loop `ModMusic.Track`, kept compressed, else `ModSounds.Named`, decoded; the adds sounds), looked up each
+  frame until loaded. ES2's planet-side ambiences don't apply (GoF2
+  never lands). Test `ModWorldTests.AnOrbitsAmbienceZones`.
 - **Menu order** (`Hud::initHudMenu(3)`): outside the alien orbit Asteroid field, Station, Jumpgate, 573 **Waypoint** (a
   player route not finished: the autopilot follows the route, "Target: Waypoint"), "Destination: X"; then every named
   docking target (also in the alien orbit). The original's only restriction is no menu in mission type 0xb7 (the

@@ -1,6 +1,7 @@
 // ModLoading.cs
 // Remake mods: what the main menu's loading screen shows (UI.ModLoadingView) while the mods that are on load in the
-// background: their ship models (ModShips, all at once), stations and rooms (ModStations), weapon fx (ModWeapons), music
+// background: their ship models (ModShips, all at once), stations and rooms (ModStations), weapon fx (ModWeapons), loot
+// containers (ModCrates), music
 // (ModMusic), sound effects (ModSounds) and the ships' and weapons' own sounds (ModShipSounds), then the ships' hangar shadows (World.ShipShadowBaker: read from the cache
 // or baked, once the models are built). Busy until all are done; Progress weighs each ship as four steps, each station
 // three, each weapon two and each track, sound or hangar shadow one.
@@ -19,6 +20,7 @@ namespace GoF2Remake.Modding
             ModShips.Preload();
             ModStations.Preload();
             ModWeapons.Preload();
+            ModCrates.Preload();
             ModSounds.Preload();
             ModTextures.Preload();
             ModCharacters.Preload();
@@ -27,7 +29,7 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>Something of the mods is still loading.</summary>
-        public static bool Busy => !ModShips.Ready || !ModStations.Ready || !ModWeapons.Ready || !ModMusic.Ready || !ModSounds.Ready || !ModShipSounds.Ready || !ModTextures.Ready
+        public static bool Busy => !ModShips.Ready || !ModStations.Ready || !ModWeapons.Ready || !ModCrates.Ready || !ModMusic.Ready || !ModSounds.Ready || !ModShipSounds.Ready || !ModTextures.Ready
                                    || !ModVoices.ReplacementsReady
                                    || !World.ShipShadowBaker.ModShipsBaked;
 

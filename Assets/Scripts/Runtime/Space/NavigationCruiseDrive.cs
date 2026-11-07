@@ -16,7 +16,12 @@
 // appears AmbushAheadUnits ahead and drops the drive (Stop.Encounter; a flyby doesn't); a visible one is a signal, a
 // waypoint target SignalAheadUnits ahead and to one side (lockable, the autopilot flies to it) that spawns when the ship
 // comes within SignalReachUnits and fades after SignalLifeMs or SignalLostUnits away; a "quest" entry starts its quest
-// graph (GameHooks.StartQuest, single player).
+// graph (GameHooks.StartQuest, single player). Between the systems (CruiseEncounters.Between) every one pulls the ship out of
+// the slipstream, the drive dropped and the autopilot off: in deep space the warp eases out over PullOutMs (nobody fires or is
+// hurt in it, SpaceLevel.WarpHolds) and the encounter is then met AmbushAheadUnits ahead, out of the slipstream until the
+// drive is back at full cruise (OutOfSlipstream); at the nearest system the ship falls out there (Leave) and the encounter
+// waits in that orbit (Session.CarriedEncounter) until its arrival's warp has ended. None rolls while a system's orbit is
+// being built ahead (ApproachRuns), on a dive into the Void or on the way out.
 
 using System;
 using GoF2Remake.Data;
@@ -41,6 +46,15 @@ namespace GoF2Remake.Flight
         Target signalTarget;
         CruiseEncounters.Entry signalEntry;
         float signalMs;
+        /// <summary>Set by the space between the systems (World.InterstellarField): a system's orbit is being built ahead.</summary>
+        [NonSerialized] public bool ApproachRuns;
+        /// <summary>Between the systems: an encounter pulled the ship out here, until the drive is back at full cruise.</summary>
+        public bool OutOfSlipstream { get; private set; }
+        /// <summary>The warp easing out of that pull-out, 1..0 (Visuals.WarpSky); the encounter comes at 0.</summary>
+        public float PullOut => pullOutMs / PullOutMs;
+        public const float PullOutMs = 2500f;
+        float pullOutMs;
+        CruiseEncounters.Entry pullOutEntry, carried;
         public const float AmbushAheadUnits = 22000f, SignalAheadUnits = 45000f, SignalSideUnits = 25000f, SignalReachUnits = 12000f,
                            SignalLostUnits = 200000f, SignalLifeMs = 180000f;
 
@@ -64,6 +78,10 @@ namespace GoF2Remake.Flight
             driveMoved = false;
             encounters = Drive != null ? new CruiseEncounters(Modding.ModEncounters.All()) : null;
             systemSecurity = database.Systems.Find(s => s.index == layout.systemIndex)?.securityLevel ?? 0;
+            OutOfSlipstream = false;
+            pullOutMs = 0f;
+            pullOutEntry = null;
+            if (Session.CarriedEncounter != null && !layout.interstellar) { carried = Session.CarriedEncounter; Session.CarriedEncounter = null; }
         }
 
         /// <summary>Why the drive may not run now; None = it may. The fast-forward's own rules (hostiles, a jump, the time
@@ -71,7 +89,7 @@ namespace GoF2Remake.Flight
         CruiseDrive.Stop DriveBlock =>
             Drive == null || ship == null ? CruiseDrive.Stop.Blocked
             : HostilesPresent ? CruiseDrive.Stop.Hostiles
-            : ArrivalHeld || Jumping || LeavingInterstellar || halted || (Autopilot && !Interstellar && RunPlanet == null) || TimeExtender.Active || InputHalted
+            : ArrivalHeld || Jumping || LeavingInterstellar || pullOutMs > 0f || halted || (Autopilot && !Interstellar && RunPlanet == null) || TimeExtender.Active || InputHalted
               || (mining != null && mining.State != Mining.Phase.Idle) || (Docking != null && Docking.Busy) ? CruiseDrive.Stop.Blocked
             : CruiseDrive.Stop.None;
 
@@ -80,7 +98,7 @@ namespace GoF2Remake.Flight
         {
             if (Drive == null || ship == null) return;
             var p = ship.transform.position;
-            float moved = driveMoved ? (p - lastDrivePos).magnitude / M : 0f;
+            float moved = driveMoved ? (p - lastDrivePos).magnitude / M / WorldScale : 0f;   // a hop's cells by the space's own scale
             lastDrivePos = p;
             driveMoved = true;
             // The button: the original fast-forward wins while it is allowed (the autopilot and the approaches).
@@ -181,7 +199,7 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>The locked landmark (station, gate, docking target, wormhole) in units; float.MaxValue = none.</summary>
-        float LockedLandmarkUnits() => LandmarkLocked ? (Locked.Position - ship.transform.position).magnitude / M : float.MaxValue;
+        float LockedLandmarkUnits() => LandmarkLocked && !Interstellar ? (Locked.Position - ship.transform.position).magnitude / M : float.MaxValue;   // (between the systems the zone and the arrival stop it)
 
         // ---- encounters ------------------------------------------------------------------------------------------
 
@@ -192,14 +210,23 @@ namespace GoF2Remake.Flight
         bool EncounterAllowed(CruiseEncounters.Entry e) =>
             CruiseEncounters.CanHappen(e, Session.Rank, systemSecurity, Session.FreePlay)
             && (e.kind != CruiseEncounters.Quest || (!string.IsNullOrEmpty(e.quest) && GameHooks.StartQuest != null && !GoF2Remake.Data.NetSession.Active))
-            && (!e.visible || signalTarget == null);   // one signal at a time
+            && (Interstellar ? CruiseEncounters.Between(e, homeTakes, 1f) != CruiseEncounters.PullOut.None
+                             : !e.visible || signalTarget == null);   // one signal at a time
+
+        /// <summary>Between the systems: the nearest system shown, and whether its orbit may have an encounter brought to it.</summary>
+        Target home;
+        bool homeTakes;
 
         void UpdateEncounters(float dtMs)
         {
             UpdateSignal(dtMs);
+            UpdatePullOut(dtMs);
+            UpdateCarried();
             if (encounters == null || !EncountersAllowed || SpawnEncounter == null || RunPlanet != null) return;
-            var e = encounters.Update(dtMs, Drive.Cruising, EncounterAllowed, () => UnityEngine.Random.value);
+            bool rolls = !Interstellar || InterstellarRolls();
+            var e = encounters.Update(dtMs, Drive.Cruising && rolls, EncounterAllowed, () => UnityEngine.Random.value);
             if (e == null) return;
+            if (Interstellar) { PullOutOfSlipstream(e); return; }
             var t = ship.transform;
             var pos = ToGame(t.position);
             var fwd = GameDir(t.forward);
@@ -219,6 +246,83 @@ namespace GoF2Remake.Flight
                 Say(string.Format(Localization.Extra("cruiseDriveEncounter", "{0} disengaged: {1}"), driveName, EncounterName(e)));
         }
 
+        /// <summary>Between the systems, an encounter may roll now: not on the way out, on a dive into the Void, out of the
+        /// slipstream already or with a system's orbit built ahead (the arrival is near: its own encounters come there).</summary>
+        bool InterstellarRolls()
+        {
+            if (LeavingInterstellar || OutOfSlipstream || ApproachRuns || Zone != null || (VoidDive != null && AutopilotTarget == VoidDive)) return false;
+            home = null;
+            float nearest = float.MaxValue;
+            var at = ship.transform.position;
+            foreach (var t in Targets)
+            {
+                if (t.kind != Kind.System || t.hidden || t.planetOf != null) continue;
+                float d = (t.Position - at).sqrMagnitude;
+                if (d < nearest) { nearest = d; home = t; }
+            }
+            homeTakes = home != null && CruiseEncounterRules.Allowed(db, home.station, home.system, false) && !ScriptedArrival(home.station)
+                        && (PlanetJumpRefused == null || !PlanetJumpRefused(home.station));
+            return true;
+        }
+
+        /// <summary>An encounter between the systems: out of the slipstream, in deep space or at the nearest system.</summary>
+        void PullOutOfSlipstream(CruiseEncounters.Entry e)
+        {
+            var way = CruiseEncounters.Between(e, homeTakes, UnityEngine.Random.value);
+            if (way == CruiseEncounters.PullOut.None) return;
+            Drive.Interrupt(CruiseDrive.Stop.Encounter);
+            SetAutopilot(null);
+            Say(string.Format(Localization.Extra("cruiseDriveEncounter", "{0} disengaged: {1}"), driveName, EncounterName(e)));
+            if (way == CruiseEncounters.PullOut.AtSystem && home != null)
+            {
+                Session.CarriedEncounter = e;
+                Say(string.Format(Localization.Extra("interstellarPulledOut", "Pulled out of the slipstream at {0}"), home.name));
+                Leave(home);
+                return;
+            }
+            OutOfSlipstream = true;
+            pullOutEntry = e;
+            pullOutMs = PullOutMs;
+        }
+
+        /// <summary>Out of the slipstream in deep space: the warp eases out, then the encounter is there; back in once the drive
+        /// cruises at full again.</summary>
+        void UpdatePullOut(float dtMs)
+        {
+            if (!OutOfSlipstream) return;
+            if (pullOutMs > 0f)
+            {
+                pullOutMs = Mathf.Max(0f, pullOutMs - Mathf.Max(0f, dtMs));
+                if (pullOutMs > 0f || pullOutEntry == null) return;
+                var e = pullOutEntry;
+                pullOutEntry = null;
+                SpawnAhead(e);
+                return;
+            }
+            if (Drive.Cruising && Drive.Level >= 1f) OutOfSlipstream = false;
+        }
+
+        /// <summary>The encounter that pulled the ship out at this system: here once the arrival's warp has ended, if the orbit
+        /// may have one.</summary>
+        void UpdateCarried()
+        {
+            if (carried == null || Interstellar || ArrivalHeld || ship == null) return;
+            var e = carried;
+            carried = null;
+            if (!EncountersAllowed || SpawnEncounter == null) return;
+            encounters?.Came();
+            if (e.kind == CruiseEncounters.Quest) { GameHooks.StartQuest?.Invoke(e.quest, true); return; }
+            SpawnAhead(e);
+        }
+
+        /// <summary>An encounter met at once (one that pulled the ship out), AmbushAheadUnits ahead.</summary>
+        void SpawnAhead(CruiseEncounters.Entry e)
+        {
+            var t = ship.transform;
+            var fwd = GameDir(t.forward);
+            SpawnEncounter?.Invoke(e, ToGame(t.position) + fwd * AmbushAheadUnits, fwd);
+        }
+
         /// <summary>The signal's / encounter's name on the HUD: the entry's own (a mod's), else its kind's.</summary>
         public static string EncounterName(CruiseEncounters.Entry e)
         {
@@ -230,6 +334,16 @@ namespace GoF2Remake.Flight
                 CruiseEncounters.Derelict => Localization.Extra("encounterDerelict", "Debris field"),
                 CruiseEncounters.Distress => Localization.Extra("encounterDistress", "Distress call"),
                 CruiseEncounters.Flyby => Localization.Extra("encounterFlyby", "Passing wing"),
+                CruiseEncounters.Battle => Localization.Extra("encounterBattle", "Battle"),
+                CruiseEncounters.Stash => Localization.Extra("encounterStash", "Hidden stash"),
+                CruiseEncounters.Depot => Localization.Extra("encounterDepot", "Resource depot"),
+                CruiseEncounters.HighRisk => Localization.Extra("encounterHighRisk", "High-risk area"),
+                CruiseEncounters.Minesweeper => Localization.Extra("encounterMinesweeper", "Minesweeper"),
+                CruiseEncounters.Challenge => Localization.Extra("encounterChallenge", "Shooting Challenge"),
+                CruiseEncounters.Needy => Localization.Extra("encounterNeedy", "Ship In Need"),
+                CruiseEncounters.LootDrone => Localization.Extra("encounterLootDrone", "Loot drone"),
+                CruiseEncounters.Rift => Localization.Extra("encounterRift", "Rift"),
+                // (a trap passes for an unknown signal, as EVERSPACE 2's does)
                 _ => Localization.Extra("encounterUnknown", "Unknown signal"),
             };
         }

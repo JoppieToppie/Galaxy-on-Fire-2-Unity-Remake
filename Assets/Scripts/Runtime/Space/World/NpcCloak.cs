@@ -59,7 +59,9 @@ namespace GoF2Remake.World
         bool swapped;
 
         /// <param name="keepEngine">another player's ship: its engine glow stays on like the local player's (#85)</param>
-        public NpcCloak(Transform model, bool keepEngine = false)
+        /// <summary>'anySurface' (remake: a cloaked container, World.LootContainer): every renderer but particles takes the cloak,
+        /// whatever its shader, its texture from _BaseMap or _MainTex.</summary>
+        public NpcCloak(Transform model, bool keepEngine = false, bool anySurface = false)
         {
             glow.KeepEngine = keepEngine;
             if (model == null) return;
@@ -69,7 +71,7 @@ namespace GoF2Remake.World
             {
                 if (r is ParticleSystemRenderer) continue;
                 var mats = r.sharedMaterials;
-                bool lit = mats.Length > 0 && mats[0] != null && mats[0].shader != null && (mats[0].shader.name.Contains("Lit") || mats[0].shader.name == "GoF2/Hull");   // the hull (GoF2/Hull: URP Lit + the original's reflection)
+                bool lit = anySurface || mats.Length > 0 && mats[0] != null && mats[0].shader != null && (mats[0].shader.name.Contains("Lit") || mats[0].shader.name == "GoF2/Hull");   // the hull (GoF2/Hull: URP Lit + the original's reflection)
                 if (!lit) { glow.Add(r, model); continue; }
                 if (shader == null) continue;
                 var cloak = new Material[mats.Length];
@@ -79,6 +81,7 @@ namespace GoF2Remake.World
                     if (mats[i] != null)
                     {
                         if (mats[i].HasProperty("_BaseMap")) m.SetTexture("_BaseMap", mats[i].GetTexture("_BaseMap"));
+                        else if (anySurface && mats[i].HasProperty("_MainTex")) m.SetTexture("_BaseMap", mats[i].GetTexture("_MainTex"));
                         if (mats[i].HasProperty("_BumpMap")) m.SetTexture("_BumpMap", mats[i].GetTexture("_BumpMap"));
                     }
                     if (assets.cloakMap != null) m.SetTexture("_CloakMap", assets.cloakMap);
