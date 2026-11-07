@@ -16,7 +16,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   list, again = off) and E actions (the quick menu), 1-8 pick a menu entry, Tab fast-forward ("Speed up"), T view, V
   wingmen, K Khador Drive, C cloak, M / middle mouse toggle mouse steering, Esc pause. Strafe works on the autopilot too
   (remake). Remake keys: 2 level out, G switch secondary, U unlock target (see "NPCs and combat", Radar), X time
-  extender, Y turret auto fire, F1 toggle HUD (Full / Minimal / Off, see **Options**), F2 cockpit view, F12 a screenshot
+  extender, 4 / 5 / 6 the first three active devices (mod items, see "Combat equipment" Devices; no pad default), Y turret
+  auto fire, F1 toggle HUD (Full / Minimal / Off, see **Options**), F2 cockpit view, F12 a screenshot
   anywhere (`ScreenshotKey`, saved like the photo mode's: PC Pictures/Galaxy on Fire 2, Android MediaStore). The phone
   binary has no flight keys (`MGame::OnKeyPress` is empty). These are the defaults: every flight
   control is rebindable (see **Key bindings**).

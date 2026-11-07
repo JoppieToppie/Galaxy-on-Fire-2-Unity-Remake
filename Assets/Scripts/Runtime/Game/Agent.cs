@@ -115,6 +115,8 @@ namespace GoF2Remake.Data
         public int Side => modRace >= 0 ? modRace : race;
         /// <summary>Agent+0x08..0x10: the wingman friends' names.</summary>
         public List<string> wingmen = new List<string>();
+        /// <summary>Remake mods (Modding.ModWingmen): a mod crew's ships, the agent's first, then the friends'; empty = the game's.</summary>
+        public List<int> wingmanShips = new List<int>();
         public FreelanceMission mission = new FreelanceMission();
         /// <summary>Agent+0x20 / +0x24 and the stored mission string: the text ids of the offer as first said.</summary>
         public List<int> textIds = new List<int>();

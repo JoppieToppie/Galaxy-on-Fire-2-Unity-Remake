@@ -4,7 +4,7 @@
 // Expected values: Reference/research/wingmen_wanted.md §1.1 (Status+0x24 names agent first, +0x2c race, +0x30 contract
 // 600 000 ms, +0x28 the agent's portrait, +0xd4 += friends + 1; setWingmen(null) clears names, portrait and contract),
 // §1.7 (Level::wingmanDied: the name leaves, the last one ends the contract), §1.8 (expired when the contract < 1),
-// §1.10 (they persist across saves).
+// §1.10 (they persist across saves). Remake mods: a mod crew's ships (Session.WingmanShips, Modding/README.md "Wingmen").
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -110,6 +110,29 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(2, Session.WingmanRace);
             Assert.AreEqual(2, Session.WingmenHired);
             CollectionAssert.AreEqual(new[] { 2, 1, 3, 4, 0 }, Session.WingmanPortrait);
+        }
+
+        [Test]
+        public void AModCrewsShipsGoWithItsPilots()
+        {
+            // remake mods (wingmen.json, Modding.ModWingmen): the agent's crew's ships, in the same order as the names
+            var agent = Hireling(2);
+            agent.wingmanShips = new List<int> { 5, 6, 7 };
+            Wingmen.Hire(agent);
+            CollectionAssert.AreEqual(new[] { 5, 6, 7 }, Session.WingmanShips);
+            Assert.AreNotSame(agent.wingmanShips, Session.WingmanShips, "a copy");
+            Wingmen.Died("Friend A");
+            CollectionAssert.AreEqual(new[] { 5, 7 }, Session.WingmanShips, "a dead one's ship leaves with it");
+            Session.StationIndex = 57;
+            Assert.IsTrue(SaveGame.Save(3));
+            Session.ResetNewGame();
+            Assert.AreEqual(0, Session.WingmanShips.Count);
+            Assert.IsTrue(SaveGame.Load(3));
+            CollectionAssert.AreEqual(new[] { 5, 7 }, Session.WingmanShips, "saved");
+            Wingmen.Dismiss();
+            Assert.AreEqual(0, Session.WingmanShips.Count);
+            Wingmen.Hire(Hireling(1));
+            Assert.AreEqual(0, Session.WingmanShips.Count, "the game's wingmen: none");
         }
     }
 }

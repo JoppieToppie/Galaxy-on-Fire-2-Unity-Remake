@@ -117,6 +117,7 @@ namespace GoF2Remake.Modding
             c.index = index;
             // remake mods: a mod race as the ship's race or among its traffic's races (ModRaces)
             if (d.raceRef != null) c.race = ModRaces.TryResolve(d.raceRef, d.mod, out int fr) ? fr : -1;
+            if (c.traffic != null) c.traffic.devices = d.trafficDevices;
             if (d.trafficRaceRefs != null && c.traffic != null)
                 c.traffic.races = d.trafficRaceRefs.Select(r => ModRaces.TryResolve(r, d.mod, out int tr) ? tr : -1).Where(r => r >= 0).ToArray();
             if (!d.refsReported)

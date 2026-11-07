@@ -116,6 +116,7 @@ namespace GoF2Remake.World
                 if (host.Spec.extraLoot != null) foreach (var st in host.Spec.extraLoot) CapitalShips.Add(all, st.item, st.amount);
                 host.SetLoot(all);
             }
+            if (loot == null || loot.keep) host.AddOwnLoot(true);   // remake mods: its ship type's own drops (ships.json "traffic.loot")
             if (CapitalShips.HasDeck(host.Spec))
             {
                 int set = CapitalShips.PadSet(host.Spec);

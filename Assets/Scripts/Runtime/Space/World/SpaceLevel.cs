@@ -115,6 +115,8 @@ namespace GoF2Remake.World
         public FreeLookCamera FreeLook { get; private set; }
         public PlayerCloak Cloak { get; private set; }
         public TimeExtender Extender { get; private set; }
+        /// <summary>Remake: the ship's active devices (mod items, Flight.Device), null = none.</summary>
+        public PlayerDevices Devices { get; private set; }
         /// <summary>MGame::dockEvent: 525 while a mission holds the player here (the story's blocks, the Kaamo siege).</summary>
         public bool DockingBlocked => Story.BlocksDocking(Layout.stationIndex, IsStoryOrbit) || (Siege != null && Siege.Active) || FreelanceBlocks
                                       || GoF2Remake.World.SpaceHooks.NoDocking;   // an event's Restrict Travel
@@ -154,7 +156,8 @@ namespace GoF2Remake.World
         /// <summary>The warp holds everything: between the systems and until an arrival's has ended nobody fires or is hurt.</summary>
         /// <summary>How much of the HUD shows as the ship comes out of the Khador Slipstream's hole (Visuals.WarpSky).</summary>
         public float HudShown => warpSky != null ? warpSky.HudShown : 1f;
-        public bool WarpHolds => (Layout != null && Layout.interstellar) || (warpSky != null && warpSky.Arriving);
+        public bool WarpHolds => (Layout != null && Layout.interstellar && !(Navigation != null && Navigation.OutOfSlipstream && Navigation.PullOut <= 0f))
+                                 || (warpSky != null && warpSky.Arriving);   // remake: out of the slipstream, an encounter is met there
         /// <summary>The orbit's fog sprites; null between the systems.</summary>
         public SpaceDust Fog { get; private set; }
         public GameObject Station { get; private set; }
@@ -433,7 +436,7 @@ namespace GoF2Remake.World
             void OnTookOff()
             {
                 // the take-off's end, like the launch camera's: on to a programmed station (the map's destination)
-                if (Session.ProgrammedStation >= 0 && !Session.InstantJump) Navigation?.ContinueToProgrammedStation();
+                if (Session.ProgrammedStation >= 0 && !Session.InstantJump && !Session.SlipstreamDeparture) Navigation?.ContinueToProgrammedStation();
             }
             if (Es2 != null) Es2.TookOff += OnTookOff;
             foreach (var md in mobileDocks.Values) md.TookOff += OnTookOff;
@@ -468,6 +471,7 @@ namespace GoF2Remake.World
             Collision.wormholeHeld = () => WormholeHeld;
             Collision.wormholeNoPull = () => WormholeNoPull;
             VolatileCargo.Attach(Player.gameObject, db, Player);   // PlayerEgo+0x398: volatile goods, sound 35
+            Headlights.Attach(Player.gameObject);   // remake: EVERSPACE 2's headlights (the L key)
             bool storyOrbit = !interstellar && !Session.FreePlay && Story.IsLevelMission(station);
             IsStoryOrbit = storyOrbit;
             // Status::departStation: the freelance mission's target orbit is built around it (not over a story orbit).
@@ -501,11 +505,15 @@ namespace GoF2Remake.World
             Traffic.Setup(db, Layout, Health.Target, Station, ownPassive || (GoF2Remake.Data.NetSession.Active && !NetAuthority), Wormhole,
                           warpArrival && !missionHere && !GoF2Remake.Data.NetSession.Active);
             // Remake: a cruise drive's encounters (NavigationCruiseDrive, CruiseEncounterSpawner): only where the traffic is this
-            // player's own and nothing scripted runs (a multiplayer orbit another player runs rolls none).
-            Navigation.EncountersAllowed = !ownPassive && !(GoF2Remake.Data.NetSession.Active && !NetAuthority) && !prologue
-                                           && CruiseEncounterRules.Allowed(db, station, Layout.systemIndex, Layout.alienOrbit);
+            // player's own and nothing scripted runs (a multiplayer orbit another player runs rolls none); between the systems
+            // (single player only) they pull the ship out of the slipstream (CruiseEncounters.Between).
+            Navigation.EncountersAllowed = interstellar ? !GoF2Remake.Data.NetSession.Active
+                                           : !ownPassive && !(GoF2Remake.Data.NetSession.Active && !NetAuthority) && !prologue
+                                             && CruiseEncounterRules.Allowed(db, station, Layout.systemIndex, Layout.alienOrbit);
             Navigation.SpawnEncounter = (entry, at, forward) => CruiseEncounterSpawner.Spawn(this, entry, at, forward);
             Traffic.LaunchCameraRunning = () => !LaunchCameraOver;
+            Traffic.PlayerSecondaryAmmo = () => Weapons != null ? Weapons.SecondaryAmmo : -1;   // remake mods: a wingman's Ammo Supply
+            Traffic.RestockPlayer = n => Weapons != null ? Weapons.Restock(n) : 0;
             Traffic.RadarHidden = () => Cutscene;
             // No locks or lock sounds (the scanner off). Remake: also in the planet jump, the jumpgate / Khador Drive scenes and
             // while a level script holds the controls (its cutscene camera moves before or after Cutscene says so).
@@ -672,6 +680,7 @@ namespace GoF2Remake.World
             Collision.cloak = Cloak;
             Navigation.Extender = Extender;
             if (Extender != null) Extender.Blocked = () => ExtenderBlocked;
+            AttachDevices(Player.gameObject);
             RepairBeam.AttachAll(Player.gameObject, db, Health.Target, Traffic);
             Session.ComingFromVoid = false;   // Level::init / LevelScript have used it (the Void raid, the closing wormhole)
             SpaceHooks.LevelBuilt?.Invoke(this);   // multiplayer: the shared orbit (NetOrbit)
@@ -761,6 +770,19 @@ namespace GoF2Remake.World
         bool DockedLook => Docking != null && Docking.IsDocked && Docking.Hacking == null && !Cutscene;
 
         /// <summary>A cinematic, a jump, the launch camera or the player's death stops the time extender (MGame::OnUpdate 0x1af162).</summary>
+        /// <summary>Remake: the active devices (PlayerDevices), again for a new hull (SwapPlayerShip).</summary>
+        void AttachDevices(GameObject root)
+        {
+            if (Devices != null) Destroy(Devices);
+            Devices = PlayerDevices.Attach(root, db, Health.Target, Weapons);
+            Navigation.Devices = Devices;
+            if (Devices != null) Devices.Blocked = () => ExtenderBlocked || (Weapons != null && Weapons.Blocked);
+            DevicesChanged?.Invoke();
+        }
+
+        /// <summary>Devices was made again (the HUD hears its messages).</summary>
+        public event System.Action DevicesChanged;
+
         bool ExtenderBlocked => launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Cutscene
                                 || Health == null || Health.Dead;
 
@@ -791,6 +813,7 @@ namespace GoF2Remake.World
             // Hostiles, or a radio line on screen, block fast-forward (MGame::OnUpdate).
             Navigation.HostilesPresent = (Traffic != null && (Traffic.HostileCount > 0 || Traffic.ChatterVisible != null)) || (Campaign != null && Campaign.Radio != null && Campaign.Radio.Busy);
             if (Extender != null && ExtenderCancelled) Extender.Cancel();
+            if (Devices != null && ExtenderCancelled) Devices.Cancel();
             if (DockedInOrbit) return;   // docked inside the orbit: no wormhole, no hidden-system leave
             UpdateWormholeRide();
             UpdateHiddenSystem();

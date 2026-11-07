@@ -284,6 +284,7 @@ namespace GoF2Remake.World
             Cloak = PlayerCloak.Attach(root, db, shipIndex, Health.Target, model.transform);
             if (Navigation != null) Navigation.Cloak = Cloak;
             if (Collision != null) Collision.cloak = Cloak;
+            if (Navigation != null) AttachDevices(root);
             PlayerTurret.RemoveAll(turrets);
             turrets.Clear();
             turrets.AddRange(PlayerTurret.AttachAll(root, db, shipIndex, Session.Equipment, chase));
@@ -417,6 +418,10 @@ namespace GoF2Remake.World
             FreeLook = FreeLookCamera.Attach(root, chase, Turret);
             // Level::createGasClouds: the Supernova plasma clouds (a spectral filter mounted).
             if (!Layout.interstellar) GasClouds = GasCloudField.Spawn(db, Layout, ctrl, Turret);
+            if (!Layout.interstellar && !Layout.alienOrbit) WreckField.Spawn(db, Layout);   // remake mods: the orbit's wreck field
+            if (!Layout.interstellar && !Layout.alienOrbit) LootContainer.SpawnOrbit(db, Layout);   // ... and its containers
+            TrafficLanes.Attach(this, db);   // ... and its traffic lanes
+            HazardZones.Attach(this);   // remake mods: the orbit's heat / radiation volumes, a radiated hull's cap
             if (Radar != null) Radar.Clouds = GasClouds;   // the spectral filters' markers and lock
             Extender = TimeExtender.Attach(root, db);
 
@@ -540,8 +545,7 @@ namespace GoF2Remake.World
         /// arrival camera is placed again around the new pose.</summary>
         public void MovePlayer(Vector3 position, Quaternion rotation)
         {
-            Player.transform.SetPositionAndRotation(position, rotation);
-            chase.Snap();
+            WarpPlayer(position, rotation);
             if (launchCameraMs <= 0f) return;
             bool travel = launchTravel;
             float Side() => (Random.value < 0.5f ? -1f : 1f) * (travel ? Random.Range(500, 1000) : Random.Range(500, 2500));
@@ -551,6 +555,13 @@ namespace GoF2Remake.World
             mainCamera.transform.rotation = Quaternion.LookRotation(Player.transform.position - mainCamera.transform.position, Player.transform.up);
             if (challengeFlyIn) { challengeFlyStart = mainCamera.transform.position; challengeFlyMs = 0f; }
             PlaceArrivalWormhole();
+        }
+        /// <summary>The player's ship to another pose in flight, the chase camera with it (remake: a boss's wormhole,
+        /// NpcWormhole); nothing else moves.</summary>
+        public void WarpPlayer(Vector3 position, Quaternion rotation)
+        {
+            Player.transform.SetPositionAndRotation(position, rotation);
+            chase.Snap();
         }
         /// <summary>Level::initStreamOutPosition: this level began with an arrival by travel (planet jump, gate, wormhole).</summary>
         public bool StreamOutArrival => launchTravel;

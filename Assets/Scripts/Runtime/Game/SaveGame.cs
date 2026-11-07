@@ -59,6 +59,7 @@ namespace GoF2Remake.Data
         public bool[] usedMissionTypes;
         public bool informerKilled, informerFailed;
         public List<string> wingmen;
+        public List<int> wingmanShips;   // remake mods: a mod crew's ships (Session.WingmanShips)
         public int wingmanRace;
         public float wingmanContractMs;
         public int[] wingmanPortrait;
@@ -94,6 +95,9 @@ namespace GoF2Remake.Data
         public int[] collectedBounties;
         public int wantedHints;
         public int hiddenBlueprintsFound;
+        // remake mods: the mods' Most Wanted criminals by key (Modding.ModWanted) and their bounties per board
+        public List<ModWantedSave> modWanted;
+        public int[] modBounties;
         // version 9: the elite medals' flags and streaks (Status+0x120 .. +0x148)
         public List<int> eliteFlags;
         public int oreStreak, blindKills;
@@ -419,7 +423,7 @@ namespace GoF2Remake.Data
                 passengers = Session.Passengers,
                 usedMissionTypes = Session.UsedMissionTypes,
                 informerKilled = Session.InformerKilled,
-                wingmen = Session.Wingmen, wingmanRace = Session.WingmanRace, wingmanContractMs = Session.WingmanContractMs,
+                wingmen = Session.Wingmen, wingmanShips = Session.WingmanShips, wingmanRace = Session.WingmanRace, wingmanContractMs = Session.WingmanContractMs,
                 wingmanPortrait = Session.WingmanPortrait, wingmenHired = Session.WingmenHired,
                 unlockedBlueprints = new List<int>(Session.UnlockedBlueprints), shipMods = Session.ShipMods,
                 blueprints = Session.Blueprints, pendingProducts = Session.PendingProducts, goodsProduced = Session.GoodsProduced,
@@ -439,6 +443,7 @@ namespace GoF2Remake.Data
                 hasParkedShip = Session.ParkedShip != null, parkedShip = Session.ParkedShip, storyTargets = new List<int>(Session.StoryTargets),
                 wanted = new List<WantedState>(Session.Wanted), collectedBounties = (int[])Session.CollectedBounties.Clone(),
                 wantedHints = Session.WantedHints, hiddenBlueprintsFound = Session.HiddenBlueprintsFound,
+                modWanted = ModWantedSave.From(Session.ModWanted), modBounties = (int[])Session.ModBounties.Clone(),
                 eliteFlags = new List<int>(Session.EliteFlags), oreStreak = Session.OreStreak, blindKills = Session.BlindKills,
                 lomaTollPaid = Session.LomaTollPaid, lomaTollRefused = Session.LomaTollRefused,
             };
@@ -644,6 +649,7 @@ namespace GoF2Remake.Data
                 if (s.usedMissionTypes != null && s.usedMissionTypes.Length == 15) Session.UsedMissionTypes = s.usedMissionTypes;
                 Session.InformerKilled = s.informerKilled;
                 Session.Wingmen = s.wingmen ?? new List<string>();
+                Session.WingmanShips = s.wingmanShips ?? new List<int>();   // (a ship no longer there: the game's way, Traffic.SpawnWingmen)
                 Session.WingmanRace = s.wingmanRace;
                 Session.WingmanContractMs = s.wingmanContractMs;
                 if (s.wingmanPortrait != null && s.wingmanPortrait.Length == 5) Session.WingmanPortrait = s.wingmanPortrait;
@@ -720,6 +726,8 @@ namespace GoF2Remake.Data
                 Session.HiddenBlueprintsFound = s.hiddenBlueprintsFound;
             }
             else { Session.Wanted = new List<WantedState>(); Session.CollectedBounties = new int[4]; Session.WantedHints = 0; Session.HiddenBlueprintsFound = 0; }
+            Session.ModWanted = ModWantedSave.To(s.modWanted);
+            Session.ModBounties = s.modBounties != null && s.modBounties.Length == 4 ? s.modBounties : new int[4];
             Session.EliteFlags = new HashSet<int>(s.eliteFlags ?? new List<int>());
             Session.OreStreak = s.oreStreak;
             Session.BlindKills = s.blindKills;

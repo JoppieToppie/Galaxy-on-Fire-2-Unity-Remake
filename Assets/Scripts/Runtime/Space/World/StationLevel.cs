@@ -232,6 +232,7 @@ namespace GoF2Remake.World
             dbRevision = Modding.ModManager.Revision;
             int station = stationOverride >= 0 ? stationOverride : Session.StationIndex;
             Hangar.NewDocking();
+            Flight.Hazards.ClearRadiation();   // remake mods: docking takes a radiated hull's limit off (EVERSPACE 2's radiation)
             if (stationOverride < 0) Session.LastDockedStation = station;   // where a multiplayer pilot starts and respawns
             Stock = Shop.EnterStation(db, station);
             PirateReports.Refresh(db);   // remake: the Pirate activity board's old reports off, new ones in

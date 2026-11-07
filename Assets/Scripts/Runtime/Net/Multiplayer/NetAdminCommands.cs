@@ -599,6 +599,36 @@ namespace GoF2Remake.Multiplayer
             EventRunner.NoteWaypointSet();
             return "";
         });
+        /// <summary>/pickup [players] &lt;station x y z [unmarked] [named name] | remove name | clear&gt;: a glowing orb at those
+        /// game coordinates in that orbit, a named one marked on the HUD unless unmarked (EventPickups); only shown: a mission collects it with an
+        /// "on near" at the same point whose steps remove it.</summary>
+        public static string Pickup(string args, IPilot by) => ForTargets(args, by, true, (t, rest) =>
+        {
+            rest = rest.Trim();
+            if (string.Equals(rest, "clear", StringComparison.OrdinalIgnoreCase))
+            {
+                Send(t, Order.Pickup, 0, 0, 0, by, "pickup clear", "clear");
+                return "";
+            }
+            if (rest.StartsWith("remove ", StringComparison.OrdinalIgnoreCase))
+            {
+                string named = "named " + rest.Substring(7);
+                if (!TakeName(ref named, out string gone) || gone == null) return Usage("pickup");
+                Send(t, Order.Pickup, 0, 0, 0, by, "pickup remove", "remove " + gone);
+                return "";
+            }
+            if (!TakeName(ref rest, out string name)) return Usage("pickup");
+            if (!NetTeleport.ParseStation(rest, out int station, out string after)) return Usage("pickup");
+            var c = new List<string>(after.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+            bool marked = !(c.Count == 4 && string.Equals(c[3], "unmarked", StringComparison.OrdinalIgnoreCase));
+            if (!marked) c.RemoveAt(3);
+            if (c.Count != 3) return Usage("pickup");
+            foreach (var w in c) if (!float.TryParse(w, NumberStyles.Float, CultureInfo.InvariantCulture, out float v) || Mathf.Abs(v) > 1e7f) return Usage("pickup");
+            Send(t, Order.Pickup, station, 0, 0, by, "pickup",
+                 station.ToString(CultureInfo.InvariantCulture) + " " + string.Join(" ", c) + (marked ? " 1" : " 0") + (name != null ? " " + name : ""));
+            EventRunner.NotePickupSet();
+            return "";
+        });
         /// <summary>/wormhole [players] &lt;station&gt; [x y z] to &lt;destination&gt; [for &lt;seconds&gt;] | close: a wormhole in that
         /// orbit (EventWormhole); flying in takes them to the destination (a station, or "void"). Open until closed, the seconds
         /// or the event's end.</summary>

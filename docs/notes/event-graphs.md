@@ -107,6 +107,21 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `NetCommandsTests.AWormholeOrder`, `QuestGraphTests.AWormholeStepTakesAVariableDestinationAndComesBack`. Verified in Play
   mode (single player, a throwaway .gof2mission at Kepler Prime with `"to": "{dest}"`): the wormhole opening with its marker,
   the ride to Var Hastra arriving 4.2 km out facing the station with the closing wormhole behind. Not tested in multiplayer.
+  **Pickups** (remake, 2026-11-05, for the GoF3 Ships mod's races after GoF3's freelance challenges; `/pickup [players]
+  <station x y z [unmarked] [named <name>] | remove <name> | clear>`, NetAdmin order Pickup 38, the mission step `pickup`
+  (action show / remove / clear, station, at, name, marked; `QuestFile` reads the line back)): `EventPickups` (Net/Events,
+  like `EventWaypoint`) shows glowing orbs (`projectile_009_anim_add` scaled to 30 m, no collider) at game coordinates in
+  an orbit, a named one with a Navigation `Marker` unless unmarked; "remove" takes every one of that name with a small
+  flash, "clear" all; cleared at the event's end (`EventRun.eventPickup`) and the session's. Only shown: a mission collects
+  one with an `on near` at the same point (server-side, every 0.25 s, so a radius of 100 m or more for ships at speed)
+  whose steps remove it, so several players' games agree. Not replayed from a checkpoint (put the checkpoint before the
+  pickups). Tests `QuestGraphTests.APickupStepShowsRemovesAndClearsAndComesBack`, `TheClientsPickupOrderIsReadBack`.
+  Untested in Play mode.
+  **distance(player, x, y, z)** (remake, 2026-11-05, for the GoF3 Ships mod's beacon scans after GoF3's distress call
+  Errand Boy): `EventRun.NearestPilot`, game units from the nearest of the run's players alive in space to that point,
+  -1 when none; any orbit (a mission keeps its team in its own; else pair it with `inorbit`). An `every 1` counting while
+  it is under a radius is a "stay near" the edge-triggered `on near` can't express. No test (it needs a pilot in space);
+  untested in Play mode.
   **Ship orders** (`EventShipOrders`, `NpcOrder`; NetAdmin order Npc 29, `/npc [players] <ship> <order>`; the server checks
   the text with `EventShipOrders.TryParse`, each target's game applies it to its own traffic ships of that name (Target.
   displayName, "Name N" of a numbered spawn too; proxies just mirror)): goto / route (places "/"-separated, loop), follow /

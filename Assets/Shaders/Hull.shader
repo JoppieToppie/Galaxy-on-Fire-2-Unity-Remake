@@ -87,6 +87,9 @@ Shader "GoF2/Hull"
         [HideInInspector] _DecalColor1("Decal colour 1", Color) = (1, 1, 1, 1)
         [HideInInspector] _DecalColor2("Decal colour 2", Color) = (1, 1, 1, 1)
         [HideInInspector] _DecalColor3("Decal border colour", Color) = (0, 0, 0, 1)
+        // GoF2: a mod specular material's GoF3 terms (HullForwardPass.hlsl GoF3ShipShader; ModMaterials): x environment, y rim,
+        // z GoF3's specular multiplier, w 1 = that multiplier is in the map (on the whole specular) / 0 = on the highlight
+        [HideInInspector] _GoF3Params("GoF3 params", Vector) = (1, 1, 1, 0)
 
         [HideInInspector] _MainTex("BaseMap", 2D) = "white" {}
         [HideInInspector] _Color("Base Color", Color) = (1, 1, 1, 1)

@@ -210,6 +210,7 @@ namespace GoF2Remake.Modding
                     if (!string.IsNullOrEmpty(m.diffuse)) yield return (m.diffuse, false, false, false);
                     if (!string.IsNullOrEmpty(m.normal)) yield return (m.normal, true, false, true);
                     if (!string.IsNullOrEmpty(m.metallicSmoothness)) yield return (m.metallicSmoothness, true, false, false);
+                    if (!string.IsNullOrEmpty(m.specularGlossiness)) yield return (m.specularGlossiness, false, false, false);
                     if (!string.IsNullOrEmpty(m.emission)) yield return (m.emission, false, false, false);
                     if (!string.IsNullOrEmpty(m.detailAlbedo)) yield return (m.detailAlbedo, true, false, false);
                     if (!string.IsNullOrEmpty(m.detailNormal)) yield return (m.detailNormal, true, false, true);
@@ -326,7 +327,7 @@ namespace GoF2Remake.Modding
         /// holder, the kit's materials applied.</summary>
         static async Task LoadKit(int rev, ModShipKits.Kit kit, ICollection<string> files)
         {
-            await Task.WhenAll(kit.materials.SelectMany(m => new[] { (m.diffuse, false, false), (m.normal, true, true), (m.metallicSmoothness, true, false),
+            await Task.WhenAll(kit.materials.SelectMany(m => new[] { (m.diffuse, false, false), (m.normal, true, true), (m.metallicSmoothness, true, false), (m.specularGlossiness, false, false),
                                                                      (m.emission, false, false), (m.detailAlbedo, true, false), (m.detailNormal, true, true), (m.flameNoise, true, false), (m.damageEmission, false, false),
                                                                      (m.damageDetail, false, false), (m.damageNormal, true, true) })
                                             .Where(t => !string.IsNullOrEmpty(t.Item1))
@@ -552,7 +553,8 @@ namespace GoF2Remake.Modding
 
         /// <summary>A skin's textures onto copies of the materials it names (the name contains its 'material'): diffuse =
         /// _BaseMap, emission = _EmissionMap (its colour x intensity, white without one), metallicSmoothness = _MetallicGlossMap
-        /// (URP Lit's layout: R metallic, A smoothness), normal = _BumpMap, color = _BaseColor; each texture keeps the
+        /// (URP Lit's layout: R metallic, A smoothness), specularGlossiness = _SpecGlossMap (a material in URP's specular setup:
+        /// RGB specular, A smoothness), normal = _BumpMap, color = _BaseColor; each texture keeps the
         /// material's tiling. A texture that doesn't load keeps the model's own.</summary>
         static void ApplySkin(GameObject root, ModShipKits.Kit kit, ModShipKits.Skin skin)
         {
@@ -591,6 +593,11 @@ namespace GoF2Remake.Modding
                     if (Tex(spec.metallicSmoothness, true) is Texture2D ms)
                     {
                         copy.SetTexture("_MetallicGlossMap", ms);
+                        if (copy.HasProperty("_Smoothness")) copy.SetFloat("_Smoothness", 1f);
+                    }
+                    if (copy.IsKeywordEnabled("_SPECULAR_SETUP") && Tex(spec.specularGlossiness, false) is Texture2D sg)
+                    {
+                        copy.SetTexture("_SpecGlossMap", sg);
                         if (copy.HasProperty("_Smoothness")) copy.SetFloat("_Smoothness", 1f);
                     }
                     if (Tex(spec.normal, true, true) is Texture2D nm) copy.SetTexture("_BumpMap", nm);   // the templates keep their map keywords

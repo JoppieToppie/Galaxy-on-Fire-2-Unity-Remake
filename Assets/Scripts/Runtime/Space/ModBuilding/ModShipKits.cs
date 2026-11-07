@@ -115,7 +115,7 @@ namespace GoF2Remake.Modding
         static readonly HashSet<string> SkinFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "id", "name", "types", "engineColor", "materials", "colors", "livery", "decal" };
         static readonly HashSet<string> SkinMaterialFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "material", "diffuse", "emission", "metallicSmoothness", "normal", "color", "emissionColor", "emissionIntensity" };
+            { "material", "diffuse", "emission", "metallicSmoothness", "specularGlossiness", "normal", "color", "emissionColor", "emissionIntensity" };
         static readonly HashSet<string> PartFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "id", "slot", "name", "model", "types", "tiers", "mounts", "tierMounts", "stats", "slots", "anchors", "anchor" };
 
@@ -178,6 +178,7 @@ namespace GoF2Remake.Modding
         public sealed class SkinMaterial
         {
             public string material, diffuse, emission, metallicSmoothness, normal;
+            public string specularGlossiness;   // URP's specular setup's map (RGB specular, sRGB; A smoothness), on a material that has it
             public float[] color, emissionColor;
             public float emissionIntensity = 1f;
         }
@@ -210,6 +211,7 @@ namespace GoF2Remake.Modding
                     if (!string.IsNullOrEmpty(m.diffuse)) yield return (m.diffuse, false, false);
                     if (!string.IsNullOrEmpty(m.emission)) yield return (m.emission, false, false);
                     if (!string.IsNullOrEmpty(m.metallicSmoothness)) yield return (m.metallicSmoothness, true, false);
+                    if (!string.IsNullOrEmpty(m.specularGlossiness)) yield return (m.specularGlossiness, false, false);
                     if (!string.IsNullOrEmpty(m.normal)) yield return (m.normal, true, true);
                 }
             }

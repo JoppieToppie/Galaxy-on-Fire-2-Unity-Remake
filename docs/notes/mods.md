@@ -167,10 +167,11 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
 - **Mod tags** (remake, TorchOP's request 2026-10-23: tell SH / HD / Alliances / GoF3 content apart; the user: one tag
   per mod, for everything, not just ships): mod.json `"tag"` (`ModContent.TagOf`, a string or per language) on all a mod
   adds, never on what it only overrides: `GameNames.ShipTag` / `ItemTag` (a ship blueprint's item: its ship's) /
-  `SystemTag` / `StationTag` (`ModWorld`). `ItemInfo.WithTag` adds it as rich text (`<alpha=#80><size=80%>`, the tag in
+  `SystemTag` / `StationTag` (`ModWorld`) / `WantedTag` (a mod's Most Wanted criminal, 2026-11-02). `ItemInfo.WithTag` adds it as rich text (`<alpha=#80><size=80%>`, the tag in
   `<noparse>`; `TaggedShipName`, `TaggedItemName`): the hangar / shop / cargo / Kaamo / pending rows, the hangar details,
   the carrier shop, the item window, the status screen, the star map's system and planet names, its system panel and
-  planet lore title, the docked station's title and system line (after `ToUpperInvariant`). Everywhere else (toasts,
+  planet lore title, the docked station's title and system line (after `ToUpperInvariant`), the Most Wanted board's rows
+  and details and the pause menu's Most Wanted page (`TaggedWantedName`; not the radio or the HUD). Everywhere else (toasts,
   dialogs, selectors, chat, saves) keeps the plain name. Mod Builder: Mod details' "Tag". Tests `ModTagTests`.
 - **Numbers** (`ModRegistry`, `persistentDataPath/mod_registry.json`, outside the Mods folder): single player gives each "mod:id" key the next free
   number after the original table (233+) for good; a key whose mod is off gets a placeholder (`ModContent.IsMissingItem`:
@@ -224,8 +225,16 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   flight, free flight or both. Items: attributes 110-121 (`ItemStats`): `flightScope` (110: 0 both, 1 original, 2 free) keeps
   the item's booster / Steering Nozzle attributes 25-28 to one style; % bonuses `topSpeed` / `turnRate` / `strafeSpeed` (both,
   111-113), `original*` (114-116), `free*` + `freeAcceleration` (117-120) and `freeBoostFactor` (121, x100, instead of the
-  booster's).
-  Ships (new or override): `flightStyle` and `flight` { topSpeed, turnRate, strafeSpeed, acceleration, boostFactor, original {},
+  booster's); `fullStopDamage` / `lowSpeedResistance` (138 / 139, both styles, 2026-11-02: EVERSPACE 2's ship passives from
+  `BP_Ship_Player`'s `TickItemEffects`: the primaries' damage x (1 + %) while the velocity is nearly zero
+  (`FlightModel.AtFullStop` / `WeaponDamageFactor`, `WeaponSystem.FlightDamageFactor`), the hits on the ship x (1 - %) once
+  it has flown at or below 30 m/s (3000 cm/s) for 1 s (ES2's 1 s timer; `FlightModel.DamageTakenFactor` ->
+  `Target.damageFactor` on the player's ship, set by `ShipController` each frame); both styles, so the original's throttle
+  at 0 counts as a full stop).
+  Mounts (2026-11-02): `slotType` 6 contrail point and 7 headlight fixture (EVERSPACE 2's `SKT_Contrail` / `SKT_HeadLight`
+  sockets, the ES2 importer writes them; `Modding.Es2Contrails` / `Es2Headlights`, see free-flight.md); `es2Engine.contrails`.
+  Ships (new or override): `flightStyle` and `flight` { topSpeed, turnRate, strafeSpeed, acceleration, boostFactor,
+  fullStopDamage, lowSpeedResistance, original {},
   free {} } (`ShipData.flightStyle` / `flightBoth` / `flightOriginal` / `flightFree`, non-serialized, set by
   `ModFlight.ApplyShip`). `Database.BuildFlightStats` fills `FlightStats.original` / `free` (`FlightTuning`: the style's
   booster, agility and summed `FlightBonus`; the ship's first, so an item's freeBoostFactor wins); `FlightModel.Configure`
@@ -514,6 +523,47 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   numbers persistent hosts saw before. `BaseContentTests`; texts are English until they get `extra_<lang>` keys. A
   manifest that can't be read yet (Resources not ready in a fresh Editor) leaves it out instead of throwing out of
   `Active`: `BaseContent` is null, `Active` isn't kept, and the read that finds it bumps `Revision` (review, 2026-11-01).
+- **Mod Most Wanted** (`ModWanted`, a mod's `wanted.json`, applied in `ModContent.Apply` after `ModWorld`; 2026-11-02, the
+  user's request): each entry is a `WantedData` appended after the game's 25 with `key` "mod_id:id" (`IsMod`), its index
+  numbered afresh each load, so `WantedBoard.State` keeps its state by key (`Session.ModWanted`, saved as `modWanted`) and
+  its kills count apart (`Session.ModBounties`, `modBounties`; `requiredBounties` reads those). `WantedBoard.ModListed`:
+  in its `systems`' stations, else its board race's, while `available` holds, in free play too, where the game's criminals
+  (`OriginalsOn`) stay off. `route` replaces `PathBounds`; trips pick among visible usable systems, the mods' included
+  (`RandomModStation`). Spawn as the game's (`TrafficPlan.AddWanted`: a mod race kept, `secondary` its own),
+  `character` for the board's face (`MissionsWindow.ShowWantedDetails`) and the radio (`TrafficSpecials.WantedLine`);
+  `StationMenuDockingChecks.CheckWanted` runs its trips in free play but the Quineros hints stay campaign-only. The
+  original save export stops at the first mod entry. "escorts" (ships the wingmen take in turn, `TrafficPlan.AddWanted`),
+  "taunt" (said in its name after the uncover line, `Traffic.CriminalSays`), "music" (a mod track for the wanted
+  category 4, `UpdateMusic`; an unknown track warns). `ModWantedTests`. "damageTaken" (2026-11-04, the GoF3 roadmap's
+  bosses: GoF3's StrengthAndWeaknessSystem::modifyDamage adds damage x (weakness - strength)): `Data.DamageTaken`, percent
+  by item, then items.json category, then kind; `NpcShip.Setup` sets `Target.PlayerWeaponFactor`, which `Target.Damage`
+  applies to a hit not by an NPC from `lastPlayerWeapon` (every player hit sets it first; `PlayerTurret` now too). A
+  remote player's hit arrives as an NPC's on the authority, so only its own player's weapons see it.
+  "turrets" (2026-11-05, the GoF3 bosses' Backfire / Tank Turrets): turret items (category 8 / 35) for its ship's turret
+  mounts, `WantedData.turrets` -> `SpawnSpec.turretItems` (`TrafficPlan.AddWanted`; null = the type's `npcTurrets`, [] =
+  none; more than the mounts warns), fired by `NpcMountedTurrets` at the item's own damage (no x4 like its gun).
+- **Mod wingmen** (remake, 2026-11-05, the GoF3 roadmap's G5 after GoF3's wingmen, the user's choice: GoF2's progression
+  systems plus what it lacks; Modding/README.md "Wingmen"): ships.json "wingmanDevice" (`CustomShipData.wingmanDevice`,
+  checked in `ModWingmen.Apply`) gives a hired wingman flying that hull GoF3's device (`Flight.WingmanDevice`, Core: Hull
+  Repair, Ammo Supply, Charged Shots with DeviceConfigurationWingman*'s numbers); `NpcShip.UpdateWingmanCrew` runs it
+  (the player's hitpoints mended hull first, then armor; `Traffic.RestockPlayer` / `PlayerSecondaryAmmo` from SpaceLevel's
+  `WeaponSystem`; Charged Shots in `GunHit`) and says "{0}: Hull Repair" etc. on the HUD (`wingmanRepair` / `wingmanAmmo` /
+  `wingmanCharged`, Extra texts in English only). A mod's wingmen.json (`ModWingmen`, after `ModWanted` in `ModContent.
+  Apply`, into `db.WingmanCrews`, `Data.WingmanCrew`): "chance" of a wingmen offer (`AgentGenerator.CreateAgent`, each
+  crew rolled in turn) whose pilots fly its "ships" (default its ships with a device; the agent's race's when it has any),
+  `Agent.wingmanShips` -> `Wingmen.Hire` -> `Session.WingmanShips` (saved `wingmanShips`; a dead wingman's leaves with its
+  name; `Traffic.SpawnWingmen` takes one only while it exists); "radio" lines (kill 50 %, lost, help under a third,
+  thanks for the player's kill of what was after it, warn: `Traffic.TakeEnemyOnTail`, a hostile after the player within
+  1.5 km behind, scanned once a second, then 30 s quiet; playerDown under a fifth) through `Traffic.WingmanSay` (one every
+  12 s, never over other chatter; slot 0 with the agent's face). Tests `WingmanDeviceTests`, `ModWingmenTests`,
+  `WingmenTests.AModCrewsShipsGoWithItsPilots`. Untested in Play mode.
+- **Crates** (remake, 2026-11-02, the user's request for GoF3's loot containers; `ModCrates`, test `ModCratesTests`): ships.json
+  `crate` (a glTF file) / `crateSize` (game units) on `CustomShipData`. Each file loads once at mod load (`ModLoading`,
+  hidden DontDestroyOnLoad templates); `Crate.Model` draws a container (look 0) with it when it is loaded, fitted to the
+  race container's largest mesh extent (the game's ~393 units, bsphere 341) unless the key has a size, else the race's
+  container. `NpcShipDamage` (death and steal crates) passes `ModCrates.KeyOf(Spec.ship)`; `Crate.model` keeps the key
+  ("mod id|path"), which `NetCrate` sends as its data's sixth field so the other players draw the same model (an old
+  client reads five fields: the race's). Not mod-specific: rocks, junk and mission containers keep the game's.
 - **Jump drives** (`ModJumpFx` (Game), `World.ModJumpEffect`, `SystemJump`; items.json `"jumpFx"`, Modding/README.md
   "Jump drives"; KiritoJPK's Hyper Drive mod): an item based on the Khador Drive (85) without `cruiseSpeed` is a jump drive
   (`GalaxyMap.IsKhadorDrive`, the quick menu entry under its own name); the Khador Drive itself (or a built-in one) aboard

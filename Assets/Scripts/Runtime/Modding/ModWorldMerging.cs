@@ -18,7 +18,7 @@ namespace GoF2Remake.Modding
         {
             NoteOriginalCounts(db);
             EnsureMapping();
-            systemSpaceMusic.Clear(); systemStationMusic.Clear(); stationMusic.Clear(); stationSubtitle.Clear(); stationLore.Clear();
+            systemSpaceMusic.Clear(); systemStationMusic.Clear(); systemBattleMusic.Clear(); stationMusic.Clear(); stationSubtitle.Clear(); stationLore.Clear();
             stationModels.Clear(); gateModels.Clear(); stationInterior.Clear(); planetTextures.Clear(); sunTextures.Clear(); sunColors.Clear(); skyboxes.Clear();
             mapTextures.Clear(); mapRings.Clear(); orbits.Clear(); mapPlaces.Clear();
             stationHangar.Clear(); stationBar.Clear(); mobiles.Clear();
@@ -87,6 +87,12 @@ namespace GoF2Remake.Modding
                         if (ModJson.Str(o, "gateStation") is string gs) gateStations[s.index] = gs;
                         if (ModJson.Str(o, "spaceMusic") is string sm) systemSpaceMusic[s.index] = sm;
                         if (ModJson.Str(o, "stationMusic") is string stm) systemStationMusic[s.index] = stm;
+                        if (ModJson.Has(o, "battleMusic"))
+                        {
+                            var bm = ModJson.Strings(o, "battleMusic");
+                            if (bm.Count == 1 || bm.Count == 3) systemBattleMusic[s.index] = bm;
+                            else Report(mod, $"{d.where}: \"battleMusic\": one track or three (low, medium, full), not {bm.Count}");
+                        }
                         if (ModJson.Str(o, "sunTexture") is string sun) sunTextures[s.index] = BackdropName(mod, sun);
                         if (ModJson.Get(o, "skybox") is JToken skyToken) skyboxes[s.index] = ParseSkybox(mod, skyToken, d.where);
                         if (ModJson.Get(o, "jumpgate") is JObject jgo && ModJson.Str(jgo, "model") is string gm)
