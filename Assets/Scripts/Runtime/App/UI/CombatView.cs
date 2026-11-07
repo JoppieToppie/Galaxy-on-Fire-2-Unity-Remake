@@ -249,7 +249,8 @@ namespace GoF2Remake.UI
             farStyle = Settings.FarShipMarkers;
             farDistance = Settings.MarkerDistance;
             foreach (var m in markers.Values) m.used = false;
-            bool show = radar != null && radar.HasScanner && cam != null && layer.panel != null && !cinematic && !markersOff && health != null && !health.Dead;
+            bool show = radar != null && radar.HasScanner && cam != null && layer.panel != null && !cinematic && !markersOff && health != null && !health.Dead
+                        && !RadarJam.Active;   // (remake: a boss's radar jammer)
             layer.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
             if (show)
             {

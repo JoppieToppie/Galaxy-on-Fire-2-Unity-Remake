@@ -47,7 +47,7 @@ namespace GoF2Remake.Tests
                 {
                     case "dialog": st["pages"] = new JArray(new JObject { ["speaker"] = "Keith", ["text"] = "Hi" }); break;
                     case "radio": st["speaker"] = "Keith"; st["text"] = "Hi"; break;
-                    case "goto": case "waypoint": case "questorbit": case "teleport": st["station"] = 78; break;
+                    case "goto": case "waypoint": case "questorbit": case "teleport": case "pickup": st["station"] = 78; break;
                     case "system": st["system"] = 15; break;
                     case "fight": st["ships"] = new JArray(new JObject { ["ship"] = 2 }); break;
                     case "cargo": st["item"] = 22; break;
@@ -101,6 +101,64 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(30, (int)steps[0]["seconds"]);
             Assert.IsTrue((bool)steps[1]["void"]);
             Assert.IsNull(steps[2]["station"], "close");
+        }
+
+        [Test]
+        public void APickupStepShowsRemovesAndClearsAndComesBack()
+        {
+            var show = QuestSteps.New("pickup");
+            show["station"] = "{st}";
+            show["at"] = "100 -200 30000";
+            show["name"] = "Orb 3";
+            var quiet = QuestSteps.New("pickup");
+            quiet["station"] = 78;
+            quiet["at"] = "0 0 1000";
+            quiet["name"] = "Orb 7";
+            quiet["marked"] = false;
+            var remove = QuestSteps.New("pickup");
+            remove["action"] = "remove";
+            remove["name"] = "Orb 3";
+            var clear = QuestSteps.New("pickup");
+            clear["action"] = "clear";
+            var nameless = QuestSteps.New("pickup");
+            nameless["action"] = "remove";
+            var q = Quest(show, quiet, remove, clear);
+            q["variables"] = new JArray(new JObject { ["name"] = "st", ["value"] = 78 });
+            var problems = new List<string>();
+            string script = QuestFile.Compile(q, problems);
+            CollectionAssert.IsEmpty(problems, script);
+            var lines = Lines(script);
+            foreach (var l in new[] { "pickup @a {st} 100 -200 30000 named Orb 3", "pickup @a 78 0 0 1000 unmarked named Orb 7", "pickup @a remove Orb 3", "pickup @a clear" })
+                CollectionAssert.Contains(lines, l, script);
+            Assert.IsNull(RunnerError(script), script);
+            QuestFile.Compile(Quest(nameless), problems);
+            Assert.IsNotEmpty(problems, "remove needs the name");
+            var back = QuestFile.FromScript(script, "T", new List<string>());
+            var steps = ((JArray)back["steps"]).OfType<JObject>().Where(s => (string)s["type"] == "pickup").ToList();
+            Assert.AreEqual(4, steps.Count, back.ToString());
+            Assert.AreEqual("100 -200 30000", (string)steps[0]["at"]);
+            Assert.AreEqual("Orb 3", (string)steps[0]["name"]);
+            Assert.IsNull(steps[0]["marked"]);
+            Assert.AreEqual(false, (bool)steps[1]["marked"]);
+            Assert.AreEqual("Orb 7", (string)steps[1]["name"]);
+            Assert.AreEqual("remove", (string)steps[2]["action"]);
+            Assert.AreEqual("Orb 3", (string)steps[2]["name"]);
+            Assert.AreEqual("clear", (string)steps[3]["action"]);
+        }
+
+        [Test]
+        public void TheClientsPickupOrderIsReadBack()
+        {
+            Assert.IsTrue(EventPickups.TryParse("78 100 -200 30000 1 Orb 3", out int st, out var at, out bool marked, out string name));
+            Assert.AreEqual(78, st);
+            Assert.AreEqual(new UnityEngine.Vector3(100, -200, 30000), at);
+            Assert.IsTrue(marked);
+            Assert.AreEqual("Orb 3", name);
+            Assert.IsTrue(EventPickups.TryParse("78 0 0 1 0", out _, out _, out marked, out name));
+            Assert.IsFalse(marked);
+            Assert.AreEqual("", name, "nameless");
+            Assert.IsFalse(EventPickups.TryParse("78 0 x 1 1", out _, out _, out _, out _));
+            Assert.IsFalse(EventPickups.TryParse("78 0 0 1", out _, out _, out _, out _), "no marked flag");
         }
 
         [Test]

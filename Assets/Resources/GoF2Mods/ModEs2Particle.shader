@@ -19,6 +19,15 @@
 //     across a / (1 + kA (1 - a)), kA = 1 / 0.8 - 2, squared; along b = 1 - u, b / (1 + 18 (1 - b)) ^ 1.2 x min(20 u, 1)^2
 //     (the dynamic material parameters 0.8, 2, 0.05, 1.2), x the particle's alpha; nothing within 24 cm of the camera,
 //     fading in over 5 m (in EVERSPACE 2's metres: _Es2Scale).
+//   5 a wing-tip contrail (P_Vehicle_Contrail, M_Vehicle_Contrail; alpha-blended; Modding.Es2Contrails, 2026-11-02): along
+//     b = sat(1 - u), b / (1 + 3 (1 - b)); across a = max(1 - |2v - 1|, 0), a / (1 + 8 (1 - a)), squared; x min(20 (1 - b), 1)
+//     at the head; x the particle's alpha; nothing within 24 cm of the camera, fading in over 20 m (its pixel depth x 0.0005
+//     per cm); x its barcode (T_Pattern_Barcode_002 across the ribbon, a fifth of the texture over its length): stripes
+//     the remake can't ship, so the flame noise thresholded into bars along the length stands in. EVERSPACE 2 lights it
+//     (volumetric per-vertex): a white fog the scene lights; here the colour the CPU gives it (Es2Contrails.Colour);
+//   6 a headlight's lens flare (BP_PawnHeadlight's P_LensFlare_001, a screen-sized flare: InfiniteScreenRadius 0.02, white x 10,
+//     opacity its Intensity; Flight.Headlights): a sprite of a fixed share of the screen height (TEXCOORD1.x: the radius),
+//     a tight core in a halo with a thin horizontal streak, x the alpha.
 // Geometry (built by the CPU each frame): POSITION the anchor (a socket, a ribbon point), NORMAL the jet's way / the ribbon's
 // tangent (object space), TEXCOORD0 the uv, TEXCOORD1 the half sizes (jets: along, across; the disc: half size, camera offset;
 // the glow: half size; ribbons: half width, side -1 / 1), COLOR the colour (HDR) and alpha. The colours are EVERSPACE 2's
@@ -27,7 +36,7 @@ Shader "GoF2/ModEs2Particle"
 {
     Properties
     {
-        _Kind ("Kind (0 jet card, 1 jet disc, 2 glow, 3 NPC trail, 4 veil)", Float) = 0
+        _Kind ("Kind (0 jet card, 1 jet disc, 2 glow, 3 NPC trail, 4 veil, 5 contrail, 6 flare)", Float) = 0
         _Gain ("EVERSPACE 2's emissive to the remake's", Float) = 0.3
         _NoiseMap ("Noise (the jets' flicker)", 2D) = "grey" {}
         _BoostColor ("The jets' colour (a kit colour slot's boost target sets it)", Color) = (0.05, 0.405164, 1, 1)
@@ -92,6 +101,17 @@ Shader "GoF2/ModEs2Particle"
                     float3 right = UNITY_MATRIX_V[0].xyz, up = UNITY_MATRIX_V[1].xyz;
                     p += (right * c.x + up * c.y) * i.size.x * scale;
                 }
+                else if (kind == 6)
+                {
+                    // a screen-sized flare: the corners pushed out in clip space by the radius (a share of the screen height)
+                    o.positionCS = TransformWorldToHClip(p);
+                    float aspect = _ScreenParams.y / max(_ScreenParams.x, 1);
+                    o.positionCS.xy += c * float2(aspect, 1) * i.size.x * 2 * o.positionCS.w;
+                    o.positionWS = p;
+                    o.uv = i.uv;
+                    o.color = i.color;
+                    return o;
+                }
                 else
                 {
                     // a ribbon point: across its tangent, facing the camera
@@ -128,12 +148,37 @@ Shader "GoF2/ModEs2Particle"
                     r = r / (1 + 98 * (1 - r));
                     return half4(i.color.rgb * r * r * i.color.a * _Gain, 0);
                 }
+                if (kind == 6)
+                {
+                    float2 d6 = uv * 2 - 1;
+                    float r = saturate(1 - length(d6));
+                    float core = pow(r, 6);
+                    float halo = r * r * 0.25;
+                    float streak = pow(saturate(1 - abs(d6.y) * 8), 2) * pow(saturate(1 - abs(d6.x)), 1.5) * 0.5;
+                    float f = saturate(core + halo + streak) * i.color.a;
+                    return half4(i.color.rgb * f * _Gain, f);
+                }
                 float a = max(1 - abs(uv.y * 2 - 1), 0);
                 if (kind == 3)
                 {
                     float h = max((saturate(1 - uv.x) - 0.9) * 10, 0);
                     float op = (pow(a, 4) + sqrt(max((a - 0.9) * 10, 0))) * 0.5 * i.color.a;
                     return half4(i.color.rgb * 0.5 * (1 + 19 * h * h * h) * op * _Gain, 0);
+                }
+                if (kind == 5)
+                {
+                    // the contrail
+                    float A5 = a / (1 + 8 * (1 - a));
+                    A5 = A5 * A5;
+                    float b5 = saturate(1 - uv.x);
+                    float B5 = b5 / (1 + 3 * (1 - b5));
+                    float head5 = min((1 - b5) * 20, 1);
+                    float n5 = SAMPLE_TEXTURE2D(_NoiseMap, sampler_NoiseMap, float2(uv.x * 0.2 + 0.5, 0.5)).r;
+                    float bars = saturate((n5 - 0.35) * 4);
+                    float op5 = A5 * B5 * head5 * bars * i.color.a;
+                    float dist5 = length(i.positionWS - _WorldSpaceCameraPos) / max(_Es2Scale, 1e-4);
+                    op5 = saturate(op5 * saturate((dist5 - 0.24) * 0.05));
+                    return half4(i.color.rgb, op5);
                 }
                 // the veil
                 float kA = 1 / 0.8 - 2;

@@ -12,6 +12,10 @@
 //   Planets: fixed orientation (not billboards), alpha blended, mirrored so the lit rim faces the sun; the orbit
 //        planet (straight ahead, Unity +Z) grows up to +0.2 scale as the camera flies toward it.
 //   Rings: the planet's quad x4 with sn_planet_ring.
+//   Remake mods: a station's planet with a "planetSphere" (Modding.ModWorld.PlanetSphereSpec, EVERSPACE 2's planets) is a
+//        lit sphere (GoF2/Es2Planet) in place of its quad: as big on screen as its quad's disc (DiscShare of the quad), placed
+//        SphereFar times farther (so a planet near the size of the view never takes the camera in), its pole on the quad's
+//        up, lit by the orbit's sun; no mirroring, no ring.
 //   Remake mods: a planet whose texture a mod replaces is drawn as a star when a mod's backdrop.json asks for it
 //        (ModBackdrop.StarPlanets): it faces the camera with the camera's up like the sun, isn't mirrored, has no ring, and
 //        its near-white core is lifted to planetGlow under the remake's bloom (a small glow); looked at, it gets the sun's
@@ -45,6 +49,8 @@ namespace GoF2Remake.World
             public float scale;
             public bool orbitPlanet;
             public bool star;            // remake mods: drawn as a star (faces the camera, its core glows)
+            public bool sphere;          // remake mods: a lit sphere (planetSphere)
+            public MeshRenderer shell;   // remake mods: its atmosphere (GoF2/Es2Atmosphere), faded with it
             public Body starStreak;      // remake mods: the star's horizontal streak (additive)
         }
 
@@ -107,6 +113,18 @@ namespace GoF2Remake.World
                 var rot = Quaternion.LookRotation(dir, up);
                 // The planet PNGs have their lit rim on the right: mirror when the sun is on the left as seen.
                 bool mirror = Vector3.Dot(sunDir, rot * Vector3.right) < 0f;
+                var sphereMat = SphereMaterial(Modding.ModWorld.PlanetSphereOf(p.station), sunDir, orbit);
+                if (sphereMat != null)
+                {
+                    var ball = Make(p.texture, sphereMat, 2901, dir, rot, p.scale);
+                    ball.t.GetComponent<MeshFilter>().sharedMesh = SphereMesh;
+                    ball.sphere = true;
+                    ball.orbitPlanet = p.isOrbitPlanet;
+                    ball.shell = AtmosphereShell(ball.t, Modding.ModWorld.PlanetSphereOf(p.station), sunDir, orbit);
+                    planets.Add(ball);
+                    PlanetTargets.Add((p.station, ball.t, p.isOrbitPlanet));
+                    continue;
+                }
                 var body = Make(p.texture, Load(p.texture, false, out bool modTexture), 2901, dir, rot, p.scale);
                 body.orbitPlanet = p.isOrbitPlanet;
                 bool starStyle = Modding.ModBackdrop.StarPlanets(out _, out float flare);
@@ -173,6 +191,7 @@ namespace GoF2Remake.World
                 b.r.GetPropertyBlock(fadeBlock);
                 fadeBlock.SetColor("_Color", added ? new Color(f, f, f, f) : new Color(1f, 1f, 1f, f));
                 b.r.SetPropertyBlock(fadeBlock);
+                if (b.shell != null) b.shell.SetPropertyBlock(fadeBlock);
             }
         }
 
@@ -418,6 +437,7 @@ namespace GoF2Remake.World
             {
                 // StarSystem::render: not in the alien orbit or a planet ring orbit (the orbit planet stays at its size).
                 float k = (p.orbitPlanet && !layout.ringOrbit && !layout.alienOrbit ? p.scale + zoom : p.scale) * planetSize;
+                if (p.sphere) { PlaceSphere(p, c, k); continue; }
                 if (!p.star) { Place(p, c, p.rot, Vector3.one * k); continue; }
                 // Remake mods: a star faces the camera with its roll, like the sun, and gets the sun's flare (render2D's
                 // intensity from its own screen position) at planetFlare: it swells a little and streaks sideways.
@@ -473,6 +493,107 @@ namespace GoF2Remake.World
             r.GetPropertyBlock(streakBlock);   // keeps _Color / _CoreGlow
             streakBlock.SetVector("_SunInStreak", new Vector4(sunSize.x / streakSize.x, streakSize.y / sunSize.y, 0f, 0f));
             r.SetPropertyBlock(streakBlock);
+        }
+
+        /// <summary>The planet disc's share of its quad (the es2 importer's planet images: radius 250 of 512 px), and how much
+        /// farther than the quads a sphere lies.</summary>
+        const float DiscShare = 250f / 512f, SphereFar = 10f;
+
+        /// <summary>A sphere as big on screen as a quad of 'k' with its disc: the same angle, SphereFar farther out.</summary>
+        static void PlaceSphere(Body b, Vector3 camPos, float k)
+        {
+            float angle = Mathf.Atan(QuadMeters * k * DiscShare / Distance);
+            float far = Distance * SphereFar;
+            b.t.SetPositionAndRotation(camPos + b.dir * far, b.rot);
+            b.t.localScale = Vector3.one * (far * Mathf.Sin(angle));   // (SphereMesh: radius 1)
+        }
+
+        static Shader es2Planet;
+        static Mesh sphereMesh;
+
+        /// <summary>A planetSphere's material (GoF2/Es2Planet), its maps from its mod; null without one (or the shader).</summary>
+        Material SphereMaterial(Modding.ModWorld.PlanetSphereSpec spec, Vector3 sunDir, OrbitLayout orbit)
+        {
+            if (spec == null) return null;
+            if (es2Planet == null) es2Planet = Resources.Load<Shader>("GoF2Sky/Es2Planet");
+            if (es2Planet == null) return null;
+            var m = new Material(es2Planet) { name = "ES2 planet " + spec.look, renderQueue = 2901 };
+            ownMaterials.Add(m);
+            foreach (var (role, prop) in new[] { ("surface", "_SurfaceMap"), ("normal", "_SurfaceNormal"), ("surface2", "_SurfaceMap2"), ("normal2", "_SurfaceNormal2"), ("capNormal", "_CapNormal"), ("capColour", "_CapColour"), ("noise", "_Noise"), ("noise2", "_Noise2"), ("clouds", "_Clouds"), ("cloudsNormal", "_CloudsNormal") })
+                if (spec.maps.TryGetValue(role, out var file) && Modding.ModMaterials.Texture(spec.mod, file, true) is Texture2D t) m.SetTexture(prop, t);
+            m.SetFloat("_Look", System.Array.IndexOf(Modding.ModWorld.PlanetSphereLooks, spec.look));
+            m.SetVector("_SunDir", sunDir);
+            var c = orbit.SunLightColor;
+            float max = Mathf.Max(c.r, Mathf.Max(c.g, c.b), 1e-3f);
+            // the sun's light at the hulls' strength (OrbitBuilder.SetupLights: 1.6), its tint halved (ES2 desaturates its sun
+            // light by MPC_Environment's SunLightSaturation: a tinted sun greyed the sand)
+            m.SetColor("_SunColor", Color.Lerp(Color.white, c / max, 0.5f) * 1.6f);
+            if (spec.atmosphere is Color a) m.SetColor("_Atmosphere", new Color(a.r, a.g, a.b, 1f));
+            if (spec.color1 is Vector3 c1) m.SetVector("_Color1", c1);   // (ES2's linear colours as they are)
+            if (spec.color2 is Vector3 c2) m.SetVector("_Color2", c2);
+            m.SetFloat("_Variation", spec.variation);
+            return m;
+        }
+
+        static Shader es2Atmosphere;
+        /// <summary>The atmosphere's radius in the planet's (EVERSPACE 2's shell sits just above the surface).</summary>
+        public const float AtmosphereScale = 1.04f;
+
+        /// <summary>A planetSphere's atmosphere shell (GoF2/Es2Atmosphere, after M_Planet_Atmosphere_001): a child sphere of
+        /// AtmosphereScale x the planet's, drawn right after it; null without an atmosphere colour (or the shader).</summary>
+        MeshRenderer AtmosphereShell(Transform planet, Modding.ModWorld.PlanetSphereSpec spec, Vector3 sunDir, OrbitLayout orbit)
+        {
+            if (spec?.atmosphere == null) return null;
+            if (es2Atmosphere == null) es2Atmosphere = Resources.Load<Shader>("GoF2Sky/Es2Atmosphere");
+            if (es2Atmosphere == null) return null;
+            var m = new Material(es2Atmosphere) { name = "ES2 atmosphere", renderQueue = 2902 };
+            ownMaterials.Add(m);
+            var a = spec.atmosphere.Value;
+            m.SetVector("_AtmosColor", new Vector4(a.r, a.g, a.b, 0f));
+            m.SetFloat("_Variation", spec.variation);
+            m.SetVector("_SunDir", sunDir);
+            var c = orbit.SunLightColor;
+            float max = Mathf.Max(c.r, Mathf.Max(c.g, c.b), 1e-3f);
+            m.SetColor("_SunColor", Color.Lerp(Color.white, c / max, 0.5f) * 1.6f);   // (as the planet's: SphereMaterial)
+            var go = new GameObject("Atmosphere");
+            go.transform.SetParent(planet, false);
+            go.transform.localScale = Vector3.one * AtmosphereScale;
+            go.AddComponent<MeshFilter>().sharedMesh = SphereMesh;
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = m;
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            return r;
+        }
+
+        /// <summary>A unit sphere, fine enough for a planet filling the view (its silhouette stays round).</summary>
+        static Mesh SphereMesh
+        {
+            get
+            {
+                if (sphereMesh != null) return sphereMesh;
+                const int Lon = 192, Lat = 96;
+                var v = new List<Vector3>((Lon + 1) * (Lat + 1));
+                for (int y = 0; y <= Lat; y++)
+                    for (int x = 0; x <= Lon; x++)
+                    {
+                        float th = Mathf.PI * y / Lat, ph = 2f * Mathf.PI * x / Lon;
+                        v.Add(new Vector3(Mathf.Sin(th) * Mathf.Sin(ph), Mathf.Cos(th), Mathf.Sin(th) * Mathf.Cos(ph)));
+                    }
+                var tri = new List<int>(Lon * Lat * 6);
+                for (int y = 0; y < Lat; y++)
+                    for (int x = 0; x < Lon; x++)
+                    {
+                        int a = y * (Lon + 1) + x, b = a + Lon + 1;
+                        tri.Add(a); tri.Add(b); tri.Add(a + 1);   // (clockwise seen from outside: Unity's front faces)
+                        tri.Add(a + 1); tri.Add(b); tri.Add(b + 1);
+                    }
+                sphereMesh = new Mesh { name = "BackdropSphere", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+                sphereMesh.SetVertices(v);
+                sphereMesh.SetTriangles(tri, 0);
+                sphereMesh.bounds = new Bounds(Vector3.zero, Vector3.one * 1e5f);   // never frustum-culled by its own size
+                return sphereMesh;
+            }
         }
 
         static void Place(Body b, Vector3 camPos, Quaternion rot, Vector3 scale)

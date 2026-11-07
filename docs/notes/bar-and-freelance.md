@@ -118,7 +118,8 @@ generator).
   (model seeded by the name length, 600 hull, unarmed in a Challenge), formation slots, attack the first hostile ship;
   the flight menu's Wingmen entry (306) gives the commands 307-311 (fire at will, attack my target, secure next
   waypoint, laser / EMP blaster); a dead wingman leaves the contract; the 10-minute contract runs while flying, goodbye
-  313 at the next docking.
+  313 at the next docking. Remake mods (2026-11-05, after GoF3's wingmen): a mod crew's ships (wingmen.json,
+  `Session.WingmanShips`), a hull's wingman device and the crew's radio lines: docs/notes/mods.md "Mod wingmen".
 - **Station extras**: the news ticker on the main view (`NewsTicker`: the campaign window's story news + 2 random items,
   tokens, 50 px/s; a press holds it and it follows the pointer 1:1, no inertia, `NewsTicker::OnTouchBegin` /
   `OnTouchMove`; remake: the full width of the UI along its bottom edge, repeated so it is never empty, and it keeps

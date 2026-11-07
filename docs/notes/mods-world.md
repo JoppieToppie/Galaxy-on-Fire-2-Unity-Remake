@@ -33,7 +33,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   ships in the background (`ModStations.LoadAll`, its own `TimeBudgetPerFrameDeferAgent`, textures through
   `ModMaterials.PreloadTexture`, the planet / sun PNGs too; `ModLoading` waits for it) into an always-visible AssembledObject
   template "modstation_NNN" (pack "mod", registered in `db.Assemblies`; `AssembledObject.LoadPrefab` hands it out); scaled to
-  modelSize, turned, its bounds' centre at the origin. `OrbitBuilder.StationAssembly` / `AddObstacles` use it once built
+  modelSize, turned, its bounds' centre at the origin; its glTF node animations loop like a ship's (`ModGltf.LoopAnimations`,
+  2026-11-02: the GoF3 Systems mod's turning gate rings and moving station parts stood still, glTFast's clip played once).
+  `OrbitBuilder.StationAssembly` / `AddObstacles` use it once built
   (`ModStations.Built`; else the looksLike original and its collision.json volumes): volumes from the placed model's bounds
   (`ModStations.Volumes`, axis-aligned) or the listed ones. `SpaceLevel.StationDockRange` = max(16000, radius + 6000) and
   `UndockPoint` z = max(10000, radius + 3000) game units for a mod model (radius = the obstacle's cubeHalf − 5000; NetTeleport
@@ -85,13 +87,46 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `SpaceLevel.ArrivalPosition`), the asteroid field (`asteroidCount` 0 = none, also no autopilot entry; centre;
   `asteroidSpread` for `SpawnAsteroids`' cubes; type; `modOres` with weights: `OrbitBuilder.PickWeighted`, not the original's
   `PickOre`, which needs six entries), fog, the sun (`lightDirection` = -Direction(pitch, yaw), so the backdrop, light, flare,
-  skybox `sunAligned` follow) and the orbit planet's size / yaw / pitch. The station stays the origin (everything around it
+  skybox `sunAligned` follow), the orbit planet's size / yaw / pitch, its own second light and ambient (`light2`,
+  `ambient`: `planetLightColor`, `modLight2Direction` -> `OrbitBuilder.ToLight2`, the planet light and `_GoF2PlanetLight`;
+  `modAmbient` -> `SceneAmbient`), its own `skybox` (`OrbitSpec.skybox`, in place of the system's in `OrbitBuilder`'s
+  sky; preloaded with `BackdropTextures`) and `skyRotation` (`OrbitLayout.modSkyRotation`, Unity
+  degrees, over the system's `rotation` / `sunAligned` in `OrbitBuilder`'s sky: 2026-11-02, the GoF3 Systems mod's sky as each
+  GoF3 level turns it). The station stays the origin (everything around it
   assumes so); directions: yaw 0 behind a launching ship (the orbit planet's default), + to its right. `"mapPlace"`
   (`ModWorld.MapPlaceOf`) sets the planet's angle / radius in `GalaxyMap.SystemLayout` after its draws, so the other planets
   keep theirs. The builder's Stations page: Its own place on the star map, Its orbit (every field). The example's Rho
   Freeport has both. Tests `ModWorldTests.AnOrbitLaidOutByItsMod` / `AnOrbitWithoutStationOrAsteroids` and the errors. The builder's Stations page: the map
   image and the ring. Verified in Play mode: Kepler Prime's banded map planet lit from the sun with its ring, and with
   only planetTexture the disc.
+- **Planet spheres** (remake 2026-11-04, the ES2 importer; stations.json `planetSphere` -> `ModWorld.PlanetSphereSpec`,
+  `ModWorld.PlanetSphereOf`, `World.Backdrop.SphereMaterial`): a station's planet drawn as a lit sphere (GoF2/Es2Planet in
+  Resources/GoF2Sky) in place of its quad, as big on screen as the quad's disc, placed farther (`SphereFar`), its pole on
+  the quad's up, lit by the orbit's sun (`_SunDir` / `_SunColor`, a little ambient on the night side); no mirroring, no ring.
+  The shader follows ES2's planet masters' compiled base-pass shaders: `_Look` 0 M_Planet_Desert (its latitude-stretched UVs,
+  T_Planet_Rock_002_H_C_R with its detail layer, the overlay tone, the rim, the poles); 1 M_Planet_GasSmooth and 2 M_Planet_Gas
+  (2026-11-06, es2_re planetmat: their bands, lerp(color1, color2, ...) overlaid, the hue turned about the grey axis by the
+  spec's `variation` x 2 pi, `colors` linear through `SetVector`; GasSmooth with the desert's poles); 3 M_Planet_Cratered
+  (grey: craters or rock by a sharpened noise, maps `surface2` / `normal2` for the rock); 4 M_Planet_Volcanic (its lava from
+  the compiled emissive pass, added as `glow` so it shows on the night side, `_LavaGlow` 3 for ES2's LavaIntensity 10000 in
+  its exposure; map `noise2`; the rock approximated from BaseColor / PoleColor: the dump holds no colour pass for it); 5
+  M_Planet_Ice and 6 M_Planet_Water (their drifting clouds, maps `clouds` / `cloudsNormal`: T_Planet_Clouds_001 at x 8
+  scrolling with `_Time`, coverage C^(1 / CloudsDensity), the preshader dividing; Water's floes over Color x T_Noise_009_M
+  in `noise2`); 7 M_Planet_Earthlike (two land layers by a height, its seas under WaterLevel with their shore, clouds, icy
+  poles; its colours the shader's own; its rivers left out). Every ES2 planet master has its look; Volcanic's rock is
+  approximated (no colour pass in the dump). The atmosphere (2026-11-06, the spec's `atmosphere` colour): its own shell,
+  `Backdrop.AtmosphereShell`, a child sphere of `AtmosphereScale` 1.04 x the planet in queue 2902, GoF2/Es2Atmosphere after
+  M_Planet_Atmosphere_001's compiled translucent pass (the colour's hue turned by `variation`, toward the opposite hue at the
+  terminator, sunlit; opacity thickest round the limb from (1 - |N.V|)^3.4); `Backdrop.Fade` fades it with its planet. Check: PlayMode `PlanetSphereCheck`. Landed 2026-11-06
+  from the session that wrote it (uncommitted until then).
+- **Station life** (remake 2026-11-04, the ES2 importer's station_life.py; stations.json `model` + `life` ->
+  `ModWorld.LifeSpec`, `World.StationLife`, attached with the orbit in `SpaceLevelWormholes`): after ES2's worker drones
+  (BP_SplineTraffic_WorkerDrones): drones (the `scene` of that name in the station's glTF) on loops round its structures
+  (`Flight.TrafficLane`: spread evenly, two lanes the other way `laneOffset` to the right), and every ScanIntervalS one
+  drone not welding and off its cooldown looks for a `spots` weld point within ReachM / ConeDeg of its heading (ES2 traces
+  for one; the importer traces them beforehand), leaves its loop for it WeldOffsetM off the hull, welds WeldMinS..WeldMaxS
+  with sparks and rejoins its place on the loop. In the model's own frame (children of its hull). Scenery only: no marker,
+  no collision; not in the alien orbit or interstellar space. Check: PlayMode `StationLifeCheck`. Landed 2026-11-06.
 - **Custom hangars and bars** (`ModInteriors`, a mod's `interiors.json`: id, type hangar | bar, model, scale, materials, fov
   (degrees), near / far (metres), ambient, lightIntensity, fog [r, g, b, end m]; hangar startYaw (Unity degrees), parkedMax,
   flights, cruise, gateSpan; stations.json `hangar` / `bar` = an interior key, `interior` still the race): the GLB loads with the
@@ -150,7 +185,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   unnamed = enemies if either is hostile or the other is pirates / Void / Specters, else neutral). `Standing` handles them
   everywhere the game races go (Toward / IsEnemy / IsFriend / ApplyKill / ApplyDelict / EnemyRaceOf / RaceName /
   RaceWord). systems.json `race` may name one, `"traffic": "mod"` (`ModWorld.ModTrafficOnly`: no game freighters, no
-  pirate events), `locals`, `raiders` (`TrafficPlan`); ships.json `race` / `traffic.races` (resolved in
+  pirate events), `locals`, `raiders` (`TrafficPlan`; stations.json `orbit.locals` / `orbit.raiders` beat them in that
+  orbit, 2026-11-05, EVERSPACE 2's location_spawns: `ModWorld.Locals(system, station)` / `Raiders`, resolved when used
+  with the orbit's `owner` mod, also the hangar's parked ships in a mod-only system); ships.json `race` / `traffic.races` (resolved in
   `ModContent.ShipData`: JsonUtility can't read strings into ints; an unknown one is a mod warning, once:
   `ShipDef.refsReported`); a mod race's fighters always fly mods' ships (`ModTraffic.Pick` chance 1,
   `ModCapitalShips.ChanceFor`). Lounge diplomats in a mod race's system (`AgentGenerator.AddModRaceDiplomats`,

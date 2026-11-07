@@ -136,6 +136,9 @@ namespace GoF2Remake.UI
         StarMapMode mode;
         public StarMapMode Mode => mode;
         bool jumpDrive;
+        /// <summary>Remake: the Khador Slipstream is mounted (Data.InterstellarSpace.Drive): a system elsewhere may be reached
+        /// between the systems too (the travel dialog's SLIPSTREAM answer, StarMapResult.slipstream).</summary>
+        bool slipstream;
         /// <summary>Remake (players' suggestion): a Mission map that can travel: confirming a station programs it like the
         /// station's map, and a target past the gate neighbours is reached along the gate route (GalaxyMap.NextHop).</summary>
         bool travel;
@@ -252,8 +255,6 @@ namespace GoF2Remake.UI
         readonly List<Transform> planetDiscs = new List<Transform>();   // remake mods: a station's planetTexture facing the camera
         static readonly Dictionary<string, Material> modPlanetMaterials = new Dictionary<string, Material>();
         static int modPlanetRevision = -1;
-        static readonly Dictionary<float, Mesh> wrappedSpheres = new Dictionary<float, Mesh>();
-        static Mesh discQuad;
         readonly List<Camera> disabledCameras = new List<Camera>();
         readonly List<Light> disabledLights = new List<Light>();
         UnityEngine.Rendering.AmbientMode savedAmbientMode;
@@ -298,9 +299,10 @@ namespace GoF2Remake.UI
         Button dialogBack;
         /// <summary>Modified: the planet the current press began on in the system view, -1 none (OnPointerUp).</summary>
         int pressedPlanet = -1;
-        /// <summary>Remake: the dialog's third answer between Yes and No (the gates beside the drive), made at runtime.</summary>
-        Button dialogAlt;
-        Action dialogAction, dialogNoAction, dialogAltAction;
+        /// <summary>Remake: the dialog's third answer between Yes and No (the gates beside the drive), made at runtime; and a
+        /// fourth after it (the Khador Slipstream's: KHADOR DRIVE / SLIPSTREAM / JUMPGATES, Back).</summary>
+        Button dialogAlt, dialogAlt2;
+        Action dialogAction, dialogNoAction, dialogAltAction, dialogAlt2Action;
         bool dialogInfo;
         /// <summary>Back (Esc / B) closes the dialog without answering: its No is a choice, not a cancel (the drive or the gates).</summary>
         bool dialogBackCancels;

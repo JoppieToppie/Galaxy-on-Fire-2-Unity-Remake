@@ -33,14 +33,6 @@ MonoBehaviour:
   m_UpscalerPriority:
   - upscalerId: unity.stp
     upscalerName: Spatial-Temporal Post-Processing
-  - upscalerId: nvidia.dlss4
-    upscalerName: Deep Learning Super Sampling 4
-  - upscalerId: amd.fsr4
-    upscalerName: FidelityFX Super Resolution 4
-  - upscalerId: amd.fsr3
-    upscalerName: FidelityFX Super Resolution 3
-  - upscalerId: amd.fsr2
-    upscalerName: FidelityFX Super Resolution 2
   - upscalerId: amd.fsr1
     upscalerName: FidelityFX Super Resolution 1.0
   - upscalerId: unity.auto

@@ -8,10 +8,15 @@
 //                        originalTopSpeed / originalTurnRate / originalStrafeSpeed: the original only;
 //                        freeTopSpeed / freeTurnRate / freeStrafeSpeed / freeAcceleration: free flight only;
 //                        freeBoostFactor: free flight's boost top speed in hundredths of the top speed (350 = x3.5)
-//                        instead of the booster's (its original boost speed x 3.2 / 3).
+//                        instead of the booster's (its original boost speed x 3.2 / 3);
+//                        fullStopDamage / lowSpeedResistance (138 / 139, both styles): EVERSPACE 2's ship passives, the
+//                        primary guns' damage in % more while the ship stands still, and damage taken in % less once it
+//                        has flown slower than 30 m/s for a second (FlightBonus, FlightModel.WeaponDamageFactor /
+//                        DamageTakenFactor).
 //   ships.json:          "flightStyle": "free" | "original" (this ship always flies so; default the player's), and
-//                        "flight": { "topSpeed", "turnRate", "strafeSpeed", "acceleration", "boostFactor" (both styles),
-//                                    "original": { ... }, "free": { ... } } with the same meanings (new ships and overrides).
+//                        "flight": { "topSpeed", "turnRate", "strafeSpeed", "acceleration", "boostFactor", "fullStopDamage",
+//                                    "lowSpeedResistance" (both styles), "original": { ... }, "free": { ... } } with the same
+//                                    meanings (new ships and overrides).
 //   campaign.json:       "flightStyle": the mod campaign's games fly so.
 //   gameoptions.json:    "flightStyle": a new-game option that, while on, sets the style.
 //   event graphs:        /flightstyle [players] <free | original | player> (the Set Flight Model node; undone when the event
@@ -35,11 +40,12 @@ namespace GoF2Remake.Modding
     {
         public const int ScopeAttr = 110, ScopeBoth = 0, ScopeOriginal = 1, ScopeFree = 2;
         const int TopSpeed = 111, TurnRate = 112, StrafeSpeed = 113, OrigTopSpeed = 114, OrigTurnRate = 115, OrigStrafeSpeed = 116,
-                  FreeTopSpeed = 117, FreeTurnRate = 118, FreeStrafeSpeed = 119, FreeAcceleration = 120, FreeBoostFactor = 121;
+                  FreeTopSpeed = 117, FreeTurnRate = 118, FreeStrafeSpeed = 119, FreeAcceleration = 120, FreeBoostFactor = 121,
+                  FullStopDamage = 138, LowSpeedResistance = 139;
 
         /// <summary>ships.json's "flight" fields (also inside its "original" / "free" objects).</summary>
         static readonly HashSet<string> BonusFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "topSpeed", "turnRate", "strafeSpeed", "acceleration", "boostFactor" };
+            { "topSpeed", "turnRate", "strafeSpeed", "acceleration", "boostFactor", "fullStopDamage", "lowSpeedResistance" };
 
         static int cachedFrame = -1, cachedStyle = -1;
         static string cachedReason;
@@ -123,6 +129,9 @@ namespace GoF2Remake.Modding
             free.acceleration += item.Attr(FreeAcceleration);
             int boost = item.Attr(FreeBoostFactor);
             if (boost > 0) free.boostFactor = boost;
+            float stop = item.Attr(FullStopDamage), slow = item.Attr(LowSpeedResistance);   // EVERSPACE 2's passives: both styles
+            original.fullStopDamage += stop; free.fullStopDamage += stop;
+            original.lowSpeedResistance += slow; free.lowSpeedResistance += slow;
         }
 
         // ---- ships ---------------------------------------------------------------------------------------------------
@@ -172,6 +181,7 @@ namespace GoF2Remake.Modding
         {
             topSpeed = Num(f, "topSpeed"), turnRate = Num(f, "turnRate"), strafeSpeed = Num(f, "strafeSpeed"),
             acceleration = Num(f, "acceleration"), boostFactor = Mathf.Max(0, Mathf.RoundToInt(Num(f, "boostFactor"))),
+            fullStopDamage = Num(f, "fullStopDamage"), lowSpeedResistance = Num(f, "lowSpeedResistance"),
         };
 
         static float Num(JObject f, string key) => ModJson.Get(f, key) is JToken v && (v.Type == JTokenType.Integer || v.Type == JTokenType.Float) ? (float)v : 0f;

@@ -80,7 +80,7 @@ namespace GoF2Remake.Multiplayer
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static partial class NetAdmin
     {
-        public enum Order : byte { Kill = 1, Heal = 2, Give = 3, Credits = 4, Spawn = 5, Ship = 6, Ammo = 7, Reveal = 8, Peace = 9, Cheat = 10, Object = 11, Title = 12, Timer = 13, Dialog = 14, Reward = 15, Scoreboard = 16, Sound = 17, Music = 18, Respawn = 19, Rules = 20, Ask = 21, Provoke = 22, Radio = 23, Waypoint = 24, Cutscene = 25, Camera = 26, Fade = 27, Letterbox = 28, Npc = 29, Flight = 30, Wreck = 31, System = 32, Wormhole = 33, Standing = 34, Take = 35, NpcType = 36, Lend = 37 }
+        public enum Order : byte { Kill = 1, Heal = 2, Give = 3, Credits = 4, Spawn = 5, Ship = 6, Ammo = 7, Reveal = 8, Peace = 9, Cheat = 10, Object = 11, Title = 12, Timer = 13, Dialog = 14, Reward = 15, Scoreboard = 16, Sound = 17, Music = 18, Respawn = 19, Rules = 20, Ask = 21, Provoke = 22, Radio = 23, Waypoint = 24, Cutscene = 25, Camera = 26, Fade = 27, Letterbox = 28, Npc = 29, Flight = 30, Wreck = 31, System = 32, Wormhole = 33, Standing = 34, Take = 35, NpcType = 36, Lend = 37, Pickup = 38 }
 
         const int MaxGive = 1000, MaxSpawn = 10, MaxCredits = 999999999;
         /// <summary>A /spawn name's length, and its separator in the order's text (taken out of names).</summary>
@@ -267,6 +267,9 @@ namespace GoF2Remake.Multiplayer
                     break;
                 case Order.Wormhole:
                     EventWormhole.Apply(text);
+                    break;
+                case Order.Pickup:
+                    EventPickups.Apply(text);
                     break;
                 case Order.Cutscene:
                     EventCutscene.ApplyCutscene(text);

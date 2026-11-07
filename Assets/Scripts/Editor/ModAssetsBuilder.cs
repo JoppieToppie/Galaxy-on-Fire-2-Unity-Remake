@@ -38,6 +38,12 @@ namespace GoF2Remake.EditorTools
             a.litCutoutDetail = Lit("ModLit_CutoutDetail", true, false, true);
             a.litTransparent = Lit("ModLit_Transparent", false, true, false);
             a.litTransparentDetail = Lit("ModLit_TransparentDetail", false, true, true);
+            a.specOpaque = Lit("ModSpec_Opaque", false, false, false, true);
+            a.specOpaqueDetail = Lit("ModSpec_OpaqueDetail", false, false, true, true);
+            a.specCutout = Lit("ModSpec_Cutout", true, false, false, true);
+            a.specCutoutDetail = Lit("ModSpec_CutoutDetail", true, false, true, true);
+            a.specTransparent = Lit("ModSpec_Transparent", false, true, false, true);
+            a.specTransparentDetail = Lit("ModSpec_TransparentDetail", false, true, true, true);
             var shader = Shader.Find("Hidden/GoF2/MetallicRoughnessToGloss");
             string mrPath = Dir + "/ModMetallicRoughness.mat";
             var mr = AssetDatabase.LoadAssetAtPath<Material>(mrPath);
@@ -60,6 +66,7 @@ namespace GoF2Remake.EditorTools
             a.engineFlame = flame;
             a.hologram = Template("GoF2/ModHologram", Dir + "/ModHologram.mat");
             a.nozzleShimmer = Template("GoF2/ModNozzleShimmer", Dir + "/ModNozzleShimmer.mat");
+            a.glow = Template("GoF2/ModGlow", Dir + "/ModGlow.mat");
             EditorUtility.SetDirty(a);
             AssetDatabase.SaveAssets();
             Debug.Log("GoF2: Resources/GoF2Mods/ModAssets built.");
@@ -177,8 +184,9 @@ namespace GoF2Remake.EditorTools
         /// <summary>A URP Lit template with the keywords every mod material uses (normal map, metallic map, emission) and the
         /// surface type, so the build keeps those variants. URP sets Lit's keywords from what the material holds when it is
         /// saved, so the templates hold placeholder textures (a flat normal, white, grey details) and a faint emission;
-        /// ModMaterials replaces them.</summary>
-        static Material Lit(string name, bool cutout, bool transparent, bool detail)
+        /// ModMaterials replaces them. 'specular': URP's specular setup (_SPECULAR_SETUP, the map in _SpecGlossMap: RGB the
+        /// specular colour, A smoothness), for the mods' "specularGlossiness" (Galaxy on Fire 3's coloured specular).</summary>
+        static Material Lit(string name, bool cutout, bool transparent, bool detail, bool specular = false)
         {
             string path = $"{Dir}/{name}.mat";
             // GoF2/Hull with _GOF2_PBR: URP Lit as it is for a mod's PBR maps (the hull's fog and the shared shader; the
@@ -191,7 +199,11 @@ namespace GoF2Remake.EditorTools
             else m.shader = shader;
             Texture2D Tex(string n) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Dir}/{n}.png");
             m.SetTexture("_BumpMap", Tex("ModFlatNormal"));
-            m.SetTexture("_MetallicGlossMap", Tex("ModWhite"));
+            m.SetTexture("_MetallicGlossMap", specular ? null : Tex("ModWhite"));
+            m.SetTexture("_SpecGlossMap", specular ? Tex("ModWhite") : null);
+            m.SetFloat("_WorkflowMode", specular ? 0f : 1f);
+            m.SetColor("_SpecColor", Color.white);
+            if (specular) m.EnableKeyword("_SPECULAR_SETUP"); else m.DisableKeyword("_SPECULAR_SETUP");
             m.SetTexture("_EmissionMap", Tex("ModWhite"));
             // As URP's LitShader editor leaves the material (see AssetImport): on for GoF2/Hull, off for URP Lit itself.
             m.SetShaderPassEnabled("MotionVectors", m.shader.name == "GoF2/Hull");

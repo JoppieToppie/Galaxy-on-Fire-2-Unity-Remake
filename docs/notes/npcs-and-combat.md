@@ -67,6 +67,31 @@ simulates an orbit's traffic) and `ship_combat.md` (+ `Reference/tools/combat/co
   Left to the original: story and freelance mission orbits, a script's only enemy (`SetOnlyEnemy`), mission ships, a
   turned ship (it goes for the player who shot it), the Specters, the fleet battles' fighters (their own nearest pick),
   wingmen, turrets, the multiplayer remote players' pick. Off = the original exactly.
+- **GoF3 dogfighting** (remake option, 2026-11-05, the GoF3 roadmap's G6 after a survey of libgofm.so's AI; Options >
+  Gameplay "NPC dogfighting", `Settings.NpcDogfight`, a session rule in two bits, `SessionRules.DogfightOf`: Original /
+  GoF3 on mod hulls (default: ships.json `"traffic": { "ai": "gof3" }`, `CustomTraffic.ai`) / GoF3 for all; a dedicated
+  server has no flag for it and keeps the default): `Flight.Gof3Dogfight` (Core, rules) run by `NpcShipDogfight`
+  (`UpdateDogfight` after the targeting, `DogfightAim` in `Steer`, `DogfightRoll` for the model's spin and side step,
+  `OnDamaged` -> `Hit`). GoF3's AIJob_Fight as modes: Approach (8-13 s, firing; ends inside the 8000 break-off box,
+  which then no longer circles) -> VeerOff (5-6 s away, a quarter along the target's heading) or 30 % Idle (2 s across
+  it); Chase (AIJob_ChasePrey: behind the target within 1500 x 11.4, 8 s at 1.6x on a slot 3000 behind, firing once
+  lined up; 15 s cooldown); Tease (AIJob_Tease: every 10 s, 40 %, within 800 x 11.4 and in front of its nose: 4-6 s 180
+  x 11.4 ahead of it, holding fire). The aim leads (the target's smoothed velocity x the shot's flight time, `gunSpeed`)
+  with a miss of up to 1000 units settling to 0 over 0.5 s each run. The roll (NPCBankingSystem::updateEvade): per hit
+  by `EvadeChance(Session.Difficulty)` (Easy 0, Normal 0.15, Hard 0.25, Extreme 0.33; Most Wanted and pirate-event
+  bosses 0.66), 1.8 s, `Target.invulnerable` for 1.5 s (cleared only if it set it), 3 s locked after; the model spins
+  only, so other players see the path, not the spin. Not for wingmen, freighters, turrets, fixed objects, capital ships,
+  an event order or a mind-controlled ship. GoF3's distances x `Gof3Dogfight.DistanceScale` 11.4 (the devices' factor).
+  Left out: GoF3's attacker budget (the remake's Smarter NPC targeting is the same rule), formations and flocking, the
+  bursts and weapon choice, the speed control, Dive (bosses), Flee (gated off in GoF3's data). Tests
+  `Gof3DogfightTests`, `SettingsTests.TheDogfightingModeTravelsInTwoBits`. Untested in Play mode. Formations
+  (2026-11-05, GoF3's FormationSystem: V, followers within 90 units, spacing from the leader's radius):
+  `NpcShip.FormationSlot` puts such a fighter of a Local group on its route, not fighting, in a V slot
+  (`Gof3Dogfight.VSlot`, two wings in turn) behind the group's leader (the first living Local of its race in
+  `Traffic.Ships`, looked up once a second), aiming a spacing past the slot along the leader's heading at
+  `Gof3Dogfight.FormationSpeed` (0.6-1.5 x, by how far the slot is ahead); the leader or itself fighting ends it. Not
+  done: GoF3's fours and vertical / mirrored V, flocking (its neighbours' spacing), followers taking the leader's
+  target.
 - **Turned ships pick at any range** (`PlayerFighter::update` 0xf131e / 0xf1444, `NpcShip.TakesAtAnyRange`): a turned
   ship (`turnedEnemy`, Player+0xe0) of any race but the pirates' takes the player outside its ±50 000 box when it picks
   (not attacking, or the re-roll's random tries); the 5 s re-roll still drops a pick outside the box, and as it leaves
@@ -228,6 +253,9 @@ simulates an orbit's traffic) and `ship_combat.md` (+ `Reference/tools/combat/co
 - **Mesh collision** (remake, 2026-10; an option with three modes, Mixed by default, below; `HullCollision` +
   `HullBody`, Unity physics): every ship (NPC, player, other players, proxies, mods' glTF ships), station, jumpgate,
   turret and story / static object gets MeshColliders on its own LOD 0 meshes (not the additive / light / glow layers)
+  (a lower level by name is `_lod_` + a number above 0 or AutoLods' `_lod_gen`, `HullCollision.LowerLodName`; until
+  2026-11-02 any `_lod_` was, so GoF3's `..._lod_000_body` meshes left the GoF3 Systems mod's stations, gates and traffic
+  without a hull and the player met the box round the whole model, km wide)
   on layer 24, under a kinematic Rigidbody on the model's root (no simulation is needed: the queries sync the transforms
   once a frame); the hull models are imported with Read/Write for it (`AssetImport.IsHullModel`: ships, stations,
   jumpgates, turrets, misc; a mod's glTF is readable), each mesh cooked once (`Physics.BakeMesh`). Shots
@@ -350,6 +378,9 @@ battle spawns in 156 ms with its hulls.
   40) become RocketGuns (speed 8, 10 000 ms, reload 3000; sorts 5 / 40 home on the ship's current target after 1000 ms,
   `RocketGun::seekEnemy`); a second gun slot toggles every 20 000 ms (`PlayerFighter+0x2e0`): the Wanted flying ships
   45-48 (G'liissk x4), Harval at 157 / 158 (item 7 x3 + Shesha x4).
+  Remake mods (2026-11-05, GoF3's NPC loadouts SW_DL_*): ships.json "traffic": { "secondaries" } (`CustomSecondary`,
+  JsonUtility): `NpcShip.SetOwnSecondary` gives a traffic NPC (not a wingman, nor a boss's clone) the first entry it
+  carries (rank within minRank..maxRank, share % rolled at spawn) as its second gun at x factor, when its spec has none.
 - **Missile warning and evasion** (remake; the original has neither): any homing missile (Missile, ClusterMissile,
   Thermo kinds) locked on a boosting or cloaked player loses its lock for good and flies straight on (`Gun.Update`:
   `Bullet.lockLost`, `Target.ShakesMissiles` = `boosting` || `cloaked`, set by `ShipController` / `PlayerCloak` for the
@@ -411,3 +442,40 @@ battle spawns in 156 ms with its hulls.
   pirates) and the text's line: the radio chatter (426-431, 445-447, the pirate base 435-440, the Nivelian hints 443 /
   444), the freelance briefing / success / failure / return (370-389) and the wingmen's goodbye (313). The GENERIC bank
   is in the story assets (**GoF2 > Build > Story Assets**). A set without the recording stays silent (Vossk 313).
+- **Drone roles** (remake 2026-11-03, for mods; ships.json `traffic.role`, `CustomTraffic.role`; `Flight.NpcRoles` plain +
+  `NpcShipRoles` (NpcShip part)), after EVERSPACE 2's drone types (EDroneType; decompiled BP_Outlaw_SniperDrone (sensing
+  4000 m, sniper aiming), BP_Outlaw_DetonatorDrone (a 2000 cm trigger sphere, ApplyESRadialDamage 10000 cm, 1e8 kinetic to
+  itself), BP_WebberDrone_Base + BP_Condition_Debuff_Webbed (linear / angular damping +2), BP_ShieldChargeDrone_Base and
+  BP_AntiMissileDrone_Base (their guns allowed while their support abilities run: the native AI aims them at allies /
+  missiles), BP_Outlaw_LinkDrone_Armor, BP_Outlaw_JumpSuppressorDrone (JumpSuppressorComponent enabled from BeginPlay until
+  it dies, its marker seen from 100 km)): sniper (fire range x2: ES2's sensing 4000 m against AESPawn's default 2000), detonator (no break-off or fire; within 72 m of its
+  target: BlastSeconds 100 / 55 of its gun's fire (`NpcShip.GunDps`; ES2's ApplyESRadialDamage of its NPC levelling HullDPSPrimary
+  50 + ShieldDPSPrimary 50 against the Outlaw raider's 31 + 24) to every ship and the player within 360 m, then its own hull,
+  nobody's kill), webber (its
+  hits on the player: `Target.SlowBy` -> `ShipController.WebFactor` 0.4 for 4-5 s on the ship's moves: ES2's webber holds
+  4-5 s, its +2 physics damping against the default 8000 cm/s2 forward acceleration and ~95 m/s top speed settles at 0.4), shieldCharger (no
+  fire; 16 / 310 of the hull a second of same-race ships within 1.5 km: ES2's charge drone's ShieldDPSPrimary -16 against the
+  raider's 200 + 50 + 60 hit points), armorLink (no fire; links its nearest ally in reach, ES2's one Link Parent Actor:
+  `Target.damageFactor` 310 / 410 and 5 / 310 of its hull a second, ES2's BP_Condition_Buff_Armored_ArmorRepair +100
+  maximum armour and +5 armour/s; left alone where another rule set a factor), antiMissile (no fire; `WeaponSystem.ShootDownMissile` on the player's
+  nearest homing missile within 2.9 km every 250 ms, ES2's coil gun FireRate 4), jumpSuppressor (no fire; `NpcShip.JumpSuppressed` holds
+  `SystemJump.StartCharging` with "Jump suppressed", the story's forced jumps excepted). ES2's metres x3.6 as its ships'.
+  ES2's amounts on its hit point scale go over as shares of the Outlaw raider's (npc_leveling.CSV; `NpcRoles.Es2RaiderHp` /
+  `Es2RaiderDps`). Not done:
+  the support drones' beams drawn, ES2's frost shield, defusal, stealth and split drones. Tests `NpcRoleTests`.
+  lootDrone (2026-11-03, decompiled BP_LootDrone: NumLoot RandomIntegerInRange(4, 7), DropPercentages i / n x RandomFloat(1 -
+  1 / n, 1 + 1 / n) clamped 0.05..1 checked on each health change, a piece (LootDrop.AddLootFromItems + DropLoot) and
+  BP_Explosion_ProximityMine (no damage set: effect only) each, OnAiEndIdle -> FleeDelayMin..Max 5..10 s -> JumpDrive
+  StartJumpFocus (OrbitJumpChargeDuration 6 s), ApplyEMP AbortJumpFocus, RemoveEMP starts it again): no fire; its cargo
+  plus freighter rolls make 4-7 one-stack pieces (`multiKindLoot`, so what is left drops a crate a piece at death);
+  `NpcRoles.DropThresholds`, checked below the full hull, throws a piece (`MakeCrate` + `Launch`, `Explosion.Spawn` x0.5);
+  found (hit, or the player in its detection box) it steers away from the player (`RoleFlees`, no break-off) and after the delay and charge
+  `JumpOut` (state 6, gone with the rest, nobody's kill). Never a traffic fighter (`ModTraffic.Scan`); the cruise drive's
+  `lootdrone` encounter flies it, neutral; the other ships leave it out of their enemy lists (`Traffic.ConnectPlayers`, ES2's
+  bIgnoredByAI).
+- **A ship type's own drops** (remake 2026-11-04, for mods; ships.json `traffic.loot` [ { item, chance, min, max } ] and
+  `lootDrops`, `CustomTraffic.loot` / `CustomLoot`, `NpcShip.AddOwnLoot` at Setup and Revive): after EVERSPACE 2's
+  loot_npcs.csv (a blueprint, its drop count, then item / chance / amount range triples): each entry by its chance, at most
+  lootDrops, added to the cargo (merged by item; several kinds: a crate a kind), also for the Void and Specter races, whose
+  cargo is empty; not for a mission container, a fixed crate or a no-loot spawn. An enhanced capital ship rolls them again
+  after `CapitalShip` set its crate (`AddOwnLoot(capital: true)`), unless its npcships.json "loot" replaces the crate. Not done: ES2's jump charge effect and sound, its marker kept in range once found.

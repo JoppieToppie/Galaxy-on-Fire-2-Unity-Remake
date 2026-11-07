@@ -2,7 +2,8 @@
 // Remake: a cruise drive, in-system fast travel for a player flying by hand, as plain rules. The drive is a mod item
 // made from the Khador Drive (85) with the remake attributes cruiseSpeed 133 and cruiseRange 134 (Modding/README.md
 // "Cruise drives"; the ES2 importer's Slipstream and Khador Slipstream): Shop.IsCruiseDrive, its own one-per-ship kind
-// (Shop.KindOf: Kind, so it sits beside a Khador Drive). Navigation runs it on the fast-forward button (NavigationCruiseDrive):
+// (Shop.KindOf: Kind), though mounting one replaces a Khador Drive or another cruise drive (Shop.Replaces: a ship carries
+// one drive). Navigation runs it on the fast-forward button (NavigationCruiseDrive):
 //   charge   a fresh press held for attr 37 ms (the Khador Drive's charge attribute); released, blocked or something in
 //            the way: nothing happens. Charged: one leg's energy cells (item 122, attr 38; x2 on Extreme like a Khador
 //            jump's, none with the free-jumps cheat) are paid and the ship cruises; too few cells: refused.

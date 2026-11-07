@@ -33,6 +33,21 @@ namespace GoF2Remake.Events
                 return n;
             }
 
+            /// <summary>distance(player, x, y, z): game units from the nearest of the event's players alive in space to that
+            /// point of their orbit (-1: none; a mission keeps them in its orbit, else pair it with inorbit).</summary>
+            public double NearestPilot(Vector3 gamePoint)
+            {
+                var at = World.OrbitLayout.ToUnity(gamePoint);
+                double best = -1;
+                foreach (var p in Players())
+                {
+                    if (!p.InSpace || p.Hull <= 0f) continue;
+                    double d = (p.Position - at).magnitude / 0.05;
+                    if (best < 0 || d < best) best = d;
+                }
+                return best;
+            }
+
             /// <summary>The players in the session this run is about.</summary>
             List<IPilot> Players()
             {
@@ -69,6 +84,7 @@ namespace GoF2Remake.Events
                         if (eventFlight) EventHost.Send(p.OwnerClientId, NetAdmin.Order.Flight, -1, 0, 0, "", "Server");
                         if (eventWaypoint) EventHost.Send(p.OwnerClientId, NetAdmin.Order.Waypoint, 0, 0, 0, "off", "Server");
                         if (eventWormhole) EventHost.Send(p.OwnerClientId, NetAdmin.Order.Wormhole, 0, 0, 0, "close", "Server");
+                        if (eventPickup) EventHost.Send(p.OwnerClientId, NetAdmin.Order.Pickup, 0, 0, 0, "clear", "Server");
                         if (eventCutscene) EventHost.Send(p.OwnerClientId, NetAdmin.Order.Cutscene, 0, 0, 0, "end", "Server");
                         if (eventFade) EventHost.Send(p.OwnerClientId, NetAdmin.Order.Fade, 0, 0, 0, "clear", "Server");
                         // (single player: a run started again from a save's checkpoint lent it before that checkpoint)

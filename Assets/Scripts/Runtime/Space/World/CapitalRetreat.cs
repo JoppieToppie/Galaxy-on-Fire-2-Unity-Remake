@@ -8,7 +8,10 @@
 //   - its jump drive charges ChargeMs (the Khador Drive's charge sound 33 at it, "<name> is jumping away!");
 //   - the khador_jump fx (SystemJump.SpawnKhadorFx) ahead of its bow, grown by its length over FxMeters (by its widest extent
 //     the Dreadnought's, 4.5 km across its wings, filled the whole screen white from 2.5 km), sound 32, and the ship pushes
-//     forward into it, gone (NpcShip.Vanish, its parts with it) at the fx's HideMs like the player's ship (SystemJump: 1700 ms).
+//     forward into it, gone (NpcShip.Vanish, its parts with it) HideMs later.
+// ES2's timing (decompiled BP_Dreadnought.SpawnJumpEffect, checked 2026-11-04): its jump mesh, Delay 3.0 s, the flash mesh,
+// Delay 0.2 s, the jump particles and K2_DestroyActor: ChargeMs 3000, HideMs 200. (The remake's earlier 4 s and SystemJump's
+// 1700 ms were stand-ins.) Its escorts leave on their own timer (CapitalSubsystems.EscortJumpDelayMs).
 // Nobody's kill (an event's ships count it as gone; a mission's alive("<name>") falls to 0 once it has jumped): no explosion,
 // wreck or crate. Only the game running the orbit's NPCs runs it; another player sees its copy vanish (no fx there yet).
 
@@ -21,8 +24,8 @@ namespace GoF2Remake.World
 {
     public class CapitalRetreat : MonoBehaviour
     {
-        const float ChargeMs = 4000f;
-        const float HideMs = 1700f;          // SystemJump: the ship vanishes 1700 ms into the khador_jump fx
+        public const float ChargeMs = 3000f;  // ES2's SpawnJumpEffect: Delay 3.0 after the jump mesh
+        public const float HideMs = 200f;     // ... then the flash, Delay 0.2 and the ship is destroyed
         const float FxMeters = 70f;          // SystemJump.SpawnKhadorFx's size suits a ship this long: grown by the length over it
         const float FxAhead = 1f;            // the fx this many ship lengths ahead of its centre
 

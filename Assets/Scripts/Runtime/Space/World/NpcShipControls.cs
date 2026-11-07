@@ -150,6 +150,28 @@ namespace GoF2Remake.World
         // ---- wingman ------------------------------------------------------------------------------------------
 
         /// <summary>KIPlayer::setWingman(true, slot) + the createWingmen setup; 'armed' false in a Challenge.</summary>
+        /// <summary>Remake mods (NpcDevices, after GoF3's boss Mind Control: "Can cause wingmen to attack their leader ...
+        /// Shooting them can get them to regain their senses"): it turns on the player for 'ms', until the player hits it.</summary>
+        public void MindControl(float ms)
+        {
+            if (Current != State.Fly || !Target.Alive) return;
+            mindControlMs = Mathf.Max(mindControlMs, ms);
+        }
+
+        public bool MindControlled => mindControlMs > 0f;
+
+        /// <summary>Under mind control: the player its target, until the time is up.</summary>
+        void UpdateMindControlled(float dtMs)
+        {
+            mindControlMs = Mathf.Max(0f, mindControlMs - dtMs);
+            var player = traffic != null ? traffic.Player : null;
+            if (player == null || !player.Alive) { mindControlMs = 0f; return; }
+            target = player;
+            targetPos = player.transform.position;
+            attacking = true;
+            followingWaypoint = false;
+        }
+
         public void MakeWingman(int slot, bool armed)
         {
             IsWingman = true;
@@ -159,6 +181,12 @@ namespace GoF2Remake.World
             alwaysFriend = true;
             // Event 48 Spaceship_Engine_Wingmen: the enemy engine's waves at event volume 0.0437 (46: 0.0759).
             if (engine != null) EngineVoices.Register(engine, 48, 0.043652f * Sfx.EventGain);
+            // Remake mods: its hull's device and its crew's lines (ships.json "wingmanDevice", wingmen.json)
+            var kind = WingmanDevice.Parse(CustomShips.Get(Spec.ship)?.wingmanDevice);
+            wingDevice = kind != WingmanDevice.Kind.None ? new WingmanDevice(kind) : null;
+            wingCrew = Modding.ModWingmen.Of(db, Spec.ship);
+            wingFace = slot == 0 && Session.WingmanPortrait != null && Session.WingmanPortrait.Length == 5 ? Session.WingmanPortrait
+                     : AgentGenerator.CreatePortrait(true, Race == 0 || Race == 2 || Race == 3 ? Race : 1);
             // Level::assignGuns: a wingman's laser skips the other ships' per-mission factors.
             gunBase = NpcTables.GunDamage(Spec, true, false, out gunSpeed);
             if (gun != null) gun.damage = gunBase;
@@ -200,6 +228,45 @@ namespace GoF2Remake.World
             }
             wingCommand = command;
             speed = baseSpeed;
+        }
+
+        /// <summary>Remake mods: one of its crew's radio lines (Data.WingmanCrew's kinds), null crew or none of that kind = silent.</summary>
+        public void WingmanSays(string kind, float chance = 1f)
+        {
+            if (!IsWingman || wingCrew == null || traffic == null || !Target.Alive && kind != WingmanCrew.Lost) return;
+            traffic.WingmanSay(wingCrew.Line(kind, n => Random.Range(0, n)), Target.displayName, wingFace, chance);
+        }
+
+        /// <summary>Remake mods: its device (Flight.WingmanDevice: Hull Repair mends the player, Ammo Supply restocks the
+        /// player's secondary, Charged Shots its own guns, GunHit) and its calls for help and about the player.</summary>
+        void UpdateWingmanCrew(float dtMs)
+        {
+            if (Hp.hull >= Hp.maxHull * 0.5f) wingHelpSaid = false;
+            else if (!wingHelpSaid && Hp.hull < Hp.maxHull / 3f) { wingHelpSaid = true; WingmanSays(WingmanCrew.Help); }
+            var player = traffic.Player;
+            var php = player != null && player.Alive ? player.hitpoints : null;
+            int pool = php != null ? Mathf.Max(1, php.maxHull + php.maxArmor) : 1;
+            float share = php != null ? (php.hull + php.armor) / (float)pool : 0f;
+            if (wingCrew != null && php != null && traffic.TakePlayerDown(share)) WingmanSays(WingmanCrew.PlayerDown);
+            else if (wingCrew != null && wingCrew.lines.ContainsKey(WingmanCrew.Warn) && traffic.TakeEnemyOnTail()) WingmanSays(WingmanCrew.Warn);
+            if (wingDevice == null) return;
+            int ammo = traffic.PlayerSecondaryAmmo != null ? traffic.PlayerSecondaryAmmo() : -1;
+            bool wanted = php != null && wingDevice.Wanted(share, ammo, attacking && target != null);
+            bool started = wingDevice.Step(dtMs, wanted, out float repairShare);
+            if (repairShare > 0f && php != null)
+            {
+                // the hull first, then the armor (GoF3 mends its one hull)
+                int add = Mathf.CeilToInt(repairShare * pool);
+                int toHull = Mathf.Min(add, php.maxHull - php.hull);
+                php.hull += toHull;
+                php.armor = Mathf.Min(php.maxArmor, php.armor + add - toHull);
+            }
+            if (!started) return;
+            if (wingDevice.kind == WingmanDevice.Kind.Ammo) traffic.RestockPlayer?.Invoke(WingmanDevice.AmmoRounds);
+            string what = wingDevice.kind == WingmanDevice.Kind.Repair ? Localization.Extra("wingmanRepair", "{0}: Hull Repair")
+                        : wingDevice.kind == WingmanDevice.Kind.Ammo ? Localization.Extra("wingmanAmmo", "{0}: Ammo Supply")
+                        : Localization.Extra("wingmanCharged", "{0}: Charged Shots");
+            traffic.Warn(string.Format(what, Target.displayName));
         }
 
         /// <summary>The wingman branches of the target selection and the formation route.</summary>

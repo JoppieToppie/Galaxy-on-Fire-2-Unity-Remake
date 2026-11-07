@@ -89,6 +89,24 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void TheKhadorSlipstreamAsksToReplaceTheKhadorDrive()
+        {
+            int slipstream = GoF2Remake.Modding.ModContent.ItemIndexOf("gof2:khador_slipstream");
+            Assert.GreaterOrEqual(slipstream, 0, "the base game's Khador Slipstream");
+            Session.Equipment.Add(new ItemStack(GalaxyMap.KhadorDriveItem, 1));
+            Session.Cargo.Add(new ItemStack(slipstream, 1));
+            var h = Dis();
+            int khador = Session.Equipment.FindIndex(e => e.item == GalaxyMap.KhadorDriveItem);
+            Assert.AreEqual(Hangar.Result.Swap, h.CanMount(slipstream, out int swapWith), "287, not a second drive");
+            Assert.AreEqual(khador, swapWith);
+            Assert.IsTrue(h.Swap(swapWith, slipstream));
+            Assert.AreEqual(1, Mounted(slipstream));
+            Assert.AreEqual(0, Mounted(GalaxyMap.KhadorDriveItem));
+            Assert.AreEqual(1, h.CargoOf(GalaxyMap.KhadorDriveItem), "the Khador Drive goes to the hold");
+            Assert.AreEqual(Hangar.Result.Swap, h.CanMount(GalaxyMap.KhadorDriveItem, out swapWith), "and back the other way");
+        }
+
+        [Test]
         public void SwapRefusesBadInput()
         {
             var h = Dis();

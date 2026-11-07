@@ -16,5 +16,6 @@ namespace GoF2Remake.UI
         public int cells;          // energy cells for that jump
         public bool toVoid;        // 422 answered Yes: the Khador jump into the Void (station is -1 then)
         public bool safestRoute;   // remake: a gate route round the dangerous systems, not the fewest jumps (GalaxyMap.RoutePath)
+        public bool slipstream;    // remake: there by the Khador Slipstream, between the systems (Data.InterstellarSpace)
     }
 }

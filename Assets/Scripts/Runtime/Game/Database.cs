@@ -184,7 +184,9 @@ namespace GoF2Remake.Data
         public float fxScale;
         /// <summary>Remake mods, an exhaust mount (slotType 3) or a booster point (slotType 5, EVERSPACE 2's SKT_Booster sockets):
         /// the socket's scale in EVERSPACE 2 (its largest axis; 0 = 1), which sizes the engine light, trail and glow there
-        /// (Modding.Es2EngineVfx).</summary>
+        /// (Modding.Es2EngineVfx); a contrail point (slotType 6, EVERSPACE 2's SKT_Contrail sockets, Modding.Es2Contrails): the
+        /// ribbon's width and, capped at 1, its opacity. A headlight fixture (slotType 7, EVERSPACE 2's SKT_HeadLight sockets,
+        /// Modding.Es2Headlights) has a 'direction' like a jet's: the way it shines.</summary>
         public float socketScale;
     }
     [System.Serializable] public class WeaponMountSet { public int ship; public string shipName; public List<WeaponMount> mounts; }
@@ -235,6 +237,14 @@ namespace GoF2Remake.Data
         /// <summary>A mod capital ship that jumps away when its hull is depleted instead of being destroyed (World.CapitalRetreat:
         /// EVERSPACE 2's Dreadnought), so an encounter with it can come again.</summary>
         public bool retreat;
+        /// <summary>Remake mods: the loot container this ship leaves when it dies or is robbed (Modding.ModCrates): a glTF / GLB
+        /// file in the mod, drawn in place of its race's container, as big as that container unless 'crateSize' (its largest
+        /// extent, game units) says otherwise; none = the race's.</summary>
+        public string crate;
+        public float crateSize;
+        /// <summary>Remake mods (after Galaxy on Fire 3's wingmen): the device a hired wingman flying this hull uses: "repair",
+        /// "ammo" or "charged" (Flight.WingmanDevice); none = none, like the game's wingmen.</summary>
+        public string wingmanDevice;
     }
 
     /// <summary>Remake mods: EVERSPACE 2's per-ship switches of its engine effects (a ship blueprint's SpawnEngineGlow /
@@ -244,6 +254,7 @@ namespace GoF2Remake.Data
     {
         public bool glow = true;
         public bool trails = true;
+        public bool contrails = true;   // EVERSPACE 2's ContrailsEnabled: the wing-tip contrails while boosting (Modding.Es2Contrails)
     }
 
     /// <summary>Remake mods: one subsystem of a capital ship (ships.json "subsystems"; World.CapitalSubsystems): a target of
@@ -300,6 +311,43 @@ namespace GoF2Remake.Data
         /// (instead of the Terran battleship / the Vossk battleship, and in Nivelian / Midorian systems, which have none),
         /// "freighter" = it cruises among the orbits' freighters. Either way it never flies as a fighter. Empty = a fighter.</summary>
         public string capital;
+        /// <summary>Remake (2026-11-03): its role in a fight (Flight.NpcRoles, EVERSPACE 2's drone types): "sniper", "detonator",
+        /// "webber", "shieldCharger", "armorLink", "antiMissile", "jumpSuppressor", "lootDrone" (never a fighter: the loot drone encounter's,
+        /// Modding.ModTraffic.PickLootDrone); empty = an ordinary fighter.</summary>
+        public string role;
+        /// <summary>Remake (2026-11-05, the GoF3 roadmap's G6): "gof3" = its NPC fighters fight Galaxy on Fire 3's way
+        /// (Flight.Gof3Dogfight) while Options > Gameplay "NPC dogfighting" is "GoF3 on mod hulls" (the default); else GoF2's.</summary>
+        public string ai;
+        /// <summary>Remake (2026-11-05, GoF3's kamikazes): the devices its NPCs use when hostile to the player, as a Most
+        /// Wanted criminal's (wanted.json "devices", Modding.ModWanted.ReadDevices); read apart from JsonUtility, null = none.</summary>
+        [System.NonSerialized] public System.Collections.Generic.List<Flight.NpcDeviceSpec> devices;
+        /// <summary>Remake (2026-11-04): what its NPCs drop besides their cargo (EVERSPACE 2's loot_npcs.csv): each entry by its
+        /// chance, at most lootDrops of them (0 = any number); a Void ship's too, which carries no cargo. Null = none.</summary>
+        public CustomLoot[] loot;
+        public int lootDrops;
+        /// <summary>Remake (2026-11-05, GoF3's NPC loadouts): a second weapon its NPCs may carry, the first entry carried
+        /// (CustomSecondary.Carried) at its spawn (World.NpcShip); null = none, as the game's NPCs.</summary>
+        public CustomSecondary[] secondaries;
+    }
+
+    /// <summary>A ships.json "traffic.secondaries" entry: 'item' (a reference, "31" or "mod:id"), carried while the player's
+    /// rank is within minRank..maxRank (0 = no bound) by 'share' % of the hull's NPCs, its damage x 'factor'.</summary>
+    [System.Serializable] public class CustomSecondary
+    {
+        public string item;
+        public int minRank, maxRank;
+        public float share = 100f, factor = 1f;
+
+        public bool Carried(int rank, float roll01) =>
+            (minRank <= 0 || rank >= minRank) && (maxRank <= 0 || rank <= maxRank) && roll01 * 100f < share;
+    }
+
+    /// <summary>A ships.json "traffic.loot" entry: 'item' (a reference, "155" or "mod:id"), its chance 0..1, min..max of it.</summary>
+    [System.Serializable] public class CustomLoot
+    {
+        public string item;
+        public float chance = 1f;
+        public int min = 1, max = 1;
     }
 
     /// <summary>Remake mods: a mod ship in the ordinary ship dealers' lists (Shop.GenerateShips): each time a station's dealer
@@ -339,6 +387,16 @@ namespace GoF2Remake.Data
         public float detailTiling = 1f, detailNormalScale = 1f;
         public float tiling = 1f;  // remake mods: the main textures repeat this many times over the UVs (EVERSPACE 2's plating 'Tiling')
         public float opacity;   // 0 / 1 = opaque; below 1 a see-through surface (glass: premultiplied, so reflections stay bright)
+        // remake mods: the specular workflow (URP's specular setup) in place of metallic: 'specularGlossiness' a map of the
+        // specular colour (RGB, sRGB) and smoothness (A, x 'smoothness'), or 'specularColor' (RGB) without one. Galaxy on
+        // Fire 3's hulls light this way (a coloured specular over the diffuse, not a metal).
+        public string specularGlossiness;
+        public float[] specularColor;
+        // With a specular map or colour, GoF3's own terms (GoF2/Hull's GoF3ShipShader, Modding/README.md "materials"): how much
+        // the surroundings reflect (GoF3's Environment_Amount, default 1) and its rim light (default 1), GoF3's
+        // Specular_Multiplier on the highlight (default 1) and 'multiplierInMap' when the map already carries it.
+        public float environment = 1f, rim = 1f, highlightMultiplier = 1f;
+        public bool multiplierInMap;
         public bool doubleSided;   // both faces drawn (models with one-sided panels the camera can see from behind)
         public bool engine;        // its emission shows only while the engines run (dark on a ship parked in a hangar)
         // With "engine": its share of the glow at throttle 0 (0..1); 1 = steady like the game's own engine glow, lit
@@ -353,12 +411,26 @@ namespace GoF2Remake.Data
         // A nozzle shimmer (GoF2/ModNozzleShimmer): an additive layer over the nozzle's glowing faces, the glow pattern
         // (emission) times flameNoise scrolling along it; with "engine" it follows the engines like the glow.
         public bool shimmer;
+        // An additive glow layer (GoF2/ModGlow): its emission (or diffuse) texture x emissionColor x emissionIntensity x the
+        // mesh's vertex colours (not with ignoreVertexColors), added to what is behind it, scrolling by scroll [u, v] a second
+        // (Galaxy on Fire 3's gate glows and electricity).
+        public bool additive;
+        public float[] scroll;
+        public bool ignoreVertexColors;
         // Battle damage embers: a mask (PNG) set as this material's emission when it has none, glowing ember-orange with the
         // ship's hull damage (DamageEmbers: from a third of the hull lost, flickering).
         public string damageEmission;
         // Battle damage charring: a detail colour (PNG, its alpha the burn mask) and normal map blended in with the hull
         // damage (URP Lit's detail layer, DamageEmbers raising its strength); dark, matte-looking burn patches under the embers.
         public string damageDetail, damageNormal;
+        // EVERSPACE 2's structure layers (GoF2/Hull's Es2StructureLayers, after M_Structures_Parent): with "wear" or "grunge" the
+        // vertex alpha is the occlusion and the wear mask. 'wear' (PNG, linear: R colour, G roughness, B metalness, A height)
+        // worn in where the vertex alpha is low, 'wearNoise' (R) breaking up its edge, 'wearNormal' its normal map; 'grunge' (R)
+        // darkening by grungeAmount and roughening; 'baseRoughness' (0..1) remaps the roughness map (0.5 = as it is);
+        // 'rimBoost' brightens the colour at grazing angles (x (1 + rimBoost (1 - N.V)^3); ES2's 5).
+        public string wear, wearNormal, wearNoise, grunge;
+        public float wearTiling = 1f, wearExponent = 0.5f, wearCap, wearWidth = 0.5f, wearBrightness = 0.5f, wearMetal = 1f;
+        public float grungeTiling = 1f, grungeAmount, baseRoughness = -1f, rimBoost;
         // An engine flame (GoF2/ModEngineFlame, Modding.EngineFlame): the surfaces are flame stubs whose UV u runs from the
         // nozzle (0) to the tip (1), stretched backward by the throttle; emissionColor x emissionIntensity is its colour.
         public bool flame;
@@ -449,6 +521,19 @@ namespace GoF2Remake.Data
         public bool male;
         public int ship, weapon, hitpoints, loot, lootAmount, reward, requiredBounties, requiredMission, numWingmen;
         public int[] portraitParts;
+        // Remake mods (Modding.ModWanted, a mod's wanted.json): its key ("mod_id:id"; null = the game's), its own texts and
+        // face (a mod character), the systems it roams (null = anywhere), its trips' length in systems, a rocket launcher, and
+        // when it is on its board ("available", a condition); its escorts' ships (null = the race's fighters), its own fight
+        // music (a mod track) and what it says when uncovered; what it takes of the player's weapons' damage (null = all) and
+        // its devices (Flight.NpcDeviceSpec, World.NpcDevices; null = none).
+        [System.NonSerialized] public string key, description, character, available, availableWhere, music, taunt;
+        [System.NonSerialized] public DamageTaken damageTaken;
+        [System.NonSerialized] public List<NpcDeviceSpec> devices;
+        [System.NonSerialized] public List<int> turrets;   // its turret items (null = its ship type's, Database.NpcTurrets)
+        [System.NonSerialized] public int[] systems, escorts;
+        [System.NonSerialized] public int routeMin = 2, routeMax = 4, secondary = -1;
+        [System.NonSerialized] public Modding.ModInfo mod;
+        public bool IsMod => key != null;
     }
 
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
@@ -501,6 +586,8 @@ namespace GoF2Remake.Data
         }
         public List<WeaponMountSet> WeaponMounts = new List<WeaponMountSet>();
         public List<WantedData> Wanted = new List<WantedData>();
+        /// <summary>Remake mods (wingmen.json, Modding.ModWingmen): the crews the bars' wingmen offers may fly, each mod's.</summary>
+        public List<WingmanCrew> WingmanCrews = new List<WingmanCrew>();
         /// <summary>Remake, for mods (ships.json "npcTurrets", Modding.ModContent): the turret items the NPC ships of a type carry
         /// on its turret mounts (World.NpcMountedTurrets, the hangar's parked ships), by ship index. The original's NPC ships
         /// carry none.</summary>
