@@ -44,6 +44,9 @@ namespace GoF2Remake.Modding
             public readonly Dictionary<int, int> textureImage = new Dictionary<int, int>();
             /// <summary>The images taken out, by image index.</summary>
             public readonly Dictionary<int, Image> images = new Dictionary<int, Image>();
+            /// <summary>Remake mods: a material's GoF3 terms from its "extras" ("environment", "rim", "highlightMultiplier",
+            /// "multiplierInMap"), by material name, as GoF2/Hull's _GoF3Params (GoF3Params).</summary>
+            public readonly Dictionary<string, UnityEngine.Vector4> gof3 = new Dictionary<string, UnityEngine.Vector4>();
         }
 
         const uint Magic = 0x46546C67, ChunkJson = 0x4E4F534A, ChunkBin = 0x004E4942;
@@ -116,8 +119,17 @@ namespace GoF2Remake.Modding
                     Mark(result, pbr?["baseColorTexture"], Role.Color);
                     Mark(result, m?["emissiveTexture"], Role.Color);
                     Mark(result, m?["normalTexture"], Role.Normal);
-                    var mr = Mark(result, pbr?["metallicRoughnessTexture"], Role.MetallicRoughness);
+                    // KHR_materials_pbrSpecularGlossiness: its diffuse and its specular-glossiness map (RGB sRGB, A as it is)
+                    // go in as they are, like a base colour (ModMaterials.FromGltf); its material takes no metallic map
+                    var sgx = m?["extensions"]?["KHR_materials_pbrSpecularGlossiness"];
+                    Mark(result, sgx?["diffuseTexture"], Role.Color);
+                    Mark(result, sgx?["specularGlossinessTexture"], Role.Color);
+                    var mr = sgx == null ? Mark(result, pbr?["metallicRoughnessTexture"], Role.MetallicRoughness) : null;
                     mr?.mrFactors.Add((Factor(pbr?["metallicFactor"]), Factor(pbr?["roughnessFactor"])));
+                    if (m?["extras"] is JObject ex && (string)m["name"] is string mname
+                        && (ex["environment"] != null || ex["rim"] != null || ex["highlightMultiplier"] != null || ex["multiplierInMap"] != null))
+                        result.gof3[mname] = GoF3Params(Number(ex["environment"], 1f), Number(ex["rim"], 1f),
+                            Number(ex["highlightMultiplier"], 1f), ex["multiplierInMap"]?.Type == JTokenType.Boolean && (bool)ex["multiplierInMap"]);
                 }
 
             // The new binary chunk: every other bufferView packed (16-byte aligned), then the stand-in PNG.
@@ -170,6 +182,17 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>A glTF metallic / roughness factor: 0..1, default 1.</summary>
+        /// <summary>A specular material's GoF3 terms as GoF2/Hull's _GoF3Params (HullForwardPass.hlsl GoF3ShipShader; here, not in
+        /// ModMaterials, as Strip runs off the main thread): x how much the surroundings reflect (GoF3's Environment_Amount),
+        /// y its rim light, z GoF3's Specular_Multiplier, w 1 when the map already carries that multiplier (then on the whole
+        /// specular, as GoF3's ship bodies; else on the highlight).</summary>
+        public static UnityEngine.Vector4 GoF3Params(float environment, float rim, float highlightMultiplier, bool multiplierInMap) =>
+            new UnityEngine.Vector4(Math.Clamp(environment, 0f, 1f), Math.Clamp(rim, 0f, 1f),
+                highlightMultiplier > 0f ? Math.Min(highlightMultiplier, 16f) : 1f, multiplierInMap ? 1f : 0f);
+
+        static float Number(JToken t, float fallback) =>
+            t != null && (t.Type == JTokenType.Float || t.Type == JTokenType.Integer) ? (float)t : fallback;
+
         static float Factor(JToken t) =>
             t is JValue v && (v.Type == JTokenType.Float || v.Type == JTokenType.Integer) ? Math.Max(0f, Math.Min(1f, (float)v)) : 1f;
 

@@ -411,6 +411,7 @@ namespace GoF2Remake.Data
             for (int i = 0; i < db.Wanted.Count; i++)
             {
                 var w = db.Wanted[i];
+                if (w.IsMod) break;   // the original's 25 only (a mod's criminals follow them)
                 var st = s.wanted != null && i < s.wanted.Count ? s.wanted[i] : new WantedState();
                 r.wanted.Add(new OriginalWanted
                 {

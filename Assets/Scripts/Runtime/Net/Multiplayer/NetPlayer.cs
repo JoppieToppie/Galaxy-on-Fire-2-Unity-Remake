@@ -440,8 +440,8 @@ namespace GoF2Remake.Multiplayer
             ulong shooter = rpc.Receive.SenderClientId;
             if (shooter == OwnerClientId || !NetRateLimit.Allow(shooter, NetRateLimit.Kind.Hit)) return;
             if (!NetGuard.Damage(amount) || !NetGuard.Finite(hitVector)) { NetRateLimit.Reject(shooter, $"a hit of {amount}"); return; }
-            // a weapon's shield factor (Flight.Gun.ShieldFactor: 0.01 .. 10); an NPC's shot has none
-            shieldFactor = byNpc || float.IsNaN(shieldFactor) ? 1f : Mathf.Clamp(shieldFactor, 0.01f, 10f);
+            // a weapon's shield factor (Flight.Gun.ShieldFactor: 0.01 .. 10, or 0 = through the shield); an NPC's shot has none
+            shieldFactor = byNpc || float.IsNaN(shieldFactor) ? 1f : shieldFactor <= 0f ? 0f : Mathf.Clamp(shieldFactor, 0.01f, 10f);
             var by = NetSquad.Find(shooter);
             if (!NetGuard.SameOrbit(by, this)) return;   // gone from the orbit a moment ago, or a hit from elsewhere
             if (!byNpc && NetSquad.Same(by, this)) return;

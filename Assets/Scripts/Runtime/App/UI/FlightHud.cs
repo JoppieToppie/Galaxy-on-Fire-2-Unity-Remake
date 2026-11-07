@@ -703,6 +703,8 @@ namespace GoF2Remake.UI
                 if (level.Turret != null) level.Turret.Message += OnMiningMessage;   // HUD event 0x20 / 0x21 (auto fire on / off)
                 if (health != null) health.Message += OnMiningMessage;             // injector / gamma messages
                 if (level.Cloak != null) level.Cloak.Message += OnMiningMessage;   // cells paid, "Cloak ready", 583
+                if (level.Devices != null) level.Devices.Message += OnMiningMessage;   // remake: "{0} ready", no shield
+                level.DevicesChanged += () => { if (level != null && level.Devices != null) level.Devices.Message += OnMiningMessage; };   // a new hull
                 chase = Camera.main != null ? Camera.main.GetComponent<ChaseCamera>() : null;
                 ApplyInputMode();
             }
@@ -855,7 +857,7 @@ namespace GoF2Remake.UI
             missileWarning?.Update(level.Player != null ? level.Player.transform : null, Camera.main,
                                    !cinematic && level.LaunchCameraOver && health != null && !health.Dead,
                                    level.Player != null && level.Player.Model != null && level.Player.Model.HasBooster, Time.deltaTime * 1000f);
-            cooldownView?.Update(level.Database, level.Player, level.Cloak, level.Extender, !cinematic && level.LaunchCameraOver && InputMode.Current != InputKind.Touch);
+            cooldownView?.Update(level.Database, level.Player, level.Cloak, level.Extender, level.Devices, !cinematic && level.LaunchCameraOver && InputMode.Current != InputKind.Touch);
             // The Ultrascan's class-A letters: Radar::draw too, so not during the launch camera or a cinematic. The range is the
             // level's asteroid field (Level+0xc4), not the autopilot's "Asteroid field" entry: the Void's crystal field has none
             // (players' report: no letters there).

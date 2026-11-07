@@ -175,6 +175,10 @@ namespace GoF2Remake.Flight
         public event Action Hit;
         /// <summary>A bomb, mine or blast went off (the explosion's world position).</summary>
         public event Action<Vector3> Detonated;
+        /// <summary>Remake (Flight.Device): a primary shot's damage on a ship (the strike charge fills from it).</summary>
+        public event Action<float> PrimaryDamageDealt;
+        /// <summary>Remake (the strike charge, PlayerDevices): the primary guns' damage x this.</summary>
+        [NonSerialized] public float DamageBoost = 1f;
         /// <summary>Locked target for homing missiles (the radar's ship lock, CombatRadar).</summary>
         public Target LockTarget { get; set; }
         /// <summary>The player's own hittable object: never hit by its own guns.</summary>
@@ -593,9 +597,11 @@ namespace GoF2Remake.Flight
             bool missile = r.gun.isSecondary;
             bool wasAlive = target.Alive;
             target.lastPlayerWeapon = r.gun.itemIndex;
-            float damage = missile && target.isAsteroid ? 9999f : r.gun.damage;
+            float damage = missile && target.isAsteroid ? 9999f : missile ? r.gun.damage : r.gun.damage * DamageBoost;
+            if (!missile && wasAlive && target.isShip) PrimaryDamageDealt?.Invoke(damage);
             if (Cheats.OneHitKills && !target.isPlayer) damage = 99999999f;
             target.Damage(damage, false, r.gun.bullets[bullet].velocity, r.gun.shieldFactor);
+            if (r.gun.slowMs > 0f && target.Alive && !target.isPlayer) target.SlowBy?.Invoke(r.gun.slowMs, r.gun.slowFactor, false);   // remake mods: slowMs
             if (wasAlive && !target.Alive && target.isAsteroid) { Session.AsteroidsDestroyed++; CountAsteroidMedals(r.gun); }   // Status+0xd8
             ApplyEmp(target, (int)r.gun.emp);
             r.visuals.ShowImpact(point);
@@ -629,6 +635,18 @@ namespace GoF2Remake.Flight
             if (r.gun.kind == Gun.Kind.ShockBlast && target.isShip)
                 target.GetComponent<World.NpcShip>()?.InitPush(center, r.gun.magnitude * M);
             if (dmg > 0) Hit?.Invoke();
+        }
+
+        /// <summary>Remake (Flight.Device, PlayerDevices): a device's damage and EMP on one target, credited to the player
+        /// like a shot of 'item' (the kill, standing, the crosshair's hit flash).</summary>
+        public void DeviceHit(Target target, float damage, int emp, Vector3 direction, int item)
+        {
+            if (target == null || !target.Alive) return;
+            target.lastPlayerWeapon = item;
+            if (Cheats.OneHitKills && !target.isPlayer && damage > 0f) damage = 99999999f;
+            if (damage > 0f) target.Damage(damage, false, direction);
+            ApplyEmp(target, emp);
+            if (damage > 0f) Hit?.Invoke();
         }
 
         /// <summary>Player::damageEmp (EMP weapons): disabling a ship of races 0..3 costs standing 2 (applyDelict).</summary>

@@ -284,6 +284,7 @@ namespace GoF2Remake.World
             Cloak = PlayerCloak.Attach(root, db, shipIndex, Health.Target, model.transform);
             if (Navigation != null) Navigation.Cloak = Cloak;
             if (Collision != null) Collision.cloak = Cloak;
+            if (Navigation != null) AttachDevices(root);
             PlayerTurret.RemoveAll(turrets);
             turrets.Clear();
             turrets.AddRange(PlayerTurret.AttachAll(root, db, shipIndex, Session.Equipment, chase));

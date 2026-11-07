@@ -167,10 +167,11 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
 - **Mod tags** (remake, TorchOP's request 2026-10-23: tell SH / HD / Alliances / GoF3 content apart; the user: one tag
   per mod, for everything, not just ships): mod.json `"tag"` (`ModContent.TagOf`, a string or per language) on all a mod
   adds, never on what it only overrides: `GameNames.ShipTag` / `ItemTag` (a ship blueprint's item: its ship's) /
-  `SystemTag` / `StationTag` (`ModWorld`). `ItemInfo.WithTag` adds it as rich text (`<alpha=#80><size=80%>`, the tag in
+  `SystemTag` / `StationTag` (`ModWorld`) / `WantedTag` (a mod's Most Wanted criminal, 2026-11-02). `ItemInfo.WithTag` adds it as rich text (`<alpha=#80><size=80%>`, the tag in
   `<noparse>`; `TaggedShipName`, `TaggedItemName`): the hangar / shop / cargo / Kaamo / pending rows, the hangar details,
   the carrier shop, the item window, the status screen, the star map's system and planet names, its system panel and
-  planet lore title, the docked station's title and system line (after `ToUpperInvariant`). Everywhere else (toasts,
+  planet lore title, the docked station's title and system line (after `ToUpperInvariant`), the Most Wanted board's rows
+  and details and the pause menu's Most Wanted page (`TaggedWantedName`; not the radio or the HUD). Everywhere else (toasts,
   dialogs, selectors, chat, saves) keeps the plain name. Mod Builder: Mod details' "Tag". Tests `ModTagTests`.
 - **Numbers** (`ModRegistry`, `persistentDataPath/mod_registry.json`, outside the Mods folder): single player gives each "mod:id" key the next free
   number after the original table (233+) for good; a key whose mod is off gets a placeholder (`ModContent.IsMissingItem`:
