@@ -22,7 +22,8 @@ namespace GoF2Remake.UI
                 // MGame::OnTouchEnd: the secondary, boost and camera don't act while mining or docked at a point.
                 SecondaryReleased = () => { if (!MiningOrDocked) weapons?.FireSecondary(); },
                 // The booster also on the way to an asteroid (refused only while drilling, PlayerEgo::isMining).
-                BoostReleased = () => { if (!Drilling && (docking == null || !docking.Busy)) ship?.Boost(); },
+                // Free flight holds the boost instead (TouchControls.BoostHeld -> ShipController.SetTouchFree).
+                BoostReleased = () => { if (!Drilling && (docking == null || !docking.Busy) && ship != null && !ship.TouchFree) ship.Boost(); },
                 CameraPressed = () => level?.FreeLook?.CameraDown(),
                 CameraReleased = () => level?.FreeLook?.CameraUp(mining == null || mining.State == Mining.Phase.Idle),
                 CameraCancelled = () => level?.FreeLook?.CameraUp(false),
@@ -41,6 +42,7 @@ namespace GoF2Remake.UI
                 SetThrust = t => ship?.SetThrottle(t),
                 FreeLookDrag = (delta, held) => level?.FreeLook?.TouchDrag(delta, held),
                 FreeLookPinch = span => level?.FreeLook?.TouchPinch(span),
+                DampenersToggled = () => ship?.ToggleDampeners(),
             };
         }
         /// <summary>The cursor mode: the mouse is over one of the HUD's buttons (the touch controls, the autopilot pill, the
@@ -158,6 +160,9 @@ namespace GoF2Remake.UI
                 f.steeringMissile = weapons != null && weapons.SteeringMissile;
                 f.crosshairVisible = crosshair != null && !crosshair.ClassListContains("crosshair--hidden");
                 if (f.crosshairVisible) f.crosshair = new Vector2(crosshair.style.left.value.value, crosshair.style.top.value.value);
+                // Remake: free flight's touch layout (TouchControlsFreeFlight); not in the cursor mode (keys and mouse).
+                f.freeFlight = touchMode && ship.TouchFree;
+                f.dampeners = ShipController.Dampeners;
             }
             if (!touchMode && flying && !level.Cutscene && level.LaunchCameraOver && (nav == null || !nav.Jumping))
             {

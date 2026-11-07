@@ -230,6 +230,7 @@ namespace GoF2Remake.Flight
             // Remake: a ship gone off the lock (another player cloaking, a hidden proxy) loses a lock already held too; the
             // missiles homing on it lose theirs for good (Gun).
             if (Locked != null && (!Locked.Alive || !Locked.gameObject.activeInHierarchy || Locked.untargetable || Locked.cloaked)) Locked = null;
+            if (RadarJam.Active) Locked = null;   // remake: a boss's radar jammer (the scanner holds nothing)
             // Modified: the ship marked as the docking target (a Supernova freighter, NpcShip.ShipMarker) drops its ship lock:
             // the docking target's marker takes over (a player's comparison with the original: its reticle stayed).
             if (Locked != null && nav != null && (DockingTargetOf(nav.Locked) == Locked || DockingTargetOf(nav.AutopilotTarget) == Locked)) Locked = null;

@@ -18,6 +18,16 @@
 // freighters, other players' ships and the asteroids while it is cloaked; the wormhole still pulls.
 // Remake haptics: running into a landmark is a knock, then a scraping rumble while the ship slides along it; an asteroid a
 // knock; the wormhole's pull a rumble that grows toward it.
+// Remake (2026-11-02, Options > Gameplay "Collision damage", Settings.CollisionDamage, off by default): EVERSPACE 2's
+// collision damage (decompiled: BP_CollisionDamageComponent's ComponentHit graph, on every ship; the player's
+// CollisionDamageFactor attribute 1). Per hit: strength = |impulse| / mass / DamagePercentageDivisor 50 000, i.e. the speed
+// lost into the surface in cm/s over 50 000; from MinDamagePercent 0.01 (5 m/s) and outside the GracePeriodDuration 0.5 s
+// after a hit, damage = strength ^ 1.5 x the ship's maximum hit points x DamageMultiplier 1 x the factor (the whole hull at
+// 500 m/s, a quarter at 200 m/s, 3 % at 50 m/s, 0.1 % at 5 m/s), dealt as a point hit (its Kinetic half and Energy third the remake's one
+// number through the shield first). Here the speed into the surface is the ship's velocity against the push-out normal
+// (a landmark's volume, a hull), or toward the asteroid's centre (which the original's rule destroys; with the option on
+// the asteroid costs this instead of 20), and the maximum hit points are the hull's and the armour's.
+
 
 using System;
 using UnityEngine;
@@ -50,6 +60,10 @@ namespace GoF2Remake.Flight
         PlayerHealth health;
         ChaseCamera chase;
         Mining mining;
+        ShipController ship;
+        // EVERSPACE 2's collision damage (Settings.CollisionDamage)
+        public const float DamageDivisorMps = 500f, MinDamageStrength = 0.01f, DamageExponent = 1.5f, GraceSeconds = 0.5f;
+        float graceLeft;
         bool scraping, scrapedLastFrame;   // haptics: touching a landmark this frame / the frame before
         const float ScrapeRumble = 0.35f;
         /// <summary>Docking at a story object: no collision while easing in, docked or leaving (set by the level).</summary>
@@ -69,10 +83,42 @@ namespace GoF2Remake.Flight
         bool hasLastPosition;
         const float MaxSweepMeters = 300f;   // a longer step is a teleport (a jump, a launch, an event's move), not flight
 
+        /// <summary>EVERSPACE 2's collision damage for a hit at 'intoSpeedMps' (the speed lost into the surface, m/s) on a ship of
+        /// 'maxHealth' hit points: strength = the speed over 500 m/s (50 000 cm/s), nothing below 0.01 (5 m/s), else
+        /// strength ^ 1.5 x maxHealth.</summary>
+        public static float CollisionDamage(float intoSpeedMps, float maxHealth)
+        {
+            float strength = Mathf.Max(0f, intoSpeedMps) / DamageDivisorMps;
+            if (strength < MinDamageStrength) return 0f;
+            return Mathf.Pow(strength, DamageExponent) * Mathf.Max(0f, maxHealth);
+        }
+
+        /// <summary>The ship's velocity (m/s, world): free flight's own, the original's along the nose.</summary>
+        Vector3 Velocity()
+        {
+            if (ship == null) ship = GetComponent<ShipController>();
+            if (ship == null) return Vector3.zero;
+            return ship.Model.FreeFlight ? ship.Model.FreeVelocity * (ship.metersPerUnit * 1000f) : transform.forward * ship.SpeedMetersPerSecond;
+        }
+
+        /// <summary>Remake: EVERSPACE 2's collision damage for a hit whose surface pushed the ship along 'normal' (an asteroid:
+        /// the way to it, negated), within the grace period none.</summary>
+        void Ram(Vector3 normal)
+        {
+            if (!GoF2Remake.Data.Settings.CollisionDamage || graceLeft > 0f || health == null || health.Target == null || normal.sqrMagnitude < 1e-8f) return;
+            float into = Mathf.Max(0f, -Vector3.Dot(Velocity(), normal.normalized));
+            float maxHealth = health.Hp != null ? health.Hp.maxHull + health.Hp.maxArmor : health.Target.maxHp;
+            float dmg = CollisionDamage(into, maxHealth);
+            if (dmg <= 0f) return;
+            graceLeft = GraceSeconds;
+            if (!health.invulnerable) health.Target.Damage(dmg);
+        }
+
         void Update()
         {
             TouchingStation = false;
             scraping = false;
+            if (graceLeft > 0f) graceLeft -= Time.deltaTime;
             // Remake: the enemies' shots hit the collision probe too, not only the hull (Target.hitSphereRadius).
             if (health != null && health.Target != null) health.Target.hitSphereRadius = ProbeRadius();
             if (off || health == null || health.Dead) { wormhole?.SetSound(false); eventWormhole?.SetSound(false); scrapedLastFrame = false; hasLastPosition = false; return; }
@@ -118,6 +164,7 @@ namespace GoF2Remake.Flight
                 var pos = transform.position;
                 if (!o.Touches(pos, out _)) continue;
                 transform.position = o.PushOut(pos);
+                Ram(transform.position - pos);
                 if (o.isStation) TouchingStation = true;
                 scraping = true;
                 Hit();
@@ -183,6 +230,7 @@ namespace GoF2Remake.Flight
                 if (!Physics.ComputePenetration(probe, pos, Quaternion.identity, c, c.transform.position, c.transform.rotation, out var dir, out float dist)) continue;
                 pos += dir * dist;
                 transform.position = pos;
+                Ram(dir);
                 if (o.isStation) TouchingStation = true;
                 scraping = true;
                 Hit();
@@ -270,7 +318,8 @@ namespace GoF2Remake.Flight
                 if (t == null || !t.isAsteroid || !t.Alive) continue;
                 if (!TouchesAsteroid(t, pos, probeR)) continue;
                 t.Damage(9999f);
-                if (!health.invulnerable) health.Target.Damage(20f);
+                if (GoF2Remake.Data.Settings.CollisionDamage) Ram(pos - t.transform.position);
+                else if (!health.invulnerable) health.Target.Damage(20f);
                 AsteroidHit?.Invoke();   // volatile goods: +0.2 (VolatileCargo)
                 Hit();
                 Haptics.Play(Haptics.Impact);   // remake

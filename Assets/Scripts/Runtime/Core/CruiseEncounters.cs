@@ -6,8 +6,11 @@
 // ambush (the encounter appears ahead and the drive drops: Stop.Encounter) or a visible signal (a waypoint the pilot may
 // fly to or ignore; it spawns on arrival, NavigationCruiseDrive). The built-in table: pirates (an ambush), a trade convoy,
 // a debris field, a distress call (signals), a flyby (an ambush that doesn't stop the drive). Mods add entries and
-// change the built-ins' weights (Modding.ModEncounters, encounters.json). Modelled on No Man's Sky's pulse encounters
-// (the weighted table with conditions, the interruption) and EVERSPACE 2's signals (the drop-in you may ignore).
+// change the built-ins' weights (Modding.ModEncounters, encounters.json). Between the systems (Data.InterstellarSpace, the
+// user, 2026-11-03) every encounter pulls the ship out of the slipstream (Between): in deep space, where it is met (the
+// warp eases out first), or at the nearest system, whose orbit it waits in; an entry says which ("interstellar": space,
+// system, either, never; a quest always goes to the system, its graph needs an orbit). Modelled on No Man's Sky's pulse
+// encounters (the weighted table with conditions, the interruption) and EVERSPACE 2's signals (the drop-in you may ignore).
 
 using System;
 using System.Collections.Generic;
@@ -17,7 +20,19 @@ namespace GoF2Remake.Flight
     public class CruiseEncounters
     {
         public const string Pirates = "pirates", Trader = "trader", Derelict = "derelict", Distress = "distress", Flyby = "flyby", Quest = "quest";
-        public static readonly string[] Kinds = { Pirates, Trader, Derelict, Distress, Flyby, Quest };
+        /// <summary>Remake (2026-11-03, for mods; not in the game's own table): EVERSPACE 2's encounter types (World.CruiseEncounterSpawner).</summary>
+        public const string Battle = "battle", Trap = "trap", Stash = "stash", Depot = "depot", HighRisk = "highrisk", LootDrone = "lootdrone", Rift = "rift";
+        /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_Encounter_Minesweeper): a freighter stuck in a minefield.</summary>
+        public const string Minesweeper = "minesweeper";
+        /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_Encounter_ShootingChallenge): out-shoot a challenger.</summary>
+        public const string Challenge = "challenge";
+        /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_Encounter_ItemsNeeded): a damaged ship needing a repair item.</summary>
+        public const string Needy = "needy";
+        public static readonly string[] Kinds = { Pirates, Trader, Derelict, Distress, Flyby, Quest, Battle, Trap, Stash, Depot, HighRisk, LootDrone, Rift, Minesweeper, Challenge, Needy };
+        /// <summary>Where an entry takes the ship between the systems (Entry.interstellar).</summary>
+        public const string InSpace = "space", AtSystem = "system", Either = "either", Never = "never";
+        public static readonly string[] Places = { InSpace, AtSystem, Either, Never };
+        public enum PullOut { None, InSpace, AtSystem }
 
         public class Entry
         {
@@ -35,8 +50,21 @@ namespace GoF2Remake.Flight
             public int ships = -1;
             /// <summary>The signal's name on the HUD (null = the kind's).</summary>
             public string name;
+            /// <summary>Between the systems: InSpace, AtSystem, Either (null) or Never.</summary>
+            public string interstellar;
+            /// <summary>Kind "rift" (2026-11-04): the ships its boss may fly (one at random) and its hull in pirate raiders' hulls
+            /// (EVERSPACE 2's hit points over its Outlaw raider's 310); null = the pirate boss.</summary>
+            public List<RiftBoss> bosses;
+            /// <summary>Remake (2026-11-06): the mod music track its fight plays instead of the battle music (World.EncounterMusic),
+            /// null = the system's.</summary>
+            public string music;
             public bool StopsTheDrive => kind != Flyby && kind != Quest;
         }
+
+        /// <summary>A rift boss: its ship, its hull in pirate raiders' hulls, the race it flies for (a race word or a mod
+        /// race's "mod:id"; null = the stage's side), which its stage then is, and a fighter boss's gun and missiles (item
+        /// references; null = the pirate boss's gun, no missiles).</summary>
+        public sealed class RiftBoss { public string ship, race, weapon, secondary; public float raiders = 8f; }
 
         public const float CheckIntervalMs = 5000f, MinCruiseMs = 6000f, CooldownMs = 90000f;
         public const int ChancePercent = 10, MaxPerOrbit = 2;
@@ -44,12 +72,17 @@ namespace GoF2Remake.Flight
         /// <summary>The game's own table (ids a mod may override: weight, visible, minRank, security).</summary>
         public static List<Entry> BuiltIn() => new List<Entry>
         {
-            new Entry { id = Pirates, kind = Pirates, weight = 30, security = new[] { 0, 1, 2 } },
+            new Entry { id = Pirates, kind = Pirates, weight = 30, security = new[] { 0, 1, 2 }, interstellar = InSpace },
             new Entry { id = Trader, kind = Trader, weight = 20, visible = true },
-            new Entry { id = Derelict, kind = Derelict, weight = 20, visible = true },
+            new Entry { id = Derelict, kind = Derelict, weight = 20, visible = true, interstellar = InSpace },
             new Entry { id = Distress, kind = Distress, weight = 20, visible = true, minRank = 2, security = new[] { 0, 1, 2 } },
-            new Entry { id = Flyby, kind = Flyby, weight = 10 },
+            new Entry { id = Flyby, kind = Flyby, weight = 10, interstellar = InSpace },
         };
+
+        /// <summary>Remake (2026-11-04): the rift (World.RiftEncounter, EVERSPACE 2's Ancient Rifts), the remake's own entry and
+        /// chance: a signal from rank 5 (ES2's rifts open after its story's start), four stages, the last its boss's. Not in the
+        /// game's table: it joins it once a mod adds rift bosses (Modding.ModEncounters), and mods only add to its pool.</summary>
+        public static Entry RiftEntry() => new Entry { id = Rift, kind = Rift, weight = 4, visible = true, minRank = 5, ships = 4 };
 
         readonly List<Entry> table;
         float cruiseMs, sinceCheckMs, cooldownMs;
@@ -78,6 +111,29 @@ namespace GoF2Remake.Flight
             Count++;
             cooldownMs = CooldownMs;
             return e;
+        }
+
+        /// <summary>An encounter that came another way (carried out of the space between the systems into this orbit): it counts
+        /// as this orbit's, cooldown included.</summary>
+        public void Came()
+        {
+            Count++;
+            cooldownMs = CooldownMs;
+        }
+
+        /// <summary>Between the systems, where 'e' pulls the ship out: 'systemTakes' = the nearest system's orbit may have it
+        /// (CruiseEncounterRules, no scripted arrival, no story refusal); 'r' 0..1 decides an Either. None: it can't come here.</summary>
+        public static PullOut Between(Entry e, bool systemTakes, float r)
+        {
+            if (e == null) return PullOut.None;
+            string where = e.kind == Quest ? AtSystem : (e.interstellar ?? Either).ToLowerInvariant();
+            switch (where)
+            {
+                case Never: return PullOut.None;
+                case InSpace: return PullOut.InSpace;
+                case AtSystem: return systemTakes ? PullOut.AtSystem : PullOut.None;
+                default: return systemTakes && r < 0.5f ? PullOut.AtSystem : PullOut.InSpace;
+            }
         }
 
         /// <summary>An entry's own conditions against the orbit: the rank, the system's security level, free play.</summary>

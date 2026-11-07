@@ -267,10 +267,51 @@ namespace GoF2Remake.World
         ShipSmoke smoke;
         ShipBurn burn;
         EmpSparks sparks;
+        /// <summary>Remake (Flight.Device's EMP devices, a slowing weapon): slower, and no turning for a device, while it runs
+        /// (Target.SlowBy).</summary>
+        Slow slow;
         bool smoking;   // PlayerFighter +0x1f4
 
         // wingman (KIPlayer+0xd8 / +0xdc / +0xe0 / +0xe4)
         public bool IsWingman { get; private set; }
+        /// <summary>Remake mods: its hull's wingman device (ships.json "wingmanDevice", Flight.WingmanDevice; null = none),
+        /// its crew's radio lines (wingmen.json, Data.WingmanCrew; null = silent like the game's), its face on the radio,
+        /// its call for help made (until its hull is mended).</summary>
+        WingmanDevice wingDevice;
+        /// <summary>Remake option (Settings.NpcDogfight, NpcShipDogfight): GoF3's way of fighting (null = GoF2's), the target it
+        /// last saw, where and how fast, and the roll's invulnerability (set by it, so cleared by it).</summary>
+        Gof3Dogfight dogfight;
+        NpcShip formationLeader;
+        int formationIndex = -1;
+        float formationLookupMs;
+        Target dogTarget;
+        Vector3 dogTargetLast, dogTargetVel;
+        bool rollInvulnerable;
+        /// <summary>Remake options (NpcShipEs2): EVERSPACE 2's aim (Settings.Es2Aiming; null = GoF2's) with its aim point and
+        /// reticule, its noise and suppression seed, the attackers on its target counted every half second; EVERSPACE 2's way of
+        /// fighting (Settings.NpcDogfight; null = another) with its zig-zag leg and the leg's age.</summary>
+        Es2Aim es2Aim;
+        Target es2AimFor;
+        Vector3 es2AimPoint, es2Reticule;
+        int es2Seed, es2Attackers;
+        float es2CountMs;
+        Es2Dogfight es2Fight;
+        Vector3 es2Leg;
+        float es2LegMs;
+        /// <summary>Remake option (Settings.Es2NpcFlight, NpcShipEs2Flight): it flies on EVERSPACE 2's physics: its velocity (units
+        /// a second), yaw and pitch rates (degrees a second), the last path test's direction and speed factor (straight = the
+        /// wanted direction itself), the time to the next test, the frame it last flew so.</summary>
+        bool es2Flight;
+        Vector3 es2Vel, es2PathDir, es2PathWanted;
+        float es2YawRate, es2PitchRate, es2PathSpeed = 1f, es2PathMs;
+        bool es2PathStraight = true;
+        int es2FlownFrame = -2;
+        WingmanCrew wingCrew;
+        int[] wingFace;
+        bool wingHelpSaid;
+        /// <summary>Remake mods (NpcDevices: a boss's mind control): ms left of attacking the player (a wingman turned on its
+        /// leader), 0 = itself.</summary>
+        float mindControlMs;
         /// <summary>PlayerFixedObject::getDockingType (ObjectDocking.DropOff / Pickup / Hackable, 0 = not dockable); level
         /// scripts change it.</summary>
         public int DockingType { get; set; }
@@ -420,6 +461,20 @@ namespace GoF2Remake.World
             Target.hitpoints = new Hitpoints(spec.hitpoints > 0 ? spec.hitpoints : NpcTables.Hull(kind, spec.ship));
             Target.hitpoints.SetEmp(spec.empPoints > 0 ? spec.empPoints : NpcTables.Emp(kind), NpcTables.EmpRecoveryMs(kind));   // also with a hull override
             Target.hp = Target.maxHp = Target.hitpoints.maxHull;
+            Target.SlowBy = (ms, factor, noTurn) => { if (Target.Alive && !Target.phased) slow.Apply(ms, factor, noTurn); };
+            // remake mods: a Most Wanted criminal's weak and strong spots against the player's weapons ("damageTaken")
+            // and its devices (NpcDevices)
+            if (spec.wantedIndex >= 0 && spec.wantedIndex < database.Wanted.Count)
+            {
+                var wanted = database.Wanted[spec.wantedIndex];
+                if (wanted.damageTaken is DamageTaken taken) Target.PlayerWeaponFactor = item => taken.Factor(database.Item(item));
+                NpcDevices.Attach(this, owner, wanted.devices);
+            }
+            // remake mods (GoF3's kamikazes): a traffic hull's own devices ("traffic": { "devices" }), not on wingmen
+            else if (spec.group != NpcGroup.Wingman && !spec.noDevices && (database.Ship(spec.ship) as CustomShipData)?.traffic?.devices is List<NpcDeviceSpec> devices)
+                NpcDevices.Attach(this, owner, devices);
+            SetupRole(spec);   // remake mods: its traffic role (NpcShipRoles)
+            SetupDogfight(spec, database);   // remake option: GoF3's way of fighting (NpcShipDogfight)
             Target.displayName = !string.IsNullOrEmpty(spec.name) ? spec.name : spec.nameText >= 0 ? Localization.Get(spec.nameText) : null;
             // Modified: a ship or story station one docks at (DockingShip) stays an ordinary ship on the radar, plated
             // "<race> NN%", its name the docking target's alone (a player's
@@ -481,6 +536,8 @@ namespace GoF2Remake.World
                 foreach (var st in spec.extraLoot) if (st != null && st.amount > 0) loot.Add(new ItemStack(st.item, st.amount));
                 multiKindLoot = true;
             }
+            AddOwnLoot();      // remake mods: its type's own drops (ships.json "traffic.loot")
+            SetupRoleLoot();   // remake mods: a loot drone's pieces (NpcShipRoles)
 
             sfx = gameObject.AddComponent<AudioSource>();
             Setup3D(sfx);
@@ -508,6 +565,22 @@ namespace GoF2Remake.World
             if (spec.turretAssembly == null && spec.fixedObject == null && modelGo != null)
                 mounted = NpcMountedTurrets.Build(this, db, spec.ship, spec.turretItems ?? db.NpcTurretsOf(spec.ship), model, fxRoot, GunHit);
             if (spec.secondaryItem >= 0 && gun != null) SetSecondaryGun(spec.secondaryItem, spec.secondaryFactor);
+            else if (gun != null && spec.group != NpcGroup.Wingman && !spec.noDevices) SetOwnSecondary(db, spec);
+        }
+
+        /// <summary>Remake mods (GoF3's NPC loadouts): its hull's "traffic": { "secondaries" }, the first one it carries.</summary>
+        void SetOwnSecondary(Database db, SpawnSpec spec)
+        {
+            var list = (db?.Ship(spec.ship) as CustomShipData)?.traffic?.secondaries;
+            if (list == null) return;
+            // GoF3's Easy (NPCFactory::getSecondaryWeaponNPCAmmount, secondaryWeaponNPCCapMultiplier 0.5): half carry none
+            if (dogfight != null && Session.Difficulty < 0.25f && Random.value >= Gof3Dogfight.EasySecondaryShare) return;
+            foreach (var s in list)
+            {
+                if (s == null || !s.Carried(Session.Rank, Random.value)) continue;
+                if (Modding.ModContent.TryResolveItem(s.item, out int item) && db.Item(item) != null) SetSecondaryGun(item, Mathf.Max(0f, s.factor));
+                return;
+            }
         }
 
         static void Setup3D(AudioSource s)
@@ -562,6 +635,8 @@ namespace GoF2Remake.World
             route = (Spec.route ?? Route.DefaultPatrol(Spec.race)).Clone();
             // PlayerFighter::revive 0xf3de0: a revived Void ship or Specter carries nothing (the Void's remains come at death).
             loot = Spec.noLoot || Race == Standing.Void || Race == Standing.Specter ? new List<ItemStack>() : RollLoot();
+            AddOwnLoot();
+            SetupRoleLoot();
             crate = null;
             crateDropped = false;
             if (engine != null && engine.clip != null) engine.Play();
@@ -575,6 +650,7 @@ namespace GoF2Remake.World
 
         void OnDestroy()
         {
+            TeardownRole();
             cloak?.Dispose();
             EngineVoices.Unregister(engine);
         }
@@ -614,6 +690,7 @@ namespace GoF2Remake.World
             if (Current == State.Dying) { UpdateSmoke(); UpdateDying(dtMs); return; }
             UpdateRelations();
             Hp.Update(dtMs);
+            slow.Tick(dtMs);
             // PlayerFighter::handleCloaking: race 10 only (Harval's Scimitar cloaks as a Specter, at 158); scripted ships too.
             if (Race == Standing.Specter) cloak?.Update(dtMs, !Asleep && !inactive, panic, Hp.empDisabled);
             // Remake: a cloaked ship can't be targeted, whoever flies it. The original's cloaked Specter only leaves the
@@ -629,6 +706,8 @@ namespace GoF2Remake.World
             if (Asleep) { UpdateSleep(); return; }
             if (IsTurret) { UpdateTurret(dtMs); return; }
             if (parked || frozen) return;   // parked: a target that neither flies nor shoots
+            UpdateRole(dtMs);   // remake mods: a drone's role (NpcShipRoles)
+            if (!Target.Alive) return;   // (a detonator went off)
             if (scriptedSpeed >= 0f)
             {
                 // AEGeometry::moveForward never touches the fighter's speed (+0x1e0): released, the AI flies at its own
@@ -646,12 +725,14 @@ namespace GoF2Remake.World
             if (order != null && UpdateOrder(dtMs)) return;   // an event graph's order (NpcOrder)
             if (IsFreighter)
             {
-                if (!Hp.empDisabled) transform.position += transform.forward * (Spec.speed > 0f ? Spec.speed : NpcTables.FreighterSpeed) * dtMs * M;   // remake mods: a type's "speed"
+                if (!Hp.empDisabled) transform.position += transform.forward * (Spec.speed > 0f ? Spec.speed : NpcTables.FreighterSpeed) * slow.SpeedFactor * dtMs * M;   // remake mods: a type's "speed"
                 return;
             }
             reselectTimer += dtMs;
             boostTimer += dtMs;
-            if (IsWingman) UpdateWingman(); else UpdateTargeting();
+            if (mindControlMs > 0f) UpdateMindControlled(dtMs);
+            else if (IsWingman) { UpdateWingman(); UpdateWingmanCrew(dtMs); } else UpdateTargeting();
+            UpdateDogfight(dtMs);   // remake option (NpcShipDogfight)
             if (IsJumper && followingWaypoint) { jumpMs += dtMs; if (jumpMs >= 20000f) { jumpMs = 0f; Current = State.JumpingOut; } }
             else jumpMs = 0f;
             UpdateBoost(dtMs);
@@ -674,7 +755,7 @@ namespace GoF2Remake.World
         /// <summary>PlayerFighter::update 0xf3138: the EMP spark systems emit while the ship is disabled.</summary>
         void UpdateSparks()
         {
-            bool on = Hp.empDisabled;
+            bool on = Hp.empDisabled || slow.Active;   // remake: an EMP device's slow sparks too
             if (on && sparks == null) sparks = new EmpSparks(transform);
             sparks?.SetEmitting(on);
         }

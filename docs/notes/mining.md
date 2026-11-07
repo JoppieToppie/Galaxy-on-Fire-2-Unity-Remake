@@ -172,3 +172,10 @@ logic (plain C#); `MiningView` draws the lock ring, ore plate, HUD messages and 
   has no autopilot "Asteroid field" entry; the remake took the entry's position and showed no letters there), not
   docking / mining, every class-A asteroid on screen gets the "A" letter (0x44e frame 0) with its top-left on the
   asteroid.
+
+- **Mod asteroid models** (remake 2026-11-05, EVERSPACE 2's asteroid meshes): stations.json `orbit.asteroids.models` /
+  `materials` (`OrbitSpec.asteroidModels`, `OrbitLayout.asteroidModels` as "mod id|path" keys) load with the mod crates
+  (`ModWorld.ContainerModels` -> `ModCrates`); `OrbitBuilder.SpawnField` draws each asteroid (not the Novanium magma one)
+  as one of them at random, `ModCrates.InstantiateFitted` to the game asteroid prefab's extent x its scale, the game's
+  while it isn't loaded. The Target (radius from `AsteroidMeshRadius`, HP, ore, quality) and mining stay the game's.
+  Test `ModWorldTests.AnOrbitsAsteroidModels`.

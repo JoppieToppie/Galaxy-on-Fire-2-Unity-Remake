@@ -357,6 +357,9 @@ namespace GoF2Remake.Data
                 int friends = R(3);
                 for (int i = 0; i < friends; i++) a.wingmen.Add(RandomName(race, true));
                 a.costs = (R(1300) + 700) * (friends + 1) * (Session.IsExtreme ? 7 : 1);
+                // remake mods (wingmen.json): now and then a mod's crew, in its ships
+                var crew = Modding.ModWingmen.Roll(db, R);
+                if (crew != null) a.wingmanShips = crew.Pick(race, friends + 1, R);
             }
             else if (offer == AgentOffer.SellItem)
             {

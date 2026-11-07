@@ -141,6 +141,9 @@ namespace GoF2Remake.Modding
             float es2Scale = model.transform.localScale.x;
             LateralThrusters.Add(root, glow != null ? glow.transform : null, c.mounts, es2Scale);
             if (flames) Es2EngineVfx.Add(root, c.mounts, es2Scale, c.es2Engine);
+            // EVERSPACE 2's wing-tip contrails (slotType 6) and headlight fixtures (slotType 7)
+            Es2Contrails.Add(root, c.mounts, es2Scale, c.es2Engine);
+            Es2Headlights.Add(root, c.mounts, es2Scale);
             asm.playerVariantParts = parts.ToArray();
             asm.npcVariantParts = npcParts.ToArray();
             asm.conditionalParts = new GameObject[0];

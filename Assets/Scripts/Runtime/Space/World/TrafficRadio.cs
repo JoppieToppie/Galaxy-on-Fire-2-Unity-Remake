@@ -46,11 +46,52 @@ namespace GoF2Remake.World
             if (line == null || string.IsNullOrEmpty(line.text)) return;
             if (chatterQueue.Count < 10) chatterQueue.Enqueue(line);
         }
+        /// <summary>Remake mods (Data.WingmanCrew): a hired wingman's line in the radio box, its name and face; at most one
+        /// every WingmanQuietMs (a kill line only now and then: 'chance'). False = not said.</summary>
+        public bool WingmanSay(string text, string name, int[] face, float chance = 1f)
+        {
+            if (string.IsNullOrEmpty(text) || wingmanQuietMs > 0f || chatter != null || chatterQueue.Count > 0) return false;
+            if (chance < 1f && UnityEngine.Random.value >= chance) return false;
+            wingmanQuietMs = WingmanQuietMs;
+            Say(new Chatter { text = text, speaker = name, portrait = face });
+            return true;
+        }
+        const float WingmanQuietMs = 12000f;
+        /// <summary>The warn line: an enemy after the player within TailM behind it (looked for once a second; then quiet for
+        /// TailQuietMs).</summary>
+        public bool TakeEnemyOnTail()
+        {
+            if (tailQuietMs > 0f || tailScanMs > 0f || Player == null || !Player.Alive) return false;
+            tailScanMs = 1000f;
+            var p = Player.transform;
+            foreach (var s in Ships)
+            {
+                if (s == null || s.Gone || s.IsWingman || s.Current != NpcShip.State.Fly || !s.Target.Alive || !s.Target.hostileToPlayer) continue;
+                if (s.CurrentTarget != Player) continue;
+                var d = s.transform.position - p.position;
+                if (d.sqrMagnitude > TailM * TailM || Vector3.Dot(d.normalized, p.forward) > -0.5f) continue;
+                tailQuietMs = TailQuietMs;
+                return true;
+            }
+            return false;
+        }
+        const float TailM = 1500f, TailQuietMs = 30000f;
+        /// <summary>The player-down line: once until the player's hull is back over half.</summary>
+        public bool TakePlayerDown(float hullShare)
+        {
+            if (hullShare > 0.5f) { playerDownSaid = false; return false; }
+            if (playerDownSaid || hullShare >= 0.2f || hullShare <= 0f) return false;
+            playerDownSaid = true;
+            return true;
+        }
         /// <summary>Remake: the chatter stays up at least until its voice clip is over (as Radio.HoldFor).</summary>
         public void HoldChatter(float ms) { if (chatter != null) chatterDurationMs = Mathf.Max(chatterDurationMs, ms); }
         /// <summary>Radio::update: hidden 2000 ms, then lines * 2000 + 1500 ms (world time).</summary>
         void UpdateChatter(float dtMs)
         {
+            if (wingmanQuietMs > 0f) wingmanQuietMs -= dtMs;
+            if (tailScanMs > 0f) tailScanMs -= dtMs;
+            if (tailQuietMs > 0f) tailQuietMs -= dtMs;
             if (chatter != null)
             {
                 chatterMs += dtMs;

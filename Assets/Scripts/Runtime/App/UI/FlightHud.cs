@@ -42,6 +42,7 @@ namespace GoF2Remake.UI
         bool lastTurretView, lastTurretAuto, lastShipLocked;
         VisualElement lockPlate;
         VisualElement root, safeArea, hints;
+        VisualElement flashLayer;   // remake: a boss's flash grenade (Flight.ScreenFlash), white over everything
         bool hudFading;
         VisualElement crosshair, dockPrompt, dockGlyph;
         VisualElement lockRingElement, navMarkers;   // queried once: two root.Q per frame were a fifth of the HUD's update
@@ -109,6 +110,7 @@ namespace GoF2Remake.UI
         float quickMenuCheck;
         bool quickMenuEntries;
         ShipController ship;
+        bool carryBlocksFire;
         ChaseCamera chase;
         Vector2Int lastScreen;
         Rect lastSafeArea;
@@ -246,6 +248,12 @@ namespace GoF2Remake.UI
             root.pickingMode = PickingMode.Ignore;
             safeArea = root.Q("safeArea");
             hints = root.Q("hints");
+            flashLayer = new VisualElement { pickingMode = PickingMode.Ignore, name = "screenFlash" };
+            flashLayer.style.position = Position.Absolute;
+            flashLayer.style.left = flashLayer.style.top = flashLayer.style.right = flashLayer.style.bottom = 0;
+            flashLayer.style.backgroundColor = Color.white;
+            flashLayer.style.display = DisplayStyle.None;
+            root.Add(flashLayer);
             carrierShop = null;   // its elements went with the old tree (made again when the carrier is docked at)
             // Remake: the docked menu too; open, it is made again (the menu's pause let go first so it can reopen).
             if (dockedMenu != null && dockedMenu.IsOpen) { nav?.CloseMenu(); resupplyShown = false; }
@@ -463,6 +471,13 @@ namespace GoF2Remake.UI
         void Update()
         {
             if (root == null) return;
+            float flash = GoF2Remake.Flight.ScreenFlash.Alpha;
+            if (flashLayer != null)
+            {
+                flashLayer.style.display = flash > 0.002f ? DisplayStyle.Flex : DisplayStyle.None;
+                flashLayer.style.opacity = flash;
+                if (flash > 0.002f) flashLayer.BringToFront();
+            }
             // The layout first: the Mod Builder's space screen below shares this panel and its scale.
             if (lastScreen != ScreenSize() || lastSafeArea != Screen.safeArea || lastLayout != UiLayout.Revision) UpdateLayout();
             // Remake: the Mod Builder's work in space (Stations, Weapon fx): its own screen instead of the HUD.
@@ -484,7 +499,7 @@ namespace GoF2Remake.UI
             {
                 hudHiddenDocked = dockedInOrbit;
                 root.style.display = dockedInOrbit ? DisplayStyle.None : DisplayStyle.Flex;
-                if (dockedInOrbit) { touch?.ReleaseAll(); ship?.SetSteer(Vector2.zero); weapons?.SetPrimaryHeld(false); }
+                if (dockedInOrbit) { touch?.ReleaseAll(); ship?.SetSteer(Vector2.zero); ship?.SetTouchFree(Vector2.zero, 0f, false); weapons?.SetPrimaryHeld(false); }
             }
             if (dockedInOrbit) return;
             missileWarning?.Hide();   // shown again below while missiles fly at the player and the HUD shows
@@ -535,7 +550,7 @@ namespace GoF2Remake.UI
                 // Nor the docking's transfer counter or hacking board (their state comes back with the next HUD frame).
                 transferCounter?.EnableInClassList("transfer-counter--hidden", true);
                 hackingView?.Update(null);
-                ship?.SetSteer(Vector2.zero);
+                ship?.SetSteer(Vector2.zero); ship?.SetTouchFree(Vector2.zero, 0f, false);
                 storyDialogue.Tick(Time.unscaledDeltaTime * 1000f);
                 return;
             }
@@ -703,6 +718,8 @@ namespace GoF2Remake.UI
                 if (level.Turret != null) level.Turret.Message += OnMiningMessage;   // HUD event 0x20 / 0x21 (auto fire on / off)
                 if (health != null) health.Message += OnMiningMessage;             // injector / gamma messages
                 if (level.Cloak != null) level.Cloak.Message += OnMiningMessage;   // cells paid, "Cloak ready", 583
+                if (level.Devices != null) level.Devices.Message += OnMiningMessage;   // remake: "{0} ready", no shield
+                level.DevicesChanged += () => { if (level != null && level.Devices != null) level.Devices.Message += OnMiningMessage; };   // a new hull
                 chase = Camera.main != null ? Camera.main.GetComponent<ChaseCamera>() : null;
                 ApplyInputMode();
             }
@@ -715,7 +732,7 @@ namespace GoF2Remake.UI
                 // The transfer counter sits on the root, outside what hud-cinematic hides (#131: "9 / 10 unloaded" stayed up through
                 // 92's Specter cutscene, which starts the frame the last evacuee is unloaded; Hud::draw doesn't run then).
                 transferCounter?.EnableInClassList("transfer-counter--hidden", true);
-                ship.SetSteer(Vector2.zero);
+                ship.SetSteer(Vector2.zero); ship.SetTouchFree(Vector2.zero, 0f, false);
                 UpdateGameOver();
                 return;
             }
@@ -730,7 +747,7 @@ namespace GoF2Remake.UI
                 // The transfer counter sits on the root, outside what hud-cinematic hides (#131: "9 / 10 unloaded" stayed up through
                 // 92's Specter cutscene, which starts the frame the last evacuee is unloaded; Hud::draw doesn't run then).
                 transferCounter?.EnableInClassList("transfer-counter--hidden", true);
-                ship.SetSteer(Vector2.zero);
+                ship.SetSteer(Vector2.zero); ship.SetTouchFree(Vector2.zero, 0f, false);
                 weapons?.SetPrimaryHeld(false);
                 combatView.Update(radar, traffic, health, Camera.main, true, false);
                 UpdateRadio();
@@ -743,6 +760,12 @@ namespace GoF2Remake.UI
             if (prompt == null && DockBeforeLock) prompt = Localization.Extra("hudDock", "DOCK").OgCase();
             if (prompt == null && nav != null) prompt = nav.PromptText;
             if (prompt == null && mining != null) prompt = mining.PromptText;
+            if (prompt == null && GoF2Remake.World.LootContainer.InReach(ship != null ? ship.transform : null) != null)   // remake mods
+                prompt = Localization.Extra("hudOpen", "OPEN").OgCase();
+            if (prompt == null && GoF2Remake.World.CarryPuzzle.Prompt(ship != null ? ship.transform : null) is string carry)   // remake mods: grab / drop
+                prompt = carry.OgCase();
+            if (prompt == null && GoF2Remake.World.ShipInNeed.Prompt(ship != null ? ship.transform : null) is string help)   // remake mods: a ship in need
+                prompt = help.OgCase();
             if (prompt == null && level.CanDock) prompt = Localization.Extra("hudDock", "DOCK").OgCase();
             // Touch: no prompt, the fire button is the action button (its arrow shows when fire acts).
             dockPrompt.EnableInClassList("dock-prompt--hidden", prompt == null || InputMode.Current == InputKind.Touch || cursorMode);   // touch / cursor: the arrow on fire
@@ -755,6 +778,14 @@ namespace GoF2Remake.UI
             }
 
             var phase = mining != null ? mining.State : Mining.Phase.Idle;
+            // Remake mods: carrying a sphere or coil, primary fire throws it (World.CarryPuzzle) and the guns hold
+            bool carrying = GoF2Remake.World.CarryPuzzle.Carried(ship != null ? ship.transform : null) != null;
+            if (carrying != carryBlocksFire)
+            {
+                carryBlocksFire = carrying;
+                if (weapons != null && (carrying || phase == Mining.Phase.Idle)) weapons.PrimaryBlocked = carrying;
+            }
+            if (carrying && !Navigation.PressesBlocked && GameControls.FirePrimary.WasPressedThisFrame()) GoF2Remake.World.CarryPuzzle.Throw(ship.transform);
             bool autopilot = nav != null && nav.Autopilot;
             if (phase != lastPhase || autopilot != lastAutopilot) { lastPhase = phase; lastAutopilot = autopilot; BuildHints(InputMode.Current); }
             // The turret: the touch button (turret view / auto-fire) and the hints of the turret view.
@@ -814,7 +845,10 @@ namespace GoF2Remake.UI
             var raw = touchMode && touch != null ? touch.Stick : Vector2.zero;
             var touchStick = tilt ? TiltSteering.Steer() : new Vector2(Mathf.Sign(raw.x) * raw.x * raw.x, Mathf.Sign(raw.y) * raw.y * raw.y);
             if (Vr.VrControls.Steer.HasValue) touchStick = Vr.VrControls.Steer.Value;   // VR: the cockpit's stick, held
-            ship.SetSteer(touchStick);
+            // Remake: free flight on touch (TouchControlsFreeFlight): the stick thrusts and strafes (linear), the drag aims.
+            bool touchFree = touchMode && touch != null && ship.TouchFree;
+            ship.SetTouchFree(touchFree ? raw : Vector2.zero, touchFree ? touch.UpDown : 0f, touchFree && touch.BoostHeld);
+            ship.SetSteer(touchFree ? touch.Aim : touchStick);
             mining?.SetTouchInput(touchStick);
 
             if ((touchMode || cursorMode) && touch != null) weapons?.SetPrimaryHeld(touch.FireHeld);   // fire held or autofire latched
@@ -839,8 +873,10 @@ namespace GoF2Remake.UI
             if (transferCounter != null)
             {
                 bool on = docking != null && docking.TransferLabel != null;
-                transferCounter.EnableInClassList("transfer-counter--hidden", !on);
+                string rift = on ? null : GoF2Remake.World.RiftEncounter.HudLine;   // remake mods: a rift run's stage, points, resolve
+                transferCounter.EnableInClassList("transfer-counter--hidden", !on && rift == null);
                 if (on) transferCounter.text = $"{docking.TransferLabel.UiCaps()}  {docking.TransferDone} / {docking.TransferTotal}";
+                else if (rift != null) transferCounter.text = rift.UiCaps();
             }
             lockRingElement.style.left = crosshair.style.left;
             lockRingElement.style.top = crosshair.style.top;
@@ -855,7 +891,7 @@ namespace GoF2Remake.UI
             missileWarning?.Update(level.Player != null ? level.Player.transform : null, Camera.main,
                                    !cinematic && level.LaunchCameraOver && health != null && !health.Dead,
                                    level.Player != null && level.Player.Model != null && level.Player.Model.HasBooster, Time.deltaTime * 1000f);
-            cooldownView?.Update(level.Database, level.Player, level.Cloak, level.Extender, !cinematic && level.LaunchCameraOver && InputMode.Current != InputKind.Touch);
+            cooldownView?.Update(level.Database, level.Player, level.Cloak, level.Extender, level.Devices, !cinematic && level.LaunchCameraOver && InputMode.Current != InputKind.Touch);
             // The Ultrascan's class-A letters: Radar::draw too, so not during the launch camera or a cinematic. The range is the
             // level's asteroid field (Level+0xc4), not the autopilot's "Asteroid field" entry: the Void's crystal field has none
             // (players' report: no letters there).

@@ -23,6 +23,10 @@
 // ships wearing a GoF3 exhaust style: the Betty's and the Phantom's housings); about a GoF3 nozzle's radius.
 // _VertexGain: uv1.x scales a fragment's linear addition (EngineFx's Fork particles: N overlapping additions of x make about
 // N x in GoF3's gamma frame but only N^0.45 x added in linear, so each takes N^1.2, N its overlap along the wake).
+// _SteerBend / _BendOrigin / _BendAxis: the remake's (GoF3's engines stay rigid on the hull; the user's request, 2026-11-04,
+// "bend them like ES2's"): EVERSPACE 2's steering bend (GoF2/ModEngineFlame), each vertex moved u^2 x _SteerBend x L in
+// world space, u its share 0..1 of the way from the nozzle (_BendOrigin) along the exhaust (_BendAxis.xyz) to its tip
+// (_BendAxis.w = L, metres); a sprite moved with its centre. Per exhaust (EngineFx); L 0 = none.
 Shader "GoF2/ModEngineMesh"
 {
     Properties
@@ -66,6 +70,9 @@ Shader "GoF2/ModEngineMesh"
         _SpriteBias ("Sprite toward the camera", Float) = 1.6
         _Intensity ("Intensity", Float) = 4
         _Tint ("Recolour", Color) = (0, 0, 0, 0)
+        _SteerBend ("Steering bend: the tip's offset, world space, x the length (EngineFx)", Vector) = (0, 0, 0, 0)
+        _BendOrigin ("Steering bend: the nozzle, world space", Vector) = (0, 0, 0, 0)
+        _BendAxis ("Steering bend: along the exhaust (xyz), its length (w)", Vector) = (0, 0, 1, 0)
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Src blend", Float) = 1
         [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Dst blend", Float) = 1
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 0
@@ -91,7 +98,7 @@ Shader "GoF2/ModEngineMesh"
             TEXTURE2D(_FlowMap); SAMPLER(sampler_FlowMap);
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST, _FlowMap_ST;
-                float4 _Diffuse, _C1, _C2, _UVSpeed, _Tint;
+                float4 _Diffuse, _C1, _C2, _UVSpeed, _Tint, _SteerBend, _BendOrigin, _BendAxis;
                 float _Opacity, _ColorizeMul, _AngleMin, _AngleMax, _PulseMin, _PulseMax, _PulseFreq, _FlowTiling, _FlowStrength;
                 float _VAFreq, _VAStrength, _Alpha, _Glow, _Level;
                 float _Sprite, _UseTex, _LumAlpha, _RgbFromDc, _MulDc, _Flow, _ScrollDirect, _ScrollFlow, _Colorize, _ColorizeVtx;
@@ -134,20 +141,26 @@ Shader "GoF2/ModEngineMesh"
                 float2 speed = _UVSpeed.xy;
                 o.uv = i.uv + (_ScrollDirect > 0.5 ? frac(speed * t) : 0.0);
                 o.uvFlow = i.uv * _FlowTiling + (_ScrollFlow > 0.5 ? frac(speed * t) : 0.0);
+                float3 world = TransformObjectToWorld(pos);   // (a sprite's: its centre, the corners pushed out below)
+                if (_BendAxis.w > 0)
+                {
+                    float u = saturate(dot(world - _BendOrigin.xyz, _BendAxis.xyz) / _BendAxis.w);
+                    world += u * u * _SteerBend.xyz * _BendAxis.w;
+                }
                 if (_Sprite > 0.5)
                 {
-                    float3 vs = TransformWorldToView(TransformObjectToWorld(pos));
+                    float3 vs = TransformWorldToView(world);
                     float scale = length(mul((float3x3)UNITY_MATRIX_M, float3(0.57735027, 0.57735027, 0.57735027)));
                     vs.xy += scale * i.offset;
                     vs.z += scale * _SpriteBias;   // (view space: +z toward the camera)
                     o.positionCS = TransformWViewToHClip(vs);
                 }
-                else o.positionCS = TransformObjectToHClip(pos);
+                else o.positionCS = TransformWorldToHClip(world);
                 // N.E in world space: the same as GoF3's object-space one under a uniform scale, and right under EngineFx's
                 // stretch along the exhaust (ModExhausts.EngineLength), which skewed the object-space angle so far that the
                 // flare and the body faded out seen from a little to the side.
                 float3 nWS = normalize(TransformObjectToWorldNormal(i.normalOS));
-                float nde = dot(nWS, normalize(TransformObjectToWorld(pos) - GetCameraPositionWS()));
+                float nde = dot(nWS, normalize(world - GetCameraPositionWS()));
                 float a = 1.0;
                 if (_Angle > 0.5)
                 {

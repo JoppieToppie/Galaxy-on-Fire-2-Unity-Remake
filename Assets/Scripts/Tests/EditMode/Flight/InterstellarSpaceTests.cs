@@ -5,6 +5,7 @@
 // dive off the galaxy's disc once the story has been there.
 
 using System.Collections.Generic;
+using System.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.World;
 using NUnit.Framework;
@@ -35,6 +36,22 @@ namespace GoF2Remake.Tests
         }
 
         static bool Shows(List<InterstellarSpace.Point> points, int system) => points.Exists(p => p.system == system);
+
+        // The user (2026-11-04): Elite Dangerous's units between the systems, so the numbers fall fast on the way in.
+        [Test]
+        public void DistancesReadInEliteDangerousUnits()
+        {
+            float ly = InterstellarSpace.UnitsPerLightYear;
+            double perLs = InterstellarSpace.MetersPerLightSecond / InterstellarSpace.MetersPerLightYear;
+            Assert.AreEqual("12.50 ly", InterstellarSpace.FormatSpaceDistance(12.5f * ly));
+            Assert.AreEqual("2,000 ly", InterstellarSpace.FormatSpaceDistance(2000f * ly));
+            Assert.AreEqual("2.00 ly", InterstellarSpace.FormatSpaceDistance(2f * 75f * ly, 75f), "at the zone's scale");
+            StringAssert.EndsWith(" Ls", InterstellarSpace.FormatSpaceDistance(0.5f * ly), "under a light year: light seconds");
+            Assert.AreEqual("50.00 Ls", InterstellarSpace.FormatSpaceDistance((float)(50 * perLs * ly)));
+            Assert.AreEqual("150.0 Mm", InterstellarSpace.FormatSpaceDistance((float)(150e6 / InterstellarSpace.MetersPerLightYear * ly)));
+            Assert.AreEqual("42.0 km", InterstellarSpace.FormatSpaceDistance((float)(42e3 / InterstellarSpace.MetersPerLightYear * ly)));
+            Assert.AreEqual("0 m", InterstellarSpace.FormatSpaceDistance(0f));
+        }
 
         [Test]
         public void ANewGameShowsWhatTheStarMapShowsAndNothingMore()
@@ -113,7 +130,7 @@ namespace GoF2Remake.Tests
             Session.VoidReturnStation = 78;
             Assert.AreEqual(InterstellarSpace.PositionOf(db, 78), InterstellarSpace.PositionOf(db, Session.VoidOrbit));
             var st = db.Stations.Find(s => s.index == 78);
-            Assert.AreEqual(InterstellarSpace.Position(db.Systems.Find(s => s.index == st.system)), InterstellarSpace.PositionOf(db, 78));
+            Assert.AreEqual(InterstellarSpace.Position(db, db.Systems.Find(s => s.index == st.system)), InterstellarSpace.PositionOf(db, 78));
         }
 
         [Test]
@@ -146,11 +163,88 @@ namespace GoF2Remake.Tests
                 foreach (int t in s.jumpRoutesTo)
                     if (t > s.index && db.Systems.Find(x => x.index == t) is SystemData o)
                     {
-                        total += (InterstellarSpace.Position(s) - InterstellarSpace.Position(o)).magnitude;
+                        total += (InterstellarSpace.Position(db, s) - InterstellarSpace.Position(db, o)).magnitude;
                         links++;
                     }
             Assert.Greater(links, 0);
-            Assert.AreEqual(1f, total / links / InterstellarSpace.LegUnits, 0.05f, "one cell a hop, the Khador Drive's rate");
+            Assert.AreEqual(1f, total / links / InterstellarSpace.LegUnits, 0.001f, "one cell a hop, the Khador Drive's rate (the layout's scale)");
+        }
+
+        [Test]
+        public void TheSystemsAreSpreadOutTheMapsWay()
+        {
+            var laid = new List<(SystemData s, Vector3 at)>();
+            foreach (var s in db.Systems)
+                if (InterstellarSpace.ArrivalStation(s) >= 0) laid.Add((s, InterstellarSpace.Position(db, s)));
+            Assert.Greater(laid.Count, 20);
+            float least = float.MaxValue;
+            for (int i = 0; i < laid.Count; i++)
+                for (int j = i + 1; j < laid.Count; j++) least = Mathf.Min(least, (laid[i].at - laid[j].at).magnitude);
+            Assert.Greater(least, InterstellarSpace.LegUnits * 0.65f, "no two systems crowd each other (the map's closest were 0.4 legs)");
+            var heights = laid.ConvertAll(l => InterstellarSpace.Height(l.s.index));
+            Assert.That(heights, Is.All.InRange(-1f, 1f));
+            Assert.Greater(heights.Max() - heights.Min(), 1f, "lifted off the disc both ways");
+            // the map's arrangement holds: east stays east of west, top above bottom
+            var map = laid.ConvertAll(l => GalaxyMap.SunPosition(l.s));
+            int kept = 0, pairs = 0;
+            for (int i = 0; i < laid.Count; i++)
+                for (int j = i + 1; j < laid.Count; j++)
+                {
+                    if (Mathf.Abs(map[i].x - map[j].x) < 3000f) continue;
+                    pairs++;
+                    if ((map[i].x < map[j].x) == (laid[i].at.x < laid[j].at.x)) kept++;
+                }
+            Assert.Greater(kept, pairs * 0.97f, "far apart on the map, the same way round in space");
+            var first = InterstellarSpace.Systems(db)[0];
+            Assert.AreEqual(InterstellarSpace.Position(db, db.Systems.Find(x => x.index == first.system)), first.position, "the points are the layout's");
+        }
+
+        [Test]
+        public void ASystemArrivesAtThePickedPlanetElseTheDestinationElseTheGate()
+        {
+            var sys = db.Systems.Find(s => s.stations.Count >= 3 && InterstellarSpace.ArrivalStation(s) >= 0);
+            Assert.IsNotNull(sys);
+            int gate = InterstellarSpace.ArrivalStation(sys);
+            int other = sys.stations.Find(st => st != gate), third = sys.stations.FindLast(st => st != gate && st != other);
+            var elsewhere = db.Systems.Find(s => s.index != sys.index && s.stations.Count > 0).stations[0];
+            Assert.AreEqual(gate, InterstellarSpace.ArrivalFor(db, sys.index, gate, -1, -1), "nothing chosen: the gate orbit");
+            Assert.AreEqual(other, InterstellarSpace.ArrivalFor(db, sys.index, gate, -1, other), "the programmed destination there");
+            Assert.AreEqual(gate, InterstellarSpace.ArrivalFor(db, sys.index, gate, -1, elsewhere), "a destination in another system");
+            Assert.AreEqual(gate, InterstellarSpace.ArrivalFor(db, sys.index, gate, -1, other, st => st == other), "the story refuses it");
+            Assert.AreEqual(third, InterstellarSpace.ArrivalFor(db, sys.index, gate, third, other), "a pick in flight over the destination");
+        }
+
+        [Test]
+        public void TheDistancesBetweenTheSystemsShowUntilTurnedOff()
+        {
+            Settings.Reset(new[] { "interstellarDistance" });
+            Assert.IsTrue(Settings.InterstellarDistance);
+            CollectionAssert.Contains(Settings.GameplayKeys, "interstellarDistance", "reset with the Gameplay tab");
+            Settings.InterstellarDistance = false;
+            Assert.IsFalse(Settings.InterstellarDistance);
+            Settings.Reset(new[] { "interstellarDistance" });
+        }
+
+        [Test]
+        public void TheSlipstreamJumpsAsTheKhadorDriveDoes()
+        {
+            var saved = Session.Equipment;
+            bool wasOn = Settings.KhadorSlipstream;
+            try
+            {
+                Settings.KhadorSlipstream = true;   // (Options > Gameplay; off in the Original experience)
+                Session.Equipment = new List<ItemStack>();
+                Assert.IsFalse(GalaxyMap.HasSlipstream(db), "nothing mounted");
+                int slipstream = GoF2Remake.Modding.ModContent.ItemIndexOf("gof2:khador_slipstream");
+                Assert.GreaterOrEqual(slipstream, 0);
+                Session.Equipment.Add(new ItemStack(slipstream, 1));
+                Assert.IsTrue(GalaxyMap.HasSlipstream(db));
+                Assert.IsTrue(GalaxyMap.HasKhadorDrive(db), "the drive it replaces: the Khador jump, the Void's question");
+                Assert.IsTrue(GalaxyMap.HasJumpDrive(db), "the maps in jump mode, the quick menu's Khador entry");
+                Settings.KhadorSlipstream = false;
+                Assert.IsFalse(GalaxyMap.HasKhadorDrive(db), "switched off it does nothing (Shop.SlipstreamOff)");
+            }
+            finally { Session.Equipment = saved; Settings.KhadorSlipstream = wasOn; }
         }
 
         [Test]
@@ -166,7 +260,7 @@ namespace GoF2Remake.Tests
                     if (a.index >= b.index || InterstellarSpace.ArrivalStation(a) < 0 || InterstellarSpace.ArrivalStation(b) < 0) continue;
                     var path = GalaxyMap.SystemPath(db, a.index, b.index);
                     if (path == null) continue;
-                    float units = (InterstellarSpace.Position(a) - InterstellarSpace.Position(b)).magnitude;
+                    float units = (InterstellarSpace.Position(db, a) - InterstellarSpace.Position(db, b)).magnitude;
                     flown += InterstellarSpace.CellsFor(units, false);
                     jumped += path.Count - 1;   // GalaxyMap.EnergyCells: a cell a gate hop
                     pairs++;
@@ -187,7 +281,7 @@ namespace GoF2Remake.Tests
         public void TheSpaceFitsFloats()
         {
             foreach (var s in db.Systems)
-                Assert.Less(OrbitLayout.ToUnity(InterstellarSpace.Position(s)).magnitude, 100000f, s.name);
+                Assert.Less(OrbitLayout.ToUnity(InterstellarSpace.Position(db, s)).magnitude, 100000f, s.name);
         }
 
         [Test]

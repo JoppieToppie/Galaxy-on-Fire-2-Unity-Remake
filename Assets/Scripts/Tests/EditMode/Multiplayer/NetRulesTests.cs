@@ -33,10 +33,12 @@ namespace GoF2Remake.Tests
             ("cloakbay", "-nocloakbay", true),
             ("empcloak", "-noempcloak", true),
             ("smarttargeting", "-smarttargeting", false),
+            ("es2aiming", "-es2aiming", false),
+            ("es2flight", "-es2flight", false),
         };
 
         [Test]
-        public void NineRulesWithTheirFlagsAndDefaults()
+        public void ElevenRulesWithTheirFlagsAndDefaults()
         {
             Assert.AreEqual(Documented.Length, NetRules.All.Count);
             foreach (var (key, flag, on) in Documented)

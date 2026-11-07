@@ -50,12 +50,21 @@ namespace GoF2Remake.Flight
 
         /// <summary>Player::damage: returns true when this hit killed it. Remake: 'shieldFactor' scales what the hit does to
         /// the shield (a weapon's shieldDamage, the Disruptor's x2: Flight.Gun.ShieldFactor); the part the shield doesn't
-        /// absorb goes on to the armor and hull at its plain value.</summary>
+        /// absorb goes on to the armor and hull at its plain value. A factor of 0 bypasses the shield (a weapon's shieldBypass,
+        /// GoF3's AbilityBypassShield): the hit goes on to the armor and hull, the shield untouched.</summary>
         public bool Damage(int dmg, float shieldFactor = 1f)
         {
             if (!vulnerable || hull <= 0 || dmg <= 0) return false;
             int s;
-            if (shieldFactor != 1f && shieldFactor > 0f && shield > 0f)
+            if (shieldFactor <= 0f)
+            {
+                int a0 = armor - dmg;
+                if (a0 >= 0) { armor = a0; armorHit = true; }
+                else { armor = 0; hull += a0; hullHit = true; }
+                if (hull < 1) { hull = 0; return true; }
+                return false;
+            }
+            if (shieldFactor != 1f && shield > 0f)
             {
                 int onShield = (int)(dmg * shieldFactor);
                 if (onShield <= (int)shield) s = (int)shield - onShield;

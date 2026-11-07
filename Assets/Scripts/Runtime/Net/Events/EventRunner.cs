@@ -281,6 +281,7 @@ namespace GoF2Remake.Events
         internal static void NoteRulesSet() { if (executing != null) executing.eventRules = true; }
         internal static void NoteFlightSet() { if (executing != null) executing.eventFlight = true; }
         internal static void NoteWaypointSet() { if (executing != null) executing.eventWaypoint = true; }
+        internal static void NotePickupSet() { if (executing != null) executing.eventPickup = true; }
         internal static void NoteWormholeSet() { if (executing != null) executing.eventWormhole = true; }
         internal static void NoteCutsceneSet() { if (executing != null) executing.eventCutscene = true; }
         internal static void NoteFadeSet() { if (executing != null) executing.eventFade = true; }
@@ -394,7 +395,7 @@ namespace GoF2Remake.Events
             public readonly HashSet<ulong> team;
             public readonly int station;   // a mission: where it was taken (-1: none)
             public bool ended;
-            public bool eventPvp, eventRespawn, eventRules, eventWaypoint, eventWormhole, eventCutscene, eventFade, eventFlight;   // it turned the free for all on / set respawn points / restricted travel / a waypoint
+            public bool eventPvp, eventRespawn, eventRules, eventWaypoint, eventWormhole, eventCutscene, eventFade, eventFlight, eventPickup;   // it turned the free for all on / set respawn points / restricted travel / a waypoint
             public bool eventLoaner;   // it lent ships ("lend"): each player's own ship back when it ends
             public GraphQuestState record;   // single player's lasting run (a quest, a bar mission): what a save keeps (null: none)
             public string objective = "";
@@ -577,14 +578,15 @@ namespace GoF2Remake.Events
                         if ((name == "alive" || name == "distance") && Peek('('))
                         {
                             // alive(<ship name>): how many of the event's ships of that name fly; distance(<ship name>, x, y, z):
-                            // game units from the nearest of them to that point of its orbit (-1: none).
+                            // game units from the nearest of them to that point of its orbit (-1: none); distance(player, x, y, z)
+                            // the same for the event's players (remake, the GoF3 Ships mod's beacon scans: staying near a point).
                             Sym("(");
                             int from = i, depth = 0;
                             while (i < s.Length && (depth > 0 || s[i] != ')')) { if (s[i] == '{') depth++; else if (s[i] == '}') depth--; i++; }
                             if (i >= s.Length) throw new Exception("\")\" missing.");
                             string arg = run.Fill(s.Substring(from, i - from).Trim());
                             i++;
-                            return ShipState(name, arg);
+                            return ShipState(name, arg, run);
                         }
                         if (name == "count" && Peek('('))
                         {
@@ -614,8 +616,8 @@ namespace GoF2Remake.Events
                     throw new Exception(string.Format("can't read \"{0}\".", s));
                 }
 
-                /// <summary>alive / distance of the event's named ships (EventHost.EventShips: names and positions).</summary>
-                static double ShipState(string name, string arg)
+                /// <summary>alive / distance of the event's named ships (EventHost.EventShips: names and positions), distance of its players.</summary>
+                static double ShipState(string name, string arg, EventRun run)
                 {
                     var parts = arg.Split(',');
                     string ship = parts[0].Trim().Trim('"');
@@ -624,6 +626,7 @@ namespace GoF2Remake.Events
                     {
                         if (parts.Length != 4) throw new Exception("distance(ship name, x, y, z)");
                         point = new Vector3(Coord(parts[1]), Coord(parts[2]), Coord(parts[3]));
+                        if (string.Equals(ship, "player", StringComparison.OrdinalIgnoreCase)) return run.NearestPilot(point);
                     }
                     int alive = 0;
                     double best = -1;
