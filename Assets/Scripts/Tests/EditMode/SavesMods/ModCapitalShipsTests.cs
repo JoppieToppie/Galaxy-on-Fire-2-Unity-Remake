@@ -52,6 +52,64 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(CollisionVolume.ForFreighter(13, 1).Count, CollisionVolume.ForFreighter(hauler, 1).Count);
         }
 
+        // Remake (2026-11-04, EVERSPACE 2's loot_npcs.csv): a ship's own drops, "traffic": { "loot", "lootDrops" } (NpcShip.AddOwnLoot).
+        [Test]
+        public void ATrafficHullsOwnDevices()
+        {
+            string dir = WriteMod("c", "t_kam", "1.0", "", ("ships.json",
+                "[ { 'id': 'kamikaze', 'name': 'K', 'race': 0, 'model': 'big.glb', 'traffic': { 'role': 'detonator', 'devices': [ " +
+                "    { 'type': 'mineLayer', 'bombEveryMs': 4000, 'range': [3420, 28500] }, { 'type': 'mineLayer', 'layBehind': -114 }, " +
+                "    { 'type': 'frontShield', 'blockPercent': 67, 'glow': 1 }, " +
+                "    { 'type': 'cloud', 'slowPercent': 0, 'shieldPercent': 70, 'minRank': 8, 'maxRank': 15, 'share': 40 } ] } }," +
+                "  { 'id': 'plain', 'name': 'P', 'race': 0, 'model': 'big.glb', 'traffic': { 'role': 'sniper', " +
+                "    'secondaries': [ { 'item': '31', 'minRank': 6, 'maxRank': 17, 'share': 25 }, { 'item': '33', 'minRank': 18 } ] } } ]"));
+            WriteFile(dir, "big.glb", Dummy);
+            ScanAndEnable("t_kam");
+            Database.Load();
+            var t = CustomShips.Get(ModContent.ShipIndexOf("t_kam:kamikaze")).traffic;
+            Assert.AreEqual("detonator", t.role, "the rest of the traffic block stays");
+            Assert.AreEqual(4, t.devices.Count);
+            Assert.AreEqual(0f, t.devices[3].slowShare, "a cloud that doesn't slow");
+            Assert.AreEqual(70f, t.devices[3].shieldPercent);
+            Assert.AreEqual(8, t.devices[3].minRank);
+            Assert.AreEqual(15, t.devices[3].maxRank);
+            Assert.AreEqual(0.4f, t.devices[3].share, 1e-4f);
+            Assert.AreEqual(Flight.NpcDeviceSpec.Kind.MineLayer, t.devices[0].kind);
+            Assert.AreEqual(4000f, t.devices[0].bombEveryMs);
+            Assert.AreEqual(28500f, t.devices[0].rangeMax);
+            Assert.AreEqual(-114f, t.devices[1].layBehind, "below 0: thrown ahead");
+            Assert.AreEqual(0.67f, t.devices[2].blockShare, 1e-4f);
+            var plain = CustomShips.Get(ModContent.ShipIndexOf("t_kam:plain")).traffic;
+            Assert.IsNull(plain.devices);
+            Assert.AreEqual(2, plain.secondaries.Length);
+            Assert.AreEqual("31", plain.secondaries[0].item);
+            Assert.IsFalse(plain.secondaries[0].Carried(5, 0f), "below its ranks");
+            Assert.IsTrue(plain.secondaries[0].Carried(6, 0.2f));
+            Assert.IsFalse(plain.secondaries[0].Carried(6, 0.3f), "outside its quarter");
+            Assert.IsTrue(plain.secondaries[1].Carried(20, 0.99f), "100 % by default");
+            Assert.AreEqual(1f, plain.secondaries[1].factor);
+            StringAssert.Contains("unknown device field \"glow\"", AllMessages(Installed("t_kam")));
+            StringAssert.Contains("ships.json", AllMessages(Installed("t_kam")), "the warning names the ships file");
+        }
+
+        [Test]
+        public void AShipsOwnDrops()
+        {
+            string dir = WriteMod("c", "t_loot", "1.0", "", ("ships.json",
+                "[ { 'id': 'okkar', 'name': 'O', 'race': 1, 'model': 'big.glb', 'traffic': { 'lootDrops': 2, " +
+                "    'loot': [ { 'item': '155', 'chance': 0.2, 'min': 1, 'max': 2 }, { 'item': 't_loot:none', 'chance': 1 } ] } }," +
+                "  { 'id': 'plain', 'name': 'P', 'race': 1, 'model': 'big.glb' } ]"));
+            WriteFile(dir, "big.glb", Dummy);
+            ScanAndEnable("t_loot");
+            Database.Load();
+            var t = CustomShips.Get(ModContent.ShipIndexOf("t_loot:okkar")).traffic;
+            Assert.AreEqual(2, t.lootDrops);
+            Assert.AreEqual(2, t.loot.Length);
+            Assert.AreEqual(("155", 0.2f, 1, 2), (t.loot[0].item, t.loot[0].chance, t.loot[0].min, t.loot[0].max));
+            Assert.AreEqual(1f, t.loot[1].chance);
+            Assert.IsNull(CustomShips.Get(ModContent.ShipIndexOf("t_loot:plain")).traffic?.loot is { Length: > 0 } ? "has" : null, "none unless given");
+        }
+
         [Test]
         public void ACapitalShipsSubsystemsAndShields()
         {

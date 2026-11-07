@@ -1,7 +1,7 @@
 // CruiseDriveItemTests.cs
 // Feature: docs/notes/navigation.md "Cruise drive", Modding/README.md "Cruise drives": an equipment item with cruiseSpeed
 // (attribute 133) above 0 is a cruise drive (Shop.IsCruiseDrive), of its own one-per-ship kind (Shop.KindOf =
-// CruiseDrive.Kind, past every category: beside a Khador Drive of the base's category 18, not in its place), the stat
+// CruiseDrive.Kind, past every category), which replaces a Khador Drive of the base's category 18 (Shop.Replaces), the stat
 // names cruiseSpeed / cruiseRange / cruiseChargeMs (ItemStats), the item window's category and stat rows (ItemInfo).
 
 using GoF2Remake.Data;
@@ -55,6 +55,20 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Shop.CanInstallMultiple(18));
             Assert.IsTrue(Hangar.Replaceable(Slipstream()));
             Assert.Greater(CruiseDrive.Kind, 221 + 43 + 1, "past every item category and its text id");
+        }
+
+        [Test]
+        public void ADriveReplacesTheOtherDrives()
+        {
+            var khador = Item(18, "equipment", (1, 3), (37, 5000), (38, 1));
+            Assert.IsTrue(Shop.IsDrive(khador));
+            Assert.IsTrue(Shop.IsDrive(Slipstream()));
+            Assert.IsTrue(Shop.Replaces(Slipstream(), khador), "the Slipstream over a Khador Drive");
+            Assert.IsTrue(Shop.Replaces(khador, Slipstream()), "and back");
+            Assert.IsTrue(Shop.Replaces(Slipstream(), Slipstream()), "another cruise drive");
+            Assert.IsFalse(Shop.IsDrive(Item(17, "equipment", (1, 3))), "a scanner");
+            Assert.IsFalse(Shop.Replaces(Slipstream(), Item(17, "equipment", (1, 3))));
+            Assert.IsFalse(Shop.Replaces(Slipstream(), null));
         }
 
         [Test]

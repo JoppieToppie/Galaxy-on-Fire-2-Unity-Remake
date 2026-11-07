@@ -5,7 +5,14 @@
 //     { "override": "flyby", "weight": 0 } ]
 // "id" adds an entry (kinds: pirates, trader, derelict, distress, flyby, quest), "override" changes one of the game's own
 // (pirates, trader, derelict, distress, flyby) or another mod's "mod:id": weight, visible, minRank, security, freePlayOnly,
-// ships, name. A "quest" entry starts that quest graph (single player) when it comes; the graph does the rest.
+// ships, name, interstellar. A "quest" entry starts that quest graph (single player) when it comes; the graph does the rest.
+// "interstellar" is where it pulls the ship out between the systems: "space" (deep space), "system" (the nearest system's
+// orbit), "either" (the default: one or the other) or "never".
+// The rift is the remake's one entry (2026-11-04, CruiseEncounters.RiftEntry: its chance, rank and stages): a mod's "rift"
+// entry only adds its "bosses" to the shared pool (its other fields are ignored with a warning, the rift can't be
+// overridden), and the rift joins the table once a mod adds one. More mods with rifts mean more bosses, not more rifts.
+// "music" (2026-11-06): a mod music track its fight plays in place of the battle music (World.EncounterMusic); a rift entry's
+// sets the rift's (the first mod's wins).
 
 using System;
 using System.Collections.Generic;
@@ -30,12 +37,13 @@ namespace GoF2Remake.Modding
 
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "id", "override", "kind", "weight", "visible", "minRank", "security", "freePlayOnly", "quest", "ships", "name",
+            "id", "override", "kind", "weight", "visible", "minRank", "security", "freePlayOnly", "quest", "ships", "name", "interstellar", "bosses", "music",
         };
 
         static int revision = -1;
         static List<CruiseEncounters.Entry> all;
         static readonly Dictionary<string, Def> defByKey = new Dictionary<string, Def>(StringComparer.Ordinal);
+        static readonly string[] RiftOwnFields = { "weight", "visible", "minRank", "security", "freePlayOnly", "ships", "name", "interstellar" };
 
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { revision = -1; all = null; defByKey.Clear(); }
@@ -69,6 +77,9 @@ namespace GoF2Remake.Modding
                     foreach (var v in sa)
                         if (v.Type != JTokenType.Integer || (int)v < 0 || (int)v > 3) throw new ModJsonException($"{where}: \"security\" levels are 0 to 3");
                 }
+                string between = ModJson.Str(o, "interstellar");
+                if (between != null && Array.IndexOf(CruiseEncounters.Places, between.ToLowerInvariant()) < 0)
+                    throw new ModJsonException($"{where}: \"interstellar\" must be one of {string.Join(", ", CruiseEncounters.Places)}");
                 foreach (var f in new[] { "weight", "minRank", "ships" }) ModJson.Int(o, f, 0, File);
                 foreach (var f in new[] { "visible", "freePlayOnly" }) ModJson.Bool(o, f, false, File);
                 foreach (var prop in o.Properties())
@@ -90,6 +101,11 @@ namespace GoF2Remake.Modding
                 {
                     if (d.overrideRef != null)
                     {
+                        if (string.Equals(d.overrideRef, CruiseEncounters.Rift, StringComparison.OrdinalIgnoreCase))
+                        {
+                            mod.Warnings.Add($"{d.where}: the rift can't be overridden: its chance is the remake's, a mod's \"rift\" entry adds \"bosses\" (ignored)");
+                            continue;
+                        }
                         var target = list.Find(e => string.Equals(e.id, d.overrideRef, StringComparison.OrdinalIgnoreCase));
                         if (target == null) { mod.Warnings.Add($"{d.where}: no encounter \"{d.overrideRef}\" to override (ignored)"); continue; }
                         Apply(d, target);
@@ -97,6 +113,18 @@ namespace GoF2Remake.Modding
                     }
                     var e = new CruiseEncounters.Entry { id = d.key, kind = ModJson.Str(d.json, "kind").ToLowerInvariant(), quest = ModJson.Str(d.json, "quest") };
                     Apply(d, e);
+                    if (e.kind == CruiseEncounters.Rift)
+                    {
+                        // the remake's one rift: this mod only adds its bosses to the pool
+                        var rift = list.Find(x => x.id == CruiseEncounters.Rift);
+                        if (rift == null) list.Add(rift = CruiseEncounters.RiftEntry());
+                        if (e.bosses != null) (rift.bosses ??= new List<CruiseEncounters.RiftBoss>()).AddRange(e.bosses);
+                        if (rift.music == null && e.music != null) rift.music = e.music;
+                        foreach (var f in RiftOwnFields)
+                            if (ModJson.Get(d.json, f) != null)
+                                d.mod.Warnings.Add($"{d.where}: \"{f}\" (ignored): the rift's chance and stages are the remake's, a mod's rift only adds \"bosses\"");
+                        continue;
+                    }
                     list.Add(e);
                     defByKey[e.id] = d;
                 }
@@ -112,6 +140,16 @@ namespace GoF2Remake.Modding
             e.minRank = ModJson.Int(o, "minRank", e.minRank, File);
             e.freePlayOnly = ModJson.Bool(o, "freePlayOnly", e.freePlayOnly, File);
             e.ships = ModJson.Int(o, "ships", e.ships, File);
+            if (ModJson.Str(o, "music") is string music && music.Length > 0) e.music = music;
+            if (ModJson.Get(o, "bosses") is JArray bl)   // a rift's (RiftEncounter)
+            {
+                e.bosses = new List<CruiseEncounters.RiftBoss>();
+                foreach (var b in bl)
+                    if (b is JObject bo && ModJson.Str(bo, "ship") is string ship)
+                        e.bosses.Add(new CruiseEncounters.RiftBoss { ship = ship, race = ModJson.Str(bo, "race"), weapon = ModJson.Str(bo, "weapon"), secondary = ModJson.Str(bo, "secondary"), raiders = UnityEngine.Mathf.Clamp(ModJson.Float(bo, "raiders", 8f, File), 0.5f, 200f) });
+                if (e.bosses.Count == 0) e.bosses = null;
+            }
+            if (ModJson.Str(o, "interstellar") is string between) e.interstellar = between.ToLowerInvariant();
             if (ModJson.Get(o, "security") is JArray sa)
             {
                 var levels = new List<int>();

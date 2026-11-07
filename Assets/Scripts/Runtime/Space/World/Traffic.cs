@@ -296,6 +296,8 @@ namespace GoF2Remake.World
                 UnityEngine.Random.InitState(5 * names[i].Length);
                 int ship = NpcTables.RandomFighter(race <= 3 || Modding.ModRaces.Is(race) ? race : Standing.Pirate);   // races 4-7: the pirate pool
                 UnityEngine.Random.state = state;
+                // remake mods (wingmen.json): a mod crew flies its own ships (one no longer there: the game's way)
+                if (i < Session.WingmanShips.Count && Session.WingmanShips[i] >= 0 && db.Ship(Session.WingmanShips[i]) != null) ship = Session.WingmanShips[i];
                 var pos = player.position + (player.right * right[i] - player.forward * 2000f + Vector3.up * (i == 2 ? 1000f : 0f)) * 0.05f;
                 var spec = new SpawnSpec
                 {
@@ -341,8 +343,10 @@ namespace GoF2Remake.World
                 // Level::connectPlayers 0xcc330: race != shooter's race, or the shooter is a wingman (every other ship is in a
                 // wingman's list, so its shots hit same-race freighters and the battleship; Discord report 2026-10-19: escorts'
                 // EMP shots flew through big ships). Not the other wingmen (the original's stray hits on them: left out).
+                // Remake: a loot drone (Flight.NpcRoles) is the player's to hunt, the other ships ignore it (ES2's bIgnoredByAI).
                 foreach (var o in Ships)
-                    if (o != s && (o.Race != s.Race || (s.IsWingman && !o.IsWingman)) && !o.Spec.deadButSelectable && !o.Spec.stationPort) s.enemies.Add(o.Target);
+                    if (o != s && (o.Race != s.Race || (s.IsWingman && !o.IsWingman)) && !o.Spec.deadButSelectable && !o.Spec.stationPort
+                        && o.Role != NpcRoles.Role.LootDrone) s.enemies.Add(o.Target);
             }
         }
 
@@ -405,6 +409,13 @@ namespace GoF2Remake.World
         public string ChoiceTitle { get; private set; }
         /// <summary>The launch / arrival camera runs (SpaceLevel): the wingmen drift meanwhile.</summary>
         public Func<bool> LaunchCameraRunning;
+        /// <summary>Remake mods (Flight.WingmanDevice's Ammo Supply): the player's selected secondary's rounds (-1 = none), and
+        /// 'n' more of it (the rounds added); SpaceLevel sets them.</summary>
+        public Func<int> PlayerSecondaryAmmo;
+        public Func<int, int> RestockPlayer;
+        /// <summary>Remake mods (Data.WingmanCrew's radio): ms before a wingman speaks again; the player-down line said.</summary>
+        float wingmanQuietMs, tailScanMs, tailQuietMs;
+        bool playerDownSaid;
         bool lomaAskPending;
         int lomaToll, lomaPercent;
 

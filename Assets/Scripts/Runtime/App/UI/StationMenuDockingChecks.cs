@@ -22,13 +22,15 @@ namespace GoF2Remake.UI
         /// and a board boss's ship on sale at Quineros (107, 3232).</summary>
         bool CheckWanted()
         {
-            if (wantedChecked || level == null || level.Station == null || Session.FreePlay) return false;
+            // (remake mods' criminals are on their boards in free play too: WantedBoard keeps the game's off there)
+            if (wantedChecked || level == null || level.Station == null || (Session.FreePlay && !level.Database.Wanted.Exists(w => w.IsMod))) return false;
             wantedChecked = true;
             var db = level.Database;
             int station = level.Station.index;
             int n = WantedBoard.ActivateNew(db, station);
             if (n == 1) ShowToast(Localization.Get(3230));
             else if (n > 1) ShowToast(Localization.Get(3231).Replace("#N", n.ToString()));
+            if (Session.FreePlay) return false;   // (the game's board hints and Quineros' ships: the campaign's)
             if (station == 107)
                 foreach (int ship in WantedBoard.QuinerosShips(db)) Story.AddDealerShip(107, ship);
             string note = null;

@@ -7,7 +7,9 @@
 //                                    minus 2 per rank); no clouds of Red outside Thynome's system (10) in a system without
 //                                    gate routes; count trunc((rnd(4) + 4) * p / 100) (+3 at campaign 142 in Kernstal's
 //                                    orbit, the first cloud at (92000, 0, 36000)); each anywhere in +-80000 but not within
-//                                    25000 of the station nor 30000 of the asteroid field
+//                                    25000 of the station nor 30000 of the asteroid field. Remake mods: an orbit's
+//                                    "gasClouds" (ModWorld.GasCloudSpec, EVERSPACE 2's plasma fields) gives its clouds'
+//                                    places and plasma instead (the spectral filter still needed)
 //   PlayerGasCloud                   a camera-facing billboard ~7000 units across; an ionizing missile's blast (Gun sort 34)
 //                                    within its reach bursts it once into N = ((1.5 - d/mag) * 130 / 1.5 + 10) * attr56 / 100
 //                                    plasma sparks around the blast point (+-(1.5 - d/mag) * 5000), flying toward and through
@@ -93,6 +95,8 @@ namespace GoF2Remake.World
         public static GasCloudField Spawn(Database db, OrbitLayout layout, ShipController player, PlayerTurret turret)
         {
             if (layout.alienOrbit || layout.systemIndex < 0 || Shop.FirstMounted(db, 33) == null) return null;
+            var own = Modding.ModWorld.OrbitOf(layout.stationIndex)?.gasClouds;
+            if (own != null) return SpawnOwn(db, own, layout, player, turret);
             var (item, p) = TopPlasma(db, layout.systemIndex);
             var system = db.Systems.Find(s => s.index == layout.systemIndex);
             if (layout.systemIndex != 10 && item == 204 && (system?.jumpRoutesTo == null || system.jumpRoutesTo.Count == 0)) return null;
@@ -115,6 +119,17 @@ namespace GoF2Remake.World
                 }
                 field.Add(OrbitLayout.ToUnity(pos));
             }
+            return field;
+        }
+
+        /// <summary>Remake mods: the orbit's own clouds (stations.json "orbit.gasClouds") of its plasma (else GoF2's pick).</summary>
+        static GasCloudField SpawnOwn(Database db, Modding.ModWorld.GasCloudSpec own, OrbitLayout layout, ShipController player, PlayerTurret turret)
+        {
+            int item = own.plasma != null && Modding.ModContent.TryResolveItem(own.plasma, out int i) && db.Item(i) != null ? i : TopPlasma(db, layout.systemIndex).item;
+            var go = new GameObject("Gas clouds");
+            var field = go.AddComponent<GasCloudField>();
+            field.Setup(db, player, turret, item);
+            foreach (var pos in own.clouds) field.Add(OrbitLayout.ToUnity(pos));
             return field;
         }
 

@@ -76,6 +76,10 @@ namespace GoF2Remake.Flight
         /// <summary>Level::assignGuns damage for a plain ship of this race (see the SpawnSpec overload).</summary>
         public static int GunDamage(int race) => GunDamage(new SpawnSpec { race = race }, false, false, out _);
 
+        /// <summary>A pirate raider's gun's damage a second now (GunDamage over GunReloadMs): the unit EVERSPACE 2's amounts go
+        /// over in (its Outlaw raider's 55 DPS).</summary>
+        public static float RaiderGunDps => GunDamage(Standing.Pirate) * 1000f / Mathf.Max(1f, GunReloadMs);
+
         /// <summary>The freelance mission whose orbit this is (Status::getMission's type while FreelanceOrbit runs), -1 = none.</summary>
         public static int LevelFreelanceType = -1;
         /// <summary>A campaign level runs in this orbit (Mission::isCampaignMission on the level mission).</summary>

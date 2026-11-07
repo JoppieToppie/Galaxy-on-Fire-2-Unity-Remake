@@ -3,10 +3,12 @@
 // written by the ES2 importer). Unlike ModSounds (sounds/<game clip name>: a replacement everywhere) these belong to one ship
 // or one weapon model, so their files may sit anywhere in the mod (the importer uses audio/).
 //   ships.json, a new ship or an override:
-//     "sounds": { "engine": S, "boostStart": S, "boostLoop": S, "boostStop": S, "charger": S }
+//     "sounds": { "engine": S, "boostStart": S, "boostLoop": S, "boostStop": S, "boostDepleted": S, "charger": S }
 //       engine      the engine loop (PlayerEngine; also the ship's NPCs, hangar flights and other players' copies): volume
 //                   and pitch go from their first value at a standstill to their second at top speed
-//       boostStart  one shot when a boost starts; boostStop when it ends ("pitch" [a, b]: a random pitch in between)
+//       boostStart  one shot when a boost starts; boostStop when it ends ("pitch" [a, b]: a random pitch in between);
+//       boostDepleted one shot when a free-flight boost dies of an empty pool, beside boostStop (EVERSPACE 2's
+//                   TryToBoostWithEnergyDepletedSound)
 //       boostLoop   a loop while boosting: volume / pitch from the boost's start to its full strength (BoostVisualPercent)
 //       charger     a loop while the booster recharges: volume / pitch from empty to full
 //     A ship without "sounds" (or without one of them) keeps the game's.
@@ -62,7 +64,7 @@ namespace GoF2Remake.Modding
 
         public sealed class ShipSounds
         {
-            public Sound engine, boostStart, boostLoop, boostStop, charger;
+            public Sound engine, boostStart, boostLoop, boostStop, boostDepleted, charger;
         }
 
         public sealed class WeaponSound
@@ -72,7 +74,7 @@ namespace GoF2Remake.Modding
         }
 
         static readonly HashSet<string> ShipKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "engine", "boostStart", "boostLoop", "boostStop", "charger" };
+            { "engine", "boostStart", "boostLoop", "boostStop", "boostDepleted", "charger" };
         static readonly HashSet<string> WeaponKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "shot", "loop", "release" };
         static readonly HashSet<string> SoundKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "file", "files", "volume", "pitch" };
 
@@ -161,6 +163,7 @@ namespace GoF2Remake.Modding
                     case "booststart": s.boostStart = snd; break;
                     case "boostloop": s.boostLoop = snd; break;
                     case "booststop": s.boostStop = snd; break;
+                    case "boostdepleted": s.boostDepleted = snd; break;
                     case "charger": s.charger = snd; break;
                 }
             }
@@ -195,7 +198,7 @@ namespace GoF2Remake.Modding
             ships = ModContent.ShipSounds().ToDictionary(kv => kv.Key, kv => (ShipSounds)kv.Value);
             var wanted = new Dictionary<string, (ModInfo mod, string file)>(StringComparer.OrdinalIgnoreCase);
             void Want(Sound s) { if (s != null) foreach (var f in s.files) wanted[Key(s.mod, f)] = (s.mod, f); }
-            foreach (var s in ships.Values) { Want(s.engine); Want(s.boostStart); Want(s.boostLoop); Want(s.boostStop); Want(s.charger); }
+            foreach (var s in ships.Values) { Want(s.engine); Want(s.boostStart); Want(s.boostLoop); Want(s.boostStop); Want(s.boostDepleted); Want(s.charger); }
             foreach (var kit in ModShipKits.All())
                 if (kit.hardpoints != null)
                     foreach (var r in kit.hardpoints.weapons) { Want(r.sound?.shot); Want(r.sound?.loop); }

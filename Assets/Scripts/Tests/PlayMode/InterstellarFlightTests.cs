@@ -55,6 +55,54 @@ namespace GoF2Remake.Tests
         [OneTimeTearDown]
         public void MountedModsBack() { ModManager.Scan(); }
 
+        /// <summary>Into a system's zone (just inside a light year of its star: the space round the ship grows, its planets get
+        /// their places, Navigation.Zone / LayOut), so its arrival point is its arrival planet, where the edge and the approach
+        /// are measured from; the ship then waits outside both.</summary>
+        static IEnumerator LaidOut(SpaceLevel space, Navigation.Target sun)
+        {
+            var ship = space.Player.transform;
+            var way = (sun.Position - ship.position).normalized;
+            ship.position = sun.Position - way * (InterstellarSpace.ZoneUnits * 0.99f * 0.05f);
+            yield return null;
+            yield return null;
+            Assert.AreSame(sun, space.Navigation.Zone, "in the system's zone");
+            Assert.AreEqual(InterstellarSpace.ZoneScale, space.Navigation.WorldScale, 1e-3f, "the space grown round the ship");
+        }
+
+        [UnityTest]
+        public IEnumerator ASystemsPlanetsComeOutWithinALightYearAndTheSpaceGrows()
+        {
+            yield return EnterSpace(78, 5);
+            var space = Find<SpaceLevel>();
+            yield return Run(1f);
+            var nav = space.Navigation;
+            var sun = nav.Targets.Where(t => t.kind == Navigation.Kind.System && t.planetOf == null && t.system != space.Layout.systemIndex
+                                             && nav.Targets.Count(p => p.planetOf == t) > 1).First();
+            var ship = space.Player.transform;
+            var way = (sun.Position - ship.position).normalized;
+            ship.position = sun.Position - way * (InterstellarSpace.ZoneUnits * 1.5f * 0.05f);   // a light year and a half out
+            yield return null;
+            Assert.IsNull(nav.Zone, "outside a light year: between the systems still");
+            Assert.IsTrue(nav.Targets.Where(p => p.planetOf == sun).All(p => p.hidden), "no planets yet");
+            var other = nav.Targets.First(t => t.kind == Navigation.Kind.System && t.planetOf == null && t != sun);
+            var seen = (other.Position - ship.position).normalized;
+            ship.position = sun.Position - way * (InterstellarSpace.ZoneUnits * 0.99f * 0.05f);
+            yield return null;
+            yield return null;
+            Assert.AreSame(sun, nav.Zone);
+            Assert.AreEqual((sun.Position - ship.position).magnitude / 0.05f, InterstellarSpace.ZoneUnits * 0.99f * InterstellarSpace.ZoneScale, InterstellarSpace.ZoneUnits * InterstellarSpace.ZoneScale * 0.01f, "the star 75 x as far (the ship flies on a frame)");
+            Assert.Less(Vector3.Angle(seen, (other.Position - ship.position).normalized), 0.5f, "every other system where it was on screen");
+            Assert.IsTrue(nav.Targets.Where(p => p.planetOf == sun).All(p => !p.hidden), "its planets out, round it");
+            Assert.IsTrue(nav.PlanetsLaidOut(sun));
+            // flying back out: the space shrinks back past the zone's edge
+            ship.position = sun.Position - way * (InterstellarSpace.ZoneUnits * InterstellarSpace.ZoneScale * InterstellarSpace.ZoneExit * 1.1f * 0.05f);
+            yield return null;
+            yield return null;
+            Assert.IsNull(nav.Zone);
+            Assert.AreEqual(1f, nav.WorldScale, 1e-4f);
+            Assert.IsTrue(nav.Targets.Where(p => p.planetOf == sun).All(p => p.hidden), "the planets gone again");
+        }
+
         [UnityTest]
         public IEnumerator TheLevelIsEmptyAndShowsTheMapsSystems()
         {
@@ -67,7 +115,7 @@ namespace GoF2Remake.Tests
             Assert.IsNull(space.Station);
             Assert.IsNull(space.Jumpgate);
             yield return Run(2f);
-            var systems = space.Navigation.Targets.Where(t => t.kind == Navigation.Kind.System).ToList();
+            var systems = space.Navigation.Targets.Where(t => t.kind == Navigation.Kind.System && t.planetOf == null).ToList();
             Assert.AreEqual(InterstellarSpace.Systems(space.Database).Count, systems.Count);
             Assert.IsNotNull(Find<InterstellarField>());
             Assert.AreEqual(0, Object.FindObjectsByType<NpcShip>().Length, "no traffic");
@@ -107,7 +155,7 @@ namespace GoF2Remake.Tests
             var space = Find<SpaceLevel>();
             yield return Run(1f);
             var nav = space.Navigation;
-            var target = nav.Targets.Where(t => t.kind == Navigation.Kind.System).OrderByDescending(t => (t.Position - space.Player.transform.position).sqrMagnitude).First();
+            var target = nav.Targets.Where(t => t.kind == Navigation.Kind.System && t.planetOf == null).OrderByDescending(t => (t.Position - space.Player.transform.position).sqrMagnitude).First();
             nav.SetAutopilot(target);
             yield return WaitFor(() => nav.DriveCruising, 10f, "the drive under the autopilot");
             Assert.AreEqual(4, GalaxyMap.CellsInCargo(), "one leg paid");
@@ -124,9 +172,10 @@ namespace GoF2Remake.Tests
             yield return EnterSpace(78, 5);
             var space = Find<SpaceLevel>();
             yield return Run(1f);
-            var target = space.Navigation.Targets.First(t => t.kind == Navigation.Kind.System && t.system != space.Layout.systemIndex);
+            var target = space.Navigation.Targets.First(t => t.kind == Navigation.Kind.System && t.planetOf == null && t.system != space.Layout.systemIndex);
+            yield return LaidOut(space, target);
             int station = target.station;
-            space.Player.transform.position = target.Position + Vector3.up * (InterstellarSpace.ArriveUnits * 0.5f * 0.05f);
+            space.Player.transform.position = space.Navigation.ArrivalPoint(target) + Vector3.up * (InterstellarSpace.ArriveUnits * 0.5f * 0.05f);
             yield return WaitFor(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null, 30f, "the arrival");
             Assert.AreEqual(station, Session.StationIndex);
             Assert.IsFalse(Find<SpaceLevel>().Layout.interstellar);
@@ -163,12 +212,14 @@ namespace GoF2Remake.Tests
             yield return EnterSpace(78, 5);
             var space = Find<SpaceLevel>();
             yield return Run(1f);
-            var target = space.Navigation.Targets.First(t => t.kind == Navigation.Kind.System && t.system != space.Layout.systemIndex);
+            var target = space.Navigation.Targets.First(t => t.kind == Navigation.Kind.System && t.planetOf == null && t.system != space.Layout.systemIndex);
             var ship = space.Player.transform;
-            var way = (target.Position - ship.position).normalized;
+            yield return LaidOut(space, target);
+            var arrival = space.Navigation.ArrivalPoint(target);   // the arrival planet: the edge and the approach are its
+            var way = (arrival - ship.position).normalized;
             float edge = InterstellarSpace.ArriveUnits * 0.05f;
             space.Player.enabled = false;   // held just outside the edge
-            ship.SetPositionAndRotation(target.Position - way * (edge + 5f), Quaternion.LookRotation(way, Vector3.up));
+            ship.SetPositionAndRotation(arrival - way * (edge + 5f), Quaternion.LookRotation(way, Vector3.up));
             yield return WaitFor(() => GameObject.Find("Approach") is GameObject a && a.transform.Find("Asteroids") != null, 10f, "the approach");
             yield return Run(2f);
             var approach = GameObject.Find("Approach").transform;
@@ -204,14 +255,15 @@ namespace GoF2Remake.Tests
             yield return EnterSpace(78, 5);
             var space = Find<SpaceLevel>();
             yield return Run(1f);
-            var systems = space.Navigation.Targets.Where(t => t.kind == Navigation.Kind.System && t.system != space.Layout.systemIndex).ToList();
+            var systems = space.Navigation.Targets.Where(t => t.kind == Navigation.Kind.System && t.planetOf == null && t.system != space.Layout.systemIndex).ToList();
             var goal = systems[0];
             var passed = systems[1];
             space.Navigation.SetAutopilot(goal);
             space.Player.transform.position = passed.Position + Vector3.up * (InterstellarSpace.ArriveUnits * 0.5f * 0.05f);
             yield return Run(1f);
             Assert.AreSame(space, Find<SpaceLevel>(), "flown past");
-            space.Player.transform.position = goal.Position + Vector3.up * (InterstellarSpace.ArriveUnits * 0.5f * 0.05f);
+            yield return LaidOut(space, goal);
+            space.Player.transform.position = space.Navigation.ArrivalPoint(goal) + Vector3.up * (InterstellarSpace.ArriveUnits * 0.5f * 0.05f);
             yield return WaitFor(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null, 30f, "the arrival");
             Assert.AreEqual(goal.station, Session.StationIndex);
         }
@@ -295,11 +347,12 @@ namespace GoF2Remake.Tests
             float fromEntry = (space.Player.transform.position - OrbitLayout.ToUnity(InterstellarSpace.PositionOf(space.Database, 78))).magnitude / 0.05f;
             Assert.AreEqual(InterstellarSpace.StartUnits, fromEntry, 10f, "beside the system the Void was entered from");
             yield return Run(1f);
-            var target = space.Navigation.Targets.Where(t => t.kind == Navigation.Kind.System)
+            var target = space.Navigation.Targets.Where(t => t.kind == Navigation.Kind.System && t.planetOf == null)
                                                  .OrderBy(t => (t.Position - space.Player.transform.position).sqrMagnitude).First();
             space.Navigation.SetAutopilot(target);
             Assert.AreSame(target, space.Navigation.AutopilotTarget, "the autopilot flies to the systems");
-            space.Player.transform.position = target.Position + Vector3.up * (InterstellarSpace.ArriveUnits * 0.5f * 0.05f);
+            yield return LaidOut(space, target);
+            space.Player.transform.position = space.Navigation.ArrivalPoint(target) + Vector3.up * (InterstellarSpace.ArriveUnits * 0.5f * 0.05f);
             yield return WaitFor(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null, 30f, "the arrival");
             Assert.AreEqual(target.station, Session.StationIndex);
             Assert.AreEqual(Session.VoidOrbit, Session.PreviousStationIndex);
@@ -314,7 +367,7 @@ namespace GoF2Remake.Tests
             yield return Run(1f);
             var nav = space.Navigation;
             var at = space.Player.transform.position;
-            var systems = nav.Targets.Where(t => t.kind == Navigation.Kind.System).OrderBy(t => (t.Position - at).sqrMagnitude).ToList();
+            var systems = nav.Targets.Where(t => t.kind == Navigation.Kind.System && t.planetOf == null).OrderBy(t => (t.Position - at).sqrMagnitude).ToList();
             int nearest = systems[0].station;
             nav.SetAutopilot(systems[systems.Count - 1]);   // (it holds the drive; the HUD polls the button every frame)
             yield return WaitFor(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null, 30f, "the fall out");

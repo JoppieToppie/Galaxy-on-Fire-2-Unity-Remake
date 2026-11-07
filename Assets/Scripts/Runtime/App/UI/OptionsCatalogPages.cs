@@ -329,6 +329,12 @@ namespace GoF2Remake.UI
             // Remake (#37): Level out levels the nose too (the original: the roll only).
             list.Add(Toggle("levelPitch", OptionPage.Controls, () => X("levelPitch", "Level out also levels the nose"),
                 () => Settings.LevelPitch, v => Settings.LevelPitch = v));
+            // Remake: EVERSPACE 2's auto-roll in free flight (FlightModel.AutoRoll; off by default, as ES2 has it for keyboard and mouse).
+            list.Add(Toggle("autoRoll", OptionPage.Controls, () => X("autoRoll", "Auto-roll to the horizon (free flight)"),
+                () => Settings.AutoRoll, v => Settings.AutoRoll = v));
+            // Remake: EVERSPACE 2's boost as a toggle (its GetBoostAsToggle setting; ShipController.BoostInput).
+            list.Add(Toggle("boostToggle", OptionPage.Controls, () => X("boostToggle", "Boost is a toggle (free flight)"),
+                () => Settings.BoostToggle, v => Settings.BoostToggle = v));
             // options[0x10] "Invert controls" (500), split per axis; the mining drill has its own pair.
             list.Add(Toggle("invert", OptionPage.Controls, () => X("invertY", "Invert up / down"), () => Settings.InvertPitch, v => Settings.InvertPitch = v));
             list.Add(Toggle("invertYaw", OptionPage.Controls, () => X("invertX", "Invert left / right"), () => Settings.InvertYaw, v => Settings.InvertYaw = v));
@@ -458,6 +464,8 @@ namespace GoF2Remake.UI
                 () => Settings.HangarFlights, v => Settings.HangarFlights = v));
             list.Add(Toggle("tutorialHints", OptionPage.Gameplay, () => X("tutorialHints", "Tutorials"),
                 () => Settings.TutorialHints, v => Settings.TutorialHints = v));
+            list.Add(Toggle("collisionDamage", OptionPage.Gameplay, () => X("collisionDamage", "Collision damage"),
+                () => Settings.CollisionDamage, v => Settings.CollisionDamage = v));
             var storyStep = Toggle("showStoryStep", OptionPage.Gameplay, () => X("showStoryStep", "Show story step"),
                 () => Settings.ShowStoryStep, v => Settings.ShowStoryStep = v);
             storyStep.description = () => X("showStoryStepHelp", "The current story step at the bottom right, for bug reports.");
@@ -484,6 +492,23 @@ namespace GoF2Remake.UI
                 () => Settings.SmarterNpcTargeting, v => Settings.SmarterNpcTargeting = v);
             smartTargeting.description = () => X("smarterNpcTargetingHelp", "Enemy fighters spread over nearby targets instead of all going for you.");
             list.Add(SessionRule(smartTargeting));
+            // Remake (the GoF3 roadmap's G6; ES2's 2026-11-06): GoF2's fighters, or Galaxy on Fire 3's / EVERSPACE 2's for the mods'
+            // hulls that ask for them or for every one (Settings.NpcDogfight, Flight.Gof3Dogfight, Flight.Es2Dogfight).
+            list.Add(SessionRule(Choice("npcDogfight", OptionPage.Gameplay, () => X("npcDogfight", "NPC dogfighting"), true,
+                () => new[] { X("npcDogfightOriginal", "Original"), X("npcDogfightModHullsOwn", "Mod hulls' own"), X("npcDogfightAll", "GoF3 for all"),
+                              X("npcDogfightEs2All", "ES2 for all") },
+                () => Settings.NpcDogfight, i => Settings.NpcDogfight = i,
+                () => X("npcDogfightHelp2", "GoF3: attack runs, veering off, tailing you, barrel rolls on hits. ES2: runs past you, gaining distance, evading when tailed, fleeing when nearly dead."))));
+            // Remake (2026-11-06): EVERSPACE 2's aim (Settings.Es2Aiming, Flight.Es2Aim / Es2Director), apart from the dogfighting.
+            var es2Aiming = Toggle("es2Aiming", OptionPage.Gameplay, () => X("es2Aiming", "EVERSPACE 2 NPC aiming"),
+                () => Settings.Es2Aiming, v => Settings.Es2Aiming = v);
+            es2Aiming.description = () => X("es2AimingHelp", "NPCs lead their shots, re-aiming faster on higher difficulties; of a crowd on you only a few shoot at once. Off: as in the original.");
+            list.Add(SessionRule(es2Aiming));
+            // Remake (2026-11-06): EVERSPACE 2's physics flight for NPC ships (Settings.Es2NpcFlight, Flight.Es2NpcFlight).
+            var es2Flight = Toggle("es2NpcFlight", OptionPage.Gameplay, () => X("es2NpcFlight", "EVERSPACE 2 NPC flight"),
+                () => Settings.Es2NpcFlight, v => Settings.Es2NpcFlight = v);
+            es2Flight.description = () => X("es2NpcFlightHelp", "NPC ships fly with momentum, ease out of turns and steer round asteroids and stations. Off: as in the original.");
+            list.Add(SessionRule(es2Flight));
             // Remake (players' report: fighters hard to hit since the mesh collision): every hull's real shape, the flyable ships
             // on the original's hit cube, or the original's volumes everywhere (Settings.ShipCollision, Flight.HullCollision.Mode).
             list.Add(SessionRule(Choice("shipCollision", OptionPage.Gameplay, () => X("shipCollision", "Ship collision"), true,
@@ -600,6 +625,11 @@ namespace GoF2Remake.UI
                 () => Settings.MarkerDistance, v => Settings.MarkerDistance = v);
             markerDistance.description = () => X("markerDistanceHelp", "Shows the distance under every distant ship's marker.");
             list.Add(markerDistance);
+            // Remake (the user, 2026-11-03): the systems' distances while the Khador Slipstream flies between them.
+            var interstellarDistance = Toggle("interstellarDistance", OptionPage.Gameplay, () => X("interstellarDistance", "Distances between the systems"),
+                () => Settings.InterstellarDistance, v => Settings.InterstellarDistance = v);
+            interstellarDistance.description = () => X("interstellarDistanceHelp", "Shows how far each system is while the Khador Slipstream flies between them.");
+            list.Add(interstellarDistance);
             // Remake: Discord Rich Presence (DiscordPresence), desktop only.
             if (!Application.isMobilePlatform)
                 list.Add(Toggle("discordPresence", OptionPage.Gameplay, () => X("discordPresence", "Show what I'm doing in Discord"),

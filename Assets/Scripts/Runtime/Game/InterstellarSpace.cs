@@ -3,8 +3,15 @@
 // CruiseDrive.InterstellarAttr) mounted, the quick menu's entry plays the Khador sequence and the Space scene reloads as
 // this space instead of a destination (Session.EnterInterstellar, read once by SpaceLevel): the same station stays
 // Session.StationIndex, so a save or a load in here is the orbit the ship left. No station, gate, planets, asteroids,
-// traffic or story; every system on the star map is a sun at its galaxy map place (GalaxyMap.SunPosition), a target the
+// traffic or story; every system on the star map is a sun near its galaxy map place (GalaxyMap.SunPosition), a target the
 // autopilot flies to. Reaching one plays the Khador scene into its gate orbit, as a Khador jump arrives.
+//   the layout    the map's places spread out (Layout, the user, 2026-11-03: easier to pick a system by eye in flight, and
+//                 then "make use of verticality": nothing says the systems share one plane): the galaxy's thin axis stretched
+//                 DiscStretch times and each system lifted off it by its own HeightJitter share (fixed per system), any two
+//                 pushed apart to MinSeparation, then all scaled so the average gate hop is LegUnits. From a gate hop's
+//                 middle a sun's nearest neighbour went from a median 7.9 deg to 14.4 (the worst tenth 2.5 to 5.4), those
+//                 within 3 deg of another from 15 % to 4 %. Every system with a station is laid out, shown or not and the
+//                 mods' too, so revealing one moves nothing.
 //   what shows    GalaxyMap.Visibility, the star map's own rule: only what is revealed (the story, bought coordinates), an
 //                 event's show / hide, a mod's "available", never a missing mod's placeholder. Nothing else is reachable.
 //   energy cells  a leg of the drive is LegUnits here, the average gate hop, so a crossing costs what the gate route's
@@ -21,12 +28,65 @@ using UnityEngine;
 
 namespace GoF2Remake.Data
 {
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class InterstellarSpace
     {
-        /// <summary>Game units per unit of the galaxy map: the average gate hop (2510 on the map) is 30 km.</summary>
-        public const float UnitsPerMapUnit = 240f;
+        /// <summary>The layout (Layout): the galaxy map's thin axis (z) stretched this many times, and the least distance
+        /// between two systems, in map units (the average gate hop is 2510), before the scaling to LegUnits.</summary>
+        public const float DiscStretch = 2.5f, MinSeparation = 3500f;
+        /// <summary>The most a system is lifted off the galaxy's disc (map units, either way; Height: fixed per system).</summary>
+        public const float HeightJitter = 3500f;
+        /// <summary>A system's own share of HeightJitter, -1..1: from its index for the game's, from its key for a mod's (mod
+        /// systems are numbered per player, ModRegistry: the key keeps a mod system's place the same for everyone).</summary>
+        public static float Height(int system)
+        {
+            string key = Modding.ModWorld.IsModSystem(system) ? Modding.ModWorld.SystemKey(system) : null;
+            uint h = key == null ? unchecked((uint)system * 2654435761u) : Fnv(key);
+            return h / (float)uint.MaxValue * 2f - 1f;
+        }
+
+        static uint Fnv(string s)
+        {
+            uint h = 2166136261u;
+            foreach (char c in s) h = unchecked((h ^ c) * 16777619u);
+            return unchecked(h * 2654435761u);
+        }
+        const int SpreadPasses = 200;
         /// <summary>A leg of energy cells here: the average gate hop.</summary>
         public const float LegUnits = 600000f;
+        /// <summary>Distances here are read in light years (the user, 2026-11-03: big numbers that fall fast on the way in, for
+        /// the speed): the average gate hop (LegUnits) is 50 ly.</summary>
+        public const float UnitsPerLightYear = LegUnits / 50f;
+
+        /// <summary>A system's zone (the user, 2026-11-03: its planets come out within a light year of its star, orbiting it):
+        /// within ZoneUnits (1 ly) of the star flown to, the space round the ship grows ZoneScale times (Flight.Navigation
+        /// .WorldScale: every direction kept, the star then ZoneUnits x ZoneScale away, 45 km), so a system's planets and an
+        /// arrival's approach have room at the orbits' own scale while the hops between the systems keep theirs; leaving it
+        /// (ZoneExit x that) shrinks it back.</summary>
+        public const float ZoneUnits = UnitsPerLightYear, ZoneScale = 75f, ZoneExit = 1.05f;
+        /// <summary>Within this of a planet (units, in a zone) its distance reads in the orbit's km, not light years.</summary>
+        public const float PlanetKmUnits = 500000f;
+
+        /// <summary>'units' as the markers show it here, in the units Elite Dangerous reads space in (the user, 2026-11-04:
+        /// values that change fast, for the speed and the distance): light years from 1 ly, light seconds from 1 Ls, megametres
+        /// from 1 Mm, kilometres from 1 km, else metres; a light year is UnitsPerLightYear. 'scale': the space's own
+        /// (WorldScale), so a distance reads the same across a zone's edge.</summary>
+        public static string FormatSpaceDistance(float units, float scale = 1f) => FormatSpace(units / Mathf.Max(1e-6f, scale));
+
+        public const double MetersPerLightYear = 9.4607304725808e15, MetersPerLightSecond = 299792458.0;
+
+        static string FormatSpace(float units)
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            double ly = Mathf.Max(0f, units) / (double)UnitsPerLightYear, m = ly * MetersPerLightYear;
+            if (ly >= 1.0) return string.Format(Localization.Extra("unitLightYears", "{0} ly"), ly.ToString(ly >= 1000.0 ? "N0" : "0.00", inv));
+            double ls = m / MetersPerLightSecond;
+            if (ls >= 1.0) return string.Format(Localization.Extra("unitLightSeconds", "{0} Ls"), ls.ToString(ls >= 100.0 ? "N0" : "0.00", inv));
+            if (m >= 1e6) return string.Format(Localization.Extra("unitMegameters", "{0} Mm"), (m / 1e6).ToString("0.0", inv));
+            if (m >= 1e3) return string.Format(Localization.Extra("unitKilometers", "{0} km"), (m / 1e3).ToString("0.0", inv));
+            return string.Format(Localization.Extra("unitMeters", "{0} m"), m.ToString("0", inv));
+        }
+
         /// <summary>A system's edge (8 km): the level changes here, at full warp with nothing near and the sky already the
         /// system's, and the ship flies the rest of the way in through the real orbit (CarryMeters).</summary>
         public const float ArriveUnits = 160000f;
@@ -68,7 +128,71 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>A system's place in this space (game units).</summary>
-        public static Vector3 Position(SystemData s) => (GalaxyMap.SunPosition(s) - Centre) * UnitsPerMapUnit;
+        public static Vector3 Position(Database db, SystemData s)
+        {
+            if (s == null) return Vector3.zero;
+            var layout = Layout(db);
+            return layout.TryGetValue(s.index, out var at) ? at : Spread(s) * layoutScale;
+        }
+
+        static List<SystemData> laidOut;
+        static int laidOutCount = -1;
+        static readonly Dictionary<int, Vector3> layout = new Dictionary<int, Vector3>();
+        static float layoutScale = 1f;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() { laidOut = null; laidOutCount = -1; layout.Clear(); layoutScale = 1f; }
+
+        /// <summary>A system's map place centred, its thin axis stretched (map units).</summary>
+        static Vector3 Spread(SystemData s)
+        {
+            var p = GalaxyMap.SunPosition(s) - Centre;
+            return new Vector3(p.x, p.y, p.z * DiscStretch + Height(s.index) * HeightJitter);
+        }
+
+        /// <summary>Every system with a station in this space (game units), made once per database's system list: the map's
+        /// places spread (Spread), pairs closer than MinSeparation pushed apart along their line, each by half the shortfall,
+        /// in index order for SpreadPasses passes or until none is, then scaled so the gates' average hop is LegUnits.</summary>
+        static Dictionary<int, Vector3> Layout(Database db)
+        {
+            if (db == null) return layout;
+            if (ReferenceEquals(laidOut, db.Systems) && laidOutCount == db.Systems.Count) return layout;
+            laidOut = db.Systems;
+            laidOutCount = db.Systems.Count;
+            layout.Clear();
+            var ids = new List<int>();
+            var at = new List<Vector3>();
+            foreach (var s in db.Systems)
+                if (ArrivalStation(s) >= 0) { ids.Add(s.index); at.Add(Spread(s)); }
+            for (int pass = 0; pass < SpreadPasses; pass++)
+            {
+                bool moved = false;
+                for (int i = 0; i < at.Count; i++)
+                    for (int j = i + 1; j < at.Count; j++)
+                    {
+                        var d = at[i] - at[j];
+                        float m = d.magnitude;
+                        if (m >= MinSeparation) continue;
+                        // two in one place (a mod's system put on another's): apart along the disc's thin axis, the earlier one +z
+                        if (m < 1e-3f) { d = Vector3.forward * 1e-3f; m = 1e-3f; }
+                        var push = d * ((MinSeparation - m) * 0.5f / m);
+                        at[i] += push;
+                        at[j] -= push;
+                        moved = true;
+                    }
+                if (!moved) break;
+            }
+            for (int i = 0; i < ids.Count; i++) layout[ids[i]] = at[i];
+            float total = 0f;
+            int links = 0;
+            foreach (var s in db.Systems)
+                if (s.jumpRoutesTo != null && layout.TryGetValue(s.index, out var a))
+                    foreach (int t in s.jumpRoutesTo)
+                        if (t > s.index && layout.TryGetValue(t, out var b)) { total += (a - b).magnitude; links++; }
+            layoutScale = links > 0 && total > 0f ? LegUnits / (total / links) : 240f;
+            for (int i = 0; i < ids.Count; i++) layout[ids[i]] = at[i] * layoutScale;
+            return layout;
+        }
 
         /// <summary>The dive into the Void is offered: free play, else once the story has been there.</summary>
         public static bool VoidShown => Session.FreePlay || Story.Index > VoidRideIndex;
@@ -79,7 +203,7 @@ namespace GoF2Remake.Data
         {
             if (station == Session.VoidOrbit) station = Session.VoidReturnStation;
             int system = db.Stations.Find(s => s.index == station)?.system ?? -1;
-            return Position(db.Systems.Find(s => s.index == system) ?? db.Systems[0]);
+            return Position(db, db.Systems.Find(s => s.index == system) ?? db.Systems[0]);
         }
 
         /// <summary>Where a jump into the system comes out: its gate orbit, else its first station; -1 = nowhere to go.</summary>
@@ -87,6 +211,16 @@ namespace GoF2Remake.Data
         {
             if (s?.stations == null || s.stations.Count == 0) return -1;
             return s.stations.Contains(s.jumpgateStation) ? s.jumpgateStation : s.stations[0];
+        }
+
+        /// <summary>Where flying into 'system' brings the ship out (Flight.Navigation, the user, 2026-11-03: as the Khador Drive
+        /// reaches any planet): 'picked' (a planet picked in flight), else 'programmed' (the programmed destination) when it is
+        /// one of that system's and the story allows it ('refused'), else 'gate' (ArrivalStation).</summary>
+        public static int ArrivalFor(Database db, int system, int gate, int picked, int programmed, System.Func<int, bool> refused = null)
+        {
+            if (picked >= 0) return picked;
+            if (programmed >= 0 && db?.Stations.Find(s => s.index == programmed)?.system == system && (refused == null || !refused(programmed))) return programmed;
+            return gate;
         }
 
         /// <summary>Every system this space shows now, in the database's order.</summary>
@@ -97,7 +231,7 @@ namespace GoF2Remake.Data
             {
                 int station = ArrivalStation(s);
                 if (station < 0 || !GalaxyMap.IsVisible(db, s.index)) continue;
-                list.Add(new Point { system = s.index, station = station, textureIndex = s.textureIndex, name = s.name.Trim(), position = Position(s) });
+                list.Add(new Point { system = s.index, station = station, textureIndex = s.textureIndex, name = s.name.Trim(), position = Position(db, s) });
             }
             return list;
         }
@@ -150,7 +284,7 @@ namespace GoF2Remake.Data
             var from = PositionOf(db, layout.stationIndex);
             var goal = db.Stations.Find(s => s.index == Session.ProgrammedStation) is StationData prog
                        && db.Systems.Find(s => s.index == prog.system) is SystemData sys && sys.index != layout.systemIndex && GalaxyMap.IsVisible(db, sys.index)
-                ? Position(sys) : Vector3.zero;
+                ? Position(db, sys) : Vector3.zero;
             Start(from, goal, out position, out var forward);
             return forward;
         }

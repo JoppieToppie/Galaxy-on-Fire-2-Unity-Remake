@@ -133,7 +133,42 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Settings.EmpBreaksCloak, "off by default");
             Assert.IsFalse(Settings.SmarterNpcTargeting, "the original's targeting by default (#121)");
             Assert.AreEqual(SessionRules.CollisionOriginal, Settings.ShipCollision, "Original by default");
+            Assert.AreEqual(SessionRules.DogfightModHulls, Settings.NpcDogfight, "GoF3's dogfighting on the hulls that ask for it");
             Assert.AreEqual(SessionRules.WithCollision(SessionRules.InformerOriginalRule, SessionRules.CollisionOriginal), Settings.LocalRules());
+        }
+
+        [Test]
+        public void TheDogfightingModeTravelsInThreeBits()
+        {
+            AllDefaults();
+            Settings.NpcDogfight = SessionRules.DogfightOriginalMode;
+            Assert.AreEqual(SessionRules.DogfightOriginal, Settings.LocalRules() & (SessionRules.DogfightOriginal | SessionRules.DogfightEvery));
+            Settings.NpcDogfight = SessionRules.DogfightAll;
+            Assert.AreEqual(SessionRules.DogfightEvery, Settings.LocalRules() & (SessionRules.DogfightOriginal | SessionRules.DogfightEvery));
+            Assert.AreEqual(SessionRules.DogfightAll, SessionRules.DogfightOf(Settings.LocalRules()));
+            Assert.AreEqual(SessionRules.DogfightModHulls, SessionRules.DogfightOf(0), "a session without the bits: the default");
+            Assert.AreEqual(SessionRules.DogfightOriginalMode, SessionRules.DogfightOf(SessionRules.WithDogfight(SessionRules.DogfightEvery, 0)));
+            Settings.NpcDogfight = SessionRules.DogfightEs2All;
+            Assert.AreEqual(SessionRules.DogfightEs2, Settings.LocalRules() & (SessionRules.DogfightOriginal | SessionRules.DogfightEvery | SessionRules.DogfightEs2));
+            Assert.AreEqual(SessionRules.DogfightEs2All, SessionRules.DogfightOf(Settings.LocalRules()));
+            Settings.NpcDogfight = 7;
+            Assert.AreEqual(SessionRules.DogfightEs2All, Settings.NpcDogfight, "clamped");
+        }
+
+        [Test]
+        public void Es2AimingIsAnOptionOfItsOwn()
+        {
+            AllDefaults();
+            Assert.IsFalse(Settings.Es2Aiming, "GoF2's aim by default");
+            Settings.Es2Aiming = true;
+            Assert.AreEqual(SessionRules.Es2Aiming, Settings.LocalRules() & SessionRules.Es2Aiming);
+            Assert.AreEqual(SessionRules.DogfightModHulls, SessionRules.DogfightOf(Settings.LocalRules()), "the dogfighting untouched");
+            Settings.Es2Aiming = false;
+            Assert.AreEqual(0, Settings.LocalRules() & SessionRules.Es2Aiming);
+            Assert.IsFalse(Settings.Es2NpcFlight, "GoF2's NPC flight by default");
+            Settings.Es2NpcFlight = true;
+            Assert.AreEqual(SessionRules.Es2NpcFlight, Settings.LocalRules() & (SessionRules.Es2NpcFlight | SessionRules.Es2Aiming), "a bit of its own");
+            Settings.Es2NpcFlight = false;
         }
 
         [Test]

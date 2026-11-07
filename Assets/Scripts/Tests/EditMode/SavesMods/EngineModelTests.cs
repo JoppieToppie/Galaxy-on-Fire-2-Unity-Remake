@@ -5,7 +5,9 @@
 // fxScale, with GoF2/ModEngineMesh, an exhaust style's colours on each renderer (the helix the second); a sprite keeps its corner offsets (uv1); an
 // animation channel samples its keys linearly (EngineChannel.Sample). GoF3's Fork emitters ("trailParticles" /
 // "contrailParticles"): particles born at the rate along the path the exhaust moved, a quad each in the wake, none past "max",
-// none while the ship stands still; a part's "intensity" is its material's _Intensity (4 without one).
+// none while the ship stands still; a part's "intensity" is its material's _Intensity (4 without one). The steering bend
+// (EVERSPACE 2's, on GoF3's engines too: EngineFlame.SteerBend): the tip against the velocity, x the thrust's forward
+// share, at most EngineFlame.SteerShare of the length; each exhaust gets its nozzle, its way back and its parts' length.
 // Expected values: the format in Modding/README.md "Engine effect".
 
 using System.Reflection;
@@ -97,6 +99,46 @@ namespace GoF2Remake.Tests
                 Assert.AreEqual(Color.red, block.GetColor("_Tint"), "the first colour on the body");
                 holder.GetChild(1).GetComponent<MeshRenderer>().GetPropertyBlock(block);
                 Assert.AreEqual(new Color(0f, 0.5f, 1f, 1f), block.GetColor("_Tint"), "the second on the helix");            }
+            finally { Object.DestroyImmediate(ship); }
+        }
+
+        [Test]
+        public void TheSteeringBendLeansTheTipAgainstTheVelocityWhileThrustingForward()
+        {
+            var v = new Vector3(30f, 0f, 0f);
+            var bend = EngineFlame.SteerBend(v, new Vector3(0f, 0f, 1f));
+            Assert.AreEqual(-EngineFlame.SteerShare * 30f / EngineFlame.SteerTopSpeed, bend.x, 1e-5f, "against the velocity, by its share of the top speed");
+            Assert.AreEqual(0f, bend.y, 1e-6f); Assert.AreEqual(0f, bend.z, 1e-6f);
+            Assert.AreEqual(EngineFlame.SteerShare, EngineFlame.SteerBend(new Vector3(0f, 500f, 0f), Vector3.forward).magnitude, 1e-5f,
+                            "at most SteerShare of the length (the top speed's)");
+            Assert.AreEqual(Vector3.zero, EngineFlame.SteerBend(v, Vector3.zero), "no thrust, no bend");
+            Assert.AreEqual(Vector3.zero, EngineFlame.SteerBend(v, new Vector3(0f, 0f, -1f)), "nor thrusting backward");
+            Assert.AreEqual(bend.x * Mathf.Sqrt(0.5f), EngineFlame.SteerBend(v, new Vector3(1f, 0f, 1f)).x, 1e-5f, "x the thrust's forward share");
+        }
+
+        [Test]
+        public void EachExhaustGivesTheBendItsNozzleAndLength()
+        {
+            var mod = EngineModOn();
+            var ship = new GameObject("ship");
+            var glow = new GameObject("engine_glow");
+            glow.transform.SetParent(ship.transform, false);
+            try
+            {
+                var fx = new CustomEngineFx { meshes = "fx/engines/e.json", meshScale = 50f };
+                var mount = new WeaponMount { slotType = 3, position_engine = new[] { 0, 0, -400 }, fxScale = 2f };
+                var e = EngineFx.Create(ship, glow, fx, new[] { mount }, mod, "test", m => m.fxScale);
+                typeof(EngineFx).GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(e, null);
+                var holder = glow.transform.Find("engine_fx_mesh_0");
+                var block = new MaterialPropertyBlock();
+                holder.GetChild(0).GetComponent<MeshRenderer>().GetPropertyBlock(block);
+                Vector4 origin = block.GetVector("_BendOrigin"), axis = block.GetVector("_BendAxis");
+                Assert.Less(Vector3.Distance(holder.position, origin), 1e-4f, "from the nozzle");
+                Assert.Less(Vector3.Distance(Vector3.back, axis), 1e-4f, "backward along the exhaust");
+                // the body's far end: 0.5 + 4 GoF3 units along it, x the holder's length this frame
+                Assert.AreEqual(4.5f * Mathf.Abs(holder.lossyScale.z), axis.w, 1e-3f, "the parts' length");
+                Assert.AreEqual(Vector4.zero, block.GetVector("_SteerBend"), "no bend without the player's ship");
+            }
             finally { Object.DestroyImmediate(ship); }
         }
 
