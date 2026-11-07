@@ -512,6 +512,8 @@ namespace GoF2Remake.World
                                              && CruiseEncounterRules.Allowed(db, station, Layout.systemIndex, Layout.alienOrbit);
             Navigation.SpawnEncounter = (entry, at, forward) => CruiseEncounterSpawner.Spawn(this, entry, at, forward);
             Traffic.LaunchCameraRunning = () => !LaunchCameraOver;
+            Traffic.PlayerSecondaryAmmo = () => Weapons != null ? Weapons.SecondaryAmmo : -1;   // remake mods: a wingman's Ammo Supply
+            Traffic.RestockPlayer = n => Weapons != null ? Weapons.Restock(n) : 0;
             Traffic.RadarHidden = () => Cutscene;
             // No locks or lock sounds (the scanner off). Remake: also in the planet jump, the jumpgate / Khador Drive scenes and
             // while a level script holds the controls (its cutscene camera moves before or after Cutscene says so).

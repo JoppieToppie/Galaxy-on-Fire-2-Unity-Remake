@@ -75,6 +75,9 @@ namespace GoF2Remake.Data
         /// <summary>Status+0xd4 / +0x2c / +0x30: hired wingmen (the agent and its friends), their race and the contract time
         /// left (ms); Wingmen.</summary>
         public static List<string> Wingmen = new List<string>();
+        /// <summary>Remake mods (Modding.ModWingmen): the ship each of them flies (the same order), -1 or none = the game's way
+        /// (a fighter of their race picked by the name).</summary>
+        public static List<int> WingmanShips = new List<int>();
         public static int WingmanRace;
         public static float WingmanContractMs;
         /// <summary>Status+0x28: the hiring agent's portrait (the goodbye dialogue); +0xd4 wingmen hired (statistic, medal 27);
@@ -549,6 +552,7 @@ namespace GoF2Remake.Data
             UsedMissionTypes = new bool[15];
             InformerKilled = InformerFailed = false;
             Wingmen = new List<string>();
+            WingmanShips = new List<int>();
             WingmanRace = 0;
             WingmanContractMs = 0f;
             WingmanPortrait = new int[5];

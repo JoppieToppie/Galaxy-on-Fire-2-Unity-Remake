@@ -274,6 +274,25 @@ namespace GoF2Remake.World
 
         // wingman (KIPlayer+0xd8 / +0xdc / +0xe0 / +0xe4)
         public bool IsWingman { get; private set; }
+        /// <summary>Remake mods: its hull's wingman device (ships.json "wingmanDevice", Flight.WingmanDevice; null = none),
+        /// its crew's radio lines (wingmen.json, Data.WingmanCrew; null = silent like the game's), its face on the radio,
+        /// its call for help made (until its hull is mended).</summary>
+        WingmanDevice wingDevice;
+        /// <summary>Remake option (Settings.NpcDogfight, NpcShipDogfight): GoF3's way of fighting (null = GoF2's), the target it
+        /// last saw, where and how fast, and the roll's invulnerability (set by it, so cleared by it).</summary>
+        Gof3Dogfight dogfight;
+        NpcShip formationLeader;
+        int formationIndex = -1;
+        float formationLookupMs;
+        Target dogTarget;
+        Vector3 dogTargetLast, dogTargetVel;
+        bool rollInvulnerable;
+        WingmanCrew wingCrew;
+        int[] wingFace;
+        bool wingHelpSaid;
+        /// <summary>Remake mods (NpcDevices: a boss's mind control): ms left of attacking the player (a wingman turned on its
+        /// leader), 0 = itself.</summary>
+        float mindControlMs;
         /// <summary>PlayerFixedObject::getDockingType (ObjectDocking.DropOff / Pickup / Hackable, 0 = not dockable); level
         /// scripts change it.</summary>
         public int DockingType { get; set; }
@@ -424,7 +443,19 @@ namespace GoF2Remake.World
             Target.hitpoints.SetEmp(spec.empPoints > 0 ? spec.empPoints : NpcTables.Emp(kind), NpcTables.EmpRecoveryMs(kind));   // also with a hull override
             Target.hp = Target.maxHp = Target.hitpoints.maxHull;
             Target.SlowBy = (ms, factor, noTurn) => { if (Target.Alive && !Target.phased) slow.Apply(ms, factor, noTurn); };
+            // remake mods: a Most Wanted criminal's weak and strong spots against the player's weapons ("damageTaken")
+            // and its devices (NpcDevices)
+            if (spec.wantedIndex >= 0 && spec.wantedIndex < database.Wanted.Count)
+            {
+                var wanted = database.Wanted[spec.wantedIndex];
+                if (wanted.damageTaken is DamageTaken taken) Target.PlayerWeaponFactor = item => taken.Factor(database.Item(item));
+                NpcDevices.Attach(this, owner, wanted.devices);
+            }
+            // remake mods (GoF3's kamikazes): a traffic hull's own devices ("traffic": { "devices" }), not on wingmen
+            else if (spec.group != NpcGroup.Wingman && !spec.noDevices && (database.Ship(spec.ship) as CustomShipData)?.traffic?.devices is List<NpcDeviceSpec> devices)
+                NpcDevices.Attach(this, owner, devices);
             SetupRole(spec);   // remake mods: its traffic role (NpcShipRoles)
+            SetupDogfight(spec, database);   // remake option: GoF3's way of fighting (NpcShipDogfight)
             Target.displayName = !string.IsNullOrEmpty(spec.name) ? spec.name : spec.nameText >= 0 ? Localization.Get(spec.nameText) : null;
             // Modified: a ship or story station one docks at (DockingShip) stays an ordinary ship on the radar, plated
             // "<race> NN%", its name the docking target's alone (a player's
@@ -515,6 +546,20 @@ namespace GoF2Remake.World
             if (spec.turretAssembly == null && spec.fixedObject == null && modelGo != null)
                 mounted = NpcMountedTurrets.Build(this, db, spec.ship, spec.turretItems ?? db.NpcTurretsOf(spec.ship), model, fxRoot, GunHit);
             if (spec.secondaryItem >= 0 && gun != null) SetSecondaryGun(spec.secondaryItem, spec.secondaryFactor);
+            else if (gun != null && spec.group != NpcGroup.Wingman && !spec.noDevices) SetOwnSecondary(db, spec);
+        }
+
+        /// <summary>Remake mods (GoF3's NPC loadouts): its hull's "traffic": { "secondaries" }, the first one it carries.</summary>
+        void SetOwnSecondary(Database db, SpawnSpec spec)
+        {
+            var list = (db?.Ship(spec.ship) as CustomShipData)?.traffic?.secondaries;
+            if (list == null) return;
+            foreach (var s in list)
+            {
+                if (s == null || !s.Carried(Session.Rank, Random.value)) continue;
+                if (Modding.ModContent.TryResolveItem(s.item, out int item) && db.Item(item) != null) SetSecondaryGun(item, Mathf.Max(0f, s.factor));
+                return;
+            }
         }
 
         static void Setup3D(AudioSource s)
@@ -664,7 +709,9 @@ namespace GoF2Remake.World
             }
             reselectTimer += dtMs;
             boostTimer += dtMs;
-            if (IsWingman) UpdateWingman(); else UpdateTargeting();
+            if (mindControlMs > 0f) UpdateMindControlled(dtMs);
+            else if (IsWingman) { UpdateWingman(); UpdateWingmanCrew(dtMs); } else UpdateTargeting();
+            UpdateDogfight(dtMs);   // remake option (NpcShipDogfight)
             if (IsJumper && followingWaypoint) { jumpMs += dtMs; if (jumpMs >= 20000f) { jumpMs = 0f; Current = State.JumpingOut; } }
             else jumpMs = 0f;
             UpdateBoost(dtMs);

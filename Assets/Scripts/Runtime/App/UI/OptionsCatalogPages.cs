@@ -492,6 +492,12 @@ namespace GoF2Remake.UI
                 () => Settings.SmarterNpcTargeting, v => Settings.SmarterNpcTargeting = v);
             smartTargeting.description = () => X("smarterNpcTargetingHelp", "Enemy fighters spread over nearby targets instead of all going for you.");
             list.Add(SessionRule(smartTargeting));
+            // Remake (the GoF3 roadmap's G6): GoF2's fighters, or Galaxy on Fire 3's for the mods' GoF3 hulls or for every one
+            // (Settings.NpcDogfight, Flight.Gof3Dogfight).
+            list.Add(SessionRule(Choice("npcDogfight", OptionPage.Gameplay, () => X("npcDogfight", "NPC dogfighting"), true,
+                () => new[] { X("npcDogfightOriginal", "Original"), X("npcDogfightModHulls", "GoF3 on mod hulls"), X("npcDogfightAll", "GoF3 for all") },
+                () => Settings.NpcDogfight, i => Settings.NpcDogfight = i,
+                () => X("npcDogfightHelp", "GoF3: fighters make attack runs and veer off, sit on your tail, lead their shots and barrel-roll away from hits."))));
             // Remake (players' report: fighters hard to hit since the mesh collision): every hull's real shape, the flyable ships
             // on the original's hit cube, or the original's volumes everywhere (Settings.ShipCollision, Flight.HullCollision.Mode).
             list.Add(SessionRule(Choice("shipCollision", OptionPage.Gameplay, () => X("shipCollision", "Ship collision"), true,

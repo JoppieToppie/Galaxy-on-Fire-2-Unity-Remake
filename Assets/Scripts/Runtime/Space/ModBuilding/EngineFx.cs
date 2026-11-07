@@ -18,7 +18,10 @@
 //     camera, stretched along the wake. "boostParticles": GoF3's booster flash (ad_engine_booster_<race>.psb), emitted at
 //     the exhausts only while boosting, riding with the ship ("local": the .psb's flag 0x20000).
 // Each exhaust blows along its mount's "rotation" (ModHardpoints.MountTurn: GoF3's engine helper turned, the Vossk hulls'
-// engines 8.5-10 deg outward). An exhaust style's colours (ModExhausts: the Customize screen's two colour rows) recolour
+// engines 8.5-10 deg outward). GoF3's engines stay rigid on the hull (ECS::EngineAttachmentSystem::tryToAttachEngines places
+// each once at its helper; only the trails lag): on the player's ship the remake bends them as EVERSPACE 2 bends its flames
+// (the user's request, 2026-11-04: EngineFlame.SteerBend, the tip against the velocity x the thrust's forward share), each
+// exhaust's parts by u^2 along it (GoF2/ModEngineMesh's _SteerBend; u 0 at the nozzle, 1 at the parts' far end). An exhaust style's colours (ModExhausts: the Customize screen's two colour rows) recolour
 // it (GoF2/ModEngineMesh's _Tint: each pixel's hue replaced, its white kept): the first every part but the helix, the second
 // the helix and the particles.
 // Level: EngineDrive like EngineFlame (0 idle .. 1 full throttle .. 2 a full boost; off while the engine glow part is, a
@@ -47,6 +50,9 @@ namespace GoF2Remake.Modding
 
         static readonly int LevelId = Shader.PropertyToID("_Level");
         static readonly int TintId = Shader.PropertyToID("_Tint");
+        static readonly int SteerId = Shader.PropertyToID("_SteerBend");
+        static readonly int BendOriginId = Shader.PropertyToID("_BendOrigin");
+        static readonly int BendAxisId = Shader.PropertyToID("_BendAxis");
 
         [SerializeField] GameObject engineGlow;
         [SerializeField] List<Vector3> nozzles = new List<Vector3>();   // root space
@@ -90,8 +96,10 @@ namespace GoF2Remake.Modding
         }
         readonly List<ForkRun> forkRuns = new List<ForkRun>();
 
-        readonly List<(Transform t, float s, float length)> meshHolders = new List<(Transform, float, float)>();
-        readonly List<(Transform t, MeshRenderer r, int part)> meshParts = new List<(Transform, MeshRenderer, int)>();
+        // each exhaust's holder, its scale and length, and its parts' far end along it (the holder's +z, its own units)
+        readonly List<(Transform t, float s, float length, float reach)> meshHolders = new List<(Transform, float, float, float)>();
+        readonly List<(Transform t, MeshRenderer r, int part, int engine)> meshParts = new List<(Transform, MeshRenderer, int, int)>();
+        readonly List<(Vector4 origin, Vector4 axis)> bends = new List<(Vector4, Vector4)>();   // per holder, this frame
         float igniteMs = -1f, offMs = -1f, offLength, prevBoost;
         bool wasOn;
         readonly List<Vector3> verts = new List<Vector3>();
@@ -104,6 +112,9 @@ namespace GoF2Remake.Modding
         EngineDrive drive;
         bool ready, inStation;
         float thrust = -1f, boost, level = -1f;
+        ShipController ship;
+        Vector3 lastPosition, velocity, pilotThrust;   // world m/s; the player's eased input (EngineFlame's)
+        bool hasLast;
 
         /// <summary>Sets it up on a ship template: the parts under 'glowPart' (the engine glow part: they go with the engines),
         /// one per exhaust mount of 'c'.</summary>
@@ -339,6 +350,8 @@ namespace GoF2Remake.Modding
         void OnEnable()
         {
             drive?.Reset();
+            hasLast = false;
+            ship = null;
             inStation = EngineDrive.IsStationModel(transform);
         }
 
@@ -370,7 +383,7 @@ namespace GoF2Remake.Modding
                     float s = meshScale * M * scales[i] / Mathf.Max(1e-4f, parent.lossyScale.x);
                     float length = i < lengths.Count ? lengths[i] : 1f;
                     holder.localScale = new Vector3(s, s, -s * length);
-                    meshHolders.Add((holder, s, length));
+                    float reach = 0f;
                     for (int k = 0; k < partMeshes.Count; k++)
                     {
                         var info = partInfo[k];
@@ -378,10 +391,21 @@ namespace GoF2Remake.Modding
                         var t = Child(holder, $"engine_fx_part_{i}_{k}", mesh, partMaterials[k], at, out var r);
                         t.localPosition = info.pos; t.localRotation = info.rot; t.localScale = info.scale;
                         Tint(r, info.second ? secondTint : mainTint);
-                        meshParts.Add((t, r, k));
+                        meshParts.Add((t, r, k, meshHolders.Count));
+                        reach = Mathf.Max(reach, FarEnd(mesh.bounds, info));
                         if (info.anims != null)
                             foreach (var a in info.anims) if (a?.kind == "off") offLength = Mathf.Max(offLength, a.length);
                     }
+                    meshHolders.Add((holder, s, length, reach));
+                    // the bend reaches past the parts' bounds (a share of the exhaust's length sideways): grow them so a
+                    // bent plume isn't culled with its nozzle off screen
+                    foreach (var (t, r, _, engine) in meshParts)
+                        if (engine == meshHolders.Count - 1 && r != null)
+                        {
+                            var b = r.localBounds;
+                            b.Expand(2f * EngineFlame.SteerShare * reach / Mathf.Max(1e-4f, MinAbs(t.localScale)));
+                            r.localBounds = b;
+                        }
                 }
                 if (forkTrail?.Any == true && forkTrailMaterial != null)
                     forkRuns.Add(ForkRunAt(parent, $"engine_fx_fork_{i}", forkTrail, forkTrailMaterial, nozzles[i], forkUnit * scales[i], i));
@@ -394,6 +418,21 @@ namespace GoF2Remake.Modding
             }
             foreach (var run in forkRuns) Tint(run.renderer, secondTint);
         }
+
+        /// <summary>How far a part reaches along its holder's +z (backward along the exhaust), in the holder's units: its mesh
+        /// bounds' corners placed by the part's rest transform.</summary>
+        static float FarEnd(Bounds b, MeshPart info)
+        {
+            float far = 0f;
+            for (int c = 0; c < 8; c++)
+            {
+                var corner = new Vector3((c & 1) == 0 ? b.min.x : b.max.x, (c & 2) == 0 ? b.min.y : b.max.y, (c & 4) == 0 ? b.min.z : b.max.z);
+                far = Mathf.Max(far, (info.pos + info.rot * Vector3.Scale(info.scale, corner)).z);
+            }
+            return far;
+        }
+
+        static float MinAbs(Vector3 v) => Mathf.Min(Mathf.Abs(v.x), Mathf.Min(Mathf.Abs(v.y), Mathf.Abs(v.z)));
 
         /// <summary>An exhaust style's colour on one renderer (GoF2/ModEngineMesh's _Tint; alpha 0 = GoF3's own).</summary>
         void Tint(Renderer r, Color c)
@@ -444,8 +483,31 @@ namespace GoF2Remake.Modding
             }
             bool on = engineGlow.activeInHierarchy && !drive.Off;
             level = level < 0f ? (on ? 1f : 0f) : Mathf.MoveTowards(level, on ? 1f : 0f, Time.unscaledDeltaTime * FadePerSecond);
-            if (meshParts.Count > 0) UpdateMeshes(dt, on);
+            if (meshParts.Count > 0) { UpdatePilot(dt, on); UpdateMeshes(dt, on); }
             if (forkRuns.Count > 0) UpdateFork(dt, Camera.main, on);
+        }
+
+        /// <summary>The ship's velocity and, on the player's ship in space, its eased input (as EngineFlame eases it: EVERSPACE
+        /// 2's EaseEngineVFX), for the steering bend.</summary>
+        void UpdatePilot(float dt, bool on)
+        {
+            var p = transform.position;
+            if (hasLast && dt > 0f)
+            {
+                var v = (p - lastPosition) / dt;
+                // A jump or respawn moves the ship in one frame: ignore it.
+                if (v.magnitude < FlightModel.BaseSpeed * 1000f * M * 20f) velocity = Vector3.Lerp(velocity, v, 1f - Mathf.Exp(-dt * 20f));
+            }
+            lastPosition = p; hasLast = true;
+            if (ship == null) ship = GetComponentInParent<ShipController>();
+            var target = Vector3.zero;
+            if (ship != null && !inStation)
+            {
+                target = EngineFlame.PilotInput(ship);
+                if (!on) target.z = Mathf.Min(0f, target.z);
+            }
+            float k = 1f - Mathf.Exp(-dt * (target.magnitude > pilotThrust.magnitude ? EngineFlame.RiseRate : EngineFlame.FallRate));
+            pilotThrust = Vector3.Lerp(pilotThrust, target, k);
         }
 
         /// <summary>GoF3's Fork emitters: age and drop the particles, emit while the engines run (spread along the path the
@@ -548,11 +610,23 @@ namespace GoF2Remake.Modding
             if (igniteMs >= 0f) igniteMs += ms;
             if (offMs >= 0f) { offMs += ms; if (offMs > offLength) offMs = -1f; }
             float lengthScale = Mathf.Lerp(MeshIdleLength, 1f, thrust) * (1f + 0.3f * boost);
-            foreach (var (h, s, length) in meshHolders) if (h != null) h.localScale = new Vector3(s, s, -s * length * lengthScale);
+            Vector4 steer = ship != null && !inStation ? (Vector4)EngineFlame.SteerBend(velocity, pilotThrust) : Vector4.zero;
+            bends.Clear();
+            foreach (var (h, s, length, reach) in meshHolders)
+            {
+                if (h == null) { bends.Add((Vector4.zero, Vector4.zero)); continue; }
+                h.localScale = new Vector3(s, s, -s * length * lengthScale);
+                // the exhaust's nozzle and far end this frame (its length follows the throttle)
+                var o = h.position;
+                var along = h.TransformPoint(0f, 0f, reach) - o;
+                float l = along.magnitude;
+                var dir = l > 1e-5f ? along / l : Vector3.zero;
+                bends.Add((new Vector4(o.x, o.y, o.z, 0f), new Vector4(dir.x, dir.y, dir.z, l > 1e-5f ? l : 0f)));
+            }
             float shown = offMs >= 0f ? 1f : level;
             float loopMs = Time.time * 1000f;
             bool igniting = false;
-            foreach (var (t, r, k) in meshParts)
+            foreach (var (t, r, k, engine) in meshParts)
             {
                 if (t == null) continue;
                 var info = partInfo[k];
@@ -601,6 +675,10 @@ namespace GoF2Remake.Modding
                 if (!r.enabled) continue;
                 r.GetPropertyBlock(block);
                 block.SetFloat(LevelId, lvl);
+                var (origin, axis) = bends[engine];
+                block.SetVector(SteerId, steer);
+                block.SetVector(BendOriginId, origin);
+                block.SetVector(BendAxisId, axis);
                 r.SetPropertyBlock(block);
             }
             if (!igniting && igniteMs >= 0f) igniteMs = -1f;

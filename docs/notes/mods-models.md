@@ -148,6 +148,16 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   nozzle, which GoF3's viewer never shows). Checked in Play mode: the Manticore and a capital freighter (body, core,
   flare per nozzle), the Moornta and Argus flying with their wakes, the Argus, Moornta and Shamash in the Customize
   preview and the three races' capitals in space. Tests `EngineModelTests`.
+- **GoF3's engines bend in turns** (2026-11-04, the user: "bend them like ES2's"; the remake's, not GoF3's): GoF3 keeps them
+  rigid on the hull (`ECS::EngineAttachmentSystem::tryToAttachEngines` places each engine scene once at its helper, its
+  position, turn and scale, and never again; only the Fork trails, world space, lag; `engineSteer` / `engineThrottle` /
+  `engineAccel` are the engine sound's parameters). On the player's ship in space `EngineFx` bends them as EVERSPACE 2 bends
+  its flames (`EngineFlame.SteerBend`: the tip against the velocity, x the thrust's forward share, at most `SteerShare`
+  0.16 of the length at `SteerTopSpeed` 100 m/s; the input eased as `EngineFlame` eases it, `PilotInput`): each vertex
+  u^2 x that x L in world space, u its way 0..1 from the nozzle to the parts' far end (`GoF2/ModEngineMesh`'s `_SteerBend`,
+  `_BendOrigin`, `_BendAxis` per exhaust; L from the parts' rest bounds, x the holder's length that frame), a sprite (the
+  glare) with its centre; the parts' bounds grown by the bend. NPCs, mobile stations, the Customize preview and the Fork
+  particles don't bend. Not yet checked in Play mode (another session had the Editor).
 - **Exhaust styles** (`ModExhausts`, a mod's `exhausts.json`; the guide's "Exhaust styles"): engine effects any ship can wear,
   picked in the hangar's Customize screen (`ShipCustomizePanel`'s Exhaust row and the style's two colour rows; with styles in
   the mods that are on every ship has the screen: `ModShipKits.CustomizationOf` gives a ship without other customizations a

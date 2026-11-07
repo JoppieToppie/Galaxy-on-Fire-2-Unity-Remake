@@ -430,6 +430,30 @@ namespace GoF2Remake.Data
             }
         }
 
+        /// <summary>Remake (the GoF3 roadmap's G6): Options > Gameplay "NPC dogfighting", SessionRules.DogfightOriginalMode /
+        /// DogfightModHulls (default) / DogfightAll: GoF2's way everywhere, Galaxy on Fire 3's (Flight.Gof3Dogfight: attack runs,
+        /// veering off, teasing, chasing, leading shots, evasive rolls) for the mod hulls that ask for it ("traffic": { "ai":
+        /// "gof3" }), or for every fighter. A session rule (two bits, SessionRules.DogfightOf).</summary>
+        public static int NpcDogfight
+        {
+            get
+            {
+                if (GameHooks.SessionRule != null && GameHooks.SessionRule(R.DogfightOriginal, out bool original)
+                    && GameHooks.SessionRule(R.DogfightEvery, out bool every))
+                    return original ? R.DogfightOriginalMode : every ? R.DogfightAll : R.DogfightModHulls;
+                return LocalDogfight;
+            }
+            set
+            {
+                int mode = Mathf.Clamp(value, R.DogfightOriginalMode, R.DogfightAll);
+                Set("npcDogfight", mode);
+                GameHooks.RuleChangedByHost?.Invoke(R.DogfightOriginal, mode == R.DogfightOriginalMode);
+                GameHooks.RuleChangedByHost?.Invoke(R.DogfightEvery, mode == R.DogfightAll);
+            }
+        }
+
+        static int LocalDogfight => Mathf.Clamp(Mathf.RoundToInt(Get("npcDogfight", R.DefaultDogfight)), R.DogfightOriginalMode, R.DogfightAll);
+
         static int LocalCollision
         {
             get
@@ -458,7 +482,7 @@ namespace GoF2Remake.Data
             if (GetBool("cloakBay", false)) m |= R.CloakBay;
             if (GetBool("empBreaksCloak", false)) m |= R.EmpBreaksCloak;
             if (GetBool("smarterNpcTargeting", false)) m |= R.SmarterNpcTargeting;
-            return R.WithCollision(m, LocalCollision);
+            return R.WithDogfight(R.WithCollision(m, LocalCollision), LocalDogfight);
         }
 
         /// <summary>DialogueWindow::update: with voice, turn the page once the line has ended.</summary>
@@ -823,7 +847,10 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] GameplayKeys =
         {
+            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule",
+            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
+            "speedrunPosition", "speedrunLiveSplit",
             "speedrunPosition", "speedrunLiveSplit",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };

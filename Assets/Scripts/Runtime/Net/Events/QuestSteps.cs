@@ -351,6 +351,27 @@ namespace GoF2Remake.Events
                 string st = r.Ref("station"), at = r.Xyz("at");
                 return st.Length == 0 || at.Length == 0 ? QuestReader.Join("waypoint", r.Who, "off") : QuestReader.Join("waypoint", r.Who, st, at);
             }, Who(), F("station", QuestFieldKind.Station, "Station"), F("at", QuestFieldKind.Xyz, "At (x y z, game units from the station; empty: cleared)", optional: true)),
+            // Remake (2026-11-05, the GoF3 Ships mod's races): an orb to collect; the mission's "on near" at the same point
+            // collects it (its steps remove it by its name).
+            Plain("pickup", "places", "Pickup", "A glowing orb in an orbit, its name on the HUD; a \"near\" at its point collects it (remove it there)", r =>
+            {
+                string action = r.S("action");
+                if (action == "clear") return QuestReader.Join("pickup", r.Who, "clear");
+                string name = r.S("name");
+                if (action == "remove")
+                {
+                    if (name.Length == 0) { r.Problem("name the pickup to remove."); return null; }
+                    return QuestReader.Join("pickup", r.Who, "remove", name);
+                }
+                string st = r.Ref("station"), at = r.Xyz("at");
+                if (st.Length == 0 || at.Length == 0) { r.Problem("pick the station and the point."); return null; }
+                bool marked = !(r.step["marked"] is JValue mv && mv.Type == JTokenType.Boolean && !(bool)mv);
+                return QuestReader.Join("pickup", r.Who, st, at, marked ? "" : "unmarked", name.Length > 0 ? "named " + name : "");
+            }, Who(), C("action", "", new[] { "show", "remove", "clear" }, new[] { "Show one", "Remove one (collected)", "Remove them all" }),
+               When(F("station", QuestFieldKind.Station, "In the orbit of"), "action", "show"),
+               When(F("at", QuestFieldKind.Xyz, "At (x y z, game units from the station)", "0 0 20000"), "action", "show"),
+               When(F("name", QuestFieldKind.Text, "Its name (on the HUD; remove uses it)", optional: true), "action", "show", "remove"),
+               When(F("marked", QuestFieldKind.Bool, "Its name on the HUD", true), "action", "show")),
             Plain("wormhole", "places", "Wormhole", "A wormhole in an orbit; flying in takes the player to its destination", r =>
             {
                 string st = r.Ref("station");
