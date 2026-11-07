@@ -22,7 +22,13 @@ namespace GoF2Remake.Flight
         public const string Pirates = "pirates", Trader = "trader", Derelict = "derelict", Distress = "distress", Flyby = "flyby", Quest = "quest";
         /// <summary>Remake (2026-11-03, for mods; not in the game's own table): EVERSPACE 2's encounter types (World.CruiseEncounterSpawner).</summary>
         public const string Battle = "battle", Trap = "trap", Stash = "stash", Depot = "depot", HighRisk = "highrisk", LootDrone = "lootdrone", Rift = "rift";
-        public static readonly string[] Kinds = { Pirates, Trader, Derelict, Distress, Flyby, Quest, Battle, Trap, Stash, Depot, HighRisk, LootDrone, Rift };
+        /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_Encounter_Minesweeper): a freighter stuck in a minefield.</summary>
+        public const string Minesweeper = "minesweeper";
+        /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_Encounter_ShootingChallenge): out-shoot a challenger.</summary>
+        public const string Challenge = "challenge";
+        /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_Encounter_ItemsNeeded): a damaged ship needing a repair item.</summary>
+        public const string Needy = "needy";
+        public static readonly string[] Kinds = { Pirates, Trader, Derelict, Distress, Flyby, Quest, Battle, Trap, Stash, Depot, HighRisk, LootDrone, Rift, Minesweeper, Challenge, Needy };
         /// <summary>Where an entry takes the ship between the systems (Entry.interstellar).</summary>
         public const string InSpace = "space", AtSystem = "system", Either = "either", Never = "never";
         public static readonly string[] Places = { InSpace, AtSystem, Either, Never };
@@ -49,6 +55,9 @@ namespace GoF2Remake.Flight
             /// <summary>Kind "rift" (2026-11-04): the ships its boss may fly (one at random) and its hull in pirate raiders' hulls
             /// (EVERSPACE 2's hit points over its Outlaw raider's 310); null = the pirate boss.</summary>
             public List<RiftBoss> bosses;
+            /// <summary>Remake (2026-11-06): the mod music track its fight plays instead of the battle music (World.EncounterMusic),
+            /// null = the system's.</summary>
+            public string music;
             public bool StopsTheDrive => kind != Flyby && kind != Quest;
         }
 

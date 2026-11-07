@@ -300,6 +300,60 @@ namespace GoF2Remake.Modding
             public float radius = 30000f;
         }
 
+        /// <summary>Remake (2026-11-06): a static model in an orbit: the mod's glTF 'model' at 'at' (game units), turned by 'rotation'
+        /// (Unity's Euler degrees in the orbit's Unity frame), its largest side 'size' game units.</summary>
+        public sealed class PropSpec
+        {
+            public string model;
+            public Vector3 at, rotation;
+            public float size = 2000f;
+        }
+
+        /// <summary>Remake (2026-11-06): a secure container at 'at' (game units), its shot triggers' places ('ordered' = they go in
+        /// turn, 'retriggerS' = a lit one goes dark again after that many seconds, 0 = stays lit) and its energy sockets.</summary>
+        public sealed class SecureContainerSpec
+        {
+            public Vector3 at;
+            public List<Vector3> triggers = new List<Vector3>();
+            public bool ordered;
+            public float retriggerS;
+            public List<SocketSpec> sockets = new List<SocketSpec>();
+            /// <summary>Its conductor puzzle, null = none.</summary>
+            public ConductorSpec conductors;
+        }
+
+        /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_Conductor_Source / _Static / _Portable / _Receiver): conductors that carry
+        /// energy from the sources to every receiver when each link lies within a conduction sphere ('radius', game units;
+        /// 'receiverRadius' a receiver's; an entry's w its own, 0 = those); the portable ones the ship carries into place
+        /// (Flight.ConductorGraph).</summary>
+        public sealed class ConductorSpec
+        {
+            public List<Vector4> sources = new List<Vector4>(), statics = new List<Vector4>(), portables = new List<Vector4>(), receivers = new List<Vector4>();
+            public float radius = 4000f, receiverRadius = 40f;
+        }
+
+        /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_EnergyOrb_Socket / BP_EnergyCoil_Socket): a socket at 'at' that wants an
+        /// energy sphere from the dispenser at 'source' (orb) or the energy coil lying at 'source' (coil), carried there.</summary>
+        public sealed class SocketSpec
+        {
+            public Vector3 at, source;
+            public bool coil;
+        }
+
+        /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_Minefield): a minefield in an orbit (stations.json "orbit.minefields",
+        /// World.OrbitMinefields): 'count' proximity mines at random within 'radius' game units of 'centre', each blasting the
+        /// player's ship for 'raiderSeconds' seconds of a raider's fire (-1 = by its 'kind', as ES2's BaseDamage over a raider's 55
+        /// a second: 2.2, a web mine 0.27) and webbing, freezing or corroding it by its 'kind'. It adds danger, so only in systems
+        /// of security 'maxSecurity' or lower, for a player of rank 'minRank' or more, on 'share' of the visits.</summary>
+        public sealed class MinefieldSpec
+        {
+            public enum Kind { Kinetic, Web, Cryo, Thermal, Corrosion }
+            public Kind kind;
+            public Vector3 centre;
+            public float radius = 18000f, raiderSeconds = -1f, share = 0.5f;
+            public int count = 20, minRank = 4, maxSecurity = 1;
+        }
+
         /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_LightningField): a lightning storm round the camera (stations.json
         /// "orbit.storm", World.OrbitStorm): 'frequency' flashes a second on a cylinder 'radius' game units out, each a glow
         /// and a bolt 'scale' x ES2's sizes, 'intensity' x its brightness; a 'thunder' sound (one of the mod's) at 'thunderChance'.</summary>
@@ -332,6 +386,15 @@ namespace GoF2Remake.Modding
             public List<AmbienceSpec> ambience;
             /// <summary>Remake (2026-11-06): the orbit's lightning storm (World.OrbitStorm), null = none.</summary>
             public StormSpec storm;
+            /// <summary>Remake (2026-11-06): the orbit's minefields (World.OrbitMinefields), null = none.</summary>
+            public List<MinefieldSpec> minefields;
+            /// <summary>Remake (2026-11-06, EVERSPACE 2's placed unique asteroids): static models at their places (World.OrbitProps),
+            /// null = none; their materials like ships.json's.</summary>
+            public List<PropSpec> props;
+            public List<CustomShipMaterial> propMaterials = new List<CustomShipMaterial>();
+            /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_AcidSack_Base): acid pouch bases at these places (game units), null = none
+            /// (World.AcidSackBase).</summary>
+            public List<Vector3> acidSacks;
             /// <summary>Remake (2026-11-03, EVERSPACE 2's spline traffic): null = none.</summary>
             public List<LaneSpec> lanes;
             /// <summary>Remake (2026-11-03, EVERSPACE 2's heat volumes and radiation fields): null = none.</summary>
@@ -365,6 +428,15 @@ namespace GoF2Remake.Modding
             /// (World.LootContainer).</summary>
             public int containerCount;
             public Vector3? containerCentre;
+            /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_Activity_InvisibleContainer): cloaked containers at these places (game
+            /// units), on top of containerCount: unseen and unmarked until the ship is near (World.CloakedContainers); null = none.</summary>
+            public List<Vector3> containerCloaked;
+            /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_ItemContainer_Armored with ShotTriggersRequired): secure containers,
+            /// locked until all their shot triggers are lit (World.ShotTrigger, Flight.ShotTriggerChain); null = none.</summary>
+            public List<SecureContainerSpec> containerSecure;
+            /// <summary>Remake (2026-11-06, EVERSPACE 2's grab / dispenser / conductor / armoured container cues): the mod sounds its
+            /// puzzles play, by role (grab, hold, drop, throw, dispenser, conductor, unlock; World.PuzzleSounds); null = silent.</summary>
+            public Dictionary<string, string> containerSounds;
             public float containerSpread = 40000f, containerBulletproof = 0.3f;
             /// <summary>Remake (2026-11-05, EVERSPACE 2's unique loot): fixed items in its containers, each entry once a game
             /// (Session.FixedLootTaken); null = none.</summary>
@@ -419,7 +491,11 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, MapPlace> mapPlaces = new Dictionary<int, MapPlace>();
 
         static readonly HashSet<string> OrbitFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld", "skyRotation", "skybox", "light2", "ambient", "wrecks", "hazards", "containers", "lanes", "level", "ambience", "gasClouds", "locals", "raiders", "storm" };
+            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld", "skyRotation", "skybox", "light2", "ambient", "wrecks", "hazards", "containers", "lanes", "level", "ambience", "gasClouds", "locals", "raiders", "storm", "minefields", "acidSacks", "props", "propMaterials" };
+        /// <summary>The roles of an orbit's containers "sounds" (World.PuzzleSounds).</summary>
+        public static readonly string[] PuzzleSoundRoles = { "grab", "hold", "drop", "throw", "dispenser", "conductor", "unlock" };
+        static readonly HashSet<string> MinefieldFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "kind", "centre", "center", "radius", "count", "raiderSeconds", "minRank", "share", "maxSecurity" };
         static readonly HashSet<string> StormFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "frequency", "radius", "heightPercent", "scale", "intensity", "thunder", "thunderChance" };
         static readonly HashSet<string> WreckFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

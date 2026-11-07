@@ -75,6 +75,15 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void AnEncounterMayHaveItsOwnMusic()
+        {
+            ModOn(@"[ { 'id': 'h', 'kind': 'highrisk', 'music': 'my_fight' }, { 'id': 'r', 'kind': 'rift', 'music': 'my_rift', 'bosses': [ { 'ship': '14' } ] } ]");
+            Assert.IsFalse(AllMessages(Installed(Mod)).Contains("unknown field"), AllMessages(Installed(Mod)));
+            Assert.AreEqual("my_fight", ModEncounters.All().Find(e => e.kind == "highrisk").music);
+            Assert.AreEqual("my_rift", ModEncounters.All().Find(e => e.kind == "rift").music, "a rift entry's music is the rift's");
+        }
+
+        [Test]
         public void AModMayUseEverspaceTwosKinds()
         {
             ModOn(@"[ { 'id': 'b', 'kind': 'battle' }, { 'id': 'h', 'kind': 'highrisk', 'ships': 3 }, { 'id': 'l', 'kind': 'lootdrone' }, " +

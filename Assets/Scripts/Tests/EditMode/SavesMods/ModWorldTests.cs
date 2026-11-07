@@ -697,6 +697,150 @@ namespace GoF2Remake.Tests
             StringAssert.Contains("unknown storm field \"sparks\"", AllMessages(Installed("t_world")));
         }
 
+        [Test]
+        public void AnOrbitsProps()
+        {
+            string dir = WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'props': [ { 'model': 'rock.glb', 'at': [1, 2, 3], 'rotation': [10, 20, 30], 'size': 5000, 'mass': 1 }, " +
+                "{ 'model': 'gone.glb', 'at': [0, 0, 0] } ], 'propMaterials': [ { 'mesh': 'rock' } ] } } ]"));
+            WriteFile(dir, "rock.glb", Dummy);
+            ScanAndEnable("t_world");
+            Database.Load();
+            var o = ModWorld.OrbitOf(78);
+            Assert.AreEqual(1, o.props.Count, "the missing model left out");
+            Assert.AreEqual(new UnityEngine.Vector3(10, 20, 30), o.props[0].rotation);
+            Assert.AreEqual(5000f, o.props[0].size);
+            Assert.AreEqual(1, o.propMaterials.Count);
+            Assert.AreEqual(1, ModWorld.ContainerModels().FindAll(m => m.path == "rock.glb").Count, "loaded with the mod crates");
+            var msgs = AllMessages(Installed("t_world"));
+            StringAssert.Contains("prop model \"gone.glb\" isn't in the mod", msgs);
+            StringAssert.Contains("unknown prop field \"mass\"", msgs);
+        }
+
+        [Test] public void APropNeedsAModelAndAPlace() => StringAssert.Contains("a prop needs \"model\" and \"at\"", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'props': [ { 'model': 'x.glb' } ] } } ]"));
+
+        [Test]
+        public void AnOrbitsAcidPouches()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json", "[ { 'override': 78, 'orbit': { 'acidSacks': [ [1, 2, 3], [4] ] } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            Assert.AreEqual(new[] { new UnityEngine.Vector3(1, 2, 3) }, ModWorld.OrbitOf(78).acidSacks.ToArray());
+            StringAssert.Contains("an acid pouch's place is [x, y, z]", AllMessages(Installed("t_world")));
+        }
+
+        [Test]
+        public void AnOrbitsMinefields()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'minefields': [ { 'kind': 'cryo', 'centre': [100, 0, 200], 'radius': 3000, 'count': 99, 'fuse': 1 }, " +
+                "{ 'centre': [0, 0, 0], 'minRank': 0, 'share': 1, 'maxSecurity': 3, 'raiderSeconds': 1 } ] } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var m = ModWorld.OrbitOf(78).minefields;
+            Assert.AreEqual(2, m.Count);
+            Assert.AreEqual(ModWorld.MinefieldSpec.Kind.Cryo, m[0].kind);
+            Assert.AreEqual(new UnityEngine.Vector3(100, 0, 200), m[0].centre);
+            Assert.AreEqual(40, m[0].count, "ES2's MaxMineAmount");
+            Assert.AreEqual(4, m[0].minRank, "a danger: rank 4 or more by default");
+            Assert.AreEqual(1, m[0].maxSecurity, "risky or dangerous systems by default");
+            Assert.AreEqual(0.5f, m[0].share, 1e-5f);
+            Assert.AreEqual(-1f, m[0].raiderSeconds, "by its kind");
+            Assert.AreEqual(ModWorld.MinefieldSpec.Kind.Kinetic, m[1].kind);
+            Assert.AreEqual(1f, m[1].raiderSeconds);
+            StringAssert.Contains("unknown minefield field \"fuse\"", AllMessages(Installed("t_world")));
+        }
+
+        [Test]
+        public void AnOrbitsCloakedContainers()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'containers': { 'count': 0, 'cloaked': [ [100, 0, -200], [1, 2], 'x', [5, 6, 7] ] } } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var o = ModWorld.OrbitOf(78);
+            Assert.AreEqual(0, o.containerCount);
+            Assert.AreEqual(new[] { new UnityEngine.Vector3(100, 0, -200), new UnityEngine.Vector3(5, 6, 7) }, o.containerCloaked.ToArray());
+            StringAssert.Contains("a cloaked container's place is [x, y, z]", AllMessages(Installed("t_world")));
+        }
+
+        [Test]
+        public void AnOrbitsSecureContainers()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'containers': { 'count': 0, 'secure': [ { 'at': [1, 2, 3], 'triggers': [ [10, 0, 0], [0, 10, 0], [5] ], 'ordered': true, 'retrigger': 3, 'doors': 2 }, " +
+                "{ 'at': [0, 0, 0], 'triggers': [] } ] } } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var s = ModWorld.OrbitOf(78).containerSecure;
+            Assert.AreEqual(1, s.Count, "one without triggers left out");
+            Assert.AreEqual(new UnityEngine.Vector3(1, 2, 3), s[0].at);
+            Assert.AreEqual(2, s[0].triggers.Count);
+            Assert.IsTrue(s[0].ordered);
+            Assert.AreEqual(3f, s[0].retriggerS);
+            var msgs = AllMessages(Installed("t_world"));
+            StringAssert.Contains("unknown secure container field \"doors\"", msgs);
+            StringAssert.Contains("a shot trigger's place is [x, y, z]", msgs);
+            StringAssert.Contains("a secure container without shot triggers", msgs);
+        }
+
+        [Test]
+        public void ASecureContainersEnergySockets()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'containers': { 'count': 0, 'secure': [ { 'at': [0, 0, 0], 'sockets': [ { 'at': [10, 0, 0], 'orb': [20, 0, 0] }, " +
+                "{ 'at': [0, 10, 0], 'coil': [0, 20, 0] }, { 'at': [1, 1, 1] }, { 'at': [2, 2, 2], 'orb': [3, 3, 3], 'coil': [4, 4, 4] } ] } ] } } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var s = ModWorld.OrbitOf(78).containerSecure[0];
+            Assert.AreEqual(0, s.triggers.Count, "sockets alone lock it");
+            Assert.AreEqual(2, s.sockets.Count);
+            Assert.IsFalse(s.sockets[0].coil);
+            Assert.AreEqual(new UnityEngine.Vector3(20, 0, 0), s.sockets[0].source);
+            Assert.IsTrue(s.sockets[1].coil);
+            StringAssert.Contains("a socket is { \"at\"", AllMessages(Installed("t_world")));
+        }
+
+        [Test]
+        public void ASecureContainersConductors()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'containers': { 'count': 0, 'secure': [ { 'at': [0, 0, 0], 'conductors': { 'sources': [ [0, 0, 100] ], 'portables': [ [0, 50, 0, 3000], [1] ], " +
+                "'receivers': [ [0, 0, -100] ], 'pipes': 1 } }, { 'at': [5, 5, 5], 'conductors': { 'sources': [ [0, 0, 0] ] } } ] } } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var s = ModWorld.OrbitOf(78).containerSecure;
+            Assert.AreEqual(1, s.Count, "conductors without receivers lock nothing");
+            Assert.AreEqual(1, s[0].conductors.portables.Count);
+            Assert.AreEqual(4000f, s[0].conductors.radius, "ES2's 20 000 cm: 200 m");
+            Assert.AreEqual(3000f, s[0].conductors.portables[0].w, "its own sphere");
+            Assert.AreEqual(0f, s[0].conductors.sources[0].w, "the default");
+            var msgs = AllMessages(Installed("t_world"));
+            StringAssert.Contains("unknown conductors field \"pipes\"", msgs);
+            StringAssert.Contains("conductors need \"sources\" and \"receivers\"", msgs);
+        }
+
+        [Test]
+        public void AnOrbitsPuzzleSounds()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'containers': { 'count': 1, 'sounds': { 'grab': 'g', 'unlock': 'u', 'beep': 'b' } } } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var s = ModWorld.OrbitOf(78).containerSounds;
+            Assert.AreEqual("g", s["grab"]);
+            Assert.AreEqual("u", s["Unlock"], "roles in any case");
+            Assert.AreEqual(2, s.Count);
+            StringAssert.Contains("unknown containers sound \"beep\"", AllMessages(Installed("t_world")));
+        }
+
+        [Test] public void ASecureContainerNeedsAPlace() => StringAssert.Contains("a secure container needs \"at\"", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'containers': { 'secure': [ { 'triggers': [ [0, 0, 0] ] } ] } } } ]"));
+
+        [Test] public void CloakedContainersAreAList() => StringAssert.Contains("containers \"cloaked\" is a list", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'containers': { 'cloaked': true } } } ]"));
+
+        [Test] public void AMinefieldNeedsACentre() => StringAssert.Contains("a minefield needs \"centre\"", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'minefields': [ { 'kind': 'web' } ] } } ]"));
+        [Test] public void AMinefieldKindIsNotANumber() => StringAssert.Contains("a minefield's \"kind\" is", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'minefields': [ { 'kind': '2', 'centre': [0, 0, 0] } ] } } ]"));
+
         [Test] public void AHazardKindIsNotANumber() => StringAssert.Contains("a hazard's \"kind\" is", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'hazards': [ { 'kind': '1', 'centre': [0, 0, 0] } ] } } ]"));
         [Test] public void AHazardNeedsAKnownKind() => StringAssert.Contains("\"kind\" is \"heat\", \"radiation\", \"frost\", \"corrosion\" or \"damage\"", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'hazards': [ { 'kind': 'lava', 'centre': [0, 0, 0] } ] } } ]"));
 
