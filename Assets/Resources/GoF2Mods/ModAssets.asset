@@ -1,4 +1,3 @@
-%UNITY 7.0
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!114 &11400000
@@ -21,9 +20,16 @@ MonoBehaviour:
   litCutoutDetail: {fileID: 2100000, guid: afba4b707ace44f42bb98f4bf60b4d07, type: 2}
   litTransparent: {fileID: 2100000, guid: ad24bf71e802411468c98ae6585fec27, type: 2}
   litTransparentDetail: {fileID: 2100000, guid: 2c7f8ecb6d17236498308452299f2f68, type: 2}
+  specOpaque: {fileID: 2100000, guid: ccaeb391e14b794ab9eb8c335d0c5bb9, type: 2}
+  specOpaqueDetail: {fileID: 2100000, guid: 1d04d06fe33c5b6cf99fbf677fa1ab31, type: 2}
+  specCutout: {fileID: 2100000, guid: c69878cd59165607eb7e2bf621b0bad9, type: 2}
+  specCutoutDetail: {fileID: 2100000, guid: caed82fb75dafaa35b49dbe7cf886b4b, type: 2}
+  specTransparent: {fileID: 2100000, guid: 42ed41a04a3b0088b8fbb8de416bd8e5, type: 2}
+  specTransparentDetail: {fileID: 2100000, guid: 34ffb4619119f2472b870b7248bc41f4, type: 2}
   fxAdditive: {fileID: 2100000, guid: 3a415f5608dda9e43ab90ac04a20faac, type: 2}
   fxAlpha: {fileID: 2100000, guid: 8a65392e41da3774cb30a68b139f249e, type: 2}
   metallicRoughness: {fileID: 2100000, guid: a95747947b864bd4aaf651d15a705f62, type: 2}
   engineFlame: {fileID: 2100000, guid: 63bae1d8e788890eeb7334d717fec200, type: 2}
   hologram: {fileID: 2100000, guid: ca75aa8b594b832f7ae07a4fd48829c6, type: 2}
   nozzleShimmer: {fileID: 2100000, guid: 507e9ed552b99259fa2de9e05d834d14, type: 2}
+  glow: {fileID: 2100000, guid: 24be6639afd00003f845680ecda1a9df, type: 2}

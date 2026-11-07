@@ -120,6 +120,7 @@ namespace GoF2Remake.UI
             else if (DockBeforeLock) Dock();
             else if (nav != null && nav.PromptText != null) nav.Interact();
             else if (mining != null && mining.PromptText != null) mining.Interact();
+            else if (GoF2Remake.World.LootContainer.InReach(ship != null ? ship.transform : null) is GoF2Remake.World.LootContainer c) c.Open();
             else Dock();
         }
         /// <summary>The panel's pixel size: the screen, or the target texture when rendering offscreen (tests).</summary>

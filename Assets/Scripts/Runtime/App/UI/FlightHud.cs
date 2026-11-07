@@ -703,6 +703,8 @@ namespace GoF2Remake.UI
                 if (level.Turret != null) level.Turret.Message += OnMiningMessage;   // HUD event 0x20 / 0x21 (auto fire on / off)
                 if (health != null) health.Message += OnMiningMessage;             // injector / gamma messages
                 if (level.Cloak != null) level.Cloak.Message += OnMiningMessage;   // cells paid, "Cloak ready", 583
+                if (level.Devices != null) level.Devices.Message += OnMiningMessage;   // remake: "{0} ready", no shield
+                level.DevicesChanged += () => { if (level != null && level.Devices != null) level.Devices.Message += OnMiningMessage; };   // a new hull
                 chase = Camera.main != null ? Camera.main.GetComponent<ChaseCamera>() : null;
                 ApplyInputMode();
             }
@@ -743,6 +745,8 @@ namespace GoF2Remake.UI
             if (prompt == null && DockBeforeLock) prompt = Localization.Extra("hudDock", "DOCK").OgCase();
             if (prompt == null && nav != null) prompt = nav.PromptText;
             if (prompt == null && mining != null) prompt = mining.PromptText;
+            if (prompt == null && GoF2Remake.World.LootContainer.InReach(ship != null ? ship.transform : null) != null)   // remake mods
+                prompt = Localization.Extra("hudOpen", "OPEN").OgCase();
             if (prompt == null && level.CanDock) prompt = Localization.Extra("hudDock", "DOCK").OgCase();
             // Touch: no prompt, the fire button is the action button (its arrow shows when fire acts).
             dockPrompt.EnableInClassList("dock-prompt--hidden", prompt == null || InputMode.Current == InputKind.Touch || cursorMode);   // touch / cursor: the arrow on fire
@@ -839,8 +843,10 @@ namespace GoF2Remake.UI
             if (transferCounter != null)
             {
                 bool on = docking != null && docking.TransferLabel != null;
-                transferCounter.EnableInClassList("transfer-counter--hidden", !on);
+                string rift = on ? null : GoF2Remake.World.RiftEncounter.HudLine;   // remake mods: a rift run's stage, points, resolve
+                transferCounter.EnableInClassList("transfer-counter--hidden", !on && rift == null);
                 if (on) transferCounter.text = $"{docking.TransferLabel.UiCaps()}  {docking.TransferDone} / {docking.TransferTotal}";
+                else if (rift != null) transferCounter.text = rift.UiCaps();
             }
             lockRingElement.style.left = crosshair.style.left;
             lockRingElement.style.top = crosshair.style.top;
@@ -855,7 +861,7 @@ namespace GoF2Remake.UI
             missileWarning?.Update(level.Player != null ? level.Player.transform : null, Camera.main,
                                    !cinematic && level.LaunchCameraOver && health != null && !health.Dead,
                                    level.Player != null && level.Player.Model != null && level.Player.Model.HasBooster, Time.deltaTime * 1000f);
-            cooldownView?.Update(level.Database, level.Player, level.Cloak, level.Extender, !cinematic && level.LaunchCameraOver && InputMode.Current != InputKind.Touch);
+            cooldownView?.Update(level.Database, level.Player, level.Cloak, level.Extender, level.Devices, !cinematic && level.LaunchCameraOver && InputMode.Current != InputKind.Touch);
             // The Ultrascan's class-A letters: Radar::draw too, so not during the launch camera or a cinematic. The range is the
             // level's asteroid field (Level+0xc4), not the autopilot's "Asteroid field" entry: the Void's crystal field has none
             // (players' report: no letters there).

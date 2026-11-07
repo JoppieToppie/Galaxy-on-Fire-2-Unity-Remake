@@ -35,11 +35,13 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> station = new NetworkVariable<int>(-1);   // server-written at spawn
         readonly NetworkVariable<int> localId = new NetworkVariable<int>(-1);
         readonly NetworkVariable<ulong> claimant = new NetworkVariable<ulong>(NoClaim);   // server-written
-        // "race|look|flags|born|loot": Crate.race, Crate.look (-1 = not written yet), fromFriend 1 / missionCrate 2 /
-        // missionLoot 4 (only the owner's squad takes it), the server time it was made (s), "item:amount,...".
+        // "race|look|flags|born|loot|model": Crate.race, Crate.look (-1 = not written yet), fromFriend 1 / missionCrate 2 /
+        // missionLoot 4 (only the owner's squad takes it), the server time it was made (s), "item:amount,...", a mod ship's
+        // own container (Crate.model, Modding.ModCrates' key; empty: the race's).
         readonly NetworkVariable<FixedString512Bytes> data = new NetworkVariable<FixedString512Bytes>(default, Read, Owner);
         string dataRead;
         int race = -1, look = -1;
+        string model;
         bool fromFriend, missionCrate, missionLoot;
         double born;
         string lootText = "";
@@ -72,6 +74,7 @@ namespace GoF2Remake.Multiplayer
             missionCrate = (flags & 2) != 0;
             missionLoot = (flags & 4) != 0;
             lootText = parts[4];
+            model = parts.Length > 5 && parts[5].Length > 0 ? parts[5] : null;
         }
 
         static double ServerNow => NetworkManager.Singleton != null ? NetworkManager.Singleton.ServerTime.Time : 0d;
@@ -80,7 +83,7 @@ namespace GoF2Remake.Multiplayer
         {
             int flags = (crate.fromFriend ? 1 : 0) | (crate.missionCrate ? 2 : 0) | (crate.missionLoot ? 4 : 0);
             double madeAt = ServerNow - crate.AgeMs / 1000f;
-            string text = $"{crate.race}|{crate.look}|{flags}|{madeAt.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)}|{Encode(crate.loot)}";
+            string text = $"{crate.race}|{crate.look}|{flags}|{madeAt.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)}|{Encode(crate.loot)}|{crate.model}";
             if (data.Value.ToString() != text) data.Value = text;
         }
 
@@ -248,14 +251,13 @@ namespace GoF2Remake.Multiplayer
         {
             ReadData();
             if (crate != null || look < 0 || !hasPose) return;   // the owner's values and a pose first
-            var assets = CombatAssets.Load();
-            var prefab = assets != null ? assets.CrateModel(look, race) : null;
-            var go = prefab != null ? Instantiate(prefab, posePosition, poseRotation) : new GameObject();
+            var go = Crate.Model(look, race, model, posePosition, poseRotation);
             go.name = "Crate (other player's)";
             crate = go.AddComponent<Crate>();
             crate.remote = true;
             crate.race = race;
             crate.look = look;
+            crate.model = model;
             crate.fromFriend = fromFriend;
             crate.missionCrate = missionCrate;
             crate.missionLoot = missionLoot;

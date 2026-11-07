@@ -49,6 +49,8 @@ namespace GoF2Remake.UI
         /// ("Veteran [GoF3]"), as rich text for a Label; the plain name without a tag (GameNames.ShipTag / ItemTag).</summary>
         public static string TaggedShipName(int ship) => WithTag(GameNames.Ship(ship), GameNames.ShipTag(ship));
         public static string TaggedItemName(int item) => WithTag(GameNames.Item(item), GameNames.ItemTag(item));
+        public static string TaggedWantedName(WantedData w, bool upper = false) =>
+            w == null ? "" : WithTag(upper ? w.name.UiCaps() : w.name, GameNames.WantedTag(w));
         public static string WithTag(string name, string tag) =>
             string.IsNullOrEmpty(tag) ? name : $"{name} <alpha=#80><size=80%><noparse>[{tag}]</noparse></size></alpha>";
 
@@ -62,6 +64,7 @@ namespace GoF2Remake.UI
             ? Localization.Extra("bpShipBlueprint", "Ship blueprint")   // a mod's ship blueprint (its hidden item)
             : it.Attr(Flight.PointDefense.Attribute) > 0 ? Localization.Extra("catMissileDefense", "Missile defense")   // (a mod's, on a seatless cabin)
             : Shop.IsCruiseDrive(it) ? Localization.Extra("catCruiseDrive", "Cruise drive")   // (a mod's, made from the Khador Drive)
+            : Shop.IsDevice(it) ? Localization.Extra("catDevice", "Device")   // (a mod's active device, Flight.Device)
             : Localization.Get(221 + it.categoryId);
 
         /// <summary>Attributes the details never list (index, type, price systems, occurrence, prices, Vossk flag, home station).</summary>
@@ -132,7 +135,7 @@ namespace GoF2Remake.UI
                     case 32: if (it.Attr(100) != 1) rows.Add((T(164), $"{v} %")); break;   // a mining beam has no drill handling
                     case 101: if (it.Attr(100) == 1) rows.Add((T(151), $"{v / 20} m")); break;   // remake: the mining beam's reach
                     case 33: rows.Add((T(144), $"{v} %")); break;
-                    case 34: if (v > 0 || it.Attr(Flight.PointDefense.Attribute) <= 0) rows.Add((T(145), v.ToString())); break;   // (not a missile defense's seatless cabin)
+                    case 34: if (v > 0 || (it.Attr(Flight.PointDefense.Attribute) <= 0 && !Shop.IsDevice(it))) rows.Add((T(145), v.ToString())); break;   // (not a missile defense's or a device's seatless cabin)
                     case 48: rows.Add((T(145), $"{v} t")); break;
                     case 35: case 41: case 42: rows.Add((T(157), $"{v} ms")); break;
                     case 38: rows.Add((T(150), v.ToString())); break;
@@ -151,15 +154,43 @@ namespace GoF2Remake.UI
                     case Flight.CruiseDrive.InterstellarAttr:
                         rows.Add((Localization.Extra("statInterstellar", "Interstellar flight"), Localization.Extra("statInterstellarOn", "Between the systems")));
                         break;
+                    // Remake: an active device (Flight.Device) and a cloak's own cooldown.
+                    case Flight.Device.TypeAttr: rows.Add((Localization.Extra("statDevice", "Effect"), DeviceEffect(Shop.DeviceType(it)))); break;
+                    case Flight.Device.CooldownAttr: case Flight.Cloak.CooldownAttr:
+                        rows.Add((Localization.Extra("statDeviceCooldown", "Cooldown"), Seconds(v))); break;
+                    case Flight.Device.DurationAttr: if (v > 0) rows.Add((Localization.Extra("statDeviceDuration", "Duration"), Seconds(v))); break;
+                    case Flight.Device.RadiusAttr: rows.Add((T(151), $"{Mathf.RoundToInt(v * Flight.Gun.MetersPerUnit)} m")); break;
+                    case Flight.Device.SlowAttr: rows.Add((Localization.Extra("statDeviceSlow", "Enemy speed"), $"{v} %")); break;
+                    case Flight.Device.ShieldCostAttr: rows.Add((Localization.Extra("statDeviceShieldCost", "Shield spent"), $"{v} %")); break;
+                    case Flight.Device.DamagePercentAttr:
+                        rows.Add((Shop.DeviceType(it) == Flight.Device.Type.StrikeCharge ? T(146) : Localization.Extra("statDeviceDamage", "Damage dealt"), $"{v} %")); break;
+                    case Flight.Device.ChargeAttr: if (v > 0) rows.Add((Localization.Extra("statDeviceCharge", "Charged by damage dealt"), v.ToString())); break;
+                    case Flight.Device.ConeAttr: if (Shop.DeviceType(it) == Flight.Device.Type.OverchargeBeam) rows.Add((Localization.Extra("statDeviceCone", "Beam angle"), $"{v}°")); break;
                     case Flight.CruiseDrive.RangeAttr:
                         rows.Add((Localization.Extra("statCruiseRange", "Range per energy cell leg"), $"{Mathf.RoundToInt(v * Flight.Gun.MetersPerUnit)} m"));   // 20 units a metre
                         break;
                 }
             }
-            // Remake: a weapon's damage to shields (Flight.Gun.ShieldFactor: the Disruptor's 200 %, a mod's shieldDamage).
+            // Remake: a weapon's damage to shields (Flight.Gun.ShieldFactor: the Disruptor's 200 %, a mod's shieldDamage), or
+            // through them (shieldBypass); its slow (slowMs / slowPercent).
             float shieldFactor = Flight.Gun.ShieldFactor(it);
-            if ((it.TypeId == 0 || it.TypeId == 2) && Mathf.Abs(shieldFactor - 1f) > 0.001f)
+            if (it.TypeId <= 2 && shieldFactor <= 0f)
+                rows.Add((Localization.Extra("statShieldBypass", "Shields"), Localization.Extra("statShieldBypassOn", "Passes through")));
+            else if ((it.TypeId == 0 || it.TypeId == 2) && Mathf.Abs(shieldFactor - 1f) > 0.001f)
                 rows.Add((Localization.Extra("statShieldDamage", "Damage to shields"), $"{Mathf.RoundToInt(shieldFactor * 100f)} %"));
+            static string Sec(int ms) => (ms / 1000f).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " s";
+            if (it.TypeId <= 2 && it.Attr(Flight.Gun.SlowMsAttr) > 0)
+            {
+                if (it.Attr(Flight.Gun.SlowFreezeAttr) > 0)
+                    rows.Add((Localization.Extra("statFreeze", "Freezes the target"), $"{it.Attr(Flight.Gun.SlowPercentAttr, 50)} % · {Sec(it.Attr(Flight.Gun.SlowMsAttr))}"));
+                else
+                    rows.Add((Localization.Extra("statSlow", "Slows the target"), $"{it.Attr(Flight.Gun.SlowPercentAttr, 50)} % · {Sec(it.Attr(Flight.Gun.SlowMsAttr))}"));
+            }
+            // remake (2026-11-02): damage over time and the damage-taken increase (Flight.Debuffs)
+            if (it.TypeId <= 2 && it.Attr(Flight.Gun.DotDamageAttr) > 0 && it.Attr(Flight.Gun.DotMsAttr) > 0)
+                rows.Add((Localization.Extra("statDot", "Damage over time"), $"{it.Attr(Flight.Gun.DotDamageAttr)} / s · {Sec(it.Attr(Flight.Gun.DotMsAttr))}"));
+            if (it.TypeId <= 2 && it.Attr(Flight.Gun.VulnerablePercentAttr) > 0 && it.Attr(Flight.Gun.VulnerableMsAttr) > 0)
+                rows.Add((Localization.Extra("statVulnerable", "Target takes more damage"), $"+{it.Attr(Flight.Gun.VulnerablePercentAttr)} % · {Sec(it.Attr(Flight.Gun.VulnerableMsAttr))}"));
             // Remake (a player's suggestion): a repair bot's rates (PlayerHealth.RepairRates), hull, then armor once the hull is full.
             if (it.categoryId == 15)
             {
@@ -173,6 +204,21 @@ namespace GoF2Remake.UI
                 rows.Add((Localization.Extra("statMissileDefense", "Shoots down missiles within"), $"{Mathf.RoundToInt(defense * Flight.Gun.MetersPerUnit)} m"));
             return rows;
         }
+
+        static string Seconds(int ms) => (ms / 1000f).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " s";
+
+        /// <summary>What a device does, for its details (Flight.Device.Type).</summary>
+        public static string DeviceEffect(Flight.Device.Type type) => type switch
+        {
+            Flight.Device.Type.AreaEmp => Localization.Extra("deviceAreaEmp", "EMP wave: slows enemies, stops their turns"),
+            Flight.Device.Type.EmpShot => Localization.Extra("deviceEmpShot", "Homing EMP shot: slows enemies around its hit"),
+            Flight.Device.Type.ShieldDisruptor => Localization.Extra("deviceShieldDisruptor", "Homing shot: drains the target's shield"),
+            Flight.Device.Type.OverchargeArea => Localization.Extra("deviceOverchargeArea", "Spends shield as a blast around the ship"),
+            Flight.Device.Type.OverchargeBeam => Localization.Extra("deviceOverchargeBeam", "Spends shield as beams at enemies ahead"),
+            Flight.Device.Type.StrikeCharge => Localization.Extra("deviceStrikeCharge", "Charged by hits, then boosts the guns' damage"),
+            Flight.Device.Type.Deflector => Localization.Extra("deviceDeflector", "Turns enemy shots back at their shooters"),
+            _ => "",
+        };
 
         /// <summary>ListItemWindow::set, ships: armor, cargo hold, slots per type, handling, price.</summary>
         /// <summary>'mods': the hull's Kaamo Club mods (the player's own ship, a traded-in or stored hull): their values added

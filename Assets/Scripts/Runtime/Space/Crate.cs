@@ -5,6 +5,7 @@
 // (CombatRadar: salvage lock, pull at 10 u/ms, captured within 400 units; the first non-empty entry). A crate stolen from
 // a living (EMP-disabled) ship (KIPlayer::createCrate(0) from TractorBeam::update) carries that ship's cargo and is
 // gone once captured: what is left stays aboard the ship. A shot asteroid leaves one too (Target.DropAsteroidCrate).
+// Remake mods: a mod ship may bring its own container (ships.json "crate", Modding.ModCrates).
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -57,6 +58,9 @@ namespace GoF2Remake.Flight
         [System.NonSerialized] public System.Action PullStarted;
         /// <summary>A mirror of another game's crate (NetCrate): it neither drifts nor expires by itself.</summary>
         [System.NonSerialized] public bool remote;
+        /// <summary>Remake: stays until emptied, no 60 s expiry (an orbit's wreck field, a stash: World.WreckField).</summary>
+        [System.NonSerialized] public bool keep;
+
         /// <summary>Remake (#176): the player's own cargo thrown out in flight (PauseMenu's cargo hold, Jettison). The auto
         /// tractor beams leave it alone, and taking it back costs no standing and counts toward no salvage statistic.</summary>
         [System.NonSerialized] public bool jettisoned;
@@ -76,18 +80,30 @@ namespace GoF2Remake.Flight
         /// asteroid), 2 its Void variant 0x421f, 3 the space junk's 0x4218.</summary>
         public const int LookContainer = 0, LookRock = 1, LookVoidRock = 2, LookJunk = 3;
         public int look;
+        /// <summary>Remake mods: a mod ship's own container (Modding.ModCrates' key, "mod id|path"), null: the race's.</summary>
+        public string model;
 
-        /// <summary>KIPlayer::createCrate(look) at 'at' (Unity): the model by look / race, drifting off with 'cargo'.</summary>
-        public static Crate Spawn(Vector3 at, IEnumerable<ItemStack> cargo, int race, int look)
+        /// <summary>KIPlayer::createCrate(look) at 'at' (Unity): the model by look / race (a container: a mod ship's own
+        /// 'model' when it is loaded), drifting off with 'cargo'.</summary>
+        public static Crate Spawn(Vector3 at, IEnumerable<ItemStack> cargo, int race, int look, string model = null)
         {
-            var assets = CombatAssets.Load();
-            var prefab = assets != null ? assets.CrateModel(look, race) : null;
-            var go = prefab != null ? Instantiate(prefab, at, Random.rotation) : new GameObject();
+            var go = Model(look, race, model, at, Random.rotation);
             go.name = "Crate";
             var crate = go.AddComponent<Crate>();
             crate.look = look;
+            crate.model = model;
             crate.Setup(cargo, race);
             return crate;
+        }
+
+        /// <summary>A crate's model at 'at': a container's mod model (Modding.ModCrates) when it has one and it is loaded, else
+        /// the game's by look / race (an empty object without CombatAssets).</summary>
+        public static GameObject Model(int look, int race, string model, Vector3 at, Quaternion rotation)
+        {
+            if (look == LookContainer && Modding.ModCrates.Instantiate(model, race, at, rotation) is GameObject own) return own;
+            var assets = CombatAssets.Load();
+            var prefab = assets != null ? assets.CrateModel(look, race) : null;
+            return prefab != null ? Instantiate(prefab, at, rotation) : new GameObject();
         }
 
         /// <summary>A fixed object's crate: the 60 s start when its wreck animation ends (state 4).</summary>
@@ -124,7 +140,7 @@ namespace GoF2Remake.Flight
             ageMs += dtMs;
             // The Hijacker's mission container stays (the original tractors it straight out of the ship; the remake's crate
             // expiring left Recovery / Salvage neither won nor failed).
-            if ((ageMs > LifetimeMs && !missionCrate) || !HasLoot) { Destroy(gameObject); return; }
+            if ((ageMs > LifetimeMs && !missionCrate && !keep) || !HasLoot) { Destroy(gameObject); return; }
             if (!pulled && force > 0.05f)
             {
                 transform.position += drift * force * frames * M;

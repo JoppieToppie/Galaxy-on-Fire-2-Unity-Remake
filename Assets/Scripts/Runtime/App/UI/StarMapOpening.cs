@@ -47,6 +47,8 @@ namespace GoF2Remake.UI
             map.routeFrom = routeFromSystem;
             map.revealSystem = revealSystem;
             map.travel = allowTravel && mode == StarMapMode.Mission;
+            // (not the in-flight Khador map: the quick menu's Khador Drive entry is the original jump, its Slipstream entry the crossing)
+            map.slipstream = jumpDrive && InterstellarSpace.Drive(db) != null && (mode == StarMapMode.Station || map.travel);
             var pr = go.AddComponent<PanelRenderer>();
             pr.panelSettings = assets.panelSettings;
             pr.visualTreeAsset = assets.layout;
@@ -113,6 +115,14 @@ namespace GoF2Remake.UI
                 dialogNo.parent.Insert(dialogNo.parent.IndexOf(dialogNo), dialogAlt);
             }
             if (dialogAlt != null) dialogAlt.style.display = DisplayStyle.None;
+            dialogAlt2 = root.Q<Button>("dialogAlt2");
+            if (dialogAlt2 == null && dialogNo != null)
+            {
+                dialogAlt2 = new Button { name = "dialogAlt2" };
+                foreach (var c in new[] { "map-button", "map-dialog-button", "gof-semibold" }) dialogAlt2.AddToClassList(c);
+                dialogNo.parent.Insert(dialogNo.parent.IndexOf(dialogNo), dialogAlt2);
+            }
+            if (dialogAlt2 != null) dialogAlt2.style.display = DisplayStyle.None;
             // Modified: a choice dialog's Back, at its top right (ShowDialog), in place of No.
             var dialogBox = dialog.Q(className: "map-dialog");
             dialogBack = dialogBox?.Q<Button>("dialogBack");
@@ -167,7 +177,7 @@ namespace GoF2Remake.UI
             keyButton.text = T(400).UiCaps();
             voidButton.text = VoidButtonText;
             dialogNo.text = T(135).UiCaps();
-            foreach (var b in new[] { backButton, keyButton, zoomButton, voidButton, dialogYes, dialogAlt, dialogNo })
+            foreach (var b in new[] { backButton, keyButton, zoomButton, voidButton, dialogYes, dialogAlt, dialogAlt2, dialogNo })
             {
                 b.focusable = false;
                 b.RegisterCallback<PointerDownEvent>(_ => Play(assets.buttonPush), TrickleDown.TrickleDown);
@@ -185,6 +195,7 @@ namespace GoF2Remake.UI
             dialogYes.clicked += () => AnswerDialog(true);
             dialogNo.clicked += () => AnswerDialog(false);
             dialogAlt.clicked += AnswerAlt;
+            dialogAlt2.clicked += AnswerAlt2;
             touch.RegisterCallback<PointerDownEvent>(OnPointerDown);
             touch.RegisterCallback<PointerMoveEvent>(OnPointerMove);
             touch.RegisterCallback<PointerUpEvent>(e => OnPointerUp(e.pointerId, true));

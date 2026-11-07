@@ -167,6 +167,17 @@ namespace GoF2Remake.UI
                     return;
                 }
                 if (noGate && cellsInCargo < 2 * cells) { ShowDialog(T(581), () => Choose(station, true), null); return; }
+                // Remake: with the Khador Slipstream the drive's jump, the crossing between the systems, or the gates (where
+                // they reach it), No cancels.
+                if (slipstream)
+                {
+                    string drive = SlipstreamText.UiCaps();
+                    if (gateJumps > 0)
+                        ShowDialog(travelTo, () => Choose(station, true), null, yesText: T(1359).UiCaps(), altText: drive, onAlt: () => BySlipstream(station),
+                                   alt2Text: Localization.Extra("mapRouteGates", "Jumpgates").UiCaps(), onAlt2: () => TravelByGates(station, true));
+                    else ShowDialog(travelTo, () => Choose(station, true), null, yesText: T(1359).UiCaps(), altText: drive, onAlt: () => BySlipstream(station));
+                    return;
+                }
                 // Remake (jumpgate route planning, "or when you don't want to use one"): the drive or the gates, No cancels.
                 if (gateJumps > 0)
                 {
@@ -216,6 +227,11 @@ namespace GoF2Remake.UI
         static string JumpCountText(int jumps) => string.Format(Localization.Extra("mapRouteJumpCount", "{0} jumps"), jumps);
         static string RouteFastestText => Localization.Extra("mapRouteFastest", "Fastest route");
         static string RouteSafestText => Localization.Extra("mapRouteSafest", "Safest route");
+        /// <summary>The Khador Slipstream's name (the mounted item's).</summary>
+        string SlipstreamText => InterstellarSpace.Drive(db) is ItemData it ? GameNames.Item(it.index) : Localization.Extra("mapSlipstream", "Slipstream");
+        /// <summary>Remake: to 'station' between the systems: out of the station (or on in flight), the Khador Slipstream opens and
+        /// the autopilot takes its system, whose arrival is that planet (Flight.Navigation).</summary>
+        void BySlipstream(int station) => Close(new StarMapResult { station = station, slipstream = true });
         void Choose(int station, bool instant, bool safest = false) =>
             Close(new StarMapResult { station = station, instantJump = instant && SystemOf(station) != currentSystem, cells = cells,
                                       safestRoute = safest && !instant });
@@ -270,12 +286,15 @@ namespace GoF2Remake.UI
         /// <param name="yesText">Remake: Yes named for what it does (null: Yes).</param>
         /// <param name="altText">Remake: a third answer between Yes and No (null: none), running onAlt; Back then closes the
         /// dialog unanswered.</param>
+        /// <param name="alt2Text">Remake: a fourth answer after the third (null: none), running onAlt2.</param>
         void ShowDialog(string text, Action onYes, Action onNo, bool info = false, bool noFirst = false,
-                        string yesText = null, string altText = null, Action onAlt = null)
+                        string yesText = null, string altText = null, Action onAlt = null, string alt2Text = null, Action onAlt2 = null)
         {
             dialogAction = onYes;
             dialogNoAction = onNo;
             dialogAltAction = onAlt;
+            dialogAlt2Action = onAlt2;
+            dialogAlt2Shown = alt2Text != null && altText != null && !info;
             dialogInfo = info;
             dialogBackCancels = altText != null && !info;
             root.Q<Label>("dialogText").text = text;
@@ -287,6 +306,11 @@ namespace GoF2Remake.UI
             {
                 dialogAlt.text = altText ?? "";
                 dialogAlt.style.display = dialogBackCancels ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+            if (dialogAlt2 != null)
+            {
+                dialogAlt2.text = alt2Text ?? "";
+                dialogAlt2.style.display = dialogAlt2Shown ? DisplayStyle.Flex : DisplayStyle.None;
             }
             dialog.Q(className: "map-dialog")?.EnableInClassList("map-dialog--choice", dialogBackCancels);
             if (dialogBack != null) dialogBack.style.display = dialogBackCancels ? DisplayStyle.Flex : DisplayStyle.None;
@@ -307,6 +331,11 @@ namespace GoF2Remake.UI
         {
             if (DialogOpen) Answer(dialogAltAction);
         }
+        void AnswerAlt2()
+        {
+            if (DialogOpen && dialogAlt2Shown) Answer(dialogAlt2Action);
+        }
+        bool dialogAlt2Shown;
         /// <summary>Closes the dialog without an answer (Back on a dialog whose No is a choice).</summary>
         void CloseDialog()
         {
@@ -316,7 +345,8 @@ namespace GoF2Remake.UI
         {
             Play(assets.buttonRelease);
             dialog.RemoveFromClassList("map-dialog-backdrop--shown");
-            dialogAction = dialogNoAction = dialogAltAction = null;
+            dialogAction = dialogNoAction = dialogAltAction = dialogAlt2Action = null;
+            dialogAlt2Shown = false;
             BuildHints(InputMode.Current);
             a?.Invoke();
         }
@@ -336,6 +366,7 @@ namespace GoF2Remake.UI
         {
             var b = DialogButtons[Mathf.Clamp(dialogFocus, 0, DialogButtons.Count - 1)];
             if (b == dialogAlt) AnswerAlt();
+            else if (b == dialogAlt2) AnswerAlt2();
             else AnswerDialog(b == dialogYes);
         }
         void MoveDialogFocus(int step)
@@ -350,7 +381,7 @@ namespace GoF2Remake.UI
             // cursor.
             bool keys = InputMode.Current != InputKind.Touch && !InputMode.MousePointing;
             var buttons = DialogButtons;
-            foreach (var b in new[] { dialogYes, dialogAlt, dialogNo })
+            foreach (var b in new[] { dialogYes, dialogAlt, dialogAlt2, dialogNo })
                 b?.EnableInClassList("map-button--focus", keys && buttons.IndexOf(b) == dialogFocus);
         }
         // ---- pointer input (StarMap::OnTouchBegin / OnTouchMove / OnTouchEnd) -------------------------------

@@ -201,6 +201,10 @@ namespace GoF2Remake.Data
         public static List<WantedState> Wanted = new List<WantedState>();
         /// <summary>Status+0x04: bounties collected per board (0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian).</summary>
         public static int[] CollectedBounties = new int[4];
+        /// <summary>Remake mods: the mods' criminals' state by key (Modding.ModWanted: their numbers differ per load) and the
+        /// bounties collected on them per board, apart from the game's.</summary>
+        public static Dictionary<string, WantedState> ModWanted = new Dictionary<string, WantedState>();
+        public static int[] ModBounties = new int[4];
         /// <summary>Remake: the Pirate activity board's reports (PirateReports) and the next report's id.</summary>
         public static List<PirateSighting> PirateSightings = new List<PirateSighting>();
         public static int NextPirateSightingId;
@@ -424,6 +428,13 @@ namespace GoF2Remake.Data
         /// <summary>Remake: the alien orbit's arrival point (game units) its approach was built around (World.InterstellarField):
         /// the orbit draws it at random (OrbitLayout landmark 2), so the arrival takes this one. Read once by SpaceLevel.</summary>
         public static Vector3? WarpArrivalPoint;
+        /// <summary>Remake: an encounter that pulled the ship out of the slipstream at the nearest system (Flight.CruiseEncounters
+        /// .Between): it comes in that orbit once the arrival's warp has ended (NavigationCruiseDrive). Read once, never saved.</summary>
+        public static GoF2Remake.Flight.CruiseEncounters.Entry CarriedEncounter;
+        /// <summary>Remake: the station's map sent the ship by the Khador Slipstream (StarMapResult.slipstream): once out in the
+        /// orbit the drive opens (World.SystemJump, as an instant jump's charge waits); then, between the systems, the autopilot
+        /// takes the programmed destination's system (Flight.Navigation). Read once each, never saved.</summary>
+        public static bool SlipstreamDeparture, SlipstreamAutopilot;
 
         /// <summary>Status+0x1dc (Status::jumpgateUsed).</summary>
         public static int JumpgatesUsed;
@@ -592,6 +603,8 @@ namespace GoF2Remake.Data
             StoryTargets = new List<int>();
             Wanted = new List<WantedState>();
             CollectedBounties = new int[4];
+            ModWanted = new Dictionary<string, WantedState>();
+            ModBounties = new int[4];
             PirateSightings = new List<PirateSighting>();
             NextPirateSightingId = 0;
             WantedHints = 0;
@@ -636,6 +649,8 @@ namespace GoF2Remake.Data
             RiftEntry = false;
             WarpView = Vector3.zero;
             WarpArrivalPoint = null;
+            CarriedEncounter = null;
+            SlipstreamDeparture = SlipstreamAutopilot = false;
             JumpgatesUsed = 0;
             Standing = new[] { 30, 0 };
             ModRaceStanding = new Dictionary<string, int>(System.StringComparer.Ordinal);

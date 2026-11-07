@@ -181,9 +181,8 @@ namespace GoF2Remake.Tests
             ModOn(@"[ { 'id': 'big', 'looksLike': 'carrier', 'scale': 2 }, { 'id': 'plain', 'looksLike': 'carrier' },
                       { 'id': 'huge', 'looksLike': 'carrier', 'scale': 50 } ]");
             Assert.IsFalse(Installed(Mod).Broken, AllMessages(Installed(Mod)));
-            ModNpcShips.All();   // the entries are resolved (and their values warned about) on first use
-            StringAssert.Contains("\"scale\" 50", AllMessages(Installed(Mod)), "out of range warns");
             Assert.AreEqual(ModNpcShips.MaxScale, ModNpcShips.Get(Mod + ":huge").scale, "clamped");
+            StringAssert.Contains("\"scale\" 50", AllMessages(Installed(Mod)), "out of range warns (once the table is made)");
             var db = Database.Load();
             var at = new Vector3(0, 0, 100000);
             var big = new System.Collections.Generic.List<SpawnSpec>();

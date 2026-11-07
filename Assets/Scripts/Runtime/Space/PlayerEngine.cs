@@ -203,6 +203,13 @@ namespace GoF2Remake.Flight
                     boostSource.pitch = s.RandomPitch * deep * TimeExtender.SoundPitch;
                     boostSource.PlayOneShot(clip, s.vol0 * gain);
                 }
+                // The boost died of an empty pool: its depleted sound on top of the stop (EVERSPACE 2's
+                // TryToBoostWithEnergyDepletedSound, played by the movement component's tick after StopBoosting).
+                if (!boosting && model != null && model.BoostRanDry && modSounds.boostDepleted?.Clip is AudioClip dry)
+                {
+                    boostSource.pitch = modSounds.boostDepleted.RandomPitch * deep * TimeExtender.SoundPitch;
+                    boostSource.PlayOneShot(dry, modSounds.boostDepleted.vol0 * gain);
+                }
                 else if (boosting && s == null && modSounds.boostStart == null && StartClip(out int bi) is AudioClip startClip && bi >= 0)
                 {
                     boostSource.pitch = deep;

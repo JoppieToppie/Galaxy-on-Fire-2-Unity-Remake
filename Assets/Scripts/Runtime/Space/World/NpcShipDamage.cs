@@ -48,6 +48,27 @@ namespace GoF2Remake.World
         List<ItemStack> RollLoot() => Spec.race == Standing.Void || Spec.race == Standing.Specter || Spec.ship == 44 || Spec.ship == 49
             ? new List<ItemStack>() : NpcTables.RollLoot(db, Spec.freighter);
 
+        /// <summary>Remake mods: a mod ship's own drops (ships.json "traffic": { "loot", "lootDrops" }, Data.CustomLoot) added to
+        /// its cargo, each by its chance, at most lootDrops (0 = any); not for a mission's container or a ship without loot, nor
+        /// a fixed crate (a pirate outpost's) unless 'capital' (World.CapitalShip, after it set the capital ship's crate).</summary>
+        public void AddOwnLoot(bool capital = false)
+        {
+            var t = (db?.Ship(Spec.ship) as CustomShipData)?.traffic;
+            if (t?.loot == null || t.loot.Length == 0 || Spec.noLoot || Spec.missionCrate >= 0 || (Spec.lootItem >= 0 && !capital)) return;
+            int drops = 0;
+            foreach (var e in t.loot)
+            {
+                if (t.lootDrops > 0 && drops >= t.lootDrops) break;
+                if (e == null || Random.value >= e.chance) continue;
+                if (!Modding.ModContent.TryResolveItem(e.item, out int item) || db.Item(item) == null) continue;
+                int n = Random.Range(Mathf.Max(1, e.min), Mathf.Max(1, e.min, e.max) + 1);
+                var have = loot.Find(s => s.item == item);
+                if (have != null) have.amount += n; else loot.Add(new ItemStack(item, n));
+                drops++;
+            }
+            if (drops > 0) multiKindLoot = true;   // (a crate a kind: DropCrate)
+        }
+
         /// <summary>KIPlayer::setDead: inactive until relaunched.</summary>
         void SetDead()
         {
@@ -112,6 +133,8 @@ namespace GoF2Remake.World
             else if (hit.isPlayer && ObjectDocking.PlayerDocked) dmg = (int)(dmg * 0.75f);
             else if (!hit.isPlayer && RemoteDockedAtObject != null && RemoteDockedAtObject(hit)) dmg = (int)(dmg * 0.75f);   // multiplayer
             hit.Damage(dmg, true, g.bullets[bullet].velocity);
+            // remake mods: a webber's hit slows the player's ship (NpcRoles)
+            if (Role == NpcRoles.Role.Webber && hit.isPlayer && Target.hostileToPlayer) hit.SlowBy?.Invoke(Random.Range(NpcRoles.WebMinMs, NpcRoles.WebMaxMs), NpcRoles.WebSpeedFactor, false);
             if (g.emp > 0f) EmpBreaksCloak(hit);
             if (g.emp > 0f && !hit.isPlayer && hit.hitpoints != null) hit.hitpoints.DamageEmp((int)g.emp);
             r.ShowImpact(point);
@@ -340,10 +363,11 @@ namespace GoF2Remake.World
         public Crate CreateStealCrate()
         {
             if (!HasCargo) return null;
-            var prefab = assets != null ? assets.Crate(Race) : null;
-            var go = prefab != null ? Instantiate(prefab, transform.position, Random.rotation) : new GameObject("Crate");
+            string model = Modding.ModCrates.KeyOf(Spec.ship);   // a mod ship's own container
+            var go = Crate.Model(Crate.LookContainer, Race, model, transform.position, Random.rotation);
             go.name = "Stolen cargo";
             var c = go.AddComponent<Crate>();
+            c.model = model;
             c.Setup(loot, Race);
             c.stolenFrom = this;
             c.pulled = true;
@@ -393,10 +417,11 @@ namespace GoF2Remake.World
 
         Crate MakeCrate(List<ItemStack> items)
         {
-            var prefab = assets.Crate(Race);
-            var go = prefab != null ? Instantiate(prefab, transform.position, Random.rotation) : new GameObject("Crate");
+            string model = Modding.ModCrates.KeyOf(Spec.ship);   // a mod ship's own container
+            var go = Crate.Model(Crate.LookContainer, Race, model, transform.position, Random.rotation);
             go.name = "Crate";
             var c = go.AddComponent<Crate>();
+            c.model = model;
             c.Setup(items, Race);
             c.fromFriend = Target.friendToPlayer;
             c.missionCrate = Spec.missionCrate >= 0;

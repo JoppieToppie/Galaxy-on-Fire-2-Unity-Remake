@@ -90,8 +90,10 @@ the player ship) and `NavigationView` (flight HUD).
   touch button shows (`NavigationView`) and the hint row gains "FAST FORWARD (HOLD)" / "CRUISE (HOLD)" (`FlightHud`'s
   `lastLockFastForward`). No heading check: away from it the distance rule alone holds.
 - **Cruise drive** (remake, `Flight.CruiseDrive` rules + `NavigationCruiseDrive`; a mod item based on the Khador Drive
-  with `cruiseSpeed` 133 > 0, `Shop.IsCruiseDrive`, its own one-per-ship kind `Shop.KindOf` = `CruiseDrive.Kind` beside the
-  Khador Drive; the ES2 importer's `drives` part, Modding/README.md "Cruise drives"): the fast-forward
+  with `cruiseSpeed` 133 > 0, `Shop.IsCruiseDrive`, its own one-per-ship kind `Shop.KindOf` = `CruiseDrive.Kind`, but one
+  drive a ship (the user, 2026-11-03): mounting it over a Khador Drive or another cruise drive is the hangar's swap (287,
+  `Shop.Replaces` / `IsDrive`), and so is a Khador Drive over it; a ship that carried both before keeps them; the ES2
+  importer's `drives` part, Modding/README.md "Cruise drives"): the fast-forward
   button in manual flight (the original fast-forward keeps it on the autopilot and the approaches). A fresh press held for
   attr 37 ms charges (the Khador bar, Extra `hudCruiseDriveCharging`), then one leg's energy cells (attr 38, x2 Extreme, 0
   with free jumps; `GalaxyMap.RemoveCells`, "-1t Energy Cells", 583 + the cells when short) and the forward speed x attr
@@ -120,6 +122,97 @@ the player ship) and `NavigationView` (flight HUD).
   the system's race (`NpcTables.RandomFreighter`) + 2 locals, derelict 2-4 junk crates with a freighter's loot roll (empty:
   energy cells), distress a local under attack by 1 + rank / 8 raiders, flyby 3 locals of a random race; names Extra
   `encounter*`. Modelled on No Man's Sky's pulse encounters and EVERSPACE 2's signals (behaviour only).
+  Remake 2026-11-03: six more kinds for mods' entries (not in the game's table, whose weights still add to 100), after
+  EVERSPACE 2's encounters (decompiled BP_Encounter_FactionBattle (a battle task, GivesCreditsReward / GiveRenown),
+  _Trap (SpawnFactorNPCs 1.25, ChanceForTwoGroups 0.2, the second group 650 m ahead in a 20 deg cone), _HiddenStash (an
+  invisible container of spawn group 75 found by a detect-signal task), _ResourceDepot (SpawnFactorNPCs 1.5, Resources 3,
+  Containers 2), _HighRiskArea (waves, respawns, boss loot, bFailIfPlayerLeaves), BP_EncounterBase's
+  CalculateRewardCredits): `battle`, `trap` (named as an unknown signal), `stash`, `depot`, `highrisk`, `lootdrone` (a
+  mod's loot drone, `ModTraffic.PickLootDrone`, else a pirate fighter with `SpawnSpec.role` "lootDrone"; neutral as a pirate
+  (`alwaysNeutral`), after ES2's Freelancer drone that never turns hostile; see the drone roles in npcs-and-combat.md)
+  (`CruiseEncounterSpawner`; `EncounterWatch` pays `BattlePay` when the battle's raiders are gone: ES2's own UMissionLib::CalculateRewardCredits, (800 + 4200 x level / MaxPlayerLevel 30) x RewardCreditsFactor 1, down to 50, the level the orbit's `level` (stations.json: an ES2 location's own, the importer's) or else the station's tech level x 3 (`Es2Level`); the high-risk area the same, runs the
+  high-risk area's three waves and its crate of 8-14 loot rolls, ES2's HighRiskAreaBoss drops in its loot_types.CSV,
+  `EncounterWatch.BossRolls*`, and stops unpaid past 15 km). Counts are the remake's picks (ES2 places its groups by
+  spawn_groups.CSV at the location's level). The ES2 importer's mod writes them (encounters.json). Not done: ES2's
+  Minesweeper (mines), Scavenger Baiting, Incursion and Rift (Leviathan encounters are
+  left out on purpose).
+  The `stash` and `depot` crates stay until emptied (`Crate.keep`), not the crates' 60 s.
+  **Between the systems** (2026-11-03, the user: "encounters should pull you out either in their own space or the nearest
+  system"; `CruiseEncounters.Between`): the same table rolls on an interstellar leg (single player, as that space is), the
+  security the system left's, but not on the way out, on a dive into the Void, or while a system's orbit is built ahead
+  (`Navigation.ApproachRuns`, set by `InterstellarField`). Every entry pulls the ship out, the drive dropped and the
+  autopilot off ("X disengaged: Pirates"): **deep space** (`InSpace`): `OutOfSlipstream`, the warp eases out over
+  `PullOutMs` 2500 (`WarpSky.Strength`; `SpaceLevel.WarpHolds` holds fire and damage until it ends, and the drive is blocked),
+  then the encounter is there `AmbushAheadUnits` ahead; the warp comes back with the drive's ramp and the flag clears at
+  full cruise. **Nearest system** (`AtSystem`): "Pulled out of the slipstream at X" (Extra `interstellarPulledOut`), the
+  fall-out's way in (`Leave`), the entry carried in `Session.CarriedEncounter` and met ahead once the arrival's warp has
+  ended (`ArrivalHeld`), counted as that orbit's (`Came`: its cooldown); dropped if that orbit rolls none. Only to a system
+  `CruiseEncounterRules` allows, with no scripted arrival (`ScriptedArrival`) or story refusal (`PlanetJumpRefused`).
+  An entry's `interstellar`: pirates, derelict and flyby `space`, trader and distress either (50 / 50, deep space when the
+  system won't have it), a quest always the system (its graph needs an orbit), `never` keeps it out.
+- **Wreck fields** (remake 2026-11-03, for mods; stations.json `orbit.wrecks` -> `ModWorld.OrbitSpec.wreckCount /
+  wreckCentre / wreckSpread`, `World.WreckField.Spawn` with the gas clouds in `SpaceLevelWormholes`): after EVERSPACE 2's wreck
+  field locations (Wreck Field, Ghost Fleet, Warship Remains: war wrecks among loot containers), each visit lays out
+  `count` (1-60, default 12) wreck containers (the junk crate look) at random in the field's cube (`spread`, default
+  60000; a third as tall), each a freighter's loot roll or 1-5 Space Waste (item 99), kept until emptied (`Crate.keep`). Not
+  in the alien orbit or interstellar space. ES2's wreck meshes aren't placed (only containers). The ES2 importer gives
+  its wreck-field locations one; its outlaw strongholds are pirate-held orbits (`pirateHeld`: outposts and guards).
+- **Rifts** (remake 2026-11-04, for mods; encounter kind `rift`, `Flight.RiftRun` plain + `World.RiftEncounter`; the HUD's
+  transfer counter line shows `RiftEncounter.HudLine`): after EVERSPACE 2's Ancient Rifts, read in its code (decompiled
+  BP_Encounter_Rift and UGameplayLib::GetRandomRiftMutatorForNextStage, mutators.csv's LootQualityBonus / bAllowedInHighRiskAreas /
+  bAllowedInRifts / bAllowedOnlyForRiftBosses, attributes.CSV's mutator names and texts, the values on its Signal Decoder
+  items): stages (ships, default 4; the last the boss's) in the orbit where the signal was (ES2 jumps through portals into
+  new locations: here the stage's survivors vanish); a fight stage's target GetTargetKillPointCount 15, 21, 26, 30, 35, 35,
+  40, 40, 45, 45 + 0..5, MinEnemiesAlive trunc(x 0.4) raiders kept alive (a fifth strong fighters), kill points by
+  EPawnType (drone 0.5, fighter 1, cruiser 1.5, capital 2), resolve +0.10 / 0.12 / 0.15 / 0.20 a kill, drained 0.016/s
+  after RESOLVE_DELAY 10 s (not on the boss's stage); run dry, the stage goes on unmastered; one mutator a stage from the
+  second on, uniformly among the rift's not yet in play (the boss's stage among the boss's; ES2's three portals offer one
+  each and the pilot picks, here the rift does). Mutators done: Enemy Regen (GetScaledHitpoints(5)/s against a raider's 200:
+  2.5 % of the hull a second), Evasive (+50 % speed: `NpcShip.roleSpeedFactor`), No EMP (`SpawnSpec.empPoints`), Jarred
+  Sensors (the plate's race), Hidden Health (`plateNameOnly`), Explosive Death (50 kinetic + 70 energy against a raider's 31 +
+  24 DPS: 2.2 s of the dying ship's gun, `NpcShip.GunDps`, within its size clamp 20-50 m x 15 x 3.6, falling off), Repair On
+  Kill (20 %), Strength in Death (+5 % speed and hull, at most 10), Nearsighted / Farsighted (`Target.damageFactor` 0.5
+  beyond 1080 m / within 1800 m), No Lock (`untargetable`), Vengeance (a `detonator` role drone a kill, invulnerable with
+  Explosive Death); the boss's Quantum Mend (teleport every 15-30 s, repairing until hit), Evasive Drift (`NpcShip.BoostAway`
+  as often), Guardians (two strong fighters, the boss invulnerable while one lives). The boss: one of the entry's `bosses` (ES2's GetBossClassAndLevel picks its destroyer, drone carriers, Okkar corvette or
+  Redeemer battleship), a capital ship parked (`ModCapitalShips.Spawn`), its hull `raiders` x `NpcTables.Hull(0, 0)`; else the
+  pirate boss's hull formula and guns. Won: a crate of loot_types.CSV's RiftBoss 14-18 rolls x `RiftRun.LootFactor` (0.5 + 0.5 x the
+  mastered share, after GetLootQuantityFactor) and `BattlePay`. Not done: Mines on Death (2-3 mines, 40 + 40, 100 m), Overheated
+  Systems, Corrosive Death, Burst Bulbs, Phase Barrier, Stasis Snares, Apocalypse; the portals' choice; ES2's lunacy,
+  nightmare mode and loot quality.
+- **Containers** (remake 2026-11-03, for mods; stations.json `orbit.containers` -> `ModWorld.OrbitSpec.containerCount /
+  containerCentre / containerSpread / containerBulletproof`, `World.LootContainer.SpawnOrbit` with the wreck field): after
+  EVERSPACE 2's BP_ItemContainer (EContainerType OpenOnHit: ReceiveAnyDamage by the player or within 2 km ->
+  OpenContainerAndDropItsLoot; OpenOnInteract, "Bulletproof Container", CanBeHit off; their InteractComponent:
+  InteractRadius 10000 cm, InteractChargeDuration 0, bMustBeOnScreen, from the native constructor), the game's container
+  model x3 as a radar object (`Target.RadarObjects`, neutral, lock plate "Container" / "Bulletproof container"): a shootable
+  one has 1 hp and opens when it dies (the junk's burst), a bulletproof one is `invulnerable`; the action key (`FlightHud`'s
+  prompt chain after mining: "OPEN", `LootContainer.InReach`, 360 m ahead of the ship) opens either. Opened, each stack
+  is a crate of its own (`Crate.keep`, launched x2); the opened bulletproof shell stays without its Target. Loot: a
+  freighter loot rolls (`WreckField.Loot`) by ES2's loot_types.CSV: a Container's 1-3 drops, a RareContainer's (the
+  bulletproof one here) 2-4 (`LootContainer.RollsMin` ...). Not done:
+  ES2's secure containers (OpenOnUnlocked, energized through conductors; the importer counts its armoured ones as
+  bulletproof), its loot menu (everything spills), the open animation.
+- **Traffic lanes** (remake 2026-11-03, for mods; stations.json `orbit.lanes` -> `ModWorld.LaneSpec`, `Flight.TrafficLane`
+  plain (a Catmull-Rom path walked by distance, 16 chords a segment; open paths turn over at their ends),
+  `World.TrafficLanes` attached with the containers): after EVERSPACE 2's BP_SplineTraffic (Count 10, BaseSpeed 8000 cm/s,
+  TwoLanes with LaneOffset 2000 cm (x3.6 here, for the ships' size), ClosedLoop / DoUTurns, UnitHealth 50, RespawnDelay
+  30 s, a destroyed unit TryTriggerWantedSystem(1); its units are SM_Traffic_* static meshes, physics-knocked when rammed):
+  the ships are the lane's `ships` or the system race's fighters (`NpcTables.RandomFighter`), models only plus a Target of
+  `TrafficLanes.HitPoints` (ES2's UnitHealth 50 over its raider's 310 of a pirate raider's hull, `NpcTables.Hull(0, 0)`) with no marker; destroyed: `Explosion.Spawn` x0.6,
+  `Standing.ApplyDelict(system race, 1)` unless an NPC did it, back after 30 s. Not done: ramming them aside, their engine
+  sound, ES2's random glow colours and its traffic meshes.
+- **Hazard volumes** (remake 2026-11-03, for mods; stations.json `orbit.hazards` -> `ModWorld.HazardSpec`, `Flight.Hazards`
+  plain, `World.HazardZones` on the player's ship, attached with the wreck field): after EVERSPACE 2's BP_HeatDamageVolume
+  (DamagePerSecondMax 200 x (1 - d / SphereRadius)^DamageFalloffExponent 2 each DamageInterval 0.25 s; its overheat buildup
+  into Scorching, equipment efficiency, not taken) and BP_RadiationField (BuildupDuration 5 s into
+  BP_Condition_Debuff_Radiated: MaxHitpoints_Hull x 0.85 a token, TokenLimit 10, kept beyond the location, docking removes
+  it): `heat` (dps x falloff, through the shield, `Target.Damage` as an NPC hit; `raiderDps` instead: that many x
+  `NpcTables.RaiderGunDps`, ES2's DamagePerSecondMax 200 being GetScaledDamage by the location level like its NPCs' DPS, so
+  200 / the Outlaw raider's 55), `radiation` (`Hazards.RadiationTokens`,
+  the hull capped at maxHull x 0.85^n in every orbit, `StationLevel` clears it on docking). HUD lines on entering and per
+  token. Not drawn (ES2's post-process tint). Not done: ES2's lightning fields (a storm effect), acid sacks, lightning
+  plants and meltable ice (props with ES2's models).
 - **Menu order** (`Hud::initHudMenu(3)`): outside the alien orbit Asteroid field, Station, Jumpgate, 573 **Waypoint** (a
   player route not finished: the autopilot follows the route, "Target: Waypoint"), "Destination: X"; then every named
   docking target (also in the alien orbit). The original's only restriction is no menu in mission type 0xb7 (the

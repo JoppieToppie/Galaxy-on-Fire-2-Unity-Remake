@@ -171,7 +171,14 @@ namespace GoF2Remake.Data
         /// (a player's video: an AMR Extinctor fired empty, demounted into the hold as 1 t and mounted again, over and over;
         /// #132 fixed the demount, the club's storage, a hull swap and the story's ship moves still made 1 of 0).</summary>
         public static int UnitsOf(Database db, ItemStack e) =>
-            e == null ? 0 : (db?.Item(e.item)?.TypeId ?? 4) == 1 ? Mathf.Max(0, e.amount) : Mathf.Max(1, e.amount);
+            e == null ? 0 : Stacked(db, e.item) ? Mathf.Max(0, e.amount) : Mathf.Max(1, e.amount);
+
+        /// <summary>A mounted stack whose amount counts (a secondary's ammo, a consumable device's uses; remake 2026-11-02).</summary>
+        public static bool Stacked(Database db, int item)
+        {
+            var it = db?.Item(item);
+            return it != null && (it.TypeId == 1 || Shop.IsConsumableDevice(it));
+        }
 
         /// <summary>Remake: the flown ship's equipment fitted to its slots on docking (StationLevel). A mod lowering a ship's
         /// slots, or a debug hull swap (PlayerHull), could leave more mounted than it has slots, and in flight each mounted
@@ -499,6 +506,8 @@ namespace GoF2Remake.Data
             if (GalaxyMap.IsKhadorDrive(item) && GalaxyMap.HasIntegratedDrive(Session.ShipIndex)) return Result.NotMountable;
             // A one-per-ship item the ship has built in (a shield, a scanner...): it takes the built-in one's place, no slot
             // (SyncBuiltIn sets the built-in one aside); one fitted there already is swapped as usual.
+            // Remake: more of a mounted consumable device join its stack (like bought missiles of a mounted type).
+            if (Shop.IsConsumableDevice(it) && Session.Equipment.Exists(e => e.item == item)) return Result.Ok;
             if (InBuiltInPlace(db, new ItemStack(item, 1)))
             {
                 swapWith = Session.Equipment.FindIndex(e => !e.builtIn && Shop.KindOf(db.Item(e.item)) == Shop.KindOf(it));
@@ -509,7 +518,7 @@ namespace GoF2Remake.Data
                 // Remake: turrets (8) and plasma collectors (35) are one per turret slot, not one per ship, so a ship with
                 // two turret slots (a custom ship) takes a second one; the swap only once every turret slot is taken.
                 bool perSlot = type == 2 && SlotCount(2) > 1 && MountedOfType(2).Count < SlotCount(2);
-                swapWith = perSlot ? -1 : Session.Equipment.FindIndex(e => !e.builtIn && Shop.KindOf(db.Item(e.item)) == Shop.KindOf(it));
+                swapWith = perSlot ? -1 : Session.Equipment.FindIndex(e => !e.builtIn && Shop.Replaces(it, db.Item(e.item)));
                 if (swapWith >= 0) return Result.Swap;
             }
             if (BayTakes(db, Session.ShipIndex, item, Session.Equipment)) return Result.Ok;   // the cloak bay (remake option)
@@ -547,9 +556,11 @@ namespace GoF2Remake.Data
         void MountFromCargo(int item)
         {
             var stack = Session.Cargo.Find(s => s.item == item);
-            int amount = TypeOf(item) == 1 ? stack.amount : 1;
+            int amount = Stacked(db, item) ? stack.amount : 1;
             stack.amount -= amount;
             if (stack.amount <= 0) Session.Cargo.Remove(stack);
+            var mounted = Shop.IsConsumableDevice(db.Item(item)) ? Session.Equipment.Find(e => e.item == item) : null;
+            if (mounted != null) { mounted.amount += amount; return; }   // remake: a consumable device's uses join the mounted stack
             Session.Equipment.Add(new ItemStack(item, amount));
             PinSlots(db, Session.Equipment);   // the new stack's slot: the first free one
             Session.SeenItems.Add(item);
@@ -576,7 +587,7 @@ namespace GoF2Remake.Data
             var moved = new List<int>();
             foreach (var stack in Session.Cargo.ToList())
             {
-                if (TypeOf(stack.item) != 1) continue;
+                if (!Stacked(db, stack.item)) continue;   // (remake: a mounted consumable device's bought uses too)
                 var mounted = Session.Equipment.Find(e => e.item == stack.item);
                 if (mounted == null) continue;
                 mounted.amount += stack.amount;

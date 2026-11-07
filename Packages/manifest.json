@@ -13,6 +13,7 @@
     "com.unity.sdk.linux-x86_64": "1.1.0",
     "com.unity.services.multiplayer": "2.4.1",
     "com.unity.test-framework": "1.9.0",
+    "com.unity.toolchain.linux-x86_64-linux": "1.1.0",
     "com.unity.toolchain.win-x86_64-linux": "1.1.0",
     "com.unity.ugui": "7.0.0",
     "com.unity.xr.openxr": "1.19.0",

@@ -52,6 +52,25 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(CollisionVolume.ForFreighter(13, 1).Count, CollisionVolume.ForFreighter(hauler, 1).Count);
         }
 
+        // Remake (2026-11-04, EVERSPACE 2's loot_npcs.csv): a ship's own drops, "traffic": { "loot", "lootDrops" } (NpcShip.AddOwnLoot).
+        [Test]
+        public void AShipsOwnDrops()
+        {
+            string dir = WriteMod("c", "t_loot", "1.0", "", ("ships.json",
+                "[ { 'id': 'okkar', 'name': 'O', 'race': 1, 'model': 'big.glb', 'traffic': { 'lootDrops': 2, " +
+                "    'loot': [ { 'item': '155', 'chance': 0.2, 'min': 1, 'max': 2 }, { 'item': 't_loot:none', 'chance': 1 } ] } }," +
+                "  { 'id': 'plain', 'name': 'P', 'race': 1, 'model': 'big.glb' } ]"));
+            WriteFile(dir, "big.glb", Dummy);
+            ScanAndEnable("t_loot");
+            Database.Load();
+            var t = CustomShips.Get(ModContent.ShipIndexOf("t_loot:okkar")).traffic;
+            Assert.AreEqual(2, t.lootDrops);
+            Assert.AreEqual(2, t.loot.Length);
+            Assert.AreEqual(("155", 0.2f, 1, 2), (t.loot[0].item, t.loot[0].chance, t.loot[0].min, t.loot[0].max));
+            Assert.AreEqual(1f, t.loot[1].chance);
+            Assert.IsNull(CustomShips.Get(ModContent.ShipIndexOf("t_loot:plain")).traffic?.loot is { Length: > 0 } ? "has" : null, "none unless given");
+        }
+
         [Test]
         public void ACapitalShipsSubsystemsAndShields()
         {
