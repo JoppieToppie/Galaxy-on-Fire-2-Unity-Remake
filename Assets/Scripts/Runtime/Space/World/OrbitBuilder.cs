@@ -448,6 +448,10 @@ namespace GoF2Remake.World
             root.SetParent(parent, false);
             if (prefab == null) return root;
             if (big < 0) big = Mathf.Min(count, Random.Range(2, 10));
+            // remake mods: the orbit's own asteroid models (stations.json "orbit.asteroids" "models"), each fitted to the game
+            // asteroid it stands in for (its extent x the asteroid's scale); the game's while one isn't loaded
+            var own = layout.asteroidModels;
+            float baseExtent = own != null && own.Count > 0 ? Modding.ModCrates.ExtentOf(prefab) : 0f;
             var bigPositions = new Vector3[big];
             var ores = ore >= 0 ? new List<(int item, int p)> { (ore, 100) } : OreProbabilities(db, layout);
             int oreCursor = 0;
@@ -482,9 +486,15 @@ namespace GoF2Remake.World
                 var euler = new Vector3(Random.Range(0, 100), Random.Range(0, 100), Random.Range(0, 100)) * 0.01f * 2f * Mathf.PI;
                 bool isMagma = rockOre == Novanium && magma != null;
                 var model = isMagma ? magma : prefab;
-                var go = Object.Instantiate(model, OrbitLayout.ToUnity(pos), OrbitLayout.RotationToUnity(euler), root);
+                GameObject go = null;
+                if (!isMagma && baseExtent > 0f)
+                    go = Modding.ModCrates.InstantiateFitted(own[Random.Range(0, own.Count)], OrbitLayout.ToUnity(pos), OrbitLayout.RotationToUnity(euler), baseExtent * scale, root);
+                if (go == null)
+                {
+                    go = Object.Instantiate(model, OrbitLayout.ToUnity(pos), OrbitLayout.RotationToUnity(euler), root);
+                    go.transform.localScale = model.transform.localScale * scale;
+                }
                 go.name = $"Asteroid {i}";
-                go.transform.localScale = model.transform.localScale * scale;
                 // PlayerAsteroid: hit radius = meshRadius * scale * 0.7, HP = scale * 100 + 30.
                 var target = go.AddComponent<GoF2Remake.Flight.Target>();
                 target.isAsteroid = true;

@@ -357,6 +357,7 @@ namespace GoF2Remake.UI
             {
                 var list = new List<Button> { dialogYes };
                 if (!dialogInfo && dialogBackCancels && dialogAlt != null) list.Add(dialogAlt);
+                if (!dialogInfo && dialogAlt2Shown && dialogAlt2 != null) list.Add(dialogAlt2);
                 if (!dialogInfo && !dialogBackCancels) list.Add(dialogNo);   // Modified: a choice dialog's No is its Back button
                 return list;
             }

@@ -421,7 +421,10 @@ namespace GoF2Remake.World
             if (!Layout.interstellar && !Layout.alienOrbit) WreckField.Spawn(db, Layout);   // remake mods: the orbit's wreck field
             if (!Layout.interstellar && !Layout.alienOrbit) LootContainer.SpawnOrbit(db, Layout);   // ... and its containers
             TrafficLanes.Attach(this, db);   // ... and its traffic lanes
+            StationLife.Attach(this);   // ... and its station's life (worker drones)
             HazardZones.Attach(this);   // remake mods: the orbit's heat / radiation volumes, a radiated hull's cap
+            OrbitAmbience.Attach(this);   // remake mods: the orbit's ambience zones
+            OrbitStorm.Attach(this);   // remake mods: the orbit's lightning storm
             if (Radar != null) Radar.Clouds = GasClouds;   // the spectral filters' markers and lock
             Extender = TimeExtender.Attach(root, db);
 

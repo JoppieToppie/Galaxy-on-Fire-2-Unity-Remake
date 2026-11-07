@@ -112,6 +112,7 @@ namespace GoF2Remake.Data
         // version 13: the event graph quests and bar missions under way, the quests finished (Session.GraphQuests)
         public List<GraphQuestState> graphQuests;
         public List<string> graphQuestsDone;
+        public List<string> fixedLootTaken;
         // (remake, no version of its own: older saves have none) the repeatable quests finished, "name|playing seconds"
         public List<string> graphQuestRepeats;
         // (remake, no version of its own: older saves have none) the Kaamo Club VIP Card bought (KaamoClub.VipFeatures)
@@ -376,6 +377,7 @@ namespace GoF2Remake.Data
                 storyAgentsAccepted = new List<int>(Session.StoryAgentsAccepted),
                 graphQuests = new List<GraphQuestState>(Session.GraphQuests),
                 graphQuestsDone = new List<string>(Session.GraphQuestsDone),
+                fixedLootTaken = new List<string>(Session.FixedLootTaken),
                 graphQuestRepeats = Session.GraphQuestRepeats.Select(kv => kv.Key + "|" + kv.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList(),
                 modCampaign = Session.ModCampaign ?? "",
                 hardcore = Session.Hardcore,
@@ -661,6 +663,7 @@ namespace GoF2Remake.Data
                 Session.StoryAgentsAccepted = new HashSet<int>(s.storyAgentsAccepted ?? new List<int>());
                 Session.GraphQuests = s.graphQuests ?? new List<GraphQuestState>();
                 Session.GraphQuestsDone = new HashSet<string>(s.graphQuestsDone ?? new List<string>());
+                Session.FixedLootTaken = new HashSet<string>(s.fixedLootTaken ?? new List<string>());
                 Session.GraphQuestRepeats = new Dictionary<string, float>();
                 foreach (var r in s.graphQuestRepeats ?? new List<string>())
                 {

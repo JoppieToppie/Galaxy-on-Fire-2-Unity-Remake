@@ -155,8 +155,14 @@ the player ship) and `NavigationView` (flight HUD).
   field locations (Wreck Field, Ghost Fleet, Warship Remains: war wrecks among loot containers), each visit lays out
   `count` (1-60, default 12) wreck containers (the junk crate look) at random in the field's cube (`spread`, default
   60000; a third as tall), each a freighter's loot roll or 1-5 Space Waste (item 99), kept until emptied (`Crate.keep`). Not
-  in the alien orbit or interstellar space. ES2's wreck meshes aren't placed (only containers). The ES2 importer gives
-  its wreck-field locations one; its outlaw strongholds are pirate-held orbits (`pirateHeld`: outposts and guards).
+  in the alien orbit or interstellar space. Wreck hulls (2026-11-05, `models` / `materials` / `hulks` / `size` ->
+  `wreckModels` ...; `WreckField.SpawnHulks`): `hulks` (default 2 x the models, at most 8) of the mod's glTF models among
+  the containers, the largest model `size` game units at its largest side (default 8000) and the others in proportion
+  as authored (x0.85-1.15; `ModCrates.ExtentOf(key)`), turned at random, placed by a
+  `System.Random` seeded by the station (the same for every player), each an `Obstacle` with one box of its bounds
+  (`ModCrates.LocalBounds`, `rotates`: turned with it); loaded with the mod crates (`ModWorld.ContainerModels`), none
+  placed before they are (`ModCrates.Ready`). The ES2 importer gives its wreck-field locations one, with ES2's wreck
+  meshes; its outlaw strongholds are pirate-held orbits (`pirateHeld`: outposts and guards).
 - **Rifts** (remake 2026-11-04, for mods; encounter kind `rift`, `Flight.RiftRun` plain + `World.RiftEncounter`; the HUD's
   transfer counter line shows `RiftEncounter.HudLine`): after EVERSPACE 2's Ancient Rifts, read in its code (decompiled
   BP_Encounter_Rift and UGameplayLib::GetRandomRiftMutatorForNextStage, mutators.csv's LootQualityBonus / bAllowedInHighRiskAreas /
@@ -193,6 +199,14 @@ the player ship) and `NavigationView` (flight HUD).
   bulletproof one here) 2-4 (`LootContainer.RollsMin` ...). Not done:
   ES2's secure containers (OpenOnUnlocked, energized through conductors; the importer counts its armoured ones as
   bulletproof), its loot menu (everything spills), the open animation.
+  Fixed loot (2026-11-05, EVERSPACE 2's unique_loot.csv): `containers.loot` (`OrbitSpec.containerLoot`, item references
+  and amounts) on top of the rolls, an entry a container in turn (the bulletproof ones first), skipped once its key
+  (`LootContainer.FixedLootKey`: station:entry) is in `Session.FixedLootTaken`, saved as `fixedLootTaken`, added when its
+  container opens. Test `ModWorldTests.AnOrbitsFixedContainerLoot`. Models (2026-11-05, ES2's SK_Container_Generic_*):
+  `containers.model` / `bulletproofModel` (`OrbitSpec.containerModel` / `containerProofModel`, checked in the mod) load with
+  the mod crates (`ModWorld.ContainerModels` -> `ModCrates.LoadAll`; "<mod id>|<path>" keys), `LootContainer.Spawn`'s
+  modelKey through `Crate.Model`, fitted to the race's container x `ModelScale`; `containers.materials` (ships.json's form)
+  applied to the template as on a station model (`ModCrates.ApplyMaterials`). Test `AnOrbitsContainerModels`.
 - **Traffic lanes** (remake 2026-11-03, for mods; stations.json `orbit.lanes` -> `ModWorld.LaneSpec`, `Flight.TrafficLane`
   plain (a Catmull-Rom path walked by distance, 16 chords a segment; open paths turn over at their ends),
   `World.TrafficLanes` attached with the containers): after EVERSPACE 2's BP_SplineTraffic (Count 10, BaseSpeed 8000 cm/s,
@@ -211,8 +225,47 @@ the player ship) and `NavigationView` (flight HUD).
   `NpcTables.RaiderGunDps`, ES2's DamagePerSecondMax 200 being GetScaledDamage by the location level like its NPCs' DPS, so
   200 / the Outlaw raider's 55), `radiation` (`Hazards.RadiationTokens`,
   the hull capped at maxHull x 0.85^n in every orbit, `StationLevel` clears it on docking). HUD lines on entering and per
-  token. Not drawn (ES2's post-process tint). Not done: ES2's lightning fields (a storm effect), acid sacks, lightning
-  plants and meltable ice (props with ES2's models).
+  token. 2026-11-06, ES2's BP_FrostField / BP_CorrosionField / BP_DamageField:
+  `frost` (BP_Condition_Buildup_Frost: `Hazards.FrostStep`, 5 s inside -> frozen 6 s as the web's slow, `Target.SlowBy` at
+  `FrozenFactor` 0.15; drains over DrainDuration 60 s), `corrosion` (the rift field's rule: `RiftRun.CorrosionDebuffS` 8 s
+  after leaving, a tick every `CorrosionTickS` 0.95 s past the shield of `raiderDps` x `RaiderGunDps`, default
+  `CorrosionTickSeconds` = intensity 5 / 55; `PlayerDebuffs` lifts it), `damage` (DamagePerSecond 20 a second, no falloff;
+  the importer gives ES2's capsule as a sphere of its radius). Not done: ES2's lightning fields (a storm effect), acid
+  sacks, lightning plants and meltable ice (props with ES2's models), the energy restore fields (in no ES2 level).
+  Looks (2026-11-06, `World.HazardLooks`, after ES2's fields: particles and an inside post-process, no surface; the
+  materials' compiled shaders read in es2_re/fxmat, ShaderDump + disasm): Unity particle systems in the volume's space, its
+  sphere the emitter, prewarmed. Clouds are GoF2/HazardCloud (additive; the Center vertex stream seeds each one;
+  procedural noise for ES2's textures): mode 0 M_CorrosionField_Cloud (2 octaves of |gradient noise| at uv x 3 drifting
+  with time x 0.2, ^1.5 squared, in the disc 1 - 2 r), mode 1 M_RadiationField_Cloud (dots where one octave of simplex
+  noise at uv x 20 peaks, x 10 saturated, in a noise-wobbled disc), mode 2 M_WebField_Plasma (a flowed noise squared,
+  ^ 1 / disc^3: wisps). Colours ES2's: corrosion P_CorrosionField (0.84, 1, 0.09; 5 clouds/s for 2-4 s, 1-2 x the radius;
+  bubbles of particles.png cell 3), radiation NS_RadiationField (RadiationColor (1, 1, 0.39); sparks, cell 61), frost
+  NS_FrostField (0.19, 0.77, 1; wisps, glints), heat a faint turbulence haze (remake: ES2's heat volumes have none),
+  damage GoF2's fire sprites and embers (ES2's: the burning mining prop). The corrosion clouds' refraction is left out.
+  Inside (GoF2/HazardVolume, added, the volume's sphere drawn Cull Front / ZTest Always while the camera is within it):
+  frost M_Condition_Frozen_PostProcess (vignette (|uv - 0.5|)^1.5 through the contrast curve 3, x the frost revealed by
+  saturate((f - (1 - Opacity)) / Opacity), x f^2; procedural ice cells for T_Grunge_Frost_001's R; Opacity = the buildup,
+  whole while frozen), radiation M_Condition_Radiated_PostProcess (the edges' glow, two scrolling noises ^ 1 / distance x
+  RadiationColor x 5 x Opacity^1.5, a grain x 0.3 x distance^3 and sparse noise blobs x Opacity^2; Opacity 0.3 -> 1
+  toward the next dose); heat BP_HeatDamageVolume's BloomIntensity 2: a global Volume at priority 60 with the scene's bloom
+  x 2, its weight the camera's depth (1 within 85 % of the radius).
+- **Lightning storms** (remake 2026-11-06, for mods; stations.json `orbit.storm` -> `ModWorld.StormSpec`, `World.OrbitStorm`
+  attached with the ambience): after EVERSPACE 2's BP_LightningField (AttachToCamera, Frequency 1, Radius 400 000 cm,
+  HeightPercent 1, VolumeSurfaceOnly, ThunderSoundSpawnChance 0.2) and P_LightningField: flashes at random
+  (`NextFlashMs`: exponential, `frequency` a second) on a cylinder round the camera (`FlashOffset`, `radius` game units,
+  kept within 0.8 x the far plane), each a glow (particles.png cell 3, 1-10 km for 0.1-0.2 s) and a bolt (khador_jump's
+  big bolt, EmpSparks' tile 11; 2-6 km for 0.25-1 s) x `scale`, blue-violet (0.1, 0.34, 1) to orange (1, 0.29, 0.05) over
+  the life x `intensity` (ES2's ColorOverLife); a mod `thunder` sound 0.4-2 s after a flash at `thunderChance`. Effects
+  only: no damage or EMP.
+- **Ambience zones** (remake 2026-11-05, for mods; stations.json `orbit.ambience` -> `ModWorld.AmbienceSpec`,
+  `World.OrbitAmbience`, attached with the hazards): after EVERSPACE 2's BP_MusicTrigger OverrideAmbience (its inner /
+  outer spheres round stations, factories, cargo wrecks, wreck fields: a SoundCue looping one of its waves by
+  SoundNodeRandom, a SoundNodeDelay of DelayMin..Max over a SoundNodeRandom of adds mixed in at its InputVolume). Each zone:
+  two 2D AudioSources (its loop from a random start, its adds as PlayOneShot), volume x `OrbitAmbience.Weight` (1 within
+  `radius` of `centre`, fading to 0 over half the radius more; no centre: everywhere) x `Settings.SfxVolume`; the clips are
+  the mods' (a loop `ModMusic.Track`, kept compressed, else `ModSounds.Named`, decoded; the adds sounds), looked up each
+  frame until loaded. ES2's planet-side ambiences don't apply (GoF2
+  never lands). Test `ModWorldTests.AnOrbitsAmbienceZones`.
 - **Menu order** (`Hud::initHudMenu(3)`): outside the alien orbit Asteroid field, Station, Jumpgate, 573 **Waypoint** (a
   player route not finished: the autopilot follows the route, "Target: Waypoint"), "Destination: X"; then every named
   docking target (also in the alien orbit). The original's only restriction is no menu in mission type 0xb7 (the

@@ -25,6 +25,7 @@ namespace GoF2Remake.Modding
         const string Prefix = "modstation_", GatePrefix = "modgate_";
 
         static readonly Dictionary<int, GameObject> templates = new Dictionary<int, GameObject>();
+        static readonly Dictionary<int, GameObject> lifeUnits = new Dictionary<int, GameObject>();
         static readonly List<GLTFast.GltfImport> imports = new List<GLTFast.GltfImport>();
         static GameObject holder;
         static GLTFast.TimeBudgetPerFrameDeferAgent agent;
@@ -35,7 +36,7 @@ namespace GoF2Remake.Modding
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
-            templates.Clear(); imports.Clear(); current.Clear();
+            templates.Clear(); lifeUnits.Clear(); imports.Clear(); current.Clear();
             holder = null; agent = null; loadingRevision = loadedRevision = -1; steps = stepsDone = 0; Count = Done = Backdrops = 0;
         }
 
@@ -70,6 +71,8 @@ namespace GoF2Remake.Modding
         {
             foreach (var t in templates.Values) if (t != null) Object.Destroy(t);
             templates.Clear();
+            foreach (var t in lifeUnits.Values) if (t != null) Object.Destroy(t);
+            lifeUnits.Clear();
             foreach (var i in imports) i.Dispose();
             imports.Clear();
             if (holder == null)
@@ -124,6 +127,11 @@ namespace GoF2Remake.Modding
                 if (!string.IsNullOrEmpty(m.emission)) yield return (m.emission, false, false);
                 if (!string.IsNullOrEmpty(m.detailAlbedo)) yield return (m.detailAlbedo, true, false);
                 if (!string.IsNullOrEmpty(m.detailNormal)) yield return (m.detailNormal, true, true);
+                // EVERSPACE 2's structure layers (ModMaterials.Es2Layers)
+                if (!string.IsNullOrEmpty(m.wear)) yield return (m.wear, true, false);
+                if (!string.IsNullOrEmpty(m.wearNormal)) yield return (m.wearNormal, true, true);
+                if (!string.IsNullOrEmpty(m.wearNoise)) yield return (m.wearNoise, true, false);
+                if (!string.IsNullOrEmpty(m.grunge)) yield return (m.grunge, true, false);
             }
             // a mobile station's engine effect (MobileStation)
             if (s.gateSystem < 0)
@@ -175,6 +183,7 @@ namespace GoF2Remake.Modding
                 var template = Build(s, scene);
                 template.transform.SetParent(holder.transform, false);
                 templates[s.station] = template;
+                if (s.life != null) await LoadLifeUnit(s, import);
                 Debug.Log($"Mods: {s.mod.Id}: station {s.station} \"{label}\" built from {s.model}");
             }
             catch (System.Exception e) when (rev == ModManager.Revision) { Warn(s.mod, $"{s.model}: {e.Message}"); if (!ModFileException.IsFileError(e)) Debug.LogException(e); }
@@ -185,6 +194,23 @@ namespace GoF2Remake.Modding
                 current.Remove(label);
             }
         }
+
+        /// <summary>Remake (2026-11-04): a station's life unit (stations.json "life", World.StationLife): its model file's scene
+        /// "life.scene", dressed in the station's materials, kept beside the template.</summary>
+        static async Task LoadLifeUnit(ModWorld.StationModel s, GLTFast.GltfImport import)
+        {
+            int index = -1;
+            for (int i = 0; i < import.SceneCount; i++) if (import.GetSceneName(i) == s.life.scene) index = i;
+            if (index < 0) { Warn(s.mod, $"stations.json: \"{s.label ?? s.model}\": {s.model} has no scene \"{s.life.scene}\" for its life"); return; }
+            var unit = new GameObject("life unit");
+            unit.transform.SetParent(holder.transform, false);
+            if (!await import.InstantiateSceneAsync(unit.transform, index) || holder == null) { Object.Destroy(unit); return; }
+            DressMaterials(s, unit.GetComponentsInChildren<Renderer>(true));
+            lifeUnits[s.station] = unit;
+        }
+
+        /// <summary>The station's life unit (LoadLifeUnit) to copy, null without one.</summary>
+        public static GameObject LifeUnit(int station) => lifeUnits.TryGetValue(station, out var u) ? u : null;
 
         /// <summary>A custom hangar / bar (ModInteriors): its textures and file at once, then glTFast, then the room.</summary>
         static async Task LoadInterior(int rev, ModInteriors.Def d)
@@ -275,22 +301,7 @@ namespace GoF2Remake.Modding
             model.transform.localPosition = Vector3.zero;
             model.transform.localRotation = Quaternion.Euler(0f, s.yaw, 0f);
             var renderers = model.GetComponentsInChildren<Renderer>(true);
-            if (s.materials.Count > 0)
-            {
-                var mats = new Material[s.materials.Count];
-                for (int i = 0; i < mats.Length; i++)
-                    mats[i] = ModMaterials.FromSpec(s.mod, s.materials[i], !string.IsNullOrEmpty(s.materials[i].material) ? $"{s.Assembly} {s.materials[i].material}" : $"{s.Assembly} {s.materials[i].mesh}{s.materials[i].submesh}");
-                foreach (var r in renderers)
-                {
-                    var mesh = ModShipBuilder.MeshOf(r);
-                    var assigned = r.sharedMaterials;
-                    int count = Mathf.Max(1, mesh != null ? mesh.subMeshCount : assigned.Length);
-                    if (assigned.Length != count) System.Array.Resize(ref assigned, count);
-                    // (the model's own material name too: an entry's "material" filter, as on a ship; stations ignored it)
-                    for (int sub = 0; sub < count; sub++) { var m = ModShipBuilder.MaterialFor(s.materials, mats, r.name, sub, assigned[sub] != null ? assigned[sub].name : null); if (m != null) assigned[sub] = m; }
-                    r.sharedMaterials = assigned;
-                }
-            }
+            DressMaterials(s, renderers);
             foreach (var r in renderers) { r.shadowCastingMode = ShadowCastingMode.On; r.receiveShadows = true; }
             // Scale: the largest extent to modelSize game units; then the bounds' centre onto the origin.
             var b = ModShipBuilder.BoundsIn(root.transform, renderers);
@@ -302,6 +313,25 @@ namespace GoF2Remake.Modding
                 model.transform.localPosition -= b.center;
             }
             return root;
+        }
+
+        /// <summary>The entry's "materials" onto a station model's renderers (as a ship's).</summary>
+        static void DressMaterials(ModWorld.StationModel s, Renderer[] renderers)
+        {
+            if (s.materials.Count == 0) return;
+            var mats = new Material[s.materials.Count];
+            for (int i = 0; i < mats.Length; i++)
+                mats[i] = ModMaterials.FromSpec(s.mod, s.materials[i], !string.IsNullOrEmpty(s.materials[i].material) ? $"{s.Assembly} {s.materials[i].material}" : $"{s.Assembly} {s.materials[i].mesh}{s.materials[i].submesh}");
+            foreach (var r in renderers)
+            {
+                var mesh = ModShipBuilder.MeshOf(r);
+                var assigned = r.sharedMaterials;
+                int count = Mathf.Max(1, mesh != null ? mesh.subMeshCount : assigned.Length);
+                if (assigned.Length != count) System.Array.Resize(ref assigned, count);
+                // (the model's own material name too: an entry's "material" filter, as on a ship; stations ignored it)
+                for (int sub = 0; sub < count; sub++) { var m = ModShipBuilder.MaterialFor(s.materials, mats, r.name, sub, assigned[sub] != null ? assigned[sub].name : null); if (m != null) assigned[sub] = m; }
+                r.sharedMaterials = assigned;
+            }
         }
 
         static void Warn(ModInfo mod, string message)

@@ -67,16 +67,24 @@ namespace GoF2Remake.Data
         /// <summary>Within this of a planet (units, in a zone) its distance reads in the orbit's km, not light years.</summary>
         public const float PlanetKmUnits = 500000f;
 
-        /// <summary>'units' as the markers show it here: light years to two places (thousands whole), the unit per language.
-        /// 'scale': the space's own (WorldScale), so a distance reads the same across a zone's edge.</summary>
-        public static string FormatLightYears(float units, float scale = 1f) => FormatLy(units / Mathf.Max(1e-6f, scale));
+        /// <summary>'units' as the markers show it here, in the units Elite Dangerous reads space in (the user, 2026-11-04:
+        /// values that change fast, for the speed and the distance): light years from 1 ly, light seconds from 1 Ls, megametres
+        /// from 1 Mm, kilometres from 1 km, else metres; a light year is UnitsPerLightYear. 'scale': the space's own
+        /// (WorldScale), so a distance reads the same across a zone's edge.</summary>
+        public static string FormatSpaceDistance(float units, float scale = 1f) => FormatSpace(units / Mathf.Max(1e-6f, scale));
 
-        static string FormatLy(float units)
+        public const double MetersPerLightYear = 9.4607304725808e15, MetersPerLightSecond = 299792458.0;
+
+        static string FormatSpace(float units)
         {
-            float ly = Mathf.Max(0f, units) / UnitsPerLightYear;
-            string n = ly >= 1000f ? ly.ToString("0", System.Globalization.CultureInfo.InvariantCulture)
-                                   : ly.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
-            return string.Format(Localization.Extra("unitLightYears", "{0} ly"), n);
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            double ly = Mathf.Max(0f, units) / (double)UnitsPerLightYear, m = ly * MetersPerLightYear;
+            if (ly >= 1.0) return string.Format(Localization.Extra("unitLightYears", "{0} ly"), ly.ToString(ly >= 1000.0 ? "N0" : "0.00", inv));
+            double ls = m / MetersPerLightSecond;
+            if (ls >= 1.0) return string.Format(Localization.Extra("unitLightSeconds", "{0} Ls"), ls.ToString(ls >= 100.0 ? "N0" : "0.00", inv));
+            if (m >= 1e6) return string.Format(Localization.Extra("unitMegameters", "{0} Mm"), (m / 1e6).ToString("0.0", inv));
+            if (m >= 1e3) return string.Format(Localization.Extra("unitKilometers", "{0} km"), (m / 1e3).ToString("0.0", inv));
+            return string.Format(Localization.Extra("unitMeters", "{0} m"), m.ToString("0", inv));
         }
 
         /// <summary>A system's edge (8 km): the level changes here, at full warp with nothing near and the sky already the

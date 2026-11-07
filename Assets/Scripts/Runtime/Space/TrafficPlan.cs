@@ -184,8 +184,8 @@ namespace GoF2Remake.Flight
             // Remake mods: a mod race's system keeps its mod race (ModRaces); "traffic": "mod" flies mods' ships only.
             int sysRace = Modding.ModRaces.Is(system.raceId) ? system.raceId : Mathf.Clamp(system.raceId, 0, 3);
             bool modOnly = Modding.ModWorld.ModTrafficOnly(system.index);
-            var localRaces = Modding.ModWorld.Locals(system.index);
-            var raiderRaces = Modding.ModWorld.Raiders(system.index);
+            var localRaces = Modding.ModWorld.Locals(system.index, station);   // (an orbit's own, else its system's)
+            var raiderRaces = Modding.ModWorld.Raiders(system.index, station);
             bool hardcore = Session.IsExtreme;
             int rank = Session.Rank;
             int cm = Session.CampaignMission;

@@ -184,6 +184,40 @@ half4 GoF3ShipShader(InputData inputData, SurfaceData surfaceData)
 }
 #endif
 
+// EVERSPACE 2's structure layers over the base layer the importer bakes (M_Structures_Parent's compiled base-pass pixel
+// shader, its space parts: the ice, snow and algae of its planet levels left out). On the raw UVs (the base maps' Tiling
+// undone): the wear (T_Structures_Damage_C_R_MT_H as DamageDetailMask, at 0.5 x DamageDetailMaskTiling; its noise mask
+// T_Noise_018_M at 8 x that) where the vertex alpha is low, thresholded by DamageCap over DamageMaskThresholdWidth with a
+// smoothstep, none on glowing panels; it takes the colour (the wear map's R through DamageBrightness's overlay), roughness (G),
+// metalness (B x DamageMaxMetalness) and normal. The grunge (R at GrungeTiling) darkens by GrungeAmount and roughens; the
+// vertex alpha is the occlusion except where worn. BaseRoughness's overlay on the masks' roughness.
+half Es2Overlay(half v, half b) { return b < 0.5 ? v * 2.0 * b : 1.0 - (1.0 - v) * 2.0 * (1.0 - b); }
+
+void Es2StructureLayers(Varyings input, inout SurfaceData s)
+{
+    float2 raw = (input.uv - _BaseMap_ST.zw) / max(_BaseMap_ST.xy, 1e-4);
+    float2 wuv = raw * 0.5 * _Es2Wear.x;
+    half4 wear = SAMPLE_TEXTURE2D(_Es2WearMap, sampler_BaseMap, wuv);
+    half noise = SAMPLE_TEXTURE2D(_Es2WearNoiseMap, sampler_BaseMap, wuv * 8.0).r;
+    half m = (noise <= 2.98e-8 ? 0.0 : pow(noise, (half)_Es2Wear.y)) + wear.a;
+    half w = max((half)_Es2Wear.w, 1e-4);
+    half t = (1.0 - input.color.a) * (half)_Es2Wear.z * (1.0 + 2.0 * w) - w;
+    half k = saturate((m - (t - 0.5 * w)) / w);
+    half damage = 1.0 - k * k * (3.0 - 2.0 * k);
+    if (dot(s.emission, half3(0.2126, 0.7152, 0.0722)) >= 0.05) damage = 0.0;   // (no wear on the glowing panels)
+    half g = SAMPLE_TEXTURE2D(_Es2GrungeMap, sampler_BaseMap, raw * _Es2Grunge.y).r;
+    half grunge = (1.0 - g) * (half)_Es2Grunge.x;
+
+    s.albedo = lerp(s.albedo, Es2Overlay(wear.r, (half)_Es2Wear2.x).xxx, damage) * (1.0 - grunge);
+    s.metallic = lerp(s.metallic, wear.b * (half)_Es2Wear2.y, damage) * (1.0 - 0.1 * grunge);
+    half rough = 1.0 - s.smoothness;
+    if (_Es2Wear2.w >= 0.0) rough = Es2Overlay(rough, (half)_Es2Wear2.w);
+    s.smoothness = 1.0 - saturate(lerp(rough, wear.g, damage) + grunge);
+    half3 wn = UnpackNormal(SAMPLE_TEXTURE2D(_Es2WearNormalMap, sampler_BaseMap, wuv));
+    s.normalTS = normalize(lerp(s.normalTS, wn, damage));
+    s.occlusion *= lerp(input.color.a, 1.0, damage);
+}
+
 void HullPassFragment(
     Varyings input
     , out half4 outColor : SV_Target0
@@ -202,11 +236,18 @@ void HullPassFragment(
 
     SurfaceData surfaceData;
     InitializeStandardLitSurfaceData(input.uv, surfaceData);
+    if (_Es2Wear2.z > 0.0) Es2StructureLayers(input, surfaceData);   // GoF2: EVERSPACE 2's structure layers
 
     LODFadeCrossFade(input.positionCS);
 
     InputData inputData;
     InitializeInputData(input, surfaceData.normalTS, inputData);
+    if (_Es2Wear2.z > 0.0)
+    {
+        // EVERSPACE 2's rim: the colour x (1 + 5 (1 - N.V)^3), saturated
+        half f = max(1.0 - saturate(dot(inputData.normalWS, inputData.viewDirectionWS)), 1e-4);
+        surfaceData.albedo = saturate(surfaceData.albedo * (1.0 + (half)_Es2Grunge.z * f * f * f));
+    }
     SETUP_DEBUG_TEXTURE_DATA(inputData, UNDO_TRANSFORM_TEX(input.uv, _BaseMap));
 
 #if defined(_DBUFFER)
