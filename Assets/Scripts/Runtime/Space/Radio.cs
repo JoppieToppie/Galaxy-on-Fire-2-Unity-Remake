@@ -72,9 +72,10 @@ namespace GoF2Remake.Flight
         public bool Triggered(int i) => i >= 0 && i < triggered.Length && triggered[i];
         public bool Over(int i) => i >= 0 && i < over.Length && over[i];
         /// <summary>Radio::lastMessageShown: the array's last line is over.</summary>
-        /// <summary>Remake: how long line i has left on screen (ms): 0 once over, infinity while it hasn't shown yet.</summary>
-        public float RemainingMs(int i) => i >= 0 && i < over.Length && over[i] ? 0f
-            : i == showing ? Mathf.Max(0f, DelayMs + durationMs - showMs) : float.PositiveInfinity;
+        /// <summary>Remake: how long line i has been on screen (ms; its voice starts then): -1 before, infinity once over.</summary>
+        public float ShownMs(int i) => i >= 0 && i < over.Length && over[i] ? float.PositiveInfinity
+            : i == showing && showMs >= DelayMs ? showMs - DelayMs : -1f;
+        public RadioLine Line(int i) => i >= 0 && i < lines.Count ? lines[i] : null;
         public bool LastOver => lines.Count > 0 && over[lines.Count - 1];
         /// <summary>The line on screen now (after the 2 s delay), null = none. Fast-forward is blocked while it shows.</summary>
         public RadioLine Visible => showing >= 0 && showMs >= DelayMs ? lines[showing] : null;

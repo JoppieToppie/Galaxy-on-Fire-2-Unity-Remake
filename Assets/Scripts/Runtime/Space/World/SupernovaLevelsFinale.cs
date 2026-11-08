@@ -426,11 +426,11 @@ namespace GoF2Remake.World
                 case 11:
                     cam.SetDolly(new Vector3(-3f, 0f, -0.33f));   // 0x16ed6c
                     cam.Rumble = 0f;
-                    // Modified: the beam waits for Alice's last line (radio 16, "...I just wanted my station back.") to be 4 s from
-                    // its end: the remake's radio runs longer than the original's 6 s here, so the beam fired early in her line (a
-                    // player's comparison with the original); the step's clock is held at 6000 until then, the rest of the state
-                    // keeps its timing.
-                    if (stepMs > 6000f && !beamOn && (c.Radio != null && c.Radio.RemainingMs(16) > 4000f)) stepMs = 6000f;
+                    // Modified: the beam waits until Alice's last line (radio 16, "...I just wanted my station back.") has 4 s of
+                    // voice left: the remake's radio runs longer than the original's 6 s here, so the beam fired early in her line
+                    // (a player's comparison with the original); the step's clock is held at 6000 until then, the rest of the
+                    // state keeps its timing.
+                    if (stepMs > 6000f && !beamOn && !AliceNearlyDone()) stepMs = 6000f;
                     if (stepMs > 6000f && !beamOn)
                     {
                         beamOn = true;
@@ -496,6 +496,15 @@ namespace GoF2Remake.World
         }
 
         /// <summary>LevelScript's Explosion (type 0 with fire streaks) at a game position.</summary>
+        /// <summary>157: radio 16's voice has 4 s left (or the line is over; without a voice clip, when it is over).</summary>
+        bool AliceNearlyDone()
+        {
+            if (c.Radio == null || Over(16)) return true;
+            float shown = c.Radio.ShownMs(16);
+            var voice = assets != null ? assets.Voice(c.Radio.Line(16)?.voice) : null;
+            return voice != null && shown >= 0f && voice.length * 1000f - shown <= 4000f;
+        }
+
         void Blast(Vector3 gamePos, AudioClip[] clips, float scale = 4f)
         {
             // Modified: the original plays these blasts' sound 2D (FModSound::play with no position): the combat clip placed
