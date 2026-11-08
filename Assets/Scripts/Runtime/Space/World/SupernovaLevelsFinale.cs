@@ -81,6 +81,7 @@ namespace GoF2Remake.World
             valkyrieAt = vp;
             valkyrieRot = vrot;
             valkyrieSound = false;
+            beamOn = false;
             // The ctor's burning stages 1 (0x4a97 / 0x4a98) and 2 (0x4a99 / 0x4a9a), hidden until state 9.
             stage1 = Scenery("sn_burning_valkyrie_stage_1", vp, vrot, "Valkyrie burning 1");
             stage2 = Scenery("sn_burning_valkyrie_stage_2", vp, vrot, "Valkyrie burning 2");
@@ -416,6 +417,7 @@ namespace GoF2Remake.World
                         cam.RumbleAmplitude = 30;
                     }
                     if (!Over(15) || stepMs <= 3000f) break;
+                    beamOn = false;
                     // The beam (0x4a75 + 0x4a76 / 0x4a77) at the Valkyrie facing (0, 0, -1), up (0, 1, 0); never re-aimed.
                     beam = Scenery("sn_plasma_gun_fx_valkyrie_beam_anim_add", valkyrieAt, Quaternion.LookRotation(Dir(new Vector3(0, 0, -1)), Vector3.up), "Plasma beam");
                     if (beam != null) { beam.SetActive(false); SetBeamAnimating(false); }
@@ -424,8 +426,13 @@ namespace GoF2Remake.World
                 case 11:
                     cam.SetDolly(new Vector3(-3f, 0f, -0.33f));   // 0x16ed6c
                     cam.Rumble = 0f;
-                    if (stepMs > 6000f && stepMs - dtMs <= 6000f)
+                    // Modified: the beam waits for Alice's last line (radio 16, "...I just wanted my station back.") to end: the
+                    // remake's radio runs longer than the original's 6 s here, so the beam fired while she was still talking (a
+                    // player's report); the step's clock is held at 6000 until then, the rest of the state keeps its timing.
+                    if (stepMs > 6000f && !beamOn && !Over(16)) stepMs = 6000f;
+                    if (stepMs > 6000f && !beamOn)
                     {
+                        beamOn = true;
                         if (beam != null) { beam.SetActive(true); SetBeamAnimating(true); }   // animates from 6001 ms
                         if (sn != null) Sfx.PlayAt(sn.valkyrieBeam, cam.Camera != null ? cam.Camera.position : Player.position);   // 0x8c7
                     }
@@ -488,8 +495,14 @@ namespace GoF2Remake.World
         }
 
         /// <summary>LevelScript's Explosion (type 0 with fire streaks) at a game position.</summary>
-        void Blast(Vector3 gamePos, AudioClip[] clips, float scale = 4f) =>
-            Explosion.Spawn(0, ToUnity(gamePos), Vector3.forward, scale, CombatAssets.Pick(clips), true);
+        void Blast(Vector3 gamePos, AudioClip[] clips, float scale = 4f)
+        {
+            // Modified: the original plays these blasts' sound (0x8c4 / 0x8c3 DLC2_SFX/Explosion) 2D (FModSound::play with no
+            // position); the combat clips placed at the Valkyrie, kilometres from the camera, were never heard (a player's report).
+            var clip = sn != null && sn.explosion != null ? sn.explosion : null;
+            Explosion.Spawn(0, ToUnity(gamePos), Vector3.forward, scale, clip == null ? CombatAssets.Pick(clips) : null, true);
+            if (clip != null) Sfx.PlayAt(clip, cam.Camera != null ? cam.Camera.position : Player.position);
+        }
 
         /// <summary>The plasma beam's animation runs only in its windows (state 11 from 6001 ms, state 12 until 5999 ms).</summary>
         void SetBeamAnimating(bool on)
@@ -500,10 +513,12 @@ namespace GoF2Remake.World
                 // Modified: the star burst (sn_plasma_gun_fx_valkyrie_star_add) is animated too, but its prefab didn't play (only
                 // the "_anim" models do), so it stood still at its first pose (a player's report); started with the beam, its
                 // `extra` fades (the flashes coming in from 3 to 8 s) applied as the Transform's update does.
+                // Modified: every part's `extra` fades apply (the beam's and the cone's prefabs left them off): the cone's disc
+                // (cone part 2) fades in from 2.7 to 4.3 s as it does in the original and the file, where it popped in at once.
+                a.applyMaterialChannels = true;
                 if (on && !a.play)
                 {
                     a.play = true;
-                    a.applyMaterialChannels = true;
                     a.Restart();
                 }
                 a.speed = on ? 1f : 0f;
