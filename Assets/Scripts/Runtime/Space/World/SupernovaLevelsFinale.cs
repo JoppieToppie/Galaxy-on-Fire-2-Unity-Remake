@@ -122,6 +122,8 @@ namespace GoF2Remake.World
             cam.LookAt(camAt, harval.transform);
             c.Fade(true, Color.white, 8000f);   // startFade(false, -1, 8000): from white, the supernova's white-out carries over
             playerSpeed = 0.1f;
+            tumbleBase = Player.rotation;
+            tumbleTurn = Quaternion.identity;
             Step = 1;
             c.WinObjective = () => Over(10);   // Objective(0x16, 0): the last radio line (Keith once Harval is dead) is over
         }
@@ -565,7 +567,11 @@ namespace GoF2Remake.World
                     }
                     // 0x16c296: AEGeometry::rotate(dt / 2000) on all three axes.
                     float tumble = dtMs / 2000f * Mathf.Rad2Deg;
-                    Player.Rotate(tumble, tumble, tumble, Space.Self);
+                    // Modified: the same tumble, with the pose turned by (180, 0, -90) in the ship's own frame: the remake
+                    // showed Keith's ship nose and wings the other way round (found by a player turning the model against the
+                    // original's shot).
+                    tumbleTurn *= Quaternion.Euler(tumble, tumble, tumble);
+                    Player.rotation = tumbleBase * tumbleTurn * Quaternion.Euler(180f, 0f, -90f);
                     if (T < 34000f) break;
                     if (harval != null) harval.SetExhaust(true);
                     cam.SetDolly(Vector3.zero);   // the camera holds still in state 2
