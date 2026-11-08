@@ -407,6 +407,7 @@ namespace GoF2Remake.World
         Vector3 valkyrieAt, chaseDir;
         Quaternion valkyrieRot;
         bool valkyrieSound, beamOn;
+        float tumbleRad;   // 158: the player's stored angles (AEGeometry +0x30..0x38)
         float burnMs, blastMs;
 
         float flyInMs, harvalCloakMs;
