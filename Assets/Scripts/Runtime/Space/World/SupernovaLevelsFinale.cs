@@ -495,7 +495,19 @@ namespace GoF2Remake.World
         void SetBeamAnimating(bool on)
         {
             if (beam == null) return;
-            foreach (var a in beam.GetComponentsInChildren<PartAnimation>(true)) a.speed = on ? 1f : 0f;
+            foreach (var a in beam.GetComponentsInChildren<PartAnimation>(true))
+            {
+                // Modified: the star burst (sn_plasma_gun_fx_valkyrie_star_add) is animated too, but its prefab didn't play (only
+                // the "_anim" models do), so it stood still at its first pose (a player's report); started with the beam, its
+                // `extra` fades (the flashes coming in from 3 to 8 s) applied as the Transform's update does.
+                if (on && !a.play)
+                {
+                    a.play = true;
+                    a.applyMaterialChannels = true;
+                    a.Restart();
+                }
+                a.speed = on ? 1f : 0f;
+            }
         }
 
         // 158 (campaign_levels_c.md 3.18).
