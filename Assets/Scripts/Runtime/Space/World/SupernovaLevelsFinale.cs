@@ -497,10 +497,11 @@ namespace GoF2Remake.World
         /// <summary>LevelScript's Explosion (type 0 with fire streaks) at a game position.</summary>
         void Blast(Vector3 gamePos, AudioClip[] clips, float scale = 4f)
         {
-            // Modified: the original plays these blasts' sound (0x8c4 / 0x8c3 DLC2_SFX/Explosion) 2D (FModSound::play with no
-            // position); the combat clips placed at the Valkyrie, kilometres from the camera, were never heard (a player's report).
-            var clip = sn != null && sn.explosion != null ? sn.explosion : null;
-            Explosion.Spawn(0, ToUnity(gamePos), Vector3.forward, scale, clip == null ? CombatAssets.Pick(clips) : null, true);
+            // Modified: the original plays these blasts' sound 2D (FModSound::play with no position): the combat clip placed
+            // at the Valkyrie, kilometres from the camera, was never heard (a player's report). Played at the camera instead,
+            // the same ship explosion clips (the medium ship's destruction, compared with the original by ear).
+            var clip = CombatAssets.Pick(clips);
+            Explosion.Spawn(0, ToUnity(gamePos), Vector3.forward, scale, null, true);
             if (clip != null) Sfx.PlayAt(clip, cam.Camera != null ? cam.Camera.position : Player.position);
         }
 
