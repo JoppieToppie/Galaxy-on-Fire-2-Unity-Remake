@@ -567,11 +567,11 @@ namespace GoF2Remake.World
                     }
                     // 0x16c296: AEGeometry::rotate(dt / 2000) on all three axes.
                     float tumble = dtMs / 2000f * Mathf.Rad2Deg;
-                    // Modified: the same tumble, with the pose turned by (180, 0, -90) in the ship's own frame: the remake
+                    // Modified: the same tumble, with the pose turned by (150, 30, -120) in the ship's own frame: the remake
                     // showed Keith's ship nose and wings the other way round (found by a player turning the model against the
                     // original's shot).
                     tumbleTurn *= Quaternion.Euler(tumble, tumble, tumble);
-                    Player.rotation = tumbleBase * tumbleTurn * Quaternion.Euler(180f, 0f, -90f);
+                    Player.rotation = tumbleBase * tumbleTurn * Quaternion.Euler(150f, 30f, -120f);
                     if (T < 34000f) break;
                     if (harval != null) harval.SetExhaust(true);
                     cam.SetDolly(Vector3.zero);   // the camera holds still in state 2
