@@ -426,10 +426,11 @@ namespace GoF2Remake.World
                 case 11:
                     cam.SetDolly(new Vector3(-3f, 0f, -0.33f));   // 0x16ed6c
                     cam.Rumble = 0f;
-                    // Modified: the beam waits for Alice's last line (radio 16, "...I just wanted my station back.") to end: the
-                    // remake's radio runs longer than the original's 6 s here, so the beam fired while she was still talking (a
-                    // player's report); the step's clock is held at 6000 until then, the rest of the state keeps its timing.
-                    if (stepMs > 6000f && !beamOn && !Over(16)) stepMs = 6000f;
+                    // Modified: the beam waits for Alice's last line (radio 16, "...I just wanted my station back.") to be 4 s from
+                    // its end: the remake's radio runs longer than the original's 6 s here, so the beam fired early in her line (a
+                    // player's comparison with the original); the step's clock is held at 6000 until then, the rest of the state
+                    // keeps its timing.
+                    if (stepMs > 6000f && !beamOn && (c.Radio != null && c.Radio.RemainingMs(16) > 4000f)) stepMs = 6000f;
                     if (stepMs > 6000f && !beamOn)
                     {
                         beamOn = true;
