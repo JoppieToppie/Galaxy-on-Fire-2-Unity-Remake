@@ -263,7 +263,7 @@ namespace GoF2Remake.World
         static readonly Vector3 LuurRotation = new Vector3(0f, -2.356f, 0f);
 
         /// <summary>Modified: how far the orbit's station is turned from the usual (0, pi, 0) (Luur), about the origin; null =
-        /// not turned. The player's arrival and undock point turn with it (SpaceLevel.SpawnPlayer).</summary>
+        /// not turned. The player's undock point turns with it (SpaceLevel.SpawnPlayer).</summary>
         public static Quaternion? StationTurn(OrbitLayout layout) =>
             layout != null && layout.stationIndex == 111 && layout.systemIndex >= 0 && !layout.interstellar
                 ? OrbitLayout.RotationToUnity(LuurRotation) * Quaternion.Inverse(OrbitLayout.RotationToUnity(new Vector3(0f, Mathf.PI, 0f)))
