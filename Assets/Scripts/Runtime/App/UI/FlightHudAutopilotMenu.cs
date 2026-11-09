@@ -83,8 +83,10 @@ namespace GoF2Remake.UI
             if (icon != null)
             {
                 var image = new VisualElement { pickingMode = PickingMode.Ignore };
-                image.style.width = 44;
+                // Modified: the shop icon is 180 x 88 (frame and item): at its own proportions, 44 high (it was squeezed into
+                // a 44 x 44 square, a player's report).
                 image.style.height = 44;
+                image.style.width = icon.height > 0 ? 44f * icon.width / icon.height : 44f;
                 image.style.marginRight = 8;
                 image.style.backgroundImage = new StyleBackground(icon);
                 row.Add(image);
