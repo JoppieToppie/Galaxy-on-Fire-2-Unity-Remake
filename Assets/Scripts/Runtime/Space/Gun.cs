@@ -516,19 +516,59 @@ namespace GoF2Remake.Flight
         /// Hulls only (Mixed / Precise collision; Original collision has none).</summary>
         void TestHits(int i, ref Bullet b, IReadOnlyList<Target> targets, Vector3 from)
         {
-            if (!HullCollision.Any || !HullCollision.CastScenery(from, b.position, HullShotRadius, out var wall))
+            var wall = b.position;
+            bool onHull = HullCollision.Any && HullCollision.CastScenery(from, b.position, HullShotRadius, out wall);
+            // Modified (a player's request): asteroids stop shots too, on the rock's own size (their hit sphere is 0.7 of it,
+            // PlayerAsteroid, so shots went through their edges). Rockets, missiles and bombs keep the original's rule: they
+            // destroy an asteroid they touch and fly on (KillsAsteroids).
+            var rock = KillsAsteroids ? null : FirstAsteroid(from, onHull ? wall : b.position, out var rockPoint);
+            if ((object)rock != null) { onHull = false; wall = rockPoint; }
+            if (!onHull && (object)rock == null)
             {
                 TestTargets(i, ref b, targets, from);
                 return;
             }
-            b.position = wall;   // the path ends at the hull: only what lies before it can be hit
+            b.position = wall;   // the path ends at the hull / rock: only what lies before it can be hit
             TestTargets(i, ref b, targets, from);
             if (b.timer <= -1e8f) return;   // a target took it on the way
             if (IsBomb) { Ignite(targets); return; }
             b.timer = -1e9f;   // gone
-            SceneryHit?.Invoke(wall);
+            // A rock this gun may shoot takes the hit (its damage, its impact); a station, gate or other rock shows the impact.
+            if ((object)rock != null && MayHit(rock, targets)) Hit?.Invoke(i, rock, wall);
+            else SceneryHit?.Invoke(wall);
             if (kind == Kind.ScatterGun) { AreaDamage(wall, targets, false); Ignited?.Invoke(wall); }
             Struck(wall);
+        }
+
+        /// <summary>Modified: of the alive asteroids, the first whose rock (its hit radius / 0.7, x0.85: the mesh's own size,
+        /// a little inside its bumps) the segment 'from' -> 'to' enters; where it enters.</summary>
+        static Target FirstAsteroid(Vector3 from, Vector3 to, out Vector3 point)
+        {
+            point = to;
+            var d = to - from;
+            float len = d.magnitude;
+            if (len < 1e-5f) return null;
+            var dir = d / len;
+            Target first = null;
+            float best = len;
+            var all = Target.All;
+            for (int k = 0; k < all.Count; k++)
+            {
+                var t = all[k];
+                if ((object)t == null || !t.isAsteroid || !t.Alive) continue;
+                float r = t.radius / 0.7f * 0.85f;
+                var m = from - t.transform.position;
+                float bd = Vector3.Dot(m, dir), c = m.sqrMagnitude - r * r;
+                if (c > 0f && bd > 0f) continue;   // outside it and heading away
+                float disc = bd * bd - c;
+                if (disc < 0f) continue;
+                float at = Mathf.Max(0f, -bd - Mathf.Sqrt(disc));
+                if (at >= best) continue;
+                best = at;
+                first = t;
+            }
+            if ((object)first != null) point = from + dir * best;
+            return first;
         }
 
         void TestTargets(int i, ref Bullet b, IReadOnlyList<Target> targets, Vector3 from)

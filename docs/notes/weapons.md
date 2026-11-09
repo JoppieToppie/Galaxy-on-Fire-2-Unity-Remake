@@ -36,7 +36,9 @@ is generated from it by `Reference/tools/weapons/build_weapon_fx.py`; **GoF2 > B
   explosion prefab + sound 21; ships and the player with `Hitpoints`). Stations are never hit (no damage); since
   2026-11-09 (the user's request) every shot, friend's or foe's, stops on the orbit's station and jumpgate hulls with its
   impact (`HullCollision.CastScenery` in `Gun.TestHits`, the targets before the hull still hit first; a bomb goes off
-  there; hulls only, so not under Original collision). The original's shots pass through them.
+  there; hulls only, so not under Original collision). The original's shots pass through them. Asteroids likewise
+  (`Gun.FirstAsteroid`: the rock's own size, hit radius / 0.7 x0.85; a gun that may shoot it deals its hit there),
+  except rockets, missiles and bombs, which destroy one they touch and fly on as in the original.
 - **Special weapons** (`Reference/research/weapons_special.md`, `Gun.Kind`): beams (9-11, 228: a stretched beam mesh,
   instant hit, auto-aim within a cone; `BeamGun::update`: the beam keeps the direction and length it was fired with
   while its start rides on the mount, so through a turn it stays where it was shot; re-aimed every frame from 2026-10-01
