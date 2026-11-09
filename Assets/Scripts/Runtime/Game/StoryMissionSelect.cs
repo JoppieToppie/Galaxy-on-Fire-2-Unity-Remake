@@ -10,13 +10,14 @@ namespace GoF2Remake.Data
     public static partial class Story
     {
         /// <summary>The step the mission select starts for 'index': the steps that are never current on their own start at
-        /// the step that plays them. 53 / 129 are skipped (52 -> 54, 128 -> 130); 42 is the end of 41's level (Errkt
-        /// finished, the mother ship's explosion, the ride out: MainCampaignLevels builds it only as 41's continuation); 46
+        /// the step that plays them. 53 / 129 are skipped (52 -> 54, 128 -> 130); 46
         /// is passed straight through by the add-on entry call (45 -> 46 -> 47); 107 has no creating case (106's level
-        /// advances twice, to 108); 149 / 150 are only the brokers' dialogue slots (148's lounge at Kalun Amir sets 151).</summary>
+        /// advances twice, to 108); 149 / 150 are only the brokers' dialogue slots (148's lounge at Kalun Amir sets 151).
+        /// Modified (a player's request): 42 is offered on its own (MainCampaignLevels.Build42: 41's level with Errkt
+        /// finished, from Carla's call on); it used to start at 41.</summary>
         public static int MissionSelectStart(int index) => index switch
         {
-            42 => 41, 46 => 47, 53 => 54, 107 => 108, 129 => 130, 149 => 151, 150 => 151, _ => index,
+            46 => 47, 53 => 54, 107 => 108, 129 => 130, 149 => 151, 150 => 151, _ => index,
         };
         /// <summary>Where the player is when the step after 'm' begins, by m's type: docked at the station of a docked type;
         /// in space after a call that comes after the launch (and the add-on entry calls, an empty mission); unchanged for the

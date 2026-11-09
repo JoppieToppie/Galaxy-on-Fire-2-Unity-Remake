@@ -127,7 +127,10 @@ namespace GoF2Remake.World
             traffic.MusicMuted = MusicOwned;
             traffic.ConnectPlayers(main != null ? main.PlayerExemptRace : -99);
             valkyrie?.AfterConnect();
-            Radio = new Radio(Story.Step?.radio);
+            // Modified: 42 built on its own (the mission select, MainCampaignLevels.Build42) plays on 41's radio, its lines up to
+            // Errkt's end heard; reached from 41 the level keeps 41's radio.
+            Radio = BuiltIndex == 42 && main != null ? new Radio(StoryTable.Step(41)?.radio) : new Radio(Story.Step?.radio);
+            if (BuiltIndex == 42 && main != null) Radio.MarkShown(6);
             if (CoopCampaign.Leader) Radio.Shown += line => SpaceHooks.CoopRadioShown?.Invoke(CoopStation, BuiltIndex, line);   // the crew hears it too
             Debug.Log($"CampaignLevel: index {BuiltIndex}, {Ships.Count} ships, {Radio.Count} radio lines");
         }

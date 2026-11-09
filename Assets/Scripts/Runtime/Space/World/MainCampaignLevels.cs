@@ -125,6 +125,7 @@ namespace GoF2Remake.World
                 case 38: Build38(); return true;
                 case 40: Build40(); return true;
                 case 41: Build41(); return true;
+                case 42: Build42(); return true;
                 default: return false;
             }
         }
@@ -292,6 +293,23 @@ namespace GoF2Remake.World
             c.FailObjective = () => c.ShipDestroyed(0);   // 7 (1)
         }
 
+        /// <summary>Modified (the mission select, a player's request): 42 on its own, as 41's level at the moment Errkt is
+        /// finished: the Void fighters round the mother ship, his slot empty (Level+0xf8 entry 0 dead: radio 6 and 7
+        /// follow, CampaignLevel.Setup marks 0-5 heard), then Tick42 from its state 5 (the wormhole, the explosion, the
+        /// ride out). The original only reaches 42 inside 41's level.</summary>
+        void Build42()
+        {
+            level.MovePlayer(ToUnity(new Vector3(3000, 2000, -320000)), OrbitLayout.RotationToUnity(Vector3.zero));
+            c.AddPlaceholder();   // Errkt, finished
+            Vector3[] at =
+            {
+                new Vector3(0, 0, -260000), new Vector3(-10000, 10000, -240000), new Vector3(13000, 2000, -220000), new Vector3(-72000, -4000, -210000),
+                new Vector3(60000, -40000, -190000), new Vector3(-18000, 30000, -160000), new Vector3(17000, 40000, -140000),
+            };
+            foreach (var p in at) c.SpawnShip(Standing.Void, 8, p, false, s => s.alwaysEnemy = true);
+            Step = 5;
+        }
+
         // ---- cutscene helpers (the "enter" / "leave" sequences, campaign_levels_a.md 1.5) ------------------------------
 
         /// <summary>'invulnerable' false at 14 / 16: those scripts never call Player::setVulnerable(false).</summary>
@@ -359,6 +377,7 @@ namespace GoF2Remake.World
                 case 29: if (index == 29) Tick29(dtMs); break;
                 case 40: if (index == 40) Tick40(dtMs); break;
                 case 41: if (index == 41) Tick41(dtMs); else if (index == 42) Tick42(dtMs); break;
+                case 42: if (index == 42) Tick42(dtMs); break;
             }
         }
 
