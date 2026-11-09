@@ -71,7 +71,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 - **Accessibility** (Options' own tab, `OptionPage.Accessibility`, `Settings.AccessibilityKeys`): Interface size, Text
   size 100-200 % (5 % steps to 150, then 160 / 175 / 190 / 200; Interface size 80-150 % in 5 % steps, #237; root classes `ui-text-N` redefine the `--text-*` / `--glyph-*` tokens; `ui-root` re-applies the body size
   under them), High contrast (`ui-high-contrast`), Reduce motion (`ui-reduce-motion`, the station's / Mod Builder's
-  menu animations), Colour-blind markers (friends blue, `CombatView.MarkerTex`). **Interface font** (2026-10-24, the
+  menu animations), Colour-blind markers (friends blue, `CombatView.MarkerTex`), Dialogue highlights (2026-11-09, the
+  user's wish; off by default: the animated dialogue's coloured names and icons, `Settings.DialogueHighlights`,
+  `TextReveal.Parse`). **Interface font** (2026-10-24, the
   user's request; `UiFont`, Space/UI; `Settings.UiFont`: "" Klavika, "file:<name>" a file imported into
   persistentDataPath/Fonts, "system:<family> - <style>" an installed font, `FontEngine.GetSystemFontNames`, each
   family's Regular listed): the row, "Import font file…" (`ModImport.Pick`, checked with `FontEngine.LoadFontFace`,

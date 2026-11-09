@@ -36,6 +36,7 @@ namespace GoF2Remake.Tests
             prefs = new DataUiTestKit.PrefsSnapshot();
             english = new DataUiTestKit.TextLanguage("en");
             Settings.AnimatedDialogue = true;
+            Settings.DialogueHighlights = true;   // the tints and icons these tests check (off by default)
         }
 
         [TearDown]
@@ -74,6 +75,17 @@ namespace GoF2Remake.Tests
             StringAssert.DoesNotContain("<color=#000000", text);
             StringAssert.Contains("You finished your mission.\n\nMission accomplished!", text, "plain letters take the label's own colour");
             StringAssert.Contains("<color=#FFD37AFF>Maxwell</color>", text, "the tints stay");
+        }
+
+        [Test]
+        public void HighlightsOffLeaveThePagePlain()
+        {
+            // Options > Accessibility "Dialogue highlights" off (the default): no tinted names, no icons, the page still types in.
+            Settings.DialogueHighlights = false;
+            string text = Rendered("Mr. Maxwell, it costs 1,800$ at Ginoya Station.");
+            StringAssert.DoesNotContain("<color=#FFD37AFF>", text, "no tinted names");
+            StringAssert.DoesNotContain("<sprite", text, "no icons");
+            StringAssert.Contains("Maxwell", text);
         }
 
         static readonly Color32 Gold =new Color32(0xFF, 0xD3, 0x7A, 0xFF), Aqua = new Color32(0x7F, 0xE3, 0xF0, 0xFF),

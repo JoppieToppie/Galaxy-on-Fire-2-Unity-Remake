@@ -3008,7 +3008,7 @@
  "hangarFlightsHelp": "Votre vaisseau entre dans le hangar à l'amarrage et en sort au décollage, et d'autres vaisseaux vont et viennent.",
  "tutorialHintsHelp": "Des fenêtres qui expliquent les commandes et les menus la première fois que vous en avez besoin.",
  "autoPlayDialogueHelp": "Les conversations passent à la page suivante d'elles-mêmes une fois la réplique dite ou lue. AUTO dans une conversation le bascule aussi.",
- "animatedDialogueHelp": "Les dialogues s'écrivent lettre par lettre, noms et objets en couleur. Désactivé : chaque page s'affiche d'un coup.",
+ "animatedDialogueHelp": "Les dialogues s'écrivent lettre par lettre. Désactivé : chaque page s'affiche d'un coup.",
  "discordPresenceHelp": "Affiche votre vaisseau, votre position et votre mission sur votre profil Discord.",
  "languageHelp": "La langue de tous les textes du jeu.",
  "mpCmdSquadChat": "une ligne à ton escadron, où qu’il soit",
@@ -3358,5 +3358,7 @@
  "musicSpecters2": "Musique de combat : nombreux Specters",
  "musicWanted": "Musique de combat : criminel Most Wanted",
  "musicTrackHelp": "Désactivé : ce morceau ne joue plus ; la musique calme de l'orbite continue.",
- "musicTrackSpecialHelp": "Désactivé : ce morceau ne joue plus ; la musique de combat habituelle le remplace."
+ "musicTrackSpecialHelp": "Désactivé : ce morceau ne joue plus ; la musique de combat habituelle le remplace.",
+ "dialogueHighlights": "Mise en valeur des dialogues",
+ "dialogueHighlightsHelp": "Dans les dialogues animés : noms, lieux, vaisseaux, objets et races en couleur, précédés d'icônes (crédits, emblèmes des races, icônes des objets). Désactivé : texte simple."
 }

@@ -3008,7 +3008,7 @@
  "hangarFlightsHelp": "La tua nave entra nell'hangar all'attracco ed esce al decollo, e altre navi vanno e vengono.",
  "tutorialHintsHelp": "Finestre che spiegano comandi e menu la prima volta che ti servono.",
  "autoPlayDialogueHelp": "Le conversazioni voltano pagina da sole quando una battuta è stata detta o letta. AUTO in una conversazione lo cambia anche.",
- "animatedDialogueHelp": "I dialoghi compaiono lettera per lettera, con nomi e oggetti a colori. Disattivato: ogni pagina appare subito.",
+ "animatedDialogueHelp": "I dialoghi compaiono lettera per lettera. Disattivato: ogni pagina appare subito.",
  "discordPresenceHelp": "Mostra la tua nave, la posizione e la missione sul tuo profilo Discord.",
  "languageHelp": "La lingua di tutti i testi del gioco.",
  "mpCmdSquadChat": "una riga alla tua squadriglia, ovunque si trovi",
@@ -3358,5 +3358,7 @@
  "musicSpecters2": "Musica di battaglia: molti Specter",
  "musicWanted": "Musica di battaglia: criminale Most Wanted",
  "musicTrackHelp": "Disattivo: questo brano non suona più; continua la musica tranquilla dell'orbita.",
- "musicTrackSpecialHelp": "Disattivo: questo brano non suona più; al suo posto suona la solita musica di battaglia."
+ "musicTrackSpecialHelp": "Disattivo: questo brano non suona più; al suo posto suona la solita musica di battaglia.",
+ "dialogueHighlights": "Evidenziazioni nei dialoghi",
+ "dialogueHighlightsHelp": "Nei dialoghi animati: nomi, luoghi, navi, oggetti e razze a colori, con icone davanti (crediti, emblemi delle razze, icone degli oggetti). Disattivato: testo semplice."
 }

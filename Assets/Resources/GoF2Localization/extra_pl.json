@@ -3008,7 +3008,7 @@
  "hangarFlightsHelp": "Twój statek wlatuje do hangaru przy dokowaniu i wylatuje przy starcie, a inne statki przylatują i odlatują.",
  "tutorialHintsHelp": "Okienka, które objaśniają sterowanie i menu, gdy pierwszy raz ich potrzebujesz.",
  "autoPlayDialogueHelp": "Rozmowy same przechodzą dalej, gdy kwestia zostanie wypowiedziana lub przeczytana. AUTO w rozmowie też to przełącza.",
- "animatedDialogueHelp": "Dialogi pojawiają się litera po literze, z imionami i przedmiotami w kolorze. Wyłączone: każda strona od razu w całości.",
+ "animatedDialogueHelp": "Dialogi pojawiają się litera po literze. Wyłączone: każda strona od razu w całości.",
  "discordPresenceHelp": "Pokazuje twój statek, miejsce i misję w profilu Discord.",
  "languageHelp": "Język wszystkich tekstów w grze.",
  "mpCmdSquadChat": "jedna linijka do twojej eskadry, gdziekolwiek jest",
@@ -3358,5 +3358,7 @@
  "musicSpecters2": "Muzyka walki: wielu Specterów",
  "musicWanted": "Muzyka walki: przestępca Most Wanted",
  "musicTrackHelp": "Wył.: ten utwór już nie gra; spokojna muzyka orbity gra dalej.",
- "musicTrackSpecialHelp": "Wył.: ten utwór już nie gra; zamiast niego gra zwykła muzyka walki."
+ "musicTrackSpecialHelp": "Wył.: ten utwór już nie gra; zamiast niego gra zwykła muzyka walki.",
+ "dialogueHighlights": "Wyróżnienia w dialogach",
+ "dialogueHighlightsHelp": "W animowanych dialogach: imiona, miejsca, statki, przedmioty i rasy w kolorze, z ikonami przed nimi (kredyty, godła ras, ikony przedmiotów). Wyłączone: zwykły tekst."
 }

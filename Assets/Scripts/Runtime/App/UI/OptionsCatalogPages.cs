@@ -246,6 +246,12 @@ namespace GoF2Remake.UI
                 () => Settings.ColorblindMarkers, v => Settings.ColorblindMarkers = v);
             colorblind.description = () => X("colorblindMarkersHelp", "Friendly ships are blue instead of green.");
             list.Add(colorblind);
+            // Modified (a player's wish): the animated dialogue's coloured names and their icons, off by default (TextReveal).
+            var dialogueHighlights = Toggle("dialogueHighlights", OptionPage.Accessibility, () => X("dialogueHighlights", "Dialogue highlights"),
+                () => Settings.DialogueHighlights, v => Settings.DialogueHighlights = v);
+            dialogueHighlights.description = () => X("dialogueHighlightsHelp",
+                "In animated dialogue, names, places, ships, items and races in colour, with icons before them (credits, race emblems, item icons). Off: plain text.");
+            list.Add(dialogueHighlights);
             // Remake: the game mouse cursor's size (GameCursor); desktop only, phones have none.
             if (!Application.isMobilePlatform)
             {

@@ -8,7 +8,8 @@
 //   shouting   all-caps words ("KEITH!", "MORE!", "BANG!", "KABOOM"; 4+ letters, or 2+ before a "!", not the acronyms)
 //              are bigger and bold and shake for a moment as they appear
 //   actions    *Sigh* / *Yawn* (Russian: <шепотом>): italic, dimmer, the markers dropped, typed slowly
-//   names      people pale gold (with their titles), places / factions light aqua (with "Station" / "System"), ships and
+//   names      (with Options > Accessibility "Dialogue highlights", Settings.DialogueHighlights, as the icons)
+//              people pale gold (with their titles), places / factions light aqua (with "Station" / "System"), ships and
 //              items pink, and each race in its emblem's colour (Terran orange, Vossk green, Nivelian blue, Midorian grey,
 //              pirates bone white, Void violet), also the factions named after it ("Vossk Empire", "Terran Fleet"):
 //              story speakers, stations, systems, races, ships, items and the lore names only the texts use (LoreNames);
@@ -171,10 +172,12 @@ namespace GoF2Remake.UI
                 action.Add(closeMark != '\0');
             }
             string text = sb.ToString();
-            var tints = Highlight(text, speakerName);
+            // Modified: the names' colours and the icons only with Options > Accessibility "Dialogue highlights" (a player's wish).
+            bool highlights = Settings.DialogueHighlights;
+            var tints = highlights ? Highlight(text, speakerName) : new Color?[text.Length];
             var shout = Shouts(text);
             var exclaim = ExclaimedSentences(text);
-            var icons = Icons(text);
+            var icons = highlights ? Icons(text) : new string[text.Length];
             for (int i = 0; i < text.Length; i++)
             {
                 char c = text[i];

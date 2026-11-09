@@ -3008,7 +3008,7 @@
  "hangarFlightsHelp": "Je schip vliegt de hangar in bij het aanmeren en eruit bij vertrek, en andere schepen komen en gaan.",
  "tutorialHintsHelp": "Venstertjes die de besturing en menu's uitleggen de eerste keer dat je ze nodig hebt.",
  "autoPlayDialogueHelp": "Gesprekken slaan zelf de pagina om zodra een regel is uitgesproken of gelezen. AUTO in een gesprek schakelt het ook.",
- "animatedDialogueHelp": "Dialogen verschijnen letter voor letter, met namen en voorwerpen in kleur. Uit: elke pagina staat er meteen.",
+ "animatedDialogueHelp": "Dialogen verschijnen letter voor letter. Uit: elke pagina staat er meteen.",
  "discordPresenceHelp": "Toont je schip, locatie en missie op je Discord-profiel.",
  "languageHelp": "De taal van alle tekst in het spel.",
  "mpCmdSquadChat": "één regel aan je eskader, waar ze ook zijn",
@@ -3358,5 +3358,7 @@
  "musicSpecters2": "Gevechtsmuziek: veel Specters",
  "musicWanted": "Gevechtsmuziek: Most Wanted-crimineel",
  "musicTrackHelp": "Uit: dit nummer speelt niet meer; de rustige muziek van de baan speelt door.",
- "musicTrackSpecialHelp": "Uit: dit nummer speelt niet meer; de gewone gevechtsmuziek speelt in plaats daarvan."
+ "musicTrackSpecialHelp": "Uit: dit nummer speelt niet meer; de gewone gevechtsmuziek speelt in plaats daarvan.",
+ "dialogueHighlights": "Markeringen in dialogen",
+ "dialogueHighlightsHelp": "In geanimeerde dialogen: namen, plaatsen, schepen, voorwerpen en rassen in kleur, met pictogrammen ervoor (credits, rasemblemen, voorwerppictogrammen). Uit: gewone tekst."
 }

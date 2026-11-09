@@ -3008,7 +3008,7 @@
  "hangarFlightsHelp": "도킹하면 함선이 격납고로 들어오고 출격하면 나가며, 다른 함선들도 오갑니다.",
  "tutorialHintsHelp": "조작과 메뉴를 처음 쓸 때 설명해 주는 팝업입니다.",
  "autoPlayDialogueHelp": "대사가 끝나거나 읽히면 대화가 스스로 넘어갑니다. 대화 중 자동로도 전환합니다.",
- "animatedDialogueHelp": "대화가 한 글자씩 나타나며 이름과 아이템에 색이 들어갑니다. 끄면 각 페이지가 바로 나옵니다.",
+ "animatedDialogueHelp": "대화가 한 글자씩 나타납니다. 끄면 각 페이지가 바로 나옵니다.",
  "discordPresenceHelp": "Discord 프로필에 함선, 위치, 임무를 표시합니다.",
  "languageHelp": "게임 안 모든 텍스트의 언어입니다.",
  "mpCmdSquadChat": "어디에 있든 분대에게 한 줄 보내기",
@@ -3358,5 +3358,7 @@
  "musicSpecters2": "전투 음악: 다수의 Specter",
  "musicWanted": "전투 음악: Most Wanted 범죄자",
  "musicTrackHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 궤도의 잔잔한 음악이 계속됩니다.",
- "musicTrackSpecialHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 대신 일반 전투 음악이 재생됩니다."
+ "musicTrackSpecialHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 대신 일반 전투 음악이 재생됩니다.",
+ "dialogueHighlights": "대화 강조 표시",
+ "dialogueHighlightsHelp": "애니메이션 대화에서 이름, 장소, 함선, 아이템, 종족에 색을 넣고 앞에 아이콘(크레딧, 종족 문장, 아이템 아이콘)을 붙입니다. 끄면 일반 텍스트입니다."
 }

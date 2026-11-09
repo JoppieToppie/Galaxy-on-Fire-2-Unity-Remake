@@ -3008,7 +3008,7 @@
  "hangarFlightsHelp": "ドッキングすると自機が格納庫に入り、発進すると出ていきます。他の船も出入りします。",
  "tutorialHintsHelp": "操作やメニューを初めて使うときに説明するポップアップです。",
  "autoPlayDialogueHelp": "セリフが話し終わるか読み終わると、会話が自動でページを送ります。会話中のオートでも切り替えられます。",
- "animatedDialogueHelp": "会話の文字が一文字ずつ表示され、名前やアイテムに色が付きます。オフ：各ページがすぐに表示されます。",
+ "animatedDialogueHelp": "会話の文字が一文字ずつ表示されます。オフ：各ページがすぐに表示されます。",
  "discordPresenceHelp": "Discordのプロフィールに自機、現在地、ミッションを表示します。",
  "languageHelp": "ゲーム内のすべてのテキストの言語です。",
  "mpCmdSquadChat": "どこにいても小隊に1行送る",
@@ -3358,5 +3358,7 @@
  "musicSpecters2": "戦闘BGM：多数のSpecter",
  "musicWanted": "戦闘BGM：Most Wanted の犯罪者",
  "musicTrackHelp": "オフ：この曲は流れなくなり、軌道の穏やかな音楽が続きます。",
- "musicTrackSpecialHelp": "オフ：この曲は流れなくなり、代わりに通常の戦闘BGMが流れます。"
+ "musicTrackSpecialHelp": "オフ：この曲は流れなくなり、代わりに通常の戦闘BGMが流れます。",
+ "dialogueHighlights": "会話のハイライト",
+ "dialogueHighlightsHelp": "アニメーション会話で、名前・場所・船・アイテム・種族に色を付け、その前にアイコン（クレジット、種族の紋章、アイテムのアイコン）を表示します。オフ：普通のテキスト。"
 }
