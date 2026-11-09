@@ -758,6 +758,8 @@ namespace GoF2Remake.World
 
         // 42 on 41's level: the mother ship's end and the escape (M42).
         CycleSound mothership;
+        /// <summary>Modified: the explosion camera's drift (game units per ms), straight away from what it looks at.</summary>
+        Vector3 explosionDolly;
 
         void Tick42(float dtMs)
         {
@@ -790,6 +792,11 @@ namespace GoF2Remake.World
                         var station = level.Station != null ? level.Station.transform.position : Vector3.zero;
                         var look = station + Player.position.normalized * 5000f * M;
                         cam.LookAtUnity(Player.position, null, look);
+                        // Modified: the camera only backs away from the mother ship, straight along its line of sight (a
+                        // player's comparison with the original): the dolly along game x carried it sideways round the
+                        // point it looks at, so the station seemed to turn before the camera drew off.
+                        var away = (Player.position - look).normalized;
+                        explosionDolly = new Vector3(away.x, away.y, -away.z) * 18f;
                         Hole?.FreeMissionLock();
                         // Remake (#46): it closes behind the player (reset(true): shrinking after 1 s); reset(false) opened
                         // it for another minute, still there as the mother ship blew up.
@@ -801,7 +808,7 @@ namespace GoF2Remake.World
                     break;
                 case 7:
                     cam.Rumble = 1f;
-                    cam.SetDolly(new Vector3(-18f, 0f, 0f));
+                    cam.SetDolly(explosionDolly);
                     // The second and third explosion meshes (+0xb0 / +0xb4) face the camera's direction every frame.
                     if (explosion != null && cam.Camera != null)
                         for (int i = 1; i < explosion.Length && i <= 2; i++)
@@ -813,6 +820,12 @@ namespace GoF2Remake.World
                         // in empty space after the station vanished when the player hadn't finished him).
                         var errkt = S(0);
                         if (errkt != null) { errkt.Deactivate(); errkt.gameObject.SetActive(false); }
+                        // Modified (a player's request): the blast takes everything round it: every ship left here explodes and
+                        // the asteroid field goes with the mother ship.
+                        foreach (var npc in Object.FindObjectsByType<NpcShip>())
+                            if (npc != null && npc != errkt && npc.Target != null && npc.Target.Alive && !npc.Gone)
+                                npc.Target.Damage(9999999f, true, Vector3.zero);
+                        if (level.Asteroids != null) level.Asteroids.gameObject.SetActive(false);
                     }
                     if (stepMs >= 15000f)
                     {
