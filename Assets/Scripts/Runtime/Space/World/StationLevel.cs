@@ -289,11 +289,23 @@ namespace GoF2Remake.World
                 OrbitBuilder.SetupSky(Layout);   // the system's sky shows through the openings of both rooms
                 // Modified: no swell or streak in the station: the hangar camera facing the sun through an opening blew it up
                 // like a sun at the crosshair in space (the user's request; Backdrop.NoSwell).
-                OrbitBuilder.SpawnBackdrop(Layout, mainCamera).NoSwell = true;
+                var backdrop = OrbitBuilder.SpawnBackdrop(Layout, mainCamera);
+                backdrop.NoSwell = true;
                 // Remake: the orbit's sky layers outside too, as in space: the planet ring sky (stations 120, 126, 130, 132), the
                 // supernova flares (the stronger "nasty" ones from mission 106) and the storms in the supernova system, the asteroid
                 // belt of systems 24-26 (Skavac, Loma, Shima) lit by the system's sun.
-                SkyLayers.Spawn(Layout, mainCamera);
+                var layers = SkyLayers.Spawn(Layout, mainCamera);
+                // Modified: a station turned in its orbit (Luur -45 deg, OrbitBuilder.StationTurn) has its hangar turned with it:
+                // the sky, backdrop and sky layers seen from the room turn the other way about it (the same view as the room, its
+                // ships and camera turned, which keep their places here), as the player's request.
+                if (OrbitBuilder.StationTurn(Layout) is Quaternion stationTurn)
+                {
+                    var skyTurn = Quaternion.Inverse(stationTurn);
+                    if (RenderSettings.skybox != null && RenderSettings.skybox.HasProperty("_SkyRotation"))
+                        RenderSettings.skybox.SetMatrix("_SkyRotation", RenderSettings.skybox.GetMatrix("_SkyRotation") * Matrix4x4.Rotate(stationTurn));
+                    backdrop.Turn(skyTurn, skyTurn * OrbitLayout.DirToUnity(Layout.lightDirection).normalized, 1f);
+                    if (layers != null) layers.transform.rotation = skyTurn;
+                }
             }
             BuildHangar();
             BuildBar();
