@@ -468,7 +468,10 @@ namespace GoF2Remake.World
             Collision.wormholeHeld = () => WormholeHeld;
             Collision.wormholeNoPull = () => WormholeNoPull;
             VolatileCargo.Attach(Player.gameObject, db, Player);   // PlayerEgo+0x398: volatile goods, sound 35
-            bool storyOrbit = !interstellar && !Session.FreePlay && Story.IsLevelMission(station);
+            // Modified: 42 in the Void (its 0xa0 mission targets this orbit, so it isn't a level mission here) builds its level
+            // when the scene loads there (the mission select's 42, a save made in it): MainCampaignLevels.Build42. Reached from
+            // 41 the level keeps 41's scene. Without it the arrival's wormhole, held open at 42, drew the player in for good.
+            bool storyOrbit = !interstellar && !Session.FreePlay && (Story.IsLevelMission(station) || (Story.EscapesByWormhole(station) && !CoopCampaign.Active));
             IsStoryOrbit = storyOrbit;
             // Status::departStation: the freelance mission's target orbit is built around it (not over a story orbit).
             // Multiplayer: not when a squadmate here already runs this mission (their ships are shown here, NetMissions).
