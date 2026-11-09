@@ -295,10 +295,10 @@ namespace GoF2Remake.World
             c.FailObjective = () => c.ShipDestroyed(0);   // 7 (1)
         }
 
-        /// <summary>Modified (the mission select, a player's request): 42 on its own, as 41's level at the moment Errkt is
-        /// finished: the Void fighters round the mother ship, his slot empty (Level+0xf8 entry 0 dead: radio 6 and 7
-        /// follow, CampaignLevel.Setup marks 0-5 heard), then Tick42 from its state 5 (the wormhole, the explosion, the
-        /// ride out). The original only reaches 42 inside 41's level.</summary>
+        /// <summary>Modified (the mission select, a player's request): 42 on its own, as 41's level leaves it: Errkt's burning
+        /// freighter on the mother ship's arm with ~5 % hull and the Void fighters; destroyed, radio 6 and 7 follow
+        /// (CampaignLevel.Setup marks 0-5 heard), then Tick42 from its state 5 (the wormhole, the explosion, the ride out).
+        /// The original only reaches 42 inside 41's level.</summary>
         void Build42()
         {
             // 8 km (160 000 units) from the mother ship, on 41's line to it, facing it (a player's request).
@@ -308,7 +308,25 @@ namespace GoF2Remake.World
             // (Wormhole: the mission lock) and its pull dragged the player in, where nothing rides out before the script's
             // state 6 (a player's report): hidden until state 5 opens it at the mother ship.
             Hole?.SetVisible(false);
-            c.AddPlaceholder();   // Errkt, finished
+            // Errkt's freighter as 41 leaves it (Tick41 states 1-4): burning on its side on the mother ship's arm, stopped, ~5 %
+            // hull for the player to finish (radio 6 when it dies).
+            int max = 5 * Session.Rank + 1800;
+            var f = c.SpawnShip(1, 13, new Vector3(2006, -31500, -86720), false,
+                                s => { s.freighter = true; s.group = NpcGroup.Special; s.alwaysFriend = true; s.nameText = 1604; s.hitpoints = max; s.noLoot = true; });
+            if (f != null)
+            {
+                f.transform.SetPositionAndRotation(ToUnity(new Vector3(2006, -31500, -86720)), OrbitLayout.RotationToUnity(new Vector3(-0.4f, 0f, 1.8f)));
+                f.SetMoving(false);
+                f.SetEngineSound(false);
+                f.SetExhaust(false);
+                freighterFire ??= new WreckBurn(f.transform, WreckBurn.VosskCargo);
+                freighterTrail ??= new WreckBurn(f.transform, WreckBurn.VosskFreighterSmoke);
+                freighterFire.SetEmitting(true);
+                freighterTrail.SetEmitting(true);
+                f.SetHull(max);
+                f.SetHull(100, false);
+                f.noFriendlyFire = true;
+            }
             Vector3[] at =
             {
                 new Vector3(0, 0, -260000), new Vector3(-10000, 10000, -240000), new Vector3(13000, 2000, -220000), new Vector3(-72000, -4000, -210000),
