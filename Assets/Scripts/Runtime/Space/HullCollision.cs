@@ -164,6 +164,9 @@ namespace GoF2Remake.Flight
             if (r == null || lowLods.Contains(r)) return false;
             string n = m.name.ToLowerInvariant();
             if (n.Contains("_add") || n.Contains("_lights") || n.Contains("_lod_") || n.Contains("glow")) return false;
+            // Modified: an animated alpha layer is an effect, not hull (sn_burning_station_fire_anim_alpha: the burning Luur
+            // station's smoke stopped ships and shots in mid-air, a player's report).
+            if (n.Contains("_anim") && n.Contains("_alpha")) return false;
             var mat = r.sharedMaterial;
             if (mat != null && mat.shader != null && mat.shader.name.IndexOf("Additive", StringComparison.OrdinalIgnoreCase) >= 0) return false;
             return true;
