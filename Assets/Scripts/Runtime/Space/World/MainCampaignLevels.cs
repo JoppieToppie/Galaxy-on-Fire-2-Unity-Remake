@@ -125,7 +125,9 @@ namespace GoF2Remake.World
                 case 38: Build38(); return true;
                 case 40: Build40(); return true;
                 case 41: Build41(); return true;
-                case 42: Build42(); return true;
+                // Only in the Void: 42's 0xa0 mission (the call once out of it) runs a level at the station the ride ends at too,
+                // which isn't this one (its arrival stays where the wormhole put it).
+                case 42: if (!Session.InVoidOrbit) return false; Build42(); return true;
                 default: return false;
             }
         }
