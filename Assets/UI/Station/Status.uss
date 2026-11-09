@@ -50,6 +50,14 @@
     align-self: center;
 }
 
+/* Modified: the Medals page likewise, its grid and the hint box under it. */
+.status-right .medal-scroll,
+.status-right .medal-hint {
+    width: 100%;
+    max-width: 1240px;
+    align-self: center;
+}
+
 .status-right {
     flex-grow: 1;
     flex-basis: 0;
