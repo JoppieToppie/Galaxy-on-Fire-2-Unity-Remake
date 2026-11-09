@@ -301,7 +301,9 @@ namespace GoF2Remake.World
         /// ride out). The original only reaches 42 inside 41's level.</summary>
         void Build42()
         {
-            level.MovePlayer(ToUnity(new Vector3(3000, 2000, -320000)), OrbitLayout.RotationToUnity(Vector3.zero));
+            // 8 km (160 000 units) from the mother ship, on 41's line to it, facing it (a player's request).
+            var start = new Vector3(3000, 2000, -320000).normalized * 160000f;
+            level.MovePlayer(ToUnity(start), Quaternion.LookRotation(Dir(-start), Vector3.up));
             // The arrival's wormhole (10 000 units behind the player, PlaceArrivalWormhole) is held open at 42 in the Void
             // (Wormhole: the mission lock) and its pull dragged the player in, where nothing rides out before the script's
             // state 6 (a player's report): hidden until state 5 opens it at the mother ship.
