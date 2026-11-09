@@ -169,9 +169,11 @@ namespace GoF2Remake.World
                                                System.Array.FindAll(adds, c => c != null && c.name != "Station_Atmo_Lounge_Add_1"),
                                                System.Array.FindAll(adds, c => c != null && c.name != "Station_Atmo_Lounge_Add_11"));
             }
-            var want = View == StationView.Lounge ? loungeAtmo : hangarWindowOpen ? hangarAtmo : mainViewAtmo;
+            // Modified (a player's request): an evacuated Ginoya station (Evacuated: system 27 before 158, its lounge and hangar
+            // empty) is silent, no crowd or hangar bustle; it comes back with its people and trade at 158.
+            var want = Evacuated ? null : View == StationView.Lounge ? loungeAtmo : hangarWindowOpen ? hangarAtmo : mainViewAtmo;
             foreach (var a in new[] { mainViewAtmo, loungeAtmo, hangarAtmo }) if (a != want && a.IsPlaying) a.Stop();
-            if (!want.IsPlaying) want.Play();
+            if (want != null && !want.IsPlaying) want.Play();
         }
         /// <summary>The hangar window opened / closed: its own ambience (95) instead of the main view's (122).</summary>
         public void SetHangarWindowOpen(bool open)
