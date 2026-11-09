@@ -32,6 +32,7 @@
 // the station when that point is inside it), the
 // index-26 pursuers 10000 behind (where the arrival wormhole sits), the cutscene camera offsets of 24 / 29 / 40 / 41.
 
+using System.Collections.Generic;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using GoF2Remake.Visuals;
@@ -808,30 +809,18 @@ namespace GoF2Remake.World
                     }
                     break;
                 case 7:
-                    cam.Rumble = 1f;
+                    // Modified: the shake lasts as long as the explosion's animation (a player's request; it went on to the fade).
+                    cam.Rumble = stepMs < explosionMs ? 1f : 0f;
                     cam.SetDolly(explosionDolly);
                     // The second and third explosion meshes (+0xb0 / +0xb4) face the camera's direction every frame.
                     if (explosion != null && cam.Camera != null)
                         for (int i = 1; i < explosion.Length && i <= 2; i++)
                             if (explosion[i] != null) explosion[i].transform.rotation = Quaternion.LookRotation(cam.Camera.forward, Vector3.up);
-                    if (stepMs >= 4000f && level.Station != null && level.Station.activeSelf)
-                    {
-                        level.Station.SetActive(false);
-                        // Remake (#46): Errkt's freighter (or its wreck) lies on the mother ship's arm: it goes with it (it hung
-                        // in empty space after the station vanished when the player hadn't finished him).
-                        var errkt = S(0);
-                        if (errkt != null) { errkt.Deactivate(); errkt.gameObject.SetActive(false); }
-                        // Modified (a player's request): the blast takes everything round it: every ship left here explodes and
-                        // the asteroid field goes with the mother ship.
-                        // A wreck left there (Errkt's freighter on the mother ship's arm, a dead ship's) goes with it.
-                        foreach (var npc in Object.FindObjectsByType<NpcShip>())
-                        {
-                            if (npc == null || npc == errkt || npc.Gone) continue;
-                            if (npc.Target != null && npc.Target.Alive) npc.Target.Damage(9999999f, true, Vector3.zero);
-                            else if (npc.IsFreighter || npc.IsFixed) { npc.Deactivate(); npc.gameObject.SetActive(false); }
-                        }
-                        if (level.Asteroids != null) level.Asteroids.gameObject.SetActive(false);
-                    }
+                    // Modified (a player's request): the mother ship, Errkt's freighter (or its wreck), any wreck left there and the
+                    // asteroid field shrink into the blast with its white ball (explosion_void_station_add_lookat: 195x at 4.5 s,
+                    // nothing at 6 s), and every ship still flying explodes as it starts; the original hides the station at 4 s.
+                    if (stepMs >= ShrinkFromMs && shrinking == null) BeginShrink();
+                    if (shrinking != null && shrinkLeft) UpdateShrink(Mathf.InverseLerp(ShrinkFromMs, ShrinkToMs, stepMs));
                     if (stepMs >= 15000f)
                     {
                         // this+0xa8 cleared: the explosion meshes stop animating (frozen) and the fade starts.
@@ -853,9 +842,51 @@ namespace GoF2Remake.World
             }
         }
 
+        /// <summary>Modified: when the blast's white ball shrinks (explosion_void_station_add_lookat part 0's keys).</summary>
+        const float ShrinkFromMs = 4500f, ShrinkToMs = 6000f;
+        /// <summary>Modified: what shrinks into the blast, with its pose at the start; the blast's centre; still shrinking.</summary>
+        List<(Transform t, Vector3 position, Vector3 scale)> shrinking;
+        Vector3 shrinkCentre;
+        bool shrinkLeft;
+        /// <summary>Modified: the explosion meshes' longest animation (ms): the camera shakes until it ends.</summary>
+        float explosionMs = 15000f;
+
+        void BeginShrink()
+        {
+            shrinking = new List<(Transform, Vector3, Vector3)>();
+            shrinkLeft = true;
+            shrinkCentre = level.Station != null ? level.Station.transform.position : Vector3.zero;
+            void Add(Transform t) { if (t != null && t.gameObject.activeInHierarchy) shrinking.Add((t, t.position, t.localScale)); }
+            if (level.Station != null) Add(level.Station.transform);
+            var errkt = S(0);
+            if (errkt != null) { errkt.Deactivate(); Add(errkt.transform); }
+            foreach (var npc in Object.FindObjectsByType<NpcShip>())
+            {
+                if (npc == null || npc == errkt || npc.Gone) continue;
+                if (npc.Target != null && npc.Target.Alive) npc.Target.Damage(9999999f, true, Vector3.zero);
+                else if (npc.IsFreighter || npc.IsFixed) { npc.Deactivate(); Add(npc.transform); }   // a wreck left there
+            }
+            if (level.Asteroids != null) Add(level.Asteroids);
+        }
+
+        /// <summary>'k' 0..1: each one drawn into the blast's centre and shrunk with it; gone at the end.</summary>
+        void UpdateShrink(float k)
+        {
+            float f = 1f - Mathf.Clamp01(k);
+            foreach (var (t, position, scale) in shrinking)
+            {
+                if (t == null) continue;
+                if (f <= 0f) { t.gameObject.SetActive(false); continue; }
+                t.position = shrinkCentre + (position - shrinkCentre) * f;
+                t.localScale = scale * f;
+            }
+            if (f <= 0f) shrinkLeft = false;
+        }
+
         void SpawnExplosion(Vector3 at)
         {
             if (assets == null || assets.voidStationExplosion == null) return;
+            explosionMs = 0f;
             explosion = new GameObject[assets.voidStationExplosion.Length];
             for (int i = 0; i < explosion.Length; i++)
             {
@@ -864,8 +895,9 @@ namespace GoF2Remake.World
                 explosion[i] = Object.Instantiate(prefab, at, Quaternion.identity);
                 GunRig.StripForFx(explosion[i]);
                 GunRig.EnableFades(explosion[i]);   // the parts' `extra` fade-out
-                PartAnimation.PlayOnce(explosion[i]);
+                explosionMs = Mathf.Max(explosionMs, PartAnimation.PlayOnce(explosion[i]));
             }
+            if (explosionMs <= 0f) explosionMs = 15000f;
         }
     }
 }
