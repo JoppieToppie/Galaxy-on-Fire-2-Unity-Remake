@@ -801,6 +801,7 @@ namespace GoF2Remake.World
                         // Remake (#46): it closes behind the player (reset(true): shrinking after 1 s); reset(false) opened
                         // it for another minute, still there as the mother ship blew up.
                         Hole?.ResetTimer(true);
+                        if (Hole != null) Hole.closeForGood = true;   // Modified: no other one opens after it (Relocate)
                         Sfx.PlayAt(assets?.mothershipCutscene, Player.position);   // 154
                         SpawnExplosion(station);
                         Step = 7;
@@ -822,9 +823,13 @@ namespace GoF2Remake.World
                         if (errkt != null) { errkt.Deactivate(); errkt.gameObject.SetActive(false); }
                         // Modified (a player's request): the blast takes everything round it: every ship left here explodes and
                         // the asteroid field goes with the mother ship.
+                        // A wreck left there (Errkt's freighter on the mother ship's arm, a dead ship's) goes with it.
                         foreach (var npc in Object.FindObjectsByType<NpcShip>())
-                            if (npc != null && npc != errkt && npc.Target != null && npc.Target.Alive && !npc.Gone)
-                                npc.Target.Damage(9999999f, true, Vector3.zero);
+                        {
+                            if (npc == null || npc == errkt || npc.Gone) continue;
+                            if (npc.Target != null && npc.Target.Alive) npc.Target.Damage(9999999f, true, Vector3.zero);
+                            else if (npc.IsFreighter || npc.IsFixed) { npc.Deactivate(); npc.gameObject.SetActive(false); }
+                        }
                         if (level.Asteroids != null) level.Asteroids.gameObject.SetActive(false);
                     }
                     if (stepMs >= 15000f)
