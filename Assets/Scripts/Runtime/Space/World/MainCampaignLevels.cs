@@ -904,6 +904,37 @@ namespace GoF2Remake.World
             if (f <= 0f) shrinkLeft = false;
         }
 
+        /// <summary>Modified (a player's request): the blast's white ball (explosion_void_station_add_lookat) drawn over
+        /// everything (GoF2/AdditiveOnTop: ZTest Always), even what stands between it and the camera; its look kept.</summary>
+        static void DrawOnTop(GameObject root)
+        {
+            var shader = Resources.Load<Shader>("GoF2Emissive/AdditiveOnTop");
+            if (shader == null) return;
+            int tex = Shader.PropertyToID("_MainTex"), col = Shader.PropertyToID("_Color"), glow = Shader.PropertyToID("_Glow"),
+                vc = Shader.PropertyToID("_UseVertexColor");
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    var m = mats[i];
+                    if (m == null) continue;
+                    var top = new Material(shader) { name = m.name + " (on top)" };
+                    if (m.HasProperty(tex))
+                    {
+                        top.SetTexture(tex, m.GetTexture(tex));
+                        top.SetTextureScale(tex, m.GetTextureScale(tex));
+                        top.SetTextureOffset(tex, m.GetTextureOffset(tex));
+                    }
+                    if (m.HasProperty(col)) top.SetColor(col, m.GetColor(col));
+                    if (m.HasProperty(glow)) top.SetFloat(glow, m.GetFloat(glow));
+                    if (m.HasProperty(vc)) top.SetFloat(vc, m.GetFloat(vc));
+                    mats[i] = top;
+                }
+                r.sharedMaterials = mats;
+            }
+        }
+
         void SpawnExplosion(Vector3 at)
         {
             if (assets == null || assets.voidStationExplosion == null) return;
@@ -916,6 +947,7 @@ namespace GoF2Remake.World
                 explosion[i] = Object.Instantiate(prefab, at, Quaternion.identity);
                 GunRig.StripForFx(explosion[i]);
                 GunRig.EnableFades(explosion[i]);   // the parts' `extra` fade-out
+                if (i == 1) DrawOnTop(explosion[i]);
                 explosionMs = Mathf.Max(explosionMs, PartAnimation.PlayOnce(explosion[i]));
             }
             if (explosionMs <= 0f) explosionMs = 15000f;
