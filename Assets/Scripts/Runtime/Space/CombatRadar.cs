@@ -29,6 +29,8 @@
 //               locked again while it stays the one in the box), and what doesn't fit of a crate stays in it (single
 //               player: in a session the rest is lost as before, the other players' copies keep the spawn's loot) and the auto modes and extra beams leave crates alone
 //               while the hold is full (a mod blueprint's data crate needs no room); a living ship's steal takes nothing.
+//               Modified (a player's report, 2026-11-09): with the hold full a crate / steal lock isn't pulled at all ("Cargo
+//               hold is full." at the lock, the lock dropped), and a crate on a beam is let go when the hold fills.
 //   steal       an EMP-disabled ship with cargo (KIPlayer+0x20) in the box is a salvage candidate, not a ship lock: the
 //               same ring and tractor lock time; locked, TractorBeam::update makes a container of its cargo at the ship
 //               (createCrate(0)) and pulls that; captureCrate takes rnd(amount) of its first entry (at least 1, capped to
@@ -378,6 +380,17 @@ namespace GoF2Remake.Flight
                         StealCandidate = null;
                         LockFrame = -1;
                     }
+                    else if (Salvaging == null && Shop.FreeCargo(db) <= 0 && (StealCandidate != null || NeedsRoom(CrateCandidate)))
+                    {
+                        // Modified (a player's report): no room in the hold, no pull: the beam pulled the crate in only for
+                        // "Cargo hold is full." at the ship. The message once (322) and the lock dropped, as without a beam.
+                        if (!noTractorShown) { noTractorShown = true; Message?.Invoke(Localization.Get(322), 0, HudMessageKind.Normal); }
+                        refusedCrate = CrateCandidate;
+                        refusedSteal = StealCandidate;
+                        CrateCandidate = null;
+                        StealCandidate = null;
+                        LockFrame = -1;
+                    }
                     else if (Salvaging == null)
                     {
                         var crate = CrateCandidate != null ? CrateCandidate : CreateStealCrate(StealCandidate);
@@ -465,6 +478,7 @@ namespace GoF2Remake.Flight
                 var p = extra[i];
                 var c = p.crate;
                 if (!keep || c == null || c.claimedByOther || c == Salvaging || !c.pulled) { ReleaseExtra(i); continue; }
+                if (Shop.FreeCargo(db) <= 0 && NeedsRoom(c)) { ReleaseExtra(i); continue; }   // Modified: the hold filled, it's let go
                 if (!PullIn(c, p.beam, dtMs) || c.captureBlocked) continue;
                 extra.RemoveAt(i);
                 if (p.beam != null) Destroy(p.beam.gameObject);
@@ -589,6 +603,16 @@ namespace GoF2Remake.Flight
             }
             // Multiplayer: another player got it first (NetCrate's claim).
             if (Salvaging.claimedByOther) { Salvaging.pulled = false; Salvaging = null; return; }
+            // Modified: the hold filled while it came (another beam's crate, a mission's cargo): let go of it, a steal's crate
+            // goes (the ship keeps its cargo), and it isn't locked again while it stays in the box.
+            if (Shop.FreeCargo(db) <= 0 && NeedsRoom(Salvaging))
+            {
+                Message?.Invoke(Localization.Get(322), 0, HudMessageKind.Normal);
+                if (Salvaging.stolenFrom != null || remote != null) Destroy(Salvaging.gameObject);
+                else { Salvaging.pulled = false; refusedCrate = Salvaging; }
+                Salvaging = null;
+                return;
+            }
             if (PullIn(Salvaging, beam, dtMs) && !Salvaging.captureBlocked) Capture(Salvaging);   // blocked: waits for the claim
         }
 
