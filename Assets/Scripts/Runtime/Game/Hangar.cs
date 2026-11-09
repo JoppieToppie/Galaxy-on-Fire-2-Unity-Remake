@@ -332,6 +332,16 @@ namespace GoF2Remake.Data
             return at < 0 || count <= 1 ? -1 : (at + 1) % count;
         }
 
+        /// <summary>Modified: the slot before the one of the mounted item at 'equipmentIndex' (the first one wraps to the last);
+        /// -1 as NextSlot (the Ship tab's up arrow).</summary>
+        public int PrevSlot(int equipmentIndex)
+        {
+            if (equipmentIndex < 0 || equipmentIndex >= Session.Equipment.Count) return -1;
+            var e = Session.Equipment[equipmentIndex];
+            int at = SlotPositions(db, Session.Equipment)[equipmentIndex], count = SlotCount(TypeOf(e.item));
+            return at < 0 || count <= 1 ? -1 : (at + count - 1) % count;
+        }
+
         /// <summary>Indices into Session.Equipment of the flown ship's built-in items and of the fitted items in their places
         /// (InBuiltInPlace), in the order of the ship's list.</summary>
         public List<int> BuiltInStacks()

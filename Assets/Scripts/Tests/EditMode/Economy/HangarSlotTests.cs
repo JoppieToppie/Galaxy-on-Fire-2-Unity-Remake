@@ -83,6 +83,19 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void PrevSlotWrapsAndNeedsTwoSlots()
+        {
+            // Modified: the Ship tab's up arrow (HangarWindow.MoveArrow), the mirror of NextSlot.
+            var h = Dace(0, 1);
+            Assert.AreEqual(3, h.PrevSlot(0), "the first slot wraps to the last");
+            h.MoveToSlot(0, 3);
+            Assert.AreEqual(2, h.PrevSlot(0));
+            Session.ShipIndex = 0;   // the Betty: one primary slot
+            Session.Equipment = new System.Collections.Generic.List<ItemStack> { new ItemStack(0, 1) };
+            Assert.AreEqual(-1, new Hangar(Db, Stock(70)).PrevSlot(0));
+        }
+
+        [Test]
         public void StacksWithoutASlotTakeTheFirstFreeOneInListOrder()
         {
             // an old save (slot 0 everywhere) keeps its order; a slot another stack took first counts as none

@@ -27,7 +27,31 @@ namespace GoF2Remake.UI
             bool Shown(Button b) => b != null && b.parent == rowActions && !b.ClassListContains("detail-action--hidden");
             var e = selected?.element;
             rowActions.RemoveFromHierarchy();
+            rowMove.RemoveFromHierarchy();
+            rowQty.RemoveFromHierarchy();
+            rowActionsHost?.RemoveFromClassList("list-row--actions");
+            rowActionsHost = null;
+            rowActions.RemoveFromClassList("row-actions--inline");
             if (!IsOpen || (!Shown(actionButton) && !Shown(actionButton2)) || e?.parent == null || !list.contentContainer.Contains(e)) return;
+            // Modified (a player's sketch 2026-11-09): a mounted item's DEMOUNT over its slot arrows, or a hold item's amount
+            // over MOUNT, inside the row at its right end; the other rows' actions stay in a row of their own under it.
+            bool mounted = selected.kind == RowKind.Slot && selected.equipment >= 0, hold = selected.kind == RowKind.CargoItem;
+            if (mounted || hold)
+            {
+                rowActions.AddToClassList("row-actions--inline");
+                rowActions.RemoveFromClassList("row-actions--mounted");
+                actionButton2?.AddToClassList("detail-action--hidden");   // MOVE: the arrows (X still moves it to the next slot)
+                if (hold)
+                {
+                    rowQty.text = $"{hangar.CargoOf(selected.item)}t";
+                    rowActions.Insert(0, rowQty);
+                }
+                else if (hangar.NextSlot(selected.equipment) >= 0) rowActions.Add(rowMove);
+                e.Add(rowActions);
+                e.AddToClassList("list-row--actions");   // its own amount hidden (USS)
+                rowActionsHost = e;
+                return;
+            }
             e.parent.Insert(e.parent.IndexOf(e) + 1, rowActions);
             rowActions.EnableInClassList("row-actions--mounted", e.ClassListContains("list-row--mounted"));
             // The buttons in view too when the row is at the list's bottom edge.

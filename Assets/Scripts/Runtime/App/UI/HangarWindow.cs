@@ -207,6 +207,7 @@ namespace GoF2Remake.UI
             ogInfo.AddToClassList("hangar-og-info");
             details.Insert(0, ogInfo);
             actionButton.clicked += Action;
+            KeepInButton(actionButton);   // Modified: it can sit inside the selected row (PlaceRowActions)
             if (actionButton2 != null) actionButton2.clicked += SecondaryAction;
             // Remake: inside a blueprint the trade arrows are TAKE / ADD.
             HookArrow(sellButton, -1);
@@ -257,6 +258,18 @@ namespace GoF2Remake.UI
             itemRow.Add(itemRight);
             rowActions = new VisualElement { pickingMode = PickingMode.Ignore };
             rowActions.AddToClassList("row-actions");
+            // Modified (a player's sketch 2026-11-09): a mounted item's or a hold item's actions inside its row, at its right
+            // end: DEMOUNT over the two arrows that move it a slot up / down, or the hold's amount over MOUNT (PlaceRowActions).
+            rowMove = new VisualElement { pickingMode = PickingMode.Ignore };
+            rowMove.AddToClassList("row-move");
+            moveUpButton = MoveArrow(-1);
+            moveDownButton = MoveArrow(1);
+            rowMove.Add(moveUpButton);
+            rowMove.Add(moveDownButton);
+            rowQty = new Label { pickingMode = PickingMode.Ignore };
+            rowQty.AddToClassList("row-qty");
+            rowQty.AddToClassList("row-actions-qty");
+            rowQty.AddToClassList("gof-semibold");
             itemRow.style.display = DisplayStyle.None;
             detailsPanel?.Add(itemRow);
             // Remake: a short panel (a phone at a larger interface size) scrolls a ship's view and stats with its description.
@@ -283,6 +296,41 @@ namespace GoF2Remake.UI
         /// <summary>Remake (a player's feedback 2026-11-03): any other row's actions (Mount / Demount / Move, Edit...) in the
         /// list right under the selected row, as the original's "Actions" rows (HangarList::fillBuyList); PlaceRowActions.</summary>
         readonly VisualElement rowActions;
+        /// <summary>Modified: the inline actions' arrows (a mounted item a slot up / down) and the hold's amount over MOUNT.</summary>
+        readonly VisualElement rowMove;
+        readonly Button moveUpButton, moveDownButton;
+        readonly Label rowQty;
+        /// <summary>Modified: the row holding the actions inline (its own amount hidden meanwhile), null = none.</summary>
+        VisualElement rowActionsHost;
+
+        /// <summary>Modified: an arrow button moving the selected mounted item to the previous (-1) or next (1) slot of its
+        /// type; the arrow is the drawer's chevron turned (no text to translate).</summary>
+        Button MoveArrow(int step)
+        {
+            var b = new Button { focusable = false };
+            b.AddToClassList("row-move-button");
+            if (step > 0) b.AddToClassList("row-move-button--down");
+            var chevron = new Label("\u2039") { pickingMode = PickingMode.Ignore };
+            chevron.AddToClassList("row-move-arrow");
+            chevron.style.rotate = new Rotate(step < 0 ? 90f : -90f);
+            b.Add(chevron);
+            b.clicked += () =>
+            {
+                if (selected == null || selected.kind != RowKind.Slot || selected.equipment < 0) return;
+                int to = step < 0 ? hangar.PrevSlot(selected.equipment) : hangar.NextSlot(selected.equipment);
+                if (to >= 0) MoveSlot(selected.equipment, to);
+            };
+            KeepInButton(b);
+            return b;
+        }
+
+        /// <summary>Modified: a button inside a list row keeps its press and click to itself: the row's slot drag captured the
+        /// pointer at its press and its click selected (or double-click mounted) the row.</summary>
+        static void KeepInButton(VisualElement b)
+        {
+            b.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
+            b.RegisterCallback<ClickEvent>(ev => ev.StopPropagation());
+        }
         /// <summary>Remake: a ship's view and stats sit inside the description's scroll (FitDescription).</summary>
         bool previewScrolls;
         /// <summary>Remake: the least height of a ship's description (its title and about three lines) before its view and
