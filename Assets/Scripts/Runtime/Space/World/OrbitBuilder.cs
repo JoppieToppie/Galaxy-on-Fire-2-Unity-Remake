@@ -259,6 +259,16 @@ namespace GoF2Remake.World
             return entry != null ? entry.name : layout.raceId == 1 ? "station_vossk" : null;   // Vossk: no collision entry
         }
 
+        /// <summary>Modified: Luur's game rotation, as the burning station of its missions (createStaticObject's (0, -2.356, 0)).</summary>
+        static readonly Vector3 LuurRotation = new Vector3(0f, -2.356f, 0f);
+
+        /// <summary>Modified: how far the orbit's station is turned from the usual (0, pi, 0) (Luur), about the origin; null =
+        /// not turned. The player's arrival and undock point turn with it (SpaceLevel.SpawnPlayer).</summary>
+        public static Quaternion? StationTurn(OrbitLayout layout) =>
+            layout != null && layout.stationIndex == 111 && layout.systemIndex >= 0 && !layout.interstellar
+                ? OrbitLayout.RotationToUnity(LuurRotation) * Quaternion.Inverse(OrbitLayout.RotationToUnity(new Vector3(0f, Mathf.PI, 0f)))
+                : (Quaternion?)null;
+
         /// <summary>Level::createSpace / PlayerStation: at the origin, rotation (0, pi, 0) (= identity in Unity).</summary>
         public static GameObject SpawnStation(Database db, OrbitLayout layout, Transform parent = null)
         {
@@ -271,7 +281,7 @@ namespace GoF2Remake.World
             if (name == null) { Debug.LogWarning($"OrbitBuilder: no station assembly for {layout.stationIndex}"); return null; }
             // Modified: Luur turned as the burning station of its missions (createStaticObject's (0, -2.356, 0), 94: 135 deg
             // from the usual (0, pi, 0), -45 deg about Unity's up), every model of it (a player's request).
-            var gameRotation = layout.stationIndex == 111 ? new Vector3(0f, -2.356f, 0f) : new Vector3(0f, Mathf.PI, 0f);
+            var gameRotation = layout.stationIndex == 111 ? LuurRotation : new Vector3(0f, Mathf.PI, 0f);
             var go = Spawn(db, name, Vector3.zero, OrbitLayout.RotationToUnity(gameRotation), "Station", parent);
             // Remake: the station's opacity keys play like the engine's (the blinking lights of the Nivelian, Midorian, pirate,
             // Loma and Supernova-era stations, the Kaamo Club's lit panels and glows); they were left out, the lights stayed on.
