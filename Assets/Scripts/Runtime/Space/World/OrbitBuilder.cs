@@ -263,9 +263,16 @@ namespace GoF2Remake.World
         public static GameObject SpawnStation(Database db, OrbitLayout layout, Transform parent = null)
         {
             if (!layout.stationObject) return null;   // Level::createSpace: the empty orbits 27 / 110 / 111 keep their PlayerStation
+            // Modified: none at Luur during 94: the bare hull (station_111_luur_mission_94, the original's PlayerStation) stood
+            // inside the level's burning station (sn_burning_station_mission_object, the same station_076 hull turned
+            // another way), two hulls in one (a player's report).
+            if (layout.stationIndex == 111 && !Session.CompletedWorld && Session.CampaignMission == 0x5e) return null;
             string name = StationAssembly(db, layout);
             if (name == null) { Debug.LogWarning($"OrbitBuilder: no station assembly for {layout.stationIndex}"); return null; }
-            var go = Spawn(db, name, Vector3.zero, OrbitLayout.RotationToUnity(new Vector3(0f, Mathf.PI, 0f)), "Station", parent);
+            // Modified: Luur turned as the burning station of its missions (createStaticObject's (0, -2.356, 0), 94: 135 deg
+            // from the usual (0, pi, 0), -45 deg about Unity's up), every model of it (a player's request).
+            var gameRotation = layout.stationIndex == 111 ? new Vector3(0f, -2.356f, 0f) : new Vector3(0f, Mathf.PI, 0f);
+            var go = Spawn(db, name, Vector3.zero, OrbitLayout.RotationToUnity(gameRotation), "Station", parent);
             // Remake: the station's opacity keys play like the engine's (the blinking lights of the Nivelian, Midorian, pirate,
             // Loma and Supernova-era stations, the Kaamo Club's lit panels and glows); they were left out, the lights stayed on.
             if (go != null)
