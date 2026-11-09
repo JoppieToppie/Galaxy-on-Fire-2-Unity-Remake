@@ -32,6 +32,7 @@ namespace GoF2Remake.UI
             rowActionsHost?.RemoveFromClassList("list-row--actions");
             rowActionsHost = null;
             rowActions.RemoveFromClassList("row-actions--inline");
+            rowActions.RemoveFromClassList("row-actions--sub");
             if (!IsOpen || (!Shown(actionButton) && !Shown(actionButton2)) || e?.parent == null || !list.contentContainer.Contains(e)) return;
             // Modified (a player's sketch 2026-11-09): a mounted item's DEMOUNT over its slot arrows, or a hold item's amount
             // over MOUNT, inside the row at its right end; the other rows' actions stay in a row of their own under it.
@@ -49,6 +50,17 @@ namespace GoF2Remake.UI
                 else if (hangar.NextSlot(selected.equipment) >= 0) rowActions.Add(rowMove);
                 e.Add(rowActions);
                 e.AddToClassList("list-row--actions");   // its own amount hidden (USS)
+                rowActionsHost = e;
+                return;
+            }
+            // Modified (the user's sketch 2026-11-09): a blueprint's EDIT at the right end of its sub-line, under the progress
+            // bar's end, beside the percentage.
+            var subLine = selected.kind == RowKind.Blueprint ? e.Q(className: "row-sub") : null;
+            if (subLine != null)
+            {
+                rowActions.AddToClassList("row-actions--sub");
+                rowActions.RemoveFromClassList("row-actions--mounted");
+                subLine.Add(rowActions);
                 rowActionsHost = e;
                 return;
             }

@@ -970,6 +970,17 @@
     margin: 0 0 0 8px;
 }
 
+.ui-style-original .row-actions--sub {
+    margin: 0 0 0 auto;
+}
+
+.ui-style-original .row-actions--sub .detail-action--row {
+    width: 240px;
+    height: 30px;
+    margin: 0;
+    padding: 0 16px;
+}
+
 .ui-style-original .row-actions--inline .detail-action--row {
     height: 34px;
     margin: 0;

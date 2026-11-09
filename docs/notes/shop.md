@@ -107,7 +107,8 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   Buy / Use / Sell stay under its turning view. Since 2026-11-09 (the user's sketch) a mounted item's and a hold item's
   sit inside the row at its right end (`.row-actions--inline`): Demount over two arrow buttons (a slot up / down,
   `Hangar.PrevSlot` / `NextSlot`, no text, the MOVE button hidden), or the hold's amount over Mount (the row's own
-  amount hidden, `.list-row--actions`); buttons in a row keep their press from the row (`KeepInButton`: the slot drag).
+  amount hidden, `.list-row--actions`); a blueprint's Edit at the right end of its sub-line, under the progress bar
+  (`.row-actions--sub`); buttons in a row keep their press from the row (`KeepInButton`: the slot drag).
 - **Slot positions** (players' feedback 2026-11: the gear "snapped" to the next free slot, the original's didn't):
   `Ship+0x6c` is one place per slot, null when empty. `Ship::removeEquipment` 0x1a3e4c empties the slot and leaves
   the others where they are; `Ship::addEquipment` 0x1a4088 fills the type's first empty one; `Level::createPlayer` puts
