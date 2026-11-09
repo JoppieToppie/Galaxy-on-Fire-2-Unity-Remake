@@ -518,10 +518,10 @@ namespace GoF2Remake.Flight
         {
             var wall = b.position;
             bool onHull = HullCollision.Any && HullCollision.CastScenery(from, b.position, HullShotRadius, out wall);
-            // Modified (a player's request): asteroids stop shots too, on the rock's own size (their hit sphere is 0.7 of it,
-            // PlayerAsteroid, so shots went through their edges). Rockets, missiles and bombs keep the original's rule: they
-            // destroy an asteroid they touch and fly on (KillsAsteroids).
-            var rock = KillsAsteroids ? null : FirstAsteroid(from, onHull ? wall : b.position, out var rockPoint);
+            // Modified (a player's request): an NPC's shots (a gun whose targets hold no asteroid, so it can't hit one) stop on
+            // asteroids, on the hit sphere the player's shots have (PlayerAsteroid: mesh radius x0.7); they flew through
+            // the rocks. The player's own shots keep the original's rules (they hit asteroids as targets).
+            var rock = ShootsAsteroids(targets) ? null : FirstAsteroid(from, onHull ? wall : b.position, out var rockPoint);
             if ((object)rock != null) { onHull = false; wall = rockPoint; }
             if (!onHull && (object)rock == null)
             {
@@ -533,15 +533,31 @@ namespace GoF2Remake.Flight
             if (b.timer <= -1e8f) return;   // a target took it on the way
             if (IsBomb) { Ignite(targets); return; }
             b.timer = -1e9f;   // gone
-            // A rock this gun may shoot takes the hit (its damage, its impact); a station, gate or other rock shows the impact.
-            if ((object)rock != null && MayHit(rock, targets)) Hit?.Invoke(i, rock, wall);
-            else SceneryHit?.Invoke(wall);
+            SceneryHit?.Invoke(wall);
             if (kind == Kind.ScatterGun) { AreaDamage(wall, targets, false); Ignited?.Invoke(wall); }
             Struck(wall);
         }
 
-        /// <summary>Modified: of the alive asteroids, the first whose rock (its hit radius / 0.7, x0.85: the mesh's own size,
-        /// a little inside its bumps) the segment 'from' -> 'to' enters; where it enters.</summary>
+        /// <summary>Modified: 'targets' holds an asteroid (the player's guns), looked up once a frame per list.</summary>
+        bool ShootsAsteroids(IReadOnlyList<Target> targets)
+        {
+            int frame = Time.frameCount;
+            if (!ReferenceEquals(targets, rockCheckList) || frame != rockCheckFrame)
+            {
+                rockCheckList = targets;
+                rockCheckFrame = frame;
+                rockCheck = false;
+                for (int k = 0; k < targets.Count; k++)
+                    if ((object)targets[k] != null && targets[k].isAsteroid) { rockCheck = true; break; }
+            }
+            return rockCheck;
+        }
+        IReadOnlyList<Target> rockCheckList;
+        int rockCheckFrame = -1;
+        bool rockCheck;
+
+        /// <summary>Modified: of the alive asteroids, the first whose hit sphere (Target.radius: the player's shots' sphere,
+        /// the mesh radius x0.7) the segment 'from' -> 'to' enters; where it enters.</summary>
         static Target FirstAsteroid(Vector3 from, Vector3 to, out Vector3 point)
         {
             point = to;
@@ -556,7 +572,7 @@ namespace GoF2Remake.Flight
             {
                 var t = all[k];
                 if ((object)t == null || !t.isAsteroid || !t.Alive) continue;
-                float r = t.radius / 0.7f * 0.85f;
+                float r = t.radius;
                 var m = from - t.transform.position;
                 float bd = Vector3.Dot(m, dir), c = m.sqrMagnitude - r * r;
                 if (c > 0f && bd > 0f) continue;   // outside it and heading away
