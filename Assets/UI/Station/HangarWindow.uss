@@ -783,8 +783,12 @@
 }
 
 .row-actions--sub {
-    flex-shrink: 0;
-    margin: 0 0 0 auto;
+    /* out of the flow, centred on the sub-line: the name and the bar stay where they are when it shows */
+    position: absolute;
+    right: 0;
+    top: 50%;
+    translate: 0 -50%;
+    margin: 0;
     padding: 0;
     border-left-width: 0;
 }

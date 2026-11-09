@@ -971,7 +971,7 @@
 }
 
 .ui-style-original .row-actions--sub {
-    margin: 0 0 0 auto;
+    margin: 0;
 }
 
 .ui-style-original .row-actions--sub .detail-action--row {
