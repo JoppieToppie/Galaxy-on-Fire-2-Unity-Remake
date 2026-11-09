@@ -759,8 +759,10 @@ namespace GoF2Remake.World
 
         // 42 on 41's level: the mother ship's end and the escape (M42).
         CycleSound mothership;
-        /// <summary>Modified: the explosion camera's drift (game units per ms), straight away from what it looks at.</summary>
-        Vector3 explosionDolly;
+        /// <summary>Modified: the explosion camera's drift (game units per ms), straight away from what it looks at; that point
+        /// and the camera's first distance to it (the shake grows with the distance).</summary>
+        Vector3 explosionDolly, explosionLook;
+        float explosionLookDistance = 1f;
 
         void Tick42(float dtMs)
         {
@@ -798,6 +800,8 @@ namespace GoF2Remake.World
                         // point it looks at, so the station seemed to turn before the camera drew off.
                         var away = (Player.position - look).normalized;
                         explosionDolly = new Vector3(away.x, away.y, -away.z) * 18f;
+                        explosionLook = look;
+                        explosionLookDistance = Mathf.Max(1f, (Player.position - look).magnitude);
                         Hole?.FreeMissionLock();
                         // Remake (#46): it closes behind the player (reset(true): shrinking after 1 s); reset(false) opened
                         // it for another minute, still there as the mother ship blew up.
@@ -811,6 +815,10 @@ namespace GoF2Remake.World
                 case 7:
                     // Modified: the shake lasts as long as the explosion's animation (a player's request; it went on to the fade).
                     cam.Rumble = stepMs < explosionMs ? 1f : 0f;
+                    // The jitter moves the point looked at (50 units): as the camera backs away it shrank to nothing on screen
+                    // (a player's report); grown with the distance it shakes the same throughout.
+                    if (cam.Camera != null)
+                        cam.RumbleAmplitude = Mathf.RoundToInt(50f * Mathf.Max(1f, (cam.Camera.position - explosionLook).magnitude / explosionLookDistance));
                     cam.SetDolly(explosionDolly);
                     // The second and third explosion meshes (+0xb0 / +0xb4) face the camera's direction every frame.
                     if (explosion != null && cam.Camera != null)
@@ -856,6 +864,19 @@ namespace GoF2Remake.World
             shrinking = new List<(Transform, Vector3, Vector3)>();
             shrinkLeft = true;
             shrinkCentre = level.Station != null ? level.Station.transform.position : Vector3.zero;
+            // Into the white ball itself (explosion_void_station_add_lookat, its part off the mesh's origin): the station's
+            // pivot drew them beside it (a player's report).
+            if (explosion != null && explosion.Length > 1 && explosion[1] != null)
+            {
+                bool any = false;
+                var b = new Bounds();
+                foreach (var r in explosion[1].GetComponentsInChildren<Renderer>())
+                {
+                    if (!r.enabled || !r.gameObject.activeInHierarchy) continue;
+                    if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds);
+                }
+                if (any) shrinkCentre = b.center;
+            }
             void Add(Transform t) { if (t != null && t.gameObject.activeInHierarchy) shrinking.Add((t, t.position, t.localScale)); }
             if (level.Station != null) Add(level.Station.transform);
             var errkt = S(0);
