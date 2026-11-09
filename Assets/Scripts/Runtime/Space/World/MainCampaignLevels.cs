@@ -300,6 +300,10 @@ namespace GoF2Remake.World
         void Build42()
         {
             level.MovePlayer(ToUnity(new Vector3(3000, 2000, -320000)), OrbitLayout.RotationToUnity(Vector3.zero));
+            // The arrival's wormhole (10 000 units behind the player, PlaceArrivalWormhole) is held open at 42 in the Void
+            // (Wormhole: the mission lock) and its pull dragged the player in, where nothing rides out before the script's
+            // state 6 (a player's report): hidden until state 5 opens it at the mother ship.
+            Hole?.SetVisible(false);
             c.AddPlaceholder();   // Errkt, finished
             Vector3[] at =
             {
