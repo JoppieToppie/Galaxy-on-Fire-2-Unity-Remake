@@ -240,6 +240,28 @@ namespace GoF2Remake.Flight
             return target != null;
         }
 
+        /// <summary>Modified: the first shown hull with no target along 'from' -> 'to' (the orbit's station and jumpgate,
+        /// SpaceLevel.AddObstacles): where a shot stops on it (Gun.TestHits; the original's shots pass them).</summary>
+        public static bool CastScenery(Vector3 from, Vector3 to, float radius, out Vector3 point)
+        {
+            point = to;
+            var d = to - from;
+            float len = d.magnitude;
+            if (len < 1e-5f) return false;
+            Sync();
+            int n = Physics.SphereCastNonAlloc(from, radius, d / len, hits, len, HullMask, QueryTriggerInteraction.Ignore);
+            float best = float.MaxValue;
+            for (int i = 0; i < n; i++)
+            {
+                if (hits[i].distance >= best) continue;
+                var b = BodyOf(hits[i].collider);
+                if (b == null || b.target != null || !b.Collides || !Shown(hits[i].collider)) continue;
+                best = hits[i].distance;
+                point = hits[i].distance > 0f ? hits[i].point : from;
+            }
+            return best < float.MaxValue;
+        }
+
         /// <summary>A sphere of 'radius' swept from 'from' to 'to': the distance to the first shown hull 'valid' accepts that
         /// it runs into on the way (not one it starts inside: the penetration push takes those); false = none.</summary>
         public static bool Sweep(Vector3 from, Vector3 to, float radius, Func<HullBody, bool> valid, out float distance)

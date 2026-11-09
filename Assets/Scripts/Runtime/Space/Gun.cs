@@ -121,6 +121,8 @@ namespace GoF2Remake.Flight
         public event Action<int> Expired;
         /// <summary>A bomb, mine, scatter shell or the shock blast went off at this point (the explosion).</summary>
         public event Action<Vector3> Ignited;
+        /// <summary>Modified: a shot stopped on the station's or jumpgate's hull there (its GunRig shows the impact).</summary>
+        public event Action<Vector3> SceneryHit;
         /// <summary>A shot's echo went off at this point (its damage is done; the explosion is for the view).</summary>
         public event Action<Vector3> Echoed;
         /// <summary>A shot left the gun (gun, bullet index; a cluster salvo: its first bullet). Multiplayer sends it to the
@@ -508,7 +510,28 @@ namespace GoF2Remake.Flight
             b.position += (side * (2f * Mathf.Sin(a)) + b.up * (2f * Mathf.Cos(a))) * dtMs * MetersPerUnit;
         }
 
+        /// <summary>Modified (a player's request): every shot, friend's or foe's, stops on the orbit's station and jumpgate
+        /// (HullCollision.CastScenery) instead of flying through them as in the original: a ship in front of the hull is
+        /// still hit first; else the shot ends at the hull with its impact (a bomb goes off there, a scatter shot bursts).
+        /// Hulls only (Mixed / Precise collision; Original collision has none).</summary>
         void TestHits(int i, ref Bullet b, IReadOnlyList<Target> targets, Vector3 from)
+        {
+            if (!HullCollision.Any || !HullCollision.CastScenery(from, b.position, HullShotRadius, out var wall))
+            {
+                TestTargets(i, ref b, targets, from);
+                return;
+            }
+            b.position = wall;   // the path ends at the hull: only what lies before it can be hit
+            TestTargets(i, ref b, targets, from);
+            if (b.timer <= -1e8f) return;   // a target took it on the way
+            if (IsBomb) { Ignite(targets); return; }
+            b.timer = -1e9f;   // gone
+            SceneryHit?.Invoke(wall);
+            if (kind == Kind.ScatterGun) { AreaDamage(wall, targets, false); Ignited?.Invoke(wall); }
+            Struck(wall);
+        }
+
+        void TestTargets(int i, ref Bullet b, IReadOnlyList<Target> targets, Vector3 from)
         {
             int frame = Time.frameCount;
             var probe = b.position - b.velocity;
