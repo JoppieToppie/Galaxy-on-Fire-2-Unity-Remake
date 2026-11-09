@@ -521,7 +521,9 @@ namespace GoF2Remake.Flight
             // Modified (a player's request): an NPC's shots (a gun whose targets hold no asteroid, so it can't hit one) stop on
             // asteroids, on the hit sphere the player's shots have (PlayerAsteroid: mesh radius x0.7); they flew through
             // the rocks. The player's own shots keep the original's rules (they hit asteroids as targets).
-            var rock = ShootsAsteroids(targets) ? null : FirstAsteroid(from, onHull ? wall : b.position, out var rockPoint);
+            Target rock = null;
+            var rockPoint = b.position;
+            if (!ShootsAsteroids(targets)) rock = FirstAsteroid(from, onHull ? wall : b.position, out rockPoint);
             if ((object)rock != null) { onHull = false; wall = rockPoint; }
             if (!onHull && (object)rock == null)
             {
