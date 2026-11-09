@@ -1,8 +1,9 @@
 // FxFog.cs
-// Modified: the burning Luur station's fire and smoke (sn_burning_station_fire_anim_add / _alpha and the intro's
-// sn_burning_station_fire_intro_anim_*) on GoF2/FxFog, the Additive / AlphaBlend Shader Graphs' look with the distance
-// fog the station's hull has (URP 17's Shader Graph transparents take no linear / exp fog): they stood out clear against
-// the fogged station (a player's report). The copies are shared by every object with the same material.
+// Modified: the burning Luur station's smoke (sn_burning_station_fire_anim_alpha and the intro's
+// sn_burning_station_fire_intro_anim_alpha) on GoF2/FxFog, the AlphaBlend Shader Graph's look with the distance fog the
+// station's hull has (URP 17's Shader Graph transparents take no linear / exp fog): it stood out clear against the
+// fogged station (a player's report). The fire (_add) keeps its own look, as the player chose. The copies are shared
+// by every object with the same material.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -21,13 +22,14 @@ namespace GoF2Remake.Visuals
             GlowId = Shader.PropertyToID("_Glow"), VertexColorId = Shader.PropertyToID("_UseVertexColor"),
             SrcBlendId = Shader.PropertyToID("_SrcBlend"), DstBlendId = Shader.PropertyToID("_DstBlend"), AdditiveId = Shader.PropertyToID("_Additive");
 
-        /// <summary>The fire layers under 'root' take the scene's fog (AssembledObject.Awake).</summary>
+        /// <summary>The smoke layers under 'root' take the scene's fog (AssembledObject.Awake).</summary>
         public static void Apply(GameObject root)
         {
             if (root == null) return;
             foreach (var r in root.GetComponentsInChildren<Renderer>(true))
             {
-                if (r is ParticleSystemRenderer || !r.gameObject.name.Contains("burning_station_fire")) continue;
+                string n = r.gameObject.name;
+                if (r is ParticleSystemRenderer || !n.Contains("burning_station_fire") || !n.Contains("_alpha")) continue;
                 if (!loaded) { loaded = true; shader = Resources.Load<Shader>(ShaderPath); }
                 if (shader == null) return;
                 var mats = r.sharedMaterials;
