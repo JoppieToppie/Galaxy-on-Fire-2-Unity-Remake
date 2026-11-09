@@ -972,6 +972,8 @@
 
 .ui-style-original .row-actions--sub {
     margin: 0;
+    right: 8px;
+    bottom: 6px;
 }
 
 .ui-style-original .row-actions--sub .detail-action--row {

@@ -783,11 +783,10 @@
 }
 
 .row-actions--sub {
-    /* out of the flow, centred on the sub-line: the name and the bar stay where they are when it shows */
+    /* out of the flow, at the row's right end level with the sub-line: the name and the bar stay where they are */
     position: absolute;
-    right: 0;
-    top: 50%;
-    translate: 0 -50%;
+    right: 16px;
+    bottom: 10px;
     margin: 0;
     padding: 0;
     border-left-width: 0;

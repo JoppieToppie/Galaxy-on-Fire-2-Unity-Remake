@@ -55,12 +55,12 @@ namespace GoF2Remake.UI
             }
             // Modified (the user's sketch 2026-11-09): a blueprint's EDIT at the right end of its sub-line, under the progress
             // bar's end, beside the percentage.
-            var subLine = selected.kind == RowKind.Blueprint ? e.Q(className: "row-sub") : null;
-            if (subLine != null)
+            // (On the row itself, placed over its sub-line's end: inside the texts its clip cut the button's bottom off.)
+            if (selected.kind == RowKind.Blueprint)
             {
                 rowActions.AddToClassList("row-actions--sub");
                 rowActions.RemoveFromClassList("row-actions--mounted");
-                subLine.Add(rowActions);
+                e.Add(rowActions);
                 rowActionsHost = e;
                 return;
             }
