@@ -88,6 +88,7 @@ namespace GoF2Remake.UI
         Label viewTitle, toast;
         HangarWindow hangarWindow;
         System.Action dialogAction, dialogNoAction;
+        bool dialogBackCancels;   // ShowChoice(backCancels): Esc / B closes it without either answer
         float toastMs;
         Vector2Int lastScreen;
         Rect lastSafeArea;

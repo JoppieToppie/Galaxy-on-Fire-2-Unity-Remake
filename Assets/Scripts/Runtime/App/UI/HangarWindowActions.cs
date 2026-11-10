@@ -176,7 +176,7 @@ namespace GoF2Remake.UI
                         if (k == Hangar.Result.AlreadyStored) { menu.ShowDialog(Localization.Get(328), null, true); return; }
                         if (k == Hangar.Result.NoCredits) { menu.ShowToast(Localization.Get(203).Replace("#C", ItemInfo.Credits(missing))); return; }
                         menu.AskMoveEquipment(move => Reserved(() => hangar.KeepAndBuyShip(ship, move)));   // #83
-                    }));
+                    }, true));
                     break;
                 }
                 case RowKind.StoredShip:

@@ -232,6 +232,7 @@ namespace GoF2Remake.UI
         {
             dialogAction = onYes;
             dialogNoAction = null;
+            dialogBackCancels = false;
             root.Q<Label>("dialogText").text = text;
             InputGlyph.SetText(dialogYes, info ? Localization.Extra("ok", "OK").OgCase() : Localization.Get(134).UiCaps());
             InputGlyph.SetText(dialogNo, Localization.Get(135).UiCaps());
@@ -251,14 +252,16 @@ namespace GoF2Remake.UI
             string text = string.Format(Localization.Extra("kaamoMoveEquipment",
                 "Move your equipment to the new ship?\n\nYes: it is mounted on the new ship (what doesn't fit goes to the cargo hold).\nNo: it stays on your {0} in the Kaamo Club."),
                 ItemInfo.ShipName(Session.ShipIndex));
-            ShowChoice(text, Localization.Get(134), Localization.Get(135), () => then(true), () => then(false));
+            ShowChoice(text, Localization.Get(134), Localization.Get(135), () => then(true), () => then(false), true);
         }
 
-        /// <summary>ChoiceWindow with its own two labels (327: 330 "Sell" / 331 "Keep").</summary>
-        public void ShowChoice(string text, string yes, string no, System.Action onYes, System.Action onNo)
+        /// <summary>ChoiceWindow with its own two labels (327: 330 "Sell" / 331 "Keep"). 'backCancels' (remake, #251): Esc /
+        /// B closes it without either answer, for a choice whose No isn't "don't" (Keep bought the ship too).</summary>
+        public void ShowChoice(string text, string yes, string no, System.Action onYes, System.Action onNo, bool backCancels = false)
         {
             ShowDialog(text, onYes);
             dialogNoAction = onNo;
+            dialogBackCancels = backCancels;
             InputGlyph.SetText(dialogYes, yes.UiCaps());
             InputGlyph.SetText(dialogNo, no.UiCaps());
         }
@@ -270,6 +273,7 @@ namespace GoF2Remake.UI
             dialog.RemoveFromClassList("station-dialog-backdrop--shown");
             dialogAction = null;
             dialogNoAction = null;
+            dialogBackCancels = false;
             // A controller's A (or Enter) that answered the dialog isn't also the hangar window's Action: the UI takes the
             // press first, and in the same frame the hangar saw A just pressed and bought the selected ship again (a
             // player's report). The window waits for it to be released, like after the press that opened it (#104).
@@ -317,8 +321,10 @@ namespace GoF2Remake.UI
                 // The original's ChoiceWindow can't be dismissed (ModStation::OnKeyPress ignores every key while it is open):
                 // back = its No button, or the OK of a message, so the choice's action always runs (the docking fine's No
                 // launches; closing it without one kept the player docked without paying).
+                // Remake (#251): a ship purchase's Sell / Keep (and Move equipment?) is cancelled instead: its No bought the
+                // ship as well, so Esc kept the old one with its equipment without a word.
                 Play(buttonRelease);
-                var a = dialogNo.resolvedStyle.display != DisplayStyle.None ? dialogNoAction : dialogAction;
+                var a = dialogBackCancels ? null : dialogNo.resolvedStyle.display != DisplayStyle.None ? dialogNoAction : dialogAction;
                 CloseDialog();
                 a?.Invoke();
             }
