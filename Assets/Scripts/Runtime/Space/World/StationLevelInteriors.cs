@@ -358,6 +358,10 @@ namespace GoF2Remake.World
             var list = race == 8 ? StationTables.PirateFighters : StationTables.RaceFighters[Mathf.Clamp(race, 0, 3)];
             return list[Random.Range(0, list.Length)];
         }
+
+        /// <summary>Modified: the Midorian bar's monitor flash's brightness (its own material's _Glow; the bar's is 1).</summary>
+        const float MidorianPropGlow = 1.6f;
+
         void BuildBar()
         {
             barRoot = new GameObject("Space Lounge").transform;
@@ -383,6 +387,13 @@ namespace GoF2Remake.World
                         midorianProp = a;
                         a.loop = false;
                         a.applyMaterialChannels = true;
+                        // Its flashes at full opacity already (no vertex colours, the texture's alpha ~0.85-1): brighter instead,
+                        // a whiter screen (MidorianPropGlow, the player's wish; the bar's material has 1).
+                        foreach (var r in a.GetComponentsInChildren<Renderer>(true))
+                        {
+                            var m = r.material;   // its own copy: the room's other parts share the bar's material
+                            if (m.HasProperty("_Glow")) m.SetFloat("_Glow", MidorianPropGlow);
+                        }
                         a.Hold(a.LengthMs);
                     }
             }
