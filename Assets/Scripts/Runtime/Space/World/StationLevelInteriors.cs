@@ -375,8 +375,16 @@ namespace GoF2Remake.World
                 // CutScene::initialize (mode 4): bar_midorian_alpha_anim is a one-shot, restarted with 30 % every 2 s.
                 foreach (var a in room.GetComponentsInChildren<PartAnimation>(true))
                     // Modified: held at its last pose until the first replay, as after every one (it sat at its parts' origin,
-                    // below its place, until a 30 % roll first restarted it, a player's report).
-                    if (a.gameObject.name.Contains("alpha_anim")) { midorianProp = a; a.loop = false; a.Hold(a.LengthMs); }
+                    // below its place, until a 30 % roll first restarted it, a player's report). Its opacity keys apply: it is
+                    // the monitor's bright layer, out (the dim yellowish screen under it) but for two quick flashes at 1.3 /
+                    // 1.45 s of each replay, as in the original (they were ignored: it stayed lit and the replays showed nothing).
+                    if (a.gameObject.name.Contains("alpha_anim"))
+                    {
+                        midorianProp = a;
+                        a.loop = false;
+                        a.applyMaterialChannels = true;
+                        a.Hold(a.LengthMs);
+                    }
             }
             if (room != null && BarRace == 1 && customBar == null)
             {
