@@ -240,6 +240,8 @@ namespace GoF2Remake.World
             // battleship toggle): back in the player's own ship.
             if (!PlayerHull.PlayerShip) PlayerHull.ForceOwnShip();
             Hangar.SyncBuiltIn(db);  // remake mods: the flown ship's built-in items (ships.json "integrated": "items")
+            // Remake (#251, players' report of the original): a secondary weapon fired empty frees its slot on docking.
+            Session.Equipment.RemoveAll(e => e != null && e.amount <= 0 && db.Item(e.item)?.type == "secondary");
             Hangar.FitToSlots(db);   // remake: no more mounted than the ship has slots (a mod's lower slot count, a debug swap)
             shipIndex = shipOverride >= 0 ? shipOverride : Session.ShipIndex;
             Station = db.Stations.Find(s => s.index == station);

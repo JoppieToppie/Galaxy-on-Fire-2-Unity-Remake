@@ -380,6 +380,11 @@ namespace GoF2Remake.Flight
                 AfterShot();
                 Haptics.Play(Haptics.SecondaryFire);   // remake
                 if (r.gun.Guided) StartLiberator(r);
+                // Remake (#251): the last one fired, the next mounted secondary that still has ammo is selected (the empty one
+                // stays in the strip, dimmed, until docking clears its slot: StationLevel).
+                if (SecondaryAmmo == 0)
+                    foreach (int other in SecondaryItems())
+                        if (AmmoOf(other) > 0) { SelectSecondary(other); break; }
                 return true;
             }
             return false;
