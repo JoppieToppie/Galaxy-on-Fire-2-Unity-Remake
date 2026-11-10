@@ -300,6 +300,30 @@ namespace GoF2Remake.Tests
             }
         }
 
+        // A player's report: a fast-forwarded Polytron boost went less far. The original (iOS 1.1.19 PlayerEgo::update /
+        // handleShip) runs the boost timer and the move on the same fast-forwarded dt, so a boost covers boost speed x
+        // duration whatever the frame rate or fast-forward: 8 u/ms x 6000 ms = 48000 units. The remake rounded only the
+        // timer's dt (400 fps: 60000 units, 600 fps: 40000).
+        [TestCase(60f, 1f)] [TestCase(60f, 5f)]
+        [TestCase(120f, 1f)] [TestCase(120f, 5f)]
+        [TestCase(240f, 1f)] [TestCase(240f, 5f)]
+        [TestCase(400f, 1f)] [TestCase(400f, 5f)]
+        [TestCase(600f, 1f)] [TestCase(600f, 5f)]
+        [TestCase(700f, 1f)]
+        public void BoostDistanceIgnoresFrameRateAndFastForward(float fps, float timeScale)
+        {
+            using (NoBoostCheat())
+            {
+                var m = Model(120f, boostSpeed: 300, boostMs: 6000, rechargeMs: 16000);   // Polytron Boost (195)
+                m.Boost();
+                Assert.AreEqual(8f, m.CurrentSpeed);   // int(2 x 300 / 100) + 2
+                float dt = 1000f / fps * timeScale, units = 0f;
+                for (int i = 0; m.IsBoosting && i < 100000; i++) units += Fly(m, Vector2.zero, dt).forwardUnits;
+                // within the last frame's move (the boost ends on the frame its timer passes the duration)
+                Assert.AreEqual(48000f, units, 8f * dt + 1f);
+            }
+        }
+
         [Test]
         public void BoostRechargeTakesTheRechargeTime()
         {
