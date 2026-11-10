@@ -211,6 +211,7 @@ namespace GoF2Remake.Data
             try
             {
                 Directory.CreateDirectory(Dir);
+                if (slot == AutoSaveSlot) KeepReplacedAutoSave(s);
                 string tmp = PathOf(slot) + ".tmp";
                 File.WriteAllText(tmp, JsonUtility.ToJson(s, true));
                 if (File.Exists(PathOf(slot))) File.Delete(PathOf(slot));
@@ -219,6 +220,41 @@ namespace GoF2Remake.Data
                 return true;
             }
             catch (Exception e) { Debug.LogError($"SaveGame: saving slot {slot} failed: {e.Message}"); return false; }
+        }
+
+        /// <summary>Remake (#240): the auto-save about to be written over by another game (a new game, another run) or by an
+        /// earlier point of the same one (an older manual save loaded, then docked or a story step) is copied to
+        /// Saves/Deleted first, like a deleted slot, so hours of play lost that way can still be put back by hand.</summary>
+        static void KeepReplacedAutoSave(SaveData next)
+        {
+            var prev = Preview(AutoSaveSlot);
+            if (prev == null) return;
+            bool otherRun = !string.IsNullOrEmpty(prev.runId) && prev.runId != (next.runId ?? "");
+            if (!otherRun && prev.playSeconds <= next.playSeconds + 1f) return;   // the same game, carried on: nothing lost
+            try
+            {
+                string to = BinPath(AutoSaveSlot);
+                File.Copy(PathOf(AutoSaveSlot), to, true);
+                File.SetLastWriteTimeUtc(to, DateTime.UtcNow);
+                PruneBin();
+                Debug.Log($"SaveGame: the auto-save it replaces ({prev.playSeconds / 3600f:0.0} h played) kept as {to}");
+            }
+            catch (Exception e) { Debug.LogWarning($"SaveGame: couldn't keep the replaced auto-save: {e.Message}"); }
+        }
+
+        static string BinPath(int slot)
+        {
+            string bin = Path.Combine(Dir, "Deleted");
+            Directory.CreateDirectory(bin);
+            return Path.Combine(bin, $"slot_{slot:00}_{DateTime.Now:yyyyMMdd-HHmmss}.json");
+        }
+
+        /// <summary>Saves/Deleted keeps its newest 20 files.</summary>
+        static void PruneBin()
+        {
+            var old = new DirectoryInfo(Path.Combine(Dir, "Deleted")).GetFiles("slot_*.json");
+            Array.Sort(old, (a, b) => b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
+            for (int i = 20; i < old.Length; i++) old[i].Delete();
         }
 
         /// <summary>Remake (hardcore): deletes every slot of the run 'runId' (the death of a hardcore game); the slots deleted.</summary>
@@ -245,16 +281,12 @@ namespace GoF2Remake.Data
             if (!Exists(slot)) return false;
             try
             {
-                string bin = Path.Combine(Dir, "Deleted");
-                Directory.CreateDirectory(bin);
-                string to = Path.Combine(bin, $"slot_{slot:00}_{DateTime.Now:yyyyMMdd-HHmmss}.json");
+                string to = BinPath(slot);
                 if (File.Exists(to)) File.Delete(to);
                 File.Move(PathOf(slot), to);
                 File.SetLastWriteTimeUtc(to, DateTime.UtcNow);   // the pruning keeps the newest deletions
-                var old = new DirectoryInfo(bin).GetFiles("slot_*.json");
-                Array.Sort(old, (a, b) => b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
-                for (int i = 20; i < old.Length; i++) old[i].Delete();
-                Debug.Log($"SaveGame: slot {slot} deleted (moved to {bin})");
+                PruneBin();
+                Debug.Log($"SaveGame: slot {slot} deleted (moved to {to})");
                 SaveFolder.AfterLocalChange();
                 return true;
             }
