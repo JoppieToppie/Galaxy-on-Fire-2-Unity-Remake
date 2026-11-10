@@ -3358,5 +3358,6 @@
  "musicSpecters2": "Música de combate: muitos Specters",
  "musicWanted": "Música de combate: criminoso Most Wanted",
  "musicTrackHelp": "Desligado: esta faixa não toca mais; a música calma da órbita continua.",
- "musicTrackSpecialHelp": "Desligado: esta faixa não toca mais; toca a música de combate habitual no lugar."
+ "musicTrackSpecialHelp": "Desligado: esta faixa não toca mais; toca a música de combate habitual no lugar.",
+ "hackCrateEjected": "Contêiner de carga ejetado. Use o raio trator para verificar o conteúdo."
 }

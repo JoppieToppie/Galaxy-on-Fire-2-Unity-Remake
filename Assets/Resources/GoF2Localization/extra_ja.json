@@ -3358,5 +3358,6 @@
  "musicSpecters2": "戦闘BGM：多数のSpecter",
  "musicWanted": "戦闘BGM：Most Wanted の犯罪者",
  "musicTrackHelp": "オフ：この曲は流れなくなり、軌道の穏やかな音楽が続きます。",
- "musicTrackSpecialHelp": "オフ：この曲は流れなくなり、代わりに通常の戦闘BGMが流れます。"
+ "musicTrackSpecialHelp": "オフ：この曲は流れなくなり、代わりに通常の戦闘BGMが流れます。",
+ "hackCrateEjected": "貨物コンテナが放出されました。トラクタービームで中身を確認してください。"
 }

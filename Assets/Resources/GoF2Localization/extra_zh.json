@@ -3358,5 +3358,6 @@
  "musicSpecters2": "战斗音乐：大量 Specter",
  "musicWanted": "战斗音乐：Most Wanted 罪犯",
  "musicTrackHelp": "关闭：不再播放此曲目，轨道的平静音乐继续播放。",
- "musicTrackSpecialHelp": "关闭：不再播放此曲目，改为播放常规战斗音乐。"
+ "musicTrackSpecialHelp": "关闭：不再播放此曲目，改为播放常规战斗音乐。",
+ "hackCrateEjected": "货物集装箱已弹出。使用牵引光束查看其内容。"
 }

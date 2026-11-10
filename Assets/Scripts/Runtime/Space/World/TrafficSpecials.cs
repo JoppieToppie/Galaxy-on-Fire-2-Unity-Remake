@@ -55,8 +55,12 @@ namespace GoF2Remake.World
                 // when it was learnt meanwhile (a blueprint is handed out once).
                 ship.DockingType = 0;
                 if (!Blueprints.IsUnlocked(ship.Spec.modBlueprint) && !Crate.HoldsAny(ship.Spec.modBlueprint))
+                {
                     Crate.Spawn(ship.transform.position + ship.transform.up * 300f * M, new[] { new ItemStack(ship.Spec.modBlueprint, 1) },
                             ship.Spec.race, Crate.LookJunk);
+                    // #242: it drifted off without a word; players didn't know to pull it in.
+                    GameHooks.FlightMessage?.Invoke(Localization.Extra("hackCrateEjected", "Cargo container ejected. Use the tractor beam to check its contents."));
+                }
                 return;
             }
             if (ship != null && ship.Spec.eventWreck) { ship.DockingType = 0; return; }   // an event's wreck: its "on hacked" does the rest

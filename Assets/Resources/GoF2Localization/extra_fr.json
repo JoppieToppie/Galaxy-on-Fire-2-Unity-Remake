@@ -3358,5 +3358,6 @@
  "musicSpecters2": "Musique de combat : nombreux Specters",
  "musicWanted": "Musique de combat : criminel Most Wanted",
  "musicTrackHelp": "Désactivé : ce morceau ne joue plus ; la musique calme de l'orbite continue.",
- "musicTrackSpecialHelp": "Désactivé : ce morceau ne joue plus ; la musique de combat habituelle le remplace."
+ "musicTrackSpecialHelp": "Désactivé : ce morceau ne joue plus ; la musique de combat habituelle le remplace.",
+ "hackCrateEjected": "Conteneur de fret éjecté. Utilise le rayon tracteur pour vérifier son contenu."
 }

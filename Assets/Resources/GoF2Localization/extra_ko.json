@@ -3358,5 +3358,6 @@
  "musicSpecters2": "전투 음악: 다수의 Specter",
  "musicWanted": "전투 음악: Most Wanted 범죄자",
  "musicTrackHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 궤도의 잔잔한 음악이 계속됩니다.",
- "musicTrackSpecialHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 대신 일반 전투 음악이 재생됩니다."
+ "musicTrackSpecialHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 대신 일반 전투 음악이 재생됩니다.",
+ "hackCrateEjected": "화물 컨테이너가 방출되었습니다. 트랙터 빔으로 내용물을 확인하세요."
 }
