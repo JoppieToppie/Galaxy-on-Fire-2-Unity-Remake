@@ -241,6 +241,11 @@ namespace GoF2Remake.EditorTools
             (Ipad3, "plasma_crosshair_idle", 315, 463, 214, 214, 0, false),  // 0x1f5e the collector's crosshair otherwise
         };
 
+        /// <summary>Modified: the round touch buttons whose thin clear ring showed light specks (the touch controls, the
+        /// autopilot / fast-forward / time extender buttons and their pill).</summary>
+        static bool Bled(string name) => name.StartsWith("touch_") || (name.StartsWith("autopilot") && !name.EndsWith("_title"))
+            || name.StartsWith("fastforward") || name.StartsWith("time_extender") || name == "button_pill";
+
         /// <summary>Modified: the atlas keeps bright colours (white, cyan) in nearly transparent pixels, e.g. in the thin clear
         /// ring of the touch stick, boost and camera buttons. The GPU filters colour and alpha apart, so where the buttons
         /// are drawn smaller or off the pixel grid those colours bled into the opaque neighbours as light specks at the
@@ -300,7 +305,7 @@ namespace GoF2Remake.EditorTools
                 {
                     string path = im.frames > 0 ? $"{OutDir}/{im.name}_{f:00}.png" : $"{OutDir}/{im.name}.png";
                     var px = src.GetPixels(im.x + f * fw, src.height - im.y - im.h, fw, im.h);   // rects are top-left based
-                    if (im.name.StartsWith("touch_")) BleedEdges(px, fw, im.h);
+                    if (Bled(im.name)) BleedEdges(px, fw, im.h);
                     var o = new Texture2D(fw, im.h, TextureFormat.RGBA32, false);
                     o.SetPixels(px);
                     o.Apply();
