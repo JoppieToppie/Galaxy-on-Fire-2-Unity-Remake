@@ -241,6 +241,44 @@ namespace GoF2Remake.EditorTools
             (Ipad3, "plasma_crosshair_idle", 315, 463, 214, 214, 0, false),  // 0x1f5e the collector's crosshair otherwise
         };
 
+        /// <summary>Modified: the atlas keeps bright colours (white, cyan) in nearly transparent pixels, e.g. in the thin clear
+        /// ring of the touch stick, boost and camera buttons. The GPU filters colour and alpha apart, so where the buttons
+        /// are drawn smaller or off the pixel grid those colours bled into the opaque neighbours as light specks at the
+        /// ring's top, bottom and sides. Pixels below 8 / 255 alpha become fully clear, and every pixel under half alpha
+        /// takes the colour of its opaque neighbours (the dilation done for 8 steps).</summary>
+        static void BleedEdges(Color[] px, int w, int h)
+        {
+            var known = new bool[px.Length];
+            for (int i = 0; i < px.Length; i++)
+            {
+                if (px[i].a < 8f / 255f) px[i].a = 0f;
+                known[i] = px[i].a >= 0.5f;
+            }
+            var next = new bool[px.Length];
+            for (int step = 0; step < 8; step++)
+            {
+                System.Array.Copy(known, next, known.Length);
+                for (int y = 0; y < h; y++)
+                    for (int x = 0; x < w; x++)
+                    {
+                        int i = y * w + x;
+                        if (known[i]) continue;
+                        float r = 0f, g = 0f, b = 0f; int n = 0;
+                        for (int dy = -1; dy <= 1; dy++)
+                            for (int dx = -1; dx <= 1; dx++)
+                            {
+                                int xx = x + dx, yy = y + dy;
+                                if (xx < 0 || yy < 0 || xx >= w || yy >= h || !known[yy * w + xx]) continue;
+                                var c = px[yy * w + xx]; r += c.r; g += c.g; b += c.b; n++;
+                            }
+                        if (n == 0) continue;
+                        px[i].r = r / n; px[i].g = g / n; px[i].b = b / n;
+                        next[i] = true;
+                    }
+                System.Array.Copy(next, known, known.Length);
+            }
+        }
+
         [MenuItem("GoF2/Build/HUD Images", priority = 220)]
         public static void Build()
         {
@@ -262,6 +300,7 @@ namespace GoF2Remake.EditorTools
                 {
                     string path = im.frames > 0 ? $"{OutDir}/{im.name}_{f:00}.png" : $"{OutDir}/{im.name}.png";
                     var px = src.GetPixels(im.x + f * fw, src.height - im.y - im.h, fw, im.h);   // rects are top-left based
+                    if (im.name.StartsWith("touch_")) BleedEdges(px, fw, im.h);
                     var o = new Texture2D(fw, im.h, TextureFormat.RGBA32, false);
                     o.SetPixels(px);
                     o.Apply();
