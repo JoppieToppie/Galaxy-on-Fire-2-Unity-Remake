@@ -178,18 +178,18 @@ against the FEV's LGCY data, see "Sound").
   user's comparison with the original's video: the Specters and the player alone at Luur, ringed with Novanium's magma
   asteroids, `OrbitLayout.ChallengeNovaniumOrbit`, kept apart from `NovaniumOrbit` = `Status::inSupernovaOrbit`, 0x6d
   only). The round opens with the arrival fly-in (`SpaceLevel`'s launch camera, close: 150 m ahead, over once the ship
-  passes it; fire or any key skips). The first wave flies to one point (`FirstWavePoint`, reached within 300 m) in about
-  5 s (`FirstLegMs`, a Move order at the run's speed), then attacks the player, easing from the run's speed to its own over
-  2 s (`UpdateSlowing`); `NpcShip.Revive` clears the order, so a Specter killed on its run comes back without it. Every
+  passes it; fire or any key skips). The Specters go straight for the player (until 2026-11-11 the first wave flew to a
+  point picked from the original's video first, `FirstWavePoint`; the iOS build has no such run). Every
   7500 ms each Specter whose explosion is over comes back 50 000-80 000 units from the player (`updateMissionOrbit`); the
-  player starts at (-30000, 5000, -100000) facing the Specters' point (remake pick); time up plays the Khador Drive's jump
+  player starts at (-30000, 5000, -80000) (iOS; Android -100 000) facing the Specters' point (remake pick); time up plays the Khador Drive's jump
   scene (`SystemJump.PlayKhadorScene`) before the results; `SpaceLevel` keeps it passive (no traffic or wingmen),
   refuses jumps and the
   gate; music 2242 (`Traffic.CalmClip`, then the Specter battle tracks); gamma 1/s x 0.4 with the Gamma Shield II. The round
   is 151 000 ms, the original's 2:31 (the Android code's Level+0x130 is 181 000, 3:01; changed 2026-11-11 after the
   user's check of the original; the HUD timer, `HudReadout`). The iOS build's other differences (2026-11-11, from the user's 64-bit bridge port of it):
   the player starts at z -80 000 (Android -100 000), the eight Specters at fixed points (`ChallengeOrbit.IosSpecterStarts`)
-  with 300 hull (Android 250) and cloaking off, and no lock ring or "??? NN%" plate in the round (`CombatView`, iOS
+  with 300 hull (Android 250), cloaking off and a 500 000 attack range, going straight for the player (the earlier
+  run of the first wave to a point picked from a video is gone), and no lock ring or "??? NN%" plate in the round (`CombatView`, iOS
   `Radar::drawCurrentLock`); its `assignGuns` ignores the challenge's damage 1, so the Specters' guns hurt. Not in the challenge: the autopilot menu, its touch button and hint
   (`Navigation.CanOpenMenu`, `NavigationView`, `FlightHud`), the pause menu's Missions / Cargo hold, saving (`SaveGame.Save` /
   `AutoSave`), the asteroid lock (`Mining.UpdateLock`: the Blue Fyre has no drill, "No drill installed." came up at every

@@ -18,14 +18,14 @@
 // Modified (#179, the user's comparison with the original's video): no platform, carrier or Rhinos (the original's round
 // shows none of them: the Specters and the player alone at Luur, ringed with Novanium's magma asteroids,
 // OrbitLayout.ChallengeNovaniumOrbit), and the round opens with the arrival fly-in (SpaceLevel's launch camera, close: 150 m
-// ahead, over once the ship passes it; fire or any key skips). The first wave flies fast (FirstLegMs) to one point
-// (FirstWavePoint), then attacks the player, easing down to its own speed (FirstWaveSlowMs); a Specter that comes back
-// (Revive) has no order left and goes for the player as before.
+// ahead, over once the ship passes it; fire or any key skips).
 // Modified (the iOS build's createMission 0xb7, ported by the user's 64-bit bridge work): the round is 151 000 ms; the
 // Specters start at eight fixed points (IosSpecterStarts) with 300 hull, can't cloak (setCloakingPossible(false)), have no
-// route and engage from anywhere (their attack range 500 000 instead of 50 000: here they go for the player anyway); the
-// player starts at z -80 000; Radar::drawCurrentLock draws nothing (no lock ring or "??? NN%" plate: CombatView); the
-// Specters' guns keep their damage (the iOS assignGuns ignores the challenge's damage 1).
+// route and engage from anywhere (their attack range 500 000 instead of 50 000, SpecterDetectUnits); the
+// player starts at z -80 000; the Specters go straight for the player from their starts (no run to a point first: the
+// remake's first wave used to fly fast to one point picked from the original's video, FirstWavePoint, before attacking);
+// Radar::drawCurrentLock draws nothing (no lock ring or "??? NN%" plate: CombatView); the Specters' guns keep their damage
+// (the iOS assignGuns ignores the challenge's damage 1).
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -39,16 +39,6 @@ namespace GoF2Remake.World
     {
         const float M = 0.05f;
         const float WaveMs = 7500f;        // Level+0x174's period (0x1d4c)
-        const float FirstLegMs = 5000f;    // Modified: the first wave's run to its point (the original's video: about 5 s)
-        // Modified (the user's pick in the Editor): the first wave's one point (Unity m) and how near counts as there (300 m).
-        static readonly Vector3 FirstWavePoint = new Vector3(-1975f, -379.65f, 91f);
-        const float FirstWaveReachMeters = 300f;
-        // Modified: after the point the first wave eases from its fast run down to its own speed over this long.
-        const float FirstWaveSlowMs = 2000f;
-        readonly Dictionary<NpcShip, (NpcOrder order, float from, float ms)> slowing = new Dictionary<NpcShip, (NpcOrder, float, float)>();
-        readonly List<NpcShip> slowingKeys = new List<NpcShip>(), slowingDone = new List<NpcShip>();   // UpdateSlowing's, reused
-        // The speed of each first-wave Specter's run to its point (UpdateFirstWave carries it into the attack).
-        readonly Dictionary<NpcShip, float> lastRunSpeed = new Dictionary<NpcShip, float>();
         const float EndDelayMs = 1500f;    // remake: the question after the time-out (the original's successCheck ran every ~5 s)
         const float DeathDelayMs = 7000f;  // the game over's "Tap to ..." moment (FlightHud)
         const float SoundVolume = 0.42658f;   // the SV_Mode events' volume (supernova_challenge.md 6.3)
@@ -65,12 +55,13 @@ namespace GoF2Remake.World
             new Vector3(-23002, -8641, -5828), new Vector3(-46488, 5601, -20346),
         };
         const int SpecterHull = 300;   // Modified: the iOS build's setMaxHitpoints(300) (Android's 250)
+        /// <summary>Modified: the iOS build's attack range for the round's Specters (PlayerFighter+0x180 = 500 000; 50 000 by
+        /// default): they go for the player from anywhere in the arena, also when they come back 50 000-80 000 away.</summary>
+        const float SpecterDetectUnits = 500000f;
 
         SpaceLevel level;
         Traffic traffic;
         readonly List<NpcShip> specters = new List<NpcShip>();
-        // Modified: the first wave flies on to the point it heads for at the start, then goes for the player (UpdateFirstWave).
-        readonly List<NpcShip> firstWave = new List<NpcShip>();
         AudioSource sfx;
         // Modified: the round's clock ran out: the Khador Drive's jump scene plays, its end asks the question (jumpedOut).
         bool jumping, jumpedOut;
@@ -99,22 +90,8 @@ namespace GoF2Remake.World
                                                           alwaysEnemy = true, hitpoints = SpecterHull, noLoot = true });
                 if (s == null) continue;
                 s.CloakingPossible = false;   // Modified: the iOS build's setCloakingPossible(false)
+                s.detectRange = SpecterDetectUnits;
                 specters.Add(s);
-                // Modified: the round's first Specters fly to one fixed point (FirstWavePoint; they used to aim at their own
-                // patrol route's first point and turn on the player before reaching it), done within 300 m, then attack
-                // (UpdateFirstWave). The later waves come back around the player and go for it as before.
-                // As in the original they cover the way in about FirstLegMs (fast: tens of km), facing it from the start, then
-                // fly at their own speed again.
-                {
-                    var point = FirstWavePoint;
-                    var way = point - s.transform.position;
-                    float units = way.magnitude / M;
-                    var go = new NpcOrder { kind = NpcOrder.Kind.Move, then = NpcOrder.Then.Resume, radius = FirstWaveReachMeters / M, speed = units / FirstLegMs };
-                    go.points.Add(point);
-                    if (way.sqrMagnitude > 1e-6f) s.transform.rotation = Quaternion.LookRotation(way, Vector3.up);
-                    s.SetOrder(go);
-                    firstWave.Add(s);
-                }
             }
             // Modified: the burning platform, the carrier and the four Rhinos aren't spawned: the original's round has none of
             // them (the user's comparison with its video).
@@ -151,8 +128,6 @@ namespace GoF2Remake.World
             if (dtMs <= 0f) return;
             SupernovaChallenge.Tick(dtMs);
             PlaySound(SupernovaChallenge.TakeSound());
-            UpdateFirstWave();
-            UpdateSlowing(dtMs);
             UpdateWaves(dtMs);
             if (SupernovaChallenge.TimeUp)
             {
@@ -160,47 +135,6 @@ namespace GoF2Remake.World
                 // Modified: the ship jumps out with the Khador Drive's scene; the results come at its end.
                 if (level.SystemJump != null) { jumping = true; level.SystemJump.PlayKhadorScene(() => jumpedOut = true); }
             }
-        }
-
-        /// <summary>Modified: a first-wave Specter that reached its point (its Move order over) attacks the player.</summary>
-        void UpdateFirstWave()
-        {
-            var player = level.Health != null ? level.Health.Target : null;
-            for (int i = firstWave.Count - 1; i >= 0; i--)
-            {
-                var s = firstWave[i];
-                if (s == null || s.Gone || s.Current != NpcShip.State.Fly) { firstWave.RemoveAt(i); if ((object)s != null) lastRunSpeed.Remove(s); continue; }
-                if (s.Order != null && s.Order.kind == NpcOrder.Kind.Move) { lastRunSpeed[s] = s.Order.speed; continue; }
-                firstWave.RemoveAt(i);
-                // Carrying the run's speed into the attack and easing it down to its own (UpdateSlowing).
-                float from = lastRunSpeed.TryGetValue(s, out var v) ? v : -1f;
-                lastRunSpeed.Remove(s);
-                if (player == null) continue;
-                var attack = new NpcOrder { kind = NpcOrder.Kind.Attack, target = player, speed = from };
-                s.SetOrder(attack);
-                if (from > s.OwnSpeed) slowing[s] = (attack, from, 0f);
-            }
-        }
-
-        /// <summary>Modified: a first-wave Specter past its point slows from its run's speed to its own over FirstWaveSlowMs
-        /// (smoothstep), so it reaches the player with some of that momentum; then its attack flies at its own speed.</summary>
-        void UpdateSlowing(float dtMs)
-        {
-            if (slowing.Count == 0) return;
-            var done = slowingDone;
-            done.Clear();
-            slowingKeys.Clear();
-            slowingKeys.AddRange(slowing.Keys);
-            foreach (var s in slowingKeys)
-            {
-                var (order, from, ms) = slowing[s];
-                if (s == null || s.Gone || s.Order != order) { done.Add(s); continue; }
-                ms += dtMs;
-                float t = Mathf.Clamp01(ms / FirstWaveSlowMs);
-                order.speed = t >= 1f ? -1f : Mathf.Lerp(from, s.OwnSpeed, Mathf.SmoothStep(0f, 1f, t));
-                if (t >= 1f) done.Add(s); else slowing[s] = (order, from, ms);
-            }
-            foreach (var s in done) slowing.Remove(s);
         }
 
         /// <summary>Level::updateMissionOrbit: every 7500 ms the Specters whose death is over come back around the player.</summary>
