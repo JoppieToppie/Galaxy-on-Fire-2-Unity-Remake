@@ -10,7 +10,8 @@
 //           The remake leaves [8-13] out (below).
 // Every 7500 ms each Specter whose explosion is over comes back at full hull 50 000-80 000 units from the player on x and z,
 // 10 000-20 000 above or below (updateMissionOrbit). The player starts at (-30000, 5000, -100000) (0xbf102). The round ends
-// after 181 000 ms; the original's success page then restarts it (MGame::OnTouchEnd). Remake: the end asks "Play again?" (300)
+// after SupernovaChallenge.RoundMs (151 000 ms, the original's 2:31; Android's code has 181 000); the original's success
+// page then restarts it (MGame::OnTouchEnd). Remake: the end asks "Play again?" (300)
 // with the score, the kills and the highscore (294 / 295 / 296; the original's dead ChoiceWindow 1.2 had that shape), also
 // after the player's death; the Specters fire their ordinary guns (assignGuns' damage 1 then the Specters' x0.7 made 0 in the
 // Android build: harmless). Remake pick: the player faces the Specters' spawn point (the original's heading wasn't traced).

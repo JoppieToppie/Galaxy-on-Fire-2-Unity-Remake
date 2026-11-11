@@ -186,7 +186,8 @@ against the FEV's LGCY data, see "Sound").
   scene (`SystemJump.PlayKhadorScene`) before the results; `SpaceLevel` keeps it passive (no traffic or wingmen),
   refuses jumps and the
   gate; music 2242 (`Traffic.CalmClip`, then the Specter battle tracks); gamma 1/s x 0.4 with the Gamma Shield II. The round
-  is 181 000 ms (the HUD timer, `HudReadout`). Not in the challenge: the autopilot menu, its touch button and hint
+  is 151 000 ms, the original's 2:31 (the Android code's Level+0x130 is 181 000, 3:01; changed 2026-11-11 after the
+  user's check of the original; the HUD timer, `HudReadout`). Not in the challenge: the autopilot menu, its touch button and hint
   (`Navigation.CanOpenMenu`, `NavigationView`, `FlightHud`), the pause menu's Missions / Cargo hold, saving (`SaveGame.Save` /
   `AutoSave`), the asteroid lock (`Mining.UpdateLock`: the Blue Fyre has no drill, "No drill installed." came up at every
   rock). Scoring (the iOS 1.1.19 build's `Level::enemyDied` / `MGame::OnUpdate`; the Android code has only
