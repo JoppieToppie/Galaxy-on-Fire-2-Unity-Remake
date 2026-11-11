@@ -21,6 +21,11 @@
 // ahead, over once the ship passes it; fire or any key skips). The first wave flies fast (FirstLegMs) to one point
 // (FirstWavePoint), then attacks the player, easing down to its own speed (FirstWaveSlowMs); a Specter that comes back
 // (Revive) has no order left and goes for the player as before.
+// Modified (the iOS build's createMission 0xb7, ported by the user's 64-bit bridge work): the round is 151 000 ms; the
+// Specters start at eight fixed points (IosSpecterStarts) with 300 hull, can't cloak (setCloakingPossible(false)), have no
+// route and engage from anywhere (their attack range 500 000 instead of 50 000: here they go for the player anyway); the
+// player starts at z -80 000; Radar::drawCurrentLock draws nothing (no lock ring or "??? NN%" plate: CombatView); the
+// Specters' guns keep their damage (the iOS assignGuns ignores the challenge's damage 1).
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -49,7 +54,17 @@ namespace GoF2Remake.World
         const float SoundVolume = 0.42658f;   // the SV_Mode events' volume (supernova_challenge.md 6.3)
 
         static readonly Vector3 SpecterPoint = new Vector3(-55000, 0, -35000);
-        static readonly Vector3 PlayerStart = new Vector3(-30000, 5000, -100000);
+        // Modified: the iOS build's player start (z -80 000; Android's code has -100 000).
+        static readonly Vector3 PlayerStart = new Vector3(-30000, 5000, -80000);
+        /// <summary>Modified: the iOS build's eight Specter starts (game units; Android's code throws them round SpecterPoint
+        /// +- 20 000).</summary>
+        static readonly Vector3[] IosSpecterStarts =
+        {
+            new Vector3(-44299, 1507, -27330), new Vector3(-26881, -19046, -8000), new Vector3(-46732, -5078, -10557),
+            new Vector3(-23820, 18543, -27063), new Vector3(-32703, -1456, -33452), new Vector3(-42863, 11801, -29354),
+            new Vector3(-23002, -8641, -5828), new Vector3(-46488, 5601, -20346),
+        };
+        const int SpecterHull = 300;   // Modified: the iOS build's setMaxHitpoints(300) (Android's 250)
 
         SpaceLevel level;
         Traffic traffic;
@@ -68,7 +83,6 @@ namespace GoF2Remake.World
 
         static Vector3 ToUnity(Vector3 game) => new Vector3(game.x, game.y, -game.z) * M;
         static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / M;
-        static Vector3 Jitter() => new Vector3(Random.Range(0, 40000) - 20000, Random.Range(0, 40000) - 20000, Random.Range(0, 40000) - 20000);
         static float Sign() => Random.Range(0, 2) == 0 ? 1f : -1f;
 
         public void Setup(SpaceLevel spaceLevel, Traffic npcTraffic)
@@ -81,9 +95,10 @@ namespace GoF2Remake.World
             sfx.spatialBlend = 0f;
             for (int i = 0; i < 8; i++)
             {
-                var s = traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Raider, race = Standing.Specter, ship = 44, position = SpecterPoint + Jitter(),
-                                                          alwaysEnemy = true, hitpoints = 250, noLoot = true });
+                var s = traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Raider, race = Standing.Specter, ship = 44, position = IosSpecterStarts[i],
+                                                          alwaysEnemy = true, hitpoints = SpecterHull, noLoot = true });
                 if (s == null) continue;
+                s.CloakingPossible = false;   // Modified: the iOS build's setCloakingPossible(false)
                 specters.Add(s);
                 // Modified: the round's first Specters fly to one fixed point (FirstWavePoint; they used to aim at their own
                 // patrol route's first point and turn on the player before reaching it), done within 300 m, then attack

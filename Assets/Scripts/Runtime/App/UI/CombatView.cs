@@ -298,13 +298,16 @@ namespace GoF2Remake.UI
                             DrawCloud(Get(clouds.ObjectOf(i)), clouds.PositionOf(i), radar.LockedCloud == i, radar.CloudOffScreen, cam, origin, centre);
 
                 // Lock ring and plate for ships / crates (after the navigation view, which owns them otherwise).
-                if (radar.LockFrame >= 0)
+                // Modified: the iOS build's Radar::drawCurrentLock draws nothing in the Supernova Challenge (no ring, no
+                // "??? NN%" plate on a Specter).
+                bool drawLock = !SupernovaChallenge.Active;
+                if (drawLock && radar.LockFrame >= 0)
                 {
                     lockRing.EnableInClassList("lock-ring--shown", true);
                     Image(lockRing, lockFrames[Mathf.Clamp(radar.LockFrame, 0, 23)]);
                 }
                 var locked = radar.Locked;
-                if (plateFree && locked != null)
+                if (drawLock && plateFree && locked != null)
                 {
                     lockPlate.EnableInClassList("lock-plate--shown", true);
                     // Radar::drawCurrentLock 0x158548: "<name or race> NN%"; the Hijacker / the Informer their name alone; they and
@@ -327,7 +330,7 @@ namespace GoF2Remake.UI
                     lockClass.style.display = plateIcon != null ? DisplayStyle.Flex : DisplayStyle.None;
                     Image(lockClass, plateIcon);
                 }
-                else if (plateFree && radar.LockedCloud >= 0)
+                else if (drawLock && plateFree && radar.LockedCloud >= 0)
                 {
                     // Radar::drawCurrentLock: a locked gas cloud's plate reads 3236 "Gas cloud", no icon.
                     lockPlate.EnableInClassList("lock-plate--shown", true);

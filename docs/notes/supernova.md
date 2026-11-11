@@ -187,7 +187,10 @@ against the FEV's LGCY data, see "Sound").
   refuses jumps and the
   gate; music 2242 (`Traffic.CalmClip`, then the Specter battle tracks); gamma 1/s x 0.4 with the Gamma Shield II. The round
   is 151 000 ms, the original's 2:31 (the Android code's Level+0x130 is 181 000, 3:01; changed 2026-11-11 after the
-  user's check of the original; the HUD timer, `HudReadout`). Not in the challenge: the autopilot menu, its touch button and hint
+  user's check of the original; the HUD timer, `HudReadout`). The iOS build's other differences (2026-11-11, from the user's 64-bit bridge port of it):
+  the player starts at z -80 000 (Android -100 000), the eight Specters at fixed points (`ChallengeOrbit.IosSpecterStarts`)
+  with 300 hull (Android 250) and cloaking off, and no lock ring or "??? NN%" plate in the round (`CombatView`, iOS
+  `Radar::drawCurrentLock`); its `assignGuns` ignores the challenge's damage 1, so the Specters' guns hurt. Not in the challenge: the autopilot menu, its touch button and hint
   (`Navigation.CanOpenMenu`, `NavigationView`, `FlightHud`), the pause menu's Missions / Cargo hold, saving (`SaveGame.Save` /
   `AutoSave`), the asteroid lock (`Mining.UpdateLock`: the Blue Fyre has no drill, "No drill installed." came up at every
   rock). Scoring (the iOS 1.1.19 build's `Level::enemyDied` / `MGame::OnUpdate`; the Android code has only
