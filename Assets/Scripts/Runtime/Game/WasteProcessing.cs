@@ -106,15 +106,17 @@ namespace GoF2Remake.Data
         /// <summary>Goods a sorted heap might still hold: the original's commodities, ores and cores that shops stock
         /// (occurrence > 0, a price), worth Scrap's band or more; not the waste itself. Contraband-sounding goods are in
         /// (drugs, explosives, radioactive goods, organs): the game has no rule against carrying anything. Once the plasma
-        /// kit's step is over (campaign > 142, PlasmaFound) the four plasmas too (otherwise only from gas clouds), Red
-        /// Plasma volatile in the hold (VolatileCargo: the ship can blow up). Never the K'mirkk Toad Mutagen, the other
-        /// volatile good: a story item (bought at 117, handed over at 122) worth 512,500$ in the Android tables.</summary>
+        /// kit's step is over (campaign > 142, PlasmaFound) the green, blue and purple plasmas too (otherwise only from gas
+        /// clouds). Never Red Plasma (taken out, 2026-11-11: volatile in the hold, VolatileCargo, the ship can blow up) nor
+        /// the K'mirkk Toad Mutagen, the other volatile good: a story item (bought at 117, handed over at 122) worth
+        /// 512,500$ in the Android tables.</summary>
         static bool Goods(Database db, ItemData it) =>
             it != null && !it.modded && it.index != Waste && it.minPrice > 0 && Value(db, it.index) >= ScrapFrom
             && (it.categoryId >= 22 && it.categoryId <= 24 && it.occurrence > 0
-                || PlasmaFound && it.index >= FirstPlasma && it.index <= RedPlasma);
+                || PlasmaFound && it.index >= FirstPlasma && it.index <= LastPlasma);
 
-        public const int FirstPlasma = 201, RedPlasma = 204;
+        /// <summary>The plasmas a heap can hold (201 green .. 203 purple); Red Plasma (204) never.</summary>
+        public const int FirstPlasma = 201, LastPlasma = 203, RedPlasma = 204;
         /// <summary>The plasmas can turn up: the story is past the plasma kit (142's tutorial counts any plasma aboard).</summary>
         public static bool PlasmaFound => !Session.FreePlay && Session.CampaignMission > 142;
 

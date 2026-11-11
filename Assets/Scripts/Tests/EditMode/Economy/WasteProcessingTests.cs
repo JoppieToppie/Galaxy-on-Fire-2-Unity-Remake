@@ -4,7 +4,7 @@
 // economies a ton returns about 93 % of what it costs in the long run, bad-luck caps included (never a profit: the waste is
 // bought for 5-6$); never more than DryCap empty tons in a row and a rare find at the latest every RarePity tons; the finds
 // are real, priced items of the original tables, each in the tier of its price band, no blueprint gear, gear up to tech
-// level 5, the plasmas only after the plasma kit's step and never the Toad Mutagen; the rolls follow the game's RunId and
+// level 5, the plasmas only after the plasma kit's step, never Red Plasma nor the Toad Mutagen; the rolls follow the game's RunId and
 // the saved counters, so a reloaded save finds the same; the menu and the answer show the fees beside what is found.
 
 using System.Collections.Generic;
@@ -119,19 +119,25 @@ namespace GoF2Remake.Tests
         [Test]
         public void ThePlasmasTurnUpOnlyAfterThePlasmaKit()
         {
-            // 142's tutorial counts any plasma aboard; afterwards the four plasmas join the pools, Red Plasma volatile.
+            // 142's tutorial counts any plasma aboard; afterwards the green, blue and purple plasmas join the pools. Red
+            // Plasma (volatile) never, in either economy.
             List<int> All()
             {
                 var all = new List<int>();
                 for (var t = Tier.Scrap; t <= Tier.Exceptional; t++) all.AddRange(WasteProcessing.Finds(Db, t));
                 return all;
             }
-            CollectionAssert.DoesNotContain(All(), WasteProcessing.RedPlasma, "step 30");
+            CollectionAssert.DoesNotContain(All(), 201, "step 30");
             Session.CampaignMission = 142;
-            CollectionAssert.DoesNotContain(All(), WasteProcessing.RedPlasma, "during the plasma kit");
+            CollectionAssert.DoesNotContain(All(), 201, "during the plasma kit");
             Session.CampaignMission = 143;
-            for (int plasma = 201; plasma <= 204; plasma++) CollectionAssert.Contains(All(), plasma, "after the plasma kit");
-            CollectionAssert.DoesNotContain(All(), 209, "never the Toad Mutagen");
+            foreach (var economy in Economies)
+            {
+                Session.Economy = economy;
+                for (int plasma = 201; plasma <= 203; plasma++) CollectionAssert.Contains(All(), plasma, $"{economy}: after the plasma kit");
+                CollectionAssert.DoesNotContain(All(), WasteProcessing.RedPlasma, $"{economy}: never Red Plasma");
+                CollectionAssert.DoesNotContain(All(), 209, $"{economy}: never the Toad Mutagen");
+            }
         }
 
         [Test]
