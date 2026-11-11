@@ -242,9 +242,10 @@ namespace GoF2Remake.EditorTools
         };
 
         /// <summary>Modified: the round touch buttons whose thin clear ring showed light specks (the touch controls, the
-        /// autopilot / fast-forward / time extender buttons and their pill).</summary>
+        /// autopilot / fast-forward / time extender buttons and their pill, the status icons, plate and bars).</summary>
         static bool Bled(string name) => name.StartsWith("touch_") || (name.StartsWith("autopilot") && !name.EndsWith("_title"))
-            || name.StartsWith("fastforward") || name.StartsWith("time_extender") || name == "button_pill";
+            || name.StartsWith("fastforward") || name.StartsWith("time_extender") || name == "button_pill"
+            || name.StartsWith("status_");
 
         /// <summary>Modified: the atlas keeps bright colours (white, cyan) in nearly transparent pixels, e.g. in the thin clear
         /// ring of the touch stick, boost and camera buttons. The GPU filters colour and alpha apart, so where the buttons

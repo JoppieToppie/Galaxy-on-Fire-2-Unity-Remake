@@ -213,9 +213,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   squared per axis (`Hud::getAnalog`²); dimmed stick (alpha 50).
 - **Touch controls** (`TouchControls`, `Reference/research/touch_hud.md`): the original's flight controls as UI Toolkit
   elements with the original images (`GoF2Hud/touch_*`, **GoF2 > Build > HUD Images**; since 2026-11-10 the builder clears
-  their alpha < 8 pixels, and the autopilot / fast-forward / time extender buttons' and their pill's, and bleeds the
-  opaque colours under them, `HudImageBuilder.BleedEdges`: the atlas's white / cyan in nearly clear pixels showed as light
-  specks on the buttons' thin clear ring) and their own pointer events,
+  their alpha < 8 pixels, and the autopilot / fast-forward / time extender buttons', their pill's and the `status_*`
+  icons', plate's and bars', and bleeds the opaque colours under them, `HudImageBuilder.BleedEdges`: the atlas's white /
+  cyan in nearly clear pixels showed as light specks on the buttons' thin clear ring) and their own pointer events,
   placed like `Globals::setCoordsSteer` / `setCoordsFire` with the Android defaults S = 415 / F = 365 in the safe area
   (panel units = HD pixels): the left group (fast-forward / time extender and autopilot on their pill from
   `NavigationView`, the pill only behind a shown icon, the autopilot hidden at campaign 0 / 1; the fixed stick 0x4c1 /
