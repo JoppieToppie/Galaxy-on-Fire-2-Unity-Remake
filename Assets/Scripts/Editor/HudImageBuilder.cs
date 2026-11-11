@@ -250,15 +250,15 @@ namespace GoF2Remake.EditorTools
         /// <summary>Modified: the atlas keeps bright colours (white, cyan) in nearly transparent pixels, e.g. in the thin clear
         /// ring of the touch stick, boost and camera buttons. The GPU filters colour and alpha apart, so where the buttons
         /// are drawn smaller or off the pixel grid those colours bled into the opaque neighbours as light specks at the
-        /// ring's top, bottom and sides. Pixels below 8 / 255 alpha become fully clear, and every pixel under half alpha
-        /// takes the colour of its opaque neighbours (the dilation done for 8 steps).</summary>
+        /// ring's top, bottom and sides. Pixels below 8 / 255 alpha become fully clear and take the colour of their visible
+        /// neighbours (the dilation done for 8 steps); the visible pixels keep theirs.</summary>
         static void BleedEdges(Color[] px, int w, int h)
         {
             var known = new bool[px.Length];
             for (int i = 0; i < px.Length; i++)
             {
                 if (px[i].a < 8f / 255f) px[i].a = 0f;
-                known[i] = px[i].a >= 0.5f;
+                known[i] = px[i].a > 0f;
             }
             var next = new bool[px.Length];
             for (int step = 0; step < 8; step++)
