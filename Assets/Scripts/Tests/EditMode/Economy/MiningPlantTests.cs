@@ -28,7 +28,7 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void OfferedOnlyAtCoromeskWithoutACampaignMission()
+        public void OfferedOnlyAtCoromeskWithoutACampaignMissionThere()
         {
             Session.StoryMission = new StoryMission();
             Assert.IsTrue(MiningPlant.Offered(103, false));
@@ -36,6 +36,9 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(MiningPlant.Offered(102, false));
             Session.StoryMission = new StoryMission { type = StoryType.AmountReached, station = 103, goodsItem = 155, goodsAmount = 30 };
             Assert.IsFalse(MiningPlant.Offered(103, false), "135's titanium goes in through the drop-off");
+            // Modified: a campaign mission elsewhere no longer closes it (the original's whole Supernova campaign).
+            Session.StoryMission = new StoryMission { type = StoryType.AmountReached, station = 111, goodsItem = 155, goodsAmount = 30 };
+            Assert.IsTrue(MiningPlant.Offered(103, false), "a mission at another station");
         }
 
         [Test]

@@ -29,11 +29,13 @@ namespace GoF2Remake.Data
             ore >= FirstOre && ore <= LastOre ? ore + CoreOffset : ore == NovaniumOre ? NovaniumCore : -1;
 
         /// <summary>PlayerEgo::isDockedToMiningPlant without the docking state: at Coromesk, not in the alien orbit, no
-        /// campaign mission (the titanium of step 135 goes in through the ordinary drop-off).</summary>
+        /// campaign mission there (the titanium of step 135 goes in through the ordinary drop-off). Modified (players'
+        /// report: "I cannot get any core"): the original also refuses it while any campaign mission runs, which is most of
+        /// the Supernova campaign (only 107, 128-130 and the end from 162 had it); now only a mission at Coromesk does.</summary>
         public static bool Offered(int station, bool alienOrbit)
         {
             var m = Story.Mission;
-            return station == Station && !alienOrbit && (m == null || m.IsEmpty);
+            return station == Station && !alienOrbit && (m == null || m.IsEmpty || m.station != Station);
         }
 
         /// <summary>Yes: converts the hold; the cores made (core item -> tons), in the original's order.</summary>

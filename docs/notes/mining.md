@@ -97,7 +97,8 @@ logic (plain C#); `MiningView` draws the lock ring, ore plate, HUD messages and 
   layer time the same (`Mining`). The ES2 importer gives its crystals 200 (ES2's 10 s against 5 s). Test
   `MiningGameTests.AnOresMiningTimeStretchesTheLayersForTheSameOre`.
 - **Ore into cores at the Mido Mining Plant** (`MiningPlant`, 2026-11-01; players' report: the remake never had it): docked
-  at the Coromesk plant (103) with an empty campaign mission (steps 107, 128-130 and from 162 on), not in the alien orbit
+  at the Coromesk plant (103) with an empty campaign mission (steps 107, 128-130 and from 162 on; remake since
+  2026-11-10, players' report: with any campaign mission not at Coromesk), not in the alien orbit
   (`PlayerEgo::isDockedToMiningPlant` 0xadcb8), the docking asks 290 ("#" = 30, Extreme 100) with every ore in the hold
   (286 without; `MGame::OnUpdate` 0x1ac778, `Traffic.Ask` from `SpaceLevel`'s `Docking.Docked`). Yes
   (`MGame::OnTouchEnd` 0x1a98d8): ores 154-164 -> core = ore + 11 (Void crystals -> Void essence), Novanium 217 -> 218,
