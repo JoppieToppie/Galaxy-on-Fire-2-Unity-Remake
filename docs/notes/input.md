@@ -107,18 +107,26 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 - **Input modes:** `InputMode` tracks the last input kind (Touch / KeyboardMouse / Gamepad, switching on the first real
   input of another kind, on any platform). The flight HUD (`UI/Flight`, `FlightHud`) shows the touch controls (see
   **Touch controls** below) only for touch, keycap hints for keyboard and controller button hints for a controller, in
-  the **Xbox** or the **PlayStation** style (`InputMode.Style`, remake; Options > Controls "Controller button icons",
-  `Settings.PadGlyphs` Auto / Xbox / PlayStation, Auto by default: the controller last used picks it,
+  the **Xbox**, the **PlayStation** or the **Switch** style (`InputMode.Style`, remake; Options > Controls "Controller button
+  icons", `Settings.PadGlyphs` Auto / Xbox / PlayStation / Switch, Auto by default: the controller last used picks it,
   `InputMode.StyleOf`: the Input System's DualShock / DualSense layouts (`DualShockGamepad` and every layout based on
   it, any platform) or a pad reporting Sony as its maker (or DualSense / DualShock / PlayStation in its product name) =
-  PlayStation, anything else (XInput, Switch Pro, VR's `VrPad`) = Xbox; switched live, `InputMode.StyleChanged`, which
+  PlayStation, a Nintendo pad (`InputMode.IsNintendo`: the `SwitchProControllerHID` layout, Nintendo as its maker, a Pro
+  Controller / Joy-Con product) = Switch (#162), anything else (XInput, VR's `VrPad`) = Xbox; switched live, `InputMode.StyleChanged`, which
   `GameControls.Changed` passes on). Every controller glyph is a `PadGlyph` (`InputGlyph.Pad` / `For`), which redraws
   itself when the style changes, so the glyphs built once (dialogue buttons, Launch, the hangar's LT / RT, the mod
   browser's X) follow too; Xbox unchanged (coloured A / B / X / Y, LB / RB, LT / RT, LS / RS, VIEW / MENU), PlayStation
   dark face buttons with their symbols drawn by Painter2D (cross blue, circle red, square pink, triangle green: the UI
   font has no ✕), L1 / R1, L2 / R2, L / R sticks, L3 / R3 presses, OPTIONS, CREATE (SHARE on a DualShock 4,
   `InputMode.DualShock4`), TOUCHPAD. The text names (`GameControls.ShortName(path, style)`: binding cells, the `#KEY_*`
-  tokens) use × ○ □ △ (Inter has them). Touch steering goes through `ShipController.SetSteer` (the stronger of touch and
+  tokens) use × ○ □ △ (Inter has them). Switch (#162): dark round face buttons with Nintendo's letters where they sit
+  (`GameControls.SwitchName`: south B, east A, west Y, north X), L / R, ZL / ZR, LS / RS (L / R are its shoulders),
+  − / +. **Nintendo button layout** (Controls, `Settings.NintendoLayout`, on by default): a Nintendo pad's A (right)
+  confirms and B (bottom) goes back, as on a Switch: `InputMode.SwapFaceButtons` exchanges its buttonSouth / buttonEast
+  in each event from `InputSystem.onEvent`, which runs after the device's own pre-processing (the Switch Pro's HID
+  report is its own state by then) and before the state is written, so every binding and direct read follows; the
+  labels follow `InputMode.NintendoSwap` (buttonSouth shows A). Off: by position, the Input System's own mapping.
+  Checked in Play mode with a virtual Switch Pro: its A pressed reads as buttonSouth, the hints switch to Switch. Touch steering goes through `ShipController.SetSteer` (the stronger of touch and
   the built-in actions wins); touch mode also switches the chase camera to the original's fixed touch damping. Esc /
   Android back / controller Menu / the touch pause button open the **pause menu** (`PauseMenu`, MenuTouchWindow mode 1:
   40 Pause; Resume 41, Missions 129 (remake: also in the alien orbit, where the original hides it, and with the Most

@@ -1459,7 +1459,7 @@
  "saveTransferFolder": "Os jogos salvos exportados vão para esta pasta e são importados dela:",
  "padGlyphs": "Ícones dos botões do controle",
  "padGlyphsAuto": "Automático",
- "padGlyphsHelp": "Auto: botões de PlayStation para DualSense ou DualShock, Xbox para os outros.",
+ "padGlyphsHelp": "Auto: botões de PlayStation para DualSense ou DualShock, de Switch para um controle Nintendo, de Xbox para os outros.",
  "importOriginalSave": "Importar save original",
  "exportOriginalSaves": "Exportar para o jogo original",
  "originalImportFailed": "Não foi possível importar o save:",
@@ -3387,5 +3387,7 @@
  "medalSound": "Som das medalhas",
  "medalSoundChime": "Sininho",
  "medalSoundOriginal": "Original",
- "medalSoundHelp": "Quando você conquista uma medalha. Sininho: o som próprio do remake. Original: o som de informação do jogo original."
+ "medalSoundHelp": "Quando você conquista uma medalha. Sininho: o som próprio do remake. Original: o som de informação do jogo original.",
+ "nintendoLayout": "Layout de botões da Nintendo",
+ "nintendoLayoutHelp": "Em um controle Nintendo, A (direita) confirma e B (embaixo) volta, como no Switch. Desligado: pela posição, como nos controles de Xbox e PlayStation."
 }

@@ -1446,7 +1446,7 @@
  "saveTransferFolder": "エクスポートしたセーブはこのフォルダに保存され、ここからインポートされます：",
  "padGlyphs": "コントローラーのボタン表示",
  "padGlyphsAuto": "自動",
- "padGlyphsHelp": "自動：DualSense / DualShockはPlayStation表記、それ以外はXbox表記。",
+ "padGlyphsHelp": "自動：DualSense / DualShockはPlayStation表記、NintendoのコントローラーはSwitch表記、それ以外はXbox表記。",
  "importOriginalSave": "オリジナルのセーブをインポート",
  "exportOriginalSaves": "オリジナル版用にエクスポート",
  "originalImportFailed": "セーブをインポートできませんでした：",
@@ -3387,5 +3387,7 @@
  "medalSound": "メダルの音",
  "medalSoundChime": "チャイム",
  "medalSoundOriginal": "オリジナル",
- "medalSoundHelp": "メダル獲得時の音。チャイム：リメイク独自の音。オリジナル：オリジナル版の情報音。"
+ "medalSoundHelp": "メダル獲得時の音。チャイム：リメイク独自の音。オリジナル：オリジナル版の情報音。",
+ "nintendoLayout": "Nintendoのボタン配置",
+ "nintendoLayoutHelp": "Nintendoのコントローラーでは、Switchと同じくA（右）で決定、B（下）で戻ります。オフ：XboxやPlayStationのコントローラーと同じく位置で割り当て。"
 }

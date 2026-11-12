@@ -422,6 +422,7 @@ namespace GoF2Remake.Flight
             string pad = PadControl(p);
             if (pad != null)
             {
+                if (style == PadStyle.Switch && SwitchName(pad) is string sw) return sw;
                 bool ps = style == PadStyle.PlayStation;
                 return pad switch
                 {
@@ -470,6 +471,21 @@ namespace GoF2Remake.Flight
 
         // A stick pushed one way: "LS ↑" (Xbox) / "L ↑" (PlayStation, whose sticks are L / R).
         static string Stick(bool ps, string side, string arrow) => (ps ? side : side + "S") + " " + arrow;
+
+        /// <summary>A Nintendo pad's name for a control the Switch style names its own way (#162); null: as Xbox names it
+        /// (the sticks LS / RS, since L / R are its shoulder buttons; the D-pad). Its letters sit where Nintendo puts them:
+        /// south B, east A, west Y, north X; with A / B swapped (InputMode.NintendoSwap) buttonSouth is the pad's A.</summary>
+        public static string SwitchName(string control)
+        {
+            bool swap = InputMode.NintendoSwap;
+            return control switch
+            {
+                "buttonsouth" => swap ? "A" : "B", "buttoneast" => swap ? "B" : "A", "buttonwest" => "Y", "buttonnorth" => "X",
+                "leftshoulder" => "L", "rightshoulder" => "R", "lefttrigger" => "ZL", "righttrigger" => "ZR",
+                "start" => "+", "select" => "−",
+                _ => null,
+            };
+        }
 
         /// <summary>A controller path's control ("buttonsouth", "leftstick/up"), lower case; null for any other device. The
         /// bindings name &lt;Gamepad&gt;, a capture of a pad-only control (a DualSense's touchpad) its own layout.</summary>

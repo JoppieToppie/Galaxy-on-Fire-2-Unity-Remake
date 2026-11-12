@@ -1454,7 +1454,7 @@
  "saveTransferFolder": "Wyeksportowane zapisy trafiają do tego folderu i są z niego importowane:",
  "padGlyphs": "Ikony przycisków kontrolera",
  "padGlyphsAuto": "Automatycznie",
- "padGlyphsHelp": "Auto: przyciski PlayStation dla DualSense lub DualShock, Xbox dla pozostałych.",
+ "padGlyphsHelp": "Auto: przyciski PlayStation dla DualSense lub DualShock, Switch dla kontrolera Nintendo, Xbox dla pozostałych.",
  "importOriginalSave": "Importuj zapis z oryginału",
  "exportOriginalSaves": "Eksportuj do oryginalnej gry",
  "originalImportFailed": "Nie udało się zaimportować zapisu:",
@@ -3387,5 +3387,7 @@
  "medalSound": "Dźwięk medalu",
  "medalSoundChime": "Dzwonek",
  "medalSoundOriginal": "Oryginalny",
- "medalSoundHelp": "Gdy zdobędziesz medal. Dzwonek: własny dźwięk remake'u. Oryginalny: dźwięk informacji z oryginalnej gry."
+ "medalSoundHelp": "Gdy zdobędziesz medal. Dzwonek: własny dźwięk remake'u. Oryginalny: dźwięk informacji z oryginalnej gry.",
+ "nintendoLayout": "Układ przycisków Nintendo",
+ "nintendoLayoutHelp": "Na kontrolerze Nintendo A (po prawej) zatwierdza, a B (na dole) cofa, jak na Switchu. Wył.: według położenia, jak na kontrolerach Xbox i PlayStation."
 }

@@ -423,9 +423,14 @@ namespace GoF2Remake.UI
                 () => Settings.StickDeadzone, v => Settings.StickDeadzone = v, Percent));
             // Remake: the controller hints' button icons (InputMode.Style, PadGlyph): the controller in use, or always one style.
             list.Add(Choice("padGlyphs", OptionPage.Controls, () => X("padGlyphs", "Controller button icons"), true,
-                () => new[] { X("padGlyphsAuto", "Auto"), "Xbox", "PlayStation" },
+                () => new[] { X("padGlyphsAuto", "Auto"), "Xbox", "PlayStation", "Switch" },
                 () => Settings.PadGlyphs, i => Settings.PadGlyphs = i,
-                () => X("padGlyphsHelp", "Auto: PlayStation buttons for a DualSense or DualShock, Xbox buttons for others.")));
+                () => X("padGlyphsHelp", "Auto: PlayStation buttons for a DualSense or DualShock, Switch buttons for a Nintendo controller, Xbox buttons for others.")));
+            // Remake (#162, a player's request): a Nintendo controller confirms with A (right) and goes back with B (bottom), as
+            // on a Switch (InputMode.SwapFaceButtons); off, by position like other pads.
+            list.Add(Described(Toggle("nintendoLayout", OptionPage.Controls, () => X("nintendoLayout", "Nintendo button layout"),
+                () => Settings.NintendoLayout, v => Settings.NintendoLayout = v),
+                () => X("nintendoLayoutHelp", "On a Nintendo controller, A (right) confirms and B (bottom) goes back, as on a Switch. Off: by position, as on Xbox and PlayStation controllers.")));
             // Remake: every flight control rebindable (GameControls): two keyboard / mouse keys and a controller button each.
             list.Add(new OptionDef
             {

@@ -1454,7 +1454,7 @@
  "kaamoModMaxed": "Je ne peux pas aller plus loin : ton #SHIP_NAME a déjà cette amélioration au niveau {0}.",
  "padGlyphs": "Icônes des boutons de la manette",
  "padGlyphsAuto": "Auto",
- "padGlyphsHelp": "Auto : boutons PlayStation pour une DualSense ou DualShock, Xbox pour les autres.",
+ "padGlyphsHelp": "Auto : boutons PlayStation pour une DualSense ou DualShock, Switch pour une manette Nintendo, Xbox pour les autres.",
  "importOriginalSave": "Importer une sauvegarde originale",
  "exportOriginalSaves": "Exporter pour le jeu original",
  "originalImportFailed": "La sauvegarde n'a pas pu être importée :",
@@ -3387,5 +3387,7 @@
  "medalSound": "Son des médailles",
  "medalSoundChime": "Carillon",
  "medalSoundOriginal": "Original",
- "medalSoundHelp": "Quand tu obtiens une médaille. Carillon : le son propre au remake. Original : le son d'information du jeu original."
+ "medalSoundHelp": "Quand tu obtiens une médaille. Carillon : le son propre au remake. Original : le son d'information du jeu original.",
+ "nintendoLayout": "Disposition des boutons Nintendo",
+ "nintendoLayoutHelp": "Sur une manette Nintendo, A (à droite) valide et B (en bas) revient, comme sur Switch. Désactivé : selon la position, comme sur les manettes Xbox et PlayStation."
 }

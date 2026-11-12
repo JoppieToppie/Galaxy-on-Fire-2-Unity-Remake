@@ -1454,7 +1454,7 @@
  "saveTransferFolder": "I salvataggi esportati finiscono in questa cartella e vengono importati da qui:",
  "padGlyphs": "Icone dei pulsanti del controller",
  "padGlyphsAuto": "Automatico",
- "padGlyphsHelp": "Auto: tasti PlayStation per DualSense o DualShock, tasti Xbox per gli altri.",
+ "padGlyphsHelp": "Auto: tasti PlayStation per DualSense o DualShock, tasti Switch per un controller Nintendo, tasti Xbox per gli altri.",
  "importOriginalSave": "Importa salvataggio originale",
  "exportOriginalSaves": "Esporta per il gioco originale",
  "originalImportFailed": "Impossibile importare il salvataggio:",
@@ -3387,5 +3387,7 @@
  "medalSound": "Suono delle medaglie",
  "medalSoundChime": "Rintocco",
  "medalSoundOriginal": "Originale",
- "medalSoundHelp": "Quando ottieni una medaglia. Rintocco: il suono proprio del remake. Originale: il suono informativo del gioco originale."
+ "medalSoundHelp": "Quando ottieni una medaglia. Rintocco: il suono proprio del remake. Originale: il suono informativo del gioco originale.",
+ "nintendoLayout": "Disposizione dei tasti Nintendo",
+ "nintendoLayoutHelp": "Su un controller Nintendo, A (a destra) conferma e B (in basso) torna indietro, come su Switch. Disattivato: in base alla posizione, come sui controller Xbox e PlayStation."
 }

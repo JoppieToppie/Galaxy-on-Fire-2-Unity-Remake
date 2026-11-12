@@ -760,6 +760,13 @@
     border-color: rgba(216, 236, 247, 0.55);
 }
 
+.mods-pad-x.pad-face--switch {
+    background-color: rgb(16, 21, 28);
+    border-width: 2px;
+    border-color: rgba(216, 236, 247, 0.55);
+    color: #E3ECF3;
+}
+
 .input-gamepad .mods-pad-x {
     display: flex;
 }

@@ -3,8 +3,9 @@
 // first real input of another kind (a touch, a key press, a mouse move or click, a button or a stick pushed past a
 // dead zone), on phones and PCs alike, so UI can show touch controls, keyboard hints or controller hints.
 // Starts as Touch on mobile, Gamepad if one is connected on other platforms, else KeyboardMouse.
-// Remake: the controller hints' button style (PadStyle): the controller last used picks it (a Sony pad = PlayStation, any
-// other = Xbox), unless Options > Controls "Controller button icons" (Settings.PadGlyphs) forces one.
+// Remake: the controller hints' button style (PadStyle): the controller last used picks it (a Sony pad = PlayStation, a
+// Nintendo one = Switch, any other = Xbox), unless Options > Controls "Controller button icons" (Settings.PadGlyphs)
+// forces one. A Nintendo pad's A / B swapped in its events (Settings.NintendoLayout, #162): A confirms, as on a Switch.
 
 using System;
 using UnityEngine;
@@ -16,9 +17,10 @@ namespace GoF2Remake.UI
 {
     public enum InputKind { Touch, KeyboardMouse, Gamepad }
 
-    /// <summary>How the controller hints label the buttons: Xbox (A / B / X / Y, LB / RB, LT / RT, View / Menu) or
-    /// PlayStation (cross / circle / square / triangle, L1 / R1, L2 / R2, Create or Share / Options).</summary>
-    public enum PadStyle { Xbox, PlayStation }
+    /// <summary>How the controller hints label the buttons: Xbox (A / B / X / Y, LB / RB, LT / RT, View / Menu),
+    /// PlayStation (cross / circle / square / triangle, L1 / R1, L2 / R2, Create or Share / Options) or Switch (Nintendo's
+    /// letters where its buttons sit, L / R, ZL / ZR, − / +; #162).</summary>
+    public enum PadStyle { Xbox, PlayStation, Switch }
 
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class InputMode
@@ -35,7 +37,7 @@ namespace GoF2Remake.UI
         /// <summary>Raised on the main thread when Current changes.</summary>
         public static event Action Changed;
 
-        /// <summary>The style of the controller last used (Xbox until a Sony one is used).</summary>
+        /// <summary>The style of the controller last used (Xbox until a Sony or Nintendo one is used).</summary>
         public static PadStyle DetectedStyle { get; private set; }
 
         /// <summary>The controller last used is a DualShock 4: its Create button is called Share.</summary>
@@ -46,16 +48,25 @@ namespace GoF2Remake.UI
         {
             Settings.PadGlyphsXbox => PadStyle.Xbox,
             Settings.PadGlyphsPlayStation => PadStyle.PlayStation,
+            Settings.PadGlyphsSwitch => PadStyle.Switch,
             _ => DetectedStyle,
         };
 
-        /// <summary>Raised on the main thread when Style (or the Share / Create name) changes: another controller was used
-        /// or the option changed. The pad glyphs redraw themselves; GameControls passes it on as its Changed.</summary>
+        /// <summary>The controller last used is a Nintendo one whose A / B are swapped (Settings.NintendoLayout): the
+        /// position-named buttonSouth is then its A (right), buttonEast its B (bottom), and the Switch labels follow.</summary>
+        public static bool NintendoSwap => Settings.NintendoLayout && lastPadNintendo;
+
+        /// <summary>Raised on the main thread when Style (or the Share / Create name, or the Nintendo swap) changes: another
+        /// controller was used or an option changed. The pad glyphs redraw themselves; GameControls passes it on as its Changed.</summary>
         public static event Action StyleChanged;
 
         static InputDevice lastPad;
+        static bool lastPadNintendo;
         static PadStyle shownStyle;
-        static bool shownDs4;
+        static bool shownDs4, shownSwap;
+        // the last device the swap looked at (events come from one pad at a time, so its answer is kept)
+        static int nintendoCheckedId = -1;
+        static bool nintendoChecked;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Init()
@@ -66,8 +77,11 @@ namespace GoF2Remake.UI
             lastPad = Gamepad.current;
             DetectedStyle = StyleOf(lastPad);
             DualShock4 = IsDualShock4(lastPad);
+            lastPadNintendo = IsNintendo(lastPad);
+            nintendoCheckedId = -1;
             shownStyle = Style;
             shownDs4 = DualShock4;
+            shownSwap = NintendoSwap;
             InputSystem.onEvent -= OnEvent;   // domain reload may be off: never subscribe twice
             InputSystem.onEvent += OnEvent;
             Settings.Changed -= CheckStyle;
@@ -76,13 +90,14 @@ namespace GoF2Remake.UI
 
         /// <summary>The button style of a controller: PlayStation for Sony's (the Input System's DualShock / DualSense
         /// layouts on every platform, or a pad that reports Sony as its maker, e.g. an Android one without its own layout),
-        /// else Xbox. Null = Xbox.</summary>
+        /// Switch for Nintendo's (IsNintendo), else Xbox. Null = Xbox.</summary>
         public static PadStyle StyleOf(InputDevice device) =>
             device == null ? PadStyle.Xbox : StyleOf(device.layout, device.description.manufacturer, device.description.product);
 
         /// <summary>StyleOf for a layout name and the device's reported maker / product (testable without a device).</summary>
         public static PadStyle StyleOf(string layout, string manufacturer, string product)
         {
+            if (IsNintendo(layout, manufacturer, product)) return PadStyle.Switch;
             if (!string.IsNullOrEmpty(layout) && BasedOn(layout, "DualShockGamepad")) return PadStyle.PlayStation;
             if (Has(manufacturer, "Sony")) return PadStyle.PlayStation;
             if (Has(product, "DualSense") || Has(product, "DualShock") || Has(product, "PlayStation")) return PadStyle.PlayStation;
@@ -96,6 +111,34 @@ namespace GoF2Remake.UI
         public static bool IsDualShock4(string layout, string product) =>
             (!string.IsNullOrEmpty(layout) && layout.IndexOf("DualShock4", StringComparison.OrdinalIgnoreCase) >= 0)
             || Has(product, "DualShock 4") || Has(product, "DualShock4");
+
+        /// <summary>A Nintendo controller (#162): the Input System's Switch Pro layout (desktop HID), or a pad reporting
+        /// Nintendo as its maker or a Pro Controller / Joy-Con as its product (Android, other layouts). Their buttons are
+        /// named by position there too: buttonSouth is the pad's B, buttonEast its A.</summary>
+        public static bool IsNintendo(InputDevice device) =>
+            device != null && IsNintendo(device.layout, device.description.manufacturer, device.description.product);
+
+        public static bool IsNintendo(string layout, string manufacturer, string product)
+        {
+            if (!string.IsNullOrEmpty(layout) && (BasedOn(layout, "SwitchProControllerHID") || Has(layout, "SwitchPro"))) return true;
+            if (Has(manufacturer, "Nintendo")) return true;
+            if (Has(product, "Nintendo") || Has(product, "Joy-Con")) return true;
+            return string.Equals(product?.Trim(), "Pro Controller", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>A Nintendo pad's event with its buttonSouth and buttonEast exchanged (Settings.NintendoLayout): the
+        /// Input System names them by position (south = the pad's B), so before the event is applied its A (right) becomes
+        /// what every binding and direct read takes as the confirm button. Runs from InputSystem.onEvent, which the Input
+        /// System calls after a device's own pre-processing (a Switch Pro's HID report is its own state by then) and before
+        /// the state is written. An event that doesn't hold both buttons (a delta elsewhere) is left alone.</summary>
+        internal static void SwapFaceButtons(InputEventPtr e, Gamepad pad)
+        {
+            if (pad == null) return;
+            if (!pad.buttonSouth.ReadValueFromEvent(e, out float south) || !pad.buttonEast.ReadValueFromEvent(e, out float east)) return;
+            if (south == east) return;
+            pad.buttonSouth.WriteValueIntoEvent(east, e);
+            pad.buttonEast.WriteValueIntoEvent(south, e);
+        }
 
         static bool Has(string s, string part) => !string.IsNullOrEmpty(s) && s.IndexOf(part, StringComparison.OrdinalIgnoreCase) >= 0;
 
@@ -111,21 +154,29 @@ namespace GoF2Remake.UI
             lastPad = device;
             DetectedStyle = StyleOf(device);
             DualShock4 = IsDualShock4(device);
+            lastPadNintendo = IsNintendo(device);
             CheckStyle();
         }
 
         static void CheckStyle()
         {
             var style = Style;
-            if (style == shownStyle && DualShock4 == shownDs4) return;
+            bool swap = NintendoSwap;
+            if (style == shownStyle && DualShock4 == shownDs4 && swap == shownSwap) return;
             shownStyle = style;
             shownDs4 = DualShock4;
+            shownSwap = swap;
             StyleChanged?.Invoke();
         }
 
         static void OnEvent(InputEventPtr e, InputDevice device)
         {
             if (!e.IsA<StateEvent>() && !e.IsA<DeltaStateEvent>()) return;
+            if (device is Gamepad nintendoPad && Settings.NintendoLayout)
+            {
+                if (device.deviceId != nintendoCheckedId) { nintendoCheckedId = device.deviceId; nintendoChecked = IsNintendo(device); }
+                if (nintendoChecked) SwapFaceButtons(e, nintendoPad);
+            }
             InputKind kind;
             switch (device)
             {

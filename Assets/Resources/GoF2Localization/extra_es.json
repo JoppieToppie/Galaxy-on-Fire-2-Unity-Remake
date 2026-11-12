@@ -1454,7 +1454,7 @@
  "kaamoModMaxed": "No puedo ir más allá: tu #SHIP_NAME ya tiene esta mejora en el nivel {0}.",
  "padGlyphs": "Iconos de botones del mando",
  "padGlyphsAuto": "Automático",
- "padGlyphsHelp": "Auto: botones de PlayStation con DualSense o DualShock, de Xbox con los demás.",
+ "padGlyphsHelp": "Auto: botones de PlayStation con DualSense o DualShock, de Switch con un mando de Nintendo, de Xbox con los demás.",
  "importOriginalSave": "Importar partida original",
  "exportOriginalSaves": "Exportar al juego original",
  "originalImportFailed": "No se pudo importar la partida:",
@@ -3387,5 +3387,7 @@
  "medalSound": "Sonido de medalla",
  "medalSoundChime": "Campanilla",
  "medalSoundOriginal": "Original",
- "medalSoundHelp": "Al conseguir una medalla. Campanilla: el sonido propio del remake. Original: el sonido de información del juego original."
+ "medalSoundHelp": "Al conseguir una medalla. Campanilla: el sonido propio del remake. Original: el sonido de información del juego original.",
+ "nintendoLayout": "Distribución de botones de Nintendo",
+ "nintendoLayoutHelp": "En un mando de Nintendo, A (derecha) confirma y B (abajo) vuelve, como en Switch. Desactivado: por posición, como en los mandos de Xbox y PlayStation."
 }

@@ -125,6 +125,14 @@
     border-color: rgba(216, 236, 247, 0.55);
 }
 
+/* Switch's face buttons (#162): dark and round like the Pro Controller's, Nintendo's letter in light grey. */
+.pad-face--switch {
+    background-color: rgb(16, 21, 28);
+    border-width: 2px;
+    border-color: rgba(216, 236, 247, 0.55);
+    color: #E3ECF3;
+}
+
 .pad-stick {
     width: var(--glyph-stick);
     height: var(--glyph-stick);

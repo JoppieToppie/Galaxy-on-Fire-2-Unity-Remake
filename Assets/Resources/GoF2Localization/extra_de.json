@@ -1454,7 +1454,7 @@
  "kaamoModMaxed": "Weiter geht es nicht: Deine #SHIP_NAME hat dieses Upgrade schon auf Stufe {0}.",
  "padGlyphs": "Controller-Tastensymbole",
  "padGlyphsAuto": "Automatisch",
- "padGlyphsHelp": "Auto: PlayStation-Tasten für DualSense oder DualShock, Xbox-Tasten für andere.",
+ "padGlyphsHelp": "Auto: PlayStation-Tasten für DualSense oder DualShock, Switch-Tasten für einen Nintendo-Controller, Xbox-Tasten für andere.",
  "importOriginalSave": "Originalspielstand importieren",
  "exportOriginalSaves": "Für das Originalspiel exportieren",
  "originalImportFailed": "Der Spielstand konnte nicht importiert werden:",
@@ -3387,5 +3387,7 @@
  "medalSound": "Medaillenklang",
  "medalSoundChime": "Glockenspiel",
  "medalSoundOriginal": "Original",
- "medalSoundHelp": "Wenn du eine Medaille erringst. Glockenspiel: der eigene Klang des Remakes. Original: der Info-Klang des Originalspiels."
+ "medalSoundHelp": "Wenn du eine Medaille erringst. Glockenspiel: der eigene Klang des Remakes. Original: der Info-Klang des Originalspiels.",
+ "nintendoLayout": "Nintendo-Tastenbelegung",
+ "nintendoLayoutHelp": "Auf einem Nintendo-Controller bestätigt A (rechts) und B (unten) geht zurück, wie auf der Switch. Aus: nach Position, wie bei Xbox- und PlayStation-Controllern."
 }

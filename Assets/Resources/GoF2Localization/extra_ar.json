@@ -1446,7 +1446,7 @@
  "kaamoModMaxed": "لا يمكنني أن أذهب أبعد من ذلك: سفينتك #SHIP_NAME لديها هذه الترقية بالفعل في المستوى {0}.",
  "padGlyphs": "أيقونات أزرار وحدة التحكم",
  "padGlyphsAuto": "تلقائي",
- "padGlyphsHelp": "تلقائي: أزرار PlayStation لذراع DualSense أو DualShock، وأزرار Xbox لغيرها.",
+ "padGlyphsHelp": "تلقائي: أزرار PlayStation لذراع DualSense أو DualShock، وأزرار Switch لذراع Nintendo، وأزرار Xbox لغيرها.",
  "importOriginalSave": "استيراد حفظ من اللعبة الأصلية",
  "exportOriginalSaves": "تصدير للعبة الأصلية",
  "originalImportFailed": "تعذر استيراد الحفظ:",
@@ -3387,5 +3387,7 @@
  "medalSound": "صوت الوسام",
  "medalSoundChime": "رنين",
  "medalSoundOriginal": "الأصلي",
- "medalSoundHelp": "عند الحصول على وسام. رنين: صوت النسخة الجديدة الخاص. الأصلي: صوت المعلومات في اللعبة الأصلية."
+ "medalSoundHelp": "عند الحصول على وسام. رنين: صوت النسخة الجديدة الخاص. الأصلي: صوت المعلومات في اللعبة الأصلية.",
+ "nintendoLayout": "تخطيط أزرار Nintendo",
+ "nintendoLayoutHelp": "في ذراع Nintendo يؤكد A (اليمين) ويعود B (الأسفل)، كما في Switch. عند الإيقاف: حسب الموضع، كما في أذرع Xbox وPlayStation."
 }

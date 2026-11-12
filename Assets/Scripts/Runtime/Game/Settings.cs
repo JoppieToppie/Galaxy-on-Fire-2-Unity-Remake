@@ -267,9 +267,13 @@ namespace GoF2Remake.Data
         /// <summary>Globals::mouseCursorActivated (the PC version): the mouse moves the crosshair and steers (desktop only).</summary>
         public static bool MouseSteering { get => GetBool("mouseSteering", true); set => SetBool("mouseSteering", value); }
         /// <summary>Remake: the controller hints' button icons (InputMode.Style): 0 Auto (the controller last used: Sony's
-        /// PlayStation, any other Xbox), 1 always Xbox, 2 always PlayStation.</summary>
-        public static int PadGlyphs { get => Mathf.Clamp(Mathf.RoundToInt(Get("padGlyphs", PadGlyphsAuto)), 0, 2); set => Set("padGlyphs", Mathf.Clamp(value, 0, 2)); }
-        public const int PadGlyphsAuto = 0, PadGlyphsXbox = 1, PadGlyphsPlayStation = 2;
+        /// PlayStation, Nintendo's Switch, any other Xbox), 1 always Xbox, 2 always PlayStation, 3 always Switch (#162).</summary>
+        public static int PadGlyphs { get => Mathf.Clamp(Mathf.RoundToInt(Get("padGlyphs", PadGlyphsAuto)), 0, 3); set => Set("padGlyphs", Mathf.Clamp(value, 0, 3)); }
+        public const int PadGlyphsAuto = 0, PadGlyphsXbox = 1, PadGlyphsPlayStation = 2, PadGlyphsSwitch = 3;
+        /// <summary>Remake (#162, a player's request): on a Nintendo controller A (right) confirms and B (bottom) goes back,
+        /// as on a Switch: InputMode swaps its buttonSouth / buttonEast in every event, so every binding and direct read
+        /// follows. Off: by position, like an Xbox or PlayStation pad (the Input System's own mapping). On by default.</summary>
+        public static bool NintendoLayout { get => GetBool("nintendoLayout", true); set => SetBool("nintendoLayout", value); }
         /// <summary>Remake: mouse steering's dead zone, a fraction of the steering range around the centre (0 = none, the
         /// original's: PlayerEgo::update steers by the raw offset).</summary>
         public static float MouseDeadzone { get => Get("mouseDeadzone", DefaultMouseDeadzone); set => Set("mouseDeadzone", Mathf.Clamp(value, 0f, 0.3f)); }
@@ -876,7 +880,7 @@ namespace GoF2Remake.Data
         {
             "tiltSteering", "tiltSensitivity", "sensitivity", "keyAutofire", "levelPitch", "autoRoll", "boostToggle", "invertPitch", "invertYaw", "invertDrillY",
             "invertDrillX", "invertOrbitY", "invertOrbitX", "gyroSteering", "gyroSensitivity", "mouseSteering", "mouseDeadzone", "mouseSensitivity", "vrGrabControls", "haptics", "stickDeadzone",
-            "touchLeftHeight", "touchRightHeight", "floatingTouchStick", "flightStyle", "padGlyphs",
+            "touchLeftHeight", "touchRightHeight", "floatingTouchStick", "flightStyle", "padGlyphs", "nintendoLayout",
         };
         public static readonly string[] GameplayKeys =
         {

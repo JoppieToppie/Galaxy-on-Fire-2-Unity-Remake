@@ -1446,7 +1446,7 @@
  "saveTransferFolder": "내보낸 저장 파일은 이 폴더에 저장되고 여기서 가져옵니다:",
  "padGlyphs": "컨트롤러 버튼 아이콘",
  "padGlyphsAuto": "자동",
- "padGlyphsHelp": "자동: DualSense 또는 DualShock은 PlayStation 버튼, 그 외는 Xbox 버튼.",
+ "padGlyphsHelp": "자동: DualSense 또는 DualShock은 PlayStation 버튼, Nintendo 컨트롤러는 Switch 버튼, 그 외는 Xbox 버튼.",
  "importOriginalSave": "원작 세이브 가져오기",
  "exportOriginalSaves": "원작 게임용으로 내보내기",
  "originalImportFailed": "세이브를 가져올 수 없습니다:",
@@ -3387,5 +3387,7 @@
  "medalSound": "메달 효과음",
  "medalSoundChime": "차임",
  "medalSoundOriginal": "원작",
- "medalSoundHelp": "메달을 획득했을 때. 차임: 리메이크 고유의 소리. 원작: 원작 게임의 정보 효과음."
+ "medalSoundHelp": "메달을 획득했을 때. 차임: 리메이크 고유의 소리. 원작: 원작 게임의 정보 효과음.",
+ "nintendoLayout": "Nintendo 버튼 배치",
+ "nintendoLayoutHelp": "Nintendo 컨트롤러에서 Switch처럼 A(오른쪽)로 확인하고 B(아래)로 돌아갑니다. 끄기: Xbox와 PlayStation 컨트롤러처럼 위치 기준."
 }

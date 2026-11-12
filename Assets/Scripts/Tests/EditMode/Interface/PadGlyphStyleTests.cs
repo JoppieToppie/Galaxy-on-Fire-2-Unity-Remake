@@ -10,6 +10,7 @@ using GoF2Remake.UI;
 using GoF2Remake.World;
 using NUnit.Framework;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.UIElements;
 
 namespace GoF2Remake.Tests
@@ -49,11 +50,16 @@ namespace GoF2Remake.Tests
         [TestCase("Gamepad", "", "DualSense Wireless Controller", PadStyle.PlayStation)]
         [TestCase("XInputControllerWindows", "", "", PadStyle.Xbox)]
         [TestCase("Gamepad", "", "", PadStyle.Xbox)]
-        [TestCase("SwitchProControllerHID", "Nintendo", "Pro Controller", PadStyle.Xbox)]
+        [TestCase("SwitchProControllerHID", "Nintendo", "Pro Controller", PadStyle.Switch)]
+        [TestCase("SwitchProControllerHID", "", "", PadStyle.Switch)]
+        [TestCase("AndroidGamepad", "Nintendo", "Pro Controller", PadStyle.Switch)]
+        [TestCase("AndroidGamepad", "", "Pro Controller", PadStyle.Switch)]
+        [TestCase("Gamepad", "", "Joy-Con (L/R)", PadStyle.Switch)]
+        [TestCase("XInputControllerWindows", "PDP", "Wired Pro Controller for Xbox", PadStyle.Xbox)]
         [TestCase("AndroidGamepad", "", "Wireless Controller", PadStyle.Xbox)]
         [TestCase("NoSuchLayout", null, null, PadStyle.Xbox)]
         [TestCase(null, null, null, PadStyle.Xbox)]
-        public void SonyPadsArePlayStationAnyOtherXbox(string layout, string maker, string product, PadStyle style)
+        public void SonyPadsArePlayStationNintendoSwitchAnyOtherXbox(string layout, string maker, string product, PadStyle style)
         {
             Assert.AreEqual(style, InputMode.StyleOf(layout, maker, product));
         }
@@ -91,8 +97,10 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(PadStyle.PlayStation, InputMode.Style);
             Settings.PadGlyphs = Settings.PadGlyphsAuto;
             Assert.AreEqual(InputMode.DetectedStyle, InputMode.Style, "Auto: the controller last used");
+            Settings.PadGlyphs = Settings.PadGlyphsSwitch;
+            Assert.AreEqual(PadStyle.Switch, InputMode.Style);
             Settings.PadGlyphs = 7;
-            Assert.AreEqual(Settings.PadGlyphsPlayStation, Settings.PadGlyphs, "clamped");
+            Assert.AreEqual(Settings.PadGlyphsSwitch, Settings.PadGlyphs, "clamped");
             CollectionAssert.Contains(Settings.ControlsKeys, "padGlyphs", "Default settings (Controls) resets it");
             Settings.Reset(Settings.ControlsKeys);
             Assert.AreEqual(Settings.PadGlyphsAuto, Settings.PadGlyphs);
@@ -104,7 +112,7 @@ namespace GoF2Remake.Tests
             var row = OptionsCatalog.All().Find(o => o.id == "padGlyphs");
             Assert.IsNotNull(row);
             Assert.AreEqual(OptionPage.Controls, row.page);
-            CollectionAssert.AreEqual(new[] { "Auto", "Xbox", "PlayStation" }, row.choices());
+            CollectionAssert.AreEqual(new[] { "Auto", "Xbox", "PlayStation", "Switch" }, row.choices());
             Settings.PadGlyphs = Settings.PadGlyphsPlayStation;
             Assert.AreEqual(2, row.getIndex());
             row.setIndex(1);
@@ -218,6 +226,121 @@ namespace GoF2Remake.Tests
             var boost = (System.Collections.Generic.List<VisualElement>)DataUiTestKit.CallStatic(typeof(InputGlyph), "For",
                 DataUiTestKit.FlightAction("Boost"), InputKind.Gamepad, false);
             Assert.AreEqual(PadGlyph.Shape.Cross, ((PadGlyph)boost[0]).Symbol);
+        }
+
+        // ---- #162: Nintendo controllers ----
+
+        /// <summary>InputMode's controller last used, as if 'pad' had just been pressed (its private UsedPad).</summary>
+        static void Used(InputDevice pad) => DataUiTestKit.CallStatic(typeof(InputMode), "UsedPad", pad);
+
+        static InputDevice LastPad() =>
+            (InputDevice)typeof(InputMode).GetField("lastPad", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).GetValue(null);
+
+        static string Sw(string path) => GameControls.ShortName(path, PadStyle.Switch);
+
+        [Test]
+        public void ANintendoPadIsDetectedAndNamesItsButtonsWhereTheySit()
+        {
+            var before = LastPad();
+            var pro = InputSystem.AddDevice("SwitchProControllerHID");
+            try
+            {
+                Assert.IsTrue(InputMode.IsNintendo(pro));
+                Assert.AreEqual(PadStyle.Switch, InputMode.StyleOf(pro));
+                Used(pro);
+                Assert.AreEqual(PadStyle.Switch, InputMode.DetectedStyle);
+
+                // by position (the Input System's own mapping): south is the pad's B
+                Settings.NintendoLayout = false;
+                Assert.IsFalse(InputMode.NintendoSwap);
+                Assert.AreEqual("B", Sw("<Gamepad>/buttonSouth"));
+                Assert.AreEqual("A", Sw("<Gamepad>/buttonEast"));
+                Assert.AreEqual("Y", Sw("<Gamepad>/buttonWest"));
+                Assert.AreEqual("X", Sw("<Gamepad>/buttonNorth"));
+                // Nintendo's layout (the default): A and B swapped, so buttonSouth (confirm) is the pad's A
+                Settings.NintendoLayout = true;
+                Assert.IsTrue(InputMode.NintendoSwap);
+                Assert.AreEqual("A", Sw("<Gamepad>/buttonSouth"));
+                Assert.AreEqual("B", Sw("<Gamepad>/buttonEast"));
+                Assert.AreEqual("Y", Sw("<Gamepad>/buttonWest"), "X / Y aren't swapped");
+                Assert.AreEqual("L", Sw("<Gamepad>/leftShoulder"));
+                Assert.AreEqual("ZR", Sw("<Gamepad>/rightTrigger"));
+                Assert.AreEqual("+", Sw("<Gamepad>/start"));
+                Assert.AreEqual("−", Sw("<Gamepad>/select"));
+                Assert.AreEqual("LS", Sw("<Gamepad>/leftStickPress"), "the sticks keep LS / RS: L / R are the shoulders");
+                Assert.AreEqual("RS ←", Sw("<Gamepad>/rightStick/left"));
+                Assert.AreEqual("D-PAD ↑", Sw("<Gamepad>/dpad/up"));
+            }
+            finally
+            {
+                Used(before);
+                InputSystem.RemoveDevice(pro);
+            }
+            Assert.IsFalse(InputMode.IsNintendo((InputDevice)null));
+        }
+
+        [Test]
+        public void TheSwapExchangesANintendoPadsSouthAndEastInItsEvents()
+        {
+            var pro = (Gamepad)InputSystem.AddDevice("SwitchProControllerHID");
+            try
+            {
+                using (StateEvent.From(pro, out var e))
+                {
+                    pro.buttonEast.WriteValueIntoEvent(1f, e);   // the pad's A pressed (right)
+                    pro.buttonSouth.WriteValueIntoEvent(0f, e);
+                    InputMode.SwapFaceButtons(e, pro);
+                    Assert.AreEqual(1f, pro.buttonSouth.ReadValueFromEvent(e), "A now reads as the confirm button");
+                    Assert.AreEqual(0f, pro.buttonEast.ReadValueFromEvent(e));
+                    pro.buttonWest.WriteValueIntoEvent(1f, e);
+                    InputMode.SwapFaceButtons(e, pro);
+                    Assert.AreEqual(1f, pro.buttonEast.ReadValueFromEvent(e), "swapping twice puts them back");
+                    Assert.AreEqual(1f, pro.buttonWest.ReadValueFromEvent(e), "the others are left alone");
+                }
+            }
+            finally { InputSystem.RemoveDevice(pro); }
+        }
+
+        [Test]
+        public void SwitchFaceButtonsAreDarkWithNintendosLetters()
+        {
+            var before = LastPad();
+            var pro = InputSystem.AddDevice("SwitchProControllerHID");
+            try
+            {
+                Used(pro);
+                Settings.NintendoLayout = true;
+                Settings.PadGlyphs = Settings.PadGlyphsSwitch;
+                var a = (PadGlyph)InputGlyph.Pad(PadButton.A);
+                Assert.AreEqual("A", a.text);
+                Assert.AreEqual(PadGlyph.Shape.None, a.Symbol);
+                Assert.IsTrue(a.ClassListContains("pad-face") && a.ClassListContains("pad-face--switch"));
+                Assert.IsFalse(a.ClassListContains("pad-face--a"), "not Xbox's green");
+                Assert.AreEqual("X", Text(InputGlyph.Pad(PadButton.Y)));
+                Assert.AreEqual("ZL", Text(InputGlyph.Pad(PadButton.LeftTrigger)));
+                Assert.AreEqual("R", Text(InputGlyph.Pad(PadButton.RightBumper)));
+                Assert.AreEqual("+", Text(InputGlyph.Pad(PadButton.Menu)));
+                Settings.NintendoLayout = false;
+                a.Apply();
+                Assert.AreEqual("B", a.text, "by position the confirm button is the pad's B");
+            }
+            finally
+            {
+                Used(before);
+                InputSystem.RemoveDevice(pro);
+            }
+        }
+
+        [Test]
+        public void TheNintendoLayoutIsAControlsOptionOnByDefault()
+        {
+            var row = OptionsCatalog.All().Find(o => o.id == "nintendoLayout");
+            Assert.IsNotNull(row);
+            Assert.AreEqual(OptionPage.Controls, row.page);
+            CollectionAssert.Contains(Settings.ControlsKeys, "nintendoLayout");
+            Settings.NintendoLayout = false;
+            Settings.Reset(Settings.ControlsKeys);
+            Assert.IsTrue(Settings.NintendoLayout);
         }
     }
 }

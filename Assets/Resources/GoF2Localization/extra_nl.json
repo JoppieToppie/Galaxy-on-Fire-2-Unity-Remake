@@ -1454,7 +1454,7 @@
  "saveTransferFolder": "Geëxporteerde saves komen in deze map en worden hieruit geïmporteerd:",
  "padGlyphs": "Knoppictogrammen van de controller",
  "padGlyphsAuto": "Automatisch",
- "padGlyphsHelp": "Auto: PlayStation-knoppen voor DualSense of DualShock, Xbox-knoppen voor andere.",
+ "padGlyphsHelp": "Auto: PlayStation-knoppen voor DualSense of DualShock, Switch-knoppen voor een Nintendo-controller, Xbox-knoppen voor andere.",
  "importOriginalSave": "Originele save importeren",
  "exportOriginalSaves": "Exporteren voor het originele spel",
  "originalImportFailed": "De save kon niet worden geïmporteerd:",
@@ -3387,5 +3387,7 @@
  "medalSound": "Medaillegeluid",
  "medalSoundChime": "Klokkenspel",
  "medalSoundOriginal": "Origineel",
- "medalSoundHelp": "Als je een medaille behaalt. Klokkenspel: het eigen geluid van de remake. Origineel: het infogeluid van het originele spel."
+ "medalSoundHelp": "Als je een medaille behaalt. Klokkenspel: het eigen geluid van de remake. Origineel: het infogeluid van het originele spel.",
+ "nintendoLayout": "Nintendo-knopindeling",
+ "nintendoLayoutHelp": "Op een Nintendo-controller bevestigt A (rechts) en gaat B (onder) terug, zoals op een Switch. Uit: op positie, zoals op Xbox- en PlayStation-controllers."
 }

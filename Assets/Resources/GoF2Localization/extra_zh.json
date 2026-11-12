@@ -1363,7 +1363,7 @@
   "saveTransferFolder": "导出的存档会保存到此文件夹，并从这里导入：",
  "padGlyphs": "手柄按键图标",
  "padGlyphsAuto": "自动",
- "padGlyphsHelp": "自动：DualSense 或 DualShock 显示 PlayStation 按键，其他显示 Xbox 按键。",
+ "padGlyphsHelp": "自动：DualSense 或 DualShock 显示 PlayStation 按键，Nintendo 手柄显示 Switch 按键，其他显示 Xbox 按键。",
  "importOriginalSave": "导入原版存档",
  "exportOriginalSaves": "导出到原版游戏",
  "originalImportFailed": "无法导入存档：",
@@ -3387,5 +3387,7 @@
  "medalSound": "勋章音效",
  "medalSoundChime": "钟声",
  "medalSoundOriginal": "原版",
- "medalSoundHelp": "获得勋章时播放。钟声：重制版自己的音效。原版：原版游戏的提示音。"
+ "medalSoundHelp": "获得勋章时播放。钟声：重制版自己的音效。原版：原版游戏的提示音。",
+ "nintendoLayout": "Nintendo 按键布局",
+ "nintendoLayoutHelp": "使用 Nintendo 手柄时，与 Switch 一样由 A（右）确认、B（下）返回。关闭：按位置分配，与 Xbox 和 PlayStation 手柄相同。"
 }

@@ -1,5 +1,5 @@
 // InputGlyph.cs
-// Small UI Toolkit elements that show an input: a keyboard keycap or a controller button in the Xbox or the PlayStation
+// Small UI Toolkit elements that show an input: a keyboard keycap or a controller button in the Xbox, PlayStation or Switch
 // style (InputMode.Style: the controller last used, or Options > Controls "Controller button icons"). A controller glyph
 // (PadGlyph) redraws itself when the style changes, so glyphs built once (dialogue buttons, Launch) follow it too.
 // Styled by UI/GoF2InputGlyphs.uss (.keycap, .pad-*; the PlayStation face buttons .pad-face--ps, their symbols drawn).
@@ -151,8 +151,9 @@ namespace GoF2Remake.UI
     }
 
     /// <summary>A controller button glyph that follows InputMode.Style: Xbox's coloured A / B / X / Y and grey LB / RT /
-    /// MENU..., or PlayStation's dark face buttons with their drawn symbols (cross blue, circle red, square pink, triangle
-    /// green; the UI font has no ✕) and L1 / R2 / OPTIONS... Classes the owner adds stay; only its own (.pad-*) are swapped.</summary>
+    /// MENU..., PlayStation's dark face buttons with their drawn symbols (cross blue, circle red, square pink, triangle
+    /// green; the UI font has no ✕) and L1 / R2 / OPTIONS..., or Switch's dark round buttons with Nintendo's letters where
+    /// they sit and L / ZR / + (#162). Classes the owner adds stay; only its own (.pad-*) are swapped.</summary>
     public class PadGlyph : Label
     {
         public enum Shape { None, Cross, Circle, Square, Triangle }
@@ -194,7 +195,7 @@ namespace GoF2Remake.UI
             foreach (var c in own) RemoveFromClassList(c);
             own.Clear();
             Symbol = Shape.None;
-            bool ps = style == PadStyle.PlayStation;
+            bool ps = style == PadStyle.PlayStation, sw = style == PadStyle.Switch;
             if (!button.HasValue)
             {
                 string xbox = GameControls.ShortName(path, PadStyle.Xbox);
@@ -202,28 +203,31 @@ namespace GoF2Remake.UI
             }
             else switch (button.Value)
             {
-                case PadButton.A: Face("A", "pad-face--a", Shape.Cross, ps); break;
-                case PadButton.B: Face("B", "pad-face--b", Shape.Circle, ps); break;
-                case PadButton.X: Face("X", "pad-face--x", Shape.Square, ps); break;
-                case PadButton.Y: Face("Y", "pad-face--y", Shape.Triangle, ps); break;
+                case PadButton.A: Face("A", "pad-face--a", Shape.Cross, ps, sw, "buttonsouth"); break;
+                case PadButton.B: Face("B", "pad-face--b", Shape.Circle, ps, sw, "buttoneast"); break;
+                case PadButton.X: Face("X", "pad-face--x", Shape.Square, ps, sw, "buttonwest"); break;
+                case PadButton.Y: Face("Y", "pad-face--y", Shape.Triangle, ps, sw, "buttonnorth"); break;
                 case PadButton.LeftStick: Set(ps ? "L" : "LS", "pad-stick"); break;
                 case PadButton.RightStick: Set(ps ? "R" : "RS", "pad-stick"); break;
                 case PadButton.LeftStickPress: Set(ps ? "L3" : "LS", "pad-stick"); break;
                 case PadButton.RightStickPress: Set(ps ? "R3" : "RS", "pad-stick"); break;
                 case PadButton.DPad: Set("D-PAD", "pad-menu"); break;
-                case PadButton.LeftTrigger: Set(ps ? "L2" : "LT", "pad-trigger"); break;
-                case PadButton.RightTrigger: Set(ps ? "R2" : "RT", "pad-trigger"); break;
-                case PadButton.LeftBumper: Set(ps ? "L1" : "LB", "pad-bumper"); break;
-                case PadButton.RightBumper: Set(ps ? "R1" : "RB", "pad-bumper"); break;
-                case PadButton.View: Set(ps ? (InputMode.DualShock4 ? "SHARE" : "CREATE") : "VIEW", "pad-menu"); break;
+                case PadButton.LeftTrigger: Set(sw ? "ZL" : ps ? "L2" : "LT", "pad-trigger"); break;
+                case PadButton.RightTrigger: Set(sw ? "ZR" : ps ? "R2" : "RT", "pad-trigger"); break;
+                case PadButton.LeftBumper: Set(sw ? "L" : ps ? "L1" : "LB", "pad-bumper"); break;
+                case PadButton.RightBumper: Set(sw ? "R" : ps ? "R1" : "RB", "pad-bumper"); break;
+                case PadButton.View: Set(sw ? "−" : ps ? (InputMode.DualShock4 ? "SHARE" : "CREATE") : "VIEW", "pad-menu"); break;
                 case PadButton.Touchpad: Set("TOUCHPAD", "pad-menu"); break;
-                default: Set(ps ? "OPTIONS" : "MENU", "pad-menu"); break;
+                default: Set(sw ? "+" : ps ? "OPTIONS" : "MENU", "pad-menu"); break;
             }
             MarkDirtyRepaint();
         }
 
-        void Face(string letter, string xboxClass, Shape shape, bool ps)
+        /// <param name="control">The button's control (GameControls.SwitchName): a Nintendo pad's letter there.</param>
+        void Face(string letter, string xboxClass, Shape shape, bool ps, bool sw, string control)
         {
+            // Switch: its letter on a dark round button like the pad's own (#162)
+            if (sw) { Set(GameControls.SwitchName(control), "pad-face", "pad-face--switch"); return; }
             if (!ps) { Set(letter, "pad-face", xboxClass); return; }
             Symbol = shape;
             Set("", "pad-face", "pad-face--ps", "pad-face--" + shape.ToString().ToLowerInvariant());

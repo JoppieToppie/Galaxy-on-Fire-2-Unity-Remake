@@ -1454,7 +1454,7 @@
  "saveTransferFolder": "Экспортированные сохранения попадают в эту папку и импортируются из неё:",
  "padGlyphs": "Значки кнопок контроллера",
  "padGlyphsAuto": "Авто",
- "padGlyphsHelp": "Авто: кнопки PlayStation для DualSense или DualShock, Xbox для остальных.",
+ "padGlyphsHelp": "Авто: кнопки PlayStation для DualSense или DualShock, Switch для контроллера Nintendo, Xbox для остальных.",
  "importOriginalSave": "Импорт сохранения оригинала",
  "exportOriginalSaves": "Экспорт для оригинальной игры",
  "originalImportFailed": "Не удалось импортировать сохранение:",
@@ -3387,5 +3387,7 @@
  "medalSound": "Звук медали",
  "medalSoundChime": "Перезвон",
  "medalSoundOriginal": "Оригинальный",
- "medalSoundHelp": "Когда вы получаете медаль. Перезвон: собственный звук ремейка. Оригинальный: информационный звук оригинальной игры."
+ "medalSoundHelp": "Когда вы получаете медаль. Перезвон: собственный звук ремейка. Оригинальный: информационный звук оригинальной игры.",
+ "nintendoLayout": "Раскладка кнопок Nintendo",
+ "nintendoLayoutHelp": "На контроллере Nintendo A (справа) подтверждает, а B (снизу) возвращает назад, как на Switch. Выкл.: по положению, как на контроллерах Xbox и PlayStation."
 }

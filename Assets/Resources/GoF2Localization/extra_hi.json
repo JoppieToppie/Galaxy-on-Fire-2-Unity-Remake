@@ -1363,7 +1363,7 @@
   "saveTransferFolder": "निर्यात किए गए सेव इस फ़ोल्डर में जाते हैं और यहीं से आयात होते हैं:",
  "padGlyphs": "कंट्रोलर बटन आइकन",
  "padGlyphsAuto": "स्वचालित",
- "padGlyphsHelp": "ऑटो: DualSense या DualShock पर PlayStation बटन, बाकी पर Xbox बटन।",
+ "padGlyphsHelp": "ऑटो: DualSense या DualShock पर PlayStation बटन, Nintendo कंट्रोलर पर Switch बटन, बाकी पर Xbox बटन।",
  "importOriginalSave": "मूल सेव इम्पोर्ट करें",
  "exportOriginalSaves": "मूल गेम के लिए एक्सपोर्ट करें",
  "originalImportFailed": "सेव इम्पोर्ट नहीं हो सका:",
@@ -3387,5 +3387,7 @@
  "medalSound": "मेडल की आवाज़",
  "medalSoundChime": "घंटी",
  "medalSoundOriginal": "मूल",
- "medalSoundHelp": "जब आपको मेडल मिलता है। घंटी: रीमेक की अपनी आवाज़। मूल: मूल गेम की सूचना वाली आवाज़।"
+ "medalSoundHelp": "जब आपको मेडल मिलता है। घंटी: रीमेक की अपनी आवाज़। मूल: मूल गेम की सूचना वाली आवाज़।",
+ "nintendoLayout": "Nintendo बटन लेआउट",
+ "nintendoLayoutHelp": "Nintendo कंट्रोलर पर A (दाएँ) पुष्टि करता है और B (नीचे) वापस जाता है, जैसे Switch पर। बंद: स्थिति के अनुसार, जैसे Xbox और PlayStation कंट्रोलर पर।"
 }
