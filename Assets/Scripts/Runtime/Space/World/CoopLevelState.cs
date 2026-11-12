@@ -19,5 +19,8 @@ namespace GoF2Remake.World
         /// <summary>The level's full-screen fade.</summary>
         public float fadeAlpha;
         public Color32 fadeColor;
+        /// <summary>The leader's latest radio line shown (-1 = none): a prologue / rescue follower that missed lines (it loaded
+        /// later, an RPC before its level was up) catches up to it (Radio.CatchUp), else its cutscene waited for them for good.</summary>
+        public int radioLine;
     }
 }

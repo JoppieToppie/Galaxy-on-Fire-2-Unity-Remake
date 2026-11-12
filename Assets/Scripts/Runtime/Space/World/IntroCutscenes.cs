@@ -331,7 +331,9 @@ namespace GoF2Remake.World
                     if (soundsPlayed) playerSpeed *= Mathf.Pow(0.98f, dtMs / OriginalFrame.Ms);
                     // LevelScript's dolly is (-0.2, 0, 0.3) u/ms; remake (PR #56): (0.4, 0, -0.2), which keeps the slowing ship in view.
                     if (Over(13)) cam.SetDolly(new Vector3(0.4f, 0f, -0.2f));
-                    if (Triggered(14)) Step = 6;
+                    // A co-op follower gets 14 as the leader shows it, maybe before its own 13 ended: 13 first, so the
+                    // hyperdrive's explosion and slowdown play there too.
+                    if (follower ? Over(13) : Triggered(14)) Step = 6;
                     break;
                 case 6:
                     // (the x0.98 per frame slowdown is state 5's only: the speed holds from here)

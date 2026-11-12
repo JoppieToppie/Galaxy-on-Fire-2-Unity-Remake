@@ -80,9 +80,8 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
   `NetGame.CoopEconomy`). `NetCoop.PrepareHost` sets `Session.Economy` before the campaign's tables load; NetState
   carries it in its spawn data (the `economy` byte, `NetSession.EconomyCode`: 0 Android, the variable's default, 1
   Default), and a guest's `OnNetworkSpawn` sets it before the session's mods, `NetCoop.OnJoined` and its profile, so
-  every game loads the same item and ship tables: prices (each game prices its own windows, `Shop.PriceList`), stats,
-  the stock the host rolls (`NetStock`: the Default economy's stock factor and AB-1 rule, `Shop`) and the Loma price
-  match on every machine. No approval check is needed: the exact-version check already refuses another build, and the
+  every game loads the same item and ship tables: prices (each game prices its own windows, `Shop.PriceList`), stats
+  and the Loma price match on every machine. No approval check is needed: the exact-version check already refuses another build, and the
   guest takes the session's economy whatever its own. `SaveGame.ApplyProfile` applies a profile under the session's
   economy (no more always Android), so a guest's persistent profile in CoopFolder keeps working across campaigns of
   either economy (the item numbers are the same; credits and items carry over, blueprint progress through
@@ -108,7 +107,11 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
   cutscenes and camera around its own Phantom (unkillable like the leader's), spawning nothing, a little beside the
   leader's (`IntroCutscenes.Slot`: left, right, below, then rings), paced by the leader's radio lines (its radio is the leader's), so
   everyone watches the same story from their own ship and fights the leader's pirates together; the follower can't skip
-  (the leader's skip moves everyone). At the prologue's end the follower waits under the black until the leader's step 1
+  (the leader's skip moves everyone). The leader's 4 Hz state carries its latest radio line (`CoopLevelState.radioLine`):
+  a follower that missed lines (it loaded later, a line sent before its level was up) takes it at once and counts the
+  earlier ones as shown (`Radio.CatchUp`); until 2026-11-12 it waited for them for good, with no controls for the fight
+  and no hyperdrive scene (a Discord report). Step 5 waits for its own line 13 there before 6, so the hyperdrive's
+  explosion and slowdown play even when the leader's 14 arrives early. At the prologue's end the follower waits under the black until the leader's step 1
   reaches it, then loads the rescue (`CampaignLevel.FollowIntroOn`, `SpaceLevel.Reload`); the rescue's end docks everyone
   at Var Hastra (Gunant's conversation and Betty for each), the leader's docking taking the crew along.
 - **The leader owns the story** (`CoopCampaign`): the host's step, mission and the step's shared counters (mission value,
@@ -158,7 +161,10 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
     2 s), each radio line as it shows (`Radio.Shown` -> the follower's `Radio.ShowRemote`; a follower's radio tests no
     triggers, `Radio.Remote`), and during a cutscene its camera 10 times a second (`CoopCameraMirror` eases the follower's
     camera onto it, with the HUD and controls off through `SpaceLevel.Cutscene`); after the cutscene a follower over 2.5 km
-    from the leader is put beside it. A guest arriving before the leader gets "coopWaitLeader" every 20 s.
+    from the leader is put beside it. A guest arriving before the leader gets "coopWaitLeader" every 20 s. While the
+    leader isn't running the level there (`CampaignLevel.LeaderAway`: no state for 2 s) the step's mission doesn't lock the
+    follower's orbit (`SpaceLevel.StoryLocked`): until 2026-11-12 a guest left there after the leader docked got "Not
+    possible on a mission." at the station, the gate and the jumps (a Discord report).
   - **Moves**: the leader's level-driven moves (`SpaceLevel.TravelTo`, `RideWormhole`, `Dock(false)` while it runs a story
     level, `CoopLeaderMoved`) take the followers in that orbit along (`CoopTravelRpc` with the leader's step: the follower
     catches up first, `CoopCampaign.CatchUpTo`, so the next orbit is built as the story's).
@@ -172,6 +178,10 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
     (`CoopCampaign.LeaderFailed` -> `Story.RepairCheckpoint`, 25 -> 24, 29 -> 28, 41 -> 39, 79 -> 78; the fail serial
     sets every guest there too), the followers there get "Mission failed!" + "coopFailBack" and dock at the station they
     last docked at (`SpaceLevel.ReturnToLastDocked`), anyone else a chat notice; the leader's game over docks it likewise.
+- **Each player's own shop** (2026-11-12, a Discord report: the second pilot found Var Hastra's shop empty): no shared
+  stock in a co-op campaign (`NetStock.Shared` false), each game rolls its stations' lists as in single player. The
+  story stocks one set per player (Var Hastra's free starter gear before step 7, one of each; Kappa's 10 free EMP GL I
+  at step 20), so the shared list gave them to whoever docked first.
 - **Not shared**: the level's own music (a follower hears the orbit's), the mining minigame, object docking / hacking and
   the scripted flights that move the player's ship (the leader does those; the crew fights alongside or watches). Not
   tested with two games yet (2026-11-01: the rules by `CoopCampaignTests`; the session, the follower view and the

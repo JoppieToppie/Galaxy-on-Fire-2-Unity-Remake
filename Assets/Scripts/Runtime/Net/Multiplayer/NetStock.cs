@@ -10,7 +10,7 @@
 // The host decides: a unit it no longer has (another player bought the last one) is taken back from the buyer and paid
 // back (ItemRefused); a dealer ship is reserved with the host before the trade (ReserveShip). Until the host's list is
 // here the docked player's list is empty (no trade against a list of their own). The host's lists get the stations'
-// docking extras (HostExtras: Kappa's EMP GL I at free play, energy cells at the deep science stations). Lists arriving
+// docking extras (HostExtras: energy cells at the deep science stations). A co-op campaign shares none (Shared). Lists arriving
 // are applied between frames (Flush), never in the middle of a trade. The host checks each trade (NetState: the trader is
 // docked there, one unit of an item that exists, a dealer row only as reserved: the reserved one back or the trader's old
 // hull), sends the list once per frame however many units changed, and caps a row (MaxRowAmount) and the dealer list
@@ -73,8 +73,10 @@ namespace GoF2Remake.Multiplayer
 
         static bool Ready => NetGame.Active && NetState.Instance != null && NetState.Instance.IsSpawned;
 
-        /// <summary>Is 'station's stock the shared one (in a session, not the owned Kaamo Club's storage)?</summary>
-        public static bool Shared(int station) => NetGame.Active && !KaamoClub.StorageAt(station);
+        /// <summary>Is 'station's stock the shared one (in a session, not the owned Kaamo Club's storage)? Not in a co-op
+        /// campaign: the story stocks one set for each player (Var Hastra's free starter gear before step 7, Kappa's free
+        /// EMP bombs at step 20), so a shared list left the second pilot an empty shop (a Discord report, 2026-11-11).</summary>
+        public static bool Shared(int station) => NetGame.Active && !CoopCampaign.Active && !KaamoClub.StorageAt(station);
 
         /// <summary>A new session: the host's lists start empty.</summary>
         public static void Reset()

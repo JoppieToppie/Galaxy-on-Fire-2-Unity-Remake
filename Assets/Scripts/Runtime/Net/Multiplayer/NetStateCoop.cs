@@ -105,16 +105,17 @@ namespace GoF2Remake.Multiplayer
         {
             if (!IsServer || !Coop || !NetInterest.OrbitGroup(this, s.station, NetworkManager.ServerClientId, out var target)) return;
             byte flags = (byte)((s.cutscene ? 1 : 0) | (s.invulnerable ? 2 : 0) | (s.hold ? 4 : 0));
-            CoopLevelRpc(s.station, s.index, flags, s.missionMs, s.timeLimitMs, s.routeIndex, s.fadeAlpha, s.fadeColor, target);
+            CoopLevelRpc(s.station, s.index, flags, s.missionMs, s.timeLimitMs, s.routeIndex, s.fadeAlpha, s.fadeColor, s.radioLine, target);
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server, Delivery = RpcDelivery.Unreliable)]
-        void CoopLevelRpc(int station, int index, byte flags, float missionMs, float timeLimitMs, int routeIndex, float fadeAlpha, Color32 fadeColor, RpcParams rpc = default)
+        void CoopLevelRpc(int station, int index, byte flags, float missionMs, float timeLimitMs, int routeIndex, float fadeAlpha, Color32 fadeColor, int radioLine, RpcParams rpc = default)
         {
             CampaignLevel.Current?.OnLeaderState(new CoopLevelState
             {
                 station = station, index = index, cutscene = (flags & 1) != 0, invulnerable = (flags & 2) != 0, hold = (flags & 4) != 0,
                 missionMs = missionMs, timeLimitMs = timeLimitMs, routeIndex = routeIndex, fadeAlpha = fadeAlpha, fadeColor = fadeColor,
+                radioLine = radioLine,
             });
         }
 

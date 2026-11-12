@@ -99,6 +99,15 @@ namespace GoF2Remake.Flight
             waiting.Enqueue(i);
         }
 
+        /// <summary>Remake co-op: the leader is on line 'line' (CoopLevelState.radioLine): one this radio hasn't had shows
+        /// now, the lines before it count as shown (on the leader they are over once a later one shows).</summary>
+        public void CatchUp(int line)
+        {
+            if (line < 0 || line >= lines.Count || triggered[line]) return;
+            MarkShown(line);
+            ShowRemote(line);
+        }
+
         /// <summary>LevelScript::skipCutscene: the first 'n' lines count as shown.</summary>
         public void MarkShown(int n)
         {

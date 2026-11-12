@@ -75,5 +75,19 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(radio.Busy);
             Assert.IsTrue(radio.Over(1));
         }
+
+        [Test]
+        public void AFollowerThatMissedTheLeadersLinesCatchesUp()
+        {
+            var radio = TwoLines();
+            radio.Remote = true;
+            radio.CatchUp(1);   // the leader shows line 1; line 0's RPC never came
+            Assert.IsTrue(radio.Over(0));
+            Assert.IsTrue(radio.Triggered(1));
+            radio.Update(16f, new World());
+            Assert.IsTrue(radio.Busy);   // line 1 shows here now
+            radio.CatchUp(1);   // the state again: nothing new
+            Assert.IsFalse(radio.Over(1));
+        }
     }
 }

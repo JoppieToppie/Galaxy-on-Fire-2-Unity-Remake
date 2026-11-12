@@ -22,6 +22,10 @@ namespace GoF2Remake.World
         /// <summary>After the leader's cutscene a follower farther than this from the leader is put beside it (m).</summary>
         const float CoopRegroupMeters = 2500f;
 
+        /// <summary>A follower whose leader isn't running the level here (not arrived, docked, gone): its mission doesn't
+        /// lock this orbit (SpaceLevel.StoryLocked), else a guest left behind couldn't dock or jump out (a Discord report).</summary>
+        public bool LeaderAway => Follower && !(coopLeaderSeenAt >= 0f && Time.unscaledTime - coopLeaderSeenAt < CoopLeaderLostSeconds);
+
         /// <summary>The orbit this level is built in.</summary>
         public int CoopStation => level != null && level.Layout != null ? level.Layout.stationIndex : -1;
 
@@ -143,7 +147,7 @@ namespace GoF2Remake.World
                 {
                     station = CoopStation, index = BuiltIndex, cutscene = Cutscene, invulnerable = PlayerInvulnerable, hold = Held,
                     missionMs = MissionMs, timeLimitMs = TimeLimitMs, routeIndex = PlayerRoute != null ? PlayerRoute.index : 0,
-                    fadeAlpha = FadeAlpha, fadeColor = FadeColor,
+                    fadeAlpha = FadeAlpha, fadeColor = FadeColor, radioLine = coopRadioLine,
                 });
                 // The route when it changes, and every 2 s for a crew member arriving later.
                 if (PlayerRoute != coopRouteSent || ++coopRouteIndexSent >= 8)
@@ -246,7 +250,7 @@ namespace GoF2Remake.World
         {
             if (!Follower || s.station != CoopStation) return;
             coopLeaderSeenAt = Time.unscaledTime;
-            if (intro != null) return;   // the prologue / rescue runs its own cutscenes here
+            if (intro != null) { Radio?.CatchUp(s.radioLine); return; }   // the prologue / rescue runs its own cutscenes here
             if (s.index != BuiltIndex)
             {
                 // The leader's level went on to the next step on the same ships (4 -> 5): that step's radio.

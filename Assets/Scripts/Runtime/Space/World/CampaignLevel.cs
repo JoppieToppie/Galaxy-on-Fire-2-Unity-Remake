@@ -87,7 +87,7 @@ namespace GoF2Remake.World
         public bool Held { get; private set; }
         float coopSendMs, coopCameraMs, coopWaitNoticeMs, coopLeaderSeenAt = -1f, coopCamAt = -1f;
         Route coopRouteSent;
-        int coopRouteIndexSent = -1;
+        int coopRouteIndexSent = -1, coopRadioLine = -1;
         bool coopWasCutscene;
         Vector3 coopCamPos;
         Quaternion coopCamRot = Quaternion.identity;
@@ -131,7 +131,7 @@ namespace GoF2Remake.World
             // Errkt's end heard; reached from 41 the level keeps 41's radio.
             Radio = BuiltIndex == 42 && main != null ? new Radio(StoryTable.Step(41)?.radio) : new Radio(Story.Step?.radio);
             if (BuiltIndex == 42 && main != null) Radio.MarkShown(6);
-            if (CoopCampaign.Leader) Radio.Shown += line => SpaceHooks.CoopRadioShown?.Invoke(CoopStation, BuiltIndex, line);   // the crew hears it too
+            if (CoopCampaign.Leader) Radio.Shown += line => { coopRadioLine = line; SpaceHooks.CoopRadioShown?.Invoke(CoopStation, BuiltIndex, line); };   // the crew hears it too
             Debug.Log($"CampaignLevel: index {BuiltIndex}, {Ships.Count} ships, {Radio.Count} radio lines");
         }
 

@@ -118,7 +118,7 @@ namespace GoF2Remake.World
         /// <summary>Remake: the ship's active devices (mod items, Flight.Device), null = none.</summary>
         public PlayerDevices Devices { get; private set; }
         /// <summary>MGame::dockEvent: 525 while a mission holds the player here (the story's blocks, the Kaamo siege).</summary>
-        public bool DockingBlocked => Story.BlocksDocking(Layout.stationIndex, IsStoryOrbit) || (Siege != null && Siege.Active) || FreelanceBlocks
+        public bool DockingBlocked => Story.BlocksDocking(Layout.stationIndex, StoryLocked) || (Siege != null && Siege.Active) || FreelanceBlocks
                                       || GoF2Remake.World.SpaceHooks.NoDocking;   // an event's Restrict Travel
         bool freelanceMissionOrbit;
         /// <summary>The orbit was built around the freelance mission (Status::departStation put it in Status+400) and it holds
@@ -126,6 +126,9 @@ namespace GoF2Remake.World
         bool FreelanceBlocks => freelanceMissionOrbit && Layout != null && Freelance.BlocksTravel(Layout.stationIndex);
         /// <summary>The orbit was built as the story's (Status::departStation put the campaign mission in Status+400).</summary>
         public bool IsStoryOrbit { get; private set; }
+        /// <summary>The story's mission locks this orbit (Story.BlocksJumps): its story orbit, unless a co-op follower's
+        /// leader isn't running the level here.</summary>
+        bool StoryLocked => IsStoryOrbit && !(Campaign != null && Campaign.LeaderAway);
         /// <summary>A story conversation is open (the game is paused).</summary>
         public bool Dialogue => StorySpace != null && StorySpace.DialogueOpen;
         /// <summary>LevelScript startSequenceOver: the launch / arrival camera has ended (in the prologue / rescue the
@@ -658,7 +661,7 @@ namespace GoF2Remake.World
             StorySpace.Setup(this, Campaign);
             Hints = gameObject.AddComponent<FlightHints>();
             Hints.Setup(this);
-            Navigation.JumpsBlocked = () => GoF2Remake.World.SpaceHooks.InArena || builderTest || challenge || !Story.PlanetJumpsAllowed || Story.BlocksJumps(Layout.stationIndex, IsStoryOrbit) || (Siege != null && Siege.Active)
+            Navigation.JumpsBlocked = () => GoF2Remake.World.SpaceHooks.InArena || builderTest || challenge || !Story.PlanetJumpsAllowed || Story.BlocksJumps(Layout.stationIndex, StoryLocked) || (Siege != null && Siege.Active)
                                             || FreelanceBlocks   // a freelance mission's orbit (#32)
                                             || GoF2Remake.World.SpaceHooks.NoJumps   // an event's Restrict Travel
                                             || (!Session.FreePlay && Story.Index == 65 && Layout.stationIndex == 100)   // escorting Khador (MGame::UseKhadorDrive)
@@ -671,7 +674,7 @@ namespace GoF2Remake.World
             Navigation.SetWormhole(Wormhole);
             Navigation.PlanetJumpRefused = st => StorySpace != null && StorySpace.RefusePlanetJump(st);
             // MGame::dockEvent refuses the gate on the same mission check as docking: the story's level missions too.
-            SystemJump.GateBlocked = () => builderTest || challenge || Story.BlocksJumps(Layout.stationIndex, IsStoryOrbit) || FreelanceBlocks
+            SystemJump.GateBlocked = () => builderTest || challenge || Story.BlocksJumps(Layout.stationIndex, StoryLocked) || FreelanceBlocks
                                            || (Siege != null && Siege.Active) || GoF2Remake.World.SpaceHooks.NoJumps;
             Radar = Player.gameObject.AddComponent<CombatRadar>();
             Radar.Setup(db, Player, Navigation, Mining, Weapons, Health, Traffic);
