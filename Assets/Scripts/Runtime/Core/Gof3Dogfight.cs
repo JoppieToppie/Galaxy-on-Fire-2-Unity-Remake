@@ -13,8 +13,14 @@
 //             the next
 // The evasive roll (NPCBankingComponent::hit / updateEvade): on a hit, by its chance, a barrel roll to a side
 // (ship_animation_barrelroll_anim_left / _right stretched to evadeDuration 1.8 s) that leaves it invulnerable for its first
-// 1.5 s (invincibleBuffDuration); RollLockMs before the next. GoF3's chance: evadeChanceBase 0.33 (gunships 1.0) x the
-// difficulty's multiplier, capped by it (ConfigNpc: Easy 0, Medium 0.15, Hard 0.25, Boss 0.66).
+// 1.5 s (invincibleBuffDuration); RollLockMs (the component's 10 s lock, which GoF3's templates keep) before the next. GoF3's
+// chance (NPCFactory::setHordeModeModifiers, ConfigNpc): the hull's evadeChanceBase (scouts and T1-T2 hulls 0, T3+ fighters
+// 0.33, T3+ gunships 1.0, the bosses 0.1; ships.json "traffic": { "evade" }) x the difficulty's evadeChanceBaseMultiplier,
+// capped by its evadeChanceMax: Easy 0 / 0, Medium 1 / 0.15, Hard 1 / 0.25, Boss 1 / 0.66 (GoF3's per-wave 0.02 left out:
+// GoF2 has no waves). GoF2's four levels: Easy, Normal = Medium, Hard, Extreme = GoF3's boss missions' column.
+// Easy's other rules (MissionController::configureSteeringAgent, SteeringAgentSystem::limitSpeed; NPCFactory::
+// getSecondaryWeaponNPCAmmount): a fighter crossing the player's sights within 1200 slows to |its heading . the player's|
+// of its speed (0.33 at least); half as many carry missiles (secondaryWeaponNPCCapMultiplier 0.5).
 // The aim (ArmingAgentBehaviorSalvo::calculateInaccuracy_): it leads the target (ECS::aimingPoint) with an error settling
 // from 1 to 0 over AimSettleMs (aimingTimeMax 0.5 s) after each new approach.
 // GoF3's distances are in its own units; the remake's (game units) take them x DistanceScale, the factor the GoF3 devices
@@ -33,7 +39,13 @@ namespace GoF2Remake.Flight
         public const float TeaseRange = 800f * DistanceScale, TeaseAhead = 180f * DistanceScale, TeaseSide = 95f * DistanceScale;
         public const float ChaseMs = 8000f, ChaseSpeed = 1.6f, ChaseCooldownMs = 15000f, ChaseRange = 1500f * DistanceScale;
         public const float ChaseBehind = 3000f;   // game units: GoF3's 100 behind (x11.4) sat inside a GoF2 hull's hit cube
-        public const float RollMs = 1800f, RollInvulnerableMs = 1500f, RollLockMs = 3000f;
+        public const float RollMs = 1800f, RollInvulnerableMs = 1500f, RollLockMs = 10000f;
+        /// <summary>evadeChanceBase: a T3+ fighter's (the default for a hull that names none).</summary>
+        public const float FighterEvadeBase = 0.33f;
+        /// <summary>Easy's limitSpeed: the player's reach (GoF3 units x DistanceScale), its sights (dot), the slowest share.</summary>
+        public const float EasySlowRange = 1200f * DistanceScale, EasySlowCone = 0.3f, EasySlowMin = 0.33f;
+        /// <summary>Easy's secondaryWeaponNPCCapMultiplier: the share of fighters that carry their missiles.</summary>
+        public const float EasySecondaryShare = 0.5f;
         public const float AimSettleMs = 500f;
 
         readonly System.Func<float> random;
@@ -55,13 +67,23 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>GoF3's chance of a roll per hit for the remake's difficulty (Session.Difficulty: 0 Easy, 0.5 Normal, 1
-        /// Hard, 1.5 Extreme): Easy none, Normal 0.15, Hard 0.25 (GoF3's caps), Extreme the fighters' whole 0.33; a boss
-        /// 0.66 on every difficulty but Easy.</summary>
-        public static float EvadeChance(float difficulty, bool boss)
+        /// Hard, 1.5 Extreme) and the hull's evadeChanceBase ('baseChance'; below 0 = a fighter's 0.33): the base x the
+        /// difficulty's multiplier, capped by its maximum (Easy 0, Normal 0.15, Hard 0.25, Extreme 0.66). A boss (a Most Wanted
+        /// criminal, a pirate event's boss) on GoF3's boss missions' column on every difficulty but Easy.</summary>
+        public static float EvadeChance(float difficulty, bool boss, float baseChance = -1f)
         {
             if (difficulty < 0.25f) return 0f;
-            if (boss) return 0.66f;
-            return difficulty < 0.75f ? 0.15f : difficulty < 1.25f ? 0.25f : 0.33f;
+            float b = baseChance < 0f ? FighterEvadeBase : baseChance;
+            float cap = boss || difficulty >= 1.25f ? 0.66f : difficulty < 0.75f ? 0.15f : 0.25f;
+            return System.Math.Min(b, cap);
+        }
+
+        /// <summary>Easy's limitSpeed: the speed factor of a fighter 'distance' (units) from the player, 'inSights' = the player's
+        /// forward . (toward the fighter), 'headings' = the player's forward . the fighter's; 1 outside the player's sights.</summary>
+        public static float EasySlowdown(float distance, float inSights, float headings)
+        {
+            if (distance > EasySlowRange || inSights <= EasySlowCone) return 1f;
+            return System.Math.Max(EasySlowMin, System.Math.Abs(headings));
         }
 
         public bool Fires => Current == Mode.Approach || Current == Mode.Chase;

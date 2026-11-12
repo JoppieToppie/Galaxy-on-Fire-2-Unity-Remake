@@ -138,7 +138,7 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void TheDogfightingModeTravelsInTwoBits()
+        public void TheDogfightingModeTravelsInThreeBits()
         {
             AllDefaults();
             Settings.NpcDogfight = SessionRules.DogfightOriginalMode;
@@ -148,8 +148,27 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(SessionRules.DogfightAll, SessionRules.DogfightOf(Settings.LocalRules()));
             Assert.AreEqual(SessionRules.DogfightModHulls, SessionRules.DogfightOf(0), "a session without the bits: the default");
             Assert.AreEqual(SessionRules.DogfightOriginalMode, SessionRules.DogfightOf(SessionRules.WithDogfight(SessionRules.DogfightEvery, 0)));
+            Settings.NpcDogfight = SessionRules.DogfightEs2All;
+            Assert.AreEqual(SessionRules.DogfightEs2, Settings.LocalRules() & (SessionRules.DogfightOriginal | SessionRules.DogfightEvery | SessionRules.DogfightEs2));
+            Assert.AreEqual(SessionRules.DogfightEs2All, SessionRules.DogfightOf(Settings.LocalRules()));
             Settings.NpcDogfight = 7;
-            Assert.AreEqual(SessionRules.DogfightAll, Settings.NpcDogfight, "clamped");
+            Assert.AreEqual(SessionRules.DogfightEs2All, Settings.NpcDogfight, "clamped");
+        }
+
+        [Test]
+        public void Es2AimingIsAnOptionOfItsOwn()
+        {
+            AllDefaults();
+            Assert.IsFalse(Settings.Es2Aiming, "GoF2's aim by default");
+            Settings.Es2Aiming = true;
+            Assert.AreEqual(SessionRules.Es2Aiming, Settings.LocalRules() & SessionRules.Es2Aiming);
+            Assert.AreEqual(SessionRules.DogfightModHulls, SessionRules.DogfightOf(Settings.LocalRules()), "the dogfighting untouched");
+            Settings.Es2Aiming = false;
+            Assert.AreEqual(0, Settings.LocalRules() & SessionRules.Es2Aiming);
+            Assert.IsFalse(Settings.Es2NpcFlight, "GoF2's NPC flight by default");
+            Settings.Es2NpcFlight = true;
+            Assert.AreEqual(SessionRules.Es2NpcFlight, Settings.LocalRules() & (SessionRules.Es2NpcFlight | SessionRules.Es2Aiming), "a bit of its own");
+            Settings.Es2NpcFlight = false;
         }
 
         [Test]

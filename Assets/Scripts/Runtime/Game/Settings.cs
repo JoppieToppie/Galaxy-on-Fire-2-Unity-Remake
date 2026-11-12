@@ -433,26 +433,42 @@ namespace GoF2Remake.Data
         /// <summary>Remake (the GoF3 roadmap's G6): Options > Gameplay "NPC dogfighting", SessionRules.DogfightOriginalMode /
         /// DogfightModHulls (default) / DogfightAll: GoF2's way everywhere, Galaxy on Fire 3's (Flight.Gof3Dogfight: attack runs,
         /// veering off, teasing, chasing, leading shots, evasive rolls) for the mod hulls that ask for it ("traffic": { "ai":
-        /// "gof3" }), or for every fighter. A session rule (two bits, SessionRules.DogfightOf).</summary>
+        /// "gof3" }), or for every fighter; since 2026-11-06 also EVERSPACE 2's (Flight.Es2Dogfight: attack runs beside the target,
+        /// gaining distance, tailed evasion, fleeing at 20 % hull) for every fighter ("ES2 for all", DogfightEs2All) or the hulls
+        /// with "ai": "es2". A session rule (three bits, SessionRules.DogfightOf).</summary>
         public static int NpcDogfight
         {
             get
             {
                 if (GameHooks.SessionRule != null && GameHooks.SessionRule(R.DogfightOriginal, out bool original)
-                    && GameHooks.SessionRule(R.DogfightEvery, out bool every))
-                    return original ? R.DogfightOriginalMode : every ? R.DogfightAll : R.DogfightModHulls;
+                    && GameHooks.SessionRule(R.DogfightEvery, out bool every) && GameHooks.SessionRule(R.DogfightEs2, out bool es2))
+                    return original ? R.DogfightOriginalMode : es2 ? R.DogfightEs2All : every ? R.DogfightAll : R.DogfightModHulls;
                 return LocalDogfight;
             }
             set
             {
-                int mode = Mathf.Clamp(value, R.DogfightOriginalMode, R.DogfightAll);
+                int mode = Mathf.Clamp(value, R.DogfightOriginalMode, R.DogfightEs2All);
                 Set("npcDogfight", mode);
                 GameHooks.RuleChangedByHost?.Invoke(R.DogfightOriginal, mode == R.DogfightOriginalMode);
                 GameHooks.RuleChangedByHost?.Invoke(R.DogfightEvery, mode == R.DogfightAll);
+                GameHooks.RuleChangedByHost?.Invoke(R.DogfightEs2, mode == R.DogfightEs2All);
             }
         }
 
-        static int LocalDogfight => Mathf.Clamp(Mathf.RoundToInt(Get("npcDogfight", R.DefaultDogfight)), R.DogfightOriginalMode, R.DogfightAll);
+        static int LocalDogfight => Mathf.Clamp(Mathf.RoundToInt(Get("npcDogfight", R.DefaultDogfight)), R.DogfightOriginalMode, R.DogfightEs2All);
+
+        /// <summary>Remake (2026-11-06): Options > Gameplay "NPC aiming": EVERSPACE 2's (Flight.Es2Aim: NPC fighters lead their
+        /// shots, a new aim point every 0.2 s on Normal (Easy 1.3x, Hard 0.5x, Extreme 0.25x as long), a smooth miss of 0.1 deg;
+        /// with Flight.Es2Director: of a crowd on one player about 6 shoot at a time) instead of GoF2's (at the centre, no
+        /// lead). Off (default) = the original. A session rule, apart from "NPC dogfighting".</summary>
+        public static bool Es2Aiming { get => Rule(R.Es2Aiming, "es2Aiming", false); set => SetRule(R.Es2Aiming, "es2Aiming", value); }
+
+        /// <summary>Remake (2026-11-06): Options > Gameplay "EVERSPACE 2 NPC flight": NPC ships fly on EVERSPACE 2's physics
+        /// (Flight.Es2NpcFlight: turn rates that ramp up and coast out of turns, a velocity that accelerates, brakes and drifts,
+        /// path tests that steer round asteroids, stations and other obstacles) at GoF2's top speed and turn rate, instead of
+        /// GoF2's (the heading nudged toward the goal at a constant speed, through asteroids). Off (default) = the original. A
+        /// session rule.</summary>
+        public static bool Es2NpcFlight { get => Rule(R.Es2NpcFlight, "es2NpcFlight", false); set => SetRule(R.Es2NpcFlight, "es2NpcFlight", value); }
 
         static int LocalCollision
         {
@@ -482,6 +498,8 @@ namespace GoF2Remake.Data
             if (GetBool("cloakBay", false)) m |= R.CloakBay;
             if (GetBool("empBreaksCloak", false)) m |= R.EmpBreaksCloak;
             if (GetBool("smarterNpcTargeting", false)) m |= R.SmarterNpcTargeting;
+            if (GetBool("es2Aiming", false)) m |= R.Es2Aiming;
+            if (GetBool("es2NpcFlight", false)) m |= R.Es2NpcFlight;
             return R.WithDogfight(R.WithCollision(m, LocalCollision), LocalDogfight);
         }
 
@@ -852,7 +870,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GameplayKeys =
         {
             "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule",
-            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
+            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
             "speedrunPosition", "speedrunLiveSplit",
         };
