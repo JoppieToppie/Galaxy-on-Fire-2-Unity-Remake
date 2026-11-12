@@ -314,6 +314,14 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   phone (S24 Ultra): the 79 GoF3 ships cold in 9.5 s, nothing compressed on the main thread, the hulls
   checked up close. Texture2D.Compress stays for a GPU that reads neither; a phone's old "gpu" cache files are no longer read
   (nothing deletes them).
+- **EVERSPACE 2's structure layers** (remake 2026-11-04, the ES2 importer's warships.structure_layers; a material's
+  `wear` / `wearNormal` / `wearNoise` / `grunge` and their numbers on `CustomShipMaterial`, `ModMaterials`; GoF2/Hull's
+  `Es2StructureLayers` in HullForwardPass.hlsl, on while `_Es2Wear2.z` > 0): after M_Structures_Parent's compiled base-pass
+  shader: the vertex alpha is the occlusion and the wear mask; the wear map (C_R_MT_H, linear) worn in where it is low,
+  broken up by the noise, with its own normal; the grunge darkening and roughening; `baseRoughness` remapping the
+  roughness map (0.5 = as it is); the rim x (1 + `rimBoost` (1 - N.V)^3). The vertex colour reaches the fragment through
+  HullLitForwardPass.hlsl, URP 17.7's LitForwardPass.hlsl copied with the lines marked GoF2 (copy it again when URP is
+  updated). The ModLit / ModSpec materials gain the new properties' defaults when Unity imports the shader. Landed 2026-11-06.
 - **Image formats** (`ImageImport`): every mod image (ModMaterials' `Texture` and background `PreloadTexture`, so skins,
   portraits, icons, hull textures, planets / suns / skies; ModInfo's preview; ModTextures' file list) and the Mod Builder's
   pickers (which store a picked image as PNG) read PNG / JPG by Unity's decoders and TGA (plain / RLE), BMP (8 / 24 / 32-bit),

@@ -95,6 +95,9 @@ namespace GoF2Remake.Data
         /// (EventRunner), and the quests finished (by graph name).</summary>
         public static List<GraphQuestState> GraphQuests = new List<GraphQuestState>();
         public static HashSet<string> GraphQuestsDone = new HashSet<string>();
+        /// <summary>Remake mods (2026-11-05, EVERSPACE 2's unique loot): the orbits' fixed container loot already taken
+        /// ("station:entry", World.LootContainer), so each comes once.</summary>
+        public static HashSet<string> FixedLootTaken = new HashSet<string>();
         /// <summary>Remake: the repeatable quests finished ("mission repeat"), each with the playing time (PlaySeconds) from which
         /// it may start again (EventRunner.CheckQuestStarts).</summary>
         public static Dictionary<string, float> GraphQuestRepeats = new Dictionary<string, float>();
@@ -569,6 +572,7 @@ namespace GoF2Remake.Data
             ModGameOptions = new HashSet<string>();
             ShipBuilds = new Dictionary<string, string>();
             GraphQuestsDone = new HashSet<string>();
+            FixedLootTaken = new HashSet<string>();
             GraphQuestRepeats = new Dictionary<string, float>();
             GameHooks.ResetLocalEvents?.Invoke();   // single player's graph runs go with the game
             Blueprints = new List<BlueprintState>();

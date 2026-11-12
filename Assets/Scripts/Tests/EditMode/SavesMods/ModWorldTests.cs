@@ -141,6 +141,25 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void AGasGiantsSphereTakesItsColoursAndVariation()
+        {
+            World("[ { 'id': 'a', 'system': 't_world:home', 'name': 'A', 'planetSphere': { 'look': 'es2GasSmooth', 'colors': [[0.02, 0.07, 0.1], [0.17, 0.49, 0.5]], 'variation': 1.25 } }, "
+                + "{ 'id': 'b', 'system': 't_world:home', 'name': 'B', 'planetSphere': { 'look': 'es2Desert' } } ]");
+            var gas = ModWorld.PlanetSphereOf(135);
+            Assert.AreEqual("es2GasSmooth", gas.look);
+            Assert.AreEqual(new Vector3(0.02f, 0.07f, 0.1f), gas.color1.Value);
+            Assert.AreEqual(new Vector3(0.17f, 0.49f, 0.5f), gas.color2.Value);
+            Assert.AreEqual(0.25f, gas.variation, 1e-5f, "a whole turn more is the same hue");
+            Assert.AreEqual(1, System.Array.IndexOf(ModWorld.PlanetSphereLooks, "es2GasSmooth"), "GoF2/Es2Planet's _Look 1");
+            Assert.AreEqual(2, System.Array.IndexOf(ModWorld.PlanetSphereLooks, "es2Gas"));
+            Assert.AreEqual(3, System.Array.IndexOf(ModWorld.PlanetSphereLooks, "es2Cratered"));
+            Assert.AreEqual(4, System.Array.IndexOf(ModWorld.PlanetSphereLooks, "es2Volcanic"));
+            Assert.AreEqual(6, System.Array.IndexOf(ModWorld.PlanetSphereLooks, "es2Water"));
+            Assert.AreEqual(7, System.Array.IndexOf(ModWorld.PlanetSphereLooks, "es2Earthlike"));
+            Assert.IsNull(ModWorld.PlanetSphereOf(136).color1, "the desert has none");
+        }
+
+        [Test]
         public void ValuesAreClampedAndDefaulted()
         {
             var db = World("[ { 'id': 'a', 'system': 't_world:home', 'name': 'A', 'techLevel': 15 } ]");
@@ -526,7 +545,160 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(20000f, h[1].radius, "the default radius");
         }
 
-        [Test] public void AHazardNeedsAKnownKind() => StringAssert.Contains("\"kind\" is \"heat\" or \"radiation\"", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'hazards': [ { 'kind': 'lava', 'centre': [0, 0, 0] } ] } } ]"));
+        [Test]
+        public void AnOrbitsFrostCorrosionAndDamageFields()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'hazards': [ { 'kind': 'frost', 'centre': [0, 0, 20000] }, { 'kind': 'corrosion', 'centre': [5000, 0, 0] }, { 'kind': 'damage', 'centre': [0, 0, 0], 'raiderDps': 0.36 } ] } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var h = ModWorld.OrbitOf(78).hazards;
+            Assert.AreEqual(ModWorld.HazardKind.Frost, h[0].kind);
+            Assert.AreEqual(ModWorld.HazardKind.Corrosion, h[1].kind);
+            Assert.AreEqual(GoF2Remake.Flight.RiftRun.CorrosionTickSeconds, h[1].raiderDps, 1e-5f, "ES2's intensity 5 over the raider's 55 DPS by default");
+            Assert.AreEqual(ModWorld.HazardKind.Damage, h[2].kind);
+            Assert.AreEqual(0.36f, h[2].raiderDps, 1e-5f);
+        }
+
+        [Test]
+        public void AnOrbitsAmbienceZones()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'ambience': [ { 'loops': ['outlaw_1', 'outlaw_2'], 'centre': [0, 0, 20000], 'radius': 10000, 'volume': 0.85 }, " +
+                "  { 'loop': 'factory', 'adds': ['clank_1', 'clank_2'], 'addVolume': 0.1, 'addEveryMs': [4000, 10000], 'echo': 1 }, { 'adds': ['x'] } ] } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var a = ModWorld.OrbitOf(78).ambience;
+            Assert.AreEqual(2, a.Count, "a zone without loops left out");
+            Assert.AreEqual(new[] { "outlaw_1", "outlaw_2" }, a[0].loops.ToArray());
+            Assert.AreEqual(0.85f, a[0].volume, 1e-5f);
+            Assert.AreEqual(new[] { "factory" }, a[1].loops.ToArray(), "\"loop\": one");
+            Assert.IsNull(a[1].centre, "no centre: the whole orbit");
+            Assert.AreEqual(4000f, a[1].addMinMs);
+            Assert.AreEqual(10000f, a[1].addMaxMs);
+            Assert.AreEqual(1f, GoF2Remake.World.OrbitAmbience.Weight(a[1], new Vector3(99999f, 0f, 0f)), "everywhere");
+            Assert.AreEqual(1f, GoF2Remake.World.OrbitAmbience.Weight(a[0], new Vector3(0f, 0f, 25000f)), "within its radius");
+            Assert.AreEqual(0.5f, GoF2Remake.World.OrbitAmbience.Weight(a[0], new Vector3(0f, 0f, 32500f)), 1e-4f, "halfway through the fade");
+            Assert.AreEqual(0f, GoF2Remake.World.OrbitAmbience.Weight(a[0], new Vector3(0f, 0f, 40000f)), "past it");
+            string messages = AllMessages(Installed("t_world"));
+            StringAssert.Contains("unknown ambience field \"echo\"", messages);
+            StringAssert.Contains("without \"loops\"", messages);
+        }
+
+        [Test]
+        public void AnOrbitsGasClouds()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'gasClouds': { 'plasma': 202, 'clouds': [ [40000, 0, 60000], [-30000, 5000, 90000], [1, 2] ], 'colour': 'blue' } } }, " +
+                "  { 'override': 79, 'orbit': { 'gasClouds': { 'clouds': [] } } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var g = ModWorld.OrbitOf(78).gasClouds;
+            Assert.AreEqual("202", g.plasma, "a number: the GoF2 plasma item");
+            Assert.AreEqual(2, g.clouds.Count, "the malformed one left out");
+            Assert.AreEqual(new Vector3(-30000f, 5000f, 90000f), g.clouds[1]);
+            Assert.IsNull(ModWorld.OrbitOf(79)?.gasClouds, "no clouds: GoF2's own roll");
+            string messages = AllMessages(Installed("t_world"));
+            StringAssert.Contains("unknown gasClouds field \"colour\"", messages);
+            StringAssert.Contains("a gas cloud is [x, y, z]", messages);
+        }
+
+        [Test]
+        public void AnOrbitsOwnLocalsAndRaiders()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'locals': ['vossk', 2], 'raiders': ['pirates'] } }, { 'override': 79, 'orbit': { 'raiders': ['nobody'] } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            int system = Database.Shared.Stations.Find(s => s.index == 78).system;
+            Assert.AreEqual(new[] { 1, 2 }, ModWorld.Locals(system, 78).ToArray(), "race words and numbers");
+            Assert.AreEqual(new[] { 8 }, ModWorld.Raiders(system, 78).ToArray());
+            Assert.IsNull(ModWorld.Locals(system, 77), "another orbit: its system's (none here)");
+            Assert.IsNull(ModWorld.Raiders(Database.Shared.Stations.Find(s => s.index == 79).system, 79), "no race resolved: the system's");
+        }
+
+        [Test]
+        public void AnOrbitsFixedContainerLoot()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'containers': { 'count': 3, 'loot': [ { 'item': 155, 'amount': 4 }, '201', { 'amount': 2 } ] } } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var l = ModWorld.OrbitOf(78).containerLoot;
+            Assert.AreEqual(2, l.Count, "an entry without an item left out");
+            Assert.AreEqual(("155", 4), l[0]);
+            Assert.AreEqual(("201", 1), l[1], "a bare reference: one");
+            Assert.AreEqual("78:1", GoF2Remake.World.LootContainer.FixedLootKey(78, 1));
+            StringAssert.Contains("a container loot entry is", AllMessages(Installed("t_world")));
+        }
+
+        [Test]
+        public void AnOrbitsContainerModels()
+        {
+            string dir = WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'containers': { 'count': 2, 'model': 'box.glb', 'bulletproofModel': 'vault.glb' } } } ]"));
+            WriteFile(dir, "box.glb", Dummy);
+            ScanAndEnable("t_world");
+            Database.Load();
+            var o = ModWorld.OrbitOf(78);
+            Assert.AreEqual("box.glb", o.containerModel);
+            Assert.IsNull(o.containerProofModel, "not in the mod: the race's container");
+            Assert.AreEqual("t_world", o.owner.Id);
+            Assert.IsTrue(ModWorld.ContainerModels().Exists(m => m.mod == o.owner && m.path == "box.glb"), "loaded with the mod crates");
+            StringAssert.Contains("\"bulletproofModel\" \"vault.glb\" isn't in the mod", AllMessages(Installed("t_world")));
+        }
+
+        [Test]
+        public void AnOrbitsAsteroidModels()
+        {
+            string dir = WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'asteroids': { 'count': 40, 'models': ['rock_a.glb', 'rock_b.glb', 'gone.glb'], 'materials': [ { 'material': 'Rock', 'color': [0.5, 0.5, 0.5] } ] } } } ]"));
+            WriteFile(dir, "rock_a.glb", Dummy);
+            WriteFile(dir, "rock_b.glb", Dummy);
+            ScanAndEnable("t_world");
+            Database.Load();
+            var o = ModWorld.OrbitOf(78);
+            Assert.AreEqual(new[] { "rock_a.glb", "rock_b.glb" }, o.asteroidModels.ToArray(), "the missing one left out");
+            Assert.AreEqual(1, o.asteroidMaterials.Count);
+            Assert.AreEqual(2, ModWorld.ContainerModels().FindAll(m => m.path.StartsWith("rock_")).Count, "loaded with the mod crates");
+            StringAssert.Contains("asteroids model \"gone.glb\" isn't in the mod", AllMessages(Installed("t_world")));
+        }
+
+        [Test]
+        public void AnOrbitsWreckModels()
+        {
+            string dir = WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'wrecks': { 'count': 10, 'models': ['hull_a.glb', 'gone.glb'], 'hulks': 4, 'size': 12000, 'materials': [ { 'material': 'Hull', 'color': [0.5, 0.5, 0.5] } ] } } } ]"));
+            WriteFile(dir, "hull_a.glb", Dummy);
+            ScanAndEnable("t_world");
+            Database.Load();
+            var o = ModWorld.OrbitOf(78);
+            Assert.AreEqual(new[] { "hull_a.glb" }, o.wreckModels.ToArray(), "the missing one left out");
+            Assert.AreEqual(4, o.wreckHulks);
+            Assert.AreEqual(12000f, o.wreckSize);
+            Assert.AreEqual(1, o.wreckMaterials.Count);
+            Assert.AreEqual(1, ModWorld.ContainerModels().FindAll(m => m.path == "hull_a.glb").Count, "loaded with the mod crates");
+            StringAssert.Contains("wrecks model \"gone.glb\" isn't in the mod", AllMessages(Installed("t_world")));
+            Assert.IsFalse(AllMessages(Installed("t_world")).Contains("unknown wrecks field"));
+        }
+
+        [Test]
+        public void AnOrbitsStorm()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'orbit': { 'storm': { 'frequency': 2, 'thunder': ['t1', 't2'], 'sparks': 1 } } }, { 'override': 77, 'orbit': { 'storm': true } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var s = ModWorld.OrbitOf(78).storm;
+            Assert.AreEqual(2f, s.frequency);
+            Assert.AreEqual(new[] { "t1", "t2" }, s.thunder.ToArray());
+            Assert.AreEqual(0.2f, s.thunderChance, 1e-5f, "ES2's ThunderSoundSpawnChance");
+            Assert.AreEqual(80000f, ModWorld.OrbitOf(77).storm.radius, "ES2's 400 000 cm");
+            StringAssert.Contains("unknown storm field \"sparks\"", AllMessages(Installed("t_world")));
+        }
+
+        [Test] public void AHazardKindIsNotANumber() => StringAssert.Contains("a hazard's \"kind\" is", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'hazards': [ { 'kind': '1', 'centre': [0, 0, 0] } ] } } ]"));
+        [Test] public void AHazardNeedsAKnownKind() => StringAssert.Contains("\"kind\" is \"heat\", \"radiation\", \"frost\", \"corrosion\" or \"damage\"", WorldError("stations.json", "[ { 'override': 1, 'orbit': { 'hazards': [ { 'kind': 'lava', 'centre': [0, 0, 0] } ] } } ]"));
 
         // Remake (2026-11-03, EVERSPACE 2's item containers): a station's "orbit.containers" (World.LootContainer).
         [Test]
@@ -575,6 +747,37 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(80f, l[1].speed, "ES2's 8000 cm/s");
             Assert.IsTrue(l[1].loop && l[1].twoLanes, "ES2's ClosedLoop and TwoLanes");
         }
+
+        // Remake (2026-11-04, EVERSPACE 2's worker drones): a station model's "life" (World.StationLife).
+        [Test]
+        public void AStationModelsLife()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("stations.json",
+                "[ { 'override': 78, 'model': 'st.glb', 'life': { 'loops': [ { 'points': [[1, 2, 3], [4, 5, 6], [7, 8, 9]], 'count': 3, 'speed': 12, 'loop': false, " +
+                "'laneOffset': 2, 'spots': [[1, 1, 1, 0, 0, 2]] }, { 'points': [[0, 0, 0], [10, 0, 0]], 'count': 99 } ] } }, " +
+                "{ 'override': 79, 'model': 'st.glb' } ]"), ("st.glb", "x"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var life = ModWorld.ModelOf(78).life;
+            Assert.AreEqual("life", life.scene, "the model's scene \"life\" by default");
+            Assert.AreEqual(2, life.loops.Count);
+            var a = life.loops[0];
+            Assert.AreEqual(new Vector3(7, 8, 9), a.points[2]);
+            Assert.AreEqual((3, 12f, 2f), (a.count, a.speed, a.laneOffset));
+            Assert.IsFalse(a.loop);
+            Assert.IsTrue(a.twoLanes);
+            Assert.AreEqual(1, a.spots.Count);
+            Assert.AreEqual(new Vector3(0, 0, 1), a.spots[0].normal, "the normal made a unit");
+            var b = life.loops[1];
+            Assert.AreEqual(ModWorld.MaxLifeDrones, b.count, "at most 40 drones a loop");
+            Assert.AreEqual((20f, 5f), (b.speed, b.laneOffset), "ES2's BaseSpeed 2000 cm/s and LaneOffset 500 cm");
+            Assert.IsTrue(b.loop && b.spots.Count == 0);
+            Assert.IsNull(ModWorld.ModelOf(79).life, "none unless given");
+            Assert.AreEqual(new Vector3(-1, 2, 3), GoF2Remake.World.StationLife.FromGltf(new Vector3(1, 2, 3)), "glTFast's frame mirrors x");
+        }
+
+        [Test] public void LifeNeedsTheStationsOwnModel() => StringAssert.Contains("\"life\" needs the station's own \"model\"", WorldError("stations.json", "[ { 'override': 1, 'life': { 'loops': [] } } ]"));
+        [Test] public void AWeldSpotHasSixNumbers() => StringAssert.Contains("a weld spot is [x, y, z, nx, ny, nz]", WorldError("stations.json", "[ { 'override': 1, 'model': 'a.glb', 'life': { 'loops': [ { 'points': [[0, 0, 0], [1, 0, 0]], 'spots': [[0, 0, 0]] } ] } } ]"));
 
         // Remake (2026-11-04): an orbit's EVERSPACE 2 location level (its encounters' pay, CruiseEncounterSpawner.Es2Level).
         [Test]

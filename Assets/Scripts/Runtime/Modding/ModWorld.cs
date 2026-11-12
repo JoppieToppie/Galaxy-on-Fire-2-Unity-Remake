@@ -94,7 +94,7 @@ namespace GoF2Remake.Modding
         static readonly HashSet<string> StationFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "id", "override", "name", "system", "techLevel", "planet", "looksLike", "music", "model", "modelSize", "modelYaw", "modelCentre",
               "materials", "collision", "volumes", "interior", "planetTexture", "mapTexture", "mapRing", "mapPlace", "orbit", "hangar", "bar", "mobile",
-              "subtitle", "description" };
+              "subtitle", "description", "life", "planetSphere" };
 
         /// <summary>ModContent.Parse: a mod's systems.json and stations.json into 'systems' / 'stations'.</summary>
         public static void Parse(ModInfo mod, List<Def> systems, List<Def> stations)
@@ -140,6 +140,12 @@ namespace GoF2Remake.Modding
                         throw new ModJsonException($"{d.where}: the {image} {file} isn't in the mod");
                 ModJson.Bool(o, "mapRing", false, d.file);
                 if (ModJson.Get(o, "orbit") is JToken orbitToken) ParseOrbit(mod, orbitToken, d.where, null);
+                if (ModJson.Get(o, "life") is JToken lifeToken)
+                {
+                    if (!ModJson.Has(o, "model")) throw new ModJsonException($"{d.where}: \"life\" needs the station's own \"model\"");
+                    ParseLife(mod, lifeToken, d.where);
+                }
+                if (ModJson.Get(o, "planetSphere") is JToken sphereToken) ParsePlanetSphere(mod, sphereToken, d.where, check: true);
                 if (ModJson.Get(o, "mapPlace") is JToken placeToken) ParseMapPlace(placeToken, d.where);
                 if (ModJson.Get(o, "mobile") is JToken mobileToken)
                 {
@@ -195,6 +201,30 @@ namespace GoF2Remake.Modding
             /// <summary>The gate's collision and approach radius in game units (0: the race gate's).</summary>
             public float gateRadius;
             public string Assembly => gateSystem >= 0 ? $"modgate_{gateSystem:000}" : $"modstation_{station:000}";
+            /// <summary>Remake (2026-11-04): its station life (stations.json "life", World.StationLife), null = none.</summary>
+            public LifeSpec life;
+        }
+
+        /// <summary>Remake (2026-11-04): a station model's life, EVERSPACE 2's worker drones (stations.json "life",
+        /// World.StationLife): loops of drones round its structures that stop now and then to weld its hull. The drone is the
+        /// model file's scene "scene" (its first node; nose on +z). Everything in the model's own frame: its glTF metres as
+        /// the file has them, before modelYaw, modelSize and the centring (which the drones follow with the model).</summary>
+        public sealed class LifeSpec
+        {
+            public string scene = "life";
+            public List<LifeLoop> loops = new List<LifeLoop>();
+        }
+
+        public sealed class LifeLoop
+        {
+            /// <summary>The model's glTF metres, at least two.</summary>
+            public List<Vector3> points = new List<Vector3>();
+            public int count = 4;
+            /// <summary>The model's metres a second (ES2's BaseSpeed 2000 cm/s: 20).</summary>
+            public float speed = 20f, laneOffset = 5f;
+            public bool loop = true, twoLanes = true;
+            /// <summary>Where its drones weld: a spot on the hull and its outward normal (the model's glTF frame).</summary>
+            public List<(Vector3 at, Vector3 normal)> spots = new List<(Vector3, Vector3)>();
         }
 
         static readonly Dictionary<int, StationModel> gateModels = new Dictionary<int, StationModel>();
@@ -204,6 +234,23 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, string> stationHangar = new Dictionary<int, string>(), stationBar = new Dictionary<int, string>();
 
         const string NoBarKey = "none";
+        /// <summary>Remake (2026-11-04): a station's planet drawn as a lit sphere (stations.json "planetSphere", World.Backdrop),
+        /// after EVERSPACE 2's planet materials: 'look' the master it follows (es2Desert), its maps (mod paths) by role, its
+        /// atmosphere's colour (linear RGB, null: none).</summary>
+        public sealed class PlanetSphereSpec
+        {
+            public ModInfo mod;
+            public string look;
+            public readonly Dictionary<string, string> maps = new Dictionary<string, string>();
+            public Color? atmosphere;
+            /// <summary>2026-11-06, the gas giants: the master's two colours (linear, as ES2's material holds them: GasSmooth's
+            /// Color / Color2, Gas's SecondaryColor / BaseColor) and the planet's Variation (0..1: its hue turned by x 2 pi).</summary>
+            public Vector3? color1, color2;
+            public float variation;
+        }
+        public static readonly string[] PlanetSphereLooks = { "es2Desert", "es2GasSmooth", "es2Gas", "es2Cratered", "es2Volcanic", "es2Ice", "es2Water", "es2Earthlike" };
+        static readonly Dictionary<int, PlanetSphereSpec> planetSpheres = new Dictionary<int, PlanetSphereSpec>();
+
         static readonly Dictionary<int, string> planetTextures = new Dictionary<int, string>(), sunTextures = new Dictionary<int, string>(),
                                                 mapTextures = new Dictionary<int, string>();
         static readonly HashSet<int> mapRings = new HashSet<int>();
@@ -212,18 +259,19 @@ namespace GoF2Remake.Modding
         /// <summary>A station's orbit level laid out by its mod (stations.json "orbit"), applied by OrbitLayout.Build over the
         /// seeded layout; null fields keep the game's. Positions in game units around the station (the orbit's centre).</summary>
         /// <summary>Remake (2026-11-03): an orbit's hazard volume (stations.json "orbit.hazards", Flight.Hazards).</summary>
-        public enum HazardKind { Heat, Radiation }
+        public enum HazardKind { Heat, Radiation, Frost, Corrosion, Damage }
         public sealed class HazardSpec
         {
             public HazardKind kind;
             public Vector3 centre;
             /// <summary>Game units.</summary>
             public float radius;
-            /// <summary>Heat: the damage a second at the centre.</summary>
+            /// <summary>Heat: the damage a second at the centre; damage: everywhere inside.</summary>
             public float dps;
             /// <summary>Heat (2026-11-04): the damage a second at the centre as that many pirate raiders' gunfire
             /// (NpcTables.RaiderGunDps; EVERSPACE 2's DamagePerSecondMax over its Outlaw raider's 55 DPS, both scaled by level
-            /// alike); over 'dps' when given.</summary>
+            /// alike); over 'dps' when given. Damage and corrosion the same way (corrosion: a tick's damage, default ES2's
+            /// intensity 5 over the raider's 55 DPS).</summary>
             public float raiderDps;
         }
 
@@ -240,8 +288,50 @@ namespace GoF2Remake.Modding
             public bool loop = true, twoLanes = true;
         }
 
+        /// <summary>Remake (2026-11-05, EVERSPACE 2's ambience zones, BP_MusicTrigger's OverrideAmbience): a sound bed in an orbit
+        /// (stations.json "orbit.ambience", World.OrbitAmbience): one of 'loops' looping, one of 'adds' now and then.</summary>
+        public sealed class AmbienceSpec
+        {
+            /// <summary>Mod sound names (sounds/): one picked at random loops; 'adds' are one-shots every addMinMs..addMaxMs.</summary>
+            public List<string> loops, adds;
+            public float volume = 1f, addVolume = 0.3f, addMinMs = 8000f, addMaxMs = 15000f;
+            /// <summary>Game units; null = the whole orbit. Full volume within 'radius', fading out over half of it more.</summary>
+            public Vector3? centre;
+            public float radius = 30000f;
+        }
+
+        /// <summary>Remake (2026-11-06, EVERSPACE 2's BP_LightningField): a lightning storm round the camera (stations.json
+        /// "orbit.storm", World.OrbitStorm): 'frequency' flashes a second on a cylinder 'radius' game units out, each a glow
+        /// and a bolt 'scale' x ES2's sizes, 'intensity' x its brightness; a 'thunder' sound (one of the mod's) at 'thunderChance'.</summary>
+        public sealed class StormSpec
+        {
+            public float frequency = 1f, radius = 80000f, heightPercent = 1f, scale = 1f, intensity = 1f, thunderChance = 0.2f;
+            public List<string> thunder;
+        }
+
+        /// <summary>Remake (2026-11-05, EVERSPACE 2's plasma fields): the orbit's gas clouds (stations.json "orbit.gasClouds",
+        /// World.GasCloudField) instead of GoF2's roll: their plasma and places; still only with a spectral filter mounted.</summary>
+        public sealed class GasCloudSpec
+        {
+            /// <summary>An item reference ("201".."204" GoF2's plasmas, or "mod:id"); null = GoF2's pick for the system.</summary>
+            public string plasma;
+            /// <summary>Game units, one a cloud.</summary>
+            public List<Vector3> clouds;
+        }
+
         public sealed class OrbitSpec
         {
+            /// <summary>Remake (2026-11-05, EVERSPACE 2's plasma fields): null = GoF2's own roll.</summary>
+            public GasCloudSpec gasClouds;
+            /// <summary>Remake (2026-11-05, EVERSPACE 2's location_spawns): the orbit's local fighters' and raiders' races (race
+            /// words, numbers or mod races, resolved when used: ModWorld.Locals / Raiders), beating the system's; null = its.</summary>
+            public List<string> locals, raiders;
+            /// <summary>The mod whose stations.json gave the orbit (its races' and models' references).</summary>
+            public ModInfo owner;
+            /// <summary>Remake (2026-11-05, EVERSPACE 2's ambience zones): null = none.</summary>
+            public List<AmbienceSpec> ambience;
+            /// <summary>Remake (2026-11-06): the orbit's lightning storm (World.OrbitStorm), null = none.</summary>
+            public StormSpec storm;
             /// <summary>Remake (2026-11-03, EVERSPACE 2's spline traffic): null = none.</summary>
             public List<LaneSpec> lanes;
             /// <summary>Remake (2026-11-03, EVERSPACE 2's heat volumes and radiation fields): null = none.</summary>
@@ -263,12 +353,27 @@ namespace GoF2Remake.Modding
             public int level;
             public Vector3? wreckCentre;
             public float wreckSpread = 60000f;
+            /// <summary>Remake (2026-11-05, EVERSPACE 2's wreck meshes): glTF / GLB wreck hulls in the mod laid among the wreck
+            /// containers (wreckHulks of them, one at random each; the largest model wreckSize game units at its largest side, the
+            /// others in proportion as authored) with their "materials"; null = containers only.</summary>
+            public List<string> wreckModels;
+            public List<CustomShipMaterial> wreckMaterials = new List<CustomShipMaterial>();
+            public int wreckHulks = -1;   // (-1: as many as the models x 2, at most 8)
+            public float wreckSize = 8000f;
             /// <summary>Remake (2026-11-03, EVERSPACE 2's item containers): this many closed containers (0 = none) within
             /// containerSpread (game units, a cube's side) of containerCentre, containerBulletproof of them bulletproof
             /// (World.LootContainer).</summary>
             public int containerCount;
             public Vector3? containerCentre;
             public float containerSpread = 40000f, containerBulletproof = 0.3f;
+            /// <summary>Remake (2026-11-05, EVERSPACE 2's unique loot): fixed items in its containers, each entry once a game
+            /// (Session.FixedLootTaken); null = none.</summary>
+            public List<(string item, int amount)> containerLoot;
+            /// <summary>Remake (2026-11-05, EVERSPACE 2's container meshes): glTF / GLB files in the mod for its containers and its
+            /// bulletproof ones (Modding.ModCrates, fitted to the race's container), null = the race's container.</summary>
+            public string containerModel, containerProofModel;
+            /// <summary>Their materials, like ships.json's (by the model's mesh / material names); empty = the model's own.</summary>
+            public List<CustomShipMaterial> containerMaterials = new List<CustomShipMaterial>();
             /// <summary>false: no asteroid field.</summary>
             public bool? asteroids;
             public int? asteroidCount;
@@ -279,6 +384,10 @@ namespace GoF2Remake.Modding
             public int asteroidType = -1;
             /// <summary>The ores (item, chance weight), null: the system's by distance like the game's.</summary>
             public List<(int item, int chance)> ores;
+            /// <summary>Remake (2026-11-05, EVERSPACE 2's asteroid meshes): glTF / GLB files in the mod drawn for its asteroids
+            /// (one at random each, as big as the game's asteroid; mining unchanged) with their "materials"; null = the game's.</summary>
+            public List<string> asteroidModels;
+            public List<CustomShipMaterial> asteroidMaterials = new List<CustomShipMaterial>();
             public bool? fog;
             public Color? fogColor;
             public float? fogEnd;
@@ -310,9 +419,13 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, MapPlace> mapPlaces = new Dictionary<int, MapPlace>();
 
         static readonly HashSet<string> OrbitFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld", "skyRotation", "skybox", "light2", "ambient", "wrecks", "hazards", "containers", "lanes", "level" };
+            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld", "skyRotation", "skybox", "light2", "ambient", "wrecks", "hazards", "containers", "lanes", "level", "ambience", "gasClouds", "locals", "raiders", "storm" };
+        static readonly HashSet<string> StormFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "frequency", "radius", "heightPercent", "scale", "intensity", "thunder", "thunderChance" };
+        static readonly HashSet<string> WreckFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "count", "centre", "center", "spread", "models", "materials", "hulks", "size" };
         static readonly HashSet<string> AsteroidFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "count", "centre", "center", "spread", "type", "ores" };
+            { "count", "centre", "center", "spread", "type", "ores" , "models", "materials" };
         static readonly string[] AsteroidTypes = { "rock", "void", "ice", "magma" };
 
         /// <summary>A system's own sky (systems.json "skybox"; OrbitBuilder.SetupSky, GoF2/SpaceSky's mod images).</summary>

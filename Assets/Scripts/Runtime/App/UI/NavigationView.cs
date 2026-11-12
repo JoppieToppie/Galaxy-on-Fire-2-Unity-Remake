@@ -313,10 +313,10 @@ namespace GoF2Remake.UI
                     {
                         Place(m.distance, p.x + lx, p.y + (station ? 60f : 30f));
                         float units = (t.Position - cam.transform.position).magnitude / M;
-                        // remake: light years between the systems (at the hops' scale, so a zone's edge changes nothing), a planet
+                        // remake: Elite Dangerous's units between the systems (ly, Ls, Mm, km, m; at the hops' scale, so a zone's edge changes nothing), a planet
                         // near enough in the orbit's km
                         m.distance.text = !nav.Interstellar || (t.planetOf != null && units < InterstellarSpace.PlanetKmUnits) ? Navigation.FormatDistance(units)
-                                        : InterstellarSpace.FormatLightYears(units, nav.WorldScale);
+                                        : InterstellarSpace.FormatSpaceDistance(units, nav.WorldScale);
                     }
                 }
                 if (m.icon != null)

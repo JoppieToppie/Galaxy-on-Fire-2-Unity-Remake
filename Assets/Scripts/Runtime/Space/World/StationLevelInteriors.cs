@@ -349,7 +349,7 @@ namespace GoF2Remake.World
             // owner), like its orbit's locals; the game's fighters only when they have none.
             if (Modding.ModWorld.ModTrafficOnly(Layout.systemIndex))
             {
-                var locals = Modding.ModWorld.Locals(Layout.systemIndex);
+                var locals = Modding.ModWorld.Locals(Layout.systemIndex, Layout.stationIndex);
                 int side = locals != null ? locals[Random.Range(0, locals.Count)] : Layout.raceId;
                 return Flight.NpcTables.RandomFighter(side);
             }

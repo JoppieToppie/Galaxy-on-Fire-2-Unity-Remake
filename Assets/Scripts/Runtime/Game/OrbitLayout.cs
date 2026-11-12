@@ -83,6 +83,8 @@ namespace GoF2Remake.World
         public float asteroidSpread = 100000f;
         /// <summary>Remake mods: the field's ores (item, chance weight), null: the system's (OreProbabilities).</summary>
         public List<(int item, int chance)> modOres;
+        /// <summary>Remake mods: the asteroids' own models ("mod id|path" keys, Modding.ModCrates), null = the game's.</summary>
+        public List<string> asteroidModels;
         /// <summary>Remake mods: the orbit's own sky turn (stations.json orbit "skyRotation", Unity degrees), null: the system's.</summary>
         public Vector3? modSkyRotation;
         /// <summary>Remake mods: the second light's direction toward it (game space; stations.json orbit "light2"), null: the
@@ -226,6 +228,7 @@ namespace GoF2Remake.World
             if (m.asteroidSpread.HasValue) asteroidSpread = m.asteroidSpread.Value;
             if (m.asteroidType >= 0) asteroidType = m.asteroidType;
             if (m.ores != null) modOres = m.ores;
+            if (m.asteroidModels != null && m.owner != null) asteroidModels = m.asteroidModels.ConvertAll(p => m.owner.Id + "|" + p);
             if (m.skyRotation.HasValue) modSkyRotation = m.skyRotation;
             if (m.light2Color.HasValue) planetLightColor = m.light2Color.Value;
             if (m.light2Direction.HasValue) modLight2Direction = ModDirection(m.light2Direction.Value.x, m.light2Direction.Value.y);

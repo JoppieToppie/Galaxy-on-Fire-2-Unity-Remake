@@ -4,7 +4,8 @@
 // NetCrate's model key). Each file loads once (ships sharing it share the template), in the background with the other mod
 // models when the mods change (Preload; ModLoading), into a hidden DontDestroyOnLoad holder; a crate made before its model
 // is there shows the race's container. Instantiate fits the copy to the race's container (its largest extent) unless the
-// entry gives "crateSize" (game units). A crate's model key is "<mod id>|<path>".
+// entry gives "crateSize" (game units). A crate's model key is "<mod id>|<path>". The orbits' containers', asteroids' and
+// wrecks' models (stations.json "orbit.containers" / "asteroids" / "wrecks", ModWorld.ContainerModels) load with them.
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -21,6 +22,7 @@ namespace GoF2Remake.Modding
 
         static readonly Dictionary<string, GameObject> templates = new Dictionary<string, GameObject>();
         static readonly Dictionary<string, float> extents = new Dictionary<string, float>();   // a template's largest extent (Unity)
+        static readonly Dictionary<string, List<CustomShipMaterial>> materials = new Dictionary<string, List<CustomShipMaterial>>();   // an orbit container model's own
         static readonly Dictionary<int, string> shipKeys = new Dictionary<int, string>();
         static readonly Dictionary<string, float> sizes = new Dictionary<string, float>();   // a key's "crateSize" (game units)
         static readonly Dictionary<int, float> raceExtents = new Dictionary<int, float>();
@@ -75,6 +77,33 @@ namespace GoF2Remake.Modding
             return go;
         }
 
+        /// <summary>A copy of model 'key' fitted to 'extent' (Unity, its largest side); null while it isn't loaded (an orbit's
+        /// asteroids: OrbitBuilder fits it to the game asteroid it stands in for).</summary>
+        public static GameObject InstantiateFitted(string key, Vector3 at, Quaternion rotation, float extent, Transform parent)
+        {
+            if (string.IsNullOrEmpty(key) || loadedRevision != ModManager.Revision) { Preload(); return null; }
+            if (!templates.TryGetValue(key, out var template) || template == null) return null;
+            var go = Object.Instantiate(template, at, rotation, parent);
+            if (extent > 0f && extents.TryGetValue(key, out float have) && have > 1e-6f) go.transform.localScale = Vector3.one * (extent / have);
+            return go;
+        }
+
+        /// <summary>The largest side of a hierarchy's mesh bounds (Unity, as it stands).</summary>
+        public static float ExtentOf(GameObject root) => root != null ? LargestExtent(root) : 0f;
+
+        /// <summary>Model 'key''s largest side as loaded (Unity, before any fitting); 0 while it isn't loaded.</summary>
+        public static float ExtentOf(string key) => !string.IsNullOrEmpty(key) && loadedRevision == ModManager.Revision && extents.TryGetValue(key, out float e) ? e : 0f;
+
+        /// <summary>A hierarchy's mesh bounds in its root's space, its root's scale applied (an orbit's wreck hulls: their
+        /// collision box, turned with them).</summary>
+        public static Bounds LocalBounds(GameObject root)
+        {
+            var b = RootBounds(root, out bool any);
+            if (!any) return new Bounds();
+            var s = root.transform.localScale;
+            return new Bounds(Vector3.Scale(b.center, s), Vector3.Scale(b.size, s));
+        }
+
         /// <summary>The largest extent of race 'race''s container (Unity), what a mod crate is fitted to.</summary>
         static float RaceExtent(int race)
         {
@@ -89,7 +118,13 @@ namespace GoF2Remake.Modding
         /// <summary>The largest side of a hierarchy's mesh bounds in its root's space (scale 1).</summary>
         static float LargestExtent(GameObject root)
         {
-            var b = new Bounds(); bool any = false;
+            var b = RootBounds(root, out bool any);
+            return any ? Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z)) : 0f;
+        }
+
+        static Bounds RootBounds(GameObject root, out bool any)
+        {
+            var b = new Bounds(); any = false;
             var toRoot = root.transform.worldToLocalMatrix;
             foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
             {
@@ -103,7 +138,7 @@ namespace GoF2Remake.Modding
                     if (!any) { b = new Bounds(p, Vector3.zero); any = true; } else b.Encapsulate(p);
                 }
             }
-            return any ? Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z)) : 0f;
+            return b;
         }
 
         /// <summary>Which ship has which crate (the active mods' ships.json "crate"), again when the mods change.</summary>
@@ -124,7 +159,7 @@ namespace GoF2Remake.Modding
         static async Task LoadAll(int rev)
         {
             foreach (var t in templates.Values) if (t != null) Object.Destroy(t);
-            templates.Clear(); extents.Clear(); raceExtents.Clear();
+            templates.Clear(); extents.Clear(); raceExtents.Clear(); materials.Clear();
             foreach (var i in imports) i.Dispose();
             imports.Clear();
             var files = new Dictionary<string, ModInfo>();
@@ -132,6 +167,11 @@ namespace GoF2Remake.Modding
             {
                 foreach (var (mod, ship) in ModContent.ActiveShips())
                     if (ship != null && !string.IsNullOrEmpty(ship.crate)) files[mod.Id + "|" + ship.crate] = mod;
+                foreach (var (mod, path, mats) in ModWorld.ContainerModels())   // (the orbits' containers, with their materials)
+                {
+                    files[mod.Id + "|" + path] = mod;
+                    if (mats != null && mats.Count > 0) materials[mod.Id + "|" + path] = mats;
+                }
             }
             catch (System.Exception e) { Debug.LogException(e); }
             if (files.Count > 0)
@@ -174,10 +214,28 @@ namespace GoF2Remake.Modding
                 if (!await ModGltf.InstantiateMain(import, root.transform)) { Object.Destroy(root); Warn(mod, $"{path}: no scene to show"); return; }
                 if (rev != ModManager.Revision || holder == null) { Object.Destroy(root); return; }
                 foreach (var c in root.GetComponentsInChildren<Collider>(true)) Object.Destroy(c);
+                if (materials.TryGetValue(key, out var specs)) ApplyMaterials(mod, root, specs, $"{mod.Id}:{path}");
                 templates[key] = root;
                 extents[key] = LargestExtent(root);
             }
             catch (System.Exception e) { Warn(mod, $"{path}: {e.Message}"); }
+        }
+
+        /// <summary>An orbit container model's "materials" (like a station model's: ModStations), by mesh / material name.</summary>
+        static void ApplyMaterials(ModInfo mod, GameObject root, List<CustomShipMaterial> specs, string label)
+        {
+            var mats = new Material[specs.Count];
+            for (int i = 0; i < mats.Length; i++)
+                mats[i] = ModMaterials.FromSpec(mod, specs[i], !string.IsNullOrEmpty(specs[i].material) ? $"{label} {specs[i].material}" : $"{label} {specs[i].mesh}{specs[i].submesh}");
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                var mesh = ModShipBuilder.MeshOf(r);
+                var assigned = r.sharedMaterials;
+                int count = Mathf.Max(1, mesh != null ? mesh.subMeshCount : assigned.Length);
+                if (assigned.Length != count) System.Array.Resize(ref assigned, count);
+                for (int sub = 0; sub < count; sub++) { var m = ModShipBuilder.MaterialFor(specs, mats, r.name, sub, assigned[sub] != null ? assigned[sub].name : null); if (m != null) assigned[sub] = m; }
+                r.sharedMaterials = assigned;
+            }
         }
 
         static void Warn(ModInfo mod, string message)

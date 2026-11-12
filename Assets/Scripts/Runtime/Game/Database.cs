@@ -423,6 +423,14 @@ namespace GoF2Remake.Data
         // Battle damage charring: a detail colour (PNG, its alpha the burn mask) and normal map blended in with the hull
         // damage (URP Lit's detail layer, DamageEmbers raising its strength); dark, matte-looking burn patches under the embers.
         public string damageDetail, damageNormal;
+        // EVERSPACE 2's structure layers (GoF2/Hull's Es2StructureLayers, after M_Structures_Parent): with "wear" or "grunge" the
+        // vertex alpha is the occlusion and the wear mask. 'wear' (PNG, linear: R colour, G roughness, B metalness, A height)
+        // worn in where the vertex alpha is low, 'wearNoise' (R) breaking up its edge, 'wearNormal' its normal map; 'grunge' (R)
+        // darkening by grungeAmount and roughening; 'baseRoughness' (0..1) remaps the roughness map (0.5 = as it is);
+        // 'rimBoost' brightens the colour at grazing angles (x (1 + rimBoost (1 - N.V)^3); ES2's 5).
+        public string wear, wearNormal, wearNoise, grunge;
+        public float wearTiling = 1f, wearExponent = 0.5f, wearCap, wearWidth = 0.5f, wearBrightness = 0.5f, wearMetal = 1f;
+        public float grungeTiling = 1f, grungeAmount, baseRoughness = -1f, rimBoost;
         // An engine flame (GoF2/ModEngineFlame, Modding.EngineFlame): the surfaces are flame stubs whose UV u runs from the
         // nozzle (0) to the tip (1), stretched backward by the throttle; emissionColor x emissionIntensity is its colour.
         public bool flame;

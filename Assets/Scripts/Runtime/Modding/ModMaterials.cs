@@ -460,6 +460,26 @@ namespace GoF2Remake.Modding
             m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
         }
 
+        static readonly int Es2WearId = Shader.PropertyToID("_Es2Wear"), Es2Wear2Id = Shader.PropertyToID("_Es2Wear2"), Es2GrungeId = Shader.PropertyToID("_Es2Grunge");
+
+        /// <summary>EVERSPACE 2's structure layers (CustomShipMaterial "wear" / "grunge", GoF2/Hull's Es2StructureLayers): on
+        /// with either map; off (_Es2Wear2.z 0) otherwise, as the templates have it.</summary>
+        static void Es2Layers(ModInfo mod, CustomShipMaterial e, Material m)
+        {
+            if (string.IsNullOrEmpty(e.wear) && string.IsNullOrEmpty(e.grunge)) return;
+            var wear = Texture(mod, e.wear, true);
+            m.SetTexture("_Es2WearMap", wear != null ? wear : Solid(new Color(0f, 0f, 0f, 0f)));
+            m.SetTexture("_Es2WearNormalMap", Texture(mod, e.wearNormal, true, normal: true));
+            var noise = Texture(mod, e.wearNoise, true);
+            m.SetTexture("_Es2WearNoiseMap", noise != null ? noise : Solid(Color.white));
+            var grunge = Texture(mod, e.grunge, true);
+            m.SetTexture("_Es2GrungeMap", grunge != null ? grunge : Solid(Color.white));
+            // without a wear map nothing wears (a cap of 0: the threshold below every mask)
+            m.SetVector(Es2WearId, new Vector4(Mathf.Max(0.01f, e.wearTiling), Mathf.Max(0.01f, e.wearExponent), wear != null ? Mathf.Clamp01(e.wearCap) : 0f, Mathf.Max(0f, e.wearWidth)));
+            m.SetVector(Es2Wear2Id, new Vector4(Mathf.Clamp01(e.wearBrightness), Mathf.Max(0f, e.wearMetal), 1f, e.baseRoughness >= 0f ? Mathf.Clamp01(e.baseRoughness) : -1f));
+            m.SetVector(Es2GrungeId, new Vector4(grunge != null ? Mathf.Clamp01(e.grungeAmount) : 0f, Mathf.Max(0.01f, e.grungeTiling), Mathf.Max(0f, e.rimBoost), 0f));
+        }
+
         public static Material FromSpec(ModInfo mod, CustomShipMaterial e, string name)
         {
             var a = ModAssets.Get();
@@ -507,6 +527,7 @@ namespace GoF2Remake.Modding
                 m.SetTexture("_MetallicGlossMap", ms != null ? ms : Solid(new Color(e.metallic >= 0f ? e.metallic : 0f, 0f, 0f, 1f)));
             }
             m.SetFloat("_Smoothness", e.smoothness);
+            Es2Layers(mod, e, m);
             var em = Texture(mod, e.emission, false);
             bool emColor = e.emissionColor != null && e.emissionColor.Length >= 3;
             if (em != null || emColor)

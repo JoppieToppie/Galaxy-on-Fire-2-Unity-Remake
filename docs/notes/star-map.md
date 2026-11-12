@@ -170,8 +170,10 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   with each database. From a hop's middle a sun's nearest neighbour went from a median 7.9 deg to 14.4 (the worst tenth 2.5 to
   5.4), those within 3 deg from 15 % to 4 %; the closest two are 0.71 legs apart (were 0.4); the farthest 70 km out. Two
   systems in line from where the ship is still overlap. **Light years** (the user: big numbers falling fast, for the speed):
-  the markers here read `InterstellarSpace.FormatLightYears(units, WorldScale)`, a hop 50 ly (`UnitsPerLightYear`), two
-  places (Extra `unitLightYears`, 13 languages), at the hops' scale (so the zone's edge reads 1.00 ly from both sides); a
+  the markers here read `InterstellarSpace.FormatSpaceDistance(units, WorldScale)`, a hop 50 ly (`UnitsPerLightYear`), in
+  Elite Dangerous's units (the user, 2026-11-04: ly from 1 ly, two places, whole from 1000; else light seconds `Ls`, then
+  `Mm`, `km`, `m`; Extra `unitLightYears` / `unitLightSeconds` / `unitMegameters` / `unitKilometers` / `unitMeters`, 13
+  languages), at the hops' scale (so the zone's edge reads 1.00 ly from both sides); a
   planet within `PlanetKmUnits` 25 km reads the orbit's own km (`Navigation.FormatDistance`); ships met here keep m / km. A leg
   is `LegUnits`, the average hop, so `InterstellarSpace.CellsFor` is about the Khador Drive's `GalaxyMap.EnergyCells`
   (`InterstellarSpaceTests`: 0.5 to 1.25 x over every pair); `CruiseDrive.keepLeg` keeps a paid leg over a stop. The
@@ -197,7 +199,8 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   The planets are laid out once, the first time the zone opens (`Navigation.LayOut`), the map's angles, `PlanetSunUnits` 70000 + map radius x
   `PlanetUnitsPerMapUnit` 6 out, the disc tilted `PlanetDiscTilt` 55 deg from edge-on toward the way in.
   `InterstellarField` draws them as the star map's 3D planets (`galaxymap_planet_*`, `GoF2/SpacePlanet`: lit toward their
-  own sun's direction, `_Fade`), `PlanetRadiusMeters` 600 x their map size, inside the far plane like the suns, on faint orbit
+  own sun's direction, `_Fade`), `PlanetRadiusMeters` 60 x their map size (600 until 2026-11-04, the user: closer to the
+  planets and the system before they fill the view, the star larger beside them), inside the far plane like the suns, on faint orbit
   rings (`LineRenderer`s in the disc, `Navigation.PlanetDisc`, each point pulled inside the far plane along its ray), fading
   in over the zone's first 4 % and out as the arrival's orbit is built ahead (`SystemApproach.HandedOver`). The system's
   arrival point (`Navigation.ArrivalPoint`) is its arrival planet once laid out: the autopilot flies a sun there, the 8 km

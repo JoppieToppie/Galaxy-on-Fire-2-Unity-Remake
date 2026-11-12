@@ -8,7 +8,8 @@
 // x the ES2 ships' 3.6, no hold: InteractChargeDuration 0, bMustBeOnScreen). Its marker and lock are the radar's objects'
 // (Target.RadarObjects), neutral. ES2's secure containers (OpenOnUnlocked: energized through conductors) aren't here.
 // Loot: ES2's loot_types.CSV, a "Container" LootRolls 1-3 drops, a "RareContainer" (here the bulletproof one) 2-4: as many
-// freighter loot rolls.
+// freighter loot rolls. An orbit's fixed loot ("loot", EVERSPACE 2's unique_loot.csv) goes on top, an entry a container in
+// turn (the bulletproof ones first), each entry once a game: taken when its container opens (Session.FixedLootTaken).
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -38,6 +39,8 @@ namespace GoF2Remake.World
         public Target Target { get; private set; }
         public IReadOnlyList<ItemStack> Loot => loot;
         readonly List<ItemStack> loot = new List<ItemStack>();
+        /// <summary>The orbit's fixed loot entries it holds (Session.FixedLootTaken once opened); null = none.</summary>
+        List<string> fixedKeys;
         int race;
 
         void OnEnable() => All.Add(this);
@@ -45,9 +48,9 @@ namespace GoF2Remake.World
         void OnDestroy() { if (Target != null) Target.RadarObjects.Remove(Target); }
 
         /// <summary>A closed container at 'at' (Unity) holding 'cargo'.</summary>
-        public static LootContainer Spawn(Vector3 at, IEnumerable<ItemStack> cargo, bool bulletproof, int race)
+        public static LootContainer Spawn(Vector3 at, IEnumerable<ItemStack> cargo, bool bulletproof, int race, string modelKey = null)
         {
-            var go = Crate.Model(Crate.LookContainer, race, null, at, Random.rotation);
+            var go = Crate.Model(Crate.LookContainer, race, modelKey, at, Random.rotation);   // (a mod's model, else the race's container)
             go.name = bulletproof ? "Bulletproof container" : "Container";
             go.transform.localScale *= ModelScale;
             var c = go.AddComponent<LootContainer>();
@@ -79,17 +82,45 @@ namespace GoF2Remake.World
             var centre = spec.containerCentre ?? new Vector3(30000f, 0f, 50000f);
             float half = spec.containerSpread * 0.5f;
             int race = db?.Systems.Find(s => s.index == layout.systemIndex)?.raceId ?? Standing.Pirate;
+            var proofs = new bool[spec.containerCount];
+            for (int i = 0; i < proofs.Length; i++) proofs[i] = Random.value < spec.containerBulletproof;
+            // the fixed loot not yet taken, an entry a container (the bulletproof ones first)
+            var order = new List<int>();
+            for (int i = 0; i < proofs.Length; i++) if (proofs[i]) order.Add(i);
+            for (int i = 0; i < proofs.Length; i++) if (!proofs[i]) order.Add(i);
+            var fixedFor = new Dictionary<int, List<(string key, ItemStack stack)>>();
+            if (spec.containerLoot != null && order.Count > 0)
+                for (int e = 0; e < spec.containerLoot.Count; e++)
+                {
+                    var (itemRef, amount) = spec.containerLoot[e];
+                    string key = FixedLootKey(layout.stationIndex, e);
+                    if (Session.FixedLootTaken.Contains(key) || !Modding.ModContent.TryResolveItem(itemRef, out int item) || db?.Item(item) == null) continue;
+                    int at = order[e % order.Count];
+                    if (!fixedFor.TryGetValue(at, out var l)) fixedFor[at] = l = new List<(string, ItemStack)>();
+                    l.Add((key, new ItemStack(item, amount)));
+                }
             for (int i = 0; i < spec.containerCount; i++)
             {
-                bool proof = Random.value < spec.containerBulletproof;
+                bool proof = proofs[i];
                 var cargo = new List<ItemStack>();
                 int rolls = proof ? Random.Range(BulletproofRollsMin, BulletproofRollsMax + 1) : Random.Range(RollsMin, RollsMax + 1);
                 for (int k = 0; k < rolls; k++) cargo.AddRange(WreckField.Loot(db));
+                List<string> keys = null;
+                if (fixedFor.TryGetValue(i, out var own))
+                {
+                    keys = new List<string>();
+                    foreach (var (key, stack) in own) { cargo.Add(stack); keys.Add(key); }
+                }
                 var at = centre + new Vector3(Random.Range(-half, half), Random.Range(-half, half) * 0.3f, Random.Range(-half, half));
-                Spawn(OrbitLayout.ToUnity(at), cargo, proof, race);
+                string model = proof ? spec.containerProofModel ?? spec.containerModel : spec.containerModel;
+                var c = Spawn(OrbitLayout.ToUnity(at), cargo, proof, race, model != null && spec.owner != null ? spec.owner.Id + "|" + model : null);
+                if (c != null) c.fixedKeys = keys;
             }
             return spec.containerCount;
         }
+
+        /// <summary>The saved key of an orbit's fixed loot entry.</summary>
+        public static string FixedLootKey(int station, int entry) => station + ":" + entry;
 
         /// <summary>The closed container the action key opens from 'ship': within OpenRangeM, in front, the nearest; null = none.</summary>
         public static LootContainer InReach(Transform ship)
@@ -114,6 +145,7 @@ namespace GoF2Remake.World
         {
             if (Opened) return;
             Opened = true;
+            if (fixedKeys != null) foreach (var k in fixedKeys) Session.FixedLootTaken.Add(k);   // (each once a game)
             var pos = transform.position;
             foreach (var s in loot)
             {

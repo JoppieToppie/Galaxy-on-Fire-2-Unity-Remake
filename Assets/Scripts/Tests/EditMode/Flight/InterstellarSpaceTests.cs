@@ -37,6 +37,22 @@ namespace GoF2Remake.Tests
 
         static bool Shows(List<InterstellarSpace.Point> points, int system) => points.Exists(p => p.system == system);
 
+        // The user (2026-11-04): Elite Dangerous's units between the systems, so the numbers fall fast on the way in.
+        [Test]
+        public void DistancesReadInEliteDangerousUnits()
+        {
+            float ly = InterstellarSpace.UnitsPerLightYear;
+            double perLs = InterstellarSpace.MetersPerLightSecond / InterstellarSpace.MetersPerLightYear;
+            Assert.AreEqual("12.50 ly", InterstellarSpace.FormatSpaceDistance(12.5f * ly));
+            Assert.AreEqual("2,000 ly", InterstellarSpace.FormatSpaceDistance(2000f * ly));
+            Assert.AreEqual("2.00 ly", InterstellarSpace.FormatSpaceDistance(2f * 75f * ly, 75f), "at the zone's scale");
+            StringAssert.EndsWith(" Ls", InterstellarSpace.FormatSpaceDistance(0.5f * ly), "under a light year: light seconds");
+            Assert.AreEqual("50.00 Ls", InterstellarSpace.FormatSpaceDistance((float)(50 * perLs * ly)));
+            Assert.AreEqual("150.0 Mm", InterstellarSpace.FormatSpaceDistance((float)(150e6 / InterstellarSpace.MetersPerLightYear * ly)));
+            Assert.AreEqual("42.0 km", InterstellarSpace.FormatSpaceDistance((float)(42e3 / InterstellarSpace.MetersPerLightYear * ly)));
+            Assert.AreEqual("0 m", InterstellarSpace.FormatSpaceDistance(0f));
+        }
+
         [Test]
         public void ANewGameShowsWhatTheStarMapShowsAndNothingMore()
         {
@@ -213,8 +229,10 @@ namespace GoF2Remake.Tests
         public void TheSlipstreamJumpsAsTheKhadorDriveDoes()
         {
             var saved = Session.Equipment;
+            bool wasOn = Settings.KhadorSlipstream;
             try
             {
+                Settings.KhadorSlipstream = true;   // (Options > Gameplay; off in the Original experience)
                 Session.Equipment = new List<ItemStack>();
                 Assert.IsFalse(GalaxyMap.HasSlipstream(db), "nothing mounted");
                 int slipstream = GoF2Remake.Modding.ModContent.ItemIndexOf("gof2:khador_slipstream");
@@ -223,8 +241,10 @@ namespace GoF2Remake.Tests
                 Assert.IsTrue(GalaxyMap.HasSlipstream(db));
                 Assert.IsTrue(GalaxyMap.HasKhadorDrive(db), "the drive it replaces: the Khador jump, the Void's question");
                 Assert.IsTrue(GalaxyMap.HasJumpDrive(db), "the maps in jump mode, the quick menu's Khador entry");
+                Settings.KhadorSlipstream = false;
+                Assert.IsFalse(GalaxyMap.HasKhadorDrive(db), "switched off it does nothing (Shop.SlipstreamOff)");
             }
-            finally { Session.Equipment = saved; }
+            finally { Session.Equipment = saved; Settings.KhadorSlipstream = wasOn; }
         }
 
         [Test]

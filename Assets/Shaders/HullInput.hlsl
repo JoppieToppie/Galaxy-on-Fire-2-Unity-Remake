@@ -60,6 +60,13 @@ half4 _DecalColor3;
 // Environment_Amount), y rim light, z GoF3's Specular_Multiplier, w 1 = the map carries that multiplier (GoF3's ship bodies:
 // the whole specular x it) / 0 = the map doesn't (glass, capital-ship parts: the highlight x it).
 half4 _GoF3Params;
+// GoF2: EVERSPACE 2's structure layers (M_Structures_Parent's compiled base pass; ModMaterials, HullForwardPass.hlsl
+// Es2StructureLayers), on when _Es2Wear2.z > 0. _Es2Wear: x DamageDetailMaskTiling, y DamageDetailMaskExponent, z DamageCap,
+// w DamageMaskThresholdWidth; _Es2Wear2: x DamageBrightness, y DamageMaxMetalness, z 1 = on, w BaseRoughness (< 0: none);
+// _Es2Grunge: x GrungeAmount, y GrungeTiling, z the rim's strength (ES2's 5).
+float4 _Es2Wear;
+float4 _Es2Wear2;
+float4 _Es2Grunge;
 UNITY_TEXTURE_STREAMING_DEBUG_VARS;
 CBUFFER_END
 
@@ -159,6 +166,11 @@ TEXTURE2D(_DetailNormalMap);    SAMPLER(sampler_DetailNormalMap);
 TEXTURE2D(_MetallicGlossMap);   SAMPLER(sampler_MetallicGlossMap);
 TEXTURE2D(_SpecGlossMap);       SAMPLER(sampler_SpecGlossMap);
 TEXTURE2D(_ClearCoatMap);       SAMPLER(sampler_ClearCoatMap);
+// GoF2: EVERSPACE 2's structure layers (sampled with _BaseMap's sampler: no samplers of their own)
+TEXTURE2D(_Es2WearMap);
+TEXTURE2D(_Es2WearNormalMap);
+TEXTURE2D(_Es2WearNoiseMap);
+TEXTURE2D(_Es2GrungeMap);
 UNITY_TEXTURE_STREAMING_DEBUG_VARS_FOR_TEX(_BaseMap);
 
 // Simple getters for the material properties above. All raw material input (constant buffer

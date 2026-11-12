@@ -42,8 +42,10 @@ namespace GoF2Remake.World
         struct Sun { public Navigation.Target target; public Transform quad; }
 
         /// <summary>A planet's radius in its zone for a map planet of the baseline size (GalaxyMap.SystemLayout's scale
-        /// 256 x 16 / 65536), and how far into the zone (of its size) the planets are all there, faded in from its edge.</summary>
-        const float PlanetRadiusMeters = 600f, PlanetBaseScale = 256f * 16f / 65536f, PlanetsInBy = 0.96f;
+        /// 256 x 16 / 65536), and how far into the zone (of its size) the planets are all there, faded in from its edge. A tenth
+        /// of the 600 m it was (the user, 2026-11-04: closer to the planets and the system before they fill the view, the star
+        /// larger beside them).</summary>
+        const float PlanetRadiusMeters = 60f, PlanetBaseScale = 256f * 16f / 65536f, PlanetsInBy = 0.96f;
         /// <summary>The orbit rings: points round, their width (of the distance) and colour.</summary>
         const int RingPoints = 96;
         const float RingWidth = 0.003f;

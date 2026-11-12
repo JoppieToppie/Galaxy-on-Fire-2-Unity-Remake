@@ -19,7 +19,7 @@ namespace GoF2Remake.Modding
             NoteOriginalCounts(db);
             EnsureMapping();
             systemSpaceMusic.Clear(); systemStationMusic.Clear(); systemBattleMusic.Clear(); stationMusic.Clear(); stationSubtitle.Clear(); stationLore.Clear();
-            stationModels.Clear(); gateModels.Clear(); stationInterior.Clear(); planetTextures.Clear(); sunTextures.Clear(); sunColors.Clear(); skyboxes.Clear();
+            stationModels.Clear(); gateModels.Clear(); stationInterior.Clear(); planetTextures.Clear(); planetSpheres.Clear(); sunTextures.Clear(); sunColors.Clear(); skyboxes.Clear();
             mapTextures.Clear(); mapRings.Clear(); orbits.Clear(); mapPlaces.Clear();
             stationHangar.Clear(); stationBar.Clear(); mobiles.Clear();
             modTrafficSystems.Clear(); systemLocals.Clear(); systemRaiders.Clear(); systemPirateHeld.Clear();
@@ -156,6 +156,7 @@ namespace GoF2Remake.Modding
                         int interior = InteriorOf(o);
                         if (interior >= 0) stationInterior[st.index] = interior;
                         if (ModJson.Str(o, "planetTexture") is string pt) planetTextures[st.index] = BackdropName(mod, pt);
+                        if (ModJson.Get(o, "planetSphere") is JToken sphere && ParsePlanetSphere(mod, sphere, d.where, check: false) is PlanetSphereSpec ps) planetSpheres[st.index] = ps;
                         if (ModJson.Str(o, "mapTexture") is string mt) mapTextures[st.index] = BackdropName(mod, mt);
                         if (ModJson.Bool(o, "mapRing", false, d.file)) mapRings.Add(st.index); else if (ModJson.Has(o, "mapRing")) mapRings.Remove(st.index);
                         if (ModJson.Get(o, "orbit") is JToken orbitToken)
@@ -179,6 +180,7 @@ namespace GoF2Remake.Modding
                             };
                             if (ModJson.Get(o, "materials") is JArray mats)
                                 foreach (var m in mats) sm.materials.Add(JsonUtility.FromJson<CustomShipMaterial>(m.ToString()));
+                            if (ModJson.Get(o, "life") is JToken lifeToken) sm.life = ParseLife(mod, lifeToken, d.where);
                             stationModels[st.index] = sm;
                             if (db.Assemblies.Find(a => a.name == sm.Assembly) == null)
                                 db.Assemblies.Add(new AssemblyData { name = sm.Assembly, pack = ModContent.Pack, category = "stations", origin = "mod " + mod.Id });

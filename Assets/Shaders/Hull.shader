@@ -87,6 +87,14 @@ Shader "GoF2/Hull"
         [HideInInspector] _DecalColor1("Decal colour 1", Color) = (1, 1, 1, 1)
         [HideInInspector] _DecalColor2("Decal colour 2", Color) = (1, 1, 1, 1)
         [HideInInspector] _DecalColor3("Decal border colour", Color) = (0, 0, 0, 1)
+        // GoF2: EVERSPACE 2's structure layers (HullInput.hlsl, HullForwardPass.hlsl Es2StructureLayers; ModMaterials)
+        [HideInInspector] _Es2Wear("ES2 wear", Vector) = (1, 0.5, 0, 0.5)
+        [HideInInspector] _Es2Wear2("ES2 wear 2", Vector) = (0.5, 1, 0, -1)
+        [HideInInspector] _Es2Grunge("ES2 grunge", Vector) = (0, 1, 0, 0)
+        [HideInInspector] _Es2WearMap("ES2 wear (C_R_MT_H)", 2D) = "black" {}
+        [HideInInspector] [Normal] _Es2WearNormalMap("ES2 wear normal", 2D) = "bump" {}
+        [HideInInspector] _Es2WearNoiseMap("ES2 wear noise", 2D) = "white" {}
+        [HideInInspector] _Es2GrungeMap("ES2 grunge", 2D) = "white" {}
         // GoF2: a mod specular material's GoF3 terms (HullForwardPass.hlsl GoF3ShipShader; ModMaterials): x environment, y rim,
         // z GoF3's specular multiplier, w 1 = that multiplier is in the map (on the whole specular) / 0 = on the highlight
         [HideInInspector] _GoF3Params("GoF3 params", Vector) = (1, 1, 1, 0)
@@ -219,7 +227,7 @@ Shader "GoF2/Hull"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
             #include "HullInput.hlsl"   // GoF2: URP's LitInput with the livery values
-            #include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
+            #include "HullLitForwardPass.hlsl"   // GoF2: URP's LitForwardPass with the vertex colour (EVERSPACE 2's layers)
             #include "HullForwardPass.hlsl"   // GoF2
             ENDHLSL
         }
