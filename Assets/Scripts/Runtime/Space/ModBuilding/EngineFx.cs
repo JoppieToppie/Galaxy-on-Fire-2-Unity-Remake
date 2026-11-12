@@ -392,7 +392,7 @@ namespace GoF2Remake.Modding
                         t.localPosition = info.pos; t.localRotation = info.rot; t.localScale = info.scale;
                         Tint(r, info.second ? secondTint : mainTint);
                         meshParts.Add((t, r, k, meshHolders.Count));
-                        reach = Mathf.Max(reach, FarEnd(mesh.bounds, info));
+                        reach = Mathf.Max(reach, FarEnd(mesh, info));
                         if (info.anims != null)
                             foreach (var a in info.anims) if (a?.kind == "off") offLength = Mathf.Max(offLength, a.length);
                     }
@@ -420,9 +420,14 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>How far a part reaches along its holder's +z (backward along the exhaust), in the holder's units: its mesh
-        /// bounds' corners placed by the part's rest transform.</summary>
-        static float FarEnd(Bounds b, MeshPart info)
+        /// vertices' bounds corners placed by the part's rest transform. Not mesh.bounds: PartMesh grows those by a sprite's
+        /// corners and the wobble for culling, which made a sprite at the nozzle (GoF3's helix) the plume's length.</summary>
+        static float FarEnd(Mesh mesh, MeshPart info)
         {
+            var v = mesh.vertices;
+            if (v.Length == 0) return 0f;
+            var b = new Bounds(v[0], Vector3.zero);
+            for (int j = 1; j < v.Length; j++) b.Encapsulate(v[j]);
             float far = 0f;
             for (int c = 0; c < 8; c++)
             {

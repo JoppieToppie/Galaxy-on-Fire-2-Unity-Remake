@@ -33,7 +33,12 @@ namespace GoF2Remake.Tests
             Assert.AreEqual("GoF3", GameNames.StationTag(ModWorld.StationIndexOf("t_tag:port")));
             var boss = Database.Shared.Wanted.Find(w => w.key == "t_tag:boss");
             Assert.AreEqual("GoF3", GameNames.WantedTag(boss), "its Most Wanted criminal");
-            StringAssert.StartsWith("BOSS <alpha=", ItemInfo.TaggedWantedName(boss, true), "upper case, the tag as it reads");
+            // the Remake style's capitals (UiCaps: the Original style keeps the text's case; the setting is the Editor's own)
+            using (new SettingsScope<bool>(() => Settings.OriginalUi, v => Settings.OriginalUi = v))
+            {
+                Settings.OriginalUi = false;
+                StringAssert.StartsWith("BOSS <alpha=", ItemInfo.TaggedWantedName(boss, true), "upper case, the tag as it reads");
+            }
             Assert.IsNull(GameNames.WantedTag(Database.Shared.Wanted[2]), "the game's own criminal");
             Assert.IsNull(GameNames.ShipTag(3), "an original ship it only changes");
             Assert.IsNull(GameNames.ItemTag(4), "an original item it only changes");
