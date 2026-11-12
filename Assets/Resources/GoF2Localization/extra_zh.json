@@ -3008,7 +3008,7 @@
  "hangarFlightsHelp": "停靠时你的飞船飞进机库，起飞时飞出，其他飞船也会来来往往。",
  "tutorialHintsHelp": "第一次需要时，弹出窗口讲解操作和菜单。",
  "autoPlayDialogueHelp": "台词说完或读完后，对话会自动翻页。对话中的 自动 也能切换。",
- "animatedDialogueHelp": "对话文字逐字出现，人名和物品带颜色。关闭时：每页立即显示。",
+ "animatedDialogueHelp": "对话文字逐字出现。关闭时：每页立即显示。",
  "discordPresenceHelp": "在你的 Discord 资料中显示你的飞船、位置和任务。",
  "languageHelp": "游戏中所有文本的语言。",
  "mpCmdSquadChat": "给你的小队发一行消息，无论他们在哪里",
@@ -3359,5 +3359,7 @@
  "musicWanted": "战斗音乐：Most Wanted 罪犯",
  "musicTrackHelp": "关闭：不再播放此曲目，轨道的平静音乐继续播放。",
  "musicTrackSpecialHelp": "关闭：不再播放此曲目，改为播放常规战斗音乐。",
- "hackCrateEjected": "货物集装箱已弹出。使用牵引光束查看其内容。"
+ "hackCrateEjected": "货物集装箱已弹出。使用牵引光束查看其内容。",
+ "dialogueHighlights": "对话高亮",
+ "dialogueHighlightsHelp": "动画对话中，人名、地点、飞船、物品和种族带颜色，前面带图标（信用点、种族徽章、物品图标）。关闭时：普通文字。"
 }

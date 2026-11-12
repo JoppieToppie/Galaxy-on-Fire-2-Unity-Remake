@@ -3008,7 +3008,7 @@
  "hangarFlightsHelp": "Sua nave entra no hangar ao atracar e sai ao decolar, e outras naves vêm e vão.",
  "tutorialHintsHelp": "Janelas que explicam os controles e os menus na primeira vez que você precisa deles.",
  "autoPlayDialogueHelp": "As conversas passam de página sozinhas quando uma fala foi dita ou lida. AUTO numa conversa também alterna isso.",
- "animatedDialogueHelp": "Os diálogos aparecem letra por letra, com nomes e itens coloridos. Desligado: cada página aparece de uma vez.",
+ "animatedDialogueHelp": "Os diálogos aparecem letra por letra. Desligado: cada página aparece de uma vez.",
  "discordPresenceHelp": "Mostra sua nave, localização e missão no seu perfil do Discord.",
  "languageHelp": "O idioma de todos os textos do jogo.",
  "mpCmdSquadChat": "uma linha para o seu esquadrão, onde quer que esteja",
@@ -3359,5 +3359,7 @@
  "musicWanted": "Música de combate: criminoso Most Wanted",
  "musicTrackHelp": "Desligado: esta faixa não toca mais; a música calma da órbita continua.",
  "musicTrackSpecialHelp": "Desligado: esta faixa não toca mais; toca a música de combate habitual no lugar.",
- "hackCrateEjected": "Contêiner de carga ejetado. Use o raio trator para verificar o conteúdo."
+ "hackCrateEjected": "Contêiner de carga ejetado. Use o raio trator para verificar o conteúdo.",
+ "dialogueHighlights": "Destaques nos diálogos",
+ "dialogueHighlightsHelp": "Nos diálogos animados: nomes, lugares, naves, itens e raças coloridos, com ícones antes deles (créditos, emblemas das raças, ícones dos itens). Desligado: texto simples."
 }

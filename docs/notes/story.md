@@ -74,7 +74,8 @@ tag, the label's own colour: a note opened as the station loads rendered before 
 black, and every letter came out black, a player's report 2026-10-24), 55 letters/s or paced to the voice line (ends at
 85 % of it), pauses after , . ? ! and a hesitation after "...", "!" sentences faster; all-caps shouts (4+ letters or 2+
 before "!", not EMP / HUD / AMR) 130 % bold with a short shake (`<voffset>`); `*Sigh*` actions italic and dim without
-the asterisks, typed slowly; names tinted: people pale gold with their titles ("Lieutenant Commander Brent Snocom"),
+the asterisks, typed slowly; with Options > Accessibility "Dialogue highlights" (off by default, 2026-11-09) names
+tinted and icons: people pale gold with their titles ("Lieutenant Commander Brent Snocom"),
 places / factions light aqua with "Station" / "System", ships / items / story goods pink (a one-word item only when the
 texts never write it in lower case: not Drugs (Gold is never written in lower case, so it is tinted); names of 2+ words
 in any case: "Khador drive"), each race in its emblem's colour (Terran orange, Vossk green, Nivelian blue, Midorian

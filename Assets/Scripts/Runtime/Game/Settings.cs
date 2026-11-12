@@ -709,6 +709,10 @@ namespace GoF2Remake.Data
         /// the station menu's fly-out).</summary>
         public static bool ReduceMotion { get => GetBool("reduceMotion", false); set => SetBool("reduceMotion", value); }
 
+        /// <summary>Modified (a player's wish): Options > Accessibility "Dialogue highlights": the animated dialogue's names,
+        /// places, ships, items and races in colour, with their icons (TextReveal). Off (default) = plain text.</summary>
+        public static bool DialogueHighlights { get => GetBool("dialogueHighlights", false); set => SetBool("dialogueHighlights", value); }
+
         /// <summary>Remake: Options > Accessibility "Colour-blind markers": friendly markers blue instead of green, so they
         /// stand apart from the red hostile ones for red-green colour blindness (CombatView).</summary>
         public static bool ColorblindMarkers { get => GetBool("colorblindMarkers", false); set => SetBool("colorblindMarkers", value); }
@@ -814,7 +818,7 @@ namespace GoF2Remake.Data
             "speedrunPosition", "speedrunLiveSplit",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
-        public static readonly string[] AccessibilityKeys = { "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers", "cursorSize" };
+        public static readonly string[] AccessibilityKeys = { "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers", "cursorSize", "dialogueHighlights" };
 
         /// <summary>These options back to their defaults.</summary>
         public static void Reset(IEnumerable<string> keys)
