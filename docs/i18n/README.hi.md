@@ -390,6 +390,8 @@ docs/                     multiplayer guides and the per-area technical notes
   [CLAUDE.md](../../CLAUDE.md) में हैं।
 - **मॉडल, टेक्सचर या साउंड बदल रहे हैं?** बस हमेशा की तरह commit और push करें: प्रोजेक्ट का LFS सर्वर बिना अकाउंट या
   लॉगिन के अपलोड स्वीकार करता है।
+  वेब पर Claude Code इस्तेमाल कर रहे हैं? एनवायरनमेंट के allowed domains (Network access → Limited) में `toppienas.diskstation.me` जोड़ें,
+  वरना उसका sandbox LFS सर्वर तक नहीं पहुँच पाएगा।
 - **प्रोजेक्ट पसंद आया?** GitHub पर इसे ⭐ दें, इससे दूसरों को यह ढूँढने में मदद मिलती है।
 
 ---

@@ -418,6 +418,8 @@ docs/                     multiplayer guides and the per-area technical notes
   [docs/notes/](../notes) ; les conventions sont dans [CLAUDE.md](../../CLAUDE.md).
 - **Vous modifiez des modèles, textures ou sons ?** Faites simplement commit et push : le serveur LFS du projet accepte
   les envois sans compte ni connexion.
+  Vous utilisez Claude Code sur le web ? Ajoutez `toppienas.diskstation.me` aux domaines autorisés de l'environnement (Network access →
+  Limited), sinon son sandbox ne peut pas joindre le serveur LFS.
 - **Le projet vous plaît ?** Donnez-lui une ⭐ sur GitHub, cela aide les autres à le trouver.
 
 ---

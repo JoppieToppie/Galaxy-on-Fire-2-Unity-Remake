@@ -394,6 +394,8 @@ docs/                     multiplayer guides and the per-area technical notes
   [docs/notes/](../notes); соглашения изложены в [CLAUDE.md](../../CLAUDE.md).
 - **Меняете модели, текстуры или звуки?** Просто делайте commit и push как обычно: LFS-сервер проекта принимает
   загрузки без аккаунта и входа.
+  Используете Claude Code в браузере? Добавьте `toppienas.diskstation.me` в разрешённые домены окружения (Network access → Limited),
+  иначе его песочница не достучится до LFS-сервера.
 - **Нравится проект?** Поставьте ему ⭐ на GitHub, это помогает другим его найти.
 
 ---

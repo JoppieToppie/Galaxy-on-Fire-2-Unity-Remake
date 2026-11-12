@@ -406,6 +406,8 @@ docs/                     multiplayer guides and the per-area technical notes
   [docs/notes/](../notes); as convenções estão no [CLAUDE.md](../../CLAUDE.md).
 - **Vai mudar modelos, texturas ou sons?** É só fazer commit e push normalmente: o servidor LFS do projeto aceita envios
   sem conta nem login.
+  Usa o Claude Code na web? Adicione `toppienas.diskstation.me` aos domínios permitidos do ambiente (Network access → Limited); caso
+  contrário, o sandbox não alcança o servidor LFS.
 - **Gostou do projeto?** Dê uma ⭐ no GitHub, isso ajuda outras pessoas a encontrá-lo.
 
 ---

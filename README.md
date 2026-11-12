@@ -388,6 +388,8 @@ docs/                     multiplayer guides and the per-area technical notes
   in [CLAUDE.md](CLAUDE.md).
 - **Changing models, textures or sounds?** Just commit and push as usual: the project's LFS server accepts uploads
   without an account or login.
+  Using Claude Code on the web? Add `toppienas.diskstation.me` to the environment's allowed domains (Network access → Limited),
+  otherwise its sandbox can't reach the LFS server.
 - **Like the project?** Give it a ⭐ on GitHub, it helps others find it.
 
 ---

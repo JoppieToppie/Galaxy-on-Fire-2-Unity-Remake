@@ -388,6 +388,8 @@ docs/                     multiplayer guides and the per-area technical notes
   [CLAUDE.md](../../CLAUDE.md).
 - **تغيّر النماذج أو النسيج أو الأصوات؟** فقط نفّذ commit وpush كالمعتاد: خادم LFS الخاص بالمشروع يقبل الرفع بدون حساب
   أو تسجيل دخول.
+  تستخدم Claude Code على الويب؟ أضف `toppienas.diskstation.me` إلى النطاقات المسموح بها في البيئة (Network access → Limited)، وإلا فلن
+  يتمكن الـ sandbox من الوصول إلى خادم LFS.
 - **أعجبك المشروع؟** امنحه ⭐ على GitHub، فهذا يساعد الآخرين على العثور عليه.
 
 ---

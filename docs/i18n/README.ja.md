@@ -390,6 +390,8 @@ docs/                     multiplayer guides and the per-area technical notes
   [CLAUDE.md](../../CLAUDE.md) にあります。
 - **モデル、テクスチャ、サウンドを変更する場合**も、いつも通り commit と push するだけです。プロジェクトの LFS サーバーは
   アカウントやログインなしでアップロードを受け付けます。
+  Web 版の Claude Code を使う場合は、環境の許可ドメイン（Network access → Limited）に `toppienas.diskstation.me` を追加してください。
+  追加しないとサンドボックスから LFS サーバーに接続できません。
 - **気に入ったら？** GitHub で ⭐ をお願いします。ほかの人がプロジェクトを見つけやすくなります。
 
 ---

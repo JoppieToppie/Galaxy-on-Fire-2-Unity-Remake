@@ -398,6 +398,8 @@ docs/                     multiplayer guides and the per-area technical notes
   conventies staan in [CLAUDE.md](../../CLAUDE.md).
 - **Modellen, texturen of geluiden aanpassen?** Gewoon committen en pushen zoals altijd: de LFS-server van het project
   accepteert uploads zonder account of login.
+  Gebruik je Claude Code op het web? Voeg `toppienas.diskstation.me` toe aan de toegestane domeinen van de omgeving (Network access →
+  Limited), anders kan de sandbox de LFS-server niet bereiken.
 - **Vind je het project leuk?** Geef het een ⭐ op GitHub, dat helpt anderen het te vinden.
 
 ---

@@ -376,6 +376,8 @@ docs/                     multiplayer guides and the per-area technical notes
   어떤 영역을 작업하기 전에는 [docs/notes/](../notes)의 해당 파일을 읽어 주세요. 컨벤션은 [CLAUDE.md](../../CLAUDE.md)에 있습니다.
 - **모델, 텍스처, 사운드를 바꾸나요?** 평소처럼 commit하고 push하면 됩니다. 프로젝트의 LFS 서버는 계정이나 로그인 없이
   업로드를 받습니다.
+  웹에서 Claude Code를 쓰나요? 환경의 허용 도메인(Network access → Limited)에 `toppienas.diskstation.me`를 추가하세요. 그렇지 않으면
+  샌드박스가 LFS 서버에 접속할 수 없습니다.
 - **프로젝트가 마음에 드나요?** GitHub에서 ⭐를 눌러 주세요. 다른 사람들이 프로젝트를 찾는 데 도움이 됩니다.
 
 ---

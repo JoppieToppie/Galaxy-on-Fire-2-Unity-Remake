@@ -308,6 +308,7 @@ docs/                     multiplayer guides and the per-area technical notes
 - **发现了 bug？** 请提交一个 [issue](https://github.com/JoppieToppie/Galaxy-on-Fire-2-Unity-Remake/issues)，附上你的平台、游戏版本（显示在主菜单中）和一张截图。选项 > 游戏玩法可以在右下角显示当前的剧情步骤和空间站，这能告诉我们问题发生在哪里。
 - **欢迎提交 pull request。** Fork 本仓库，在分支上做出修改，运行编辑模式测试，然后向 `main` 提交 pull request。开始处理某个领域之前，请先阅读 [docs/notes/](../notes) 中对应的文件；约定写在 [CLAUDE.md](../../CLAUDE.md) 里。
 - **要修改模型、贴图或音效？** 照常 commit 和 push 即可：项目的 LFS 服务器无需账号或登录即可接受上传。
+  使用网页版 Claude Code？请把 `toppienas.diskstation.me` 加入环境的允许域名（Network access → Limited），否则其沙盒无法访问 LFS 服务器。
 - **喜欢这个项目？** 请在 GitHub 上给它点个 ⭐，这能帮助更多人发现它。
 
 ---
