@@ -5,7 +5,7 @@
 // as World.ModBuilderGizmo balls bound to the station itself, whose frame makes a ball's game units the orbit's (the
 // station turns 180 deg like a ship's model is mirrored: WeaponSystem.MountToLocal then the station's rotation is
 // OrbitLayout.ToUnity). A ball drags over the station's hull (a pad) or along its arrows (Ctrl: 100-unit snap); let go,
-// the place is saved and the orbit built again. Only while the orbit shown is the station's own (Show its orbit).
+// a moved place is saved and the orbit built again, the ball still selected (a click alone only selects it). Only while the orbit shown is the station's own (Show its orbit).
 
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +26,12 @@ namespace GoF2Remake.UI
         readonly List<string> orbitKeys = new List<string>();
         bool orbitDragging;
         string orbitBound;
+        /// <summary>The selected ball (its arrows shown) and its station, kept through the orbit's rebuild, which makes a new
+        /// gizmo: a click that only selected rebuilt the orbit and lost the selection, so the arrows never showed and a place
+        /// off the hull (the arrival, the jumpgate) couldn't be moved at all (a Discord report, 2026-11-10).</summary>
+        int orbitSelected = -1;
+        string orbitSelectedRef;
+        int[] orbitDragFrom;
 
         /// <summary>The station page's orbit places as balls, when its orbit is the one shown (null: none).</summary>
         JObject ShownOrbit() =>
@@ -44,6 +50,7 @@ namespace GoF2Remake.UI
             if (orbitGizmo == null || now != orbitBound)
             {
                 if (orbitGizmo == null) orbitGizmo = new GameObject("Orbit gizmo").AddComponent<ModBuilderGizmo>();
+                orbitGizmo.Selected = orbitSelectedRef == currentStation.Ref ? orbitSelected : -1;   // (Bind drops it when out of range)
                 orbitGizmo.cam = level.mainCamera;
                 orbitMounts.Clear();
                 orbitKeys.Clear();
@@ -73,6 +80,8 @@ namespace GoF2Remake.UI
             if (button != 0 || orbitGizmo == null || orbitGizmo.Ship == null) return false;
             if (!orbitGizmo.BeginDrag(ScreenPos())) return false;
             orbitDragging = true;
+            int i = orbitGizmo.Selected;
+            orbitDragFrom = i >= 0 && i < orbitMounts.Count ? (int[])orbitMounts[i].position_engine?.Clone() : null;
             return true;
         }
 
@@ -92,8 +101,11 @@ namespace GoF2Remake.UI
             int i = orbitGizmo != null ? orbitGizmo.Selected : -1;
             var s = currentStation;
             if (s == null || i < 0 || i >= orbitMounts.Count) return;
-            var o = Obj(s, "orbit");
+            orbitSelected = i;
+            orbitSelectedRef = s.Ref;
             var p = orbitMounts[i].position_engine;
+            if (orbitDragFrom != null && p != null && p.SequenceEqual(orbitDragFrom)) return;   // only selected: nothing to build
+            var o = Obj(s, "orbit");
             var place = new JArray(p[0], p[1], p[2]);
             string key = orbitKeys[i];
             if (int.TryParse(key, out int pad))

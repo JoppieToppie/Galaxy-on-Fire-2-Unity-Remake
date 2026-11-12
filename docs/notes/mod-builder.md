@@ -180,6 +180,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   (amber) and pads (red) are `ModBuilderGizmo` balls bound to the station itself (`ModBuilderSpaceViewOrbit`: its 180 deg
   turn makes `WeaponSystem.MountToLocal` + the station's rotation = `OrbitLayout.ToUnity`, so the balls' game units are the
   orbit's), dragged over the hull or along the arrows (Ctrl: 100 units) and saved on release (the orbit built again).
+  A click that moved nothing only selects the ball, and the selection outlives the rebuild (`orbitSelected`): until
+  2026-11-12 every click rebuilt the orbit with a new gizmo and nothing selected, so the arrows never showed and the
+  arrival / jumpgate (off the hull) couldn't be dragged at all, only typed (a Discord report).
   Systems: "Held by pirates". Missions: Take an item, Bring cargo's "Hand it in", Restrict travel's "The Khador Drive only",
   Spawn's hull x / gun damage x, Spawn an NPC ship type (an NPC ship type picker, `RefKind.NpcShip`: the game's five, the
   project's, other mods'), When something happens "docks at a station's pad outside" (event-graphs.md). A bar mission's "Who
