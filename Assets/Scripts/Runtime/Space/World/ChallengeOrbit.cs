@@ -252,7 +252,8 @@ namespace GoF2Remake.World
 
         void PlaySound(int n)
         {
-            if (n <= 0 || sounds == null || n > sounds.Length || sounds[n - 1] == null) return;
+            // Options > Sound "Challenge combo sounds" (#165): every one of these is the combo's (SV_Mode_01..10)
+            if (n <= 0 || !Settings.ChallengeComboSounds || sounds == null || n > sounds.Length || sounds[n - 1] == null) return;
             sfx.PlayOneShot(sounds[n - 1], SoundVolume * Sfx.EventGain * Settings.SfxVolume);
         }
     }

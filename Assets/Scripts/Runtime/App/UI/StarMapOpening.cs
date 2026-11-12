@@ -96,7 +96,7 @@ namespace GoF2Remake.UI
             keyBox = root.Q("keyBox");
             hints = root.Q("hints");
 
-            InputGlyph.TrackHintsOption(hints);
+            InputGlyph.TrackHintsOption(hints, new Vector2(50f, 50f));   // centred in the footer (.map-hints)
             dialog = root.Q("dialog");
             energyLine = root.Q<Label>("energyLine");
             backButton = root.Q<Button>("backButton");

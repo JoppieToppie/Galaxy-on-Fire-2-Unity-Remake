@@ -3379,5 +3379,13 @@
  "hackCrateEjected": "Conteneur de fret éjecté. Utilise le rayon tracteur pour vérifier son contenu.",
  "dialogueHighlights": "Mise en valeur des dialogues",
  "dialogueHighlightsHelp": "Dans les dialogues animés : noms, lieux, vaisseaux, objets et races en couleur, précédés d'icônes (crédits, emblèmes des races, icônes des objets). Désactivé : texte simple.",
- "flightStyleTouchHelp": "Tactile : le stick pousse et se déplace latéralement, glisser sur l'écran (ou sur le bouton de tir maintenu) vise, les boutons à côté du stick montent, descendent et basculent les amortisseurs ; le vaisseau se remet à l'horizontale tout seul."
+ "flightStyleTouchHelp": "Tactile : le stick pousse et se déplace latéralement, glisser sur l'écran (ou sur le bouton de tir maintenu) vise, les boutons à côté du stick montent, descendent et basculent les amortisseurs ; le vaisseau se remet à l'horizontale tout seul.",
+ "hintScale": "Taille des aides aux touches",
+ "hintScaleHelp": "Règle la taille des aides aux touches et aux boutons de manette en vol, à la station et sur la carte stellaire, sans changer la taille de l'interface ni du texte.",
+ "challengeComboSounds": "Sons de combo du défi",
+ "challengeComboSoundsHelp": "Les sons d'un combo qui grandit et qui rapporte dans le Défi Supernova.",
+ "medalSound": "Son des médailles",
+ "medalSoundChime": "Carillon",
+ "medalSoundOriginal": "Original",
+ "medalSoundHelp": "Quand tu obtiens une médaille. Carillon : le son propre au remake. Original : le son d'information du jeu original."
 }

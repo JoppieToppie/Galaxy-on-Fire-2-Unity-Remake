@@ -3379,5 +3379,13 @@
  "hackCrateEjected": "Vrachtcontainer uitgeworpen. Gebruik de trekstraal om de inhoud te bekijken.",
  "dialogueHighlights": "Markeringen in dialogen",
  "dialogueHighlightsHelp": "In geanimeerde dialogen: namen, plaatsen, schepen, voorwerpen en rassen in kleur, met pictogrammen ervoor (credits, rasemblemen, voorwerppictogrammen). Uit: gewone tekst.",
- "flightStyleTouchHelp": "Touch: de stick geeft stuwkracht en schuift zijwaarts, slepen over het scherm (of over de ingedrukte vuurknop) richt, de knoppen naast de stick gaan omhoog, omlaag en schakelen de dempers; het schip rolt zichzelf recht."
+ "flightStyleTouchHelp": "Touch: de stick geeft stuwkracht en schuift zijwaarts, slepen over het scherm (of over de ingedrukte vuurknop) richt, de knoppen naast de stick gaan omhoog, omlaag en schakelen de dempers; het schip rolt zichzelf recht.",
+ "hintScale": "Grootte van knophints",
+ "hintScaleHelp": "Wijzigt de grootte van de toets- en controllerknophints tijdens het vliegen, in het station en op de sterrenkaart, los van de interface- en tekstgrootte.",
+ "challengeComboSounds": "Combogeluiden van de challenge",
+ "challengeComboSoundsHelp": "De geluiden van een combo die groeit en uitbetaalt in de Supernova Challenge.",
+ "medalSound": "Medaillegeluid",
+ "medalSoundChime": "Klokkenspel",
+ "medalSoundOriginal": "Origineel",
+ "medalSoundHelp": "Als je een medaille behaalt. Klokkenspel: het eigen geluid van de remake. Origineel: het infogeluid van het originele spel."
 }

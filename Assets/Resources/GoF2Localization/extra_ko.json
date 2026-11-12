@@ -3379,5 +3379,13 @@
  "hackCrateEjected": "화물 컨테이너가 방출되었습니다. 트랙터 빔으로 내용물을 확인하세요.",
  "dialogueHighlights": "대화 강조 표시",
  "dialogueHighlightsHelp": "애니메이션 대화에서 이름, 장소, 함선, 아이템, 종족에 색을 넣고 앞에 아이콘(크레딧, 종족 문장, 아이템 아이콘)을 붙입니다. 끄면 일반 텍스트입니다.",
- "flightStyleTouchHelp": "터치: 스틱으로 추진과 측면 이동, 화면(또는 누르고 있는 발사 버튼)을 드래그해 조준, 스틱 옆 버튼으로 상승·하강과 댐퍼 전환. 함선은 스스로 수평을 맞춥니다."
+ "flightStyleTouchHelp": "터치: 스틱으로 추진과 측면 이동, 화면(또는 누르고 있는 발사 버튼)을 드래그해 조준, 스틱 옆 버튼으로 상승·하강과 댐퍼 전환. 함선은 스스로 수평을 맞춥니다.",
+ "hintScale": "버튼 힌트 크기",
+ "hintScaleHelp": "인터페이스와 글자 크기와 별개로 비행 중, 정거장, 성도에서 키와 컨트롤러 버튼 힌트의 크기를 바꿉니다.",
+ "challengeComboSounds": "챌린지 콤보 효과음",
+ "challengeComboSoundsHelp": "슈퍼노바 챌린지에서 콤보가 늘어나고 보너스를 받을 때의 효과음입니다.",
+ "medalSound": "메달 효과음",
+ "medalSoundChime": "차임",
+ "medalSoundOriginal": "원작",
+ "medalSoundHelp": "메달을 획득했을 때. 차임: 리메이크 고유의 소리. 원작: 원작 게임의 정보 효과음."
 }

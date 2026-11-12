@@ -3379,5 +3379,13 @@
  "hackCrateEjected": "Wyrzucono kontener ładunkowy. Użyj promienia ściągającego, aby sprawdzić jego zawartość.",
  "dialogueHighlights": "Wyróżnienia w dialogach",
  "dialogueHighlightsHelp": "W animowanych dialogach: imiona, miejsca, statki, przedmioty i rasy w kolorze, z ikonami przed nimi (kredyty, godła ras, ikony przedmiotów). Wyłączone: zwykły tekst.",
- "flightStyleTouchHelp": "Dotyk: drążek daje ciąg i przesuwa w bok, przeciąganie po ekranie (lub po przytrzymanym przycisku ognia) celuje, przyciski obok drążka wznoszą, opuszczają i przełączają tłumiki; statek sam wyrównuje przechył."
+ "flightStyleTouchHelp": "Dotyk: drążek daje ciąg i przesuwa w bok, przeciąganie po ekranie (lub po przytrzymanym przycisku ognia) celuje, przyciski obok drążka wznoszą, opuszczają i przełączają tłumiki; statek sam wyrównuje przechył.",
+ "hintScale": "Rozmiar podpowiedzi przycisków",
+ "hintScaleHelp": "Zmienia rozmiar podpowiedzi klawiszy i przycisków kontrolera w locie, na stacji i na mapie gwiezdnej, niezależnie od rozmiaru interfejsu i tekstu.",
+ "challengeComboSounds": "Dźwięki combo w wyzwaniu",
+ "challengeComboSoundsHelp": "Dźwięki rosnącego combo i wypłaty jego premii w Wyzwaniu Supernova.",
+ "medalSound": "Dźwięk medalu",
+ "medalSoundChime": "Dzwonek",
+ "medalSoundOriginal": "Oryginalny",
+ "medalSoundHelp": "Gdy zdobędziesz medal. Dzwonek: własny dźwięk remake'u. Oryginalny: dźwięk informacji z oryginalnej gry."
 }

@@ -182,16 +182,14 @@ namespace GoF2Remake.UI
         /// <summary>Options > Gameplay "HUD size" / "HUD opacity" (docs/UI-DESIGN.md "HUD"), applied when they change.</summary>
         void ApplyHudLook()
         {
-            int key = Settings.HudScalePercent * 1000 + Settings.HudOpacityPercent;
+            int key = (Settings.HudScalePercent * 1000 + Settings.HudOpacityPercent) * 1000 + Settings.HintScalePercent;
             if (key == hudLook || root == null) return;
             hudLook = key;
             float s = Settings.HudScalePercent / 100f, a = Settings.HudOpacityPercent / 100f;
+            // the hint row also at Options > Gameplay "Button hint size" (#171)
+            float hints = s * Settings.HintScalePercent / 100f;
             foreach (var (cls, x, y) in HudScaled)
-                root.Query(className: cls).ForEach(e =>
-                {
-                    e.style.transformOrigin = new TransformOrigin(Length.Percent(x), Length.Percent(y));
-                    e.style.scale = new Scale(new Vector3(s, s, 1f));
-                });
+                root.Query(className: cls).ForEach(e => InputGlyph.ScaleHints(e, new Vector2(x, y), cls == "hints" ? hints : s));
             foreach (var cls in HudFaded) root.Query(className: cls).ForEach(e => e.style.opacity = a);
         }
         /// <summary>Device safe-area insets (the notch / Dynamic Island, the home indicator, cutouts), see SafeArea.</summary>

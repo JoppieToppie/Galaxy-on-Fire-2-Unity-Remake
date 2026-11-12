@@ -100,7 +100,10 @@ button hints (Gameplay, `Settings.InputHints`; "Button hints in flight" until 20
 the menus: the flight HUD's, the station's and the star map's hint rows through `InputGlyph.TrackHintsOption`, which
 sets `display: none` inline as well as `.hints--off`, since a screen's own rules beat the class (`.hangar-open .station-hints`
 kept the hangar window's row); the menus' prompt bars in `MenuKeys.Bar`; Inspect ship's / Action Freeze's in
-`OrbitViewUi.BuildHints`, whose tappable hints stay on touch, their only Hide UI / Screenshot buttons), the flight HUD
+`OrbitViewUi.BuildHints`, whose tappable hints stay on touch, their only Hide UI / Screenshot buttons), button hint
+size (#171, Gameplay, `Settings.HintScalePercent` 50-100 %: the flight HUD's, station's and star map's rows drawn smaller
+by a transform around their anchor, `InputGlyph.ScaleHints`, so their neighbours stay put; in flight times the HUD size,
+`FlightHud.ApplyHudLook`; the menus' bars and the station windows' rows keep the Interface / Text size), the flight HUD
 (Gameplay tab, `Settings.HudMode`, players' request "for maximum immersion": Full / Minimal / Off, also the Toggle HUD
 binding, F1, which steps through them with a HUD message; `FlightHud` puts `.hud-minimal` / `.hud-off` on the root,
 FlightHud.uss hides by `visibility`, since the markers' layers, the status panel and the readout set their display in
@@ -112,7 +115,10 @@ the mining and hacking games, the touch controls (and on touch their secondary p
 its own option), Show FPS (`FpsCounter`, its own panel over every screen; where, Graphics "FPS counter position",
 `Settings.FpsPosition`, shown while Show FPS is on: the four corners and the middles of the four sides, top centre by
 default, clear of the safe area; at the top centre the flight HUD's lock plate and messages move under it, `.hud-fps`,
-#137), every weapon's own shot sound (`Settings.EachWeaponSound`, Sound tab), the battle music tracks one by one
+#137), every weapon's own shot sound (`Settings.EachWeaponSound`, Sound tab), the Supernova Challenge's combo sounds
+(#165, Sound tab, `Settings.ChallengeComboSounds`, on: SV_Mode_01..10 in `ChallengeOrbit.PlaySound`), the medal sound
+(#165, Sound tab, `Settings.MedalSound`: the remake's chime, the original's info blip, or none; the toast in
+`StationMenu`), the battle music tracks one by one
 (Sound tab, `MusicTracks`, "Music tracks off" in npcs-and-combat.md), mute in background (desktop,
 `Settings.MuteInBackground`: `Bootstrap` zeroes the listener volume while the window is unfocused), double-press fire
 for auto-fire (`Settings.KeyAutofire`, off by default: the touch fire button's 249 ms latch, `AutofireLatch`, on the

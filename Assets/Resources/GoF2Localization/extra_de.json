@@ -3379,5 +3379,13 @@
  "hackCrateEjected": "Frachtcontainer ausgestoßen. Benutze den Traktorstrahl, um den Inhalt zu prüfen.",
  "dialogueHighlights": "Hervorhebungen im Dialog",
  "dialogueHighlightsHelp": "Im animierten Dialog: Namen, Orte, Schiffe, Gegenstände und Völker farbig, mit Symbolen davor (Credits, Volkswappen, Gegenstandssymbole). Aus: schlichter Text.",
- "flightStyleTouchHelp": "Touch: Der Stick gibt Schub und fliegt seitlich, Ziehen auf dem Bildschirm (oder am gehaltenen Feuerknopf) zielt, die Knöpfe neben dem Stick steigen, sinken und schalten die Dämpfer; das Schiff rollt sich selbst waagerecht."
+ "flightStyleTouchHelp": "Touch: Der Stick gibt Schub und fliegt seitlich, Ziehen auf dem Bildschirm (oder am gehaltenen Feuerknopf) zielt, die Knöpfe neben dem Stick steigen, sinken und schalten die Dämpfer; das Schiff rollt sich selbst waagerecht.",
+ "hintScale": "Größe der Tastenhinweise",
+ "hintScaleHelp": "Ändert die Größe der Tasten- und Controller-Hinweise im Flug, in der Station und auf der Sternenkarte, unabhängig von Oberflächen- und Textgröße.",
+ "challengeComboSounds": "Combo-Klänge der Challenge",
+ "challengeComboSoundsHelp": "Die Klänge einer wachsenden und ausgezahlten Combo in der Supernova Challenge.",
+ "medalSound": "Medaillenklang",
+ "medalSoundChime": "Glockenspiel",
+ "medalSoundOriginal": "Original",
+ "medalSoundHelp": "Wenn du eine Medaille erringst. Glockenspiel: der eigene Klang des Remakes. Original: der Info-Klang des Originalspiels."
 }

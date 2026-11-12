@@ -22,7 +22,9 @@ namespace GoF2Remake.UI
     {
         /// <summary>The button hints option (Settings.InputHints): hides a screen's hint row container while it is off (the HUD,
         /// the station, the star map; the menus' prompt bars read it in MenuKeys.Bar, the orbit views in OrbitViewUi).</summary>
-        public static void TrackHintsOption(VisualElement hints)
+        /// <param name="scaleOrigin">Where the row is anchored (percent of its box) for Options > Gameplay "Button hint size"
+        /// (Settings.HintScalePercent); null: the screen sizes the row itself (the flight HUD, with its HUD size).</param>
+        public static void TrackHintsOption(VisualElement hints, Vector2? scaleOrigin = null)
         {
             if (hints == null) return;
             void Apply()
@@ -31,10 +33,20 @@ namespace GoF2Remake.UI
                 // Inline too: a screen's own rules for the row (".hangar-open .station-hints", with the input classes) beat the
                 // class, so the hangar window kept its hints with the option off.
                 hints.style.display = Settings.InputHints ? new StyleEnum<DisplayStyle>(StyleKeyword.Null) : DisplayStyle.None;
+                if (scaleOrigin is Vector2 o) ScaleHints(hints, o, Settings.HintScalePercent / 100f);
             }
             Apply();
             Settings.Changed += Apply;
             hints.RegisterCallback<DetachFromPanelEvent>(_ => Settings.Changed -= Apply);
+        }
+
+        /// <summary>A hint row drawn at 'scale' around 'origin' (percent of its box: the corner or edge it is anchored to),
+        /// like the HUD size: a transform, so the row's neighbours don't move.</summary>
+        public static void ScaleHints(VisualElement hints, Vector2 origin, float scale)
+        {
+            if (hints == null) return;
+            hints.style.transformOrigin = new TransformOrigin(Length.Percent(origin.x), Length.Percent(origin.y));
+            hints.style.scale = new Scale(new Vector3(scale, scale, 1f));
         }
 
         public static VisualElement Key(string text, bool wide = false)

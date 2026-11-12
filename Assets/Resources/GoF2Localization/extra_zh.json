@@ -3379,5 +3379,13 @@
  "hackCrateEjected": "货物集装箱已弹出。使用牵引光束查看其内容。",
  "dialogueHighlights": "对话高亮",
  "dialogueHighlightsHelp": "动画对话中，人名、地点、飞船、物品和种族带颜色，前面带图标（信用点、种族徽章、物品图标）。关闭时：普通文字。",
- "flightStyleTouchHelp": "触屏：摇杆控制推进和横移，在屏幕上拖动（或按住开火按钮拖动）瞄准，摇杆旁的按钮用于上升、下降和切换阻尼器；飞船会自动回正。"
+ "flightStyleTouchHelp": "触屏：摇杆控制推进和横移，在屏幕上拖动（或按住开火按钮拖动）瞄准，摇杆旁的按钮用于上升、下降和切换阻尼器；飞船会自动回正。",
+ "hintScale": "按键提示大小",
+ "hintScaleHelp": "调整飞行中、空间站里和星图上的按键与手柄按钮提示的大小，不影响界面和文字大小。",
+ "challengeComboSounds": "挑战连击音效",
+ "challengeComboSoundsHelp": "Supernova Challenge 中连击增长和结算奖励时的音效。",
+ "medalSound": "勋章音效",
+ "medalSoundChime": "钟声",
+ "medalSoundOriginal": "原版",
+ "medalSoundHelp": "获得勋章时播放。钟声：重制版自己的音效。原版：原版游戏的提示音。"
 }

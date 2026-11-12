@@ -696,6 +696,10 @@ namespace GoF2Remake.Data
         /// <summary>Remake (docs/UI-DESIGN.md "HUD"): the flight HUD's panels (status bars, readouts, lock plate, messages,
         /// hints, crosshair) at 70..150 % of their size, apart from the menus' Interface size (FlightHud.ApplyHudLook).</summary>
         public static int HudScalePercent { get => Mathf.Clamp(Mathf.RoundToInt(Get("hudScale", 100f)), 70, 150); set => Set("hudScale", Mathf.Clamp(value, 70, 150)); }
+        /// <summary>Remake (#171, a player's request: the controller buttons' frames came out large at a big Interface /
+        /// Text size): the key and button hint rows of the flight HUD, the station and the star map at 50..100 % of their
+        /// size, apart from those (InputGlyph.TrackHintsOption; in flight times the HUD size, FlightHud.ApplyHudLook).</summary>
+        public static int HintScalePercent { get => Mathf.Clamp(Mathf.RoundToInt(Get("hintScale", 100f)), 50, 100); set => Set("hintScale", Mathf.Clamp(value, 50, 100)); }
         /// <summary>Remake: the flight HUD's markings at 30..100 % opacity (the messages, the radio and the menus stay
         /// opaque; FlightHud.ApplyHudLook).</summary>
         public static int HudOpacityPercent { get => Mathf.Clamp(Mathf.RoundToInt(Get("hudOpacity", 100f)), 30, 100); set => Set("hudOpacity", Mathf.Clamp(value, 30, 100)); }
@@ -711,6 +715,13 @@ namespace GoF2Remake.Data
         public static bool InterstellarDistance { get => GetBool("interstellarDistance", true); set => SetBool("interstellarDistance", value); }
         /// <summary>Remake: every primary weapon item sounds its own shots (the original: only the first primary gun).</summary>
         public static bool EachWeaponSound { get => GetBool("eachWeaponSound", false); set => SetBool("eachWeaponSound", value); }
+        /// <summary>Remake (#165, a player's request): the Supernova Challenge's combo sounds (SV_Mode_01..10: the combo
+        /// growing, its bonus paid; ChallengeOrbit.PlaySound) play, as in the original (default).</summary>
+        public static bool ChallengeComboSounds { get => GetBool("challengeComboSounds", true); set => SetBool("challengeComboSounds", value); }
+        /// <summary>Remake (#165): a medal's toast sounds the remake's chime (default), the original's info blip (what the
+        /// original played) or nothing (StationMenu.ShowMedalToast).</summary>
+        public const int MedalSoundChime = 0, MedalSoundOriginal = 1, MedalSoundOff = 2;
+        public static int MedalSound { get => Mathf.Clamp(Mathf.RoundToInt(Get("medalSound", MedalSoundChime)), MedalSoundChime, MedalSoundOff); set => Set("medalSound", Mathf.Clamp(value, MedalSoundChime, MedalSoundOff)); }
         /// <summary>Remake (a player's request, 2026-11-04): a flight music track plays (default) or is skipped (MusicTracks:
         /// a battle track off leaves the calm track playing).</summary>
         public static bool MusicTrackOn(string track) => GetBool(MusicTracks.Key(track), true);
@@ -852,7 +863,7 @@ namespace GoF2Remake.Data
         // key goes in its tab's list. Not reset: the text language and the tilt calibration (taken on the device, not an
         // option); the Key bindings tab resets the bindings (GameControls), the in-game Difficulty and Debug tools rows are
         // the game's / Cheats' state.
-        public static readonly string[] SoundKeys = { "masterVolume", "musicVolume", "sfxVolume", "voiceVolume", "eachWeaponSound", "muteInBackground",
+        public static readonly string[] SoundKeys = { "masterVolume", "musicVolume", "sfxVolume", "voiceVolume", "eachWeaponSound", "challengeComboSounds", "medalSound", "muteInBackground",
             "musicTrack.battleLow", "musicTrack.battleMedium", "musicTrack.battleFull", "musicTrack.voidBattle", "musicTrack.specters1",
             "musicTrack.specters2", "musicTrack.wanted" };
         public static readonly string[] GraphicsKeys =
@@ -870,7 +881,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GameplayKeys =
         {
             "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule",
-            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
+            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
             "speedrunPosition", "speedrunLiveSplit",
         };

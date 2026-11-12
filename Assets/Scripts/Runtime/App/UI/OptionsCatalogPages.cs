@@ -611,6 +611,12 @@ namespace GoF2Remake.UI
                 () => Settings.InputHints, v => Settings.InputHints = v);
             inputHints.description = () => X("inputHintsHelp", "Shows which keys and controller buttons do what, in flight, in the menus and in the station.");
             list.Add(inputHints);
+            // Remake (#171, a player's request): the hint rows' own size, apart from the Interface and Text sizes.
+            var hintScale = Choice("hintScale", OptionPage.Gameplay, () => X("hintScale", "Button hint size"), false,
+                () => System.Array.ConvertAll(HintScaleSteps, p => p + " %"),
+                () => Mathf.Max(0, System.Array.IndexOf(HintScaleSteps, Settings.HintScalePercent)), i => Settings.HintScalePercent = HintScaleSteps[Mathf.Clamp(i, 0, HintScaleSteps.Length - 1)],
+                () => X("hintScaleHelp", "Sizes the key and controller button hints in flight, in the station and on the star map, apart from the interface and text sizes."));
+            list.Add(hintScale);
             // Remake (immersion): the flight HUD's markings Full / Minimal / Off (FlightHud); also the "Toggle HUD" key (F1).
             list.Add(Choice("hudMode", OptionPage.Gameplay, () => X("hudMode", "Flight HUD"), true,
                 () => new[] { X("hudFull", "Full"), X("hudMinimal", "Minimal"), X("hudOff", "Off") },

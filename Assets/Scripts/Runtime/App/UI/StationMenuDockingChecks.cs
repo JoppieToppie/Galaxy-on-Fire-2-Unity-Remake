@@ -162,8 +162,11 @@ namespace GoF2Remake.UI
             medalToastLeft = medalQueue.Count > 0 ? MedalToastQueuedSeconds : MedalToastSeconds(m, grade);
             medalToastFading = medalToastHovered = false;
             // Remake's own medal sound (the original used the info window's blip): a rising synthesized chime with echoes.
-            if (medalSound == null) medalSound = Resources.Load<AudioClip>("GoF2Sfx/MedalToast");
-            Play(medalSound != null ? medalSound : infoSound);
+            // Options > Sound "Medal sound" (#165): the chime, the original's blip or none.
+            int medalSoundKind = Settings.MedalSound;
+            if (medalSoundKind == Settings.MedalSoundChime && medalSound == null) medalSound = Resources.Load<AudioClip>("GoF2Sfx/MedalToast");
+            if (medalSoundKind == Settings.MedalSoundChime) Play(medalSound != null ? medalSound : infoSound);
+            else if (medalSoundKind == Settings.MedalSoundOriginal) Play(infoSound);
             // Drops in and grows (the transition needs a frame), with a short bright flash.
             toast.schedule.Execute(() => toast.AddToClassList("medal-toast--shown"));
             toast.AddToClassList("medal-toast--flash");

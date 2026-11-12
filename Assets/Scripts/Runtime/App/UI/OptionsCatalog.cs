@@ -162,6 +162,14 @@ namespace GoF2Remake.UI
                 Described(Toggle("eachWeaponSound", OptionPage.Sound, () => X("eachWeaponSound", "Every weapon's own shot sound"),
                     () => Settings.EachWeaponSound, v => Settings.EachWeaponSound = v),
                     () => X("eachWeaponSoundHelp", "With different primary weapons mounted, the original plays only the first one's shot sound for all of them. On: every weapon plays its own.")),
+                // Remake (#165, a player's request): the Supernova Challenge's combo sounds and the medal sound can be left out.
+                Described(Toggle("challengeComboSounds", OptionPage.Sound, () => X("challengeComboSounds", "Challenge combo sounds"),
+                    () => Settings.ChallengeComboSounds, v => Settings.ChallengeComboSounds = v),
+                    () => X("challengeComboSoundsHelp", "The sounds of a combo growing and paying out in the Supernova Challenge.")),
+                Choice("medalSound", OptionPage.Sound, () => X("medalSound", "Medal sound"), true,
+                    () => new[] { X("medalSoundChime", "Chime"), X("medalSoundOriginal", "Original"), X("off", "Off") },
+                    () => Settings.MedalSound, i => Settings.MedalSound = i,
+                    () => X("medalSoundHelp", "When you earn a medal. Chime: the remake's own sound. Original: the original game's info sound.")),
                 // Remake: the voices apart from the text language (only English and German were recorded); on the Language tab.
                 Choice("voiceLanguage", OptionPage.Language, () => X("voiceLanguage", "Voice language"), true,
                     () => new[] { X("voiceAuto", "As text"), "English", "Deutsch" },
@@ -270,6 +278,8 @@ namespace GoF2Remake.UI
         /// <summary>The flight HUD's size and opacity steps (Settings.HudScalePercent / HudOpacityPercent).</summary>
         static readonly int[] HudScaleSteps = { 70, 80, 90, 100, 115, 130, 150 };
         static readonly int[] HudOpacitySteps = { 30, 40, 50, 60, 70, 80, 90, 100 };
+        /// <summary>The hint rows' size steps (Settings.HintScalePercent).</summary>
+        static readonly int[] HintScaleSteps = { 50, 60, 70, 80, 90, 100 };
 
         /// <summary>The row's description: its "?" (OptionInfo), the line under it with a controller.</summary>
         static OptionDef Described(OptionDef d, Func<string> text)

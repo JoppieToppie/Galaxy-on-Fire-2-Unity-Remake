@@ -162,7 +162,7 @@ namespace GoF2Remake.UI
                 MultiplayerWindow.Attach(gameObject, safeArea ?? root);   // the Faction / Arena / Profile window
             }
 
-            InputGlyph.TrackHintsOption(hints);
+            InputGlyph.TrackHintsOption(hints, new Vector2(100f, 100f));   // the row's bottom right (.station-hints)
             dialog = root.Q("dialog");
             viewTitle = root.Q<Label>("viewTitle");
             toast = root.Q<Label>("toast");

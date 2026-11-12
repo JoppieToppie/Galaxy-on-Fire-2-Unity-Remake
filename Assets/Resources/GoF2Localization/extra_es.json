@@ -3379,5 +3379,13 @@
  "hackCrateEjected": "Contenedor de carga expulsado. Usa el rayo tractor para comprobar su contenido.",
  "dialogueHighlights": "Resaltado en los diálogos",
  "dialogueHighlightsHelp": "En los diálogos animados: nombres, lugares, naves, objetos y razas en color, con iconos delante (créditos, emblemas de las razas, iconos de objetos). Desactivado: texto simple.",
- "flightStyleTouchHelp": "Táctil: el stick impulsa y desplaza lateralmente, arrastrar por la pantalla (o sobre el botón de disparo pulsado) apunta, los botones junto al stick suben, bajan y conmutan los amortiguadores; la nave se nivela sola."
+ "flightStyleTouchHelp": "Táctil: el stick impulsa y desplaza lateralmente, arrastrar por la pantalla (o sobre el botón de disparo pulsado) apunta, los botones junto al stick suben, bajan y conmutan los amortiguadores; la nave se nivela sola.",
+ "hintScale": "Tamaño de las indicaciones de botones",
+ "hintScaleHelp": "Ajusta el tamaño de las indicaciones de teclas y botones del mando en vuelo, en la estación y en el mapa estelar, sin cambiar el tamaño de la interfaz ni del texto.",
+ "challengeComboSounds": "Sonidos de combo del desafío",
+ "challengeComboSoundsHelp": "Los sonidos de un combo que crece y se cobra en el Desafío Supernova.",
+ "medalSound": "Sonido de medalla",
+ "medalSoundChime": "Campanilla",
+ "medalSoundOriginal": "Original",
+ "medalSoundHelp": "Al conseguir una medalla. Campanilla: el sonido propio del remake. Original: el sonido de información del juego original."
 }
