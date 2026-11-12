@@ -406,7 +406,8 @@ namespace GoF2Remake.World
         GameObject valkyrieGo, valkyrieGun, stage1, stage2;
         Vector3 valkyrieAt, chaseDir;
         Quaternion valkyrieRot;
-        bool valkyrieSound;
+        bool valkyrieSound, beamOn;
+        Quaternion tumbleBase, tumbleTurn;   // 158: the player's pose before the cutscene's tumble, and the tumble
         float burnMs, blastMs;
 
         float flyInMs, harvalCloakMs;

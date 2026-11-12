@@ -541,7 +541,10 @@ namespace GoF2Remake.World
         public void MovePlayer(Vector3 position, Quaternion rotation)
         {
             Player.transform.SetPositionAndRotation(position, rotation);
-            chase.Snap();
+            // Modified: not while a level script's cutscene camera holds the view (scriptCamera): Snap put the camera behind the
+            // moved player mid-shot (157: the camera following the Valkyrie jumped to Keith's ship as Harval's chase began, a
+            // player's report). CutsceneCamera.Release snaps it back when the cutscene ends.
+            if (!chase.scriptCamera) chase.Snap();
             if (launchCameraMs <= 0f) return;
             bool travel = launchTravel;
             float Side() => (Random.value < 0.5f ? -1f : 1f) * (travel ? Random.Range(500, 1000) : Random.Range(500, 2500));

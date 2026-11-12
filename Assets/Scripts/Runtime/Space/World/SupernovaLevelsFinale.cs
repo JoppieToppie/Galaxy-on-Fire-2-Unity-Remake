@@ -81,6 +81,7 @@ namespace GoF2Remake.World
             valkyrieAt = vp;
             valkyrieRot = vrot;
             valkyrieSound = false;
+            beamOn = false;
             // The ctor's burning stages 1 (0x4a97 / 0x4a98) and 2 (0x4a99 / 0x4a9a), hidden until state 9.
             stage1 = Scenery("sn_burning_valkyrie_stage_1", vp, vrot, "Valkyrie burning 1");
             stage2 = Scenery("sn_burning_valkyrie_stage_2", vp, vrot, "Valkyrie burning 2");
@@ -121,6 +122,8 @@ namespace GoF2Remake.World
             cam.LookAt(camAt, harval.transform);
             c.Fade(true, Color.white, 8000f);   // startFade(false, -1, 8000): from white, the supernova's white-out carries over
             playerSpeed = 0.1f;
+            tumbleBase = Player.rotation;
+            tumbleTurn = Quaternion.identity;
             Step = 1;
             c.WinObjective = () => Over(10);   // Objective(0x16, 0): the last radio line (Keith once Harval is dead) is over
         }
@@ -416,6 +419,7 @@ namespace GoF2Remake.World
                         cam.RumbleAmplitude = 30;
                     }
                     if (!Over(15) || stepMs <= 3000f) break;
+                    beamOn = false;
                     // The beam (0x4a75 + 0x4a76 / 0x4a77) at the Valkyrie facing (0, 0, -1), up (0, 1, 0); never re-aimed.
                     beam = Scenery("sn_plasma_gun_fx_valkyrie_beam_anim_add", valkyrieAt, Quaternion.LookRotation(Dir(new Vector3(0, 0, -1)), Vector3.up), "Plasma beam");
                     if (beam != null) { beam.SetActive(false); SetBeamAnimating(false); }
@@ -424,8 +428,14 @@ namespace GoF2Remake.World
                 case 11:
                     cam.SetDolly(new Vector3(-3f, 0f, -0.33f));   // 0x16ed6c
                     cam.Rumble = 0f;
-                    if (stepMs > 6000f && stepMs - dtMs <= 6000f)
+                    // Modified: the beam waits until Alice's last line (radio 16, "...I just wanted my station back.") has 4 s of
+                    // voice left: the remake's radio runs longer than the original's 6 s here, so the beam fired early in her line
+                    // (a player's comparison with the original); the step's clock is held at 6000 until then, the rest of the
+                    // state keeps its timing.
+                    if (stepMs > 6000f && !beamOn && !AliceNearlyDone()) stepMs = 6000f;
+                    if (stepMs > 6000f && !beamOn)
                     {
+                        beamOn = true;
                         if (beam != null) { beam.SetActive(true); SetBeamAnimating(true); }   // animates from 6001 ms
                         if (sn != null) Sfx.PlayAt(sn.valkyrieBeam, cam.Camera != null ? cam.Camera.position : Player.position);   // 0x8c7
                     }
@@ -488,14 +498,44 @@ namespace GoF2Remake.World
         }
 
         /// <summary>LevelScript's Explosion (type 0 with fire streaks) at a game position.</summary>
-        void Blast(Vector3 gamePos, AudioClip[] clips, float scale = 4f) =>
-            Explosion.Spawn(0, ToUnity(gamePos), Vector3.forward, scale, CombatAssets.Pick(clips), true);
+        /// <summary>157: radio 16's voice has 4 s left (or the line is over; without a voice clip, when it is over).</summary>
+        bool AliceNearlyDone()
+        {
+            if (c.Radio == null || Over(16)) return true;
+            float shown = c.Radio.ShownMs(16);
+            var voice = assets != null ? assets.Voice(c.Radio.Line(16)?.voice) : null;
+            return voice != null && shown >= 0f && voice.length * 1000f - shown <= 4000f;
+        }
+
+        void Blast(Vector3 gamePos, AudioClip[] clips, float scale = 4f)
+        {
+            // Modified: the original plays these blasts' sound 2D (FModSound::play with no position): the combat clip placed
+            // at the Valkyrie, kilometres from the camera, was never heard (a player's report). Played at the camera instead,
+            // the same ship explosion clips (the medium ship's destruction, compared with the original by ear).
+            var clip = CombatAssets.Pick(clips);
+            Explosion.Spawn(0, ToUnity(gamePos), Vector3.forward, scale, null, true);
+            if (clip != null) Sfx.PlayAt(clip, cam.Camera != null ? cam.Camera.position : Player.position);
+        }
 
         /// <summary>The plasma beam's animation runs only in its windows (state 11 from 6001 ms, state 12 until 5999 ms).</summary>
         void SetBeamAnimating(bool on)
         {
             if (beam == null) return;
-            foreach (var a in beam.GetComponentsInChildren<PartAnimation>(true)) a.speed = on ? 1f : 0f;
+            foreach (var a in beam.GetComponentsInChildren<PartAnimation>(true))
+            {
+                // Modified: the star burst (sn_plasma_gun_fx_valkyrie_star_add) is animated too, but its prefab didn't play (only
+                // the "_anim" models do), so it stood still at its first pose (a player's report); started with the beam, its
+                // `extra` fades (the flashes coming in from 3 to 8 s) applied as the Transform's update does.
+                // Modified: every part's `extra` fades apply (the beam's and the cone's prefabs left them off): the cone's disc
+                // (cone part 2) fades in from 2.7 to 4.3 s as it does in the original and the file, where it popped in at once.
+                a.applyMaterialChannels = true;
+                if (on && !a.play)
+                {
+                    a.play = true;
+                    a.Restart();
+                }
+                a.speed = on ? 1f : 0f;
+            }
         }
 
         // 158 (campaign_levels_c.md 3.18).
@@ -527,7 +567,11 @@ namespace GoF2Remake.World
                     }
                     // 0x16c296: AEGeometry::rotate(dt / 2000) on all three axes.
                     float tumble = dtMs / 2000f * Mathf.Rad2Deg;
-                    Player.Rotate(tumble, tumble, tumble, Space.Self);
+                    // Modified: the same tumble, with the pose turned by (-20, 120, 100) in the ship's own frame: the remake
+                    // showed Keith's ship nose and wings the other way round (found by a player turning the model against the
+                    // original's shot).
+                    tumbleTurn *= Quaternion.Euler(tumble, tumble, tumble);
+                    Player.rotation = tumbleBase * tumbleTurn * Quaternion.Euler(-20f, 120f, 100f);
                     if (T < 34000f) break;
                     if (harval != null) harval.SetExhaust(true);
                     cam.SetDolly(Vector3.zero);   // the camera holds still in state 2
