@@ -411,15 +411,8 @@ docs/                     multiplayer guides and the per-area technical notes
 - **Los pull requests son bienvenidos.** Haz un fork del repositorio, haz tu cambio en una rama, ejecuta las pruebas en
   modo edición y abre un pull request contra `main`. Antes de trabajar en un área, lee su archivo en
   [docs/notes/](../notes); las convenciones están en [CLAUDE.md](../../CLAUDE.md).
-- **¿Cambias modelos, texturas o sonidos?** Van al servidor LFS del proyecto, que acepta tu cuenta de GitHub, así que no
-  necesitas otra. Primero haz un fork del repositorio y luego ejecuta esto una vez (en Git Bash en Windows) para que Git
-  reutilice tu inicio de sesión de GitHub:
-  ```bash
-  git config --global credential.https://toppienas.diskstation.me.helper ""
-  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
-  ```
-  Sin esto, Git te pide un inicio de sesión en tu primer push: tu usuario de GitHub, con un
-  [token de GitHub](https://github.com/settings/tokens) como contraseña.
+- **¿Cambias modelos, texturas o sonidos?** Haz commit y push como siempre: el servidor LFS del proyecto acepta subidas
+  sin cuenta ni inicio de sesión.
 - **¿Te gusta el proyecto?** Dale una ⭐ en GitHub, ayuda a que otros lo encuentren.
 
 ---

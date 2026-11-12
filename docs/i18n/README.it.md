@@ -406,15 +406,8 @@ docs/                     multiplayer guides and the per-area technical notes
 - **Le pull request sono benvenute.** Fai il fork del repository, apporta la modifica su un branch, esegui i test in
   modalità edit e apri una pull request verso `main`. Prima di lavorare su un'area, leggi il suo file in
   [docs/notes/](../notes); le convenzioni sono in [CLAUDE.md](../../CLAUDE.md).
-- **Modifichi modelli, texture o suoni?** Finiscono sul server LFS del progetto, che accetta il tuo account GitHub, quindi
-  non te ne serve un altro. Prima fai un fork del repository, poi esegui questo una volta (in Git Bash su Windows) così Git
-  riusa il tuo login GitHub:
-  ```bash
-  git config --global credential.https://toppienas.diskstation.me.helper ""
-  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
-  ```
-  Senza, Git chiede un login al primo push: il tuo nome utente GitHub, con un
-  [token GitHub](https://github.com/settings/tokens) come password.
+- **Modifichi modelli, texture o suoni?** Fai commit e push come sempre: il server LFS del progetto accetta i caricamenti
+  senza account né login.
 - **Ti piace il progetto?** Lascia una ⭐ su GitHub, aiuta gli altri a trovarlo.
 
 ---

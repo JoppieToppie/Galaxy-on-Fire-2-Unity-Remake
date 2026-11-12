@@ -388,15 +388,8 @@ docs/                     multiplayer guides and the per-area technical notes
 - **पुल रिक्वेस्ट का स्वागत है।** रिपॉज़िटरी फ़ोर्क करें, एक ब्रांच पर अपना बदलाव करें, एडिट-मोड टेस्ट चलाएँ, और `main` के विरुद्ध एक
   पुल रिक्वेस्ट खोलें। किसी क्षेत्र पर काम करने से पहले [docs/notes/](../notes) में उसकी फ़ाइल पढ़ें; कन्वेंशन
   [CLAUDE.md](../../CLAUDE.md) में हैं।
-- **मॉडल, टेक्सचर या साउंड बदल रहे हैं?** ये प्रोजेक्ट के LFS सर्वर पर जाते हैं, जो आपका GitHub अकाउंट स्वीकार करता है, इसलिए
-  किसी और अकाउंट की ज़रूरत नहीं। पहले रिपॉज़िटरी को fork करें, फिर इसे एक बार चलाएँ (Windows पर Git Bash में) ताकि Git आपका
-  GitHub लॉगिन दोबारा इस्तेमाल करे:
-  ```bash
-  git config --global credential.https://toppienas.diskstation.me.helper ""
-  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
-  ```
-  इसके बिना Git पहली push पर लॉगिन माँगेगा: अपना GitHub यूज़रनेम, और पासवर्ड की जगह
-  [GitHub टोकन](https://github.com/settings/tokens)।
+- **मॉडल, टेक्सचर या साउंड बदल रहे हैं?** बस हमेशा की तरह commit और push करें: प्रोजेक्ट का LFS सर्वर बिना अकाउंट या
+  लॉगिन के अपलोड स्वीकार करता है।
 - **प्रोजेक्ट पसंद आया?** GitHub पर इसे ⭐ दें, इससे दूसरों को यह ढूँढने में मदद मिलती है।
 
 ---

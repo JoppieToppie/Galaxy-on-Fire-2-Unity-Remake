@@ -307,14 +307,7 @@ docs/                     multiplayer guides and the per-area technical notes
 
 - **发现了 bug？** 请提交一个 [issue](https://github.com/JoppieToppie/Galaxy-on-Fire-2-Unity-Remake/issues)，附上你的平台、游戏版本（显示在主菜单中）和一张截图。选项 > 游戏玩法可以在右下角显示当前的剧情步骤和空间站，这能告诉我们问题发生在哪里。
 - **欢迎提交 pull request。** Fork 本仓库，在分支上做出修改，运行编辑模式测试，然后向 `main` 提交 pull request。开始处理某个领域之前，请先阅读 [docs/notes/](../notes) 中对应的文件；约定写在 [CLAUDE.md](../../CLAUDE.md) 里。
-- **要修改模型、贴图或音效？** 这些文件会上传到项目的 LFS 服务器，它接受你的 GitHub 账号，无需另外注册。先 fork 仓库，然后运行
-  一次下面的命令（Windows 上在 Git Bash 中），让 Git 复用你的 GitHub 登录：
-  ```bash
-  git config --global credential.https://toppienas.diskstation.me.helper ""
-  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
-  ```
-  不设置的话，Git 会在你第一次 push 时要求登录：用户名填 GitHub 用户名，密码填
-  [GitHub 令牌](https://github.com/settings/tokens)。
+- **要修改模型、贴图或音效？** 照常 commit 和 push 即可：项目的 LFS 服务器无需账号或登录即可接受上传。
 - **喜欢这个项目？** 请在 GitHub 上给它点个 ⭐，这能帮助更多人发现它。
 
 ---
