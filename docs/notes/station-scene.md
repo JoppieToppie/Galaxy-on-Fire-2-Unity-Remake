@@ -122,7 +122,8 @@ slots, ship heights, fighters per race, music) are in `StationTables`.
     main menu too): a cursor resting over a row kept it lit while the keys / a controller moved the focus, two rows at
     once at every station docked at (a player's report, 2026-10-18).
   - Music per race and station; ambience per screen as the FMOD cycle events (`CycleSound`): 122 Mainview, 95 Hangar
-    while the hangar window is open (`StationLevel.SetHangarWindowOpen`, `ModStation::OnKeyPress`), 108 Lounge.
+    while the hangar window is open (`StationLevel.SetHangarWindowOpen`, `ModStation::OnKeyPress`), 108 Lounge. None at
+    an evacuated Ginoya station (`Evacuated`, system 27 before 158; the user's request 2026-11-09): it comes back at 158.
 - Missions (129, unlocks with the Map) and Status (169): see "Bar and freelance".
 - **System menu** (`StationMenu`, `SysPage` Main / Save / Load / Options): 30 Save game, 29 Load (the slot list), 31
   Options (the `OptionControl` rows), 522 Back to Main Menu; Back at the top right. 28 New game and 43 About are built
