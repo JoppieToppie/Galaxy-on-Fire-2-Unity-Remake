@@ -1976,7 +1976,7 @@ a race goes (a system's or ship's `race`, `/spawn`, `/standing`, `standing(...)`
 |---|---|
 | `id`, `name`, `description` | As for items. Other mods name it `"mod_id:id"`. |
 | `look` | The game race whose hangar, bar, lounge visitors, music, NPC guns and jumpgate the race borrows: `terran`, `vossk`, `nivelian`, `midorian`, `pirates` or `void` (default `terran`). |
-| `icon` | Its emblem, a PNG (square, transparent around it, like the game's race emblems). Default: its look race's. Shown on the station's header, the star map, the lock plate and the Status window. |
+| `icon` | Its emblem, a PNG (square, transparent around it, like the game's race emblems; drawn at 36 px on the lock plate and star map, larger on the station header, so 64x64 to 256x256 looks sharp everywhere). Default: its look race's. Shown on the station's header, the star map, the lock plate and the Status window. |
 | `color` | `[r, g, b]` (0 to 1). |
 | `standing` | The player's standing at the start of a game, -100 to 100 (default 0). At -71 and below the race is hostile, at 71 and above a friend, as with the game's races. Killing its ships costs 5 (10 on Extreme). |
 | `hostile` | `true`: always the player's enemy, whatever the standing, and the enemy of every race it doesn't call a friend, like the game's pirates. It isn't listed on the Status window. Killing one of its ships in the system of a race it is at war with raises that race's standing by 1. |

@@ -329,7 +329,9 @@ namespace GoF2Remake.UI
                     }
                     lockOre.EnableInClassList("lock-ore--wanted", locked.plateRed);
                     lockClass.style.display = plateIcon != null ? DisplayStyle.Flex : DisplayStyle.None;
-                    Image(lockClass, plateIcon);
+                    // At the game's emblem size (race_N is 36 px), whatever a mod's PNG is: a 512 px emblem overflowed the plate.
+                    Image(lockClass, plateIcon, false);
+                    lockClass.style.width = 36f; lockClass.style.height = 36f;
                 }
                 else if (drawLock && plateFree && radar.LockedCloud >= 0)
                 {

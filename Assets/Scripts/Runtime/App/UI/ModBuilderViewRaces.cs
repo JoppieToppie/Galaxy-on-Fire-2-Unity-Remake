@@ -154,7 +154,7 @@ namespace GoF2Remake.UI
                 big.style.backgroundImage = new StyleBackground(icon);
             }
             ImageRow(modRacePage, T("mbModRaceIcon", "Emblem"), r.Icon, "icons", "race_" + r.Id, v => { r.Icon = v; ModRaceEdited(); RebuildModRaces(); });
-            Note(modRacePage, T("mbModRaceIconNote", "A square PNG, transparent around it, like the game's race emblems. None: its look race's."));
+            Note(modRacePage, T("mbModRaceIconNote", "A square PNG (64x64 to 256x256), transparent around it, like the game's race emblems. None: its look race's."));
             ColourRow(modRacePage, T("mbModRaceColour", "Colour (0..1)"), r.Colour, c => { r.Colour = c; ModRaceEdited(); RebuildModRaces(); });
 
             // ---- the player ----

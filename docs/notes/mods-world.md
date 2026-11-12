@@ -194,6 +194,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `Agent.modRace` (saved as "faction" before: `FormerlySerializedAs`), `LoungeChat`: restores to 0). The Status window
   lists the non-hostile mod races in the game's reputation look (the race status bar, the emblem with a standing-coloured
   glow, `StatusWindow.RaceEmblem`). The station header, star map, lock plate and HUD use the mod race's name and emblem.
+  The lock plate (CombatView, NavigationView) draws it 36x36 like race_N: it took the PNG's own size, so a big emblem
+  overflowed and squashed the plate (Discord 2026-11-11).
   campaign.json `raceStanding` { race: value } sets the start (`ModCampaigns.Start`, after the races are numbered);
   `/peace` (`Cheats.MakePeace`) sets the non-hostile ones to 0 too; `/standing` and `standing(race)` (event-graphs.md,
   chat-and-commands.md) change and read them. Multiplayer: each player's own standings

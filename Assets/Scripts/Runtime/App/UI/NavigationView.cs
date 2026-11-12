@@ -352,6 +352,8 @@ namespace GoF2Remake.UI
                          : RaceIcon(systemRace);
                 lockClass.style.display = icon != null ? DisplayStyle.Flex : DisplayStyle.None;
                 Image(lockClass, icon);
+                // A race emblem at the game's size (race_N is 36 px), whatever a mod's PNG is (CombatView's plate likewise).
+                if (icon != null && locked.kind != Navigation.Kind.Waypoint) { lockClass.style.width = 36f; lockClass.style.height = 36f; }
             }
             else lockClass.style.display = DisplayStyle.Flex;
         }
