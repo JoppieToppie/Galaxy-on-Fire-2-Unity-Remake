@@ -183,10 +183,16 @@ namespace GoF2Remake.Flight
         [System.NonSerialized] public float shieldFactor = 1f;
 
         public const int ShieldDamageAttr = 124, DisruptorShieldPercent = 200;
+        /// <summary>Remake mods (GoF3's abilities): 161 shieldBypass (its hits go past the shield), 162 slowMs / 163 slowPercent
+        /// (a hit slows the ship to that share of its speed for that long, turning still allowed: AbilitySlowdown).</summary>
+        public const int ShieldBypassAttr = 161, SlowMsAttr = 162, SlowPercentAttr = 163;
+        /// <summary>Remake mods: a hit slows the ship for slowMs to slowFactor of its speed (0 = none).</summary>
+        [System.NonSerialized] public float slowMs, slowFactor = 1f;
 
         public static float ShieldFactor(ItemData item)
         {
             if (item == null) return 1f;
+            if (item.Attr(ShieldBypassAttr) > 0) return 0f;   // remake mods: shieldBypass (Hitpoints.Damage's 0)
             int pct = item.Attr(ShieldDamageAttr);
             if (pct <= 0) pct = item.Look == 183 ? DisruptorShieldPercent : 100;
             return Mathf.Clamp(pct, 1, 1000) / 100f;
@@ -203,6 +209,8 @@ namespace GoF2Remake.Flight
             isBeam = IsBeamLook(look);
             damage = item.Attr(9);
             shieldFactor = ShieldFactor(item);
+            slowMs = Mathf.Max(0, item.Attr(SlowMsAttr));
+            slowFactor = Mathf.Clamp01(item.Attr(SlowPercentAttr, 50) / 100f);
             echo = GunEcho.From(item);
             emp = item.Attr(10);
             reloadMs = Mathf.Max(1, item.Attr(11, 500));
@@ -235,9 +243,11 @@ namespace GoF2Remake.Flight
             reloadAcc = reloadMs + 1f;   // ready at start
         }
 
-        /// <summary>Level::assignGuns: an NPC gun with the look of 'visualItem' and the generic NPC stats.</summary>
-        public Gun(ItemData visualItem, float damage, float reloadMs, int pool, float lifetimeMs, float speedUnitsPerMs)
+        /// <summary>Level::assignGuns: an NPC gun with the look of 'visualItem' and the generic NPC stats. Remake: 'missiles' =
+        /// homing shots (the devices' EMP shots and deflected shots, PlayerDevices).</summary>
+        public Gun(ItemData visualItem, float damage, float reloadMs, int pool, float lifetimeMs, float speedUnitsPerMs, bool missiles = false)
         {
+            this.missiles = missiles;
             itemIndex = visualItem.index;
             lookIndex = visualItem.Look;
             categoryId = visualItem.categoryId;
@@ -484,8 +494,7 @@ namespace GoF2Remake.Flight
                 if (homing && targets != null && DistanceToSegment(goal, from, b.position) <= HullShotRadius && MayHit(homeOn, targets))
                 {
                     b.timer = -1e9f;   // gone
-                    Hit?.Invoke(i, homeOn, goal);
-                    Struck(goal);
+                    if (Strike(i, homeOn, goal)) Struck(goal);
                     continue;
                 }
                 if (targets != null)
@@ -608,7 +617,7 @@ namespace GoF2Remake.Flight
             {
                 if (IsBomb) { Ignite(targets); return; }   // contact: area damage, no direct hit
                 b.timer = -1e9f;   // gone
-                Hit?.Invoke(i, hullTarget, hullPoint);
+                if (!Strike(i, hullTarget, hullPoint)) return;
                 if (scatter) { AreaDamage(hullPoint, targets, false); Ignited?.Invoke(hullPoint); }   // + the burst around
                 Struck(hullPoint);
                 return;
@@ -637,7 +646,7 @@ namespace GoF2Remake.Flight
                     float k = seg.sqrMagnitude > 1e-12f ? Mathf.Clamp01(Vector3.Dot(c - from, seg) / seg.sqrMagnitude) : 1f;
                     var at = from + seg * k;
                     b.timer = -1e9f;   // gone
-                    Hit?.Invoke(i, s, at);
+                    if (!Strike(i, s, at)) return;
                     if (scatter) { AreaDamage(at, targets, false); Ignited?.Invoke(at); }
                     Struck(at);
                     return;
@@ -670,7 +679,7 @@ namespace GoF2Remake.Flight
                 if (IsBomb && unarmed) continue;   // not armed yet: flies on through the ship's cube
                 if (IsBomb) { Ignite(targets); return; }   // contact: area damage, no direct hit
                 b.timer = -1e9f;   // gone
-                Hit?.Invoke(i, target, point);
+                if (!Strike(i, target, point)) return;
                 if (kind == Kind.ScatterGun) { AreaDamage(point, targets, false); Ignited?.Invoke(point); }   // + the burst around
                 Struck(point);
                 return;
@@ -696,8 +705,16 @@ namespace GoF2Remake.Flight
                 if (HullCollision.Cast(from, at + BeamDir * reach, HullShotRadius, aimedOnlyFn, out _, out var p)) at = p;
             }
             b.timer = -1e9f;   // gone
-            Hit?.Invoke(i, aimed, at);
-            Struck(at);
+            if (Strike(i, aimed, at)) Struck(at);
+        }
+
+        /// <summary>A shot's hit on 'target': Hit, unless the target turns it back (Target.Deflects, the Carom Deflector's
+        /// PlayerDevices: the shot is gone and does nothing here). False = turned back.</summary>
+        bool Strike(int i, Target target, Vector3 at)
+        {
+            if ((object)target.Deflects != null && target.Deflects(this, i)) return false;
+            Hit?.Invoke(i, target, at);
+            return true;
         }
 
         /// <summary>The first target of 'targets' after index 'after' the shot at 'probe' strikes, and its index; null = none.</summary>

@@ -54,16 +54,27 @@ namespace GoF2Remake.Data
 
         /// <summary>DAT_00254930 (Item::canBeInstalledMultipleTimes): categories a ship can mount only once.</summary>
         static readonly HashSet<int> OnePerShip = new HashSet<int> { 8, 9, 10, 13, 14, 15, 16, 17, 18, 19, 21, 26, 27, 28, 29, 33, 35, 37, 38, 41, Flight.CruiseDrive.Kind };
-        /// <summary>'category': an item's one-per-ship kind (KindOf), its category for the originals.</summary>
-        public static bool CanInstallMultiple(int category) => !OnePerShip.Contains(category);
+        /// <summary>'category': an item's one-per-ship kind (KindOf), its category for the originals; a device's kind
+        /// (Flight.Device.KindBase + type) is one per ship too.</summary>
+        public static bool CanInstallMultiple(int category) => !OnePerShip.Contains(category) && category < Flight.Device.KindBase;
 
         /// <summary>Remake: a cruise drive (Flight.CruiseDrive), a mod item made from the Khador Drive with cruiseSpeed (attr 133).</summary>
         public static bool IsCruiseDrive(ItemData it) => it != null && it.TypeId == 3 && it.Attr(Flight.CruiseDrive.SpeedAttr) > 0;
 
+        /// <summary>Remake: an active device (Flight.Device), a mod equipment item with device (attr 150) 1..7.</summary>
+        public static bool IsDevice(ItemData it) => DeviceType(it) != Flight.Device.Type.None;
+
+        public static Flight.Device.Type DeviceType(ItemData it)
+        {
+            int t = it != null && it.TypeId == 3 ? it.Attr(Flight.Device.TypeAttr) : 0;
+            return t >= 1 && t <= Flight.Device.TypeCount ? (Flight.Device.Type)t : Flight.Device.Type.None;
+        }
+
         /// <summary>The one-per-ship kind an item belongs to (Hangar's install and swap rules, FirstMounted): its category, or
         /// a remake kind of its own past the categories: a cruise drive keeps its base's category 18 (the Khador Drive's icon
-        /// and look) but is fitted beside a Khador Drive, not in its place.</summary>
-        public static int KindOf(ItemData it) => it == null ? -1 : IsCruiseDrive(it) ? Flight.CruiseDrive.Kind : it.categoryId;
+        /// and look) but is fitted beside a Khador Drive, not in its place; a device has one kind per type, whatever its base.</summary>
+        public static int KindOf(ItemData it) => it == null ? -1 : IsCruiseDrive(it) ? Flight.CruiseDrive.Kind
+                                               : IsDevice(it) ? Flight.Device.KindBase + (int)DeviceType(it) : it.categoryId;
 
         /// <summary>The mounted cruise drive, null without one.</summary>
         public static ItemData MountedCruiseDrive(Database db) => FirstMounted(db, Flight.CruiseDrive.Kind);

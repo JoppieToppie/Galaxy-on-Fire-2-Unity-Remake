@@ -56,7 +56,9 @@ namespace GoF2Remake.Flight
             /// near the crosshair like a landmark's, never locked or flown to.</summary>
             Marker,
             /// <summary>Remake multiplayer: follow a squadmate from orbit to orbit, or stop (NetFollow).</summary>
-            Follow }
+            Follow,
+            /// <summary>Remake: an active device (PlayerDevices, Target.device its slot).</summary>
+            Device }
 
         public class Target
         {
@@ -73,6 +75,7 @@ namespace GoF2Remake.Flight
             public bool freelance;          // waypoints: a freelance mission's route (the white freelance icon, not the gold story one)
             public bool eventWaypoint;      // waypoints: the event's own one (SetEventWaypoint), beside the player route
             public int techLevel = -1;      // stations: the tech level its marker shows (-1 = the orbit's station's)
+            public int device = -1;         // devices: the slot in PlayerDevices.Devices
             public Vector3 Position => transform != null ? transform.position : fixedPosition;
         }
 
@@ -117,6 +120,8 @@ namespace GoF2Remake.Flight
         /// <summary>The player's cloak and time extender (null = not mounted), set by SpaceLevel.</summary>
         public PlayerCloak Cloak;
         public TimeExtender Extender;
+        /// <summary>Remake: the ship's active devices (null = none), an entry each after the time extender.</summary>
+        public PlayerDevices Devices;
         public Target Candidate { get; private set; }
         public Target Locked { get; private set; }
         public float LockTimer { get; private set; }
@@ -443,6 +448,13 @@ namespace GoF2Remake.Flight
                 list.Add(new Target { kind = Kind.TimeExtender, name = te != null ? GameNames.Item(te.index) : "Time extender",
                                       disabled = !Extender.Ready && !Extender.Running });
             }
+            // Remake: the active devices (mod items, GoF3's), each by its name, half-transparent while not ready.
+            if (Devices != null)
+                for (int i = 0; i < Devices.Devices.Count; i++)
+                {
+                    var d = Devices.Devices[i];
+                    list.Add(new Target { kind = Kind.Device, device = i, name = d.name, disabled = !d.rules.Available });
+                }
             // Multiplayer (remake): Help for every squadmate calling for help (NetDistress). The pilot's own call isn't here
             // (a menu key picked it by accident): the flight HUD's Distress call button or its own binding.
             if (GoF2Remake.Data.NetSession.Active && GoF2Remake.World.SpaceHooks.LocalSquad != 0)
@@ -520,6 +532,7 @@ namespace GoF2Remake.Flight
                 return;
             }
             if (target.kind == Kind.TimeExtender) { Extender?.Toggle(); return; }   // the game runs again: CloseMenu above
+            if (target.kind == Kind.Device) { Devices?.Use(target.device); return; }
             if (target.kind == Kind.DockingTarget) { Docking?.Dock(target.dockingShip); return; }
             if (target.kind == Kind.Waypoint)
             {

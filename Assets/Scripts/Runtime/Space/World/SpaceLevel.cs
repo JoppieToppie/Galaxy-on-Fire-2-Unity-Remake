@@ -115,6 +115,8 @@ namespace GoF2Remake.World
         public FreeLookCamera FreeLook { get; private set; }
         public PlayerCloak Cloak { get; private set; }
         public TimeExtender Extender { get; private set; }
+        /// <summary>Remake: the ship's active devices (mod items, Flight.Device), null = none.</summary>
+        public PlayerDevices Devices { get; private set; }
         /// <summary>MGame::dockEvent: 525 while a mission holds the player here (the story's blocks, the Kaamo siege).</summary>
         public bool DockingBlocked => Story.BlocksDocking(Layout.stationIndex, IsStoryOrbit) || (Siege != null && Siege.Active) || FreelanceBlocks
                                       || GoF2Remake.World.SpaceHooks.NoDocking;   // an event's Restrict Travel
@@ -675,6 +677,7 @@ namespace GoF2Remake.World
             Collision.cloak = Cloak;
             Navigation.Extender = Extender;
             if (Extender != null) Extender.Blocked = () => ExtenderBlocked;
+            AttachDevices(Player.gameObject);
             RepairBeam.AttachAll(Player.gameObject, db, Health.Target, Traffic);
             Session.ComingFromVoid = false;   // Level::init / LevelScript have used it (the Void raid, the closing wormhole)
             SpaceHooks.LevelBuilt?.Invoke(this);   // multiplayer: the shared orbit (NetOrbit)
@@ -764,6 +767,19 @@ namespace GoF2Remake.World
         bool DockedLook => Docking != null && Docking.IsDocked && Docking.Hacking == null && !Cutscene;
 
         /// <summary>A cinematic, a jump, the launch camera or the player's death stops the time extender (MGame::OnUpdate 0x1af162).</summary>
+        /// <summary>Remake: the active devices (PlayerDevices), again for a new hull (SwapPlayerShip).</summary>
+        void AttachDevices(GameObject root)
+        {
+            if (Devices != null) Destroy(Devices);
+            Devices = PlayerDevices.Attach(root, db, Health.Target, Weapons);
+            Navigation.Devices = Devices;
+            if (Devices != null) Devices.Blocked = () => ExtenderBlocked || (Weapons != null && Weapons.Blocked);
+            DevicesChanged?.Invoke();
+        }
+
+        /// <summary>Devices was made again (the HUD hears its messages).</summary>
+        public event System.Action DevicesChanged;
+
         bool ExtenderBlocked => launchCameraMs > 0f || Navigation.Jumping || (SystemJump != null && SystemJump.Cinematic) || Cutscene
                                 || Health == null || Health.Dead;
 
@@ -794,6 +810,7 @@ namespace GoF2Remake.World
             // Hostiles, or a radio line on screen, block fast-forward (MGame::OnUpdate).
             Navigation.HostilesPresent = (Traffic != null && (Traffic.HostileCount > 0 || Traffic.ChatterVisible != null)) || (Campaign != null && Campaign.Radio != null && Campaign.Radio.Busy);
             if (Extender != null && ExtenderCancelled) Extender.Cancel();
+            if (Devices != null && ExtenderCancelled) Devices.Cancel();
             if (DockedInOrbit) return;   // docked inside the orbit: no wormhole, no hidden-system leave
             UpdateWormholeRide();
             UpdateHiddenSystem();

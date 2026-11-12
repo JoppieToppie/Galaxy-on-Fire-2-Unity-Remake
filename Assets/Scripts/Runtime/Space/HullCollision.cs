@@ -163,13 +163,30 @@ namespace GoF2Remake.Flight
             var r = mf.GetComponent<Renderer>();
             if (r == null || lowLods.Contains(r)) return false;
             string n = m.name.ToLowerInvariant();
-            if (n.Contains("_add") || n.Contains("_lights") || n.Contains("_lod_") || n.Contains("glow")) return false;
+            if (n.Contains("_add") || n.Contains("_lights") || LowerLodName(n) || n.Contains("glow")) return false;
             // Modified: an animated alpha layer is an effect, not hull (sn_burning_station_fire_anim_alpha: the burning Luur
             // station's smoke stopped ships and shots in mid-air, a player's report).
             if (n.Contains("_anim") && n.Contains("_alpha")) return false;
             var mat = r.sharedMaterial;
-            if (mat != null && mat.shader != null && mat.shader.name.IndexOf("Additive", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            if (mat != null && mat.shader != null && (mat.shader.name.IndexOf("Additive", StringComparison.OrdinalIgnoreCase) >= 0
+                || mat.shader.name.StartsWith("GoF2/Mod", StringComparison.Ordinal))) return false;   // a mod model's glow, hologram, shimmer, flame
             return true;
+        }
+
+        /// <summary>A lower level of detail by its mesh name (lower case): "_lod_" and a number above 0 (the game's
+        /// "battleship_terran_lod_1"), or AutoLods' generated levels. LOD 0 by name is a hull: Galaxy on Fire 3's meshes are all "..._lod_000_body", and
+        /// skipping every "_lod_" left the GoF3 Systems mod's stations, gates and traffic without a hull, so the player met
+        /// the box round the whole model (Rings of Rhea's ~3.3 x 1.7 x 7 km).</summary>
+        public static bool LowerLodName(string n)
+        {
+            if (n.Contains(GoF2Remake.Visuals.AutoLods.Marker)) return true;   // the remake's own levels ("<name>_lod_gen1")
+            for (int at = n.IndexOf("_lod_", StringComparison.Ordinal); at >= 0; at = n.IndexOf("_lod_", at + 1, StringComparison.Ordinal))
+            {
+                int i = at + 5, level = 0, digits = 0;
+                for (; i < n.Length && n[i] >= '0' && n[i] <= '9'; i++, digits++) level = level * 10 + (n[i] - '0');
+                if (digits > 0 && level > 0) return true;
+            }
+            return false;
         }
 
         internal static void Forget(Collider c) => bodies.Remove(c);

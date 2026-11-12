@@ -70,6 +70,8 @@ namespace GoF2Remake.Modding
         }
 
         static int originalSystems = -1, originalStations = -1, mappedRevision = -1;
+        /// <summary>EnsureMapping is loading the tables to learn the originals' counts.</summary>
+        static bool loadingOriginals;
         static readonly Dictionary<string, int> systemIndex = new Dictionary<string, int>(StringComparer.Ordinal);
         static readonly Dictionary<string, int> stationIndex = new Dictionary<string, int>(StringComparer.Ordinal);
         static readonly Dictionary<int, Def> systemAt = new Dictionary<int, Def>(), stationAt = new Dictionary<int, Def>();
@@ -235,6 +237,15 @@ namespace GoF2Remake.Modding
             public Vector2? sun;
             /// <summary>The orbit's own planet: its size (x the game's), yaw / pitch (degrees, 0 = straight ahead as the game's).</summary>
             public float? planetSize, planetYaw, planetPitch;
+            /// <summary>The sky's turn in this orbit ([x, y, z] Unity degrees, as the system's skybox "rotation"), over the
+            /// system's "rotation" / "sunAligned" and the game's per-station turn; null: those.</summary>
+            public Vector3? skyRotation;
+            /// <summary>The orbit's own sky (the system skybox's fields), in place of the system's; null: the system's.</summary>
+            public Skybox skybox;
+            /// <summary>The second light (GoF2's LIGHT1, the planet's): its colour (gamma, 0..2, black = none) and direction
+            /// (yaw / pitch as "sun"); null: the game's. The scene's ambient (gamma 0..1), null: 0.15 x the sun's.</summary>
+            public Color? light2Color, ambient;
+            public Vector2? light2Direction;
         }
 
         /// <summary>A planet's place in the star map's system view (stations.json "mapPlace").</summary>
@@ -250,7 +261,7 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, MapPlace> mapPlaces = new Dictionary<int, MapPlace>();
 
         static readonly HashSet<string> OrbitFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld" };
+            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld", "skyRotation", "skybox", "light2", "ambient" };
         static readonly HashSet<string> AsteroidFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "count", "centre", "center", "spread", "type", "ores" };
         static readonly string[] AsteroidTypes = { "rock", "void", "ice", "magma" };

@@ -98,7 +98,8 @@ namespace GoF2Remake.World
 
             var fwd = transform.forward;
             // LevelScript::process: during the launch / arrival camera every wingman drifts (KIPlayer+0x129, no steering).
-            bool noSteer = drift || (IsWingman && traffic != null && traffic.LaunchCameraRunning != null && traffic.LaunchCameraRunning());
+            bool noSteer = drift || (IsWingman && traffic != null && traffic.LaunchCameraRunning != null && traffic.LaunchCameraRunning())
+                           || !slow.CanTurn;   // remake: an EMP device's slow
             if (!noSteer && !Hp.empDisabled)
             {
                 var delta = dirN - fwd;
@@ -127,7 +128,7 @@ namespace GoF2Remake.World
             if (model != null) model.localRotation = Quaternion.AngleAxis(bank * Mathf.PI / 4096f * Mathf.Rad2Deg, Vector3.forward);
             if (levelling) Roll(dtMs);
 
-            if (!Hp.empDisabled) transform.position += transform.forward * speed * dtMs * M;
+            if (!Hp.empDisabled) transform.position += transform.forward * speed * slow.SpeedFactor * dtMs * M;
         }
 
         /// <summary>Gives the ship an order (null: back to its own AI). Wakes a sleeper, lets a parked ship fly; "hold" is

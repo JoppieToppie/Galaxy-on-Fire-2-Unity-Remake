@@ -265,6 +265,21 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void AnOrbitMayHaveItsOwnSky()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("sky/h2.png", "x"),
+                ("stations.json", "[ { 'override': 78, 'orbit': { 'skybox': { 'nebula': 'sky/h2.png', 'stars': 1, 'nebulaBrightness': 0.5 } } } ]"));
+            ScanAndEnable("t_world");
+            Database.Load();
+            var own = ModWorld.OrbitOf(78).skybox;
+            Assert.AreEqual("mod:t_world|sky/h2.png", own.nebula);
+            Assert.AreEqual(1, own.starsLayer);
+            Assert.AreEqual(0.5f, own.nebulaBrightness);
+            Assert.IsNull(ModWorld.OrbitOf(78).skyRotation);
+            CollectionAssert.Contains(ModWorld.BackdropTextures().ToList(), "mod:t_world|sky/h2.png", "decoded with the other backdrops");
+        }
+
+        [Test]
         public void TheExamplesMapPlanetAndRing()
         {
             Frontier();
@@ -314,7 +329,8 @@ namespace GoF2Remake.Tests
             WriteMod("w", "t_world", "1.0", "", ("stations.json", "[ { 'override': 78, 'mapPlace': { 'angle': 90, 'distance': 30000 }, 'orbit': { " +
                 "'station': 'nodock', 'jumpgate': true, 'jumpgatePosition': [1000, 2000, 3000], 'arrival': [0, 5000, -80000], " +
                 "'asteroids': { 'count': 20, 'centre': [-40000, 0, 50000], 'spread': 50000, 'type': 'ice', 'ores': [154, { 'item': 155, 'chance': 3 }, 'nope:x'] }, " +
-                "'fog': { 'color': [0.2, 0.4, 0.6], 'end': 70000 }, 'sun': [0, 30], 'planet': { 'size': 2, 'yaw': 45, 'pitch': 10 } } } ]"));
+                "'fog': { 'color': [0.2, 0.4, 0.6], 'end': 70000 }, 'sun': [0, 30], 'planet': { 'size': 2, 'yaw': 45, 'pitch': 10 }, 'skyRotation': [10, 20, 30], " +
+                "'light2': { 'color': [0.2, 0.3, 3], 'yaw': 90, 'pitch': 0 }, 'ambient': [0.1, 0.2, 0.3] } } ]"));
             ScanAndEnable("t_world");
             var db = Database.Load();
             var l = GoF2Remake.World.OrbitLayout.Build(db, 78);
@@ -335,6 +351,12 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(70000f, l.fogEnd);
             Assert.Greater(l.lightDirection.y, 0.49f, "the sun 30 degrees up");
             Assert.AreEqual(0f, l.lightDirection.x, 1e-5f);
+            Assert.AreEqual(new Vector3(10, 20, 30), l.modSkyRotation.Value, "the orbit's own sky turn");
+            Assert.IsFalse(GoF2Remake.World.OrbitLayout.Build(db, 79).modSkyRotation.HasValue, "another orbit keeps the system's");
+            Assert.AreEqual(new Color(0.2f, 0.3f, 2f), l.planetLightColor, "the second light's colour, clamped to 2");
+            Assert.Less(Vector3.Angle(GoF2Remake.World.OrbitBuilder.ToLight2(l), Vector3.left), 0.01f, "yaw 90: to a launching ship's right, game -x");
+            Assert.AreEqual(new Color(0.1f, 0.2f, 0.3f, 1f), GoF2Remake.World.OrbitBuilder.SceneAmbient(l));
+            Assert.AreEqual(Vector3.forward, GoF2Remake.World.OrbitBuilder.ToLight2(GoF2Remake.World.OrbitLayout.Build(db, 79)), "the game's: toward the orbit planet");
             var own = l.planets.Find(p => p.isOrbitPlanet);
             var placed = -GoF2Remake.World.OrbitLayout.Direction(own.pitch, own.yaw);   // where the backdrop puts it
             Assert.Less(Vector3.Angle(placed, GoF2Remake.World.OrbitLayout.ModDirection(45f, 10f)), 0.01f);

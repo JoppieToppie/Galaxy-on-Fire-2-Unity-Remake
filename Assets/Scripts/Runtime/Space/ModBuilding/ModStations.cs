@@ -120,6 +120,7 @@ namespace GoF2Remake.Modding
                 if (!string.IsNullOrEmpty(m.diffuse)) yield return (m.diffuse, false, false);
                 if (!string.IsNullOrEmpty(m.normal)) yield return (m.normal, true, true);
                 if (!string.IsNullOrEmpty(m.metallicSmoothness)) yield return (m.metallicSmoothness, true, false);
+                if (!string.IsNullOrEmpty(m.specularGlossiness)) yield return (m.specularGlossiness, false, false);
                 if (!string.IsNullOrEmpty(m.emission)) yield return (m.emission, false, false);
                 if (!string.IsNullOrEmpty(m.detailAlbedo)) yield return (m.detailAlbedo, true, false);
                 if (!string.IsNullOrEmpty(m.detailNormal)) yield return (m.detailNormal, true, true);
@@ -170,6 +171,7 @@ namespace GoF2Remake.Modding
                 scene.transform.SetParent(holder.transform, false);
                 if (!await ModGltf.InstantiateMain(import, scene.transform)) { Object.Destroy(scene); Warn(s.mod, $"{s.model}: no scene to show"); return; }
                 if (rev != ModManager.Revision || holder == null) return;
+                ModGltf.LoopAnimations(scene);   // its glTF node animations (a gate's turning rings, a station's moving parts) loop, as a ship's do
                 var template = Build(s, scene);
                 template.transform.SetParent(holder.transform, false);
                 templates[s.station] = template;
@@ -196,7 +198,7 @@ namespace GoF2Remake.Modding
                 foreach (var m in d.materials)
                 {
                     if (m == null) continue;
-                    foreach (var (path, linear, normal) in new[] { (m.diffuse, false, false), (m.normal, true, true), (m.metallicSmoothness, true, false), (m.emission, false, false), (m.detailAlbedo, true, false), (m.detailNormal, true, true) })
+                    foreach (var (path, linear, normal) in new[] { (m.diffuse, false, false), (m.normal, true, true), (m.metallicSmoothness, true, false), (m.specularGlossiness, false, false), (m.emission, false, false), (m.detailAlbedo, true, false), (m.detailNormal, true, true) })
                         if (!string.IsNullOrEmpty(path)) textures.Add(ModMaterials.PreloadTexture(d.mod, path, linear, normal: normal));
                 }
                 if (!string.IsNullOrEmpty(d.dust)) textures.Add(ModMaterials.PreloadTexture(d.mod, d.dust, true));

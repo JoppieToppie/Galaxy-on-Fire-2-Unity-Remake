@@ -62,6 +62,8 @@ namespace GoF2Remake.World
             var rotation = SkyRotation(layout);
             // Remake mods: a system's own sky (systems.json "skybox": panorama / cube-strip images, the star layer, a turn).
             var mod = layout.systemIndex >= 0 && nebulaOverride < 0 ? Modding.ModWorld.SkyOf(layout.systemIndex) : null;
+            // (a station's orbit may have its own: stations.json orbit "skybox", the GoF3 Systems mod's sky of each GoF3 level)
+            if (layout.systemIndex >= 0 && nebulaOverride < 0 && Modding.ModWorld.OrbitOf(layout.stationIndex)?.skybox is Modding.ModWorld.Skybox own) mod = own;
             if (mod != null)
             {
                 SetModLayer(sky, mod.nebula, "_NebulaMap", "_NEBULA_PANORAMA", "_NEBULA_STRIP");
@@ -73,6 +75,9 @@ namespace GoF2Remake.World
                 if (mod.sunAligned) rotation = SunAlignedSky(layout) * (mod.rotation.HasValue ? Quaternion.Euler(mod.rotation.Value) : Quaternion.identity);
                 else if (mod.rotation.HasValue) rotation = Quaternion.Euler(mod.rotation.Value);
             }
+            // Remake mods: the orbit's own turn (stations.json orbit "skyRotation": the GoF3 Systems mod's sky as each GoF3 level
+            // turns it, so it lines up with the orbit's sun).
+            if (layout.modSkyRotation.HasValue) rotation = Quaternion.Euler(layout.modSkyRotation.Value);
             // The shader maps world directions into the baked cube: the inverse of the sky's Unity rotation.
             sky.SetMatrix("_SkyRotation", Matrix4x4.Rotate(Quaternion.Inverse(rotation)));
             return sky;
@@ -154,14 +159,15 @@ namespace GoF2Remake.World
             else SetSunGamma(Vector3.zero);
             if (planet != null)
             {
-                // LIGHT1 direction (0, 0, -1) game = toward the orbit planet (Unity +Z); light travels toward -Z.
-                planet.transform.rotation = Quaternion.LookRotation(Vector3.back);
+                // LIGHT1 direction (0, 0, -1) game = toward the orbit planet (Unity +Z); light travels toward -Z. Remake mods: an
+                // orbit's own "light2" direction.
+                planet.transform.rotation = Quaternion.LookRotation(-ToLight2(layout));
                 planet.color = layout.planetLightColor;
                 planet.intensity = planetIntensity;
             }
             // Modified: LIGHT1 in GoF2/Hull's gamma-space sum (see _GoF2PlanetLight)
             bool gammaPlanet = gammaSun && sun != null && planet != null && planet.enabled;
-            Shader.SetGlobalVector("_GoF2PlanetLight", gammaPlanet ? (Vector4)Vector3.forward : Vector4.zero);
+            Shader.SetGlobalVector("_GoF2PlanetLight", gammaPlanet ? (Vector4)ToLight2(layout) : Vector4.zero);
             Shader.SetGlobalVector("_GoF2PlanetColor", gammaPlanet ? (Vector4)layout.planetLightColor : Vector4.zero);   // gamma values
             Shader.SetGlobalVector("_GoF2PlanetLinear", gammaPlanet ? (Vector4)(planet.color.linear * planet.intensity) : Vector4.zero);
         }
@@ -176,8 +182,14 @@ namespace GoF2Remake.World
 
         /// <summary>Modified: StarSystem::initLight's LightSetGlobalSceneColorAmbient, kA x the sun colour (gamma): kA 0.15, 0.7
         /// in the supernova system (texture 15) but at mission 89 and from 158, where the sun colour is halved first.</summary>
+        /// <summary>Unity's direction toward the second light (LIGHT1): toward the orbit planet (+Z), or a mod orbit's "light2".</summary>
+        public static Vector3 ToLight2(OrbitLayout layout) =>
+            layout.modLight2Direction.HasValue ? OrbitLayout.DirToUnity(layout.modLight2Direction.Value).normalized : Vector3.forward;
+
         public static Color SceneAmbient(OrbitLayout layout)
         {
+            if (layout.modAmbient.HasValue) return layout.modAmbient.Value;   // remake mods: an orbit's own "ambient"
+
             var c = layout.sunColor;
             float k = 0.15f;
             if (layout.systemTexture == 15)

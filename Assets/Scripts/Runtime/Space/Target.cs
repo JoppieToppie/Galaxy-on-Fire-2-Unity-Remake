@@ -76,6 +76,12 @@ namespace GoF2Remake.Flight
         /// <summary>Multiplayer: a repair beam's hull points passed on to the game that owns the ship (NetProxy, NetPlayer);
         /// null = it can't be repaired from here.</summary>
         [NonSerialized] public Action<int> RemoteHeal;
+        /// <summary>Remake (Flight.Device's EMP devices, a weapon's slowMs): slows the ship (ms, the speed left 0..1, no turning
+        /// meanwhile): its NpcShip, or in multiplayer the game that owns it (NetProxy); null = it can't be slowed.</summary>
+        [NonSerialized] public Action<float, float, bool> SlowBy;
+        /// <summary>Remake (the Carom Deflector, PlayerDevices): a shot of this gun (gun, bullet index) about to hit this ship is
+        /// turned back instead: true = it was (Gun.Strike skips the hit).</summary>
+        [NonSerialized] public Func<Gun, int, bool> Deflects;
         /// <summary>Multiplayer: another game's ship's real maximum hull (its 'hp' / 'maxHp' is the hull fraction x 100), for
         /// the repair / transfusion beams' pick of the most damaged ship; -1 = unknown.</summary>
         [NonSerialized] public float netMaxHull = -1f;
@@ -298,7 +304,7 @@ namespace GoF2Remake.Flight
                 var m = mf.sharedMesh;
                 if (m == null || !m.isReadable || m.vertexCount == 0 || mf.GetComponent<Renderer>() == null) continue;
                 string n = m.name.ToLowerInvariant();
-                if (n.Contains("_add") || n.Contains("_lights") || n.Contains("_lod_") || n.Contains("glow")) continue;
+                if (n.Contains("_add") || n.Contains("_lights") || HullCollision.LowerLodName(n) || n.Contains("glow")) continue;
                 if (n.Contains("_anim") && n.Contains("_alpha")) continue;   // Modified: an effect layer, not hull (HullCollision.IsHullMesh)
                 if (!meshSpots.TryGetValue(m, out var pts))
                 {

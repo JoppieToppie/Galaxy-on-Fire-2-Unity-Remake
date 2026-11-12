@@ -9,6 +9,7 @@
 //   getCloakingPercentage 0xa81a0       0..100 over the first / last 2000 ms, 100 between
 // Nothing ends the cloak early (firing, hits, boosting and locks don't touch it). Every level starts ready.
 // Remake option (Settings.EmpBreaksCloak, on by default): an EMP hit does (Break).
+// Remake mods: cloakCooldownMs (attribute 160) gives an item its own cooldown (GoF3's Hiroto Cloak: 60 s).
 
 using UnityEngine;
 
@@ -29,13 +30,18 @@ namespace GoF2Remake.Flight
         /// <summary>PlayerEgo+0x20c: cooldown left (ms).</summary>
         public float CooldownLeft { get; private set; }
 
-        public Cloak(int item, int durationMs, int chargeMs, int cells, float difficulty)
+        /// <summary>Remake attribute 160 (Modding.ItemStats "cloakCooldownMs"): the item's own cooldown.</summary>
+        public const int CooldownAttr = 160;
+
+        /// <summary>'cooldownOverrideMs' > 0: the item's own cooldown (attribute 160) in place of the difficulty's.</summary>
+        public Cloak(int item, int durationMs, int chargeMs, int cells, float difficulty, int cooldownOverrideMs = 0)
         {
             this.item = item;
             this.durationMs = Mathf.Max(durationMs, 2 * FadeMs);
             this.chargeMs = chargeMs;
             this.cells = cells;
-            cooldownMs = difficulty <= 0f ? 5000f : difficulty <= 0.6f ? 7000f : difficulty <= 1.1f ? 9000f : 12000f;
+            cooldownMs = cooldownOverrideMs > 0 ? cooldownOverrideMs
+                       : difficulty <= 0f ? 5000f : difficulty <= 0.6f ? 7000f : difficulty <= 1.1f ? 9000f : 12000f;
         }
 
         public bool Cloaked => State == Phase.Cloaked;
