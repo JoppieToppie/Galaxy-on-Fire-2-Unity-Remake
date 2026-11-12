@@ -238,7 +238,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   graphs = Event, a bar mission when titled) and **Starts when** ("mission starts <expr>"; empty = at once, "never" = only
   `startquest`). Quests start by themselves in a game scene (Space / Station, not a session's game, not the ending; while
   not paused) once their condition holds (`EventRunner.CheckQuestStarts`, every second; not the built-in graphs, which are
-  multiplayer examples) and are lasting runs: a `GraphQuestState` record (save v13 `graphQuests` / `graphQuestsDone`)
+  multiplayer examples). The graph list it reads (`AllGraphs`) is compiled once and again only when the mods change or,
+  looked at every 30 s, the Events folders' files do (`FolderStamp`: names, sizes, write times). Compiling every graph
+  each 30 s stalled an iPhone for 0.75 s (#275), and the mods' revision taken before `List()` (whose scan can bump it)
+  made the list stale at once, so it was compiled again every second. Quests are lasting runs: a `GraphQuestState` record (save v13 `graphQuests` / `graphQuestsDone`)
   written at the start and at each `checkpoint <name>` (top level only, `Step.depth`; the variables, objective, target, quiet
   orbits), restored after a load from its last checkpoint (`EventRunner.RestorePending` → `RestoreLocal` →
   `EventRun.Resume`: the top-level handlers and parallel / every blocks before it again, the music / waypoint / respawn /

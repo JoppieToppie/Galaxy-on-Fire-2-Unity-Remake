@@ -168,5 +168,35 @@ namespace GoF2Remake.Tests
             Assert.IsNotNull(script);
             Assert.IsNotEmpty(EventsTestUtil.Errors(problems));
         }
+
+        [Test]
+        public void TheGraphListIsReadAgainOnlyWhenAnEventsFolderFileChanges()
+        {
+            // #275: every 30 s AllGraphs read and compiled every graph again (a 0.75 s stall on an iPhone); now it looks at
+            // the Events folders' files and compiles only when one was added, changed or removed.
+            string dir = Path.Combine(GoF2Remake.GamePaths.Data, "Events");
+            string added = Path.Combine(dir, "zz_added_graph." + EventRunner.GraphExtension);
+            try
+            {
+                EventRunner.ExpireGraphCheck(forget: true);
+                EventRunner.AllGraphs();
+                int compiles = EventRunner.GraphCompiles;
+                EventRunner.ExpireGraphCheck();
+                EventRunner.AllGraphs();
+                Assert.AreEqual(compiles, EventRunner.GraphCompiles, "30 s on with no file changed: the same list");
+
+                Directory.CreateDirectory(dir);
+                File.Copy(Path.Combine(BuiltInFolder, "waves." + EventRunner.GraphExtension), added);
+                Assert.IsFalse(EventRunner.AllGraphs().Exists(g => g.name == "zz_added_graph"), "not looked within the 30 s");
+                EventRunner.ExpireGraphCheck();
+                Assert.IsTrue(EventRunner.AllGraphs().Exists(g => g.name == "zz_added_graph"), "a file added by hand is found");
+                Assert.AreEqual(compiles + 1, EventRunner.GraphCompiles);
+            }
+            finally
+            {
+                if (File.Exists(added)) File.Delete(added);
+                EventRunner.ExpireGraphCheck(forget: true);
+            }
+        }
     }
 }

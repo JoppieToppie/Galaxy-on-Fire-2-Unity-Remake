@@ -14,14 +14,27 @@ namespace GoF2Remake.Events
 {
     public static partial class EventRunner
     {
-        /// <summary>Every event graph's details (its Start node's Mission settings), read again after 30 s or when the mods change.</summary>
-        static List<MissionInfo> AllGraphs()
+        /// <summary>Every event graph's details (its Start node's Mission settings), read again when the mods change or
+        /// the Events folders' files do (looked at every 30 s).</summary>
+        internal static List<MissionInfo> AllGraphs()
         {
-            if (graphCache != null && EventHost.Now - graphCacheTime < 30f && graphCacheMods == Modding.ModManager.Revision) return graphCache;
+            if (graphCache != null && graphCacheMods == Modding.ModManager.Revision)
+            {
+                if (EventHost.Now - graphCacheTime < 30f) return graphCache;
+                // Modified: only when a file there changed. Reading and compiling every graph each 30 s stalled the
+                // game for 0.75 s on an iPhone (#275: CheckQuestStarts asks every second in flight).
+                graphCacheTime = EventHost.Now;
+                if (FolderStamp() == graphCacheFiles) return graphCache;
+            }
             graphCache = new List<MissionInfo>();
             graphCacheTime = EventHost.Now;
+            graphCacheFiles = FolderStamp();
+            GraphCompiles++;
+            var names = List();
+            // after List: its ModManager.Active may scan the mods and bump the revision, which made the list stale as soon
+            // as it was made (read again on the next call, every second)
             graphCacheMods = Modding.ModManager.Revision;
-            foreach (string name in List())
+            foreach (string name in names)
             {
                 string text = Load(name, out string from, out string error);
                 if (text == null || error != null) continue;

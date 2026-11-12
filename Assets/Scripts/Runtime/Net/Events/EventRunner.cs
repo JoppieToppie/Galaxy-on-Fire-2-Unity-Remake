@@ -354,6 +354,10 @@ namespace GoF2Remake.Events
         static List<MissionInfo> graphCache;
         static float graphCacheTime = -100f;
         static int graphCacheMods = -1;
+        static long graphCacheFiles;   // FolderStamp when graphCache was made
+        internal static int GraphCompiles { get; private set; }   // how often AllGraphs read every graph (tests)
+        /// <summary>Tests: as if 30 s had passed since AllGraphs last looked (forget: drop the list too).</summary>
+        internal static void ExpireGraphCheck(bool forget = false) { graphCacheTime = -100f; if (forget) graphCache = null; }
 
         // ---- single player's quests and bar missions (lasting runs, Session.GraphQuests) ----
 

@@ -23,6 +23,33 @@ namespace GoF2Remake.Events
             if (!string.IsNullOrEmpty(exeDir)) yield return Path.Combine(exeDir, "Events");
         }
 
+        /// <summary>A fingerprint of the Events folders' graph files (names, sizes, write times): a few file stats, so
+        /// AllGraphs can see a file added, changed or removed by hand without reading and compiling every graph.</summary>
+        static long FolderStamp()
+        {
+            unchecked
+            {
+                long h = 17;
+                foreach (var dir in Folders())
+                {
+                    try
+                    {
+                        if (!Directory.Exists(dir)) continue;
+                        foreach (string ext in Extensions)
+                            foreach (var f in Directory.GetFiles(dir, "*." + ext))
+                            {
+                                var info = new FileInfo(f);
+                                h = h * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(f);
+                                h = h * 31 + info.Length;
+                                h = h * 31 + info.LastWriteTimeUtc.Ticks;
+                            }
+                    }
+                    catch (Exception) { }
+                }
+                return h;
+            }
+        }
+
         /// <summary>The event graph &lt;name&gt;.gof2event compiled (EventGraphScript): from an Events folder, else a mod's, else a
         /// built-in one (Resources/GoF2Events). The old .gof2netevent files are read too. error: why the graph can't run.</summary>
         static string Load(string name, out string from, out string error)
