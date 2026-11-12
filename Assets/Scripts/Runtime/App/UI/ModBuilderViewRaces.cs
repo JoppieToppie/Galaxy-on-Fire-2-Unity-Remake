@@ -43,7 +43,7 @@ namespace GoF2Remake.UI
 
         /// <summary>A mod race's emblem from the project (null: none, or the project not read yet).</summary>
         static Texture2D ModRaceIcon(ProjectRace r) =>
-            r?.Icon != null && ModManager.BuilderProject != null ? ModMaterials.Texture(ModManager.BuilderProject, r.Icon, false, true) : null;
+            r?.Icon != null && ModManager.BuilderProject != null ? ModRaces.Emblem(ModManager.BuilderProject, r.Icon) : null;
 
         /// <summary>The project's systems a race owns.</summary>
         List<ProjectSystem> OwnedSystems(ProjectRace r) => Project.Systems.Where(s => s.ModRace != null && Project.OwnRace(s.ModRace) == r).ToList();

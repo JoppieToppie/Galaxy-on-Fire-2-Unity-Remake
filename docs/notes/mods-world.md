@@ -196,6 +196,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   glow, `StatusWindow.RaceEmblem`). The station header, star map, lock plate and HUD use the mod race's name and emblem.
   The lock plate (CombatView, NavigationView) draws it 36x36 like race_N: it took the PNG's own size, so a big emblem
   overflowed and squashed the plate (Discord 2026-11-11).
+  Emblems load through `ModRaces.Emblem`, a cache of their own: ModMaterials destroys its textures at every mods revision
+  (each Mod Builder reload), which blanked the emblems a race list or the builder's star map still showed; an emblem keeps
+  its texture while its file's bytes are unchanged (Discord 2026-11-11).
   campaign.json `raceStanding` { race: value } sets the start (`ModCampaigns.Start`, after the races are numbered);
   `/peace` (`Cheats.MakePeace`) sets the non-hostile ones to 0 too; `/standing` and `standing(race)` (event-graphs.md,
   chat-and-commands.md) change and read them. Multiplayer: each player's own standings

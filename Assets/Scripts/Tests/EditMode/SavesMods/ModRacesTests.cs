@@ -43,6 +43,29 @@ namespace GoF2Remake.Tests
             return Database.Load();
         }
 
+        /// <summary>An emblem stays the same texture through a mods revision while its file is unchanged (ModMaterials'
+        /// cache destroyed it at every Mod Builder reload, blanking the race list and the builder's map), a new one when the
+        /// file changes.</summary>
+        [Test]
+        public void AnEmblemOutlivesAReloadUntilItsFileChanges()
+        {
+            string dir = WriteMod("f", "t_fac", "1.0", "", ("races.json", "[ { 'id': 'guild', 'name': 'Guild', 'icon': 'guild.png' } ]"));
+            var png = new Texture2D(4, 4);
+            WriteFile(dir, "guild.png", png.EncodeToPNG());
+            ScanAndEnable("t_fac");
+            var first = ModRaces.Icon(Race("guild"));
+            Assert.IsNotNull(first);
+            ModManager.Scan();   // a new revision, the file unchanged
+            Assert.AreSame(first, ModRaces.Icon(Race("guild")));
+            png.SetPixel(0, 0, Color.red);
+            WriteFile(dir, "guild.png", png.EncodeToPNG());
+            Object.DestroyImmediate(png);
+            ModManager.Scan();
+            var second = ModRaces.Icon(Race("guild"));
+            Assert.IsNotNull(second);
+            Assert.AreNotSame(first, second);
+        }
+
         static int Race(string id) { Assert.IsTrue(ModRaces.TryResolve("t_fac:" + id, null, out int r), id); return r; }
 
         [Test]

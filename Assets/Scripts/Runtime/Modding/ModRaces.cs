@@ -62,7 +62,12 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, string> missing = new Dictionary<int, string>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { mappedRevision = -1; byKey.Clear(); byRace.Clear(); missing.Clear(); }
+        static void ResetStatics()
+        {
+            mappedRevision = -1; byKey.Clear(); byRace.Clear(); missing.Clear();
+            foreach (var e in emblems.Values) Gone(e.tex);
+            emblems.Clear();
+        }
 
         // ---- parsing (ModContent.Parse) --------------------------------------------------------------------------------
 
@@ -219,7 +224,32 @@ namespace GoF2Remake.Modding
         public static Texture2D Icon(int race)
         {
             var d = Get(race);
-            return d?.icon == null ? null : ModMaterials.Texture(d.mod, d.icon, false, true);
+            return d?.icon == null ? null : Emblem(d.mod, d.icon);
+        }
+
+        static void Gone(Texture2D t) { if (t == null) return; if (Application.isPlaying) UnityEngine.Object.Destroy(t); else UnityEngine.Object.DestroyImmediate(t); }
+
+        class EmblemEntry { public int revision; public byte[] bytes; public Texture2D tex; }
+        static readonly Dictionary<string, EmblemEntry> emblems = new Dictionary<string, EmblemEntry>();
+
+        /// <summary>An emblem PNG of a mod (null: none or unreadable). Its own cache, not ModMaterials': that one destroys its
+        /// textures at every mods revision (each Mod Builder reload), which blanked the emblems a race list or the builder's
+        /// star map still showed (Discord 2026-11-11). The same texture is kept while the file's bytes are unchanged.</summary>
+        public static Texture2D Emblem(ModInfo mod, string path)
+        {
+            if (mod == null || string.IsNullOrEmpty(path)) return null;
+            string key = mod.Id + "|" + ModSource.Normalise(path).ToLowerInvariant();
+            if (emblems.TryGetValue(key, out var e) && e.revision == ModManager.Revision) return e.tex;
+            byte[] bytes = null;
+            try { bytes = mod.Source.ReadBytes(path); }
+            catch (Exception x) when (ModFileException.IsFileError(x)) { }
+            if (e != null && bytes != null && e.bytes != null && bytes.AsSpan().SequenceEqual(e.bytes)) { e.revision = ModManager.Revision; return e.tex; }
+            // shortcut: a changed file's old texture is destroyed; a screen still showing it blanks until it is built again.
+            Gone(e?.tex);
+            var t = bytes == null ? null : ImageImport.Decode(bytes, path, false, true, out _);
+            if (t != null) { t.name = mod.Id + ":" + path; t.filterMode = FilterMode.Trilinear; t.anisoLevel = 8; }
+            emblems[key] = new EmblemEntry { revision = ModManager.Revision, bytes = bytes, tex = t };
+            return t;
         }
 
         /// <summary>How race 'a' stands toward race 'b' (-1 enemy, 0 neutral, 1 friend), at least one of them a mod race.</summary>
