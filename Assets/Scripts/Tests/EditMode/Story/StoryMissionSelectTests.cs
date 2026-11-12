@@ -1,7 +1,7 @@
 // StoryMissionSelectTests.cs
 // Feature: CLAUDE.md "UI and platforms", Debug panel: the mission select (Story.StartAtMission / MissionSelectStart): a new
 // game that starts at any story step, the step's campaign started as usual and every step up to it replayed.
-// Expected values: CLAUDE.md (the steps only reached inside another: 42 -> 41, 46 -> 47, 53 -> 54, 107 -> 108, 129 -> 130,
+// Expected values: CLAUDE.md (the steps only reached inside another: 46 -> 47 (42 on its own since 2026-11-09), 53 -> 54, 107 -> 108, 129 -> 130,
 // 149 / 150 -> 151; the campaign by index: Valkyrie from 45, Supernova from 84; the step's planet-jump requirements given:
 // 532 scanner + tractor beam from 24, cabins 91-94, Gamma Shield II from 105, the drill at 135, a Vossk ship + signature at
 // 139, the plasma kit from 142), campaign_flow.md §1.4 (where the campaigns start), §3.1 (the moves after the conversations:
@@ -18,7 +18,7 @@ namespace GoF2Remake.Tests
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public class StoryMissionSelectTests : StoryAreaTestBase
     {
-        [TestCase(42, 41)]
+        [TestCase(42, 42)]
         [TestCase(46, 47)]
         [TestCase(53, 54)]
         [TestCase(107, 108)]

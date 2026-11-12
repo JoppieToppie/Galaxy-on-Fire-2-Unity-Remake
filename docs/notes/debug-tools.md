@@ -29,8 +29,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   leaves the player with (`Story.PlayStep`: Betty, the tutorial gear and hints, 20's EMP GL I, 50's Vossk standing, 58's
   Liberators, 77's Cronus, 91's miners and cabin, 118's mutagen) and where it leaves them (`PlaceAfter` / `ExitTo`, the
   Void return station); then the step's story orbit (launched when docked there, else an arrival from the previous
-  place) or that place (docked, never at an empty orbit or a refusing station). Steps only reached inside another (42,
-  46, 53, 107, 129, 149 / 150) aren't offered (`Story.MissionSelectStart`). On the right the cheat toggles (`Cheats`,
+  place) or that place (docked, never at an empty orbit or a refusing station). Steps only reached inside another (46,
+  53, 107, 129, 149 / 150) aren't offered; 42 is since 2026-11-09 (`MainCampaignLevels.Build42`: 41's level from Errkt's
+  end, on 41's radio) (`Story.MissionSelectStart`). On the right the cheat toggles (`Cheats`,
   PlayerPrefs `cheat_*`, rows from `CheatsCatalog` through `OptionControl`): god mode (`Target.Damage` /
   `PlayerHealth.Kill`, no gamma drain, volatile goods safe), infinite ammo (`WeaponSystem`), no equipment cooldown
   (`Cheats.NoEquipmentCooldown`, players' wish 2026-11-02 "also boosters"; it replaced "no boost cooldown": the booster
