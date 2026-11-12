@@ -60,6 +60,7 @@ namespace GoF2Remake.Flight
             this.fxRoot = fxRoot;
             ship = muzzleParent;
             if (gun.echo != null) gun.Echoed += ShowEcho;
+            gun.SceneryHit += ShowImpact;   // Modified: a shot ending on the station / jumpgate shows its impact there
             // ObjectGun::ObjectGun 0x18c020: +0x4c = (0x85 >> (sort - 1)) & 1, i.e. blasters (1), thermo guns (3) and turrets (8)
             // take the camera's rotation in ObjectGun::render (turret shots were drawn along their flight, edge-on: flat).
             // Modified: not a turret shot modelled as a streak along its flight (the Archimedes' projectile_023, 950 units
