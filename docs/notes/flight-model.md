@@ -4,6 +4,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 
 ## Recovered facts already implemented
 
+Mods can change every number below that moves the player's ship (`FlightRules`, mods.md "Flight rules"): the constants
+here stay the defaults.
+
 - Flight (`FlightModel.cs`, from `PlayerEgo::handleShip / left / right / up / down / roll / update`):
   - base speed is 2 units/ms for every ship
   - handling `H = (handling/100 + 0.2*upgrades) * (1 + agility/100) * 20`

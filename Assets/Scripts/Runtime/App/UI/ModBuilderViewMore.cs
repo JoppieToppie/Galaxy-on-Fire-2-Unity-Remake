@@ -78,6 +78,36 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>A ship's selling and NPC fields.</summary>
+        static readonly (string key, string english, int min, int max)[] FlightBonusFields =
+        {
+            ("topSpeed", "Top speed (% more)", -90, 1000), ("turnRate", "Turn rate (% more)", -90, 1000),
+            ("strafeSpeed", "Strafe speed (% more)", -90, 1000), ("acceleration", "Acceleration in free flight (% more)", -90, 1000),
+            ("boostFactor", "Free flight boost (x100 of the top speed, 0 = the booster's)", 0, 5000),
+            ("fullStopDamage", "Gun damage standing still (% more)", 0, 1000), ("lowSpeedResistance", "Damage taken at low speed (% less)", 0, 100),
+        };
+
+        /// <summary>ships.json "flightStyle" and "flight" (ModFlight): the style it always flies, its bonuses for both styles
+        /// (the per-style "original" / "free" ones by Edit as JSON) and its own flight rules (FlightRulesFields).</summary>
+        void BuildShipFlight(ProjectShip s)
+        {
+            Heading(ship, T("mbFlight", "Flight"));
+            ModFlight.TryParseStyle((string)s.Get("flightStyle"), out int style);
+            Segments(ship, T("mbFlightStyle", "Flies with"), new[] { T("mbFlightStylePlayer", "The player's choice"), T("mbFlightStyleOriginal", "Original flight"), T("mbFlightStyleFree", "Free flight") },
+                     style == FlightStyles.Original ? 1 : style == FlightStyles.Free ? 2 : 0,
+                     n => { s.Set("flightStyle", n == 0 ? null : n == 1 ? "original" : "free"); MarkDirty(); BuildShipPage(); });
+            var flight = s.Get("flight") as JObject ?? new JObject();
+            void Store() { s.Set("flight", flight.Count > 0 ? flight : null); MarkDirty(); }
+            foreach (var (key, english, min, max) in FlightBonusFields)
+            {
+                string k = key;
+                Int(ship, T("mbFlight_" + key, english), JInt(flight[key]) ?? 0, min, max, v => { if (v == 0) flight.Remove(k); else flight[k] = v; Store(); });
+            }
+            var rules = flight["rules"] as JObject;
+            FlagButton(Row(ship), T("mbShipFlightRules", "Flight rules of its own"), rules != null,
+                       on => { if (on) flight["rules"] = new JObject(); else flight.Remove("rules"); Store(); }, BuildShipPage);
+            if (rules != null) FlightRulesFields(Add(ship, new VisualElement(), "mbv-page-box"), rules, BuildShipPage);
+        }
+
         void BuildShipMore(ProjectShip s)
         {
             Heading(ship, T("mbShipSelling", "Where it sells"));

@@ -391,3 +391,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   map (glTFast makes them only for a glTF normal texture, so these maps shaded wrong). Checked in Play mode with the Narn
   zip (79 865 triangles, ~100 m, 2048 px textures): the project, the report, the textured hull on the turntable, nose
   forward. Tests `OriginalModImportTests`. Not yet: a station's or weapon's `.aem` as its replacement.
+- **Flight rules** (2026-11-12; mods.md "Flight rules"): the menu's Flight rules (`ModBuilderScreenFlight.ShowFlightRules`)
+  edits the project's flight.json (`ModProject.FlightRules`, read / saved / undone with the rest; written only while it has
+  a field), a ship's page a Flight section (`ModBuilderViewMore.BuildShipFlight`: "Flies with" = `flightStyle`, the
+  `flight` bonuses, a toggle for its own `rules`). Both list every `FlightRules` field by its `[Header]` groups with the
+  game's value (`FlightRulesFields`); a value set back to it is removed. Its texts are English only (`mbRule_*`,
+  `mbRuleNote_*`, `mbFlightGroup_*`). Not yet tried in the builder's UI.

@@ -91,6 +91,8 @@ namespace GoF2Remake.Modding
         public readonly List<ProjectQuest> Quests = new List<ProjectQuest>();
         /// <summary>campaign.json, null = the mod has no campaign.</summary>
         public ProjectCampaign Campaign;
+        /// <summary>flight.json: FlightRules for every ship the player flies (ModFlight), by field name; empty = none.</summary>
+        public JObject FlightRules = new JObject();
         public const string CampaignFile = "campaign.json", InteriorsFile = "interiors.json";
         JObject manifest = new JObject();
         JObject builder = new JObject();

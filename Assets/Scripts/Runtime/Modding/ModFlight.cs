@@ -17,6 +17,11 @@
 //                        "flight": { "topSpeed", "turnRate", "strafeSpeed", "acceleration", "boostFactor", "fullStopDamage",
 //                                    "lowSpeedResistance" (both styles), "original": { ... }, "free": { ... } } with the same
 //                                    meanings (new ships and overrides).
+//                        "rules": { "turnRampBase": 2.5, ... } (any FlightRules field by name: this ship's numbers, over
+//                        the mods' flight.json).
+//   flight.json:         { "baseSpeed": 3, "freeTurnRateDeg": 160, ... }: any FlightRules field by name, for every ship the
+//                        player flies (later mods win per field; a ship's "rules" win over them). Unknown names warn, a
+//                        value outside the field's range is clamped with a warning.
 //   campaign.json:       "flightStyle": the mod campaign's games fly so.
 //   gameoptions.json:    "flightStyle": a new-game option that, while on, sets the style.
 //   event graphs:        /flightstyle [players] <free | original | player> (the Set Flight Model node; undone when the event
@@ -28,6 +33,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using Newtonsoft.Json.Linq;
@@ -46,6 +52,8 @@ namespace GoF2Remake.Modding
         /// <summary>ships.json's "flight" fields (also inside its "original" / "free" objects).</summary>
         static readonly HashSet<string> BonusFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "topSpeed", "turnRate", "strafeSpeed", "acceleration", "boostFactor", "fullStopDamage", "lowSpeedResistance" };
+
+        public const string File = "flight.json";
 
         static int cachedFrame = -1, cachedStyle = -1;
         static string cachedReason;
@@ -149,6 +157,12 @@ namespace GoF2Remake.Modding
         {
             foreach (var prop in f.Properties())
             {
+                if (top && string.Equals(prop.Name, "rules", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!(prop.Value is JObject r)) throw new ModJsonException($"{ModJson.Where(prop, file)}: \"rules\" must be an object {{ \"baseSpeed\": 3 }}");
+                    ReadRules(r, file, mod);
+                    continue;
+                }
                 if (top && (string.Equals(prop.Name, "original", StringComparison.OrdinalIgnoreCase) || string.Equals(prop.Name, "free", StringComparison.OrdinalIgnoreCase)))
                 {
                     if (!(prop.Value is JObject sub)) throw new ModJsonException($"{ModJson.Where(prop, file)}: \"{prop.Name}\" must be an object {{ \"turnRate\": 10 }}");
@@ -175,6 +189,59 @@ namespace GoF2Remake.Modding
             s.flightBoth = ReadBonus(f);
             s.flightOriginal = ModJson.Get(f, "original") is JObject og ? ReadBonus(og) : null;
             s.flightFree = ModJson.Get(f, "free") is JObject fr ? ReadBonus(fr) : null;
+            s.flightRules = ModJson.Get(f, "rules") is JObject r ? ReadRules(r, ModContent.ShipsFile, null) : null;   // CheckShip warned
+        }
+
+        // ---- rules (FlightRules) -------------------------------------------------------------------------------------
+
+        /// <summary>ModContent.Parse: the mod's flight.json, null when it has none.</summary>
+        public static Dictionary<string, float> ParseFile(ModInfo mod)
+        {
+            if (!(ModJson.Read(mod.Source, File) is JToken t)) return null;
+            if (!(t is JObject o)) throw new ModJsonException($"{File}: must be an object {{ \"baseSpeed\": 3, ... }}");
+            return ReadRules(o, File, mod);
+        }
+
+        /// <summary>FlightRules values by field name (a bool field: 1 / 0); unknown names and values out of range warn on
+        /// 'mod' (null: no warnings), a value that is no number (no true / false for a bool) is an error.</summary>
+        public static Dictionary<string, float> ReadRules(JObject o, string file, ModInfo mod)
+        {
+            var d = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+            foreach (var prop in o.Properties())
+            {
+                var f = FlightRules.Field(prop.Name);
+                if (f == null) { Warn(mod, $"{ModJson.Where(prop, file)}: unknown flight rule \"{prop.Name}\" (ignored)"); continue; }
+                if (f.FieldType == typeof(bool))
+                {
+                    if (prop.Value.Type != JTokenType.Boolean) throw new ModJsonException($"{ModJson.Where(prop, file)}: \"{prop.Name}\" must be true or false");
+                    d[f.Name] = (bool)prop.Value ? 1f : 0f;
+                    continue;
+                }
+                if (prop.Value.Type != JTokenType.Integer && prop.Value.Type != JTokenType.Float)
+                    throw new ModJsonException($"{ModJson.Where(prop, file)}: \"{prop.Name}\" must be a number");
+                float v = (float)prop.Value;
+                if (f.GetCustomAttribute<RangeAttribute>() is RangeAttribute range && (v < range.min || v > range.max))
+                    Warn(mod, $"{ModJson.Where(prop, file)}: \"{prop.Name}\": {v} is outside {range.min}..{range.max} (clamped)");
+                d[f.Name] = v;
+            }
+            return d;
+        }
+
+        static void Warn(ModInfo mod, string warning)
+        {
+            if (mod != null && !mod.Warnings.Contains(warning)) mod.Warnings.Add(warning);
+        }
+
+        /// <summary>Database.BuildFlightStats: the rules 'ship' flies by: the defaults, then every active mod's flight.json in
+        /// order, then the ship's own "rules". FlightRules.Default itself when nothing changes it.</summary>
+        public static FlightRules RulesFor(ShipData ship)
+        {
+            FlightRules rules = null;
+            foreach (var mod in ModManager.Active)
+                if (ModContent.Parse(mod).flightRules is Dictionary<string, float> g && g.Count > 0)
+                    (rules ??= FlightRules.Default.Clone()).Apply(g);
+            if (ship?.flightRules is Dictionary<string, float> own && own.Count > 0) (rules ??= FlightRules.Default.Clone()).Apply(own);
+            return rules ?? FlightRules.Default;
         }
 
         static FlightBonus ReadBonus(JObject f) => new FlightBonus

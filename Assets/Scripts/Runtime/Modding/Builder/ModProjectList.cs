@@ -145,7 +145,7 @@ namespace GoF2Remake.Modding
                 p.Modified = Directory.GetLastWriteTimeUtc(folder);
                 foreach (var f in new[] { ModManifest.FileName, ModContent.ShipsFile, ModContent.ItemsFile, ModCharacters.File, BuilderFile,
                                           ModWorld.SystemsFile, ModWorld.StationsFile, InteriorsFile, ModBlueprints.File, ModGameOptions.File, CampaignFile, ProjectKit.File,
-                                          ModRaces.File, ModRaces.OldFile, ModContent.WeaponEffectsFile, ModNpcShips.File })
+                                          ModRaces.File, ModRaces.OldFile, ModContent.WeaponEffectsFile, ModNpcShips.File, ModFlight.File })
                 {
                     string path = Path.Combine(folder, f);
                     if (File.Exists(path)) { var t = File.GetLastWriteTimeUtc(path); if (t > p.Modified) p.Modified = t; }
@@ -176,6 +176,12 @@ namespace GoF2Remake.Modding
                 {
                     try { p.Campaign = new ProjectCampaign(JObject.Parse(File.ReadAllText(campaign))); }
                     catch (Exception e) { p.LoadError ??= $"{CampaignFile}: {e.Message}"; }
+                }
+                string flight = Path.Combine(folder, ModFlight.File);
+                if (File.Exists(flight))
+                {
+                    try { p.FlightRules = JObject.Parse(File.ReadAllText(flight)); }
+                    catch (Exception e) { p.LoadError ??= $"{ModFlight.File}: {e.Message}"; }
                 }
                 string events = Path.Combine(folder, ProjectQuest.Folder);
                 if (Directory.Exists(events))
@@ -230,6 +236,9 @@ namespace GoF2Remake.Modding
             string campaign = Path.Combine(Folder, CampaignFile);
             if (Campaign != null) Write(CampaignFile, Campaign.ToJson().ToString(Formatting.Indented));
             else if (File.Exists(campaign)) File.Delete(campaign);
+            string flight = Path.Combine(Folder, ModFlight.File);
+            if (FlightRules.Count > 0) Write(ModFlight.File, FlightRules.ToString(Formatting.Indented));
+            else if (File.Exists(flight)) File.Delete(flight);
             WriteQuests();
             Write(BuilderFile, builder.ToString(Formatting.Indented));
             Modified = DateTime.UtcNow;

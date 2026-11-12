@@ -96,6 +96,7 @@ namespace GoF2Remake.Modding
             public readonly List<ModRaces.Def> races = new List<ModRaces.Def>();
             public readonly List<ModEncounters.Def> encounters = new List<ModEncounters.Def>();   // a cruise drive's encounters
             public readonly List<ModNpcShips.Def> npcShips = new List<ModNpcShips.Def>();   // npcships.json: capital ships, freighters, bosses
+            public Dictionary<string, float> flightRules;   // flight.json: FlightRules for every ship (ModFlight), null = none
             public readonly Dictionary<string, Dictionary<string, string>> text =
                 new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);   // language -> key -> text
         }
@@ -146,6 +147,7 @@ namespace GoF2Remake.Modding
                 ModEncounters.Parse(mod, p.encounters);
                 ModNpcShips.Parse(mod, p.npcShips);
                 ModWorld.Parse(mod, p.systems, p.stations);
+                p.flightRules = ModFlight.ParseFile(mod);
                 foreach (var f in mod.Source.FilesIn("text", ".json"))
                 {
                     string lang = System.IO.Path.GetFileNameWithoutExtension(f);

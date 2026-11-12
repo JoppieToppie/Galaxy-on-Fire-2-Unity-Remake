@@ -20,6 +20,9 @@ namespace GoF2Remake.Flight
     {
         public const float DurationMs = 1200f;
         const float FrameMs = OriginalFrame.Ms;
+        /// <summary>Remake, for mods (FlightRules dodge*, set by ShipController): the length, the slide, the nose turn and
+        /// the bank; the defaults are the original's.</summary>
+        public float durationMs = DurationMs, slide = 4f * 0.05f, turn = 0.006283186f, bank = 0.4f;
 
         /// <summary>0 none, 1 dodge left, 2 dodge right.</summary>
         public int Type { get; private set; }
@@ -42,13 +45,13 @@ namespace GoF2Remake.Flight
         {
             slideUnits = headingRad = modelYawRate = 0f;
             if (!Active) return;
-            float k = Mathf.Max(0f, 1f - t / DurationMs);
+            float k = Mathf.Max(0f, 1f - t / durationMs);
             float side = Type == 1 ? 1f : -1f;
-            slideUnits = side * dtMs * 4f * k * handling * 0.05f;
-            headingRad = side * k * 0.006283186f * (dtMs / FrameMs);        // swipe left: the nose turns right
-            modelYawRate = -side * Mathf.Sin(Mathf.PI * t / DurationMs) * handling * 0.05f * 750f * 0.4f;
+            slideUnits = side * dtMs * slide * k * handling;
+            headingRad = side * k * turn * (dtMs / FrameMs);        // swipe left: the nose turns right
+            modelYawRate = -side * Mathf.Sin(Mathf.PI * t / durationMs) * handling * 0.05f * 750f * bank;
             t += dtMs;
-            if (t >= DurationMs) Type = 0;
+            if (t >= durationMs) Type = 0;
         }
     }
 }

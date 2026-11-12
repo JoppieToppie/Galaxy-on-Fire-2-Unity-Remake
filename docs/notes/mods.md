@@ -248,6 +248,18 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   Options page names who sets it (`OptionsCatalog.FlightStyleForcedNote`). Expression `freeflight`. Verified on `FlightModel`
   in the Editor (the bonuses per style, a free-only booster, freeBoostFactor, a ship's JSON, the validation, a ship-forced
   style); not yet played with a real mod.
+- **Flight rules** (2026-11-12, players' requests for full control of the movement; `Flight.FlightRules`, the guide's
+  "Flight rules"): every number `FlightModel` and the dodge (`Maneuver`) move the player's ship by is a named field
+  (~70: base speed, turn ramp / decay, tilt, boost formula, strafe, dodge, level-out, free flight's turning, acceleration,
+  braking, dampeners, boost, auto-roll, the speed passives' thresholds), its default the original's constant (the consts
+  stay in FlightModel as the defaults, `internal`), `[Range]` the clamp, `[Tooltip]` the builder's note. A mod's
+  `flight.json` (`ModFlight.ParseFile` -> `ModContent.Parsed.flightRules`) for every ship, ships.json `"flight": { "rules" }`
+  (`ShipData.flightRules`) for one; `ModFlight.RulesFor` (in `Database.BuildFlightStats`, `FlightStats.rules`): the defaults,
+  every active mod's flight.json in order, the ship's; `FlightRules.Default` itself when none (no copy).
+  `FlightModel.Configure` takes them (`Rules`); `ShipController` hands the dodge's four to `Maneuver` each dodge frame.
+  Unknown names warn, values out of range clamp with a warning, a non-number is an error. Only the player's ship (and
+  multiplayer players'): NPCs fly by `NpcShip`'s AI; the engine effects still compare speeds with `FlightModel.BaseSpeed`.
+  `ModFlightRulesTests`.
 - **Conditions** (`Events.EventRunner.Condition(expression, out error)`: the event graphs' expression language outside an
   event, a throwaway run like the quests' "Starts when"; new words `option(mod:id)`, `won(main | valkyrie | supernova)`
   (or the multiplayer finished world), `systemsvisited` (distinct systems of `Session.VisitedStations`), `standing(race)`

@@ -96,6 +96,7 @@ namespace GoF2Remake.UI
                 Note(ship, string.Format(T("mbOriginalStats", "Original: {0} hull, {1} t, handling {2}, {3}."), original.armor, original.cargo,
                                          Mathf.RoundToInt(original.handling), ItemInfo.Credits(original.price)));
             BuildShipMore(s);
+            BuildShipFlight(s);
             BuildShipIcon(s);
             if (s.IsKitShip) { BuildKitShipSection(s); return; }   // its look is the kit's parts, its height over the pad measured
 

@@ -370,6 +370,11 @@ every mounted item, never below -90 %; an item's freeBoostFactor beats the ship'
 the ship flown, the mod campaign, a new-game option that is on, the player's option. Touch, tilt and VR always fly the
 original. The original has no acceleration (the throttle is at once); its top speed bonus scales the boost too.
 
+**Flight rules**: every number the player's ship moves by (top speed, turn ramp / decay, strafe, dodge, level-out, free
+flight's acceleration, braking, dampeners, boost, auto-roll; FlightRules' fields, the guide's "Flight rules" table): a mod's
+`flight.json` `{ "baseSpeed": 3, "freeTurnRateDeg": 160 }` for every ship, a ship's `"flight": { "rules": { ... } }` for one
+(wins over flight.json). Unknown names warn, values out of range are clamped. NPC ships fly by their own AI.
+
 ## gameoptions.json
 
 Cards in Start new game's **Game options** panel, each a switch saved with the game; content asks for it with `option(...)`.

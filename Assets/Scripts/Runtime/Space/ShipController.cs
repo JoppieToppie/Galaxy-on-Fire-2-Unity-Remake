@@ -365,6 +365,8 @@ namespace GoF2Remake.Flight
             if (Maneuver.Active)
             {
                 // PlayerEgo::updateManeuver instead of handleShip (also over the autopilot's steering).
+                var rules = Model.Rules;   // a mod's dodge (FlightRules)
+                Maneuver.durationMs = rules.dodgeDurationMs; Maneuver.slide = rules.dodgeSlide; Maneuver.turn = rules.dodgeTurn; Maneuver.bank = rules.dodgeBank;
                 Maneuver.Step(dtMs, Model.Handling, out float slide, out float heading, out float yawRate);
                 // Remake debug: a heavy hull only lurches a little to the side (FlightModel.SideScale).
                 float side = Model.SideScale;

@@ -27,6 +27,9 @@ namespace GoF2Remake.Data
         /// flies with (-1 = the player's), and its bonuses for both styles / the original / free flight (null = none).</summary>
         [System.NonSerialized] public int flightStyle = -1;
         [System.NonSerialized] public FlightBonus flightBoth, flightOriginal, flightFree;
+        /// <summary>Remake mods (ships.json "flight": { "rules": { ... } }): this ship's FlightRules by name, over the mods'
+        /// flight.json (Modding.ModFlight.RulesFor); null = none.</summary>
+        [System.NonSerialized] public System.Collections.Generic.Dictionary<string, float> flightRules;
 
         /// <summary>Remake mods (Modding.ModShipView, ships.json "camera" / "cockpit" / "smoke" / "explosionScale"; null /
         /// 1 = the original's for every ship): the chase camera in game units (distance behind the pivot, height, the look
@@ -881,6 +884,7 @@ namespace GoF2Remake.Data
             }
             fs.original = styles[0];
             fs.free = styles[1];
+            fs.rules = Modding.ModFlight.RulesFor(ship);   // the mods' flight.json, then the ship's own "rules"
             // The single-style fields (the original's share) for whatever reads them directly.
             fs.boostSpeed = styles[0].boostSpeed; fs.boostDurationMs = styles[0].boostDurationMs;
             fs.boostRechargeMs = styles[0].boostRechargeMs; fs.agility = styles[0].agility;

@@ -53,6 +53,10 @@ namespace GoF2Remake.Flight
         /// the fields above for both styles, no bonuses (Database.BuildFlightStats always fills both).</summary>
         public FlightTuning original, free;
 
+        /// <summary>Remake, for mods: the numbers the ship flies by (a mod's flight.json and the ship's "flight" "rules";
+        /// Database.BuildFlightStats). Null = FlightRules.Default.</summary>
+        [NonSerialized] public FlightRules rules;
+
         public FlightTuning ForStyle(bool freeFlight) => (freeFlight ? free : original) ?? new FlightTuning
         {
             agility = agility, boostSpeed = boostSpeed, boostDurationMs = boostDurationMs, boostRechargeMs = boostRechargeMs,
@@ -103,22 +107,22 @@ namespace GoF2Remake.Flight
         // ---- constants recovered from the binary -------------------------------------------
         public const float BaseSpeed = 2.0f;                  // units per ms, identical for every ship
         const float RateToRadiansPerMs = 2f * Mathf.PI / 65536f * 0.033f; // turn-rate units -> rad/ms
-        const float TargetRateScale = 750f;                   // target rate = trunc(input*750*H)/63
-        const int TargetRateDivisor = 63;
-        const float RampBase = 3.3f;                          // ramp step = dt*H / ((3.3 - sens)*20)
-        const float PitchUpSensitivityScale = 1.25f;
-        const float PitchDownSensitivityScale = 1.45f;
-        const float DecayDivisor = 126f;                      // no input: rate -> 0 by dt*H/126
-        const float CollisionPushDecay = 0.7f;                // per frame
+        internal const float TargetRateScale = 750f;                   // target rate = trunc(input*750*H)/63
+        internal const int TargetRateDivisor = 63;
+        internal const float RampBase = 3.3f;                          // ramp step = dt*H / ((3.3 - sens)*20)
+        internal const float PitchUpSensitivityScale = 1.25f;
+        internal const float PitchDownSensitivityScale = 1.45f;
+        internal const float DecayDivisor = 126f;                      // no input: rate -> 0 by dt*H/126
+        internal const float CollisionPushDecay = 0.7f;                // per frame
         const float CollisionPushCutoff = 0.01f;
 
         // Auto-level ("align to horizon", triggered by a double tap in the original HUD)
-        const float LevelDoneThreshold = 0.015f;              // |up.x| below this and up.y > 0 -> done
-        const float LevelRateUpsideDown = 0.00075f;           // rad per ms
-        const float LevelRateFar = 0.00035f;                  // |up.x| > 0.3
-        const float LevelRateNear = 0.00025f;
+        internal const float LevelDoneThreshold = 0.015f;              // |up.x| below this and up.y > 0 -> done
+        internal const float LevelRateUpsideDown = 0.00075f;           // rad per ms
+        internal const float LevelRateFar = 0.00035f;                  // |up.x| > 0.3
+        internal const float LevelRateNear = 0.00025f;
         const int LevelMaxDtMs = 60;
-        const float LevelRateOvershoot = 0.00035f, LevelRateFine = 0.0002f;   // PlayerEgo::roll's fine phase (+0x324)
+        internal const float LevelRateOvershoot = 0.00035f, LevelRateFine = 0.0002f;   // PlayerEgo::roll's fine phase (+0x324)
         int levelSide;        // PlayerEgo+0x2a9: the sign of up.x last frame (1 negative, 2 positive, 0 none)
         bool levelFine;       // PlayerEgo+0x324: the lean changed sides once, the last part goes slow
         bool rollLevelled;    // the roll part of a level-out is done
@@ -130,9 +134,9 @@ namespace GoF2Remake.Flight
         /// (LevelCancelInput of a full stick) ends it (a thumb resting past the dead zone did). Past LevelGraceMs a push
         /// ends it without the neutral stick: steered without letting go, it kept rolling and pulling the nose against the
         /// player (a re-grab of the touch stick within 0.5 s is a double tap too).</summary>
-        const float LevelArmMs = 150f, LevelCancelInput = 0.3f, LevelGraceMs = 300f;
+        internal const float LevelArmMs = 150f, LevelCancelInput = 0.3f, LevelGraceMs = 300f;
         /// <summary>Remake: the nose's world-up share past which a roll-only level-out ends (sin 65 deg).</summary>
-        const float LevelSteepNose = 0.906f;
+        internal const float LevelSteepNose = 0.906f;
         /// <summary>Remake (the user's request, 2026-10-27): a level-out request (AlignToHorizon) waits this long before the
         /// ship levels, and steering meanwhile drops it until the next request: on the touch stick quick inputs in a fight
         /// made double taps, and the ship began to roll under the player's thumb. Steering = a push of LevelRequestInput
@@ -148,7 +152,7 @@ namespace GoF2Remake.Flight
         /// <summary>Remake (#37, Settings.LevelPitch): a level-out also brings the nose to the horizon (world up, the
         /// orbit's and the station's up, like the autopilot's moveToPosition), not only the roll (the original).</summary>
         public bool LevelPitch;
-        const float LevelPitchRate = 0.0006f;       // rad per ms (~34 deg/s), slower over the last 10 deg
+        internal const float LevelPitchRate = 0.0006f;       // rad per ms (~34 deg/s), slower over the last 10 deg
         const float LevelPitchDone = 0.01f;         // rad
 
         // ---- configuration ------------------------------------------------------------------
@@ -220,8 +224,11 @@ namespace GoF2Remake.Flight
         int boostRechargeMs => Style.boostRechargeMs;
         bool hasBooster => Style.hasBooster;
         /// <summary>The top speed (units/ms): the base 2 for every ship, x a mod's top speed bonus for this style.</summary>
-        public float TopSpeed => BaseSpeed * Style.speedScale;
+        public float TopSpeed => R.baseSpeed * Style.speedScale;
         FlightStats stats;
+        /// <summary>The numbers this ship flies by (FlightStats.rules: a mod's, Modding.ModFlight; else the defaults).</summary>
+        public FlightRules Rules => R;
+        FlightRules R = FlightRules.Default;
 
         // ---- state ----------------------------------------------------------------------------
         public float Throttle { get; private set; } = 1f;      // 0xbc, 0..1
@@ -274,38 +281,38 @@ namespace GoF2Remake.Flight
         // (fitted: 215 m/s^2), lasting as long as the equipment allows (measured: 4.5 s held; the blueprint's 3.5 s is
         // overridden); every axis turns at ~125 deg/s, reached in ~0.4 s (the cockpit view), at any speed; ~0.85 of it
         // boosting (measured).
-        const float FreeReverseShare = 0.5f;     // backward top speed, of the forward one (measured)
-        const float FreeStrafeShare = 0.5f;      // sideways (measured)
-        const float FreeHoverShare = 0.5f;       // up / down (measured)
-        const float FreeAccelFwd = 132f / 95.3f / 1000f;   // forward acceleration, per ms x the forward top speed (handling 100,
+        internal const float FreeReverseShare = 0.5f;     // backward top speed, of the forward one (measured)
+        internal const float FreeStrafeShare = 0.5f;      // sideways (measured)
+        internal const float FreeHoverShare = 0.5f;       // up / down (measured)
+        internal const float FreeAccelFwd = 132f / 95.3f / 1000f;   // forward acceleration, per ms x the forward top speed (handling 100,
                                                            // sqrt-scaled by the handling; 132 m/s^2 for 95.3 m/s)
-        const float FreeAccelSide = 90f / 47.65f / 1000f;  // backward, strafe, up / down: the same over their own top speed
+        internal const float FreeAccelSide = 90f / 47.65f / 1000f;  // backward, strafe, up / down: the same over their own top speed
         const float FreeEaseFwdMs = 1750f;       // the cubic ease the acceleration was measured as (the gauge's fit): a heavy
         const float FreeEaseSideMs = 1270f;      // hull's AccelMs lengthens it, so the acceleration shrinks by their ratio
-        const float FreeEaseExponent = 3f;       // BP_Ship_Player's EaseAccelerationExponent
-        const float FreeBrakeShare = 0.25f;      // DefaultDeceleration = AccelerationForward x 0.25 (BP_Ship_Player's tick)
-        const float FreeBrakeAboveTopExp = 1.67f;   // DecelerationMaxSpeedExponent: above the top speed the braking grows
+        internal const float FreeEaseExponent = 3f;       // BP_Ship_Player's EaseAccelerationExponent
+        internal const float FreeBrakeShare = 0.25f;      // DefaultDeceleration = AccelerationForward x 0.25 (BP_Ship_Player's tick)
+        internal const float FreeBrakeAboveTopExp = 1.67f;   // DecelerationMaxSpeedExponent: above the top speed the braking grows
                                                     // with (speed / top)^1.67 (a boost's speed runs down fast)
-        const float FreeInheritInertia = 0.9f;   // InputInheritInertia: thrusting the way the ship moves brakes up to 90 %
+        internal const float FreeInheritInertia = 0.9f;   // InputInheritInertia: thrusting the way the ship moves brakes up to 90 %
                                                  // less (x 1 - 0.9 cos^2, the thrust's direction against the velocity's)
         const float FreeTurningBoostCm = 6000f;  // DefaultTurningBoost = AccelerationForward (cm/s^2) / 6000, per second
-        const float FreeBoostAccel = 1.63f;      // the boost's forward acceleration (BoostFactorAccelerationForward, fitted)
+        internal const float FreeBoostAccel = 1.63f;      // the boost's forward acceleration (BoostFactorAccelerationForward, fitted)
         const float UnitsToCm = 5f;              // 0.05 m per game unit
-        const float FreeTurnRate = 125f * Mathf.Deg2Rad / 1000f;   // rad per ms at full input, handling 20 (H of handling 100)
-        const float FreeTurnRampMs = 400f;       // standstill to the top turn rate (and back), linear (measured in the cockpit
+        internal const float FreeTurnRate = 125f * Mathf.Deg2Rad / 1000f;   // rad per ms at full input, handling 20 (H of handling 100)
+        internal const float FreeTurnRampMs = 400f;       // standstill to the top turn rate (and back), linear (measured in the cockpit
                                                  // view, which follows the ship rigidly: 10-85 % in 0.31 s)
-        const float FreeBoostScale = 3.2f / 3f;  // EVERSPACE 2's boost (the gauge: 1110 of 343 km/h, x3.2) given to the Me'al,
+        internal const float FreeBoostScale = 3.2f / 3f;  // EVERSPACE 2's boost (the gauge: 1110 of 343 km/h, x3.2) given to the Me'al,
                                                  // whose original boost is x3; every booster keeps its original ratio to it
-        const float FreeBoostFallback = 3.2f;    // a booster without a boost speed (a mod's)
-        const float FreeTurnExponent = 0.75f;    // the turn rate grows with H^0.75: between EVERSPACE 2's single ship and the
+        internal const float FreeBoostFallback = 3.2f;    // a booster without a boost speed (a mod's)
+        internal const float FreeTurnExponent = 0.75f;    // the turn rate grows with H^0.75: between EVERSPACE 2's single ship and the
                                                  // original's linear spread (Rhino 51, handling 100 125 deg/s)
-        const float FreeTurnAboveShare = 0.1f;   // past EVERSPACE 2's 125 deg/s only a tenth of the rest counts (an Inflict 127
+        internal const float FreeTurnAboveShare = 0.1f;   // past EVERSPACE 2's 125 deg/s only a tenth of the rest counts (an Inflict 127
                                                  // instead of 148, a tuned Dace 146 instead of 335: players' feedback, the
                                                  // nimble ships whipped round too sharply)
-        const float FreeBoostDurationMs = 3500f; // a full energy pool without a booster duration (the blueprint's value); with
+        internal const float FreeBoostDurationMs = 3500f; // a full energy pool without a booster duration (the blueprint's value); with
                                                  // one, the booster's duration (attribute 27), refilled in its recharge time
-        const float FreeBoostTurnShare = 0.85f;  // boosting turns slower (measured 0.82-0.9: the boost's wider view makes it read low)
-        const float BoostRestartEnergy = 0.2f;   // an emptied pool boosts again from a fifth full
+        internal const float FreeBoostTurnShare = 0.85f;  // boosting turns slower (measured 0.82-0.9: the boost's wider view makes it read low)
+        internal const float BoostRestartEnergy = 0.2f;   // an emptied pool boosts again from a fifth full
         float boostEnergy = 1f, freeBoostVisual, freeYaw, freePitch, freeRoll;   // the free rates in rad/ms
         bool boostSpent;   // the pool ran empty while the key was held
         /// <summary>Free flight: this frame the boost died of an empty pool (EVERSPACE 2's UShipMovementComponent::TickComponent:
@@ -314,7 +321,7 @@ namespace GoF2Remake.Flight
         public bool BoostRanDry { get; private set; }
         /// <summary>Free flight: a fresh boost press would start one now (the pool at BoostRestartEnergy or more and not spent;
         /// EVERSPACE 2's StartBoosting returns silently on an empty pool).</summary>
-        public bool CanStartBoost => hasBooster && !IsBoosting && boostEnergy >= BoostRestartEnergy && !boostSpent;
+        public bool CanStartBoost => hasBooster && !IsBoosting && boostEnergy >= R.boostRestartEnergy && !boostSpent;
 
         // EVERSPACE 2's auto-roll (UShipMovementComponent::GenerateAutoRollInput, run from TickComponent while AutoRoll is set;
         // the component's constructor gives the numbers, named by the SDK's field layout): the ship rolls itself level with
@@ -323,12 +330,12 @@ namespace GoF2Remake.Flight
         // PitchInputThreshold the auto-roll is held back and eases in again over EaseInTime (the decompiled tail: the timer
         // reset to EaseInTime on either, counting down otherwise). ES2 turns it on per input device (a controller yes, keyboard
         // and mouse no); the remake's Options > Controls toggle (Settings.AutoRoll, ShipController) is off by default.
-        const float AutoRollMaxInput = 0.15f;          // MaxAutoRollInput
-        const float AutoRollAngleDeg = 15f;            // RollAngleThreshold
-        const float AutoRollToleranceDeg = 3f;         // RollAngleTolerance
-        const float AutoRollPitchAngleDeg = 81f;       // PitchAngleThreshold
-        const float AutoRollPitchInput = 0.9f;         // PitchInputThreshold
-        const float AutoRollEaseInMs = 2000f;          // EaseInTime
+        internal const float AutoRollMaxInput = 0.15f;          // MaxAutoRollInput
+        internal const float AutoRollAngleDeg = 15f;            // RollAngleThreshold
+        internal const float AutoRollToleranceDeg = 3f;         // RollAngleTolerance
+        internal const float AutoRollPitchAngleDeg = 81f;       // PitchAngleThreshold
+        internal const float AutoRollPitchInput = 0.9f;         // PitchInputThreshold
+        internal const float AutoRollEaseInMs = 2000f;          // EaseInTime
         /// <summary>Free flight: EVERSPACE 2's auto-roll toward the horizon (Settings.AutoRoll).</summary>
         public bool AutoRoll;
         float autoRollPauseMs;
@@ -340,17 +347,17 @@ namespace GoF2Remake.Flight
         {
             if (!AutoRoll) { autoRolling = false; autoRollPauseMs = 0f; return 0f; }
             float pitchDeg = Mathf.Asin(Mathf.Clamp(forward.y, -1f, 1f)) * Mathf.Rad2Deg;
-            if (Mathf.Abs(pitchDeg) > AutoRollPitchAngleDeg || Mathf.Abs(pitchInput) > AutoRollPitchInput) autoRollPauseMs = AutoRollEaseInMs;
+            if (Mathf.Abs(pitchDeg) > R.autoRollPitchAngleDeg || Mathf.Abs(pitchInput) > R.autoRollPitchInput) autoRollPauseMs = R.autoRollEaseInMs;
             else autoRollPauseMs = Mathf.Max(0f, autoRollPauseMs - dtMs);
             // the bank: how far the right wing points down against the horizon (AutoLevelRoll's lean), signed, 0 level
             float lean = -right.y;
             float bankDeg = Mathf.Atan2(lean, up.y) * Mathf.Rad2Deg;
             float bank = Mathf.Abs(bankDeg);
-            if (bank > AutoRollAngleDeg) autoRolling = true;
-            else if (bank <= AutoRollToleranceDeg) autoRolling = false;
+            if (bank > R.autoRollAngleDeg) autoRolling = true;
+            else if (bank <= R.autoRollToleranceDeg) autoRolling = false;
             if (!autoRolling) return 0f;
-            float share = 1f - autoRollPauseMs / AutoRollEaseInMs;
-            float amount = AutoRollMaxInput * Mathf.Min(1f, bank / AutoRollAngleDeg) * share;
+            float share = 1f - autoRollPauseMs / R.autoRollEaseInMs;
+            float amount = R.autoRollMaxInput * Mathf.Min(1f, bank / R.autoRollAngleDeg) * share;
             // a positive roll input rolls right (rollRad = -freeRoll x dt), so the lean's sign is rolled against
             return -Mathf.Sign(lean) * amount;
         }
@@ -359,7 +366,7 @@ namespace GoF2Remake.Flight
         /// (PlayerEgo's int(2 b / 100) + 2 u/ms, over the base 2) x 3.2 / 3, so the Me'al boosts like EVERSPACE 2's
         /// measured x3.2: Linear / Cyclotron x1.6, Synchrotron x2.67, Polytron x4.27.</summary>
         float FreeBoostFactor => OverheatedBoost(Style.boostFactor > 0 ? Style.boostFactor / 100f   // a mod's (ModFlight)
-            : boostSpeedValue > BaseSpeed ? boostSpeedValue / BaseSpeed * FreeBoostScale : FreeBoostFallback);
+            : boostSpeedValue > R.baseSpeed ? boostSpeedValue / R.baseSpeed * R.freeBoostScale : R.freeBoostFallback);
 
         /// <summary>Remake (2026-11-04): an overheated booster (Flight.Overheat, a rift's Overheated Systems) boosts at
         /// DamagedFactor of its speed, never below the unboosted top speed.</summary>
@@ -372,9 +379,9 @@ namespace GoF2Remake.Flight
         /// original's ramp setting, a fixed 2.7 under mouse steering.</summary>
         float FreeTopTurnRate(float he)
         {
-            float f = Mathf.Pow(Mathf.Max(1f, he) / 20f, FreeTurnExponent);
-            if (f > 1f) f = 1f + (f - 1f) * FreeTurnAboveShare;
-            return FreeTurnRate * f * Style.turnScale * TurnScale * Mathf.Clamp(0.5f + 0.5f * Data.Settings.Sensitivity, 0.6f, 1.6f);
+            float f = Mathf.Pow(Mathf.Max(1f, he) / 20f, R.freeTurnExponent);
+            if (f > 1f) f = 1f + (f - 1f) * R.freeTurnAboveShare;
+            return (R.freeTurnRateDeg * Mathf.Deg2Rad / 1000f) * f * Style.turnScale * TurnScale * Mathf.Clamp(0.5f + 0.5f * Data.Settings.Sensitivity, 0.6f, 1.6f);
         }
 
         /// <summary>Free flight: how many times faster than the original this ship turns at full input (its top turn rate over
@@ -385,7 +392,7 @@ namespace GoF2Remake.Flight
             get
             {
                 if (!FreeFlight) return 1f;
-                float he = EffectiveHandling, original = 750f * Mathf.Max(1f, he) / 63f * RateToRadiansPerMs;
+                float he = EffectiveHandling, original = R.turnRateScale * Mathf.Max(1f, he) / R.turnRateDivisor * RateToRadiansPerMs;
                 return Mathf.Max(1f, FreeTopTurnRate(he) / original);
             }
         }
@@ -398,8 +405,8 @@ namespace GoF2Remake.Flight
             UpdateBoost(dtMs);
 
             // ---- turning: the rates ramp toward the aim (the stick's or the virtual joystick's deflection x the top rate)
-            float maxRate = FreeTopTurnRate(he) * (IsBoosting ? FreeBoostTurnShare : 1f);
-            float step = maxRate / (FreeTurnRampMs / Mathf.Max(0.05f, Inertia)) * dtMs;
+            float maxRate = FreeTopTurnRate(he) * (IsBoosting ? R.freeBoostTurnShare : 1f);
+            float step = maxRate / (R.freeTurnRampMs / Mathf.Max(0.05f, Inertia)) * dtMs;
             freeYaw = Mathf.MoveTowards(freeYaw, Mathf.Clamp(input.aim.x, -1f, 1f) * maxRate, step);
             freePitch = Mathf.MoveTowards(freePitch, Mathf.Clamp(input.aim.y, -1f, 1f) * maxRate, step);
             float roll = Mathf.Clamp(input.roll, -1f, 1f);
@@ -409,8 +416,8 @@ namespace GoF2Remake.Flight
             // EVERSPACE 2's auto-roll (AutoRollInput): only with no roll held and no level-out running
             if (Mathf.Abs(roll) <= 0.01f && !IsLeveling) roll = AutoRollInput(dtMs, rotation * Vector3.forward, shipUp, shipRight, input.aim.y);
             else autoRolling = false;
-            float rollTop = FreeTopTurnRate(he) * RollScale;   // EVERSPACE 2 rolls as fast as it turns
-            freeRoll = Mathf.MoveTowards(freeRoll, roll * rollTop, rollTop / (FreeTurnRampMs / Mathf.Max(0.05f, Inertia)) * dtMs);
+            float rollTop = FreeTopTurnRate(he) * RollScale * R.freeRollShare;   // EVERSPACE 2 rolls as fast as it turns
+            freeRoll = Mathf.MoveTowards(freeRoll, roll * rollTop, rollTop / (R.freeTurnRampMs / Mathf.Max(0.05f, Inertia)) * dtMs);
             float rollRad = -freeRoll * dtMs;
             rollLevelled = false;
             if (IsLeveling) { rollRad += AutoLevelRoll(dtMs, shipUp, shipRight) * RollScale; if (rollLevelled) IsLeveling = false; }
@@ -423,10 +430,10 @@ namespace GoF2Remake.Flight
             float top = TopSpeed;
             float fwdTop = IsBoosting ? top * FreeBoostFactor : top;   // the boost's speed modifier on MaxSpeedForward
             float otherTop = fwdTop * Style.strafeScale;               // strafe and up / down follow the forward top speed
-            float handlingScale = Mathf.Sqrt(20f / Mathf.Max(5f, he)) / Style.accelScale;   // a mod's acceleration bonus
+            float handlingScale = Mathf.Pow(20f / Mathf.Max(5f, he), R.freeAccelHandlingExponent) / Style.accelScale;   // a mod's acceleration bonus
             float fwdShare = FreeEaseFwdMs / (FreeEaseFwdMs * handlingScale + AccelMs);     // a heavy hull accelerates slower
             float sideShare = FreeEaseSideMs / (FreeEaseSideMs * handlingScale + AccelMs);
-            float accelFwd = FreeAccelFwd * top * fwdShare;   // unboosted: the braking and turning boost derive from it
+            float accelFwd = (R.freeAccelForward / 1000f) * top * fwdShare;   // unboosted: the braking and turning boost derive from it
             float thrust = Mathf.Clamp(input.thrust, -1f, 1f), strafe = Mathf.Clamp(input.strafe, -1f, 1f), hover = Mathf.Clamp(input.hover, -1f, 1f);
             ThrustInput = new Vector3(strafe, hover, thrust);
             if (IsBoosting) thrust = 1f;   // the boost drives forward whatever is held
@@ -435,7 +442,7 @@ namespace GoF2Remake.Flight
             var inp = new Vector3(strafe, hover, thrust);
             if (inp.sqrMagnitude > 1f) inp.Normalize();   // the input vector is clamped to length 1
             float inpMag = inp.magnitude;
-            var tops = new Vector3(otherTop * FreeStrafeShare, otherTop * FreeHoverShare, thrust < 0f ? fwdTop * FreeReverseShare : fwdTop);
+            var tops = new Vector3(otherTop * R.freeStrafeShare, otherTop * R.freeHoverShare, thrust < 0f ? fwdTop * R.freeReverseShare : fwdTop);
             var target = Vector3.Scale(inp, tops);   // GetTargetVelocityFromInput
             float targetSpeed = target.magnitude;
             var targetDir = targetSpeed > 1e-9f ? target / targetSpeed : Vector3.zero;
@@ -446,7 +453,7 @@ namespace GoF2Remake.Flight
             float speed = v.magnitude;
             if (damp && inpMag > 0f && speed > 0f && targetSpeed > 1e-4f * top)
             {
-                float turningBoost = accelFwd * UnitsToCm * 1e6f / FreeTurningBoostCm / 1000f;   // per ms
+                float turningBoost = accelFwd * UnitsToCm * 1e6f / FreeTurningBoostCm / 1000f * R.freeTurningBoost;   // per ms
                 float pull = Mathf.Clamp01((Vector3.Dot(v / speed, targetDir) + 1f) * 0.5f * dtMs * turningBoost * inpMag);
                 v += (targetDir * speed - v) * pull;
             }
@@ -456,9 +463,9 @@ namespace GoF2Remake.Flight
             if (damp && exceeding)
             {
                 speed = v.magnitude;
-                float decel = accelFwd * FreeBrakeShare;
-                if (inpMag > 0f) { float c = Mathf.Clamp01(Vector3.Dot(inpDir, v / speed)); decel *= 1f - FreeInheritInertia * c * c; }
-                if (speed > fwdTop) decel *= Mathf.Pow(speed / fwdTop, FreeBrakeAboveTopExp);
+                float decel = accelFwd * R.freeBrakeShare;
+                if (inpMag > 0f) { float c = Mathf.Clamp01(Vector3.Dot(inpDir, v / speed)); decel *= 1f - R.freeInheritInertia * c * c; }
+                if (speed > fwdTop) decel *= Mathf.Pow(speed / fwdTop, R.freeBrakeAboveTopExponent);
                 v *= Mathf.Max(targetSpeed, speed - decel * dtMs) / speed;
                 exceeding = v.sqrMagnitude > targetSpeed * targetSpeed * 1.01f;
             }
@@ -469,16 +476,16 @@ namespace GoF2Remake.Flight
             {
                 // (the accelerations are attributes of their own: the boost raises only the forward one)
                 float sideTop = top * Style.strafeScale;
-                var accels = new Vector3(FreeAccelSide * sideTop * FreeStrafeShare * sideShare, FreeAccelSide * sideTop * FreeHoverShare * sideShare,
-                                         thrust < 0f ? FreeAccelSide * top * FreeReverseShare * sideShare
-                                                     : accelFwd * (IsBoosting ? FreeBoostAccel : 1f));
+                var accels = new Vector3((R.freeAccelSide / 1000f) * sideTop * R.freeStrafeShare * sideShare, (R.freeAccelSide / 1000f) * sideTop * R.freeHoverShare * sideShare,
+                                         thrust < 0f ? (R.freeAccelSide / 1000f) * top * R.freeReverseShare * sideShare
+                                                     : accelFwd * (IsBoosting ? R.freeBoostAccel : 1f));
                 float accel = inpMag * Vector3.Scale(accels, targetDir).magnitude;
                 float ease = 1f;
                 if (damp)
                 {
                     float topThatWay = Vector3.Scale(inpDir, tops).magnitude;
                     float p = Mathf.Clamp01(Vector3.Dot(v, targetDir) / Mathf.Max(1e-6f, topThatWay));
-                    ease = 1f - Mathf.Pow(p, FreeEaseExponent);
+                    ease = 1f - Mathf.Pow(p, R.freeEaseExponent);
                 }
                 float cap = exceeding ? v.magnitude : targetSpeed;
                 v += targetDir * (accel * ease * dtMs);
@@ -500,7 +507,7 @@ namespace GoF2Remake.Flight
             VisualPitchBank = Mathf.Clamp(input.aim.y * 0.8f - hover * 0.4f, -1f, 1f) * he;
 
             float pushUnits = 0f;
-            if (Mathf.Abs(collisionPush) > CollisionPushCutoff) { pushUnits = collisionPush * dtMs; collisionPush *= CollisionPushDecay; }
+            if (Mathf.Abs(collisionPush) > CollisionPushCutoff) { pushUnits = collisionPush * dtMs; collisionPush *= R.collisionPushDecay; }
             else collisionPush = 0f;
 
             return new FrameResult
@@ -533,11 +540,11 @@ namespace GoF2Remake.Flight
             // An emptied pool doesn't restart while the key is still held (EVERSPACE 2's StartBoosting returns silently on
             // an empty pool; the boost that ran dry played its depleted sound): release and press again.
             if (!BoostHeld) boostSpent = false;
-            bool can = IsBoosting ? boostEnergy > 0f : boostEnergy >= BoostRestartEnergy && !boostSpent;
+            bool can = IsBoosting ? boostEnergy > 0f : boostEnergy >= R.boostRestartEnergy && !boostSpent;
             if (BoostHeld && can)
             {
                 IsBoosting = true;
-                boostEnergy = Mathf.Max(0f, boostEnergy - dtMs / (boostDurationMs > 0 ? boostDurationMs : FreeBoostDurationMs));
+                boostEnergy = Mathf.Max(0f, boostEnergy - dtMs / (boostDurationMs > 0 ? boostDurationMs : R.freeBoostDurationMs));
                 if (boostEnergy <= 0f) { IsBoosting = false; boostSpent = true; BoostRanDry = true; }
             }
             else
@@ -552,6 +559,8 @@ namespace GoF2Remake.Flight
         public void Configure(FlightStats s)
         {
             stats = s;
+            R = s.rules ?? FlightRules.Default;
+            strafeRamp = R.strafeRampStart;
             FillStyle(styleOriginal, s, s.ForStyle(false));
             FillStyle(styleFree, s, s.ForStyle(true));
             CurrentSpeed = TopSpeed;
@@ -567,15 +576,15 @@ namespace GoF2Remake.Flight
         void FillStyle(StyleState st, FlightStats s, FlightTuning t)
         {
             // Ship::getHandling() = handling/100 + 0.2 per handling upgrade
-            float baseH = s.handling / 100f + 0.2f * s.handlingUpgrades;
+            float baseH = s.handling / 100f + R.handlingPerUpgrade * s.handlingUpgrades;
             // PlayerEgo ctor: H = (h + h*agility/100) * 20
             st.handling = (baseH + baseH * (t.agility / 100f)) * 20f;
 
             // PlayerEgo ctor: boost speed = int(2*boostSpeed/100) + 2. The original stores this as an int,
             // so e.g. Linear Boost (60) gives 3.0 (1.5x) although the shop UI implies 1.6x, and
             // Cyclotron (80) ends up equal to Linear. Set TruncateBoostSpeed = false for the "intended" values.
-            float boost = 2f * t.boostSpeed / 100f + 2f;
-            st.boostSpeedValue = TruncateBoostSpeed ? (int)(2f * t.boostSpeed / 100f) + 2 : boost;
+            float boost = R.boostSpeedScale * t.boostSpeed / 100f;
+            st.boostSpeedValue = (TruncateBoostSpeed && R.truncateBoostSpeed ? (int)boost : boost) + R.baseSpeed;
             st.boostDurationMs = t.boostDurationMs;
             st.boostRechargeMs = t.boostRechargeMs;
             st.hasBooster = t.boostRechargeMs > 0;
@@ -592,9 +601,9 @@ namespace GoF2Remake.Flight
         }
 
         // ---- remake, after EVERSPACE 2: the full-stop and low-speed passives (FlightBonus.fullStopDamage / lowSpeedResistance)
-        const float FullStopUnits = 1e-4f;     // units / ms: Vector_IsNearlyZero on the velocity (BP_Ship_Player's TickItemEffects)
-        const float LowSpeedUnits = 0.6f;      // 30 m/s: VSize(PawnLinearVelocity) <= 3000 cm/s
-        const float LowSpeedDelayMs = 1000f;   // the 1 s timer that adds the Gunship's low-speed damage reduction
+        internal const float FullStopUnits = 1e-4f;     // units / ms: Vector_IsNearlyZero on the velocity (BP_Ship_Player's TickItemEffects)
+        internal const float LowSpeedUnits = 0.6f;      // 30 m/s: VSize(PawnLinearVelocity) <= 3000 cm/s
+        internal const float LowSpeedDelayMs = 1000f;   // the 1 s timer that adds the Gunship's low-speed damage reduction
         float lowSpeedMs;
 
         /// <summary>The ship stands still (its velocity nearly zero): the full-stop weapon bonus applies.</summary>
@@ -603,13 +612,13 @@ namespace GoF2Remake.Flight
         public float WeaponDamageFactor => AtFullStop ? Mathf.Max(0.1f, 1f + Style.fullStopDamage / 100f) : 1f;
         /// <summary>The damage the ship takes x this: 1 - lowSpeedResistance % once it has flown below 30 m/s for a second
         /// (Target.damageFactor on the player's ship), else 1.</summary>
-        public float DamageTakenFactor => lowSpeedMs >= LowSpeedDelayMs ? Mathf.Clamp(1f - Style.lowSpeedResistance / 100f, 0f, 1f) : 1f;
+        public float DamageTakenFactor => lowSpeedMs >= R.lowSpeedDelayMs ? Mathf.Clamp(1f - Style.lowSpeedResistance / 100f, 0f, 1f) : 1f;
 
         /// <summary>Each frame's speed (units / ms, the velocity's magnitude) for the passives above.</summary>
         void UpdateSpeedBonuses(float dtMs, float speed)
         {
-            AtFullStop = speed < FullStopUnits;
-            lowSpeedMs = speed <= LowSpeedUnits ? lowSpeedMs + Mathf.Max(0f, dtMs) : 0f;
+            AtFullStop = speed < R.fullStopSpeed;
+            lowSpeedMs = speed <= R.lowSpeedSpeed ? lowSpeedMs + Mathf.Max(0f, dtMs) : 0f;
         }
 
         /// <summary>Handling after the hardcore-mode cargo penalty: H*(0.6 + 0.4*(1 - load/max)).</summary>
@@ -619,13 +628,13 @@ namespace GoF2Remake.Flight
             {
                 if (stats == null || !stats.cargoAffectsHandling || stats.cargoCapacity <= 0f) return Handling;
                 float free = 1f - Mathf.Clamp01(stats.cargoLoad / stats.cargoCapacity);
-                return Handling * 0.6f + Handling * free * 0.4f;
+                return Handling * (1f - R.cargoHandlingLoss) + Handling * free * R.cargoHandlingLoss;
             }
         }
 
         /// <summary>Maximum turn rate in degrees per second, handy for tuning/UI.</summary>
         public float MaxTurnRateDegPerSec =>
-            (int)(TargetRateScale * EffectiveHandling) / TargetRateDivisor * RateToRadiansPerMs * 1000f * Mathf.Rad2Deg;
+            (int)((int)(R.turnRateScale * EffectiveHandling) / R.turnRateDivisor) * RateToRadiansPerMs * 1000f * Mathf.Rad2Deg;
 
         public void ChangeThrottle(float delta) => Throttle = Mathf.Clamp01(Throttle + delta);
         /// <summary>The PC version's "Brake" (binding 3361, apart from "Throttle down" 3360): the engines stop while it is
@@ -643,23 +652,23 @@ namespace GoF2Remake.Flight
         /// on Extreme), the ramp from 0.1 x1.5 an original frame up to 1: full sideways speed after ~6 frames.</summary>
         public void Strafe(int dir, float dtMs)
         {
-            StrafeVelocity = strafeRamp * dir * Mathf.Min(EffectiveHandling * 30f * 0.002f, 2f) * SideScale * Style.strafeScale;
-            strafeRamp = Mathf.Min(strafeRamp * Mathf.Pow(1.5f, dtMs / StrafeFrameMs * Inertia), 1f);
+            StrafeVelocity = strafeRamp * dir * Mathf.Min(EffectiveHandling * R.strafeHandlingFactor, R.strafeMaxSpeed) * SideScale * Style.strafeScale;
+            strafeRamp = Mathf.Min(strafeRamp * Mathf.Pow(R.strafeRampGrowth, dtMs / StrafeFrameMs * Inertia), 1f);
         }
 
         /// <summary>handleShip: while |v| &gt; 0.01 the ship moves v * dt sideways and v drops x0.7 an original frame;
         /// below it the ramp resets to 0.1. Returns this frame's sideways move in units.</summary>
         public float StepStrafe(float dtMs)
         {
-            if (Mathf.Abs(StrafeVelocity) <= 0.01f) { StrafeVelocity = 0f; strafeRamp = 0.1f; return 0f; }
+            if (Mathf.Abs(StrafeVelocity) <= 0.01f) { StrafeVelocity = 0f; strafeRamp = R.strafeRampStart; return 0f; }
             float d = StrafeVelocity * dtMs;
-            StrafeVelocity *= Mathf.Pow(0.7f, dtMs / StrafeFrameMs);
+            StrafeVelocity *= Mathf.Pow(R.strafeDecay, dtMs / StrafeFrameMs);
             return d;
         }
         public void SetThrottle(float value) => Throttle = Mathf.Clamp01(value);
 
         public bool HasBooster => hasBooster;
-        public bool BoostReady => FreeFlight ? !IsBoosting && hasBooster && boostEnergy >= BoostRestartEnergy
+        public bool BoostReady => FreeFlight ? !IsBoosting && hasBooster && boostEnergy >= R.boostRestartEnergy
                                              : !IsBoosting && hasBooster && boostTimerMs >= 0;
 
         /// <summary>0 at recharge start, 1 when ready (free flight: the energy pool).</summary>
@@ -750,7 +759,7 @@ namespace GoF2Remake.Flight
                 levelRequested = false;
                 return;
             }
-            if (levelRequestMs >= LevelRequestDelayMs) LevelOutNow();
+            if (levelRequestMs >= R.levelRequestDelayMs) LevelOutNow();
         }
 
         /// <summary>Remake: steering ends a level-out once it is armed (a neutral stick after the press) or has run past the
@@ -760,9 +769,9 @@ namespace GoF2Remake.Flight
             if (!IsLeveling) return;
             levelMs += dtMs;
             float push = Mathf.Max(Mathf.Abs(steer.x), Mathf.Abs(steer.y));
-            if (push <= 1e-4f) { if ((levelNeutralMs += dtMs) >= LevelArmMs) levelSteerArmed = true; return; }
+            if (push <= 1e-4f) { if ((levelNeutralMs += dtMs) >= R.levelArmMs) levelSteerArmed = true; return; }
             levelNeutralMs = 0f;
-            if ((levelSteerArmed || levelMs >= LevelGraceMs) && push >= LevelCancelInput) IsLeveling = false;
+            if ((levelSteerArmed || levelMs >= R.levelGraceMs) && push >= R.levelCancelInput) IsLeveling = false;
         }
 
         public void AddCollisionPush(float amount) => collisionPush += amount;
@@ -793,7 +802,7 @@ namespace GoF2Remake.Flight
             if (yawInput) YawRate = RampToward(YawRate, steer.x, he, dtMs, 1f);
             if (pitchInput)
                 PitchRate = RampToward(PitchRate, steer.y, he, dtMs,
-                    !TiltMode ? 1f : steer.y > 0 ? PitchDownSensitivityScale : PitchUpSensitivityScale);
+                    !TiltMode ? 1f : steer.y > 0 ? R.tiltPitchDownScale : R.tiltPitchUpScale);
 
             // The original (PlayerEgo::roll, from PlayerEgo::update while +0x2f4 is set) keeps rolling under the stick until
             // level; only alignToHorizon (the stick's double tap) starts it. Remake: steering ends it, as it fought the
@@ -815,7 +824,7 @@ namespace GoF2Remake.Flight
             // Remake: with the nose near vertical (roll only) a roll about it can't make the ship upright, so the original's
             // check (lean below 0.015 and up.y > 0) never passed and it rolled on as long as the nose stayed there (climbs,
             // dives and loops in a fight): the level-out ends instead.
-            if (IsLeveling && !LevelPitch && noseUp > LevelSteepNose) IsLeveling = false;
+            if (IsLeveling && !LevelPitch && noseUp > R.levelSteepNose) IsLeveling = false;
             rollLevelled = false;
             float rollRad = IsLeveling && !steep ? AutoLevelRoll(dtMs, shipUp, shipRight) * RollScale : 0f;
             if (IsLeveling)
@@ -829,7 +838,7 @@ namespace GoF2Remake.Flight
                     if (Mathf.Abs(above) > LevelPitchDone)
                     {
                         pitchLevelled = false;
-                        float rate = LevelPitchRate * Mathf.Clamp01(Mathf.Abs(above) / 0.17f + 0.25f) * RollScale;
+                        float rate = R.levelPitchRate * Mathf.Clamp01(Mathf.Abs(above) / 0.17f + 0.25f) * RollScale;
                         // Upside down (the roll not done yet) the ship's own pitch axis turns the other way.
                         float sign = shipUp.y >= 0f ? 1f : -1f;
                         pitchRad += sign * Mathf.Sign(above) * Mathf.Min(Mathf.Abs(above), rate * Mathf.Min(dtMs, LevelMaxDtMs));
@@ -839,8 +848,8 @@ namespace GoF2Remake.Flight
             }
 
             // ---- no input: rates drain linearly back to zero (uses base H, not the cargo-reduced one)
-            if (!yawInput) YawRate = Mathf.MoveTowards(YawRate, 0f, dtMs * Handling / DecayDivisor * Inertia * Style.turnScale);
-            if (!pitchInput) PitchRate = Mathf.MoveTowards(PitchRate, 0f, dtMs * Handling / DecayDivisor * Inertia * Style.turnScale);
+            if (!yawInput) YawRate = Mathf.MoveTowards(YawRate, 0f, dtMs * Handling / R.turnDecayDivisor * Inertia * Style.turnScale);
+            if (!pitchInput) PitchRate = Mathf.MoveTowards(PitchRate, 0f, dtMs * Handling / R.turnDecayDivisor * Inertia * Style.turnScale);
 
             // ---- movement -------------------------------------------------------------------------
             float forward = dtMs * StepMoveSpeed(dtMs);
@@ -850,7 +859,7 @@ namespace GoF2Remake.Flight
             if (Mathf.Abs(collisionPush) > CollisionPushCutoff)
             {
                 push = collisionPush * dtMs;
-                collisionPush *= CollisionPushDecay;
+                collisionPush *= R.collisionPushDecay;
             }
             else collisionPush = 0f;
 
@@ -898,10 +907,10 @@ namespace GoF2Remake.Flight
             }
             float sum = 0f;
             for (int i = 0; i < autopilotTurnCount; i++) sum += autopilotTurns[i];
-            float limit = TargetRateScale * he / TargetRateDivisor * 1.2f;
+            float limit = R.turnRateScale * he / R.turnRateDivisor * 1.2f;
             float target = autopilotTurnCount > 0 ? Mathf.Clamp(sum / autopilotTurnCount * limit * AutopilotBankGain, -limit, limit) : 0f;
             autopilotRate = Mathf.MoveTowards(autopilotRate, target, dtMs * he / 81f);
-            VisualYawBank = autopilotRate / (TargetRateScale / TargetRateDivisor);
+            VisualYawBank = autopilotRate / (R.turnRateScale / R.turnRateDivisor);
             // PlayerEgo::update: +0x280 becomes the yaw rate +0x27c, which banks the model (ShipController.UpdateVisualBank
             // reads the yaw rate; since it banks from the rates, the autopilot flew its turns flat again). The autopilot's
             // own turn doesn't rotate by it; handed back, the ship eases out of the turn as it decays (handleShip).
@@ -917,7 +926,7 @@ namespace GoF2Remake.Flight
         {
             YawRate = yawRate;
             // The bank follows the rate: a full-stick rate (750 H / 63) banks like a full stick.
-            VisualYawBank = yawRate / (TargetRateScale / TargetRateDivisor);
+            VisualYawBank = yawRate / (R.turnRateScale / R.turnRateDivisor);
             VisualPitchBank = 0f;
             float forward = dtMs * StepMoveSpeed(dtMs);
             UpdateBoost(dtMs);
@@ -927,9 +936,9 @@ namespace GoF2Remake.Flight
         float RampToward(float rate, float input, float he, float dtMs, float sensitivityScale)
         {
             // target = trunc(input * 750 * H) / 63 (integer division, like the original)
-            int raw = (int)(input * TargetRateScale * he);
-            float target = raw / TargetRateDivisor * TurnScale * Style.turnScale;   // remake debug: a heavy hull's lower top rate (Mass); a mod's turn bonus
-            float denom = (RampBase - Sensitivity * sensitivityScale) * 20f;
+            int raw = (int)(input * R.turnRateScale * he);
+            float target = (int)(raw / R.turnRateDivisor) * TurnScale * Style.turnScale;   // remake debug: a heavy hull's lower top rate (Mass); a mod's turn bonus
+            float denom = (R.turnRampBase - Sensitivity * sensitivityScale) * R.turnRampScale;
             if (denom < 1f) denom = 1f; // guard against extreme sensitivity values
             float step = dtMs * he / denom * Inertia * Style.turnScale;   // the same time to the (scaled) top rate
 
@@ -955,7 +964,7 @@ namespace GoF2Remake.Flight
             float lean = -right.y;
             float upY = up.y;
 
-            if (Mathf.Abs(lean) < LevelDoneThreshold && upY > 0f)
+            if (Mathf.Abs(lean) < R.levelDoneLean && upY > 0f)
             {
                 rollLevelled = true;
                 levelSide = 0;
@@ -970,10 +979,10 @@ namespace GoF2Remake.Flight
             // LevelPitch, the ship could settle exactly inverted, where the lean flips sign every frame and the roll with it).
             if (upY < 0f && levelSide != 0) { side = levelSide; lean = side == 2 ? Mathf.Max(lean, 1e-4f) : Mathf.Min(lean, -1e-4f); }
             float rate;
-            if (levelFine) rate = LevelRateFine;
-            else if ((side == 2 && levelSide == 1) || (side == 1 && levelSide == 2)) { rate = LevelRateOvershoot; levelFine = true; }
-            else if (upY < 0f) rate = LevelRateUpsideDown;
-            else rate = Mathf.Abs(lean) > 0.3f ? LevelRateFar : LevelRateNear;
+            if (levelFine) rate = R.levelRateFine;
+            else if ((side == 2 && levelSide == 1) || (side == 1 && levelSide == 2)) { rate = R.levelRateOvershoot; levelFine = true; }
+            else if (upY < 0f) rate = R.levelRateUpsideDown;
+            else rate = Mathf.Abs(lean) > R.levelFarLean ? R.levelRateFar : R.levelRateNear;
             levelSide = side;
 
             float dir = lean > 0f ? 1f : -1f; // roll so that the lean shrinks

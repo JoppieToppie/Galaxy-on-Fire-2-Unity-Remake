@@ -1467,7 +1467,7 @@ bonuses instead.
 | Field | |
 |---|---|
 | `flightStyle` | `"free"` or `"original"`: this ship always flies so, whatever the player's option (`"player"` or no field: the player's). |
-| `flight` | Bonuses in % for both styles: `topSpeed`, `turnRate`, `strafeSpeed`, `acceleration` (free flight only: the original has none), and `boostFactor` (free flight's boost in hundredths of the top speed). `original` / `free` inside it: the same, for one style only. |
+| `flight` | Bonuses in % for both styles: `topSpeed`, `turnRate`, `strafeSpeed`, `acceleration` (free flight only: the original has none), and `boostFactor` (free flight's boost in hundredths of the top speed). `original` / `free` inside it: the same, for one style only. `rules`: the ship's own [flight rules](#flight-rules). |
 
 **Who decides the style**, first match: an event or mission (the **Set Flight Model** node, `/flightstyle`), the ship flown,
 the mod campaign (`campaign.json`'s `"flightStyle"`), a new-game option that is on (`gameoptions.json`'s `"flightStyle"`), then
@@ -1477,6 +1477,105 @@ tilt and VR always fly the original. Missions can ask with `freeflight` (1 in fr
 In the original a top speed bonus speeds the boost up too, and a turn rate bonus keeps the time the ship takes to reach its
 turn rate. Free flight's top speed, turn rate and acceleration otherwise come from the ship's handling (with its Steering
 Nozzle and Kaamo Club upgrades), its boost from the booster.
+
+### Flight rules
+
+Past the bonuses, **every number the player's ship moves by** can be changed: the top speed, how fast the turn rate builds
+and dies away, the strafe, the dodge, the level-out, free flight's acceleration, braking, dampeners, boost and auto-roll.
+A mod's **`flight.json`** sets them for every ship the player flies while the mod is on; a ship's `"flight": { "rules": { ... } }`
+sets them for that ship (over `flight.json`). Later mods win field by field; anything not named keeps the game's value.
+
+```json
+{ "baseSpeed": 3, "turnRampBase": 2.6, "freeTurnRateDeg": 160, "freeBrakeShare": 0.6, "dodgeDurationMs": 800 }
+```
+
+```json
+{ "override": 10, "flight": { "turnRate": 10, "rules": { "freeInheritInertia": 0, "freeTurningBoost": 3 } } }
+```
+
+A name the game doesn't know is reported (and ignored); a value outside a rule's range is set to the nearest end of it,
+with a warning in the Mods screen. The Mod Builder edits both: the menu's **Flight rules** (`flight.json`) and a ship's
+**Flight** section (its style, bonuses and own rules). The rules move the player's ship (also a multiplayer player's); NPC
+ships fly by their own AI. Times are in ms, speeds in game units per ms (2 = 100 m/s), the original's roll rates in radians
+per ms.
+
+| Rule | Game value | What it does |
+|---|---|---|
+| **Original flight** | | |
+| `baseSpeed` | 2 | Top speed of every ship, game units per ms (2 = 100 m/s). |
+| `handlingPerUpgrade` | 0.2 | Handling each handling upgrade adds (0.2 = +20 handling). |
+| `turnRateScale` | 750 | Top turn rate: full stick x this x handling / the divisor below. |
+| `turnRateDivisor` | 63 | Divides the top turn rate (whole numbers, like the original). |
+| `turnRampBase` | 3.3 | Turn rate build-up: dt x handling / ((this - sensitivity) x the scale below). Lower = snappier. |
+| `turnRampScale` | 20 | Turn rate build-up scale (see above). Lower = snappier. |
+| `turnDecayDivisor` | 126 | Turn rate fall-off with the stick let go: dt x handling / this. Lower = stops turning sooner. |
+| `tiltPitchUpScale` | 1.25 | Tilt steering: the sensitivity's share pitching up. |
+| `tiltPitchDownScale` | 1.45 | Tilt steering: the sensitivity's share pitching down. |
+| `boostSpeedScale` | 2 | Boost speed = this x the booster's boost speed / 100 + the top speed. |
+| `truncateBoostSpeed` | true | The boost speed in whole units per ms (the original's: Linear and Cyclotron boost alike). |
+| `cargoHandlingLoss` | 0.4 | Hardcore: the handling a full hold takes away (0.4 = 40 %). |
+| `collisionPushDecay` | 0.7 | A collision's push left after each frame. |
+| **Original flight: strafe** | | |
+| `strafeHandlingFactor` | 0.06 | Strafe speed = handling x this (units per ms), at most the maximum below. |
+| `strafeMaxSpeed` | 2 | Top strafe speed, units per ms. |
+| `strafeRampStart` | 0.1 | Strafe speed share at the first frame. |
+| `strafeRampGrowth` | 1.5 | Strafe speed share growth per original frame (to full). |
+| `strafeDecay` | 0.7 | Strafe speed left after each original frame once the key is let go. |
+| **Dodge** | | |
+| `dodgeDurationMs` | 1200 | How long a dodge lasts, ms. |
+| `dodgeSlide` | 0.2 | The dodge's slide: dt x this x handling units, fading over the dodge. |
+| `dodgeTurn` | 0.00628319 | The dodge's nose turn, radians per original frame, fading over the dodge. |
+| `dodgeBank` | 0.4 | The dodge's bank. |
+| **Level out** | | |
+| `levelRequestDelayMs` | 1000 | A level-out request waits this long (ms); steering meanwhile drops it. |
+| `levelRateNear` | 0.00025 | Roll rate close to level, radians per ms (0.00025 = 14 deg/s). |
+| `levelRateFar` | 0.00035 | Roll rate far from level, radians per ms. |
+| `levelFarLean` | 0.3 | The lean (0..1) past which the far rate rolls. |
+| `levelRateUpsideDown` | 0.00075 | Roll rate upside down, radians per ms. |
+| `levelRateOvershoot` | 0.00035 | Roll rate the frame the lean overshoots, radians per ms. |
+| `levelRateFine` | 0.0002 | Roll rate after an overshoot, radians per ms. |
+| `levelDoneLean` | 0.015 | The lean (0..1) that counts as level. |
+| `levelPitchRate` | 0.0006 | Option "Level out also levels the nose": its pitch rate, radians per ms. |
+| `levelSteepNose` | 0.906 | A nose this close to vertical (its share of world up) ends a roll-only level-out. |
+| `levelArmMs` | 150 | A neutral stick this long (ms) lets steering end a level-out. |
+| `levelCancelInput` | 0.3 | The stick push (0..1) that ends a level-out. |
+| `levelGraceMs` | 300 | After this long (ms) a push ends a level-out without the neutral stick. |
+| **Free flight: turning** | | |
+| `freeTurnRateDeg` | 125 | Top turn rate at handling 100, degrees per second. |
+| `freeTurnExponent` | 0.75 | The turn rate grows with (handling / 100) to this power. |
+| `freeTurnAboveShare` | 0.1 | The share of the turn rate above the top rate at handling 100 that counts. |
+| `freeTurnRampMs` | 400 | Time from no turn to the top turn rate and back, ms. |
+| `freeRollShare` | 1 | Roll rate, of the turn rate. |
+| `freeBoostTurnShare` | 0.85 | Turn rate while boosting, of the turn rate. |
+| **Free flight: moving** | | |
+| `freeReverseShare` | 0.5 | Top speed backward, of the forward one. |
+| `freeStrafeShare` | 0.5 | Top speed sideways, of the forward one. |
+| `freeHoverShare` | 0.5 | Top speed up and down, of the forward one. |
+| `freeAccelForward` | 1.3851 | Forward acceleration, top speeds per second (at handling 100). |
+| `freeAccelSide` | 1.88877 | Backward, sideways and up / down acceleration, their top speeds per second. |
+| `freeAccelHandlingExponent` | 0.5 | The acceleration grows with (handling / 100) to this power. |
+| `freeEaseExponent` | 3 | Dampeners on: the acceleration eases out as 1 - (speed / top speed) to this power. |
+| `freeBrakeShare` | 0.25 | Dampeners on: braking, of the forward acceleration. |
+| `freeBrakeAboveTopExponent` | 1.67 | Above the top speed the braking grows with (speed / top speed) to this power. |
+| `freeInheritInertia` | 0.9 | Thrusting the way the ship moves brakes up to this much less. |
+| `freeTurningBoost` | 1 | Dampeners on: how hard the velocity turns toward the thrust (1 = EVERSPACE 2's). |
+| **Free flight: boost** | | |
+| `freeBoostScale` | 1.06667 | Boost top speed = the booster's original boost x this (of the top speed). |
+| `freeBoostFallback` | 3.2 | Boost top speed of a booster without a boost speed, of the top speed. |
+| `freeBoostAccel` | 1.63 | Acceleration while boosting, of the forward one. |
+| `freeBoostDurationMs` | 3500 | A full boost pool lasts this long (ms) for a booster without a duration. |
+| `boostRestartEnergy` | 0.2 | An emptied boost pool boosts again from this share. |
+| **Free flight: auto-roll** | | |
+| `autoRollMaxInput` | 0.15 | The auto-roll's strongest roll input. |
+| `autoRollAngleDeg` | 15 | It rolls once the ship leans past this, degrees. |
+| `autoRollToleranceDeg` | 3 | It stops within this of level, degrees. |
+| `autoRollPitchAngleDeg` | 81 | A nose pitched past this (degrees) holds it back. |
+| `autoRollPitchInput` | 0.9 | A pitch input past this holds it back. |
+| `autoRollEaseInMs` | 2000 | Held back, it eases in again over this long, ms. |
+| **Speed passives** | | |
+| `fullStopSpeed` | 0.0001 | Below this speed (units per ms) the ship counts as stopped (full-stop damage). |
+| `lowSpeedSpeed` | 0.6 | At or below this speed (units per ms; 0.6 = 30 m/s) the low-speed resistance counts... |
+| `lowSpeedDelayMs` | 1000 | ...once the ship has flown so slowly this long, ms. |
 
 ## systems.json and stations.json
 

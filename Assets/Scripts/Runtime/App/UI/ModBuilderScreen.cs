@@ -848,6 +848,7 @@ namespace GoF2Remake.UI
             Act(box, Localization.Get(31), ShowOptions, "mbv-menu-item");   // Options
             Act(box, T("mbDependencies", "Dependencies"), ShowDependencies, "mbv-menu-item");
             Act(box, T("mbModDetails", "Mod details"), ShowModDetails, "mbv-menu-item");
+            Act(box, T("mbFlightRules", "Flight rules"), ShowFlightRules, "mbv-menu-item");
             Act(box, T("mbTranslations", "Translations"), () => ShowTranslations(ModProject.TextLanguages[0]), "mbv-menu-item");
             Act(box, T("mbOptimize", "Optimize models and textures"), () => OpenOptimize(), "mbv-menu-item");
             Act(box, T("mbSave", "Save"), () => { SaveNow(); CloseModal(); Status(T("mbSaved", "Saved."), false); }, "mbv-menu-item");
