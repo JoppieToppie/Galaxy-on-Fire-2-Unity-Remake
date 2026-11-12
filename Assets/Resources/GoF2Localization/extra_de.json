@@ -200,7 +200,7 @@
  "easyDesc": "Schwächere Gegner in kleineren Gruppen.",
  "economyAndroid": "Android-Wirtschaft",
  "economyAndroidDesc": "Android-Preise: teurere Waren und Ausrüstung, größere Baupläne, billigere Schiffe.",
- "economyDefault": "PC-Wirtschaft",
+ "economyDefault": "Standardwirtschaft",
  "economyDefaultDesc": "PC-/Mac-/iPhone-Preise: billigere Waren und Baupläne, teurere Schiffe.",
  "economyTitle": "Wirtschaft wählen",
  "exportDone": "{0} Spielstände exportiert nach:\n{1}",

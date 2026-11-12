@@ -200,7 +200,7 @@
  "easyDesc": "Zwakkere vijanden in kleinere groepen.",
  "economyAndroid": "Android-economie",
  "economyAndroidDesc": "Android-prijzen: duurdere goederen en uitrusting, grotere bouwplannen, goedkopere schepen.",
- "economyDefault": "Pc-economie",
+ "economyDefault": "Standaardeconomie",
  "economyDefaultDesc": "Pc-/Mac-/iPhone-prijzen: goedkopere goederen en bouwplannen, duurdere schepen.",
  "economyTitle": "Kies de economie",
  "exportDone": "{0} opgeslagen spellen geëxporteerd naar:\n{1}",

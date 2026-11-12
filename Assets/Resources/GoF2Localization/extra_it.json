@@ -200,7 +200,7 @@
  "easyDesc": "Nemici più deboli in gruppi più piccoli.",
  "economyAndroid": "Economia Android",
  "economyAndroidDesc": "Prezzi Android: merci ed equipaggiamento più cari, progetti più grandi, navi più economiche.",
- "economyDefault": "Economia PC",
+ "economyDefault": "Economia predefinita",
  "economyDefaultDesc": "Prezzi PC / Mac / iPhone: merci e progetti più economici, navi più care.",
  "economyTitle": "Scegli l'economia",
  "exportDone": "{0} salvataggi esportati in:\n{1}",

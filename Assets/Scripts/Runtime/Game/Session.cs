@@ -35,7 +35,7 @@ namespace GoF2Remake.Data
         /// <summary>The economy's short name for the menus and the save slots.</summary>
         public static string EconomyName(Economy e) => e == Economy.Android
             ? Localization.Extra("economyAndroid", "Android economy")
-            : Localization.Extra("economyDefault", "PC economy");
+            : Localization.Extra("economyDefault", "Default economy");
         /// <summary>Status::hardCoreMode 0xb9148: difficulty == 1.5. The economy, mining, standing and shop rules of Extreme
         /// only; the level-scaled formulas use DifficultyFactor.</summary>
         public static bool IsExtreme => Difficulty > 1.25f;

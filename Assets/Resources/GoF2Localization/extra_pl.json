@@ -200,7 +200,7 @@
  "easyDesc": "Słabsi wrogowie w mniejszych grupach.",
  "economyAndroid": "Ekonomia Androida",
  "economyAndroidDesc": "Ceny z Androida: droższe towary i sprzęt, większe plany, tańsze statki.",
- "economyDefault": "Ekonomia PC",
+ "economyDefault": "Ekonomia domyślna",
  "economyDefaultDesc": "Ceny z PC / Mac / iPhone: tańsze towary i plany, droższe statki.",
  "economyTitle": "Wybierz ekonomię",
  "exportDone": "Wyeksportowano zapisy ({0}) do:\n{1}",

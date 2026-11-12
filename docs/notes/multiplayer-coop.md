@@ -76,7 +76,7 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
 - **Economy** (2026-11-05, a Discord player's question: "will co-op get the PC economy?"): a co-op campaign plays the
   host's game's economy (`NetSession.Economy`, `CoopCampaign.HostEconomy`): a continued save its own
   (`SaveGame.SaveEconomy`, Android before save version 10), a new game the one the host picks after the campaign
-  (`MainMenu.AskCoopEconomy`: PC economy or Android economy with single player's two descriptions,
+  (`MainMenu.AskCoopEconomy`: Default economy or Android economy with single player's two descriptions,
   `NetGame.CoopEconomy`). `NetCoop.PrepareHost` sets `Session.Economy` before the campaign's tables load; NetState
   carries it in its spawn data (the `economy` byte, `NetSession.EconomyCode`: 0 Android, the variable's default, 1
   Default), and a guest's `OnNetworkSpawn` sets it before the session's mods, `NetCoop.OnJoined` and its profile, so

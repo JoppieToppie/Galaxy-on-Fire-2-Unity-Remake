@@ -183,7 +183,7 @@
   "eachWeaponSound": "每种武器各自的射击音效",
   "eachWeaponSoundHelp": "装备不同的主武器时，原版只为所有武器播放第一件武器的射击音效。开启：每件武器播放自己的音效。",
   "economyAndroid": "Android经济",
-  "economyDefault": "PC经济",
+  "economyDefault": "默认经济",
   "economyTitle": "选择经济模式",
   "exportDone": "已导出{0}个存档到：\n{1}",
   "exportFailed": "导出失败：",

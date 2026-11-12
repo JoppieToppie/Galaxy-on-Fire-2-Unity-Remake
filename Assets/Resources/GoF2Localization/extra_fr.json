@@ -200,7 +200,7 @@
  "easyDesc": "Des ennemis plus faibles en groupes plus petits.",
  "economyAndroid": "Économie Android",
  "economyAndroidDesc": "Prix Android : marchandises et équipement plus chers, plans plus gros, vaisseaux moins chers.",
- "economyDefault": "Économie PC",
+ "economyDefault": "Économie par défaut",
  "economyDefaultDesc": "Prix PC / Mac / iPhone : marchandises et plans moins chers, vaisseaux plus chers.",
  "economyTitle": "Choisis l'économie",
  "exportDone": "{0} sauvegardes exportées vers :\n{1}",

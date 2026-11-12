@@ -200,7 +200,7 @@
  "easyDesc": "Inimigos mais fracos em grupos menores.",
  "economyAndroid": "Economia do Android",
  "economyAndroidDesc": "Preços de Android: mercadorias e equipamentos mais caros, projetos maiores, naves mais baratas.",
- "economyDefault": "Economia do PC",
+ "economyDefault": "Economia padrão",
  "economyDefaultDesc": "Preços de PC / Mac / iPhone: mercadorias e projetos mais baratos, naves mais caras.",
  "economyTitle": "Escolha a economia",
  "exportDone": "{0} jogos salvos exportados para:\n{1}",

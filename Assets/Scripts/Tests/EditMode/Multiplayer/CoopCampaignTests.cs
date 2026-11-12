@@ -551,7 +551,7 @@ namespace GoF2Remake.Tests
                 Assert.AreEqual((int)Economy.Android, SaveGame.Preview(4).economy);
                 SaveGame.EndHostSaves();
                 Assert.IsFalse(SaveGame.Save(5), "the session's end: no more");
-                SaveGame.BeginHostSaves(null, Economy.Default);   // a new game the host picked the PC economy for
+                SaveGame.BeginHostSaves(null, Economy.Default);   // a new game the host picked the Default economy for
                 Session.Economy = Economy.Default;
                 Assert.IsTrue(SaveGame.Save(6));
                 Assert.AreEqual((int)Economy.Default, SaveGame.Preview(6).economy, "the new game's pick");
@@ -637,7 +637,7 @@ namespace GoF2Remake.Tests
                 Session.Economy = Economy.Android;
                 Session.Credits = 12345;
                 string json = SaveGame.ProfileJson();   // a guest's profile from an Android campaign
-                Session.Economy = NetSession.Economy = Economy.Default;   // this campaign plays the PC economy
+                Session.Economy = NetSession.Economy = Economy.Default;   // this campaign plays the Default economy
                 var db = Database.Load();
                 Assert.IsTrue(SaveGame.TryParse(json, db, out var profile, out string problem), "a persistent profile keeps working: " + problem);
                 Assert.AreEqual((int)Economy.Android, profile.economy);

@@ -192,7 +192,7 @@
  "easyDesc": "더 약한 적이 더 작은 무리로 나옵니다.",
  "economyAndroid": "Android 경제",
  "economyAndroidDesc": "안드로이드 가격: 상품과 장비는 비싸고 설계도는 크며 함선은 쌉니다.",
- "economyDefault": "PC 경제",
+ "economyDefault": "기본 경제",
  "economyDefaultDesc": "PC / Mac / iPhone 가격: 상품과 설계도는 싸고 함선은 비쌉니다.",
  "economyTitle": "경제 선택",
  "exportDone": "저장 파일 {0}개를 내보냈습니다:\n{1}",

@@ -200,7 +200,7 @@
  "easyDesc": "Враги слабее и в меньших группах.",
  "economyAndroid": "Экономика Android",
  "economyAndroidDesc": "Цены Android: товары и снаряжение дороже, чертежи больше, корабли дешевле.",
- "economyDefault": "Экономика ПК",
+ "economyDefault": "Стандартная экономика",
  "economyDefaultDesc": "Цены PC / Mac / iPhone: товары и чертежи дешевле, корабли дороже.",
  "economyTitle": "Выберите экономику",
  "exportDone": "Экспортировано сохранений: {0}, в:\n{1}",

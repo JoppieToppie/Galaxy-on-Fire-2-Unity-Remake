@@ -192,7 +192,7 @@
  "easyDesc": "弱い敵が少人数で出現。",
  "economyAndroid": "Android版の経済",
  "economyAndroidDesc": "Android版の価格：品物と装備が高く、設計図が大きく、船が安い。",
- "economyDefault": "PC版の経済",
+ "economyDefault": "標準の経済",
  "economyDefaultDesc": "PC / Mac / iPhone版の価格：品物と設計図が安く、船が高い。",
  "economyTitle": "経済を選択",
  "exportDone": "セーブデータ{0}件を書き出しました：\n{1}",
