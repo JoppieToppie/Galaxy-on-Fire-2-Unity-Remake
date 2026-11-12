@@ -48,7 +48,7 @@ namespace GoF2Remake.World
                 float d = (pos - c).magnitude;
                 if (d >= r) continue;
                 if (now < 0) now = i;
-                if (z.kind == Modding.ModWorld.HazardKind.Heat) { hot = true; heatDps += Hazards.HeatDamage(z.dps, d, r, 1000f); }
+                if (z.kind == Modding.ModWorld.HazardKind.Heat) { hot = true; heatDps += Hazards.HeatDamage(z.raiderDps > 0f ? z.raiderDps * NpcTables.RaiderGunDps : z.dps, d, r, 1000f); }
                 else radiated = true;
             }
             if (now != inside && now >= 0)

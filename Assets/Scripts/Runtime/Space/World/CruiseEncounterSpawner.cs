@@ -11,19 +11,23 @@
 // Remake (2026-11-03, for mods): EVERSPACE 2's encounter types (decompiled BP_Encounter_*: FactionBattle, Trap, HiddenStash,
 // ResourceDepot, HighRiskArea, and BP_EncounterBase's reward), each a kind of its own:
 //   battle    a wing of the system's race (3) fighting raiders (3 + rank / 8); once the raiders are gone, BattlePay credits
-//             (ES2's FactionBattle: "Battle Support", GivesCreditsReward)
+//             (ES2's FactionBattle: "Battle Support", GivesCreditsReward, UMissionLib::CalculateRewardCredits)
 //   trap      passes for an unknown signal: raiders (1.25 x the pirates' count, ES2's SpawnFactorNPCs) around the player on
 //             arrival, a second group ahead one time in five (ChanceForTwoGroups 0.2)
 //   stash     one crate with three loot rolls (ES2's hidden container, its spawn group 75)
 //   depot     three crates of ore (ES2's SpawnFactorResources 3, Containers 2) guarded by 1.5 x the pirates' count / 2 raiders
 //   highrisk  three waves of raiders, each on the last one's end (ES2's HighRiskArea: waves, respawns, boss loot); after the
-//             third a crate with three loot rolls and twice BattlePay; leaving ends it
+//             third a crate with 8-14 loot rolls (ES2's HighRiskAreaBoss loot) and BattlePay (ES2 pays every encounter by
+//             the one formula: none overrides RewardCreditsFactor); leaving ends it
 //   lootdrone a loot drone (Flight.NpcRoles' lootDrone: it runs, shedding its loot, and jumps away): one of the mods' (their
 //             ships.json "traffic": { "role": "lootDrone" }, ModTraffic.PickLootDrone), else a pirate fighter flying as one;
 //             neutral, as a pirate (ES2's BP_LootDrone, placed at its locations: a Freelancer that never turns hostile, raises
 //             no wanted level and the other ships ignore; here no friendly-fire rules, and its kill is a pirate's), in the
 //             group the orbit never relaunches (Special)
-// The counts and pay are the remake's picks: ES2 keeps them in its spawn groups and reward tables.
+//   rift      a rift run (World.RiftEncounter, Flight.RiftRun: EVERSPACE 2's Ancient Rifts), "ships" its stages (default 4)
+// The counts are the remake's picks (ES2 places its groups by spawn_groups.CSV at a location's level). The pay is ES2's
+// (BattlePay); its location level the orbit's "level" (stations.json: an ES2 location's own), else the station's tech level
+// x 3 (Es2Level: GoF2's 1-10 over ES2's 1-30).
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -99,7 +103,7 @@ namespace GoF2Remake.World
                     int n = e.ships > 0 ? e.ships : Mathf.Clamp(3 + rank / 8, 3, 5);
                     for (int i = 0; i < n; i++)
                         raiders.Add(Raider(traffic, at + forward * 6000f + Jitter(4000f)));
-                    EncounterWatch.Start(level, raiders, BattlePay(rank), false);
+                    EncounterWatch.Start(level, raiders, BattlePay(Es2Level(level)), false);
                     break;
                 }
                 case CruiseEncounters.Trap:
@@ -133,7 +137,7 @@ namespace GoF2Remake.World
                     int n = e.ships > 0 ? e.ships : Mathf.Clamp(2 + rank / 8, 2, 4);
                     var wave = new List<NpcShip>();
                     for (int i = 0; i < n; i++) wave.Add(Raider(traffic, at + Jitter(6000f)));
-                    EncounterWatch.Start(level, wave, BattlePay(rank) * 2, true, waves: 3, waveSize: n, centre: at);
+                    EncounterWatch.Start(level, wave, BattlePay(Es2Level(level)), true, waves: 3, waveSize: n, centre: at);
                     break;
                 }
                 case CruiseEncounters.LootDrone:
@@ -143,6 +147,9 @@ namespace GoF2Remake.World
                                                       role = ship >= 0 ? null : "lootDrone", alwaysNeutral = true, position = at });
                     break;
                 }
+                case CruiseEncounters.Rift:
+                    RiftEncounter.Start(level, at, e.ships, e.bosses);
+                    return;   // (it spawns its own and connects them)
                 default:
                     return;
             }
@@ -154,8 +161,20 @@ namespace GoF2Remake.World
 
         static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / M;
 
-        /// <summary>A battle's pay: 1500 + 300 a rank (remake pick for ES2's CalculateRewardCredits).</summary>
-        public static int BattlePay(int rank) => 1500 + 300 * Mathf.Max(0, rank);
+        /// <summary>An encounter's pay at ES2 location level 'es2Level' (decompiled UMissionLib::CalculateRewardCredits:
+        /// (800 + 4200 x level / MaxPlayerLevel 30, clamped 0..1) x RewardCreditsFactor 1, down to a multiple of 50).</summary>
+        public static int BattlePay(int es2Level) => (int)(800f + 4200f * Mathf.Clamp01(es2Level / (float)MaxPlayerLevel)) / 50 * 50;
+
+        /// <summary>ES2's MaxPlayerLevel (UESGameInstance's constructor).</summary>
+        public const int MaxPlayerLevel = 30;
+
+        /// <summary>The orbit as an ES2 location level: its station's tech level (1-10) x 3; 1 without a station.</summary>
+        public static int Es2Level(SpaceLevel level)
+        {
+            var spec = level != null && level.Layout != null ? Modding.ModWorld.OrbitOf(level.Layout.stationIndex) : null;
+            if (spec != null && spec.level > 0) return Mathf.Clamp(spec.level, 1, MaxPlayerLevel);
+            return Mathf.Clamp((level != null && level.StationInfo != null ? level.StationInfo.techLevel : 0) * 3, 1, MaxPlayerLevel);
+        }
 
         public static NpcShip Raider(Traffic traffic, Vector3 gameAt) =>
             traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Raider, race = Standing.Pirate, ship = NpcTables.RandomFighter(Standing.Pirate),

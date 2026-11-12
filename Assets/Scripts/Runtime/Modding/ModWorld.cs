@@ -219,6 +219,10 @@ namespace GoF2Remake.Modding
             public float radius;
             /// <summary>Heat: the damage a second at the centre.</summary>
             public float dps;
+            /// <summary>Heat (2026-11-04): the damage a second at the centre as that many pirate raiders' gunfire
+            /// (NpcTables.RaiderGunDps; EVERSPACE 2's DamagePerSecondMax over its Outlaw raider's 55 DPS, both scaled by level
+            /// alike); over 'dps' when given.</summary>
+            public float raiderDps;
         }
 
         /// <summary>Remake (2026-11-03): an orbit's traffic lane (stations.json "orbit.lanes", World.TrafficLanes).</summary>
@@ -252,6 +256,9 @@ namespace GoF2Remake.Modding
             /// <summary>Remake (2026-11-03, EVERSPACE 2's wreck fields): this many salvageable wreck containers (0 = none),
             /// within wreckSpread (game units, a cube's side) of wreckCentre (World.WreckField).</summary>
             public int wreckCount;
+            /// <summary>Remake (2026-11-04): the orbit's EVERSPACE 2 location level (1-30: its encounters' pay,
+            /// CruiseEncounterSpawner.Es2Level); 0 = the station's tech level x 3.</summary>
+            public int level;
             public Vector3? wreckCentre;
             public float wreckSpread = 60000f;
             /// <summary>Remake (2026-11-03, EVERSPACE 2's item containers): this many closed containers (0 = none) within
@@ -301,7 +308,7 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, MapPlace> mapPlaces = new Dictionary<int, MapPlace>();
 
         static readonly HashSet<string> OrbitFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld", "skyRotation", "skybox", "light2", "ambient", "wrecks", "hazards", "containers", "lanes" };
+            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld", "skyRotation", "skybox", "light2", "ambient", "wrecks", "hazards", "containers", "lanes", "level" };
         static readonly HashSet<string> AsteroidFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "count", "centre", "center", "spread", "type", "ores" };
         static readonly string[] AsteroidTypes = { "rock", "void", "ice", "magma" };

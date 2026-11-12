@@ -177,7 +177,7 @@ namespace GoF2Remake.Modding
                 {
                     if (!(e is JObject h)) throw new ModJsonException($"{where}: a hazard is {{ \"kind\", \"centre\", \"radius\" }}");
                     foreach (var p in h.Properties())
-                        if (p.Name != "kind" && p.Name != "centre" && p.Name != "center" && p.Name != "radius" && p.Name != "dps") Report(mod, $"{where}: unknown hazard field \"{p.Name}\" (ignored)");
+                        if (p.Name != "kind" && p.Name != "centre" && p.Name != "center" && p.Name != "radius" && p.Name != "dps" && p.Name != "raiderDps") Report(mod, $"{where}: unknown hazard field \"{p.Name}\" (ignored)");
                     var kindName = ModJson.Str(h, "kind") ?? "";
                     HazardKind kind;
                     if (kindName.Equals("heat", StringComparison.OrdinalIgnoreCase)) kind = HazardKind.Heat;
@@ -190,6 +190,7 @@ namespace GoF2Remake.Modding
                         kind = kind, centre = centre.Value,
                         radius = Mathf.Clamp(ModJson.Float(h, "radius", 20000f, StationsFile), 1000f, 400000f),
                         dps = Mathf.Max(0f, ModJson.Float(h, "dps", 10f, StationsFile)),
+                        raiderDps = Mathf.Clamp(ModJson.Float(h, "raiderDps", 0f, StationsFile), 0f, 50f),
                     });
                 }
                 if (s.hazards.Count == 0) s.hazards = null;
@@ -208,6 +209,7 @@ namespace GoF2Remake.Modding
                 }
                 else throw new ModJsonException($"{where}: orbit \"wrecks\" is true, false or {{ \"count\", \"centre\", \"spread\" }}");
             }
+            if (ModJson.Has(o, "level")) s.level = Mathf.Clamp(ModJson.Int(o, "level", 0, StationsFile), 0, 30);   // remake: ES2's location level
             // Remake (2026-11-03): traffic lanes, EVERSPACE 2's spline traffic (World.TrafficLanes)
             if (ModJson.Get(o, "lanes") is JToken ln)
             {

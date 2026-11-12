@@ -129,7 +129,7 @@ namespace GoF2Remake.World
             if (model != null) model.localRotation = Quaternion.AngleAxis(bank * Mathf.PI / 4096f * Mathf.Rad2Deg, Vector3.forward);
             if (levelling) Roll(dtMs);
 
-            if (!Hp.empDisabled) transform.position += transform.forward * speed * slow.SpeedFactor * dtMs * M;
+            if (!Hp.empDisabled) transform.position += transform.forward * speed * slow.SpeedFactor * roleSpeedFactor * dtMs * M;   // (remake: a rift's)
         }
 
         /// <summary>Gives the ship an order (null: back to its own AI). Wakes a sleeper, lets a parked ship fly; "hold" is

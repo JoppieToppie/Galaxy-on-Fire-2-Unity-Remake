@@ -2,8 +2,8 @@
 // Remake (2026-11-03, for mods): the orbit's traffic lanes (stations.json "orbit.lanes", Modding.ModWorld's LaneSpec), after
 // EVERSPACE 2's BP_SplineTraffic: ships streaming along a path (Flight.TrafficLane), spread evenly over it, at the lane's
 // speed with their engines lit; with two lanes every other one runs the other way, each keeping to its right. Not the
-// traffic's ships: no AI, no marker or lock, no radar dot. A hit can destroy one (its hit points: ES2's 50 against the
-// remake's fighters' hulls, HitPoints): an explosion, and it is back at its place after RespawnMs; destroying one is a crime
+// traffic's ships: no AI, no marker or lock, no radar dot. A hit can destroy one (its hull ES2's 50 against its raider's 310 of a pirate raider's,
+// HitPoints): an explosion, and it is back at its place after RespawnMs; destroying one is a crime
 // against the system's race (ES2's TryTriggerWantedSystem(1): Standing.ApplyDelict 1). Their looks: the lane's "ships"
 // (ship references), else the system race's fighters as the traffic picks them.
 
@@ -19,7 +19,9 @@ namespace GoF2Remake.World
     public class TrafficLanes : MonoBehaviour
     {
         const float M = 0.05f;
-        public const float HitPoints = 30f;
+        /// <summary>A lane ship's hull: ES2's UnitHealth 50 over its Outlaw raider's 310 hit points, of a pirate raider's hull.</summary>
+        public const float RaiderShare = 50f / 310f;
+        static float HitPoints => Mathf.Max(1f, NpcTables.Hull(0, 0) * RaiderShare);
 
         class Unit
         {

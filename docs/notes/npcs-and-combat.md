@@ -420,14 +420,20 @@ battle spawns in 156 ms with its hulls.
   itself), BP_WebberDrone_Base + BP_Condition_Debuff_Webbed (linear / angular damping +2), BP_ShieldChargeDrone_Base and
   BP_AntiMissileDrone_Base (their guns allowed while their support abilities run: the native AI aims them at allies /
   missiles), BP_Outlaw_LinkDrone_Armor, BP_Outlaw_JumpSuppressorDrone (JumpSuppressorComponent enabled from BeginPlay until
-  it dies, its marker seen from 100 km)): sniper (fire range x2.5), detonator (no break-off or fire; within 72 m of its
-  target: 10 x its gun's damage to every ship and the player within 360 m, then its own hull, nobody's kill), webber (its
-  hits on the player: `Target.SlowBy` -> `ShipController.WebFactor` 0.5 for 4 s on the ship's moves), shieldCharger (no
-  fire; 5 %/s of the hull of same-race ships within 1.5 km), armorLink (no fire; `Target.damageFactor` 0.5 on those while
-  in reach, left alone where another rule set it), antiMissile (no fire; `WeaponSystem.ShootDownMissile` on the player's
-  nearest homing missile within 2.9 km each second), jumpSuppressor (no fire; `NpcShip.JumpSuppressed` holds
+  it dies, its marker seen from 100 km)): sniper (fire range x2: ES2's sensing 4000 m against AESPawn's default 2000), detonator (no break-off or fire; within 72 m of its
+  target: BlastSeconds 100 / 55 of its gun's fire (`NpcShip.GunDps`; ES2's ApplyESRadialDamage of its NPC levelling HullDPSPrimary
+  50 + ShieldDPSPrimary 50 against the Outlaw raider's 31 + 24) to every ship and the player within 360 m, then its own hull,
+  nobody's kill), webber (its
+  hits on the player: `Target.SlowBy` -> `ShipController.WebFactor` 0.4 for 4-5 s on the ship's moves: ES2's webber holds
+  4-5 s, its +2 physics damping against the default 8000 cm/s2 forward acceleration and ~95 m/s top speed settles at 0.4), shieldCharger (no
+  fire; 16 / 310 of the hull a second of same-race ships within 1.5 km: ES2's charge drone's ShieldDPSPrimary -16 against the
+  raider's 200 + 50 + 60 hit points), armorLink (no fire; links its nearest ally in reach, ES2's one Link Parent Actor:
+  `Target.damageFactor` 310 / 410 and 5 / 310 of its hull a second, ES2's BP_Condition_Buff_Armored_ArmorRepair +100
+  maximum armour and +5 armour/s; left alone where another rule set a factor), antiMissile (no fire; `WeaponSystem.ShootDownMissile` on the player's
+  nearest homing missile within 2.9 km every 250 ms, ES2's coil gun FireRate 4), jumpSuppressor (no fire; `NpcShip.JumpSuppressed` holds
   `SystemJump.StartCharging` with "Jump suppressed", the story's forced jumps excepted). ES2's metres x3.6 as its ships'.
-  The amounts ES2 keeps in NPC levelling data (blast, repair, slow strength, link share) are the remake's picks. Not done:
+  ES2's amounts on its hit point scale go over as shares of the Outlaw raider's (npc_leveling.CSV; `NpcRoles.Es2RaiderHp` /
+  `Es2RaiderDps`). Not done:
   the support drones' beams drawn, ES2's frost shield, defusal, stealth and split drones. Tests `NpcRoleTests`.
   lootDrone (2026-11-03, decompiled BP_LootDrone: NumLoot RandomIntegerInRange(4, 7), DropPercentages i / n x RandomFloat(1 -
   1 / n, 1 + 1 / n) clamped 0.05..1 checked on each health change, a piece (LootDrop.AddLootFromItems + DropLoot) and
@@ -438,4 +444,10 @@ battle spawns in 156 ms with its hulls.
   found (hit, or the player in its detection box) it steers away from the player (`RoleFlees`, no break-off) and after the delay and charge
   `JumpOut` (state 6, gone with the rest, nobody's kill). Never a traffic fighter (`ModTraffic.Scan`); the cruise drive's
   `lootdrone` encounter flies it, neutral; the other ships leave it out of their enemy lists (`Traffic.ConnectPlayers`, ES2's
-  bIgnoredByAI). Not done: ES2's jump charge effect and sound, its marker kept in range once found.
+  bIgnoredByAI).
+- **A ship type's own drops** (remake 2026-11-04, for mods; ships.json `traffic.loot` [ { item, chance, min, max } ] and
+  `lootDrops`, `CustomTraffic.loot` / `CustomLoot`, `NpcShip.AddOwnLoot` at Setup and Revive): after EVERSPACE 2's
+  loot_npcs.csv (a blueprint, its drop count, then item / chance / amount range triples): each entry by its chance, at most
+  lootDrops, added to the cargo (merged by item; several kinds: a crate a kind), also for the Void and Specter races, whose
+  cargo is empty; not for a mission container, a fixed crate or a no-loot spawn. An enhanced capital ship rolls them again
+  after `CapitalShip` set its crate (`AddOwnLoot(capital: true)`), unless its npcships.json "loot" replaces the crate. Not done: ES2's jump charge effect and sound, its marker kept in range once found.
