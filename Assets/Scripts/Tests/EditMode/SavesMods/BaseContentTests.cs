@@ -45,6 +45,14 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(db.Item(85).blueprint.Count + 1, recipe.Count);
         }
 
+        /// <summary>The Gameplay option is off by default (Original, Settings.ExperienceKeys): Khador offers it only with it on.</summary>
+        static SettingsScope<bool> SlipstreamOn()
+        {
+            var scope = new SettingsScope<bool>(() => Settings.KhadorSlipstream, v => Settings.KhadorSlipstream = v);
+            Settings.KhadorSlipstream = true;
+            return scope;
+        }
+
         [Test]
         public void KhadorSellsItAtThynomeFromTheSupernovaOn()
         {
@@ -53,6 +61,7 @@ namespace GoF2Remake.Tests
             var seller = ModBlueprints.Of(product).seller;
             Assert.AreEqual("Khador", seller.name);
             bool Sold(int station) => AgentGenerator.CreateAgents(db, station).Exists(a => a.offer == AgentOffer.SellBlueprint && a.sellBlueprint == product);
+            using var on = SlipstreamOn();
             Session.FreePlay = false;
             Session.CampaignMission = 83;
             Assert.IsFalse(Sold(10), "before the add-on");
@@ -70,6 +79,7 @@ namespace GoF2Remake.Tests
         {
             var db = Database.Load();
             int product = ModContent.ItemIndexOf(Key);
+            using var on = SlipstreamOn();
             Session.FreePlay = true;
             Session.Credits = 500000;
             var khador = AgentGenerator.CreateAgents(db, 10).Find(a => a.offer == AgentOffer.SellBlueprint && a.sellBlueprint == product);
