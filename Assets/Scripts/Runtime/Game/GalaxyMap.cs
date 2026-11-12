@@ -341,10 +341,25 @@ namespace GoF2Remake.Data
             return it != null && it.Look == KhadorDriveItem && !Shop.IsCruiseDrive(it);
         }
 
-        /// <summary>Ship::hasJumpDrive, plus the remake's free-play rule for gateless systems (see the file header).</summary>
+        /// <summary>Remake (the user, 2026-11-03): a mounted cruise drive that flies between the systems (the Khador Slipstream,
+        /// CruiseDrive.InterstellarAttr) makes the Khador Drive's jumps too, as the drive it replaces on the ship; not the base
+        /// game's while Options > Gameplay turns it off (Shop.WorkingCruiseDrive, Settings.KhadorSlipstream).</summary>
+        public static bool HasSlipstream(Database db)
+        {
+            var it = Shop.WorkingCruiseDrive(db);
+            return it != null && it.Attr(Flight.CruiseDrive.InterstellarAttr) > 0;
+        }
+
+        /// <summary>A real Khador Drive aboard to jump with: the item or a mod jump drive (IsKhadorDrive), a ship's own
+        /// (HasIntegratedDrive) or the Khador Slipstream (HasSlipstream); not the free-play stand-in for gateless systems.</summary>
+        public static bool HasKhadorDrive(Database db) =>
+            HasIntegratedDrive(Session.ShipIndex) || Session.Equipment.Exists(e => IsKhadorDrive(e.item)) || HasSlipstream(db);
+
+        /// <summary>Ship::hasJumpDrive, plus the remake's free-play rule for gateless systems (see the file header) and the
+        /// Khador Slipstream (HasSlipstream).</summary>
         public static bool HasJumpDrive(Database db)
         {
-            if (HasIntegratedDrive(Session.ShipIndex) || Session.Equipment.Exists(e => IsKhadorDrive(e.item))) return true;
+            if (HasKhadorDrive(db)) return true;
             if (!Session.FreePlay) return false;
             int system = db.Stations.Find(s => s.index == Session.StationIndex)?.system ?? -1;
             return (db.Systems.Find(s => s.index == system)?.jumpgateStation ?? 0) < 0;

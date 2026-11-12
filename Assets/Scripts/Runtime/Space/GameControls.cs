@@ -64,7 +64,8 @@ namespace GoF2Remake.Flight
             Camera, CockpitView, AutoTurret, Cloak, TimeExtender, MouseSteering, Chat, ChatSend, ChatChannel, Screenshot,
             HudToggle, MultiplayerWindow, DistressCall,
             Thrust, StrafeAxis, Hover, Dampeners, FreeLookHold,
-            Device1, Device2, Device3;
+            Device1, Device2, Device3,
+            Headlights;
 
         static string X(string key, string english) => Localization.Extra(key, english);
 
@@ -161,6 +162,8 @@ namespace GoF2Remake.Flight
             Device1 = Button("device1", () => X("ctlDevice1", "Device 1"), "<Keyboard>/4", null, null);
             Device2 = Button("device2", () => X("ctlDevice2", "Device 2"), "<Keyboard>/5", null, null);
             Device3 = Button("device3", () => X("ctlDevice3", "Device 3"), "<Keyboard>/6", null, null);
+            // Remake: the headlights on / off (EVERSPACE 2's; Flight.Headlights), the same key in both layouts.
+            Headlights = Button("headlights", () => X("ctlHeadlights", "Headlights on / off"), "<Keyboard>/l", null, null);
 
             bool Free() => loadedStyle == FlightStyles.Free;
             foreach (var r in rows)

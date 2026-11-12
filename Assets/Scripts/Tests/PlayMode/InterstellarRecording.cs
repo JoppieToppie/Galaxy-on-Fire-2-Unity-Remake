@@ -6,7 +6,9 @@
 // It records only when Temp/recording_dir.txt names the folder to write to (else it is ignored, so a suite run doesn't
 // record): write that file, then python3 -I Reference/tools/tests/run_tests.py --mode PlayMode --filter
 // GoF2Remake.Tests.InterstellarRecording.FlyACrossingAndRecordIt (or .FlyToTheVoidAndBackAndRecordIt: the autopilot
-// menu's dive into the Void, and out again to the nearest system).
+// menu's dive into the Void, and out again to the nearest system; or .PickAPlanetAndRecordIt: by hand, the nearest system
+// with planets of its own locked, its planets round its sun, one that isn't the gate locked and so picked, the cruise held
+// to the arrival in that planet's orbit).
 
 using System.Collections;
 using System.IO;
@@ -112,7 +114,7 @@ namespace GoF2Remake.Tests
             var space = Find<SpaceLevel>();
             var nav = space.Navigation;
             var at = space.Player.transform.position;
-            var target = nav.Targets.Where(t => t.kind == Navigation.Kind.System && !t.hidden && t.station != Session.StationIndex && pick(t))
+            var target = nav.Targets.Where(t => t.kind == Navigation.Kind.System && t.planetOf == null && !t.hidden && t.station != Session.StationIndex && pick(t))
                                     .OrderBy(t => (t.Position - at).sqrMagnitude).First();
             nav.SetAutopilot(target);
             yield return CaptureUntil(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null && !Find<SpaceLevel>().Layout.interstellar, 240f, "the arrival");
@@ -142,6 +144,54 @@ namespace GoF2Remake.Tests
             recording = false;
             Time.captureFramerate = 0;
             Debug.Log("Recorded " + frame + " frames into " + folder);
+        }
+
+        [UnityTest, Timeout(1500000)]
+        public IEnumerator PickAPlanetAndRecordIt()
+        {
+            OpenFolder();
+            yield return OrbitAt(78);
+            yield return Slipstream(Find<SpaceLevel>());
+            var space = Find<SpaceLevel>();
+            var nav = space.Navigation;
+            nav.EncountersAllowed = false;   // this take is the planet: no pirates pulling the unarmed test ship out on the way
+            var ship = space.Player;
+            var at = ship.transform.position;
+            // the nearest system whose planets are targets (two or more stations) and far enough out that its arrival isn't
+            // settled yet (InterstellarSpace.ApproachUnits: there its planets are gone), and one of them that isn't its gate
+            float far = InterstellarSpace.ApproachUnits * 2f * 0.05f;
+            var sun = nav.Targets.Where(t => t.kind == Navigation.Kind.System && t.planetOf == null && !t.hidden && t.system != space.Layout.systemIndex
+                                             && (t.Position - at).magnitude > far
+                                             && nav.Targets.Count(p => p.planetOf == t && !p.disabled && p.station != t.station) > 0)
+                                 .OrderBy(t => (t.Position - at).sqrMagnitude).First();
+            int gate = sun.station;
+            var planet = nav.Targets.First(p => p.planetOf == sun && !p.disabled && p.station != gate);
+            // Flown as a pilot does, by hand (the ship steered onto a point, as the stick would; no autopilot, so the crosshair
+            // locks): the nose onto the system till it locks; its AUTOPILOT to it, and within a light year of its star its zone
+            // opens, its planets round it; the autopilot off, the nose onto the planet's marker till that locks, which picks it;
+            // then the lock's AUTOPILOT prompt, which holds the drive, to the arrival in its orbit.
+            nav.SetAutopilot(null);
+            ship.autopilotTarget = () => sun.Position;
+            yield return CaptureUntil(() => nav.Locked == sun, 30f, "the system's lock");
+            yield return Capture(1.5f);
+            // the lock's AUTOPILOT to the system: within a light year of its star its zone opens, its planets come out round it
+            ship.autopilotTarget = null;
+            Assert.IsTrue(nav.Interact(), "the AUTOPILOT prompt");
+            yield return CaptureUntil(() => nav.Zone == sun, 240f, "the system's zone");
+            yield return Capture(3f);
+            Assert.IsTrue(nav.Interact(), "the autopilot off again: the crosshair locks by hand");
+            ship.autopilotTarget = () => planet.Position;
+            yield return CaptureUntil(() => nav.Locked == planet, 30f, "the planet's lock");
+            yield return Capture(2.5f);
+            Assert.AreEqual(planet.station, sun.station, "locking the planet picked it");
+            ship.autopilotTarget = null;
+            Assert.IsTrue(nav.Interact(), "the lock's AUTOPILOT prompt");   // the autopilot to the planet: it holds the drive here
+            yield return CaptureUntil(() => Find<SpaceLevel>() != space && Find<SpaceLevel>() != null && Find<SpaceLevel>().Layout != null && !Find<SpaceLevel>().Layout.interstellar, 300f, "the arrival");
+            yield return Capture(8f);   // the warp easing out through the picked planet's orbit
+            Assert.AreEqual(planet.station, Session.StationIndex, "arrived at the planet picked, not the gate");
+            recording = false;
+            Time.captureFramerate = 0;
+            Debug.Log($"Recorded {frame} frames into {folder}: {sun.name}, {planet.name} (gate {gate})");
         }
 
         [UnityTest, Timeout(900000)]

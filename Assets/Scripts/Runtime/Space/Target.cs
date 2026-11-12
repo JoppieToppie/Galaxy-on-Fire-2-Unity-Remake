@@ -79,6 +79,8 @@ namespace GoF2Remake.Flight
         /// <summary>Remake (Flight.Device's EMP devices, a weapon's slowMs): slows the ship (ms, the speed left 0..1, no turning
         /// meanwhile): its NpcShip, or in multiplayer the game that owns it (NetProxy); null = it can't be slowed.</summary>
         [NonSerialized] public Action<float, float, bool> SlowBy;
+        /// <summary>Remake (2026-11-02, a weapon's vulnerablePercent, Flight.TargetDebuffs): every hit this ship takes x (1 + this).</summary>
+        [NonSerialized] public float vulnerability;
         /// <summary>Remake (the Carom Deflector, PlayerDevices): a shot of this gun (gun, bullet index) about to hit this ship is
         /// turned back instead: true = it was (Gun.Strike skips the hit).</summary>
         [NonSerialized] public Func<Gun, int, bool> Deflects;
@@ -181,6 +183,7 @@ namespace GoF2Remake.Flight
             if (!Alive || invulnerable || phased) return;
             if (isPlayer && Data.Cheats.GodMode) return;   // remake: the Debug panel's god mode
             if (playerProof && !byNpc) return;
+            if (vulnerability > 0f) amount *= 1f + vulnerability;   // remake: a weapon's vulnerability (TargetDebuffs)
             if (RemoteDamage != null) { RemoteDamage(amount, hitVector, byNpc, shieldFactor); return; }
             // (a weak spot passes on what it takes, not the overkill of the hit that destroys it)
             if (forwardTo != null && forwardTo != this && forwardFactor > 0f && forwardTo.Alive)

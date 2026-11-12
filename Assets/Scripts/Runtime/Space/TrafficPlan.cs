@@ -47,6 +47,7 @@ namespace GoF2Remake.Flight
         public int eventTag;       // remake multiplayer: the event batch that spawned it (EventRunner counts them), 0 = none
         public int hitpoints = -1; // Player::setHitpoints / setMaxHitpoints override (-1 = the createShip formula)
         public bool noLoot;        // KIPlayer+0x4c / +0x48 = 0: no cargo, no crate
+        public string role;        // remake: its role in a fight (Flight.NpcRoles), null = its ship's (ships.json "traffic": { "role" })
         public int nameText = -1;  // KIPlayer+0x18: the name the lock plate shows (text id)
         public string name;        // KIPlayer+0x18 as a literal (freelance: the agent's / the Wanted target's name)
         // Freelance levels (Level::createMission 0xbda70, freelance_missions.md 4.1):

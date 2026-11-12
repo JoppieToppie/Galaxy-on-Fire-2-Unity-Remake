@@ -286,6 +286,9 @@ namespace GoF2Remake.Data
         /// forward) or free flight after EVERSPACE 2 (thrust, strafe and up / down held, inertial dampeners, the mouse aiming
         /// through a virtual joystick; Flight.FlightModel's free mode). It also switches the key layout (GameControls).</summary>
         public static int FlightStyle { get => Mathf.Clamp(Mathf.RoundToInt(Get("flightStyle", FlightStyles.Original)), 0, 1); set => Set("flightStyle", Mathf.Clamp(value, 0, 1)); }
+        /// <summary>Remake: EVERSPACE 2's auto-roll in free flight (FlightModel.AutoRoll): the ship rolls itself level with the
+        /// horizon, gently, once it leans past 15 degrees; off by default (EVERSPACE 2 turns it on for a controller only).</summary>
+        public static bool AutoRoll { get => GetBool("autoRoll", false); set => SetBool("autoRoll", value); }
         /// <summary>Remake: Discord Rich Presence (DiscordPresence, desktop).</summary>
         public static bool DiscordPresence { get => GetBool("discordPresence", true); set => SetBool("discordPresence", value); }
         /// <summary>options[0x11] = 0: the accelerometer steers (MGame::handleAccelerometer).</summary>
@@ -662,6 +665,8 @@ namespace GoF2Remake.Data
         public static int FarShipMarkers { get => Mathf.Clamp(Mathf.RoundToInt(Get("farShipMarkers", FarMarkerOriginal)), FarMarkerOriginal, FarMarkerSmallDot); set => Set("farShipMarkers", Mathf.Clamp(value, FarMarkerOriginal, FarMarkerSmallDot)); }
         /// <summary>Remake: the distance under every far ship's on-screen marker, not only the locked one's (CombatView).</summary>
         public static bool MarkerDistance { get => GetBool("markerDistance", false); set => SetBool("markerDistance", value); }
+        /// <summary>Remake: the systems' distances between the systems (Data.InterstellarSpace; UI.NavigationView), on by default.</summary>
+        public static bool InterstellarDistance { get => GetBool("interstellarDistance", true); set => SetBool("interstellarDistance", value); }
         /// <summary>Remake: every primary weapon item sounds its own shots (the original: only the first primary gun).</summary>
         public static bool EachWeaponSound { get => GetBool("eachWeaponSound", false); set => SetBool("eachWeaponSound", value); }
         /// <summary>Remake (a player's request, 2026-11-04): a flight music track plays (default) or is skipped (MusicTracks:
@@ -675,6 +680,16 @@ namespace GoF2Remake.Data
         /// 2026-10-27, the user's request: it pulled the nose back as soon as pitch was let go) = the original's roll only,
         /// which steering doesn't end.</summary>
         public static bool LevelPitch { get => GetBool("levelPitch", false); set => SetBool("levelPitch", value); }
+        /// <summary>Remake (2026-11-02): the headlights are on (Flight.Headlights; EVERSPACE 2's bHeadlightsEnabled, on by
+        /// default). Switched by the Headlights key, not an options row.</summary>
+        public static bool Headlights { get => GetBool("headlights", true); set => SetBool("headlights", value); }
+        /// <summary>Remake (2026-11-02): free flight's boost key is a toggle, a press to start and one to stop (EVERSPACE 2's
+        /// "boost as toggle" setting, per input device there; ShipController); off = held, the default.</summary>
+        public static bool BoostToggle { get => GetBool("boostToggle", false); set => SetBool("boostToggle", value); }
+        /// <summary>Remake (2026-11-02): running into a station, gate, freighter or asteroid costs hull by the speed of the
+        /// impact, after EVERSPACE 2's collision damage (PlayerCollision); off = the original's rules (asteroids 20, the
+        /// rest none).</summary>
+        public static bool CollisionDamage { get => GetBool("collisionDamage", false); set => SetBool("collisionDamage", value); }
         /// <summary>Remake (desktop): no sound while the window isn't focused (Bootstrap; the volume, not AudioListener.pause,
         /// which the pause menu uses).</summary>
         public static bool MuteInBackground { get => GetBool("muteInBackground", false); set => SetBool("muteInBackground", value); }
@@ -806,15 +821,13 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] ControlsKeys =
         {
-            "tiltSteering", "tiltSensitivity", "sensitivity", "keyAutofire", "levelPitch", "invertPitch", "invertYaw", "invertDrillY",
+            "tiltSteering", "tiltSensitivity", "sensitivity", "keyAutofire", "levelPitch", "autoRoll", "boostToggle", "invertPitch", "invertYaw", "invertDrillY",
             "invertDrillX", "invertOrbitY", "invertOrbitX", "gyroSteering", "gyroSensitivity", "mouseSteering", "mouseDeadzone", "mouseSensitivity", "vrGrabControls", "haptics", "stickDeadzone",
             "touchLeftHeight", "touchRightHeight", "floatingTouchStick", "flightStyle", "padGlyphs",
         };
         public static readonly string[] GameplayKeys =
         {
-            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule",
-            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "inputHints", "hudMode", "hudScale", "hudOpacity", "discordPresence",
-            "farShipMarkers", "markerDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
+            "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
             "speedrunPosition", "speedrunLiveSplit",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };

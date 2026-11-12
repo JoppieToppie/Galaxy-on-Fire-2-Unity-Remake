@@ -182,6 +182,7 @@ namespace GoF2Remake.UI
             Session.RouteSafest = result.safestRoute;
             Session.InstantJump = result.instantJump;
             Session.EnergyCellsForNextJump = result.instantJump ? result.cells : 0;
+            Session.SlipstreamDeparture = Session.SlipstreamAutopilot = result.slipstream;   // remake: out, then the Khador Slipstream
             if (RefuseLaunchForStory()) return;
             level.Launch();
         }

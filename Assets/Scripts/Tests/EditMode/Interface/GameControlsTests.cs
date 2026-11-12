@@ -55,12 +55,13 @@ namespace GoF2Remake.Tests
             "screenshot", "hudToggle", "multiplayerWindow", "distressCall",
             "thrust", "strafe", "hover", "dampeners", "freeLookHold",   // free flight (PR #87)
             "device1", "device2", "device3",   // the active devices (PlayerDevices)
+            "headlights",   // EVERSPACE 2's headlights (Flight.Headlights)
         };
 
         [Test]
-        public void ThereAreFortyTwoFlightRows()
+        public void ThereAreFortyThreeFlightRows()
         {
-            Assert.AreEqual(42, GameControls.Rows.Count);
+            Assert.AreEqual(43, GameControls.Rows.Count);
             CollectionAssert.AreEqual(RowIds, GameControls.Rows.Select(r => r.id).ToArray(), "in the options' order (the overrides are kept by action name)");
             foreach (var r in GameControls.Rows)
             {

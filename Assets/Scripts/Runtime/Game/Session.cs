@@ -428,6 +428,13 @@ namespace GoF2Remake.Data
         /// <summary>Remake: the alien orbit's arrival point (game units) its approach was built around (World.InterstellarField):
         /// the orbit draws it at random (OrbitLayout landmark 2), so the arrival takes this one. Read once by SpaceLevel.</summary>
         public static Vector3? WarpArrivalPoint;
+        /// <summary>Remake: an encounter that pulled the ship out of the slipstream at the nearest system (Flight.CruiseEncounters
+        /// .Between): it comes in that orbit once the arrival's warp has ended (NavigationCruiseDrive). Read once, never saved.</summary>
+        public static GoF2Remake.Flight.CruiseEncounters.Entry CarriedEncounter;
+        /// <summary>Remake: the station's map sent the ship by the Khador Slipstream (StarMapResult.slipstream): once out in the
+        /// orbit the drive opens (World.SystemJump, as an instant jump's charge waits); then, between the systems, the autopilot
+        /// takes the programmed destination's system (Flight.Navigation). Read once each, never saved.</summary>
+        public static bool SlipstreamDeparture, SlipstreamAutopilot;
 
         /// <summary>Status+0x1dc (Status::jumpgateUsed).</summary>
         public static int JumpgatesUsed;
@@ -642,6 +649,8 @@ namespace GoF2Remake.Data
             RiftEntry = false;
             WarpView = Vector3.zero;
             WarpArrivalPoint = null;
+            CarriedEncounter = null;
+            SlipstreamDeparture = SlipstreamAutopilot = false;
             JumpgatesUsed = 0;
             Standing = new[] { 30, 0 };
             ModRaceStanding = new Dictionary<string, int>(System.StringComparer.Ordinal);

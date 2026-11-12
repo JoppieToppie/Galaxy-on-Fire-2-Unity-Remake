@@ -55,10 +55,11 @@ namespace GoF2Remake.World
             // Turned and fired at a spot on the target's model (AimAt); the break-off range measured to its centre.
             var aimPos = attacking && !followingWaypoint && target != null ? AimAt(target, dtMs) : targetPos;
             var dir = aimPos - transform.position;
+            if (RoleFlees) dir = transform.position - FleeFrom.transform.position;   // (remake: a loot drone runs, NpcShipRoles)
             // PlayerFighter::update's fly state: the player docked at an object (PlayerEgo::isDockedToDockingPoint) is circled
             // at +-12000 instead of +-8000, and not fired at while it is above the ship (0xf2cfa).
             bool dockedPlayer = target != null && target.isPlayer && ObjectDocking.PlayerDocked;
-            if (target != null && !followingWaypoint)
+            if (target != null && !followingWaypoint && RoleBreaksOff)   // (remake: a detonator flies into it, NpcShipRoles)
             {
                 float r = (dockedPlayer ? 12000f : NpcTables.BreakOffRange) * M;
                 var toCentre = targetPos - transform.position;
@@ -71,10 +72,10 @@ namespace GoF2Remake.World
             if (attacking && !followingWaypoint && target != null)
             {
                 if (target.untargetable || target.cloaked) attacking = false;   // a cloaked ship: chased, never fired at
-                else
+                else if (RoleFires)   // (remake: the support drones and the detonator hold their guns, NpcShipRoles)
                 {
                     var d = aimPos - transform.position;
-                    float fr = NpcTables.FireRange * M;
+                    float fr = NpcTables.FireRange * M * RoleRangeFactor;   // (remake: a sniper's reach)
                     if (Mathf.Abs(local.x) < NpcTables.FireCone && Mathf.Abs(local.y) < NpcTables.FireCone
                         && Mathf.Abs(d.x) < fr && Mathf.Abs(d.y) < fr && Mathf.Abs(d.z) < fr)
                     {

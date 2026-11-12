@@ -188,6 +188,13 @@ namespace GoF2Remake.Flight
         public const int ShieldBypassAttr = 161, SlowMsAttr = 162, SlowPercentAttr = 163;
         /// <summary>Remake mods: a hit slows the ship for slowMs to slowFactor of its speed (0 = none).</summary>
         [System.NonSerialized] public float slowMs, slowFactor = 1f;
+        /// <summary>Remake mods (2026-11-02, EVERSPACE 2's weapon debuffs; Flight.Debuffs): 167 slowFreeze (the slow also stops the
+        /// ship turning: ES2's Frozen, "controls disabled"), 168 dotDamage / 169 dotMs (damage every 0.95 s for that long, past
+        /// the shield: Corrosion, Infested), 170 vulnerablePercent / 171 vulnerableMs (every hit the ship takes x (1 + % / 100)
+        /// for that long, stacking: Destabilized).</summary>
+        public const int SlowFreezeAttr = 167, DotDamageAttr = 168, DotMsAttr = 169, VulnerablePercentAttr = 170, VulnerableMsAttr = 171;
+        [System.NonSerialized] public bool slowFreeze;
+        [System.NonSerialized] public float dotDamage, dotMs, vulnerablePercent, vulnerableMs;
 
         public static float ShieldFactor(ItemData item)
         {
@@ -211,6 +218,11 @@ namespace GoF2Remake.Flight
             shieldFactor = ShieldFactor(item);
             slowMs = Mathf.Max(0, item.Attr(SlowMsAttr));
             slowFactor = Mathf.Clamp01(item.Attr(SlowPercentAttr, 50) / 100f);
+            slowFreeze = item.Attr(SlowFreezeAttr) > 0;
+            dotDamage = Mathf.Max(0, item.Attr(DotDamageAttr));
+            dotMs = Mathf.Max(0, item.Attr(DotMsAttr));
+            vulnerablePercent = Mathf.Max(0, item.Attr(VulnerablePercentAttr));
+            vulnerableMs = Mathf.Max(0, item.Attr(VulnerableMsAttr));
             echo = GunEcho.From(item);
             emp = item.Attr(10);
             reloadMs = Mathf.Max(1, item.Attr(11, 500));

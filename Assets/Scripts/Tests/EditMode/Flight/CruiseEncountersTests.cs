@@ -1,7 +1,8 @@
 // CruiseEncountersTests.cs
 // The cruise drive's encounter rules (Core/CruiseEncounters.cs; docs/notes/navigation.md "Cruise drive"): the weighted
 // pick, an entry's own conditions (rank, security, free play), the roll every 5 s of cruising at 10 % after the first 6 s,
-// the 90 s cooldown, at most 2 per orbit, the cruise clock reset when the drive stops. Expected numbers from the class's
+// the 90 s cooldown, at most 2 per orbit, the cruise clock reset when the drive stops; between the systems, where each pulls
+// the ship out of the slipstream (Between: deep space or the nearest system). Expected numbers from the class's
 // constants and its built-in table (pirates 30, trader 20, derelict 20, distress 20, flyby 10).
 
 using System.Collections.Generic;
@@ -133,6 +134,58 @@ namespace GoF2Remake.Tests
             c.Update(90000f, false, null, always);
             c.Update(6000f, true, null, always);
             Assert.AreEqual("a", c.Update(5000f, true, null, always).id);
+        }
+
+        [Test]
+        public void BetweenTheSystemsAnEncounterPullsTheShipOut()
+        {
+            var table = CruiseEncounters.BuiltIn();
+            CruiseEncounters.Entry Of(string id) => table.Find(e => e.id == id);
+            var space = CruiseEncounters.PullOut.InSpace;
+            var system = CruiseEncounters.PullOut.AtSystem;
+            Assert.AreEqual(space, CruiseEncounters.Between(Of(CruiseEncounters.Pirates), true, 0f), "an ambush in deep space");
+            Assert.AreEqual(space, CruiseEncounters.Between(Of(CruiseEncounters.Derelict), true, 0f));
+            Assert.AreEqual(space, CruiseEncounters.Between(Of(CruiseEncounters.Flyby), true, 0f));
+            Assert.AreEqual(system, CruiseEncounters.Between(Of(CruiseEncounters.Trader), true, 0.2f), "either: the nearest system");
+            Assert.AreEqual(space, CruiseEncounters.Between(Of(CruiseEncounters.Trader), true, 0.7f), "either: deep space");
+            Assert.AreEqual(space, CruiseEncounters.Between(Of(CruiseEncounters.Distress), false, 0.2f), "either, the system won't have it");
+            var quest = new CruiseEncounters.Entry { id = "q", kind = CruiseEncounters.Quest, quest = "g", interstellar = CruiseEncounters.InSpace };
+            Assert.AreEqual(system, CruiseEncounters.Between(quest, true, 0.9f), "a quest needs an orbit");
+            Assert.AreEqual(CruiseEncounters.PullOut.None, CruiseEncounters.Between(quest, false, 0f));
+            var atSystem = new CruiseEncounters.Entry { id = "s", kind = CruiseEncounters.Trader, interstellar = CruiseEncounters.AtSystem };
+            Assert.AreEqual(CruiseEncounters.PullOut.None, CruiseEncounters.Between(atSystem, false, 0f));
+            var never = new CruiseEncounters.Entry { id = "n", kind = CruiseEncounters.Pirates, interstellar = CruiseEncounters.Never };
+            Assert.AreEqual(CruiseEncounters.PullOut.None, CruiseEncounters.Between(never, true, 0f));
+        }
+
+        [Test]
+        public void ACarriedEncounterCountsAsTheOrbits()
+        {
+            var c = new CruiseEncounters(new List<CruiseEncounters.Entry> { E("a", 10) });
+            var always = Seq(0f);
+            c.Came();
+            Assert.AreEqual(1, c.Count);
+            c.Update(6000f, true, null, always);
+            Assert.IsNull(c.Update(5000f, true, null, always), "its cooldown runs");
+        }
+
+        [Test]
+        public void EverspaceTwosKindsAreForModsOnly()
+        {
+            foreach (var k in new[] { CruiseEncounters.Battle, CruiseEncounters.Trap, CruiseEncounters.Stash, CruiseEncounters.Depot, CruiseEncounters.HighRisk, CruiseEncounters.LootDrone })
+            {
+                CollectionAssert.Contains(CruiseEncounters.Kinds, k);
+                Assert.IsNull(CruiseEncounters.BuiltIn().Find(e => e.kind == k), k + ": not in the game's own table");
+                Assert.IsTrue(new CruiseEncounters.Entry { kind = k }.StopsTheDrive, k);
+            }
+        }
+
+        [Test]
+        public void ABattlePaysByRank()
+        {
+            Assert.AreEqual(1500, GoF2Remake.World.CruiseEncounterSpawner.BattlePay(0));
+            Assert.AreEqual(4500, GoF2Remake.World.CruiseEncounterSpawner.BattlePay(10));
+            Assert.IsFalse(GoF2Remake.World.EncounterWatch.AnyLeft(new List<GoF2Remake.World.NpcShip>()), "no raiders left: won");
         }
 
         [Test]

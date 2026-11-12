@@ -225,8 +225,16 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   flight, free flight or both. Items: attributes 110-121 (`ItemStats`): `flightScope` (110: 0 both, 1 original, 2 free) keeps
   the item's booster / Steering Nozzle attributes 25-28 to one style; % bonuses `topSpeed` / `turnRate` / `strafeSpeed` (both,
   111-113), `original*` (114-116), `free*` + `freeAcceleration` (117-120) and `freeBoostFactor` (121, x100, instead of the
-  booster's).
-  Ships (new or override): `flightStyle` and `flight` { topSpeed, turnRate, strafeSpeed, acceleration, boostFactor, original {},
+  booster's); `fullStopDamage` / `lowSpeedResistance` (138 / 139, both styles, 2026-11-02: EVERSPACE 2's ship passives from
+  `BP_Ship_Player`'s `TickItemEffects`: the primaries' damage x (1 + %) while the velocity is nearly zero
+  (`FlightModel.AtFullStop` / `WeaponDamageFactor`, `WeaponSystem.FlightDamageFactor`), the hits on the ship x (1 - %) once
+  it has flown at or below 30 m/s (3000 cm/s) for 1 s (ES2's 1 s timer; `FlightModel.DamageTakenFactor` ->
+  `Target.damageFactor` on the player's ship, set by `ShipController` each frame); both styles, so the original's throttle
+  at 0 counts as a full stop).
+  Mounts (2026-11-02): `slotType` 6 contrail point and 7 headlight fixture (EVERSPACE 2's `SKT_Contrail` / `SKT_HeadLight`
+  sockets, the ES2 importer writes them; `Modding.Es2Contrails` / `Es2Headlights`, see free-flight.md); `es2Engine.contrails`.
+  Ships (new or override): `flightStyle` and `flight` { topSpeed, turnRate, strafeSpeed, acceleration, boostFactor,
+  fullStopDamage, lowSpeedResistance, original {},
   free {} } (`ShipData.flightStyle` / `flightBoth` / `flightOriginal` / `flightFree`, non-serialized, set by
   `ModFlight.ApplyShip`). `Database.BuildFlightStats` fills `FlightStats.original` / `free` (`FlightTuning`: the style's
   booster, agility and summed `FlightBonus`; the ship's first, so an item's freeBoostFactor wins); `FlightModel.Configure`

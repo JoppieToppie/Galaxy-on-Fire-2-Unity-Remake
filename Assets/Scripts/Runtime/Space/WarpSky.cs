@@ -5,7 +5,8 @@
 // which makes the start and the end seamless; ships, planets and suns draw over it untouched. Between the systems (and easing
 // out of them) it takes after the Khador Drive's animation: that fx's vein web runs through it, and it leans to its ice blue;
 // a cruise in an orbit is the plain stretch. The web is a layer of its own (GoF2/WarpWeb), so the planets stay under it. Always
-// full between the systems; in an orbit it follows the cruise drive's ramp, and an arrival from between the systems eases out
+// full between the systems, but for an encounter that pulled the ship out (Navigation.OutOfSlipstream: it eases out over
+// Navigation.PullOutMs and comes back with the drive's ramp); in an orbit it follows the cruise drive's ramp, and an arrival from between the systems eases out
 // of it, the orbit's fog easing in and its planets growing to full size as it goes. The band images are the game's own
 // (Data.WarpBands) unless a mod's warp.json (Modding.ModWarp) replaces them; it plays a sound only if that mod gives one.
 
@@ -189,11 +190,13 @@ namespace GoF2Remake.Visuals
             return t;
         }
 
-        /// <summary>The warp's strength 0..1: always full between the systems, else the drive's ramp or the arrival's fade.</summary>
+        /// <summary>The warp's strength 0..1: always full between the systems unless an encounter pulled the ship out of the
+        /// slipstream (then it eases out, and back with the drive), else the drive's ramp or the arrival's fade.</summary>
         float Strength(float drive, float arriving)
         {
-            if (interstellar) return 1f;
-            float s = Mathf.Max(drive, arriving);
+            bool pulledOut = interstellar && nav != null && nav.OutOfSlipstream;
+            if (interstellar && !pulledOut) return 1f;
+            float s = Mathf.Max(drive, pulledOut ? nav.PullOut : arriving);
             return s * s * (3f - 2f * s);
         }
 
@@ -251,7 +254,7 @@ namespace GoF2Remake.Visuals
             bool cruising = nav != null && nav.DriveCruising;
             if (cruising && !wasCruising && enterClip != null && shot != null) shot.PlayOneShot(enterClip, Settings.SfxVolume);
             wasCruising = cruising;
-            if (loop != null) loop.volume = (interstellar ? Mathf.Lerp(IdleVolume, 1f, drive) : level) * Settings.SfxVolume;
+            if (loop != null) loop.volume = (interstellar && !(nav != null && nav.OutOfSlipstream) ? Mathf.Lerp(IdleVolume, 1f, drive) : level) * Settings.SfxVolume;
         }
 
         /// <summary>The light over everything, the one place that hides a load: a screen's worth of it from here, not the HUD's.</summary>

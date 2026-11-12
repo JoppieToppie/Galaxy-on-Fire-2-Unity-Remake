@@ -74,6 +74,15 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void AModMayUseEverspaceTwosKinds()
+        {
+            ModOn(@"[ { 'id': 'b', 'kind': 'battle' }, { 'id': 'h', 'kind': 'highrisk', 'ships': 3 }, { 'id': 'l', 'kind': 'lootdrone' } ]");
+            Assert.IsFalse(Installed(Mod).Broken, AllMessages(Installed(Mod)));
+            Assert.AreEqual(8, ModEncounters.All().Count);
+            Assert.AreEqual(3, ModEncounters.All().Find(e => e.kind == "highrisk").ships);
+        }
+
+        [Test]
         public void ABadKindBreaksTheMod()
         {
             ModOn(@"[ { 'id': 'x', 'kind': 'dragons' } ]");
@@ -105,6 +114,26 @@ namespace GoF2Remake.Tests
             var warnings = string.Join(" | ", Installed(Mod).Warnings);
             StringAssert.Contains("colour", warnings);
             StringAssert.Contains("nothing", warnings);
+        }
+
+        [Test]
+        public void InterstellarSaysWhereItPullsTheShipOut()
+        {
+            ModOn(@"[ { 'id': 'x', 'kind': 'trader', 'interstellar': 'System' }, { 'override': 'pirates', 'interstellar': 'never' } ]");
+            Assert.IsFalse(Installed(Mod).Broken, AllMessages(Installed(Mod)));
+            var all = ModEncounters.All();
+            Assert.AreEqual(CruiseEncounters.AtSystem, all.First(e => e.id == Mod + ":x").interstellar);
+            Assert.AreEqual(CruiseEncounters.Never, all.First(e => e.id == CruiseEncounters.Pirates).interstellar);
+            Assert.IsFalse(Installed(Mod).Warnings.Any(w => w.Contains("interstellar")), AllMessages(Installed(Mod)));
+        }
+
+        [Test]
+        public void InterstellarMustBeAPlace()
+        {
+            ModOn(@"[ { 'id': 'x', 'kind': 'flyby', 'interstellar': 'moon' } ]");
+            Assert.IsTrue(Installed(Mod).Broken);
+            StringAssert.Contains("interstellar", AllMessages(Installed(Mod)));
+            ModManager.SetEnabled(Mod, false);
         }
 
         [Test]

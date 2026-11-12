@@ -156,7 +156,8 @@ namespace GoF2Remake.World
         /// <summary>The warp holds everything: between the systems and until an arrival's has ended nobody fires or is hurt.</summary>
         /// <summary>How much of the HUD shows as the ship comes out of the Khador Slipstream's hole (Visuals.WarpSky).</summary>
         public float HudShown => warpSky != null ? warpSky.HudShown : 1f;
-        public bool WarpHolds => (Layout != null && Layout.interstellar) || (warpSky != null && warpSky.Arriving);
+        public bool WarpHolds => (Layout != null && Layout.interstellar && !(Navigation != null && Navigation.OutOfSlipstream && Navigation.PullOut <= 0f))
+                                 || (warpSky != null && warpSky.Arriving);   // remake: out of the slipstream, an encounter is met there
         /// <summary>The orbit's fog sprites; null between the systems.</summary>
         public SpaceDust Fog { get; private set; }
         public GameObject Station { get; private set; }
@@ -435,7 +436,7 @@ namespace GoF2Remake.World
             void OnTookOff()
             {
                 // the take-off's end, like the launch camera's: on to a programmed station (the map's destination)
-                if (Session.ProgrammedStation >= 0 && !Session.InstantJump) Navigation?.ContinueToProgrammedStation();
+                if (Session.ProgrammedStation >= 0 && !Session.InstantJump && !Session.SlipstreamDeparture) Navigation?.ContinueToProgrammedStation();
             }
             if (Es2 != null) Es2.TookOff += OnTookOff;
             foreach (var md in mobileDocks.Values) md.TookOff += OnTookOff;
@@ -470,6 +471,7 @@ namespace GoF2Remake.World
             Collision.wormholeHeld = () => WormholeHeld;
             Collision.wormholeNoPull = () => WormholeNoPull;
             VolatileCargo.Attach(Player.gameObject, db, Player);   // PlayerEgo+0x398: volatile goods, sound 35
+            Headlights.Attach(Player.gameObject);   // remake: EVERSPACE 2's headlights (the L key)
             // Modified: 42 in the Void (its 0xa0 mission targets this orbit, so it isn't a level mission here) builds its level
             // when the scene loads there (the mission select's 42, a save made in it): MainCampaignLevels.Build42. Reached from
             // 41 the level keeps 41's scene. Without it the arrival's wormhole, held open at 42, drew the player in for good.
@@ -506,9 +508,11 @@ namespace GoF2Remake.World
             Traffic.Setup(db, Layout, Health.Target, Station, ownPassive || (GoF2Remake.Data.NetSession.Active && !NetAuthority), Wormhole,
                           warpArrival && !missionHere && !GoF2Remake.Data.NetSession.Active);
             // Remake: a cruise drive's encounters (NavigationCruiseDrive, CruiseEncounterSpawner): only where the traffic is this
-            // player's own and nothing scripted runs (a multiplayer orbit another player runs rolls none).
-            Navigation.EncountersAllowed = !ownPassive && !(GoF2Remake.Data.NetSession.Active && !NetAuthority) && !prologue
-                                           && CruiseEncounterRules.Allowed(db, station, Layout.systemIndex, Layout.alienOrbit);
+            // player's own and nothing scripted runs (a multiplayer orbit another player runs rolls none); between the systems
+            // (single player only) they pull the ship out of the slipstream (CruiseEncounters.Between).
+            Navigation.EncountersAllowed = interstellar ? !GoF2Remake.Data.NetSession.Active
+                                           : !ownPassive && !(GoF2Remake.Data.NetSession.Active && !NetAuthority) && !prologue
+                                             && CruiseEncounterRules.Allowed(db, station, Layout.systemIndex, Layout.alienOrbit);
             Navigation.SpawnEncounter = (entry, at, forward) => CruiseEncounterSpawner.Spawn(this, entry, at, forward);
             Traffic.LaunchCameraRunning = () => !LaunchCameraOver;
             Traffic.RadarHidden = () => Cutscene;

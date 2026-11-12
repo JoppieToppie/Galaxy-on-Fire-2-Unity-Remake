@@ -39,10 +39,18 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(Device.DamagePercentAttr, ItemStats.IdOf("deviceDamagePercent"));
             Assert.AreEqual(Device.ChargeAttr, ItemStats.IdOf("deviceCharge"));
             Assert.AreEqual(Device.ConeAttr, ItemStats.IdOf("deviceConeDeg"));
+            Assert.AreEqual(Device.ConsumableAttr, ItemStats.IdOf("deviceConsumable"));
+            Assert.AreEqual(Device.AmmoAttr, ItemStats.IdOf("deviceAmmo"));
+            Assert.AreEqual(Device.Range2Attr, ItemStats.IdOf("deviceRange2"));
             Assert.AreEqual(Cloak.CooldownAttr, ItemStats.IdOf("cloakCooldownMs"));
             Assert.AreEqual(Gun.ShieldBypassAttr, ItemStats.IdOf("shieldBypass"));
             Assert.AreEqual(Gun.SlowMsAttr, ItemStats.IdOf("slowMs"));
             Assert.AreEqual(Gun.SlowPercentAttr, ItemStats.IdOf("slowPercent"));
+            Assert.AreEqual(Gun.SlowFreezeAttr, ItemStats.IdOf("slowFreeze"));
+            Assert.AreEqual(Gun.DotDamageAttr, ItemStats.IdOf("dotDamage"));
+            Assert.AreEqual(Gun.DotMsAttr, ItemStats.IdOf("dotMs"));
+            Assert.AreEqual(Gun.VulnerablePercentAttr, ItemStats.IdOf("vulnerablePercent"));
+            Assert.AreEqual(Gun.VulnerableMsAttr, ItemStats.IdOf("vulnerableMs"));
         }
 
         [Test]

@@ -13,7 +13,8 @@
 // parts already loaded; each docking loads a few more random builds' parts in the background (Warm). A boss hull ("traffic":
 // { "boss": true }, the GoF3 Ships mod's five GoF3 bosses) never flies as a fighter: the pirate bosses fly it instead
 // (PickBoss, at the same chance, up to MaxBossLength long). A capital ship or freighter ("traffic": { "capital": ... })
-// never flies as a fighter either (ModCapitalShips).
+// never flies as a fighter either (ModCapitalShips). Nor does a loot drone ("traffic": { "role": "lootDrone" }, Flight.NpcRoles):
+// the cruise drive's loot drone encounter flies it (PickLootDrone, World.CruiseEncounterSpawner).
 
 using System.Collections.Generic;
 using System.Linq;
@@ -75,6 +76,24 @@ namespace GoF2Remake.Modding
             return pool[pool.Count - 1].ship;
         }
 
+        static bool IsLootDrone(CustomShipData c) => Flight.NpcRoles.Parse(c.traffic?.role) == Flight.NpcRoles.Role.LootDrone;
+
+        /// <summary>One of the mods' loot drones (on, available, built, no longer than MaxLength) by its traffic weight; -1 = none.</summary>
+        public static int PickLootDrone()
+        {
+            var db = Database.Load();
+            var pool = new List<(int ship, float weight)>();
+            foreach (var c in CustomShips.All)
+            {
+                if (!IsLootDrone(c) || c.traffic.weight <= 0f || !CustomShips.Offered(c.index) || db.Ship(c.index) == null || !ModUnlocks.ShipAvailable(c.index)) continue;
+                float length = Length(c.index);
+                if (length > 0f && length <= MaxLength) pool.Add((c.index, c.traffic.weight));
+            }
+            float at = Random.value * pool.Sum(p => p.weight);
+            foreach (var (ship, weight) in pool) { if ((at -= weight) <= 0f) return ship; }
+            return pool.Count > 0 ? pool[pool.Count - 1].ship : -1;
+        }
+
         /// <summary>The mods' ships an NPC of 'race' may fly now, with their weights (a copy).</summary>
         public static List<(int ship, float weight)> Candidates(int race)
         {
@@ -103,6 +122,7 @@ namespace GoF2Remake.Modding
                 bool boss = c.traffic != null && c.traffic.boss;
                 if (boss != (key == BossKey)) continue;   // (a boss hull is never a fighter)
                 if (!string.IsNullOrEmpty(c.traffic?.capital)) continue;   // a capital ship or freighter (ModCapitalShips)
+                if (IsLootDrone(c)) continue;   // (PickLootDrone)
                 bool flies = boss || (c.traffic?.races != null && c.traffic.races.Length > 0 ? c.traffic.races.Any(r => Key(r) == key) : Key(c.race) == key);
                 if (!flies || !ModUnlocks.ShipAvailable(c.index)) continue;
                 float length = Length(c.index);

@@ -6,6 +6,13 @@
 // The effects (PlayerDevicesEffects): the EMP wave and shots (Target.SlowBy), the overcharger's shield spent as damage,
 // the strike charge's damage boost (WeaponSystem.DamageBoost, charged by PrimaryDamageDealt) and the deflector
 // (Target.Deflects). Damage goes through WeaponSystem.DeviceHit, so kills, standing and medals count as the player's.
+// Remake (2026-11-02): EVERSPACE 2's consumables as devices 8-12 (decompiled: BP_Consumable_SmokeBomb with
+// BP_SmokeBombFIeld and its SmokeScreen debuff, BP_Consumable_ArmorRepair, _NanoInjector, _SecondariesRestock,
+// _DeviceCharger; the ES2 importer's items): a consumable device (deviceConsumable) is one use per unit, its mounted stack's
+// amount the uses left (the hangar stacks bought ones like missiles), "{0}: {1} left" after each; the last use takes the
+// item off the ship. The sensor cloud hides the ship from the enemies while it flies inside it (Target.cloaked, as the
+// cloak does: no fire, missiles shaken off); the repairs and the restock are instant; the charger ends the other
+// devices' cooldowns.
 
 using System;
 using System.Collections.Generic;
@@ -25,6 +32,9 @@ namespace GoF2Remake.Flight
             public Device rules;
             /// <summary>The item's numbers (radius in game units, percentages as given).</summary>
             public int radius, growMs, slowPercent, shieldCost, damagePercent, coneDeg, damage, emp;
+            /// <summary>Remake: a consumable (one use per unit, deviceConsumable) and the restock's rounds (deviceAmmo).</summary>
+            public bool consumable;
+            public int ammo, range2;
             /// <summary>Available last frame: "{0} ready" when it turns true (the cooldown's end, the strike charge filled).</summary>
             public bool wasAvailable = true;
         }
@@ -77,12 +87,17 @@ namespace GoF2Remake.Flight
         void Add(ItemData it)
         {
             var type = Shop.DeviceType(it);
+            bool consumable = Shop.IsConsumableDevice(it);
             var e = new Entry
             {
                 item = it,
                 name = GameNames.Item(it.index),
-                rules = new Device(it.index, type, it.Attr(Device.DurationAttr), it.Attr(Device.CooldownAttr, Device.DefaultCooldownMs),
+                // (a consumable has no cooldown unless given one: its uses are the limit)
+                rules = new Device(it.index, type, it.Attr(Device.DurationAttr), it.Attr(Device.CooldownAttr, consumable ? 0 : Device.DefaultCooldownMs),
                                    type == Device.Type.StrikeCharge ? it.Attr(Device.ChargeAttr) : 0),
+                consumable = consumable,
+                ammo = it.Attr(Device.AmmoAttr),
+                range2 = it.Attr(Device.Range2Attr),
                 radius = it.Attr(Device.RadiusAttr),
                 growMs = it.Attr(Device.GrowAttr),
                 slowPercent = it.Attr(Device.SlowAttr, 25),
@@ -133,7 +148,29 @@ namespace GoF2Remake.Flight
             if (!CanFire(e)) return;
             if (!e.rules.TryFire()) return;
             Fire(e);
+            if (e.consumable) Spend(e);
         }
+
+        /// <summary>Remake: a consumable device's use spent from its mounted stack; the last one takes the item off the ship
+        /// (its run, if any, still ends on its own).</summary>
+        void Spend(Entry e)
+        {
+            var stack = Session.Equipment.Find(s => s.item == e.item.index);
+            if (stack == null) return;
+            stack.amount = Mathf.Max(0, stack.amount - 1);
+            if (stack.amount > 0)
+            {
+                Message?.Invoke(string.Format(Localization.Extra("deviceUsesLeft", "{0}: {1} left"), e.name, stack.amount));
+                return;
+            }
+            Message?.Invoke(string.Format(Localization.Extra("deviceUsedUp", "{0}: used up"), e.name));
+            Hangar.PinSlots(db, Session.Equipment);
+            Session.Equipment.Remove(stack);
+            if (!e.rules.Active) devices.Remove(e);
+            else spent.Add(e);   // dropped when its run ends (the sensor cloud)
+        }
+
+        readonly List<Entry> spent = new List<Entry>();
 
         /// <summary>A death, a cutscene or a jump: every running device stops and cools down.</summary>
         public void Cancel()
@@ -150,9 +187,14 @@ namespace GoF2Remake.Flight
                 var key = Keys[i]();
                 if (key != null && key.WasPressedThisFrame()) Use(i);
             }
-            foreach (var e in devices)
+            for (int i = devices.Count - 1; i >= 0; i--)
             {
-                if (e.rules.Update(dtMs, Cheats.NoEquipmentCooldown) == Device.Event.Ended) End(e);   // remake debug: no cooldown
+                var e = devices[i];
+                if (e.rules.Update(dtMs, Cheats.NoEquipmentCooldown) == Device.Event.Ended)   // remake debug: no cooldown
+                {
+                    End(e);
+                    if (spent.Remove(e)) { devices.RemoveAt(i); continue; }   // the last use of a consumable, now over
+                }
                 bool available = e.rules.Available;
                 if (available && !e.wasAvailable) Message?.Invoke(string.Format(Localization.Extra("deviceReady", "{0} ready"), e.name));
                 e.wasAvailable = available;

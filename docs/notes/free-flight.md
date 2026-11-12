@@ -80,3 +80,70 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   stopped in 1.48 s; the boost 209 / 306 / 320 m/s at +1 / +2 / +3 s, braking 33 m/s^2 after it; the heading turning
   153.1 deg/s (125 x sqrt(1.5), the square root of then; now 169); the mouse's yaw the offset's horizontal share of the radius x the top rate (94.1 / 55.6
   deg/s for 232 / 137 px of 377), nothing back in the dead zone.
+- **Auto-roll** (remake, 2026-11-02, Options > Controls "Auto-roll to the horizon (free flight)", `Settings.AutoRoll`, off by
+  default; `FlightModel.AutoRoll` / `AutoRollInput`, after EVERSPACE 2's `UShipMovementComponent::GenerateAutoRollInput`,
+  decompiled, with the numbers from the component's constructor named by the SDK dump's field layout: `MaxAutoRollInput`
+  0.15, `RollAngleThreshold` 15 deg, `RollAngleTolerance` 3 deg, `PitchAngleThreshold` 81 deg, `PitchInputThreshold` 0.9,
+  `EaseInTime` 2 s; ES2 turns it on per input device, a controller yes, keyboard and mouse no): in free flight, with no roll
+  held and no level-out running, the ship rolls itself toward the horizon with a roll input of at most 0.15 (a fifteenth of
+  the top roll rate, 19 deg/s at handling 100) once it leans past 15 deg, until it is within 3 deg; the input shrinks with
+  the lean below 15 deg; after the nose passes 81 deg or a pitch input beyond 0.9 it is held back and eases in again over
+  2 s (ES2's timer reset to `EaseInTime` on either). The decompiled routine's vector part didn't survive Ghidra (its matrix
+  math), so the bank is measured as `AutoLevelRoll` does (the right wing's drop against the horizon). The original flight
+  keeps its level-out. Tests `FreeFlightTests` (a 40 deg bank levelled within 3 deg, never faster than 0.15 of the roll
+  rate; off by default; the ease-in after a pitch).
+- **ES2 travel-mode flames** (2026-11-02): `EngineFlame.Travel` = the player's `FlightModel.CruiseVisual` into the flame
+  shader's `_Travel` (EVERSPACE 2's TravelMode custom primitive data 21: the flame 1 + 4 x longer and in `_TravelColor`,
+  lit whatever the thrust), so an ES2 kit's flames cruise as in ES2 (the cruise drive, the fast-forward cruise). The
+  cruise's wider view was already the boost's (`ChaseCamera`: `BoostVisualPercent` includes `CruiseVisual`).
+- **ES2 contrails** (2026-11-02, `Modding.Es2Contrails`, mounts of `slotType` 6 from the ES2 importer's `SKT_Contrail`
+  sockets): after `BP_ShipBase`'s `InitializeContrails` / `UpdateContrails` (P_Vehicle_Contrail attached at each socket with
+  its scale) and the emitter and material read out of the export and the shader dump (`es2_re/out/M_Vehicle_Contrail`):
+  opacity = the eased boost (`EngineFlame.Boost`, ES2's `EngineVFXBoostCurrent`) x MapRangeClamped(forward . velocity^, 0.7,
+  1, 0, 1) x min(socket scale, 1); a ribbon of particles born 50/s at the socket, staying where born, 80 cm wide (x the
+  scale), white, alpha 0.5 x the opacity, living the opacity in seconds (0.01 at least); the material (`GoF2/ModEs2Particle`
+  kind 5) fades it along and across (b / (1 + 3 (1 - b)), (a / (1 + 8 (1 - a)))^2), hides it within 24 cm of the camera
+  fading in over 20 m, and bars it (T_Pattern_Barcode_002 in ES2, the flame noise thresholded here). ES2 lights the ribbon
+  (volumetric per-vertex translucency); the remake's unlit blend takes a light grey (`Es2Contrails.Colour`, by eye). On every
+  ship with such mounts (NPCs too, as in ES2); `"es2Engine": { "contrails": false }` is ES2's `ContrailsEnabled`. Tests
+  `Es2ShipEffectsTests` (opacity, scale cap, life).
+- **ES2 headlights** (2026-11-02, `Flight.Headlights` on the player's ship, `Modding.Es2Headlights` on a mod ship's
+  `slotType` 7 mounts from `SKT_HeadLight`; Options > Controls "Headlights on / off", L, `GameControls.Headlights`;
+  `Settings.Headlights`, on by default as ES2's `bHeadlightsEnabled`): after `BP_Ship_Player`'s `HeadLight` (a spot light
+  inner 20 / outer 22 deg, reach 50 000 cm, falloff exponent 4, IES Star_Burst4, at X = the bounds' sphere radius, Z = -the
+  box extent: ahead of the nose, at the bottom) and `UpdateHeadLightBounce` (VFX quality 3+: a point light at the line
+  trace's hit along the headlight, soft source radius eased 4/s to sqrt((d / cos 22)^2 - d^2), reach 4 x that, position
+  eased 4/s, intensity eased 2/s to `CalculateLightIntensityFalloff(reach, 10, exponent 2)`, 4/s to 0 with no hit), and
+  `BP_PawnBase`'s `VFX_UpdateHeadlights` (a `BP_PawnHeadlight` child actor per `SKT_HeadLight` socket: a screen-sized lens
+  flare P_LensFlare_001 at Intensity = HeadlightsIntensity 1 / the socket count, a spot light that lights nothing; the
+  toggle sets the pawn meshes' "Headlight" material scalar). Here: the spot light's cone and reach (x the kit's scale), URP
+  intensities as tunables (`Headlights.Intensity` 3000, `BounceGain` 40: set headless, not matched by eye yet), the bounce
+  ray against the hull colliders (`HullCollision.HullMask`; the asteroids' cubes have none), the falloff as Unreal's radial
+  attenuation base x (1 - (d / reach)^2)^exponent (the LIB blueprint isn't dumped), flares as `GoF2/ModEs2Particle` kind 6
+  (a fixed share 0.02 of the screen height) and the "Headlight" materials' emission off through property blocks. Off
+  while docked and once dead. Tests `Es2ShipEffectsTests` (cone radius, falloff, InterpTo, the flare share, the defaults),
+  `GameControlsTests` (43 rows).
+- **ES2 collision damage** (2026-11-02, Options > Gameplay "Collision damage", `Settings.CollisionDamage`, off by default;
+  `PlayerCollision.CollisionDamage` / `Ram`): after `BP_CollisionDamageComponent`'s hit graph (on every ES2 ship; the
+  player's `CollisionDamageFactor` attribute 1): strength = |NormalImpulse| / mass / DamagePercentageDivisor 50 000 (the
+  speed lost into the surface, cm/s, over 50 000); from MinDamagePercent 0.01 (5 m/s) and outside the 0.5 s
+  GracePeriodDuration: damage = strength^1.5 x the ship's MaxHitpoints x DamageMultiplier 1 x the factor, dealt as a point hit
+  (Kinetic half, Energy third); the camera shake scaled by strength x 10 and the scraping sound by strength / 0.02 aren't
+  taken (the remake keeps the original's knock). Here the speed into the surface is the ship's velocity (free flight's own,
+  the original's along the nose) against the push-out normal of a landmark's volume or a hull, or toward an asteroid's
+  centre (which then costs this instead of the original's 20 and is still destroyed), and the maximum is the hull's and
+  the armour's; 3 % of it at 50 m/s, a quarter at 200 m/s, all at 500 m/s. Tests `Es2ShipEffectsTests` (the threshold, the
+  exponent, the full hull at strength 1).
+- **ES2 boost feel** (2026-11-02; decompiled `UShipMovementComponent::StartBoosting` / `StopBoosting` / `TickComponent` /
+  `ChangeBoostEnergy`, `AESPawn::StartBoosting`, `AESPlayerController::InputStartBoosting` / `InputStopBoosting`,
+  `UESGameUserSettings::GetBoostAsToggle`, in `es2_re/ghidra/boost.c` / `boost2.c`): a boost on an empty pool is refused
+  silently (StartBoosting returns when the energy is at 0, bUseEnergyForBoost and BoostEnergyConsumption > 0); the boost
+  that runs dry is stopped by the tick, its energy set to 0, and `TryToBoostWithEnergyDepletedSound` plays (the remake:
+  `FlightModel.BoostRanDry` the frame the pool empties, `PlayerEngine` plays a mod ship's "boostDepleted" sound beside
+  `boostStop`; the ES2 importer writes ES2's cue as it). The boost-as-toggle setting (per device in ES2: a press while
+  boosting stops, else starts): Options > Controls "Boost is a toggle (free flight)", `Settings.BoostToggle`, off by
+  default; `ShipController.BoostInput` latches a press only when `FlightModel.CanStartBoost`, and a boost that ran dry
+  unlatches. Not taken: `BoostRechargeDelay` (the timer StopBoosting sets before the regeneration resumes: no nonzero
+  default found in the blueprint or the constructor dump, the remake refills at once). The "momentum on boost stop" of the
+  candidate list is a legendary thruster's buildup condition (`BP_Condition_Buildup_Momentum`), an item perk, not flight.
+  Landing gear: ES2's ships have none (no gear assets or animations; the landing dust is `Es2Dock`'s already).
