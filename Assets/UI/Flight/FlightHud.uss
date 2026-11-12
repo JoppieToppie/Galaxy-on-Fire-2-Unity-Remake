@@ -54,6 +54,82 @@
     bottom: 0;
 }
 
+/* Remake, free flight on touch (TouchControlsFreeFlight): the aim's floating ring and dot, the up / down / dampeners column. */
+.touch-aim-ring {
+    border-width: 3px;
+    border-color: rgba(120, 220, 255, 0.35);
+    border-radius: 140px;   /* TouchControls.AimRadius */
+}
+
+.touch-aim-dot {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    background-color: rgba(120, 220, 255, 0.45);
+}
+
+.touch-free-button {
+    width: 96px;
+    height: 96px;
+    border-radius: 48px;
+    border-width: 3px;
+    border-color: rgba(120, 220, 255, 0.7);
+    background-color: rgba(0, 0, 0, 0.35);
+    align-items: center;
+    justify-content: center;
+}
+
+.touch-free-button--held {
+    background-color: rgba(120, 220, 255, 0.3);
+    border-color: var(--gof-amber);
+}
+
+/* A chevron: a square's top and left edges, turned. */
+.touch-free-chevron {
+    width: 26px;
+    height: 26px;
+    border-top-width: 5px;
+    border-left-width: 5px;
+    border-color: rgb(225, 240, 250);
+}
+
+.touch-free-chevron--up {
+    rotate: 45deg;
+    translate: 0 6px;
+}
+
+.touch-free-chevron--down {
+    rotate: 225deg;
+    translate: 0 -6px;
+}
+
+.touch-damp {
+    width: 150px;
+    height: 60px;
+    border-radius: 30px;
+    border-width: 3px;
+    border-color: rgba(120, 220, 255, 0.7);
+    background-color: rgba(0, 0, 0, 0.35);
+    align-items: center;
+    justify-content: center;
+}
+
+.touch-damp-text {
+    font-size: 19px;
+    color: rgb(150, 170, 185);
+    -unity-text-align: middle-center;
+    padding: 0;
+    margin: 0;
+}
+
+.touch-damp--on {
+    border-color: var(--gof-amber);
+}
+
+.touch-damp--on .touch-damp-text {
+    color: var(--gof-amber);
+}
+
 /* Hud::updateSecondaryWeaponString on the plate 0x4c2: "<name> (<n>)" centred, its top at h - 32. */
 /* Centred on the plate below its top frame line (rows 0-2 of the 37 px image; the plate stands on the screen edge). The
    body-size text of the interface rework sat at the top with the empty half of the plate under it. */

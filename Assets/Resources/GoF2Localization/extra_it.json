@@ -3378,5 +3378,6 @@
  "musicTrackSpecialHelp": "Disattivo: questo brano non suona più; al suo posto suona la solita musica di battaglia.",
  "hackCrateEjected": "Container di carico espulso. Usa il raggio traente per controllarne il contenuto.",
  "dialogueHighlights": "Evidenziazioni nei dialoghi",
- "dialogueHighlightsHelp": "Nei dialoghi animati: nomi, luoghi, navi, oggetti e razze a colori, con icone davanti (crediti, emblemi delle razze, icone degli oggetti). Disattivato: testo semplice."
+ "dialogueHighlightsHelp": "Nei dialoghi animati: nomi, luoghi, navi, oggetti e razze a colori, con icone davanti (crediti, emblemi delle razze, icone degli oggetti). Disattivato: testo semplice.",
+ "flightStyleTouchHelp": "Touch: lo stick dà spinta e sposta di lato, trascinare sullo schermo (o sul pulsante di fuoco tenuto premuto) mira, i pulsanti accanto allo stick salgono, scendono e attivano gli smorzatori; la nave si raddrizza da sola."
 }

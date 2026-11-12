@@ -3378,5 +3378,6 @@
  "musicTrackSpecialHelp": "Wył.: ten utwór już nie gra; zamiast niego gra zwykła muzyka walki.",
  "hackCrateEjected": "Wyrzucono kontener ładunkowy. Użyj promienia ściągającego, aby sprawdzić jego zawartość.",
  "dialogueHighlights": "Wyróżnienia w dialogach",
- "dialogueHighlightsHelp": "W animowanych dialogach: imiona, miejsca, statki, przedmioty i rasy w kolorze, z ikonami przed nimi (kredyty, godła ras, ikony przedmiotów). Wyłączone: zwykły tekst."
+ "dialogueHighlightsHelp": "W animowanych dialogach: imiona, miejsca, statki, przedmioty i rasy w kolorze, z ikonami przed nimi (kredyty, godła ras, ikony przedmiotów). Wyłączone: zwykły tekst.",
+ "flightStyleTouchHelp": "Dotyk: drążek daje ciąg i przesuwa w bok, przeciąganie po ekranie (lub po przytrzymanym przycisku ognia) celuje, przyciski obok drążka wznoszą, opuszczają i przełączają tłumiki; statek sam wyrównuje przechył."
 }

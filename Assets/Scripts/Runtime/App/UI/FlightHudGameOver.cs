@@ -207,7 +207,7 @@ namespace GoF2Remake.UI
             if (level == null || level.DockedInOrbit || pauseMenu.IsOpen || (health != null && health.Dead) || StarMap.IsOpen || storyDialogue.IsOpen) return;
             if (nav != null && nav.MenuOpen) CloseAutopilotMenu();
             touch?.ReleaseAll();
-            ship?.SetSteer(Vector2.zero);
+            ship?.SetSteer(Vector2.zero); ship?.SetTouchFree(Vector2.zero, 0f, false);
             weapons?.SetPrimaryHeld(false);
             pauseMenu.Open(level);
         }

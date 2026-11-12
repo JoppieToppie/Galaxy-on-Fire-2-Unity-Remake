@@ -3378,5 +3378,6 @@
  "musicTrackSpecialHelp": "Desligado: esta faixa não toca mais; toca a música de combate habitual no lugar.",
  "hackCrateEjected": "Contêiner de carga ejetado. Use o raio trator para verificar o conteúdo.",
  "dialogueHighlights": "Destaques nos diálogos",
- "dialogueHighlightsHelp": "Nos diálogos animados: nomes, lugares, naves, itens e raças coloridos, com ícones antes deles (créditos, emblemas das raças, ícones dos itens). Desligado: texto simples."
+ "dialogueHighlightsHelp": "Nos diálogos animados: nomes, lugares, naves, itens e raças coloridos, com ícones antes deles (créditos, emblemas das raças, ícones dos itens). Desligado: texto simples.",
+ "flightStyleTouchHelp": "Toque: o stick dá impulso e desloca para o lado, arrastar no ecrã (ou no botão de disparo premido) aponta, os botões ao lado do stick sobem, descem e ligam os amortecedores; a nave nivela-se sozinha."
 }

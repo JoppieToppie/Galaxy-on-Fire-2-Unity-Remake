@@ -3378,5 +3378,6 @@
  "musicTrackSpecialHelp": "Désactivé : ce morceau ne joue plus ; la musique de combat habituelle le remplace.",
  "hackCrateEjected": "Conteneur de fret éjecté. Utilise le rayon tracteur pour vérifier son contenu.",
  "dialogueHighlights": "Mise en valeur des dialogues",
- "dialogueHighlightsHelp": "Dans les dialogues animés : noms, lieux, vaisseaux, objets et races en couleur, précédés d'icônes (crédits, emblèmes des races, icônes des objets). Désactivé : texte simple."
+ "dialogueHighlightsHelp": "Dans les dialogues animés : noms, lieux, vaisseaux, objets et races en couleur, précédés d'icônes (crédits, emblèmes des races, icônes des objets). Désactivé : texte simple.",
+ "flightStyleTouchHelp": "Tactile : le stick pousse et se déplace latéralement, glisser sur l'écran (ou sur le bouton de tir maintenu) vise, les boutons à côté du stick montent, descendent et basculent les amortisseurs ; le vaisseau se remet à l'horizontale tout seul."
 }

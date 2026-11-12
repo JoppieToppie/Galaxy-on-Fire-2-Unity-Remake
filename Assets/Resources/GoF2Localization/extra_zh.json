@@ -3378,5 +3378,6 @@
  "musicTrackSpecialHelp": "关闭：不再播放此曲目，改为播放常规战斗音乐。",
  "hackCrateEjected": "货物集装箱已弹出。使用牵引光束查看其内容。",
  "dialogueHighlights": "对话高亮",
- "dialogueHighlightsHelp": "动画对话中，人名、地点、飞船、物品和种族带颜色，前面带图标（信用点、种族徽章、物品图标）。关闭时：普通文字。"
+ "dialogueHighlightsHelp": "动画对话中，人名、地点、飞船、物品和种族带颜色，前面带图标（信用点、种族徽章、物品图标）。关闭时：普通文字。",
+ "flightStyleTouchHelp": "触屏：摇杆控制推进和横移，在屏幕上拖动（或按住开火按钮拖动）瞄准，摇杆旁的按钮用于上升、下降和切换阻尼器；飞船会自动回正。"
 }

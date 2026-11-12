@@ -3378,5 +3378,6 @@
  "musicTrackSpecialHelp": "Desactivado: esta pista ya no suena; en su lugar suena la música de combate habitual.",
  "hackCrateEjected": "Contenedor de carga expulsado. Usa el rayo tractor para comprobar su contenido.",
  "dialogueHighlights": "Resaltado en los diálogos",
- "dialogueHighlightsHelp": "En los diálogos animados: nombres, lugares, naves, objetos y razas en color, con iconos delante (créditos, emblemas de las razas, iconos de objetos). Desactivado: texto simple."
+ "dialogueHighlightsHelp": "En los diálogos animados: nombres, lugares, naves, objetos y razas en color, con iconos delante (créditos, emblemas de las razas, iconos de objetos). Desactivado: texto simple.",
+ "flightStyleTouchHelp": "Táctil: el stick impulsa y desplaza lateralmente, arrastrar por la pantalla (o sobre el botón de disparo pulsado) apunta, los botones junto al stick suben, bajan y conmutan los amortiguadores; la nave se nivela sola."
 }
