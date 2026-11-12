@@ -113,6 +113,9 @@ namespace GoF2Remake.World
         }
 
         public void FreeMissionLock() => missionLock = false;
+        /// <summary>Modified: once shrunk it stays gone instead of reopening elsewhere (Relocate): 42's, behind the player as
+        /// the mother ship explodes (another one opened in view, a player's report).</summary>
+        [System.NonSerialized] public bool closeForGood;
 
         /// <summary>The pull's loop sound (calcCollision): on while the player is inside the 40000 radius.</summary>
         public void SetSound(bool on)
@@ -139,7 +142,7 @@ namespace GoF2Remake.World
                 scale = 4096 - (int)((timer - OpenMs) / (float)ShrinkMs * 4096f);
                 if (timer > OpenMs + ShrinkMs)
                 {
-                    if (held || (!alienOrbit && !attackedStation)) { SetVisible(false); return; }
+                    if (held || closeForGood || (!alienOrbit && !attackedStation)) { SetVisible(false); return; }
                     if (missionLock && index == 42 && !alienOrbit) { SetVisible(false); return; }
                     Relocate(index);
                 }

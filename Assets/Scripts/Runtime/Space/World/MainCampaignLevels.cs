@@ -32,6 +32,7 @@
 // the station when that point is inside it), the
 // index-26 pursuers 10000 behind (where the arrival wormhole sits), the cutscene camera offsets of 24 / 29 / 40 / 41.
 
+using System.Collections.Generic;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using GoF2Remake.Visuals;
@@ -758,6 +759,10 @@ namespace GoF2Remake.World
 
         // 42 on 41's level: the mother ship's end and the escape (M42).
         CycleSound mothership;
+        /// <summary>Modified: the explosion camera's drift (game units per ms), straight away from what it looks at; that point
+        /// and the camera's first distance to it (the shake grows with the distance).</summary>
+        Vector3 explosionDolly, explosionLook;
+        float explosionLookDistance = 1f;
 
         void Tick42(float dtMs)
         {
@@ -790,30 +795,40 @@ namespace GoF2Remake.World
                         var station = level.Station != null ? level.Station.transform.position : Vector3.zero;
                         var look = station + Player.position.normalized * 5000f * M;
                         cam.LookAtUnity(Player.position, null, look);
+                        // Modified: the camera only backs away from the mother ship, straight along its line of sight (a
+                        // player's comparison with the original): the dolly along game x carried it sideways round the
+                        // point it looks at, so the station seemed to turn before the camera drew off.
+                        var away = (Player.position - look).normalized;
+                        explosionDolly = new Vector3(away.x, away.y, -away.z) * 18f;
+                        explosionLook = look;
+                        explosionLookDistance = Mathf.Max(1f, (Player.position - look).magnitude);
                         Hole?.FreeMissionLock();
                         // Remake (#46): it closes behind the player (reset(true): shrinking after 1 s); reset(false) opened
                         // it for another minute, still there as the mother ship blew up.
                         Hole?.ResetTimer(true);
+                        if (Hole != null) Hole.closeForGood = true;   // Modified: no other one opens after it (Relocate)
                         Sfx.PlayAt(assets?.mothershipCutscene, Player.position);   // 154
                         SpawnExplosion(station);
                         Step = 7;
                     }
                     break;
                 case 7:
-                    cam.Rumble = 1f;
-                    cam.SetDolly(new Vector3(-18f, 0f, 0f));
+                    // Modified: the shake lasts as long as the explosion's animation (a player's request; it went on to the fade).
+                    cam.Rumble = stepMs < explosionMs ? 1f : 0f;
+                    // The jitter moves the point looked at (50 units): as the camera backs away it shrank to nothing on screen
+                    // (a player's report); grown with the distance it shakes the same throughout.
+                    if (cam.Camera != null)
+                        cam.RumbleAmplitude = Mathf.RoundToInt(50f * Mathf.Max(1f, (cam.Camera.position - explosionLook).magnitude / explosionLookDistance));
+                    cam.SetDolly(explosionDolly);
                     // The second and third explosion meshes (+0xb0 / +0xb4) face the camera's direction every frame.
                     if (explosion != null && cam.Camera != null)
                         for (int i = 1; i < explosion.Length && i <= 2; i++)
                             if (explosion[i] != null) explosion[i].transform.rotation = Quaternion.LookRotation(cam.Camera.forward, Vector3.up);
-                    if (stepMs >= 4000f && level.Station != null && level.Station.activeSelf)
-                    {
-                        level.Station.SetActive(false);
-                        // Remake (#46): Errkt's freighter (or its wreck) lies on the mother ship's arm: it goes with it (it hung
-                        // in empty space after the station vanished when the player hadn't finished him).
-                        var errkt = S(0);
-                        if (errkt != null) { errkt.Deactivate(); errkt.gameObject.SetActive(false); }
-                    }
+                    // Modified (a player's request): the mother ship, Errkt's freighter (or its wreck), any wreck left there and the
+                    // asteroid field shrink into the blast with its white ball (explosion_void_station_add_lookat: 195x at 4.5 s,
+                    // nothing at 6 s), and every ship still flying explodes as it starts; the original hides the station at 4 s.
+                    if (stepMs >= ShrinkFromMs && shrinking == null) BeginShrink();
+                    if (shrinking != null && shrinkLeft) UpdateShrink(Mathf.InverseLerp(ShrinkFromMs, ShrinkToMs, stepMs));
                     if (stepMs >= 15000f)
                     {
                         // this+0xa8 cleared: the explosion meshes stop animating (frozen) and the fade starts.
@@ -835,9 +850,95 @@ namespace GoF2Remake.World
             }
         }
 
+        /// <summary>Modified: when the blast's white ball shrinks (explosion_void_station_add_lookat part 0's keys).</summary>
+        const float ShrinkFromMs = 4500f, ShrinkToMs = 6000f;
+        /// <summary>Modified: what shrinks into the blast, with its pose at the start; the blast's centre; still shrinking.</summary>
+        List<(Transform t, Vector3 position, Vector3 scale)> shrinking;
+        Vector3 shrinkCentre;
+        bool shrinkLeft;
+        /// <summary>Modified: the explosion meshes' longest animation (ms): the camera shakes until it ends.</summary>
+        float explosionMs = 15000f;
+
+        void BeginShrink()
+        {
+            shrinking = new List<(Transform, Vector3, Vector3)>();
+            shrinkLeft = true;
+            shrinkCentre = level.Station != null ? level.Station.transform.position : Vector3.zero;
+            // Into the white ball itself (explosion_void_station_add_lookat, its part off the mesh's origin): the station's
+            // pivot drew them beside it (a player's report).
+            if (explosion != null && explosion.Length > 1 && explosion[1] != null)
+            {
+                bool any = false;
+                var b = new Bounds();
+                foreach (var r in explosion[1].GetComponentsInChildren<Renderer>())
+                {
+                    if (!r.enabled || !r.gameObject.activeInHierarchy) continue;
+                    if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds);
+                }
+                if (any) shrinkCentre = b.center;
+            }
+            void Add(Transform t) { if (t != null && t.gameObject.activeInHierarchy) shrinking.Add((t, t.position, t.localScale)); }
+            if (level.Station != null) Add(level.Station.transform);
+            var errkt = S(0);
+            if (errkt != null) { errkt.Deactivate(); Add(errkt.transform); }
+            foreach (var npc in Object.FindObjectsByType<NpcShip>())
+            {
+                if (npc == null || npc == errkt || npc.Gone) continue;
+                if (npc.Target != null && npc.Target.Alive) npc.Target.Damage(9999999f, true, Vector3.zero);
+                else if (npc.IsFreighter || npc.IsFixed) { npc.Deactivate(); Add(npc.transform); }   // a wreck left there
+            }
+            if (level.Asteroids != null) Add(level.Asteroids);
+        }
+
+        /// <summary>'k' 0..1: each one drawn into the blast's centre and shrunk with it; gone at the end.</summary>
+        void UpdateShrink(float k)
+        {
+            float f = 1f - Mathf.Clamp01(k);
+            foreach (var (t, position, scale) in shrinking)
+            {
+                if (t == null) continue;
+                if (f <= 0f) { t.gameObject.SetActive(false); continue; }
+                t.position = shrinkCentre + (position - shrinkCentre) * f;
+                t.localScale = scale * f;
+            }
+            if (f <= 0f) shrinkLeft = false;
+        }
+
+        /// <summary>Modified (a player's request): the blast's white ball (explosion_void_station_add_lookat) drawn over
+        /// everything (GoF2/AdditiveOnTop: ZTest Always), even what stands between it and the camera; its look kept.</summary>
+        static void DrawOnTop(GameObject root)
+        {
+            var shader = Resources.Load<Shader>("GoF2Emissive/AdditiveOnTop");
+            if (shader == null) return;
+            int tex = Shader.PropertyToID("_MainTex"), col = Shader.PropertyToID("_Color"), glow = Shader.PropertyToID("_Glow"),
+                vc = Shader.PropertyToID("_UseVertexColor");
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    var m = mats[i];
+                    if (m == null) continue;
+                    var top = new Material(shader) { name = m.name + " (on top)" };
+                    if (m.HasProperty(tex))
+                    {
+                        top.SetTexture(tex, m.GetTexture(tex));
+                        top.SetTextureScale(tex, m.GetTextureScale(tex));
+                        top.SetTextureOffset(tex, m.GetTextureOffset(tex));
+                    }
+                    if (m.HasProperty(col)) top.SetColor(col, m.GetColor(col));
+                    if (m.HasProperty(glow)) top.SetFloat(glow, m.GetFloat(glow));
+                    if (m.HasProperty(vc)) top.SetFloat(vc, m.GetFloat(vc));
+                    mats[i] = top;
+                }
+                r.sharedMaterials = mats;
+            }
+        }
+
         void SpawnExplosion(Vector3 at)
         {
             if (assets == null || assets.voidStationExplosion == null) return;
+            explosionMs = 0f;
             explosion = new GameObject[assets.voidStationExplosion.Length];
             for (int i = 0; i < explosion.Length; i++)
             {
@@ -846,8 +947,10 @@ namespace GoF2Remake.World
                 explosion[i] = Object.Instantiate(prefab, at, Quaternion.identity);
                 GunRig.StripForFx(explosion[i]);
                 GunRig.EnableFades(explosion[i]);   // the parts' `extra` fade-out
-                PartAnimation.PlayOnce(explosion[i]);
+                if (i == 1) DrawOnTop(explosion[i]);
+                explosionMs = Mathf.Max(explosionMs, PartAnimation.PlayOnce(explosion[i]));
             }
+            if (explosionMs <= 0f) explosionMs = 15000f;
         }
     }
 }
