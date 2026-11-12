@@ -660,6 +660,19 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   warning: runtime Ogg Vorbis works on iOS; the textures cached as ETC2, the simulator offers no DXT) and its Sentinel
   flown; the browser names the folder as the Files app shows it on iOS (`ModBrowser.Shown`: "Files › On My iPhone › GoF2
   Remake › Mods", not the sandbox path); not yet run on an Android phone, Linux, macOS or UWP.
+- **Mods folder (Android)** (2026-11-12, a player's request: Android/data is out of the file managers' reach): the browser's
+  footer "Mods folder" picks a folder through `SaveFolderPicker` (the SAF tree picker, a persistable grant; one in use asks
+  to stop using it instead), kept as `ModManager.PickedFolder` (PlayerPrefs `mods_folder`). Mods can't load from a tree
+  (no plain paths), so its `Mods/` subfolder (made when missing) is copied one way into `persistentDataPath/ModsFolderCopy`
+  on every `Scan` (`SaveFolderActivity.mirror`: only files whose size / time changed, what the folder lost deleted), one
+  of `ModManager.Folders`; those mods' Delete is off (they'd come back) and their place shows as `<folder>/<file>`. Its
+  `ModProjects/` is synced both ways with the Mod Builder's projects (`SyncPickedProjects`, `SaveFolderActivity.sync`,
+  on the project list's Open and Close): against the last sync's size / time per file (`mod_projects_sync.tsv`, for that
+  tree only), changed on one side = copied, both or no past = the newer wins (the loser overwritten), gone on one side and
+  unchanged on the other = deleted there; empty folders removed on both sides. A failure leaves both sides as they are and
+  shows in the notes. Copies run on the main thread (the first copy of a big mod stalls the menu). The grant is let go on
+  "stop" unless it is the save folder's tree too (the save folder's own "This device only" lets a shared grant go).
+  Compiled for Android (javac against android.jar, the player scripts); not yet run on a phone.
 - **Multiplayer** (`NetMods`): the Host card's "Mods (N on)" Off / Allowed (`mp_allow_mods`, off by default; a dedicated
   server's `-allowmods` / `ALLOWMODS=1` = every usable mod in its Mods folders). Every session starts without mods
   (`PrepareSession` → `BeginClient`); the host's `BeginHost` sets `ModManager.BeginSession` and `NetMods.SessionList`

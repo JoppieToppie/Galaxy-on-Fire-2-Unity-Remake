@@ -6,7 +6,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 
 - **Mod Builder** (remake, experimental; every kind of content, see "Its other kinds" below): the main menu's Mods button opens a hub
   (`MainMenu.BuildModsHub`, `modsHubPanel`: Mod Browser / Mod Builder; Back from either returns to it). The projects page
-  (`ModBuilderProjects`, `modBuilderPanel`, styles `.mb-*` in MainMenu.uss): `persistentDataPath/ModProjects/<id>`
+  (`ModBuilderProjects`, `modBuilderPanel`, styles `.mb-*` in MainMenu.uss): `persistentDataPath/ModProjects/<id>` (Android: also synced with a picked folder, "Mods folder (Android)" in mods.md)
   (`Modding.ModProject`: a mod folder in the normal format, mod.json / ships.json / models / textures, plus builder.json
   (never exported): each ship's test loadout, the test cheats, the last ship), the field above the list both searches it
   (every word in the name, id, author or description) and names a new project (Create / Enter), each row with what it

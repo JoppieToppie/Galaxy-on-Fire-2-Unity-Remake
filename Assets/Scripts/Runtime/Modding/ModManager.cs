@@ -5,6 +5,7 @@
 //                                        reachable over USB; UWP: the package's LocalState/Mods)
 //   <the game's folder>/Mods             Windows / Linux / macOS players
 //   <the project>/Mods                   the Editor (git-ignored)
+//   persistentDataPath/ModsFolderCopy    Android: a copy of the Mods in the folder the player picked (PickedFolder)
 // Each mod is a folder or a .zip archive with a mod.json (ModManifest). The player turns mods on and off in
 // the main menu's mod browser (PlayerPrefs "mods_enabled": the ids in load order, one per line); new mods start off.
 // What is on is Active: the enabled, unbroken mods whose dependencies are on, in load order with dependencies first.
@@ -99,6 +100,7 @@ namespace GoF2Remake.Modding
             {
                 yield return UserFolder;
                 if (!string.IsNullOrEmpty(GoF2Remake.GamePaths.Override)) yield break;   // a test sandbox: its own folder only
+                if (PickedFolder.Length > 0) yield return PickedCopy;
 #if UNITY_EDITOR
                 yield return Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Mods"));
 #elif UNITY_STANDALONE
@@ -119,6 +121,7 @@ namespace GoF2Remake.Modding
         {
             if (installed != null) foreach (var m in installed) m.Release();
             installed = new List<ModInfo>();
+            CopyPickedFolder();   // its zips released above, so they can be replaced
             try { Directory.CreateDirectory(UserFolder); } catch (Exception e) { Debug.LogWarning($"Mods: can't create {UserFolder}: {e.Message}"); }
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var folder in Folders.Distinct(StringComparer.OrdinalIgnoreCase))
@@ -371,6 +374,100 @@ namespace GoF2Remake.Modding
                 return UserFolder;
 #endif
             }
+        }
+
+        const string PickedKey = "mods_folder", PickedNameKey = "mods_folder_name";
+
+        /// <summary>Android: a folder the player picked for mods (a Storage Access Framework tree, ModBrowser's "Mods folder",
+        /// e.g. Documents; Android/data is out of the file managers' reach); "" = none. The mods can't be read from a tree
+        /// (no plain paths), so every Scan copies it into PickedCopy first (only what changed) and they load from there.</summary>
+        public static string PickedFolder => PlayerPrefs.GetString(PickedKey, "");
+        public static string PickedFolderName => PlayerPrefs.GetString(PickedNameKey, "");
+        /// <summary>Why the last copy failed (the folder gone, the grant revoked); null = it worked. The last copy still loads.</summary>
+        public static string PickedProblem { get; private set; }
+        static string PickedCopy => Path.Combine(GoF2Remake.GamePaths.Data, "ModsFolderCopy");
+
+        /// <summary>A mod read from the picked folder's copy (deleting it here would only bring it back on the next copy).</summary>
+        public static bool FromPickedFolder(ModInfo mod) =>
+            mod?.Source != null && mod.Source.Location.StartsWith(PickedCopy, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Uses a picked folder ("" = none: its grant let go, its copy deleted on the next Scan). Scan after it.</summary>
+        public static void SetPickedFolder(string tree, string name)
+        {
+            string old = PickedFolder;
+            if (old.Length > 0 && old != tree && old != Data.SaveFolder.Target)   // the same tree as the save folder: one grant
+            {
+#if UNITY_ANDROID && !UNITY_EDITOR
+                try
+                {
+                    using var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+                    using var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
+                    using var helper = new AndroidJavaClass("com.joppietoppie.gof2remake.SaveFolderActivity");
+                    helper.CallStatic("release", activity, old);
+                }
+                catch (Exception e) { Debug.LogWarning("Mods: " + e.Message); }
+#endif
+            }
+            PlayerPrefs.SetString(PickedKey, tree ?? "");
+            PlayerPrefs.SetString(PickedNameKey, name ?? "");
+            PlayerPrefs.Save();
+        }
+
+        static void CopyPickedFolder()
+        {
+            PickedProblem = null;
+            if (!string.IsNullOrEmpty(GoF2Remake.GamePaths.Override)) return;
+            string tree = PickedFolder;
+            try
+            {
+                if (tree.Length == 0)
+                {
+                    if (Directory.Exists(PickedCopy)) Directory.Delete(PickedCopy, true);
+                    return;
+                }
+#if UNITY_ANDROID && !UNITY_EDITOR
+                using var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+                using var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
+                using var helper = new AndroidJavaClass("com.joppietoppie.gof2remake.SaveFolderActivity");
+                int copied = helper.CallStatic<int>("mirror", activity, tree, PickedModsSub, PickedCopy);
+                if (copied > 0) Debug.Log($"Mods: {copied} files copied in from {PickedFolderName}/{PickedModsSub}");
+#endif
+            }
+            catch (Exception e)
+            {
+                PickedProblem = e.Message;
+                Debug.LogWarning($"Mods: the mods folder {PickedFolderName} can't be read: {e.Message}");
+            }
+        }
+
+        /// <summary>The picked folder's subfolders: its mods (copied in) and the Mod Builder's projects (synced both ways).</summary>
+        public const string PickedModsSub = "Mods", PickedProjectsSub = "ModProjects";
+
+        /// <summary>Android: the Mod Builder's projects (ModProject.Root) and the picked folder's ModProjects synced both ways
+        /// (SaveFolderActivity.sync: against the last sync's record, changed on one side = copied, both = the newer wins,
+        /// deleted on one side = deleted on the other). The project list calls it on opening and leaving. Returns the problem,
+        /// null when it worked or there is no folder.</summary>
+        public static string SyncPickedProjects(string projectsRoot)
+        {
+            string tree = PickedFolder;
+            if (tree.Length == 0 || !string.IsNullOrEmpty(GoF2Remake.GamePaths.Override)) return null;
+#if UNITY_ANDROID && !UNITY_EDITOR
+            try
+            {
+                using var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+                using var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
+                using var helper = new AndroidJavaClass("com.joppietoppie.gof2remake.SaveFolderActivity");
+                string done = helper.CallStatic<string>("sync", activity, tree, PickedProjectsSub, projectsRoot,
+                    Path.Combine(GoF2Remake.GamePaths.Data, "mod_projects_sync.tsv"));
+                if (done != "0 0 0") Debug.Log($"Mod Builder: projects synced with {PickedFolderName} (in, out, deleted: {done})");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"Mod Builder: the projects in {PickedFolderName} can't be synced: {e.Message}");
+                return e.Message;
+            }
+#endif
+            return null;
         }
 
         /// <summary>The folder a mod is installed in (the Mods folder holding its folder or zip).</summary>

@@ -229,6 +229,7 @@ namespace GoF2Remake.UI
         public void Open()
         {
             string keep = selected?.Folder;
+            syncProblem = ModManager.SyncPickedProjects(ModProject.Root);   // Android's picked folder: both ways
             projects = ModProject.List();
             selected = projects.FirstOrDefault(p => p.Folder == keep) ?? projects.FirstOrDefault();
             RebuildRows();
@@ -236,7 +237,13 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>Leaving the page: what was typed is kept.</summary>
-        public void Close() => SaveIfDirty();
+        public void Close()
+        {
+            SaveIfDirty();
+            ModManager.SyncPickedProjects(ModProject.Root);
+        }
+
+        string syncProblem;
 
         void RebuildRows()
         {
@@ -266,7 +273,10 @@ namespace GoF2Remake.UI
             empty.style.display = shown.Count == 0 ? DisplayStyle.Flex : DisplayStyle.None;
             count.text = projects.Count == 1 ? T("mbCountOne", "1 project") : string.Format(T("mbCount", "{0} projects"), projects.Count);
             note.text = string.Format(T("mbNote", "Projects are in {0}. Export as mod puts one into your Mods folder."),
-                                      ModProject.Root);
+                                      ModProject.Root)
+                        + (ModManager.PickedFolder.Length > 0 ? "\n" + string.Format(T("mbPickedFolder", "Synced with {0}"),
+                              ModManager.PickedFolderName + "/" + ModManager.PickedProjectsSub)
+                              + (syncProblem != null ? " (" + string.Format(T("modsPickedProblem", "can't be read: {0}"), syncProblem) + ")" : "") : "");
         }
 
         /// <summary>The search field's filter: every word typed is in the project's name, id, author or description.</summary>

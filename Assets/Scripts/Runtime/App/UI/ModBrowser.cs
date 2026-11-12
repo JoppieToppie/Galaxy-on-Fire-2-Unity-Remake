@@ -117,6 +117,9 @@ namespace GoF2Remake.UI
             if (!Application.isMobilePlatform) ActionButton(footer, T("modsOpenFolder", "Open mods folder"),
                 () => ModManager.OpenFolder(selected != null ? ModManager.Find(selected) : null), "mods-footer-button");   // the selected mod's folder
             if (ModImport.Available) ActionButton(footer, T("modsImport", "Import mod"), Import, "mods-footer-button").AddToClassList("mods-import");
+            // Android: a folder of the player's (Documents...): its Mods copied in on every refresh, its ModProjects synced with
+            // the Mod Builder's (ModManager.PickedFolder).
+            if (Application.platform == RuntimePlatform.Android) ActionButton(footer, T("modsPickFolder", "Mods folder"), PickFolder, "mods-footer-button");
             ActionButton(footer, T("modsRefresh", "Refresh"), () => { ModManager.Scan(); Rebuild(); }, "mods-footer-button");
             // When something looks wrong after a mod changed: the cached textures, hangar shadows and unpacked zips are made again.
             if (rebuildCache != null) ActionButton(footer, T("modsRebuildCache", "Rebuild cache"), rebuildCache, "mods-footer-button");
@@ -220,7 +223,9 @@ namespace GoF2Remake.UI
             int enabled = ModManager.Installed.Count(m => ModManager.IsEnabled(m.Id));
             count.text = string.Format(T("modsCount", "{0} installed  ·  {1} on"), ModManager.Installed.Count, enabled);
             note.text = T("modsNote", "Mods apply when a game starts or loads. Lower in the list wins.")
-                        + (Application.isMobilePlatform ? "\n" + Shown(ModManager.MainFolder) : "");   // no folder button on a phone: where to copy them
+                        + (Application.isMobilePlatform ? "\n" + Shown(ModManager.MainFolder) : "")   // no folder button on a phone: where to copy them
+                        + (ModManager.PickedFolder.Length > 0 ? "\n" + string.Format(T("modsPickedFolder", "Also: {0}"), ModManager.PickedFolderName + "/" + ModManager.PickedModsSub)
+                           + (ModManager.PickedProblem != null ? " (" + string.Format(T("modsPickedProblem", "can't be read: {0}"), ModManager.PickedProblem) + ")" : "") : "");
 
             var mod = selected != null ? ModManager.Find(selected) : null;
             detail.style.visibility = mod != null ? Visibility.Visible : Visibility.Hidden;
@@ -232,7 +237,8 @@ namespace GoF2Remake.UI
             if (!string.IsNullOrEmpty(mod.Manifest?.author)) metaParts.Add(string.Format(T("modsBy", "by {0}"), mod.Manifest.author));
             metaParts.Add(mod.Id);
             if (!string.IsNullOrEmpty(mod.Manifest?.website)) metaParts.Add(mod.Manifest.website);
-            meta.text = string.Join("  ·  ", metaParts) + "\n" + Shown(mod.Source.Location);   // where it is installed
+            meta.text = string.Join("  ·  ", metaParts) + "\n" + (ModManager.FromPickedFolder(mod)   // where it is installed
+                ? ModManager.PickedFolderName + "/" + System.IO.Path.GetFileName(mod.Source.Location) : Shown(mod.Source.Location));
             description.text = mod.Manifest?.Description ?? "";
             if (!string.IsNullOrEmpty(mod.Manifest?.Credits))
                 description.text += "\n\n" + T("modsCredits", "Credits").UiCaps() + "\n" + mod.Manifest.Credits;
@@ -258,7 +264,7 @@ namespace GoF2Remake.UI
             problems.style.display = lines.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             toggle.text = (isOn ? T("modsTurnOff", "Turn off") : T("modsTurnOn", "Turn on")).UiCaps();
             toggle.SetEnabled(!mod.Broken || isOn);
-            delete.SetEnabled(mod.Source != null);
+            delete.SetEnabled(mod.Source != null && !ModManager.FromPickedFolder(mod));   // there: deleted in that folder
             edit.style.display = EditInBuilder != null ? DisplayStyle.Flex : DisplayStyle.None;
             edit.SetEnabled(mod.Manifest != null && mod.Source != null);
             toggle.EnableInClassList("mods-toggle--on", isOn);
@@ -321,6 +327,33 @@ namespace GoF2Remake.UI
             {
                 picked = poll();
                 if (picked != null) { importing = false; UiBusy.Mark(busy, false); Picked(picked); }
+            }).Every(200).Until(() => picked != null);
+        }
+
+        /// <summary>The footer's "Mods folder" (Android): one in use asks to stop using it, else the system's folder picker.</summary>
+        void PickFolder()
+        {
+            string title = T("modsPickFolder", "Mods folder");
+            if (ModManager.PickedFolder.Length > 0)
+            {
+                ask(title, string.Format(T("modsPickedStop", "Mods are copied in from {0}/{1} on every refresh, and the Mod Builder's projects are synced with {0}/{2}. Stop using that folder? (Its files and your projects stay.)"),
+                    ModManager.PickedFolderName, ModManager.PickedModsSub, ModManager.PickedProjectsSub), () => { ModManager.SetPickedFolder("", ""); ModManager.Scan(); Rebuild(); });
+                return;
+            }
+            if (importing) return;
+            importing = true;
+            var poll = SaveFolderPicker.Pick();
+            SaveFolderPicker.Picked picked = null;
+            Panel.schedule.Execute(() =>
+            {
+                picked = poll();
+                if (picked == null) return;
+                importing = false;
+                if (picked.error != null) notice(title, picked.error);
+                if (picked.target == null) return;
+                ModManager.SetPickedFolder(picked.target, picked.name);
+                ModManager.Scan();   // the first copy of a big mod takes a while
+                Rebuild();
             }).Every(200).Until(() => picked != null);
         }
 

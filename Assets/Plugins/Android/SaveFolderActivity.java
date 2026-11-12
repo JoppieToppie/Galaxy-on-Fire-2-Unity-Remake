@@ -20,10 +20,22 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class SaveFolderActivity extends Activity {
     static final int REQUEST = 0x6f2e;
@@ -185,5 +197,262 @@ public class SaveFolderActivity extends Activity {
         ContentResolver resolver = context.getContentResolver();
         Uri doc = find(resolver, Uri.parse(treeUri), name);
         return doc == null || DocumentsContract.deleteDocument(resolver, doc);
+    }
+
+    // ---- the mods folder (ModManager.PickedFolder): its Mods copied in, its ModProjects synced both ways -------------
+
+    static final String[] CHILD_COLUMNS = { DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_SIZE, DocumentsContract.Document.COLUMN_LAST_MODIFIED, DocumentsContract.Document.COLUMN_MIME_TYPE };
+
+    /** The id of the folder 'name' in folder 'parentId' (made when missing). */
+    static String childDir(ContentResolver resolver, Uri tree, String parentId, String name) throws Exception {
+        try (Cursor c = resolver.query(DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentId), CHILD_COLUMNS, null, null, null)) {
+            if (c == null) throw new Exception("the mods folder can't be read");
+            while (c.moveToNext())
+                if (name.equals(c.getString(1)) && DocumentsContract.Document.MIME_TYPE_DIR.equals(c.getString(4))) return c.getString(0);
+        }
+        Uri made = DocumentsContract.createDocument(resolver, DocumentsContract.buildDocumentUriUsingTree(tree, parentId),
+                DocumentsContract.Document.MIME_TYPE_DIR, name);
+        if (made == null) throw new Exception(name + " can't be made in the mods folder");
+        return DocumentsContract.getDocumentId(made);
+    }
+
+    /** Copies the folder's subfolder 'sub' (made when missing) into 'local' (the app's own), skipping files whose size and
+     *  time match, and deletes what the folder no longer has. Returns the number of files copied. Throws when it can't be read. */
+    public static int mirror(Context context, String treeUri, String sub, String local) throws Exception {
+        Uri tree = Uri.parse(treeUri);
+        ContentResolver resolver = context.getContentResolver();
+        return mirror(resolver, tree, childDir(resolver, tree, DocumentsContract.getTreeDocumentId(tree), sub), new File(local));
+    }
+
+    static final class Remote {
+        String id, parentId;
+        long size, time;
+    }
+
+    static void listRemote(ContentResolver resolver, Uri tree, String dirId, String prefix, Map<String, Remote> files, Map<String, String> dirs) throws Exception {
+        try (Cursor c = resolver.query(DocumentsContract.buildChildDocumentsUriUsingTree(tree, dirId), CHILD_COLUMNS, null, null, null)) {
+            if (c == null) throw new Exception("the mods folder can't be read");
+            while (c.moveToNext()) {
+                String name = c.getString(1);
+                if (name == null || name.startsWith(".") || name.contains("/")) continue;
+                if (DocumentsContract.Document.MIME_TYPE_DIR.equals(c.getString(4))) {
+                    dirs.put(prefix + name, c.getString(0));
+                    listRemote(resolver, tree, c.getString(0), prefix + name + "/", files, dirs);
+                    continue;
+                }
+                Remote r = new Remote();
+                r.id = c.getString(0);
+                r.parentId = dirId;
+                r.size = c.isNull(2) ? -1 : c.getLong(2);
+                r.time = c.isNull(3) ? 0 : c.getLong(3);
+                files.put(prefix + name, r);
+            }
+        }
+    }
+
+    static void listLocal(File dir, String prefix, Map<String, long[]> files) {
+        File[] inside = dir.listFiles();
+        if (inside == null) return;
+        for (File f : inside) {
+            if (f.getName().startsWith(".")) continue;   // the builder's .<id>.import while it imports
+            if (f.isDirectory()) listLocal(f, prefix + f.getName() + "/", files);
+            else files.put(prefix + f.getName(), new long[] { f.length(), f.lastModified() });
+        }
+    }
+
+    static void copy(InputStream in, OutputStream out, String name) throws Exception {
+        if (in == null || out == null) throw new Exception(name + " can't be copied");
+        byte[] buffer = new byte[1 << 16];
+        int n;
+        while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
+    }
+
+    /** The id of the folder at 'path' ("a/b") under the sync root, made when missing ('dirs' kept in step; "" = the root). */
+    static String remoteDir(ContentResolver resolver, Uri tree, Map<String, String> dirs, String path) throws Exception {
+        String id = dirs.get(path);
+        if (id != null) return id;
+        int slash = path.lastIndexOf('/');
+        String parent = remoteDir(resolver, tree, dirs, slash < 0 ? "" : path.substring(0, slash));
+        id = childDir(resolver, tree, parent, path.substring(slash + 1));
+        dirs.put(path, id);
+        return id;
+    }
+
+    /** Two-way: the folder's subfolder 'sub' and 'local', against what both had at the last sync ('stateFile': size and
+     *  time per file on each side, for this tree only). Changed on one side = copied to the other; changed on both or no
+     *  past = the newer wins; gone on one side and unchanged on the other = deleted there. Returns "in out deleted". */
+    public static String sync(Context context, String treeUri, String sub, String local, String stateFile) throws Exception {
+        ContentResolver resolver = context.getContentResolver();
+        Uri tree = Uri.parse(treeUri);
+        String rootId = childDir(resolver, tree, DocumentsContract.getTreeDocumentId(tree), sub);
+        File localRoot = new File(local);
+        localRoot.mkdirs();
+        String header = treeUri + "\t" + sub;
+
+        Map<String, long[]> state = new HashMap<>();   // path -> local size, time, remote size, time
+        File stateF = new File(stateFile);
+        if (stateF.isFile()) {
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(new FileInputStream(stateF), StandardCharsets.UTF_8))) {
+                if (header.equals(r.readLine())) {
+                    String line;
+                    while ((line = r.readLine()) != null) {
+                        String[] p = line.split("\t");
+                        if (p.length == 5) state.put(p[0], new long[] { Long.parseLong(p[1]), Long.parseLong(p[2]), Long.parseLong(p[3]), Long.parseLong(p[4]) });
+                    }
+                }
+            }
+        }
+
+        Map<String, Remote> remote = new HashMap<>();
+        Map<String, String> dirs = new HashMap<>();
+        dirs.put("", rootId);
+        listRemote(resolver, tree, rootId, "", remote, dirs);
+        Map<String, long[]> mine = new HashMap<>();
+        listLocal(localRoot, "", mine);
+
+        Set<String> all = new HashSet<>(remote.keySet());
+        all.addAll(mine.keySet());
+        int in = 0, out = 0, deleted = 0;
+        for (String path : all) {
+            Remote r = remote.get(path);
+            long[] l = mine.get(path), s = state.get(path);
+            boolean localChanged = l != null && (s == null || l[0] != s[0] || l[1] != s[1]);
+            boolean remoteChanged = r != null && (s == null || r.size != s[2] || r.time != s[3]);
+            File file = new File(localRoot, path);
+            boolean toRemote;
+            if (l != null && r != null) {
+                if (!localChanged && !remoteChanged) continue;
+                toRemote = localChanged && (!remoteChanged || l[1] >= r.time);
+            } else if (l != null) {
+                if (s != null && !localChanged) { file.delete(); deleted++; continue; }   // deleted in the folder
+                toRemote = true;
+            } else {
+                if (s != null && !remoteChanged) {   // deleted here
+                    DocumentsContract.deleteDocument(resolver, DocumentsContract.buildDocumentUriUsingTree(tree, r.id));
+                    deleted++;
+                    continue;
+                }
+                toRemote = false;
+            }
+            if (toRemote) {
+                Uri doc;
+                if (r != null) doc = DocumentsContract.buildDocumentUriUsingTree(tree, r.id);
+                else {
+                    int slash = path.lastIndexOf('/');
+                    String parent = remoteDir(resolver, tree, dirs, slash < 0 ? "" : path.substring(0, slash));
+                    doc = DocumentsContract.createDocument(resolver, DocumentsContract.buildDocumentUriUsingTree(tree, parent),
+                            "application/octet-stream", path.substring(slash + 1));
+                    if (doc == null) throw new Exception(path + " can't be made in the mods folder");
+                }
+                try (InputStream i = new FileInputStream(file); OutputStream o = resolver.openOutputStream(doc, "wt")) {
+                    copy(i, o, path);
+                }
+                out++;
+            } else {
+                file.getParentFile().mkdirs();
+                File part = new File(file.getParentFile(), "." + file.getName() + ".part");
+                try (InputStream i = resolver.openInputStream(DocumentsContract.buildDocumentUriUsingTree(tree, r.id));
+                     OutputStream o = new FileOutputStream(part)) {
+                    copy(i, o, path);
+                }
+                if (file.isDirectory()) deleteAll(file);
+                file.delete();
+                if (!part.renameTo(file)) throw new Exception(path + " can't be copied");
+                if (r.time > 0) file.setLastModified(r.time);
+                in++;
+            }
+        }
+
+        // Folders left empty (a project deleted on one side) go on both sides.
+        removeEmpty(localRoot, true);
+        List<String> deepestFirst = new ArrayList<>(dirs.keySet());
+        Collections.sort(deepestFirst, (a, b) -> b.length() - a.length());
+        for (String path : deepestFirst) {
+            if (path.isEmpty()) continue;
+            try (Cursor c = resolver.query(DocumentsContract.buildChildDocumentsUriUsingTree(tree, dirs.get(path)), CHILD_COLUMNS, null, null, null)) {
+                if (c == null || c.getCount() > 0) continue;
+            }
+            DocumentsContract.deleteDocument(resolver, DocumentsContract.buildDocumentUriUsingTree(tree, dirs.get(path)));
+        }
+
+        // What both sides have now is the next sync's past.
+        remote.clear();
+        dirs.clear();
+        listRemote(resolver, tree, rootId, "", remote, dirs);
+        mine.clear();
+        listLocal(localRoot, "", mine);
+        StringBuilder sb = new StringBuilder(header).append('\n');
+        for (Map.Entry<String, long[]> e : mine.entrySet()) {
+            Remote r = remote.get(e.getKey());
+            if (r == null) continue;
+            sb.append(e.getKey()).append('\t').append(e.getValue()[0]).append('\t').append(e.getValue()[1]).append('\t')
+              .append(r.size).append('\t').append(r.time).append('\n');
+        }
+        try (OutputStream o = new FileOutputStream(stateF)) {
+            o.write(sb.toString().getBytes(StandardCharsets.UTF_8));
+        }
+        return in + " " + out + " " + deleted;
+    }
+
+    /** Deletes the empty folders under 'dir' (and 'dir' itself unless 'keep'); true when 'dir' is empty now. */
+    static boolean removeEmpty(File dir, boolean keep) {
+        File[] inside = dir.listFiles();
+        boolean empty = true;
+        if (inside != null)
+            for (File f : inside) {
+                if (f.isDirectory() && removeEmpty(f, false)) continue;
+                empty = false;
+            }
+        if (empty && !keep) dir.delete();
+        return empty;
+    }
+
+    static int mirror(ContentResolver resolver, Uri tree, String parentId, File dir) throws Exception {
+        if (dir.isFile()) dir.delete();
+        if (!dir.isDirectory() && !dir.mkdirs()) throw new Exception("can't make " + dir);
+        Set<String> keep = new HashSet<>();
+        int copied = 0;
+        try (Cursor c = resolver.query(DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentId), new String[] {
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_SIZE, DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                DocumentsContract.Document.COLUMN_MIME_TYPE }, null, null, null)) {
+            if (c == null) throw new Exception("the mods folder can't be read");
+            while (c.moveToNext()) {
+                String name = c.getString(1);
+                if (name == null || name.startsWith(".") || name.contains("/")) continue;   // never outside 'dir'
+                keep.add(name);
+                File target = new File(dir, name);
+                if (DocumentsContract.Document.MIME_TYPE_DIR.equals(c.getString(4))) {
+                    copied += mirror(resolver, tree, c.getString(0), target);
+                    continue;
+                }
+                long size = c.isNull(2) ? -1 : c.getLong(2), time = c.isNull(3) ? 0 : c.getLong(3);
+                // within 2 s: some file systems keep whole seconds
+                if (target.isFile() && target.length() == size && (time == 0 || Math.abs(target.lastModified() - time) < 2000)) continue;
+                if (target.isDirectory()) deleteAll(target);
+                File part = new File(dir, name + ".part");
+                try (InputStream in = resolver.openInputStream(DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(0)));
+                     OutputStream out = new FileOutputStream(part)) {
+                    if (in == null) throw new Exception(name + " can't be read");
+                    byte[] buffer = new byte[1 << 16];
+                    int n;
+                    while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
+                }
+                if (target.exists()) target.delete();
+                if (!part.renameTo(target)) throw new Exception(name + " can't be copied");
+                if (time > 0) target.setLastModified(time);
+                copied++;
+            }
+        }
+        File[] had = dir.listFiles();
+        if (had != null) for (File f : had) if (!keep.contains(f.getName())) deleteAll(f);
+        return copied;
+    }
+
+    static void deleteAll(File f) {
+        File[] inside = f.listFiles();
+        if (inside != null) for (File g : inside) deleteAll(g);
+        f.delete();
     }
 }
