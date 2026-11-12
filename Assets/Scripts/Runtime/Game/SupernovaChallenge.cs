@@ -5,7 +5,8 @@
 // offers it from the main menu and fills in the scoring around the original's HUD and combo-bonus formula.
 //
 // What is the original's: the start (MenuTouchWindow::startSupernovaChallenge 0x154238: Status::resetGame, campaign index
-// 0x98, ship 46 with its loadout, 220 kills, station 111), the round of 181 000 ms (Level+0x130 / Objective(3, 181000)),
+// 0x98, ship 46 with its loadout, 220 kills, station 111), the round (Level+0x130 / Objective(3, 181000) on
+// Android; 151 000 ms here, the original's 2:31),
 // the restart's Patala x10 (MGame::OnTouchEnd), the combo bonus combo x 1000 x (1 + 0.05 combo) and its blinking in the
 // last 3000 ms, the pop of the combo count above 7000 ms of combo timer.
 // The scoring is the iOS 1.1.19 build's (Level::enemyDied / MGame::OnUpdate, which the Android build never wrote): a kill
@@ -25,8 +26,9 @@ namespace GoF2Remake.Data
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class SupernovaChallenge
     {
-        /// <summary>Level+0x130: the round's length (3:01 on the HUD's countdown).</summary>
-        public const float RoundMs = 181000f;
+        /// <summary>The round's length, 2:31 on the HUD's countdown. Modified: the Android code's Level+0x130 is 181 000 ms
+        /// (3:01), but the original game's challenge ran 2:31 (the user's check of the original).</summary>
+        public const float RoundMs = 151000f;
         /// <summary>Level::enemyDied: the combo timer a kill sets (Status+0x1fc = 7500). Hud::drawChallengeModeScore pops the
         /// count above 7000 ms (1 + (timer - 7000) x 0.01).</summary>
         public const float ComboStartMs = 7500f;

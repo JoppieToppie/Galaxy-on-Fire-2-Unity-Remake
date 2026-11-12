@@ -1,7 +1,7 @@
 // SupernovaChallengeTests.cs
 // Feature: CLAUDE.md "Supernova add-on" > Supernova Challenge (Data.SupernovaChallenge, Reference/research/
 // supernova_challenge.md): MenuTouchWindow::startSupernovaChallenge's start (the Blue Fyre and its loadout at Luur, campaign
-// index 0x98, rank 9), the round of 181 000 ms, Hud::drawChallengeModeScore's combo bonus / blinking / pop, the remake's
+// index 0x98, rank 9), the round of 151 000 ms, Hud::drawChallengeModeScore's combo bonus / blinking / pop, the remake's
 // scoring (the iOS build's: 1000 + 2000 x the 7500 ms combo timer's remaining share a kill, the combo raised by a kill while
 // its timer runs, paid when it runs out or the round ends), the
 // highscore kept, the restart's Patala x10, no saving while it runs, and a new game or load ending it.
@@ -96,13 +96,13 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void TheRoundEndsAfter181SecondsAndKeepsTheHighscore()
+        public void TheRoundEndsAfter151SecondsAndKeepsTheHighscore()
         {
             SupernovaChallenge.Start(false);
-            Assert.AreEqual(181000f, SupernovaChallenge.TimeLeftMs);
+            Assert.AreEqual(151000f, SupernovaChallenge.TimeLeftMs);
             SupernovaChallenge.OnKill();
             SupernovaChallenge.OnKill();
-            SupernovaChallenge.Tick(180999f);
+            SupernovaChallenge.Tick(150999f);
             Assert.IsFalse(SupernovaChallenge.TimeUp);
             SupernovaChallenge.Tick(2f);
             Assert.IsTrue(SupernovaChallenge.TimeUp);
