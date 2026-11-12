@@ -172,7 +172,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void EverspaceTwosKindsAreForModsOnly()
         {
-            foreach (var k in new[] { CruiseEncounters.Battle, CruiseEncounters.Trap, CruiseEncounters.Stash, CruiseEncounters.Depot, CruiseEncounters.HighRisk, CruiseEncounters.LootDrone, CruiseEncounters.Rift })
+            foreach (var k in new[] { CruiseEncounters.Battle, CruiseEncounters.Trap, CruiseEncounters.Stash, CruiseEncounters.Depot, CruiseEncounters.HighRisk, CruiseEncounters.LootDrone, CruiseEncounters.Rift, CruiseEncounters.Minesweeper, CruiseEncounters.Challenge, CruiseEncounters.Needy })
             {
                 CollectionAssert.Contains(CruiseEncounters.Kinds, k);
                 Assert.IsNull(CruiseEncounters.BuiltIn().Find(e => e.kind == k), k + ": not in the game's own table");

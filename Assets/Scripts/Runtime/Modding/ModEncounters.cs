@@ -11,6 +11,8 @@
 // The rift is the remake's one entry (2026-11-04, CruiseEncounters.RiftEntry: its chance, rank and stages): a mod's "rift"
 // entry only adds its "bosses" to the shared pool (its other fields are ignored with a warning, the rift can't be
 // overridden), and the rift joins the table once a mod adds one. More mods with rifts mean more bosses, not more rifts.
+// "music" (2026-11-06): a mod music track its fight plays in place of the battle music (World.EncounterMusic); a rift entry's
+// sets the rift's (the first mod's wins).
 
 using System;
 using System.Collections.Generic;
@@ -35,7 +37,7 @@ namespace GoF2Remake.Modding
 
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "id", "override", "kind", "weight", "visible", "minRank", "security", "freePlayOnly", "quest", "ships", "name", "interstellar", "bosses",
+            "id", "override", "kind", "weight", "visible", "minRank", "security", "freePlayOnly", "quest", "ships", "name", "interstellar", "bosses", "music",
         };
 
         static int revision = -1;
@@ -117,6 +119,7 @@ namespace GoF2Remake.Modding
                         var rift = list.Find(x => x.id == CruiseEncounters.Rift);
                         if (rift == null) list.Add(rift = CruiseEncounters.RiftEntry());
                         if (e.bosses != null) (rift.bosses ??= new List<CruiseEncounters.RiftBoss>()).AddRange(e.bosses);
+                        if (rift.music == null && e.music != null) rift.music = e.music;
                         foreach (var f in RiftOwnFields)
                             if (ModJson.Get(d.json, f) != null)
                                 d.mod.Warnings.Add($"{d.where}: \"{f}\" (ignored): the rift's chance and stages are the remake's, a mod's rift only adds \"bosses\"");
@@ -137,6 +140,7 @@ namespace GoF2Remake.Modding
             e.minRank = ModJson.Int(o, "minRank", e.minRank, File);
             e.freePlayOnly = ModJson.Bool(o, "freePlayOnly", e.freePlayOnly, File);
             e.ships = ModJson.Int(o, "ships", e.ships, File);
+            if (ModJson.Str(o, "music") is string music && music.Length > 0) e.music = music;
             if (ModJson.Get(o, "bosses") is JArray bl)   // a rift's (RiftEncounter)
             {
                 e.bosses = new List<CruiseEncounters.RiftBoss>();

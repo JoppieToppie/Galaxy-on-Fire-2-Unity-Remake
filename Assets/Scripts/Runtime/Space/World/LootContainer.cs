@@ -7,6 +7,15 @@
 // Either opens with the action key (F) within OpenRangeM, in front of the ship (ES2's InteractComponent: InteractRadius 100 m
 // x the ES2 ships' 3.6, no hold: InteractChargeDuration 0, bMustBeOnScreen). Its marker and lock are the radar's objects'
 // (Target.RadarObjects), neutral. ES2's secure containers (OpenOnUnlocked: energized through conductors) aren't here.
+//   cloaked       (2026-11-06, ES2's BP_InvisibleItemContainer, "Cloaked Container"): a bulletproof one under the cloak
+//                 (BP_Condition_Buff_Cloaked: the hull dissolves into the refracted screen, NpcCloak's look) with no marker
+//                 until revealed (World.CloakedContainers: the ship within RevealM); a rare container's rolls, the fixed loot
+//                 first; uncloaked once opened.
+//   secure        (2026-11-06, ES2's BP_ItemContainer_Armored, OpenOnUnlocked): a bulletproof one that won't open until
+//                 its shot triggers are all lit (ShotTriggersRequired: World.ShotTrigger, Flight.ShotTriggerChain) and its
+//                 energy sockets filled (EnergyOrbsRequired / EnergyCoilSocketsRequired: World.EnergySocket, carried
+//                 spheres and coils, World.Portable / OrbDispenser / CarryPuzzle) and its conductor receivers energized
+//                 (ConductorReceiverRequired: World.ConductorNet); then it opens itself. A rare container's rolls, the fixed loot after the cloaked ones'.
 // Loot: ES2's loot_types.CSV, a "Container" LootRolls 1-3 drops, a "RareContainer" (here the bulletproof one) 2-4: as many
 // freighter loot rolls. An orbit's fixed loot ("loot", EVERSPACE 2's unique_loot.csv) goes on top, an entry a container in
 // turn (the bulletproof ones first), each entry once a game: taken when its container opens (Session.FixedLootTaken).
@@ -35,6 +44,20 @@ namespace GoF2Remake.World
         static void ResetStatics() => All.Clear();
 
         public bool Bulletproof { get; private set; }
+        public bool Cloaked { get; private set; }
+        /// <summary>A cloaked one's marker and lock are on (World.CloakedContainers); always true for the others.</summary>
+        public bool Revealed { get; private set; } = true;
+        /// <summary>A cloaked one shimmers (the cloak) within ShimmerM of the camera and isn't drawn beyond (the opaque texture the
+        /// cloak needs stays off while no cloaked container is near).</summary>
+        public const float ShimmerM = 2000f;
+        NpcCloak cloak;
+        bool shimmering;
+        /// <summary>A secure one's shot triggers (World.ShotTrigger) and energy sockets (World.EnergySocket), null = none.</summary>
+        ShotTriggerChain chain;
+        List<EnergySocket> sockets;
+        ConductorNet conductors;
+        bool secure;
+        public bool Locked => secure && !Opened;
         public bool Opened { get; private set; }
         public Target Target { get; private set; }
         public IReadOnlyList<ItemStack> Loot => loot;
@@ -45,13 +68,80 @@ namespace GoF2Remake.World
 
         void OnEnable() => All.Add(this);
         void OnDisable() => All.Remove(this);
-        void OnDestroy() { if (Target != null) Target.RadarObjects.Remove(Target); }
+        void OnDestroy() { if (Target != null) Target.RadarObjects.Remove(Target); cloak?.Dispose(); }
+
+        void Update()
+        {
+            chain?.Update(Time.deltaTime * 1000f);
+            if (cloak == null) return;
+            var cam = Camera.main;
+            bool near = cam != null && (cam.transform.position - transform.position).sqrMagnitude < ShimmerM * ShimmerM;
+            if (near != shimmering)
+            {
+                shimmering = near;
+                foreach (var r in GetComponentsInChildren<Renderer>(true)) if (!(r is ParticleSystemRenderer)) r.forceRenderingOff = !near;
+            }
+            cloak.Show(near ? 100f : 0f, Time.deltaTime * 1000f);
+        }
+
+        /// <summary>A secure one opens itself once its triggers are all lit and its sockets all filled.</summary>
+        public void CheckUnlock()
+        {
+            if (!secure || Opened || chain != null && !chain.Unlocked) return;
+            if (sockets != null) foreach (var s in sockets) if (s == null || !s.Filled) return;
+            if (conductors != null && !conductors.AllEnergized) return;
+            Unlock();
+        }
+
+        void Unlock()
+        {
+            if (Opened) return;
+            PuzzleSounds.PlayAt("unlock", transform.position);   // (S_SC_Container_Armored)
+            ShipBurn.ManualBurst(transform.position, 0.6f, 1200f, 1400f, 300f);
+            Open();
+        }
+
+        /// <summary>Makes it a secure one (the spec's places in game units): shot triggers in turn when 'ordered', each lit for
+        /// 'retriggerS' (0 = for good); energy sockets, each with its dispenser or coil.</summary>
+        public void Secure(Modding.ModWorld.SecureContainerSpec spec)
+        {
+            secure = true;
+            name = "Secure container";
+            if (Target != null) Target.displayName = Localization.Extra("containerSecure", "Secure container");
+            var parent = transform.parent;
+            if (spec.triggers.Count > 0)
+            {
+                chain = new ShotTriggerChain(spec.triggers.Count, spec.ordered, spec.retriggerS);
+                for (int i = 0; i < spec.triggers.Count; i++) ShotTrigger.Make(parent, OrbitLayout.ToUnity(spec.triggers[i]), chain, i, this);
+            }
+            if (spec.sockets.Count > 0)
+            {
+                sockets = new List<EnergySocket>();
+                var dispensers = new Dictionary<Vector3, OrbDispenser>();   // (sockets sharing a dispenser share it)
+                foreach (var s in spec.sockets)
+                {
+                    sockets.Add(EnergySocket.Make(parent, OrbitLayout.ToUnity(s.at), s.coil, this));
+                    if (s.coil) Portable.Make(parent, OrbitLayout.ToUnity(s.source), true);
+                    else if (!dispensers.ContainsKey(s.source)) dispensers[s.source] = OrbDispenser.Make(parent, OrbitLayout.ToUnity(s.source));
+                }
+            }
+            if (spec.conductors != null) conductors = ConductorNet.Make(parent, spec.conductors, this);
+        }
+
+        /// <summary>A cloaked one's marker and lock come on (the ship came near); it stays cloaked until opened.</summary>
+        public void Reveal()
+        {
+            if (Revealed || Opened) return;
+            Revealed = true;
+            if (Target != null) { Target.cloaked = false; Target.RadarObjects.Add(Target); }
+        }
 
         /// <summary>A closed container at 'at' (Unity) holding 'cargo'.</summary>
-        public static LootContainer Spawn(Vector3 at, IEnumerable<ItemStack> cargo, bool bulletproof, int race, string modelKey = null)
+        public static LootContainer Spawn(Vector3 at, IEnumerable<ItemStack> cargo, bool bulletproof, int race, string modelKey = null, bool cloaked = false)
         {
             var go = Crate.Model(Crate.LookContainer, race, modelKey, at, Random.rotation);   // (a mod's model, else the race's container)
-            go.name = bulletproof ? "Bulletproof container" : "Container";
+            bulletproof |= cloaked;   // (ES2's OpenOnInteract)
+            go.name = cloaked ? "Cloaked container" : bulletproof ? "Bulletproof container" : "Container";
             go.transform.localScale *= ModelScale;
             var c = go.AddComponent<LootContainer>();
             c.Bulletproof = bulletproof;
@@ -62,11 +152,20 @@ namespace GoF2Remake.World
             t.invulnerable = bulletproof;
             t.radius = 600f * M;
             t.race = race;
-            t.displayName = bulletproof ? Localization.Extra("containerBulletproof", "Bulletproof container") : Localization.Extra("container", "Container");
+            t.displayName = cloaked ? Localization.Extra("containerCloaked", "Cloaked container")
+                          : bulletproof ? Localization.Extra("containerBulletproof", "Bulletproof container") : Localization.Extra("container", "Container");
             t.plateNameOnly = t.plateNoIcon = true;
             t.destroyedSound = CombatAssets.Pick(CombatAssets.Load()?.garbageExplosion);
             t.Died += _ => { ShipBurn.ManualBurst(c.transform.position, 1f, 1600f, 1800f, 500f); c.Open(); };
-            Target.RadarObjects.Add(t);
+            if (cloaked)
+            {
+                c.Cloaked = true;
+                c.Revealed = false;   // (no marker, no lock until near)
+                t.cloaked = true;
+                c.cloak = new NpcCloak(go.transform, false, true);
+                c.shimmering = true;
+            }
+            else Target.RadarObjects.Add(t);
             return c;
         }
 
@@ -78,16 +177,21 @@ namespace GoF2Remake.World
         public static int SpawnOrbit(Database db, OrbitLayout layout)
         {
             var spec = layout != null ? Modding.ModWorld.OrbitOf(layout.stationIndex) : null;
-            if (spec == null || spec.containerCount <= 0) return 0;
+            PuzzleSounds.Use(spec?.containerSounds);   // (the orbit's puzzle sounds, or silence)
+            int cloakedCount = spec?.containerCloaked?.Count ?? 0, secureCount = spec?.containerSecure?.Count ?? 0;
+            if (spec == null || spec.containerCount + cloakedCount + secureCount <= 0) return 0;
             var centre = spec.containerCentre ?? new Vector3(30000f, 0f, 50000f);
             float half = spec.containerSpread * 0.5f;
             int race = db?.Systems.Find(s => s.index == layout.systemIndex)?.raceId ?? Standing.Pirate;
-            var proofs = new bool[spec.containerCount];
-            for (int i = 0; i < proofs.Length; i++) proofs[i] = Random.value < spec.containerBulletproof;
-            // the fixed loot not yet taken, an entry a container (the bulletproof ones first)
+            // containers 0..containerCount-1 in the field, then the cloaked ones at their places, then the secure ones at theirs
+            int firstSecure = spec.containerCount + cloakedCount, total = firstSecure + secureCount;
+            var proofs = new bool[total];
+            for (int i = 0; i < proofs.Length; i++) proofs[i] = i >= spec.containerCount || Random.value < spec.containerBulletproof;
+            // the fixed loot not yet taken, an entry a container (the cloaked ones first, the secure ones, then the bulletproof ones)
             var order = new List<int>();
-            for (int i = 0; i < proofs.Length; i++) if (proofs[i]) order.Add(i);
-            for (int i = 0; i < proofs.Length; i++) if (!proofs[i]) order.Add(i);
+            for (int i = spec.containerCount; i < total; i++) order.Add(i);
+            for (int i = 0; i < spec.containerCount; i++) if (proofs[i]) order.Add(i);
+            for (int i = 0; i < spec.containerCount; i++) if (!proofs[i]) order.Add(i);
             var fixedFor = new Dictionary<int, List<(string key, ItemStack stack)>>();
             if (spec.containerLoot != null && order.Count > 0)
                 for (int e = 0; e < spec.containerLoot.Count; e++)
@@ -99,9 +203,9 @@ namespace GoF2Remake.World
                     if (!fixedFor.TryGetValue(at, out var l)) fixedFor[at] = l = new List<(string, ItemStack)>();
                     l.Add((key, new ItemStack(item, amount)));
                 }
-            for (int i = 0; i < spec.containerCount; i++)
+            for (int i = 0; i < total; i++)
             {
-                bool proof = proofs[i];
+                bool proof = proofs[i], secure = i >= firstSecure, cloaked = i >= spec.containerCount && !secure;
                 var cargo = new List<ItemStack>();
                 int rolls = proof ? Random.Range(BulletproofRollsMin, BulletproofRollsMax + 1) : Random.Range(RollsMin, RollsMax + 1);
                 for (int k = 0; k < rolls; k++) cargo.AddRange(WreckField.Loot(db));
@@ -111,12 +215,15 @@ namespace GoF2Remake.World
                     keys = new List<string>();
                     foreach (var (key, stack) in own) { cargo.Add(stack); keys.Add(key); }
                 }
-                var at = centre + new Vector3(Random.Range(-half, half), Random.Range(-half, half) * 0.3f, Random.Range(-half, half));
+                var at = secure ? spec.containerSecure[i - firstSecure].at : cloaked ? spec.containerCloaked[i - spec.containerCount]
+                       : centre + new Vector3(Random.Range(-half, half), Random.Range(-half, half) * 0.3f, Random.Range(-half, half));
                 string model = proof ? spec.containerProofModel ?? spec.containerModel : spec.containerModel;
-                var c = Spawn(OrbitLayout.ToUnity(at), cargo, proof, race, model != null && spec.owner != null ? spec.owner.Id + "|" + model : null);
-                if (c != null) c.fixedKeys = keys;
+                var c = Spawn(OrbitLayout.ToUnity(at), cargo, proof, race, model != null && spec.owner != null ? spec.owner.Id + "|" + model : null, cloaked);
+                if (c == null) continue;
+                c.fixedKeys = keys;
+                if (secure) c.Secure(spec.containerSecure[i - firstSecure]);
             }
-            return spec.containerCount;
+            return total;
         }
 
         /// <summary>The saved key of an orbit's fixed loot entry.</summary>
@@ -130,7 +237,7 @@ namespace GoF2Remake.World
             float bestD = OpenRangeM * OpenRangeM;
             foreach (var c in All)
             {
-                if (c == null || c.Opened) continue;
+                if (c == null || c.Opened || !c.Revealed || c.Locked) continue;
                 var d = c.transform.position - ship.position;
                 float d2 = d.sqrMagnitude;
                 if (d2 > bestD || Vector3.Dot(d, ship.forward) <= 0f) continue;
@@ -155,6 +262,12 @@ namespace GoF2Remake.World
                 crate.Launch(Random.onUnitSphere, SpillBurst);
             }
             loot.Clear();
+            if (cloak != null)   // (the empty shell shows)
+            {
+                cloak.Dispose();
+                cloak = null;
+                foreach (var r in GetComponentsInChildren<Renderer>(true)) r.forceRenderingOff = false;
+            }
             if (Target != null)
             {
                 Target.RadarObjects.Remove(Target);
