@@ -42,6 +42,22 @@
     padding-right: var(--space-l);
 }
 
+/* Modified (a player's sketch 2026-11-09): the Status page's two columns of boxes at most ~1240 px wide, centred in the
+   window, instead of stretched across it with their contents at the far edges. */
+#statusLeft {
+    width: 100%;
+    max-width: 1240px;
+    align-self: center;
+}
+
+/* Modified: the Medals page likewise, its grid and the hint box under it. */
+.status-right .medal-scroll,
+.status-right .medal-hint {
+    width: 100%;
+    max-width: 1240px;
+    align-self: center;
+}
+
 .status-right {
     flex-grow: 1;
     flex-basis: 0;
