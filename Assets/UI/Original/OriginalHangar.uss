@@ -965,6 +965,30 @@
     font-size: var(--text-caption);
 }
 
+/* Modified: a mounted / hold item's actions inside its row (HangarWindow.PlaceRowActions, .row-actions--inline). */
+.ui-style-original .row-actions--inline {
+    margin: 0 0 0 8px;
+}
+
+.ui-style-original .row-actions--sub {
+    margin: 0;
+    right: 8px;
+    bottom: 6px;
+}
+
+.ui-style-original .row-actions--sub .detail-action--row {
+    width: 240px;
+    height: 30px;
+    margin: 0;
+    padding: 0 16px;
+}
+
+.ui-style-original .row-actions--inline .detail-action--row {
+    height: 34px;
+    margin: 0;
+    padding: 0 16px;
+}
+
 /* Original: stat rows label-left / value-right, 23 px pitch, no lines. */
 .ui-style-original .stat-row {
     padding: 3px 6px;

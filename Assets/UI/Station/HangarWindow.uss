@@ -762,6 +762,95 @@
     -unity-text-align: middle-center;
 }
 
+/* Modified (a player's sketch 2026-11-09): a mounted item's DEMOUNT over its slot arrows (up / down), or a hold item's
+   amount over MOUNT, inside the selected row at its right end (HangarWindow.PlaceRowActions); the row's own amount hides. */
+.row-actions--inline {
+    flex-direction: column;
+    flex-shrink: 0;
+    justify-content: center;
+    width: 280px;
+    margin: 0 0 0 var(--space-m);
+    padding: 0;
+    border-left-width: 0;
+}
+
+.row-actions--inline .detail-action--row {
+    flex-grow: 0;
+    flex-basis: auto;
+    height: 40px;
+    margin: 0;
+    padding: 0 var(--space-m);
+}
+
+.row-actions--sub {
+    /* out of the flow, at the row's right end level with the sub-line: the name and the bar stay where they are */
+    position: absolute;
+    right: 16px;
+    bottom: 10px;
+    margin: 0;
+    padding: 0;
+    border-left-width: 0;
+}
+
+.row-actions--sub .detail-action--row {
+    flex-grow: 0;
+    flex-basis: auto;
+    width: 280px;
+    height: 34px;
+    margin: 0;
+    padding: 0 var(--space-m);
+}
+
+.list-row--actions .row-qty--ship {
+    display: none;
+}
+
+.row-actions-qty {
+    width: auto;
+    align-self: flex-end;
+    margin: 0 0 4px 0;
+    -unity-text-align: middle-right;
+}
+
+.row-move {
+    flex-direction: row;
+    margin-top: 6px;
+}
+
+.row-move-button {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--gof-cyan-faint);
+    border-width: var(--button-border);
+    border-color: var(--gof-cyan);
+    border-radius: var(--button-radius);
+}
+
+.row-move-button--down {
+    margin-left: 6px;
+}
+
+.can-hover .row-move-button:hover {
+    background-color: var(--button-primary-focus-fill);
+}
+
+.row-move-button:active {
+    background-color: var(--button-press-fill);
+}
+
+.row-move-arrow {
+    font-size: var(--text-heading);
+    color: #FFFFFF;
+    margin: 0;
+    padding: 0;
+    -unity-text-align: middle-center;
+}
+
 .detail-scroll {
     flex-grow: 1;
     margin-top: var(--space-l);
