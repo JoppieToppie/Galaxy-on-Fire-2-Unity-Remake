@@ -74,8 +74,12 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   against the game's tables), then a warning that it overwrites ALL saves (the auto-save too); only Yes writes, after
   checking again: the new slots to `.import` files, the old ones moved to `Saves/BeforeImport` (put back if writing
   fails), then the new ones into place. Windows and the Editor pick the file with the system dialog (`FileDialog`:
-  comdlg32 / EditorUtility); Linux and Android use a Transfer folder (`~/Documents/GoF2 Remake`; on Android the app's
-  `files/Transfer`, reachable over USB) and import the newest `.gof2saves` there.
+  comdlg32 / EditorUtility); Linux uses a Transfer folder (`~/Documents/GoF2 Remake`) and imports the newest
+  `.gof2saves` there. Android (2026-11-12, a player: Android/data is out of the phone's file managers' reach): the
+  system's document picker both ways (`MainMenu.SavesPicker`, `ModImportActivity`): Import opens a picked file
+  (`ModImport.Pick`), Export writes into the app's `files/Transfer` as before and then offers ACTION_CREATE_DOCUMENT
+  (`ModImport.SaveAs`, `ModImportActivity.startSave`) to copy it where the player chooses; cancelled, the copy stays
+  in Transfer. Not yet run on a phone. "Export for original game" still writes into Transfer (a folder of files).
 - **A finished game imports** (#117): `SaveGame.TryParse` accepts -10 as the invaded system / station (`Story.OnDepart`
   writes it once the game is won: nothing attacked any more); every finished game's auto-save was refused.
 - **Save folder** (remake, a player's request: Android's Transfer folder in Android/data is out of other apps' reach;

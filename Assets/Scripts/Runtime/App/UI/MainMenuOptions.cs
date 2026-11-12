@@ -205,10 +205,10 @@ namespace GoF2Remake.UI
             Set("importSavesButton", Localization.Extra("importSaves", "Import saves").UiCaps());
             Set("importOriginalButton", Localization.Extra("importOriginalSave", "Import original save").UiCaps());
             Set("exportOriginalButton", Localization.Extra("exportOriginalSaves", "Export for original game").UiCaps());
-            // Without a file dialog (Linux, Android) the files go to and come from the Transfer folder: shown under the buttons.
+            // Without a file dialog or picker (Linux) the files go to and come from the Transfer folder: shown under the buttons.
             var transferNote = root.Q<Label>("saveTransferNote");
             if (transferNote != null)
-                transferNote.text = SaveTransfer.HasFileDialog ? ""
+                transferNote.text = SaveTransfer.HasFileDialog || SavesPicker ? ""
                     : Localization.Extra("saveTransferFolder", "Exported saves go to, and are imported from:") + " " + SaveTransfer.TransferFolder;
             ApplyLoadPanelMode();   // the title and the rows of the Load panel or the co-op save picker
             Set("optionsTitle", T(31));

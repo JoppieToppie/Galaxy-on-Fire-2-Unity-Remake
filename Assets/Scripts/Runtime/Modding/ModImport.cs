@@ -219,6 +219,34 @@ namespace GoF2Remake.Modding
 #endif
         }
 
+        /// <summary>Android's "save as" picker (ModImportActivity.startSave): 'source' copied to where the player chooses,
+        /// offered as 'name'; polled like Pick (name = the chosen file's name). Elsewhere null: the caller's own way.</summary>
+        public static Func<Picked> SaveAs(string source, string name)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            try
+            {
+                using var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+                using var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
+                var picker = new AndroidJavaClass("com.joppietoppie.gof2remake.ModImportActivity");
+                picker.CallStatic("startSave", activity, source, name);
+                return () =>
+                {
+                    int state = picker.GetStatic<int>("state");
+                    if (state == 0) return null;
+                    var r = state == 1 ? new Picked { path = picker.GetStatic<string>("resultPath"), name = picker.GetStatic<string>("resultName") }
+                          : state == 2 ? new Picked { cancelled = true }
+                          : new Picked { error = picker.GetStatic<string>("error") };
+                    picker.Dispose();
+                    return r;
+                };
+            }
+            catch (Exception e) { return () => new Picked { error = e.Message }; }
+#else
+            return null;
+#endif
+        }
+
         /// <summary>The picked file read as a mod: its manifest (null with an error when it isn't one).</summary>
         public static ModManifest Inspect(string path, out string error)
         {

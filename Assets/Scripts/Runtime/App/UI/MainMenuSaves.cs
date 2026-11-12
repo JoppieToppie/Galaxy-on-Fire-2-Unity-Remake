@@ -75,7 +75,7 @@ namespace GoF2Remake.UI
             void Show(string name, bool on) { if (root.Q(name) is VisualElement e) e.style.display = on ? DisplayStyle.Flex : DisplayStyle.None; }
             Show("saveTransferRow", !coopSlotPick);
             Show("originalSaveRow", !coopSlotPick && Modding.ModImport.Available);
-            Show("saveTransferNote", !coopSlotPick && !SaveTransfer.HasFileDialog);
+            Show("saveTransferNote", !coopSlotPick && !SaveTransfer.HasFileDialog && !SavesPicker);
         }
 
         /// <summary>Remake: a slot held down (SaveSlotRow): deleted, the list rebuilt with the same row selected.</summary>
@@ -93,15 +93,44 @@ namespace GoF2Remake.UI
             });
         }
 
+        /// <summary>Android: Export / Import saves go through the system's document picker (ModImportActivity), as the
+        /// Transfer folder in Android/data is out of other apps' reach; the export still writes its copy there first.</summary>
+        static bool SavesPicker => Application.platform == RuntimePlatform.Android;
+
+        /// <summary>Calls 'poll' (a ModImport picker) every 200 ms until it answers, then 'done'.</summary>
+        void PollPicker(Func<Modding.ModImport.Picked> poll, Action<Modding.ModImport.Picked> done)
+        {
+            Modding.ModImport.Picked picked = null;
+            root.schedule.Execute(() =>
+            {
+                picked = poll();
+                if (picked != null) done(picked);
+            }).Every(200).Until(() => picked != null);
+        }
+
         string SaveTransferTitle(bool import) => (import ? Localization.Extra("importSaves", "Import saves") : Localization.Extra("exportSaves", "Export saves"));
 
         void ExportSaves()
         {
-            if (dialog.ClassListContains("dialog-backdrop--shown")) return;
+            if (pickingSaves || dialog.ClassListContains("dialog-backdrop--shown")) return;
             var r = SaveTransfer.Export();
             switch (r.outcome)
             {
+                case SaveTransfer.Outcome.Done when SavesPicker:
+                    var saveAs = Modding.ModImport.SaveAs(r.path, System.IO.Path.GetFileName(r.path));
+                    if (saveAs == null) goto default;
+                    pickingSaves = true;
+                    PollPicker(saveAs, p =>
+                    {
+                        pickingSaves = false;
+                        if (p.cancelled) return;
+                        ShowNotice(SaveTransferTitle(false), p.error != null
+                            ? Localization.Extra("exportFailed", "Export failed:") + " " + p.error
+                            : string.Format(Localization.Extra("exportDone", "{0} saves exported to:\n{1}"), r.slots, p.name));
+                    });
+                    break;
                 case SaveTransfer.Outcome.Done:
+                default:
                     ShowNotice(SaveTransferTitle(false), string.Format(Localization.Extra("exportDone", "{0} saves exported to:\n{1}"), r.slots, r.path));
                     break;
                 case SaveTransfer.Outcome.NothingToExport:
@@ -116,8 +145,27 @@ namespace GoF2Remake.UI
         /// <summary>Import, step 1: the file (picked, or the newest in the Transfer folder), checked whole; then the warning.</summary>
         void PickImport()
         {
-            if (dialog.ClassListContains("dialog-backdrop--shown")) return;
+            if (pickingSaves || dialog.ClassListContains("dialog-backdrop--shown")) return;
+            if (SavesPicker)
+            {
+                pickingSaves = true;
+                PollPicker(Modding.ModImport.Pick(SaveTransferTitle(true), "Galaxy on Fire 2 saves", new[] { SaveTransfer.Extension }), p =>
+                {
+                    pickingSaves = false;
+                    if (p.cancelled) return;
+                    if (p.error != null) ShowNotice(SaveTransferTitle(true), string.Format(Localization.Extra("importInvalid",
+                        "This file can't be imported, your saves are unchanged.\n{0}: {1}"), p.name ?? "", p.error));
+                    else CheckImport(p.path, p.name);
+                });
+                return;
+            }
             string path = SaveTransfer.PickImportFile();
+            CheckImport(path, System.IO.Path.GetFileName(path));
+        }
+
+        /// <summary>Import, step 1b: 'path' checked whole ('name' the file's own, the picker's copy is renamed); the warning.</summary>
+        void CheckImport(string path, string name)
+        {
             var r = SaveTransfer.Check(path);
             switch (r.outcome)
             {
@@ -130,18 +178,18 @@ namespace GoF2Remake.UI
                 case SaveTransfer.Outcome.Invalid:
                 case SaveTransfer.Outcome.Failed:
                     ShowNotice(SaveTransferTitle(true), string.Format(Localization.Extra("importInvalid", "This file can't be imported, your saves are unchanged.\n{0}: {1}"),
-                        System.IO.Path.GetFileName(path), r.problem));
+                        name, r.problem));
                     return;
             }
             // Step 2: the warning; nothing is written before Yes.
             ShowDialog(SaveTransferTitle(true),
                 string.Format(Localization.Extra("importWarning",
                     "WARNING: importing overwrites ALL your existing saves, the auto-save too, with the {0} saves in \"{1}\". Export them first if you want to keep them. Import anyway?"),
-                    r.slots, System.IO.Path.GetFileName(path)),
-                () => root.schedule.Execute(() => ImportSaves(path)).ExecuteLater(1));
+                    r.slots, name),
+                () => root.schedule.Execute(() => ImportSaves(path, name)).ExecuteLater(1));
         }
 
-        void ImportSaves(string path)
+        void ImportSaves(string path, string name)
         {
             var r = SaveTransfer.Import(path);
             BuildSlots();   // the Load game list shows the imported saves
@@ -151,7 +199,7 @@ namespace GoF2Remake.UI
                 ShowNotice(SaveTransferTitle(true), string.Format(Localization.Extra("importDone", "{0} saves imported."), r.slots));
             else
                 ShowNotice(SaveTransferTitle(true), string.Format(Localization.Extra("importInvalid", "This file can't be imported, your saves are unchanged.\n{0}: {1}"),
-                    System.IO.Path.GetFileName(path), r.problem));
+                    name, r.problem));
         }
 
         /// <summary>Import, step 1: the system's file picker (polled until it answers, like the mod browser's).</summary>

@@ -967,7 +967,7 @@ namespace GoF2Remake.UI
 
         // ---- the original game's saves (OriginalSaveTransfer) ----------------------------------------------------------
 
-        bool pickingOriginal;
+        bool pickingOriginal, pickingSaves;
         string OriginalImportTitle => Localization.Extra("importOriginalSave", "Import original save");
         string OriginalExportTitle => Localization.Extra("exportOriginalSaves", "Export for original game");
 
