@@ -221,7 +221,7 @@ namespace GoF2Remake.Flight
         public float PitchRate { get; private set; }           // 0x278
         public bool IsBoosting { get; private set; }
         public bool IsLeveling { get; private set; }
-        int boostTimerMs;                                       // 0x138: counts up; negative while recharging
+        float boostTimerMs;                                     // 0x138: counts up; negative while recharging (remake: float, UpdateBoost)
         float collisionPush;                                    // 0x37c
 
         /// <summary>Visual banking amount: +/-H while steering, 0 otherwise (0x25c / 0x258).</summary>
@@ -897,8 +897,13 @@ namespace GoF2Remake.Flight
             if (FreeFlight) { UpdateFreeBoost(dtMs); return; }
             if (!IsBoosting) CurrentSpeed = TopSpeed;   // the style's (a mod's top speed bonus; switched in flight)
             // Timer counts up every frame; negative values mean "recharging" (PlayerEgo::update).
-            int dt = Mathf.RoundToInt(dtMs);
-            if (boostTimerMs < 0 && boostTimerMs + dt * 3 > 0) boostTimerMs = 0;
+            // Remake: the frame's own dt, unrounded. The original's dt is a whole ms for both the timer and the move
+            // (handleShip), so they agree; rounding only the timer here while Step moved by the float dt made the boost's
+            // length depend on the frame rate (400 fps: 2.5 -> 2 ms, the boost ran 25 % long; 600 fps: 1.67 -> 2, 17 %
+            // short; 120 / 240 Hz +4 %, under fast-forward -1 %: a player's report that a fast-forwarded Polytron boost
+            // went less far).
+            float dt = Mathf.Max(0f, dtMs);
+            if (boostTimerMs < 0f && boostTimerMs + dt * 3f > 0f) boostTimerMs = 0f;
             boostTimerMs += dt;
 
             if (IsBoosting && boostTimerMs > boostDurationMs)

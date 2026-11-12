@@ -11,6 +11,12 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   - ramp = `dt*H/((3.3 - sens)*20)`; decay = `dt*H/126`
   - angle = `dt*rate*2π/65536*0.033`
   - boost speed = `int(2*boost/100)+2` (the integer truncation is intentional)
+  - boost timer (iOS 1.1.19 `PlayerEgo::update` 0x1001019c8, ends at 0x100101eb0) and the move (`handleShip`
+    0x100100938, `moveToPosition`) take the same dt, fast-forward's x5 included (`MGame::OnUpdate` 0x1000e4b30), so a
+    boost covers speed x duration at any frame rate or fast-forward (Polytron: 8 x 6000 = 48000 units; under
+    fast-forward 1.2 s of real time, its gain over the base speed only 3.6 s of fast-forward). Remake 2026-11-09: the
+    timer is a float of the frame's dt (it rounded the dt while `Step` moved by the float one: 400 fps ran boosts 25 %
+    long, 600 fps 17 % short; a player's report of a short fast-forwarded Polytron boost)
   - auto-level roll at 0.00025 to 0.00075 rad/ms, then a fine phase (overshoot 0.00035, then 0.0002); the lean is
     -right.y (#57: it was up along the horizontal part of 'right', nothing on a knife edge, so a ship on its side or
     upside down counted as level; checked from 800 random attitudes); the original levels only on request
