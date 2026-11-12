@@ -299,6 +299,7 @@ namespace GoF2Remake.Flight
                 if (m == null || !m.isReadable || m.vertexCount == 0 || mf.GetComponent<Renderer>() == null) continue;
                 string n = m.name.ToLowerInvariant();
                 if (n.Contains("_add") || n.Contains("_lights") || n.Contains("_lod_") || n.Contains("glow")) continue;
+                if (n.Contains("_anim") && n.Contains("_alpha")) continue;   // Modified: an effect layer, not hull (HullCollision.IsHullMesh)
                 if (!meshSpots.TryGetValue(m, out var pts))
                 {
                     var v = m.vertices;

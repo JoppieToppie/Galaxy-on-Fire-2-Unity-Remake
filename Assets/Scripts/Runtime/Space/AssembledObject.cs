@@ -39,6 +39,7 @@ namespace GoF2Remake.Visuals
             ModScope = name.EndsWith("(Clone)") ? name.Substring(0, name.Length - "(Clone)".Length).Trim() : name;
             Modding.ModTextures.Apply(gameObject, ModScope);
             EmissiveReflection.Apply(gameObject);   // Remake: the emissive layers reflect the cubemap like the hull
+            FxFog.Apply(gameObject);   // Modified: the burning station's smoke takes the scene's fog like the hull
             if (GetComponent<AutoLods>() == null) gameObject.AddComponent<AutoLods>();   // Remake: levels of detail (Settings.Lods)
         }
 
