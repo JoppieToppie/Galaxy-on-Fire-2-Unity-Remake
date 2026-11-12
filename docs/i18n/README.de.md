@@ -407,6 +407,15 @@ docs/                     multiplayer guides and the per-area technical notes
 - **Pull Requests sind willkommen.** Forke das Repository, mache deine Änderung auf einem Branch, führe die
   Edit-Mode-Tests aus und eröffne einen Pull Request gegen `main`. Lies vor der Arbeit an einem Bereich seine Datei in
   [docs/notes/](../notes); die Konventionen stehen in [CLAUDE.md](../../CLAUDE.md).
+- **Modelle, Texturen oder Sounds ändern?** Die landen auf dem LFS-Server des Projekts, der dein GitHub-Konto akzeptiert,
+  du brauchst also kein weiteres. Forke zuerst das Repository und führe dann einmal das hier aus (unter Windows in Git
+  Bash), damit Git dafür deinen GitHub-Login wiederverwendet:
+  ```bash
+  git config --global credential.https://toppienas.diskstation.me.helper ""
+  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
+  ```
+  Ohne das fragt Git beim ersten Push nach einem Login: dein GitHub-Benutzername, mit einem
+  [GitHub-Token](https://github.com/settings/tokens) als Passwort.
 - **Gefällt dir das Projekt?** Gib ihm einen ⭐ auf GitHub, das hilft anderen, es zu finden.
 
 ---

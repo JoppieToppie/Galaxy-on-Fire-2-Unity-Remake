@@ -374,6 +374,15 @@ docs/                     multiplayer guides and the per-area technical notes
   열어 주세요. 옵션 > 게임플레이에서 현재 스토리 단계와 정거장을 오른쪽 아래에 표시할 수 있어서, 어디서 일어났는지 알 수 있습니다.
 - **풀 리퀘스트를 환영합니다.** 저장소를 포크하고, 브랜치에서 변경한 뒤, 에디트 모드 테스트를 실행하고, `main`에 풀 리퀘스트를 여세요.
   어떤 영역을 작업하기 전에는 [docs/notes/](../notes)의 해당 파일을 읽어 주세요. 컨벤션은 [CLAUDE.md](../../CLAUDE.md)에 있습니다.
+- **모델, 텍스처, 사운드를 바꾸나요?** 이 파일들은 프로젝트의 LFS 서버로 올라가며, 이 서버는 GitHub 계정을 받으므로 다른
+  계정이 필요 없습니다. 먼저 저장소를 포크한 다음, Git이 GitHub 로그인을 재사용하도록 아래를 한 번 실행하세요(Windows에서는
+  Git Bash에서):
+  ```bash
+  git config --global credential.https://toppienas.diskstation.me.helper ""
+  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
+  ```
+  이 설정이 없으면 첫 push 때 Git이 로그인을 묻습니다. GitHub 사용자 이름과, 비밀번호로
+  [GitHub 토큰](https://github.com/settings/tokens)을 입력하세요.
 - **프로젝트가 마음에 드나요?** GitHub에서 ⭐를 눌러 주세요. 다른 사람들이 프로젝트를 찾는 데 도움이 됩니다.
 
 ---

@@ -388,6 +388,15 @@ docs/                     multiplayer guides and the per-area technical notes
 - **プルリクエスト歓迎です。** リポジトリをフォークし、ブランチで変更を加え、エディットモードテストを実行して、`main` に対して
   プルリクエストを開いてください。ある分野に取り組む前に、[docs/notes/](../notes) のその分野のファイルを読んでください。規約は
   [CLAUDE.md](../../CLAUDE.md) にあります。
+- **モデル、テクスチャ、サウンドを変更する場合**、それらはプロジェクトの LFS サーバーに送られます。このサーバーは GitHub
+  アカウントを受け付けるので、別のアカウントは不要です。まずリポジトリをフォークし、Git が GitHub のログインを再利用するように
+  次のコマンドを一度だけ実行してください（Windows では Git Bash で）:
+  ```bash
+  git config --global credential.https://toppienas.diskstation.me.helper ""
+  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
+  ```
+  これを行わない場合、最初の push で Git がログインを求めます。GitHub のユーザー名と、パスワードとして
+  [GitHub トークン](https://github.com/settings/tokens)を入力してください。
 - **気に入ったら？** GitHub で ⭐ をお願いします。ほかの人がプロジェクトを見つけやすくなります。
 
 ---

@@ -396,6 +396,15 @@ docs/                     multiplayer guides and the per-area technical notes
 - **Pull requests zijn welkom.** Fork de repository, maak je wijziging op een branch, draai de edit-mode-tests en open een
   pull request tegen `main`. Lees voordat je aan een onderdeel werkt het bestand ervan in [docs/notes/](../notes); de
   conventies staan in [CLAUDE.md](../../CLAUDE.md).
+- **Modellen, texturen of geluiden aanpassen?** Die gaan naar de LFS-server van het project, die je GitHub-account
+  accepteert, dus je hebt geen ander account nodig. Fork eerst de repository en voer dit één keer uit (in Git Bash op
+  Windows), zodat Git je GitHub-login ervoor hergebruikt:
+  ```bash
+  git config --global credential.https://toppienas.diskstation.me.helper ""
+  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
+  ```
+  Zonder dit vraagt Git bij je eerste push om een login: je GitHub-gebruikersnaam, met een
+  [GitHub-token](https://github.com/settings/tokens) als wachtwoord.
 - **Vind je het project leuk?** Geef het een ⭐ op GitHub, dat helpt anderen het te vinden.
 
 ---

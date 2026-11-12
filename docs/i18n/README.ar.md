@@ -386,6 +386,15 @@ docs/                     multiplayer guides and the per-area technical notes
 - **طلبات الدمج (pull requests) مرحّب بها.** انسخ المستودع (fork)، وأجرِ تغييرك في فرع، وشغّل اختبارات وضع المحرر، ثم افتح
   طلب دمج إلى `main`. قبل العمل على مجال ما اقرأ ملفه في [docs/notes/](../notes)؛ والاصطلاحات في
   [CLAUDE.md](../../CLAUDE.md).
+- **تغيّر النماذج أو النسيج أو الأصوات؟** تُرفع إلى خادم LFS الخاص بالمشروع، وهو يقبل حسابك على GitHub، فلا تحتاج إلى
+  حساب آخر. أنشئ fork للمستودع أولًا، ثم شغّل هذا مرة واحدة (في Git Bash على Windows) ليعيد Git استخدام تسجيل دخولك إلى
+  GitHub:
+  ```bash
+  git config --global credential.https://toppienas.diskstation.me.helper ""
+  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
+  ```
+  بدون ذلك يطلب Git تسجيل الدخول عند أول push: اسم مستخدمك على GitHub، مع
+  [رمز GitHub](https://github.com/settings/tokens) ككلمة مرور.
 - **أعجبك المشروع؟** امنحه ⭐ على GitHub، فهذا يساعد الآخرين على العثور عليه.
 
 ---

@@ -392,6 +392,15 @@ docs/                     multiplayer guides and the per-area technical notes
 - **Pull request-ы приветствуются.** Сделайте форк репозитория, внесите изменение в отдельной ветке, запустите тесты
   режима редактора и откройте pull request в `main`. Прежде чем браться за какую-либо область, прочтите её файл в
   [docs/notes/](../notes); соглашения изложены в [CLAUDE.md](../../CLAUDE.md).
+- **Меняете модели, текстуры или звуки?** Они попадают на LFS-сервер проекта, который принимает ваш аккаунт GitHub,
+  так что другой аккаунт не нужен. Сначала сделайте форк репозитория, затем один раз выполните это (в Git Bash на
+  Windows), чтобы Git использовал ваш вход в GitHub:
+  ```bash
+  git config --global credential.https://toppienas.diskstation.me.helper ""
+  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
+  ```
+  Без этого Git при первом push попросит логин: ваше имя пользователя GitHub и
+  [токен GitHub](https://github.com/settings/tokens) в качестве пароля.
 - **Нравится проект?** Поставьте ему ⭐ на GitHub, это помогает другим его найти.
 
 ---

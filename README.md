@@ -386,6 +386,15 @@ docs/                     multiplayer guides and the per-area technical notes
 - **Pull requests are welcome.** Fork the repository, make your change on a branch, run the edit-mode tests, and open a
   pull request against `main`. Before working on an area, read its file in [docs/notes/](docs/notes); the conventions are
   in [CLAUDE.md](CLAUDE.md).
+- **Changing models, textures or sounds?** Those go to the project's LFS server, which accepts your GitHub account, so
+  you don't need another one. Fork the repository first, then run this once (in Git Bash on Windows) so Git reuses your
+  GitHub login for it:
+  ```bash
+  git config --global credential.https://toppienas.diskstation.me.helper ""
+  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
+  ```
+  Without it, Git asks for a login on your first push: your GitHub username, with a
+  [GitHub token](https://github.com/settings/tokens) as the password.
 - **Like the project?** Give it a ⭐ on GitHub, it helps others find it.
 
 ---

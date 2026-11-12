@@ -403,6 +403,15 @@ docs/                     multiplayer guides and the per-area technical notes
 - **Pull requesty są mile widziane.** Zrób fork repozytorium, wprowadź zmianę na osobnej gałęzi, uruchom testy w trybie
   edycji i otwórz pull request do `main`. Zanim zabierzesz się za jakiś obszar, przeczytaj jego plik w
   [docs/notes/](../notes); konwencje są w [CLAUDE.md](../../CLAUDE.md).
+- **Zmieniasz modele, tekstury lub dźwięki?** Trafiają na serwer LFS projektu, który akceptuje Twoje konto GitHub, więc
+  nie potrzebujesz innego. Najpierw zrób fork repozytorium, a potem uruchom to raz (w Git Bash na Windows), żeby Git
+  używał Twojego logowania GitHub:
+  ```bash
+  git config --global credential.https://toppienas.diskstation.me.helper ""
+  git config --global --add credential.https://toppienas.diskstation.me.helper '!f() { test "$1" = get && printf "protocol=https\nhost=github.com\n\n" | git credential fill | grep -E "^(username|password)="; }; f'
+  ```
+  Bez tego Git przy pierwszym pushu poprosi o login: Twoja nazwa użytkownika GitHub, a jako hasło
+  [token GitHub](https://github.com/settings/tokens).
 - **Podoba ci się projekt?** Daj mu ⭐ na GitHubie, pomaga to innym go znaleźć.
 
 ---
