@@ -7,6 +7,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 - **Capital ships and pirate bases** (`Reference/research/npc_combat_specials.md`): in Terran space 30 % of orbits with
   freighters get the battleship (7 turrets) or, past campaign 0x67, the carrier (8); Vossk space past 0x8c the Vossk
   battleship (5); turrets (`NpcShip` turret mode, `TurretAim`) are 1000-HP static objects that die with their host.
+  Placement (`TrafficPlan.AddCapitalShip`): the battleship and the carrier at (+-40000, +-5000, 40000..120000), the Vossk
+  battleship at (+-40000, +-20000, 60000..140000). The carrier's own box (z 100000..180000) is overwritten in the original
+  (vtable 0x48 = setPosition(x, y, z)); the remake kept it until 2026-11-12 (`CarrierUsesTheBattleshipsBox`).
   Remake (players' reports): a shot inside a big hull's hit boxes and a smaller target's cube hits the smaller one
   (`Gun.SmallerInside`): `Gun::calcCharacterCollision` takes the first target of the list and the host comes before its
   turrets, so the Terran battleship's turrets, all 7 inside its 11 boxes, took no hits (the hull did), and the enhanced

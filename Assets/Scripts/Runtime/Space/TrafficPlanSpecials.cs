@@ -65,11 +65,11 @@ namespace GoF2Remake.Flight
         static void AddCapitalShip(Database db, List<SpawnSpec> list, bool terran, bool carrier, int station)
         {
             int kind = !terran ? SpawnSpec.CapitalVossk : carrier ? SpawnSpec.CapitalCarrier : SpawnSpec.CapitalBattleship;
-            // The original's boxes in createMission: the battleship's, the carrier's and the Vossk battleship's.
-            System.Func<Vector3> roll = kind == SpawnSpec.CapitalBattleship
+            // The original's boxes in createMission: the battleship's, and the Vossk battleship's. The carrier is first placed
+            // around (+-40000, +-20000, 100000..180000) by setPosition(Vector&), then moved by the battleship's setPosition(x, y, z)
+            // (vtable 0x48, which setPosition(Vector&) forwards to), so it ends in the battleship's box.
+            System.Func<Vector3> roll = kind != SpawnSpec.CapitalVossk
                 ? () => new Vector3(Random.Range(0, 80000) - 40000, Random.Range(0, 10000) - 5000, Random.Range(0, 80000) + 40000)
-                : kind == SpawnSpec.CapitalCarrier
-                ? () => new Vector3(Random.Range(0, 80000) - 40000, Random.Range(0, 40000) - 20000, Random.Range(0, 80000) + 100000)
                 : () => new Vector3(Random.Range(0, 80000) - 40000, Random.Range(0, 40000) - 20000, Random.Range(0, 80000) + 60000);
             // Remake option: escorts, stronger turrets, the killable carrier / Vossk battleship (World.CapitalShips).
             AddCapitalShipAt(db, list, kind, ClearOfStation(station, CapitalVolumes(kind), roll), Settings.CapitalShips);

@@ -539,14 +539,12 @@ namespace GoF2Remake.Tests
             Repeat(120, 1000, 30, list => Assert.AreEqual(0, Kind(list)));
         }
 
-        [Test, Category("Unverified")]
-        [Ignore("Unverified: npc_combat_specials.md 2.3 says the carrier's box is overwritten by the battleship's; the remake keeps " +
-                "(+-40000, +-20000, 100000..180000) as CLAUDE.md documents. Check Level::createMission before changing either.")]
+        [Test]
         public void CarrierUsesTheBattleshipsBox()
         {
-            // npc_combat_specials.md 2.3 (v): the carrier's point is "first drawn around (+-40000, +-20000, 100000..180000)
-            // (RNG only), then overwritten by the battleship formula (nextInt(80000) - 40000, nextInt(10000) - 5000,
-            // nextInt(80000) + 40000)". TrafficPlan.AddCapitalShip keeps the first box.
+            // Level::createMission: the carrier is placed around (+-40000, +-20000, 100000..180000), then moved like the
+            // battleship by vtable 0x48, setPosition(x, y, z): (nextInt(80000) - 40000, nextInt(10000) - 5000,
+            // nextInt(80000) + 40000) (PlayerFixedObject::setPosition(Vector&) forwards to that slot).
             InCompletedWorld(0);
             int carriers = 0;
             Repeat(70, 3000, 31, list =>
