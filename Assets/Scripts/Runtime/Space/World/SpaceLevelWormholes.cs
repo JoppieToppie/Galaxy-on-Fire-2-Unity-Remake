@@ -549,11 +549,7 @@ namespace GoF2Remake.World
         /// arrival camera is placed again around the new pose.</summary>
         public void MovePlayer(Vector3 position, Quaternion rotation)
         {
-            Player.transform.SetPositionAndRotation(position, rotation);
-            // Modified: not while a level script's cutscene camera holds the view (scriptCamera): Snap put the camera behind the
-            // moved player mid-shot (157: the camera following the Valkyrie jumped to Keith's ship as Harval's chase began, a
-            // player's report). CutsceneCamera.Release snaps it back when the cutscene ends.
-            if (!chase.scriptCamera) chase.Snap();
+            WarpPlayer(position, rotation);
             if (launchCameraMs <= 0f) return;
             bool travel = launchTravel;
             float Side() => (Random.value < 0.5f ? -1f : 1f) * (travel ? Random.Range(500, 1000) : Random.Range(500, 2500));
@@ -563,6 +559,16 @@ namespace GoF2Remake.World
             mainCamera.transform.rotation = Quaternion.LookRotation(Player.transform.position - mainCamera.transform.position, Player.transform.up);
             if (challengeFlyIn) { challengeFlyStart = mainCamera.transform.position; challengeFlyMs = 0f; }
             PlaceArrivalWormhole();
+        }
+        /// <summary>The player's ship to another pose in flight, the chase camera with it (remake: a boss's wormhole,
+        /// NpcWormhole); nothing else moves.</summary>
+        public void WarpPlayer(Vector3 position, Quaternion rotation)
+        {
+            Player.transform.SetPositionAndRotation(position, rotation);
+            // Modified: not while a level script's cutscene camera holds the view (scriptCamera): Snap put the camera behind the
+            // moved player mid-shot (157: the camera following the Valkyrie jumped to Keith's ship as Harval's chase began, a
+            // player's report). CutsceneCamera.Release snaps it back when the cutscene ends.
+            if (!chase.scriptCamera) chase.Snap();
         }
         /// <summary>Level::initStreamOutPosition: this level began with an arrival by travel (planet jump, gate, wormhole).</summary>
         public bool StreamOutArrival => launchTravel;

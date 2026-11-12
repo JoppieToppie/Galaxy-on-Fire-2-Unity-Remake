@@ -40,9 +40,9 @@ namespace GoF2Remake.Modding
         const float MetersPerUnit = 0.05f;
         // EaseEngineVFX with BP_Ship_Player's EngineVFXUpdateRate 0.05 as the step: VInterpTo's alpha 0.05 x 16 = 0.8 rising,
         // 0.05 x 8 = 0.4 falling, per tick; as rates over a 60 fps frame
-        static readonly float RiseRate = -Mathf.Log(1f - 0.8f) * 60f, FallRate = -Mathf.Log(1f - 0.4f) * 60f;
-        const float SteerShare = 0.16f;       // -0.008 x 10000 cm/s = 80 cm of the 500 cm flame
-        const float SteerTopSpeed = 100f;     // m/s (EVERSPACE 2's |SteeringOffset| clamp 10000 cm/s; the remake's top speed)
+        internal static readonly float RiseRate = -Mathf.Log(1f - 0.8f) * 60f, FallRate = -Mathf.Log(1f - 0.4f) * 60f;
+        internal const float SteerShare = 0.16f;       // -0.008 x 10000 cm/s = 80 cm of the 500 cm flame
+        internal const float SteerTopSpeed = 100f;     // m/s (EVERSPACE 2's |SteeringOffset| clamp 10000 cm/s; the remake's top speed)
 
         static readonly int DirId = Shader.PropertyToID("_FlameDir");
         static readonly int ThrustId = Shader.PropertyToID("_FlameThrust");
@@ -162,14 +162,7 @@ namespace GoF2Remake.Modding
             level = level < 0f ? target : Mathf.MoveTowards(level, target, Time.unscaledDeltaTime * FadePerSecond);
             // SteeringOffset (the player's ship only, EngineVFXApplySteeringOffset): against the velocity, x the thrust's
             // forward share (sat(Thrust.x / |Thrust|)), as a share of the flame's length
-            Vector4 steer = Vector4.zero;
-            if (Pilot && !inStation)
-            {
-                float mag = Thrust.magnitude;
-                float share = mag > 1e-5f ? Mathf.Clamp01(Thrust.z / mag) : 0f;
-                var v = Vector3.ClampMagnitude(Velocity / SteerTopSpeed, 1f) * (-SteerShare * share);
-                steer = new Vector4(v.x, v.y, v.z, 0f);
-            }
+            Vector4 steer = Pilot && !inStation ? (Vector4)SteerBend(Velocity, Thrust) : Vector4.zero;
             foreach (var (r, index, dir) in flames)
             {
                 if (r == null) continue;
@@ -183,6 +176,25 @@ namespace GoF2Remake.Modding
                 block.SetFloat(TravelId, Travel);
                 r.SetPropertyBlock(block, index);
             }
+        }
+
+        /// <summary>What the player asks of the ship in its frame (x right, y up, z forward; -1..1): free flight's keys
+        /// (FlightModel.ThrustInput), the original flight's throttle and strafe. EVERSPACE 2's GetLastInputVector.</summary>
+        internal static Vector3 PilotInput(ShipController ship)
+        {
+            var m = ship.Model;
+            if (ship.FreeFlightActive && !ship.externalControl && !ship.inputLocked) return m.ThrustInput;
+            float side = Mathf.Abs(m.StrafeVelocity) > 0.05f ? Mathf.Sign(m.StrafeVelocity) : 0f;
+            return new Vector3(side, 0f, m.Braking ? 0f : m.Throttle);
+        }
+
+        /// <summary>EVERSPACE 2's SteeringOffset (EngineVFXApplySteeringOffset) as the flame tip's offset, world space, a share
+        /// of the flame's length: against 'velocity' (world, m/s), x the forward share of 'thrust' (the ship's frame).</summary>
+        internal static Vector3 SteerBend(Vector3 velocity, Vector3 thrust)
+        {
+            float mag = thrust.magnitude;
+            float share = mag > 1e-5f ? Mathf.Clamp01(thrust.z / mag) : 0f;
+            return Vector3.ClampMagnitude(velocity / SteerTopSpeed, 1f) * (-SteerShare * share);
         }
 
         /// <summary>EVERSPACE 2's EngineVFX_Update and EaseEngineVFX for this frame ('d' the engine drive, 0..2).</summary>
@@ -212,12 +224,7 @@ namespace GoF2Remake.Modding
             }
             else if (m != null)
             {
-                if (ship.FreeFlightActive && !ship.externalControl && !ship.inputLocked) input = m.ThrustInput;
-                else
-                {
-                    float side = Mathf.Abs(m.StrafeVelocity) > 0.05f ? Mathf.Sign(m.StrafeVelocity) : 0f;
-                    input = new Vector3(side, 0f, m.Braking ? 0f : m.Throttle);
-                }
+                input = PilotInput(ship);
                 if (!engines) input = new Vector3(input.x, input.y, Mathf.Min(0f, input.z));
                 thrustTarget = input;
                 boostTarget = d > 1f ? 1f : 0f;   // a boost, the cruise mode, a jump

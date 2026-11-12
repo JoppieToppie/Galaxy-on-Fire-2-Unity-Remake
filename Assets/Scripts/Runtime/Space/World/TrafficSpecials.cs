@@ -339,7 +339,8 @@ namespace GoF2Remake.World
                              : voidBattle ? story?.voidBattle
                              : musicCategory == 5 ? sn?.stealthMusic1
                              : musicCategory == 6 ? sn?.stealthMusic2
-                             : (assets.battleMusic != null && assets.battleMusic.Length == 3 ? assets.battleMusic[musicCategory - 1] : null);
+                             : Modding.ModWorld.BattleMusic(StationIndex, musicCategory)   // remake mods: a system's own "battleMusic"
+                               ?? (assets.battleMusic != null && assets.battleMusic.Length == 3 ? assets.battleMusic[musicCategory - 1] : null);
                     music.clip = clip = Modding.ModMusic.Replace(clip);   // a mod's track of the same name
                     if (clip != null) music.Play();
                 }

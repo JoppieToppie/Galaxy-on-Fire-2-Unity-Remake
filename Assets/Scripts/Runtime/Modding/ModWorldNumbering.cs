@@ -488,6 +488,17 @@ namespace GoF2Remake.Modding
             var st = Database.Shared.Stations.Find(s => s.index == station);
             return st != null && systemSpaceMusic.TryGetValue(st.system, out string name) ? ModMusic.Track(name) : null;
         }
+        /// <summary>The fight music a mod gave the station's system for a battle category (1 low, 2 medium, 3 full: the
+        /// hostiles around; null: the game's).</summary>
+        public static AudioClip BattleMusic(int station, int category) => BattleMusicName(station, category) is string n ? ModMusic.Track(n) : null;
+        /// <summary>BattleMusic's track name.</summary>
+        public static string BattleMusicName(int station, int category)
+        {
+            if (systemBattleMusic.Count == 0 || category < 1 || category > 3) return null;
+            var st = Database.Shared.Stations.Find(s => s.index == station);
+            if (st == null || !systemBattleMusic.TryGetValue(st.system, out var l)) return null;
+            return l[l.Count == 3 ? category - 1 : 0];
+        }
         /// <summary>The docked music a mod gave the station or its system (null: the game's).</summary>
         public static AudioClip StationMusic(int station)
         {

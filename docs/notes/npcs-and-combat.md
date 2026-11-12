@@ -67,6 +67,31 @@ simulates an orbit's traffic) and `ship_combat.md` (+ `Reference/tools/combat/co
   Left to the original: story and freelance mission orbits, a script's only enemy (`SetOnlyEnemy`), mission ships, a
   turned ship (it goes for the player who shot it), the Specters, the fleet battles' fighters (their own nearest pick),
   wingmen, turrets, the multiplayer remote players' pick. Off = the original exactly.
+- **GoF3 dogfighting** (remake option, 2026-11-05, the GoF3 roadmap's G6 after a survey of libgofm.so's AI; Options >
+  Gameplay "NPC dogfighting", `Settings.NpcDogfight`, a session rule in two bits, `SessionRules.DogfightOf`: Original /
+  GoF3 on mod hulls (default: ships.json `"traffic": { "ai": "gof3" }`, `CustomTraffic.ai`) / GoF3 for all; a dedicated
+  server has no flag for it and keeps the default): `Flight.Gof3Dogfight` (Core, rules) run by `NpcShipDogfight`
+  (`UpdateDogfight` after the targeting, `DogfightAim` in `Steer`, `DogfightRoll` for the model's spin and side step,
+  `OnDamaged` -> `Hit`). GoF3's AIJob_Fight as modes: Approach (8-13 s, firing; ends inside the 8000 break-off box,
+  which then no longer circles) -> VeerOff (5-6 s away, a quarter along the target's heading) or 30 % Idle (2 s across
+  it); Chase (AIJob_ChasePrey: behind the target within 1500 x 11.4, 8 s at 1.6x on a slot 3000 behind, firing once
+  lined up; 15 s cooldown); Tease (AIJob_Tease: every 10 s, 40 %, within 800 x 11.4 and in front of its nose: 4-6 s 180
+  x 11.4 ahead of it, holding fire). The aim leads (the target's smoothed velocity x the shot's flight time, `gunSpeed`)
+  with a miss of up to 1000 units settling to 0 over 0.5 s each run. The roll (NPCBankingSystem::updateEvade): per hit
+  by `EvadeChance(Session.Difficulty)` (Easy 0, Normal 0.15, Hard 0.25, Extreme 0.33; Most Wanted and pirate-event
+  bosses 0.66), 1.8 s, `Target.invulnerable` for 1.5 s (cleared only if it set it), 3 s locked after; the model spins
+  only, so other players see the path, not the spin. Not for wingmen, freighters, turrets, fixed objects, capital ships,
+  an event order or a mind-controlled ship. GoF3's distances x `Gof3Dogfight.DistanceScale` 11.4 (the devices' factor).
+  Left out: GoF3's attacker budget (the remake's Smarter NPC targeting is the same rule), formations and flocking, the
+  bursts and weapon choice, the speed control, Dive (bosses), Flee (gated off in GoF3's data). Tests
+  `Gof3DogfightTests`, `SettingsTests.TheDogfightingModeTravelsInTwoBits`. Untested in Play mode. Formations
+  (2026-11-05, GoF3's FormationSystem: V, followers within 90 units, spacing from the leader's radius):
+  `NpcShip.FormationSlot` puts such a fighter of a Local group on its route, not fighting, in a V slot
+  (`Gof3Dogfight.VSlot`, two wings in turn) behind the group's leader (the first living Local of its race in
+  `Traffic.Ships`, looked up once a second), aiming a spacing past the slot along the leader's heading at
+  `Gof3Dogfight.FormationSpeed` (0.6-1.5 x, by how far the slot is ahead); the leader or itself fighting ends it. Not
+  done: GoF3's fours and vertical / mirrored V, flocking (its neighbours' spacing), followers taking the leader's
+  target.
 - **Turned ships pick at any range** (`PlayerFighter::update` 0xf131e / 0xf1444, `NpcShip.TakesAtAnyRange`): a turned
   ship (`turnedEnemy`, Player+0xe0) of any race but the pirates' takes the player outside its ±50 000 box when it picks
   (not attacking, or the re-roll's random tries); the 5 s re-roll still drops a pick outside the box, and as it leaves
@@ -353,6 +378,9 @@ battle spawns in 156 ms with its hulls.
   40) become RocketGuns (speed 8, 10 000 ms, reload 3000; sorts 5 / 40 home on the ship's current target after 1000 ms,
   `RocketGun::seekEnemy`); a second gun slot toggles every 20 000 ms (`PlayerFighter+0x2e0`): the Wanted flying ships
   45-48 (G'liissk x4), Harval at 157 / 158 (item 7 x3 + Shesha x4).
+  Remake mods (2026-11-05, GoF3's NPC loadouts SW_DL_*): ships.json "traffic": { "secondaries" } (`CustomSecondary`,
+  JsonUtility): `NpcShip.SetOwnSecondary` gives a traffic NPC (not a wingman, nor a boss's clone) the first entry it
+  carries (rank within minRank..maxRank, share % rolled at spawn) as its second gun at x factor, when its spec has none.
 - **Missile warning and evasion** (remake; the original has neither): any homing missile (Missile, ClusterMissile,
   Thermo kinds) locked on a boosting or cloaked player loses its lock for good and flies straight on (`Gun.Update`:
   `Bullet.lockLost`, `Target.ShakesMissiles` = `boosting` || `cloaked`, set by `ShipController` / `PlayerCloak` for the

@@ -127,12 +127,15 @@ namespace GoF2Remake.World
         void GunHit(Gun g, GunRig r, int bullet, Target hit, Vector3 point)
         {
             float dmg = g.damage;
+            if (wingDevice != null) dmg *= wingDevice.DamageFactor;   // remake mods: a wingman's Charged Shots
+            bool wasAlive = hit.Alive;
             if (hit.isPlayer && !Target.hostileToPlayer) dmg = (int)(dmg * 0.2f);   // stray fire from a non-hostile ship
             else if (!hit.isPlayer && RemotePlayers != null && HostileToRemote != null && Contains(RemotePlayers, hit) && !HostileToRemote(this, hit))
                 dmg = (int)(dmg * 0.2f);   // multiplayer: the same for another player it isn't after
             else if (hit.isPlayer && ObjectDocking.PlayerDocked) dmg = (int)(dmg * 0.75f);
             else if (!hit.isPlayer && RemoteDockedAtObject != null && RemoteDockedAtObject(hit)) dmg = (int)(dmg * 0.75f);   // multiplayer
             hit.Damage(dmg, true, g.bullets[bullet].velocity);
+            if (IsWingman && wasAlive && !hit.Alive && !hit.isPlayer) WingmanSays(WingmanCrew.Kill, 0.5f);   // remake mods: its crew's lines
             // remake mods: a webber's hit slows the player's ship (NpcRoles)
             if (Role == NpcRoles.Role.Webber && hit.isPlayer && Target.hostileToPlayer) hit.SlowBy?.Invoke(Random.Range(NpcRoles.WebMinMs, NpcRoles.WebMaxMs), NpcRoles.WebSpeedFactor, false);
             if (g.emp > 0f) EmpBreaksCloak(hit);
@@ -157,6 +160,8 @@ namespace GoF2Remake.World
         /// <summary>Player::damage friendly-fire bookkeeping (§4.5), hits by the player only.</summary>
         void OnDamaged(Target t, int dmg, bool byNpc)
         {
+            if (dmg > 0 && dogfight != null && Target.Alive) dogfight.Hit();   // remake option: GoF3's evasive roll (NpcShipDogfight)
+            if (!byNpc && mindControlMs > 0f) mindControlMs = 0f;   // remake mods: the player's hit breaks a mind control
             // Player::damage on a Most Wanted criminal (+0x3e): Level::attackWanted instead of the friendly-fire rules.
             if (!byNpc && Spec.wantedIndex >= 0) { traffic.AttackWanted(this, dmg); return; }
             // Player::damage 0xafd80: hitting a pirate in Loma arms and alarms them all and revokes the toll.
@@ -214,6 +219,9 @@ namespace GoF2Remake.World
                 if (bp >= 0 && !Crate.HoldsAny(bp)) Crate.Spawn(transform.position, new[] { new ItemStack(bp, 1) }, Race, Crate.LookJunk);
             }
             if (IsWingman) Wingmen.Died(Target.displayName);   // Level::wingmanDied: gone from the contract
+            // remake mods (wingmen.json): another wingman tells of it; the player shot down what was after a wingman
+            if (IsWingman) traffic.LivingWingmen.Find(w => w != this)?.WingmanSays(WingmanCrew.Lost);
+            else if (!Target.killedByNpc && target != null && target.wingman) target.GetComponent<NpcShip>()?.WingmanSays(WingmanCrew.Thanks);
             if (Spec.ship == 14 && !Target.killedByNpc) Achievements.Progress(39, ++Session.BattleshipsDestroyed);   // Status+0x118
             Current = State.Dying;
             sparks?.Clear();

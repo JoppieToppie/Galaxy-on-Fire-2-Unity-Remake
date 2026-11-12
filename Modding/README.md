@@ -854,10 +854,11 @@ styles](#exhaust-styles)), 4 manoeuvring jet (`"direction": [x, y, z]`, the way 
 | `lounge` | Optional. A visitor in the Space Lounges sells it: in systems of `systemRace` (-1 = any), from story step `minCampaign` (in free play from rank `minRank`), `chance` % each time a bar fills with new visitors. |
 | `npcTurrets` | Optional, also in an `override`. Turret items (numbers or `"mod:id"`, e.g. `[ 48, "my_mod:flak" ]`) the **NPC** ships of this type carry on its turret mounts (`slotType` 2), the n-th item on the n-th mount: in space they aim and fire by themselves at whatever that ship is hostile to (your own turret model, missiles and salvos included), and parked in a hangar they show them. Items that are no turret, or more items than mounts, give a warning. The game's own NPC ships carry none; the Bloodstar (45) and the Rhino (51) swap their built-in turret for yours. |
 | `dealer` | Optional. The ordinary ship dealers may stock it: `{ "chance": 2, "systemRace": -1, "minTechLevel": 0 }`, `chance` % (decimals allowed) each time a station's dealer list is made, at stations of `systemRace` systems (-1 = any) with at least that tech level (above 10: the tech level 10 stations). Not the special yards (Kothar, Quineros...); Thynome's dealer is an ordinary one, the VoidX added to it once every gold medal is won. |
-| `traffic` | Optional. How NPC fighters fly it: `{ "weight": 1, "races": [8] }`. With the Gameplay option "Mod ships in traffic" (Off / 10 / 25 % (default) / 50 %) that share of the game's NPC fighters (patrols, raiders, pirates, escorts, guards) fly one of the mods' ships of their race instead, picked by `weight` (0 = never); `races` are the races whose fighters fly it (0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirates, 9 Void, or [races](#races); default its own `race`). A mod race's fighters always fly one of the mods' ships, whatever the option. Only ships up to 150 m long, available now (`available`), with their model loaded. Their hull and guns stay those of the fighter they replace. Freighters and capital ships aren't replaced, and a [campaign's](#campaigns) `trafficShips` win. A [customizable ship](#customizable-ships)'s NPCs each fly a random build of it (parts the type may fit, a tier, one of the kit's colour presets or random palette colours, now and then a skin); `"randomBuild": false` keeps them to its default build. The builds use the parts already loaded, and every docking loads a few more in the background, so the variety grows as you play. `"boss": true` makes it a boss hull instead: it never flies as an ordinary fighter, and the pirate bosses (Pirate outposts and bosses, the Pirate activity board) fly it at the same option's chance, up to 400 m long; give it `npcTurrets` to arm its turret mounts. Their hull, guns and escorts stay the pirate boss's. `"capital": "battleship"` or `"freighter"` makes it a capital ship instead, see [Capital ships and freighters](#capital-ships-and-freighters). `"role"` gives it a part in a fight, after EVERSPACE 2's drones: `"sniper"` fires from twice as far; `"detonator"` holds its fire, flies into its target and blows up within 72 m, hitting every ship within 360 m for 1.8 seconds of its gun's fire (EVERSPACE 2's); `"webber"`'s hits slow your ship to 40 % speed for 4 to 5 s; `"shieldCharger"` holds its fire and repairs about 5 % a second of the hull of its race's ships within 1.5 km; `"armorLink"` holds its fire and links its nearest such ship, which then takes three quarters of the damage and repairs about 1.6 % of its hull a second (EVERSPACE 2's armour buff over GoF2's hull-only NPCs); `"antiMissile"` holds its fire and shoots down one of your missiles every quarter second within 2.9 km; `"jumpSuppressor"` holds its fire and, while it flies hostile in the orbit, your Khador Drive won't charge (it does once the drone is gone); `"lootDrone"` holds its fire and carries 4 to 7 pieces of loot: once hit or once you come near, it flees from you, charges its jump drive 5 to 10 s later and is gone 6 s after that with what it still carries (an EMP makes the charge start over); each time its hull falls far enough (about a share for each piece, the first at its first hit) a piece pops out in a crate of its own, and the rest drop when it dies. A loot drone never flies as an ordinary fighter: the cruise drive's `lootdrone` encounter flies it (see [Cruise drives](#cruise-drives)). `"loot": [ { "item": "155", "chance": 0.2, "min": 1, "max": 3 } ]` is what its NPCs drop besides their cargo, each entry by its chance (0-1), `min` to `max` of the item (a reference as text: `"155"` or `"mod:id"`), at most `"lootDrops"` of them (0 = any number), in a crate a kind; a Void ship's too, which carries no cargo. |
+| `traffic` | Optional. How NPC fighters fly it: `{ "weight": 1, "races": [8] }`. With the Gameplay option "Mod ships in traffic" (Off / 10 / 25 % (default) / 50 %) that share of the game's NPC fighters (patrols, raiders, pirates, escorts, guards) fly one of the mods' ships of their race instead, picked by `weight` (0 = never); `races` are the races whose fighters fly it (0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirates, 9 Void, or [races](#races); default its own `race`). A mod race's fighters always fly one of the mods' ships, whatever the option. Only ships up to 150 m long, available now (`available`), with their model loaded. Their hull and guns stay those of the fighter they replace. Freighters and capital ships aren't replaced, and a [campaign's](#campaigns) `trafficShips` win. A [customizable ship](#customizable-ships)'s NPCs each fly a random build of it (parts the type may fit, a tier, one of the kit's colour presets or random palette colours, now and then a skin); `"randomBuild": false` keeps them to its default build. The builds use the parts already loaded, and every docking loads a few more in the background, so the variety grows as you play. `"boss": true` makes it a boss hull instead: it never flies as an ordinary fighter, and the pirate bosses (Pirate outposts and bosses, the Pirate activity board) fly it at the same option's chance, up to 400 m long; give it `npcTurrets` to arm its turret mounts. Their hull, guns and escorts stay the pirate boss's. `"capital": "battleship"` or `"freighter"` makes it a capital ship instead, see [Capital ships and freighters](#capital-ships-and-freighters). `"role"` gives it a part in a fight, after EVERSPACE 2's drones: `"sniper"` fires from twice as far; `"detonator"` holds its fire, flies into its target and blows up within 72 m, hitting every ship within 360 m for 1.8 seconds of its gun's fire (EVERSPACE 2's); `"webber"`'s hits slow your ship to 40 % speed for 4 to 5 s; `"shieldCharger"` holds its fire and repairs about 5 % a second of the hull of its race's ships within 1.5 km; `"armorLink"` holds its fire and links its nearest such ship, which then takes three quarters of the damage and repairs about 1.6 % of its hull a second (EVERSPACE 2's armour buff over GoF2's hull-only NPCs); `"antiMissile"` holds its fire and shoots down one of your missiles every quarter second within 2.9 km; `"jumpSuppressor"` holds its fire and, while it flies hostile in the orbit, your Khador Drive won't charge (it does once the drone is gone); `"lootDrone"` holds its fire and carries 4 to 7 pieces of loot: once hit or once you come near, it flees from you, charges its jump drive 5 to 10 s later and is gone 6 s after that with what it still carries (an EMP makes the charge start over); each time its hull falls far enough (about a share for each piece, the first at its first hit) a piece pops out in a crate of its own, and the rest drop when it dies. A loot drone never flies as an ordinary fighter: the cruise drive's `lootdrone` encounter flies it (see [Cruise drives](#cruise-drives)). `"loot": [ { "item": "155", "chance": 0.2, "min": 1, "max": 3 } ]` is what its NPCs drop besides their cargo, each entry by its chance (0-1), `min` to `max` of the item (a reference as text: `"155"` or `"mod:id"`), at most `"lootDrops"` of them (0 = any number), in a crate a kind; a Void ship's too, which carries no cargo. `"ai": "gof3"` makes its NPC fighters fight Galaxy on Fire 3's way while the Gameplay option "NPC dogfighting" is "GoF3 on mod hulls" (the default; "GoF3 for all" does it for every fighter, "Original" for none): attack runs of 8 to 13 seconds that end by veering off for 5 to 6 seconds (or holding back for 2) instead of circling you, now and then 8 seconds on your tail at 1.6 times the speed or 4 to 6 seconds just ahead of your nose holding fire (bait), shots led to where you will be with an aim that settles in half a second, and a barrel roll away from a hit (1.8 seconds, the first 1.5 invulnerable; on Normal 15 % of the hits, Hard 25 %, Extreme 33 %, Easy never, a boss 66 %); a system's local patrol flies in a V behind its first fighter until a fight breaks it up. `"devices": [ ... ]` gives its NPCs the devices a Most Wanted criminal can have, in the same format (see the boss devices under Most Wanted, below: mine layers, clouds, shields and the rest), used whenever they fight you, without the criminals' warnings on the HUD; a `mineLayer` with a `layBehind` below 0 throws its mine ahead of the nose (GoF3's kamikazes throw one at you and lay others behind them). Not on wingmen. `"secondaries": [ { "item": "mod:missiles", "minRank": 6, "maxRank": 17, "share": 25, "factor": 1 } ]` gives its NPCs a second weapon (missiles or another gun) as the Most Wanted criminals carry one: the first entry an NPC carries as it comes, while your rank is within `minRank` / `maxRank` and for `share` % of them (default 100), its damage x `factor`. |
 | `available` | Optional. A [condition](#conditions) that must hold before it is sold anywhere (dealers and lounges), and before NPCs fly it. |
 | `sounds` | Optional. The ship's own engine and boost sounds, see [Ship sounds](#ship-sounds). |
 | `crate`, `crateSize` | Optional. The loot container a ship of this type leaves when it is destroyed or robbed with a tractor beam: a `.glb` / `.gltf` file in the mod, drawn in place of its race's container and as big as that container, unless `crateSize` gives its largest extent in game units (the game's containers are about 400). Ships may share a file; the first one's `crateSize` counts. None = its race's container. |
+| `wingmanDevice` | Optional. What a hired wingman flying this ship uses (Galaxy on Fire 3's wingmen): `"repair"` (Hull Repair: with your hull under 40 %, a quarter of it mended over 3 seconds), `"ammo"` (Ammo Supply: 5 more rounds of your selected secondary weapon when you are down to one or none) or `"charged"` (Charged Shots: its own shots do x1.75 for 5 seconds while it attacks); 55 seconds between uses. The HUD says when it does. None = nothing, like the game's wingmen. See [Wingmen](#wingmen). |
 | `integrated` | Optional, also in an `override`. Equipment built into the hull, like the Kothar ships' Khador Drive (Cronus, Typhon, Nemesis) and the Specter's / Scimitar's cloak: `{ "khadorDrive": true, "cloak": true }`. `khadorDrive`: the ship can make Khador jumps without the drive in a slot (it still needs energy cells). `cloak`: `true` (the U'tool's stats), a cloak item (a number or `"mod:id"`, e.g. `96`) whose stats it has, or `false`; a cloak the player mounts replaces it, and with the Gameplay option "Cloak bay on cloaking ships" it goes into the built-in cloak's bay instead of a slot. `false` takes an original ship's away. `items`: any equipment built in, a list of item numbers, `"mod:id"` keys or `{ "item": ..., "amount": n }` (a secondary weapon's starting ammo, default 10), e.g. `"items": [46, { "item": 36, "amount": 20 }, 54]`. Built-in items work like mounted ones but take no slot, show on the hangar's Ship tab under "Built into the ship", and can't be demounted, sold or stored; they stay with the ship type when the player changes ships. A one-per-ship item the player fits (a shield, armor, a booster, a scanner, a drill, a cloak...) takes the built-in one's place without a slot, and the built-in one is back when it is demounted; built-in weapons and turrets add to the ship's own slots. A built-in launcher's missiles are refilled by buying more; a one-off item that is used up (an emergency system) is back at the next docking. An empty list takes them away. |
 
 Ship and station materials are lit physically (URP Lit): they reflect the system's sky by their smoothness (the
@@ -1664,7 +1665,7 @@ New star systems and their stations. Both are lists: `"id"` adds one, `"override
 | `sunColor` | `[r, g, b]` from 0 to 1: the colour and strength of the sunlight on ships and stations. Default: the light of its `sky`. |
 | `skybox` | Its own sky, see [Skies](#skies). Default: the nebula of its `sky` and the game's stars. |
 | `jumpgate` | Its own jumpgate model in its gate orbit: `{ "model": "models/gate.glb", "size": 15000, "yaw": 0, "radius": 7500, "materials": [...] }`. `model` a glTF / GLB in the mod (like a station's) or a game model (`"gof2:jumpgate_vossk_anim"`); `size` its largest extent in game units (default 15000; the game's gates are about 15000, the Vossk one 22500); `yaw` degrees about its up axis (ships fly through it along its front, the model's +Z); `radius` how near a ship must come to jump, and its collision sphere (default half its size); `materials` like [ships.json's](#materials). Default: its race's gate. A gate of your own has no jump flash (the game's gates play one as a ship goes through). |
-| `spaceMusic`, `stationMusic` | A mod's track (see [Music](#music)). |
+| `spaceMusic`, `stationMusic`, `battleMusic` | A mod's track (see [Music](#music)); `battleMusic` one or three. |
 
 Changing a system (`"override"`): `name`, `security`, `visible`, `available`, `sky`, `sunTexture`, `sunColor`, `skybox`, `jumpgate`, the music, and `gates` (added to its routes; links original systems too).
 
@@ -2048,6 +2049,34 @@ A blueprint is obtained once: once the player knows it, every source stops offer
 has nothing left ("I don't have anything left, sorry."), a derelict hacked afterwards is empty, and no second data container
 is dropped while one with it still floats in the orbit. It can be built from as often as the player likes.
 
+## Wingmen
+
+The Space Lounges' wingmen offers can fly your ships: a `wingmen.json` in the mod (one object) makes a crew of them.
+
+```json
+{
+    "chance": 40,
+    "ships": [ "falcon", "my_mod:hawk" ],
+    "radio": {
+        "kill": [ "Scratched one!", "Got one!" ],
+        "lost": [ "We've lost a wingman." ],
+        "help": [ "Help me, I can't shake him off!" ],
+        "thanks": [ "Nice shot!" ],
+        "warn": [ "Enemy behind you!" ],
+        "playerDown": [ "Pull out, you're on fire!" ]
+    }
+}
+```
+
+| Field | |
+|---|---|
+| `chance` | % of the bars' wingmen offers whose crew flies your ships (default 40). With several mods' crews each is rolled in turn, in load order; the first that comes up flies, else the game's way (a fighter of the agent's race, the same one for a name every time). |
+| `ships` | The ships they fly (`"mod:id"`, your own by their `id`, or numbers). Default: your ships with a `wingmanDevice`. Each pilot gets one of those of the agent's race, else any of them; the agent and its friends may fly different ones. |
+| `radio` | Lines a wingman in one of these ships says in the flight HUD's radio box, with its name and face: `kill` (it destroyed a ship; now and then), `lost` (another of them was shot down), `help` (its hull under a third), `thanks` (you destroyed a ship that was after it), `warn` (an enemy after you within 1.5 km behind you; then quiet for 30 seconds), `playerDown` (your hull under a fifth; once until it is back over half). A list of lines (one at random) or one line; at most one line every 12 seconds, and none over other radio calls. |
+
+A ship's `wingmanDevice` (see [ships.json](#shipsjson)) works whenever a hired wingman flies it, with or without a
+`wingmen.json`. The crew's ships are saved with the contract; a ship no longer there is replaced the game's way.
+
 ## Most Wanted
 
 `wanted.json` adds criminals to the Most Wanted boards (the Missions window's **Most Wanted** tab in a station of the
@@ -2092,6 +2121,9 @@ until locked, and its death pays the bounty.
 | `escorts` | Their ships: one ship or a list the escorts take in turn (default: fighters of its race). |
 | `taunt` | What it says over the radio, with its face, when it is uncovered (translate with `wanted.<id>.taunt`). |
 | `music` | A track of a mod's [music](#music) folder that plays while it fights (default: the game's Most Wanted music). |
+| `damageTaken` | How much of your weapons' damage it takes, in percent: `{ "primary": 70, "secondary": 96, "Laser": 140, "my_mod:boss_bane": 200 }`. A key is a weapon kind (`primary`, `secondary`, `turret`), a weapon category as the shop names it (`Laser`, `Blaster`, `Auto-cannon`, `Thermo`, `Scatter gun`, `Rocket`, ...) or an item; the most specific one counts (the item, then its category, then its kind), anything unlisted takes 100. Other players' hits in multiplayer take all of it. |
+| `devices` | Boss devices it uses in the fight (see below). |
+| `turrets` | Turret items on its ship's own turret mounts, the first on the first: `[ 48, "my_mod:flak" ]` (default: what its ship type carries, its `npcTurrets`; `[]` none). More than the ship has mounts for are left off, with a warning. |
 | `requiredBounties` | How many of this board's mod criminals must be dead first (default 0). The game's criminals count apart. |
 | `systems` | The systems it travels in (numbers or `"mod_id:id"`), else any the player can see. |
 | `route` | `[ least, most ]` systems a trip crosses (default `[ 2, 4 ]`; `[ 1, 1 ]` keeps it in one system). |
@@ -2100,6 +2132,39 @@ until locked, and its death pays the bounty.
 
 A mod's criminals appear in free play as well as in the campaign (the game's own, from the Supernova add-on's story, stay in
 the campaign). A save keeps each one's state by its key, so adding or removing other mods doesn't move it.
+
+**Boss devices.** `"devices"` is a list of the tricks a criminal pulls in its fight (after Galaxy on Fire 3's bosses):
+
+```json
+"devices": [
+    { "type": "teleport", "everyMs": 15000, "distance": [ 1100, 2300 ], "cooldownMs": 15000 },
+    { "type": "backShield", "onHit": true, "everyMs": 10000, "durationMs": 10000, "cooldownMs": 10000 },
+    { "type": "flashGrenade", "range": [ 0, 17000 ], "facing": 80, "delayMs": 3000, "durationMs": 7000, "cooldownMs": 15000 }
+]
+```
+
+| `type` | What it does while it runs |
+|---|---|
+| `teleport` | Vanishes and comes out `distance` (`[ least, most ]` game units, default 1200-2400) from you, never in front of you, nose on you. |
+| `frontShield`, `backShield` | Stops `blockPercent` (default 100) of every hit coming within `shieldAngle` degrees (default 90) of its nose / tail: fly round it. |
+| `energyAbsorber` | Takes no damage; mends its hull by `healPercent` (default 50) of what it soaks. |
+| `radarJammer` | Your radar locks nothing and shows no ships. |
+| `flashGrenade` | Flashes `delayMs` (default 3000) after the throw: white over your view for its `durationMs`, `strength` percent (default 100) looking straight at it, nothing from 90 degrees away. |
+| `mindControl` | Your wingmen turn on you; each comes back to its senses when you hit it. |
+| `bombSpreader` | Drops a proximity mine behind it at the start and every `bombEveryMs` (default 1200), flung within 45 degrees; each blasts your ship for `damage` (default 350, GoF2's AMR Saber) when you come near. |
+| `mineLayer` | Lays a mine `layBehind` (default 855) game units behind its tail at the start and every `bombEveryMs` while it runs (a burst: GoF3's boss mine layers). Each mine chases you within `seekRange` (default 11400) at `seekSpeed` game units a second (default 456) and goes off within `triggerRadius` (default 969) or after `lifeMs` (default 5000): it blasts your ship within `blastRadius` (default 1938) for `damage` and slows it by `slowPercent` for `slowMs` (default none). Shoot it down first: it takes `hull` (default 60) points. |
+| `cloud` | Leaves a cloud `cloudRadius` (default 5700) game units wide `layBehind` its tail (GoF3's smart bombs), at the start and every `bombEveryMs` while it runs, lasting `lifeMs` (default 12000). Inside it your ship keeps only `100 - slowPercent` % of its speed (default 50) and loses `hullPercent` of its hull a second (default none), past the shield, and `shieldPercent` of its shield a second (default none). |
+| `shadowClone` | Splits off `count` copies of itself (default 2) with `hullPercentOfShip` of its hull (default 20), flying and firing as it does; they go when the run ends (`durationMs`) or it dies. |
+| `wormhole` | Opens a wormhole `radius` game units wide (default 684) `layBehind` its tail (default 570) for `lifeMs` (default 5000): fly into it and you come out `exitDistance` (default 1710) in front of its nose, still heading as you were, right in its sights. |
+| `minions` | Launches `count` shield drones (default 5) circling it `radius` game units out (default 1140), each with `hullPercentOfShip` of its hull (default 7). While any of them lives, its hits lose `blockPercent` (default 100): shoot the drones down first. They go when the run ends. |
+
+Each runs `durationMs` (default 5000), then cools down for `cooldownMs` (default 15000). When it starts: `onHit` (true: when
+hit) and `everyMs` (every so often, `chance` percent of the time, default 100) fire it; `range` (`[ least, most ]` game
+units to you), `ahead` (you within so many degrees of its nose), `notAhead` (you outside them), `facing` (your nose within
+so many degrees of it) and `hullBelow` (its own hull at or under so many percent: a second phase) must all hold when given. With neither `onHit` nor `everyMs` it starts as soon as the others hold.
+`minRank` / `maxRank` give it only while your rank is within them, and `share` (percent, default 100) to only that part of
+the ship's NPCs (rolled as each one comes): a traffic hull's NPCs can carry different devices.
+In multiplayer the game running the orbit's ships plays them for its own player.
 
 ## Hangars and bars
 
@@ -2281,6 +2346,21 @@ limited to a station like the others), with the player as `@trigger` and the wre
 In multiplayer the wreck is in the games it was spawned for (each player of `@a` gets their own); the other players see it
 but can't dock at it. Spawn it for one player (`@trigger`, `@p`) when a squad shares the orbit.
 
+**Pickups.** The `pickup` step (the command `pickup @a <station> <x y z> [unmarked] [named <name>]`) puts a glowing orb at
+those coordinates of an orbit, its name on the HUD (`"marked": false` leaves the name off, for a field of many). It is only
+shown: to collect it, put an **On** "near" at the same point (a radius of 100 m or more: the game checks four times a
+second, and racing ships are fast) whose steps remove it (`"action": "remove"` with its name; `"clear"` takes them all) and
+count it. The mission's end clears them. The GoF3 Ships mod's races are made this way:
+
+```json
+{ "type": "pickup", "station": "{st}", "at": "0 4000 30000", "name": "Checkpoint" },
+{ "type": "on", "trigger": "near", "station": "{st}", "at": "0 4000 30000", "radius": 150, "steps": [
+    { "type": "if", "condition": "cp == 0", "then": [
+        { "type": "set", "variable": "cp", "value": "1" },
+        { "type": "pickup", "action": "remove", "name": "Checkpoint" },
+        { "type": "sound", "sound": "boost" } ] } ] }
+```
+
 **Wormholes.** The `wormhole` step (the **Open Wormhole** node; the command `wormhole @a <station> [x y z] to <station | void>
 [for <seconds>]`) opens a wormhole like the Void's in a station's orbit, at the coordinates or about 4 km out beside the station's launch path (keep your own spot 2 km, 40000 units, off the line
 straight ahead of the station, x 0 / y 0: ships launch along it and would be pulled in):
@@ -2355,7 +2435,7 @@ the default; `@trigger` the player a When block is about; any selector). The ste
 |---|---|
 | Story | `dialog` (pages: speaker, text, voice), `radio` (speaker, text, voice), `objective` (text, station), `title` (title, subtitle, seconds), `note` (text: a comment) |
 | Flow | `wait` (seconds), `waituntil` (condition, timeout), `if` (condition, `then`, `else`), `while` (condition, `steps`), `repeat` (count, as, `steps`), `parallel` (`steps`: beside the rest), `every` (seconds, `steps`), `on` (trigger: died, docked, launched, kill, cleared, entered, near, respawned, hacked, pad (docked at a station's pad outside), joined, left, pvpkill; station; near: at "x y z", radius; `steps`), `ask` / `vote` (question, speaker, seconds, `answers`: [{ text, steps }]; a vote's `none` runs when nobody voted), `random` (`branches`: [{ weight, steps }]), `set` (variable, value), `checkpoint` (name), `startquest` (mission), `startevent` (event, settings), `complete` (reward, title), `fail` (title), `stop` |
-| Places | `goto` (station, `dock` true: docked there, false: in its orbit, objective), `waypoint` (station, at), `wormhole` (station, at, to, void, seconds; no station: closed), `target` (station), `questorbit` (station, on), `system` (system, action: show / hide / reset), `restrict` (what: jumps / docking / all / khador (only the Khador Drive) / off), `respawn` (station, at, spread, delay), `teleport` (station, dock, at) |
+| Places | `goto` (station, `dock` true: docked there, false: in its orbit, objective), `waypoint` (station, at), `pickup` (action: show / remove / clear, station, at, name, marked: see below), `wormhole` (station, at, to, void, seconds; no station: closed), `target` (station), `questorbit` (station, on), `system` (system, action: show / hide / reset), `restrict` (what: jumps / docking / all / khador (only the Khador Drive) / off), `respawn` (station, at, spread, delay), `teleport` (station, dock, at) |
 | Ships | `fight` (station, ships: ship / count / race / behaviour, name, quiet; ends when none is left), `spawn` (ship, count, race, behaviour, name, at, turrets, hull, guns: their hull and gun damage x that), `spawntype` (npc: an [NPC ship type](#npc-ships) like `pirate_boss` or `mod_id:id`, name, at), `wreck` (race, name, at: a hackable freighter wreck), `shipgoto` (ship, to, speed, radius, fight, then), `shiproute` (ship, route "place / place", loop, ...), `shipfollow` (ship, leader, offset, escort, speed), `shipattack` (ship, target), `shipaction` (ship, action: hold / resume / jump / dock / flee, seconds), `provoke` (race, within) |
 | The player | `reward` (credits, items, title), `give` (item, amount, mount), `cargo` (item, amount, station: waits until the hold has it; `take`: then handed in, out of the hold), `take` (item, amount: empty for all, mounted: the mounted ones too, e.g. the Khador Drive), `credits` (amount), `ship` (hull, own), `lend` (hull, keep, back: see [Loaner ships](#loaner-ships)), `heal`, `ammo`, `kill`, `reveal`, `peace` |
 | Cutscenes | `cutscene` (letterbox, freeze, invulnerable), `camera` (from, to, seconds, look, follow, fov, shake), `chasecamera`, `cutsceneend`, `fade` (direction: out / in / clear, seconds, colour), `letterbox` (on) |
@@ -2405,7 +2485,9 @@ ship: `player 0 0 20000` is far ahead of it), `ship <name> [x y z]`. A place rel
 the order arrives (a route doesn't move along with them); Follow and Attack keep after their ship.
 
 To wait for a ship, two values work in **Wait Until** / **If** (an **Expression** node): `alive(Blue Wing)` (how many of
-them still fly) and `distance(Blue Wing, 0, 0, 30000)` (game units from the nearest of them to that point, -1 when none).
+them still fly) and `distance(Blue Wing, 0, 0, 30000)` (game units from the nearest of them to that point, -1 when none);
+`distance(player, 0, 0, 30000)` is the same for the event's players alive in space, so a graph can ask a player to stay near
+a point (an **Every** that counts the seconds while it is 2000 or less: a scan).
 A ship that docked, jumped out, vanished or fled is gone but nobody's kill, and an event's ships never come back by
 themselves (the orbit's own fighters relaunch from the station, a graph's don't).
 
@@ -2518,6 +2600,10 @@ Put tracks in the mod's `music` folder (`.ogg`, `.wav` or `.mp3`):
 
 `spaceMusic` is the calm music in the system's orbits and `stationMusic` the music docked at its stations. A station's own
 `"music"` in stations.json beats its system's. Both work in an `override` of an original system or station too.
+
+`battleMusic` is the music of the system's fights: one track for all of them, or three, `["low", "medium", "full"]`, for
+the game's three battle tracks (1-2 enemies around, 3-4, 5 or more). Fights with the Void, Specters or a Most Wanted
+criminal keep their own music.
 
 ## Sound effects
 

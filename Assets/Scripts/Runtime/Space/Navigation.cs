@@ -269,7 +269,7 @@ namespace GoF2Remake.Flight
         /// <summary>Set by the level: a level's cutscene or the launch / arrival fly-in runs. MGame::OnRender2D skips
         /// Radar::draw then, so no lock completes and no lock sound plays (a player's report: the lock beep in step 160's cutscene).</summary>
         public Func<bool> RadarHidden;
-        public bool RadarOff => RadarHidden != null && RadarHidden();
+        public bool RadarOff => RadarHidden != null && RadarHidden() || RadarJam.Active;   // (remake: a boss's radar jammer)
         /// <summary>Set by the level: a story rule refuses the jump to this station itself (index 24: Sahi needs a scanner and a
         /// tractor beam, 532) and shows why; true = refused.</summary>
         public Func<int, bool> PlanetJumpRefused;

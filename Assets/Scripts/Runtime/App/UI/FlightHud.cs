@@ -42,6 +42,7 @@ namespace GoF2Remake.UI
         bool lastTurretView, lastTurretAuto, lastShipLocked;
         VisualElement lockPlate;
         VisualElement root, safeArea, hints;
+        VisualElement flashLayer;   // remake: a boss's flash grenade (Flight.ScreenFlash), white over everything
         bool hudFading;
         VisualElement crosshair, dockPrompt, dockGlyph;
         VisualElement lockRingElement, navMarkers;   // queried once: two root.Q per frame were a fifth of the HUD's update
@@ -246,6 +247,12 @@ namespace GoF2Remake.UI
             root.pickingMode = PickingMode.Ignore;
             safeArea = root.Q("safeArea");
             hints = root.Q("hints");
+            flashLayer = new VisualElement { pickingMode = PickingMode.Ignore, name = "screenFlash" };
+            flashLayer.style.position = Position.Absolute;
+            flashLayer.style.left = flashLayer.style.top = flashLayer.style.right = flashLayer.style.bottom = 0;
+            flashLayer.style.backgroundColor = Color.white;
+            flashLayer.style.display = DisplayStyle.None;
+            root.Add(flashLayer);
             carrierShop = null;   // its elements went with the old tree (made again when the carrier is docked at)
             // Remake: the docked menu too; open, it is made again (the menu's pause let go first so it can reopen).
             if (dockedMenu != null && dockedMenu.IsOpen) { nav?.CloseMenu(); resupplyShown = false; }
@@ -463,6 +470,13 @@ namespace GoF2Remake.UI
         void Update()
         {
             if (root == null) return;
+            float flash = GoF2Remake.Flight.ScreenFlash.Alpha;
+            if (flashLayer != null)
+            {
+                flashLayer.style.display = flash > 0.002f ? DisplayStyle.Flex : DisplayStyle.None;
+                flashLayer.style.opacity = flash;
+                if (flash > 0.002f) flashLayer.BringToFront();
+            }
             // The layout first: the Mod Builder's space screen below shares this panel and its scale.
             if (lastScreen != ScreenSize() || lastSafeArea != Screen.safeArea || lastLayout != UiLayout.Revision) UpdateLayout();
             // Remake: the Mod Builder's work in space (Stations, Weapon fx): its own screen instead of the HUD.

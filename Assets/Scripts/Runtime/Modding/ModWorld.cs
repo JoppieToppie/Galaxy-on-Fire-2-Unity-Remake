@@ -7,7 +7,9 @@
 //   the originals' textureIndex), "gates": ["mod:id" | number, ...] (jumpgate routes, both ways: the other system gets
 //   the route back), "gateStation" (the station orbit with the jumpgate; default its first station) } or
 //   { "override": n | "mod:id", name, security, visible, gates (added) }; both may name "spaceMusic" / "stationMusic" (a
-//   mod's track, ModMusic: the calm space music in the system's orbits, the music docked at its stations).
+//   mod's track, ModMusic: the calm space music in the system's orbits, the music docked at its stations) and
+//   "battleMusic" (its fights' music: one track, or [low, medium, full] for GoF2's three battle tracks by the hostiles
+//   around, Traffic's music categories 1-3).
 //   "race" may also name a mod's race (ModRaces: "mod_id:id" or the mod's own id): it owns the system (its locals,
 //   lounge visitors, docking fines; its hangar and bar its "look"). Remake mods, also on overrides: "traffic": "mod" (only
 //   mods' ships fly there: no game fighters, freighters or capital ships, no GoF2 pirate events; ModTraffic and
@@ -88,7 +90,7 @@ namespace GoF2Remake.Modding
 
         static readonly HashSet<string> SystemFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "id", "override", "name", "race", "security", "visible", "position", "sky", "gates", "gateStation", "spaceMusic", "stationMusic",
-              "sunTexture", "sunColor", "skybox", "available", "traffic", "locals", "raiders", "jumpgate", "pirateHeld" };
+              "battleMusic", "sunTexture", "sunColor", "skybox", "available", "traffic", "locals", "raiders", "jumpgate", "pirateHeld" };
         static readonly HashSet<string> StationFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "id", "override", "name", "system", "techLevel", "planet", "looksLike", "music", "model", "modelSize", "modelYaw", "modelCentre",
               "materials", "collision", "volumes", "interior", "planetTexture", "mapTexture", "mapRing", "mapPlace", "orbit", "hangar", "bar", "mobile",
@@ -337,6 +339,7 @@ namespace GoF2Remake.Modding
 
         static readonly Dictionary<int, string> systemSpaceMusic = new Dictionary<int, string>(), systemStationMusic = new Dictionary<int, string>(),
                                                 stationMusic = new Dictionary<int, string>();
+        static readonly Dictionary<int, List<string>> systemBattleMusic = new Dictionary<int, List<string>>();
         static readonly Dictionary<int, string> stationSubtitle = new Dictionary<int, string>(), stationLore = new Dictionary<int, string>();
         static readonly HashSet<int> modTrafficSystems = new HashSet<int>();
         static readonly Dictionary<int, List<int>> systemLocals = new Dictionary<int, List<int>>(), systemRaiders = new Dictionary<int, List<int>>();

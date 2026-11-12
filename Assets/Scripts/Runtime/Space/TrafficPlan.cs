@@ -87,6 +87,7 @@ namespace GoF2Remake.Flight
         public bool radarHidden;       // KIPlayer+0x70: no marker, no lock
         // The Most Wanted criminal (KIPlayer+0x3e / +0x44) and its escort (wingmen_wanted.md 2.6).
         public int wantedIndex = -1;
+        public bool noDevices;         // remake: a boss's shadow clone: none of its hull's traffic devices (NpcDevices)
         public int wantedEscortOf = -1;
         public int gunItem = -1;       // Level::assignGuns: the wanted's own weapon ...
         public float gunFactor = 1f;   // ... at x4

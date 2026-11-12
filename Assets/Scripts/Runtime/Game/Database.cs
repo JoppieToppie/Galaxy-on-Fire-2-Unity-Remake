@@ -242,6 +242,9 @@ namespace GoF2Remake.Data
         /// extent, game units) says otherwise; none = the race's.</summary>
         public string crate;
         public float crateSize;
+        /// <summary>Remake mods (after Galaxy on Fire 3's wingmen): the device a hired wingman flying this hull uses: "repair",
+        /// "ammo" or "charged" (Flight.WingmanDevice); none = none, like the game's wingmen.</summary>
+        public string wingmanDevice;
     }
 
     /// <summary>Remake mods: EVERSPACE 2's per-ship switches of its engine effects (a ship blueprint's SpawnEngineGlow /
@@ -312,10 +315,31 @@ namespace GoF2Remake.Data
         /// "webber", "shieldCharger", "armorLink", "antiMissile", "jumpSuppressor", "lootDrone" (never a fighter: the loot drone encounter's,
         /// Modding.ModTraffic.PickLootDrone); empty = an ordinary fighter.</summary>
         public string role;
+        /// <summary>Remake (2026-11-05, the GoF3 roadmap's G6): "gof3" = its NPC fighters fight Galaxy on Fire 3's way
+        /// (Flight.Gof3Dogfight) while Options > Gameplay "NPC dogfighting" is "GoF3 on mod hulls" (the default); else GoF2's.</summary>
+        public string ai;
+        /// <summary>Remake (2026-11-05, GoF3's kamikazes): the devices its NPCs use when hostile to the player, as a Most
+        /// Wanted criminal's (wanted.json "devices", Modding.ModWanted.ReadDevices); read apart from JsonUtility, null = none.</summary>
+        [System.NonSerialized] public System.Collections.Generic.List<Flight.NpcDeviceSpec> devices;
         /// <summary>Remake (2026-11-04): what its NPCs drop besides their cargo (EVERSPACE 2's loot_npcs.csv): each entry by its
         /// chance, at most lootDrops of them (0 = any number); a Void ship's too, which carries no cargo. Null = none.</summary>
         public CustomLoot[] loot;
         public int lootDrops;
+        /// <summary>Remake (2026-11-05, GoF3's NPC loadouts): a second weapon its NPCs may carry, the first entry carried
+        /// (CustomSecondary.Carried) at its spawn (World.NpcShip); null = none, as the game's NPCs.</summary>
+        public CustomSecondary[] secondaries;
+    }
+
+    /// <summary>A ships.json "traffic.secondaries" entry: 'item' (a reference, "31" or "mod:id"), carried while the player's
+    /// rank is within minRank..maxRank (0 = no bound) by 'share' % of the hull's NPCs, its damage x 'factor'.</summary>
+    [System.Serializable] public class CustomSecondary
+    {
+        public string item;
+        public int minRank, maxRank;
+        public float share = 100f, factor = 1f;
+
+        public bool Carried(int rank, float roll01) =>
+            (minRank <= 0 || rank >= minRank) && (maxRank <= 0 || rank <= maxRank) && roll01 * 100f < share;
     }
 
     /// <summary>A ships.json "traffic.loot" entry: 'item' (a reference, "155" or "mod:id"), its chance 0..1, min..max of it.</summary>
@@ -492,8 +516,12 @@ namespace GoF2Remake.Data
         // Remake mods (Modding.ModWanted, a mod's wanted.json): its key ("mod_id:id"; null = the game's), its own texts and
         // face (a mod character), the systems it roams (null = anywhere), its trips' length in systems, a rocket launcher, and
         // when it is on its board ("available", a condition); its escorts' ships (null = the race's fighters), its own fight
-        // music (a mod track) and what it says when uncovered.
+        // music (a mod track) and what it says when uncovered; what it takes of the player's weapons' damage (null = all) and
+        // its devices (Flight.NpcDeviceSpec, World.NpcDevices; null = none).
         [System.NonSerialized] public string key, description, character, available, availableWhere, music, taunt;
+        [System.NonSerialized] public DamageTaken damageTaken;
+        [System.NonSerialized] public List<NpcDeviceSpec> devices;
+        [System.NonSerialized] public List<int> turrets;   // its turret items (null = its ship type's, Database.NpcTurrets)
         [System.NonSerialized] public int[] systems, escorts;
         [System.NonSerialized] public int routeMin = 2, routeMax = 4, secondary = -1;
         [System.NonSerialized] public Modding.ModInfo mod;
@@ -550,6 +578,8 @@ namespace GoF2Remake.Data
         }
         public List<WeaponMountSet> WeaponMounts = new List<WeaponMountSet>();
         public List<WantedData> Wanted = new List<WantedData>();
+        /// <summary>Remake mods (wingmen.json, Modding.ModWingmen): the crews the bars' wingmen offers may fly, each mod's.</summary>
+        public List<WingmanCrew> WingmanCrews = new List<WingmanCrew>();
         /// <summary>Remake, for mods (ships.json "npcTurrets", Modding.ModContent): the turret items the NPC ships of a type carry
         /// on its turret mounts (World.NpcMountedTurrets, the hangar's parked ships), by ship index. The original's NPC ships
         /// carry none.</summary>

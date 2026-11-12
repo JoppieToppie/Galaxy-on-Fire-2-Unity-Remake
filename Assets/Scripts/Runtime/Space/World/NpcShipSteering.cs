@@ -54,12 +54,17 @@ namespace GoF2Remake.World
         {
             // Turned and fired at a spot on the target's model (AimAt); the break-off range measured to its centre.
             var aimPos = attacking && !followingWaypoint && target != null ? AimAt(target, dtMs) : targetPos;
+            // remake option (NpcShipDogfight): GoF3's attack runs, veer-offs, tease and chase, its led aim
+            bool dog = Dogfighting, dogHold = false;
+            if (dog) aimPos = DogfightAim(aimPos, out dogHold);
+            float formationSpeed = 1f;
+            if (!dog && FormationSlot(dtMs, out var slot, out formationSpeed)) aimPos = slot;   // (GoF3's V formations)
             var dir = aimPos - transform.position;
             if (RoleFlees) dir = transform.position - FleeFrom.transform.position;   // (remake: a loot drone runs, NpcShipRoles)
             // PlayerFighter::update's fly state: the player docked at an object (PlayerEgo::isDockedToDockingPoint) is circled
             // at +-12000 instead of +-8000, and not fired at while it is above the ship (0xf2cfa).
             bool dockedPlayer = target != null && target.isPlayer && ObjectDocking.PlayerDocked;
-            if (target != null && !followingWaypoint && RoleBreaksOff)   // (remake: a detonator flies into it, NpcShipRoles)
+            if (target != null && !followingWaypoint && RoleBreaksOff && !dog)   // (remake: a detonator flies into it, NpcShipRoles; GoF3's veer off)
             {
                 float r = (dockedPlayer ? 12000f : NpcTables.BreakOffRange) * M;
                 var toCentre = targetPos - transform.position;
@@ -72,7 +77,7 @@ namespace GoF2Remake.World
             if (attacking && !followingWaypoint && target != null)
             {
                 if (target.untargetable || target.cloaked) attacking = false;   // a cloaked ship: chased, never fired at
-                else if (RoleFires)   // (remake: the support drones and the detonator hold their guns, NpcShipRoles)
+                else if (RoleFires && !dogHold)   // (remake: the support drones and the detonator hold their guns, NpcShipRoles; GoF3's runs)
                 {
                     var d = aimPos - transform.position;
                     float fr = NpcTables.FireRange * M * RoleRangeFactor;   // (remake: a sniper's reach)
@@ -126,10 +131,12 @@ namespace GoF2Remake.World
             bank = Mathf.MoveTowards(bank, bankTarget, step);
             if (Mathf.Approximately(bank, before)) { levelTimer -= dtMs; if (levelTimer <= 0f) levelling = true; }
             else levelTimer = 750f;
-            if (model != null) model.localRotation = Quaternion.AngleAxis(bank * Mathf.PI / 4096f * Mathf.Rad2Deg, Vector3.forward);
+            float barrel = DogfightRoll(dtMs, out var sideStep);   // remake option: GoF3's evasive roll (NpcShipDogfight)
+            if (model != null) model.localRotation = Quaternion.AngleAxis(bank * Mathf.PI / 4096f * Mathf.Rad2Deg + barrel, Vector3.forward);
             if (levelling) Roll(dtMs);
 
-            if (!Hp.empDisabled) transform.position += transform.forward * speed * slow.SpeedFactor * roleSpeedFactor * dtMs * M;   // (remake: a rift's)
+            float dogSpeed = dog ? dogfight.SpeedFactor : formationSpeed;
+            if (!Hp.empDisabled) transform.position += transform.forward * speed * slow.SpeedFactor * roleSpeedFactor * dogSpeed * dtMs * M + sideStep;   // (remake: a rift's)
         }
 
         /// <summary>Gives the ship an order (null: back to its own AI). Wakes a sleeper, lets a parked ship fly; "hold" is

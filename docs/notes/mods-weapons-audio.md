@@ -149,9 +149,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   DLC2_MUSIC) replaces it at every music start (`ModMusic.Replace` in Traffic, CampaignLevel.PlayMusic, StationLevel,
   MainMenu (swapped in when it loads, `ModMusic.Changed`), EndingCredits, StationMenu's Void alarm, EventScreen.PlayMusic);
   other names are new tracks: `/music <name>` (Order.Music a = -2, `EventScreen.PlayModMusic`), the Play Music node's Mod
-  track, systems.json `spaceMusic` / `stationMusic` and stations.json `music` (`ModWorld.SpaceMusic` via
-  `Traffic.RaceSpaceMusic`, `ModWorld.StationMusic`). All tracks load (kept compressed) when the mods change; the menu's
-  Leave waits for `ModMusic.Ready` too.
+  track, systems.json `spaceMusic` / `stationMusic` / `battleMusic` and stations.json `music` (`ModWorld.SpaceMusic` via
+  `Traffic.RaceSpaceMusic`, `ModWorld.StationMusic`; `ModWorld.BattleMusic` in Traffic's music switch for categories 1-3,
+  one track or [low, medium, full], before CombatAssets.battleMusic: the Void, Specter and Most Wanted fights
+  keep theirs; 2026-11-05, for the GoF3 systems' combat layers; not in the Mod Builder's system page). All tracks load
+  (kept compressed) when the mods change; the menu's Leave waits for `ModMusic.Ready` too.
 - **One clip per audio file** (`ModAudio.Load`'s cache, 2026-10-30): music, sounds, voices, ship and weapon sounds share it;
   a new mod revision reads only files whose date / size changed (a zip mod: the zip's), and `ModAudio.Sweep` destroys the
   clips of changed or gone files and of mods turned off; a load ending after its file changed is dropped. Nobody else

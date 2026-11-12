@@ -80,6 +80,8 @@ namespace GoF2Remake.Modding
             /// mod races or race words, resolved in ShipData (the mod races are numbered once every mod is read).</summary>
             public string raceRef;
             public List<string> trafficRaceRefs;
+            /// <summary>Remake (GoF3's kamikazes): its "traffic": { "devices" } (ModWanted.ReadDevices), null = none.</summary>
+            public List<Flight.NpcDeviceSpec> trafficDevices;
             /// <summary>Remake: an unknown mod race among them was reported (once: ShipData runs at every Database.Load).</summary>
             public bool refsReported;
         }
@@ -235,6 +237,7 @@ namespace GoF2Remake.Modding
             "camera", "cockpit", "smoke", "explosionScale",   // how the ship is seen (ModShipView)
             "subsystems", "shieldMaterial", "shieldedDamage", "engineStyle", "es2Engine", "hullFactor", "retreat",   // a capital ship's subsystems (World.CapitalSubsystems)
             "crate", "crateSize",   // its loot container's model (ModCrates)
+            "wingmanDevice",   // a hired wingman's device in it (ModWingmen, Flight.WingmanDevice)
         };
 
         static void ParseShips(ModInfo mod, Parsed p)
@@ -301,6 +304,12 @@ namespace GoF2Remake.Modding
                     // mod race keys and race words: kept aside (ShipData resolves them), the numbers stay
                     d.trafficRaceRefs = races.Select(r => r.Type == JTokenType.String ? (string)r : ((int)r).ToString()).ToList();
                     traffic.Remove("races");
+                }
+                if (data["traffic"] is JObject withDevices && withDevices["devices"] is JToken devices)
+                {
+                    // the devices: read here (JsonUtility can't), the rest stays
+                    d.trafficDevices = ModWanted.ReadDevices(mod, devices, where + ": traffic", "ships.json");
+                    withDevices.Remove("devices");
                 }
                 try { JsonUtility.FromJson<CustomShipData>(data.ToString()); }
                 catch (Exception e) { throw new ModJsonException($"{where}: {e.Message}"); }
