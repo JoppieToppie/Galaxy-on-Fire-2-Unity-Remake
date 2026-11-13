@@ -209,7 +209,7 @@ namespace GoF2Remake.World
 
         public static bool LootReady => Session.PlaySeconds >= Session.CapitalLootReadyAt;
 
-        static readonly int[] RareGoods = { 113, 108, 107, 102, 101 };   // Implants, Vossk Organs, Organs, Rare Plants / Animals
+        internal static readonly int[] RareGoods = { 113, 108, 107, 102, 101 };   // Implants, Vossk Organs, Organs, Rare Plants / Animals
 
         /// <summary>Any enhanced capital ship's crate, in this order: while the hour since the last capital ship's gear has
         /// passed (LootReady) two pieces of tech level 5+ weapons or equipment (a secondary 10-20 of it) and 8-15 t of rare

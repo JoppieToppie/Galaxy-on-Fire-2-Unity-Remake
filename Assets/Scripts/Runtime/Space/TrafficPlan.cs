@@ -63,6 +63,7 @@ namespace GoF2Remake.Flight
         // freighter ('ship' 13 / 15 of 'race') shown as its wreck held at the animation's end, invulnerable, still lockable.
         public bool deadButSelectable;
         public bool eventWreck;            // remake: an event's / quest's hackable wreck ("spawn ... wreck"): hacked once
+        public bool derelict;              // remake (Settings.DerelictWrecks): a random derelict freighter, hacked once for its cargo
         public float explosionScale = 1f;
         // Capital-ship turrets (PlayerTurret, npc_combat_specials.md 1): a static turret object.
         public string turretAssembly;  // turret_002_static (Terran) / turret_003_static (Vossk)
@@ -150,6 +151,10 @@ namespace GoF2Remake.Flight
                 hitRadius = 4000f,
             };
         }
+
+        /// <summary>Remake (Settings.DerelictWrecks): the chance in 100 of a derelict freighter per orbit visit: 4 in a Secure
+        /// system (3) up to 10 in a Dangerous one (0).</summary>
+        public static int DerelictChance(int security) => 10 - 2 * Mathf.Clamp(security, 0, 3);
 
         /// <summary>'playerGame': the player's start (game units), where freelance escorts gather.</summary>
         /// <param name="wormholeGame">The orbit's visible wormhole (game units), where a Void raid comes from; null = none.</param>
@@ -430,6 +435,19 @@ namespace GoF2Remake.Flight
                 var wreck = HackableWreck(derelict.derelictRace, at);
                 wreck.modBlueprint = derelict.product;
                 list.Add(wreck);
+            }
+            // Remake (players' wish, Discord 2026-10-18; Options > Gameplay "Derelict freighters"): now and then a derelict
+            // freighter of any race out in front of the station, hacked once for its cargo (Traffic.OnHackWon); in a Risky or
+            // Dangerous system 2-4 pirates wait at it. One wreck an orbit, not in the special or the storylines' orbits, a
+            // pirate base's system, Mido or a freelance mission's orbit; single player (the hack and its crate are local).
+            if (Settings.DerelictWrecks && !NetSession.Active && !quietOrbit && !baseSystem && system.index != 15 && (fm == null || fm.target != station)
+                && !PirateEventRules.InStoryline(station) && !list.Exists(s => s.deadButSelectable) && Random.Range(0, 100) < DerelictChance(secEff))
+            {
+                var at = new Vector3(Random.Range(-80000f, 80000f), Random.Range(-40000f, 40000f), Random.Range(60000f, 140000f));
+                var wreck = HackableWreck(-1, at);
+                wreck.derelict = true;
+                list.Add(wreck);
+                if (secEff <= 1) AddRaiders(list, Random.Range(2, 5), pirateRace, at);
             }
             // 7 Specters, always enemy: one point near the player, each at it + createShip's +-20000 jitter.
             if (specters > 0)

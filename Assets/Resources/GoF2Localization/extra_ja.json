@@ -49,6 +49,8 @@
  "capitalOn": "強化",
  "capitalShips": "主力艦の強化",
  "capitalShipsHelp": "大型艦に護衛と強化砲台が付き、空母とヴォスク戦艦は撃破・ドック可能に。",
+ "derelictWrecks": "漂流貨物船",
+ "derelictWrecksHelp": "ときどき軌道上に貨物船の残骸が漂っています。ドッキングしてハッキングすると積荷が手に入ります。危険な星系では海賊が待ち伏せています。シングルプレイのみ。",
  "capitalTitle": "主力艦",
  "carrierHostile": "空母の飛行甲板はあなたには閉ざされています。",
  "carrierInBattle": "空母は交戦中です：飛行甲板は閉鎖されています。",

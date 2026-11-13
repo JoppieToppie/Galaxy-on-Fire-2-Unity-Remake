@@ -196,7 +196,8 @@ verified on a Mac or an iPhone.
   **An option added to the presets later** goes into `AddedExperienceKeys` (and a column of every row and of
   `DefaultsBefore`): the migration's version 2 (`ExperienceVersion`) gives an install migrated before it the preset's
   value when its other options match one (`KeepPresetForAddedKeys`), so a Remake player's row doesn't turn Custom; bump
-  the version for the next one. First: `bombArming` (2026-11-05).
+  the version for the next one. First: `bombArming` (2026-11-05); `derelictWrecks` (2026-11-13, version 3; "Derelict
+  freighters", see supernova.md).
 - **Welcome screen** (remake, 2026-11-04, `MainMenuWelcome`): on the first start, 1.3 s after the main buttons come in (not
   over a panel), the menu's own dialog: what the remake is and where things are (Options > Gameplay, Controls / Key
   bindings, Mods, Multiplayer and Co-op, named by their buttons' own texts), Next, then "How do you want to play?" with

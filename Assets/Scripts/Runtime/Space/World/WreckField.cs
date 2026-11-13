@@ -76,5 +76,14 @@ namespace GoF2Remake.World
             if (cargo.Count == 0) cargo.Add(new ItemStack(ScrapItem, Random.Range(1, 6)));
             return cargo;
         }
+
+        /// <summary>Remake (Settings.DerelictWrecks): a hacked derelict freighter's hold: a wreck's cargo and, one time in
+        /// five, 2-5 t of the rare goods a capital ship carries.</summary>
+        public static List<ItemStack> DerelictLoot(Database db)
+        {
+            var cargo = Loot(db);
+            if (Random.Range(0, 5) == 0) cargo.Add(new ItemStack(CapitalShips.RareGoods[Random.Range(0, CapitalShips.RareGoods.Length)], Random.Range(2, 6)));
+            return cargo;
+        }
     }
 }

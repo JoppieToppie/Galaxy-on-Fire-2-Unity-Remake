@@ -447,6 +447,41 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Build(20).Any(x => x.hiddenBlueprint >= 0));
         }
 
+        // ---- derelict freighters (Options > Gameplay, Settings.DerelictWrecks) -------------------------------------
+
+        /// <summary>A plain orbit (no storyline, pirate base or special system) whose system's security fits.</summary>
+        static int PlainStation(System.Func<int, bool> security) => Db.Stations.Find(s =>
+            s.index < 100 && s.index != 10 && Db.Systems.Find(x => x.index == s.system) is var sys && sys != null && security(sys.securityLevel)
+            && sys.index != 15 && sys.index != 25 && sys.index != 27 && sys.index != 32 && sys.index != 33
+            && !PirateBases.SystemHasBase(Db, sys.index) && !PirateEventRules.InStoryline(s.index)).index;
+
+        [Test]
+        public void DerelictFreightersComeWithTheOption()
+        {
+            InFreePlay(4);
+            int unsafeOrbit = PlainStation(sec => sec <= 1), secure = PlainStation(sec => sec == 3);
+            Repeat(unsafeOrbit, 300, 31, list => Assert.IsFalse(list.Any(x => x.derelict), "off: the original's traffic"));
+            Settings.DerelictWrecks = true;   // (NpcTestBase puts it back)
+            foreach (int station in new[] { unsafeOrbit, secure })
+            {
+                int found = 0, guarded = 0;
+                Repeat(station, 300, 31, list =>
+                {
+                    var w = list.Where(x => x.derelict).ToList();
+                    Assert.LessOrEqual(w.Count, 1, "one an orbit");
+                    if (w.Count == 0) return;
+                    found++;
+                    Assert.IsTrue(w[0].deadButSelectable && w[0].dockingType == 3 && w[0].noLoot, "a hackable wreck");
+                    if (list.Any(x => x.group == NpcGroup.Raider && x.race == Standing.Pirate && (x.position - w[0].position).magnitude < 40000f)) guarded++;
+                });
+                Assert.Greater(found, 0, "station " + station);
+                Assert.Less(found, 60, "rare");
+                if (station == unsafeOrbit) Assert.AreEqual(found, guarded, "pirates wait at it in an unsafe system");
+            }
+            Repeat(132, 100, 31, list => Assert.IsFalse(list.Any(x => x.derelict), "not beside a hidden blueprint's wreck"));
+            for (int i = 0; i < 100; i++) Assert.IsNotEmpty(GoF2Remake.World.WreckField.DerelictLoot(Db));
+        }
+
         // ---- capital ships --------------------------------------------------------------------------------------
 
         static int Kind(System.Collections.Generic.List<SpawnSpec> list) => list.FirstOrDefault(x => x.capital != 0 && x.capitalHost == null)?.capital ?? 0;

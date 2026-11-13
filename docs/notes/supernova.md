@@ -120,6 +120,14 @@ against the FEV's LGCY data, see "Sound").
   createShip(DAT_00253754[k], ship 13 / 15), `PlayerFixedObject::setDeadButSelectable`): the race's freighter wreck held at its
   end pose (`SpawnSpec.deadButSelectable`, `NpcShip.ShowWreckAtEnd`, invulnerable, `ModelPath` "wreck:N" for the proxies),
   docking points sets 14 / 11 / 12 / 13 / 12 (DAT_002537a4: Vossk 132, Midorian 133, Nivelian 134 / 123, Terran 129).
+- **Derelict freighters** (remake, players' wish on Discord 2026-10-18: "freighter wrecks could continually spawn";
+  Options > Gameplay "Derelict freighters", `Settings.DerelictWrecks`, off by default, on in the Remake experience): per
+  orbit visit `TrafficPlan.DerelictChance` (4 % Secure .. 10 % Dangerous) puts one hackable wreck of any race
+  (`TrafficPlan.HackableWreck`, `SpawnSpec.derelict`) out in front of the station; in a Risky or Dangerous system 2-4
+  pirates wait at it. Hacked once: `Traffic.OnHackWon` ejects a crate with `WreckField.DerelictLoot` (a freighter's loot
+  roll, else Space Waste; 1 in 5 adds 2-5 t of a capital ship's rare goods). Not in the special or storyline orbits, a
+  pirate base's system, Mido, a freelance mission's orbit or beside another wreck; single player only (the hack and its
+  crate are local). Test `TrafficPlanSpecialsTests.DerelictFreightersComeWithTheOption`.
 - **Gas clouds** (`GasCloudField`; needs a spectral filter, sort 33, not in the Void; #77, `Radar::draw` 0x1570ec: with
   the filter's attr 57 (ST-X, Omega) every live cloud has the white diamond 0x4f1 and is a lock target
   (`CombatRadar.LockedCloud`: in the crosshair box with no ship or crate there, the ring from 500 ms, locked at the

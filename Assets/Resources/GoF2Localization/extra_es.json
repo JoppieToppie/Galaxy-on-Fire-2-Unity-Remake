@@ -57,6 +57,8 @@
  "capitalOn": "Mejoradas",
  "capitalShips": "Naves capitales mejoradas",
  "capitalShipsHelp": "Las naves capitales tienen escoltas y torretas más fuertes; portanaves y acorazados vossk se pueden destruir y atracar.",
+ "derelictWrecks": "Cargueros abandonados",
+ "derelictWrecksHelp": "De vez en cuando hay un carguero destrozado a la deriva en una órbita: acóplate y hackéalo para llevarte su carga. En sistemas inseguros lo vigilan piratas. Solo un jugador.",
  "capitalTitle": "Naves capitales",
  "carrierHostile": "La cubierta de vuelo del portanaves está cerrada para ti.",
  "carrierInBattle": "El portanaves está en combate: su cubierta de vuelo está cerrada.",

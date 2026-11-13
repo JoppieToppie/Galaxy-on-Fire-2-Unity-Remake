@@ -1713,6 +1713,8 @@
  "shipCollisionHelp": "精确：全部真实形状。混合：战机用方框，大型舰船用真实形状。原版：方框和球体。",
  "pirateEventsHelp": "部分轨道会出现有赏金的海盗前哨站或海盗头目。",
  "capitalShipsHelp": "主力舰获得护航和更强炮塔；航母和沃斯克战舰可被摧毁并可停靠。",
+ "derelictWrecks": "废弃货船",
+ "derelictWrecksHelp": "轨道上偶尔会漂着一艘货船残骸：对接并破解它即可获得货物。在不安全的星系里会有海盗守在旁边。仅限单人游戏。",
  "kaamoStackingHelp": "卡莫俱乐部改装可重复安装，每级价格翻倍，最高 {0} 级。",
  "kaamoKeepsEquipmentHelp": "停在卡莫俱乐部的飞船保留其武器和装备。",
  "difficultyHelp": "从下一个轨道或停靠起生效。",

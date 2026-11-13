@@ -22,7 +22,7 @@ namespace GoF2Remake.Tests
 
         float savedDifficulty;
         int savedFreelanceType, savedFailCount, savedLastFailed;
-        bool savedInCampaign, savedPirateEvents, savedCapitalShips;
+        bool savedInCampaign, savedPirateEvents, savedCapitalShips, savedDerelicts;
         Vector3? savedMenuCamera;
 
         [SetUp]
@@ -44,6 +44,8 @@ namespace GoF2Remake.Tests
             TrafficPlan.MenuCamera = null;
             if (Settings.PirateEvents) Settings.PirateEvents = false;
             if (Settings.CapitalShips) Settings.CapitalShips = false;
+            savedDerelicts = Settings.DerelictWrecks;
+            if (savedDerelicts) Settings.DerelictWrecks = false;
         }
 
         [TearDown]
@@ -57,6 +59,7 @@ namespace GoF2Remake.Tests
             TrafficPlan.MenuCamera = savedMenuCamera;
             if (Settings.PirateEvents != savedPirateEvents) Settings.PirateEvents = savedPirateEvents;
             if (Settings.CapitalShips != savedCapitalShips) Settings.CapitalShips = savedCapitalShips;
+            if (Settings.DerelictWrecks != savedDerelicts) Settings.DerelictWrecks = savedDerelicts;
         }
 
         /// <summary>The remake's free play (no story), campaign index 20 (the research tables' "campaign mission 20").</summary>

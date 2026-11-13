@@ -63,6 +63,14 @@ namespace GoF2Remake.World
                 }
                 return;
             }
+            if (ship != null && ship.Spec.derelict)
+            {
+                // Remake (Settings.DerelictWrecks): a derelict's hold, in a crate drifting off the wreck like a mod blueprint's.
+                ship.DockingType = 0;
+                Crate.Spawn(ship.transform.position + ship.transform.up * 300f * M, WreckField.DerelictLoot(db), ship.Spec.race, Crate.LookJunk);
+                GameHooks.FlightMessage?.Invoke(Localization.Extra("hackCrateEjected", "Cargo container ejected. Use the tractor beam to check its contents."));
+                return;
+            }
             if (ship != null && ship.Spec.eventWreck) { ship.DockingType = 0; return; }   // an event's wreck: its "on hacked" does the rest
             int k = ship != null ? ship.Spec.hiddenBlueprint : -1;
             if (k < 0 || k >= TrafficPlan.HiddenBlueprints.Length || (Session.HiddenBlueprintsFound & (1 << k)) != 0) return;

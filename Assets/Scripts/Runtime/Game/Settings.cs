@@ -536,6 +536,11 @@ namespace GoF2Remake.Data
         /// it: Khador doesn't offer its blueprint and a mounted one neither cruises nor leaves the system. Mod drives keep theirs.</summary>
         public static bool KhadorSlipstream { get => GetBool("khadorSlipstream", false); set => SetBool("khadorSlipstream", value); }
 
+        /// <summary>Remake (players' wish, Discord 2026-10-18: freighter wrecks that keep turning up): now and then an orbit
+        /// holds a derelict freighter to hack for its cargo (TrafficPlan.Build, Traffic.OnHackWon). Single player; off = the
+        /// original, whose only wrecks are the five hidden blueprints'.</summary>
+        public static bool DerelictWrecks { get => GetBool("derelictWrecks", false); set => SetBool("derelictWrecks", value); }
+
         // ---- game experience (remake, the user's request 2026-11-04) --------------------------------------------------
 
         /// <summary>Options > Gameplay "Game experience" (and the welcome screen's choice): Original = the game as it was,
@@ -550,17 +555,17 @@ namespace GoF2Remake.Data
             "launchCamera", "dyingCargoMarkers", "hangarFlights", "animatedDialogue", "pirateEvents", "capitalShips",
             "kaamoStacking", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule", "originalTargetLock", "keepEnemyLock",
             "cloakLosesPursuers", "empBreaksCloak", "smarterNpcTargeting", "shipCollision", "playOnInConversations", "fastForwardCruise",
-            "khadorSlipstream", "markerDistance", "bombArming",
+            "khadorSlipstream", "markerDistance", "bombArming", "derelictWrecks",
         };
 
         // One row per preset, in ExperienceKeys' order. The first two are the original's own features (on everywhere; turned
         // off they make it Custom). shipCollision: SessionRules.Collision*; kaamoVip: KaamoVip*.
         static readonly float[][] Experiences =
         {
-            //      launch cargo hangar anim pirate capital stack keep vip     bay informerO lockO keepLock cloakLoses emp smartNpc collision  conv cruise slip distance bombArming
-            new[] { 1f, 1f, 0f, 0f, 0f, 0f, 0f, 0f, KaamoVipOff,  0f, 1f, 1f, 1f, 0f, 0f, 0f, R.CollisionOriginal, 0f, 0f, 0f, 0f, 0f },
-            new[] { 1f, 1f, 1f, 1f, 0f, 0f, 0f, 0f, KaamoVipOff,  0f, 1f, 1f, 1f, 0f, 0f, 0f, R.CollisionOriginal, 0f, 0f, 0f, 0f, 0f },
-            new[] { 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, KaamoVipCard, 1f, 0f, 0f, 1f, 1f, 1f, 1f, R.CollisionMixed,    1f, 1f, 1f, 1f, 1f },
+            //      launch cargo hangar anim pirate capital stack keep vip     bay informerO lockO keepLock cloakLoses emp smartNpc collision  conv cruise slip distance bombArming derelicts
+            new[] { 1f, 1f, 0f, 0f, 0f, 0f, 0f, 0f, KaamoVipOff,  0f, 1f, 1f, 1f, 0f, 0f, 0f, R.CollisionOriginal, 0f, 0f, 0f, 0f, 0f, 0f },
+            new[] { 1f, 1f, 1f, 1f, 0f, 0f, 0f, 0f, KaamoVipOff,  0f, 1f, 1f, 1f, 0f, 0f, 0f, R.CollisionOriginal, 0f, 0f, 0f, 0f, 0f, 0f },
+            new[] { 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, KaamoVipCard, 1f, 0f, 0f, 1f, 1f, 1f, 1f, R.CollisionMixed,    1f, 1f, 1f, 1f, 1f, 1f },
         };
 
         /// <summary>'key''s value in 'experience' (ExperienceOriginal..ExperienceRemake).</summary>
@@ -607,12 +612,13 @@ namespace GoF2Remake.Data
         /// <summary>The defaults before 2026-11-04 (the remake's, before the Original experience became the default), in
         /// ExperienceKeys' order: MigrateExperienceDefaults keeps them for a player who played before.</summary>
         static readonly float[] DefaultsBefore =
-            { 1f, 1f, 1f, 1f, 1f, 0f, 1f, 1f, KaamoVipCard, 1f, 0f, 0f, 1f, 0f, 1f, 0f, R.CollisionMixed, 0f, 0f, 1f, 0f, 0f };
+            { 1f, 1f, 1f, 1f, 1f, 0f, 1f, 1f, KaamoVipCard, 1f, 0f, 0f, 1f, 0f, 1f, 0f, R.CollisionMixed, 0f, 0f, 1f, 0f, 0f, 0f };
         const string ExperienceVersionKey = "experienceDefaults";
-        /// <summary>The migration's version: 2 = the experience options added after the presets (AddedExperienceKeys).</summary>
-        const float ExperienceVersion = 2f;
+        /// <summary>The migration's version: 2 = the experience options added after the presets (AddedExperienceKeys), one
+        /// more for each of them after the first.</summary>
+        const float ExperienceVersion = 3f;
         /// <summary>Experience options added after 2026-11-04's presets, oldest first.</summary>
-        static readonly string[] AddedExperienceKeys = { "bombArming" };
+        static readonly string[] AddedExperienceKeys = { "bombArming", "derelictWrecks" };
 
         /// <summary>Once (Bootstrap, before any option is read): an install that was played before the Original experience
         /// became the default keeps what it played with: every experience option it never set is stored at its old default
@@ -893,7 +899,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GameplayKeys =
         {
             "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule",
-            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "discordPresence",
+            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
             "speedrunPosition", "speedrunLiveSplit",
         };

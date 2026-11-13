@@ -57,6 +57,8 @@
  "capitalOn": "Potenziate",
  "capitalShips": "Navi capitali potenziate",
  "capitalShipsHelp": "Le navi capitali hanno scorte e torrette più forti; portaerei e corazzate vossk si possono distruggere e attraccare.",
+ "derelictWrecks": "Mercantili abbandonati",
+ "derelictWrecksHelp": "Ogni tanto il relitto di un mercantile va alla deriva in un'orbita: attracca e violalo per il suo carico. Nei sistemi poco sicuri lo aspettano i pirati. Solo giocatore singolo.",
  "capitalTitle": "Navi capitali",
  "carrierHostile": "Il ponte di volo della portaerei è chiuso per te.",
  "carrierInBattle": "La portaerei è in battaglia: il suo ponte di volo è chiuso.",
