@@ -56,6 +56,9 @@ namespace GoF2Remake.UI
             Button("cheatCells", () => X("cheatEnergyCells", "+20 energy cells"), () => { Cheats.AddEnergyCells(20); notify?.Invoke(X("cheatCellsAdded", "20 energy cells added to the hold.")); }),
             Button("cheatReveal", () => X("cheatRevealMap", "Reveal all systems"), () => { Cheats.RevealAllSystems(); notify?.Invoke(X("cheatRevealed", "Every system is on the star map.")); }),
             Button("cheatPeace", () => X("cheatMakePeace", "Make peace with all races"), () => { Cheats.MakePeace(); notify?.Invoke(X("cheatPeaceMade", "Standing neutral with every race.")); }),
+            // Players' wish (2026-11-13, "very crucial, especially for modders"): the level up / down, see Cheats.SetRank.
+            Button("cheatLevelUp", () => X("cheatLevelUp", "Player level +1"), () => notify?.Invoke(Level(Cheats.SetRank(Session.Rank + 1)))),
+            Button("cheatLevelDown", () => X("cheatLevelDown", "Player level -1"), () => notify?.Invoke(Level(Cheats.SetRank(Session.Rank - 1)))),
             Button("cheatKaamo", () => X("cheatFillKaamo", "Fill the Kaamo Club (every item and ship)"), () => notify?.Invoke(Cheats.FillKaamoClub(db))),
         };
 
@@ -79,6 +82,10 @@ namespace GoF2Remake.UI
                                                                  (World.DebugSpawner.KillFilter)killFilter))),
             };
         }
+
+        /// <summary>"Level N" (321, as in the Status window); the top and bottom say so.</summary>
+        static string Level(int rank) => $"{Localization.Get(321)} {rank}"
+            + (rank >= Session.MaxRank ? $" ({X("cheatLevelMax", "the highest")})" : rank <= 0 ? $" ({X("cheatLevelMin", "the lowest")})" : "");
 
         static string Credits() => $"{X("cheatCreditsNow", "Credits")}: {Session.Credits:N0}";
 

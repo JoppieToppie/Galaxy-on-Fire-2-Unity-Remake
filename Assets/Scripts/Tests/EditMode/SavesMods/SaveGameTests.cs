@@ -330,6 +330,7 @@ namespace GoF2Remake.Tests
             Session.WingmanContractMs = 60000f;
             Session.WingmanPortrait = new[] { 1, 2, 3, 4, 5 };
             Session.WingmenHired = 3;
+            Session.XpBonus = -12;
             Session.UnlockedBlueprints = new HashSet<int> { 178 };
             Session.ShipMods = new List<int> { 0, 1, 1 };
             Session.Blueprints = new List<BlueprintState> { new BlueprintState { item = 178, remaining = new List<int> { 5, 6 }, moneySpent = 10, timesProduced = 1, station = 70 } };
@@ -452,6 +453,7 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(60000f, Session.WingmanContractMs);
             CollectionAssert.AreEqual(new[] { 1, 2, 3, 4, 5 }, Session.WingmanPortrait);
             Assert.AreEqual(3, Session.WingmenHired);
+            Assert.AreEqual(-12, Session.XpBonus, "the Debug pages' level offset");
             CollectionAssert.AreEquivalent(new[] { 178 }, Session.UnlockedBlueprints);
             CollectionAssert.AreEqual(new[] { 0, 1, 1 }, Session.ShipMods);
             Assert.AreEqual(1, Session.Blueprints.Count);

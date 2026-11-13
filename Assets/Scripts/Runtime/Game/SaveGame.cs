@@ -41,6 +41,8 @@ namespace GoF2Remake.Data
         /// stays the same system wherever its number lands.</summary>
         public List<string> systemShown;
         public int jumpgatesUsed, kills, pirateKills;
+        /// <summary>Session.XpBonus: the XP the Debug pages' level buttons added or took off (0 in older saves).</summary>
+        public int xpBonus;
         public int[] standing;
         /// <summary>Session.ModRaceStanding: "mod_id:race|value" (remake mods' races; no save version of its own).</summary>
         public List<string> modRaceStanding;
@@ -449,6 +451,7 @@ namespace GoF2Remake.Data
                                                                 + "|" + (kv.Value ? "1" : "0")).ToList(),
                 jumpgatesUsed = Session.JumpgatesUsed,
                 kills = Session.Kills,
+                xpBonus = Session.XpBonus,
                 pirateKills = Session.PirateKills,
                 standing = (int[])Session.Standing.Clone(),
                 modRaceStanding = Session.ModRaceStanding.Select(kv => kv.Key + "|" + kv.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList(),
@@ -637,6 +640,7 @@ namespace GoF2Remake.Data
                 Session.SystemVisible[GalaxyMap.LomaSystem] = Session.SystemVisible[GalaxyMap.ShimaSystem] = true;
             Session.JumpgatesUsed = s.jumpgatesUsed;
             Session.Kills = s.kills;
+            Session.XpBonus = s.xpBonus;
             Session.PirateKills = s.pirateKills;
             if (s.standing != null && s.standing.Length == 2) Session.Standing = s.standing;
             Session.ModRaceStanding = new Dictionary<string, int>(StringComparer.Ordinal);

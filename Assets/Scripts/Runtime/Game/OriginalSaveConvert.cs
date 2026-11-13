@@ -451,7 +451,7 @@ namespace GoF2Remake.Data
         {
             int[] rankXp = { 0, 7, 21, 42, 70, 105, 147, 196, 252, 315, 385, 462, 546, 637, 735, 840, 952, 1071, 1197, 1330, 1650 };
             int xp = s.oreMined / 50 + s.kills + s.wingmenHired / 3 + s.coresMined + 2 * s.freelanceCompleted
-                   + (s.freePlay ? 0 : s.campaignMission) + (s.visitedStations?.Count ?? 0);
+                   + (s.freePlay ? 0 : s.campaignMission) + (s.visitedStations?.Count ?? 0) + s.xpBonus;
             int level = 0;
             for (int i = 0; i < rankXp.Length; i++) if (xp >= rankXp[i]) level = i;
             return level;

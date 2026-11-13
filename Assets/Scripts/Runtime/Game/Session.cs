@@ -479,14 +479,24 @@ namespace GoF2Remake.Data
         public static int PlayerHull = -1, PlayerArmor = -1;
         public static float PlayerShield = -1f;
 
+        /// <summary>Remake (the Debug pages' "Player level" buttons, Cheats.SetRank): XP added to (or, negative, taken off)
+        /// what the player earned, so the level can be set without touching the kills and the other statistics. Saved.</summary>
+        public static int XpBonus;
+
+        /// <summary>The highest rank (DAT_00252b0c's last threshold).</summary>
+        public const int MaxRank = 20;
+
+        /// <summary>The XP rank 'rank' (0..MaxRank) starts at.</summary>
+        public static int RankStartXp(int rank) => RankXp[Mathf.Clamp(rank, 0, MaxRank)];
+
         /// <summary>DAT_00252b0c: XP needed per rank 0..20 (Status::checkForLevelUp).</summary>
         static readonly int[] RankXp = { 0, 7, 21, 42, 70, 105, 147, 196, 252, 315, 385, 462, 546, 637, 735, 840, 952, 1071, 1197, 1330, 1650 };
 
         /// <summary>Status::checkForLevelUp 0xb9978: XP = ore mined / 50 (+0xa0) + kills (+0x1c0) + wingmen hired / 3 (+0xd4)
         /// + cores mined (+0xa4) + 2 x missions completed (+0x1c4) + the campaign index (+0x1e8) + stations visited (+0x1d0);
-        /// the rank (Status::getLevel) is the highest threshold reached.</summary>
+        /// the rank (Status::getLevel) is the highest threshold reached. Remake: + XpBonus (the Debug pages' level buttons).</summary>
         public static int Xp => OreMined / 50 + Kills + WingmenHired / 3 + CoresMined + 2 * FreelanceCompleted
-                              + (FreePlay ? 0 : CampaignMission) + VisitedStations.Count;
+                              + (FreePlay ? 0 : CampaignMission) + VisitedStations.Count + XpBonus;
 
         public static int Rank
         {
@@ -665,6 +675,7 @@ namespace GoF2Remake.Data
             AttackedStations = new HashSet<int>();
             RecentOrbits = new List<int>();
             Kills = PirateKills = 0;
+            XpBonus = 0;
             PlayerHull = PlayerArmor = -1;
             PlayerShield = -1f;
         }

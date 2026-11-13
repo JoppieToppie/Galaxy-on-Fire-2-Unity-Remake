@@ -112,6 +112,16 @@ namespace GoF2Remake.Data
             Session.AttackedStations.Clear();
         }
 
+        /// <summary>The player's level (Session.Rank, Status::getLevel) set to 'rank' (0..20): Session.XpBonus makes up the
+        /// difference to that rank's first XP, so the kills, missions and other statistics (and their medals) stay as
+        /// earned and the level goes on rising from there. What scales with the level follows (NPC hull and guns, pirate
+        /// events, bar missions, a mod's "rank" conditions). The level now.</summary>
+        public static int SetRank(int rank)
+        {
+            Session.XpBonus += Session.RankStartXp(rank) - Session.Xp;
+            return Session.Rank;
+        }
+
         /// <summary>'amount' units of any item into the hold (a secondary's amount is its ammo once mounted).</summary>
         public static void GiveItem(int item, int amount) => Shop.AddToCargo(item, amount);
 

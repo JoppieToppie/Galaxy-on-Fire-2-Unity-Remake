@@ -2,7 +2,7 @@
 // Feature: CLAUDE.md "UI and platforms" > Debug panel, the plain C# actions of Cheats: credits (capped), repair (the saved
 // pools back to full, the gamma pool refilled), reveal all systems, make peace, give items, Give and mount (the hangar's
 // mount / swap rules), fill the Kaamo Club (owned, one of every storable item, 50 of each secondary, one hull of every ship
-// a player can own), energy cells, refill ammo.
+// a player can own), energy cells, refill ammo, the player's level up / down (Cheats.SetRank through Session.XpBonus).
 // Expected: the rules as CLAUDE.md states them (the Kaamo fill skips 13 / 14 / 15, the ship flown and the hulls without a
 // model, 50 / 53: 64 - 6 = 58 hulls; the storage refuses the story's unsaleable items, 323), shop.md 6 for the mounting.
 
@@ -86,6 +86,30 @@ namespace GoF2Remake.Tests
             Cheats.MakePeace();
             CollectionAssert.AreEqual(new[] { 0, 0 }, Session.Standing);
             Assert.IsEmpty(Session.AttackedStations);
+        }
+
+        [Test]
+        public void SetRankMovesTheLevelAndLeavesTheStatistics()
+        {
+            Session.XpBonus = 0;
+            Session.Kills = 30;   // with whatever else the sandbox's game earned
+            int kills = Session.Kills, earned = Session.Xp, start = Session.Rank;
+            Assert.AreEqual(start + 1, Cheats.SetRank(start + 1), "one up");
+            Assert.AreEqual(Session.RankStartXp(start + 1), Session.Xp, "at that level's first XP");
+            Assert.AreEqual(0, Cheats.SetRank(0), "down to the bottom, below what was earned");
+            Assert.Less(Session.XpBonus, 0);
+            Assert.AreEqual(0, Cheats.SetRank(-1), "no level under 0");
+            Assert.AreEqual(Session.MaxRank, Cheats.SetRank(Session.MaxRank));
+            Assert.AreEqual(Session.MaxRank, Cheats.SetRank(Session.MaxRank + 1), "none over 20");
+            Assert.AreEqual(1650, Session.Xp, "DAT_00252b0c's last threshold");
+            Assert.AreEqual(kills, Session.Kills, "the statistics stay as earned");
+            Assert.AreEqual(5, Cheats.SetRank(5));
+            Session.Kills += 147 - 105 - 1;   // DAT_00252b0c: level 5 from 105 XP, 6 from 147
+            Assert.AreEqual(5, Session.Rank, "one XP short of level 6");
+            Session.Kills++;
+            Assert.AreEqual(6, Session.Rank, "the level goes on rising from where it was set");
+            Session.XpBonus = 0;
+            Assert.AreEqual(earned + 147 - 105, Session.Xp, "without the offset: what was earned");
         }
 
         [Test]

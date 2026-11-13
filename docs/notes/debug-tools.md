@@ -47,7 +47,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   +100 000 / +1 000 000 credits, repair (hull, shield, armor, gamma), secondaries to 50, +20 energy cells, reveal all
   systems, make peace (both standing axes 0, `AttackedStations` cleared), fill the Kaamo Club (`Cheats.FillKaamoClub`:
   owned, one of every item the storage takes (50 of each secondary; not the unsaleable story items) and a hull of every
-  ownable ship type, not 13 / 14 / 15 or the one flown; topped up, never doubled); in flight under them **Destroy around
+  ownable ship type, not 13 / 14 / 15 or the one flown; topped up, never doubled), **Player level +1 / -1** (players'
+  wish 2026-11-13, for testing mods; `Cheats.SetRank`: the level is `Session.Rank`, derived from the XP, so the saved
+  `Session.XpBonus` (`xpBonus`) makes up the difference to the wanted level's first XP, negative below what was earned;
+  kills, missions and their medals stay as earned and the level rises on from there; 0-20, the result line "Level N");
+  in flight under them **Destroy around
   you** (`CheatsCatalog.Destroy`, `DebugSpawner.KillAround`, 2026-11-02): a range of 10 m - 30 km (`KillRanges`, measured
   to the nearest hit box, so a capital ship counts by its hull) and Hostile only (`hostileToPlayer`: turrets and sentry
   guns too) / All ships / Everything (asteroids, every Target); each takes the One-hit kills hit from the player (loot,
