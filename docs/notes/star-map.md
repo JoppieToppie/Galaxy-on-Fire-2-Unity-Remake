@@ -112,7 +112,8 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   as the Mission map's) and, without a drive, "Jumpgate jumps: N" on the energy line (Extra `mapRouteJumps`); the
   destination dialog names the jumps when there is more than one. With a drive, where the gates reach the target, the
   dialog's answers are KHADOR DRIVE / JUMPGATES (Extra `mapRouteGates`, a third button made at runtime,
-  `StarMap.dialogAlt`) / NO, and Esc / B close it unanswered (`dialogBackCancels`); short of cells, 582 offers the gates
+  `StarMap.dialogAlt`) / NO, and Esc / B close it unanswered (`dialogBackCancels`); one gate away the keyboard /
+  controller focus starts on JUMPGATES (Ukrrooter on Discord, 2026-10-18: not to waste cells on a neighbour); short of cells, 582 offers the gates
   for any system they reach (the original only for a neighbour). **Fastest or safest** (the user, 2026-11-02, chosen when
   travelling, no option): the routes are A* (`GalaxyMap.RoutePath`; `SystemPath`, the original's BFS until then, is its
   fewest-jumps run, the same jump counts and, on the base map, the same routes); the safest adds each entered system's

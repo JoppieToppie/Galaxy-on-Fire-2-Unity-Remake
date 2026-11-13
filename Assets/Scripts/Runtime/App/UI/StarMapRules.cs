@@ -173,7 +173,7 @@ namespace GoF2Remake.UI
                 {
                     string drive = SlipstreamText.UiCaps();
                     if (gateJumps > 0)
-                        ShowDialog(travelTo, () => Choose(station, true), null, yesText: T(1359).UiCaps(), altText: drive, onAlt: () => BySlipstream(station),
+                        ShowDialog(travelTo, () => Choose(station, true), null, noFirst: gateJumps == 1, yesText: T(1359).UiCaps(), altText: drive, onAlt: () => BySlipstream(station),
                                    alt2Text: Localization.Extra("mapRouteGates", "Jumpgates").UiCaps(), onAlt2: () => TravelByGates(station, true));
                     else ShowDialog(travelTo, () => Choose(station, true), null, yesText: T(1359).UiCaps(), altText: drive, onAlt: () => BySlipstream(station));
                     return;
@@ -184,7 +184,8 @@ namespace GoF2Remake.UI
                     // Modified: a mod jump drive by its own name (ModJumpFx.ActiveDrive).
                     var modDrive = ModJumpFx.ActiveDrive();
                     string driveName = modDrive != null ? GameNames.Item(modDrive.item) : T(1359);
-                    ShowDialog(travelTo, () => Choose(station, true), null, yesText: driveName.UiCaps(),
+                    // Remake (a player's wish, 2026-10-18, not to waste cells): one gate away the focus starts on JUMPGATES.
+                    ShowDialog(travelTo, () => Choose(station, true), null, noFirst: gateJumps == 1, yesText: driveName.UiCaps(),
                                altText: Localization.Extra("mapRouteGates", "Jumpgates").UiCaps(), onAlt: () => TravelByGates(station, true));
                     return;
                 }
@@ -282,7 +283,8 @@ namespace GoF2Remake.UI
             var help = root?.Q(name: "mapHelp");
             if (help != null) help.style.display = HelpText != null ? DisplayStyle.Flex : DisplayStyle.None;
         }
-        /// <param name="noFirst">No has the keyboard / controller focus when it opens (else Yes).</param>
+        /// <param name="noFirst">The last answer (No, a choice dialog's JUMPGATES) has the keyboard / controller focus when it
+        /// opens (else Yes).</param>
         /// <param name="yesText">Remake: Yes named for what it does (null: Yes).</param>
         /// <param name="altText">Remake: a third answer between Yes and No (null: none), running onAlt; Back then closes the
         /// dialog unanswered.</param>
