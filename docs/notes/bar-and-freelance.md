@@ -175,4 +175,6 @@ generator).
   `noMedalsFireworks`; 650 / 651 congratulate on the medals). The event conditions `medals(allgold | allsupernova)` read
   the same gates, so mod content behind them stays reachable; `medals(gold ...)` counts 0. Save v18 (`noMedals`; older
   saves have medals); the slot rows say NO MEDALS. Tests `NoMedalsTests`.
+- **Mods' medals** (`Modding.ModMedals`, medals.json, 2026-11-13) come after the 45 in the grid, the toast and the
+  conditions, with tiers of their own: see docs/notes/mods.md "Mod medals".
 - Type 15 Ore Mining (unreachable in the original's generator) is only rolled in multiplayer sessions (see "Multiplayer").

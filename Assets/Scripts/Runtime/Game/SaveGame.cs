@@ -139,6 +139,9 @@ namespace GoF2Remake.Data
         public int wasteTons, wasteDry, wasteSinceRare;
         // (remake, no version of its own) the ships bought or built, by reference (Session.ShipsBought: "12", "mod:id")
         public List<string> shipsBought;
+        // (remake, no version of its own) the mods' medals earned (Session.ModMedals: "mod_id:id|tier") and the kills by
+        // weapon / ship type (Session.KillTally: "with:12|3", "ship:mod:id|1")
+        public List<string> modMedals, killTally;
 
         [Serializable]
         public class KnownPrice { public int item, price, system; }
@@ -431,6 +434,8 @@ namespace GoF2Remake.Data
                 pirateSightings = new List<PirateSighting>(Session.PirateSightings), nextPirateSightingId = Session.NextPirateSightingId,
                 wasteTons = Session.WasteTons, wasteDry = Session.WasteDry, wasteSinceRare = Session.WasteSinceRare,
                 shipsBought = new List<string>(Session.ShipsBought),
+                modMedals = Session.ModMedals.Select(kv => kv.Key + "|" + kv.Value).ToList(),
+                killTally = Session.KillTally.Select(kv => kv.Key + "|" + kv.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList(),
                 campaignMission = Session.CampaignMission,
                 station = Session.StationIndex,
                 previousStation = Session.PreviousStationIndex,
@@ -676,6 +681,19 @@ namespace GoF2Remake.Data
             Session.WasteDry = s.wasteDry;
             Session.WasteSinceRare = s.wasteSinceRare;
             Session.ShipsBought = new HashSet<string>(s.shipsBought ?? new List<string>());
+            Session.ModMedals = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var e in s.modMedals ?? new List<string>())
+            {
+                int bar = e?.LastIndexOf('|') ?? -1;
+                if (bar > 0 && bar < e.Length - 1) Session.ModMedals[e.Substring(0, bar)] = e.Substring(bar + 1);
+            }
+            Session.KillTally = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var e in s.killTally ?? new List<string>())
+            {
+                int bar = e?.LastIndexOf('|') ?? -1;
+                if (bar > 0 && int.TryParse(e.Substring(bar + 1), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int n))
+                    Session.KillTally[e.Substring(0, bar)] = n;
+            }
             Session.StoryMission = s.storyMission ?? new StoryMission();
             Session.StoryStepStart = s.storyStepStart;
             Session.StoryRadioPending = s.storyRadioPending;

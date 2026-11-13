@@ -229,7 +229,7 @@ namespace GoF2Remake.World
                 if (Session.InformerFailed && !failed) GoF2Remake.World.SpaceHooks.MissionStatus(fm, 1000);
             }
             // PlayerFighter::update's death: a Most Wanted criminal pays its bounty whoever killed it; no standing hit.
-            if (ship.Spec.wantedIndex >= 0) { WantedKilled(ship); if (byPlayer && ship.Target.hostileToPlayer) CountKill(); return; }
+            if (ship.Spec.wantedIndex >= 0) { WantedKilled(ship); if (byPlayer && ship.Target.hostileToPlayer) CountKill(ship); return; }
             if (ship.Spec.pirateEvent == SpawnSpec.EventOutpost || ship.Spec.pirateEvent == SpawnSpec.EventBoss) PirateEventDone(ship);   // remake: the event's bounty, whoever killed it
             if (!byPlayer) return;
             // Player::damage: the convoy freighter ("Arms delivery") destroyed by the Liberator (0xb3) -> step 59's bonus.
@@ -246,14 +246,18 @@ namespace GoF2Remake.World
                     Achievements.Progress(43, Session.GraveRiserKills);   // Level::enemyDied: Status+0x13c
                 }
                 else emergencyKills = 0;
-                CountKill();
+                CountKill(ship);
                 if (ship.Race == Standing.Pirate) Session.PirateKills++;
             }
         }
-        /// <summary>Level::enemyDied: Status::incKills; without a scanner also Status+0x11c (medal 40 Blindfolded Killer).</summary>
-        void CountKill()
+        /// <summary>Level::enemyDied: Status::incKills; without a scanner also Status+0x11c (medal 40 Blindfolded Killer).
+        /// Remake (the mods' medals: killswith(item) / killed(ship)): the kill by its last hit's weapon and by the ship type.</summary>
+        void CountKill(NpcShip ship)
         {
             Session.Kills++;
+            void Tally(string key) => Session.KillTally[key] = (Session.KillTally.TryGetValue(key, out int n) ? n : 0) + 1;
+            if (ship.Target.lastPlayerWeapon >= 0) Tally("with:" + Session.ItemRef(ship.Target.lastPlayerWeapon));
+            if (ship.Spec.ship >= 0) Tally("ship:" + Session.ShipRef(ship.Spec.ship));
             if (!hasScanner && !Achievements.Has(40)) Achievements.Elite(40, ++Session.BlindKills);
         }
     }

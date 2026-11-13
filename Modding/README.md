@@ -2118,7 +2118,12 @@ the event graphs' expression language and is checked when it matters (a shop's s
 | `rank`, `credits`, `kills`, `station`, `system`, `ship` | The player's rank, credits, kills, where they are docked / flying, the ship they fly. |
 | `visited(station)`, `has(item)`, `cargo(item)`, `quest(name)` | A station docked at; how many of an item the player has (mounted too) / has in the hold; a mission under way (1) or done (2). |
 | `docked(station)`, `inorbit(station)` | How many of the players are docked at that station now / alive in its orbit (single player: 1 or 0). |
-| `medals(gold)`, `medals(silver)`, `medals(bronze)`, `medals(any)` | How many medals the player holds of that grade (`any`: earned at all). |
+| `medals(gold)`, `medals(silver)`, `medals(bronze)`, `medals(any)` | How many medals the player holds of that grade (`any`: earned at all), the mods' [medals](#medals) at that tier included. |
+| `medals(supernova)`, `medals(tier)` | The nine Supernova medals earned (and mods' medals at the supernova tier); a mod's own tier (`medals(platinum)`): the mods' medals earned at it. |
+| `medals(off)` | 1 when this game earns no medals (started without medals, or multiplayer): an `available` can then offer another way. |
+| `medal(medal)`, `medal(medal, tier)` | 1 once that medal is earned (at that tier or a higher one): a mod's `"mod_id:id"` or a game medal's number 0-44 (`medal(4, gold)`: Butcher gold). |
+| `killswith(item)`, `killed(ship)` | How many ships the player destroyed whose last hit came from that weapon / of that ship type (a number, a name or `"mod_id:id"`; counted from 2026-11-13 on). |
+| `stat(name)` | One of the game's counters: `kills`, `piratekills`, `asteroids`, `ore`, `cores`, `oretypes`, `coretypes`, `crates`, `junk`, `containers`, `passengers`, `freelance`, `stations`, `jumpgates`, `goodsproduced`, `blueprints`, `wingmen`, `battleships`, `bombs`, `agents`, `booze`, `boozetypes`, `alienremains`, `highestcredits`, `hours`, `cloakminutes`, `medals`. |
 | `medals(allgold)`, `medals(allsupernova)` | 1 with every medal of the main game gold (what puts the VoidX at Thynome), or those and the nine Supernova medals too. In a game started without medals: 1 once the main story is won, or the Supernova story finished. |
 | `bought(ship)` | 1 once the player has bought (or built from a blueprint) that ship in this game: a number, a name or `"mod_id:id"`. Ships bought before this word existed don't count. |
 | `produced(item)` | How many times the player has built that item's blueprint in this game (a number, a name or `"mod_id:id"`): `produced(85) > 0` once the Khador Drive is built. |
@@ -2213,6 +2218,72 @@ The Space Lounges' wingmen offers can fly your ships: a `wingmen.json` in the mo
 
 A ship's `wingmanDevice` (see [ships.json](#shipsjson)) works whenever a hired wingman flies it, with or without a
 `wingmen.json`. The crew's ships are saved with the contract; a ship no longer there is replaced the game's way.
+
+## Medals
+
+A `medals.json` adds medals to the Status window's Medals tab, after the game's 45. They are checked when the player docks,
+like the game's: the same "New medal!" toast and credits (none on Extreme), the same progress bars and hints. Each medal is
+earned at the game's tiers (`bronze`, `silver`, `gold`, `supernova`: the Supernova medals' orange plate) or at tiers a mod
+adds, and keeps the best one reached.
+
+```json
+{
+    "tiers": [
+        { "id": "platinum", "name": "Platinum", "rank": 3.5, "color": "#e5e4e2", "reward": 10000 }
+    ],
+    "medals": [
+        {
+            "id": "plasma_master",
+            "name": "Plasma Master",
+            "hint": "Destroy # ships with the Plasma Lance.",
+            "icon": "medals/plasma.png",
+            "counter": "killswith(plasma_lance)",
+            "grades": { "bronze": 10, "silver": 50, "gold": 100, "platinum": 250 },
+            "reward": { "platinum": 20000 },
+            "unlocks": [
+                { "tier": "gold", "blueprint": 232 },
+                { "tier": "platinum", "ship": 8, "stations": [ 10 ] },
+                { "tier": "bronze", "item": "plasma_cell", "amount": 5 }
+            ]
+        },
+        { "id": "tycoon", "name": "Tycoon", "hint": "Own a million credits.", "icon": 25, "hidden": true,
+          "grades": { "gold": "credits >= 1000000" } }
+    ]
+}
+```
+
+The file may also be just the list of medals.
+
+| Medal field | |
+|---|---|
+| `id` | Its id; other mods and conditions name it `"mod_id:id"`. |
+| `name`, `hint` | Texts (one string, or one per language like `{ "en": "...", "de": "..." }`, or `medals.<id>.name` / `.hint` in the mod's [texts](#texts)). `#` in the hint is the number of the grade earned, else of the next one. The hint also lists the grades ("Bronze 10 · Silver 50 · Gold 100"). |
+| `icon` | The symbol on the plate: a PNG of the mod (drawn in its own colours, dimmed until earned), or a game medal's number 0-44 for its symbol (tinted in the tier's colour like the game's). |
+| `counter` | A number in the [conditions](#conditions)' language the grades' numbers are compared with: `kills`, `killswith(item)`, `killed(ship)`, `produced(item)`, `has(item)`, `stat(ore)`, `credits`... |
+| `grades` | Tier to what earns it: a number the counter must reach (`strict`: pass), or a condition (`"gold": "won(supernova) and medal(4, gold)"`). The best tier met counts. |
+| `strict` | `true`: the counter must be more than the number (the game's "more than #" medals). |
+| `reward` | Credits for every grade (`5000`), or per tier (`{ "gold": 7500 }`); default the tier's: bronze 1000, silver 2500, gold and supernova 5000, a mod tier its own `reward`. |
+| `available` | A condition: while it doesn't hold the medal is neither counted nor shown (one already earned stays). |
+| `hidden` | `true`: shown only once earned. |
+| `unlocks` | What a grade gives, each from its `tier` on (default the lowest grade): `blueprint` (learnt, like the fireworks for every Supernova medal), `ship` with `stations` (on sale first at those dealers from then on, like the VoidX at Thynome; without `stations` at every dealer that has ships), `item` with `amount` (into the hold once; what doesn't fit is paid at its price). Items and ships by number, `"mod_id:id"` or your own `id`. The toast lists what was unlocked. |
+
+| Tier field | |
+|---|---|
+| `id` | Its id (not one of the game's four); any mod's medals can use it. |
+| `name` | Its name (shown on the toast and in the hint). |
+| `rank` | Where it sits among the others: bronze 1, silver 2, gold 3, supernova 4. Default: above the highest so far (5, 6...). `3.5` puts platinum between gold and supernova. |
+| `color` | `"#rrggbb"`: the symbol, the toast's border and the progress bar. |
+| `plate` | `bronze`, `silver`, `gold`, `supernova` or a PNG of the mod. Default: the silver plate in the tier's colour. |
+| `reward` | Credits when a medal reaches it (default 5000). |
+
+Medals unlock other content through conditions too: `"available": "medal(my_mod:plasma_master, gold)"` on an item,
+ship, system, blueprint or mission. To tie one of the game's medal rewards to your medal instead, override it in
+`ships.json`: `{ "override": 8, "available": "medal(my_mod:plasma_master, platinum)" }` keeps the VoidX (or 44, the
+Specter) off sale until then, and a `ship` unlock puts it on sale even without every gold medal.
+
+The game's own rules still count its 45 medals only: Champion, all-gold (the VoidX), every Supernova medal (the fireworks
+and the Specter). A game started without medals, and multiplayer, earn none of these either (`medals(off)` is 1 there).
+Earned medals are saved by key, so they stay when the mod is off and come back with it; New Game+ carries them over.
 
 ## Most Wanted
 

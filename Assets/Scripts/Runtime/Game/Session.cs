@@ -401,6 +401,17 @@ namespace GoF2Remake.Data
         /// <summary>A ship's reference in ShipsBought.</summary>
         public static string ShipRef(int ship) => Modding.ModContent.ShipKey(ship) ?? ship.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
+        /// <summary>An item's reference ("12", a mod's "mod:id"), as ShipRef.</summary>
+        public static string ItemRef(int item) => Modding.ModContent.ItemKey(item) ?? item.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        /// <summary>Remake mods: the mods' medals earned (Modding.ModMedals), the medal's key ("mod_id:id") to its tier's id
+        /// ("bronze", "gold", a mod's "platinum"). Saved; kept for a mod that is off.</summary>
+        public static Dictionary<string, string> ModMedals = new Dictionary<string, string>(System.StringComparer.Ordinal);
+
+        /// <summary>Remake (the conditions' killswith(item) / killed(ship), for the mods' medals): the player's kills by the weapon
+        /// that dealt the last hit ("with:" + ItemRef) and by the ship type destroyed ("ship:" + ShipRef). Saved.</summary>
+        public static Dictionary<string, int> KillTally = new Dictionary<string, int>(System.StringComparer.Ordinal);
+
         /// <summary>Level::programmedStation: the destination picked on the star map, -1 = none. The autopilot routes to it
         /// after the launch / arrival camera (LevelScript::setAutoPilotToProgrammedStation).</summary>
         public static int ProgrammedStation = -1;
@@ -656,6 +667,8 @@ namespace GoF2Remake.Data
             SystemShown = new Dictionary<int, bool>();
             VisitedStations = new HashSet<int> { 78 };
             ShipsBought = new HashSet<string>();
+            ModMedals = new Dictionary<string, string>(System.StringComparer.Ordinal);
+            KillTally = new Dictionary<string, int>(System.StringComparer.Ordinal);
             ProgrammedStation = -1;
             RouteDestination = -1;
             RouteSafest = false;

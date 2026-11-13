@@ -40,6 +40,11 @@ namespace GoF2Remake.Data
         /// <summary>An event graph expression on this game's state (EventRunner.Condition); unset: true.</summary>
         public static ConditionCheck Condition;
 
+        public delegate bool NumberCheck(string expression, out double value, out string error);
+        /// <summary>An event graph expression's value on this game's state (EventRunner.Number: the mods' medal counters,
+        /// Modding.ModMedals); unset: no value (false).</summary>
+        public static NumberCheck Number;
+
         /// <summary>A new game: single player's graph runs end (EventRunner.ResetLocal).</summary>
         public static Action ResetLocalEvents;
 

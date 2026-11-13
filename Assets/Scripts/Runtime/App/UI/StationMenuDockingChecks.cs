@@ -65,6 +65,12 @@ namespace GoF2Remake.UI
             var improved = Achievements.Check(level.Database);
             medalQueue.Clear();
             foreach (int m in improved) if (m != 0) medalQueue.Enqueue(m);
+            // Remake mods: a ship a mod medal just put on sale here joins this visit's dealer (ModMedals.AddShips).
+            if (improved.Count > 0 && level.Stock != null)
+            {
+                level.Stock.ships ??= new System.Collections.Generic.List<int>();
+                Modding.ModMedals.AddShips(Session.StationIndex, level.Stock.ships);
+            }
             if (medalQueue.Count == 0) return false;
             if (medalToast == null) ShowNextMedal();
             return false;   // remake: the toasts don't hold up the station (the original's ChoiceWindows waited for OK)
@@ -102,8 +108,16 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>How long a medal's toast stays: the rarer, the longer (bronze 4 s, silver 5 s, gold 6 s, elite 7 s).</summary>
-        static float MedalToastSeconds(int medal, int grade) =>
-            medal >= Achievements.BaseCount ? 7f : grade == 1 ? 6f : grade == 2 ? 5f : 4f;
+        static float MedalToastSeconds(int medal, int grade)
+        {
+            if (medal >= Achievements.Count)
+            {
+                // A mod medal by its tier's rank: bronze 4 s ... gold 6 s, supernova and above 7 s.
+                float rank = Modding.ModMedals.Earned(Modding.ModMedals.At(medal))?.rank ?? 1f;
+                return Mathf.Clamp(3f + rank, 4f, 7f);
+            }
+            return medal >= Achievements.BaseCount ? 7f : grade == 1 ? 6f : grade == 2 ? 5f : 4f;
+        }
 
         /// <summary>ModStation::checkMedals 0xebe74: each new medal pays DAT_00251ff0[grade] (5000 gold / 2500 silver / 1000
         /// bronze; nothing on Extreme). The original shows one ChoiceWindow per medal (353, the plate, the hint 1552 + i)
@@ -117,7 +131,9 @@ namespace GoF2Remake.UI
             if (medalQueue.Count == 0) return;
             int m = medalQueue.Dequeue();
             int grade = Achievements.Grade(m);
-            int reward = Session.IsExtreme ? 0 : grade == 1 ? 5000 : grade == 2 ? 2500 : grade == 3 ? 1000 : 0;
+            var modMedal = Modding.ModMedals.At(m);   // remake mods: a mod's medal, its tier's (or its own) reward
+            int reward = Session.IsExtreme ? 0 : modMedal != null ? Modding.ModMedals.Reward(modMedal)
+                       : grade == 1 ? 5000 : grade == 2 ? 2500 : grade == 3 ? 1000 : 0;
             Session.Credits += reward;
             RefreshCredits();
 
@@ -139,13 +155,19 @@ namespace GoF2Remake.UI
             }
             // The grade's colour (gold / silver / bronze, the elite orange) on the border, the top band and the title; an
             // unearned grade (elite 0) in the theme's amber.
-            var tint = grade > 0 ? StatusWindow.MedalTint(m >= Achievements.BaseCount, grade) : new Color(0.94f, 0.70f, 0.35f);
+            var tint = modMedal != null ? StatusWindow.MedalColor(m, 0)
+                     : grade > 0 ? StatusWindow.MedalTint(m >= Achievements.BaseCount, grade) : new Color(0.94f, 0.70f, 0.35f);
             tint.a = 1f;
             toast.style.borderTopColor = tint;
             toast.style.borderLeftColor = toast.style.borderRightColor = toast.style.borderBottomColor = new Color(tint.r, tint.g, tint.b, 0.55f);
             Line(Localization.Get(353).UiCaps(), "medal-toast-title").style.color = tint;
-            Line(Localization.Get(1507 + m), "medal-toast-name");
+            Line(Achievements.Name(m), "medal-toast-name");
+            if (modMedal != null && Modding.ModMedals.Earned(modMedal) is Modding.ModMedals.Tier tier && modMedal.grades.Count > 1)
+                Line(tier.Name, "medal-toast-reward").style.color = tint;   // which of its grades
             if (reward > 0) Line($"+{reward:N0} $", "medal-toast-reward");
+            // What the grade unlocked (a blueprint, items in the hold, a ship on sale).
+            var unlocked = Modding.ModMedals.TakeNotes(m);
+            if (unlocked != null) foreach (var u in unlocked) Line(u, "medal-toast-reward");
             Line(Localization.Extra(InputMode.Current == InputKind.Touch ? "medalToastTap" : "medalToastClick",
                 InputMode.Current == InputKind.Touch ? "Tap to see your medals" : "Click to see your medals"), "medal-toast-hint");
             toast.Add(texts);

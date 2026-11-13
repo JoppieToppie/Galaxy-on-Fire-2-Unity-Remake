@@ -513,6 +513,7 @@ namespace GoF2Remake.Data
         public static List<int> GenerateShips(Database db, int station)
         {
             var ships = GenerateShipsOriginal(db, station);
+            Modding.ModMedals.AddShips(station, ships);   // remake mods: ships the mods' medals put on sale
             ships.RemoveAll(s => !Modding.ModCampaigns.ShipAllowed(s) || !Modding.ModUnlocks.ShipAvailable(s));
             return ships;
         }

@@ -576,6 +576,24 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   1.5 km behind, scanned once a second, then 30 s quiet; playerDown under a fifth) through `Traffic.WingmanSay` (one every
   12 s, never over other chatter; slot 0 with the agent's face). Tests `WingmanDeviceTests`, `ModWingmenTests`,
   `WingmenTests.AModCrewsShipsGoWithItsPilots`. Untested in Play mode.
+- **Mod medals** (`ModMedals`, a mod's `medals.json`; TypedKibbles960's request on Discord 2026-10-23: mods' medals with
+  their own conditions, tiers like platinum, medals that unlock the fireworks / VoidX / Specter; Modding/README.md
+  "Medals"): built lazily per `ModManager.Revision` like `ModUnlocks` (tiers of every mod first, then the medals). Tiers:
+  the game's bronze 1 / silver 2 / gold 3 / supernova 4 (`elite` an alias; the elite plate) plus mods' `tiers` (`rank`,
+  default above the highest; `color`, `reward`, `plate`: a game plate or a PNG, default the silver plate tinted). A medal:
+  `counter` (`GameHooks.Number` = `EventRunner.Number`, the conditions' language as a value) against numbers per tier, or
+  conditions per tier; the best met counts and is kept (`Session.ModMedals` key -> tier id, saved `modMedals`, kept for a
+  mod that is off, New Game+ `Carry`). Numbered after the 45 (`Achievements.Count + k`): `Achievements.Check` appends
+  `ModMedals.Check`, `Achievements.Name`; the Status window's grid (a hidden / unavailable one keeps its number with a
+  null button), `ModMedalPlate`, `MedalColor`; the toast pays `Reward` (none on Extreme), shows the tier and
+  `TakeNotes` (the unlocks). `unlocks` from a tier on: `blueprint` (learnt; also re-learnt on every check for an earned
+  medal), `item` (into the hold once at the improvement, the rest paid at its average price), `ship` (`AddShips`, first
+  in `Shop.GenerateShips` before the `available` / campaign filters, and into this visit's stock in
+  `StationMenu.CheckMedals`). Conditions: `medal(key | 0-44[, tier])` (`Reached`), `medals(tier | supernova | off)`,
+  gold / silver / bronze / any counting the mods' too, `killswith(item)` / `killed(ship)` (`Session.KillTally`
+  "with:<ItemRef>" / "ship:<ShipRef>", counted in `TrafficToll.CountKill`, saved `killTally`), `stat(name)`. The game's
+  own gates (Champion, all gold, all Supernova) stay the 45's; none in multiplayer / without medals. No Mod Builder kind
+  yet. Tests `ModMedalsTests`.
 - **Crates** (remake, 2026-11-02, the user's request for GoF3's loot containers; `ModCrates`, test `ModCratesTests`): ships.json
   `crate` (a glTF file) / `crateSize` (game units) on `CustomShipData`. Each file loads once at mod load (`ModLoading`,
   hidden DontDestroyOnLoad templates); `Crate.Model` draws a container (look 0) with it when it is loaded, fitted to the

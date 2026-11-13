@@ -200,6 +200,18 @@ namespace GoF2Remake.Events
             catch (Exception e) { error = e.Message; return false; }
         }
 
+        /// <summary>Remake (mods' medals, Modding.ModMedals "counter"): an expression's value outside any event, as Condition
+        /// reads it. False with 'error' when it can't be read.</summary>
+        public static bool Number(string expression, out double value, out string error)
+        {
+            value = 0;
+            error = null;
+            if (string.IsNullOrWhiteSpace(expression)) { error = "empty"; return false; }
+            var probe = new EventRun("number", new List<Step>(), new MissionInfo(), new HashSet<ulong> { 0 }, -1, LocalPilot.Instance, new Dictionary<string, double>());
+            try { value = probe.Probe(expression); return true; }
+            catch (Exception e) { error = e.Message; return false; }
+        }
+
         /// <summary>"systemsvisited": the star systems of the stations docked at (Session.VisitedStations).</summary>
         static int VisitedSystems()
         {

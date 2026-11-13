@@ -7,7 +7,9 @@
 // (initCheckEquipmentAndWeapons 0x182388). The elite medals 38 / 40 / 41 / 42 / 44 are flags set in flight when their
 // counter reaches the gold threshold (Session.OreStreak etc., Elite()). Remake: a game without medals (Session.NoMedals,
 // the new game's choice) awards and shows none (Enabled), and the content they unlock comes from the story
-// (VoidXUnlocked, SupernovaUnlocked). Plain C#.
+// (VoidXUnlocked, SupernovaUnlocked). Remake mods: the mods' medals (Modding.ModMedals, medals.json) are checked after the
+// 45 and numbered from Count on (Name, the Status window, the toast); the game's gates (Champion, all gold) stay the 45's.
+// Plain C#.
 
 using System.Collections.Generic;
 using GoF2Remake.Flight;
@@ -47,6 +49,9 @@ namespace GoF2Remake.Data
         public static bool SupernovaUnlocked => Session.NoMedals ? !Session.FreePlay && Story.Index >= Story.LastIndex : GotAllSupernovaMedals;
 
         public static int Grade(int medal) => Session.Medals != null && medal < Session.Medals.Length ? Session.Medals[medal] : 0;
+
+        /// <summary>A medal's name: the game's 1507 + i, a mod's (Count and up, Modding.ModMedals) its own.</summary>
+        public static string Name(int medal) => medal < Count ? Localization.Get(1507 + medal) : Modding.ModMedals.At(medal)?.Name ?? "";
 
         /// <summary>The medal's counter, or null when the remake doesn't track it (the medal can't be earned yet).</summary>
         static int? Counter(Database db, int medal)
@@ -239,6 +244,8 @@ namespace GoF2Remake.Data
             int earned = 0;
             for (int i = 0; i < BaseCount; i++) if (i != 35 && Session.Medals[i] != 0) earned++;
             if (earned == BaseCount - 1 && Session.Medals[35] == 0) { Session.Medals[35] = 1; improved.Add(35); }
+            // Remake mods: the mods' medals (Modding.ModMedals), numbered after the 45.
+            improved.AddRange(Modding.ModMedals.Check(db));
             return improved;
         }
 

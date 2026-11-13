@@ -7,7 +7,8 @@
 //          salvaged, 557 stations, 3235 battleships | 564 jumpgates, 558 goods produced, 560 ore, 561 cores, 567 wingmen)
 //   right  168 Medals: 45 plates in three columns, coloured by grade (Achievements); an earned medal shows its hint
 //          (1552 + i, # = the threshold of its grade). Remake: the count earned above them, a bar toward the next grade
-//          under each medal short of gold (Achievements.NextGrade), and a missing medal's hint too (its next grade's)
+//          under each medal short of gold (Achievements.NextGrade), and a missing medal's hint too (its next grade's);
+//          the mods' medals after the game's (Modding.ModMedals: their tiers' plates and colours, numbered from 45)
 // Fire power: Shop.FirePower, Ship::refreshValue's sum (verified in the iOS build: the sorts of the mask 0x200010F, the
 // Nirai mod's factors, x 1000). Medal images: GoF2 > Build > HUD Images (GoF2Hud/medal_*). Plain class driven by
 // StationMenu.
@@ -189,8 +190,19 @@ namespace GoF2Remake.UI
                 scroll.parent.Insert(scroll.parent.IndexOf(scroll), summary);
             }
             var (earned, gold) = Achievements.Earned();
+            int total = Achievements.Count;
+            var goldTier = Modding.ModMedals.TierOf("gold");
+            foreach (var mm in Modding.ModMedals.All)
+            {
+                if (!Modding.ModMedals.Shown(mm)) continue;
+                total++;
+                var t = Modding.ModMedals.Earned(mm);
+                if (t == null) continue;
+                earned++;
+                if (t.rank >= goldTier.rank) gold++;   // gold or a tier above it
+            }
             summary.text = string.Format(Localization.Extra("medalsEarned", "{0} of {1} medals earned, {2} of them gold"),
-                                         earned, Achievements.Count, gold);
+                                         earned, total, gold);
             for (int i = 0; i < Achievements.Count; i++)
             {
                 int medal = i;
@@ -221,6 +233,34 @@ namespace GoF2Remake.UI
                 grid.Add(m);
                 medalButtons.Add(m);
             }
+            // Remake mods: the mods' medals (Modding.ModMedals) after the game's, numbered from Achievements.Count; one hidden
+            // until earned or not available keeps its number with no button.
+            var mods = Modding.ModMedals.All;
+            for (int k = 0; k < mods.Count; k++)
+            {
+                var mm = mods[k];
+                if (!Modding.ModMedals.Shown(mm)) { medalButtons.Add(null); continue; }
+                int medal = Achievements.Count + k;
+                var m = new Button();
+                m.AddToClassList("medal");
+                if (Modding.ModMedals.Earned(mm) != null) m.AddToClassList("medal--earned");
+                var plate = MedalPlate(medal, 0);
+                var pressed = new VisualElement { pickingMode = PickingMode.Ignore };
+                pressed.AddToClassList("medal-pressed");
+                pressed.style.backgroundImage = Hud("medal_pressed");
+                plate.Add(pressed);
+                m.Add(plate);
+                var n = new Label(mm.Name) { pickingMode = PickingMode.Ignore };
+                n.AddToClassList("medal-name");
+                n.AddToClassList("gof-semibold");
+                m.Add(n);
+                if (Modding.ModMedals.Next(mm, out var nextTier, out long count, out long target, out float fraction))
+                    m.Add(ProgressBar(nextTier.color, count, target, fraction));
+                m.clicked += () => { menu.PlayRelease(); ShowHint(medal); };
+                m.RegisterCallback<FocusInEvent>(_ => { ShowHint(medal); scroll?.ScrollTo(m); });
+                grid.Add(m);
+                medalButtons.Add(m);
+            }
             hint.text = "";
             hint.style.display = DisplayStyle.None;   // Modified: until a medal is picked (its help is the title's "?")
             menu.Focus(close);
@@ -230,6 +270,7 @@ namespace GoF2Remake.UI
         /// grade (also the "New medal!" window's picture).</summary>
         public static VisualElement MedalPlate(int medal, int grade)
         {
+            if (medal >= Achievements.Count) return ModMedalPlate(Modding.ModMedals.At(medal));
             bool elite = medal >= Achievements.BaseCount;
             var plate = new VisualElement { pickingMode = PickingMode.Ignore };
             plate.AddToClassList("medal-plate");
@@ -241,6 +282,49 @@ namespace GoF2Remake.UI
             symbol.style.unityBackgroundImageTintColor = MedalTint(elite, grade);
             plate.Add(symbol);
             return plate;
+        }
+
+        /// <summary>Remake mods: a mod medal's plate by its earned tier (Modding.ModMedals: the game's plates, a mod tier's
+        /// own image or the silver plate tinted in its colour; none earned: the game's empty plate) and its symbol (its own
+        /// image, else a game medal's symbol tinted like the game's).</summary>
+        static VisualElement ModMedalPlate(Modding.ModMedals.Medal m)
+        {
+            var plate = new VisualElement { pickingMode = PickingMode.Ignore };
+            plate.AddToClassList("medal-plate");
+            var symbol = new VisualElement { pickingMode = PickingMode.Ignore };
+            symbol.AddToClassList("medal-symbol");
+            plate.Add(symbol);
+            if (m == null) return plate;
+            var tier = Modding.ModMedals.Earned(m);
+            var image = tier != null ? Modding.ModMedals.PlateImage(tier) : null;
+            if (image != null) plate.style.backgroundImage = new StyleBackground(image);
+            else
+            {
+                string name = tier == null ? "none" : tier.plate == "supernova" ? "elite_gold" : tier.plate;
+                plate.style.backgroundImage = Hud("medal_plate_" + name);
+                if (tier != null && tier.tintPlate) plate.style.unityBackgroundImageTintColor = tier.color;
+            }
+            var own = Modding.ModMedals.Icon(m);
+            if (own != null)
+            {
+                symbol.style.backgroundImage = new StyleBackground(own);
+                // Its own colours once earned; dimmed until then.
+                symbol.style.unityBackgroundImageTintColor = tier != null ? Color.white : new Color(0.5f, 0.5f, 0.5f, 0.35f);
+            }
+            else
+            {
+                symbol.style.backgroundImage = Hud($"medal_{Mathf.Max(0, m.symbol):00}");
+                symbol.style.unityBackgroundImageTintColor = tier != null ? tier.color : MedalTint(false, 0);
+            }
+            return plate;
+        }
+
+        /// <summary>The colour of a medal's grade: the game's (MedalTint), a mod medal's tier colour (Modding.ModMedals).</summary>
+        internal static Color MedalColor(int medal, int grade)
+        {
+            if (medal < Achievements.Count) return MedalTint(medal >= Achievements.BaseCount, grade);
+            var t = Modding.ModMedals.Earned(Modding.ModMedals.At(medal));
+            return t != null ? t.color : MedalTint(false, 0);
         }
 
         /// <summary>Status::getStandingRate -> Standing::getStanding 0x14283a: with a signature mounted the axis of its race reads
@@ -273,7 +357,7 @@ namespace GoF2Remake.UI
         /// <summary>The medal selected and in view (the station's new-medal toast was tapped).</summary>
         public void SelectMedal(int medal)
         {
-            if (medal < 0 || medal >= medalButtons.Count) return;
+            if (medal < 0 || medal >= medalButtons.Count || medalButtons[medal] == null) return;
             // Modified: on the Medals tab (the window opens on the Status page: the toast's tap landed there, the medal unseen).
             if (statusTab != null && MedalsShown && !showMedals) ShowTab(true);
             ShowHint(medal);
@@ -289,7 +373,20 @@ namespace GoF2Remake.UI
         void ShowHint(int medal)
         {
             selectedMedal = medal;
-            for (int i = 0; i < medalButtons.Count; i++) medalButtons[i].EnableInClassList("medal--selected", i == medal);
+            for (int i = 0; i < medalButtons.Count; i++) medalButtons[i]?.EnableInClassList("medal--selected", i == medal);
+            var mod = Modding.ModMedals.At(medal);
+            if (mod != null)
+            {
+                // Remake mods: the medal's tier earned in its colour, its hint, the progress and its grades.
+                var tier = Modding.ModMedals.Earned(mod);
+                string modProgress = Modding.ModMedals.Next(mod, out _, out long mc, out long mt, out _)
+                    ? string.Format(Localization.Extra("medalProgress", "Progress: {0} / {1}"), mc.ToString("#,0"), mt.ToString("#,0"))
+                    : null;
+                string earnedAt = tier != null ? $" <color=#{ColorUtility.ToHtmlStringRGB(tier.color)}>({tier.Name})</color>" : "";
+                hint.text = $"{mod.Name}{earnedAt}\n{Modding.ModMedals.Hint(mod, modProgress)}";
+                hint.style.display = DisplayStyle.Flex;
+                return;
+            }
             string progress = Achievements.NextGrade(level.Database, medal, out _, out int count, out int target, out _)
                 ? string.Format(Localization.Extra("medalProgress", "Progress: {0} / {1}"), count.ToString("#,0"), target.ToString("#,0"))
                 : null;
@@ -300,7 +397,10 @@ namespace GoF2Remake.UI
         Label summary;
 
         /// <summary>Remake: the bar toward the medal's next grade, filled in that grade's tint, and "count / target".</summary>
-        static VisualElement ProgressBar(bool elite, int grade, int count, int target, float fraction)
+        static VisualElement ProgressBar(bool elite, int grade, int count, int target, float fraction) =>
+            ProgressBar(MedalTint(elite, grade), count, target, fraction);
+
+        static VisualElement ProgressBar(Color tint, long count, long target, float fraction)
         {
             var row = new VisualElement { pickingMode = PickingMode.Ignore };
             row.AddToClassList("medal-progress");
@@ -309,12 +409,11 @@ namespace GoF2Remake.UI
             var fill = new VisualElement { pickingMode = PickingMode.Ignore };
             fill.AddToClassList("medal-progress-fill");
             fill.style.width = Length.Percent(fraction * 100f);
-            var tint = MedalTint(elite, grade);
             tint.a = 1f;
             fill.style.backgroundColor = tint;
             bar.Add(fill);
             row.Add(bar);
-            var text = new Label($"{Mathf.Min(count, target):#,0} / {target:#,0}") { pickingMode = PickingMode.Ignore };
+            var text = new Label($"{System.Math.Min(count, target):#,0} / {target:#,0}") { pickingMode = PickingMode.Ignore };
             text.AddToClassList("medal-progress-count");
             row.Add(text);
             return row;
@@ -610,7 +709,7 @@ namespace GoF2Remake.UI
             // Modified: the tabs first, then the page's items (the medals on their page), Back.
             var l = new List<VisualElement> { statusTab };
             if (MedalsShown) l.Add(medalsTab);
-            if (showMedals) l.AddRange(medalButtons);
+            if (showMedals) foreach (var b in medalButtons) if (b != null) l.Add(b);
             l.Add(close);
             return l.ToArray();
         }

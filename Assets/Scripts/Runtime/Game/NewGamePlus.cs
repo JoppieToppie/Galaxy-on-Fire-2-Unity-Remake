@@ -54,6 +54,7 @@ namespace GoF2Remake.Data
             if (old.unlockedBlueprints != null) foreach (int b in old.unlockedBlueprints) Session.UnlockedBlueprints.Add(b);
             if (old.medals != null && old.medals.Length == Session.Medals.Length && !Session.NoMedals)   // none into a game without medals
                 for (int i = 0; i < old.medals.Length; i++) Session.Medals[i] = BetterGrade(Session.Medals[i], old.medals[i]);
+            Modding.ModMedals.Carry(old.modMedals);   // the mods' medals (none into a game without medals)
 
             // The Kaamo Club, owned, with the old storage and the old ship, equipment and cargo in it.
             var story = new HashSet<int>(old.unsaleable ?? new List<int>());

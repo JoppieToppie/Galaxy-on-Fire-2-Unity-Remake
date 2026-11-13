@@ -556,7 +556,8 @@ namespace GoF2Remake.Events
                         while (i < s.Length && (char.IsLetterOrDigit(s[i]) || s[i] == '_')) i++;
                         string name = s.Substring(start, i - start).ToLowerInvariant();
                         if ((name == "cargo" || name == "has" || name == "visited" || name == "quest" || name == "option" || name == "won" || name == "standing"
-                             || name == "medals" || name == "bought" || name == "produced" || name == "unlocked") && Peek('('))
+                             || name == "medals" || name == "bought" || name == "produced" || name == "unlocked"
+                             || name == "medal" || name == "killswith" || name == "killed" || name == "stat") && Peek('('))
                         {
                             // An item / station / quest by number or name: the text up to its ")" ({expression} parts filled in).
                             Sym("(");
@@ -688,15 +689,43 @@ namespace GoF2Remake.Events
                         // the Supernova story finished), so content behind them stays reachable.
                         if (which == "allgold") return Achievements.VoidXUnlocked ? 1 : 0;
                         if (which == "allsupernova") return Achievements.SupernovaUnlocked ? 1 : 0;
-                        int grade = which switch
-                        {
-                            "gold" => 1, "silver" => 2, "bronze" => 3, "any" => 0,
-                            _ => throw new Exception($"medals({arg}): gold, silver, bronze, any, allgold or allsupernova."),
-                        };
+                        // Remake mods: medals(off) 1 when no medals are earned in this game (a game without them,
+                        // multiplayer); medals(supernova) the elite medals earned; a mod's tier (Modding.ModMedals) counts
+                        // the mods' medals at it, and gold / silver / bronze / any count the mods' at those tiers too.
+                        if (which == "off") return Achievements.Enabled ? 0 : 1;
                         int count = 0;
+                        if (which == "supernova" || which == "elite")
+                        {
+                            for (int i = Achievements.BaseCount; i < Achievements.Count; i++) if (Achievements.Grade(i) != 0) count++;
+                            return count + Modding.ModMedals.CountAt(which);
+                        }
+                        if (which != "gold" && which != "silver" && which != "bronze" && which != "any")
+                        {
+                            if (Modding.ModMedals.TierOf(which) == null)
+                                throw new Exception($"medals({arg}): gold, silver, bronze, any, supernova, allgold, allsupernova, off or a mod's tier.");
+                            return Modding.ModMedals.CountAt(which);
+                        }
+                        int grade = which switch { "gold" => 1, "silver" => 2, "bronze" => 3, _ => 0 };
                         if (Session.Medals != null) foreach (int m in Session.Medals) if (grade == 0 ? m != 0 : m == grade) count++;
-                        return count;
+                        return count + Modding.ModMedals.CountAt(which);
                     }
+                    // Remake mods: medal(<game medal 0-44 | mod_id:id>[, <tier>]): 1 once that medal is earned (at that tier
+                    // or a higher one; Modding.ModMedals.Reached).
+                    if (name == "medal")
+                    {
+                        int reached = Modding.ModMedals.Reached(arg, out string medalError);
+                        if (medalError != null) throw new Exception(medalError);
+                        return reached;
+                    }
+                    // killswith(<item>) / killed(<ship>): the player's kills by that weapon's last hit / of that ship type
+                    // (Session.KillTally; counted from 2026-11-13 on).
+                    if (name == "killed")
+                    {
+                        int killedShip = NetAdmin.FindShip(arg, out string killedError);
+                        if (killedShip < 0) throw new Exception(killedError ?? arg);
+                        return Session.KillTally.TryGetValue("ship:" + Session.ShipRef(killedShip), out int k) ? k : 0;
+                    }
+                    if (name == "stat") return Stat(arg);
                     // bought(<ship>): 1 once the player has bought (or built) that ship in this game (Session.ShipsBought).
                     if (name == "bought")
                     {
@@ -712,6 +741,7 @@ namespace GoF2Remake.Events
                     }
                     int item = NetAdmin.FindItem(arg, out string error);
                     if (item < 0) throw new Exception(error ?? arg);
+                    if (name == "killswith") return Session.KillTally.TryGetValue("with:" + Session.ItemRef(item), out int kw) ? kw : 0;
                     // Modified: produced(<item>): how often the player has built that blueprint in this game
                     // (BlueprintState.timesProduced; 0 for one never started).
                     // Modified: unlocked(<item>): 1 once the player knows that item's blueprint (Blueprints.IsUnlocked: bought,
@@ -726,6 +756,45 @@ namespace GoF2Remake.Events
                     foreach (var c in Session.Cargo) if (c.item == item) n += c.amount;
                     if (name == "has") foreach (var e in Session.Equipment) if (e.item == item) n += Math.Max(1, e.amount);
                     return n;
+                }
+
+                /// <summary>stat(&lt;name&gt;): one of the game's counters (the Status window's statistics, the medals' counters),
+                /// for the mods' medals.</summary>
+                static double Stat(string arg)
+                {
+                    switch (arg.Trim().ToLowerInvariant())
+                    {
+                        case "kills": return Session.Kills;
+                        case "piratekills": return Session.PirateKills;
+                        case "asteroids": return Session.AsteroidsDestroyed;
+                        case "ore": return Session.OreMined;
+                        case "cores": return Session.CoresMined;
+                        case "oretypes": return Session.OreTypesMined.Count;
+                        case "coretypes": return Session.CoreTypesMined.Count;
+                        case "crates": return Session.CratesSalvaged;
+                        case "junk": return Session.JunkDestroyed;
+                        case "containers": return Session.ContainersDelivered;
+                        case "passengers": return Session.PassengersDelivered;
+                        case "freelance": return Session.FreelanceCompleted;
+                        case "stations": return Session.VisitedStations.Count;
+                        case "jumpgates": return Session.JumpgatesUsed;
+                        case "goodsproduced": return Session.GoodsProduced;
+                        case "blueprints": return Session.UnlockedBlueprints.Count;
+                        case "wingmen": return Session.WingmenHired;
+                        case "battleships": return Session.BattleshipsDestroyed;
+                        case "bombs": return Session.BombsDetonated;
+                        case "agents": return Session.AgentsTalkedTo;
+                        case "booze": return Session.BoozeBought;
+                        case "boozetypes": return Session.BoozeTypes.Count;
+                        case "alienremains": return Session.AlienRemainsCollected;
+                        case "highestcredits": return Session.HighestCredits;
+                        case "hours": return Math.Floor(Session.PlaySeconds / 3600f);
+                        case "cloakminutes": return Math.Floor(Session.CloakMs / 60000.0);
+                        case "medals": { var (earned, _) = Achievements.Earned(); return earned + Modding.ModMedals.CountAt("any"); }
+                    }
+                    throw new Exception($"stat({arg}): kills, piratekills, asteroids, ore, cores, oretypes, coretypes, crates, junk, containers, passengers, "
+                                      + "freelance, stations, jumpgates, goodsproduced, blueprints, wingmen, battleships, bombs, agents, booze, boozetypes, "
+                                      + "alienremains, highestcredits, hours, cloakminutes or medals.");
                 }
 
                 static double Call(string name, List<double> a)
