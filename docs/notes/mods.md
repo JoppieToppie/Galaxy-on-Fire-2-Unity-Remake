@@ -611,13 +611,13 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   `LoungeAllowedAt`; "seller" there puts a named character in instead of a local visitor: a story speaker's face, race and
   own lines for the offer, the sale and after it, `ModBlueprints.Seller`, `AgentGenerator.PlaceModSeller`, `LoungeChat.SellerOf`;
   `AddNamedSellers` adds them to a bar whose visitors were kept, a station among the last 3), "derelict" (`TrafficPlan.Build`: one hackable freighter wreck per visit at
-  most, `TrafficPlan.HackableWreck` + `SpawnSpec.modBlueprint`; `Traffic.OnHackWon` leaves a data crate; "stations" limits it
+  most, `TrafficPlan.HackableWreck` + `SpawnSpec.modBlueprint`; `Traffic.OnHackWon` teaches it at once (a data crate until 2026-11-13, supernova.md "Derelict freighters"); "stations" limits it
   to those orbits, `RollDerelict(station)` / `DerelictAllowedAt`, the chance then defaulting to 100, a list of unknown ones =
   nowhere; "position" [x, y, z] game units in the orbit, else out in front) and "drops" per race or per ship type (`{
   "ship", "chance" }`, `Def.shipDrops`, rolled first: a boss hull's own blueprint) (`NpcShip.OnDied`, a kill by the
   player: `RollDrop`, a data crate). A blueprint is obtained once (2026-10-24, the user's rule): a seller standing in a
-  bar since before it was learnt has 858 (`LoungeChat.Start`), a derelict hacked after leaves no crate and no data crate
-  is made while one with it floats (`Crate.HoldsAny`, `NpcShip.OnDied`, `Traffic.OnHackWon`); production stays
+  bar since before it was learnt has 858 (`LoungeChat.Start`), a derelict hacked after says "Blueprint already known" and no data crate
+  is made while one with it floats (`Crate.HoldsAny`, `NpcShip.OnDied`); production stays
   repeatable. A data crate is a `Crate` (look 3, the junk container) holding the product item;
   `CombatRadar.Capture` learns a mod blueprint's product instead of loading it ("Blueprint found: X"). An item product gets the
   recipe on its `ItemData.blueprint`; a ship product is a hidden "blueprint item" ("<mod>:blueprint:<id>", numbered like a mod

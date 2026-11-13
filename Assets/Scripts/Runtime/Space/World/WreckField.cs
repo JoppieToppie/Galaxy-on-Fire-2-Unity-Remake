@@ -92,20 +92,40 @@ namespace GoF2Remake.World
             return cargo;
         }
 
-        /// <summary>One derelict in this many holds a piece of gear / a blueprint's data crate.</summary>
+        /// <summary>Remake (players' feedback, 2026-11-13: a crate needs a tractor beam): 'cargo' straight into the player's
+        /// hold as far as it has room, like a captured crate's (missiles of a mounted launcher's type reload it; "<n>t
+        /// <item>" to 'say' for each stack); the rest, which found no room.</summary>
+        public static List<ItemStack> TakeAboard(Database db, List<ItemStack> cargo, System.Action<string> say = null)
+        {
+            var rest = new List<ItemStack>();
+            foreach (var s in cargo)
+            {
+                int n = Mathf.Min(s.amount, Shop.FreeCargo(db));
+                if (n > 0)
+                {
+                    var mounted = db.Item(s.item)?.TypeId == 1 ? Session.Equipment.Find(e => e.item == s.item) : null;
+                    if (mounted != null) mounted.amount += n; else Shop.AddToCargo(s.item, n);
+                    say?.Invoke($"{n}t {GameNames.Item(s.item)}");
+                }
+                if (n < s.amount) rest.Add(new ItemStack(s.item, s.amount - n));
+            }
+            return rest;
+        }
+
+        /// <summary>One derelict in this many holds a piece of gear / a blueprint.</summary>
         public const int DerelictGearOdds = 8, DerelictBlueprintOdds = 12;
 
-        /// <summary>Remake (Settings.DerelictWrecks): the blueprint a derelict's data crate holds (Traffic.OnHackWon, one time
-        /// in DerelictBlueprintOdds): one a lounge's story character sells (AgentData.StoryAgents; Sao Perula's once the
-        /// Valkyrie add-on is won, like its seller) that the player doesn't know and no floating crate holds; -1 = none
-        /// left. Not one a mod took over (its own sources) and not the campaign's or the hidden wrecks'.</summary>
+        /// <summary>Remake (Settings.DerelictWrecks): the blueprint a hacked derelict teaches (Traffic.OnHackWon, one time in
+        /// DerelictBlueprintOdds): one a lounge's story character sells (AgentData.StoryAgents; Sao Perula's once the
+        /// Valkyrie add-on is won, like its seller) that the player doesn't know; -1 = none left. Not one a mod took over
+        /// (its own sources) and not the campaign's or the hidden wrecks'.</summary>
         public static int DerelictBlueprint(Database db)
         {
             var pool = new List<int>();
             if (db != null)
                 foreach (var s in AgentData.StoryAgents)
                     if (s.sellBlueprint >= 0 && (s.station != 106 || Story.Dlc1Won) && db.Item(s.sellBlueprint) != null && !Blueprints.IsUnlocked(s.sellBlueprint)
-                        && Modding.ModBlueprints.Of(s.sellBlueprint) == null && !Crate.HoldsAny(s.sellBlueprint) && !pool.Contains(s.sellBlueprint))
+                        && Modding.ModBlueprints.Of(s.sellBlueprint) == null && !pool.Contains(s.sellBlueprint))
                         pool.Add(s.sellBlueprint);
             return pool.Count > 0 ? pool[Random.Range(0, pool.Count)] : -1;
         }

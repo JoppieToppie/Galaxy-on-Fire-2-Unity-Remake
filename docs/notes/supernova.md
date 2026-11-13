@@ -124,11 +124,14 @@ against the FEV's LGCY data, see "Sound").
   Options > Gameplay "Derelict freighters", `Settings.DerelictWrecks`, off by default, on in the Remake experience): per
   orbit visit `TrafficPlan.DerelictChance` (4 % Secure .. 10 % Dangerous) puts one hackable wreck of any race
   (`TrafficPlan.HackableWreck`, `SpawnSpec.derelict`) out in front of the station; in a Risky or Dangerous system 2-4
-  pirates wait at it. Hacked once: `Traffic.OnHackWon` ejects a crate with `WreckField.DerelictLoot` (a freighter's loot
-  roll, else Space Waste; 1 in 5 adds 2-5 t of a capital ship's rare goods; 1 in 8 a piece of its gear,
-  `CapitalShips.GearPool`: tech level 5+, a secondary 10-20) and, 1 in 12, a second data crate with a blueprint
-  (`WreckField.DerelictBlueprint`: one a lounge's story character sells that the player doesn't know; `Crate.LookBlueprint`,
-  the junk's model: pulled in it is learnt like a mod's, `CombatRadar.IsBlueprintCrate`). Not in the special or storyline
+  pirates wait at it. Hacked once: `Traffic.OnHackWon` rolls `WreckField.DerelictLoot` (a freighter's loot roll, else
+  Space Waste; 1 in 5 adds 2-5 t of a capital ship's rare goods; 1 in 8 a piece of its gear, `CapitalShips.GearPool`: tech
+  level 5+, a secondary 10-20) and, 1 in 12, teaches a blueprint (`WreckField.DerelictBlueprint`: one a lounge's story
+  character sells that the player doesn't know). **Straight into the hold** (players' feedback, 2026-11-13: the crate it
+  ejected at first needs a tractor beam, and the original's docked transfers go aboard by themselves):
+  `WreckField.TakeAboard` with a "<n>t <item>" message a stack, the blueprint learnt at once ("Blueprint found: X"); only
+  what the hold has no room for is ejected in a crate (322 and the tractor beam hint). A mod's derelict
+  (`SpawnSpec.modBlueprint`) teaches its blueprint the same way since then. Not in the special or storyline
   orbits, a pirate base's system, Mido, a freelance mission's orbit or beside another wreck. Multiplayer: a session rule
   (`SessionRules.DerelictWrecks`, server flag `-derelicts`), see "Derelict freighters" in multiplayer-sync.md. Tests
   `TrafficPlanSpecialsTests.DerelictFreightersComeWithTheOption` / `DerelictRareLoot`.

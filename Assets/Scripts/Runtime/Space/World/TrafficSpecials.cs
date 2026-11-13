@@ -51,27 +51,27 @@ namespace GoF2Remake.World
         {
             if (ship != null && ship.Spec.modBlueprint >= 0)
             {
-                // Remake mods: a derelict's blueprint, in a data crate drifting off the wreck (pulled in, it is learnt); none
-                // when it was learnt meanwhile (a blueprint is handed out once).
+                // Remake mods: a derelict's blueprint is learnt at once, like the hidden blueprints' (players' feedback,
+                // 2026-11-13: it was a data crate to pull in, which needs a tractor beam; #242: players didn't know to).
                 ship.DockingType = 0;
-                if (!Blueprints.IsUnlocked(ship.Spec.modBlueprint) && !Crate.HoldsAny(ship.Spec.modBlueprint))
-                {
-                    Crate.Spawn(ship.transform.position + ship.transform.up * 300f * M, new[] { new ItemStack(ship.Spec.modBlueprint, 1) },
-                            ship.Spec.race, Crate.LookJunk);
-                    // #242: it drifted off without a word; players didn't know to pull it in.
-                    GameHooks.FlightMessage?.Invoke(Localization.Extra("hackCrateEjected", "Cargo container ejected. Use the tractor beam to check its contents."));
-                }
+                LearnBlueprint(ship.Spec.modBlueprint);
                 return;
             }
             if (ship != null && ship.Spec.derelict)
             {
-                // Remake (Settings.DerelictWrecks): a derelict's hold, in a crate drifting off the wreck like a mod blueprint's.
+                // Remake (Settings.DerelictWrecks): a derelict's hold goes straight aboard, like the original's docked
+                // transfers (the same feedback: it was a crate); only what the hold has no room for is ejected in one. Now
+                // and then a blueprint too: one a lounge sells that this player doesn't know yet.
                 ship.DockingType = 0;
-                Crate.Spawn(ship.transform.position + ship.transform.up * 300f * M, WreckField.DerelictLoot(db), ship.Spec.race, Crate.LookJunk);
-                // Now and then a data crate too: a lounge's blueprint this player doesn't know yet (learnt when pulled in).
+                var rest = WreckField.TakeAboard(db, WreckField.DerelictLoot(db), text => GameHooks.FlightMessage?.Invoke(text));
                 int bp = UnityEngine.Random.Range(0, WreckField.DerelictBlueprintOdds) == 0 ? WreckField.DerelictBlueprint(db) : -1;
-                if (bp >= 0) Crate.Spawn(ship.transform.position - ship.transform.up * 300f * M, new[] { new ItemStack(bp, 1) }, ship.Spec.race, Crate.LookBlueprint);
-                GameHooks.FlightMessage?.Invoke(Localization.Extra("hackCrateEjected", "Cargo container ejected. Use the tractor beam to check its contents."));
+                if (bp >= 0) LearnBlueprint(bp);
+                if (rest.Count > 0)
+                {
+                    Crate.Spawn(ship.transform.position + ship.transform.up * 300f * M, rest, ship.Spec.race, Crate.LookJunk);
+                    GameHooks.FlightMessage?.Invoke(Localization.Get(322));
+                    GameHooks.FlightMessage?.Invoke(Localization.Extra("hackCrateEjected", "Cargo container ejected. Use the tractor beam to check its contents."));
+                }
                 return;
             }
             if (ship != null && ship.Spec.eventWreck) { ship.DockingType = 0; return; }   // an event's wreck: its "on hacked" does the rest
@@ -81,6 +81,14 @@ namespace GoF2Remake.World
             Blueprints.Unlock(TrafficPlan.HiddenBlueprints[k].blueprint);
             ship.DockingType = 0;
             QueueLine(3156 + k, 0, $"BLUEPRINT_RECOVERED_{k}");
+        }
+        /// <summary>A hacked wreck's blueprint: known from now on, with the data crate's message (CombatRadar.Capture).</summary>
+        static void LearnBlueprint(int product)
+        {
+            bool known = Blueprints.IsUnlocked(product);
+            Blueprints.Unlock(product);
+            GameHooks.FlightMessage?.Invoke(string.Format(known ? Localization.Extra("bpKnown", "Blueprint already known: {0}")
+                                                                : Localization.Extra("bpFound", "Blueprint found: {0}"), GameNames.Item(product)));
         }
         /// <summary>An uncovered criminal is alive (Radar::draw: music 151).</summary>
         public bool WantedUncovered => wantedShip != null && wantedShip.Target.Alive && wantedShip.alwaysEnemy;

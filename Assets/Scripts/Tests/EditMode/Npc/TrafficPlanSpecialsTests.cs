@@ -482,8 +482,26 @@ namespace GoF2Remake.Tests
             for (int i = 0; i < 100; i++) Assert.IsNotEmpty(GoF2Remake.World.WreckField.DerelictLoot(Db));
         }
 
-        // A derelict's rare loot: now and then a piece of gear (a capital ship's pool), and a data crate's blueprint: one a
-        // lounge sells that the player doesn't know yet, none once every one is known.
+        // A hacked wreck's cargo goes straight into the hold; only what finds no room is left for a crate.
+        [Test]
+        public void DerelictCargoGoesIntoTheHold()
+        {
+            const int ore = 154;
+            int free = Shop.FreeCargo(Db), had = Story.CargoOf(ore);
+            var said = new System.Collections.Generic.List<string>();
+            var rest = GoF2Remake.World.WreckField.TakeAboard(Db, new System.Collections.Generic.List<ItemStack> { new ItemStack(ore, free + 5) }, said.Add);
+            try
+            {
+                Assert.AreEqual(free, Story.CargoOf(ore) - had, "as much as the hold takes");
+                Assert.AreEqual(0, Shop.FreeCargo(Db));
+                Assert.AreEqual((ore, 5), (rest.Single().item, rest.Single().amount), "the rest for a crate");
+                Assert.AreEqual(free > 0 ? 1 : 0, said.Count);
+            }
+            finally { Shop.RemoveFromCargo(ore, free); }
+        }
+
+        // A derelict's rare loot: now and then a piece of gear (a capital ship's pool), and a blueprint: one a lounge sells
+        // that the player doesn't know yet, none once every one is known.
         [Test]
         public void DerelictRareLoot()
         {

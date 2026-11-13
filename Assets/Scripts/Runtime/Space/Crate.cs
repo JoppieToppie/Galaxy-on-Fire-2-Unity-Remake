@@ -77,10 +77,8 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>KIPlayer::createCrate's type: the model. 0 the race's container, 1 the rock 0x421e asteroid_01_junk (a shot
-        /// asteroid), 2 its Void variant 0x421f, 3 the space junk's 0x4218. Remake: 4 a data crate (the junk's model): its
-        /// item is a blueprint to learn, not cargo (a derelict freighter's, CombatRadar.IsBlueprintCrate; the look travels
-        /// with the crate in a session, NetCrate).</summary>
-        public const int LookContainer = 0, LookRock = 1, LookVoidRock = 2, LookJunk = 3, LookBlueprint = 4;
+        /// asteroid), 2 its Void variant 0x421f, 3 the space junk's 0x4218.</summary>
+        public const int LookContainer = 0, LookRock = 1, LookVoidRock = 2, LookJunk = 3;
         public int look;
         /// <summary>Remake mods: a mod ship's own container (Modding.ModCrates' key, "mod id|path"), null: the race's.</summary>
         public string model;
