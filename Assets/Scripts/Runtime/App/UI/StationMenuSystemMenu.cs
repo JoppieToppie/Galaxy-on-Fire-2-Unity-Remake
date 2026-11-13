@@ -33,7 +33,8 @@ namespace GoF2Remake.UI
                 MainMenu.OpenPanelOnStart = "campaignPanel";   // MenuTouchWindow: the new game's campaign choice
                 BackToMenu();
             }), systemMain);
-            loadGameButton = SystemButton(Localization.Get(29), 1, () => ShowSystemPage(SysPage.Load), systemMain);
+            // Modified: Load under Save (a player's wish, 2026-10-17: Save first, the harmless one for a stray press).
+            loadGameButton = SystemButton(Localization.Get(29), 2, () => ShowSystemPage(SysPage.Load), systemMain);
             optionsButton = SystemButton(Localization.Get(31), 3, () => ShowSystemPage(SysPage.Options), systemMain);
             aboutButton = SystemButton(Localization.Get(43), 4, () => { ShowDialog(AboutText.Get(), null, true); AboutText.Hook(root.Q<Label>("dialogText")); }, systemMain);
             // Modified: no New game and About in the station's menu (the main menu has them); Back at the panel's top right,
@@ -348,8 +349,8 @@ namespace GoF2Remake.UI
             if (!SavePageOpen)
             {
                 var items = debugButton != null
-                    ? new VisualElement[] { newGameButton, loadGameButton, saveGameButton, optionsButton, aboutButton, debugButton, mainMenuButton, systemClose }
-                    : new VisualElement[] { newGameButton, loadGameButton, saveGameButton, optionsButton, aboutButton, mainMenuButton, systemClose };
+                    ? new VisualElement[] { newGameButton, saveGameButton, loadGameButton, optionsButton, aboutButton, debugButton, mainMenuButton, systemClose }
+                    : new VisualElement[] { newGameButton, saveGameButton, loadGameButton, optionsButton, aboutButton, mainMenuButton, systemClose };
                 return System.Array.FindAll(items, e => e != null && e.resolvedStyle.display != DisplayStyle.None);
             }
             var list = new System.Collections.Generic.List<VisualElement>(saveSlotList.contentContainer.Children()) { saveBack };

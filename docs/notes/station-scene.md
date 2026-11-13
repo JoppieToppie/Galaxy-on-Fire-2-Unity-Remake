@@ -128,6 +128,8 @@ slots, ship heights, fighters per race, music) are in `StationTables`.
 - **System menu** (`StationMenu`, `SysPage` Main / Save / Load / Options): 30 Save game, 29 Load (the slot list), 31
   Options (the `OptionControl` rows), 522 Back to Main Menu; Back at the top right. 28 New game and 43 About are built
   and wired but hidden (`BuildSystemExtras`): the main menu has both, and `SystemMenuItems` skips what is hidden.
+  Save stands above Load (the original has Load first; a player's wish, 2026-10-17: a stray A press on the first
+  entry should do no harm), in the panel and in the focus order alike.
 - **New medals** (`ShowNextMedal`, `checkForNewMedal`): the reward 5000 / 2500 / 1000 by grade (none on Extreme);
   remake: instead of the original's ChoiceWindow per medal that waits for OK, a toast at the top centre (`.medal-toast`
   in StationMenu.uss: the plate `StatusWindow.MedalPlate`, 353, the name, the reward; border, top band and title in the
