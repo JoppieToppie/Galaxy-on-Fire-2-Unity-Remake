@@ -294,6 +294,8 @@
  "invertOrbitY": "카메라 시점: 위 / 아래 반전",
  "invertOrbitX": "카메라 시점: 왼쪽 / 오른쪽 반전",
  "invertOrbitHelp": "함선 주위를 도는 카메라용: 자유 시점, Action Freeze, 함선 살펴보기, 모드 빌더.",
+ "cockpitInCycle": "카메라 버튼: 조종석 시점 포함",
+ "cockpitInCycleHelp": "켜기: 카메라 버튼이 조종석 시점도 거칩니다. 끄기: 카메라 버튼을 길게 누르거나 조종석 시점 키를 사용하세요.",
  "invertDrillY": "채굴 드릴: 상하 반전",
  "invertX": "좌우 반전",
  "invertY": "상하 반전",

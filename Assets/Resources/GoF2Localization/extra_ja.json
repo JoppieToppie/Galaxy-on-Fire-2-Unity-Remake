@@ -294,6 +294,8 @@
  "invertOrbitY": "カメラビュー：上下反転",
  "invertOrbitX": "カメラビュー：左右反転",
  "invertOrbitHelp": "船の周りを回すカメラ用：フリールック、Action Freeze、機体を見る、Mod Builder。",
+ "cockpitInCycle": "カメラボタン：コックピット視点を含める",
+ "cockpitInCycleHelp": "オン：カメラボタンでコックピット視点にも切り替わります。オフ：カメラボタンを長押しするか、コックピット視点のキーを使います。",
  "invertDrillY": "採掘ドリル：上下反転",
  "invertX": "左右反転",
  "invertY": "上下反転",

@@ -262,6 +262,9 @@ namespace GoF2Remake.Data
         /// Mod Builder's views (not the flight's steering, which has its own pair).</summary>
         public static bool InvertOrbitY { get => GetBool("invertOrbitY", false); set => SetBool("invertOrbitY", value); }
         public static bool InvertOrbitX { get => GetBool("invertOrbitX", false); set => SetBool("invertOrbitX", value); }
+        /// <summary>Remake: the camera button's cycle includes the cockpit view (FreeLookCamera.NextMode); off, only a held
+        /// camera button or the "Cockpit view" binding reaches it.</summary>
+        public static bool CockpitInCameraCycle { get => GetBool("cockpitInCycle", false); set => SetBool("cockpitInCycle", value); }
         /// <summary>An orbit / look camera's turn input with InvertOrbitX / InvertOrbitY applied.</summary>
         public static Vector2 OrbitTurn(Vector2 d) => new Vector2(InvertOrbitX ? -d.x : d.x, InvertOrbitY ? -d.y : d.y);
         /// <summary>Globals::mouseCursorActivated (the PC version): the mouse moves the crosshair and steers (desktop only).</summary>
@@ -879,7 +882,7 @@ namespace GoF2Remake.Data
         public static readonly string[] ControlsKeys =
         {
             "tiltSteering", "tiltSensitivity", "sensitivity", "keyAutofire", "levelPitch", "autoRoll", "boostToggle", "invertPitch", "invertYaw", "invertDrillY",
-            "invertDrillX", "invertOrbitY", "invertOrbitX", "gyroSteering", "gyroSensitivity", "mouseSteering", "mouseDeadzone", "mouseSensitivity", "vrGrabControls", "haptics", "stickDeadzone",
+            "invertDrillX", "invertOrbitY", "invertOrbitX", "cockpitInCycle", "gyroSteering", "gyroSensitivity", "mouseSteering", "mouseDeadzone", "mouseSensitivity", "vrGrabControls", "haptics", "stickDeadzone",
             "touchLeftHeight", "touchRightHeight", "floatingTouchStick", "flightStyle", "padGlyphs", "nintendoLayout",
         };
         public static readonly string[] GameplayKeys =

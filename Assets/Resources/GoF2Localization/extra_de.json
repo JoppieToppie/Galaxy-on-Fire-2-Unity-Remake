@@ -302,6 +302,8 @@
  "invertOrbitY": "Kameraansichten: oben / unten umkehren",
  "invertOrbitX": "Kameraansichten: links / rechts umkehren",
  "invertOrbitHelp": "Für Kameras, die du ums Schiff drehst: Freie Sicht, Action Freeze, Schiff ansehen, Mod-Baukasten.",
+ "cockpitInCycle": "Kamerataste: Cockpitansicht einschließen",
+ "cockpitInCycleHelp": "An: Die Kamerataste schaltet auch durch die Cockpitansicht. Aus: Kamerataste halten oder die Taste für die Cockpitansicht benutzen.",
  "invertDrillY": "Bohrer: oben / unten umkehren",
  "invertX": "Links / rechts umkehren",
  "invertY": "Oben / unten umkehren",

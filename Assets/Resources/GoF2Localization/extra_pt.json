@@ -302,6 +302,8 @@
  "invertOrbitY": "Visões de câmera: inverter cima / baixo",
  "invertOrbitX": "Visões de câmera: inverter esquerda / direita",
  "invertOrbitHelp": "Para câmeras que giram em volta da nave: visão livre, Action Freeze, inspecionar nave, Mod Builder.",
+ "cockpitInCycle": "Botão da câmera: incluir a visão da cabine",
+ "cockpitInCycleHelp": "Ligado: o botão da câmera também passa pela visão da cabine. Desligado: segure o botão da câmera ou use a tecla da visão da cabine.",
  "invertDrillY": "Broca de escavação: inverter cima / baixo",
  "invertX": "Inverter esquerda / direita",
  "invertY": "Inverter cima / baixo",

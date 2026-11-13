@@ -302,6 +302,8 @@
  "invertOrbitY": "Vues caméra : inverser haut / bas",
  "invertOrbitX": "Vues caméra : inverser gauche / droite",
  "invertOrbitHelp": "Pour les caméras que tu tournes autour du vaisseau : vue libre, Action Freeze, inspecter le vaisseau, Mod Builder.",
+ "cockpitInCycle": "Bouton caméra : inclure la vue cockpit",
+ "cockpitInCycleHelp": "Oui : le bouton caméra passe aussi par la vue cockpit. Non : maintiens le bouton caméra ou utilise la touche de vue cockpit.",
  "invertDrillY": "Foreuse : inverser haut / bas",
  "invertX": "Inverser gauche / droite",
  "invertY": "Inverser haut / bas",

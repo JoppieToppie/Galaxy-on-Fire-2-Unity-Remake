@@ -1507,6 +1507,8 @@
  "invertOrbitY": "镜头视角：上下反转",
  "invertOrbitX": "镜头视角：左右反转",
  "invertOrbitHelp": "用于绕飞船旋转的镜头：自由视角、Action Freeze、查看飞船、模组制作器。",
+ "cockpitInCycle": "镜头按钮：包含驾驶舱视角",
+ "cockpitInCycleHelp": "开：镜头按钮也会切换到驾驶舱视角。关：长按镜头按钮，或使用驾驶舱视角按键。",
  "systemClosing": "该星系已不在星图上：正在离开。",
  "mpCmdSystem": "管理员：在其星图上显示或隐藏星系，直到重置",
  "shopBuiltInHeader": "飞船内置",

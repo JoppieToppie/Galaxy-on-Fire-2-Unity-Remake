@@ -18,6 +18,8 @@
 // holding the camera button half a second (the key, the controller's D-pad up, the touch button) or the "Cockpit view"
 // binding (F2) switches between the chase view and the cockpit, and the cycle runs from whichever of the two is the ship
 // view: it -> Turret -> Free look -> it (the button then acts on release). Not in VR, which flies from the seat already.
+// A player's wish (2026-11-13): Options > Controls "Camera button: include the cockpit view" (Settings.CockpitInCameraCycle,
+// off by default) puts it back into the cycle after Standard (NextMode); holding the button and F2 work as before.
 // ChaseCamera places it (firstPerson). It stays the mode through what takes the camera over (launch / arrival,
 // cutscenes, jumps, mining, object docking, death, Action Freeze: the chase camera is off meanwhile and comes back in it),
 // and the ship view picked last is kept for the next flights (PlayerPrefs flight_camera_cockpit); the turret view or free
@@ -121,9 +123,16 @@ namespace GoF2Remake.Flight
 
         /// <summary>MGame::nextCamId: the mode the camera button leads to (remake: Turret again while another manual turret
         /// follows).</summary>
-        public Mode Next => ShipView ? AfterCockpit
-                          : Current == Mode.Turret ? (turretIndex + 1 < Manual().Count ? Mode.Turret : Mode.FreeLook) : Base;
-        Mode AfterCockpit => TurretMode ? Mode.Turret : Mode.FreeLook;
+        public Mode Next => NextMode(Current, Base, Current == Mode.Turret ? turretIndex + 1 < Manual().Count : TurretMode,
+                                     Settings.CockpitInCameraCycle && !VrFlags.Enabled);
+
+        /// <summary>The cycle's rule. 'turretNext': a (further) turret view follows. 'cockpit' (Options > Controls, off by
+        /// default): the cockpit view is a step of its own, Standard -> Cockpit -> Turret -> Free look -> Standard; without
+        /// it the cycle starts and ends at 'shipView', the one of the two picked last.</summary>
+        public static Mode NextMode(Mode current, Mode shipView, bool turretNext, bool cockpit)
+            => current == Mode.Standard && cockpit ? Mode.FirstPerson
+             : current != Mode.FreeLook ? (turretNext ? Mode.Turret : Mode.FreeLook)
+             : cockpit ? Mode.Standard : shipView;
 
         /// <summary>The camera button (touch, V, D-pad up).</summary>
         public void Cycle()

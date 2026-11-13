@@ -302,6 +302,8 @@
  "invertOrbitY": "Vistas de cámara: invertir arriba / abajo",
  "invertOrbitX": "Vistas de cámara: invertir izquierda / derecha",
  "invertOrbitHelp": "Para las cámaras que giras alrededor de la nave: vista libre, Action Freeze, inspeccionar nave, Mod Builder.",
+ "cockpitInCycle": "Botón de cámara: incluir la vista de cabina",
+ "cockpitInCycleHelp": "Sí: el botón de cámara pasa también por la vista de cabina. No: mantén pulsado el botón de cámara o usa la tecla de vista de cabina.",
  "invertDrillY": "Taladro: invertir arriba / abajo",
  "invertX": "Invertir izquierda / derecha",
  "invertY": "Invertir arriba / abajo",

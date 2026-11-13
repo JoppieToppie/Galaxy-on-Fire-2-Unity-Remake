@@ -302,6 +302,8 @@
  "invertOrbitY": "Visuali telecamera: inverti su / giù",
  "invertOrbitX": "Visuali telecamera: inverti sinistra / destra",
  "invertOrbitHelp": "Per le telecamere che giri intorno alla nave: visuale libera, Action Freeze, ispeziona nave, Mod Builder.",
+ "cockpitInCycle": "Pulsante telecamera: includi la vista cabina",
+ "cockpitInCycleHelp": "Sì: il pulsante telecamera passa anche per la vista cabina. No: tieni premuto il pulsante telecamera o usa il tasto della vista cabina.",
  "invertDrillY": "Trivella: inverti su / giù",
  "invertX": "Inverti sinistra / destra",
  "invertY": "Inverti su / giù",

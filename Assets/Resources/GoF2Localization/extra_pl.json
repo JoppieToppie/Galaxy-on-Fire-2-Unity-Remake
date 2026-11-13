@@ -302,6 +302,8 @@
  "invertOrbitY": "Widoki kamery: odwróć góra / dół",
  "invertOrbitX": "Widoki kamery: odwróć lewo / prawo",
  "invertOrbitHelp": "Dla kamer obracanych wokół statku: wolne rozglądanie, Action Freeze, oględziny statku, Mod Builder.",
+ "cockpitInCycle": "Przycisk kamery: uwzględnij widok z kokpitu",
+ "cockpitInCycleHelp": "Wł.: przycisk kamery przechodzi też przez widok z kokpitu. Wył.: przytrzymaj przycisk kamery albo użyj klawisza widoku z kokpitu.",
  "invertDrillY": "Wiertło: odwróć górę / dół",
  "invertX": "Odwróć lewo / prawo",
  "invertY": "Odwróć górę / dół",

@@ -301,7 +301,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   or COCKPIT (HOLD) with D-pad up. The ship view picked last is kept for the next flights (PlayerPrefs
   `flight_camera_cockpit`, `FreeLookCamera.Base`); a turret view or free look ending by itself goes back to it. The
   dodge works in it (`FreeLookCamera.ShipView`). Not offered in VR (it flies from the seat). Local only: multiplayer is
-  unaffected.
+  unaffected. Back in the cycle as an option (a player's wish, 2026-11-13; Options > Controls "Camera button: include the
+  cockpit view", `Settings.CockpitInCameraCycle`, off by default): standard -> cockpit -> turrets -> free look -> standard
+  (`FreeLookCamera.NextMode`); the hold and F2 work as before.
 - **Free look with the mouse** (remake): with mouse steering the cursor stays captured in free look and plain mouse movement
   orbits the camera (`FreeLookCamera.mouseLook`, the mouse delta), the ship's mouse steering pauses; the middle button held
   works without mouse steering; docked at an object (`ObjectDocking.PlayerDocked`, the guns off) the left button held

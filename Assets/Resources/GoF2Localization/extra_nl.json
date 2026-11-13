@@ -302,6 +302,8 @@
  "invertOrbitY": "Cameraweergaven: omhoog / omlaag omkeren",
  "invertOrbitX": "Cameraweergaven: links / rechts omkeren",
  "invertOrbitHelp": "Voor camera's die je om het schip draait: vrij kijken, Action Freeze, schip bekijken, Mod Builder.",
+ "cockpitInCycle": "Cameraknop: ook het cockpitzicht",
+ "cockpitInCycleHelp": "Aan: de cameraknop gaat ook langs het cockpitzicht. Uit: houd de cameraknop ingedrukt of gebruik de toets voor het cockpitzicht.",
  "invertDrillY": "Boor: omhoog / omlaag omkeren",
  "invertX": "Links / rechts omkeren",
  "invertY": "Omhoog / omlaag omkeren",

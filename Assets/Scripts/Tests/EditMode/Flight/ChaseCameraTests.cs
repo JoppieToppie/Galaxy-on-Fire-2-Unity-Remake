@@ -106,5 +106,27 @@ namespace GoF2Remake.Tests
             }
             Assert.Greater(changed, 15, "a new one each original frame");
         }
+
+        // The camera button's cycle (FreeLookCamera.NextMode): the cockpit view is a step only with the option on.
+        [Test]
+        public void CameraCycleVisitsTheCockpitOnlyWithTheOption()
+        {
+            const FreeLookCamera.Mode S = FreeLookCamera.Mode.Standard, T = FreeLookCamera.Mode.Turret,
+                                      C = FreeLookCamera.Mode.FirstPerson, F = FreeLookCamera.Mode.FreeLook;
+            // Off: from the ship view picked last, through the turrets and free look, back to it.
+            Assert.AreEqual(T, FreeLookCamera.NextMode(S, S, true, false));
+            Assert.AreEqual(F, FreeLookCamera.NextMode(S, S, false, false));
+            Assert.AreEqual(T, FreeLookCamera.NextMode(C, C, true, false));
+            Assert.AreEqual(T, FreeLookCamera.NextMode(T, S, true, false), "the next manual turret");
+            Assert.AreEqual(F, FreeLookCamera.NextMode(T, S, false, false));
+            Assert.AreEqual(S, FreeLookCamera.NextMode(F, S, false, false));
+            Assert.AreEqual(C, FreeLookCamera.NextMode(F, C, false, false));
+            // On: Standard -> Cockpit -> Turret -> Free look -> Standard, also when the cockpit was the view picked last.
+            Assert.AreEqual(C, FreeLookCamera.NextMode(S, S, true, true));
+            Assert.AreEqual(T, FreeLookCamera.NextMode(C, C, true, true));
+            Assert.AreEqual(F, FreeLookCamera.NextMode(C, C, false, true));
+            Assert.AreEqual(F, FreeLookCamera.NextMode(T, C, false, true));
+            Assert.AreEqual(S, FreeLookCamera.NextMode(F, C, false, true));
+        }
     }
 }

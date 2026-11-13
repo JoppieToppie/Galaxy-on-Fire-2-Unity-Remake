@@ -359,6 +359,11 @@ namespace GoF2Remake.UI
                 () => Settings.InvertOrbitX, v => Settings.InvertOrbitX = v);
             orbitX.description = orbitY.description;
             list.Add(orbitX);
+            // Remake: the cockpit view as a step of the camera button's cycle again (FreeLookCamera.NextMode; not in VR).
+            var cockpitCycle = Toggle("cockpitInCycle", OptionPage.Controls, () => X("cockpitInCycle", "Camera button: include the cockpit view"),
+                () => Settings.CockpitInCameraCycle, v => Settings.CockpitInCameraCycle = v);
+            cockpitCycle.description = () => X("cockpitInCycleHelp", "On: the camera button also steps through the cockpit view. Off: hold the camera button or use the cockpit view key.");
+            list.Add(cockpitCycle);
             if (Flight.ControllerGyro.Supported)
             {
                 list.Add(Toggle("gyroSteering", OptionPage.Controls, () => X("gyroSteering", "Controller gyro (DualSense, DualShock 4, Switch Pro)"),
