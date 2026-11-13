@@ -189,7 +189,7 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   host's `NetRules.Host`, a client NetState's); a player host takes its own options at hosting and changing one while
   hosting applies to everyone at once (`NetRules.HostChanged`); a dedicated server starts at the defaults, each flag
   (`-cloakhides`, `-capitalships`, `-informeroriginal`, `-nopirateevents`, `-nokaamostacking`, `-nokaamoequipment`,
-  `-nocloakbay`, `-noempcloak`, `-smarttargeting`) turns
+  `-nocloakbay`, `-noempcloak`, `-smarttargeting`, `-es2aiming`, `-es2flight`, `-derelicts`) turns
   one the other way (the ship collision mode is `-shipcollision exact|mixed|original`, two bits set as one setting,
   `NetRules.SetCollision`), and the server settings (`cloakhides` ...) change them while running. The Kaamo Club upgrade
   limit

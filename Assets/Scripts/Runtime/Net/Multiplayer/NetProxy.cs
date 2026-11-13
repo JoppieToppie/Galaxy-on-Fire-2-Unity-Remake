@@ -158,6 +158,11 @@ namespace GoF2Remake.Multiplayer
         public NetProxyStatus Status => St;
         /// <summary>The ship this game runs for it (null = another game's, or none).</summary>
         public NpcShip BoundShip => IsOwner ? ship : null;
+        /// <summary>Remake (Settings.DerelictWrecks): another game's derelict freighter nobody has hacked yet: this player
+        /// docks at a stand-in of it (NetOrbit.UpdateDerelictStandIns).</summary>
+        public bool OpenDerelict => IsSpawned && !IsOwner && St.life == Flying && St.Has(NetProxyStatus.Hackable) && (Spec?.spec?.derelict ?? false);
+        /// <summary>This player hacked the derelict (their stand-in): the owner's wreck closes, for everyone.</summary>
+        public void ReportHacked() { if (IsSpawned && !IsOwner) HackedUpRpc(); }
 
         public void MarkAdopted()
         {
@@ -606,6 +611,24 @@ namespace GoF2Remake.Multiplayer
             ship.Target.hp = ship.Hp.hull;
         }
 
+        /// <summary>Remake (Settings.DerelictWrecks): another player hacked this derelict freighter at their stand-in, through
+        /// the server: only from that orbit, only while it is open.</summary>
+        [Rpc(SendTo.Server)]
+        void HackedUpRpc(RpcParams rpc = default)
+        {
+            ulong who = rpc.Receive.SenderClientId;
+            if (who == OwnerClientId || !NetRateLimit.Allow(who, NetRateLimit.Kind.Claim) || !St.Has(NetProxyStatus.Hackable)) return;
+            if (NetGuard.InOrbit(who, station.Value)) HackedRpc();
+        }
+
+        /// <summary>The checked hack: the owner's wreck is no longer dockable (Traffic.OnHackWon's rule; the hacker's game made
+        /// the crate).</summary>
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void HackedRpc()
+        {
+            if (ship != null && ship.Spec != null && ship.Spec.derelict) ship.DockingType = 0;
+        }
+
         bool credited;   // the server: this ship's kill credit went out (one per proxy: a relaunched ship gets a new one)
 
         /// <summary>The ship's game says 'shooter' destroyed it: the server passes the credit on once, and only to a player who
@@ -671,6 +694,7 @@ namespace GoF2Remake.Multiplayer
             if (ship.Asleep) f |= NetProxyStatus.Asleep;
             if (ship.Inactive) f |= NetProxyStatus.Inactive;
             if (ship.turnedEnemy) f |= NetProxyStatus.Turned;
+            if (ship.Spec != null && ship.Spec.derelict && ship.DockingType == ObjectDocking.Hackable) f |= NetProxyStatus.Hackable;
             s.flags = f;
             s.cloak = (byte)Mathf.Clamp(Mathf.RoundToInt(ship.CloakPercent), 0, 100);
             s.roleFlags = (ship.MissionShip && NetOrbit.Current != null ? NetOrbit.Current.MissionRole(ship) : 0) | (ship.StoryShip ? StoryRole : 0);

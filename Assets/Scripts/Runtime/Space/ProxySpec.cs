@@ -151,6 +151,7 @@ namespace GoF2Remake.Flight
             Bit(15, s.fleetBattle); Bit(16, s.turretHunter); Bit(17, s.modCapital); Bit(18, s.route != null);
             Bit(19, s.turretItems != null); Bit(20, s.extraLoot != null); Bit(21, s.wreckPrefab != null);
             Bit(22, s.name != null); Bit(23, s.fixedObject != null); Bit(24, s.turretAssembly != null); Bit(25, s.npcType != null);
+            Bit(26, s.derelict);
             w.UInt(bits);
             w.VarInt(s.eventTag);
             w.VarInt(s.hitpoints);
@@ -209,7 +210,7 @@ namespace GoF2Remake.Flight
             s.freighter = Bit(0); s.startsDead = Bit(1); s.asleep = Bit(2); s.inactive = Bit(3); s.alwaysEnemy = Bit(4);
             s.alwaysFriend = Bit(5); s.alwaysNeutral = Bit(6); s.noLoot = Bit(7); s.stationary = Bit(8); s.deadButSelectable = Bit(9);
             s.eventWreck = Bit(10); s.guard = Bit(11); s.radarHidden = Bit(12); s.capitalPart = Bit(13); s.capitalEnhanced = Bit(14);
-            s.fleetBattle = Bit(15); s.turretHunter = Bit(16); s.modCapital = Bit(17);
+            s.fleetBattle = Bit(15); s.turretHunter = Bit(16); s.modCapital = Bit(17); s.derelict = Bit(26);
             s.eventTag = r.VarInt();
             s.hitpoints = r.VarInt();
             s.nameText = r.VarInt();

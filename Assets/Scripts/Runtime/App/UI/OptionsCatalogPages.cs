@@ -558,8 +558,8 @@ namespace GoF2Remake.UI
             // Remake (players' wish, Discord 2026-10-18; TrafficPlan.Build): now and then a derelict freighter to hack.
             var derelicts = Toggle("derelictWrecks", OptionPage.Gameplay, () => X("derelictWrecks", "Derelict freighters"),
                 () => Settings.DerelictWrecks, v => Settings.DerelictWrecks = v);
-            derelicts.description = () => X("derelictWrecksHelp", "Now and then a wrecked freighter drifts in an orbit: dock at it and hack it for its cargo. In unsafe systems pirates wait there. Single player only.");
-            list.Add(derelicts);
+            derelicts.description = () => X("derelictWrecksHelp", "Now and then a wrecked freighter drifts in an orbit: dock at it and hack it for its cargo. In unsafe systems pirates wait there.");
+            list.Add(SessionRule(derelicts));
             var kaamoStacking = Toggle("kaamoStacking", OptionPage.Gameplay, () => X("kaamoStacking", "Stackable Kaamo Club upgrades"),
                 () => Settings.KaamoStacking, v => Settings.KaamoStacking = v);
             kaamoStacking.description = () => string.Format(X("kaamoStackingHelp", "Kaamo Club upgrades can be fitted again, each level twice the price, up to level {0}."),

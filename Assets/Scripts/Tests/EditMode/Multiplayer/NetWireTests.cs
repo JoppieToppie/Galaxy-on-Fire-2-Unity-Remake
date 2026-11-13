@@ -242,7 +242,7 @@ namespace GoF2Remake.Tests
                 startsDead = true, asleep = true, inactive = true, alwaysEnemy = true, alwaysFriend = true, alwaysNeutral = true,
                 eventTag = 77, hitpoints = 4321, noLoot = true, nameText = 1663, name = "[ABC] Garrison", stationary = true, speed = 3f,
                 missionCrate = 116, fixedObject = "outpost_pirate", collisionId = 2005, hitRadius = 1500f, deadButSelectable = true,
-                eventWreck = true, explosionScale = 8f, turretAssembly = "turret_003_static", rotation = new Vector3(0.1f, 0.2f, 0.3f),
+                eventWreck = true, derelict = true, explosionScale = 8f, turretAssembly = "turret_003_static", rotation = new Vector3(0.1f, 0.2f, 0.3f),
                 scale = 6f, turretItem = 30, turretItems = new List<int> { 30, 31 }, guard = true, lootItem = 99, lootAmount = 7,
                 extraLoot = new List<ItemStack> { new ItemStack(5, 2) }, convoyRole = SpawnSpec.ConvoyEscort, dockingType = 3,
                 spacePoints = 4, radarHidden = true, wantedIndex = 6, wantedEscortOf = 6, gunItem = 12, gunFactor = 1.75f,

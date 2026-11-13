@@ -69,6 +69,15 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   approaching or landing gets the same message and undocks. An asteroid a player lands on, sits on or drills stops
   spinning for everyone there (`NetPlayer.LandedAsteroid`, `NetOrbit.UpdateHeldAsteroids`), and spins on once nobody is
   on it (a miner's own undock leaves it still while another player is on it, `NetOrbit.OthersOn`).
+- **Derelict freighters** (supernova.md; 2026-11-13, not tested with two games yet): the orbit's runner rolls the wreck
+  with its traffic, so everyone there sees it and its pirates (`ProxySpec` carries `SpawnSpec.derelict`). Object docking
+  takes a game's own ships only, so every other player gets a hidden stand-in of each open wreck at its copy's pose
+  (`NetOrbit.UpdateDerelictStandIns`, `NetProxy.OpenDerelict`: the owner's status flag `NetProxyStatus.Hackable`), like a
+  follower's mining plant. One hack a wreck: the hacker's game makes the crates (shared like any crate; the blueprint is
+  rolled against the hacker's own known ones, whoever pulls the data crate learns it, the look travels in `NetCrate`) and
+  tells the owner through the server (`NetProxy.ReportHacked`: from that orbit, while open), whose wreck closes; the
+  stand-ins go once it is closed or gone. Two players finishing the minigame at once both get a crate. A handover keeps
+  a hacked wreck closed (`NetOrbit.Restore`).
 - **NetProxy**: the ship's model by its Resources path (`NpcShip.ModelPath`), its description (`ProxySpec`, written once and
   again when its cargo or a reference changes), status (`NetProxyStatus`: race, standing, hull, hit radius, hidden, life,
   cloak, EMP, stealable cargo, mission role, killer, waypoint) and aggressors: four owner-written NetworkVariables where

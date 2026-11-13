@@ -512,6 +512,7 @@ namespace GoF2Remake.Data
             if (GetBool("smarterNpcTargeting", false)) m |= R.SmarterNpcTargeting;
             if (GetBool("es2Aiming", false)) m |= R.Es2Aiming;
             if (GetBool("es2NpcFlight", false)) m |= R.Es2NpcFlight;
+            if (GetBool("derelictWrecks", false)) m |= R.DerelictWrecks;
             return R.WithDogfight(R.WithCollision(m, LocalCollision), LocalDogfight);
         }
 
@@ -537,9 +538,10 @@ namespace GoF2Remake.Data
         public static bool KhadorSlipstream { get => GetBool("khadorSlipstream", false); set => SetBool("khadorSlipstream", value); }
 
         /// <summary>Remake (players' wish, Discord 2026-10-18: freighter wrecks that keep turning up): now and then an orbit
-        /// holds a derelict freighter to hack for its cargo (TrafficPlan.Build, Traffic.OnHackWon). Single player; off = the
-        /// original, whose only wrecks are the five hidden blueprints'.</summary>
-        public static bool DerelictWrecks { get => GetBool("derelictWrecks", false); set => SetBool("derelictWrecks", value); }
+        /// holds a derelict freighter to hack for its cargo (TrafficPlan.Build, Traffic.OnHackWon). A session rule (the
+        /// orbit's runner rolls the wreck for everyone there); off = the original, whose only wrecks are the five hidden
+        /// blueprints'.</summary>
+        public static bool DerelictWrecks { get => Rule(R.DerelictWrecks, "derelictWrecks", false); set => SetRule(R.DerelictWrecks, "derelictWrecks", value); }
 
         // ---- game experience (remake, the user's request 2026-11-04) --------------------------------------------------
 
@@ -581,7 +583,7 @@ namespace GoF2Remake.Data
             PlayerPrefs.Save();
             int rules = LocalRules();
             foreach (int bit in new[] { R.CloakLosesPursuers, R.PirateEvents, R.CapitalShips, R.InformerOriginalRule, R.KaamoStacking,
-                                        R.KaamoKeepsEquipment, R.CloakBay, R.EmpBreaksCloak, R.SmarterNpcTargeting })
+                                        R.KaamoKeepsEquipment, R.CloakBay, R.EmpBreaksCloak, R.SmarterNpcTargeting, R.DerelictWrecks })
                 GameHooks.RuleChangedByHost?.Invoke(bit, (rules & bit) != 0);
             int collision = LocalCollision;
             GameHooks.RuleChangedByHost?.Invoke(R.PreciseShipCollision, collision == R.CollisionExact);

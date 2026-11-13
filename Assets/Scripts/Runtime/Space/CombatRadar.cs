@@ -623,12 +623,17 @@ namespace GoF2Remake.Flight
         /// stolen cargo (Level::stealFriendCargo). No room: the unit is lost ("Cargo hold full"); remake (#176): nothing is
         /// taken, the crate stays in space for another try (a living ship's steal: its crate goes, the ship keeps its
         /// cargo), and no standing is lost for it; what doesn't fit stays in the crate (keepRest). Missiles of a mounted launcher's type reload it (Item::changeAmount), the rest is cargo.</summary>
-        /// <summary>Its loot goes in the hold (not a mod blueprint's data crate, which is only learnt).</summary>
+        /// <summary>Its loot goes in the hold (not a blueprint's data crate, which is only learnt).</summary>
         static bool NeedsRoom(Crate crate)
         {
             var entry = crate.loot.Find(s => s.amount > 0);
-            return entry == null || GoF2Remake.Modding.ModBlueprints.Of(entry.item) == null;
+            return entry == null || !IsBlueprintCrate(crate, entry);
         }
+
+        /// <summary>A data crate: a mod blueprint's (its drop or derelict, known by the item) or a derelict freighter's
+        /// (Crate.LookBlueprint): the blueprint is learnt, nothing goes in the hold.</summary>
+        static bool IsBlueprintCrate(Crate crate, ItemStack entry) =>
+            crate.look == Crate.LookBlueprint || GoF2Remake.Modding.ModBlueprints.Of(entry.item) != null;
 
         void Capture(Crate crate)
         {
@@ -637,10 +642,10 @@ namespace GoF2Remake.Flight
             if (assets != null && assets.tractorClose != null) sfx.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(assets.tractorClose), Settings.SfxVolume);
             var entry = crate.loot.Find(s => s.amount > 0);
             if (entry == null) { Destroy(crate.gameObject); return; }
-            if (GoF2Remake.Modding.ModBlueprints.Of(entry.item) != null)
+            if (IsBlueprintCrate(crate, entry))
             {
-                // Remake mods: a data crate (a mod blueprint's drop or derelict): the blueprint is learnt, nothing goes in
-                // the hold.
+                // Remake: a data crate (a mod blueprint's drop or derelict, a derelict freighter's): the blueprint is learnt,
+                // nothing goes in the hold.
                 bool known = Blueprints.IsUnlocked(entry.item);
                 Blueprints.Unlock(entry.item);
                 Message?.Invoke(string.Format(known ? Localization.Extra("bpKnown", "Blueprint already known: {0}")

@@ -489,6 +489,7 @@ namespace GoF2Remake.Multiplayer
             UpdateHeldAsteroids();
             UpdateGarrison();
             FollowRunner();
+            UpdateDerelictStandIns();
             // This player's own NPCs: the orbit's traffic (the authority) or a freelance mission's (anyone).
             bool ownNpcs = Authority || (level.Traffic != null && level.Traffic.Ships.Count > 0) || level.FreelanceOrbit != null
                            || takenJunk.Count > 0 || crateIds.Count > 0;
@@ -654,6 +655,47 @@ namespace GoF2Remake.Multiplayer
             ship.RestoreState(speed, st.routeIndex, st.Has(NetProxyStatus.Asleep), st.Has(NetProxyStatus.Inactive), st.Has(NetProxyStatus.Turned),
                               st.Has(NetProxyStatus.EmpDisabled), st.empMs * 100f);
             if (p != null && (p.capitalLaunched > 0 || p.capitalProvoked)) ship.GetComponent<CapitalShip>()?.Restore(p.capitalLaunched, p.capitalProvoked);
+            if (p != null && p.spec != null && p.spec.derelict && !st.Has(NetProxyStatus.Hackable)) ship.DockingType = 0;   // hacked before the handover
+        }
+
+        // ---- derelict freighters (Settings.DerelictWrecks) --------------------------------------------------------------
+
+        readonly Dictionary<NetProxy, NpcShip> derelictStandIns = new Dictionary<NetProxy, NpcShip>();
+        readonly HashSet<NetProxy> derelictReported = new HashSet<NetProxy>();
+        readonly List<NetProxy> derelictDone = new List<NetProxy>();
+        float derelictTimer;
+
+        /// <summary>Another game's derelict freighter is hacked here too: object docking takes this game's own ships
+        /// (ObjectDocking), so each open one (NetProxy.OpenDerelict) gets a hidden stand-in of this game at its copy's pose,
+        /// like a follower's mining plant (FreelanceOrbit). Hacked here (Traffic.OnHackWon: this player's crate), the owner's
+        /// wreck closes for everyone (NetProxy.ReportHacked); once it is closed, gone or handed to this game the stand-in
+        /// goes, after the player has undocked.</summary>
+        void UpdateDerelictStandIns()
+        {
+            if (level == null || level.Traffic == null || (derelictTimer -= Time.unscaledDeltaTime) > 0f) return;
+            derelictTimer = ScanSeconds;
+            foreach (var proxy in FindObjectsByType<NetProxy>())
+            {
+                if (!proxy.OpenDerelict || proxy.Station != Station || derelictStandIns.ContainsKey(proxy)) continue;
+                var standIn = level.Traffic.Adopt(proxy.AdoptSpec(GamePosition(proxy.ShownPosition)), proxy.ShownRotation, 1f);
+                standIn.LocalOnly = true;   // never a proxy of its own
+                foreach (var r in standIn.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
+                derelictStandIns[proxy] = standIn;
+            }
+            if (derelictStandIns.Count == 0) return;
+            derelictDone.Clear();
+            foreach (var pair in derelictStandIns)
+            {
+                NetProxy proxy = pair.Key;
+                NpcShip standIn = pair.Value;
+                bool open = proxy != null && proxy.OpenDerelict;
+                if (standIn != null && open && standIn.DockingType == 0 && derelictReported.Add(proxy)) proxy.ReportHacked();
+                if (standIn != null && open) continue;   // (hacked here: until the owner's word arrives)
+                if (standIn != null && level.Docking != null && level.Docking.Target == standIn) continue;
+                if (standIn != null && !standIn.Gone) { standIn.Vanish(); standIn.gameObject.SetActive(false); }
+                derelictDone.Add(proxy);
+            }
+            foreach (var proxy in derelictDone) { derelictStandIns.Remove(proxy); derelictReported.Remove(proxy); }
         }
 
         // ---- junk and crates taken over ---------------------------------------------------------------------------

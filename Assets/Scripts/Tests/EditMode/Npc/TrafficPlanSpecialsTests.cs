@@ -482,6 +482,36 @@ namespace GoF2Remake.Tests
             for (int i = 0; i < 100; i++) Assert.IsNotEmpty(GoF2Remake.World.WreckField.DerelictLoot(Db));
         }
 
+        // A derelict's rare loot: now and then a piece of gear (a capital ship's pool), and a data crate's blueprint: one a
+        // lounge sells that the player doesn't know yet, none once every one is known.
+        [Test]
+        public void DerelictRareLoot()
+        {
+            InFreePlay(4);
+            UnityEngine.Random.InitState(7);
+            int gear = 0;
+            for (int i = 0; i < 400; i++)
+                if (GoF2Remake.World.WreckField.DerelictLoot(Db).Any(s => Db.Item(s.item) is var it && it.TypeId <= 3 && it.techLevel >= 8)) gear++;
+            Assert.Greater(gear, 0, "gear a freighter's own roll never holds (tech level 8+)");
+            Assert.Less(gear, 60, "rare");
+            var known = new System.Collections.Generic.List<int>(Session.UnlockedBlueprints);
+            try
+            {
+                Session.UnlockedBlueprints.Clear();
+                int bp = GoF2Remake.World.WreckField.DerelictBlueprint(Db);
+                Assert.GreaterOrEqual(bp, 0);
+                Assert.Greater(Db.Item(bp).blueprint.Count, 0, "a blueprint's product");
+                Assert.IsTrue(AgentData.StoryAgents.Any(a => a.sellBlueprint == bp), "one a lounge sells");
+                foreach (var a in AgentData.StoryAgents) if (a.sellBlueprint >= 0) Session.UnlockedBlueprints.Add(a.sellBlueprint);
+                Assert.AreEqual(-1, GoF2Remake.World.WreckField.DerelictBlueprint(Db), "every one known");
+            }
+            finally
+            {
+                Session.UnlockedBlueprints.Clear();
+                foreach (int b in known) Session.UnlockedBlueprints.Add(b);
+            }
+        }
+
         // ---- capital ships --------------------------------------------------------------------------------------
 
         static int Kind(System.Collections.Generic.List<SpawnSpec> list) => list.FirstOrDefault(x => x.capital != 0 && x.capitalHost == null)?.capital ?? 0;

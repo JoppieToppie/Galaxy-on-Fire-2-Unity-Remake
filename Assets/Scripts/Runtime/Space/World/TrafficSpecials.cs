@@ -68,6 +68,9 @@ namespace GoF2Remake.World
                 // Remake (Settings.DerelictWrecks): a derelict's hold, in a crate drifting off the wreck like a mod blueprint's.
                 ship.DockingType = 0;
                 Crate.Spawn(ship.transform.position + ship.transform.up * 300f * M, WreckField.DerelictLoot(db), ship.Spec.race, Crate.LookJunk);
+                // Now and then a data crate too: a lounge's blueprint this player doesn't know yet (learnt when pulled in).
+                int bp = UnityEngine.Random.Range(0, WreckField.DerelictBlueprintOdds) == 0 ? WreckField.DerelictBlueprint(db) : -1;
+                if (bp >= 0) Crate.Spawn(ship.transform.position - ship.transform.up * 300f * M, new[] { new ItemStack(bp, 1) }, ship.Spec.race, Crate.LookBlueprint);
                 GameHooks.FlightMessage?.Invoke(Localization.Extra("hackCrateEjected", "Cargo container ejected. Use the tractor beam to check its contents."));
                 return;
             }

@@ -77,13 +77,37 @@ namespace GoF2Remake.World
             return cargo;
         }
 
-        /// <summary>Remake (Settings.DerelictWrecks): a hacked derelict freighter's hold: a wreck's cargo and, one time in
-        /// five, 2-5 t of the rare goods a capital ship carries.</summary>
+        /// <summary>Remake (Settings.DerelictWrecks): a hacked derelict freighter's hold: a wreck's cargo; one time in five
+        /// 2-5 t of the rare goods a capital ship carries; one time in eight a piece of its gear (CapitalShips.GearPool: a
+        /// weapon or equipment of tech level 5+, a secondary 10-20 of it).</summary>
         public static List<ItemStack> DerelictLoot(Database db)
         {
             var cargo = Loot(db);
-            if (Random.Range(0, 5) == 0) cargo.Add(new ItemStack(CapitalShips.RareGoods[Random.Range(0, CapitalShips.RareGoods.Length)], Random.Range(2, 6)));
+            if (Random.Range(0, 5) == 0) CapitalShips.Add(cargo, CapitalShips.RareGoods[Random.Range(0, CapitalShips.RareGoods.Length)], Random.Range(2, 6));
+            if (db != null && Random.Range(0, DerelictGearOdds) == 0 && CapitalShips.GearPool(db) is var pool && pool.Count > 0)
+            {
+                var it = pool[Random.Range(0, pool.Count)];
+                CapitalShips.Add(cargo, it.index, it.TypeId == 1 ? Random.Range(10, 21) : 1);
+            }
             return cargo;
+        }
+
+        /// <summary>One derelict in this many holds a piece of gear / a blueprint's data crate.</summary>
+        public const int DerelictGearOdds = 8, DerelictBlueprintOdds = 12;
+
+        /// <summary>Remake (Settings.DerelictWrecks): the blueprint a derelict's data crate holds (Traffic.OnHackWon, one time
+        /// in DerelictBlueprintOdds): one a lounge's story character sells (AgentData.StoryAgents; Sao Perula's once the
+        /// Valkyrie add-on is won, like its seller) that the player doesn't know and no floating crate holds; -1 = none
+        /// left. Not one a mod took over (its own sources) and not the campaign's or the hidden wrecks'.</summary>
+        public static int DerelictBlueprint(Database db)
+        {
+            var pool = new List<int>();
+            if (db != null)
+                foreach (var s in AgentData.StoryAgents)
+                    if (s.sellBlueprint >= 0 && (s.station != 106 || Story.Dlc1Won) && db.Item(s.sellBlueprint) != null && !Blueprints.IsUnlocked(s.sellBlueprint)
+                        && Modding.ModBlueprints.Of(s.sellBlueprint) == null && !Crate.HoldsAny(s.sellBlueprint) && !pool.Contains(s.sellBlueprint))
+                        pool.Add(s.sellBlueprint);
+            return pool.Count > 0 ? pool[Random.Range(0, pool.Count)] : -1;
         }
     }
 }

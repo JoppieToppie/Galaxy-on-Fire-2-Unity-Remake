@@ -35,10 +35,11 @@ namespace GoF2Remake.Tests
             ("smarttargeting", "-smarttargeting", false),
             ("es2aiming", "-es2aiming", false),
             ("es2flight", "-es2flight", false),
+            ("derelicts", "-derelicts", false),
         };
 
         [Test]
-        public void ElevenRulesWithTheirFlagsAndDefaults()
+        public void TwelveRulesWithTheirFlagsAndDefaults()
         {
             Assert.AreEqual(Documented.Length, NetRules.All.Count);
             foreach (var (key, flag, on) in Documented)

@@ -226,9 +226,7 @@ namespace GoF2Remake.World
             if (LootReady)
             {
                 gear = true;
-                var pool = db.Items.FindAll(it => it.maxPrice > 0 && it.blueprint.Count == 0 && it.TypeId <= 3 && it.techLevel >= 5 && it.occurrence > 0
-                                                  && Hangar.IsSaleable(it.index) && !Modding.ModContent.IsMissingItem(it.index)
-                                                  && Modding.ModUnlocks.ItemAvailable(it.index) && !Shop.NotInSession(db, it.index));   // a mod's gear (tech level 11+ too) once available
+                var pool = GearPool(db);
                 for (int n = 0; n < 2 && pool.Count > 0; n++)
                 {
                     var it = pool[Random.Range(0, pool.Count)];
@@ -257,6 +255,13 @@ namespace GoF2Remake.World
         }
 
         public const int HoldRollsMin = 2, HoldRollsMax = 3;
+
+        /// <summary>The weapons and equipment a capital ship's crate (and a derelict freighter's, WreckField.DerelictLoot) may
+        /// hold: tech level 5+, sold somewhere, available; a mod's gear (tech level 11+ too) once available.</summary>
+        internal static List<ItemData> GearPool(Database db) =>
+            db.Items.FindAll(it => it.maxPrice > 0 && it.blueprint.Count == 0 && it.TypeId <= 3 && it.techLevel >= 5 && it.occurrence > 0
+                                   && Hangar.IsSaleable(it.index) && !Modding.ModContent.IsMissingItem(it.index)
+                                   && Modding.ModUnlocks.ItemAvailable(it.index) && !Shop.NotInSession(db, it.index));
 
         /// <summary>'amount' of 'item' into 'list', on its stack when it has one (a crate per kind: NpcShip.DropCrate).</summary>
         public static void Add(List<ItemStack> list, int item, int amount)

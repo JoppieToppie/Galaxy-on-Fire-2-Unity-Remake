@@ -12,7 +12,8 @@ namespace GoF2Remake.Multiplayer
 {
     public struct NetProxyStatus : INetworkSerializable, IEquatable<NetProxyStatus>
     {
-        public const byte Hidden = 1, AlwaysHostile = 2, EmpDisabled = 4, Asleep = 8, Inactive = 16, Turned = 32;
+        public const byte Hidden = 1, AlwaysHostile = 2, EmpDisabled = 4, Asleep = 8, Inactive = 16, Turned = 32,
+                          Hackable = 64;   // a derelict freighter nobody has hacked yet (NetProxy.OpenDerelict)
 
         public short race;
         public byte relation;      // NetProxy.Hostile / Friend / Neutral toward the owner's player

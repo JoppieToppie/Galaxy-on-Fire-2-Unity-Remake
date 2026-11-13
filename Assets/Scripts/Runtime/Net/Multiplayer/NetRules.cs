@@ -22,7 +22,7 @@ namespace GoF2Remake.Multiplayer
                          CloakBay = SessionRules.CloakBay, EmpBreaksCloak = SessionRules.EmpBreaksCloak,
                          SmarterNpcTargeting = SessionRules.SmarterNpcTargeting, PreciseShipCollision = SessionRules.PreciseShipCollision,
                          OriginalCollision = SessionRules.OriginalCollision, Es2Aiming = SessionRules.Es2Aiming,
-                         Es2NpcFlight = SessionRules.Es2NpcFlight;
+                         Es2NpcFlight = SessionRules.Es2NpcFlight, DerelictWrecks = SessionRules.DerelictWrecks;
 
         /// <summary>One rule: its bit, the server setting's key, the command-line flag that sets it the other way from
         /// its default, the server window's label, and the option's default.</summary>
@@ -46,6 +46,7 @@ namespace GoF2Remake.Multiplayer
             new Rule { bit = SmarterNpcTargeting, key = "smarttargeting", flag = "-smarttargeting", label = "Smarter NPC targeting", fallback = false },
             new Rule { bit = Es2Aiming, key = "es2aiming", flag = "-es2aiming", label = "EVERSPACE 2 NPC aiming", fallback = false },
             new Rule { bit = Es2NpcFlight, key = "es2flight", flag = "-es2flight", label = "EVERSPACE 2 NPC flight", fallback = false },
+            new Rule { bit = DerelictWrecks, key = "derelicts", flag = "-derelicts", label = "Derelict freighters", fallback = false },
         };
 
         /// <summary>Every rule at its option's default (a dedicated server's start).</summary>

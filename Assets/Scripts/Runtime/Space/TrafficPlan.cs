@@ -439,8 +439,9 @@ namespace GoF2Remake.Flight
             // Remake (players' wish, Discord 2026-10-18; Options > Gameplay "Derelict freighters"): now and then a derelict
             // freighter of any race out in front of the station, hacked once for its cargo (Traffic.OnHackWon); in a Risky or
             // Dangerous system 2-4 pirates wait at it. One wreck an orbit, not in the special or the storylines' orbits, a
-            // pirate base's system, Mido or a freelance mission's orbit; single player (the hack and its crate are local).
-            if (Settings.DerelictWrecks && !NetSession.Active && !quietOrbit && !baseSystem && system.index != 15 && (fm == null || fm.target != station)
+            // pirate base's system, Mido or a freelance mission's orbit. A session rule: the orbit's runner rolls it, the
+            // other players hack a stand-in of its copy (NetOrbit.UpdateDerelictStandIns).
+            if (Settings.DerelictWrecks && !quietOrbit && !baseSystem && system.index != 15 && (fm == null || fm.target != station)
                 && !PirateEventRules.InStoryline(station) && !list.Exists(s => s.deadButSelectable) && Random.Range(0, 100) < DerelictChance(secEff))
             {
                 var at = new Vector3(Random.Range(-80000f, 80000f), Random.Range(-40000f, 40000f), Random.Range(60000f, 140000f));

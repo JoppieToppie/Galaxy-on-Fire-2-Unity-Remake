@@ -125,9 +125,13 @@ against the FEV's LGCY data, see "Sound").
   orbit visit `TrafficPlan.DerelictChance` (4 % Secure .. 10 % Dangerous) puts one hackable wreck of any race
   (`TrafficPlan.HackableWreck`, `SpawnSpec.derelict`) out in front of the station; in a Risky or Dangerous system 2-4
   pirates wait at it. Hacked once: `Traffic.OnHackWon` ejects a crate with `WreckField.DerelictLoot` (a freighter's loot
-  roll, else Space Waste; 1 in 5 adds 2-5 t of a capital ship's rare goods). Not in the special or storyline orbits, a
-  pirate base's system, Mido, a freelance mission's orbit or beside another wreck; single player only (the hack and its
-  crate are local). Test `TrafficPlanSpecialsTests.DerelictFreightersComeWithTheOption`.
+  roll, else Space Waste; 1 in 5 adds 2-5 t of a capital ship's rare goods; 1 in 8 a piece of its gear,
+  `CapitalShips.GearPool`: tech level 5+, a secondary 10-20) and, 1 in 12, a second data crate with a blueprint
+  (`WreckField.DerelictBlueprint`: one a lounge's story character sells that the player doesn't know; `Crate.LookBlueprint`,
+  the junk's model: pulled in it is learnt like a mod's, `CombatRadar.IsBlueprintCrate`). Not in the special or storyline
+  orbits, a pirate base's system, Mido, a freelance mission's orbit or beside another wreck. Multiplayer: a session rule
+  (`SessionRules.DerelictWrecks`, server flag `-derelicts`), see "Derelict freighters" in multiplayer-sync.md. Tests
+  `TrafficPlanSpecialsTests.DerelictFreightersComeWithTheOption` / `DerelictRareLoot`.
 - **Gas clouds** (`GasCloudField`; needs a spectral filter, sort 33, not in the Void; #77, `Radar::draw` 0x1570ec: with
   the filter's attr 57 (ST-X, Omega) every live cloud has the white diamond 0x4f1 and is a lock target
   (`CombatRadar.LockedCloud`: in the crosshair box with no ship or crate there, the ring from 500 ms, locked at the

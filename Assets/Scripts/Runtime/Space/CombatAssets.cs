@@ -134,7 +134,7 @@ namespace GoF2Remake.Flight
         /// else the race's container.</summary>
         public GameObject CrateModel(int look, int race) =>
             look == Flight.Crate.LookRock ? asteroidCrate : look == Flight.Crate.LookVoidRock ? voidAsteroidCrate
-            : look == Flight.Crate.LookJunk ? junkCrate : Crate(race);
+            : look == Flight.Crate.LookJunk || look == Flight.Crate.LookBlueprint ? junkCrate : Crate(race);
 
         public GameObject Crate(int race) => crates == null || crates.Length < 5 ? null
             : race == 0 ? crates[0] : race == 1 ? crates[1] : race == 3 ? crates[3] : race == 9 ? crates[4] : crates[2];
