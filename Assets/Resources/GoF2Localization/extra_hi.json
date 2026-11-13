@@ -23,6 +23,8 @@
   "bloomBoth": "दोनों",
   "bloomOriginal": "मूल",
   "bloomRemake": "रीमेक",
+  "bloomStrength": "ब्लूम की तीव्रता",
+  "bloomStrengthHelp": "रीमेक की चमक कितनी तेज़ है। मूल की चमक जैसी है वैसी रहती है।",
   "borderless": "बॉर्डरलेस",
   "bpAdd": "जोड़ें",
   "bpAutocomplete": "ऑटो-पूरा करें",

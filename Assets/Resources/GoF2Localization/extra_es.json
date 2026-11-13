@@ -24,6 +24,8 @@
  "bloomBoth": "Ambos",
  "bloomOriginal": "Original",
  "bloomRemake": "Remake",
+ "bloomStrength": "Intensidad del bloom",
+ "bloomStrengthHelp": "Lo fuerte que es el resplandor del Remake. El resplandor del Original no cambia.",
  "borderless": "Sin bordes",
  "bpAdd": "AÑADIR",
  "bpAutocomplete": "Completar automáticamente",

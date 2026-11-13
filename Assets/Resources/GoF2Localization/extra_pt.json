@@ -24,6 +24,8 @@
  "bloomBoth": "Ambos",
  "bloomOriginal": "Original",
  "bloomRemake": "Remake",
+ "bloomStrength": "Intensidade do bloom",
+ "bloomStrengthHelp": "Quão forte é o brilho do Remake. O brilho do Original fica como está.",
  "borderless": "Sem bordas",
  "bpAdd": "ADICIONAR",
  "bpAutocomplete": "Completar automaticamente",

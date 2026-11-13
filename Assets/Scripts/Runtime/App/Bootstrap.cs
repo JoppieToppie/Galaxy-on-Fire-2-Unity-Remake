@@ -416,7 +416,12 @@ namespace GoF2Remake
             {
                 if (!v.isGlobal || v.sharedProfile == null) continue;
                 var p = v.profile;
-                if (p.TryGet(out Bloom bloom)) bloom.active = Settings.Bloom;
+                if (p.TryGet(out Bloom bloom))
+                {
+                    bloom.active = Settings.Bloom;
+                    // The strength option scales the profile asset's own intensity ('p' is this volume's runtime copy).
+                    if (v.sharedProfile.TryGet(out Bloom own)) bloom.intensity.value = own.intensity.value * Settings.BloomStrength;
+                }
                 if (!p.TryGet(out ColorAdjustments color)) color = p.Add<ColorAdjustments>();
                 color.postExposure.overrideState = true;
                 color.postExposure.value = Settings.BrightnessExposure;

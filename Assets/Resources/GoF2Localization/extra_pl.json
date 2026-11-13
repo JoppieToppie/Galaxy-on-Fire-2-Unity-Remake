@@ -24,6 +24,8 @@
  "bloomBoth": "Oba",
  "bloomOriginal": "Oryginał",
  "bloomRemake": "Remake",
+ "bloomStrength": "Siła bloomu",
+ "bloomStrengthHelp": "Jak mocna jest poświata Remake'u. Poświata Oryginału zostaje bez zmian.",
  "borderless": "Bez ramki",
  "bpAdd": "DODAJ",
  "bpAutocomplete": "Uzupełnij automatycznie",

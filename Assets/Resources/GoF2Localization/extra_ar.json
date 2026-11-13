@@ -24,6 +24,8 @@
  "bloomBoth": "كلاهما",
  "bloomOriginal": "الأصلي",
  "bloomRemake": "النسخة الجديدة",
+ "bloomStrength": "شدة التوهج",
+ "bloomStrengthHelp": "مدى قوة توهج النسخة الجديدة. التوهج الأصلي يبقى كما هو.",
  "borderless": "بلا حدود",
  "bpAdd": "إضافة",
  "bpAutocomplete": "إكمال تلقائي",

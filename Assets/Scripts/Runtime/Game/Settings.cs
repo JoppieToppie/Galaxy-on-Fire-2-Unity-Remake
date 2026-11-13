@@ -158,6 +158,9 @@ namespace GoF2Remake.Data
         public static bool Bloom => BloomStyle == BloomRemake || BloomStyle == BloomBoth;
         /// <summary>The original's bloom (ClassicBloomPass), alone or with the remake's.</summary>
         public static bool ClassicBloom => BloomStyle == BloomOriginal || BloomStyle == BloomBoth;
+        /// <summary>Remake (a player's wish, 2026-10-18): the remake bloom's strength, a factor 0.25..2 on each scene
+        /// volume's own intensity (Bootstrap.ApplyPostProcessing). The original's bloom is the original's: not scaled.</summary>
+        public static float BloomStrength { get => Mathf.Clamp(Get("bloomStrength", 1f), 0.25f, 2f); set => Set("bloomStrength", Mathf.Clamp(value, 0.25f, 2f)); }
 
         /// <summary>The sun's lens flare in flight (LensFlareView).</summary>
         public static bool LensFlare { get => GetBool("lensFlare", Default("lensFlare", 1f) > 0.5f); set => SetBool("lensFlare", value); }
@@ -878,7 +881,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GraphicsKeys =
         {
             "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality",
-            "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "npcPlayerEngines", "fov",
+            "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "npcPlayerEngines", "fov",
             "cameraShake", "originalChaseCamera", "originalUi", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
         };
         public static readonly string[] ControlsKeys =

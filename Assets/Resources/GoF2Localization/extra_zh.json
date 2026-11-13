@@ -23,6 +23,8 @@
   "bloomBoth": "两者",
   "bloomOriginal": "原版",
   "bloomRemake": "重制版",
+  "bloomStrength": "泛光强度",
+  "bloomStrengthHelp": "重制版光晕的强度。原版光晕保持不变。",
   "borderless": "无边框",
   "bpAdd": "添加",
   "bpAutocomplete": "自动完成",

@@ -24,6 +24,8 @@
  "bloomBoth": "Beide",
  "bloomOriginal": "Origineel",
  "bloomRemake": "Remake",
+ "bloomStrength": "Bloomsterkte",
+ "bloomStrengthHelp": "Hoe sterk de gloed van de Remake is. De gloed van het Origineel blijft zoals hij is.",
  "borderless": "Randloos",
  "bpAdd": "TOEVOEGEN",
  "bpAutocomplete": "Automatisch voltooien",

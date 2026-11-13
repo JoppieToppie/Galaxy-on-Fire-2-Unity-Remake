@@ -165,6 +165,12 @@ namespace GoF2Remake.UI
             list.Add(Choice("bloom", OptionPage.Graphics, () => X("bloom", "Bloom"), true,
                 () => new[] { X("off", "Off"), X("bloomRemake", "Remake"), X("bloomOriginal", "Original"), X("bloomBoth", "Both") },
                 () => Mathf.Clamp(Settings.BloomStyle, 0, 3), i => Settings.BloomStyle = i));
+            // Remake (a player's wish, 2026-10-18): the remake bloom's strength, shown with Remake and Both.
+            var bloomStrength = Slider("bloomStrength", OptionPage.Graphics, () => X("bloomStrength", "Bloom strength"), 0.25f, 2f,
+                () => Settings.BloomStrength, v => Settings.BloomStrength = v, Percent);
+            bloomStrength.description = () => X("bloomStrengthHelp", "How strong the Remake glow is. The Original glow stays as it is.");
+            bloomStrength.visible = () => Settings.Bloom;
+            list.Add(bloomStrength);
             // Remake: the hangar ships' contact shadows (HangarShipShadow); fewer for slower devices.
             list.Add(Choice("hangarShadows", OptionPage.Graphics, () => X("hangarShadows", "Hangar ship shadows"), true,
                 () => new[] { X("off", "Off"), X("hangarShadowsPlayer", "Player ship only"), X("hangarShadowsAll", "All ships") },

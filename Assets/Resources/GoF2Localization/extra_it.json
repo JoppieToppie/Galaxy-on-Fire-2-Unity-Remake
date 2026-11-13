@@ -24,6 +24,8 @@
  "bloomBoth": "Entrambi",
  "bloomOriginal": "Originale",
  "bloomRemake": "Remake",
+ "bloomStrength": "Intensità del bloom",
+ "bloomStrengthHelp": "Quanto è forte il bagliore del Remake. Il bagliore dell'Originale resta com'è.",
  "borderless": "Senza bordi",
  "bpAdd": "AGGIUNGI",
  "bpAutocomplete": "Completa automaticamente",

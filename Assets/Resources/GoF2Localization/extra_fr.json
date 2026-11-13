@@ -24,6 +24,8 @@
  "bloomBoth": "Les deux",
  "bloomOriginal": "Original",
  "bloomRemake": "Remake",
+ "bloomStrength": "Intensité du bloom",
+ "bloomStrengthHelp": "Force de la lueur du Remake. La lueur de l'Original ne change pas.",
  "borderless": "Sans bordure",
  "bpAdd": "AJOUTER",
  "bpAutocomplete": "Compléter automatiquement",

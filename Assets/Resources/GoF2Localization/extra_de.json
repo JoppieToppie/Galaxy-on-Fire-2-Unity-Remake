@@ -24,6 +24,8 @@
  "bloomBoth": "Beide",
  "bloomOriginal": "Original",
  "bloomRemake": "Remake",
+ "bloomStrength": "Bloom-Stärke",
+ "bloomStrengthHelp": "Wie stark das Remake-Leuchten ist. Das Leuchten des Originals bleibt, wie es ist.",
  "borderless": "Randlos",
  "bpAdd": "HINZUFÜGEN",
  "bpAutocomplete": "Automatisch vervollständigen",

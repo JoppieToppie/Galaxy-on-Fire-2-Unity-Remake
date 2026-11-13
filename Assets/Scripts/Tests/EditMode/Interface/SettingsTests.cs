@@ -412,6 +412,20 @@ namespace GoF2Remake.Tests
             Settings.BloomStyle = Settings.BloomBoth; Assert.IsTrue(Settings.Bloom); Assert.IsTrue(Settings.ClassicBloom);
         }
 
+        // The strength slider: 100 % by default, 25..200 %, offered only while the remake's bloom is drawn.
+        [Test]
+        public void BloomStrengthScalesTheRemakeBloomOnly()
+        {
+            Assert.AreEqual(1f, Settings.BloomStrength);
+            Settings.BloomStrength = 5f; Assert.AreEqual(2f, Settings.BloomStrength);
+            Settings.BloomStrength = 0f; Assert.AreEqual(0.25f, Settings.BloomStrength);
+            var row = GoF2Remake.UI.OptionsCatalog.All().First(o => o.id == "bloomStrength");
+            Settings.BloomStyle = Settings.BloomOff; Assert.IsFalse(row.visible());
+            Settings.BloomStyle = Settings.BloomOriginal; Assert.IsFalse(row.visible());
+            Settings.BloomStyle = Settings.BloomRemake; Assert.IsTrue(row.visible());
+            Settings.BloomStyle = Settings.BloomBoth; Assert.IsTrue(row.visible());
+        }
+
         [Test]
         public void OldSavesBloomToggleBecomesTheStyle()
         {

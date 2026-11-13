@@ -24,6 +24,8 @@
  "bloomBoth": "両方",
  "bloomOriginal": "オリジナル",
  "bloomRemake": "リメイク",
+ "bloomStrength": "ブルームの強さ",
+ "bloomStrengthHelp": "リメイクのグローの強さ。オリジナルのグローは変わりません。",
  "borderless": "ボーダーレス",
  "bpAdd": "追加",
  "bpAutocomplete": "自動完成",

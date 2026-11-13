@@ -24,6 +24,8 @@
  "bloomBoth": "Оба",
  "bloomOriginal": "Оригинал",
  "bloomRemake": "Ремейк",
+ "bloomStrength": "Сила свечения",
+ "bloomStrengthHelp": "Насколько сильно свечение ремейка. Свечение оригинала не меняется.",
  "borderless": "Без рамки",
  "bpAdd": "ДОБАВИТЬ",
  "bpAutocomplete": "Завершить автоматически",
