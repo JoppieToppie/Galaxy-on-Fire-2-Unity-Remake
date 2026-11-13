@@ -199,7 +199,9 @@ namespace GoF2Remake.UI
         {
             if (ReadCommonKeys(EscapeInKind)) return;
             var kb = Keyboard.current;
-            if (EditsMounts && (kb.deleteKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame)) DeleteSelected();
+            // Delete only (a player's wish, 2026-10-17): Backspace corrects a number, and a field that lost its focus let it
+            // delete the point without a word.
+            if (EditsMounts && kb.deleteKey.wasPressedThisFrame) DeleteSelected();
             if (EditsMounts && kb.mKey.wasPressedThisFrame) Mirror();
             if (!InHangar || !ShipKind(kind)) return;   // the Space Lounge, the map, a room: no ship to fly or turn around
             if (kb.lKey.wasPressedThisFrame && Flies(kind)) StartTestFlight();

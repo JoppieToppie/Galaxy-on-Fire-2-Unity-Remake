@@ -38,7 +38,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `modelOffset`, game units in the ship's frame, nudges of 2 % and Centre on pivot; moves and resizes carry the hardpoints
   along, every change re-measures the hangar height), hangar height + Auto, hull textures: one
   `materials` entry for all meshes, for GLBs without their own), Hardpoints (add by clicking the hull, list, X / Y / Z, mirror,
-  centre, delete, slot counts following the points, a turret's facing (see "Missile turrets and salvos"), engine flame
+  centre, delete (the button or the Delete key; not Backspace, the key for correcting a number: a player's wish,
+  2026-10-17), slot counts following the points, a turret's facing (see "Missile turrets and salvos"), engine flame
   shape / half width / half height / length / particles: `glowShape`, see mods-models.md "engine glow discs"), Loadout
   (per-slot item pickers, Auto-fill, god mode / infinite ammo). The 3D editor is `World.ModBuilderGizmo` (balls drawn over the
   hull by `Hidden/GoF2/BuilderGizmo`, Unity-style move arrows along the ship's axes (X = game +x = the pilot's left), a drag on
