@@ -192,6 +192,19 @@ namespace GoF2Remake.Flight
             SelectedSecondary = item;
             Session.SelectedSecondary = item;
         }
+        /// <summary>Remake (a player's wish, 2026-10-18; CooldownView): the selected secondary's reload 0..1, 1 = ready. Each
+        /// mount reloads on its own (Gun.reloadAcc) and the next shot takes the first ready one, so the furthest along counts.</summary>
+        public float SecondaryReload
+        {
+            get
+            {
+                float best = -1f;
+                foreach (var r in rigs)
+                    if (r.gun.isSecondary && r.gun.itemIndex == SelectedSecondary && r.stack != null && r.stack.amount > 0)
+                        best = Mathf.Max(best, r.gun.ReloadRate);
+                return best < 0f ? 1f : best;
+            }
+        }
         /// <summary>More than one secondary item is mounted (the HUD offers the switch).</summary>
         public bool CanCycleSecondary { get { int n = 0, last = -1; foreach (var r in rigs) if (r.gun.isSecondary && r.gun.itemIndex != last) { last = r.gun.itemIndex; n++; } return n > 1; } }
         /// <summary>No firing (the mining minigame blocks the guns, MGame::OnTouchBegin / OnTouchEnd).</summary>

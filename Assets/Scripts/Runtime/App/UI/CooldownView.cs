@@ -9,6 +9,8 @@
 // over the right), the whole icon opaque when ready; while the device runs (boosting, cloaked, the time extender slowing
 // the world) the lit part drains with what is left, with a cyan edge. The time extender (category 26) has its slot too,
 // and each active device (PlayerDevices: GoF3's, mod items) its own after it (the strike charge lights up as it charges).
+// Remake (a player's wish, 2026-10-18): the first slot is the selected secondary weapon's icon, lit as it reloads
+// (WeaponSystem.SecondaryReload); shown as its plate is (ammo left, not in the turret view).
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -33,7 +35,7 @@ namespace GoF2Remake.UI
         }
 
         readonly VisualElement row;
-        readonly Slot boost, cloak, extender;
+        readonly Slot secondary, boost, cloak, extender;
         readonly List<Slot> devices = new List<Slot>();
 
         public CooldownView(VisualElement parent)
@@ -41,6 +43,7 @@ namespace GoF2Remake.UI
             row = new VisualElement { name = "cooldowns", pickingMode = PickingMode.Ignore };
             row.AddToClassList("cooldowns");
             parent.Add(row);
+            secondary = Make();
             boost = Make();
             cloak = Make();
             extender = Make();
@@ -58,8 +61,12 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>Each frame. 'shown' = keyboard / controller flight with the HUD up.</summary>
-        public void Update(Database db, ShipController ship, PlayerCloak playerCloak, TimeExtender timeExtender, PlayerDevices playerDevices, bool shown)
+        public void Update(Database db, ShipController ship, PlayerCloak playerCloak, TimeExtender timeExtender, PlayerDevices playerDevices,
+                           WeaponSystem weapons, bool shown)
         {
+            bool armed = shown && weapons != null && weapons.SelectedSecondary >= 0 && weapons.SecondaryAmmo > 0 && !weapons.TurretView;
+            float reload = armed ? weapons.SecondaryReload : 1f;
+            Set(secondary, armed ? weapons.SelectedSecondary : -1, reload, reload >= 1f, -1f);
             var model = ship != null ? ship.Model : null;
             var booster = shown && model != null && model.HasBooster && db != null ? Shop.FirstMounted(db, BoosterCategory) : null;
             var rules = shown && playerCloak != null ? playerCloak.Rules : null;
@@ -82,7 +89,7 @@ namespace GoF2Remake.UI
                 var d = list[i].rules;
                 Set(devices[i], d.item, d.RechargeRate, d.Available, d.Active ? d.ActiveLeft : -1f);
             }
-            row.style.display = booster != null || rules != null || slowItem != null || n > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            row.style.display = armed || booster != null || rules != null || slowItem != null || n > 0 ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         /// <summary>'charge' 0..1 recharging (1 = ready); 'left' 0..1 what is left while the device runs, -1 = not running.</summary>

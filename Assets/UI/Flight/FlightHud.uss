@@ -607,7 +607,7 @@
     top: 160px;
 }
 
-/* Remake: the booster's, the cloak's and the time extender's recharge for keys / controllers (CooldownView): their shop icons (180 x 88),
+/* Remake: the selected secondary weapon's reload, the booster's, the cloak's and the time extender's recharge for keys / controllers (CooldownView): their shop icons (180 x 88),
    lit left to right as they recharge (see-through until ready), a short flash when ready. Touch shows them on its own buttons. */
 .cooldowns {
     flex-direction: row;

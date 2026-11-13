@@ -113,6 +113,20 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(2f, new Gun(ItemOf(11), Vector3.zero, true).speedUnitsPerMs, "mines drop at 2 u/ms");
         }
 
+        // The HUD's secondary icon (CooldownView): ready at the start, empty right after a shot, full once reloaded.
+        [Test]
+        public void ReloadRateFollowsTheReload()
+        {
+            var g = GunOf(4, true);
+            Assert.AreEqual(1f, g.ReloadRate);
+            Assert.GreaterOrEqual(g.TryFire(Vector3.zero, Quaternion.identity, false), 0);
+            Assert.AreEqual(0f, g.ReloadRate);
+            g.reloadAcc = g.WaitMs * 0.5f;
+            Assert.AreEqual(0.5f, g.ReloadRate, 1e-4f);
+            g.reloadAcc = g.WaitMs + 1f;
+            Assert.AreEqual(1f, g.ReloadRate);
+        }
+
         [Test]
         public void SpreadPerSort()
         {

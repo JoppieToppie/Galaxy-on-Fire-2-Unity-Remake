@@ -268,7 +268,9 @@ simulates an orbit's traffic) and `ship_combat.md` (+ `Reference/tools/combat/co
   remake plate's 14 px lower position), white / red / green / orange; remake: with keys or a controller the booster's,
   the cloak's and the time extender's shop icons under the status bars show their recharge (`CooldownView`: a
   left-to-right sweep, the part not yet recharged see-through, opaque when ready, a flash then; while it runs the lit
-  part drains with what is left, a cyan edge; touch shows them on its buttons); ship markers red / green / yellow: off
+  part drains with what is left, a cyan edge; touch shows them on its buttons; the first icon, a player's wish,
+  2026-10-18: the selected secondary's, lit as it reloads, `WeaponSystem.SecondaryReload` / `Gun.ReloadRate`: each mount
+  reloads on its own, the furthest along counts; shown as the plate is); ship markers red / green / yellow: off
   screen a dot on the radar ellipse, far a dot (ring + distance when locked), near a hull bar (+ bracket when locked);
   remake (players' request, 2026-10-17: the far dot hid the ship), Options > Gameplay "Far ship markers"
   (`Settings.FarShipMarkers`, per player): Original (default) / Ring (the lock ring's arcs with the centre dot cleared,

@@ -891,7 +891,7 @@ namespace GoF2Remake.UI
             missileWarning?.Update(level.Player != null ? level.Player.transform : null, Camera.main,
                                    !cinematic && level.LaunchCameraOver && health != null && !health.Dead,
                                    level.Player != null && level.Player.Model != null && level.Player.Model.HasBooster, Time.deltaTime * 1000f);
-            cooldownView?.Update(level.Database, level.Player, level.Cloak, level.Extender, level.Devices, !cinematic && level.LaunchCameraOver && InputMode.Current != InputKind.Touch);
+            cooldownView?.Update(level.Database, level.Player, level.Cloak, level.Extender, level.Devices, weapons, !cinematic && level.LaunchCameraOver && InputMode.Current != InputKind.Touch);
             // The Ultrascan's class-A letters: Radar::draw too, so not during the launch camera or a cinematic. The range is the
             // level's asteroid field (Level+0xc4), not the autopilot's "Asteroid field" entry: the Void's crystal field has none
             // (players' report: no letters there).
