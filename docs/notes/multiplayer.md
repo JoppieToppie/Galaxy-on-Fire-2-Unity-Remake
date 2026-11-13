@@ -85,6 +85,12 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   don't line up), then out to the name field / Back, left / right across the cards; a controller's D-pad never counts
   as typing in a field (`TextFieldKeys.IsTyping` with `InputMode` Gamepad: on the Xbox a key the system keyboard left
   "pressed" kept the focus in the fields).
+  **What the switches do** (players' wish 2026-11-13, `MainMenu.SetupHostHelp`): a "?" at the top right of the Debug
+  menu, Combat, World, Mods and the three co-op rows (`OptionInfo.Icon`, as in Options: hover 1 s or tap; texts
+  `mpTip*`, `mpHelp*` being the chat's). The icon is the row's child, absolute: as the label's child the label lost
+  its text measure (height 0, the name over the buttons). A controller hides the icons (`.input-gamepad
+  .option-info`), so a focused row's text goes to the status line under the cards. Not on Max players, the password
+  or the port.
 - **Online (Relay / Lobby)** (`NetGame.PrepareOnlineHost` / `StartClientOnline`, `NetLobby`): hosting online signs in
   (anonymous; a profile per `-mpname`, so two games on one machine are two players), reserves a Relay allocation (`NetGame.MaxPlayers`
   connections, one less for a player host; a dedicated server's `-maxplayers`) and its join code before the fade, then StartHost
