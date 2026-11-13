@@ -1767,6 +1767,8 @@
  "mpHostPasswordNone": "パスワードなし",
  "mpCmdMore": "他 {0} 件",
  "touchHeightHelp": "0 %が最も高く、100 %が最も低い位置。",
+ "touchOpacity": "タッチ操作の不透明度",
+ "touchOpacityHelp": "画面上のスティックとボタンの濃さ。メニューは不透明のままです。",
  "kaamoStackingHelp": "カーモクラブの改造を重ねて施工可能、各レベルは倍額、レベル{0}まで。",
  "kaamoKeepsEquipmentHelp": "カーモクラブに置いた船は武器と装備を保持。",
  "mbEmpty": "プロジェクトなし。上に名前を入力して作成を押す。",

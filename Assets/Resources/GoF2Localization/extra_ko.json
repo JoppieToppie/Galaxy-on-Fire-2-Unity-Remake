@@ -1767,6 +1767,8 @@
  "mpHostPasswordNone": "비밀번호 없음",
  "mpCmdMore": "{0}개 더",
  "touchHeightHelp": "0 %가 가장 높고 100 %가 가장 낮습니다.",
+ "touchOpacity": "터치 조작 불투명도",
+ "touchOpacityHelp": "화면의 스틱과 버튼이 얼마나 진하게 보이는지 정합니다. 메뉴는 불투명하게 유지됩니다.",
  "kaamoStackingHelp": "카모 클럽 개조를 다시 장착할 수 있으며 단계마다 가격 2배, {0}단계까지.",
  "kaamoKeepsEquipmentHelp": "카모 클럽에 둔 함선은 무기와 장비를 유지합니다.",
  "mbEmpty": "프로젝트가 없습니다. 위에 이름을 입력하고 만들기를 누르세요.",

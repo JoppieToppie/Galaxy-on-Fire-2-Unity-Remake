@@ -239,7 +239,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   camera (the next mode's icon), secondary 0x4bc (hidden at 0 ammo; held 350 ms: the weapon strip, see "NPCs and
   combat", HUD), the auto-turret toggle), pause 0x4b8 at (w − 121, 24) in the HUD root (also during cutscenes, the
   launch / arrival camera and jump scenes, there at 12 % opacity, opaque while held (remake, `Frame.cinematic`, for
-  immersion), at its last place in flight: a cutscene hides the safe area (display: none), which zeroes the touch
+  immersion; Options > Controls "Touch controls opacity", `Settings.TouchOpacity` 30..100 %, fades the touch layer, the
+  pause button and the autopilot buttons, `TouchControls.Draw`, not the secondary plate / weapon strip: a player's
+  wish, 2026-10-17), at its last place in flight: a cutscene hides the safe area (display: none), which zeroes the touch
   layer's size, and the width's 1920 fallback pushed it off a narrower HUD; sounds 124 / 123; the top-right readout
   moves left of it: set from the button's place each frame, `FlightHud.KeepReadoutClearOfPause`, after a phone showed
   the readout over it; the HUD root's input classes are re-applied whenever they disagree with `InputMode.Current`), the

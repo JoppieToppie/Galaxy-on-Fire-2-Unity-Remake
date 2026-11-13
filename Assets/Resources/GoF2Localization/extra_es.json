@@ -1767,6 +1767,8 @@
  "mpHostPasswordNone": "Sin contraseña",
  "mpCmdMore": "{0} más",
  "touchHeightHelp": "0 % es lo más alto, 100 % lo más bajo.",
+ "touchOpacity": "Opacidad de los controles táctiles",
+ "touchOpacityHelp": "Lo sólidos que se ven el stick y los botones en pantalla; los menús siguen opacos.",
  "kaamoStackingHelp": "Las mejoras del Club Kaamo se pueden repetir, cada nivel al doble de precio, hasta el nivel {0}.",
  "kaamoKeepsEquipmentHelp": "Una nave aparcada en el Club Kaamo conserva sus armas y equipo.",
  "mbEmpty": "Aún no hay proyectos. Escribe un nombre arriba y pulsa Crear.",

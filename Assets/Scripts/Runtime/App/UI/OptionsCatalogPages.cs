@@ -411,6 +411,12 @@ namespace GoF2Remake.UI
             floatingStick.description = () => X("floatingTouchStickHelp", "Touching near the stick moves it under your thumb, so the ship doesn't turn until you move it. It goes back to its place when you let go.");
             floatingStick.visible = () => Application.isMobilePlatform || InputMode.Current == InputKind.Touch;
             list.Add(floatingStick);
+            // Remake: how solid the touch controls are drawn (TouchControls.Draw), 30..100 %.
+            var touchOpacity = Slider("touchOpacity", OptionPage.Controls, () => X("touchOpacity", "Touch controls opacity"), 0.3f, 1f,
+                () => Settings.TouchOpacity, v => Settings.TouchOpacity = v, Percent);
+            touchOpacity.description = () => X("touchOpacityHelp", "How solid the stick and buttons on screen are; menus stay opaque.");
+            touchOpacity.visible = floatingStick.visible;
+            list.Add(touchOpacity);
             // Remake VR: the cockpit's grabbable stick (right grip) and throttle lever (left grip), else the controllers as a gamepad.
             var vrGrab = Toggle("vrGrabControls", OptionPage.Controls, () => X("vrGrabControls", "VR flight: grab the stick and throttle"),
                 () => Settings.VrGrabControls, v => Settings.VrGrabControls = v);

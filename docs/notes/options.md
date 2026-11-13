@@ -111,7 +111,9 @@ code: Minimal hides the status bars, the radar ellipse, every marker (ships, lan
 readouts, the hints, the cooldown icons, the hit arcs and, with keys or a controller, the throttle gauge / secondary
 plate / weapon strip; Off also the crosshair, lock ring, action prompt, missile warning, charge bar, mouse reticle /
 stick circle and the arrival's orbit information; always kept: the HUD messages, the radio, conversations, the menus,
-the mining and hacking games, the touch controls (and on touch their secondary plate) and game over; the lens flare is
+the mining and hacking games, the touch controls (and on touch their secondary plate) and game over; in Minimal a new
+lock's plate shows for 4 s and fades (a player's wish, 2026-10-17, for the Informer's / Hijacker's name:
+`FlightHud.LateUpdate`, `.lock-plate--peek`; the hull's percentage changing doesn't show it again); the lens flare is
 its own option), Show FPS (`FpsCounter`, its own panel over every screen; where, Graphics "FPS counter position",
 `Settings.FpsPosition`, shown while Show FPS is on: the four corners and the middles of the four sides, top centre by
 default, clear of the safe area; at the top centre the flight HUD's lock plate and messages move under it, `.hud-fps`,

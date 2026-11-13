@@ -1767,6 +1767,8 @@
  "mpHostPasswordNone": "Bez hasła",
  "mpCmdMore": "jeszcze {0}",
  "touchHeightHelp": "0 % to najwyżej, 100 % najniżej.",
+ "touchOpacity": "Krycie sterowania dotykowego",
+ "touchOpacityHelp": "Jak mocno widoczne są drążek i przyciski na ekranie; menu pozostają nieprzezroczyste.",
  "kaamoStackingHelp": "Ulepszenia Klubu Kaamo można montować ponownie, każdy poziom za dwukrotną cenę, do poziomu {0}.",
  "kaamoKeepsEquipmentHelp": "Statek zaparkowany w Klubie Kaamo zachowuje broń i wyposażenie.",
  "mbEmpty": "Brak projektów. Wpisz nazwę powyżej i naciśnij Utwórz.",

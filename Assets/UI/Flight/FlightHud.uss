@@ -1800,3 +1800,8 @@
 .hud-off .orbit-info {
     visibility: hidden;
 }
+
+/* Minimal: a new lock's plate shows for a few seconds (FlightHud.LateUpdate). After the rule above, which it beats. */
+.hud-minimal .lock-plate--peek {
+    visibility: visible;
+}

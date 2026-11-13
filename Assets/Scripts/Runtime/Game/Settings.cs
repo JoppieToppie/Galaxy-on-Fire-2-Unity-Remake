@@ -324,6 +324,8 @@ namespace GoF2Remake.Data
         /// <summary>Remake (the user's request, 2026-10-27): a touch on the stick's area moves the stick under the thumb (that
         /// spot is the centre, no deflection) and it goes back to its place when let go; off = the original's fixed stick.</summary>
         public static bool FloatingTouchStick { get => GetBool("floatingTouchStick", false); set => SetBool("floatingTouchStick", value); }
+        /// <summary>Remake (a player's wish, 2026-10-17): how solid the touch controls are drawn, 0.3..1 (TouchControls.Draw).</summary>
+        public static float TouchOpacity { get => Mathf.Clamp(Get("touchOpacity", 1f), 0.3f, 1f); set => Set("touchOpacity", Mathf.Clamp(value, 0.3f, 1f)); }
         public static float StickDeadzone { get => Get("stickDeadzone", DefaultDeadzone); set => Set("stickDeadzone", Mathf.Clamp(value, 0.05f, 0.4f)); }
 
         // ---- gameplay ----------------------------------------------------------------------------------------
@@ -883,7 +885,7 @@ namespace GoF2Remake.Data
         {
             "tiltSteering", "tiltSensitivity", "sensitivity", "keyAutofire", "levelPitch", "autoRoll", "boostToggle", "invertPitch", "invertYaw", "invertDrillY",
             "invertDrillX", "invertOrbitY", "invertOrbitX", "cockpitInCycle", "gyroSteering", "gyroSensitivity", "mouseSteering", "mouseDeadzone", "mouseSensitivity", "vrGrabControls", "haptics", "stickDeadzone",
-            "touchLeftHeight", "touchRightHeight", "floatingTouchStick", "flightStyle", "padGlyphs", "nintendoLayout",
+            "touchLeftHeight", "touchRightHeight", "floatingTouchStick", "touchOpacity", "flightStyle", "padGlyphs", "nintendoLayout",
         };
         public static readonly string[] GameplayKeys =
         {

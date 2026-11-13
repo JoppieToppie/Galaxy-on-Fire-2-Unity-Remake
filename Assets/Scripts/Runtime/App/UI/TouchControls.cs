@@ -811,7 +811,10 @@ namespace GoF2Remake.UI
             Show(pause, f.mode != Mode.Off);
             bool pauseHeld = held.Contains(pause);
             SetImage(pause, pauseHeld ? pauseOn : pauseOff);
-            pause.style.opacity = f.cinematic && !pauseHeld ? CinematicPauseAlpha : 1f;
+            // Remake: Options > Controls "Touch controls opacity" on the layer, and on the two parts outside it.
+            float look = Settings.TouchOpacity;
+            layer.style.opacity = look;
+            pause.style.opacity = (f.cinematic && !pauseHeld ? CinematicPauseAlpha : 1f) * look;
 
             // Hud::draw 4: the stick (also under a HUD menu); dim (alpha 50) in tilt, autopilot, approaches, hacking.
             bool stickShown = (full || menuOpen) && !f.cursor;
@@ -868,7 +871,7 @@ namespace GoF2Remake.UI
             if (f.mining) alpha = 47f;
             boost.style.opacity = alpha / 255f;
             SetImage(boost, held.Contains(boost) || lit ? boostOn : boostOff);
-            if (navButtons != null) navButtons.style.opacity = f.dimNav ? 47f / 255f : 1f;
+            if (navButtons != null) navButtons.style.opacity = (f.dimNav ? 47f / 255f : 1f) * look;
 
             // PlayerEgo::drawThrottle: fade in 500 ms, hold, fade out 500 ms over 2 s.
             if (gaugeMs >= 0f)

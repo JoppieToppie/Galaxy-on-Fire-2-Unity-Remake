@@ -930,6 +930,44 @@ namespace GoF2Remake.UI
 
         int hudLook = -1;
 
+        // Remake (a player's wish, 2026-10-17: the Informer's / Hijacker's name): the Minimal HUD shows the lock plate for
+        // PeekSeconds on a new lock (a HUD message's 4000 ms) and fades it out over the last half second; the hull's
+        // percentage changing isn't a new lock (PlateName).
+        const float PeekSeconds = 4f, PeekFadeSeconds = 0.5f;
+        Label lockPlateText;
+        string peekText, peekName;
+        float peekUntil;
+        bool peeking;
+
+        /// <summary>The lock plate's text without a ship's hull percentage at its end ("Terran 85%" -> "Terran").</summary>
+        public static string PlateName(string text)
+        {
+            if (string.IsNullOrEmpty(text) || !text.EndsWith("%")) return text;
+            int cut = text.LastIndexOf(' ');
+            return cut > 0 ? text.Substring(0, cut) : text;
+        }
+
+        // After Update: the views clear and set the shared plate in turn there.
+        void LateUpdate()
+        {
+            if (lockPlate == null) return;
+            if (lockPlateText == null) lockPlateText = lockPlate.Q<Label>("lockOre");
+            bool shown = Settings.HudMode == Settings.HudMinimal && lockPlate.ClassListContains("lock-plate--shown");
+            string text = shown ? lockPlateText?.text : null;
+            if (text != peekText)
+            {
+                peekText = text;
+                string name = PlateName(text);
+                if (name != peekName) { peekName = name; peekUntil = Time.time + PeekSeconds; }
+            }
+            float left = peekUntil - Time.time;
+            bool peek = shown && left > 0f;
+            if (!peek && !peeking) return;
+            peeking = peek;
+            lockPlate.EnableInClassList("lock-plate--peek", peek);   // FlightHud.uss: visible in Minimal
+            lockPlate.style.opacity = Settings.HudOpacityPercent / 100f * (peek ? Mathf.Clamp01(left / PeekFadeSeconds) : 1f);
+        }
+
         /// <summary>The HUD's panels scaled from the corner or edge they hang on (Options > Gameplay "HUD size"; the ship
         /// markers, the radar ellipse and the touch controls keep their sizes: they sit on what they mark, or have their
         /// own options).</summary>

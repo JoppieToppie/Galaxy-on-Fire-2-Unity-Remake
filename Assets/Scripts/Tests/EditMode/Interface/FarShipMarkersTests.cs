@@ -72,5 +72,16 @@ namespace GoF2Remake.Tests
             CollectionAssert.Contains(Settings.GameplayKeys, "farShipMarkers");
             CollectionAssert.Contains(Settings.GameplayKeys, "markerDistance");
         }
+
+        // The Minimal HUD shows the lock plate again for a new name only (FlightHud.LateUpdate), not for a hull percentage.
+        [Test]
+        public void PlateNameDropsTheHullPercentage()
+        {
+            Assert.AreEqual("Terran", FlightHud.PlateName("Terran 85%"));
+            Assert.AreEqual(FlightHud.PlateName("Mido Pirate 100%"), FlightHud.PlateName("Mido Pirate 7%"));
+            Assert.AreEqual("Hijacker", FlightHud.PlateName("Hijacker"), "a name alone");
+            Assert.AreEqual("85%", FlightHud.PlateName("85%"));
+            Assert.IsNull(FlightHud.PlateName(null));
+        }
     }
 }

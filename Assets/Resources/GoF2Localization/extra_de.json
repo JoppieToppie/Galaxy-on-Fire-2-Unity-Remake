@@ -1767,6 +1767,8 @@
  "mpHostPasswordNone": "Kein Passwort",
  "mpCmdMore": "{0} weitere",
  "touchHeightHelp": "0 % ist ganz oben, 100 % ganz unten.",
+ "touchOpacity": "Deckkraft der Touch-Steuerung",
+ "touchOpacityHelp": "Wie deckend Stick und Tasten auf dem Bildschirm sind; Menüs bleiben deckend.",
  "kaamoStackingHelp": "Kaamo-Club-Upgrades lassen sich erneut einbauen, jede Stufe zum doppelten Preis, bis Stufe {0}.",
  "kaamoKeepsEquipmentHelp": "Ein im Kaamo Club geparktes Schiff behält seine Waffen und Ausrüstung.",
  "mbEmpty": "Noch keine Projekte. Gib oben einen Namen ein und drücke Erstellen.",

@@ -1700,6 +1700,8 @@
  "upscalerQualityHelp": "DLSS / FSR 的渲染分辨率：从原生到三分之一。",
  "hangarDofHelp": "机库中你的飞船保持清晰，后方房间变得模糊。",
  "touchHeightHelp": "0 % 为最高位置，100 % 为最低。",
+ "touchOpacity": "触屏控制不透明度",
+ "touchOpacityHelp": "屏幕上摇杆和按钮的不透明程度；菜单保持不透明。",
  "hapticsHelpMobile": "命中、爆炸、加速、跃迁和采矿时手机与手柄震动。",
  "hapticsHelp": "命中、爆炸、射击、加速、跃迁和采矿时手柄震动。",
  "bindingsHelp": "选择一个按键或按钮来更改。Esc 取消。Delete、× 或右键清除。",

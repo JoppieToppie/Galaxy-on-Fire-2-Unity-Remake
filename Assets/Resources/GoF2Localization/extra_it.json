@@ -1767,6 +1767,8 @@
  "mpHostPasswordNone": "Nessuna password",
  "mpCmdMore": "altri {0}",
  "touchHeightHelp": "0 % è la posizione più alta, 100 % la più bassa.",
+ "touchOpacity": "Opacità dei comandi touch",
+ "touchOpacityHelp": "Quanto sono visibili la levetta e i pulsanti sullo schermo; i menu restano opachi.",
  "kaamoStackingHelp": "I potenziamenti del Kaamo Club si possono ripetere, ogni livello al doppio del prezzo, fino al livello {0}.",
  "kaamoKeepsEquipmentHelp": "Una nave parcheggiata al Kaamo Club mantiene armi ed equipaggiamento.",
  "mbEmpty": "Nessun progetto. Scrivi un nome sopra e premi Crea.",

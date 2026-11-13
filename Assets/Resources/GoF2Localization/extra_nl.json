@@ -1767,6 +1767,8 @@
  "mpHostPasswordNone": "Geen wachtwoord",
  "mpCmdMore": "nog {0}",
  "touchHeightHelp": "0 % is de hoogste plek, 100 % de laagste.",
+ "touchOpacity": "Dekking touchbediening",
+ "touchOpacityHelp": "Hoe dekkend de stick en knoppen op het scherm zijn; menu's blijven dekkend.",
  "kaamoStackingHelp": "Kaamo Club-upgrades kunnen opnieuw, elk niveau voor het dubbele, tot niveau {0}.",
  "kaamoKeepsEquipmentHelp": "Een schip in de Kaamo Club houdt zijn wapens en uitrusting.",
  "mbEmpty": "Nog geen projecten. Typ hierboven een naam en druk op Maken.",

@@ -1767,6 +1767,8 @@
  "mpHostPasswordNone": "Sans mot de passe",
  "mpCmdMore": "{0} de plus",
  "touchHeightHelp": "0 % est le plus haut, 100 % le plus bas.",
+ "touchOpacity": "Opacité des commandes tactiles",
+ "touchOpacityHelp": "Opacité du stick et des boutons à l'écran ; les menus restent opaques.",
  "kaamoStackingHelp": "Les améliorations du Kaamo Club se cumulent, chaque niveau au double du prix, jusqu'au niveau {0}.",
  "kaamoKeepsEquipmentHelp": "Un vaisseau garé au Kaamo Club garde ses armes et son équipement.",
  "mbEmpty": "Aucun projet. Saisis un nom ci-dessus et appuie sur Créer.",
