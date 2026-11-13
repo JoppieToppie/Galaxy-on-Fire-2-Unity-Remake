@@ -73,6 +73,7 @@ namespace GoF2Remake
             Visuals.PreTransformGuard.Install();  // Android Vulkan: the scene never drawn straight to the pre-rotated back buffer
             HitchLogger.Install();                // development builds: frame hitches to hitches.log
             UI.ScreenshotKey.Install();           // F12: a screenshot to the pictures library
+            UI.IssueReport.Install();               // keeps the last log lines for an issue report (the pause menu's)
             UI.DiscordPresence.Install();         // desktop: Discord Rich Presence
             Flight.Haptics.Install();             // controller rumble and phone vibration
             UI.FpsCounter.Install();              // the frame rate option (Settings.ShowFps)

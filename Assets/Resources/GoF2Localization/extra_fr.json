@@ -3389,5 +3389,21 @@
  "medalSoundOriginal": "Original",
  "medalSoundHelp": "Quand tu obtiens une médaille. Carillon : le son propre au remake. Original : le son d'information du jeu original.",
  "nintendoLayout": "Disposition des boutons Nintendo",
- "nintendoLayoutHelp": "Sur une manette Nintendo, A (à droite) valide et B (en bas) revient, comme sur Switch. Désactivé : selon la position, comme sur les manettes Xbox et PlayStation."
+ "nintendoLayoutHelp": "Sur une manette Nintendo, A (à droite) valide et B (en bas) revient, comme sur Switch. Désactivé : selon la position, comme sur les manettes Xbox et PlayStation.",
+ "issueTitle": "Signaler un problème",
+ "issueIntro": "Décrivez ce qui s'est mal passé et ce que vous faisiez à ce moment-là. Le rapport est envoyé aux développeurs avec cette capture d'écran, le journal du jeu, les informations sur votre système, vos options et vos mods.",
+ "issuePlaceholder": "Que s'est-il passé ?",
+ "issueIncludeSave": "Inclure la partie en cours : {0}",
+ "issueSend": "Envoyer le rapport",
+ "issueSave": "Enregistrer le rapport",
+ "issueNeedText": "Décrivez d'abord le problème.",
+ "issueSending": "Envoi du rapport... {0} %",
+ "issueSent": "Rapport envoyé. Merci !",
+ "issueSavedAs": "Une copie a été enregistrée sous :",
+ "issueNotSent": "Le rapport n'a pas pu être envoyé.",
+ "issueSavedOnly": "Le rapport a été enregistré sous :",
+ "issueAttachHint": "Vous pouvez joindre ce fichier à une nouvelle issue sur GitHub.",
+ "issueOpenGitHub": "Ouvrir GitHub",
+ "issueShowFile": "Afficher le fichier",
+ "issueSaveFailed": "Le rapport n'a pas pu être enregistré."
 }

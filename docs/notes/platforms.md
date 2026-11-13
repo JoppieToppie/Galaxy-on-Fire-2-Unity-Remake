@@ -224,6 +224,30 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   Vulkan pipeline cache deleted, 2026-09-28): 28 variants / ~360 ms at startup before the menu shows, then only at scene
   loads (GoF2/Unlit 49 ms at the first station, SpaceDust 26 ms), nothing during play (the menu backdrop's live orbit
   already uses the flight shaders), no frame over 50 ms: no shader warm-up (`GraphicsStateCollection`) needed so far.
+- **Issue reports** (remake, 2026-11-13, the user's request: an in-game report "with screenshot / logs / mods" like Unity's
+  own; `IssueReport`, `IssueReportUpload`, `PauseMenuReport`, GoF2.App): the pause menu's last entry "Report an issue"
+  hides the menu for a frame, takes the screen (`ScreenshotKey.Grab`) and shows a form: the picture, a text box (an entry
+  of the menu: Enter / A / a click starts typing, Esc ends it, a controller without a system keyboard gets `PadKeyboard`;
+  the menu's and the game's keys rest meanwhile, `GameControls.TextEntryOpen` + `NetChat.SetTyping`), "Include current
+  game" and Send report (an empty description is refused). `IssueReport.Collect` builds the files: `report.txt` (the
+  description, build, system without device name or id, scene / campaign step / rules / orbit / ship position, every
+  mod with version, hash, errors and warnings), `screenshot.jpg`, `log.txt` (the last 400 log lines of the run, kept in
+  memory from `Bootstrap` on since a phone has no Player.log; errors with their stack), the ends of `Player.log` /
+  `Player-prev.log` in a build (512 / 256 KB), `settings.txt` (every `OptionsCatalog` option by id) and `save.json`
+  (`SaveGame.SnapshotJson`: the running game, loadable as a `slot_NN.json`). The home folder is cut from every text
+  (`Scrub`: "~"). `WriteZip` keeps them as `<data>/IssueReports/GoF2_issue_<time>.zip` (the newest 20).
+  **Upload**: Unity's User Reporting (`com.unity.services.user-reporting` 2.0.15, the project's Unity Cloud id, already
+  linked for Relay / Lobby): Unity Services start on the first report (`NetGame.StartServices`, no sign-in), a fresh
+  client per report with its per-frame metrics off, the files as attachments (3 MB each, 8 MB together), the picture as
+  the report's screenshot (through a render texture: the package only reads the screen, a camera or a render texture),
+  the title (the description's first line) as summary, version / platform / language as dimensions. Reports are read in
+  the Unity Dashboard (the project > Cloud Diagnostics > User Reporting). The code is behind `GOF2_USER_REPORTING`, a
+  version define of `GoF2.App.asmdef`: without the package the game compiles and only saves the zip. Not sent (offline,
+  the upload failed): the result page names the zip, Show file opens its folder and, on desktop, Open GitHub opens a
+  filled-in issue to attach it to (`IssueReport.IssueUrl`, the address kept under 7000 characters). Checked in Play
+  mode 2026-11-13: a report from the Space scene arrived (the service answered with the stored report), its zip held
+  every file; the keys were checked through the form's own handlers (simulated keys don't reach an unfocused
+  Editor). Not yet: the station menu and the main menu have no entry, nothing run on a phone.
 - **FMOD event IDs -> .ogg**: `Reference/research/fmod_event_ids.txt` (every system id, from the FEV's LGCY data; see
   "Known open items"). Menu theme = 145 `Space_NoCombat_Void`, new game = 143 `IntroAtmo`, buttons 124/123, dialog 126.
 - **Build times** (`ShaderVariantRules`, `ShaderVariantStripper`, 2026-10-31): a full Linux build took 940 s (Clean Build,

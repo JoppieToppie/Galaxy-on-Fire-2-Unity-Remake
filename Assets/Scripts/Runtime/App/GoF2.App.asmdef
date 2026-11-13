@@ -15,7 +15,8 @@
         "Unity.XR.Management",
         "Unity.XR.CoreUtils",
         "Unity.XR.OpenXR",
-        "Unity.Netcode.Runtime"
+        "Unity.Netcode.Runtime",
+        "Unity.Services.UserReporting"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -24,6 +25,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.services.user-reporting",
+            "expression": "2.0.0",
+            "define": "GOF2_USER_REPORTING"
+        }
+    ],
     "noEngineReferences": false
 }

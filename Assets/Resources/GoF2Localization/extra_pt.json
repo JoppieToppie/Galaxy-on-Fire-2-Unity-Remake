@@ -3389,5 +3389,21 @@
  "medalSoundOriginal": "Original",
  "medalSoundHelp": "Quando você conquista uma medalha. Sininho: o som próprio do remake. Original: o som de informação do jogo original.",
  "nintendoLayout": "Layout de botões da Nintendo",
- "nintendoLayoutHelp": "Em um controle Nintendo, A (direita) confirma e B (embaixo) volta, como no Switch. Desligado: pela posição, como nos controles de Xbox e PlayStation."
+ "nintendoLayoutHelp": "Em um controle Nintendo, A (direita) confirma e B (embaixo) volta, como no Switch. Desligado: pela posição, como nos controles de Xbox e PlayStation.",
+ "issueTitle": "Reportar um problema",
+ "issueIntro": "Descreve o que correu mal e o que estavas a fazer quando aconteceu. O relatório é enviado aos programadores com esta captura de ecrã, o registo do jogo, os dados do teu sistema, as tuas opções e os teus mods.",
+ "issuePlaceholder": "O que aconteceu?",
+ "issueIncludeSave": "Incluir o jogo atual: {0}",
+ "issueSend": "Enviar relatório",
+ "issueSave": "Guardar relatório",
+ "issueNeedText": "Descreve primeiro o problema.",
+ "issueSending": "A enviar o relatório... {0} %",
+ "issueSent": "Relatório enviado. Obrigado!",
+ "issueSavedAs": "Foi guardada uma cópia como:",
+ "issueNotSent": "Não foi possível enviar o relatório.",
+ "issueSavedOnly": "O relatório foi guardado como:",
+ "issueAttachHint": "Podes anexar este ficheiro a uma nova issue no GitHub.",
+ "issueOpenGitHub": "Abrir o GitHub",
+ "issueShowFile": "Mostrar ficheiro",
+ "issueSaveFailed": "Não foi possível guardar o relatório."
 }

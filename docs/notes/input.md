@@ -132,6 +132,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   40 Pause; Resume 41, Missions 129 (remake: also in the alien orbit, where the original hides it, and with the Most
   Wanted criminals on the move), Cargo hold 166, Options 31 (every option, the text language too: the Language tab's
   row, `OptionDef.inGameOnly`, see **Options**), Skip 395 during the prologue / rescue, Back to Main Menu 522 → 523):
+  remake: last, "Report an issue" (the form and what it sends: "Issue reports" in platforms.md);
   game time and sounds pause (`Navigation.PauseMenuOpen`, `AudioListener.pause`); after the player's death Esc goes
   straight to the main menu; remake: a click / tap beside the menu resumes (on the release, a press begun there; not on
   a question, nor when it only closed an Options drop-down or "?" window). **Action Freeze** (59, `PhotoMode`, the pause

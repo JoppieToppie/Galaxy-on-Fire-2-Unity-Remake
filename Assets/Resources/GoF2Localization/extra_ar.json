@@ -3389,5 +3389,21 @@
  "medalSoundOriginal": "الأصلي",
  "medalSoundHelp": "عند الحصول على وسام. رنين: صوت النسخة الجديدة الخاص. الأصلي: صوت المعلومات في اللعبة الأصلية.",
  "nintendoLayout": "تخطيط أزرار Nintendo",
- "nintendoLayoutHelp": "في ذراع Nintendo يؤكد A (اليمين) ويعود B (الأسفل)، كما في Switch. عند الإيقاف: حسب الموضع، كما في أذرع Xbox وPlayStation."
+ "nintendoLayoutHelp": "في ذراع Nintendo يؤكد A (اليمين) ويعود B (الأسفل)، كما في Switch. عند الإيقاف: حسب الموضع، كما في أذرع Xbox وPlayStation.",
+ "issueTitle": "الإبلاغ عن مشكلة",
+ "issueIntro": "صف ما الخطأ الذي حدث وما الذي كنت تفعله حينها. يُرسل التقرير إلى المطورين مع لقطة الشاشة هذه وسجل اللعبة وبيانات نظامك وإعداداتك وتعديلاتك.",
+ "issuePlaceholder": "ماذا حدث؟",
+ "issueIncludeSave": "تضمين اللعبة الحالية: {0}",
+ "issueSend": "إرسال التقرير",
+ "issueSave": "حفظ التقرير",
+ "issueNeedText": "صف المشكلة أولاً.",
+ "issueSending": "جارٍ إرسال التقرير... {0} %",
+ "issueSent": "تم إرسال التقرير. شكراً لك!",
+ "issueSavedAs": "تم حفظ نسخة باسم:",
+ "issueNotSent": "تعذّر إرسال التقرير.",
+ "issueSavedOnly": "تم حفظ التقرير باسم:",
+ "issueAttachHint": "يمكنك إرفاق هذا الملف ببلاغ جديد على GitHub.",
+ "issueOpenGitHub": "فتح GitHub",
+ "issueShowFile": "إظهار الملف",
+ "issueSaveFailed": "تعذّر حفظ التقرير."
 }

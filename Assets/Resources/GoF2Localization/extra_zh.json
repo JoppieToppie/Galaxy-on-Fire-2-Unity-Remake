@@ -3389,5 +3389,21 @@
  "medalSoundOriginal": "原版",
  "medalSoundHelp": "获得勋章时播放。钟声：重制版自己的音效。原版：原版游戏的提示音。",
  "nintendoLayout": "Nintendo 按键布局",
- "nintendoLayoutHelp": "使用 Nintendo 手柄时，与 Switch 一样由 A（右）确认、B（下）返回。关闭：按位置分配，与 Xbox 和 PlayStation 手柄相同。"
+ "nintendoLayoutHelp": "使用 Nintendo 手柄时，与 Switch 一样由 A（右）确认、B（下）返回。关闭：按位置分配，与 Xbox 和 PlayStation 手柄相同。",
+ "issueTitle": "报告问题",
+ "issueIntro": "请描述出了什么问题，以及当时你在做什么。报告会连同这张截图、游戏日志、系统信息、设置和模组一起发送给开发者。",
+ "issuePlaceholder": "发生了什么？",
+ "issueIncludeSave": "包含当前游戏：{0}",
+ "issueSend": "发送报告",
+ "issueSave": "保存报告",
+ "issueNeedText": "请先描述问题。",
+ "issueSending": "正在发送报告... {0} %",
+ "issueSent": "报告已发送，谢谢！",
+ "issueSavedAs": "副本已保存为：",
+ "issueNotSent": "无法发送报告。",
+ "issueSavedOnly": "报告已保存为：",
+ "issueAttachHint": "你可以把这个文件附加到 GitHub 上的新 issue。",
+ "issueOpenGitHub": "打开 GitHub",
+ "issueShowFile": "显示文件",
+ "issueSaveFailed": "无法保存报告。"
 }

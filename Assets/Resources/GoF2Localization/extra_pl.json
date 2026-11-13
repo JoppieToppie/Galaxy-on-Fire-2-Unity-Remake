@@ -3389,5 +3389,21 @@
  "medalSoundOriginal": "Oryginalny",
  "medalSoundHelp": "Gdy zdobędziesz medal. Dzwonek: własny dźwięk remake'u. Oryginalny: dźwięk informacji z oryginalnej gry.",
  "nintendoLayout": "Układ przycisków Nintendo",
- "nintendoLayoutHelp": "Na kontrolerze Nintendo A (po prawej) zatwierdza, a B (na dole) cofa, jak na Switchu. Wył.: według położenia, jak na kontrolerach Xbox i PlayStation."
+ "nintendoLayoutHelp": "Na kontrolerze Nintendo A (po prawej) zatwierdza, a B (na dole) cofa, jak na Switchu. Wył.: według położenia, jak na kontrolerach Xbox i PlayStation.",
+ "issueTitle": "Zgłoś problem",
+ "issueIntro": "Opisz, co poszło nie tak i co wtedy robiłeś. Raport trafia do twórców razem z tym zrzutem ekranu, dziennikiem gry, danymi o systemie, ustawieniami i modami.",
+ "issuePlaceholder": "Co się stało?",
+ "issueIncludeSave": "Dołącz bieżącą grę: {0}",
+ "issueSend": "Wyślij raport",
+ "issueSave": "Zapisz raport",
+ "issueNeedText": "Najpierw opisz problem.",
+ "issueSending": "Wysyłanie raportu... {0} %",
+ "issueSent": "Raport wysłany. Dziękujemy!",
+ "issueSavedAs": "Kopię zapisano jako:",
+ "issueNotSent": "Nie udało się wysłać raportu.",
+ "issueSavedOnly": "Raport zapisano jako:",
+ "issueAttachHint": "Możesz dołączyć ten plik do nowego zgłoszenia na GitHubie.",
+ "issueOpenGitHub": "Otwórz GitHub",
+ "issueShowFile": "Pokaż plik",
+ "issueSaveFailed": "Nie udało się zapisać raportu."
 }

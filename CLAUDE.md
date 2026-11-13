@@ -36,7 +36,7 @@ This file holds only what every task needs. Everything about one area of the gam
 | [speedrun.md](docs/notes/speedrun.md) | The speedrun timer, splits, routes, the runs folder (.lss), comparisons, the LiveSplit link |
 | [saves.md](docs/notes/saves.md) | Difficulty, save slots, original-game saves, deleting, export / import, save folder, Hardcore, New Game+ |
 | [options.md](docs/notes/options.md) | Text tables and languages, the story step label, every option, bloom, frame rate, graphics presets, texture quality, upscalers |
-| [platforms.md](docs/notes/platforms.md) | Discord, app icon, Android, iOS, UWP, Vulkan pre-transform, version, update check, hitch logger |
+| [platforms.md](docs/notes/platforms.md) | Discord, app icon, Android, iOS, UWP, Vulkan pre-transform, version, update check, hitch logger, issue reports |
 | [debug-tools.md](docs/notes/debug-tools.md) | The Debug panel and in-game Debug pages: missions, cheats, give items, spawn, presets, ships |
 | [multiplayer.md](docs/notes/multiplayer.md) | Session model, menu, Relay / Lobby, version check, players, PvP, leaving, rules, testing |
 | [multiplayer-sync.md](docs/notes/multiplayer-sync.md) | Orbit authority, NPCs and players, proxies, shots, crates, mining, hangars, shared stock |
@@ -75,6 +75,15 @@ This file holds only what every task needs. Everything about one area of the gam
   doesn't stop its server before a code reload, and the old listener's http.sys registration outlives the reload, so each
   recompile used to keep one port of that range until the Editor quit; `PipelineReloadGuard` (Editor) stops it first. `com.unity.ai.assistant` was removed (its AI Generators logged
   "NoSubscription" errors), so there is no Unity MCP server.
+- **Editor hang after a code reload** (a16, 2026-11-13: "Hold on... Application.UpdateScene, Waiting for Unity's code to
+  finish executing", for good): a `PanelRenderer` re-adding its root after the reload hits an assertion in the middle of
+  `VisualElement.Hierarchy.Insert` (the root's layout node still has its old parent), which leaves the root in a child
+  list without a parent, and UI Toolkit's style pass (`HierarchyTraversal.Recurse`) never steps past such a child.
+  `UiPanelHangGuard` (Editor) takes the half-inserted element out again when an exception is logged and rebuilds that
+  renderer's root; it logs a warning when it did. Not seen again since (12 reloads), so the guard has only run on a
+  made-up half-insert (`IssueReportTests`). A hung Editor's managed stacks: `dotnet-stack report -p <pid>`.
+- `com.unity.services.user-reporting` 2.0.15 (Unity's User Reporting: the pause menu's "Report an issue", see
+  "Issue reports" in docs/notes/platforms.md); `GoF2.App.asmdef` sets `GOF2_USER_REPORTING` while it is installed.
 - Driving the Editor: if the `unity` CLI is available, use it to read the Console, run menu items, enter Play mode and inspect the scene. Check with `unity status` first. When an Editor is connected, don't hand-edit `.unity` / `.prefab` / `.asset` YAML.
 
 ## Layout

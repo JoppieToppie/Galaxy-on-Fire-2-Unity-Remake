@@ -3389,5 +3389,21 @@
  "medalSoundOriginal": "Original",
  "medalSoundHelp": "Wenn du eine Medaille erringst. Glockenspiel: der eigene Klang des Remakes. Original: der Info-Klang des Originalspiels.",
  "nintendoLayout": "Nintendo-Tastenbelegung",
- "nintendoLayoutHelp": "Auf einem Nintendo-Controller bestätigt A (rechts) und B (unten) geht zurück, wie auf der Switch. Aus: nach Position, wie bei Xbox- und PlayStation-Controllern."
+ "nintendoLayoutHelp": "Auf einem Nintendo-Controller bestätigt A (rechts) und B (unten) geht zurück, wie auf der Switch. Aus: nach Position, wie bei Xbox- und PlayStation-Controllern.",
+ "issueTitle": "Problem melden",
+ "issueIntro": "Beschreibe, was schiefging und was du dabei getan hast. Der Bericht geht an die Entwickler, mit diesem Screenshot, dem Spielprotokoll, den Angaben zu deinem System, deinen Einstellungen und deinen Mods.",
+ "issuePlaceholder": "Was ist passiert?",
+ "issueIncludeSave": "Aktuellen Spielstand mitsenden: {0}",
+ "issueSend": "Bericht senden",
+ "issueSave": "Bericht speichern",
+ "issueNeedText": "Beschreibe zuerst das Problem.",
+ "issueSending": "Bericht wird gesendet... {0} %",
+ "issueSent": "Bericht gesendet. Danke!",
+ "issueSavedAs": "Eine Kopie wurde gespeichert als:",
+ "issueNotSent": "Der Bericht konnte nicht gesendet werden.",
+ "issueSavedOnly": "Der Bericht wurde gespeichert als:",
+ "issueAttachHint": "Du kannst diese Datei an ein neues Issue auf GitHub anhängen.",
+ "issueOpenGitHub": "GitHub öffnen",
+ "issueShowFile": "Datei anzeigen",
+ "issueSaveFailed": "Der Bericht konnte nicht gespeichert werden."
 }

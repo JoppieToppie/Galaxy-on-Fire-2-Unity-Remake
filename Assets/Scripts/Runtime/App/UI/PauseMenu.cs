@@ -7,6 +7,7 @@
 // code in the original (the remake's 60 saves the picture).
 // Plain class driven by FlightHud: Esc / controller Menu / the touch Menu button open it; Esc / B step back; a click / tap
 // beside the menu resumes (remake; not on a question, which wants its answer).
+// Remake: "Report an issue" (PauseMenuReport.cs: the form, sending, the result).
 
 using System;
 using System.Collections.Generic;
@@ -20,11 +21,11 @@ using PointerType = UnityEngine.UIElements.PointerType;
 
 namespace GoF2Remake.UI
 {
-    public class PauseMenu
+    public partial class PauseMenu
     {
-        enum Page { Main, Missions, Cargo, Jettison, Options, Quit, Photo, Choice, Debug }
+        enum Page { Main, Missions, Cargo, Jettison, Options, Quit, Photo, Choice, Debug, Report, ReportBusy, ReportDone }
 
-        readonly VisualElement backdrop, panel;
+        readonly VisualElement root, backdrop, panel;
         VisualElement body, pagePrompts;
         readonly Label title;
         /// <summary>The panel shape's amber line under the title (docs/UI-DESIGN.md "Shapes"): only on the Debug page, a
@@ -65,6 +66,7 @@ namespace GoF2Remake.UI
         public PauseMenu(VisualElement root, Action backToMenu)
         {
             this.backToMenu = backToMenu;
+            this.root = root;
             backdrop = new VisualElement();
             backdrop.AddToClassList("pause-backdrop");
             panel = new VisualElement();
@@ -103,7 +105,7 @@ namespace GoF2Remake.UI
             backdrop.RegisterCallback<PointerDownEvent>(e => outsidePress = outsideArmed && e.target == backdrop);
             backdrop.RegisterCallback<PointerUpEvent>(e =>
             {
-                bool resume = outsidePress && e.target == backdrop && IsOpen && page != Page.Choice && page != Page.Photo;
+                bool resume = outsidePress && e.target == backdrop && IsOpen && page != Page.Choice && page != Page.Photo && page != Page.ReportBusy;
                 outsidePress = false;
                 if (resume) Close();
             });
@@ -416,6 +418,7 @@ namespace GoF2Remake.UI
         {
             if (!IsOpen) return;
             if (Photo != null && Photo.Active) Photo.Exit();
+            LeaveReport();
             IsOpen = false;
             inspectOnly = false;
             sorting = null;
@@ -433,6 +436,8 @@ namespace GoF2Remake.UI
 
         void Show(Page p)
         {
+            if (p != Page.Report && p != Page.ReportBusy && p != Page.ReportDone) LeaveReport();
+            else StopReportTyping();   // the form's field goes with the page
             page = p;
             panel.RemoveFromClassList("pause-panel--wide");   // the Debug page's
             accent.style.display = DisplayStyle.None;
@@ -473,6 +478,9 @@ namespace GoF2Remake.UI
                     else if (Modding.ModBuilder.PlayTesting)   // a play test: back to the builder's hangar
                         Item(Localization.Extra("mbBackToBuilder", "Back to Mod Builder").UiCaps(), () => { Close(); ModBuilderPlay.End(); });
                     else Item(T(522), () => Show(Page.Quit));
+                    // Remake: an issue report with a screenshot, the log, the mods and the game (PauseMenuReport); last, under
+                    // the original's entries.
+                    Item(Localization.Extra("issueTitle", "Report an issue").UiCaps(), BeginReport);
                     // Interface style Original: the entries numbered "1.", "2.", ... like the original's menu windows.
                     if (Settings.OriginalUi)
                         for (int i = 0; i < items.Count; i++)
@@ -566,6 +574,20 @@ namespace GoF2Remake.UI
                 case Page.Options:
                     BuildOptions();
                     return;
+                case Page.Report:
+                    title.text = Localization.Extra("issueTitle", "Report an issue").UiCaps();
+                    BuildReport();
+                    BackItem(() => Show(Page.Main));
+                    break;
+                case Page.ReportBusy:
+                    title.text = Localization.Extra("issueTitle", "Report an issue").UiCaps();
+                    BuildReportBusy();
+                    break;
+                case Page.ReportDone:
+                    title.text = Localization.Extra("issueTitle", "Report an issue").UiCaps();
+                    BuildReportDone();
+                    BackItem(() => Show(Page.Main));
+                    break;
                 case Page.Debug:
                     title.text = Localization.Extra("debugTitle", "Debug").UiCaps();
                     accent.style.display = DisplayStyle.Flex;
@@ -577,7 +599,7 @@ namespace GoF2Remake.UI
             // Rework (docs/UI-DESIGN.md "Button prompts"): the page's keys under it, outside its scrolling body, in the divided
             // row the Options page has (the Debug page's with its tabs and left / right; a question's answers carry their own
             // A / B).
-            if (p != Page.Choice && p != Page.Quit)
+            if (p != Page.Choice && p != Page.Quit && p != Page.ReportBusy)
             {
                 pagePrompts = p == Page.Debug ? MenuKeys.DebugPrompts() : MenuKeys.Bar(MenuKeys.Rows.Select | MenuKeys.Rows.Confirm | MenuKeys.Rows.Back);
                 pagePrompts.AddToClassList("prompt-bar--row");
@@ -1085,6 +1107,7 @@ namespace GoF2Remake.UI
         {
             if (!IsOpen || Time.frameCount - openedFrame < 1) return;   // the key that opened it
             if (Flight.GameControls.BlocksMenus) return;   // a key binding is being captured (Options)
+            if (reportCapturing || page == Page.ReportBusy) return;   // the report's screenshot / upload: nothing to press
             if (page == Page.Photo)
             {
                 // Back leaves state 0xd for the pause page; the game stays paused.

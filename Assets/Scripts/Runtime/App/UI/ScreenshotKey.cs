@@ -29,6 +29,23 @@ namespace GoF2Remake.UI
             if (!capturing && GoF2Remake.Flight.GameControls.Screenshot.WasPressedThisFrame()) StartCoroutine(Capture());   // rebindable (F12)
         }
 
+        /// <summary>The screen at the end of this frame as a texture for 'done' (the caller's to destroy; null when it
+        /// couldn't be taken): an issue report's picture, taken with the pause menu hidden for that frame (PauseMenuReport).</summary>
+        public static void Grab(Action<Texture2D> done)
+        {
+            if (instance == null) { done?.Invoke(null); return; }
+            instance.StartCoroutine(instance.GrabAtEndOfFrame(done));
+        }
+
+        IEnumerator GrabAtEndOfFrame(Action<Texture2D> done)
+        {
+            yield return new WaitForEndOfFrame();
+            Texture2D shot = null;
+            try { shot = ScreenCapture.CaptureScreenshotAsTexture(); }
+            catch (Exception e) { Debug.LogWarning("ScreenshotKey: " + e.Message); }
+            done?.Invoke(shot);
+        }
+
         IEnumerator Capture()
         {
             capturing = true;

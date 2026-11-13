@@ -3389,5 +3389,21 @@
  "medalSoundOriginal": "Origineel",
  "medalSoundHelp": "Als je een medaille behaalt. Klokkenspel: het eigen geluid van de remake. Origineel: het infogeluid van het originele spel.",
  "nintendoLayout": "Nintendo-knopindeling",
- "nintendoLayoutHelp": "Op een Nintendo-controller bevestigt A (rechts) en gaat B (onder) terug, zoals op een Switch. Uit: op positie, zoals op Xbox- en PlayStation-controllers."
+ "nintendoLayoutHelp": "Op een Nintendo-controller bevestigt A (rechts) en gaat B (onder) terug, zoals op een Switch. Uit: op positie, zoals op Xbox- en PlayStation-controllers.",
+ "issueTitle": "Probleem melden",
+ "issueIntro": "Beschrijf wat er misging en wat je op dat moment deed. Het rapport gaat naar de ontwikkelaars, met deze schermafbeelding, het logboek van het spel, de gegevens van je systeem, je instellingen en je mods.",
+ "issuePlaceholder": "Wat gebeurde er?",
+ "issueIncludeSave": "Huidig spel meesturen: {0}",
+ "issueSend": "Rapport versturen",
+ "issueSave": "Rapport opslaan",
+ "issueNeedText": "Beschrijf eerst het probleem.",
+ "issueSending": "Rapport wordt verstuurd... {0} %",
+ "issueSent": "Rapport verstuurd. Bedankt!",
+ "issueSavedAs": "Een kopie is opgeslagen als:",
+ "issueNotSent": "Het rapport kon niet worden verstuurd.",
+ "issueSavedOnly": "Het rapport is opgeslagen als:",
+ "issueAttachHint": "Je kunt dit bestand toevoegen aan een nieuw issue op GitHub.",
+ "issueOpenGitHub": "GitHub openen",
+ "issueShowFile": "Bestand tonen",
+ "issueSaveFailed": "Het rapport kon niet worden opgeslagen."
 }

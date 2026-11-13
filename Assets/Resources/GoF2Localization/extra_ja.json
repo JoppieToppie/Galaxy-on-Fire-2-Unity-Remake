@@ -3389,5 +3389,21 @@
  "medalSoundOriginal": "オリジナル",
  "medalSoundHelp": "メダル獲得時の音。チャイム：リメイク独自の音。オリジナル：オリジナル版の情報音。",
  "nintendoLayout": "Nintendoのボタン配置",
- "nintendoLayoutHelp": "Nintendoのコントローラーでは、Switchと同じくA（右）で決定、B（下）で戻ります。オフ：XboxやPlayStationのコントローラーと同じく位置で割り当て。"
+ "nintendoLayoutHelp": "Nintendoのコントローラーでは、Switchと同じくA（右）で決定、B（下）で戻ります。オフ：XboxやPlayStationのコントローラーと同じく位置で割り当て。",
+ "issueTitle": "問題を報告",
+ "issueIntro": "何がうまくいかなかったか、そのとき何をしていたかを書いてください。レポートは、このスクリーンショット、ゲームのログ、システム情報、設定、MODと一緒に開発者へ送信されます。",
+ "issuePlaceholder": "何が起きましたか？",
+ "issueIncludeSave": "現在のゲームを含める：{0}",
+ "issueSend": "レポートを送信",
+ "issueSave": "レポートを保存",
+ "issueNeedText": "先に問題の内容を書いてください。",
+ "issueSending": "レポートを送信中... {0} %",
+ "issueSent": "レポートを送信しました。ありがとうございます！",
+ "issueSavedAs": "コピーの保存先：",
+ "issueNotSent": "レポートを送信できませんでした。",
+ "issueSavedOnly": "レポートの保存先：",
+ "issueAttachHint": "このファイルはGitHubの新しいIssueに添付できます。",
+ "issueOpenGitHub": "GitHubを開く",
+ "issueShowFile": "ファイルを表示",
+ "issueSaveFailed": "レポートを保存できませんでした。"
 }

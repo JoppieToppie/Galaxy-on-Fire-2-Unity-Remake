@@ -3389,5 +3389,21 @@
  "medalSoundOriginal": "मूल",
  "medalSoundHelp": "जब आपको मेडल मिलता है। घंटी: रीमेक की अपनी आवाज़। मूल: मूल गेम की सूचना वाली आवाज़।",
  "nintendoLayout": "Nintendo बटन लेआउट",
- "nintendoLayoutHelp": "Nintendo कंट्रोलर पर A (दाएँ) पुष्टि करता है और B (नीचे) वापस जाता है, जैसे Switch पर। बंद: स्थिति के अनुसार, जैसे Xbox और PlayStation कंट्रोलर पर।"
+ "nintendoLayoutHelp": "Nintendo कंट्रोलर पर A (दाएँ) पुष्टि करता है और B (नीचे) वापस जाता है, जैसे Switch पर। बंद: स्थिति के अनुसार, जैसे Xbox और PlayStation कंट्रोलर पर।",
+ "issueTitle": "समस्या की रिपोर्ट करें",
+ "issueIntro": "बताएँ कि क्या गलत हुआ और उस समय आप क्या कर रहे थे। रिपोर्ट इस स्क्रीनशॉट, गेम के लॉग, आपके सिस्टम की जानकारी, आपकी सेटिंग्स और आपके मॉड के साथ डेवलपर्स को भेजी जाती है।",
+ "issuePlaceholder": "क्या हुआ?",
+ "issueIncludeSave": "मौजूदा गेम शामिल करें: {0}",
+ "issueSend": "रिपोर्ट भेजें",
+ "issueSave": "रिपोर्ट सहेजें",
+ "issueNeedText": "पहले समस्या बताएँ।",
+ "issueSending": "रिपोर्ट भेजी जा रही है... {0} %",
+ "issueSent": "रिपोर्ट भेज दी गई। धन्यवाद!",
+ "issueSavedAs": "एक प्रति यहाँ सहेजी गई:",
+ "issueNotSent": "रिपोर्ट भेजी नहीं जा सकी।",
+ "issueSavedOnly": "रिपोर्ट यहाँ सहेजी गई:",
+ "issueAttachHint": "आप इस फ़ाइल को GitHub पर नए issue में जोड़ सकते हैं।",
+ "issueOpenGitHub": "GitHub खोलें",
+ "issueShowFile": "फ़ाइल दिखाएँ",
+ "issueSaveFailed": "रिपोर्ट सहेजी नहीं जा सकी।"
 }

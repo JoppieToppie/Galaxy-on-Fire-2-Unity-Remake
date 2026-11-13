@@ -3389,5 +3389,21 @@
  "medalSoundOriginal": "원작",
  "medalSoundHelp": "메달을 획득했을 때. 차임: 리메이크 고유의 소리. 원작: 원작 게임의 정보 효과음.",
  "nintendoLayout": "Nintendo 버튼 배치",
- "nintendoLayoutHelp": "Nintendo 컨트롤러에서 Switch처럼 A(오른쪽)로 확인하고 B(아래)로 돌아갑니다. 끄기: Xbox와 PlayStation 컨트롤러처럼 위치 기준."
+ "nintendoLayoutHelp": "Nintendo 컨트롤러에서 Switch처럼 A(오른쪽)로 확인하고 B(아래)로 돌아갑니다. 끄기: Xbox와 PlayStation 컨트롤러처럼 위치 기준.",
+ "issueTitle": "문제 신고",
+ "issueIntro": "무엇이 잘못되었는지, 그때 무엇을 하고 있었는지 적어 주세요. 보고서는 이 스크린샷, 게임 로그, 시스템 정보, 설정, 모드와 함께 개발자에게 전송됩니다.",
+ "issuePlaceholder": "무슨 일이 있었나요?",
+ "issueIncludeSave": "현재 게임 포함: {0}",
+ "issueSend": "보고서 보내기",
+ "issueSave": "보고서 저장",
+ "issueNeedText": "먼저 문제를 설명해 주세요.",
+ "issueSending": "보고서 전송 중... {0} %",
+ "issueSent": "보고서를 보냈습니다. 감사합니다!",
+ "issueSavedAs": "사본 저장 위치:",
+ "issueNotSent": "보고서를 보내지 못했습니다.",
+ "issueSavedOnly": "보고서 저장 위치:",
+ "issueAttachHint": "이 파일을 GitHub의 새 이슈에 첨부할 수 있습니다.",
+ "issueOpenGitHub": "GitHub 열기",
+ "issueShowFile": "파일 보기",
+ "issueSaveFailed": "보고서를 저장하지 못했습니다."
 }

@@ -354,6 +354,15 @@ namespace GoF2Remake.Data
             s.pendingProducts?.RemoveAll(pp => pp == null || !Known(pp.item) && Warn(pp.item, pp.quantity, "production queue"));
         }
 
+        /// <summary>Remake (UI.IssueReport): the running game as a save file's text, written nowhere: an issue report carries it,
+        /// so the reported game can be loaded (as a slot_NN.json in the Saves folder).</summary>
+        public static string SnapshotJson()
+        {
+            var s = Capture();
+            Modding.ModSaves.Record(s, Database.Shared);
+            return JsonUtility.ToJson(s, true);
+        }
+
         /// <summary>Multiplayer (NetProfileClient): the game as a server profile: a save without the shop memory (the session's
         /// stock is the host's, NetStock; the bar visitors come again), compact.</summary>
         public static string ProfileJson()

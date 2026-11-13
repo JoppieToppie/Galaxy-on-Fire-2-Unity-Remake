@@ -22,7 +22,7 @@ Regression tests for the remake: run them after a change to see that nothing els
 | `Events` | the built-in event graphs and templates compiling, the graph compiler, the line form, expressions, ship orders, cutscene shots, speakers |
 | `Multiplayer` | addresses and join codes, chat commands and selectors, NetGuard and rate limits, aggression, session rules, moderation, factions, trades, mod lists, news |
 | `Data` | the shipped data: every JSON, items / ships / stations / assemblies / story assets present, localization tables and the extra texts |
-| `Interface` | Settings and their per-tab reset, OptionsCatalog, GameControls bindings, flight hint key tokens, TextReveal, AlienText, versions |
+| `Interface` | Settings and their per-tab reset, OptionsCatalog, GameControls bindings, flight hint key tokens, TextReveal, AlienText, versions, issue reports (their files, zip, log memory, GitHub address) and the Editor's UI hang guard |
 | (root) | `CoreRulesTests`, `LayerHookTests` (every layer hook has an installer) |
 
 Expected values come from the research notes and Python tools in `Reference/` (independent of the C# code), the decompiled

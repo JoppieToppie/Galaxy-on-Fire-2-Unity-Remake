@@ -3389,5 +3389,21 @@
  "medalSoundOriginal": "Originale",
  "medalSoundHelp": "Quando ottieni una medaglia. Rintocco: il suono proprio del remake. Originale: il suono informativo del gioco originale.",
  "nintendoLayout": "Disposizione dei tasti Nintendo",
- "nintendoLayoutHelp": "Su un controller Nintendo, A (a destra) conferma e B (in basso) torna indietro, come su Switch. Disattivato: in base alla posizione, come sui controller Xbox e PlayStation."
+ "nintendoLayoutHelp": "Su un controller Nintendo, A (a destra) conferma e B (in basso) torna indietro, come su Switch. Disattivato: in base alla posizione, come sui controller Xbox e PlayStation.",
+ "issueTitle": "Segnala un problema",
+ "issueIntro": "Descrivi cosa è andato storto e cosa stavi facendo in quel momento. Il rapporto viene inviato agli sviluppatori con questa schermata, il registro del gioco, i dati del tuo sistema, le tue opzioni e le tue mod.",
+ "issuePlaceholder": "Cos'è successo?",
+ "issueIncludeSave": "Includi la partita in corso: {0}",
+ "issueSend": "Invia rapporto",
+ "issueSave": "Salva rapporto",
+ "issueNeedText": "Descrivi prima il problema.",
+ "issueSending": "Invio del rapporto... {0} %",
+ "issueSent": "Rapporto inviato. Grazie!",
+ "issueSavedAs": "Una copia è stata salvata come:",
+ "issueNotSent": "Non è stato possibile inviare il rapporto.",
+ "issueSavedOnly": "Il rapporto è stato salvato come:",
+ "issueAttachHint": "Puoi allegare questo file a una nuova issue su GitHub.",
+ "issueOpenGitHub": "Apri GitHub",
+ "issueShowFile": "Mostra file",
+ "issueSaveFailed": "Non è stato possibile salvare il rapporto."
 }

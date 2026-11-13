@@ -241,9 +241,9 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
-        /// <summary>Unity Services up and this player signed in anonymously (a profile per -mpname, so two games on one
-        /// machine are two players).</summary>
-        public static async Task SignInForOnline()
+        /// <summary>Unity Services up, no sign-in (what an issue report's upload needs, UI.IssueReportUpload); with the profile
+        /// of -mpname, since whoever starts them first decides it.</summary>
+        public static async Task StartServices()
         {
             if (UnityServices.State == ServicesInitializationState.Uninitialized)
             {
@@ -253,6 +253,13 @@ namespace GoF2Remake.Multiplayer
                 await UnityServices.InitializeAsync(options);
             }
             while (UnityServices.State == ServicesInitializationState.Initializing) await Task.Yield();
+        }
+
+        /// <summary>Unity Services up and this player signed in anonymously (a profile per -mpname, so two games on one
+        /// machine are two players).</summary>
+        public static async Task SignInForOnline()
+        {
+            await StartServices();
             // A sign-in that expired while offline (its refresh failed): signed out first, the cached session token kept,
             // so the same anonymous player signs in again (a dedicated server starting again after a lost connection).
             if (AuthenticationService.Instance.IsExpired) AuthenticationService.Instance.SignOut(false);
