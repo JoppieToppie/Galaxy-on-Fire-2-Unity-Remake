@@ -114,6 +114,11 @@ generator).
     out, the blueprint is unstarted again (station -1). Saved with the game; a save from before has 0 per slot. The
     200 $ shipping is not refunded. Produce / ResetAtStation clear the share (`BlueprintWithdrawTests`,
     `BlueprintSaveTests`).
+  - **At the owned Kaamo Club** (remake, a player's wish, 2026-10-18: no trips to the Store tab and back): ADD takes an
+    ingredient from the hold, then from the storage (`Hangar.BlueprintSupply` / `TakeForBlueprint`); the row's left
+    amount and the trade box ("SHIP + STORE") count both, the badge reads "STORE | n t". TAKE still goes to the hold;
+    staged units a freight refuses go back to the hold and, without room, to the storage (`ReturnFromBlueprint`).
+    Add all is the held ADD arrow (`HeldTrade`, the owner's choice of 2026-10-21 over separate buttons).
 - **Wingmen** (`Wingmen`, `Traffic.SpawnWingmen`, `NpcShip` wingman mode): spawned next to the player in every orbit
   (model seeded by the name length, 600 hull, unarmed in a Challenge), formation slots, attack the first hostile ship;
   the flight menu's Wingmen entry (306) gives the commands 307-311 (fire at will, attack my target, secure next

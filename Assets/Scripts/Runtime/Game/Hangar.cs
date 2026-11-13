@@ -501,6 +501,33 @@ namespace GoF2Remake.Data
 
         static void AddToCargo(int item, int amount) => Shop.AddToCargo(item, amount);
 
+        // ---- blueprint ingredients -----------------------------------------------------------------------------
+        // Remake (a player's wish, 2026-10-18: "treat the stuff stored at Kaamo as accessible for blueprint building"): at
+        // the owned club a blueprint takes its ingredients from the hold and then from the storage, without the trip
+        // through the Store tab.
+
+        /// <summary>The units of 'item' a blueprint can take here: the hold's, at the owned club the storage's too.</summary>
+        public int BlueprintSupply(int item) => CargoOf(item) + (Storage ? StockOf(item) : 0);
+
+        /// <summary>One unit of 'item' out for a blueprint: from the hold, else at the owned club from the storage.</summary>
+        public bool TakeForBlueprint(int item)
+        {
+            if (CargoOf(item) > 0) { Shop.RemoveFromCargo(item, 1); return true; }
+            var row = Storage ? Stock.items.Find(s => s.item == item && s.amount > 0) : null;
+            if (row == null) return false;
+            if (--row.amount <= 0) Stock.items.Remove(row);
+            return true;
+        }
+
+        /// <summary>Units a blueprint hands back (a freight refused): into the hold; at the owned club what the hold has no
+        /// room for goes into the storage, where it may have come from.</summary>
+        public void ReturnFromBlueprint(int item, int units)
+        {
+            int store = Storage ? Mathf.Clamp(units - Mathf.Max(0, MaxLoad - Load), 0, units) : 0;
+            Shop.AddToCargo(item, units - store);
+            if (store > 0) KaamoClub.AddToStorage(new[] { new ItemStack(item, store) });
+        }
+
         // ---- mounting ------------------------------------------------------------------------------------------
 
         /// <summary>Can a cargo item be mounted? Swap: a one-per-ship item of the same category is mounted at 'swapWith'.</summary>

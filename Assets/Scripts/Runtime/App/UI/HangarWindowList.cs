@@ -508,7 +508,9 @@ namespace GoF2Remake.UI
                         if (stock > 0)
                         {
                             // Remake: "SOLD HERE | 120t" (the station's amount); a click / tap opens the shop on it.
-                            var soldHere = Badge($"{Localization.Extra("bpSoldHere", "SOLD HERE").OgCase()} | {stock}t", "row-badge--stock");
+                            // At the owned club the storage's own goods: "STORE | 120t" (186), part of the amount on the left.
+                            string where = hangar.Storage ? Localization.Get(186) : Localization.Extra("bpSoldHere", "SOLD HERE");
+                            var soldHere = Badge($"{where.OgCase()} | {stock}t", "row-badge--stock");
                             soldHere.AddToClassList("row-badge--link");
                             soldHere.pickingMode = PickingMode.Position;
                             int shopItem = row.item;
@@ -559,7 +561,7 @@ namespace GoF2Remake.UI
             }
             // The station's (or the storage's) left, the hold's right; the Ship tab's hold items only the hold's (right), a
             // blueprint's ingredients only the hold's, on the left (the station's is in their SOLD HERE badge).
-            if (row.kind == RowKind.Ingredient) e.Add(Amount(hangar.CargoOf(row.item), "row-qty--station"));
+            if (row.kind == RowKind.Ingredient) e.Add(Amount(hangar.BlueprintSupply(row.item), "row-qty--station"));
             else if (amounts && row.kind != RowKind.CargoItem) e.Add(Amount(hangar.StockOf(row.item), "row-qty--station"));
             e.Add(icon);
             e.Add(texts);

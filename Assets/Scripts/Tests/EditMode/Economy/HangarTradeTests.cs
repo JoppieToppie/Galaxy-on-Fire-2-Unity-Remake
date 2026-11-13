@@ -230,6 +230,40 @@ namespace GoF2Remake.Tests
             Assert.IsNull(Session.KaamoItems.Find(r => r.item == 54));
         }
 
+        // A blueprint at the owned club takes its ingredients from the hold, then from the storage; elsewhere the hold only.
+        [Test]
+        public void ABlueprintAtTheOwnedClubDrawsOnTheStorageToo()
+        {
+            Session.KaamoState = 3;
+            Session.Cargo.Add(new ItemStack(122, 1));
+            Session.KaamoItems.Add(new ItemStack(122, 2));
+            var h = new Hangar(Db, new StationStock { station = KaamoClub.Station, items = Session.KaamoItems });
+            Assert.AreEqual(3, h.BlueprintSupply(122));
+            Assert.IsTrue(h.TakeForBlueprint(122));
+            Assert.AreEqual(0, Shop.CargoOf(122), "the hold first");
+            Assert.AreEqual(2, h.StockOf(122));
+            Assert.IsTrue(h.TakeForBlueprint(122));
+            Assert.IsTrue(h.TakeForBlueprint(122));
+            Assert.IsNull(Session.KaamoItems.Find(r => r.item == 122), "an emptied storage row goes");
+            Assert.IsFalse(h.TakeForBlueprint(122));
+
+            // Handed back: what the hold has room for, the rest into the storage.
+            int room = h.MaxLoad - h.Load;
+            h.ReturnFromBlueprint(122, room + 5);
+            Assert.AreEqual(room, Shop.CargoOf(122));
+            Assert.AreEqual(5, h.StockOf(122));
+            Assert.AreEqual(h.MaxLoad, h.Load);
+
+            // A station's shop is not the player's: its stock is never taken.
+            var shop = Dis(122, 9);
+            Assert.AreEqual(room, shop.BlueprintSupply(122));
+            Session.Cargo.Clear();
+            Assert.IsFalse(shop.TakeForBlueprint(122));
+            Assert.AreEqual(9, shop.StockOf(122));
+            shop.ReturnFromBlueprint(122, 2);
+            Assert.AreEqual(2, Shop.CargoOf(122));
+        }
+
         [Test]
         public void KaamoClubIsAShopUntilOwned()
         {

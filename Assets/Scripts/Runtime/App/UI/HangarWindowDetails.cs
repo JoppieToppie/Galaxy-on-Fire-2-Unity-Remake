@@ -241,9 +241,9 @@ namespace GoF2Remake.UI
                     var st = Blueprints.State(db, editing);
                     int total = Blueprints.Total(db, editing, selected.type);
                     int invested = Blueprints.Invested(db, st, selected.type) + Pending(item);
-                    int cargo = hangar.CargoOf(item);
+                    int cargo = hangar.BlueprintSupply(item);   // remake: at the owned club the storage's too
                     tradeBox.RemoveFromClassList("trade-box--hidden");
-                    tradeStockLabel.text = T(183).UiCaps();
+                    tradeStockLabel.text = (hangar.Storage ? T(183) + " + " + T(186) : T(183)).UiCaps();
                     tradeCargoLabel.text = T(271).UiCaps();
                     // Remake (PR #166): laid out like the shop: the hold, TAKE, ADD, the blueprint. TAKE gives back units
                     // waiting to be shipped, or at the production station the player's own (Blueprints.Withdrawable: never
@@ -332,8 +332,7 @@ namespace GoF2Remake.UI
             for (int n = 0; n < units; n++)
             {
                 int left = st.remaining[selected.type] - Pending(item);
-                if (left <= 0 || hangar.CargoOf(item) <= 0) break;
-                Shop.RemoveFromCargo(item, 1);
+                if (left <= 0 || !hangar.TakeForBlueprint(item)) break;
                 if (st.station < 0 || st.station == StationIndex)
                     Blueprints.Invest(db, editing, item, 1, StationIndex, true);
                 else
@@ -406,7 +405,7 @@ namespace GoF2Remake.UI
         }
         void Revert()
         {
-            foreach (var kv in pendingUnits) Shop.AddToCargo(kv.Key, kv.Value);
+            foreach (var kv in pendingUnits) hangar.ReturnFromBlueprint(kv.Key, kv.Value);
             pendingUnits.Clear();
             startConfirmed = false;
             Rebuild();

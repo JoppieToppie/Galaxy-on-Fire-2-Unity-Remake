@@ -339,7 +339,7 @@ namespace GoF2Remake.UI
                 if (!holdBatch) { hangar.BeginBatch(); holdBatch = true; }
             }
             else if (selected != null && selected.kind == RowKind.Ingredient)
-                holdTotal = direction > 0 ? hangar.CargoOf(selected.item) : TakeableUnits();
+                holdTotal = direction > 0 ? hangar.BlueprintSupply(selected.item) : TakeableUnits();
             // A shop row's unit sounds through HeldTrade's pitched voice (the repeats rise from here); the fill waits for the hold.
             if (selected != null && (selected.kind == RowKind.ShopItem || selected.kind == RowKind.Ingredient))
             {
