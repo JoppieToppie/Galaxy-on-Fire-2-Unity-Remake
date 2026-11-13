@@ -437,7 +437,14 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   stations.json `"mobile": true | { "route", "stayMinutes", "systemMinutes", "exclude", "speed", "race", "engines",
   "engineColor", "engineFx" }`, `ModWorld.MobileSpec` / `IsMobile` / `Mobiles`; `MobileStations` (Game layer, plain C#);
   `World.MobileStation`): a new station with no planet (not added to its system's `stations`, so not on the map, not in
-  the 7, never a random target). Its route (any systems' stations, default every station of its own system; `"any"`:
+  the 7, never a random target). Its own orbit layout (`OrbitLayout.Build` with its index: docked at it, the look of
+  one without a model) draws a planet for every station of the host system, 7 in a full mod system, where the sun can
+  leave 6 of the original's slots (7..17, three or more from the sun): the original's draw-until-free loop never ended
+  there, the main thread spinning under the scene's black fade with the music playing (found 2026-11-13 from a
+  Discord report of a black screen with mods on Android, not confirmed as its cause). `OrbitLayout.PlanetSlot` draws
+  only while such a slot is left, else takes the free slot furthest from the sun (7..17 first, then the whole ring);
+  the layouts that ended before draw the same numbers (`ItsOrbitInAFullSystemStillGetsItsPlanets`).
+  Its route (any systems' stations, default every station of its own system; `"any"`:
   every system, the user's request for the Manticore: `systemMinutes` in one, its orbits there in turn, then another,
   every system once per round in an order drawn from the station and the round (`RoamSystemAt`, never the same twice in
   a row), never `MobileStations.RoamSkip`'s story / Kaamo orbits; `exclude` systems) is walked by the UTC clock

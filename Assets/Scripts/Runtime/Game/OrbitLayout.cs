@@ -380,9 +380,7 @@ namespace GoF2Remake.World
                 }
                 else
                 {
-                    int slot;
-                    do slot = rnd.NextInt(11) + 7;
-                    while (Mathf.Abs(slot - sunSlot) < 3 || occupied[slot]);
+                    int slot = PlanetSlot(rnd, occupied, sunSlot);
                     occupied[slot] = true;
                     p.slot = slot;
                     p.scale = (float)((rnd.NextInt(40) * 0.01 + 0.800000011920929) * 0.03509521484375);
@@ -393,6 +391,30 @@ namespace GoF2Remake.World
                 }
                 planets.Add(p);
             }
+        }
+
+        /// <summary>StarSystem::StarSystem: a free slot of 7..17, three or more from the sun's, drawn until one fits. The
+        /// original never runs out (5 stations a system at most, and the sun leaves 6 slots or more). Remake mods: a mobile
+        /// station isn't one of its host system's stations, so in its orbit every station of the system needs a slot, 7 in a
+        /// full mod system: the draw never ended (the main thread spinning under the scene's black fade). With no such slot
+        /// left nothing more is drawn: the free slot furthest from the sun, of 7..17 first, then of the whole ring.</summary>
+        static int PlanetSlot(JavaRandom rnd, bool[] occupied, int sunSlot)
+        {
+            bool Fits(int s) => Mathf.Abs(s - sunSlot) >= 3 && !occupied[s];
+            bool any = false;
+            for (int s = 7; s <= 17 && !any; s++) any = Fits(s);
+            for (int tries = 0; any && tries < 10000; tries++)
+            {
+                int slot = rnd.NextInt(11) + 7;
+                if (Fits(slot)) return slot;
+            }
+            int n = occupied.Length;
+            int Apart(int s) { int d = Mathf.Abs(s - sunSlot) % n; return Mathf.Min(d, n - d); }
+            int best = -1;
+            for (int s = 7; s <= 17; s++) if (!occupied[s] && (best < 0 || Apart(s) > Apart(best))) best = s;
+            if (best >= 0) return best;
+            for (int s = 1; s < n; s++) if (!occupied[s] && (best < 0 || Apart(s) > Apart(best))) best = s;
+            return best >= 0 ? best : 7;
         }
 
         static string PlanetTexture(int t, bool big)

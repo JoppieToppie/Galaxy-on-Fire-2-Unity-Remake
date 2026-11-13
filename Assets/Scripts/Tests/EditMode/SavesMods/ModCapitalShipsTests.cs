@@ -286,6 +286,33 @@ namespace GoF2Remake.Tests
             CollectionAssert.DoesNotContain(Database.Load().Systems.Find(s => s.index == 3).stations, mother, "still no planet");
         }
 
+        // A mobile station's orbit draws a planet for every station of its host system (it isn't one of them): 7 in a full
+        // system, where the sun can leave 6 of the original's slots, and the draw for the seventh never ended (the main
+        // thread spinning under the scene's fade; a player's black screen report, 2026-11).
+        [Test]
+        public void ItsOrbitInAFullSystemStillGetsItsPlanets()
+        {
+            string mobiles = string.Concat(Enumerable.Range(0, 8).Select(i =>
+                $", {{ 'id': 'm{i}', 'system': 14, 'name': 'M{i}', 'mobile': {{ 'stayMinutes': 10 }} }}"));
+            WriteMod("m", "t_full", "1.0", "", ("stations.json",
+                "[ { 'id': 'a', 'system': 14, 'name': 'A' }, { 'id': 'b', 'system': 14, 'name': 'B' }" + mobiles + " ]"));
+            ScanAndEnable("t_full");
+            MobileStations.ClockOverride = () => 1.0;
+            var db = Database.Load();
+            Assert.AreEqual(ModWorld.MaxStationsPerSystem, db.Systems.Find(s => s.index == 14).stations.Count, "a full system");
+            int crowded = 0;
+            for (int i = 0; i < 8; i++)
+            {
+                var layout = World.OrbitLayout.Build(db, ModWorld.StationIndexOf($"t_full:m{i}"));
+                var slots = layout.planets.Select(p => p.slot).ToList();
+                Assert.AreEqual(7, slots.Count, "a planet for every station of the system");
+                CollectionAssert.AllItemsAreUnique(slots, "each in a slot of its own");
+                CollectionAssert.DoesNotContain(slots, layout.sunSlot, "none on the sun");
+                if (layout.sunSlot >= 9 && layout.sunSlot <= 15) crowded++;
+            }
+            Assert.Greater(crowded, 0, "a sun that leaves six slots for the seven planets");
+        }
+
         [Test]
         public void ItsCoursePassesSidewaysClearOfTheStation()
         {
