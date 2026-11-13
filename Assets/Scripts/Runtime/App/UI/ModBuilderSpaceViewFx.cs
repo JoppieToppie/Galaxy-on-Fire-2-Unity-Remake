@@ -455,6 +455,7 @@ namespace GoF2Remake.UI
             rangeRig.EnableTrails();
             var rig = rangeRig;
             rangeGun.Hit += (i, t, point) => rig.ShowImpact(point);
+            rangeGun.Ignited += point => rig.ShowBlast(point, ship.forward);   // a bomb's blast, or the effect's own impact
             // The drone: a ship model ahead, invulnerable, a big hit cube; its distance by how far the shots reach.
             // The target: another ship facing the shooter, 300-450 m off (as far as the shots reach): the shots are seen
             // flying between them.

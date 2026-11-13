@@ -57,6 +57,12 @@ namespace GoF2Remake.Modding
             get => json["pirateHeld"]?.Type == Newtonsoft.Json.Linq.JTokenType.Boolean && (bool)json["pirateHeld"];
             set { if (value) json["pirateHeld"] = true; else json.Remove("pirateHeld"); }
         }
+        /// <summary>"pirateHideout": a pirate hideout like Alda (ModWorld.PirateHideout).</summary>
+        public bool PirateHideout
+        {
+            get => json["pirateHideout"]?.Type == Newtonsoft.Json.Linq.JTokenType.Boolean && (bool)json["pirateHideout"];
+            set { if (value) json["pirateHideout"] = true; else json.Remove("pirateHideout"); }
+        }
         public bool ModTraffic
         {
             get => S("traffic") == "mod";

@@ -266,14 +266,15 @@ namespace GoF2Remake.Flight
             if (story && cm > 0x29 && cm < 0x2c) raiders = escorts = baseEscorts = 0;
             // Loma's black market (system 25): 6-9 pirates (Extreme rnd(3) + 2n), nothing else. The pirate loot orbits
             // (systems 32 / 33): 10-13 pirates (the same on Extreme) with double hull, speed 3.5, around the player.
-            bool lootOrbit = system.index == 32 || system.index == 33;
+            // (remake mods: a system marked "pirateHideout" too, ModWorld.PirateHideout, flown by its "raiders" if it names any)
+            bool lootOrbit = system.index == 32 || system.index == 33 || Modding.ModWorld.PirateHideout(system.index);
             if (system.index == 25 || lootOrbit)
             {
                 escorts = baseEscorts = local = jumpers = freighters = 0;
                 raiders = Random.Range(0, 4) + (lootOrbit ? 10 : 6);
                 if (hardcore) raiders = Random.Range(0, 3) + raiders * 2;
                 raidersOn = true;
-                raiderRace = Standing.Pirate;
+                if (raiderRaces == null) raiderRace = Standing.Pirate;
             }
             // Late-campaign Specter raids (100 < campaign < 0x91): (campaign / 144 * 15 + 5) % (x2 Extreme), 2-4 (x2).
             int specters = 0;

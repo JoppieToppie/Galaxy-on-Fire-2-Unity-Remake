@@ -3278,6 +3278,8 @@
  "mbOrbitAddPad": "+ Andockplattform",
  "mbPirateHeld": "Von Piraten besetzt",
  "mbPirateHeldNote": "Jede Station hier wird bei jedem Besuch belagert wie der Kaamo Club zu Beginn: Piratenaußenposten und Piraten, kein Andocken, Tor oder Khador-Antrieb, bis die Außenposten fallen. Vertrieben kommen sie nach 30 Minuten zurück. Der Orbit einer Station kann es anders sagen.",
+ "mbPirateHideout": "Piratenversteck",
+ "mbPirateHideoutNote": "Wie Alda: Bei jedem Besuch warten 10 bis 13 zähe Piraten rund um das ankommende Schiff (die als Angreifer eingestellten Völker, falls vorhanden), sonst fliegt hier nichts. Für ein Versteck ohne Stationen die Station in der Umlaufbahn jeder Station abschalten.",
  "mbOrbitPirateHeld": "Von Piraten besetzt",
  "mbOrbitHeldSystem": "Wie ihr System",
  "mbOrbitHeldYes": "Ja",

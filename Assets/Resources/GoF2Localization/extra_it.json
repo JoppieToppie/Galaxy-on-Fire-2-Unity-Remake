@@ -3278,6 +3278,8 @@
  "mbOrbitAddPad": "+ Piattaforma d'attracco",
  "mbPirateHeld": "In mano ai pirati",
  "mbPirateHeldNote": "Ogni stazione qui è assediata come il Kaamo Club all'inizio, a ogni visita: avamposti pirata e pirati, niente attracco, portale o Propulsore Khador finché gli avamposti non cadono. Cacciati, tornano dopo 30 minuti. L'orbita di una stazione può dire diversamente.",
+ "mbPirateHideout": "Covo di pirati",
+ "mbPirateHideoutNote": "Come Alda: a ogni visita da 10 a 13 pirati coriacei aspettano intorno alla nave in arrivo (le razze impostate come suoi predoni, se ce ne sono), e qui non vola nient'altro. Per un covo senza stazioni, disattiva la stazione nell'orbita di ogni stazione.",
  "mbOrbitPirateHeld": "In mano ai pirati",
  "mbOrbitHeldSystem": "Come dice il suo sistema",
  "mbOrbitHeldYes": "Sì",

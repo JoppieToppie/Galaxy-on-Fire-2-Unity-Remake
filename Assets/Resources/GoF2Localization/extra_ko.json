@@ -3278,6 +3278,8 @@
  "mbOrbitAddPad": "+ 도킹 패드",
  "mbPirateHeld": "해적 점령",
  "mbPirateHeldNote": "이곳의 모든 정거장은 방문할 때마다 초반의 Kaamo Club처럼 포위됩니다: 해적 전초기지와 해적, 전초기지가 무너질 때까지 도킹, 게이트, 카도르 드라이브 불가. 쫓겨나도 30분 뒤 돌아옵니다. 정거장의 궤도에서 달리 정할 수 있습니다.",
+ "mbPirateHideout": "해적 은신처",
+ "mbPirateHideoutNote": "Alda처럼: 방문할 때마다 도착한 함선 주위에 강한 해적 10~13기가 기다립니다(습격 종족을 지정했다면 그 종족). 그 밖에는 아무것도 날지 않습니다. 정거장 없는 은신처는 각 정거장의 궤도에서 정거장을 끄세요.",
  "mbOrbitPirateHeld": "해적 점령",
  "mbOrbitHeldSystem": "성계 설정대로",
  "mbOrbitHeldYes": "예",

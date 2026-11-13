@@ -117,6 +117,9 @@ namespace GoF2Remake.Modding
         public static List<SpacePoints.Point> StationPads(int station) => OrbitOf(station)?.pads ?? new List<SpacePoints.Point>();
         /// <summary>Pirates hold 'station' of 'system' (stations.json "orbit.pirateHeld", else systems.json "pirateHeld").</summary>
         public static bool PirateHeld(int station, int system) => OrbitOf(station)?.pirateHeld ?? systemPirateHeld.Contains(system);
+        /// <summary>Remake (a modder's wish, 2026-10-18): systems.json "pirateHideout", the traffic of the game's pirate loot
+        /// orbits (Skor Terpa, Alda: TrafficPlan) on every visit, and none of the pirate events, encounters or fleet battles.</summary>
+        public static bool PirateHideout(int system) => systemPirateHideout.Contains(system);
         /// <summary>The station's planet place on the star map, null: the game's.</summary>
         public static MapPlace MapPlaceOf(int station) => mapPlaces.TryGetValue(station, out var p) ? p : null;
         static Vector3? Xyz(JObject o, string key, string where)

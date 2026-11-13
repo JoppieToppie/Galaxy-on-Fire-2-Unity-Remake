@@ -32,6 +32,12 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   unit long. Test `ModWeaponsTests.ABeamsSpriteRunsAlongTheBeamFacingTheCamera`; checked in an off-screen render. Loaded in the background with the rest
   (`ModLoading`, the menu's `Preload`). Verified in Play mode: the example's Plasma Lance (fired: violet bolts stretched
   along their flight, the flash at the gun, the ring impact, its own shot sound).
+  **The impact as the blast** (a modder's wish, 2026-10-18: "the fx of a missile's or bomb's explosion"): an `impact` the
+  mod gave itself (`WeaponFx.modImpact`; not one inherited from the base or an effect's base) is shown where a rocket /
+  missile hits in place of the burst (`GunRig.ShowImpact`) and where a bomb, mine or shock blast goes off in place of
+  its explosion, the blast sound kept (`GunRig.ShowBlast`: the player's `WeaponSystem.OnIgnited`, other players'
+  `NetShotMirror.Blast`, the builder's range); `false` = nothing. Not scatter shells (no impact pool). Test
+  `ModWeaponsTests.AModsImpactShowsWhereAMissileHits`.
 - **Weapon effects** (2026-11-01, the user's request: the Weapon fx kind adds whole effects and changes a game weapon's):
   `weaponfx.json` (`ModContent.WeaponEffectsFile`, `ModWeapons.Effects`): { "id", "name", "base", the fx fields }, keyed
   "mod id:id"; an item takes one with items.json `"fx": "<id>"` / `"<mod id>:<id>"` (`ParseEffect`: `File` is weaponfx.json

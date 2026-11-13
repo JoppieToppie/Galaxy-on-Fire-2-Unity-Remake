@@ -3278,6 +3278,8 @@
  "mbOrbitAddPad": "+ Platforma dokująca",
  "mbPirateHeld": "W rękach piratów",
  "mbPirateHeldNote": "Każda stacja tutaj jest oblężona jak Kaamo Club na początku, przy każdej wizycie: pirackie posterunki i piraci, bez dokowania, wrót i Napędu Khador, dopóki posterunki nie padną. Przegnani wracają po 30 minutach. Orbita stacji może mówić inaczej.",
+ "mbPirateHideout": "Kryjówka piratów",
+ "mbPirateHideoutNote": "Jak Alda: przy każdej wizycie od 10 do 13 twardych piratów czeka wokół przylatującego statku (rasy ustawione jako napastnicy, jeśli są), a poza nimi nic tu nie lata. Aby kryjówka nie miała stacji, wyłącz stację w orbicie każdej stacji.",
  "mbOrbitPirateHeld": "W rękach piratów",
  "mbOrbitHeldSystem": "Jak jej system",
  "mbOrbitHeldYes": "Tak",

@@ -74,6 +74,12 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   win (no Kaamo call, state or mission count); multiplayer as the Kaamo siege (one runner, `NetState.SiegeWonRpc` accepts a
   marked station, its own news). Builder: Systems "Held by pirates", a station's orbit "Held by pirates" (as the system /
   yes / no). Tests `ModWorldTests.StationPadsAndPirateHeldStations`.
+  **Pirate hideouts** (remake, a modder's wish of 2026-10-18: "pirate systems without stations like Alda, lawless is not
+  dangerous enough"): systems.json `"pirateHideout": true` (`ModWorld.PirateHideout`) gives every orbit of the system
+  `TrafficPlan`'s loot-orbit traffic (systems 32 / 33: 10-13 pirates with double hull, speed 3.5, around the player,
+  nothing else; the system's `raiders` in the pirates' place if it names any) and leaves out what those systems leave
+  out (pirate events, cruise encounters, fleet battles, quest targets). The stations stay unless their `orbit` says
+  `"station": false`. Builder: Systems "Pirate hideout". Test `ModWorldTests.APirateHideoutSystem`.
   **Orbit layouts and map places** (remake, 2026-10-23, the user's request): stations.json `"orbit"` (`ModWorld.OrbitSpec`,
   `OrbitOf`; parsed with the rest, ores resolved in Apply) is applied by `OrbitLayout.ApplyMod` after the seeded layout:
   station (`hasStation` / `stationObject`: dock, `"nodock"`, none), docking pads outside (remake 2026-11-02, a modder's

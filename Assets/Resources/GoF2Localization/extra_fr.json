@@ -3278,6 +3278,8 @@
  "mbOrbitAddPad": "+ Plateforme d'amarrage",
  "mbPirateHeld": "Tenu par des pirates",
  "mbPirateHeldNote": "Chaque station ici est assiégée comme le Kaamo Club au début, à chaque visite : avant-postes pirates et pirates, ni amarrage, ni porte, ni Propulsion Khador avant la chute des avant-postes. Chassés, ils reviennent au bout de 30 minutes. L'orbite d'une station peut en décider autrement.",
+ "mbPirateHideout": "Repaire de pirates",
+ "mbPirateHideoutNote": "Comme Alda : à chaque visite, 10 à 13 pirates coriaces attendent autour du vaisseau qui arrive (les races définies comme ses pillards, s'il y en a), et rien d'autre ne vole ici. Pour un repaire sans stations, désactivez la station dans l'orbite de chaque station.",
  "mbOrbitPirateHeld": "Tenu par des pirates",
  "mbOrbitHeldSystem": "Comme son système",
  "mbOrbitHeldYes": "Oui",

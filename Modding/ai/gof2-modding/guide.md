@@ -602,7 +602,7 @@ original's hue is replaced by yours (the Nirai Impulse's orange bolt turns purpl
 |---|---|
 | `projectile` | What flies. For a beam weapon the beam itself (stretched from the gun to what it hits along its length), for a missile the missile. |
 | `muzzle` | The flash at the gun on every shot. |
-| `impact` | What shows where a shot hits. |
+| `impact` | What shows where a shot hits. Given for a rocket or missile it replaces the game's burst at the hit, for a bomb, mine or blast weapon the game's explosion (the blast sound stays); `false` there: nothing to see. |
 | `shot` | The sound of a shot: a file, or a list of files (one is picked at random each shot). `.ogg`, `.wav` or `.mp3`. Or an item's number: that item's shot sound (`46`: the AMR Extinctor's launch). |
 | `shotLoops` | `true`: the shot sound loops while the trigger is held (like the auto-cannons); `false`: one per shot. Default: the base item's (or, with `shot` an item's number, that item's). |
 | `explosionSound` | Bombs, mines and blast weapons: the sound of the blast (a file, a list, or an item's number). |
@@ -1624,6 +1624,7 @@ New star systems and their stations. Both are lists: `"id"` adds one, `"override
 | `locals` | The races (the game's or mods') whose patrols fly here, e.g. `["guild", "allies"]`. Default: the system's `race`. |
 | `raiders` | The races (the game's or mods') that raid it, e.g. `["gang"]`. Default: the game's pick (pirates, or the system race's enemy). |
 | `pirateHeld` | `true`: pirates hold every station of the system (a station's `orbit` can say otherwise), see the orbit's `pirateHeld`. |
+| `pirateHideout` | `true`: a pirate hideout like Alda. On every visit 10 to 13 pirates with double hulls wait around the arriving ship (the system's `raiders` instead, if it names any), and nothing else flies there: no patrols, freighters, pirate events or fleet battles. For a hideout without stations give its stations `"orbit": { "station": false }`. |
 | `security` | 0 (lawless) to 3 (secure): how many raiders show up. |
 | `visible` | On the star map from the start (default true). A hidden system can't be reached yet. |
 | `available` | A condition (the expressions of [Conditions](#conditions)) for a system that comes and goes: while it holds the system is on the star map, while it doesn't it is hidden, whatever was revealed, with its routes and jumps. A player inside when it disappears is told so and, 4 seconds later, taken to the nearest system on the map. For example `"available": "quest(smuggler_run) == 1"`: only while that story mission or bar mission is under way. |

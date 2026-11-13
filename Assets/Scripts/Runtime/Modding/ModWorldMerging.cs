@@ -22,7 +22,7 @@ namespace GoF2Remake.Modding
             stationModels.Clear(); gateModels.Clear(); stationInterior.Clear(); planetTextures.Clear(); planetSpheres.Clear(); sunTextures.Clear(); sunColors.Clear(); skyboxes.Clear();
             mapTextures.Clear(); mapRings.Clear(); orbits.Clear(); mapPlaces.Clear();
             stationHangar.Clear(); stationBar.Clear(); mobiles.Clear();
-            modTrafficSystems.Clear(); systemLocals.Clear(); systemRaiders.Clear(); systemPirateHeld.Clear();
+            modTrafficSystems.Clear(); systemLocals.Clear(); systemRaiders.Clear(); systemPirateHeld.Clear(); systemPirateHideout.Clear();
             if (systemAt.Count == 0 && stationAt.Count == 0 && missingSystems.Count == 0 && missingStations.Count == 0
                 && !ModManager.Active.Any(m => ModContent.Parse(m).systems.Count + ModContent.Parse(m).stations.Count > 0)) return;
             var gates = new List<(int a, int b)>();
@@ -66,6 +66,10 @@ namespace GoF2Remake.Modding
                         if (ModJson.Has(o, "pirateHeld"))
                         {
                             if (ModJson.Bool(o, "pirateHeld", false, d.file)) systemPirateHeld.Add(s.index); else systemPirateHeld.Remove(s.index);
+                        }
+                        if (ModJson.Has(o, "pirateHideout"))
+                        {
+                            if (ModJson.Bool(o, "pirateHideout", false, d.file)) systemPirateHideout.Add(s.index); else systemPirateHideout.Remove(s.index);
                         }
                         foreach (var (field, into) in new[] { ("locals", systemLocals), ("raiders", systemRaiders) })
                         {

@@ -38,7 +38,7 @@ namespace GoF2Remake.Data
             if (PirateBases.SystemHasBase(db, system.index) || KaamoClub.SiegeAt(station)) return false;
             if (system.index == 15 && !story) return false;   // Mido: only once Keith has left it (free play keeps it quiet)
             if (station == 100 || station == 101 || station == 108 || station == 10 || (station >= 102 && station <= 104)) return false;
-            if (system.index == 25 || system.index == 27 || system.index == 32 || system.index == 33) return false;
+            if (system.index == 25 || system.index == 27 || system.index == 32 || system.index == 33 || Modding.ModWorld.PirateHideout(system.index)) return false;
             if (Modding.ModWorld.ModTrafficOnly(system.index)) return false;   // remake mods: a system with mods' ships only
             int sec = system.securityLevel;   // 0 Dangerous, 1 Risky, 2 Average, 3 Secure (texts 402-405)
             return sec >= 0 && sec < EventChance.Length && !InStoryline(station);

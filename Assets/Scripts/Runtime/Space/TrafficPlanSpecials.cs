@@ -142,7 +142,7 @@ namespace GoF2Remake.Flight
             if (Session.FreePlay && !Session.CompletedWorld) return false;
             if (baseSystem || KaamoClub.SiegeAt(station) || (story && InStoryline(station))) return false;
             if (station == 100 || station == 101 || station == 108 || station == 10 || (station >= 102 && station <= 104)) return false;
-            if (system.index == 25 || system.index == 27 || system.index == 32 || system.index == 33) return false;
+            if (system.index == 25 || system.index == 27 || system.index == 32 || system.index == 33 || Modding.ModWorld.PirateHideout(system.index)) return false;
             return Random.Range(0, 100) < GoF2Remake.World.CapitalShips.FleetBattleChance;
         }
         /// <summary>A fleet battle (World.CapitalShips): a Terran carrier or battleship and the Vossk battleship side by side,

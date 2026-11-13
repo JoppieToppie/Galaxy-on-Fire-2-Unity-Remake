@@ -22,6 +22,32 @@ namespace GoF2Remake.Tests
             return defs.Count == 1 ? defs[0] : null;
         }
 
+        // A mod's own "impact" on a rocket shows where it hits, in place of the game's burst (WeaponFx.modImpact).
+        [Test]
+        public void AModsImpactShowsWhereAMissileHits()
+        {
+            var fx = UnityEngine.ScriptableObject.CreateInstance<Flight.WeaponFx>();
+            fx.impact = new UnityEngine.GameObject("impact");
+            fx.modImpact = true;
+            var root = new UnityEngine.GameObject("fx root").transform;
+            try
+            {
+                var gun = new Flight.Gun(Data.Database.Shared.Items[31], UnityEngine.Vector3.zero, true);
+                Assert.IsTrue(gun.IsMissile);
+                var rig = new Flight.GunRig(gun, fx, root, null);
+                Assert.IsFalse(root.Cast<UnityEngine.Transform>().Any(t => t.gameObject.activeSelf));
+                rig.ShowImpact(new UnityEngine.Vector3(1f, 2f, 3f));
+                var shown = root.Cast<UnityEngine.Transform>().Single(t => t.gameObject.activeSelf);
+                Assert.AreEqual(new UnityEngine.Vector3(1f, 2f, 3f), shown.position);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root.gameObject);
+                UnityEngine.Object.DestroyImmediate(fx.impact);
+                UnityEngine.Object.DestroyImmediate(fx);
+            }
+        }
+
         [Test]
         public void ATurretModelWithItsMuzzleAndShotStart()
         {

@@ -3278,6 +3278,8 @@
  "mbOrbitAddPad": "+ Plataforma de atracação",
  "mbPirateHeld": "Dominada por piratas",
  "mbPirateHeldNote": "Cada estação aqui é sitiada como o Kaamo Club no começo, a cada visita: postos piratas e piratas, sem atracar, portal nem Khador Drive até os postos caírem. Expulsos, voltam depois de 30 minutos. A órbita de uma estação pode dizer outra coisa.",
+ "mbPirateHideout": "Esconderijo pirata",
+ "mbPirateHideoutNote": "Como Alda: a cada visita, de 10 a 13 piratas resistentes esperam ao redor da nave que chega (as raças definidas como seus invasores, se houver), e nada mais voa aqui. Para um esconderijo sem estações, desative a estação na órbita de cada estação.",
  "mbOrbitPirateHeld": "Dominada por piratas",
  "mbOrbitHeldSystem": "Como o sistema dela",
  "mbOrbitHeldYes": "Sim",

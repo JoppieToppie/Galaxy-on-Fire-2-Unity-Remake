@@ -116,8 +116,7 @@ namespace GoF2Remake.Multiplayer
         {
             var m = Get(item);
             if (m == null) return;
-            int type = m.fx != null ? m.fx.explosionType : 0;
-            if (type >= 0) Explosion.Spawn(type, point, Vector3.forward, 1f, m.fx != null ? m.fx.ExplosionSound : null, false);
+            m.rig.ShowBlast(point, Vector3.forward);
             int nearest = -1;
             float best = float.MaxValue;
             for (int i = 0; i < m.gun.bullets.Length; i++)

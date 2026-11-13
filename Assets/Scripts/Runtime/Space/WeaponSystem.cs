@@ -729,8 +729,7 @@ namespace GoF2Remake.Flight
         void OnIgnited(Rig r, Vector3 point)
         {
             var gun = r.gun;
-            int type = r.fx != null ? r.fx.explosionType : 0;
-            if (type >= 0) Explosion.Spawn(type, point, transform.forward, 1f, r.fx != null ? r.fx.ExplosionSound : null, false);
+            r.visuals.ShowBlast(point, transform.forward);
             if (gun.kind == Gun.Kind.ScatterGun) return;
             if (gun.kind == Gun.Kind.Nuke) Session.BombsDetonated++;   // Status+200
             if (owner != null && (gun.IsBomb || gun.kind == Gun.Kind.ShockBlast))

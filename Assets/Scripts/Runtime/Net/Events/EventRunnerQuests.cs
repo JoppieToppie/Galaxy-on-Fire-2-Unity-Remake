@@ -152,7 +152,7 @@ namespace GoF2Remake.Events
                 int i = st.index, sys = st.system;
                 if (i < 0 || i == Session.StationIndex || sys < 0 || sys >= visible.Length || !visible[sys]) continue;
                 if (i == 10 || i == 100 || i == 101 || i == 108 || (i >= 102 && i <= 104)) continue;
-                if (sys == 25 || sys == 27 || sys == 32 || sys == 33 || PirateBases.SystemHasBase(db, sys)) continue;
+                if (sys == 25 || sys == 27 || sys == 32 || sys == 33 || Modding.ModWorld.PirateHideout(sys) || PirateBases.SystemHasBase(db, sys)) continue;
                 if (World.OrbitLayout.IsEmptyOrbit(i, Session.WorldIndex) || PirateEventRules.InStoryline(i)) continue;
                 if (Modding.ModWorld.IsMobile(i) || Modding.ModWorld.IsMissingStation(i)) continue;
                 picks.Add(i);

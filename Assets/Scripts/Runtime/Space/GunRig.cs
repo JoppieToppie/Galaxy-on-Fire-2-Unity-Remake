@@ -287,11 +287,30 @@ namespace GoF2Remake.Flight
             Explosion.Spawn(echo.explosion, point, forward, echo.Scale, fx != null ? fx.ExplosionSound : null, false);
         }
 
+        /// <summary>Remake mods: the mod's own "impact" part stands in for a missile's burst and a bomb's explosion (not a
+        /// scatter shell's: it has no impact pool).</summary>
+        bool OwnImpact => fx != null && fx.modImpact && gun.kind != Gun.Kind.ScatterGun;
+
+        /// <summary>A bomb, mine, scatter shell or shock blast went off at 'point': the weapon's explosion with its sound, or
+        /// a mod's own impact part in its place (the sound stays).</summary>
+        public void ShowBlast(Vector3 point, Vector3 forward)
+        {
+            var sound = fx != null ? fx.ExplosionSound : null;
+            if (OwnImpact)
+            {
+                ShowImpact(point);
+                if (sound != null) Sfx.PlayAt(sound, point);
+                return;
+            }
+            int type = fx != null ? fx.explosionType : 0;
+            if (type >= 0) Explosion.Spawn(type, point, forward, 1f, sound, false);
+        }
+
         public void ShowImpact(Vector3 point)
         {
             // Gun::calcCharacterCollision: rockets, missiles and cluster missiles have no impact mesh; a hit emits record 11
             // SET_EXPLOSION_MANUALLY_BIG at the bullet (one sprite_explosion particle, 1500 ms, 2000..3000 units, +500/s).
-            if (gun.IsMissile)
+            if (gun.IsMissile && !OwnImpact)
             {
                 ShipBurn.ManualBurst(point, 1.5f, 2000f, 3000f, 500f);
                 return;

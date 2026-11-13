@@ -512,6 +512,7 @@ namespace GoF2Remake.Modding
                 if (d.projectile != null) fx.projectile = d.projectile.copy ? Copy(d, d.projectile, fx.projectile, 0) : built[0].Result;
                 if (d.muzzle != null) fx.muzzleFlash = d.muzzle.copy ? Copy(d, d.muzzle, fx.muzzleFlash, 1) : built[1].Result;
                 if (d.impact != null) fx.impact = d.impact.copy ? Copy(d, d.impact, fx.impact, 2) : built[2].Result;
+                fx.modImpact = d.impact != null && (fx.impact != null || d.impact.remove);   // (a copy of nothing: the game's blast stays)
                 if (d.shotItem >= 0 && BaseFx(d.shotItem) is WeaponFx shotFx)
                 {
                     // Another item's shot: its sounds, and whether they loop unless "shotLoops" says so.

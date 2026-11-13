@@ -507,6 +507,24 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(PirateHold.Marked(other, 15));
         }
 
+        // Remake (a modder's wish, 2026-10-18): systems.json "pirateHideout", the traffic of Alda's orbits (TrafficPlan).
+        [Test]
+        public void APirateHideoutSystem()
+        {
+            WriteMod("w", "t_world", "1.0", "", ("systems.json", "[ { 'override': 0, 'pirateHideout': true } ]"));
+            ScanAndEnable("t_world");
+            var db = Database.Load();
+            Assert.IsTrue(ModWorld.PirateHideout(0));
+            Assert.IsFalse(ModWorld.PirateHideout(1));
+            var system = db.Systems.Find(s => s.index == 0);
+            var ships = Flight.TrafficPlan.Build(db, system.stations[0], system);
+            var raiders = ships.FindAll(s => s.group == Flight.NpcGroup.Raider);
+            Assert.GreaterOrEqual(raiders.Count, 10);
+            Assert.IsTrue(raiders.TrueForAll(s => s.race == Flight.Standing.Pirate && s.speed == 3.5f), "pirates, fast");
+            Assert.IsFalse(ships.Exists(s => s.group == Flight.NpcGroup.Local || s.group == Flight.NpcGroup.Freighter || s.group == Flight.NpcGroup.Jumper));
+            Assert.IsFalse(CruiseEncounterRules.Allowed(db, system.stations[0], 0, false));
+        }
+
         // Remake (2026-11-03, EVERSPACE 2's wreck fields): a station's "orbit.wrecks" (World.WreckField).
         [Test]
         public void AnOrbitsWreckField()

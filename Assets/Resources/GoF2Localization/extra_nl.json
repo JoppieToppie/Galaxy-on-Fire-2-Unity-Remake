@@ -3278,6 +3278,8 @@
  "mbOrbitAddPad": "+ Aanmeerplatform",
  "mbPirateHeld": "In handen van piraten",
  "mbPirateHeldNote": "Elk station hier wordt bij elk bezoek belegerd zoals de Kaamo Club aan het begin: piratenbuitenposten en piraten, niet aanmeren, geen poort of Khador-aandrijving tot de buitenposten vallen. Verdreven komen ze na 30 minuten terug. De baan van een station kan anders zeggen.",
+ "mbPirateHideout": "Piratenschuilplaats",
+ "mbPirateHideoutNote": "Zoals Alda: bij elk bezoek wachten 10 tot 13 taaie piraten rond het aankomende schip (de rassen die als overvallers zijn ingesteld, als die er zijn), en verder vliegt hier niets. Voor een schuilplaats zonder stations zet je het station uit in de baan van elk station.",
  "mbOrbitPirateHeld": "In handen van piraten",
  "mbOrbitHeldSystem": "Zoals zijn stelsel zegt",
  "mbOrbitHeldYes": "Ja",

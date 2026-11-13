@@ -3278,6 +3278,8 @@
  "mbOrbitAddPad": "+ Plataforma de atraque",
  "mbPirateHeld": "En manos de piratas",
  "mbPirateHeldNote": "Cada estación de aquí está sitiada como el Kaamo Club al principio, en cada visita: puestos piratas y piratas, sin atracar, puerta ni Motor Khador hasta que caigan los puestos. Expulsados, vuelven a los 30 minutos. La órbita de una estación puede decir otra cosa.",
+ "mbPirateHideout": "Escondite pirata",
+ "mbPirateHideoutNote": "Como Alda: en cada visita, de 10 a 13 piratas resistentes esperan alrededor de la nave que llega (las razas fijadas como sus asaltantes, si las hay), y no vuela nada más. Para un escondite sin estaciones, desactiva la estación en la órbita de cada estación.",
  "mbOrbitPirateHeld": "En manos de piratas",
  "mbOrbitHeldSystem": "Como diga su sistema",
  "mbOrbitHeldYes": "Sí",

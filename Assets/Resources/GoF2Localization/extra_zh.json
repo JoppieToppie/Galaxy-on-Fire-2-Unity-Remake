@@ -3278,6 +3278,8 @@
  "mbOrbitAddPad": "+ 停靠平台",
  "mbPirateHeld": "被海盗占领",
  "mbPirateHeldNote": "这里的每个空间站每次到访都会像开局时的 Kaamo Club 一样被围困：海盗前哨和海盗，在前哨被摧毁前不能停靠、使用星门或Khador驱动器。被赶走后，他们 30 分钟后回来。空间站的轨道可以另行设定。",
+ "mbPirateHideout": "海盗巢穴",
+ "mbPirateHideoutNote": "与 Alda 相同：每次到访时，会有 10 到 13 架强悍的海盗在抵达的飞船周围等候（若设置了袭击种族，则为这些种族），此外没有其他飞船。若要没有空间站的巢穴，请在每个空间站的轨道中关闭空间站。",
  "mbOrbitPirateHeld": "被海盗占领",
  "mbOrbitHeldSystem": "按其星系",
  "mbOrbitHeldYes": "是",

@@ -12,7 +12,7 @@ namespace GoF2Remake.Data
         {
             if (db == null || alienOrbit) return false;
             if (station == 10 || station == 100 || station == 101 || station == 108 || (station >= 102 && station <= 104)) return false;
-            if (system == 25 || system == 27 || system == 32 || system == 33) return false;
+            if (system == 25 || system == 27 || system == 32 || system == 33 || Modding.ModWorld.PirateHideout(system)) return false;
             if (Modding.ModWorld.ModTrafficOnly(system)) return false;
             return db.Systems.Find(s => s.index == system) != null;
         }

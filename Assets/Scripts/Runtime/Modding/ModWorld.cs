@@ -90,7 +90,7 @@ namespace GoF2Remake.Modding
 
         static readonly HashSet<string> SystemFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "id", "override", "name", "race", "security", "visible", "position", "sky", "gates", "gateStation", "spaceMusic", "stationMusic",
-              "battleMusic", "sunTexture", "sunColor", "skybox", "available", "traffic", "locals", "raiders", "jumpgate", "pirateHeld" };
+              "battleMusic", "sunTexture", "sunColor", "skybox", "available", "traffic", "locals", "raiders", "jumpgate", "pirateHeld", "pirateHideout" };
         static readonly HashSet<string> StationFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "id", "override", "name", "system", "techLevel", "planet", "looksLike", "music", "model", "modelSize", "modelYaw", "modelCentre",
               "materials", "collision", "volumes", "interior", "planetTexture", "mapTexture", "mapRing", "mapPlace", "orbit", "hangar", "bar", "mobile",
@@ -534,6 +534,8 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, List<int>> systemLocals = new Dictionary<int, List<int>>(), systemRaiders = new Dictionary<int, List<int>>();
         /// <summary>systems.json "pirateHeld": pirates hold every station of the system (Data.PirateHold).</summary>
         static readonly HashSet<int> systemPirateHeld = new HashSet<int>();
+        /// <summary>systems.json "pirateHideout": a pirate hideout like Alda (TrafficPlan's loot orbits).</summary>
+        static readonly HashSet<int> systemPirateHideout = new HashSet<int>();
 
         // ---- mobile stations (MobileStations) -----------------------------------------------------------------------
 
