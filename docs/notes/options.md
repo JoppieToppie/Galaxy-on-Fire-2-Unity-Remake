@@ -7,7 +7,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 - Text comes from the original table via `Localization.Get(textId)`; remake-only strings via `Extra(key, english)`,
   translated per language in `Resources/GoF2Localization/extra_<lang>.json` (a { key: text } object, loaded with the
   table by `Localization.LoadExtra`; 11 languages, KiritoJPK, PR #54, then Chinese and Hindi; a key it lacks stays
-  English: add new keys there when adding Extra texts). **Languages in the menu** (`LanguageTables.Offered`, the one
+  English: add new keys there when adding Extra texts, to every language, `ExtraTablesShareTheirKeys`; 169 keys of
+  the cruise drive, rifts, encounters, devices, hazards and cargo jettison had gone into none and were translated into
+  all 13 on 2026-11-13, with text_ja's 594 / 1719 / 1720 the original left in English). **Languages in the menu** (`LanguageTables.Offered`, the one
   list: `MainMenuBuilder.Languages` writes it into the main menu scene's `MainMenu.languageCodes / Names / Tables` for
   its language buttons, and the in-game Options' language row reads it; the station scene and
   `Resources/GoF2LanguageTables` take every `text_*.json`, `LanguageTables.TableFor`). **In a running game** the pause
