@@ -85,14 +85,17 @@ reload; switch save groups and export/import each; trade TL 6+ loot; accept/fini
 normal and capital cargo; harvest plasma and mine cores; incrementally supply and complete Fireworks; close the hangar
 and verify Champion once; then start/load an ordinary campaign and verify its recipes and medals.
 
-At implementation time this environment had no Unity executable, so the Unity test runner and build could not run.
-C# syntax parsing, changed JSON validation and `git diff --check` were run separately; they are not compilation or
-an in-game acceptance test. A Unity pass is required before proposing this for upstream merge.
+Unity 7000.0.0a16 compiled the combined integration checkout, including the current upstream Lua scripting update.
+All 4,418 EditMode tests passed (zero failures or skips), including the Scavenger regression suite. These results
+cover the combined checkout; the independently submitted feature branches have not each received a separate full run.
+The contributor is also testing interactively. The batch PlayMode smoke run passed 45 of 46 cases; Splash's audio
+assertion failed with batch audio disabled and passed separately in the interactive editor. A Windows player build
+and the full manual acceptance checklist above have not been validated.
 
 ## Localization
 
-The mode adds five UI strings: its name, its description, the Champion requirement, the save-group label and the
-Standard-game label. All 14 offered languages are covered: English uses the existing code fallback; Arabic, German,
+The mode adds localized names, synopsis and detailed rules, the Champion requirement, new-game tabs and save-group
+labels. All 14 offered languages are covered: English uses the existing code fallback; Arabic, German,
 Spanish, French, Hindi, Italian, Japanese, Korean, Dutch, Polish, Brazilian Portuguese, Russian and Simplified Chinese
 use the existing extra-language tables. Medal names in the descriptions match the original language tables. Item names,
 recipe ingredients and the remaining controls reuse existing translations. Documentation and source comments remain
