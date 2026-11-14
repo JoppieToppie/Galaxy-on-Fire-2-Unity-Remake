@@ -183,7 +183,7 @@ Implementation/research checklist:
 
 ## 3f. Existing NPC population pipeline investigation
 
-See `docs/notes/system-population.md` for the code-path notes. Key finding: the existing `systems.json` `traffic: "mod"` option changes the source of traffic, not its quantity; it does not suppress mod NPCs. Initial planning is in `TrafficPlan.Build`, while `TrafficSpecials` independently revives jumpers, locals, raiders and Void attackers. Story and mission spawns have separate paths, and multiplayer population creation belongs to the orbit authority. The next step is a focused audit of all ambient/event spawn sources and the player-built-station lifecycle before selecting the schema or editing runtime code.
+See `docs/notes/system-population.md` for the code-path notes. Key finding: the existing `systems.json` `traffic: "mod"` option changes the source of traffic, not its quantity; it does not suppress mod NPCs. Initial planning is in `TrafficPlan.Build`, while `TrafficSpecials` independently revives jumpers, locals, raiders and Void attackers. Story and mission spawns have separate paths, and multiplayer population creation belongs to the orbit authority. The audit is now sufficiently complete for the narrow core feature: ordinary ambient population is planned through `TrafficPlan.Build`, with matching revival paths in `TrafficSpecials`. The implementation should use explicit ambient-origin classification and a single optional per-system mod setting. Player-built-station work is explicitly deferred to the final phase.
 
 ## 3e. Mod-controlled system NPC population
 
@@ -195,9 +195,11 @@ The user has specified a deliberately lightweight, **explicitly modded** system-
 - Preserve story-/mission-scripted NPCs and encounters; distinguish them from ambient population so population suppression cannot accidentally break the base story.
 - Population/spawn decisions should be authoritative and consistent across multiplayer clients.
 
-Still open for implementation research: the exact system-level mod schema, whether a simple enabled/disabled flag is enough or a few population levels are useful, eligible ambient NPC types around player stations, spawn limits/cadence, and persistence/reconnect behaviour. Keep this feature simple; inspect the existing system and NPC spawn pipeline before choosing the data model.
+The core feature is now scoped to one optional per-system enabled/disabled setting: absent configuration preserves current behaviour; explicit configuration suppresses ordinary ambient traffic. No density levels are needed for this first version. Exact JSON field name remains an implementation decision to be made against parser conventions.
 
-No source, system data, mod schema, NPC spawning, networking or tests have been changed.
+**Feasibility:** low-to-moderate. The system mod parser, initial `TrafficPlan.Build` path and timed ambient revival paths are known. The main care point is an explicit ambient-vs-scripted origin marker; broad race/group filters are unsafe. Keep cruise encounters, pirate events, missions, sieges, authored special populations and decorative traffic separate.
+
+No source, system data, mod schema, NPC spawning, networking or tests have been changed. See `docs/notes/system-population.md` §10 for the detailed assessment.
 
 ## 4. Claude review request
 
@@ -218,18 +220,24 @@ Please review these notes and the current branch. In particular:
 - Update `AI_TASK_LOG.md`, `AI_CHANGELOG.md` and this handover after meaningful work.
 - Report exact branch and commit SHA; do not claim compile/test/push status without verification.
 
-## 6. Next actions
+## 6. Next actions — core system ambient suppression
 
-1. Revise the current hardpoint launch implementation to use a distinct optional, moddable mount field such as
-   `launchRotation`, leaving existing visual `rotation` semantics unchanged. Apply it to **secondaries only**.
-2. Confirm the intended projectile-path scope and add tests for default behaviour, mount-specific direction, and each
-   supported secondary firing path.
-3. Update modding documentation and, if practical, expose the setting in Mod Builder.
-4. Independently review the implementation and verify the shot replication path.
-5. Implement ship-class data, equipment restrictions and instant scanner identification as a separate feature task.
-6. Return findings to the user for approval. Integration to `main` remains the user's decision.
+1. Re-read the current branch head and exact diff before editing; preserve any concurrent Claude changes.
+2. Inspect `SpawnSpec` construction and `NpcShip` metadata to settle a reliable ambient-origin classification.
+3. Add one optional per-system boolean through `ModWorld` parsing/merging/validation; absent configuration must preserve existing behaviour.
+4. Gate ordinary ambient planning and its matching revival paths only. Do not blanket-filter NPC creation or revival.
+5. Add tests for absent/default behaviour, explicit suppression, scripted/event exemptions and multiplayer authority handover.
+6. Verify in Unity when an Editor is available; otherwise report compilation and runtime testing as blocked/not run.
+7. Update the shared notes and return the exact diff/commit for review. Do not merge to `main`.
+
+**Explicitly not in this phase:** player-built stations and station-attracted NPC traffic. That is the final implementation step after a real player-built-station placement, ownership, lifecycle and persistence system exists.
 
 
 ## 3g. Extended system population audit
 
 The follow-up audit is recorded in `docs/notes/system-population.md` (section 9). Cruise-drive encounters are player-triggered, separately gated and should not be silently removed by ambient suppression. Pirate activity events, system-special actors, freelance mission ships/mining sites, siege garrisons/defenders and decorative traffic lanes are also separate categories. The key station finding: this branch has no player-built-station placement/ownership/destruction lifecycle to hook into. `MobileStation` is mod-authored and clock/route-driven; faction claims refer to existing stations; neither is player construction. Siege garrisons are separately tagged combat actors. Do not implement station attraction until the final implementation step, after a real player-station lifecycle/ownership model exists. The safe first scope remains ordinary ambient `TrafficPlan` ships plus their matching revival logic, with explicit ambient classification rather than broad group/race filtering.
+
+
+## 3h. Core system-population feasibility conclusion
+
+The core mod-controlled ambient-suppression feature is assessed as feasible with low-to-moderate complexity. A single optional per-system setting can be resolved in `ModWorld`; the runtime work is concentrated around initial ordinary ambient planning and the corresponding timed revival paths. The main technical requirement is reliable ambient-origin classification so mission/event/story NPCs are not caught by broad group/race filters. See `docs/notes/system-population.md` §§8–10. No implementation has started.
