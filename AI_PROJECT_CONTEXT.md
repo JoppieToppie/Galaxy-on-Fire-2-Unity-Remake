@@ -268,6 +268,11 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
 - **Other class identity:** the names establish the intended broad roles, but precise stat/loadout thresholds for Light vs Heavy
   fighters and bombers, Interceptors, Stealth Bombers, Haulers and capital classes still need a roster-based pass. Do not
   infer a ship's class from one stat alone or hard-code guessed thresholds.
+- **Classification evidence in the current data:** `Assets/Resources/GoF2Data/ships.json` already provides per-ship
+  cargo, primary / secondary / turret slot counts, armor and handling values, plus descriptions. It does not expose a direct
+  physical hull-volume field in the base `ShipData` schema. For cargo-relative-to-size judgements (especially Privateers),
+  survey those stats alongside actual model / kit scale and ship descriptions; do not treat raw cargo capacity as size-adjusted
+  without that context.
 - **Restriction is an allow-list per item** (`allowedClasses`); no exclude-list. An item without the list fits every ship.
 - **Ship swap:** equipment that does not fit the new ship's class goes to the **hold** (like a built-in drive does now); the
   swap is not blocked. `Hangar.CanMount` is the existing mount gate (Khador Drive, cloak bay) and the natural place for the
