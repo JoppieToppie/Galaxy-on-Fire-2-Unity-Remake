@@ -336,6 +336,36 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
 - Multiplayer must use the authoritative shot's resulting velocity/direction so remote clients reproduce the same launch.
   Verify the actual replication path and test it; do not assume local correctness proves network correctness.
 
+### 6.5 Class-based station docking and freighter boarding (owner's decisions, 2026-11-15; Proposed)
+
+- **Two station docking modes:** interior docking (the existing transition into the station interior) and external docking
+  (the ship remains physically present alongside the station in the space scene). Every station supports both modes;
+  station support is universal and does not need a per-station opt-in.
+- **Class-controlled mode:** docking mode is determined by the ship's explicitly assigned mod class / class configuration.
+  Fighters and Interceptors are specifically intended to use **interior docking only**. Other class-to-mode assignments
+  have not yet been exhaustively specified; do not assume every Frigate-or-larger class is automatically external-only
+  until the user confirms the complete class mapping.
+- **Unclassified ships:** a ship with no explicitly assigned class may use its normal interior docking, but is completely
+  ineligible for external station docking. Do not give unclassified ships external docking as a fallback. This preserves
+  vanilla behaviour and makes external docking an explicitly granted modded capability.
+- **External docking behaviour:** the ship remains in the space scene, docked alongside the station and visible to other
+  server members, following the existing moving-station docking model. The docking player's camera does not enter the
+  station. Entering the Space Lounge is a separate, explicit interior transition; it must not remove the docked ship from
+  the shared space scene. The ship remains docked until undocking.
+- **Docking points and visuals:** the ship should eventually define a functional docking attachment point on its hull
+  (typically on a side), which aligns with a station-side docking arm / attachment point. The station provides the
+  complementary docking location. For the first implementation, use functional transforms / positioning only; no visible
+  arm, clamps, collar, docking animation or other visual schema is required yet. A classified ship configured for external
+  docking must have a valid hull docking point; if it is missing, deny external docking rather than inventing a fallback.
+- **Hackable freighters are different:** freighters do not support this external docking mode. External station docking
+  must not be repurposed as freighter boarding. Boarding / hacking remains a separate close-range interaction and is
+  limited to ships **smaller than a Frigate**; ships the size of a Frigate or larger cannot hack-board freighters. Remote
+  hacking is not part of the agreed initial design.
+- **Compatibility and authority:** preserve ordinary interior docking for unclassified vanilla ships. Enforce class and
+  size eligibility authoritatively in multiplayer, and ensure docked ship state / position remains coherent for all clients.
+- **Status:** product design only. No docking code, class schema, station/freighter interaction, docking-point data, camera
+  behaviour or multiplayer replication has been implemented or tested.
+
 ## 7. Non-goals and guardrails
 
 - Do not replace the remake's single-player game with a multiplayer-only fork.
