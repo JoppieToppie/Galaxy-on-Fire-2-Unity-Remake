@@ -120,26 +120,29 @@ Design implication: evaluate the population policy on the authoritative orbit si
 
 A small optional system-level setting in `systems.json` appears to fit the existing mod architecture. It should be absent by default and resolved through `ModWorld`.
 
-The runtime concept should be separate from the existing `traffic: "mod"` field:
+The first implementation should be deliberately narrow and separate from the existing `traffic: "mod"` field:
 
-- A system's ambient population can be left at the game's current behaviour (no new field / default).
-- A mod can explicitly suppress ambient NPC population for that system.
-- A future optional player-station rule can enable a limited ambient response around qualifying player-built stations.
+- No new field / absent configuration means the game's current behaviour exactly.
+- A mod can explicitly disable ordinary ambient NPC population for an individual system.
+- Do not add population levels, numeric density controls, station attraction or a general-purpose population simulator in this phase.
+- Do not choose a JSON property name until the parser and merge conventions have been checked during implementation.
 
-Do not settle on a JSON property name, numeric population levels, spawn counts, spawn intervals or NPC category lists until the implementation has traced every ambient spawn source and the player-station lifecycle. The user's stated preference is deliberately light/infrequent/diverse station traffic, not a new deep population simulation. This is the final implementation step, not part of the initial ambient-population feature.
+Player-station attraction is not part of this runtime concept yet. It is a separate, explicitly deferred final phase after the actual player-built-station system exists and has an authoritative lifecycle.
 
-## 8. Recommended implementation investigation / acceptance checklist
+## 8. Recommended implementation checklist — core ambient suppression
 
-1. Trace every ambient spawn source beyond `TrafficPlan.Build`: `TrafficSpecials`, `TrafficPirateEvents`, cruise encounters, station/orbit scripts, and player-station creation/ownership.
-2. Identify a reliable ambient-vs-scripted classification on `SpawnSpec` / `NpcShip`; preserve mission, story and event actors by default.
-3. Define and validate an optional system-level mod setting in `ModWorld`; absent setting must preserve current behaviour exactly.
-4. Apply suppression to initial ambient planning and ambient respawn/revival, not to all NPC creation globally.
-5. Define the player-built-station trigger and lifecycle: when it becomes active, when it stops attracting traffic, how destroyed/packed/unowned stations behave, and whether traffic is tied to the station or the system.
-6. Keep station-attracted traffic sparse, capped, infrequent and selected from a varied eligible pool; avoid a continuous spawn loop.
-7. Make the orbit authority own rolls, timers and spawn decisions; carry any necessary scheduler state through authority handover or make it safely reconstructible.
-8. Add plain-logic tests for absent setting, explicit suppression, station response disabled/enabled, caps/cadence and scripted-spawn exemptions.
-9. Add multiplayer tests for a single authoritative roll, proxy visibility and authority handover without duplicate or reset spawns.
-10. Confirm unmodified single-player, co-op story and existing modded systems retain their current population.
+1. Inspect the current `SpawnSpec` construction and `NpcShip` metadata before choosing how to mark ambient ships. Prefer explicit origin/category metadata over `NpcGroup`, race or event-tag guesses.
+2. Define and validate one optional system-level boolean in `ModWorld` (exact JSON name to be chosen during implementation). Absent means unchanged vanilla behaviour; explicit opt-in suppresses ordinary ambient traffic for that system.
+3. Apply the policy when building the ordinary ambient `TrafficPlan`, while preserving authored special-system branches and their existing behaviour.
+4. Apply the same policy to the matching jumper/local/raider ambient revival paths. Keep Void/story-specific revival and all mission/event actors unless separately proven to be ordinary ambient traffic.
+5. Ensure the orbit authority owns the decision. Clients should continue receiving the authoritative NPC proxies; no client-side independent population decisions.
+6. Add plain-logic tests for absent configuration, enabled suppression, and scripted/event spawn exemptions.
+7. Add multiplayer tests for one authority, proxy visibility and authority handover without duplicate or reset ambient populations.
+8. Verify unmodified single-player, co-op story, and existing modded systems retain current population.
+
+### Deferred final phase — player-built-station attraction
+
+Do not implement this during the core suppression task. Only after the actual player-built-station feature exists and is tested should a separate final phase define station placement/activation, ownership changes, packing/movement, destruction, persistence/reconnect, eligible NPC pool, low spawn cadence/caps and authority-handover behaviour. The station response should be sparse, capped, infrequent and diverse. Mobile stations and faction claims are not substitutes.
 
 ## Files inspected
 
@@ -230,3 +233,24 @@ The narrowest safe first implementation is to suppress only the ordinary ambient
 The revival path needs the same classification. In particular, current code uses group checks for local / raider revivals and a separate Void revival loop. A blanket group or race filter would risk suppressing mission/event actors. The existing `eventTag` check already protects many event ships, but it is not a complete ambient classification.
 
 For the later station response, first implement/identify the player-station lifecycle. Once it exists, the station can request a small ambient spawn budget from the orbit authority; it should not directly create ships on every client or reuse mission/event spawners.
+
+
+## 10. Feasibility and estimated implementation scope (2026-11-15)
+
+**Assessment:** feasible; low-to-moderate implementation complexity for the core ambient-suppression feature. This is an engineering estimate from the inspected call paths, not a measured task duration or a claim that code has been changed.
+
+The feature is comparatively contained because the mod system already resolves per-system settings, the normal ambient population is planned through `TrafficPlan.Build`, and the recurring ambient population paths are known in `TrafficSpecials`. The work is not a global NPC-system redesign.
+
+Expected implementation units:
+- One optional per-system boolean in the existing `ModWorld` parse/merge/validation path. Missing means no change; the user-facing setting is explicit mod configuration only.
+- A reliable ambient-origin marker or predicate shared by planning and revival. This is the most important design detail: NPC group and race are not reliable enough because they are reused by authored content.
+- A guard around ordinary ambient plan entries and their matching ambient revival logic.
+- Plain-logic coverage and Unity integration/manual verification, including a multiplayer authority/handover check.
+
+The main risk is accidental over-suppression, not technical feasibility. Story and mission actors, pirate events, cruise encounters, siege garrisons, special system populations and decorative lane models must remain outside the first feature unless separately opted into a future policy. In particular, do not solve this with a blanket `NpcShip.Revive` guard.
+
+**Likely effort profile:** small schema change; small-to-moderate runtime change depending on how cleanly `SpawnSpec` exposes origin; moderate testing/verification because the behaviour must be checked across initial spawn, timed revival, story/mission exceptions and multiplayer authority changes.
+
+**Conclusion:** a focused implementation is justified. It should be straightforward to configure selected systems as having no ordinary ambient NPC traffic, while leaving the rest of the game untouched. It is not yet safe to call it a one-line change, because the ambient-versus-scripted classification must be made explicit and tested.
+
+**Status:** investigated and documented only. No runtime source, mod schema, system JSON or tests changed by this assessment.
