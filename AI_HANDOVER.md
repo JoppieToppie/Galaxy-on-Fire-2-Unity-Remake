@@ -1,0 +1,134 @@
+# AI handover — current baton pass
+
+> **Read this first when continuing the project.**
+> Last updated: 2026-11-15
+> Prepared by: ChatGPT
+> Intended recipient: Claude (and the user)
+
+## 1. Repository and branch
+
+- **Repository:** `SpectreAnims/Galaxy-on-Fire-2-Unity-Remake`
+- **Active branch:** `feature/secondary-homing-delay-launch-angle`
+- **Base:** `main`
+- **Branch state before this documentation update:** 1 commit ahead of main, 0 behind.
+- **Integration instruction:** Do not merge or push this feature branch to `main`. The user wants Claude to review
+  the changes before deciding what happens next.
+- **Coordinator:** the user. They manually pass work between Claude and ChatGPT.
+
+The four AI notes files and the `CLAUDE.md` discovery pointer are being added to this feature branch so
+Claude can read the same project brief and handover. This does not authorize integration into `main`.
+
+## 2. Product goal
+
+The ultimate goal is a faithful Galaxy on Fire 2 Unity Remake expanded into a coherent, persistent
+multiplayer universe. This is not a multiplayer-only rewrite. Preserve the existing single-player game,
+its flight/combat/economy/content and modding architecture while making multiplayer deeper and more
+durable: shared orbits, persistent player progression, squads/co-op, trade, factions, meaningful conflict,
+and eventually player-owned/player-built stations and other lasting world structures.
+
+Read `AI_PROJECT_CONTEXT.md` for the complete vision, player-facing pillars, architecture constraints,
+ownership rules and collaboration process. It distinguishes long-term goals from already implemented features.
+
+## 3. Active technical task: secondary weapon launch behaviour
+
+### User's intended design
+
+- Homing delay is an intrinsic property of a weapon item.
+- Initial launch direction/orientation is a property of the hardpoint/mount that fires it.
+- The same missile item equipped on two different hardpoints must be able to leave those mounts in
+  different directions without changing the item's speed, damage, homing delay or other weapon stats.
+- The initial direction must be based on the actual mount transform/orientation, not per-item pitch/yaw.
+- The change must preserve existing behaviour for mounts with no custom orientation.
+- Consider the full projectile lifecycle and all affected projectile types, not just the most obvious path.
+
+### Current branch findings (investigated, not yet fixed)
+
+The Claude branch is `feature/secondary-homing-delay-launch-angle`. Its one feature commit is ahead of
+`main`. Before this documentation update, the compare showed these six changed paths:
+- `Assets/Scripts/Runtime/Modding/ItemStats.cs`
+- `Assets/Scripts/Runtime/Space/Gun.cs`
+- `Assets/Scripts/Tests/EditMode/Flight/GunLaunchTests.cs`
+- `Assets/Scripts/Tests/EditMode/Flight/GunLaunchTests.cs.meta`
+- `Modding/README.md`
+- `Modding/ai/gof2-modding/guide.md`
+
+Review identified:
+- `ItemStats.cs` adds item attributes `launchPitchDeg` and `launchYawDeg` (alongside `homingDelayMs`).
+- `Gun` reads pitch/yaw from the weapon item and applies a launch turn.
+- `GunLaunchTests` validates the item-level pitch/yaw design, so those tests must be replaced rather than
+  merely retained.
+- `WeaponSystem.Setup` knows which mount is being used and passes the mount position into `Gun`, but
+  the reviewed setup path does not pass the mount's launch orientation.
+- The modding guide already documents `rotation` on a primary/secondary mount. It rotates the mounted
+  weapon model and muzzle in the ship model's frame, but current documentation says shots still fly along
+  the ship nose. The correct implementation should investigate and reuse that established data rather
+  than add duplicate item-level attributes or invent an unrelated schema.
+
+**Important:** This is a review finding, not proof that every relevant firing path has been traced. Re-open
+the current branch files and inspect the full call graph before editing.
+
+### Desired correction
+
+1. Remove the item-level `launchPitchDeg` and `launchYawDeg` attributes from the active implementation,
+   tests and user-facing modding documentation.
+2. Preserve `homingDelayMs` as item-level configuration, subject to a separate correctness review.
+3. Use the corresponding hardpoint/mount orientation as the launch-direction source of truth. First inspect
+   the real `WeaponMount`, `ModHardpoints`, `ModShipKits`, mount-building and muzzle-offset code. Existing
+   mod-kit notes identify these concepts in `docs/notes/mods-ship-kits.md`.
+4. Ensure the weapon slot-to-mount mapping is stable and matches the mount used for muzzle placement.
+5. Apply the launch transform consistently to each supported projectile path. Audit standard projectiles,
+   missiles, cluster/salvo, mines, bombs and special weapons; document deliberate exclusions.
+6. Keep visual model rotation, muzzle position and projectile velocity consistent. Do not accidentally apply
+   the mount rotation twice if the weapon model/muzzle is already transformed into world space.
+7. Preserve default straight-ahead behaviour when a mount has no custom rotation.
+8. Audit multiplayer shot mirroring/replication. Determine whether the authoritative shot velocity/direction
+   is replicated or reconstructed remotely; ensure remote clients see the same trajectory and launch origin.
+9. Replace item-level tests with tests proving two hardpoints using the same item can launch in distinct
+   directions, plus default-orientation and projectile-path coverage.
+10. Update `docs/notes/weapons.md`, `docs/notes/mods-ship-kits.md`, `Modding/README.md` and the AI handover
+    where warranted. Keep the docs aligned with actual behaviour.
+11. Run the relevant edit-mode tests and compile in Unity if an Editor/build environment is available. If not,
+    state clearly that compilation/testing remains outstanding.
+
+### Important design distinction
+
+A mount's documented `rotation` currently turns its weapon model and muzzle. The desired feature extends
+that physical hardpoint orientation to the projectile's initial launch vector. It must not simply use the
+weapon model's local forward without checking coordinate spaces, parent transforms, muzzle transforms,
+ship orientation, and any existing aim/targeting logic.
+
+### Current status
+
+- Item-level launch angle: **identified as incorrect; removal planned, not yet performed**.
+- Hardpoint-based launch orientation: **design direction identified; implementation not yet performed**.
+- Homing delay: **present on the branch; not yet fully validated**.
+- Multiplayer trajectory consistency: **not yet audited for this branch**.
+- Unity compile / tests: **not run by this documentation task**.
+
+## 4. Claude review request
+
+Please review these notes and the current branch. In particular:
+- Confirm the overall project vision is represented accurately.
+- Check the hardpoint rotation design against the actual code and data flow.
+- Identify every launch/firing path and any network mirror/replication implications.
+- Correct this handover if any technical statement is stale or incomplete.
+- Do not assume the source correction has already been made.
+- Do not merge or push to `main`; the user explicitly wants a review stage first.
+
+## 5. Working rules for the next contributor
+
+- Read `AI_PROJECT_CONTEXT.md` and the relevant `docs/notes/*.md` before code changes.
+- Inspect the exact branch head and full diff before editing.
+- Do not discard Claude's original homing-delay work while correcting launch-angle ownership.
+- Keep the user informed of design choices and unresolved product decisions.
+- Update `AI_TASK_LOG.md`, `AI_CHANGELOG.md` and this handover after meaningful work.
+- Report exact branch and commit SHA; do not claim compile/test/push status without verification.
+
+## 6. Next actions
+
+1. Claude reviews this handover and the branch source.
+2. Agree on the mount-transform implementation and projectile-path scope.
+3. Implement the correction on this feature branch only.
+4. Add/adjust tests and documentation.
+5. Have the other assistant review the resulting diff.
+6. Return findings to the user for approval. Integration to `main` remains the user's decision.
