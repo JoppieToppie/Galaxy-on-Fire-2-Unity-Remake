@@ -250,8 +250,24 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
 
 ### 6.2 Ship classes, class-restricted equipment and class scanners (owner's decisions, 2026-11-15; Proposed, not implemented)
 
-- **Classes are free-form and mod-defined** (e.g. "fighter", "frigate"), so other modders can build on them; no fixed list.
-  A ship has an optional class (none on every original ship); only mods assign one.
+- **Standard taxonomy:** the project standard defines these 14 classes:
+  - Fighters: `light_fighter` (Light Fighter), `heavy_fighter` (Heavy Fighter).
+  - Bombers: `light_bomber` (Light Bomber), `heavy_bomber` (Heavy Bomber), `stealth_bomber` (Stealth Bomber).
+  - Specialist combat: `interceptor` (Interceptor).
+  - Civilian / utility: `hauler` (Hauler).
+  - Multi-purpose: `light_privateer` (Light Privateer), `privateer` (Privateer), `heavy_privateer` (Heavy Privateer).
+  - Capital ships: `frigate` (Frigate), `freighter` (Freighter), `cruiser` (Cruiser), `carrier` (Carrier).
+- **Extensibility:** these are the standard classes, not a closed enum. Mods may define additional classes so other mods can
+  build on them. Store stable machine IDs separately from display labels; do not use translated/display text as a save or network
+  identifier. A ship has an optional class; unclassified ships remain valid and behave as they do today.
+- **Privateer identity:** all three Privateer classes describe multi-purpose ships, not merely a weapon category. Their design
+  balances (1) a decently sized cargo hold relative to the ship's overall size, (2) a reasonably balanced mix/count of primary
+  and secondary weapon mounts, and (3) handling that sits between a dedicated combat craft and a less agile cargo-focused hull.
+  Light / standard / heavy Privateers are scale variants of this shared philosophy. Exact numeric thresholds are deliberately
+  unspecified until the existing ship roster and modded hull ranges have been surveyed; do not invent arbitrary cut-offs.
+- **Other class identity:** the names establish the intended broad roles, but precise stat/loadout thresholds for Light vs Heavy
+  fighters and bombers, Interceptors, Stealth Bombers, Haulers and capital classes still need a roster-based pass. Do not
+  infer a ship's class from one stat alone or hard-code guessed thresholds.
 - **Restriction is an allow-list per item** (`allowedClasses`); no exclude-list. An item without the list fits every ship.
 - **Ship swap:** equipment that does not fit the new ship's class goes to the **hold** (like a built-in drive does now); the
   swap is not blocked. `Hangar.CanMount` is the existing mount gate (Khador Drive, cloak bay) and the natural place for the
@@ -261,7 +277,8 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
   threats quickly so they can prioritise targets. Only mod scanners carry the capability. The class shows on **other players'
   ships** as well as NPCs.
 - **Multiplayer:** the class restriction is enforced by the server / authority, not trusted from the client; the class of a
-  remote ship must be replicated or derivable from the ship every client already knows (to check: ship index in player state).
+  remote ship must be replicated or derivable from the ship every client already knows. The same stable class ID must be used
+  consistently by save data, mod definitions and network state.
 
 ### 6.3 Secondary hardpoint launch orientation (owner's decisions, 2026-11-15)
 
