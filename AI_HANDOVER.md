@@ -8,7 +8,7 @@
 
 
 > **Read this first when continuing the project.**
-> Last updated: 2026-11-15 (system-population feasibility assessed; core implementation scoped)
+> Last updated: 2026-11-15 (per-ship free-look orbit distance and free-look target locking implemented)
 > Prepared by: ChatGPT, then updated by Claude after the corrections below
 > Intended recipients: ChatGPT and Claude (shared AI handover), plus the user
 
@@ -36,7 +36,7 @@ and eventually player-owned/player-built stations and other lasting world struct
 Read `AI_PROJECT_CONTEXT.md` for the complete vision, player-facing pillars, architecture constraints,
 ownership rules and collaboration process. It distinguishes long-term goals from already implemented features.
 
-## 3. Active technical task: secondary weapon launch behaviour
+## 3. Previously active technical task: secondary weapon launch behaviour
 
 ### User's intended design
 
@@ -118,6 +118,15 @@ ship orientation, and any existing aim/targeting logic.
   `"rotation": [-90, 0, 0]` (up) and another with `[0, 90, 0]` (right), same missile.
 - Corrections to the earlier handover: the `rotation` field exists on `WeaponMount` (`Database.cs`) and is in the Unity ship
   frame, the one `ModHardpoints.MuzzleOffset` uses, so no frame conversion was needed.
+
+## 4. Current implementation task: per-ship free-look orbit distance and free-look target locking
+
+- **User request:** Add moddable per-ship control over the free-look orbit camera's default distance, and allow target locking while in free look.
+- **Existing behaviour:** The normal chase camera already has per-ship `ships.json` `camera.distance` / height / look offsets. The separate free-look orbit used a universal 3800-unit start radius and 1500..20000 zoom range.
+- **Implementation:** Add `camera.orbitDistance` (default 3800, clamped to 1500..20000); apply it when the player's ship is created and when swapped in flight. In free look, `CombatRadar` uses the camera viewport centre as the lock acquisition point; normal flight retains the ship-forward aim point.
+- **Compatibility:** No change to chase-camera distance, docked orbit preset, scanner requirement, lock timing, target priority, sticky lock, weapon homing or multiplayer shot protocol.
+- **Tests added:** Mod content tests for default, override, clamp and invalid values; target-lock test for free-look viewport-centre selection.
+- **Verification:** Source changes committed on this branch. Unity compilation, EditMode tests and live multiplayer verification remain outstanding.
 
 ## 3c. Turret hardpoint scaling and point-defence targeting
 
