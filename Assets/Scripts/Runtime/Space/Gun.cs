@@ -197,6 +197,14 @@ namespace GoF2Remake.Flight
         public const int SlowFreezeAttr = 167, DotDamageAttr = 168, DotMsAttr = 169, VulnerablePercentAttr = 170, VulnerableMsAttr = 171;
         [System.NonSerialized] public bool slowFreeze;
         [System.NonSerialized] public float dotDamage, dotMs, vulnerablePercent, vulnerableMs;
+        /// <summary>Remake mods: 172 homingDelayMs (a homing shot flies straight this long before it starts to home; the NPCs'
+        /// rockets have 1000, a player's missile 0 unless the item says so), 173 launchPitchDeg / 174 launchYawDeg (the shot
+        /// leaves the mount turned this many degrees up / to the right of the gun's line, whole degrees, negative = down /
+        /// left; the ship and the spawn point don't move).</summary>
+        public const int HomingDelayAttr = 172, LaunchPitchAttr = 173, LaunchYawAttr = 174;
+        const float MaxHomingDelayMs = 60000f, MaxLaunchDeg = 180f;
+        /// <summary>The turn from the gun's line to the shot's launch direction (identity = straight ahead).</summary>
+        [System.NonSerialized] public Quaternion launchTurn = Quaternion.identity;
 
         public static float ShieldFactor(ItemData item)
         {
@@ -226,6 +234,11 @@ namespace GoF2Remake.Flight
             vulnerablePercent = Mathf.Max(0, item.Attr(VulnerablePercentAttr));
             vulnerableMs = Mathf.Max(0, item.Attr(VulnerableMsAttr));
             echo = GunEcho.From(item);
+            homingDelayMs = Mathf.Clamp(item.Attr(HomingDelayAttr), 0f, MaxHomingDelayMs);
+            float launchPitch = Mathf.Clamp(item.Attr(LaunchPitchAttr), -MaxLaunchDeg, MaxLaunchDeg);
+            float launchYaw = Mathf.Clamp(item.Attr(LaunchYawAttr), -MaxLaunchDeg, MaxLaunchDeg);
+            // Unity's pitch is about +X with + = down, so up is the negative angle; yaw about +Y, + = right.
+            if (launchPitch != 0f || launchYaw != 0f) launchTurn = Quaternion.Euler(-launchPitch, launchYaw, 0f);
             emp = item.Attr(10);
             reloadMs = Mathf.Max(1, item.Attr(11, 500));
             lifetimeMs = kind == Kind.ShockBlast ? 1f : item.Attr(12, 2000);
@@ -303,6 +316,7 @@ namespace GoF2Remake.Flight
 
             var fwd = rotation * Vector3.forward;
             var up = rotation * Vector3.up;
+            var shotFwd = rotation * (launchTurn * Vector3.forward);   // where a shot flies (fwd, unless the item turns its launch)
             Vector3 Spawn() => origin + rotation * (mountLocal + (addForwardOffset && kind != Kind.ShockBlast
                 ? Vector3.forward * SpawnForwardUnits * MetersPerUnit : Vector3.zero));
 
@@ -347,7 +361,7 @@ namespace GoF2Remake.Flight
                     if (bullets[i].timer > FreeLimit) continue;
                     ref var c = ref bullets[i];
                     c.position = Spawn();
-                    c.velocity = fwd * speedUnitsPerMs * MetersPerUnit;
+                    c.velocity = shotFwd * speedUnitsPerMs * MetersPerUnit;
                     c.up = up;
                     c.timer = lifetimeMs;
                     c.age = 0f;
@@ -368,7 +382,7 @@ namespace GoF2Remake.Flight
                     ref var c = ref bullets[i];
                     float side = (made - (salvoShots - 1) * 0.5f) * SalvoSpreadUnits * MetersPerUnit;
                     c.position = Spawn() + rotation * Vector3.right * side;
-                    c.velocity = fwd * speedUnitsPerMs * MetersPerUnit;
+                    c.velocity = shotFwd * speedUnitsPerMs * MetersPerUnit;
                     c.up = up;
                     c.timer = lifetimeMs;
                     c.age = 0f;
@@ -391,7 +405,7 @@ namespace GoF2Remake.Flight
             ref var b = ref bullets[free];
             b.position = Spawn();
             b.velocity = kind == Kind.Mine ? (fwd + up).normalized * MineSpeedUnits * MetersPerUnit
-                                           : rotation * dir.normalized * speedUnitsPerMs * MetersPerUnit;
+                                           : rotation * (launchTurn * dir.normalized) * speedUnitsPerMs * MetersPerUnit;
             b.up = up;
             b.timer = lifetimeMs;
             b.age = 0f;
