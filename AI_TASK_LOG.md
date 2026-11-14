@@ -1,3 +1,16 @@
+## 2026-11-15 — Clarify ship classes are mod-only, with unrestricted vanilla fallback
+
+- **Contributor:** ChatGPT
+- **Branch:** `feature/secondary-homing-delay-launch-angle`
+- **User decision:** The 14 named classes are a mod-author vocabulary, not default classifications for original ships.
+  Vanilla ships remain unclassified; the classification feature is dormant unless a mod assigns a class.
+- **Compatibility rule:** A missing/unclassified ship class behaves as unrestricted: it accepts all equipment, even items
+  that declare `allowedClasses`. Class allow-lists are enforced only for ships with an explicit mod-assigned class.
+  Do not persist or expose a vanilla `default` class; an internal sentinel, if needed, is not a real class.
+- **Scanner:** capable scanners instantly reveal an explicitly assigned class; unclassified targets have no class readout.
+- **Status:** documentation/design only. No vanilla ship data, mod data, scanner, equipment validation or runtime source changed.
+  No Unity build/tests were run.
+
 ## 2026-11-15 — Define standard ship-class taxonomy and Privateer identity
 
 - **Contributor:** ChatGPT
