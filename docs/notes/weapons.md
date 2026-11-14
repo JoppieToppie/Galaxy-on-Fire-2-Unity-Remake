@@ -159,3 +159,7 @@ is generated from it by `Reference/tools/weapons/build_weapon_fx.py`; **GoF2 > B
   ship explosion). Measured (Editor, 50 explosions/s for 20 s): garbage 193 KB/frame -> none after warm-up, the worst
   spawning frame 36 ms -> 4 ms, p95 frame 21.3 -> 17.8 ms. Projectiles, impacts, rocket trails (`GunRig`) and shot
   sounds (`ShotVoices`) were pooled already.
+
+- **Weapon mod DPS label:** ItemInfo shows the theoretical percentage change for category 28 as
+  ((1 + attr40 / 100) / (1 - attr39 / 100) - 1) * 100. Attr 39 reduces reload time; it is not a direct
+  shots-per-second multiplier. Per-weapon integer rounding is not represented. A nonpositive reload factor shows a dash.

@@ -202,7 +202,18 @@ namespace GoF2Remake.UI
             int defense = it.Attr(Flight.PointDefense.Attribute);
             if (defense > 0)
                 rows.Add((Localization.Extra("statMissileDefense", "Shoots down missiles within"), $"{Mathf.RoundToInt(defense * Flight.Gun.MetersPerUnit)} m"));
-            return rows;
+            // Weapon mods reduce reload time, rather than multiplying shots per second (Shop.FirePower).
+            if (it.categoryId == 28)
+            {
+                float reloadFactor = 1f - it.Attr(39) / 100f;
+                string change = "—"; // A zero reload factor has no weapon-independent percentage.
+                if (reloadFactor > 0f)
+                {
+                    float percent = ((1f + it.Attr(40) / 100f) / reloadFactor - 1f) * 100f;
+                    change = (percent >= 0f ? "+" : "") + percent.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " %";
+                }
+                rows.Add(("DPS", change));
+            }            return rows;
         }
 
         static string Seconds(int ms) => (ms / 1000f).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " s";
