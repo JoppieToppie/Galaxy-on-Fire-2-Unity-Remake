@@ -1,3 +1,11 @@
+## 2026-11-15 — Rename active feature branch to reflect the wider expansion
+
+- **Contributor:** ChatGPT
+- **Previous branch:** `feature/secondary-homing-delay-launch-angle`
+- **New branch:** `feature/extensive-multiplayer-expansion`
+- **Reason:** The branch now carries broader multiplayer expansion design and documentation, not only secondary weapon launch work.
+- **Status:** New branch will point to the same latest commit; no source history is rewritten.
+
 ## 2026-11-15 — Define class-based station exterior docking and freighter boarding
 
 - **Contributor:** ChatGPT
