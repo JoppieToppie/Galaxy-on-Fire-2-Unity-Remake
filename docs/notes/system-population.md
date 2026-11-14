@@ -153,3 +153,74 @@ Do not settle on a JSON property name, numeric population levels, spawn counts, 
 - `docs/notes/multiplayer.md`
 - `docs/notes/multiplayer-sync.md`
 - `Reference/research/npc_traffic_ai.md`
+
+
+## 9. Extended audit: dynamic encounters and station-related systems (2026-11-15)
+
+### Dynamic cruise encounters
+
+The cruise-drive encounter system is a separate, player-triggered / travel-time encounter pipeline:
+
+- `Core/CruiseEncounters.cs` rolls the encounter table while the player is cruising (after 6 seconds, a check every 5 seconds, 10% chance, 90-second cooldown, maximum two per orbit visit).
+- Built-in entries include pirate ambushes, trade convoys, distress calls and flybys; mods can add or override entries through `encounters.json` (`ModEncounters`).
+- `Game/CruiseEncounterRules.cs` excludes special/story-sensitive systems, the Void/supernova systems, pirate hideouts and `traffic: "mod"` systems.
+- `SpaceLevel` only enables the orbit encounter roll when this player owns the orbit simulation; passive clients and scripted/special orbit modes do not independently roll encounters.
+- `World/CruiseEncounterSpawner.cs` creates the ships through `Traffic.SpawnShip`. Some kinds create groups and follow-on waves (e.g. battle/high-risk/challenge); a rift delegates to `RiftEncounter`, which replenishes enemies as the stage runs.
+
+**Classification:** these are not the ambient background population. They are discrete encounters initiated by the player's cruise activity (or a visible signal the player chooses to approach). The population switch should not silently disable them as a side effect. If modders later want empty systems to prohibit even these encounters, that should be a separate explicit encounter policy or an explicit opt-in on the encounter table, not an accidental consequence of ambient suppression.
+
+### Pirate events and special traffic
+
+- `TrafficPlanPirateEvents.cs` adds pirate outposts, guards, turrets, bosses and escorts as a reported/unreported pirate activity event on orbit entry. Event ships carry `pirateEvent` / `eventTag` metadata; `TrafficSpecials.UpdateOrbit` explicitly skips automatic respawn for nonzero `eventTag`.
+- `TrafficPlanSpecials.cs` includes authored special populations such as pirate bases, capital/fleet battles and special orbit actors. The main `TrafficPlan.Build` also has dedicated story/system branches (including tutorial/supernova/Void/loot/pirate-hideout cases).
+- These are authored system content or discrete events, not generic local traffic. A system population override should not remove them by default. A mod that wants to suppress one of these should use its existing event/system configuration or a future separate explicit switch.
+
+### Freelance missions and mining sites
+
+`FreelanceOrbit` is mission-owned content. It builds mission enemies/friends, routes, escorts, junk and the ore-mining site for the active freelance mission. In a multiplayer squad, a follower builds the site but does not duplicate the runner's mission ships; mission proxies are promoted/adopted separately.
+
+**Classification:** mission actors and mission sites are not ambient population. They should remain available when ambient traffic is disabled.
+
+### Player-built stations: important current-state finding
+
+The audited branch does **not** currently expose a runtime player-built-station placement / ownership / destruction lifecycle that can be used as a population trigger.
+
+There are related but different systems:
+
+- `MobileStations` / `MobileStation` spawn **mod-authored mobile stations** from `stations.json`. Their location is derived deterministically from a UTC clock, route and stay duration. They move through configured station orbits and support docking. They are not constructed or owned by a player.
+- `StationLife` creates visual worker drones on a mod station model's configured loops. These are visual effects, not NPC traffic or a player station.
+- Multiplayer factions can claim existing station indices as territory. A claim changes station services / trade / faction ownership state; it does not construct a new station.
+- Faction garrisons and siege defenders are spawned by `NetOrbit.UpdateGarrison` only while a station siege is armed. They carry dedicated event tags, are server-counted, respawn on siege-specific timers and leave when the siege ends. They are combat/event actors, not ambient population.
+- `HangarTraffic` is station-interior hangar activity and is separate from ships flying in the system orbit.
+
+Therefore the station-attraction idea is currently a **future integration point**, not something that can be wired into an existing player-station event. Before implementing it, the project needs the player-built station feature (or a clearly defined representation of a player-owned station) and authoritative lifecycle events: placed/activated, ownership changed, packed/moved, destroyed and restored after reconnect/server restart.
+
+Do not use faction station claims or mod-authored mobile stations as a substitute for player-built station ownership. They have different semantics.
+
+### Decorative / non-NPC traffic lanes
+
+`TrafficLanes` reads `stations.json` orbit lane definitions and creates simple moving ship models along spline paths. They are not `NpcShip` actors, have no AI, no radar marker and no player targeting. A destroyed lane model is restored after its own short `TrafficLane.RespawnMs` timer.
+
+**Classification:** this is decorative orbit traffic, not the ambient NPC population. Whether an empty-system setting should also hide these lane models is a separate visual-density choice. The user's original request concerns NPC presence; safest default is not to change lane visuals unless explicitly configured.
+
+### Additional classification matrix
+
+| Source | What it creates | Ambient suppression by default? |
+|---|---|---|
+| `TrafficPlan` ordinary locals, jumpers, freighters, raiders | Background NPC ships | **Yes** |
+| `TrafficSpecials.UpdateOrbit` revival of those ambient groups | Returning background ships | **Yes** |
+| `TrafficPlanPirateEvents` | Pirate activity events, guards, outposts, bosses | No; event content |
+| `TrafficPlanSpecials` system-specific special actors | Authored special populations | No; preserve existing system logic |
+| `CruiseEncounterSpawner` / `RiftEncounter` | Player-triggered cruise encounters and waves | No; separate encounter policy |
+| `FreelanceOrbit` | Mission actors and mining sites | No; mission content |
+| `NetOrbit.UpdateGarrison` | Siege garrisons and defenders | No; siege content |
+| `TrafficLanes` | Decorative moving models | No; separate visual setting |
+| `HangarTraffic` | Interior parked / landing / departing ships | No; unrelated to system orbit |
+
+### Refined implementation boundary
+
+The narrowest safe first implementation is to suppress only the ordinary ambient population planned by `TrafficPlan` and its matching ambient revival logic. The ambient category needs to be identified explicitly on each planned `SpawnSpec` (or by a carefully defined predicate); relying only on `NpcGroup` is insufficient because groups are reused by missions, events, garrisons and other systems.
+
+The revival path needs the same classification. In particular, current code uses group checks for local / raider revivals and a separate Void revival loop. A blanket group or race filter would risk suppressing mission/event actors. The existing `eventTag` check already protects many event ships, but it is not a complete ambient classification.
+
+For the later station response, first implement/identify the player-station lifecycle. Once it exists, the station can request a small ambient spawn budget from the orbit authority; it should not directly create ships on every client or reuse mission/event spawners.
