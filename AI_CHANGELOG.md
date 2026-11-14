@@ -1,3 +1,14 @@
+## 2026-11-15 — Record turret hardpoint scaling and point-defence profiles (ChatGPT)
+
+**Branch:** `feature/secondary-homing-delay-launch-angle`
+
+Recorded the user's decisions:
+- Add independent per-turret-hardpoint scaling, separate from ship-kit hull scale and turret item `fx.turret.scale`.
+- Point-defence profiles: `ships`, `missiles`, and `missiles_priority`; no `balanced` profile.
+- Keep targeting eligibility separate from weapon damage and extend the existing missile interception system.
+
+Documentation/design only. No source, schemas, Mod Builder UI or tests changed.
+
 ## 2026-11-15 — Clarify ship classification is opt-in mod content (ChatGPT)
 
 **Branch:** `feature/secondary-homing-delay-launch-angle`
