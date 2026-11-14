@@ -1,3 +1,14 @@
+## 2026-11-15 — Inspect the existing system NPC population pipeline
+
+- **Contributor:** ChatGPT
+- **Branch:** `feature/extensive-multiplayer-expansion`
+- **Inspected:** `SpaceLevel`, `Traffic`, `TrafficPlan`, `TrafficPlanNpcShips`, `TrafficSpecials`, `ModWorld` parsing/merging/lookup, `NetOrbit`, `NetState` / orbit handover, and the NPC / multiplayer notes and modding guide.
+- **Findings:** Normal free-flight population is planned by `TrafficPlan.Build` and instantiated by `Traffic`. Existing `systems.json` `traffic: "mod"` selects mod-only traffic; it is not an empty-system switch. `locals` / `raiders` use null/empty fallback semantics, so empty arrays are not a safe suppression mechanism. Ambient respawns are separate: jumpers every 10 s, locals and eligible raider waves every 45 s, plus a separate Void attacker revival path. Story/campaign and mission/event actors use additional spawn paths and must not be globally suppressed.
+- **Multiplayer:** One orbit authority builds and runs traffic; NPCs are proxied to other players and adopted on authority handover. Station-attracted spawn scheduling/state must therefore be authoritative and handover-safe.
+- **Documentation:** Added `docs/notes/system-population.md` with pipeline map, existing mod controls, respawn paths, story/mission boundaries, multiplayer implications and an implementation checklist.
+- **Status:** investigation and documentation only. No runtime source, mod schema, system data or tests changed; no Unity build/tests run.
+- **Next:** Audit all remaining ambient/event spawn paths and inspect player-built-station lifecycle before proposing the smallest schema and exact spawn policy.
+
 ## 2026-11-15 — Define opt-in per-system NPC population control
 
 - **Contributor:** ChatGPT
