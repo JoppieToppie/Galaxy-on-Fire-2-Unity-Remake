@@ -250,16 +250,23 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
 
 ### 6.2 Ship classes, class-restricted equipment and class scanners (owner's decisions, 2026-11-15; Proposed, not implemented)
 
-- **Standard taxonomy:** the project standard defines these 14 classes:
+- **Mod-only taxonomy:** the 14 names below are a recommended shared vocabulary for mod authors, **not vanilla/base-game
+  ship classifications**. Do not assign any of them to original ships or ship data by default. In an unmodded game, ships have
+  no gameplay class and class-based equipment restrictions / scanner readouts remain dormant.
   - Fighters: `light_fighter` (Light Fighter), `heavy_fighter` (Heavy Fighter).
   - Bombers: `light_bomber` (Light Bomber), `heavy_bomber` (Heavy Bomber), `stealth_bomber` (Stealth Bomber).
   - Specialist combat: `interceptor` (Interceptor).
   - Civilian / utility: `hauler` (Hauler).
   - Multi-purpose: `light_privateer` (Light Privateer), `privateer` (Privateer), `heavy_privateer` (Heavy Privateer).
   - Capital ships: `frigate` (Frigate), `freighter` (Freighter), `cruiser` (Cruiser), `carrier` (Carrier).
-- **Extensibility:** these are the standard classes, not a closed enum. Mods may define additional classes so other mods can
-  build on them. Store stable machine IDs separately from display labels; do not use translated/display text as a save or network
-  identifier. A ship has an optional class; unclassified ships remain valid and behave as they do today.
+- **Extensibility:** this is a suggested shared vocabulary, not a closed enum or mandatory list. Mods may assign any of these
+  classes to their own ships and may define additional classes. Store stable machine IDs separately from display labels; do not
+  use translated/display text as a save or network identifier. A ship with no mod-assigned class remains unclassified.
+- **Unclassified/default compatibility:** do not add a visible or persisted vanilla `default` ship class. Treat a missing class
+  as an implicit unrestricted compatibility state: every item is allowed on an unclassified ship, including items that declare
+  `allowedClasses`. This preserves all existing vanilla loadouts and means class restrictions only engage when a mod explicitly
+  assigns a class to a ship. If an implementation needs an internal sentinel, it must not be exposed as a real mod class or
+  written into original ship data.
 - **Privateer identity:** all three Privateer classes describe multi-purpose ships, not merely a weapon category. Their design
   balances (1) a decently sized cargo hold relative to the ship's overall size, (2) a reasonably balanced mix/count of primary
   and secondary weapon mounts, and (3) handling that sits between a dedicated combat craft and a less agile cargo-focused hull.
@@ -273,11 +280,13 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
   physical hull-volume field in the base `ShipData` schema. For cargo-relative-to-size judgements (especially Privateers),
   survey those stats alongside actual model / kit scale and ship descriptions; do not treat raw cargo capacity as size-adjusted
   without that context.
-- **Restriction is an allow-list per item** (`allowedClasses`); no exclude-list. An item without the list fits every ship.
+- **Restriction is an allow-list per item** (`allowedClasses`); no exclude-list. An item without the list fits every ship. A
+  restricted item is still accepted by an unclassified ship; its allow-list is checked only when the ship has an explicit mod class.
 - **Ship swap:** equipment that does not fit the new ship's class goes to the **hold** (like a built-in drive does now); the
   swap is not blocked. `Hangar.CanMount` is the existing mount gate (Khador Drive, cloak bay) and the natural place for the
   refusal; also audit buy-and-mount, saves / start loadouts, the Kaamo club, cheats and kit ships.
-- **Scanner:** **one scanner attribute** that reveals the locked ship's class **immediately on lock**; no progress bar or scan
+- **Scanner:** **one scanner attribute** that reveals a locked ship's explicitly mod-assigned class **immediately on lock**; an
+  unclassified ship has no class to reveal. No progress bar or scan
   delay. This is a tactical identification tool: large ships, especially cruisers, need to identify specialised anti-capital
   threats quickly so they can prioritise targets. Only mod scanners carry the capability. The class shows on **other players'
   ships** as well as NPCs.
