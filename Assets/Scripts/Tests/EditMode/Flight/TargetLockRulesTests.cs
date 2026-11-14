@@ -47,6 +47,25 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void NormalFlightKeepsTheShipForwardAimLine()
+        {
+            var cameraObject = new UnityEngine.GameObject("camera");
+            var shipObject = new UnityEngine.GameObject("ship");
+            try
+            {
+                var camera = cameraObject.AddComponent<UnityEngine.Camera>();
+                var expected = camera.WorldToScreenPoint(ChaseCamera.AimOrigin(shipObject.transform)
+                                                          + shipObject.transform.forward * (22000f * 0.05f));
+                Assert.AreEqual(expected, CombatRadar.LockCrosshairPoint(camera, shipObject.transform, false));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+                UnityEngine.Object.DestroyImmediate(shipObject);
+            }
+        }
+
+        [Test]
         public void HostileShipsComeFirstThenTheNearest()
         {
             Assert.AreEqual("enemy", Pick(new[] { Trader, Raider, Enemy }, true, false), "hostile first, the nearer of the two");
