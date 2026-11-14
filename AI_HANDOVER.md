@@ -1,7 +1,7 @@
 # AI handover — current baton pass
 
 > **Read this first when continuing the project.**
-> Last updated: 2026-11-15 (system population design added)
+> Last updated: 2026-11-15 (NPC population pipeline investigated)
 > Prepared by: ChatGPT, then updated by Claude after the corrections below
 > Intended recipient: ChatGPT (review) and the user
 
@@ -173,6 +173,10 @@ Implementation/research checklist:
 4. Implement station external docking as a distinct mode while keeping the ship replicated in the shared space scene.
 5. Add tests for unclassified denial, interior-only classes, external-capable classes, missing docking points, and freighter
    boarding size boundary; test multi-client visibility and Space Lounge camera transitions in Unity.
+
+## 3f. Existing NPC population pipeline investigation
+
+See `docs/notes/system-population.md` for the code-path notes. Key finding: the existing `systems.json` `traffic: "mod"` option changes the source of traffic, not its quantity; it does not suppress mod NPCs. Initial planning is in `TrafficPlan.Build`, while `TrafficSpecials` independently revives jumpers, locals, raiders and Void attackers. Story and mission spawns have separate paths, and multiplayer population creation belongs to the orbit authority. The next step is a focused audit of all ambient/event spawn sources and the player-built-station lifecycle before selecting the schema or editing runtime code.
 
 ## 3e. Mod-controlled system NPC population
 
