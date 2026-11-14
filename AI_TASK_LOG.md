@@ -1,3 +1,13 @@
+## 2026-11-15 — Define opt-in per-system NPC population control
+
+- **Contributor:** ChatGPT
+- **Branch:** `feature/extensive-multiplayer-expansion`
+- **User decision:** System population control is an engine capability used explicitly by mods, not a new vanilla default. Each system can be configured independently; selected systems can have ambient NPC presence removed by default, especially in multiplayer mods and newly added systems. Existing systems and the base story remain unchanged unless a mod opts in.
+- **Optional station response:** A player-built station may optionally attract a small amount of ambient NPC activity. Any return should be light, infrequent and varied rather than restoring a busy population.
+- **Compatibility boundary:** Keep story-/mission-scripted NPCs separate from ambient population control so required story actors and encounters are not suppressed.
+- **Open implementation details:** Mod data schema, population levels vs simple suppression, eligible NPC categories, spawn cadence/caps and persistence remain to be researched against the existing spawn pipeline.
+- **Status:** design/documentation only. No source, system data, NPC spawning, multiplayer state or tests changed; no Unity build/tests run.
+
 ## 2026-11-15 — Rename active feature branch to reflect the wider expansion
 
 - **Contributor:** ChatGPT
