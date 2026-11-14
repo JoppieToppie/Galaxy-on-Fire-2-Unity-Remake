@@ -137,7 +137,7 @@ namespace GoF2Remake.UI
             if (cam == null || crosshair.panel == null) return;
             // Hud::draw at crosshairPos: in the turret view (PlayerEgo::setTurretMode) where the turret's gun points, the
             // plasma collectors with their own crosshair (0x1f5e, GoF2Hud/plasma_crosshair_idle; 0x1f5d plasma_crosshair while
-            // plasma is in range); else the ship's nose.
+            // plasma is in range); else the ship's nose, or the active camera's centre in free look.
             var viewTurret = level != null ? level.Turret : null;
             bool turretView = viewTurret != null && viewTurret.InTurretView;
             bool freeLook = !turretView && level != null && level.FreeLook != null && level.FreeLook.FreeLookActive;
