@@ -10,7 +10,7 @@
 - **Repository:** `SpectreAnims/Galaxy-on-Fire-2-Unity-Remake`
 - **Active branch:** `feature/secondary-homing-delay-launch-angle`
 - **Base:** `main`
-- **Branch state before this documentation update:** 1 commit ahead of main, 0 behind.
+- **Verified branch state after the 2026-11-15 decision-note updates:** 11 commits ahead of `main`, 0 behind. Current head: `e913ab303bfce0c7e0bd51d2ad976da827d5ed4e`.
 - **Integration instruction:** Do not merge or push this feature branch to `main`. The user wants Claude to review
   the changes before deciding what happens next.
 - **Coordinator:** the user. They manually pass work between Claude and ChatGPT.
