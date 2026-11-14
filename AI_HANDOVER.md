@@ -118,7 +118,9 @@ The user has defined 14 standard classes in `AI_PROJECT_CONTEXT.md` §6.2: Light
 Heavy Bomber, Interceptor, Stealth Bomber, Hauler, Light Privateer, Privateer, Heavy Privateer, Frigate, Freighter, Cruiser
 and Carrier. This is an extensible standard taxonomy; mods may add classes. All Privateer variants are multi-purpose ships
 with substantial cargo capacity relative to hull size, a balanced primary/secondary weapon fit, and balanced handling.
-Precise numerical class thresholds remain to be established from a survey of the ship roster.
+Precise numerical class thresholds remain to be established from a survey of the ship roster. The base `ships.json` exposes
+cargo, weapon slot counts, armor, handling and descriptions, but not direct hull volume; use model / kit scale when judging
+cargo relative to ship size.
 
 The rest of the approved design remains: per-item `allowedClasses`, incompatible equipment moved to the hold on ship swap,
 and a scanner capability that reveals a locked target's class **immediately on lock** (including other players), with no
