@@ -221,3 +221,8 @@ Please review these notes and the current branch. In particular:
 4. Independently review the implementation and verify the shot replication path.
 5. Implement ship-class data, equipment restrictions and instant scanner identification as a separate feature task.
 6. Return findings to the user for approval. Integration to `main` remains the user's decision.
+
+
+## 3g. Extended system population audit
+
+The follow-up audit is recorded in `docs/notes/system-population.md` (section 9). Cruise-drive encounters are player-triggered, separately gated and should not be silently removed by ambient suppression. Pirate activity events, system-special actors, freelance mission ships/mining sites, siege garrisons/defenders and decorative traffic lanes are also separate categories. The key station finding: this branch has no player-built-station placement/ownership/destruction lifecycle to hook into. `MobileStation` is mod-authored and clock/route-driven; faction claims refer to existing stations; neither is player construction. Siege garrisons are separately tagged combat actors. Do not implement station attraction until a real player-station lifecycle/ownership model exists. The safe first scope remains ordinary ambient `TrafficPlan` ships plus their matching revival logic, with explicit ambient classification rather than broad group/race filtering.
