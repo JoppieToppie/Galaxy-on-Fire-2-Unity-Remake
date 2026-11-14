@@ -256,10 +256,31 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
 - **Ship swap:** equipment that does not fit the new ship's class goes to the **hold** (like a built-in drive does now); the
   swap is not blocked. `Hangar.CanMount` is the existing mount gate (Khador Drive, cloak bay) and the natural place for the
   refusal; also audit buy-and-mount, saves / start loadouts, the Kaamo club, cheats and kit ships.
-- **Scanner:** **one scanner attribute** that simply reveals the locked ship's class on lock (precedent: attr 31, the cargo
-  readout, `CombatRadar.ReadCargo`). Only mod scanners carry it. The class shows on **other players' ships** as well as NPCs.
+- **Scanner:** **one scanner attribute** that reveals the locked ship's class **immediately on lock**; no progress bar or scan
+  delay. This is a tactical identification tool: large ships, especially cruisers, need to identify specialised anti-capital
+  threats quickly so they can prioritise targets. Only mod scanners carry the capability. The class shows on **other players'
+  ships** as well as NPCs.
 - **Multiplayer:** the class restriction is enforced by the server / authority, not trusted from the client; the class of a
   remote ship must be replicated or derivable from the ship every client already knows (to check: ship index in player state).
+
+### 6.3 Secondary hardpoint launch orientation (owner's decisions, 2026-11-15)
+
+- Launch-direction adjustment is for **secondary weapons only**. Primary guns, turrets, NPC/capital guns and unrelated mount
+  types retain their existing firing behaviour.
+- The launch direction belongs to the hardpoint/mount, not the weapon item. The same secondary item can therefore launch
+  differently from two mounts without changing its own speed, damage, homing delay or other intrinsic stats.
+- It should be moddable per mount. Prefer a new optional mount field such as `launchRotation` (Euler or quaternion, matching
+  the established mount-rotation representation) rather than silently changing the meaning of the existing `rotation` field.
+  Existing `rotation` controls the mounted model/muzzle presentation; preserving that meaning avoids breaking mods that
+  visually cant a weapon without intending to redirect its projectile.
+- If `launchRotation` is absent, preserve today's straight-ahead secondary launch behaviour. Do not infer launch direction
+  from visual `rotation` unless a later compatibility decision explicitly authorises that fallback.
+- Keep `homingDelayMs` as an item-level weapon property. Apply the mount launch transform to the supported secondary
+  projectile paths only, and explicitly document any intentional exclusions (e.g. beams/mines) after auditing them.
+- Mod Builder support for the mount-level launch setting is desirable, but the underlying data format and runtime behaviour
+  take priority; do not block a correct moddable implementation on UI tooling.
+- Multiplayer must use the authoritative shot's resulting velocity/direction so remote clients reproduce the same launch.
+  Verify the actual replication path and test it; do not assume local correctness proves network correctness.
 
 ## 7. Non-goals and guardrails
 
