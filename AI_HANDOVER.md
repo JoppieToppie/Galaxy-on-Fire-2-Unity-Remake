@@ -112,6 +112,22 @@ ship orientation, and any existing aim/targeting logic.
 - Corrections to the earlier handover: the `rotation` field exists on `WeaponMount` (`Database.cs`) and is in the Unity ship
   frame, the one `ModHardpoints.MuzzleOffset` uses, so no frame conversion was needed.
 
+## 3c. Turret hardpoint scaling and point-defence targeting
+
+The user wants independent scaling on each turret hardpoint, configured at the hardpoint itself—not ship-kit hull scale and
+not the existing turret weapon item's `fx.turret.scale`. An optional per-mount field such as `turretScale` is a candidate;
+missing value preserves current size. Inspect hardpoint JSON parsing and every turret build / hangar / remote presentation path
+before finalising the field and transform semantics.
+
+Point-defence targeting is configured on turret items, independently of damage:
+- `ships`: conventional ship targeting.
+- `missiles`: incoming missile interception only.
+- `missiles_priority`: missiles first, ships when no eligible missile target is available.
+There is **no** `balanced` profile. Preserve optional light anti-ship damage for profiles that permit ship targeting.
+Extend the existing point-defence system; audit authority, missile claims, lead, range and multiplayer replication.
+
+Design only; no implementation or tests yet.
+
 ## 3b. Ship classes and class scanners
 
 The user has defined 14 recommended mod-author class names in `AI_PROJECT_CONTEXT.md` §6.2: Light Fighter, Heavy Fighter,
