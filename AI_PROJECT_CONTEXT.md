@@ -366,6 +366,16 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
 - **Status:** product design only. No docking code, class schema, station/freighter interaction, docking-point data, camera
   behaviour or multiplayer replication has been implemented or tested.
 
+### 6.6 Mod-controlled system NPC population (owner's decisions, 2026-11-15; Proposed)
+
+- **Explicit opt-in:** system population control is an engine capability for modders, not a new default game rule. It must have no effect on an unmodified game or on any existing system unless a mod explicitly configures that system. Existing story content, scripted encounters and vanilla system populations must remain unchanged by default.
+- **Per-system control:** modders should be able to configure NPC presence independently for each system. The primary intended use is to make selected systems empty of ambient NPC traffic / presence by default, particularly for multiplayer-focused mods and newly added systems. This is not a requirement to redesign the NPC simulation or population economy in depth.
+- **Optional player-station response:** a mod may optionally allow a player-built station in a low- or no-population system to attract a small amount of ambient NPC presence. This should be light, infrequent and varied rather than restoring a busy vanilla population or creating a constant stream of traffic. Station presence is a possible trigger for limited ambient activity, not an automatic requirement for every system or every station.
+- **Compatibility boundary:** absent system configuration means today's behaviour. Do not modify original system data or silently apply a global population override. Keep story-/mission-scripted NPCs distinct from ambient population control so the feature cannot inadvertently suppress required story actors or encounters.
+- **Multiplayer:** the server / world authority should own population decisions and spawn/despawn state so clients see a consistent system. Persistence, reconnects, player-station ownership/lifecycle and mod-content compatibility need to be considered when the implementation is designed.
+- **Still to specify during implementation:** exact mod data location/schema, whether population is a simple enabled/disabled setting or supports a small set of levels, what ambient NPC categories can return around player-built stations, spawn caps/cadence and persistence rules. Do not invent a complex simulation or hard-code arbitrary population rates before inspecting the existing system/NPC spawn pipeline.
+- **Status:** product direction recorded; design only. No system data, NPC spawning logic, multiplayer state or tests have been changed.
+
 ## 7. Non-goals and guardrails
 
 - Do not replace the remake's single-player game with a multiplayer-only fork.
