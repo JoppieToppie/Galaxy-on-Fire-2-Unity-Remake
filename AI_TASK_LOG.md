@@ -1,3 +1,19 @@
+## 2026-11-15 — Define class-based station exterior docking and freighter boarding
+
+- **Contributor:** ChatGPT
+- **Branch:** `feature/secondary-homing-delay-launch-angle`
+- **User decisions:** Every station supports interior and external docking. Docking mode is class-controlled; Fighters and
+  Interceptors are interior-only. Unclassified ships retain normal interior docking but are completely barred from external
+  station docking. The full mode mapping for other classes remains open.
+- **External docking:** the ship remains alongside the station in the shared space scene and visible to server members,
+  following moving-station docking behaviour. The docking camera stays in space; Space Lounge is a separate explicit
+  interior transition. Eventual attachment uses a ship hull docking point and station-side arm/point, but initial behaviour
+  needs no visible docking hardware or animation. A missing ship docking point denies external docking.
+- **Freighters:** no external docking. Close-range hack-boarding is a separate interaction available only to ships smaller
+  than a Frigate; Frigate-sized and larger ships cannot board/hack them. Remote hacking is not in the initial design.
+- **Status:** design/documentation only. No docking code, class schema, docking-point data, camera changes, multiplayer
+  replication or tests were implemented or run.
+
 ## 2026-11-15 — Turret hardpoint scaling and point-defence targeting decisions
 
 - **Contributor:** ChatGPT
