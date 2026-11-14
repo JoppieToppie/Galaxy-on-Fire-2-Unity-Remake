@@ -1,3 +1,12 @@
+## 2026-11-15 — Clarify player-built station implementation is last
+
+- **Contributor:** ChatGPT
+- **Branch:** `feature/extensive-multiplayer-expansion`
+- **Decision:** Player-built stations do not exist yet. Player-built-station construction and station-attracted NPC population are explicitly deferred to the **last implementation step** of this system-population workstream. Complete and verify mod-controlled ambient population suppression first. Revisit station attraction only after a real player-built-station system has authoritative placement, ownership, lifecycle and persistence. Mobile stations and faction claims are not substitutes.
+- **Collaboration:** These notes are shared handover material for both ChatGPT and Claude. Both contributors must read and maintain them and preserve this implementation order.
+- **Documentation:** Added prominent notices to `docs/notes/system-population.md`, `AI_PROJECT_CONTEXT.md` and `AI_HANDOVER.md`.
+- **Status:** documentation / sequencing clarification only; no runtime code or schema changed.
+
 ## 2026-11-15 — Extend system population audit to encounters and stations
 
 - **Contributor:** ChatGPT
