@@ -1,3 +1,17 @@
+## 2026-11-15 — Define standard ship-class taxonomy and Privateer identity
+
+- **Contributor:** ChatGPT
+- **Branch:** `feature/secondary-homing-delay-launch-angle`
+- **User's decision:** Standard classes are Light Fighter, Heavy Fighter, Light Bomber, Heavy Bomber, Interceptor,
+  Stealth Bomber, Hauler, Light Privateer, Privateer, Heavy Privateer, Frigate, Freighter, Cruiser and Carrier.
+- **Privateer design:** all Privateers are multi-purpose vessels with a decently sized cargo hold relative to hull size,
+  a balanced amount of primary and secondary weaponry, and handling that balances combat capability with utility.
+  Light / standard / heavy variants express different scales of this philosophy.
+- **Design clarification:** the 14 are the project's standard taxonomy, not a closed list; mods may add classes. Stable
+  machine IDs are recommended separately from display labels. Exact numerical class thresholds remain open and should
+  be based on surveying the actual ship roster rather than arbitrary guesses.
+- **Status:** design recorded only. No ship data, scanner, equipment validation or runtime source was changed or tested.
+
 # AI task log
 
 Chronological record of substantial work by ChatGPT, Claude or other contributors.
