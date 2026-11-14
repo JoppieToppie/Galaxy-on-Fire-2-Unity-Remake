@@ -10,6 +10,9 @@
 - **Design clarification:** the 14 are the project's standard taxonomy, not a closed list; mods may add classes. Stable
   machine IDs are recommended separately from display labels. Exact numerical class thresholds remain open and should
   be based on surveying the actual ship roster rather than arbitrary guesses.
+- **Repository inspection:** the base `Assets/Resources/GoF2Data/ships.json` contains cargo capacity, primary / secondary / turret
+  slot counts, armor, handling and descriptive text. The base `ShipData` schema has no direct hull-volume field, so relative
+  cargo judgements need model / kit scale and qualitative review as well as the numeric stats.
 - **Status:** design recorded only. No ship data, scanner, equipment validation or runtime source was changed or tested.
 
 # AI task log
