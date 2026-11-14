@@ -114,11 +114,16 @@ ship orientation, and any existing aim/targeting logic.
 
 ## 3b. Ship classes and class scanners
 
-The user has approved the design in `AI_PROJECT_CONTEXT.md` §6.2: free-form mod-defined ship classes, per-item
-`allowedClasses`, incompatible equipment moved to the hold on ship swap, and a scanner capability that reveals a locked
-target's class **immediately on lock** (including other players). The scanner is a tactical threat-identification tool;
-there is no scan progress/delay. This remains a **design proposal only**; no scanner/classification source implementation
-has been made on this branch.
+The user has defined 14 standard classes in `AI_PROJECT_CONTEXT.md` §6.2: Light Fighter, Heavy Fighter, Light Bomber,
+Heavy Bomber, Interceptor, Stealth Bomber, Hauler, Light Privateer, Privateer, Heavy Privateer, Frigate, Freighter, Cruiser
+and Carrier. This is an extensible standard taxonomy; mods may add classes. All Privateer variants are multi-purpose ships
+with substantial cargo capacity relative to hull size, a balanced primary/secondary weapon fit, and balanced handling.
+Precise numerical class thresholds remain to be established from a survey of the ship roster.
+
+The rest of the approved design remains: per-item `allowedClasses`, incompatible equipment moved to the hold on ship swap,
+and a scanner capability that reveals a locked target's class **immediately on lock** (including other players), with no
+scan progress/delay. This remains a **design proposal only**; no scanner/classification source implementation has been made
+on this branch.
 
 ## 4. Claude review request
 
