@@ -1,3 +1,13 @@
+## 2026-11-15 — Record standard ship classes and Privateer design (ChatGPT)
+
+**Branch:** `feature/secondary-homing-delay-launch-angle`
+
+Updated the project context and handover with the user's 14 standard ship classes and the shared multi-purpose design
+criteria for Light Privateer, Privateer and Heavy Privateer. The standard taxonomy remains extensible to mod-defined
+classes; numeric thresholds are deferred pending a survey of the ship roster.
+
+Documentation/design only. No gameplay source, ship data, scanner implementation or tests were changed.
+
 # AI change log
 
 This file records actual repository changes made by AI contributors. It is not a design wishlist.
