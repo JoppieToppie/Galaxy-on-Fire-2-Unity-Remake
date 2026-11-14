@@ -114,6 +114,21 @@ Newest entries go at the top. Link commits/PRs where available.
 
 ---
 
+## 2026-11-15 — Assess feasibility and narrow the core system-population implementation
+
+- **Contributor:** ChatGPT
+- **Branch:** `feature/extensive-multiplayer-expansion`
+- **User request:** Touch up shared notes and assess how feasible/easy it is to remove natural traffic from selected systems.
+- **Inspected:** shared project context, handover, task log, changelog and `docs/notes/system-population.md` on the active feature branch.
+- **Conclusion:** feasible, low-to-moderate complexity. The existing per-system mod parsing path can host one optional boolean; the runtime change is concentrated in ordinary `TrafficPlan.Build` population and matching ambient revival paths.
+- **Key implementation risk:** reliable ambient-vs-scripted classification. Do not use broad race/group filters or blanket `NpcShip.Revive` suppression.
+- **Scope clarified:** core ambient suppression only. Cruise encounters, pirate events, mission/story actors, special populations, siege garrisons and decorative lanes remain separate.
+- **Station sequencing:** player-built stations and station-attracted NPC traffic remain explicitly deferred to the final implementation phase, after a real player-built-station lifecycle exists.
+- **Status:** investigated/documented only. No runtime source, JSON schema, system data, tests or build changed/run.
+
+---
+
+
 ## 2026-11-15 — Secondary launch direction moved from the item to the hardpoint
 
 - **Contributor:** Claude
