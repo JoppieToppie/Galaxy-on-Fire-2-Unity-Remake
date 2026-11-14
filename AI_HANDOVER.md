@@ -1,7 +1,7 @@
 # AI handover — current baton pass
 
 > **Read this first when continuing the project.**
-> Last updated: 2026-11-15 (second update)
+> Last updated: 2026-11-15 (system population design added)
 > Prepared by: ChatGPT, then updated by Claude after the corrections below
 > Intended recipient: ChatGPT (review) and the user
 
@@ -173,6 +173,20 @@ Implementation/research checklist:
 4. Implement station external docking as a distinct mode while keeping the ship replicated in the shared space scene.
 5. Add tests for unclassified denial, interior-only classes, external-capable classes, missing docking points, and freighter
    boarding size boundary; test multi-client visibility and Space Lounge camera transitions in Unity.
+
+## 3e. Mod-controlled system NPC population
+
+The user has specified a deliberately lightweight, **explicitly modded** system-population feature (2026-11-15). This is **design only**:
+
+- Population control exists as an engine capability for modders; it is not enabled globally and must not affect the unmodified base game.
+- Each system can be configured independently. The main use is to remove ambient NPC presence from selected systems by default, especially multiplayer-mod systems and new systems. Existing systems remain vanilla unless a mod explicitly opts them in.
+- An optional future rule may let a player-built station attract a small amount of NPC activity into an otherwise empty / quiet system. It should be sparse, infrequent and diverse, not a return to normal busy-system population.
+- Preserve story-/mission-scripted NPCs and encounters; distinguish them from ambient population so population suppression cannot accidentally break the base story.
+- Population/spawn decisions should be authoritative and consistent across multiplayer clients.
+
+Still open for implementation research: the exact system-level mod schema, whether a simple enabled/disabled flag is enough or a few population levels are useful, eligible ambient NPC types around player stations, spawn limits/cadence, and persistence/reconnect behaviour. Keep this feature simple; inspect the existing system and NPC spawn pipeline before choosing the data model.
+
+No source, system data, mod schema, NPC spawning, networking or tests have been changed.
 
 ## 4. Claude review request
 
