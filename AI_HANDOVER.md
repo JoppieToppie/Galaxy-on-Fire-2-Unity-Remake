@@ -114,18 +114,18 @@ ship orientation, and any existing aim/targeting logic.
 
 ## 3b. Ship classes and class scanners
 
-The user has defined 14 standard classes in `AI_PROJECT_CONTEXT.md` §6.2: Light Fighter, Heavy Fighter, Light Bomber,
-Heavy Bomber, Interceptor, Stealth Bomber, Hauler, Light Privateer, Privateer, Heavy Privateer, Frigate, Freighter, Cruiser
-and Carrier. This is an extensible standard taxonomy; mods may add classes. All Privateer variants are multi-purpose ships
+The user has defined 14 recommended mod-author class names in `AI_PROJECT_CONTEXT.md` §6.2: Light Fighter, Heavy Fighter,
+Light Bomber, Heavy Bomber, Interceptor, Stealth Bomber, Hauler, Light Privateer, Privateer, Heavy Privateer, Frigate,
+Freighter, Cruiser and Carrier. **These are not base-game classifications.** Original ships remain unclassified; mods
+explicitly assign classes to their own ships and may add further class IDs. All Privateer variants are multi-purpose ships
 with substantial cargo capacity relative to hull size, a balanced primary/secondary weapon fit, and balanced handling.
-Precise numerical class thresholds remain to be established from a survey of the ship roster. The base `ships.json` exposes
-cargo, weapon slot counts, armor, handling and descriptions, but not direct hull volume; use model / kit scale when judging
-cargo relative to ship size.
+Precise numerical class thresholds remain a mod-author design matter; no vanilla roster assignment is planned.
 
-The rest of the approved design remains: per-item `allowedClasses`, incompatible equipment moved to the hold on ship swap,
-and a scanner capability that reveals a locked target's class **immediately on lock** (including other players), with no
-scan progress/delay. This remains a **design proposal only**; no scanner/classification source implementation has been made
-on this branch.
+Unclassified ships use an implicit unrestricted compatibility state: they accept all equipment, including items with
+`allowedClasses`. Class allow-lists are checked only for ships explicitly assigned a mod class. Do not create a persisted
+or user-visible vanilla `default` class. Capable scanners instantly reveal an explicitly assigned target class; unclassified
+targets have no class readout. This remains a **design proposal only**; no scanner/classification source implementation
+has been made on this branch.
 
 ## 4. Claude review request
 
