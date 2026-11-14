@@ -1,3 +1,16 @@
+## 2026-11-15 — Clarify ship classification is opt-in mod content (ChatGPT)
+
+**Branch:** `feature/secondary-homing-delay-launch-angle`
+
+Updated project context and handover to make ship classification strictly opt-in:
+- Original/vanilla ships remain unclassified; no standard classes are assigned in base data.
+- The 14 agreed names are a recommended mod-author vocabulary, not base-game ship classes.
+- Missing class means unrestricted equipment compatibility, including for items with `allowedClasses`; restrictions only
+  apply when a mod explicitly assigns a class.
+- Instant scanner readout applies only to targets with an explicit mod-assigned class.
+
+Documentation/design only. No gameplay source or vanilla ship data changed; no tests/build run.
+
 ## 2026-11-15 — Record standard ship classes and Privateer design (ChatGPT)
 
 **Branch:** `feature/secondary-homing-delay-launch-angle`
