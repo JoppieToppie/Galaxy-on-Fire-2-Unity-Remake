@@ -1,0 +1,11 @@
+<!-- Mod scripts (Modding.ModScripts, docs/notes/mods.md "Mod scripts"): Lua reaches the game's classes by reflection, so
+     the managed code stripper must keep the interpreter and the game's own assemblies whole. At the default stripping
+     level they are kept anyway; this holds should the level be raised. -->
+<linker>
+    <assembly fullname="MoonSharp.Interpreter" preserve="all"/>
+    <assembly fullname="GoF2.Core" preserve="all"/>
+    <assembly fullname="GoF2.Game" preserve="all"/>
+    <assembly fullname="GoF2.Space" preserve="all"/>
+    <assembly fullname="GoF2.Net" preserve="all"/>
+    <assembly fullname="GoF2.App" preserve="all"/>
+</linker>

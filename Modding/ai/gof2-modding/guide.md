@@ -2,8 +2,10 @@
 
 # Making mods for the Galaxy on Fire 2 Unity Remake
 
-A mod is a folder (or a `.zip`) of plain files: JSON for data, PNG for images. Mods contain no code, so a mod you download can't
-harm your computer. Players turn mods on and off in the main menu's **Mods** screen.
+A mod is a folder (or a `.zip`) of plain files: JSON for data, PNG for images. Most mods contain no code. A mod may also
+carry **scripts** (Lua, see [Scripts](#scripts)): those run inside the game only, without access to files, the network or
+other programs, so a mod you download can't harm your computer, and the game asks before it runs a mod's scripts.
+Players turn mods on and off in the main menu's **Mods** screen.
 
 **Making a mod in the game:** main menu > **Mods** > **Mod Builder** (experimental) makes projects in this same format
 without writing any JSON: new ships from a `.glb` model or on one of the game's ship models (no 3D file needed), or
@@ -28,6 +30,7 @@ in the game:
 | Systems | the star map | every system shown: drag yours to their place, their gates, sky, sun, music, stations |
 | Stations, Weapon fx | in space | a station in its own orbit (model, size, turn, rooms, planet); weapons firing from one ship onto another |
 | NPC ships | in space | capital ships, freighters and bosses nobody flies, new or the game's changed: the hull beside the station, hardpoints and docking pads clicked onto it, escorts, loot, where and how often they come, the dock's shop, launches |
+| Scripts | a text editor | the project's Lua files (`scripts/`): a syntax check as you type, **Save & run**, an API reference and a console with what they print and their errors (see [Scripts](#scripts)) |
 | Hangars & bars | the room itself | a `.glb` room or one of the game's (its markers filled in), the markers clicked into the room, light, fog, lens |
 
 Wherever content names other content (a mission's speaker, a station's system, a blueprint's product, a campaign's ship) the
@@ -107,6 +110,8 @@ What mods can do so far:
 - **Build on other mods**: a story mod can use the ships, items and systems of a mod it depends on.
 - **Make a whole new game**: a campaign of its own under New Game, with its own start, galaxy, shops and NPC ships.
 - **Translate** their own texts into any of the game's languages.
+- **Run scripts**: Lua code for what the files can't express, with the game's events, its data and its own classes within
+  reach (see [Scripts](#scripts)). Players are asked before a mod's scripts run.
 
 **Image formats:** wherever this guide asks for a PNG (icons, portraits, textures and skins, planets, suns, skies, card art,
 the preview), JPG, TGA (uncompressed or RLE), BMP, DDS (DXT1, DXT3, DXT5, ATC or uncompressed; not BC7) and the game's own `.aei`
@@ -2774,6 +2779,381 @@ The same in typed commands (multiplayer admins): `/cutscene start freeze`, `/cam
 look station`, `/camera chase`, `/fade out 1 ffffff`, `/letterbox on`, `/cutscene end`; a ship name with spaces goes in
 "quotes" there (`ship "Pirate Boss"`).
 
+## Scripts
+
+Everything above is data: the game reads it and does what it already knows how to do. A **script** is code of your own, for
+what the files and the mission graphs can't express: a bounty paid for every pirate you destroy, a price that follows the
+day's news, a HUD element, a new rule. Scripts are written in **Lua** (5.2), a small language many games use for mods; the
+game runs them with the MoonSharp interpreter on every platform it runs on.
+
+A script can read and change **anything in the game**: its data tables, the running game's state, the objects in the scene,
+and the functions the game's parts call each other through. That is why players are asked before a mod with scripts runs
+(see [What players see](#what-players-see)), and why a script can't reach outside the game: no files but the mod's own, no
+network, no other programs.
+
+You don't have to choose between scripts and the mission graphs: a mod can have both, a script can run every command a
+graph can (`game.command`), and a graph can run a script's commands (`game.addCommand`).
+
+### The files
+
+Scripts are `.lua` files in the mod's `scripts` folder:
+
+```
+my_mod/
+├─ mod.json
+└─ scripts/
+   ├─ main.lua          runs first when the mod starts
+   ├─ prices.lua        every other .lua directly in scripts/ runs too, by name
+   └─ lib/
+      └─ util.lua       files in subfolders are modules: they run when a script asks for them
+```
+
+Split your code over as many files as you like. A file in a subfolder is a **module**: it runs once, the first time a script
+calls `require`, and hands back what it returns:
+
+```lua
+-- scripts/lib/util.lua
+local M = {}
+function M.clamp(x, low, high) return math.max(low, math.min(high, x)) end
+return M
+```
+
+```lua
+-- scripts/main.lua
+local util = require("lib.util")          -- scripts/lib/util.lua
+print(util.clamp(15, 0, 10))              -- 10
+```
+
+`require("other_mod:lib.util")` loads a module of a mod yours depends on (list it in `dependencies`). Each mod has its own
+Lua state: your globals are yours alone.
+
+**In the Mod Builder:** the **Scripts** tab lists the project's script files (**+ New script**; name one `lib/util` to make
+a module in a folder), with an editor that checks the syntax as you type (click the error to jump to its line), **Save &
+run** to start the project's scripts afresh, an **API reference** and a console showing what your scripts print and their
+errors. A saved change restarts the scripts by itself. Any text editor works as well: the files are plain text.
+
+### When scripts run
+
+A mod's scripts start when the mod becomes active, in the main menu already, and keep running through every scene: the
+menu, flying, docked. They start again from the top when the set of active mods changes (a mod turned on or off, a
+multiplayer session joined or left, a file saved in the Mod Builder). So the top of a file is for setting up: say which
+events you want to hear, and do the work there.
+
+```lua
+game.on("station", function(level)        -- every time the player is docked and the hangar stands
+    game.message("Welcome back, " .. Session.Credits .. " $ in the bank")
+end)
+```
+
+What must survive a restart or a saved game goes into `game.saved` (below).
+
+### The game table
+
+Every script has the global table `game`:
+
+| | |
+|---|---|
+| `game.mod.id`, `.name`, `.version` | this mod |
+| `game.on(event, fn)` | calls `fn` whenever the event happens; returns a handle |
+| `game.after(seconds, fn)` | calls `fn` once, after that much game time (it waits while the game is paused) |
+| `game.every(seconds, fn)` | calls `fn` again and again |
+| `game.off(handle)` | ends a handler, a timer, a hook or a waiting function |
+| `game.wait(seconds)`, `game.waitUntil(fn)`, `game.run(fn)` | functions that wait and go on later (see [Waiting](#waiting)) |
+| `game.emit(event, ...)` | an event of your own for every script mod in this game (numbers, texts and booleans travel) |
+| `game.saved` | a table kept in the player's save file, per mod |
+| `game.config`, `game.saveConfig()` | a table kept outside the saves: your mod's own settings |
+| `game.log(...)`, `print(...)` | a line in the Mod Builder's console and the game's log |
+| `game.message(text)` | a line on the player's screen (the flight HUD's message line, a notice in a station) |
+| `game.command(line)` | runs a chat / event command as the server does and returns its answer |
+| `game.addCommand(name, fn)` | a command of your own (see [Commands](#commands)) |
+| `game.multiplayer()` | `"none"`, `"host"` or `"client"` |
+| `game.send(name, ...)`, `game.onMessage(name, fn)`, `game.myId()` | messages between the players' scripts (see [Scripts in multiplayer](#scripts-in-multiplayer)) |
+| `game.scene()` | `"MainMenu"`, `"Space"` or `"Station"` |
+| `game.space()`, `game.station()`, `game.player()` | the flight level, the docked level, the player's ship in flight; `nil` when not there |
+| `game.type(name)`, `import(name)` | one of the game's or Unity's classes by its full name |
+| `game.describe(x)` | what a class or object offers, as text: `print(game.describe(Session))` |
+| `game.classes(part)` | the names of the classes with `part` in their name |
+| `game.find(class)`, `game.findOne(class)` | the scene's objects of a class |
+| `game.component(object, class)`, `game.components(...)`, `game.addComponent(...)` | Unity components of an object |
+| `game.behaviour(object, table)` | a component written in Lua (see [Objects and the interface](#objects-and-the-interface)) |
+| `game.uiEvent(element, event, fn)` | an interface element's events |
+| `game.table(list)`, `game.get(list, key)`, `game.set(list, key, value)` | the game's lists and dictionaries |
+| `game.field(x, name)`, `game.setField(x, name, value)`, `game.call(x, name, ...)`, `game.generic(x, name, types, ...)` | members that aren't public, generic methods (see [The game's classes](#the-games-classes)) |
+| `game.hook(target, member, fn)`, `game.listen(target, member, fn)` | changing and hearing the game's own functions |
+| `game.files(folder)`, `game.readText(path)`, `game.readJson(path)`, `game.texture(path)`, `game.sound(path, fn)` | your mod's own files (see [Your mod's files and content](#your-mods-files-and-content)) |
+| `game.item(key)`, `game.ship(key)`, `game.system(key)`, `game.station(key)` | a mod's content by its key, as its number in this game |
+
+### Events
+
+| Event | When | Arguments |
+|---|---|---|
+| `update`, `lateUpdate` | every frame | the frame's seconds (0 while the game is paused) |
+| `scene` | a scene was loaded | its name |
+| `space` | the flight level stands: after a launch, a jump, a loaded game | the level (`SpaceLevel`) |
+| `station` | docked: the hangar stands | the level (`StationLevel`) |
+| `database` | the game loaded its tables (items, ships, systems, stations), your mods' content included | the tables (`Database`) |
+| `shipDestroyed` | an NPC ship was destroyed | the ship (`NpcShip`), whether the player did it |
+| `playerDestroyed` | the player's ship was destroyed | |
+| `trade` | an item was bought or sold in a shop | the item's number, the amount (+ bought, - sold), the price, the station |
+| `missionAccepted`, `missionSucceeded`, `missionFailed` | a Space Lounge mission | the mission (`FreelanceMission`); succeeded: also the pay |
+| `storyStep` | the campaign moved on | the new step, the one before |
+| `chat` | a chat line arrived (multiplayer) | who, the text, whether it is your own |
+| `gameLoaded` | a saved game was loaded: `game.saved` is that save's now | |
+| `saving` | just before `game.saved` is written | |
+| `stop` | your scripts are about to stop | |
+
+`update` runs every frame for every handler: keep it light, or use `game.every`. For anything else the game does, look at
+the hook classes ([Hooks](#hooks)): most of what happens passes through one.
+
+### Waiting
+
+`game.wait(seconds)` pauses the function it is called in; the game goes on, and the function continues from that line
+when the time has passed. `game.waitUntil(fn)` waits until `fn` returns true (it is asked every frame). They work in any
+event handler or timer, and in a function started with `game.run`:
+
+```lua
+game.on("space", function(level)
+    game.wait(3)
+    game.command("spawn @a Phantom pirate 2")
+    game.waitUntil(function() return #game.find("NpcShip") == 0 end)
+    game.message("All clear")
+end)
+```
+
+This is how to write what a mission graph does as a sequence. `game.run` returns a handle `game.off` ends. Waiting isn't
+possible inside a hook or a command: the game needs their answer at once (start a `game.run` from there instead). Game
+time stands still while the game is paused.
+
+### Keeping things
+
+`game.saved` is an ordinary Lua table. What you put in it (numbers, texts, booleans and tables of those) is written into the
+player's save file with the rest of the game and is there again when that save is loaded; a new game starts with it empty.
+
+```lua
+game.on("shipDestroyed", function(ship, byPlayer)
+    if byPlayer then game.saved.kills = (game.saved.kills or 0) + 1 end
+end)
+```
+
+Read it inside your handlers, not once at the top of the file: loading a save changes what is in it.
+
+`game.config` is the same kind of table for what belongs to the mod and not to one saved game (its own options, a high
+score across games): it is kept with the game's settings and written when the scripts stop, or at once with
+`game.saveConfig()`.
+
+### The game's classes
+
+Scripts use the game's own C# classes by their names: every class of the game, and of Unity's scene namespaces, is a global.
+`Session` is the running game (credits, ship, cargo, where the player is), `Database` the tables, `Settings` the options,
+`Standing` the reputations, `Vector3` and `Mathf` Unity's. Where two classes share a name, `import` takes the full one.
+
+```lua
+Session.Credits = Session.Credits + 1000  -- statics and fields: a dot
+local db = Database.Shared
+local item = db:Item(5)                   -- an object's methods: a colon
+print(item.name, item.maxPrice)
+local up = Vector3.__new(0, 1, 0)         -- __new makes an object
+if ship.Race == Standing.Pirate then ... end
+local Thing = import("GoF2Remake.World.NpcShip")   -- by its full name
+```
+
+To find out what there is, ask the game: `print(game.describe(Session))` lists the members of a class a script can use,
+`game.classes("Ship")` the class names with "Ship" in them. `Modding/ai/gof2-modding/scripting.md` in the repository has the
+main classes written out, and every class name.
+
+A few things differ from Lua:
+
+- The game's **lists and dictionaries are objects**, not Lua tables: `list.Count`, `game.get(list, 0)` (they count from 0),
+  `game.set(dictionary, "key", value)`, `list:Add(x)`. `for _, x in ipairs(game.table(list))` walks a Lua copy.
+  Arrays do arrive as Lua tables (counting from 1).
+- Names are exact, capitals included.
+- **Structs are copies.** `transform.position.x = 5` changes a copy and does nothing; set the whole value:
+  `transform.position = Vector3.__new(5, 0, 0)`.
+- The game's time is in **milliseconds**, its positions in game units (one is 0.05 m).
+- A **Lua function works wherever the game takes a delegate**: `SpaceHooks.WreckHacked = function(station, wreck) ... end`,
+  or as an argument of a method that takes a callback.
+
+**Members that aren't public** (the game keeps much of its state private) are reached by name:
+
+```lua
+local n = game.field(level, "spawnTimer")            -- a private field or property
+game.setField(level, "spawnTimer", 0)
+local answer, extra = game.call(level, "PickTarget", 3)   -- a private method: its result, then its out values
+```
+
+(Those names are made up: `print(game.describe(level, true))` lists an object's private members beside its public ones.)
+`game.generic(object, "GetComponent", { "BoxCollider" })` calls a generic method with its type arguments named. Private
+members can change with any update of the game: prefer the public ones where they do the job.
+
+### Changing the game's data
+
+The `database` event hands you the tables each time the game loads them, after every mod's JSON has been applied, so what
+you change there is in the shops, the ships and the star map:
+
+```lua
+game.on("database", function(db)
+    local item = db:Item(5)
+    item.maxPrice = item.maxPrice * 2
+end)
+```
+
+Change them only there: the game loads its tables again whenever a game starts or loads, and a change made elsewhere is gone
+with the next load. New items, ships and systems still belong in the JSON files (they get their numbers and their place in
+the saves there); a script changes what exists and decides what happens.
+
+### Hooks
+
+The game's parts call each other through delegates kept in the **hook classes** `GameHooks`, `SpaceHooks`, `UiHooks` and
+`NetSession`. `game.hook` puts your function in the place of one. It gets the function it replaced as its first argument,
+then the call's own arguments; what it returns is what the game gets:
+
+```lua
+-- A faction station's buying price: half of what the game would ask.
+game.hook("GameHooks", "FactionBuyPrice", function(original, station, price)
+    return math.floor(original(station, price) / 2)
+end)
+```
+
+Call `original(...)` wherever you want the game's own behaviour; don't call it and the game's code doesn't run. A hook that
+fails with an error leaves the game's own behaviour in place. Where the game's function has `out` values, return them
+after the result (and `original` returns them the same way). `game.listen` only adds your function, for the game's C#
+events and for delegates you want to hear without changing them:
+
+```lua
+game.listen("Settings", "Changed", function() print("an option changed") end)
+```
+
+Both are undone when your scripts stop, or with `game.off(handle)`. `scripting.md` lists every hook with what it is for.
+`game.hook` and `game.listen` take any public delegate or event of any object, not only the hook classes'.
+
+### Commands
+
+`game.command` runs one of the chat and event commands, the lines an event graph's Command node takes (`events.md` lists
+them): spawning ships, dialogues, titles, rewards, starting an event graph.
+
+```lua
+game.command("title @a Pirate season for 5")
+game.command("event waves")
+```
+
+Only the game that runs the world can: single player, or the host of a multiplayer session.
+
+`game.addCommand` adds a command of your own. Its function gets the text after the name and who ran it, and returns the
+answer:
+
+```lua
+game.addCommand("bounty", function(args, who)
+    return "Pirates destroyed: " .. (game.saved.kills or 0)
+end)
+```
+
+Players type it in the chat (`/bounty`), a mission graph runs it from a Command node (`bounty`), and other scripts with
+`game.command("bounty")`: this is how a graph hands work to a script.
+
+### Your mod's files and content
+
+A script reads the files of its own mod (and only those):
+
+```lua
+local prices = game.readJson("data/prices.json")     -- a JSON file as a table
+local text = game.readText("data/readme.txt")        -- nil when there is no such file
+for _, path in ipairs(game.files("data")) do print(path) end
+local badge = game.texture("icons/badge.png")        -- a Unity Texture2D
+game.sound("sounds/ping.ogg", function(clip)         -- a Unity AudioClip, when it is loaded
+    if clip then ... end
+end)
+```
+
+Content of your mod or another's is named by its key, `<mod id>:<id>` (a bare id means your own mod's); `game.item`,
+`game.ship`, `game.system` and `game.station` give its number in this player's game, which is what the game's own functions
+take. The commands take the keys themselves: `game.command("spawn @a starwars_ships:millennium_falcon 1")`.
+
+### Objects and the interface
+
+`game.behaviour` turns a Lua table into a component on a scene object. Unity calls its functions, each with the table
+itself first:
+
+```lua
+local level = game.space()
+local marker = GameObject.__new("My marker")
+game.behaviour(marker, {
+    angle = 0,
+    update = function(self, dt)
+        self.angle = self.angle + 90 * dt
+        self.transform.rotation = Quaternion.Euler(0, self.angle, 0)
+    end,
+    destroyed = function(self) print("gone") end,
+})
+```
+
+The functions it may have: `update`, `lateUpdate`, `fixedUpdate` (with the seconds), `enabled`, `disabled`, `destroyed`,
+`triggerEnter`, `triggerExit` (with the collider) and `collisionEnter` (with the collision). `self.gameObject` and
+`self.transform` are the object's. The component goes when your scripts stop.
+
+The game's interface is Unity's UI Toolkit: its classes (`VisualElement`, `Label`, `Button` ...) are there like any other,
+and `game.uiEvent(element, "ClickEvent", function(event) ... end)` listens to an element's events.
+
+### What players see
+
+A mod with scripts is marked **Scripts** in the Mods screen, and turning it on asks first: scripts can change anything in the
+game, saves and settings included, so players should only run script mods from authors they trust. The answer is remembered
+for those script files; an update that changes them asks again (until then the mod's other content works and its scripts
+don't run). Say in your mod's description what its scripts do.
+
+Scripts can't harm the computer: they have no files but their own mod's, no network, no other programs and none of .NET,
+only the game's own classes and Unity's scene classes. A script that fails doesn't stop the game: the error (with its file
+and line) is listed under the mod in the Mods screen and in the Mod Builder's console, a call that runs too long (an endless
+loop) is stopped, and a handler that fails five times in a row is dropped.
+
+### Scripts in multiplayer
+
+With the Host card's **Mods: Allowed**, a session's script mods run in **every player's game**: everyone has the same files,
+so everyone runs the same scripts. Each game runs them for itself. `game.multiplayer()` tells a script where it is:
+
+```lua
+if game.multiplayer() ~= "client" then
+    -- single player, or the host: the game that runs the world (spawns, commands, rewards)
+end
+```
+
+The players' scripts talk to each other with messages. `game.send` goes to every player's game (your own too), through
+the host; `game.onMessage` hears it, with the sender's id first (0 is the host, `game.myId()` your own):
+
+```lua
+game.onMessage("score", function(sender, points)
+    if sender ~= 0 then return end                  -- only the host may say what the score is
+    game.message("Score: " .. points)
+end)
+
+if game.multiplayer() == "host" then
+    game.every(10, function() game.send("score", game.saved.score or 0) end)
+end
+```
+
+A message carries numbers, texts and booleans, up to about 900 characters, and a player may send only so many a second.
+Any player can send any message: check on the host what must not be cheated. In single player a message comes straight
+back to you, so the same script works there.
+
+A player who hasn't allowed a session mod's scripts is told so on joining and can't join until they have turned the mod on
+once in their Mods screen. The server browser tags such games **Scripts**. A mod whose scripts the host hasn't allowed stays
+out of the host's session; a dedicated server runs the scripts of every mod in its Mods folder.
+
+### Limits
+
+- Lua 5.2 with its standard library, without `io`, `debug` and the parts of `os` that reach the system (the clock and dates
+  work). `json.parse` / `json.serialize` turn JSON text into tables and back.
+- No .NET classes: nothing from `System`, no reflection of your own. A game function that takes or returns such a type
+  can't be called.
+- Some of the game's own classes are left out because they open files or the network (the file pickers, the mod importer,
+  the updater, the save folder tools), and so are the game's functions that take a file name, a path or an address.
+- A script can't rewrite a function of the game that isn't behind a delegate: it changes the data and state the function
+  works with, or replaces the hook it is called through.
+- New classes can't be written in Lua; `game.behaviour` is how a script gets a component of its own.
+- Scripts run on the game's main thread, between its frames: a long calculation makes the game stutter, and a single call
+  is stopped after ten million Lua instructions.
+- Nothing runs before the main menu.
+- On phones and consoles a few rarely used Unity classes may be missing from the build; they are then `nil`.
+
 ## Characters
 
 A mod can bring its own cast: `characters.json` lists characters with a name and a portrait, and every place a speaker is
@@ -3036,11 +3416,16 @@ data) can join a PC build's game and the other way round. A ship's lighter model
 fires, so the hits can differ a little at the edges of a hull. The server browser tags such games **Modded** and lists their mods. A dedicated
 server uses every mod in its Mods folder with `-allowmods` (`ALLOWMODS=1` in its start script).
 
+A session's script mods run in every player's game, and each player must have allowed them: see
+[Scripts in multiplayer](#scripts-in-multiplayer).
+
 ## When something is wrong
 
 A mod with a broken file shows **Error** in the Mods screen, and the selected mod lists the problem with the file and line
 (`items.json line 2: unknown stat "dammage"`). A mod with errors can't be turned on. Smaller problems (an unknown field) show as
-warnings and are skipped. The game's log (`Player.log`) lists every problem too.
+warnings and are skipped. The game's log (`Player.log`) lists every problem too. A script's errors show the same way, as
+warnings starting with "Script:" and the file and line (`scripts/main.lua:(12,5-9): attempt to index a nil value`); the mod
+stays on and its other scripts keep running.
 
 ## Example
 
@@ -3050,3 +3435,6 @@ PR #34) show ships with models, materials, glows, two turrets and lounge sellers
 Kepler system with jumpgate routes and two stations: Kepler Prime with its own station model, its own planet and its own
 hangar and bar (GLBs built from simple shapes, with their markers), and the Rho Freeport looking like an original with a
 Nivelian interior; the system has its own sun and its own nebula sky. It also brings a character, Captain Vega, with a (placeholder) portrait.
+`Modding/Examples/pirate_bounty` is a script mod: `scripts/main.lua` pays a bounty for every pirate you destroy, counts them
+in the save and reports the count a moment after you dock (`game.wait`), with its numbers read from `data/bounty.json`
+by the module `scripts/lib/bounty.lua` and a `/bounty` command of its own.

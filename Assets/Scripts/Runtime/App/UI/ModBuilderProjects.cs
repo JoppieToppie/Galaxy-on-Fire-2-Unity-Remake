@@ -65,6 +65,7 @@ namespace GoF2Remake.UI
             ("mbNpcShips", "NPC ships", "Capital ships, freighters and bosses nobody flies, new or the game's changed: turrets, escorts, loot, where they come, a dock with a shop. In space.", ModBuilder.Kind.NpcShips),
             ("mbInteriors", "Hangars & bars", "Hangar and Space Lounge rooms of your own, with their markers. In the room itself.", ModBuilder.Kind.Interiors),
             ("mbCampaigns", "Campaign", "A new game of your own: start, galaxy, ships; new-game options.", ModBuilder.Kind.Campaigns),
+            ("mbScripts", "Scripts", "Lua scripts for what the other kinds can't do: they hear the game's events and can change anything in it. Players are asked before they run.", ModBuilder.Kind.Scripts),
         };
 
         public ModBuilderProjects(VisualElement host, Action back, Action<VisualElement> hookFocus, Action click, Action<ModProject> open,
@@ -403,6 +404,7 @@ namespace GoF2Remake.UI
                     ModBuilder.Kind.Kits => Count(selected.Kits.Count, "mbOneKit", "1 kit", "mbKitsN", "{0} kits"),
                     ModBuilder.Kind.Quests => Count(selected.Quests.Count + selected.EventGraphs().Count, "mbOneQuest", "1 mission", "mbQuestsN", "{0} missions"),
                     ModBuilder.Kind.Audio => Count(AudioCount(selected), "mbOneAudio", "1 sound", "mbAudioN", "{0} sounds"),
+                    ModBuilder.Kind.Scripts => Count(selected.ScriptFiles().Count, "mbOneScript", "1 script", "mbScriptsN", "{0} scripts"),
                     ModBuilder.Kind.Systems => Count(selected.Systems.Count, "mbOneSystem", "1 system", "mbSystemsN", "{0} systems"),
                     ModBuilder.Kind.Races => Count(selected.Races.Count, "mbOneModRace", "1 race", "mbModRacesN", "{0} races"),
                     ModBuilder.Kind.Stations => Count(selected.Stations.Count, "mbOneStation", "1 station", "mbStationsN", "{0} stations"),

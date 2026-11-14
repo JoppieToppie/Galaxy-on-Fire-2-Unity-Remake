@@ -115,6 +115,8 @@ namespace GoF2Remake.Data
         public List<GraphQuestState> graphQuests;
         public List<string> graphQuestsDone;
         public List<string> fixedLootTaken;
+        // (remake, no version of its own: older saves have none) the script mods' game.saved tables (Session.ScriptData)
+        public List<Modding.SaveScriptData> scriptData;
         // (remake, no version of its own: older saves have none) the repeatable quests finished, "name|playing seconds"
         public List<string> graphQuestRepeats;
         // (remake, no version of its own: older saves have none) the Kaamo Club VIP Card bought (KaamoClub.VipFeatures)
@@ -321,6 +323,7 @@ namespace GoF2Remake.Data
             Modding.ModSaves.Fix(s);   // modded items moved to their numbers now, or removed and refunded (mods turned off)
             DropUnknownItems(s, Database.Shared);
             Apply(s);
+            Modding.ModScripts.RestoreSaved(true);   // the script mods' game.saved is this save's; "gameLoaded"
             Session.ArrivedByLoad = true;   // ModStation::setGameLoaded: the station asks no docking fine
             return true;
         }
@@ -385,6 +388,7 @@ namespace GoF2Remake.Data
         public static void ApplyProfile(SaveData s)
         {
             Apply(s);
+            Modding.ModScripts.RestoreSaved(true);
             Session.Difficulty = Session.DifficultyNormal;
             Session.Economy = NetSession.Economy;
             // The session's world, whatever index the profile was saved with; a co-op campaign's is the story's own (its
@@ -407,6 +411,7 @@ namespace GoF2Remake.Data
 
         static SaveData Capture()
         {
+            Modding.ModScripts.CaptureSaved();   // the script mods' game.saved tables into Session.ScriptData
             static List<SaveData.KnownPrice> Prices(Dictionary<int, (int price, int system)> d)
             {
                 var l = new List<SaveData.KnownPrice>();
@@ -424,6 +429,7 @@ namespace GoF2Remake.Data
                 graphQuests = new List<GraphQuestState>(Session.GraphQuests),
                 graphQuestsDone = new List<string>(Session.GraphQuestsDone),
                 fixedLootTaken = new List<string>(Session.FixedLootTaken),
+                scriptData = Session.ScriptData.Select(kv => new Modding.SaveScriptData { id = kv.Key, json = kv.Value }).ToList(),
                 graphQuestRepeats = Session.GraphQuestRepeats.Select(kv => kv.Key + "|" + kv.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList(),
                 modCampaign = Session.ModCampaign ?? "",
                 hardcore = Session.Hardcore,
@@ -727,6 +733,9 @@ namespace GoF2Remake.Data
                 Session.GraphQuests = s.graphQuests ?? new List<GraphQuestState>();
                 Session.GraphQuestsDone = new HashSet<string>(s.graphQuestsDone ?? new List<string>());
                 Session.FixedLootTaken = new HashSet<string>(s.fixedLootTaken ?? new List<string>());
+                Session.ScriptData = new Dictionary<string, string>();
+                foreach (var d in s.scriptData ?? new List<Modding.SaveScriptData>())
+                    if (!string.IsNullOrEmpty(d.id)) Session.ScriptData[d.id] = d.json ?? "";
                 Session.GraphQuestRepeats = new Dictionary<string, float>();
                 foreach (var r in s.graphQuestRepeats ?? new List<string>())
                 {

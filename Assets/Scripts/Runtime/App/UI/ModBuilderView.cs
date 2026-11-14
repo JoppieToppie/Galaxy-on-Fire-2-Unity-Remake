@@ -165,6 +165,7 @@ namespace GoF2Remake.UI
             BuildInteriorsPanels(leftGroups[(int)ModBuilder.Kind.Interiors], rightGroups[(int)ModBuilder.Kind.Interiors]);
             BuildQuestsPanels(leftGroups[(int)ModBuilder.Kind.Quests], rightGroups[(int)ModBuilder.Kind.Quests]);
             BuildAudioPanels(leftGroups[(int)ModBuilder.Kind.Audio], rightGroups[(int)ModBuilder.Kind.Audio]);
+            BuildScriptsPanels(leftGroups[(int)ModBuilder.Kind.Scripts], rightGroups[(int)ModBuilder.Kind.Scripts]);
             BuildSystemsPanels(leftGroups[(int)ModBuilder.Kind.Systems], rightGroups[(int)ModBuilder.Kind.Systems]);
             BuildRacesPanels(leftGroups[(int)ModBuilder.Kind.Races], rightGroups[(int)ModBuilder.Kind.Races]);
 

@@ -610,6 +610,16 @@ namespace GoF2Remake.Multiplayer
             Status = string.Format(Localization.Extra("mpStartError", "Couldn't start the session: {0}"), e.GetBaseException().Message);
         }
 
+        /// <summary>A joining game that can't play this session (NetState: a script mod not allowed here): it leaves before
+        /// the world is built, the reason in the panel's status line like a failed join's.</summary>
+        internal static void RefuseJoin(string reason)
+        {
+            lostHandled = true;
+            Shutdown();
+            sessionGame = false;
+            Status = reason;
+        }
+
         /// <summary>Ends the session (leaving to the main menu, a failed connection). The host with players connected tells
         /// them why first and closes a moment later (NetDelayedShutdown), so the reason reaches them.</summary>
         public static void Shutdown()

@@ -3601,5 +3601,14 @@
  "statVulnerable": "La cible subit plus de dégâts",
  "wingmanAmmo": "{0} : Ravitaillement en munitions",
  "wingmanCharged": "{0} : Tirs chargés",
- "wingmanRepair": "{0} : Réparation de coque"
+ "wingmanRepair": "{0} : Réparation de coque",
+ "modsScripts": "Scripts",
+ "modsScriptsTitle": "Scripts de mod",
+ "modsScriptsAsk": "{0} exécute des scripts. Les scripts peuvent tout modifier dans le jeu, y compris tes sauvegardes et tes réglages, et un script défectueux ou malveillant peut les abîmer. N'active que les mods à scripts d'auteurs en qui tu as confiance.\n\nL'activer et laisser ses scripts s'exécuter ?",
+ "modsScriptsNote": "Exécute des scripts ({0}) : ils peuvent tout modifier dans le jeu, y compris tes sauvegardes. N'utilise que les mods à scripts d'auteurs en qui tu as confiance.",
+ "modsScriptsBlocked": "Ses scripts sont nouveaux ou modifiés et ne s'exécutent pas encore. Désactive puis réactive le mod pour les autoriser.",
+ "mpScriptsNotAllowed": "Cette partie utilise des mods à scripts que tu n'as pas autorisés : {0}. Active-les une fois dans Mods pour autoriser leurs scripts, puis rejoins à nouveau.",
+ "mpScriptsShort": "autorise d'abord ses scripts : {0}",
+ "mpModsCountScripts": "Mods ({0} activés, avec scripts)",
+ "scriptNoCommand": "Aucune commande « {0} »."
 }

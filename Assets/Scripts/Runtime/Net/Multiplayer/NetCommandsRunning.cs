@@ -24,7 +24,12 @@ namespace GoF2Remake.Multiplayer
             string name = (space < 0 ? body : body.Substring(0, space)).ToLowerInvariant();
             string args = space < 0 ? "" : body.Substring(space + 1).Trim();
             var command = Array.Find(Commands, c => c.name == name && c.available());
-            if (command == null)
+            // A script mod's own command (game.addCommand): run in this game, its answer a notice.
+            if (command == null && Modding.ModScripts.RunCommand(name, args, EventHost.LocalName, out string said))
+            {
+                if (!string.IsNullOrEmpty(said)) NetChat.Notice(said);
+            }
+            else if (command == null)
                 NetChat.Notice(string.Format(X("mpCmdUnknown", "Unknown command /{0}. Type /help for the commands you can use."), name));
             else if (command.arg != Arg.None && args.Length == 0 && !command.optional)
                 NetChat.Notice(Usage(command));
@@ -39,6 +44,7 @@ namespace GoF2Remake.Multiplayer
             NetChat.Notice(X("mpCmdList", "Commands:"));
             foreach (var c in Commands)
                 if (c.available()) NetChat.Notice($"{Usage(c)}: {c.description()}");
+            foreach (string name in Modding.ModScripts.CommandNames) NetChat.Notice("/" + name);   // the script mods' own (game.addCommand)
         }
         static void ToggleStats()
         {
@@ -64,7 +70,9 @@ namespace GoF2Remake.Multiplayer
         public static string RunOnServer(string name, string args, IPilot issuer)
         {
             var c = Get((name ?? "").ToLowerInvariant());
-            if (c == null || c.run == null) return null;
+            // Not one of the game's: a script mod's own command (an event graph's Command node, game.command).
+            if (c == null) return Modding.ModScripts.RunCommand(name, args, issuer != null ? issuer.DisplayName : "", out string said) ? said ?? "" : null;
+            if (c.run == null) return null;
             if (!EventHost.ServerReady) return X("mpCmdNoServer", "The server isn't running.");
             if (issuer == null && c.needsPlayer) return string.Format(X("mpCmdPlayersOnly", "/{0} is for players in the chat."), c.name);
             if (issuer != null && !c.allowed(issuer)) return X("mpCmdNoRights", "You don't have the rights for that command.");

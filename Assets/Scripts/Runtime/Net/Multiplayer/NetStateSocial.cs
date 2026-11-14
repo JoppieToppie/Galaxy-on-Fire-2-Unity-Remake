@@ -26,6 +26,26 @@ namespace GoF2Remake.Multiplayer
         }
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void MotdRpc(string title, string text, string hash, bool force, RpcParams rpc = default) => NetMotd.Received(title, text, hash, force);
+        // ---- mod scripts' messages (Modding.ModScripts: game.send -> every player's game.onMessage) -----------
+
+        /// <summary>A script's message from a player: checked (length, the chat's rate limit) and handed to everyone with
+        /// the sender's id. What it means is the scripts' own business: a script must not trust another player's values.</summary>
+        [Rpc(SendTo.Server)]
+        public void ScriptMessageRpc(string name, string payload, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Chat)) return;
+            if (name == null || payload == null || name.Length == 0 || name.Length > 64 || payload.Length > Modding.ModScripts.MaxMessageLength)
+            {
+                NetRateLimit.Reject(client, "an overlong script message");
+                return;
+            }
+            ScriptMessageEveryoneRpc(client, name, payload);
+        }
+
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+        void ScriptMessageEveryoneRpc(ulong sender, string name, string payload) => Modding.ModScripts.Receive(sender, name, payload);
+
         // ---- chat (NetChat) ---------------------------------------------------------------------------------
         /// <summary>A player's chat line: the host adds who and where, then everyone gets it (NetChat keeps what is theirs).</summary>
         [Rpc(SendTo.Server)]

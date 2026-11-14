@@ -25,6 +25,7 @@ namespace GoF2Remake.EditorTools
         const string OutputPath = "Modding/ai/gof2-modding/reference.md";
         const string VoicesPath = "Modding/ai/gof2-modding/voices.md";
         const string EventsPath = "Modding/ai/gof2-modding/events.md";
+        const string ScriptingPath = "Modding/ai/gof2-modding/scripting.md";
         const string GuidePath = "Modding/ai/gof2-modding/guide.md";
         const string QuestsPath = "Modding/ai/gof2-modding/missions.md";
         const string QuestSchemaPath = "Modding/ai/gof2-modding/mission.schema.json";
@@ -132,6 +133,8 @@ namespace GoF2Remake.EditorTools
                 WriteReference(db, dbDefault);
                 WriteVoices(db);
                 Write(EventsPath, new StringBuilder(ModdingEventsReference.Build()));
+                // The mod scripts' reference (Lua): the game table, the hook classes, the classes scripts reach.
+                Write(ScriptingPath, new StringBuilder(ModdingScriptingReference.Build()));
                 // The .gof2mission format from the game's own step table (Events.QuestSchema).
                 Write(QuestsPath, new StringBuilder(Events.QuestSchema.Markdown()));
                 Write(QuestSchemaPath, new StringBuilder(Events.QuestSchema.Build().ToString(Newtonsoft.Json.Formatting.Indented) + "\n"));

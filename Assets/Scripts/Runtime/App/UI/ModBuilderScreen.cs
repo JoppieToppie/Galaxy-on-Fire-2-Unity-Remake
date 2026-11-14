@@ -62,6 +62,7 @@ namespace GoF2Remake.UI
             ("mbCharacters", "Characters", ModBuilder.Kind.Characters), ("mbQuests", "Missions", ModBuilder.Kind.Quests), ("mbAudio", "Audio", ModBuilder.Kind.Audio),
             ("mbSystems", "Systems", ModBuilder.Kind.Systems), ("mbModRaces", "Races", ModBuilder.Kind.Races), ("mbStations", "Stations", ModBuilder.Kind.Stations), ("mbNpcShips", "NPC ships", ModBuilder.Kind.NpcShips),
             ("mbInteriors", "Hangars & bars", ModBuilder.Kind.Interiors), ("mbCampaigns", "Campaign", ModBuilder.Kind.Campaigns),
+            ("mbScripts", "Scripts", ModBuilder.Kind.Scripts),
         };
 
         /// <summary>Where each kind is edited, for the tabs' tooltips.</summary>

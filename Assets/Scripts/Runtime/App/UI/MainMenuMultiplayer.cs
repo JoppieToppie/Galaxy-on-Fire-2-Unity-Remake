@@ -466,8 +466,11 @@ namespace GoF2Remake.UI
             var label = root.Q<Label>("mpModsLabel");
             if (label != null)
             {
-                int n = Modding.ModManager.SinglePlayerActive.Count;
+                var on = Modding.ModManager.SinglePlayerActive;
+                int n = on.Count;
+                // (script mods run in every player's game: the row says so)
                 label.text = (n == 0 ? Localization.Extra("mpMods", "Mods")
+                    : on.Exists(Modding.ModScripts.HasScripts) ? string.Format(Localization.Extra("mpModsCountScripts", "Mods ({0} on, with scripts)"), n)
                     : string.Format(Localization.Extra("mpModsCount", "Mods ({0} on)"), n)).UiCaps();
             }
         }
@@ -580,7 +583,10 @@ namespace GoF2Remake.UI
                 row.AddToClassList("mp-address-row");
                 row.AddToClassList("mp-server-row");
                 var missingMods = entry.MissingMods;   // a modded game: the mods this game lacks (NetMods)
-                bool joinable = !entry.Full && entry.SameVersion && missingMods.Count == 0;
+                // Its script mods (as far as this game has them) and those whose scripts this player hasn't allowed yet.
+                var scriptMods = entry.Modded ? GoF2Remake.Multiplayer.NetMods.ScriptMods(entry.mods) : new System.Collections.Generic.List<string>();
+                var unallowed = scriptMods.Count > 0 && missingMods.Count == 0 ? GoF2Remake.Multiplayer.NetMods.UnallowedScripts(entry.mods) : new System.Collections.Generic.List<string>();
+                bool joinable = !entry.Full && entry.SameVersion && missingMods.Count == 0 && unallowed.Count == 0;
                 row.EnableInClassList("mp-server-row--full", !joinable);
                 var top = new VisualElement { pickingMode = PickingMode.Ignore };
                 top.AddToClassList("mp-server-line");
@@ -600,6 +606,7 @@ namespace GoF2Remake.UI
                 if (entry.coop && entry.economy.HasValue) Tag(Session.EconomyName(entry.economy.Value), null);   // its prices (NetSession.Economy)
                 if (entry.password) Tag(Localization.Extra("mpPasswordTag", "Password"), "mp-server-tag--password");
                 if (entry.Modded) Tag(Localization.Extra("mpModdedTag", "Modded"), "mp-server-tag--mods");
+                if (scriptMods.Count > 0) Tag(Localization.Extra("modsScripts", "Scripts"), "mp-server-tag--password");
                 if (entry.pvp.HasValue)   // players fight anywhere / only in arenas and sieges (NetGame.FreePvp)
                     Tag(entry.pvp.Value ? Localization.Extra("mpPvp", "PvP") : Localization.Extra("mpPve", "PvE"),
                         entry.pvp.Value ? "mp-server-tag--pvp" : "mp-server-tag--pve");
@@ -638,6 +645,7 @@ namespace GoF2Remake.UI
                 string info = (entry.dedicated ? "" : entry.host + "  ·  ") + $"{entry.players} / {entry.maxPlayers}"
                               + (entry.Full ? "  ·  " + Localization.Extra("mpFull", "full") : "")
                               + (missingMods.Count > 0 ? "  ·  " + string.Format(Localization.Extra("mpNeedsModsShort", "needs mods: {0}"), string.Join(", ", missingMods))
+                                 : unallowed.Count > 0 ? "  ·  " + string.Format(Localization.Extra("mpScriptsShort", "allow its scripts first: {0}"), string.Join(", ", unallowed))
                                  : entry.Modded ? "  ·  " + entry.modNames : "");
                 var infoLabel = new Label(info) { pickingMode = PickingMode.Ignore };
                 infoLabel.AddToClassList("mp-server-info");
@@ -663,6 +671,7 @@ namespace GoF2Remake.UI
                         mpStatus.text = entry.Full ? Localization.Extra("mpGameFull", "That game is full.")
                             : entry.SameVersion && missingMods.Count > 0 ? string.Format(Localization.Extra("mpNeedsMods",
                                 "Needs mods you don't have (or another version): {0}."), string.Join(", ", missingMods))
+                            : entry.SameVersion && unallowed.Count > 0 ? GoF2Remake.Multiplayer.NetMods.ScriptRefusal(entry.mods)
                             : entry.version == GoF2Remake.Multiplayer.NetGame.Version
                             ? string.Format(Localization.Extra("mpOtherBuildText", "That game runs another build of {0}: only the same build can join."), entry.version)
                             : string.Format(Localization.Extra("mpOtherVersion", "That game runs version {0}, yours is {1}."), entry.version, GoF2Remake.Multiplayer.NetGame.Version);

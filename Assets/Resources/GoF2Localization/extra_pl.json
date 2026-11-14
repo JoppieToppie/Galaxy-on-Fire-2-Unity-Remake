@@ -3601,5 +3601,14 @@
  "statVulnerable": "Cel otrzymuje więcej obrażeń",
  "wingmanAmmo": "{0}: Zaopatrzenie w amunicję",
  "wingmanCharged": "{0}: Naładowane strzały",
- "wingmanRepair": "{0}: Naprawa kadłuba"
+ "wingmanRepair": "{0}: Naprawa kadłuba",
+ "modsScripts": "Skrypty",
+ "modsScriptsTitle": "Skrypty modów",
+ "modsScriptsAsk": "{0} uruchamia skrypty. Skrypty mogą zmienić w grze wszystko, także twoje zapisy i ustawienia, a wadliwy lub złośliwy skrypt może je uszkodzić. Włączaj mody ze skryptami tylko od autorów, którym ufasz.\n\nWłączyć i pozwolić działać skryptom?",
+ "modsScriptsNote": "Uruchamia skrypty ({0}): mogą zmienić w grze wszystko, także twoje zapisy. Używaj modów ze skryptami tylko od autorów, którym ufasz.",
+ "modsScriptsBlocked": "Skrypty są nowe lub zmienione i jeszcze nie działają. Wyłącz mod i włącz go ponownie, aby na nie zezwolić.",
+ "mpScriptsNotAllowed": "Ta gra używa modów ze skryptami, na które nie masz zgody: {0}. Włącz je raz w Modach, aby zezwolić na ich skrypty, i dołącz ponownie.",
+ "mpScriptsShort": "najpierw zezwól na skrypty: {0}",
+ "mpModsCountScripts": "Mody (włączone: {0}, ze skryptami)",
+ "scriptNoCommand": "Nie ma polecenia \"{0}\"."
 }

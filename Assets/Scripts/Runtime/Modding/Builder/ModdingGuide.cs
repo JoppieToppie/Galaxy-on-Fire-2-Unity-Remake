@@ -35,6 +35,7 @@ namespace GoF2Remake.Modding
             ("missions.md", "The .gof2mission format: missions, bar missions and events as steps."),
             ("mission.schema.json", "The same mission format as a JSON Schema (get_mission_schema gives it too)."),
             ("events.md", "Every event graph node and command."),
+            ("scripting.md", "Mod scripts (Lua, scripts/*.lua): the game table, events, the hook classes and the game's classes scripts can use."),
             ("voices.md", "Every voice clip with its speaker and English line, for voice-over."),
         };
 

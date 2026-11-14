@@ -401,3 +401,23 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `flight` bonuses, a toggle for its own `rules`). Both list every `FlightRules` field by its `[Header]` groups with the
   game's value (`FlightRulesFields`); a value set back to it is removed. Its texts are English only (`mbRule_*`,
   `mbRuleNote_*`, `mbFlightGroup_*`). Not yet tried in the builder's UI.
+- **Scripts kind** (2026-11-14; mods.md "Mod scripts"): `ModBuilder.Kind.Scripts` (before AiTools, `KindCount` 17), a
+  tab of the hangar screen (`ModBuilderViewScripts`) and a card on the projects page ("N scripts"). The project's files
+  (`ModProjectScripts`: `ScriptFiles` main.lua first, then the start files, then the modules; `AddScript` (the first
+  is main.lua with `ScriptTemplate`, a module gets a `local M = {}` skeleton), `RenameScript`, `RemoveScript`,
+  `ScriptName`: a-z 0-9 _ -, folders with /, no dots; never outside scripts/). Left: the files with "runs when the mod
+  starts" / "module: require(...)", New / Rename / Remove. Right, as wide as the screen (`.mbv-root--scripts .mbv-right`
+  from the left panel to the right edge; the kind doesn't fly, so the panel reaches the bottom): the file in a multiline
+  `TextField` with a monospace system font (`CodeFont`: Consolas, Cascadia Mono, Menlo, DejaVu Sans Mono ... through
+  `FontAsset.CreateFontAsset(family, style, size)`; none found = the interface font), Tab types four spaces, the
+  cursor's line and column, the syntax check 0.25 s after the last key (`ModScripts.SyntaxError`; a click on the error
+  goes to its line), **Save & run** (the file saved, `RequestReload`, then the scripts started afresh unless the changed
+  file restarted them already, `ModScripts.Starts`), **API reference** (`ModScripts.ApiHelp` in a read-only field) and the
+  console (the project's `ModScripts.Lines`, errors red, `game.message` lines as "[message] ..."). A typed change is
+  written 0.4 s after the last key (`SaveScript` -> `MarkDirty`: a save point, so an undo step;
+  `ModProjectHistory.TrackedFolders` has `scripts`). No syntax colouring, no line numbers beside the text. The MCP
+  server's `write_file` takes `scripts/*.lua` and answers a syntax error and the scripts' errors (`syntaxError`,
+  `scriptErrors`). Verified in Play mode (2026-11-14, 1280 x 720): the tab with two files, the template, a broken text's
+  error with its line, Save & run writing the file and the console showing what the script printed (`require`,
+  `Session`, `game.find`, `game.describe`). Not yet: New / Rename / Remove through their dialogs, Tab, the error click,
+  undo of a script edit, a phone's screen.

@@ -11,6 +11,10 @@
 //            ones. NetState carries the session's list; the joining game turns exactly those on for the session
 //            (ApplyFromServer), so every game numbers the mod content the same (ModContent, a fresh numbering per session).
 // The server browser lists the mods (NetLobby "mods" / "modnames") and marks a game this one can't join.
+// Script mods (Modding.ModScripts) run in every player's game, the host's included: the session takes only the host's
+// mods whose scripts the host allowed (a dedicated server: all of them, its operator installed them), and a joining
+// game whose player hasn't allowed a session mod's scripts yet is stopped before the world is built (ScriptRefusal:
+// NetState on joining, the server browser's row) and told to turn the mod on once in the mod browser.
 // The session's mods go when the session ends (End, from NetGame.OnMainMenu).
 
 using System;
@@ -58,9 +62,14 @@ namespace GoF2Remake.Multiplayer
         public static void BeginHost()
         {
             // A dedicated server has no mod browser: every usable mod in its Mods folders (in name order, dependencies first).
+            if (DedicatedServer.Enabled) ModScripts.AutoApprove = true;   // nobody to ask: its operator put the mods there
             var mods = !HostAllowsMods ? new List<ModInfo>()
                 : DedicatedServer.Enabled ? ModManager.Installed.Where(m => !m.Broken).OrderBy(m => m.Id, StringComparer.Ordinal).ToList()
                 : ModManager.SinglePlayerActive;
+            // Scripts run on everyone or on nobody: a mod whose scripts the host hasn't allowed stays out of the session.
+            var unallowed = ModScripts.Unapproved(mods);
+            foreach (var m in unallowed) Debug.LogWarning($"NetMods: {m.Id} stays out of the session (its scripts aren't allowed here)");
+            mods = mods.Except(unallowed).ToList();
             ModManager.BeginSession(mods.Select(m => m.Id));
             SessionList = string.Join(";", ModManager.UserMods.Select(m => m.NetSignature));
             if (SessionList.Length > MaxListLength)
@@ -132,6 +141,24 @@ namespace GoF2Remake.Multiplayer
             return string.Format(Localization.Extra("mpNeedsMods",
                 "Needs mods you don't have (or another version): {0}."),
                 string.Join(", ", missing));
+        }
+
+        /// <summary>A session's mods ("id@version#hash;...") that run scripts, by name, as far as this game has them.</summary>
+        public static List<string> ScriptMods(string sessionList) =>
+            Parse(sessionList).Select(e => ModManager.Find(e.id)).Where(m => m != null && ModScripts.HasScripts(m)).Select(m => m.Name).ToList();
+
+        /// <summary>A session's script mods whose scripts this player hasn't allowed (names), empty = none.</summary>
+        public static List<string> UnallowedScripts(string sessionList) =>
+            ModScripts.Unapproved(Parse(sessionList).Select(e => ModManager.Find(e.id))).Select(m => m.Name).ToList();
+
+        /// <summary>A joining game: why it can't play this session's script mods, null = it can (or there are none).</summary>
+        public static string ScriptRefusal(string sessionList)
+        {
+            var names = UnallowedScripts(sessionList);
+            if (names.Count == 0) return null;
+            return string.Format(Localization.Extra("mpScriptsNotAllowed",
+                "This game runs script mods you haven't allowed: {0}. Turn them on once under Mods to allow their scripts, then join again."),
+                string.Join(", ", names));
         }
 
         /// <summary>The server browser: this game lacks some of a listed game's mods (names), empty = it can join.</summary>

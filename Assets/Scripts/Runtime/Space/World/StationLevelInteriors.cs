@@ -167,6 +167,7 @@ namespace GoF2Remake.World
                 traffic.RunsNpcs = !hangarFollower;
             }
             SpaceHooks.StationBuilt?.Invoke(this);   // multiplayer: the other players in the hangar (NetHangar)
+            GoF2Remake.Modding.ModScripts.Raise("station", this);   // the mod scripts: docked, the hangar stands
 
             // Docked inside the orbit: the hangar rides on the station's hull (room metres in its frame; a mobile station
             // carries it along), in the space level's scene.

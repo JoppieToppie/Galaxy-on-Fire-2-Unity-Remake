@@ -3601,5 +3601,14 @@
  "statVulnerable": "Il bersaglio subisce più danni",
  "wingmanAmmo": "{0}: Rifornimento munizioni",
  "wingmanCharged": "{0}: Colpi caricati",
- "wingmanRepair": "{0}: Riparazione scafo"
+ "wingmanRepair": "{0}: Riparazione scafo",
+ "modsScripts": "Script",
+ "modsScriptsTitle": "Script delle mod",
+ "modsScriptsAsk": "{0} esegue script. Gli script possono cambiare qualsiasi cosa nel gioco, compresi i tuoi salvataggi e le impostazioni, e uno script difettoso o malevolo può danneggiarli. Attiva solo mod con script di autori di cui ti fidi.\n\nAttivarla e lasciar eseguire i suoi script?",
+ "modsScriptsNote": "Esegue script ({0}): possono cambiare qualsiasi cosa nel gioco, compresi i tuoi salvataggi. Usa solo mod con script di autori di cui ti fidi.",
+ "modsScriptsBlocked": "I suoi script sono nuovi o modificati e non vengono ancora eseguiti. Disattiva e riattiva la mod per consentirli.",
+ "mpScriptsNotAllowed": "Questa partita usa mod con script che non hai consentito: {0}. Attivale una volta in Mod per consentirne gli script, poi unisciti di nuovo.",
+ "mpScriptsShort": "consenti prima i suoi script: {0}",
+ "mpModsCountScripts": "Mod ({0} attive, con script)",
+ "scriptNoCommand": "Nessun comando \"{0}\"."
 }

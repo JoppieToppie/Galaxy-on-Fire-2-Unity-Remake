@@ -1353,3 +1353,100 @@
 .mbv-on-map .mbv-panel {
     background-color: rgb(6, 12, 20);
 }
+
+/* ---- Scripts kind (ModBuilderViewScripts): the code editor takes the 3D view's place ---- */
+
+.mbv-root--scripts .mbv-right {
+    left: 400px;
+    width: auto;
+}
+.mbv-narrow.mbv-root--scripts .mbv-right { left: 340px; width: auto; }
+
+.mbv-code-page {
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+.mbv-code-head {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin: 4px 0 4px 0;
+}
+
+.mbv-code-title {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: var(--text-small);
+    color: var(--gof-text);
+    overflow: hidden;
+}
+
+.mbv-code-button {
+    flex-shrink: 0;
+    margin-left: var(--space-s);
+    min-width: 140px;
+}
+
+.mbv-code {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-height: 120px;
+    margin: 0;
+    align-items: stretch;   /* (.mbv-field centres its input: the editor fills its height) */
+}
+
+.mbv-code > .unity-base-field__input,
+.mbv-code .unity-base-text-field__input {
+    flex-grow: 1;
+    font-size: 18px;
+    white-space: pre;
+    -unity-text-align: upper-left;
+    padding: 8px 10px;
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+.mbv-code-foot {
+    flex-direction: row;
+    flex-shrink: 0;
+    margin: 4px 0 4px 0;
+}
+
+.mbv-code-cursor {
+    flex-shrink: 0;
+    min-width: 190px;
+    font-size: var(--text-caption);
+    color: var(--gof-text-dim);
+}
+
+.mbv-code-check {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: var(--text-caption);
+    color: rgb(120, 220, 140);
+    white-space: normal;
+}
+
+.mbv-code-check--error {
+    color: rgb(255, 120, 100);
+}
+
+.mbv-code-console {
+    flex-grow: 0;
+    flex-shrink: 0;
+    height: 170px;
+    padding: 6px 10px;
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+.mbv-code-line {
+    font-size: 16px;
+    color: var(--gof-text);
+    white-space: normal;
+    margin: 0;
+    padding: 0;
+}
+
+.mbv-code-line--error {
+    color: rgb(255, 120, 100);
+}

@@ -47,6 +47,7 @@ namespace GoF2Remake.UI
         {
             if (kind == ModBuilder.Kind.Interiors) UpdateInteriorView(dt);
             UpdateAudio();   // also the quests' Sound picker's preview
+            UpdateScripts();
         }
 
         bool EscapeKind() => kind switch
@@ -65,6 +66,7 @@ namespace GoF2Remake.UI
             EndInteriorView();
             CloseMap();
             StopAudio();
+            DisposeScripts();
         }
 
         // ---- kinds of content ---------------------------------------------------------------------------------
@@ -106,6 +108,10 @@ namespace GoF2Remake.UI
             bool flies = Flies(k), turntable = ShipKind(k);
             testFly.style.display = flies ? StyleKeyword.Null : DisplayStyle.None;
             root.EnableInClassList("mbv-root--bar", !flies);   // no Test fly: the right panel reaches the bottom
+            // The script editor takes the 3D view's place: its panel as wide as the screen allows.
+            root.EnableInClassList("mbv-root--scripts", k == ModBuilder.Kind.Scripts);
+            if (was == ModBuilder.Kind.Scripts && k != ModBuilder.Kind.Scripts) SaveScript();
+            if (k == ModBuilder.Kind.Scripts) ShowScripts();
             uiEngines.style.display = turntable ? StyleKeyword.Null : DisplayStyle.None;
             // Item changes reach the rest of the builder (the loadout's pickers) once the game has read them.
             if (was == ModBuilder.Kind.Items && itemsChanged) { itemsChanged = false; RequestReload(true); }
@@ -146,6 +152,8 @@ namespace GoF2Remake.UI
             if (kind == ModBuilder.Kind.Campaigns) { RebuildCampaign(); BuildCampaignPage(); }
             if (kind == ModBuilder.Kind.Quests) { RebuildQuests(); BuildQuestPage(); }
             if (kind == ModBuilder.Kind.Audio) { RebuildAudio(); BuildAudioPage(); }
+            // (an undo may have changed the files; the editor's own unsaved typing stays)
+            if (kind == ModBuilder.Kind.Scripts && !scriptDirty) ShowScripts();
             if (kind == ModBuilder.Kind.Characters) { RebuildCharacters(); BuildCharacterPage(); }
             if (kind == ModBuilder.Kind.Systems) { RebuildSystems(); BuildSystemPage(); RefreshMap(); }
             if (kind == ModBuilder.Kind.Races) { RebuildModRaces(); BuildModRacePage(); RefreshMap(); }

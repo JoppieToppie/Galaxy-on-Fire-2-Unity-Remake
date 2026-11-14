@@ -16,10 +16,13 @@ namespace GoF2Remake.Multiplayer
     public static class NetHooksInstaller
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ChatToScripts(NetChat.Message m) => Modding.ModScripts.Raise("chat", m.from, m.text, m.own);
+
         public static void Install()
         {
             NetSession.ActiveProvider = () => NetGame.Active;
             NetSession.SessionGameProvider = () => NetGame.SessionGame;
+            NetSession.HostingProvider = () => NetGame.IsServer;
             NetSession.DebugAllowedProvider = () => NetGame.DebugAllowed;
             NetSession.DbProvider = () => NetGame.Db;
             NetSession.LocalIdProvider = () => NetGame.LocalId;
@@ -42,6 +45,26 @@ namespace GoF2Remake.Multiplayer
             GameHooks.Number = EventRunner.Number;
             GameHooks.ResetLocalEvents = EventRunner.ResetLocal;
             GameHooks.StartQuest = EventRunner.StartQuest;   // a cruise drive encounter's quest graph (CruiseEncounters)
+            // Mod scripts' game.send: to every player's scripts through the host; without a session this game's own.
+            GameHooks.ScriptSend = (name, payload) =>
+            {
+                if (!NetGame.Active) { Modding.ModScripts.Receive(0, name, payload); return true; }
+                if (NetState.Instance == null || !NetState.Instance.IsSpawned) return false;
+                NetState.Instance.ScriptMessageRpc(name, payload);
+                return true;
+            };
+            // ... and "chat": a chat line arrived (who, the text, whether it is this player's own).
+            NetChat.Added -= ChatToScripts;
+            NetChat.Added += ChatToScripts;
+            // Mod scripts' game.command: "name args" as the event graphs' command lines run (single player or the server).
+            GameHooks.RunCommand = line =>
+            {
+                line = (line ?? "").Trim();
+                int space = line.IndexOf(' ');
+                string name = space < 0 ? line : line.Substring(0, space);
+                return NetCommands.RunOnServer(name, space < 0 ? "" : line.Substring(space + 1), null)
+                    ?? string.Format(Localization.Extra("scriptNoCommand", "No command \"{0}\"."), name);
+            };
 
             GameHooks.StockShared = NetStock.Shared;
             GameHooks.StockEntered = NetStock.OnEnterStation;

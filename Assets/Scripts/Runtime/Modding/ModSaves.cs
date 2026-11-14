@@ -16,6 +16,8 @@ namespace GoF2Remake.Modding
 {
     [Serializable] public class SaveMod { public string id, name, version; }
     [Serializable] public class SaveModKey { public string kind, key; public int index, price; }
+    /// <summary>A script mod's game.saved table (ModScripts), as JSON.</summary>
+    [Serializable] public class SaveScriptData { public string id, json; }
 
     public static class ModSaves
     {

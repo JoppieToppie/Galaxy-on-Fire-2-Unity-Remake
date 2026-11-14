@@ -72,7 +72,7 @@ namespace GoF2Remake.EditorTools
                     T("GoF2/Build/Hull Icons", "Resources/GoF2Icons/hull_*: rendered icons for the hulls with no shop image (freighters, battleships, the carrier, the Valkyrie, the Void ship) in the Debug Ships tab. Build Item Icons first (its ship frame)."),
                     T("GoF2/Build/Ship Icon Frame", "Resources/GoF2Icons/frame_ship.png: the bare blue ship frame the Mod Builder draws its generated ship icons over (also written by Hull Icons)."),
                     T("GoF2/Build/Text Icons", "The dialogue's inline icons (coin, race emblems, item and ship icons) as one sprite asset. Uses the HUD images and item icons, so build those first."),
-                    T("GoF2/Build/Modding AI Reference", "Modding/ai/gof2-modding/reference.md: every original item, ship, system and station with its number and stats, for the AI modding guide (SKILL.md)."),
+                    T("GoF2/Build/Modding AI Reference", "Modding/ai/gof2-modding/reference.md: every original item, ship, system and station with its number and stats, for the AI modding guide (SKILL.md); also events.md, missions.md, voices.md, guide.md and scripting.md (the mod scripts' reference: the game table, hooks and classes)."),
                     T("GoF2/Build/Sky Layers", "Resources/GoF2Backdrop: the extra sky meshes (planet ring sky, supernova flares, storms, asteroid belt)."),
                     T("GoF2/Build/Space Skies", "Bakes the star and nebula cubemaps the flight levels use (Resources/GoF2Sky). Takes a while."),
                     T("GoF2/Tools/Capture Reflection Cubemap", "Play mode: captures the reflection cubemap of where you are into Resources/GoF2Reflections (docked: the hangar room; in space: the system's sky)."),

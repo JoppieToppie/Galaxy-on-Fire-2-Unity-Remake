@@ -762,7 +762,11 @@ namespace GoF2Remake.Data
             {
                 var outer = applying;
                 applying = db;
-                try { Modding.ModContent.Apply(db); }
+                try
+                {
+                    Modding.ModContent.Apply(db);
+                    Modding.ModScripts.Raise("database", db);   // the mod scripts' own changes to the tables, last
+                }
                 finally { applying = outer; }
             }
             return db;

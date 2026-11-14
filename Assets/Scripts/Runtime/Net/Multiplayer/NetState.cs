@@ -228,6 +228,9 @@ namespace GoF2Remake.Multiplayer
                 // The session's economy first (a co-op campaign's may be Default): every table loaded from here on is its.
                 Session.Economy = NetSession.Economy = NetSession.EconomyFromCode(economy.Value);
                 if (NetSession.Economy != Economy.Android) Debug.Log($"NetState: the session plays the {NetSession.Economy} economy");
+                // A session mod's scripts this player hasn't allowed: the join ends here, before anything of it runs.
+                refuseJoin = NetMods.ScriptRefusal(sessionMods.Value.ToString());
+                if (refuseJoin != null) return;
                 NetMods.ApplyFromServer(sessionMods.Value.ToString());   // the session's mods before the world is built
                 if (coop.Value) NetCoop.OnJoined(coopStory.Value.ToString());   // a co-op guest: the crew's story before the profile
                 // A server with profiles: the world waits for this player's profile (NetProfileClient.Begin -> EnterWorld).
@@ -339,8 +342,12 @@ namespace GoF2Remake.Multiplayer
 
         // ---- the sector's news (NetNews) ----------------------------------------------------------------------
 
+        /// <summary>Why this joining game leaves again (NetMods.ScriptRefusal), acted on in the next Update.</summary>
+        string refuseJoin;
+
         void Update()
         {
+            if (refuseJoin != null) { string why = refuseJoin; refuseJoin = null; NetGame.RefuseJoin(why); return; }
             NetStock.Flush();   // the shared stock that arrived, applied between frames (every player)
             NetTradeClient.Tick();   // this player's trade offer goes out, kept within the hold
             NetCoop.Tick(this);   // a co-op campaign: the leader's story out, a guest's catch-up and progress

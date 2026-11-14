@@ -442,6 +442,7 @@ namespace GoF2Remake.Data
         /// <summary>A unit bought (-1, at 'price') or sold (+1) for the shared stock: at once, or into the batch.</summary>
         void Shared(int item, int delta, int price)
         {
+            Modding.ModScripts.Raise("trade", item, -delta, price, Station);   // the mod scripts: +1 bought, -1 sold
             if (!batching) { GameHooks.StockItemChanged?.Invoke(Station, item, delta, price); return; }
             if (batchItem >= 0 && batchItem != item) { EndBatch(); batching = true; }   // (never in a shop's batch: one item)
             batchItem = item;

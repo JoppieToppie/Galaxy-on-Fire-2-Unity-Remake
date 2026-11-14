@@ -121,3 +121,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   the capability, the instructions, all seven resources listed and missions.md read, read_guide's list, SKILL.md's
   outline, guide.md's "Engine effect" section, a search, a range of reference.md, an unknown file refused; and the
   bundle's copy loaded back through Resources (all seven) and removed. Not yet: a real build, a real client.
+- **Scripts** (2026-11-14; mods.md "Mod scripts"): `write_file` takes `scripts/<name>.lua` (`FileFolders` + `.lua`, a
+  text file `read_file` reads back) and answers `syntaxError` (`ModScripts.SyntaxError`) and `scriptErrors` (the
+  project's script errors once the game has read the project again and its scripts restarted); `read_guide` lists
+  `scripting.md` (`ModdingGuide.Files`, eight files now) and the server's instructions name it. Not yet tried with a
+  client.

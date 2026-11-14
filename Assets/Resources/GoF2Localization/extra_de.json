@@ -3601,5 +3601,14 @@
  "statVulnerable": "Ziel nimmt mehr Schaden",
  "wingmanAmmo": "{0}: Munitionsnachschub",
  "wingmanCharged": "{0}: Geladene Schüsse",
- "wingmanRepair": "{0}: Hüllenreparatur"
+ "wingmanRepair": "{0}: Hüllenreparatur",
+ "modsScripts": "Skripte",
+ "modsScriptsTitle": "Mod-Skripte",
+ "modsScriptsAsk": "{0} führt Skripte aus. Skripte können alles im Spiel verändern, auch deine Spielstände und Einstellungen, und ein fehlerhaftes oder bösartiges Skript kann sie beschädigen. Schalte Skript-Mods nur von Autoren ein, denen du vertraust.\n\nEinschalten und die Skripte ausführen lassen?",
+ "modsScriptsNote": "Führt Skripte aus ({0}): Sie können alles im Spiel verändern, auch deine Spielstände. Nutze Skript-Mods nur von Autoren, denen du vertraust.",
+ "modsScriptsBlocked": "Die Skripte sind neu oder geändert und laufen noch nicht. Schalte den Mod aus und wieder ein, um sie zu erlauben.",
+ "mpScriptsNotAllowed": "Dieses Spiel nutzt Skript-Mods, die du nicht erlaubt hast: {0}. Schalte sie einmal unter Mods ein, um ihre Skripte zu erlauben, und tritt dann erneut bei.",
+ "mpScriptsShort": "erst die Skripte erlauben: {0}",
+ "mpModsCountScripts": "Mods ({0} aktiv, mit Skripten)",
+ "scriptNoCommand": "Kein Befehl \"{0}\"."
 }

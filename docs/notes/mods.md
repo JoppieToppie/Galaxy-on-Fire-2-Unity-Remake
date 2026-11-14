@@ -655,6 +655,103 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   refs, and the event graphs' names (`NetAdmin.FindShip` / `FindItem` / `FindHull`, `NetTeleport.ParseStation`).
 - **Quests and bar missions** (event graphs in a mod's `events/*.gof2event`, found by `EventRunner.Load` / `List` after the
   Events folders, the later mod in the load order winning; then the built-ins): see "Event graph quests" in Multiplayer.
+- **Mod scripts** (remake, 2026-11-14, the user's request: "scripting ... so people don't have to use the script graph, but
+  can also edit anything of the game"; `ModScripts` + `ModScriptsApi` + `ModScriptsSandbox` (`ScriptAccess`) +
+  `ModScriptDriver`, GoF2.Game): a mod's Lua files in `scripts/` (`*.lua`), run by **MoonSharp** 3.0.0-beta.1
+  (`Assets/Plugins/MoonSharp`, the NuGet package's netstandard2.0 DLL, the user's pick over 2.0.0; Lua 5.2 in C#: IL2CPP
+  can't load C# compiled at runtime, an interpreter runs on every platform; `UserData.DefaultAccessMode` Reflection, no
+  generated code). The user's choices: Lua, "game only" access, scripts run in every player's game in multiplayer.
+  **Files**: every `.lua` directly in `scripts/` runs when the mod starts (`main.lua` first, the rest by name, each
+  through `require` so one a script required earlier isn't run twice); subfolders are modules (`require("lib.util")`,
+  `"othermod:lib.util"` an active, allowed dependency's; the script loader `Vm` reads the mod's `ModSource` only).
+  **States**: one Lua state per mod (`Vm`), following `ModManager.Active` (`Sync`, on a `Revision` change: from
+  `ModScriptDriver.Update` and before every `Raise`): the same script files (id # `ScriptHash` @ location) go on and are
+  rebound to the rescan's new `ModInfo` (its "Script: ..." warnings carried over), anything else stops all states
+  (`stop` raised, `game.saved` captured, hooks undone last first) and starts them afresh. They run from the main menu on.
+  **Approval**: scripts reach every game class, so they run only once the player said yes to those files: PlayerPrefs
+  `mods_scripts_ok` = "id#scripthash;..." (`IsApproved` / `SetApproved`; changed script files ask again; the mod's other
+  content loads meanwhile). `ModBrowser.Toggle` asks when turning on a mod with unallowed scripts (its own or a
+  dependency's that comes on with it, `TurnsOn`; Extra `modsScriptsAsk`), the row says "Scripts", the details warn
+  (`modsScriptsNote`) or say they wait (`modsScriptsBlocked`). No question for the Mod Builder's project, the base content
+  and a dedicated server (`AutoApprove`, set by `NetMods.BeginHost`).
+  **Sandbox** (`ScriptAccess`, best effort, not a proof): Lua side MoonSharp's soft sandbox + `require` / `load` (no io,
+  debug, os but the clock; `LimitedPlatformAccessor`); C# side a registration policy: a type becomes userdata only if it
+  is one of the game's runtime assemblies' public types (GoF2.Core / Game / Space / Net / App) or of Unity's scene
+  namespaces (`UnityNamespaces`), minus the doors out (`UnityDenied`: Application, PlayerPrefs, GUIUtility, asset
+  bundles, WWW, webcam ...; `GameDenied`: GamePaths, FileDialog, ModSource, ModImport, the patcher, UpdateCheck, WebAdmin,
+  ModBuilderMcp*, NetProfiles*, ModScripts itself ...; `EveryDeniedGameClassStillExists` keeps the list honest), plus
+  lists / dictionaries / sets of those; a game class's public methods with a text parameter named like a path, file,
+  folder, url or address are removed from its descriptor (`Trim`, `PathWords`). System.Type never converts, so no
+  reflection. ~125 game source files touch files or the network, so a determined script may still find a public method
+  that lets a path through: hence the approval and the warning.
+  **API** (the global `game`, `ModScriptsApi`; `ModScripts.ApiHelp` is the short reference the builder shows): `on` /
+  `off` / `after` / `every` / `emit`, `saved` (a table per mod in the save: `Session.ScriptData`, SaveData `scriptData`,
+  JSON through MoonSharp's JsonTableConverter; captured in `SaveGame.Capture`, restored after `Load` / `ApplyProfile`
+  (raising `gameLoaded`), emptied by `ResetNewGame`), `log` / `print`, `message` (`GameHooks.Notice`: the flight HUD's
+  line, else a station toast; queued and shown from the next frame, retried 3 s, because `station` is raised while the
+  station menu is still being built: its toast label was null), `command` (`GameHooks.RunCommand` ->
+  `NetCommands.RunOnServer`: single player or the server), `multiplayer()` (`NetSession.Hosting`), `scene()`, `type` /
+  `import` (short names when unique, the game's class winning over Unity's), `describe` / `classes` (what a class offers,
+  from `ScriptAccess.Describe`), `find` / `findOne` / `component(s)` / `addComponent`, `table` / `get` / `set` (C#
+  collections stay userdata; arrays arrive as tables), `hook` (a public delegate field / property replaced by a delegate
+  built with an expression tree, the Lua function getting the original first; a failing hook falls back to the
+  original; off the main thread the original runs) and `listen` (events, or Delegate.Combine). Globals: Session,
+  Database, Settings, Localization, Vector2/3, Quaternion, Color, Mathf, Time, GameObject, Debug, Resources.
+  **Events** (`ModScripts.Raise`, a no-op without running states): `update(dt)` and timers (`ModScriptDriver`, game
+  time), `scene(name)`, `space(level)` (`SpaceLevel`, after `SpaceHooks.LevelBuilt`), `station(level)`
+  (`StationLevelInteriors`), `database(db)` (the end of `Database.Load`'s mod step), `shipDestroyed(ship, byPlayer)`
+  (`Traffic.OnShipDied`), `playerDestroyed` (`PlayerHealth.StartDeath`), `gameLoaded`, `saving`, `stop`.
+  **Errors**: every call from the game runs as a coroutine with `AutoYieldCounter` = `CallBudget` (10 M instructions):
+  one that is force-suspended is dropped ("ran for too long"); an error is the mod's warning ("Script: file:(line,col):
+  ..."), a console line (`ModScripts.Lines`) and a LogWarning, never a logged exception; a handler failing 5 times in a
+  row is removed. A Lua coroutine a script makes itself has no budget.
+  **Multiplayer** (`NetMods`): a session's script mods run in every game. `BeginHost` leaves out the host's mods whose
+  scripts the host hasn't allowed; a joining game with a session mod's scripts not allowed is stopped in
+  `NetState.OnNetworkSpawn` before `ApplyFromServer` (`ScriptRefusal` -> `NetGame.RefuseJoin` the next frame: the
+  reason in the panel's status line); the server browser tags such games "Scripts" and names the mods to allow
+  (`ScriptMods` / `UnallowedScripts`, from this game's own copies of the session's mods); the Host card's row reads
+  "Mods (N on, with scripts)".
+  **Docs**: Modding/README.md "Scripts", SKILL.md "Scripts (Lua)", the generated `scripting.md`
+  (`ModdingScriptingReference`: the API, the hook classes with their summaries from the source, the main classes'
+  members, every class name), the example `Modding/Examples/pirate_bounty`. `Assets/link.xml` keeps the interpreter and
+  the game's assemblies whole should the stripping level be raised.
+  Verified: `ModScriptTests` (24: files and order, require, events, timers, the sandbox, an endless loop, failing
+  handlers, approval, saved, the database event, hook / listen, collections, emit, the project's files, the example,
+  describe, syntax errors, the session rules), and in Play mode in the Editor: the browser's question and the mod
+  running after Yes, the builder's Scripts tab (below). Not yet: an IL2CPP build (reflection access and the expression
+  trees under AOT), a script mod in a real session, `space` / `shipDestroyed` / `playerDestroyed` in flight.
+  The player-facing texts are translated; the builder's Scripts tab is English only (`mbScript*`).
+  **Made complete** (the same day, "make the scripting as complete as possible": what the first version couldn't do;
+  `ModScriptsMore`, `ModScriptsReflection`, `LuaBehaviour`). *Sequences*: `game.wait(s)` / `game.waitUntil(fn)` are
+  callbacks returning a MoonSharp yield request; every call from the game is a coroutine already (the budget), so one
+  that ends Suspended is kept as a `Routine` (`Vm.Adopt`) and resumed by `Tick` when its time is up or its condition
+  holds; `game.run(fn)` starts one, `game.off` ends it; a hook, a command and a condition are called with `mayWait`
+  false (their caller needs the answer now: "game.wait can't be used here"). *Classes as globals*: the globals table has
+  an `__index` that looks an unset name up with `ScriptAccess.Find` and keeps it (`Standing.Pirate` without import).
+  *Any member*: `game.field` / `setField` / `call` find a member public or not up the class chain (`AnyMember`,
+  `Chain`), `game.generic` makes a generic method with named type arguments; the same rules as the bridge (allowed
+  classes, `Usable` types, no path-taking method); `game.describe(x, true)` lists the private members. *Delegates*:
+  `RegisterDelegateTypes` scans the game's classes once for every delegate type in a field, property or parameter and
+  gives MoonSharp a function -> delegate conversion for each (so `GameHooks.Notice = function(text) ... end` and callback
+  arguments work); `MakeDelegate` now takes out / ref parameters (the Lua function returns the result, then the out
+  values; `CoerceAt`, `Multi` for the passed-through original), so all hook delegates can be hooked. *The mod's files*:
+  `game.files` / `readText` / `readJson` / `texture` (`ImageImport.Decode`, cached, destroyed on stop) / `sound`
+  (`ModAudio.Load`), through the mod's `ModSource` only. *Keys*: `game.item` / `ship` / `system` / `station`
+  (`ModContent.TryResolve*`, a bare id = this mod's). *Components*: `game.behaviour(go, table)` adds a `LuaBehaviour`
+  forwarding Unity's messages to the table's functions (removed on stop, or after 5 failures in a row). *Interface*:
+  `game.uiEvent(element, "ClickEvent", fn)` = `RegisterCallback<T>` by reflection. *Commands*: `game.addCommand(name,
+  fn(args, who))`, run by `NetCommands.TryRun` for an unknown `/name` (this game), by `RunOnServer` for a name that is
+  no command of the game's (an event graph's Command node, `game.command`), listed by `/help`. *Messages*:
+  `game.send(name, ...)` packs numbers / texts / booleans (one a line, `Pack` / `Unpack`, 900 characters) ->
+  `GameHooks.ScriptSend` -> `NetState.ScriptMessageRpc` (the chat's rate limit, lengths checked) ->
+  `ScriptMessageEveryoneRpc` -> `ModScripts.Receive` -> the `net:<name>` handlers of `game.onMessage(name, fn(sender,
+  ...))`; single player: straight back. *Settings*: `game.config`, JSON in PlayerPrefs `mod_script_config_<id>`,
+  written on stop / `game.saveConfig()`. *The scene*: `game.space()` / `station()` / `player()`, `game.myId()`. *More
+  events*: `lateUpdate`, `trade` (`Hangar.Shared`), `missionAccepted` / `missionSucceeded` / `missionFailed`
+  (`Freelance`), `storyStep` (`Story.Advance`), `chat` (`NetChat.Added`). Still not possible, by nature: rewriting a
+  method that isn't behind a delegate (no runtime patching under IL2CPP), defining C# classes, anything before the main
+  menu. Verified: `ModScriptMoreTests` (13; 37 with `ModScriptTests`). Not yet: the message RPCs in a real session,
+  `game.sound`, a `LuaBehaviour`'s physics messages, the new game events in play.
 - **Mod browser** (`ModBrowser`, the main menu's Mods button and `modsPanel`; styles `.mods-*` in MainMenu.uss): the list in
   load order (thumbnail, name, version · author, On / Off / Error / Can't load), a click or keyboard / controller focus
   selecting a row (the mouse's hover focus doesn't: passing over the rows on the way to Turn on changed the mod it acted

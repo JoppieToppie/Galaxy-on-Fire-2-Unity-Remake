@@ -25,7 +25,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   field, kind and default, a JSON Schema 2020-12 with shared `$defs` who / text / value / wire; a new step row there is in
   them at the next run); `events.md` (`ModdingEventsReference`: every event graph node's options and ports, read from
   `EventGraphNodes.cs` by a small tokenizer, so keep the node classes in that file's style, plus every command from
-  `NetCommands.Reference`); and `guide.md`, a copy of `Modding/README.md`. For the AI modding guide (modders kept asking
+  `NetCommands.Reference`); `scripting.md` (`ModdingScriptingReference`, 2026-11-14: the mod scripts' reference from the
+  code itself: `ModScripts.ApiHelp`, the hook classes' delegates with their signatures and the summaries read from
+  GameHooks / SpaceHooks / UiHooks / NetSession's source, the main classes' members through `ScriptAccess.Describe`, every
+  class name scripts can reach; add a class to `MainClasses` to have its members listed); and `guide.md`, a copy of
+  `Modding/README.md`. For the AI modding guide (modders kept asking
   for ids). Run it again after changing the game data; headless: `Unity.exe -batchmode -nographics -projectPath . -executeMethod GoF2Remake.EditorTools.ModdingReferenceBuilder.Batch -quit`.
 - **GoF2 > Build > Combat Assets**: `Resources/GoF2Combat/CombatAssets` (`CombatAssets`). Also run by Create Space Scene.
 - **GoF2 > Build > Star Map Assets**: `Resources/GoF2StarMap/StarMapAssets` (`StarMapAssets`). Also run by Create Space

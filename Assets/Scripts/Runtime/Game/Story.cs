@@ -404,6 +404,7 @@ namespace GoF2Remake.Data
             var previous = Session.StoryMission;
             Session.CampaignMission = next;
             Session.StoryStepStart = Session.PlaySeconds;
+            Modding.ModScripts.Raise("storyStep", next, from);
             if (next == 93 || next == 111 || next == 143) Session.StoryRadioPending = true;
             var step = StoryTable.Step(next);
             // Steps without a creating case (46, 107) keep the old mission object; 45, 84, 128, 130 and 162 get an empty one

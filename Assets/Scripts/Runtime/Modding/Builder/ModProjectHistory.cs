@@ -23,7 +23,7 @@ namespace GoF2Remake.Modding
     {
         /// <summary>The project folders whose files are part of a step (what the builder copies, writes and deletes).</summary>
         public static readonly string[] TrackedFolders = { ModProject.ModelsFolder, ModContent.TexturesFolder, "icons", "portraits", "fx", "sky", "cards",
-                                                            ModProject.MusicFolder, ModProject.SoundsFolder, ModProject.VoicesFolder, ProjectQuest.Folder, "text" };
+                                                            ModProject.MusicFolder, ModProject.SoundsFolder, ModProject.VoicesFolder, ProjectQuest.Folder, "text", ModScripts.Folder };
         /// <summary>The most steps kept back (the oldest go first).</summary>
         public const int MaxSteps = 100;
 

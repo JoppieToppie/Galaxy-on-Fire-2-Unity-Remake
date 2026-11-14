@@ -121,5 +121,18 @@ namespace GoF2Remake.Data
         public static Action<IEnumerable<string>> ModsScanned;
         /// <summary>A line on the flight HUD's message plate (Achievements.Progress, Hud::hudEventMedal); unset: not in flight.</summary>
         public static Action<string> FlightMessage;
+
+        // ---- mod scripts (Modding.ModScripts) ------------------------------------------------------------------------
+
+        /// <summary>game.message: a line on screen wherever the player is (the flight HUD's message plate, else a station toast);
+        /// false = nothing can show it now (the scene's interface isn't up yet: ModScripts tries again for a moment).</summary>
+        public static Func<string, bool> Notice;
+        /// <summary>game.command: a chat / event command line ("spawn pirate 3") run as the server runs it
+        /// (NetCommands.RunOnServer); its answer, which says so when this game isn't the server.</summary>
+        public static Func<string, string> RunCommand;
+        /// <summary>game.send: a script's message (its name, its values as ModScripts packs them) for every player's scripts,
+        /// through the host (NetState.ScriptMessageRpc); in single player this game's own (ModScripts.Receive). False = it
+        /// couldn't be sent (the session isn't up).</summary>
+        public static Func<string, string, bool> ScriptSend;
     }
 }

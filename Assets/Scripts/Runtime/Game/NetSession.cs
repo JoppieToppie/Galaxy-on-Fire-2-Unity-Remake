@@ -13,7 +13,7 @@ namespace GoF2Remake.Data
         /// <summary>The station a session starts docked at (Dis), NetGame.Station.</summary>
         public const int StartStation = 70;
 
-        public static Func<bool> ActiveProvider, SessionGameProvider, DebugAllowedProvider;
+        public static Func<bool> ActiveProvider, SessionGameProvider, DebugAllowedProvider, HostingProvider;
         public static Func<Database> DbProvider;
         public static Func<double> ServerTimeProvider;
         public static Func<ulong> LocalIdProvider;
@@ -21,6 +21,9 @@ namespace GoF2Remake.Data
 
         /// <summary>NetGame.Active: a session runs (host, client or dedicated server).</summary>
         public static bool Active => ActiveProvider != null && ActiveProvider();
+
+        /// <summary>NetGame.IsServer: this game is the session's host or dedicated server (mod scripts' game.multiplayer).</summary>
+        public static bool Hosting => HostingProvider != null && HostingProvider();
 
         /// <summary>NetGame.SessionGame: this game belongs to a session, from its preparation until the menu after it, even
         /// once the connection went (never saved).</summary>

@@ -73,8 +73,9 @@ namespace GoF2Remake.Modding
         /// <summary>The kinds of content (and AiTools: the MCP server's tab, ModBuilderScreen; shown wherever the builder is).</summary>
         // Remake: Races (the mod's own races, races.json) before AiTools, edited on the star map beside Systems.
         // Remake: NpcShips (npcships.json: capital ships, freighters, bosses; ModNpcShips), edited in space, before AiTools.
-        public enum Kind { Ships, Items, Characters, Skins, WeaponFx, Systems, Stations, Interiors, Quests, Campaigns, Audio, Blueprints, Kits, Races, NpcShips, AiTools }
-        public const int KindCount = 16;
+        // Remake: Scripts (the mod's Lua files, scripts/*.lua; Modding.ModScripts), a text editor in the hangar screen, before AiTools.
+        public enum Kind { Ships, Items, Characters, Skins, WeaponFx, Systems, Stations, Interiors, Quests, Campaigns, Audio, Blueprints, Kits, Races, NpcShips, Scripts, AiTools }
+        public const int KindCount = 17;
 
         /// <summary>Where a kind is edited: in the game's own place for it.</summary>
         public enum Place { Hangar, Lounge, Map, Space }

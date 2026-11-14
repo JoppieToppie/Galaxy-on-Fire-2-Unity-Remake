@@ -94,6 +94,7 @@ namespace GoF2Remake.Data
             Session.InformerKilled = Session.InformerFailed = false;
             agent.accepted = true;
             GameHooks.MissionAccepted?.Invoke(m);   // multiplayer: the squad gets it too
+            Modding.ModScripts.Raise("missionAccepted", m);
         }
 
         /// <summary>A discarded or failed mission: containers out of the hold, passengers home, no mission.</summary>
@@ -249,6 +250,7 @@ namespace GoF2Remake.Data
             CoopCampaign.FreelanceDone(m.netId);   // remake co-op: the crew's count for step 13 (a squad mission once)
             Session.Credits += pay;
             RecordChallenge(true);
+            Modding.ModScripts.Raise("missionSucceeded", m, pay);
             Discard();
             return pay;
         }
@@ -258,6 +260,7 @@ namespace GoF2Remake.Data
         {
             // Multiplayer: failed for the squad too (a lost Challenge's wager shared).
             int wager = Mission.type == MissionType.Challenge ? Mission.reward : 0;
+            Modding.ModScripts.Raise("missionFailed", Mission);
             if (GameHooks.MissionFailed != null) wager = GameHooks.MissionFailed(Mission, wager);
             Session.Credits -= wager;
             RecordChallenge(false);

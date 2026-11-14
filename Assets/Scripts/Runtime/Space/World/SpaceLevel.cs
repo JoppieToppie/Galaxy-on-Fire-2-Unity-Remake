@@ -690,6 +690,7 @@ namespace GoF2Remake.World
             RepairBeam.AttachAll(Player.gameObject, db, Health.Target, Traffic);
             Session.ComingFromVoid = false;   // Level::init / LevelScript have used it (the Void raid, the closing wormhole)
             SpaceHooks.LevelBuilt?.Invoke(this);   // multiplayer: the shared orbit (NetOrbit)
+            GoF2Remake.Modding.ModScripts.Raise("space", this);   // the mod scripts: the flight level stands
             if (arena != null) GoF2Remake.World.SpaceHooks.ArenaLevelReady?.Invoke();
             if (interstellar) gameObject.AddComponent<InterstellarField>().Setup(this);
             else if (Navigation.Drive != null && !NetSession.Active) gameObject.AddComponent<PlanetApproach>().Setup(this);

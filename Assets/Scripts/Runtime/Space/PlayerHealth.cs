@@ -577,6 +577,7 @@ namespace GoF2Remake.Flight
         {
             if (TryEmergency()) return;
             Dead = true;
+            GoF2Remake.Modding.ModScripts.Raise("playerDestroyed");
             if (EmergencyActive) EndEmergency();
             if (injectorLoop != null) injectorLoop.Stop();
             deathMs = 0f;

@@ -193,6 +193,7 @@ namespace GoF2Remake.UI
         {
             var parts = new List<string> { "v" + m.Version };
             if (!string.IsNullOrEmpty(m.Manifest?.author)) parts.Add(m.Manifest.author);
+            if (ModScripts.HasScripts(m)) parts.Add(T("modsScripts", "Scripts"));   // (the warning is in its details)
             return string.Join("  ·  ", parts);
         }
 
@@ -258,6 +259,11 @@ namespace GoF2Remake.UI
             var neededBy = isOn ? ModManager.NeededBy(mod.Id) : new List<ModInfo>();
             if (neededBy.Count > 0)
                 lines.Add(string.Format(T("modsNeededBy", "Needed by: {0} (turning it off turns them off)"), string.Join(", ", neededBy.Select(m => m.Name))));
+            // A script mod: what its scripts may do, or that they wait for the player's yes (new or changed files).
+            if (!mod.Broken && ModScripts.HasScripts(mod))
+                lines.Add(isOn && !ModScripts.IsApproved(mod)
+                    ? "× " + T("modsScriptsBlocked", "Its scripts are new or changed and don't run yet. Turn the mod off and on again to allow them.")
+                    : "! " + string.Format(T("modsScriptsNote", "Runs scripts ({0}): they can change anything in the game, your saves included. Only use script mods from authors you trust."), ModScripts.Files(mod).Count));
             lines.AddRange(mod.Warnings.Take(8).Select(w => "! " + w));
             if (mod.Warnings.Count > 8) lines.Add($"! … {mod.Warnings.Count - 8} more (see the log)");
             problems.text = string.Join("\n", lines);
@@ -408,8 +414,36 @@ namespace GoF2Remake.UI
         void Toggle()
         {
             if (selected == null) return;
-            ModManager.SetEnabled(selected, !ModManager.IsEnabled(selected));
-            ReorderRows();
+            string id = selected;
+            if (ModManager.IsEnabled(id)) { ModManager.SetEnabled(id, false); ReorderRows(); return; }
+            // Turning on a mod with scripts (its own or a dependency's that comes on with it) asks first: scripts reach
+            // the whole game, and run only once allowed (ModScripts.IsApproved; changed script files ask again).
+            var scripted = ModScripts.Unapproved(TurnsOn(id));
+            if (scripted.Count == 0) { ModManager.SetEnabled(id, true); ReorderRows(); return; }
+            ask(T("modsScriptsTitle", "Mod scripts"),
+                string.Format(T("modsScriptsAsk", "{0} runs scripts. Scripts can change anything in the game, including your saves and settings, and a faulty or malicious one can break them. Only turn on script mods from authors you trust.\n\nTurn it on and let its scripts run?"),
+                              string.Join(", ", scripted.Select(m => "\"" + m.Name + "\""))),
+                () =>
+                {
+                    foreach (var m in scripted) ModScripts.SetApproved(m, true);
+                    ModManager.SetEnabled(id, true);
+                    ReorderRows();
+                });
+        }
+
+        /// <summary>The mod and the dependencies ModManager.SetEnabled turns on with it (those that are off now).</summary>
+        static List<ModInfo> TurnsOn(string id)
+        {
+            var l = new List<ModInfo>();
+            void Add(string modId)
+            {
+                var m = ModManager.Find(modId);
+                if (m == null || l.Contains(m)) return;
+                l.Add(m);
+                if (m.Manifest != null) foreach (string d in m.Manifest.dependencies) if (!ModManager.IsEnabled(d)) Add(d);
+            }
+            Add(id);
+            return l;
         }
 
         void Move(int delta)

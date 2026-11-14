@@ -46,7 +46,7 @@ This file holds only what every task needs. Everything about one area of the gam
 | [multiplayer-coop.md](docs/notes/multiplayer-coop.md) | The co-op campaign: hosting, the leader's story, catch-up, crew wins, story orbit followers, holds, failures |
 | [chat-and-commands.md](docs/notes/chat-and-commands.md) | Chat, chat commands, admin tools, selectors |
 | [event-graphs.md](docs/notes/event-graphs.md) | Events, event graph files and nodes, quests, bar missions, cutscenes, ship orders, wormholes |
-| [mods.md](docs/notes/mods.md) | Mod format, items, ships, numbers, saves, campaigns, options, flight styles, conditions, traffic, capital ships, NPC ships, mobile stations, ES2 docking, blueprints, browser, multiplayer |
+| [mods.md](docs/notes/mods.md) | Mod format, items, ships, numbers, saves, campaigns, options, flight styles, conditions, traffic, capital ships, NPC ships, mobile stations, ES2 docking, blueprints, scripts (Lua), browser, multiplayer |
 | [mods-models.md](docs/notes/mods-models.md) | Ship models, how a ship is seen, engine effects, exhaust styles, textures / skins, image formats, loading |
 | [mods-ship-kits.md](docs/notes/mods-ship-kits.md) | Ship kits, builds, colours, skins, hardpoint models, engine flames, lateral thrusters, liveries, decals, engine trails |
 | [mods-world.md](docs/notes/mods-world.md) | Systems, stations, station models, planets, suns, skies, interiors, characters, mod races |
@@ -82,6 +82,10 @@ This file holds only what every task needs. Everything about one area of the gam
   `UiPanelHangGuard` (Editor) takes the half-inserted element out again when an exception is logged and rebuilds that
   renderer's root; it logs a warning when it did. Not seen again since (12 reloads), so the guard has only run on a
   made-up half-insert (`IssueReportTests`). A hung Editor's managed stacks: `dotnet-stack report -p <pid>`.
+- `Assets/Plugins/MoonSharp/MoonSharp.Interpreter.dll` (MoonSharp 3.0.0-beta.1 from NuGet, netstandard2.0, BSD): the Lua
+  interpreter of the mods' scripts (`ModScripts`, "Mod scripts" in docs/notes/mods.md). A plain precompiled DLL every
+  assembly sees; only GoF2.Game's `ModScripts*` files use it. `Assets/link.xml` keeps it and the game's assemblies from
+  the code stripper (scripts reach the game by reflection).
 - `com.unity.services.user-reporting` 2.0.15 (Unity's User Reporting: the pause menu's "Report an issue", see
   "Issue reports" in docs/notes/platforms.md); `GoF2.App.asmdef` sets `GOF2_USER_REPORTING` while it is installed.
 - Driving the Editor: if the `unity` CLI is available, use it to read the Console, run menu items, enter Play mode and inspect the scene. Check with `unity status` first. When an Editor is connected, don't hand-edit `.unity` / `.prefab` / `.asset` YAML.

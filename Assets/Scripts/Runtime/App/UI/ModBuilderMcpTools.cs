@@ -54,9 +54,9 @@ namespace GoF2Remake.UI
         static readonly string[] KindNames = Kinds.Select(k => k.kind).ToArray();
         /// <summary>search_content's kinds, in RefKind's order (the index is the RefKind).</summary>
         static readonly string[] RefKinds = { "item", "ship", "system", "station", "character", "mission", "music", "interior", "race" };
-        static readonly string[] FileFolders = { "models", "textures", "icons", "portraits", "fx", "sky", "cards", "music", "sounds", "voices", "text", "events", "templates" };
-        static readonly string[] FileExtensions = { ".png", ".jpg", ".jpeg", ".tga", ".bmp", ".dds", ".aei", ".glb", ".aem", ".ogg", ".wav", ".mp3", ".json", ".gof2event", ".gof2mission", ".gof2quest", ".txt", ".md" };
-        static readonly string[] TextExtensions = { ".json", ".gof2event", ".gof2mission", ".gof2quest", ".txt", ".md" };
+        static readonly string[] FileFolders = { "models", "textures", "icons", "portraits", "fx", "sky", "cards", "music", "sounds", "voices", "text", "events", "templates", "scripts" };
+        static readonly string[] FileExtensions = { ".png", ".jpg", ".jpeg", ".tga", ".bmp", ".dds", ".aei", ".glb", ".aem", ".ogg", ".wav", ".mp3", ".json", ".gof2event", ".gof2mission", ".gof2quest", ".txt", ".md", ".lua" };
+        static readonly string[] TextExtensions = { ".json", ".gof2event", ".gof2mission", ".gof2quest", ".txt", ".md", ".lua" };
 
         static JObject Enum(params string[] values) => new JObject { ["type"] = "string", ["enum"] = new JArray(values) };
 
@@ -158,7 +158,7 @@ namespace GoF2Remake.UI
             new Tool
             {
                 name = "write_file", title = "Write a file",
-                description = "Writes a file into the project (folders: models, textures, icons, portraits, fx, sky, cards, music, sounds, voices, text, events; images png / jpg / tga / bmp / dds / aei, models .glb or the game's own .aem (converted to .glb: the answer gives the .glb's path and its length for modelLength), audio ogg / wav / mp3, texts json / txt). Give 'text' for a text file or 'base64' for a binary one. " +
+                description = "Writes a file into the project (folders: models, textures, icons, portraits, fx, sky, cards, music, sounds, voices, text, events, scripts (Lua, scripts/main.lua and the others: read_guide scripting.md; the answer names a syntax error); images png / jpg / tga / bmp / dds / aei, models .glb or the game's own .aem (converted to .glb: the answer gives the .glb's path and its length for modelLength), audio ogg / wav / mp3, texts json / txt). Give 'text' for a text file or 'base64' for a binary one. " +
                               "A texture named like a game texture (textures/<name>.png) replaces it everywhere, textures/<assembly>/<name>.png on that model only, textures/ships/<ship id>/<name>.png on a new ship of the project that uses a game model (\"gof2:...\") alone. music/<name>.ogg named like a game track (search_content kind music) replaces it, any other name is a new track. sounds/<name>.ogg named like a game sound (kind sound) replaces it everywhere, any other name is a new sound for a quest's Sound step. voices/<clip>.ogg is a voice line in every language, voices/<language>/<clip>.ogg in one (en, de, fr, es, it, nl, pl, ru, pt, zh, hi); named like a game line (kind voice) it replaces that line, the story's included. Entries (ships.json...) go through put_entry instead.",
                 input = Input(("path", "string", "its path in the project, e.g. portraits/vega.png", true), ("text", "string", "a text file's content", false),
                               ("base64", "string", "a binary file's content", false)),
@@ -650,6 +650,14 @@ namespace GoF2Remake.UI
                 var o = new JObject { ["ok"] = true, ["path"] = rel.Replace('\\', '/'), ["bytes"] = bytes.Length };
                 var mod = ModManager.BuilderProject;
                 if (mod != null && mod.Errors.Count > 0) o["errors"] = new JArray(mod.Errors.Take(20));
+                // A Lua script (scripts/, Modding.ModScripts): its syntax error, and what the project's scripts said on restarting.
+                if (ext == ".lua")
+                {
+                    string syntax = ModScripts.SyntaxError(Encoding.UTF8.GetString(bytes), rel);
+                    if (syntax != null) o["syntaxError"] = syntax;
+                    var said = ModScripts.Lines.Where(l => l.error && mod != null && l.mod == mod.Id).Select(l => l.text).Take(10).ToList();
+                    if (said.Count > 0) o["scriptErrors"] = new JArray(said);
+                }
                 c.Json(o, "wrote " + rel);
             });
         }

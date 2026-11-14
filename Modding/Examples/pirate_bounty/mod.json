@@ -1,0 +1,10 @@
+{
+    "id": "pirate_bounty",
+    "name": "Pirate Bounty (script example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "A small script mod to learn from. Its scripts pay a bounty for every pirate you destroy (more for every ten), keep the count in your save and report it when you dock. Nothing else is changed.",
+        "de": "Ein kleiner Skript-Mod zum Lernen. Seine Skripte zahlen ein Kopfgeld für jeden zerstörten Piraten (mehr für je zehn), merken sich die Zahl im Spielstand und nennen sie beim Andocken. Sonst wird nichts geändert."
+    }
+}

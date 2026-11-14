@@ -3601,5 +3601,14 @@
  "statVulnerable": "Doelwit krijgt meer schade",
  "wingmanAmmo": "{0}: Munitiebevoorrading",
  "wingmanCharged": "{0}: Geladen schoten",
- "wingmanRepair": "{0}: Rompreparatie"
+ "wingmanRepair": "{0}: Rompreparatie",
+ "modsScripts": "Scripts",
+ "modsScriptsTitle": "Modscripts",
+ "modsScriptsAsk": "{0} voert scripts uit. Scripts kunnen alles in het spel veranderen, ook je opgeslagen spellen en instellingen, en een foutief of kwaadaardig script kan ze beschadigen. Zet scriptmods alleen aan van makers die je vertrouwt.\n\nAanzetten en de scripts laten draaien?",
+ "modsScriptsNote": "Voert scripts uit ({0}): ze kunnen alles in het spel veranderen, ook je opgeslagen spellen. Gebruik alleen scriptmods van makers die je vertrouwt.",
+ "modsScriptsBlocked": "De scripts zijn nieuw of gewijzigd en draaien nog niet. Zet de mod uit en weer aan om ze toe te staan.",
+ "mpScriptsNotAllowed": "Dit spel gebruikt scriptmods die je niet hebt toegestaan: {0}. Zet ze één keer aan onder Mods om hun scripts toe te staan en doe dan opnieuw mee.",
+ "mpScriptsShort": "sta eerst de scripts toe: {0}",
+ "mpModsCountScripts": "Mods ({0} aan, met scripts)",
+ "scriptNoCommand": "Geen opdracht \"{0}\"."
 }

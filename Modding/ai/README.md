@@ -5,7 +5,8 @@ format with rules, balancing numbers and a checklist, `reference.md` lists every
 refers to (items, stats, blueprints, ships, systems, stations, story steps and speakers, models and their textures, music,
 sounds), `voices.md` every voice clip with its line, `missions.md` + `mission.schema.json` the mission format (`.gof2mission`: missions,
 bar missions and events as steps, which the Mod Builder also shows as a node graph), `events.md` every event graph node and
-command, and `guide.md` the full modders' guide. With both, an assistant can write a working mod for you.
+command, `scripting.md` the mod scripts' reference (Lua: the `game` table, the events, the hook classes and the game's
+classes a script can use), and `guide.md` the full modders' guide. With both, an assistant can write a working mod for you.
 
 ## Claude
 
@@ -28,6 +29,8 @@ should do. If the assistant can't read files, paste `SKILL.md` first and the par
   Mods screen and turn it on. If the Mods screen shows an error or warning, paste it back to the assistant.
 - Story missions and bar missions: the assistant writes them as `events/<name>.gof2mission` files (`missions.md`), which the game runs and
   the Mod Builder opens as a graph. Unity-made event graphs still work too.
+- Scripts: for what the files can't express, the assistant writes Lua files into `scripts/` (attach `scripting.md`). The game
+  asks you before it runs a mod's scripts; errors show under the mod in the Mods screen, with the file and line to paste back.
 
 ## Live in the Mod Builder (MCP, Windows)
 
@@ -47,8 +50,8 @@ assistant connected to the game needs nothing else. Setting the skill up as well
 `builder_status`, `search_content` (the game's, your project's and other mods' items, ships, systems, stations,
 characters, missions, music, rooms, races, and the game's sound effects and voice lines to replace), `list_entries` / `get_entries` / `put_entry` / `delete_entry` (the project's entries in
 the mod files' own JSON; `patch_entry` changes part of one, e.g. one line of a mission, leaving the rest and its graph layout
-as they are), `list_files` / `read_file` / `write_file` (portraits, textures, models, audio inside the project; a game
-`.aem` model is converted to `.glb`),
+as they are), `list_files` / `read_file` / `write_file` (portraits, textures, models, audio and Lua scripts inside the project; a game
+`.aem` model is converted to `.glb`, a script's syntax error and what the scripts said on restarting come back with the answer),
 `compile_mission`, `validate`, `get_mission_schema`, `play_test` / `end_play_test`, `get_log`, `screenshot`, `undo` / `redo`,
 `show_kind`; for the mod's own races (races.json) `list_races`, `put_race`, `delete_race` (with every reference to it) and
 `set_race` (a system's owner, locals and raiders, a ship's race and traffic races). To see its work: `view_model` (any model, a game one, your ship with its hardpoints tagged, a station or a .glb,

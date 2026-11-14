@@ -467,7 +467,7 @@ namespace GoF2Remake.UI
             "with search_content (use the values it returns); read entries with list_entries / get_entries, write them with " +
             "put_entry (the same JSON as the mod files: ships.json, items.json, characters.json, systems.json, stations.json, " +
             "interiors.json, races.json, blueprints.json, gameoptions.json, campaign.json, mod.json, events/<name>.gof2mission), files " +
-            "(images, models, audio) with write_file. Check with validate (and compile_mission for a mission); try it with " +
+            "(images, models, audio, and Lua scripts as scripts/<name>.lua: scripting.md) with write_file. Check with validate (and compile_mission for a mission); try it with " +
             "play_test, read get_log and take a screenshot. Every change is an undo step in the builder (the undo tool takes the " +
             "last one back). To see your work: view_model draws any model (game, project ship with its hardpoints, station, .glb) " +
             "from any side, view_texture / list_textures show textures, select_entry and view put an entry on the builder's screen " +

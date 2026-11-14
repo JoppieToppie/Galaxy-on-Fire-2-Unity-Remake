@@ -3601,5 +3601,14 @@
  "statVulnerable": "目标受到更多伤害",
  "wingmanAmmo": "{0}：弹药补给",
  "wingmanCharged": "{0}：蓄能射击",
- "wingmanRepair": "{0}：船体修理"
+ "wingmanRepair": "{0}：船体修理",
+ "modsScripts": "脚本",
+ "modsScriptsTitle": "模组脚本",
+ "modsScriptsAsk": "{0}会运行脚本。脚本可以更改游戏中的任何内容，包括你的存档和设置，有缺陷或恶意的脚本可能会损坏它们。只开启你信任的作者制作的脚本模组。\n\n开启并允许其脚本运行吗？",
+ "modsScriptsNote": "会运行脚本（{0}）：脚本可以更改游戏中的任何内容，包括你的存档。只使用你信任的作者制作的脚本模组。",
+ "modsScriptsBlocked": "其脚本是新的或已更改，尚未运行。关闭模组后重新开启即可允许。",
+ "mpScriptsNotAllowed": "该游戏使用了你尚未允许的脚本模组：{0}。请先在“模组”中开启一次以允许其脚本，然后重新加入。",
+ "mpScriptsShort": "请先允许其脚本：{0}",
+ "mpModsCountScripts": "模组（{0}个已开启，含脚本）",
+ "scriptNoCommand": "没有命令“{0}”。"
 }
