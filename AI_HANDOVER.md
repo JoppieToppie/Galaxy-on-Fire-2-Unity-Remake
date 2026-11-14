@@ -123,7 +123,7 @@ ship orientation, and any existing aim/targeting logic.
 
 - **User request:** Add moddable per-ship control over the free-look orbit camera's default distance, and allow target locking while in free look.
 - **Existing behaviour:** The normal chase camera already has per-ship `ships.json` `camera.distance` / height / look offsets. The separate free-look orbit used a universal 3800-unit start radius and 1500..20000 zoom range.
-- **Implementation:** Add `camera.orbitDistance` (default 3800, clamped to 1500..20000); apply it when the player's ship is created and when swapped in flight. In free look, `CombatRadar` uses the camera viewport centre as the lock acquisition point; normal flight retains the ship-forward aim point.
+- **Implementation:** Add `camera.orbitDistance` (default 3800, clamped to 1500..20000); apply it when the player's ship is created and when swapped in flight. In free look, `CombatRadar` uses the camera viewport centre as the lock acquisition point and the HUD crosshair/lock ring move to that same centre; normal flight retains the ship-forward aim point.
 - **Compatibility:** No change to chase-camera distance, docked orbit preset, scanner requirement, lock timing, target priority, sticky lock, weapon homing or multiplayer shot protocol.
 - **Tests added:** Mod content tests for default, override, clamp and invalid values; target-lock test for free-look viewport-centre selection.
 - **Verification:** Source changes committed on this branch. Unity compilation, EditMode tests and live multiplayer verification remain outstanding.

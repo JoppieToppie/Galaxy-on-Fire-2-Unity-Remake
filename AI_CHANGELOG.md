@@ -5,7 +5,7 @@
 Implemented:
 - Added `ships.json` `camera.orbitDistance` for the free-look orbit's default radius per ship (default 3800 game units; clamped to 1500..20000).
 - Applied the setting on flight entry and when the player swaps ships in flight; normal chase-camera offsets and docked orbit presets remain unchanged.
-- Target locking in free look now uses the active camera viewport centre; normal flight retains its existing ship-forward acquisition point.
+- Target locking in free look now uses the active camera viewport centre, and the visible HUD crosshair/lock ring align to it; normal flight retains its existing ship-forward acquisition point.
 - Preserved scanner requirements, lock timing and priority rules, sticky locks, and homing-target handoff.
 - Updated both modding guides and the flight-model note.
 - Added EditMode coverage for mod defaults/overrides/clamping/validation and free-look crosshair selection.
