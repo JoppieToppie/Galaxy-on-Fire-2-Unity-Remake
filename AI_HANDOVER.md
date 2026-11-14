@@ -8,7 +8,7 @@
 
 
 > **Read this first when continuing the project.**
-> Last updated: 2026-11-15 (NPC population pipeline investigated)
+> Last updated: 2026-11-15 (system-population feasibility assessed; core implementation scoped)
 > Prepared by: ChatGPT, then updated by Claude after the corrections below
 > Intended recipients: ChatGPT and Claude (shared AI handover), plus the user
 
