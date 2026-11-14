@@ -382,6 +382,9 @@ namespace GoF2Remake.World
         // (PlayerFighter+0x2e0), Harval's cluster missiles too.
         Gun secondGun;
         GunRig secondRig;
+        /// <summary>Remake mods: the item of its gun and of its second gun (-1 = none), for a scanner's "scanWeapons".</summary>
+        public int GunItem => gun != null ? gun.itemIndex : -1;
+        public int SecondGunItem => secondGun != null ? secondGun.itemIndex : -1;
         bool useSecond;
         float slotMs;
         const float SlotToggleMs = 20000f;
@@ -451,6 +454,7 @@ namespace GoF2Remake.World
             Target = gameObject.AddComponent<Target>();
             Target.isShip = true;
             Target.race = spec.race;
+            Target.shipType = spec.fixedObject == null && spec.turretAssembly == null ? spec.ship : -1;   // remake mods: "scanShip"
             Target.customDeath = true;
             Target.mineProof = spec.fixedObject == "station_pirates";   // KIPlayer+0x3d
             Target.plateNameOnly = spec.nameText == 1611 || spec.nameText == 1663;

@@ -67,7 +67,7 @@ namespace GoF2Remake.UI
 
         // The lock plate as last built (Update).
         Target plateTarget;
-        int platePct = -1, plateRace = int.MinValue;
+        int platePct = -1, plateRace = int.MinValue, plateHull = -1;
         string plateName, plateText;
         Texture2D plateIcon;
         readonly MarkerTextures[] factionTextures = new MarkerTextures[4];
@@ -317,11 +317,14 @@ namespace GoF2Remake.UI
                     // when the mining / navigation view wrote its own text on the shared plate meanwhile (an asteroid's ore or a
                     // planet's name stayed on the ship's plate).
                     int pct = Mathf.RoundToInt(locked.HullFraction * 100f);
-                    if (locked != plateTarget || pct != platePct || locked.displayName != plateName || locked.race != plateRace || lockOre.text != plateText)
+                    // Remake mods (a scanner's "scanShip"): its hull after the name, "Pirate · Phantom 85%".
+                    int hull = radar.ShipScan ? locked.shipType : -1;
+                    if (locked != plateTarget || pct != platePct || locked.displayName != plateName || locked.race != plateRace || hull != plateHull || lockOre.text != plateText)
                     {
-                        plateTarget = locked; platePct = pct; plateName = locked.displayName; plateRace = locked.race;
+                        plateTarget = locked; platePct = pct; plateName = locked.displayName; plateRace = locked.race; plateHull = hull;
                         string who = string.IsNullOrEmpty(locked.displayName) ? RaceName(locked.race) : locked.displayName;
-                        lockOre.text = locked.plateNameOnly && !string.IsNullOrEmpty(locked.displayName) ? locked.displayName : $"{who} {pct}%";
+                        if (hull >= 0) who = $"{who} · {GameNames.Ship(hull)}";
+                        lockOre.text = locked.plateNameOnly && !string.IsNullOrEmpty(locked.displayName) ? who : $"{who} {pct}%";
                         plateText = lockOre.text;
                         plateIcon = locked.plateNoIcon ? null
                             : Modding.ModRaces.Is(locked.race) ? Modding.ModRaces.Icon(locked.race) ?? RaceTex(Standing.Look(locked.race))   // remake mods: a faction's emblem
@@ -367,11 +370,7 @@ namespace GoF2Remake.UI
 
         Texture2D RaceTex(int race) => race >= 0 && race <= 3 || race == 8 || race == 9 ? Tex($"race_{race}") : null;
 
-        static string RaceName(int race) => Modding.ModRaces.Is(race) ? Modding.ModRaces.Name(race) : race switch   // remake mods: a faction's name
-        {
-            >= 0 and <= 9 => Localization.Get(406 + race),   // the four races, the minor ones, pirates, the Void
-            _ => Localization.Get(416),                     // the Specters: the original's own "???"
-        };
+        static string RaceName(int race) => GameNames.Race(race);   // a mod faction's name, the races, the Specters' "???"
 
         // The camera as Project needs it, read once a frame (CameraFor): the per-marker camera calls (WorldToScreenPoint,
         // WorldToViewportPoint, its transform, Screen's size, the panel's size: seven native calls a ship) were most of

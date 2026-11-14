@@ -590,11 +590,12 @@
                 "respawned",
                 "hacked",
                 "pad",
+                "scanned",
                 "joined",
                 "left",
                 "pvpkill"
               ],
-              "description": "When: died = The player is destroyed, docked = The player docks, launched = The player launches, kill = A spawned ship is destroyed, cleared = Every spawned enemy is gone, entered = The player enters an orbit, near = The player gets near a point, respawned = The player respawns, hacked = The player hacks a wreck, pad = The player docks at a station's pad outside, joined = A player joins, left = A player leaves, pvpkill = A player destroys another",
+              "description": "When: died = The player is destroyed, docked = The player docks, launched = The player launches, kill = A spawned ship is destroyed, cleared = Every spawned enemy is gone, entered = The player enters an orbit, near = The player gets near a point, respawned = The player respawns, hacked = The player hacks a wreck, pad = The player docks at a station's pad outside, scanned = The player scans a ship, joined = A player joins, left = A player leaves, pvpkill = A player destroys another",
               "default": "died"
             },
             "station": {

@@ -84,6 +84,10 @@ namespace GoF2Remake.Modding
             // EVERSPACE 2's weapon debuffs (2026-11-02; Flight.Gun, Flight.Debuffs): the slow freezes (no turning), damage over
             // time past the shield, the damage the ship takes raised (stacking)
             ["slowFreeze"] = 167, ["dotDamage"] = 168, ["dotMs"] = 169, ["vulnerablePercent"] = 170, ["vulnerableMs"] = 171,
+            // A scanner's readout of a locked ship (Flight.CombatRadar, a Discord suggestion 2026-11-14): scanShip 1 names its
+            // hull on the lock plate; scanHitpoints / scanWeapons 1 add its shield / armor / hull and its guns to the readout
+            // on each new lock (beside radarShowsCargo, 31: 1 the first cargo entry, 2 the whole hold).
+            ["scanShip"] = 140, ["scanHitpoints"] = 141, ["scanWeapons"] = 142,
             // items.json's statList names
             ["steerable"] = 15, ["handling"] = 17,
             ["loadingTimeMs"] = 11, ["range"] = 12, ["projectileSpeed"] = 13, ["magnitude"] = 14, ["shieldRegenTime"] = 19,

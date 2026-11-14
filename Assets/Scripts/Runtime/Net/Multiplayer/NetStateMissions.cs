@@ -38,6 +38,17 @@ namespace GoF2Remake.Multiplayer
             if (pilot != null) GoF2Remake.Events.EventRunner.OnWreckHacked(pilot, station, name);
         }
         [Rpc(SendTo.Server)]
+        public void ShipScannedRpc(int station, string name, RpcParams rpc = default)
+        {
+            // A player's scanner locked a ship in its orbit: the events' "on scanned" (checked: the sender is in that orbit).
+            ulong client = rpc.Receive.SenderClientId;
+            if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Kill) || !NetGuard.InOrbit(client, station)) return;
+            name = name ?? "";
+            if (name.Length > 64) name = name.Substring(0, 64);
+            var pilot = GoF2Remake.Events.EventHost.Find(client);
+            if (pilot != null) GoF2Remake.Events.EventRunner.OnShipScanned(pilot, station, name);
+        }
+        [Rpc(SendTo.Server)]
         public void PadDockedRpc(int station, RpcParams rpc = default)
         {
             // A player's game docked at a station's pad outside: the events' "on pad" (checked: the sender is in that orbit).

@@ -59,6 +59,9 @@ namespace GoF2Remake.Flight
         public bool plateNameOnly, plateRed;
         /// <summary>No race icon on the lock plate (the space junk).</summary>
         public bool plateNoIcon;
+        /// <summary>Remake mods: its hull (ships.json index) for a scanner with "scanShip" (the lock plate, CombatView);
+        /// -1 = none to name (a fixed object, a turret, another player).</summary>
+        [NonSerialized] public int shipType = -1;
         /// <summary>The space junk's lock plate. PlayerJunk is a KIPlayer of race -1, which Radar::drawCurrentLock turns into
         /// text 406 - 1 = 405 "Secure" (and no icon); remake: "Space junk".</summary>
         public static string JunkName => GoF2Remake.Data.Localization.Extra("spaceJunk", "Space junk");

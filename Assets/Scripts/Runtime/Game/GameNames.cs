@@ -17,6 +17,11 @@ namespace GoF2Remake.Data
         public static string ItemDescription(int item) =>
             Modding.ModContent.ItemText(item, true, out var t) ? t : item >= 0 && item < OriginalItems ? Localization.Get(ItemDescriptionBase + item) : "";
 
+        /// <summary>A race's name as the lock plate shows it: a mod faction's own, the races / minor races / pirates / the Void
+        /// (406 + race), the Specters the original's "???" (416).</summary>
+        public static string Race(int race) => Modding.ModRaces.Is(race) ? Modding.ModRaces.Name(race)
+            : race >= 0 && race <= 9 ? Localization.Get(406 + race) : Localization.Get(416);
+
         public static string Ship(int ship) =>
             Modding.ModContent.ShipText(ship, false, out var t) ? t : ship >= 0 && ship < OriginalShips ? Localization.Get(ShipNameBase + ship) : "#ship" + ship;
 

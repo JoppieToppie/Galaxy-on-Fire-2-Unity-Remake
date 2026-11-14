@@ -77,7 +77,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   game's five keys too, so `pirate_boss` is the pirate boss by rank; its escorts carry the event batch); the steps' hull /
   guns and Spawn an NPC ship type (`spawntype`, `QuestFieldKind.NpcShip`, picker `RefKind.NpcShip`), the nodes' Hull / Guns
   ports and Spawn NPC Type. **"on pad"** (same day): docked at a station's pad outside (`SpaceHooks.PadDocked`, in a
-  session `NetState.PadDockedRpc`, `EventTrigger.PlayerDocksAtPad`), the station as its orbit.
+  session `NetState.PadDockedRpc`, `EventTrigger.PlayerDocksAtPad`), the station as its orbit. **"on scanned"**
+  (2026-11-14, a Discord suggestion): the player's scanner completed a ship lock (`SpaceHooks.ShipScanned`, in a session
+  `NetState.ShipScannedRpc`, `EventTrigger.ShipScanned`), the ship's plate name as %victim%; see "Scanner cargo readout".
   **Make Hostile** (`/provoke [players] [race] [within <m>]`): the NPC ships around each player (NetProxy positions on the
   server) turn on that player and their squad: the ship's own game adds them to `NpcShip.aggressors` (neutral spawns too;
   `NetOrbit.HostileToLocalBySquad` counts the local player's own id). **Radio** (`/radio [players] <speaker> : <text>`):

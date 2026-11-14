@@ -194,6 +194,12 @@ namespace GoF2Remake.Events
                 Fire("hacked", pilot.OwnerClientId, pilot.DisplayName, station, wreck ?? "");
             }
 
+            internal void OnShipScanned(IPilot pilot, int station, string ship)
+            {
+                if (ended || pilot == null || !InScope(pilot)) return;
+                Fire("scanned", pilot.OwnerClientId, pilot.DisplayName, station, ship ?? "");
+            }
+
             internal void OnPadDocked(IPilot pilot, int station)
             {
                 if (ended || pilot == null || !InScope(pilot)) return;

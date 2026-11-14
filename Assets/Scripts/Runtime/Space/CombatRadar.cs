@@ -56,8 +56,13 @@
 //               per axis shows the ship's first cargo entry like a pickup ("<n>t <item>", Hud::catchCargo), or "Nothing to
 //               salvage." (542, HUD event 0x16) when it has no cargo list; nothing when every entry is empty. Remake: the
 //               readout is white (a capture is green).
+//               Remake mods (a Discord suggestion, 2026-11-14): a scanner's attr 31 = 2 reads the whole hold ("5t Gold, 2t
+//               Iron"); attr 141 "scanHitpoints" adds the ship's shield / armor / hull, attr 142 "scanWeapons" its guns, all
+//               on one readout line (ScanReadout); attr 140 "scanShip" names its hull on the lock plate (CombatView). Every
+//               completed ship lock is a scan: the events' and quests' "on scanned" (SpaceHooks.ShipScanned).
 
 using System;
+using System.Collections.Generic;
 using GoF2Remake.Data;
 using GoF2Remake.World;
 using UnityEngine;
@@ -72,6 +77,9 @@ namespace GoF2Remake.Flight
         public const float DefaultTractorRangeUnits = 30000f;
 
         public bool HasScanner { get; private set; }
+        /// <summary>Remake mods: the scanner names a locked ship's hull on the plate (attr 140 "scanShip").</summary>
+        public bool ShipScan { get; private set; }
+        public const int ScanShipAttr = 140, ScanHitpointsAttr = 141, ScanWeaponsAttr = 142;
         /// <summary>The lock candidate: a Target (ship) or null.</summary>
         public Target Candidate { get; private set; }
         public Crate CrateCandidate { get; private set; }
@@ -116,7 +124,8 @@ namespace GoF2Remake.Flight
         CombatAssets assets;
         AudioSource sfx, beamLoop;
         int lockTimeMs = 8000, tractorItem = -1, tractorLockMs, tractorMode;
-        bool cargoScan;
+        int cargoScan;   // attr 31: 0 none, 1 the first cargo entry (the original), 2 the whole hold (remake mods)
+        bool hitpointScan, weaponScan;
         float timer;
         bool noTractorShown;
         // Remake (#45, like Mining's "No drill installed."): salvage refused for want of a tractor beam; ignored until it leaves
@@ -162,7 +171,10 @@ namespace GoF2Remake.Flight
             HasScanner = scanner != null;
             lockTimeMs = scanner != null && scanner.HasAttr(29) ? scanner.Attr(29) : 8000;
             lockTimeMs = Cheats.LockMs(lockTimeMs);
-            cargoScan = scanner != null && scanner.Attr(31) == 1;
+            cargoScan = scanner != null ? Mathf.Clamp(scanner.Attr(31), 0, 2) : 0;
+            ShipScan = scanner != null && scanner.Attr(ScanShipAttr) == 1;
+            hitpointScan = scanner != null && scanner.Attr(ScanHitpointsAttr) == 1;
+            weaponScan = scanner != null && scanner.Attr(ScanWeaponsAttr) == 1;
             var filter = Shop.FirstMounted(db, 33);
             CloudRadar = filter != null && filter.Attr(57) == 1;
             CloudOffScreen = filter != null && filter.Attr(58) == 1;
@@ -360,7 +372,8 @@ namespace GoF2Remake.Flight
                     Locked = Candidate;
                     if (assets != null && assets.targetLock != null) sfx.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(assets.targetLock), Settings.SfxVolume);
                     Haptics.Play(Haptics.TargetLock);   // remake
-                    if (cargoScan) ReadCargo(Locked);
+                    ReadShip(Locked);
+                    GoF2Remake.World.SpaceHooks.ShipScanned?.Invoke(Session.StationIndex, PlateName(Locked));   // remake: "on scanned"
                 }
             }
             else if (CrateCandidate != null || StealCandidate != null)
@@ -431,17 +444,60 @@ namespace GoF2Remake.Flight
 
         /// <summary>Radar::draw on a new lock with Radar+0x1a5: the ship's first cargo entry. Its 24000-unit test (0x156916)
         /// is dx &lt; 24000 || dx &gt; -24000 || ..., always true, so it reads at any distance (the remake kept the box: a lock
-        /// completed farther out, and sticky, never read the ship at all; "intermittently nothing").</summary>
-        void ReadCargo(Target locked)
+        /// completed farther out, and sticky, never read the ship at all; "intermittently nothing"). Remake mods: the
+        /// scanner's hitpoints, weapons and whole-hold readouts on the same line.</summary>
+        void ReadShip(Target locked)
         {
-            if (locked == null || traffic == null) return;
+            if (locked == null || traffic == null || (cargoScan == 0 && !hitpointScan && !weaponScan)) return;
             var ship = traffic.Ships.Find(s => s != null && s.Target == locked);
             if (ship == null) return;
-            var cargo = ship.CargoList;
-            if (cargo == null || cargo.Count == 0) { Message?.Invoke(Localization.Get(542), 0, HudMessageKind.Scan); return; }
-            for (int i = 0; i < cargo.Count; i++)
-                if (cargo[i].amount > 0) { Message?.Invoke($"{cargo[i].amount}t {GameNames.Item(cargo[i].item)}", 0, HudMessageKind.Scan); return; }
+            string text = ScanReadout(cargoScan, ship.CargoList, hitpointScan ? locked.hitpoints : null,
+                                      weaponScan ? new[] { ship.GunItem, ship.SecondGunItem } : null);
+            if (text != null) Message?.Invoke(text, 0, HudMessageKind.Scan);
         }
+
+        /// <summary>The readout line of a new ship lock, its parts joined by " · ": the hitpoints ("Shield 40/80", "Armor ...",
+        /// "Hull 300/300", only those the ship has), the weapons ('guns', -1 = an empty slot; null = not scanned) and the cargo
+        /// (mode 1: the first entry, the original's; 2: every entry; none left: "Nothing to salvage." (542) without a cargo
+        /// list, nothing when every entry is empty). Null = nothing to show.</summary>
+        public static string ScanReadout(int cargoMode, IReadOnlyList<ItemStack> cargo, Hitpoints hp, IReadOnlyList<int> guns)
+        {
+            var parts = new List<string>();
+            if (hp != null)
+            {
+                if (hp.maxShield > 0) parts.Add(string.Format(Localization.Extra("scanShield", "Shield {0}/{1}"), Mathf.CeilToInt(hp.shield), hp.maxShield));
+                if (hp.maxArmor > 0) parts.Add(string.Format(Localization.Extra("scanArmor", "Armor {0}/{1}"), hp.armor, hp.maxArmor));
+                parts.Add(string.Format(Localization.Extra("scanHull", "Hull {0}/{1}"), hp.hull, hp.maxHull));
+            }
+            if (guns != null)
+            {
+                var names = new List<string>();
+                foreach (int g in guns)
+                    if (g >= 0 && !names.Contains(GameNames.Item(g))) names.Add(GameNames.Item(g));
+                parts.Add(names.Count > 0 ? string.Format(Localization.Extra("scanWeapons", "Weapons: {0}"), string.Join(", ", names))
+                                          : Localization.Extra("scanUnarmed", "Unarmed"));
+            }
+            if (cargoMode > 0)
+            {
+                if (cargo == null || cargo.Count == 0) parts.Add(Localization.Get(542));
+                else
+                {
+                    var held = new List<string>();
+                    foreach (var c in cargo)
+                    {
+                        if (c.amount <= 0) continue;
+                        held.Add($"{c.amount}t {GameNames.Item(c.item)}");
+                        if (cargoMode == 1) break;
+                    }
+                    if (held.Count > 0) parts.Add(string.Join(", ", held));
+                }
+            }
+            return parts.Count > 0 ? string.Join(" · ", parts) : null;
+        }
+
+        /// <summary>A ship's name as its lock plate gives it: its own, else its race's.</summary>
+        public static string PlateName(Target t) =>
+            t == null ? "" : !string.IsNullOrEmpty(t.displayName) ? t.displayName : GameNames.Race(t.race);
 
         /// <summary>TractorBeam::update's steal: KIPlayer::createCrate(0) at the ship, a container of its cargo, pulled at once:
         /// a traffic ship makes its own (NpcShip.CreateStealCrate); another game's NPC (multiplayer) one here holding its first

@@ -31,7 +31,9 @@
 //                                 ship destroyed; the player = its killer), pvpkill (a player destroyed another: the player =
 //                                 the killer, "%victim%" the other's name), cleared (every enemy the event spawned is gone;
 //                                 no player), hacked (the player hacked a wreck: "spawn ... wreck", a mod's derelict, a
-//                                 Supernova wreck; "%victim%" the wreck's name). The station limits a player trigger to
+//                                 Supernova wreck; "%victim%" the wreck's name), pad (docked at a station's pad outside),
+//                                 scanned (the player's scanner locked a ship; "%victim%" its name as the lock plate gives
+//                                 it: its own, else its race's). The station limits a player trigger to
 //                                 that orbit or station. Handlers start working when the flow passes them (the graph puts them
 //                                 first) and last until the event ends. A free for all (/pvp), the respawn points (/respawn)
 //                                 and the travel restrictions (/restrict) the event set end with it.
@@ -185,7 +187,7 @@ namespace GoF2Remake.Events
         }
 
 
-        static readonly string[] Triggers = { "died", "docked", "launched", "joined", "left", "entered", "kill", "cleared", "pvpkill", "respawned", "near", "hacked", "pad" };
+        static readonly string[] Triggers = { "died", "docked", "launched", "joined", "left", "entered", "kill", "cleared", "pvpkill", "respawned", "near", "hacked", "pad", "scanned" };
         static readonly string[] MissionKeys = { "title", "offer", "client", "reward", "players", "stations", "kind", "starts", "chance", "takers", "repeat", "once" };
 
         /// <summary>A bar mission's details: the Start node's Mission settings (the "mission &lt;key&gt; &lt;value&gt;" lines).</summary>
@@ -340,6 +342,13 @@ namespace GoF2Remake.Events
         public static void OnWreckHacked(IPilot pilot, int station, string wreck)
         {
             foreach (var r in runs.ToArray()) r.OnWreckHacked(pilot, station, wreck);
+        }
+
+        /// <summary>Remake mods: a player's scanner locked a ship (SpaceHooks.ShipScanned; in a session NetState.ShipScannedRpc,
+        /// checked): "on scanned" in every run the player is in, the ship's name as %victim%.</summary>
+        public static void OnShipScanned(IPilot pilot, int station, string ship)
+        {
+            foreach (var r in runs.ToArray()) r.OnShipScanned(pilot, station, ship);
         }
 
         /// <summary>Remake mods: a player docked at a station's pad outside (SpaceHooks.PadDocked; in a session

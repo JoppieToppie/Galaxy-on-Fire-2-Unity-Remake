@@ -136,7 +136,9 @@ copied.
 Stats (name = attribute): damage 9, empDamage 10, reloadMs 11, lifetimeMs 12 (shot flight time; with speed = range), speed 13
 (units/ms), blastRadius 14, guided 15, automatic 16 (auto turret), turretTurnSpeed 17, shieldCapacity 18, shieldRegenMs 19,
 armor 20, cargoBonus 22, tractorAuto 23 (1 nearest, 2 any crate), tractorLockMs 24, boostSpeed 25, boostRechargeMs 26,
-boostDurationMs 27, agility 28 (steering nozzle), lockTimeMs 29 (scanner), showClassAAsteroids 30, radarShowsCargo 31,
+boostDurationMs 27, agility 28 (steering nozzle), lockTimeMs 29 (scanner), showClassAAsteroids 30, radarShowsCargo 31 (1 first cargo entry, 2 whole hold), scanShip 140
+(scanner: the hull on the lock plate), scanHitpoints 141 / scanWeapons 142 (scanner: hitpoints / guns on a new lock; every
+ship lock fires the trigger "on scanned", %victim% the ship's name),
 drillSpeed 32, miningYield 33, cabins 34, cloakDurationMs 35, cloakChargeMs 36, energyCells 38 (per cloak), fireRateFactor 39,
 damageFactor 40 (weapon mods %), emergencyMs 41, timeExtenderMs 42, timeExtenderCooldownMs 43, collectorSpeed 49,
 collectorMagnitude 50, collectorRange 51, gammaShielding 52, beamRange 53, beamStrength 54, beamTargets 55, miningBeam 100 (a

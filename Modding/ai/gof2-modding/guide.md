@@ -286,7 +286,7 @@ energy cells.
 | `agility` | 28 | Steering nozzle handling bonus |
 | `lockTimeMs` | 29 | Scanner lock time (ms) |
 | `showClassAAsteroids` | 30 | 1 = marks class-A asteroids (Ultrascan) |
-| `radarShowsCargo` | 31 | 1 = shows a locked ship's cargo |
+| `radarShowsCargo` | 31 | 1 = shows a locked ship's cargo (its first entry); 2 = its whole hold (see [Scanner readouts](#scanner-readouts)) |
 | `drillSpeed` | 32 | Mining laser speed |
 | `miningYield` | 33 | Mining laser yield |
 | `cabins` | 34 | Passenger cabins |
@@ -318,6 +318,9 @@ energy cells.
 | `freeBoostFactor` | 121 | Free flight's boost top speed in hundredths of the top speed (350 = x3.5) instead of the booster's own |
 | `tractorTargets` | 122 | Tractor beams: how many containers it pulls at once, 1 to 8 (default 1; see [Multi-grab tractor beams](#multi-grab-tractor-beams)) |
 | `tractorRange` | 123 | Multi-grab tractor beams: how far the extra beams reach for containers (game units, 20 per metre; default 30000 = 1.5 km) |
+| `scanShip` | 140 | Scanners: 1 = the lock plate names the locked ship's hull, "Pirate · Phantom 85%" (see [Scanner readouts](#scanner-readouts)) |
+| `scanHitpoints` | 141 | Scanners: 1 = a new lock shows the ship's shield, armor and hull |
+| `scanWeapons` | 142 | Scanners: 1 = a new lock shows the ship's weapons |
 | `tractorNoLock` | 137 | Tractor beams: 1 = the scanner never locks a container; every beam takes containers by itself (see [Multi-grab tractor beams](#multi-grab-tractor-beams)) |
 | `shieldDamage` | 124 | A weapon's damage to a shield in percent (default 100; the Disruptor Laser and items based on it 200). What the shield doesn't absorb hits the armor and hull at the plain damage. Only ships with a shield feel it: the players (each other in multiplayer), not the game's NPCs |
 | `echoDelayMs` | 127 | A second, weaker blast at each hit, this many ms after it (0 or none = no echo; see [Echo blasts](#echo-blasts)) |
@@ -634,6 +637,38 @@ is still taken the usual way, by locking the ship for the beam's `tractorLockMs`
     "tractorColor": "#40c0ff",
     "stats": { "tractorTargets": 4, "tractorRange": 40000, "tractorLockMs": 400, "tractorNoLock": 1 }
 }
+```
+
+### Scanner readouts
+
+A scanner (an item based on one of the scanners, 81 to 84) tells what it locks. The game's own read a locked ship's first
+cargo entry (`radarShowsCargo` 1: the Ecoscan, Proscan and Ultrascan). A mod scanner can read more:
+
+- `"scanShip": 1` names the ship's hull on the lock plate, after its name or race: "Pirate · Phantom 85%".
+- `"scanHitpoints": 1` shows its shield, armor and hull on each new lock ("Hull 260/300"; the game's own ships have a hull
+  only).
+- `"scanWeapons": 1` shows its guns ("Weapons: Shredder Blaster, Hammerhead D1"), or "Unarmed".
+- `"radarShowsCargo": 2` reads the whole hold ("5t Gold, 2t Iron") instead of the first entry.
+
+The readouts share one line under the lock plate, for 4 seconds, like the game's cargo readout. They read the game's
+ships (traffic, event and mission ships), not other players.
+
+Every completed ship lock is a scan, with any scanner: the `scanned` trigger (`on scanned`, the **On** node's Ship
+Scanned, a quest's "The player scans a ship"; limited to a station like the others) runs with the player as `@trigger`
+and the ship's name as `%victim%` (its own, as the plate shows it, else its race's). Build a survey or an identification
+job on it: in an orbit that is the mission's (**Mission Orbit**: no other traffic), spawn the ship to identify, wait for
+the scan, pay the reward.
+
+```json
+{ "id": "deep_scan", "base": 84, "name": "Deep Scan Array", "techLevel": 8, "price": [240000, 260000],
+  "stats": { "lockTimeMs": 1200, "scanShip": 1, "scanHitpoints": 1, "scanWeapons": 1, "radarShowsCargo": 2 } }
+```
+
+```json
+{ "type": "spawn", "ship": "Phantom", "race": "pirate", "name": "Smuggler", "at": "0 0 30000" },
+{ "type": "on", "trigger": "scanned", "steps": [
+    { "type": "radio", "speaker": "pirate Snake", "text": "Stop scanning %victim%!" },
+    { "type": "reward", "credits": 5000 } ] }
 ```
 
 ### Missile turrets and salvos
@@ -2533,7 +2568,7 @@ Nodes made for missions:
 Everything else is the event graphs' toolbox: **Dialog** (conversations with portraits, see [Voice-over](#voice-over)), **Radio**,
 **Spawn** (ships, friendly or hostile, named; objects as scenery; `wreck`: a hackable freighter wreck), **Wait Until**, **On**
 triggers (docked, entered an orbit, destroyed, a spawned ship destroyed, all enemies cleared, arriving near a point, a wreck
-hacked, docked at a station's pad outside), **Set Waypoint**, **Open Wormhole** / **Close Wormhole** (see below), **Restrict Travel**,
+hacked, docked at a station's pad outside, a ship scanned: see [Scanner readouts](#scanner-readouts)), **Set Waypoint**, **Open Wormhole** / **Close Wormhole** (see below), **Restrict Travel**,
 **Give Item**, **Take Item** (a hand-in; Mounted takes mounted ones too), **Spawn NPC Type**, **Reward**, **Title**, **Timer**, **Play Music**, **Set Flight Model** (free flight or the original for a race
 or a chase, undone when the graph ends; see [Flight styles](#flight-styles)) and more. Game values for conditions: `campaign` (the story
 step, -1 without one), `credits`, `rank`, `station`, `system`, `ship`, `kills`, `freeflight` (1 in free flight), and the functions `cargo(item)`, `has(item)`

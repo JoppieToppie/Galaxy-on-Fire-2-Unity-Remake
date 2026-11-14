@@ -60,6 +60,19 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void TheShipScannedTrigger()
+        {
+            // On Ship Scanned = "on scanned" (remake mods: the player's scanner locked a ship; its name as %victim%).
+            var g = U.WithStart();
+            U.Node(g, "on", "EventOnNode", ("Trigger", ((int)EventTrigger.ShipScanned).ToString()));
+            U.Node(g, "w", "EventWaitNode", ("Seconds", "1"));
+            U.Wire(g, "on", "Do", "w", "In");
+            var lines = CompileLines(g, out var problems);
+            Assert.IsEmpty(U.Errors(problems), U.Describe(problems));
+            CollectionAssert.Contains(lines, "on scanned");
+        }
+
+        [Test]
         public void AWaitFollowsStart()
         {
             var g = U.WithStart();

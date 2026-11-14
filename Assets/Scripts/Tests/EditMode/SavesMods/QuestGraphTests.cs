@@ -399,5 +399,20 @@ namespace GoF2Remake.Tests
             CollectionAssert.Contains(Lines(script), "on pad 78", script);
             Assert.IsNull(RunnerError(script), script);
         }
+
+        // Remake mods: "When something happens" when the player's scanner locks a ship (a Discord suggestion, 2026-11-14).
+        [Test]
+        public void AScanTriggerCompiles()
+        {
+            var on = QuestSteps.New("on");
+            on["trigger"] = "scanned";
+            on["station"] = 78;
+            on["steps"] = new JArray(QuestSteps.New("heal"));
+            var problems = new List<string>();
+            string script = QuestFile.Compile(Quest(on), problems);
+            CollectionAssert.IsEmpty(problems, script);
+            CollectionAssert.Contains(Lines(script), "on scanned 78", script);
+            Assert.IsNull(RunnerError(script), script);
+        }
     }
 }

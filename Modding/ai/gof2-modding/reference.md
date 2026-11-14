@@ -395,6 +395,9 @@ remake's own. The original's attributes without a name: 56, 57, 58, 59 (set only
 | 137 | tractorNoLock |  |
 | 138 | fullStopDamage |  |
 | 139 | lowSpeedResistance |  |
+| 140 | scanShip |  |
+| 141 | scanHitpoints |  |
+| 142 | scanWeapons |  |
 | 150 | device |  |
 | 151 | deviceCooldownMs |  |
 | 152 | deviceDurationMs |  |
