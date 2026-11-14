@@ -8,14 +8,14 @@
 ## 1. Repository and branch
 
 - **Repository:** `SpectreAnims/Galaxy-on-Fire-2-Unity-Remake`
-- **Active branch:** `feature/secondary-homing-delay-launch-angle`
+- **Active branch:** `feature/extensive-multiplayer-expansion`
 - **Base:** `main`
 - **Branch state:** feature branch only; re-check the live branch head and comparison with `main` before further edits.
 - **Integration instruction:** Do not merge or push this feature branch to `main`. The user wants Claude to review
   the changes before deciding what happens next.
 - **Coordinator:** the user. They manually pass work between Claude and ChatGPT.
 
-The four AI notes files and the `CLAUDE.md` discovery pointer are being added to this feature branch so
+The four AI notes files and the `CLAUDE.md` discovery pointer are maintained on the active feature branch so
 Claude can read the same project brief and handover. This does not authorize integration into `main`.
 
 ## 2. Product goal
