@@ -1,3 +1,15 @@
+## 2026-11-15 — Record opt-in system NPC population design (ChatGPT)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Recorded the user's direction for a mod-only, per-system NPC population control capability:
+- Mods can suppress ambient NPC presence in selected systems; absent configuration preserves current behaviour.
+- Existing systems and the base story are unaffected unless explicitly configured by a mod.
+- A player-built station may optionally attract sparse, infrequent and varied ambient NPC traffic.
+- Story-/mission-scripted NPCs must remain distinct from ambient population control.
+
+Design/documentation only. No gameplay source, system data, mod schema, networking or tests changed.
+
 ## 2026-11-15 — Rename active feature branch (ChatGPT)
 
 The active development branch is being renamed from `feature/secondary-homing-delay-launch-angle` to `feature/extensive-multiplayer-expansion` to reflect the wider multiplayer expansion scope. No gameplay code changed.
