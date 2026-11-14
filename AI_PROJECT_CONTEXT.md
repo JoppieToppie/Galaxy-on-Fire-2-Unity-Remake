@@ -1,5 +1,12 @@
 # AI project context — Galaxy on Fire 2 multiplayer expansion
 
+> # 🚨 IMPORTANT — PLAYER-BUILT STATIONS DO NOT EXIST YET
+> **Do not implement player-built stations or station-attracted NPC population now.**
+> Player-built stations are a future feature and are explicitly the **LAST implementation step** for this system-population workstream. Complete and verify the mod-controlled ambient population feature first. Only return to station-attracted traffic after a real player-built-station system exists, including authoritative placement, ownership, lifecycle and persistence. Do not substitute mobile stations, faction claims or other existing station systems.
+>
+> **This notice is for BOTH ChatGPT and Claude.** These repository notes are shared project handover material: every AI contributor must read them before work, preserve this sequencing, and update the notes when decisions or implementation status change.
+
+
 > **Audience:** Claude, ChatGPT and any human contributor joining this work.
 > **Canonical repository:** `SpectreAnims/Galaxy-on-Fire-2-Unity-Remake`.
 > **Coordinator / product owner:** the repository owner (the user). The user makes product decisions and approves integration.
@@ -367,6 +374,9 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
   behaviour or multiplayer replication has been implemented or tested.
 
 ### 6.6 Mod-controlled system NPC population (owner's decisions, 2026-11-15; Proposed)
+
+> **🚨 IMPLEMENTATION ORDER — PLAYER-BUILT STATIONS DO NOT EXIST YET.** Station-attracted NPC population is the **LAST implementation step** in this feature area. Do not implement it during the initial system-population work. First finish and verify mod-controlled ambient population suppression. Only revisit station attraction after a real player-built-station system and its authoritative placement, ownership, lifecycle and persistence exist. Do not treat mobile stations or faction station claims as player-built stations. This sequencing is mandatory for ChatGPT and Claude.
+
 
 - **Explicit opt-in:** system population control is an engine capability for modders, not a new default game rule. It must have no effect on an unmodified game or on any existing system unless a mod explicitly configures that system. Existing story content, scripted encounters and vanilla system populations must remain unchanged by default.
 - **Per-system control:** modders should be able to configure NPC presence independently for each system. The primary intended use is to make selected systems empty of ambient NPC traffic / presence by default, particularly for multiplayer-focused mods and newly added systems. This is not a requirement to redesign the NPC simulation or population economy in depth.
