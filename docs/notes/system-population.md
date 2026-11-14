@@ -1,10 +1,16 @@
+> # 🚨 IMPORTANT — PLAYER-BUILT STATIONS DO NOT EXIST YET
+> **Do not implement player-built stations or station-attracted NPC population now.**
+> Player-built stations are a future feature and are explicitly the **LAST implementation step** for this system-population workstream. Complete and verify the mod-controlled ambient population feature first. Only return to station-attracted traffic after a real player-built-station system exists, including authoritative placement, ownership, lifecycle and persistence. Do not substitute mobile stations, faction claims or other existing station systems.
+>
+> **This notice is for BOTH ChatGPT and Claude.** These repository notes are shared project handover material: every AI contributor must read them before work, preserve this sequencing, and update the notes when decisions or implementation status change.
+
 # System NPC population: existing pipeline and design notes
 
 **Status:** investigated / design notes only (2026-11-15). No runtime code or data schema changed.
 
 ## Scope of this investigation
 
-The requested feature is an explicitly mod-enabled, per-system control over ambient NPC presence. A mod should be able to make a system quiet or empty without changing unmodified gameplay. A player-built station may optionally attract a small, varied amount of ambient traffic later.
+The requested feature is an explicitly mod-enabled, per-system control over ambient NPC presence. A mod should be able to make a system quiet or empty without changing unmodified gameplay. Station-attracted ambient traffic is explicitly deferred to the final implementation step; player-built stations do not exist yet.
 
 The code paths below describe the current implementation on `feature/extensive-multiplayer-expansion`. They are not a claim that every story/event spawn path has been exhaustively audited.
 
@@ -120,7 +126,7 @@ The runtime concept should be separate from the existing `traffic: "mod"` field:
 - A mod can explicitly suppress ambient NPC population for that system.
 - A future optional player-station rule can enable a limited ambient response around qualifying player-built stations.
 
-Do not settle on a JSON property name, numeric population levels, spawn counts, spawn intervals or NPC category lists until the implementation has traced every ambient spawn source and the player-station lifecycle. The user's stated preference is deliberately light/infrequent/diverse station traffic, not a new deep population simulation.
+Do not settle on a JSON property name, numeric population levels, spawn counts, spawn intervals or NPC category lists until the implementation has traced every ambient spawn source and the player-station lifecycle. The user's stated preference is deliberately light/infrequent/diverse station traffic, not a new deep population simulation. This is the final implementation step, not part of the initial ambient-population feature.
 
 ## 8. Recommended implementation investigation / acceptance checklist
 
@@ -193,7 +199,7 @@ There are related but different systems:
 - Faction garrisons and siege defenders are spawned by `NetOrbit.UpdateGarrison` only while a station siege is armed. They carry dedicated event tags, are server-counted, respawn on siege-specific timers and leave when the siege ends. They are combat/event actors, not ambient population.
 - `HangarTraffic` is station-interior hangar activity and is separate from ships flying in the system orbit.
 
-Therefore the station-attraction idea is currently a **future integration point**, not something that can be wired into an existing player-station event. Before implementing it, the project needs the player-built station feature (or a clearly defined representation of a player-owned station) and authoritative lifecycle events: placed/activated, ownership changed, packed/moved, destroyed and restored after reconnect/server restart.
+Therefore the station-attraction idea is currently a **future integration point**, not something that can be wired into an existing player-station event. Before implementing it (the final step of this workstream), the project needs the player-built station feature and authoritative lifecycle events: placed/activated, ownership changed, packed/moved, destroyed and restored after reconnect/server restart.
 
 Do not use faction station claims or mod-authored mobile stations as a substitute for player-built station ownership. They have different semantics.
 
