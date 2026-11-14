@@ -53,6 +53,7 @@ namespace GoF2Remake.World
         /// a fixed crate (a pirate outpost's) unless 'capital' (World.CapitalShip, after it set the capital ship's crate).</summary>
         public void AddOwnLoot(bool capital = false)
         {
+            if (ScavengerMode.Active) return;
             var t = (db?.Ship(Spec.ship) as CustomShipData)?.traffic;
             if (t?.loot == null || t.loot.Length == 0 || Spec.noLoot || Spec.missionCrate >= 0 || (Spec.lootItem >= 0 && !capital)) return;
             int drops = 0;

@@ -127,3 +127,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   on, the new game (after the campaign's first step) gets the old credits added, the unlocked blueprints and the medals
   (the better grade of each), the Kaamo Club owned with the old storage plus the old ship (its mods), its equipment and
   cargo (not the story's unsaleable items) parked in it; story, map, standings and the starting ship are new.
+
+## Save-group and mode-description UI
+
+Load game uses an explicit dropdown for the persisted GameMode groups. The window has a fixed frame and a flexible
+scrolling slot list. Standard-only transfer actions retain their layout space while hidden for Scavenger, keeping Back
+stationary. The station Load game page uses the same picker. Save game shows a plain, noninteractive group value aligned with the Load selector and always uses Session.Mode.
+Selecting Scavenger opens a scrollable rules page before difficulty; the list entry keeps only its short synopsis.
+Rules and the continue label have translations in all 14 supported languages (English through the existing fallback).

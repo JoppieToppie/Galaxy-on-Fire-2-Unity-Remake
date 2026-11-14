@@ -420,6 +420,7 @@ namespace GoF2Remake.UI
             int product = editing;
             int station = Blueprints.State(db, product).station;
             bool here = Blueprints.Produce(db, product, StationIndex);
+            menu.RecheckScavengerMedal();
             hangar = new Hangar(db, level.Stock);   // the new product needs its price
             string name = ItemInfo.ItemName(product);
             if (here && Modding.ModBlueprints.ShipOf(product) >= 0)

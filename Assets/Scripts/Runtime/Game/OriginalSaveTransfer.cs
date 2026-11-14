@@ -86,6 +86,7 @@ namespace GoF2Remake.Data
         {
             if (NetSession.Active) return "not during a multiplayer session";
             if (imported?.save == null) return imported?.problem ?? "nothing to import";
+            if (SaveGame.SelectedMode != GameMode.Standard) return "original saves belong to the standard game";
             if (slot < 0 || slot >= SaveGame.SlotCount) return "no free save slot";
             if (SaveGame.Exists(slot)) return $"slot {slot} isn't empty";
             try
@@ -112,7 +113,7 @@ namespace GoF2Remake.Data
                 for (int slot = 0; slot < SaveGame.SlotCount; slot++)
                 {
                     var s = SaveGame.Preview(slot);
-                    if (s == null) continue;
+                    if (s == null || s.gameMode != 0) continue;
                     var economy = SaveGame.SaveEconomy(s);
                     var saved = Session.Economy;
                     Database db;

@@ -53,8 +53,11 @@ namespace GoF2Remake.Data
         /// <summary>Every product (items with ingredients) in item-index order (Status::resetGame).</summary>
         public static List<ItemData> Products(Database db) => db.Items.FindAll(i => i.blueprint != null && i.blueprint.Count > 0);
 
-        public static bool IsUnlocked(int product) => Session.UnlockedBlueprints.Contains(product);
-        public static void Unlock(int product) => Session.UnlockedBlueprints.Add(product);
+        public static bool IsUnlocked(int product) => (!ScavengerMode.Active || ScavengerMode.BlueprintAllowed(product)) && Session.UnlockedBlueprints.Contains(product);
+        public static void Unlock(int product)
+        {
+            if (!ScavengerMode.Active || ScavengerMode.BlueprintAllowed(product)) Session.UnlockedBlueprints.Add(product);
+        }
 
         /// <summary>BluePrint+0x20: 10 per run for secondaries, else 1.</summary>
         public static int BaseQuantity(ItemData product) => product != null && product.TypeId == 1 ? 10 : 1;
@@ -255,7 +258,7 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Remake mods: the blueprint may be autocompleted (blueprints.json "autocomplete": false: never).</summary>
-        public static bool CanAutocomplete(int product) => !Modding.ModBlueprints.AutocompleteOverride(product, out bool allowed, out _) || allowed;
+        public static bool CanAutocomplete(int product) => !ScavengerMode.Active && (!Modding.ModBlueprints.AutocompleteOverride(product, out bool allowed, out _) || allowed);
 
         /// <summary>A completed run: to the hold here (true) or waiting at the production station (false); then reset.
         /// Remake mods: a ship blueprint's ship always waits at the production station (TakeBuiltShips), here too.</summary>
@@ -264,6 +267,7 @@ namespace GoF2Remake.Data
             var it = db.Item(product);
             if (it == null || it.blueprint == null) return false;   // not a product (-1 from a stale hangar row)
             var s = State(db, product);
+            if (ScavengerMode.Active && (!IsUnlocked(product) || !IsCompleted(s) || it.blueprint.Count == 0)) return false;
             int qty = BaseQuantity(it);
             if (s.station < 0) s.station = currentStation;
             bool here = s.station == currentStation;

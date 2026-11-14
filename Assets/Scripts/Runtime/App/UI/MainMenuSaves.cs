@@ -40,6 +40,20 @@ namespace GoF2Remake.UI
         {
             var list = root.Q<ScrollView>("slotList");
             list.Clear();
+            if (coopSlotPick) SaveGame.SelectedMode = GameMode.Standard;
+            var picker = root.Q<SaveGroupPicker>("saveGroupPicker");
+            if (picker == null)
+            {
+                picker = SaveGroupPicker.Create(() =>
+                {
+                    BuildSlots();
+                    ApplyLoadPanelMode();
+                    resumeButton.EnableInClassList("menu-button--gone", SaveGame.MostRecentSlot() < 0);
+                    UpdateColumnFit();
+                });
+                list.parent.Insert(list.parent.IndexOf(list), picker);
+            }
+            picker.style.display = coopSlotPick ? DisplayStyle.None : DisplayStyle.Flex;
             var db = Database.Load();
             for (int i = 0; i < SaveGame.SlotCount; i++)
             {
@@ -71,10 +85,16 @@ namespace GoF2Remake.UI
         {
             if (root == null) return;
             if (root.Q<Label>("loadTitle") is Label title)
-                title.text = (coopSlotPick ? Localization.Extra("coopPickTitle", "Host a save") : Localization.Get(29)).UiCaps();
+                title.text = (coopSlotPick ? Localization.Extra("coopPickTitle", "Host a save") : Localization.Get(29) + (SaveGame.SelectedMode == GameMode.Scavenger ? " · " + ScavengerMode.Name : "")).UiCaps();
             void Show(string name, bool on) { if (root.Q(name) is VisualElement e) e.style.display = on ? DisplayStyle.Flex : DisplayStyle.None; }
             Show("saveTransferRow", !coopSlotPick);
-            Show("originalSaveRow", !coopSlotPick && Modding.ModImport.Available);
+                        Show("originalSaveRow", !coopSlotPick && Modding.ModImport.Available);
+            if (root.Q("originalSaveRow") is VisualElement original)
+            {
+                bool standard = SaveGame.SelectedMode == GameMode.Standard;
+                original.style.visibility = standard ? Visibility.Visible : Visibility.Hidden;
+                original.SetEnabled(standard);
+            }
             Show("saveTransferNote", !coopSlotPick && !SaveTransfer.HasFileDialog && !SavesPicker);
         }
 

@@ -95,13 +95,14 @@ namespace GoF2Remake.UI
             // Remake: the chosen save folder's newer saves in first (SaveFolder; a no-op without one), then Resume's test.
             OptionsCatalog.SaveFolderPressed = ChooseSaveFolder;
             SyncSaveFolder(true);
+            SaveGame.SelectMostRecentGroup();
             resumeButton.EnableInClassList("menu-button--gone", SaveGame.MostRecentSlot() < 0);   // only with a save
             UpdateColumnFit();
             WatchMenuNumbers();
             updateRow = root.Q("updateRow");
             updateButton = Bind("updateButton", UpdatePressed);   // in place where it can (MainMenuUpdate), else the release page
 
-            foreach (var n in new[] { "campaignPanel", "difficultyPanel", "economyPanel", "gameOptionsPanel", "loadPanel", "optionsPanel", "aboutPanel", "multiplayerPanel" })
+            foreach (var n in new[] { "modeDetailsPanel", "campaignPanel", "difficultyPanel", "economyPanel", "gameOptionsPanel", "loadPanel", "optionsPanel", "aboutPanel", "multiplayerPanel" })
             {
                 panels[n] = root.Q(n);
                 panels[n].usageHints = UsageHints.DynamicTransform;
@@ -125,7 +126,7 @@ namespace GoF2Remake.UI
                 sv.verticalScrollerVisibility = ScrollerVisibility.Hidden;
                 sv.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             }
-            foreach (var n in new[] { "campaignBack", "difficultyBack", "economyBack", "gameOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack" })
+            foreach (var n in new[] { "modeDetailsBack", "campaignBack", "difficultyBack", "economyBack", "gameOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack" })
             {
                 var b = root.Q<Button>(n);
                 b.clicked += Back;   // Back() plays the release sound itself (also used by Esc)
@@ -143,7 +144,7 @@ namespace GoF2Remake.UI
             Bind("easyButton", () => PickDifficulty(Session.DifficultyEasy));
             Bind("normalButton", () => PickDifficulty(Session.DifficultyNormal));
             Bind("hardButton", () => PickDifficulty(Session.DifficultyHard));
-            Bind("extremeButton", () => ShowDialog(Localization.Get(25), Localization.Get(26),
+            Bind("extremeButton", () => ShowDialog(Localization.Get(25), scavengerNext ? ScavengerMode.ExtremeDescription(Localization.Get(26)) : Localization.Get(26),
                 () => PickDifficulty(Session.DifficultyExtreme)));
             Bind("economyDefaultButton", () => PickEconomy(Economy.Default));
             Bind("economyAndroidButton", () => PickEconomy(Economy.Android));

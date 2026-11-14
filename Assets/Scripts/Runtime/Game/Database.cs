@@ -694,6 +694,7 @@ namespace GoF2Remake.Data
 
         static Database shared;
         static Economy sharedEconomy;
+        static GameMode sharedMode;
         static int sharedRevision = -1;
         /// <summary>The database a Load is applying the mods to: what Shared answers meanwhile. Code the mods' entries run
         /// (a kit ship's mounts, read through Shared) would otherwise load Shared, which applies the mods again, and so on: a
@@ -709,9 +710,10 @@ namespace GoF2Remake.Data
             get
             {
                 if (applying != null) return applying;
-                if (shared == null || sharedEconomy != Session.Economy || sharedRevision != Modding.ModManager.Revision)
+                if (shared == null || sharedEconomy != Session.Economy || sharedMode != Session.Mode || sharedRevision != Modding.ModManager.Revision)
                 {
                     sharedEconomy = Session.Economy;
+                    sharedMode = Session.Mode;
                     sharedRevision = Modding.ModManager.Revision;
                     shared = Load();
                     // (the load may have made the first scan of the Mods folders, which bumps the revision: it is this one's)
@@ -769,6 +771,7 @@ namespace GoF2Remake.Data
                 }
                 finally { applying = outer; }
             }
+            ScavengerMode.ApplyRecipes(db);
             return db;
         }
 

@@ -3610,5 +3610,14 @@
  "mpScriptsNotAllowed": "Esta partida usa mods con scripts que no has permitido: {0}. Actívalos una vez en Mods para permitir sus scripts y vuelve a unirte.",
  "mpScriptsShort": "permite antes sus scripts: {0}",
  "mpModsCountScripts": "Mods ({0} activados, con scripts)",
- "scriptNoCommand": "No existe el comando \"{0}\"."
+ "scriptNoCommand": "No existe el comando \"{0}\".",
+ "scavengerName": "Recolector",
+ "scavengerDescription": "Recupera equipo de la carga de las naves. Fabrica fuegos artificiales para obtener la medalla «Campeón».",
+ "scavengerChampion": "Fabrica un lote de fuegos artificiales.",
+ "saveMode": "Grupo de partidas guardadas",
+ "standardMode": "Juego original",
+ "newGameCampaigns": "Campañas",
+ "customGamemodes": "Modos de juego personalizados",
+ "scavengerContinue": "Elegir dificultad",
+ "scavengerDetails": "RECOGE, COMERCIA Y FABRICA\nReúne equipo raro del botín y termina la producción de fuegos artificiales para conseguir Champion. Poseerlos no basta.\n\nINICIO\nBetty en Dis, Luna EMP Mk I, 10 EMP GL I, AB-1 Retractor, Telta Ecoscan y cero créditos. Elige dificultad y propiedad inicial de Kaamo; economía Default obligatoria.\n\nMUNDO ABIERTO\nSin campaña; todos los sistemas revelados. Estadísticas y visitas sin cambios. Siguen disponibles misiones, diplomáticos, pilotos aliados, minería y plasma.\n\nBOTÍN\nLas estaciones generan armas principales, torretas y equipo hasta nivel tecnológico 5. Busca niveles superiores en el botín; puedes venderlos y recomprarlos. Los objetos originales permitidos se eligen sin ponderar rareza o tecnología. Minerales, núcleos, plasma y carga de misión conservan sus fuentes. Cada tipo permitido tiene la misma probabilidad en la carga aleatoria de NPC comunes, sin importar rareza o tecnología. Las tiendas conservan sus controles normales de tecnología y azar.\n\nDOS RECETAS\nChromo Plasma y Fireworks están desbloqueados desde el inicio; los demás planos y sus vendedores no están disponibles. La finalización automática está desactivada.\n\nTU OBJETIVO\nSolo se concede Champion: termina la producción de fuegos artificiales y cierra el hangar."
 }

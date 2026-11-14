@@ -215,6 +215,7 @@ namespace GoF2Remake.UI
 
         void StartAtStep(int index)
         {
+            scavengerNext = false;
             pendingStartIndex = index;
             pendingCampaign = CampaignOf(index);
             OpenPanel("difficultyPanel");

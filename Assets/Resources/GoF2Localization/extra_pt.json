@@ -3610,5 +3610,14 @@
  "mpScriptsNotAllowed": "Este jogo usa mods com scripts que você não permitiu: {0}. Ative-os uma vez em Mods para permitir os scripts e entre de novo.",
  "mpScriptsShort": "permita os scripts primeiro: {0}",
  "mpModsCountScripts": "Mods ({0} ativados, com scripts)",
- "scriptNoCommand": "Não há comando \"{0}\"."
+ "scriptNoCommand": "Não há comando \"{0}\".",
+ "scavengerName": "Coletor",
+ "scavengerDescription": "Recupere equipamentos das cargas das naves. Fabrique fogos de artifício para ganhar a medalha «Campeão».",
+ "scavengerChampion": "Fabrique um lote de fogos de artifício.",
+ "saveMode": "Grupo de jogos salvos",
+ "standardMode": "Jogo original",
+ "newGameCampaigns": "Campanhas",
+ "customGamemodes": "Modos de jogo personalizados",
+ "scavengerContinue": "Escolher dificuldade",
+ "scavengerDetails": "COLETE, NEGOCIE, PRODUZA\nReúna equipamentos raros do saque e conclua a produção de fogos para obter Champion. Apenas possuir fogos não basta.\n\nINÍCIO\nBetty em Dis, Luna EMP Mk I, 10 EMP GL I, AB-1 Retractor, Telta Ecoscan e zero créditos. Escolha dificuldade e posse inicial de Kaamo; economia sempre Default.\n\nMUNDO ABERTO\nSem campanha; todos os sistemas revelados. Estatísticas e visitas permanecem iguais. Missões, diplomatas, aliados, mineração e plasma continuam disponíveis.\n\nSAQUE\nEstações geram armas primárias, torretas e equipamentos até nível tecnológico 5. Busque níveis superiores no saque; venda e recompra são permitidas. Itens originais permitidos são sorteados sem ponderação de raridade ou tecnologia. Minérios, núcleos, plasma e cargas de missão mantêm suas fontes. Cada tipo permitido tem a mesma chance na carga aleatória de NPCs comuns, independentemente de raridade ou tecnologia. Lojas mantêm suas verificações normais de tecnologia e sorteio.\n\nDUAS RECEITAS\nChromo Plasma e Fireworks são liberados imediatamente; outros projetos e seus vendedores ficam indisponíveis. A conclusão automática está desativada.\n\nSEU OBJETIVO\nSomente Champion é concedido: conclua a produção de fogos e feche o hangar."
 }

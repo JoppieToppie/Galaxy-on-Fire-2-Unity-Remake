@@ -223,6 +223,12 @@ namespace GoF2Remake.World
             var list = new List<ItemStack>();
             gear = false;
             if (db == null) return list;
+            if (ScavengerMode.Active)
+            {
+                for (int n = Random.Range(HoldRollsMin, HoldRollsMax + 1); n > 0; n--)
+                    foreach (var stack in ScavengerMode.RollLoot(db, true)) Add(list, stack.item, stack.amount);
+                return list;
+            }
             if (LootReady)
             {
                 gear = true;
@@ -416,6 +422,7 @@ namespace GoF2Remake.World
         /// (occurrence), saleable, no blueprint product, not the Khador Drive (85) or a signature (189-192); the Terrans'
         /// from tech level 4.</summary>
         static bool ArmoryItem(Database db, ItemData it, int race) =>
+            (!ScavengerMode.Active || ScavengerMode.ShopAllowed(it)) &&
             it.TypeId <= 3 && it.maxPrice > 0 && it.occurrence > 0 && !IsBlueprintProduct(it) && RaceItem(db, it, race)
             && it.index != 85 && (it.index < 189 || it.index > 192) && (race == 1 || it.techLevel >= TerranGearTech)
             && Hangar.IsSaleable(it.index) && !Modding.ModContent.IsMissingItem(it.index) && Modding.ModUnlocks.ItemAvailable(it.index)
@@ -443,6 +450,7 @@ namespace GoF2Remake.World
             {
                 var it = db.Item(e.item);
                 if (it == null || it.TypeId != 1 || list.Exists(o => o.item == e.item)) continue;
+                if (ScavengerMode.Active && !ScavengerMode.ShopAllowed(it)) continue;
                 int have = 0;
                 foreach (var x in Session.Equipment) if (x.item == e.item) have += Mathf.Max(0, x.amount);
                 int stock = store != null ? store.Left(db, e.item) : -1;

@@ -175,6 +175,7 @@ namespace GoF2Remake.Data
 
         static void AddStoryBlueprintSellers(Database db, int station, List<Agent> agents)
         {
+            if (ScavengerMode.Active) return;
             if (!Session.FreePlay || station == 108 || station == 101 || Shop.InSupernovaSystem(SystemOf(db, station), station)) return;
             int systemRace = Sys(db, SystemOf(db, station))?.raceId ?? -1;
             foreach (var (product, at) in StoryBlueprints)
@@ -233,6 +234,7 @@ namespace GoF2Remake.Data
         /// generic visitor without a diplomat's, wingmen's or ship seller's deal, or joining a bar with room.</summary>
         static void AddModBlueprintSellers(Database db, int station, List<Agent> agents)
         {
+            if (ScavengerMode.Active) return;
             if (station == 108 || station == 101 || Shop.InSupernovaSystem(SystemOf(db, station), station)) return;
             int systemRace = Sys(db, SystemOf(db, station))?.raceId ?? -1;
             foreach (var d in Modding.ModBlueprints.Offerable(b => b.loungeChance > 0f))
@@ -246,6 +248,7 @@ namespace GoF2Remake.Data
         /// visitors were kept (Shop.EnterStation: a station among the last 3 keeps them).</summary>
         public static void AddNamedSellers(Database db, int station, List<Agent> agents)
         {
+            if (ScavengerMode.Active) return;
             if (station == 108 || station == 101 || Shop.InSupernovaSystem(SystemOf(db, station), station)) return;
             foreach (var d in Modding.ModBlueprints.Offerable(b => b.seller != null && b.loungeChance > 0f && b.loungeStations.Contains(station)))
                 PlaceModSeller(db, d, station, Sys(db, SystemOf(db, station))?.raceId ?? -1, agents);
@@ -295,6 +298,7 @@ namespace GoF2Remake.Data
         /// the Khador Drive's blueprint is known). One the player already knows still stands there with nothing left.</summary>
         static bool StorySellerAvailable(StoryAgentData s)
         {
+            if (ScavengerMode.Active && (s.sellBlueprint >= 0 || s.sellItemSystem >= 0 || s.index == 25)) return false;
             if (s.sellBlueprint < 0 || Session.UnlockedBlueprints.Contains(s.sellBlueprint)) return true;
             var mod = Modding.ModBlueprints.Of(s.sellBlueprint);
             return mod == null || Modding.ModBlueprints.Available(mod);
@@ -374,6 +378,8 @@ namespace GoF2Remake.Data
                 a.sellQuantity = it.TypeId <= 3 && it.TypeId != 1 ? 1 : R(15) + 5;   // primary, turret, equipment: 1
                 a.sellPrice = (int)((R(120) + 40) / 100f * SinglePrice(it)) * a.sellQuantity;
             }
+            if (ScavengerMode.Active && a.offer == AgentOffer.SellItem && !ScavengerMode.ShopAllowed(db.Item(a.sellItem)))
+                a.offer = AgentOffer.SmallTalk;
             return a;
         }
 

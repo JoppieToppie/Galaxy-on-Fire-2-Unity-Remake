@@ -2521,3 +2521,14 @@
     margin-top: var(--space-s);
     justify-content: center;
 }
+
+.save-group-control { flex-direction: row; align-items: center; flex-shrink: 0; width: 100%; height: 56px; margin: 8px 0 18px 0; }
+.save-group-caption { width: 38%; margin-right: 16px; color: var(--gof-cyan); font-size: var(--text-body); -unity-text-align: middle-left; }
+.save-group-selector { flex-grow: 1; height: 48px; margin: 0; padding: 0 16px; -unity-text-align: middle-left; background-color: rgb(9, 28, 40); border-width: 1px; border-color: var(--gof-line); color: rgb(205, 224, 233); font-size: var(--text-body); }
+.save-group-selector:focus, .save-group-selector:hover { border-color: var(--gof-amber); }
+.save-group-popup { background-color: rgb(6, 19, 29); border-width: 1px; border-color: rgb(54, 180, 222); padding: 4px; }
+.save-group-option { height: 48px; margin: 0; padding: 0 14px; -unity-text-align: middle-left; background-color: rgb(6, 19, 29); color: rgb(205, 224, 233); font-size: var(--text-body); border-width: 0; }
+.save-group-option--selected { color: rgb(54, 204, 248); }
+.save-group-option:hover, .save-group-option:focus { background-color: rgb(21, 63, 81); color: rgb(255, 211, 122); }
+.save-group-separator { height: 1px; min-height: 1px; margin: 6px 10px; background-color: rgb(47, 91, 111); flex-shrink: 0; }
+.save-group-value { flex-grow: 1; height: 48px; margin: 0; padding: 0 16px; -unity-text-align: middle-left; color: rgb(205, 224, 233); font-size: var(--text-body); }

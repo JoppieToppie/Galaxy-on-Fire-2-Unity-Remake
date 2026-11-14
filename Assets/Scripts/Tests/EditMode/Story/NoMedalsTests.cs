@@ -147,7 +147,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void TheChoiceIsSavedAndOlderSavesHaveMedals()
         {
-            Assert.AreEqual(18, SaveData.CurrentVersion);
+            Assert.GreaterOrEqual(SaveData.CurrentVersion, 18);
             Session.NoMedals = true;
             Assert.IsTrue(SaveGame.Save(1));
             Session.ResetNewGame();
@@ -158,7 +158,7 @@ namespace GoF2Remake.Tests
             // A version 17 save has no such field: medals on.
             string json = File.ReadAllText(SaveGame.SlotPath(1));
             json = Regex.Replace(json, @"""noMedals""\s*:\s*true\s*,", "");
-            json = Regex.Replace(json, @"""version""\s*:\s*18", "\"version\": 17");
+            json = Regex.Replace(json, @"""version""\s*:\s*\d+", "\"version\": 17");
             StringAssert.Contains("\"version\": 17", json);
             StringAssert.DoesNotContain("noMedals", json);
             File.WriteAllText(SaveGame.SlotPath(1), json);

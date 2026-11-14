@@ -3610,5 +3610,14 @@
  "mpScriptsNotAllowed": "Cette partie utilise des mods à scripts que tu n'as pas autorisés : {0}. Active-les une fois dans Mods pour autoriser leurs scripts, puis rejoins à nouveau.",
  "mpScriptsShort": "autorise d'abord ses scripts : {0}",
  "mpModsCountScripts": "Mods ({0} activés, avec scripts)",
- "scriptNoCommand": "Aucune commande « {0} »."
+ "scriptNoCommand": "Aucune commande « {0} ».",
+ "scavengerName": "Récupérateur",
+ "scavengerDescription": "Récupérez de l’équipement dans les cargaisons des vaisseaux. Fabriquez des feux d’artifice pour obtenir la médaille « Champion ».",
+ "scavengerChampion": "Fabriquez un lot de feux d’artifice.",
+ "saveMode": "Groupe de sauvegardes",
+ "standardMode": "Jeu original",
+ "newGameCampaigns": "Campagnes",
+ "customGamemodes": "Modes de jeu personnalisés",
+ "scavengerContinue": "Choisir la difficulté",
+ "scavengerDetails": "RÉCUPÉRER, ÉCHANGER, FABRIQUER\nCollectionnez des équipements rares et terminez la fabrication de feux d\u0027artifice pour obtenir Champion. En posséder ne suffit pas.\n\nDÉPART\nBetty à Dis, Luna EMP Mk I, 10 EMP GL I, AB-1 Retractor, Telta Ecoscan et zéro crédit. Difficulté et possession de Kaamo au choix ; économie Default imposée.\n\nMONDE OUVERT\nSans campagne ; tous les systèmes sont révélés. Statistiques et visites restent inchangées. Missions, diplomates, ailiers, extraction et collecte de plasma restent disponibles.\n\nBUTIN\nLes stations génèrent armes principales, tourelles et équipements de niveau technologique 5 maximum. Cherchez les niveaux supérieurs dans le butin ; vente et rachat sont autorisés. Les objets originaux admissibles sont tirés sans pondération de rareté ou de technologie. Minerais, noyaux, plasma et cargaisons de mission gardent leurs sources. Chaque type admissible a la même probabilité dans le fret aléatoire des PNJ ordinaires, sans effet de rareté ou de technologie. Les magasins gardent leurs contrôles habituels de technologie et de hasard.\n\nDEUX RECETTES\nChromo Plasma et Fireworks sont débloqués immédiatement ; les autres plans et leurs vendeurs sont indisponibles. La fabrication automatique est désactivée.\n\nVOTRE OBJECTIF\nSeul Champion est attribué : terminez la production de feux et fermez le hangar."
 }

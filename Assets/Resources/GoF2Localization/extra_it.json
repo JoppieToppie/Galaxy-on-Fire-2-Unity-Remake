@@ -3610,5 +3610,14 @@
  "mpScriptsNotAllowed": "Questa partita usa mod con script che non hai consentito: {0}. Attivale una volta in Mod per consentirne gli script, poi unisciti di nuovo.",
  "mpScriptsShort": "consenti prima i suoi script: {0}",
  "mpModsCountScripts": "Mod ({0} attive, con script)",
- "scriptNoCommand": "Nessun comando \"{0}\"."
+ "scriptNoCommand": "Nessun comando \"{0}\".",
+ "scavengerName": "Recuperatore",
+ "scavengerDescription": "Recupera equipaggiamento dal carico delle navi. Produci fuochi d’artificio per ottenere la medaglia «Campione».",
+ "scavengerChampion": "Produci un lotto di fuochi d’artificio.",
+ "saveMode": "Gruppo di salvataggi",
+ "standardMode": "Gioco originale",
+ "newGameCampaigns": "Campagne",
+ "customGamemodes": "Modalità di gioco personalizzate",
+ "scavengerContinue": "Scegli difficoltà",
+ "scavengerDetails": "RACCOGLI, COMMERCIA, PRODUCI\nRaccogli equipaggiamento raro dal bottino e completa la produzione di fuochi artificiali per Champion. Possederli non basta.\n\nINIZIO\nBetty su Dis, Luna EMP Mk I, 10 EMP GL I, AB-1 Retractor, Telta Ecoscan e zero crediti. Scegli difficoltà e possesso iniziale di Kaamo; economia sempre Default.\n\nMONDO APERTO\nNessuna campagna; tutti i sistemi rivelati. Statistiche e visite invariate. Disponibili missioni, diplomatici, gregari, estrazione e plasma.\n\nBOTTINO\nLe stazioni generano armi primarie, torrette ed equipaggiamento fino al livello tecnologico 5. Cerca i livelli superiori nel bottino; vendita e riacquisto consentiti. Gli oggetti originali ammessi sono estratti senza pesi di rarità o tecnologia. Minerali, nuclei, plasma e carichi di missione mantengono le proprie fonti. Ogni tipo consentito ha la stessa probabilità nel carico casuale dei normali NPC, indipendentemente da rarità e tecnologia. I negozi mantengono i normali controlli tecnologici e casuali.\n\nDUE RICETTE\nChromo Plasma e Fireworks sono subito sbloccati; gli altri progetti e i loro venditori non sono disponibili. Il completamento automatico è disattivato.\n\nIL TUO OBIETTIVO\nSi assegna solo Champion: completa la produzione di fuochi artificiali e chiudi il hangar."
 }

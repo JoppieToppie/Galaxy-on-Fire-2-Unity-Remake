@@ -149,6 +149,7 @@ namespace GoF2Remake.Flight
         /// <summary>Generator::getLootList(-1, -1): the cargo an NPC drops (empty 1/3 of the time).</summary>
         public static List<ItemStack> RollLoot(Database db, bool freighter)
         {
+            if (ScavengerMode.Active) return ScavengerMode.RollLoot(db, freighter);
             var list = new List<ItemStack>();
             int n = Random.Range(0, 3);
             // Android 2.0.16: empty 1 in 3; iOS 1.1.19 (the Default economy): the second roll only when the first is 0, 1 in 9.

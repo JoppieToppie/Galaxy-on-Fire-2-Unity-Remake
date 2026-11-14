@@ -118,7 +118,7 @@ namespace GoF2Remake.Data
         /// ignite, Player::damageEmp): at the gold threshold its Status flag is set; checkForNewMedal awards it on docking.</summary>
         public static void Elite(int medal, int count)
         {
-            if (!Enabled) return;   // no medals in multiplayer or a game without them
+            if (!Enabled || ScavengerMode.Active) return;   // no medals in multiplayer or a game without them
             Progress(medal, count);
             if (Grade(medal) == 0 && count >= Thresholds[medal, 0]) Session.EliteFlags.Add(medal);
         }
@@ -137,7 +137,7 @@ namespace GoF2Remake.Data
         /// <summary>Progress's line, or null when the original shows none for this count.</summary>
         public static string ProgressText(int medal, int count)
         {
-            if (!Enabled || medal < BaseCount || medal >= Count || Has(medal)) return null;
+            if (!Enabled || ScavengerMode.Active || medal < BaseCount || medal >= Count || Has(medal)) return null;
             int max = Thresholds[medal, 0];
             if (max <= 0 || count <= 0) return null;
             int percent = (int)(count / (float)max * 100f);
@@ -173,6 +173,14 @@ namespace GoF2Remake.Data
         /// of full until its counter passes the threshold.</summary>
         public static bool NextGrade(Database db, int medal, out int grade, out int count, out int target, out float fraction)
         {
+            if (ScavengerMode.Active)
+            {
+                grade = medal == ScavengerMode.Champion && !Has(medal) ? 1 : 0;
+                target = 1;
+                count = medal == ScavengerMode.Champion && Session.Blueprints.Exists(b => b.item == ScavengerMode.Fireworks && b.timesProduced > 0) ? 1 : 0;
+                fraction = count;
+                return grade != 0;
+            }
             grade = NextGradeOf(medal);
             count = target = 0;
             fraction = 0f;
@@ -221,6 +229,15 @@ namespace GoF2Remake.Data
             if (Session.Medals == null || Session.Medals.Length != Count) Session.Medals = new int[Count];
             var improved = new List<int>();
             if (!Enabled) return improved;   // multiplayer, a game without medals: none (nor their rewards)
+            if (ScavengerMode.Active)
+            {
+                if (Grade(ScavengerMode.Champion) == 0 && Session.Blueprints.Exists(b => b.item == ScavengerMode.Fireworks && b.timesProduced > 0))
+                {
+                    Session.Medals[ScavengerMode.Champion] = 1;
+                    improved.Add(ScavengerMode.Champion);
+                }
+                return improved;
+            }
             if (Session.Medals[0] == 0) Session.Medals[0] = 1;   // Veteran: preset gold (Achievements::init)
             for (int i = 1; i < Count; i++)
             {
@@ -293,6 +310,8 @@ namespace GoF2Remake.Data
         /// <paramref name="progress"/> (the Status window's "Progress: n / t") goes right under the requirement.</summary>
         public static string Hint(int medal, string progress = null)
         {
+            if (ScavengerMode.Active && medal == ScavengerMode.Champion)
+                return Localization.Extra("scavengerChampion", "Manufacture a batch of fireworks.") + (progress == null ? "" : "\n" + progress);
             int grade = Grade(medal);
             int shown = grade != 0 ? grade : Mathf.Max(1, NextGradeOf(medal));
             string text = Localization.Get(1552 + medal).Replace("#", Threshold(medal, shown).ToString("#,0"));

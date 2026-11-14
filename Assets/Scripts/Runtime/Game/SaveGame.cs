@@ -17,7 +17,7 @@ namespace GoF2Remake.Data
     [Serializable]
     public class SaveData
     {
-        public const int CurrentVersion = 18;
+        public const int CurrentVersion = 19;
 
         public int version = CurrentVersion;
         public string savedAtUtc;
@@ -136,6 +136,7 @@ namespace GoF2Remake.Data
         // version 18: a game without medals (Session.NoMedals; older saves have medals, and a build that knew no version 18
         // would have awarded them)
         public bool noMedals;
+        public int gameMode; // v19: 0 standard, 1 Scavenger; older readers must not load its recipes as standard.
         // (remake, no version of its own: older saves have none) the Space Waste tons sorted and the bad-luck counters
         // (Session.WasteTons / WasteDry / WasteSinceRare)
         public int wasteTons, wasteDry, wasteSinceRare;
@@ -161,7 +162,7 @@ namespace GoF2Remake.Data
         static int hostEconomy;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => hostSaves = false;
+        static void ResetStatics() { hostSaves = false; SelectedMode = GameMode.Standard; }
 
         /// <summary>Remake: the co-op campaign's host (NetCoop) plays a save slot it continued, or a new game, and saves into
         /// the slots like single player while its session runs (the auto-save on docking, the station's Save game), each
@@ -180,7 +181,25 @@ namespace GoF2Remake.Data
         public static void EndHostSaves() => hostSaves = false;
 
         static string Dir => Path.Combine(GoF2Remake.GamePaths.Data, "Saves");
-        static string PathOf(int slot) => Path.Combine(Dir, $"slot_{slot:00}.json");
+        public static GameMode SelectedMode;
+        static string PathOf(int slot) => SlotPath(slot, SelectedMode);
+        public static string SlotPath(int slot, GameMode mode) => Path.Combine(Dir,
+            (mode == GameMode.Scavenger ? "scavenger_" : "") + $"slot_{slot:00}.json");
+
+        public static void SelectMostRecentGroup()
+        {
+            var chosen = GameMode.Standard;
+            DateTime newest = DateTime.MinValue;
+            foreach (GameMode mode in Enum.GetValues(typeof(GameMode)))
+                for (int i = 0; i < SlotCount; i++)
+                {
+                    string path = SlotPath(i, mode);
+                    if (!File.Exists(path)) continue;
+                    var time = File.GetLastWriteTimeUtc(path);
+                    if (time > newest) { newest = time; chosen = mode; }
+                }
+            SelectedMode = chosen;
+        }
         /// <summary>The folder of the slot files (SaveTransfer).</summary>
         public static string Folder => Dir;
         /// <summary>A slot's file (SaveTransfer).</summary>
@@ -217,6 +236,7 @@ namespace GoF2Remake.Data
             if (SupernovaChallenge.Active) return false;   // the Supernova Challenge's throwaway game (it never docks)
             // Hardcore: only the auto-save (no slot to go back to after a death).
             if (Session.Hardcore && slot != AutoSaveSlot) return false;
+            SelectedMode = Session.Mode;
             var s = Capture();
             if (HostSaves) { s.difficulty = hostDifficulty; s.economy = hostEconomy; }   // the game's own, not the session's
             Modding.ModSaves.Record(s, Database.Load());
@@ -258,13 +278,13 @@ namespace GoF2Remake.Data
         {
             string bin = Path.Combine(Dir, "Deleted");
             Directory.CreateDirectory(bin);
-            return Path.Combine(bin, $"slot_{slot:00}_{DateTime.Now:yyyyMMdd-HHmmss}.json");
+            return Path.Combine(bin, (SelectedMode == GameMode.Scavenger ? "scavenger_" : "") + $"slot_{slot:00}_{DateTime.Now:yyyyMMdd-HHmmss}.json");
         }
 
         /// <summary>Saves/Deleted keeps its newest 20 files.</summary>
         static void PruneBin()
         {
-            var old = new DirectoryInfo(Path.Combine(Dir, "Deleted")).GetFiles("slot_*.json");
+            var old = new DirectoryInfo(Path.Combine(Dir, "Deleted")).GetFiles("*slot_*.json");
             Array.Sort(old, (a, b) => b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
             for (int i = 20; i < old.Length; i++) old[i].Delete();
         }
@@ -319,7 +339,7 @@ namespace GoF2Remake.Data
         {
             if (NetSession.Active) return false;   // multiplayer: no single-player save into the session
             var s = Preview(slot);
-            if (s == null) return false;
+            if (s == null || s.version > SaveData.CurrentVersion || s.gameMode != (int)SelectedMode) return false;
             Modding.ModSaves.Fix(s);   // modded items moved to their numbers now, or removed and refunded (mods turned off)
             DropUnknownItems(s, Database.Shared);
             Apply(s);
@@ -434,6 +454,7 @@ namespace GoF2Remake.Data
                 modCampaign = Session.ModCampaign ?? "",
                 hardcore = Session.Hardcore,
                 noMedals = Session.NoMedals,
+                gameMode = (int)Session.Mode,
                 runId = Session.RunId ?? "",
                 modGameOptions = new List<string>(Session.ModGameOptions),
                 shipBuilds = Session.ShipBuilds.Select(kv => kv.Key + "|" + kv.Value).ToList(),
@@ -529,6 +550,8 @@ namespace GoF2Remake.Data
 
         static string Check(SaveData s, Database db)
         {
+            if (s.gameMode < 0 || s.gameMode > (int)GameMode.Scavenger) return "unknown game mode";
+            if (s.gameMode == (int)GameMode.Scavenger && (s.economy != (int)Economy.Default || !s.freePlay)) return "invalid Scavenger rules";
             int stations = db.Stations.Count, ships = db.Ships.Count, items = db.Items.Count, systems = db.Systems.Count;
             bool Station(int i) => i >= 0 && i < stations || Modding.ModSaves.NamesStation(s, i);   // a mod's station: put right on loading
             bool StationOrNone(int i) => i == -1 || Station(i);
@@ -609,6 +632,9 @@ namespace GoF2Remake.Data
                 return d;
             }
             Session.ResetNewGame();
+            Session.Mode = (GameMode)s.gameMode;
+            SelectedMode = Session.Mode;
+            Session.CompletedWorld = Session.Mode == GameMode.Scavenger;
             Session.Hardcore = s.hardcore;
             Session.NoMedals = s.noMedals;
             if (!string.IsNullOrEmpty(s.runId)) Session.RunId = s.runId;   // an older save keeps the new id ResetNewGame made

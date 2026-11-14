@@ -3610,5 +3610,14 @@
  "mpScriptsNotAllowed": "该游戏使用了你尚未允许的脚本模组：{0}。请先在“模组”中开启一次以允许其脚本，然后重新加入。",
  "mpScriptsShort": "请先允许其脚本：{0}",
  "mpModsCountScripts": "模组（{0}个已开启，含脚本）",
- "scriptNoCommand": "没有命令“{0}”。"
+ "scriptNoCommand": "没有命令“{0}”。",
+ "scavengerName": "拾荒者",
+ "scavengerDescription": "从飞船货物中回收装备。制造烟花，赢得“胜利者”勋章。",
+ "scavengerChampion": "制造一批烟花。",
+ "saveMode": "存档分组",
+ "standardMode": "原版游戏",
+ "newGameCampaigns": "战役",
+ "customGamemodes": "自定义游戏模式",
+ "scavengerContinue": "选择难度",
+ "scavengerDetails": "收集、交易、生产\n从战利品中收集稀有装备，完成烟花生产以获得Champion。仅持有烟花不算完成。\n\n起点\n驾驶Betty从Dis出发，装备Luna EMP Mk I、10枚EMP GL I、AB-1 Retractor和Telta Ecoscan，初始资金为零。可选择难度及是否初始拥有Kaamo。经济始终为Default。\n\n开放世界\n没有战役，所有星系均已揭示。统计和访问标记保持原有规则。自由任务、外交官、僚机、采矿和等离子体采集仍可使用。\n\n战利品与交易\n空间站生成的主武器、炮塔和装备最高为科技等级5。更高级装备需要从战利品中寻找，允许出售后买回。普通NPC货物从允许的原作物品中抽取，不按稀有度或科技等级加权。矿石、核心、等离子体和任务货物保留原有来源。 普通NPC的随机货物中，每种允许物品的抽取概率相同，不受稀有度或科技等级影响。商店保留正常的科技限制和随机生成规则。\n\n两种配方\nChromo Plasma和Fireworks立即解锁，其他蓝图及其商人不可用。自动完成功能已禁用。\n\n你的目标\n只授予Champion：完成烟花生产并关闭机库。"
 }

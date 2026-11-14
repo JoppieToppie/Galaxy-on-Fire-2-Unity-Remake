@@ -3610,5 +3610,14 @@
  "mpScriptsNotAllowed": "Dieses Spiel nutzt Skript-Mods, die du nicht erlaubt hast: {0}. Schalte sie einmal unter Mods ein, um ihre Skripte zu erlauben, und tritt dann erneut bei.",
  "mpScriptsShort": "erst die Skripte erlauben: {0}",
  "mpModsCountScripts": "Mods ({0} aktiv, mit Skripten)",
- "scriptNoCommand": "Kein Befehl \"{0}\"."
+ "scriptNoCommand": "Kein Befehl \"{0}\".",
+ "scavengerName": "Sammler",
+ "scavengerDescription": "Berge Ausrüstung aus Schiffsladungen. Stelle Feuerwerkskörper her, um die Medaille „Champion“ zu erhalten.",
+ "scavengerChampion": "Stelle eine Ladung Feuerwerkskörper her.",
+ "saveMode": "Spielstandgruppe",
+ "standardMode": "Originalspiel",
+ "newGameCampaigns": "Kampagnen",
+ "customGamemodes": "Benutzerdefinierte Spielmodi",
+ "scavengerContinue": "Schwierigkeit wählen",
+ "scavengerDetails": "SAMMELN, HANDELN, PRODUZIEREN\nSammle seltene Ausrüstung aus Beute und schließe die Feuerwerksproduktion für Champion ab. Feuerwerk zu besitzen reicht nicht.\n\nSTART\nBetty auf Dis, Luna EMP Mk I, 10 EMP GL I, AB-1 Retractor, Telta Ecoscan und keine Credits. Schwierigkeit und Kaamo-Besitz sind wählbar; die Wirtschaft bleibt Default.\n\nOFFENE WELT\nKeine Kampagne; alle Systeme sind aufgedeckt. Besuchsmarkierungen und Statistiken bleiben unverändert. Aufträge, Diplomaten, Flügelmänner, Bergbau und Plasmasammlung bleiben verfügbar.\n\nBEUTE\nStationen erzeugen Primärwaffen, Geschütze und Ausrüstung bis Tech-Level 5. Höhere Stufen stammen aus Beute; Verkauf und Rückkauf sind erlaubt. Zulässige Originalgegenstände werden ohne Seltenheits- oder Tech-Gewichtung gezogen. Erze, Kerne, Plasma und Missionsfracht behalten ihre Quellen. In zufälliger NPC-Fracht ist jeder erlaubte Gegenstandstyp gleich wahrscheinlich, unabhängig von Seltenheit und Technologie. Geschäfte behalten ihre normalen Technologie- und Zufallsprüfungen.\n\nZWEI REZEPTE\nChromo Plasma und Fireworks sind sofort freigeschaltet; andere Blaupausen und deren Händler sind nicht verfügbar. Automatische Fertigstellung ist deaktiviert.\n\nDEIN ZIEL\nNur Champion wird vergeben: Schließe die Feuerwerksproduktion ab und schließe den Hangar."
 }

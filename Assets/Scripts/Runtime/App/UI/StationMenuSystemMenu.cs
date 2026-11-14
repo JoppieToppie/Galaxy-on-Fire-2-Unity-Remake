@@ -272,6 +272,23 @@ namespace GoF2Remake.UI
         void BuildSaveSlots()
         {
             SaveFolder.Sync();   // remake: the chosen save folder's newer saves first (a no-op without one)
+            if (sysPage == SysPage.Save) SaveGame.SelectedMode = Session.Mode;
+            systemSave.Q("saveGroupPicker")?.RemoveFromHierarchy();
+            VisualElement group;
+            if (sysPage == SysPage.Load) group = SaveGroupPicker.Create(BuildSaveSlots);
+            else
+            {
+                // Saving always belongs to the active ruleset: show information, not a disabled selector.
+                group = new VisualElement { name = "saveGroupPicker" };
+                group.AddToClassList("save-group-control");
+                var caption = new Label(Localization.Extra("saveMode", "Save group"));
+                caption.AddToClassList("save-group-caption");
+                var value = new Label(Session.Mode == GameMode.Scavenger ? ScavengerMode.Name : Localization.Extra("standardMode", "Original Game"));
+                value.AddToClassList("save-group-value");
+                group.Add(caption);
+                group.Add(value);
+            }
+            saveSlotList.parent.Insert(saveSlotList.parent.IndexOf(saveSlotList), group);
             saveSlotList.Clear();
             for (int i = 0; i < SaveGame.SlotCount; i++)
             {

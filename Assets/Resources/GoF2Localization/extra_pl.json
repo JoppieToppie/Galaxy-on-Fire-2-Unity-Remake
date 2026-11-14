@@ -3610,5 +3610,14 @@
  "mpScriptsNotAllowed": "Ta gra używa modów ze skryptami, na które nie masz zgody: {0}. Włącz je raz w Modach, aby zezwolić na ich skrypty, i dołącz ponownie.",
  "mpScriptsShort": "najpierw zezwól na skrypty: {0}",
  "mpModsCountScripts": "Mody (włączone: {0}, ze skryptami)",
- "scriptNoCommand": "Nie ma polecenia \"{0}\"."
+ "scriptNoCommand": "Nie ma polecenia \"{0}\".",
+ "scavengerName": "Zbieracz",
+ "scavengerDescription": "Odzyskuj wyposażenie z ładunków statków. Wyprodukuj fajerwerki, aby zdobyć medal „Czempion”.",
+ "scavengerChampion": "Wyprodukuj partię fajerwerków.",
+ "saveMode": "Grupa zapisów",
+ "standardMode": "Oryginalna gra",
+ "newGameCampaigns": "Kampanie",
+ "customGamemodes": "Niestandardowe tryby gry",
+ "scavengerContinue": "Wybierz poziom trudności",
+ "scavengerDetails": "ZBIERAJ, HANDLUJ, PRODUKUJ\nZbieraj rzadkie wyposażenie z łupów i ukończ produkcję fajerwerków, aby zdobyć Champion. Samo posiadanie nie wystarcza.\n\nSTART\nBetty na Dis, Luna EMP Mk I, 10 EMP GL I, AB-1 Retractor, Telta Ecoscan i zero kredytów. Wybierz trudność i własność Kaamo; ekonomia zawsze Default.\n\nOTWARTY ŚWIAT\nBez kampanii; wszystkie systemy ujawnione. Statystyki i oznaczenia wizyt pozostają bez zmian. Dostępne zlecenia, dyplomaci, skrzydłowi, wydobycie i plazma.\n\nŁUPY\nStacje generują broń główną, wieżyczki i wyposażenie do poziomu technologii 5. Wyższych poziomów szukaj w łupach; sprzedaż i odkup dozwolone. Oryginalne dozwolone przedmioty losowane są bez wag rzadkości i technologii. Rudy, rdzenie, plazma i ładunki misji zachowują swoje źródła. Każdy dozwolony typ przedmiotu ma równe szanse w losowym ładunku zwykłych NPC, niezależnie od rzadkości i technologii. Sklepy zachowują normalne kontrole technologii i losowania.\n\nDWA PRZEPISY\nChromo Plasma i Fireworks są dostępne od razu; pozostałe plany i ich sprzedawcy są niedostępni. Automatyczne ukończenie jest wyłączone.\n\nTWÓJ CEL\nPrzyznawany jest tylko Champion: ukończ produkcję fajerwerków i zamknij hangar."
 }

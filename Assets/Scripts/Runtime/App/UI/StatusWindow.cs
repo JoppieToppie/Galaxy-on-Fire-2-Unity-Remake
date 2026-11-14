@@ -190,11 +190,11 @@ namespace GoF2Remake.UI
                 scroll.parent.Insert(scroll.parent.IndexOf(scroll), summary);
             }
             var (earned, gold) = Achievements.Earned();
-            int total = Achievements.Count;
+            int total = ScavengerMode.Active ? 1 : Achievements.Count;
             var goldTier = Modding.ModMedals.TierOf("gold");
             foreach (var mm in Modding.ModMedals.All)
             {
-                if (!Modding.ModMedals.Shown(mm)) continue;
+                if (ScavengerMode.Active || !Modding.ModMedals.Shown(mm)) continue;
                 total++;
                 var t = Modding.ModMedals.Earned(mm);
                 if (t == null) continue;
@@ -205,6 +205,7 @@ namespace GoF2Remake.UI
                                          earned, total, gold);
             for (int i = 0; i < Achievements.Count; i++)
             {
+                if (ScavengerMode.Active && i != ScavengerMode.Champion) { medalButtons.Add(null); continue; }
                 int medal = i;
                 int grade = Achievements.Grade(i);
                 bool elite = i >= Achievements.BaseCount;
@@ -239,7 +240,7 @@ namespace GoF2Remake.UI
             for (int k = 0; k < mods.Count; k++)
             {
                 var mm = mods[k];
-                if (!Modding.ModMedals.Shown(mm)) { medalButtons.Add(null); continue; }
+                if (ScavengerMode.Active || !Modding.ModMedals.Shown(mm)) { medalButtons.Add(null); continue; }
                 int medal = Achievements.Count + k;
                 var m = new Button();
                 m.AddToClassList("medal");

@@ -2400,3 +2400,28 @@
     background-color: var(--gof-amber);
     border-color: var(--gof-amber);
 }
+
+/* Keep the new-game frame and footer stable when switching categories. Pages scroll on small displays. */
+#campaignPanel { height: 900px; max-height: 100%; }
+.new-game-tabs { flex-direction: row; flex-shrink: 0; margin-bottom: 20px; }
+.new-game-tab { flex-grow: 1; flex-basis: 0; min-height: 48px; padding: 10px 14px; margin-right: 8px; white-space: normal; background-color: rgba(7, 24, 35, 0.65); border-width: 1px; border-color: rgba(66, 138, 167, 0.35); color: rgb(176, 199, 209); }
+.new-game-tab--selected { background-color: rgba(15, 70, 90, 0.5); border-bottom-width: 3px; border-color: var(--gof-cyan); color: var(--gof-cyan); }
+.new-game-content { flex-grow: 1; flex-shrink: 1; min-height: 0; }
+.new-game-page { flex-grow: 1; flex-shrink: 1; min-height: 0; }
+.custom-gamemodes-list { padding-top: 4px; }
+.custom-gamemode { min-height: 112px; flex-shrink: 0; align-items: flex-start; justify-content: center; padding: 20px 24px; margin: 0 0 14px 0; background-color: rgba(9, 28, 40, 0.8); border-width: 1px; border-color: rgba(66, 138, 167, 0.5); border-left-width: 3px; border-left-color: var(--gof-cyan); border-radius: 2px; }
+.custom-gamemode .choice-title { color: var(--gof-cyan); margin-bottom: 10px; }
+.custom-gamemode .choice-desc { white-space: normal; -unity-text-align: upper-left; }
+.can-hover .custom-gamemode:hover, .custom-gamemode:focus { background-color: rgba(19, 61, 77, 0.9); border-color: var(--gof-amber); }
+/* Reserve room for both campaign options below the covers at the standard text scale. */
+#campaignPanel .campaign-card { width: 214px; height: 330px; }
+
+/* Save groups never resize the frame or move its footer. */
+#loadPanel { height: 900px; max-height: 100%; }
+#loadPanel .slot-list { height: auto; flex-grow: 1; min-height: 0; }
+#loadPanel #loadTitle { height: 48px; flex-shrink: 0; white-space: nowrap; overflow: hidden; }
+#loadPanel .save-transfer-row, #loadPanel .back-button { flex-shrink: 0; }
+#modeDetailsPanel { height: 900px; max-height: 100%; }
+.mode-details-scroll { flex-grow: 1; flex-shrink: 1; min-height: 0; margin-bottom: 18px; }
+.mode-details-text { white-space: normal; color: rgb(190, 211, 222); font-size: var(--text-body); margin-right: 20px; }
+#modeDetailsContinue, #modeDetailsBack { flex-shrink: 0; }

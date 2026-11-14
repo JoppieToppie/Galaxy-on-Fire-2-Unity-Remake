@@ -19,6 +19,7 @@ namespace GoF2Remake.UI
 {
     public partial class MainMenu
     {
+        bool scavengerNext;
         /// <summary>A mod's card, like the campaign cards (290 x 448 art, the hover art fading in while selected, scaled with
         /// them): its art cropped to the card, and unless the art has its own title, the name on a plate at the foot.</summary>
         static Button ModCard(Texture2D art, Texture2D hover, bool showTitle, string title, string subtitle)
@@ -107,6 +108,7 @@ namespace GoF2Remake.UI
                 HookFocusSound(b);
                 row.Add(b);
             }
+            RefreshCustomGamemodes();
             int n = 3 + dlcs.Count + all.Count;
             row.EnableInClassList("card-row--4", n == 4);
             row.EnableInClassList("card-row--many", n >= 5);
@@ -180,6 +182,7 @@ namespace GoF2Remake.UI
         /// <summary>A mod DLC's card: a game at the end of the whole story with the DLC's quest (ModDlcs.Start).</summary>
         void PickDlc(Modding.ModDlcs.Def d)
         {
+            scavengerNext = false;
             pendingDlc = d;
             pendingModCampaign = null;
             pendingCampaign = Campaign.Supernova;
@@ -189,6 +192,7 @@ namespace GoF2Remake.UI
 
         void PickModCampaign(Modding.ModCampaigns.Def c)
         {
+            scavengerNext = false;
             pendingDlc = null;
             pendingModCampaign = c;
             pendingCampaign = Campaign.GalaxyOnFire2;
@@ -198,6 +202,7 @@ namespace GoF2Remake.UI
 
         void PickCampaign(Campaign c)
         {
+            scavengerNext = false;
             pendingModCampaign = null;
             pendingDlc = null;
             pendingCampaign = c;
@@ -212,13 +217,15 @@ namespace GoF2Remake.UI
             noMedalsNext = false;   // likewise
             RefreshHardcoreToggle();
             RefreshMedalsToggle();
-            OpenPanel("economyPanel");
+            if (scavengerNext) PickEconomy(Economy.Default);
+            else OpenPanel("economyPanel");
         }
 
         /// <summary>The economy picked: then the game options (the Kaamo Club from the start, hardcore) and Start.</summary>
         void PickEconomy(Economy economy)
         {
-            pendingEconomy = economy;
+            pendingEconomy = scavengerNext ? Economy.Default : economy;
+            root.Q<Button>("medalsToggle").style.display = scavengerNext ? DisplayStyle.None : DisplayStyle.Flex;
             RefreshTutorialToggle();   // the option may have changed in Options meanwhile
             RefreshCapitalToggle();
             RefreshModOptions();   // remake mods: their new-game options
@@ -279,7 +286,13 @@ namespace GoF2Remake.UI
         {
             var b = root.Q<Button>("ngPlusToggle");
             if (b == null) return;
-            if (rescan) { ngPlusSave = NewGamePlus.FindFinished(out _); newGamePlus = false; }
+            if (rescan)
+            {
+                var group = SaveGame.SelectedMode;
+                try { SaveGame.SelectedMode = GameMode.Standard; ngPlusSave = NewGamePlus.FindFinished(out _); }
+                finally { SaveGame.SelectedMode = group; }
+                newGamePlus = false;
+            }
             b.style.display = ngPlusSave != null ? DisplayStyle.Flex : DisplayStyle.None;
             b.EnableInClassList("choice-button--on", newGamePlus);
             var label = root.Q<Label>("ngPlusLabel");
@@ -351,6 +364,12 @@ namespace GoF2Remake.UI
             Session.Economy = economy;   // before the Database: it loads that economy's tables
             if (KaamoFromStart) Session.KaamoState = 3;   // resetGame with the expansion bought: the club owned, its storage empty
             Modding.ModGameOptions.ApplyChoices();   // remake mods: the options picked in the Game options panel
+            if (scavengerNext)
+            {
+                ScavengerMode.Start(KaamoFromStart);
+                StartCoroutine(Leave("Station"));
+                return;
+            }
             var db = Database.Load();
             // Remake mods: a mod's campaign (Modding.ModCampaigns): its start, docked at its station; no GoF2 story.
             // Remake mods: a DLC (Modding.ModDlcs): the end of the whole story, then its quest.

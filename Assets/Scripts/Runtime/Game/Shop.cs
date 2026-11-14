@@ -385,6 +385,7 @@ namespace GoF2Remake.Data
             var list = GenerateItemsOriginal(db, station);
             list.RemoveAll(s => !Modding.ModCampaigns.ItemAllowed(db, s.item) || !Modding.ModUnlocks.ItemAvailable(s.item)
                                 || NotInSession(db, s.item));
+            if (ScavengerMode.Active) list.RemoveAll(s => !ScavengerMode.ShopAllowed(db.Item(s.item)));
             return list;
         }
 
@@ -427,6 +428,8 @@ namespace GoF2Remake.Data
             foreach (var it in db.Items)
             {
                 int idx = it.index, type = it.TypeId, sort = it.categoryId, techI = it.techLevel, occ = it.occurrence;
+                if (ScavengerMode.Active && (idx == 210 || idx == 209)) continue;
+                if (ScavengerMode.Active && idx == ScavengerMode.Fireworks) continue;
                 bool specialty = idx >= 132 && idx <= 153;
                 bool exclusive = it.Attr(61, -1) == station && !((idx == 196 || (idx >= 198 && idx <= 200)) && mission < 142);
                 // Remake mods: a mod item's "alwaysSoldAt" station always stocks it, also where the original's station filters

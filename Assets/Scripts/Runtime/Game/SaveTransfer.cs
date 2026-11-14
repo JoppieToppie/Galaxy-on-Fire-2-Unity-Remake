@@ -30,6 +30,7 @@ namespace GoF2Remake.Data
             public string format;
             public int formatVersion;
             public string gameVersion;
+            public int gameMode;
             public string exportedUtc;
             public List<Slot> slots = new List<Slot>();
         }
@@ -80,6 +81,7 @@ namespace GoF2Remake.Data
                 format = Format,
                 formatVersion = FormatVersion,
                 gameVersion = Application.version,
+                gameMode = (int)SaveGame.SelectedMode,
                 exportedUtc = DateTime.UtcNow.ToString("o"),
             };
             try
@@ -155,7 +157,7 @@ namespace GoF2Remake.Data
             if (read.outcome != Outcome.Done) return read;
 
             // 2. the previous import's backup goes (a failure here changes nothing)
-            string dir = SaveGame.Folder, backup = Path.Combine(dir, "BeforeImport");
+            string dir = SaveGame.Folder, backup = Path.Combine(dir, SaveGame.SelectedMode == GameMode.Scavenger ? "BeforeScavengerImport" : "BeforeImport");
             try
             {
                 Directory.CreateDirectory(dir);
@@ -219,6 +221,7 @@ namespace GoF2Remake.Data
             {
                 problem = "exported by a newer version of the game; update it first"; return false;
             }
+            if (bundle.gameMode != (int)SaveGame.SelectedMode) { problem = "select the matching game mode in Load game before importing"; return false; }
             if (bundle.slots == null || bundle.slots.Count == 0) { problem = "the file holds no saves"; return false; }
             if (bundle.slots.Count > SaveGame.SlotCount) { problem = "the file holds more saves than there are slots"; return false; }
 
@@ -227,7 +230,8 @@ namespace GoF2Remake.Data
             {
                 if (s == null || s.slot < 0 || s.slot >= SaveGame.SlotCount) { problem = "a save names a slot that doesn't exist"; return false; }
                 if (slots.ContainsKey(s.slot)) { problem = $"slot {s.slot} is in the file twice"; return false; }
-                if (!SaveGame.TryParse(s.json, db, out _, out string why)) { problem = $"{SlotName(s.slot)}: {why}"; return false; }
+                if (!SaveGame.TryParse(s.json, db, out var save, out string why)) { problem = $"{SlotName(s.slot)}: {why}"; return false; }
+                if (save.gameMode != bundle.gameMode) { problem = "mixed game modes in save export"; return false; }
                 slots[s.slot] = s.json;
             }
             problem = null;

@@ -803,3 +803,7 @@
     margin: 0 1px;
     border-radius: var(--glyph-sm-bumper-r);
 }
+.system-menu--slots { height: 780px; max-height: 92%; }
+.system-menu--slots .system-menu-page--shown { flex-grow: 1; flex-shrink: 1; min-height: 0; }
+.system-menu--slots .system-slot-list { height: auto; flex-grow: 1; flex-shrink: 1; min-height: 0; }
+.system-menu--slots .system-menu-back { flex-shrink: 0; }

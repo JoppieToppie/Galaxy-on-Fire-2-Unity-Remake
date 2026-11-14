@@ -23,10 +23,10 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void CurrentVersionIs18()
+        public void CurrentVersionIs19()
         {
-            Assert.AreEqual(18, SaveData.CurrentVersion);
-            Assert.AreEqual(18, new SaveData().version);
+            Assert.AreEqual(19, SaveData.CurrentVersion);
+            Assert.AreEqual(19, new SaveData().version);
         }
 
         [Test]

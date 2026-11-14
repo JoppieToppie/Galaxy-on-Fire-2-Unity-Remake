@@ -53,6 +53,15 @@
                     <ui:Button name="campaignBack" class="menu-button back-button gof-semibold" />
                 </ui:VisualElement>
 
+                <ui:VisualElement name="modeDetailsPanel" class="panel panel--wide">
+                    <ui:Label name="modeDetailsTitle" class="panel-title gof-semibold" />
+                    <ui:VisualElement class="panel-accent" />
+                    <ui:ScrollView name="modeDetailsScroll" class="mode-details-scroll">
+                        <ui:Label name="modeDetailsText" class="mode-details-text" />
+                    </ui:ScrollView>
+                    <ui:Button name="modeDetailsContinue" class="choice-button gof-semibold" />
+                    <ui:Button name="modeDetailsBack" class="menu-button back-button gof-semibold" />
+                </ui:VisualElement>
                 <ui:VisualElement name="difficultyPanel" class="panel">
                     <ui:Label name="difficultyTitle" class="panel-title gof-semibold" />
                     <ui:VisualElement class="panel-accent" />

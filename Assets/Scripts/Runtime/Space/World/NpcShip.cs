@@ -542,6 +542,12 @@ namespace GoF2Remake.World
             }
             AddOwnLoot();      // remake mods: its type's own drops (ships.json "traffic.loot")
             SetupRoleLoot();   // remake mods: a loot drone's pieces (NpcShipRoles)
+            if (ScavengerMode.Active && spec.lootItem >= 0 && spec.missionCrate < 0)
+            {
+                var pool = db.Items.FindAll(ScavengerMode.LootAllowed);
+                if (pool.Count == 0) loot.Clear();
+                else foreach (var stack in loot) stack.item = pool[Random.Range(0, pool.Count)].index;
+            }
 
             sfx = gameObject.AddComponent<AudioSource>();
             Setup3D(sfx);

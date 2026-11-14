@@ -89,7 +89,12 @@ namespace GoF2Remake.Data
         /// <summary>The files kept in the folder: the slots and the ship presets (remote name, local path, slot or -1).</summary>
         static IEnumerable<(string name, string local, int slot)> Files()
         {
-            for (int i = 0; i < SaveGame.SlotCount; i++) yield return ($"slot_{i:00}.json", SaveGame.SlotPath(i), i);
+            foreach (GameMode mode in Enum.GetValues(typeof(GameMode)))
+                for (int i = 0; i < SaveGame.SlotCount; i++)
+                {
+                    string path = SaveGame.SlotPath(i, mode);
+                    yield return (Path.GetFileName(path), path, i);
+                }
             yield return (PresetsFile, PresetsPath, -1);
         }
 

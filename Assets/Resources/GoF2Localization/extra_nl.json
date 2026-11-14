@@ -3610,5 +3610,14 @@
  "mpScriptsNotAllowed": "Dit spel gebruikt scriptmods die je niet hebt toegestaan: {0}. Zet ze één keer aan onder Mods om hun scripts toe te staan en doe dan opnieuw mee.",
  "mpScriptsShort": "sta eerst de scripts toe: {0}",
  "mpModsCountScripts": "Mods ({0} aan, met scripts)",
- "scriptNoCommand": "Geen opdracht \"{0}\"."
+ "scriptNoCommand": "Geen opdracht \"{0}\".",
+ "scavengerName": "Verzamelaar",
+ "scavengerDescription": "Berg uitrusting uit scheepsladingen. Maak vuurwerk om de medaille ‘Kampioen’ te verdienen.",
+ "scavengerChampion": "Maak een partij vuurwerk.",
+ "saveMode": "Groep opgeslagen spellen",
+ "standardMode": "Origineel spel",
+ "newGameCampaigns": "Campagnes",
+ "customGamemodes": "Aangepaste spelmodi",
+ "scavengerContinue": "Moeilijkheid kiezen",
+ "scavengerDetails": "VERZAMEL, HANDEL, PRODUCEER\nVerzamel zeldzame uitrusting uit buit en voltooi de vuurwerkproductie voor Champion. Alleen vuurwerk bezitten telt niet.\n\nSTART\nBetty op Dis, Luna EMP Mk I, 10 EMP GL I, AB-1 Retractor, Telta Ecoscan en nul credits. Kies moeilijkheid en Kaamo-bezit; de economie blijft Default.\n\nOPEN WERELD\nGeen campagne; alle systemen onthuld. Statistieken en bezoekmarkeringen blijven gelijk. Opdrachten, diplomaten, wingmen, mijnbouw en plasma blijven beschikbaar.\n\nBUIT\nStations genereren primaire wapens, geschut en uitrusting tot technologieniveau 5. Hogere niveaus komen uit buit; verkopen en terugkopen mag. Toegestane originele items worden zonder zeldzaamheids- of technologieweging gekozen. Ertsen, kernen, plasma en missievracht behouden hun bronnen. Elk toegestaan itemtype heeft dezelfde kans in willekeurige gewone NPC-vracht, ongeacht zeldzaamheid of technologie. Winkels behouden hun normale technologie- en toevalsregels.\n\nTWEE RECEPTEN\nChromo Plasma en Fireworks zijn direct vrijgespeeld; andere blauwdrukken en hun verkopers zijn niet beschikbaar. Automatisch voltooien is uitgeschakeld.\n\nJE DOEL\nAlleen Champion wordt toegekend: voltooi de vuurwerkproductie en sluit de hangar."
 }

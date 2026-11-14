@@ -58,6 +58,11 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>Achievements::checkForNewMedal on docking: "New medal!" (353) with each improved medal.</summary>
+        public void RecheckScavengerMedal()
+        {
+            if (ScavengerMode.Active) medalsChecked = false;
+        }
+
         bool CheckMedals()
         {
             if (medalsChecked || level == null) return false;
