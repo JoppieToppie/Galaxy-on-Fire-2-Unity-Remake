@@ -59,3 +59,18 @@ Newest entries go at the top. Link commits/PRs where available.
   rotation is a strong candidate for the source of launch orientation, but the implementation path must be
   inspected before deciding how to use it for projectile velocity.
 - No source correction to that branch has been made by this documentation task.
+
+
+## 2026-11-15 — Product decisions: instant class scan and moddable secondary launch orientation
+
+- **Contributor:** ChatGPT (design clarification)
+- **Branch:** `feature/secondary-homing-delay-launch-angle`
+- **User decisions:** Ship-class scanning is instant on target lock, not progressive. This is a tactical requirement so large ships
+  (especially cruisers) can quickly identify specialised anti-capital threats and prioritise them. Launch-direction adjustment
+  applies to secondary weapons only; there is no reason to alter primary firing behaviour.
+- **Design recommendation recorded:** Keep launch direction mount-owned and moddable. Prefer a new optional mount field such as
+  `launchRotation`, separate from existing visual `rotation`, to avoid breaking mods that use visual rotation without intending
+  to redirect projectiles. Absent `launchRotation` means the existing straight-ahead behaviour. Keep `homingDelayMs` item-owned.
+- **Status:** Product direction agreed; this entry records design only. The existing branch implementation currently uses
+  `WeaponMount.rotation` for launch direction and therefore still needs review/correction against the separate-field recommendation.
+  Scanner/classification remains unimplemented. No Unity compile or tests were run as part of this documentation update.
