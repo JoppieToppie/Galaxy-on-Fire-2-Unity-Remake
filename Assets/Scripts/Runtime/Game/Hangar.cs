@@ -121,12 +121,12 @@ namespace GoF2Remake.Data
 
         public bool Overloaded => Load > MaxLoad;
 
-        /// <summary>Item::mixItems: everything in cargo or in stock, by item index. Remake: an item number the item table
+        /// <summary>Item::mixItems: everything in cargo or in stock, grouped by category and tech level, including DLC items. Remake: an item number the item table
         /// doesn't have is left out (logged once): the window reads every row's item, and one unknown number in the hold
         /// or the stock threw on every trade (crash reports from a Windows build, 2026-10-12, source not found yet).</summary>
         public List<int> ShopItems() =>
             Session.Cargo.Where(s => s.amount > 0).Select(s => s.item)
-                .Concat(Stock.items.Where(s => s.amount > 0).Select(s => s.item)).Distinct().Where(Known).OrderBy(i => i).ToList();
+                .Concat(Stock.items.Where(s => s.amount > 0).Select(s => s.item)).Distinct().Where(Known).OrderBy(i => db.Item(i).categoryId).ThenBy(i => db.Item(i).techLevel).ThenBy(i => i).ToList();
 
         static readonly HashSet<int> reportedUnknown = new HashSet<int>();
 

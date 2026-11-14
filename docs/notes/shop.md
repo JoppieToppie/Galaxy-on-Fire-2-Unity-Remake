@@ -202,3 +202,6 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
 - **Loading time** (a player's report 2026-11-03): the millisecond rows that used the original's 149 "Loading speed"
   (attr 11 a gun's reload; 26 / 36 / 37 / 43 a booster's, cloak's or time extender's recharge; 19 without a capacity) read
   `statLoadingTime` "Loading time" (`ItemInfo.LoadingTime`); most languages' 149 says speed too.
+
+- **Default item order:** the merged shop/storage list groups by item category, then technology level and item ID.
+  DLC equipment stays beside its base-game category. This presentation order does not mutate stock or cargo lists.
