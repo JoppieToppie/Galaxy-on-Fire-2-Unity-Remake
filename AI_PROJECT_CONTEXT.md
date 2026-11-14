@@ -376,6 +376,8 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
 - **Still to specify during implementation:** exact mod data location/schema, whether population is a simple enabled/disabled setting or supports a small set of levels, what ambient NPC categories can return around player-built stations, spawn caps/cadence and persistence rules. Do not invent a complex simulation or hard-code arbitrary population rates before inspecting the existing system/NPC spawn pipeline.
 - **Status:** product direction recorded; design only. No system data, NPC spawning logic, multiplayer state or tests have been changed.
 
+For NPC population control and the existing ambient traffic pipeline, see `docs/notes/system-population.md`.
+
 ## 7. Non-goals and guardrails
 
 - Do not replace the remake's single-player game with a multiplayer-only fork.
