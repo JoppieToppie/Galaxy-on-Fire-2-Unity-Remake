@@ -112,11 +112,13 @@ ship orientation, and any existing aim/targeting logic.
 - Corrections to the earlier handover: the `rotation` field exists on `WeaponMount` (`Database.cs`) and is in the Unity ship
   frame, the one `ModHardpoints.MuzzleOffset` uses, so no frame conversion was needed.
 
-## 3b. Next feature (decisions recorded in `AI_PROJECT_CONTEXT.md` 6.1 and 6.2)
+## 3b. Ship classes and class scanners
 
-Free-form mod-defined ship classes, per-item `allowedClasses`, equipment to the hold on a ship swap, and one scanner
-attribute that reveals a locked ship's class (incl. other players' ships). Mod-gated: no effect without a mod using it.
-**Proposed only; nothing implemented yet.**
+The user has approved the design in `AI_PROJECT_CONTEXT.md` §6.2: free-form mod-defined ship classes, per-item
+`allowedClasses`, incompatible equipment moved to the hold on ship swap, and a scanner capability that reveals a locked
+target's class **immediately on lock** (including other players). The scanner is a tactical threat-identification tool;
+there is no scan progress/delay. This remains a **design proposal only**; no scanner/classification source implementation
+has been made on this branch.
 
 ## 4. Claude review request
 
@@ -139,9 +141,11 @@ Please review these notes and the current branch. In particular:
 
 ## 6. Next actions
 
-1. Claude reviews this handover and the branch source.
-2. Agree on the mount-transform implementation and projectile-path scope.
-3. Implement the correction on this feature branch only.
-4. Add/adjust tests and documentation.
-5. Have the other assistant review the resulting diff.
+1. Revise the current hardpoint launch implementation to use a distinct optional, moddable mount field such as
+   `launchRotation`, leaving existing visual `rotation` semantics unchanged. Apply it to **secondaries only**.
+2. Confirm the intended projectile-path scope and add tests for default behaviour, mount-specific direction, and each
+   supported secondary firing path.
+3. Update modding documentation and, if practical, expose the setting in Mod Builder.
+4. Independently review the implementation and verify the shot replication path.
+5. Implement ship-class data, equipment restrictions and instant scanner identification as a separate feature task.
 6. Return findings to the user for approval. Integration to `main` remains the user's decision.
