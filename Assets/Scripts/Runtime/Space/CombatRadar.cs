@@ -111,6 +111,7 @@ namespace GoF2Remake.Flight
             t != null && t.kind == Navigation.Kind.DockingTarget && t.dockingShip != null ? t.dockingShip.Target : null;
         Mining mining;
         WeaponSystem weapons;
+        FreeLookCamera freeLook;
         PlayerHealth health;
         Traffic traffic;
         CombatAssets assets;
@@ -155,6 +156,7 @@ namespace GoF2Remake.Flight
             nav = navigation;
             mining = miningSystem;
             weapons = weaponSystem;
+            freeLook = GetComponent<FreeLookCamera>();
             health = playerHealth;
             traffic = trafficManager;
             assets = CombatAssets.Load();
@@ -261,7 +263,7 @@ namespace GoF2Remake.Flight
             if (!blocked && cam != null && tractorMode == 1 && Salvaging == null) AutoSalvage(cam, true);
             if (!blocked && cam != null)
             {
-                var c = cam.WorldToScreenPoint(ChaseCamera.AimOrigin(transform) + transform.forward * CrosshairDistanceMeters);
+                var c = LockCrosshairPoint(cam, transform, freeLook != null && freeLook.FreeLookActive);
                 float box = Screen.width / 16f, bestD = float.MaxValue, stealD = float.MaxValue;
                 if (c.z > 0f)
                 {
@@ -571,6 +573,19 @@ namespace GoF2Remake.Flight
             if (nav == null) return;
             nav.ShipLockActive = Busy || Salvaging != null;   // Radar+8 / +0x1c
             nav.ShipLocked = Locked != null ? Locked.transform : null;   // remake: fast-forward to a ship that holds still
+        }
+
+        /// <summary>The radar's lock-acquisition point: the ship's forward aim line normally, the active camera's viewport
+        /// centre while free look is active.</summary>
+        public static Vector3 LockCrosshairPoint(Camera cam, Transform ship, bool freeLookActive)
+        {
+            if (cam == null || ship == null) return Vector3.zero;
+            if (freeLookActive)
+            {
+                var centre = cam.pixelRect.center;
+                return new Vector3(centre.x, centre.y, 1f);
+            }
+            return cam.WorldToScreenPoint(ChaseCamera.AimOrigin(ship) + ship.forward * CrosshairDistanceMeters);
         }
 
         static bool InBox(Camera cam, Vector3 crosshair, float box, Vector3 world, out float dist)

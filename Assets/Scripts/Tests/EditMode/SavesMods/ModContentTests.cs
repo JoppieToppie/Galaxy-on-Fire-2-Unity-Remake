@@ -538,6 +538,7 @@ namespace GoF2Remake.Tests
         {
             var s = Database.Load().Ship(22);
             Assert.IsNull(s.chaseCamera);
+            Assert.AreEqual(ModShipView.DefaultOrbitDistance, s.orbitCameraDistance);
             Assert.IsNull(s.cockpit);
             Assert.IsNull(s.smokePoints);
             Assert.AreEqual(1f, s.explosionScale);
@@ -550,12 +551,13 @@ namespace GoF2Remake.Tests
         public void AShipHasItsOwnCameraCockpitSmokeAndExplosion()
         {
             WriteMod("view", "t_view", "1.0", "", ("ships.json",
-                "[ { 'override': 22, 'camera': { 'distance': 2400, 'height': 900 }, 'cockpit': [ 10, 80, 500 ]," +
+                "[ { 'override': 22, 'camera': { 'distance': 2400, 'height': 900, 'orbitDistance': 6200 }, 'cockpit': [ 10, 80, 500 ]," +
                 "    'smoke': [ [ 40, 60, -100 ], [ -40, 60, -100 ] ], 'explosionScale': 1.6 } ]"));
             ScanAndEnable("t_view");
             Assert.IsFalse(Installed("t_view").Broken, AllMessages(Installed("t_view")));
             var s = Database.Load().Ship(22);
             CollectionAssert.AreEqual(new[] { 2400f, 900f, 600f, -650f }, s.chaseCamera, "the fields left out keep the original's");
+            Assert.AreEqual(6200f, s.orbitCameraDistance);
             Assert.AreEqual(new UnityEngine.Vector3(10, 80, 500), s.cockpit.Value);
             Assert.AreEqual(2, s.smokePoints.Count);
             Assert.AreEqual(1.6f, s.explosionScale, 1e-4f);
@@ -566,14 +568,24 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void AnOrbitDistanceBelowTheZoomMinimumIsClamped()
+        {
+            WriteMod("view", "t_view_min", "1.0", "", ("ships.json",
+                "[ { 'override': 22, 'camera': { 'orbitDistance': 1000 } } ]"));
+            ScanAndEnable("t_view_min");
+            Assert.AreEqual(ModShipView.MinOrbitDistance, Database.Load().Ship(22).orbitCameraDistance);
+        }
+
+        [Test]
         public void AShipsViewWarnsAndClamps()
         {
             WriteMod("view", "t_view2", "1.0", "", ("ships.json",
-                "[ { 'override': 22, 'camera': { 'distance': 2000, 'zoom': 2 }, 'explosionScale': 50," +
+                "[ { 'override': 22, 'camera': { 'distance': 2000, 'orbitDistance': 50000, 'zoom': 2 }, 'explosionScale': 50," +
                 "    'smoke': [ [0,0,0], [0,0,1], [0,0,2], [0,0,3], [0,0,4] ] } ]"));
             ScanAndEnable("t_view2");
             var s = Database.Load().Ship(22);
             Assert.AreEqual(ModShipView.MaxExplosion, s.explosionScale);
+            Assert.AreEqual(ModShipView.MaxOrbitDistance, s.orbitCameraDistance);
             Assert.AreEqual(ModShipView.MaxSmokePoints, s.smokePoints.Count);
             string all = AllMessages(Installed("t_view2"));
             StringAssert.Contains("unknown camera field \"zoom\"", all);
@@ -585,6 +597,7 @@ namespace GoF2Remake.Tests
         [Test] public void SmokeIsAListOfPoints() => StringAssert.Contains("each smoke point must be", ParseError("[ { 'override': 22, 'smoke': [ 1, 2, 3 ] } ]", "ships.json"));
         [Test] public void ACameraIsAnObject() => StringAssert.Contains("\"camera\" must be an object", ParseError("[ { 'override': 22, 'camera': 2000 } ]", "ships.json"));
         [Test] public void ACamerasDistanceIsAboveZero() => StringAssert.Contains("\"distance\" must be above 0", ParseError("[ { 'override': 22, 'camera': { 'distance': 0 } } ]", "ships.json"));
+        [Test] public void AnOrbitDistanceMustBeAboveZero() => StringAssert.Contains("\"orbitDistance\" must be above 0", ParseError("[ { 'override': 22, 'camera': { 'orbitDistance': 0 } } ]", "ships.json"));
 
         // ---- a steady engine glow (a modder's request: dark parked, lit through the take-off and all flight) -------------
 
