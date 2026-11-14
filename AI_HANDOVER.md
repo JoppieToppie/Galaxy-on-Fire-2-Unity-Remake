@@ -143,6 +143,37 @@ or user-visible vanilla `default` class. Capable scanners instantly reveal an ex
 targets have no class readout. This remains a **design proposal only**; no scanner/classification source implementation
 has been made on this branch.
 
+## 3d. Class-based station exterior docking and freighter boarding
+
+The user has now defined the following docking design (2026-11-15). This is **design only**; no implementation or tests:
+
+- Every station supports both existing **interior docking** and **external docking**. This is not a per-station opt-in.
+- Docking mode is class-controlled. **Fighters and Interceptors are explicitly interior-only.** The full mapping of every
+  other standard/custom class to interior vs external has not yet been decided; do not assume all Frigate-and-larger
+  classes are automatically external-only without confirmation.
+- An **unclassified** ship retains ordinary interior docking but is completely unable to use external station docking.
+  External docking is an explicitly granted capability, never a fallback for missing class data.
+- External docking keeps the ship physically present alongside the station in the space scene and visible to other server
+  members, following the moving-station docking model. The docking player's camera stays in space; it does not enter the
+  station. Selecting Space Lounge is a separate explicit interior transition and must not make the docked ship disappear.
+- The eventual physical arrangement uses a docking attachment point on the ship hull (typically on its side) and a
+  complementary station-side arm / attachment point. Initial implementation needs only functional transforms and docking
+  positioning; no visible docking hardware or animation is required yet. A ship configured for external docking must have
+  a valid hull docking point; if absent, deny external docking rather than using an arbitrary fallback.
+- Hackable freighters **do not** support external docking. Freighter boarding/hacking is a separate close-range interaction
+  and is limited to ships **smaller than a Frigate**. A Frigate-sized ship or anything larger cannot hack-board a freighter.
+  Remote hacking is not part of the initial design.
+- Preserve normal interior docking for unclassified vanilla ships. Multiplayer authority and replicated docked-ship state
+  must be considered from the start.
+
+Implementation/research checklist:
+1. Trace existing station docking, moving-station docking, Space Lounge transitions and camera ownership.
+2. Trace hackable-freighter docking/hacking and establish the authoritative ship-size/class gate.
+3. Define the mod class docking-mode field and the ship-kit hull docking-point representation; preserve absent-class defaults.
+4. Implement station external docking as a distinct mode while keeping the ship replicated in the shared space scene.
+5. Add tests for unclassified denial, interior-only classes, external-capable classes, missing docking points, and freighter
+   boarding size boundary; test multi-client visibility and Space Lounge camera transitions in Unity.
+
 ## 4. Claude review request
 
 Please review these notes and the current branch. In particular:
