@@ -11,6 +11,21 @@ This file holds only what every task needs. Everything about one area of the gam
 - The Grep tool skips what `.ignore` lists (the embedded Netcode package, four one-line data tables); search those with `grep -r` in a shell or read them directly.
 - Code comments cite `CLAUDE.md "<section>"` (a heading or a bullet's bold title): the names are unchanged, so look them up with `grep -rn "<section>" docs/notes`.
 
+### AI collaboration notes (Claude + ChatGPT)
+
+The user coordinates work between Claude and ChatGPT as independent contributors. Before taking over an AI-assisted
+task, read these shared notes at the repository root:
+
+- [AI_PROJECT_CONTEXT.md](AI_PROJECT_CONTEXT.md): ultimate multiplayer-expansion goal, product pillars, architecture
+  constraints, ownership rules and collaboration protocol.
+- [AI_HANDOVER.md](AI_HANDOVER.md): the current task, active branch, findings, status and next actions.
+- [AI_TASK_LOG.md](AI_TASK_LOG.md): chronological record of investigations and completed work.
+- [AI_CHANGELOG.md](AI_CHANGELOG.md): concise record of actual repository changes.
+
+The user manually passes work between assistants; do not assume an automated assistant-to-assistant channel.
+Never merge feature work into `main` without the user's explicit approval. Keep proposed, implemented, committed,
+pushed, compiled, tested, reviewed and integrated statuses distinct.
+
 | File | What it covers |
 | --- | --- |
 | [editor-tools.md](docs/notes/editor-tools.md) | Every GoF2 menu item in `Scripts/Editor`: what it builds and where it writes |
