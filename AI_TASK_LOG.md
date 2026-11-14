@@ -1,3 +1,18 @@
+## 2026-11-15 — Turret hardpoint scaling and point-defence targeting decisions
+
+- **Contributor:** ChatGPT
+- **Branch:** `feature/secondary-homing-delay-launch-angle`
+- **User decisions:** Turret size should be independently adjustable per turret hardpoint, not via ship-kit hull scale.
+  Point-defence targeting uses three profiles: `ships`, `missiles`, and `missiles_priority`; explicitly no `balanced`.
+- **Design distinction:** Existing `fx.turret.scale` is on turret weapon item models, not Ship Kits' turret hardpoint definitions.
+  The requested addition is a hardpoint-owned scale (candidate JSON name `turretScale`), with absent field preserving
+  existing size. Final field name and transform semantics require code-path inspection.
+- **Targeting:** profiles belong to turret item configuration and are independent of damage. Missile-priority turrets may
+  engage ships when no missile target is available; their anti-ship damage can remain low. Reuse existing missile point-defence
+  logic, with multiplayer authority and duplicate-interception behaviour audited.
+- **Status:** design/documentation only. No gameplay source, schemas, Mod Builder controls or tests changed.
+  No Unity build/tests run.
+
 ## 2026-11-15 — Clarify ship classes are mod-only, with unrestricted vanilla fallback
 
 - **Contributor:** ChatGPT
