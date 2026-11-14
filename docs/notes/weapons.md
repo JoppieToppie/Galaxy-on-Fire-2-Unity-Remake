@@ -18,7 +18,11 @@ is generated from it by `Reference/tools/weapons/build_weapon_fx.py`; **GoF2 > B
 - `Gun` (plain C#): one per equipped weapon on its mount (remake: weapons past the model's mount points, a mod's or a
   Kaamo upgrade's extra slots, reuse the mounts in turn, the centre without any; they were skipped, so an extra
   secondary could be neither selected nor fired); bullet pool; attr 11 reload, attr 9 damage, **attr 13 speed in
-  units/ms, attr 12 "range" = lifetime in ms**; straight along the nose (no convergence/aim assist); axis-aligned cube
+  units/ms, attr 12 "range" = lifetime in ms**; straight along the nose (no convergence/aim assist; remake, mods: a **secondary** leaves along its hardpoint's `rotation`,
+  `WeaponMount.RotationTurn` -> `Gun.launchTurn`, set by `WeaponSystem.Setup` from the mount the gun sits on, so one missile
+  leaves two mounts in two directions; `upsideDown` isn't part of it, primaries / turrets / mounts without a rotation fly
+  ahead; attr 172 `homingDelayMs` is the item's: a homing shot flies straight that long first; the multiplayer shot data
+  already carries the velocity and the delay, so a remote client sees the same flight; `GunLaunchTests`); axis-aligned cube
   hit test (or local boxes for freighters; remake: the hull's meshes, see "Mesh collision"), never hitting its `owner`;
   rockets/missiles coast 2 s past their lifetime; missiles home on `LockTarget` (the radar's ship lock; remake: also
   while it is off screen or the camera is in free look, `WeaponSystem.HomingLock`: `RocketGun::seekEnemy` needs the

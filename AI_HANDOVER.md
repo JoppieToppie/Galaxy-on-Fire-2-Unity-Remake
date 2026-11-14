@@ -1,9 +1,9 @@
 # AI handover — current baton pass
 
 > **Read this first when continuing the project.**
-> Last updated: 2026-11-15
-> Prepared by: ChatGPT
-> Intended recipient: Claude (and the user)
+> Last updated: 2026-11-15 (second update)
+> Prepared by: ChatGPT, then updated by Claude after the corrections below
+> Intended recipient: ChatGPT (review) and the user
 
 ## 1. Repository and branch
 
@@ -97,13 +97,26 @@ that physical hardpoint orientation to the projectile's initial launch vector. I
 weapon model's local forward without checking coordinate spaces, parent transforms, muzzle transforms,
 ship orientation, and any existing aim/targeting logic.
 
-### Current status
+### Current status (updated by Claude)
 
-- Item-level launch angle: **identified as incorrect; removal planned, not yet performed**.
-- Hardpoint-based launch orientation: **design direction identified; implementation not yet performed**.
-- Homing delay: **present on the branch; not yet fully validated**.
-- Multiplayer trajectory consistency: **not yet audited for this branch**.
-- Unity compile / tests: **not run by this documentation task**.
+- Item-level launch angle: **removed** (attrs 173 / 174, tests, docs). **Implemented, committed; not compiled.**
+- Hardpoint-based launch: **Implemented**: `WeaponMount.RotationTurn` -> `Gun.launchTurn`, set in `WeaponSystem.Setup` for
+  **secondaries only** (owner's instruction), applied on the plain, salvo and cluster paths. Mines and beams are deliberately
+  untouched; primaries, turrets and NPC / capital guns are untouched. Mounts without `rotation` fly straight (all 135 original
+  secondary mounts). `upsideDown` is deliberately **not** part of the launch turn (`MountTurn` adds it for the model only).
+- Homing delay (`homingDelayMs`, attr 172): item property, read in the `Gun` item ctor, clamped 0..60000 ms (the wire field is a ushort).
+- Multiplayer: **audited.** `NetShotData` carries velocity and homing delay, and `NetShotMirror` injects by velocity, so
+  remote clients see the same flight without a protocol change. Not tested over a network.
+- Unity compile / `GunLaunchTests`: **not run** (no Editor here). Hand-check suggestion: a mod ship whose secondary mount has
+  `"rotation": [-90, 0, 0]` (up) and another with `[0, 90, 0]` (right), same missile.
+- Corrections to the earlier handover: the `rotation` field exists on `WeaponMount` (`Database.cs`) and is in the Unity ship
+  frame, the one `ModHardpoints.MuzzleOffset` uses, so no frame conversion was needed.
+
+## 3b. Next feature (decisions recorded in `AI_PROJECT_CONTEXT.md` 6.1 and 6.2)
+
+Free-form mod-defined ship classes, per-item `allowedClasses`, equipment to the hold on a ship swap, and one scanner
+attribute that reveals a locked ship's class (incl. other players' ships). Mod-gated: no effect without a mod using it.
+**Proposed only; nothing implemented yet.**
 
 ## 4. Claude review request
 

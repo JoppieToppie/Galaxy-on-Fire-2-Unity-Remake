@@ -197,13 +197,13 @@ namespace GoF2Remake.Flight
         public const int SlowFreezeAttr = 167, DotDamageAttr = 168, DotMsAttr = 169, VulnerablePercentAttr = 170, VulnerableMsAttr = 171;
         [System.NonSerialized] public bool slowFreeze;
         [System.NonSerialized] public float dotDamage, dotMs, vulnerablePercent, vulnerableMs;
-        /// <summary>Remake mods: 172 homingDelayMs (a homing shot flies straight this long before it starts to home; the NPCs'
-        /// rockets have 1000, a player's missile 0 unless the item says so), 173 launchPitchDeg / 174 launchYawDeg (the shot
-        /// leaves the mount turned this many degrees up / to the right of the gun's line, whole degrees, negative = down /
-        /// left; the ship and the spawn point don't move).</summary>
-        public const int HomingDelayAttr = 172, LaunchPitchAttr = 173, LaunchYawAttr = 174;
-        const float MaxHomingDelayMs = 60000f, MaxLaunchDeg = 180f;
-        /// <summary>The turn from the gun's line to the shot's launch direction (identity = straight ahead).</summary>
+        /// <summary>Remake mods: 172 homingDelayMs (an item property: a homing shot flies straight this long before it starts to
+        /// home; the NPCs' rockets have 1000, a player's missile 0 unless the item says so).</summary>
+        public const int HomingDelayAttr = 172;
+        const float MaxHomingDelayMs = 60000f;
+        /// <summary>The turn from the gun's line to the shot's launch direction (identity = straight ahead). Not an item
+        /// property: a secondary's launch direction belongs to its hardpoint (WeaponMount.rotation), so WeaponSystem sets it from
+        /// the mount the gun sits on, and the same missile leaves two mounts in two directions.</summary>
         [System.NonSerialized] public Quaternion launchTurn = Quaternion.identity;
 
         public static float ShieldFactor(ItemData item)
@@ -235,10 +235,6 @@ namespace GoF2Remake.Flight
             vulnerableMs = Mathf.Max(0, item.Attr(VulnerableMsAttr));
             echo = GunEcho.From(item);
             homingDelayMs = Mathf.Clamp(item.Attr(HomingDelayAttr), 0f, MaxHomingDelayMs);
-            float launchPitch = Mathf.Clamp(item.Attr(LaunchPitchAttr), -MaxLaunchDeg, MaxLaunchDeg);
-            float launchYaw = Mathf.Clamp(item.Attr(LaunchYawAttr), -MaxLaunchDeg, MaxLaunchDeg);
-            // Unity's pitch is about +X with + = down, so up is the negative angle; yaw about +Y, + = right.
-            if (launchPitch != 0f || launchYaw != 0f) launchTurn = Quaternion.Euler(-launchPitch, launchYaw, 0f);
             emp = item.Attr(10);
             reloadMs = Mathf.Max(1, item.Attr(11, 500));
             lifetimeMs = kind == Kind.ShockBlast ? 1f : item.Attr(12, 2000);

@@ -242,6 +242,25 @@ The following ownership rule is important across the project:
 Do not put a property on an item merely because it is convenient to read from `Gun`. Put it on the
 definition/entity that actually owns the property.
 
+### 6.1 Mod-gated features (owner's standing rule)
+
+New systems for multiplayer / modding must have **no effect, or the most minimal one, on the existing single-player and
+co-op game unless a mod opts in to them**. Every new field is optional and absent = today's behaviour; the original game's
+data stays untouched; plain-logic tests should prove an unclassed ship / unrestricted item behaves exactly as before.
+
+### 6.2 Ship classes, class-restricted equipment and class scanners (owner's decisions, 2026-11-15; Proposed, not implemented)
+
+- **Classes are free-form and mod-defined** (e.g. "fighter", "frigate"), so other modders can build on them; no fixed list.
+  A ship has an optional class (none on every original ship); only mods assign one.
+- **Restriction is an allow-list per item** (`allowedClasses`); no exclude-list. An item without the list fits every ship.
+- **Ship swap:** equipment that does not fit the new ship's class goes to the **hold** (like a built-in drive does now); the
+  swap is not blocked. `Hangar.CanMount` is the existing mount gate (Khador Drive, cloak bay) and the natural place for the
+  refusal; also audit buy-and-mount, saves / start loadouts, the Kaamo club, cheats and kit ships.
+- **Scanner:** **one scanner attribute** that simply reveals the locked ship's class on lock (precedent: attr 31, the cargo
+  readout, `CombatRadar.ReadCargo`). Only mod scanners carry it. The class shows on **other players' ships** as well as NPCs.
+- **Multiplayer:** the class restriction is enforced by the server / authority, not trusted from the client; the class of a
+  remote ship must be replicated or derivable from the ship every client already knows (to check: ship index in player state).
+
 ## 7. Non-goals and guardrails
 
 - Do not replace the remake's single-player game with a multiplayer-only fork.

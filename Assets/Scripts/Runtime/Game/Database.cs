@@ -126,6 +126,20 @@ namespace GoF2Remake.Data
         public float[] glowColor, glowSize, turretUp;
         public string glowShape;
 
+        /// <summary>The mount's "rotation" as a turn in the ship model's (Unity) frame: Euler degrees (3 numbers) or a quaternion
+        /// (4), identity without one. upsideDown is not part of it (ModHardpoints.MountTurn adds that half turn for the model).
+        /// A secondary's shots leave along it (WeaponSystem.Setup).</summary>
+        public Quaternion RotationTurn
+        {
+            get
+            {
+                var r = rotation;
+                if (r != null && r.Length >= 4) return new Quaternion(r[0], r[1], r[2], r[3]).normalized;
+                if (r != null && r.Length >= 3) return Quaternion.Euler(r[0], r[1], r[2]);
+                return Quaternion.identity;
+            }
+        }
+
         /// <summary>turretUp (else upsideDown) in the Unity ship frame ((-x, y, z), the models are mirrored): a unit vector,
         /// Vector3.up for a plain mount.</summary>
         public Vector3 TurretUpLocal

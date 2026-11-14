@@ -325,7 +325,6 @@ energy cells.
 | `echoRadius` | 129 | The echo's reach in game units (0 = the gun's own `blastRadius`) |
 | `echoExplosion` | 130 | The explosion the echo shows: 0 ship, 8 to 10 scatter (8 the default), 11 shock blast, 13 fireworks; -1 none |
 | `homingDelayMs` | 172 | A homing shot (a missile, a `missiles` gun or turret) flies straight this many ms before it starts to home (default 0 = at once; the game's NPC rockets use 1000) |
-| `launchPitchDeg`, `launchYawDeg` | 173, 174 | The shot leaves the mount turned this many whole degrees up (`launchPitchDeg`, negative = down) and to the right (`launchYawDeg`, negative = left) of the gun's line, in the ship's own axes (90 = straight up / straight right; default 0 = straight ahead). Beams, mines and bombs ignore it |
 | `missileDefense` | 131 | Missile defense: with this item mounted, the ship's automatic turrets shoot down the homing missiles flying at it within this reach (game units, 20 per metre), before turning to enemy ships. Any item can carry it; on a seatless cabin (`"base": 91`, `"cabinSize": 0`) it changes nothing else and the shop calls it "Missile defense". Another player's missiles in multiplayer are left alone |
 | `cruiseSpeed` | 133 | A cruise drive's speed factor in hundredths (400 = x4; > 0 makes an item based on the Khador Drive a cruise drive, see [Cruise drives](#cruise-drives)) |
 | `interstellar` | 135 | 1: the mounted cruise drive also flies the space between the systems ([Cruise drives](#cruise-drives)) |
@@ -1372,8 +1371,9 @@ In `ships.json`, a new ship with `"kit"` instead of `"model"`:
 Everything else is a normal ship's (stats, `mounts`, `icon`, glows, `lounge`, `dealer`). Mounts can come with the parts: a build
 fires from, and glows at, its parts' mounts of each slot type (with the tier extensions' at that tier), and uses the ship's own
 `mounts` only for a slot type none of its parts has. A primary or secondary mount may carry `"rotation"`: how its weapon model is turned on the hull, in the ship model's frame (x
-right, y up, z forward), as Euler degrees `[x, y, z]` or a quaternion `[x, y, z, w]` (a gun on a slanted wing); the shots
-still fly along the nose, from the turned model's muzzle. `"nodes": ["<node name>", ...]` names parts of the ship's own
+right, y up, z forward), as Euler degrees `[x, y, z]` or a quaternion `[x, y, z, w]` (a gun on a slanted wing); a primary's shots
+still fly along the nose, from the turned model's muzzle; a secondary's shot leaves along the rotation (the same missile leaves two
+mounts in two directions; `upsideDown`'s half turn only turns the model), then flies on or homes as its item says (`homingDelayMs`). `"nodes": ["<node name>", ...]` names parts of the ship's own
 model (a hardpoint's pylon) that show only while that mount carries a weapon: with two guns mounted, only the first two
 mounts' pylons show. So wings can carry their guns, rears their exhausts, and a turret socket
 comes with the wing set that has one (give the ship as many turret slots as its default build has turret mounts).

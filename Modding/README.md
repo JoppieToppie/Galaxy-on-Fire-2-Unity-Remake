@@ -337,7 +337,6 @@ energy cells.
 | `dotDamage`, `dotMs` | 168, 169 | A hit adds `dotDamage` every 0.95 s for `dotMs`, past the shield, counted as yours; hits stack (EVERSPACE 2's corrosion and infestation). NPC ships only |
 | `vulnerablePercent`, `vulnerableMs` | 170, 171 | A hit makes the ship take `vulnerablePercent` % more from every hit for `vulnerableMs`; hits stack, up to +100 % (EVERSPACE 2's destabilized). NPC ships only |
 | `homingDelayMs` | 172 | A homing shot (a missile, a `missiles` gun or turret) flies straight this many ms before it starts to home (default 0 = at once; the game's NPC rockets use 1000) |
-| `launchPitchDeg`, `launchYawDeg` | 173, 174 | The shot leaves the mount turned this many whole degrees up (`launchPitchDeg`, negative = down) and to the right (`launchYawDeg`, negative = left) of the gun's line, in the ship's own axes (90 = straight up / straight right; default 0 = straight ahead). Beams, mines and bombs ignore it |
 | `device` | 150 | An active device's type (see [Devices](#devices)): 1 EMP wave, 2 EMP shot, 3 shield disruptor, 4 overcharger area, 5 overcharger beam, 6 strike charge, 7 deflector |
 | `deviceCooldownMs` | 151 | Device: its cooldown after a run (default 60000) |
 | `deviceDurationMs` | 152 | Device: how long it runs: the slow on its targets, the strike charge's boost, the deflector (0 = at once) |
@@ -1501,8 +1500,9 @@ In `ships.json`, a new ship with `"kit"` instead of `"model"`:
 Everything else is a normal ship's (stats, `mounts`, `icon`, glows, `lounge`, `dealer`). Mounts can come with the parts: a build
 fires from, and glows at, its parts' mounts of each slot type (with the tier extensions' at that tier), and uses the ship's own
 `mounts` only for a slot type none of its parts has. A primary or secondary mount may carry `"rotation"`: how its weapon model is turned on the hull, in the ship model's frame (x
-right, y up, z forward), as Euler degrees `[x, y, z]` or a quaternion `[x, y, z, w]` (a gun on a slanted wing); the shots
-still fly along the nose, from the turned model's muzzle. `"nodes": ["<node name>", ...]` names parts of the ship's own
+right, y up, z forward), as Euler degrees `[x, y, z]` or a quaternion `[x, y, z, w]` (a gun on a slanted wing); a primary's shots
+still fly along the nose, from the turned model's muzzle; a secondary's shot leaves along the rotation (the same missile leaves two
+mounts in two directions; `upsideDown`'s half turn only turns the model), then flies on or homes as its item says (`homingDelayMs`). `"nodes": ["<node name>", ...]` names parts of the ship's own
 model (a hardpoint's pylon) that show only while that mount carries a weapon: with two guns mounted, only the first two
 mounts' pylons show. So wings can carry their guns, rears their exhausts, and a turret socket
 comes with the wing set that has one (give the ship as many turret slots as its default build has turret mounts).

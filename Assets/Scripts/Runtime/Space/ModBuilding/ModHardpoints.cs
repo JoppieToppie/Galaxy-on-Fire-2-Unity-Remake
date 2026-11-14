@@ -159,10 +159,7 @@ namespace GoF2Remake.Modding
         /// degrees, or a quaternion), then upsideDown's half turn about the ship's length.</summary>
         public static Quaternion MountTurn(WeaponMount m)
         {
-            var q = Quaternion.identity;
-            var r = m?.rotation;
-            if (r != null && r.Length >= 4) q = new Quaternion(r[0], r[1], r[2], r[3]).normalized;
-            else if (r != null && r.Length >= 3) q = Quaternion.Euler(r[0], r[1], r[2]);
+            var q = m != null ? m.RotationTurn : Quaternion.identity;
             return m != null && m.upsideDown ? q * Quaternion.Euler(0f, 0f, 180f) : q;
         }
 

@@ -5,6 +5,21 @@ Newest entries go at the top.
 
 ---
 
+## 2026-11-15 — Secondary launch direction from the hardpoint (Claude)
+
+**Branch:** `feature/secondary-homing-delay-launch-angle`
+
+Changed:
+- Removed item attributes `launchPitchDeg` / `launchYawDeg` (173 / 174) and their docs. `homingDelayMs` (172) stays on the item.
+- `WeaponMount.RotationTurn` (new): the mount's `rotation` as a turn, without `upsideDown`. `ModHardpoints.MountTurn` uses it (same result).
+- `WeaponSystem.Setup`: a secondary's `Gun.launchTurn` comes from its mount; `Gun.TryFire` applies it on the plain, salvo and cluster paths.
+- `GunLaunchTests` rewritten (same missile on two mounts, default straight ahead, upsideDown excluded, ship axes, speed kept).
+- Docs: `Modding/README.md`, `Modding/ai/gof2-modding/guide.md`, `docs/notes/weapons.md`.
+
+Not compiled; tests not run. No network protocol, save or primary / turret change.
+
+---
+
 ## 2026-11-15 — Add shared AI collaboration documentation
 
 **Branch:** `feature/secondary-homing-delay-launch-angle`

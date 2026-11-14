@@ -1,7 +1,8 @@
 // GunLaunchTests.cs
-// Remake mods (ItemStats 172-174): homingDelayMs (a homing shot flies straight for that long before it homes) and
-// launchPitchDeg / launchYawDeg (the shot leaves the mount turned that many degrees up / to the right of the gun's line).
-// Feature: Modding/README.md "Weapons" (homingDelayMs, launchPitchDeg, launchYawDeg).
+// Remake mods: homingDelayMs (ItemStats 172, an item property: a homing shot flies straight that long before it homes) and
+// a secondary's launch direction, which belongs to its hardpoint (WeaponMount.rotation -> WeaponMount.RotationTurn -> Gun.launchTurn,
+// set by WeaponSystem.Setup): the same missile on two mounts leaves in two directions.
+// Feature: Modding/README.md "Weapons" (homingDelayMs) and the mount's "rotation".
 
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
@@ -31,54 +32,88 @@ namespace GoF2Remake.Tests
             return gun.bullets[0].velocity.normalized;
         }
 
-        [Test]
-        public void TheNamesMapToTheirAttributes()
+        static Vector3 Fire(Gun gun, Quaternion shipRotation)
         {
-            Assert.AreEqual(172, ItemStats.IdOf("homingDelayMs"));
-            Assert.AreEqual(173, ItemStats.IdOf("launchPitchDeg"));
-            Assert.AreEqual(174, ItemStats.IdOf("launchYawDeg"));
+            Assert.AreEqual(0, gun.TryFire(Vector3.zero, shipRotation, false));
+            return gun.bullets[0].velocity.normalized;
+        }
+
+        static void AssertDirection(Vector3 expected, Vector3 actual) =>
+            Assert.That(Vector3.Distance(expected.normalized, actual), Is.LessThan(1e-4f), $"expected {expected}, got {actual}");
+
+        [Test]
+        public void TheHomingDelayNameMapsToItsAttribute() => Assert.AreEqual(172, ItemStats.IdOf("homingDelayMs"));
+
+        [Test]
+        public void TheItemNoLongerCarriesALaunchAngle()
+        {
+            Assert.AreEqual(-1, ItemStats.IdOf("launchPitchDeg"));
+            Assert.AreEqual(-1, ItemStats.IdOf("launchYawDeg"));
         }
 
         [Test]
-        public void WithoutTheAttributesThePlayersMissileHomesAtOnceAndGoesStraightAhead()
+        public void WithoutAnythingThePlayersMissileHomesAtOnceAndGoesStraightAhead()
         {
             var gun = new Gun(Missile(), Vector3.zero, true);
             Assert.AreEqual(0f, gun.homingDelayMs, 1e-4f);
             Assert.AreEqual(Quaternion.identity, gun.launchTurn);
-            Assert.That(Vector3.Distance(Vector3.forward, FireDirection(Missile(), Quaternion.identity)), Is.LessThan(1e-4f));
+            AssertDirection(Vector3.forward, Fire(gun, Quaternion.identity));
         }
 
         [Test]
-        public void TheHomingDelayIsReadFromTheItem()
-        {
+        public void TheHomingDelayIsReadFromTheItem() =>
             Assert.AreEqual(750f, new Gun(Missile(172, 750), Vector3.zero, true).homingDelayMs, 1e-4f);
-        }
 
         [Test]
-        public void ANegativeHomingDelayIsNone()
-        {
+        public void ANegativeHomingDelayIsNone() =>
             Assert.AreEqual(0f, new Gun(Missile(172, -5), Vector3.zero, true).homingDelayMs, 1e-4f);
+
+        [Test]
+        public void AMountWithoutARotationTurnsNothing()
+        {
+            Assert.AreEqual(Quaternion.identity, new WeaponMount().RotationTurn);
+            Assert.AreEqual(Quaternion.identity, new WeaponMount { rotation = new float[0] }.RotationTurn);
         }
 
         [Test]
-        public void ThePitchLaunchesTheShotUp()
+        public void TheMountsEulerRotationIsATurnInTheShipsFrame()
         {
-            var d = FireDirection(Missile(173, 90), Quaternion.identity);
-            Assert.That(Vector3.Distance(Vector3.up, d), Is.LessThan(1e-4f));
+            // Unity: pitch about +X with + = down, so -90 turns the nose up; yaw about +Y, + = right.
+            var up = new WeaponMount { rotation = new[] { -90f, 0f, 0f } }.RotationTurn;
+            var right = new WeaponMount { rotation = new[] { 0f, 90f, 0f } }.RotationTurn;
+            AssertDirection(Vector3.up, up * Vector3.forward);
+            AssertDirection(Vector3.right, right * Vector3.forward);
         }
 
         [Test]
-        public void ANegativePitchLaunchesTheShotDown()
+        public void TheMountsQuaternionRotationIsRead()
         {
-            var d = FireDirection(Missile(173, -90), Quaternion.identity);
-            Assert.That(Vector3.Distance(Vector3.down, d), Is.LessThan(1e-4f));
+            var q = Quaternion.Euler(0f, 90f, 0f);
+            var turn = new WeaponMount { rotation = new[] { q.x, q.y, q.z, q.w } }.RotationTurn;
+            AssertDirection(Vector3.right, turn * Vector3.forward);
         }
 
         [Test]
-        public void TheYawLaunchesTheShotToTheRight()
+        public void UpsideDownIsNotPartOfTheLaunchTurn()
         {
-            var d = FireDirection(Missile(174, 90), Quaternion.identity);
-            Assert.That(Vector3.Distance(Vector3.right, d), Is.LessThan(1e-4f));
+            // a secondary hung under the hull still fires ahead: the half turn about the ship's length is for its model only
+            Assert.AreEqual(Quaternion.identity, new WeaponMount { upsideDown = true }.RotationTurn);
+        }
+
+        [Test]
+        public void TheSameMissileLeavesTwoMountsInTwoDirections()
+        {
+            var item = Missile(172, 400);
+            var top = new Gun(item, Vector3.zero, true) { launchTurn = new WeaponMount { rotation = new[] { -90f, 0f, 0f } }.RotationTurn };
+            var side = new Gun(item, Vector3.zero, true) { launchTurn = new WeaponMount { rotation = new[] { 0f, 90f, 0f } }.RotationTurn };
+            var plain = new Gun(item, Vector3.zero, true);
+            AssertDirection(Vector3.up, Fire(top, Quaternion.identity));
+            AssertDirection(Vector3.right, Fire(side, Quaternion.identity));
+            AssertDirection(Vector3.forward, Fire(plain, Quaternion.identity));
+            // the item's own stats are untouched by where it is mounted
+            Assert.AreEqual(top.speedUnitsPerMs, side.speedUnitsPerMs, 1e-6f);
+            Assert.AreEqual(top.homingDelayMs, side.homingDelayMs, 1e-6f);
+            Assert.AreEqual(top.damage, plain.damage);
         }
 
         [Test]
@@ -86,24 +121,18 @@ namespace GoF2Remake.Tests
         {
             // a ship turned 90 degrees to the right: its "up" is still up, its "right" is world back
             var ship = Quaternion.Euler(0f, 90f, 0f);
-            Assert.That(Vector3.Distance(Vector3.up, FireDirection(Missile(173, 90), ship)), Is.LessThan(1e-4f));
-            Assert.That(Vector3.Distance(Vector3.back, FireDirection(Missile(174, 90), ship)), Is.LessThan(1e-4f));
+            var topMount = new Gun(Missile(), Vector3.zero, true) { launchTurn = Quaternion.Euler(-90f, 0f, 0f) };
+            var sideMount = new Gun(Missile(), Vector3.zero, true) { launchTurn = Quaternion.Euler(0f, 90f, 0f) };
+            AssertDirection(Vector3.up, Fire(topMount, ship));
+            AssertDirection(Vector3.back, Fire(sideMount, ship));
         }
 
         [Test]
-        public void TheShotKeepsItsSpeed()
+        public void TheShotKeepsItsSpeedWhateverTheMountsTurn()
         {
-            var gun = new Gun(Missile(173, 90, 174, 45), Vector3.zero, true);
+            var gun = new Gun(Missile(), Vector3.zero, true) { launchTurn = Quaternion.Euler(-45f, 30f, 0f) };
             gun.TryFire(Vector3.zero, Quaternion.identity, false);
             Assert.AreEqual(20f * Gun.MetersPerUnit, gun.bullets[0].velocity.magnitude, 1e-4f);
-        }
-
-        [Test]
-        public void TheAnglesAreClamped()
-        {
-            var gun = new Gun(Missile(173, 100000), Vector3.zero, true);
-            gun.TryFire(Vector3.zero, Quaternion.identity, false);
-            Assert.That(Vector3.Distance(Vector3.back, gun.bullets[0].velocity.normalized), Is.LessThan(1e-3f));   // 180 degrees up = backward
         }
     }
 }
