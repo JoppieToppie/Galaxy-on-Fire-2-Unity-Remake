@@ -2071,6 +2071,7 @@
  "mbStationGameModel": "游戏的 {0}。",
  "mbStationKey": "其他内容称它为 {0}。",
  "mbStationMusic": "停靠时的音乐",
+ "mbOrbitMusic": "其轨道中的音乐",
  "mbStationSize": "大小（最大尺寸，单位：20 = 1 米）",
  "mbStations": "空间站",
  "mbSystem": "星系",

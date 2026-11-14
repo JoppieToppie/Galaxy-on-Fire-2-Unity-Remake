@@ -2071,6 +2071,7 @@
  "mbStationGameModel": "गेम का {0}।",
  "mbStationKey": "दूसरी सामग्री इसे {0} कहती है।",
  "mbStationMusic": "डॉक होने पर संगीत",
+ "mbOrbitMusic": "इसकी कक्षा में संगीत",
  "mbStationSize": "आकार (सबसे बड़ा माप, इकाइयाँ: 20 = 1 m)",
  "mbStations": "स्टेशन",
  "mbSystem": "सिस्टम",

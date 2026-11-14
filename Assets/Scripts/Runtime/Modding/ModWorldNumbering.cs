@@ -835,22 +835,41 @@ namespace GoF2Remake.Modding
         }
         static readonly string[] AmbienceFields = { "loops", "loop", "adds", "volume", "addVolume", "addEveryMs", "centre", "center", "radius" };
 
-        /// <summary>The calm space music a mod gave the station's system (null: the game's).</summary>
-        public static AudioClip SpaceMusic(int station)
+        /// <summary>The calm space music a mod gave the station's orbit, else its system (null: the game's).</summary>
+        public static AudioClip SpaceMusic(int station) => SpaceMusicName(station) is string n ? ModMusic.Track(n) : null;
+        /// <summary>SpaceMusic's track name: the station's own "spaceMusic", else its system's.</summary>
+        public static string SpaceMusicName(int station)
         {
+            if (stationSpaceMusic.TryGetValue(station, out string name)) return name;
             if (systemSpaceMusic.Count == 0) return null;   // every music change asks: no table lookup without mod music
             var st = Database.Shared.Stations.Find(s => s.index == station);
-            return st != null && systemSpaceMusic.TryGetValue(st.system, out string name) ? ModMusic.Track(name) : null;
+            return st != null && systemSpaceMusic.TryGetValue(st.system, out name) ? name : null;
         }
-        /// <summary>The fight music a mod gave the station's system for a battle category (1 low, 2 medium, 3 full: the
+        /// <summary>The calm music a mod gave this station's orbit itself (stations.json "spaceMusic"; null: none). It beats
+        /// the game's special orbits' tracks (the Kaamo Club, the deep science orbits), a system's doesn't.</summary>
+        public static AudioClip OrbitSpaceMusic(int station) => stationSpaceMusic.TryGetValue(station, out string name) ? ModMusic.Track(name) : null;
+        /// <summary>A systems.json / stations.json "battleMusic": one track or three (low, medium, full); other counts are
+        /// reported and ignored.</summary>
+        static void ReadBattleMusic(ModInfo mod, JObject o, string where, Dictionary<int, List<string>> into, int index)
+        {
+            if (!ModJson.Has(o, "battleMusic")) return;
+            var bm = ModJson.Strings(o, "battleMusic");
+            if (bm.Count == 1 || bm.Count == 3) into[index] = bm;
+            else Report(mod, $"{where}: \"battleMusic\": one track or three (low, medium, full), not {bm.Count}");
+        }
+        /// <summary>The fight music a mod gave the station's orbit or system for a battle category (1 low, 2 medium, 3 full: the
         /// hostiles around; null: the game's).</summary>
         public static AudioClip BattleMusic(int station, int category) => BattleMusicName(station, category) is string n ? ModMusic.Track(n) : null;
-        /// <summary>BattleMusic's track name.</summary>
+        /// <summary>BattleMusic's track name: the station's own "battleMusic", else its system's.</summary>
         public static string BattleMusicName(int station, int category)
         {
-            if (systemBattleMusic.Count == 0 || category < 1 || category > 3) return null;
-            var st = Database.Shared.Stations.Find(s => s.index == station);
-            if (st == null || !systemBattleMusic.TryGetValue(st.system, out var l)) return null;
+            if (category < 1 || category > 3) return null;
+            if (!stationBattleMusic.TryGetValue(station, out var l))   // the orbit's own, else its system's
+            {
+                if (systemBattleMusic.Count == 0) return null;
+                var st = Database.Shared.Stations.Find(s => s.index == station);
+                if (st == null || !systemBattleMusic.TryGetValue(st.system, out l)) return null;
+            }
             return l[l.Count == 3 ? category - 1 : 0];
         }
         /// <summary>The docked music a mod gave the station or its system (null: the game's).</summary>

@@ -422,6 +422,8 @@ namespace GoF2Remake.UI
             Note(stationPage, T("mbRoomsNote", "Rooms are made in the Hangars & bars kind."));
             RefField(stationPage, T("mbStationMusic", "Docked music"), RefKind.Music, s.Music, v => { s.Music = v; Edited(false); }, T("mbSystemsMusic", "its system's"),
                      filter: e => e.group != ModRefs.GameGroup);
+            RefField(stationPage, T("mbOrbitMusic", "Music in its orbit"), RefKind.Music, s.SpaceMusic, v => { s.SpaceMusic = v; Edited(false); }, T("mbSystemsMusic", "its system's"),
+                     filter: e => e.group != ModRefs.GameGroup);
 
             Heading(stationPage, T("mbPlanetImage", "Its planet"));
             var irow = Row(stationPage);

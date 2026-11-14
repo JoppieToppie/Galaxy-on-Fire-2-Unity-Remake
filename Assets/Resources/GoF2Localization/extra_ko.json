@@ -2071,6 +2071,7 @@
  "mbStationGameModel": "게임의 {0}.",
  "mbStationKey": "다른 내용에서는 {0}(으)로 부릅니다.",
  "mbStationMusic": "도킹 중 음악",
+ "mbOrbitMusic": "그 궤도의 음악",
  "mbStationSize": "크기 (최대 길이, 단위: 20 = 1 m)",
  "mbStations": "정거장",
  "mbSystem": "성계",

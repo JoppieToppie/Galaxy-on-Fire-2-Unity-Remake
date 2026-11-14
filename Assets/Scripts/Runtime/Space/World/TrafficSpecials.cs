@@ -292,11 +292,12 @@ namespace GoF2Remake.World
         /// <summary>The supernova system (27) before campaign 0x9e: its own calm music (148).</summary>
         bool SupernovaCalm => !Session.FreePlay && Session.CampaignMission < 0x9e && (db.Stations.Find(s => s.index == StationIndex)?.system ?? -1) == 27;
         /// <summary>DAT_00252010[race]: the system race's space track (Globals::playMusicAndFadeOutCurrent(1)).</summary>
-        public AudioClip RaceSpaceMusic() => Modding.ModWorld.SpaceMusic(StationIndex)   // remake mods: a system's own space music
+        public AudioClip RaceSpaceMusic() => Modding.ModWorld.SpaceMusic(StationIndex)   // remake mods: the orbit's / system's own space music
             ?? (assets.spaceMusic != null && assets.spaceMusic.Length == 4 ? assets.spaceMusic[Mathf.Clamp(Standing.Look(SystemRace), 0, 3)] : null);
         /// <summary>Radar::draw 0x157c6c: the calm track (no hostile ship). The alien orbit and a Void-attacked station 145,
         /// campaign 1 (the rescue) 143, the Kaamo Club 146, 101 147, the supernova system the mission target's 2241 (before
-        /// 0x6a) / 2242 or else 148, the deep science orbits (10 / 100) 152, else the system race's (DAT_00252010).</summary>
+        /// 0x6a) / 2242 or else 148, the deep science orbits (10 / 100) 152, else the system race's (DAT_00252010).
+        /// Remake mods: a station's own "spaceMusic" after the Void and the rescue, a system's in place of its race's.</summary>
         public AudioClip CalmClip()
         {
             var story = StoryAssets.Load();
@@ -304,6 +305,7 @@ namespace GoF2Remake.World
             bool campaign = !Session.FreePlay;
             if (VoidAttack) return story?.voidMusic;
             if (campaign && Session.CampaignMission == 1) return story?.introAtmo;
+            if (Modding.ModWorld.OrbitSpaceMusic(StationIndex) is AudioClip own) return own;   // remake mods: the orbit's own
             if (StationIndex == KaamoClub.Station) return assets.homeBaseMusic;
             if (StationIndex == 101) return assets.valkyrieMusic;
             if (SupernovaCalm)
@@ -314,7 +316,7 @@ namespace GoF2Remake.World
                 return target ? (Session.CampaignMission < 0x6a ? sn?.mission102Loop : sn?.mission102Loop2) : sn?.gammaRayMusic;
             }
             if (StationIndex == 10 || StationIndex == 100) return assets.deepScienceMusic;
-            return assets.spaceMusic != null && assets.spaceMusic.Length == 4 ? assets.spaceMusic[Mathf.Clamp(Standing.Look(SystemRace), 0, 3)] : null;
+            return RaceSpaceMusic();   // a mod system's own "spaceMusic", else the race's
         }
         void UpdateMusic(float dt)
         {
@@ -359,7 +361,7 @@ namespace GoF2Remake.World
                              : musicCategory == 5 ? sn?.stealthMusic1
                              : musicCategory == 6 ? sn?.stealthMusic2
                              : (GoF2Remake.World.EncounterMusic.Current is string em ? Modding.ModMusic.Track(em) : null)   // remake mods: an encounter's own "music"
-                               ?? Modding.ModWorld.BattleMusic(StationIndex, musicCategory)   // remake mods: a system's own "battleMusic"
+                               ?? Modding.ModWorld.BattleMusic(StationIndex, musicCategory)   // remake mods: an orbit's / system's own "battleMusic"
                                ?? (assets.battleMusic != null && assets.battleMusic.Length == 3 ? assets.battleMusic[musicCategory - 1] : null);
                     music.clip = clip = Modding.ModMusic.Replace(clip);   // a mod's track of the same name
                     if (clip != null) music.Play();

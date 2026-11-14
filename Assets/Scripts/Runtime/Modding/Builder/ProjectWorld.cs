@@ -175,6 +175,8 @@ namespace GoF2Remake.Modding
         public string MapTexture { get => S("mapTexture"); set => SetS("mapTexture", value); }
         public bool MapRing { get => B("mapRing", false); set => SetB("mapRing", value, false); }
         public string Music { get => S("music"); set => SetS("music", value); }
+        /// <summary>The calm music in the station's orbit (beats its system's "spaceMusic").</summary>
+        public string SpaceMusic { get => S("spaceMusic"); set => SetS("spaceMusic", value); }
     }
 
     /// <summary>One interiors.json entry of a project: a hangar or a Space Lounge bar room, with its markers placed in the builder

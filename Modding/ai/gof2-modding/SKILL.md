@@ -514,7 +514,8 @@ originals (name, techLevel, looks, music...).
   one of the game's lines (`voices/MSG_MISSION_24_NO_EQUIPMENT_INSTALLED.ogg`) replaces that line everywhere, the story
   included, in every language or (in `voices/<language>/`) one.
 - `music/<name>.ogg`: a game track's name (`Space_Terraner`, `Station_Vossk`, `Space_Battle_Full`, `Space_NoCombat_Void`
-  (main menu)...) replaces it; any other name is a new track for systems/stations (`spaceMusic`, `stationMusic`, `music`) and
+  (main menu)...) replaces it; any other name is a new track for systems/stations (`spaceMusic`, `stationMusic`, `battleMusic`; a station's `music`, `spaceMusic`,
+  `battleMusic` beat its system's) and
   missions.
 - `sounds/<name>.ogg`: replaces the game sound with that file name (from the game's Assets/Audio folders); any other name is
   a new sound the missions' Sound step / Play Sound's Mod sound / `/sound <name>` play.

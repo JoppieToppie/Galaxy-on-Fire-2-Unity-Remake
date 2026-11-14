@@ -1,7 +1,7 @@
 // ModBattleMusicTests.cs
 // Feature: CLAUDE.md "Mods" > Music: systems.json "battleMusic" (ModWorld.BattleMusicName, Traffic's fight music): one
 // track for every battle category, or three for low / medium / full; any other count is reported and ignored; an override
-// of an original system takes it too.
+// of an original system takes it too. A station's own "spaceMusic" / "battleMusic" beat its system's (2026-11-14).
 
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
@@ -36,6 +36,29 @@ namespace GoF2Remake.Tests
             Assert.AreEqual("full", ModWorld.BattleMusicName(first, 3));
             Assert.IsNull(ModWorld.BattleMusicName(StationOf(db, 1), 1), "two tracks: ignored");
             StringAssert.Contains("battleMusic", AllMessages(mod));
+        }
+
+        [Test]
+        public void AStationsOrbitMusicBeatsItsSystems()
+        {
+            WriteMod("om", ModId, "1.0", "",
+                ("systems.json", @"[ { 'id': 'one', 'name': 'One', 'race': 0, 'security': 1, 'position': [40, 40, 40], 'gates': [15],
+                                       'spaceMusic': 'calm', 'battleMusic': 'fight' } ]"),
+                ("stations.json", @"[ { 'id': 'capital', 'system': 't_bm:one', 'name': 'Capital', 'techLevel': 3, 'planet': 1,
+                                        'spaceMusic': 'capital_calm', 'battleMusic': ['c_low', 'c_mid', 'c_full'] },
+                                      { 'id': 'plain', 'system': 't_bm:one', 'name': 'Plain', 'techLevel': 3, 'planet': 2 },
+                                      { 'override': 0, 'spaceMusic': 'first_calm' } ]"));
+            ScanAndEnable(ModId);
+            var mod = Installed(ModId);
+            Assert.IsFalse(mod.Broken, AllMessages(mod));
+            Database.Load();
+            int capital = ModWorld.StationIndexOf(ModId + ":capital"), plain = ModWorld.StationIndexOf(ModId + ":plain");
+            Assert.AreEqual("capital_calm", ModWorld.SpaceMusicName(capital));
+            Assert.AreEqual("calm", ModWorld.SpaceMusicName(plain), "no spaceMusic of its own: the system's");
+            Assert.AreEqual("c_mid", ModWorld.BattleMusicName(capital, 2));
+            Assert.AreEqual("fight", ModWorld.BattleMusicName(plain, 2));
+            Assert.AreEqual("first_calm", ModWorld.SpaceMusicName(0), "an override of an original station");
+            Assert.IsNull(ModWorld.SpaceMusicName(1), "the other original stations keep the game's");
         }
     }
 }

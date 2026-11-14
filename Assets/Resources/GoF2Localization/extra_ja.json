@@ -2071,6 +2071,7 @@
  "mbStationGameModel": "ゲームの {0}。",
  "mbStationKey": "ほかの内容からは {0} と呼ばれます。",
  "mbStationMusic": "ドッキング中の音楽",
+ "mbOrbitMusic": "その軌道の音楽",
  "mbStationSize": "大きさ（最大寸法、単位：20 = 1 m）",
  "mbStations": "ステーション",
  "mbSystem": "星系",

@@ -1825,11 +1825,12 @@ nebula on black, not on a dark blue. The sky also lights the scene a little (its
 | `mapPlace` | `{ "angle": degrees, "distance": n }`: where its planet sits in the star map's system view, round the sun (0 to 360) and how far out (the game's planets lie about 8000 to 45000 out). Either may be left out. Default: the game's place for it. |
 | `orbit` | The layout of its orbit level: station or not, jumpgate, arrivals, asteroids, fog, sun and planet. See [Orbit layouts](#orbit-layouts). |
 | `music` | A mod's track for its docked music (see [Music](#music)). |
+| `spaceMusic`, `battleMusic` | A mod's track for the calm music in its orbit, and for its orbit's fights (one or three, like a system's). Each beats its system's; without them the system's plays. See [Music](#music). |
 | `mobile` | A new station that moves: `true` or `{ "route": [stations] \| "any", "stayMinutes": 15, "systemMinutes": 90, "speed": 0.2, "race": "terran", "engines": [mounts] }`. See [Mobile stations](#mobile-stations). |
 | `life` | Drones at work round its own `model`, like EVERSPACE 2's worker drones. See [Station life](#station-life). |
 
 Changing a station (`"override"`): `name`, `subtitle`, `description`, `techLevel`, and the looks: `model` and its fields, `interior`, `planetTexture`,
-`mapTexture`, `mapRing`, `mapPlace`, `orbit`, `music` (an original station can get a new model too).
+`mapTexture`, `mapRing`, `mapPlace`, `orbit`, `music`, `spaceMusic`, `battleMusic` (an original station can get a new model too).
 
 ### Station life
 
@@ -2806,12 +2807,24 @@ Put tracks in the mod's `music` folder (`.ogg`, `.wav` or `.mp3`):
 { "id": "kepler", "name": "Kepler", ..., "spaceMusic": "kepler_space", "stationMusic": "kepler_bar" }
 ```
 
-`spaceMusic` is the calm music in the system's orbits and `stationMusic` the music docked at its stations. A station's own
-`"music"` in stations.json beats its system's. Both work in an `override` of an original system or station too.
+`spaceMusic` is the calm music in the system's orbits and `stationMusic` the music docked at its stations. Both work in an
+`override` of an original system or station too.
 
 `battleMusic` is the music of the system's fights: one track for all of them, or three, `["low", "medium", "full"]`, for
 the game's three battle tracks (1-2 enemies around, 3-4, 5 or more). Fights with the Void, Specters or a Most Wanted
 criminal keep their own music.
+
+A station can have its own music too, so one place can feel different from the rest of its system (a capital world, a
+pirate hideout, a derelict orbit):
+
+```json
+{ "id": "kepler_prime", "name": "Kepler Prime", ..., "music": "kepler_bar", "spaceMusic": "kepler_orbit", "battleMusic": "kepler_fight" }
+```
+
+A station's `"music"` (docked), `"spaceMusic"` (calm, in its orbit) and `"battleMusic"` (its orbit's fights, one or three
+tracks) each beat its system's. A field it leaves out falls back to the system's, and then to the game's. A station's own
+`spaceMusic` also replaces the game's special orbit tracks (the Kaamo Club, the deep science orbits); a system's
+`spaceMusic` doesn't.
 
 ## Sound effects
 

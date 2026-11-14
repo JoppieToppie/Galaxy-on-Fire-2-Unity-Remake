@@ -2071,6 +2071,7 @@
  "mbStationGameModel": "{0} из игры.",
  "mbStationKey": "Другое содержимое называет её {0}.",
  "mbStationMusic": "Музыка при стыковке",
+ "mbOrbitMusic": "Музыка на его орбите",
  "mbStationSize": "Размер (наибольшая протяжённость, единицы: 20 = 1 м)",
  "mbStations": "Станции",
  "mbSystem": "Система",

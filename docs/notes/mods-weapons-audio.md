@@ -158,7 +158,13 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   track, systems.json `spaceMusic` / `stationMusic` / `battleMusic` and stations.json `music` (`ModWorld.SpaceMusic` via
   `Traffic.RaceSpaceMusic`, `ModWorld.StationMusic`; `ModWorld.BattleMusic` in Traffic's music switch for categories 1-3,
   one track or [low, medium, full], before CombatAssets.battleMusic: the Void, Specter and Most Wanted fights
-  keep theirs; 2026-11-05, for the GoF3 systems' combat layers; not in the Mod Builder's system page). All tracks load
+  keep theirs; 2026-11-05, for the GoF3 systems' combat layers; not in the Mod Builder's system page). stations.json
+  `spaceMusic` / `battleMusic` (2026-11-14, a Discord request) beat the system's (`ModWorld.SpaceMusicName` /
+  `BattleMusicName` look at the station first); `Traffic.CalmClip` plays a station's own (`OrbitSpaceMusic`) right after
+  the Void and the rescue, before the Kaamo Club / 101 / Supernova / deep science tracks, and ends in `RaceSpaceMusic`:
+  until then a system's `spaceMusic` reached only the cutscenes that call RaceSpaceMusic, never the flight's calm track.
+  The builder's station page has "Music in its orbit" (`ProjectStation.SpaceMusic`); battleMusic stays JSON only.
+  Test `ModBattleMusicTests.AStationsOrbitMusicBeatsItsSystems`. Not heard in game. All tracks load
   (kept compressed) when the mods change; the menu's Leave waits for `ModMusic.Ready` too.
 - **One clip per audio file** (`ModAudio.Load`'s cache, 2026-10-30): music, sounds, voices, ship and weapon sounds share it;
   a new mod revision reads only files whose date / size changed (a zip mod: the zip's), and `ModAudio.Sweep` destroys the
