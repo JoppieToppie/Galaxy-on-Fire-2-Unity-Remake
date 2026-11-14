@@ -1,3 +1,7 @@
+## 2026-11-15 — Rename active feature branch (ChatGPT)
+
+The active development branch is being renamed from `feature/secondary-homing-delay-launch-angle` to `feature/extensive-multiplayer-expansion` to reflect the wider multiplayer expansion scope. No gameplay code changed.
+
 ## 2026-11-15 — Record class-based station docking and freighter boarding design (ChatGPT)
 
 **Branch:** `feature/secondary-homing-delay-launch-angle`
