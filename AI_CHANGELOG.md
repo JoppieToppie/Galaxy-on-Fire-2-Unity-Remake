@@ -1,3 +1,17 @@
+## 2026-11-15 — Refine system-population scope and feasibility assessment (ChatGPT)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Updated the shared system-population note and handover:
+- Narrowed the first implementation to one optional per-system ambient-suppression setting.
+- Separated the core ambient-suppression checklist from the explicitly deferred final player-built-station phase.
+- Recorded the low-to-moderate feasibility assessment and the key ambient-vs-scripted classification risk.
+- Updated the handover's next actions to focus on the core population feature.
+
+Documentation only. No runtime source, mod schema, system data, tests or builds changed.
+
+---
+
 ## 2026-11-15 — Make player-built stations the final population feature step (ChatGPT)
 
 **Branch:** `feature/extensive-multiplayer-expansion`
@@ -96,20 +110,6 @@ Documentation/design only. No gameplay source, ship data, scanner implementation
 
 This file records actual repository changes made by AI contributors. It is not a design wishlist.
 Newest entries go at the top.
-
----
-
-## 2026-11-15 — Refine system-population scope and feasibility assessment (ChatGPT)
-
-**Branch:** `feature/extensive-multiplayer-expansion`
-
-Updated the shared system-population note and handover:
-- Narrowed the first implementation to one optional per-system ambient-suppression setting.
-- Separated the core ambient-suppression checklist from the explicitly deferred final player-built-station phase.
-- Recorded the low-to-moderate feasibility assessment and the key ambient-vs-scripted classification risk.
-- Updated the handover's next actions to focus on the core population feature.
-
-Documentation only. No runtime source, mod schema, system data, tests or builds changed.
 
 ---
 
