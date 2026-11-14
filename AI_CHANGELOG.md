@@ -1,3 +1,11 @@
+## 2026-11-15 — Extend system population pipeline audit (ChatGPT)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Expanded `docs/notes/system-population.md` with cruise encounters, pirate events, system-special actors, freelance mission content, rift waves, decorative traffic lanes, mobile stations, station-life visuals, faction claims, siege garrisons and hangar traffic. Confirmed that this branch has no player-built-station lifecycle to use as a station-attraction trigger. Documented the safe first suppression boundary: ordinary ambient traffic and its revival only, using explicit ambient classification rather than broad group/race filtering.
+
+Investigation/documentation only; no runtime code, mod schema or tests changed.
+
 ## 2026-11-15 — Document the existing system NPC population pipeline (ChatGPT)
 
 **Branch:** `feature/extensive-multiplayer-expansion`
