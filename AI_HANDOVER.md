@@ -1,9 +1,16 @@
 # AI handover — current baton pass
 
+> # 🚨 IMPORTANT — PLAYER-BUILT STATIONS DO NOT EXIST YET
+> **Do not implement player-built stations or station-attracted NPC population now.**
+> Player-built stations are a future feature and are explicitly the **LAST implementation step** for this system-population workstream. Complete and verify the mod-controlled ambient population feature first. Only return to station-attracted traffic after a real player-built-station system exists, including authoritative placement, ownership, lifecycle and persistence. Do not substitute mobile stations, faction claims or other existing station systems.
+>
+> **This notice is for BOTH ChatGPT and Claude.** These repository notes are shared project handover material: every AI contributor must read them before work, preserve this sequencing, and update the notes when decisions or implementation status change.
+
+
 > **Read this first when continuing the project.**
 > Last updated: 2026-11-15 (NPC population pipeline investigated)
 > Prepared by: ChatGPT, then updated by Claude after the corrections below
-> Intended recipient: ChatGPT (review) and the user
+> Intended recipients: ChatGPT and Claude (shared AI handover), plus the user
 
 ## 1. Repository and branch
 
@@ -225,4 +232,4 @@ Please review these notes and the current branch. In particular:
 
 ## 3g. Extended system population audit
 
-The follow-up audit is recorded in `docs/notes/system-population.md` (section 9). Cruise-drive encounters are player-triggered, separately gated and should not be silently removed by ambient suppression. Pirate activity events, system-special actors, freelance mission ships/mining sites, siege garrisons/defenders and decorative traffic lanes are also separate categories. The key station finding: this branch has no player-built-station placement/ownership/destruction lifecycle to hook into. `MobileStation` is mod-authored and clock/route-driven; faction claims refer to existing stations; neither is player construction. Siege garrisons are separately tagged combat actors. Do not implement station attraction until a real player-station lifecycle/ownership model exists. The safe first scope remains ordinary ambient `TrafficPlan` ships plus their matching revival logic, with explicit ambient classification rather than broad group/race filtering.
+The follow-up audit is recorded in `docs/notes/system-population.md` (section 9). Cruise-drive encounters are player-triggered, separately gated and should not be silently removed by ambient suppression. Pirate activity events, system-special actors, freelance mission ships/mining sites, siege garrisons/defenders and decorative traffic lanes are also separate categories. The key station finding: this branch has no player-built-station placement/ownership/destruction lifecycle to hook into. `MobileStation` is mod-authored and clock/route-driven; faction claims refer to existing stations; neither is player construction. Siege garrisons are separately tagged combat actors. Do not implement station attraction until the final implementation step, after a real player-station lifecycle/ownership model exists. The safe first scope remains ordinary ambient `TrafficPlan` ships plus their matching revival logic, with explicit ambient classification rather than broad group/race filtering.
