@@ -294,6 +294,29 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
   remote ship must be replicated or derivable from the ship every client already knows. The same stable class ID must be used
   consistently by save data, mod definitions and network state.
 
+### 6.4 Moddable turret hardpoint scaling and targeting profiles (owner's decisions, 2026-11-15; Proposed)
+
+- **Hardpoint-owned scale:** modders should be able to scale each turret hardpoint's mounted turret independently, directly
+  through the hardpoint definition. This is not ship-kit hull scaling and not the existing turret weapon item's
+  `fx.turret.scale` (which controls that item's turret model). Prefer a clearly named optional per-mount field such as
+  `turretScale`; absent means the current size. Do not implement this as a ship-wide scale or require editing ship-kit
+  overall scale. Verify the hardpoint data format and all turret construction/presentation paths before choosing the final
+  JSON spelling and transform application.
+- **Targeting profile belongs to turret weapon/item configuration**, independently of weapon damage and projectile type.
+  The three agreed profiles are:
+  - `ships`: conventional ship targeting.
+  - `missiles`: incoming missile interception only.
+  - `missiles_priority`: prioritise incoming missiles; engage ships when no eligible missile target is available.
+- **Explicitly excluded:** no `balanced` profile.
+- Keep the design extensible to additional target categories / priority rules later, without requiring them in the first
+  implementation. A missile-focused turret may still have optional light anti-ship damage when its profile permits ship
+  targeting; targeting eligibility must not dictate damage values.
+- Reuse and extend the existing missile point-defence logic where possible rather than creating a competing interceptor
+  system. Audit target acquisition, claim/duplicate interception handling, projectile lead, range, authority and multiplayer
+  replication before implementation.
+- **Status:** design decisions only. No hardpoint schema, turret item schema, Mod Builder UI, targeting logic or gameplay
+  source has been changed for this feature.
+
 ### 6.3 Secondary hardpoint launch orientation (owner's decisions, 2026-11-15)
 
 - Launch-direction adjustment is for **secondary weapons only**. Primary guns, turrets, NPC/capital guns and unrelated mount
