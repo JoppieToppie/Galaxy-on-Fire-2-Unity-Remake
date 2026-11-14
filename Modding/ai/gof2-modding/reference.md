@@ -393,6 +393,30 @@ remake's own. The original's attributes without a name: 56, 57, 58, 59 (set only
 | 134 | cruiseRange |  |
 | 135 | interstellar |  |
 | 137 | tractorNoLock |  |
+| 138 | fullStopDamage |  |
+| 139 | lowSpeedResistance |  |
+| 150 | device |  |
+| 151 | deviceCooldownMs |  |
+| 152 | deviceDurationMs |  |
+| 153 | deviceRadius |  |
+| 154 | deviceGrowMs |  |
+| 155 | deviceSlowPercent |  |
+| 156 | deviceShieldCost |  |
+| 157 | deviceDamagePercent |  |
+| 158 | deviceCharge |  |
+| 159 | deviceConeDeg |  |
+| 160 | cloakCooldownMs |  |
+| 161 | shieldBypass |  |
+| 162 | slowMs |  |
+| 163 | slowPercent |  |
+| 164 | deviceConsumable |  |
+| 165 | deviceAmmo |  |
+| 166 | deviceRange2 |  |
+| 167 | slowFreeze |  |
+| 168 | dotDamage |  |
+| 169 | dotMs |  |
+| 170 | vulnerablePercent |  |
+| 171 | vulnerableMs |  |
 
 ## Blueprints
 

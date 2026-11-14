@@ -173,7 +173,7 @@ Every mod needs a `mod.json` at its top level:
 | `author`, `website` | Shown in the Mods screen. |
 | `description` | Shown in the Mods screen (a string, or one text per language). |
 | `credits` | Shown in the Mods screen under the description: who made the models, textures or sounds the mod uses, and their licenses. |
-| `tag` | A short tag shown smaller and half transparent after the names of everything the mod adds, so players tell content from different games or packs apart: `"GoF3"` shows "Veteran [GoF3]". Its new ships and items in the hangar, shop, cargo and Kaamo lists, their details, the item window and the status screen; its new systems and stations on the star map and in the docked station's title. A string, or one text per language. One tag per mod: what it only changes (an `override`) keeps its name as it is. |
+| `tag` | A short tag shown smaller and half transparent after the names of everything the mod adds, so players tell content from different games or packs apart: `"GoF3"` shows "Veteran [GoF3]". Its new ships and items in the hangar, shop, cargo and Kaamo lists, their details, the item window and the status screen; its new systems and stations on the star map and in the docked station's title; its Most Wanted criminals on the board and in the pause menu. A string, or one text per language. One tag per mod: what it only changes (an `override`) keeps its name as it is. |
 | `preview` | The image shown in the Mods screen, PNG or JPG. Default `preview.png`. 16:9 looks best, for example 640 × 360. |
 | `dependencies` | Ids of mods that must be on too, optionally with the lowest version: `["ship_pack", "frontier_systems>=1.2"]`. They are loaded first, turning this mod on turns them on as well, and turning one of them off turns this mod off. See [Building on other mods](#building-on-other-mods). |
 | `multiplayerIgnore` | Files multiplayer doesn't compare: what only changes how the mod looks, or what the game never reads. `"folder/"` means everything in that folder, `*` any characters: `["parts/", "maps/*.png", "icons/", "preview.png", "tools/"]`. With it a lighter phone build of the mod (smaller models and textures under the same names) plays with the PC build. The data always counts, whatever the list says: `mod.json`'s `id`, `version`, `dependencies` and this list, the `.json` files at the mod's root, and everything in `events/`. See [Multiplayer](#multiplayer). |
@@ -330,6 +330,24 @@ energy cells.
 | `cruiseRange` | 134 | Cruise drive: the distance one leg of energy cells buys (game units, 20 per metre; default 60000 = 3 km) |
 | `cruiseChargeMs` | 37 | Cruise drive: the charge before it engages (ms; the Khador Drive's own charge attribute) |
 | `miningTime` | 132 | An ore's mining time in percent of the game's 6 seconds per layer (default 100; 200 = twice as long). The ore a whole asteroid gives stays the same: it comes slower. Counts for the drill's minigame and the mining beam |
+| `fullStopDamage` | 138 | EVERSPACE 2's full-stop bonus: the primary guns' damage in percent more while the ship stands still (any mounted item, both flight styles; adds up with a ship's `flight` field of the same name) |
+| `lowSpeedResistance` | 139 | EVERSPACE 2's low-speed resistance (the Gunship's): damage taken in percent less once the ship has flown slower than 30 m/s for a second, gone at once above it (any mounted item, both flight styles; adds up with a ship's `flight` field) |
+| `cloakCooldownMs` | 160 | A cloak's own cooldown in ms, in place of the difficulty's 5 to 12 seconds |
+| `shieldBypass` | 161 | 1: the weapon's hits go past the shield, straight to the armor and hull (the shield untouched) |
+| `slowMs`, `slowPercent` | 162, 163 | A hit slows the ship to `slowPercent` of its speed (default 50) for `slowMs`; it can still turn. The game's NPCs and other games' NPCs in multiplayer; not players |
+| `slowFreeze` | 167 | 1: the slow also stops the ship turning (EVERSPACE 2's frozen: controls disabled); with `slowPercent` 0 the ship hangs still |
+| `dotDamage`, `dotMs` | 168, 169 | A hit adds `dotDamage` every 0.95 s for `dotMs`, past the shield, counted as yours; hits stack (EVERSPACE 2's corrosion and infestation). NPC ships only |
+| `vulnerablePercent`, `vulnerableMs` | 170, 171 | A hit makes the ship take `vulnerablePercent` % more from every hit for `vulnerableMs`; hits stack, up to +100 % (EVERSPACE 2's destabilized). NPC ships only |
+| `device` | 150 | An active device's type (see [Devices](#devices)): 1 EMP wave, 2 EMP shot, 3 shield disruptor, 4 overcharger area, 5 overcharger beam, 6 strike charge, 7 deflector |
+| `deviceCooldownMs` | 151 | Device: its cooldown after a run (default 60000) |
+| `deviceDurationMs` | 152 | Device: how long it runs: the slow on its targets, the strike charge's boost, the deflector (0 = at once) |
+| `deviceRadius` | 153 | Device: its reach in game units (20 per metre): the EMP wave's, the EMP shot's burst, the overchargers' |
+| `deviceGrowMs` | 154 | Device: the EMP wave's time to reach its full radius |
+| `deviceSlowPercent` | 155 | Device: the speed an EMP device leaves its targets, in percent (default 25) |
+| `deviceShieldCost` | 156 | Device: the overchargers' cost in percent of the ship's maximum shield |
+| `deviceDamagePercent` | 157 | Device: the overchargers' damage per target in percent of the shield spent; the strike charge's damage factor (175 = x1.75); the deflector's turned-back shots' damage; the shield disruptor's damage on a ship without a shield, in percent of its `damage` (default 100) |
+| `deviceCharge` | 158 | Device: the strike charge's charge, the damage the primary guns must deal before it can fire |
+| `deviceConeDeg` | 159 | Device: the overcharger beam's half-angle ahead (default 30) |
 
 Which stats an item uses depends on its category, so copy the stats its base item has (see `items.json` and
 `item_attributes.json` in `Assets/Resources/GoF2Data`). items.json's own stat names (`loadingTimeMs`, `range`,
@@ -405,10 +423,64 @@ volume, or the asteroid it sits in destroyed for 20 damage.
 }
 ```
 
+### Devices
+
+An active device is equipment fired from the quick menu (its name, half-transparent while it isn't ready) or the keys 4, 5
+and 6 (the first three mounted, rebindable as Device 1-3), then cooling down for `deviceCooldownMs` (the HUD's row of
+recharge icons shows it with keys and a controller; "<item> ready" when it is). Make one from the seatless cabin
+(`"base": 91`, `"cabinSize": 0`) with `"device"` set to its type; the shop calls it "Device". A ship carries one of each
+type. The seven types are Galaxy on Fire 3's (the GoF3 Ships mod has them all):
+
+| `device` | What it does | Its stats |
+| --- | --- | --- |
+| 1 EMP wave | A wave from the ship out to `deviceRadius` over `deviceGrowMs`; each hostile ship it reaches flies at `deviceSlowPercent` of its speed and can't turn for `deviceDurationMs` (sparks show it); `empDamage` adds an EMP hit | radius, grow, slow, duration |
+| 2 EMP shot | A homing shot at the locked ship (`projectileSpeed`, `lifetimeMs`); where it hits, every hostile ship within `deviceRadius` is slowed like the wave | radius, slow, duration |
+| 3 Shield disruptor | A homing shot whose hit takes `damage` off the target's shield; a ship without a shield (the game's NPCs) takes `deviceDamagePercent` of it as damage | damage, damage percent |
+| 4 Overcharger area | Spends `deviceShieldCost` % of the ship's maximum shield (refused with less shield than that) and deals `deviceDamagePercent` % of what it spent to every hostile ship within `deviceRadius` | radius, shield cost, damage percent |
+| 5 Overcharger beam | The same cost, as beams at every hostile ship within `deviceRadius` and `deviceConeDeg` of the nose | radius, cone, shield cost, damage percent |
+| 6 Strike charge | Charged by `deviceCharge` points of damage the primary guns deal (its icon fills as it charges), then `deviceDurationMs` of their damage x `deviceDamagePercent` / 100 | charge, duration, damage percent |
+| 7 Deflector | For `deviceDurationMs` the enemy shots that would hit the ship fly back at their shooter, homing, at `deviceDamagePercent` % of their damage; beams are stopped | duration, damage percent |
+| 8 Sensor cloud | A cloud of `deviceRadius` around the ship for `deviceDurationMs`, grown over `deviceGrowMs`: while the ship flies inside it the enemies lose it, as under a cloak (they hold their fire, missiles lose their lock), like EVERSPACE 2's Smoke Bomb | radius, grow, duration |
+| 9 Hull repair | Repairs `deviceDamagePercent` % of the hull's maximum at once (EVERSPACE 2's Nano Injector), or with a `deviceDurationMs` over that time (its Nanobots); refused with nothing to repair | damage percent, duration |
+| 10 Armour repair | Repairs `deviceDamagePercent` % of the armour's maximum at once (EVERSPACE 2's Armor Repair, 100 = to full); refused with nothing to repair | damage percent |
+| 11 Restock | `deviceAmmo` rounds more for the selected secondary weapon (EVERSPACE 2's Secondaries Restock); refused with none selected | ammo |
+| 12 Device charger | Every other device's cooldown ends at once (EVERSPACE 2's Device Charger); refused while none is cooling down | |
+| 13 Corrosion | The locked ship (within `deviceRadius`) takes `damage` every 0.95 s for `deviceDurationMs`, past its shield (EVERSPACE 2's Corrosion Injector) | radius, duration, damage |
+| 14 Teleport | A blink `deviceRadius` ahead, stopped 10 m short of a hull, a station or an asteroid in the way (EVERSPACE 2's Teleporter); refused with no room | radius |
+| 15 Spectral shift | The same blink, and every hostile ship within `deviceRange2` of the path takes `damage` (EVERSPACE 2's Spectral Shift) | radius, range 2, damage |
+| 16 Fusion hook | The hostile ship in the sights (within `deviceRadius`, 18 degrees of the nose) is grappled for up to `deviceDurationMs`: after 0.3 s you are pulled toward it (up to 800 m/s) and it toward you, until you are within 200 m, it leaves the hook's cone, or it dies (EVERSPACE 2's Fusion Hook) | radius, duration |
+| 17 Quantum tether | For `deviceDurationMs` the damage the locked ship takes is dealt to every hostile ship within `deviceRadius` of it too; when it dies the tether jumps to one of them (EVERSPACE 2's Quantum Tether) | radius, duration |
+| 18 Entangler | For `deviceDurationMs` the damage your ship takes is summed and, at the end, dealt to the locked ship (within `deviceRadius`) x `deviceDamagePercent` / 100, nothing if it died first (EVERSPACE 2's Quantum Entangler) | radius, duration, damage percent |
+| 19 Repair kit | One of your overheated items (a rift's Overheated Systems) works again at once (EVERSPACE 2's Nano Repair Kit); refused with none overheated | |
+| 20 Recovery | Lifts the debuffs on your ship: a web's slow, a rift's corrosion (EVERSPACE 2's System Recovery Routine); refused with none on | |
+| 21 Virus | Infects the locked ship (within `deviceRadius`); every `deviceGrowMs` (default 1 s) it spreads to the nearest hostile ship within `deviceRadius` of an infected one, up to 6; after `deviceDurationMs` every infected ship takes `deviceDamagePercent` % of a pirate raider's hull (EVERSPACE 2's Annihilator Virus) | radius, grow, duration, damage percent |
+
+A **consumable** device (`"deviceConsumable": 1`, EVERSPACE 2's consumables) is used up one unit per use and has no
+cooldown unless given one: the hangar stacks bought units like a secondary's ammo (mounting moves the whole stack,
+more bought join it), the HUD says "<item>: N left" after each use, and the last use takes the item off the ship.
+
+The item's `"fx"` gives its sound (its shot sound plays when it fires) and the EMP and disruptor shots' look; without
+one they fly as the Dia EMP's shots. Kills and standing count as the player's. In multiplayer the slow reaches another
+game's NPCs; the shots and the beams are seen only by their pilot.
+
+```json
+{
+    "id": "area_emp",
+    "base": 91,
+    "name": "Area EMP",
+    "techLevel": 6,
+    "occurrence": 25,
+    "price": [64000, 67200],
+    "stats": { "cabinSize": 0, "device": 1, "deviceCooldownMs": 60000, "deviceDurationMs": 8000, "deviceRadius": 9120,
+               "deviceGrowMs": 2500, "deviceSlowPercent": 25 }
+}
+```
+
 ### Cruise drives
 
 A cruise drive is an item based on the Khador Drive (85) with `"cruiseSpeed"` above 0: in-system fast travel for a pilot
-flying by hand, beside the Khador Drive (its own one-per-ship kind, so a ship carries both). Hold the fast-forward button
+flying by hand. A ship carries one drive: mounting a cruise drive over a Khador Drive or another cruise drive asks to
+replace it, as a new shield replaces the old one (the replaced drive goes to the hold). Hold the fast-forward button
 (the touch button, Tab, controller Y) while nothing else flies the ship: the drive charges for `cruiseChargeMs`, pays
 `energyCells` energy cells (twice as many on Extreme, like a Khador jump) and the ship flies `cruiseSpeed` / 100 times
 its forward speed, looking and sounding like a boost; every `cruiseRange` units it pays another leg of cells, and without
@@ -464,7 +536,10 @@ with escorts), `derelict` (20, a signal: drifting crates), `distress` (20, from 
 attack), `flyby` (10, a wing passing through; the drive keeps running). A signal is a waypoint ahead and to one side:
 fly or autopilot to it and it appears, cruise on and it fades after 3 minutes or 10 km. None come in the special orbits,
 the Void and supernova systems, Loma, a scripted orbit (a story or freelance mission, the Kaamo siege, the Supernova
-Challenge) or, in multiplayer, an orbit another player runs. `encounters.json` adds to the table and changes it:
+Challenge) or, in multiplayer, an orbit another player runs. Between the systems (a Khador Slipstream's crossing, single
+player) the same table rolls, and every encounter pulls the ship out of the slipstream: right there in deep space (the warp
+eases out, then it appears ahead) or at the nearest system (the ship falls out there and meets it on arrival); none comes
+while a system's orbit is already in sight. `encounters.json` adds to the table and changes it:
 
 ```json
 [
@@ -478,12 +553,60 @@ Challenge) or, in multiplayer, an orbit another player runs. `encounters.json` a
 | Field | Meaning |
 |---|---|
 | `id` | A new entry (its key is `mod:id`); or `override`: one of the game's (`pirates`, `trader`, `derelict`, `distress`, `flyby`) or another mod's `mod:id` to change. |
-| `kind` | `pirates`, `trader`, `derelict`, `distress`, `flyby`, or `quest` (starts the quest graph `quest` from the mod's `events/`, single player; the graph spawns, talks and sets waypoints itself). |
+| `kind` | `pirates`, `trader`, `derelict`, `distress`, `flyby`, or `quest` (starts the quest graph `quest` from the mod's `events/`, single player; the graph spawns, talks and sets waypoints itself). Ten more, after EVERSPACE 2's encounters, only in a mod's entries (the game's own table doesn't have them): `battle` (a wing of the system's race fighting raiders; you are paid as EVERSPACE 2 pays an encounter when the raiders are gone: 800 credits plus up to 4200 more by the station's tech level), `trap` (passes for an unknown signal: raiders appear around you on arrival, sometimes a second group ahead), `stash` (one crate with three loot rolls), `depot` (crates of ore with a few raiders guarding them), `highrisk` (three waves of raiders, each when the last is gone, then a crate with 8 to 14 loot rolls (EVERSPACE 2's for a high-risk area's boss) and a battle's pay; flying off ends it), `lootdrone` (a neutral loot drone: one of the mods' ships with the traffic `"role": "lootDrone"`, else a pirate fighter flying as one; shooting it is no crime, and its kill counts as a pirate's), `rift` (an EVERSPACE 2 rift run where the signal was: four stages, the last a boss. A fight stage ends at its kill points (15, 21, 26, 30, 35 ... by stage, ES2's), with raiders kept coming; each kill refills the Resolve shown on the HUD, which drains after 10 s, and a stage won with Resolve left is mastered, which adds to the boss's crate. From the second stage on each brings one of EVERSPACE 2's rift mutators (Enemy Regen, Evasive, No EMP, Jarred Sensors, Hidden Health, Explosive Death, Repair On Kill, Strength in Death, Nearsighted, Farsighted, No Lock, Vengeance, Mines on Death, Overheated Systems (every 10 s your guns, missiles, shield or booster run at half for 10 s), Corrosive Death, Burst Bulbs (shoot the growing bulb or it bursts over the whole stage)), the boss's stage one of the boss's (Quantum Mend, Evasive Drift, Guardians, Phase Barrier (shots from outside its shell don't hurt it: fly in), Stasis Snares (web bubbles around you), Apocalypse (sit out its blast in a safe field)). Each stage is fought by one side at random: the pirates, the Void, or a hostile [race](#races) of an active mod that has fighters (they fly its mods' ships; the pirates and the Void the game's, now and then a mod's of theirs at the "Mod ships in traffic" chance). `"bosses": [ { "ship": "mod:id", "raiders": 8, "race": "mod:id", "weapon": "mod:gun", "secondary": "mod:missiles" } ]` names the ships its boss may fly, one at random (a capital ship parks as one and fires its own turrets), its hull that many pirate raiders' hulls, the race it flies for (a race word or a mod race; its stage is then that race's, its guards too; default the stage's side), and a fighter boss's gun and missiles (items; default the pirate boss's gun, no missiles); without them the stage's side's boss. Flying 15 km off ends it. The rift is the remake's own entry, with its own chance (weight 4, a signal, from rank 5, four stages): a mod's `rift` entry only adds its `bosses` to one shared pool (its other fields are ignored, with a warning, and the rift can't be overridden), and the rift comes once any mod adds one. More mods with rifts mean more bosses to meet, not more rifts), `minesweeper` (a freighter of the system's race stuck in a minefield of `ships` mines (default 40) spread over about a kilometre and marked on the radar: shoot every mine (or set it off) to be paid as for a battle; if the freighter is destroyed you get nothing), `challenge` (a shooting challenge: a Challenger of the system's race, whose gun does three times the damage, races you to destroy four or five groups of raiders, `ships` in all; destroy more than it does for half a battle's pay; a tie brings one more raider; flying off abandons it), `needy` (a damaged ship of the system's race asks for `ships` units (default 3) of Nanotech or Medical Supplies, whichever you carry; fly up to it with enough aboard and press the action key (HELP) to hand them over and be paid as for a battle). Any entry may have `"music": "track"` (one of your [music](#music) tracks): its fight plays that instead of the battle music, from the moment it appears until you fly 15 km off or it's been calm for 15 s; a `rift` entry's music becomes the rift's (the first mod's). |
 | `weight` | Its share of the roll (0 = never; the game's add up to 100). |
 | `visible` | `true`: a signal the pilot may fly to; `false`: it appears at once (pirates, distress and flyby ambush, trader and derelict signal by default). |
 | `minRank`, `security`, `freePlayOnly` | Only from that rank, only in systems of those security levels (0 Dangerous, 1 Risky, 2 Average, 3 Secure), only in free play. |
-| `ships` | How many: pirates, the trader's escorts, the derelict's crates, the distress call's raiders, the flyby's wing. |
+| `ships` | How many: pirates, the trader's escorts, the derelict's crates, the distress call's raiders, the flyby's wing, the battle's raiders, the trap's raiders, the depot's crates, each high-risk wave. |
 | `name` | The signal's name on the HUD (a string or per language, like an item's). |
+| `interstellar` | Where it pulls the ship out of the Khador Slipstream between the systems: `space` (met right there in deep space), `system` (at the nearest system, met on arrival), `either` (the default: one or the other) or `never`. The game's: pirates, derelict and flyby `space`, trader and distress `either`; a `quest` always goes to the system. |
+
+### Jump drives
+
+An item based on the Khador Drive (85) without `cruiseSpeed` is a jump drive: it opens the star map from the quick menu
+(its own name on the entry), charges and jumps like the Khador Drive. A ship carrying the Khador Drive itself (or one with
+the drive built in) jumps with that instead. `"jumpFx"` gives the drive its own effect and rules (every field optional but
+`data`):
+
+```json
+{
+    "id": "hyperdrive",
+    "base": 85,
+    "name": "Hyper Drive",
+    "jumpFx": {
+        "data": "fx/hyperdrive_3d.json", "texture": "fx/hyper_drive.png", "scale": 0.5, "glow": 2.5,
+        "meetMs": 2300, "meetDepth": 8200, "sound": "gof2:timeJump", "endHoldMs": 2000, "arrivalFx": true,
+        "startDelayMs": 2000, "chargeVoice": "RADIO_0_12", "cellsFactor": 2, "noVoid": true,
+        "failChance": 0.03, "failMax": 0.5, "failNoRoute": 0.25, "failTexture": "fx/hyper_drive_purple.png",
+        "failHandling": 0.1, "failMs": 16500, "failRumbleFromMs": 5500, "failRumble": 0.25
+    }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `data` | The effect's parts: a JSON file of meshes with their keyframes (`objects`: `name`, `verts`, `faces`, `uvs` per face corner, `keys` `posX`..`sclZ` and `extra` (opacity 0..1) as `[[ms, value], ...]`, `base` `{ parent_loc, parent_scale, parent_rotY }`, `billboard`), in Blender's frame (Z up, the viewer on +Y), game units. The ship flies into it along -Y. |
+| `texture` | The effect's image (additive). |
+| `scale`, `glow` | The effect's size (x the data) and brightness (HDR, for bloom). |
+| `meetMs`, `meetDepth` | The ship reaches the point (0, -`meetDepth`, 0) of the effect at `meetMs` after it starts, and vanishes there. |
+| `sound` | `gof2:<name>`, a sound of the game's story assets (`timeJump`: the prologue's time jump) in place of the Khador jump's. |
+| `endHoldMs` | The scene holds this long after the effect (the camera drifting on) before the next area loads. |
+| `arrivalFx` | `true`: the ship comes into the next orbit with the prologue's 2D hyper drive effect in this drive's texture (or `failTexture`), hidden and held still for 2.5 s; the arrival camera starts once it has played. `texture` must then have the layout of the game's `hyper_drive.png`. |
+| `startDelayMs` | A jump asked for waits this long before it charges (the Khador Drive's own is 2000; not on top of an orbit's first 5 seconds). |
+| `chargeVoice` | A story voice line (by its clip name) as the charge starts; `RADIO_0_12` is the prologue's "Activating hyperdrive." |
+| `cellsFactor` | x the Khador Drive's energy cells (Extreme's x2 included). `freeJumps: true`: none at all. |
+| `noVoid` | `true`: no jump into the Void, and none out of it (the story's own jumps still go). |
+| `failChance` | The chance a jump fails, per gate jump of the route (0.03 = 3 % to a neighbour, 6 % two systems away...; x2 on Extreme), at most `failMax`. |
+| `failNoRoute` | The chance from or to a system without jumpgate routes. |
+| `failMs`, `failHandling`, `failRumbleFromMs`, `failRumble` | A failing jump: when the charge ends, the prologue's hyperdrive failure (its explosion, rumble and broken engine) for `failMs`, the ship flying at `failHandling` of its speed and turning, the camera shaking from `failRumbleFromMs`, growing over 4 s to `failRumble` (1 = the prologue's, a full boost ~0.16). |
+| `failTexture` | The effect's image for a failed jump. |
+| `failVoice`, `failVoiceChance`, `failVoiceMs` | A story voice line (like `chargeVoice`) `failVoiceMs` into a failure, at `failVoiceChance` (0 to 1, default 1) per failure: `"failVoice": "RADIO_0_15", "failVoiceChance": 0.1` is the prologue pilot's "Hey, what's happening?" one failure in ten. |
+| `failLine`, `failSpeaker` | With `failVoice`: the line also comes in the radio box, its text (a text number) with a story speaker's face and name (default 0, Keith): `"failLine": 1689`. |
+| `failRadiusKm` | A failed jump lands at a random station of a system on the map, the ship coming out anywhere within this distance of it (default 20 km, as the HUD counts), clear of the station, the gate and the asteroids. |
+
+While the drive's effect hides the ship (leaving, from the moment it vanishes; arriving, until it shows) enemy shots fly
+through it and nothing targets it. The `stats` show the drive's values in the shop: `"energyCells": 2` for a drive that
+costs twice the Khador Drive's cells (the Khador Drive shows 1).
 
 ### Multi-grab tractor beams
 
@@ -723,7 +846,7 @@ A list of entries, like items.json: `"id"` adds a ship, `"override"` changes one
 | `hangarHeight` | How high its pivot sits above the hangar pad, in game units (the originals 140 to 400). A customizable ship's is measured from its build instead. |
 | `mounts` | Where guns and exhausts sit, in game units from the ship's centre (x right, y up, z forward): `slotType` 0 primary gun, 1 secondary, 2 turret (`"upsideDown": true` hangs it under the hull; `"builtIn": true`: the ship's own turret, no turret model of the game on it, the mounted turret item firing from this point; a customizable ship's primary / secondary mounts may also carry `"rotation"`, see [Customizable ships](#customizable-ships)), 3 engine exhaust (the flame and its particles; `turretAngles[0]` sizes the particles; `"glowColor": [r, g, b]` (0 to 1) colours that exhaust's flame and its exhaust particles; `"glowSize": [halfWidth, halfHeight, length]` (game units) makes the flame an ellipse of that size, its flared ring `length` behind the nozzle; `"glowShape"` gives it another outline in that box: `"round"` (the default), `"rounded"` (a rectangle with rounded corners), `"square"` (a square or, with a different half width and half height, a rectangle), `"hexagon"`, `"diamond"` or `"triangle"`; with `engineFx`, `"fxScale"` sizes that exhaust's effect and `"rotation"` turns the way it blows, as a weapon mount's below;
 `"outline": [x0, y0, x1, y1, ...]` the nozzle's shape seen from behind, game units around the mount, for the [exhaust
-styles](#exhaust-styles)), 4 manoeuvring jet (`"direction": [x, y, z]`, the way it blows in the same axes: a short jet fires whenever the ship strafes, rises, sinks or reverses against it, and with no input the jets blowing along the ship's drift fire to brake it, like EVERSPACE 2's lateral thrusters; only on the player's ship. Its colour is the hue of the `lateral thruster` colour slot, else of the flames' boost colour, at EVERSPACE 2's own brightness: a slot's `intensity` doesn't change it), 5 booster (a ship with engine flames: EVERSPACE 2's booster socket, its trail and light in `boostColor` while boosting; `"socketScale"` sizes them, as on an exhaust). |
+styles](#exhaust-styles)), 4 manoeuvring jet (`"direction": [x, y, z]`, the way it blows in the same axes: a short jet fires whenever the ship strafes, rises, sinks or reverses against it, and with no input the jets blowing along the ship's drift fire to brake it, like EVERSPACE 2's lateral thrusters; only on the player's ship. Its colour is the hue of the `lateral thruster` colour slot, else of the flames' boost colour, at EVERSPACE 2's own brightness: a slot's `intensity` doesn't change it), 5 booster (a ship with engine flames: EVERSPACE 2's booster socket, its trail and light in `boostColor` while boosting; `"socketScale"` sizes them, as on an exhaust), 6 contrail point (EVERSPACE 2's wing-tip contrails: a white ribbon trailing from the point while boosting and flying nose first, `"socketScale"` its width and, below 1, its faintness; on every ship, `"es2Engine": { "contrails": false }` turns a ship's off), 7 headlight fixture (`"direction": [x, y, z]` the way it shines: a lens flare there while the player's headlights are on (the Headlights key, L), and materials named `Headlight` glow only then; the light itself is the player's one headlight at the nose, on any ship). |
 | `engineGlowRadius` | Size of the engine flame at each exhaust mount (game units, default 24); a mount's `glowSize` replaces it. |
 | `engineGlowColor` | `[r, g, b]` (0 to 1): the flame colour of every exhaust without its own `glowColor`. None = the game's own blue-white flame. |
 | `materials` | Optional. Replace the model's own materials, see below. |
@@ -733,9 +856,11 @@ styles](#exhaust-styles)), 4 manoeuvring jet (`"direction": [x, y, z]`, the way 
 | `lounge` | Optional. A visitor in the Space Lounges sells it: in systems of `systemRace` (-1 = any), from story step `minCampaign` (in free play from rank `minRank`), `chance` % each time a bar fills with new visitors. |
 | `npcTurrets` | Optional, also in an `override`. Turret items (numbers or `"mod:id"`, e.g. `[ 48, "my_mod:flak" ]`) the **NPC** ships of this type carry on its turret mounts (`slotType` 2), the n-th item on the n-th mount: in space they aim and fire by themselves at whatever that ship is hostile to (your own turret model, missiles and salvos included), and parked in a hangar they show them. Items that are no turret, or more items than mounts, give a warning. The game's own NPC ships carry none; the Bloodstar (45) and the Rhino (51) swap their built-in turret for yours. |
 | `dealer` | Optional. The ordinary ship dealers may stock it: `{ "chance": 2, "systemRace": -1, "minTechLevel": 0 }`, `chance` % (decimals allowed) each time a station's dealer list is made, at stations of `systemRace` systems (-1 = any) with at least that tech level (above 10: the tech level 10 stations). Not the special yards (Kothar, Quineros...); Thynome's dealer is an ordinary one, the VoidX added to it once every gold medal is won. |
-| `traffic` | Optional. How NPC fighters fly it: `{ "weight": 1, "races": [8] }`. With the Gameplay option "Mod ships in traffic" (Off / 10 / 25 % (default) / 50 %) that share of the game's NPC fighters (patrols, raiders, pirates, escorts, guards) fly one of the mods' ships of their race instead, picked by `weight` (0 = never); `races` are the races whose fighters fly it (0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirates, 9 Void, or [races](#races); default its own `race`). A mod race's fighters always fly one of the mods' ships, whatever the option. Only ships up to 150 m long, available now (`available`), with their model loaded. Their hull and guns stay those of the fighter they replace. Freighters and capital ships aren't replaced, and a [campaign's](#campaigns) `trafficShips` win. A [customizable ship](#customizable-ships)'s NPCs each fly a random build of it (parts the type may fit, a tier, one of the kit's colour presets or random palette colours, now and then a skin); `"randomBuild": false` keeps them to its default build. The builds use the parts already loaded, and every docking loads a few more in the background, so the variety grows as you play. `"boss": true` makes it a boss hull instead: it never flies as an ordinary fighter, and the pirate bosses (Pirate outposts and bosses, the Pirate activity board) fly it at the same option's chance, up to 400 m long; give it `npcTurrets` to arm its turret mounts. Their hull, guns and escorts stay the pirate boss's. `"capital": "battleship"` or `"freighter"` makes it a capital ship instead, see [Capital ships and freighters](#capital-ships-and-freighters). |
+| `traffic` | Optional. How NPC fighters fly it: `{ "weight": 1, "races": [8] }`. With the Gameplay option "Mod ships in traffic" (Off / 10 / 25 % (default) / 50 %) that share of the game's NPC fighters (patrols, raiders, pirates, escorts, guards) fly one of the mods' ships of their race instead, picked by `weight` (0 = never); `races` are the races whose fighters fly it (0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirates, 9 Void, or [races](#races); default its own `race`). A mod race's fighters always fly one of the mods' ships, whatever the option. Only ships up to 150 m long, available now (`available`), with their model loaded. Their hull and guns stay those of the fighter they replace. Freighters and capital ships aren't replaced, and a [campaign's](#campaigns) `trafficShips` win. A [customizable ship](#customizable-ships)'s NPCs each fly a random build of it (parts the type may fit, a tier, one of the kit's colour presets or random palette colours, now and then a skin); `"randomBuild": false` keeps them to its default build. The builds use the parts already loaded, and every docking loads a few more in the background, so the variety grows as you play. `"boss": true` makes it a boss hull instead: it never flies as an ordinary fighter, and the pirate bosses (Pirate outposts and bosses, the Pirate activity board) fly it at the same option's chance, up to 400 m long; give it `npcTurrets` to arm its turret mounts. Their hull, guns and escorts stay the pirate boss's. `"capital": "battleship"` or `"freighter"` makes it a capital ship instead, see [Capital ships and freighters](#capital-ships-and-freighters). `"role"` gives it a part in a fight, after EVERSPACE 2's drones: `"sniper"` fires from twice as far; `"detonator"` holds its fire, flies into its target and blows up within 72 m, hitting every ship within 360 m for 1.8 seconds of its gun's fire (EVERSPACE 2's); `"webber"`'s hits slow your ship to 40 % speed for 4 to 5 s; `"shieldCharger"` holds its fire and repairs about 5 % a second of the hull of its race's ships within 1.5 km; `"armorLink"` holds its fire and links its nearest such ship, which then takes three quarters of the damage and repairs about 1.6 % of its hull a second (EVERSPACE 2's armour buff over GoF2's hull-only NPCs); `"antiMissile"` holds its fire and shoots down one of your missiles every quarter second within 2.9 km; `"jumpSuppressor"` holds its fire and, while it flies hostile in the orbit, your Khador Drive won't charge (it does once the drone is gone); `"lootDrone"` holds its fire and carries 4 to 7 pieces of loot: once hit or once you come near, it flees from you, charges its jump drive 5 to 10 s later and is gone 6 s after that with what it still carries (an EMP makes the charge start over); each time its hull falls far enough (about a share for each piece, the first at its first hit) a piece pops out in a crate of its own, and the rest drop when it dies. A loot drone never flies as an ordinary fighter: the cruise drive's `lootdrone` encounter flies it (see [Cruise drives](#cruise-drives)). `"loot": [ { "item": "155", "chance": 0.2, "min": 1, "max": 3 } ]` is what its NPCs drop besides their cargo, each entry by its chance (0-1), `min` to `max` of the item (a reference as text: `"155"` or `"mod:id"`), at most `"lootDrops"` of them (0 = any number), in a crate a kind; a Void ship's too, which carries no cargo. `"ai": "es2"` makes them fight EVERSPACE 2's way instead with the same option ("ES2 for all" for every fighter): runs past you to a point 45 to 85 m beside you (scaled 3.6x like the ES2 ships), then 6.5 seconds of gaining distance (a fifth of the time circling at 500 m first, else zig-zagging away to 400 m), evading when you sit on their tail (zig-zag, a barrel roll except on Easy, or turning to fight) and fleeing once for up to 20 seconds below a fifth of their hull. `"evade"` (0-1) is a GoF3 hull's base chance of its evasive roll (GoF3's evadeChanceBase: 0 for scouts and tier 1-2 hulls, 0.33 for fighters, the default, 1 for gunships), capped by the difficulty (none on Easy, 0.15 Normal, 0.25 Hard, 0.66 Extreme). `"ai": "gof3"` makes its NPC fighters fight Galaxy on Fire 3's way while the Gameplay option "NPC dogfighting" is "Mod hulls' own" (the default; "GoF3 for all" does it for every fighter, "Original" for none): attack runs of 8 to 13 seconds that end by veering off for 5 to 6 seconds (or holding back for 2) instead of circling you, now and then 8 seconds on your tail at 1.6 times the speed or 4 to 6 seconds just ahead of your nose holding fire (bait), shots led to where you will be with an aim that settles in half a second, and a barrel roll away from a hit (1.8 seconds, the first 1.5 invulnerable; on Normal 15 % of the hits, Hard 25 %, Extreme 33 %, Easy never, a boss 66 %); a system's local patrol flies in a V behind its first fighter until a fight breaks it up. `"devices": [ ... ]` gives its NPCs the devices a Most Wanted criminal can have, in the same format (see the boss devices under Most Wanted, below: mine layers, clouds, shields and the rest), used whenever they fight you, without the criminals' warnings on the HUD; a `mineLayer` with a `layBehind` below 0 throws its mine ahead of the nose (GoF3's kamikazes throw one at you and lay others behind them). Not on wingmen. `"secondaries": [ { "item": "mod:missiles", "minRank": 6, "maxRank": 17, "share": 25, "factor": 1 } ]` gives its NPCs a second weapon (missiles or another gun) as the Most Wanted criminals carry one: the first entry an NPC carries as it comes, while your rank is within `minRank` / `maxRank` and for `share` % of them (default 100), its damage x `factor`. |
 | `available` | Optional. A [condition](#conditions) that must hold before it is sold anywhere (dealers and lounges), and before NPCs fly it. |
 | `sounds` | Optional. The ship's own engine and boost sounds, see [Ship sounds](#ship-sounds). |
+| `crate`, `crateSize` | Optional. The loot container a ship of this type leaves when it is destroyed or robbed with a tractor beam: a `.glb` / `.gltf` file in the mod, drawn in place of its race's container and as big as that container, unless `crateSize` gives its largest extent in game units (the game's containers are about 400). Ships may share a file; the first one's `crateSize` counts. None = its race's container. |
+| `wingmanDevice` | Optional. What a hired wingman flying this ship uses (Galaxy on Fire 3's wingmen): `"repair"` (Hull Repair: with your hull under 40 %, a quarter of it mended over 3 seconds), `"ammo"` (Ammo Supply: 5 more rounds of your selected secondary weapon when you are down to one or none) or `"charged"` (Charged Shots: its own shots do x1.75 for 5 seconds while it attacks); 55 seconds between uses. The HUD says when it does. None = nothing, like the game's wingmen. See [Wingmen](#wingmen). |
 | `integrated` | Optional, also in an `override`. Equipment built into the hull, like the Kothar ships' Khador Drive (Cronus, Typhon, Nemesis) and the Specter's / Scimitar's cloak: `{ "khadorDrive": true, "cloak": true }`. `khadorDrive`: the ship can make Khador jumps without the drive in a slot (it still needs energy cells). `cloak`: `true` (the U'tool's stats), a cloak item (a number or `"mod:id"`, e.g. `96`) whose stats it has, or `false`; a cloak the player mounts replaces it, and with the Gameplay option "Cloak bay on cloaking ships" it goes into the built-in cloak's bay instead of a slot. `false` takes an original ship's away. `items`: any equipment built in, a list of item numbers, `"mod:id"` keys or `{ "item": ..., "amount": n }` (a secondary weapon's starting ammo, default 10), e.g. `"items": [46, { "item": 36, "amount": 20 }, 54]`. Built-in items work like mounted ones but take no slot, show on the hangar's Ship tab under "Built into the ship", and can't be demounted, sold or stored; they stay with the ship type when the player changes ships. A one-per-ship item the player fits (a shield, armor, a booster, a scanner, a drill, a cloak...) takes the built-in one's place without a slot, and the built-in one is back when it is demounted; built-in weapons and turrets add to the ship's own slots. A built-in launcher's missiles are refilled by buying more; a one-off item that is used up (an emergency system) is back at the next docking. An empty list takes them away. |
 
 Ship and station materials are lit physically (URP Lit): they reflect the system's sky by their smoothness (the
@@ -815,12 +940,12 @@ Parts take the capital ship's side, go when it dies, and a mission's `alive("<na
 its own ship's hull and turns to another target: a turret on the far side can't shoot you through the ship. Without `subsystems` its
 `npcTurrets` still arm its turret mounts. `"engineStyle": "es2"` gives a capital ship EVERSPACE 2's engine glow and trails at
 its exhaust mounts (`slotType` 3, sized by `socketScale`) without flame meshes of its own; `"es2Engine": { "glow": false,
-"trails": false }` turns either off, as EVERSPACE 2's own warships and freighters have them (their blueprints'
+"trails": false, "contrails": false }` turns any of them off, as EVERSPACE 2's own warships and freighters have them (their blueprints'
 `SpawnEngineGlow` / `SpawnEngineTrails`). A parked `battleship`'s engines idle (its flames, nozzle glow and glow at 60 % of
 full thrust): another ship's engine effects follow its speed, and a parked one has none. `"retreat": true` makes a capital
 ship jump away instead of being destroyed (EVERSPACE 2's Dreadnought): when its hull runs out it keeps 1 point, can't be harmed,
-holds its fire, its subsystems stop and its hangars' fighters jump out, and after a 4 second charge it jumps away in a Khador
-jump the size of the ship, its parts with it, leaving no wreck and nobody's kill; a mission's `alive("<name>")` drops to 0
+holds its fire and its subsystems stop; its hangars' fighters jump out from 3 seconds on, one by one, and after a 3 second
+charge it jumps away in a Khador jump the size of the ship (EVERSPACE 2's timing), its parts with it, leaving no wreck and nobody's kill; a mission's `alive("<name>")` drops to 0
 once it is gone. With a mission's `"repeat"` the encounter can come again.
 
 ### Camera, cockpit, damage smoke and explosion
@@ -858,6 +983,7 @@ The Mod Builder has them on a ship's page under **Camera and damage**.
   "boostStart": { "file": "audio/boost_start.ogg", "volume": 0.4, "pitch": [0.8, 1.2] },
   "boostLoop":  { "file": "audio/boost_loop.ogg", "volume": [0.5, 1.0], "pitch": [1.0, 1.5] },
   "boostStop":  { "file": "audio/boost_stop.ogg", "volume": 0.25 },
+  "boostDepleted": { "file": "audio/boost_dry.ogg", "volume": 0.5 },
   "charger":    { "file": "audio/boost_charge.ogg", "volume": [0.1, 0.6], "pitch": [0.5, 2.0] }
 }
 ```
@@ -865,6 +991,7 @@ The Mod Builder has them on a ship's page under **Camera and damage**.
 - `engine`: the engine loop, from its first `volume` / `pitch` at a standstill to the second at top speed. NPCs flying the
   ship (see `traffic`), its hangar flights and other players' copies of it play it too.
 - `boostStart` / `boostStop`: played once when a boost starts / ends; a `pitch` range is a random pitch in between.
+- `boostDepleted`: played once, beside `boostStop`, when a free-flight boost dies because its booster ran empty (EVERSPACE 2's empty-tank sound); a held key then has to be pressed again.
 - `boostLoop`: a loop while boosting, from its first values as the boost starts to its second at full strength.
 - `charger`: a loop while the booster recharges, from empty to full.
 
@@ -886,6 +1013,9 @@ To set materials up in the mod instead (paths inside the mod), each entry applie
 | `normal`, `normalScale` | Normal map. |
 | `tiling` | How many times the main textures (colour, normal, metallic, emission) repeat over the UVs (default 1): a plating texture laid over a big hull. |
 | `metallicSmoothness`, `metallic`, `smoothness` | Metallic (red) / smoothness (alpha) map; without a map `metallic` sets the metalness. |
+| `specularGlossiness`, `specularColor` | The specular workflow in place of metallic: a map of the specular colour (RGB, sRGB) and smoothness (alpha, times `smoothness`), or a specular colour `[r, g, b]` without a map. A coloured highlight and reflection over the diffuse, not a metal, lit the way Galaxy on Fire 3 lights its surfaces (its Phong highlight, gloss as smoothness, a fresnel). A glTF model's `KHR_materials_pbrSpecularGlossiness` materials load the same way. |
+| `environment`, `rim` | With a specular map or colour: how much the surroundings reflect in it, 0 to 1 (default 1; Galaxy on Fire 3's `Environment_Amount`: 1 on ship hulls and glass, 0 on stations, capital ships and guns), and its rim light along the outline, 0 or 1 (default 1). |
+| `highlightMultiplier`, `multiplierInMap` | With a specular map or colour: Galaxy on Fire 3's `Specular_Multiplier`, how much brighter the highlight is than the map (default 1), and `true` when the map already carries it (the GoF3 importer's hull maps: then it brightens the whole specular, as GoF3's ship shader does). A glTF material says these four in its `extras`: `"extras": { "environment": 0, "rim": 1 }`. |
 | `emission`, `emissionColor`, `emissionIntensity` | Emission map and / or colour; above 1 it blooms. |
 | `alphaClip` | Cut the diffuse's alpha below this (decals). |
 | `opacity` | Below 1: glass (see-through, reflections stay bright). |
@@ -897,6 +1027,7 @@ To set materials up in the mod instead (paths inside the mod), each entry applie
 | `damageEmission` | A mask (PNG) used as the material's emission when it has none: battle damage embers, glowing ember-orange with the ship's hull damage (from a third lost to full at 90 %, flickering slowly). |
 | `damageDetail`, `damageNormal` | Battle damage charring (a material without its own detail maps): a detail colour PNG (sRGB, mid grey = unchanged, darker = burnt; its alpha the burn mask) and a normal map, blended in with the hull damage (from a fifth lost to full at 75 %), under the embers. |
 | `shimmer` | `true`: a nozzle shimmer: an additive layer over the same faces as the nozzle's glow, its `emission` pattern times the `flameNoise` texture scrolling along it, in `emissionColor` x `emissionIntensity` (with `engine` it follows the engines like the glow). |
+| `additive`, `scroll`, `ignoreVertexColors` | `true`: an additive glow layer, unlit, its light added to what is behind it (a gate's glowing ring, an energy field, sparks along a hull): the `emission` texture (else `diffuse`) x `emissionColor` (else `color`, else white) x `emissionIntensity` (above 1 it blooms) x the mesh's vertex colours (not with `ignoreVertexColors`), the texture's alpha as a mask; `scroll` `[u, v]` moves the texture by that many UV units a second (electricity). It casts no shadow and nothing collides with it. |
 | `hologram` | `true`: a hologram projector: additive rings in `emissionColor` x `emissionIntensity` through the `emission` pattern, which turns about each ring's centre (UV 0.5, 0.5) while the rings bob along their normal. A second UV channel per ring: x its spin (-1..1: direction and share of the speed), y its share of the bob (written as 1 - share: the loader flips V). |
 | `flame` | `true`: these surfaces are engine flames drawn by the game (see below); `emissionColor` x `emissionIntensity` is the flame's colour. |
 | `flameLength`, `flameIdle` | How far the flame reaches behind its stub, in the model's own units (default 5: EVERSPACE 2's 500 cm). `flameIdle` is no longer used. |
@@ -1286,7 +1417,7 @@ Skin row ("Standard" is the model's own look, then the skins the ship's type may
 |---|---|
 | `id`, `name` | The skin's id (not `none`) and its name in the Customize screen (a string or per language). |
 | `types` | The ship types that may wear it (a ship's `kitType`; none = every type of the kit). |
-| `materials` | Per material whose name contains `material` (the model's own glTF material name, or part of it), the textures that replace its own: `diffuse` (base colour), `emission`, `metallicSmoothness` (URP Lit's layout: R metallic, A smoothness; not glTF's metallic-roughness), `normal`; `color` / `emissionColor` (`[r, g, b]`, 0 to 1) and `emissionIntensity` too. A field left out keeps the model's own; a material no entry names is untouched. PNG or JPG. |
+| `materials` | Per material whose name contains `material` (the model's own glTF material name, or part of it), the textures that replace its own: `diffuse` (base colour), `emission`, `metallicSmoothness` (URP Lit's layout: R metallic, A smoothness; not glTF's metallic-roughness), `specularGlossiness` (RGB specular, A smoothness: on a material in the specular workflow), `normal`; `color` / `emissionColor` (`[r, g, b]`, 0 to 1) and `emissionIntensity` too. A field left out keeps the model's own; a material no entry names is untouched. PNG or JPG. |
 | `engineColor` | `[r, g, b]`: every exhaust's glow in this skin (otherwise the mounts' own `glowColor` / the ship's `engineGlowColor`). |
 | `colors` | A colour scheme the skin brings along: a preset's id, or `{ "slot": value }` like a preset's `colors`. Picking the skin sets them; the colour rows can change them after. |
 | `livery`, `decal` | A livery's / decal's id (below) the skin brings along. |
@@ -1435,7 +1566,8 @@ meanwhile).
 
 The remake has two ways to fly the player's ship: the **original** (a throttle, the ship always flying forward) and **free
 flight** (the EVERSPACE 2-style option under Options > Controls: held thrust, strafe and up / down, a held boost, inertial
-dampeners). A mod decides for itself whether its content touches one, the other or both.
+dampeners). A mod decides for itself whether its content touches one, the other or both, and can change every number
+either style flies by (see [Flight rules](#flight-rules)).
 
 **Items** (their `stats`, see [Stats](#stats)): a booster's and a Steering Nozzle's own stats (`boostSpeed`,
 `boostRechargeMs`, `boostDurationMs`, `agility`) count in both styles unless `flightScope` keeps them to one. On top of that,
@@ -1467,7 +1599,7 @@ bonuses instead.
 | Field | |
 |---|---|
 | `flightStyle` | `"free"` or `"original"`: this ship always flies so, whatever the player's option (`"player"` or no field: the player's). |
-| `flight` | Bonuses in % for both styles: `topSpeed`, `turnRate`, `strafeSpeed`, `acceleration` (free flight only: the original has none), and `boostFactor` (free flight's boost in hundredths of the top speed). `original` / `free` inside it: the same, for one style only. `rules`: the ship's own [flight rules](#flight-rules). |
+| `flight` | Bonuses in % for both styles: `topSpeed`, `turnRate`, `strafeSpeed`, `acceleration` (free flight only: the original has none), `boostFactor` (free flight's boost in hundredths of the top speed), `fullStopDamage` and `lowSpeedResistance` (EVERSPACE 2's ship passives, see the [stats](#stats) 138 / 139: the guns hit harder while the ship stands still, it takes less once it has flown slower than 30 m/s for a second). `original` / `free` inside it: the same, for one style only. `rules`: the ship's own [flight rules](#flight-rules). |
 
 **Who decides the style**, first match: an event or mission (the **Set Flight Model** node, `/flightstyle`), the ship flown,
 the mod campaign (`campaign.json`'s `"flightStyle"`), a new-game option that is on (`gameoptions.json`'s `"flightStyle"`), then
@@ -1636,7 +1768,7 @@ New star systems and their stations. Both are lists: `"id"` adds one, `"override
 | `sunColor` | `[r, g, b]` from 0 to 1: the colour and strength of the sunlight on ships and stations. Default: the light of its `sky`. |
 | `skybox` | Its own sky, see [Skies](#skies). Default: the nebula of its `sky` and the game's stars. |
 | `jumpgate` | Its own jumpgate model in its gate orbit: `{ "model": "models/gate.glb", "size": 15000, "yaw": 0, "radius": 7500, "materials": [...] }`. `model` a glTF / GLB in the mod (like a station's) or a game model (`"gof2:jumpgate_vossk_anim"`); `size` its largest extent in game units (default 15000; the game's gates are about 15000, the Vossk one 22500); `yaw` degrees about its up axis (ships fly through it along its front, the model's +Z); `radius` how near a ship must come to jump, and its collision sphere (default half its size); `materials` like [ships.json's](#materials). Default: its race's gate. A gate of your own has no jump flash (the game's gates play one as a ship goes through). |
-| `spaceMusic`, `stationMusic` | A mod's track (see [Music](#music)). |
+| `spaceMusic`, `stationMusic`, `battleMusic` | A mod's track (see [Music](#music)); `battleMusic` one or three. |
 
 Changing a system (`"override"`): `name`, `security`, `visible`, `available`, `sky`, `sunTexture`, `sunColor`, `skybox`, `jumpgate`, the music, and `gates` (added to its routes; links original systems too).
 
@@ -1679,7 +1811,7 @@ nebula on black, not on a dark blue. The sky also lights the scene a little (its
 | `techLevel` | 0 to 10: which items its shop sells. |
 | `planet` | The planet it orbits: one of the game's planet textures, 0 to 22 or 24 to 26. |
 | `looksLike` | An original station whose model and docking shape it uses. Default: the first original station of its system's race. With a `model` it stands in while the model loads, or when it can't be read. |
-| `model` | Its own 3D model: a glTF / GLB file in the mod (made like a ship's, see [Ship models](#new-ships)), or one of the game's (`"gof2:station_078_midorian"`, as made unless `modelSize` is given). |
+| `model` | Its own 3D model: a glTF / GLB file in the mod (made like a ship's, see [Ship models](#new-ships)), or one of the game's (`"gof2:station_078_midorian"`, as made unless `modelSize` is given). Its first animation (turning rings, sliding arms) plays on a loop, like a ship's. |
 | `modelSize` | The model's largest extent in game units (20 units = 1 m). Default 40000 (2 km); the original stations are 20000-100000. |
 | `modelYaw` | Degrees to turn the model about its up axis. A launch leaves along the station's front (the model's +Z after the turn, toward the orbit's planet); arrivals come from there too. |
 | `modelCentre` | `true` (default): the middle of the model is the station's centre; `false`: the model's own origin is. |
@@ -1689,15 +1821,45 @@ nebula on black, not on a dark blue. The sky also lights the scene a little (its
 | `interior` | The hangar and bar you see when docked: `"terran"`, `"vossk"`, `"nivelian"`, `"midorian"` (or 0-3). Default: those of its system's race. |
 | `hangar`, `bar` | Your own hangar / bar room from `interiors.json` (see [Hangars and bars](#hangars-and-bars)): its id, or `"mod_id:interior_id"` for another mod's. `interior` still picks the race whose ships park there. |
 | `planetTexture` | Its own planet: a PNG with transparency (the round planet on a transparent background, its lit side as you like it; 512 x 512 is plenty). Seen big from its own orbit and small from the system's other orbits. Default: the game's texture `planet`. |
+| `planetSphere` | Its planet drawn as a lit 3D sphere in place of the flat picture, with one of EVERSPACE 2's planet looks: `{ "look": "es2Desert" \| "es2GasSmooth" \| "es2Gas" \| "es2Cratered" \| "es2Volcanic" \| "es2Ice" \| "es2Water" \| "es2Earthlike", "maps": { "surface", "normal", "surface2", "normal2", "capNormal", "capColour", "noise", "noise2", "clouds", "cloudsNormal": PNGs in your mod }, "atmosphere": [r, g, b], "colors": [[r, g, b], [r, g, b]], "variation": 0-1 }`. The maps are the ones the look's EVERSPACE 2 material uses, as they are. For the gas giants, `colors` are the two colours its bands go between (for `es2Volcanic`: its rock's and its lava's; `es2Ice`: its ice's; `es2Water`: its water's and its floes'; their clouds drift slowly) (linear, like EVERSPACE 2's: the smooth giant's Color and Color2, the banded one's SecondaryColor and BaseColor) and `variation` turns their hue, so planets sharing maps look different. The sun of its orbit lights it; with `atmosphere` it gets a glowing shell like EVERSPACE 2's, thickest round its edge, its colour turning toward the opposite hue where day meets night. |
 | `mapTexture` | The planet on the star map's system view: an image wrapped round the map's sphere like a world map (2:1 equirectangular; it must wrap at the left and right edges; 1024 x 512 is plenty), lit by the system's sun like the game's map planets. Without it a `planetTexture` is shown there as a flat disc facing you; without either, the game's map planet for `planet`. |
 | `mapRing` | `true`: a ring round the planet on the star map (the game's own planet ring, as the planet ring orbits have it). |
 | `mapPlace` | `{ "angle": degrees, "distance": n }`: where its planet sits in the star map's system view, round the sun (0 to 360) and how far out (the game's planets lie about 8000 to 45000 out). Either may be left out. Default: the game's place for it. |
 | `orbit` | The layout of its orbit level: station or not, jumpgate, arrivals, asteroids, fog, sun and planet. See [Orbit layouts](#orbit-layouts). |
 | `music` | A mod's track for its docked music (see [Music](#music)). |
+| `spaceMusic`, `battleMusic` | A mod's track for the calm music in its orbit, and for its orbit's fights (one or three, like a system's). Each beats its system's; without them the system's plays. See [Music](#music). |
 | `mobile` | A new station that moves: `true` or `{ "route": [stations] \| "any", "stayMinutes": 15, "systemMinutes": 90, "speed": 0.2, "race": "terran", "engines": [mounts] }`. See [Mobile stations](#mobile-stations). |
+| `life` | Drones at work round its own `model`, like EVERSPACE 2's worker drones. See [Station life](#station-life). |
 
 Changing a station (`"override"`): `name`, `subtitle`, `description`, `techLevel`, and the looks: `model` and its fields, `interior`, `planetTexture`,
-`mapTexture`, `mapRing`, `mapPlace`, `orbit`, `music` (an original station can get a new model too).
+`mapTexture`, `mapRing`, `mapPlace`, `orbit`, `music`, `spaceMusic`, `battleMusic` (an original station can get a new model too).
+
+### Station life
+
+A station with its own `model` can have drones at work round it, like EVERSPACE 2's worker drones: they fly loops round its
+structures, and now and then one leaves its loop for a spot on the hull, welds there a while with sparks and flies back to
+its place on the loop.
+
+```json
+"life": { "scene": "life", "loops": [ { "points": [[x, y, z], ...], "count": 4, "speed": 20, "loop": true, "twoLanes": true,
+                                       "laneOffset": 5, "spots": [[x, y, z, nx, ny, nz], ...] } ] }
+```
+
+Everything is in the model's own frame: its metres as the glTF file has them, before `modelYaw`, `modelSize` and the
+centring, so the drones turn, scale and move with the model.
+
+| Field | |
+|---|---|
+| `scene` | The drone: the scene of this name in the station's model file (glTF files can hold several scenes; the station is its main one). Its nose faces +Z. Default `"life"`. |
+| `loops` | At most 24. Each: |
+| `points` | The loop's path, at least two points; a smooth curve runs through them. |
+| `count` | Drones on it, spread evenly: 1 to 40 (default 4). |
+| `speed` | Metres a second, in the model's metres (default 20, EVERSPACE 2's). |
+| `loop` | `true` (default): the path closes; `false`: the drones turn back at its ends. |
+| `twoLanes` | `true` (default): every other drone runs the other way, each `laneOffset` metres (default 5) to its right. |
+| `spots` | Where its drones weld: a point on the hull and the hull's outward direction there, at most 64. A drone with a spot within 100 m and 90 degrees of its heading may go: it waits 5 m off the spot facing the hull, welds 10 to 20 s, and its next weld comes at most 20 s after it is back (one drone of a loop is picked every 2 s, shared among those not welding). Without spots the drones only fly. |
+
+The drones are only scenery: no marker, no collision. Not in the alien orbit or interstellar space.
 
 ### Mobile stations
 
@@ -1749,12 +1911,28 @@ ahead of it; pitch up from the horizon.
 | `jumpgate` | `true` the jumpgate stands in this orbit, `false` none. Default: in the system's gate orbit only. A gate here takes ships out through the routes; ships coming in through them still arrive in the system's gate orbit (`gateStation`), so keep the gate there. |
 | `jumpgatePosition` | `[x, y, z]`: where the jumpgate stands (the game's: 70 000-120 000 units out). |
 | `arrival` | `[x, y, z]`: where every arrival by travel comes in (a planet jump, the jumpgate, the Khador Drive, a wormhole), facing the station. Default: from the direction of the planet left behind, or the gate. |
-| `asteroids` | `false` no field (the autopilot's "Asteroid field" entry goes too), or `{ "count": 1-300, "centre": [x, y, z], "spread": units across (default 100000; the big ones in 0.6 of it), "type": "rock" \| "void" \| "ice" \| "magma", "ores": [items] }`. `ores` are item numbers or `"mod_id:id"`, or `{ "item": 157, "chance": 3 }` for a weight (default 1); without them the system's ores by distance, like the game's. The game's ores (154-164, 217) give their cores from class A asteroids. |
+| `asteroids` | `false` no field (the autopilot's "Asteroid field" entry goes too), or `{ "count": 1-300, "centre": [x, y, z], "spread": units across (default 100000; the big ones in 0.6 of it), "type": "rock" \| "void" \| "ice" \| "magma", "ores": [items] }`. `ores` are item numbers or `"mod_id:id"`, or `{ "item": 157, "chance": 3 }` for a weight (default 1); without them the system's ores by distance, like the game's. The game's ores (154-164, 217) give their cores from class A asteroids. `"models": ["rocks/a.glb", ...]` (glTF / GLB files in the mod) draws the asteroids, one at random each, as big as the game's asteroid of that size, with `"materials"` like ships.json's; mining, ores and hits stay the game's. |
 | `fog` | `false` no fog, or `{ "color": [r, g, b] (0..1), "end": units }`: the haze some systems have (the game's end 50 000-150 000). |
 | `sun` | `[yaw, pitch]`: the sun's direction in this orbit (and the light, the flare, the skybox's `sunAligned`). |
 | `planet` | `{ "size": x the game's, "yaw", "pitch" }`: the orbit's own planet. |
+| `light2` | The second light (the game's planet light): `{ "color": [r, g, b] (0 to 2, as bright as the sun's 1.5 at 1.5), "yaw", "pitch" }` (directions as `sun`), or `false` for none. Default: the system's colour, from the orbit planet's side. |
+| `ambient` | `[r, g, b]` (0 to 1): the light everything gets on its dark side. Default: 0.15 x the sun's colour. |
+| `skybox` | The orbit's own sky, with the fields of a system's [`skybox`](#skies), in place of the system's sky in this orbit alone (each of a system's stations can show its own). |
+| `skyRotation` | `[x, y, z]` degrees: the sky's turn in this orbit, like the system skybox's `rotation` but for this station alone (over the system's `rotation` and `sunAligned`): each orbit can show its sky from its own angle, lined up with its own `sun`. |
 | `pads` | Docking pads outside the station, docked at from space like the arms in the Luur mission: `[ { "position": [x, y, z], "approach": [x, y, z], "facing": [x, y, z] } ]`. `position` is where the ship rests, `approach` where it comes in from (default 2000 units above the pad), `facing` where its nose points (default `z`). The player docks at the nearest free one ("DOCK" on the station's pads target); missions hear it as `on pad` (see the steps). With `"station": "nodock"` they are the only way to dock. |
 | `pirateHeld` | `true`: pirates hold this station on every visit, like the Kaamo Club at the start (four pirate outposts and their fighters; no docking, jumpgate or Khador Drive until the outposts fall). Driven out, they come back after 30 minutes of play. `false` keeps the station free in a system that is `pirateHeld`. |
+| `wrecks` | A field of wrecks to salvage, like EVERSPACE 2's wreck fields: `{ "count": 1-60 (default 12), "centre": [x, y, z], "spread": units across (default 60000) }`, or `true` for 12 at the default place. Each visit lays out that many wreck containers at random in the field, each with a freighter's loot (or a little Space Waste); they stay until emptied. `"models"`: glTF / GLB wreck hulls in your mod laid among them (`"hulks"` of them, default twice the models up to 8; one at random each; the largest model `"size"` units at its largest side, default 8000, the others in proportion as you made them, each a little bigger or smaller; turned at random, the same for every player), with `"materials"` like a station model's; the player slides along each one's box and pilots steer around it. |
+| `containers` | Closed containers, like EVERSPACE 2's: `{ "count": 1-40 (default 6), "centre": [x, y, z], "spread": units across (default 40000), "bulletproof": share 0-1 (default 0.3) }`, or `true` for 6 at the default place. Each visit lays them out at random in the field, each holding 1 to 3 freighter loot rolls (a bulletproof one 2 to 4: EVERSPACE 2's counts for its containers and rare ones). A hit opens an ordinary one; shots bounce off a bulletproof one. Either opens with the action key (OPEN, F) within 360 m in front of your ship. Opened, it throws its loot out as crates for the tractor beam, which stay until emptied. Not in the alien orbit or interstellar space. `"loot": [ { "item": "mod:core", "amount": 2 }, ... ]` puts fixed items in them on top, an entry a container (the bulletproof ones first), each found once a game: once its container is opened it doesn't come back. `"model"` and `"bulletproofModel"` (glTF / GLB files in the mod) draw them, as big as the race's container, with `"materials"` like ships.json's (by the model's mesh or material names); without them the race's container. `"cloaked": [ [x, y, z], ... ]` (up to 10) adds cloaked containers at those places, like EVERSPACE 2's: a shimmer in space with no marker until your ship is within 144 m ("Container nearby" shows within 2 km), opened with the action key, with a rare container's loot and the fixed loot first. `"secure": [ { "at": [x, y, z], "triggers": [ [x, y, z], ... ], "ordered": true/false, "retrigger": seconds } ]` (up to 6, each with 1-8 triggers) adds locked containers, like EVERSPACE 2's armoured ones: small red lights are placed around them, and shooting one lights it green; once all are lit the container bursts open. With `"ordered"` they must be shot in the listed order (a wrong one puts the earlier ones out again); with `"retrigger"` each lit one goes dark after that many seconds, so you have to be quick. A secure container can also have `"sockets": [ { "at": [x, y, z], "orb": [x, y, z] } or { "at": [x, y, z], "coil": [x, y, z] } ]` (up to 4), which must all be filled as well (`"triggers"` may then be left out): an `"orb"` socket wants an energy sphere from the dispenser placed at the `"orb"` place (GRAB at the dispenser, the sphere fades after 40 s), a `"coil"` socket the energy coil placed at the `"coil"` place (GRAB it). A carried one hangs behind your ship (DROP lets it go, drifting on as it moved); firing your guns while carrying throws it ahead instead, and it goes into a socket of its kind it passes within 36 m. `"conductors": { "sources": [...], "statics": [...], "portables": [...], "receivers": [...], "radius": 4000, "receiverRadius": 40 }` (places as `[x, y, z]` or `[x, y, z, radius]`, up to 12 of each) adds a conductor puzzle like EVERSPACE 2's: energy jumps from a source to any conductor within reach (either one's radius, default 4000 units = 200 m; a receiver's 40), on along the chain, shown as beams. Carry (GRAB / DROP / fire to throw) the portable conductors into gaps until every receiver is energized for 1.5 s. Containers with exactly the same conductors share one puzzle. `"sounds": { "grab", "hold", "drop", "throw", "dispenser", "conductor", "unlock" }` names your [sounds](#sound-effects) for the puzzles: grabbing, a loop while something is carried, letting go, throwing, a loop at each dispenser, a hum at each energized receiver, and a secure container bursting open (each optional). |
+| `lanes` | Traffic lanes, like EVERSPACE 2's spline traffic: `[ { "points": [[x, y, z], ...], "ships": ["12", "mod:id"], "count": 1-40 (default 10), "speed": m/s (default 80), "loop": true, "twoLanes": true } ]`, at most 12. Ships stream along a smooth path through the points (at least two; three or more can close into a loop), spread evenly, engines lit; with two lanes every other one runs the other way, each keeping to its right. On an open path they turn over at the ends. They look like the `ships` given, or else the system race's fighters. They are scenery: no AI, marker or lock, but a hit can destroy one, which is a small crime against the system's race, and it is back 30 s later. Not in the alien orbit or interstellar space. |
+| `level` | The orbit's EVERSPACE 2 location level, 1-30: what its encounters pay (EVERSPACE 2's 800 credits plus up to 4200 more by level). Without it the station's tech level x 3. |
+| `hazards` | Hazard volumes, like EVERSPACE 2's: `[ { "kind": "heat" \| "radiation" \| "frost" \| "corrosion" \| "damage", "centre": [x, y, z], "radius": units, "dps": damage } ]`. Inside a `heat` sphere the ship takes up to `dps` a second, most at the centre (falling off with the square of the distance), in quarter-second ticks; `"raiderDps"` gives it instead as that many pirate raiders' gunfire, so it grows with your rank as their guns do (EVERSPACE 2's heat volumes: about 3.6). Every 5 seconds inside a `radiation` sphere the ship is radiated once more: its hull can't be repaired past 85 % of its maximum per dose (up to 10), in every orbit, until it docks. Five seconds in a `frost` sphere freeze the ship for 6 seconds (it barely answers the controls); the frost thaws over a minute outside. A `corrosion` sphere eats at the hull past the shield every second while inside and for 8 seconds after (`raiderDps`: each tick, default a twelfth of a raider's second of fire); a System Recovery Routine stops it. A `damage` sphere takes `dps` (or `raiderDps`) a second everywhere inside. The HUD says when the ship flies in. They look like EVERSPACE 2's fields, drawn with its own shader math: drifting clouds in the volume (yellow-green churning corrosion with bubbles, yellow speckled radiation with sparks, blue frost wisps, a faint orange heat haze, fire for `damage`); inside, frost creeps in from the screen's edges as it builds, radiation makes the edges glow and grain, and heat makes everything glow brighter. |
+| `storm` | A lightning storm round the ship, like EVERSPACE 2's lightning fields: `true`, or `{ "frequency": flashes a second (default 1), "radius": units out (default 80000), "heightPercent", "scale", "intensity", "thunder": [your sounds], "thunderChance": 0-1 (default 0.2) }`. Flashes of light and lightning bolts on a ring round the camera, blue turning orange as they fade; now and then one of your thunder sounds follows. Only an effect: no damage. |
+| `props` | Static models placed in the orbit, like EVERSPACE 2's unique asteroids: `[ { "model": "rock.glb", "at": [x, y, z], "rotation": [x, y, z], "size": units } ]` (up to 60): a glTF / GLB file of your mod at that place, turned by `rotation` (Unity's Euler angles in degrees), its largest side `size` units (default 2000), solid to your ship. `"propMaterials"` (like ships.json's materials, by mesh or material name) paints them. |
+| `acidSacks` | Acid pouches, like EVERSPACE 2's: `[ [x, y, z], ... ]` (up to 30), each a stalk growing a pouch that every 8 to 13 seconds spits a corroding cloud (it eats your hull past the shield, and any NPC ship's in it). GRAB pulls a pouch off and firing throws it: it bursts into the same cloud on the first ship it comes near. A taken pouch grows again a few seconds later. |
+| `minefields` | Minefields, like EVERSPACE 2's: a list of `{ "kind": "kinetic" / "web" / "cryo" / "thermal" / "corrosion", "centre": [x, y, z], "radius": units (default 18000: ES2's 250 m at the mines' scale; keep the mines more than 360 m = 7200 units apart, or they go off together), "count": mines 1-40 (default 20), "raiderSeconds": a blast in seconds of a raider's fire (default by kind: 2.2, a web mine 0.27), "maxSecurity": 0-3 (default 1), "minRank" (default 4), "share": 0-1 (default 0.5) }`. Still mines that blink and blow up when the player's ship comes near; a web mine also slows it for 4 s, a cryo mine freezes it, a corrosion mine leaves a corroding cloud, a thermal mine's blast reaches further. They make the game harder, so a field is laid only in systems of security `maxSecurity` or lower (0 dangerous ... 3 secure), for a pilot of rank `minRank` or more, on `share` of the visits. |
+| `ambience` | Sound beds, like EVERSPACE 2's ambience zones: `[ { "loops": ["name", ...], "adds": ["name", ...], "addEveryMs": [8000, 15000], "addVolume": 0.3, "volume": 1, "centre": [x, y, z], "radius": units } ]`, the names your mod's [sounds](#sound-effects) (a loop may also be one of its [music](#music) tracks: kept compressed, better for long beds). One of `loops` (or `"loop"`) plays on repeat, one of `adds` now and then at `addVolume`, under the music at the sound effects' volume; full within `radius` (default 30000) of `centre`, fading out over half the radius more, or everywhere in the orbit without a `centre`. |
+| `gasClouds` | Its own plasma clouds, like EVERSPACE 2's plasma fields: `{ "plasma": 201, "clouds": [ [x, y, z], ... ] }` (game units from the station). They replace the game's random clouds in that orbit, in the plasma given (201 Green, 202 Blue, 203 Purple, 204 Red, or a mod item; without it the one the game picks for the system); as the game's, they only show with a spectral filter mounted, burst with an ionizing missile and are gathered with a plasma collector. |
+| `locals`, `raiders` | Who flies in this orbit, like the system's own `locals` / `raiders` (races, numbers or mod races), beating the system's here: the local fighters' sides and who raids it. |
 
 ```json
 {
@@ -1802,7 +1980,7 @@ a race goes (a system's or ship's `race`, `/spawn`, `/standing`, `standing(...)`
 |---|---|
 | `id`, `name`, `description` | As for items. Other mods name it `"mod_id:id"`. |
 | `look` | The game race whose hangar, bar, lounge visitors, music, NPC guns and jumpgate the race borrows: `terran`, `vossk`, `nivelian`, `midorian`, `pirates` or `void` (default `terran`). |
-| `icon` | Its emblem, a PNG (square, transparent around it, like the game's race emblems). Default: its look race's. Shown on the station's header, the star map, the lock plate and the Status window. |
+| `icon` | Its emblem, a PNG (square, transparent around it, like the game's race emblems; drawn at 36 px on the lock plate and star map, larger on the station header, so 64x64 to 256x256 looks sharp everywhere). Default: its look race's. Shown on the station's header, the star map, the lock plate and the Status window. |
 | `color` | `[r, g, b]` (0 to 1). |
 | `standing` | The player's standing at the start of a game, -100 to 100 (default 0). At -71 and below the race is hostile, at 71 and above a friend, as with the game's races. Killing its ships costs 5 (10 on Extreme). |
 | `hostile` | `true`: always the player's enemy, whatever the standing, and the enemy of every race it doesn't call a friend, like the game's pirates. It isn't listed on the Status window. Killing one of its ships in the system of a race it is at war with raises that race's standing by 1. |
@@ -1943,9 +2121,16 @@ the event graphs' expression language and is checked when it matters (a shop's s
 | `rank`, `credits`, `kills`, `station`, `system`, `ship` | The player's rank, credits, kills, where they are docked / flying, the ship they fly. |
 | `visited(station)`, `has(item)`, `cargo(item)`, `quest(name)` | A station docked at; how many of an item the player has (mounted too) / has in the hold; a mission under way (1) or done (2). |
 | `docked(station)`, `inorbit(station)` | How many of the players are docked at that station now / alive in its orbit (single player: 1 or 0). |
-| `medals(gold)`, `medals(silver)`, `medals(bronze)`, `medals(any)` | How many medals the player holds of that grade (`any`: earned at all). |
-| `medals(allgold)`, `medals(allsupernova)` | 1 with every medal of the main game gold (what puts the VoidX at Thynome), or those and the nine Supernova medals too. |
+| `medals(gold)`, `medals(silver)`, `medals(bronze)`, `medals(any)` | How many medals the player holds of that grade (`any`: earned at all), the mods' [medals](#medals) at that tier included. |
+| `medals(supernova)`, `medals(tier)` | The nine Supernova medals earned (and mods' medals at the supernova tier); a mod's own tier (`medals(platinum)`): the mods' medals earned at it. |
+| `medals(off)` | 1 when this game earns no medals (started without medals, or multiplayer): an `available` can then offer another way. |
+| `medal(medal)`, `medal(medal, tier)` | 1 once that medal is earned (at that tier or a higher one): a mod's `"mod_id:id"` or a game medal's number 0-44 (`medal(4, gold)`: Butcher gold). |
+| `killswith(item)`, `killed(ship)` | How many ships the player destroyed whose last hit came from that weapon / of that ship type (a number, a name or `"mod_id:id"`; counted from 2026-11-13 on). |
+| `stat(name)` | One of the game's counters: `kills`, `piratekills`, `asteroids`, `ore`, `cores`, `oretypes`, `coretypes`, `crates`, `junk`, `containers`, `passengers`, `freelance`, `stations`, `jumpgates`, `goodsproduced`, `blueprints`, `wingmen`, `battleships`, `bombs`, `agents`, `booze`, `boozetypes`, `alienremains`, `highestcredits`, `hours`, `cloakminutes`, `medals`. |
+| `medals(allgold)`, `medals(allsupernova)` | 1 with every medal of the main game gold (what puts the VoidX at Thynome), or those and the nine Supernova medals too. In a game started without medals: 1 once the main story is won, or the Supernova story finished. |
 | `bought(ship)` | 1 once the player has bought (or built from a blueprint) that ship in this game: a number, a name or `"mod_id:id"`. Ships bought before this word existed don't count. |
+| `produced(item)` | How many times the player has built that item's blueprint in this game (a number, a name or `"mod_id:id"`): `produced(85) > 0` once the Khador Drive is built. |
+| `unlocked(item)` | 1 once the player knows that item's blueprint (bought, found or given by the story): `unlocked(85)` from the story step that hands over the Khador Drive's. |
 
 Combine them with `and`, `or`, `not`, comparisons and arithmetic:
 
@@ -1994,10 +2179,10 @@ autocomplete), and the product is made at the station where the first ingredient
 | `ingredients` | **Required.** `{ "item", "amount" }` each: goods, ores and cores, and items too (the player demounts them first). |
 | `requiresShip` | Optional. Only built while flying that ship, which it then replaces: a skin ("Valkyrie, 1000 t Gold, 100 Golden Cores, 300 Energy Cells"). The ship's Kaamo Club upgrades stay. |
 | `autocomplete` | `true` (default): the game's price, 1.25 x the product's price. A number: that price. `false`: it can't be autocompleted. |
-| `available` | A [condition](#conditions) before any source offers it. |
+| `available` | A [condition](#conditions) before any source offers it. On a game blueprint you took over (the same `item`), the story character who sells it waits for it too: Gunant at Var Hastra and his drill (90) with `"available": "unlocked(85)"` only once the Khador Drive's blueprint is known. |
 | `unlocked` | `true`: the player knows it as soon as it is available (the next docking), without finding it. |
 | `lounge` | A Space Lounge visitor sells it: `chance` % each time a bar fills with new visitors, for `price` (default half the product's price), in `systemRace` systems (-1 = any). `stations`: only in those bars (station numbers or `"mod_id:station_id"`; then `chance` defaults to 100), like the game's own blueprint sellers, each at one station: `{ "stations": [ 54 ], "price": 59999 }`. With `stations`, `seller` puts a named character there instead of a local visitor (Kothar and Valkyrie have no lounge): `{ "name": "Khador", "speaker": 20, "race": 7, "offer": "...", "thanks": "...", "known": "..." }`, `speaker` a story character's number for the face, and the optional lines for the offer (`#N` the product, `#C` the price), the sale and every chat after it. |
-| `derelict` | `chance` % of the orbits visited hold a derelict freighter (`race`: terran, vossk, nivelian, midorian or any) to dock at and hack; it leaves the blueprint in a data container. `stations`: only in those orbits (station numbers or `"mod_id:station_id"`; then `chance` defaults to 100, always there). `position`: `[ x, y, z ]` in game units (what `/pos` shows in that orbit), else somewhere out in front of the station. Hacking it also fires the missions' and events' `hacked` trigger. |
+| `derelict` | `chance` % of the orbits visited hold a derelict freighter (`race`: terran, vossk, nivelian, midorian or any) to dock at and hack; the hack teaches the blueprint at once. `stations`: only in those orbits (station numbers or `"mod_id:station_id"`; then `chance` defaults to 100, always there). `position`: `[ x, y, z ]` in game units (what `/pos` shows in that orbit), else somewhere out in front of the station. Hacking it also fires the missions' and events' `hacked` trigger. |
 | `drops` | A ship the player destroys may leave it in a data container: `race` (terran, vossk, nivelian, midorian, pirate, void, specter or any), `chance` % per kill (decimals allowed). Or `ship` (a number or `"mod_id:ship_id"`) instead of `race`: only ships of that type drop it, whatever their race, and before any race-wide drop; `{ "ship": "my_mod:boss_hull", "chance": 100 }` makes a boss leave its own hull's blueprint. A blueprint already known is never dropped again. |
 
 A blueprint found in a data container is learnt when the tractor beam pulls the container in ("Blueprint found: ..."). A
@@ -2008,6 +2193,189 @@ player owns it and has no ship of that type stored), the equipment moving over a
 A blueprint is obtained once: once the player knows it, every source stops offering it. A seller already standing in a bar
 has nothing left ("I don't have anything left, sorry."), a derelict hacked afterwards is empty, and no second data container
 is dropped while one with it still floats in the orbit. It can be built from as often as the player likes.
+
+## Wingmen
+
+The Space Lounges' wingmen offers can fly your ships: a `wingmen.json` in the mod (one object) makes a crew of them.
+
+```json
+{
+    "chance": 40,
+    "ships": [ "falcon", "my_mod:hawk" ],
+    "radio": {
+        "kill": [ "Scratched one!", "Got one!" ],
+        "lost": [ "We've lost a wingman." ],
+        "help": [ "Help me, I can't shake him off!" ],
+        "thanks": [ "Nice shot!" ],
+        "warn": [ "Enemy behind you!" ],
+        "playerDown": [ "Pull out, you're on fire!" ]
+    }
+}
+```
+
+| Field | |
+|---|---|
+| `chance` | % of the bars' wingmen offers whose crew flies your ships (default 40). With several mods' crews each is rolled in turn, in load order; the first that comes up flies, else the game's way (a fighter of the agent's race, the same one for a name every time). |
+| `ships` | The ships they fly (`"mod:id"`, your own by their `id`, or numbers). Default: your ships with a `wingmanDevice`. Each pilot gets one of those of the agent's race, else any of them; the agent and its friends may fly different ones. |
+| `radio` | Lines a wingman in one of these ships says in the flight HUD's radio box, with its name and face: `kill` (it destroyed a ship; now and then), `lost` (another of them was shot down), `help` (its hull under a third), `thanks` (you destroyed a ship that was after it), `warn` (an enemy after you within 1.5 km behind you; then quiet for 30 seconds), `playerDown` (your hull under a fifth; once until it is back over half). A list of lines (one at random) or one line; at most one line every 12 seconds, and none over other radio calls. |
+
+A ship's `wingmanDevice` (see [ships.json](#shipsjson)) works whenever a hired wingman flies it, with or without a
+`wingmen.json`. The crew's ships are saved with the contract; a ship no longer there is replaced the game's way.
+
+## Medals
+
+A `medals.json` adds medals to the Status window's Medals tab, after the game's 45. They are checked when the player docks,
+like the game's: the same "New medal!" toast and credits (none on Extreme), the same progress bars and hints. Each medal is
+earned at the game's tiers (`bronze`, `silver`, `gold`, `supernova`: the Supernova medals' orange plate) or at tiers a mod
+adds, and keeps the best one reached.
+
+```json
+{
+    "tiers": [
+        { "id": "platinum", "name": "Platinum", "rank": 3.5, "color": "#e5e4e2", "reward": 10000 }
+    ],
+    "medals": [
+        {
+            "id": "plasma_master",
+            "name": "Plasma Master",
+            "hint": "Destroy # ships with the Plasma Lance.",
+            "icon": "medals/plasma.png",
+            "counter": "killswith(plasma_lance)",
+            "grades": { "bronze": 10, "silver": 50, "gold": 100, "platinum": 250 },
+            "reward": { "platinum": 20000 },
+            "unlocks": [
+                { "tier": "gold", "blueprint": 232 },
+                { "tier": "platinum", "ship": 8, "stations": [ 10 ] },
+                { "tier": "bronze", "item": "plasma_cell", "amount": 5 }
+            ]
+        },
+        { "id": "tycoon", "name": "Tycoon", "hint": "Own a million credits.", "icon": 25, "hidden": true,
+          "grades": { "gold": "credits >= 1000000" } }
+    ]
+}
+```
+
+The file may also be just the list of medals.
+
+| Medal field | |
+|---|---|
+| `id` | Its id; other mods and conditions name it `"mod_id:id"`. |
+| `name`, `hint` | Texts (one string, or one per language like `{ "en": "...", "de": "..." }`, or `medals.<id>.name` / `.hint` in the mod's [texts](#texts)). `#` in the hint is the number of the grade earned, else of the next one. The hint also lists the grades ("Bronze 10 · Silver 50 · Gold 100"). |
+| `icon` | The symbol on the plate: a PNG of the mod (drawn in its own colours, dimmed until earned), or a game medal's number 0-44 for its symbol (tinted in the tier's colour like the game's). |
+| `counter` | A number in the [conditions](#conditions)' language the grades' numbers are compared with: `kills`, `killswith(item)`, `killed(ship)`, `produced(item)`, `has(item)`, `stat(ore)`, `credits`... |
+| `grades` | Tier to what earns it: a number the counter must reach (`strict`: pass), or a condition (`"gold": "won(supernova) and medal(4, gold)"`). The best tier met counts. |
+| `strict` | `true`: the counter must be more than the number (the game's "more than #" medals). |
+| `reward` | Credits for every grade (`5000`), or per tier (`{ "gold": 7500 }`); default the tier's: bronze 1000, silver 2500, gold and supernova 5000, a mod tier its own `reward`. |
+| `available` | A condition: while it doesn't hold the medal is neither counted nor shown (one already earned stays). |
+| `hidden` | `true`: shown only once earned. |
+| `unlocks` | What a grade gives, each from its `tier` on (default the lowest grade): `blueprint` (learnt, like the fireworks for every Supernova medal), `ship` with `stations` (on sale first at those dealers from then on, like the VoidX at Thynome; without `stations` at every dealer that has ships), `item` with `amount` (into the hold once; what doesn't fit is paid at its price). Items and ships by number, `"mod_id:id"` or your own `id`. The toast lists what was unlocked. |
+
+| Tier field | |
+|---|---|
+| `id` | Its id (not one of the game's four); any mod's medals can use it. |
+| `name` | Its name (shown on the toast and in the hint). |
+| `rank` | Where it sits among the others: bronze 1, silver 2, gold 3, supernova 4. Default: above the highest so far (5, 6...). `3.5` puts platinum between gold and supernova. |
+| `color` | `"#rrggbb"`: the symbol, the toast's border and the progress bar. |
+| `plate` | `bronze`, `silver`, `gold`, `supernova` or a PNG of the mod. Default: the silver plate in the tier's colour. |
+| `reward` | Credits when a medal reaches it (default 5000). |
+
+Medals unlock other content through conditions too: `"available": "medal(my_mod:plasma_master, gold)"` on an item,
+ship, system, blueprint or mission. To tie one of the game's medal rewards to your medal instead, override it in
+`ships.json`: `{ "override": 8, "available": "medal(my_mod:plasma_master, platinum)" }` keeps the VoidX (or 44, the
+Specter) off sale until then, and a `ship` unlock puts it on sale even without every gold medal.
+
+The game's own rules still count its 45 medals only: Champion, all-gold (the VoidX), every Supernova medal (the fireworks
+and the Specter). A game started without medals, and multiplayer, earn none of these either (`medals(off)` is 1 there).
+Earned medals are saved by key, so they stay when the mod is off and come back with it; New Game+ carries them over.
+
+## Most Wanted
+
+`wanted.json` adds criminals to the Most Wanted boards (the Missions window's **Most Wanted** tab in a station of the
+board's race). Each one travels between stations like the game's own; in the orbit where it is, it waits with its escorts
+until locked, and its death pays the bounty.
+
+```json
+[
+    {
+        "id": "snotch",
+        "name": "Snotch",
+        "description": "A smuggler king who never sells what he can steal.",
+        "board": "terran",
+        "race": "pirate",
+        "ship": "my_mod:snotch_hull",
+        "weapon": "my_mod:boss_laser",
+        "secondary": 36,
+        "hitpoints": 6000,
+        "reward": 180000,
+        "loot": 113, "lootAmount": 4,
+        "wingmen": 3,
+        "requiredBounties": 1,
+        "systems": [ "my_mod:sector_9", 12 ],
+        "route": [ 1, 3 ],
+        "character": "my_mod:snotch",
+        "available": "systemsvisited >= 2"
+    }
+]
+```
+
+| Field | |
+|---|---|
+| `id`, `name` | **Required.** Its id within your mod and its name (translate both `name` and `description` with `wanted.<id>.name` / `wanted.<id>.description` in `text/<lang>.json`). |
+| `description` | What the board says about it. |
+| `ship` | **Required.** Its ship: a number, a name or `"mod_id:id"` (a capital ship works too). |
+| `race` | The pilot's and its escorts' race: `terran`, `vossk`, `nivelian`, `midorian`, `pirate` (default), `void` or a mod's [race](#races). |
+| `board` | The board that lists it: `terran`, `vossk`, `nivelian` or `midorian` (default: its race's, else terran). It shows in that race's stations, or with `systems` in those systems' stations instead. |
+| `weapon`, `secondary` | Its gun (default the game's first) and missiles (default none): items by number or `"mod_id:id"`. |
+| `hitpoints`, `reward` | Its hull on top of the game's criminal bonus (default 1000) and the bounty (default 50,000). |
+| `loot`, `lootAmount` | What it drops and how many (default nothing). |
+| `wingmen` | Escorts flying with it (0 to 12, default 0). |
+| `escorts` | Their ships: one ship or a list the escorts take in turn (default: fighters of its race). |
+| `taunt` | What it says over the radio, with its face, when it is uncovered (translate with `wanted.<id>.taunt`). |
+| `music` | A track of a mod's [music](#music) folder that plays while it fights (default: the game's Most Wanted music). |
+| `damageTaken` | How much of your weapons' damage it takes, in percent: `{ "primary": 70, "secondary": 96, "Laser": 140, "my_mod:boss_bane": 200 }`. A key is a weapon kind (`primary`, `secondary`, `turret`), a weapon category as the shop names it (`Laser`, `Blaster`, `Auto-cannon`, `Thermo`, `Scatter gun`, `Rocket`, ...) or an item; the most specific one counts (the item, then its category, then its kind), anything unlisted takes 100. Other players' hits in multiplayer take all of it. |
+| `devices` | Boss devices it uses in the fight (see below). |
+| `turrets` | Turret items on its ship's own turret mounts, the first on the first: `[ 48, "my_mod:flak" ]` (default: what its ship type carries, its `npcTurrets`; `[]` none). More than the ship has mounts for are left off, with a warning. |
+| `requiredBounties` | How many of this board's mod criminals must be dead first (default 0). The game's criminals count apart. |
+| `systems` | The systems it travels in (numbers or `"mod_id:id"`), else any the player can see. |
+| `route` | `[ least, most ]` systems a trip crosses (default `[ 2, 4 ]`; `[ 1, 1 ]` keeps it in one system). |
+| `character` | A [character](#characters) whose face the board shows; else a face of its race (`portraitParts` `[ race, head, gender, hair, extra ]` picks one, `gender` `"female"`). Its radio lines take that character's face too. |
+| `available` | A [condition](#conditions) before it appears. |
+
+A mod's criminals appear in free play as well as in the campaign (the game's own, from the Supernova add-on's story, stay in
+the campaign). A save keeps each one's state by its key, so adding or removing other mods doesn't move it.
+
+**Boss devices.** `"devices"` is a list of the tricks a criminal pulls in its fight (after Galaxy on Fire 3's bosses):
+
+```json
+"devices": [
+    { "type": "teleport", "everyMs": 15000, "distance": [ 1100, 2300 ], "cooldownMs": 15000 },
+    { "type": "backShield", "onHit": true, "everyMs": 10000, "durationMs": 10000, "cooldownMs": 10000 },
+    { "type": "flashGrenade", "range": [ 0, 17000 ], "facing": 80, "delayMs": 3000, "durationMs": 7000, "cooldownMs": 15000 }
+]
+```
+
+| `type` | What it does while it runs |
+|---|---|
+| `teleport` | Vanishes and comes out `distance` (`[ least, most ]` game units, default 1200-2400) from you, never in front of you, nose on you. |
+| `frontShield`, `backShield` | Stops `blockPercent` (default 100) of every hit coming within `shieldAngle` degrees (default 90) of its nose / tail: fly round it. |
+| `energyAbsorber` | Takes no damage; mends its hull by `healPercent` (default 50) of what it soaks. |
+| `radarJammer` | Your radar locks nothing and shows no ships. |
+| `flashGrenade` | Flashes `delayMs` (default 3000) after the throw: white over your view for its `durationMs`, `strength` percent (default 100) looking straight at it, nothing from 90 degrees away. |
+| `mindControl` | Your wingmen turn on you; each comes back to its senses when you hit it. |
+| `bombSpreader` | Drops a proximity mine behind it at the start and every `bombEveryMs` (default 1200), flung within 45 degrees; each blasts your ship for `damage` (default 350, GoF2's AMR Saber) when you come near. |
+| `mineLayer` | Lays a mine `layBehind` (default 855) game units behind its tail at the start and every `bombEveryMs` while it runs (a burst: GoF3's boss mine layers). Each mine chases you within `seekRange` (default 11400) at `seekSpeed` game units a second (default 456) and goes off within `triggerRadius` (default 969) or after `lifeMs` (default 5000): it blasts your ship within `blastRadius` (default 1938) for `damage` and slows it by `slowPercent` for `slowMs` (default none). Shoot it down first: it takes `hull` (default 60) points. |
+| `cloud` | Leaves a cloud `cloudRadius` (default 5700) game units wide `layBehind` its tail (GoF3's smart bombs), at the start and every `bombEveryMs` while it runs, lasting `lifeMs` (default 12000). Inside it your ship keeps only `100 - slowPercent` % of its speed (default 50) and loses `hullPercent` of its hull a second (default none), past the shield, and `shieldPercent` of its shield a second (default none). |
+| `shadowClone` | Splits off `count` copies of itself (default 2) with `hullPercentOfShip` of its hull (default 20), flying and firing as it does; they go when the run ends (`durationMs`) or it dies. |
+| `wormhole` | Opens a wormhole `radius` game units wide (default 684) `layBehind` its tail (default 570) for `lifeMs` (default 5000): fly into it and you come out `exitDistance` (default 1710) in front of its nose, still heading as you were, right in its sights. |
+| `minions` | Launches `count` shield drones (default 5) circling it `radius` game units out (default 1140), each with `hullPercentOfShip` of its hull (default 7). While any of them lives, its hits lose `blockPercent` (default 100): shoot the drones down first. They go when the run ends. |
+
+Each runs `durationMs` (default 5000), then cools down for `cooldownMs` (default 15000). When it starts: `onHit` (true: when
+hit) and `everyMs` (every so often, `chance` percent of the time, default 100) fire it; `range` (`[ least, most ]` game
+units to you), `ahead` (you within so many degrees of its nose), `notAhead` (you outside them), `facing` (your nose within
+so many degrees of it) and `hullBelow` (its own hull at or under so many percent: a second phase) must all hold when given. With neither `onHit` nor `everyMs` it starts as soon as the others hold.
+`minRank` / `maxRank` give it only while your rank is within them, and `share` (percent, default 100) to only that part of
+the ship's NPCs (rolled as each one comes): a traffic hull's NPCs can carry different devices.
+In multiplayer the game running the orbit's ships plays them for its own player.
 
 ## Hangars and bars
 
@@ -2189,6 +2557,21 @@ limited to a station like the others), with the player as `@trigger` and the wre
 In multiplayer the wreck is in the games it was spawned for (each player of `@a` gets their own); the other players see it
 but can't dock at it. Spawn it for one player (`@trigger`, `@p`) when a squad shares the orbit.
 
+**Pickups.** The `pickup` step (the command `pickup @a <station> <x y z> [unmarked] [named <name>]`) puts a glowing orb at
+those coordinates of an orbit, its name on the HUD (`"marked": false` leaves the name off, for a field of many). It is only
+shown: to collect it, put an **On** "near" at the same point (a radius of 100 m or more: the game checks four times a
+second, and racing ships are fast) whose steps remove it (`"action": "remove"` with its name; `"clear"` takes them all) and
+count it. The mission's end clears them. The GoF3 Ships mod's races are made this way:
+
+```json
+{ "type": "pickup", "station": "{st}", "at": "0 4000 30000", "name": "Checkpoint" },
+{ "type": "on", "trigger": "near", "station": "{st}", "at": "0 4000 30000", "radius": 150, "steps": [
+    { "type": "if", "condition": "cp == 0", "then": [
+        { "type": "set", "variable": "cp", "value": "1" },
+        { "type": "pickup", "action": "remove", "name": "Checkpoint" },
+        { "type": "sound", "sound": "boost" } ] } ] }
+```
+
 **Wormholes.** The `wormhole` step (the **Open Wormhole** node; the command `wormhole @a <station> [x y z] to <station | void>
 [for <seconds>]`) opens a wormhole like the Void's in a station's orbit, at the coordinates or about 4 km out beside the station's launch path (keep your own spot 2 km, 40000 units, off the line
 straight ahead of the station, x 0 / y 0: ships launch along it and would be pulled in):
@@ -2263,7 +2646,7 @@ the default; `@trigger` the player a When block is about; any selector). The ste
 |---|---|
 | Story | `dialog` (pages: speaker, text, voice), `radio` (speaker, text, voice), `objective` (text, station), `title` (title, subtitle, seconds), `note` (text: a comment) |
 | Flow | `wait` (seconds), `waituntil` (condition, timeout), `if` (condition, `then`, `else`), `while` (condition, `steps`), `repeat` (count, as, `steps`), `parallel` (`steps`: beside the rest), `every` (seconds, `steps`), `on` (trigger: died, docked, launched, kill, cleared, entered, near, respawned, hacked, pad (docked at a station's pad outside), joined, left, pvpkill; station; near: at "x y z", radius; `steps`), `ask` / `vote` (question, speaker, seconds, `answers`: [{ text, steps }]; a vote's `none` runs when nobody voted), `random` (`branches`: [{ weight, steps }]), `set` (variable, value), `checkpoint` (name), `startquest` (mission), `startevent` (event, settings), `complete` (reward, title), `fail` (title), `stop` |
-| Places | `goto` (station, `dock` true: docked there, false: in its orbit, objective), `waypoint` (station, at), `wormhole` (station, at, to, void, seconds; no station: closed), `target` (station), `questorbit` (station, on), `system` (system, action: show / hide / reset), `restrict` (what: jumps / docking / all / khador (only the Khador Drive) / off), `respawn` (station, at, spread, delay), `teleport` (station, dock, at) |
+| Places | `goto` (station, `dock` true: docked there, false: in its orbit, objective), `waypoint` (station, at), `pickup` (action: show / remove / clear, station, at, name, marked: see below), `wormhole` (station, at, to, void, seconds; no station: closed), `target` (station), `questorbit` (station, on), `system` (system, action: show / hide / reset), `restrict` (what: jumps / docking / all / khador (only the Khador Drive) / off), `respawn` (station, at, spread, delay), `teleport` (station, dock, at) |
 | Ships | `fight` (station, ships: ship / count / race / behaviour, name, quiet; ends when none is left), `spawn` (ship, count, race, behaviour, name, at, turrets, hull, guns: their hull and gun damage x that), `spawntype` (npc: an [NPC ship type](#npc-ships) like `pirate_boss` or `mod_id:id`, name, at), `wreck` (race, name, at: a hackable freighter wreck), `shipgoto` (ship, to, speed, radius, fight, then), `shiproute` (ship, route "place / place", loop, ...), `shipfollow` (ship, leader, offset, escort, speed), `shipattack` (ship, target), `shipaction` (ship, action: hold / resume / jump / dock / flee, seconds), `provoke` (race, within) |
 | The player | `reward` (credits, items, title), `give` (item, amount, mount), `cargo` (item, amount, station: waits until the hold has it; `take`: then handed in, out of the hold), `take` (item, amount: empty for all, mounted: the mounted ones too, e.g. the Khador Drive), `credits` (amount), `ship` (hull, own), `lend` (hull, keep, back: see [Loaner ships](#loaner-ships)), `heal`, `ammo`, `kill`, `reveal`, `peace` |
 | Cutscenes | `cutscene` (letterbox, freeze, invulnerable), `camera` (from, to, seconds, look, follow, fov, shake), `chasecamera`, `cutsceneend`, `fade` (direction: out / in / clear, seconds, colour), `letterbox` (on) |
@@ -2313,7 +2696,9 @@ ship: `player 0 0 20000` is far ahead of it), `ship <name> [x y z]`. A place rel
 the order arrives (a route doesn't move along with them); Follow and Attack keep after their ship.
 
 To wait for a ship, two values work in **Wait Until** / **If** (an **Expression** node): `alive(Blue Wing)` (how many of
-them still fly) and `distance(Blue Wing, 0, 0, 30000)` (game units from the nearest of them to that point, -1 when none).
+them still fly) and `distance(Blue Wing, 0, 0, 30000)` (game units from the nearest of them to that point, -1 when none);
+`distance(player, 0, 0, 30000)` is the same for the event's players alive in space, so a graph can ask a player to stay near
+a point (an **Every** that counts the seconds while it is 2000 or less: a scan).
 A ship that docked, jumped out, vanished or fled is gone but nobody's kill, and an event's ships never come back by
 themselves (the orbit's own fighters relaunch from the station, a graph's don't).
 
@@ -2424,8 +2809,24 @@ Put tracks in the mod's `music` folder (`.ogg`, `.wav` or `.mp3`):
 { "id": "kepler", "name": "Kepler", ..., "spaceMusic": "kepler_space", "stationMusic": "kepler_bar" }
 ```
 
-`spaceMusic` is the calm music in the system's orbits and `stationMusic` the music docked at its stations. A station's own
-`"music"` in stations.json beats its system's. Both work in an `override` of an original system or station too.
+`spaceMusic` is the calm music in the system's orbits and `stationMusic` the music docked at its stations. Both work in an
+`override` of an original system or station too.
+
+`battleMusic` is the music of the system's fights: one track for all of them, or three, `["low", "medium", "full"]`, for
+the game's three battle tracks (1-2 enemies around, 3-4, 5 or more). Fights with the Void, Specters or a Most Wanted
+criminal keep their own music.
+
+A station can have its own music too, so one place can feel different from the rest of its system (a capital world, a
+pirate hideout, a derelict orbit):
+
+```json
+{ "id": "kepler_prime", "name": "Kepler Prime", ..., "music": "kepler_bar", "spaceMusic": "kepler_orbit", "battleMusic": "kepler_fight" }
+```
+
+A station's `"music"` (docked), `"spaceMusic"` (calm, in its orbit) and `"battleMusic"` (its orbit's fights, one or three
+tracks) each beat its system's. A field it leaves out falls back to the system's, and then to the game's. A station's own
+`spaceMusic` also replaces the game's special orbit tracks (the Kaamo Club, the deep science orbits); a system's
+`spaceMusic` doesn't.
 
 ## Sound effects
 

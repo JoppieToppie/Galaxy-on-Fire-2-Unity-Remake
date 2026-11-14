@@ -1096,6 +1096,67 @@
         },
         {
           "type": "object",
+          "title": "Pickup",
+          "description": "A glowing orb in an orbit, its name on the HUD; a \"near\" at its point collects it (remove it there)",
+          "properties": {
+            "type": {
+              "const": "pickup"
+            },
+            "who": {
+              "$ref": "#/$defs/who",
+              "description": "For",
+              "default": "@a"
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "show",
+                "remove",
+                "clear"
+              ],
+              "description": ": show = Show one, remove = Remove one (collected), clear = Remove them all",
+              "default": "show"
+            },
+            "station": {
+              "anyOf": [
+                {
+                  "type": [
+                    "integer",
+                    "string"
+                  ],
+                  "description": "In the orbit of; the game's number, its name, or a key \"mod_id:id\""
+                },
+                {
+                  "$ref": "#/$defs/wire"
+                }
+              ],
+              "description": "In the orbit of; the game's number, its name, or a key \"mod_id:id\""
+            },
+            "at": {
+              "type": "string",
+              "description": "At (x y z, game units from the station); \"x y z\" in game units (20 = 1 m)",
+              "default": "0 0 20000"
+            },
+            "name": {
+              "$ref": "#/$defs/text",
+              "description": "Its name (on the HUD; remove uses it)"
+            },
+            "marked": {
+              "type": "boolean",
+              "description": "Its name on the HUD",
+              "default": true
+            },
+            "pos": {
+              "type": "array",
+              "description": "the node's place in the builder's graph view [x, y] (optional)"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
           "title": "Wormhole",
           "description": "A wormhole in an orbit; flying in takes the player to its destination",
           "properties": {

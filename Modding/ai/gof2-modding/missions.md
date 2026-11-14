@@ -197,6 +197,16 @@ A point in an orbit the autopilot flies to
 - `station` (wirable): Station; the game's number, its name, or a key "mod_id:id".
 - `at`: At (x y z, game units from the station; empty: cleared); "x y z" in game units (20 = 1 m).
 
+### `pickup`: Pickup
+
+A glowing orb in an orbit, its name on the HUD; a "near" at its point collects it (remove it there)
+
+- `action`: : show = Show one, remove = Remove one (collected), clear = Remove them all. Default `show`.
+- `station` (wirable): In the orbit of; the game's number, its name, or a key "mod_id:id".
+- `at`: At (x y z, game units from the station); "x y z" in game units (20 = 1 m). Default `0 0 20000`.
+- `name`: Its name (on the HUD; remove uses it).
+- `marked`: Its name on the HUD. Default `True`.
+
 ### `wormhole`: Wormhole
 
 A wormhole in an orbit; flying in takes the player to its destination

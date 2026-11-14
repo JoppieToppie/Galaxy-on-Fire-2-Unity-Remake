@@ -20,7 +20,8 @@ namespace GoF2Remake.EditorTools
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]   // classes: made again by every run
     public static class ModdingEventsReference
     {
-        const string NodesSource = "Assets/Scripts/Editor/Events/EventGraphNodes.cs";
+        /// <summary>The node classes: EventGraphNodes.cs and the files split off it (EventGraphNodes<Area>.cs, 2026-10-28).</summary>
+        const string NodesFolder = "Assets/Scripts/Editor/Events", NodesFile = "EventGraphNodes";
 
         class Entry { public string kind, name, display, type, tooltip, defaultValue; }
 
@@ -387,7 +388,10 @@ namespace GoF2Remake.EditorTools
 
         public static string Build()
         {
-            Parse(File.ReadAllText(NodesSource));
+            // The main file first (the base classes), then its split-off parts by name.
+            Parse(string.Join(Environment.NewLine, Directory.GetFiles(NodesFolder, NodesFile + "*.cs")
+                .OrderBy(f => Path.GetFileNameWithoutExtension(f) == NodesFile ? 0 : 1).ThenBy(f => f, StringComparer.Ordinal)
+                .Select(File.ReadAllText)));
 
             var sb = new StringBuilder();
             sb.AppendLine("# Galaxy on Fire 2 Remake: event graph nodes and commands");

@@ -190,6 +190,19 @@ Flow: in; out: Next.
 | input | Count | Number | `1` | Ships side by side, per player (1..10). |
 | input | Name | Text |  | Optional: the name on the HUD (a ship's lock plate, numbered "Name 1", "Name 2"... for several; an object gets a marker with it), at most 32 characters. Empty = the usual name. |
 | input | At | Text |  | Empty = ahead of each player; else game coordinates "x y z" in their orbit. |
+| input | Hull | Number | `1` | Their hull x this (1 = as usual, 2 = twice as tough; 0.1..50). |
+| input | Guns | Number | `1` | Their gun damage x this (1 = as usual; 0.1..50). |
+
+### Spawn NPC Type
+
+Flow: in; out: Next.
+
+| Kind | Name | Type | Default | What it is |
+|---|---|---|---|---|
+| input | Players | Text | `@a` | Who: @a everyone, @r a random player, @alive, @space, @docked, @dead, @survivors (never destroyed since the fight began), or a player's name. |
+| input | Type | Text | `pirate_boss` | battleship, carrier, vossk_battleship, freighter, pirate_boss, or a mod's NPC ship "mod_id:id": its own hull, guns, escorts and turrets. |
+| input | Name | Text |  | Optional: the name on its lock plate (the ship orders use it). |
+| input | At | Text |  | Empty = 3.5 km ahead of each player; else game coordinates "x y z" in their orbit. |
 
 ### Standing
 
@@ -217,6 +230,17 @@ Flow: in; out: Next.
 | Kind | Name | Type | Default | What it is |
 |---|---|---|---|---|
 | input | Players | Text | `@a` | Who: @a everyone, @r a random player, @alive, @space, @docked, @dead, @survivors (never destroyed since the fight began), or a player's name. |
+
+### Take Item
+
+Flow: in; out: Next.
+
+| Kind | Name | Type | Default | What it is |
+|---|---|---|---|---|
+| option | Mounted | Yes/No |  | Mounted ones too (a Khador Drive, a gun), after the hold's. |
+| input | Players | Text | `@a` | Who: @a everyone, @r a random player, @alive, @space, @docked, @dead, @survivors (never destroyed since the fight began), or a player's name. |
+| input | Item | Text |  | An item's number or name. |
+| input | Amount | Number | `0` | How many (0 = all of them). |
 
 ### Teleport
 
@@ -411,6 +435,7 @@ Flow: in; out: Next.
 |---|---|---|---|---|
 | option | No jumps | Yes/No | `yes` | No planet jumps, jumpgate or Khador Drive (an admin's teleport still works). |
 | option | No docking | Yes/No | `yes` | No docking at a station. |
+| option | No Khador Drive | Yes/No | `no` | With No jumps off: only the Khador Drive is refused (the gates and planet jumps still work), like the Valkyrie's last mission. |
 | input | Players | Text | `@a` | Who: @a everyone, @r a random player, @alive, @space, @docked, @dead, @survivors (never destroyed since the fight began), or a player's name. |
 
 ### Score
@@ -755,7 +780,7 @@ Flow: no input (starts a flow of its own); out: Do.
 
 | Kind | Name | Type | Default | What it is |
 |---|---|---|---|---|
-| option | Trigger | Choice: PlayerDestroyed / PlayerDocked / PlayerLaunched / PlayerJoined / PlayerLeft / PlayerEntersOrbit / EventShipDestroyed / EnemiesCleared / PlayerKilledPlayer / PlayerRespawned / PlayerArrives / WreckHacked |  | What starts Do (a flow of its own, each time, while the event runs): a player destroyed, docked, launched, joined or left the session, entered an orbit, destroyed one of the event's ships, destroyed another player (Player = the killer, Victim = the other's name), came back after being destroyed, every enemy the event spawned is gone, or hacked a wreck (Spawn's "wreck", a mod's derelict; Victim = the wreck's name). |
+| option | Trigger | Choice: PlayerDestroyed / PlayerDocked / PlayerLaunched / PlayerJoined / PlayerLeft / PlayerEntersOrbit / EventShipDestroyed / EnemiesCleared / PlayerKilledPlayer / PlayerRespawned / PlayerArrives / WreckHacked / PlayerDocksAtPad |  | What starts Do (a flow of its own, each time, while the event runs): a player destroyed, docked, launched, joined or left the session, entered an orbit, destroyed one of the event's ships, destroyed another player (Player = the killer, Victim = the other's name), came back after being destroyed, every enemy the event spawned is gone, or hacked a wreck (Spawn's "wreck", a mod's derelict; Victim = the wreck's name). |
 | input | Orbit | Orbit |  | Optional: only when it happens in this orbit (or at its station). Player Arrives needs it. |
 | input | At | Text |  | Player Arrives: the spot's game coordinates "x y z" in that orbit (/pos shows yours). |
 | input | Radius | Number | `1000` | Player Arrives: how close (metres) a player alive in space must come; again after leaving it. |
@@ -854,27 +879,29 @@ leading `/`, the dedicated server's console without it. `[players]` is a player'
 | /kill | [players] | admins: destroys ships in space (yourself by default) |
 | /heal | [players] | admins: repairs hull, shield and armor (yourself by default) |
 | /give | [players] <item> [amount] [mount] | admins: items into the hold (an item's number or name) |
+| /take | [players] <item> [amount / all] [mounted] | admins: items out of the hold (all by default; mounted: the mounted ones too) |
 | /credits | [players] <amount> | admins: gives credits (negative: takes them) |
 | /standing | [players] <race> <amount> [set] | admins: moves the standing toward a race, a mod's too (set: to the amount) |
-| /spawn | [players] <ship / object / wreck> [race] [count] [enemy / friendly / neutral / standing] [turrets <item,item>] [named <name>] [at x y z] | admins: NPC ships or an object, ahead or at x y z (enemy by default; named: a HUD name) |
+| /spawn | [players] <ship / object / wreck / type <npc type>> [race] [count] [enemy / friendly / neutral / standing] [turrets <item,item>] [hull <x>] [guns <x>] [named <name>] [at x y z] | admins: NPC ships or an object, ahead or at x y z (enemy by default; named: a HUD name; hull / guns: scaled; type: an NPC ship type) |
 | /ship | [players] <ship / own> | admins: flies any ship of the debug Ships tab (its number or name; own = back) |
 | /lend | [players] <ship [keep] / back> | admins: a loaner, the own ship parked (keep: its items move over; back = the own ship again) |
 | /ammo | [players] | admins: every mounted secondary to 50 |
 | /reveal | [players] | admins: every system on the star map |
 | /system | [players] <system> <show / hide / reset> | admins: shows or hides a system on their star map until reset |
 | /peace | [players] | admins: neutral standings, no station grudges |
-| /cheat | [players] <god / ammo / cooldown / primary / boost / onehit / locks / shopping / jumps> [on / off] | admins: a debug toggle for a player, this session only (toggled without on / off) |
+| /cheat | [players] <god / ammo / cooldown / primary / equipment / onehit / locks / shopping / jumps> [on / off] | admins: a debug toggle for a player, this session only (toggled without on / off) |
 | /title | [players] <text> [/ subtitle] [for <seconds>] | admins: a big title on screen ("clear" removes it) |
 | /timer | [players] <seconds / m:ss> [label] | admins: a countdown on screen ("stop" removes it) |
 | /dialog | [players] <speaker> : <text> [/ [speaker :] next page ...] | admins: a conversation; speaker: a story character, mod_id:id, a race and name, or player |
 | /reward | [players] <credits / item [amount]> [+ more ...] [/ title] | admins: a mission payout (credits and / or items) in the reward box |
 | /pvp | <on / off> | admins: free for all, every pilot an enemy of every other (squadmates excepted) |
 | /respawn | [players] <station [x y z] [spread <units>] [delay <seconds>] / off> | admins: where destroyed ships come back in space (not docked), until off |
-| /restrict | [players] <jumps / docking / all / off> | admins: no jumps (planet, gate, Khador) and / or no docking, until off |
+| /restrict | [players] <jumps / docking / all / khador / off> | admins: no jumps (planet, gate, Khador) and / or no docking (khador: only the Khador Drive), until off |
 | /flightstyle | [players] <es2 / gof2 / player> | admins: some players' flight model (es2 / gof2) for now; player gives it back |
 | /provoke | [players] [race] [within <metres>] | admins: the NPC ships around them turn on them and their squad (a race, a distance) |
 | /radio | [players] <speaker> : <text> | admins: a radio call in flight (a face, a name, gone by itself); speakers as /dialog |
 | /waypoint | [players] <station x y z / off> | admins: a waypoint to fly to (game coordinates in a station's orbit; /pos shows yours) |
+| /pickup | [players] <station x y z [unmarked] [named <name>] / remove <name> / clear> | admins: a glowing orb in a station's orbit (game coordinates), its name on the HUD; remove takes it away |
 | /wormhole | [players] <station> [x y z] to <station / void> [for <seconds>] / close | admins: a wormhole in a station's orbit; flying in takes them to another station or the Void |
 | /cutscene | [players] <start [nobars] [freeze] [invulnerable] / end> | admins: cinematic mode in flight (no HUD or controls, letterbox) until end |
 | /camera | [players] <place [to place] [over s] [look place] [follow] [fov deg] [shake 0-1] / chase> | admins: a camera shot; places as /npc (player, station, x y z, ship <name>); chase ends it |
@@ -900,6 +927,7 @@ leading `/`, the dedicated server's console without it. `[players]` is a player'
 | /say | <text> | admins: an announcement under your role |
 | /disband | <TAG> | admins: ends a faction |
 | /deleteprofile | <profile> | master: deletes an offline pilot's profile |
+| /coop | [strength 0/25/50/100/150/200] [spawns 0/25/50/100/150/200] [rewards shared/full] | the host: the co-op campaign's enemy strength, enemy ships and story credits |
 | /flightmodel | [gof2 / es2 / player] | admins: the flight model for everyone: gof2, es2 or player (each player's own) |
 | /settings |  | admins: the server's settings |
 | /set | <key> <value> | admins: changes a server setting (saved) |
@@ -918,6 +946,7 @@ leading `/`, the dedicated server's console without it. `[players]` is a player'
 | /top |  | the arena leaderboard |
 | /sos |  | in space: calls your squad for help, or ends the call |
 | /assist | <player> | flies to a squadmate calling for help |
+| /follow | [<player>] | goes after a squadmate whenever they jump to another orbit or system; no name: stops |
 | /squad | [invite <player> / accept / decline / leave] | your squad; invite a pilot docked at your station, answer an invitation, leave |
 | /trade | [<player> / accept / decline / cancel] | trades credits and cargo with a pilot docked at your station |
 
