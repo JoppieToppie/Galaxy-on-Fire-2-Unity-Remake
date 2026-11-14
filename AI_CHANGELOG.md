@@ -34,3 +34,15 @@ Added:
 No gameplay code, network protocol, item schema, hardpoint schema, save data or tests were changed by this
 documentation task. The secondary weapon launch-direction implementation has not yet been corrected.
 No merge to `main` was performed.
+
+
+## 2026-11-15 — Record instant scanner and secondary launch-orientation decisions (ChatGPT)
+
+**Branch:** `feature/secondary-homing-delay-launch-angle`
+
+Updated the shared project context and handover to record:
+- Class scanners identify a locked target immediately, supporting rapid threat prioritisation by large ships.
+- Launch-direction adjustment is secondary-only; primaries remain unchanged.
+- The preferred moddable design is a separate optional mount-level `launchRotation`, preserving existing visual `rotation` semantics and straight-ahead defaults.
+
+This is a documentation/design update only. No gameplay source, tests, Mod Builder UI or scanner implementation was changed.
