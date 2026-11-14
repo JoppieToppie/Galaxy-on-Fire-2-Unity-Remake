@@ -141,7 +141,8 @@ namespace GoF2Remake.UI
                     case 38: rows.Add((T(150), v.ToString())); break;
                     case 39: rows.Add((T(147), Signed(v) + " %")); break;   // #105: a negative factor read "+-10 %"
                     case 40: rows.Add((T(146), Signed(v) + " %")); break;
-                    case 44: case 47: case 51: case 53: rows.Add((T(151), $"{v} m")); break;
+                    case 44: case 47: case 51: rows.Add((T(151), $"{v} m")); break;
+                    case 53: rows.Add((T(151), $"{(v / 10f).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)} m")); break;
                     case 49: rows.Add((T(156), $"{v * 50} km/h")); break;
                     case 50: rows.Add((T(139), $"{v} %")); break;
                     case 52: rows.Add((T(160), $"{v} %")); break;
