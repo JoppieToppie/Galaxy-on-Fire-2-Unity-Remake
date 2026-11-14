@@ -1,3 +1,13 @@
+## 2026-11-15 — Extend system population audit to encounters and stations
+
+- **Contributor:** ChatGPT
+- **Branch:** `feature/extensive-multiplayer-expansion`
+- **Additional paths inspected:** `CruiseEncounters`, `CruiseEncounterRules`, `CruiseEncounterSpawner`, `EncounterWatch`, `RiftEncounter`, `TrafficPlanPirateEvents`, `TrafficPlanSpecials`, `FreelanceOrbit`, `TrafficLanes`, `MobileStation`, `MobileStations`, `StationLife`, `HangarTraffic`, `NetOrbit`, and faction territory / siege / garrison code.
+- **Findings:** Cruise encounters are player-triggered and separately gated; pirate events and system-special actors are event/authored content; freelance mission actors/sites are mission-owned; faction siege garrisons/defenders are separately event-tagged; traffic lanes are decorative models rather than NPCs. None should be silently removed by ambient suppression. The branch has no player-built-station placement/ownership/destruction lifecycle: mobile stations are mod-authored and clock-driven, faction claims refer to existing stations, and station worker drones are visual only.
+- **Design refinement:** First implementation should suppress only ordinary ambient `TrafficPlan` population and its corresponding revival paths, with explicit ambient metadata/predicate. Broad `NpcGroup` or race filtering is unsafe because groups are reused by events, missions and siege actors. Station attraction is blocked on a genuine player-station lifecycle/ownership model being available.
+- **Documentation:** Expanded `docs/notes/system-population.md` section 9 with the extended source classification, station findings and refined implementation boundary.
+- **Status:** investigation/documentation only; no runtime code, schema, station system or tests changed. No Unity build/tests run.
+
 ## 2026-11-15 — Inspect the existing system NPC population pipeline
 
 - **Contributor:** ChatGPT
