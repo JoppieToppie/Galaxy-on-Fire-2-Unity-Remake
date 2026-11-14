@@ -1,3 +1,17 @@
+## 2026-11-15 — Document the existing system NPC population pipeline (ChatGPT)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Added `docs/notes/system-population.md` documenting:
+- The normal `TrafficPlan.Build` -> `Traffic` creation pipeline.
+- Existing `systems.json` traffic controls and why `traffic: "mod"` does not mean empty.
+- Independent jumper/local/raider/Void respawn paths.
+- Story, mission and event spawn boundaries.
+- Multiplayer orbit authority, proxy replication and handover implications.
+- Follow-up investigation and acceptance checklist.
+
+Updated the project context and handover to point to the new note. Investigation/documentation only; no runtime code, mod schema, system data or tests changed.
+
 ## 2026-11-15 — Record opt-in system NPC population design (ChatGPT)
 
 **Branch:** `feature/extensive-multiplayer-expansion`
