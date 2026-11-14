@@ -1,3 +1,11 @@
+## 2026-11-15 — Make player-built stations the final population feature step (ChatGPT)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Added prominent shared-AI notices stating that player-built stations do not exist yet and that station-attracted NPC population is the last implementation step. The core mod-controlled ambient population feature must be completed and verified first. Updated the handover audience to include both ChatGPT and Claude.
+
+Documentation / sequencing only; no runtime code or schema changed.
+
 ## 2026-11-15 — Extend system population pipeline audit (ChatGPT)
 
 **Branch:** `feature/extensive-multiplayer-expansion`
