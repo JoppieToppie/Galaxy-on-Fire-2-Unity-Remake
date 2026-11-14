@@ -1,3 +1,17 @@
+## 2026-11-15 — Record class-based station docking and freighter boarding design (ChatGPT)
+
+**Branch:** `feature/secondary-homing-delay-launch-angle`
+
+Recorded the user's docking decisions:
+- All stations support interior and external docking; Fighters and Interceptors are interior-only.
+- Unclassified ships cannot externally dock, while retaining ordinary interior docking.
+- External docking keeps the ship present and visible in space; the camera stays in space unless the player explicitly
+  enters the Space Lounge.
+- The future physical arrangement uses ship and station docking points, but initial behaviour needs no visible hardware.
+- Hackable freighters do not support external docking; boarding is limited to ships smaller than a Frigate.
+
+Design/documentation only. No docking or gameplay implementation and no tests.
+
 ## 2026-11-15 — Record turret hardpoint scaling and point-defence profiles (ChatGPT)
 
 **Branch:** `feature/secondary-homing-delay-launch-angle`
