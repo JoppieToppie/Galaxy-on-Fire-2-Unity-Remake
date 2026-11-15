@@ -38,7 +38,7 @@ namespace GoF2Remake.Data
         /// size when the ship dies (x the fighters' 1).</summary>
         [System.NonSerialized] public float[] chaseCamera;
         /// <summary>Remake mods (ships.json \"camera.orbitDistance\"): the free-look orbit's default radius in game units.</summary>
-        [System.NonSerialized] public float orbitCameraDistance = 3800f;
+        [System.NonSerialized] public float orbitCameraDistance = 45000f;
         [System.NonSerialized] public Vector3? cockpit;
         [System.NonSerialized] public List<Vector3> smokePoints;
         [System.NonSerialized] public float explosionScale = 1f;

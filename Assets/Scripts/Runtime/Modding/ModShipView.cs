@@ -26,7 +26,7 @@ namespace GoF2Remake.Modding
     {
         public const int MaxSmokePoints = 4;
         public const float MinExplosion = 0.25f, MaxExplosion = 20f;
-        public const float DefaultOrbitDistance = 3800f, MinOrbitDistance = 1500f, MaxOrbitDistance = 20000f;
+        public const float DefaultOrbitDistance = 45000f, MinOrbitDistance = 1500f, MaxOrbitDistance = 20000f;
 
         /// <summary>The original's chase camera (TargetFollowCamera): distance, height, look height, look ahead.</summary>
         public static readonly float[] DefaultCamera = { 1338f, 600f, 600f, -650f };
