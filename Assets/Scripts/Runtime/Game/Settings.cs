@@ -701,6 +701,9 @@ namespace GoF2Remake.Data
         /// original's club).</summary>
         public static int KaamoVipMode { get => Mathf.Clamp(Mathf.RoundToInt(Get("kaamoVip", KaamoVipOff)), 0, 2); set => Set("kaamoVip", Mathf.Clamp(value, 0, 2)); }
         public const int KaamoVipCard = 0, KaamoVipAlways = 1, KaamoVipOff = 2;
+        /// <summary>Remake (PR #282): the shop and storage list items by category, then tech level (Hangar.ShopItems); off
+        /// (default) by item index, as the original's Item::mixItems.</summary>
+        public static bool ShopByCategory { get => GetBool("shopByCategory", false); set => SetBool("shopByCategory", value); }
 
         /// <summary>Remake: the dialogue and radio text types in with pacing, shouting, actions and tinted names
         /// (TextReveal); off = the original's plain page at once.</summary>
@@ -900,7 +903,7 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] GameplayKeys =
         {
-            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule",
+            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "shopByCategory", "cloakBay", "informerOriginalRule",
             "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
             "speedrunPosition", "speedrunLiveSplit",

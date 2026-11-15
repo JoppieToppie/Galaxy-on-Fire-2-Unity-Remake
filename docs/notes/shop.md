@@ -215,3 +215,10 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   (33.333 "33.33", 12.05 "12.5"). Left as it was: a ship's handling, which the original shows (int)(handling / 100f x
   100), one lower for five ships (Teneta 105). Tests `ItemDetailsOriginalTests`; the tool used: a capstone disassembly of
   `Reference/binaries/libgof2hdaa.so` (Thumb-2, Ghidra address = file address + 0x10000).
+
+- **Shop order** (remake, PR #282 from AntonTolochko, Options > Gameplay "Sort the shop by category",
+  `Settings.ShopByCategory`, off by default; not in the Game experience presets, like the other list conveniences): the
+  original's `Item::mixItems` lists the hold and the stock by item index, so the add-ons' items (indices after the base
+  game's: the Particle Shield 225) come after everything else. On, `Hangar.ShopItems` orders by category, then tech
+  level, then index; the stock and the hold keep their own order, and the VIP Card's sort still applies on top. Tests
+  `HangarTradeTests` (`ShopListIsByItemIndexAsTheOriginal`, `DlcShieldStaysWithShieldsInShopAndStorage`).

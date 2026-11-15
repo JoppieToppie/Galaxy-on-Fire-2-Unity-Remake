@@ -3223,6 +3223,8 @@
  "kaamoVipAlways": "Altijd aan",
  "kaamoVipOff": "Uit",
  "kaamoVipOptionHelp": "De VIP-kaart geeft de opslag van de Kaamo Club een zoekveld en sorteren, een Schepen-tab voor je opgeslagen schepen en een Kaamo-markering op schepen die je daar al hebt. Kopen bij de club: de kaart ligt in de Opslag-tab. Altijd aan: geen kaart nodig. Uit: de originele club.",
+ "shopByCategory": "Winkel op categorie sorteren",
+ "shopByCategoryHelp": "De winkel en de opslag tonen voorwerpen op categorie en daarna op techniekniveau, zodat extra uitrusting naast haar soortgenoten staat. Uit: op voorwerpnummer, zoals in het origineel.",
  "shopSearch": "Zoeken",
  "shopSortBy": "Sorteren: {0}",
  "shopSortDefault": "Standaard",
