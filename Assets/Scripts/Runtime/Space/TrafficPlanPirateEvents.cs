@@ -71,7 +71,7 @@ namespace GoF2Remake.Flight
         static bool InStoryline(int station) => PirateEventRules.InStoryline(station);
         /// <param name="hasRaiders">The orbit already has a raider group: no unreported event on top of it (a reported
         /// sighting still comes; players' report 2026-10-16: on Extreme the two together overwhelmed a pilot on arrival).</param>
-        static void AddPirateEvent(List<SpawnSpec> list, Database db, int station, SystemData system, int secEff, bool story, int cm, bool baseSystem, bool hasRaiders = false)
+        static void AddPirateEvent(List<SpawnSpec> list, Database db, int station, SystemData system, int secEff, bool story, int cm, bool baseSystem, bool hasRaiders = false, bool allowUnreported = true)
         {
             // A reported sighting here (the Missions window's Pirate activity): its outpost or named boss, whatever this pilot's
             // rank (the rank only decides which reports are made: a session's board is the server's, its pilots start at 0).
@@ -80,7 +80,8 @@ namespace GoF2Remake.Flight
             if (InformerOrbit(station)) return;
             var sighting = PirateReports.At(station);
             if (sighting != null && PirateEventAllowed(db, station, system, true)) { AddPirateEventShips(list, !sighting.boss, sighting.tier, sighting); return; }
-            if (hasRaiders || !PirateEventAllowed(db, station, system)) return;
+            // A reported sighting is explicit content; only the random unreported roll is ambient.
+            if (hasRaiders || !allowUnreported || !PirateEventAllowed(db, station, system)) return;
             int sec = system.securityLevel;
             var chance = PirateReports.Enabled ? UnreportedChance : EventChance;
             if (Random.Range(0, 100) >= chance[sec]) return;
