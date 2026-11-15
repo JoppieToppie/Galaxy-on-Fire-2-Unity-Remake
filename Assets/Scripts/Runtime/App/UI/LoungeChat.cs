@@ -517,9 +517,10 @@ namespace GoF2Remake.Data
                 {
                     // Remake: the dealer's checks (336 / 329 / 203) at the trade-in price; 873 "Buy ship for #C?".
                     var r = TradeHangar().CanBuyShipFor(a.sellShip, a.sellPrice, out int need);
-                    if (r == Hangar.Result.Passengers) return Refuse(T(336));
-                    if (r == Hangar.Result.SameShip) return Refuse(T(329));
-                    if (r == Hangar.Result.NoCredits) return Refuse(T(203).Replace("#C", C(need)));
+                    bool delivery = KaamoClub.Owned && !NetSession.Active && TradeHangar().CanBuyShipToKaamoFor(a.sellShip, a.sellPrice, out _) == Hangar.Result.Ok;
+                    if (!delivery && r == Hangar.Result.Passengers) return Refuse(T(336));
+                    if (!delivery && r == Hangar.Result.SameShip) return Refuse(T(329));
+                    if (!delivery && r == Hangar.Result.NoCredits) return Refuse(T(203).Replace("#C", C(need)));
                     ConfirmText = T(873).Replace("#C", C(a.sellPrice));
                     return Outcome.ConfirmShip;
                 }
@@ -544,17 +545,20 @@ namespace GoF2Remake.Data
 
         /// <summary>Remake, AgentOffer.SellShip after the confirmation: 'keep' = 331 (the old hull to the Kaamo Club, the full
         /// price), else the trade-in (the seller takes the old hull). Null when bought, else the refusal (328 / 203 / 336).</summary>
-        public string ConfirmShipTrade(bool keep, bool moveEquipment = false)
+        public string ConfirmShipTrade(bool keep, bool moveEquipment = false, bool toKaamo = false)
         {
             var a = Agent;
+            if (a.accepted) return T(858);
             var h = TradeHangar();
             int need;
-            var r = keep ? h.CanKeepAndBuyShipFor(a.sellShip, a.sellPrice, out need) : h.CanBuyShipFor(a.sellShip, a.sellPrice, out need);
+            var r = toKaamo ? h.CanBuyShipToKaamoFor(a.sellShip, a.sellPrice, out need)
+                : keep ? h.CanKeepAndBuyShipFor(a.sellShip, a.sellPrice, out need) : h.CanBuyShipFor(a.sellShip, a.sellPrice, out need);
             if (r == Hangar.Result.AlreadyStored) return T(328);
             if (r == Hangar.Result.Passengers) return T(336);
             if (r == Hangar.Result.SameShip) return T(329);
             if (r == Hangar.Result.NoCredits) return T(203).Replace("#C", C(need));
-            if (!(keep ? h.KeepAndBuyShipFor(a.sellShip, a.sellPrice, moveEquipment) : h.BuyShipFor(a.sellShip, a.sellPrice))) return T(858);
+            if (!(toKaamo ? h.BuyShipToKaamoFor(a.sellShip, a.sellPrice)
+                : keep ? h.KeepAndBuyShipFor(a.sellShip, a.sellPrice, moveEquipment) : h.BuyShipFor(a.sellShip, a.sellPrice))) return T(858);
             a.accepted = true;
             BoughtShip = true;
             Text = T(850 + Random.Range(0, 3));

@@ -330,18 +330,25 @@ namespace GoF2Remake.UI
                     // choice (#31), only with the Kaamo Club owned 327 asks "sell your old ship or keep it" (330 / 331); the
                     // turntable's ship swapped, toast 303.
                     var current = chat;
-                    void Trade(bool keep, bool move = false)
+                    void Trade(bool keep, bool move = false, bool toKaamo = false)
                     {
-                        string refusal = current.ConfirmShipTrade(keep, move);
+                        string refusal = current.ConfirmShipTrade(keep, move, toKaamo);
                         if (refusal != null) { menu.ShowDialog(refusal, null, true); return; }
-                        level.ReplacePlayerShip(Session.ShipIndex);
-                        if (keep) level.RefreshParkedShips();
-                        menu.ShowToast(Localization.Get(303).Replace("#N", ItemInfo.ShipName(Session.ShipIndex)));
+                        if (!toKaamo) level.ReplacePlayerShip(Session.ShipIndex);
+                        if (keep || toKaamo) level.RefreshParkedShips();
+                        menu.ShowToast(Localization.Get(303).Replace("#N", ItemInfo.ShipName(toKaamo ? current.Agent.sellShip : Session.ShipIndex)));
                         AfterDeal(current);
                     }
                     if (KaamoClub.Owned)
-                        menu.ShowChoice(Localization.Get(327), Localization.Get(330), Localization.Get(331), () => Trade(false),
-                            () => menu.AskMoveEquipment(move => Trade(true, move)));   // #83
+                    {
+                        void Fly() => menu.ShowChoice(Localization.Get(327), Localization.Get(330), Localization.Get(331), () => Trade(false),
+                            () => menu.AskMoveEquipment(move => Trade(true, move)), true);
+                        if (!NetSession.Active)
+                            menu.ShowChoice(string.Format(Localization.Extra("shipDeliveryChoice", "Fly the new ship, or deliver it to Kaamo for {0} without trading your current ship?"), ItemInfo.Credits(current.Agent.sellPrice)),
+                                Localization.Extra("shipDeliveryFly", "Fly new ship"), Localization.Extra("shipDeliveryKaamo", "Buy to Kaamo"),
+                                Fly, () => Trade(false, false, true), true);
+                        else Fly();
+                    }
                     else Trade(false);
                     return;
                 }
