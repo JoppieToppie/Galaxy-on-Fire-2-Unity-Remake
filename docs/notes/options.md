@@ -211,7 +211,8 @@ verified on a Mac or an iPhone.
   around them with them, single player only, from the next orbit on; see "Station scale" in space-scene.md.
 - **Graphics preset** (remake, 2026-10-22, the Graphics tab's first row; `Settings.PresetKeys` / `ApplyPreset`,
   `OptionsCatalog.CurrentPreset`): Low / Medium / High (the original's texts 507-509) and Ultra (2026-10-23) set render
-  scale, upscaler, MSAA, post-process AA, bloom, hangar shadows, hangar depth of field, lens flare, other ships' engines,
+  scale, upscaler, MSAA, post-process AA, bloom, hangar shadows, hangar depth of field, lens flare, live mod skies (off on
+  Low only, mods-world.md "Chorus skies"), other ships' engines,
   levels of detail, texture quality, fire and smoke, fog, detail distance and texture filtering at once; the row
   shows the preset the options match (render scale and MSAA as applied, 0 = the platform asset's), else Custom (picking it
   sets nothing). High = the desktop defaults (100 %, no upscaler, MSAA off with SMAA, Remake bloom, the

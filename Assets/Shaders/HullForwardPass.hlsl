@@ -218,6 +218,161 @@ void Es2StructureLayers(Varyings input, inout SurfaceData s)
     s.occlusion *= lerp(input.color.a, 1.0, damage);
 }
 
+// Chorus's trim sheets and platings (Deep Silver FISHLABS' Chorus, Unreal 4: M_TrimLayersMaster / M_NPCShipTrimMaster /
+// M_PlatingMaster, from their compiled base-pass pixel and vertex shaders; the Chorus importer's tools/npcs.py TRIM_SHADER).
+// A hull's colour is a palette swatch per face: LayerColors and LayerData read at UV3 (the swatch's colour; LayerData: R / G
+// the roughness range, B the metal flag). Trim: x the tiling layer (Tiling Diffuse, its RMO: R where in that roughness range,
+// G added metal, B occlusion; its normal) over UV1 x Base UV Tile Amount; the trim sheet over UV0: Trim AAO (R the accent
+// mask: Accent 1 Color, its metal and roughness bias; B occlusion x Trim AO Intensity), Trim Normal (combined with the tiling
+// normal, reoriented), Trim Emissive (its channels in their tints x Trim Emissive Amount, only on faces shifted out of the
+// palette when the master masks by the UV shift). Plating: x Albedo, ORM (R occlusion, G where in the roughness range, B
+// added metal) and Normal over UV0 x Tiling. Both: dirt by the vertex colour (Dirt BaseColor x Dirt Tint over UV1, its mask
+// and roughness), which also takes the metal off. The far kicker rim and emission boost come after the lighting inputs
+// (ChorusFarEmission). Chorus's selection highlight and its dissolve / burn effects are left out.
+static half3 gChorusEmissive;
+
+half4 ChorusSwatch(float2 uv3, bool data)
+{
+    float w, h;
+    _ChorusPalette.GetDimensions(w, h);
+    float half_ = floor(w * 0.5);
+    int2 p = int2(min(floor(frac(uv3) * float2(half_, h)), float2(half_, h) - 1.0));   // (UE wraps the palette's sampler)
+    if (data) p.x += (int)half_;
+    return LOAD_TEXTURE2D(_ChorusPalette, p);
+}
+
+// The tiling normal (its own UVs' frame, from the derivatives as Chorus builds it) in UV0's tangent frame.
+half3 ChorusTilingNormal(float2 uv, float3 positionWS, half3 n, half3 t0, half3 b0)
+{
+    half3 ts = UnpackNormal(SAMPLE_TEXTURE2D(_DetailNormalMap, sampler_LinearRepeat, uv));
+    float3 dp1 = ddx(positionWS), dp2 = ddy(positionWS);
+    float2 du1 = ddx(uv), du2 = ddy(uv);
+    float3 p2 = cross(dp2, n), p1 = cross(n, dp1);
+    float3 t = p2 * du1.x + p1 * du2.x, b = p2 * du1.y + p1 * du2.y;
+    float k = rsqrt(max(max(dot(t, t), dot(b, b)), 1e-20));
+    float3 ws = t * k * ts.x + b * k * ts.y + n * ts.z;
+    return normalize(half3(dot(ws, t0), dot(ws, b0), dot(ws, n)));
+}
+
+void ChorusLayers(Varyings input, inout SurfaceData s)
+{
+    bool plating = _ChorusParams.x > 1.5;
+    float2 uv0 = input.uv, uv1 = input.chorusUV.xy, uv3 = input.chorusUV.zw;
+    half4 swatch = ChorusSwatch(uv3, false), data = ChorusSwatch(uv3, true);
+    float2 tuv = (plating ? uv0 : uv1) * _ChorusParams.y;
+    half3 diffuse = SAMPLE_TEXTURE2D(_BaseMap, sampler_LinearRepeat, tuv).rgb;
+    half4 rmo = SAMPLE_TEXTURE2D(_MetallicGlossMap, sampler_LinearRepeat, tuv);
+    half3 n = normalize(input.normalWS.xyz);
+
+    half accent = 0.0h, ao, metal, rough, occl;
+    half3 albedo = swatch.rgb * diffuse;
+    if (plating)
+    {
+        metal = rmo.b; rough = rmo.g; ao = rmo.r;
+        s.normalTS = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_LinearRepeat, tuv), _BumpScale);
+    }
+    else
+    {
+        half4 aao = SAMPLE_TEXTURE2D(_OcclusionMap, sampler_LinearRepeat, uv0);
+        accent = aao.r * _ChorusAccent.a;
+        metal = rmo.g; rough = rmo.r;
+        ao = lerp(rmo.b, rmo.b * aao.b, (half)_ChorusParams.z);
+        half3 trim = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_LinearRepeat, uv0), _BumpScale);
+    #if defined(REQUIRES_WORLD_SPACE_TANGENT_INTERPOLATOR)
+        half3 t0 = normalize(input.tangentWS.xyz);
+        half3 b0 = input.tangentWS.w * cross(n, t0);
+        half3 tiling = ChorusTilingNormal(tuv, input.positionWS, n, t0, b0);
+    #else
+        half3 tiling = half3(0.0h, 0.0h, 1.0h);
+    #endif
+        // under the accent the tiling normal at Accent 1 Tiling Base Normal Intensity
+        tiling = lerp(tiling, normalize(lerp(half3(0.0h, 0.0h, 1.0h), tiling, (half)_ChorusAccent2.z)), accent);
+        // reoriented normal mapping: the trim sheet's detail on the tiling layer
+        half3 tb = tiling + half3(0.0h, 0.0h, 1.0h), td = trim * half3(-1.0h, -1.0h, 1.0h);
+        s.normalTS = normalize(tb * dot(tb, td) / tb.z - td);
+    }
+    metal = saturate((data.b - 0.5h) * 2.0h + metal);
+    rough = lerp(data.r, data.g, rough);
+    if (accent > 0.0h)
+    {
+        albedo = lerp(albedo, _ChorusAccent.rgb, accent);
+        metal = saturate(lerp(metal, (half)_ChorusAccent2.x, accent));
+        rough = saturate(rough + accent * (half)_ChorusAccent2.y);
+    }
+    if (_ChorusDirt.a > 0.0)
+    {
+        half vc = input.color.r;
+        half2 dr = SAMPLE_TEXTURE2D(_ChorusDirtRough, sampler_LinearRepeat, uv1 * _ChorusDirt2.x).rb;
+        half mask = SAMPLE_TEXTURE2D(_DetailMask, sampler_LinearRepeat, uv1 * _ChorusDirt2.y).r;
+        half d = saturate(saturate((1.0h - ao) * (half)_ChorusDirt2.z + (vc - 0.5h) * 2.0h) * 2.0h + mask - 1.0h);
+        half c = (half)_ChorusDirt2.w;
+        d = saturate(lerp(-c, 1.0h + c, d)) * vc * dr.y;
+        if (_ChorusDirt3.x > 0.5) d *= input.color.a;
+        half3 dirt = _ChorusDirt.rgb * SAMPLE_TEXTURE2D(_DetailAlbedoMap, sampler_LinearRepeat, uv1 * _ChorusDirt2.x).rgb;
+        albedo = saturate(lerp(albedo, dirt, d));
+        metal = saturate(metal * (1.0h - d * d));
+        rough = saturate(rough + 2.0h * (dr.x - 0.5h) * d * d);
+    }
+    s.albedo = saturate(albedo);
+    s.metallic = metal;
+    s.smoothness = 1.0h - saturate(rough);
+    s.occlusion = saturate(ao);
+
+    half3 e = 0.0h;
+    if (!plating && _ChorusEmitR.a > 0.0)
+    {
+        half3 m = SAMPLE_TEXTURE2D(_EmissionMap, sampler_LinearRepeat, uv0).rgb;
+        e = m.r * _ChorusEmitR.rgb + m.g * _ChorusEmitG.rgb + m.b * _ChorusEmitB.rgb;
+        // (the masters' "UV shift" mask: Chorus lights only the faces whose palette UV is shifted below 0, past 1 here)
+        half on = _ChorusEmitG.a > 0.5 ? (uv3.y > 1.0 ? 1.0h : 0.0h) : 1.0h;
+        e *= on * (half)_ChorusEmitR.a;
+    }
+    gChorusEmissive = e;
+    s.emission = e * (half)(_ChorusKicker2.z * _ChorusParams.w);
+}
+
+// Chorus's M_Guilt_Shell (_ChorusParams.x 3; Guilt's two shells), after its compiled base and masked depth passes: a dither
+// (screen noise) and the flowing noise (HullInput.hlsl ChorusShellFlow) dissolve it, ((mask.r + Arms Fade) x 0.5 + dither -
+// 0.5) x saturate(2 Coverage - (1 - noise) x (1 - mask.g)^Erode Exponent) - (1 - MasterAlpha) clipped below 1/3; its colour,
+// metal and roughness flat; its glow the mask flowing the same way, less Emissive Exponent, x Emissive Color x Intensity x
+// saturate(1 - the distance from the model's origin / Center Emissive Radius)^2. (The base pass's normal from the flowing
+// noise is left flat.)
+void ChorusShell(Varyings input, inout SurfaceData s)
+{
+    float2 uv0 = input.uv, a, b; float k;
+    ChorusShellFlow(uv0, a, b, k);
+    float2 dx = ddx(uv0 * _ChorusParams.y), dy = ddy(uv0 * _ChorusParams.y);   // (the flowed UVs jump; their gradients don't)
+    half n = lerp(SAMPLE_TEXTURE2D_GRAD(_OcclusionMap, sampler_LinearRepeat, b, dx, dy).r, SAMPLE_TEXTURE2D_GRAD(_OcclusionMap, sampler_LinearRepeat, a, dx, dy).r, (half)k);
+    half4 mask = SAMPLE_TEXTURE2D(_BaseMap, sampler_LinearRepeat, uv0);
+    half erode = pow(max(1.0h - mask.g, 1e-4h), (half)_ChorusEmitR.z);
+    half dither = InterleavedGradientNoise(input.positionCS.xy, 0);
+    half vis = ((mask.r + (half)_ChorusEmitR.x) * 0.5h + dither - 0.5h) * saturate(2.0h * (half)_ChorusEmitR.y - (1.0h - n) * erode) - (1.0h - (half)_ChorusEmitR.w);
+    clip(vis - 0.3333h);
+    s.albedo = (half)_ChorusEmitG.z;
+    s.metallic = (half)_ChorusEmitG.w;
+    s.smoothness = 1.0h - (half)_ChorusEmitB.x;
+    s.occlusion = 1.0h;
+    s.normalTS = half3(0.0h, 0.0h, 1.0h);
+    s.alpha = 1.0h;
+    half3 at = lerp(SAMPLE_TEXTURE2D_GRAD(_BaseMap, sampler_LinearRepeat, b, dx, dy).rgb, SAMPLE_TEXTURE2D_GRAD(_BaseMap, sampler_LinearRepeat, a, dx, dy).rgb, (half)k);
+    float d = length(TransformWorldToObject(input.positionWS));
+    half fall = saturate(1.0h - (half)(d / _ChorusAccent2.y)); fall *= fall;
+    s.emission = max(at - (half)_ChorusAccent2.x, 0.0h) * _ChorusAccent.rgb * (half)(_ChorusAccent.a * _ChorusParams.w) * fall;
+    gChorusEmissive = 0.0h;
+}
+
+// M_NPCShipTrimMaster's far emission: past Kicker Fade Offset (view depth), over Kicker Fade Length, the kicker rim
+// ((1 - N.V)^Kicker Exp x 0.96 + 0.04 in Kicker Color) and the trim emissive x (Emissive Channel Distance Boost - 1) on top.
+half3 ChorusFarEmission(InputData inputData)
+{
+    if (_ChorusKicker.a <= 0.0) return 0.0h;
+    half ndv = 1.0h - saturate(dot(inputData.normalWS, inputData.viewDirectionWS));
+    half f = (ndv <= 0.0h ? 0.0h : PositivePow(ndv, (half)_ChorusKicker.a)) * 0.96h + 0.04h;
+    float depth = -TransformWorldToView(inputData.positionWS).z;
+    half fade = saturate((depth - _ChorusKicker2.x) / max(_ChorusKicker2.y, 1e-3));
+    return fade * (f * _ChorusKicker.rgb + ((half)_ChorusEmitB.a - 1.0h) * gChorusEmissive) * (half)_ChorusParams.w;
+}
+
 void HullPassFragment(
     Varyings input
     , out half4 outColor : SV_Target0
@@ -237,11 +392,14 @@ void HullPassFragment(
     SurfaceData surfaceData;
     InitializeStandardLitSurfaceData(input.uv, surfaceData);
     if (_Es2Wear2.z > 0.0) Es2StructureLayers(input, surfaceData);   // GoF2: EVERSPACE 2's structure layers
+    if (_ChorusParams.x > 2.5) ChorusShell(input, surfaceData);      // GoF2: Chorus's shell (Guilt)
+    else if (_ChorusParams.x > 0.0) ChorusLayers(input, surfaceData);   // GoF2: Chorus's trim sheets and platings
 
     LODFadeCrossFade(input.positionCS);
 
     InputData inputData;
     InitializeInputData(input, surfaceData.normalTS, inputData);
+    if (_ChorusParams.x > 0.0) surfaceData.emission += ChorusFarEmission(inputData);   // GoF2: Chorus's far kicker
     if (_Es2Wear2.z > 0.0)
     {
         // EVERSPACE 2's rim: the colour x (1 + 5 (1 - N.V)^3), saturated

@@ -59,6 +59,19 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ATurretModelTakesMaterialsLikeAShip()
+        {
+            // (Chorus's turrets: their trim sheets through a ship's "materials" entries, "chorus" blocks included)
+            var d = DefOf("{ 'turret': { 'model': 'models/t.glb', 'materials': [ { 'material': 'trim', 'chorus': { 'kind': 'trim', 'palette': 'p.png' } }, { 'material': 'lights', 'emissionColor': [1, 0, 0] } ] } }",
+                ("models/t.glb", "glb"));
+            Assert.IsNotNull(d, AllMessages(Installed(Mod)));
+            Assert.AreEqual(2, d.turretMaterials.Count);
+            Assert.AreEqual("trim", d.turretMaterials[0].material);
+            Assert.IsTrue(d.turretMaterials[0].chorus.On);
+            Assert.AreEqual(1f, d.turretMaterials[1].emissionColor[0]);
+        }
+
+        [Test]
         public void ATurretModelAsAFileKeepsTheBaseOffsets()
         {
             var d = DefOf("{ 'turret': 'models/t.glb' }", ("models/t.glb", "glb"));

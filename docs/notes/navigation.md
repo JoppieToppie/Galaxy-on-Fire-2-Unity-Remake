@@ -217,6 +217,14 @@ the player ship) and `NavigationView` (flight HUD).
   mastered share, after GetLootQuantityFactor) and `BattlePay`. Not done: Mines on Death (2-3 mines, 40 + 40, 100 m), Overheated
   Systems, Corrosive Death, Burst Bulbs, Phase Barrier, Stasis Snares, Apocalypse; the portals' choice; ES2's lunacy,
   nightmare mode and loot quality.
+  **Rift looks** (2026-11-11, the user: Chorus's rifts in the Chorus systems): a mod rift entry's `"look"`
+  (`Modding.ModEncounters.RiftLook`, pooled with the table; `RiftLookFor(system)`: one naming the system, else one with
+  no `systems`) dresses a run: its `rift` model at the run's centre (`ModCrates.InstantiateFitted`, the look's models
+  loaded with the orbits' through `ModWorld.ContainerModels`, facing the camera), its `skybox` in place of the orbit's
+  (`OrbitBuilder.SetupSky(..., skyOverride)`, back by `SpaceLevel.RestoreOrbitSky` when the run is gone), and at each
+  stage's end its `portal` where the stage's survivors were (`World.RiftPortal`: grows OpenS 0.6 s, holds HoldS 1.8 s,
+  closes CloseS 0.8 s) as they vanish (ES2's portal to the next location). A Chorus portal material on either gets its
+  refraction (`PortalRefraction.AttachIfPortal`). Tests `RiftLookTests`.
 - **Containers** (remake 2026-11-03, for mods; stations.json `orbit.containers` -> `ModWorld.OrbitSpec.containerCount /
   containerCentre / containerSpread / containerBulletproof`, `World.LootContainer.SpawnOrbit` with the wreck field): after
   EVERSPACE 2's BP_ItemContainer (EContainerType OpenOnHit: ReceiveAnyDamage by the player or within 2 km ->

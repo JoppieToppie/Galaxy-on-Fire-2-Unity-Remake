@@ -100,7 +100,9 @@ namespace GoF2Remake.Modding
                             {
                                 mod = mod, station = GateKey(s.index), gateSystem = s.index, model = gm, label = (s.name ?? d.key) + " jumpgate",
                                 size = GameModels.Is(gm) && !ModJson.Has(jgo, "size") ? 0f : Mathf.Max(1000f, ModJson.Float(jgo, "size", 15000f, d.file)),
-                                yaw = ModJson.Float(jgo, "yaw", 0f, d.file), centre = true, collision = "none",
+                                // ("centre": false: the model's own origin is the gate's middle, as a station's modelCentre;
+                                //  a gate whose ring sits at one end of a long frame, Chorus's)
+                                yaw = ModJson.Float(jgo, "yaw", 0f, d.file), centre = ModJson.Bool(jgo, "centre", true, d.file), collision = "none",
                             };
                             gate.gateRadius = Mathf.Max(0f, ModJson.Float(jgo, "radius", gate.size > 0f ? gate.size * 0.5f : 0f, d.file));
                             if (ModJson.Get(jgo, "materials") is JArray gmats)

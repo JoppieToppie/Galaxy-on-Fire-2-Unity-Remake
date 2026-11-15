@@ -234,6 +234,9 @@ namespace GoF2Remake.Flight
         public float Throttle { get; private set; } = 1f;      // 0xbc, 0..1
         public float CurrentSpeed { get; private set; } = BaseSpeed; // 0xb8, units per ms
         public float YawRate { get; private set; }             // 0x27c
+        /// <summary>Remake: the stick's turn this frame, -1 (full left) .. 1 (full right), in free and Chorus flight (a mod
+        /// ship's steering pose, ModShipAnimator).</summary>
+        public float YawInput { get; private set; }
         public float PitchRate { get; private set; }           // 0x278
         public bool IsBoosting { get; private set; }
         public bool IsLeveling { get; private set; }
@@ -409,6 +412,7 @@ namespace GoF2Remake.Flight
             float maxRate = FreeTopTurnRate(he) * (IsBoosting ? R.freeBoostTurnShare : 1f);
             float step = maxRate / (R.freeTurnRampMs / Mathf.Max(0.05f, Inertia)) * dtMs;
             freeYaw = Mathf.MoveTowards(freeYaw, Mathf.Clamp(input.aim.x, -1f, 1f) * maxRate, step);
+            YawInput = Mathf.Clamp(input.aim.x, -1f, 1f);
             freePitch = Mathf.MoveTowards(freePitch, Mathf.Clamp(input.aim.y, -1f, 1f) * maxRate, step);
             float roll = Mathf.Clamp(input.roll, -1f, 1f);
             if (Mathf.Abs(roll) > 0.01f) StopLeveling();
@@ -587,6 +591,8 @@ namespace GoF2Remake.Flight
 
         /// <summary>Chorus flight: a dash runs (ChorusDash).</summary>
         public bool Dashing => ChorusFlight && chorusDashMs >= 0f;
+        /// <summary>The dash's way: -1 left, +1 right (while Dashing).</summary>
+        public int DashDirection => chorusDashDir;
 
         int chorusDrift;          // EDriftState: 0 inactive, 1 drifting, 2 recovery (USteeringComponent+0xB38)
         float chorusDashMs = -1f; // the dash's time, -1 = none
@@ -720,6 +726,7 @@ namespace GoF2Remake.Flight
             float step = baseRate / (ChorusTurnRampMs / Mathf.Max(0.05f, Inertia))
                          * (chorusTravel ? ChorusTravelTurnAccel : IsBoosting ? ChorusBoostTurnAccel : 1f) * dtMs;
             freeYaw = ChorusRate(freeYaw, Mathf.Clamp(input.aim.x, -1f, 1f) * maxRate, step);
+            YawInput = Mathf.Clamp(input.aim.x, -1f, 1f);
             freePitch = ChorusRate(freePitch, Mathf.Clamp(input.aim.y, -1f, 1f) * maxRate, step);
             float roll = Mathf.Clamp(input.roll, -1f, 1f);
             if (Mathf.Abs(roll) > 0.01f) StopLeveling();

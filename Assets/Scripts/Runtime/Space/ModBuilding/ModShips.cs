@@ -218,6 +218,8 @@ namespace GoF2Remake.Modding
                     if (!string.IsNullOrEmpty(m.damageEmission)) yield return (m.damageEmission, false, false, false);
                     if (!string.IsNullOrEmpty(m.damageDetail)) yield return (m.damageDetail, false, false, false);
                     if (!string.IsNullOrEmpty(m.damageNormal)) yield return (m.damageNormal, true, false, true);
+                    if (m.chorus != null)   // Chorus's layers (ModMaterials.ChorusLayers)
+                        foreach (var (path, linear, normal) in m.chorus.Textures()) yield return (path, linear, false, normal);
                 }
             if (c.throttleGlow != null && !string.IsNullOrEmpty(c.throttleGlow.mask)) yield return (c.throttleGlow.mask, false, true, false);
             if (c.extraGlows != null)

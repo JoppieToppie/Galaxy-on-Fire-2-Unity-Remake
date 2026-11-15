@@ -13,6 +13,10 @@
 // overridden), and the rift joins the table once a mod adds one. More mods with rifts mean more bosses, not more rifts.
 // "music" (2026-11-06): a mod music track its fight plays in place of the battle music (World.EncounterMusic); a rift entry's
 // sets the rift's (the first mod's wins).
+// A rift entry's "look" (2026-11-11, for Chorus's rifts): { "systems": [...], "rift": { "model", "size" }, "portal": { "model",
+// "size" }, "materials": [...], "skybox": { ... } }: how a run looks in those systems (none: anywhere): the rift standing at its
+// centre, a portal opening at each stage's end that takes the stage's survivors, the sky while it runs (World.RiftEncounter).
+// Looks pool like bosses (RiftLooks, RiftLookFor: a look naming the system wins over one for anywhere).
 
 using System;
 using System.Collections.Generic;
@@ -37,16 +41,29 @@ namespace GoF2Remake.Modding
 
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "id", "override", "kind", "weight", "visible", "minRank", "security", "freePlayOnly", "quest", "ships", "name", "interstellar", "bosses", "music",
+            "id", "override", "kind", "weight", "visible", "minRank", "security", "freePlayOnly", "quest", "ships", "name", "interstellar", "bosses", "music", "look",
         };
+
+        /// <summary>A rift entry's "look": its models (the mod's GLBs, fitted to 'riftSize' / 'portalSize' game units), their
+        /// materials, its sky, the systems it is for (references, resolved when asked; empty: anywhere).</summary>
+        public sealed class RiftLook
+        {
+            public ModInfo mod;
+            public readonly List<string> systems = new List<string>();
+            public string rift, portal;
+            public float riftSize = 30000f, portalSize = 8000f;
+            public List<Data.CustomShipMaterial> materials = new List<Data.CustomShipMaterial>();
+            public ModWorld.Skybox skybox;
+        }
 
         static int revision = -1;
         static List<CruiseEncounters.Entry> all;
+        static readonly List<RiftLook> looks = new List<RiftLook>();
         static readonly Dictionary<string, Def> defByKey = new Dictionary<string, Def>(StringComparer.Ordinal);
         static readonly string[] RiftOwnFields = { "weight", "visible", "minRank", "security", "freePlayOnly", "ships", "name", "interstellar" };
 
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { revision = -1; all = null; defByKey.Clear(); }
+        static void ResetStatics() { revision = -1; all = null; defByKey.Clear(); looks.Clear(); }
 
         public static void Parse(ModInfo mod, List<Def> into)
         {
@@ -95,6 +112,7 @@ namespace GoF2Remake.Modding
             if (all != null && revision == ModManager.Revision) return all;
             revision = ModManager.Revision;
             defByKey.Clear();
+            looks.Clear();
             var list = CruiseEncounters.BuiltIn();
             foreach (var mod in ModManager.Active)
                 foreach (var d in ModContent.Parse(mod).encounters)
@@ -120,6 +138,11 @@ namespace GoF2Remake.Modding
                         if (rift == null) list.Add(rift = CruiseEncounters.RiftEntry());
                         if (e.bosses != null) (rift.bosses ??= new List<CruiseEncounters.RiftBoss>()).AddRange(e.bosses);
                         if (rift.music == null && e.music != null) rift.music = e.music;
+                        if (ModJson.Get(d.json, "look") is JToken lt)
+                        {
+                            try { looks.Add(ParseLook(d.mod, lt, d.where)); }
+                            catch (ModJsonException x) { d.mod.Warnings.Add(x.Message + " (the look is ignored)"); }
+                        }
                         foreach (var f in RiftOwnFields)
                             if (ModJson.Get(d.json, f) != null)
                                 d.mod.Warnings.Add($"{d.where}: \"{f}\" (ignored): the rift's chance and stages are the remake's, a mod's rift only adds \"bosses\"");
@@ -130,6 +153,46 @@ namespace GoF2Remake.Modding
                 }
             all = list;
             return all;
+        }
+
+        /// <summary>The rifts' looks of the active mods (made with the table).</summary>
+        public static List<RiftLook> RiftLooks() { All(); return looks; }
+
+        /// <summary>The look of a rift run in 'system': the first naming it, else the first for anywhere, else null (the plain rift).</summary>
+        public static RiftLook RiftLookFor(int system)
+        {
+            RiftLook any = null;
+            foreach (var l in RiftLooks())
+            {
+                if (l.systems.Count == 0) { any ??= l; continue; }
+                foreach (var r in l.systems)
+                    if (ModWorld.TryResolveSystem(r, out int s) && s == system) return l;
+            }
+            return any;
+        }
+
+        static readonly HashSet<string> LookFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "systems", "rift", "portal", "materials", "skybox" };
+
+        static RiftLook ParseLook(ModInfo mod, JToken t, string where)
+        {
+            if (!(t is JObject o)) throw new ModJsonException($"{where}: a rift's \"look\" must be an object");
+            foreach (var p in o.Properties())
+                if (!LookFields.Contains(p.Name)) mod.Warnings.Add($"{where}: unknown look field \"{p.Name}\" (ignored)");
+            var l = new RiftLook { mod = mod };
+            l.systems.AddRange(ModJson.Strings(o, "systems"));
+            (string model, float size) Model(string key, float size)
+            {
+                if (!(ModJson.Get(o, key) is JObject m)) return (null, size);
+                string path = ModJson.Str(m, "model");
+                if (path != null && !mod.Source.Exists(path)) throw new ModJsonException($"{where}: the look's {key} model {path} isn't in the mod");
+                return (path, UnityEngine.Mathf.Max(100f, ModJson.Float(m, "size", size, File)));
+            }
+            (l.rift, l.riftSize) = Model("rift", l.riftSize);
+            (l.portal, l.portalSize) = Model("portal", l.portalSize);
+            if (ModJson.Get(o, "materials") is JArray mats)
+                foreach (var m in mats) l.materials.Add(UnityEngine.JsonUtility.FromJson<Data.CustomShipMaterial>(m.ToString()));
+            if (ModJson.Get(o, "skybox") is JToken sky) l.skybox = ModWorld.ParseSkyboxOf(mod, sky, where + " look");
+            return l;
         }
 
         static void Apply(Def d, CruiseEncounters.Entry e)

@@ -193,6 +193,9 @@ namespace GoF2Remake.UI
             barRobots.description = () => X("barRobotsHelp", "The robots at work in the Terran and Vossk bars.");
             list.Add(barRobots);
             list.Add(Toggle("lensFlare", OptionPage.Graphics, () => X("lensFlare", "Lens flare"), () => Settings.LensFlare, v => Settings.LensFlare = v));
+            var liveSkies = Toggle("liveSkies", OptionPage.Graphics, () => X("liveSkies", "Live mod skies"), () => Settings.LiveSkies, v => Settings.LiveSkies = v);
+            liveSkies.description = () => X("liveSkiesHelp", "Mod skies that come with their own shader (such as Chorus's) drawn live, sharp at any resolution. Off: their baked image, lighter on phones. From the next orbit.");
+            list.Add(liveSkies);
             list.Add(Toggle("npcPlayerEngines", OptionPage.Graphics, () => X("npcPlayerEngines", "Other ships' engines like yours"),
                 () => Settings.NpcPlayerEngines, v => Settings.NpcPlayerEngines = v));
             // Remake: the planets as the rebuilt 3D spheres (World.RebuiltPlanets); on by default.

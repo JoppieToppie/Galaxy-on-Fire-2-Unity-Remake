@@ -13,6 +13,11 @@ TEXTURECUBE(_BlendStars);  SAMPLER(sampler_BlendStars);
 TEXTURECUBE(_BlendNebula); SAMPLER(sampler_BlendNebula);
 TEXTURE2D(_BlendStarsMap);  SAMPLER(sampler_BlendStarsMap);
 TEXTURE2D(_BlendNebulaMap); SAMPLER(sampler_BlendNebulaMap);
+TEXTURE2D(_ChorusStarsMap); SAMPLER(sampler_ChorusStarsMap);
+TEXTURE2D(_ChorusLayer1); SAMPLER(sampler_ChorusLayer1);
+TEXTURE2D(_ChorusLayer2); SAMPLER(sampler_ChorusLayer2);
+TEXTURE2D(_ChorusLayer3); SAMPLER(sampler_ChorusLayer3);
+TEXTURE2D(_ChorusLayer4); SAMPLER(sampler_ChorusLayer4);
 float _WarpLevel, _WarpTime, _WarpKhador;
 float3 _WarpAxis;
 float _SkyBlend, _BlendStarsGain, _BlendNebulaGain, _BlendExposure, _BlendStarsMode, _BlendNebulaMode;
@@ -24,6 +29,15 @@ CBUFFER_START(UnityPerMaterial)
     float4 _StarsMap_TexelSize;
     float4 _NebulaMap_TexelSize;
     half _Exposure, _StarsGain, _NebulaGain;
+    // Chorus's sky (_CHORUS_SKY, ChorusSky below; OrbitBuilder.SetChorusSky fills them from a systems.json skybox "chorus")
+    float4 _ChorusGradUp;        // the gradient's up (Unreal axes, normalized), its bias
+    float4 _ChorusGradA, _ChorusGradB;   // colour A, gamma; colour B, opacity (0: no gradient)
+    float4 _ChorusStars;         // tiling, offset u, offset v, brightness
+    float4 _ChorusCurve0, _ChorusCurve1;   // the stars' curve: rgb at its first key, its time; rgb at its last, its time
+    float4 _ChorusMisc;          // stars exponent, overall emissive, layer count
+    float4 _ChorusL1A, _ChorusL1B, _ChorusL1C, _ChorusL2A, _ChorusL2B, _ChorusL2C;   // per layer: sin / cos heading, sin / cos
+    float4 _ChorusL3A, _ChorusL3B, _ChorusL3C, _ChorusL4A, _ChorusL4B, _ChorusL4C;   // elevation; scale, cos / sin rotation,
+                                                                                    // emissive; exponent, opacity
 CBUFFER_END
 
 // Equirectangular: u around (0.5 = +Z, 0.75 = +X), v up (0.5 = the horizon).
@@ -65,10 +79,71 @@ half3 Layer(TEXTURECUBE_PARAM(cube, cubeSampler), TEXTURE2D_PARAM(map, mapSample
     return SAMPLE_TEXTURECUBE(cube, cubeSampler, d).rgb;
 }
 
+
+// Chorus's sky, as its M_Skybox_MASTER draws it (its compiled shader, MI_Skybox_LocRSA's pixel shader and its variants with a
+// fourth layer / no gradient; the importer's tools/sky.py, the same formula in numpy for the baked panorama): a gradient
+// along an up vector, a tiled star mask through a curve, then up to four nebula / galaxy images, each a patch of the sky
+// placed by heading, elevation, scale and rotation, laid over what is under it by its alpha. Worked in Unreal's axes (x
+// forward, y right, z up: Unity's z, x, y, no mirror). Chorus's exposure compensation only cancels its auto exposure,
+// which the remake hasn't: left out. Its sky sphere (SM_Sphere) maps the stars by its 16 x 16 UV sphere about its own
+// axis (Unreal's y): here the exact sphere, not its facets.
+half ChorusStarMask(float3 v)   // the star mask toward v: the sky sphere's UV (Unreal's, v down), offset and tiled
+{
+    float a = 0.75 - atan2(v.z, v.x) * (0.5 / PI);
+    float2 uv = (float2(frac(a), 0.5 + asin(clamp(v.y, -1.0, 1.0)) / PI) + _ChorusStars.yz) * _ChorusStars.x;
+    // the sphere's seam (u 1 -> 0) has its own vertices in Chorus: its gradients here from u unwrapped where that is smoother
+    float2 ga = float2(ddx(a), ddy(a)), gb = float2(ddx(frac(a)), ddy(frac(a)));
+    float2 du = float2(abs(ga.x) <= abs(gb.x) ? ga.x : gb.x, abs(ga.y) <= abs(gb.y) ? ga.y : gb.y) * _ChorusStars.x;
+    float2 dv = float2(ddx(uv.y), ddy(uv.y));
+    return SAMPLE_TEXTURE2D_GRAD(_ChorusStarsMap, sampler_ChorusStarsMap, float2(uv.x, 1.0 - uv.y), float2(du.x, -dv.x), float2(du.y, -dv.y)).r;
+}
+
+half3 ChorusLayer(TEXTURE2D_PARAM(map, s), float3 d, float4 a, float4 b, float4 c, half3 under)
+{
+    // heading: about the sphere's axis, as the material's RotateAboutAxis nodes in its own order
+    float3 p = float3(d.y * a.x + d.z * a.y, d.x, d.y * a.y - d.z * a.x);
+    float3 q = normalize(float3(p.z, p.x * a.w - p.y * a.z, p.x * a.z + p.y * a.w));
+    float u = (atan2(q.x, -q.y) / PI + 1.0) * 0.5;
+    float v = acos(clamp(q.z, -1.0, 1.0)) / PI;
+    float2 k = float2((2.0 * u - 1.0) / b.x, (v - 0.5) / b.x);
+    float2 r = float2(k.x * b.y - k.y * b.z, k.x * b.z + k.y * b.y);
+    half4 t = SAMPLE_TEXTURE2D(map, s, float2(r.x + 0.5, 0.5 + r.y));
+    half3 e = t.rgb * b.w;
+    half3 col = t.rgb + pow(max(e, 1e-6), c.x) * step(1e-6, e);   // (pow of 0 or less: 0)
+    float inside = saturate((1.0 - 2.0 * abs(r.x)) * 1e5) * saturate((1.0 - 2.0 * abs(r.y)) * 1e5);
+    return lerp(under, col, t.a * c.y * inside);
+}
+
+half3 ChorusSky(float3 w)
+{
+    float3 v = normalize(float3(w.z, w.x, w.y));   // Unreal's axes
+    float3 d = -v;   // the sphere's inward normal: what the gradient and the layers read
+    half3 c = 0;
+    if (_ChorusGradB.w > 0)
+    {
+        float g = dot(d, _ChorusGradUp.xyz) + _ChorusGradUp.w;
+        g = g <= 0 ? 0 : pow(g, _ChorusGradA.w);
+        c = lerp(_ChorusGradA.rgb, _ChorusGradB.rgb, min(g, 1.0)) * g * _ChorusGradB.w;
+    }
+    float m = ChorusStarMask(v);
+    float3 curve = lerp(_ChorusCurve0.rgb, _ChorusCurve1.rgb, saturate((m - _ChorusCurve0.w) / max(_ChorusCurve1.w - _ChorusCurve0.w, 1e-5)));
+    float3 stars = pow(max(curve, 1e-6), _ChorusMisc.x) * step(1e-6, curve);
+    c += dot(stars * _ChorusStars.w, 1.0);   // (the sphere's vertex colours: none, white)
+    int n = (int)_ChorusMisc.z;
+    if (n > 0) c = ChorusLayer(TEXTURE2D_ARGS(_ChorusLayer1, sampler_ChorusLayer1), d, _ChorusL1A, _ChorusL1B, _ChorusL1C, c);
+    if (n > 1) c = ChorusLayer(TEXTURE2D_ARGS(_ChorusLayer2, sampler_ChorusLayer2), d, _ChorusL2A, _ChorusL2B, _ChorusL2C, c);
+    if (n > 2) c = ChorusLayer(TEXTURE2D_ARGS(_ChorusLayer3, sampler_ChorusLayer3), d, _ChorusL3A, _ChorusL3B, _ChorusL3C, c);
+    if (n > 3) c = ChorusLayer(TEXTURE2D_ARGS(_ChorusLayer4, sampler_ChorusLayer4), d, _ChorusL4A, _ChorusL4B, _ChorusL4C, c);
+    return max(c, 0) * _ChorusMisc.y;
+}
+
 // The sky toward the world direction 'world'.
 half3 Sky(float3 world)
 {
     float3 d = mul((float3x3)_SkyRotation, world);
+    #if defined(_CHORUS_SKY)
+    half3 c = ChorusSky(d);
+    #else
     #if defined(_STARS_PANORAMA)
         const int starsMode = 1;
     #elif defined(_STARS_STRIP)
@@ -85,6 +160,7 @@ half3 Sky(float3 world)
     #endif
     half3 c = Layer(TEXTURECUBE_ARGS(_Stars, sampler_Stars), TEXTURE2D_ARGS(_StarsMap, sampler_StarsMap), _StarsMap_TexelSize, d, starsMode) * _StarsGain
             + Layer(TEXTURECUBE_ARGS(_Nebula, sampler_Nebula), TEXTURE2D_ARGS(_NebulaMap, sampler_NebulaMap), _NebulaMap_TexelSize, d, nebulaMode) * _NebulaGain;
+    #endif
     if (_SkyBlend > 0.001)
     {
         float3 e = mul((float3x3)_BlendRotation, world);

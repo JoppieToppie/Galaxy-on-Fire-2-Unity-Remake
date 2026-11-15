@@ -67,6 +67,27 @@ half4 _GoF3Params;
 float4 _Es2Wear;
 float4 _Es2Wear2;
 float4 _Es2Grunge;
+// GoF2: Chorus's trim sheets and platings (M_TrimLayersMaster / M_NPCShipTrimMaster / M_PlatingMaster's compiled base passes;
+// ModMaterials.ChorusLayers, HullForwardPass.hlsl ChorusLayers), on when _ChorusParams.x > 0. _ChorusParams: x 1 trim / 2
+// plating, y the tiling layer's scale (trim: UV1 x Base UV Tile Amount; plating: UV0 x Tiling), z Trim AO Intensity, w the
+// emission's scale; _ChorusAccent: rgb Accent 1 Color, a 1 = Trim AAO's red masks the accent; _ChorusAccent2: x Accent 1
+// Metallic Override, y Accent 1 Roughness Bias, z Accent 1 Tiling Base Normal Intensity; _ChorusEmitR / G / B: rgb the Trim
+// Emissive channel tints, R.a Trim Emissive Amount, G.a 1 = only on faces shifted out of the palette (UV3 past 1 after the
+// loader's V flip), B.a Emissive Channel Distance Boost; _ChorusKicker: rgb Kicker Color, a Kicker Exp (0 = no kicker);
+// _ChorusKicker2: x Kicker Fade Offset, y Kicker Fade Length (world units), z the near emission's factor; _ChorusDirt: rgb
+// Dirt Tint, a 1 = dirt on; _ChorusDirt2: x Dirt UV Scale, y Dirt Mask UV Scale, z Dirt from Material AO Intensity, w Dirt
+// Contrast; _ChorusDirt3: x 0 = weighted by the vertex colour's red (trim), 1 = its alpha too (plating).
+float4 _ChorusParams;
+float4 _ChorusAccent;
+float4 _ChorusAccent2;
+float4 _ChorusEmitR;
+float4 _ChorusEmitG;
+float4 _ChorusEmitB;
+float4 _ChorusKicker;
+float4 _ChorusKicker2;
+float4 _ChorusDirt;
+float4 _ChorusDirt2;
+float4 _ChorusDirt3;
 UNITY_TEXTURE_STREAMING_DEBUG_VARS;
 CBUFFER_END
 
@@ -171,7 +192,38 @@ TEXTURE2D(_Es2WearMap);
 TEXTURE2D(_Es2WearNormalMap);
 TEXTURE2D(_Es2WearNoiseMap);
 TEXTURE2D(_Es2GrungeMap);
+// GoF2: Chorus's layers: the palette (left half: LayerColors, linear; right half: LayerData), read by texel; the dirt's
+// roughness (sampled with the global linear-repeat sampler). Their other maps take URP's slots (ModMaterials.ChorusLayers).
+TEXTURE2D(_ChorusPalette);
+TEXTURE2D(_ChorusDirtRough);
 UNITY_TEXTURE_STREAMING_DEBUG_VARS_FOR_TEX(_BaseMap);
+
+// GoF2: Chorus's M_Guilt_Shell (_ChorusParams.x 3; ModMaterials.ChorusShell): its noise flowing along its flow map, as its
+// compiled depth and vertex passes have it: two copies of the tiled UVs (x tiling, drifting 0.3 a second) pushed along the
+// flow vectors (_DetailNormalMap RG x 2 - 1 x flowStrength, x mirrored) by two phases half a cycle apart (time - the phase
+// map's R x 0.5, x flowSpeed), blended by a triangle wave so neither phase's jump shows. -> (uvA, uvB, the blend), and the
+// noise (_OcclusionMap R) through them.
+void ChorusShellFlow(float2 uv0, out float2 uvA, out float2 uvB, out float blend)
+{
+    float t = _Time.y;
+    float2 uvT = uv0 * _ChorusParams.y - t * 0.3;
+    float ph = t - SAMPLE_TEXTURE2D_LOD(_DetailMask, sampler_LinearRepeat, uv0 * _ChorusParams.z, 0).r * 0.5;
+    float fa = frac(ph * _ChorusAccent2.z - 0.5), fb = frac(ph * _ChorusAccent2.z);
+    float2 fv = (SAMPLE_TEXTURE2D_LOD(_DetailNormalMap, sampler_LinearRepeat, uv0, 0).rg * 2.0 - 1.0) * _ChorusAccent2.w * float2(-1.0, 1.0);
+    uvA = uvT + fv * fb;
+    uvB = frac(uvT + fv * fa) + 0.5;
+    blend = fb < 0.5 ? 2.0 * fb : 2.0 - 2.0 * fb;
+}
+
+float ChorusShellNoiseLod(float2 uv0)
+{
+    float2 a, b; float k;
+    ChorusShellFlow(uv0, a, b, k);
+    return lerp(SAMPLE_TEXTURE2D_LOD(_OcclusionMap, sampler_LinearRepeat, b, 0).r, SAMPLE_TEXTURE2D_LOD(_OcclusionMap, sampler_LinearRepeat, a, 0).r, k);
+}
+
+// The vertex shader's push, model units: push + pushNoise x (1 - the noise)
+float ChorusShellPush(float2 uv0) { return _ChorusEmitG.x + _ChorusEmitG.y * (1.0 - ChorusShellNoiseLod(uv0)); }
 
 // Simple getters for the material properties above. All raw material input (constant buffer
 // values, texture samples) is accessed through these; the feature helpers build on them.

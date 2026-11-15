@@ -17,6 +17,30 @@ Shader "GoF2/KhadorRift"
         _StarsGain ("Stars brightness", Float) = 1
         _NebulaGain ("Nebula brightness", Float) = 1
         _Exposure ("Exposure", Float) = 1
+        [NoScaleOffset] _ChorusStarsMap ("Chorus star mask", 2D) = "black" {}
+        [NoScaleOffset] _ChorusLayer1 ("Chorus layer 1", 2D) = "black" {}
+        [NoScaleOffset] _ChorusLayer2 ("Chorus layer 2", 2D) = "black" {}
+        [NoScaleOffset] _ChorusLayer3 ("Chorus layer 3", 2D) = "black" {}
+        [NoScaleOffset] _ChorusLayer4 ("Chorus layer 4", 2D) = "black" {}
+        [HideInInspector] _ChorusGradUp ("_ChorusGradUp", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusGradA ("_ChorusGradA", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusGradB ("_ChorusGradB", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusStars ("_ChorusStars", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusCurve0 ("_ChorusCurve0", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusCurve1 ("_ChorusCurve1", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusMisc ("_ChorusMisc", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL1A ("_ChorusL1A", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL1B ("_ChorusL1B", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL1C ("_ChorusL1C", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL2A ("_ChorusL2A", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL2B ("_ChorusL2B", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL2C ("_ChorusL2C", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL3A ("_ChorusL3A", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL3B ("_ChorusL3B", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL3C ("_ChorusL3C", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL4A ("_ChorusL4A", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL4B ("_ChorusL4B", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL4C ("_ChorusL4C", Vector) = (0, 0, 0, 0)
     }
     SubShader
     {
@@ -27,6 +51,7 @@ Shader "GoF2/KhadorRift"
         #pragma multi_compile_instancing
         #pragma multi_compile_local _ _NEBULA_PANORAMA _NEBULA_STRIP
         #pragma multi_compile_local _ _STARS_PANORAMA _STARS_STRIP
+        #pragma multi_compile_local _ _CHORUS_SKY
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Assets/Shaders/SpaceSkyCore.hlsl"
         #include "Assets/Shaders/WarpWebCore.hlsl"

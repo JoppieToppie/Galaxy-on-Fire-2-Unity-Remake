@@ -240,6 +240,7 @@ namespace GoF2Remake.Modding
             "subsystems", "shieldMaterial", "shieldedDamage", "engineStyle", "es2Engine", "hullFactor", "retreat",   // a capital ship's subsystems (World.CapitalSubsystems)
             "crate", "crateSize",   // its loot container's model (ModCrates)
             "wingmanDevice",   // a hired wingman's device in it (ModWingmen, Flight.WingmanDevice)
+            "animations",      // the model's clips by what the ship does: idle, Chorus flight's drift (ModShipAnimator)
         };
 
         static void ParseShips(ModInfo mod, Parsed p)

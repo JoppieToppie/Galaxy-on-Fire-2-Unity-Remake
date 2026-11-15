@@ -95,6 +95,20 @@ Shader "GoF2/Hull"
         [HideInInspector] [Normal] _Es2WearNormalMap("ES2 wear normal", 2D) = "bump" {}
         [HideInInspector] _Es2WearNoiseMap("ES2 wear noise", 2D) = "white" {}
         [HideInInspector] _Es2GrungeMap("ES2 grunge", 2D) = "white" {}
+        // GoF2: Chorus's trim sheets and platings (HullInput.hlsl, HullForwardPass.hlsl ChorusLayers; ModMaterials.ChorusLayers)
+        [HideInInspector] _ChorusParams("Chorus params", Vector) = (0, 1, 1, 1)
+        [HideInInspector] _ChorusAccent("Chorus accent", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusAccent2("Chorus accent 2", Vector) = (0, 0, 1, 0)
+        [HideInInspector] _ChorusEmitR("Chorus emissive R", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusEmitG("Chorus emissive G", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusEmitB("Chorus emissive B", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusKicker("Chorus kicker", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusKicker2("Chorus kicker 2", Vector) = (0, 1, 1, 0)
+        [HideInInspector] _ChorusDirt("Chorus dirt", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusDirt2("Chorus dirt 2", Vector) = (1, 1, 1, 0)
+        [HideInInspector] _ChorusDirt3("Chorus dirt 3", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusPalette("Chorus palette", 2D) = "grey" {}
+        [HideInInspector] _ChorusDirtRough("Chorus dirt roughness", 2D) = "grey" {}
         // GoF2: a mod specular material's GoF3 terms (HullForwardPass.hlsl GoF3ShipShader; ModMaterials): x environment, y rim,
         // z GoF3's specular multiplier, w 1 = that multiplier is in the map (on the whole specular) / 0 = on the highlight
         [HideInInspector] _GoF3Params("GoF3 params", Vector) = (1, 1, 1, 0)
