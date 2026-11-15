@@ -1,4 +1,9 @@
 {
+ "musicStandardHelp": "戦闘の激しさと敵艦数に応じて選ばれる3曲の標準戦闘曲です。オフでは軌道の平穏な音楽が続きます。",
+ "musicVoidsHelp": "Voidsとの遭遇や、Voidsに襲われたステーションで流れるThe Voids戦闘曲です。オフでは平穏な音楽が続きます。",
+ "musicStealthHelp": "敵対するSpecterがいる際のStealth Fightersの2曲です。オフでは標準戦闘曲、Standardもオフなら平穏な音楽が流れます。",
+ "musicWantedHelp": "Most Wantedの犯罪者を発見した際の戦闘曲です。オフでは標準戦闘曲、Standardもオフなら平穏な音楽が流れます。",
+ "musicScriptedHelp": "物語の演出で指定された音楽には影響しません。",
  "driveQueued": "ジャンプドライブ：システム待機中...",
  "driveNoVoid": "このジャンプドライブはヴォイドから出られない。",
  "driveFailure": "ジャンプドライブ故障！",
@@ -3406,8 +3411,6 @@
  "musicVoidBattle": "戦闘音楽: The Voids",
  "musicSpecters1": "戦闘音楽: Stealth Fighters",
  "musicWanted": "戦闘音楽: Most Wanted",
- "musicTrackHelp": "オフ：この曲は流れなくなり、軌道の穏やかな音楽が続きます。",
- "musicTrackSpecialHelp": "オフ：この曲は流れなくなり、代わりに通常の戦闘BGMが流れます。",
  "hackCrateEjected": "貨物コンテナが放出されました。トラクタービームで中身を確認してください。",
  "dialogueHighlights": "会話のハイライト",
  "dialogueHighlightsHelp": "アニメーション会話で、名前・場所・船・アイテム・種族に色を付け、その前にアイコン（クレジット、種族の紋章、アイテムのアイコン）を表示します。オフ：普通のテキスト。",

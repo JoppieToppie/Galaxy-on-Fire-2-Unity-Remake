@@ -1,4 +1,9 @@
 {
+ "musicStandardHelp": "De drie standaardgevechtsthema\u0027s, gekozen op basis van intensiteit en aantal vijandelijke schepen. Uit: de rustige orbitmuziek blijft spelen.",
+ "musicVoidsHelp": "Het thema The Voids bij Void-ontmoetingen en gevechten bij stations die ze aanvallen. Uit: de rustige orbitmuziek blijft spelen.",
+ "musicStealthHelp": "Beide Stealth Fighters-thema\u0027s bij vijandelijke Specters. Uit: standaardgevechtsmuziek, of rustige muziek als Standard uit staat.",
+ "musicWantedHelp": "Het gevechtsthema bij het ontmaskeren van een Most Wanted-crimineel. Uit: standaardgevechtsmuziek, of rustige muziek als Standard uit staat.",
+ "musicScriptedHelp": "Vaste verhaalgebonden muziek wordt niet beïnvloed.",
  "driveQueued": "Sprongaandrijving: wacht op de systemen...",
  "driveNoVoid": "Deze sprongaandrijving kan de Void niet verlaten.",
  "driveFailure": "Sprongaandrijving faalt!",
@@ -3406,8 +3411,6 @@
  "musicVoidBattle": "Gevechtsmuziek: The Voids",
  "musicSpecters1": "Gevechtsmuziek: Stealth Fighters",
  "musicWanted": "Gevechtsmuziek: Most Wanted",
- "musicTrackHelp": "Uit: dit nummer speelt niet meer; de rustige muziek van de baan speelt door.",
- "musicTrackSpecialHelp": "Uit: dit nummer speelt niet meer; de gewone gevechtsmuziek speelt in plaats daarvan.",
  "hackCrateEjected": "Vrachtcontainer uitgeworpen. Gebruik de trekstraal om de inhoud te bekijken.",
  "dialogueHighlights": "Markeringen in dialogen",
  "dialogueHighlightsHelp": "In geanimeerde dialogen: namen, plaatsen, schepen, voorwerpen en rassen in kleur, met pictogrammen ervoor (credits, rasemblemen, voorwerppictogrammen). Uit: gewone tekst.",

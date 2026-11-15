@@ -1,4 +1,9 @@
 {
+ "musicStandardHelp": "Les trois thèmes de combat standard, selon l\u0027intensité et le nombre de vaisseaux hostiles. Désactivé : la musique calme de l\u0027orbite continue.",
+ "musicVoidsHelp": "Le thème The Voids, lors des rencontres avec les Voids et des combats près des stations qu\u0027ils attaquent. Désactivé : la musique calme continue.",
+ "musicStealthHelp": "Les deux thèmes Stealth Fighters en présence de Specters hostiles. Désactivé : combat standard, ou musique calme si Standard est désactivé.",
+ "musicWantedHelp": "Le thème joué lorsqu\u0027un criminel Most Wanted est découvert. Désactivé : combat standard, ou musique calme si Standard est désactivé.",
+ "musicScriptedHelp": "La musique imposée par le scénario reste inchangée.",
  "driveQueued": "Moteur de saut : en attente des systèmes...",
  "driveNoVoid": "Ce moteur de saut ne peut pas quitter le Void.",
  "driveFailure": "Défaillance du moteur de saut !",
@@ -3406,8 +3411,6 @@
  "musicVoidBattle": "Musique de combat: The Voids",
  "musicSpecters1": "Musique de combat: Stealth Fighters",
  "musicWanted": "Musique de combat: Most Wanted",
- "musicTrackHelp": "Désactivé : ce morceau ne joue plus ; la musique calme de l'orbite continue.",
- "musicTrackSpecialHelp": "Désactivé : ce morceau ne joue plus ; la musique de combat habituelle le remplace.",
  "hackCrateEjected": "Conteneur de fret éjecté. Utilise le rayon tracteur pour vérifier son contenu.",
  "dialogueHighlights": "Mise en valeur des dialogues",
  "dialogueHighlightsHelp": "Dans les dialogues animés : noms, lieux, vaisseaux, objets et races en couleur, précédés d'icônes (crédits, emblèmes des races, icônes des objets). Désactivé : texte simple.",

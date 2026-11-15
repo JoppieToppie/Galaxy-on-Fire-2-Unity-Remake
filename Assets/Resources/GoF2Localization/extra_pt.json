@@ -1,4 +1,9 @@
 {
+ "musicStandardHelp": "Os três temas de combate padrão, conforme a intensidade e o número de naves hostis. Desativado: a música calma da órbita continua.",
+ "musicVoidsHelp": "O tema The Voids em encontros com os Voids e combates em estações atacadas por eles. Desativado: a música calma continua.",
+ "musicStealthHelp": "Os dois temas Stealth Fighters quando há Specters hostis. Desativado: combate padrão, ou música calma se Standard estiver desativado.",
+ "musicWantedHelp": "O tema de combate ao revelar um criminoso Most Wanted. Desativado: combate padrão, ou música calma se Standard estiver desativado.",
+ "musicScriptedHelp": "A música definida pelo roteiro da história não é afetada.",
  "driveQueued": "Motor de salto: aguardando os sistemas...",
  "driveNoVoid": "Este motor de salto não consegue sair do Void.",
  "driveFailure": "Falha no motor de salto!",
@@ -3406,8 +3411,6 @@
  "musicVoidBattle": "Música de combate: The Voids",
  "musicSpecters1": "Música de combate: Stealth Fighters",
  "musicWanted": "Música de combate: Most Wanted",
- "musicTrackHelp": "Desligado: esta faixa não toca mais; a música calma da órbita continua.",
- "musicTrackSpecialHelp": "Desligado: esta faixa não toca mais; toca a música de combate habitual no lugar.",
  "hackCrateEjected": "Contêiner de carga ejetado. Use o raio trator para verificar o conteúdo.",
  "dialogueHighlights": "Destaques nos diálogos",
  "dialogueHighlightsHelp": "Nos diálogos animados: nomes, lugares, naves, itens e raças coloridos, com ícones antes deles (créditos, emblemas das raças, ícones dos itens). Desligado: texto simples.",

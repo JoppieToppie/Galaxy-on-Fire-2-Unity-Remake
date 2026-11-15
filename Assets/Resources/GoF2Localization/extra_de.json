@@ -1,4 +1,9 @@
 {
+ "musicStandardHelp": "Die drei Standard-Kampfthemen, je nach Kampfintensität und Zahl feindlicher Schiffe. Aus: Die ruhige Orbitmusik läuft weiter.",
+ "musicVoidsHelp": "Das Kampfthema The Voids bei Void-Begegnungen und Kämpfen an von ihnen angegriffenen Stationen. Aus: Die ruhige Orbitmusik läuft weiter.",
+ "musicStealthHelp": "Beide Stealth-Fighters-Kampfthemen bei feindlichen Specters. Aus: Standard-Kampfmusik, oder ruhige Musik, wenn Standard aus ist.",
+ "musicWantedHelp": "Das Kampfthema beim Aufdecken eines Most-Wanted-Verbrechers. Aus: Standard-Kampfmusik, oder ruhige Musik, wenn Standard aus ist.",
+ "musicScriptedHelp": "Fest vorgegebene Storymusik bleibt unverändert.",
  "driveQueued": "Sprungantrieb: warte auf die Systeme...",
  "driveNoVoid": "Dieser Sprungantrieb kann das Void nicht verlassen.",
  "driveFailure": "Sprungantrieb-Ausfall!",
@@ -3406,8 +3411,6 @@
  "musicVoidBattle": "Kampfmusik: The Voids",
  "musicSpecters1": "Kampfmusik: Stealth Fighters",
  "musicWanted": "Kampfmusik: Most Wanted",
- "musicTrackHelp": "Aus: Dieses Stück spielt nicht mehr; die ruhige Musik des Orbits läuft weiter.",
- "musicTrackSpecialHelp": "Aus: Dieses Stück spielt nicht mehr; stattdessen spielt die übliche Kampfmusik.",
  "hackCrateEjected": "Frachtcontainer ausgestoßen. Benutze den Traktorstrahl, um den Inhalt zu prüfen.",
  "dialogueHighlights": "Hervorhebungen im Dialog",
  "dialogueHighlightsHelp": "Im animierten Dialog: Namen, Orte, Schiffe, Gegenstände und Völker farbig, mit Symbolen davor (Credits, Volkswappen, Gegenstandssymbole). Aus: schlichter Text.",

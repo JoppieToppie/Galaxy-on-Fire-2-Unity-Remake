@@ -1,4 +1,9 @@
 {
+ "musicStandardHelp": "Trzy standardowe motywy walki dobierane do intensywności i liczby wrogich statków. Wył.: nadal gra spokojna muzyka orbity.",
+ "musicVoidsHelp": "Motyw The Voids podczas spotkań z Voidami i walk przy atakowanych przez nich stacjach. Wył.: nadal gra spokojna muzyka orbity.",
+ "musicStealthHelp": "Oba motywy Stealth Fighters przy wrogich Specterach. Wył.: standardowa muzyka walki lub spokojna, jeśli Standard jest wyłączone.",
+ "musicWantedHelp": "Motyw walki po ujawnieniu przestępcy Most Wanted. Wył.: standardowa muzyka walki lub spokojna, jeśli Standard jest wyłączone.",
+ "musicScriptedHelp": "Muzyka przypisana do scen fabularnych pozostaje bez zmian.",
  "driveQueued": "Napęd skokowy: oczekiwanie na systemy...",
  "driveNoVoid": "Ten napęd skokowy nie może opuścić Void.",
  "driveFailure": "Awaria napędu skokowego!",
@@ -3406,8 +3411,6 @@
  "musicVoidBattle": "Muzyka walki: The Voids",
  "musicSpecters1": "Muzyka walki: Stealth Fighters",
  "musicWanted": "Muzyka walki: Most Wanted",
- "musicTrackHelp": "Wył.: ten utwór już nie gra; spokojna muzyka orbity gra dalej.",
- "musicTrackSpecialHelp": "Wył.: ten utwór już nie gra; zamiast niego gra zwykła muzyka walki.",
  "hackCrateEjected": "Wyrzucono kontener ładunkowy. Użyj promienia ściągającego, aby sprawdzić jego zawartość.",
  "dialogueHighlights": "Wyróżnienia w dialogach",
  "dialogueHighlightsHelp": "W animowanych dialogach: imiona, miejsca, statki, przedmioty i rasy w kolorze, z ikonami przed nimi (kredyty, godła ras, ikony przedmiotów). Wyłączone: zwykły tekst.",

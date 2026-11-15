@@ -1,4 +1,9 @@
 {
+ "musicStandardHelp": "전투 강도와 적 함선 수에 따라 선택되는 일반 전투 음악 세 곡입니다. 끄면 궤도의 평온한 음악이 계속됩니다.",
+ "musicVoidsHelp": "Voids 조우 및 Voids의 공격을 받는 정거장 전투에서 쓰이는 The Voids 음악입니다. 끄면 평온한 음악이 계속됩니다.",
+ "musicStealthHelp": "적대적인 Specter가 있을 때 쓰이는 Stealth Fighters 두 곡입니다. 끄면 일반 전투 음악이, Standard도 꺼져 있으면 평온한 음악이 재생됩니다.",
+ "musicWantedHelp": "Most Wanted 범죄자를 발견했을 때의 전투 음악입니다. 끄면 일반 전투 음악이, Standard도 꺼져 있으면 평온한 음악이 재생됩니다.",
+ "musicScriptedHelp": "스토리 연출에 지정된 음악에는 영향을 주지 않습니다.",
  "driveQueued": "점프 드라이브: 시스템 대기 중...",
  "driveNoVoid": "이 점프 드라이브로는 Void를 벗어날 수 없다.",
  "driveFailure": "점프 드라이브 고장!",
@@ -3406,8 +3411,6 @@
  "musicVoidBattle": "전투 음악: The Voids",
  "musicSpecters1": "전투 음악: Stealth Fighters",
  "musicWanted": "전투 음악: Most Wanted",
- "musicTrackHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 궤도의 잔잔한 음악이 계속됩니다.",
- "musicTrackSpecialHelp": "끄기: 이 곡은 더 이상 재생되지 않으며 대신 일반 전투 음악이 재생됩니다.",
  "hackCrateEjected": "화물 컨테이너가 방출되었습니다. 트랙터 빔으로 내용물을 확인하세요.",
  "dialogueHighlights": "대화 강조 표시",
  "dialogueHighlightsHelp": "애니메이션 대화에서 이름, 장소, 함선, 아이템, 종족에 색을 넣고 앞에 아이콘(크레딧, 종족 문장, 아이템 아이콘)을 붙입니다. 끄면 일반 텍스트입니다.",
