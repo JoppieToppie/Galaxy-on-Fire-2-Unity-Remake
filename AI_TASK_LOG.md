@@ -1,3 +1,10 @@
+## 2026-11-15 — Review Joppie's current upstream head and port low-risk range correction
+
+- Compared Joppie's `main` at `0be0f76c` against the shared baseline `4cd3f860`: 8 commits ahead.
+- Scanner commit `d8aaa1f3` was selectively integrated earlier, preserving our `scanClass` 143 and class system. The final beam/collector display correction from `3ae94f5` was also ported: attrs 51 and 53 display at x0.1; raw targeting values are unchanged. Added `BeamRangeDisplayTests`.
+- Deferred the 92-file Lua scripting feature (overlaps `Database`, `Hangar`, `NetHooksInstaller`), station/system music (touches `TrafficSpecials`, a future NPC-population integration surface), photo-mode screenshot fix, and broad generated AI-reference updates. No upstream branch merge or cherry-pick.
+- Unity compile and EditMode tests not run.
+
 ## 2026-11-15 — Cross-reference and selectively integrate Joppie's scanner implementation
 
 - **Source:** `JoppieToppie/Galaxy-on-Fire-2-Unity-Remake`, scanner commit `d8aaa1f3`.

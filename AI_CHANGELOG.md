@@ -1,3 +1,9 @@
+## 2026-11-15 — Port upstream beam / collector range display correction
+
+- `ItemInfo` now displays attrs 51 and 53 at x0.1 (integer metres), matching the original details window; targeting data is unchanged.
+- Added `BeamRangeDisplayTests` and updated the shop research / combat-equipment notes.
+- Source and tests not run in Unity.
+
 ## 2026-11-15 — Integrate Joppie's scanner features with project class scanner
 
 - Retained project `scanClass` (143); ported `scanShip` (140), `scanHitpoints` (141), `scanWeapons` (142), whole-hold cargo mode (31 = 2), and `on scanned` event support from Joppie's scanner work.

@@ -96,14 +96,21 @@ mods assign them and may add more). **Implemented (Claude), all opt-in:**
 
 ## 7. Comparison with JoppieToppie's repository (checked 2026-11-15)
 
-- Our `main` (`0b4428e8`) has the **same tree** as Joppie's `4cd3f860` (Nov 13). He is 4 commits ahead: Lua mod scripts (`ed123a1f`),
-  mod scanners (`d8aaa1f3`), the AI reference rebuild (`803f83a7`) and mod music (`db14ddc8`).
-- None of ship classes, `launchRotation`, per-ship `orbitDistance` or free-look lock exists upstream. `homingDelayMs` upstream is the
-  NPC rocket field only.
-- **Scanner integration:** selectively ported Joppie's scanner commit `d8aaa1f3` into our feature branch and retained our `scanClass`
-  at 143. The capabilities now coexist: hull label 140, hitpoints 141, weapons 142, class 143, cargo mode 2 on attr 31. We also
-  extended hull/class lookup to remote NPC proxies and kept class lookup on other players. Added the `scanned` event and a
-  server-validated multiplayer RPC. This is a selective port, not a merge of Joppie's branch.
+- Our `main` (`0b4428e8`) has the **same tree** as Joppie's `4cd3f860` (Nov 13). At the current check (2026-11-15), his `main`
+  is `0be0f76c`, **8 commits ahead** of that shared baseline.
+- The upstream additions since the shared baseline are: mod Lua scripting / Mod Builder Scripts tab; scanner readouts and the
+  `on scanned` event; generated AI modding-reference updates; station/system music; beam and collector range display corrections;
+  and the photo-mode screenshot notice fix (including the final PR merge).
+- **Selectively ported to our feature branch:** scanner commit `d8aaa1f3` (hull label 140, hitpoints 141, weapons 142, cargo mode 2
+  on attr 31), retaining our `scanClass` 143; the combined readout also resolves remote NPC proxies and other players. The
+  `scanned` event is wired into event graphs and quests with a rate-limited, orbit-validated multiplayer RPC. Also ported the
+  final beam/collector range display correction: attrs 51 and 53 display at x0.1, while targeting retains raw values.
+- **Deliberately deferred:** Lua scripting is a large, independent 92-file feature; it touches `Database`, `Hangar` and
+  `NetHooksInstaller`, so a later merge must preserve our class gates and scanner event hook. Station/system music is
+  independent, but its `TrafficSpecials` edit shares a future integration surface with the mod-controlled NPC population work.
+  The photo-mode fix is unrelated. The generated AI reference should be rebuilt only after the chosen upstream features are merged;
+  the scanner/event/quest documentation has been updated manually in this branch.
+- No cherry-pick or merge of Joppie's branch was made. These are selective ports on our feature branch only.
 - **Naming:** upstream already has `turretScale` (a turret item's own scale, from `fx.turret.scale`); the per-mount scale in 6.4 should
   use a different JSON name to avoid two meanings.
 
