@@ -17,6 +17,8 @@ namespace GoF2Remake.Modding
         public static void Apply(Database db)
         {
             NoteOriginalCounts(db);
+            // These per-system mod controls are runtime-only; restore vanilla defaults before applying active mods.
+            foreach (var system in db.Systems) { system.ambientPopulation = 1f; system.derelictFreighters = true; }
             EnsureMapping();
             systemSpaceMusic.Clear(); systemStationMusic.Clear(); systemBattleMusic.Clear(); stationMusic.Clear(); stationSubtitle.Clear(); stationLore.Clear();
             stationModels.Clear(); gateModels.Clear(); stationInterior.Clear(); planetTextures.Clear(); planetSpheres.Clear(); sunTextures.Clear(); sunColors.Clear(); skyboxes.Clear();
