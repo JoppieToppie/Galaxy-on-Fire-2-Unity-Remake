@@ -165,7 +165,7 @@ namespace GoF2Remake.Flight
             lockTimeMs = scanner != null && scanner.HasAttr(29) ? scanner.Attr(29) : 8000;
             lockTimeMs = Cheats.LockMs(lockTimeMs);
             cargoScan = scanner != null && scanner.Attr(31) == 1;
-            classScan = scanner != null && scanner.Attr(GoF2Remake.Modding.ShipClassRules.ScansClassAttr) == 1;   // remake mods: shows the locked ship's class
+            classScan = scanner != null && scanner.Attr(GoF2Remake.Modding.ShipClassRules.ScanClassAttr) == 1;   // remake mods: shows the locked ship's class
             var filter = Shop.FirstMounted(db, 33);
             CloudRadar = filter != null && filter.Attr(57) == 1;
             CloudOffScreen = filter != null && filter.Attr(58) == 1;
@@ -447,7 +447,7 @@ namespace GoF2Remake.Flight
                 if (cargo[i].amount > 0) { Message?.Invoke($"{cargo[i].amount}t {GameNames.Item(cargo[i].item)}", 0, HudMessageKind.Scan); return; }
         }
 
-        /// <summary>Remake mods (a scanner with attribute 175, ShipClassRules.ScansClassAttr): on a new ship lock, the ship's class
+        /// <summary>Remake mods (a scanner with attribute 143 "scanClass", ShipClassRules.ScanClassAttr): on a new ship lock, the ship's class
         /// (an NPC's from its spawn, another player's from the ship they fly, Target.netShipIndex); nothing for a ship without one,
         /// so a scanner that reads classes shows nothing on the original's.</summary>
         void ReadClass(Target locked)
@@ -460,7 +460,7 @@ namespace GoF2Remake.Flight
                 if (npc != null) shipIndex = npc.Spec.ship;
             }
             if (shipIndex < 0) return;
-            string cls = GoF2Remake.Modding.ShipClassRules.ClassOf(db.Ship(shipIndex));
+            string cls = GoF2Remake.Modding.ShipClassRules.ClassLabel(db.Ship(shipIndex));   // null: unclassified, nothing to show
             if (cls != null) Message?.Invoke(Localization.Extra("scanShipClass", "Class: #C").Replace("#C", cls), 0, HudMessageKind.Scan);
         }
 

@@ -1,3 +1,19 @@
+## 2026-11-15 — Ship classes implemented; launchRotation; review of GPT's work; comparison with Joppie (Claude)
+
+- **Contributor:** Claude. **Branch:** `feature/extensive-multiplayer-expansion` (GPT's commits merged first, no conflicts).
+- **Inspected:** GPT's code (free-look orbit distance and lock, HUD crosshair, `ModShipView`), `Hangar.CanMount` / `SwitchTo` /
+  `FitToSlots`, the ships.json / items.json loaders (`ModContent`, `ModContentMerging`), `CombatRadar`, `NetPlayer`, `NetProfiles`,
+  `NetAudit`; JoppieToppie's repository (`git fetch`, tree comparison, commit `d8aaa1f3`).
+- **Changed:** (1) ship classes: `ShipClassRules`, `shipClass` / `classTags` / `className`, `allowedClasses` / `excludedClasses`, gates in
+  `Hangar` and `NetProfiles.ClampClasses`, scanner stat 143 `scanClass`, `ShipClassRulesTests`; (2) the launch direction moved from
+  the visual `rotation` to a new `launchRotation` (so existing mods that tilt a model are unchanged); (3) unclassified ships take every
+  item (the owner's note); (4) notes: 6.2 / 6.3 updated, the handover rewritten where stale and its sections renumbered.
+- **Corrections:** my first hardpoint version reused `rotation` (would have redirected existing mods' shots); the class note said
+  "no exclude-list" before the owner asked for tags with allow and exclude lists.
+- **Findings:** the multiplayer server is not authoritative over loadouts (`NetProfiles` trust note), so the server's say is the
+  upload clamp. Joppie's `scanShip` (140) shows the hull name, not the class. `turretScale` exists upstream with another meaning.
+- **Tests:** written, **not run**; **not compiled** (no Unity Editor here).
+
 ## 2026-11-15 — Implement per-ship free-look orbit distance and target locking in free look
 
 - **Contributor:** ChatGPT

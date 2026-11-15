@@ -1,8 +1,8 @@
 // GunLaunchTests.cs
 // Remake mods: homingDelayMs (ItemStats 172, an item property: a homing shot flies straight that long before it homes) and
-// a secondary's launch direction, which belongs to its hardpoint (WeaponMount.rotation -> WeaponMount.RotationTurn -> Gun.launchTurn,
+// a secondary's launch direction, which belongs to its hardpoint (WeaponMount.launchRotation -> WeaponMount.LaunchTurn -> Gun.launchTurn,
 // set by WeaponSystem.Setup): the same missile on two mounts leaves in two directions.
-// Feature: Modding/README.md "Weapons" (homingDelayMs) and the mount's "rotation".
+// Feature: Modding/README.md "Weapons" (homingDelayMs) and the mount's "launchRotation".
 
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
@@ -69,18 +69,18 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(0f, new Gun(Missile(172, -5), Vector3.zero, true).homingDelayMs, 1e-4f);
 
         [Test]
-        public void AMountWithoutARotationTurnsNothing()
+        public void AMountWithoutALaunchTurnsNothing()
         {
-            Assert.AreEqual(Quaternion.identity, new WeaponMount().RotationTurn);
-            Assert.AreEqual(Quaternion.identity, new WeaponMount { rotation = new float[0] }.RotationTurn);
+            Assert.AreEqual(Quaternion.identity, new WeaponMount().LaunchTurn);
+            Assert.AreEqual(Quaternion.identity, new WeaponMount { launchRotation = new float[0] }.LaunchTurn);
         }
 
         [Test]
         public void TheMountsEulerRotationIsATurnInTheShipsFrame()
         {
             // Unity: pitch about +X with + = down, so -90 turns the nose up; yaw about +Y, + = right.
-            var up = new WeaponMount { rotation = new[] { -90f, 0f, 0f } }.RotationTurn;
-            var right = new WeaponMount { rotation = new[] { 0f, 90f, 0f } }.RotationTurn;
+            var up = new WeaponMount { launchRotation = new[] { -90f, 0f, 0f } }.LaunchTurn;
+            var right = new WeaponMount { launchRotation = new[] { 0f, 90f, 0f } }.LaunchTurn;
             AssertDirection(Vector3.up, up * Vector3.forward);
             AssertDirection(Vector3.right, right * Vector3.forward);
         }
@@ -89,23 +89,24 @@ namespace GoF2Remake.Tests
         public void TheMountsQuaternionRotationIsRead()
         {
             var q = Quaternion.Euler(0f, 90f, 0f);
-            var turn = new WeaponMount { rotation = new[] { q.x, q.y, q.z, q.w } }.RotationTurn;
+            var turn = new WeaponMount { launchRotation = new[] { q.x, q.y, q.z, q.w } }.LaunchTurn;
             AssertDirection(Vector3.right, turn * Vector3.forward);
         }
 
         [Test]
-        public void UpsideDownIsNotPartOfTheLaunchTurn()
+        public void TheVisualRotationAndUpsideDownDoNotTurnTheLaunch()
         {
-            // a secondary hung under the hull still fires ahead: the half turn about the ship's length is for its model only
-            Assert.AreEqual(Quaternion.identity, new WeaponMount { upsideDown = true }.RotationTurn);
+            // a pod tilted for looks (rotation) or hung under the hull (upsideDown) keeps firing ahead: only launchRotation redirects
+            var m = new WeaponMount { rotation = new[] { -90f, 0f, 0f }, upsideDown = true };
+            Assert.AreEqual(Quaternion.identity, m.LaunchTurn);
         }
 
         [Test]
         public void TheSameMissileLeavesTwoMountsInTwoDirections()
         {
             var item = Missile(172, 400);
-            var top = new Gun(item, Vector3.zero, true) { launchTurn = new WeaponMount { rotation = new[] { -90f, 0f, 0f } }.RotationTurn };
-            var side = new Gun(item, Vector3.zero, true) { launchTurn = new WeaponMount { rotation = new[] { 0f, 90f, 0f } }.RotationTurn };
+            var top = new Gun(item, Vector3.zero, true) { launchTurn = new WeaponMount { launchRotation = new[] { -90f, 0f, 0f } }.LaunchTurn };
+            var side = new Gun(item, Vector3.zero, true) { launchTurn = new WeaponMount { launchRotation = new[] { 0f, 90f, 0f } }.LaunchTurn };
             var plain = new Gun(item, Vector3.zero, true);
             AssertDirection(Vector3.up, Fire(top, Quaternion.identity));
             AssertDirection(Vector3.right, Fire(side, Quaternion.identity));

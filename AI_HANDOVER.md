@@ -8,7 +8,7 @@
 
 
 > **Read this first when continuing the project.**
-> Last updated: 2026-11-15 (per-ship free-look orbit distance and free-look target locking implemented)
+> Last updated: 2026-11-15 (Claude: launchRotation, ship classes, comparison with Joppie's repository)
 > Prepared by: ChatGPT, then updated by Claude after the corrections below
 > Intended recipients: ChatGPT and Claude (shared AI handover), plus the user
 
@@ -36,88 +36,22 @@ and eventually player-owned/player-built stations and other lasting world struct
 Read `AI_PROJECT_CONTEXT.md` for the complete vision, player-facing pillars, architecture constraints,
 ownership rules and collaboration process. It distinguishes long-term goals from already implemented features.
 
-## 3. Previously active technical task: secondary weapon launch behaviour
+## 3. Secondary weapon launch behaviour: implemented (needs Unity verification)
 
-### User's intended design
-
-- Homing delay is an intrinsic property of a weapon item.
-- Initial launch direction/orientation is a property of the hardpoint/mount that fires it.
-- The same missile item equipped on two different hardpoints must be able to leave those mounts in
-  different directions without changing the item's speed, damage, homing delay or other weapon stats.
-- The initial direction must be based on the actual mount transform/orientation, not per-item pitch/yaw.
-- The change must preserve existing behaviour for mounts with no custom orientation.
-- Consider the full projectile lifecycle and all affected projectile types, not just the most obvious path.
-
-### Current branch findings (investigated, not yet fixed)
-
-The Claude branch is `feature/secondary-homing-delay-launch-angle`. Its one feature commit is ahead of
-`main`. Before this documentation update, the compare showed these six changed paths:
-- `Assets/Scripts/Runtime/Modding/ItemStats.cs`
-- `Assets/Scripts/Runtime/Space/Gun.cs`
-- `Assets/Scripts/Tests/EditMode/Flight/GunLaunchTests.cs`
-- `Assets/Scripts/Tests/EditMode/Flight/GunLaunchTests.cs.meta`
-- `Modding/README.md`
-- `Modding/ai/gof2-modding/guide.md`
-
-Review identified:
-- `ItemStats.cs` adds item attributes `launchPitchDeg` and `launchYawDeg` (alongside `homingDelayMs`).
-- `Gun` reads pitch/yaw from the weapon item and applies a launch turn.
-- `GunLaunchTests` validates the item-level pitch/yaw design, so those tests must be replaced rather than
-  merely retained.
-- `WeaponSystem.Setup` knows which mount is being used and passes the mount position into `Gun`, but
-  the reviewed setup path does not pass the mount's launch orientation.
-- The modding guide already documents `rotation` on a primary/secondary mount. It rotates the mounted
-  weapon model and muzzle in the ship model's frame, but current documentation says shots still fly along
-  the ship nose. The correct implementation should investigate and reuse that established data rather
-  than add duplicate item-level attributes or invent an unrelated schema.
-
-**Important:** This is a review finding, not proof that every relevant firing path has been traced. Re-open
-the current branch files and inspect the full call graph before editing.
-
-### Desired correction
-
-1. Remove the item-level `launchPitchDeg` and `launchYawDeg` attributes from the active implementation,
-   tests and user-facing modding documentation.
-2. Preserve `homingDelayMs` as item-level configuration, subject to a separate correctness review.
-3. Use the corresponding hardpoint/mount orientation as the launch-direction source of truth. First inspect
-   the real `WeaponMount`, `ModHardpoints`, `ModShipKits`, mount-building and muzzle-offset code. Existing
-   mod-kit notes identify these concepts in `docs/notes/mods-ship-kits.md`.
-4. Ensure the weapon slot-to-mount mapping is stable and matches the mount used for muzzle placement.
-5. Apply the launch transform consistently to each supported projectile path. Audit standard projectiles,
-   missiles, cluster/salvo, mines, bombs and special weapons; document deliberate exclusions.
-6. Keep visual model rotation, muzzle position and projectile velocity consistent. Do not accidentally apply
-   the mount rotation twice if the weapon model/muzzle is already transformed into world space.
-7. Preserve default straight-ahead behaviour when a mount has no custom rotation.
-8. Audit multiplayer shot mirroring/replication. Determine whether the authoritative shot velocity/direction
-   is replicated or reconstructed remotely; ensure remote clients see the same trajectory and launch origin.
-9. Replace item-level tests with tests proving two hardpoints using the same item can launch in distinct
-   directions, plus default-orientation and projectile-path coverage.
-10. Update `docs/notes/weapons.md`, `docs/notes/mods-ship-kits.md`, `Modding/README.md` and the AI handover
-    where warranted. Keep the docs aligned with actual behaviour.
-11. Run the relevant edit-mode tests and compile in Unity if an Editor/build environment is available. If not,
-    state clearly that compilation/testing remains outstanding.
-
-### Important design distinction
-
-A mount's documented `rotation` currently turns its weapon model and muzzle. The desired feature extends
-that physical hardpoint orientation to the projectile's initial launch vector. It must not simply use the
-weapon model's local forward without checking coordinate spaces, parent transforms, muzzle transforms,
-ship orientation, and any existing aim/targeting logic.
-
-### Current status (updated by Claude)
-
-- Item-level launch angle: **removed** (attrs 173 / 174, tests, docs). **Implemented, committed; not compiled.**
-- Hardpoint-based launch: **Implemented**: `WeaponMount.RotationTurn` -> `Gun.launchTurn`, set in `WeaponSystem.Setup` for
-  **secondaries only** (owner's instruction), applied on the plain, salvo and cluster paths. Mines and beams are deliberately
-  untouched; primaries, turrets and NPC / capital guns are untouched. Mounts without `rotation` fly straight (all 135 original
-  secondary mounts). `upsideDown` is deliberately **not** part of the launch turn (`MountTurn` adds it for the model only).
-- Homing delay (`homingDelayMs`, attr 172): item property, read in the `Gun` item ctor, clamped 0..60000 ms (the wire field is a ushort).
-- Multiplayer: **audited.** `NetShotData` carries velocity and homing delay, and `NetShotMirror` injects by velocity, so
-  remote clients see the same flight without a protocol change. Not tested over a network.
-- Unity compile / `GunLaunchTests`: **not run** (no Editor here). Hand-check suggestion: a mod ship whose secondary mount has
-  `"rotation": [-90, 0, 0]` (up) and another with `[0, 90, 0]` (right), same missile.
-- Corrections to the earlier handover: the `rotation` field exists on `WeaponMount` (`Database.cs`) and is in the Unity ship
-  frame, the one `ModHardpoints.MuzzleOffset` uses, so no frame conversion was needed.
+- **Design (owner):** `homingDelayMs` is an item property; the initial launch direction of a **secondary** is a property of the
+  **hardpoint** that fires it (AI_PROJECT_CONTEXT 6.3).
+- **Implemented (Claude):** `WeaponMount.launchRotation` (a new field, **separate from the visual `rotation`**, so existing mods
+  that tilt a pod for looks are unchanged) -> `WeaponMount.LaunchTurn` -> `Gun.launchTurn`, set in `WeaponSystem.Setup` from the mount
+  the secondary sits on; applied on the plain, salvo and cluster paths. Mines, beams, primaries, turrets and NPC / capital guns are
+  untouched; no field = straight ahead (all 135 original secondary mounts). `homingDelayMs` (attr 172) stays on the item, clamped
+  0..60000 ms (the wire field is a ushort). The item-level `launchPitchDeg` / `launchYawDeg` were removed. The Mod Builder project
+  copy and export carry `launchRotation`; **no editor UI yet**.
+- **Correction to an earlier revision:** the first hardpoint version reused `rotation`, which would have redirected the shots of
+  every existing mod that tilts a secondary's model; it now uses `launchRotation`, as 6.3 asks.
+- **Multiplayer:** audited: `NetShotData` carries velocity and homing delay, `NetShotMirror` injects by velocity, so a remote client
+  sees the same flight without a protocol change. Not tested over a network.
+- **Not done:** Unity compile and `GunLaunchTests` (no Editor in the environments the AIs have used). Hand-check: a mod ship with
+  one secondary mount `"launchRotation": [-90, 0, 0]` (up) and another `[0, 90, 0]` (right), same missile.
 
 ## 4. Current implementation task: per-ship free-look orbit distance and free-look target locking
 
@@ -128,7 +62,7 @@ ship orientation, and any existing aim/targeting logic.
 - **Tests added:** Mod content tests for default, override, clamp and invalid values; target-lock test for free-look viewport-centre selection.
 - **Verification:** Source changes committed on this branch. Unity compilation, EditMode tests and live multiplayer verification remain outstanding.
 
-## 3c. Turret hardpoint scaling and point-defence targeting
+## 5. Turret hardpoint scaling and point-defence targeting
 
 The user wants independent scaling on each turret hardpoint, configured at the hardpoint itself—not ship-kit hull scale and
 not the existing turret weapon item's `fx.turret.scale`. An optional per-mount field such as `turretScale` is a candidate;
@@ -144,22 +78,34 @@ Extend the existing point-defence system; audit authority, missile claims, lead,
 
 Design only; no implementation or tests yet.
 
-## 3b. Ship classes and class scanners
+## 6. Ship classes, class-restricted equipment and class scanners: implemented (needs Unity verification)
 
-The user has defined 14 recommended mod-author class names in `AI_PROJECT_CONTEXT.md` §6.2: Light Fighter, Heavy Fighter,
-Light Bomber, Heavy Bomber, Interceptor, Stealth Bomber, Hauler, Light Privateer, Privateer, Heavy Privateer, Frigate,
-Freighter, Cruiser and Carrier. **These are not base-game classifications.** Original ships remain unclassified; mods
-explicitly assign classes to their own ships and may add further class IDs. All Privateer variants are multi-purpose ships
-with substantial cargo capacity relative to hull size, a balanced primary/secondary weapon fit, and balanced handling.
-Precise numerical class thresholds remain a mod-author design matter; no vanilla roster assignment is planned.
+The 14 recommended class ids are in `AI_PROJECT_CONTEXT.md` 6.2 (not base-game classifications; original ships stay unclassified;
+mods assign them and may add more). **Implemented (Claude), all opt-in:**
+- ships.json `shipClass` (id), `classTags` (free words), `className` (display text); items.json `allowedClasses`, `excludedClasses`
+  (match class id or any tag). An **unclassified** ship (no class and no tags: every original one) takes every item, even one with
+  an allow-list. Source: `Modding/ShipClassRules.cs`, `ShipData` / `ItemData` fields.
+- Gates: `Hangar.CanMount` (`Result.WrongShipClass`, the Mount button says why), `Hangar.SwitchTo` (a ship swap: misfits go to the
+  hold), `Hangar.FitToSlots` (docking), `NetProfiles.ClampClasses` (server, on upload and sign-in).
+- Scanner: stat `scanClass` (attr 143) shows the locked ship's class label; another player's ship via `Target.netShipIndex`.
+- Tests: `ShipClassRulesTests` (pure logic and JSON). **Not compiled, not run.** Not covered: a Kaamo Club hull's gear is checked when
+  taken out; no Mod Builder UI.
+- **Relation to Joppie's scanner** (`JoppieToppie/Galaxy-on-Fire-2-Unity-Remake` `d8aaa1f3`, 2026-11-14, not in this branch's base):
+  his `scanShip` (140) names the locked ship's **hull** on the lock plate, not its class. See section 7.
 
-Unclassified ships use an implicit unrestricted compatibility state: they accept all equipment, including items with
-`allowedClasses`. Class allow-lists are checked only for ships explicitly assigned a mod class. Do not create a persisted
-or user-visible vanilla `default` class. Capable scanners instantly reveal an explicitly assigned target class; unclassified
-targets have no class readout. This remains a **design proposal only**; no scanner/classification source implementation
-has been made on this branch.
+## 7. Comparison with JoppieToppie's repository (checked 2026-11-15)
 
-## 3d. Class-based station exterior docking and freighter boarding
+- Our `main` (`0b4428e8`) has the **same tree** as Joppie's `4cd3f860` (Nov 13). He is 4 commits ahead: Lua mod scripts (`ed123a1f`),
+  mod scanners (`d8aaa1f3`), the AI reference rebuild (`803f83a7`) and mod music (`db14ddc8`).
+- None of ship classes, `launchRotation`, per-ship `orbitDistance` or free-look lock exists upstream. `homingDelayMs` upstream is the
+  NPC rocket field only.
+- **Scanner overlap:** his `scanShip` / `scanHitpoints` / `scanWeapons` (140-142) and `radarShowsCargo` 2 touch the same code as our
+  `scanClass` (`CombatRadar`, `CombatView`, `Target`, `ItemStats`). Attribute 143 is unused upstream at the time of checking; **ids 172+**
+  (`homingDelayMs`) may collide with whatever he adds next, so agree ids with him before sending anything upstream.
+- **Naming:** upstream already has `turretScale` (a turret item's own scale, from `fx.turret.scale`); the per-mount scale in 6.4 should
+  use a different JSON name to avoid two meanings.
+
+## 8. Class-based station exterior docking and freighter boarding
 
 The user has now defined the following docking design (2026-11-15). This is **design only**; no implementation or tests:
 
@@ -190,11 +136,11 @@ Implementation/research checklist:
 5. Add tests for unclassified denial, interior-only classes, external-capable classes, missing docking points, and freighter
    boarding size boundary; test multi-client visibility and Space Lounge camera transitions in Unity.
 
-## 3f. Existing NPC population pipeline investigation
+## 9. Existing NPC population pipeline investigation
 
 See `docs/notes/system-population.md` for the code-path notes. Key finding: the existing `systems.json` `traffic: "mod"` option changes the source of traffic, not its quantity; it does not suppress mod NPCs. Initial planning is in `TrafficPlan.Build`, while `TrafficSpecials` independently revives jumpers, locals, raiders and Void attackers. Story and mission spawns have separate paths, and multiplayer population creation belongs to the orbit authority. The audit is now sufficiently complete for the narrow core feature: ordinary ambient population is planned through `TrafficPlan.Build`, with matching revival paths in `TrafficSpecials`. The implementation should use explicit ambient-origin classification and a single optional per-system mod setting. Player-built-station work is explicitly deferred to the final phase.
 
-## 3e. Mod-controlled system NPC population
+## 10. Mod-controlled system NPC population
 
 The user has specified a deliberately lightweight, **explicitly modded** system-population feature (2026-11-15). This is **design only**:
 
@@ -210,17 +156,21 @@ The core feature is now scoped to one optional per-system enabled/disabled setti
 
 No source, system data, mod schema, NPC spawning, networking or tests have been changed. See `docs/notes/system-population.md` §10 for the detailed assessment.
 
-## 4. Claude review request
+## 11. Claude review request: done (2026-11-15)
 
-Please review these notes and the current branch. In particular:
-- Confirm the overall project vision is represented accurately.
-- Check the hardpoint rotation design against the actual code and data flow.
-- Identify every launch/firing path and any network mirror/replication implications.
-- Correct this handover if any technical statement is stale or incomplete.
-- Do not assume the source correction has already been made.
-- Do not merge or push to `main`; the user explicitly wants a review stage first.
+Claude reviewed the branch and the notes against the code. Result:
+- The vision in `AI_PROJECT_CONTEXT.md` is represented accurately.
+- Mount `rotation` exists (`WeaponMount.rotation`, Unity ship frame, used by `ModHardpoints.MountTurn` / `MuzzleOffset` and, for
+  exhaust mounts, `EngineFx`); it was **not** reused for the launch, so mods that tilt a model keep firing straight: `launchRotation`.
+- Firing paths traced: plain, salvo, cluster (changed), mines and beams (deliberately not), NPC guns, turrets, and the multiplayer
+  mirror (velocity is on the wire). See section 3.
+- GPT's code on this branch (per-ship `orbitDistance`, free-look lock acquisition, HUD crosshair) was read and found consistent with
+  its notes; **it is uncompiled and untested** like the rest. One naming caution: `turretScale` already exists upstream (see 7).
+- Two notes were stale or wrong and are corrected here and in `AI_PROJECT_CONTEXT.md`: the launch design (section 3) and the
+  class design (6.2: tags and an exclude-list were added by the owner after the first allow-list-only note; unclassified ships take every item).
+- Still true: do not merge or push to `main` without the owner's approval.
 
-## 5. Working rules for the next contributor
+## 12. Working rules for the next contributor
 
 - Read `AI_PROJECT_CONTEXT.md` and the relevant `docs/notes/*.md` before code changes.
 - Inspect the exact branch head and full diff before editing.
@@ -229,7 +179,7 @@ Please review these notes and the current branch. In particular:
 - Update `AI_TASK_LOG.md`, `AI_CHANGELOG.md` and this handover after meaningful work.
 - Report exact branch and commit SHA; do not claim compile/test/push status without verification.
 
-## 6. Next actions — core system ambient suppression
+## 13. Next actions — core system ambient suppression
 
 1. Re-read the current branch head and exact diff before editing; preserve any concurrent Claude changes.
 2. Inspect `SpawnSpec` construction and `NpcShip` metadata to settle a reliable ambient-origin classification.
@@ -242,11 +192,11 @@ Please review these notes and the current branch. In particular:
 **Explicitly not in this phase:** player-built stations and station-attracted NPC traffic. That is the final implementation step after a real player-built-station placement, ownership, lifecycle and persistence system exists.
 
 
-## 3g. Extended system population audit
+## 14. Extended system population audit
 
 The follow-up audit is recorded in `docs/notes/system-population.md` (section 9). Cruise-drive encounters are player-triggered, separately gated and should not be silently removed by ambient suppression. Pirate activity events, system-special actors, freelance mission ships/mining sites, siege garrisons/defenders and decorative traffic lanes are also separate categories. The key station finding: this branch has no player-built-station placement/ownership/destruction lifecycle to hook into. `MobileStation` is mod-authored and clock/route-driven; faction claims refer to existing stations; neither is player construction. Siege garrisons are separately tagged combat actors. Do not implement station attraction until the final implementation step, after a real player-station lifecycle/ownership model exists. The safe first scope remains ordinary ambient `TrafficPlan` ships plus their matching revival logic, with explicit ambient classification rather than broad group/race filtering.
 
 
-## 3h. Core system-population feasibility conclusion
+## 15. Core system-population feasibility conclusion
 
 The core mod-controlled ambient-suppression feature is assessed as feasible with low-to-moderate complexity. A single optional per-system setting can be resolved in `ModWorld`; the runtime work is concentrated around initial ordinary ambient planning and the corresponding timed revival paths. The main technical requirement is reliable ambient-origin classification so mission/event/story NPCs are not caught by broad group/race filters. See `docs/notes/system-population.md` §§8–10. No implementation has started.

@@ -151,7 +151,7 @@ namespace GoF2Remake.Modding
                                 };
                             ModFlight.ApplyShip(s, o, d.where);
                             ModShipView.ApplyShip(s, o);
-                            ShipClassRules.ApplyShip(s, o);
+                            ShipClassRules.ApplyShip(s, o, d.mod);
                             if (s is CustomShipData cs)
                             {
                                 cs.race = d.raceRef != null ? (ModRaces.TryResolve(d.raceRef, d.mod, out int ofr) ? ofr : cs.race) : ModJson.Int(o, "race", cs.race, ShipsFile);
@@ -200,7 +200,7 @@ namespace GoF2Remake.Modding
                         if (dflt && c.priceDefault > 0) c.price = c.priceDefault;
                         ModFlight.ApplyShip(c, d.json, d.where);
                         ModShipView.ApplyShip(c, d.json);
-                        ShipClassRules.ApplyShip(c, d.json);
+                        ShipClassRules.ApplyShip(c, d.json, d.mod);
                         db.Ships.Add(c);
                         if (GameModels.Is(c.model, out string shipModel))
                         {

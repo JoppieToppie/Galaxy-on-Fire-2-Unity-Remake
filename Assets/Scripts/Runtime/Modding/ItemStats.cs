@@ -86,8 +86,8 @@ namespace GoF2Remake.Modding
             ["slowFreeze"] = 167, ["dotDamage"] = 168, ["dotMs"] = 169, ["vulnerablePercent"] = 170, ["vulnerableMs"] = 171,
             // A homing shot flies straight for homingDelayMs before it homes (the NPCs' rockets 1000, a player's 0).
             ["homingDelayMs"] = 172,
-            // A scanner with scansShipClass = 1 shows the class of the ship it locks (Modding.ShipClassRules, Flight.CombatRadar).
-            ["scansShipClass"] = 175,
+            // scanClass 1: a scanner that shows the class of the ship it locks (Modding.ShipClassRules.ScanClassAttr, Flight.CombatRadar).
+            ["scanClass"] = 143,
             // items.json's statList names
             ["steerable"] = 15, ["handling"] = 17,
             ["loadingTimeMs"] = 11, ["range"] = 12, ["projectileSpeed"] = 13, ["magnitude"] = 14, ["shieldRegenTime"] = 19,

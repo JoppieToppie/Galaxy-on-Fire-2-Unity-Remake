@@ -7,11 +7,16 @@
 //   items.json (a new item or an "override"):
 //       "allowedClasses":  ["frigate", "capital"]   only a ship whose class or tags name one of these may mount it
 //       "excludedClasses": ["small"]                a ship whose class or tags name one of these may not
-//   An item with neither list fits every ship; an exclude-list only blocks what it names (a ship without a class still fits);
-//   an allow-list refuses a ship that matches none of it (so a ship without a class). With both, a ship must match the
-//   allow-list and not the exclude-list. Words compare without regard to case, as classes and tags are free-form.
+//       "className": "Light fighter"            optional display text for the class (a word or { "en": ..., "de": ... }, or the key
+//                                               "shipclass.<id>.name" in text/<lang>.json); without it the id is shown capitalised
+//   A ship without a class or tags is **unclassified** (every original ship unless a mod labels it): it takes every item, even
+//   one with an allow-list, so the lists only engage on ships a mod classified (owner's decision, AI_PROJECT_CONTEXT.md 6.2).
+//   For a classified ship: an item with neither list fits; an exclude-list blocks the ships it names; an allow-list refuses a
+//   ship that matches none of it; with both a ship must match the allow-list and not the exclude-list. Words compare without
+//   regard to case, as classes and tags are free-form. The class id is the machine identity (saves, network, scanners' logic),
+//   the display text is only shown.
 //   Hangar.CanMount refuses a misfit, a ship swap (Hangar.SwitchTo) and docking (Hangar.FitToSlots) put the misfits in the hold.
-// ItemStats "scansShipClass" (attribute 175 = 1): a scanner that shows the locked ship's class (Flight.CombatRadar).
+// ItemStats "scanClass" (attribute 143 = 1): a scanner that shows the locked ship's class on its lock plate (CombatView).
 
 using System;
 using System.Collections.Generic;
@@ -22,8 +27,8 @@ namespace GoF2Remake.Modding
 {
     public static class ShipClassRules
     {
-        /// <summary>Item attribute 175 (stats "scansShipClass"): 1 = a scanner that shows a locked ship's class.</summary>
-        public const int ScansClassAttr = 175;
+        /// <summary>Item attribute 143 (stats "scanClass"): 1 = a scanner that shows a locked ship's class on the plate.</summary>
+        public const int ScanClassAttr = 143;
 
         /// <summary>The words a ship answers to: its class, then its tags (none for a ship without either).</summary>
         public static IEnumerable<string> Labels(ShipData ship)
@@ -44,7 +49,15 @@ namespace GoF2Remake.Modding
             return false;
         }
 
-        /// <summary>May this ship mount the item? True for any item without a class list (the original game's, every one).</summary>
+        /// <summary>Did a mod give the ship a class or tags? An unclassified ship (every original one) is unrestricted.</summary>
+        public static bool IsClassified(ShipData ship)
+        {
+            foreach (var _ in Labels(ship)) return true;
+            return false;
+        }
+
+        /// <summary>May this ship mount the item? True for any item without a class list (the original game's, every one) and
+        /// for an unclassified ship, whatever the lists say.</summary>
         public static bool Fits(ItemData item, ShipData ship)
         {
             if (item == null) return true;
@@ -52,12 +65,33 @@ namespace GoF2Remake.Modding
             var deny = item.excludedClasses;
             bool hasAllow = allow != null && allow.Length > 0, hasDeny = deny != null && deny.Length > 0;
             if (!hasAllow && !hasDeny) return true;   // the common case: nothing to check
+            if (!IsClassified(ship)) return true;     // unclassified: the lists don't engage
             if (hasDeny && Matches(ship, deny)) return false;
             return !hasAllow || Matches(ship, allow);
         }
 
-        /// <summary>The ship's class as a scanner shows it, null for a ship without one.</summary>
+        /// <summary>The ship's class id (the machine identity), null for a ship without one (tags alone are not a class).</summary>
         public static string ClassOf(ShipData ship) => string.IsNullOrEmpty(ship?.shipClass) ? null : ship.shipClass;
+
+        /// <summary>The class as a scanner shows it: the mod's display text, else the id with its words capitalised
+        /// ("light_fighter" = "Light Fighter"); null for a ship without a class.</summary>
+        public static string ClassLabel(ShipData ship)
+        {
+            string id = ClassOf(ship);
+            if (id == null) return null;
+            return string.IsNullOrEmpty(ship.shipClassLabel) ? Humanize(id) : ship.shipClassLabel;
+        }
+
+        /// <summary>"light_fighter" / "mymod:light-fighter" -> "Light Fighter" (a mod prefix is left off).</summary>
+        public static string Humanize(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return "";
+            int colon = id.LastIndexOf(':');
+            if (colon >= 0 && colon < id.Length - 1) id = id.Substring(colon + 1);
+            var words = id.Split(new[] { '_', '-', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < words.Length; i++) words[i] = char.ToUpperInvariant(words[i][0]) + words[i].Substring(1);
+            return string.Join(" ", words);
+        }
 
         // ---- ships.json / items.json -------------------------------------------------------------------------------------
 
@@ -100,10 +134,19 @@ namespace GoF2Remake.Modding
 
         /// <summary>ModContent.ApplyShips: the fields onto the ship (a new ship or an override; an override without them keeps
         /// what an earlier mod gave).</summary>
-        public static void ApplyShip(ShipData s, JObject o)
+        public static void ApplyShip(ShipData s, JObject o, ModInfo mod = null)
         {
             if (ModJson.Get(o, "shipClass") is JToken c && c.Type == JTokenType.String)
+            {
                 s.shipClass = string.IsNullOrWhiteSpace((string)c) ? null : ((string)c).Trim();
+                if (s.shipClass == null) s.shipClassLabel = null;
+            }
+            if (s.shipClass != null && (ModJson.Has(o, "className") || mod != null && ModJson.Has(o, "shipClass")))
+            {
+                var inline = ModJson.Has(o, "className") ? ModJson.Text(o, "className") : null;
+                s.shipClassLabel = mod != null ? ModContent.TranslatedText(mod, $"shipclass.{s.shipClass}.name", inline)
+                                               : inline?.Values.GetEnumerator() is var e && e.MoveNext() ? e.Current : null;
+            }
             if (ModJson.Has(o, "classTags"))
             {
                 var tags = Words(o, "classTags");

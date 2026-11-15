@@ -236,7 +236,7 @@ earlier). Only the fields you give change. Giving `name` or `description` rename
 | `vosskOnly` | `true`: only Vossk systems sell it. |
 | `alwaysSoldAt` | A station number that always stocks it, whatever its tech level (78 = Var Hastra, the starting station; -1 = none). |
 | `tractorColor` | A tractor beam's colour, `"#rrggbb"` or `[r, g, b]` (0-255): its beams are drawn in it (see [Multi-grab tractor beams](#multi-grab-tractor-beams)). |
-| `allowedClasses` | Optional. Only a ship whose `shipClass` or `classTags` name one of these words may mount it (`["frigate", "capital"]`); a ship without a class can't. Without it every ship may. |
+| `allowedClasses` | Optional. Only a ship whose `shipClass` or `classTags` name one of these words may mount it (`["frigate", "capital"]`); an unclassified ship (no class or tags, every original one) may. Without the field every ship may. |
 | `excludedClasses` | Optional. A ship whose `shipClass` or `classTags` name one of these words may not mount it (`["small"]`); a ship without a class still can. With both lists a ship must match `allowedClasses` and not `excludedClasses`. An item that doesn't fit stays in the hold (the Mount button says why); a ship swap and docking put misfits there too, and the multiplayer server moves them on upload. An empty list in an `override` lifts the restriction. |
 | `stats` | The item's numbers, see below. |
 | `attributes` | The original game's attribute numbers directly: `{ "9": 14 }`. For anything `stats` has no name for. |
@@ -327,7 +327,7 @@ energy cells.
 | `echoRadius` | 129 | The echo's reach in game units (0 = the gun's own `blastRadius`) |
 | `echoExplosion` | 130 | The explosion the echo shows: 0 ship, 8 to 10 scatter (8 the default), 11 shock blast, 13 fireworks; -1 none |
 | `homingDelayMs` | 172 | A homing shot (a missile, a `missiles` gun or turret) flies straight this many ms before it starts to home (default 0 = at once; the game's NPC rockets use 1000) |
-| `scansShipClass` | 175 | A scanner with `1` shows the class (`shipClass`) of a ship it locks, NPC or another player's, like the Ecoscan's cargo line; nothing for a ship without a class. |
+| `scanClass` | 143 | A scanner with `1` shows the class of a ship it locks, NPC or another player's: its display text (`className`, else the id capitalised); nothing for a ship without a class. |
 | `missileDefense` | 131 | Missile defense: with this item mounted, the ship's automatic turrets shoot down the homing missiles flying at it within this reach (game units, 20 per metre), before turning to enemy ships. Any item can carry it; on a seatless cabin (`"base": 91`, `"cabinSize": 0`) it changes nothing else and the shop calls it "Missile defense". Another player's missiles in multiplayer are left alone |
 | `cruiseSpeed` | 133 | A cruise drive's speed factor in hundredths (400 = x4; > 0 makes an item based on the Khador Drive a cruise drive, see [Cruise drives](#cruise-drives)) |
 | `interstellar` | 135 | 1: the mounted cruise drive also flies the space between the systems ([Cruise drives](#cruise-drives)) |
@@ -741,7 +741,8 @@ styles](#exhaust-styles)), 4 manoeuvring jet (`"direction": [x, y, z]`, the way 
 | `available` | Optional. A [condition](#conditions) that must hold before it is sold anywhere (dealers and lounges), and before NPCs fly it. |
 | `sounds` | Optional. The ship's own engine and boost sounds, see [Ship sounds](#ship-sounds). |
 | `integrated` | Optional, also in an `override`. Equipment built into the hull, like the Kothar ships' Khador Drive (Cronus, Typhon, Nemesis) and the Specter's / Scimitar's cloak: `{ "khadorDrive": true, "cloak": true }`. `khadorDrive`: the ship can make Khador jumps without the drive in a slot (it still needs energy cells). `cloak`: `true` (the U'tool's stats), a cloak item (a number or `"mod:id"`, e.g. `96`) whose stats it has, or `false`; a cloak the player mounts replaces it, and with the Gameplay option "Cloak bay on cloaking ships" it goes into the built-in cloak's bay instead of a slot. `false` takes an original ship's away. `items`: any equipment built in, a list of item numbers, `"mod:id"` keys or `{ "item": ..., "amount": n }` (a secondary weapon's starting ammo, default 10), e.g. `"items": [46, { "item": 36, "amount": 20 }, 54]`. Built-in items work like mounted ones but take no slot, show on the hangar's Ship tab under "Built into the ship", and can't be demounted, sold or stored; they stay with the ship type when the player changes ships. A one-per-ship item the player fits (a shield, armor, a booster, a scanner, a drill, a cloak...) takes the built-in one's place without a slot, and the built-in one is back when it is demounted; built-in weapons and turrets add to the ship's own slots. A built-in launcher's missiles are refilled by buying more; a one-off item that is used up (an emergency system) is back at the next docking. An empty list takes them away. |
-| `shipClass` | Optional, also in an `override` (so a mod can label an original ship). The ship's class, a free word the mod picks (`"light_fighter"`, `"frigate"`): what a class scanner shows on lock (stat `scansShipClass`) and what an item's `allowedClasses` / `excludedClasses` match. No original ship has one. |
+| `shipClass` | Optional, also in an `override` (so a mod can label an original ship). The ship's class: a stable id the mod picks (`"light_fighter"`, `"frigate"`; machine identity, what `allowedClasses` / `excludedClasses` match and what is saved or sent, never translated). A ship without a class or tags is *unclassified* (every original ship): it takes every item. |
+| `className` | Optional, with `shipClass`. The class's display text, a word or `{ "en": "Light fighter", "de": "..." }` (or `shipclass.<id>.name` in `text/<lang>.json`); without it the id is shown capitalised. Only shown, never matched. |
 | `classTags` | Optional, also in an `override`. More words the ship answers to, a word or a list (`["small", "mymod:agile"]`): shared words like `"small"` let an item exclude every small ship of every mod at once. Words compare without regard to case; prefix your own (`"mymod:agile"`) to keep them apart from other mods'. |
 
 Ship and station materials are lit physically (URP Lit): they reflect the system's sky by their smoothness (the
@@ -1377,9 +1378,12 @@ In `ships.json`, a new ship with `"kit"` instead of `"model"`:
 Everything else is a normal ship's (stats, `mounts`, `icon`, glows, `lounge`, `dealer`). Mounts can come with the parts: a build
 fires from, and glows at, its parts' mounts of each slot type (with the tier extensions' at that tier), and uses the ship's own
 `mounts` only for a slot type none of its parts has. A primary or secondary mount may carry `"rotation"`: how its weapon model is turned on the hull, in the ship model's frame (x
-right, y up, z forward), as Euler degrees `[x, y, z]` or a quaternion `[x, y, z, w]` (a gun on a slanted wing); a primary's shots
-still fly along the nose, from the turned model's muzzle; a secondary's shot leaves along the rotation (the same missile leaves two
-mounts in two directions; `upsideDown`'s half turn only turns the model), then flies on or homes as its item says (`homingDelayMs`). `"nodes": ["<node name>", ...]` names parts of the ship's own
+right, y up, z forward), as Euler degrees `[x, y, z]` or a quaternion `[x, y, z, w]` (a gun on a slanted wing); the shots
+still fly along the nose, from the turned model's muzzle. A **secondary** mount may also carry `"launchRotation"`, the direction its
+shots leave in: a turn from the nose in the same frame and format (`[-90, 0, 0]` straight up, `[0, 90, 0]` to the right; none = straight
+ahead). It is separate from `"rotation"` so a pod tilted for looks keeps firing straight, and it belongs to the mount, not the item:
+the same missile leaves two mounts in two directions, then flies on or homes as its item says (`homingDelayMs`, an item stat). Primaries,
+turrets and the NPCs' guns ignore it; mines and beams too. `"nodes": ["<node name>", ...]` names parts of the ship's own
 model (a hardpoint's pylon) that show only while that mount carries a weapon: with two guns mounted, only the first two
 mounts' pylons show. So wings can carry their guns, rears their exhausts, and a turret socket
 comes with the wing set that has one (give the ship as many turret slots as its default build has turret mounts).

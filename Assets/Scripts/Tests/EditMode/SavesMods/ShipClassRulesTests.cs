@@ -1,8 +1,9 @@
 // ShipClassRulesTests.cs
-// Feature: Modding/README.md "Ship classes" (ships.json "shipClass" / "classTags", items.json "allowedClasses" /
-// "excludedClasses", stats "scansShipClass"; AI_PROJECT_CONTEXT.md 6.1 / 6.2). Optional everywhere: a ship without a class and an
-// item without a list behave as in the original; an exclude-list blocks only what it names, an allow-list refuses what it
-// doesn't name; both together need a match in the allow-list and none in the exclude-list; words compare without regard to case.
+// Feature: Modding/README.md "Ship classes" (ships.json "shipClass" / "classTags" / "className", items.json "allowedClasses" /
+// "excludedClasses", stats "scanClass"; AI_PROJECT_CONTEXT.md 6.1 / 6.2). Optional everywhere: an unclassified ship (no class, no
+// tags: every original one) takes every item, even one with an allow-list, and an item without a list fits every ship. On a
+// classified ship an exclude-list blocks what it names, an allow-list refuses what it doesn't name; both together need a match
+// in the allow-list and none in the exclude-list; words compare without regard to case.
 
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
@@ -81,11 +82,24 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void AnAllowListRefusesAShipWithoutAClass()
+        public void AnAllowListTakesAnUnclassifiedShip()
+        {
+            // the lists engage only on ships a mod classified: every original loadout stays valid
+            var item = Item(new[] { "capital" });
+            Assert.IsTrue(ShipClassRules.Fits(item, new ShipData()));
+            Assert.IsTrue(ShipClassRules.Fits(item, null));
+            Assert.IsTrue(ShipClassRules.Fits(Item(new[] { "capital" }, new[] { "small" }), new ShipData()));
+        }
+
+        [Test]
+        public void AShipWithOnlyTagsIsClassified()
         {
             var item = Item(new[] { "capital" });
-            Assert.IsFalse(ShipClassRules.Fits(item, new ShipData()));
-            Assert.IsFalse(ShipClassRules.Fits(item, null));
+            Assert.IsTrue(ShipClassRules.IsClassified(Ship(null, "small")));
+            Assert.IsFalse(ShipClassRules.Fits(item, Ship(null, "small")));   // a tag that isn't on the allow-list
+            Assert.IsTrue(ShipClassRules.Fits(item, Ship(null, "capital")));
+            Assert.IsFalse(ShipClassRules.IsClassified(new ShipData()));
+            Assert.IsFalse(ShipClassRules.IsClassified(null));
         }
 
         [Test]
@@ -124,10 +138,31 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void TheScanAttributeNameMapsTo175()
+        public void TheScanAttributeNameMapsTo143()
         {
-            Assert.AreEqual(175, ItemStats.IdOf("scansShipClass"));
-            Assert.AreEqual(175, ShipClassRules.ScansClassAttr);
+            Assert.AreEqual(143, ItemStats.IdOf("scanClass"));
+            Assert.AreEqual(143, ShipClassRules.ScanClassAttr);
+        }
+
+        [Test]
+        public void TheClassLabelIsTheModsTextElseTheCapitalisedId()
+        {
+            Assert.AreEqual("Light Fighter", ShipClassRules.ClassLabel(Ship("light_fighter")));
+            Assert.AreEqual("Light Fighter", ShipClassRules.ClassLabel(Ship("mymod:light-fighter")));   // a mod prefix is left off
+            Assert.AreEqual("Leichter Jaeger", ShipClassRules.ClassLabel(new ShipData { shipClass = "light_fighter", shipClassLabel = "Leichter Jaeger" }));
+            Assert.IsNull(ShipClassRules.ClassLabel(Ship(null, "small")));
+            Assert.IsNull(ShipClassRules.ClassLabel(null));
+        }
+
+        [Test]
+        public void AClassNameInTheJsonBecomesTheLabelWhileTheIdStaysTheIdentity()
+        {
+            var s = new ShipData();
+            ShipClassRules.ApplyShip(s, JObject.Parse("{ 'shipClass': 'light_fighter', 'className': 'Light fighter' }"));
+            Assert.AreEqual("light_fighter", s.shipClass);
+            Assert.AreEqual("Light fighter", ShipClassRules.ClassLabel(s));
+            Assert.IsTrue(ShipClassRules.Matches(s, new[] { "LIGHT_FIGHTER" }));   // restrictions match the id, never the label
+            Assert.IsFalse(ShipClassRules.Matches(s, new[] { "Light fighter" }));
         }
 
         // ---- ships.json / items.json ----------------------------------------------------------------------------------

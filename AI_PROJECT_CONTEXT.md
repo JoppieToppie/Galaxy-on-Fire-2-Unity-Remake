@@ -255,7 +255,7 @@ New systems for multiplayer / modding must have **no effect, or the most minimal
 co-op game unless a mod opts in to them**. Every new field is optional and absent = today's behaviour; the original game's
 data stays untouched; plain-logic tests should prove an unclassed ship / unrestricted item behaves exactly as before.
 
-### 6.2 Ship classes, class-restricted equipment and class scanners (owner's decisions, 2026-11-15; Proposed, not implemented)
+### 6.2 Ship classes, class-restricted equipment and class scanners (owner's decisions, 2026-11-15; implemented on `feature/extensive-multiplayer-expansion`, not compiled)
 
 - **Mod-only taxonomy:** the 14 names below are a recommended shared vocabulary for mod authors, **not vanilla/base-game
   ship classifications**. Do not assign any of them to original ships or ship data by default. In an unmodded game, ships have
@@ -287,19 +287,29 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
   physical hull-volume field in the base `ShipData` schema. For cargo-relative-to-size judgements (especially Privateers),
   survey those stats alongside actual model / kit scale and ship descriptions; do not treat raw cargo capacity as size-adjusted
   without that context.
-- **Restriction is an allow-list per item** (`allowedClasses`); no exclude-list. An item without the list fits every ship. A
-  restricted item is still accepted by an unclassified ship; its allow-list is checked only when the ship has an explicit mod class.
+- **Free-form tags and per-item lists (owner's decision, 2026-11-15, after the first allow-list-only note):** a ship has an
+  optional `shipClass` (a stable machine id) and optional `classTags` (free words, e.g. `small`, shareable across mods). An item
+  has an optional `allowedClasses` and an optional `excludedClasses` that match a ship's class id **or** any of its tags. A ship
+  with neither class nor tags is **unclassified** and takes every item (see above), so the lists only engage on classified ships.
+  On a classified ship: no lists = fits; an exclude-list blocks what it names; an allow-list refuses what it doesn't name; with
+  both, the ship must match the allow-list and not the exclude-list. Case-insensitive. (This supersedes the earlier "no exclude-list"
+  line: the owner asked for tags with allow and exclude lists so a mod can exclude e.g. every `small` ship of any mod.)
+- **Class id vs display text:** `shipClass` is the id used for matching, saves and the network; `className` (a word, a per-language
+  object, or `shipclass.<id>.name` in `text/<lang>.json`) is only displayed; without it the id is shown capitalised.
 - **Ship swap:** equipment that does not fit the new ship's class goes to the **hold** (like a built-in drive does now); the
   swap is not blocked. `Hangar.CanMount` is the existing mount gate (Khador Drive, cloak bay) and the natural place for the
   refusal; also audit buy-and-mount, saves / start loadouts, the Kaamo club, cheats and kit ships.
-- **Scanner:** **one scanner attribute** that reveals a locked ship's explicitly mod-assigned class **immediately on lock**; an
-  unclassified ship has no class to reveal. No progress bar or scan
-  delay. This is a tactical identification tool: large ships, especially cruisers, need to identify specialised anti-capital
-  threats quickly so they can prioritise targets. Only mod scanners carry the capability. The class shows on **other players'
-  ships** as well as NPCs.
-- **Multiplayer:** the class restriction is enforced by the server / authority, not trusted from the client; the class of a
-  remote ship must be replicated or derivable from the ship every client already knows. The same stable class ID must be used
-  consistently by save data, mod definitions and network state.
+- **Scanner:** **one scanner attribute**, `scanClass` (attr **143**, next to Joppie's `scanShip` 140 / `scanHitpoints` 141 /
+  `scanWeapons` 142), reveals a locked ship's explicitly mod-assigned class **as soon as the lock completes**, with no extra scan
+  step; an unclassified ship has no class to reveal. This is a tactical identification tool: large ships, especially cruisers, need
+  to identify specialised anti-capital threats quickly so they can prioritise targets. Only mod scanners carry the capability. The
+  class shows on **other players' ships** as well as NPCs (another player's ship comes from the replicated ship index,
+  `Target.netShipIndex`). Joppie's `scanShip` names the hull, not the class: see `AI_HANDOVER.md` for how the two relate.
+- **Multiplayer:** the client's game runs the economy and the server only checks uploads (`NetProfiles`), so the class rule is
+  enforced where the server has a say: `NetProfiles.ClampClasses` moves equipment a ship's class can't mount to the hold on every
+  upload and sign-in (like `ClampMods`). The client enforces it in the hangar (`Hangar.CanMount`, `SwitchTo`, `FitToSlots`).
+  The class of a remote ship is derived from the ship index every client already knows. The same stable class id is used by mod
+  definitions, saves and network state.
 
 ### 6.4 Moddable turret hardpoint scaling and targeting profiles (owner's decisions, 2026-11-15; Proposed)
 
@@ -324,7 +334,7 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
 - **Status:** design decisions only. No hardpoint schema, turret item schema, Mod Builder UI, targeting logic or gameplay
   source has been changed for this feature.
 
-### 6.3 Secondary hardpoint launch orientation (owner's decisions, 2026-11-15)
+### 6.3 Secondary hardpoint launch orientation (owner's decisions, 2026-11-15; implemented as `launchRotation`, not compiled)
 
 - Launch-direction adjustment is for **secondary weapons only**. Primary guns, turrets, NPC/capital guns and unrelated mount
   types retain their existing firing behaviour.
@@ -342,6 +352,11 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
   take priority; do not block a correct moddable implementation on UI tooling.
 - Multiplayer must use the authoritative shot's resulting velocity/direction so remote clients reproduce the same launch.
   Verify the actual replication path and test it; do not assume local correctness proves network correctness.
+- **Implemented (Claude, 2026-11-15):** `WeaponMount.launchRotation` (Euler or quaternion, separate from `rotation`) ->
+  `WeaponMount.LaunchTurn` -> `Gun.launchTurn`, set by `WeaponSystem.Setup` for secondaries only and applied on the plain, salvo and
+  cluster paths; mines, beams, primaries, turrets and NPC guns are untouched; no field = straight ahead. The Mod Builder
+  project copy and JSON export carry the field (its editor UI is not added). Multiplayer was audited: the shot data carries the
+  resulting velocity and the homing delay, so remote clients reproduce the flight (not tested over a network).
 
 ### 6.5 Class-based station docking and freighter boarding (owner's decisions, 2026-11-15; Proposed)
 

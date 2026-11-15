@@ -1,3 +1,19 @@
+## 2026-11-15 — Ship classes, launchRotation, notes corrected (Claude)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Added (all opt-in, no effect without a mod using them):
+- Ship classes: ships.json `shipClass` / `classTags` / `className`; items.json `allowedClasses` / `excludedClasses`; unclassified ships
+  take every item; `Hangar.CanMount` / `SwitchTo` / `FitToSlots`; `NetProfiles.ClampClasses`; scanner stat 143 `scanClass`.
+- `WeaponMount.launchRotation`: a secondary's launch direction (replaces the earlier reuse of the visual `rotation`).
+- Mod Builder project copy / export carry `launchRotation`.
+- Tests: `ShipClassRulesTests`; `GunLaunchTests` rewritten around `launchRotation`. Docs: `Modding/README.md`, the AI modding guide,
+  `docs/notes/mods.md`, `docs/notes/weapons.md`.
+
+Changed: `AI_PROJECT_CONTEXT.md` 6.2 / 6.3 and `AI_HANDOVER.md` (stale sections rewritten, headings renumbered, Joppie comparison).
+
+Not compiled; tests not run.
+
 ## 2026-11-15 — Implement per-ship free-look orbit distance and free-look target locking (ChatGPT)
 
 **Branch:** `feature/extensive-multiplayer-expansion`

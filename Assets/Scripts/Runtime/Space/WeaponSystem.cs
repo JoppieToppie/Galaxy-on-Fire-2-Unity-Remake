@@ -327,9 +327,10 @@ namespace GoF2Remake.Flight
                     at += Modding.ModHardpoints.MuzzleOffset(shipIndex, shown, secondary, mounts[slot % mounts.Count]);
                 }
                 var gun = new Gun(item, at, secondary);
-                // Remake mods: a secondary's shot leaves along its hardpoint's "rotation" (the mount's, not the item's: the same
-                // missile on two mounts flies two ways); primaries, turrets and mounts without one fire straight ahead as before.
-                if (secondary && mounts.Count > 0) gun.launchTurn = mounts[slot % mounts.Count].RotationTurn;
+                // Remake mods: a secondary's shot leaves along its hardpoint's "launchRotation" (the mount's, not the item's: the
+                // same missile on two mounts flies two ways, and the visual "rotation" stays a look only); primaries, turrets and
+                // mounts without one fire straight ahead as before.
+                if (secondary && mounts.Count > 0) gun.launchTurn = mounts[slot % mounts.Count].LaunchTurn;
                 gun.Ignores = t => t.playerProof;   // multiplayer: through squadmates
                 if (!secondary)
                 {
