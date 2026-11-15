@@ -104,6 +104,9 @@ namespace GoF2Remake.Tests
             yield return null;
             MouseAt(p, true);
             yield return null;
+            // MouseButtonDebounce rejects transitions less than 30 ms apart. A batch run's four movement frames can
+            // take less than that: model a held drag before measuring its final movement and deliberate release.
+            yield return new WaitForSecondsRealtime(0.05f);
             float before = Get<float>(level, "shipYaw");
             for (int i = 1; i <= 4; i++)
             {
@@ -113,6 +116,7 @@ namespace GoF2Remake.Tests
             }
             Assert.That(Mathf.Abs(Get<float>(level, "shipYaw") - before), Is.GreaterThan(0.1f), string.Join("\n", trace));
             MouseAt(p + Vector2.right * 200f, false);
+            yield return WaitFor(() => !mouse.leftButton.isPressed, 0.25f, "the drag's mouse release");
             yield return null;
             yield return null;
             Assert.That(Get<int>(menu, "dragPointer"), Is.EqualTo(-1), string.Join("\n", trace));
@@ -133,6 +137,7 @@ namespace GoF2Remake.Tests
             yield return null;
             MouseAt(p, true);
             yield return null;
+            yield return new WaitForSecondsRealtime(0.05f);
             Vector2 before = Get<Vector2>(map, "pan");
             for (int i = 1; i <= 4; i++)
             {
@@ -142,9 +147,31 @@ namespace GoF2Remake.Tests
             }
             Assert.That(Vector2.Distance(Get<Vector2>(map, "pan"), before), Is.GreaterThan(1f), string.Join("\n", trace));
             MouseAt(p + Vector2.right * 160f, false);
+            yield return WaitFor(() => !mouse.leftButton.isPressed, 0.25f, "the map drag's mouse release");
             yield return null;
             yield return null;
             Assert.That(Get<int>(map, "pointer"), Is.EqualTo(-1), string.Join("\n", trace));
+        }
+
+        [UnityTest]
+        public IEnumerator AQuickReleaseSettlesWithoutAnotherMouseReport([Values(false, true)] bool mapView)
+        {
+            yield return StationReady();
+            var menu = Find<StationMenu>();
+            var map = mapView ? StarMap.Open(Db, StarMapMode.Mission, false, _ => { }) : null;
+            if (map != null) for (int i = 0; i < 5; i++) yield return null;
+            var zone = map != null ? Get<VisualElement>(map, "touch") : Get<VisualElement>(menu, "dragZone");
+            var p = ScreenPoint(zone);
+            MouseAt(p, false);
+            yield return null;
+            MouseAt(p, true);
+            yield return null;
+            Assert.IsTrue(mouse.leftButton.isPressed);
+            MouseAt(p, false);   // no movement and no further report: debounce must eventually deliver this release
+            yield return WaitFor(() => !mouse.leftButton.isPressed, 0.25f, "the quick click's settled release");
+            yield return null;
+            yield return null;
+            Assert.AreEqual(-1, map != null ? Get<int>(map, "pointer") : Get<int>(menu, "dragPointer"));
         }
     }
 }
