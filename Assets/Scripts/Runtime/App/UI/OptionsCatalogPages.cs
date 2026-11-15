@@ -317,11 +317,14 @@ namespace GoF2Remake.UI
         /// <summary>All()'s Options > Controls and the key bindings rows.</summary>
         static void AddControls(List<OptionDef> list)
         {
-            // Remake: free flight after EVERSPACE 2 (Settings.FlightStyle, FlightModel.StepFree); it switches the key layout too.
-            // A toggle: off = the original's flight and key layout, untouched.
-            var freeFlight = Toggle("flightStyle", OptionPage.Controls, () => X("flightStyleFree", "Free flight (EVERSPACE 2 style)"),
-                () => Settings.FlightStyle == FlightStyles.Free, v => Settings.FlightStyle = v ? FlightStyles.Free : FlightStyles.Original);
+            // Remake: free flight after EVERSPACE 2 (Settings.FlightStyle, FlightModel.StepFree) and (2026-11-11) Chorus's
+            // (FlightModel.StepChorus); each switches the key layout too. Original = the original's flight and key layout,
+            // untouched (FlightStyles' order: Original, Free, Chorus).
+            var freeFlight = Choice("flightStyle", OptionPage.Controls, () => X("flightStyle", "Flight style"), true,
+                () => new[] { StyleName(FlightStyles.Original), StyleName(FlightStyles.Free), StyleName(FlightStyles.Chorus) },
+                () => Settings.FlightStyle, i => Settings.FlightStyle = i);
             freeFlight.description = () => (FlightStyles.Forced ? FlightStyleForcedNote() + " " : "") + X("flightStyleHelp", "Free flight: W / S thrust, A / D strafe, Space / Ctrl up and down, Q / E roll, Shift boost, Z dampeners. Own key layout.")
+                + " " + X("flightStyleChorusHelp", "Chorus: W flies on at full speed, S brakes, Shift boosts, hold Space to drift, A / D dodge. Own key layout.")
                 // Remake: free flight's touch layout (TouchControlsFreeFlight), on a touch device.
                 + (Application.isMobilePlatform || InputMode.Current == InputKind.Touch
                     ? " " + X("flightStyleTouchHelp", "Touch: the stick thrusts and strafes, drag the screen (or the held fire button) to aim, the buttons beside the stick go up, down and switch the dampeners; the ship rolls itself level.")
@@ -467,9 +470,8 @@ namespace GoF2Remake.UI
                 description = () =>
                 {
                     Flight.GameControls.ApplyStyle();   // the layout of the style in use (a mod's or an event's too)
-                    return string.Format(X("bindingsLayout", "Key layout: {0}. The Free flight toggle under {1} switches it."),
-                                         FlightStyles.Current == FlightStyles.Free ? X("flightStyleFree", "Free flight (EVERSPACE 2 style)")
-                                                                                    : X("flightStyleOriginal", "Original"),
+                    return string.Format(X("bindingsLayout", "Key layout: {0}. The Flight style option under {1} switches it."),
+                                         StyleName(FlightStyles.Current),
                                          PageTitle(OptionPage.Controls))
                            + (FlightStyles.Forced ? " " + FlightStyleForcedNote() : "")
                            + " " + X("bindingsHelp", "Pick a key or button to change it. Esc cancels. Delete, × or a right click clears it.");

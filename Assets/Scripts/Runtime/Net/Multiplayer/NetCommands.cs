@@ -202,7 +202,7 @@ namespace GoF2Remake.Multiplayer
             new Command { name = "restrict", usage = "[players] <jumps | docking | all | khador | off>", arg = Arg.PlayerText, self = true,
                 available = () => LocalIsAdmin, allowed = IsAdmin, run = NetAdmin.Restrict,
                 description = () => X("mpCmdRestrict", "admins: no jumps (planet, gate, Khador) and / or no docking (khador: only the Khador Drive), until off") },
-            new Command { name = "flightstyle", usage = "[players] <es2 | gof2 | player>", arg = Arg.PlayerText, self = true,
+            new Command { name = "flightstyle", usage = "[players] <es2 | chorus | gof2 | player>", arg = Arg.PlayerText, self = true,
                 available = () => LocalIsAdmin, allowed = IsAdmin, run = NetAdmin.FlightStyle,
                 description = () => X("mpCmdFlightStyle", "admins: some players' flight model (es2 / gof2) for now; player gives it back") },
             new Command { name = "provoke", usage = "[players] [race] [within <metres>]", arg = Arg.PlayerText, self = true,

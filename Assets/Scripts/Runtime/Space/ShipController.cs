@@ -38,19 +38,22 @@ namespace GoF2Remake.Flight
 
         /// <summary>Free flight is in use for this ship now: the style (the option, or a mod's / an event's), the player's own input (keyboard / mouse, a
         /// controller or, remake, the touch controls' free-flight layout; tilt and VR keep the original style).</summary>
-        public bool FreeFlightActive => Data.FlightStyles.Current == Data.FlightStyles.Free && useBuiltInInput && !tiltMode
+        public bool FreeFlightActive => Data.FlightStyles.IsFree(Data.FlightStyles.Current) && useBuiltInInput && !tiltMode
                                         && !Data.VrFlags.Enabled;
+        /// <summary>Remake (2026-11-11): Chorus flight (FlightStyles.Chorus) is in use: free flight's path, FlightModel.StepChorus.</summary>
+        public bool ChorusFlightActive => FreeFlightActive && Data.FlightStyles.Current == Data.FlightStyles.Chorus;
         /// <summary>Free flight on the touch controls (TouchControlsFreeFlight): the stick moves, a drag aims, no roll input, so
         /// EVERSPACE 2's auto-roll is on (ES2 turns it on per device, a controller yes).</summary>
         public bool TouchFree => FreeFlightActive && UI.InputMode.Current == UI.InputKind.Touch;
 
         Vector2 touchMove;
         float touchHover;
-        bool touchBoost, touchBoostWas;
+        bool touchBoost, touchBoostWas, touchDrift;
         /// <summary>The touch controls' free-flight input (FlightHud): the stick's thrust (y) and strafe (x), up / down, the boost
         /// button held. Added to the bindings' axes in StepFree; zero when touch isn't in use.</summary>
-        public void SetTouchFree(Vector2 move, float hover, bool boost)
+        public void SetTouchFree(Vector2 move, float hover, bool boost, bool drift = false)
         {
+            touchDrift = drift;   // Chorus flight: the touch column's drift pill
             touchMove = Vector2.ClampMagnitude(move, 1f);
             touchHover = Mathf.Clamp(hover, -1f, 1f);
             touchBoost = boost;
@@ -163,6 +166,8 @@ namespace GoF2Remake.Flight
         {
             if (inputLocked || externalControl || steeringLocked || Navigation.InputHalted) return false;
             DodgeRequested?.Invoke();
+            // Chorus flight: Chorus's dash (FlightModel.ChorusDash) instead of the original's manoeuvre.
+            if (Model.ChorusFlight) return Model.ChorusDash(type == 1 ? -1 : 1);
             return Maneuver.Start(type);
         }
         public void SetThrottle(float t) => Model.SetThrottle(t);
@@ -334,7 +339,10 @@ namespace GoF2Remake.Flight
                     SteerInput = turretSteer;
                 }
                 Model.FreeFlight = FreeFlightActive;
+                Model.ChorusFlight = ChorusFlightActive;
                 Model.BoostHeld = Model.FreeFlight && BoostInput(useBuiltInInput && !inputLocked && !Navigation.InputHalted);
+                Model.DriftHeld = false;
+                Model.TravelBoostAllowed = false;
                 Model.TickBoost(dtMs);   // PlayerEgo::update: the boost and its recharge run on (the mining approach boosts)
                 SpeedMetersPerSecond = ExternalSpeedMetersPerSecond;
                 Model.SyncFree(transform.forward, ExternalSpeedMetersPerSecond / 1000f / metersPerUnit);
@@ -358,6 +366,7 @@ namespace GoF2Remake.Flight
                 return;
             }
             Model.FreeFlight = FreeFlightActive;
+            Model.ChorusFlight = ChorusFlightActive;
             if (useBuiltInInput && !inputLocked) ReadDodgeInput();
             if (Maneuver.Active && (inputLocked || steeringLocked)) Maneuver.Cancel();
             ManeuverSlide = Vector3.zero;
@@ -405,6 +414,12 @@ namespace GoF2Remake.Flight
             var model = new Vector2(invertYaw ? steer.x : -steer.x, invertPitch ? steer.y : -steer.y);
 
             Model.BoostHeld = Model.FreeFlight && BoostInput(live);
+            // Chorus flight's drift is held (Drift binding; GameControls' Chorus layout); not while a mode or menu holds the ship.
+            Model.DriftHeld = Model.ChorusFlight && live && autopilotTarget == null && !steeringLocked && !Navigation.PressesBlocked
+                              && (GameControls.Drift.IsPressed() || touchDrift);
+            // Chorus flight's travel boost: toggled by its key (GameControls' Chorus layout), allowed where Navigation says so.
+            Model.TravelBoostAllowed = Model.ChorusFlight && Navigation.TravelBoostAllowed && autopilotTarget == null && !steeringLocked;
+            if (Model.ChorusFlight && live && !Navigation.PressesBlocked && GameControls.TravelBoost.WasPressedThisFrame()) Model.ToggleTravelBoost();
             if (Model.FreeFlight && autopilotTarget == null && !inputLocked && !steeringLocked)
             {
                 // In free look the stick (the right one in this layout) and the mouse turn the camera: the ship flies on.
@@ -472,7 +487,7 @@ namespace GoF2Remake.Flight
         void StepFree(Vector2 aim, float dtMs)
         {
             bool live = useBuiltInInput && !Navigation.InputHalted;
-            if (live && GameControls.Dampeners.WasPressedThisFrame()) ToggleDampeners();
+            if (live && !Model.ChorusFlight && GameControls.Dampeners.WasPressedThisFrame()) ToggleDampeners();   // Chorus has none
             var input = new FlightModel.FreeInput
             {
                 thrust = live ? Mathf.Clamp(GameControls.Thrust.ReadValue<float>() + touchMove.y, -1f, 1f) : 0f,

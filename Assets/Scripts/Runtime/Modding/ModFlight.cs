@@ -1,4 +1,6 @@
 // ModFlight.cs
+// (2026-11-11: a third style, "chorus", Chorus's flight, FlightModel.StepChorus: a free-flight style, so free flight's
+// bonuses and flightScope 2 apply to it too.)
 // Remake mods and the two flight styles (Settings.FlightStyle: the original, or free flight after EVERSPACE 2;
 // FlightModel.Step / StepFree). A mod decides for itself whether its content touches one style, the other or both:
 //   items.json "stats":  flightScope 0 both (default) | 1 the original only | 2 free flight only: the item's booster /
@@ -13,7 +15,7 @@
 //                        primary guns' damage in % more while the ship stands still, and damage taken in % less once it
 //                        has flown slower than 30 m/s for a second (FlightBonus, FlightModel.WeaponDamageFactor /
 //                        DamageTakenFactor).
-//   ships.json:          "flightStyle": "free" | "original" (this ship always flies so; default the player's), and
+//   ships.json:          "flightStyle": "free" | "chorus" | "original" (this ship always flies so; default the player's), and
 //                        "flight": { "topSpeed", "turnRate", "strafeSpeed", "acceleration", "boostFactor", "fullStopDamage",
 //                                    "lowSpeedResistance" (both styles), "original": { ... }, "free": { ... } } with the same
 //                                    meanings (new ships and overrides).
@@ -24,7 +26,7 @@
 //                        value outside the field's range is clamped with a warning.
 //   campaign.json:       "flightStyle": the mod campaign's games fly so.
 //   gameoptions.json:    "flightStyle": a new-game option that, while on, sets the style.
-//   event graphs:        /flightstyle [players] <free | original | player> (the Set Flight Model node; undone when the event
+//   event graphs:        /flightstyle [players] <free | chorus | original | player> (the Set Flight Model node; undone when the event
 //                        ends), and the expression "freeflight" (1 in free flight).
 // Who decides, first match: an event, the ship flown, the mod campaign, a new-game option, then the player's option.
 // The bonuses add up (the ship's, then every mounted item's; a total never below -90 %); an item's freeBoostFactor wins over
@@ -98,7 +100,7 @@ namespace GoF2Remake.Modding
             return -1;
         }
 
-        /// <summary>"free" / "original" / "player" (also "" and "any": the player's) -> FlightStyles, -1; false = unknown.</summary>
+        /// <summary>"free" / "chorus" / "original" / "player" (also "" and "any": the player's) -> FlightStyles, -1; false = unknown.</summary>
         public static bool TryParseStyle(string text, out int style)
         {
             style = -1;
@@ -107,6 +109,7 @@ namespace GoF2Remake.Modding
                 case "": case "player": case "any": case "default": return true;
                 case "free": case "freeflight": case "free flight": case "everspace": case "es2": style = FlightStyles.Free; return true;
                 case "original": case "classic": case "gof2": style = FlightStyles.Original; return true;
+                case "chorus": style = FlightStyles.Chorus; return true;   // remake, 2026-11-11 (FlightModel.StepChorus)
             }
             return false;
         }
@@ -117,7 +120,7 @@ namespace GoF2Remake.Modding
             if (!ModJson.Has(o, "flightStyle")) return -1;
             string text = ModJson.Str(o, "flightStyle");
             if (!TryParseStyle(text, out int style))
-                throw new ModJsonException($"{where}: \"flightStyle\": \"{text}\" is no flight style (\"free\", \"original\" or \"player\")");
+                throw new ModJsonException($"{where}: \"flightStyle\": \"{text}\" is no flight style (\"free\", \"chorus\", \"original\" or \"player\")");
             return style;
         }
 

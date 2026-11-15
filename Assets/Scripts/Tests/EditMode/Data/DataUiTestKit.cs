@@ -115,8 +115,11 @@ namespace GoF2Remake.Tests
                 Keep(SettingsPrefix + "voiceLanguage", true);
                 // The game experience's migration and the welcome screen (Settings.MigrateExperienceDefaults, WelcomeShown).
                 foreach (var k in new[] { "experienceDefaults", "experienceDefaults.played", "welcomeShown" }) Keep(SettingsPrefix + k, false);
-                Keep(ControlsPrefsKey, true);
+                // Every flight style's layout (GameControls' "_free" / "_chorus" keys): ResetToDefaults below drops the loaded one.
+                foreach (var k in ControlsLayoutKeys) Keep(k, true);
             }
+
+            static readonly string[] ControlsLayoutKeys = { ControlsPrefsKey, ControlsPrefsKey + "_free", ControlsPrefsKey + "_chorus" };
 
             void Keep(string key, bool text) => saved.Add(new Saved
             {
@@ -136,8 +139,12 @@ namespace GoF2Remake.Tests
                 ClearSettingsCache();
                 // The bindings: no overrides, then the saved ones as GameControls.Start loads them.
                 GameControls.ResetToDefaults();
-                var key = saved.Find(s => s.key == ControlsPrefsKey);
-                if (key.had) { PlayerPrefs.SetString(ControlsPrefsKey, key.str); PlayerPrefs.Save(); }
+                foreach (var k in ControlsLayoutKeys)
+                {
+                    var key = saved.Find(s => s.key == k);
+                    if (key.had) PlayerPrefs.SetString(k, key.str);
+                }
+                PlayerPrefs.Save();
                 ReloadBindings();
             }
         }

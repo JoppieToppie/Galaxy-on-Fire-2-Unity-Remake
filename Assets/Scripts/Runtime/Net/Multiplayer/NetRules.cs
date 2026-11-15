@@ -151,7 +151,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Server: the flight model (NetServerSettings).</summary>
         public static void SetFlight(int style)
         {
-            HostFlight = style == FlightStyles.Free || style == SessionRules.PlayerFlight ? style : FlightStyles.Original;
+            HostFlight = FlightStyles.IsFree(style) || style == SessionRules.PlayerFlight ? style : FlightStyles.Original;
             NetState.Instance?.SetFlightModel(HostFlight);
         }
 

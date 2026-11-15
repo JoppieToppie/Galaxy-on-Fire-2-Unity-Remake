@@ -77,7 +77,7 @@ namespace GoF2Remake.Data
         /// it was gof2).</summary>
         public const int PlayerFlight = -1, DefaultFlight = PlayerFlight;
 
-        /// <summary>A flight model's name ("gof2" / "original", "es2" / "free", "player" / "any" / "choice" / "unrestricted"),
+        /// <summary>A flight model's name ("gof2" / "original", "es2" / "free", "chorus", "player" / "any" / "choice" / "unrestricted"),
         /// -2 = none of them.</summary>
         public static int ParseFlight(string text)
         {
@@ -85,11 +85,13 @@ namespace GoF2Remake.Data
             {
                 case "gof2": case "original": case "0": return FlightStyles.Original;
                 case "free": case "es2": case "everspace": case "1": return FlightStyles.Free;
+                case "chorus": case "2": return FlightStyles.Chorus;   // remake, 2026-11-11
                 case "player": case "any": case "choice": case "unrestricted": case "-1": return PlayerFlight;
                 default: return -2;
             }
         }
 
-        public static string FlightText(int style) => style == FlightStyles.Free ? "es2" : style == PlayerFlight ? "player" : "gof2";
+        public static string FlightText(int style) => style == FlightStyles.Free ? "es2" : style == FlightStyles.Chorus ? "chorus"
+                                                    : style == PlayerFlight ? "player" : "gof2";
     }
 }

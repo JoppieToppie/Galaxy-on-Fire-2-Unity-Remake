@@ -11,7 +11,8 @@
 //   PlayerEgo::boost                FModSound::play(+0xd4) when a boost starts
 // In the supernova orbits the gamma shield's loop takes the engine's slot (PlayerHealth plays it), so no engine then.
 // Remake mods: a ship with its own sounds (ships.json "sounds", Modding.ModShipSounds: EVERSPACE 2's engines) plays its engine
-// loop by speed, its boost start / loop / stop and its booster's recharge loop instead.
+// loop by speed, its boost start / loop / stop and its booster's recharge loop instead; (2026-11-11) and Chorus flight's drift
+// start / loop / stop, the dodge, and the travel boost's start / loop / stop (in place of the boost's while it runs).
 // Volumes: the event volume x Sfx.EventGain, x the events' linear rolloff from the camera (EngineVoices; the sound stays
 // 2D, only its volume follows the distance).
 
@@ -36,9 +37,9 @@ namespace GoF2Remake.Flight
         int cruiseBoost;
         // Remake mods: the ship's own sounds (Modding.ModShipSounds), null = the game's.
         Modding.ModShipSounds.ShipSounds modSounds;
-        AudioSource boostLoop, charger;
+        AudioSource boostLoop, charger, driftLoop, travelLoop;
         int engine = -1, boost = -1;
-        bool wasBoosting;
+        bool wasBoosting, wasDrifting, wasDodging, wasTravel;
         /// <summary>Remake (#170): free flight's held boost plays the booster's start sound on its own source, cut short with a
         /// quick fade when the boost is let go; as a one-shot, every tap started the whole few-second sound again on top of
         /// the last. The original's boost always runs its full time, so there the one-shot stays.</summary>
@@ -87,6 +88,8 @@ namespace GoF2Remake.Flight
             {
                 if (modSounds.boostLoop?.Clip is AudioClip loop) boostLoop = Loop(loop);
                 if (modSounds.charger?.Clip is AudioClip charge) charger = Loop(charge);
+                if (modSounds.driftLoop?.Clip is AudioClip drift) driftLoop = Loop(drift);
+                if (modSounds.travelLoop?.Clip is AudioClip travel) travelLoop = Loop(travel);
             }
             boostSource = gameObject.AddComponent<AudioSource>();
             boostSource.playOnAwake = false;
@@ -220,8 +223,24 @@ namespace GoF2Remake.Flight
                 Drive(extra, on, volume, pitch * deep);
             }
             float boostLevel = model != null ? model.BoostVisualPercent : 0f;
-            if (boostLoop != null) Drive(boostLoop, on && boosting, modSounds.boostLoop.Volume(boostLevel) * gain, modSounds.boostLoop.Pitch(boostLevel) * deep);
-            if (boostSource != null && on && boosting != wasBoosting)
+            // Chorus flight (FlightModel.TravelBoosting): the travel boost's own sounds stand in for the boost's while it runs.
+            bool travel = model != null && model.TravelBoosting;
+            bool travelOwn = travel && (modSounds.travelLoop != null || modSounds.travelStart != null);
+            if (boostLoop != null) Drive(boostLoop, on && boosting && !travelOwn, modSounds.boostLoop.Volume(boostLevel) * gain, modSounds.boostLoop.Pitch(boostLevel) * deep);
+            if (travelLoop != null) Drive(travelLoop, on && travel, modSounds.travelLoop.Volume(boostLevel) * gain, modSounds.travelLoop.Pitch(boostLevel) * deep);
+            if (on && travel != wasTravel) OneShot(travel ? modSounds.travelStart : modSounds.travelStop, gain, deep);
+            bool travelEdge = travel != wasTravel && (modSounds.travelStart != null || modSounds.travelStop != null);
+            wasTravel = travel;
+            // Chorus flight's drift: its start / stop and a loop by speed while it runs.
+            bool drifting = model != null && model.Drifting;
+            if (driftLoop != null) Drive(driftLoop, on && drifting, modSounds.driftLoop.Volume(speed) * gain, modSounds.driftLoop.Pitch(speed) * deep);
+            if (on && drifting != wasDrifting) OneShot(drifting ? modSounds.driftStart : modSounds.driftStop, gain, deep);
+            wasDrifting = drifting;
+            // The dodge (the original's manoeuvre, any style): one shot as it starts.
+            bool dodging = ship.Maneuver.Active || (model != null && model.Dashing);
+            if (on && dodging && !wasDodging) OneShot(modSounds.dodge, gain, deep);
+            wasDodging = dodging;
+            if (boostSource != null && on && boosting != wasBoosting && !travelEdge)
             {
                 var s = boosting ? modSounds.boostStart : modSounds.boostStop;
                 if (s?.Clip is AudioClip clip)
@@ -249,6 +268,14 @@ namespace GoF2Remake.Flight
                 bool charging = on && !boosting && model != null && model.HasBooster && refill < 0.999f;
                 Drive(charger, charging, modSounds.charger.Volume(refill) * gain, modSounds.charger.Pitch(refill));
             }
+        }
+
+        /// <summary>A ship sound's one shot (a random file and pitch of its ranges) at its first volume, if it has one.</summary>
+        void OneShot(Modding.ModShipSounds.Sound s, float gain, float deep)
+        {
+            if (boostSource == null || !(s?.Clip is AudioClip clip)) return;
+            boostSource.pitch = s.RandomPitch * deep * TimeExtender.SoundPitch;
+            boostSource.PlayOneShot(clip, s.vol0 * gain);
         }
 
         static float PitchEnvelope(float v, float low, float high) =>

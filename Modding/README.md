@@ -1032,6 +1032,10 @@ The Mod Builder has them on a ship's page under **Camera and damage**.
 - `boostDepleted`: played once, beside `boostStop`, when a free-flight boost dies because its booster ran empty (EVERSPACE 2's empty-tank sound); a held key then has to be pressed again.
 - `boostLoop`: a loop while boosting, from its first values as the boost starts to its second at full strength.
 - `charger`: a loop while the booster recharges, from empty to full.
+- `driftStart` / `driftStop`: played once when a drift starts / ends (Chorus flight); `driftLoop`: a loop while drifting,
+  from its first values at a standstill to its second at top speed, like the engine.
+- `dodge`: played once when a dodge starts (any flight style).
+- `travelStart` / `travelLoop` / `travelStop`: Chorus flight's travel boost, in place of the boost's sounds while it runs.
 
 Each sound is a file name, a list of files (one at random each time), or `{ "file" (or "files"), "volume", "pitch" }`
 (`volume` / `pitch` a number or `[from, to]`). The files (`.ogg`, `.wav` or `.mp3`) may sit anywhere in the mod, but not in
@@ -1636,13 +1640,14 @@ bonuses instead.
 
 | Field | |
 |---|---|
-| `flightStyle` | `"free"` or `"original"`: this ship always flies so, whatever the player's option (`"player"` or no field: the player's). |
+| `flightStyle` | `"free"`, `"chorus"` or `"original"`: this ship always flies so, whatever the player's option (`"player"` or no field: the player's). Chorus flight is a free-flight style: the `free` bonuses and `flightScope` 2 count in it too. |
 | `flight` | Bonuses in % for both styles: `topSpeed`, `turnRate`, `strafeSpeed`, `acceleration` (free flight only: the original has none), `boostFactor` (free flight's boost in hundredths of the top speed), `fullStopDamage` and `lowSpeedResistance` (EVERSPACE 2's ship passives, see the [stats](#stats) 138 / 139: the guns hit harder while the ship stands still, it takes less once it has flown slower than 30 m/s for a second). `original` / `free` inside it: the same, for one style only. `rules`: the ship's own [flight rules](#flight-rules). |
 
 **Who decides the style**, first match: an event or mission (the **Set Flight Model** node, `/flightstyle`), the ship flown,
 the mod campaign (`campaign.json`'s `"flightStyle"`), a new-game option that is on (`gameoptions.json`'s `"flightStyle"`), then
 the player's own option. The Options page says so while a mod decides, and the key layout follows the style in use. Touch,
-tilt and VR always fly the original. Missions can ask with `freeflight` (1 in free flight, 0 in the original).
+tilt and VR always fly the original. Missions can ask with `freeflight` (1 in free flight, 0 otherwise) and `chorusflight`
+(1 in Chorus flight).
 
 In the original a top speed bonus speeds the boost up too, and a turn rate bonus keeps the time the ship takes to reach its
 turn rate. Free flight's top speed, turn rate and acceleration otherwise come from the ship's handling (with its Steering
@@ -2075,7 +2080,7 @@ story off.
 | `items` | `"mod"`: shops and bar sellers offer only mods' items (sell the player anything they find; mining still brings the game's ores). Default `"all"`. Give the campaign its own goods and energy cells if it needs them. |
 | `ships` | `"mod"`: dealers sell only mods' ships. Default `"all"`. |
 | `trafficShips` | The ships NPC fighters fly, per race (`terran`, `vossk`, `nivelian`, `midorian`, `pirate`). Default: the game's. |
-| `flightStyle` | `"free"` or `"original"`: the campaign's games always fly so (see [Flight styles](#flight-styles)). Default: the player's option. |
+| `flightStyle` | `"free"`, `"chorus"` or `"original"`: the campaign's games always fly so (see [Flight styles](#flight-styles)). Default: the player's option. |
 
 A campaign's mod usually depends on the mods with its galaxy, ships and items, so turning it on turns them on too. Saves
 remember the campaign; loading one asks for its mods like any modded save.
@@ -2138,7 +2143,7 @@ game remembers it in its saves, and your content asks for it with `option(...)` 
 | `imageHover` | Optional. The art while the card is selected. |
 | `showTitle` | `true` (default): the name and the mod on a plate at the card's foot; `false` when the art has its own title. |
 | `default` | The switch's position the first time (afterwards the player's last choice). Also what a multiplayer session plays with. |
-| `flightStyle` | `"free"` or `"original"`: while the option is on, the game flies so (see [Flight styles](#flight-styles)). |
+| `flightStyle` | `"free"`, `"chorus"` or `"original"`: while the option is on, the game flies so (see [Flight styles](#flight-styles)). |
 | `setting` | `true`: no card, a switch in **Options > Gameplay** instead, shown only while your mod is on and the player's own for every game (it starts at `default`; Default settings puts it back). `option(...)` reads it the same way. For what a player may want to turn off at any time (the ES2 Ships mod's Dreadnought raids). |
 
 Two cards show at a time; more scroll sideways (drag, wheel, or the arrow keys / D-pad). A game started before your mod was
@@ -2572,7 +2577,7 @@ Everything else is the event graphs' toolbox: **Dialog** (conversations with por
 **Spawn** (ships, friendly or hostile, named; objects as scenery; `wreck`: a hackable freighter wreck), **Wait Until**, **On**
 triggers (docked, entered an orbit, destroyed, a spawned ship destroyed, all enemies cleared, arriving near a point, a wreck
 hacked, docked at a station's pad outside, a ship scanned: see [Scanner readouts](#scanner-readouts)), **Set Waypoint**, **Open Wormhole** / **Close Wormhole** (see below), **Restrict Travel**,
-**Give Item**, **Take Item** (a hand-in; Mounted takes mounted ones too), **Spawn NPC Type**, **Reward**, **Title**, **Timer**, **Play Music**, **Set Flight Model** (free flight or the original for a race
+**Give Item**, **Take Item** (a hand-in; Mounted takes mounted ones too), **Spawn NPC Type**, **Reward**, **Title**, **Timer**, **Play Music**, **Set Flight Model** (free flight, Chorus flight or the original for a race
 or a chase, undone when the graph ends; see [Flight styles](#flight-styles)) and more. Game values for conditions: `campaign` (the story
 step, -1 without one), `credits`, `rank`, `station`, `system`, `ship`, `kills`, `freeflight` (1 in free flight), and the functions `cargo(item)`, `has(item)`
 (in the hold or mounted), `visited(station)` and `quest(name)` (0 not started, 1 under way, 2 done); items and stations by
