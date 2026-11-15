@@ -144,7 +144,7 @@ namespace GoF2Remake.UI
                 Hint(T("hudAimTurret", "AIM TURRET"), GameControls.Steer);
                 Hint(throttle, GameControls.Throttle);
                 Hint(fire, GameControls.FirePrimary);
-                Hint(T("hudTurretExit", "CHASE VIEW"), GameControls.Camera);
+                Hint(T("hudTurretExit", "CHASE VIEW"), GameControls.TurretView);
                 return;
             }
             // Multiplayer (or single player with Options > Gameplay "Fast-forward" = Ship cruise): the held button is a cruise
@@ -189,7 +189,7 @@ namespace GoF2Remake.UI
                 if (radar != null && radar.Locked != null) Hint(T("hudUnlock", "UNLOCK"), GameControls.UnlockTarget);
                 Hint(T("hudFreeLook", "FREE LOOK"), GameControls.FreeLookHold);
                 if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), GameControls.AutoTurret);
-                if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.Camera);
+                if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.TurretView);
                 CockpitHint(pad);
                 if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
                 if (nav != null && nav.MenuEntries(true).Count > 0) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);
@@ -213,7 +213,7 @@ namespace GoF2Remake.UI
             Hint(T("hudLevel", "LEVEL"), GameControls.LevelOut);
             // Remake: a ship may carry an auto turret and a manual one at once: a hint for each kind it has.
             if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), GameControls.AutoTurret);
-            if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.Camera);
+            if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.TurretView);
             CockpitHint(pad);
             if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
             if (nav != null && nav.MenuEntries(true).Count > 0) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);

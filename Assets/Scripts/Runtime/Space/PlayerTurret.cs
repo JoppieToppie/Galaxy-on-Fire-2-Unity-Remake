@@ -59,8 +59,8 @@ namespace GoF2Remake.Flight
         /// <summary>How far an auto turret looks for a target (units) unless the item's attr 109 says otherwise (mods).</summary>
         public const float AutoRangeUnits = 60000f;
 
-        // The controls are GameControls' (rebindable): Camera (the turret view, T / D-pad up), AutoTurret (Y / D-pad down).
-        static InputAction viewAction => GameControls.Camera;
+        // The controls are GameControls' (rebindable): TurretView (F3; controller binding available), AutoTurret (Y / D-pad down).
+        static InputAction viewAction => GameControls.TurretView;
         static InputAction autoAction => GameControls.AutoTurret;
 
         /// <summary>180-182: aims and fires by itself.</summary>

@@ -50,7 +50,7 @@ namespace GoF2Remake.Tests
         static readonly string[] RowIds =
         {
             "steer", "throttle", "brake", "boost", "roll", "levelOut", "strafeLeft", "strafeRight", "dodgeLeft", "dodgeRight", "drill",
-            "firePrimary", "fireSecondary", "switchSecondary", "camera", "cockpitView", "autoTurret", "unlockTarget", "action", "autopilotMenu", "actionsMenu",
+            "firePrimary", "fireSecondary", "switchSecondary", "camera", "cockpitView", "turretView", "autoTurret", "unlockTarget", "action", "autopilotMenu", "actionsMenu",
             "fastForward", "wingmen", "khadorDrive", "cloak", "timeExtender", "mouseSteering", "chat", "chatSend", "chatChannel",
             "screenshot", "hudToggle", "multiplayerWindow", "distressCall",
             "thrust", "strafe", "hover", "dampeners", "freeLookHold",   // free flight (PR #87)
@@ -59,9 +59,9 @@ namespace GoF2Remake.Tests
         };
 
         [Test]
-        public void ThereAreFortyThreeFlightRows()
+        public void ThereAreFortyFourFlightRows()
         {
-            Assert.AreEqual(43, GameControls.Rows.Count);
+            Assert.AreEqual(44, GameControls.Rows.Count);
             CollectionAssert.AreEqual(RowIds, GameControls.Rows.Select(r => r.id).ToArray(), "in the options' order (the overrides are kept by action name)");
             foreach (var r in GameControls.Rows)
             {
@@ -127,6 +127,8 @@ namespace GoF2Remake.Tests
             yield return D("switchSecondary", BindSlot.Pad, "<Gamepad>/dpad/right");
             yield return D("camera", BindSlot.Key1, "<Keyboard>/t");
             yield return D("camera", BindSlot.Pad, "<Gamepad>/dpad/up");
+            yield return D("turretView", BindSlot.Key1, "<Keyboard>/f3");
+            yield return D("turretView", BindSlot.Pad, "");
             yield return D("autoTurret", BindSlot.Key1, "<Keyboard>/y");
             yield return D("autoTurret", BindSlot.Pad, "<Gamepad>/dpad/down");
             yield return D("unlockTarget", BindSlot.Key1, "<Keyboard>/u");

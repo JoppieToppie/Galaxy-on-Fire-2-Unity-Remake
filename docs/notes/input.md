@@ -379,3 +379,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   hint column hides; a click on a button isn't also the mouse's fire / missile binding
   (`WeaponSystem.mouseOverControls`). Handling-dependent camera damping only for keyboard / mouse. Losing focus on
   mobile (or without `runInBackground`) opens the pause menu.
+
+- **Separate turret control**: Camera (T / D-pad up, existing binding ID) cycles ship/free-look views, optionally
+  including the cockpit. Turret control is its own binding (F3; no default pad button to avoid conflicts). It cycles
+  manual turret mounts and returns to the ship. Touch retains its combined camera cycle. Existing camera and
+  auto-turret overrides retain their IDs; the new action starts with its own default. HUD turret hints use it.
