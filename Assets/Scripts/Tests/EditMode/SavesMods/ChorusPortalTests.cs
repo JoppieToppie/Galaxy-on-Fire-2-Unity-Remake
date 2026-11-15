@@ -1,7 +1,8 @@
 // ChorusPortalTests.cs
 // Feature: docs/notes/mods-models.md "Chorus portals": a mod material's "portal" block (ChorusPortalSpec) draws Chorus's FTL
-// portal or its glow with GoF2/ChorusPortal (ModMaterials.Portal); an object with one gets World.PortalRefraction (the
-// scene behind it for the refraction pass).
+// portal, its glow or Guilt's core (kind "core": alpha-blended, its threads, pinch, core and depth fade) with
+// GoF2/ChorusPortal (ModMaterials.Portal); an object with one gets World.PortalRefraction (the scene behind it for the
+// refraction pass).
 
 using System.IO;
 using System.Linq;
@@ -81,6 +82,32 @@ namespace GoF2Remake.Tests
                 finally { Object.DestroyImmediate(go); }
             }
             finally { Object.DestroyImmediate(portal); Object.DestroyImmediate(glow); }
+        }
+
+        [Test]
+        public void GuiltsCoreIsAlphaBlendedWithItsShape()
+        {
+            var mod = ModWithMaps();
+            var e = JsonUtility.FromJson<CustomShipMaterial>("{ \"material\": \"c\", \"portal\": { \"kind\": \"core\", " +
+                "\"noise\": \"maps/noise.png\", \"curve\": \"maps/curve.png\", \"tilingV\": 0.15, \"panningV\": 0.56, \"speedU\": 0.05, " +
+                "\"corePower\": 8.8, \"coreMult\": 1.2, \"threadsPower\": 1.5, \"threadsMult\": 5, \"depthFade\": 720 } }");
+            Assert.IsTrue(e.portal.On);
+            Assert.IsTrue(e.portal.Core);
+            Assert.AreEqual(-1.6f, e.portal.pinch, "Threads Pinch Max by default");
+            var core = ModMaterials.FromSpec(mod, e, "core");
+            try
+            {
+                Assert.AreEqual(2f, core.GetFloat("_Kind"));
+                Assert.AreEqual((float)UnityEngine.Rendering.BlendMode.SrcAlpha, core.GetFloat("_SrcBlend"));
+                Assert.AreEqual((float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha, core.GetFloat("_DstBlend"));
+                Assert.AreEqual(new Vector4(1f, 0.15f, 0.05f, 0.56f), core.GetVector("_CoreUV"));
+                Assert.AreEqual(new Vector4(-1.6f, 8.8f, 1.2f, 1.5f), core.GetVector("_CoreShape"));
+                var alpha = core.GetVector("_CoreAlpha");
+                Assert.AreEqual(5f, alpha.x); Assert.AreEqual(1f, alpha.y);
+                Assert.AreEqual(36f, alpha.z, 1e-4f, "720 game units: 36 m");
+            }
+            finally { Object.DestroyImmediate(core); }
+            Assert.IsFalse(JsonUtility.FromJson<CustomShipMaterial>("{ \"material\": \"c\", \"portal\": { \"kind\": \"core\" } }").portal.On, "no threads: off");
         }
 
         [Test]

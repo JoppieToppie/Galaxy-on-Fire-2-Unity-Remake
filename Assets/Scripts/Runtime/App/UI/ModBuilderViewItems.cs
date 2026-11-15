@@ -291,7 +291,7 @@ namespace GoF2Remake.UI
             {
                 // A seatless cabin (cabinSize 0) made an active device (Flight.Device, PlayerDevices).
                 Add(Flight.Device.TypeAttr, 0, 0, Flight.Device.TypeCount, T("mbStatNoteDevice",
-                    "An active device (with cabinSize 0): 1 EMP wave, 2 EMP shot, 3 shield disruptor, 4 overcharger area, 5 overcharger beam, 6 strike charge, 7 deflector, 8 sensor cloud, 9 hull repair, 10 armour repair, 11 restock, 12 device charger, 13 corrosion, 14 teleport, 15 spectral shift, 16 fusion hook, 17 quantum tether, 18 entangler."));
+                    "An active device (with cabinSize 0): 1 EMP wave, 2 EMP shot, 3 shield disruptor, 4 overcharger area, 5 overcharger beam, 6 strike charge, 7 deflector, 8 sensor cloud, 9 hull repair, 10 armour repair, 11 restock, 12 device charger, 13 corrosion, 14 teleport, 15 spectral shift, 16 fusion hook, 17 quantum tether, 18 entangler, 19 repair kit, 20 recovery, 21 virus, 22 shield overcharge."));
                 Add(Flight.Device.CooldownAttr, Flight.Device.DefaultCooldownMs, 0, 600000);
                 Add(Flight.Device.DurationAttr, 8000, 0, 120000, T("mbStatNoteDeviceDuration", "How long it runs (the slow, the boost, the deflector); 0 = at once."));
                 Add(Flight.Device.RadiusAttr, 9120, 0, 200000, T("mbStatNoteDeviceRadius", "Its reach (20 = 1 m)."));

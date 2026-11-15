@@ -36,6 +36,24 @@ namespace GoF2Remake.Tests
         };
 
         [Test]
+        public void TheBrakingStatePlaysWhileTheBrakeIsHeld()
+        {
+            var root = Model("idle", "brakeStart", "brakeLoop", "brakeEnd");
+            try
+            {
+                var spec = new ShipAnimations { idle = "idle", braking = new ShipStateAnimation { start = "brakeStart", loop = "brakeLoop", end = "brakeEnd" } };
+                var a = ModShipAnimator.Attach(root, spec);
+                a.SetPoses(0f, 0f, 0.3f, 0.02f);
+                Assert.IsFalse(a.anim.IsPlaying("brakeStart"), "not until past half");
+                a.SetPoses(0f, 0f, 1f, 0.02f);
+                Assert.IsTrue(a.anim.IsPlaying("brakeStart"), "its flaps opening");
+                a.SetPoses(0f, 0f, 0f, 0.02f);
+                Assert.IsTrue(a.anim.IsPlaying("brakeEnd"), "and closing as it lets go");
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        [Test]
         public void TheIdleLoopsAndTheDriftPlaysItsStartThenItsEnd()
         {
             var root = Model("idle", "driftStart", "driftLoop", "driftEnd");

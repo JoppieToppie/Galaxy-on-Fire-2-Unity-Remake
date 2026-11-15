@@ -24,7 +24,7 @@ namespace GoF2Remake.Modding
         {
             "id", "name", "description", "board", "race", "ship", "weapon", "secondary", "hitpoints", "reward", "loot", "lootAmount",
             "wingmen", "requiredBounties", "available", "systems", "route", "character", "portraitParts", "gender",
-            "escorts", "music", "taunt", "damageTaken", "devices", "turrets",
+            "escorts", "music", "taunt", "damageTaken", "devices", "turrets", "skin",
         };
 
         /// <summary>Database.Load (ModContent.Apply, after the ships, items and systems are numbered): every active mod's
@@ -124,6 +124,9 @@ namespace GoF2Remake.Modding
             if (ModJson.Get(o, "damageTaken") is JToken dt) w.damageTaken = ReadDamageTaken(db, mod, dt, where);
             if (ModJson.Get(o, "devices") is JToken dv) w.devices = ReadDevices(mod, dv, where);
             if (ModJson.Get(o, "turrets") is JToken tu) w.turrets = ReadTurrets(db, mod, tu, w.ship, where);
+            // a skin of its (kit) ship's, by the kit's skin id: the criminal flies in it (ModTraffic.Assembly; an unknown one,
+            // checked where the kits are, leaves the ship's own look)
+            w.skin = ModJson.Str(o, "skin");
             if (ModJson.Get(o, "portraitParts") is JArray pp && pp.Count == 5) w.portraitParts = new[] { (int)pp[0], (int)pp[1], (int)pp[2], (int)pp[3], (int)pp[4] };
             else w.portraitParts = new[] { Mathf.Clamp(w.race, 0, 3), 0, w.male ? 0 : 1, 0, 0 };
             if (w.character != null && ModCharacters.Find(w.character) == null)

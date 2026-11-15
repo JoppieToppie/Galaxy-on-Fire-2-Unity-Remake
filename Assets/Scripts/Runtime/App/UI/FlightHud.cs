@@ -667,6 +667,7 @@ namespace GoF2Remake.UI
                 if (ship == null) return;
                 weapons = level.Weapons;
                 if (weapons != null) weapons.mouseOverControls = MouseOverControls;
+                if (weapons != null) weapons.Message += OnMiningMessage;   // remake: a weapon overheated
                 if (level.FreeLook != null) level.FreeLook.pointerOverHud = PointerOverHud;   // Modified: the docked left drag
                 mining = level.Mining;
                 if (mining != null) mining.Message += OnKindMessage;

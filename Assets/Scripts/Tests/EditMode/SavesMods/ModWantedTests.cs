@@ -154,6 +154,18 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ASkinIsTheKitSkinItsShipWears()
+        {
+            WriteMod("w", "t_skin", "1.0", "", ("wanted.json",
+                "[ { 'id': 'painted', 'name': 'Painted', 'ship': 7, 'skin': 'vossk_120_boss_grgath' }, { 'id': 'plain', 'name': 'Plain', 'ship': 7 } ]"));
+            ScanAndEnable("t_skin");
+            var db = Database.Load();
+            Assert.AreEqual("vossk_120_boss_grgath", db.Wanted.Find(x => x.key == "t_skin:painted").skin);
+            Assert.IsNull(db.Wanted.Find(x => x.key == "t_skin:plain").skin, "none given: its ship's own look");
+            StringAssert.DoesNotContain("unknown", AllMessages(Installed("t_skin")), "\"skin\" is a known field");
+        }
+
+        [Test]
         public void InFreePlayOnlyTheModsAreOnTheBoard()
         {
             var db = Load();

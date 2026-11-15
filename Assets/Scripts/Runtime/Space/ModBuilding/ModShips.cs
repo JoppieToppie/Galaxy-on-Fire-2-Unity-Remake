@@ -220,6 +220,15 @@ namespace GoF2Remake.Modding
                     if (!string.IsNullOrEmpty(m.damageNormal)) yield return (m.damageNormal, true, false, true);
                     if (m.chorus != null)   // Chorus's layers (ModMaterials.ChorusLayers)
                         foreach (var (path, linear, normal) in m.chorus.Textures()) yield return (path, linear, false, normal);
+                    if (m.portal != null)   // Chorus's portals, Guilt's core (ModMaterials.Portal), its shield shell (ModMaterials.Shield)
+                        foreach (var (path, linear, normal) in m.portal.Textures()) yield return (path, linear, false, normal);
+                    if (m.shield != null)
+                        foreach (var (path, linear, normal) in m.shield.Textures()) yield return (path, linear, false, normal);
+                    if (m.wave != null && m.wave.On)   // a glow along a pattern (ModMaterials.GlowWave): data
+                    {
+                        yield return (m.wave.pattern, true, false, false);
+                        yield return (m.wave.mask, true, false, false);
+                    }
                 }
             if (c.throttleGlow != null && !string.IsNullOrEmpty(c.throttleGlow.mask)) yield return (c.throttleGlow.mask, false, true, false);
             if (c.extraGlows != null)

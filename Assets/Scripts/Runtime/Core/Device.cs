@@ -84,9 +84,14 @@ namespace GoF2Remake.Flight
             /// the nearest hostile ship within deviceRadius of an infected one, up to VirusMaxTargets; after deviceDurationMs every
             /// infected ship takes deviceDamagePercent % of a pirate raider's hull (ES2: 95 + 60 against its raider's 310).</summary>
             Virus = 21,
+            // Remake (2026-11-11): Chorus's player capital ship (BP_Player_Auxiliary_ShieldOvercharge_PlayerCapitalShip,
+            // AAuxiliaryShieldOvercharge: Duration 5, Cooldown 10).
+            /// <summary>Shield Overcharge: the shield full at once, and for deviceDurationMs every hit stops at it (nothing
+            /// reaches the armour or hull, the shield doesn't drop; Hitpoints.shieldLocked).</summary>
+            ShieldOvercharge = 22,
         }
 
-        public const int TypeCount = 21;
+        public const int TypeCount = 22;
         /// <summary>The Annihilator Virus's most ships (its description's 6).</summary>
         public const int VirusMaxTargets = 6;
         /// <summary>The remake attributes (Modding.ItemStats).</summary>

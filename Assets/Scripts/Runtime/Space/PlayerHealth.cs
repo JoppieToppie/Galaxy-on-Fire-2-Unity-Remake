@@ -65,6 +65,8 @@ namespace GoF2Remake.Flight
         int shieldRechargeMs;
         float repairHullMs, repairArmorMs;
         bool hasRepair, exploded;
+        /// <summary>Remake mods: the ship's own hull regeneration a second (ships.json "hullRegen"), 0 = none.</summary>
+        float hullRegen;
         float lastCombined, deathMs;
         // emergency system
         bool hasEmergency;
@@ -99,6 +101,7 @@ namespace GoF2Remake.Flight
             HasShield = shield > 0;
             HasArmor = armor > 0;
             if (repair != null) { hasRepair = true; RepairRates(repair, out repairHullMs, out repairArmorMs); }
+            hullRegen = Mathf.Max(0f, CustomShips.Get(Session.ShipIndex)?.hullRegen ?? 0f);
 
             Target = gameObject.AddComponent<Target>();
             Target.isPlayer = true;
@@ -155,6 +158,7 @@ namespace GoF2Remake.Flight
             HasArmor = armor > 0;
             hasRepair = repair != null;
             if (repair != null) RepairRates(repair, out repairHullMs, out repairArmorMs);
+            hullRegen = Mathf.Max(0f, CustomShips.Get(Session.ShipIndex)?.hullRegen ?? 0f);
             Hp.maxHull = hull; Hp.hull = keepFractions ? Mathf.Clamp(Mathf.RoundToInt(hull * hullShare), 1, hull) : hull;
             Hp.maxShield = shield; Hp.shield = keepFractions ? shield * shieldShare : shield;
             Hp.maxArmor = armor; Hp.armor = keepFractions ? Mathf.RoundToInt(armor * armorShare) : armor;
@@ -521,6 +525,7 @@ namespace GoF2Remake.Flight
             Hp.RegenerateShield(dtMs * GoF2Remake.Flight.Overheat.Factor(GoF2Remake.Flight.Overheat.Slot.Shield), shieldRechargeMs);   // (remake: overheated, Overheat)
             UpdateInjector(dtMs);
             if (hasRepair) Hp.Repair(dtMs, repairHullMs, repairArmorMs);
+            if (hullRegen > 0f) Hp.RegenerateHull(dtMs, hullRegen);   // remake mods: the ship's own (ships.json "hullRegen")
             Target.hp = Hp.hull;
 
             float combined = Hp.Combined;
@@ -546,6 +551,7 @@ namespace GoF2Remake.Flight
             else if (Hp.shieldHit) clip = CombatAssets.Pick(assets?.hitShield);
             // Remake: haptics by the deepest layer hit, like the sound.
             Haptics.Play(Hp.hullHit ? Haptics.HitHull : Hp.armorHit ? Haptics.HitArmor : Haptics.HitShield);
+            if (Hp.hullHit || Hp.armorHit) GoF2Remake.World.HullHitFlash.For(gameObject).Flash(Target.lastHitVector);   // remake mods: a "hit" block (Chorus's)
             Hp.shieldHit = Hp.armorHit = Hp.hullHit = false;
             if (clip != null) sfx.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(clip), Settings.SfxVolume);
 
@@ -608,10 +614,16 @@ namespace GoF2Remake.Flight
             if (!exploded && deathMs >= 3000f)
             {
                 exploded = true;
-                Explosion.Spawn(transform.position, Database.Shared.Ship(Session.ShipIndex)?.explosionScale ?? 1f);   // a mod ship's own size
+                // a mod ship's own death effect (World.ModDeathFx), else the game's explosion at the ship's own size
+                if (!GoF2Remake.World.ModDeathFx.SpawnMain(Session.ShipIndex, transform.position, transform.rotation, transform.forward * ship.ExternalSpeedMetersPerSecond))
+                    Explosion.Spawn(transform.position, Database.Shared.Ship(Session.ShipIndex)?.explosionScale ?? 1f);
                 Haptics.Play(Haptics.Death);   // remake (the frozen camera takes no explosion rumble)
                 // At 3000 ms: the burn stops and record 11 bursts once at the ship.
                 if (burn != null) { burn.SetBurning(false); burn.Burst(); }
+                // Remake mods: a ship with a "wreck" breaks into its pieces (World.WreckBreakup)
+                if (ship.visualModel != null)
+                    GoF2Remake.World.WreckBreakup.Spawn(Session.ShipIndex, ship.visualModel.Find("hull") ?? ship.visualModel,
+                                                        transform.forward * ship.ExternalSpeedMetersPerSecond);
                 if (ship.visualModel != null) ship.visualModel.gameObject.SetActive(false);
                 ship.ExternalSpeedMetersPerSecond = 0f;
             }

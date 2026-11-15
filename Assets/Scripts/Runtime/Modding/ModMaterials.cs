@@ -449,6 +449,24 @@ namespace GoF2Remake.Modding
 
         /// <summary>A ships.json material entry (CustomShipMaterial, see CustomShipBuilder in PR #34 for the original).</summary>
         static readonly int GoF3ParamsId = Shader.PropertyToID("_GoF3Params");
+        static readonly int GoF3EnvId = Shader.PropertyToID("_GoF3Env"), GoF3EnvMapId = Shader.PropertyToID("_GoF3EnvMap");
+
+        /// <summary>A GoF3 material's own environment cube (a JSON material's or a glTF material's "extras" "environmentCube"):
+        /// a 6:1 strip of its faces (right, left, up, down, front, back, as the mods' skies), GoF3's generic cube as GoF3 has
+        /// it, monochrome with four blurs in R G B A (R the sharpest), linear. GoF2/Hull's GoF3ShipShader reflects it, its blur
+        /// picked by the gloss, as GoF3's ShipShader does; without one the place's environment stands in. Anything but 6:1 is
+        /// left out with a warning.</summary>
+        internal static void GoF3Environment(Material m, Texture2D strip)
+        {
+            if (strip != null && Mathf.Abs(strip.width / (float)Mathf.Max(1, strip.height) - 6f) > 0.05f)
+            {
+                Debug.LogWarning($"Mods: {strip.name} is {strip.width} x {strip.height}: an environment cube is a 6:1 strip of its faces");
+                strip = null;
+            }
+            if (strip == null) { m.SetVector(GoF3EnvId, Vector4.zero); return; }
+            m.SetTexture(GoF3EnvMapId, strip);
+            m.SetVector(GoF3EnvId, new Vector4(1f, 1f / strip.height, 0f, 0f));
+        }
 
         /// <summary>A material with an emission map or colour draws it: _EMISSION on its copy, whatever the template holds. The
         /// templates' keyword is lost whenever the Editor re-saves them (a shader reimport did, 2026-11-02: every mod room and
@@ -480,6 +498,56 @@ namespace GoF2Remake.Modding
             m.SetVector(Es2GrungeId, new Vector4(grunge != null ? Mathf.Clamp01(e.grungeAmount) : 0f, Mathf.Max(0.01f, e.grungeTiling), Mathf.Max(0f, e.rimBoost), 0f));
         }
 
+        /// <summary>A "wave" block (GlowWaveSpec, GoF2/Hull's GlowWave): its pattern and mask as data; off (_WaveParams.x 0)
+        /// without one, as the templates have it.</summary>
+        /// <summary>The "hit" block (GoF2/Hull's HitFlash, World.HullHitFlash drives it): _HitFx (y radius in metres, z duration,
+        /// w 1 = its pattern in the wave pattern's alpha, 2 = none), _HitColor; x (the flash's age, 0..1) stays 1 (off).</summary>
+        static void HitFlash(CustomShipMaterial e, Material m, bool wave)
+        {
+            var h = e.hit;
+            if (h == null || !m.HasProperty("_HitFx")) return;
+            m.SetVector("_HitFx", new Vector4(1f, Mathf.Max(0.01f, h.radius * 0.05f), Mathf.Max(0.001f, h.duration), h.pattern && wave ? 1f : 2f));
+            m.SetVector("_HitColor", Rgb(h.color, new Color(750f, 0f, 0f)));
+        }
+
+        /// <summary>A "lava" block (ChorusLavaSpec, GoF2/Hull's LavaFlow): its three packed maps as data, repeating; off
+        /// (_LavaE.w 0) without one.</summary>
+        static void LavaFlow(ModInfo mod, CustomShipMaterial e, Material m)
+        {
+            var l = e.lava;
+            if (l == null || !l.On || !m.HasProperty("_LavaE")) return;
+            Texture2D Map(string path)
+            {
+                var t = Texture(mod, path, true);
+                if (t != null) t.wrapMode = TextureWrapMode.Repeat;
+                return t;
+            }
+            var emit = Map(l.emit); var flow = Map(l.flow); var masks = Map(l.masks);
+            if (emit == null || flow == null || masks == null) return;
+            m.SetTexture("_LavaEmit", emit); m.SetTexture("_LavaFlowMaps", flow); m.SetTexture("_LavaMasks", masks);
+            Vector4 V(float[] f) => f != null && f.Length >= 4 ? new Vector4(f[0], f[1], f[2], f[3]) : Vector4.zero;
+            m.SetVector("_LavaA", V(l.a)); m.SetVector("_LavaB", V(l.b)); m.SetVector("_LavaC", V(l.c)); m.SetVector("_LavaD", V(l.d));
+            m.SetVector("_LavaE", new Vector4(l.magma2Exp, l.tempMin, l.tempMax, Mathf.Max(0f, l.glow)));
+            m.SetVector("_LavaF", new Vector4(l.mip, l.mip2, 0f, 0f));
+            Glowing(m);
+        }
+
+        static bool GlowWave(ModInfo mod, CustomShipMaterial e, Material m)
+        {
+            var w = e.wave;
+            if (w == null || !w.On || !m.HasProperty("_WaveParams")) return false;
+            var pattern = Texture(mod, w.pattern, true);
+            var mask = Texture(mod, w.mask, true);
+            if (pattern == null || mask == null) return false;
+            pattern.wrapMode = TextureWrapMode.Repeat;
+            m.SetTexture("_WavePattern", pattern);
+            m.SetTexture("_WaveMask", mask);
+            m.SetVector("_WaveParams", new Vector4(Mathf.Max(0f, w.multiplier), Mathf.Max(1e-3f, w.tiling), w.speed, Mathf.Clamp(w.channel, 0, 2)));
+            m.SetVector("_WaveMin", Rgb(w.min, Color.black));
+            m.SetVector("_WaveMax", Rgb(w.max, Color.white));
+            return true;
+        }
+
         static readonly int ChorusParamsId = Shader.PropertyToID("_ChorusParams"), ChorusAccentId = Shader.PropertyToID("_ChorusAccent"),
             ChorusAccent2Id = Shader.PropertyToID("_ChorusAccent2"), ChorusEmitRId = Shader.PropertyToID("_ChorusEmitR"),
             ChorusEmitGId = Shader.PropertyToID("_ChorusEmitG"), ChorusEmitBId = Shader.PropertyToID("_ChorusEmitB"),
@@ -488,6 +556,94 @@ namespace GoF2Remake.Modding
             ChorusDirt3Id = Shader.PropertyToID("_ChorusDirt3");
 
         static Vector4 Rgba(float[] c, float a) => c != null && c.Length >= 3 ? new Vector4(c[0], c[1], c[2], a) : new Vector4(0f, 0f, 0f, a);
+
+        /// <summary>The "tissue" kind (Chorus's M_JTU_Faceless; GoF2/Hull's ChorusTissue): its normal in URP's bump slot, the AO in
+        /// the occlusion slot, the thickness in the metallic slot, the outer variation in the detail colour slot, the inner
+        /// variation and the ice in the wear slots, the dirt in the palette slot, the breath row in the dirt roughness slot; its
+        /// numbers in the _Chorus* vectors, _ChorusParams.x 5.</summary>
+        static void ChorusTissue(ModInfo mod, ChorusLayersSpec c, Material m)
+        {
+            Texture2D Map(string path, Color none)
+            {
+                var t = Texture(mod, path, true);
+                if (t == null) return Solid(none, true);
+                t.wrapMode = TextureWrapMode.Repeat;
+                return t;
+            }
+            var black = Solid(Color.black, false);
+            m.SetTexture("_BaseMap", black); m.SetTexture("_MainTex", black);
+            m.SetColor("_BaseColor", Color.white);
+            var nrm = Texture(mod, c.normal, true, normal: true);
+            m.SetTexture("_BumpMap", nrm);
+            m.EnableKeyword("_NORMALMAP");   // (the tangent frame: the parallax)
+            m.SetTexture("_OcclusionMap", Map(c.ao, Color.white));
+            m.SetTexture("_MetallicGlossMap", Map(c.thickness, new Color(0.5f, 0f, 0f, 1f)));
+            m.SetTexture("_DetailAlbedoMap", Map(c.outerVariation, Color.black));
+            m.SetTexture("_Es2WearMap", Map(c.innerVariation, Color.black));
+            m.SetTexture("_Es2WearNoiseMap", Map(c.ice, Color.black));
+            m.SetTexture("_ChorusPalette", Map(c.dirt, Color.black));
+            var breath = Texture(mod, c.breath, true);
+            if (breath != null) breath.wrapMode = TextureWrapMode.Clamp;
+            m.SetTexture("_ChorusDirtRough", breath != null ? breath : Solid(Color.black, true));
+            m.SetTexture("_EmissionMap", null);
+            m.SetColor("_EmissionColor", Color.black);   // (the layer makes the emission itself)
+            m.SetVector(ChorusParamsId, new Vector4(5f, 1f, 1f, Mathf.Max(0f, c.emissionScale)));
+            bool core = c.coreColor != null && c.coreColor.Length >= 3 && c.coreContrast > 0f;
+            m.SetVector(ChorusAccentId, core ? Rgba(c.coreColor, c.coreContrast) : Vector4.zero);
+            m.SetVector(ChorusEmitRId, Rgba(c.outerGlow ?? new[] { 0.17f, 0f, 0f }, 0f));
+            m.SetVector(ChorusEmitGId, Rgba(c.innerGlow ?? new[] { 3f, 0f, 0.08f }, 0f));
+            m.SetVector(ChorusEmitBId, new Vector4(Mathf.Max(1e-3f, c.noiseTiling), c.depth, Mathf.Max(0f, c.strength), Mathf.Clamp01(c.roughnessIntensity)));
+            m.SetVector(ChorusKickerId, new Vector4(Mathf.Max(0f, c.breathInterval), Mathf.Max(1f, c.pulsePeriod), 0f, 0f));
+            m.SetVector(ChorusKicker2Id, new Vector4(0f, 1f, 1f, 0f));
+            var so = c.sphereOffset != null && c.sphereOffset.Length >= 3 ? c.sphereOffset : new float[3];
+            m.SetVector(ChorusDirtId, core ? new Vector4(so[0], so[1], so[2], Mathf.Max(1e-3f, c.sphereRadius)) : Vector4.zero);
+            m.SetVector(ChorusDirt2Id, Vector4.one);
+            m.SetVector(ChorusDirt3Id, Vector4.zero);
+        }
+
+        /// <summary>The "crystal" kind (Chorus's M_JTU_Blend; GoF2/Hull's ChorusCrystal): its maps in the slots the HLSL reads
+        /// them from (A's in URP's base / bump / metallic, B's in the detail and occlusion slots, the masks in the emission and
+        /// palette slots, the veins and variation in the wear slots, the breath row in the dirt roughness slot), its numbers in
+        /// the _Chorus* vectors, _ChorusParams.x 4.</summary>
+        static void ChorusCrystal(ModInfo mod, ChorusLayersSpec c, Material m)
+        {
+            Texture2D Map(string path, bool linear, Color none, bool normal = false)
+            {
+                var t = Texture(mod, path, linear, normal: normal);
+                if (t == null) return normal ? null : Solid(none, linear);
+                t.wrapMode = TextureWrapMode.Repeat;
+                return t;
+            }
+            var a = Map(c.diffuseA, false, Color.grey);
+            m.SetTexture("_BaseMap", a); m.SetTexture("_MainTex", a);
+            m.SetTextureScale("_BaseMap", Vector2.one); m.SetTextureScale("_MainTex", Vector2.one);
+            m.SetColor("_BaseColor", Color.white);
+            m.SetTexture("_BumpMap", Map(c.normalA, true, Color.grey, true));
+            m.EnableKeyword("_NORMALMAP");   // (the tangent frame the surfaces are mapped along)
+            m.SetTexture("_MetallicGlossMap", Map(c.mroA, true, new Color(0f, 0.5f, 1f, 1f)));
+            m.SetTexture("_EmissionMap", Map(c.maskA, true, Color.black));
+            m.SetColor("_EmissionColor", Color.black);   // (the layer makes the emission itself)
+            m.SetTexture("_DetailAlbedoMap", Map(c.diffuseB, false, Color.grey));
+            m.SetTexture("_DetailNormalMap", Map(c.normalB, true, Color.grey, true));
+            m.SetTexture("_OcclusionMap", Map(c.mroB, true, new Color(0f, 0.5f, 1f, 1f)));
+            m.SetTexture("_ChorusPalette", Map(c.maskB, true, Color.black));
+            m.SetTexture("_Es2WearMap", Map(c.heightmap, true, Color.grey));
+            m.SetTexture("_Es2WearNoiseMap", Map(c.variation, true, Color.grey));
+            var breath = Texture(mod, c.breath, true);
+            if (breath != null) breath.wrapMode = TextureWrapMode.Clamp;
+            m.SetTexture("_ChorusDirtRough", breath != null ? breath : Solid(new Color(1f, 0f, 0f, 1f)));
+            m.SetVector(ChorusParamsId, new Vector4(4f, Mathf.Max(1f, c.scaleA), Mathf.Max(1f, c.scaleB), Mathf.Max(0f, c.emissionScale)));
+            m.SetVector(ChorusAccentId, Rgba(c.macroColor ?? new[] { 0f, 0f, 0f }, c.macroColor != null ? Mathf.Clamp01(c.macroAmount) : 0f));
+            m.SetVector(ChorusAccent2Id, new Vector4(c.macroTiling, Mathf.Clamp01(c.macroRoughness), Mathf.Clamp01(c.macroRoughnessAmount), 0.5f));
+            m.SetVector(ChorusEmitRId, Rgba(c.innerGlow ?? new[] { 1f, 0.05f, 0.05f }, Mathf.Max(0f, c.glowA)));
+            m.SetVector(ChorusEmitGId, new Vector4(Mathf.Max(0f, c.glowPulseB), Mathf.Max(0f, c.glowB), c.innerRefraction, c.innerHeightRatio));
+            m.SetVector(ChorusEmitBId, new Vector4(Mathf.Max(1f, c.innerScale), Mathf.Max(1f, c.noiseScale), Mathf.Max(0f, c.noiseContrast), c.noiseOffset));
+            m.SetVector(ChorusKickerId, new Vector4(Mathf.Max(0f, c.breathInterval), Mathf.Max(1f, c.pulsePeriod), c.breathAmount, Mathf.Max(1e-4f, c.transitionSoftness)));
+            m.SetVector(ChorusKicker2Id, new Vector4(c.normalIntensityA, c.normalIntensityB, 1f, 0f));
+            m.SetVector(ChorusDirtId, new Vector4(c.roughnessBiasA, c.roughnessBiasB, 0f, 0f));
+            m.SetVector(ChorusDirt2Id, Vector4.one);
+            m.SetVector(ChorusDirt3Id, Vector4.zero);
+        }
 
         /// <summary>Chorus's trim sheets and platings (CustomShipMaterial "chorus", GoF2/Hull's ChorusLayers): its maps in URP's
         /// slots, which the layer reads in their place (_BaseMap the tiling diffuse / plating albedo, _MetallicGlossMap its RMO /
@@ -500,6 +656,8 @@ namespace GoF2Remake.Modding
             var c = e.chorus;
             if (c == null || !c.On) return;
             if (c.Shell) { ChorusShell(mod, c, m); return; }
+            if (c.Crystal) { ChorusCrystal(mod, c, m); return; }
+            if (c.Tissue) { ChorusTissue(mod, c, m); return; }
             var palette = Texture(mod, c.palette, true);
             if (palette == null) return;
             bool plating = c.Plating;
@@ -537,7 +695,7 @@ namespace GoF2Remake.Modding
             var dirt = Texture(mod, c.dirt, false);
             m.SetVector(ChorusDirtId, Rgba(c.dirtTint ?? new[] { 1f, 1f, 1f }, dirt != null ? 1f : 0f));
             m.SetVector(ChorusDirt2Id, new Vector4(c.dirtUvScale, c.dirtMaskUvScale, c.dirtAo, c.dirtContrast));
-            m.SetVector(ChorusDirt3Id, new Vector4(c.dirtAlpha ? 1f : 0f, 0f, 0f, 0f));
+            m.SetVector(ChorusDirt3Id, new Vector4(c.dirtAlpha ? 1f : 0f, c.dirtByAlpha ? 1f : 0f, c.dirtOverEmissive ? 1f : 0f, 0f));
             if (dirt != null)
             {
                 m.SetTexture("_DetailAlbedoMap", dirt);
@@ -567,7 +725,14 @@ namespace GoF2Remake.Modding
             m.SetTexture("_DetailNormalMap", flow != null ? flow : Solid(new Color(0.5f, 0.5f, 1f, 1f)));
             var phase = Texture(mod, c.phase, true);
             m.SetTexture("_DetailMask", phase != null ? phase : Solid(new Color(0.5f, 0.5f, 0.5f, 1f)));
-            m.SetTexture("_EmissionMap", null);
+            var glow = Texture(mod, c.glow, true);
+            m.SetTexture("_EmissionMap", glow != null ? glow : mask);   // (none: the mask, as before)
+            // its normal (the noise's red and green) needs the tangent frame; the alpha test carries the UVs to the shadow and
+            // depth passes for its dissolve (a cutoff of 0: URP's own test never clips)
+            m.EnableKeyword("_NORMALMAP");
+            m.EnableKeyword("_ALPHATEST_ON");
+            m.SetFloat("_AlphaClip", 1f);
+            m.SetFloat("_Cutoff", 0f);
             m.SetColor("_EmissionColor", Color.black);
             m.SetVector(ChorusParamsId, new Vector4(3f, Mathf.Max(1e-4f, c.tiling), Mathf.Max(1e-4f, c.randomness), Mathf.Max(0f, c.emissionScale)));
             m.SetVector(ChorusAccentId, Rgba(c.emissiveColor, Mathf.Max(0f, c.emissiveIntensity)));
@@ -581,7 +746,7 @@ namespace GoF2Remake.Modding
 
         static Shader portalShader;
 
-        /// <summary>A "portal" block (Chorus's FTL portal or its glow) on GoF2/ChorusPortal: its maps as data (linear), the curve
+        /// <summary>A "portal" block (Chorus's FTL portal, its glow or Guilt's core) on GoF2/ChorusPortal: its maps as data (linear), the curve
         /// row clamped; World.PortalRefraction gives it the scene behind (URP's opaque texture).</summary>
         static Material Portal(ModInfo mod, ChorusPortalSpec p, string name)
         {
@@ -601,12 +766,50 @@ namespace GoF2Remake.Modding
             Map("_SphereNormal", p.sphereNormal, TextureWrapMode.Clamp);
             Map("_RingNormal", p.ringNormal, TextureWrapMode.Clamp);
             Map("_Gradient", p.gradient, TextureWrapMode.Repeat);
-            m.SetFloat("_Kind", p.Glow ? 1f : 0f);
+            m.SetFloat("_Kind", p.Core ? 2f : p.Glow ? 1f : 0f);
+            m.SetFloat("_SrcBlend", (float)(p.Core ? UnityEngine.Rendering.BlendMode.SrcAlpha : UnityEngine.Rendering.BlendMode.One));
+            m.SetFloat("_DstBlend", (float)(p.Core ? UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha : UnityEngine.Rendering.BlendMode.One));
+            m.SetVector("_CoreUV", new Vector4(p.tilingU, p.tilingV, p.speedU, p.panningV));
+            m.SetVector("_CoreShape", new Vector4(p.pinch, p.corePower, p.coreMult, p.threadsPower));
+            m.SetVector("_CoreAlpha", new Vector4(p.threadsMult, p.masterAlpha, Mathf.Max(0f, p.depthFade) * 0.05f, p.fade));
             m.SetVector("_Polar", new Vector4(p.tilingV, p.panningV, p.structurePower, p.structureMult));
             m.SetVector("_Bump", new Vector4(p.heightRatio, p.fade, p.ior, p.refraction));
             m.SetVector("_Pulse", new Vector4(p.pulseSpeed, p.pulseB, 0f, 0f));
             var c = p.color != null && p.color.Length >= 3 ? p.color : new[] { 1f, 1f, 1f };
             m.SetVector("_GlowColor", new Vector4(c[0], c[1], c[2], p.lerpColor));
+            return m;
+        }
+
+        static Shader shieldShader;
+
+        /// <summary>A "shield" block (Chorus's M_Shield) on GoF2/ChorusShield: its maps as data (linear), repeating; its lengths
+        /// as given (model units), the fades game units to metres.</summary>
+        static Material Shield(ModInfo mod, ChorusShieldSpec p, string name)
+        {
+            if (shieldShader == null) shieldShader = Resources.Load<Shader>("GoF2Fx/ChorusShield");
+            if (shieldShader == null) return null;
+            var m = new Material(shieldShader) { name = name };
+            void Map(string prop, string path)
+            {
+                var t = Texture(mod, path, true);
+                if (t == null) return;
+                t.wrapMode = TextureWrapMode.Repeat;
+                m.SetTexture(prop, t);
+            }
+            Map("_Mask", p.mask); Map("_Noise", p.noise);
+            Vector4 V(float[] f, Vector4 d) => f == null ? d : new Vector4(f.Length > 0 ? f[0] : d.x, f.Length > 1 ? f[1] : d.y, f.Length > 2 ? f[2] : d.z, f.Length > 3 ? f[3] : d.w);
+            const float M = 0.05f;
+            m.SetVector("_ShieldPan", V(p.pan, new Vector4(-0.42435f, 0f, 0f, -0.37348f)));
+            m.SetVector("_ShieldNoise", new Vector4(p.noiseScale, p.noiseTimeScalar, p.noisePanSpeed, p.timeExponent));
+            m.SetVector("_ShieldEdge", new Vector4(p.edgeModulateAmount, p.edgeModulateIntensity, Mathf.Max(1e-5f, p.edgeModulateWidth), p.fresnelExponent));
+            m.SetVector("_ShieldMod", new Vector4(p.modulateColorAmount, p.timeModulationAmount, p.opacityNoise, 0f));
+            var r = V(p.radius, new Vector4(0f, 4.5f, 0f, 0f));
+            m.SetVector("_ShieldRadius", new Vector4(r.x, r.y, p.radiusExponent, p.radiusIntensity));
+            m.SetVector("_ShieldRing", V(p.ring, new Vector4(0f, 3.5f, 0.25f, 0f)));
+            m.SetVector("_ShieldRing2", new Vector4(p.ringExponent, p.ringIntensity, p.opacityStart, p.opacityEnd));
+            var cf = V(p.cameraFade, new Vector4(720f, 288f, 0f, 0f));
+            m.SetVector("_ShieldFade", new Vector4(p.opacityFacing, p.opacityBackface, Mathf.Max(0f, cf.x) * M, Mathf.Max(0f, p.exposure)));
+            m.SetVector("_ShieldDepth", new Vector4(Mathf.Max(1e-3f, cf.y * M), Mathf.Max(0f, p.depthFade) * M, 0f, 0f));
             return m;
         }
 
@@ -647,6 +850,19 @@ namespace GoF2Remake.Modding
             m.SetVector("_Background", V(r.background, new Vector4(0.01f, 0.013f, 0.02f, 0f)));
             m.SetVector("_Clouds", V(r.clouds, new Vector4(0.0064f, 0.0061f, 0.02f, 0f)));
             m.SetFloat("_Exposure", Mathf.Max(0f, r.exposure));
+            // M_PortalRift_BOTTOM ("bottom"): its colours, alpha-blended, its fades (game units -> metres)
+            bool bottom = r.Bottom;
+            m.SetFloat("_Mode", bottom ? 1f : 0f);
+            m.SetFloat("_SrcBlend", (float)(bottom ? UnityEngine.Rendering.BlendMode.SrcAlpha : UnityEngine.Rendering.BlendMode.One));
+            m.SetFloat("_DstBlend", (float)(bottom ? UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha : UnityEngine.Rendering.BlendMode.One));
+            m.SetVector("_Emissive", V(r.emissive, new Vector4(0.05f, 0.0075f, 0.0088f, 0f)));
+            m.SetVector("_BaseCol", V(r.baseColor, new Vector4(0.05f, 0.0097f, 0.0092f, 0f)));
+            m.SetVector("_Fade", new Vector4(Mathf.Max(0f, r.depthFade) * 0.05f, Mathf.Max(0f, r.fadeOffset) * 0.05f, Mathf.Max(0f, r.fadeLength) * 0.05f, 0f));
+            // the vertex shader's offset along the normal
+            Map("_WpoMap", r.wpoMap);
+            var w = V(r.wpo, new Vector4(0f, 1f, 2f, 0f));
+            m.SetVector("_Wpo", new Vector4(string.IsNullOrEmpty(r.wpoMap) ? 0f : w.x, 0f, 0f, 0f));
+            m.SetVector("_WpoUV", r.wpo != null && r.wpo.Length >= 5 ? new Vector4(r.wpo[1], r.wpo[2], r.wpo[3], r.wpo[4]) : new Vector4(1f, 2f, 0.01f, 0.04f));
             return m;
         }
 
@@ -656,6 +872,7 @@ namespace GoF2Remake.Modding
             if (a == null) return null;
             if (e.portal != null && e.portal.On) return Portal(mod, e.portal, name);
             if (e.rift != null && e.rift.On) return Rift(mod, e.rift, name);
+            if (e.shield != null && e.shield.On) return Shield(mod, e.shield, name);
             if (e.flame) return Flame(mod, e, name, a);
             if (e.hologram) return Hologram(mod, e, name, a);
             if (e.shimmer) return Shimmer(mod, e, name, a);
@@ -692,6 +909,7 @@ namespace GoF2Remake.Modding
                 m.SetTexture("_SpecGlossMap", sg != null ? sg : Solid(Rgb(e.specularColor, new Color(0.2f, 0.2f, 0.2f)), false));
                 m.SetColor("_SpecColor", Color.white);
                 m.SetVector(GoF3ParamsId, ModGlbImages.GoF3Params(e.environment, e.rim, e.highlightMultiplier, e.multiplierInMap));
+                GoF3Environment(m, Texture(mod, e.environmentCube, true));
             }
             else
             {
@@ -701,6 +919,8 @@ namespace GoF2Remake.Modding
             m.SetFloat("_Smoothness", e.smoothness);
             Es2Layers(mod, e, m);
             ChorusLayers(mod, e, m);
+            HitFlash(e, m, GlowWave(mod, e, m));
+            LavaFlow(mod, e, m);
             var em = Texture(mod, e.emission, false);
             bool emColor = e.emissionColor != null && e.emissionColor.Length >= 3;
             if (em != null || emColor)
@@ -798,6 +1018,57 @@ namespace GoF2Remake.Modding
             if (tex != null) { tex.wrapMode = TextureWrapMode.Repeat; m.SetTexture("_EmissionMap", tex); }
             if (e.scroll != null && e.scroll.Length >= 2) m.SetVector("_Scroll", new Vector4(e.scroll[0], e.scroll[1], 0f, 0f));
             m.SetFloat("_UseVertexColor", e.ignoreVertexColors ? 0f : 1f);
+            var g = new ModGlbImages.Glow { billboard = e.billboard };
+            if (e.angleFade != null && e.angleFade.Length >= 2) g.angleFade = new Vector2(e.angleFade[0], e.angleFade[1]);
+            if (e.pulse != null && e.pulse.Length >= 3)
+            {
+                g.pulseFrequency = e.pulse[0]; g.pulseMin = e.pulse[1]; g.pulseMax = e.pulse[2];
+                g.pulseThreshold = e.pulse.Length > 3 ? e.pulse[3] : 0f;
+                g.pulseStep = e.pulse.Length > 4 && e.pulse[4] > 0.5f; g.pulseSmooth = e.pulse.Length > 5 && e.pulse[5] > 0.5f;
+                g.pulseVertexOffset = e.pulse.Length > 6 && e.pulse[6] > 0.5f;
+            }
+            GlowTerms(m, g);
+            return m;
+        }
+
+        static readonly int FxAngleId = Shader.PropertyToID("_FxAngle"), FxPulseId = Shader.PropertyToID("_FxPulse"),
+            FxPulseModeId = Shader.PropertyToID("_FxPulseMode"), BillboardId = Shader.PropertyToID("_Billboard");
+
+        /// <summary>A glow layer's GoF3 effect terms on its GoF2/ModGlow material: the angle fade (_FxAngle: on, min, max,
+        /// absolute), the pulse (_FxPulse: frequency, threshold, min, max; _FxPulseMode: on, step, smooth, vertex offset) and
+        /// the billboard (_Billboard: its sprites face the camera, UV1 their corners' view-space offsets).</summary>
+        internal static void GlowTerms(Material m, ModGlbImages.Glow g)
+        {
+            m.SetVector(FxAngleId, g.angleFade is Vector2 af ? new Vector4(1f, af.x, Mathf.Max(af.y, af.x + 1e-4f), g.angleAbsolute ? 1f : 0f) : Vector4.zero);
+            m.SetVector(FxPulseId, new Vector4(g.pulseFrequency, g.pulseThreshold, g.pulseMin, g.pulseMax));
+            m.SetVector(FxPulseModeId, new Vector4(g.pulseFrequency != 0f ? 1f : 0f, g.pulseStep ? 1f : 0f, g.pulseSmooth ? 1f : 0f, g.pulseVertexOffset ? 1f : 0f));
+            m.SetFloat(BillboardId, g.billboard ? 1f : 0f);
+        }
+
+        /// <summary>A glTF material whose "extras" say "additive": true (ModGlbImages.Glow: the GoF3 importer's effect layers,
+        /// their colour baked into the texture) as a GoF2/ModGlow copy: its emissive texture (else its base colour texture) x
+        /// "intensity", its vertex colours, scroll, angle fade, pulse and billboard (GlowTerms).</summary>
+        public static Material GlowFromGltf(GLTFast.Schema.MaterialBase g, GLTFast.IGltfReadable gltf,
+            System.Func<int, ModGlbImages.Role, float, float, Texture2D> images, ModGlbImages.Glow glow)
+        {
+            var a = ModAssets.Get();
+            if (a == null || a.glow == null) { Debug.LogWarning("Mods: no glow template (GoF2 > Build > Mod Assets)"); return null; }
+            var m = Copy(a.glow, string.IsNullOrEmpty(g.name) ? "glTF glow" : g.name);
+            var info = g.EmissiveTexture != null && g.EmissiveTexture.index >= 0 ? g.EmissiveTexture : g.PbrMetallicRoughness?.BaseColorTexture;
+            if (info != null && info.index >= 0)
+            {
+                var t = images?.Invoke(info.index, ModGlbImages.Role.Color, 0f, 1f) ?? gltf.GetTexture(info.index);
+                if (t != null)
+                {
+                    m.SetTexture("_EmissionMap", t);
+                    if (gltf.IsTextureYFlipped(info.index)) { m.SetTextureScale("_EmissionMap", new Vector2(1f, -1f)); m.SetTextureOffset("_EmissionMap", new Vector2(0f, 1f)); }
+                }
+            }
+            var c = Color.white * Mathf.Max(0f, glow.intensity); c.a = 1f;
+            m.SetColor("_EmissionColor", c);
+            m.SetVector("_Scroll", new Vector4(glow.scroll.x, glow.scroll.y, 0f, 0f));
+            m.SetFloat("_UseVertexColor", glow.vertexColors ? 1f : 0f);
+            GlowTerms(m, glow);
             return m;
         }
 
@@ -821,7 +1092,7 @@ namespace GoF2Remake.Modding
         /// when the mods' loader made it (ModGltf: compressed, metallic-roughness and normal maps already converted); else
         /// glTFast's own texture, converted here on the GPU.</summary>
         public static Material FromGltf(GLTFast.Schema.MaterialBase g, GLTFast.IGltfReadable gltf,
-            System.Func<int, ModGlbImages.Role, float, float, Texture2D> images = null, Vector4? gof3 = null)
+            System.Func<int, ModGlbImages.Role, float, float, Texture2D> images = null, Vector4? gof3 = null, Texture2D gof3Env = null)
         {
             var a = ModAssets.Get();
             if (a == null) return null;
@@ -869,6 +1140,7 @@ namespace GoF2Remake.Modding
                 else { m.SetTexture("_SpecGlossMap", Solid(f.gamma, false)); m.SetColor("_SpecColor", Color.white); }
                 m.SetFloat("_Smoothness", sgx.glossinessFactor);
                 m.SetVector(GoF3ParamsId, gof3 ?? ModGlbImages.GoF3Params(1f, 1f, 1f, false));   // its "extras" (ModGlbImages)
+                GoF3Environment(m, gof3Env);
             }
             else if (mr != null && ours)
             {

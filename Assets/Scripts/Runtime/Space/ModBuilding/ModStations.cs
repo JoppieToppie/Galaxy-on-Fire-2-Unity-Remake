@@ -139,6 +139,8 @@ namespace GoF2Remake.Modding
                     foreach (var t in m.portal.Textures()) yield return t;
                 if (m.rift != null)
                     foreach (var t in m.rift.Textures()) yield return t;
+                if (m.wave != null && m.wave.On) { yield return (m.wave.pattern, true, false); yield return (m.wave.mask, true, false); }
+                if (m.lava != null && m.lava.On) { yield return (m.lava.emit, true, false); yield return (m.lava.flow, true, false); yield return (m.lava.masks, true, false); }
             }
             // a mobile station's engine effect (MobileStation)
             if (s.gateSystem < 0)

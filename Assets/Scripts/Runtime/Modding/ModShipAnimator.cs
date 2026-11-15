@@ -13,6 +13,8 @@
 //   idle     loops whenever no state plays (in flight, in the hangar, on NPC ships)
 //   drift    Chorus flight's drift (FlightModel.Drifting), travel its travel boost (TravelBoosting): "start" once, "loop"
 //            while it holds, "end" once as it stops, back to idle (or to the other state, if that one now holds)
+//   braking  (2026-11-11, Chorus's player capital ship's A_..._Braking / LoopBraking / StopBraking) while the brake is held
+//            past half: "start" once, "loop", "end" once as it lets go, like drift
 //   weapons  on a layer of its own (1), while the player fires and 3 s after: "start" once, "loop", then "end" once,
 //            which holds its last frame (the doors shut again)
 //   steerLeft / steerRight / thrust / brake / bankLeft / bankRight: poses laid over whatever plays (layer 2), as much as
@@ -38,10 +40,10 @@ namespace GoF2Remake.Modding
 
         public Animation anim;
         public string idle;
-        public string[] drift = new string[3], travel = new string[3];   // start, loop, end
+        public string[] drift = new string[3], travel = new string[3], braking = new string[3];   // start, loop, end
         public string[] weapons = new string[3], dodgeLeft = new string[3], dodgeRight = new string[3];
         public string steerLeft, steerRight, thrust, brake, bankLeft, bankRight, driftDodgeLeft, driftDodgeRight;
-        bool drifting, travelling, armed;
+        bool drifting, travelling, armed, brakingOn;
         float wSteerL, wSteerR, wThrust, wBrake, armedUntil;
 
         /// <summary>Adds the animator to a built ship 'root' when its entry names animations; null when it names none or the
@@ -56,6 +58,7 @@ namespace GoF2Remake.Modding
             a.idle = Has(anim, spec.idle);
             a.drift = State(anim, spec.drift);
             a.travel = State(anim, spec.travel);
+            a.braking = State(anim, spec.braking);
             a.steerLeft = Pose(anim, spec.steerLeft); a.steerRight = Pose(anim, spec.steerRight);
             a.thrust = Pose(anim, spec.thrust); a.brake = Pose(anim, spec.brake);
             a.bankLeft = Pose(anim, spec.bankLeft); a.bankRight = Pose(anim, spec.bankRight);
@@ -121,7 +124,7 @@ namespace GoF2Remake.Modding
                 return;
             }
             // back to the state that still holds, else idle
-            string[] other = drifting ? drift : travelling ? travel : null;
+            string[] other = drifting ? drift : travelling ? travel : brakingOn ? braking : null;
             string after = other != null && other[1] != null ? other[1] : idle;
             if (s[2] != null) { anim.CrossFade(s[2], Fade); if (after != null) anim.CrossFadeQueued(after, Fade, QueueMode.CompleteOthers); }
             else if (after != null) anim.CrossFade(after, Fade);
@@ -164,6 +167,7 @@ namespace GoF2Remake.Modding
             wSteerR = Mathf.Lerp(wSteerR, Mathf.Clamp01(steer), k);
             wThrust = Mathf.Lerp(wThrust, Mathf.Clamp01(thrustIn), k);
             wBrake = Mathf.Lerp(wBrake, Mathf.Clamp01(brakeIn), k);
+            if ((braking[0] != null || braking[1] != null) && (brakeIn > 0.5f) != brakingOn) { brakingOn = brakeIn > 0.5f; Switch(brakingOn, braking); }
             Weigh(steerLeft, wSteerL); Weigh(steerRight, wSteerR); Weigh(thrust, wThrust); Weigh(brake, wBrake);
             Weigh(bankLeft, wSteerL); Weigh(bankRight, wSteerR);
         }

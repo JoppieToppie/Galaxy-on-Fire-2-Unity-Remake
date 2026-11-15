@@ -138,6 +138,20 @@ namespace GoF2Remake.Flight
         /// 'forwardFactor'.</summary>
         [NonSerialized] public Target forwardTo;
         [NonSerialized] public float forwardFactor;
+        /// <summary>Remake mods (World.CapitalSubsystems, ships.json "hullDamage"): a direct hit's share, before damageFactor; a
+        /// hit passed on by a weak spot (PassOn) isn't scaled by it (Chorus's warships: 0, hurt only through their weak points).</summary>
+        [NonSerialized] public float directFactor = 1f;
+        /// <summary>True while a hit passed on (a weak spot's, its bonus) is being dealt: the Damaged handlers can tell.</summary>
+        public static bool PassingOn { get; private set; }
+
+        /// <summary>Deals a hit passed on from a weak spot (or its bonus): through damageFactor, not directFactor.</summary>
+        public void PassOn(float amount, bool byNpc = false, Vector3 hitVector = default, float shieldFactor = 1f)
+        {
+            bool was = PassingOn;
+            PassingOn = true;
+            try { Damage(amount, byNpc, hitVector, shieldFactor); }
+            finally { PassingOn = was; }
+        }
         [Tooltip("Local-space hit boxes (metres) instead of the cube (big ships).")]
         public Bounds[] boxes;
         /// <summary>Remake: the hull of MeshColliders shots hit instead of the cube / boxes (HullCollision), null = none.</summary>
@@ -198,7 +212,8 @@ namespace GoF2Remake.Flight
             if (RemoteDamage != null) { RemoteDamage(amount, hitVector, byNpc, shieldFactor); return; }
             // (a weak spot passes on what it takes, not the overkill of the hit that destroys it)
             if (forwardTo != null && forwardTo != this && forwardFactor > 0f && forwardTo.Alive)
-                forwardTo.Damage(Mathf.Min(amount * damageFactor, hitpoints != null ? hitpoints.Combined : hp) * forwardFactor, byNpc, hitVector, shieldFactor);
+                forwardTo.PassOn(Mathf.Min(amount * damageFactor, hitpoints != null ? hitpoints.Combined : hp) * forwardFactor, byNpc, hitVector, shieldFactor);
+            if (!PassingOn) amount *= directFactor;
             amount *= damageFactor;
             int dmg = Mathf.Max(0, (int)amount);
             lastHitVector = hitVector;

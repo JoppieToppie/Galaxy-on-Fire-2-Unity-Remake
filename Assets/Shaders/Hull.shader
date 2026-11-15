@@ -109,9 +109,41 @@ Shader "GoF2/Hull"
         [HideInInspector] _ChorusDirt3("Chorus dirt 3", Vector) = (0, 0, 0, 0)
         [HideInInspector] _ChorusPalette("Chorus palette", 2D) = "grey" {}
         [HideInInspector] _ChorusDirtRough("Chorus dirt roughness", 2D) = "grey" {}
+        // GoF2: a glow travelling along a pattern (Chorus's M_Phoenix glow lines; HullForwardPass.hlsl GlowWave; ModMaterials
+        // GlowWave): x its multiplier (0 = off), y the pattern's tiling, z its speed, w the mask's channel (0 R, 1 G, 2 B)
+        [HideInInspector] _WaveParams("Glow wave", Vector) = (0, 1, 1, 1)
+        [HideInInspector] _WaveMin("Glow wave min", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _WaveMax("Glow wave max", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _WavePattern("Glow wave pattern", 2D) = "black" {}
+        // GoF2: a wreck piece's burn and disintegration (HullWreck.hlsl; World.WreckBreakup): x burn, y cut away, z cells a
+        // unit, w the edge's width; the glow's colour
+        [HideInInspector] _WreckFx("Wreck burn / dissolve", Vector) = (0, 0, 1, 0.1)
+        [HideInInspector] _WreckBurnColor("Wreck burn colour", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _WreckBurn("Wreck burn map: tiling, offset, falloff, by vertex red", Vector) = (1, 0, 0, 0)
+        [HideInInspector] _WreckBurnMap("Wreck burn noise", 2D) = "black" {}
+        // GoF2: Chorus's flowing lava (HullForwardPass.hlsl LavaFlow; ModMaterials.LavaFlow): its numbers (HullInput.hlsl), _LavaE.w
+        // the glow's scale (0 = off), its three packed maps
+        [HideInInspector] _LavaA("Lava A", Vector) = (6, 0.1, 1, 0.1)
+        [HideInInspector] _LavaB("Lava B", Vector) = (1, 1, 0, 0)
+        [HideInInspector] _LavaC("Lava C", Vector) = (30, 0.1, 1, 0.1)
+        [HideInInspector] _LavaD("Lava D", Vector) = (1, 1, 1, 1)
+        [HideInInspector] _LavaE("Lava E", Vector) = (1, 400, 3000, 0)
+        [HideInInspector] _LavaF("Lava F", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _LavaEmit("Lava emissives", 2D) = "black" {}
+        [HideInInspector] _LavaFlowMaps("Lava flowmaps", 2D) = "grey" {}
+        [HideInInspector] _LavaMasks("Lava masks", 2D) = "black" {}
+        // GoF2: the hit flash (HullForwardPass.hlsl HitFlash; World.HullHitFlash): age, radius (m), duration, pattern mode
+        [HideInInspector] _HitFx("Hit flash", Vector) = (1, 1, 0.04, 0)
+        [HideInInspector] _HitPos("Hit position", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _HitColor("Hit colour", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _WaveMask("Glow wave mask", 2D) = "black" {}
         // GoF2: a mod specular material's GoF3 terms (HullForwardPass.hlsl GoF3ShipShader; ModMaterials): x environment, y rim,
         // z GoF3's specular multiplier, w 1 = that multiplier is in the map (on the whole specular) / 0 = on the highlight
         [HideInInspector] _GoF3Params("GoF3 params", Vector) = (1, 1, 1, 0)
+        // GoF2: a GoF3 material's own environment cube (HullForwardPass.hlsl GoF3ShipShader; ModMaterials.GoF3Environment): x 1 =
+        // _GoF3EnvMap holds it (a 6:1 strip), y the strip's texel height. Declared so a material copy (a kit skin's) keeps them.
+        [HideInInspector] _GoF3Env("GoF3 environment cube", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _GoF3EnvMap("GoF3 environment strip", 2D) = "black" {}
 
         [HideInInspector] _MainTex("BaseMap", 2D) = "white" {}
         [HideInInspector] _Color("Base Color", Color) = (1, 1, 1, 1)
@@ -262,12 +294,12 @@ Shader "GoF2/Hull"
             Cull[_Cull]
 
             HLSLPROGRAM
-            #pragma target 2.0
+            #pragma target 3.0   // GoF2: (2.0) the shell's push reads its noise in the vertex shader
 
             // -------------------------------------
             // Shader Stages
-            #pragma vertex ShadowPassVertex
-            #pragma fragment ShadowPassFragment
+            #pragma vertex HullShadowPassVertex   // GoF2: URP's, Chorus's shell pushed and dissolved (HullInput.hlsl)
+            #pragma fragment HullShadowPassFragment
 
             // -------------------------------------
             // Material Keywords
@@ -293,6 +325,18 @@ Shader "GoF2/Hull"
             // Includes
             #include "HullInput.hlsl"   // GoF2: URP's LitInput with the livery values
             #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
+            Varyings HullShadowPassVertex(Attributes input)
+            {
+                if (ChorusIsShell()) input.positionOS.xyz += input.normalOS * ChorusShellPush(input.texcoord);
+                return ShadowPassVertex(input);
+            }
+            half4 HullShadowPassFragment(Varyings input) : SV_TARGET
+            {
+            #if defined(_ALPHATEST_ON)
+                if (ChorusIsShell()) ChorusShellClip(input.uv, input.positionCS.xy);
+            #endif
+                return ShadowPassFragment(input);
+            }
             ENDHLSL
         }
 
@@ -403,12 +447,12 @@ Shader "GoF2/Hull"
             Cull[_Cull]
 
             HLSLPROGRAM
-            #pragma target 2.0
+            #pragma target 3.0   // GoF2: (2.0) the shell's push reads its noise in the vertex shader
 
             // -------------------------------------
             // Shader Stages
-            #pragma vertex DepthOnlyVertex
-            #pragma fragment DepthOnlyFragment
+            #pragma vertex HullDepthOnlyVertex   // GoF2: URP's, Chorus's shell pushed
+            #pragma fragment HullDepthOnlyFragment   // GoF2: URP's, a wreck's cut-away part and the shell's dissolve left out (HullWreck.hlsl)
 
             // -------------------------------------
             // Material Keywords
@@ -429,6 +473,37 @@ Shader "GoF2/Hull"
             // Includes
             #include "HullInput.hlsl"   // GoF2: URP's LitInput with the livery values
             #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
+            #include "HullWreck.hlsl"   // GoF2
+            struct HullDepthAttributes   // (URP's Attributes with the normal: the shell's push)
+            {
+                float4 position : POSITION;
+                float3 normalOS : NORMAL;
+                float4 tangentOS : TANGENT;
+                float2 texcoord : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+            Varyings HullDepthOnlyVertex(HullDepthAttributes i)
+            {
+                Attributes a = (Attributes)0;
+                UNITY_SETUP_INSTANCE_ID(i);
+                UNITY_TRANSFER_INSTANCE_ID(i, a);
+                a.position = i.position;
+                a.texcoord = i.texcoord;
+            #if defined(REQUIRES_TANGENT_SPACE_VIEW_DIR_INTERPOLATOR)
+                a.normalOS = i.normalOS;
+                a.tangentOS = i.tangentOS;
+            #endif
+                if (ChorusIsShell()) a.position.xyz += i.normalOS * ChorusShellPush(i.texcoord);
+                return DepthOnlyVertex(a);
+            }
+            half HullDepthOnlyFragment(Varyings input) : SV_TARGET
+            {
+                HullWreckClip(HullWreckPixelToWorld(input.positionCS));
+            #if defined(_ALPHATEST_ON)
+                if (ChorusIsShell()) ChorusShellClip(input.uv, input.positionCS.xy);
+            #endif
+                return DepthOnlyFragment(input);
+            }
             ENDHLSL
         }
 
@@ -447,12 +522,12 @@ Shader "GoF2/Hull"
             Cull[_Cull]
 
             HLSLPROGRAM
-            #pragma target 2.0
+            #pragma target 3.0   // GoF2: (2.0) the shell's push reads its noise in the vertex shader
 
             // -------------------------------------
             // Shader Stages
-            #pragma vertex DepthNormalsVertex
-            #pragma fragment DepthNormalsFragment
+            #pragma vertex HullDepthNormalsVertex   // GoF2: URP's, Chorus's shell pushed
+            #pragma fragment HullDepthNormalsFragment   // GoF2: URP's, a wreck's cut-away part and the shell's dissolve left out (HullWreck.hlsl)
 
             // -------------------------------------
             // Material Keywords
@@ -483,6 +558,28 @@ Shader "GoF2/Hull"
             // Includes
             #include "HullInput.hlsl"   // GoF2: URP's LitInput with the livery values
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitDepthNormalsPass.hlsl"
+            #include "HullWreck.hlsl"   // GoF2
+            Varyings HullDepthNormalsVertex(Attributes input)
+            {
+                if (ChorusIsShell()) input.positionOS.xyz += input.normal * ChorusShellPush(input.texcoord);
+                return DepthNormalsVertex(input);
+            }
+            void HullDepthNormalsFragment(Varyings input, out half4 outNormalWS : SV_Target0
+            #ifdef _WRITE_RENDERING_LAYERS
+                , out uint outRenderingLayers : SV_Target1
+            #endif
+            )
+            {
+                HullWreckClip(HullWreckPixelToWorld(input.positionCS));
+            #if defined(REQUIRES_UV_INTERPOLATOR)
+                if (ChorusIsShell()) ChorusShellClip(input.uv, input.positionCS.xy);
+            #endif
+                DepthNormalsFragment(input, outNormalWS
+            #ifdef _WRITE_RENDERING_LAYERS
+                    , outRenderingLayers
+            #endif
+                );
+            }
             ENDHLSL
         }
 
