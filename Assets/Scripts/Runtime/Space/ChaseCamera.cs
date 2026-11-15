@@ -201,6 +201,36 @@ namespace GoF2Remake.Flight
 
         void LateUpdate()
         {
+            Place();
+            ApplyGlide();
+        }
+
+        // Remake (2026-11-13, Chorus's Rite of the Hunt: BP_ActivePower_Blink's 1 s camera timeline, its RotationAlpha and
+        // CameraLocationAlpha, bIgnoreTimeDilation): after a leap the camera comes over from where it was to its place
+        // behind the ship, fast at first and settling (the curves read as an ease-out, 1 - (1 - t)^3), on real time.
+        Vector3 glideFromPos; Quaternion glideFromRot; float glideMs, glideTotalMs;
+
+        /// <summary>The camera glides from 'fromPos' / 'fromRot' to its own place over 'ms' (real time). Snap ends it.</summary>
+        public void Glide(Vector3 fromPos, Quaternion fromRot, float ms)
+        {
+            glideFromPos = fromPos;
+            glideFromRot = fromRot;
+            glideMs = glideTotalMs = Mathf.Max(1f, ms);
+        }
+
+        /// <summary>The glide's share of the way at 'u' (0..1) of its time.</summary>
+        public static float GlideAlpha(float u) { u = Mathf.Clamp01(u); float r = 1f - u; return 1f - r * r * r; }
+
+        void ApplyGlide()
+        {
+            if (glideMs <= 0f) return;
+            if (Time.timeScale > 0f) glideMs = Mathf.Max(0f, glideMs - Time.unscaledDeltaTime * 1000f);
+            float a = GlideAlpha(1f - glideMs / glideTotalMs);
+            transform.SetPositionAndRotation(Vector3.Lerp(glideFromPos, transform.position, a), Quaternion.Slerp(glideFromRot, transform.rotation, a));
+        }
+
+        void Place()
+        {
             if (target == null) return;
             var ship = target.transform;
             var model = target.Model;
@@ -425,6 +455,7 @@ namespace GoF2Remake.Flight
         public void Snap()
         {
             easeInMs = 0f;
+            glideMs = 0f;
             if (target == null) return;
             var ship = target.transform;
             PlaceBehind();

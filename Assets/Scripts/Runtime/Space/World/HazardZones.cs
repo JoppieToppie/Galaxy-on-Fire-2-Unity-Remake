@@ -92,6 +92,9 @@ namespace GoF2Remake.World
                 float d = (pos - c).magnitude;
                 if (d >= r) continue;
                 if (now < 0) now = i;
+                // remake: Chorus's Elemental Shield passive (Hazards.ElementalProof): heat, frost and corrosion pass it by
+                if (Hazards.ElementalProof && (z.kind == Modding.ModWorld.HazardKind.Heat || z.kind == Modding.ModWorld.HazardKind.Frost
+                                               || z.kind == Modding.ModWorld.HazardKind.Corrosion)) continue;
                 switch (z.kind)
                 {
                     case Modding.ModWorld.HazardKind.Heat: hot = true; heatDps += Hazards.HeatDamage(Dps(z), d, r, 1000f); break;

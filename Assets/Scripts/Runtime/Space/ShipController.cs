@@ -173,6 +173,20 @@ namespace GoF2Remake.Flight
         public void SetThrottle(float t) => Model.SetThrottle(t);
         public void Boost() => Model.Boost();
 
+        /// <summary>Remake (Chorus's Rite of the Star, PlayerDevices): while above 0 the ship flies straight on at this speed
+        /// (m/s) whatever its throttle, boost or drift, turning at most DriveTurnDegS (both flight styles); its own speed is
+        /// left as it was for after.</summary>
+        [System.NonSerialized] public float DriveMs, DriveTurnDegS;
+
+        /// <summary>A turn of 'pitch' / 'yaw' degrees this frame held to 'maxDeg' (their combined size, the direction kept).</summary>
+        public static void CapTurn(ref float pitch, ref float yaw, float maxDeg)
+        {
+            float m = Mathf.Sqrt(pitch * pitch + yaw * yaw);
+            if (m <= maxDeg || m < 1e-6f) return;
+            float k = maxDeg / m;
+            pitch *= k; yaw *= k;
+        }
+
         float webMs, webFactor = 1f;
         System.Func<bool> webbed;
         void OnDestroy() { if (webbed != null) GoF2Remake.Flight.PlayerDebuffs.Unregister(webbed); }
@@ -431,6 +445,11 @@ namespace GoF2Remake.Flight
 
             var r = Model.Step(model, dtMs, transform.up, transform.right);
             r.forwardUnits *= Navigation.CruiseFactor;   // remake, multiplayer: the held fast-forward is a cruise mode
+            if (DriveMs > 0f)   // remake: the Rite of the Star's drive
+            {
+                r.forwardUnits = DriveMs / metersPerUnit * dtMs / 1000f;
+                CapTurn(ref r.pitchDeg, ref r.yawDeg, DriveTurnDegS * dtMs / 1000f);
+            }
 
             if (autopilotTarget != null)
             {
@@ -505,13 +524,15 @@ namespace GoF2Remake.Flight
                 else input.dampeners = true;
             }
             var r = Model.StepFree(input, dtMs, transform.rotation, transform.up, transform.right);
+            if (DriveMs > 0f) CapTurn(ref r.pitchDeg, ref r.yawDeg, DriveTurnDegS * dtMs / 1000f);   // remake: the Star's drive
             transform.Rotate(r.pitchDeg, -r.yawDeg, r.rollDeg, Space.Self);
             var move = (r.move * metersPerUnit + transform.right * (r.sidePushUnits * metersPerUnit)) * WebFactor;
+            if (DriveMs > 0f) move = transform.forward * (DriveMs * dtMs / 1000f);
             transform.position += move;
             // The chase camera keeps the sideways part of the move (TargetFollowCamera::translateNoUpdate, as for the
             // strafe): it trails the ship's forward motion and stays square behind it while it slides.
             StrafeSlide = move - transform.forward * Vector3.Dot(move, transform.forward);
-            SpeedMetersPerSecond = dtMs > 0f ? r.move.magnitude * metersPerUnit / (dtMs / 1000f) : 0f;
+            SpeedMetersPerSecond = DriveMs > 0f ? DriveMs : dtMs > 0f ? r.move.magnitude * metersPerUnit / (dtMs / 1000f) : 0f;
             UpdateVisualBank();
         }
 

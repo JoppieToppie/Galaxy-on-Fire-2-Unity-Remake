@@ -457,7 +457,7 @@ namespace GoF2Remake.Flight
                 for (int i = 0; i < Devices.Devices.Count; i++)
                 {
                     var d = Devices.Devices[i];
-                    list.Add(new Target { kind = Kind.Device, device = i, name = d.name, disabled = !d.rules.Available });
+                    list.Add(new Target { kind = Kind.Device, device = i, name = d.name, disabled = !Devices.Ready(d) });
                 }
             // Multiplayer (remake): Help for every squadmate calling for help (NetDistress). The pilot's own call isn't here
             // (a menu key picked it by accident): the flight HUD's Distress call button or its own binding.

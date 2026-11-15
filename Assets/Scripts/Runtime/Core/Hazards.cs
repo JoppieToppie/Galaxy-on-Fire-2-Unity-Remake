@@ -28,12 +28,14 @@ namespace GoF2Remake.Flight
         public const int MaxRadiationTokens = 10;
         public const float FrostBuildupMs = 5000f, FrostDrainMs = 60000f, FrozenMs = 6000f, FrozenFactor = 0.15f;
         public const float DamageTickMs = 1000f;
+        /// <summary>Remake (Chorus's Elemental Shield passive, PlayerDevices): heat, frost and corrosion do the ship no harm.</summary>
+        public static bool ElementalProof;
 
         /// <summary>The player's radiation tokens (kept from orbit to orbit until docking).</summary>
         public static int RadiationTokens { get; private set; }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => RadiationTokens = 0;
+        static void ResetStatics() { RadiationTokens = 0; ElementalProof = false; }
 
         /// <summary>One more token (at most MaxRadiationTokens); true if it was added.</summary>
         public static bool AddRadiation()

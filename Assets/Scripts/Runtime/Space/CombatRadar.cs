@@ -448,10 +448,12 @@ namespace GoF2Remake.Flight
         /// scanner's hitpoints, weapons and whole-hold readouts on the same line.</summary>
         void ReadShip(Target locked)
         {
-            if (locked == null || traffic == null || (cargoScan == 0 && !hitpointScan && !weaponScan)) return;
+            // remake: the Rite of the Senses reads the cargo too (at least the first entry, as the original's cargo scanner)
+            int cargo = RiteSenses.Active ? Mathf.Max(cargoScan, 1) : cargoScan;
+            if (locked == null || traffic == null || (cargo == 0 && !hitpointScan && !weaponScan)) return;
             var ship = traffic.Ships.Find(s => s != null && s.Target == locked);
             if (ship == null) return;
-            string text = ScanReadout(cargoScan, ship.CargoList, hitpointScan ? locked.hitpoints : null,
+            string text = ScanReadout(cargo, ship.CargoList, hitpointScan ? locked.hitpoints : null,
                                       weaponScan ? new[] { ship.GunItem, ship.SecondGunItem } : null);
             if (text != null) Message?.Invoke(text, 0, HudMessageKind.Scan);
         }
