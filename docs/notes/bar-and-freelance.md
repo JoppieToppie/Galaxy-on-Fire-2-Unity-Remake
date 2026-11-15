@@ -170,11 +170,15 @@ generator).
   (`Achievements.VoidXUnlocked` / `SupernovaUnlocked`, medals or story by the flag, never in free play): Thynome's VoidX
   (`Shop.GenerateShips`, `Story.OnDocked`) once the main story is won (`Story.GameWon`, so a Valkyrie / Supernova start
   has it at once), the fireworks blueprint 232 and Katashán's Specter (44, hint 0x3a / 3233) once the Supernova story is
-  finished (index 162). `StationMenu.CheckMedalHints` skips 649 (all medals: the wingman fans who pay stay a medal
-  reward) and tells the VoidX and the fireworks in texts of its own without medals (`noMedalsVoidX`,
+  finished (index 162). `StationMenu.CheckMedalHints` skips the medal-specific 649 notification and tells the VoidX and the fireworks in texts of its own without medals (`noMedalsVoidX`,
   `noMedalsFireworks`; 650 / 651 congratulate on the medals). The event conditions `medals(allgold | allsupernova)` read
   the same gates, so mod content behind them stays reachable; `medals(gold ...)` counts 0. Save v18 (`noMedals`; older
   saves have medals); the slot rows say NO MEDALS. Tests `NoMedalsTests`.
 - **Mods' medals** (`Modding.ModMedals`, medals.json, 2026-11-13) come after the 45 in the grid, the toast and the
   conditions, with tiers of their own: see docs/notes/mods.md "Mod medals".
 - Type 15 Ore Mining (unreachable in the original's generator) is only rolled in multiplayer sessions (see "Multiplayer").
+
+- **Fan wingmen without medals**: `Achievements.WingmenPayPlayer` uses main-story completion with medals off,
+  and all base medals at any grade with medals on. Offer text, confirmation and credit transfer share this gate.
+  Before that milestone the player pays the normal fee; afterward the crew pays that same fee to the player.
+  Free play does not gain this story reward merely from its story index. Fireworks still unlocks after Supernova.

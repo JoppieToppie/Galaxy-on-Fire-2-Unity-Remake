@@ -11,6 +11,7 @@
 using System.IO;
 using System.Text.RegularExpressions;
 using GoF2Remake.Data;
+using GoF2Remake.UI;
 using NUnit.Framework;
 
 namespace GoF2Remake.Tests
@@ -74,6 +75,43 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Achievements.SupernovaUnlocked);
             AllGold();
             Assert.IsTrue(Achievements.SupernovaUnlocked);
+        }
+
+        [TestCase(false, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, false)]
+        public void FanWingmenFollowTheMainStoryWithoutMedals(bool won, bool freePlay, bool expected)
+        {
+            Session.NoMedals = true;
+            Session.FreePlay = freePlay;
+            Session.CampaignMission = won ? Story.GameWonIndex : Story.GameWonIndex - 1;
+            Assert.AreEqual(expected, Achievements.WingmenPayPlayer);
+        }
+
+        [Test]
+        public void FanWingmenStillRequireAllBaseMedalsAtAnyGradeWithMedalsEnabled()
+        {
+            Session.CampaignMission = Story.LastIndex;
+            Assert.IsFalse(Achievements.WingmenPayPlayer, "story completion alone is insufficient with medals enabled");
+            for (int i = 0; i < Achievements.BaseCount; i++) Session.Medals[i] = 3;
+            Assert.IsTrue(Achievements.WingmenPayPlayer, "bronze is enough, unlike the VoidX's all-gold requirement");
+        }
+
+        [TestCase(false, 1000, 900)]
+        [TestCase(true, 0, 100)]
+        public void WingmanConfirmationAndPaymentUseTheSameGate(bool won, long initialCredits, long expectedCredits)
+        {
+            Session.NoMedals = true;
+            Session.CampaignMission = won ? Story.GameWonIndex : Story.GameWonIndex - 1;
+            Session.Credits = initialCredits;
+            var agent = new Agent { name = "Lead", race = 2, offer = AgentOffer.Wingmen, costs = 100 };
+            var chat = new LoungeChat(Db, agent, 70, null);
+            Assert.AreEqual(LoungeChat.Outcome.Confirm, chat.Choose(LoungeChat.Choice.Okay));
+            chat.Confirm();
+            Assert.AreEqual(expectedCredits, Session.Credits, "fans pay even when the player cannot afford a normal hire");
+            Assert.IsTrue(agent.accepted);
+            Assert.AreEqual(1, Session.Wingmen.Count);
         }
 
         [Test]
