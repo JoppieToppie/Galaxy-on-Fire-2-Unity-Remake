@@ -1539,7 +1539,7 @@
  "photoTouchFree": "ドラッグで見回す · ピンチで移動",
  "photoShowInFolder": "フォルダーで表示",
  "systemMapAnimationSpeed": "星系マップのアニメーション速度",
- "systemMapAnimationSpeedHelp": "マップで星系を開閉する演出だけを速くします。ゲーム内の時間には影響しません。",
+ "systemMapAnimationSpeedHelp": "マップで星系を開閉する演出だけを速くします。ゲーム内の時間には影響しません。 ×2と×4ではズーム音を再生しません。",
  "hudMode": "飛行HUD",
  "hudFull": "フル",
  "hudMinimal": "最小",
@@ -3620,5 +3620,6 @@
  "mpScriptsNotAllowed": "このゲームは許可していないスクリプトMODを使用しています：{0}。MOD画面で一度有効にしてスクリプトを許可してから、もう一度参加してください。",
  "mpScriptsShort": "先にスクリプトを許可：{0}",
  "mpModsCountScripts": "MOD（{0}個有効、スクリプトあり）",
- "scriptNoCommand": "コマンド「{0}」はありません。"
+ "scriptNoCommand": "コマンド「{0}」はありません。",
+ "mapAnimationSpeed": "アニメーション：×{0}"
 }

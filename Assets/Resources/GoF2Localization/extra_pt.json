@@ -1552,7 +1552,7 @@
  "photoTouchFree": "ARRASTE PARA OLHAR · PINCE PARA MOVER",
  "photoShowInFolder": "MOSTRAR NA PASTA",
  "systemMapAnimationSpeed": "Velocidade de animação do mapa",
- "systemMapAnimationSpeedHelp": "Acelera apenas a abertura e o fechamento de sistemas no mapa, sem alterar o tempo do jogo.",
+ "systemMapAnimationSpeedHelp": "Acelera apenas a abertura e o fechamento de sistemas no mapa, sem alterar o tempo do jogo. Em ×2 e ×4, os sons de zoom ficam silenciados.",
  "hudMode": "HUD de voo",
  "hudFull": "Completo",
  "hudMinimal": "Mínimo",
@@ -3620,5 +3620,6 @@
  "mpScriptsNotAllowed": "Este jogo usa mods com scripts que você não permitiu: {0}. Ative-os uma vez em Mods para permitir os scripts e entre de novo.",
  "mpScriptsShort": "permita os scripts primeiro: {0}",
  "mpModsCountScripts": "Mods ({0} ativados, com scripts)",
- "scriptNoCommand": "Não há comando \"{0}\"."
+ "scriptNoCommand": "Não há comando \"{0}\".",
+ "mapAnimationSpeed": "Animação: ×{0}"
 }

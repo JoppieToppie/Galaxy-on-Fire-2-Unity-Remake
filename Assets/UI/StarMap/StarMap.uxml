@@ -27,6 +27,7 @@
                         <ui:VisualElement name="mapSideButtons" class="map-side-buttons" picking-mode="Ignore">
                             <ui:Button name="voidButton" class="map-button gof-semibold" />
                             <ui:Button name="zoomButton" class="map-button gof-semibold" />
+                            <ui:Button name="animationSpeedButton" class="map-button gof-semibold" />
                             <ui:Button name="keyButton" class="map-button gof-semibold" />
                         </ui:VisualElement>
                     </ui:VisualElement>

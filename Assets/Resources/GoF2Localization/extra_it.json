@@ -1547,7 +1547,7 @@
  "photoTouchFree": "TRASCINA PER GUARDARE · PIZZICA PER MUOVERTI",
  "photoShowInFolder": "MOSTRA NELLA CARTELLA",
  "systemMapAnimationSpeed": "Velocità animazione mappa dei sistemi",
- "systemMapAnimationSpeedHelp": "Accelera solo le transizioni di apertura e chiusura dei sistemi sulla mappa, senza cambiare il tempo di gioco.",
+ "systemMapAnimationSpeedHelp": "Accelera solo le transizioni di apertura e chiusura dei sistemi sulla mappa, senza cambiare il tempo di gioco. A ×2 e ×4 i suoni dello zoom sono disattivati.",
  "hudMode": "HUD di volo",
  "hudFull": "Completo",
  "hudMinimal": "Minimo",
@@ -3620,5 +3620,6 @@
  "mpScriptsNotAllowed": "Questa partita usa mod con script che non hai consentito: {0}. Attivale una volta in Mod per consentirne gli script, poi unisciti di nuovo.",
  "mpScriptsShort": "consenti prima i suoi script: {0}",
  "mpModsCountScripts": "Mod ({0} attive, con script)",
- "scriptNoCommand": "Nessun comando \"{0}\"."
+ "scriptNoCommand": "Nessun comando \"{0}\".",
+ "mapAnimationSpeed": "Animazione: ×{0}"
 }

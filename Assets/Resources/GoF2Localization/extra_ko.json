@@ -1539,7 +1539,7 @@
  "photoTouchFree": "드래그하여 둘러보기 · 핀치하여 이동",
  "photoShowInFolder": "폴더에서 보기",
  "systemMapAnimationSpeed": "성계 지도 애니메이션 속도",
- "systemMapAnimationSpeedHelp": "지도에서 성계를 열고 닫는 애니메이션만 빠르게 합니다. 게임 시간은 바뀌지 않습니다.",
+ "systemMapAnimationSpeedHelp": "지도에서 성계를 열고 닫는 애니메이션만 빠르게 합니다. 게임 시간은 바뀌지 않습니다. ×2와 ×4에서는 확대·축소 소리가 나지 않습니다.",
  "hudMode": "비행 HUD",
  "hudFull": "전체",
  "hudMinimal": "최소",
@@ -3620,5 +3620,6 @@
  "mpScriptsNotAllowed": "이 게임은 허용하지 않은 스크립트 모드를 사용합니다: {0}. 모드 화면에서 한 번 켜서 스크립트를 허용한 뒤 다시 참가하십시오.",
  "mpScriptsShort": "먼저 스크립트를 허용하십시오: {0}",
  "mpModsCountScripts": "모드 ({0}개 활성, 스크립트 포함)",
- "scriptNoCommand": "\"{0}\" 명령이 없습니다."
+ "scriptNoCommand": "\"{0}\" 명령이 없습니다.",
+ "mapAnimationSpeed": "애니메이션: ×{0}"
 }
