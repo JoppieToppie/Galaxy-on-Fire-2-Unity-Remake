@@ -1,0 +1,35 @@
+// CLAUDE.md "Navigation": opting in waives only hostile contacts, on single-player autopilot.
+using GoF2Remake.Data;
+using GoF2Remake.Flight;
+using NUnit.Framework;
+using UnityEngine;
+
+namespace GoF2Remake.Tests
+{
+    public class HostileAutopilotFastForwardTests : StoryAreaTestBase
+    {
+        [TestCase(false, true, false, false, false)]
+        [TestCase(true, true, false, false, true)]
+        [TestCase(true, true, true, false, false)]
+        [TestCase(true, true, false, true, false)]
+        [TestCase(true, false, false, false, false)]
+        public void HostileBypassIsLimitedToDistantSinglePlayerAutopilot(bool enabled, bool autopilot, bool multiplayer, bool near, bool expected)
+        {
+            using var setting = new SettingsScope<bool>(() => Settings.HostileAutopilotFastForward, v => Settings.HostileAutopilotFastForward = v);
+            Settings.HostileAutopilotFastForward = enabled;
+            NetSession.ActiveProvider = () => multiplayer;
+            var go = new GameObject("HostileAutopilotFastForwardTests");
+            try
+            {
+                var nav = go.AddComponent<Navigation>();
+                nav.HostilesPresent = true;
+                if (autopilot) typeof(Navigation).GetProperty("AutopilotTarget").SetValue(nav, new Navigation.Target());
+                typeof(Navigation).GetProperty("AboutToReach").SetValue(nav, near);
+                Assert.AreEqual(expected, nav.CanFastForward);
+                typeof(Navigation).GetProperty("Jumping").SetValue(nav, true);
+                Assert.IsFalse(nav.CanFastForward, "jumping is never waived by this option");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+    }
+}

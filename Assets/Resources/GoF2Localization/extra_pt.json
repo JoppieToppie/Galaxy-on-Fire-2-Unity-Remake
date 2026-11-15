@@ -3386,6 +3386,8 @@
  "hangarRobotsHelp": "Robôs de serviço voam pelos hangares terranos e nivelianos.",
  "barRobots": "Robôs do bar",
  "barRobotsHelp": "Os robôs trabalhando nos bares terranos e vossk.",
+ "hostileAutopilotFastForward": "Acelerar o piloto automático perto de inimigos",
+ "hostileAutopilotFastForwardHelp": "Permite acelerar no piloto automático com inimigos no radar. As demais restrições permanecem. Apenas um jogador.",
  "autoJumpgate": "O piloto automático usa os portais",
  "autoJumpgateHelp": "Com um destino definido, o piloto automático atravessa o portal rumo a ele sem perguntar. Desligado: o portal pergunta primeiro, como no original.",
  "statLoadingTime": "Tempo de recarga",

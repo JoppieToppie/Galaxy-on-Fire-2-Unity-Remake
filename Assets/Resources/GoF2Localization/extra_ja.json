@@ -3386,6 +3386,8 @@
  "hangarRobotsHelp": "テラン族とニヴェリアン族の格納庫をサービスロボットが飛び回ります。",
  "barRobots": "バーのロボット",
  "barRobotsHelp": "テラン族とヴォスク族のバーで働くロボット。",
+ "hostileAutopilotFastForward": "敵の近くでオートパイロットを早送り",
+ "hostileAutopilotFastForwardHelp": "レーダーに敵がいてもオートパイロット中の早送りを許可します。他の制限は維持されます。シングルプレイ専用。",
  "autoJumpgate": "自動操縦でジャンプゲートを通過",
  "autoJumpgateHelp": "目的地が設定されていると、自動操縦は確認せずにジャンプゲートを通って目的地へ向かいます。オフ：オリジナルと同様、ゲートが先に確認します。",
  "statLoadingTime": "装填時間",

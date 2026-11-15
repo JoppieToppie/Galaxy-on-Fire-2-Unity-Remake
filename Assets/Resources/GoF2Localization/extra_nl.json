@@ -3386,6 +3386,8 @@
  "hangarRobotsHelp": "Servicerobots vliegen door de Terraanse en Nivelianse hangars.",
  "barRobots": "Barrobots",
  "barRobotsHelp": "De robots aan het werk in de Terraanse en Vossk-bars.",
+ "hostileAutopilotFastForward": "Autopiloot versnellen nabij vijanden",
+ "hostileAutopilotFastForwardHelp": "Staat versnelling op de autopiloot toe met vijanden op de radar. Andere beperkingen blijven gelden. Alleen voor één speler.",
  "autoJumpgate": "Automatische piloot neemt sprongpoorten",
  "autoJumpgateHelp": "Met een ingestelde bestemming vliegt de automatische piloot zonder te vragen door de sprongpoort ernaartoe. Uit: de poort vraagt het eerst, zoals in het origineel.",
  "statLoadingTime": "Laadtijd",

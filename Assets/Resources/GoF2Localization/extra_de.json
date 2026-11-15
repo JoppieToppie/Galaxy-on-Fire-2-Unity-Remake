@@ -3386,6 +3386,8 @@
  "hangarRobotsHelp": "Serviceroboter fliegen durch die Hangars der Terraner und Nivelianer.",
  "barRobots": "Bar-Roboter",
  "barRobotsHelp": "Die Roboter bei der Arbeit in den Bars der Terraner und Vossk.",
+ "hostileAutopilotFastForward": "Autopilot-Zeitraffer nahe Feinden",
+ "hostileAutopilotFastForwardHelp": "Erlaubt Zeitraffer mit Autopilot trotz feindlicher Radarkontakte. Andere Einschränkungen gelten weiterhin. Nur Einzelspieler.",
  "autoJumpgate": "Autopilot nimmt Sprungtore",
  "autoJumpgateHelp": "Mit gesetztem Ziel fliegt der Autopilot ohne Nachfrage durch das Sprungtor dorthin. Aus: Das Tor fragt zuerst, wie im Original.",
  "statLoadingTime": "Ladezeit",
