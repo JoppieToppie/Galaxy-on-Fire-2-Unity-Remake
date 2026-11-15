@@ -69,6 +69,17 @@ namespace GoF2Remake.Modding
             set { if (value) json["traffic"] = "mod"; else if (S("traffic") == "mod") json.Remove("traffic"); }
         }
         public int Security { get => N("security") ?? 2; set => json["security"] = Mathf.Clamp(value, 0, 3); }
+        /// <summary>systems.json population: ambient NPC traffic multiplier; 1 is the vanilla default, 0 suppresses it.</summary>
+        public float AmbientPopulation
+        {
+            get => F("population") ?? 1f;
+            set { if (Mathf.Approximately(value, 1f)) json.Remove("population"); else SetF("population", Mathf.Clamp(value, 0f, 4f)); }
+        }
+        public bool DerelictFreighters
+        {
+            get => B("derelictFreighters", true);
+            set => SetB("derelictFreighters", value, true);
+        }
         public bool Visible { get => B("visible", true); set => SetB("visible", value, true); }
         /// <summary>The star map position (the originals 15-94 / 2-96 / 10-90).</summary>
         public Vector3 Position { get => V3("position") ?? new Vector3(50, 50, 50); set => SetV3("position", new Vector3(Mathf.Round(value.x), Mathf.Round(value.y), Mathf.Round(value.z))); }
@@ -175,6 +186,8 @@ namespace GoF2Remake.Modding
         public string MapTexture { get => S("mapTexture"); set => SetS("mapTexture", value); }
         public bool MapRing { get => B("mapRing", false); set => SetB("mapRing", value, false); }
         public string Music { get => S("music"); set => SetS("music", value); }
+        /// <summary>The calm music in the station's orbit (beats its system's "spaceMusic").</summary>
+        public string SpaceMusic { get => S("spaceMusic"); set => SetS("spaceMusic", value); }
     }
 
     /// <summary>One interiors.json entry of a project: a hangar or a Space Lounge bar room, with its markers placed in the builder
