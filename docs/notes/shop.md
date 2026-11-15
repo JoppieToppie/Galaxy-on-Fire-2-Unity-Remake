@@ -202,3 +202,12 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
 - **Loading time** (a player's report 2026-11-03): the millisecond rows that used the original's 149 "Loading speed"
   (attr 11 a gun's reload; 26 / 36 / 37 / 43 a booster's, cloak's or time extender's recharge; 19 without a capacity) read
   `statLoadingTime` "Loading time" (`ItemInfo.LoadingTime`); most languages' 149 says speed too.
+
+- **Item details numbers** (2026-11-15, from the disassembly: the decompile drops these multiplies): `ItemInfo` shows
+  attr 14 x 0.5 (missiles', mines' and flak's magnitude), attrs 51 / 53 x 0.1 (collectors', repair and transfusion
+  beams' reach), each cut to an int; a gun's range ending in exactly 50 goes up to the next hundred (Ridil Blaster 1250
+  reads 1300); the DPS row and the Status window's fire power (StatusWindow::draw 0x1840e2) use the original's decimals,
+  `ItemInfo.OriginalDecimals`: the whole part, ".", the first two digits of (int)(fraction x 100), not zero-padded
+  (33.333 "33.33", 12.05 "12.5"). Left as it was: a ship's handling, which the original shows (int)(handling / 100f x
+  100), one lower for five ships (Teneta 105). Tests `ItemDetailsOriginalTests`; the tool used: a capstone disassembly of
+  `Reference/binaries/libgof2hdaa.so` (Thumb-2, Ghidra address = file address + 0x10000).

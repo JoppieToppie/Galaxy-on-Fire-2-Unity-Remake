@@ -108,7 +108,9 @@ namespace GoF2Remake.Flight
                         for (int i = 0; i < n; i++)
                         {
                             var d = e.TakePart(assets.debris, null, false);
-                            d.root.localRotation = Quaternion.Euler(Random.Range(0, 360), Random.Range(0, 360), 0f);
+                            // Explosion::addFireStreaks 0xb52ca: setRotation of three nextInt(360) angles (the decompile drops
+                            // the middle one; the third was left at 0 here).
+                            d.root.localRotation = Quaternion.Euler(Random.Range(0, 360), Random.Range(0, 360), Random.Range(0, 360));
                             // addFireStreaks: 0.5..0.99, never scaled again (Explosion::setScaling 0xb4ee0 scales only the
                             // blast and its _add, the streaks just get its animation speed): a freighter's x6 made them huge lines.
                             d.root.localScale = assets.debris.transform.localScale * (Random.Range(50, 100) * 0.01f);
