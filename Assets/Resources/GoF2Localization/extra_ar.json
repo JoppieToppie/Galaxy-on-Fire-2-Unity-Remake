@@ -3621,5 +3621,5 @@
  "mpScriptsShort": "اسمح بسكربتاته أولاً: {0}",
  "mpModsCountScripts": "التعديلات (المفعّلة: {0}، مع سكربتات)",
  "scriptNoCommand": "لا يوجد أمر \"{0}\".",
- "mapAnimationSpeed": "الحركة: ×{0}"
+ "mapAnimationSpeed": "سرعة التكبير والتصغير: ×{0}"
 }

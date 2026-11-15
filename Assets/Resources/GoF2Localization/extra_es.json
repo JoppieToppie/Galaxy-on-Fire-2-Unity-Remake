@@ -3621,5 +3621,5 @@
  "mpScriptsShort": "permite antes sus scripts: {0}",
  "mpModsCountScripts": "Mods ({0} activados, con scripts)",
  "scriptNoCommand": "No existe el comando \"{0}\".",
- "mapAnimationSpeed": "Animación: ×{0}"
+ "mapAnimationSpeed": "Velocidad de zoom: ×{0}"
 }

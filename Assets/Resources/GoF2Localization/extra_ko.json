@@ -3621,5 +3621,5 @@
  "mpScriptsShort": "먼저 스크립트를 허용하십시오: {0}",
  "mpModsCountScripts": "모드 ({0}개 활성, 스크립트 포함)",
  "scriptNoCommand": "\"{0}\" 명령이 없습니다.",
- "mapAnimationSpeed": "애니메이션: ×{0}"
+ "mapAnimationSpeed": "확대/축소 속도: ×{0}"
 }

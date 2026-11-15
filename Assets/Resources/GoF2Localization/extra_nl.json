@@ -3621,5 +3621,5 @@
  "mpScriptsShort": "sta eerst de scripts toe: {0}",
  "mpModsCountScripts": "Mods ({0} aan, met scripts)",
  "scriptNoCommand": "Geen opdracht \"{0}\".",
- "mapAnimationSpeed": "Animatie: ×{0}"
+ "mapAnimationSpeed": "Zoomsnelheid: ×{0}"
 }

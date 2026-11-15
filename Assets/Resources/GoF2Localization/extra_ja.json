@@ -3621,5 +3621,5 @@
  "mpScriptsShort": "先にスクリプトを許可：{0}",
  "mpModsCountScripts": "MOD（{0}個有効、スクリプトあり）",
  "scriptNoCommand": "コマンド「{0}」はありません。",
- "mapAnimationSpeed": "アニメーション：×{0}"
+ "mapAnimationSpeed": "ズーム速度：×{0}"
 }

@@ -191,7 +191,7 @@ namespace GoF2Remake.UI
             if (voidButton != null) voidButton.style.display = askVoid && builder == null && !revealing ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
-        string AnimationSpeedText => string.Format(Localization.Extra("mapAnimationSpeed", "Animation: ×{0}"), Settings.SystemMapAnimationSpeed).OgCase();
+        string AnimationSpeedText => string.Format(Localization.Extra("mapAnimationSpeed", "Zoom in/out speed: ×{0}"), Settings.SystemMapAnimationSpeed).OgCase();
 
         void RefreshAnimationSpeed()
         {

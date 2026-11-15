@@ -3621,5 +3621,5 @@
  "mpScriptsShort": "पहले इसकी स्क्रिप्ट को अनुमति दें: {0}",
  "mpModsCountScripts": "मॉड ({0} चालू, स्क्रिप्ट सहित)",
  "scriptNoCommand": "\"{0}\" नाम का कोई आदेश नहीं।",
- "mapAnimationSpeed": "एनीमेशन: ×{0}"
+ "mapAnimationSpeed": "ज़ूम इन/आउट गति: ×{0}"
 }

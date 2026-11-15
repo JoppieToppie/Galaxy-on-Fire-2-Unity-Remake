@@ -3621,5 +3621,5 @@
  "mpScriptsShort": "сначала разрешите скрипты: {0}",
  "mpModsCountScripts": "Моды (включено: {0}, со скриптами)",
  "scriptNoCommand": "Нет команды «{0}».",
- "mapAnimationSpeed": "Анимация: ×{0}"
+ "mapAnimationSpeed": "Скорость зума: ×{0}"
 }

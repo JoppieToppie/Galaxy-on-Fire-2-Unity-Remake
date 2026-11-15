@@ -3621,5 +3621,5 @@
  "mpScriptsShort": "请先允许其脚本：{0}",
  "mpModsCountScripts": "模组（{0}个已开启，含脚本）",
  "scriptNoCommand": "没有命令“{0}”。",
- "mapAnimationSpeed": "动画：×{0}"
+ "mapAnimationSpeed": "缩放速度：×{0}"
 }
