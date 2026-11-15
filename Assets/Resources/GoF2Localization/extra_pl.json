@@ -1,4 +1,5 @@
 {
+ "statCoreYield": "Uzysk rdzeni",
  "driveQueued": "Napęd skokowy: oczekiwanie na systemy...",
  "driveNoVoid": "Ten napęd skokowy nie może opuścić Void.",
  "driveFailure": "Awaria napędu skokowego!",

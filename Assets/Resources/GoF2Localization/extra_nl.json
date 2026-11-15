@@ -1,4 +1,5 @@
 {
+ "statCoreYield": "Kernopbrengst",
  "driveQueued": "Sprongaandrijving: wacht op de systemen...",
  "driveNoVoid": "Deze sprongaandrijving kan de Void niet verlaten.",
  "driveFailure": "Sprongaandrijving faalt!",

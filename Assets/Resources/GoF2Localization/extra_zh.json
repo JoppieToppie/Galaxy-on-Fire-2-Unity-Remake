@@ -1,4 +1,5 @@
 {
+ "statCoreYield": "核心产量",
  "driveQueued": "跃迁引擎：等待系统就绪……",
  "driveNoVoid": "这个跃迁引擎无法离开Void。",
  "driveFailure": "跃迁引擎故障！",

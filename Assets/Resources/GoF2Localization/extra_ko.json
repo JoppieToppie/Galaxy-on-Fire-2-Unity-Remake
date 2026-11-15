@@ -1,4 +1,5 @@
 {
+ "statCoreYield": "코어 채굴량",
  "driveQueued": "점프 드라이브: 시스템 대기 중...",
  "driveNoVoid": "이 점프 드라이브로는 Void를 벗어날 수 없다.",
  "driveFailure": "점프 드라이브 고장!",

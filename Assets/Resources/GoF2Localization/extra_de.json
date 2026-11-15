@@ -1,4 +1,5 @@
 {
+ "statCoreYield": "Kernausbeute",
  "driveQueued": "Sprungantrieb: warte auf die Systeme...",
  "driveNoVoid": "Dieser Sprungantrieb kann das Void nicht verlassen.",
  "driveFailure": "Sprungantrieb-Ausfall!",

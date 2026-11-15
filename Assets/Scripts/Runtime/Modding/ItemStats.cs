@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using GoF2Remake.Data;
 
 namespace GoF2Remake.Modding
 {
@@ -58,6 +59,8 @@ namespace GoF2Remake.Modding
             // An ore's mining time in percent of the game's (Flight.MiningGame / MiningBeamExtraction; default 100): 200 takes
             // each layer twice as long for the same ore (EVERSPACE 2's DT_Mining_Yield: its crystals 10 s against the ores' 5 s).
             ["miningTime"] = 132,
+            // Completed class-A asteroid cores, independent of ore yield; omitted = 1 (CLAUDE.md "Mining").
+            ["coreYield"] = ItemData.CoreYieldAttr,
             // A cruise drive (an item based on the Khador Drive 85) with cruiseSpeed > 0: the speed factor x 100, cruiseRange
             // the units flown per leg of energy cells, cruiseChargeMs its charge (attr 37), energyCells (38) the cells a leg
             // costs (Flight.CruiseDrive, Navigation; Modding/README.md "Cruise drives").

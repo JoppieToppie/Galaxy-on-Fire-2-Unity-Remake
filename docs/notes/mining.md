@@ -46,6 +46,10 @@ logic (plain C#); `MiningView` draws the lock ring, ore plate, HUD messages and 
   (verified in Play mode).
 - **Payout:** ore capped to free cargo (core first), "12t Pyresium" messages, the asteroid explodes (no crate); ores and
   cores are normal commodities in the shop.
+  **Core yield** (`ItemData.CoreYield`, attr 172, mods' `stats.coreYield`): completed class-A mining pays this many cores,
+  capped to free cargo, before ore. Missing values default to 1 for every existing drill and mining beam; negative values
+  act as zero. Ore yield, handling, timing and shot-asteroid crate drops are independent. The beam reserves this many tons
+  for its final core payout. Item details show the localized Core yield row for mining lasers (category 19).
 - **Shot asteroids** (`PlayerAsteroid::update` 0xf7060, `Target.DropAsteroidCrate`): an asteroid destroyed by a hit
   (guns, rockets, blasts, NPC shots, ramming; not mining, whose `Target.Explode` clears the loot, nor another game's
   destruction in multiplayer) leaves a crate for the tractor beam: class A 4 % with 1 core (Void Crystals' Void Essence,

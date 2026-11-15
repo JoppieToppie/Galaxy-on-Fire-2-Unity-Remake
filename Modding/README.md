@@ -292,6 +292,7 @@ energy cells.
 | `radarShowsCargo` | 31 | 1 = shows a locked ship's cargo (its first entry); 2 = its whole hold (see [Scanner readouts](#scanner-readouts)) |
 | `drillSpeed` | 32 | Mining laser speed |
 | `miningYield` | 33 | Mining laser yield |
+| `coreYield` | 172 | Cores from a completed class-A asteroid, capped to free cargo. Default 1; negative values act as zero. Applies to drills and mining beams independently of ore yield. |
 | `cabins` | 34 | Passenger cabins |
 | `cloakDurationMs` | 35 | How long the cloak lasts (ms) |
 | `cloakChargeMs` | 36 | Cloak charge time (ms) |

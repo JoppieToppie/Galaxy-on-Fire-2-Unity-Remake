@@ -509,12 +509,13 @@ namespace GoF2Remake.Flight
                 if (free < 1) Say(Localization.Get(322));
                 else
                 {
-                    if (Game.GotCore && core >= 0)
+                    int cores = Mathf.Min(drill?.CoreYield ?? 1, free);
+                    if (Game.GotCore && core >= 0 && cores > 0)
                     {
-                        Shop.AddToCargo(core, 1);
-                        Session.CoresMined++;
+                        Shop.AddToCargo(core, cores);
+                        Session.CoresMined += cores;
                         Session.CoreTypesMined.Add(core);
-                        Say($"1t {GameNames.Item(core)}", HudMessageKind.Gain);
+                        Say($"{cores}t {GameNames.Item(core)}", HudMessageKind.Gain);
                         n = Mathf.Min(n, Shop.FreeCargo(db));
                     }
                     if (n > 0)
@@ -625,9 +626,9 @@ namespace GoF2Remake.Flight
             return null;
         }
 
-        /// <summary>Tons the beam may still cut into the hold from 't': a class-A rock keeps one free for its core (the minigame
+        /// <summary>Tons the beam may still cut into the hold from 't': a class-A rock reserves the drill's core yield (the minigame
         /// pays the core first; the beam pays it last).</summary>
-        int BeamRoom(Target t) => Shop.FreeCargo(db) - (t.quality >= 7 && t.CoreItem >= 0 ? 1 : 0);
+        int BeamRoom(Target t) => Shop.FreeCargo(db) - (t.quality >= 7 && t.CoreItem >= 0 ? drill?.CoreYield ?? 1 : 0);
 
         readonly List<Target> deadExtractions = new List<Target>();
 
@@ -712,9 +713,10 @@ namespace GoF2Remake.Flight
             if (!ex.Depleted) return;
 
             // Every layer cut: a class-A asteroid's core comes last (if the hold has room), then the rock goes.
-            if (ex.GotCore && target.CoreItem >= 0 && Shop.FreeCargo(db) >= 1)   // the slot BeamRoom kept free
+            int cores = Mathf.Min(drill?.CoreYield ?? 1, Shop.FreeCargo(db));
+            if (ex.GotCore && target.CoreItem >= 0 && cores > 0)   // the space BeamRoom kept free
             {
-                Launch(target, contact, normal, target.CoreItem, true);
+                for (int i = 0; i < cores; i++) Launch(target, contact, normal, target.CoreItem, true);
                 Session.CoreTypesMined.Add(target.CoreItem);
             }
             extractions.Remove(target);

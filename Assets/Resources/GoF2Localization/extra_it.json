@@ -1,4 +1,5 @@
 {
+ "statCoreYield": "Resa dei nuclei",
  "driveQueued": "Motore di salto: in attesa dei sistemi...",
  "driveNoVoid": "Questo motore di salto non può lasciare il Void.",
  "driveFailure": "Guasto al motore di salto!",
