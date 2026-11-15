@@ -1547,7 +1547,7 @@
  "photoTouchFree": "ARRASTRA PARA MIRAR · PELLIZCA PARA MOVER",
  "photoShowInFolder": "MOSTRAR EN LA CARPETA",
  "systemMapAnimationSpeed": "Velocidad de animación del mapa",
- "systemMapAnimationSpeedHelp": "Acelera solo la apertura y el cierre de sistemas en el mapa, sin cambiar el tiempo de juego. A ×2 y ×4 se silencian los sonidos de zoom.",
+ "systemMapAnimationSpeedHelp": "Acelera la apertura y el cierre de sistemas y del mapa completo sin cambiar el tiempo de simulación. A ×2 y ×4 se silencian los sonidos de zoom.",
  "hudMode": "HUD de vuelo",
  "hudFull": "Completo",
  "hudMinimal": "Mínimo",

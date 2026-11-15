@@ -9,6 +9,9 @@
                 <ui:VisualElement class="map-header" picking-mode="Ignore">
                     <ui:Label name="mapTitle" class="map-title gof-semibold" picking-mode="Ignore" />
                 </ui:VisualElement>
+                <ui:VisualElement name="mapTools" class="map-tools" picking-mode="Ignore">
+                    <ui:Button name="animationSpeedButton" class="map-button gof-semibold" />
+                </ui:VisualElement>
                 <ui:VisualElement name="systemHeader" class="system-header" picking-mode="Ignore">
                     <ui:VisualElement name="systemLogo" class="system-logo" picking-mode="Ignore" />
                     <ui:VisualElement class="system-header-text" picking-mode="Ignore">
@@ -27,7 +30,6 @@
                         <ui:VisualElement name="mapSideButtons" class="map-side-buttons" picking-mode="Ignore">
                             <ui:Button name="voidButton" class="map-button gof-semibold" />
                             <ui:Button name="zoomButton" class="map-button gof-semibold" />
-                            <ui:Button name="animationSpeedButton" class="map-button gof-semibold" />
                             <ui:Button name="keyButton" class="map-button gof-semibold" />
                         </ui:VisualElement>
                     </ui:VisualElement>

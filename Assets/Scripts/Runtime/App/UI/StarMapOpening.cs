@@ -151,14 +151,15 @@ namespace GoF2Remake.UI
             // the title (OptionInfo: 1 s of the mouse on it, or a press). Only while there is one (SetHelp). The key hints are
             // the boxes along the bottom (Rework, docs/UI-DESIGN.md "Button prompts": they were an "i" here).
             var header = root.Q(className: "map-header");
-            if (header != null && header.Q(name: "mapHelp") == null)
+            var tools = root.Q("mapTools");
+            if (tools != null && tools.Q(name: "mapHelp") == null)
             {
                 var help = OptionInfo.Icon(() => HelpText);
                 help.name = "mapHelp";
                 help.AddToClassList("map-help");
                 help.style.position = Position.Relative;
                 help.style.width = help.style.height = 40f;
-                header.Add(help);
+                tools.Insert(0, help);
             }
             // Modified: an invisible copy of the station's Menu button (StarMap.uss .map-header-spacer), so the header is as
             // tall as the station's top bar and the title lines up with the station's name whatever the font.
@@ -267,7 +268,7 @@ namespace GoF2Remake.UI
                 return;
             }
             float w = 0f;
-            foreach (var text in new[] { VoidButtonText, Localization.Extra("mapFullMap", "FULL MAP").OgCase(), Localization.Extra("mapCloseUp", "CLOSE UP").OgCase(), AnimationSpeedText, T(400).UiCaps() })
+            foreach (var text in new[] { VoidButtonText, Localization.Extra("mapFullMap", "FULL MAP").OgCase(), Localization.Extra("mapCloseUp", "CLOSE UP").OgCase(), T(400).UiCaps() })
                 w = Mathf.Max(w, keyButton.MeasureTextSize(text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x);
             if (!(w > 0f)) return;
             var s = keyButton.resolvedStyle;

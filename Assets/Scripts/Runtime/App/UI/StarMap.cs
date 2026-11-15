@@ -284,7 +284,7 @@ namespace GoF2Remake.UI
         float overviewT;
         Vector2 overviewMin, overviewMax;
         float overviewZ;
-        // As long as the galaxy <-> system zoom (ZoomMs, the same sine ease and the same sounds, Map_Zoom_In 2.68 s / Map_Zoom_Out
+        // Base duration matches the system zoom; both timers use the selected map animation multiplier. Map_Zoom_In 2.68 s / Map_Zoom_Out
         // 2.32 s): at 650 ms the move was over long before its sound.
         const float OverviewMs = ZoomMs;
         float OverviewEase => 0.5f - 0.5f * Mathf.Cos(Mathf.PI * overviewT);
@@ -425,7 +425,7 @@ namespace GoF2Remake.UI
             if (!revealing) HandleKeys(dtMs);
             if (world == null || this == null) return;
             UpdateReveal(dtMs);
-            overviewT = Mathf.MoveTowards(overviewT, overview ? 1f : 0f, dtMs / OverviewMs);
+            overviewT = Mathf.MoveTowards(overviewT, overview ? 1f : 0f, dtMs * Settings.SystemMapAnimationSpeed / OverviewMs);
             // Modified: Full map / Close up clickable again once the camera is there.
             if (zoomButton != null && zoomButton.enabledSelf == OverviewMoving) zoomButton.SetEnabled(!OverviewMoving);
             if (animationSpeedButton != null) animationSpeedButton.SetEnabled(builder == null && !revealing && !DialogOpen && zoomDir == 0 && !OverviewMoving);
