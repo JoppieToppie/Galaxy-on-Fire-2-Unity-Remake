@@ -147,7 +147,7 @@ namespace GoF2Remake.Multiplayer
             for (int k = 0; k < 3; k++)
                 if (!float.TryParse(w[k], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v[k]) || !NetGuard.Finite(v[k]))
                     return null;
-            return OrbitLayout.ToUnity(new Vector3(v[0], v[1], v[2]));
+            return OrbitScale.ToUnity(new Vector3(v[0], v[1], v[2]));   // the station scale's orbit (identity in a session)
         }
         /// <summary>A trailing whole number (with more before it) is the amount, else 'fallback'; false = nothing left or a
         /// number below 1.</summary>

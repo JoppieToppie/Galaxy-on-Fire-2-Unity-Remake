@@ -187,7 +187,7 @@ against the FEV's LGCY data, see "Sound").
 - **Supernova Challenge** (mission type 0xb7, `Reference/research/supernova_challenge.md`; rules `Data.SupernovaChallenge`, the
   orbit `World.ChallengeOrbit`, the HUD `UI.ChallengeView`): unreachable in the Android build (nothing started it, its score
   and combo were never written); the remake offers it under the campaign cards (`MainMenu`'s `challengeButton`: 293, the
-  highscore 294 and best kills 176, else 298's first paragraph; a click asks 298 "Start Supernova Challenge?").
+  highscore 294 and best kills 176, else 298's first paragraph; a click asks 298 "Start Supernova Challenge?" and which round).
   `SupernovaChallenge.Start` = `MenuTouchWindow::startSupernovaChallenge`: `Session.ResetNewGame`, campaign index 0x98 (no
   step side effects: an empty story mission), Normal and the Android economy (remake: one highscore table), ship 46 Blue
   Fyre with 231 / 230 / 231, 73, 54, 59, 83, 206, 75, 76 and Patala x5 (x10 on a restart), 220 kills (rank 9), Luur (111),
@@ -196,7 +196,14 @@ against the FEV's LGCY data, see "Sound").
   carrier as race-10 scenery and 4 unarmed Rhinos shuttling between them, which the remake leaves out since #179 (the
   user's comparison with the original's video: the Specters and the player alone at Luur, ringed with Novanium's magma
   asteroids, `OrbitLayout.ChallengeNovaniumOrbit`, kept apart from `NovaniumOrbit` = `Status::inSupernovaOrbit`, 0x6d
-  only). The round opens with the arrival fly-in (`SpaceLevel`'s launch camera, close: 150 m ahead, over once the ship
+  only). Remake (the user's request, 2026-11-15): the start dialog asks which round (`MainMenu.ShowChallengeStart`):
+  Original, With scenery (the platform, the carrier and the Rhinos as the original's code makes them,
+  `ChallengeOrbit.SpawnScenery`) or Cancel; the answer is kept for "Play again" and has the focus next time
+  (`Settings.ChallengeScenery`, off by default, not on the Options pages). The Rhinos are unarmed as in the original
+  (`SpawnSpec.noFighterTurret`: no createFighterTurrets turret; no enemies, so their gun never fires). Every Specter's only
+  enemy is the player (`SetOnlyEnemy` after `ConnectPlayers`), and Smarter NPC targeting never applies in the round
+  (`NpcShip.SmartTargeting`, `SupernovaChallenge.Active`).
+  The round opens with the arrival fly-in (`SpaceLevel`'s launch camera, close: 150 m ahead, over once the ship
   passes it; fire or any key skips). The first wave flies to one point (`FirstWavePoint`, reached within 300 m; since
   2026-11-11 the iOS build's route start (-40 000, 0, -15 000), before a pick from the original's video) in about
   5 s (`FirstLegMs`, a Move order at the run's speed), then attacks the player, easing from the run's speed to its own over

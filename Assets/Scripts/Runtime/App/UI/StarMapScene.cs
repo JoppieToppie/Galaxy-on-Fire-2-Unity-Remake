@@ -57,6 +57,7 @@ namespace GoF2Remake.UI
             cam.depth = 50f;
             var data = camGo.AddComponent<UniversalAdditionalCameraData>();
             data.renderPostProcessing = true;
+            data.stopNaN = true;   // #248: one bad pixel on the camera's first frame can't bloom over the whole screen
             data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             Visuals.ScreenAntialiasing.Register(cam);   // SMAA, FXAA or none by the Post-process AA option
             camGo.transform.rotation = Quaternion.Euler(0f, 180f, 0f);   // game rotation (0, pi, 0): looks along game +Z

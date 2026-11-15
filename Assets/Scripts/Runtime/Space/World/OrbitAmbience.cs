@@ -64,7 +64,7 @@ namespace GoF2Remake.World
         {
             if (listener == null) return;
             var p = listener.position;
-            var game = new Vector3(p.x, p.y, -p.z) / M;
+            var game = OrbitScale.ToGame(p);   // OrbitScale: the original's coordinates, as the zones' centres are
             float sfx = Settings.SfxVolume;
             float dtMs = Time.deltaTime * 1000f;
             foreach (var z in zones)

@@ -49,7 +49,12 @@ namespace GoF2Remake.World
     public static class CruiseEncounterSpawner
     {
         const float M = 0.05f;
-        static Vector3 ToUnity(Vector3 game) => new Vector3(game.x, game.y, -game.z) * M;
+        // OrbitScale (Options > Gameplay "Station scale"): 'at' is in the original's coordinates (the navigation unmaps it); it
+        // lands where the scaled orbit has it, and the encounter's spread around it stays as it is (Near).
+        static Vector3 ToUnity(Vector3 game) => OrbitScale.ToUnity(game);
+        /// <summary>'at' plus the offset 'off' (game units) laid out where the scaled orbit has 'at' (Place(at) + off), given back in
+        /// the original's coordinates (a spawn spec's, which NpcShip maps again); at + off at 1x.</summary>
+        public static Vector3 Near(Vector3 at, Vector3 off) => OrbitScale.Active ? OrbitScale.Unplace(OrbitScale.Place(at) + off) : at + off;
         static Vector3 Jitter(float units) => new Vector3(Random.Range(-units, units), Random.Range(-units, units) * 0.5f, Random.Range(-units, units));
 
         /// <summary>'at' and 'forward' in game units / game space.</summary>
@@ -67,7 +72,7 @@ namespace GoF2Remake.World
                     int n = e.ships > 0 ? e.ships : Mathf.Clamp(2 + rank / 6, 2, 5);
                     for (int i = 0; i < n; i++)
                         traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Raider, race = Standing.Pirate, ship = NpcTables.RandomFighter(Standing.Pirate),
-                                                          alwaysEnemy = true, position = at + Jitter(6000f) });
+                                                          alwaysEnemy = true, position = Near(at, Jitter(6000f)) });
                     break;
                 }
                 case CruiseEncounters.Trader:
@@ -76,7 +81,7 @@ namespace GoF2Remake.World
                     traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Freighter, race = race, ship = ship, freighter = true, position = at });
                     int n = e.ships >= 0 ? e.ships : 2;
                     for (int i = 0; i < n; i++)
-                        traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Local, race = race, ship = NpcTables.RandomFighter(race), position = at + Jitter(5000f) });
+                        traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Local, race = race, ship = NpcTables.RandomFighter(race), position = Near(at, Jitter(5000f)) });
                     break;
                 }
                 case CruiseEncounters.Derelict:
@@ -86,7 +91,7 @@ namespace GoF2Remake.World
                     {
                         var cargo = NpcTables.RollLoot(db, true);
                         if (cargo.Count == 0) cargo = new List<ItemStack> { new ItemStack(GalaxyMap.EnergyCellItem, Random.Range(1, 5)) };
-                        Crate.Spawn(ToUnity(at + Jitter(4000f)), cargo, systemRace, Crate.LookJunk);
+                        Crate.Spawn(ToUnity(Near(at, Jitter(4000f))), cargo, systemRace, Crate.LookJunk);
                     }
                     break;
                 }
@@ -96,24 +101,24 @@ namespace GoF2Remake.World
                     int n = e.ships > 0 ? e.ships : Mathf.Clamp(1 + rank / 8, 1, 3);
                     for (int i = 0; i < n; i++)
                         traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Raider, race = Standing.Pirate, ship = NpcTables.RandomFighter(Standing.Pirate),
-                                                          alwaysEnemy = true, position = at + forward * 8000f + Jitter(4000f) });
+                                                          alwaysEnemy = true, position = Near(at, forward * 8000f + Jitter(4000f)) });
                     break;
                 }
                 case CruiseEncounters.Flyby:
                 {
                     int n = e.ships > 0 ? e.ships : 3, race = Random.Range(0, 4);
                     for (int i = 0; i < n; i++)
-                        traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Local, race = race, ship = NpcTables.RandomFighter(race), position = at + Jitter(8000f) });
+                        traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Local, race = race, ship = NpcTables.RandomFighter(race), position = Near(at, Jitter(8000f)) });
                     break;
                 }
                 case CruiseEncounters.Battle:
                 {
                     var raiders = new List<NpcShip>();
                     for (int i = 0; i < 3; i++)
-                        traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Local, race = systemRace, ship = NpcTables.RandomFighter(systemRace), position = at + Jitter(4000f) });
+                        traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Local, race = systemRace, ship = NpcTables.RandomFighter(systemRace), position = Near(at, Jitter(4000f)) });
                     int n = e.ships > 0 ? e.ships : Mathf.Clamp(3 + rank / 8, 3, 5);
                     for (int i = 0; i < n; i++)
-                        raiders.Add(Raider(traffic, at + forward * 6000f + Jitter(4000f)));
+                        raiders.Add(Raider(traffic, Near(at, forward * 6000f + Jitter(4000f))));
                     EncounterWatch.Start(level, raiders, BattlePay(Es2Level(level)), false);
                     break;
                 }
@@ -121,9 +126,9 @@ namespace GoF2Remake.World
                 {
                     int n = e.ships > 0 ? e.ships : Mathf.CeilToInt(Mathf.Clamp(2 + rank / 6, 2, 5) * 1.25f);
                     var player = ToGame(level.Player != null ? level.Player.transform.position : ToUnity(at));
-                    for (int i = 0; i < n; i++) Raider(traffic, player + Jitter(7000f));
+                    for (int i = 0; i < n; i++) Raider(traffic, Near(player, Jitter(7000f)));
                     if (Random.value < 0.2f)
-                        for (int i = 0; i < n; i++) Raider(traffic, player + forward * 20000f + Jitter(6000f));
+                        for (int i = 0; i < n; i++) Raider(traffic, Near(player, forward * 20000f + Jitter(6000f)));
                     break;
                 }
                 case CruiseEncounters.Stash:
@@ -138,16 +143,16 @@ namespace GoF2Remake.World
                 {
                     int crates = e.ships > 0 ? e.ships : 3;
                     for (int i = 0; i < crates; i++)
-                        Crate.Spawn(ToUnity(at + Jitter(3000f)), new List<ItemStack> { new ItemStack(Ores[Random.Range(0, Ores.Length)], Random.Range(4, 13)) }, systemRace, Crate.LookJunk).keep = true;
+                        Crate.Spawn(ToUnity(Near(at, Jitter(3000f))), new List<ItemStack> { new ItemStack(Ores[Random.Range(0, Ores.Length)], Random.Range(4, 13)) }, systemRace, Crate.LookJunk).keep = true;
                     int guards = Mathf.Max(1, Mathf.RoundToInt(Mathf.Clamp(2 + rank / 6, 2, 5) * 1.5f / 2f));
-                    for (int i = 0; i < guards; i++) Raider(traffic, at + Jitter(6000f));
+                    for (int i = 0; i < guards; i++) Raider(traffic, Near(at, Jitter(6000f)));
                     break;
                 }
                 case CruiseEncounters.HighRisk:
                 {
                     int n = e.ships > 0 ? e.ships : Mathf.Clamp(2 + rank / 8, 2, 4);
                     var wave = new List<NpcShip>();
-                    for (int i = 0; i < n; i++) wave.Add(Raider(traffic, at + Jitter(6000f)));
+                    for (int i = 0; i < n; i++) wave.Add(Raider(traffic, Near(at, Jitter(6000f))));
                     EncounterWatch.Start(level, wave, BattlePay(Es2Level(level)), true, waves: 3, waveSize: n, centre: at);
                     break;
                 }
@@ -171,8 +176,8 @@ namespace GoF2Remake.World
                     int total = e.ships > 0 ? e.ships : groups * each;
                     for (int i = 0; i < total; i++)
                     {
-                        var group = at + forward * 6000f + new Vector3(Mathf.Cos(i % groups * 1.3f), 0.2f, Mathf.Sin(i % groups * 1.3f)) * 9000f;
-                        raiders.Add(Raider(traffic, group + Jitter(2000f)));
+                        var group = forward * 6000f + new Vector3(Mathf.Cos(i % groups * 1.3f), 0.2f, Mathf.Sin(i % groups * 1.3f)) * 9000f;   // (from 'at')
+                        raiders.Add(Raider(traffic, Near(at, group + Jitter(2000f))));
                     }
                     ChallengeWatch.Start(level, raiders, BattlePay(Es2Level(level)) / 2, at);
                     break;
@@ -226,7 +231,7 @@ namespace GoF2Remake.World
         /// <summary>The ores a resource depot holds (items 154-164: the asteroids' ores).</summary>
         static readonly int[] Ores = { 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164 };
 
-        static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / M;
+        static Vector3 ToGame(Vector3 unity) => OrbitScale.ToGame(unity);   // (OrbitScale: the original's coordinates)
 
         /// <summary>An encounter's pay at ES2 location level 'es2Level' (decompiled UMissionLib::CalculateRewardCredits:
         /// (800 + 4200 x level / MaxPlayerLevel 30, clamped 0..1) x RewardCreditsFactor 1, down to a multiple of 50).</summary>

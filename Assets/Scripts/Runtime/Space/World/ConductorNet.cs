@@ -69,8 +69,12 @@ namespace GoF2Remake.World
             net.key = key;
             Shared[key] = net;
             net.containers.Add(container);
-            float R(Vector4 p, float fallback) => (p.w > 0f ? p.w : fallback) * OrbitLayout.MetersPerUnit;
-            Vector3 At(Vector4 p) => OrbitLayout.ToUnity(new Vector3(p.x, p.y, p.z));
+            // OrbitScale: each place where the scaled orbit has it (as LootContainer maps its sockets and triggers); a node's reach
+            // grows with the map's stretch there (the scale itself on a grown station, little far out), so nodes that reached
+            // each other still do.
+            float Stretch(Vector4 p) { float r = new Vector3(p.x, p.y, p.z).magnitude; return r > 1f ? OrbitScale.Radius(r) / r : OrbitScale.Factor; }
+            float R(Vector4 p, float fallback) => (p.w > 0f ? p.w : fallback) * OrbitLayout.MetersPerUnit * Stretch(p);
+            Vector3 At(Vector4 p) => OrbitScale.ToUnity(new Vector3(p.x, p.y, p.z));
             foreach (var p in spec.sources) net.Fixed(At(p), R(p, spec.radius), true, false, 8f, Localization.Extra("conductorSource", "Conductor source"));
             foreach (var p in spec.statics) net.Fixed(At(p), R(p, spec.radius), false, false, 5f, null);
             foreach (var p in spec.receivers) net.Fixed(At(p), R(p, spec.receiverRadius), false, true, 6f, Localization.Extra("conductorReceiver", "Conductor receiver"));

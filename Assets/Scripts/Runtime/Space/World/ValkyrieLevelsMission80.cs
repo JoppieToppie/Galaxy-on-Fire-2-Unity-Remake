@@ -14,7 +14,9 @@ namespace GoF2Remake.World
         void Tick80(float dtMs)
         {
             TurretGunsByPitch();   // Modified
-            var host = battlestation != null ? battlestation.transform.position : ToUnity(new Vector3(0, 0, 160000));
+            var host = battlestation != null ? battlestation.transform.position : At(Host80);
+            // OrbitScale: the cameras and blasts off the battlestation / on Kothar's hull (both grown) scale with them.
+            float k = StructureScale;
             switch (Step)
             {
                 case 0:
@@ -22,14 +24,19 @@ namespace GoF2Remake.World
                     {
                         EnterCutscene();
                         // Modified: the shot is on the battlestation itself (the laser only appears LaserDelay80 ms in, step 1).
-                        cam.LookAtUnity(host + ToUnity(new Vector3(-20000, 5000, -35000)), battlestation != null ? battlestation.transform : battleLaser?.transform);
+                        var shot = new Vector3(-20000, 5000, -35000);
+                        cam.LookAtUnity(host + ToUnity(shot) * k, battlestation != null ? battlestation.transform : battleLaser?.transform);
                         camStartZ80 = cam.Camera != null ? cam.Camera.position.z : 0f;
+                        // OrbitScale: the pull back ends where the scaled orbit has the original's end (toward Kothar), at least
+                        // CamPullBack80 on (at 1x: exactly that).
+                        camEndZ80 = Mathf.Max(camStartZ80 + CamPullBack80, OrbitScale.PlaceUnity(ToUnity(Host80 + shot) + new Vector3(0f, 0f, CamPullBack80)).z);
                         PlayAtCamera(assets?.deepScienceAttacked);   // 0x461
                         Step = 1;
                     }
                     break;
                 case 1:
-                    // Modified: the camera pulls back from the battlestation, still looking at it (was (1, 0, -1) sideways).
+                    // Modified: the camera pulls back from the battlestation, still looking at it (was translate(-1, 1, -12) x dt,
+                    // 0x167790).
                     PullBack80(stepMs);
                     if (stepMs >= LaserDelay80)
                     {
@@ -76,7 +83,7 @@ namespace GoF2Remake.World
                 {
                     // The hit: the camera on the impact point, the station's laser visible.
                     var hit = new Vector3(12487, -11451, 5958);
-                    cam.LookAt(new Vector3(-16974, -17691, 37541), null, ToUnity(hit));
+                    cam.LookAtUnity(At(new Vector3(-16974, -17691, 37541)), null, At(hit));   // OrbitScale: absolute (by Kothar's hull)
                     if (stationLaser != null)
                     {
                         stationLaser.SetActive(true);
@@ -92,7 +99,9 @@ namespace GoF2Remake.World
                     break;
                 }
                 case 7:
-                    cam.SetDolly(new Vector3(0.5f, 0f, 0.2f));
+                    // LevelScript::process 0x16d74c, sub-steps 7-9 (the dolly runs on through 8 and 9): translate(0.5, 0.2, -0.3)
+                    // x dt, read from the disassembly (the decompile lists the arguments out of order and drops the 0.3).
+                    cam.SetDolly(new Vector3(0.5f, 0.2f, -0.3f));
                     if (stepMs >= HitWait80)
                     {
                         if (stationLaser != null)
@@ -113,18 +122,19 @@ namespace GoF2Remake.World
                     {
                         var hitPoint = new Vector3(12487, -11451, 5958);
                         // Modified: the blast HitBlastOffset80 from the hit point (was the hit point itself).
-                        Explosion.Spawn(0, ToUnity(hitPoint + HitBlastOffset80), Vector3.forward, 3f, CombatAssets.Pick(combat?.explosionBig), true);   // sound 18
+                        // OrbitScale: the hit point where the scaled orbit has it, the offsets on Kothar's hull grown with it.
+                        Explosion.Spawn(0, At(hitPoint) + ToUnity(HitBlastOffset80) * k, Vector3.forward, 3f, CombatAssets.Pick(combat?.explosionBig), true);   // sound 18
                         // Level+0x58 at the hit point and Level+0x5c at hit + (4500, 0, 1000) (record 24, both emitting for
                         // the rest of the level; the second point drifts +2 u/ms along x in state 9).
                         burnA = new GameObject("Deep science burn A").transform;
-                        burnA.position = ToUnity(hitPoint);
+                        burnA.position = At(hitPoint);
                         new WreckBurn(burnA, WreckBurn.DeepScience).SetEmitting(true);
                         burnB = new GameObject("Deep science burn B").transform;
-                        burnB.position = ToUnity(hitPoint + new Vector3(4500, 0, 1000));
+                        burnB.position = At(hitPoint) + ToUnity(new Vector3(4500, 0, 1000)) * k;
                         new WreckBurn(burnB, WreckBurn.DeepScience).SetEmitting(true);
                         // Modified: the fires' own pose under each burn point, matched to the original (Inspector values).
-                        PlaceBurn80(burnA, BurnPosA80, BurnRotA80);
-                        PlaceBurn80(burnB, BurnPosB80, BurnRotB80);
+                        PlaceBurn80(burnA, BurnPosA80 * k, BurnRotA80);
+                        PlaceBurn80(burnB, BurnPosB80 * k, BurnRotB80);
                         // Modified: fire B rides the blown-off part 4 of the station (it drifted +2 u/ms along x on its own).
                         var part4 = FindStationPart80(BurnBFollows80);
                         if (part4 != null) burnB.SetParent(part4, true);
@@ -145,19 +155,23 @@ namespace GoF2Remake.World
                     if (Over(9))
                     {
                         EnterCutscene();
-                        cam.LookAtUnity(host + ToUnity(new Vector3(20000, 5000, -20000)), battlestation != null ? battlestation.transform : null);
+                        var shot = new Vector3(20000, 5000, -20000);
+                        cam.LookAtUnity(host + ToUnity(shot) * k, battlestation != null ? battlestation.transform : null);
                         jumpShotMs80 = 0f;
                         jumpShotStartZ80 = cam.Camera != null ? cam.Camera.position.z : 0f;
+                        // OrbitScale: the shot ends where the scaled orbit has the original's end (past Kothar), at least
+                        // JumpShotTravel80 on (at 1x: exactly that).
+                        jumpShotEndZ80 = Mathf.Max(jumpShotStartZ80 + JumpShotTravel80, OrbitScale.PlaceUnity(ToUnity(Host80 + shot) + new Vector3(0f, 0f, JumpShotTravel80)).z);
                         Step = 11;
                     }
                     break;
                 case 11:
                     // Modified: the camera moves along Unity Z only, JumpShotTravel80 further by the end of the cutscene (steps 11-13;
-                    // was the dolly (0.5, 0, 0.2) drifting on).
+                    // was translate(0.5, 0.2, -4) x dt, 0x16caa6 / 0x16d63e / 0x16d492).
                     JumpShot80(dtMs);
                     if (stepMs >= 4000f)
                     {
-                        Explosion.Spawn(0, host + ToUnity(new Vector3(-4000, 5000, -6000)), Vector3.forward, 3f, CombatAssets.Pick(combat?.explosionBig), true);
+                        Explosion.Spawn(0, host + ToUnity(new Vector3(-4000, 5000, -6000)) * k, Vector3.forward, 3f, CombatAssets.Pick(combat?.explosionBig), true);
                         Step = 12;
                     }
                     break;
@@ -171,8 +185,8 @@ namespace GoF2Remake.World
                         SpawnHyperDrive(ToGame(host) + new Vector3(0, 0, -10000), 20f, texture78: true);
                         if (fx != null)
                         {
-                            fx.transform.SetPositionAndRotation(host + HyperDrivePos80, Quaternion.Euler(HyperDriveRot80));
-                            fx.transform.localScale = Vector3.one * HyperDriveScale80;
+                            fx.transform.SetPositionAndRotation(host + HyperDrivePos80 * k, Quaternion.Euler(HyperDriveRot80));   // OrbitScale
+                            fx.transform.localScale = Vector3.one * (HyperDriveScale80 * k);
                             fxFixed = true;
                         }
                         Step = 13;
@@ -192,7 +206,7 @@ namespace GoF2Remake.World
             jumpShotMs80 += dtMs;
             if (cam.Camera == null) return;
             var p = cam.Camera.position;
-            cam.Camera.position = new Vector3(p.x, p.y, Mathf.Lerp(jumpShotStartZ80, jumpShotStartZ80 + JumpShotTravel80, Mathf.Clamp01(jumpShotMs80 / JumpShotMs80)));
+            cam.Camera.position = new Vector3(p.x, p.y, Mathf.Lerp(jumpShotStartZ80, jumpShotEndZ80, Mathf.Clamp01(jumpShotMs80 / JumpShotMs80)));
         }
         void MakeFlamePieces80()
         {
@@ -446,7 +460,7 @@ namespace GoF2Remake.World
             if (cam.Camera == null) return;
             float k = Mathf.Clamp01(shotMs / (LaserDelay80 + LaserWindow80));
             var p = cam.Camera.position;
-            cam.Camera.position = new Vector3(p.x, p.y, Mathf.Lerp(camStartZ80, camStartZ80 + CamPullBack80, k));
+            cam.Camera.position = new Vector3(p.x, p.y, Mathf.Lerp(camStartZ80, camEndZ80, k));   // OrbitScale: camEndZ80 (see step 0)
         }
     }
 }

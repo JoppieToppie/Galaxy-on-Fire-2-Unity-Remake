@@ -283,7 +283,8 @@ namespace GoF2Remake.World
                     bool inside = false;
                     foreach (var ob in Obstacle.All)
                         if (ob != null && ob.landmark && ob.Active && ob.Touches(pos, out _)) { inside = true; break; }
-                    if (inside || pos.sqrMagnitude < (o.radius * M) * (o.radius * M)) { LeaveQuietly(); return true; }
+                    float dockM = OrbitScale.RadiusMeters(o.radius * M);   // OrbitScale: a distance from the (grown) station
+                    if (inside || pos.sqrMagnitude < dockM * dockM) { LeaveQuietly(); return true; }
                     break;
                 }
                 default:

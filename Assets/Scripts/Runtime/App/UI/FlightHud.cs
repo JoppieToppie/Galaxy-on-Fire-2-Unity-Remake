@@ -811,6 +811,7 @@ namespace GoF2Remake.UI
             var drive = nav != null ? nav.Drive : null;
             bool driveCharging = drive != null && drive.Charging && !jumpCharging && !cloakCharging;
             jumpCharge.EnableInClassList("jump-charge--shown", jumpCharging || cloakCharging || driveCharging);
+            root.EnableInClassList("hud-charging", jumpCharging || cloakCharging || driveCharging);   // #247: the low messages go under it
             if (cloakCharging != lastCloakCharging || driveCharging != lastDriveCharging)
             {
                 lastCloakCharging = cloakCharging;
@@ -895,7 +896,7 @@ namespace GoF2Remake.UI
             // The Ultrascan's class-A letters: Radar::draw too, so not during the launch camera or a cinematic. The range is the
             // level's asteroid field (Level+0xc4), not the autopilot's "Asteroid field" entry: the Void's crystal field has none
             // (players' report: no letters there).
-            miningView.UpdateMarkers(mining, level.Asteroids != null && level.Layout != null ? OrbitLayout.ToUnity(level.Layout.asteroidCentre) : (Vector3?)null, Camera.main,
+            miningView.UpdateMarkers(mining, level.Asteroids != null && level.Layout != null ? OrbitLayout.ToUnity(level.Layout.Place(level.Layout.asteroidCentre)) : (Vector3?)null, Camera.main,   // (OrbitScale: the scaled orbit's field)
                                      level.LaunchCameraOver && !cinematic && !(docking != null && docking.Busy), navMarkers);
             UpdateRadio();
             PlaceDockPrompt();

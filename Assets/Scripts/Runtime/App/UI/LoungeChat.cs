@@ -415,7 +415,9 @@ namespace GoF2Remake.Data
             {
                 s += "\n" + T(rewardLine >= 0 ? rewardLine : 765).Replace("#C", C(m.Total));
                 int bonus = m.CurrentBonus;
-                if (bonus > 0) s += " " + T(767).Replace("#P", ((int)Math.Round(AgentGenerator.MissionBonus(m.clientRace) * 100f)).ToString());
+                // SpaceLounge::startChat 0x19a582 / Globals::getAgentMissionText 0xfbd62: (int)(getMissionBonus x 100f), cut, not
+                // rounded (the decompile drops the x 100): standing 53 reads 52 %, 59 reads 58 %.
+                if (bonus > 0) s += " " + T(767).Replace("#P", ((int)(AgentGenerator.MissionBonus(m.clientRace) * 100f)).ToString());
             }
             return s;
         }

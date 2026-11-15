@@ -327,12 +327,14 @@ namespace GoF2Remake.UI
 
         /// <summary>Writes the apply script into _update and returns its path. It waits for process 'pid' to end, moves
         /// the staged files in, deletes the dropped ones, removes _update and, run with the argument "restart", starts
-        /// 'exeName' (relative to the game's folder) again.</summary>
-        public string WriteApplyScript(bool windows, int pid, string exeName)
+        /// 'exeName' (relative to the game's folder) again. 'mac': the game's folder is an app bundle (MacScript).</summary>
+        public string WriteApplyScript(bool windows, int pid, string exeName, bool mac = false)
         {
             var moves = new List<string>();
             foreach (var f in Changed) moves.Add(f.path);
-            string script = windows ? WindowsScript(pid, exeName, moves, Removing) : LinuxScript(pid, exeName, moves, Removing, ExecPaths());
+            string script = windows ? WindowsScript(pid, exeName, moves, Removing)
+                : mac ? MacScript(pid, InstallDir, moves, Removing, ExecPaths())
+                : LinuxScript(pid, exeName, moves, Removing, ExecPaths());
             string path = Path.Combine(UpdateDir, windows ? "apply.cmd" : "apply.sh");
             File.WriteAllText(path, script, new UTF8Encoding(false));
             return path;
@@ -397,6 +399,36 @@ namespace GoF2Remake.UI
             sb.Append("exit 0\n");
             return sb.ToString();
         }
+
+        /// <summary>macOS (2026-11-15): the work folder is outside the bundle (the app's data), so the bundle 'app' is named
+        /// by its absolute path. After the moves the bundle is signed again ad hoc: the new files break its signature, and
+        /// macOS refuses to open a bundle whose signature doesn't match ("damaged"). The download quarantine is cleared for
+        /// the same reason, and "restart" opens the app through Launch Services. Untested on a Mac.</summary>
+        public static string MacScript(int pid, string app, List<string> moves, List<string> removing, List<string> exec)
+        {
+            var sb = new StringBuilder();
+            sb.Append("#!/bin/sh\n");
+            sb.Append("# Galaxy on Fire 2 Remake update: waits for the game to quit, moves the new files into the app, signs it again.\n");
+            sb.Append("cd \"$(dirname \"$0\")\" || exit 1\n");
+            sb.Append($"APP={ShellQuote(app)}\n");
+            sb.Append($"while kill -0 {pid} 2>/dev/null; do sleep 0.5; done\n");
+            sb.Append("failed=0\n");
+            sb.Append("move() { mkdir -p \"$(dirname \"$2\")\"; i=0; until mv -f \"$1\" \"$2\"; do i=$((i+1)); " +
+                      "[ $i -ge 30 ] && { failed=1; return 1; }; sleep 1; done; }\n");
+            foreach (var m in moves) sb.Append($"move \"files/{m}\" \"$APP/{m}\"\n");
+            foreach (var e in exec) sb.Append($"[ -f \"$APP/{e}\" ] && chmod +x \"$APP/{e}\"\n");
+            foreach (var r in removing) sb.Append($"rm -f \"$APP/{r}\"\n");
+            sb.Append("codesign --force --deep --sign - \"$APP\" >/dev/null 2>&1\n");
+            sb.Append("xattr -dr com.apple.quarantine \"$APP\" 2>/dev/null\n");
+            sb.Append("cd .. || exit 1\n");
+            sb.Append($"[ $failed = 0 ] && rm -rf \"{FolderName}\"\n");
+            sb.Append("[ \"$1\" = restart ] && open \"$APP\"\n");
+            sb.Append("exit 0\n");
+            return sb.ToString();
+        }
+
+        /// <summary>'s' as one single-quoted shell word (a ' inside closed, escaped and reopened).</summary>
+        public static string ShellQuote(string s) => "'" + s.Replace("'", "'\\''") + "'";
 
         // ---- state ----------------------------------------------------------------------------------------------------
 

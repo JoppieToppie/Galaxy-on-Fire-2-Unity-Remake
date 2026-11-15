@@ -29,7 +29,7 @@ namespace GoF2Remake.World
             root.transform.SetParent(level.transform, false);
             foreach (var p in spec)
             {
-                var go = RiftHazards.Sphere(root.transform, OrbitLayout.ToUnity(p), StalkM, new Color(0.25f, 0.45f, 0.15f, 0.9f), "Acid pouch base");
+                var go = RiftHazards.Sphere(root.transform, OrbitLayout.ToUnity(level.Layout.Place(p)), StalkM, new Color(0.25f, 0.45f, 0.15f, 0.9f), "Acid pouch base");   // OrbitScale: mapped
                 var b = go.AddComponent<AcidSackBase>();
                 b.level = level;
                 b.Grow();
