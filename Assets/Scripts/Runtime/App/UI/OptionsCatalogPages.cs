@@ -582,6 +582,11 @@ namespace GoF2Remake.UI
                 () => new[] { X("kaamoVipOff", "Off"), X("kaamoVipCard", "Buy at the club"), X("kaamoVipAlways", "Always on") },
                 () => (Settings.KaamoVipMode + 1) % 3, i => Settings.KaamoVipMode = (i + 2) % 3,   // Off (the original) first
                 () => X("kaamoVipOptionHelp", "The VIP Card adds a search box and sorting to the Kaamo Club's Store, a Ships tab for your stored ships, and a Kaamo marker on ships you already keep there. Buy at the club: the card is sold in the Store tab. Always on: no card needed. Off: the original club.")));
+            // Remake (PR #282): the shop's and storage's item order (Hangar.ShopItems); off = the original's, by item number.
+            var shopOrder = Toggle("shopByCategory", OptionPage.Gameplay, () => X("shopByCategory", "Sort the shop by category"),
+                () => Settings.ShopByCategory, v => Settings.ShopByCategory = v);
+            shopOrder.description = () => X("shopByCategoryHelp", "The shop and storage list items by category, then tech level, so add-on equipment sits beside its kind. Off: by item number, as in the original.");
+            list.Add(shopOrder);
             var cloakBay = Toggle("cloakBay", OptionPage.Gameplay, () => X("cloakBay", "Cloak bay on cloaking ships"),
                 () => Settings.CloakBay, v => Settings.CloakBay = v);
             cloakBay.description = () => X("cloakBayHelp", "On the Specter and Scimitar a mounted cloak takes no equipment slot.");

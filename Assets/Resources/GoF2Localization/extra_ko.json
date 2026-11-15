@@ -3223,6 +3223,8 @@
  "kaamoVipAlways": "항상 켜기",
  "kaamoVipOff": "끄기",
  "kaamoVipOptionHelp": "VIP 카드는 카모 클럽 보관소에 검색창과 정렬, 보관 중인 함선을 모은 함선 탭, 그리고 이미 보관 중인 함선에 카모 표시를 더합니다. 클럽에서 구매: 카드는 보관 탭에서 판매합니다. 항상 켜기: 카드 없이. 끄기: 원작 클럽.",
+ "shopByCategory": "상점을 종류별로 정렬",
+ "shopByCategoryHelp": "상점과 보관소에서 아이템을 종류별, 그다음 기술 레벨순으로 정렬해 추가 장비가 같은 종류 옆에 표시됩니다. 끄기: 원작처럼 아이템 번호순.",
  "shopSearch": "검색",
  "shopSortBy": "정렬: {0}",
  "shopSortDefault": "기본",
