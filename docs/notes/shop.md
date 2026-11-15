@@ -95,8 +95,8 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   mounted type join the mounted stack. Remaining missiles are written back to `Equipment` when docking. Remake: the Ship
   tab tints mounted rows with a cyan edge and badges the hold's candidates IN CARGO under an amber "Available in cargo"
   header; a a passenger cabin can't be demounted while the other cabins couldn't seat the passengers aboard (323,
-  `HangarWindow::selectItem` 0x178e20); a double click / double tap mounts or demounts (the Mount / Demount button's
-  action; a controller's confirm button does the same).
+  `HangarWindow::selectItem` 0x178e20); a double click / double tap or Shift + primary click mounts or demounts
+  (the Mount / Demount button's action; a controller's confirm button does the same).
 - **Row actions** (a player's feedback 2026-11-03: the Mount / Demount buttons sat "way off to the right of the slots"):
   the original turns a tapped slot into its own little list (`HangarList::fillBuyList` 0x14348c: 277 Selected, the row,
   278 Actions with 279 Sell this item and 282 Demount as style-7 button rows drawn at the rows' place by
@@ -105,10 +105,14 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   `PlaceRowActions` after every `ShowDetails`; `.row-actions`, `.detail-action--row`; the Original style's `og_action`
   bars at the list's width); they sat under the item's description in the details panel until 2026-11-05. A ship's
   Buy / Use / Sell stay under its turning view. Since 2026-11-09 (the user's sketch) a mounted item's and a hold item's
-  sit inside the row at its right end (`.row-actions--inline`): Demount over two arrow buttons (a slot up / down,
-  `Hangar.PrevSlot` / `NextSlot`, no text, the MOVE button hidden), or the hold's amount over Mount (the row's own
-  amount hidden, `.list-row--actions`); a blueprint's Edit at the right end of its sub-line, under the progress bar
-  (`.row-actions--sub`); buttons in a row keep their press from the row (`KeepInButton`: the slot drag).
+  sit inside the row at its right end (`.row-actions--inline`). Mounted equipment now stacks the narrow Up / Down
+  arrows on the left of a full-height Demount button (`.row-actions--equipment`, #305); the hold keeps its amount
+  over Mount (the row's own amount hidden, `.list-row--actions`). A blueprint's full-height Edit reserves its width
+  in the row flow (`.row-actions--blueprint`), so it cannot overlap the name or progress bar. Both UI styles keep
+  even vertical insets. Shift + primary click uses the same Mount / Demount action and validation as the existing
+  buttons and double click: built-in items, occupied slots, passengers and swaps retain their rules. Secondary
+  clicks and embedded action / arrow / information buttons cannot also trigger the row shortcut. Buttons in a row
+  keep their press from the row (`KeepInButton`: the slot drag). `HangarRowActionTests` checks both UI styles.
 - **Slot positions** (players' feedback 2026-11: the gear "snapped" to the next free slot, the original's didn't):
   `Ship+0x6c` is one place per slot, null when empty. `Ship::removeEquipment` 0x1a3e4c empties the slot and leaves
   the others where they are; `Ship::addEquipment` 0x1a4088 fills the type's first empty one; `Level::createPlayer` puts

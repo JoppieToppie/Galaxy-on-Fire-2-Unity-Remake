@@ -32,14 +32,15 @@ namespace GoF2Remake.UI
             rowActionsHost?.RemoveFromClassList("list-row--actions");
             rowActionsHost = null;
             rowActions.RemoveFromClassList("row-actions--inline");
-            rowActions.RemoveFromClassList("row-actions--sub");
+            rowActions.RemoveFromClassList("row-actions--blueprint");
+            rowActions.RemoveFromClassList("row-actions--equipment");
             if (!IsOpen || (!Shown(actionButton) && !Shown(actionButton2)) || e?.parent == null || !list.contentContainer.Contains(e)) return;
-            // Modified (a player's sketch 2026-11-09): a mounted item's DEMOUNT over its slot arrows, or a hold item's amount
-            // over MOUNT, inside the row at its right end; the other rows' actions stay in a row of their own under it.
+            // CLAUDE.md "Row actions": mounted rows use stacked arrows left of a full-height Demount; cargo keeps amount/Mount.
             bool mounted = selected.kind == RowKind.Slot && selected.equipment >= 0, hold = selected.kind == RowKind.CargoItem;
             if (mounted || hold)
             {
                 rowActions.AddToClassList("row-actions--inline");
+                rowActions.EnableInClassList("row-actions--equipment", mounted);
                 rowActions.RemoveFromClassList("row-actions--mounted");
                 actionButton2?.AddToClassList("detail-action--hidden");   // MOVE: the arrows (X still moves it to the next slot)
                 if (hold)
@@ -47,18 +48,16 @@ namespace GoF2Remake.UI
                     rowQty.text = $"{hangar.CargoOf(selected.item)}t";
                     rowActions.Insert(0, rowQty);
                 }
-                else if (hangar.NextSlot(selected.equipment) >= 0) rowActions.Add(rowMove);
+                else if (hangar.NextSlot(selected.equipment) >= 0) rowActions.Insert(0, rowMove);
                 e.Add(rowActions);
                 e.AddToClassList("list-row--actions");   // its own amount hidden (USS)
                 rowActionsHost = e;
                 return;
             }
-            // Modified (the user's sketch 2026-11-09): a blueprint's EDIT at the right end of its sub-line, under the progress
-            // bar's end, beside the percentage.
-            // (On the row itself, placed over its sub-line's end: inside the texts its clip cut the button's bottom off.)
+            // Keep Edit in the row's flow: it reserves its width and fills the same action height as Demount.
             if (selected.kind == RowKind.Blueprint)
             {
-                rowActions.AddToClassList("row-actions--sub");
+                rowActions.AddToClassList("row-actions--blueprint");
                 rowActions.RemoveFromClassList("row-actions--mounted");
                 e.Add(rowActions);
                 rowActionsHost = e;

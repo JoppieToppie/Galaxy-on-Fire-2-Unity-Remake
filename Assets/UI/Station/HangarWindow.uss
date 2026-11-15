@@ -782,25 +782,42 @@
     padding: 0 var(--space-m);
 }
 
-.row-actions--sub {
-    /* out of the flow, at the row's right end level with the sub-line: the name and the bar stay where they are */
-    position: absolute;
-    right: 16px;
-    bottom: 10px;
-    margin: 0;
+/* Blueprint actions reserve their width instead of overlaying the lower text line. */
+.row-actions--blueprint {
+    flex-shrink: 0;
+    align-self: stretch;
+    width: 280px;
+    margin: 8px 0 8px var(--space-m);
     padding: 0;
     border-left-width: 0;
 }
-
-.row-actions--sub .detail-action--row {
-    flex-grow: 0;
-    flex-basis: auto;
-    width: 280px;
-    height: 34px;
+.row-actions--blueprint .detail-action--row {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: auto;
     margin: 0;
     padding: 0 var(--space-m);
 }
-
+.row-actions--equipment {
+    flex-direction: row;
+    align-self: stretch;
+    align-items: stretch;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+.row-actions--equipment .detail-action--row {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: auto;
+}
+.row-actions--equipment .row-move {
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 44px;
+    margin: 0 6px 0 0;
+}
+.row-actions--equipment .row-move-button { height: auto; min-height: 0; }
+.row-actions--equipment .row-move-button--down { margin-left: 0; margin-top: 6px; }
 .list-row--actions .row-qty--ship {
     display: none;
 }

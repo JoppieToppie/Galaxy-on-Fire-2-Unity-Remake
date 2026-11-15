@@ -601,10 +601,13 @@ namespace GoF2Remake.UI
             e.RegisterCallback<ClickEvent>(ev =>
             {
                 if (dragMoved) { dragMoved = false; return; }   // the end of a slot drag, not a click
+                // A click on an embedded action/info control belongs to that control, not to the row shortcut.
+                for (var target = ev.target as VisualElement; target != null && target != e; target = target.parent)
+                    if (target is Button || target == rowActions || target.ClassListContains("row-info")) return;
                 Select(row, true);
-                // Remake: a double click / double tap on the Ship tab mounts a hold item or demounts a mounted one (the action
-                // button's Mount 281 / Demount 282, when it is enabled).
-                if (ev.clickCount >= 2 && selected == row && (row.kind == RowKind.CargoItem || (row.kind == RowKind.Slot && row.equipment >= 0))
+                // Shift + primary click uses the same validated action as double click/tap and the Mount/Demount button.
+                if (ev.button == 0 && (ev.shiftKey || ev.clickCount >= 2) && selected == row
+                    && (row.kind == RowKind.CargoItem || (row.kind == RowKind.Slot && row.equipment >= 0))
                     && !actionButton.ClassListContains("detail-action--hidden") && !actionButton.ClassListContains("detail-action--disabled"))
                     Action();
             });

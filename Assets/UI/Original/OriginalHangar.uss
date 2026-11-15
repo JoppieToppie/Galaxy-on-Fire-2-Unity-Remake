@@ -970,19 +970,6 @@
     margin: 0 0 0 8px;
 }
 
-.ui-style-original .row-actions--sub {
-    margin: 0;
-    right: 8px;
-    bottom: 6px;
-}
-
-.ui-style-original .row-actions--sub .detail-action--row {
-    width: 240px;
-    height: 30px;
-    margin: 0;
-    padding: 0 16px;
-}
-
 .ui-style-original .row-actions--inline .detail-action--row {
     height: 34px;
     margin: 0;
@@ -1271,3 +1258,10 @@
 .ui-style-original .row-badge--kaamo {
     border-width: 1px;
 }
+
+/* Full-height row actions, with compact Original-style spacing. */
+.ui-style-original .row-actions--blueprint,
+.ui-style-original .row-actions--equipment { margin: 4px 0 4px 8px; }
+.ui-style-original .row-actions--blueprint { width: 240px; }
+.ui-style-original .row-actions--blueprint .detail-action--row,
+.ui-style-original .row-actions--equipment .detail-action--row { height: auto; margin: 0; padding: 0 16px; }
