@@ -29,7 +29,8 @@ namespace GoF2Remake.World
                     }
                     break;
                 case 1:
-                    // Modified: the camera pulls back from the battlestation, still looking at it (was (1, 0, -1) sideways).
+                    // Modified: the camera pulls back from the battlestation, still looking at it (was translate(-1, 1, -12) x dt,
+                    // 0x167790).
                     PullBack80(stepMs);
                     if (stepMs >= LaserDelay80)
                     {
@@ -92,7 +93,9 @@ namespace GoF2Remake.World
                     break;
                 }
                 case 7:
-                    cam.SetDolly(new Vector3(0.5f, 0f, 0.2f));
+                    // LevelScript::process 0x16d74c, sub-steps 7-9 (the dolly runs on through 8 and 9): translate(0.5, 0.2, -0.3)
+                    // x dt, read from the disassembly (the decompile lists the arguments out of order and drops the 0.3).
+                    cam.SetDolly(new Vector3(0.5f, 0.2f, -0.3f));
                     if (stepMs >= HitWait80)
                     {
                         if (stationLaser != null)
@@ -153,7 +156,7 @@ namespace GoF2Remake.World
                     break;
                 case 11:
                     // Modified: the camera moves along Unity Z only, JumpShotTravel80 further by the end of the cutscene (steps 11-13;
-                    // was the dolly (0.5, 0, 0.2) drifting on).
+                    // was translate(0.5, 0.2, -4) x dt, 0x16caa6 / 0x16d63e / 0x16d492).
                     JumpShot80(dtMs);
                     if (stepMs >= 4000f)
                     {
