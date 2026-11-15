@@ -1262,6 +1262,5 @@
 /* Full-height row actions, with compact Original-style spacing. */
 .ui-style-original .row-actions--blueprint,
 .ui-style-original .row-actions--equipment { margin: 4px 0 4px 8px; }
-.ui-style-original .row-actions--blueprint { width: 240px; }
 .ui-style-original .row-actions--blueprint .detail-action--row,
-.ui-style-original .row-actions--equipment .detail-action--row { height: auto; margin: 0; padding: 0 16px; }
+.ui-style-original .row-actions--equipment .detail-action--row { height: auto; margin: 0; padding: 0; }

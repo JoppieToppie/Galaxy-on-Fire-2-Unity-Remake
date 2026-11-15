@@ -34,6 +34,7 @@ namespace GoF2Remake.UI
             rowActions.RemoveFromClassList("row-actions--inline");
             rowActions.RemoveFromClassList("row-actions--blueprint");
             rowActions.RemoveFromClassList("row-actions--equipment");
+            rowActions.RemoveFromClassList("row-actions--reorder");
             if (!IsOpen || (!Shown(actionButton) && !Shown(actionButton2)) || e?.parent == null || !list.contentContainer.Contains(e)) return;
             // CLAUDE.md "Row actions": full-height actions; stacked slot arrows or a separate amount on the right.
             bool mounted = selected.kind == RowKind.Slot && selected.equipment >= 0, hold = selected.kind == RowKind.CargoItem;
@@ -46,10 +47,14 @@ namespace GoF2Remake.UI
                 if (hold)
                 {
                     rowQty.text = $"{hangar.CargoOf(selected.item)}t";
-                    rowActions.Add(rowQty);
                 }
-                else if (hangar.NextSlot(selected.equipment) >= 0) rowActions.Insert(0, rowMove);
+                else if (hangar.NextSlot(selected.equipment) >= 0)
+                {
+                    rowActions.AddToClassList("row-actions--reorder");
+                    rowActions.Insert(0, rowMove);
+                }
                 e.Add(rowActions);
+                if (hold) e.Add(rowQty);   // its own column, outside the proportional button area
                 e.AddToClassList("list-row--actions");   // its own amount hidden (USS)
                 rowActionsHost = e;
                 return;

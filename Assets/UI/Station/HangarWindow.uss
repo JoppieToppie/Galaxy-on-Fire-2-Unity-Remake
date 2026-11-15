@@ -742,6 +742,7 @@
 /* Remake (a player's feedback 2026-11-03, the original's "Actions" rows): the selected row's Mount / Demount / Move (or
    Edit...) right under it in the list (HangarWindow.PlaceRowActions), side by side, as wide as the row. */
 .row-actions {
+    --row-action-width: 12.5%; /* One eighth of the row; the two-column reorder area uses one quarter. */
     flex-direction: row;
     margin: 0 8px 6px 8px;
     padding: 4px 0 0 0;
@@ -767,7 +768,7 @@
     flex-direction: column;
     flex-shrink: 0;
     justify-content: center;
-    width: 280px;
+    width: var(--row-action-width);
     margin: 0 0 0 var(--space-m);
     padding: 0;
     border-left-width: 0;
@@ -785,7 +786,7 @@
 .row-actions--blueprint {
     flex-shrink: 0;
     align-self: stretch;
-    width: 280px;
+    width: var(--row-action-width);
     margin: 8px 0 8px var(--space-m);
     padding: 0;
     border-left-width: 0;
@@ -795,12 +796,13 @@
     flex-basis: 0;
     height: auto;
     margin: 0;
-    padding: 0 var(--space-m);
+    padding: 0;
 }
 .row-actions--equipment {
     flex-direction: row;
     align-self: stretch;
     align-items: stretch;
+    justify-content: flex-end;
     margin-top: 8px;
     margin-bottom: 8px;
 }
@@ -808,14 +810,25 @@
     flex-grow: 1;
     flex-basis: 0;
     height: auto;
+    padding: 0;
 }
+.row-actions--reorder { width: 25%; }
 .row-actions--equipment .row-move {
     flex-direction: column;
+    flex-grow: 1;
+    flex-basis: 0;
     flex-shrink: 0;
-    width: 137px;   /* (280 - 6) / 2: each arrow keeps its previous horizontal width. */
+    width: 0;
     margin: 0 6px 0 0;
 }
 .row-actions--equipment .row-move-button { height: auto; min-height: 0; }
+.row-actions--reorder > .detail-action--row,
+.row-actions--reorder > .row-move {
+    width: 50%;
+    flex-basis: auto;
+    flex-grow: 0;
+    flex-shrink: 1;
+}
 .row-actions--equipment .row-move-button--down { margin-left: 0; margin-top: 6px; }
 .list-row--actions .row-qty--ship {
     display: none;

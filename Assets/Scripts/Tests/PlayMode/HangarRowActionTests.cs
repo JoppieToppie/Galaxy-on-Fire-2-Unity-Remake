@@ -28,7 +28,8 @@ namespace GoF2Remake.Tests
         }
 
         [UnityTest]
-        public IEnumerator ActionsFillTheirRowsAndShiftClickUsesExistingValidation([Values(false, true)] bool original)
+        public IEnumerator ActionsFillTheirRowsAndShiftClickUsesExistingValidation(
+            [Values(false, true)] bool original, [Values(640, 960, 1280)] int rowWidth)
         {
             using var style = new SettingsScope<bool>(() => Settings.OriginalUi, v => Settings.OriginalUi = v);
             Settings.OriginalUi = original;
@@ -44,11 +45,13 @@ namespace GoF2Remake.Tests
             var window = Get<HangarWindow>(menu, "hangarWindow");
             window.SetTab(HangarWindow.Tab.Ship);
             var slot = Row(window, "Slot", 0);
+            Get<VisualElement>(slot, "element").style.width = rowWidth;
             Invoke(window, "Select", slot, false);
             yield return Run(0.2f);
             var action = Get<Button>(window, "actionButton");
             var up = Get<Button>(window, "moveUpButton");
             var down = Get<Button>(window, "moveDownButton");
+            float demountWidth = action.worldBound.width;
             Assert.Greater(action.worldBound.height, up.worldBound.height * 1.8f, "Demount spans the two arrow rows");
             Assert.LessOrEqual(up.worldBound.xMax, action.worldBound.xMin + 1f);
             Assert.LessOrEqual(up.worldBound.yMax, down.worldBound.yMin + 1f);
@@ -57,9 +60,14 @@ namespace GoF2Remake.Tests
             Click(up, true);
             Assert.AreEqual(2, Session.Equipment.Count, "an embedded arrow must not also demount the row");
             var cargo = Get<VisualElement>(Row(window, "CargoItem", 55), "element");
+            cargo.style.width = rowWidth;
             Click(cargo, false);
             yield return Run(0.2f);
             var amount = Get<VisualElement>(window, "rowQty");
+            Assert.AreEqual(demountWidth, action.worldBound.width, 5f,
+                "Mount shares Demount's proportion, allowing the reorder gap and pixel rounding");
+            Assert.AreEqual(0.125f, action.worldBound.width / cargo.worldBound.width, 0.01f,
+                "button width follows the row at each tested viewport width");
             Assert.Greater(action.worldBound.height, cargo.worldBound.height * 0.75f,
                 "Mount fills the row with only the style-specific vertical insets");
             Assert.LessOrEqual(action.worldBound.xMax, amount.worldBound.xMin - 1f,
@@ -76,9 +84,12 @@ namespace GoF2Remake.Tests
             Click(Get<VisualElement>(Row(window, "Slot", 0), "element"), true);
             Assert.Contains(builtIn, Session.Equipment, "built-in equipment stays installed");
             window.SetTab(HangarWindow.Tab.Blueprints);
-            Invoke(window, "Select", Row(window, "Blueprint", 85), false);
+            var blueprint = Row(window, "Blueprint", 85);
+            Get<VisualElement>(blueprint, "element").style.width = rowWidth;
+            Invoke(window, "Select", blueprint, false);
             yield return Run(0.2f);
             var actions = Get<VisualElement>(window, "rowActions");
+            Assert.AreEqual(demountWidth, action.worldBound.width, 5f, "Edit shares the agreed Demount proportion");
             Assert.AreEqual(actions.worldBound.height, action.worldBound.height, 1f, "Edit fills its action area");
             var blueprintRow = Get<VisualElement>(Row(window, "Blueprint", 85), "element");
             Assert.Greater(action.worldBound.height, blueprintRow.worldBound.height * 0.75f,
