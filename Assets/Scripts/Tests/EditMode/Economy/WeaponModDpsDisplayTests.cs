@@ -5,6 +5,7 @@ using NUnit.Framework;
 
 namespace GoF2Remake.Tests
 {
+    /// <summary>A weapon mod's damage per second change (docs/notes/shop.md "Weapon mod damage per second").</summary>
     public class WeaponModDpsDisplayTests : SandboxTest
     {
         [TestCase(0, 20, "+20 %")]
@@ -23,7 +24,7 @@ namespace GoF2Remake.Tests
                 item.categoryId = 28;
                 item.attrKeys = new[] { 39, 40 };
                 item.attrValues = new[] { reloadBonus, damageBonus };
-                Assert.AreEqual(expected, ItemInfo.ItemStats(item).Single(row => row.label == "DPS").value);
+                Assert.AreEqual(expected, ItemInfo.ItemStats(item).Single(row => row.label == Localization.Get(188)).value);
             }
             finally { item.categoryId = category; item.attrKeys = keys; item.attrValues = values; }
         }

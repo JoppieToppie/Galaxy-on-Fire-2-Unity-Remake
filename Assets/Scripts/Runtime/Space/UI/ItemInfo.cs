@@ -207,18 +207,21 @@ namespace GoF2Remake.UI
             int defense = it.Attr(Flight.PointDefense.Attribute);
             if (defense > 0)
                 rows.Add((Localization.Extra("statMissileDefense", "Shoots down missiles within"), $"{Mathf.RoundToInt(defense * Flight.Gun.MetersPerUnit)} m"));
-            // Weapon mods reduce reload time, rather than multiplying shots per second (Shop.FirePower).
+            // Remake (PR #284): a weapon mod's combined damage per second change. The mod shortens the reload rather than
+            // multiplying the shots per second (Level::createPlayer, Shop.FirePower): (1 + attr 40 %) / (1 - attr 39 %) - 1,
+            // before the guns' integer rounding. The label is the original's own DPS text (188).
             if (it.categoryId == 28)
             {
                 float reloadFactor = 1f - it.Attr(39) / 100f;
-                string change = "—"; // A zero reload factor has no weapon-independent percentage.
+                string change = "—";   // no reload left: no weapon-independent percentage
                 if (reloadFactor > 0f)
                 {
                     float percent = ((1f + it.Attr(40) / 100f) / reloadFactor - 1f) * 100f;
                     change = (percent >= 0f ? "+" : "") + percent.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " %";
                 }
-                rows.Add(("DPS", change));
-            }            return rows;
+                rows.Add((T(188), change));
+            }
+            return rows;
         }
 
         /// <summary>The original's decimals (ListItemWindow::set 0x159dcc, the DPS row; StatusWindow::draw 0x1840e2, the fire
