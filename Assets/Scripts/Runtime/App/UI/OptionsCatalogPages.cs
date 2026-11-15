@@ -635,10 +635,11 @@ namespace GoF2Remake.UI
                 () => Settings.FastForwardCruise ? 1 : 0, i => Settings.FastForwardCruise = i == 1,
                 () => X("fastForwardModeHelp", "Time speedup: the whole game runs 5x while you hold it. Ship cruise: only your ship flies 5x as fast, everything else keeps its pace, as in multiplayer.")));
             var hostileFastForward = Toggle("hostileAutopilotFastForward", OptionPage.Gameplay,
-                () => X("hostileAutopilotFastForward", "Autopilot fast-forward near hostiles"),
+                () => X("hostileAutopilotFastForward", "Time speedup near hostiles"),
                 () => Settings.HostileAutopilotFastForward, v => Settings.HostileAutopilotFastForward = v);
             hostileFastForward.description = () => X("hostileAutopilotFastForwardHelp",
-                "Allows fast-forward on autopilot despite hostile radar contacts. Other restrictions still apply. Single-player only.");
+                "Allows time speedup on autopilot despite hostile radar contacts. Other restrictions still apply. Not available with Ship cruise, in multiplayer or in co-op.");
+            hostileFastForward.enabled = () => !Settings.FastForwardCruise && !NetSession.Active;
             list.Add(hostileFastForward);
             // Remake (Discord, 2026-11-04; SystemJump.DockToStream): the autopilot takes the jumpgate toward a set destination
             // without the gate's "Travel to this station?".

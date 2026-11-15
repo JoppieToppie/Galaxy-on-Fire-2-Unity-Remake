@@ -387,7 +387,8 @@ the player ship) and `NavigationView` (flight HUD).
   Remake: where the menu would be empty (the alien orbit: no docking target there, `Navigation.MenuEmpty`) the autopilot
   button is dimmed (`nav-button--dim`) and Q / the button don't open it; it still turns a running autopilot off.
 
-- **Autopilot fast-forward near hostiles** (Gameplay, off by default): in single player,
+- **Time speedup near hostiles** (Gameplay, off by default): in single player with time compression,
   `Settings.HostileAutopilotFastForward` waives hostile radar contacts only while autopilot is active.
-  Manual locked-object flight, mining/docking approaches without autopilot, multiplayer, jump/drive/device and
+  The option is unavailable with Ship cruise (including single-player cruise), multiplayer and co-op.
+  Manual locked-object flight, mining/docking approaches without autopilot, jump/drive/device and
   near-arrival restrictions retain their existing behavior. This does not grant invulnerability or change radar hostility.

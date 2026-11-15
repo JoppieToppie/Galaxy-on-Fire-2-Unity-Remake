@@ -8,15 +8,19 @@ namespace GoF2Remake.Tests
 {
     public class HostileAutopilotFastForwardTests : StoryAreaTestBase
     {
-        [TestCase(false, true, false, false, false)]
-        [TestCase(true, true, false, false, true)]
-        [TestCase(true, true, true, false, false)]
-        [TestCase(true, true, false, true, false)]
-        [TestCase(true, false, false, false, false)]
-        public void HostileBypassIsLimitedToDistantSinglePlayerAutopilot(bool enabled, bool autopilot, bool multiplayer, bool near, bool expected)
+        [TestCase(false, true, false, false, false, false)]
+        [TestCase(true, true, false, false, false, true)]
+        [TestCase(true, true, true, false, false, false)]
+        [TestCase(true, true, false, true, false, false)]
+        [TestCase(true, false, false, false, false, false)]
+        [TestCase(true, true, false, false, true, false)]
+        public void HostileBypassIsLimitedToDistantSinglePlayerAutopilot(bool enabled, bool autopilot, bool multiplayer,
+            bool near, bool cruise, bool expected)
         {
             using var setting = new SettingsScope<bool>(() => Settings.HostileAutopilotFastForward, v => Settings.HostileAutopilotFastForward = v);
             Settings.HostileAutopilotFastForward = enabled;
+            using var cruiseSetting = new SettingsScope<bool>(() => Settings.FastForwardCruise, v => Settings.FastForwardCruise = v);
+            Settings.FastForwardCruise = cruise;
             NetSession.ActiveProvider = () => multiplayer;
             var go = new GameObject("HostileAutopilotFastForwardTests");
             try

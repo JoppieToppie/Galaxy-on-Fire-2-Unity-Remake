@@ -577,7 +577,8 @@ namespace GoF2Remake.Flight
                 if (Interstellar || Jumping || TimeExtender.Active) return false;   // (the drive has the button there)
                 // Only waive the radar-contact restriction, not arrival/jump/device restrictions or session authority.
                 if (FastForwardRadioBlocked) return false;
-                if (HostilesPresent && !(Autopilot && !NetSession.Active && Settings.HostileAutopilotFastForward)) return false;
+                if (HostilesPresent && !(Autopilot && !NetSession.Active && !Settings.FastForwardCruise
+                    && Settings.HostileAutopilotFastForward)) return false;
                 if (Autopilot) return !AboutToReach;
                 if (mining != null && mining.Target != null && mining.State == Mining.Phase.Approaching)
                     return (mining.Target.transform.position - ship.transform.position).magnitude / M >= AboutToReachUnits;
