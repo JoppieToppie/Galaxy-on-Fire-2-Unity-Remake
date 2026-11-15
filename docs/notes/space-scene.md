@@ -66,6 +66,16 @@ Research: `Reference/research/space_level_setup.md`, `space_backdrop.md` (+ `spa
   the star map). Its materials keep the MotionVectors pass on (2026-10-28): URP's LitShader editor, which the shader
   borrows, doesn't know "GoF2/Hull" and turns the pass on whenever the Editor loads one; `AssetImport` turned it off, so
   every Play mode session, batch run and build rewrote ~170 .mat files.
+  **The mods' features in the mods' variant alone** (2026-11-14, the user's "what can we do to improve performance for
+  ios"): EVERSPACE 2's structure layers and rim, Chorus's layers, tissue, crystal, shell and far kicker, the glow wave,
+  the lava and the hit flash are compiled into ForwardLit only under `_GOF2_PBR` (`#if defined(_GOF2_PBR)` round their
+  calls in `HullPassFragment`): every mod material is a `ModMaterials` copy of a ModAssets template, all of which carry
+  it, and the game's hulls never do, so the game's ships, stations and asteroids draw without that code (a mobile GPU
+  sizes a shader's registers for its heaviest path, its branches taken or not). No new keyword and no new variant (a
+  `shader_feature` set only on runtime materials would be stripped from builds). Wreck effects, the warp-in, decals,
+  liveries and the sun's gamma tint stay in both: they reach the game's hulls. Tests `ModHullLightingTests.
+  TheGameHullsVariantLeavesTheModFeaturesOut` (both variants compile), `ChorusLayersTests` (the Chorus, wave and lava
+  materials carry `_GOF2_PBR`). Its gain is unmeasured: that needs a device.
 - **Sun/planets:** quads 1000 m from the camera, drawn at the far plane (`GoF2/Backdrop`; with the sky layers drawn by
   `BackdropPass` right after the skybox, LightMode `GoF2Backdrop`, so they are in the opaque texture the cloak and the shield
   bubble refract: in URP's transparent pass the cloak showed black over a planet); the sun at the texture's own

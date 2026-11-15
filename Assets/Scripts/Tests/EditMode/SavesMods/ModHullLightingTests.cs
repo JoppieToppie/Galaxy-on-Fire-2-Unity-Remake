@@ -20,6 +20,30 @@ namespace GoF2Remake.Tests
     public class ModHullLightingTests
     {
         [Test]
+        public void TheGameHullsVariantLeavesTheModFeaturesOut()
+        {
+            // HullForwardPass.hlsl compiles EVERSPACE 2's layers, Chorus's layers, tissue, crystal, shell and far kicker, the
+            // glow wave, the lava and the hit flash into the mods' variant (_GOF2_PBR) alone: both variants must compile
+            var m = new Material(Shader.Find("GoF2/Hull"));
+            try
+            {
+                m.EnableKeyword("_NORMALMAP");
+                m.EnableKeyword("_EMISSION");
+                int pass = m.FindPass("ForwardLit");
+                Assert.GreaterOrEqual(pass, 0);
+                foreach (bool pbr in new[] { false, true })
+                {
+                    if (pbr) m.EnableKeyword("_GOF2_PBR"); else m.DisableKeyword("_GOF2_PBR");
+                    UnityEditor.ShaderUtil.CompilePass(m, pass, true);
+                    var errors = System.Linq.Enumerable.Where(UnityEditor.ShaderUtil.GetShaderMessages(m.shader),
+                        x => x.severity == UnityEditor.Rendering.ShaderCompilerMessageSeverity.Error);
+                    CollectionAssert.IsEmpty(System.Linq.Enumerable.Select(errors, x => $"{x.file}:{x.line} {x.message}"), pbr ? "the mods' variant" : "the game's");
+                }
+            }
+            finally { Object.DestroyImmediate(m); }
+        }
+
+        [Test]
         public void TheModTemplatesArePbrHulls()
         {
             var a = Resources.Load<ModAssets>(ModAssets.ResourcePath);

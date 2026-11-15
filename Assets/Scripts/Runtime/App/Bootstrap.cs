@@ -287,6 +287,11 @@ namespace GoF2Remake
             Settings.UpscalerFsrTemporal when FsrTemporalSupported => Settings.UpscalerFsrTemporal,
             Settings.UpscalerMetalFxSpatial when MetalFxSpatialSupported => Settings.UpscalerMetalFxSpatial,
             Settings.UpscalerMetalFxTemporal when MetalFxTemporalSupported => Settings.UpscalerMetalFxTemporal,
+            // Remake (2026-11-14): MetalFX where the device has none (a preset's on an older Mac): its counterpart, not
+            // a plain stretch
+            Settings.UpscalerMetalFxSpatial when FsrSupported => Settings.UpscalerFsr,
+            Settings.UpscalerMetalFxTemporal when FsrTemporalSupported => Settings.UpscalerFsrTemporal,
+            Settings.UpscalerMetalFxTemporal when FsrSupported => Settings.UpscalerFsr,
             _ => Settings.UpscalerOff,
         };
 

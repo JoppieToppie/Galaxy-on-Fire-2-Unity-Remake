@@ -55,6 +55,16 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   (`ModImport.Pick`), `SaveFolderPicker.mm` (the save folder). Local network adapters by iOS name (`NetGame.AdapterName`:
   en0 Wi-Fi, bridge Hotspot, utun VPN; mobile data and AirDrop left out). Switching the active target to iOS adds a default
   iOS entry to every texture .meta (like UWP's): harmless, revert them before committing.
+  **Foldables, the iPhone Duo** (2026-11-14, the user's request; Apple's spec page: an A20 Pro, a 7.6" 1878 x 2670 inner
+  and a 5.4" 1398 x 2034 outer OLED, both ProMotion up to 120 Hz with a Dynamic Island; iOS 27; its RAM, ProMotion's
+  minimum and the app's life over a fold aren't published): both screens are about 1.42-1.46:1 in landscape, so the UI
+  takes `layout-narrow` (not `-square`) and the cameras' Hor+ keeps the 16:9 width; folding or unfolding changes the
+  screen size and safe area while running, which every screen already follows (`lastScreen` / `lastSafeArea` /
+  `UiLayout.Revision` re-layout, `SafeArea` on GeometryChanged). Changes: a mobile screen under `UiLayout.PhoneMaxInches`
+  (8.1", was 7.5") stays a phone, so the inner screen's 7.6" doesn't switch the UI to the desktop's size on unfolding
+  (tablets, the iPad mini's 8.3" up, stay desktop); iOS defaults to 60 fps and the Medium preset, its upscaler MetalFX
+  Spatial (options.md "Graphics preset"). Not done: a thermal-state response (ProcessInfo.thermalState needs a native plugin), anything Duo-specific by
+  model (its identifier isn't known). Not run on the device or a simulator of it.
 - **Android Vulkan pre-transform** (Player settings > Android > "Apply display rotation during rendering",
   `PlayerSettings.vulkanEnablePreTransform`): on, with `PreTransformGuard` (Space, installed by `Bootstrap`): while it is in
   use (`PreTransformGuard.Active`: Vulkan, `SystemInfo.supportsSwapChainPreTransform`, not

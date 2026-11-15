@@ -48,6 +48,7 @@ namespace GoF2Remake.Tests
                 kickerExp = 5f, kickerFadeOffset = 150f, kickerFadeLength = 900f, emissionScale = 0.12f,
             };
             var m = ModMaterials.FromSpec(mod, new CustomShipMaterial { chorus = c }, "chorus trim");
+            Assert.IsTrue(m.IsKeywordEnabled("_GOF2_PBR"), "the mods' variant: GoF2/Hull compiles the mods' features into it alone");
             try
             {
                 Assert.AreEqual(new Vector4(1f, 2f, 1f, 0.12f), m.GetVector("_ChorusParams"));
@@ -123,6 +124,7 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(e.wave.On);
             Assert.AreEqual(1, e.wave.channel, "the masks' green by default");
             var m = ModMaterials.FromSpec(mod, e, "wing");
+            Assert.IsTrue(m.IsKeywordEnabled("_GOF2_PBR"), "the mods' variant: GoF2/Hull compiles the mods' features into it alone");
             try
             {
                 Assert.AreEqual(new Vector4(1f, 10f, 1f, 1f), m.GetVector("_WaveParams"));
@@ -276,6 +278,7 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(e.lava.On);
             Assert.IsFalse(JsonUtility.FromJson<CustomShipMaterial>("{ \"material\": \"hull\" }").lava?.On ?? false, "off without its maps");
             var m = ModMaterials.FromSpec(mod, e, "lava");
+            Assert.IsTrue(m.IsKeywordEnabled("_GOF2_PBR"), "the mods' variant: GoF2/Hull compiles the mods' features into it alone");
             try
             {
                 Assert.AreEqual(new Vector4(6f, 0.05f, 1f, 0.1f), m.GetVector("_LavaA"));

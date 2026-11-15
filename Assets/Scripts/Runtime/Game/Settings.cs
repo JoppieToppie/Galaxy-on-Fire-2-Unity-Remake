@@ -70,10 +70,11 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Frame rate limit, applied by Bootstrap. V-Sync (display refresh rate) by default; 60 on Android (the user's
-        /// choice, 2026-10-22: a 120 Hz phone rendering at 120 heats up and throttles).</summary>
+        /// choice, 2026-10-22: a 120 Hz phone rendering at 120 heats up and throttles) and on iOS (2026-11-14, the user's
+        /// "optimize the game for the iPhone Duo": its two ProMotion screens are 120 Hz).</summary>
         public static FrameRate FrameRate
         {
-            get => (FrameRate)Mathf.Clamp(Mathf.RoundToInt(Get("frameRate", (float)(AndroidDefaults ? FrameRate.Fps60 : FrameRate.VSync))), 0, (int)FrameRate.VSync);
+            get => (FrameRate)Mathf.Clamp(Mathf.RoundToInt(Get("frameRate", (float)(AndroidDefaults || IosDefaults ? FrameRate.Fps60 : FrameRate.VSync))), 0, (int)FrameRate.VSync);
             set => Set("frameRate", (float)value);
         }
 
@@ -237,14 +238,27 @@ namespace GoF2Remake.Data
             new[] { 1.5f,  UpscalerOff, 8f, PostAaSmaa, BloomRemake, HangarShadowsAll,    1f, 1f, 1f, 0f, 0f, 1f, 1f, 3f, 3f, 1f },
         };
 
-        /// <summary>'key''s value in 'preset' (PresetLow..PresetUltra).</summary>
-        public static float PresetValue(int preset, string key) => Presets[Mathf.Clamp(preset, 0, Presets.Length - 1)][Array.IndexOf(PresetKeys, key)];
+        /// <summary>'key''s value in 'preset' (PresetLow..PresetUltra). On Apple's devices (AppleUpscaler) the presets' FSR 1
+        /// is MetalFX Spatial, Apple's own spatial upscaler, like for like (2026-11-14, the user: "why fsr when metalfx is a
+        /// thing"; not Temporal: the temporal paths ghost on fast flight, and neither is yet seen on a device).</summary>
+        public static float PresetValue(int preset, string key)
+        {
+            float v = Presets[Mathf.Clamp(preset, 0, Presets.Length - 1)][Array.IndexOf(PresetKeys, key)];
+            if (key == "upscaler" && Mathf.Approximately(v, UpscalerFsr) && AppleUpscaler) return UpscalerMetalFxSpatial;
+            // iOS's Medium (its default): FXAA, one pass, for SMAA's three; MetalFX takes the edges on again as it upscales,
+            // and the phones' screens are 430 - 460 ppi (2026-11-14, the user's "what can we do to improve performance for ios")
+            if (key == "postAa" && preset == PresetMedium && IosDefaults) return PostAaFxaa;
+            return v;
+        }
+
+        /// <summary>The presets take MetalFX in FSR 1's place: iOS (IosDefaults, its tests' override too) and macOS players.</summary>
+        public static bool AppleUpscaler => IosDefaults || Application.platform == RuntimePlatform.OSXPlayer;
 
         /// <summary>Sets every option of 'preset' (PresetLow..PresetUltra; anything else does nothing), one Changed.</summary>
         public static void ApplyPreset(int preset)
         {
             if (preset < 0 || preset >= Presets.Length) return;
-            for (int i = 0; i < PresetKeys.Length; i++) SetQuiet(PresetKeys[i], Presets[preset][i]);
+            for (int i = 0; i < PresetKeys.Length; i++) SetQuiet(PresetKeys[i], PresetValue(preset, PresetKeys[i]));   // (Apple's MetalFX swap too)
             PlayerPrefs.Save();
             Changed?.Invoke();
         }
@@ -254,8 +268,16 @@ namespace GoF2Remake.Data
         static bool? androidDefaultsOverride;
         public static void OverrideAndroidDefaults(bool? android) { androidDefaultsOverride = android; cache.Clear(); }
 
-        /// <summary>A preset option's default: the Low preset's value on Android, else 'other'.</summary>
-        static float Default(string key, float other) => AndroidDefaults ? PresetValue(PresetLow, key) : other;
+        /// <summary>The iOS defaults: the Medium preset and 60 fps (2026-11-14, the user's "optimize the game for the iPhone
+        /// Duo": High's 100 % render scale at 120 Hz on its 1878 x 2670 inner screen is five megapixels 120 times a second,
+        /// heat and throttling; Apple's chips carry Medium's 80 % upscaled by MetalFX easily, so not Android's Low). Tests set the override.</summary>
+        public static bool IosDefaults => iosDefaultsOverride ?? Application.platform == RuntimePlatform.IPhonePlayer;
+        static bool? iosDefaultsOverride;
+        public static void OverrideIosDefaults(bool? ios) { iosDefaultsOverride = ios; cache.Clear(); }
+
+        /// <summary>A preset option's default: the Low preset's value on Android, Medium's on iOS, else 'other'.</summary>
+        static float Default(string key, float other) =>
+            AndroidDefaults ? PresetValue(PresetLow, key) : IosDefaults ? PresetValue(PresetMedium, key) : other;
 
         /// <summary>The chase camera's vertical field of view in degrees (at 16:9; the original's is OriginalFov).</summary>
         public static float FieldOfView { get => Get("fov", OriginalFov); set => Set("fov", Mathf.Clamp(value, 55f, 95f)); }
