@@ -811,6 +811,7 @@ namespace GoF2Remake.UI
             var drive = nav != null ? nav.Drive : null;
             bool driveCharging = drive != null && drive.Charging && !jumpCharging && !cloakCharging;
             jumpCharge.EnableInClassList("jump-charge--shown", jumpCharging || cloakCharging || driveCharging);
+            root.EnableInClassList("hud-charging", jumpCharging || cloakCharging || driveCharging);   // #247: the low messages go under it
             if (cloakCharging != lastCloakCharging || driveCharging != lastDriveCharging)
             {
                 lastCloakCharging = cloakCharging;

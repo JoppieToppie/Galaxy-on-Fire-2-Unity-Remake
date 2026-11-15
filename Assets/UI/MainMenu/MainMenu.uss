@@ -2190,6 +2190,15 @@
     min-height: 0;   /* a DLC's place line or a long path: the picture goes rather than the buttons onto the footer */
 }
 
+/* Remake (#242): a wide phone's panel is shorter still (an iPhone 17 Pro Max with a two-line mod name and 64-unit touch
+   buttons put the action rows on the footer): there the picture and the description give way, down to nothing. */
+.layout-phone .mods-preview,
+.layout-handheld .mods-preview,
+.layout-phone .mods-desc-scroll,
+.layout-handheld .mods-desc-scroll {
+    min-height: 0;
+}
+
 /* Remake mods: the loading screen (ModLoadingView) on the startup splash and the fade before a game. */
 .mod-loading {
     position: absolute;

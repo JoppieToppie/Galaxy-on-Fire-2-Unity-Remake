@@ -304,7 +304,9 @@ namespace GoF2Remake.UI
                 int slot = station == 94 ? 3 : station - 90;
                 if ((m.value & (1 << slot)) != 0) return false;
                 m.value |= 1 << slot;
-                storyDialogue.Show(new System.Collections.Generic.List<DialoguePage> { new DialoguePage { speaker = 0, text = 2716 + slot, voice = $"MISSION_ALT_116_{slot}" } },
+                // Maxwell searches at 90 and 92; at 91 and 94 the barkeeper answers (portraits 0x39 / 0x3a, text 0x5ec).
+                int speaker = slot == 1 ? 57 : slot == 3 ? 58 : 0;
+                storyDialogue.Show(new System.Collections.Generic.List<DialoguePage> { new DialoguePage { speaker = speaker, text = 2716 + slot, voice = $"MISSION_ALT_116_{slot}" } },
                                    _ => Select(launchButton));
                 return true;
             }
