@@ -97,20 +97,22 @@ namespace GoF2Remake.UI
                         if ((it.TypeId == 0 || it.TypeId == 2 || it.categoryId == 39) && v > 0)
                         {
                             int dmg = it.HasAttr(9) ? it.Attr(9) : it.Attr(10);
-                            rows.Add((T(188), (dmg / (float)v * 1000f).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)));
+                            rows.Add((T(188), OriginalDecimals(dmg / (float)v * 1000f)));
                         }
                         break;
                     case 12:
                         if (it.categoryId == 11) rows.Add((T(157), $"{v / 1000} s"));   // mines: how long they stay
                         else
                         {
-                            int range = (int)(v / 3600f * it.Attr(13) * 250f);
-                            int shown = range - range % 100 + (range % 100 == 50 ? 50 : 0);
+                            // ListItemWindow::set 0x15a09c: (int)(attr12 / 3600f * (float)(attr13 * 250)), then to the hundred below;
+                            // a remainder of exactly 50 goes up instead (r + r % 100 when that is a round hundred): 1250 reads 1300.
+                            int range = (int)(v / 3600f * (it.Attr(13) * 250));
+                            int shown = range % 100 == 50 ? range + 50 : range - range % 100;
                             rows.Add((T(151), $"{shown} m"));
                         }
                         break;
                     case 13: rows.Add((T(156), $"{v * 250} km/h")); break;
-                    case 14: rows.Add((T(139), $"{v} m")); break;
+                    case 14: rows.Add((T(139), $"{(int)(v * 0.5f)} m")); break;   // ListItemWindow::set 0x159f4e: x 0.5f, cut to an int
                     case 15: rows.Add((T(158), YesNo(v))); break;
                     case 16: rows.Add((T(153), YesNo(v))); break;
                     case 30: rows.Add((T(142), YesNo(v))); break;
@@ -141,7 +143,10 @@ namespace GoF2Remake.UI
                     case 38: rows.Add((T(150), v.ToString())); break;
                     case 39: rows.Add((T(147), Signed(v) + " %")); break;   // #105: a negative factor read "+-10 %"
                     case 40: rows.Add((T(146), Signed(v) + " %")); break;
-                    case 44: case 47: case 51: case 53: rows.Add((T(151), $"{v} m")); break;
+                    case 44: case 47: rows.Add((T(151), $"{v} m")); break;
+                    // A plasma collector's (51) and a repair / transfusion beam's (53) reach: ListItemWindow::set 0x159f7e takes
+                    // these two x 0.1f (DAT_00159818), cut to an int (vcvt.s32): the SPP-C1's 15000 reads 1500 m.
+                    case 51: case 53: rows.Add((T(151), $"{(int)(v * 0.1f)} m")); break;
                     case 49: rows.Add((T(156), $"{v * 50} km/h")); break;
                     case 50: rows.Add((T(139), $"{v} %")); break;
                     case 52: rows.Add((T(160), $"{v} %")); break;
@@ -202,10 +207,34 @@ namespace GoF2Remake.UI
             int defense = it.Attr(Flight.PointDefense.Attribute);
             if (defense > 0)
                 rows.Add((Localization.Extra("statMissileDefense", "Shoots down missiles within"), $"{Mathf.RoundToInt(defense * Flight.Gun.MetersPerUnit)} m"));
+            // Remake (PR #284): a weapon mod's combined damage per second change. The mod shortens the reload rather than
+            // multiplying the shots per second (Level::createPlayer, Shop.FirePower): (1 + attr 40 %) / (1 - attr 39 %) - 1,
+            // before the guns' integer rounding. The label is the original's own DPS text (188).
+            if (it.categoryId == 28)
+            {
+                float reloadFactor = 1f - it.Attr(39) / 100f;
+                string change = "—";   // no reload left: no weapon-independent percentage
+                if (reloadFactor > 0f)
+                {
+                    float percent = ((1f + it.Attr(40) / 100f) / reloadFactor - 1f) * 100f;
+                    change = (percent >= 0f ? "+" : "") + percent.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " %";
+                }
+                rows.Add((T(188), change));
+            }
             return rows;
         }
 
-        static string Seconds(int ms) => (ms / 1000f).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " s";
+        /// <summary>The original's decimals (ListItemWindow::set 0x159dcc, the DPS row; StatusWindow::draw 0x1840e2, the fire
+        /// power): the whole part, ".", then the first two characters of (int)(fraction x 100), not zero-padded: 33.333 reads
+        /// "33.33", 12.0 "12.0" and 12.05 "12.5" (the decompile drops the x 100).</summary>
+        public static string OriginalDecimals(float value)
+        {
+            int whole = (int)value;
+            string fraction = ((int)((value - whole) * 100f)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return whole.ToString(System.Globalization.CultureInfo.InvariantCulture) + "." + (fraction.Length > 2 ? fraction.Substring(0, 2) : fraction);
+        }
+
+        static string Seconds(int ms) =>(ms / 1000f).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " s";
 
         /// <summary>What a device does, for its details (Flight.Device.Type).</summary>
         public static string DeviceEffect(Flight.Device.Type type) => type switch

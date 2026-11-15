@@ -178,3 +178,7 @@ generator).
 - **Mods' medals** (`Modding.ModMedals`, medals.json, 2026-11-13) come after the 45 in the grid, the toast and the
   conditions, with tiers of their own: see docs/notes/mods.md "Mod medals".
 - Type 15 Ore Mining (unreachable in the original's generator) is only rolled in multiplayer sessions (see "Multiplayer").
+
+- **Bonus percentage** (767 "#P %"): `(int)(getMissionBonus x 100f)` (SpaceLounge::startChat 0x19a582,
+  Globals::getAgentMissionText 0xfbd62; the decompile drops the x 100), cut, not rounded: standing 53 reads 52 %, 59 reads
+  58 % (the only two from 0 to 100 that differ). `LoungeChat` rounded it until 2026-11-15.

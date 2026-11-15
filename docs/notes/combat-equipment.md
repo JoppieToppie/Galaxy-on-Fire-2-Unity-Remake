@@ -198,3 +198,8 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   edge-on sides faded (`_EdgeFade`), no polygons on the outline.
 - Spectral filters, gas clouds and plasma collectors: see "Supernova add-on".
 - Not yet: the cloak's exhaust colour and the "not enough cells" window (a HUD message stands in), the menu button's ready flash.
+
+- **Beam range labels:** the original's details window shows attrs 51 and 53 x 0.1f cut to an int (`ListItemWindow::set`
+  0x159f7e, constant DAT_00159818 = 0.1, read from the disassembly: the decompile drops the multiply), and so does
+  `ItemInfo`: SPP-C1 1500 m, SPP-M50 6000 m, Crimson Drain 2000 m, Pandora Leech 1000 m, the plasma collectors (51)
+  5000 / 6000 m and the PE Proton's 2750 (Android) or 4000 m (Default Economy). Only the label: RepairBeam and PlayerTurret still use the raw game units.
