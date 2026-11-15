@@ -53,6 +53,7 @@ namespace GoF2Remake.Modding
                             s = new SystemData
                             {
                                 index = index, raceId = race, race = template.race, initiallyVisible = true, jumpgateStation = -1,
+                                ambientPopulation = 1f, derelictFreighters = true,
                                 mapPosition = new MapPos { x = (int)pos[0], y = (int)pos[1], z = (int)pos[2] },
                                 textureIndex = template.textureIndex,
                                 stations = new List<int>(), jumpRoutesTo = new List<int>(),
