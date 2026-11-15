@@ -136,7 +136,8 @@ namespace GoF2Remake.Events
             foreach (var r in go.GetComponentsInChildren<Renderer>()) bounds.Encapsulate(r.bounds);
             float size = bounds.size.magnitude;
             if (size > 1e-3f) go.transform.localScale *= SizeMeters / size;
-            go.transform.position = OrbitLayout.ToUnity(p.point) + (go.transform.position - bounds.center) * (size > 1e-3f ? SizeMeters / size : 1f);
+            go.transform.position = OrbitScale.ToUnity(p.point) +   // OrbitScale: an orbit spot (the near check unmaps the player)
+(go.transform.position - bounds.center) * (size > 1e-3f ? SizeMeters / size : 1f);
             p.go = go;
             if (p.marked && p.name.Length > 0 && level.Navigation != null)
             {

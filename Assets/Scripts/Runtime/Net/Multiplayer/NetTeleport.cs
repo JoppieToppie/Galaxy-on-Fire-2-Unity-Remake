@@ -258,7 +258,7 @@ namespace GoF2Remake.Multiplayer
             }
             else if (d.kind == Kind.Orbit && d.hasPos)
             {
-                pose = OrbitLayout.ToUnity(d.pos);
+                pose = OrbitScale.ToUnity(d.pos);   // the station scale's orbit (identity in a session)
                 // Facing the station (a spot at the station itself: the launch heading, game -z).
                 rot = pose.sqrMagnitude > 1f ? Quaternion.LookRotation(-pose.normalized, Vector3.up) : Quaternion.identity;
                 hasPose = true;
@@ -285,7 +285,7 @@ namespace GoF2Remake.Multiplayer
             // An orbit: in place when already there, else the orbit loads with the pose.
             if (level != null && here == d.station)
             {
-                if (!hasPose) { pose = OrbitLayout.ToUnity(level.UndockPoint); rot = level.Player != null ? level.Player.transform.rotation : Quaternion.identity; }
+                if (!hasPose) { pose = OrbitScale.ToUnity(level.UndockPoint); rot = level.Player != null ? level.Player.transform.rotation : Quaternion.identity; }
                 if (level.MoveForTeleport(pose, rot)) { Arrived(by, where); return; }
             }
             pending = hasPose;
@@ -316,7 +316,7 @@ namespace GoF2Remake.Multiplayer
             Cheats.Repair();   // the ship comes back whole (the next level reads the Session's hull, shield, armor)
             var spot = gamePos ?? RespawnSpot;
             spot += UnityEngine.Random.insideUnitSphere * spread;
-            pendingPos = OrbitLayout.ToUnity(spot);
+            pendingPos = OrbitScale.ToUnity(spot);
             pendingRot = pendingPos.sqrMagnitude > 1f ? Quaternion.LookRotation(-pendingPos.normalized, Vector3.up) : Quaternion.identity;
             pending = true;
             if (station == Session.VoidOrbit && Session.StationIndex != Session.VoidOrbit) Session.VoidReturnStation = Session.StationIndex;

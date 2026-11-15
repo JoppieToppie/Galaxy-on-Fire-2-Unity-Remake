@@ -123,10 +123,17 @@ namespace GoF2Remake.Data
 
         /// <summary>Item::mixItems: everything in cargo or in stock, by item index. Remake: an item number the item table
         /// doesn't have is left out (logged once): the window reads every row's item, and one unknown number in the hold
-        /// or the stock threw on every trade (crash reports from a Windows build, 2026-10-12, source not found yet).</summary>
-        public List<int> ShopItems() =>
-            Session.Cargo.Where(s => s.amount > 0).Select(s => s.item)
-                .Concat(Stock.items.Where(s => s.amount > 0).Select(s => s.item)).Distinct().Where(Known).OrderBy(i => i).ToList();
+        /// or the stock threw on every trade (crash reports from a Windows build, 2026-10-12, source not found yet).
+        /// Remake (PR #282, Settings.ShopByCategory, off by default): by category, then tech level, then index, so the DLC
+        /// items (indices after the base game's) sit beside their kind.</summary>
+        public List<int> ShopItems()
+        {
+            var items = Session.Cargo.Where(s => s.amount > 0).Select(s => s.item)
+                .Concat(Stock.items.Where(s => s.amount > 0).Select(s => s.item)).Distinct().Where(Known);
+            return (Settings.ShopByCategory
+                ? items.OrderBy(i => db.Item(i).categoryId).ThenBy(i => db.Item(i).techLevel).ThenBy(i => i)
+                : items.OrderBy(i => i)).ToList();
+        }
 
         static readonly HashSet<int> reportedUnknown = new HashSet<int>();
 

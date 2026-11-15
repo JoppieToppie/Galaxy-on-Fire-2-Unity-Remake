@@ -130,7 +130,7 @@ namespace GoF2Remake.World
                 int hull = d.hull > 0 ? Mathf.RoundToInt(d.hull * diff) : d.kind == "turret" ? baseHull : d.kind == "hangar" ? baseHull * 3 : baseHull * 2;
                 var spec = new SpawnSpec
                 {
-                    group = NpcGroup.Turret, race = host.Race, ship = -1, position = new Vector3(worldPos.x, worldPos.y, -worldPos.z) / M,
+                    group = NpcGroup.Turret, race = host.Race, ship = -1, position = OrbitScale.ToGame(worldPos),   // OrbitScale: the original's coordinates
                     hitpoints = hull, noLoot = true, stationary = true, scale = d.scale * k,
                     alwaysEnemy = host.Spec.alwaysEnemy, alwaysFriend = host.Spec.alwaysFriend, alwaysNeutral = host.Spec.alwaysNeutral,
                     capitalPart = true, capitalHost = host.Spec, eventTag = host.Spec.eventTag,
@@ -215,9 +215,10 @@ namespace GoF2Remake.World
                 var pos = at + dir * (40f + 25f * i);
                 var spec = new SpawnSpec
                 {
-                    group = NpcGroup.Escort, race = host.Race, ship = ship, position = new Vector3(pos.x, pos.y, -pos.z) / M,
+                    // OrbitScale: the original's coordinates (NpcShip maps spawns and route points)
+                    group = NpcGroup.Escort, race = host.Race, ship = ship, position = OrbitScale.ToGame(pos),
                     alwaysEnemy = true, noLoot = true, routeAround = host.Spec, eventTag = host.Spec.eventTag,
-                    route = CapitalShips.LoopAround(host.Spec, new Vector3(host.transform.position.x, host.transform.position.y, -host.transform.position.z) / M, p.launched),
+                    route = CapitalShips.LoopAround(host.Spec, OrbitScale.ToGame(host.transform.position), p.launched),
                 };
                 var s = traffic.SpawnShip(spec);
                 if (s == null) continue;

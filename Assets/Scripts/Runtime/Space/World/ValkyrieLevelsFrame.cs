@@ -153,7 +153,7 @@ namespace GoF2Remake.World
                     {
                         EnterCutscene();
                         var kdir = new Vector3(khador.transform.forward.x, khador.transform.forward.y, -khador.transform.forward.z);
-                        cam.LookAt(ToGame(khador.transform.position) + kdir * 10000f + new Vector3(0, 300, 3000), khador.transform);
+                        cam.LookAtUnity(khador.transform.position + ToUnity(kdir * 10000f + new Vector3(0, 300, 3000)), khador.transform);   // beside him (an offset)
                         cam.SetDolly(new Vector3(0f, 0.2f, 0f));
                         Step = 1;
                     }
@@ -199,7 +199,9 @@ namespace GoF2Remake.World
             var corny = S(10);
             var outpost = S(0);
             if (corny == null) return;
-            var w = outpost != null ? ToGame(outpost.transform.position) : new Vector3(220000, -20000, -10000);
+            // (Where the outpost stands in the scene, in game units: the spots below are offsets from it, ToUnity's.)
+            var w = outpost != null ? ToGame(outpost.transform.position) : OrbitScale.Place(new Vector3(220000, -20000, -10000));
+            float grown = outpost != null ? outpost.StructureScale : StructureScale;   // OrbitScale: the outpost as NpcShip grew it
             switch (Step)
             {
                 case 0:
@@ -211,7 +213,7 @@ namespace GoF2Remake.World
                         corny.SetSpeed(3f);
                         corny.SetExhaust(true);
                         EnterCutscene();
-                        cam.LookAt(ToGame(corny.transform.position) + new Vector3(6000, -200, 1000), corny.transform);
+                        cam.LookAtUnity(corny.transform.position + ToUnity(new Vector3(6000, -200, 1000)), corny.transform);   // beside him
                         Step = 2;
                     }
                     break;
@@ -230,7 +232,8 @@ namespace GoF2Remake.World
                     {
                         for (int i = 5; i <= 8; i++)
                         {
-                            var at = w + new Vector3(Sign() * (15000 + R(10000)), R(10000) - 5000, Sign() * (15000 + R(10000)));
+                            // OrbitScale: around the outpost (a structure), the offset grown with it.
+                            var at = w + new Vector3(Sign() * (15000 + R(10000)), R(10000) - 5000, Sign() * (15000 + R(10000))) * grown;
                             S(i)?.Place(ToUnity(at), S(i).transform.forward);
                         }
                         Step = 4;
@@ -239,7 +242,7 @@ namespace GoF2Remake.World
                 case 4:
                     if (Triggered(7))
                     {
-                        var at = w + new Vector3(0, 0, 12000);
+                        var at = w + new Vector3(0, 0, 12000 * grown);   // OrbitScale: out of the grown outpost
                         corny.Place(ToUnity(at), Dir(new Vector3(0, 0, 1)));
                         corny.Wake();
                         corny.SetVisible(true);
@@ -249,7 +252,7 @@ namespace GoF2Remake.World
                         corny.SetRoute(away);
                         c.FailObjective = null;   // Level+0x2c = 0: he's out
                         EnterCutscene();
-                        cam.LookAt(at + new Vector3(6000, -200, 10000), corny.transform);
+                        cam.LookAtUnity(ToUnity(at + new Vector3(6000, -200, 10000)), corny.transform);   // beside him (scene coordinates)
                         Step = 5;
                     }
                     break;
@@ -270,7 +273,7 @@ namespace GoF2Remake.World
             {
                 EnterCutscene();
                 var dir = new Vector3(trot.transform.forward.x, trot.transform.forward.y, -trot.transform.forward.z);
-                cam.LookAt(ToGame(trot.transform.position) + dir * 10000f + new Vector3(600, 300, 1000), trot.transform);
+                cam.LookAtUnity(trot.transform.position + ToUnity(dir * 10000f + new Vector3(600, 300, 1000)), trot.transform);
                 Step = 1;
             }
             else if (Step == 1 && Over(1))
@@ -293,7 +296,7 @@ namespace GoF2Remake.World
                     if (Triggered(0))
                     {
                         EnterCutscene();
-                        cam.LookAt(ToGame(trot.transform.position) + dir * 3000f + new Vector3(-600, -300, -1000), trot.transform);
+                        cam.LookAtUnity(trot.transform.position + ToUnity(dir * 3000f + new Vector3(-600, -300, -1000)), trot.transform);
                         Step = 1;
                     }
                     break;
@@ -304,7 +307,7 @@ namespace GoF2Remake.World
                         trot.alwaysEnemy = true;
                         trot.detectRange = 100000f;
                         trot.SetRoute(null);
-                        cam.LookAt(ToGame(trot.transform.position) + dir * 2000f + new Vector3(-600, 800, -1000), trot.transform);
+                        cam.LookAtUnity(trot.transform.position + ToUnity(dir * 2000f + new Vector3(-600, 800, -1000)), trot.transform);
                         Step = 2;
                     }
                     break;
@@ -344,7 +347,7 @@ namespace GoF2Remake.World
                 case 3:
                     if (Triggered(7))
                     {
-                        var p = PlayerGame;
+                        var p = ToGame(Player.position);   // around the player: scene coordinates, offsets (ToUnity)
                         for (int i = 4; i <= 7; i++)
                         {
                             var s = S(i);
@@ -391,7 +394,7 @@ namespace GoF2Remake.World
                     break;
                 case 2:
                     cam.SetDolly(new Vector3(-0.5f, 0.3f, 1f));
-                    if (T >= 7001f) { cam.LookAt(new Vector3(20000, 5000, 30000), station != null ? station.transform : Player); Step = 3; }
+                    if (T >= 7001f) { cam.LookAtUnity(At(new Vector3(20000, 5000, 30000)), station != null ? station.transform : Player); Step = 3; }   // OrbitScale: absolute
                     break;
                 case 3:
                     if (T >= 7901f && !musicPlayed) { musicPlayed = true; PlayAtCamera(assets?.valkyrieBattlemode); }   // 0x462
@@ -400,7 +403,7 @@ namespace GoF2Remake.World
                 case 4:
                     if (T >= 18001f)
                     {
-                        cam.LookAt(new Vector3(8000, 31000, -9000), station != null ? station.transform : Player);
+                        cam.LookAtUnity(At(new Vector3(8000, 31000, -9000)), station != null ? station.transform : Player);   // OrbitScale: absolute
                         // Modified: the player's ship stays visible through the rest of the cutscene (was SetPlayerVisible(false)).
                         Step = 5;
                     }
@@ -419,7 +422,7 @@ namespace GoF2Remake.World
                 case 8:
                     if (SlideTurret(S(1), TurretSide1_78, TurretStartX1_78, TurretEndX1_78, rollSign1_78, dtMs) && stepMs >= 2001f)   // Modified: [1] second (was [0])
                     {
-                        cam.LookAt(new Vector3(-12000, 5000, 15000), station != null ? station.transform : Player);
+                        cam.LookAtUnity(At(new Vector3(-12000, 5000, 15000)), station != null ? station.transform : Player);   // OrbitScale: absolute
                         Step = 9;
                     }
                     break;
@@ -434,8 +437,9 @@ namespace GoF2Remake.World
                         if (fx != null)
                         {
                             var st = station != null ? station.transform.position : Vector3.zero;
-                            fx.transform.SetPositionAndRotation(st + HyperDrivePos78, Quaternion.Euler(HyperDriveRot78));
-                            fx.transform.localScale = Vector3.one * HyperDriveScale78;
+                            // OrbitScale: sized and placed on the grown station
+                            fx.transform.SetPositionAndRotation(st + HyperDrivePos78 * StructureScale, Quaternion.Euler(HyperDriveRot78));
+                            fx.transform.localScale = Vector3.one * (HyperDriveScale78 * StructureScale);
                             fxFixed = true;
                         }
                         Step = 10;
@@ -466,7 +470,7 @@ namespace GoF2Remake.World
                             s.Wake();
                         }
                         var lead = S(c.Ships.Count - 10);
-                        if (lead != null) cam.LookAt(ToGame(lead.transform.position) + new Vector3(2000, 500, -20000), lead.transform);
+                        if (lead != null) cam.LookAtUnity(lead.transform.position + ToUnity(new Vector3(2000, 500, -20000)), lead.transform);
                         Step = 12;
                     }
                     break;
@@ -519,7 +523,7 @@ namespace GoF2Remake.World
             float k = turretMoved / 1100f;
             float hostX = level.Station != null ? level.Station.transform.position.x : 0f;
             var p = turret.transform.position;
-            turret.transform.position = new Vector3(hostX + side * Mathf.Lerp(startX, endX, k), p.y, p.z);
+            turret.transform.position = new Vector3(hostX + side * Mathf.Lerp(startX, endX, k) * StructureScale, p.y, p.z);   // OrbitScale: on the grown station
             turret.transform.rotation = Quaternion.Euler(Mathf.Lerp(TurretStartRotX78, 0f, k), 0f, rollSign * Mathf.Lerp(TurretStartRollDeg78, TurretRollDeg78, k));
             // Modified: the gun stays drawn in for the first half of the turn (180 -> 90 deg) and slides out in the second.
             SetTurretGun(turret, Vector3.Lerp(TurretGunIn78, TurretGunOut, Mathf.InverseLerp(0.5f, 1f, k)));
@@ -540,8 +544,8 @@ namespace GoF2Remake.World
                         if (fx != null)
                         {
                             var bs = battlestation != null ? battlestation.transform.position : Vector3.zero;
-                            fx.transform.SetPositionAndRotation(bs + HyperDrivePos81, Quaternion.Euler(HyperDriveRot81));
-                            fx.transform.localScale = Vector3.one * HyperDriveScale81;
+                            fx.transform.SetPositionAndRotation(bs + HyperDrivePos81 * StructureScale, Quaternion.Euler(HyperDriveRot81));   // OrbitScale
+                            fx.transform.localScale = Vector3.one * (HyperDriveScale81 * StructureScale);
                             fxFixed = true;
                         }
                         Step = 1;

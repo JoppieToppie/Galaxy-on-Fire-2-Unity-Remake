@@ -137,7 +137,7 @@ namespace GoF2Remake.UI
             shipLines.AddToClassList("status-ship-lines");
             shipBox.Add(shipLines);
             Line(shipLines, ItemInfo.TaggedShipName(Session.ShipIndex), true);
-            StatLine(shipLines, T(569), ((int)Shop.FirePower(db)).ToString());
+            StatLine(shipLines, T(569), ItemInfo.OriginalDecimals(Shop.FirePower(db)));   // StatusWindow::draw 0x1840e2: two decimals
             StatLine(shipLines, T(570), Shop.CombinedHp(db).ToString());
 
             // Reputation.

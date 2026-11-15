@@ -392,8 +392,38 @@ namespace GoF2Remake.World
         bool useEmp, evasionOff;
         Transform fxRootRef;
 
-        static Vector3 ToUnity(Vector3 game) => new Vector3(game.x, game.y, -game.z) * M;
-        static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / M;
+        // OrbitScale (Options > Gameplay "Station scale"): absolute orbit positions (spawn points, route waypoints) go through
+        // the scaled orbit's map both ways; the identity at 1x.
+        static Vector3 ToUnity(Vector3 game) => OrbitScale.ToUnity(game);
+        static Vector3 ToGame(Vector3 unity) => OrbitScale.ToGame(unity);
+        /// <summary>A game offset (not a position) in Unity metres.</summary>
+        static Vector3 OffsetToUnity(Vector3 game) => new Vector3(game.x, game.y, -game.z) * M;
+
+        /// <summary>Remake (OrbitScale): its scale as a structure of station size (IsStructure; 1 otherwise or at 1x): the model,
+        /// its boxes, hit radius, wreck and docking points grow by it.</summary>
+        public float StructureScale { get; private set; } = 1f;
+
+        /// <summary>Remake (OrbitScale): a station-sized structure: SpawnSpec.structure, a station's pads, or a fixed object
+        /// whose model is a station, a platform or the plasma array (the pirate outposts, the Mining Plant, the story's
+        /// stations); not the battlestation's parts, a freighter, a capital ship, a turret or a wreck held at its end.</summary>
+        public static bool IsStructure(SpawnSpec spec)
+        {
+            if (spec == null) return false;
+            if (spec.structure || spec.stationPort) return true;
+            var f = spec.fixedObject;
+            if (string.IsNullOrEmpty(f) || spec.turretAssembly != null || spec.freighter || spec.capital != 0 || spec.capitalPart || spec.deadButSelectable) return false;
+            return (f.Contains("station") && !f.Contains("battlestation")) || f.Contains("platform") || f.Contains("plasma_array");
+        }
+
+        /// <summary>Where a spec lands (Unity): its position through the map; a host's part (SpawnSpec.placedOn, a capital
+        /// ship's parts by capitalHost) at its host's spot plus its offset, grown with a structure host, so it stays on the hull.</summary>
+        static Vector3 SpawnPoint(SpawnSpec spec, int depth = 0)
+        {
+            var host = spec.placedOn ?? (spec.capitalPart ? spec.capitalHost : null);
+            if (host == null || host == spec || depth > 4 || !OrbitScale.Active) return ToUnity(spec.position);
+            float k = IsStructure(host) ? OrbitScale.Factor : 1f;
+            return SpawnPoint(host, depth + 1) + OffsetToUnity((spec.position - host.position) * k);
+        }
         // PlayerFighter::initPush 0xf3b00 / push 0xf3c50 (the shock blast): pushed away from the blast centre for
         // T = (1 - min(d / radius, 1)) * 5000 ms, speeding up as it runs out, tumbling (UpdatePush).
         const float PushMaxMs = 5000f;
@@ -420,7 +450,8 @@ namespace GoF2Remake.World
             Spec = spec;
             fxRootRef = fxRoot;
             assets = CombatAssets.Load();
-            transform.SetPositionAndRotation(ToUnity(spec.position),
+            StructureScale = IsStructure(spec) ? OrbitScale.Factor : 1f;   // OrbitScale: a structure grows like the stations
+            transform.SetPositionAndRotation(SpawnPoint(spec),
                 spec.turretAssembly != null || spec.fixedObject != null ? OrbitLayout.RotationToUnity(spec.rotation) : GameForward);
             DockingType = spec.dockingType;
             RadarHidden = spec.radarHidden;
@@ -440,6 +471,7 @@ namespace GoF2Remake.World
                 asm?.SetPlayerVariant(playerEngines);
                 model = modelGo.transform;
                 if (spec.scale != 1f) model.localScale *= spec.scale;
+                if (StructureScale != 1f) model.localScale *= StructureScale;   // OrbitScale: a structure grows like the stations
                 if (playerEngines)
                 {
                     var glow = asm.playerVariantParts[0];
@@ -461,7 +493,7 @@ namespace GoF2Remake.World
             // Radar::drawCurrentLock compares the name with 0x64b "Hijacker" / 0x67f "Informer" (and the Wanted flag): those are
             // red (a player's report: only the Most Wanted criminals were).
             Target.plateRed = spec.wantedIndex >= 0 || spec.nameText == 1611 || spec.nameText == 1663;
-            Target.radius = (spec.hitRadius > 0f ? spec.hitRadius : NpcTables.HitRadiusUnits) * M * spec.HullScale;
+            Target.radius = (spec.hitRadius > 0f ? spec.hitRadius : NpcTables.HitRadiusUnits) * M * spec.HullScale * StructureScale;
             Target.hitpoints = new Hitpoints(spec.hitpoints > 0 ? spec.hitpoints : NpcTables.Hull(kind, spec.ship));
             Target.hitpoints.SetEmp(spec.empPoints > 0 ? spec.empPoints : NpcTables.Emp(kind), NpcTables.EmpRecoveryMs(kind));   // also with a hull override
             Target.hp = Target.maxHp = Target.hitpoints.maxHull;
@@ -504,7 +536,7 @@ namespace GoF2Remake.World
             {
                 obstacle = gameObject.AddComponent<Obstacle>();
                 obstacle.projectFromVolume = false;
-                obstacle.volumes = CollisionVolume.Scaled(CollisionVolume.ForStaticObject(spec.collisionId), spec.HullScale);
+                obstacle.volumes = CollisionVolume.Scaled(CollisionVolume.ForStaticObject(spec.collisionId), spec.HullScale * StructureScale);   // (OrbitScale: a structure's grown)
                 // Remake (CapitalShips): a killable capital ship is hit on its collision boxes, not the +-1000 cube at its centre.
                 if (spec.capitalEnhanced) Target.boxes = LocalBoxes(obstacle.volumes);
             }
@@ -810,9 +842,10 @@ namespace GoF2Remake.World
         /// hostile target in its box instead of the first of the list (the player), spread over the targets. Not for the ships
         /// whose targets a script, a mission or the original's special rules decide: story and mission orbits, a script's only
         /// enemy, mission ships, a turned ship (it goes for the player who shot it, box or not), the Specters (player-only in
-        /// free flight), the fleet battles' fighters (their own nearest pick). Wingmen and turrets never get here.</summary>
+        /// free flight), the fleet battles' fighters (their own nearest pick), the Supernova Challenge (every Specter on the player).
+        /// Wingmen and turrets never get here.</summary>
         bool SmartTargeting =>
-            Settings.SmarterNpcTargeting && !NpcTables.InCampaignLevel && NpcTables.LevelFreelanceType < 0 && ScriptEnemy == null
+            Settings.SmarterNpcTargeting && !SupernovaChallenge.Active && !NpcTables.InCampaignLevel && NpcTables.LevelFreelanceType < 0 && ScriptEnemy == null
             && !MissionShip && !turnedEnemy && Race != Standing.Specter && traffic != null
             && !(Spec.capitalPart && Spec.capitalHost != null && Spec.capitalHost.fleetBattle);
 

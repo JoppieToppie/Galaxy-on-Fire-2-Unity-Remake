@@ -68,7 +68,7 @@ namespace GoF2Remake.World
                 group = NpcGroup.Raider,
                 race = PirateRace,
                 ship = NpcTables.RandomFighter(PirateRace),
-                position = new Vector3(at.x, at.y, -at.z) / M,   // Unity -> game units
+                position = OrbitScale.ToGame(at),   // Unity -> game units (OrbitScale: NpcShip maps it back to 'at')
                 alwaysEnemy = true,
             };
             var ship = level.Traffic.SpawnShip(spec);

@@ -206,7 +206,7 @@ namespace GoF2Remake.UI
             if (tex == null) return gammaSuns[from] = from;
             var rt = new RenderTexture(tex.width, tex.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
             {
-                name = tex.name + " (map glow)", useMipMap = true, autoGenerateMips = true,
+                name = tex.name + " (map glow)", useMipMap = true, autoGenerateMips = false,
                 wrapMode = tex.wrapMode, filterMode = tex.filterMode, anisoLevel = tex.anisoLevel,
             };
             BlitGammaSun(tex, rt);
@@ -222,10 +222,17 @@ namespace GoF2Remake.UI
         /// app sent to the background with the map open: RenderTexture.IsCreated false), else the suns showed blank.</summary>
         readonly List<(RenderTexture rt, Texture source)> gammaBlits = new List<(RenderTexture, Texture)>();
 
+        /// <summary>#248 (a flash on opening the map, Mali-G610): the texture made and filled before anything samples it,
+        /// its mips made right after (autoGenerateMips waited for the target to be unbound, so the last copy's smaller
+        /// levels could still be undefined memory on the first frame, added 2.5 x and bloomed), the active target put back.</summary>
         void BlitGammaSun(Texture source, RenderTexture rt)
         {
             sunGammaBlit.SetFloat("_Power", SunGlowPower);
+            if (!rt.IsCreated()) rt.Create();
+            var active = RenderTexture.active;
             Graphics.Blit(source, rt, sunGammaBlit);
+            RenderTexture.active = active;
+            rt.GenerateMips();
         }
 
         void RestoreGammaSuns()

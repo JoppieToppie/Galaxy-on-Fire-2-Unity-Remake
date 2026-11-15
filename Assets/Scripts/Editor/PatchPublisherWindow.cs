@@ -1,7 +1,8 @@
 // PatchPublisherWindow.cs
 // GoF2 > Build > Update Patch: makes the in-game updater's release files (CLAUDE.md "Update patcher" in
 // docs/notes/platforms.md), all into Build/Release beside the zips, to upload with them to the GitHub release:
-// - Windows / Linux: Build/Release/Windows/GoF2Remake and Build/Release/Linux/GoF2Remake (whichever exist), and Android: the
+// - Windows / Linux: Build/Release/Windows/GoF2Remake and Build/Release/Linux/GoF2Remake (whichever exist), macOS:
+//   Build/Release/macOS/GoF2Remake.app (built on a Mac, copied here), and Android: the
 //   newest .apk in Build/Release (or Build/Release/Android). PatchPublish cuts each into chunks and writes
 //   GoF2Remake-<platform>-<tag>.pack (the chunks no earlier release has) and GoF2Remake-<platform>-<tag>.patch.json.
 // - UWP: the newest .msix under Build/Release/UWP as GoF2Remake-UWP-<tag>.msix, with GoF2Remake-UWP.appinstaller.
@@ -43,7 +44,7 @@ namespace GoF2Remake.EditorTools
                 .Where(f => !f.Replace('\\', '/').Contains("/Dependencies/"))
                 .OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
 
-        /// <summary>The chunked builds found: Windows / Linux folders, the Android APK.</summary>
+        /// <summary>The chunked builds found: Windows / Linux folders, the macOS app, the Android APK.</summary>
         static List<PatchPublish.Build> Builds()
         {
             var list = new List<PatchPublish.Build>();
@@ -52,6 +53,8 @@ namespace GoF2Remake.EditorTools
                 var b = PatchPublish.Inspect(Path.Combine(OutDir, p, "GoF2Remake"));
                 if (b != null) list.Add(b);
             }
+            var mac = PatchPublish.Inspect(Path.Combine(OutDir, "macOS", "GoF2Remake.app"));
+            if (mac != null) list.Add(mac);
             string apk = new[] { Newest(Path.Combine(OutDir, "Android"), "*.apk"), Directory.Exists(OutDir) ? Directory.GetFiles(OutDir, "*.apk").OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault() : null }
                 .Where(f => f != null).OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
             if (apk != null)

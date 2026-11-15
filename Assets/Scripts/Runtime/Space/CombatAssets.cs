@@ -106,7 +106,7 @@ namespace GoF2Remake.Flight
         [Tooltip("The EMP lightning (records 17 / 18: material 27260 khador_jump, additive).")]
         public Material empSparkMaterial;
         [Tooltip("The emergency system's bubble (mesh 14374 v_shield), its refraction shader (GoF2/ShieldBubble, " +
-                 "SimpleRefractionShader) and its sound (1115 Invincibility_01).")]
+                 "EnergyShield) and its sound (1115 Invincibility_01).")]
         public GameObject shieldBubble;
         public Shader shieldBubbleShader;
         public AudioClip invincibility;

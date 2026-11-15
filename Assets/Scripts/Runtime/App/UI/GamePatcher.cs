@@ -7,6 +7,11 @@
 //   requests, four at a time, each chunk checked; then PatchInstall.Assemble on a thread writes the changed files into
 //   _update/files. Apply: the apply script waits for the game to quit, moves the files in and (Restart now) starts the
 //   game again; Later runs it as the game quits. Only when the game's folder is writable.
+// - macOS (Kind.Files, 2026-11-15): the same, with the app bundle (GoF2Remake.app) as the game's folder and the work
+//   folder in the app's data (persistentDataPath/_update): anything at the bundle's root would break its signature. The
+//   apply script then signs the bundle again ad hoc (the new files break its signature, and macOS won't open a broken
+//   one), clears the download quarantine and opens the app. Only when the bundle is writable (not App Translocation's
+//   read-only copy of an app started straight from Downloads).
 // - Android (Kind.Apk): GoF2Remake-Android-<tag>.patch.json, the same steps on one file: the installed APK
 //   (Application.dataPath) is read for the chunks it shares, the new APK is rebuilt byte for byte in the app's data
 //   (persistentDataPath/_update) and handed to Android's installer (AndroidUpdateInstaller), which asks the player.
@@ -91,7 +96,7 @@ namespace GoF2Remake.UI
             });
         }
 
-        /// <summary>This platform's name in the release files ("Windows", "Linux", "Android", "UWP"), or null.</summary>
+        /// <summary>This platform's name in the release files ("Windows", "Linux", "macOS", "Android", "UWP"), or null.</summary>
         public static string PlatformName
         {
             get
@@ -99,11 +104,13 @@ namespace GoF2Remake.UI
                 var p = Application.platform;
                 if (Application.isEditor && TestApkPath != null) return "Android";
                 if (Application.isEditor && TestInstallDir != null)
-                    p = p == RuntimePlatform.LinuxEditor ? RuntimePlatform.LinuxPlayer : RuntimePlatform.WindowsPlayer;
+                    p = p == RuntimePlatform.LinuxEditor ? RuntimePlatform.LinuxPlayer
+                        : p == RuntimePlatform.OSXEditor ? RuntimePlatform.OSXPlayer : RuntimePlatform.WindowsPlayer;
                 switch (p)
                 {
                     case RuntimePlatform.WindowsPlayer: return "Windows";
                     case RuntimePlatform.LinuxPlayer: return "Linux";
+                    case RuntimePlatform.OSXPlayer: return "macOS";
                     case RuntimePlatform.Android: return "Android";
                     case RuntimePlatform.WSAPlayerX64:
                     case RuntimePlatform.WSAPlayerX86:
@@ -118,21 +125,25 @@ namespace GoF2Remake.UI
         {
             "Windows" => Kind.Files,
             "Linux" => Kind.Files,
+            "macOS" => Kind.Files,
             "Android" => Kind.Apk,
             "UWP" => Kind.AppInstaller,
             _ => Kind.None,
         };
 
         static bool Windows => PlatformName == "Windows";
+        static bool Mac => PlatformName == "macOS";
 
-        /// <summary>The game's folder (the one holding the player and its _Data folder); null on Android / UWP.</summary>
+        /// <summary>The game's folder (the one holding the player and its _Data folder; on macOS the app bundle, which
+        /// Application.dataPath's Contents is in); null on Android / UWP.</summary>
         public static string InstallDir =>
             Application.isEditor ? TestInstallDir : KindHere == Kind.Files ? Path.GetDirectoryName(Application.dataPath) : null;
 
-        /// <summary>The update's work folder: in the game's folder (Windows / Linux), else in the app's data.</summary>
+        /// <summary>The update's work folder: in the game's folder (Windows / Linux), else in the app's data (macOS: not in
+        /// the bundle, whose signature covers everything in it).</summary>
         public static string UpdateDir =>
             Application.isEditor && TestApkPath != null ? Path.Combine(TestInstallDir, PatchInstall.FolderName)
-            : InstallDir != null
+            : InstallDir != null && !Mac
             ? Path.Combine(InstallDir, PatchInstall.FolderName)
             : Path.Combine(Application.persistentDataPath, PatchInstall.FolderName);
 
@@ -142,6 +153,7 @@ namespace GoF2Remake.UI
             get
             {
                 if (Application.isEditor) return PatchPublish.Inspect(TestInstallDir)?.Exe;
+                if (Mac) return PatchPublish.Inspect(InstallDir)?.Exe;   // Contents/MacOS/<name>
                 string data = Path.GetFileName(Application.dataPath);
                 string name = data.EndsWith("_Data") ? data.Substring(0, data.Length - 5) : data;
                 return name + (Windows ? ".exe" : ".x86_64");
@@ -150,7 +162,7 @@ namespace GoF2Remake.UI
 
         static string Tag => UpdateCheck.LatestTag;
 
-        /// <summary>The newest release's manifest for this platform (Windows / Linux / Android), or null.</summary>
+        /// <summary>The newest release's manifest for this platform (Windows / Linux / macOS / Android), or null.</summary>
         public static string ManifestUrl =>
             Application.isEditor && TestManifestUrl != null ? TestManifestUrl
             : (KindHere != Kind.Files && KindHere != Kind.Apk) || string.IsNullOrEmpty(Tag) ? null
@@ -179,7 +191,7 @@ namespace GoF2Remake.UI
                 if (State == Phase.Staged) return true;
                 switch (KindHere)
                 {
-                    case Kind.Files: return ManifestUrl != null && Writable(UpdateDir);
+                    case Kind.Files: return ManifestUrl != null && Writable(UpdateDir) && (!Mac || Writable(Path.Combine(InstallDir, "Contents")));
                     case Kind.Apk: return ManifestUrl != null && AndroidUpdateInstaller.Available && Writable(UpdateDir);
                     case Kind.AppInstaller: return AppInstallerUrl != null && UwpAppInstaller.Available;
                     default: return Application.isEditor && TestManifestUrl != null;
@@ -230,7 +242,7 @@ namespace GoF2Remake.UI
                 string apk = Application.isEditor ? TestApkPath : Application.dataPath;   // Android: the installed APK itself
                 return new PatchInstall(null, manifest, UpdateDir, p => p == PatchManifest.ApkName ? apk : null);
             }
-            return new PatchInstall(InstallDir, manifest);
+            return new PatchInstall(InstallDir, manifest, UpdateDir);
         }
 
         /// <summary>Fetches the manifest and scans what the game has; ends Ready (Install says what's to download) or Failed.</summary>
@@ -394,7 +406,7 @@ namespace GoF2Remake.UI
             return null;
         }
 
-        /// <summary>Applies the staged update. Windows / Linux: starts the apply script ('restart': it starts the game again
+        /// <summary>Applies the staged update. Windows / Linux / macOS: starts the apply script ('restart': it starts the game again
         /// afterwards), the caller then quits. Android: hands the rebuilt APK to the installer. False when it couldn't (Error
         /// says why).</summary>
         public static bool StartApply(bool restart)
@@ -410,12 +422,12 @@ namespace GoF2Remake.UI
             try
             {
                 int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
-                string script = Install.WriteApplyScript(Windows, pid, ExeName);
+                string script = Install.WriteApplyScript(Windows, pid, ExeName, Mac);
                 string arg = restart ? "restart" : "stay";
                 System.Diagnostics.ProcessStartInfo info;
                 if (Windows)
                     info = new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c \"\"{script}\" {arg}\"");
-                else if (File.Exists("/usr/bin/setsid"))
+                else if (!Mac && File.Exists("/usr/bin/setsid"))
                     info = new System.Diagnostics.ProcessStartInfo("/usr/bin/setsid", $"/bin/sh \"{script}\" {arg}");
                 else
                     info = new System.Diagnostics.ProcessStartInfo("/bin/sh", $"\"{script}\" {arg}");
@@ -433,7 +445,7 @@ namespace GoF2Remake.UI
             }
         }
 
-        /// <summary>The staged update is applied when the game quits (Later; Windows / Linux).</summary>
+        /// <summary>The staged update is applied when the game quits (Later; Windows / Linux / macOS).</summary>
         public static void ApplyOnQuit()
         {
             if (applyOnQuit || State != Phase.Staged || KindHere != Kind.Files) return;

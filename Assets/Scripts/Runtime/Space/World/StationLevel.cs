@@ -210,6 +210,7 @@ namespace GoF2Remake.World
             // move, a station reload), the flight level starts docked on its pad and loads this scene on top.
             orbit = FindAnyObjectByType<SpaceLevel>();
             orbitDocked = orbit != null && orbit.DockedInOrbit && orbit.ActiveEs2 != null;
+            if (!orbitDocked) OrbitScale.Use(null);   // the station scale's map belongs to the orbit left behind
             bool noRedirect = Session.Es2NoRedirect;
             Session.Es2NoRedirect = false;
             if (!orbitDocked && !noRedirect && stationOverride < 0 && !Modding.ModBuilder.Active && !GoF2Remake.Data.NetSession.SessionLost

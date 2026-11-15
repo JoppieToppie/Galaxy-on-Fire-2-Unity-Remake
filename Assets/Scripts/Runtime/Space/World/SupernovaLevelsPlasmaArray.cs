@@ -20,7 +20,7 @@ namespace GoF2Remake.World
             MovePlayer(p, -p);
             EnterCutscene(true);
             playerSpeed = 2f;   // the autopilot's full throttle (the camera drifts at 2.01 u/ms)
-            cam.LookAt(p - PlayerDirGame * 2400f + GameUp(Player) * 500f - GameRight(Player) * 600f, Player);
+            LookFrom(Player, -PlayerDirGame * 2400f + GameUp(Player) * 500f - GameRight(Player) * 600f);
             cam.SetDolly(PlayerDirGame * 2.01f + GameRight(Player) * 0.03f + new Vector3(0, 0.01f, 0));
             Step = 1;
             c.WinObjective = () => Over(0);   // Objective(4, 0)
@@ -36,6 +36,7 @@ namespace GoF2Remake.World
                 s.group = plant.group; s.fixedObject = plant.fixedObject; s.stationary = true; s.alwaysFriend = true; s.hitpoints = 9999999;
                 s.noLoot = true; s.nameText = plant.nameText; s.dockingType = plant.dockingType; s.spacePoints = plant.spacePoints; s.hitRadius = plant.hitRadius;
                 s.collisionId = plant.collisionId;
+                s.structure = true;   // OrbitScale: the orbit's origin structure, grown like the stations (model, volumes, hit cube, pads)
             });
             for (int i = 0; i < 2; i++) c.SpawnShip(Standing.Pirate, NpcTables.RandomFighter(Standing.Pirate), new Vector3(7000000, 7000000, 7000000), false, s => { s.alwaysEnemy = true; s.asleep = true; s.noLoot = true; });   // cargo list deleted (+0x4c = 0)
             // Every asteroid of the orbit is titanium (ore 155).
@@ -48,13 +49,15 @@ namespace GoF2Remake.World
         {
             var b0 = new Vector3(-50000, -1500, 70000);
             var b1 = new Vector3(-200000, -1500, 30000);
-            Static("sn_battleship_vossk", b0, Vector3.zero, 1667, ObjectDocking.Hackable, 8, s => s.race = 1);
-            Static("sn_battleship_vossk", b1, Vector3.zero, 1667, ObjectDocking.Hackable, 8, s => { s.race = 1; s.name = Localization.Get(1667) + " 2"; });
-            foreach (var host in new[] { b0, b1 })
+            var ship0 = Static("sn_battleship_vossk", b0, Vector3.zero, 1667, ObjectDocking.Hackable, 8, s => s.race = 1);
+            var ship1 = Static("sn_battleship_vossk", b1, Vector3.zero, 1667, ObjectDocking.Hackable, 8, s => { s.race = 1; s.name = Localization.Get(1667) + " 2"; });
+            var hosts = new[] { (b0, ship0), (b1, ship1) };
+            foreach (var (host, ship) in hosts)
                 foreach (var off in BattleshipTurrets)
                     c.SpawnShip(1, -1, host + off, false, s =>
                     {
                         s.group = NpcGroup.Turret; s.turretAssembly = "turret_003_static"; s.scale = 6f; s.hitpoints = 1000; s.noLoot = true; s.stationary = true;
+                        s.placedOn = ship != null ? ship.Spec : null;   // OrbitScale: on the battleship's hull wherever the map puts it
                     });
             var loop0 = new Route(true); loop0.points.Add(new Vector3(-70000, 0, 80000)); loop0.points.Add(new Vector3(-30000, 0, 60000));
             var loop1 = new Route(true); loop1.points.Add(new Vector3(-220000, 0, 40000)); loop1.points.Add(new Vector3(-180000, 0, 20000));
@@ -73,9 +76,10 @@ namespace GoF2Remake.World
             var route = new Route(false);
             route.points.Add(wp);
             c.SetPlayerRoute(route);
-            var at = start + GameRight(Player) * 2100f + PlayerDirGame * 2000f;
+            var offset = GameRight(Player) * 2100f + PlayerDirGame * 2000f;
+            var at = SpecAt(Player.position + ToUnity(offset));   // OrbitScale: beside the player (an offset, not mapped)
             var g = c.SpawnShip(3, 30, at, false, s => { s.alwaysFriend = true; s.hitpoints = 9999999; s.nameText = 1599; s.route = route.Clone(); s.noLoot = true; });
-            g.Place(ToUnity(at), Player.forward);
+            g.Place(Player.position + ToUnity(offset), Player.forward);
             g.SetOnlyEnemy(null);
             c.WinObjective = () => Over(4);   // Objective(4, 4)
         }
@@ -87,14 +91,14 @@ namespace GoF2Remake.World
             var b = new Vector3(-50000, 0, 50000);
             var facing = new Vector3(b.x - a.x, 0, b.z - a.z);
             var harval = c.SpawnShip(2, 49, a, false, s => { s.alwaysEnemy = true; s.nameText = 1636; s.noLoot = true; });
-            harval.Place(ToUnity(a), Dir(facing));
+            harval.Place(At(a), Dir(facing));   // OrbitScale: his spot mapped, the fleet around it as in the original
             harval.CloakingPossible = false;
             harval.scriptedSpeed = 0f;
             foreach (var off in Formation)
             {
                 var s = Specter(a, false);
                 var p = a + Quaternion.LookRotation(facing.normalized) * (off + new Vector3(R(60) - 30, R(60) - 30, R(60) - 30));
-                s.Place(ToUnity(p), Dir(facing));
+                s.Place(At(a) + ToUnity(p - a), Dir(facing));
                 s.CloakingPossible = false;
                 s.scriptedSpeed = 0f;
             }
@@ -102,29 +106,30 @@ namespace GoF2Remake.World
             EnterCutscene(false);
             SetPlayerVisible(false);
             helper = new GameObject("Cutscene helper");
-            helper.transform.position = ToUnity(new Vector3(30000, 10000, 160000));
-            cam.LookAt(a + new Vector3(-4600, 1000, -4300), helper.transform);
+            helper.transform.position = At(new Vector3(30000, 10000, 160000));
+            cam.LookAtUnity(At(a) + ToUnity(new Vector3(-4600, 1000, -4300)), helper.transform);   // (beside Harval)
             Step = 1;
         }
 
         // 145: Var Lupra, the plasma array destroyed.
         void Build145()
         {
-            var harval = c.SpawnShip(2, 49, new Vector3(30000, 0, 80000), false, s => { s.alwaysEnemy = true; s.nameText = 1636; s.noLoot = true; });
-            harval.Place(ToUnity(new Vector3(30000, 0, 80000)), Dir(new Vector3(-50000, 0, 50000) - new Vector3(30000, 0, 80000)));
+            var hp = new Vector3(30000, 0, 80000);
+            var harval = c.SpawnShip(2, 49, hp, false, s => { s.alwaysEnemy = true; s.nameText = 1636; s.noLoot = true; });
+            harval.Place(At(hp), Dir(new Vector3(-50000, 0, 50000) - hp));   // OrbitScale: his spot mapped, the Specters' line kept round it
             harval.CloakingPossible = false;
             harval.SetGun(214, 2f);   // Level::assignGuns 0x91, ship 0x31: the Shesha (0xd6, sort 0x28), damage x2
             for (int i = 1; i <= 12; i++)
             {
                 var p = new Vector3(23000 + 3000 * (i - 1), (R(1000) - 500) * i + R(1000), 70000 + 2000 * i + R(2500));
                 var s = Specter(p, false);
-                s.Place(ToUnity(p), Dir(new Vector3(-50000, 0, 50000) - p));
+                s.Place(At(hp) + ToUnity(p - hp), Dir(new Vector3(-50000, 0, 50000) - p));
                 s.CloakingPossible = false;
             }
             // [13] the array's explosion (hidden until it goes), [14] the array (Level::createStaticObjects, stage 5 + glow).
             c.AddPlaceholder();
-            explosionAnim = Scenery("sn_plasma_array_midorian_explosion_anim", new Vector3(-50000, 0, 50000), OrbitLayout.RotationToUnity(Vector3.zero), "Array explosion");
-            if (explosionAnim != null) explosionAnim.SetActive(false);
+            explosionAnim = Scenery("sn_plasma_array_midorian_explosion_anim", OrbitScale.Place(new Vector3(-50000, 0, 50000)), OrbitLayout.RotationToUnity(Vector3.zero), "Array explosion");
+            if (explosionAnim != null) { OrbitScale.Structure(explosionAnim.transform); explosionAnim.SetActive(false); }   // OrbitScale: as big as the grown array
             var array = level.Traffic.Ships.Find(s => s.Spec.fixedObject != null && s.Spec.fixedObject.StartsWith("sn_plasma_array"));
             c.Ships.Add(array);
             foreach (var s in c.Ships) if (s != null && s.Race == Standing.Specter || s == S(0)) { if (s != null) s.scriptedSpeed = 2f; }
@@ -152,9 +157,9 @@ namespace GoF2Remake.World
                     if (s == null) continue;
                     bool dead = !s.Target.Alive || s.Gone;
                     if (onlyDead && !dead) continue;
-                    var at = PlayerGame + new Vector3(25000 + 1000 * k, 5000, 25000);
-                    if (dead) s.Revive(ToUnity(at));
-                    Show(s, at, PlayerGame - at);
+                    var at = Near(Player, new Vector3(25000 + 1000 * k, 5000, 25000));   // OrbitScale: clear of the grown plant
+                    if (dead) s.Revive(at);
+                    ShowUnity(s, at, Player.position - at);
                     s.SetOnlyEnemy(level.Health.Target);
                 }
             }
@@ -270,19 +275,19 @@ namespace GoF2Remake.World
                     if (!Over(0) || harval == null) break;
                     EnterCutscene(false);
                     SetPlayerVisible(false);
-                    cam.LookAt(G(harval) + GameDir(harval.transform) * 18000f + GameRight(harval.transform) * 3000f, harval.transform);
+                    LookFrom(harval.transform, GameDir(harval.transform) * 18000f + GameRight(harval.transform) * 3000f);
                     Step = 2;
                     break;
                 case 2:
                     if (stepMs < 1000f) break;
-                    helper = Scenery("rocket_explosive", G(harval), harval.transform.rotation, "Harval's shot");
-                    if (helper != null) { helper.transform.rotation = Quaternion.LookRotation((ToUnity(arrayPos) - helper.transform.position).normalized); cam.SetTarget(helper.transform); }
+                    helper = Scenery("rocket_explosive", ToGame(harval.transform.position), harval.transform.rotation, "Harval's shot");
+                    if (helper != null) { helper.transform.rotation = Quaternion.LookRotation((At(arrayPos) - helper.transform.position).normalized); cam.SetTarget(helper.transform); }
                     Step = 3;
                     break;
                 case 3:
                     if (helper != null) helper.transform.position += helper.transform.forward * 8f * dtMs * M;
                     if (stepMs < 5000f) break;
-                    Explosion.Spawn(0, ToUnity(arrayPos), Vector3.forward, 6f, CombatAssets.Pick(combat?.explosionBig), true);
+                    Explosion.Spawn(0, At(arrayPos), Vector3.forward, 6f * OrbitScale.Factor, CombatAssets.Pick(combat?.explosionBig), true);   // OrbitScale: the grown array's
                     // Level+0x54 (record 23 SET_EXPLOSION_BATTLESHIP) on the array's matrix, emitting until the aftermath ends.
                     if (S(14) != null) { arrayBurn = new WreckBurn(S(14).transform, true); arrayBurn.SetEmitting(true); }
                     Step = 4;

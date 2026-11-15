@@ -35,5 +35,22 @@ namespace GoF2Remake.Tests
                         missing.Add(t.Name + "." + f.Name);
             Assert.IsEmpty(missing, "hooks no installer fills: " + string.Join(", ", missing));
         }
+
+        /// <summary>A player build runs the installers only through their [RuntimeInitializeOnLoadMethod] (the Editor calls
+        /// them itself, EditorHookInstaller): a method put between the attribute and Install (2026-11-15, the mod scripts'
+        /// ChatToScripts) left every build without the multiplayer and event graph hooks while Play mode worked.</summary>
+        [Test]
+        public void EveryInstallerRunsAtStartup()
+        {
+            foreach (var t in new[] { typeof(GoF2Remake.Flight.SpaceHooksInstaller), typeof(GoF2Remake.Multiplayer.NetHooksInstaller), typeof(GoF2Remake.AppHooksInstaller) })
+            {
+                var install = t.GetMethod("Install", BindingFlags.Public | BindingFlags.Static);
+                Assert.IsNotNull(install, t.Name + ".Install");
+                Assert.IsNotNull(install.GetCustomAttribute<UnityEngine.RuntimeInitializeOnLoadMethodAttribute>(), t.Name + ".Install runs at startup");
+                foreach (var m in t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+                    if (m.GetCustomAttribute<UnityEngine.RuntimeInitializeOnLoadMethodAttribute>() != null)
+                        Assert.IsEmpty(m.GetParameters(), t.Name + "." + m.Name + " can't run at startup with arguments");
+            }
+        }
     }
 }

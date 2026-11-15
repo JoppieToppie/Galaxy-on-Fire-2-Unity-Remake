@@ -1,7 +1,7 @@
 // EmergencyBubble.cs
 // The emergency system's v_shield bubble (combat_equipment.md 2, PlayerEgo::tryToStartEmergencySystem 0xad6f0): the
-// CombatAssets.shieldBubble model around a ship's model, drawn with SimpleRefractionShader (an invisible sphere bending
-// CloakPass's copy of the frame behind its rim), sized by the model's bounds (radius / 500 + 0.1), growing over the first
+// CombatAssets.shieldBubble model around a ship's model, drawn with EnergyShield (GoF2/ShieldBubble: CloakPass's copy of the
+// frame bent by its normal map, most at its rim, plus a blue rim), sized by the model's bounds (radius / 500 + 0.1), growing over the first
 // 5 % of its time and shrinking over the last 5 %. PlayerHealth shows it on the player's ship; multiplayer: the other
 // players' copies of that ship show it too (NetPlayer, from the owner's emergency clock).
 
@@ -28,7 +28,7 @@ namespace GoF2Remake.Flight
                 {
                     var src = br.sharedMaterial;
                     var mat = new Material(assets.shieldBubbleShader);
-                    if (src != null && src.HasProperty("_BaseMap")) mat.SetTexture("_NoiseMap", src.GetTexture("_BaseMap"));
+                    if (src != null && src.HasProperty("_BumpMap")) mat.SetTexture("_NormalMap", src.GetTexture("_BumpMap"));   // v_shield_normal (s_texture[1])
                     br.sharedMaterial = mat;
                     b.materials.Add(mat);
                 }

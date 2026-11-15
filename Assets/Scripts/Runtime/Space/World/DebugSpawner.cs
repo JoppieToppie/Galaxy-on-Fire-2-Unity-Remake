@@ -17,7 +17,8 @@ namespace GoF2Remake.World
 
         public enum Behaviour { Hostile, Normal, Friendly, Neutral }
 
-        static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / M;
+        /// <summary>A Unity spot to the original's game coordinates (OrbitScale: NpcShip maps a spawn's back to that spot).</summary>
+        static Vector3 ToGame(Vector3 unity) => OrbitScale.ToGame(unity);
 
         /// <summary>Ship 'ship' of 'race' 400 m ahead of the player (hostile / by the standings / friendly / neutral), or at
         /// 'at' (a Unity position in this orbit, multiplayer's /spawn ... at x y z); 'count' of them side by side, 60 m apart;
@@ -186,6 +187,10 @@ namespace GoF2Remake.World
             int collisionId = StaticCollisionId(assembly);
             var go = Object.Instantiate(prefab, p.position, collisionId >= 0 ? Quaternion.identity : Quaternion.LookRotation(-p.forward, p.up));
             go.name = "Debug " + assembly + (string.IsNullOrEmpty(name) ? "" : " " + name);
+            // OrbitScale: a station-sized object (a station, the pirate outpost, a platform) as big as the orbit's stations,
+            // its volumes with it; placed by the player as before.
+            bool structure = NpcShip.IsStructure(new SpawnSpec { fixedObject = assembly });
+            if (structure) OrbitScale.Structure(go.transform);
             var bounds = new Bounds(go.transform.position, Vector3.zero);
             foreach (var r in go.GetComponentsInChildren<Renderer>()) bounds.Encapsulate(r.bounds);
             float radius = Mathf.Max(bounds.extents.magnitude, 5f);
@@ -194,7 +199,7 @@ namespace GoF2Remake.World
             // Collision: the player slides along it, NPC fighters steer out of it (Obstacle).
             var obstacle = go.AddComponent<Obstacle>();
             obstacle.projectFromVolume = collisionId >= 0;
-            if (collisionId >= 0) obstacle.volumes = CollisionVolume.ForStaticObject(collisionId);
+            if (collisionId >= 0) obstacle.volumes = structure ? OrbitScale.StructureVolumes(CollisionVolume.ForStaticObject(collisionId)) : CollisionVolume.ForStaticObject(collisionId);
             if (obstacle.volumes == null || obstacle.volumes.Count == 0)
             {
                 var placed = new Bounds(go.transform.position, Vector3.zero);
