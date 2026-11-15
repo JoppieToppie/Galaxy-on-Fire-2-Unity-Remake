@@ -17,6 +17,8 @@
 // They come out only in their system's zone (Navigation.Zone: within a light year of its star the space round the ship grows
 // InterstellarSpace.ZoneScale times), orbiting their star on faint rings; the suns' size follows the space's scale, so the
 // zone's edge changes nothing on screen, and the approach and the sky's distances are the zone's and the hops' own.
+// Remake (Options > Graphics "3D planets"): a game planet with a rebuilt sphere (World.RebuiltPlanets, GoF2/RebuiltPlanet) shows
+// that in place of the map's model, as big as its hull, lit toward its star, fading with it (not a mod's own planet, the Void).
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -50,7 +52,7 @@ namespace GoF2Remake.World
         const int RingPoints = 96;
         const float RingWidth = 0.003f;
         static readonly Color RingColour = new Color(0.7f, 0.85f, 1f, 0.55f);
-        sealed class Body { public Navigation.Target target; public Transform model, disc; public float meshRadius, meters; public List<Material> looks; public Material discLook; public LineRenderer ring; }
+        sealed class Body { public Navigation.Target target; public Transform model, disc; public float meshRadius, meters; public List<Material> looks; public Material discLook; public LineRenderer ring; public List<Material> rebuilt; }
         Material ringLook;
         readonly List<Body> bodies = new List<Body>();
         static Shader planetShader;
@@ -145,12 +147,13 @@ namespace GoF2Remake.World
             float radius = 0f;
             foreach (var mf in go.GetComponentsInChildren<MeshFilter>(true))
                 if (mf.sharedMesh != null) radius = Mathf.Max(radius, mf.sharedMesh.bounds.extents.magnitude * mf.transform.lossyScale.x / Mathf.Max(1e-6f, go.transform.lossyScale.x));
+            var rebuilt = disc == null ? RebuiltLook(go, t.station, station?.textureIndex ?? -1) : null;   // (after the size: its quad's bounds are no size)
             var sys = db.Systems.Find(s => s.index == t.system);
             var layout = GalaxyMap.SystemLayout(db, sys);
             int k = layout.FindIndex(p => p.station == t.station);
             float meters = PlanetRadiusMeters * (k >= 0 && layout[k].scale > 0f ? layout[k].scale / PlanetBaseScale : 1f);
             go.SetActive(false);
-            bodies.Add(new Body { target = t, model = go.transform, disc = disc, discLook = discLook, meshRadius = Mathf.Max(1e-3f, radius), meters = meters, looks = looks, ring = Ring(t) });
+            bodies.Add(new Body { target = t, model = go.transform, disc = disc, discLook = discLook, meshRadius = Mathf.Max(1e-3f, radius), meters = meters, looks = looks, ring = Ring(t), rebuilt = rebuilt });
         }
 
         /// <summary>Remake mods, as the star map's system view (UI.StarMap.ApplyModPlanet): a station's "mapTexture" wrapped round
@@ -195,6 +198,26 @@ namespace GoF2Remake.World
             go.AddComponent<MeshFilter>().sharedMesh = PlanetMeshes.DiscQuad();
             go.AddComponent<MeshRenderer>().sharedMaterial = discLook;
             return go.transform;
+        }
+
+        /// <summary>Remake: a game planet's rebuilt sphere in place of the model's hull (its ring too, a ringed planet's); its materials,
+        /// null and nothing changed for a mod station's own planet, the Void, or with "3D planets" off.</summary>
+        static List<Material> RebuiltLook(GameObject planet, int station, int textureIndex)
+        {
+            if (!RebuiltPlanets.Enabled || Modding.ModWorld.MapTexture(station) != null || Modding.ModWorld.PlanetTexture(station) != null) return null;
+            string key = RebuiltPlanets.KeyOfIndex(textureIndex);
+            if (key == null) return null;
+            var hull = new List<MeshRenderer>(); var rings = new List<MeshRenderer>();
+            foreach (var r in planet.GetComponentsInChildren<MeshRenderer>(true))
+                if (r.name.StartsWith("map_planet_ring")) rings.Add(r);
+                else if (r.name.StartsWith("map_planet_")) hull.Add(r);
+            if (hull.Count == 0) return null;
+            var go = RebuiltPlanets.Spawn(key, planet.transform, RebuiltPlanets.HullRadius(hull[0], planet.transform), false, planet.layer, out var mats);
+            if (go == null) return null;
+            go.transform.localRotation = RebuiltPlanets.Upright(key);   // (a ringed planet's ring flat in its orbit, as the map's model has it)
+            foreach (var r in hull) r.enabled = false;
+            if (RebuiltPlanets.HasRing(key)) foreach (var r in rings) r.enabled = false;
+            return mats;
         }
 
         /// <summary>A planet's orbit: the circle round its star in its disc through it, each point kept inside the far plane along
@@ -266,6 +289,7 @@ namespace GoF2Remake.World
                 b.model.localScale = Vector3.one * (b.meters * at / distance / b.meshRadius);
                 var sunDir = (sun.Position - b.target.Position).normalized;
                 foreach (var m in b.looks) { m.SetVector("_SunDir", sunDir); m.SetFloat("_Fade", fade); }
+                if (b.rebuilt != null) foreach (var m in b.rebuilt) { RebuiltPlanets.UseLight(m, sunDir); m.SetColor("_Color", new Color(1f, 1f, 1f, fade)); }
                 if (b.disc != null)
                 {
                     b.disc.rotation = Quaternion.LookRotation(b.disc.position - eye, cam.transform.up);   // facing the camera

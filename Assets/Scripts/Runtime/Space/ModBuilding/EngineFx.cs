@@ -392,7 +392,9 @@ namespace GoF2Remake.Modding
                         t.localPosition = info.pos; t.localRotation = info.rot; t.localScale = info.scale;
                         Tint(r, info.second ? secondTint : mainTint);
                         meshParts.Add((t, r, k, meshHolders.Count));
-                        reach = Mathf.Max(reach, FarEnd(mesh, info));
+                        // (the exhaust's length: its parts along it; a sprite faces the camera at its place, its bounds grown by
+                        //  its corners' reach to keep it from being culled: that isn't how far the exhaust reaches)
+                        if (!info.sprite) reach = Mathf.Max(reach, FarEnd(mesh, info));
                         if (info.anims != null)
                             foreach (var a in info.anims) if (a?.kind == "off") offLength = Mathf.Max(offLength, a.length);
                     }

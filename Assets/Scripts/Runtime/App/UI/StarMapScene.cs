@@ -228,6 +228,7 @@ namespace GoF2Remake.UI
                 if (planet != null && (World.SkyLayers.InPlanetRingOrbit(p.station) || Modding.ModWorld.MapRing(p.station))) AddPlanetRing(planet);
                 if (planet != null) ApplyModPlanet(planet, p.station);
                 if (planet != null) LightBySun(planet);
+                if (planet != null) ApplyRebuiltPlanet(planet, p.station, p.textureIndex);
                 planetObjects.Add(planet != null ? planet.transform : null);
                 planetScales.Add(planet != null ? planet.transform.localScale / 128f : Vector3.zero);
                 var orbit = Spawn("galaxymap_orbit", systemRoot.transform);
@@ -410,6 +411,27 @@ namespace GoF2Remake.UI
                 if (made.HasProperty("_BaseColor")) made.SetColor("_BaseColor", Color.white);
             }
             return modPlanetMaterials[key] = made;
+        }
+        /// <summary>Remake (Options > Graphics "3D planets"): a game planet's rebuilt sphere (World.RebuiltPlanets, GoF2/RebuiltPlanet) in
+        /// place of the map's model, as big as its hull, turning with it, lit by the map's sun; its own ring for a ringed planet
+        /// (the model's map ring hidden). Not a mod station's own planet, nor the Void's.</summary>
+        void ApplyRebuiltPlanet(GameObject planet, int station, int textureIndex)
+        {
+            if (!World.RebuiltPlanets.Enabled || Modding.ModWorld.MapTexture(station) != null || Modding.ModWorld.PlanetTexture(station) != null) return;
+            string key = World.RebuiltPlanets.KeyOfIndex(textureIndex);
+            if (key == null) return;
+            var hull = new List<MeshRenderer>(); var rings = new List<MeshRenderer>();
+            foreach (var r in planet.GetComponentsInChildren<MeshRenderer>(true))
+                if (r.name.StartsWith("map_planet_ring")) rings.Add(r);
+                else if (r.name.StartsWith("map_planet_")) hull.Add(r);
+            if (hull.Count == 0) return;
+            float radius = World.RebuiltPlanets.HullRadius(hull[0], planet.transform);
+            var go = World.RebuiltPlanets.Spawn(key, planet.transform, radius, false, Layer, out var mats);
+            if (go == null) return;
+            go.transform.localRotation = World.RebuiltPlanets.Upright(key);   // (a ringed planet's ring flat in its orbit, as the map's model has it)
+            foreach (var m in mats) World.RebuiltPlanets.UseStarMapSun(m);
+            foreach (var r in hull) r.enabled = false;
+            if (World.RebuiltPlanets.HasRing(key)) foreach (var r in rings) r.enabled = false;
         }
         static Mesh WrappedSphere(float radius) => PlanetMeshes.WrappedSphere(radius);
         static Mesh DiscQuad() => PlanetMeshes.DiscQuad();

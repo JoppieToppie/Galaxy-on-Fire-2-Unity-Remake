@@ -21,6 +21,12 @@ namespace GoF2Remake.Tests
     [Category("Smoke")]
     public class InterstellarFlightTests : PlayModeTest
     {
+        // (the base game's Khador Slipstream these tests fly is an option, off by default since "Original is now every option's default"
+        //  (9e1b06c68): on for each test here, put back after)
+        bool slipstreamWas;
+        [SetUp] public void SlipstreamOn() { slipstreamWas = Settings.KhadorSlipstream; Settings.KhadorSlipstream = true; }
+        [TearDown] public void SlipstreamBack() { Settings.KhadorSlipstream = slipstreamWas; }
+
         const string Mod = "interstellar_test";
 
         static void MountDrive(int cells)

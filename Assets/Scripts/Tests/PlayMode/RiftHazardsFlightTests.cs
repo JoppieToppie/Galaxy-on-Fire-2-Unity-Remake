@@ -56,7 +56,9 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(rift.Run.IsBossStage);
             Set(rift, "overheatS", Overheat.IntervalS - 0.2f);
             Set(rift, "bulbS", 0.2f);
-            yield return Run(0.6f);
+            // (until the game's clock gets there: it runs by its capped frame step, slower than the wall clock on a busy Editor,
+            //  so a fixed 0.6 s of real time saw the timer only at 9.95 of its 10)
+            yield return WaitFor(() => Overheat.AnyHot && Find<RiftBulb>() != null, 10f, "the overheat and the bulb");
             Assert.IsTrue(Overheat.AnyHot, "a slot overheated");
             var bulb = Find<RiftBulb>();
             Assert.IsNotNull(bulb, "a Burst Bulb");
