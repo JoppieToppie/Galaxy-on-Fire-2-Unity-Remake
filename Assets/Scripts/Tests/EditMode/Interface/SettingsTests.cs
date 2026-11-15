@@ -101,6 +101,7 @@ namespace GoF2Remake.Tests
         {
             AllDefaults();
             Assert.IsTrue(Settings.AutoJumpgate, "on by default");
+            Assert.IsFalse(Settings.KaamoKeepsEquipment, "stored equipment is opt-in");
             Settings.AutoJumpgate = false;
             Assert.IsFalse(Settings.AutoJumpgate);
             CollectionAssert.Contains(Settings.GameplayKeys, "autoJumpgate");
@@ -312,8 +313,8 @@ namespace GoF2Remake.Tests
             Settings.HintScalePercent = 60;
             Settings.ChallengeComboSounds = false;
             Settings.MedalSound = Settings.MedalSoundOriginal;
-            Settings.Reset(Settings.GameplayKeys);
-            Assert.AreEqual(100, Settings.HintScalePercent, "Gameplay's Default settings");
+            Settings.Reset(Settings.CosmeticsKeys);
+            Assert.AreEqual(100, Settings.HintScalePercent, "Cosmetics' Default settings");
             Settings.Reset(Settings.SoundKeys);
             Assert.IsTrue(Settings.ChallengeComboSounds, "Sound's Default settings");
             Assert.AreEqual(Settings.MedalSoundChime, Settings.MedalSound);
@@ -502,7 +503,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void TheResetGroupsDontOverlap()
         {
-            var groups = new[] { Settings.SoundKeys, Settings.GraphicsKeys, Settings.ControlsKeys, Settings.GameplayKeys, Settings.LanguageKeys };
+            var groups = new[] { Settings.SoundKeys, Settings.GraphicsKeys, Settings.ControlsKeys, Settings.GameplayKeys, Settings.CosmeticsKeys, Settings.LanguageKeys };
             var all = groups.SelectMany(g => g).ToList();
             Assert.AreEqual(all.Count, all.Distinct().Count(), "a key in two tabs: " + string.Join(", ", all.GroupBy(k => k).Where(g => g.Count() > 1).Select(g => g.Key)));
             CollectionAssert.DoesNotContain(all, "language", "the text language isn't reset");

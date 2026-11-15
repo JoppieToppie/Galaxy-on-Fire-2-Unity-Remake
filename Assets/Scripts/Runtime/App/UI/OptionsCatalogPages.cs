@@ -479,14 +479,22 @@ namespace GoF2Remake.UI
             X("experienceOriginal", "Original"), X("experienceCosmetic", "Cosmetic"), X("experienceRemake", "Remake"), X("presetCustom", "Custom"),
         };
 
+        static string[] ScopedExperienceNames() => new[]
+        {
+            X("experienceOriginal", "Original"), X("experienceRemake", "Remake"), X("presetCustom", "Custom"),
+        };
+
         static void AddGameplay(List<OptionDef> list)
         {
             // Remake (the user's request, 2026-11-04): Original / Cosmetic / Remake set the experience options at once
             // (Settings.ApplyExperience); the row shows the one they match, else Custom (picking Custom sets nothing). Every
             // row below reads off (or its first choice) = the original game.
-            list.Add(Choice("gameExperience", OptionPage.Gameplay, () => X("gameExperience", "Game experience"), true,
-                ExperienceNames, Settings.CurrentExperience, i => Settings.ApplyExperience(i),
-                () => X("gameExperienceHelp", "Original: the game as it was, nothing added. Cosmetic: the original plus the remake's presentation, like ships flying in and out of the hangars and animated dialogue. Remake: every new feature on. Change any option below and it becomes Custom.")));
+            list.Add(Choice("cosmeticExperience", OptionPage.Gameplay, () => X("cosmeticExperience", "Cosmetic Experience"), true,
+                ScopedExperienceNames, () => Settings.CurrentScopedExperience(true), i => Settings.ApplyScopedExperience(true, i),
+                () => X("cosmeticExperienceHelp", "Original or Remake presentation settings, independently of gameplay. Original sorts items by ID; Remake groups them by type. Other combinations show Custom.")));
+            list.Add(Choice("gameplayExperience", OptionPage.Gameplay, () => X("gameplayExperience", "Gameplay Experience"), true,
+                ScopedExperienceNames, () => Settings.CurrentScopedExperience(false), i => Settings.ApplyScopedExperience(false, i),
+                () => X("gameplayExperienceHelp", "Original or Remake gameplay settings, independently of cosmetics. Remake uses the existing preset's rule values. Other combinations show Custom.")));
             // The original's fly-past camera, as a "skip" so that off is the original (Settings.LaunchCamera).
             var skipLaunch = Toggle("launchCamera", OptionPage.Gameplay, () => X("skipLaunchCamera", "Skip launch and arrival camera"),
                 () => !Settings.LaunchCamera, v => Settings.LaunchCamera = !v);
@@ -736,6 +744,38 @@ namespace GoF2Remake.UI
                         : X("saveFolderHelp", "Also keeps your saves in a folder you choose, for sync tools and other devices."),
                     action = () => SaveFolderPressed?.Invoke(),
                 });
+        }
+
+        // Owner follow-up (#311): save-bind Kaamo stacking/limit, content, travel/simulation, informer rules, difficulty
+        // and future economy/balance profiles. Preserve purchased upgrade levels in migrations. Autocomplete and
+        // combat/AI need UI separation but are not requested as mandatory save-bound rules. Stored equipment is QoL.
+        static void SplitGameplay(List<OptionDef> list)
+        {
+            var special = new HashSet<string> { "cosmeticExperience", "launchCamera", "hangarFlights", "animatedDialogue", "autoAdvance", "systemMapAnimationSpeed" };
+            var convenience = new HashSet<string> { "kaamoKeepsEquipment", "hostileAutopilotFastForward", "autoJumpgate", "saveFolder" };
+            var rules = new HashSet<string>
+            {
+                "gameplayExperience", "blueprintAutocomplete", "stationScale", "collisionDamage", "cloakLosesPursuers",
+                "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight",
+                "shipCollision", "pirateEvents", "capitalShips", "derelictWrecks", "kaamoStacking", "kaamoMaxLevel",
+                "kaamoVip", "cloakBay", "informerRule", "targetLock", "keepEnemyLock", "modShipTraffic",
+                "playOnInConversations", "fastForwardMode", "khadorSlipstream", "difficulty", "debugTools",
+            };
+            foreach (var row in list.Where(row => row.page == OptionPage.Gameplay))
+            {
+                if (row.id == "discordPresence") { row.page = OptionPage.Accessibility; continue; }
+                if (rules.Contains(row.id) || row.id.StartsWith("mod:")) row.section = OptionSection.GameRules;
+                else if (convenience.Contains(row.id)) row.section = OptionSection.Convenience;
+                else
+                {
+                    row.page = OptionPage.Cosmetics;
+                    row.section = special.Contains(row.id) ? OptionSection.SpecialFeatures : OptionSection.Interface;
+                }
+            }
+            var ordered = list.Where(row => row.section != OptionSection.None).OrderBy(row => row.section)
+                .ThenBy(row => row.id == "gameplayExperience" ? 0 : row.id == "debugTools" ? 1 : 2).ToList();
+            list.RemoveAll(row => row.section != OptionSection.None);
+            list.AddRange(ordered);
         }
     }
 }

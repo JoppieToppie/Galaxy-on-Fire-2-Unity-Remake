@@ -589,6 +589,36 @@ namespace GoF2Remake.Data
         public static float ExperienceValue(int experience, string key) =>
             Experiences[Mathf.Clamp(experience, 0, Experiences.Length - 1)][Array.IndexOf(ExperienceKeys, key)];
 
+        /// <summary>Independent UI presets: 0 Original, 1 Remake, 2 Custom. Reuse the existing explicit preset values.</summary>
+        public static int CurrentScopedExperience(bool cosmetics)
+        {
+            var keys = cosmetics ? CosmeticsKeys : GameplayKeys;
+            for (int choice = 0; choice < 2; choice++)
+            {
+                int preset = choice == 0 ? ExperienceOriginal : ExperienceRemake;
+                bool matches = true;
+                foreach (var key in ExperienceKeys)
+                    if (Array.IndexOf(keys, key) >= 0 && !Mathf.Approximately(StoredExperienceValue(key), ExperienceValue(preset, key)))
+                    { matches = false; break; }
+                if (cosmetics && ShopByCategory != (choice == 1)) matches = false;
+                if (matches) return choice;
+            }
+            return 2;
+        }
+
+        public static void ApplyScopedExperience(bool cosmetics, int choice)
+        {
+            if (choice < 0 || choice > 1) return;
+            var keys = cosmetics ? CosmeticsKeys : GameplayKeys;
+            int preset = choice == 0 ? ExperienceOriginal : ExperienceRemake;
+            foreach (var key in ExperienceKeys)
+                if (Array.IndexOf(keys, key) >= 0) SetQuiet(key, ExperienceValue(preset, key));
+            if (cosmetics) SetQuiet("shopByCategory", choice);
+            PlayerPrefs.Save();
+            if (!cosmetics) NotifyExperienceRules();
+            Changed?.Invoke();
+        }
+
         /// <summary>Sets every option of 'experience' (ExperienceOriginal..ExperienceRemake; Custom does nothing), one Changed.
         /// The session rules among them go through their setters, so a player host's session follows.</summary>
         public static void ApplyExperience(int experience)
@@ -596,6 +626,12 @@ namespace GoF2Remake.Data
             if (experience < 0 || experience >= Experiences.Length) return;
             for (int i = 0; i < ExperienceKeys.Length; i++) SetQuiet(ExperienceKeys[i], Experiences[experience][i]);
             PlayerPrefs.Save();
+            NotifyExperienceRules();
+            Changed?.Invoke();
+        }
+
+        static void NotifyExperienceRules()
+        {
             int rules = LocalRules();
             foreach (int bit in new[] { R.CloakLosesPursuers, R.PirateEvents, R.CapitalShips, R.InformerOriginalRule, R.KaamoStacking,
                                         R.KaamoKeepsEquipment, R.CloakBay, R.EmpBreaksCloak, R.SmarterNpcTargeting, R.DerelictWrecks })
@@ -603,7 +639,6 @@ namespace GoF2Remake.Data
             int collision = LocalCollision;
             GameHooks.RuleChangedByHost?.Invoke(R.PreciseShipCollision, collision == R.CollisionExact);
             GameHooks.RuleChangedByHost?.Invoke(R.OriginalCollision, collision == R.CollisionOriginal);
-            Changed?.Invoke();
         }
 
         /// <summary>The preset the player's own options match, else ExperienceCustom (the stored values, not a session's).</summary>
@@ -695,7 +730,7 @@ namespace GoF2Remake.Data
         static bool PlayedBefore()
         {
             if (PlayerPrefs.HasKey(Prefix + "language")) return true;
-            foreach (var group in new[] { SoundKeys, GraphicsKeys, ControlsKeys, GameplayKeys, AccessibilityKeys, LanguageKeys })
+            foreach (var group in new[] { SoundKeys, GraphicsKeys, ControlsKeys, GameplayKeys, CosmeticsKeys, AccessibilityKeys, LanguageKeys })
                 foreach (var key in group)
                     if (PlayerPrefs.HasKey(Prefix + key)) return true;
             for (int i = 0; i < SaveGame.SlotCount; i++)
@@ -921,15 +956,25 @@ namespace GoF2Remake.Data
             "invertDrillX", "invertOrbitY", "invertOrbitX", "cockpitInCycle", "gyroSteering", "gyroSensitivity", "mouseSteering", "mouseDeadzone", "mouseSensitivity", "vrGrabControls", "haptics", "stickDeadzone",
             "touchLeftHeight", "touchRightHeight", "floatingTouchStick", "touchOpacity", "flightStyle", "padGlyphs", "nintendoLayout",
         };
+        public static readonly string[] CosmeticsKeys =
+        {
+            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "shopByCategory",
+            "dyingCargoMarkers", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "hintScale",
+            "hudMode", "hudScale", "hudOpacity", "farShipMarkers",
+            "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength",
+            "speedrunTiming", "speedrunCompare", "speedrunPosition", "speedrunLiveSplit",
+        };
         public static readonly string[] GameplayKeys =
         {
-            "launchCamera", "stationScale", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "shopByCategory", "cloakBay", "informerOriginalRule",
-            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "discordPresence",
-            "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
-            "speedrunPosition", "speedrunLiveSplit",
+            "stationScale", "collisionDamage", "pirateEvents", "capitalShips",
+            "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay",
+            "informerOriginalRule", "originalTargetLock", "keepEnemyLock", "modShipTraffic", "cloakLosesPursuers",
+            "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming",
+            "es2NpcFlight", "shipCollision", "preciseShipCollision", "playOnInConversations", "fastForwardCruise",
+            "autoJumpgate", "khadorSlipstream", "derelictWrecks",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
-        public static readonly string[] AccessibilityKeys = { "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers", "cursorSize", "dialogueHighlights" };
+        public static readonly string[] AccessibilityKeys = { "discordPresence", "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers", "cursorSize", "dialogueHighlights" };
 
         /// <summary>These options back to their defaults.</summary>
         public static void Reset(IEnumerable<string> keys)
@@ -951,7 +996,7 @@ namespace GoF2Remake.Data
         {
             GameHooks.ResetControls?.Invoke();
             var all = new List<string>();
-            foreach (var group in new[] { SoundKeys, GraphicsKeys, ControlsKeys, GameplayKeys, AccessibilityKeys, LanguageKeys }) all.AddRange(group);
+            foreach (var group in new[] { SoundKeys, GraphicsKeys, ControlsKeys, GameplayKeys, CosmeticsKeys, AccessibilityKeys, LanguageKeys }) all.AddRange(group);
             Reset(all);
             Modding.ModGameOptions.ResetSettings();   // the mods' gameplay settings (gameoptions.json "setting")
         }

@@ -11,16 +11,85 @@ using System.Collections.Generic;
 using System.Linq;
 using GoF2Remake.Data;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace GoF2Remake.UI
 {
-    public enum OptionPage { Sound, Graphics, Controls, Gameplay, Language, Bindings, Accessibility }
+    public enum OptionPage { Sound, Graphics, Controls, Gameplay, Language, Bindings, Accessibility, Cosmetics }
+    public enum OptionSection { None, SpecialFeatures, Interface, Convenience, GameRules }
+
+    /// <summary>UI-only consent for this app session; accepting enables no cheat and changes no setting.</summary>
+    public static class GameRulesAccess
+    {
+        public static bool Confirmed { get; private set; }
+        public static void Accept() => Confirmed = true;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        public static void Reset() => Confirmed = false;
+        public static string Title => Localization.Extra("sectionGameRules", "Game Rules");
+        public static string Warning => Localization.Extra("gameRulesAccessWarning",
+            "This section contains game rules and debug tools that can change progression and balance. Settings apply globally across saves. Open this section?");
+        public static string Expand => Localization.Extra("gameRulesExpand", "Expand");
+        public static string Enable => Localization.Extra("gameRulesAccessEnable", "Open Game Rules");
+    }
+
+    /// <summary>The same subsection geometry and consent gate in the main, station and pause menus.</summary>
+    public sealed class OptionSectionBlock
+    {
+        readonly OptionSection section;
+        public OptionSection Section => section;
+        readonly TextElement heading;
+        readonly Action<Action> requestAccess;
+        public readonly VisualElement Body;
+        public readonly VisualElement Preset;
+        public readonly Button Gate;
+        public OptionSectionBlock(VisualElement parent, OptionSection section, Action<Action> requestAccess, bool focusable)
+        {
+            this.section = section;
+            this.requestAccess = requestAccess;
+            heading = new Label { pickingMode = PickingMode.Ignore };
+            if (section == OptionSection.GameRules)
+            {
+                Preset = new VisualElement();
+                Gate = new Button(Open) { focusable = focusable };
+                Gate.AddToClassList("options-section-gate");
+                Gate.AddToClassList("menu-button");
+                Gate.AddToClassList("gof-semibold");
+            }
+
+            heading.AddToClassList("options-section-title");
+            heading.AddToClassList("gof-semibold");
+            Body = new VisualElement();
+            Body.AddToClassList("options-section-body");
+            parent.Add(heading);
+            if (Preset != null) parent.Add(Preset);
+            if (Gate != null) parent.Add(Gate);
+            parent.Add(Body);
+            Refresh();
+        }
+        public void Open()
+        {
+            if (GameRulesAccess.Confirmed) { Refresh(); return; }
+            requestAccess?.Invoke(() => { GameRulesAccess.Accept(); Refresh(); OptionControl.RefreshShown(); });
+        }
+        public void Refresh()
+        {
+            heading.text = OptionsCatalog.SectionTitle(section).UiCaps();
+            if (section == OptionSection.GameRules)
+            {
+                Body.style.display = GameRulesAccess.Confirmed ? DisplayStyle.Flex : DisplayStyle.None;
+                Gate.text = GameRulesAccess.Expand.UiCaps();
+                Gate.style.display = GameRulesAccess.Confirmed ? DisplayStyle.None : DisplayStyle.Flex;
+                Gate.EnableInClassList("options-section--locked", !GameRulesAccess.Confirmed);
+            }
+        }
+    }
     public enum OptionKind { Slider, Toggle, Choice, Button, Binding }
 
     public sealed class OptionDef
     {
         public string id;
         public OptionPage page;
+        public OptionSection section;
         public OptionKind kind;
         /// <summary>A volume slider: a speaker before its value mutes it. Its own flag, not the page: a row built by hand
         /// (the photo panel, the Debug page) leaves the page at its default, Sound, and every slider there had the
@@ -99,7 +168,17 @@ namespace GoF2Remake.UI
             OptionPage.Bindings => X("tabBindings", "Key bindings"),
             OptionPage.Language => Localization.Get(0),
             OptionPage.Accessibility => X("tabAccessibility", "Accessibility"),
+            OptionPage.Cosmetics => X("tabCosmetics", "Cosmetics"),
             _ => X("tabGameplay", "Gameplay"),
+        };
+
+        public static string SectionTitle(OptionSection section) => section switch
+        {
+            OptionSection.SpecialFeatures => X("sectionSpecialFeatures", "Special features"),
+            OptionSection.Interface => X("sectionInterface", "UI"),
+            OptionSection.Convenience => X("sectionConvenience", "QoL"),
+            OptionSection.GameRules => GameRulesAccess.Title,
+            _ => "",
         };
 
         /// <summary>Remake (players' request): "Default settings" for one tab only, the choice the menus offer next to every
@@ -112,6 +191,7 @@ namespace GoF2Remake.UI
                 case OptionPage.Graphics: Settings.Reset(Settings.GraphicsKeys); break;
                 case OptionPage.Controls: Settings.Reset(Settings.ControlsKeys); break;
                 case OptionPage.Gameplay: Settings.Reset(Settings.GameplayKeys); Modding.ModGameOptions.ResetSettings(); break;
+                case OptionPage.Cosmetics: Settings.Reset(Settings.CosmeticsKeys); break;
                 case OptionPage.Language: Settings.Reset(Settings.LanguageKeys); break;
                 case OptionPage.Accessibility: Settings.Reset(Settings.AccessibilityKeys); break;
                 case OptionPage.Bindings: Flight.GameControls.ResetToDefaults(); break;
@@ -197,6 +277,7 @@ namespace GoF2Remake.UI
             AddGraphics(list);
             AddControls(list);
             AddGameplay(list);
+            SplitGameplay(list);
 
             foreach (var d in list)
                 if (d.description == null && Help.TryGetValue(d.id, out var help)) d.description = () => X(help.key, help.english);

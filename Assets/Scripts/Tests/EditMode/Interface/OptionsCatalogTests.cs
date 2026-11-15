@@ -26,7 +26,7 @@ namespace GoF2Remake.Tests
         /// (Session), the Debug tools (Cheats), the tilt steering choice (calibrates the device when turned on), buttons,
         /// and the text language (Settings.ResetToDefaults keeps it: a Defaults button should not put a player back into a
         /// language they can't read).</summary>
-        static readonly HashSet<string> NotSettings = new HashSet<string> { "difficulty", "debugTools", "steering", "language" };
+        static readonly HashSet<string> NotSettings = new HashSet<string> { "difficulty", "debugTools", "steering", "language", "cosmeticExperience", "gameplayExperience" };
 
         DataUiTestKit.PrefsSnapshot prefs;
         DataUiTestKit.TextLanguage english;
@@ -43,6 +43,60 @@ namespace GoF2Remake.Tests
         {
             english?.Dispose();
             prefs?.Dispose();
+        }
+
+        [Test]
+        public void CosmeticsAndGameplayUseTheAgreedSubsections()
+        {
+            var all = OptionsCatalog.All();
+            foreach (var id in new[] { "launchCamera", "hangarFlights", "animatedDialogue", "systemMapAnimationSpeed" })
+            {
+                var row = all.First(o => o.id == id);
+                Assert.AreEqual(OptionPage.Cosmetics, row.page, id);
+                Assert.AreEqual(OptionSection.SpecialFeatures, row.section, id);
+            }
+            foreach (var id in new[] { "hudMode", "inputHints", "shopByCategory" })
+                Assert.AreEqual(OptionSection.Interface, all.First(o => o.id == id).section, id);
+            foreach (var id in new[] { "kaamoKeepsEquipment", "hostileAutopilotFastForward", "autoJumpgate" })
+            {
+                var row = all.First(o => o.id == id);
+                Assert.AreEqual(OptionPage.Gameplay, row.page, id);
+                Assert.AreEqual(OptionSection.Convenience, row.section, id);
+            }
+            Assert.AreEqual(OptionPage.Accessibility, all.First(o => o.id == "discordPresence").page);
+            var rules = all.Where(o => o.section == OptionSection.GameRules).ToList();
+            Assert.AreEqual("gameplayExperience", rules[0].id);
+            Assert.AreEqual("debugTools", rules[1].id);
+        }
+
+        [Test]
+        public void GameRulesStayHiddenUntilConfirmationAndCancelChangesNothing()
+        {
+            bool before = GameRulesAccess.Confirmed;
+            bool debug = Cheats.Unlocked, stacking = Settings.KaamoStacking;
+            try
+            {
+                GameRulesAccess.Reset();
+                var view = new OptionsView(() => { }, false);
+                for (int i = 0; i < 5; i++) view.StepTab(1);
+                Assert.IsFalse(view.RulesPromptOpen, "Gameplay QoL opens freely");
+                Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "gameplayExperience"));
+                Assert.IsFalse(view.NavItems().Any(v => view.RowOf(v)?.def.section == OptionSection.GameRules
+                    && view.RowOf(v)?.def.id != "gameplayExperience"));
+                var gate = view.NavItems().OfType<UnityEngine.UIElements.Button>().Single(b => b.ClassListContains("options-section-gate"));
+                view.Activate(gate);
+                Assert.IsTrue(view.RulesPromptOpen);
+                Assert.AreEqual(2, view.NavItems().Count);
+                view.Activate(view.FooterButtons[0]);
+                Assert.IsFalse(GameRulesAccess.Confirmed);
+                view.Activate(gate);
+                view.Activate(view.FooterButtons[1]);
+                Assert.IsTrue(GameRulesAccess.Confirmed);
+                Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "debugTools"));
+                Assert.AreEqual(debug, Cheats.Unlocked);
+                Assert.AreEqual(stacking, Settings.KaamoStacking);
+            }
+            finally { if (before) GameRulesAccess.Accept(); else GameRulesAccess.Reset(); }
         }
 
         static bool IsValue(OptionDef o) => o.kind == OptionKind.Slider || o.kind == OptionKind.Toggle || o.kind == OptionKind.Choice;
@@ -157,7 +211,7 @@ namespace GoF2Remake.Tests
                     default:
                         int n = o.choices().Length;
                         if (o.id == "graphicsPreset") n = Settings.PresetCustom;   // Custom only reads back, it sets nothing
-                        if (o.id == "gameExperience") n = Settings.ExperienceCustom;
+                        if (o.id == "cosmeticExperience" || o.id == "gameplayExperience") n = 2;   // Custom only reads back
                         for (int i = 0; i < n; i++)
                         {
                             o.setIndex(i);
@@ -169,7 +223,7 @@ namespace GoF2Remake.Tests
         }
 
         static IEnumerable<OptionPage> SettingsPages() =>
-            new[] { OptionPage.Sound, OptionPage.Graphics, OptionPage.Controls, OptionPage.Gameplay, OptionPage.Accessibility, OptionPage.Language };
+            new[] { OptionPage.Sound, OptionPage.Graphics, OptionPage.Controls, OptionPage.Gameplay, OptionPage.Cosmetics, OptionPage.Accessibility, OptionPage.Language };
 
         [TestCaseSource(nameof(SettingsPages))]
         public void DefaultSettingsForATabResetsEveryOptionOnIt(OptionPage page)

@@ -436,6 +436,13 @@ namespace GoF2Remake.UI
 
         void Show(Page p)
         {
+            if (p == Page.Debug && !GameRulesAccess.Confirmed)
+            {
+                Ask(level, GameRulesAccess.Warning, GameRulesAccess.Enable, Localization.Get(425),
+                    () => { GameRulesAccess.Accept(); Open(level); Show(Page.Debug); },
+                    () => { Open(level); Show(Page.Main); }, GameRulesAccess.Title);
+                return;
+            }
             if (p != Page.Report && p != Page.ReportBusy && p != Page.ReportDone) LeaveReport();
             else StopReportTyping();   // the form's field goes with the page
             page = p;
@@ -916,7 +923,7 @@ namespace GoF2Remake.UI
             if (pointerDriven && pointerItem == null) { KeysTakeOver(); HighlightOptions(); return; }   // Modified: nothing marked yet
             ButtonSound?.Invoke(false);   // Modified: the entry's sound (a click has its own)
             if (row != null) { row.Activate(); KeepOptionSelected(current); }
-            else if (options.IsFooter(current)) options.Activate(current);   // Back, Default settings, the defaults prompt
+            else options.Activate(current);   // footer buttons and the guarded Game Rules subsection
         }
 
         // ---- the Debug page ----------------------------------------------------------------------------------
