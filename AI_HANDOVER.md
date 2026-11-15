@@ -90,7 +90,9 @@ mods assign them and may add more). **Implemented (Claude), all opt-in:**
 - Scanner integration (ChatGPT, 2026-11-15): retained project `scanClass` (143), and incorporated Joppie's `scanShip` (140),
   `scanHitpoints` (141), `scanWeapons` (142), and `radarShowsCargo` 2. Hull, hitpoints, weapons, cargo and class now share one
   readout; NPC hull identity is available to the lock plate, class identity resolves NPCs, remote NPC proxies and other players.
-  A completed lock fires `on scanned` in event graphs/quests; multiplayer forwards it through a server-validated RPC.
+  A completed lock fires `on scanned` in event graphs/quests; multiplayer forwards it through a rate-limited, orbit-validated RPC.
+  **Trust boundary:** the event's ship name is still client-reported; the server does not prove that the sender actually locked
+  that target. Keep it as a lightweight script trigger, not a high-value reward authority, until a network target identity is verified.
 - Added `ModScannerTests` for attribute numbers, cargo modes, combined readouts and lock-plate naming. **Not compiled, not run.**
   Still not covered: Kaamo Club hull gear checked on take-out; no Mod Builder UI for scanner stats.
 

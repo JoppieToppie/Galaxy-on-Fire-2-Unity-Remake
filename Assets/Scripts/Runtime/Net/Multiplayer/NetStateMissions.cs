@@ -40,6 +40,8 @@ namespace GoF2Remake.Multiplayer
         [Rpc(SendTo.Server)]
         public void ShipScannedRpc(int station, string name, RpcParams rpc = default)
         {
+            // This validates rate and orbit only: name is client-reported, not proof of a server-confirmed lock.
+            // Do not use "on scanned" alone as an authoritative high-value reward gate until target identity is verified.
             ulong client = rpc.Receive.SenderClientId;
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Kill) || !NetGuard.InOrbit(client, station)) return;
             name = name ?? "";
