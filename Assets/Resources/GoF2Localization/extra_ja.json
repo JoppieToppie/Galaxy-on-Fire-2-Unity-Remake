@@ -1535,6 +1535,8 @@
  "photoUpDown": "上昇 / 下降",
  "photoTouchFree": "ドラッグで見回す · ピンチで移動",
  "photoShowInFolder": "フォルダーで表示",
+ "systemMapAnimationSpeed": "星系マップのアニメーション速度",
+ "systemMapAnimationSpeedHelp": "マップで星系を開閉する演出だけを速くします。ゲーム内の時間には影響しません。",
  "hudMode": "飛行HUD",
  "hudFull": "フル",
  "hudMinimal": "最小",

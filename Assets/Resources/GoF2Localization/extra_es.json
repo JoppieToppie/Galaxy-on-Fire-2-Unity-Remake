@@ -1543,6 +1543,8 @@
  "photoUpDown": "SUBIR / BAJAR",
  "photoTouchFree": "ARRASTRA PARA MIRAR · PELLIZCA PARA MOVER",
  "photoShowInFolder": "MOSTRAR EN LA CARPETA",
+ "systemMapAnimationSpeed": "Velocidad de animación del mapa",
+ "systemMapAnimationSpeedHelp": "Acelera solo la apertura y el cierre de sistemas en el mapa, sin cambiar el tiempo de juego.",
  "hudMode": "HUD de vuelo",
  "hudFull": "Completo",
  "hudMinimal": "Mínimo",

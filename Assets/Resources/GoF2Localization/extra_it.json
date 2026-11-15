@@ -1543,6 +1543,8 @@
  "photoUpDown": "SU / GIÙ",
  "photoTouchFree": "TRASCINA PER GUARDARE · PIZZICA PER MUOVERTI",
  "photoShowInFolder": "MOSTRA NELLA CARTELLA",
+ "systemMapAnimationSpeed": "Velocità animazione mappa dei sistemi",
+ "systemMapAnimationSpeedHelp": "Accelera solo le transizioni di apertura e chiusura dei sistemi sulla mappa, senza cambiare il tempo di gioco.",
  "hudMode": "HUD di volo",
  "hudFull": "Completo",
  "hudMinimal": "Minimo",

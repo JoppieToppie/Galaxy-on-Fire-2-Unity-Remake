@@ -1448,6 +1448,8 @@
  "photoUpDown": "ऊपर / नीचे",
  "photoTouchFree": "देखने के लिए खींचें · चलने के लिए पिंच करें",
  "photoShowInFolder": "फ़ोल्डर में दिखाएँ",
+ "systemMapAnimationSpeed": "सिस्टम मानचित्र एनीमेशन गति",
+ "systemMapAnimationSpeedHelp": "केवल मानचित्र पर सिस्टम खोलने और बंद करने की गति बदलती है, खेल का समय नहीं।",
  "hudMode": "उड़ान HUD",
  "hudFull": "पूरा",
  "hudMinimal": "न्यूनतम",

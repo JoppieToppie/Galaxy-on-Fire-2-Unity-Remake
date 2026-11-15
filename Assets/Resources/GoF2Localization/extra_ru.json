@@ -1543,6 +1543,8 @@
  "photoUpDown": "ВВЕРХ / ВНИЗ",
  "photoTouchFree": "ПРОВЕДИТЕ, ЧТОБЫ ОСМОТРЕТЬСЯ · СВЕДИТЕ ПАЛЬЦЫ, ЧТОБЫ ДВИГАТЬСЯ",
  "photoShowInFolder": "ПОКАЗАТЬ В ПАПКЕ",
+ "systemMapAnimationSpeed": "Скорость анимации карты систем",
+ "systemMapAnimationSpeedHelp": "Ускоряет только открытие и закрытие систем на карте, не меняя время симуляции.",
  "hudMode": "HUD в полёте",
  "hudFull": "Полный",
  "hudMinimal": "Минимальный",

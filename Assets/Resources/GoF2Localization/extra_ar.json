@@ -1535,6 +1535,8 @@
  "photoUpDown": "أعلى / أسفل",
  "photoTouchFree": "اسحب للنظر · اقرص للتحرك",
  "photoShowInFolder": "إظهار في المجلد",
+ "systemMapAnimationSpeed": "سرعة حركة خريطة النظام",
+ "systemMapAnimationSpeedHelp": "يسرّع فتح الأنظمة وإغلاقها على الخريطة فقط، دون تغيير وقت اللعبة.",
  "hudMode": "واجهة الطيران",
  "hudFull": "كاملة",
  "hudMinimal": "مصغّرة",

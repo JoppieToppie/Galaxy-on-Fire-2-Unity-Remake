@@ -1543,6 +1543,8 @@
  "photoUpDown": "MONTER / DESCENDRE",
  "photoTouchFree": "GLISSER POUR REGARDER · PINCER POUR AVANCER",
  "photoShowInFolder": "AFFICHER DANS LE DOSSIER",
+ "systemMapAnimationSpeed": "Vitesse des animations de la carte",
+ "systemMapAnimationSpeedHelp": "Accélère uniquement les transitions des systèmes sur la carte, sans modifier le temps du jeu.",
  "hudMode": "HUD de vol",
  "hudFull": "Complet",
  "hudMinimal": "Minimal",

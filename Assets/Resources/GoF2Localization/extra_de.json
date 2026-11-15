@@ -1543,6 +1543,8 @@
  "photoUpDown": "HOCH / RUNTER",
  "photoTouchFree": "ZIEHEN ZUM UMSEHEN · ZWEI FINGER ZUM BEWEGEN",
  "photoShowInFolder": "IM ORDNER ZEIGEN",
+ "systemMapAnimationSpeed": "Animationsgeschwindigkeit der Systemkarte",
+ "systemMapAnimationSpeedHelp": "Beschleunigt nur das Öffnen und Schließen von Systemen auf der Karte, nicht die Spielzeit.",
  "hudMode": "Flug-HUD",
  "hudFull": "Voll",
  "hudMinimal": "Minimal",

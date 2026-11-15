@@ -422,7 +422,7 @@ namespace GoF2Remake.UI
 
             if (zoomDir != 0)
             {
-                zoomMs += zoomDir * dtMs;
+                zoomMs += zoomDir * dtMs * Settings.SystemMapAnimationSpeed;
                 float e = ZoomEase;
                 fade = 255f * (1f - e);
                 // Modified: no shrink along the zoom: the system's sun keeps one size (SystemSunScale).

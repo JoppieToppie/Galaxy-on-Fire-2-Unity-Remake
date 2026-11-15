@@ -332,3 +332,7 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   drag move, + min(|yaw + pitch velocity| · 0.01, 10) per frame in the system view, 0 past 100): entering the parameter
   regions 0 / 25 / 49.8 / 75 plays Map_Click_01 (event volume 0.439); a touch-down restarts it, the back button stops
   it.
+
+- **System map animation speed** (Gameplay): 1x (default), 2x or 4x scales only the galaxy-to-system zoom
+  timer, in both directions. The original duration 32768/15 ms becomes approximately 2185, 1092 or 546 ms.
+  The sine easing, final camera positions, reveal animation, input timers and simulation time remain unchanged.

@@ -1535,6 +1535,8 @@
  "photoUpDown": "위 / 아래",
  "photoTouchFree": "드래그하여 둘러보기 · 핀치하여 이동",
  "photoShowInFolder": "폴더에서 보기",
+ "systemMapAnimationSpeed": "성계 지도 애니메이션 속도",
+ "systemMapAnimationSpeedHelp": "지도에서 성계를 열고 닫는 애니메이션만 빠르게 합니다. 게임 시간은 바뀌지 않습니다.",
  "hudMode": "비행 HUD",
  "hudFull": "전체",
  "hudMinimal": "최소",
