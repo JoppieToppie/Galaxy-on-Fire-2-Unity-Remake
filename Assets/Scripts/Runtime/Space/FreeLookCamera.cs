@@ -176,10 +176,16 @@ namespace GoF2Remake.Flight
             RememberBase();
         }
 
-        /// <summary>The independent turret action: enter the first, cycle the remaining mounts, then return to the ship.</summary>
+        /// <summary>Contextual turret action: cycle manual mounts, or toggle fire when only automatic turrets are installed.</summary>
         public void CycleTurretView()
         {
-            if (!TurretMode || (Blocked != null && Blocked() && (TurretAllowed == null || !TurretAllowed()))) return;
+            if (Blocked != null && Blocked() && (TurretAllowed == null || !TurretAllowed())) return;
+            if (!TurretMode)
+            {
+                var automatic = PlayerTurret.On(gameObject).Find(t => t.IsAuto);
+                if (automatic != null) automatic.SetAuto(!automatic.AutoEnabled);
+                return;
+            }
             if (Current != Mode.Turret) Set(Mode.Turret);
             else if (turretIndex + 1 < Manual().Count) EnterTurret(turretIndex + 1, true);
             else Set(Base);

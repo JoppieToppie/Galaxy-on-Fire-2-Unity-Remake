@@ -188,7 +188,7 @@ namespace GoF2Remake.UI
                 if (weapons != null && weapons.CanCycleSecondary) Hint(T("hudSwitchSecondary", "SWITCH"), GameControls.SwitchSecondary);
                 if (radar != null && radar.Locked != null) Hint(T("hudUnlock", "UNLOCK"), GameControls.UnlockTarget);
                 Hint(T("hudFreeLook", "FREE LOOK"), GameControls.FreeLookHold);
-                if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), GameControls.AutoTurret);
+                if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), HasManualTurret() ? GameControls.AutoTurret : GameControls.TurretView);
                 if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.TurretView);
                 CockpitHint(pad);
                 if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
@@ -212,7 +212,7 @@ namespace GoF2Remake.UI
             Hint(T("hudRoll", "ROLL"), GameControls.Roll);
             Hint(T("hudLevel", "LEVEL"), GameControls.LevelOut);
             // Remake: a ship may carry an auto turret and a manual one at once: a hint for each kind it has.
-            if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), GameControls.AutoTurret);
+            if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), HasManualTurret() ? GameControls.AutoTurret : GameControls.TurretView);
             if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.TurretView);
             CockpitHint(pad);
             if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)

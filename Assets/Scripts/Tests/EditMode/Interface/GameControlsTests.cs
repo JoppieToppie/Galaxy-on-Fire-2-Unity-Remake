@@ -128,9 +128,9 @@ namespace GoF2Remake.Tests
             yield return D("camera", BindSlot.Key1, "<Keyboard>/f3");
             yield return D("camera", BindSlot.Pad, "<Gamepad>/dpad/up");
             yield return D("turretView", BindSlot.Key1, "<Keyboard>/t");
-            yield return D("turretView", BindSlot.Pad, "");
+            yield return D("turretView", BindSlot.Pad, "<Gamepad>/dpad/down");
             yield return D("autoTurret", BindSlot.Key1, "<Keyboard>/y");
-            yield return D("autoTurret", BindSlot.Pad, "<Gamepad>/dpad/down");
+            yield return D("autoTurret", BindSlot.Pad, "");
             yield return D("unlockTarget", BindSlot.Key1, "<Keyboard>/u");
             yield return D("unlockTarget", BindSlot.Pad, "<Gamepad>/buttonEast");
             yield return D("action", BindSlot.Key1, "<Keyboard>/f");

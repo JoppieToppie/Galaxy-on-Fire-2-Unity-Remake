@@ -383,6 +383,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   mobile (or without `runInBackground`) opens the pause menu.
 
 - **Separate turret control**: Camera (F3 / D-pad up, existing binding ID) cycles ship/free-look views, optionally
-  including the cockpit. Turret control is its own binding (T; no default pad button to avoid conflicts). It cycles
-  manual turret mounts and returns to the ship. Touch retains its combined camera cycle. Existing camera and
-  auto-turret overrides retain their IDs; the new action starts with its own default. HUD turret hints use it.
+  including the cockpit. Turret control (T / D-pad down) is contextual: manual turrets/collectors enter their view,
+  cycle mounts and return to the ship; an auto-only loadout toggles automatic fire. With mixed manual/automatic mod
+  loadouts, the contextual action controls manual mounts and a separate Auto turret binding (Y, pad unassigned) appears.
+  Its visibility follows installed equipment, not a future capability flag. Existing saved overrides retain their IDs.
+  HUD hints follow the appropriate contextual/independent action. Touch retains its existing combined button.
