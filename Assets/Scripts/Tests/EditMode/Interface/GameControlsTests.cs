@@ -3,7 +3,7 @@
 // each with two keyboard / mouse slots and a controller slot (none for mouse steering and the chat's send / channel keys).
 // The defaults typed below are CLAUDE.md's (the PC / Mac version's keys: arrows steer, W boost, S brake, ] and / thrust,
 // Space / LMB fire, R / RMB secondary, A / D strafe, 1 / 3 roll, F (and Enter) action, Q autopilot, E actions, Tab
-// fast-forward, T view, V wingmen, K Khador Drive, C cloak, M / middle mouse mouse steering, 2 level out, G switch secondary,
+// fast-forward, F3 view, T manual turrets, V wingmen, K Khador Drive, C cloak, M / middle mouse mouse steering, 2 level out, G switch secondary,
 // X time extender, Y auto turret, U unlock target, F12 screenshot, F1 toggle HUD, B chat, Enter / keypad Enter send, Tab channel, N multiplayer window,
 // the distress call unbound; the controller: LS steer, RB / LB throttle, A boost, Y level out and fast-forward, RT / LT
 // fire, D-pad right / up / down switch secondary / camera / auto turret, B unlock target, X action, View autopilot menu, D-pad left
@@ -125,9 +125,9 @@ namespace GoF2Remake.Tests
             yield return D("fireSecondary", BindSlot.Pad, "<Gamepad>/leftTrigger");
             yield return D("switchSecondary", BindSlot.Key1, "<Keyboard>/g");
             yield return D("switchSecondary", BindSlot.Pad, "<Gamepad>/dpad/right");
-            yield return D("camera", BindSlot.Key1, "<Keyboard>/t");
+            yield return D("camera", BindSlot.Key1, "<Keyboard>/f3");
             yield return D("camera", BindSlot.Pad, "<Gamepad>/dpad/up");
-            yield return D("turretView", BindSlot.Key1, "<Keyboard>/f3");
+            yield return D("turretView", BindSlot.Key1, "<Keyboard>/t");
             yield return D("turretView", BindSlot.Pad, "");
             yield return D("autoTurret", BindSlot.Key1, "<Keyboard>/y");
             yield return D("autoTurret", BindSlot.Pad, "<Gamepad>/dpad/down");

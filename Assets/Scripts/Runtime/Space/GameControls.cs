@@ -109,11 +109,11 @@ namespace GoF2Remake.Flight
             FirePrimary = Button("firePrimary", () => X("ctlFirePrimary", "Fire"), "<Keyboard>/space", "<Mouse>/leftButton", "<Gamepad>/rightTrigger");
             FireSecondary = Button("fireSecondary", () => X("ctlFireSecondary", "Fire secondary"), "<Keyboard>/r", "<Mouse>/rightButton", "<Gamepad>/leftTrigger");
             SwitchSecondary = Button("switchSecondary", () => X("ctlSwitchSecondary", "Switch secondary"), "<Keyboard>/g", null, "<Gamepad>/dpad/right");
-            Camera = Button("camera", () => X("ctlCycleView", "Cycle camera view"), "<Keyboard>/t", null, "<Gamepad>/dpad/up");
+            Camera = Button("camera", () => X("ctlCycleView", "Cycle camera view"), "<Keyboard>/f3", null, "<Gamepad>/dpad/up");
             // Remake (players' feedback, 2026-10-22): the cockpit view on its own (FreeLookCamera.ToggleCockpit), out of the
             // camera cycle; holding the camera button does the same. No controller default: D-pad up held.
             CockpitView = Button("cockpitView", () => X("ctlCockpitView", "Cockpit view on / off"), "<Keyboard>/f2", null, null);
-            TurretView = Button("turretView", () => X("ctlTurretView", "Turret control"), "<Keyboard>/f3", null, null);
+            TurretView = Button("turretView", () => X("ctlTurretView", "Turret control"), "<Keyboard>/t", null, null);
             AutoTurret = Button("autoTurret", () => X("ctlAutoTurret", "Auto turret on / off"), "<Keyboard>/y", null, "<Gamepad>/dpad/down");
             // Remake: drops the ship lock (CombatRadar.Unlock; the original has none). U, and B: in flight B is only the
             // menus' back, and the flight's presses wait while a menu is open (Navigation.PressesBlocked).
