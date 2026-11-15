@@ -534,6 +534,9 @@ namespace GoF2Remake.Data
         /// <summary>DialogueWindow::update: with voice, turn the page once the line has ended.</summary>
         public static bool AutoAdvanceDialogue { get => GetBool("autoAdvanceDialogue", true); set => SetBool("autoAdvanceDialogue", value); }
 
+        /// <summary>CLAUDE.md "Blueprints": paid ingredient completion is an explicit opt-in.</summary>
+        public static bool BlueprintAutocomplete { get => GetBool("blueprintAutocomplete", false); set => SetBool("blueprintAutocomplete", value); }
+
         /// <summary>Remake: a conversation in flight leaves the game running (Navigation.ConversationRuns: the controls stop,
         /// nothing fires, the story level holds); off = the original's pause (MGame::OnUpdate halts for the dialogue window).</summary>
         public static bool PlayOnInConversations { get => GetBool("playOnInConversations", false); set => SetBool("playOnInConversations", value); }
@@ -923,6 +926,7 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] GameplayKeys =
         {
+            "blueprintAutocomplete",
             "launchCamera", "stationScale", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "shopByCategory", "cloakBay", "informerOriginalRule",
             "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",

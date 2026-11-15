@@ -255,7 +255,8 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Remake mods: the blueprint may be autocompleted (blueprints.json "autocomplete": false: never).</summary>
-        public static bool CanAutocomplete(int product) => !Modding.ModBlueprints.AutocompleteOverride(product, out bool allowed, out _) || allowed;
+        public static bool CanAutocomplete(int product) => Settings.BlueprintAutocomplete
+            && (!Modding.ModBlueprints.AutocompleteOverride(product, out bool allowed, out _) || allowed);
 
         /// <summary>A completed run: to the hold here (true) or waiting at the production station (false); then reset.
         /// Remake mods: a ship blueprint's ship always waits at the production station (TakeBuiltShips), here too.</summary>

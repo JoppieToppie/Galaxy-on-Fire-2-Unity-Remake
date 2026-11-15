@@ -481,6 +481,12 @@ namespace GoF2Remake.UI
 
         static void AddGameplay(List<OptionDef> list)
         {
+            var autocomplete = Toggle("blueprintAutocomplete", OptionPage.Gameplay,
+                () => X("blueprintAutocomplete", "Blueprint autocomplete"),
+                () => Settings.BlueprintAutocomplete, v => Settings.BlueprintAutocomplete = v);
+            autocomplete.description = () => X("blueprintAutocompleteHelp",
+                "Allows paying credits to supply a blueprint's missing ingredients. Off by default. Blueprints that forbid autocomplete remain unavailable.");
+            list.Add(autocomplete);
             // Remake (the user's request, 2026-11-04): Original / Cosmetic / Remake set the experience options at once
             // (Settings.ApplyExperience); the row shows the one they match, else Custom (picking Custom sets nothing). Every
             // row below reads off (or its first choice) = the original game.
