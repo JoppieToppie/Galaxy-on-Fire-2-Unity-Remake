@@ -28,7 +28,7 @@
   <a href="https://github.com/JoppieToppie/Galaxy-on-Fire-2-Unity-Remake/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/JoppieToppie/Galaxy-on-Fire-2-Unity-Remake?label=release"></a>
   <a href="https://github.com/JoppieToppie/Galaxy-on-Fire-2-Unity-Remake/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/JoppieToppie/Galaxy-on-Fire-2-Unity-Remake/total"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20Android%20%7C%20UWP-blue">
-  <img alt="Unity" src="https://img.shields.io/badge/Unity-7000.0.0a12-black?logo=unity">
+  <img alt="Unity" src="https://img.shields.io/badge/Unity-7000.0.0a16-black?logo=unity">
   <a href="LICENSE.md"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-green"></a>
   <br>
   <a href="https://github.com/JoppieToppie/Galaxy-on-Fire-2-Unity-Remake/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/JoppieToppie/Galaxy-on-Fire-2-Unity-Remake?style=flat&logo=github"></a>
@@ -304,7 +304,7 @@ use a [release](#play); to add content, a [mod](#mods) is usually enough.**
 
 ### Requirements
 
-- **Unity 7000.0.0a12** (an alpha, installed through Unity Hub). Add the build support modules for the platforms you
+- **Unity 7000.0.0a16** (an alpha, installed through Unity Hub). Add the build support modules for the platforms you
   build: *Windows Build Support (IL2CPP)*, *Linux Build Support (IL2CPP)*, *Android Build Support*, and the *Dedicated
   Server* modules for server builds.
 - **Git** with **[Git LFS](https://git-lfs.com)**. The models, textures and sounds are about 2.1 GB in LFS, fetched from
@@ -322,7 +322,7 @@ git lfs install
 git clone https://github.com/JoppieToppie/Galaxy-on-Fire-2-Unity-Remake.git
 ```
 
-1. Open the cloned folder in Unity Hub (*Add > Add project from disk*) with Unity 7000.0.0a12. The first import takes a
+1. Open the cloned folder in Unity Hub (*Add > Add project from disk*) with Unity 7000.0.0a16. The first import takes a
    while.
 2. Open `Assets/Scenes/Splash.unity` (or `MainMenu.unity` to skip the logos) and press **Play**.
 
