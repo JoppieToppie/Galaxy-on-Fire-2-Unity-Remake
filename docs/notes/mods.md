@@ -719,3 +719,12 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   with their texts / stats / icon, bought, mounted and fired with the N'saan's fx, a save with the mod turned off (the warning,
   removal, refund, placeholder), hosting with mods allowed (the session list, NetState, the join check both ways) and off (the
   original tables), the Host card row. Not yet: the server browser's Modded tag against a real listed game, a client build.
+
+- **Ship classes** (remake 2026-11-15, `Modding/ShipClassRules.cs`; owner's rule: no effect without a mod using them): ships.json
+  `shipClass` / `classTags` (new ship or `override`, free words), items.json `allowedClasses` / `excludedClasses` (an exclude-list
+  blocks only what it names, an allow-list refuses a ship matching none, both = allow and not exclude, case-insensitive);
+  `Hangar.CanMount` refuses a misfit (`Result.WrongShipClass`, the Mount button says why), `Hangar.SwitchTo` (a ship swap) and
+  `FitToSlots` (docking) put misfits in the hold, `NetProfiles.ClampClasses` does the same on a multiplayer upload / sign-in (the
+  server trusts the client's economy otherwise, see NetProfiles); stat 175 `scansShipClass` makes a scanner show the locked ship's
+  class (`CombatRadar.ReadClass`; another player's ship from `Target.netShipIndex`, set by `NetPlayer` from its replicated ship).
+  Not covered: a Kaamo Club hull's gear is checked when taken out; `ShipClassRulesTests`.

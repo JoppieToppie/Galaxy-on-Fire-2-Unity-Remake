@@ -40,6 +40,11 @@ namespace GoF2Remake.Data
         [System.NonSerialized] public Vector3? cockpit;
         [System.NonSerialized] public List<Vector3> smokePoints;
         [System.NonSerialized] public float explosionScale = 1f;
+
+        /// <summary>Remake mods (Modding.ShipClassRules, ships.json "shipClass" / "classTags"): the ship's class (a free word a
+        /// class scanner shows) and the words it answers to besides; none on every original ship.</summary>
+        [System.NonSerialized] public string shipClass;
+        [System.NonSerialized] public string[] classTags;
     }
 
     [System.Serializable] public class StatEntry { public string key; public int value; }
@@ -66,6 +71,10 @@ namespace GoF2Remake.Data
         [System.NonSerialized] public string modKey;
         [System.NonSerialized] public int lookIndex;
         public int Look => modded ? lookIndex : index;
+
+        /// <summary>Remake mods (Modding.ShipClassRules, items.json "allowedClasses" / "excludedClasses"): the ship classes / tags
+        /// that may / may not mount it; null = no list (every original item: it fits every ship).</summary>
+        [System.NonSerialized] public string[] allowedClasses, excludedClasses;
 
         public bool HasAttr(int id) => System.Array.IndexOf(attrKeys, id) >= 0;
         public int Attr(int id, int fallback = 0)

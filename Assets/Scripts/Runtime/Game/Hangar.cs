@@ -23,7 +23,7 @@ namespace GoF2Remake.Data
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public class Hangar
     {
-        public enum Result { Ok, NoStock, NoCredits, NothingToSell, NoFreeSlot, Swap, NotMountable, SameShip, NotSaleable, Passengers, AlreadyStored }
+        public enum Result { Ok, NoStock, NoCredits, NothingToSell, NoFreeSlot, Swap, NotMountable, SameShip, NotSaleable, Passengers, AlreadyStored, WrongShipClass }
 
         readonly Database db;
         readonly Dictionary<int, int> prices = new Dictionary<int, int>();
@@ -211,6 +211,12 @@ namespace GoF2Remake.Data
                 foreach (var e in Session.Equipment)
                     if (!drop.Contains(e) && !e.builtIn && e.item != GalaxyMap.KhadorDriveItem && GalaxyMap.IsKhadorDrive(e.item) && IsSaleable(e.item))
                     { drop.Add(e); Shop.AddToCargo(e.item, Mathf.Max(1, e.amount)); moved++; }
+            // Remake mods (Modding.ShipClassRules): gear the ship's class can't mount (a mod gave the ship a class, or the item a
+            // list, since it was fitted) goes to the hold; the story's unsaleable items stay.
+            var flown = db.Ship(Session.ShipIndex);
+            foreach (var e in Session.Equipment)
+                if (!drop.Contains(e) && !e.builtIn && IsSaleable(e.item) && !Modding.ShipClassRules.Fits(db.Item(e.item), flown))
+                { drop.Add(e); int n = UnitsOf(db, e); if (n > 0) Shop.AddToCargo(e.item, n); moved++; }
             if (moved > 0) Session.Equipment = Session.Equipment.Where(e => !drop.Contains(e)).ToList();
             // An item in a slot past the ship's (a hull with fewer slots) to the first empty one it has.
             for (int type = 0; type <= 3; type++)
@@ -538,6 +544,9 @@ namespace GoF2Remake.Data
             if (it == null || CargoOf(item) <= 0) return Result.NothingToSell;
             int type = it.TypeId;
             if (type > 3) return Result.NotMountable;
+            // Remake mods (Modding.ShipClassRules): an item restricted to some ship classes (items.json allowedClasses /
+            // excludedClasses) isn't mounted on another; every original item fits every ship.
+            if (!Modding.ShipClassRules.Fits(it, db.Ship(Session.ShipIndex))) return Result.WrongShipClass;
             // Modified: one jump drive aboard: a mod jump drive (based on the Khador Drive) doesn't go on a ship with the Khador
             // Drive built in; a mounted Khador Drive and a mod one swap (category 18 is one per ship).
             if (GalaxyMap.IsKhadorDrive(item) && GalaxyMap.HasIntegratedDrive(Session.ShipIndex)) return Result.NotMountable;
@@ -761,7 +770,9 @@ namespace GoF2Remake.Data
             foreach (var e in mounted)
             {
                 int type = TypeOf(e.item);
-                if ((!dismount || !IsSaleable(e.item)) && (MountedOfType(type).Count < SlotCount(type) || BayTakes(db, ship, e.item, Session.Equipment))) Session.Equipment.Add(e);
+                // Remake mods: gear the new hull's class can't mount (Modding.ShipClassRules) goes to the hold like the rest that doesn't fit.
+                bool fitsClass = Modding.ShipClassRules.Fits(db.Item(e.item), db.Ship(ship));
+                if (fitsClass && (!dismount || !IsSaleable(e.item)) && (MountedOfType(type).Count < SlotCount(type) || BayTakes(db, ship, e.item, Session.Equipment))) Session.Equipment.Add(e);
                 else if (UnitsOf(db, e) > 0) AddToCargo(e.item, UnitsOf(db, e));
             }
             Session.Equipment = Session.Equipment.OrderBy(e => listOrder.IndexOf(e)).ToList();

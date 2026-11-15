@@ -116,7 +116,7 @@ namespace GoF2Remake.Flight
         CombatAssets assets;
         AudioSource sfx, beamLoop;
         int lockTimeMs = 8000, tractorItem = -1, tractorLockMs, tractorMode;
-        bool cargoScan;
+        bool cargoScan, classScan;
         float timer;
         bool noTractorShown;
         // Remake (#45, like Mining's "No drill installed."): salvage refused for want of a tractor beam; ignored until it leaves
@@ -163,6 +163,7 @@ namespace GoF2Remake.Flight
             lockTimeMs = scanner != null && scanner.HasAttr(29) ? scanner.Attr(29) : 8000;
             lockTimeMs = Cheats.LockMs(lockTimeMs);
             cargoScan = scanner != null && scanner.Attr(31) == 1;
+            classScan = scanner != null && scanner.Attr(GoF2Remake.Modding.ShipClassRules.ScansClassAttr) == 1;   // remake mods: shows the locked ship's class
             var filter = Shop.FirstMounted(db, 33);
             CloudRadar = filter != null && filter.Attr(57) == 1;
             CloudOffScreen = filter != null && filter.Attr(58) == 1;
@@ -361,6 +362,7 @@ namespace GoF2Remake.Flight
                     if (assets != null && assets.targetLock != null) sfx.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(assets.targetLock), Settings.SfxVolume);
                     Haptics.Play(Haptics.TargetLock);   // remake
                     if (cargoScan) ReadCargo(Locked);
+                    if (classScan) ReadClass(Locked);
                 }
             }
             else if (CrateCandidate != null || StealCandidate != null)
@@ -441,6 +443,23 @@ namespace GoF2Remake.Flight
             if (cargo == null || cargo.Count == 0) { Message?.Invoke(Localization.Get(542), 0, HudMessageKind.Scan); return; }
             for (int i = 0; i < cargo.Count; i++)
                 if (cargo[i].amount > 0) { Message?.Invoke($"{cargo[i].amount}t {GameNames.Item(cargo[i].item)}", 0, HudMessageKind.Scan); return; }
+        }
+
+        /// <summary>Remake mods (a scanner with attribute 175, ShipClassRules.ScansClassAttr): on a new ship lock, the ship's class
+        /// (an NPC's from its spawn, another player's from the ship they fly, Target.netShipIndex); nothing for a ship without one,
+        /// so a scanner that reads classes shows nothing on the original's.</summary>
+        void ReadClass(Target locked)
+        {
+            if (locked == null || db == null) return;
+            int shipIndex = locked.netShipIndex;
+            if (shipIndex < 0 && traffic != null)
+            {
+                var npc = traffic.Ships.Find(s => s != null && s.Target == locked);
+                if (npc != null) shipIndex = npc.Spec.ship;
+            }
+            if (shipIndex < 0) return;
+            string cls = GoF2Remake.Modding.ShipClassRules.ClassOf(db.Ship(shipIndex));
+            if (cls != null) Message?.Invoke(Localization.Extra("scanShipClass", "Class: #C").Replace("#C", cls), 0, HudMessageKind.Scan);
         }
 
         /// <summary>TractorBeam::update's steal: KIPlayer::createCrate(0) at the ship, a container of its cargo, pulled at once:
