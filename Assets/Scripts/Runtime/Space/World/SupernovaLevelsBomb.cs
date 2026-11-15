@@ -20,13 +20,12 @@ namespace GoF2Remake.World
             var route = new Route(false);
             route.points.Add(new Vector3(650000f * light.x, 0, 650000f * light.z));
             c.SetPlayerRoute(route);
-            var p = PlayerGame;
             var right = GameRight(Player);
             for (int k = 0; k < 2; k++)
             {
-                var at = p + right * (k == 0 ? 2100f : -2100f) + PlayerDirGame * 2000f;
-                var s = c.SpawnShip(0, 37, at, false, sp => { sp.alwaysFriend = true; sp.noLoot = true; sp.hitpoints = 9999999; });
-                s.Place(ToUnity(at), Dir(light));
+                var beside = Player.position + ToUnity(right * (k == 0 ? 2100f : -2100f) + PlayerDirGame * 2000f);   // OrbitScale: an offset, not mapped
+                var s = c.SpawnShip(0, 37, SpecAt(beside), false, sp => { sp.alwaysFriend = true; sp.noLoot = true; sp.hitpoints = 9999999; });
+                s.Place(beside, Dir(light));
                 s.SetOnlyEnemy(null);
                 s.scriptedSpeed = FormationSpeed;
             }
@@ -38,7 +37,7 @@ namespace GoF2Remake.World
             // player at the launch speed and slide the escorts (2 u/ms) back at it tail first. Remake: the player and the
             // escorts keep just ahead of the camera until they break away.
             playerSpeed = FormationSpeed;
-            cam.LookAt(p - PlayerDirGame * 2400f + GameUp(Player) * 500f, Player);
+            LookFrom(Player, -PlayerDirGame * 2400f + GameUp(Player) * 500f);
             Step = 1;
         }
 
@@ -51,14 +50,14 @@ namespace GoF2Remake.World
             // "hitpoints 1" is Player::setHitpoints(1): the current hull only, the maximum stays (setHitpoints raises it, never
             // lowers it), so the crippled fighter trails smoke and fire (PlayerFighter::update's 33 % rule). Set as it's shown.
             var s = c.SpawnShip(Standing.Specter, 44, route.points[0], false, sp => { sp.alwaysFriend = true; sp.route = route; sp.inactive = true; sp.noLoot = true; });
-            s.Place(ToUnity(route.points[0]), Dir(new Vector3(-1, 0, 0)));
+            s.Place(At(route.points[0]), Dir(new Vector3(-1, 0, 0)));
             s.CloakingPossible = false;
             s.SetVisible(false);
             level.EndStartSequence();
             var p = new Vector3(300000, 0, 300000);
             MovePlayer(p, LightGame);
             EnterCutscene(false);
-            cam.LookAt(p + new Vector3(2200, 1300, -4000), Player);
+            LookFrom(Player, new Vector3(2200, 1300, -4000));
             c.Fade(true, Color.black, 8000f);
             Step = 1;
         }
@@ -70,7 +69,8 @@ namespace GoF2Remake.World
             var rocks = AsteroidPositions();
             for (int i = 0; i < 6; i++)
             {
-                var at = rocks.Count > 0 ? rocks[(i + rocks.Count / 2) % rocks.Count] + new Vector3(0, 2000, 0) : new Vector3(30000, 2000, 80000);
+                // OrbitScale: 2000 above the rock as placed, in the spec's coordinates (SpecAt); else the original's spot.
+                var at = rocks.Count > 0 ? SpecAt(rocks[(i + rocks.Count / 2) % rocks.Count] + ToUnity(new Vector3(0, 2000, 0))) : new Vector3(30000, 2000, 80000);
                 var s = c.SpawnShip(Standing.Pirate, NpcTables.RandomFighter(Standing.Pirate), at, false, sp => sp.asleep = true);
                 s.detectRange = 7000f;
                 s.SetHull(s.Hp.maxHull * 2);
@@ -78,10 +78,11 @@ namespace GoF2Remake.World
             c.WinObjective = () => c.DeadRange(0, 6);   // 0x12 (0, 6)
         }
 
+        /// <summary>The asteroids' Unity positions.</summary>
         List<Vector3> AsteroidPositions()
         {
             var list = new List<Vector3>();
-            if (level.Asteroids != null) foreach (Transform t in level.Asteroids) list.Add(ToGame(t.position));
+            if (level.Asteroids != null) foreach (Transform t in level.Asteroids) list.Add(t.position);
             return list;
         }
 
@@ -90,7 +91,7 @@ namespace GoF2Remake.World
             var right = GameRight(Player);
             for (int k = 0; k < 2; k++)
             {
-                var at = PlayerGame + right * 50000f + PlayerDirGame * (k == 0 ? 4000f : -4000f);
+                var at = SpecAt(Near(Player, right * 50000f + PlayerDirGame * (k == 0 ? 4000f : -4000f)));   // OrbitScale: an offset, clear of the grown station
                 var s = Specter(at, false);
                 var r = new Route(false); r.points.Add(new Vector3(0, 0, -80000)); s.SetRoute(r);
             }
@@ -149,14 +150,17 @@ namespace GoF2Remake.World
                 case 6:
                 {
                     if (stepMs < 24000f) break;
-                    var s2 = new Vector3(PlayerGame.x + light.x * 100000f, 0, PlayerGame.z + light.z * 100000f) - right * 30000f;
+                    var pg = PlayerGame;
+                    var s2 = new Vector3(pg.x + light.x * 100000f, 0, pg.z + light.z * 100000f) - right * 30000f;
                     var up = GameUp(Player);
-                    Show(S(2), s2, -light);
-                    Show(S(3), s2 + right * 2200f - up * 200f - dir * 2200f, -light);
-                    Show(S(4), s2 - right * 2200f + up * 200f - dir * 2200f, -light);
+                    // OrbitScale: the lead's spot as an offset from the player, the wing beside it (offsets, not mapped).
+                    var lead2 = Near(Player, s2 - pg);
+                    ShowUnity(S(2), lead2, Dir(-light));
+                    ShowUnity(S(3), lead2 + ToUnity(right * 2200f - up * 200f - dir * 2200f), Dir(-light));
+                    ShowUnity(S(4), lead2 + ToUnity(-right * 2200f + up * 200f - dir * 2200f), Dir(-light));
                     for (int i = 2; i <= 4; i++) { S(i).Cloak(1000f); S(i).scriptedSpeed = 2.5f - 0.1f * (i - 2); }
                     EnterCutscene(true);
-                    cam.LookAt(G(S(2)) + GameDir(S(2).transform) * 6800f + GameRight(S(2).transform) * 1200f + GameUp(S(2).transform) * 400f, S(2).transform);
+                    LookFrom(S(2).transform, GameDir(S(2).transform) * 6800f + GameRight(S(2).transform) * 1200f + GameUp(S(2).transform) * 400f);
                     Step = 7;
                     break;
                 }
@@ -180,9 +184,9 @@ namespace GoF2Remake.World
                         {
                             var s = S(i);
                             if (s == null || (s.Target.Alive && !s.Gone)) continue;
-                            var at = PlayerGame + light * 100000f + new Vector3(10000 + 5000 * i + R(1000), R(1000), R(1000));
-                            s.Revive(ToUnity(at));
-                            Show(s, at, -light);
+                            var at = Near(Player, light * 100000f + new Vector3(10000 + 5000 * i + R(1000), R(1000), R(1000)));   // OrbitScale: an offset, not mapped
+                            s.Revive(at);
+                            ShowUnity(s, at, Dir(-light));
                         }
                     }
                     if (c.PlayerRoute != null && c.PlayerRoute.Waypoint == null && !level.Health.Dead)
@@ -195,13 +199,13 @@ namespace GoF2Remake.World
                     if (!Over(7)) break;
                     EnterCutscene(false);
                     Player.rotation = Quaternion.LookRotation(Dir(light), Vector3.up);
-                    cam.LookAt(PlayerGame + PlayerDirGame * 8000f + GameRight(Player) * 1000f + GameUp(Player) * 1000f, Player);
+                    LookFrom(Player, PlayerDirGame * 8000f + GameRight(Player) * 1000f + GameUp(Player) * 1000f);
                     Step = 11;
                     break;
                 case 11:
                     if (bomb == null && stepMs >= 2500f)
                     {
-                        bomb = Scenery("rocket_explosive", PlayerGame, Player.rotation, "Reverse-matter bomb");
+                        bomb = Scenery("rocket_explosive", ToGame(Player.position), Player.rotation, "Reverse-matter bomb");
                         if (bomb != null) cam.SetTarget(bomb.transform);
                         Sfx.PlayAt(StoryAssets.Load()?.probeLaunch, Player.position);   // 14 Explosion_Bomb_AMR_Tormentor
                         bombMs = 0f;
@@ -249,7 +253,7 @@ namespace GoF2Remake.World
                     break;
                 case 2:
                     cam.SetDolly(new Vector3(-0.1f, -0.1f, 0.4f));
-                    if (stepMs >= 3000f && sp != null) { cam.LookAt(G(sp) + GameDir(sp.transform) * 8000f + GameUp(sp.transform) * 500f + GameRight(sp.transform) * 1000f, sp.transform); Step = 3; }
+                    if (stepMs >= 3000f && sp != null) { LookFrom(sp.transform, GameDir(sp.transform) * 8000f + GameUp(sp.transform) * 500f + GameRight(sp.transform) * 1000f); Step = 3; }
                     break;
                 case 3: if (Triggered(4)) Step = 4; break;
                 case 4:
@@ -302,19 +306,18 @@ namespace GoF2Remake.World
                 case 2:
                 {
                     if (!Over(2)) break;
-                    var p = PlayerGame;
                     for (int k = 0; k < 4; k++)
                     {
                         float s = k % 2 == 0 ? 1f : -1f;
-                        var at = p + new Vector3(s * (2000 * k + 2000), 2000 + R(1000), -57000 - s * R(2000));
-                        Show(S(2 + k), at, p - at);
+                        var at = Near(Player, new Vector3(s * (2000 * k + 2000), 2000 + R(1000), -57000 - s * R(2000)));   // OrbitScale: an offset, not mapped
+                        ShowUnity(S(2 + k), at, Player.position - at);
                         S(2 + k).scriptedSpeed = 0f;
                         S(2 + k).SetOnlyEnemy(level.Health.Target);
                     }
                     EnterCutscene(false);
                     SetPlayerVisible(false);
                     var s4 = S(4);
-                    cam.LookAt(G(s4) + GameDir(s4.transform) * 4000f - GameUp(s4.transform) * 500f, s4.transform);
+                    LookFrom(s4.transform, GameDir(s4.transform) * 4000f - GameUp(s4.transform) * 500f);
                     Step = 3;
                     break;
                 }
@@ -337,8 +340,8 @@ namespace GoF2Remake.World
                     {
                         for (int k = 0; k < 2; k++)
                         {
-                            var at = PlayerGame + new Vector3(25000 + 1000 * k, 2300 + 50 * k, 25000);
-                            Show(S(6 + k), at, PlayerGame - at);
+                            var at = Near(Player, new Vector3(25000 + 1000 * k, 2300 + 50 * k, 25000));   // OrbitScale: an offset, not mapped
+                            ShowUnity(S(6 + k), at, Player.position - at);
                         }
                     }
                     Step++;

@@ -132,7 +132,9 @@ namespace GoF2Remake.Events
             public Vector3 position;   // game units, in its station's orbit
         }
 
-        static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / 0.05f;
+        // OrbitScale: the original's coordinates (unwarped), as the scripts' distance(name, x, y, z) compares them
+        // (the identity in a session).
+        static Vector3 ToGame(Vector3 unity) => World.OrbitScale.ToGame(unity);
 
         static readonly List<Ship> ships = new List<Ship>();
 

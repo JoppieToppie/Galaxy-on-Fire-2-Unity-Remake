@@ -39,6 +39,12 @@ namespace GoF2Remake.Flight
         AudioSource boostLoop, charger;
         int engine = -1, boost = -1;
         bool wasBoosting;
+        /// <summary>Remake (#170): free flight's held boost plays the booster's start sound on its own source, cut short with a
+        /// quick fade when the boost is let go; as a one-shot, every tap started the whole few-second sound again on top of
+        /// the last. The original's boost always runs its full time, so there the one-shot stays.</summary>
+        AudioSource heldBoost;
+        float heldBoostVolume;
+        const float HeldBoostFadeSeconds = 0.15f;
         /// <summary>MGame::OnInitialize starts the engine loop only above campaign index 1: the prologue's and the rescue's
         /// Phantom is silent (index 0 swaps it for the broken engine 156, IntroCutscenes).</summary>
         bool storySilent;
@@ -164,10 +170,30 @@ namespace GoF2Remake.Flight
             Drive(main, on, volume, (engine >= 5 ? 1f : pitch) * deep);
             Drive(extra, on, volume, pitch * deep);
 
+            bool held = ship.Model != null && ship.Model.FreeFlight;
             if (boosting && !wasBoosting && boostSource != null && StartClip(out int bi) is AudioClip startClip)
             {
                 boostSource.pitch = Mathf.Lerp(1f, 0.7f, ship.mass);   // 1 for every ordinary ship, as before
-                boostSource.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(startClip), BoostVolume[bi] * Sfx.EventGain * Settings.SfxVolume);
+                float boostVolume = BoostVolume[bi] * Sfx.EventGain * Settings.SfxVolume;
+                if (held)
+                {
+                    if (heldBoost == null)
+                    {
+                        heldBoost = gameObject.AddComponent<AudioSource>();
+                        heldBoost.playOnAwake = false;
+                        heldBoost.spatialBlend = 0f;
+                    }
+                    heldBoost.clip = GoF2Remake.Modding.ModSounds.Get(startClip);
+                    heldBoost.pitch = boostSource.pitch;
+                    heldBoost.volume = heldBoostVolume = boostVolume;
+                    heldBoost.Play();
+                }
+                else boostSource.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(startClip), boostVolume);
+            }
+            if (heldBoost != null && heldBoost.isPlaying && (!boosting || !on))
+            {
+                heldBoost.volume = Mathf.Max(0f, heldBoost.volume - heldBoostVolume * Time.unscaledDeltaTime / HeldBoostFadeSeconds);
+                if (heldBoost.volume <= 0f) heldBoost.Stop();
             }
             wasBoosting = boosting;
         }

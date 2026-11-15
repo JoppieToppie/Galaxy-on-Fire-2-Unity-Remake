@@ -280,6 +280,11 @@ namespace GoF2Remake.World
                 float R(float r) => UnityEngine.Random.Range(-r, r);
                 if (Wormhole != null && !Wormhole.alienOrbit && Wormhole.attackedStation)
                     at = Wormhole.transform.position + new Vector3(R(10000f), R(10000f), R(10000f)) * M;
+                else if (Player != null && OrbitScale.Active)   // OrbitScale: the same in the original's coordinates, mapped
+                {
+                    var p = OrbitScale.ToGame(Player.transform.position);
+                    at = OrbitScale.ToUnity(new Vector3(p.x + R(40000f), p.y + R(30000f), UnityEngine.Random.Range(0, 2) == 0 ? 40000f : -40000f));
+                }
                 else if (Player != null)   // the player's x / y +- 40000 / 30000 and a world z of +-40000 (DAT_000d5fbc / c0)
                     at = new Vector3(Player.transform.position.x + R(40000f) * M, Player.transform.position.y + R(30000f) * M, (UnityEngine.Random.Range(0, 2) == 0 ? 40000f : -40000f) * M);
                 else continue;

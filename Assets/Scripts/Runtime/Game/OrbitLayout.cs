@@ -95,6 +95,25 @@ namespace GoF2Remake.World
         // Level::initParticleSystems
         public Color dustFogTint;
 
+        // Remake, experimental: Options > Gameplay "Station scale" (OrbitScale, docs/notes/space-scene.md "Station scale").
+        /// <summary>The station's scale in this orbit (OrbitScale.Chosen when the layout was built; 1: none).</summary>
+        public float stationScale = 1f;
+        /// <summary>How far the station reaches from its centre at scale 1 (game units, its collision volumes + 15 %): the
+        /// radius inside which the orbit grows with the station (OrbitScale's header).</summary>
+        public float stationReach;
+        /// <summary>The scale the station is drawn and collides at (1 without a station).</summary>
+        public float StationScale => Scaled ? stationScale : 1f;
+        /// <summary>This orbit maps its positions (OrbitScale): a station, a scale above 1, not interstellar space.</summary>
+        public bool Scaled => stationScale > 1.0001f && stationReach > 0f && (stationObject || originStructure) && !interstellar;
+        /// <summary>OrbitScale: a structure stands at the origin in place of a station (Coromesk's Mining Plant from campaign
+        /// 0x55, TrafficSpecials.MiningPlant): the orbit is scaled about it.</summary>
+        public bool originStructure;
+        /// <summary>A station-anchored game position in this orbit as scaled (OrbitScale.MapPoint); the identity unless Scaled.</summary>
+        public Vector3 Place(Vector3 game) => Scaled ? OrbitScale.MapPoint(game, stationScale, stationReach) : game;
+        public Vector3 Unplace(Vector3 game) => Scaled ? OrbitScale.UnmapPoint(game, stationScale, stationReach) : game;
+        public float PlaceRadius(float r) => Scaled ? OrbitScale.MapRadius(r, stationScale, stationReach) : r;
+        public float UnplaceRadius(float r) => Scaled ? OrbitScale.UnmapRadius(r, stationScale, stationReach) : r;
+
         public const float PlaneSize = 65000f;          // plane.fbx is +-32500 units
         public const float BackdropDistance = 20000f;   // moveForward(-20000)
         public const int GateRadius = 7500, GateRadiusVossk = 11250;
@@ -162,8 +181,10 @@ namespace GoF2Remake.World
         public string JumpgateAssembly => JumpgateByRace[Look >= 0 && Look < 4 ? Look : 0];
         /// <summary>The system's own gate (a mod's systems.json "jumpgate", Modding.ModWorld.GateModelOf), else null: the race's.</summary>
         public string ModJumpgateAssembly => Modding.ModWorld.GateModelOf(systemIndex)?.Assembly;
-        public int JumpgateRadius => Modding.ModWorld.GateModelOf(systemIndex) is Modding.ModWorld.StationModel g && g.gateRadius > 0f
-            ? Mathf.RoundToInt(g.gateRadius) : Look == 1 ? GateRadiusVossk : GateRadius;
+        /// <summary>The gate's collision and approach radius (game units); with the station scale (OrbitScale) the gate grows
+        /// with the stations, and its radius with it.</summary>
+        public int JumpgateRadius => Mathf.RoundToInt(StationScale * (Modding.ModWorld.GateModelOf(systemIndex) is Modding.ModWorld.StationModel g && g.gateRadius > 0f
+            ? g.gateRadius : Look == 1 ? GateRadiusVossk : GateRadius));
         /// <summary>The race whose tables the orbit uses (a mod race's look, Standing.Look).</summary>
         int Look => Flight.Standing.Look(raceId);
 
@@ -199,7 +220,41 @@ namespace GoF2Remake.World
             o.BuildLights();
             o.BuildAsteroidField();
             if (!alien) o.ApplyMod(Modding.ModWorld.OrbitOf(stationIndex), st);
+            o.stationScale = OrbitScale.Chosen;
+            // Coromesk (103): the Mining Plant at the origin from campaign 0x55 (TrafficSpecials.AddCampaignStatics; 0x87's level
+            // builds its own); collision 2000.
+            o.originStructure = !alien && !Session.FreePlay && stationIndex == 103 && Session.CampaignMission > 0x54;
+            o.stationReach = o.stationObject ? StationReach(stationIndex, alien)
+                           : o.originStructure ? Mathf.Max(10000f, VolumesReach(Flight.CollisionVolume.ForStaticObject(2000)) * 1.15f) : 0f;
             return o;
+        }
+
+        /// <summary>Remake (OrbitScale): how far a station reaches from its centre (game units): the farthest point of its
+        /// collision volumes (PlayerStation::PlayerStation's, as OrbitBuilder.AddObstacles gives them) + 15 % for what
+        /// sticks out past them; a mod's own model at least 0.6 of its size; at least 10000 (the undock point's distance).</summary>
+        public static float StationReach(int stationIndex, bool alienOrbit)
+        {
+            float reach = VolumesReach(Flight.CollisionVolume.ForStation(StationLook(stationIndex), alienOrbit, alienOrbit && Story.Dlc1Won)) * 1.15f;
+            if (!alienOrbit && Modding.ModWorld.ModelOf(stationIndex) is Modding.ModWorld.StationModel own) reach = Mathf.Max(reach, own.size * 0.6f);
+            return Mathf.Max(reach, 10000f);
+        }
+
+        /// <summary>The farthest point of 'volumes' from their owner, in game units.</summary>
+        static float VolumesReach(List<Flight.CollisionVolume> volumes)
+        {
+            float reach = 0f;
+            foreach (var v in volumes) reach = Mathf.Max(reach, v.centre.magnitude + (v.sphere ? v.radius : v.half.magnitude));
+            return reach / MetersPerUnit;
+        }
+
+        /// <summary>The station whose model and volumes a station uses: a mod's "looksLike" (Modding.ModWorld.StationLook);
+        /// remake multiplayer's intact Naneroh / Valpatro (no model of their own) borrow Midantha's / Tergalon's, the
+        /// Supernova add-on's Midorian stations next door (IsRebuiltGinoya).</summary>
+        public static int StationLook(int station)
+        {
+            if (Session.CompletedWorld && station == 109) return 114;
+            if (Session.CompletedWorld && station == 110) return 115;
+            return Modding.ModWorld.StationLook(station);
         }
 
         /// <summary>Remake mods: stations.json "orbit" over the seeded layout (Modding.ModWorld.OrbitSpec). The station stays
@@ -482,10 +537,11 @@ namespace GoF2Remake.World
         /// <summary>Where a jump in puts the ship, and the way it faces: the station. 'previousStation': the one it came from.</summary>
         public void ArrivalPose(int previousStation, out Vector3 position, out Quaternion facing)
         {
-            position = ArrivalPoint(previousStation);
-            facing = Quaternion.LookRotation(-position.normalized, Vector3.up);
+            var game = ArrivalPoint(previousStation);
+            facing = Quaternion.LookRotation(-DirToUnity(game).normalized, Vector3.up);
             // Level::init: arriving in Loma's black market (system 25) puts the player 40 000 further along game +z.
-            if (systemIndex == 25) position += ToUnity(new Vector3(0f, 0f, 40000f));
+            if (systemIndex == 25) game += new Vector3(0f, 0f, 40000f);
+            position = ToUnity(Place(game));   // OrbitScale: in the scaled orbit
         }
 
         /// <summary>Remake: an arrival by cruise to this orbit's planet (Navigation.RunPlanet): as far out as any, on the near side
@@ -495,17 +551,18 @@ namespace GoF2Remake.World
             var own = planets.Find(p => p.isOrbitPlanet);
             if (own == null || arrival.HasValue) { ArrivalPose(previousStation, out position, out facing); return; }
             var way = DirToUnity(-Direction(own.pitch, own.yaw));
-            position = -way * (4f * BackdropDistance * MetersPerUnit);
+            position = -way * (PlaceRadius(4f * BackdropDistance) * MetersPerUnit);
             facing = Quaternion.LookRotation(way, Vector3.up);
         }
 
+        /// <summary>The arrival point in game units (unscaled: ArrivalPose places it).</summary>
         Vector3 ArrivalPoint(int previousStation)
         {
-            if (arrival.HasValue) return ToUnity(arrival.Value);   // remake mods: the orbit's own
-            if (hasJumpgate || alienOrbit) return ToUnity(hiddenJumpgate);
+            if (arrival.HasValue) return arrival.Value;   // remake mods: the orbit's own
+            if (hasJumpgate || alienOrbit) return hiddenJumpgate;
             var from = planets.Find(p => p.station == previousStation);
-            if (from == null) return ToUnity(new Vector3(0f, 0f, 100000f));
-            return ToUnity(-4f * BackdropDistance * Direction(from.pitch, from.yaw));
+            if (from == null) return new Vector3(0f, 0f, 100000f);
+            return -4f * BackdropDistance * Direction(from.pitch, from.yaw);
         }
 
         /// <summary>Game direction to Unity (unscaled).</summary>

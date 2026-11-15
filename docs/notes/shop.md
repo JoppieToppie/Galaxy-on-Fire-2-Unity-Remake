@@ -199,6 +199,26 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   supersampled one cost frame rate), the ship-only view keeps the desktop's 1300 x 800 box, and the hangar list's
   scrollbar has a 56 px touch area around the slim track (`.list-bar-track`), its handle at least 60 px.
 - **Weapon mod factors** (attrs 39 / 40) read "-10 %" for a negative one (#105: "+-10 %", `ItemInfo` Signed).
+- **Weapon mod damage per second** (remake, PR #284): a weapon mod's details add the original's "Damage per second"
+  label (text 188) with the combined change, (1 + attr 40 / 100) / (1 - attr 39 / 100) - 1: attr 39 shortens the
+  reload (`Level::createPlayer`, `Shop.FirePower`), it does not multiply the shots per second. Nirai Overdrive
+  (-10 / 20) reads "+12.5 %". The guns' integer rounding is left out; no reload left (attr 39 >= 100) shows a dash.
 - **Loading time** (a player's report 2026-11-03): the millisecond rows that used the original's 149 "Loading speed"
   (attr 11 a gun's reload; 26 / 36 / 37 / 43 a booster's, cloak's or time extender's recharge; 19 without a capacity) read
   `statLoadingTime` "Loading time" (`ItemInfo.LoadingTime`); most languages' 149 says speed too.
+
+- **Item details numbers** (2026-11-15, from the disassembly: the decompile drops these multiplies): `ItemInfo` shows
+  attr 14 x 0.5 (missiles', mines' and flak's magnitude), attrs 51 / 53 x 0.1 (collectors', repair and transfusion
+  beams' reach), each cut to an int; a gun's range ending in exactly 50 goes up to the next hundred (Ridil Blaster 1250
+  reads 1300); the DPS row and the Status window's fire power (StatusWindow::draw 0x1840e2) use the original's decimals,
+  `ItemInfo.OriginalDecimals`: the whole part, ".", the first two digits of (int)(fraction x 100), not zero-padded
+  (33.333 "33.33", 12.05 "12.5"). Left as it was: a ship's handling, which the original shows (int)(handling / 100f x
+  100), one lower for five ships (Teneta 105). Tests `ItemDetailsOriginalTests`; the tool used: a capstone disassembly of
+  `Reference/binaries/libgof2hdaa.so` (Thumb-2, Ghidra address = file address + 0x10000).
+
+- **Shop order** (remake, PR #282 from AntonTolochko, Options > Gameplay "Sort the shop by category",
+  `Settings.ShopByCategory`, off by default; not in the Game experience presets, like the other list conveniences): the
+  original's `Item::mixItems` lists the hold and the stock by item index, so the add-ons' items (indices after the base
+  game's: the Particle Shield 225) come after everything else. On, `Hangar.ShopItems` orders by category, then tech
+  level, then index; the stock and the hold keep their own order, and the VIP Card's sort still applies on top. Tests
+  `HangarTradeTests` (`ShopListIsByItemIndexAsTheOriginal`, `DlcShieldStaysWithShieldsInShopAndStorage`).

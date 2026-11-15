@@ -184,3 +184,53 @@ Research: `Reference/research/space_level_setup.md`, `space_backdrop.md` (+ `spa
   ~11 m, the bra ~26 m, the camera km away); remake pick (`EndingDrift`): they tumble across the camera's view on a
   camera-relative path, 45-70 m out, 22 s per crossing, the beer from 6 s, the bra 11 s later, again and again. The only
   prologue sky exception is index 0 in a story level (`Level::createSpace`), already built.
+- **Station scale** (remake, experimental, 2026-11-15, the user's request: "the stations are very small"; Options >
+  Gameplay "Station scale (experimental)", `Settings.StationScale`, key `stationScale`: Original / 1.5x / 2x / 2.5x / 3x /
+  4x / 5x / 6x, `OrbitScale.Choices`; not in the Game experience presets; single player only: `OrbitScale.Chosen` is 1 in
+  anything of a session). `OrbitLayout.Build` stores the scale (`stationScale`) and the station's reach R
+  (`stationReach`: the farthest point of its collision volumes + 15 %, a mod model 0.6 of its size, at least 10000); a
+  layout is `Scaled` with a station object, a scale > 1 and outside interstellar space, else everything below is the
+  identity. **Game coordinates stay the original's everywhere** (layout, story levels, traffic plans, event graphs); the
+  map `OrbitLayout.Place` / `OrbitScale.Place` is applied where a station-anchored position becomes a Unity one
+  (`OrbitScale.ToUnity`) and undone where a Unity position is read back for the original's coordinates
+  (`OrbitScale.ToGame`). The map is radial about the station: r x F inside R (whatever stood against the hull stays
+  there on the grown hull), eased between R and 2R, r + 1.5 (F - 1) R beyond (the orbit pushed out by the station's
+  growth: distances along the line from the station stay, across it they grow by r' / r, e.g. 1.5x at 250000 units
+  with R 30000 at 4x; a group far out keeps roughly its spacing, the gap between hull and gate / asteroids / a battle
+  stays the original's). Not mapped: offsets from a ship or object, speeds, ship-to-ship and combat ranges; a distance
+  from the station maps with `OrbitScale.Radius` (the dock range: `SpaceLevel.DockMeters`). `OrbitScale.Current` is the
+  orbit in use (`SpaceLevel` and `MenuBackground` call `OrbitScale.Use`; the docked station scene clears it unless docked
+  in orbit EVERSPACE 2's way). Structures grow by F about their own origin (`OrbitScale.Structure`, volumes
+  `CollisionVolume.Scaled` / `OrbitScale.StructureVolumes`, points on their hull x F): the station
+  (`OrbitBuilder.SpawnStation`, its volumes in `AddObstacles`; the Obstacle cube and the hull colliders follow the
+  transform), the jumpgate (`SpawnJumpgate`, `OrbitLayout.JumpgateRadius` x F), the outposts, the Mining Plant, mobile
+  stations, story platforms and wrecks; ships (capital ships too), asteroids, crates, mines, the wormhole and gas clouds
+  keep their size. Each asteroid is placed on its own (`SpawnField`), so none lands inside the grown station. Also
+  scaled: the fog's end, the flight camera's far plane (+ 3 (F - 1) R) and the menu camera's, the arrival poses
+  (`ArrivalPose` / `PlanetArrivalPose`, Loma's + 40000 included), the undock point, Coromesk's start, a failed drive
+  jump's spot. Coromesk (103, story, campaign > 0x54) counts as a station orbit with the Mining Plant at the origin
+  (`OrbitLayout.originStructure`, its reach from static volume 2000). Per area:
+  - `NpcShip` maps every spawn and route point itself (its `ToUnity` / `ToGame` are OrbitScale's): a `SpawnSpec.position`
+    is always the original's, a spot taken from the scene goes back with `OrbitScale.ToGame`. `NpcShip.IsStructure`
+    (`SpawnSpec.structure`, a station pad port, a fixed object named "station" (not "battlestation"), "platform" or
+    "plasma_array") grows the model, its collisionId volumes, hit radius, wreck, explosion and docking points
+    (`NpcShip.StructureScale`; its root transform stays 1); never call `OrbitScale.Structure` on such an NpcShip again.
+    `SpawnSpec.placedOn` (and a capital part's host) puts a part at its host's spot + its offset, grown with a structure
+    host (outpost turrets and guards, battleship turrets).
+  - Story levels use `At(game)` (= `OrbitScale.ToUnity`) for absolute spots and keep `ToUnity` for offsets;
+    `CutsceneCamera.LookAt(game)` stays the plain conversion (absolute cameras go through `LookAtUnity(At(...))`).
+    Spots on a grown hull (Errkt's freighter on the mother ship's arm, the battlestation's turrets, 157's Valkyrie
+    blasts) are hull offsets x Factor; 42's / 80's / 157's shots frame the grown hulls; 158's helper speed covers its
+    longer path in the original 30 s.
+  - Navigation: the gate landmark, the asteroid field and route / event waypoints mapped; `Navigation.ReachUnits` maps the
+    fast-forward / lock stop distances from the station (Unradius) and the gate (/ Factor). The gate jump's shot (ship
+    start, camera, trigger, back-out, speeds) is x Factor, timing unchanged. `Wormhole.SetPosition` maps, `GamePosition`
+    gives the original's; its 40000 size and pull stay.
+  - Events: `EventHost.ToGame` / `distance(...)` / `on near` read original coordinates; cutscene and order places map.
+  - Free-flight traffic, freelance targets, loot, mines, gas clouds (their size kept), hazard zones, conductors (reach x
+    the local stretch), mod lanes / pads / props map their points; Junk removal's time limit grows by the extra flight.
+  - Expected at high scales: flights across the station take longer (73's approach about 3x at 4x; 91's wreck may break
+    up before the player arrives, cosmetic); battlestation turrets, fires and blasts keep their own size on the grown
+    hulls; the original's own NPCs started at the station (48's escorts) still start inside it and steer out.
+  Tests `OrbitScaleTests`, play mode `StationScaleFlightTests` (five free-play orbits and the story spread at 4x: no
+  error, the station 4x, nobody starting inside a grown structure).

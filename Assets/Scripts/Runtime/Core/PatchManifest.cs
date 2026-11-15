@@ -6,7 +6,7 @@
 // smaller) one after another; a chunk is read with an HTTP range request at its offset (GitHub's download link redirects
 // to its file host, which answers ranges with 206), neighbouring chunks in one request. The manifest itself is attached
 // to the release too (GoF2Remake-<platform>-<tag>.patch.json), and every chunk is checked against its hash.
-// Windows / Linux: the build's files. Android: one file, the APK (ApkName), rebuilt whole and handed to the installer.
+// Windows / Linux / macOS: the build's files (macOS: inside the .app). Android: one file, the APK (ApkName), rebuilt whole and handed to the installer.
 // Written by PatchPublish, read by PatchInstall (JsonUtility on both sides).
 
 using System;
@@ -32,7 +32,7 @@ namespace GoF2Remake.UI
         public int format = CurrentFormat;
         /// <summary>The build's version (Application.version, yyyy.MM.dd.HHmm).</summary>
         public string version;
-        /// <summary>"Windows", "Linux" or "Android", as in the release files' names.</summary>
+        /// <summary>"Windows", "Linux", "macOS" or "Android", as in the release files' names.</summary>
         public string platform;
         /// <summary>Where the pack files are: a URL ending in '/' (ReleaseDownloads).</summary>
         public string packBase = ReleaseDownloads;
@@ -142,7 +142,7 @@ namespace GoF2Remake.UI
         /// <summary>Relative to the game's folder, '/'-separated (GoF2Remake_Data/resources.assets.resS).</summary>
         public string path;
         public long size;
-        /// <summary>Executable (Linux: the player, .so libraries).</summary>
+        /// <summary>Executable (Linux: the player, .so libraries; macOS: Contents/MacOS, .dylib libraries).</summary>
         public bool exec;
         /// <summary>Indexes into PatchManifest.chunks, in order.</summary>
         public int[] chunks;

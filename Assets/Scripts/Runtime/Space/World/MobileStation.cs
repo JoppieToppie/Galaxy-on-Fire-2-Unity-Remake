@@ -59,6 +59,7 @@ namespace GoF2Remake.World
             root.transform.SetParent(parent, false);
             var model = Instantiate(prefab, root.transform, false);
             model.name = "Station";
+            OrbitScale.Structure(model.transform);   // OrbitScale: as big as the orbit's stations (its bounds below measure it so)
             foreach (var pa in model.GetComponentsInChildren<PartAnimation>(true)) pa.applyMaterialChannels = true;
             var ms = root.AddComponent<MobileStation>();
             ms.Station = mobile;
@@ -66,7 +67,7 @@ namespace GoF2Remake.World
             ms.TechLevel = st?.techLevel ?? 0;
 
             // Collision measured in its own frame (identity), turned with it from there.
-            var volumes = Modding.ModCapitalShips.Measure(model, Quaternion.identity);
+            var volumes = OrbitScale.StructureVolumes(Modding.ModCapitalShips.Measure(model, Quaternion.identity));   // (measured unscaled)
             var bounds = new Bounds(Vector3.zero, Vector3.zero);
             bool any = false;
             foreach (var r in model.GetComponentsInChildren<MeshRenderer>(true))
@@ -116,7 +117,7 @@ namespace GoF2Remake.World
             seconds = at;
             Modding.MobileStations.CourseAt(Station, at, out var pos, out var heading);
             var forward = OrbitLayout.ToUnity(heading).normalized;
-            transform.SetPositionAndRotation(OrbitLayout.ToUnity(pos), Quaternion.LookRotation(forward, Vector3.up));
+            transform.SetPositionAndRotation(OrbitScale.ToUnity(pos), Quaternion.LookRotation(forward, Vector3.up));   // (OrbitScale: in the scaled orbit)
             velocity = forward * Modding.MobileStations.SpeedUnitsPerSecond(Station) * M;
         }
 

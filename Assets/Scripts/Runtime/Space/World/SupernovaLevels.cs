@@ -88,14 +88,32 @@ namespace GoF2Remake.World
         // camera and spawn placed to a ship's side stood on the wrong one (a player's comparison with the original, 92).
         static Vector3 GameRight(Transform t) => new Vector3(-t.right.x, -t.right.y, t.right.z);
         static Vector3 GameUp(Transform t) => new Vector3(t.up.x, t.up.y, -t.up.z);
-        Vector3 PlayerGame => ToGame(Player.position);
+        // OrbitScale (Options > Gameplay "Station scale", docs/notes/space-scene.md "Station scale"): At for an absolute orbit
+        // position (the station at the origin); G / PlayerGame / SpecAt in the original's coordinates, what spawn specs and
+        // routes take (NpcShip and ShuttleRoutes map them); ToUnity / ToGame stay plain for offsets and for scene round trips
+        // (Scenery, GameCamera). All the identity at 1x.
+        static Vector3 At(Vector3 game) => OrbitScale.ToUnity(game);
+        static Vector3 SpecAt(Vector3 unity) => OrbitScale.ToGame(unity);
+        Vector3 PlayerGame => OrbitScale.ToGame(Player.position);
+        /// <summary>OrbitScale: a spot 'gameOffset' from 't' (ship-relative: not mapped), pushed out of the grown station
+        /// should it fall inside it.</summary>
+        Vector3 Near(Transform t, Vector3 gameOffset) => ClearOfStation(t.position + ToUnity(gameOffset));
+        static Vector3 ClearOfStation(Vector3 unity)
+        {
+            if (!OrbitScale.Active) return unity;
+            float min = OrbitScale.Factor * OrbitScale.Current.stationReach * M;
+            float r = unity.magnitude;
+            return r < min && r > 1e-3f ? unity * (min / r) : unity;
+        }
+        /// <summary>The cutscene camera 'gameOffset' from 't' (an offset beside a ship: not mapped), looking at it.</summary>
+        void LookFrom(Transform t, Vector3 gameOffset) => cam.LookAtUnity(t.position + ToUnity(gameOffset), t);
         Vector3 PlayerDirGame => GameDir(Player);
         Vector3 LightGame => level.Layout.lightDirection.normalized;
         static int R(int n) => Random.Range(0, n);
         static float Sign() => R(2) == 0 ? 1f : -1f;
 
-        /// <summary>Game-space position of a ship / object.</summary>
-        static Vector3 G(NpcShip s) => s != null ? ToGame(s.transform.position) : Vector3.zero;
+        /// <summary>Game-space position of a ship / object (the original's coordinates: OrbitScale).</summary>
+        static Vector3 G(NpcShip s) => s != null ? OrbitScale.ToGame(s.transform.position) : Vector3.zero;
 
         /// <summary>The asteroid field's centre when a level moves it (Level::createAsteroids), else null.</summary>
         public static Vector3? AsteroidCentre(int index, int station, bool alien)
@@ -119,7 +137,8 @@ namespace GoF2Remake.World
             c.SpawnShip(Standing.Specter, 44, at, jitter, s => { s.alwaysEnemy = true; setup?.Invoke(s); });
 
         /// <summary>Level::createStaticObject: a dockable (or plain) story object, friendly, unkillable, never moving; its
-        /// getBoundingVolume id (the player is pushed out of it, fighters steer around it).</summary>
+        /// getBoundingVolume id (the player is pushed out of it, fighters steer around it). 'at' in the original's coordinates
+        /// (NpcShip maps it); a station or platform model grows with the stations there (OrbitScale, NpcShip.IsStructure).</summary>
         NpcShip Static(string assembly, Vector3 at, Vector3 rotation, int nameText, int dockingType, int points, System.Action<SpawnSpec> setup = null) =>
             c.SpawnShip(3, -1, at, false, s =>
             {
@@ -142,6 +161,7 @@ namespace GoF2Remake.World
             _ => -1,
         };
 
+        /// <summary>An fx / scenery model at 'gamePos' as the scene has it (plain game units: OrbitScale.Place an absolute spot first).</summary>
         GameObject Scenery(string assembly, Vector3 gamePos, Quaternion rot, string label)
         {
             var go = OrbitBuilder.Spawn(level.Database, assembly, gamePos, rot, label, null);
@@ -161,12 +181,21 @@ namespace GoF2Remake.World
         static void Show(NpcShip s, Vector3 gamePos, Vector3 gameFacing)
         {
             if (s == null) return;
-            s.Place(ToUnity(gamePos), Dir(gameFacing));
+            s.Place(At(gamePos), Dir(gameFacing));   // OrbitScale: an absolute spot, mapped
             s.Wake();
             s.SetVisible(true);
         }
 
-        void MovePlayer(Vector3 gamePos, Vector3 gameFacing) => level.MovePlayer(ToUnity(gamePos), Quaternion.LookRotation(Dir(gameFacing), Vector3.up));
+        /// <summary>Show at a Unity spot facing a Unity direction.</summary>
+        static void ShowUnity(NpcShip s, Vector3 unityPos, Vector3 unityFacing)
+        {
+            if (s == null) return;
+            s.Place(unityPos, unityFacing.sqrMagnitude > 1e-8f ? unityFacing.normalized : s.transform.forward);
+            s.Wake();
+            s.SetVisible(true);
+        }
+
+        void MovePlayer(Vector3 gamePos, Vector3 gameFacing) => level.MovePlayer(At(gamePos), Quaternion.LookRotation(Dir(gameFacing), Vector3.up));
 
         // ---- building (Level::createCampaignMission + the LevelScript constructor) ------------------------------------
 
@@ -249,7 +278,7 @@ namespace GoF2Remake.World
                     {
                         // skipCutscene 0x16f61c: AI on, set to route waypoint 0; the route then docks him on Valkyrie's pad.
                         var at = new Vector3(-10000, 1000, 15000);
-                        hans.Place(ToUnity(at), Dir(G(valkyrie) - at));
+                        hans.Place(At(at), (valkyrie.transform.position - At(at)).normalized);
                         hans.frozen = false;
                         StartHansRoute(hans, valkyrie);
                     }
@@ -268,7 +297,7 @@ namespace GoF2Remake.World
                 {
                     c.Radio?.MarkShown(3);
                     var harval = S(0);
-                    if (harval != null) { harval.Place(ToUnity(new Vector3(-2077, 0, 20233)), harval.transform.forward); harval.SetVisible(true); harval.SetExhaust(true); harval.scriptedSpeed = 1f; }
+                    if (harval != null) { harval.Place(At(new Vector3(-2077, 0, 20233)), harval.transform.forward); harval.SetVisible(true); harval.SetExhaust(true); harval.scriptedSpeed = 1f; }
                     playerSpeed = 0f;
                     Step = 2;
                     stepMs = 12001f;
@@ -411,6 +440,7 @@ namespace GoF2Remake.World
         float burnMs, blastMs;
 
         float flyInMs, harvalCloakMs;
+        float helperSpeed158 = 1f;   // OrbitScale: 158's helper covers the mapped way in the original's 30 s
 
         float cloakMs;
 

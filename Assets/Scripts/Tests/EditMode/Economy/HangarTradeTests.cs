@@ -17,6 +17,35 @@ namespace GoF2Remake.Tests
         Hangar Dis(params int[] stock) => new Hangar(Db, Stock(70, stock));
 
         [Test]
+        public void ShopListIsByItemIndexAsTheOriginal()
+        {
+            Session.Cargo.Clear();
+            using (new SettingsScope<bool>(() => Settings.ShopByCategory, v => Settings.ShopByCategory = v))
+            {
+                Settings.ShopByCategory = false;
+                CollectionAssert.AreEqual(new[] { 54, 67, 206, 225 }, Dis(225, 1, 206, 1, 67, 1, 54, 1).ShopItems());
+            }
+        }
+
+        /// <summary>Remake (PR #282, Settings.ShopByCategory): by category, then tech level; the stock keeps its own order.</summary>
+        [Test]
+        public void DlcShieldStaysWithShieldsInShopAndStorage()
+        {
+            Session.Cargo.Clear();
+            using (new SettingsScope<bool>(() => Settings.ShopByCategory, v => Settings.ShopByCategory = v))
+            {
+                Settings.ShopByCategory = true;
+                var h = Dis(54, 1, 67, 1, 206, 1, 225, 1);   // Fluxed Matter Shield, Rhoda Blackhole, Gamma Shield II, Particle Shield
+                var sorted = h.ShopItems();
+                Assert.AreEqual(sorted.IndexOf(54) + 1, sorted.IndexOf(225));
+                var original = h.Stock.items.ConvertAll(x => x.item);
+                h.ShopItems();
+                CollectionAssert.AreEqual(original, h.Stock.items.ConvertAll(x => x.item));
+                CollectionAssert.AreEqual(sorted, h.ShopItems());
+            }
+        }
+
+        [Test]
         public void BuyOneUnit()
         {
             Session.Credits = 10000;

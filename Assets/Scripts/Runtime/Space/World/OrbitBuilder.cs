@@ -43,7 +43,7 @@ namespace GoF2Remake.World
             {
                 RenderSettings.fogMode = FogMode.Linear;
                 RenderSettings.fogStartDistance = 0f;
-                RenderSettings.fogEndDistance = layout.fogEnd * M;
+                RenderSettings.fogEndDistance = layout.PlaceRadius(layout.fogEnd) * M;   // OrbitScale: the haze pushed out with the orbit
                 RenderSettings.fogColor = layout.fogColor;
             }
         }
@@ -225,12 +225,7 @@ namespace GoF2Remake.World
         /// <summary>The station whose model and volumes a station uses: a mod's "looksLike" (Modding.ModWorld.StationLook);
         /// remake multiplayer's intact Naneroh / Valpatro (no model of their own) borrow Midantha's / Tergalon's, the
         /// Supernova add-on's Midorian stations next door (OrbitLayout.IsRebuiltGinoya).</summary>
-        public static int StationLook(int station)
-        {
-            if (Session.CompletedWorld && station == 109) return 114;
-            if (Session.CompletedWorld && station == 110) return 115;
-            return Modding.ModWorld.StationLook(station);
-        }
+        public static int StationLook(int station) => OrbitLayout.StationLook(station);
 
         /// <summary>Assembly name of a station (PlayerStation::PlayerStation, assemblies_stations_notes.md), null if none.</summary>
         /// <summary>PlayerStation::PlayerStation: Kothar's station exploding (index 0x50) or damaged (the Valkyrie add-on won)
@@ -295,6 +290,8 @@ namespace GoF2Remake.World
             // from the usual (0, pi, 0), -45 deg about Unity's up), every model of it (a player's request).
             var gameRotation = layout.stationIndex == 111 ? LuurRotation : new Vector3(0f, Mathf.PI, 0f);
             var go = Spawn(db, name, Vector3.zero, OrbitLayout.RotationToUnity(gameRotation), "Station", parent);
+            // Remake, experimental (OrbitScale): Options > Gameplay "Station scale".
+            if (go != null && layout.Scaled) go.transform.localScale *= layout.StationScale;
             // Remake: the station's opacity keys play like the engine's (the blinking lights of the Nivelian, Midorian, pirate,
             // Loma and Supernova-era stations, the Kaamo Club's lit panels and glows); they were left out, the lights stayed on.
             if (go != null)
@@ -369,6 +366,9 @@ namespace GoF2Remake.World
                           : GoF2Remake.Flight.CollisionVolume.ForStation(KotharDamaged(layout) ? KotharDamagedCollision
                                                                          : StationLook(layout.stationIndex), layout.systemIndex < 0,
                                                                          layout.alienOrbit && Story.Dlc1Won);
+                // OrbitScale: the volumes grow with the hull, about the station's centre (copies: the Void station's extras
+                // are shared).
+                if (layout.Scaled) o.volumes = GoF2Remake.Flight.CollisionVolume.Scaled(o.volumes, layout.StationScale);
                 // PlayerStation+0x150: the transform's bounding radius (Transform+0xe0, about the station's own origin)
                 // + 5000 units. A radius from the origin, not the bounds' half size: a lopsided station (Tornard, 57,
                 // towers 3.4 km out on one side) had its far tower outside the cube, so nothing collided there.
@@ -395,17 +395,19 @@ namespace GoF2Remake.World
         public static GameObject SpawnJumpgate(Database db, OrbitLayout layout, Transform parent = null)
         {
             if (!layout.hasJumpgate) return null;
+            // OrbitScale: the gate where the scaled orbit has it, grown like the stations (its radius with it: JumpgateRadius).
             // A mod system's own gate (systems.json "jumpgate") once ModStations has built it; else the race's.
             GameObject go = null;
             if (layout.ModJumpgateAssembly is string modGate)
-                go = Spawn(db, modGate, layout.jumpgate, OrbitLayout.RotationToUnity(new Vector3(0f, Mathf.PI, 0f)), "Jumpgate", parent);
-            if (go == null) go = Spawn(db, layout.JumpgateAssembly, layout.jumpgate, OrbitLayout.RotationToUnity(new Vector3(0f, Mathf.PI, 0f)), "Jumpgate", parent);
+                go = Spawn(db, modGate, layout.Place(layout.jumpgate), OrbitLayout.RotationToUnity(new Vector3(0f, Mathf.PI, 0f)), "Jumpgate", parent);
+            if (go == null) go = Spawn(db, layout.JumpgateAssembly, layout.Place(layout.jumpgate), OrbitLayout.RotationToUnity(new Vector3(0f, Mathf.PI, 0f)), "Jumpgate", parent);
             // Remake: the idle light layer's blink (`extra` keys) on every gate: jumpgate_nivelian_anim_add parts 0 / 2, the
             // Midorian ring's 1-9, the Terran lamps (the jump flash, _jump_anim_add, gets its fades in SystemJump.PlayGateJump).
             if (go != null)
                 foreach (var pa in go.GetComponentsInChildren<PartAnimation>(true))
                     if (pa.gameObject.name.EndsWith("_anim_add") && !pa.gameObject.name.EndsWith("_jump_anim_add")) pa.applyMaterialChannels = true;
             if (go != null && layout.JumpgateAssembly == TerranGate) PlayTerranGateRing(go);
+            if (go != null && layout.Scaled) go.transform.localScale *= layout.StationScale;
             return go;
         }
 
@@ -491,10 +493,11 @@ namespace GoF2Remake.World
                 {
                     pos = centre + new Vector3(Random.Range(-0.5f, 0.5f), Random.Range(-0.5f, 0.5f), Random.Range(-0.5f, 0.5f)) * side;
                     bad = (isBig && TooClose(pos, bigPositions, i))   // intended rule: big ones 8000 apart
-                          || (reject != null && reject(OrbitLayout.ToUnity(pos)));
+                          || (reject != null && reject(OrbitLayout.ToUnity(layout.Place(pos))));
                 } while (bad && ++tries < 40);
                 if (bad && reject != null) continue;   // no valid spot: leave it out rather than block the view
                 if (isBig) bigPositions[i] = pos;
+                pos = layout.Place(pos);   // OrbitScale: each rock where the scaled orbit has it (none inside the grown station)
 
                 float scale = isBig ? Random.Range(120, 220) * 0.01f : Random.Range(30, 100) * 0.01f;
                 int rockOre = ore >= 0 ? ore : layout.modOres != null ? PickWeighted(layout.modOres) : PickOre(ores, ref oreCursor);

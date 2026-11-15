@@ -371,6 +371,21 @@ namespace GoF2Remake.Data
         public static bool CloakLosesPursuers { get => Rule(R.CloakLosesPursuers, "cloakLosesPursuers", false); set => SetRule(R.CloakLosesPursuers, "cloakLosesPursuers", value); }
         /// <summary>Remake (GitHub #6): now and then a free-flight orbit holds a pirate outpost or a pirate boss with escorts
         /// (TrafficPlan.AddPirateEvent), each with a bounty. A session rule.</summary>
+        /// <summary>Remake, experimental (OrbitScale, the user's request 2026-11-15): the stations, gates and other structures
+        /// of an orbit at 1x..6x their size, the orbit grown around them (1 = the original; single player only). Read when
+        /// an orbit is built: a change shows in the next one.</summary>
+        public static float StationScale
+        {
+            get => Snap(Get("stationScale", 1f));
+            set => Set("stationScale", Snap(value));
+        }
+        static float Snap(float v)
+        {
+            float best = 1f;
+            foreach (var c in World.OrbitScale.Choices) if (Mathf.Abs(c - v) < Mathf.Abs(best - v)) best = c;
+            return best;
+        }
+
         public static bool PirateEvents { get => Rule(R.PirateEvents, "pirateEvents", false); set => SetRule(R.PirateEvents, "pirateEvents", value); }
         /// <summary>Remake (players' suggestion): the Kaamo Club mechanics sell their upgrade again, the price doubling per
         /// level (LoungeChat.ModPrice); off = the original's one of each. Levels already fitted stay either way. A session
@@ -701,6 +716,9 @@ namespace GoF2Remake.Data
         /// original's club).</summary>
         public static int KaamoVipMode { get => Mathf.Clamp(Mathf.RoundToInt(Get("kaamoVip", KaamoVipOff)), 0, 2); set => Set("kaamoVip", Mathf.Clamp(value, 0, 2)); }
         public const int KaamoVipCard = 0, KaamoVipAlways = 1, KaamoVipOff = 2;
+        /// <summary>Remake (PR #282): the shop and storage list items by category, then tech level (Hangar.ShopItems); off
+        /// (default) by item index, as the original's Item::mixItems.</summary>
+        public static bool ShopByCategory { get => GetBool("shopByCategory", false); set => SetBool("shopByCategory", value); }
 
         /// <summary>Remake: the dialogue and radio text types in with pacing, shouting, actions and tinted names
         /// (TextReveal); off = the original's plain page at once.</summary>
@@ -738,6 +756,11 @@ namespace GoF2Remake.Data
         /// <summary>Remake (#165, a player's request): the Supernova Challenge's combo sounds (SV_Mode_01..10: the combo
         /// growing, its bonus paid; ChallengeOrbit.PlaySound) play, as in the original (default).</summary>
         public static bool ChallengeComboSounds { get => GetBool("challengeComboSounds", true); set => SetBool("challengeComboSounds", value); }
+        /// <summary>Remake (the user's request, 2026-11-15): the Supernova Challenge's orbit also holds what the original's
+        /// createMission 0xb7 makes besides the Specters: the burning platform, the Terran carrier and four Rhinos shuttling
+        /// between them (World.ChallengeOrbit.SpawnScenery). Off by default: the original's round shows none of them (#179).
+        /// The challenge's start dialog asks each time and keeps the answer here (MainMenu.ShowChallengeStart).</summary>
+        public static bool ChallengeScenery { get => GetBool("challengeScenery", false); set => SetBool("challengeScenery", value); }
         /// <summary>Remake (#165): a medal's toast sounds the remake's chime (default), the original's info blip (what the
         /// original played) or nothing (StationMenu.ShowMedalToast).</summary>
         public const int MedalSoundChime = 0, MedalSoundOriginal = 1, MedalSoundOff = 2;
@@ -900,7 +923,7 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] GameplayKeys =
         {
-            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule",
+            "launchCamera", "stationScale", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "shopByCategory", "cloakBay", "informerOriginalRule",
             "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
             "speedrunPosition", "speedrunLiveSplit",

@@ -33,7 +33,7 @@ namespace GoF2Remake.World
                 // Remake events: out of an event's wormhole, one closing 10000 units behind the player (like the Void's).
                 Session.ArrivedByWormhole = false;
                 var behind = Player.transform.position - Player.transform.forward * 10000f * M;
-                var hole = Wormhole.Spawn(StoryAssets.Load(), new Vector3(behind.x, behind.y, -behind.z) / M, true);
+                var hole = Wormhole.Spawn(StoryAssets.Load(), OrbitScale.ToGame(behind), true);   // (OrbitScale: Spawn maps it back)
                 hole.FreeMissionLock();
                 hole.ResetTimer(true);
                 hole.player = Player.transform;
@@ -222,7 +222,9 @@ namespace GoF2Remake.World
             var obstacle = Station != null ? Station.GetComponent<Obstacle>() : null;
             if (own != null && Modding.ModStations.Built(own.station) && obstacle != null)
             {
-                float radius = obstacle.cubeHalf / M - 5000f;   // AddObstacles: the bounding radius + 5000 units
+                // AddObstacles: the bounding radius + 5000 units; OrbitScale: of the grown hull, so back to its own size here (the
+                // dock range and the undock point are mapped from the original's units: DockMeters, SpawnPlayer)
+                float radius = (obstacle.cubeHalf / M - 5000f) / Layout.StationScale;
                 StationDockRange = Mathf.Max(DockRange, radius + 6000f);
                 UndockPoint = new Vector3(OrbitLayout.UndockPosition.x, OrbitLayout.UndockPosition.y, Mathf.Max(OrbitLayout.UndockPosition.z, radius + 3000f));
             }
@@ -234,6 +236,8 @@ namespace GoF2Remake.World
             // StarSystem::render: 300000, 450000 in the alien orbit before mission 0x50 (the Void's fighters sit up to
             // 100000 out and the wormhole reopens 60000-100000 out while the player arrives 170000-220000 out).
             farClip = (Layout != null && Layout.alienOrbit && Story.Index < 0x50 ? 450000f : 300000f) * M;
+            // Remake (OrbitScale): the scaled orbit reaches further (its far side: the station's growth twice over).
+            if (Layout != null && Layout.Scaled) farClip += 2f * (Layout.PlaceRadius(Layout.stationReach * 2f) - Layout.stationReach * 2f) * M;
             mainCamera.farClipPlane = farClip;
             mainCamera.clearFlags = CameraClearFlags.Skybox;
         }
@@ -310,7 +314,7 @@ namespace GoF2Remake.World
             }
             else
                 root.transform.SetPositionAndRotation(
-                    OrbitLayout.ToUnity(UndockPoint),
+                    OrbitScale.ToUnity(UndockPoint),
                     OrbitLayout.RotationToUnity(new Vector3(0f, (Random.value < 0.5f ? 1 : -1) * OrbitLayout.UndockYaw / 65536f * 2f * Mathf.PI, 0f)));
             // Modified: at Luur the station is turned -45 deg (OrbitBuilder.SpawnStation), and the undock point with it, about the
             // station (a player's request): out of its hangar, in front of it as at any other station. Arrivals stay as they were.
@@ -329,7 +333,7 @@ namespace GoF2Remake.World
             int cm = Session.CampaignMission;
             if ((cm > 0x54 || cm == 0x87) && Layout.stationIndex == 103 && Layout.systemIndex >= 0)
             {
-                var start = OrbitLayout.ToUnity(new Vector3(70000f, 0f, 100000f));
+                var start = OrbitScale.ToUnity(new Vector3(70000f, 0f, 100000f));
                 root.transform.SetPositionAndRotation(start, Quaternion.LookRotation(-start.normalized, Vector3.up));
             }
             // Remake: a fly-in out of interstellar space starts as far out as its speed carries it, to end where arrivals do.
@@ -477,7 +481,7 @@ namespace GoF2Remake.World
         {
             for (int i = 0; i < 80; i++)
             {
-                var p = Random.onUnitSphere * Random.Range(DriveFailMinUnits, Mathf.Max(maxUnits, DriveFailMinUnits)) * M;
+                var p = OrbitScale.PlaceUnity(Random.onUnitSphere * Random.Range(DriveFailMinUnits, Mathf.Max(maxUnits, DriveFailMinUnits)) * M);
                 if (DriveFailClear(p)) { at = p; return true; }
             }
             at = default;

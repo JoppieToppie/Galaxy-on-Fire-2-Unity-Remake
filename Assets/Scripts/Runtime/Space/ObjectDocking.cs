@@ -79,9 +79,10 @@ namespace GoF2Remake.Flight
         /// PhotoMode): LateUpdate doesn't turn it back to the ship.</summary>
         public static bool CameraHeld;
 
-        /// <summary>While approaching: game units from the ship to the approach point, else -1 (Navigation.CanFastForward).</summary>
+        /// <summary>While approaching: game units from the ship to the approach point, else -1 (Navigation.CanFastForward). OrbitScale:
+        /// at a grown structure in its own scale (divided by NpcShip.StructureScale), so fast-forward stops as far out by its size.</summary>
         public float ApproachDistanceUnits => State == Phase.Approach && Target != null && ship != null
-            ? (Target.transform.TransformPoint(approachLocal) - ship.transform.position).magnitude / M : -1f;
+            ? (Target.transform.TransformPoint(approachLocal) - ship.transform.position).magnitude / M / Target.StructureScale : -1f;
 
         public string PromptText =>
             State == Phase.Docked ? Localization.Extra("hudUndock", "UNDOCK")
@@ -201,7 +202,9 @@ namespace GoF2Remake.Flight
             bool found = false, free = false;
             takenPoint = -1;
             var local = target.transform.InverseTransformPoint(ship.transform.position);
-            float k = target.Spec.HullScale;   // remake mods: an NPC ship type's size moves its pads with its hull
+            // remake mods: an NPC ship type's size moves its pads with its hull; OrbitScale: a structure's (the Mining Plant,
+            // a story station, a station's pads) grow with it
+            float k = target.Spec.HullScale * target.StructureScale;
             for (int i = 0; i < points.Count; i++)
             {
                 var p = points[i];

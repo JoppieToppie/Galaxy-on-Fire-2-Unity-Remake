@@ -124,7 +124,8 @@ namespace GoF2Remake.World
         {
             var system = level.Database.Systems.Find(s => s.index == orbit.systemIndex);
             var from = carriedFrom / OrbitLayout.MetersPerUnit;
-            arrivalShips = TrafficPlan.Build(level.Database, orbit.stationIndex, system, new Vector3(from.x, from.y, -from.z));
+            // OrbitScale: the plan rolls in the original's coordinates (the arrival point unmapped in that orbit's own map)
+            arrivalShips = TrafficPlan.Build(level.Database, orbit.stationIndex, system, orbit.Unplace(new Vector3(from.x, from.y, -from.z)));
             shipRoot = new GameObject("Arrival ships").transform;
             Object.DontDestroyOnLoad(shipRoot.gameObject);
         }
@@ -139,7 +140,7 @@ namespace GoF2Remake.World
             if (prefab == null) return;
             var at = new GameObject("Ship ahead").transform;
             at.SetParent(shipRoot, false);
-            at.SetLocalPositionAndRotation(OrbitLayout.ToUnity(spec.position), OrbitLayout.RotationToUnity(spec.fixedObject != null ? spec.rotation : Vector3.zero));
+            at.SetLocalPositionAndRotation(OrbitLayout.ToUnity(orbit.Place(spec.position)), OrbitLayout.RotationToUnity(spec.fixedObject != null ? spec.rotation : Vector3.zero));   // OrbitScale: where that orbit's traffic will start it
             at.localScale = Vector3.one * spec.scale;   // on the pivot: the ship applies it to the model itself
             spec.standIn = Object.Instantiate(prefab, at, false);
             Sleep(spec);
@@ -200,7 +201,8 @@ namespace GoF2Remake.World
             backdrop.Fade(shown ?? SunShown(blend), shown ?? SunShown(blend));
             backdrop.planetSize = backdrop.sunScaleFactor = size;
             backdrop.swell = blend;
-            backdrop.orbitZ = here.z;
+            var hereGame = orbit.Unplace(new Vector3(here.x, here.y, -here.z) / OrbitLayout.MetersPerUnit);   // OrbitScale: the original's z
+            backdrop.orbitZ = -hereGame.z * OrbitLayout.MetersPerUnit;
 
             level.sunLight.transform.rotation = Quaternion.Slerp(left.sun, back * reached.sun, blend);
             level.planetLight.transform.rotation = Quaternion.Slerp(left.planet, back * reached.planet, blend);
