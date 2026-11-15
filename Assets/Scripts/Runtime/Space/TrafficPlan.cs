@@ -89,6 +89,7 @@ namespace GoF2Remake.Flight
         // The Most Wanted criminal (KIPlayer+0x3e / +0x44) and its escort (wingmen_wanted.md 2.6).
         public int wantedIndex = -1;
         public bool noDevices;         // remake: a boss's shadow clone: none of its hull's traffic devices (NpcDevices)
+        public bool noFighterTurret;   // remake: no Level::createFighterTurrets turret on ship 45 / 51 (the Challenge's Rhinos)
         public int wantedEscortOf = -1;
         public int gunItem = -1;       // Level::assignGuns: the wanted's own weapon ...
         public float gunFactor = 1f;   // ... at x4

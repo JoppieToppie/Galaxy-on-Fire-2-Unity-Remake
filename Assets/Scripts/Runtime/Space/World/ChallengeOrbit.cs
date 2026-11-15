@@ -7,7 +7,7 @@
 //   [9]     and a Terran carrier (0x4974) at (-70000, -5000, -35000)
 //           both radar-hidden (KIPlayer+0x70), race 10 (the Specters leave them alone), 9 999 999 hull: scenery
 //   [10-13] and 4 unarmed Rhinos (race 0, ship 0x33) shuttling carrier -> (30000, 1000, 40000) -> platform (Route(..., 9))
-//           The remake leaves [8-13] out (below).
+//           The remake leaves [8-13] out (below), unless Settings.ChallengeScenery is on (SpawnScenery).
 // Every 7500 ms each Specter whose explosion is over comes back at full hull 50 000-80 000 units from the player on x and z,
 // 10 000-20 000 above or below (updateMissionOrbit). The player starts at (-30000, 5000, -100000) (0xbf102). The round ends
 // after SupernovaChallenge.RoundMs (151 000 ms, the original's 2:31; Android's code has 181 000); the original's success
@@ -72,12 +72,20 @@ namespace GoF2Remake.World
         /// <summary>Modified: the iOS build's attack range for the round's Specters (PlayerFighter+0x180 = 500 000; 50 000 by
         /// default): they go for the player from anywhere in the arena, also when they come back 50 000-80 000 away.</summary>
         const float SpecterDetectUnits = 500000f;
+        // createMission 0xb7's scenery (Settings.ChallengeScenery): the carrier, the Rhinos' waypoint and their starts.
+        static readonly Vector3 CarrierPoint = new Vector3(-70000, -5000, -35000);
+        static readonly Vector3 ShuttlePoint = new Vector3(30000, 1000, 40000);
+        static readonly Vector3[] RhinoStarts =
+        {
+            new Vector3(20000, -3000, -50000), new Vector3(10000, -7000, -30000), new Vector3(25000, 0, -36000), new Vector3(12000, 6000, -45000),
+        };
 
         SpaceLevel level;
         Traffic traffic;
         readonly List<NpcShip> specters = new List<NpcShip>();
         // Modified: the first wave flies on to the point it heads for at the start, then goes for the player (UpdateFirstWave).
         readonly List<NpcShip> firstWave = new List<NpcShip>();
+        readonly ShuttleRoutes shuttles = new ShuttleRoutes();   // the scenery's Rhinos (SpawnScenery)
         AudioSource sfx;
         // Modified: the round's clock ran out: the Khador Drive's jump scene plays, its end asks the question (jumpedOut).
         bool jumping, jumpedOut;
@@ -125,12 +133,51 @@ namespace GoF2Remake.World
                 }
             }
             // Modified: the burning platform, the carrier and the four Rhinos aren't spawned: the original's round has none of
-            // them (the user's comparison with its video).
+            // them (the user's comparison with its video). Remake option: Settings.ChallengeScenery brings them back.
+            if (Settings.ChallengeScenery) SpawnScenery();
             traffic.ConnectPlayers();
+            // Remake (the user's request, 2026-11-15): the Specters always go for the player, the Rhinos for nobody. In free
+            // flight connectPlayers already gives a Specter only the player, and the Smarter NPC targeting option never steers
+            // them (NpcShip.SmartTargeting); this makes it hold whatever orbit flags the round runs with, and keeps the Rhinos
+            // (race 0, in every other ship's list) out of the fight.
+            foreach (var s in specters) s.SetOnlyEnemy(traffic.Player);
+            foreach (var sh in shuttles.All) sh.ship.SetOnlyEnemy(null);
             traffic.ShipDied += OnShipDied;
             var start = ToUnity(PlayerStart);
             level.MovePlayer(start, Quaternion.LookRotation((ToUnity(SpecterPoint) - start).normalized, Vector3.up));
-            Debug.Log($"ChallengeOrbit: round {SupernovaChallenge.Round}, {specters.Count} Specters");
+            Debug.Log($"ChallengeOrbit: round {SupernovaChallenge.Round}, {specters.Count} Specters, {shuttles.All.Count} Rhinos");
+        }
+
+        /// <summary>Remake option (Settings.ChallengeScenery): createMission 0xb7's [8-13] as the original's code makes them:
+        /// the burning platform (3208) at the origin and the Terran carrier, scenery the Specters leave alone, and four unarmed
+        /// Rhinos shuttling carrier -> ShuttlePoint -> platform, docking 20 s at each end (Route(..., 9)).</summary>
+        void SpawnScenery()
+        {
+            var platform = Scenery("sn_burning_station_mission_object", Vector3.zero, new Vector3(0f, -2.35619f, 0f), 3208, 111);
+            var carrier = Scenery("sn_carrier_terran_1", CarrierPoint, Vector3.zero, -1, 2005);
+            for (int i = 0; i < 4; i++)
+            {
+                // Unarmed, as the original's: no fighter turret (the user's request, 2026-11-15), no enemies (SetOnlyEnemy(null)
+                // after ConnectPlayers, in Setup), so their gun never fires.
+                var s = traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Raider, race = 0, ship = 51, position = RhinoStarts[i], alwaysFriend = true, noLoot = true,
+                                                          noFighterTurret = true });
+                if (s == null) continue;
+                shuttles.Add(new ShuttleRoutes.Shuttle { ship = s, points = new[] { CarrierPoint, ShuttlePoint, Vector3.zero }, dockMs = new[] { 20000f, 0f, 20000f },
+                                                         dropOff = -1, leg = i % 3, rhino = true,
+                                                         dockAt = new[] { carrier?.transform, null, platform?.transform }, dockSets = new[] { 5, 0, 6 } });
+            }
+        }
+
+        /// <summary>A scenery object (KIPlayer+0x70 radar-hidden, race 10, 9 999 999 hull): never a target.</summary>
+        NpcShip Scenery(string assembly, Vector3 at, Vector3 rotation, int nameText, int collision)
+        {
+            var s = traffic.SpawnShip(new SpawnSpec
+            {
+                group = NpcGroup.Special, race = Standing.Specter, ship = -1, position = at, fixedObject = assembly, rotation = rotation,
+                nameText = nameText, alwaysFriend = true, hitpoints = 9999999, noLoot = true, stationary = true, hitRadius = 6000f, collisionId = collision,
+            });
+            if (s != null) s.Target.untargetable = true;
+            return s;
         }
 
         void OnDestroy()
@@ -159,6 +206,7 @@ namespace GoF2Remake.World
             if (dtMs <= 0f) return;
             SupernovaChallenge.Tick(dtMs);
             PlaySound(SupernovaChallenge.TakeSound());
+            if (shuttles.All.Count > 0) shuttles.Update(dtMs);
             UpdateFirstWave();
             UpdateSlowing(dtMs);
             UpdateWaves(dtMs);

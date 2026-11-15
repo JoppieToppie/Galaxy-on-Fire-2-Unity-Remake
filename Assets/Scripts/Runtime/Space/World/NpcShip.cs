@@ -810,9 +810,10 @@ namespace GoF2Remake.World
         /// hostile target in its box instead of the first of the list (the player), spread over the targets. Not for the ships
         /// whose targets a script, a mission or the original's special rules decide: story and mission orbits, a script's only
         /// enemy, mission ships, a turned ship (it goes for the player who shot it, box or not), the Specters (player-only in
-        /// free flight), the fleet battles' fighters (their own nearest pick). Wingmen and turrets never get here.</summary>
+        /// free flight), the fleet battles' fighters (their own nearest pick), the Supernova Challenge (every Specter on the player).
+        /// Wingmen and turrets never get here.</summary>
         bool SmartTargeting =>
-            Settings.SmarterNpcTargeting && !NpcTables.InCampaignLevel && NpcTables.LevelFreelanceType < 0 && ScriptEnemy == null
+            Settings.SmarterNpcTargeting && !SupernovaChallenge.Active && !NpcTables.InCampaignLevel && NpcTables.LevelFreelanceType < 0 && ScriptEnemy == null
             && !MissionShip && !turnedEnemy && Race != Standing.Specter && traffic != null
             && !(Spec.capitalPart && Spec.capitalHost != null && Spec.capitalHost.fleetBattle);
 

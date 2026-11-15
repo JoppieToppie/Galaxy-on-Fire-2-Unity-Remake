@@ -226,7 +226,7 @@ namespace GoF2Remake.World
             ship.Setup(this, db, spec, prefab, fxRoot);
             // Remake (generic turrets): turret items on its turret mount (SpawnSpec.turretItems, a mod's "npcTurrets") take the
             // fighter turret's place, which sits on that mount.
-            if (spec.turretAssembly == null && spec.fixedObject == null && !spec.freighter && FighterTurretAssembly(spec.ship) != null
+            if (spec.turretAssembly == null && spec.fixedObject == null && !spec.freighter && !spec.noFighterTurret && FighterTurretAssembly(spec.ship) != null
                 && ship.MountedTurrets == null)
                 AttachFighterTurret(ship);
             if (spec.capital != 0 && spec.capitalEnhanced) CapitalShip.Attach(ship, this, db);   // remake option (CapitalShips)

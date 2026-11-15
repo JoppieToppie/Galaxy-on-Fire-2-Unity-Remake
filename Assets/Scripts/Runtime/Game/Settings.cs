@@ -741,6 +741,11 @@ namespace GoF2Remake.Data
         /// <summary>Remake (#165, a player's request): the Supernova Challenge's combo sounds (SV_Mode_01..10: the combo
         /// growing, its bonus paid; ChallengeOrbit.PlaySound) play, as in the original (default).</summary>
         public static bool ChallengeComboSounds { get => GetBool("challengeComboSounds", true); set => SetBool("challengeComboSounds", value); }
+        /// <summary>Remake (the user's request, 2026-11-15): the Supernova Challenge's orbit also holds what the original's
+        /// createMission 0xb7 makes besides the Specters: the burning platform, the Terran carrier and four Rhinos shuttling
+        /// between them (World.ChallengeOrbit.SpawnScenery). Off by default: the original's round shows none of them (#179).
+        /// The challenge's start dialog asks each time and keeps the answer here (MainMenu.ShowChallengeStart).</summary>
+        public static bool ChallengeScenery { get => GetBool("challengeScenery", false); set => SetBool("challengeScenery", value); }
         /// <summary>Remake (#165): a medal's toast sounds the remake's chime (default), the original's info blip (what the
         /// original played) or nothing (StationMenu.ShowMedalToast).</summary>
         public const int MedalSoundChime = 0, MedalSoundOriginal = 1, MedalSoundOff = 2;
