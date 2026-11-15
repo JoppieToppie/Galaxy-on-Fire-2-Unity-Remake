@@ -166,6 +166,7 @@ namespace GoF2Remake.Modding
             "id", "override", "base", "name", "description", "techLevel", "occurrence", "stock", "minPrice", "maxPrice", "price",
             "lowestPriceSystem", "highestPriceSystem", "vosskOnly", "alwaysSoldAt", "stats", "attributes", "defaultEconomy", "fx", "icon",
             "available", "tractorColor", "jumpFx",   // Modified: "jumpFx", a jump drive's own effect (ModJumpFx)
+            "allowedClasses", "excludedClasses",   // the ship classes / tags that may / may not mount it (ShipClassRules)
         };
 
         /// <summary>items.json "tractorColor" ("#rrggbb", "rrggbb" or [r, g, b] 0-255) as attribute 136's value
@@ -212,6 +213,7 @@ namespace GoF2Remake.Modding
                 foreach (var prop in o.Properties())
                     if (!ItemFields.Contains(prop.Name)) mod.Warnings.Add($"{ModJson.Where(prop, ItemsFile)}: unknown field \"{prop.Name}\" (ignored)");
                 CheckFields(o, where, mod);
+                ShipClassRules.CheckItem(o, where, mod, ItemsFile);   // "allowedClasses", "excludedClasses"
                 if (ModJson.Get(o, "defaultEconomy") is JObject de) CheckFields(de, where + " (defaultEconomy)", mod);
                 if (ModJson.Has(o, "icon"))
                 {
@@ -240,6 +242,7 @@ namespace GoF2Remake.Modding
             "subsystems", "shieldMaterial", "shieldedDamage", "engineStyle", "es2Engine", "hullFactor", "retreat",   // a capital ship's subsystems (World.CapitalSubsystems)
             "crate", "crateSize",   // its loot container's model (ModCrates)
             "wingmanDevice",   // a hired wingman's device in it (ModWingmen, Flight.WingmanDevice)
+            "shipClass", "classTags",   // its class and tags (ShipClassRules)
         };
 
         static void ParseShips(ModInfo mod, Parsed p)
@@ -275,6 +278,7 @@ namespace GoF2Remake.Modding
                     if (f != "race" || d.raceRef == null) ModJson.Int(o, f, 0, ShipsFile);
                 ModFlight.CheckShip(o, where, mod, ShipsFile);   // "flightStyle", "flight": per flight style
                 ModShipView.CheckShip(o, where, mod, ShipsFile);   // "camera", "cockpit", "smoke", "explosionScale"
+                ShipClassRules.CheckShip(o, where, mod, ShipsFile);   // "shipClass", "classTags"
                 d.sounds = GameHooks.ParseShipSounds?.Invoke(o, mod, ShipsFile);
                 if (d.localId != null)
                 {

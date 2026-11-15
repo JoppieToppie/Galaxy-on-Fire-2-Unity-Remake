@@ -448,11 +448,25 @@ namespace GoF2Remake.Flight
         /// scanner's hitpoints, weapons and whole-hold readouts on the same line.</summary>
         void ReadShip(Target locked)
         {
-            if (locked == null || traffic == null || (cargoScan == 0 && !hitpointScan && !weaponScan)) return;
-            var ship = traffic.Ships.Find(s => s != null && s.Target == locked);
-            if (ship == null) return;
-            string text = ScanReadout(cargoScan, ship.CargoList, hitpointScan ? locked.hitpoints : null,
-                                      weaponScan ? new[] { ship.GunItem, ship.SecondGunItem } : null);
+            if (locked == null || (cargoScan == 0 && !hitpointScan && !weaponScan && !classScan)) return;
+            var ship = traffic != null ? traffic.Ships.Find(s => s != null && s.Target == locked) : null;
+            int index = locked.netShipIndex >= 0 ? locked.netShipIndex : locked.shipType;
+            if (index < 0)
+            {
+                var proxy = locked.GetComponent<GoF2Remake.Multiplayer.NetProxy>();
+                if (proxy != null && proxy.Spec?.spec != null) index = proxy.Spec.spec.ship;
+            }
+            string classLabel = classScan && index >= 0 && db != null
+                ? GoF2Remake.Modding.ShipClassRules.ClassLabel(db.Ship(index)) : null;
+            int cargoMode = ship != null ? cargoScan : 0;
+            Hitpoints hp = hitpointScan ? locked.hitpoints : null;
+            IReadOnlyList<int> guns = weaponScan && ship != null ? new[] { ship.GunItem, ship.SecondGunItem } : null;
+            string text = ScanReadout(cargoMode, ship?.CargoList, hp, guns);
+            if (!string.IsNullOrEmpty(classLabel))
+            {
+                string cls = Localization.Extra("scanShipClass", "Class: #C").Replace("#C", classLabel);
+                text = string.IsNullOrEmpty(text) ? cls : cls + " · " + text;
+            }
             if (text != null) Message?.Invoke(text, 0, HudMessageKind.Scan);
         }
 

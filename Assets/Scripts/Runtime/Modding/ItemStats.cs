@@ -88,6 +88,8 @@ namespace GoF2Remake.Modding
             // hull on the lock plate; scanHitpoints / scanWeapons 1 add its shield / armor / hull and its guns to the readout
             // on each new lock (beside radarShowsCargo, 31: 1 the first cargo entry, 2 the whole hold).
             ["scanShip"] = 140, ["scanHitpoints"] = 141, ["scanWeapons"] = 142,
+            // Project ship-class identification; separate from hull, hitpoint and weapon readouts.
+            ["scanClass"] = 143,
             // items.json's statList names
             ["steerable"] = 15, ["handling"] = 17,
             ["loadingTimeMs"] = 11, ["range"] = 12, ["projectileSpeed"] = 13, ["magnitude"] = 14, ["shieldRegenTime"] = 19,
