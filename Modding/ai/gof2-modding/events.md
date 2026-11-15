@@ -755,13 +755,13 @@ Flow: no input (starts a flow of its own); out: Do.
 
 | Kind | Name | Type | Default | What it is |
 |---|---|---|---|---|
-| option | Trigger | Choice: PlayerDestroyed / PlayerDocked / PlayerLaunched / PlayerJoined / PlayerLeft / PlayerEntersOrbit / EventShipDestroyed / EnemiesCleared / PlayerKilledPlayer / PlayerRespawned / PlayerArrives / WreckHacked |  | What starts Do (a flow of its own, each time, while the event runs): a player destroyed, docked, launched, joined or left the session, entered an orbit, destroyed one of the event's ships, destroyed another player (Player = the killer, Victim = the other's name), came back after being destroyed, every enemy the event spawned is gone, or hacked a wreck (Spawn's "wreck", a mod's derelict; Victim = the wreck's name). |
+| option | Trigger | Choice: PlayerDestroyed / PlayerDocked / PlayerLaunched / PlayerJoined / PlayerLeft / PlayerEntersOrbit / EventShipDestroyed / EnemiesCleared / PlayerKilledPlayer / PlayerRespawned / PlayerArrives / WreckHacked / PlayerDocksAtPad / ShipScanned |  | What starts Do (a flow of its own, each time, while the event runs): a player destroyed, docked, launched, joined or left the session, entered an orbit, destroyed one of the event's ships, destroyed another player (Player = the killer, Victim = the other's name), came back after being destroyed, every enemy the event spawned is gone, hacked a wreck (Victim = its name), docked at an outside pad, or locked a ship with the scanner (Ship Scanned; Victim = its lock-plate name). |
 | input | Orbit | Orbit |  | Optional: only when it happens in this orbit (or at its station). Player Arrives needs it. |
 | input | At | Text |  | Player Arrives: the spot's game coordinates "x y z" in that orbit (/pos shows yours). |
 | input | Radius | Number | `1000` | Player Arrives: how close (metres) a player alive in space must come; again after leaving it. |
 | output | Player | Players |  | The player it happened to (the killer for Event Ship Destroyed): wire into a command's Players. |
 | output | Name | Text |  | That player's name: wire into a text ("X was destroyed"); or type %trigger% in a text. |
-| output | Victim | Text |  | Player Killed Player: the destroyed player's name; Wreck Hacked: the wreck's name; or type %victim% in a text. |
+| output | Victim | Text |  | Player Killed Player: the destroyed player's name; Wreck Hacked: the wreck's name; Ship Scanned: the ship's lock-plate name; or type %victim% in a text. |
 
 ## Values
 

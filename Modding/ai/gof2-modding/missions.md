@@ -98,7 +98,7 @@ Steps again and again beside the rest, until the mission ends
 
 Steps each time the player is destroyed, docks, kills a ship, gets near a point...
 
-- `trigger`: When: died = The player is destroyed, docked = The player docks, launched = The player launches, kill = A spawned ship is destroyed, cleared = Every spawned enemy is gone, entered = The player enters an orbit, near = The player gets near a point, respawned = The player respawns, hacked = The player hacks a wreck, pad = The player docks at a station's pad outside, joined = A player joins, left = A player leaves, pvpkill = A player destroys another. Default `died`.
+- `trigger`: When: died = The player is destroyed, docked = The player docks, launched = The player launches, kill = A spawned ship is destroyed, cleared = Every spawned enemy is gone, entered = The player enters an orbit, near = The player gets near a point, respawned = The player respawns, hacked = The player hacks a wreck, pad = The player docks at a station's pad outside, scanned = The player scans a ship, joined = A player joins, left = A player leaves, pvpkill = A player destroys another. Default `died`.
 - `station` (wirable): Only at (optional); the game's number, its name, or a key "mod_id:id".
 - `at`: The point (x y z); "x y z" in game units (20 = 1 m). Default `0 0 20000`.
 - `radius` (wirable): Within (metres); a number, or an expression as a string. Default `500`.
