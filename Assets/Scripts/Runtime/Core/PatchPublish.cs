@@ -1,6 +1,6 @@
 // PatchPublish.cs
 // Remake-only (the in-game updater, CLAUDE.md "Update patcher" in docs/notes/platforms.md), the release side: cuts a
-// Windows or Linux release build, or the Android APK, into chunks (PatchChunker), writes the chunks no earlier release
+// Windows, Linux or macOS (the .app) release build, or the Android APK, into chunks (PatchChunker), writes the chunks no earlier release
 // published into one new pack file beside the release's zips (GoF2Remake-<platform>-<tag>.pack: raw deflate, kept unpacked
 // when that's no smaller, one after another) and writes the build's PatchManifest (GoF2Remake-<platform>-<tag>.patch.json)
 // there too; both go on the GitHub release, where the game finds them. A copy of every manifest stays in the history
@@ -79,6 +79,7 @@ namespace GoF2Remake.UI
                 };
             }
             if (!Directory.Exists(path)) return null;
+            if (InspectMacApp(path) is Build mac) return mac;
             foreach (var data in Directory.GetDirectories(path, "*_Data"))
             {
                 string name = Path.GetFileName(data);
@@ -98,6 +99,24 @@ namespace GoF2Remake.UI
             return null;
         }
 
+        /// <summary>A macOS app bundle (2026-11-15): Contents/MacOS holds the player, Contents/Resources/Data the game's data
+        /// (globalgamemanagers there). The bundle is the game's folder: the manifest's paths start at Contents/.</summary>
+        static Build InspectMacApp(string path)
+        {
+            string macos = Path.Combine(path, "Contents", "MacOS");
+            if (!path.TrimEnd('/', '\\').EndsWith(".app", StringComparison.OrdinalIgnoreCase) || !Directory.Exists(macos)) return null;
+            string player = Directory.GetFiles(macos).Select(Path.GetFileName).OrderBy(n => n, StringComparer.Ordinal).FirstOrDefault();
+            if (player == null) return null;
+            string dir = Path.GetFullPath(path);
+            string ggm = Path.Combine(dir, "Contents", "Resources", "Data", "globalgamemanagers");
+            return new Build
+            {
+                Dir = dir, Platform = "macOS", Exe = "Contents/MacOS/" + player,
+                Version = File.Exists(ggm) ? FindVersion(File.ReadAllBytes(ggm)) : null,
+                Files = ShippedFiles(dir).Select(rel => (rel, Path.Combine(dir, rel))).ToList(),
+            };
+        }
+
         /// <summary>The files a release ships: everything but IL2CPP's and Burst's debug folders.</summary>
         public static List<string> ShippedFiles(string dir)
         {
@@ -113,10 +132,13 @@ namespace GoF2Remake.UI
             return list;
         }
 
-        static bool Executable(string rel, bool linux)
+        /// <summary>A file the apply script marks executable: Linux's players, libraries and scripts; macOS's players (any
+        /// Contents/MacOS/, the plug-in bundles' too) and libraries.</summary>
+        static bool Executable(string rel, string platform)
         {
-            if (!linux) return false;
             string name = rel.Substring(rel.LastIndexOf('/') + 1);
+            if (platform == "macOS") return rel.Contains("/MacOS/") || name.EndsWith(".dylib");
+            if (platform != "Linux") return false;
             return name.EndsWith(".x86_64") || name.EndsWith(".so") || name.EndsWith(".sh") || !name.Contains('.');
         }
 
@@ -199,7 +221,7 @@ namespace GoF2Remake.UI
                     done += size;
                     manifestFiles.Add(new PatchFile
                     {
-                        path = rel, size = size, exec = Executable(rel, build.Linux), chunks = ids.ToArray(),
+                        path = rel, size = size, exec = Executable(rel, build.Platform), chunks = ids.ToArray(),
                         bits = bits == PatchChunker.DefaultBits ? 0 : bits,
                     });
                 }

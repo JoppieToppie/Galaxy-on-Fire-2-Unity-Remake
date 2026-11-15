@@ -139,7 +139,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `AndroidUpdateInstaller` + Plugins/Android `UpdateInstaller` / `UpdateApkProvider`, `UwpAppInstaller`, Core `PatchChunker` /
   `PatchManifest` / `PatchInstall` / `PatchPublish`, `GamePatchTests`): the "Update available" button updates in place on
   every platform where the release carries the way to (else, and for a read-only game folder, it opens the release page):
-  Windows / Linux `GoF2Remake-<platform>-<tag>.patch.json` (changed chunks, files swapped after quitting), Android
+  Windows / Linux / macOS `GoF2Remake-<platform>-<tag>.patch.json` (changed chunks, files swapped after quitting), Android
   `GoF2Remake-Android-<tag>.patch.json` (changed chunks, the APK rebuilt and handed to Android's installer), UWP
   `GoF2Remake-UWP.appinstaller` (Windows' App Installer). Everything is a GitHub release file: no other server (2026-11-05,
   first planned on the user's NAS). Why chunks: Unity packs all of `Resources/` into one
@@ -174,6 +174,18 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
     end, moves each file in (30 tries a second apart), deletes the manifest's `removed` files, removes `_update` (kept when
     a move failed) and with "restart" starts the player again (Linux through `setsid` when present, `chmod +x` on `exec`
     files). Later = the script runs from `Application.quitting`.
+  - macOS (2026-11-15, the user's request; untested on a Mac, no macOS release yet): the same as Windows / Linux with the
+    app bundle as the game's folder (`Application.dataPath` is its Contents; the manifest's paths start at Contents/,
+    `PatchPublish.InspectMacApp`; executable: anything in a Contents/MacOS/ and the .dylib files). The work folder is
+    `persistentDataPath/_update`, never in the bundle (its signature covers everything in it), and the bundle's Contents
+    must be writable, else the release page opens (App Translocation runs an app started straight from Downloads from a
+    read-only copy). `PatchInstall.MacScript` names the bundle by its absolute path (`ShellQuote`), moves the files in,
+    signs the bundle again ad hoc (`codesign --force --deep --sign -`: the new files break its signature and macOS won't
+    open a "damaged" app), clears the quarantine (`xattr -dr com.apple.quarantine`) and with "restart" runs `open` on
+    it. A notarized Developer ID build would carry only that ad-hoc signature after its first update. iOS can't update
+    itself (a signed, read-only bundle): there the button opens the release page. The macOS player scripts don't
+    compile from this Windows Editor (2026-11-15: URP core's MetalFX upscalers miss `MetalFXDevice`), so a macOS build
+    and its first in-place update are still to be tried on a Mac.
   - Apply, Android: the manifest's one file is the APK (`PatchManifest.ApkName`); the chunks it shares are read from the
     installed APK (`Application.dataPath`), the work folder is `persistentDataPath/_update`, and the rebuilt APK is byte for
     byte the published one, so its signature holds. Install: Android 8+ first needs the app's "Install unknown apps" switch
@@ -196,8 +208,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   - The next start deletes an `_update` whose state.json names the running version (`PatchInstall.CleanUpAppliedIn`). Builds
     from before the patcher (2026.11.02 and older) can't patch: one last full download.
   - Release side: GoF2 > Build > Update Patch (`PatchPublisherWindow`, editor-tools.md) after the builds writes the
-    release files into Build/Release beside the zips: per chunked platform (Build/Release/<Windows|Linux>/GoF2Remake, the
-    newest .apk in Build/Release or Build/Release/Android) `GoF2Remake-<platform>-<tag>.pack` + `.patch.json`, for UWP (the
+    release files into Build/Release beside the zips: per chunked platform (Build/Release/<Windows|Linux>/GoF2Remake,
+    Build/Release/macOS/GoF2Remake.app, the newest .apk in Build/Release or Build/Release/Android) `GoF2Remake-<platform>-<tag>.pack` + `.patch.json`, for UWP (the
     newest .msix under Build/Release/UWP) `GoF2Remake-UWP-<tag>.msix` + `GoF2Remake-UWP.appinstaller` (its own Uri is
     releases/latest/download/GoF2Remake-UWP.appinstaller, so Windows' OnLaunch check finds the newest; the package Uri is
     this release's). Upload them all with `gh release create`. What earlier releases published comes from their .patch.json
