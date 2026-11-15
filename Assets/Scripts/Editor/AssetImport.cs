@@ -30,7 +30,7 @@ namespace GoF2Remake.EditorTools
         /// leaves at full size: the space skies (their stars blur when smaller), the reflection cubemaps (picked by mip
         /// level for their blur), the HUD / UI images.</summary>
         static bool KeepsFullMips(string path, string name) =>
-            path.StartsWith("Assets/Resources/GoF2Sky/") || path.StartsWith("Assets/Resources/GoF2Reflections/")
+            path.StartsWith("Assets/Resources/GoF2Sky/") || path.StartsWith("Assets/Resources/GoF2SkyHd/") || path.StartsWith("Assets/Resources/GoF2Reflections/")
             || path.StartsWith("Assets/Resources/GoF2Hud/") || path.StartsWith("Assets/UI/")
             || (path.StartsWith(ImportSettings.Root + "/Textures/") && name.Contains("cubemap"));
 
@@ -54,6 +54,18 @@ namespace GoF2Remake.EditorTools
             string name = Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
             if (KeepsFullMips(assetPath, name)) ((TextureImporter)assetImporter).ignoreMipmapLimit = true;
             if (assetPath.StartsWith(ItemIconBuilder.OutDir + "/")) { ShopIcon((TextureImporter)assetImporter); return; }
+            if (assetPath.StartsWith("Assets/Resources/GoF2SkyLayers/"))
+            {
+                // the layered skies' masks (Reference/tools/sky/nebula_clouds.py, sky_layers.py): data, not colour; tiled. The
+                // patches (patch_0XX) are colour (read as data, their colours came out brighter than the sky round them)
+                var mi = (TextureImporter)assetImporter;
+                bool patch = name.StartsWith("patch_");
+                mi.sRGBTexture = patch;
+                mi.wrapMode = patch ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
+                mi.mipmapEnabled = true;
+                mi.textureCompression = TextureImporterCompression.CompressedHQ;
+                return;
+            }
             if (!assetPath.StartsWith(ImportSettings.Root + "/Textures/")) return;
             var ti = (TextureImporter)assetImporter;
             ti.maxTextureSize = 2048;

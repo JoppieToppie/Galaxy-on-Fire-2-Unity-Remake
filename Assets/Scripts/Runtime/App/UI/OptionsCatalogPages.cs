@@ -196,6 +196,16 @@ namespace GoF2Remake.UI
             var liveSkies = Toggle("liveSkies", OptionPage.Graphics, () => X("liveSkies", "Live mod skies"), () => Settings.LiveSkies, v => Settings.LiveSkies = v);
             liveSkies.description = () => X("liveSkiesHelp", "Mod skies that come with their own shader (such as Chorus's) drawn live, sharp at any resolution. Off: their baked image, lighter on phones. From the next orbit.");
             list.Add(liveSkies);
+            // Remake (2026-11-14, the user's request): how the game's own skies are drawn (Settings.SkyStyle, World.GoF2SkyLayers).
+            var skyStyle = Choice("skyStyle", OptionPage.Graphics, () => X("skyStyle", "Skies"), false,
+                () => new[] { X("skyOriginal", "Original"), X("skyEnhanced", "Enhanced"), X("skyEs2", "EVERSPACE 2 style"), X("skyCombined", "Combined") },
+                () => Settings.SkyStyle, i => Settings.SkyStyle = i);
+            skyStyle.description = () => X("skyStyleHelp", "Enhanced: sharp stars at any resolution and the nebulae upscaled by an AI model (Real-ESRGAN), a slight improvement. EVERSPACE 2 style: the skies rebuilt from tinted nebula layers, clustered stars and a glowing band. Combined: both. The enhanced looks invent detail the original art doesn't have. From the next orbit.");
+            list.Add(skyStyle);
+            // Remake (2026-11-14, the user's request): EVERSPACE 2's local nebulae in the base game (World.NebulaClouds).
+            var nebulaClouds = Toggle("nebulaClouds", OptionPage.Graphics, () => X("nebulaClouds", "Nebula clouds"), () => Settings.NebulaClouds, v => Settings.NebulaClouds = v);
+            nebulaClouds.description = () => X("nebulaCloudsHelp", "Clouds of gas round the orbits, in the colours of their system's nebula, that you fly through and past. Not in the original. From the next orbit.");
+            list.Add(nebulaClouds);
             list.Add(Toggle("npcPlayerEngines", OptionPage.Graphics, () => X("npcPlayerEngines", "Other ships' engines like yours"),
                 () => Settings.NpcPlayerEngines, v => Settings.NpcPlayerEngines = v));
             // Remake: the planets as the rebuilt 3D spheres (World.RebuiltPlanets); on by default.

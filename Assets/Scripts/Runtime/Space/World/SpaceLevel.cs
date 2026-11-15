@@ -417,6 +417,7 @@ namespace GoF2Remake.World
             Fog = OrbitBuilder.SpawnDust(Layout);
             var backdrop = OrbitBuilder.SpawnBackdrop(Layout, mainCamera);
             if (!interstellar) SkyLayers.Spawn(Layout, mainCamera);   // ring sky, storms, supernova flares, asteroid belt
+            if (!interstellar) NebulaClouds.Spawn(Layout);   // remake: Options > Graphics "Nebula clouds" (ES2's local nebulae)
             Backdrop = backdrop;
 
             // Locks on the station, the jumpgate and the other stations' planets; autopilot, planet jump, fast-forward.

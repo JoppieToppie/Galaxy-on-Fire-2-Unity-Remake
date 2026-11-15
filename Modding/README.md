@@ -1944,8 +1944,8 @@ nebula on black, not on a dark blue. The sky also lights the scene a little (its
 
 #### Chorus skies
 
-A sky can also be drawn live by Chorus's own sky shader (its `M_Skybox_MASTER`), with a `"chorus"` block in the
-`skybox`. The `nebula` panorama stays: the game shows it where Options > Graphics "Live mod skies" is off (Low, phones)
+A sky can also be drawn live in layers, with a `"chorus"` block in the `skybox`: Chorus's own sky shader (its
+`M_Skybox_MASTER`) with EVERSPACE 2's sky methods beside it (clustered stars, tinted greyscale masks, gradient bands). The `nebula` panorama stays: the game shows it where Options > Graphics "Live mod skies" is off (Low, phones)
 and while it crossfades from one system's sky to the next. The Chorus importer writes both from your copy of Chorus;
 by hand it looks like this:
 
@@ -1966,9 +1966,10 @@ by hand it looks like this:
 | Field | |
 |---|---|
 | `gradient` | A glow along `up` (Unreal's axes: x forward, y right, z up): (dot + `bias`)^`gamma`, from `colorA` to `colorB` (linear colours), times `opacity`. Leave it out for none. |
-| `stars` | A star mask (its red), tiled `tiling` times round the sky, through `curve` (two keys, [time, r, g, b]), to the power `exponent`, times `brightness`. The image is read as sRGB: store a linear mask sRGB-encoded. |
-| `layers` | Up to four images laid over that in order, each a square patch of the sky: `heading` (turns round the sky), `elevation` (1 = a quarter turn), `scale`, `rotation` (turns), `emissive` and `exponent` (colour + (colour x emissive)^exponent) and `opacity` (times the image's alpha). |
+| `stars` | A star mask (its red, or its `channels` weighted: `[1, 0.5, 0.25]` reads three star layers of falling brightness, as EVERSPACE 2's does), tiled `tiling` times round the sky (`[u, v]` for each way: ES2's is `[2, 1]`), through `curve` (two keys, [time, r, g, b]), to the power `exponent`, times `brightness`. `"noise": { "scale": 2, "exponent": 2.5 }` thins it by a noise over the sky, so the stars gather in clusters with gaps between (EVERSPACE 2's). The image is read as sRGB: store a linear mask sRGB-encoded. |
+| `layers` | Up to six layers laid over that in order. `"type": "image"` (the default, Chorus's): an image as a square patch of the sky: `heading` (turns round the sky), `elevation` (1 = a quarter turn), `scale`, `rotation` (turns), `emissive` and `exponent` (colour + (colour x emissive)^exponent) and `opacity` (times the image's alpha). `"type": "mask"` (EVERSPACE 2's nebulae): a greyscale image's `channel` (0-3: r, g, b, a) to the power `exponent`, times `color` and `intensity`, added; placed like an image (`scale` 2, the default, is the whole sky), tiled `tiling` [u, v] times and moved by `offset` [u, v] inside it; `falloff` (degrees) fades it round the patch's middle, so a mask without an `image` is a soft glow; `sunScatter` makes it brighter toward the orbit's sun. `"type": "gradient"` (EVERSPACE 2's): `color` over the sky by `opacity` times a profile along `up` (as you look: [0, 0, 1] brightest looking up): (dot + 1) / 2 + `offset`, folded round its middle with `absolute` (a band round the sky), flipped with `invert`, smoothed between `min` and `max`, then Schlick's `bias` (0.5 = none) and `power`. |
 | `emissive` | The whole sky's multiplier. |
+| `base` | `true`: the skybox's own layers (the game's sky, or its `nebula` / `stars` images) are drawn under it all, so the layers add to a sky instead of replacing it. |
 
 ### Stations
 
