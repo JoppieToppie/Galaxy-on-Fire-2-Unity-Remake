@@ -222,3 +222,9 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   game's: the Particle Shield 225) come after everything else. On, `Hangar.ShopItems` orders by category, then tech
   level, then index; the stock and the hold keep their own order, and the VIP Card's sort still applies on top. Tests
   `HangarTradeTests` (`ShopListIsByItemIndexAsTheOriginal`, `DlcShieldStaysWithShieldsInShopAndStorage`).
+
+- **Display subtypes** (#303): the category option and its off-by-default behavior remain unchanged. When enabled,
+  order by category, subtype, tech level and item ID. Ordinary lasers precede a contiguous M6 hitscan-beam group;
+  manual turrets precede automatic ones. `ItemData.IsBeamLook` is shared with `Gun.IsBeamLook`, so mod-derived beam
+  looks follow the same rule as firing. Turrets use attr 16 == 1. The Kaamo Type sort uses these subgroups too;
+  explicit Name/Price sorts retain their own meaning. Stock, cargo, prices and item definitions are not reordered.

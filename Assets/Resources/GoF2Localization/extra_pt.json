@@ -3230,7 +3230,7 @@
  "kaamoVipOff": "Desativado",
  "kaamoVipOptionHelp": "O cartão VIP dá ao armazém do Kaamo Club uma caixa de pesquisa e ordenação, uma aba Naves para as naves guardadas e uma marca do Kaamo nas naves que você já tem lá. Comprar no clube: o cartão é vendido na aba Armazém. Sempre ativo: sem cartão. Desativado: o clube original.",
  "shopByCategory": "Ordenar a loja por categoria",
- "shopByCategoryHelp": "A loja e o armazém listam os itens por categoria e depois por nível tecnológico, assim o equipamento adicional fica junto aos do seu tipo. Desligado: pelo número do item, como no original.",
+ "shopByCategoryHelp": "A loja e o armazém ordenam por categoria, subtipo e nível tecnológico; lasers de feixe e torretas manuais e automáticas ficam em grupos separados. Desligado: pelo número do item, como no original.",
  "shopSearch": "Pesquisar",
  "shopSortBy": "Ordem: {0}",
  "shopSortDefault": "Padrão",

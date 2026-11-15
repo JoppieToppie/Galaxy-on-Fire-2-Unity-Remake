@@ -3230,7 +3230,7 @@
  "kaamoVipOff": "Wyłączona",
  "kaamoVipOptionHelp": "Karta VIP dodaje do magazynu Kaamo Club pole wyszukiwania i sortowanie, kartę Statki z twoimi zmagazynowanymi statkami oraz znacznik Kaamo na statkach, które już tam masz. Kup w klubie: karta jest w sprzedaży w karcie Magazyn. Zawsze włączona: bez karty. Wyłączona: oryginalny klub.",
  "shopByCategory": "Sortuj sklep według kategorii",
- "shopByCategoryHelp": "Sklep i magazyn pokazują przedmioty według kategorii, a potem poziomu technologii, więc dodatkowe wyposażenie stoi obok przedmiotów tego samego rodzaju. Wyłączone: według numeru przedmiotu, jak w oryginale.",
+ "shopByCategoryHelp": "Sklep i magazyn sortują według kategorii, podtypu i poziomu technologii; lasery wiązkowe oraz wieżyczki ręczne i automatyczne tworzą osobne grupy. Wyłączone: według numeru przedmiotu, jak w oryginale.",
  "shopSearch": "Szukaj",
  "shopSortBy": "Sortuj: {0}",
  "shopSortDefault": "Domyślnie",

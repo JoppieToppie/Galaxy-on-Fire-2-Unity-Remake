@@ -3230,7 +3230,7 @@
  "kaamoVipOff": "Aus",
  "kaamoVipOptionHelp": "Die VIP-Karte bringt ein Suchfeld und Sortierung in den Lagerraum des Kaamo Club, einen Schiffe-Tab für deine eingelagerten Schiffe und eine Kaamo-Markierung an Schiffen, die du dort schon hast. An der Station kaufen: Die Karte gibt es im Lager-Tab. Immer an: ohne Karte. Aus: der originale Club.",
  "shopByCategory": "Shop nach Kategorie sortieren",
- "shopByCategoryHelp": "Shop und Lager listen die Gegenstände nach Kategorie, dann nach Techstufe, sodass Zusatzausrüstung bei ihresgleichen steht. Aus: nach Gegenstandsnummer, wie im Original.",
+ "shopByCategoryHelp": "Shop und Lager sortieren nach Kategorie, Untertyp und Techstufe; Strahlenlaser sowie manuelle und automatische Geschütze bleiben zusammen. Aus: nach Gegenstandsnummer wie im Original.",
  "shopSearch": "Suchen",
  "shopSortBy": "Sortieren: {0}",
  "shopSortDefault": "Standard",

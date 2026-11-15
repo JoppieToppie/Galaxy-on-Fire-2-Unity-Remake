@@ -67,6 +67,9 @@ namespace GoF2Remake.Data
         [System.NonSerialized] public int lookIndex;
         public int Look => modded ? lookIndex : index;
 
+        /// <summary>The hitscan beam looks shared by display grouping and weapon behavior, including mod-derived items.</summary>
+        public static bool IsBeamLook(int look) => look == 9 || look == 10 || look == 11 || look == 228;
+
         public bool HasAttr(int id) => System.Array.IndexOf(attrKeys, id) >= 0;
         public int Attr(int id, int fallback = 0)
         {

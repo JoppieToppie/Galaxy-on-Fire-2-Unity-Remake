@@ -223,7 +223,9 @@ namespace GoF2Remake.UI
                 case Sort.Name: return items.OrderBy(ItemInfo.ItemName, names).ToList();
                 case Sort.Price: return items.OrderByDescending(ItemValue).ThenBy(ItemInfo.ItemName, names).ToList();
                 case Sort.Race:
-                    return items.OrderBy(i => ItemInfo.Category(level.Database.Item(i)), names).ThenBy(ItemInfo.ItemName, names).ToList();
+                    return items.OrderBy(i => ItemInfo.Category(level.Database.Item(i)), names)
+                        .ThenBy(i => Hangar.DisplaySubtype(level.Database.Item(i)))
+                        .ThenBy(i => level.Database.Item(i).techLevel).ThenBy(i => i).ToList();
                 default: return items.ToList();
             }
         }
