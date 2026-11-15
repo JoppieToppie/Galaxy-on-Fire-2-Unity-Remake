@@ -52,6 +52,9 @@ namespace GoF2Remake.Tests
             var up = Get<Button>(window, "moveUpButton");
             var down = Get<Button>(window, "moveDownButton");
             float demountWidth = action.worldBound.width;
+            Assert.LessOrEqual(action.MeasureTextSize(action.text, 0f, VisualElement.MeasureMode.Undefined,
+                0f, VisualElement.MeasureMode.Undefined).x, action.contentRect.width + 1f,
+                "the localized action label fits on one line at the tested row width");
             Assert.Greater(action.worldBound.height, up.worldBound.height * 1.8f, "Demount spans the two arrow rows");
             Assert.LessOrEqual(up.worldBound.xMax, action.worldBound.xMin + 1f);
             Assert.LessOrEqual(up.worldBound.yMax, down.worldBound.yMin + 1f);
@@ -66,8 +69,8 @@ namespace GoF2Remake.Tests
             var amount = Get<VisualElement>(window, "rowQty");
             Assert.AreEqual(demountWidth, action.worldBound.width, 5f,
                 "Mount shares Demount's proportion, allowing the reorder gap and pixel rounding");
-            Assert.AreEqual(0.125f, action.worldBound.width / cargo.worldBound.width, 0.01f,
-                "button width follows the row at each tested viewport width");
+            Assert.AreEqual(Mathf.Max(cargo.contentRect.width * 0.125f, action.resolvedStyle.minWidth.value),
+                action.layout.width, 2f, "button width follows the row with a shared text-derived minimum");
             Assert.Greater(action.worldBound.height, cargo.worldBound.height * 0.75f,
                 "Mount fills the row with only the style-specific vertical insets");
             Assert.LessOrEqual(action.worldBound.xMax, amount.worldBound.xMin - 1f,

@@ -17,6 +17,30 @@ namespace GoF2Remake.UI
         {
             FillDetails();
             PlaceRowActions();
+            rowActions.schedule.Execute(FitRowActionMinimum);
+        }
+        // CLAUDE.md "Row actions": keep proportional columns readable on narrow screens and in longer translations.
+        void FitRowActionMinimum()
+        {
+            bool equipment = rowActions.ClassListContains("row-actions--equipment");
+            bool blueprint = rowActions.ClassListContains("row-actions--blueprint");
+            if (!equipment && !blueprint)
+            {
+                rowActions.style.minWidth = StyleKeyword.Null;
+                actionButton.style.minWidth = StyleKeyword.Null;
+                return;
+            }
+            if (actionButton.panel == null) return;
+            float textWidth = 0f;
+            foreach (int id in new[] { 281, 282, 283 })
+                textWidth = Mathf.Max(textWidth, actionButton.MeasureTextSize(Localization.Get(id).UiCaps(), 0f,
+                    VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x);
+            var style = actionButton.resolvedStyle;
+            float minimum = Mathf.Ceil(textWidth + style.borderLeftWidth + style.borderRightWidth + style.fontSize * 0.7f);
+            if (!(minimum > 0f) || float.IsNaN(minimum)) return;
+            actionButton.style.minWidth = minimum;
+            rowMove.style.minWidth = minimum;
+            rowActions.style.minWidth = rowActions.ClassListContains("row-actions--reorder") ? minimum * 2f + 6f : minimum;
         }
         /// <summary>Remake (a player's feedback 2026-11-03: the Mount / Demount buttons "way off to the right of the slots"):
         /// the selected row's actions in a row of their own right under it in the list, as the original lists "Actions" (278)

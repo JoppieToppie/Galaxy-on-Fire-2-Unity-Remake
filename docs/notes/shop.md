@@ -110,6 +110,10 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   shared by Mount and Edit: `--row-action-width` is one eighth of the row, and the reorder area is one quarter,
   split equally between arrows and Demount after its gap. These are proportions, not physical pixel widths; UI
   scaling and the available row width determine their rendered size. Slots without arrows reserve only one button.
+  `FitRowActionMinimum` measures the longest localized Mount / Demount / Edit label in the active font, adding
+  its borders and 0.7 font-size units of breathing room. This shared minimum prevents broken words on narrow
+  viewports; the two-column area needs twice that minimum plus its gap. It is a text-derived floor, not a fixed
+  physical-pixel button width.
   Cargo has a full-height Mount with
   the amount in a separate column to its right (the row's own amount hidden, `.list-row--actions`).
   A blueprint's full-height Edit reserves its width

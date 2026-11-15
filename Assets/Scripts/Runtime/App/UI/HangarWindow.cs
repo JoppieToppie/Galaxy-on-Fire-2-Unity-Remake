@@ -258,6 +258,8 @@ namespace GoF2Remake.UI
             itemRow.Add(itemRight);
             rowActions = new VisualElement { pickingMode = PickingMode.Ignore };
             rowActions.AddToClassList("row-actions");
+            rowActions.RegisterCallback<GeometryChangedEvent>(_ => FitRowActionMinimum());
+            actionButton.RegisterCallback<GeometryChangedEvent>(_ => FitRowActionMinimum());
             // Modified (a player's sketch 2026-11-09): a mounted item's or a hold item's actions inside its row, at its right
             // end: DEMOUNT over the two arrows that move it a slot up / down, or the hold's amount over MOUNT (PlaceRowActions).
             rowMove = new VisualElement { pickingMode = PickingMode.Ignore };
