@@ -339,6 +339,8 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
 
 - **On-map animation control**: the top-right Animation button below Help cycles the same 1x / 2x / 4x preference as Gameplay;
   Z / controller LB do the same, and touch uses the button. It is hidden in the mod builder and during reveal, and
-  disabled while a transition or dialog takes input. The tools form a separate vertical stack, aligned at the right edge in both UI styles. Its label/help cover all 14 offered languages.
+  disabled while a transition or dialog takes input. The tools form a separate vertical stack, aligned at the right
+  edge in both UI styles. Its label/help cover all 14 offered languages.
   At 2x and 4x, Map_Zoom_In / Map_Zoom_Out are suppressed (including the overview's use of those clips); other map
-  sounds remain. At 1x the original audio is unchanged. Full Map uses the same selected multiplier for both entering and leaving the overview.
+  sounds remain. At 1x the original audio is unchanged. Full Map uses the same selected multiplier for both entering
+  and leaving the overview.

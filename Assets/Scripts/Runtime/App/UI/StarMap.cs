@@ -284,8 +284,8 @@ namespace GoF2Remake.UI
         float overviewT;
         Vector2 overviewMin, overviewMax;
         float overviewZ;
-        // Base duration matches the system zoom; both timers use the selected map animation multiplier. Map_Zoom_In 2.68 s / Map_Zoom_Out
-        // 2.32 s): at 650 ms the move was over long before its sound.
+        // Full Map and system zoom share the original base duration and selected animation multiplier.
+        // Zoom clips retain their original 2.68 / 2.32 s duration and play only at 1x.
         const float OverviewMs = ZoomMs;
         float OverviewEase => 0.5f - 0.5f * Mathf.Cos(Mathf.PI * overviewT);
         bool InOverview => overview || overviewT > 0f;
