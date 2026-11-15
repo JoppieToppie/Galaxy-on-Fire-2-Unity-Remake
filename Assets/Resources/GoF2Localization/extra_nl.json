@@ -340,6 +340,7 @@
  "shipDeliveryChoice": "Het nieuwe schip vliegen of voor {0} naar Kaamo sturen zonder je huidige schip in te ruilen?",
  "shipDeliveryFly": "Nieuw schip vliegen",
  "shipDeliveryKaamo": "Kopen voor Kaamo",
+ "shipDeliveredKaamo": "Je schip {0} is afgeleverd bij Kaamo.",
  "loungeShipTradeIn": "Met je #SHIP_NAME ingeruild wordt het #C.",
  "loungeShipTradeInBack": "Met je #SHIP_NAME ingeruild krijg je #C terug.",
  "mapCloseUp": "DICHTBIJ",

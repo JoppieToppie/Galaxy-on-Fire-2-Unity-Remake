@@ -332,6 +332,7 @@
  "shipDeliveryChoice": "새 함선에 탑승할까요, 아니면 현재 함선을 교환하지 않고 {0}에 구매하여 Kaamo로 보낼까요?",
  "shipDeliveryFly": "새 함선에 탑승",
  "shipDeliveryKaamo": "구매 후 Kaamo로 보내기",
+ "shipDeliveredKaamo": "구매한 {0} 함선을 Kaamo로 보냈습니다.",
  "loungeShipTradeIn": "당신의 #SHIP_NAME을(를) 보상 판매하면 #C입니다.",
  "loungeShipTradeInBack": "당신의 #SHIP_NAME을(를) 보상 판매하면 #C을(를) 돌려받습니다.",
  "mapCloseUp": "확대 보기",

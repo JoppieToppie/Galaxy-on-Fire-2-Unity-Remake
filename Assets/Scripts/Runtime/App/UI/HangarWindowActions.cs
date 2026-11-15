@@ -218,7 +218,7 @@ namespace GoF2Remake.UI
             if (result != Hangar.Result.Ok) return;
             if (!hangar.BuyShipToKaamo(ship)) return;
             level.RefreshParkedShips();
-            menu.ShowToast(Localization.Get(303).Replace("#N", ItemInfo.ShipName(ship)));
+            menu.ShowToast(string.Format(Localization.Extra("shipDeliveredKaamo", "Your {0} was delivered to Kaamo."), ItemInfo.ShipName(ship)));
             selected = null;
             Rebuild();
         }

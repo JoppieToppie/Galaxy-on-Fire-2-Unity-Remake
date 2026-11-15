@@ -307,6 +307,7 @@
  "shipDeliveryChoice": "नया जहाज़ उड़ाएँ या अपने वर्तमान जहाज़ को बदले बिना {0} में उसे Kaamo भेजें?",
  "shipDeliveryFly": "नया जहाज़ उड़ाएँ",
  "shipDeliveryKaamo": "Kaamo के लिए खरीदें",
+ "shipDeliveredKaamo": "आपका जहाज़ {0} Kaamo पहुँचा दिया गया।",
   "loungeShipTradeIn": "आपका #SHIP_NAME बदले में देने पर, यह #C होगा।",
   "loungeShipTradeInBack": "आपका #SHIP_NAME बदले में देने पर, आपको #C वापस मिलेंगे।",
   "mapCloseUp": "क्लोज़ अप",

@@ -340,6 +340,7 @@
  "shipDeliveryChoice": "Piloter le nouveau vaisseau ou le livrer à Kaamo pour {0}, sans échanger votre vaisseau actuel ?",
  "shipDeliveryFly": "Piloter le nouveau vaisseau",
  "shipDeliveryKaamo": "Acheter pour Kaamo",
+ "shipDeliveredKaamo": "Votre vaisseau {0} a été livré à Kaamo.",
  "loungeShipTradeIn": "En reprenant ton #SHIP_NAME, ça fait #C.",
  "loungeShipTradeInBack": "En reprenant ton #SHIP_NAME, tu récupères #C.",
  "mapCloseUp": "GROS PLAN",

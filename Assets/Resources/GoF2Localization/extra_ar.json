@@ -332,6 +332,7 @@
  "shipDeliveryChoice": "قيادة السفينة الجديدة، أم إرسالها إلى كاامو مقابل {0} دون مبادلة سفينتك الحالية؟",
  "shipDeliveryFly": "قيادة السفينة الجديدة",
  "shipDeliveryKaamo": "الشراء إلى كاامو",
+ "shipDeliveredKaamo": "تم تسليم سفينتك {0} إلى كاامو.",
  "loungeShipTradeIn": "مع مقايضة #SHIP_NAME الخاصة بك يصبح المبلغ #C.",
  "loungeShipTradeInBack": "مع مقايضة #SHIP_NAME الخاصة بك تسترد #C.",
  "mapCloseUp": "عن قرب",

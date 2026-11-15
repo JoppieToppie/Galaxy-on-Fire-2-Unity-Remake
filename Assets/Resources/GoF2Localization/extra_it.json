@@ -340,6 +340,7 @@
  "shipDeliveryChoice": "Pilotare la nuova nave o inviarla a Kaamo per {0} senza dare in permuta quella attuale?",
  "shipDeliveryFly": "Pilota la nuova nave",
  "shipDeliveryKaamo": "Compra per Kaamo",
+ "shipDeliveredKaamo": "La tua nave {0} è stata consegnata a Kaamo.",
  "loungeShipTradeIn": "Dando in permuta la tua #SHIP_NAME, fanno #C.",
  "loungeShipTradeInBack": "Dando in permuta la tua #SHIP_NAME, ricevi #C indietro.",
  "mapCloseUp": "DA VICINO",

@@ -340,6 +340,7 @@
  "shipDeliveryChoice": "Pilotar a nave nova ou enviá-la a Kaamo por {0}, sem trocar sua nave atual?",
  "shipDeliveryFly": "Pilotar nave nova",
  "shipDeliveryKaamo": "Comprar para Kaamo",
+ "shipDeliveredKaamo": "Sua nave {0} foi entregue a Kaamo.",
  "loungeShipTradeIn": "Dando a sua #SHIP_NAME como parte do pagamento, fica #C.",
  "loungeShipTradeInBack": "Dando a sua #SHIP_NAME como parte do pagamento, você recebe #C de volta.",
  "mapCloseUp": "APROXIMAR",

@@ -336,7 +336,9 @@ namespace GoF2Remake.UI
                         if (refusal != null) { menu.ShowDialog(refusal, null, true); return; }
                         if (!toKaamo) level.ReplacePlayerShip(Session.ShipIndex);
                         if (keep || toKaamo) level.RefreshParkedShips();
-                        menu.ShowToast(Localization.Get(303).Replace("#N", ItemInfo.ShipName(toKaamo ? current.Agent.sellShip : Session.ShipIndex)));
+                        menu.ShowToast(toKaamo
+                            ? string.Format(Localization.Extra("shipDeliveredKaamo", "Your {0} was delivered to Kaamo."), ItemInfo.ShipName(current.Agent.sellShip))
+                            : Localization.Get(303).Replace("#N", ItemInfo.ShipName(Session.ShipIndex)));
                         AfterDeal(current);
                     }
                     if (KaamoClub.Owned)
