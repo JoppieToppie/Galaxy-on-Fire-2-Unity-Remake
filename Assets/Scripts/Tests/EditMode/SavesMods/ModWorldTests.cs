@@ -176,6 +176,44 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void PopulationAndDerelictSettingsMergeForNewSystemsAndOverrides()
+        {
+            var db = World("[ { 'id': 'a', 'system': 't_world:home', 'name': 'A' } ]",
+                "[ { 'id': 'home', 'name': 'Home', 'race': 0, 'position': [1, 2, 3], 'population': 0.25, 'derelictFreighters': false }, "
+                + "{ 'override': 4, 'population': 2, 'derelictFreighters': false } ]");
+            Assert.AreEqual(0.25f, db.Systems[34].ambientPopulation);
+            Assert.IsFalse(db.Systems[34].derelictFreighters);
+            Assert.AreEqual(2f, db.Systems[4].ambientPopulation);
+            Assert.IsFalse(db.Systems[4].derelictFreighters);
+
+            var defaults = World("[ { 'id': 'a', 'system': 't_world:home', 'name': 'A' } ]");
+            Assert.AreEqual(1f, defaults.Systems[34].ambientPopulation);
+            Assert.IsTrue(defaults.Systems[34].derelictFreighters);
+        }
+
+        [Test]
+        public void ModBuilderSystemTrafficSettingsRoundTripAndOmitDefaults()
+        {
+            var project = ModProject.Create("Traffic settings", "tests");
+            var system = project.AddSystem("Kepler", new Vector3(50, 50, 50), 0);
+            Assert.AreEqual(1f, system.AmbientPopulation);
+            Assert.IsTrue(system.DerelictFreighters);
+            system.AmbientPopulation = 0.5f;
+            system.DerelictFreighters = false;
+            project.Save();
+
+            var loaded = ModProject.Load(project.Folder);
+            Assert.IsNull(loaded.LoadError);
+            var back = loaded.Systems.Single();
+            Assert.AreEqual(0.5f, back.AmbientPopulation);
+            Assert.IsFalse(back.DerelictFreighters);
+            back.AmbientPopulation = 1f;
+            back.DerelictFreighters = true;
+            Assert.IsNull(back.Json["population"]);
+            Assert.IsNull(back.Json["derelictFreighters"]);
+        }
+
+        [Test]
         public void ASystemWithGatesGetsItsFirstStationAsGateStation()
         {
             var db = World("[ { 'id': 'a', 'system': 't_world:home', 'name': 'A' }, { 'id': 'b', 'system': 't_world:home', 'name': 'B' } ]",
