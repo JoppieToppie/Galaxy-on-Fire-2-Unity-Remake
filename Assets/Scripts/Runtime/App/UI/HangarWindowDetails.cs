@@ -35,18 +35,18 @@ namespace GoF2Remake.UI
             rowActions.RemoveFromClassList("row-actions--blueprint");
             rowActions.RemoveFromClassList("row-actions--equipment");
             if (!IsOpen || (!Shown(actionButton) && !Shown(actionButton2)) || e?.parent == null || !list.contentContainer.Contains(e)) return;
-            // CLAUDE.md "Row actions": mounted rows use stacked arrows left of a full-height Demount; cargo keeps amount/Mount.
+            // CLAUDE.md "Row actions": full-height actions; stacked slot arrows or a separate amount on the right.
             bool mounted = selected.kind == RowKind.Slot && selected.equipment >= 0, hold = selected.kind == RowKind.CargoItem;
             if (mounted || hold)
             {
                 rowActions.AddToClassList("row-actions--inline");
-                rowActions.EnableInClassList("row-actions--equipment", mounted);
+                rowActions.AddToClassList("row-actions--equipment");
                 rowActions.RemoveFromClassList("row-actions--mounted");
                 actionButton2?.AddToClassList("detail-action--hidden");   // MOVE: the arrows (X still moves it to the next slot)
                 if (hold)
                 {
                     rowQty.text = $"{hangar.CargoOf(selected.item)}t";
-                    rowActions.Insert(0, rowQty);
+                    rowActions.Add(rowQty);
                 }
                 else if (hangar.NextSlot(selected.equipment) >= 0) rowActions.Insert(0, rowMove);
                 e.Add(rowActions);

@@ -105,9 +105,11 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   `PlaceRowActions` after every `ShowDetails`; `.row-actions`, `.detail-action--row`; the Original style's `og_action`
   bars at the list's width); they sat under the item's description in the details panel until 2026-11-05. A ship's
   Buy / Use / Sell stay under its turning view. Since 2026-11-09 (the user's sketch) a mounted item's and a hold item's
-  sit inside the row at its right end (`.row-actions--inline`). Mounted equipment now stacks the narrow Up / Down
-  arrows on the left of a full-height Demount button (`.row-actions--equipment`, #305); the hold keeps its amount
-  over Mount (the row's own amount hidden, `.list-row--actions`). A blueprint's full-height Edit reserves its width
+  sit inside the row at its right end (`.row-actions--inline`). Mounted equipment now stacks Up / Down arrows
+  on the left of a full-height Demount button (`.row-actions--equipment`, #305). Each arrow retains the previous
+  half-area width (137 units of the 280-unit action area, with a 6-unit gap). Cargo has a full-height Mount with
+  the amount in a separate column to its right (the row's own amount hidden, `.list-row--actions`).
+  A blueprint's full-height Edit reserves its width
   in the row flow (`.row-actions--blueprint`), so it cannot overlap the name or progress bar. Both UI styles keep
   even vertical insets. Shift + primary click uses the same Mount / Demount action and validation as the existing
   buttons and double click: built-in items, occupied slots, passengers and swaps retain their rules. Secondary

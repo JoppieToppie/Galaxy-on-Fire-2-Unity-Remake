@@ -762,8 +762,7 @@
     -unity-text-align: middle-center;
 }
 
-/* Modified (a player's sketch 2026-11-09): a mounted item's DEMOUNT over its slot arrows (up / down), or a hold item's
-   amount over MOUNT, inside the selected row at its right end (HangarWindow.PlaceRowActions); the row's own amount hides. */
+/* Selected equipment actions reserve the row's right-hand area (CLAUDE.md "Row actions"). */
 .row-actions--inline {
     flex-direction: column;
     flex-shrink: 0;
@@ -813,7 +812,7 @@
 .row-actions--equipment .row-move {
     flex-direction: column;
     flex-shrink: 0;
-    width: 44px;
+    width: 137px;   /* (280 - 6) / 2: each arrow keeps its previous horizontal width. */
     margin: 0 6px 0 0;
 }
 .row-actions--equipment .row-move-button { height: auto; min-height: 0; }
@@ -823,9 +822,10 @@
 }
 
 .row-actions-qty {
-    width: auto;
-    align-self: flex-end;
-    margin: 0 0 4px 0;
+    min-width: 40px;
+    flex-shrink: 0;
+    align-self: center;
+    margin: 0 0 0 12px;
     -unity-text-align: middle-right;
 }
 

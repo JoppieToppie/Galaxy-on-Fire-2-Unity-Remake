@@ -52,10 +52,18 @@ namespace GoF2Remake.Tests
             Assert.Greater(action.worldBound.height, up.worldBound.height * 1.8f, "Demount spans the two arrow rows");
             Assert.LessOrEqual(up.worldBound.xMax, action.worldBound.xMin + 1f);
             Assert.LessOrEqual(up.worldBound.yMax, down.worldBound.yMin + 1f);
+            Assert.AreEqual(action.worldBound.width, up.worldBound.width, 2f,
+                "each stacked arrow retains the old half-area width, matching Demount");
             Click(up, true);
             Assert.AreEqual(2, Session.Equipment.Count, "an embedded arrow must not also demount the row");
             var cargo = Get<VisualElement>(Row(window, "CargoItem", 55), "element");
             Click(cargo, false);
+            yield return Run(0.2f);
+            var amount = Get<VisualElement>(window, "rowQty");
+            Assert.Greater(action.worldBound.height, cargo.worldBound.height * 0.75f,
+                "Mount fills the row with only the style-specific vertical insets");
+            Assert.LessOrEqual(action.worldBound.xMax, amount.worldBound.xMin - 1f,
+                "cargo amount has its own column to the right of Mount");
             Assert.AreEqual(2, Session.Equipment.Count, "one ordinary click selects only");
             Click(cargo, true, 1);
             Assert.AreEqual(2, Session.Equipment.Count, "Shift-right-click does not mount");
