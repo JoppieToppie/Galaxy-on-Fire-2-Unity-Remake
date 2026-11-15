@@ -89,6 +89,7 @@ namespace GoF2Remake.Flight
         // The Most Wanted criminal (KIPlayer+0x3e / +0x44) and its escort (wingmen_wanted.md 2.6).
         public int wantedIndex = -1;
         public bool noDevices;         // remake: a boss's shadow clone: none of its hull's traffic devices (NpcDevices)
+        public bool noFighterTurret;   // remake: no Level::createFighterTurrets turret on ship 45 / 51 (the Challenge's Rhinos)
         public int wantedEscortOf = -1;
         public int gunItem = -1;       // Level::assignGuns: the wanted's own weapon ...
         public float gunFactor = 1f;   // ... at x4
@@ -120,6 +121,14 @@ namespace GoF2Remake.Flight
         public SpawnSpec escortLeader;     // ... a freighter's escort: follows it (NpcOrder Follow, Traffic.Create) ...
         public Vector3 escortOffset;       // ... at this offset (game units: right, up, forward)
         public const int CapitalBattleship = 1, CapitalCarrier = 2, CapitalVossk = 3, CapitalMod = 4;   // CapitalMod: a mod's type
+        // Remake, experimental (World.OrbitScale, Options > Gameplay "Station scale"):
+        /// <summary>A structure of station size (NpcShip.IsStructure also knows the station / platform / plasma array objects
+        /// by their model): it grows with the stations, its boxes, hit radius and docking points with it.</summary>
+        public bool structure;
+        /// <summary>Set on a host's part (an outpost's or a freighter's turret; a capital ship's parts go by capitalHost): its
+        /// position is the host's plus an offset (position - placedOn.position), so in a scaled orbit it lands at the host's
+        /// spot plus that offset (grown with a structure host), still on the hull.</summary>
+        public SpawnSpec placedOn;
     }
 
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]

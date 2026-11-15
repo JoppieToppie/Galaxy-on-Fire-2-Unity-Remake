@@ -198,7 +198,9 @@ namespace GoF2Remake.World
         /// <summary>The station is there (a level script may hide it: 78's Valkyrie jumping away); nothing docks at a hidden one.</summary>
         bool StationShown => Station == null || Station.activeInHierarchy;
         bool InDockRange => Es2 != null ? Es2.InZone(Player.transform.position)   // EVERSPACE 2: the dock's Interact box
-                                         : Player.transform.position.sqrMagnitude < StationDockRange * M * StationDockRange * M;
+                                         : Player.transform.position.sqrMagnitude < DockMeters * DockMeters;
+        /// <summary>The dock range in metres in the scaled orbit (OrbitScale.Radius).</summary>
+        float DockMeters => Layout.PlaceRadius(StationDockRange) * M;
         /// <summary>Remake mods: a mobile station whose dock range the player is in (having left it once since the level began).</summary>
         MobileStation MobileInRange
         {
@@ -366,6 +368,7 @@ namespace GoF2Remake.World
             if ((Session.ArrivedByTravel || Session.ArrivedBySystemJump) && station != Session.VoidOrbit && Session.PreviousStationIndex != Session.VoidOrbit)
                 WantedBoard.Move(db, station, Session.ProgrammedStation);
             Layout = OrbitLayout.Build(db, station);
+            OrbitScale.Use(Layout);   // Remake, experimental: the station scale's map of this orbit (Options > Gameplay)
             if (warpArrival && Layout.alienOrbit && Session.WarpArrivalPoint is Vector3 shown) Layout.hiddenJumpgate = shown;   // where the approach was
             Session.WarpArrivalPoint = null;
             if (interstellar) InterstellarSpace.Clear(Layout);

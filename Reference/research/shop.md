@@ -162,10 +162,10 @@ iPadLarge: 1300×800 px centred (`Layout::setWindowDimensions`); left half 3D sh
 | 2 | 320 Type | text 221+value (category) |
 | 3 | 133 Tech level | |
 | 9 / 10 | 146 Damage / 138 EMP damage | |
-| 11 | 149 Loading speed | ms; for primaries, turrets and sort 39 an extra row **188 "Damage per second"** = `dmg (or EMP) / attr11 · 1000`, one decimal |
+| 11 | 149 Loading speed | ms; for primaries, turrets and sort 39 an extra row **188 "Damage per second"** = `dmg (or EMP) / attr11 · 1000` as `int . first two digits of (int)(fraction · 100)` (not zero-padded: 12.05 → "12.5"; 0x159dcc) |
 | 12 | 151 Range | m, = `(int)(attr12/3600 · attr13·250)` floored to 100 (quirk: +50 when the remainder is exactly 50); mines (sort 11): label 157 Effect, `attr12/1000` "s" |
 | 13 | 156 Speed | `attr13 · 250` km/h |
-| 14 | 139 Magnitude | float, m |
+| 14 | 139 Magnitude | m, `(int)(value · 0.5f)` (0x159f4e) |
 | 15, 16, 30, 31, 57, 58 | 158 Steerable, 153 Automatic, 142, 143, 162, 159 | 134 Yes / 135 No |
 | 23 | 153 Automatic | 0 → 135 No, 1 → 154 Front, else 155 Omni |
 | 17, 18, 20 | 164 Handling, 148 Capacity, 165 Armor | |
@@ -178,7 +178,8 @@ iPadLarge: 1300×800 px centred (`Layout::setWindowDimensions`); left half 3D sh
 | 35, 41, 42 | 157 Effect | ms |
 | 38 | 150 Energy consumption | blank for item 85 in hardcore |
 | 39, 40 | 147 Fire rate / 146 Damage | "+N%" |
-| 44, 47, 51, 53 | 151 Range | m (51/53 float) |
+| 44, 47 | 151 Range | m |
+| 51, 53 | 151 Range | m, `(int)(value * 0.1f)` (DAT_00159818 = 0.1 at 0x159fa0; the decompile drops the multiply) |
 | 49 | 156 Speed | `v·50` km/h |
 | 50 | 139 Magnitude | % float |
 | 52 | 160 Gamma shielding | % |

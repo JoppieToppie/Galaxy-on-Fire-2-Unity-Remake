@@ -487,6 +487,85 @@ namespace GoF2Remake.Tests
             CollectionAssert.AreEqual(data, File.ReadAllBytes(install.StagedPath("a.bin")));
         }
 
+        /// <summary>A macOS app bundle: Contents/MacOS/GoF2Remake, Contents/Frameworks/UnityPlayer.dylib,
+        /// Contents/Resources/Data/globalgamemanagers carrying 'version', and 'files' (paths inside the bundle).</summary>
+        static void WriteMacApp(string app, string version, Dictionary<string, byte[]> files)
+        {
+            if (Directory.Exists(app)) Directory.Delete(app, true);
+            var all = new Dictionary<string, byte[]>(files)
+            {
+                ["Contents/MacOS/GoF2Remake"] = RandomBytes(1000, 21),
+                ["Contents/Frameworks/UnityPlayer.dylib"] = RandomBytes(2000, 22),
+                ["Contents/Info.plist"] = System.Text.Encoding.ASCII.GetBytes("<plist/>"),
+            };
+            var ggm = new List<byte>(RandomBytes(200, 12)) { 0, 0 };
+            ggm.AddRange(System.Text.Encoding.ASCII.GetBytes(version));
+            ggm.AddRange(new byte[] { 0, 7 });
+            all["Contents/Resources/Data/globalgamemanagers"] = ggm.ToArray();
+            foreach (var kv in all)
+            {
+                string p = Path.Combine(app, kv.Key);
+                Directory.CreateDirectory(Path.GetDirectoryName(p));
+                File.WriteAllBytes(p, kv.Value);
+            }
+        }
+
+        [Test]
+        public void AMacAppIsPatchedInsideItsBundle()
+        {
+            // The release side: the .app is the build, its paths start at Contents/, the players and libraries are executable.
+            var data = RandomBytes(2_500_000, 23);
+            string firstApp = Path.Combine(Sandbox, "Release1", "GoF2Remake.app");
+            WriteMacApp(firstApp, "2026.11.02.0755", new Dictionary<string, byte[]> { ["Contents/Resources/Data/data.resS"] = data });
+            var b = PatchPublish.Inspect(firstApp);
+            Assert.AreEqual("macOS", b.Platform);
+            Assert.AreEqual("Contents/MacOS/GoF2Remake", b.Exe);
+            Assert.AreEqual("2026.11.02.0755", b.Version);
+            var first = PatchPublish.Run(b, Store, Out, packBase: "https://example.invalid/releases/download/");
+            Assert.AreEqual(Path.Combine(Out, "GoF2Remake-macOS-2026.11.02.patch.json"), first.ManifestPath);
+            Assert.IsNull(first.Manifest.Problem("macOS"));
+            var exec = first.Manifest.files.Where(f => f.exec).Select(f => f.path).ToList();
+            CollectionAssert.AreEquivalent(new[] { "Contents/Frameworks/UnityPlayer.dylib", "Contents/MacOS/GoF2Remake" }, exec);
+            Assert.AreEqual(PatchChunker.SmallBits, first.Manifest.files.First(f => f.path.EndsWith("globalgamemanagers")).Bits);
+            Assert.IsNull(PatchPublish.Inspect(Path.Combine(Sandbox, "Release1")), "the folder around it is no build");
+
+            var grown = data.Concat(RandomBytes(50_000, 24)).ToArray();
+            string secondApp = Path.Combine(Sandbox, "Release2", "GoF2Remake.app");
+            WriteMacApp(secondApp, "2026.11.05.1200", new Dictionary<string, byte[]> { ["Contents/Resources/Data/data.resS"] = grown });
+            var second = PatchPublish.Run(PatchPublish.Inspect(secondApp), Store, Out, packBase: "https://example.invalid/releases/download/");
+
+            // The game: the installed (first) bundle, the work folder in the app's data, never inside the bundle.
+            string updateDir = Path.Combine(Sandbox, "AppData", PatchInstall.FolderName);
+            var install = new PatchInstall(firstApp, second.Manifest, updateDir);
+            install.Scan(CancellationToken.None);
+            CollectionAssert.AreEquivalent(new[] { "Contents/Resources/Data/data.resS", "Contents/Resources/Data/globalgamemanagers" },
+                install.Changed.Select(f => f.path));
+            DownloadAll(install);
+            install.Assemble(CancellationToken.None);
+            CollectionAssert.AreEqual(grown, File.ReadAllBytes(install.StagedPath("Contents/Resources/Data/data.resS")));
+            Assert.IsFalse(Directory.Exists(Path.Combine(firstApp, PatchInstall.FolderName)), "nothing in the bundle until applied");
+
+            string scriptPath = install.WriteApplyScript(false, 4242, b.Exe, mac: true);
+            Assert.AreEqual(Path.Combine(updateDir, "apply.sh"), scriptPath);
+            string sh = File.ReadAllText(scriptPath);
+            StringAssert.Contains("APP=" + PatchInstall.ShellQuote(Path.GetFullPath(firstApp)) + "\n", sh);
+            StringAssert.Contains("while kill -0 4242 ", sh);
+            StringAssert.Contains("move \"files/Contents/Resources/Data/data.resS\" \"$APP/Contents/Resources/Data/data.resS\"\n", sh);
+            StringAssert.Contains("chmod +x \"$APP/Contents/MacOS/GoF2Remake\"", sh);
+            int moved = sh.IndexOf("move \"files/", StringComparison.Ordinal), signed = sh.IndexOf("codesign --force --deep --sign - \"$APP\"", StringComparison.Ordinal);
+            Assert.Greater(signed, moved, "signed again after the new files are in");
+            StringAssert.Contains("xattr -dr com.apple.quarantine \"$APP\"", sh);
+            StringAssert.Contains("[ \"$1\" = restart ] && open \"$APP\"\n", sh);
+            Assert.IsFalse(sh.Contains("../"), "every path through $APP: the script isn't in the bundle");
+        }
+
+        [Test]
+        public void ShellQuotingKeepsAPathOneWord()
+        {
+            Assert.AreEqual("'/Applications/GoF2Remake.app'", PatchInstall.ShellQuote("/Applications/GoF2Remake.app"));
+            Assert.AreEqual("'/Users/o'\\''neil/Games/Galaxy on Fire 2.app'", PatchInstall.ShellQuote("/Users/o'neil/Games/Galaxy on Fire 2.app"));
+        }
+
         [Test]
         public void AnAppliedUpdateCleansUp()
         {

@@ -28,7 +28,7 @@ namespace GoF2Remake.Visuals
         public void Place(Vector3 gamePosition)
         {
             gameYaw = -Mathf.PI / 4f;
-            transform.position = GoF2Remake.World.OrbitLayout.ToUnity(gamePosition);
+            transform.position = GoF2Remake.World.OrbitScale.ToUnity(gamePosition);   // in the scaled orbit (OrbitScale)
             // VR (no turning): facing the station at the orbit's origin from the start.
             if (GoF2Remake.Data.VrFlags.Enabled && transform.position.sqrMagnitude > 1f)
             {

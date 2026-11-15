@@ -41,7 +41,9 @@ namespace GoF2Remake.World
 
         static Vector3 ToUnity(Vector3 game) => new Vector3(game.x, game.y, -game.z) * M;
 
-        /// <summary>Look-at mode from a game-space position at a target (or a fixed point when 'follow' is null).</summary>
+        /// <summary>Look-at mode from a game-space position at a target (or a fixed point when 'follow' is null). OrbitScale: the
+        /// plain conversion (for a spot built from a ship's position by the plain ToGame plus an offset); an absolute orbit spot
+        /// goes through LookAtUnity(OrbitScale.ToUnity(p)).</summary>
         public void LookAt(Vector3 gamePosition, Transform follow, Vector3 unityPoint = default) => LookAtUnity(ToUnity(gamePosition), follow, unityPoint);
 
         public void LookAtUnity(Vector3 unityPosition, Transform follow, Vector3 unityPoint = default)

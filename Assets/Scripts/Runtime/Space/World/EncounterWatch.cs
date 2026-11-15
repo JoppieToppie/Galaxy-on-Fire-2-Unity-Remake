@@ -54,7 +54,7 @@ namespace GoF2Remake.World
             if (ships.Count > 0)
             {
                 var c = ships[0] != null ? ships[0].transform.position : level.Player.transform.position;
-                if (centreGame != default) c = new Vector3(centreGame.x, centreGame.y, -centreGame.z) * M;
+                if (centreGame != default) c = OrbitScale.ToUnity(centreGame);   // (OrbitScale: the original's coordinates, mapped)
                 if ((level.Player.transform.position - c).sqrMagnitude > LeaveM * LeaveM) { Destroy(gameObject); return; }
             }
             if (AnyLeft(ships)) return;
@@ -63,7 +63,7 @@ namespace GoF2Remake.World
                 wavesLeft--;
                 ships.Clear();
                 for (int i = 0; i < waveSize; i++)
-                    ships.Add(CruiseEncounterSpawner.Raider(level.Traffic, centreGame + new Vector3(Random.Range(-6000f, 6000f), Random.Range(-3000f, 3000f), Random.Range(-6000f, 6000f))));
+                    ships.Add(CruiseEncounterSpawner.Raider(level.Traffic, CruiseEncounterSpawner.Near(centreGame, new Vector3(Random.Range(-6000f, 6000f), Random.Range(-3000f, 3000f), Random.Range(-6000f, 6000f)))));
                 level.Traffic.ConnectPlayers();
                 level.Navigation?.Post(Localization.Extra("encounterWave", "More hostiles inbound"));
                 return;
@@ -79,7 +79,7 @@ namespace GoF2Remake.World
                         var have = cargo.Find(x => x.item == s.item);
                         if (have != null) have.amount += s.amount; else cargo.Add(new ItemStack(s.item, s.amount));
                     }
-                if (cargo.Count > 0) Crate.Spawn(new Vector3(centreGame.x, centreGame.y, -centreGame.z) * M, cargo, Standing.Pirate, Crate.LookJunk);
+                if (cargo.Count > 0) Crate.Spawn(OrbitScale.ToUnity(centreGame), cargo, Standing.Pirate, Crate.LookJunk);
             }
             if (pay > 0)
             {

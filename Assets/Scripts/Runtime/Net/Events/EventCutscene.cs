@@ -259,7 +259,7 @@ namespace GoF2Remake.Events
             {
                 case PlaceKind.Point:
                 case PlaceKind.Station:
-                    at = new Vector3(p.offset.x, p.offset.y, -p.offset.z) * M;
+                    at = OrbitScale.ToUnity(p.offset);   // OrbitScale: an orbit spot (the station at the origin)
                     return true;
                 case PlaceKind.Player:
                 {
@@ -310,7 +310,7 @@ namespace GoF2Remake.Events
             {
                 case PlaceKind.Point:
                 case PlaceKind.Station:
-                    at = new Vector3(p.offset.x, p.offset.y, -p.offset.z) * M;
+                    at = OrbitScale.ToUnity(p.offset);   // OrbitScale: an orbit spot (the station at the origin)
                     return true;
                 case PlaceKind.Player:
                 {

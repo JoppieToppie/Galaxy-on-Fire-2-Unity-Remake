@@ -206,6 +206,9 @@ verified on a Mac or an iPhone.
   Remake / Cosmetic / Original (No = Original, so Back / B / Esc keep the default; the focus starts there).
   `Settings.WelcomeShown` marks it seen. An install played before (`Settings.FreshInstall` false) gets one notice that adds
   where the new row is and that its options are kept.
+- **Station scale** (remake, experimental, 2026-11-15, Gameplay, below "Skip launch and arrival camera";
+  `Settings.StationScale`, Original / 1.5x .. 6x): the orbit's stations, gates and other structures grown, the orbit
+  around them with them, single player only, from the next orbit on; see "Station scale" in space-scene.md.
 - **Graphics preset** (remake, 2026-10-22, the Graphics tab's first row; `Settings.PresetKeys` / `ApplyPreset`,
   `OptionsCatalog.CurrentPreset`): Low / Medium / High (the original's texts 507-509) and Ultra (2026-10-23) set render
   scale, upscaler, MSAA, post-process AA, bloom, hangar shadows, hangar depth of field, lens flare, other ships' engines,

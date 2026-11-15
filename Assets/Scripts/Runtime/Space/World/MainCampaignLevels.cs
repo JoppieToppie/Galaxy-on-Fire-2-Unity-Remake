@@ -95,9 +95,14 @@ namespace GoF2Remake.World
         bool Triggered(int line) => c.Radio != null && c.Radio.Triggered(line);
 
         static Vector3 ToUnity(Vector3 game) => new Vector3(game.x, game.y, -game.z) * M;
-        static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / M;
         static Vector3 Dir(Vector3 game) => new Vector3(game.x, game.y, -game.z).normalized;
-        Vector3 PlayerGame => ToGame(Player.position);
+        // OrbitScale (the station scale): an absolute station-anchored spot to Unity, mapped; ToUnity stays for offsets.
+        static Vector3 At(Vector3 game) => OrbitScale.ToUnity(game);
+        /// <summary>OrbitScale: a spot on the station's own hull (the Void mother ship's arm): it grows with the hull.</summary>
+        static Vector3 OnStation(Vector3 game) => ToUnity(game * OrbitScale.Factor);
+        /// <summary>OrbitScale: a spot 'offset' (game units, unmapped) off the player, as the original's coordinates a spawn or
+        /// the wormhole takes (their own mapping brings it back to that spot beside the player).</summary>
+        Vector3 NearPlayer(Vector3 offset) => OrbitScale.ToGame(Player.position + ToUnity(offset));
         Vector3 PlayerDirGame => new Vector3(Player.forward.x, Player.forward.y, -Player.forward.z);
         static int R(int n) => Random.Range(0, n);
 
@@ -140,7 +145,7 @@ namespace GoF2Remake.World
             var route = new Route(false);
             route.points.Add(w);
             var start = new Vector3(40000, 0, 120000);
-            level.MovePlayer(ToUnity(start), Quaternion.LookRotation(Dir(w - start), Vector3.up));
+            level.MovePlayer(At(start), Quaternion.LookRotation((At(w) - At(start)).normalized, Vector3.up));   // OrbitScale: mapped
             for (int i = 0; i < 3; i++) c.SpawnShip(Standing.Pirate, 0, w, true, s => s.route = route);   // pirates in a Betty
             for (int i = 0; i < 2; i++) c.SpawnShip(0, 5, w, true, s => s.route = route);                // Terran Inflicts
             Freighter(0, 14, w + new Vector3(7000, 0, 0), false);                                        // battleships
@@ -159,9 +164,8 @@ namespace GoF2Remake.World
             for (int i = 0; i < 4; i++)
                 c.SpawnShip(Standing.Void, 8, w + new Vector3(R(20000) - 10000, R(20000) - 10000, 50000), false, s => s.hitpoints = NpcTables.Hull(0, 8) * 10);
             // [7]-[9] Brent's Inflicts beside the player, always-friend, 600 hull.
-            var p = PlayerGame;
-            for (int i = 0; i < 3; i++)
-                c.SpawnShip(0, 5, p + new Vector3(R(4000) - 2000, R(3400) - 1700, 2000 + R(4000) - 2000), false, s => { s.alwaysFriend = true; s.hitpoints = 600; });
+            for (int i = 0; i < 3; i++)   // OrbitScale: the offsets from the player unmapped
+                c.SpawnShip(0, 5, NearPlayer(new Vector3(R(4000) - 2000, R(3400) - 1700, 2000 + R(4000) - 2000)), false, s => { s.alwaysFriend = true; s.hitpoints = 600; });
             if (Hole != null) { Hole.SetPosition(w + new Vector3(0, 0, 40000)); Hole.ResetTimer(false); Hole.SetVisible(true); }
             PlayerExemptRace = Standing.Void;
             // Radar::draw: a fight at campaign 0x10 plays 136 Space_Combat_Void (Traffic.UpdateMusic), not the race's tracks.
@@ -208,8 +212,8 @@ namespace GoF2Remake.World
         void Build26()
         {
             // The pursuers out of the wormhole behind the player (player - direction * k +- 700).
-            var p = PlayerGame - PlayerDirGame * 10000f;
-            for (int i = 0; i < 2; i++) c.SpawnShip(Standing.Void, 8, p + new Vector3(R(1400) - 700, R(1400) - 700, R(1400) - 700), false);
+            for (int i = 0; i < 2; i++)   // OrbitScale: the offsets from the player unmapped
+                c.SpawnShip(Standing.Void, 8, NearPlayer(-PlayerDirGame * 10000f + new Vector3(R(1400) - 700, R(1400) - 700, R(1400) - 700)), false);
             c.WinObjective = () => c.DeadRange(0, 2);   // Objective 7 (2)
         }
 
@@ -231,7 +235,7 @@ namespace GoF2Remake.World
             route.points.Add(new Vector3(-130000, -50000, -150000));
             c.SetPlayerRoute(route);
             // [0] Errkt Uggut: Vossk H'Soc beside the player, speed 3, unkillable, on the player's route.
-            c.SpawnShip(1, 9, PlayerGame + new Vector3(R(1400) - 700, R(1400) - 700, 1000), false,
+            c.SpawnShip(1, 9, NearPlayer(new Vector3(R(1400) - 700, R(1400) - 700, 1000)), false,   // OrbitScale: the offset unmapped
                         s => { s.speed = 3f; s.hitpoints = 9999999; s.route = route.Clone(); s.alwaysFriend = true; s.nameText = 1604; s.noLoot = true; });
             // [1]-[7] pirates asleep at random waypoints.
             for (int i = 0; i < 7; i++)
@@ -258,7 +262,7 @@ namespace GoF2Remake.World
             friendRoute.points.Add(e);
             if (Hole != null) { Hole.SetPosition(e); Hole.ResetTimer(false); Hole.SetVisible(true); }
             if (level.StreamOutArrival)
-                level.MovePlayer(ToUnity(new Vector3(-105000, 0, 80000)), OrbitLayout.RotationToUnity(new Vector3(0f, Mathf.PI / 2f, 0f)));
+                level.MovePlayer(At(new Vector3(-105000, 0, 80000)), OrbitLayout.RotationToUnity(new Vector3(0f, Mathf.PI / 2f, 0f)));   // OrbitScale: mapped
             int hull = 5 * Session.Rank + 1800;
             // [0] Errkt's freighter (the Vossk freighter), parked far away, hidden and asleep until his call. Created as race 0
             // (createShip(0, 1, 0xd), 0x82270) and turned Vossk only when it appears (event 0): Level::connectPlayers builds the
@@ -280,7 +284,7 @@ namespace GoF2Remake.World
 
         void Build41()
         {
-            level.MovePlayer(ToUnity(new Vector3(3000, 2000, -320000)), OrbitLayout.RotationToUnity(Vector3.zero));
+            level.MovePlayer(At(new Vector3(3000, 2000, -320000)), OrbitLayout.RotationToUnity(Vector3.zero));   // OrbitScale: mapped
             int max = 5 * Session.Rank + 1800;
             int hull = Session.LastFreighterHull > 0 ? Session.LastFreighterHull : (int)(0.7f * max);
             var f = c.SpawnShip(1, 13, new Vector3(0, 0, -300000), false,
@@ -304,7 +308,7 @@ namespace GoF2Remake.World
         {
             // 8 km (160 000 units) from the mother ship, on 41's line to it, facing it (a player's request).
             var start = new Vector3(3000, 2000, -320000).normalized * 160000f;
-            level.MovePlayer(ToUnity(start), Quaternion.LookRotation(Dir(-start), Vector3.up));
+            level.MovePlayer(At(start), Quaternion.LookRotation(Dir(-start), Vector3.up));   // OrbitScale: mapped (radial: the same facing)
             // The arrival's wormhole (10 000 units behind the player, PlaceArrivalWormhole) is held open at 42 in the Void
             // (Wormhole: the mission lock) and its pull dragged the player in, where nothing rides out before the script's
             // state 6 (a player's report): hidden until state 5 opens it at the mother ship.
@@ -316,7 +320,8 @@ namespace GoF2Remake.World
                                 s => { s.freighter = true; s.group = NpcGroup.Special; s.alwaysFriend = true; s.nameText = 1604; s.hitpoints = max; s.noLoot = true; });
             if (f != null)
             {
-                f.transform.SetPositionAndRotation(ToUnity(new Vector3(2006, -31500, -86720)), OrbitLayout.RotationToUnity(new Vector3(-0.4f, 0f, 1.8f)));
+                // OrbitScale: on the grown mother ship's arm.
+                f.transform.SetPositionAndRotation(OnStation(new Vector3(2006, -31500, -86720)), OrbitLayout.RotationToUnity(new Vector3(-0.4f, 0f, 1.8f)));
                 f.SetMoving(false);
                 f.SetEngineSound(false);
                 f.SetExhaust(false);
@@ -516,14 +521,16 @@ namespace GoF2Remake.World
                         EnterCutscene(false, false);
                         cam.LookAtUnity(Hole.transform.position + ToUnity(new Vector3(-9000, -4000, -30000)), Hole.transform);
                         cam.SetDolly(new Vector3(0.5f, 0f, 0.2f));
-                        var w = Hole.GamePosition;
+                        // OrbitScale: the spots are offsets from the wormhole (unmapped); the route point in the original's
+                        // coordinates (the route maps it back there).
+                        var w = Hole.transform.position;
                         var flee = new Route(false);
-                        flee.points.Add(w + new Vector3(0, 0, 30000));
+                        flee.points.Add(OrbitScale.ToGame(w + ToUnity(new Vector3(0, 0, 30000))));
                         foreach (var s in c.Ships)
                         {
                             if (s == null || s.Race != Standing.Void || !s.Target.Alive) continue;
-                            var at = w + new Vector3(R(4000) - 2000, R(4000) - 2000, -(13000 + R(4000)));
-                            s.Place(ToUnity(at), Dir(w - at));
+                            var off = new Vector3(R(4000) - 2000, R(4000) - 2000, -(13000 + R(4000)));
+                            s.Place(w + ToUnity(off), Dir(-off));
                             s.SetOnlyEnemy(null);
                             s.SetRoute(flee);
                         }
@@ -572,9 +579,10 @@ namespace GoF2Remake.World
                             // meanwhile (the original's distance k is lost); the remake keeps it clear of the station by moving
                             // it above the ship at the same distance instead (adding 30000 upward left it 42000 away from a ship
                             // parked near the station: never pulled, and gone after a minute).
-                            var ahead = PlayerGame + PlayerDirGame * 20000f;
+                            // OrbitScale: 20000 off the player unmapped; the station test in the original's coordinates.
+                            var ahead = NearPlayer(PlayerDirGame * 20000f);
                             if (level.Station != null && ahead.magnitude < 30000f)
-                                ahead = PlayerGame + new Vector3(Player.up.x, Player.up.y, -Player.up.z) * 20000f;
+                                ahead = NearPlayer(new Vector3(Player.up.x, Player.up.y, -Player.up.z) * 20000f);
                             Hole.SetPosition(ahead);
                         }
                         foreach (var s in c.Ships) s?.SetOnlyEnemy(null);
@@ -644,13 +652,13 @@ namespace GoF2Remake.World
         {
             var f = S(0);
             if (f == null) return;
-            float z = -f.transform.position.z / M;
+            float z = OrbitScale.ToGame(f.transform.position).z;   // OrbitScale: the original's z (as the thresholds are)
             switch (Step)
             {
                 case 0:
                     if (Triggered(3))
                     {
-                        f.Place(ToUnity(friendRoute.points[0]), Dir(new Vector3(0, 0, 1)));
+                        f.Place(At(friendRoute.points[0]), Dir(new Vector3(0, 0, 1)));   // OrbitScale: mapped
                         f.SetRace(1);
                         f.SetVisible(true);
                         f.Wake();
@@ -670,20 +678,22 @@ namespace GoF2Remake.World
                     if (z >= 90000f && Hole != null)
                     {
                         // The reserve Void fighters come out of the wormhole.
-                        var w = Hole.GamePosition;
+                        // OrbitScale: offsets from the wormhole, unmapped.
+                        var w = Hole.transform.position;
                         for (int i = 9; i <= 12; i++)
                         {
                             var s = S(i);
                             if (s == null) continue;
-                            var at = w + new Vector3(R(20000) - 10000, R(20000) - 10000, R(20000) - 10000);
-                            s.Place(ToUnity(at), Dir(PlayerGame - at));
+                            var at = w + ToUnity(new Vector3(R(20000) - 10000, R(20000) - 10000, R(20000) - 10000));
+                            s.Place(at, (Player.position - at).normalized);
                             s.Wake();
                         }
                         Step = 3;
                     }
                     break;
                 case 3:
-                    if (Hole != null && z >= Hole.GamePosition.z) { holeZ = Hole.GamePosition.z; Step = 4; }
+                    // OrbitScale: the hole's z in the original's coordinates, as z is.
+                    if (Hole != null && z >= OrbitScale.ToGame(Hole.transform.position).z) { holeZ = OrbitScale.ToGame(Hole.transform.position).z; Step = 4; }
                     break;
                 case 4:
                 {
@@ -693,11 +703,11 @@ namespace GoF2Remake.World
                     float past = Mathf.Max(1f, z - holeZ);
                     float extra = past * (Mathf.Pow(2f, dtMs / OriginalFrame.Ms) - 1f);
                     f.transform.position += f.transform.forward * (extra * M);
-                    z = -f.transform.position.z / M;
+                    z = OrbitScale.ToGame(f.transform.position).z;
                     if (z > 500000f)
                     {
                         // Inactive, not dead: radio trigger 0x18 then gives Keith's 2048 (Errkt went through).
-                        f.Place(ToUnity(new Vector3(0, 0, -200000)), Dir(new Vector3(0, 0, 1)));
+                        f.Place(At(new Vector3(0, 0, -200000)), Dir(new Vector3(0, 0, 1)));
                         f.Deactivate();
                         f.SetVisible(false);
                         Step = 5;
@@ -778,7 +788,8 @@ namespace GoF2Remake.World
                     // LevelScript 0x29 step 3 (0x16c676): setPosition(2006, -31500, -86720), then the absolute
                     // setRotation(-0.4, 0, 1.8): on its side on the mother ship's arm (keeping the drift's heading with a
                     // level roll put it in nose first, like a dart); the wreck takes this pose when it dies.
-                    f.transform.SetPositionAndRotation(ToUnity(new Vector3(2006, -31500, -86720)), OrbitLayout.RotationToUnity(new Vector3(-0.4f, 0f, 1.8f)));
+                    // OrbitScale: on the grown mother ship's arm.
+                    f.transform.SetPositionAndRotation(OnStation(new Vector3(2006, -31500, -86720)), OrbitLayout.RotationToUnity(new Vector3(-0.4f, 0f, 1.8f)));
                     f.SetExhaust(false);
                     // The camera at the freighter + (3000, 1000, 2000), world up (useTargetsUpVector(false)).
                     cam.LookAtUnity(f.transform.position + ToUnity(new Vector3(3000, 1000, 2000)), f.transform);
@@ -838,13 +849,14 @@ namespace GoF2Remake.World
                         EnterCutscene(false);
                         SetPlayerVisible(false);
                         var station = level.Station != null ? level.Station.transform.position : Vector3.zero;
-                        var look = station + Player.position.normalized * 5000f * M;
+                        var look = station + Player.position.normalized * (5000f * M * OrbitScale.Factor);   // OrbitScale: off the grown hull's centre
                         cam.LookAtUnity(Player.position, null, look);
                         // Modified: the camera only backs away from the mother ship, straight along its line of sight (a
                         // player's comparison with the original): the dolly along game x carried it sideways round the
                         // point it looks at, so the station seemed to turn before the camera drew off.
                         var away = (Player.position - look).normalized;
-                        explosionDolly = new Vector3(away.x, away.y, -away.z) * 18f;
+                        // OrbitScale: backing away from the grown station and its grown blast at the same rate relative to them.
+                        explosionDolly = new Vector3(away.x, away.y, -away.z) * (18f * OrbitScale.Factor);
                         explosionLook = look;
                         explosionLookDistance = Mathf.Max(1f, (Player.position - look).magnitude);
                         Hole?.FreeMissionLock();
@@ -990,6 +1002,7 @@ namespace GoF2Remake.World
                 var prefab = assets.voidStationExplosion[i];
                 if (prefab == null) continue;
                 explosion[i] = Object.Instantiate(prefab, at, Quaternion.identity);
+                OrbitScale.Structure(explosion[i].transform);   // OrbitScale: the station's own blast, grown with it
                 GunRig.StripForFx(explosion[i]);
                 GunRig.EnableFades(explosion[i]);   // the parts' `extra` fade-out
                 if (i == 1) DrawOnTop(explosion[i]);

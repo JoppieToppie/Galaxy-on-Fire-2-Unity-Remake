@@ -42,11 +42,12 @@ namespace GoF2Remake.Flight
             float sign = Random.Range(0, 2) == 0 ? 1f : -1f;
             var c = new Vector3(sign * (Random.Range(0, 30000) + 80000), Random.Range(0, 3000) - 6000, Random.Range(0, 50000) + 120000);
             int[] loot = { 0, 1, 2, 0x24, 0x16, 0x17 };
-            list.Add(new SpawnSpec
+            var freighter = new SpawnSpec
             {
                 group = NpcGroup.Special, race = race, ship = race == 1 ? 13 : 15, freighter = true, stationary = true, position = c,
                 nameText = 1664, lootItem = loot[Random.Range(0, loot.Length)], lootAmount = 1, convoyRole = SpawnSpec.ConvoyFreighter,
-            });
+            };
+            list.Add(freighter);
             var loop = new Route(true);
             loop.points.Add(c);
             for (int i = 0; i < 5; i++)
@@ -57,7 +58,7 @@ namespace GoF2Remake.Flight
                 {
                     group = NpcGroup.Turret, race = race, ship = -1, position = c + t.pos, rotation = t.rot, scale = 0.3f, hitpoints = 1000,
                     turretAssembly = "v_station_battlestation_turret", noLoot = true, nameText = 1666, stationary = true,
-                    convoyRole = SpawnSpec.ConvoyTurret,
+                    convoyRole = SpawnSpec.ConvoyTurret, placedOn = freighter,   // OrbitScale: on the freighter's hull wherever it lands
                 });
             for (int i = 0; i < local; i++)
                 list.Add(new SpawnSpec { group = NpcGroup.Local, race = race, ship = NpcTables.RandomFighter(race), position = wpLocal + Jitter() });
@@ -166,6 +167,7 @@ namespace GoF2Remake.Flight
             }
             var terran = list[AddCapitalShipAt(db, list, terranKind, c - half, true)];
             var vossk = list[AddCapitalShipAt(db, list, SpawnSpec.CapitalVossk, c + half, true)];
+            vossk.placedOn = terran;   // OrbitScale: the two keep their separation wherever the scaled orbit puts them
             terran.fleetBattle = vossk.fleetBattle = true;
             terran.battleFoe = vossk;
             vossk.battleFoe = terran;
@@ -205,7 +207,11 @@ namespace GoF2Remake.Flight
         {
             if (MenuCamera == null) return false;
             var cam = MenuCamera.Value;
-            var offset = new Vector3(gamePos.x - cam.x, gamePos.y - cam.y, -(gamePos.z - cam.z)) * 0.05f;   // the ship from the camera, Unity metres
+            // The ship from the camera, Unity metres; both where the scaled orbit has them (OrbitScale: the camera's spot is
+            // in the original's coordinates, MenuCamera.Place maps it).
+            var offset = GoF2Remake.World.OrbitScale.Active
+                ? GoF2Remake.World.OrbitScale.ToUnity(gamePos) - GoF2Remake.World.OrbitScale.ToUnity(cam)
+                : new Vector3(gamePos.x - cam.x, gamePos.y - cam.y, -(gamePos.z - cam.z)) * 0.05f;
             foreach (var b in ship)
             {
                 var bh = (b.sphere ? Vector3.one * b.radius : b.half) + Vector3.one * MenuCameraMargin;
@@ -243,13 +249,14 @@ namespace GoF2Remake.Flight
             var table = PirateBases.OutpostPositions[i];
             var assets = CombatAssets.Load();
             var loot = PirateBases.Loot[i];
-            list.Add(new SpawnSpec
+            var outpost = new SpawnSpec
             {
                 group = NpcGroup.Outpost, race = Standing.Pirate, ship = -1, position = table + Jitter() / 2f,   // +-10000
                 fixedObject = "station_pirates", collisionId = 1002, hitRadius = 7500f, hitpoints = KaamoClub.OutpostHull(),
                 wreckPrefab = assets != null ? assets.outpostWreck : null, explosionScale = 8f, stationary = true, asleep = true,
                 nameText = 441, lootItem = loot.item, lootAmount = loot.amount, alwaysEnemy = true,
-            });
+            };
+            list.Add(outpost);
             int guards = (int)((Session.Difficulty - 0.5f) * 5f + 5f);   // 2 / 5 / 7 / 10
             for (int g = 0; g < guards; g++)
             {
@@ -257,6 +264,7 @@ namespace GoF2Remake.Flight
                 list.Add(new SpawnSpec
                 {
                     group = NpcGroup.Guard, race = Standing.Pirate, ship = NpcTables.RandomFighter(Standing.Pirate), asleep = true, guard = true,
+                    placedOn = outpost,   // OrbitScale: parked round the grown outpost, out of its hull
                     position = table + new Vector3(S() * Random.Range(0, 20000) + 10000, S() * Random.Range(0, 20000) + 10000, S() * Random.Range(0, 20000) + 10000),
                 });
             }

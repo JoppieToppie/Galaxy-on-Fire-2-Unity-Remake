@@ -101,7 +101,7 @@ namespace GoF2Remake.World
             return f;
         }
         /// <summary>Junk removal: time left (ms), -1 = no limit or the mission over (#46: the clock stayed on the HUD after it).</summary>
-        public float TimeLeftMs => mission.type == MissionType.JunkRemoval && !done ? Mathf.Max(0f, JunkTimeMs - missionMs) : -1f;
+        public float TimeLeftMs => mission.type == MissionType.JunkRemoval && !done ? Mathf.Max(0f, junkLimitMs - missionMs) : -1f;
         /// <summary>Multiplayer: this game builds and runs the orbit (false = a squadmate's view of theirs).</summary>
         public bool Running { get; private set; }
         /// <summary>Multiplayer: the route for the squadmates ("x,y,z;..." game units) and the mission clock (ms).</summary>
@@ -134,10 +134,15 @@ namespace GoF2Remake.World
         /// <summary>Multiplayer: the site field's first asteroid index (NetOrbit, NetState's destroyed lists).</summary>
         public int SiteIndexBase => site != null ? site.IndexBase : -1;
         float levelMs, missionMs, timeCheckMs;
+        /// <summary>Junk removal's limit: JunkTimeMs, plus (OrbitScale) the flight the scaled orbit adds to the junk's point at
+        /// the base speed (the identity at 1x and in multiplayer).</summary>
+        float junkLimitMs = JunkTimeMs;
         bool briefed, done;
 
-        static Vector3 ToUnity(Vector3 game) => new Vector3(game.x, game.y, -game.z) * M;
-        static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / M;
+        // OrbitScale (Options > Gameplay "Station scale"): absolute orbit positions through the scaled orbit's map both ways
+        // (the mission's points stay the original's; NpcShip maps its spawn points the same way).
+        static Vector3 ToUnity(Vector3 game) => OrbitScale.ToUnity(game);
+        static Vector3 ToGame(Vector3 unity) => OrbitScale.ToGame(unity);
         static Vector3 Jitter() => new Vector3(Random.Range(0, 40000) - 20000, Random.Range(0, 40000) - 20000, Random.Range(0, 40000) - 20000);
         static float Sign() => Random.Range(0, 2) == 0 ? 1f : -1f;
 
@@ -493,7 +498,8 @@ namespace GoF2Remake.World
                     var rocks = level.Asteroids != null ? level.Asteroids.GetComponentsInChildren<Target>() : new Target[0];
                     for (int i = 0; i < mission.amount; i++)
                     {
-                        Vector3 at = rocks.Length > 0 ? ToGame(rocks[Mathf.Min(rocks.Length - 1, i + rocks.Length / 2)].transform.position) + new Vector3(0, 2000, 0)
+                        // (OrbitScale: 2000 above the rock where it is, mapped back to the original's coordinates)
+                        Vector3 at = rocks.Length > 0 ? ToGame(rocks[Mathf.Min(rocks.Length - 1, i + rocks.Length / 2)].transform.position + Vector3.up * (2000f * M))
                                                       : Jitter();
                         var miner = Spawn(systemRace, at, s => { s.alwaysFriend = true; s.stationary = true; s.noLoot = true; }, false);
                         // Player::setHitpoints(max * 3) raises the maximum too (+0x84): the friendly-fire thresholds of
@@ -541,6 +547,7 @@ namespace GoF2Remake.World
                 case MissionType.JunkRemoval:
                 {
                     var wp = new Vector3(Random.Range(0, 40000) - 20000, Random.Range(0, 20000) - 10000, Random.Range(0, 30000) + 40000);
+                    junkLimitMs = JunkTimeMs + (OrbitScale.Radius(wp.magnitude) - wp.magnitude) / NpcTables.BaseSpeed;   // (OrbitScale)
                     int pirates = (int)(df + df);
                     int total = (int)(df * 20f) + pirates + 15;
                     for (int i = 0; i < total - pirates; i++) SpawnJunk(wp + new Vector3(Random.Range(0, 20000) - 10000, Random.Range(0, 20000) - 10000, Random.Range(0, 20000) - 10000));
@@ -624,7 +631,7 @@ namespace GoF2Remake.World
                     // always an odd number (i + 3 for an even i, i + 4 for an odd one).
                     int i4 = (int)(df * 4f);
                     int pirates = (i4 + 3) % 2 == 1 ? i4 + 3 : i4 + 4;
-                    rival = Spawn(Mathf.Clamp(mission.clientRace, 0, 7) > 3 ? 0 : mission.clientRace, ToGame(level.Player.transform.position) + new Vector3(1500, 0, 3000),
+                    rival = Spawn(Mathf.Clamp(mission.clientRace, 0, 7) > 3 ? 0 : mission.clientRace, ToGame(level.Player.transform.position + new Vector3(1500f, 0f, -3000f) * M),   // (beside the player: an offset)
                                   s => { s.alwaysFriend = true; s.hitpoints = 9999999; s.speed = 3f; s.route = route.Clone(); s.name = mission.clientName; s.noLoot = true; }, false);
                     for (int i = 0; i < pirates; i++)
                     {
@@ -753,7 +760,7 @@ namespace GoF2Remake.World
             if (mission.type == MissionType.JunkRemoval && (timeCheckMs += dt) >= 5000f)
             {
                 timeCheckMs = 0f;
-                if (missionMs >= JunkTimeMs && !Won()) { if (dead) Resolve(false); else Fail(); return; }
+                if (missionMs >= junkLimitMs && !Won()) { if (dead) Resolve(false); else Fail(); return; }
             }
             if (levelMs >= 5000f && Won()) { if (dead) Resolve(true); else Succeed(); }
         }

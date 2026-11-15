@@ -171,7 +171,9 @@ namespace GoF2Remake.Events
                     {
                         if (p == null || !p.IsSpawned || !InScope(p)) continue;
                         bool here = p.InSpace && p.Hull > 0f && p.Station == h.station;
-                        float d = here ? (p.Position - h.point).magnitude : float.MaxValue;
+                        // OrbitScale: h.point is the original's spot (unmapped), so the player's position is taken back to
+                        // the original's orbit (the player's own orbit is the current one while here; the identity in a session).
+                        float d = here ? (World.OrbitScale.UnplaceUnity(p.Position) - h.point).magnitude : float.MaxValue;
                         if (d <= h.radius && h.inside.Add(p.OwnerClientId)) StartHandler(h, p.OwnerClientId, p.DisplayName, "");
                         else if (d > h.radius * 1.2f) h.inside.Remove(p.OwnerClientId);
                     }

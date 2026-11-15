@@ -162,7 +162,7 @@ namespace GoF2Remake.Events
         {
             public string trigger;
             public int station = -1, body;
-            public Vector3 point;    // near: the spot (Unity space in its orbit) and the radius in metres
+            public Vector3 point;    // near: the spot (Unity space in its orbit, the original's: OrbitScale unmapped) and the radius in metres
             public float radius;
             public readonly HashSet<ulong> inside = new HashSet<ulong>();
         }

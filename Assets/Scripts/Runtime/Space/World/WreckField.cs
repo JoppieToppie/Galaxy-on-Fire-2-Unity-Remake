@@ -31,7 +31,7 @@ namespace GoF2Remake.World
             for (int i = 0; i < spec.wreckCount; i++)
             {
                 var at = centre + new Vector3(Random.Range(-half, half), Random.Range(-half, half) * 0.3f, Random.Range(-half, half));
-                Crate.Spawn(OrbitLayout.ToUnity(at), Loot(db), race, Crate.LookJunk).keep = true;
+                Crate.Spawn(OrbitLayout.ToUnity(layout.Place(at)), Loot(db), race, Crate.LookJunk).keep = true;   // OrbitScale: where the scaled orbit has it
             }
             SpawnHulks(spec, centre, half, layout.stationIndex);
             return spec.wreckCount;
@@ -56,7 +56,8 @@ namespace GoF2Remake.World
                 var at = centre + new Vector3(R(-half, half), R(-half, half) * 0.3f, R(-half, half));
                 var rot = Quaternion.Euler(R(0f, 360f), R(0f, 360f), R(0f, 360f));
                 float size = spec.wreckSize * OrbitLayout.MetersPerUnit * Modding.ModCrates.ExtentOf(key) / largest * R(0.85f, 1.15f);
-                var go = Modding.ModCrates.InstantiateFitted(key, OrbitLayout.ToUnity(at), rot, size, root.transform);
+                // OrbitScale: where the current orbit's map has it (the hulls are ship wrecks: their size stays)
+                var go = Modding.ModCrates.InstantiateFitted(key, OrbitScale.ToUnity(at), rot, size, root.transform);
                 if (go == null) continue;
                 go.name = "Wreck hull";
                 var b = Modding.ModCrates.LocalBounds(go);

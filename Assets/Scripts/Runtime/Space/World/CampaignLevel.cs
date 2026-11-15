@@ -185,7 +185,8 @@ namespace GoF2Remake.World
                     route.points.Add(new Vector3(10000, 7000, 160000));
                     PlayerRoute = route;
                     for (int i = 0; i < 3; i++) SpawnShip(Standing.Pirate, 2, route.points[1], true, s => { s.asleep = true; });
-                    var gunantPos = ToGame(player.TransformPoint(new Vector3(-700, 50, 6000) * M));
+                    // OrbitScale: the original's coordinates of the spot beside the player (the spawn maps them back there).
+                    var gunantPos = OrbitScale.ToGame(player.TransformPoint(new Vector3(-700, 50, 6000) * M));
                     SpawnShip(3, 30, gunantPos, false, s => { s.alwaysFriend = true; s.hitpoints = 9999999; s.route = route.Clone(); s.nameText = 1599; });
                     win = () => DeadRange(0, 3);   // Objective 0x12 (0, 3)
                     break;
@@ -352,7 +353,7 @@ namespace GoF2Remake.World
         public bool ShipFriendly(int i) => i >= 0 && i < Ships.Count && Ships[i] != null && Ships[i].Target.friendToPlayer;
         public bool ShipEmpDisabled(int i) => i >= 0 && i < Ships.Count && Ships[i] != null && Ships[i].Target.Alive && Ships[i].Hp.empDisabled;
         public bool ShipInactive(int i) => i >= 0 && i < Ships.Count && Ships[i] != null && (Ships[i].Inactive || Ships[i].Gone);
-        public float ShipGameZ(int i) => i >= 0 && i < Ships.Count && Ships[i] != null ? -Ships[i].transform.position.z / M : 0f;
+        public float ShipGameZ(int i) => i >= 0 && i < Ships.Count && Ships[i] != null ? OrbitScale.ToGame(Ships[i].transform.position).z : 0f;   // OrbitScale: the original's z (the radio compares it)
         public int RouteIndex => PlayerRoute != null ? PlayerRoute.index : 0;
         public int CrateCargoCaptured => Session.CratesSalvaged - cratesAtStart;
         public bool StationLocked => level.Navigation != null && level.Navigation.Locked != null && level.Navigation.Locked.kind == Navigation.Kind.Station;

@@ -492,6 +492,12 @@ namespace GoF2Remake.UI
                 () => !Settings.LaunchCamera, v => Settings.LaunchCamera = !v);
             skipLaunch.description = () => X("skipLaunchCameraHelp", "Straight to the chase camera when you launch or arrive. Off: a camera watches your ship fly past, as in the original.");
             list.Add(skipLaunch);
+            // Remake, experimental (the user's request, 2026-11-15; World.OrbitScale): the orbit's structures at 1x..6x, the
+            // orbit grown around them. Single player only; read when an orbit is built.
+            list.Add(Choice("stationScale", OptionPage.Gameplay, () => X("stationScale", "Station scale (experimental)"), false,
+                () => World.OrbitScale.Choices.Select(c => c <= 1f ? X("stationScaleOriginal", "Original") : c.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "×").ToArray(),
+                () => Mathf.Max(0, System.Array.IndexOf(World.OrbitScale.Choices, Settings.StationScale)), i => Settings.StationScale = World.OrbitScale.Choices[i],
+                () => X("stationScaleHelp", "Stations, jumpgates and other structures are bigger, and the orbit around them grows with them. Shown from the next orbit on. Single player only.")));
             list.Add(Toggle("hangarFlights", OptionPage.Gameplay, () => X("hangarFlights", "Hangar arrival and take-off"),
                 () => Settings.HangarFlights, v => Settings.HangarFlights = v));
             list.Add(Toggle("tutorialHints", OptionPage.Gameplay, () => X("tutorialHints", "Tutorials"),
@@ -582,6 +588,11 @@ namespace GoF2Remake.UI
                 () => new[] { X("kaamoVipOff", "Off"), X("kaamoVipCard", "Buy at the club"), X("kaamoVipAlways", "Always on") },
                 () => (Settings.KaamoVipMode + 1) % 3, i => Settings.KaamoVipMode = (i + 2) % 3,   // Off (the original) first
                 () => X("kaamoVipOptionHelp", "The VIP Card adds a search box and sorting to the Kaamo Club's Store, a Ships tab for your stored ships, and a Kaamo marker on ships you already keep there. Buy at the club: the card is sold in the Store tab. Always on: no card needed. Off: the original club.")));
+            // Remake (PR #282): the shop's and storage's item order (Hangar.ShopItems); off = the original's, by item number.
+            var shopOrder = Toggle("shopByCategory", OptionPage.Gameplay, () => X("shopByCategory", "Sort the shop by category"),
+                () => Settings.ShopByCategory, v => Settings.ShopByCategory = v);
+            shopOrder.description = () => X("shopByCategoryHelp", "The shop and storage list items by category, then tech level, so add-on equipment sits beside its kind. Off: by item number, as in the original.");
+            list.Add(shopOrder);
             var cloakBay = Toggle("cloakBay", OptionPage.Gameplay, () => X("cloakBay", "Cloak bay on cloaking ships"),
                 () => Settings.CloakBay, v => Settings.CloakBay = v);
             cloakBay.description = () => X("cloakBayHelp", "On the Specter and Scimitar a mounted cloak takes no equipment slot.");

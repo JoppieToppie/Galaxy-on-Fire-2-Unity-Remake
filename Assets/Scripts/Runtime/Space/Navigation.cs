@@ -193,7 +193,7 @@ namespace GoF2Remake.Flight
             }
             var wp = route.Waypoint;
             if (wp == null) { Targets.Remove(target); if (Locked == target || Candidate == target) Locked = Candidate = null; return; }
-            target.fixedPosition = new Vector3(wp.Value.x, wp.Value.y, -wp.Value.z) * M;
+            target.fixedPosition = OrbitScale.ToUnity(wp.Value);   // OrbitScale: where the scaled orbit has it
             if (!Targets.Contains(target)) Targets.Add(target);
         }
 
@@ -379,9 +379,9 @@ namespace GoF2Remake.Flight
                 Targets.Add(new Target { kind = Kind.Station, fixedPosition = Vector3.zero, station = Session.VoidOrbit, name = name });
             }
             if (layout.hasJumpgate)
-                Targets.Add(new Target { kind = Kind.Jumpgate, fixedPosition = OrbitLayout.ToUnity(layout.jumpgate), name = Localization.Get(547) });
+                Targets.Add(new Target { kind = Kind.Jumpgate, fixedPosition = OrbitLayout.ToUnity(layout.Place(layout.jumpgate)), name = Localization.Get(547) });   // OrbitScale: the spawned gate's place
             if (layout.systemIndex >= 0 && layout.asteroidCount > 0)   // remake mods: an orbit without a field has no entry
-                AsteroidField = new Target { kind = Kind.AsteroidField, fixedPosition = OrbitLayout.ToUnity(layout.asteroidCentre), name = Localization.Get(549) };
+                AsteroidField = new Target { kind = Kind.AsteroidField, fixedPosition = OrbitLayout.ToUnity(layout.Place(layout.asteroidCentre)), name = Localization.Get(549) };
             // StarSystem::getPlanetTargets: the other stations' planets (the orbit planet is the current station's own).
             if (backdrop != null)
                 foreach (var (station, t, orbit) in backdrop.PlanetTargets)
@@ -605,7 +605,7 @@ namespace GoF2Remake.Flight
             var l = Locked;
             if (l != null && l.kind != Kind.Planet)
             {
-                if (l.transform == null) { stillLock.Clear(); return (l.Position - ship.transform.position).magnitude / M; }
+                if (l.transform == null) { stillLock.Clear(); return ReachUnits(l, (l.Position - ship.transform.position).magnitude / M); }
                 moving = l.transform;
             }
             else if (mining != null && mining.Locked != null) moving = mining.Locked.transform;
@@ -613,6 +613,17 @@ namespace GoF2Remake.Flight
             if (moving == null) { stillLock.Clear(); return -1f; }
             var p = moving.position;
             return stillLock.Update(moving, p / M, dtMs) ? (p - ship.transform.position).magnitude / M : -1f;
+        }
+
+        /// <summary>Remake (OrbitScale): a distance to a target (units) as the original's would be, for its thresholds (the
+        /// 20000 of AboutToReach, the cruise drive's arrival): from the station unmapped (OrbitScale.Unradius), from the grown
+        /// jumpgate over its scale; anything else as it is. The identity without the station scale.</summary>
+        float ReachUnits(Target t, float units)
+        {
+            if (t == null || !OrbitScale.Active) return units;
+            if (t.kind == Kind.Station && t.transform == null) return OrbitScale.Unradius(units);
+            if (t.kind == Kind.Jumpgate) return units / OrbitScale.Factor;
+            return units;
         }
 
         // ---- per frame -----------------------------------------------------------------------------------------
@@ -628,14 +639,13 @@ namespace GoF2Remake.Flight
             // UpdateRoute says 543 / 544 (HUD events 0x17 / 0x18).
             if (playerRoute != null || eventRoute != null)
             {
-                var p = ship.transform.position;
-                var at = new Vector3(p.x, p.y, -p.z) / M;
+                var at = OrbitScale.ToGame(ship.transform.position);   // OrbitScale: the route's points are the original's
                 playerRoute?.Update(at);
                 eventRoute?.Update(at);
             }
             if (Jumping) { UpdateJump(dtMs); return; }
             if (paused || pauseMenuOpen) return;
-            if (Autopilot) AboutToReach = RunPlanet == null && (AutopilotTarget.Position - ship.transform.position).magnitude / M < AboutToReachUnits;
+            if (Autopilot) AboutToReach = RunPlanet == null && ReachUnits(AutopilotTarget, (AutopilotTarget.Position - ship.transform.position).magnitude / M) < AboutToReachUnits;
             if (MenuOpen) return;   // paused
             UpdateLock(dtMs);
             stillLockUnits = StillLockUnits(dtMs);

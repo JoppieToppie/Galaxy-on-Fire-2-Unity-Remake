@@ -105,6 +105,7 @@ namespace GoF2Remake.World
         /// 'retriggerS' (0 = for good); energy sockets, each with its dispenser or coil.</summary>
         public void Secure(Modding.ModWorld.SecureContainerSpec spec)
         {
+            // (OrbitScale: its places are orbit positions, in the scaled orbit like the container's; ConductorNet's likewise)
             secure = true;
             name = "Secure container";
             if (Target != null) Target.displayName = Localization.Extra("containerSecure", "Secure container");
@@ -112,7 +113,7 @@ namespace GoF2Remake.World
             if (spec.triggers.Count > 0)
             {
                 chain = new ShotTriggerChain(spec.triggers.Count, spec.ordered, spec.retriggerS);
-                for (int i = 0; i < spec.triggers.Count; i++) ShotTrigger.Make(parent, OrbitLayout.ToUnity(spec.triggers[i]), chain, i, this);
+                for (int i = 0; i < spec.triggers.Count; i++) ShotTrigger.Make(parent, OrbitScale.ToUnity(spec.triggers[i]), chain, i, this);
             }
             if (spec.sockets.Count > 0)
             {
@@ -120,9 +121,9 @@ namespace GoF2Remake.World
                 var dispensers = new Dictionary<Vector3, OrbDispenser>();   // (sockets sharing a dispenser share it)
                 foreach (var s in spec.sockets)
                 {
-                    sockets.Add(EnergySocket.Make(parent, OrbitLayout.ToUnity(s.at), s.coil, this));
-                    if (s.coil) Portable.Make(parent, OrbitLayout.ToUnity(s.source), true);
-                    else if (!dispensers.ContainsKey(s.source)) dispensers[s.source] = OrbDispenser.Make(parent, OrbitLayout.ToUnity(s.source));
+                    sockets.Add(EnergySocket.Make(parent, OrbitScale.ToUnity(s.at), s.coil, this));
+                    if (s.coil) Portable.Make(parent, OrbitScale.ToUnity(s.source), true);
+                    else if (!dispensers.ContainsKey(s.source)) dispensers[s.source] = OrbDispenser.Make(parent, OrbitScale.ToUnity(s.source));
                 }
             }
             if (spec.conductors != null) conductors = ConductorNet.Make(parent, spec.conductors, this);
@@ -218,7 +219,7 @@ namespace GoF2Remake.World
                 var at = secure ? spec.containerSecure[i - firstSecure].at : cloaked ? spec.containerCloaked[i - spec.containerCount]
                        : centre + new Vector3(Random.Range(-half, half), Random.Range(-half, half) * 0.3f, Random.Range(-half, half));
                 string model = proof ? spec.containerProofModel ?? spec.containerModel : spec.containerModel;
-                var c = Spawn(OrbitLayout.ToUnity(at), cargo, proof, race, model != null && spec.owner != null ? spec.owner.Id + "|" + model : null, cloaked);
+                var c = Spawn(OrbitScale.ToUnity(at), cargo, proof, race, model != null && spec.owner != null ? spec.owner.Id + "|" + model : null, cloaked);
                 if (c == null) continue;
                 c.fixedKeys = keys;
                 if (secure) c.Secure(spec.containerSecure[i - firstSecure]);

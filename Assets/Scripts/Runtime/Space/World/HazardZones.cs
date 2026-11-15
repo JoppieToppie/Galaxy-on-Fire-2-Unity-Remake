@@ -52,6 +52,18 @@ namespace GoF2Remake.World
         }
 
 
+        /// <summary>OrbitScale (docs/notes/space-scene.md "Station scale"): a volume's centre where the scaled orbit has it (Unity).</summary>
+        public static Vector3 CentreOf(Modding.ModWorld.HazardSpec z) => OrbitScale.ToUnity(z.centre);
+
+        /// <summary>OrbitScale: a volume's radius in metres: as it was, unless it takes in the station, then reaching as far past
+        /// it as the orbit grew (so the grown station doesn't swallow it).</summary>
+        public static float RadiusMOf(Modding.ModWorld.HazardSpec z)
+        {
+            float d = z.centre.magnitude;
+            if (!OrbitScale.Active || d >= z.radius) return z.radius * OrbitLayout.MetersPerUnit;
+            return (OrbitScale.Radius(d + z.radius) - OrbitScale.Place(z.centre).magnitude) * OrbitLayout.MetersPerUnit;
+        }
+
         static float Dps(Modding.ModWorld.HazardSpec z) => z.raiderDps > 0f ? z.raiderDps * NpcTables.RaiderGunDps : z.dps;
 
         static string Entered(Modding.ModWorld.HazardKind kind) => kind switch
@@ -75,8 +87,8 @@ namespace GoF2Remake.World
             for (int i = 0; i < zones.Length; i++)
             {
                 var z = zones[i];
-                var c = OrbitLayout.ToUnity(z.centre);
-                float r = z.radius * OrbitLayout.MetersPerUnit;
+                var c = CentreOf(z);
+                float r = RadiusMOf(z);
                 float d = (pos - c).magnitude;
                 if (d >= r) continue;
                 if (now < 0) now = i;

@@ -22,7 +22,8 @@ namespace GoF2Remake.World
             foreach (var p in spec.props)
             {
                 if (root == null) root = new GameObject("Orbit props");
-                var go = Modding.ModCrates.InstantiateFitted(spec.owner.Id + "|" + p.model, OrbitLayout.ToUnity(p.at), Quaternion.Euler(p.rotation),
+                // OrbitScale: where the scaled orbit has it (a rock: its size stays)
+                var go = Modding.ModCrates.InstantiateFitted(spec.owner.Id + "|" + p.model, OrbitLayout.ToUnity(layout.Place(p.at)), Quaternion.Euler(p.rotation),
                                                              p.size * OrbitLayout.MetersPerUnit, root.transform);
                 if (go == null) continue;
                 go.name = "Prop";
