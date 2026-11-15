@@ -50,12 +50,14 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   (set by `PlayerCloak`, and by `NetPlayer` from the owner's `phase` variable on the other players' copies, whose sphere
   `Obstacle` turns off): `Gun` hit tests and blasts skip it, `Target.Damage` and EMP do nothing.
 - **Emergency system** (185): the hull running out sets it to 1 instead (`Target.SaveFromDeath`), 10 s invulnerable
-  (attr 41) in the `v_shield` bubble (`GoF2/ShieldBubble`, `SimpleRefractionShader`, drawn by `CloakPass` from its copy
-  of the frame after the transparents so the ship's lights and exhaust show through it, its noise read back in gamma
-  space (a data texture imported as colour: linearised, the picture shifted down-left); Discord report 2026-10-18: an
-  invisible sphere bending the screen behind it, the rim from the noise texture read as a tangent-space normal, no
-  scroll; the scene it shows clamped to LDR (#45: the HDR sun core smeared over it bloomed the screen white); grows /
-  shrinks over 5 %), sound 1115 looped until it ends; the item is used up (the one mounted,
+  (attr 41) in the `v_shield` bubble (`GoF2/ShieldBubble`, a port of `AbyssEngine::EnergyShield` 0x9519c: material
+  27150 is type 0x22, which `PaintCanvas::End3d` draws with flag 0x200000 after `Engine::CopyFBO`; the screen behind it
+  bent by `v_shield_normal` and the clip-space normal, (nt.xy * 0.4 + n.xy * rim) * 150 px, plus a blue rim
+  smoothstep(1 - dot(e, n * nt)) * (0, 0.6, 1); the noise texture unused. #251: it was drawn with
+  `SimpleRefractionShader`'s formula, no colour, hard to see. Drawn by `CloakPass` from its copy of the frame after the
+  transparents so the ship's lights and exhaust show through it; the normal map sampled by three planar projections, as
+  the mesh's UVs cut it where they wrap; the scene clamped to LDR (#45: the HDR sun core smeared over it bloomed the
+  screen white); grows / shrinks over 5 %), sound 1115 looped until it ends; the item is used up (the one mounted,
   `PlayerHealth.emergencyItem`: a mod's emergency system based on 185 too, which the removal of 185 alone left mounted
   for good). Kills meanwhile count for medal 43 (`Session.GraveRiserKills`). The bubble is `Flight.EmergencyBubble`;
   multiplayer: the others see it on the ship too, with the loop at the ship (`NetPlayerEquipment`: the owner's clock as its
