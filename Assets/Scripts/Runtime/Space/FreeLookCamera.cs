@@ -66,7 +66,7 @@ namespace GoF2Remake.Flight
         ChaseCamera chase;
         int turretIndex;   // which manual turret the Turret mode looks through
         Transform anchor;
-        float px, py, distance = 45000f, wheel, pinch;
+        float px, py, distance = 3800f, wheel, pinch;
         Vector2 fling, touchDrag;
         bool touchHeld;
         /// <summary>FlightHud: the cursor is captured for mouse steering, so in free look plain mouse movement orbits the
@@ -78,7 +78,7 @@ namespace GoF2Remake.Flight
         bool leftDrag;   // Modified: docked at an object, the left button held from off the HUD orbits the camera
 
         /// <summary>'turret' is unused since the turrets are looked up on the player (PlayerTurret.On); kept for the callers.</summary>
-        public static FreeLookCamera Attach(GameObject player, ChaseCamera chase, PlayerTurret turret = null, float defaultOrbitDistance = 45000f)
+        public static FreeLookCamera Attach(GameObject player, ChaseCamera chase, PlayerTurret turret = null, float defaultOrbitDistance = 3800f)
         {
             var f = player.AddComponent<FreeLookCamera>();
             f.chase = chase;
