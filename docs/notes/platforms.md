@@ -129,6 +129,15 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   uses the build's own time, still the fallback without git), so Windows, Linux and Android builds of one commit match; stamped into
   `PlayerSettings.bundleVersion` for each build by `BuildVersionStamp` (Editor) and put back afterwards, so
   `Application.version` and Android's versionName carry it; "editor" in the Editor.
+- **Releases** (the files every GitHub release carries, from 2026.11.15 on; the user's rule: the update packs in every
+  release): tag `yyyy.MM.dd` = the HEAD commit's date (`BuildVersion`; commit first, `gh release create --target <that
+  commit>`). Build Windows, Linux, Android (`Android™` profile, this machine's debug key), UWP (MSBuild), the Linux and
+  Windows dedicated servers (`ServerBuild`), then GoF2 > Build > Update Patch (`PatchPublisherWindow.StartAll(tag)`).
+  Upload: `GoF2Remake-<Windows|Linux|UWP>-<tag>.zip`, `GoF2Remake-Android-<tag>.apk`,
+  `GoF2Remake-<Linux|Windows>Server-<tag>.zip`, and the patcher's `GoF2Remake-<Windows|Linux|Android>-<tag>.pack` +
+  `.patch.json`, `GoF2Remake-UWP-<tag>.msix`, `GoF2Remake-UWP.appinstaller`. A release without a platform's .patch.json
+  makes that platform's "Update available" open the release page, and the next release's packs then have to carry
+  everything it would have published (each pack holds only the chunks no earlier release's manifest names).
 - **Update check** (remake, `UpdateCheck`): entering the main menu (after the title screen) asks GitHub once per run for the
   newest release (`api.github.com/repos/JoppieToppie/Galaxy-on-Fire-2-Unity-Remake/releases/latest`, no token; drafts and
   pre-releases ignored). Release tags are `yyyy.MM.dd`; the build's `.HHmm` is ignored, so only a release from a later day
