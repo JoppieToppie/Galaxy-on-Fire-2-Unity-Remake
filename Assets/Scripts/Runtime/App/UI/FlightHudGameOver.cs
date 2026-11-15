@@ -137,11 +137,13 @@ namespace GoF2Remake.UI
             if (cam == null || crosshair.panel == null) return;
             // Hud::draw at crosshairPos: in the turret view (PlayerEgo::setTurretMode) where the turret's gun points, the
             // plasma collectors with their own crosshair (0x1f5e, GoF2Hud/plasma_crosshair_idle; 0x1f5d plasma_crosshair while
-            // plasma is in range); else the ship's nose.
+            // plasma is in range); else the ship's nose, or the active camera's centre in free look.
             var viewTurret = level != null ? level.Turret : null;
             bool turretView = viewTurret != null && viewTurret.InTurretView;
+            bool freeLook = !turretView && level != null && level.FreeLook != null && level.FreeLook.FreeLookActive;
             var aim = turretView ? viewTurret.GunPosition + viewTurret.AimForward * CrosshairDistanceMeters
-                                 : ChaseCamera.AimOrigin(ship.transform) + ship.transform.forward * CrosshairDistanceMeters;
+                       : freeLook ? cam.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, CrosshairDistanceMeters))
+                       : ChaseCamera.AimOrigin(ship.transform) + ship.transform.forward * CrosshairDistanceMeters;
             bool collector = turretView && viewTurret.IsCollector;
             crosshair.EnableInClassList("crosshair--plasma", collector);
             // PlayerEgo::draw: 0x1f5d while Radar::isPlasmaInRange, else 0x1f5e (#78: the remake showed 0x1f5d all the time).

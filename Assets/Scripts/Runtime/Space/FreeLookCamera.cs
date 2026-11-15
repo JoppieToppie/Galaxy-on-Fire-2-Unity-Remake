@@ -78,11 +78,19 @@ namespace GoF2Remake.Flight
         bool leftDrag;   // Modified: docked at an object, the left button held from off the HUD orbits the camera
 
         /// <summary>'turret' is unused since the turrets are looked up on the player (PlayerTurret.On); kept for the callers.</summary>
-        public static FreeLookCamera Attach(GameObject player, ChaseCamera chase, PlayerTurret turret = null)
+        public static FreeLookCamera Attach(GameObject player, ChaseCamera chase, PlayerTurret turret = null, float defaultOrbitDistance = 3800f)
         {
             var f = player.AddComponent<FreeLookCamera>();
             f.chase = chase;
+            f.SetDefaultOrbitDistance(defaultOrbitDistance);
             return f;
+        }
+
+        /// <summary>Sets the ship's default free-look orbit radius (game units), clamped to the existing zoom range.</summary>
+        public void SetDefaultOrbitDistance(float gameUnits)
+        {
+            distance = Mathf.Clamp(gameUnits, MinDistance, MaxDistance);
+            if (Current == Mode.FreeLook) Place();
         }
 
         /// <summary>The ship's manual turrets (and plasma collectors), in mount order: the ones with a turret view. Looked up

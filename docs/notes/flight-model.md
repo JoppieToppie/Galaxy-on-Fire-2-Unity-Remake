@@ -60,6 +60,12 @@ here stay the defaults.
   (`UndoJitter`); players' reports 2026-10-18 of extreme shaking: drawn anew every rendered frame and into the eased
   pose, a full rumble turned the view 2.8 deg per frame at 144 fps (0.56 now), and the Original follow turned every hit
   and shot into a flicker of the view.
+- The free-look orbit (`FreeLookCamera`) starts 3800 game units from the ship, clamped to 1500..20000; a mod's ships.json
+  `camera.orbitDistance` sets that default per ship, independently of the chase camera's `camera.distance`. Swapping ships
+  in flight refreshes the default. `CombatRadar` acquires a target from the active camera's viewport centre in free look
+  (the ship's forward aim point in the normal view). The visible HUD crosshair and lock ring use that same camera-centre
+  point, so the reticle and acquisition agree. Scanner, lock time, hostility rules and sticky lock are unchanged; the
+  resulting `Locked` target still feeds `WeaponSystem`'s homing missiles.
 - The model's bank (`PlayerEgo::update` 0xaa5f4, `ShipController.UpdateVisualBank`): roll = −yawRate·2π/4096, tilt =
   pitchRate·0.25·2π/4096, straight from the turn rates, so it builds and settles with them (~0.5 s in, ~1.5 s out).
   #114: the remake eased toward an angle per stick input and snapped. A heavy debug hull eases it; free flight keeps its

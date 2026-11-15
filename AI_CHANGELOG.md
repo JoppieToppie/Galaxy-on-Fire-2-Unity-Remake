@@ -1,9 +1,134 @@
+## 2026-11-15 — Implement per-ship free-look orbit distance and free-look target locking (ChatGPT)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Implemented:
+- Added `ships.json` `camera.orbitDistance` for the free-look orbit's default radius per ship (default 3800 game units; clamped to 1500..20000).
+- Applied the setting on flight entry and when the player swaps ships in flight; normal chase-camera offsets and docked orbit presets remain unchanged.
+- Target locking in free look now uses the active camera viewport centre, and the visible HUD crosshair/lock ring align to it; normal flight retains its existing ship-forward acquisition point.
+- Preserved scanner requirements, lock timing and priority rules, sticky locks, and homing-target handoff.
+- Updated both modding guides and the flight-model note.
+- Added EditMode coverage for mod defaults/overrides/clamping/validation and free-look crosshair selection.
+
+Unity compilation, EditMode tests and live multiplayer verification were not run.
+
+---
+
+## 2026-11-15 — Refine system-population scope and feasibility assessment (ChatGPT)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Updated the shared system-population note and handover:
+- Narrowed the first implementation to one optional per-system ambient-suppression setting.
+- Separated the core ambient-suppression checklist from the explicitly deferred final player-built-station phase.
+- Recorded the low-to-moderate feasibility assessment and the key ambient-vs-scripted classification risk.
+- Updated the handover's next actions to focus on the core population feature.
+
+Documentation only. No runtime source, mod schema, system data, tests or builds changed.
+
+---
+
+## 2026-11-15 — Make player-built stations the final population feature step (ChatGPT)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Added prominent shared-AI notices stating that player-built stations do not exist yet and that station-attracted NPC population is the last implementation step. The core mod-controlled ambient population feature must be completed and verified first. Updated the handover audience to include both ChatGPT and Claude.
+
+Documentation / sequencing only; no runtime code or schema changed.
+
+## 2026-11-15 — Extend system population pipeline audit (ChatGPT)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Expanded `docs/notes/system-population.md` with cruise encounters, pirate events, system-special actors, freelance mission content, rift waves, decorative traffic lanes, mobile stations, station-life visuals, faction claims, siege garrisons and hangar traffic. Confirmed that this branch has no player-built-station lifecycle to use as a station-attraction trigger. Documented the safe first suppression boundary: ordinary ambient traffic and its revival only, using explicit ambient classification rather than broad group/race filtering.
+
+Investigation/documentation only; no runtime code, mod schema or tests changed.
+
+## 2026-11-15 — Document the existing system NPC population pipeline (ChatGPT)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Added `docs/notes/system-population.md` documenting:
+- The normal `TrafficPlan.Build` -> `Traffic` creation pipeline.
+- Existing `systems.json` traffic controls and why `traffic: "mod"` does not mean empty.
+- Independent jumper/local/raider/Void respawn paths.
+- Story, mission and event spawn boundaries.
+- Multiplayer orbit authority, proxy replication and handover implications.
+- Follow-up investigation and acceptance checklist.
+
+Updated the project context and handover to point to the new note. Investigation/documentation only; no runtime code, mod schema, system data or tests changed.
+
+## 2026-11-15 — Record opt-in system NPC population design (ChatGPT)
+
+**Branch:** `feature/extensive-multiplayer-expansion`
+
+Recorded the user's direction for a mod-only, per-system NPC population control capability:
+- Mods can suppress ambient NPC presence in selected systems; absent configuration preserves current behaviour.
+- Existing systems and the base story are unaffected unless explicitly configured by a mod.
+- A player-built station may optionally attract sparse, infrequent and varied ambient NPC traffic.
+- Story-/mission-scripted NPCs must remain distinct from ambient population control.
+
+Design/documentation only. No gameplay source, system data, mod schema, networking or tests changed.
+
+## 2026-11-15 — Rename active feature branch (ChatGPT)
+
+The active development branch is being renamed from `feature/secondary-homing-delay-launch-angle` to `feature/extensive-multiplayer-expansion` to reflect the wider multiplayer expansion scope. No gameplay code changed.
+
+## 2026-11-15 — Record class-based station docking and freighter boarding design (ChatGPT)
+
+**Branch:** `feature/secondary-homing-delay-launch-angle`
+
+Recorded the user's docking decisions:
+- All stations support interior and external docking; Fighters and Interceptors are interior-only.
+- Unclassified ships cannot externally dock, while retaining ordinary interior docking.
+- External docking keeps the ship present and visible in space; the camera stays in space unless the player explicitly
+  enters the Space Lounge.
+- The future physical arrangement uses ship and station docking points, but initial behaviour needs no visible hardware.
+- Hackable freighters do not support external docking; boarding is limited to ships smaller than a Frigate.
+
+Design/documentation only. No docking or gameplay implementation and no tests.
+
+## 2026-11-15 — Record turret hardpoint scaling and point-defence profiles (ChatGPT)
+
+**Branch:** `feature/secondary-homing-delay-launch-angle`
+
+Recorded the user's decisions:
+- Add independent per-turret-hardpoint scaling, separate from ship-kit hull scale and turret item `fx.turret.scale`.
+- Point-defence profiles: `ships`, `missiles`, and `missiles_priority`; no `balanced` profile.
+- Keep targeting eligibility separate from weapon damage and extend the existing missile interception system.
+
+Documentation/design only. No source, schemas, Mod Builder UI or tests changed.
+
+## 2026-11-15 — Clarify ship classification is opt-in mod content (ChatGPT)
+
+**Branch:** `feature/secondary-homing-delay-launch-angle`
+
+Updated project context and handover to make ship classification strictly opt-in:
+- Original/vanilla ships remain unclassified; no standard classes are assigned in base data.
+- The 14 agreed names are a recommended mod-author vocabulary, not base-game ship classes.
+- Missing class means unrestricted equipment compatibility, including for items with `allowedClasses`; restrictions only
+  apply when a mod explicitly assigns a class.
+- Instant scanner readout applies only to targets with an explicit mod-assigned class.
+
+Documentation/design only. No gameplay source or vanilla ship data changed; no tests/build run.
+
+## 2026-11-15 — Record standard ship classes and Privateer design (ChatGPT)
+
+**Branch:** `feature/secondary-homing-delay-launch-angle`
+
+Updated the project context and handover with the user's 14 standard ship classes and the shared multi-purpose design
+criteria for Light Privateer, Privateer and Heavy Privateer. The standard taxonomy remains extensible to mod-defined
+classes; numeric thresholds are deferred pending a survey of the ship roster.
+
+Documentation/design only. No gameplay source, ship data, scanner implementation or tests were changed.
+
 # AI change log
 
 This file records actual repository changes made by AI contributors. It is not a design wishlist.
 Newest entries go at the top.
 
 ---
+
 
 ## 2026-11-15 — Secondary launch direction from the hardpoint (Claude)
 
@@ -34,3 +159,15 @@ Added:
 No gameplay code, network protocol, item schema, hardpoint schema, save data or tests were changed by this
 documentation task. The secondary weapon launch-direction implementation has not yet been corrected.
 No merge to `main` was performed.
+
+
+## 2026-11-15 — Record instant scanner and secondary launch-orientation decisions (ChatGPT)
+
+**Branch:** `feature/secondary-homing-delay-launch-angle`
+
+Updated the shared project context and handover to record:
+- Class scanners identify a locked target immediately, supporting rapid threat prioritisation by large ships.
+- Launch-direction adjustment is secondary-only; primaries remain unchanged.
+- The preferred moddable design is a separate optional mount-level `launchRotation`, preserving existing visual `rotation` semantics and straight-ahead defaults.
+
+This is a documentation/design update only. No gameplay source, tests, Mod Builder UI or scanner implementation was changed.

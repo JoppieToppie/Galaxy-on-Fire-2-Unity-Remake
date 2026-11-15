@@ -957,7 +957,7 @@ once it is gone. With a mission's `"repeat"` the encounter can come again.
 How a ship is seen, for a new ship or an original through `override` (each one optional; left out = the game's):
 
 ```json
-"camera": { "distance": 2400, "height": 900, "lookHeight": 900, "lookAhead": -1100 },
+"camera": { "distance": 2400, "height": 900, "lookHeight": 900, "lookAhead": -1100, "orbitDistance": 5200 },
 "cockpit": [0, 90, 760],
 "smoke": [[39, 68, -64], [-62, 65, 10]],
 "explosionScale": 1.2
@@ -966,7 +966,8 @@ How a ship is seen, for a new ship or an original through `override` (each one o
 - `camera`: the chase camera, in game units: `distance` behind the ship's pivot and `height` above it, aimed at a point
   `lookHeight` above the pivot and `lookAhead` ahead of it (negative: behind it). The game's are 1338 / 600 / 600 / -650 for
   every ship, made for hulls of about 1200-1400 units; a bigger hull needs the camera further out or it fills the screen.
-  A field left out keeps the game's.
+  A field left out keeps the game's. `orbitDistance` is the default radius of the free-look orbit camera, separate from
+  the chase camera's `distance`; it defaults to 3800 and is clamped to 1500..20000 game units (the free-look zoom limits).
 - `cockpit`: where the cockpit view (F2, or holding the camera button) sits, a point like a hardpoint's `position_engine`
   (x the pilot's left, y up, z the nose). Without it the game puts the seat on the bow from the hull's shape. Either way
   the seat stays behind the frontmost gun, so its shots start in view.

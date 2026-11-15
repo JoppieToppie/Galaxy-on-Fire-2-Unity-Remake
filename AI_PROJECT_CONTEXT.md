@@ -1,5 +1,12 @@
 # AI project context — Galaxy on Fire 2 multiplayer expansion
 
+> # 🚨 IMPORTANT — PLAYER-BUILT STATIONS DO NOT EXIST YET
+> **Do not implement player-built stations or station-attracted NPC population now.**
+> Player-built stations are a future feature and are explicitly the **LAST implementation step** for this system-population workstream. Complete and verify the mod-controlled ambient population feature first. Only return to station-attracted traffic after a real player-built-station system exists, including authoritative placement, ownership, lifecycle and persistence. Do not substitute mobile stations, faction claims or other existing station systems.
+>
+> **This notice is for BOTH ChatGPT and Claude.** These repository notes are shared project handover material: every AI contributor must read them before work, preserve this sequencing, and update the notes when decisions or implementation status change.
+
+
 > **Audience:** Claude, ChatGPT and any human contributor joining this work.
 > **Canonical repository:** `SpectreAnims/Galaxy-on-Fire-2-Unity-Remake`.
 > **Coordinator / product owner:** the repository owner (the user). The user makes product decisions and approves integration.
@@ -250,16 +257,136 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
 
 ### 6.2 Ship classes, class-restricted equipment and class scanners (owner's decisions, 2026-11-15; Proposed, not implemented)
 
-- **Classes are free-form and mod-defined** (e.g. "fighter", "frigate"), so other modders can build on them; no fixed list.
-  A ship has an optional class (none on every original ship); only mods assign one.
-- **Restriction is an allow-list per item** (`allowedClasses`); no exclude-list. An item without the list fits every ship.
+- **Mod-only taxonomy:** the 14 names below are a recommended shared vocabulary for mod authors, **not vanilla/base-game
+  ship classifications**. Do not assign any of them to original ships or ship data by default. In an unmodded game, ships have
+  no gameplay class and class-based equipment restrictions / scanner readouts remain dormant.
+  - Fighters: `light_fighter` (Light Fighter), `heavy_fighter` (Heavy Fighter).
+  - Bombers: `light_bomber` (Light Bomber), `heavy_bomber` (Heavy Bomber), `stealth_bomber` (Stealth Bomber).
+  - Specialist combat: `interceptor` (Interceptor).
+  - Civilian / utility: `hauler` (Hauler).
+  - Multi-purpose: `light_privateer` (Light Privateer), `privateer` (Privateer), `heavy_privateer` (Heavy Privateer).
+  - Capital ships: `frigate` (Frigate), `freighter` (Freighter), `cruiser` (Cruiser), `carrier` (Carrier).
+- **Extensibility:** this is a suggested shared vocabulary, not a closed enum or mandatory list. Mods may assign any of these
+  classes to their own ships and may define additional classes. Store stable machine IDs separately from display labels; do not
+  use translated/display text as a save or network identifier. A ship with no mod-assigned class remains unclassified.
+- **Unclassified/default compatibility:** do not add a visible or persisted vanilla `default` ship class. Treat a missing class
+  as an implicit unrestricted compatibility state: every item is allowed on an unclassified ship, including items that declare
+  `allowedClasses`. This preserves all existing vanilla loadouts and means class restrictions only engage when a mod explicitly
+  assigns a class to a ship. If an implementation needs an internal sentinel, it must not be exposed as a real mod class or
+  written into original ship data.
+- **Privateer identity:** all three Privateer classes describe multi-purpose ships, not merely a weapon category. Their design
+  balances (1) a decently sized cargo hold relative to the ship's overall size, (2) a reasonably balanced mix/count of primary
+  and secondary weapon mounts, and (3) handling that sits between a dedicated combat craft and a less agile cargo-focused hull.
+  Light / standard / heavy Privateers are scale variants of this shared philosophy. Exact numeric thresholds are deliberately
+  unspecified until the existing ship roster and modded hull ranges have been surveyed; do not invent arbitrary cut-offs.
+- **Other class identity:** the names establish the intended broad roles, but precise stat/loadout thresholds for Light vs Heavy
+  fighters and bombers, Interceptors, Stealth Bombers, Haulers and capital classes still need a roster-based pass. Do not
+  infer a ship's class from one stat alone or hard-code guessed thresholds.
+- **Classification evidence in the current data:** `Assets/Resources/GoF2Data/ships.json` already provides per-ship
+  cargo, primary / secondary / turret slot counts, armor and handling values, plus descriptions. It does not expose a direct
+  physical hull-volume field in the base `ShipData` schema. For cargo-relative-to-size judgements (especially Privateers),
+  survey those stats alongside actual model / kit scale and ship descriptions; do not treat raw cargo capacity as size-adjusted
+  without that context.
+- **Restriction is an allow-list per item** (`allowedClasses`); no exclude-list. An item without the list fits every ship. A
+  restricted item is still accepted by an unclassified ship; its allow-list is checked only when the ship has an explicit mod class.
 - **Ship swap:** equipment that does not fit the new ship's class goes to the **hold** (like a built-in drive does now); the
   swap is not blocked. `Hangar.CanMount` is the existing mount gate (Khador Drive, cloak bay) and the natural place for the
   refusal; also audit buy-and-mount, saves / start loadouts, the Kaamo club, cheats and kit ships.
-- **Scanner:** **one scanner attribute** that simply reveals the locked ship's class on lock (precedent: attr 31, the cargo
-  readout, `CombatRadar.ReadCargo`). Only mod scanners carry it. The class shows on **other players' ships** as well as NPCs.
+- **Scanner:** **one scanner attribute** that reveals a locked ship's explicitly mod-assigned class **immediately on lock**; an
+  unclassified ship has no class to reveal. No progress bar or scan
+  delay. This is a tactical identification tool: large ships, especially cruisers, need to identify specialised anti-capital
+  threats quickly so they can prioritise targets. Only mod scanners carry the capability. The class shows on **other players'
+  ships** as well as NPCs.
 - **Multiplayer:** the class restriction is enforced by the server / authority, not trusted from the client; the class of a
-  remote ship must be replicated or derivable from the ship every client already knows (to check: ship index in player state).
+  remote ship must be replicated or derivable from the ship every client already knows. The same stable class ID must be used
+  consistently by save data, mod definitions and network state.
+
+### 6.4 Moddable turret hardpoint scaling and targeting profiles (owner's decisions, 2026-11-15; Proposed)
+
+- **Hardpoint-owned scale:** modders should be able to scale each turret hardpoint's mounted turret independently, directly
+  through the hardpoint definition. This is not ship-kit hull scaling and not the existing turret weapon item's
+  `fx.turret.scale` (which controls that item's turret model). Prefer a clearly named optional per-mount field such as
+  `turretScale`; absent means the current size. Do not implement this as a ship-wide scale or require editing ship-kit
+  overall scale. Verify the hardpoint data format and all turret construction/presentation paths before choosing the final
+  JSON spelling and transform application.
+- **Targeting profile belongs to turret weapon/item configuration**, independently of weapon damage and projectile type.
+  The three agreed profiles are:
+  - `ships`: conventional ship targeting.
+  - `missiles`: incoming missile interception only.
+  - `missiles_priority`: prioritise incoming missiles; engage ships when no eligible missile target is available.
+- **Explicitly excluded:** no `balanced` profile.
+- Keep the design extensible to additional target categories / priority rules later, without requiring them in the first
+  implementation. A missile-focused turret may still have optional light anti-ship damage when its profile permits ship
+  targeting; targeting eligibility must not dictate damage values.
+- Reuse and extend the existing missile point-defence logic where possible rather than creating a competing interceptor
+  system. Audit target acquisition, claim/duplicate interception handling, projectile lead, range, authority and multiplayer
+  replication before implementation.
+- **Status:** design decisions only. No hardpoint schema, turret item schema, Mod Builder UI, targeting logic or gameplay
+  source has been changed for this feature.
+
+### 6.3 Secondary hardpoint launch orientation (owner's decisions, 2026-11-15)
+
+- Launch-direction adjustment is for **secondary weapons only**. Primary guns, turrets, NPC/capital guns and unrelated mount
+  types retain their existing firing behaviour.
+- The launch direction belongs to the hardpoint/mount, not the weapon item. The same secondary item can therefore launch
+  differently from two mounts without changing its own speed, damage, homing delay or other intrinsic stats.
+- It should be moddable per mount. Prefer a new optional mount field such as `launchRotation` (Euler or quaternion, matching
+  the established mount-rotation representation) rather than silently changing the meaning of the existing `rotation` field.
+  Existing `rotation` controls the mounted model/muzzle presentation; preserving that meaning avoids breaking mods that
+  visually cant a weapon without intending to redirect its projectile.
+- If `launchRotation` is absent, preserve today's straight-ahead secondary launch behaviour. Do not infer launch direction
+  from visual `rotation` unless a later compatibility decision explicitly authorises that fallback.
+- Keep `homingDelayMs` as an item-level weapon property. Apply the mount launch transform to the supported secondary
+  projectile paths only, and explicitly document any intentional exclusions (e.g. beams/mines) after auditing them.
+- Mod Builder support for the mount-level launch setting is desirable, but the underlying data format and runtime behaviour
+  take priority; do not block a correct moddable implementation on UI tooling.
+- Multiplayer must use the authoritative shot's resulting velocity/direction so remote clients reproduce the same launch.
+  Verify the actual replication path and test it; do not assume local correctness proves network correctness.
+
+### 6.5 Class-based station docking and freighter boarding (owner's decisions, 2026-11-15; Proposed)
+
+- **Two station docking modes:** interior docking (the existing transition into the station interior) and external docking
+  (the ship remains physically present alongside the station in the space scene). Every station supports both modes;
+  station support is universal and does not need a per-station opt-in.
+- **Class-controlled mode:** docking mode is determined by the ship's explicitly assigned mod class / class configuration.
+  Fighters and Interceptors are specifically intended to use **interior docking only**. Other class-to-mode assignments
+  have not yet been exhaustively specified; do not assume every Frigate-or-larger class is automatically external-only
+  until the user confirms the complete class mapping.
+- **Unclassified ships:** a ship with no explicitly assigned class may use its normal interior docking, but is completely
+  ineligible for external station docking. Do not give unclassified ships external docking as a fallback. This preserves
+  vanilla behaviour and makes external docking an explicitly granted modded capability.
+- **External docking behaviour:** the ship remains in the space scene, docked alongside the station and visible to other
+  server members, following the existing moving-station docking model. The docking player's camera does not enter the
+  station. Entering the Space Lounge is a separate, explicit interior transition; it must not remove the docked ship from
+  the shared space scene. The ship remains docked until undocking.
+- **Docking points and visuals:** the ship should eventually define a functional docking attachment point on its hull
+  (typically on a side), which aligns with a station-side docking arm / attachment point. The station provides the
+  complementary docking location. For the first implementation, use functional transforms / positioning only; no visible
+  arm, clamps, collar, docking animation or other visual schema is required yet. A classified ship configured for external
+  docking must have a valid hull docking point; if it is missing, deny external docking rather than inventing a fallback.
+- **Hackable freighters are different:** freighters do not support this external docking mode. External station docking
+  must not be repurposed as freighter boarding. Boarding / hacking remains a separate close-range interaction and is
+  limited to ships **smaller than a Frigate**; ships the size of a Frigate or larger cannot hack-board freighters. Remote
+  hacking is not part of the agreed initial design.
+- **Compatibility and authority:** preserve ordinary interior docking for unclassified vanilla ships. Enforce class and
+  size eligibility authoritatively in multiplayer, and ensure docked ship state / position remains coherent for all clients.
+- **Status:** product design only. No docking code, class schema, station/freighter interaction, docking-point data, camera
+  behaviour or multiplayer replication has been implemented or tested.
+
+### 6.6 Mod-controlled system NPC population (owner's decisions, 2026-11-15; Proposed)
+
+> **🚨 IMPLEMENTATION ORDER — PLAYER-BUILT STATIONS DO NOT EXIST YET.** Station-attracted NPC population is the **LAST implementation step** in this feature area. Do not implement it during the initial system-population work. First finish and verify mod-controlled ambient population suppression. Only revisit station attraction after a real player-built-station system and its authoritative placement, ownership, lifecycle and persistence exist. Do not treat mobile stations or faction station claims as player-built stations. This sequencing is mandatory for ChatGPT and Claude.
+
+
+- **Explicit opt-in:** system population control is an engine capability for modders, not a new default game rule. It must have no effect on an unmodified game or on any existing system unless a mod explicitly configures that system. Existing story content, scripted encounters and vanilla system populations must remain unchanged by default.
+- **Per-system control:** modders should be able to configure NPC presence independently for each system. The primary intended use is to make selected systems empty of ambient NPC traffic / presence by default, particularly for multiplayer-focused mods and newly added systems. This is not a requirement to redesign the NPC simulation or population economy in depth.
+- **Optional player-station response:** a mod may optionally allow a player-built station in a low- or no-population system to attract a small amount of ambient NPC presence. This should be light, infrequent and varied rather than restoring a busy vanilla population or creating a constant stream of traffic. Station presence is a possible trigger for limited ambient activity, not an automatic requirement for every system or every station.
+- **Compatibility boundary:** absent system configuration means today's behaviour. Do not modify original system data or silently apply a global population override. Keep story-/mission-scripted NPCs distinct from ambient population control so the feature cannot inadvertently suppress required story actors or encounters.
+- **Multiplayer:** the server / world authority should own population decisions and spawn/despawn state so clients see a consistent system. Persistence, reconnects, player-station ownership/lifecycle and mod-content compatibility need to be considered when the implementation is designed.
+- **Still to specify during implementation:** exact mod data location/schema, whether population is a simple enabled/disabled setting or supports a small set of levels, what ambient NPC categories can return around player-built stations, spawn caps/cadence and persistence rules. Do not invent a complex simulation or hard-code arbitrary population rates before inspecting the existing system/NPC spawn pipeline.
+- **Status:** product direction recorded; design only. No system data, NPC spawning logic, multiplayer state or tests have been changed.
+
+For NPC population control and the existing ambient traffic pipeline, see `docs/notes/system-population.md`.
 
 ## 7. Non-goals and guardrails
 

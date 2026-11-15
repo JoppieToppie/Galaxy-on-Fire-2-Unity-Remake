@@ -4,8 +4,9 @@
 //               menu / camera, boost, pause, the throttle drag and the dodge on the empty screen); fire is the action button.
 //   Keyboard:   keycap hints (WASD, Q/E, Ctrl, F, Space, R, Esc).
 //   Controller: Xbox or PlayStation button hints (PadGlyph, InputMode.Style: LS / L, LB / L1, RT / R2, A / cross...).
-// Always: speed, throttle and boost readout, and the crosshair: the screen projection of ship + forward * 22000
-// units (where the bullets are after 22000 units), orange for 200 ms after a hit (weapons.md section 9). The chase camera uses the original's fixed touch-mode damping for
+// Always: speed, throttle and boost readout, and the crosshair: the screen projection of the ship's forward aim point
+// (or the active camera's centre in free look; the bullets are after 22000 units), orange for 200 ms after a hit
+// (weapons.md section 9). The chase camera uses the original's fixed touch-mode damping for
 // touch and the handling-dependent damping otherwise (TargetFollowCamera::resetShipHandling / setShipHandling).
 // Esc, the Android back button or the controller's Menu button returns to the main menu (no pause menu yet).
 // One action prompt (tap it, Enter, or the controller's X): "Mine" with a locked asteroid, "Abort" during the

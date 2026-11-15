@@ -28,6 +28,44 @@ namespace GoF2Remake.Tests
         static readonly Ship Raider = new Ship { name = "raider", dx = 90, dy = 0, hostile = true };
 
         [Test]
+        public void FreeLookAcquiresTargetsFromTheCameraViewportCentre()
+        {
+            var cameraObject = new UnityEngine.GameObject("camera");
+            var shipObject = new UnityEngine.GameObject("ship");
+            try
+            {
+                var camera = cameraObject.AddComponent<UnityEngine.Camera>();
+                camera.pixelRect = new UnityEngine.Rect(100f, 50f, 800f, 600f);
+                var crosshair = CombatRadar.LockCrosshairPoint(camera, shipObject.transform, true);
+                Assert.AreEqual(new UnityEngine.Vector3(500f, 350f, 1f), crosshair);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+                UnityEngine.Object.DestroyImmediate(shipObject);
+            }
+        }
+
+        [Test]
+        public void NormalFlightKeepsTheShipForwardAimLine()
+        {
+            var cameraObject = new UnityEngine.GameObject("camera");
+            var shipObject = new UnityEngine.GameObject("ship");
+            try
+            {
+                var camera = cameraObject.AddComponent<UnityEngine.Camera>();
+                var expected = camera.WorldToScreenPoint(ChaseCamera.AimOrigin(shipObject.transform)
+                                                          + shipObject.transform.forward * (22000f * 0.05f));
+                Assert.AreEqual(expected, CombatRadar.LockCrosshairPoint(camera, shipObject.transform, false));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+                UnityEngine.Object.DestroyImmediate(shipObject);
+            }
+        }
+
+        [Test]
         public void HostileShipsComeFirstThenTheNearest()
         {
             Assert.AreEqual("enemy", Pick(new[] { Trader, Raider, Enemy }, true, false), "hostile first, the nearer of the two");
