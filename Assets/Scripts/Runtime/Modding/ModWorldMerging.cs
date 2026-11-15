@@ -18,7 +18,7 @@ namespace GoF2Remake.Modding
         {
             NoteOriginalCounts(db);
             EnsureMapping();
-            systemSpaceMusic.Clear(); systemStationMusic.Clear(); systemBattleMusic.Clear(); stationMusic.Clear(); stationSubtitle.Clear(); stationLore.Clear();
+            systemSpaceMusic.Clear(); systemStationMusic.Clear(); systemBattleMusic.Clear(); stationMusic.Clear(); stationSpaceMusic.Clear(); stationBattleMusic.Clear(); stationSubtitle.Clear(); stationLore.Clear();
             stationModels.Clear(); gateModels.Clear(); stationInterior.Clear(); planetTextures.Clear(); planetSpheres.Clear(); sunTextures.Clear(); sunColors.Clear(); skyboxes.Clear();
             mapTextures.Clear(); mapRings.Clear(); orbits.Clear(); mapPlaces.Clear();
             stationHangar.Clear(); stationBar.Clear(); mobiles.Clear();
@@ -81,6 +81,8 @@ namespace GoF2Remake.Modding
                             if (l.Count > 0) into[s.index] = l;
                         }
                         s.securityLevel = Mathf.Clamp(ModJson.Int(o, "security", s.securityLevel, d.file), 0, 3);
+                        if (ModJson.Has(o, "population")) s.ambientPopulation = Mathf.Clamp(ModJson.Float(o, "population", 1f, d.file), 0f, 4f);
+                        if (ModJson.Has(o, "derelictFreighters")) s.derelictFreighters = ModJson.Bool(o, "derelictFreighters", true, d.file);
                         s.initiallyVisible = ModJson.Bool(o, "visible", s.initiallyVisible, d.file);
                         s.textureIndex = Mathf.Clamp(ModJson.Int(o, "sky", s.textureIndex, d.file), 0, 18);
                         foreach (var g in ModJson.Strings(o, "gates"))
@@ -91,12 +93,7 @@ namespace GoF2Remake.Modding
                         if (ModJson.Str(o, "gateStation") is string gs) gateStations[s.index] = gs;
                         if (ModJson.Str(o, "spaceMusic") is string sm) systemSpaceMusic[s.index] = sm;
                         if (ModJson.Str(o, "stationMusic") is string stm) systemStationMusic[s.index] = stm;
-                        if (ModJson.Has(o, "battleMusic"))
-                        {
-                            var bm = ModJson.Strings(o, "battleMusic");
-                            if (bm.Count == 1 || bm.Count == 3) systemBattleMusic[s.index] = bm;
-                            else Report(mod, $"{d.where}: \"battleMusic\": one track or three (low, medium, full), not {bm.Count}");
-                        }
+                        ReadBattleMusic(mod, o, d.where, systemBattleMusic, s.index);
                         if (ModJson.Str(o, "sunTexture") is string sun) sunTextures[s.index] = BackdropName(mod, sun);
                         if (ModJson.Get(o, "skybox") is JToken skyToken) skyboxes[s.index] = ParseSkybox(mod, skyToken, d.where);
                         if (ModJson.Get(o, "jumpgate") is JObject jgo && ModJson.Str(jgo, "model") is string gm)
@@ -157,6 +154,8 @@ namespace GoF2Remake.Modding
                         st.techLevel = Mathf.Clamp(ModJson.Int(o, "techLevel", st.techLevel, d.file), 0, 10);
                         st.textureIndex = ModJson.Int(o, "planet", st.textureIndex, d.file);
                         if (ModJson.Str(o, "music") is string mu) stationMusic[st.index] = mu;
+                        if (ModJson.Str(o, "spaceMusic") is string ssm) stationSpaceMusic[st.index] = ssm;
+                        ReadBattleMusic(mod, o, d.where, stationBattleMusic, st.index);
                         int interior = InteriorOf(o);
                         if (interior >= 0) stationInterior[st.index] = interior;
                         if (ModJson.Str(o, "planetTexture") is string pt) planetTextures[st.index] = BackdropName(mod, pt);
