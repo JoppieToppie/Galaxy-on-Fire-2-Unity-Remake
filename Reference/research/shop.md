@@ -178,7 +178,8 @@ iPadLarge: 1300×800 px centred (`Layout::setWindowDimensions`); left half 3D sh
 | 35, 41, 42 | 157 Effect | ms |
 | 38 | 150 Energy consumption | blank for item 85 in hardcore |
 | 39, 40 | 147 Fire rate / 146 Damage | "+N%" |
-| 44, 47, 51, 53 | 151 Range | m (51/53 float) |
+| 44, 47 | 151 Range | m |
+| 51, 53 | 151 Range | m, `(int)(value * 0.1f)` (DAT_00159818 = 0.1 at 0x159fa0; the decompile drops the multiply) |
 | 49 | 156 Speed | `v·50` km/h |
 | 50 | 139 Magnitude | % float |
 | 52 | 160 Gamma shielding | % |
