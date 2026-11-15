@@ -317,3 +317,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   orbit's own field: `NetOrbit.AddField`), so NetState's destroyed lists and the drilling / landed indices keep them apart;
   players outside the team don't have the field and ignore those indices. A follower's stand-in plant and a takeover
   (`Promote`) use the site's own plant position.
+- **Station scale** (space-scene.md "Station scale"): an event's positions stay the original's game coordinates; where
+  they become Unity (cutscene / order places, pickups) they go through `OrbitScale.ToUnity`, and what scripts read back
+  (`EventHost.ToGame`, `distance(...)`, `on near`) is unmapped with `OrbitScale.ToGame` / `UnplaceUnity`, so a graph
+  written for the original layout works at any scale (the identity in multiplayer).

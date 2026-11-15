@@ -125,7 +125,7 @@ namespace GoF2Remake.Flight
                 }
                 else if (tier == 3) extra.Add(new ItemStack(BossLoot[Random.Range(0, BossLoot.Length)], Random.Range(2, 5)));
                 AddStash(db, extra, OutpostStashRolls[t], loot.item);
-                list.Add(new SpawnSpec
+                var outpost = new SpawnSpec
                 {
                     group = NpcGroup.Outpost, race = Standing.Pirate, ship = -1, position = at,
                     fixedObject = "station_pirates", collisionId = 1002, hitRadius = 7500f,
@@ -133,7 +133,8 @@ namespace GoF2Remake.Flight
                     wreckPrefab = assets != null ? assets.outpostWreck : null, explosionScale = 8f, stationary = true, asleep = true,
                     nameText = 441, lootItem = loot.item, lootAmount = loot.amount, extraLoot = extra, alwaysEnemy = true,
                     pirateEvent = SpawnSpec.EventOutpost, eventTier = tier, sightingId = sightingId,
-                });
+                };
+                list.Add(outpost);
                 int baseGuards = (int)((Session.Difficulty - 0.5f) * 5f + 5f);
                 int guards = Mathf.Max(1, baseGuards + OutpostGuardsAdd[t]);
                 for (int g = 0; g < guards; g++)
@@ -142,6 +143,7 @@ namespace GoF2Remake.Flight
                     list.Add(new SpawnSpec
                     {
                         group = NpcGroup.Guard, race = Standing.Pirate, ship = Fighter(), asleep = true, guard = true, pirateEvent = SpawnSpec.EventGuard,
+                        placedOn = outpost,   // OrbitScale: parked round the grown outpost, out of its hull
                         position = at + new Vector3(S() * Random.Range(0, 20000) + 10000, S() * Random.Range(0, 20000) + 10000, S() * Random.Range(0, 20000) + 10000),
                     });
                 }
@@ -151,6 +153,7 @@ namespace GoF2Remake.Flight
                     turret.race = Standing.Pirate;
                     turret.alwaysEnemy = true;
                     turret.pirateEvent = SpawnSpec.EventTurret;
+                    turret.placedOn = outpost;   // OrbitScale: on the grown outpost's hull
                     list.Add(turret);
                 }
                 return;

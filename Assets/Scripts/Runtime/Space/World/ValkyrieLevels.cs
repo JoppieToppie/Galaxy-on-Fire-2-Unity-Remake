@@ -76,8 +76,13 @@ namespace GoF2Remake.World
 
         static Vector3 ToUnity(Vector3 game) => new Vector3(game.x, game.y, -game.z) * M;
         static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / M;
+        /// <summary>OrbitScale: an absolute station-anchored game position (the original's) to where the scaled orbit has it
+        /// (ToUnity stays for offsets, and for positions read back from the scene with ToGame).</summary>
+        static Vector3 At(Vector3 game) => OrbitScale.ToUnity(game);
+        /// <summary>OrbitScale: a structure's size (the battlestation, Kothar's station): offsets on its hull grow with it.</summary>
+        static float StructureScale => OrbitScale.Factor;
         static Vector3 Dir(Vector3 game) => new Vector3(game.x, game.y, -game.z).normalized;
-        Vector3 PlayerGame => ToGame(Player.position);
+        Vector3 PlayerGame => OrbitScale.ToGame(Player.position);   // OrbitScale: the original's coordinates (spawns, At)
         Vector3 PlayerDirGame => new Vector3(Player.forward.x, Player.forward.y, -Player.forward.z);
         static int R(int n) => Random.Range(0, n);
         static float Sign() => R(2) == 0 ? 1f : -1f;
@@ -114,8 +119,10 @@ namespace GoF2Remake.World
 
         GameObject Scenery(string assembly, Vector3 gamePos, Quaternion rot, string label)
         {
-            var go = OrbitBuilder.Spawn(level.Database, assembly, gamePos, rot, label, null);
-            if (go != null) GunRig.StripForFx(go);
+            // OrbitScale: the story's station-sized objects (the battlestation, its laser, Kothar's laser) where the scaled orbit
+            // has them, grown like the station.
+            var go = OrbitBuilder.Spawn(level.Database, assembly, OrbitScale.Place(gamePos), rot, label, null);
+            if (go != null) { GunRig.StripForFx(go); OrbitScale.Structure(go.transform); }
             return go;
         }
 
@@ -195,7 +202,9 @@ namespace GoF2Remake.World
         // JumpShotTravel80 further over the whole shot (steps 11 + 12 + 13 = 4000 + 8000 + 10001 ms), X and Y unchanged.
         const float JumpShotTravel80 = 8000f;   // Unity metres along +Z: from the shot's start (Z -7000) to Z 1000
         const float JumpShotMs80 = 4000f + 8000f + 10001f;
-        float jumpShotMs80, jumpShotStartZ80;
+        float jumpShotMs80, jumpShotStartZ80, jumpShotEndZ80;
+        /// <summary>80's battlestation (game units, the original's; Level case 0x50).</summary>
+        static readonly Vector3 Host80 = new Vector3(0, 0, 160000);
 
         // Modified: the deep science station's two fires (the "Deep science burn" particle systems under burn A / B), local
         // position and rotation as set in the Inspector.
@@ -260,7 +269,7 @@ namespace GoF2Remake.World
 
         const float LaserWindow80 = 1700f;   // Modified: ms from the laser appearing to the camera cut (step 2; was 2000): it fires 0.3 s later, the cut stays put
         const float CamPullBack80 = 3250f;   // Modified: Unity metres along +Z over the shot (from Z -6250 to -3000; X and Y stay put)
-        float camStartZ80;
+        float camStartZ80, camEndZ80;
 
         // Modified: 81's hyperdrive fx (the battlestation dropping out of hyperspace), Unity units relative to the
         // battlestation (at the origin) / degrees, from the Inspector.

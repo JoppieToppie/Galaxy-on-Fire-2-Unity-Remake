@@ -106,7 +106,9 @@ namespace GoF2Remake.World
             var go = new GameObject("Gas clouds");
             var field = go.AddComponent<GasCloudField>();
             field.Setup(db, player, turret, item);
-            var centre = OrbitLayout.ToUnity(layout.asteroidCentre);
+            // OrbitScale: rolled and tested in the original's coordinates (clear of the station and the field as there), each
+            // cloud then where the scaled orbit has it (the rocks are placed the same way); the clouds keep their size.
+            var centre = layout.asteroidCentre;
             for (int i = 0; i < count; i++)
             {
                 Vector3 pos;
@@ -115,9 +117,9 @@ namespace GoF2Remake.World
                 {
                     int guard = 0;
                     do pos = new Vector3(Random.Range(0, 160000) - 80000, Random.Range(0, 160000) - 80000, Random.Range(0, 160000) - 80000);
-                    while ((pos.magnitude < 25000f || (OrbitLayout.ToUnity(pos) - centre).magnitude / M < 30000f) && ++guard < 1000);
+                    while ((pos.magnitude < 25000f || (pos - centre).magnitude < 30000f) && ++guard < 1000);
                 }
-                field.Add(OrbitLayout.ToUnity(pos));
+                field.Add(OrbitLayout.ToUnity(layout.Place(pos)));
             }
             return field;
         }
@@ -129,7 +131,7 @@ namespace GoF2Remake.World
             var go = new GameObject("Gas clouds");
             var field = go.AddComponent<GasCloudField>();
             field.Setup(db, player, turret, item);
-            foreach (var pos in own.clouds) field.Add(OrbitLayout.ToUnity(pos));
+            foreach (var pos in own.clouds) field.Add(OrbitLayout.ToUnity(layout.Place(pos)));   // OrbitScale: the mod's places, mapped
             return field;
         }
 

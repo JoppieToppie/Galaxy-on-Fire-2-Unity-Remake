@@ -50,7 +50,7 @@ namespace GoF2Remake.World
         void Update()
         {
             if (level == null || level.Player == null) { Destroy(gameObject); return; }
-            var c = new Vector3(centreGame.x, centreGame.y, -centreGame.z) * OrbitLayout.MetersPerUnit;
+            var c = OrbitScale.ToUnity(centreGame);   // OrbitScale: the encounter's point (the original's coordinates), mapped
             if ((level.Player.transform.position - c).sqrMagnitude > EncounterWatch.LeaveM * EncounterWatch.LeaveM)
             {
                 level.Navigation?.Post(Localization.Extra("challengeLeft", "Challenge abandoned"));
@@ -63,7 +63,8 @@ namespace GoF2Remake.World
                 case 0:   // ES2's AdditionalEnemy
                     if (level.Traffic == null) { Destroy(gameObject); return; }
                     raiders.Clear();
-                    Add(CruiseEncounterSpawner.Raider(level.Traffic, centreGame + new Vector3(Random.Range(-5000f, 5000f), Random.Range(-2000f, 2000f), Random.Range(-5000f, 5000f))));
+                    // OrbitScale: an offset from the point, not mapped (CruiseEncounterSpawner.Near)
+                    Add(CruiseEncounterSpawner.Raider(level.Traffic, CruiseEncounterSpawner.Near(centreGame, new Vector3(Random.Range(-5000f, 5000f), Random.Range(-2000f, 2000f), Random.Range(-5000f, 5000f)))));
                     level.Traffic.ConnectPlayers();
                     level.Navigation?.Post(Localization.Extra("challengeTie", "A tie: one more target"));
                     return;

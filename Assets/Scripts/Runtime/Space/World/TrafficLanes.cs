@@ -58,7 +58,7 @@ namespace GoF2Remake.World
         {
             if (spec.points == null || spec.points.Count < 2) return;
             var pts = new List<Vector3>();
-            foreach (var p in spec.points) pts.Add(OrbitLayout.ToUnity(p));
+            foreach (var p in spec.points) pts.Add(OrbitScale.ToUnity(p));   // OrbitScale: orbit points, in the scaled orbit
             var lane = new Lane { path = new TrafficLane(pts, spec.loop), speed = spec.speed, twoLanes = spec.twoLanes };
             if (lane.path.Length < 1f) return;
             for (int i = 0; i < spec.count; i++)

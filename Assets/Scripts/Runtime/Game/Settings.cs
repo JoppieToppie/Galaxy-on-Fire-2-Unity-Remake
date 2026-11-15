@@ -371,6 +371,21 @@ namespace GoF2Remake.Data
         public static bool CloakLosesPursuers { get => Rule(R.CloakLosesPursuers, "cloakLosesPursuers", false); set => SetRule(R.CloakLosesPursuers, "cloakLosesPursuers", value); }
         /// <summary>Remake (GitHub #6): now and then a free-flight orbit holds a pirate outpost or a pirate boss with escorts
         /// (TrafficPlan.AddPirateEvent), each with a bounty. A session rule.</summary>
+        /// <summary>Remake, experimental (OrbitScale, the user's request 2026-11-15): the stations, gates and other structures
+        /// of an orbit at 1x..6x their size, the orbit grown around them (1 = the original; single player only). Read when
+        /// an orbit is built: a change shows in the next one.</summary>
+        public static float StationScale
+        {
+            get => Snap(Get("stationScale", 1f));
+            set => Set("stationScale", Snap(value));
+        }
+        static float Snap(float v)
+        {
+            float best = 1f;
+            foreach (var c in World.OrbitScale.Choices) if (Mathf.Abs(c - v) < Mathf.Abs(best - v)) best = c;
+            return best;
+        }
+
         public static bool PirateEvents { get => Rule(R.PirateEvents, "pirateEvents", false); set => SetRule(R.PirateEvents, "pirateEvents", value); }
         /// <summary>Remake (players' suggestion): the Kaamo Club mechanics sell their upgrade again, the price doubling per
         /// level (LoungeChat.ModPrice); off = the original's one of each. Levels already fitted stay either way. A session
@@ -908,7 +923,7 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] GameplayKeys =
         {
-            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "shopByCategory", "cloakBay", "informerOriginalRule",
+            "launchCamera", "stationScale", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "shopByCategory", "cloakBay", "informerOriginalRule",
             "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
             "speedrunPosition", "speedrunLiveSplit",

@@ -82,8 +82,9 @@ namespace GoF2Remake.World
             return new Vector3(Mathf.Cos(a) * r, Mathf.Sin(a) * r * 0.6f, -3000f - 1500f * ring);
         }
 
-        /// <summary>A scripted spot (game units) for this game's ship and camera: the leader's, or a follower's beside it.</summary>
-        Vector3 S(Vector3 game) => game + slot;
+        /// <summary>A scripted spot (game units) for this game's ship and camera, in Unity: the leader's, or a follower's beside
+        /// it. OrbitScale: the spot mapped, the slot (an offset) not (Var Hastra has no station at 0 / 1: the identity there).</summary>
+        Vector3 At(Vector3 game) => OrbitScale.ToUnity(game) + ToUnity(slot);
 
         /// <summary>The skip still does something (not already loading the next scene); the leader's alone in co-op.</summary>
         public bool CanSkip => !loading && !follower;
@@ -139,8 +140,8 @@ namespace GoF2Remake.World
                 p.SetEngineSound(false);   // silent while they hide in the belt
             }
             // Player at (0, 0, -60 000) facing +Z, computer-controlled; camera (-1000, -500, -40 000) looking at it.
-            Player.SetPositionAndRotation(ToUnity(S(new Vector3(0, 0, -60000))), Quaternion.LookRotation(Dir(new Vector3(0, 0, 1)), Vector3.up));
-            cam.LookAt(S(new Vector3(-1000, -500, -40000)), Player);
+            Player.SetPositionAndRotation(At(new Vector3(0, 0, -60000)), Quaternion.LookRotation(Dir(new Vector3(0, 0, 1)), Vector3.up));
+            cam.LookAtUnity(At(new Vector3(-1000, -500, -40000)), Player);
             smoke = new ShipSmoke(Ship.visualModel != null ? Ship.visualModel : Player);
             campaign.PlayMusic(assets?.introAtmo, true);   // MenuTouchWindow::startGOF2: 143 IntroAtmo
             Step = 0;
@@ -152,15 +153,15 @@ namespace GoF2Remake.World
             if (!follower)   // a co-op follower sees the leader's
             {
                 var g = campaign.SpawnShip(3, 30, new Vector3(300, 50, -6000), false, spec => { spec.inactive = true; spec.alwaysFriend = true; spec.nameText = 1599; });
-                g.Place(ToUnity(new Vector3(300, 50, -6000)), Dir(new Vector3(0, 0, 1)));
+                g.Place(OrbitScale.ToUnity(new Vector3(300, 50, -6000)), Dir(new Vector3(0, 0, 1)));
                 g.SetExhaust(false);
                 g.SetEngineSound(false);
             }
             // Player frozen at the origin, rotation (0.462, 0.462, 1.5339) rad, exhaust off; camera (1500, 1600, -3000).
-            Player.SetPositionAndRotation(ToUnity(S(Vector3.zero)), OrbitLayout.RotationToUnity(new Vector3(0.462f, 0.462f, 1.5339f)));
+            Player.SetPositionAndRotation(At(Vector3.zero), OrbitLayout.RotationToUnity(new Vector3(0.462f, 0.462f, 1.5339f)));
             SetPlayerExhaust(false);
             playerSpeed = 0f;
-            cam.LookAt(S(new Vector3(1500, 1600, -3000)), Player);
+            cam.LookAtUnity(At(new Vector3(1500, 1600, -3000)), Player);
             campaign.Fade(true, Color.black, 5000f, fromOpaque: true);
             // Index 0's state 16 (and its skip) sets Globals::switch_to_target_setting before the new level, so
             // MGame::OnInitialize calls playMusicAndFadeOutCurrent(1): 141 stops and the system race's space track plays
@@ -221,10 +222,10 @@ namespace GoF2Remake.World
         {
             if (level.Asteroids == null || gameSpots.Length == 0) return;
             var centre = Vector3.zero;
-            foreach (var p in gameSpots) centre += ToUnity(p);
+            foreach (var p in gameSpots) centre += OrbitScale.ToUnity(p);   // OrbitScale: where the pirates are placed
             centre /= gameSpots.Length;
             float reach = 0f;
-            foreach (var p in gameSpots) reach = Mathf.Max(reach, Vector3.Distance(centre, ToUnity(p)));
+            foreach (var p in gameSpots) reach = Mathf.Max(reach, Vector3.Distance(centre, OrbitScale.ToUnity(p)));
             float bubble = reach + PirateBubbleClearUnits * M;
             var doomed = new System.Collections.Generic.List<GameObject>();
             foreach (Transform a in level.Asteroids)
@@ -248,13 +249,13 @@ namespace GoF2Remake.World
                         // the player (no setTarget): just behind the pirates, who talk in the foreground while Keith's ship
                         // passes in the distance (levelscript_cutscenes.md had -3000 for both -12000s, which put them behind
                         // the camera).
-                        Player.position = ToUnity(S(new Vector3(18000, -12000, -40000)));
-                        cam.LookAt(S(new Vector3(-12000, 2000, -500)), Player);
+                        Player.position = At(new Vector3(18000, -12000, -40000));
+                        cam.LookAtUnity(At(new Vector3(-12000, 2000, -500)), Player);
                         Vector3[] at = { new Vector3(-10000, 500, 0), new Vector3(-10000, -300, -1700), new Vector3(-10000, -200, 2000) };
                         ClearPirateBubble(at);
                         for (int i = 0; i < 3 && i < pirates.Count; i++)
                         {
-                            pirates[i].Place(ToUnity(at[i]), Vector3.right);   // facing +X
+                            pirates[i].Place(OrbitScale.ToUnity(at[i]), Vector3.right);   // facing +X
                             pirates[i].SetVisible(true);
                         }
                         Step = 1;
@@ -271,7 +272,7 @@ namespace GoF2Remake.World
                     }
                     if (Step == 1 && Over(6))
                     {
-                        if (pirates.Count > 0) cam.LookAt(new Vector3(-5000, 300, -5000), pirates[0].transform);
+                        if (pirates.Count > 0) cam.LookAtUnity(OrbitScale.ToUnity(new Vector3(-5000, 300, -5000)), pirates[0].transform);
                         campaign.PlayMusic(assets?.battleFull, true);   // music stop, 142
                         cam.SetDolly(new Vector3(0.2f, 0f, 2.2f));
                         Step = 2;
@@ -376,11 +377,11 @@ namespace GoF2Remake.World
                     if (level.Asteroids != null) Object.Destroy(level.Asteroids.gameObject);
                     // LevelScript state 9 (0x167bd0): setDirection(parent, (0, 0, -1)) moves only the drifting parent node,
                     // then PlayerEgo::rotate(pi/4, pi/4, pi/4) turns the ship node in it (Tumble).
-                    Player.SetPositionAndRotation(ToUnity(S(Vector3.zero)), Quaternion.LookRotation(Dir(new Vector3(0, 0, -1)), Vector3.up));
+                    Player.SetPositionAndRotation(At(Vector3.zero), Quaternion.LookRotation(Dir(new Vector3(0, 0, -1)), Vector3.up));
                     wreckEuler = Vector3.zero;
                     Ship.modelHeld = true;   // ShipController's computer-controlled levelling leaves the model alone
                     Tumble(Mathf.PI / 4f);
-                    cam.LookAt(S(new Vector3(5000, 500, -10000)), Player);
+                    cam.LookAtUnity(At(new Vector3(5000, 500, -10000)), Player);
                     Step = 10;
                     break;
                 }
@@ -457,7 +458,7 @@ namespace GoF2Remake.World
             if (campaign.Ships.Count > 0)
             {
                 var g = campaign.Ships[0].transform;
-                float z = -g.position.z / M;   // game z
+                float z = OrbitScale.ToGame(g.position).z;   // game z (OrbitScale: the original's)
                 g.position += g.forward * (0.2f * dtMs * Mathf.Min(z / -5000f, 1f)) * M;
             }
             switch (Step)

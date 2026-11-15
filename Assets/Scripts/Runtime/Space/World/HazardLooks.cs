@@ -50,8 +50,8 @@ namespace GoF2Remake.World
             for (int i = 0; i < zones.Length; i++)
             {
                 var z = zones[i];
-                var at = OrbitLayout.ToUnity(z.centre);
-                float r = z.radius * OrbitLayout.MetersPerUnit;
+                var at = HazardZones.CentreOf(z);   // OrbitScale: as HazardZones has the volume
+                float r = HazardZones.RadiusMOf(z);
                 var root = new GameObject("Hazard " + z.kind);
                 root.transform.SetParent(parent, false);
                 root.transform.position = at;
@@ -249,8 +249,8 @@ namespace GoF2Remake.World
             foreach (var z in zones)
             {
                 if (z.kind != Modding.ModWorld.HazardKind.Heat) continue;
-                float r = z.radius * OrbitLayout.MetersPerUnit;
-                float d = (camera - OrbitLayout.ToUnity(z.centre)).magnitude;
+                float r = HazardZones.RadiusMOf(z);
+                float d = (camera - HazardZones.CentreOf(z)).magnitude;
                 w = Mathf.Max(w, Mathf.Clamp01((r - d) / (r * 0.15f)));
             }
             return w;

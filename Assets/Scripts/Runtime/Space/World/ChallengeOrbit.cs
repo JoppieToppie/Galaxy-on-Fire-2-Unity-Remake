@@ -45,7 +45,8 @@ namespace GoF2Remake.World
         // Level+0x110 route starts at (-40 000, 0, -15 000) (Android's (-55 000, 0, -35 000)): its Specters gather there before
         // attacking (the user's test of the iOS logic); before, the user's pick in the Editor from the original's video,
         // (-1975, -379.65, 91) m.
-        static readonly Vector3 FirstWavePoint = ToUnity(new Vector3(-40000, 0, -15000));
+        // OrbitScale: where the scaled orbit has it (Luur's wreck grows with the option; the run still takes FirstLegMs).
+        static Vector3 FirstWavePoint => OrbitScale.ToUnity(new Vector3(-40000, 0, -15000));
         const float FirstWaveReachMeters = 300f;
         // Modified: after the point the first wave eases from its fast run down to its own speed over this long.
         const float FirstWaveSlowMs = 2000f;
@@ -97,7 +98,14 @@ namespace GoF2Remake.World
         public bool Ending => SupernovaChallenge.Over;
 
         static Vector3 ToUnity(Vector3 game) => new Vector3(game.x, game.y, -game.z) * M;
-        static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / M;
+        /// <summary>OrbitScale: a Unity spot pushed out of the grown station's reach, should it fall inside it.</summary>
+        static Vector3 ClearOfStation(Vector3 unity)
+        {
+            if (!OrbitScale.Active) return unity;
+            float min = OrbitScale.Factor * OrbitScale.Current.stationReach * M;
+            float r = unity.magnitude;
+            return r < min && r > 1e-3f ? unity * (min / r) : unity;
+        }
         static float Sign() => Random.Range(0, 2) == 0 ? 1f : -1f;
 
         public void Setup(SpaceLevel spaceLevel, Traffic npcTraffic)
@@ -143,8 +151,8 @@ namespace GoF2Remake.World
             foreach (var s in specters) s.SetOnlyEnemy(traffic.Player);
             foreach (var sh in shuttles.All) sh.ship.SetOnlyEnemy(null);
             traffic.ShipDied += OnShipDied;
-            var start = ToUnity(PlayerStart);
-            level.MovePlayer(start, Quaternion.LookRotation((ToUnity(SpecterPoint) - start).normalized, Vector3.up));
+            var start = OrbitScale.ToUnity(PlayerStart);   // OrbitScale: absolute spots, mapped (the spawns' NpcShip maps itself)
+            level.MovePlayer(start, Quaternion.LookRotation((OrbitScale.ToUnity(SpecterPoint) - start).normalized, Vector3.up));
             Debug.Log($"ChallengeOrbit: round {SupernovaChallenge.Round}, {specters.Count} Specters, {shuttles.All.Count} Rhinos");
         }
 
@@ -168,7 +176,8 @@ namespace GoF2Remake.World
             }
         }
 
-        /// <summary>A scenery object (KIPlayer+0x70 radar-hidden, race 10, 9 999 999 hull): never a target.</summary>
+        /// <summary>A scenery object (KIPlayer+0x70 radar-hidden, race 10, 9 999 999 hull): never a target. OrbitScale: 'at' in
+        /// the original's coordinates (NpcShip maps it); the platform grows like the stations there (NpcShip.IsStructure).</summary>
         NpcShip Scenery(string assembly, Vector3 at, Vector3 rotation, int nameText, int collision)
         {
             var s = traffic.SpawnShip(new SpawnSpec
@@ -265,12 +274,12 @@ namespace GoF2Remake.World
             waveMs += dtMs;
             if (waveMs <= WaveMs) return;
             waveMs = 0f;
-            var player = ToGame(level.Player.transform.position);
+            var player = level.Player.transform.position;
             foreach (var s in specters)
             {
                 if (s == null || !s.Gone) continue;
-                var at = player + new Vector3(Sign() * (Random.Range(0, 30000) + 50000), Sign() * (Random.Range(0, 10000) + 10000), Sign() * (Random.Range(0, 30000) + 50000));
-                s.Revive(ToUnity(at));
+                var off = new Vector3(Sign() * (Random.Range(0, 30000) + 50000), Sign() * (Random.Range(0, 10000) + 10000), Sign() * (Random.Range(0, 30000) + 50000));
+                s.Revive(ClearOfStation(player + ToUnity(off)));   // OrbitScale: an offset from the player (not mapped), never in the grown wreck
             }
         }
 

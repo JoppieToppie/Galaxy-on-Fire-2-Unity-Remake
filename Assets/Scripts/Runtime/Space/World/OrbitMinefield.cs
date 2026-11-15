@@ -75,7 +75,7 @@ namespace GoF2Remake.World
             {
                 if (!Laid(spec, security, Session.Rank, Random.value)) continue;
                 if (root == null) { root = new GameObject("Orbit minefields"); root.transform.SetParent(level.transform, false); }
-                var centre = OrbitLayout.ToUnity(spec.centre);
+                var centre = OrbitLayout.ToUnity(level.Layout.Place(spec.centre));   // OrbitScale: the field's centre mapped, its mines' spread not
                 float radiusM = spec.radius * OrbitLayout.MetersPerUnit;
                 // ES2's AverageMineDistance over Radius (12 000 / 25 000) as the spacing's share of the field
                 float spacing = radiusM * 0.48f * Mathf.Pow(40f / spec.count, 1f / 3f);

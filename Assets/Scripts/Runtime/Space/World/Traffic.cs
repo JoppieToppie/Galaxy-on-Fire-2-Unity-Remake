@@ -89,7 +89,7 @@ namespace GoF2Remake.World
             }
             else if (!storyOrbit)
             {
-                var plan = TrafficPlan.Build(db, StationIndex, sys, player != null ? new Vector3(player.transform.position.x, player.transform.position.y, -player.transform.position.z) / 0.05f : Vector3.zero,
+                var plan = TrafficPlan.Build(db, StationIndex, sys, player != null ? OrbitScale.ToGame(player.transform.position) : Vector3.zero,   // (OrbitScale: the original's coordinates)
                                              wormholeHere ? wormhole.GamePosition : (Vector3?)null);
                 foreach (var spec in plan) waiting.Enqueue(spec);
             }
@@ -302,7 +302,7 @@ namespace GoF2Remake.World
                 var spec = new SpawnSpec
                 {
                     group = NpcGroup.Wingman, race = race, ship = ship, alwaysFriend = true, noLoot = true, name = names[i],
-                    position = new Vector3(pos.x, pos.y, -pos.z) / 0.05f, hitpoints = Mathf.Max(600, NpcTables.Hull(0, ship)),
+                    position = OrbitScale.ToGame(pos), hitpoints = Mathf.Max(600, NpcTables.Hull(0, ship)),
                 };
                 var s = Create(spec);
                 s.transform.rotation = player.rotation;

@@ -492,6 +492,12 @@ namespace GoF2Remake.UI
                 () => !Settings.LaunchCamera, v => Settings.LaunchCamera = !v);
             skipLaunch.description = () => X("skipLaunchCameraHelp", "Straight to the chase camera when you launch or arrive. Off: a camera watches your ship fly past, as in the original.");
             list.Add(skipLaunch);
+            // Remake, experimental (the user's request, 2026-11-15; World.OrbitScale): the orbit's structures at 1x..6x, the
+            // orbit grown around them. Single player only; read when an orbit is built.
+            list.Add(Choice("stationScale", OptionPage.Gameplay, () => X("stationScale", "Station scale (experimental)"), false,
+                () => World.OrbitScale.Choices.Select(c => c <= 1f ? X("stationScaleOriginal", "Original") : c.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "×").ToArray(),
+                () => Mathf.Max(0, System.Array.IndexOf(World.OrbitScale.Choices, Settings.StationScale)), i => Settings.StationScale = World.OrbitScale.Choices[i],
+                () => X("stationScaleHelp", "Stations, jumpgates and other structures are bigger, and the orbit around them grows with them. Shown from the next orbit on. Single player only.")));
             list.Add(Toggle("hangarFlights", OptionPage.Gameplay, () => X("hangarFlights", "Hangar arrival and take-off"),
                 () => Settings.HangarFlights, v => Settings.HangarFlights = v));
             list.Add(Toggle("tutorialHints", OptionPage.Gameplay, () => X("tutorialHints", "Tutorials"),
