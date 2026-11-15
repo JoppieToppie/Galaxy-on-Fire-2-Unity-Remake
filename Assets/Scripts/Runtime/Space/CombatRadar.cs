@@ -58,6 +58,7 @@
 //               readout is white (a capture is green).
 
 using System;
+using System.Collections.Generic;
 using GoF2Remake.Data;
 using GoF2Remake.World;
 using UnityEngine;
