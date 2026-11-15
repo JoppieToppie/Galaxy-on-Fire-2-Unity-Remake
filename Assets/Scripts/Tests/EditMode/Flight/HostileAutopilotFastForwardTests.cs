@@ -26,6 +26,9 @@ namespace GoF2Remake.Tests
                 if (autopilot) typeof(Navigation).GetProperty("AutopilotTarget").SetValue(nav, new Navigation.Target());
                 typeof(Navigation).GetProperty("AboutToReach").SetValue(nav, near);
                 Assert.AreEqual(expected, nav.CanFastForward);
+                nav.FastForwardRadioBlocked = true;
+                Assert.IsFalse(nav.CanFastForward, "radio/chatter remains blocked even when hostile contacts are allowed");
+                nav.FastForwardRadioBlocked = false;
                 typeof(Navigation).GetProperty("Jumping").SetValue(nav, true);
                 Assert.IsFalse(nav.CanFastForward, "jumping is never waived by this option");
             }
