@@ -362,23 +362,27 @@ namespace GoF2Remake.World
             ship.externalControl = false;
             if (weapons != null) weapons.Blocked = false;
             if (gate != null)
-                ship.transform.SetPositionAndRotation(gate.transform.position + OrbitLayout.DirToUnity(new Vector3(0f, 0f, 8000f)) * M,
+                ship.transform.SetPositionAndRotation(gate.transform.position + OrbitLayout.DirToUnity(new Vector3(0f, 0f, 8000f)) * (M * OrbitScale.Factor),   // OrbitScale: past the grown gate
                                                       Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
         }
 
         /// <summary>Set while the gate takes the ship one system along the route to the programmed station (Arrive keeps it).
         /// Where the gate jumps: GalaxyMap.NextHop (the station, or the next system's gate orbit on the gate route).</summary>
         bool hopping;
+        /// <summary>Remake (OrbitScale): the gate scene's spots and motion times the gate's scale (1 off).</summary>
+        float gateSceneScale = 1f;
 
         void StartGateScene(int station)
         {
             BeginScene(station);
             state = State.GateScene;
             var g = gate != null ? gate.transform.position : ship.transform.position;
-            ship.transform.SetPositionAndRotation(g + OrbitLayout.DirToUnity(new Vector3(0f, 0f, -10000f)) * M,
+            // OrbitScale: the scene round the grown gate grown with it, its motion too (gateSceneScale), so it keeps its timing.
+            gateSceneScale = gate != null ? OrbitScale.Factor : 1f;
+            ship.transform.SetPositionAndRotation(g + OrbitLayout.DirToUnity(new Vector3(0f, 0f, -10000f)) * (M * gateSceneScale),
                                                   Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
             var cam = Camera.main;
-            if (cam != null) cam.transform.position = g + OrbitLayout.DirToUnity(new Vector3(-2000f, 300f, -6000f)) * M;
+            if (cam != null) cam.transform.position = g + OrbitLayout.DirToUnity(new Vector3(-2000f, 300f, -6000f)) * (M * gateSceneScale);
         }
 
         /// <summary>PlayerJumpgate::activate: the idle glow is replaced by the one-shot jump animation.</summary>
@@ -739,7 +743,7 @@ namespace GoF2Remake.World
             var cam = Camera.main;
             // Modified: a mod drive's effect keeps the camera drifting off after the ship vanished, to its end and the hold after.
             if ((!hidden || (!gateScene && khadorModFx)) && cam != null && rift == null)   // ship-space game (5, 2, -3 / -5) u/ms -> Unity local (-5, 2, -3 / -5)
-                cam.transform.position += ship.transform.rotation * (new Vector3(-5f, 2f, gateScene ? -3f : -5f) * dtMs * M);
+                cam.transform.position += ship.transform.rotation * (new Vector3(-5f, 2f, gateScene ? -3f : -5f) * dtMs * M * (gateScene ? gateSceneScale : 1f));
             if (rift != null)
             {
                 speed = KhadorTimeline.RiftSpeed(animMs);   // drawn into the hole
@@ -747,13 +751,13 @@ namespace GoF2Remake.World
                 if (orbitFog == null) orbitFog = FindAnyObjectByType<SpaceLevel>()?.Fog;
                 if (orbitFog != null) orbitFog.Fade(1f - Mathf.InverseLerp(KhadorTimeline.RingStartMs / KhadorTimeline.RiftRate, riftCrossMs, animMs));
             }
-            float step = speed * dtMs * M;
+            float step = speed * dtMs * M * (gateScene ? gateSceneScale : 1f);   // (OrbitScale: the gate scene's grown)
             // Remake: the Khador scene keeps its path while the player turns the ship (turnOnly).
             ship.transform.position += (gateScene ? ship.transform.forward : sceneDir) * step;
-            ship.ExternalSpeedMetersPerSecond = speed * M * 1000f;
+            ship.ExternalSpeedMetersPerSecond = speed * M * 1000f * (gateScene ? gateSceneScale : 1f);
 
             if (gateScene && !activated && gate != null && cam != null
-                && -cam.transform.position.z / M < -gate.transform.position.z / M - 10000f)   // camera z (game) < gate z - 10000
+                && -cam.transform.position.z / M < -gate.transform.position.z / M - 10000f * gateSceneScale)   // camera z (game) < gate z - 10000 (OrbitScale: x the gate's scale)
                 ActivateGate();
             if (!activated) return;
             animMs += dtMs;

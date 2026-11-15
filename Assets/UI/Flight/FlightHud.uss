@@ -376,6 +376,21 @@
     top: 80px;
 }
 
+/* Remake (#247): the Khador Drive / cloak charge frame (top 76, 69 tall) under a lock: a message under the lock plate
+   (56..100) was drawn over the frame, so while it charges the message goes under the frame instead. With the FPS counter
+   the frame moves down with the lock plate (30..87 reached into it), keeping the original's 13 px between them. */
+.hud-charging .hud-messages--low {
+    top: 146px;
+}
+
+.hud-fps .jump-charge {
+    top: 100px;
+}
+
+.hud-fps.hud-charging .hud-messages--low {
+    top: 170px;
+}
+
 .hud-message {
     position: absolute;
     left: -200px;

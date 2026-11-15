@@ -181,7 +181,7 @@ namespace GoF2Remake.World
                     hitpoints = Mathf.Max(1, Mathf.RoundToInt(ship.Hp.maxHull * s.spec.hullShare)), speed = src.speed,
                     gunItem = src.gunItem, gunFactor = src.gunFactor, secondaryItem = src.secondaryItem, secondaryFactor = src.secondaryFactor,
                     turretItems = src.turretItems != null ? new List<int>(src.turretItems) : null,
-                    noLoot = true, alwaysEnemy = true, noDevices = true, position = new Vector3(at.x, at.y, -at.z) / M,
+                    noLoot = true, alwaysEnemy = true, noDevices = true, position = OrbitScale.ToGame(at),   // (OrbitScale: Setup maps it back to 'at')
                 });
                 if (clone == null) continue;
                 clone.transform.rotation = transform.rotation;

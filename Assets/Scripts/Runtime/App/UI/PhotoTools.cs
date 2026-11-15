@@ -860,14 +860,18 @@ namespace GoF2Remake.UI
         public IEnumerator Capture(VisualElement overlay, Action<bool> done)
         {
             overlay.style.visibility = Visibility.Hidden;
-            // The open settings panel sets its own 'visibility: visible' (.photo-panel--open, for its fade), which beats the
-            // overlay's inherited hidden: hide it inline too, or it lands in the picture.
-            panel.style.visibility = Visibility.Hidden;
+            // The settings panel and the last shot's notice transition their visibility (.photo-panel's 0.45 s, .gof-toast's
+            // 0.25 s on every property), so a hidden one still showed a frame later and landed in the picture (the notice
+            // in shots taken in quick succession): take them out with display, which no transition delays.
+            panel.style.display = DisplayStyle.None;
+            var noticeDisplay = notice.style.display;
+            notice.style.display = DisplayStyle.None;
             bool fps = FpsCounter.Suppressed;
             FpsCounter.Suppressed = true;
             yield return null;   // a frame drawn without the overlay
             yield return new WaitForEndOfFrame();
             bool ok = false;
+            string saved = null;
             Texture2D shot = null;
             try
             {
@@ -883,14 +887,15 @@ namespace GoF2Remake.UI
                     UnityEngine.Object.Destroy(shot);
                     shot = cut;
                 }
-                string saved = PhotoMode.StoreAt(shot.EncodeToPNG(), $"GoF2_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+                saved = PhotoMode.StoreAt(shot.EncodeToPNG(), $"GoF2_{DateTime.Now:yyyyMMdd_HHmmss}.png");
                 ok = saved != null;
-                if (ok) ShowNotice(saved);
             }
             catch (Exception e) { Debug.LogWarning("Photo mode screenshot: " + e.Message); }
             if (shot != null) UnityEngine.Object.Destroy(shot);
             overlay.style.visibility = StyleKeyword.Null;
-            panel.style.visibility = StyleKeyword.Null;
+            panel.style.display = StyleKeyword.Null;
+            if (ok) ShowNotice(saved);
+            else notice.style.display = noticeDisplay;
             FpsCounter.Suppressed = fps;
             done?.Invoke(ok);
         }

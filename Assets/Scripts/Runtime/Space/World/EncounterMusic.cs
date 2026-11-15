@@ -34,7 +34,7 @@ namespace GoF2Remake.World
             var go = new GameObject("Encounter music");
             go.transform.SetParent(level.transform, false);
             var m = current = go.AddComponent<EncounterMusic>();
-            m.level = level; m.track = track; m.centre = OrbitLayout.ToUnity(centreGame);
+            m.level = level; m.track = track; m.centre = OrbitScale.ToUnity(centreGame);   // (OrbitScale: mapped)
             return m;
         }
 

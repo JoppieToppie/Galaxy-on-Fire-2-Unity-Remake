@@ -208,8 +208,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   selected, `PhotoMode.ShowInFolder`). A press that begins on the panel, the notice or a button never turns the camera,
   even dragged off it (`PhotoTools.PressOverUi`, also the hosts' orbit drags). The panel flies in from the left and
   fades (0.45 s, ease-out cubic, USS transitions on `.photo-panel` / `--open`; closed it is hidden by `visibility`;
-  `PhotoTools.Capture` hides it inline too, since the open class's `visibility: visible` beats the overlay's inherited
-  hidden and the panel showed in screenshots until 2026-10-18). Inspect ship fades the station menu's `side-shade` /
+  `PhotoTools.Capture` takes it and the last shot's notice out with `display: none`: the open class's `visibility:
+  visible` beats the overlay's inherited hidden (the panel showed in screenshots until 2026-10-18), and an inline
+  `visibility` waits for the transition, 0.45 s for the panel and 0.25 s for `.gof-toast` (no property list, so every
+  property), which put the notice in shots taken in quick succession until 2026-11-15). Inspect ship fades the station menu's `side-shade` /
   `bottom-shade` with the menu (`.station-inspecting`): they darkened the left of the view and its screenshots. The
   effects are a global volume of its own (layer 26, priority 1000, a profile made in code;
   `Assets/Settings/PhotoModeShaders.asset` keeps their shaders in builds, URP strips unused post-processing variants; it

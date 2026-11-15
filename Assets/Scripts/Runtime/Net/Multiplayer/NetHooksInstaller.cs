@@ -15,9 +15,9 @@ namespace GoF2Remake.Multiplayer
 {
     public static class NetHooksInstaller
     {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ChatToScripts(NetChat.Message m) => Modding.ModScripts.Raise("chat", m.from, m.text, m.own);
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         public static void Install()
         {
             NetSession.ActiveProvider = () => NetGame.Active;

@@ -1027,6 +1027,24 @@ namespace GoF2Remake.UI
 
         static string SaveFolderTitle => X("saveFolderTitle", "Save folder");
 
+        /// <summary>The Supernova Challenge's start (293 / 298), asking which round (the user's request, 2026-11-15): the
+        /// original's (the Specters alone, #179) or with the scenery the original's code makes (the burning platform, the
+        /// carrier and four Rhinos: ChallengeOrbit.SpawnScenery). The answer is kept (Settings.ChallengeScenery, so "Play
+        /// again" plays the same round) and has the focus next time; Cancel starts nothing.</summary>
+        void ShowChallengeStart()
+        {
+            string text = Localization.Get(298).Replace("\r\n", "\n") + "\n\n"
+                          + X("challengeSceneryAsk", "Original: the Specters alone, as in the original's round. With scenery: also a burning station platform, a Terran carrier and four Rhinos flying between them.");
+            void Begin(bool scenery)
+            {
+                Settings.ChallengeScenery = scenery;
+                StartCoroutine(Leave(SupernovaChallenge.Start(false)));
+            }
+            ShowChoice(Localization.Get(293), text, X("challengeOriginalRound", "Original"), () => Begin(false),
+                       X("challengeWithScenery", "With scenery"), () => Begin(true));
+            if (Settings.ChallengeScenery) Select(root.Q<Button>("dialogAlt"));
+        }
+
         /// <summary>The dialog with two answers and Cancel (the reset choice's third button).</summary>
         void ShowChoice(string title, string text, string yesLabel, Action onYes, string altLabel, Action onAlt)
         {

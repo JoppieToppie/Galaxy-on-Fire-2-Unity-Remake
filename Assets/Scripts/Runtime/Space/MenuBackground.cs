@@ -62,6 +62,7 @@ namespace GoF2Remake.Visuals
             if (!ending) Session.ResetNewGame();   // Status::resetGame
             int station = forceStation >= 0 ? forceStation : ending ? Session.StationIndex : Random.Range(0, 100);
             Layout = OrbitLayout.Build(db, station);
+            OrbitScale.Use(Layout);   // Remake, experimental: the station scale (Options > Gameplay)
             Debug.Log($"MenuBackground: station {station} ({db.Stations.Find(s => s.index == station)?.name}), system {Layout.systemIndex}");
 
             OrbitBuilder.SetupSky(Layout);
@@ -82,11 +83,16 @@ namespace GoF2Remake.Visuals
                 var b = StationBounds(Station);
                 float clear = Mathf.Max(800f, Mathf.Max(b.size.x, b.size.y, b.size.z) / 3f);
                 b.Expand(clear * 2f);
-                var at = OrbitLayout.ToUnity(camGame);
-                if (b.Contains(at)) camGame.z = -(b.min.z - 1f) / OrbitLayout.MetersPerUnit;   // Unity -z = game +z
+                var at = OrbitScale.ToUnity(camGame);   // OrbitScale: the spot in the scaled orbit
+                if (b.Contains(at)) camGame = OrbitScale.ToGame(new Vector3(at.x, at.y, b.min.z - 1f));   // Unity -z = game +z
             }
-            if (menuCamera != null) menuCamera.Place(camGame);
-            var camPos = OrbitLayout.ToUnity(camGame);
+            if (menuCamera != null)
+            {
+                // OrbitScale: the far plane reaches past the grown station and the orbit pushed out with it.
+                if (Layout.Scaled) menuCamera.far += 3f * (Layout.PlaceRadius(Layout.stationReach * 2f) - Layout.stationReach * 2f);
+                menuCamera.Place(camGame);
+            }
+            var camPos = OrbitScale.ToUnity(camGame);
             // Measured from the asteroid's surface: the biggest (scale 2.2) reach 390 m from their centre (Void crystals 670 m),
             // so a centre 150 m out still put the camera inside a rock.
             float keepOut = cameraKeepOut + Layout.AsteroidMeshRadius * 2.2f * OrbitLayout.MetersPerUnit;

@@ -122,7 +122,8 @@ namespace GoF2Remake.World
             main.maxParticles = 30;
             main.startLifetime = float.PositiveInfinity;
             main.startSpeed = 0f;
-            main.startSize = 32768f * 0.05f;
+            float grow = OrbitScale.Factor;   // OrbitScale: the fog round the grown outpost, as big with it
+            main.startSize = 32768f * 0.05f * grow;
             main.startColor = new Color(0xE2 / 255f, 0x28 / 255f, 0x28 / 255f, 0x80 / 255f);
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
@@ -143,7 +144,7 @@ namespace GoF2Remake.World
             var p = new ParticleSystem.EmitParams { applyShapeToPosition = false };
             for (int i = 0; i < 30; i++)
             {
-                p.position = at + new Vector3(UnityEngine.Random.Range(-40000f, 40000f), UnityEngine.Random.Range(-40000f, 40000f), UnityEngine.Random.Range(-40000f, 40000f)) * 0.05f;
+                p.position = at + new Vector3(UnityEngine.Random.Range(-40000f, 40000f), UnityEngine.Random.Range(-40000f, 40000f), UnityEngine.Random.Range(-40000f, 40000f)) * 0.05f * grow;
                 p.rotation = UnityEngine.Random.Range(0f, 360f);
                 ps.Emit(p, 1);
             }

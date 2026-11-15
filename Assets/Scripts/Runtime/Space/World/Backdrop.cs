@@ -431,7 +431,10 @@ namespace GoF2Remake.World
             }
 
             // getPlanetScaleFactor: f = clamp(camera game z / -800000, -0.2, 0.2) (game z = -Unity z / 0.05).
-            float gameZ = -(orbitZ ?? c.z) / OrbitLayout.MetersPerUnit;
+            // (OrbitScale: the camera's place in the original's coordinates; an approach's orbitZ comes unmapped)
+            float gameZ = orbitZ.HasValue ? -orbitZ.Value / OrbitLayout.MetersPerUnit
+                        : layout != null && layout.Scaled ? layout.Unplace(new Vector3(c.x, c.y, -c.z) / OrbitLayout.MetersPerUnit).z
+                        : -c.z / OrbitLayout.MetersPerUnit;
             float zoom = Mathf.Clamp(gameZ / -800000f, -0.2f, 0.2f);
             foreach (var p in planets)
             {

@@ -106,6 +106,8 @@ namespace GoF2Remake.World
             int hull = KaamoClub.OutpostHull();
             foreach (var p in OutpostPositions)
             {
+                // OrbitScale: the original's position (the spawn maps it); a "station_pirates" fixed object is a structure that
+                // NpcShip grows with the stations (NpcShip.IsStructure: model, wreck, volumes, hit cube, explosion).
                 outposts.Add(traffic.SpawnShip(new SpawnSpec
                 {
                     group = NpcGroup.Raider, race = Standing.Pirate, ship = -1, position = p,
@@ -191,8 +193,10 @@ namespace GoF2Remake.World
             {
                 if (p == null || !p.Gone) continue;
                 var off = new Vector3(Sign() * (40000 + Random.Range(0, 40000)), Sign() * (5000 + Random.Range(0, 5000)),
-                                      Sign() * (40000 + Random.Range(0, 40000))) * M;
-                p.Revive(level.Player.transform.position + off);
+                                      Sign() * (40000 + Random.Range(0, 40000)));
+                // OrbitScale: the offset in the original's coordinates, then mapped: a player close to the grown club doesn't get
+                // pirates back inside its hull (far out the map only shifts, the same spot as before; the identity at 1x).
+                p.Revive(OrbitScale.ToUnity(OrbitScale.ToGame(level.Player.transform.position) + off));
             }
         }
 

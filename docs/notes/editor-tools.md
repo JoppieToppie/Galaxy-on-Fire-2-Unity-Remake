@@ -72,7 +72,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   when Windows is active. Not in Docker or the server image (Linux only).
 - **GoF2 > Build > Update Patch** (`PatchPublisherWindow`, Core `PatchPublish`, 2026-11-05): for the in-game updater
   (platforms.md "Update patcher"), run after the release builds; everything goes into Build/Release beside the zips, to
-  upload with them to the GitHub release. Windows / Linux (`Build/Release/<platform>/GoF2Remake`) and Android (the newest
+  upload with them to the GitHub release. Windows / Linux (`Build/Release/<platform>/GoF2Remake`), macOS
+  (`Build/Release/macOS/GoF2Remake.app`, built on a Mac and copied over) and Android (the newest
   .apk in Build/Release or Build/Release/Android): cut into chunks, the ones no earlier release published packed into
   `GoF2Remake-<platform>-<tag>.pack` (all cores), plus `GoF2Remake-<platform>-<tag>.patch.json`. UWP (the newest .msix under
   Build/Release/UWP): `GoF2Remake-UWP-<tag>.msix` and `GoF2Remake-UWP.appinstaller`. First it fetches the earlier releases'

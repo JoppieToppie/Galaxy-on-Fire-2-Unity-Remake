@@ -199,12 +199,13 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>The locked landmark (station, gate, docking target, wormhole) in units; float.MaxValue = none.</summary>
-        float LockedLandmarkUnits() => LandmarkLocked && !Interstellar ? (Locked.Position - ship.transform.position).magnitude / M : float.MaxValue;   // (between the systems the zone and the arrival stop it)
+        float LockedLandmarkUnits() => LandmarkLocked && !Interstellar ? ReachUnits(Locked, (Locked.Position - ship.transform.position).magnitude / M) : float.MaxValue;   // (OrbitScale: the grown station's / gate's as the original's)   // (between the systems the zone and the arrival stop it)
 
         // ---- encounters ------------------------------------------------------------------------------------------
 
-        static Vector3 ToGame(Vector3 unity) => new Vector3(unity.x, unity.y, -unity.z) / M;
-        static Vector3 ToUnity(Vector3 game) => new Vector3(game.x, game.y, -game.z) * M;
+        // OrbitScale: the encounters' points are station-anchored game positions (the spawner places them in the scaled orbit)
+        static Vector3 ToGame(Vector3 unity) => GoF2Remake.World.OrbitScale.ToGame(unity);
+        static Vector3 ToUnity(Vector3 game) => GoF2Remake.World.OrbitScale.ToUnity(game);
         static Vector3 GameDir(Vector3 unityDir) => new Vector3(unityDir.x, unityDir.y, -unityDir.z);
 
         bool EncounterAllowed(CruiseEncounters.Entry e) =>

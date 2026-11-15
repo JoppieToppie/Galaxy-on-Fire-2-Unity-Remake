@@ -187,11 +187,12 @@ namespace GoF2Remake.World
                 var at = ship.transform.TransformPoint(pads[(launched + i) % pads.Count]) + up * (i / pads.Count) * 1000f * M;
                 var spec = new SpawnSpec
                 {
-                    group = NpcGroup.Escort, race = ship.Race, ship = CapitalShips.LaunchShip(ship.Spec), position = new Vector3(at.x, at.y, -at.z) / M,
+                    // OrbitScale: the original's coordinates (NpcShip maps spawns and route points; Place below puts it on the pad)
+                    group = NpcGroup.Escort, race = ship.Race, ship = CapitalShips.LaunchShip(ship.Spec), position = OrbitScale.ToGame(at),
                     alwaysEnemy = hostile, noLoot = true, capitalPart = true, capitalHost = ship.Spec, capitalEnhanced = true,
                     // With nothing to fight they loop round their ship like its escorts (the default patrol box was in front
                     // of the station, out of the battle).
-                    route = CapitalShips.LoopAround(ship.Spec, new Vector3(ship.transform.position.x, ship.transform.position.y, -ship.transform.position.z) / M, launched + i),
+                    route = CapitalShips.LoopAround(ship.Spec, OrbitScale.ToGame(ship.transform.position), launched + i),
                     routeAround = ship.Spec,
                 };
                 var s = traffic.SpawnShip(spec);
@@ -254,7 +255,7 @@ namespace GoF2Remake.World
                 float want = max * Mathf.Sin(age * 2f * Mathf.PI / 120f + phase);
                 var away = point; away.y = 0f;   // the station is at the origin
                 var home = origin - point; home.y = 0f;
-                if (away.magnitude < 100000f * M) want = Toward(Mathf.Atan2(away.x, away.z) * Mathf.Rad2Deg, max * 1.5f);
+                if (away.magnitude < OrbitScale.RadiusMeters(100000f * M)) want = Toward(Mathf.Atan2(away.x, away.z) * Mathf.Rad2Deg, max * 1.5f);   // OrbitScale: clear of the grown station
                 else if (home.magnitude > CapitalShips.BattleHomeUnits * M) want = Toward(Mathf.Atan2(home.x, home.z) * Mathf.Rad2Deg, max * 1.5f);
                 turnRate = Mathf.MoveTowards(turnRate, want, 0.15f * dt);
                 heading += turnRate * dt;
@@ -325,8 +326,9 @@ namespace GoF2Remake.World
             routeMs = 0f;
             var d = transform.position - routeFrom;
             if (d.sqrMagnitude < 1f) return;
+            // OrbitScale: the route points are the original's coordinates (NpcShip maps them): the move in those
+            var game = OrbitScale.ToGame(transform.position) - OrbitScale.ToGame(routeFrom);
             routeFrom = transform.position;
-            var game = new Vector3(d.x, d.y, -d.z) / M;
             shiftedRoutes.Clear();
             foreach (var s in traffic.Ships)
             {

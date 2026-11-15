@@ -155,8 +155,7 @@ namespace GoF2Remake.UI
             Bind("medalsToggle", () => { noMedalsNext = !noMedalsNext; RefreshMedalsToggle(); });
             Bind("ngPlusToggle", () => { newGamePlus = !newGamePlus && ngPlusSave != null; RefreshNgPlus(false); });
             // The Supernova Challenge (293, SupernovaChallenge): its description (298) asks "Start Supernova Challenge?".
-            Bind("challengeButton", () => ShowDialog(Localization.Get(293), Localization.Get(298).Replace("\r\n", "\n"),
-                                                     () => StartCoroutine(Leave(SupernovaChallenge.Start(false)))));
+            Bind("challengeButton", ShowChallengeStart);
             Bind("dialogYes", ConfirmDialog);
             Bind("dialogNo", () => { var a = dialogNo; CloseDialog(); a?.Invoke(); });
             Bind("dialogAlt", () => { var a = dialogAlt; CloseDialog(); a?.Invoke(); });

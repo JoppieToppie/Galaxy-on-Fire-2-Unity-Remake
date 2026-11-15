@@ -53,8 +53,10 @@ namespace GoF2Remake.World
             // with transform.right the helper started on the wrong side, the camera looking into empty space past Luur (PR #56).
             helper = new GameObject("Cutscene helper");
             helper.transform.rotation = Quaternion.LookRotation(Dir(-LightGame), Vector3.up);
-            helper.transform.position = ToUnity(luurPos + LightGame * 100000f) + HelperRight89 * 200000f * M;
-            cam.LookAt(luurPos + new Vector3(10000, 1500, -20000), helper.transform);
+            helper.transform.position = At(luurPos + LightGame * 100000f) + HelperRight89 * 200000f * M;   // OrbitScale: the spot mapped, the side offset not
+            // OrbitScale: the camera beside Luur (grown with it when it is: NpcShip.StructureScale).
+            float luurScale = luur != null ? luur.StructureScale : 1f;
+            cam.LookAtUnity(At(luurPos) + ToUnity(new Vector3(10000, 1500, -20000) * luurScale), helper.transform);
             c.MusicOwned = true;
             c.PlayMusic(sn?.supernovaIntro, false);
             Step = 1;
@@ -137,7 +139,7 @@ namespace GoF2Remake.World
             level.MovePlayer(Vector3.zero, Quaternion.identity);
             EnterCutscene(false);
             SetPlayerVisible(false);
-            cam.LookAt(new Vector3(-15000, 800, 75000), null, Vector3.zero);
+            cam.LookAtUnity(At(new Vector3(-15000, 800, 75000)), null, Vector3.zero);   // OrbitScale: the absolute spot mapped (the grown station framed as before)
             cam.SetDolly(new Vector3(1f, 0f, -2f));
             if ((built == 126 || built == 133) && sn != null && sn.katashunMusic != null) { c.MusicOwned = true; c.PlayMusic(sn.katashunMusic, true); }
         }
@@ -155,7 +157,8 @@ namespace GoF2Remake.World
 
         void Build100()
         {
-            var p = PlayerGame + new Vector3(Sign() * R(50000) + 20000, Sign() * R(50000) + 10000, Sign() * R(50000) + 20000);
+            // OrbitScale: the offset from the player as in the original (clear of the grown station), in the spec's coordinates.
+            var p = SpecAt(Near(Player, new Vector3(Sign() * R(50000) + 20000, Sign() * R(50000) + 10000, Sign() * R(50000) + 20000)));
             for (int i = 0; i < 2; i++) Specter(p, true);
             c.WinObjective = () => Over(1);   // Objective(4, 1)
         }
@@ -339,7 +342,7 @@ namespace GoF2Remake.World
                     level.Navigation?.SetAutopilot(null);
                     EnterCutscene(true);
                     if (wreck != null) Player.rotation = Quaternion.LookRotation((Player.position - wreck.transform.position).normalized, Vector3.up);
-                    cam.LookAt(PlayerGame + PlayerDirGame * 10000f + GameRight(Player) * 700f, Player);
+                    LookFrom(Player, PlayerDirGame * 10000f + GameRight(Player) * 700f);
                     // Modified: the break-up (the wreck's *_wrecked_anim pieces drifting apart) plays as it dies if the 180 s
                     // rule above hasn't started it yet (PlayerFixedObject's dying state plays its wreck animation; a player's
                     // report: only the explosion showed, the pieces never separated).
@@ -375,17 +378,19 @@ namespace GoF2Remake.World
                     Story.Mission.type = StoryType.Level;   // the unloading is done: the radio decides from here
                     var f = G(freighter);
                     var offs = new[] { new Vector3(-76000, 5000, 5000), new Vector3(-79000, 4900, 7500), new Vector3(-79000, 4900, 2500) };
-                    for (int i = 0; i < 3; i++) { Show(S(i), f + offs[i], new Vector3(1, 0, 0)); S(i).scriptedSpeed = slow[i]; }
+                    // OrbitScale: the lead's spot mapped, the other two beside it as in the original (their formation).
+                    var lead = At(f + offs[0]);
+                    for (int i = 0; i < 3; i++) { ShowUnity(S(i), lead + ToUnity(offs[i] - offs[0]), Dir(new Vector3(1, 0, 0))); S(i).scriptedSpeed = slow[i]; }
                     EnterCutscene(true);
                     var s0 = S(0);
-                    cam.LookAt(G(s0) + GameDir(s0.transform) * 7000f + GameRight(s0.transform) * 700f + GameUp(s0.transform) * 300f, s0.transform);
+                    LookFrom(s0.transform, GameDir(s0.transform) * 7000f + GameRight(s0.transform) * 700f + GameUp(s0.transform) * 300f);
                     freighter.DockingType = 0;
                     freighter.DockingName = "";
                     Step = 2;
                     break;
                 case 2:
                     Fly(slow);
-                    if (Triggered(5)) { var s = S(0); cam.LookAt(G(s) + GameDir(s.transform) * 3900f + GameRight(s.transform) * 500f + GameUp(s.transform) * 400f, s.transform); Step = 3; }
+                    if (Triggered(5)) { var s = S(0); LookFrom(s.transform, GameDir(s.transform) * 3900f + GameRight(s.transform) * 500f + GameUp(s.transform) * 400f); Step = 3; }
                     break;
                 case 3:
                     Fly(mid);
@@ -406,14 +411,14 @@ namespace GoF2Remake.World
                     if (!Triggered(8)) break;
                     level.Docking?.Undock();
                     EnterCutscene(true);   // Modified: Keith's ship flies on (the remake stopped it; a player's comparison)
-                    cam.LookAt(PlayerGame + PlayerDirGame * 7000f + GameRight(Player) * 700f, Player);
+                    LookFrom(Player, PlayerDirGame * 7000f + GameRight(Player) * 700f);
                     Step = 8;
                     break;
                 case 8:
                     if (freighter != null) freighter.transform.position += freighter.transform.forward * 2f * dtMs * M;
                     if (stepMs >= 8000f && freighter != null)
                     {
-                        cam.LookAt(G(freighter) + GameDir(freighter.transform) * 10000f + GameRight(freighter.transform) * 4800f, freighter.transform);
+                        LookFrom(freighter.transform, GameDir(freighter.transform) * 10000f + GameRight(freighter.transform) * 4800f);
                         timerMs = 0f;
                         freighterSpeed = 2f;
                         if (sn != null) Sfx.PlayOn(sn.carrierJump, freighter.transform);   // 0x8c9 CS_92_FreighterJump, Modified: going with the freighter
@@ -453,7 +458,7 @@ namespace GoF2Remake.World
                     Show(S(1), new Vector3(53000, 1000, 140000), new Vector3(0, 0, -1));
                     S(0).scriptedSpeed = S(1).scriptedSpeed = 3f;
                     EnterCutscene(true);
-                    cam.LookAt(G(S(0)) + GameDir(S(0).transform) * 8000f + GameRight(S(0).transform) * 1200f - GameUp(S(0).transform) * 300f, S(0).transform);
+                    LookFrom(S(0).transform, GameDir(S(0).transform) * 8000f + GameRight(S(0).transform) * 1200f - GameUp(S(0).transform) * 300f);
                     Step = 1;
                     break;
                 case 1:
@@ -467,8 +472,11 @@ namespace GoF2Remake.World
                 case 3:
                     if (stepMs < 100000f) break;
                     int a = Step == 2 ? 2 : 4;
-                    Show(S(a), PlayerGame + new Vector3(-40000, 3000, 20000), PlayerGame - (PlayerGame + new Vector3(-40000, 3000, 20000)));
-                    Show(S(a + 1), PlayerGame + new Vector3(-43000, 3000, 20000), PlayerGame - (PlayerGame + new Vector3(-43000, 3000, 20000)));
+                    // OrbitScale: beside the player as in the original, never inside the grown platform.
+                    var at0 = Near(Player, new Vector3(-40000, 3000, 20000));
+                    var at1 = at0 + ToUnity(new Vector3(-3000, 0, 0));
+                    ShowUnity(S(a), at0, Player.position - at0);
+                    ShowUnity(S(a + 1), at1, Player.position - at1);
                     S(a).CloakingPossible = S(a + 1).CloakingPossible = true;
                     Step++;
                     break;
@@ -496,7 +504,7 @@ namespace GoF2Remake.World
                     if (!Triggered(0) || carrier == null) break;
                     EnterCutscene(false);
                     SetPlayerVisible(false);
-                    cam.LookAt(G(carrier) + new Vector3(9000, -7000, 40000), carrier.transform);
+                    LookFrom(carrier.transform, new Vector3(9000, -7000, 40000));
                     c.MusicOwned = true;
                     level.Traffic.MusicMuted = true;
                     c.PlayMusic(sn?.mission102, false);
@@ -524,7 +532,7 @@ namespace GoF2Remake.World
                     var lead = S(6);
                     EnterCutscene(false);
                     SetPlayerVisible(false);
-                    cam.LookAt(G(lead) + GameDir(lead.transform) * 4500f + GameRight(lead.transform) * 600f + GameUp(lead.transform) * 400f, lead.transform);
+                    LookFrom(lead.transform, GameDir(lead.transform) * 4500f + GameRight(lead.transform) * 600f + GameUp(lead.transform) * 400f);
                     Step = 3;
                     break;
                 case 3:
@@ -555,7 +563,7 @@ namespace GoF2Remake.World
                     Story.Mission.type = StoryType.Level;
                     EnterCutscene(false);
                     SetPlayerVisible(false);
-                    cam.LookAt(G(carrier) + new Vector3(9000, -7000, 40000), carrier.transform);
+                    LookFrom(carrier.transform, new Vector3(9000, -7000, 40000));
                     for (int i = 2; i <= 9; i++) Remove(S(i));
                     if (sn != null) Sfx.PlayOn(sn.carrierJump, carrier.transform);   // Modified: the sound goes with it
                     Step = 5;
@@ -575,17 +583,18 @@ namespace GoF2Remake.World
         /// <summary>102's Specters: the first wave by the carrier and around the player; later the dead ones come back.</summary>
         void WakeSpecters102(bool first)
         {
-            var carrierPos = G(S(0));
+            var carrier = S(0) != null ? S(0).transform : Player;
             for (int i = 6; i <= 9; i++)
             {
                 var s = S(i);
                 if (s == null) continue;
                 if (!first && s.Target.Alive && !s.Gone) continue;
-                Vector3 at = first && i == 6 ? carrierPos + new Vector3(-82000, 2000, 0)
-                           : first && i == 7 ? carrierPos + new Vector3(-84000, 1200, -2000)
-                           : PlayerGame + new Vector3(Sign() * (35000 + R(10000)), R(10000) - 5000, Sign() * (35000 + R(10000)));
-                if (!first) s.Revive(ToUnity(at));
-                Show(s, at, new Vector3(1, 0, 0));
+                // OrbitScale: offsets from the carrier / the player as in the original, clear of the grown station.
+                Vector3 at = first && i == 6 ? Near(carrier, new Vector3(-82000, 2000, 0))
+                           : first && i == 7 ? Near(carrier, new Vector3(-84000, 1200, -2000))
+                           : Near(Player, new Vector3(Sign() * (35000 + R(10000)), R(10000) - 5000, Sign() * (35000 + R(10000))));
+                if (!first) s.Revive(at);
+                ShowUnity(s, at, Dir(new Vector3(1, 0, 0)));
                 if (first && i <= 7) s.Cloak(1000f, true);   // cloak(1000, true)
                 var drop = S(2 + R(4));
                 s.SetOnlyEnemy(R(5) == 0 || drop == null || !drop.Target.Alive ? level.Health.Target : drop.Target);

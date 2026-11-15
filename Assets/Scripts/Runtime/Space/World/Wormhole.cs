@@ -43,7 +43,8 @@ namespace GoF2Remake.World
         public bool Visible { get; private set; }
         /// <summary>isShrinking: past its 60 s (no pull any more).</summary>
         public bool Shrinking => timer > OpenMs;
-        public Vector3 GamePosition => new Vector3(transform.position.x, transform.position.y, -transform.position.z) / M;
+        /// <summary>Its place in the original's game coordinates (OrbitScale.ToGame: SetPosition maps it).</summary>
+        public Vector3 GamePosition => OrbitScale.ToGame(transform.position);
         /// <summary>Set by the level: the alien orbit, the attacked station (it reopens instead of vanishing).</summary>
         public bool alienOrbit, attackedStation;
         /// <summary>The player (for the index 29 / 41 relocation near the player).</summary>
@@ -78,7 +79,8 @@ namespace GoF2Remake.World
             return w;
         }
 
-        public void SetPosition(Vector3 game) => transform.position = OrbitLayout.ToUnity(game);
+        /// <summary>'game': a station-anchored spot in the original's coordinates, mapped (OrbitScale; its size and pull stay).</summary>
+        public void SetPosition(Vector3 game) => transform.position = OrbitScale.ToUnity(game);
 
         /// <summary>KIPlayer::setVisible.</summary>
         public void SetVisible(bool on)
@@ -160,8 +162,7 @@ namespace GoF2Remake.World
             else p = new Vector3(Sign() * (Random.Range(0, 40000) + 20000), Sign() * (Random.Range(0, 40000) + 20000), Sign() * (Random.Range(0, 40000) + 20000));
             if ((index == 29 || index == 41) && player != null)
             {
-                var pp = player.position;
-                p = new Vector3(pp.x, pp.y, -pp.z) / M + p * 2.7f;
+                p = OrbitScale.ToGame(player.position) + p * 2.7f;   // (OrbitScale: SetPosition maps it back)
             }
             SetPosition(p);
         }

@@ -36,6 +36,15 @@ namespace GoF2Remake.World
         public readonly List<Shuttle> All = new List<Shuttle>();
         public void Add(Shuttle sh) => All.Add(sh);
 
+        /// <summary>A docking set's point on 'obj' in its local frame. OrbitScale: a grown structure NpcShip grows its model, not
+        /// its transform (NpcShip.StructureScale), so its pads move out with the hull here; a transform grown itself (the station)
+        /// shows it through TransformPoint already.</summary>
+        static Vector3 Pad(Transform obj, Vector3 engine)
+        {
+            var local = SpacePoints.ToLocal(engine);
+            return obj != null && obj.GetComponent<NpcShip>() is NpcShip n && n.StructureScale != 1f ? local * n.StructureScale : local;
+        }
+
         /// <summary>PlayerFighter states 7 / 8 (game/PlayerFighter.c 2779-2890): the nearest free approach point (type 1), reached
         /// within 2000 units; then the docking point nearest it, eased onto like the player's (approachDockingPoint: nose = the
         /// point's direction, up = from the docking point to the approach point, stopping the ship's height short of it,
@@ -54,28 +63,30 @@ namespace GoF2Remake.World
                 for (int i = 0; i < points.Count; i++)
                 {
                     if (points[i].type != SpacePoints.Approach || SpacePoints.IsTaken(obj, i)) continue;
-                    float d = (obj.TransformPoint(SpacePoints.ToLocal(points[i].engine)) - s.transform.position).sqrMagnitude;
+                    float d = (obj.TransformPoint(Pad(obj, points[i].engine)) - s.transform.position).sqrMagnitude;
                     if (d < best) { best = d; pick = i; }
                 }
                 if (pick < 0) return false;   // every pad busy: hold here (the waypoint logic below keeps it flying)
-                var a = SpacePoints.ToLocal(points[pick].engine);
+                var a = Pad(obj, points[pick].engine);
                 best = float.MaxValue;
                 int dock = -1;
                 for (int i = 0; i < points.Count; i++)
                 {
                     if (points[i].type != SpacePoints.Dock) continue;
-                    float d = (SpacePoints.ToLocal(points[i].engine) - a).sqrMagnitude;
+                    float d = (Pad(obj, points[i].engine) - a).sqrMagnitude;
                     if (d < best) { best = d; dock = i; }
                 }
                 if (dock < 0) return false;
                 sh.taken = pick;
                 SpacePoints.Take(obj, pick);
-                var dLocal = SpacePoints.ToLocal(points[dock].engine);
+                var dLocal = Pad(obj, points[dock].engine);
                 var up = a - dLocal;
                 up = up.sqrMagnitude > 1e-8f ? up.normalized : Vector3.up;
                 var nose = SpacePoints.DirToLocal(points[dock].dir);
                 sh.approachLocal = a;
-                sh.pivotLocal = dLocal + up * (StationTables.ShipY(s.Spec.ship) * M);
+                // OrbitScale: the ship's height over the pad doesn't grow with a grown structure (its local frame is scaled).
+                float grown = OrbitScale.Active ? Mathf.Max(1f, obj.lossyScale.x) : 1f;
+                sh.pivotLocal = dLocal + up * (StationTables.ShipY(s.Spec.ship) * M / grown);
                 sh.localRot = Quaternion.LookRotation(nose.sqrMagnitude > 1e-6f ? nose : Vector3.forward, up);
                 sh.dockPhase = 0;
             }
@@ -120,7 +131,7 @@ namespace GoF2Remake.World
             for (int i = 0; i < points.Count; i++)
             {
                 if (points[i].type != SpacePoints.Approach) continue;
-                var a = obj.TransformPoint(SpacePoints.ToLocal(points[i].engine));
+                var a = obj.TransformPoint(Pad(obj, points[i].engine));
                 float d = (a - s.transform.position).sqrMagnitude;
                 if (d >= best) continue;
                 best = d;
@@ -186,7 +197,7 @@ namespace GoF2Remake.World
                     HoldOffPads(sh, dockObj, dtMs);
                     continue;
                 }
-                var to = ToUnity(target) - s.transform.position;
+                var to = OrbitScale.ToUnity(target) - s.transform.position;   // OrbitScale: an absolute orbit spot, mapped
                 if (to.magnitude / M < 2500f)
                 {
                     sh.waiting = sh.dockMs[sh.leg] > 0f;

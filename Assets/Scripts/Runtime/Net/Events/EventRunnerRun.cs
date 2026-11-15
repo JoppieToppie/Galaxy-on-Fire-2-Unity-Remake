@@ -37,12 +37,12 @@ namespace GoF2Remake.Events
             /// point of their orbit (-1: none; a mission keeps them in its orbit, else pair it with inorbit).</summary>
             public double NearestPilot(Vector3 gamePoint)
             {
-                var at = World.OrbitLayout.ToUnity(gamePoint);
                 double best = -1;
                 foreach (var p in Players())
                 {
                     if (!p.InSpace || p.Hull <= 0f) continue;
-                    double d = (p.Position - at).magnitude / 0.05;
+                    // OrbitScale: measured in the original's coordinates (the pilot's position taken back; the identity in a session).
+                    double d = (World.OrbitScale.ToGame(p.Position) - gamePoint).magnitude;
                     if (best < 0 || d < best) best = d;
                 }
                 return best;
