@@ -1,3 +1,11 @@
+## 2026-11-15 — Cross-reference and selectively integrate Joppie's scanner implementation
+
+- **Source:** `JoppieToppie/Galaxy-on-Fire-2-Unity-Remake`, scanner commit `d8aaa1f3`.
+- **Ported:** `scanShip` 140, `scanHitpoints` 141, `scanWeapons` 142, `radarShowsCargo` 2, unified lock readout, NPC hull metadata, and `on scanned` graph/quest event with a server-validated multiplayer RPC.
+- **Preserved:** project `scanClass` 143 and the class system's display/matching semantics; extended class lookup to remote NPC proxies and retained other-player lookup via `netShipIndex`.
+- **Scope:** no cherry-pick or merge of Joppie's branch; unrelated Lua scripting, mod music, and generated AI-reference changes deferred.
+- **Verification:** source-level integration only; Unity compile and EditMode tests not run.
+
 ## 2026-11-15 — Ship classes implemented; launchRotation; review of GPT's work; comparison with Joppie (Claude)
 
 - **Contributor:** Claude. **Branch:** `feature/extensive-multiplayer-expansion` (GPT's commits merged first, no conflicts).

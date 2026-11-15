@@ -72,6 +72,9 @@ namespace GoF2Remake.Flight
         public const float DefaultTractorRangeUnits = 30000f;
 
         public bool HasScanner { get; private set; }
+        /// <summary>Remake mods: names a locked NPC hull on the lock plate (attr 140 "scanShip").</summary>
+        public bool ShipScan { get; private set; }
+        public const int ScanShipAttr = 140, ScanHitpointsAttr = 141, ScanWeaponsAttr = 142;
         /// <summary>The lock candidate: a Target (ship) or null.</summary>
         public Target Candidate { get; private set; }
         public Crate CrateCandidate { get; private set; }
@@ -117,7 +120,8 @@ namespace GoF2Remake.Flight
         CombatAssets assets;
         AudioSource sfx, beamLoop;
         int lockTimeMs = 8000, tractorItem = -1, tractorLockMs, tractorMode;
-        bool cargoScan, classScan;
+        int cargoScan;
+        bool hitpointScan, weaponScan, classScan;
         float timer;
         bool noTractorShown;
         // Remake (#45, like Mining's "No drill installed."): salvage refused for want of a tractor beam; ignored until it leaves
@@ -164,8 +168,11 @@ namespace GoF2Remake.Flight
             HasScanner = scanner != null;
             lockTimeMs = scanner != null && scanner.HasAttr(29) ? scanner.Attr(29) : 8000;
             lockTimeMs = Cheats.LockMs(lockTimeMs);
-            cargoScan = scanner != null && scanner.Attr(31) == 1;
-            classScan = scanner != null && scanner.Attr(GoF2Remake.Modding.ShipClassRules.ScanClassAttr) == 1;   // remake mods: shows the locked ship's class
+            cargoScan = scanner != null ? Mathf.Clamp(scanner.Attr(31), 0, 2) : 0;
+            ShipScan = scanner != null && scanner.Attr(ScanShipAttr) == 1;
+            hitpointScan = scanner != null && scanner.Attr(ScanHitpointsAttr) == 1;
+            weaponScan = scanner != null && scanner.Attr(ScanWeaponsAttr) == 1;
+            classScan = scanner != null && scanner.Attr(GoF2Remake.Modding.ShipClassRules.ScanClassAttr) == 1;   // project: the locked ship's modded class
             var filter = Shop.FirstMounted(db, 33);
             CloudRadar = filter != null && filter.Attr(57) == 1;
             CloudOffScreen = filter != null && filter.Attr(58) == 1;
@@ -363,8 +370,8 @@ namespace GoF2Remake.Flight
                     Locked = Candidate;
                     if (assets != null && assets.targetLock != null) sfx.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(assets.targetLock), Settings.SfxVolume);
                     Haptics.Play(Haptics.TargetLock);   // remake
-                    if (cargoScan) ReadCargo(Locked);
-                    if (classScan) ReadClass(Locked);
+                    ReadShip(Locked);
+                    GoF2Remake.World.SpaceHooks.ShipScanned?.Invoke(Session.StationIndex, PlateName(Locked));
                 }
             }
             else if (CrateCandidate != null || StealCandidate != null)
@@ -433,36 +440,84 @@ namespace GoF2Remake.Flight
                 LockFrame = LockedCloud == cloud ? 23 : Mathf.Min(23, (int)(23f * (cloudTimer - SalvageRingDelay) / (lt - SalvageRingDelay)));
         }
 
-        /// <summary>Radar::draw on a new lock with Radar+0x1a5: the ship's first cargo entry. Its 24000-unit test (0x156916)
-        /// is dx &lt; 24000 || dx &gt; -24000 || ..., always true, so it reads at any distance (the remake kept the box: a lock
-        /// completed farther out, and sticky, never read the ship at all; "intermittently nothing").</summary>
-        void ReadCargo(Target locked)
+        /// <summary>Resolve the database hull behind a target. Player ships use their replicated ship index; NPCs use
+        /// their spawn, including a remote NPC's NetProxy description. includePlayers is false for scanShip (hull plate),
+        /// true for scanClass (which also identifies other players).</summary>
+        int ShipIndexOf(Target target, bool includePlayers)
         {
-            if (locked == null || traffic == null) return;
-            var ship = traffic.Ships.Find(s => s != null && s.Target == locked);
-            if (ship == null) return;
-            var cargo = ship.CargoList;
-            if (cargo == null || cargo.Count == 0) { Message?.Invoke(Localization.Get(542), 0, HudMessageKind.Scan); return; }
-            for (int i = 0; i < cargo.Count; i++)
-                if (cargo[i].amount > 0) { Message?.Invoke($"{cargo[i].amount}t {GameNames.Item(cargo[i].item)}", 0, HudMessageKind.Scan); return; }
+            if (target == null) return -1;
+            if (includePlayers && target.netShipIndex >= 0) return target.netShipIndex;
+            if (target.shipType >= 0) return target.shipType;
+            var npc = traffic != null ? traffic.Ships.Find(s => s != null && s.Target == target) : null;
+            if (npc != null) return npc.Spec.ship;
+            var proxy = target.GetComponent<GoF2Remake.Multiplayer.NetProxy>();
+            return proxy != null && proxy.Spec?.spec != null ? proxy.Spec.spec.ship : -1;
         }
 
-        /// <summary>Remake mods (a scanner with attribute 143 "scanClass", ShipClassRules.ScanClassAttr): on a new ship lock, the ship's class
-        /// (an NPC's from its spawn, another player's from the ship they fly, Target.netShipIndex); nothing for a ship without one,
-        /// so a scanner that reads classes shows nothing on the original's.</summary>
-        void ReadClass(Target locked)
+        /// <summary>Hull index used by CombatView for scanShip. Player ships deliberately have no hull plate label.</summary>
+        public int HullShipIndexOf(Target target) => ShipIndexOf(target, false);
+
+        /// <summary>Read the local traffic ship's cargo, hitpoints and guns, and any target's explicit modded class.
+        /// Class identification also works for another player and a remote NPC proxy.</summary>
+        void ReadShip(Target locked)
         {
-            if (locked == null || db == null) return;
-            int shipIndex = locked.netShipIndex;
-            if (shipIndex < 0 && traffic != null)
+            if (locked == null) return;
+            var ship = traffic != null ? traffic.Ships.Find(s => s != null && s.Target == locked) : null;
+            int cargoMode = ship != null ? cargoScan : 0;
+            Hitpoints hp = hitpointScan ? locked.hitpoints : null;
+            IReadOnlyList<int> guns = weaponScan && ship != null ? new[] { ship.GunItem, ship.SecondGunItem } : null;
+            string classLabel = null;
+            if (classScan && db != null)
             {
-                var npc = traffic.Ships.Find(s => s != null && s.Target == locked);
-                if (npc != null) shipIndex = npc.Spec.ship;
+                int index = ShipIndexOf(locked, true);
+                if (index >= 0) classLabel = GoF2Remake.Modding.ShipClassRules.ClassLabel(db.Ship(index));
             }
-            if (shipIndex < 0) return;
-            string cls = GoF2Remake.Modding.ShipClassRules.ClassLabel(db.Ship(shipIndex));   // null: unclassified, nothing to show
-            if (cls != null) Message?.Invoke(Localization.Extra("scanShipClass", "Class: #C").Replace("#C", cls), 0, HudMessageKind.Scan);
+            string text = ScanReadout(cargoMode, ship?.CargoList, hp, guns, classLabel);
+            if (text != null) Message?.Invoke(text, 0, HudMessageKind.Scan);
         }
+
+        /// <summary>One lock readout: optional class, hitpoints, guns and cargo. Mode 1 reads the first non-empty cargo entry;
+        /// mode 2 reads the whole hold. Null = nothing to show.</summary>
+        public static string ScanReadout(int cargoMode, IReadOnlyList<ItemStack> cargo, Hitpoints hp, IReadOnlyList<int> guns, string classLabel = null)
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(classLabel))
+                parts.Add(Localization.Extra("scanShipClass", "Class: #C").Replace("#C", classLabel));
+            if (hp != null)
+            {
+                if (hp.maxShield > 0) parts.Add(string.Format(Localization.Extra("scanShield", "Shield {0}/{1}"), Mathf.CeilToInt(hp.shield), hp.maxShield));
+                if (hp.maxArmor > 0) parts.Add(string.Format(Localization.Extra("scanArmor", "Armor {0}/{1}"), hp.armor, hp.maxArmor));
+                parts.Add(string.Format(Localization.Extra("scanHull", "Hull {0}/{1}"), hp.hull, hp.maxHull));
+            }
+            if (guns != null)
+            {
+                var names = new List<string>();
+                foreach (int g in guns)
+                    if (g >= 0 && !names.Contains(GameNames.Item(g))) names.Add(GameNames.Item(g));
+                parts.Add(names.Count > 0 ? string.Format(Localization.Extra("scanWeapons", "Weapons: {0}"), string.Join(", ", names))
+                                          : Localization.Extra("scanUnarmed", "Unarmed"));
+            }
+            if (cargoMode > 0)
+            {
+                if (cargo == null || cargo.Count == 0) parts.Add(Localization.Get(542));
+                else
+                {
+                    var held = new List<string>();
+                    foreach (var item in cargo)
+                    {
+                        if (item.amount <= 0) continue;
+                        held.Add($"{item.amount}t {GameNames.Item(item.item)}");
+                        if (cargoMode == 1) break;
+                    }
+                    if (held.Count > 0) parts.Add(string.Join(", ", held));
+                }
+            }
+            return parts.Count > 0 ? string.Join(" · ", parts) : null;
+        }
+
+        /// <summary>A ship's name as its lock plate gives it: its own, else its race's.</summary>
+        public static string PlateName(Target t) =>
+            t == null ? "" : !string.IsNullOrEmpty(t.displayName) ? t.displayName : GameNames.Race(t.race);
 
         /// <summary>TractorBeam::update's steal: KIPlayer::createCrate(0) at the ship, a container of its cargo, pulled at once:
         /// a traffic ship makes its own (NpcShip.CreateStealCrate); another game's NPC (multiplayer) one here holding its first

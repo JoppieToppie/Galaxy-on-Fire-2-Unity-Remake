@@ -1,3 +1,10 @@
+## 2026-11-15 — Integrate Joppie's scanner features with project class scanner
+
+- Retained project `scanClass` (143); ported `scanShip` (140), `scanHitpoints` (141), `scanWeapons` (142), whole-hold cargo mode (31 = 2), and `on scanned` event support from Joppie's scanner work.
+- Unified scanner readout; NPC and remote NPC hull metadata; class lookup for NPCs, proxies and other players; server-validated multiplayer scan event.
+- Updated modding guide and AI handover. Added focused EditMode scanner tests.
+- **Not compiled or tested in Unity.** Selective port only; no unrelated Lua scripting, music or AI-reference commits merged.
+
 ## 2026-11-15 — Ship classes, launchRotation, notes corrected (Claude)
 
 **Branch:** `feature/extensive-multiplayer-expansion`

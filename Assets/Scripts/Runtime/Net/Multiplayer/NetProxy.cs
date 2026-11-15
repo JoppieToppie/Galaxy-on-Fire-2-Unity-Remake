@@ -330,6 +330,7 @@ namespace GoF2Remake.Multiplayer
             mirror = new NetShotMirror(null, () => target, SameSide);
             target = gameObject.AddComponent<Target>();
             target.isShip = true;
+            target.shipType = !IsJunk && Spec?.spec != null && Spec.spec.fixedObject == null && Spec.spec.turretAssembly == null ? Spec.spec.ship : -1;
             target.customDeath = true;
             target.maxHp = 100f;
             target.RemoteDamage = (amount, hitVector, byNpc, _) => DamageUpRpc(amount, hitVector, byNpc);   // NPCs have no shield

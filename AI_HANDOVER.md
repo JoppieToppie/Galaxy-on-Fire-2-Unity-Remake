@@ -87,11 +87,12 @@ mods assign them and may add more). **Implemented (Claude), all opt-in:**
   an allow-list. Source: `Modding/ShipClassRules.cs`, `ShipData` / `ItemData` fields.
 - Gates: `Hangar.CanMount` (`Result.WrongShipClass`, the Mount button says why), `Hangar.SwitchTo` (a ship swap: misfits go to the
   hold), `Hangar.FitToSlots` (docking), `NetProfiles.ClampClasses` (server, on upload and sign-in).
-- Scanner: stat `scanClass` (attr 143) shows the locked ship's class label; another player's ship via `Target.netShipIndex`.
-- Tests: `ShipClassRulesTests` (pure logic and JSON). **Not compiled, not run.** Not covered: a Kaamo Club hull's gear is checked when
-  taken out; no Mod Builder UI.
-- **Relation to Joppie's scanner** (`JoppieToppie/Galaxy-on-Fire-2-Unity-Remake` `d8aaa1f3`, 2026-11-14, not in this branch's base):
-  his `scanShip` (140) names the locked ship's **hull** on the lock plate, not its class. See section 7.
+- Scanner integration (ChatGPT, 2026-11-15): retained project `scanClass` (143), and incorporated Joppie's `scanShip` (140),
+  `scanHitpoints` (141), `scanWeapons` (142), and `radarShowsCargo` 2. Hull, hitpoints, weapons, cargo and class now share one
+  readout; NPC hull identity is available to the lock plate, class identity resolves NPCs, remote NPC proxies and other players.
+  A completed lock fires `on scanned` in event graphs/quests; multiplayer forwards it through a server-validated RPC.
+- Added `ModScannerTests` for attribute numbers, cargo modes, combined readouts and lock-plate naming. **Not compiled, not run.**
+  Still not covered: Kaamo Club hull gear checked on take-out; no Mod Builder UI for scanner stats.
 
 ## 7. Comparison with JoppieToppie's repository (checked 2026-11-15)
 
@@ -99,9 +100,10 @@ mods assign them and may add more). **Implemented (Claude), all opt-in:**
   mod scanners (`d8aaa1f3`), the AI reference rebuild (`803f83a7`) and mod music (`db14ddc8`).
 - None of ship classes, `launchRotation`, per-ship `orbitDistance` or free-look lock exists upstream. `homingDelayMs` upstream is the
   NPC rocket field only.
-- **Scanner overlap:** his `scanShip` / `scanHitpoints` / `scanWeapons` (140-142) and `radarShowsCargo` 2 touch the same code as our
-  `scanClass` (`CombatRadar`, `CombatView`, `Target`, `ItemStats`). Attribute 143 is unused upstream at the time of checking; **ids 172+**
-  (`homingDelayMs`) may collide with whatever he adds next, so agree ids with him before sending anything upstream.
+- **Scanner integration:** selectively ported Joppie's scanner commit `d8aaa1f3` into our feature branch and retained our `scanClass`
+  at 143. The capabilities now coexist: hull label 140, hitpoints 141, weapons 142, class 143, cargo mode 2 on attr 31. We also
+  extended hull/class lookup to remote NPC proxies and kept class lookup on other players. Added the `scanned` event and a
+  server-validated multiplayer RPC. This is a selective port, not a merge of Joppie's branch.
 - **Naming:** upstream already has `turretScale` (a turret item's own scale, from `fx.turret.scale`); the per-mount scale in 6.4 should
   use a different JSON name to avoid two meanings.
 

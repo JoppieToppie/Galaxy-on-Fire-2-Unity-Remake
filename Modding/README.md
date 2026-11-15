@@ -286,7 +286,7 @@ energy cells.
 | `agility` | 28 | Steering nozzle handling bonus |
 | `lockTimeMs` | 29 | Scanner lock time (ms) |
 | `showClassAAsteroids` | 30 | 1 = marks class-A asteroids (Ultrascan) |
-| `radarShowsCargo` | 31 | 1 = shows a locked ship's cargo |
+| `radarShowsCargo` | 31 | 1 = shows the first cargo entry; 2 = reads the whole hold (see [Scanner readouts](#scanner-readouts)) |
 | `drillSpeed` | 32 | Mining laser speed |
 | `miningYield` | 33 | Mining laser yield |
 | `cabins` | 34 | Passenger cabins |
@@ -339,6 +339,9 @@ energy cells.
 | `dotDamage`, `dotMs` | 168, 169 | A hit adds `dotDamage` every 0.95 s for `dotMs`, past the shield, counted as yours; hits stack (EVERSPACE 2's corrosion and infestation). NPC ships only |
 | `vulnerablePercent`, `vulnerableMs` | 170, 171 | A hit makes the ship take `vulnerablePercent` % more from every hit for `vulnerableMs`; hits stack, up to +100 % (EVERSPACE 2's destabilized). NPC ships only |
 | `homingDelayMs` | 172 | A homing shot (a missile, a `missiles` gun or turret) flies straight this many ms before it starts to home (default 0 = at once; the game's NPC rockets use 1000) |
+| `scanShip` | 140 | Scanners: 1 = the lock plate names the locked NPC hull (see [Scanner readouts](#scanner-readouts)) |
+| `scanHitpoints` | 141 | Scanners: 1 = a new lock shows the ship's shield, armor and hull |
+| `scanWeapons` | 142 | Scanners: 1 = a new lock shows the ship's weapons |
 | `scanClass` | 143 | A scanner with `1` shows the class of a ship it locks, NPC or another player's: its display text (`className`, else the id capitalised); nothing for a ship without a class. |
 | `device` | 150 | An active device's type (see [Devices](#devices)): 1 EMP wave, 2 EMP shot, 3 shield disruptor, 4 overcharger area, 5 overcharger beam, 6 strike charge, 7 deflector |
 | `deviceCooldownMs` | 151 | Device: its cooldown after a run (default 60000) |
@@ -609,6 +612,30 @@ the drive built in) jumps with that instead. `"jumpFx"` gives the drive its own 
 While the drive's effect hides the ship (leaving, from the moment it vanishes; arriving, until it shows) enemy shots fly
 through it and nothing targets it. The `stats` show the drive's values in the shop: `"energyCells": 2` for a drive that
 costs twice the Khador Drive's cells (the Khador Drive shows 1).
+
+### Scanner readouts
+
+A scanner (an item based on one of the scanners, 81 to 84) tells what it locks. The game's own read the first cargo entry
+(`radarShowsCargo` 1: the Ecoscan, Proscan and Ultrascan). A mod scanner can read more:
+
+- `"scanShip": 1` names an NPC hull on the lock plate, after its name or race: "Pirate · Phantom 85%".
+- `"scanHitpoints": 1` shows shield, armor and hull on each new lock.
+- `"scanWeapons": 1` shows its guns, or "Unarmed".
+- `"radarShowsCargo": 2` reads the whole hold instead of the first entry.
+- `"scanClass": 1` adds the target's explicitly mod-assigned class to the same readout line. It works for NPCs, remote NPC proxies and other players; a ship without a class has nothing to reveal. This is separate from `scanShip`, which names the hull.
+
+The optional details appear together in one readout line under the lock plate. Cargo and weapon details are read from the local
+game's traffic ships; hitpoints are shown when available; class identification also resolves another player's replicated ship
+and a remote NPC's spawn description. The normal lock time and target-selection rules are unchanged.
+
+Every completed ship lock fires the `scanned` trigger (`on scanned`, the **On** node's Ship Scanned, and a quest's
+"The player scans a ship"), including in multiplayer. The player is `@trigger` and the ship's lock-plate name is `%victim%`.
+This event does not require the optional readout attributes.
+
+```json
+{ "id": "deep_scan", "base": 84, "name": "Deep Scan Array", "techLevel": 8, "price": [240000, 260000],
+  "stats": { "lockTimeMs": 1200, "scanShip": 1, "scanHitpoints": 1, "scanWeapons": 1, "radarShowsCargo": 2, "scanClass": 1 } }
+```
 
 ### Multi-grab tractor beams
 

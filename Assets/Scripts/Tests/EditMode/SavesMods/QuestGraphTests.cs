@@ -399,5 +399,19 @@ namespace GoF2Remake.Tests
             CollectionAssert.Contains(Lines(script), "on pad 78", script);
             Assert.IsNull(RunnerError(script), script);
         }
+        // The scanner's completed-lock event is available to quests, including an optional station scope.
+        [Test]
+        public void AScanTriggerCompiles()
+        {
+            var on = QuestSteps.New("on");
+            on["trigger"] = "scanned";
+            on["station"] = 78;
+            on["steps"] = new JArray(QuestSteps.New("heal"));
+            var problems = new List<string>();
+            string script = QuestFile.Compile(Quest(on), problems);
+            CollectionAssert.IsEmpty(problems, script);
+            CollectionAssert.Contains(Lines(script), "on scanned 78", script);
+            Assert.IsNull(RunnerError(script), script);
+        }
     }
 }

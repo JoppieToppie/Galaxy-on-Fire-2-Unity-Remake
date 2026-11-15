@@ -299,12 +299,12 @@ data stays untouched; plain-logic tests should prove an unclassed ship / unrestr
 - **Ship swap:** equipment that does not fit the new ship's class goes to the **hold** (like a built-in drive does now); the
   swap is not blocked. `Hangar.CanMount` is the existing mount gate (Khador Drive, cloak bay) and the natural place for the
   refusal; also audit buy-and-mount, saves / start loadouts, the Kaamo club, cheats and kit ships.
-- **Scanner:** **one scanner attribute**, `scanClass` (attr **143**, next to Joppie's `scanShip` 140 / `scanHitpoints` 141 /
-  `scanWeapons` 142), reveals a locked ship's explicitly mod-assigned class **as soon as the lock completes**, with no extra scan
-  step; an unclassified ship has no class to reveal. This is a tactical identification tool: large ships, especially cruisers, need
-  to identify specialised anti-capital threats quickly so they can prioritise targets. Only mod scanners carry the capability. The
-  class shows on **other players' ships** as well as NPCs (another player's ship comes from the replicated ship index,
-  `Target.netShipIndex`). Joppie's `scanShip` names the hull, not the class: see `AI_HANDOVER.md` for how the two relate.
+- **Scanner:** class identification is the project's separate `scanClass` attribute (143), while Joppie's scanner adds hull naming
+  (`scanShip`, 140), hitpoints (141), weapons (142), and whole-hold cargo (31 = 2). These are complementary capabilities, not
+  competing definitions: `scanShip` names the NPC hull on the lock plate; `scanClass` adds the explicit mod-assigned class to the
+  unified lock readout, including for other players via `Target.netShipIndex` and remote NPC proxies. All details appear as soon
+  as the existing lock completes; no extra scan step or altered lock timing. Unclassified ships have no class to reveal. Large
+  ships, especially cruisers, can identify specialised anti-capital threats quickly. Only mod scanners carry these capabilities.
 - **Multiplayer:** the client's game runs the economy and the server only checks uploads (`NetProfiles`), so the class rule is
   enforced where the server has a say: `NetProfiles.ClampClasses` moves equipment a ship's class can't mount to the hold on every
   upload and sign-in (like `ClampMods`). The client enforces it in the hangar (`Hangar.CanMount`, `SwitchTo`, `FitToSlots`).

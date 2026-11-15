@@ -135,6 +135,8 @@ namespace GoF2Remake.World
         /// <summary>Remake mods: the player docked at a station's pad outside (station): an event's or quest's "on pad"
         /// (EventRunner.OnPadDocked; in a session through NetState.PadDockedRpc).</summary>
         public static Action<int> PadDocked;
+        /// <summary>The player's scanner locked a ship in this orbit (station, plate name): an event's or quest's "on scanned".</summary>
+        public static Action<int, string> ShipScanned;
         /// <summary>A line in the multiplayer chat as a notice (NetChat.Notice).</summary>
         public static Action<string> Notice;
 

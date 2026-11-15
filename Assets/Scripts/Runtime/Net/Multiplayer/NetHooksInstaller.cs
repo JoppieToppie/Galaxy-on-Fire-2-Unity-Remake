@@ -98,6 +98,11 @@ namespace GoF2Remake.Multiplayer
                 if (EventHost.Local) EventRunner.OnWreckHacked(LocalPilot.Instance, station, name);
                 else NetState.Instance?.WreckHackedRpc(station, name ?? "");
             };
+            SpaceHooks.ShipScanned = (station, name) =>
+            {
+                if (EventHost.Local) EventRunner.OnShipScanned(LocalPilot.Instance, station, name);
+                else NetState.Instance?.ShipScannedRpc(station, name ?? "");
+            };
             SpaceHooks.PadDocked = station =>
             {
                 if (EventHost.Local) EventRunner.OnPadDocked(LocalPilot.Instance, station);

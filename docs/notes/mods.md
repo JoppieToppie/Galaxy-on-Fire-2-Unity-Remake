@@ -1,3 +1,9 @@
+## Scanner integration (2026-11-15)
+
+- The project retains `scanClass` (attr 143); Joppie's scanner features are selectively incorporated: `scanShip` (140), `scanHitpoints` (141), `scanWeapons` (142), and `radarShowsCargo` 2 (whole hold). `CombatRadar.ScanReadout` combines available details; `CombatView` adds the NPC hull label to the lock plate. NPC and remote NPC proxy hull metadata are resolved from their spawn spec; class lookup also uses remote players' replicated ship index.
+- Every completed ship lock invokes `SpaceHooks.ShipScanned`, feeding event graphs and quests (`scanned` / Ship Scanned); multiplayer relays this through a rate-limited, orbit-validated RPC. No extra scan action or lock-time change.
+- Tests: `ModScannerTests`. Unity compile and tests remain unverified.
+
 # Mods
 
 Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments citing `CLAUDE.md "<section>"` mean the section or bullet of that name here.
