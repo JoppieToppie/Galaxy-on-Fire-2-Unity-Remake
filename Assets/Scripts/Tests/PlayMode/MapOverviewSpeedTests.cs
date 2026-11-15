@@ -1,4 +1,4 @@
-﻿// Real map transitions: the shared speed scales both directions of Full Map, with the control below Help.
+// Real map transitions: the shared speed scales both directions of Full Map, with the control below Key.
 using System.Collections;
 using GoF2Remake.Data;
 using GoF2Remake.UI;
@@ -23,10 +23,10 @@ namespace GoF2Remake.Tests
             yield return null;
             var root = Get<VisualElement>(map, "root");
             var button = root.Q<Button>("animationSpeedButton");
-            var help = root.Q("mapHelp");
-            Assert.AreSame(help.parent, button.parent, "the top-right tools share one vertical stack");
-            Assert.GreaterOrEqual(button.worldBound.yMin, help.worldBound.yMax - 1f, "speed stays below Help");
-            Assert.IsFalse(root.Q("mapSideButtons").Contains(button), "the speed control no longer occupies the footer");
+            var key = root.Q<Button>("keyButton");
+            Assert.AreSame(root.Q("mapActionStack"), button.parent, "speed belongs to the bottom-right action stack");
+            Assert.GreaterOrEqual(button.worldBound.yMin, key.worldBound.yMax - 1f, "speed stays below Key");
+            Assert.AreEqual(key.worldBound.xMax, button.worldBound.xMax, 1f, "right edges stay aligned");
             float expected = 32768f / 15f / 1000f / speed;
             foreach (bool overview in new[] { true, false })
             {

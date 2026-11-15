@@ -199,6 +199,7 @@ namespace GoF2Remake.UI
             animationSpeedButton.text = AnimationSpeedText;
             animationSpeedButton.tooltip = Localization.Extra("systemMapAnimationSpeed", "Map animation speed") + " (Z / LB)";
             animationSpeedButton.style.display = builder == null && !revealing ? DisplayStyle.Flex : DisplayStyle.None;
+            FitSideButtons();
         }
 
         void CycleAnimationSpeed()

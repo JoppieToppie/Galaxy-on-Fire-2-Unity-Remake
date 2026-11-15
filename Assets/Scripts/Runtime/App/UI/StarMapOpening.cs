@@ -151,15 +151,14 @@ namespace GoF2Remake.UI
             // the title (OptionInfo: 1 s of the mouse on it, or a press). Only while there is one (SetHelp). The key hints are
             // the boxes along the bottom (Rework, docs/UI-DESIGN.md "Button prompts": they were an "i" here).
             var header = root.Q(className: "map-header");
-            var tools = root.Q("mapTools");
-            if (tools != null && tools.Q(name: "mapHelp") == null)
+            if (header != null && header.Q(name: "mapHelp") == null)
             {
                 var help = OptionInfo.Icon(() => HelpText);
                 help.name = "mapHelp";
                 help.AddToClassList("map-help");
                 help.style.position = Position.Relative;
                 help.style.width = help.style.height = 40f;
-                tools.Insert(0, help);
+                header.Add(help);
             }
             // Modified: an invisible copy of the station's Menu button (StarMap.uss .map-header-spacer), so the header is as
             // tall as the station's top bar and the title lines up with the station's name whatever the font.
@@ -260,20 +259,21 @@ namespace GoF2Remake.UI
         void FitSideButtons()
         {
             if (sideButtons == null || keyButton == null) return;
+            var stack = root.Q("mapActionStack") ?? sideButtons;
             // Modified: the Original style puts them in a row (OriginalFlight.uss), each sized to its label: the row as wide as
             // they are together (the column's width cut Key off at the screen's edge).
             if (Settings.OriginalUi)
             {
-                if (sideButtons.style.width.keyword != StyleKeyword.Auto) sideButtons.style.width = StyleKeyword.Auto;
+                if (stack.style.width.keyword != StyleKeyword.Auto) stack.style.width = StyleKeyword.Auto;
                 return;
             }
             float w = 0f;
-            foreach (var text in new[] { VoidButtonText, Localization.Extra("mapFullMap", "FULL MAP").OgCase(), Localization.Extra("mapCloseUp", "CLOSE UP").OgCase(), T(400).UiCaps() })
+            foreach (var text in new[] { VoidButtonText, Localization.Extra("mapFullMap", "FULL MAP").OgCase(), Localization.Extra("mapCloseUp", "CLOSE UP").OgCase(), AnimationSpeedText, T(400).UiCaps() })
                 w = Mathf.Max(w, keyButton.MeasureTextSize(text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x);
             if (!(w > 0f)) return;
             var s = keyButton.resolvedStyle;
             w += s.paddingLeft + s.paddingRight + s.borderLeftWidth + s.borderRightWidth + 4f;
-            if (Mathf.Abs(sideButtons.resolvedStyle.width - w) > 0.5f) sideButtons.style.width = w;
+            if (Mathf.Abs(stack.resolvedStyle.width - w) > 0.5f) stack.style.width = w;
         }
         /// <summary>Modified: the camera is still on its way in or out of the full-map overview (Full map / Close up wait).</summary>
         bool OverviewMoving => overviewT > 0f && overviewT < 1f;

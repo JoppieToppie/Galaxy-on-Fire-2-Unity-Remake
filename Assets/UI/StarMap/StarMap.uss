@@ -540,25 +540,20 @@
     border-radius: var(--glyph-sm-bumper-r);
 }
 
-/* Map tools form a separate top-right stack: help first, animation speed directly below it. */
-.map-tools {
-    position: absolute;
-    top: 32px;
-    right: 40px;
-    max-width: 42%;
-    align-items: flex-end;
-}
+/* Speed is the last bottom-right action, below Full Map and Key. */
+.map-action-stack { flex-direction: column; align-items: stretch; }
 #animationSpeedButton {
     margin-top: var(--space-s);
     min-width: 160px;
-    max-width: 100%;
-    padding: 12px 20px;
+    padding: 12px 24px;
     font-size: var(--text-body);
-    letter-spacing: 2px;
-    white-space: normal;
+    letter-spacing: 4px;
+    white-space: nowrap;
 }
-.ui-style-original .map-tools { top: 3px; right: 9px; }
-.ui-style-original .map-tools .map-help {
-    margin: 0 0 -16px 0;
-    transform-origin: 100% 0%;
+.ui-style-original .map-action-stack { align-items: flex-end; }
+.ui-style-original #animationSpeedButton {
+    height: 28px;
+    min-width: 92px;
+    padding: 0 14px;
+    letter-spacing: 0.5px;
 }
