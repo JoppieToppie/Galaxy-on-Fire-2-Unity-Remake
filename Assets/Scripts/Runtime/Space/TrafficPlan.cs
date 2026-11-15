@@ -261,6 +261,8 @@ namespace GoF2Remake.Flight
             bool baseSystem = PirateBases.SystemHasBase(db, system.index);
             int baseEscorts = 0;
             if (baseSystem) { raidersOn = false; raiders = 0; escorts = 0; baseEscorts = hardcore ? Random.Range(0, 3) + 4 : 2; }
+            // Preserve the pre-scaling base patrol count for the empty-orbit fallback decision.
+            unscaledAmbientCount += baseEscorts;
             baseEscorts = ScaleAmbientCount(baseEscorts, population);
             // Coming out of the Void, or at the station the Void attack (not at 42): 2-5 Void raiders from the wormhole and at
             // least 2 freighters for them to hunt (Level::createMission, npc_traffic_ai.md 2.2).
