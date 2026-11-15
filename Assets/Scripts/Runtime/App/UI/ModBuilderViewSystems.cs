@@ -232,7 +232,7 @@ namespace GoF2Remake.UI
             var derelicts = new Toggle(T("mbDerelictFreighters", "Random derelict freighters")) { value = s.DerelictFreighters };
             derelicts.RegisterValueChangedCallback(e => { s.DerelictFreighters = e.newValue; SystemEdited(); });
             systemPage.Add(derelicts);
-            Note(systemPage, T("mbDerelictFreightersNote", "Independently allows random derelict freighters in this system. The global Derelict Freighters gameplay option must also be enabled."));
+            Note(systemPage, T("mbDerelictFreightersNote", "Independently allows random derelict freighters in this system. The global gameplay option also gates vanilla random wrecks."));
             var vrow = Row(systemPage);
             FlagButton(vrow, T("mbVisible", "On the map from the start"), s.Visible, v => s.Visible = v, () => SystemEdited());
             // systems.json "available" (ModUnlocks): on the map only while it holds, e.g. quest(name) == 1 while a quest runs.
