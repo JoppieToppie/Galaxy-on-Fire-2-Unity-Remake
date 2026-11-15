@@ -1,6 +1,6 @@
 // MusicTracks.cs
 // The flight music's choice (Radar::draw 0x157c6c, played by Traffic.UpdateMusic) as a plain rule, and the remake option
-// that turns single tracks of it off (Options > Sound, a Discord player's request 2026-11-04: the battle track cut into
+// that turns groups of it off (Options > Sound, a Discord player's request 2026-11-04: the battle track cut into
 // the calm music whenever red-marked ships showed up). Every track is on by default, the original's music.
 
 using System;
@@ -21,6 +21,18 @@ namespace GoF2Remake.Data
 
         /// <summary>The tracks in the order Options lists them.</summary>
         public static readonly string[] All = { BattleLow, BattleMedium, BattleFull, VoidBattle, Specters1, Specters2, Wanted };
+
+        static readonly string[] StandardGroup = { BattleLow, BattleMedium, BattleFull };
+        static readonly string[] StealthGroup = { Specters1, Specters2 };
+
+        /// <summary>CLAUDE.md "Music tracks off": one switch per soundtrack family, in story order in Options.
+        /// Keep the original per-track keys so old preferences and Sound resets still work.</summary>
+        public static string[] Group(string track) => track switch
+        {
+            BattleLow or BattleMedium or BattleFull => StandardGroup,
+            Specters1 or Specters2 => StealthGroup,
+            _ => new[] { track },
+        };
 
         /// <summary>The Settings key of a track's toggle (in Settings.SoundKeys).</summary>
         public static string Key(string track) => "musicTrack." + track;

@@ -139,13 +139,10 @@ namespace GoF2Remake.UI
         /// <summary>Options > Sound's music track rows: track, Localization.Extra key, English label.</summary>
         static readonly (string track, string key, string english)[] MusicTrackRows =
         {
-            (MusicTracks.BattleLow, "musicBattleLow", "Battle music: few enemies"),
-            (MusicTracks.BattleMedium, "musicBattleMedium", "Battle music: several enemies"),
-            (MusicTracks.BattleFull, "musicBattleFull", "Battle music: many enemies"),
-            (MusicTracks.VoidBattle, "musicVoidBattle", "Battle music: the Void"),
-            (MusicTracks.Specters1, "musicSpecters1", "Battle music: Specters"),
-            (MusicTracks.Specters2, "musicSpecters2", "Battle music: many Specters"),
-            (MusicTracks.Wanted, "musicWanted", "Battle music: Most Wanted criminal"),
+            (MusicTracks.BattleLow, "musicBattleLow", "Battle music: Standard"),
+            (MusicTracks.VoidBattle, "musicVoidBattle", "Battle music: The Voids"),
+            (MusicTracks.Specters1, "musicSpecters1", "Battle music: Stealth Fighters"),
+            (MusicTracks.Wanted, "musicWanted", "Battle music: Most Wanted"),
         };
 
         /// <summary>The options of this platform, page by page.</summary>
