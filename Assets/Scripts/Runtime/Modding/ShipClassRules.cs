@@ -145,13 +145,20 @@ namespace GoF2Remake.Modding
             {
                 var inline = ModJson.Has(o, "className") ? ModJson.Text(o, "className") : null;
                 s.shipClassLabel = mod != null ? ModContent.TranslatedText(mod, $"shipclass.{s.shipClass}.name", inline)
-                                               : inline?.Values.GetEnumerator() is var e && e.MoveNext() ? e.Current : null;
+                                               : FirstValue(inline);
             }
             if (ModJson.Has(o, "classTags"))
             {
                 var tags = Words(o, "classTags");
                 s.classTags = tags.Length > 0 ? tags : null;
             }
+        }
+
+        static string FirstValue(Dictionary<string, string> values)
+        {
+            if (values == null) return null;
+            foreach (var value in values.Values) return value;
+            return null;
         }
 
         /// <summary>ModContent.ApplyFields: the lists onto the item (a new item or an override; an override without them keeps
