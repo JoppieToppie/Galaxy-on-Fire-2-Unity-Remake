@@ -82,6 +82,8 @@ namespace GoF2Remake.Flight
         public Target owner;
         public float reloadAcc;               // ms since the last shot
         public float spreadError;             // Gun+0xe0: 2 auto-cannon/scatter, 20 thermo, 0 otherwise
+        /// <summary>Hardpoint-relative launch turn; assigned only to player secondary guns by WeaponSystem.</summary>
+        [System.NonSerialized] public Quaternion launchTurn = Quaternion.identity;
         /// <summary>RocketGun::update: homing only once the bullet is this old (NPC rockets 1000 ms, the player's at once).</summary>
         public float homingDelayMs;
         /// <summary>Remake (mods, ItemStats 127-130): a second, weaker blast at each hit, a little later. Null = none.</summary>
@@ -303,6 +305,7 @@ namespace GoF2Remake.Flight
 
             var fwd = rotation * Vector3.forward;
             var up = rotation * Vector3.up;
+            var shotFwd = rotation * (launchTurn * Vector3.forward);
             Vector3 Spawn() => origin + rotation * (mountLocal + (addForwardOffset && kind != Kind.ShockBlast
                 ? Vector3.forward * SpawnForwardUnits * MetersPerUnit : Vector3.zero));
 
@@ -347,7 +350,7 @@ namespace GoF2Remake.Flight
                     if (bullets[i].timer > FreeLimit) continue;
                     ref var c = ref bullets[i];
                     c.position = Spawn();
-                    c.velocity = fwd * speedUnitsPerMs * MetersPerUnit;
+                    c.velocity = shotFwd * speedUnitsPerMs * MetersPerUnit;
                     c.up = up;
                     c.timer = lifetimeMs;
                     c.age = 0f;
@@ -368,7 +371,7 @@ namespace GoF2Remake.Flight
                     ref var c = ref bullets[i];
                     float side = (made - (salvoShots - 1) * 0.5f) * SalvoSpreadUnits * MetersPerUnit;
                     c.position = Spawn() + rotation * Vector3.right * side;
-                    c.velocity = fwd * speedUnitsPerMs * MetersPerUnit;
+                    c.velocity = shotFwd * speedUnitsPerMs * MetersPerUnit;
                     c.up = up;
                     c.timer = lifetimeMs;
                     c.age = 0f;
@@ -391,7 +394,7 @@ namespace GoF2Remake.Flight
             ref var b = ref bullets[free];
             b.position = Spawn();
             b.velocity = kind == Kind.Mine ? (fwd + up).normalized * MineSpeedUnits * MetersPerUnit
-                                           : rotation * dir.normalized * speedUnitsPerMs * MetersPerUnit;
+                                           : rotation * (launchTurn * dir.normalized) * speedUnitsPerMs * MetersPerUnit;
             b.up = up;
             b.timer = lifetimeMs;
             b.age = 0f;

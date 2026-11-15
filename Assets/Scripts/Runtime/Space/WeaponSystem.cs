@@ -327,6 +327,8 @@ namespace GoF2Remake.Flight
                     at += Modding.ModHardpoints.MuzzleOffset(shipIndex, shown, secondary, mounts[slot % mounts.Count]);
                 }
                 var gun = new Gun(item, at, secondary);
+                // Only secondary launch direction follows the hardpoint; visual rotation remains purely cosmetic.
+                if (secondary && mounts.Count > 0) gun.launchTurn = mounts[slot % mounts.Count].LaunchTurn;
                 gun.Ignores = t => t.playerProof;   // multiplayer: through squadmates
                 if (!secondary)
                 {

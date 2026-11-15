@@ -126,6 +126,19 @@ namespace GoF2Remake.Data
         public float[] glowColor, glowSize, turretUp;
         public string glowShape;
 
+        /// <summary>The mount's launchRotation as a turn in the ship model's Unity frame: Euler degrees (3 numbers) or
+        /// quaternion (4), identity when absent. Used only for secondary weapon launch direction.</summary>
+        public Quaternion LaunchTurn
+        {
+            get
+            {
+                var r = launchRotation;
+                if (r != null && r.Length >= 4) return new Quaternion(r[0], r[1], r[2], r[3]).normalized;
+                if (r != null && r.Length >= 3) return Quaternion.Euler(r[0], r[1], r[2]);
+                return Quaternion.identity;
+            }
+        }
+
         /// <summary>turretUp (else upsideDown) in the Unity ship frame ((-x, y, z), the models are mirrored): a unit vector,
         /// Vector3.up for a plain mount.</summary>
         public Vector3 TurretUpLocal
@@ -176,9 +189,14 @@ namespace GoF2Remake.Data
         /// <summary>Remake mods, a primary / secondary mount of a customizable ship: how its weapon model (Modding.ModHardpoints)
         /// is turned on the hull, in the ship model's frame (x right, y up, z forward): Euler degrees [x, y, z] (Unity's order)
         /// or a quaternion [x, y, z, w]; none = upright (upsideDown still turns it over). Only the look and the muzzle: the
-        /// shots still fly along the nose. An exhaust mount (slotType 3) of a ship with "engineFx": the way it blows, turned
+        /// shots still fly along the nose (secondary launch direction is launchRotation). An exhaust mount (slotType 3) of a ship with "engineFx": the way it blows, turned
         /// from straight back (Modding.EngineFx).</summary>
         public float[] rotation;
+        /// <summary>Remake mods, a secondary (slotType 1) mount: the direction its shots leave in, as a turn from the
+        /// ship's nose in the ship model's frame. Euler degrees [x, y, z] or quaternion [x, y, z, w]; absent = straight ahead.
+        /// Separate from visual rotation so tilting a pod for looks does not redirect its shots. Primaries, turrets and NPC guns
+        /// ignore this field.</summary>
+        public float[] launchRotation;
         /// <summary>Remake mods, a primary / secondary mount: nodes of the ship's model (by name) that show only while this mount
         /// carries a weapon (a hardpoint's pylon; Modding.ModHardpoints.AttachWeapons).</summary>
         public string[] nodes;
