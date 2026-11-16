@@ -34,7 +34,7 @@ namespace GoF2Remake.Flight
         public bool projectFromVolume = true;
         public List<CollisionVolume> volumes = new List<CollisionVolume>();
         /// <summary>Remake: the player slides along this hull's MeshColliders instead of the volumes (HullCollision); NPC
-        /// fighters still steer by the volumes. Null = none.</summary>
+        /// NPC fighters steer by the same mesh when available, with volumes as fallback. Null = none.</summary>
         [System.NonSerialized] public HullBody hull;
         /// <summary>The player collides with the hull, not the volumes.</summary>
         public bool UsesHull => hull != null && hull.Collides;   // not taken by the ship collision mode (Mixed: another player's ship; Original: any): its volumes
