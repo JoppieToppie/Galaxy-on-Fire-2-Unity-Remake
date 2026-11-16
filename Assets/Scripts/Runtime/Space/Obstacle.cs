@@ -39,7 +39,7 @@ namespace GoF2Remake.Flight
         /// <summary>The player collides with the hull, not the volumes.</summary>
         public bool UsesHull => hull != null && hull.Collides;   // not taken by the ship collision mode (Mixed: another player's ship; Original: any): its volumes
 
-        public bool Active => isActiveAndEnabled && volumes != null && volumes.Count > 0;
+        public bool Active => isActiveAndEnabled && ((volumes != null && volumes.Count > 0) || (hull != null && hull.Active));
 
         // Remake (performance, 2026-10-22): the NPC fighters' avoidance (NpcShip.Avoid) tested every obstacle's volumes from
         // every fighter twice a frame; a sphere around them, measured once a frame, rules out the far ones first.
@@ -61,6 +61,11 @@ namespace GoF2Remake.Flight
                 if (cubeHalf > 0f) reach = cubeHalf * 1.7321f;   // Touches is false outside the cube
                 else if (volumes != null)
                     foreach (var v in volumes) reach = Mathf.Max(reach, v.centre.magnitude + (v.sphere ? v.radius : v.half.magnitude));
+                // Exact mesh parts can extend beyond the legacy steering volumes. Keep the broad phase conservative
+                // or those protrusions would never reach the narrow-phase mesh query.
+                if (hull != null && hull.NavigationActive)
+                    foreach (var c in hull.colliders) if (c != null && c.enabled)
+                        reach = Mathf.Max(reach, (c.bounds.center - transform.position).magnitude + c.bounds.extents.magnitude);
                 broadReach = reach + 50f;   // what the obstacle can move in the rest of the frame, generously
             }
             return broadActive && (world - broadCentre).sqrMagnitude <= broadReach * broadReach;
