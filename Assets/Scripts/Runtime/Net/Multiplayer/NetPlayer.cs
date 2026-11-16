@@ -444,6 +444,15 @@ namespace GoF2Remake.Multiplayer
             shieldFactor = byNpc || float.IsNaN(shieldFactor) ? 1f : shieldFactor <= 0f ? 0f : Mathf.Clamp(shieldFactor, 0.01f, 10f);
             var by = NetSquad.Find(shooter);
             if (!NetGuard.SameOrbit(by, this)) return;   // gone from the orbit a moment ago, or a hit from elsewhere
+            // "byNpc" is supplied by the caller, so it is not proof of an NPC hit. Only the server-selected
+            // runner of this orbit may relay NPC damage. This closes the easy bypass where any client could
+            // set byNpc=true to ignore PvP and squad protection. The runner still simulates NPC combat locally;
+            // fully proving an individual shot requires authoritative NPC combat, not a client flag.
+            if (byNpc && (!by.InSpace || by.RunsOrbit != Station))
+            {
+                NetRateLimit.Reject(shooter, "NPC damage from a client that does not run this orbit");
+                return;
+            }
             if (!byNpc && NetSquad.Same(by, this)) return;
             NetState.Instance?.NoteHit(NetworkObjectId, shooter);
             HitRpc(amount, hitVector, byNpc, shooter, shieldFactor);
