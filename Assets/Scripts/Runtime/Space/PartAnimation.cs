@@ -345,15 +345,6 @@ namespace GoF2Remake.Visuals
             play = false;
         }
 
-        /// <summary>Modified: moves 'part' (a transform under this animation) to 'localPosition', its keyed position offsets
-        /// then added to that instead of to its load position (a part set where the user placed it in the Inspector).</summary>
-        public void SetBasePosition(Transform part, Vector3 localPosition)
-        {
-            foreach (var tk in tracks) if (tk.tr == part) tk.basePos = localPosition;
-            part.localPosition = localPosition;
-            poseNext = true;
-        }
-
         /// <summary>Stops where it is (the level script no longer calls Transform::Update on it).</summary>
         public void Pause() => play = false;
 
