@@ -67,6 +67,7 @@ namespace GoF2Remake.UI
                     Trade(1);
                     break;
                 case RowKind.Blueprint:
+                    if (Blueprints.IsRestricted(selected.item)) { menu.ShowToast(Localization.Extra("bpRestricted", "This blueprint is unavailable in this multiplayer session.")); break; }
                     // Edit (283) -> tab 4, the ingredients.
                     menu.PlayRelease();
                     editing = selected.item;
