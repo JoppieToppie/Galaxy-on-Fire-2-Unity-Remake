@@ -227,7 +227,7 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>Whether an item’s blueprint is restricted during a multiplayer session (solo play is unchanged).</summary>
-        public static bool IsBlueprintRestricted(int product) => NetSession.Active && multiplayerBlueprintRestricted.Contains(product);
+        public static bool IsBlueprintRestricted(int product) => (NetSession.Active || NetSession.SessionGame) && multiplayerBlueprintRestricted.Contains(product);
 
         /// <summary>ModContentMerging applies this per-item flag in mod load order; an explicit false clears an earlier mod restriction.</summary>
         public static void SetBlueprintRestricted(int product, bool restricted)
