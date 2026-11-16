@@ -55,6 +55,26 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ACharacterCanUseItsOwnModsCustomRace()
+        {
+            string dir = WriteMod("custom_race_chars", "t_custom", "1.0", "",
+                ("races.json", "[ { 'id': 'aliens', 'name': 'Aliens', 'visitor': 'models/alien.glb', 'visitorScale': 1.25 } ]"),
+                ("characters.json", "[ { 'id': 'pilot', 'portrait': 'p.png', 'race': 'aliens' } ]"));
+            WriteFile(dir, "p.png", Dummy);
+            WriteFile(dir, "models/alien.glb", Dummy);
+            ScanAndEnable("t_custom");
+
+            var race = ModRaces.Get("t_custom:aliens");
+            Assert.IsNotNull(race);
+            Assert.AreEqual("models/alien.glb", race.visitor);
+            Assert.AreEqual(1.25f, race.visitorScale);
+            var character = ModCharacters.Find("t_custom:pilot");
+            Assert.IsNotNull(character);
+            Assert.IsTrue(character.hasRace);
+            Assert.AreEqual(race.race, character.race);
+        }
+
+        [Test]
         public void CharactersAreFoundByKeyIdOrName()
         {
             CharactersOn(Two);
@@ -122,7 +142,7 @@ namespace GoF2Remake.Tests
         [Test] public void ThePortraitMustBeInTheMod() => StringAssert.Contains("isn't in the mod", Warning("[ { 'id': 'x', 'portrait': 'none.png' } ]"));
         [Test] public void AnIdIsRequired() => StringAssert.Contains("\"id\" is missing", Warning("[ { 'portrait': 'p.png' } ]"));
         [Test] public void AGenderIsMaleOrFemale() => StringAssert.Contains("male or female", Warning("[ { 'id': 'x', 'portrait': 'p.png', 'gender': 'robot' } ]"));
-        [Test] public void AnUnknownRace() => StringAssert.Contains("isn't a race", Warning("[ { 'id': 'x', 'portrait': 'p.png', 'race': 'klingon' } ]"));
+        [Test] public void AnUnknownRace() => StringAssert.Contains("isn't a game or mod race", Warning("[ { 'id': 'x', 'portrait': 'p.png', 'race': 'klingon' } ]"));
         [Test] public void CharactersMustBeAList() => StringAssert.Contains("must be a list", Warning("{ 'id': 'x' }"));
 
         [Test]
