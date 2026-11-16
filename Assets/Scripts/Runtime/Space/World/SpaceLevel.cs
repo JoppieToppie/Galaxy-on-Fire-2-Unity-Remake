@@ -195,7 +195,7 @@ namespace GoF2Remake.World
         /// camera, and only after having left the range once (the undock spawn at 10000 units is inside it).</summary>
         public bool CanDock => ((Layout.hasStation && StationShown && leftDockRange && InDockRange) || MobileInRange != null)
                                && Player != null && launchCameraMs <= 0f && (Health == null || !Health.Dead)
-                               && !DockingBlocked && (PlayerHull.PlayerShip && !PlayerHull.Big || CanDockExternally && ExternalDockInRange)
+                               && !DockingBlocked && (InternalDockEligible || CanDockExternally && ExternalDockInRange)
                                && (Mining == null || Mining.State == Mining.Phase.Idle);
         /// <summary>The station is there (a level script may hide it: 78's Valkyrie jumping away); nothing docks at a hidden one.</summary>
         bool StationShown => Station == null || Station.activeInHierarchy;
