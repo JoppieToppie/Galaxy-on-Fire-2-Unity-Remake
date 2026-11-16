@@ -20,6 +20,7 @@ namespace GoF2Remake.Modding
         static GameObject holder;
         static GLTFast.TimeBudgetPerFrameDeferAgent agent;
         static int loadingRevision = -1, loadedRevision = -1;
+        static Task loadTask;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
@@ -29,6 +30,7 @@ namespace GoF2Remake.Modding
             holder = null;
             agent = null;
             loadingRevision = loadedRevision = -1;
+            loadTask = null;
             Count = Done = 0;
         }
 
@@ -52,7 +54,20 @@ namespace GoF2Remake.Modding
             int revision = ModManager.Revision;
             if (loadingRevision == revision) return;
             loadingRevision = revision;
-            _ = LoadAll(revision);
+            // A project or session can change while a GLB is still importing. Serialize revisions so an older load
+            // cannot clear a newer holder or dispose meshes while the next revision is building.
+            loadTask = LoadAfterPrevious(revision, loadTask);
+        }
+
+        static async Task LoadAfterPrevious(int revision, Task previous)
+        {
+            if (previous != null)
+            {
+                try { await previous; }
+                catch (Exception e) { Debug.LogException(e); }
+            }
+            if (revision != ModManager.Revision) return;
+            await LoadAll(revision);
         }
 
         static async Task LoadAll(int revision)
@@ -101,14 +116,16 @@ namespace GoF2Remake.Modding
                 var import = await ModGltf.Load(race.mod, bytes, agent);
                 bytes = null;
                 if (import == null) { Warn(race, $"{race.visitor} is not a GLB model glTFast can read"); return; }
+                if (revision != ModManager.Revision || holder == null) { import.Dispose(); return; }
                 imports.Add(import);
-                if (revision != ModManager.Revision || holder == null) return;
 
                 var root = new GameObject($"Visitor ({race.key})");
                 root.transform.SetParent(holder.transform, false);
                 if (!await ModGltf.InstantiateMain(import, root.transform))
                 {
                     UnityEngine.Object.Destroy(root);
+                    imports.Remove(import);
+                    import.Dispose();
                     Warn(race, $"{race.visitor} has no scene");
                     return;
                 }
@@ -116,6 +133,8 @@ namespace GoF2Remake.Modding
                 if (ModGltf.HasNoMeshes(root))
                 {
                     UnityEngine.Object.Destroy(root);
+                    imports.Remove(import);
+                    import.Dispose();
                     Warn(race, $"{race.visitor} contains no mesh renderers");
                     return;
                 }
