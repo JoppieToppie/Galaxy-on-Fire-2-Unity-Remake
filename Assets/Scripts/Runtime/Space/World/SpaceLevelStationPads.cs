@@ -42,6 +42,15 @@ namespace GoF2Remake.World
         bool ExternalDockInRange => Station != null && StationShown && Player != null && Player.transform.position.sqrMagnitude < DockMeters * DockMeters;
         bool CanDockExternally => ExternalDockEligible && externalDockPoints.Count > 0;
 
+        /// <summary>The range used by the selected class's docking route at the orbit's fixed station.</summary>
+        bool AtFixedStationDockRange => Layout.hasStation && StationShown && leftDockRange
+                                        && (ExternalDockClass ? ExternalDockInRange : InDockRange);
+
+        /// <summary>The autopilot uses the external station radius for exterior roles, not an interior ES2 hangar's dock zone.</summary>
+        bool DockingApproachRange => ExternalDockClass
+            ? ExternalDockInRange
+            : InDockRange || (Es2 == null && Collision != null && Collision.TouchingStation);
+
         /// <summary>Choose the closest ship hardpoint / station attachment pair. A ship may author more than one slotType 8
         /// mount; pairing by the actual mount position avoids always selecting the first mount on an asymmetric hull.</summary>
         bool FindExternalDockingPair(Transform onlyPoint, out Transform point, out WeaponMount mount)
