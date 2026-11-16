@@ -735,7 +735,7 @@ namespace GoF2Remake.World
         {
             if (!flyIn) CoopLeaderMoved(Session.StationIndex, true, false);   // remake co-op: the story's move into a station
             // Remake mods: the player's own docking near a mobile station (and not at the orbit's station) docks there.
-            if (flyIn && MobileInRange is MobileStation near && !(Layout.hasStation && StationShown && leftDockRange && InDockRange))
+            if (flyIn && MobileInRange is MobileStation near && !AtFixedStationDockRange)
             {
                 DockMobile(near);
                 return;
