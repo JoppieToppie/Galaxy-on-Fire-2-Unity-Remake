@@ -122,6 +122,8 @@ namespace GoF2Remake.UI
 
             Add(characterPage, new Label(T("mbRace", "Race").ToUpperInvariant()), "mbv-label");
             var races = Add(characterPage, new VisualElement(), "mbv-seg-row");
+            Act(races, T("mbAuto", "Auto"), () => { c.Race = null; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg")
+                .EnableInClassList("mbv-seg--on", c.Race == null);
             for (int i = 0; i < RaceWords.Length; i++)
             {
                 string word = RaceWords[i];
