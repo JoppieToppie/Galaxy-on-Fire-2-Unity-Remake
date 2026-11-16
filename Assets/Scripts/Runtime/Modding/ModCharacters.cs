@@ -31,6 +31,7 @@ namespace GoF2Remake.Modding
             public string id, key, portrait;
             public Dictionary<string, string> name;
             public int race;            // 0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirate, 9 Void...
+            public string silhouette; // optional lounge visitor mesh, independent of race/name colour
             public bool male = true, mirrored, frame = true, background = true;
             public string replaces;     // a story speaker's name or number
             public int replacesSpeaker = -2;   // resolved on first use (-1 none)
@@ -50,7 +51,7 @@ namespace GoF2Remake.Modding
         }
 
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "id", "name", "portrait", "race", "gender", "mirrored", "frame", "background", "replaces" };
+            { "id", "name", "portrait", "race", "gender", "silhouette", "mirrored", "frame", "background", "replaces" };
 
         static readonly Dictionary<string, Def> defs = new Dictionary<string, Def>(StringComparer.OrdinalIgnoreCase);
         static int parsedRevision = -1, loading;
@@ -96,12 +97,19 @@ namespace GoF2Remake.Modding
                     frame = ModJson.Bool(o, "frame", true, File),
                     background = ModJson.Bool(o, "background", true, File),
                     replaces = ModJson.Str(o, "replaces"),
+                    silhouette = ModJson.Str(o, "silhouette"),
                 };
                 string race = ModJson.Str(o, "race");
                 if (race != null)
                 {
                     d.race = Flight.Standing.RaceWord(race);
                     if (d.race < 0) throw new ModJsonException($"{where}: \"race\" {race} isn't a race (terran, vossk, nivelian, midorian, pirate, void)");
+                }
+                if (d.silhouette != null)
+                {
+                    d.silhouette = d.silhouette.Trim().ToLowerInvariant();
+                    if (!new[] { "terran", "vossk", "nivelian", "midorian", "void", "cyborg", "octopod", "bobolian", "grey" }.Contains(d.silhouette))
+                        throw new ModJsonException($"{where}: \"silhouette\" must be terran, vossk, nivelian, midorian, void, cyborg, octopod, bobolian or grey");
                 }
                 string gender = ModJson.Str(o, "gender");
                 if (gender != null)
