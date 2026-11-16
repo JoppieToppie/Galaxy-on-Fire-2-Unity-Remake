@@ -181,6 +181,21 @@ namespace GoF2Remake.World
             chase.enabled = true;
         }
 
+        /// <summary>External test spawn: attach immediately, without an approach animation.</summary>
+        public void HoldExternalDocked()
+        {
+            if (!external) return;
+            State = Phase.Docked;
+            t = 0f;
+            released = false;
+            ship.externalControl = true;
+            ship.inputLocked = true;
+            ship.modelHeld = true;
+            ship.autopilotTarget = null;
+            chase.enabled = true;
+            ship.transform.SetPositionAndRotation(DockedPos, DockedRot);
+        }
+
         /// <summary>PlayLaunchAnimation: the ship on its pad takes off under the dock's camera, then the player flies.</summary>
         /// <summary>Docked on the pad at once (a save or a story move into the station: no docking flight).</summary>
         public void HoldDocked()
