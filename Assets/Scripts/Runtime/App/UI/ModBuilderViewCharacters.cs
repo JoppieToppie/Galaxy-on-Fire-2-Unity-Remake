@@ -138,7 +138,13 @@ namespace GoF2Remake.UI
             {
                 string key = race.key;
                 if (projectRaceKeys.Contains(key)) continue;
-                var b = Act(races, ModRaces.Name(race.race), () => { c.Race = key; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg");
+                var b = Act(races, ModRaces.Name(race.race), () =>
+                {
+                    Project.AddDependency(race.mod.Id, race.mod.Version);
+                    c.Race = key;
+                    CharacterEdited();
+                    BuildCharacterPage();
+                }, "mbv-seg");
                 b.EnableInClassList("mbv-seg--on", string.Equals(c.Race, key, StringComparison.OrdinalIgnoreCase));
             }
             Add(characterPage, new Label(T("mbGender", "Gender").ToUpperInvariant()), "mbv-label");
