@@ -17,6 +17,15 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(ShipClassRules.CanDockExternally(ship));
         }
 
+        [Test]
+        public void InternalRoleDoesNotOverrideThePhysicalLargeHullClearance()
+        {
+            var ship = new ShipData { shipClass = "fighter" };
+
+            Assert.IsFalse(ShipClassRules.CanDockInternally(ship, true));
+            Assert.IsFalse(ShipClassRules.CanDockExternally(ship));
+        }
+
         [TestCase("frigate")]
         [TestCase("cruiser")]
         [TestCase("carrier")]
