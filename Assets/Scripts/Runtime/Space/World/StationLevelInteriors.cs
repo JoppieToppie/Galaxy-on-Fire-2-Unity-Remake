@@ -472,7 +472,8 @@ namespace GoF2Remake.World
             int i = visitors.Count;
             {
                 int race = agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
-                var prefab = VisitorPrefab(StationTables.VisitorFor(race, !agent.male));
+                var silhouette = Modding.ModCharacters.Find(agent.character)?.silhouette;
+                var prefab = VisitorPrefab(StationTables.VisitorForSilhouette(silhouette, race, !agent.male));
                 if (prefab == null) return false;
                 var feet = SlotFeet(slot);
                 var v = new Visitor { feet = feet, agent = agent };
