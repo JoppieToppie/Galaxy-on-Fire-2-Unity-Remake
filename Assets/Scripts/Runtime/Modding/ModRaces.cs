@@ -46,6 +46,7 @@ namespace GoF2Remake.Modding
             public Dictionary<string, string> name, description;
             public Color color = Color.white;
             public int look, start, race = -1, gunItem = -1;
+            public float visitorScale = 1f;
             public bool hostile, diplomats = true;
             /// <summary>"relations" as written (race references -> -1 / 0 / 1); resolved in Relations.</summary>
             public Dictionary<string, int> relationRefs = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -54,7 +55,7 @@ namespace GoF2Remake.Modding
         }
 
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "id", "name", "description", "icon", "color", "look", "standing", "hostile", "diplomats", "relations", "gun", "visitor" };
+            { "id", "name", "description", "icon", "color", "look", "standing", "hostile", "diplomats", "relations", "gun", "visitor", "visitorScale" };
 
         static int mappedRevision = -1;
         static readonly Dictionary<string, Def> byKey = new Dictionary<string, Def>(StringComparer.Ordinal);
@@ -94,6 +95,9 @@ namespace GoF2Remake.Modding
                 if (d.icon != null && !mod.Source.Exists(d.icon)) throw new ModJsonException($"{where}: the icon {d.icon} isn't in the mod");
                 if (d.visitor != null && (!d.visitor.EndsWith(".glb", StringComparison.OrdinalIgnoreCase) || !mod.Source.Exists(d.visitor)))
                     throw new ModJsonException($"{where}: \\"visitor\\" must be the path of a .glb file in the mod");
+                d.visitorScale = ModJson.Float(o, "visitorScale", 1f, File);
+                if (float.IsNaN(d.visitorScale) || float.IsInfinity(d.visitorScale) || d.visitorScale <= 0f)
+                    throw new ModJsonException($"{where}: \"visitorScale\" must be a positive number");
                 if (ModJson.Get(o, "color") is JToken c)
                 {
                     if (!(c is JArray a) || a.Count != 3) throw new ModJsonException($"{where}: \"color\" must be [r, g, b] (0..1)");
