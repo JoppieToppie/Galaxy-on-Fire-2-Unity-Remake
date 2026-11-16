@@ -129,7 +129,19 @@ namespace GoF2Remake.UI
             var genders = Add(characterPage, new VisualElement(), "mbv-seg-row");
             Act(genders, T("mbMale", "Male"), () => { c.Male = true; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg").EnableInClassList("mbv-seg--on", c.Male);
             Act(genders, T("mbFemale", "Female"), () => { c.Male = false; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg").EnableInClassList("mbv-seg--on", !c.Male);
-            Note(characterPage, T("mbRaceNote", "Race and gender pick the figure in the Space Lounge and the name's colour."));
+            Note(characterPage, T("mbRaceNote", "Race and gender set the name's colour and the default lounge figure."));
+
+            Add(characterPage, new Label(T("mbSilhouette", "Lounge silhouette").ToUpperInvariant()), "mbv-label");
+            var silhouettes = Add(characterPage, new VisualElement(), "mbv-seg-row");
+            var choices = new[] { "", "terran", "vossk", "nivelian", "midorian", "void", "cyborg", "octopod", "bobolian", "grey" };
+            var labels = new[] { "Auto", "Terran", "Vossk", "Nivelian", "Midorian", "Void", "Cyborg", "Octopod", "Bobolian", "Grey" };
+            for (int i = 0; i < choices.Length; i++)
+            {
+                string choice = choices[i];
+                var b = Act(silhouettes, labels[i], () => { c.Silhouette = choice; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg");
+                b.EnableInClassList("mbv-seg--on", string.Equals(c.Silhouette ?? "", choice, StringComparison.OrdinalIgnoreCase));
+            }
+            Note(characterPage, T("mbSilhouetteNote", "Auto preserves the original race-based figure. Cyborg and Midorian use the original Terran male mesh; Octopod uses the Multipod mesh."));
 
             Heading(characterPage, T("mbStandsInForOptional", "Stands in for (optional)"));
             var srow = Add(characterPage, new VisualElement(), "mbv-row");
