@@ -35,7 +35,7 @@ namespace GoF2Remake.World
             get
             {
                 var mounts = db != null ? db.MountsOf(Session.ShipIndex, 8) : null;
-                return Player != null && ExternalDockClass && mounts != null && mounts.Count > 0;
+                return Player != null && PlayerHull.PlayerShip && ExternalDockClass && mounts != null && mounts.Count > 0;
             }
         }
 
