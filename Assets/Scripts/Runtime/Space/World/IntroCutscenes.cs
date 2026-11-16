@@ -280,7 +280,8 @@ namespace GoF2Remake.World
                     else if (Step == 2 && Over(7))
                     {
                         foreach (var p in pirates) { p.SetExhaust(true); p.SetEngineSound(true); p.SetVisible(true); p.Wake(); }
-                        cam.SetDolly(Vector3.zero);
+                        // Modified (the iOS build, LevelScript::process 0x1000b99ec): step 3 keeps step 2's dolly
+                        // (0.2, 0, 2.2) per ms until msg[8] ends.
                         Step = 3;
                     }
                     break;
@@ -293,7 +294,9 @@ namespace GoF2Remake.World
                         campaign.Cutscene = false;
                         campaign.CollisionOff = false;
                         campaign.StartSequenceOver = true;
-                        cam.Release();
+                        // Modified (the iOS build 0x1000b9a64): setLookAtCam(false) + setTarget(player), no setPosition: the
+                        // chase camera eases from the pirates' shot to its place behind the ship instead of a cut.
+                        cam.Release(snap: false);
                         Step = 4;
                     }
                     break;
@@ -420,12 +423,10 @@ namespace GoF2Remake.World
                     break;
                 case 14:
                     Tumble(dtMs / 5000f);
-                    {
-                        // LevelScript's dolly is (-2, 0, 0) u/ms; remake (PR #56): the camera travels with the drifting wreck
-                        // (its direction in game axes, its speed), so it stays in frame.
-                        var f = Player.forward;
-                        cam.SetDolly(new Vector3(f.x, f.y, -f.z) * playerSpeed);
-                    }
+                    // Modified (the iOS build, LevelScript::process 0x1000bf2d0): TargetFollowCamera::translate(0, 0, -2 dt), a
+                    // world-space dolly back along z (read as (-2, 0, 0) from the Android decompile). Before (PR #56) the
+                    // camera travelled with the drifting wreck.
+                    cam.SetDolly(new Vector3(0f, 0f, -2f));
                     if (stepMs >= 12000f) { cam.LookAtUnity(Player.position + ToUnity(new Vector3(-3000, 3500, -6700)), Player); Step = 15; }
                     break;
                 case 15:
