@@ -38,8 +38,8 @@ namespace GoF2Remake.UI
     public partial class ModBuilderView : ModBuilderScreen
     {
         const float M = 0.05f;
-        static readonly string[] TypeNames = { "Primary", "Secondary", "Turret", "Engine" };
-        static readonly string[] TypeShort = { "P", "S", "T", "E" };
+        static readonly string[] TypeNames = { "Primary", "Secondary", "Turret", "Engine", "Docking" };
+        static readonly string[] TypeShort = { "P", "S", "T", "E", "D" };
         static readonly int[] Races = { 0, 1, 2, 3, 8, 9 };
         static readonly string[] RaceNames = { "Terran", "Vossk", "Nivelian", "Midorian", "Pirate", "Void" };
 
