@@ -312,6 +312,7 @@ namespace GoF2Remake.World
                 }
             }
             BuildHangar();
+            if (orbitDocked && orbit != null && orbit.ExternalDocked) ApplyShipYaw();   // show the station-scene copy at the exterior hardpoint
             BuildBar();
             // Remake: ships now and then flying past outside the bar's windows (not at an evacuated station).
             if (!Evacuated && !orbitDocked) gameObject.AddComponent<BarFlybys>().Setup(this, barRoot, barPosB, barRotB, BarRace == 1, RandomParkedShip,
