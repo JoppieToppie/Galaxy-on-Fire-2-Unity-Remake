@@ -740,6 +740,7 @@ namespace GoF2Remake.World
                 DockMobile(near);
                 return;
             }
+            if (flyIn && DockingBlocked) { Navigation?.Refuse(); return; }
             // Class roles choose the docking route. Frigates / cruisers / carriers require a manually authored exterior
             // attachment and a slotType 8 ship hardpoint; they never fall back to an internal hangar or NPC pad.
             if (flyIn && ExternalDockClass)
