@@ -111,7 +111,7 @@ namespace GoF2Remake.World
         /// <summary>Begin an exterior docking approach using the nearest station-point / ship-hardpoint pair.</summary>
         bool TryBeginExternalDocking()
         {
-            if (!ExternalDockEligible || !leftDockRange || !ExternalDockInRange || externalDockPoints.Count == 0 || Es2Busy || DockedInOrbit || Leaving)
+            if (!ExternalDockEligible || !leftDockRange || !ExternalDockInRange || externalDockPoints.Count == 0 || Es2Busy || DockedInOrbit || Leaving || DockingBlocked)
                 return false;
             if (!FindExternalDockingPair(null, out var point, out var mount)) return false;
             var dock = Es2Dock.AttachExternal(Station, Session.StationIndex, Player, chase, point, mount);
