@@ -307,7 +307,7 @@ namespace GoF2Remake.Modding
         public string Ref => "id:" + Id;
         public string Name { get => Text("name"); set => SetText("name", value); }
         public string Portrait { get => S("portrait"); set => SetS("portrait", value); }
-        /// <summary>The race word (terran, vossk, nivelian, midorian, pirate, void), null = none given.</summary>
+        /// <summary>A game race word or a mod race reference (mod_id:race_id); null = inherit the mission client's race.</summary>
         public string Race { get => S("race"); set => SetS("race", value); }
         /// <summary>Optional lounge figure mesh, independent of race (null: original race / portrait mapping).</summary>
         public string Silhouette { get => S("silhouette"); set => SetS("silhouette", value); }
