@@ -233,7 +233,7 @@ namespace GoF2Remake.Flight
 
         /// <summary>The queries read the transforms as of this frame's first query (the hulls moved since the last physics
         /// step: their kinematic bodies aren't simulated).</summary>
-        static void Sync()
+        internal static void Sync()
         {
             if (syncedFrame == Time.frameCount) return;
             syncedFrame = Time.frameCount;
