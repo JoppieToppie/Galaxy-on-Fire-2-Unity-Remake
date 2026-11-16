@@ -108,7 +108,10 @@ namespace GoF2Remake.World
         {
             if (station == null || point == null || ship == null || chase == null || mount == null) return null;
             var hull = station.transform.Find("hull") ?? station.transform.Find("Station/hull") ?? station.transform;
-            var d = ship.gameObject.AddComponent<Es2Dock>();
+            Es2Dock d = null;
+            foreach (var existing in ship.GetComponents<Es2Dock>())
+                if (existing.IsExternal) { d = existing; break; }
+            if (d == null) d = ship.gameObject.AddComponent<Es2Dock>();
             d.hull = hull;
             d.StationIndex = stationIndex;
             d.ship = ship;
