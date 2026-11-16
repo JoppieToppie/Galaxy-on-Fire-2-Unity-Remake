@@ -150,10 +150,15 @@ namespace GoF2Remake.Tests
             Assert.GreaterOrEqual(product, 0);
 
             var previous = NetSession.ActiveProvider;
+            var previousSession = NetSession.SessionGameProvider;
             try
             {
                 NetSession.ActiveProvider = () => true;
+                NetSession.SessionGameProvider = () => true;
                 Assert.IsTrue(ModContent.IsBlueprintRestricted(product), "new mod item");
+                NetSession.ActiveProvider = () => false;
+                Assert.IsTrue(ModContent.IsBlueprintRestricted(product), "restriction remains while the game still belongs to a disconnected session");
+                NetSession.ActiveProvider = () => true;
                 Assert.IsFalse(ModContent.IsBlueprintRestricted(85), "a later explicit false clears an earlier override");
                 Assert.IsTrue(ModContent.IsBlueprintRestricted(179), "another vanilla item override");
                 Assert.AreEqual(0, ModBlueprints.Offerable(d => true).Count, "no lounge, drop or derelict source");
@@ -169,7 +174,7 @@ namespace GoF2Remake.Tests
                 Assert.IsFalse(Blueprints.Produce(db, product, 10), "production is blocked below the hangar UI");
                 Assert.AreEqual(produced, Session.GoodsProduced, "a rejected production does not count");
             }
-            finally { NetSession.ActiveProvider = previous; }
+            finally { NetSession.ActiveProvider = previous; NetSession.SessionGameProvider = previousSession; }
 
             Assert.IsFalse(ModContent.IsBlueprintRestricted(product), "solo play is unchanged");
             Assert.IsFalse(ModContent.IsBlueprintRestricted(85), "solo play is unchanged for overrides");
@@ -190,13 +195,15 @@ namespace GoF2Remake.Tests
             Assert.IsNotNull(ModBlueprints.Of(deed));
 
             var previous = NetSession.ActiveProvider;
+            var previousSession = NetSession.SessionGameProvider;
             try
             {
                 NetSession.ActiveProvider = () => true;
+                NetSession.SessionGameProvider = () => true;
                 Assert.IsTrue(ModContent.IsBlueprintRestricted(deed), "the generated ship deed is restricted");
                 Assert.IsFalse(Blueprints.Produce(db, deed, 10), "the ship cannot be manufactured");
             }
-            finally { NetSession.ActiveProvider = previous; }
+            finally { NetSession.ActiveProvider = previous; NetSession.SessionGameProvider = previousSession; }
             Assert.IsFalse(ModContent.IsBlueprintRestricted(deed), "solo play is unchanged");
         }
 
@@ -210,12 +217,14 @@ namespace GoF2Remake.Tests
             Database.Load();
             int product = ModContent.ItemIndexOf("t_bpprec:gun");
             var previous = NetSession.ActiveProvider;
+            var previousSession = NetSession.SessionGameProvider;
             try
             {
                 NetSession.ActiveProvider = () => true;
+                NetSession.SessionGameProvider = () => true;
                 Assert.IsFalse(ModContent.IsBlueprintRestricted(product), "the explicit blueprint setting takes precedence");
             }
-            finally { NetSession.ActiveProvider = previous; }
+            finally { NetSession.ActiveProvider = previous; NetSession.SessionGameProvider = previousSession; }
         }
 
         [Test]
