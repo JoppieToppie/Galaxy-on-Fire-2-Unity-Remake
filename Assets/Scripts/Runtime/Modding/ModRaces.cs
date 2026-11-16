@@ -15,7 +15,8 @@
 //   standing, like the game's pirates; and the enemy of every race it doesn't name a friend), "diplomats": false (no
 //   lounge diplomat restores it; default true, false for a hostile one), "relations": { "<a mod race's id, mod_id:id, or a
 //   game race word: terran, vossk, nivelian, midorian, pirates, void, specters>": "friend" | "neutral" | "enemy" },
-//   "gun": an item (its NPC fighters' gun look and sound; default the look race's) } ]
+//   "gun": an item (its NPC fighters' gun look and sound; default the look race's), "visitor": a custom lounge visitor .glb,
+//   "visitorScale": its positive size multiplier (default 1) } ]
 // A relation one mod race leaves out is the other's; neither names it: enemies if either is "hostile" or the other side is
 // the game's pirates, Void or Specters (who fight everyone), else neutral.
 
