@@ -573,6 +573,7 @@ namespace GoF2Remake.Multiplayer
                 return false;
             }
             var m = EnsureManager();
+            Debug.LogWarning("NetGame: joining by direct IP; this project does not configure transport encryption for direct-IP connections. Prefer Unity Relay or a trusted LAN/VPN.");
             Transport.SetConnectionData(ip, port);
             m.NetworkConfig.ConnectionData = Payload();
             if (!m.StartClient())
