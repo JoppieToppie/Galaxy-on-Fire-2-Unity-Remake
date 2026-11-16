@@ -540,7 +540,7 @@ namespace GoF2Remake.World
                 // Remake (CapitalShips): a killable capital ship is hit on its collision boxes, not the +-1000 cube at its centre.
                 if (spec.capitalEnhanced) Target.boxes = LocalBoxes(obstacle.volumes);
             }
-            // Remake: shots hit its real shape and the player slides along it (HullCollision); NPCs still steer by the volumes.
+            // Remake: shots hit its real shape and the player slides along it (HullCollision); NPCs steer by that mesh when available.
             // A fighter (not a freighter, a fixed object such as the battleship or a capital ship, nor a turret) is a flyable
             // ship: Original ship collision hits it on its cube (HullBody.flyableShip).
             if (modelGo != null) HullCollision.Attach(modelGo, Target, obstacle, !IsFreighter && !IsFixed && !IsTurret && HullCollision.FlyableShip(spec.ship));

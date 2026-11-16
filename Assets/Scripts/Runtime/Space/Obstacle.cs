@@ -34,7 +34,7 @@ namespace GoF2Remake.Flight
         public bool projectFromVolume = true;
         public List<CollisionVolume> volumes = new List<CollisionVolume>();
         /// <summary>Remake: the player slides along this hull's MeshColliders instead of the volumes (HullCollision); NPC
-        /// fighters still steer by the volumes. Null = none.</summary>
+        /// NPC fighters steer by the same mesh when available, with volumes as fallback. Null = none.</summary>
         [System.NonSerialized] public HullBody hull;
         /// <summary>The player collides with the hull, not the volumes.</summary>
         public bool UsesHull => hull != null && hull.Collides;   // not taken by the ship collision mode (Mixed: another player's ship; Original: any): its volumes
@@ -61,6 +61,14 @@ namespace GoF2Remake.Flight
                 if (cubeHalf > 0f) reach = cubeHalf * 1.7321f;   // Touches is false outside the cube
                 else if (volumes != null)
                     foreach (var v in volumes) reach = Mathf.Max(reach, v.centre.magnitude + (v.sphere ? v.radius : v.half.magnitude));
+                // Exact mesh parts can extend beyond the legacy steering volumes. Sync moving kinematic hulls before
+                // reading their world bounds, or protrusions can be culled by a stale broad-phase sphere.
+                if (hull != null && hull.NavigationActive)
+                {
+                    HullCollision.Sync();
+                    foreach (var c in hull.colliders) if (c != null && c.enabled)
+                        reach = Mathf.Max(reach, (c.bounds.center - transform.position).magnitude + c.bounds.extents.magnitude);
+                }
                 broadReach = reach + 50f;   // what the obstacle can move in the rest of the frame, generously
             }
             return broadActive && (world - broadCentre).sqrMagnitude <= broadReach * broadReach;

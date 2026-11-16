@@ -375,8 +375,21 @@ namespace GoF2Remake.World
                 var o = all[i];
                 // Obstacle.All holds only enabled obstacles; MayTouch is a distance test against a sphere measured once a frame.
                 if ((object)o == null || o.landmark != landmarks || !o.MayTouch(pos, frame)) continue;
-                if (!o.Touches(pos, out int index)) continue;
-                var p = o.ProjectionVector(pos, index);
+                Vector3 p;
+                if (o.hull != null && o.hull.NavigationActive)
+                {
+                    // Use the same model geometry as exact collision. A small clearance sphere represents the NPC hull;
+                    // the forward sweep gives it time to turn before the centre reaches the obstacle.
+                    float clearance = 10f;
+                    float lookAhead = Mathf.Max(30f, speed * dtMs * M * 4f);
+                    if (!HullCollision.TryNpcAvoidance(o, pos, transform.forward, clearance, lookAhead, out p)) continue;
+                }
+                else
+                {
+                    // Models without a readable hull keep the original collision-volume steering.
+                    if (!o.Touches(pos, out int index)) continue;
+                    p = o.ProjectionVector(pos, index);
+                }
                 if (p == Vector3.zero) continue;
                 var fwd = transform.forward;
                 var dir = (fwd + (p - fwd) * speed * 0.03f).normalized;
