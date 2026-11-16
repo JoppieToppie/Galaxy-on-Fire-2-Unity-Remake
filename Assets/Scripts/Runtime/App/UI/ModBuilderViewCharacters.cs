@@ -49,7 +49,7 @@ namespace GoF2Remake.UI
         {
             mod = ModManager.BuilderProject, id = c.Id, key = Project.Id + ":" + c.Id, portrait = c.Portrait,
             name = new Dictionary<string, string> { ["en"] = c.Name ?? c.Id },
-            male = c.Male, mirrored = c.Mirrored, frame = c.Frame, background = c.Background,
+            male = c.Male, mirrored = c.Mirrored, frame = c.Frame, background = c.Background, silhouette = c.Silhouette,
             race = c.Race != null ? Mathf.Max(0, Multiplayer.NetAdmin.RaceWord(c.Race)) : 0,
         };
 
