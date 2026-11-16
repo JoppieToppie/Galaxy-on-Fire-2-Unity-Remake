@@ -99,7 +99,7 @@ namespace GoF2Remake.World
             }
         }
 
-        /// <summary>Begin an exterior docking approach using the nearest station point and the ship's first docking hardpoint.</summary>
+        /// <summary>Begin an exterior docking approach using the nearest station-point / ship-hardpoint pair.</summary>
         bool TryBeginExternalDocking()
         {
             if (!ExternalDockEligible || !leftDockRange || !ExternalDockInRange || externalDockPoints.Count == 0 || Es2Busy || DockedInOrbit || Leaving)
