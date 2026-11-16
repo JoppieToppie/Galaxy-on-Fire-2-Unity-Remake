@@ -70,6 +70,30 @@ namespace GoF2Remake.Modding
             return !hasAllow || Matches(ship, allow);
         }
 
+        // Docking roles use the same class ids / tags as equipment restrictions. The class ids are intentionally
+        // free-form; these conventional role tags let modders keep their own class names while declaring the docking role.
+        static readonly string[] InternalDockClasses = { "fighter", "interceptor", "bomber" };
+        static readonly string[] ExternalDockClasses = { "frigate", "cruiser", "carrier" };
+
+        public static bool IsInternalDockClass(ShipData ship) => Matches(ship, InternalDockClasses);
+        public static bool IsExternalDockClass(ShipData ship) => Matches(ship, ExternalDockClasses);
+
+        /// <summary>
+        /// Internal hangars accept fighter / interceptor / bomber classes. For backward compatibility, an otherwise
+        /// unclassified or custom small player hull may still use an internal hangar; an external-only class may not.
+        /// Conflicting internal + external role tags are rejected rather than guessing.
+        /// </summary>
+        public static bool CanDockInternally(ShipData ship, bool largeHull)
+        {
+            bool internalRole = IsInternalDockClass(ship), externalRole = IsExternalDockClass(ship);
+            if (internalRole && externalRole) return false;
+            if (externalRole) return false;
+            return internalRole || !largeHull;
+        }
+
+        /// <summary>External docking is reserved for frigate / cruiser / carrier roles; an unclassified ship cannot use it.</summary>
+        public static bool CanDockExternally(ShipData ship) => IsExternalDockClass(ship) && !IsInternalDockClass(ship);
+
         /// <summary>The ship's class id (the machine identity), null for a ship without one (tags alone are not a class).</summary>
         public static string ClassOf(ShipData ship) => string.IsNullOrEmpty(ship?.shipClass) ? null : ship.shipClass;
 
