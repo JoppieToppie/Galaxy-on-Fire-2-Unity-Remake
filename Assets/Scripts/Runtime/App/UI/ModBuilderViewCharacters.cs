@@ -125,6 +125,13 @@ namespace GoF2Remake.UI
                 var b = Act(races, T("race" + RaceNames[i], RaceNames[i]), () => { c.Race = word; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg");
                 b.EnableInClassList("mbv-seg--on", string.Equals(c.Race, word, StringComparison.OrdinalIgnoreCase));
             }
+            if (Project != null)
+                foreach (var projectRace in Project.Races.Where(r => r.Id != null))
+                {
+                    string key = Project.Key(projectRace.Id);
+                    var b = Act(races, ModRaceTitle(projectRace), () => { c.Race = key; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg");
+                    b.EnableInClassList("mbv-seg--on", string.Equals(c.Race, key, StringComparison.OrdinalIgnoreCase));
+                }
             foreach (var race in ModRaces.All)
             {
                 string key = race.key;
