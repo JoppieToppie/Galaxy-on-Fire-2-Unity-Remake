@@ -151,7 +151,7 @@ namespace GoF2Remake.Events
                 o.entry = entry;
                 var agent = new Agent
                 {
-                    name = o.clientName, race = o.race, male = o.male, station = station, offer = AgentOffer.EventMission,
+                    name = o.clientName, character = o.character, race = o.race, male = o.male, station = station, offer = AgentOffer.EventMission,
                     portrait = o.face ?? AgentGenerator.CreatePortrait(true, 0),
                 };
                 if (Active != null && Active.name == o.name) agent.accepted = true;
