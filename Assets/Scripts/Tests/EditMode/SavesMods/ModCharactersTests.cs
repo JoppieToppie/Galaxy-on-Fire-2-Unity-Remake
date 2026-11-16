@@ -38,6 +38,7 @@ namespace GoF2Remake.Tests
             Assert.AreEqual("t_chars:vega", v.key);
             Assert.AreEqual("p.png", v.portrait);
             Assert.AreEqual(1, v.race);
+            Assert.IsTrue(v.hasRace);
             Assert.IsFalse(v.male);
             Assert.IsTrue(v.mirrored);
             Assert.IsFalse(v.frame);
@@ -46,6 +47,7 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(v.HasName);
             var b = ModCharacters.Find("bob");
             Assert.AreEqual(0, b.race, "Terran unless named");
+            Assert.IsFalse(b.hasRace, "an omitted race inherits the bar-mission client race");
             Assert.IsTrue(b.male);
             Assert.IsFalse(b.mirrored);
             Assert.IsTrue(b.frame);
