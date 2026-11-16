@@ -178,7 +178,7 @@ namespace GoF2Remake.Data
         /// or a quaternion [x, y, z, w]; none = upright (upsideDown still turns it over). Only the look and the muzzle: the
         /// shots still fly along the nose. An exhaust mount (slotType 3) of a ship with "engineFx": the way it blows, turned
         /// from straight back (Modding.EngineFx).</summary>
-        public float[] rotation;
+        public float[] rotation;   // slotType 8: external docking hardpoint orientation (Euler degrees [x,y,z])
         /// <summary>Remake mods, a primary / secondary mount: nodes of the ship's model (by name) that show only while this mount
         /// carries a weapon (a hardpoint's pylon; Modding.ModHardpoints.AttachWeapons).</summary>
         public string[] nodes;
