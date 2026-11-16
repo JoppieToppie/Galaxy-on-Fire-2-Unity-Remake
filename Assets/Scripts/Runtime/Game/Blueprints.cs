@@ -54,6 +54,9 @@ namespace GoF2Remake.Data
         public static List<ItemData> Products(Database db) => db.Items.FindAll(i => i.blueprint != null && i.blueprint.Count > 0);
 
         public static bool IsUnlocked(int product) => Session.UnlockedBlueprints.Contains(product);
+
+        /// <summary>A mod may bar ordinary blueprint acquisition and production in multiplayer; scripted unlocks remain intact.</summary>
+        public static bool IsRestricted(int product) => Modding.ModContent.IsBlueprintRestricted(product);
         public static void Unlock(int product) => Session.UnlockedBlueprints.Add(product);
 
         /// <summary>BluePrint+0x20: 10 per run for secondaries, else 1.</summary>
@@ -168,7 +171,7 @@ namespace GoF2Remake.Data
         /// ADD), which Withdraw may give back; the story's pre-investments (UnlockFromStory) are not.</summary>
         public static void Invest(Database db, int product, int ingredient, int units, int station, bool byPlayer = false)
         {
-            if (units <= 0) return;
+            if (units <= 0 || byPlayer && IsRestricted(product)) return;
             var s = State(db, product);
             var it = db.Item(product);
             int slot = it.blueprint.FindIndex(p => p.item == ingredient);
@@ -262,7 +265,7 @@ namespace GoF2Remake.Data
         public static bool Produce(Database db, int product, int currentStation)
         {
             var it = db.Item(product);
-            if (it == null || it.blueprint == null) return false;   // not a product (-1 from a stale hangar row)
+            if (it == null || it.blueprint == null || IsRestricted(product)) return false;   // not a product, or barred in this session
             var s = State(db, product);
             int qty = BaseQuantity(it);
             if (s.station < 0) s.station = currentStation;
