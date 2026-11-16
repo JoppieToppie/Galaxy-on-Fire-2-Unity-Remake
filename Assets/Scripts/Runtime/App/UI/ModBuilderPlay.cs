@@ -13,6 +13,35 @@ namespace GoF2Remake.UI
 {
     public static class ModBuilderPlay
     {
+        static int externalDockTestStation = -1, externalDockTestPoint = -1;
+
+        /// <summary>Start the selected project ship already attached to a station's manually authored exterior point.</summary>
+        public static void StartExternalDockTest(int station, int point)
+        {
+            if (station < 0 || point < 0) return;
+            ModBuilder.BeginPlayTest();
+            ModBuilder.ApplyShip();
+            Session.StationIndex = station;
+            Session.ArrivedByTravel = false;
+            Session.LaunchedFromStation = false;
+            Session.DockedFromSpace = false;
+            Session.Es2StartDocked = false;
+            Session.Es2TakeOff = false;
+            externalDockTestStation = station;
+            externalDockTestPoint = point;
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Space");
+        }
+
+        /// <summary>Consumed once by the newly built SpaceLevel.</summary>
+        public static bool TakeExternalDockTest(int station, out int point)
+        {
+            point = -1;
+            if (externalDockTestStation != station || externalDockTestPoint < 0) return false;
+            point = externalDockTestPoint;
+            externalDockTestStation = externalDockTestPoint = -1;
+            return true;
+        }
+
         /// <summary>The play test of the project as it is (the station's menu at the builder's station).</summary>
         public static void Start()
         {
