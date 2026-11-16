@@ -518,10 +518,9 @@ namespace GoF2Remake.World
         {
             bool any = false;
             b = new Bounds();
-            void Add(Mesh mesh, Transform meshTransform, Renderer renderer)
+            void Add(Bounds lb, Transform meshTransform, Renderer renderer)
             {
-                if (mesh == null || !meshTransform.gameObject.activeSelf || !renderer.enabled) return;
-                var lb = mesh.bounds;
+                if (!meshTransform.gameObject.activeSelf || !renderer.enabled) return;
                 var m = toSpace * meshTransform.localToWorldMatrix;
                 for (int i = 0; i < 8; i++)
                 {
@@ -530,11 +529,11 @@ namespace GoF2Remake.World
                 }
             }
             foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
-                if (mf.TryGetComponent<Renderer>(out var renderer)) Add(mf.sharedMesh, mf.transform, renderer);
+                if (mf.sharedMesh != null && mf.TryGetComponent<Renderer>(out var renderer)) Add(mf.sharedMesh.bounds, mf.transform, renderer);
             // Custom character GLBs are commonly skinned; include their mesh bounds so the lounge billboard is sized
             // and centred from the actual model rather than the generic fallback height.
             foreach (var skinned in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
-                Add(skinned.sharedMesh, skinned.transform, skinned);
+                if (skinned.sharedMesh != null) Add(skinned.localBounds, skinned.transform, skinned);
             return any;
         }
         GameObject VisitorPrefab(StationTables.Visitor v) => v switch
