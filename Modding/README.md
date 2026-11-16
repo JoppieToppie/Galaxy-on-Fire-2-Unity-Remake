@@ -2025,6 +2025,8 @@ a race goes (a system's or ship's `race`, `/spawn`, `/standing`, `standing(...)`
 | `relations` | `{ "<race>": "friend" \| "neutral" \| "enemy" }`: who its ships fight. Mods' races by id or `"mod_id:id"`, the game's races by word (`terran`, `vossk`, `nivelian`, `midorian`, `pirates`, `void`, `specters`). A relation one side leaves out is the other side's; when neither names it the two are enemies if either is `hostile` or one is the game's pirates, Void or Specters, else neutral. |
 | `diplomats` | `false`: no lounge diplomat reconciles it (default `true`, `false` for a hostile race). |
 | `gun` | An item (a number or `"mod:id"`): the gun look and sound of its NPC fighters. Default: its look race's. |
+| `visitor` | Optional path to a `.glb` model in the mod, used for this race's Space Lounge visitors instead of the look race's built-in figure. The model origin should be at the feet and the model should be authored in GoF2 model units (the loader applies the game's 0.05 scene scale). Its scene and mesh renderers are required; embedded textures use the normal mod GLB texture pipeline. |
+| `visitorScale` | Optional positive multiplier for the visitor model size (default `1`). Use it to fine-tune a model authored in GoF2 model units. |
 
 In the Space Lounges of a mod race's system, now and then (the game's 35 %) a diplomat of a race of the same mod that
 the player is at war with offers to restore it to neutral, for |standing| / 100 x 16 000 credits, like the game's
@@ -3174,8 +3176,8 @@ named can use them: a **Dialog** page, a **Radio** call, an **Ask** / **Vote** q
 | `id` | **Required.** a-z, 0-9, _ and -. |
 | `name` | The name shown over the portrait (a string, or per language). Default: the id. |
 | `portrait` | **Required.** A PNG for the game's portrait box, 4:5 (320 x 400 stays sharp on big screens). It covers the box, its top kept. Leave it transparent around the character and the game's portrait background shows behind, like the game's own faces. |
-| `race`, `gender` | What the game draws by race: the figure standing in the Space Lounge when the character is a bar mission's client, the name's colour in the dialogue. Default `terran`, `male`. |
-| `silhouette` | Optional independent Space Lounge figure: `terran`, `vossk`, `nivelian`, `midorian`, `void`, `cyborg`, `octopod`, `bobolian` or `grey`. Omit it to preserve the original race / portrait-based figure. `cyborg`, `midorian` and `void` use the original Terran male mesh; `octopod` uses the game's Multipod mesh. |
+| `race`, `gender` | The character's race and gender: the race sets the dialogue name colour and, for a bar-mission client, chooses the lounge figure. A race may be a game race word or a custom race id / `"mod_id:race_id"`. If omitted, a bar-mission client inherits the mission's race. Default gender: `male`. |
+| `silhouette` | Optional independent Space Lounge figure: `terran`, `vossk`, `nivelian`, `midorian`, `void`, `cyborg`, `octopod`, `bobolian` or `grey`. Omit it to use the selected race's visitor (including a custom race's `visitor` GLB) or, for game races, the original race / portrait-based figure. An explicit built-in silhouette overrides a custom race mesh. `cyborg`, `midorian` and `void` use the original Terran male mesh; `octopod` uses the game's Multipod mesh. |
 | `mirrored` | `true`: drawn mirrored (the game mirrors Keith's portrait). |
 | `frame` | `false`: without the faint scanlines the game draws over every portrait (a light screen look, about 10 % dark lines). |
 | `background` | `false`: without the dark, half-transparent backdrop behind the picture. It only shows through transparent parts of your PNG (a cut-out character), so a full picture looks the same either way. |
