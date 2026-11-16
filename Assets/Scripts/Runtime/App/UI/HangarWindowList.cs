@@ -147,7 +147,7 @@ namespace GoF2Remake.UI
                     AddHeader(T(273));
                     int known = 0;
                     foreach (var p in Blueprints.Products(db))
-                        if (Blueprints.IsUnlocked(p.index)) { AddRow(new Row { kind = RowKind.Blueprint, item = p.index }); known++; }
+                        if (Blueprints.IsUnlocked(p.index) && !Blueprints.IsRestricted(p.index)) { AddRow(new Row { kind = RowKind.Blueprint, item = p.index }); known++; }
                     // Rework (docs/UI-DESIGN.md "Empty states"): an empty tab says how to fill it (it was a heading over nothing).
                     if (known == 0) AddNote(Localization.Extra("blueprintsNone", "No blueprints yet. Space Lounge visitors sell them."));
                     if (Session.PendingProducts.Count > 0)
@@ -234,7 +234,7 @@ namespace GoF2Remake.UI
             actions.AddToClassList("manufacturing-actions");
             list.Add(actions);
             AddProductionRow(actions, RowKind.ShopLink, Localization.Get(hangar.Storage ? 186 : 185).UiCaps(), "manufacturing-shop");   // the tab's name
-            productionAutocomplete = Blueprints.CanAutocomplete(editing)
+            productionAutocomplete = !Blueprints.IsRestricted(editing) && Blueprints.CanAutocomplete(editing)
                 ? AddProductionRow(actions, RowKind.Autocomplete, "", "manufacturing-autocomplete") : null;
             productionComplete = AddProductionRow(actions, RowKind.Complete, Localization.Extra("bpComplete", "Complete").UiCaps(),
                                                   "manufacturing-complete");
@@ -262,7 +262,7 @@ namespace GoF2Remake.UI
         void RefreshProductionActions()
         {
             if (productionComplete == null || editing < 0) return;
-            bool ready = CanComplete();
+            bool ready = !Blueprints.IsRestricted(editing) && CanComplete();
             productionComplete.EnableInClassList("detail-action--disabled", !ready);
             productionComplete.pickingMode = ready ? PickingMode.Position : PickingMode.Ignore;
             if (productionAutocomplete != null)
@@ -276,7 +276,7 @@ namespace GoF2Remake.UI
         /// <summary>Remake: every ingredient is in, counting the units waiting to be shipped (they go in first, 288).</summary>
         bool CanComplete()
         {
-            if (editing < 0) return false;
+            if (editing < 0 || Blueprints.IsRestricted(editing)) return false;
             var db = level.Database;
             var parts = db.Item(editing)?.blueprint;
             if (parts == null) return false;
