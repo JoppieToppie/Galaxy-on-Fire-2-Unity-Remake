@@ -50,7 +50,7 @@ namespace GoF2Remake.UI
             mod = ModManager.BuilderProject, id = c.Id, key = Project.Id + ":" + c.Id, portrait = c.Portrait,
             name = new Dictionary<string, string> { ["en"] = c.Name ?? c.Id },
             male = c.Male, mirrored = c.Mirrored, frame = c.Frame, background = c.Background, silhouette = c.Silhouette,
-            race = CharacterRace(c), hasRace = c.Race != null,
+            race = CharacterRace(c), hasRace = c.Race != null, hasGender = c.HasGender,
         };
 
         int CharacterRace(ProjectCharacter c) =>
