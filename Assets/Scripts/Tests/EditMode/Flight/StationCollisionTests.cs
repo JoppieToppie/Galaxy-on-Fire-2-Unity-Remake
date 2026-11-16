@@ -53,6 +53,17 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void VarHastraCollisionVolumesCatchASmallShipInsideTheStationStructure()
+        {
+            // Var Hastra is station 78. Its legacy safety volumes must remain active alongside the detailed mesh hull;
+            // otherwise the mesh's open spaces can let Betty pass through the station's central structure.
+            station.volumes = CollisionVolume.ForStation(78, false);
+            Assert.AreEqual(7, station.volumes.Count);
+            Assert.IsTrue(station.TouchesSphere(Vector3.zero, 3f, out _),
+                          "a small ship at the station's central structure must be treated as intersecting it");
+        }
+
+        [Test]
         public void StationSphereVolumesExpandByTheShipRadius()
         {
             station.volumes = new List<CollisionVolume> { CollisionVolume.Sphere(Vector3.zero, 10f) };
