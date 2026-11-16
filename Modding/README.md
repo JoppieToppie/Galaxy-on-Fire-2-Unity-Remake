@@ -3175,6 +3175,7 @@ named can use them: a **Dialog** page, a **Radio** call, an **Ask** / **Vote** q
 | `name` | The name shown over the portrait (a string, or per language). Default: the id. |
 | `portrait` | **Required.** A PNG for the game's portrait box, 4:5 (320 x 400 stays sharp on big screens). It covers the box, its top kept. Leave it transparent around the character and the game's portrait background shows behind, like the game's own faces. |
 | `race`, `gender` | What the game draws by race: the figure standing in the Space Lounge when the character is a bar mission's client, the name's colour in the dialogue. Default `terran`, `male`. |
+| `silhouette` | Optional independent Space Lounge figure: `terran`, `vossk`, `nivelian`, `midorian`, `void`, `cyborg`, `octopod`, `bobolian` or `grey`. Omit it to preserve the original race / portrait-based figure. `cyborg`, `midorian` and `void` use the original Terran male mesh; `octopod` uses the game's Multipod mesh. |
 | `mirrored` | `true`: drawn mirrored (the game mirrors Keith's portrait). |
 | `frame` | `false`: without the faint scanlines the game draws over every portrait (a light screen look, about 10 % dark lines). |
 | `background` | `false`: without the dark, half-transparent backdrop behind the picture. It only shows through transparent parts of your PNG (a cut-out character), so a full picture looks the same either way. |
