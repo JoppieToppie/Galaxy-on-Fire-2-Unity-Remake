@@ -150,6 +150,8 @@ namespace GoF2Remake.World
         /// <summary>Remake mods: docked on the station's pad inside this orbit (EVERSPACE 2's way): the Station scene runs on
         /// top (its menu, the hangar view through this level's camera), the orbit lives on around it.</summary>
         public bool DockedInOrbit { get; private set; }
+        /// <summary>The player is externally attached to a manually authored large-ship station point.</summary>
+        public bool ExternalDocked => DockedInOrbit && ActiveEs2 != null && ActiveEs2.IsExternal;
         /// <summary>The level's camera (the station's menu drives it while docked inside the orbit).</summary>
         public Camera MainCamera => mainCamera;
         readonly System.Collections.Generic.List<AudioSource> dockPausedAudio = new System.Collections.Generic.List<AudioSource>();
