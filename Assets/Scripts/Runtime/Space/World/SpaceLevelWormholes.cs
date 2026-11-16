@@ -740,12 +740,17 @@ namespace GoF2Remake.World
                 DockMobile(near);
                 return;
             }
-            // Large ships use only their manually authored exterior attachment. If either side lacks a compatible
-            // hardpoint, refuse; never fall back to a hangar or an NPC station pad.
-            if (flyIn && PlayerHull.Big)
+            // Class roles choose the docking route. Frigates / cruisers / carriers require a manually authored exterior
+            // attachment and a slotType 8 ship hardpoint; they never fall back to an internal hangar or NPC pad.
+            if (flyIn && ExternalDockClass)
             {
                 if (TryBeginExternalDocking()) return;
                 Navigation?.Refuse(Localization.Extra("hullNoExternalDock", "This ship or station has no compatible exterior docking point."));
+                return;
+            }
+            if (flyIn && !InternalDockEligible)
+            {
+                Navigation?.Refuse(string.Format(Localization.Extra("hullNoDock", "The {0} doesn't fit in the hangar."), PlayerHull.Label));
                 return;
             }
             // Remake mods: EVERSPACE 2's docking: the ship lands on the dock in this orbit, then the station opens (Es2Dock).
@@ -838,9 +843,9 @@ namespace GoF2Remake.World
         /// else its hangar (DockAt).</summary>
         void DockMobile(MobileStation mobile)
         {
-            if (PlayerHull.Big)
+            if (!InternalDockEligible)
             {
-                Navigation?.Refuse(Localization.Extra("hullNoExternalDock", "This large ship needs a station with a compatible exterior docking point."));
+                Navigation?.Refuse(Localization.Extra("hullNoExternalDock", "This ship needs a compatible exterior docking point; this mobile station has no external dock."));
                 return;
             }
             if (MobileDock(mobile) is not Es2Dock d) { DockAt(mobile); return; }
@@ -859,7 +864,7 @@ namespace GoF2Remake.World
         void DockAt(MobileStation mobile)
         {
             if (DockingBlocked) { Navigation?.Refuse(); return; }
-            if (!PlayerHull.PlayerShip)
+            if (!InternalDockEligible)
             {
                 Navigation?.Refuse(string.Format(Localization.Extra("hullNoDock", "The {0} doesn't fit in the hangar."), PlayerHull.Label));
                 return;
