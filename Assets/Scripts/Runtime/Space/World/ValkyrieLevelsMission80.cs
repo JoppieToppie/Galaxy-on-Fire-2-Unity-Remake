@@ -23,9 +23,21 @@ namespace GoF2Remake.World
                     if (Over(0))
                     {
                         EnterCutscene();
-                        // Modified: the shot is on the battlestation itself (the laser only appears LaserDelay80 ms in, step 1).
+                        // Modified: the shot is on the battlestation itself (the laser fires LaserDelay80 ms in, step 1).
                         var shot = new Vector3(-20000, 5000, -35000);
                         cam.LookAtUnity(host + ToUnity(shot) * k, battlestation != null ? battlestation.transform : battleLaser?.transform);
+                        // Modified: the laser shows from the shot's start, held at its load pose until it fires (the original's
+                        // +0xbc is visible from the ctor, its animation advanced only in step 2; the user's request, 2026-11-16,
+                        // with the laser's animation reworked).
+                        if (battleLaser != null)
+                        {
+                            battleLaser.SetActive(true);
+                            foreach (var a in battleLaser.GetComponentsInChildren<PartAnimation>(true))
+                            {
+                                a.applyMaterialChannels = true;
+                                a.Hold();
+                            }
+                        }
                         camStartZ80 = cam.Camera != null ? cam.Camera.position.z : 0f;
                         // OrbitScale: the pull back ends where the scaled orbit has the original's end (toward Kothar), at least
                         // CamPullBack80 on (at 1x: exactly that).
@@ -40,11 +52,10 @@ namespace GoF2Remake.World
                     PullBack80(stepMs);
                     if (stepMs >= LaserDelay80)
                     {
-                        // Modified: the laser starts LaserDelay80 ms into the shot (it played from the level's start), its
+                        // Modified: the laser fires LaserDelay80 ms into the shot (it played from the level's start), its
                         // firing animation from the beginning.
                         if (battleLaser != null)
                         {
-                            battleLaser.SetActive(true);
                             // the charge-up lives in the parts' material channels (like 89's supernova front)
                             laserAnims80 = battleLaser.GetComponentsInChildren<PartAnimation>(true);
                             laserFullOn80 = new float[laserAnims80.Length];

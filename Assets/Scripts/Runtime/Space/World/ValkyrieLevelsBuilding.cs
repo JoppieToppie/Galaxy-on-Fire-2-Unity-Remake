@@ -368,7 +368,7 @@ namespace GoF2Remake.World
             // LevelScript ctor: the battlestation's laser at it (playing), the deep science station's laser (hidden), the
             // station's explosion animation held until the hit.
             battleLaser = Scenery("v_station_battlestation_laser_anim_add", host, OrbitLayout.RotationToUnity(Vector3.zero), "Battlestation laser");
-            // Modified: the laser waits for the first cutscene (it played from the level's start); shown in Tick80 step 0.
+            // Modified: the laser waits for the first cutscene (it played from the level's start); shown in Tick80 step 0, held at its load pose until it fires.
             if (battleLaser != null) battleLaser.SetActive(false);
             stationLaser = Scenery("v_station_deep_science_explosion_laser_anim_add", Vector3.zero, OrbitLayout.RotationToUnity(new Vector3(0, Mathf.PI, 0)), "Station laser");
             if (stationLaser != null) stationLaser.SetActive(false);
