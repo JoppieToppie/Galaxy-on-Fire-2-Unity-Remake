@@ -374,6 +374,13 @@ namespace GoF2Remake.Modding
             public List<Vector3> clouds;
         }
 
+        /// <summary>A manually authored external docking attachment on a station (stations.json orbit.externalDocks).
+        /// Position is in game units in the station's orbit frame; rotation is Euler degrees in that same frame.</summary>
+        public sealed class ExternalDockPointSpec
+        {
+            public Vector3 position, rotation;
+        }
+
         public sealed class OrbitSpec
         {
             /// <summary>Remake (2026-11-05, EVERSPACE 2's plasma fields): null = GoF2's own roll.</summary>
@@ -407,6 +414,8 @@ namespace GoF2Remake.Modding
             /// <summary>Remake (a modder's suggestion, the Luur mission's arms): docking pads outside the station, approach and
             /// dock points (SpacePoints, set SpacePoints.StationPadBase + the station), null = none.</summary>
             public List<SpacePoints.Point> pads;
+            /// <summary>Large-ship attachment transforms, placed manually by the modder; unrelated to NPC docking pads.</summary>
+            public List<ExternalDockPointSpec> externalDocks;
             /// <summary>Remake: pirates hold the station (Data.PirateHold), null = as its system says ("pirateHeld").</summary>
             public bool? pirateHeld;
             /// <summary>Remake (2026-11-03, EVERSPACE 2's wreck fields): this many salvageable wreck containers (0 = none),
@@ -492,7 +501,7 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<int, MapPlace> mapPlaces = new Dictionary<int, MapPlace>();
 
         static readonly HashSet<string> OrbitFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "pirateHeld", "skyRotation", "skybox", "light2", "ambient", "wrecks", "hazards", "containers", "lanes", "level", "ambience", "gasClouds", "locals", "raiders", "storm", "minefields", "acidSacks", "props", "propMaterials" };
+            { "station", "jumpgate", "jumpgatePosition", "arrival", "asteroids", "fog", "sun", "planet", "pads", "externalDocks", "pirateHeld", "skyRotation", "skybox", "light2", "ambient", "wrecks", "hazards", "containers", "lanes", "level", "ambience", "gasClouds", "locals", "raiders", "storm", "minefields", "acidSacks", "props", "propMaterials" };
         /// <summary>The roles of an orbit's containers "sounds" (World.PuzzleSounds).</summary>
         public static readonly string[] PuzzleSoundRoles = { "grab", "hold", "drop", "throw", "dispenser", "conductor", "unlock" };
         static readonly HashSet<string> MinefieldFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

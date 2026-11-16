@@ -150,6 +150,8 @@ namespace GoF2Remake.World
         /// <summary>Remake mods: docked on the station's pad inside this orbit (EVERSPACE 2's way): the Station scene runs on
         /// top (its menu, the hangar view through this level's camera), the orbit lives on around it.</summary>
         public bool DockedInOrbit { get; private set; }
+        /// <summary>The player is externally attached to a manually authored large-ship station point.</summary>
+        public bool ExternalDocked => DockedInOrbit && ActiveEs2 != null && ActiveEs2.IsExternal;
         /// <summary>The level's camera (the station's menu drives it while docked inside the orbit).</summary>
         public Camera MainCamera => mainCamera;
         readonly System.Collections.Generic.List<AudioSource> dockPausedAudio = new System.Collections.Generic.List<AudioSource>();
@@ -193,7 +195,7 @@ namespace GoF2Remake.World
         /// camera, and only after having left the range once (the undock spawn at 10000 units is inside it).</summary>
         public bool CanDock => ((Layout.hasStation && StationShown && leftDockRange && InDockRange) || MobileInRange != null)
                                && Player != null && launchCameraMs <= 0f && (Health == null || !Health.Dead)
-                               && !DockingBlocked && PlayerHull.PlayerShip   // remake debug: no hangar for a freighter / capital ship
+                               && !DockingBlocked && (PlayerHull.PlayerShip && !PlayerHull.Big || CanDockExternally && ExternalDockInRange)
                                && (Mining == null || Mining.State == Mining.Phase.Idle);
         /// <summary>The station is there (a level script may hide it: 78's Valkyrie jumping away); nothing docks at a hidden one.</summary>
         bool StationShown => Station == null || Station.activeInHierarchy;
@@ -552,7 +554,11 @@ namespace GoF2Remake.World
                 Docking.Docked += () => { if (DockedLook) FreeLook.EnterDockedLook(); };
             }
             // Remake mods: a station's docking pads outside (stations.json "orbit.pads"): every game builds its own port.
-            if (plainOrbit && !prologue && !interstellar && Station != null) SpawnStationPads(station);
+            if (plainOrbit && !prologue && !interstellar && Station != null)
+            {
+                SpawnStationPads(station);   // NPC station pads: unchanged
+                SpawnExternalDockPoints(station);   // large-ship exterior attachment transforms
+            }
             Docking.Refusal = t => t.DockingType == ObjectDocking.StationPad && (GoF2Remake.World.SpaceHooks.NoDocking || (Siege != null && Siege.Active))
                 ? Localization.Get(525) : null;
             Docking.Docked += () =>

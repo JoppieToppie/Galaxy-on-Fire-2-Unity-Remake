@@ -240,6 +240,28 @@ namespace GoF2Remake.UI
             {
                 (T("mbPlayHere", "Play from this orbit's station"), null, () => { SaveNow(); ModBuilder.Reload(); ModBuilderPlay.Start(); }),
             };
+            int station = currentStation != null ? StationNumberOf(currentStation) : -1;
+            var orbit = currentStation != null ? Obj(currentStation, "orbit") : null;
+            if (station >= 0 && orbit?["externalDocks"] is JArray docks && docks.Count > 0)
+            {
+                foreach (var ship in Project.Ships.Where(s => s.Mounts != null && s.Mounts.Any(m => m.slotType == 8)))
+                {
+                    var selectedShip = ship;
+                    for (int i = 0; i < docks.Count; i++)
+                    {
+                        int point = i;
+                        string label = string.Format(T("mbPlayExternalDock", "Test {0} externally docked · point {1}"), selectedShip.Name ?? selectedShip.LocalId, point + 1);
+                        choices.Add((label, null, () =>
+                        {
+                            ModBuilder.Ship = selectedShip;
+                            Project.LastShip = selectedShip.Ref;
+                            SaveNow();
+                            ModBuilder.Reload();
+                            ModBuilderPlay.StartExternalDockTest(station, point);
+                        }));
+                    }
+                }
+            }
             ShowPicker(T("mbPlay", "Play"), choices);
         }
 
@@ -563,6 +585,32 @@ namespace GoF2Remake.UI
                 var list = o["pads"] as JArray ?? new JArray();
                 list.Add(new JObject { ["position"] = new JArray(0, 4000, 0) });
                 o["pads"] = list;
+                Save(true);
+            }, "mbv-add");
+
+            // Large-ship external docking: independent of NPC pads. Each point is a manually authored station-side
+            // attachment transform; the ship must also have a slotType 8 docking hardpoint.
+            Add(stationPage, new Label(T("mbOrbitExternalDocks", "External docking points (large ships)")), "mbv-inline-label");
+            Note(stationPage, T("mbOrbitExternalDocksNote", "These are station attachment transforms for cruisers and other large ships. They are not NPC docking pads. Position and rotation are relative to the station; a compatible ship docking hardpoint must be authored separately."));
+            if (o["externalDocks"] is JArray externalDocks)
+                for (int i = 0; i < externalDocks.Count; i++)
+                {
+                    if (!(externalDocks[i] is JObject dock)) continue;
+                    var drow = Row(stationPage);
+                    Add(drow, new Label(string.Format(T("mbOrbitExternalDockN", "External dock {0}"), i + 1)), "mbv-inline-label");
+                    Act(drow, "×", () => { externalDocks.Remove(dock); if (externalDocks.Count == 0) o.Remove("externalDocks"); Save(true); }, "mbv-step");
+                    XyzRow(stationPage, T("mbOrbitExternalDockAt", "Attachment position (game units)"), dock, "position", () => Save());
+                    if (!(dock["rotation"] is JArray)) dock["rotation"] = new JArray(0, 0, 0);
+                    var rot = (JArray)dock["rotation"];
+                    Float(stationPage, T("mbDockingRotX", "Rotation X (degrees)"), rot[0].Value<float>(), -360f, 360f, v => { rot[0] = Math.Round(v, 2); Save(); });
+                    Float(stationPage, T("mbDockingRotY", "Rotation Y (degrees)"), rot[1].Value<float>(), -360f, 360f, v => { rot[1] = Math.Round(v, 2); Save(); });
+                    Float(stationPage, T("mbDockingRotZ", "Rotation Z (degrees)"), rot[2].Value<float>(), -360f, 360f, v => { rot[2] = Math.Round(v, 2); Save(); });
+                }
+            Act(stationPage, T("mbOrbitAddExternalDock", "+ External docking point"), () =>
+            {
+                var list = o["externalDocks"] as JArray ?? new JArray();
+                list.Add(new JObject { ["position"] = new JArray(0, 5000, 0), ["rotation"] = new JArray(0, 0, 0) });
+                o["externalDocks"] = list;
                 Save(true);
             }, "mbv-add");
 

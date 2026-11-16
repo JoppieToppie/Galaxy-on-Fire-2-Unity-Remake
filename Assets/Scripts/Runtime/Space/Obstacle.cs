@@ -97,6 +97,78 @@ namespace GoF2Remake.Flight
         /// <summary>projectCollisionOnSurface: 'world' moved out of every volume containing it.</summary>
         public Vector3 PushOut(Vector3 world) => ToWorld(CollisionVolume.ProjectOut(Local(world), volumes));
 
+        /// <summary>
+        /// Station contact for the player's full clearance sphere. The original station volumes are a coarse safety shell
+        /// around the detailed mesh; testing only the ship centre let small ships slip through gaps between adjacent boxes.
+        /// This tests the sphere against each box / sphere volume, including rounded box edges.
+        /// </summary>
+        public bool TouchesSphere(Vector3 world, float radius, out int index)
+        {
+            index = -1;
+            var p = Local(world);
+            if (cubeHalf > 0f && (Mathf.Abs(p.x) >= cubeHalf + radius || Mathf.Abs(p.y) >= cubeHalf + radius || Mathf.Abs(p.z) >= cubeHalf + radius)) return false;
+            float r2 = radius * radius;
+            for (int i = 0; i < volumes.Count; i++)
+            {
+                var v = volumes[i];
+                var d = p - v.centre;
+                if (v.sphere)
+                {
+                    float reach = v.radius + radius;
+                    if (d.sqrMagnitude < reach * reach) { index = i; return true; }
+                }
+                else
+                {
+                    var closest = new Vector3(Mathf.Clamp(d.x, -v.half.x, v.half.x),
+                                              Mathf.Clamp(d.y, -v.half.y, v.half.y),
+                                              Mathf.Clamp(d.z, -v.half.z, v.half.z));
+                    if ((d - closest).sqrMagnitude < r2 || v.Contains(p)) { index = i; return true; }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Push the player's clearance sphere out of all intersecting station volumes, with two passes for overlaps.</summary>
+        public Vector3 PushOutSphere(Vector3 world, float radius)
+        {
+            var p = Local(world);
+            for (int pass = 0; pass < 2; pass++)
+                for (int i = 0; i < volumes.Count; i++)
+                {
+                    var v = volumes[i];
+                    var d = p - v.centre;
+                    if (v.sphere)
+                    {
+                        float reach = v.radius + radius, len = d.magnitude;
+                        if (len >= reach) continue;
+                        p = v.centre + (len > 1e-5f ? d / len : Vector3.up) * reach;
+                    }
+                    else
+                    {
+                        var closest = new Vector3(Mathf.Clamp(d.x, -v.half.x, v.half.x),
+                                                  Mathf.Clamp(d.y, -v.half.y, v.half.y),
+                                                  Mathf.Clamp(d.z, -v.half.z, v.half.z));
+                        var delta = d - closest;
+                        float len = delta.magnitude;
+                        if (len >= radius) continue;
+                        if (len > 1e-5f) p = v.centre + closest + delta * (radius / len);
+                        else
+                        {
+                            int axis = 0;
+                            float best = v.half.x - Mathf.Abs(d.x);
+                            for (int a = 1; a < 3; a++)
+                            {
+                                float distance = v.half[a] - Mathf.Abs(d[a]);
+                                if (distance < best) { best = distance; axis = a; }
+                            }
+                            float sign = Mathf.Abs(d[axis]) > 1e-5f ? Mathf.Sign(d[axis]) : 1f;
+                            p[axis] = v.centre[axis] + sign * (v.half[axis] + radius);
+                        }
+                    }
+                }
+            return ToWorld(p);
+        }
+
         /// <summary>Remake (Flight.LineOfFire, without hull meshes: the Original ship collision): a ray from 'from' along 'dir'
         /// (unit) runs into these volumes: it enters one it isn't in, sampled along its way, or it heads inward through the face
         /// of the one it starts in nearest its start (a turret on the hull firing into its own ship; along the face or out of it
