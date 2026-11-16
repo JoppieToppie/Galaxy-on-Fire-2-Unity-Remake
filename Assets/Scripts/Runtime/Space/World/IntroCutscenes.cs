@@ -38,7 +38,7 @@ namespace GoF2Remake.World
         readonly int index;
         float stepMs, playerSpeed = 2f;   // u/ms
         /// <summary>Remake: the prologue's camera glide back to the ship when the fight starts (CutsceneCamera.Release).</summary>
-        const float ReturnGlideMs = 4000f;
+        const float ReturnGlideMs = 5000f;
         float fxMs, fxLength;
         bool soundsPlayed, loading, battleOver;
         float rescueTurn;
@@ -297,10 +297,9 @@ namespace GoF2Remake.World
                         campaign.CollisionOff = false;
                         campaign.StartSequenceOver = true;
                         // Modified (the iOS build 0x1000b9a64): setLookAtCam(false) + setTarget(player), no setPosition: the
-                        // chase camera eases from the pirates' shot to its place behind the ship instead of a cut. Remake
-                        // (the user's test): over ReturnGlideMs, slow at first, so the pirates' first shots show before
-                        // the camera is back (the remake's follow is twice the original's rate, and from that far off the
-                        // plain follow got there in about a second).
+                        // chase camera eases from the pirates' shot to its place behind the ship instead of a cut, its look
+                        // point easing from pirate 0 too (ChaseCamera.ReturnLookingAt): the view stays on the pirates opening
+                        // fire and swings over to the ship (the original's frames). Remake: over ReturnGlideMs, slow at first.
                         cam.Release(snap: false, softMs: ReturnGlideMs);
                         Step = 4;
                     }
