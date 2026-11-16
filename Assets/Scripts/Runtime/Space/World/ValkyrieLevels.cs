@@ -281,7 +281,8 @@ namespace GoF2Remake.World
         // Modified: the hit's blast from the hit point, game units (Unity (740, -550, -370), set in the Inspector).
         static readonly Vector3 HitBlastOffset80 = new Vector3(2313f, 451f, 1442f);
 
-        static readonly Vector3 ShotDrift80 = new Vector3(-1f, 1f, -12f);   // the first shot's camera drift, game units per ms
+        const float CamPullBack80 = 3250f;   // Modified: Unity metres along +Z over the shot (from Z -6250 to -3000; X and Y stay put)
+        float camStartZ80, camEndZ80;
 
         // Modified: 81's hyperdrive fx (the battlestation dropping out of hyperspace), Unity units relative to the
         // battlestation (at the origin) / degrees, from the Inspector.

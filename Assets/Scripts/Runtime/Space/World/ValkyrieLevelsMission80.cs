@@ -38,12 +38,17 @@ namespace GoF2Remake.World
                                 a.Hold();
                             }
                         }
+                        camStartZ80 = cam.Camera != null ? cam.Camera.position.z : 0f;
+                        // OrbitScale: the pull back ends where the scaled orbit has the original's end (toward Kothar), at least
+                        // CamPullBack80 on (at 1x: exactly that).
+                        camEndZ80 = Mathf.Max(camStartZ80 + CamPullBack80, OrbitScale.PlaceUnity(ToUnity(Host80 + shot) + new Vector3(0f, 0f, CamPullBack80)).z);
                         PlayAtCamera(assets?.deepScienceAttacked);   // 0x461
                         Step = 1;
                     }
                     break;
                 case 1:
-                    // translate(-1, 1, -12) x dt (0x167790), still looking at the battlestation.
+                    // Modified: the camera pulls back from the battlestation, still looking at it (was translate(-1, 1, -12) x dt,
+                    // 0x167790).
                     PullBack80(stepMs);
                     if (stepMs >= LaserDelay80)
                     {
@@ -58,7 +63,7 @@ namespace GoF2Remake.World
                     }
                     break;
                 case 2:
-                    PullBack80(LaserDelay80 + stepMs);   // the same drift
+                    PullBack80(LaserDelay80 + stepMs);   // Modified: still pulling back
                     if (stepMs >= LaserWindow80)
                     {
                         if (battleLaser != null) battleLaser.SetActive(false);
@@ -438,9 +443,15 @@ namespace GoF2Remake.World
                 a.play = true;
             }
         }
-        /// <summary>80's first shot: the camera drifts translate(-1, 1, -12) game units per ms (LevelScript::process
-        /// 0x167790, steps 1 and 2) over the whole shot, still looking at the battlestation: in 5000 ms (-5000, 5000, -60000),
-        /// back toward Kothar, up and to the side (the user's request, 2026-11-16; it pulled straight back along Unity Z).</summary>
-        void PullBack80(float shotMs) => cam.SetDolly(ShotDrift80);
+        /// <summary>Modified: 80's first shot pulls straight back along Unity Z, from where it starts by CamPullBack80 over the
+        /// whole shot (LaserDelay80 + LaserWindow80), X and Y unchanged, still looking at the battlestation.</summary>
+        void PullBack80(float shotMs)
+        {
+            cam.SetDolly(Vector3.zero);
+            if (cam.Camera == null) return;
+            float k = Mathf.Clamp01(shotMs / (LaserDelay80 + LaserWindow80));
+            var p = cam.Camera.position;
+            cam.Camera.position = new Vector3(p.x, p.y, Mathf.Lerp(camStartZ80, camEndZ80, k));   // OrbitScale: camEndZ80 (see step 0)
+        }
     }
 }
