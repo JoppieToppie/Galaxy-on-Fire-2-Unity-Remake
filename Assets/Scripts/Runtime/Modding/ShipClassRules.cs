@@ -94,7 +94,7 @@ namespace GoF2Remake.Modding
             bool internalRole = IsInternalDockClass(ship), externalRole = IsExternalDockClass(ship);
             if (internalRole && externalRole) return false;
             if (externalRole) return false;
-            return internalRole || !largeHull;
+            return !largeHull;
         }
 
         /// <summary>External docking is reserved for frigate / cruiser / carrier roles; an unclassified ship cannot use it.</summary>
