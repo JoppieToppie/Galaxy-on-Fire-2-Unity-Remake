@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
 using NUnit.Framework;
@@ -6,6 +7,33 @@ namespace GoF2Remake.Tests
 {
     public class ShipDockingClassTests
     {
+        [Test]
+        public void DatabaseReturnsEveryShipAuthoredExternalDockingHardpoint()
+        {
+            var db = new Database
+            {
+                WeaponMounts = new List<WeaponMountSet>
+                {
+                    new WeaponMountSet
+                    {
+                        ship = 901,
+                        mounts = new List<WeaponMount>
+                        {
+                            new WeaponMount { slotType = 0, position_engine = new[] { 0, 0, 100 } },
+                            new WeaponMount { slotType = 8, position_engine = new[] { 100, 200, 300 }, rotation = new[] { 0f, 90f, 0f } },
+                            new WeaponMount { slotType = 8, position_engine = new[] { -100, 200, 300 }, rotation = new[] { 0f, -90f, 0f } }
+                        }
+                    }
+                }
+            };
+
+            var mounts = db.MountsOf(901, 8);
+
+            Assert.AreEqual(2, mounts.Count);
+            Assert.AreEqual(100, mounts[0].position_engine[0]);
+            Assert.AreEqual(-100, mounts[1].position_engine[0]);
+        }
+
         [TestCase("fighter")]
         [TestCase("interceptor")]
         [TestCase("bomber")]
