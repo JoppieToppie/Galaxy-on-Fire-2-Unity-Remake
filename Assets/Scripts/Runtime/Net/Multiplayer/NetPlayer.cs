@@ -456,7 +456,7 @@ namespace GoF2Remake.Multiplayer
             // runner of this orbit may relay NPC damage. This closes the easy bypass where any client could
             // set byNpc=true to ignore PvP and squad protection. The runner still simulates NPC combat locally;
             // fully proving an individual shot requires authoritative NPC combat, not a client flag.
-            if (byNpc && !NetGuard.NpcDamageRunner(by.InSpace, by.RunsOrbit, Station))
+            if (byNpc && !NetGuard.NpcDamageRunner(by.InSpace, by.RunsOrbitActive, by.RunsOrbit, Station))
             {
                 NetRateLimit.Reject(shooter, "NPC damage from a client that does not run this orbit");
                 return;
