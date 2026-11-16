@@ -240,6 +240,28 @@ namespace GoF2Remake.UI
             {
                 (T("mbPlayHere", "Play from this orbit's station"), null, () => { SaveNow(); ModBuilder.Reload(); ModBuilderPlay.Start(); }),
             };
+            int station = currentStation != null ? StationNumberOf(currentStation) : -1;
+            var orbit = currentStation != null ? Obj(currentStation, "orbit") : null;
+            if (station >= 0 && orbit?["externalDocks"] is JArray docks && docks.Count > 0)
+            {
+                foreach (var ship in Project.Ships.Where(s => s.Mounts != null && s.Mounts.Any(m => m.slotType == 8)))
+                {
+                    var selectedShip = ship;
+                    for (int i = 0; i < docks.Count; i++)
+                    {
+                        int point = i;
+                        string label = string.Format(T("mbPlayExternalDock", "Test {0} externally docked · point {1}"), selectedShip.Name ?? selectedShip.LocalId, point + 1);
+                        choices.Add((label, null, () =>
+                        {
+                            ModBuilder.Ship = selectedShip;
+                            Project.LastShip = selectedShip.Ref;
+                            SaveNow();
+                            ModBuilder.Reload();
+                            ModBuilderPlay.StartExternalDockTest(station, point);
+                        }));
+                    }
+                }
+            }
             ShowPicker(T("mbPlay", "Play"), choices);
         }
 
