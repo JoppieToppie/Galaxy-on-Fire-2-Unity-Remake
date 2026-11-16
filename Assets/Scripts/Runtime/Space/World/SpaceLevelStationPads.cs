@@ -42,12 +42,13 @@ namespace GoF2Remake.World
             var specs = Modding.ModWorld.ExternalDockPoints(station);
             if (specs != null && specs.Count > 0)
             {
-                var hull = Station.transform.Find("hull") ?? Station.transform.Find("Station/hull") ?? Station.transform;
+                // The Mod Editor places these in the station root's orbit frame (the same frame as orbit.pads).
+                var stationFrame = Station.transform;
                 for (int i = 0; i < specs.Count; i++)
                 {
                     var spec = specs[i];
                     var point = new GameObject($"External docking point {i + 1}").transform;
-                    point.SetParent(hull, false);
+                    point.SetParent(stationFrame, false);
                     point.localPosition = new Vector3(-spec.position.x, spec.position.y, spec.position.z) * M;
                     point.localRotation = Quaternion.Euler(spec.rotation);
                     externalDockPoints.Add(point);
