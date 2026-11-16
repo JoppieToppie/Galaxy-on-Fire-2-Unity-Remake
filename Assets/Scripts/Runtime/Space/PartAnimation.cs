@@ -284,6 +284,22 @@ namespace GoF2Remake.Visuals
             if (enabled) Update();
         }
 
+        /// <summary>Modified: drops 'part''s opacity keys strictly between fromMs and toMs (this instance only: the parsed
+        /// keys are shared), so it runs straight from the one at fromMs to the one at toMs (step 80's battlestation laser: its
+        /// beams' dip to dark for ~100 ms as it fires). False when the part has no opacity keys.</summary>
+        public bool DropExtraKeys(Transform part, float fromMs, float toMs)
+        {
+            foreach (var tk in tracks)
+            {
+                if (tk.tr != part || tk.extra == null) continue;
+                var kept = new List<AnimationKey>();
+                foreach (var k in tk.extra) if (k.t <= fromMs || k.t >= toMs) kept.Add(k);
+                tk.extra = kept.ToArray();
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>Remake: 'part' rests at 'localPosition' (its animated offset added to it, like the model's own place): a
         /// part placed again after the model was built (OrbitBuilder: the Kaamo Club's lights). False when no track of this
         /// animation moves it (it is then only placed).</summary>

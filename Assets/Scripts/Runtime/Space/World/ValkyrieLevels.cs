@@ -236,6 +236,19 @@ namespace GoF2Remake.World
             { "v_station_battlestation_laser_anim_add_part1", new Vector3(-12.8f, 0f, -7.4f) },
             { "v_station_battlestation_laser_anim_add_part6", new Vector3(-2f, 0f, -45f) },
             { "v_station_battlestation_laser_anim_add_part8", new Vector3(-11f, 0f, -12f) },
+            // part 4 (the main beam's flash) moves with its keys: (-2.4, -19.5, -2222.3) in the Inspector at its load pose,
+            // less its keyed offset there (0, -1.445, -2210.87)
+            { "v_station_battlestation_laser_anim_add_part4", new Vector3(-2.4f, -18.055f, -11.43f) },
+            { "v_station_battlestation_laser_anim_add_part5", new Vector3(-2f, 8.2f, 2.2f) },
+        };
+        // Modified: the four beams (parts 6-9) went dark from LaserDipFrom80 to LaserDipTo80 of the laser's animation (100 ->
+        // 0 at 1550, 0 at 1600, back to 100 at 1650) as the main beam fires: all of them gone for about a frame (the user's
+        // report, 2026-11-16). Their keys in between are dropped: they stay on.
+        const float LaserDipFrom80 = 1500f, LaserDipTo80 = 1650f;
+        static readonly string[] LaserDipParts80 =
+        {
+            "v_station_battlestation_laser_anim_add_part6", "v_station_battlestation_laser_anim_add_part7",
+            "v_station_battlestation_laser_anim_add_part8", "v_station_battlestation_laser_anim_add_part9",
         };
         readonly List<(Renderer piece, Renderer glow)> flamePieces80 = new List<(Renderer, Renderer)>();
         Renderer flameSource80;

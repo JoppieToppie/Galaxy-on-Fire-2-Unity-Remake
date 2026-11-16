@@ -371,10 +371,13 @@ namespace GoF2Remake.World
             // Modified: the laser waits for the first cutscene (it played from the level's start); shown in Tick80 step 0, held at its load pose until it fires.
             if (battleLaser != null)
             {
-                // Modified: its parts at LaserPartPos80 (their keyed offsets, all zero, added to that).
+                // Modified: its parts at LaserPartPos80 (their keyed offsets added to that), the beams' dip dropped (LaserDipParts80).
                 foreach (var anim in battleLaser.GetComponentsInChildren<PartAnimation>(true))
                     foreach (var tr in anim.GetComponentsInChildren<Transform>(true))
+                    {
                         if (LaserPartPos80.TryGetValue(tr.name, out var at)) anim.SetBasePosition(tr, at);
+                        if (System.Array.IndexOf(LaserDipParts80, tr.name) >= 0) anim.DropExtraKeys(tr, LaserDipFrom80, LaserDipTo80);
+                    }
                 battleLaser.SetActive(false);
             }
             stationLaser = Scenery("v_station_deep_science_explosion_laser_anim_add", Vector3.zero, OrbitLayout.RotationToUnity(new Vector3(0, Mathf.PI, 0)), "Station laser");
