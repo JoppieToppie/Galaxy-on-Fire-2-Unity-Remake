@@ -355,6 +355,9 @@ namespace GoF2Remake.World
 
         void LateUpdate()
         {
+            // Exterior docking has no ES2 hangar room or CineCamera: keep the orbit's chase camera in control.
+            // The interior-dock camera path below reads room.camera / room.def and would dereference a null room here.
+            if (external) return;
             PlaceLights();
             if (!Running && blendT < 0f) return;   // (docked: the station's menu has the camera)
             // The dock's camera: straight at the ship docking, eased toward it taking off (CameraLookAtShip).
