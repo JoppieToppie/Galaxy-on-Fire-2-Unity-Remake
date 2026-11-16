@@ -56,7 +56,7 @@ namespace GoF2Remake.World
         /// <summary>Begin an exterior docking approach using the nearest station point and the ship's first docking hardpoint.</summary>
         bool TryBeginExternalDocking()
         {
-            if (!ExternalDockEligible || !ExternalDockInRange || externalDockPoints.Count == 0 || Es2Busy || DockedInOrbit || Leaving)
+            if (!ExternalDockEligible || !leftDockRange || !ExternalDockInRange || externalDockPoints.Count == 0 || Es2Busy || DockedInOrbit || Leaving)
                 return false;
             var mounts = db.MountsOf(Session.ShipIndex, 8);
             if (mounts == null || mounts.Count == 0) return false;
