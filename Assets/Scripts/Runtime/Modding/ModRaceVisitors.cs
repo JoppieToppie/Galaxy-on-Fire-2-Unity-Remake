@@ -121,7 +121,7 @@ namespace GoF2Remake.Modding
                 }
                 foreach (var collider in root.GetComponentsInChildren<Collider>(true)) UnityEngine.Object.Destroy(collider);
                 ModGltf.LoopAnimations(root);
-                root.transform.localScale = Vector3.one * GameModelScale;
+                root.transform.localScale = Vector3.one * (GameModelScale * race.visitorScale);
                 templates[race.race] = root;
             }
             catch (Exception e) when (revision == ModManager.Revision)
