@@ -227,7 +227,16 @@ namespace GoF2Remake.World
         const int FlameCopyFrom80 = 4, FlameCopyTo80 = 2, FlameCopyTwin80 = 7;   // part 2 gets part 4's flame (part 3's is smaller), placed by part 7's
         const float FlameReach80 = 300f;   // metres: how far from an engine glow its flame may reach
         // part 2's flame: local position / rotation (degrees) / scale under v_station_deep_science_explosion_anim_add_part2
-        static readonly Vector3 FlameCopyPos80 = new Vector3(2099.4f, 1.6f, 28f), FlameCopyRot80 = new Vector3(0f, 119f, 0f), FlameCopyScale80 = Vector3.one;   // Inspector values
+        static readonly Vector3 FlameCopyPos80 = new Vector3(2024.8f, 1.6f, 23.1f), FlameCopyRot80 = new Vector3(0f, 119f, 0f), FlameCopyScale80 = Vector3.one;   // Inspector values
+        // Modified: the battlestation laser's parts moved where the user placed them in the Inspector (local positions,
+        // Unity metres; 2026-11-16); the others stay at the model's.
+        static readonly Dictionary<string, Vector3> LaserPartPos80 = new Dictionary<string, Vector3>
+        {
+            { "v_station_battlestation_laser_anim_add_part0", new Vector3(-1.3f, 0f, -43.7f) },
+            { "v_station_battlestation_laser_anim_add_part1", new Vector3(-12.8f, 0f, -7.4f) },
+            { "v_station_battlestation_laser_anim_add_part6", new Vector3(-2f, 0f, -45f) },
+            { "v_station_battlestation_laser_anim_add_part8", new Vector3(-11f, 0f, -12f) },
+        };
         readonly List<(Renderer piece, Renderer glow)> flamePieces80 = new List<(Renderer, Renderer)>();
         Renderer flameSource80;
         MaterialPropertyBlock flameBlock80, glowBlock80;
