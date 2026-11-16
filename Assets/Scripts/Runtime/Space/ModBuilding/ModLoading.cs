@@ -46,7 +46,7 @@ namespace GoF2Remake.Modding
         {
             get
             {
-                float shipWeight = ModShips.Count * 4f, stationWeight = ModStations.Count * 3f + 1f, weaponWeight = ModWeapons.Count * 2f;
+                float shipWeight = ModShips.Count * 4f, stationWeight = ModStations.Count * 3f + 1f, raceVisitorWeight = ModRaceVisitors.Count, weaponWeight = ModWeapons.Count * 2f;
                 float musicWeight = ModMusic.Count, soundWeight = ModSounds.Count + ModShipSounds.Count, textureWeight = ModTextures.Count;
                 float shadowWeight = World.ShipShadowBaker.PrebakeWanted ? ModShips.Count : 0f;
                 float total = shipWeight + stationWeight + raceVisitorWeight + weaponWeight + musicWeight + soundWeight + textureWeight + shadowWeight;
