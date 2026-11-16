@@ -42,7 +42,7 @@ namespace GoF2Remake.Modding
         {
             public ModInfo mod;
             public JObject json;
-            public string where, localId, key, icon, gun;
+            public string where, localId, key, icon, gun, visitor;
             public Dictionary<string, string> name, description;
             public Color color = Color.white;
             public int look, start, race = -1, gunItem = -1;
@@ -54,7 +54,7 @@ namespace GoF2Remake.Modding
         }
 
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "id", "name", "description", "icon", "color", "look", "standing", "hostile", "diplomats", "relations", "gun" };
+            { "id", "name", "description", "icon", "color", "look", "standing", "hostile", "diplomats", "relations", "gun", "visitor" };
 
         static int mappedRevision = -1;
         static readonly Dictionary<string, Def> byKey = new Dictionary<string, Def>(StringComparer.Ordinal);
@@ -83,7 +83,7 @@ namespace GoF2Remake.Modding
                 string where = ModJson.Where(t, File);
                 if (!(t is JObject o)) throw new ModJsonException($"{where}: each entry must be an object {{ ... }}");
                 var d = new Def { mod = mod, json = o, where = where, localId = ModJson.Str(o, "id"), name = ModJson.Text(o, "name"),
-                                  description = ModJson.Text(o, "description"), icon = ModJson.Str(o, "icon"), gun = ModJson.Str(o, "gun") };
+                                  description = ModJson.Text(o, "description"), icon = ModJson.Str(o, "icon"), gun = ModJson.Str(o, "gun"), visitor = ModJson.Str(o, "visitor") };
                 if (d.localId == null) throw new ModJsonException($"{where}: a race needs \"id\"");
                 if (!ModManifest.ValidId(d.localId)) throw new ModJsonException($"{where}: the id \"{d.localId}\" may only use a-z, 0-9, _ and -");
                 if (!ids.Add(d.localId)) throw new ModJsonException($"{where}: the id \"{d.localId}\" is used twice");
@@ -92,6 +92,8 @@ namespace GoF2Remake.Modding
                 foreach (var prop in o.Properties())
                     if (!Fields.Contains(prop.Name)) mod.Warnings.Add($"{ModJson.Where(prop, File)}: unknown field \"{prop.Name}\" (ignored)");
                 if (d.icon != null && !mod.Source.Exists(d.icon)) throw new ModJsonException($"{where}: the icon {d.icon} isn't in the mod");
+                if (d.visitor != null && (!d.visitor.EndsWith(".glb", StringComparison.OrdinalIgnoreCase) || !mod.Source.Exists(d.visitor)))
+                    throw new ModJsonException($"{where}: "visitor" must be the path of a .glb file in the mod");
                 if (ModJson.Get(o, "color") is JToken c)
                 {
                     if (!(c is JArray a) || a.Count != 3) throw new ModJsonException($"{where}: \"color\" must be [r, g, b] (0..1)");
