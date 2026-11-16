@@ -31,8 +31,9 @@ namespace GoF2Remake.EditorTools
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class HangarCubemapCapture
     {
-        /// <summary>Face size: the original's hangar cubemaps are 512 px (a 512 x 3072 strip), the skies' 256.</summary>
-        const int FaceSize = 512;
+        /// <summary>Face size. Modified: 256 px (a 256 x 1536 strip, the user's request, 2026-11-16), was 512 as the original's
+        /// hangar cubemaps (the skies' are 256); phones import them at 128 px (ImportPostprocessor.ReflectionCube).</summary>
+        const int FaceSize = 256;
         const string OutDir = ImportSettings.Root + "/Resources/GoF2Reflections";
 
         // The cubemap faces as seen from the centre (SkyboxBaker's).

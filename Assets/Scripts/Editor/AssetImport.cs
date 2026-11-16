@@ -49,11 +49,26 @@ namespace GoF2Remake.EditorTools
             ti.ignoreMipmapLimit = true;   // the Texture quality option leaves them whole (they have no mips anyway)
         }
 
+        /// <summary>Modified: the reflection cubemaps (Resources/GoF2Reflections, HangarCubemapCapture's 256 px faces): 128 px
+        /// faces on phones (Android / iOS), memory (the user's request, 2026-11-16). A cubemap's Max Size limits its face, not
+        /// the 1 x 6 strip (a 512 x 3072 strip under the default 2048 imports at 512).</summary>
+        static void ReflectionCube(TextureImporter ti)
+        {
+            foreach (var platform in new[] { "Android", "iPhone" })
+            {
+                var mobile = ti.GetPlatformTextureSettings(platform);
+                mobile.overridden = true;
+                mobile.maxTextureSize = 128;
+                ti.SetPlatformTextureSettings(mobile);
+            }
+        }
+
         void OnPreprocessTexture()
         {
             string name = Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
             if (KeepsFullMips(assetPath, name)) ((TextureImporter)assetImporter).ignoreMipmapLimit = true;
             if (assetPath.StartsWith(ItemIconBuilder.OutDir + "/")) { ShopIcon((TextureImporter)assetImporter); return; }
+            if (assetPath.StartsWith(ImportSettings.Root + "/Resources/GoF2Reflections/")) { ReflectionCube((TextureImporter)assetImporter); return; }
             if (!assetPath.StartsWith(ImportSettings.Root + "/Textures/")) return;
             var ti = (TextureImporter)assetImporter;
             ti.maxTextureSize = 2048;

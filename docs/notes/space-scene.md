@@ -34,6 +34,9 @@ Research: `Reference/research/space_level_setup.md`, `space_backdrop.md` (+ `spa
   the hangar is shown its race's own (`SkyReflection.SetHangar(HangarIndex)`, `Resources/GoF2Reflections/cubemap_hangar_terran
   / vossk / nivelian / midorian`, glossy convolution; the Supernova systems too), the Valkyrie hangars (7 / 8) a black one
   (no reflection, the rim stays), a mod's own hangar and the lounge the system's.
+  **Size** (2026-11-16): `HangarCubemapCapture` captures 256 px faces (a 256 x 1536 strip, was 512); phones import every
+  cubemap of the folder at 128 px faces (`ImportPostprocessor.ReflectionCube`, Android / iPhone Max Size 128: a cubemap's
+  Max Size limits the face, not the strip).
 - **SRP Batcher** (2026-10-22): every shader the scenes draw is compatible, `GoF2/SpaceSky` too (its per-material values in
   `UnityPerMaterial`). A renderer with a MaterialPropertyBlock falls out of it: `PartAnimation.ownMaterials` (GunRig: the
   projectiles, muzzle flashes, impacts) writes their fades into a copy of the part's material made once instead (a fleet
