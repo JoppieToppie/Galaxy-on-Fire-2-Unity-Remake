@@ -54,6 +54,10 @@ namespace GoF2Remake.World
         public ModInteriors.Room Room => room;
         /// <summary>The station this dock is (the orbit's, or a mobile station's).</summary>
         public int StationIndex { get; private set; }
+        /// <summary>This is a manually authored large-ship exterior attachment, not an EVERSPACE 2 hangar pad.</summary>
+        public bool IsExternal { get; private set; }
+        public Vector3 DockedPosition => DockedPos;
+        public Quaternion DockedRotation => DockedRot;
 
         /// <summary>A point that follows the dock zone (a mobile station's landmark for the autopilot).</summary>
         public Transform MakeDockPoint()
@@ -98,7 +102,31 @@ namespace GoF2Remake.World
             return d;
         }
 
-        float Scale => hull.lossyScale.x / Mathf.Max(0.001f, room.def.scale);
+        /// <summary>Attach a large ship to a station's manually placed exterior point using its slotType 8 hardpoint.</summary>
+        public static Es2Dock AttachExternal(GameObject station, int stationIndex, ShipController ship, ChaseCamera chase,
+                                             Transform point, WeaponMount mount)
+        {
+            if (station == null || point == null || ship == null || chase == null || mount == null) return null;
+            var hull = station.transform.Find("hull") ?? station.transform.Find("Station/hull") ?? station.transform;
+            var d = ship.gameObject.AddComponent<Es2Dock>();
+            d.hull = hull;
+            d.StationIndex = stationIndex;
+            d.ship = ship;
+            d.chase = chase;
+            d.cam = chase.GetComponent<Camera>();
+            d.external = true;
+            d.externalPoint = point;
+            d.externalMount = mount;
+            d.IsExternal = true;
+            return d;
+        }
+
+        bool external;
+        Transform externalPoint;
+        WeaponMount externalMount;
+        Vector3 externalTakeOffPosition;
+        const float ExternalDockSeconds = 2.5f, ExternalTakeOffSeconds = 1.8f;
+        float Scale => hull.lossyScale.x / Mathf.Max(0.001f, room != null ? room.def.scale : 1f);
         Vector3 W(Vector3 roomPoint) => hull.TransformPoint(roomPoint / Mathf.Max(0.001f, room.def.scale));
         Quaternion Facing(Vector3 from, Vector3 to) => Quaternion.LookRotation(W(to) - W(from), hull.up);
 
@@ -113,8 +141,12 @@ namespace GoF2Remake.World
             return Mathf.Abs(local.x) <= half.x && Mathf.Abs(local.y) <= half.y && Mathf.Abs(local.z) <= half.z;
         }
 
-        Quaternion DockedRot => Facing(room.ship, room.shipAhead);
-        Vector3 DockedPos => W(room.ship) - DockedRot * hullCentre;   // GetShipDockingTransform: the bounds' centre on it
+        Quaternion DockedRot => external
+            ? externalPoint.rotation * Quaternion.Inverse(Modding.ModHardpoints.MountTurn(externalMount))
+            : Facing(room.ship, room.shipAhead);
+        Vector3 DockedPos => external
+            ? externalPoint.position - DockedRot * WeaponSystem.MountToLocal(externalMount)
+            : W(room.ship) - DockedRot * hullCentre;   // GetShipDockingTransform: the bounds' centre on it
         Vector3 LookAt(Vector3 shipPos, Quaternion shipRot) => shipPos + shipRot * hullCentre + (W(room.cameraTarget) - W(room.ship));
 
         /// <summary>BeginDocking: the ship glides onto the pad under the dock's camera; 'landed' runs when it is down (the
@@ -132,6 +164,23 @@ namespace GoF2Remake.World
             cam.transform.rotation = lastStationRot = Quaternion.LookRotation(LookAt(startPos, startRot) - cam.transform.position, hull.up);
         }
 
+        /// <summary>Approach and attach to a manually authored station exterior point; the orbit camera remains active.</summary>
+        public void BeginExternalDocking(Action landed)
+        {
+            if (!external || Running || Docked) return;
+            docked = landed;
+            startPos = ship.transform.position;
+            startRot = ship.transform.rotation;
+            State = Phase.Docking;
+            t = 0f;
+            released = false;
+            ship.externalControl = true;
+            ship.inputLocked = true;
+            ship.modelHeld = true;
+            ship.autopilotTarget = null;
+            chase.enabled = true;
+        }
+
         /// <summary>PlayLaunchAnimation: the ship on its pad takes off under the dock's camera, then the player flies.</summary>
         /// <summary>Docked on the pad at once (a save or a story move into the station: no docking flight).</summary>
         public void HoldDocked()
@@ -144,6 +193,7 @@ namespace GoF2Remake.World
         public void BeginTakeOff()
         {
             if (Running) return;
+            if (external) { BeginExternalTakeOff(); return; }
             hullCentre = ship.visualModel != null ? PlayerHull.HullBounds(ship.transform, ship.visualModel).center : Vector3.zero;
             ship.transform.SetPositionAndRotation(DockedPos, DockedRot);
             startPos = ship.transform.position;
@@ -179,8 +229,55 @@ namespace GoF2Remake.World
             cam.fieldOfView = Aspect.VerticalFov(room.def.fov > 0f ? room.def.fov : 23f, cam.aspect);
         }
 
+        void UpdateExternal()
+        {
+            if (State == Phase.Docked)
+            {
+                ship.transform.SetPositionAndRotation(DockedPos, DockedRot);
+                ship.ExternalSpeedMetersPerSecond = 0f;
+                return;
+            }
+            if (!Running) return;
+            float dt = Time.deltaTime;
+            if (dt <= 0f) return;
+            t += dt;
+            bool takingOff = State == Phase.TakeOff;
+            float duration = takingOff ? ExternalTakeOffSeconds : ExternalDockSeconds;
+            float a = Mathf.Clamp01(t / duration);
+            a = a * a * (3f - 2f * a);
+            Vector3 target = takingOff ? externalTakeOffPosition : DockedPos;
+            Vector3 position = Vector3.LerpUnclamped(startPos, target, a);
+            Quaternion rotation = Quaternion.SlerpUnclamped(startRot, DockedRot, a);
+            ship.ExternalSpeedMetersPerSecond = (position - ship.transform.position).magnitude / dt;
+            ship.transform.SetPositionAndRotation(position, rotation);
+            if (t < duration) return;
+            if (takingOff) End();
+            else
+            {
+                State = Phase.Docked;
+                ship.transform.SetPositionAndRotation(DockedPos, DockedRot);
+                docked?.Invoke();
+            }
+        }
+
+        void BeginExternalTakeOff()
+        {
+            if (!external || State != Phase.Docked) return;
+            startPos = DockedPos;
+            startRot = DockedRot;
+            externalTakeOffPosition = startPos + externalPoint.forward * 5000f * 0.05f;
+            State = Phase.TakeOff;
+            t = 0f;
+            released = false;
+            ship.externalControl = true;
+            ship.inputLocked = true;
+            ship.modelHeld = true;
+            chase.enabled = true;
+        }
+
         void Update()
         {
+            if (external) { UpdateExternal(); return; }
             // The view blend's chase camera works from its own pose (it keeps its state in the camera's transform).
             if (blendT >= 0f) { cam.transform.SetPositionAndRotation(chasePos, chaseRot); cam.fieldOfView = chaseFov; }
             UpdateDust();
