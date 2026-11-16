@@ -72,8 +72,8 @@ namespace GoF2Remake.Multiplayer
         /// damage for this orbit. This is a source-authority check, not proof of an individual NPC shot: NPC
         /// combat is still simulated by that runner's client.
         /// </summary>
-        public static bool NpcDamageRunner(bool inSpace, int runsOrbit, int targetStation) =>
-            inSpace && targetStation >= 0 && runsOrbit == targetStation;
+        public static bool NpcDamageRunner(bool inSpace, bool isRunner, int runsOrbit, int targetStation) =>
+            inSpace && isRunner && runsOrbit == targetStation;
 
         /// <summary>'client' is a player of the session docked at 'station' (taking off included).</summary>
         public static bool DockedAt(ulong client, int station)
