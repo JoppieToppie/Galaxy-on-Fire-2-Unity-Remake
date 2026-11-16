@@ -51,6 +51,11 @@ namespace GoF2Remake.World
                 point.localRotation = Quaternion.Euler(spec.rotation);
                 externalDockPoints.Add(point);
             }
+            if (Modding.ModBuilderPlay.ExternalDockTestQueuedFor(station))
+            {
+                var starter = gameObject.AddComponent<ExternalDockTestStarter>();
+                starter.Setup(this, station);
+            }
         }
 
         /// <summary>Begin an exterior docking approach using the nearest station point and the ship's first docking hardpoint.</summary>
@@ -77,6 +82,34 @@ namespace GoF2Remake.World
             return true;
         }
 
+        /// <summary>Begin the Mod Editor's immediate external docking spawn after the flight scene is fully initialized.</summary>
+        public void StartExternalDockTest(int pointIndex)
+        {
+            if (pointIndex < 0 || pointIndex >= externalDockPoints.Count || Player == null)
+            {
+                Debug.LogError("Mod Builder: external docking test point is missing.");
+                Modding.ModBuilder.EndPlayTest();
+                return;
+            }
+            var mounts = db.MountsOf(Session.ShipIndex, 8);
+            if (!PlayerHull.Big || Session.ShipIndex == 13 || Session.ShipIndex == 15 || mounts == null || mounts.Count == 0)
+            {
+                Debug.LogError("Mod Builder: the selected ship needs a large hull and at least one external docking hardpoint.");
+                Modding.ModBuilder.EndPlayTest();
+                return;
+            }
+            var dock = Es2Dock.AttachExternal(Station, Session.StationIndex, Player, chase, externalDockPoints[pointIndex], mounts[0]);
+            if (dock == null)
+            {
+                Debug.LogError("Mod Builder: couldn't attach the selected ship to the external docking point.");
+                Modding.ModBuilder.EndPlayTest();
+                return;
+            }
+            ActiveEs2 = dock;
+            dock.HoldExternalDocked();
+            DockInOrbit();
+        }
+
         /// <summary>The port of 'station''s pads (stations.json "orbit.pads"), none without pads.</summary>
         void SpawnStationPads(int station)
         {
@@ -94,6 +127,19 @@ namespace GoF2Remake.World
             if (port == null) return;
             port.LocalOnly = true;
             port.Target.untargetable = true;
+        }
+    }
+
+    /// <summary>Runs after SpaceLevel.Awake has built the player, station and navigation systems.</summary>
+    sealed class ExternalDockTestStarter : MonoBehaviour
+    {
+        SpaceLevel level;
+        int station;
+        public void Setup(SpaceLevel owner, int stationIndex) { level = owner; station = stationIndex; }
+        void Start()
+        {
+            if (level != null && Modding.ModBuilderPlay.TakeExternalDockTest(station, out int point))
+                level.StartExternalDockTest(point);
         }
     }
 }
