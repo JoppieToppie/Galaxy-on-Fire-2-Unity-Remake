@@ -77,6 +77,22 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ACharacterCanOverrideItsCustomRaceMeshWithABuiltInSilhouette()
+        {
+            string dir = WriteMod("custom_race_silhouette", "t_custom_sil", "1.0", "",
+                ("races.json", "[ { 'id': 'aliens', 'name': 'Aliens', 'visitor': 'models/alien.glb' } ]"),
+                ("characters.json", "[ { 'id': 'pilot', 'portrait': 'p.png', 'race': 'aliens', 'silhouette': 'cyborg' } ]"));
+            WriteFile(dir, "p.png", Dummy);
+            WriteFile(dir, "models/alien.glb", Dummy);
+            ScanAndEnable("t_custom_sil");
+
+            var character = ModCharacters.Find("t_custom_sil:pilot");
+            Assert.IsNotNull(character);
+            Assert.AreEqual(ModRaces.Get("t_custom_sil:aliens").race, character.race);
+            Assert.AreEqual("cyborg", character.silhouette);
+        }
+
+        [Test]
         public void CharactersAreFoundByKeyIdOrName()
         {
             CharactersOn(Two);
@@ -145,6 +161,7 @@ namespace GoF2Remake.Tests
         [Test] public void AnIdIsRequired() => StringAssert.Contains("\"id\" is missing", Warning("[ { 'portrait': 'p.png' } ]"));
         [Test] public void AGenderIsMaleOrFemale() => StringAssert.Contains("male or female", Warning("[ { 'id': 'x', 'portrait': 'p.png', 'gender': 'robot' } ]"));
         [Test] public void AnUnknownRace() => StringAssert.Contains("isn't a game or mod race", Warning("[ { 'id': 'x', 'portrait': 'p.png', 'race': 'klingon' } ]"));
+        [Test] public void AnUnknownSilhouette() => StringAssert.Contains("must be terran", Warning("[ { 'id': 'x', 'portrait': 'p.png', 'silhouette': 'klingon' } ]"));
         [Test] public void CharactersMustBeAList() => StringAssert.Contains("must be a list", Warning("{ 'id': 'x' }"));
 
         [Test]
