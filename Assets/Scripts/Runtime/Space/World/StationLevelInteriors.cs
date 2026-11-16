@@ -176,7 +176,7 @@ namespace GoF2Remake.World
                 hangarRoot.SetParent(orbit.ActiveEs2.Hull, false);
                 hangarRoot.localPosition = Vector3.zero;
                 hangarRoot.localRotation = Quaternion.identity;
-                hangarRoot.localScale = Vector3.one / Mathf.Max(0.001f, customHangar.def.scale);
+                hangarRoot.localScale = customHangar != null ? Vector3.one / Mathf.Max(0.001f, customHangar.def.scale) : Vector3.one;
             }
             // Camera: ModStation::OnInitialize state 0x14 (phone table), rotation order 2 with roll -0.03.
             hangarCamBase = customHangar != null ? Vector3.zero : StationTables.HangarCameraPos[HangarIndex];   // a custom room drifts about its marker
