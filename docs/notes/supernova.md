@@ -199,7 +199,9 @@ against the FEV's LGCY data, see "Sound").
   only). Remake (the user's request, 2026-11-15): the start dialog asks which round (`MainMenu.ShowChallengeStart`):
   Original, With scenery (the platform, the carrier and the Rhinos as the original's code makes them,
   `ChallengeOrbit.SpawnScenery`) or Cancel; the answer is kept for "Play again" and has the focus next time
-  (`Settings.ChallengeScenery`, off by default, not on the Options pages). The Rhinos are unarmed as in the original
+  (`Settings.ChallengeScenery`, off by default, not on the Options pages). With the scenery the orbit's own wreck
+  (`sn_station_midorian_wrecked`) isn't built (`OrbitBuilder.SpawnStation`): it stood inside the burning platform at the
+  origin, two hulls in one (the user's report, 2026-11-16). The Rhinos are unarmed as in the original
   (`SpawnSpec.noFighterTurret`: no createFighterTurrets turret; no enemies, so their gun never fires). Every Specter's only
   enemy is the player (`SetOnlyEnemy` after `ConnectPlayers`), and Smarter NPC targeting never applies in the round
   (`NpcShip.SmartTargeting`, `SupernovaChallenge.Active`).
