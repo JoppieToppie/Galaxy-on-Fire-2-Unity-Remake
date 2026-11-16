@@ -471,9 +471,14 @@ namespace GoF2Remake.World
             slotTaken[slot] = true;
             int i = visitors.Count;
             {
-                int race = agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
-                var silhouette = Modding.ModCharacters.Find(agent.character)?.silhouette;
-                var prefab = VisitorPrefab(StationTables.VisitorForSilhouette(silhouette, race, !agent.male));
+                var character = Modding.ModCharacters.Find(agent.character);
+                int race = character != null && character.hasRace ? character.race : agent.race;
+                if (character == null || !character.hasRace)
+                    race = agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
+                var silhouette = character?.silhouette;
+                // A custom race supplies its own GLB visitor unless this character explicitly selects a built-in silhouette.
+                var prefab = string.IsNullOrEmpty(silhouette) && Modding.ModRaces.Is(race) ? Modding.ModRaceVisitors.Prefab(race) : null;
+                if (prefab == null) prefab = VisitorPrefab(StationTables.VisitorForSilhouette(silhouette, Modding.ModRaces.Look(race), !agent.male));
                 if (prefab == null) return false;
                 var feet = SlotFeet(slot);
                 var v = new Visitor { feet = feet, agent = agent };
