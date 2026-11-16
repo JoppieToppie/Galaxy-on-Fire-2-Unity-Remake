@@ -472,9 +472,13 @@ namespace GoF2Remake.World
             int i = visitors.Count;
             {
                 var character = Modding.ModCharacters.Find(agent.character);
-                int race = character != null && character.hasRace ? character.race : agent.race;
+                // A character's explicit race wins; otherwise a mod-race diplomat keeps its actual side (Agent.race is
+                // deliberately the look race for its name, portrait, glow and dialogue).
+                int race = character != null && character.hasRace ? character.race
+                         : agent.modRace >= Modding.ModRaces.FirstRace ? agent.modRace : agent.race;
                 if (character == null || !character.hasRace)
-                    race = agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
+                    race = agent.modRace >= Modding.ModRaces.FirstRace ? race
+                         : agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
                 var silhouette = character?.silhouette;
                 // A custom race supplies its own GLB visitor unless this character explicitly selects a built-in silhouette.
                 var prefab = string.IsNullOrEmpty(silhouette) && Modding.ModRaces.Is(race) ? Modding.ModRaceVisitors.Prefab(race) : null;
@@ -514,17 +518,23 @@ namespace GoF2Remake.World
         {
             bool any = false;
             b = new Bounds();
-            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+            void Add(Mesh mesh, Transform meshTransform, Renderer renderer)
             {
-                if (mf.sharedMesh == null || !mf.gameObject.activeSelf || !mf.TryGetComponent<Renderer>(out var r) || !r.enabled) continue;
-                var lb = mf.sharedMesh.bounds;
-                var m = toSpace * mf.transform.localToWorldMatrix;
+                if (mesh == null || !meshTransform.gameObject.activeSelf || !renderer.enabled) return;
+                var lb = mesh.bounds;
+                var m = toSpace * meshTransform.localToWorldMatrix;
                 for (int i = 0; i < 8; i++)
                 {
                     var p = m.MultiplyPoint3x4(lb.center + Vector3.Scale(lb.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1)));
                     if (!any) { b = new Bounds(p, Vector3.zero); any = true; } else b.Encapsulate(p);
                 }
             }
+            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+                if (mf.TryGetComponent<Renderer>(out var renderer)) Add(mf.sharedMesh, mf.transform, renderer);
+            // Custom character GLBs are commonly skinned; include their mesh bounds so the lounge billboard is sized
+            // and centred from the actual model rather than the generic fallback height.
+            foreach (var skinned in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                Add(skinned.sharedMesh, skinned.transform, skinned);
             return any;
         }
         GameObject VisitorPrefab(StationTables.Visitor v) => v switch
