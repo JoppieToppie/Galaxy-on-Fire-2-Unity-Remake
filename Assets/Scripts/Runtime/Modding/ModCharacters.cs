@@ -30,7 +30,8 @@ namespace GoF2Remake.Modding
             public ModInfo mod;
             public string id, key, portrait;
             public Dictionary<string, string> name;
-            public int race;            // 0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirate, 9 Void...
+            public int race;            // game race or ModRaces number
+            public bool hasRace;      // false: inherit the event client's race
             public string silhouette; // optional lounge visitor mesh, independent of race/name colour
             public bool male = true, mirrored, frame = true, background = true;
             public string replaces;     // a story speaker's name or number
@@ -102,8 +103,9 @@ namespace GoF2Remake.Modding
                 string race = ModJson.Str(o, "race");
                 if (race != null)
                 {
-                    d.race = Flight.Standing.RaceWord(race);
-                    if (d.race < 0) throw new ModJsonException($"{where}: \"race\" {race} isn't a race (terran, vossk, nivelian, midorian, pirate, void)");
+                    if (!ModRaces.TryResolve(race, mod, out d.race))
+                        throw new ModJsonException($"{where}: \"race\" {race} isn't a game or mod race");
+                    d.hasRace = true;
                 }
                 if (d.silhouette != null)
                 {
