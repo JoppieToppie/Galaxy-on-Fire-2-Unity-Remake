@@ -349,7 +349,7 @@ namespace GoF2Remake.UI
             var addRow = Add(hardpoints, new VisualElement(), "mbv-row", "mbv-add-row");
             for (int t = 0; t < 5; t++)
             {
-                int type = t == 4 ? 8 : t;
+                int type = t;
                 var b = Act(addRow, "+ " + T("mbType" + TypeNames[t], TypeNames[t]), () => { placing = placing == type ? -1 : type; BuildHardpointsPage(); }, "mbv-type-button");
                 b.style.borderLeftColor = ModBuilderGizmo.TypeColours[t];
                 b.EnableInClassList("mbv-type-button--on", placing == type);
@@ -603,7 +603,7 @@ namespace GoF2Remake.UI
             if (type < 3 && SlotsFollow && Current.SlotCount(type) < Current.MountCount(type)) Current.SetSlotCount(type, Current.MountCount(type));
             gizmo.Selected = s.Count - 1;
             gizmo.Refresh();
-            OnMountEdited(type);
+            OnMountEdited(slotType);
             RefreshPoints();
             BuildLoadoutPage();
         }
