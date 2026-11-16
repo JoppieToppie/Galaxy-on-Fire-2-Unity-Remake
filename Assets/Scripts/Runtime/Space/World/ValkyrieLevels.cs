@@ -238,12 +238,11 @@ namespace GoF2Remake.World
         static readonly Vector3 HyperDriveRot80 = new Vector3(0f, 0f, 0f);
         const float HyperDriveScale80 = 8f;
 
-        // Modified: the hit's explosion (step 8) lands ExplosionAt80 ms after the cutscene's start, when the explosion is
-        // heard in DeepScienceAttacked (played at the start); the first shot is shortened to fit: step 1 (LaserDelay80) +
-        // step 2 (LaserWindow80) + step 7 (HitWait80) + step 8 (HitWait80) = ExplosionAt80.
-        const float ExplosionAt80 = 6900f;
-        const float HitWait80 = 800f;        // steps 7 and 8 (unchanged from the original)
-        const float LaserDelay80 = ExplosionAt80 - LaserWindow80 - 2f * HitWait80;   // Modified: ms until the laser fires (3600 now; was step 1's 3000)
+        // The first shot as the original's (the user's request, 2026-11-16): step 1 waits 3000 ms, step 2 plays the laser's
+        // animation for 2000 ms, then the cut to the hit; steps 7 and 8 wait 800 ms each (the explosion at 6600 ms).
+        const float LaserDelay80 = 3000f;
+        const float LaserWindow80 = 2000f;
+        const float HitWait80 = 800f;
 
         static readonly Dictionary<int, (Vector3 pos, Vector3 rot)> TurretPoses80 = new Dictionary<int, (Vector3 pos, Vector3 rot)>
         {
@@ -257,17 +256,9 @@ namespace GoF2Remake.World
             { 11, (new Vector3(1485f, 225f, -191f), new Vector3(0f, -180f, 0f)) },
         };
 
-        const float LaserChargeMs80 = 1500f; // Modified: ms the laser's charge-up animation takes; then it stays on until the cut
-        bool laserLooping80;   // the laser is held at its LaserHoldAt80 pose
-        // Modified: where in its animation the laser is held after the charge-up (0 = its start, 1 = its last frame, where
-        // it has already faded out): the charge plays up to there in LaserChargeMs80.
-        const float LaserHoldAt80 = 0.85f;
         // Modified: the hit's blast from the hit point, game units (Unity (740, -550, -370), set in the Inspector).
         static readonly Vector3 HitBlastOffset80 = new Vector3(2313f, 451f, 1442f);
-        PartAnimation[] laserAnims80;
-        float[] laserFullOn80;
 
-        const float LaserWindow80 = 1700f;   // Modified: ms from the laser appearing to the camera cut (step 2; was 2000): it fires 0.3 s later, the cut stays put
         const float CamPullBack80 = 3250f;   // Modified: Unity metres along +Z over the shot (from Z -6250 to -3000; X and Y stay put)
         float camStartZ80, camEndZ80;
 

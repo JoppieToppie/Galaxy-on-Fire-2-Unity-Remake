@@ -52,38 +52,18 @@ namespace GoF2Remake.World
                     PullBack80(stepMs);
                     if (stepMs >= LaserDelay80)
                     {
-                        // Modified: the laser fires LaserDelay80 ms into the shot (it played from the level's start), its
-                        // firing animation from the beginning.
+                        // The laser's animation runs from its load pose at its own speed (LevelScript step 2's
+                        // Transform::Update); its material channels (the fades) too.
                         if (battleLaser != null)
                         {
-                            // the charge-up lives in the parts' material channels (like 89's supernova front)
-                            laserAnims80 = battleLaser.GetComponentsInChildren<PartAnimation>(true);
-                            laserFullOn80 = new float[laserAnims80.Length];
-                            foreach (var a in laserAnims80) { a.applyMaterialChannels = true; a.speed = 1f; }
+                            foreach (var a in battleLaser.GetComponentsInChildren<PartAnimation>(true)) { a.applyMaterialChannels = true; a.speed = 1f; }
                             PartAnimation.PlayOnce(battleLaser);
-                            // Modified: each part plays from its start to LaserHoldAt80 of its length in LaserChargeMs80, then is
-                            // held there (step 2) until the cut: its tail (fading out) no longer shows, nor a second hit.
-                            for (int i = 0; i < laserAnims80.Length; i++)
-                            {
-                                var a = laserAnims80[i];
-                                float start = Mathf.Clamp(a.loopStartMs, 0f, a.LengthMs);
-                                laserFullOn80[i] = Mathf.Lerp(start, a.LengthMs, Mathf.Clamp01(LaserHoldAt80));
-                                a.speed = Mathf.Max(0.01f, (laserFullOn80[i] - start) / LaserChargeMs80);
-                            }
                         }
-                        laserLooping80 = false;
                         Step = 2;
                     }
                     break;
                 case 2:
                     PullBack80(LaserDelay80 + stepMs);   // Modified: still pulling back
-                    // Modified: once charged the laser stays fully on (held at its LaserHoldAt80 pose) until the
-                    // camera cuts to the Void.
-                    if (!laserLooping80 && stepMs >= LaserChargeMs80 && laserAnims80 != null)
-                    {
-                        for (int i = 0; i < laserAnims80.Length; i++) laserAnims80[i].Hold(laserFullOn80[i]);
-                        laserLooping80 = true;
-                    }
                     if (stepMs >= LaserWindow80)
                     {
                         if (battleLaser != null) battleLaser.SetActive(false);
