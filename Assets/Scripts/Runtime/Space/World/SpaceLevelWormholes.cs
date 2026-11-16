@@ -838,6 +838,11 @@ namespace GoF2Remake.World
         /// else its hangar (DockAt).</summary>
         void DockMobile(MobileStation mobile)
         {
+            if (PlayerHull.Big)
+            {
+                Navigation?.Refuse(Localization.Extra("hullNoExternalDock", "This large ship needs a station with a compatible exterior docking point."));
+                return;
+            }
             if (MobileDock(mobile) is not Es2Dock d) { DockAt(mobile); return; }
             if (Es2Busy || DockedInOrbit || Leaving) return;
             if (DockingBlocked) { Navigation?.Refuse(); return; }
