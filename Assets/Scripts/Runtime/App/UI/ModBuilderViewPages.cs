@@ -406,6 +406,23 @@ namespace GoF2Remake.UI
             Act(acts, T("mbMirror", "Mirror"), Mirror);
             Act(acts, T("mbCentre", "Centre X"), () => { m.position_engine[0] = 0; OnMountEdited(m.slotType); RefreshPoints(); });
             Act(acts, T("mbDelete", "Delete"), DeleteSelected, "mbv-danger");
+            if (type == 4)
+            {
+                // External docking hardpoints carry a full attachment orientation, like the station-side docking point.
+                float Rotation(int axis) => m.rotation != null && m.rotation.Length > axis ? m.rotation[axis] : 0f;
+                void SetRotation(int axis, float value)
+                {
+                    var r = new[] { Rotation(0), Rotation(1), Rotation(2) };
+                    r[axis] = value;
+                    m.rotation = r;
+                    OnMountEdited(m.slotType);
+                }
+                Heading(selectedBox, T("mbDockingOrientation", "Docking hardpoint orientation"));
+                Float(selectedBox, T("mbDockingRotX", "Rotation X (degrees)"), Rotation(0), -180f, 180f, v => SetRotation(0, v));
+                Float(selectedBox, T("mbDockingRotY", "Rotation Y (degrees)"), Rotation(1), -180f, 180f, v => SetRotation(1, v));
+                Float(selectedBox, T("mbDockingRotZ", "Rotation Z (degrees)"), Rotation(2), -180f, 180f, v => SetRotation(2, v));
+                Note(selectedBox, T("mbDockingOrientationNote", "The ship is aligned so this hardpoint matches the station's manually placed docking point."));
+            }
             if (type == 2)
             {
                 // The way the turret's base faces (WeaponMount.turretUp): a preset, or the hull's surface at the point.
