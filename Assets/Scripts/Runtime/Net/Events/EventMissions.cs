@@ -346,7 +346,7 @@ namespace GoF2Remake.Events
                 {
                     o.character = who.characterKey;
                     var c = who.CharacterDef;
-                    if (c != null) { if (c.hasRace) o.race = c.race; o.male = c.male; }   // explicit race overrides the mission client; otherwise it inherits
+                    if (c != null) { if (c.hasRace) o.race = c.race; if (c.hasGender) o.male = c.male; }   // only explicit identity fields override the mission client
                     o.clientName = who.DisplayName("");
                 }
                 else if (id >= 0)
