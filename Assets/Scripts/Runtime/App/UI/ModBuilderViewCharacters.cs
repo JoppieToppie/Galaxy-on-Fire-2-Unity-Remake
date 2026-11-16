@@ -50,8 +50,11 @@ namespace GoF2Remake.UI
             mod = ModManager.BuilderProject, id = c.Id, key = Project.Id + ":" + c.Id, portrait = c.Portrait,
             name = new Dictionary<string, string> { ["en"] = c.Name ?? c.Id },
             male = c.Male, mirrored = c.Mirrored, frame = c.Frame, background = c.Background, silhouette = c.Silhouette,
-            race = c.Race != null ? Multiplayer.NetAdmin.RaceWord(c.Race) : 0, hasRace = c.Race != null,
+            race = CharacterRace(c), hasRace = c.Race != null,
         };
+
+        int CharacterRace(ProjectCharacter c) =>
+            c.Race != null && ModRaces.TryResolve(c.Race, ModManager.BuilderProject, out int race) ? race : 0;
 
         Texture2D PortraitOf(ProjectCharacter c) => ModManager.BuilderProject != null ? ModCharacters.Portrait(DefOf(c)) : null;
 
