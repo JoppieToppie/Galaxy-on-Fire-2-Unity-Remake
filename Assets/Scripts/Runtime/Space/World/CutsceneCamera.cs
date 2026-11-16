@@ -68,8 +68,8 @@ namespace GoF2Remake.World
 
         /// <summary>resetCamera: back to the chase camera. Modified: snap false leaves it where the cutscene put it, so
         /// the chase follow eases it to its place behind the ship (the prologue's fight, LevelScript's setLookAtCam(false)
-        /// without a setPosition).</summary>
-        public void Release(bool snap = true)
+        /// without a setPosition); softMs &gt; 0 slows that glide's start (ChaseCamera.SoftReturn).</summary>
+        public void Release(bool snap = true, float softMs = 0f)
         {
             Active = false;
             Rumble = 0f;
@@ -83,6 +83,7 @@ namespace GoF2Remake.World
             var free = chase.target != null ? chase.target.GetComponent<FreeLookCamera>() : null;
             if (free != null && free.ResumeDockedLook()) return;
             if (snap) chase.Snap();
+            else if (softMs > 0f) chase.SoftReturn(softMs);
         }
 
         public void LateTick(float dtMs)
