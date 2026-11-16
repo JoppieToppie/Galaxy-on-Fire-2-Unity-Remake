@@ -123,7 +123,7 @@ namespace GoF2Remake.Data
     [System.Serializable] public class WeaponMount
     {
         public int slotType; public int[] position_engine; public float[] turretAngles; public bool upsideDown;
-        public float[] glowColor, glowSize, turretUp;
+        public float[] glowColor, glowSize, turretUp, rotation;
         public string glowShape;
 
         /// <summary>turretUp (else upsideDown) in the Unity ship frame ((-x, y, z), the models are mirrored): a unit vector,
