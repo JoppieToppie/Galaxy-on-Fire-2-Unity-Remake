@@ -412,7 +412,12 @@ namespace GoF2Remake.Multiplayer
             // Online through the Relay allocation; locally listening on every adapter (LAN, Wi-Fi, a VPN like Hamachi): any
             // address of this device reaches it.
             if (relay != null) Transport.SetRelayServerData(relay.ToRelayServerData(RelayConnection));
-            else { JoinCode = null; Transport.SetConnectionData("127.0.0.1", port, "0.0.0.0"); }
+            else
+            {
+                JoinCode = null;
+                Debug.LogWarning("NetGame: direct-IP hosting does not configure transport encryption. Use only on a trusted LAN/VPN; use Unity Relay for the encrypted DTLS path.");
+                Transport.SetConnectionData("127.0.0.1", port, "0.0.0.0");
+            }
             if ((relay == null && !CanHost()) || !m.StartHost())
             {
                 if (Status.Length == 0) Status = string.Format(Localization.Extra("mpHostFailed", "Could not start hosting on port {0}."), port);
@@ -513,7 +518,12 @@ namespace GoF2Remake.Multiplayer
             if (!keepSeed || Seed == 0) Seed = Environment.TickCount & 0x7fffffff;   // a restart keeps the world's asteroid fields
             var m = EnsureManager();
             if (relay != null) Transport.SetRelayServerData(relay.ToRelayServerData(RelayConnection));
-            else { JoinCode = null; Transport.SetConnectionData("0.0.0.0", port, "0.0.0.0"); }
+            else
+            {
+                JoinCode = null;
+                Debug.LogWarning("NetGame: direct-IP hosting does not configure transport encryption. Use only on a trusted LAN/VPN; use Unity Relay for the encrypted DTLS path.");
+                Transport.SetConnectionData("0.0.0.0", port, "0.0.0.0");
+            }
             if ((relay == null && !CanHost(port)) || !m.StartServer())
             {
                 if (Status.Length == 0) Status = string.Format(Localization.Extra("mpHostFailed", "Could not start hosting on port {0}."), port);
