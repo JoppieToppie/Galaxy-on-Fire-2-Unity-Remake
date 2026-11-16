@@ -50,7 +50,7 @@ namespace GoF2Remake.UI
             mod = ModManager.BuilderProject, id = c.Id, key = Project.Id + ":" + c.Id, portrait = c.Portrait,
             name = new Dictionary<string, string> { ["en"] = c.Name ?? c.Id },
             male = c.Male, mirrored = c.Mirrored, frame = c.Frame, background = c.Background, silhouette = c.Silhouette,
-            race = c.Race != null ? Mathf.Max(0, Multiplayer.NetAdmin.RaceWord(c.Race)) : 0,
+            race = c.Race != null ? Multiplayer.NetAdmin.RaceWord(c.Race) : 0, hasRace = c.Race != null,
         };
 
         Texture2D PortraitOf(ProjectCharacter c) => ModManager.BuilderProject != null ? ModCharacters.Portrait(DefOf(c)) : null;
@@ -124,6 +124,12 @@ namespace GoF2Remake.UI
                 string word = RaceWords[i];
                 var b = Act(races, T("race" + RaceNames[i], RaceNames[i]), () => { c.Race = word; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg");
                 b.EnableInClassList("mbv-seg--on", string.Equals(c.Race, word, StringComparison.OrdinalIgnoreCase));
+            }
+            foreach (var race in ModRaces.All)
+            {
+                string key = race.key;
+                var b = Act(races, ModRaces.Name(race.race), () => { c.Race = key; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg");
+                b.EnableInClassList("mbv-seg--on", string.Equals(c.Race, key, StringComparison.OrdinalIgnoreCase));
             }
             Add(characterPage, new Label(T("mbGender", "Gender").ToUpperInvariant()), "mbv-label");
             var genders = Add(characterPage, new VisualElement(), "mbv-seg-row");
