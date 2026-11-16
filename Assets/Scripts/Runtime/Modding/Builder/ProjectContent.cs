@@ -311,6 +311,7 @@ namespace GoF2Remake.Modding
         public string Race { get => S("race"); set => SetS("race", value); }
         /// <summary>Optional lounge figure mesh, independent of race (null: original race / portrait mapping).</summary>
         public string Silhouette { get => S("silhouette"); set => SetS("silhouette", value); }
+        public bool HasGender => json["gender"] != null;
         public bool Male { get => !string.Equals(S("gender"), "female", System.StringComparison.OrdinalIgnoreCase); set => json["gender"] = value ? "male" : "female"; }
         public bool Mirrored { get => B("mirrored", false); set => SetB("mirrored", value, false); }
         public bool Frame { get => B("frame", true); set => SetB("frame", value, true); }
