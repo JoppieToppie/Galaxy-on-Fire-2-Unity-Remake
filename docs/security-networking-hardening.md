@@ -22,7 +22,7 @@ Changing those variables to server-write-only without replacing the existing own
 
 ### Direct-IP transport confidentiality
 
-The Relay path explicitly selects Unity Relay's `dtls` connection type. The direct-IP path calls `SetConnectionData` and does not configure equivalent encryption in this project. Do not treat direct-IP sessions as having the same transport confidentiality as Relay sessions. Use Relay, or restrict direct-IP play to a trusted LAN/VPN until a supported authenticated encryption design is implemented and tested for the exact Unity Transport package version in use.
+The Relay path explicitly selects Unity Relay's `dtls` connection type. The direct-IP path calls `SetConnectionData` and does not configure equivalent encryption in this project. Do not treat direct-IP sessions as having the same transport confidentiality as Relay sessions. This branch logs a warning for direct-IP hosts and clients. Use Relay, or restrict direct-IP play to a trusted LAN/VPN until a supported authenticated encryption design is implemented and tested for the exact Unity Transport package version in use.
 
 No speculative transport API or custom cryptography has been added here.
 
