@@ -93,7 +93,7 @@ namespace GoF2Remake.Modding
                     if (!Fields.Contains(prop.Name)) mod.Warnings.Add($"{ModJson.Where(prop, File)}: unknown field \"{prop.Name}\" (ignored)");
                 if (d.icon != null && !mod.Source.Exists(d.icon)) throw new ModJsonException($"{where}: the icon {d.icon} isn't in the mod");
                 if (d.visitor != null && (!d.visitor.EndsWith(".glb", StringComparison.OrdinalIgnoreCase) || !mod.Source.Exists(d.visitor)))
-                    throw new ModJsonException($"{where}: "visitor" must be the path of a .glb file in the mod");
+                    throw new ModJsonException($"{where}: \\"visitor\\" must be the path of a .glb file in the mod");
                 if (ModJson.Get(o, "color") is JToken c)
                 {
                     if (!(c is JArray a) || a.Count != 3) throw new ModJsonException($"{where}: \"color\" must be [r, g, b] (0..1)");
