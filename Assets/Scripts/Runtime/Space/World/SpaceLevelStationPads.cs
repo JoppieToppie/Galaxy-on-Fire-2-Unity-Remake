@@ -20,19 +20,57 @@ namespace GoF2Remake.World
         // Large-ship external docking is deliberately separate from NPC station pads.
         readonly System.Collections.Generic.List<Transform> externalDockPoints = new System.Collections.Generic.List<Transform>();
 
-        /// <summary>Whether the flown hull is explicitly equipped for exterior docking: a large hull with its own slotType 8
-        /// hardpoint. Fighters / interceptors are too small; the hackable freighters are deliberately excluded.</summary>
+        GoF2Remake.Data.ShipData PlayerShipData => db != null ? db.Ship(Session.ShipIndex) : null;
+
+        /// <summary>The ship's class / role allows external docking, regardless of legacy hull-size or ship-index guesses.</summary>
+        bool ExternalDockClass => Modding.ShipClassRules.CanDockExternally(PlayerShipData);
+
+        /// <summary>Internal docking remains available to fighter / interceptor / bomber roles and legacy small hulls.</summary>
+        bool InternalDockEligible => Player != null && PlayerHull.PlayerShip
+                                     && Modding.ShipClassRules.CanDockInternally(PlayerShipData, PlayerHull.Big);
+
+        /// <summary>External docking requires both the designated large-ship class role and an authored slotType 8 hardpoint.</summary>
         bool ExternalDockEligible
         {
             get
             {
-                if (Player == null || !PlayerHull.Big || Session.ShipIndex == 13 || Session.ShipIndex == 15) return false;
-                return db != null && db.MountsOf(Session.ShipIndex, 8).Count > 0;
+                var mounts = db != null ? db.MountsOf(Session.ShipIndex, 8) : null;
+                return Player != null && ExternalDockClass && mounts != null && mounts.Count > 0;
             }
         }
 
         bool ExternalDockInRange => Station != null && StationShown && Player != null && Player.transform.position.sqrMagnitude < DockMeters * DockMeters;
         bool CanDockExternally => ExternalDockEligible && externalDockPoints.Count > 0;
+
+        /// <summary>Choose the closest ship hardpoint / station attachment pair. A ship may author more than one slotType 8
+        /// mount; pairing by the actual mount position avoids always selecting the first mount on an asymmetric hull.</summary>
+        bool FindExternalDockingPair(Transform onlyPoint, out Transform point, out WeaponMount mount)
+        {
+            point = null;
+            mount = null;
+            if (Player == null || db == null) return false;
+            var mounts = db.MountsOf(Session.ShipIndex, 8);
+            if (mounts == null || mounts.Count == 0) return false;
+            float nearest = float.MaxValue;
+            foreach (var candidateMount in mounts)
+            {
+                if (candidateMount == null) continue;
+                Vector3 mountPosition = Player.transform.TransformPoint(WeaponSystem.MountToLocal(candidateMount));
+                if (onlyPoint != null)
+                {
+                    float distance = (onlyPoint.position - mountPosition).sqrMagnitude;
+                    if (distance < nearest) { nearest = distance; point = onlyPoint; mount = candidateMount; }
+                    continue;
+                }
+                foreach (var candidatePoint in externalDockPoints)
+                {
+                    if (candidatePoint == null) continue;
+                    float distance = (candidatePoint.position - mountPosition).sqrMagnitude;
+                    if (distance < nearest) { nearest = distance; point = candidatePoint; mount = candidateMount; }
+                }
+            }
+            return point != null && mount != null;
+        }
 
         /// <summary>Build the manually authored station-side attachment transforms; never derived from orbit.pads.</summary>
         void SpawnExternalDockPoints(int station)
@@ -66,18 +104,8 @@ namespace GoF2Remake.World
         {
             if (!ExternalDockEligible || !leftDockRange || !ExternalDockInRange || externalDockPoints.Count == 0 || Es2Busy || DockedInOrbit || Leaving)
                 return false;
-            var mounts = db.MountsOf(Session.ShipIndex, 8);
-            if (mounts == null || mounts.Count == 0) return false;
-            Transform point = null;
-            float nearest = float.MaxValue;
-            foreach (var candidate in externalDockPoints)
-            {
-                if (candidate == null) continue;
-                float distance = (candidate.position - Player.transform.position).sqrMagnitude;
-                if (distance < nearest) { nearest = distance; point = candidate; }
-            }
-            if (point == null) return false;
-            var dock = Es2Dock.AttachExternal(Station, Session.StationIndex, Player, chase, point, mounts[0]);
+            if (!FindExternalDockingPair(null, out var point, out var mount)) return false;
+            var dock = Es2Dock.AttachExternal(Station, Session.StationIndex, Player, chase, point, mount);
             if (dock == null) return false;
             Navigation?.SetAutopilot(null);
             ActiveEs2 = dock;
@@ -94,14 +122,13 @@ namespace GoF2Remake.World
                 Modding.ModBuilder.EndPlayTest();
                 return;
             }
-            var mounts = db.MountsOf(Session.ShipIndex, 8);
-            if (!PlayerHull.Big || Session.ShipIndex == 13 || Session.ShipIndex == 15 || mounts == null || mounts.Count == 0)
+            if (!ExternalDockEligible || !FindExternalDockingPair(externalDockPoints[pointIndex], out _, out var mount))
             {
-                Debug.LogError("Mod Builder: the selected ship needs a large hull and at least one external docking hardpoint.");
+                Debug.LogError("Mod Builder: the selected ship needs a frigate, cruiser or carrier class and at least one external docking hardpoint.");
                 Modding.ModBuilder.EndPlayTest();
                 return;
             }
-            var dock = Es2Dock.AttachExternal(Station, Session.StationIndex, Player, chase, externalDockPoints[pointIndex], mounts[0]);
+            var dock = Es2Dock.AttachExternal(Station, Session.StationIndex, Player, chase, externalDockPoints[pointIndex], mount);
             if (dock == null)
             {
                 Debug.LogError("Mod Builder: couldn't attach the selected ship to the external docking point.");
