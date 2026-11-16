@@ -107,7 +107,8 @@ namespace GoF2Remake.World
                                              Transform point, WeaponMount mount)
         {
             if (station == null || point == null || ship == null || chase == null || mount == null) return null;
-            var hull = station.transform.Find("hull") ?? station.transform.Find("Station/hull") ?? station.transform;
+            // The external point is authored in the station root's orbit frame, not the NPC pad or interior hull frame.
+            var hull = station.transform;
             Es2Dock d = null;
             foreach (var existing in ship.GetComponents<Es2Dock>())
                 if (existing.IsExternal) { d = existing; break; }
