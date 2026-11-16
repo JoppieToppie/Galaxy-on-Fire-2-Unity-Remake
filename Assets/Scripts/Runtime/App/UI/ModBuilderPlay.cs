@@ -32,6 +32,8 @@ namespace GoF2Remake.UI
             UnityEngine.SceneManagement.SceneManager.LoadScene("Space");
         }
 
+        public static bool ExternalDockTestQueuedFor(int station) => externalDockTestStation == station && externalDockTestPoint >= 0;
+
         /// <summary>Consumed once by the newly built SpaceLevel.</summary>
         public static bool TakeExternalDockTest(int station, out int point)
         {
