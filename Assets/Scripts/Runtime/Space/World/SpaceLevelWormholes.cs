@@ -740,9 +740,14 @@ namespace GoF2Remake.World
                 DockMobile(near);
                 return;
             }
-            // Large ships with an authored docking hardpoint use the station's manually placed exterior attachment.
-            // This is not an NPC pad interaction and never falls back to the internal hangar.
-            if (flyIn && TryBeginExternalDocking()) return;
+            // Large ships use only their manually authored exterior attachment. If either side lacks a compatible
+            // hardpoint, refuse; never fall back to a hangar or an NPC station pad.
+            if (flyIn && PlayerHull.Big)
+            {
+                if (TryBeginExternalDocking()) return;
+                Navigation?.Refuse(Localization.Extra("hullNoExternalDock", "This ship or station has no compatible exterior docking point."));
+                return;
+            }
             // Remake mods: EVERSPACE 2's docking: the ship lands on the dock in this orbit, then the station opens (Es2Dock).
             if (flyIn && Es2 != null && !Leaving && Layout.hasStation && StationShown && PlayerHull.PlayerShip)
             {
