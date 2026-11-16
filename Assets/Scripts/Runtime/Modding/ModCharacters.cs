@@ -33,6 +33,7 @@ namespace GoF2Remake.Modding
             public Dictionary<string, string> name;
             public int race;            // game race or ModRaces number
             public bool hasRace;      // false: inherit the event client's race
+            public bool hasGender;    // false: inherit the event client's gender
             public string silhouette; // optional lounge visitor mesh, independent of race/name colour
             public bool male = true, mirrored, frame = true, background = true;
             public string replaces;     // a story speaker's name or number
@@ -119,6 +120,7 @@ namespace GoF2Remake.Modding
                 {
                     if (!gender.Equals("male", StringComparison.OrdinalIgnoreCase) && !gender.Equals("female", StringComparison.OrdinalIgnoreCase))
                         throw new ModJsonException($"{where}: \"gender\" is male or female");
+                    d.hasGender = true;
                     d.male = gender.Equals("male", StringComparison.OrdinalIgnoreCase);
                 }
                 if (defs.ContainsKey(d.key)) throw new ModJsonException($"{where}: the id \"{id}\" is used twice");
