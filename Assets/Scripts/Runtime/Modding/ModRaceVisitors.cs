@@ -160,7 +160,10 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>The custom race's loaded lounge visitor prefab, null when it has no usable custom model.</summary>
-        public static GameObject Prefab(int race) =>
-            loadedRevision == ModManager.Revision && templates.TryGetValue(race, out var prefab) ? prefab : null;
+        public static GameObject Prefab(int race)
+        {
+            if (loadedRevision != ModManager.Revision) Preload();
+            return loadedRevision == ModManager.Revision && templates.TryGetValue(race, out var prefab) ? prefab : null;
+        }
     }
 }
