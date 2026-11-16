@@ -39,7 +39,7 @@ namespace GoF2Remake.Flight
         /// <summary>The player collides with the hull, not the volumes.</summary>
         public bool UsesHull => hull != null && hull.Collides;   // not taken by the ship collision mode (Mixed: another player's ship; Original: any): its volumes
 
-        public bool Active => isActiveAndEnabled && ((volumes != null && volumes.Count > 0) || (hull != null && hull.Active));
+        public bool Active => isActiveAndEnabled && volumes != null && volumes.Count > 0;
 
         // Remake (performance, 2026-10-22): the NPC fighters' avoidance (NpcShip.Avoid) tested every obstacle's volumes from
         // every fighter twice a frame; a sphere around them, measured once a frame, rules out the far ones first.
