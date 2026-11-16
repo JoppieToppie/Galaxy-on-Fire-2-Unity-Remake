@@ -19,6 +19,7 @@ namespace GoF2Remake.Modding
         {
             ModShips.Preload();
             ModStations.Preload();
+            ModRaceVisitors.Preload();
             ModWeapons.Preload();
             ModCrates.Preload();
             ModSounds.Preload();
@@ -29,14 +30,14 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>Something of the mods is still loading.</summary>
-        public static bool Busy => !ModShips.Ready || !ModStations.Ready || !ModWeapons.Ready || !ModCrates.Ready || !ModMusic.Ready || !ModSounds.Ready || !ModShipSounds.Ready || !ModTextures.Ready
+        public static bool Busy => !ModShips.Ready || !ModStations.Ready || !ModRaceVisitors.Ready || !ModWeapons.Ready || !ModCrates.Ready || !ModMusic.Ready || !ModSounds.Ready || !ModShipSounds.Ready || !ModTextures.Ready
                                    || !ModVoices.ReplacementsReady
                                    || !World.ShipShadowBaker.ModShipsBaked;
 
         /// <summary>The mods that are on bring something to load (ship, station or room models, planets / suns / skies,
         /// weapon fx, music, sounds). The counts are known once Busy has started each loader; with none (no mods, or
         /// only quests) the loading screen isn't shown while the loaders finish.</summary>
-        public static bool HasWork => ModShips.Count > 0 || ModStations.Count > 0 || ModStations.Backdrops > 0 || ModWeapons.Count > 0
+        public static bool HasWork => ModShips.Count > 0 || ModStations.Count > 0 || ModStations.Backdrops > 0 || ModRaceVisitors.Count > 0 || ModWeapons.Count > 0
                                       || ModMusic.Count > 0 || ModSounds.Count > 0 || ModShipSounds.Count > 0 || ModTextures.Count > 0
                                       || ModVoices.ReplacementCount > 0;
 
@@ -48,13 +49,13 @@ namespace GoF2Remake.Modding
                 float shipWeight = ModShips.Count * 4f, stationWeight = ModStations.Count * 3f + 1f, weaponWeight = ModWeapons.Count * 2f;
                 float musicWeight = ModMusic.Count, soundWeight = ModSounds.Count + ModShipSounds.Count, textureWeight = ModTextures.Count;
                 float shadowWeight = World.ShipShadowBaker.PrebakeWanted ? ModShips.Count : 0f;
-                float total = shipWeight + stationWeight + weaponWeight + musicWeight + soundWeight + textureWeight + shadowWeight;
+                float total = shipWeight + stationWeight + raceVisitorWeight + weaponWeight + musicWeight + soundWeight + textureWeight + shadowWeight;
                 float skins = ModTextures.Count > 0 ? (ModTextures.Count - ModTextures.Loading) / (float)ModTextures.Count : 1f;
                 float music = ModMusic.Count > 0 ? (ModMusic.Count - ModMusic.Loading) / (float)ModMusic.Count : 1f;
                 float sounds = soundWeight > 0 ? (soundWeight - ModSounds.Loading - ModShipSounds.Loading) / soundWeight : 1f;
                 float weapons = ModWeapons.Count > 0 ? ModWeapons.Done / (float)ModWeapons.Count : 1f;
                 return (ModShips.Progress * shipWeight + ModStations.Progress * stationWeight + weapons * weaponWeight
-                        + music * musicWeight + sounds * soundWeight + skins * textureWeight + World.ShipShadowBaker.PrebakeProgress * shadowWeight) / total;
+                        + ModRaceVisitors.Progress * raceVisitorWeight + music * musicWeight + sounds * soundWeight + skins * textureWeight + World.ShipShadowBaker.PrebakeProgress * shadowWeight) / total;
             }
         }
 
@@ -70,6 +71,8 @@ namespace GoF2Remake.Modding
                 if (!ModStations.Ready && ModStations.Count > 0)
                     parts.Add(string.Format(Data.Localization.Extra("modsLoadingStations", "Stations {0} / {1}"), ModStations.Done, ModStations.Count)
                               + (ModStations.Current != null ? ": " + ModStations.Current : ""));
+                if (!ModRaceVisitors.Ready && ModRaceVisitors.Count > 0)
+                    parts.Add(string.Format(Data.Localization.Extra("modsLoadingRaceVisitors", "Race visitors {0} / {1}"), ModRaceVisitors.Done, ModRaceVisitors.Count));
                 if (!ModWeapons.Ready && ModWeapons.Count > 0)
                     parts.Add(string.Format(Data.Localization.Extra("modsLoadingWeapons", "Weapons {0} / {1}"), ModWeapons.Done, ModWeapons.Count));
                 int soundCount = ModSounds.Count + ModShipSounds.Count, soundsLeft = ModSounds.Loading + ModShipSounds.Loading;
