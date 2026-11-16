@@ -398,13 +398,13 @@ namespace GoF2Remake.UI
             var selectedBox = Add(into ?? hardpoints, new VisualElement(), "mbv-selected");
             Heading(selectedBox, string.Format(T("mbSelectedPoint", "Selected: {0}"), T("mbType" + TypeNames[type], TypeNames[type])));
             var xyz = Add(selectedBox, new VisualElement(), "mbv-row", "mbv-xyz");
-            px = Int(xyz, "X", m.position_engine[0], -200000, 200000, v => { m.position_engine[0] = v; OnMountEdited(type); });
-            py = Int(xyz, "Y", m.position_engine[1], -200000, 200000, v => { m.position_engine[1] = v; OnMountEdited(type); });
-            pz = Int(xyz, "Z", m.position_engine[2], -200000, 200000, v => { m.position_engine[2] = v; OnMountEdited(type); });
+            px = Int(xyz, "X", m.position_engine[0], -200000, 200000, v => { m.position_engine[0] = v; OnMountEdited(m.slotType); });
+            py = Int(xyz, "Y", m.position_engine[1], -200000, 200000, v => { m.position_engine[1] = v; OnMountEdited(m.slotType); });
+            pz = Int(xyz, "Z", m.position_engine[2], -200000, 200000, v => { m.position_engine[2] = v; OnMountEdited(m.slotType); });
             Note(selectedBox, T("mbXyzNote", "Game units from the centre: X left, Y up, Z forward (20 = 1 m)."));
             var acts = Add(selectedBox, new VisualElement(), "mbv-row");
             Act(acts, T("mbMirror", "Mirror"), Mirror);
-            Act(acts, T("mbCentre", "Centre X"), () => { m.position_engine[0] = 0; OnMountEdited(type); RefreshPoints(); });
+            Act(acts, T("mbCentre", "Centre X"), () => { m.position_engine[0] = 0; OnMountEdited(m.slotType); RefreshPoints(); });
             Act(acts, T("mbDelete", "Delete"), DeleteSelected, "mbv-danger");
             if (type == 2)
             {
