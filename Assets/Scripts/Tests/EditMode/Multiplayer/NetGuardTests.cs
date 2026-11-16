@@ -74,11 +74,12 @@ namespace GoF2Remake.Tests
         [Test]
         public void NpcDamageRequiresTheServerSelectedOrbitRunner()
         {
-            Assert.IsTrue(NetGuard.NpcDamageRunner(true, 42, 42), "the current orbit runner may relay NPC damage");
-            Assert.IsFalse(NetGuard.NpcDamageRunner(false, 42, 42), "a docked player cannot relay NPC damage");
-            Assert.IsFalse(NetGuard.NpcDamageRunner(true, 41, 42), "a player running another orbit cannot relay it");
-            Assert.IsFalse(NetGuard.NpcDamageRunner(true, -1, 42), "a player who runs no orbit cannot relay it");
-            Assert.IsFalse(NetGuard.NpcDamageRunner(true, 42, -1), "invalid target orbit");
+            Assert.IsTrue(NetGuard.NpcDamageRunner(true, true, 42, 42), "the current orbit runner may relay NPC damage");
+            Assert.IsFalse(NetGuard.NpcDamageRunner(false, true, 42, 42), "a docked player cannot relay NPC damage");
+            Assert.IsFalse(NetGuard.NpcDamageRunner(true, false, 42, 42), "a non-runner cannot relay NPC damage");
+            Assert.IsFalse(NetGuard.NpcDamageRunner(true, true, 41, 42), "a player running another orbit cannot relay it");
+            Assert.IsFalse(NetGuard.NpcDamageRunner(true, false, -1, 42), "a player who runs no orbit cannot relay it");
+            Assert.IsTrue(NetGuard.NpcDamageRunner(true, true, -1, -1), "the Void orbit has a valid -1 id");
         }
 
         [Test]
