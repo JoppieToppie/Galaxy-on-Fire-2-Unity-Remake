@@ -126,7 +126,8 @@ namespace GoF2Remake.World
             if (db != null)
                 foreach (var s in AgentData.StoryAgents)
                     if (s.sellBlueprint >= 0 && (s.station != 106 || Story.Dlc1Won) && db.Item(s.sellBlueprint) != null && !Blueprints.IsUnlocked(s.sellBlueprint)
-                        && Modding.ModBlueprints.Of(s.sellBlueprint) == null && !pool.Contains(s.sellBlueprint))
+                        && Modding.ModBlueprints.Of(s.sellBlueprint) == null && !Modding.ModContent.IsBlueprintRestricted(s.sellBlueprint)
+                        && !pool.Contains(s.sellBlueprint))
                         pool.Add(s.sellBlueprint);
             return pool.Count > 0 ? pool[Random.Range(0, pool.Count)] : -1;
         }
