@@ -216,6 +216,19 @@ namespace GoF2Remake.World
             c.WinObjective = () => c.DeadRange(0, 8);    // 0x12 (0, 8)
             c.FailObjective = () => c.DeadRange(8, 12);  // 0x12 (8, 12)
         }
+        /// <summary>Modified: every renderer under 'root' at _Glow 'glow' (a property block: the materials are shared with
+        /// the stations' hulls); the part animations' fades keep it (they read the block before writing theirs).</summary>
+        static void SetGlow80(GameObject root, float glow)
+        {
+            var block = new MaterialPropertyBlock();
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                r.GetPropertyBlock(block);
+                block.SetFloat("_Glow", glow);
+                r.SetPropertyBlock(block);
+            }
+        }
+
         /// <summary>StationTurrets[i]'s pose relative to an unrotated battlestation (OrbitLayout.RotationToUnity(0), as in 80):
         /// the Unity offset (metres) and rotation; the measured one where there is (TurretPoses80), else the table's (offset
         /// (-x, y, -z), rotation (0, 0, -rz): the table turned by (0, pi, 0)).</summary>
@@ -378,10 +391,11 @@ namespace GoF2Remake.World
                         if (LaserPartPos80.TryGetValue(tr.name, out var at)) anim.SetBasePosition(tr, at);
                         if (System.Array.IndexOf(LaserDipParts80, tr.name) >= 0) anim.DropExtraKeys(tr, LaserDipFrom80, LaserDipTo80);
                     }
+                SetGlow80(battleLaser, LaserGlow80);   // Modified
                 battleLaser.SetActive(false);
             }
             stationLaser = Scenery("v_station_deep_science_explosion_laser_anim_add", Vector3.zero, OrbitLayout.RotationToUnity(new Vector3(0, Mathf.PI, 0)), "Station laser");
-            if (stationLaser != null) stationLaser.SetActive(false);
+            if (stationLaser != null) { SetGlow80(stationLaser, LaserGlow80); stationLaser.SetActive(false); }   // Modified: the glow
             // Modified: the station is held intact (its load pose) until the hit; only pausing it left it showing the
             // explosion's last frame (already blown apart) from the start. Its explosion's material channels (the
             // `extra` fades: the blown-off part's engine glow, the debris) are applied, or they never fade out.

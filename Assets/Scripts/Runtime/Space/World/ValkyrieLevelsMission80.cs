@@ -114,7 +114,7 @@ namespace GoF2Remake.World
                         var hitPoint = new Vector3(12487, -11451, 5958);
                         // Modified: the blast HitBlastOffset80 from the hit point (was the hit point itself).
                         // OrbitScale: the hit point where the scaled orbit has it, the offsets on Kothar's hull grown with it.
-                        Explosion.Spawn(0, At(hitPoint) + ToUnity(HitBlastOffset80) * k, Vector3.forward, 3f, CombatAssets.Pick(combat?.explosionBig), true);   // sound 18
+                        Explosion.Spawn(0, At(hitPoint) + ToUnity(HitBlastOffset80) * k, Vector3.forward, HitBlastScale80, CombatAssets.Pick(combat?.explosionBig), true);   // sound 18; Modified: HitBlastScale80 (was 3)
                         // Level+0x58 at the hit point and Level+0x5c at hit + (4500, 0, 1000) (record 24, both emitting for
                         // the rest of the level; the second point drifts +2 u/ms along x in state 9).
                         burnA = new GameObject("Deep science burn A").transform;

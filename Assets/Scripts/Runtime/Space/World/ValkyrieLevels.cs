@@ -280,6 +280,12 @@ namespace GoF2Remake.World
 
         // Modified: the hit's blast from the hit point, game units (Unity (740, -550, -370), set in the Inspector).
         static readonly Vector3 HitBlastOffset80 = new Vector3(2313f, 451f, 1442f);
+        // Modified: the hit's blast scale (was 3, LevelScript ctor's Explosion::setScaling): it was a small glow next to the
+        // original's flash that covers Kothar (the user's frames, 2026-11-16).
+        const float HitBlastScale80 = 12f;
+        // Modified: both lasers' (the battlestation's and Kothar's hit) glow, their materials' _Glow 2.5 through a property
+        // block: the bloom made them thick beams, the original's are thin lines (the user's frames, 2026-11-16).
+        const float LaserGlow80 = 1f;
 
         const float CamPullBack80 = 3250f;   // Modified: Unity metres along +Z over the shot (from Z -6250 to -3000; X and Y stay put)
         float camStartZ80, camEndZ80;
