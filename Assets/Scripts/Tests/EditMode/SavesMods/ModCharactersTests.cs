@@ -8,6 +8,7 @@
 using System.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
+using GoF2Remake.World;
 using NUnit.Framework;
 
 namespace GoF2Remake.Tests
@@ -147,6 +148,32 @@ namespace GoF2Remake.Tests
         {
             CharactersOn("[ { 'id': 'x', 'portrait': 'p.png', 'race': '" + race + "' } ]");
             Assert.AreEqual(id, ModCharacters.Find("x").race);
+        }
+
+        [TestCase("terran", StationTables.Visitor.TerranMale)]
+        [TestCase("vossk", StationTables.Visitor.Vossk)]
+        [TestCase("nivelian", StationTables.Visitor.Nivelian)]
+        [TestCase("midorian", StationTables.Visitor.TerranMale)]
+        [TestCase("void", StationTables.Visitor.TerranMale)]
+        [TestCase("cyborg", StationTables.Visitor.TerranMale)]
+        [TestCase("octopod", StationTables.Visitor.Multipod)]
+        [TestCase("bobolian", StationTables.Visitor.Bobolan)]
+        [TestCase("grey", StationTables.Visitor.Grey)]
+        public void BuiltInSilhouettesUseTheOriginalVisitorMeshes(string silhouette, StationTables.Visitor expected)
+        {
+            Assert.AreEqual(expected, StationTables.VisitorForSilhouette(silhouette, 0, false));
+        }
+
+        [Test]
+        public void FemaleTerranSilhouetteUsesTheFemaleVisitor()
+        {
+            Assert.AreEqual(StationTables.Visitor.TerranFemale, StationTables.VisitorForSilhouette("terran", 0, true));
+        }
+
+        [Test]
+        public void AutomaticSilhouetteKeepsTheOriginalRaceMapping()
+        {
+            Assert.AreEqual(StationTables.Visitor.Nivelian, StationTables.VisitorForSilhouette(null, 2, false));
         }
 
         string Warning(string json)
