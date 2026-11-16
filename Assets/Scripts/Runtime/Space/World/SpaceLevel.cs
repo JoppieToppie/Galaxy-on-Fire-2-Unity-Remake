@@ -903,7 +903,7 @@ namespace GoF2Remake.World
         void LateUpdate()
         {
             if (Player == null || (Health != null && Health.Dead)) return;
-            if (!InDockRange) leftDockRange = true;
+            if (!(ExternalDockClass ? ExternalDockInRange : InDockRange)) leftDockRange = true;
             UpdateDriveArrival();   // Modified: a mod drive's arrival fx
             foreach (var m in Mobiles) if (m != null && !m.LeftRange && !m.InRange(Player.transform.position)) m.LeftRange = true;
             // Remake mods: the autopilot to a mobile station docks within its range.
@@ -917,7 +917,7 @@ namespace GoF2Remake.World
             }
             // MGame::dockEvent: the autopilot to the station docks within 16000 units or on touching the station (collision
             // is off during the launch).
-            if (Navigation != null && Navigation.GoingToStation && (InDockRange || (Es2 == null && Collision.TouchingStation)) && launchCameraMs <= 0f && Layout.hasStation && StationShown)
+            if (Navigation != null && Navigation.GoingToStation && DockingApproachRange && launchCameraMs <= 0f && Layout.hasStation && StationShown)
             {
                 if (DockingBlocked) { Navigation.Refuse(); return; }   // 525 "Not possible on a mission."
                 if (!PlayerHull.PlayerShip)   // remake debug: no hangar takes a freighter / capital ship
