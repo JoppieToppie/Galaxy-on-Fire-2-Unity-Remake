@@ -56,7 +56,8 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> station = new NetworkVariable<int>(-1, Read, Write);
         readonly NetworkVariable<byte> place = new NetworkVariable<byte>((byte)Place.None, Read, Write);
         readonly NetworkVariable<bool> authority = new NetworkVariable<bool>(false, Read, Write);   // its game built / runs its orbit's traffic
-        readonly NetworkVariable<int> runsOrbit = new NetworkVariable<int>(-1);   // the server's: the orbit it runs (NetState.UpdateOrbitRunners), -1 = none
+        readonly NetworkVariable<int> runsOrbit = new NetworkVariable<int>(-1);   // the server's: the orbit it runs (NetState.UpdateOrbitRunners)
+        readonly NetworkVariable<bool> runsOrbitActive = new NetworkVariable<bool>(false);   // separate: -1 is also a valid Void orbit id
         readonly NetworkVariable<int> squad = new NetworkVariable<int>(0);   // the host's (NetSquad), 0 = none
         readonly NetworkVariable<bool> observer = new NetworkVariable<bool>(false);   // the server's: another device controls the profile
         readonly NetworkVariable<FixedString32Bytes> factionTag = new NetworkVariable<FixedString32Bytes>();   // the server's: NetFactions, "" = none
@@ -107,8 +108,10 @@ namespace GoF2Remake.Multiplayer
         /// <summary>This player's game says it runs its orbit's traffic (it built it, or was handed it): the server's pick
         /// among the claims is RunsOrbit.</summary>
         public bool OrbitAuthority => authority.Value;
-        /// <summary>The orbit the server made this player run (NetState.UpdateOrbitRunners), -1 = none.</summary>
+        /// <summary>The orbit the server made this player run (NetState.UpdateOrbitRunners).</summary>
         public int RunsOrbit => runsOrbit.Value;
+        /// <summary>Whether the server selected this player as an orbit runner (separate from the orbit id: Void is -1).</summary>
+        public bool RunsOrbitActive => runsOrbitActive.Value;
         public int ShipIndex => ship.Value;
         /// <summary>Server: the ship this player flew before ShipIndex (a dealer trade-in puts it on the dealer's list,
         /// NetState.StockShipRpc: the trade may arrive before or after the new ship), -1 = none.</summary>
@@ -238,8 +241,13 @@ namespace GoF2Remake.Multiplayer
         public void SetStaffRole(int role) { if (IsServer && staffRole.Value != role) staffRole.Value = (byte)Mathf.Clamp(role, 0, 3); }
         /// <summary>Host: into squad 'id' (0 = none).</summary>
         public void SetSquad(int id) { if (IsServer && squad.Value != id) squad.Value = id; }
-        /// <summary>Server: this player runs 'orbit' (-1 = none).</summary>
-        public void SetRunsOrbit(int orbit) { if (IsServer && runsOrbit.Value != orbit) runsOrbit.Value = orbit; }
+        /// <summary>Server: this player runs 'orbit'; active distinguishes the Void's -1 id from no assigned orbit.</summary>
+        public void SetRunsOrbit(int orbit, bool active)
+        {
+            if (!IsServer) return;
+            if (runsOrbit.Value != orbit) runsOrbit.Value = orbit;
+            if (runsOrbitActive.Value != active) runsOrbitActive.Value = active;
+        }
         /// <summary>Another device of this player's profile controls it: this one stays docked (NetProfiles).</summary>
         public bool Observer => observer.Value;
         /// <summary>Server: NetProfiles' role for this device.</summary>
