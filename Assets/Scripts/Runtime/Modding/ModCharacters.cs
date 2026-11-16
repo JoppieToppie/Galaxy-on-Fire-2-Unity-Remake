@@ -3,8 +3,9 @@
 // characters.json): a name (per language), a portrait PNG drawn in the game's 160 x 200 portrait box (4:5; 320 x 400
 // stays sharp in HD, scaled to cover the box, its top kept), over the game's portrait backdrop (a dark, half-transparent
 // fill: only through the PNG's transparent parts) and under its "frame" (in fact a faint scanline overlay, alpha <= 27)
-// (both optional), mirrored on request, and a race / gender for what the game draws or plays by race: the bar figure of
-// a bar mission's client, the name's colour in the dialogue. "replaces": a story character (by name or number) whose
+// (both optional), mirrored on request, and a race / gender for dialogue identity and the default bar-visitor figure.
+// "silhouette" can independently choose a built-in visitor mesh; a custom race's own races.json "visitor" GLB is used when
+// silhouette is omitted. "replaces": a story character (by name or number) whose
 // portrait, and name when it has one (StoryTable.SpeakerName), it takes everywhere, the game's own story included.
 // A speaker names one by "mod_id:character_id", by its id or by its name (NetAdmin.ResolveSpeaker; "vega as Bob" renames
 // it like a story speaker); it travels to every game as the speaker spec "-3 US rename US key" (SpeakerSpec), and each game
