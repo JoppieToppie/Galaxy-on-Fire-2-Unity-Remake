@@ -60,6 +60,7 @@ namespace GoF2Remake.Tests
         [TestCase("frigate")]
         [TestCase("cruiser")]
         [TestCase("carrier")]
+        [TestCase("freighter")]
         public void BaseCapitalClassesDefaultToExternalDocking(string classId)
         {
             var ship = new ShipData { shipClass = classId };
@@ -71,8 +72,7 @@ namespace GoF2Remake.Tests
         [TestCase("light_privateer")]
         [TestCase("privateer")]
         [TestCase("heavy_privateer")]
-        [TestCase("freighter")]
-        public void UtilityAndPrivateerClassesKeepSizeBasedDocking(string classId)
+        public void HaulerAndPrivateerClassesDefaultToInternalDocking(string classId)
         {
             var ship = new ShipData { shipClass = classId };
             Assert.IsTrue(ShipClassRules.CanDockInternally(ship, false));
@@ -102,6 +102,7 @@ namespace GoF2Remake.Tests
         [TestCase("frigate")]
         [TestCase("cruiser")]
         [TestCase("carrier")]
+        [TestCase("freighter")]
         public void CapitalRolesUseExternalDockingOnly(string shipClass)
         {
             var ship = new ShipData { shipClass = shipClass };
