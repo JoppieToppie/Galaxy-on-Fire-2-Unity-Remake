@@ -29,6 +29,9 @@ namespace GoF2Remake.Flight
                     var src = br.sharedMaterial;
                     var mat = new Material(assets.shieldBubbleShader);
                     if (src != null && src.HasProperty("_BumpMap")) mat.SetTexture("_NormalMap", src.GetTexture("_BumpMap"));   // v_shield_normal (s_texture[1])
+                    // Modified: v_shield_noise (s_texture[0]) for the PC version's energy bands
+                    if (src != null && src.HasProperty("_BaseMap")) mat.SetTexture("_NoiseMap", src.GetTexture("_BaseMap"));
+                    else if (src != null && src.HasProperty("_MainTex")) mat.SetTexture("_NoiseMap", src.GetTexture("_MainTex"));
                     br.sharedMaterial = mat;
                     b.materials.Add(mat);
                 }
@@ -48,7 +51,7 @@ namespace GoF2Remake.Flight
                 float f = t > d - edge ? (d - t) / edge : t < edge ? t / edge : 1f;
                 bubble.transform.localScale = Vector3.one * scale * Mathf.Clamp01(f);
             }
-            foreach (var m in materials) if (m != null) m.SetFloat("_Anim", (lengthMs - leftMs) * 0.001f);   // mesh+0x24 += dt * 0.001 (the original shader never uses it)
+            foreach (var m in materials) if (m != null) m.SetFloat("_Anim", (lengthMs - leftMs) * 0.001f);   // mesh+0x24 += dt * 0.001 (the phone's shader never uses it; the PC version's bands run on it)
         }
 
         /// <summary>Gone: the model, its materials and the CloakPass request.</summary>
