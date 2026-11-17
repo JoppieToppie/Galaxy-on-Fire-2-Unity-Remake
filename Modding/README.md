@@ -910,7 +910,7 @@ The remake provides a built-in class registry (the classes exist in the engine, 
 Use one of these ids in `shipClass`; ids are case-insensitive and stored in canonical lowercase. Custom ids remain supported.
 The fighter, bomber and interceptor classes default to internal hangar docking; frigate, cruiser and carrier default to
 external docking (which still requires a ship `slotType: 8` docking hardpoint and a station's authored exterior dock point).
-Hauler, privateer and freighter classes retain size-based legacy internal docking and do not gain external docking by class alone.
+Hauler and privateer classes default to internal docking; freighters join frigates, cruisers and carriers in external-only docking.
 Custom classes can declare a docking role with `classTags`: `fighter`, `interceptor` or `bomber` for internal docking;
 `frigate`, `cruiser` or `carrier` for external docking. Conflicting role tags are rejected.
 | `wingmanDevice` | Optional. What a hired wingman flying this ship uses (Galaxy on Fire 3's wingmen): `"repair"` (Hull Repair: with your hull under 40 %, a quarter of it mended over 3 seconds), `"ammo"` (Ammo Supply: 5 more rounds of your selected secondary weapon when you are down to one or none) or `"charged"` (Charged Shots: its own shots do x1.75 for 5 seconds while it attacks); 55 seconds between uses. The HUD says when it does. None = nothing, like the game's wingmen. See [Wingmen](#wingmen). |
