@@ -485,7 +485,7 @@ namespace GoF2Remake.Flight
             }
             px += delta.x;
             py = Mathf.Clamp(py + delta.y, -200f, 200f);
-            distance = Mathf.Clamp(distance, MinDistance, MaxDistance);
+            distance = Mathf.Clamp(distance, MinDistance, Mathf.Max(MinDistance, MaxOrbitDistance));
             Place();
         }
 
