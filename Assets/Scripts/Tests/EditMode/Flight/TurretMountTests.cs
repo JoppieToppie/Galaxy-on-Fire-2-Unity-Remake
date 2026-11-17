@@ -4,6 +4,7 @@
 // camera, and the Mod Builder's snapping of a hull's surface normal to the ship's axes.
 
 using GoF2Remake.Data;
+using GoF2Remake.Flight;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -62,6 +63,29 @@ namespace GoF2Remake.Tests
             m.upsideDown = true;
             Near(Vector3.up, m.TurretTurn * Vector3.up, "turretUp");
             Assert.AreEqual(Vector3.up, new WeaponMount { turretUp = new[] { 0f, 0f, 0f } }.TurretUpLocal, "a zero vector is the plain mount");
+        }
+
+        [Test]
+        public void TurretMountScaleDefaultsToOneAndAllowsLargeValues()
+        {
+            Assert.AreEqual(1f, new WeaponMount { slotType = 2 }.TurretScale);
+            Assert.AreEqual(2.5f, new WeaponMount { slotType = 2, turretScale = 2.5f }.TurretScale);
+            Assert.AreEqual(1000f, new WeaponMount { slotType = 2, turretScale = 2500f }.TurretScale, "runtime scale is capped at 1000x");
+            Assert.AreEqual(1f, new WeaponMount { slotType = 2, turretScale = float.NaN }.TurretScale, "invalid values fall back to normal size");
+        }
+
+        [Test]
+        public void PlaceOnMountMultipliesTheTurretPrefabScale()
+        {
+            var go = new GameObject("turret scale test");
+            try
+            {
+                go.transform.localScale = new Vector3(2f, 3f, 4f);
+                var mount = new WeaponMount { slotType = 2, turretScale = 2.5f, position_engine = new[] { 0, 0, 0 } };
+                TurretCore.PlaceOnMount(go.transform, mount, Quaternion.identity);
+                Assert.AreEqual(new Vector3(5f, 7.5f, 10f), go.transform.localScale);
+            }
+            finally { Object.DestroyImmediate(go); }
         }
 
         [Test]
