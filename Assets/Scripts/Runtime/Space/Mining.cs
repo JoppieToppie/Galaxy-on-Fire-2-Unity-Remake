@@ -301,10 +301,10 @@ namespace GoF2Remake.Flight
         /// when nothing happened (no lock, a full hold), so the touch fire button shoots instead.</summary>
         public bool Interact()
         {
-            if (State == Phase.Idle && !string.IsNullOrEmpty(MineRefusal?.Invoke(Session.ShipIndex)))
+            if (State == Phase.Idle)
             {
-                Say(MineRefusal(Session.ShipIndex));
-                return false;
+                string refusal = MineRefusal?.Invoke(Session.ShipIndex);
+                if (!string.IsNullOrEmpty(refusal)) { Say(refusal); return false; }
             }
             switch (State)
             {
