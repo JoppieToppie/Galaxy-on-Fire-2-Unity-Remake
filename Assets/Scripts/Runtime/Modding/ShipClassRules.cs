@@ -27,6 +27,42 @@ namespace GoF2Remake.Modding
 {
     public static class ShipClassRules
     {
+        // Canonical project taxonomy. These are available to every mod, but no original hull is assigned
+        // automatically; a mod explicitly sets shipClass on each hull it wants classified.
+        public const string LightFighter = "light_fighter";
+        public const string HeavyFighter = "heavy_fighter";
+        public const string LightBomber = "light_bomber";
+        public const string HeavyBomber = "heavy_bomber";
+        public const string Interceptor = "interceptor";
+        public const string StealthBomber = "stealth_bomber";
+        public const string StealthFighter = "stealth_fighter";
+        public const string Scout = "scout";
+        public const string Hauler = "hauler";
+        public const string LightPrivateer = "light_privateer";
+        public const string Privateer = "privateer";
+        public const string HeavyPrivateer = "heavy_privateer";
+        public const string Frigate = "frigate";
+        public const string Freighter = "freighter";
+        public const string Cruiser = "cruiser";
+        public const string Carrier = "carrier";
+
+        /// <summary>The 16 canonical project classes, in the agreed taxonomy order.</summary>
+        public static readonly string[] CanonicalClassIds =
+        {
+            LightFighter, HeavyFighter, LightBomber, HeavyBomber, Interceptor, StealthBomber,
+            StealthFighter, Scout, Hauler, LightPrivateer, Privateer, HeavyPrivateer,
+            Frigate, Freighter, Cruiser, Carrier
+        };
+
+        /// <summary>Whether an id is one of the 16 canonical classes. Custom class tags remain valid compatibility labels.</summary>
+        public static bool IsCanonicalClass(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return false;
+            foreach (var known in CanonicalClassIds)
+                if (string.Equals(id, known, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
         /// <summary>Item attribute 143 (stats "scanClass"): 1 = a scanner that shows a locked ship's class on the plate.</summary>
         public const int ScanClassAttr = 143;
 
