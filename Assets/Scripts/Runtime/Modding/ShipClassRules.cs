@@ -81,8 +81,21 @@ namespace GoF2Remake.Modding
         static readonly string[] InternalDockClasses = { "fighter", "interceptor", "bomber" };
         static readonly string[] ExternalDockClasses = { "frigate", "cruiser", "carrier" };
 
-        public static bool IsInternalDockClass(ShipData ship) => Matches(ship, InternalDockClasses);
-        public static bool IsExternalDockClass(ShipData ship) => Matches(ship, ExternalDockClasses);
+        public static bool IsInternalDockClass(ShipData ship) =>
+            ShipClassCatalog.DockingRoleOf(ship?.shipClass) == ShipDockingRole.InternalOnly || MatchesTags(ship, InternalDockClasses);
+
+        public static bool IsExternalDockClass(ShipData ship) =>
+            ShipClassCatalog.DockingRoleOf(ship?.shipClass) == ShipDockingRole.ExternalOnly || MatchesTags(ship, ExternalDockClasses);
+
+        // The registered base class determines the default docking role. Custom classes may still opt in through classTags.
+        static bool MatchesTags(ShipData ship, string[] words)
+        {
+            if (ship?.classTags == null || words == null) return false;
+            foreach (var tag in ship.classTags)
+                foreach (var word in words)
+                    if (string.Equals(tag, word, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
 
         /// <summary>
         /// Internal hangars accept fighter / interceptor / bomber classes. For backward compatibility, an otherwise
@@ -109,7 +122,9 @@ namespace GoF2Remake.Modding
         {
             string id = ClassOf(ship);
             if (id == null) return null;
-            return string.IsNullOrEmpty(ship.shipClassLabel) ? Humanize(id) : ship.shipClassLabel;
+            return string.IsNullOrEmpty(ship.shipClassLabel)
+                ? ShipClassCatalog.Get(id)?.DisplayName ?? Humanize(id)
+                : ship.shipClassLabel;
         }
 
         /// <summary>"light_fighter" / "mymod:light-fighter" -> "Light Fighter" (a mod prefix is left off).</summary>
@@ -168,7 +183,7 @@ namespace GoF2Remake.Modding
         {
             if (ModJson.Get(o, "shipClass") is JToken c && c.Type == JTokenType.String)
             {
-                s.shipClass = string.IsNullOrWhiteSpace((string)c) ? null : ((string)c).Trim();
+                s.shipClass = ShipClassCatalog.CanonicalId(string.IsNullOrWhiteSpace((string)c) ? null : ((string)c).Trim());
                 if (s.shipClass == null) s.shipClassLabel = null;
             }
             if (s.shipClass != null && (ModJson.Has(o, "className") || mod != null && ModJson.Has(o, "shipClass")))

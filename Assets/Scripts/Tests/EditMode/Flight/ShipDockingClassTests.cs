@@ -34,6 +34,51 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(-100, mounts[1].position_engine[0]);
         }
 
+        [Test]
+        public void BaseShipClassCatalogDefinesAllFourteenClassesWithoutAssigningThemToShips()
+        {
+            Assert.AreEqual(14, ShipClassCatalog.All.Count);
+            Assert.IsNull(ShipClassRules.ClassOf(new ShipData()));
+            Assert.AreEqual("light_fighter", ShipClassCatalog.CanonicalId("LIGHT_FIGHTER"));
+            Assert.AreEqual("Light Fighter", ShipClassCatalog.Get("light_fighter").DisplayName);
+            Assert.AreEqual("my_mod:gunship", ShipClassCatalog.CanonicalId("my_mod:gunship"));
+        }
+
+        [TestCase("light_fighter")]
+        [TestCase("heavy_fighter")]
+        [TestCase("light_bomber")]
+        [TestCase("heavy_bomber")]
+        [TestCase("interceptor")]
+        [TestCase("stealth_bomber")]
+        public void BaseFighterAndBomberClassesDefaultToInternalDocking(string classId)
+        {
+            var ship = new ShipData { shipClass = classId };
+            Assert.IsTrue(ShipClassRules.CanDockInternally(ship, false));
+            Assert.IsFalse(ShipClassRules.CanDockExternally(ship));
+        }
+
+        [TestCase("frigate")]
+        [TestCase("cruiser")]
+        [TestCase("carrier")]
+        public void BaseCapitalClassesDefaultToExternalDocking(string classId)
+        {
+            var ship = new ShipData { shipClass = classId };
+            Assert.IsFalse(ShipClassRules.CanDockInternally(ship, false));
+            Assert.IsTrue(ShipClassRules.CanDockExternally(ship));
+        }
+
+        [TestCase("hauler")]
+        [TestCase("light_privateer")]
+        [TestCase("privateer")]
+        [TestCase("heavy_privateer")]
+        [TestCase("freighter")]
+        public void UtilityAndPrivateerClassesKeepSizeBasedDocking(string classId)
+        {
+            var ship = new ShipData { shipClass = classId };
+            Assert.IsTrue(ShipClassRules.CanDockInternally(ship, false));
+            Assert.IsFalse(ShipClassRules.CanDockExternally(ship));
+        }
+
         [TestCase("fighter")]
         [TestCase("interceptor")]
         [TestCase("bomber")]
