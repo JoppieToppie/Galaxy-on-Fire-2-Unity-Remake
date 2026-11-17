@@ -67,7 +67,7 @@
  "uiStyle": "Oberflächenstil",
  "uiStyleRemake": "Remake",
  "uiStyleOriginal": "Original",
- "uiStyleHelp": "Remake: das Aussehen des Remakes. Original: die Fenster, Schaltflächen und Farben des Originalspiels; die Menüs behalten alle neuen Funktionen.",
+  "uiStyleHelp": "Remake ist die Standardoberfläche, auch bei Cosmetic Experience: Original. Die Original-Oberfläche bleibt als ältere Option mit veraltetem Layout und Bedienkomfort erhalten. Wähle sie bei Bedarf manuell; Cosmetic-Experience-Voreinstellungen ändern den Oberflächenstil nicht.",
  "capitalCarrier": "Träger",
  "capitalDesc": "Großkampfschiffe bekommen Begleiter und stärkere Türme; Träger und Vossk-Schlachtschiffe sind zerstörbar und andockbar.",
  "capitalOff": "Original",

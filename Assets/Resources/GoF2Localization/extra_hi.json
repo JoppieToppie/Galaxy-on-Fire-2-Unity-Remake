@@ -1520,7 +1520,7 @@
  "uiStyle": "इंटरफ़ेस शैली",
  "uiStyleRemake": "रीमेक",
  "uiStyleOriginal": "मूल",
- "uiStyleHelp": "रीमेक: रीमेक का रूप। मूल: मूल गेम के पैनल, बटन और रंग; मेनू में सभी नई सुविधाएँ बनी रहती हैं।",
+  "uiStyleHelp": "Cosmetic Experience: Original के साथ भी डिफ़ॉल्ट इंटरफ़ेस Remake है। Original इंटरफ़ेस अपने पुराने लेआउट और उपयोगिता के कारण केवल एक वैकल्पिक पुराना रूप है। उसका रूप पसंद हो तो उसे स्वयं चुनें; Cosmetic Experience प्रीसेट इंटरफ़ेस शैली नहीं बदलते।",
  "filesOnMyIpad": "फ़ाइलें › मेरे iPad पर",
  "filesOnMyIphone": "फ़ाइलें › मेरे iPhone पर",
  "invertOrbitY": "कैमरा दृश्य: ऊपर / नीचे उलटें",

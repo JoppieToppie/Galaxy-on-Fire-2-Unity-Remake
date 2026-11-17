@@ -67,7 +67,7 @@
  "uiStyle": "Styl interfejsu",
  "uiStyleRemake": "Remake",
  "uiStyleOriginal": "Oryginalny",
- "uiStyleHelp": "Remake: wygląd remake'u. Oryginalny: panele, przyciski i kolory oryginalnej gry; menu zachowują wszystkie nowe funkcje.",
+  "uiStyleHelp": "Remake jest domyślnym interfejsem, także przy Cosmetic Experience: Original. Interfejs Original pozostaje starszą opcją o przestarzałym układzie i ergonomii. Wybierz go ręcznie, jeśli wolisz jego wygląd; zestawy Cosmetic Experience nie zmieniają stylu interfejsu.",
  "capitalCarrier": "Lotniskowiec",
  "capitalDesc": "Okręty liniowe mają eskortę i mocniejsze wieżyczki; lotniskowce i pancerniki Vossków można zniszczyć i zadokować.",
  "capitalOff": "Oryginalne",

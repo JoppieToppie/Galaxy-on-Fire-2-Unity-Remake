@@ -1610,7 +1610,7 @@
  "uiStyle": "نمط الواجهة",
  "uiStyleRemake": "ريميك",
  "uiStyleOriginal": "الأصلي",
- "uiStyleHelp": "ريميك: مظهر الريميك. الأصلي: لوحات اللعبة الأصلية وأزرارها وألوانها؛ تحتفظ القوائم بكل ميزة جديدة.",
+  "uiStyleHelp": "واجهة Remake هي الافتراضية حتى مع Cosmetic Experience: Original. تُحفظ واجهة Original كخيار قديم بتصميم وسهولة استخدام متقادمين. اخترها يدويًا إذا كنت تفضل مظهرها؛ لا تغيّر إعدادات Cosmetic Experience المسبقة نمط الواجهة.",
  "filesOnMyIpad": "الملفات › على الـ iPad",
  "filesOnMyIphone": "الملفات › على الـ iPhone",
  "fpsPosition": "موضع عداد الإطارات (FPS)",

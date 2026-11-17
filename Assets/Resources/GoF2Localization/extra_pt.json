@@ -67,7 +67,7 @@
  "uiStyle": "Estilo da interface",
  "uiStyleRemake": "Remake",
  "uiStyleOriginal": "Original",
- "uiStyleHelp": "Remake: o visual do remake. Original: os painéis, botões e cores do jogo original; os menus mantêm todos os recursos novos.",
+  "uiStyleHelp": "Remake é a interface padrão, inclusive com Cosmetic Experience: Original. A interface Original permanece como opção antiga, com disposição e usabilidade ultrapassadas. Se preferir sua aparência, selecione-a manualmente; os preajustes de Cosmetic Experience não alteram o estilo da interface.",
  "capitalCarrier": "Porta-naves",
  "capitalDesc": "Naves capitais ganham escoltas e torres mais fortes; porta-naves e encouraçados vossk podem ser destruídos e atracados.",
  "capitalOff": "Originais",

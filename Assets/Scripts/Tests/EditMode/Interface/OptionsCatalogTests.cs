@@ -455,5 +455,34 @@ namespace GoF2Remake.Tests
             finally { Settings.OverrideAndroidDefaults(null); }
         }
 
+        [Test]
+        public void InterfaceStyleBelongsToCosmeticsUiAndItsReset()
+        {
+            var row = OptionsCatalog.All().Single(o => o.id == "originalUi");
+            Assert.AreEqual(OptionPage.Cosmetics, row.page);
+            Assert.AreEqual(OptionSection.Interface, row.section);
+            StringAssert.Contains("Select it manually", row.description());
+            StringAssert.Contains("Cosmetic Experience", row.description());
+            row.setIndex(1);
+            Settings.Reset(Settings.GraphicsKeys);
+            Assert.IsTrue(Settings.OriginalUi, "Graphics reset does not change the interface style");
+            Settings.Reset(Settings.CosmeticsKeys);
+            Assert.IsFalse(Settings.OriginalUi, "Cosmetics owns the reset");
+        }
+
+        [Test]
+        public void OriginalExperienceStillDefaultsToRemakeUiAndPreservesManualStyle()
+        {
+            Settings.Reset(new[] { "originalUi" });
+            Settings.ApplyExperience(Settings.ExperienceOriginal);
+            Settings.ApplyScopedExperience(true, 0);
+            Settings.ApplyScopedExperience(false, 0);
+            Assert.IsFalse(Settings.OriginalUi, "Original gameplay never forces the old interface");
+            Settings.OriginalUi = true;
+            Settings.ApplyExperience(Settings.ExperienceOriginal);
+            Settings.ApplyScopedExperience(false, 1);
+            Assert.IsTrue(Settings.OriginalUi, "the old interface remains an explicit independent preference");
+        }
+
     }
 }

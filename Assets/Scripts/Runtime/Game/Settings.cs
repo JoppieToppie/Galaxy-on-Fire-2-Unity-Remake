@@ -846,7 +846,7 @@ namespace GoF2Remake.Data
         /// <summary>Remake: Options > Accessibility "High contrast": opaque panels, brighter secondary text and lines
         /// (GoF2Common.uss .ui-high-contrast).</summary>
         public static bool HighContrast { get => GetBool("highContrast", false); set => SetBool("highContrast", value); }
-        /// <summary>Remake (players' wish): Options > Graphics "Interface style" Original: the menus drawn with the original game's
+        /// <summary>Remake (players' wish): Options > Cosmetics > UI "Interface style" Original: the menus drawn with the original game's
         /// panels, buttons and colours (UiLayout's root class ui-style-original, GoF2Original.uss); the layouts and the remake's
         /// screens and features stay. Off (default) = the remake's look.</summary>
         public static bool OriginalUi { get => GetBool("originalUi", false); set => SetBool("originalUi", value); }
@@ -948,7 +948,7 @@ namespace GoF2Remake.Data
         {
             "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality",
             "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "npcPlayerEngines", "fov",
-            "cameraShake", "originalChaseCamera", "originalUi", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
+            "cameraShake", "originalChaseCamera", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
         };
         public static readonly string[] ControlsKeys =
         {
@@ -958,7 +958,7 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] CosmeticsKeys =
         {
-            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "shopByCategory",
+            "launchCamera", "hangarFlights", "tutorialHints", "showStoryStep", "shopByCategory", "originalUi",
             "dyingCargoMarkers", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "hintScale",
             "hudMode", "hudScale", "hudOpacity", "farShipMarkers",
             "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength",

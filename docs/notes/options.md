@@ -254,3 +254,5 @@ verified on a Mac or an iPhone.
   reflections pick their blur by mip level); textures made at run time (the mods') aren't affected. Android already
   compresses everything as ASTC (the project's Android default format). Mobile is always display-synced: V-Sync there
   means `targetFrameRate` = display refresh rate.
+
+- Interface style belongs to Cosmetics > UI, including reset ownership. Remake is the default even with Original presets. Original UI is a manual legacy appearance option; experience presets preserve that choice.

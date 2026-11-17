@@ -1610,7 +1610,7 @@
  "uiStyle": "インターフェースのスタイル",
  "uiStyleRemake": "リメイク",
  "uiStyleOriginal": "オリジナル",
- "uiStyleHelp": "リメイク：リメイクの見た目。オリジナル：元のゲームのパネル、ボタン、色。メニューの新機能はすべてそのまま使えます。",
+  "uiStyleHelp": "Cosmetic Experience が Original の場合も、標準のインターフェースは Remake です。Original は配置や操作性が古い旧式の外観オプションとして残されています。好みに応じて手動で選択してください。Cosmetic Experience のプリセットはインターフェースのスタイルを変更しません。",
  "filesOnMyIpad": "ファイル › このiPad内",
  "filesOnMyIphone": "ファイル › このiPhone内",
  "fpsPosition": "FPSカウンターの位置",

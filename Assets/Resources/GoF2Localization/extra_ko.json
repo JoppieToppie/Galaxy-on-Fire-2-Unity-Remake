@@ -1610,7 +1610,7 @@
  "uiStyle": "인터페이스 스타일",
  "uiStyleRemake": "리메이크",
  "uiStyleOriginal": "오리지널",
- "uiStyleHelp": "리메이크: 리메이크의 모습. 오리지널: 원작 게임의 패널, 버튼, 색상. 메뉴의 새 기능은 모두 그대로 유지됩니다.",
+  "uiStyleHelp": "Cosmetic Experience가 Original이어도 기본 인터페이스는 Remake입니다. Original은 배치와 사용성이 오래된 레거시 외형 옵션으로 유지됩니다. 해당 외형을 원하면 직접 선택하세요. Cosmetic Experience 프리셋은 인터페이스 스타일을 변경하지 않습니다.",
  "filesOnMyIpad": "파일 › 나의 iPad",
  "filesOnMyIphone": "파일 › 나의 iPhone",
  "fpsPosition": "FPS 카운터 위치",

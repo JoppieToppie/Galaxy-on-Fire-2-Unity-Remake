@@ -1520,7 +1520,7 @@
  "uiStyle": "界面风格",
  "uiStyleRemake": "重制版",
  "uiStyleOriginal": "原版",
- "uiStyleHelp": "重制版：重制版的外观。原版：原版游戏的面板、按钮和颜色；菜单保留所有新功能。",
+  "uiStyleHelp": "Remake 是默认界面，即使 Cosmetic Experience 选择 Original 也是如此。Original 界面的布局和易用性已经过时，仅作为旧版外观选项保留。如喜欢其外观，请手动选择；Cosmetic Experience 预设不会更改界面样式。",
  "filesOnMyIpad": "文件 › 我的 iPad",
  "filesOnMyIphone": "文件 › 我的 iPhone",
  "invertOrbitY": "镜头视角：上下反转",

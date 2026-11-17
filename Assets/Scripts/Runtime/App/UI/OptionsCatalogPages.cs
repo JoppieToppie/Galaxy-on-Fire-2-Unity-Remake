@@ -270,10 +270,10 @@ namespace GoF2Remake.UI
             }
             // Remake (players' wish): the original game's look for every menu, the remake's screens and features kept
             // (Settings.OriginalUi, GoF2Original.uss).
-            list.Add(Choice("originalUi", OptionPage.Graphics, () => X("uiStyle", "Interface style"), true,
+            list.Add(Choice("originalUi", OptionPage.Gameplay, () => X("uiStyle", "Interface style"), true,
                 () => new[] { X("uiStyleRemake", "Remake"), X("uiStyleOriginal", "Original") },
                 () => Settings.OriginalUi ? 1 : 0, i => Settings.OriginalUi = i == 1,
-                () => X("uiStyleHelp", "Remake: the remake's look. Original: the original game's panels, buttons and colours; the menus keep every new feature.")));
+                () => X("uiStyleHelp", "Remake is the default interface, including with Cosmetic Experience: Original. The Original interface is a legacy option with dated layout and usability. Select it manually if you prefer its appearance; Cosmetic Experience presets do not change Interface style.")));
             list.Add(Choice("uiWidth", OptionPage.Graphics, () => X("uiWidth", "Interface width"), true,
                 () => new[] { "16:9", "21:9", X("uiWidthFull", "Full width") },
                 () => Settings.UiWidth, i => Settings.UiWidth = i,
