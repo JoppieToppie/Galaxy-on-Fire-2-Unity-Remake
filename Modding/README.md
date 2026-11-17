@@ -3467,9 +3467,48 @@ Use `allowedClasses` and/or `excludedClasses` on an item in `items.json` (new it
 - An unclassified ship (no class and no tags) remains unrestricted. A mod must classify a hull before class restrictions apply to it; this prevents a mod's item override from unexpectedly changing every stock ship.
 - If an item has an allow-list, a classified ship must match at least one entry. If it has an exclude-list, matching any entry blocks it. If both are present, both conditions apply.
 - An empty list clears that item's corresponding restriction. Omitting a field in an override leaves an earlier mod's value intact.
-- Class IDs are free-form mod data. The agreed convention for this project is: `light_fighter`, `heavy_fighter`, `light_bomber`, `heavy_bomber`, `interceptor`, `stealth_bomber`, `hauler`, `light_privateer`, `privateer`, `heavy_privateer`, `frigate`, `freighter`, `cruiser`, and `carrier`. These are conventions, not engine-enforced enums. The Corvette is a `cruiser` when a mod assigns it.
+- The engine defines 16 canonical project classes: `light_fighter`, `heavy_fighter`, `light_bomber`, `heavy_bomber`, `interceptor`, `stealth_bomber`, `stealth_fighter`, `scout`, `hauler`, `light_privateer`, `privateer`, `heavy_privateer`, `frigate`, `freighter`, `cruiser`, and `carrier`. Their IDs are exposed by `ShipClassRules`; they are not automatically assigned to original hulls. Mods assign `shipClass` per hull. Additional `classTags` may still be mod-defined. The Scimitar is the `stealth_fighter`; Betty and Wasp are `scout` hulls; the Nivelian Corvette is a `cruiser`.
 - Optional `className` text (or `text/<language>.json` key `shipclass.<id>.name`) controls the scanner's display label; otherwise the ID is humanized.
 
 The rules apply when mounting or swapping equipment, when equipment is carried onto another hull, and when built-in equipment is synchronized. Incompatible mounted items are returned to the hold, not deleted. Multiplayer profile validation also moves incompatible equipment to the hold on the server, so a modified client cannot retain an invalid loadout by uploading a save.
 
 A scanner item can set `"stats": { "scanClass": 1 }` (attribute 143) to show a target ship's mod-defined class on its lock plate. Ships without a class do not show a class label. This also works for other players' ships in multiplayer.
+
+
+### Class design thesis and movement envelopes
+
+The 16 classes describe ship roles and broad handling expectations; they are **not** one-size-fits-all stat presets. Every hull is tuned individually within its class envelope. Equipment restrictions use the class identity, while movement values remain per-ship data.
+
+| Class | Role and defining characteristics | Movement intent |
+|---|---|---|
+| Light Fighter | Agile combat craft; strong handling and useful primary-weapon capability. | Responsive fighter handling within the standard dogfight speed band. |
+| Heavy Fighter | Heavier fighter with substantial weapon fit; turret-equipped fighters need at least four weapon hardpoints. Fighter classification normally uses the 75-tonne cargo boundary as a guide, not a substitute for inspecting the hull. | More mass and momentum than a light fighter, while retaining fighter-grade control. |
+| Light Bomber | Secondary-weapon/bombing-equipment focused attack craft. | Less agile than fighters; movement must account for ordnance load and momentum. |
+| Heavy Bomber | Larger or more heavily equipped bomber; Teneta is the current assignment. | Heavier momentum than light bombers; do not tune as a fighter with extra weapons. |
+| Interceptor | High-speed combat specialist with strong primary weapons; no turrets. Turret configuration is a disqualifier for this class. | 300–500 m/s intended speed envelope; high acceleration and fast response, while preserving strong primary combat capability. |
+| Stealth Bomber | Stealth-oriented bomber role. No hull is currently assigned in the reviewed roster. | Bomber momentum and secondary-weapon priorities; stealth does not imply interceptor agility. |
+| Stealth Fighter | Stealth-oriented fighter role; Scimitar is assigned here. | Fighter handling with its own per-hull stealth trade-offs; do not classify it as a bomber. |
+| Scout | Reconnaissance and mobility specialist; Betty and Wasp are assigned here. Limited combat emphasis distinguishes it from an interceptor. | 300–500 m/s intended speed envelope, combining interceptor-like speed with fighter-like agility. |
+| Hauler | Large cargo capacity and no primary weapons; cargo role takes precedence over combat capability. | Cargo mass and inertia matter more than dogfight agility; tune each hull to its load and scale. |
+| Light Privateer | Multipurpose ship with useful cargo for its size and mixed weapon capability; Furious, Salvéhn and Cronus are assigned here. | More agile than heavier privateers; handling sits between fighters and bombers. |
+| Privateer | General-purpose privateer; Groza, Velasco, Blue Fyre, Anaan, Nuyang II and Hernstein are assigned here. | Balanced handling between fighter and bomber behaviour, with cargo and weapon compromises. |
+| Heavy Privateer | Larger multipurpose privateer; Bloodstar, Gator Custom, S'Kanarr and Dark Angel are assigned here. | More momentum than standard privateers, but not automatically a capital-ship flight model. |
+| Frigate | Capital combat vessel. No hull is assigned in the reviewed class roster. | Capital-scale handling; fighter dogfight speed assumptions do not apply. Tune steering and translation independently. |
+| Freighter | Large transport/cargo vessel. Terran Freighter is the intended class assignment. | Cargo- and mass-led movement; slower response and substantial momentum are expected, but values remain hull-specific. |
+| Cruiser | Capital combat vessel; the Nivelian Corvette is classified as a cruiser. | Capital-scale movement with independent roll, strafe and steering tuning; not a fighter profile. |
+| Carrier | Fleet-support capital vessel. | Capital-scale movement; tune for hull size and role rather than borrowing freighter or fighter values. |
+
+**Movement baselines and control priorities**
+
+- Standard dogfighting ships should generally sit around **215–325 m/s**.
+- Interceptors and scouts should generally sit around **300–500 m/s**.
+- Forward thrust is the strongest translation axis. Reverse acceleration should be stronger than lateral strafe; vertical movement shares the strafe behaviour.
+- Reverse acceleration must be independently tunable rather than inheriting strafe acceleration.
+- Roll, lateral/vertical strafe and steering on the two turn axes must be independently tunable wherever the flight model exposes them. A ship can, for example, have excellent roll but poor strafing: the Amboss is the explicit reference case.
+- Class envelopes guide tuning; they do not override individual hull identity. Do not flatten ships into identical movement presets just because they share a class.
+
+**Reviewed assignment decisions**
+
+The additional classes were deliberate additions to the original fourteen: **Stealth Fighter** (Scimitar) and **Scout** (Betty, Wasp). Other accepted corrections include VoidX remaining Heavy Fighter, Gryphon remaining Heavy Fighter, Nuyang II and Hernstein as Privateers, Dark Angel as Heavy Privateer, and Cronus as Light Privateer. Stealth Bomber remains unassigned. The Frigate class remains available even where no hull is assigned in the reviewed roster. The Corvette is a Cruiser, not a Frigate or Privateer.
+
+These assignments are mod data decisions, not automatic base-game classifications. A mod that wants these classifications must explicitly set `shipClass` on its ship entries.
