@@ -127,7 +127,7 @@ namespace GoF2Remake.Data
         public string glowShape;
         /// <summary>Per-mount turret model scale; multiplies the weapon's own turret scale. 1 = unchanged, up to 1000.</summary>
         public float turretScale = 1f;
-        public float TurretScale => float.IsNaN(turretScale) || float.IsInfinity(turretScale) ? 1f : Mathf.Clamp(turretScale, 0.01f, 1000f);
+        public float TurretScale => turretScale <= 0f || float.IsNaN(turretScale) || float.IsInfinity(turretScale) ? 1f : Mathf.Clamp(turretScale, 0.01f, 1000f);
 
         /// <summary>turretUp (else upsideDown) in the Unity ship frame ((-x, y, z), the models are mirrored): a unit vector,
         /// Vector3.up for a plain mount.</summary>
