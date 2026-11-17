@@ -2,7 +2,7 @@
 // Remake mods: ship classes and the equipment that only some classes may mount. Optional everywhere: no original ship has a
 // class and no original item a list, so without a mod using them nothing changes (AI_PROJECT_CONTEXT.md 6.1 / 6.2).
 //   ships.json (a new ship or an "override" of an original one):
-//       "shipClass": "light_fighter"            the ship's class, a free word the mod picks (what a class scanner shows)
+//       "shipClass": "light_fighter"            one of the 16 canonical project classes (what a class scanner shows)
 //       "classTags": ["small", "mymod:agile"]   more free words the ship answers to (a mod's own, or shared with other mods)
 //   items.json (a new item or an "override"):
 //       "allowedClasses":  ["frigate", "capital"]   only a ship whose class or tags name one of these may mount it
@@ -134,8 +134,12 @@ namespace GoF2Remake.Modding
         /// <summary>ModContent.ParseShips: the fields are readable (errors with file and line).</summary>
         public static void CheckShip(JObject o, string where, ModInfo mod, string file)
         {
-            if (ModJson.Get(o, "shipClass") is JToken c && c.Type != JTokenType.String)
-                throw new ModJsonException($"{ModJson.Where(c, file)}: \"shipClass\" must be a word, e.g. \"light_fighter\"");
+            var classToken = ModJson.Get(o, "shipClass");
+            if (classToken != null && classToken.Type != JTokenType.String)
+                throw new ModJsonException($"{ModJson.Where(classToken, file)}: \"shipClass\" must be one of the 16 canonical class ids, e.g. \"light_fighter\"");
+            if (classToken != null && classToken.Type == JTokenType.String &&
+                !string.IsNullOrWhiteSpace((string)classToken) && !IsCanonicalClass((string)classToken))
+                throw new ModJsonException($"{ModJson.Where(classToken, file)}: unknown ship class \"{(string)classToken}\"; use one of the 16 canonical class ids");
             CheckWords(o, "classTags", where, mod, file);
         }
 
