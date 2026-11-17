@@ -39,6 +39,9 @@ namespace GoF2Remake.Flight
     {
         public enum Phase { Idle, Approaching, Landing, Docked, Mining }
 
+        /// <summary>Optional mod rule: why the current ship cannot mine (null = allowed).</summary>
+        public static Func<int, string> MineRefusal = ship => null;
+
         const float M = 0.05f;
         const float CrosshairDistanceMeters = 22000f * M;   // same aim point as the HUD crosshair
 
@@ -94,7 +97,7 @@ namespace GoF2Remake.Flight
         ItemData drill;
         int lockTimeMs = 8000;
         float lockTimer;
-        bool wasLocked;
+        bool wasLocked, miningBlockedNoticeShown;
         Target refusedNoDrill;   // remake: its lock ran out without a drill; ignored until it leaves the crosshair box
         float dockDistance, pitchAccumulator;
         bool ready;
@@ -211,6 +214,19 @@ namespace GoF2Remake.Flight
         /// crosshair), lock timer.</summary>
         void UpdateLock(float dtMs)
         {
+            // A class rule blocks both ordinary drilling and the beam: remove the asteroid lock before either can start.
+            string refusal = MineRefusal?.Invoke(Session.ShipIndex);
+            if (!string.IsNullOrEmpty(refusal))
+            {
+                if (!miningBlockedNoticeShown) Say(refusal);
+                miningBlockedNoticeShown = true;
+                Candidate = Locked = refusedNoDrill = null;
+                LockFrame = -1;
+                lockTimer = 0f;
+                wasLocked = false;
+                return;
+            }
+            miningBlockedNoticeShown = false;
             // No mining in an arena match, nor in the Supernova Challenge (remake: the Blue Fyre has no drill, and the
             // asteroid lock's "No drill installed." came up at every rock in the fight).
             if (GoF2Remake.World.SpaceHooks.InArena || SupernovaChallenge.Active) return;
@@ -285,6 +301,11 @@ namespace GoF2Remake.Flight
         /// when nothing happened (no lock, a full hold), so the touch fire button shoots instead.</summary>
         public bool Interact()
         {
+            if (State == Phase.Idle && !string.IsNullOrEmpty(MineRefusal?.Invoke(Session.ShipIndex)))
+            {
+                Say(MineRefusal(Session.ShipIndex));
+                return false;
+            }
             switch (State)
             {
                 case Phase.Idle:
@@ -600,7 +621,8 @@ namespace GoF2Remake.Flight
         /// locked asteroid (the nose on it, in reach, room in the hold). Otherwise the press stays the guns': a far or missed
         /// asteroid or a full hold no longer silences them (a locked asteroid behind an enemy did, mid-fight).</summary>
         bool BeamClaimsFire() =>
-            BeamMode && State == Phase.Idle && (beamOn || (Locked != null && Locked.Alive && !beamRefused && StartRefusal(Locked) == null));
+            BeamMode && State == Phase.Idle && string.IsNullOrEmpty(MineRefusal?.Invoke(Session.ShipIndex))
+            && (beamOn || (Locked != null && Locked.Alive && !beamRefused && StartRefusal(Locked) == null));
 
         /// <summary>The radius of the rock's visible surface in metres: about 0.85 of the mesh's bounding radius (the hit radius
         /// is 0.7 of it).</summary>
