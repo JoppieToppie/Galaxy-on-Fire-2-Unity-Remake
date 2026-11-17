@@ -238,3 +238,5 @@ verified on a Mac or an iPhone.
   reflections pick their blur by mip level); textures made at run time (the mods') aren't affected. Android already
   compresses everything as ASTC (the project's Android default format). Mobile is always display-synced: V-Sync there
   means `targetFrameRate` = display refresh rate.
+
+- Kaamo numeric shortcuts follow visible order: 1 Ship, 2 Store, 3 Ships, 4 Blueprints when the extra tab is present. Ordinary hangars keep 1/2/3 and ignore 4. Cycling and tooltips use the same order.

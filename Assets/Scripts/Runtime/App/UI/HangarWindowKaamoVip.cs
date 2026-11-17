@@ -149,6 +149,10 @@ namespace GoF2Remake.UI
             bool shown = SearchTab;
             vipTools.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
             if (!shown && searchFocused) searchField.Blur();
+            tabShip.tooltip = "1";
+            tabShop.tooltip = "2";
+            tabShips.tooltip = "3";
+            tabBlueprints.tooltip = on ? "4" : "3";
             RefreshVipTexts();
         }
 
@@ -180,10 +184,21 @@ namespace GoF2Remake.UI
             Rebuild();
         }
 
-        /// <summary>The tabs in the order Q / E (LB / RB) walk them: the Ships tab after the Store while the card's on.</summary>
+        /// <summary>The tabs in the order Q / E (LB / RB) walk them: the Ships tab after the Store while the free UI tools are on.</summary>
+        public static Tab[] VisibleTabOrder(bool extraShips) => extraShips
+            ? new[] { Tab.Ship, Tab.Shop, Tab.Ships, Tab.Blueprints }
+            : new[] { Tab.Ship, Tab.Shop, Tab.Blueprints };
+
+        /// <summary>Numeric shortcuts follow visible order; the ordinary three-tab layout keeps 1/2/3.</summary>
+        public void SelectTabNumber(int number)
+        {
+            var order = VisibleTabOrder(VipTools);
+            if (number >= 1 && number <= order.Length) SetTab(order[number - 1]);
+        }
+
         Tab StepTab(int step)
         {
-            var order = VipTools ? new[] { Tab.Ship, Tab.Shop, Tab.Ships, Tab.Blueprints } : new[] { Tab.Ship, Tab.Shop, Tab.Blueprints };
+            var order = VisibleTabOrder(VipTools);
             int i = Array.IndexOf(order, tab);
             if (i < 0) i = 1;
             return order[(i + step + order.Length) % order.Length];
