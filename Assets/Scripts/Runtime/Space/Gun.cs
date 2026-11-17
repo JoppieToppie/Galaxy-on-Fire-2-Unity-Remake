@@ -371,7 +371,7 @@ namespace GoF2Remake.Flight
                     ref var c = ref bullets[i];
                     float side = (made - (salvoShots - 1) * 0.5f) * SalvoSpreadUnits * MetersPerUnit;
                     c.position = Spawn() + rotation * Vector3.right * side;
-                    c.velocity = fwd * speedUnitsPerMs * MetersPerUnit;
+                    c.velocity = shotFwd * speedUnitsPerMs * MetersPerUnit;
                     c.up = up;
                     c.timer = lifetimeMs;
                     c.age = 0f;
