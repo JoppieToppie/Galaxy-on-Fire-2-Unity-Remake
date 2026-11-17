@@ -29,9 +29,8 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   route flies straight on instead of circling the cloaked player. In a session it is the session's rule (see
   "Multiplayer", Gameplay rules). Remake: the homing missiles locked on the ship lose their lock like on a boost (see
   "Missile warning and evasion"); in multiplayer the other players lose the ship's marker and lock (a held lock too,
-  `CombatRadar`) from the moment it engages. Look: the hull switches to `GoF2/Cloak` (Modified 2026-11-17: the PC version's vertex shimmer,
-  each vertex pushed along (1, 1, 1) by 3D simplex noise of its position x8 in game units, up to 4 units as the cloak
-  starts, `CloakShimmer`; BumpShaderCloak's fragment shader
+  `CombatRadar`) from the moment it engages. Look: the hull switches to `GoF2/Cloak` (the PC version's vertex shimmer, BumpShaderCloak.fx's
+  simplex-noise push of up to 4 units as the cloak starts, was tried and left out, 2026-11-17; its fragment shader
   as it is: dissolve by `cloak_map.png`'s veins into the refracted screen with a light-blue band along the front, over
   the lit hull up to 0.5 and into pure refraction by 0.75, so the pattern shows through most of each 2 s fade; #47: it
   ran at twice the speed; drawn by `CloakPass` after URP's transparents from a copy of the frame, like the original's
