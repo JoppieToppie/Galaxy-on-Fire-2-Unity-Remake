@@ -94,8 +94,12 @@ namespace GoF2Remake.Flight
         public float levelGraceMs = FlightModel.LevelGraceMs;
 
         [Header("Free flight: turning")]
-        [Range(1f, 2000f), Tooltip("Top turn rate at handling 100, degrees per second.")]
+        [Range(1f, 2000f), Tooltip("Shared / legacy top turn rate at handling 100, degrees per second. Also the roll rate and the fallback for the pitch and yaw rates below.")]
         public float freeTurnRateDeg = 125f;
+        [Range(0f, 2000f), Tooltip("Pitch top rate at handling 100, degrees per second. 0 uses freeTurnRateDeg.")]
+        public float freePitchRateDeg;
+        [Range(0f, 2000f), Tooltip("Yaw top rate at handling 100, degrees per second. 0 uses freeTurnRateDeg.")]
+        public float freeYawRateDeg;
         [Range(0f, 3f), Tooltip("The turn rate grows with (handling / 100) to this power.")]
         public float freeTurnExponent = FlightModel.FreeTurnExponent;
         [Range(0f, 1f), Tooltip("The share of the turn rate above the top rate at handling 100 that counts.")]
@@ -116,8 +120,10 @@ namespace GoF2Remake.Flight
         public float freeHoverShare = FlightModel.FreeHoverShare;
         [Range(0.01f, 100f), Tooltip("Forward acceleration, top speeds per second (at handling 100).")]
         public float freeAccelForward = 132f / 95.3f;
-        [Range(0.01f, 100f), Tooltip("Backward, sideways and up / down acceleration, their top speeds per second.")]
+        [Range(0.01f, 100f), Tooltip("Sideways and up / down acceleration, their top speeds per second.")]
         public float freeAccelSide = 90f / 47.65f;
+        [Range(0f, 100f), Tooltip("Backward acceleration, in backward top speeds per second. 0 uses freeAccelSide; does not change the backward top speed.")]
+        public float freeAccelReverse;
         [Range(0f, 3f), Tooltip("The acceleration grows with (handling / 100) to this power.")]
         public float freeAccelHandlingExponent = 0.5f;
         [Range(0.1f, 20f), Tooltip("Dampeners on: the acceleration eases out as 1 - (speed / top speed) to this power.")]
