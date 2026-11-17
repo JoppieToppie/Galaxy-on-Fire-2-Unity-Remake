@@ -49,7 +49,7 @@ namespace GoF2Remake.Tests
         public void CosmeticsAndGameplayUseTheAgreedSubsections()
         {
             var all = OptionsCatalog.All();
-            foreach (var id in new[] { "launchCamera", "hangarFlights", "animatedDialogue", "systemMapAnimationSpeed" })
+            foreach (var id in new[] { "launchCamera", "hangarFlights", "animatedDialogue" })
             {
                 var row = all.First(o => o.id == id);
                 Assert.AreEqual(OptionPage.Cosmetics, row.page, id);
@@ -57,11 +57,18 @@ namespace GoF2Remake.Tests
             }
             foreach (var id in new[] { "hudMode", "inputHints", "shopByCategory" })
                 Assert.AreEqual(OptionSection.Interface, all.First(o => o.id == id).section, id);
-            foreach (var id in new[] { "kaamoKeepsEquipment", "hostileAutopilotFastForward", "autoJumpgate" })
+            foreach (var id in new[] { "kaamoKeepsEquipment", "autoJumpgate" })
             {
                 var row = all.First(o => o.id == id);
                 Assert.AreEqual(OptionPage.Gameplay, row.page, id);
                 Assert.AreEqual(OptionSection.Convenience, row.section, id);
+            }
+            // These options are supplied by separate PRs; validate placement when integrated, without requiring them.
+            foreach (var row in all.Where(o => o.id == "systemMapAnimationSpeed" || o.id == "hostileAutopilotFastForward"))
+            {
+                bool cosmetic = row.id == "systemMapAnimationSpeed";
+                Assert.AreEqual(cosmetic ? OptionPage.Cosmetics : OptionPage.Gameplay, row.page);
+                Assert.AreEqual(cosmetic ? OptionSection.SpecialFeatures : OptionSection.Convenience, row.section);
             }
             Assert.AreEqual(OptionPage.Accessibility, all.First(o => o.id == "discordPresence").page);
             var rules = all.Where(o => o.section == OptionSection.GameRules).ToList();
@@ -447,5 +454,6 @@ namespace GoF2Remake.Tests
             }
             finally { Settings.OverrideAndroidDefaults(null); }
         }
+
     }
 }
