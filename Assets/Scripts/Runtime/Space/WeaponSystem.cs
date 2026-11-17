@@ -327,6 +327,14 @@ namespace GoF2Remake.Flight
                     at += Modding.ModHardpoints.MuzzleOffset(shipIndex, shown, secondary, mounts[slot % mounts.Count]);
                 }
                 var gun = new Gun(item, at, secondary);
+                // Secondary launch behaviour belongs to the hardpoint, not the item or its cosmetic model rotation.
+                // Primaries, turrets and NPC weapons retain their existing launch and homing behaviour.
+                if (secondary && mounts.Count > 0)
+                {
+                    var mount = mounts[slot % mounts.Count];
+                    gun.launchTurn = mount.LaunchTurn;
+                    gun.homingDelayMs = Mathf.Max(0, mount.lockDelayMs);
+                }
                 gun.Ignores = t => t.playerProof;   // multiplayer: through squadmates
                 if (!secondary)
                 {
