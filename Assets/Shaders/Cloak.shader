@@ -98,9 +98,15 @@ Shader "GoF2/Cloak"
                 float2 sweep = float2(nTS.x * 100.0 * sin(_CloakRate), nTS.y * 75.0 * cos(_CloakRate)) / float2(1024.0, 768.0);
                 half3 still = SAMPLE_TEXTURE2D_X(_GoF2CloakScene, sampler_GoF2CloakScene, UnityStereoTransformScreenSpaceTex(saturate(suv + bend))).rgb;
                 half3 moving = SAMPLE_TEXTURE2D_X(_GoF2CloakScene, sampler_GoF2CloakScene, UnityStereoTransformScreenSpaceTex(saturate(suv + sweep))).rgb;
-                half glowStill = smoothstep(0.3, 0.75, dot(still, half3(0.3, 0.59, 0.11)));
-                half glowMoving = smoothstep(0.3, 0.75, dot(moving, half3(0.3, 0.59, 0.11)));
-                half3 refr = still * (1.0 - glowStill) + moving * glowMoving;
+                // Modified (the user's Darkzov in an orange nebula, 2026-11-17): the glow taken out of the still picture and
+                // the moving one's put in left black patches where the still one was bright and the moving one dark, and
+                // doubled ones the other way; a bright nebula counted as glow (luma 0.3-0.75). Now the moving picture
+                // replaces the still one where either is glow (luma 0.6-0.95), and both are clamped to the original's LDR.
+                still = saturate(still);
+                moving = saturate(moving);
+                half glowStill = smoothstep(0.6, 0.95, dot(still, half3(0.3, 0.59, 0.11)));
+                half glowMoving = smoothstep(0.6, 0.95, dot(moving, half3(0.3, 0.59, 0.11)));
+                half3 refr = lerp(still, moving, max(glowStill, glowMoving));
 
                 // BumpShaderCloak's fragment shader as it is (libgof2hdaa.so 0x218183): where the dissolve map is below
                 // u_AnimValue (+0.025) the screen behind shows, plus a light-blue band along the dissolve front
