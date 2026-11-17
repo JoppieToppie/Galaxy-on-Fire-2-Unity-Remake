@@ -19,6 +19,10 @@ namespace GoF2Remake.Flight
         static readonly int ColorId = Shader.PropertyToID("_Color");
 
         readonly List<Renderer> engine = new List<Renderer>();
+        /// <summary>Modified: every non-hull renderer of the ship (lights, glow, engine), drawn after the cloaked hull while
+        /// cloaked (Defer) so the hull's depth hides those on its far side.</summary>
+        readonly List<Renderer> all = new List<Renderer>();
+        bool deferred;
         readonly List<(Renderer r, Color baseColor)> dimmed = new List<(Renderer, Color)>();
         MaterialPropertyBlock block;
         bool engineHidden, dimmedSet;
@@ -29,6 +33,7 @@ namespace GoF2Remake.Flight
         public void Add(Renderer r, Transform root)
         {
             if (r == null) return;
+            if (!(r is ParticleSystemRenderer)) all.Add(r);
             if (IsEngine(r.transform, root)) { engine.Add(r); return; }
             var m = r.sharedMaterial;
             if (m == null || m.shader == null || !m.HasProperty(ColorId) || m.shader.name.Contains("Additive")) return;
@@ -52,7 +57,7 @@ namespace GoF2Remake.Flight
             if (hide != engineHidden)
             {
                 engineHidden = hide;
-                foreach (var r in engine) if (r != null) r.forceRenderingOff = hide;
+                if (!deferred) foreach (var r in engine) if (r != null) r.forceRenderingOff = hide;   // deferred: CloakPass skips them
             }
             if (dimmed.Count == 0) return;
             float a = Mathf.Max(50f / 255f, 1f - pct / 100f);
@@ -65,6 +70,25 @@ namespace GoF2Remake.Flight
                 r.SetPropertyBlock(block);
             }
             dimmedSet = true;
+        }
+
+        /// <summary>Modified (the user's report, 2026-11-17): while cloaked ('on') the ship's non-hull renderers are taken
+        /// out of URP's transparent pass (forceRenderingOff) and drawn by CloakPass right after the cloaked hull, whose colour
+        /// pass writes its depth: the lights and glow on the hull's far side stay hidden behind the invisible hull, as behind
+        /// a visible one. Everything else behind it (shots, explosions, smoke) is drawn as before and refracted through it.</summary>
+        public void Defer(object owner, bool on)
+        {
+            if (deferred == on) return;
+            deferred = on;
+            foreach (var r in all) if (r != null) r.forceRenderingOff = on || (engineHidden && engine.Contains(r));
+            GoF2Remake.Visuals.CloakPass.DrawAfterHull(owner, on ? this : null);
+        }
+
+        /// <summary>Modified: the renderers CloakPass draws after the hull (not the hidden engine glow).</summary>
+        public void ForEachDeferred(System.Action<Renderer> draw)
+        {
+            foreach (var r in all)
+                if (r != null && r.enabled && r.gameObject.activeInHierarchy && !(engineHidden && engine.Contains(r))) draw(r);
         }
 
         /// <summary>Uncloaked: everything shown at its own colour again.</summary>

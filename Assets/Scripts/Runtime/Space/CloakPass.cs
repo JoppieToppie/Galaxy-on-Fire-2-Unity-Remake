@@ -32,8 +32,19 @@ namespace GoF2Remake.Visuals
             if (on) owners.Add(owner); else owners.Remove(owner);
         }
 
+        /// <summary>Modified (2026-11-17): the cloaked ships whose lights and glow are drawn right after their hull
+        /// (CloakGlow.Defer), so the hull's depth hides the ones on its far side.</summary>
+        static readonly Dictionary<object, GoF2Remake.Flight.CloakGlow> afterHull = new Dictionary<object, GoF2Remake.Flight.CloakGlow>();
+
+        /// <summary>Modified: 'glow''s renderers drawn after the cloaked hulls (null: no longer).</summary>
+        public static void DrawAfterHull(object owner, GoF2Remake.Flight.CloakGlow glow)
+        {
+            if (owner == null) return;
+            if (glow != null) afterHull[owner] = glow; else afterHull.Remove(owner);
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetOwners() => owners.Clear();
+        static void ResetOwners() { owners.Clear(); afterHull.Clear(); }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Install()
@@ -145,6 +156,24 @@ namespace GoF2Remake.Visuals
                 {
                     ctx.cmd.SetGlobalTexture(SceneId, d.scene);
                     ctx.cmd.DrawRendererList(d.list);
+                    // Modified: then the cloaked ships' own lights and glow, tested against the depth the hull just wrote
+                    // (GoF2/Cloak's colour pass, ZWrite On): those on the far side of the invisible hull stay hidden. Only
+                    // they: the shots, explosions and smoke behind it were drawn before and show through its refraction.
+                    var cmd = ctx.cmd;
+                    foreach (var glow in afterHull.Values)
+                        glow?.ForEachDeferred(r =>
+                        {
+                            var mats = r.sharedMaterials;
+                            for (int i = 0; i < mats.Length; i++)
+                            {
+                                var m = mats[i];
+                                if (m == null) continue;
+                                int pass = m.FindPass("Universal Forward");
+                                if (pass < 0) pass = m.FindPass("UniversalForward");
+                                if (pass < 0) pass = 0;
+                                cmd.DrawRenderer(r, m, i, pass);
+                            }
+                        });
                 });
             }
         }

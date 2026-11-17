@@ -165,6 +165,7 @@ namespace GoF2Remake.World
             swapped = on;
             foreach (var h in hull) if (h.r != null) h.r.sharedMaterials = on ? h.cloak : h.original;
             if (!on) glow.Restore();
+            glow.Defer(owner, on);   // Modified: its lights drawn after the hull, so its depth hides those behind it
             GoF2Remake.Visuals.CloakPass.Request(owner, on);
         }
 

@@ -113,6 +113,7 @@ namespace GoF2Remake.Flight
         {
             if (target != null) { target.cloaked = false; target.phased = false; }
             GoF2Remake.Visuals.CloakPass.Request(this, false);
+            GoF2Remake.Visuals.CloakPass.DrawAfterHull(this, null);   // Modified
             foreach (var h in hull) foreach (var m in h.cloak) Destroy(m);
         }
 
@@ -189,6 +190,7 @@ namespace GoF2Remake.Flight
             swapped = on;
             foreach (var h in hull) if (h.r != null) h.r.sharedMaterials = on ? h.cloak : h.original;
             if (!on) glow.Restore();
+            glow.Defer(this, on);   // Modified: its lights drawn after the hull, so its depth hides those behind it
             GoF2Remake.Visuals.CloakPass.Request(this, on);
         }
 
