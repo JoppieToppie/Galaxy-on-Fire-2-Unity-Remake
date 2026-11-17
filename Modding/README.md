@@ -3436,3 +3436,40 @@ Nivelian interior; the system has its own sun and its own nebula sky. It also br
 `Modding/Examples/pirate_bounty` is a script mod: `scripts/main.lua` pays a bounty for every pirate you destroy, counts them
 in the save and reports the count a moment after you dock (`game.wait`), with its numbers read from `data/bounty.json`
 by the module `scripts/lib/bounty.lua` and a `/bounty` command of its own.
+
+
+## Ship classes and class-based equipment restrictions
+
+Ship classes are **mod-defined**, not assigned automatically to original ships. Add `shipClass` and optional `classTags` to a ship entry in `ships.json` (new ship or override):
+
+```json
+{
+  "id": "my_frigate",
+  "shipClass": "frigate",
+  "classTags": ["capital", "large_hull"],
+  "className": { "en": "Frigate" }
+}
+```
+
+Use `allowedClasses` and/or `excludedClasses` on an item in `items.json` (new item or override):
+
+```json
+{
+  "id": "capital_shield",
+  "base": 12,
+  "allowedClasses": ["frigate", "freighter", "cruiser", "carrier"],
+  "excludedClasses": ["civilian"]
+}
+```
+
+- A ship matches its `shipClass` and every `classTags` entry. Matching is case-insensitive.
+- An item with no class lists remains unrestricted.
+- An unclassified ship (no class and no tags) remains unrestricted. A mod must classify a hull before class restrictions apply to it; this prevents a mod's item override from unexpectedly changing every stock ship.
+- If an item has an allow-list, a classified ship must match at least one entry. If it has an exclude-list, matching any entry blocks it. If both are present, both conditions apply.
+- An empty list clears that item's corresponding restriction. Omitting a field in an override leaves an earlier mod's value intact.
+- Class IDs are free-form mod data. The agreed convention for this project is: `light_fighter`, `heavy_fighter`, `light_bomber`, `heavy_bomber`, `interceptor`, `stealth_bomber`, `hauler`, `light_privateer`, `privateer`, `heavy_privateer`, `frigate`, `freighter`, `cruiser`, and `carrier`. These are conventions, not engine-enforced enums. The Corvette is a `cruiser` when a mod assigns it.
+- Optional `className` text (or `text/<language>.json` key `shipclass.<id>.name`) controls the scanner's display label; otherwise the ID is humanized.
+
+The rules apply when mounting or swapping equipment, when equipment is carried onto another hull, and when built-in equipment is synchronized. Incompatible mounted items are returned to the hold, not deleted. Multiplayer profile validation also moves incompatible equipment to the hold on the server, so a modified client cannot retain an invalid loadout by uploading a save.
+
+A scanner item can set `"stats": { "scanClass": 1 }` (attribute 143) to show a target ship's mod-defined class on its lock plate. Ships without a class do not show a class label. This also works for other players' ships in multiplayer.
