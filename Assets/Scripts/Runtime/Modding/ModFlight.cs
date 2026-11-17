@@ -20,7 +20,9 @@
 //                        "rules": { "turnRampBase": 2.5, ... } (any FlightRules field by name: this ship's numbers, over
 //                        the mods' flight.json).
 //   flight.json:         { "baseSpeed": 3, "freeTurnRateDeg": 160, ... }: any FlightRules field by name, for every ship the
-//                        player flies (later mods win per field; a ship's "rules" win over them). Unknown names warn, a
+//                        player flies (later mods win per field; a ship's "rules" win over them). Free flight also has
+//                        freePitchRateDeg / freeYawRateDeg (0 = the legacy freeTurnRateDeg) and freeAccelReverse
+//                        (0 = freeAccelSide; reverse top speed remains freeReverseShare). Unknown names warn, a
 //                        value outside the field's range is clamped with a warning.
 //   campaign.json:       "flightStyle": the mod campaign's games fly so.
 //   gameoptions.json:    "flightStyle": a new-game option that, while on, sets the style.
