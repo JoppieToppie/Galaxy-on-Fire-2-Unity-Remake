@@ -4,7 +4,7 @@
 // the cockpit view (2) can't be reached in this build. The new mode's name shows for 4000 ms (Hud::draw: 217 Standard,
 // 218 Turret, 220 Free look). Free look (LevelScript::lookBehind + setRotationAroundTarget / setFreeLookMode): the camera
 // orbits the ship (MGame::freeCamTouch*: -0.005 rad per px, the pitch offset clamped to +-200 px, a fling that decays x0.9
-// per frame; zoom 1500..20000 units, wheel / key steps x -50) while the ship flies on under the player's controls; mining,
+// per frame; zoom 1500..70000 units, wheel / key steps x -50) while the ship flies on under the player's controls; mining,
 // object docking, cutscenes, the jump scenes and death go back to the standard view.
 // Input (remake): V / controller D-pad up cycles; the orbit follows a touch drag off the controls (FlightHud forwards it
 // instead of the dodge swipe), the mouse (moved with the mouse-steering cursor captured, else with the middle button
@@ -35,7 +35,7 @@ namespace GoF2Remake.Flight
 {
     public class FreeLookCamera : MonoBehaviour
     {
-        const float M = 0.05f, FrameMs = OriginalFrame.Ms, MinDistance = 1500f, MaxDistance = 20000f;
+        const float M = 0.05f, FrameMs = OriginalFrame.Ms, MinDistance = 1500f, MaxDistance = 70000f;
         public enum Mode { Standard = 0, Turret = 1, FirstPerson = 2, FreeLook = 3 }
         const string CockpitPref = "flight_camera_cockpit";
 
