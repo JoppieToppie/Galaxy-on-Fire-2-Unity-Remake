@@ -98,6 +98,13 @@ namespace GoF2Remake.World
                         if (mats[i].HasProperty("_BaseMap")) m.SetTexture("_BaseMap", mats[i].GetTexture("_BaseMap"));
                         else if (mats[i].HasProperty("_MainTex")) m.SetTexture("_BaseMap", mats[i].GetTexture("_MainTex"));   // Modified: also the unlit hull parts'
                         if (mats[i].HasProperty("_BumpMap")) m.SetTexture("_BumpMap", mats[i].GetTexture("_BumpMap"));
+                        // Modified: the hull's specular map and glowing panels, for its look while still there (GoF2/Cloak)
+                        if (mats[i].HasProperty("_MetallicGlossMap")) m.SetTexture("_MetallicGlossMap", mats[i].GetTexture("_MetallicGlossMap"));
+                        if (mats[i].IsKeywordEnabled("_EMISSION") && mats[i].HasProperty("_EmissionMap"))
+                        {
+                            m.SetTexture("_EmissionMap", mats[i].GetTexture("_EmissionMap"));
+                            m.SetColor("_EmissionColor", mats[i].GetColor("_EmissionColor"));
+                        }
                     }
                     if (assets.cloakMap != null) m.SetTexture("_CloakMap", assets.cloakMap);
                     cloak[i] = m;
