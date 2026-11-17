@@ -29,6 +29,15 @@ namespace GoF2Remake.Data
         /// mounting path and when a ship's built-in equipment is synchronised, so a mod can enforce ship-class rules.</summary>
         public static System.Func<int, int, string> MountRefusal = (ship, item) => null;
 
+        /// <summary>Class compatibility is enforced locally from mod data; the optional refusal hook remains an extension
+        /// point for other mod rules.</summary>
+        static string ClassRefusal(Database db, int ship, int item)
+        {
+            if (!Modding.ShipClassRules.Fits(db?.Item(item), db?.Ship(ship)))
+                return "This ship's class cannot mount this item.";
+            return MountRefusal?.Invoke(ship, item);
+        }
+
         readonly Database db;
         readonly Dictionary<int, int> prices = new Dictionary<int, int>();
         public readonly int Station, SystemIndex;
@@ -406,8 +415,8 @@ namespace GoF2Remake.Data
             for (int i = Session.Equipment.Count - 1; i >= 0; i--)
             {
                 var e = Session.Equipment[i];
-                if (e.builtIn || db.Item(e.item)?.TypeId != 3) continue;
-                if (string.IsNullOrEmpty(MountRefusal?.Invoke(Session.ShipIndex, e.item))) continue;
+                if (e.builtIn) continue;
+                if (string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, e.item))) continue;
                 int amount = UnitsOf(db, e);
                 Session.Equipment.RemoveAt(i);
                 if (amount > 0) Shop.AddToCargo(e.item, amount);
@@ -562,7 +571,7 @@ namespace GoF2Remake.Data
             if (it == null || CargoOf(item) <= 0) return Result.NothingToSell;
             int type = it.TypeId;
             if (type > 3) return Result.NotMountable;
-            if (!string.IsNullOrEmpty(MountRefusal?.Invoke(Session.ShipIndex, item))) return Result.NotMountable;
+            if (!string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return Result.NotMountable;
             // Modified: one jump drive aboard: a mod jump drive (based on the Khador Drive) doesn't go on a ship with the Khador
             // Drive built in; a mounted Khador Drive and a mod one swap (category 18 is one per ship).
             if (GalaxyMap.IsKhadorDrive(item) && GalaxyMap.HasIntegratedDrive(Session.ShipIndex)) return Result.NotMountable;
@@ -606,7 +615,7 @@ namespace GoF2Remake.Data
         public bool Swap(int equipmentIndex, int item)
         {
             if (equipmentIndex < 0 || equipmentIndex >= Session.Equipment.Count || CargoOf(item) <= 0 || Session.Equipment[equipmentIndex].builtIn) return false;
-            if (!string.IsNullOrEmpty(MountRefusal?.Invoke(Session.ShipIndex, item))) return false;
+            if (!string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return false;
             PinSlots(db, Session.Equipment);
             int slot = Session.Equipment[equipmentIndex].slot;
             Demount(equipmentIndex);
