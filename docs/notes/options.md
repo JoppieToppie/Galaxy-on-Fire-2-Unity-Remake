@@ -4,6 +4,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 
 ## UI and platforms
 
+- **Camera shake** defaults to 30% for new or reset preferences. Existing explicitly saved values are preserved;
+  the slider retains its full 0-100% range. Graphics defaults reset the value to 30%.
+
 - Text comes from the original table via `Localization.Get(textId)`; remake-only strings via `Extra(key, english)`,
   translated per language in `Resources/GoF2Localization/extra_<lang>.json` (a { key: text } object, loaded with the
   table by `Localization.LoadExtra`; 11 languages, KiritoJPK, PR #54, then Chinese and Hindi; a key it lacks stays

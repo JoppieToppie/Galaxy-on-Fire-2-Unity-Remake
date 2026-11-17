@@ -241,8 +241,8 @@ namespace GoF2Remake.Data
         /// <summary>The chase camera's vertical field of view in degrees (at 16:9; the original's is OriginalFov).</summary>
         public static float FieldOfView { get => Get("fov", OriginalFov); set => Set("fov", Mathf.Clamp(value, 55f, 95f)); }
 
-        /// <summary>Camera shake and rumble strength, 0..1 (hits, collisions, explosions, cutscenes).</summary>
-        public static float CameraShake { get => Get("cameraShake", 1f); set => Set("cameraShake", Mathf.Clamp01(value)); }
+        /// <summary>Camera shake and rumble strength, 0..1 (hits, collisions, explosions, cutscenes); defaults to 30%.</summary>
+        public static float CameraShake { get => Get("cameraShake", 0.3f); set => Set("cameraShake", Mathf.Clamp01(value)); }
 
         /// <summary>The chase camera follows at the original's damping and looks at its eased point (#114, ChaseCamera); off
         /// (default) = the remake's tighter follow (2026.10.09's: twice the rate, a slerped rotation).</summary>

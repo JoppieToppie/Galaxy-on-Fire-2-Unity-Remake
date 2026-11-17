@@ -556,5 +556,17 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(row.IsDefault());
             Assert.AreEqual(70f, Settings.FieldOfView, 1e-4f);
         }
+        [Test]
+        public void CameraShakeDefaultsToThirtyPercentAndPreservesExplicitValues()
+        {
+            AllDefaults();
+            Assert.AreEqual(0.3f, Settings.CameraShake, 1e-6f);
+            Settings.CameraShake = 0.75f;
+            DataUiTestKit.ClearSettingsCache();
+            Assert.AreEqual(0.75f, Settings.CameraShake, 1e-6f, "existing choices are not migrated");
+            Settings.Reset(Settings.GraphicsKeys);
+            Assert.AreEqual(0.3f, Settings.CameraShake, 1e-6f, "Graphics reset uses the new default");
+        }
+
     }
 }
