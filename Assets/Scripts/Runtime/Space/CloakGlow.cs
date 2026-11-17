@@ -80,7 +80,13 @@ namespace GoF2Remake.Flight
         {
             if (deferred == on) return;
             deferred = on;
-            foreach (var r in all) if (r != null) r.forceRenderingOff = on || (engineHidden && engine.Contains(r));
+            foreach (var r in all)
+            {
+                if (r == null) continue;
+                r.forceRenderingOff = on || (engineHidden && engine.Contains(r));
+                // isVisible stays false while forceRenderingOff: their animations (onlyWhenSeen) would stop
+                foreach (var a in r.GetComponentsInParent<GoF2Remake.Visuals.PartAnimation>(true)) a.forceSeen = on;
+            }
             GoF2Remake.Visuals.CloakPass.DrawAfterHull(owner, on ? this : null);
         }
 
