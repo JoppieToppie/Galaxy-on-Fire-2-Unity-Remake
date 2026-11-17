@@ -1650,8 +1650,9 @@ Nozzle and Kaamo Club upgrades), its boost from the booster.
 
 ### Flight rules
 
-Past the bonuses, **every number the player's ship moves by** can be changed: the top speed, how fast the turn rate builds
-and dies away, the strafe, the dodge, the level-out, free flight's acceleration, braking, dampeners, boost and auto-roll.
+Past the bonuses, **every number the player's ship moves by** can be changed: the top speed, how fast each turn axis builds
+and dies away, the strafe, the dodge, the level-out, free flight's forward / reverse / lateral / vertical acceleration,
+braking, dampeners, boost and auto-roll.
 A mod's **`flight.json`** sets them for every ship the player flies while the mod is on; a ship's `"flight": { "rules": { ... } }`
 sets them for that ship (over `flight.json`). Later mods win field by field; anything not named keeps the game's value.
 
@@ -1714,6 +1715,8 @@ per ms.
 | `freeTurnRateDeg` | 125 | Top turn rate at handling 100, degrees per second. |
 | `freePitchRateDeg` | 0 (uses `freeTurnRateDeg`) | Pitch top rate at handling 100, degrees per second. |
 | `freeYawRateDeg` | 0 (uses `freeTurnRateDeg`) | Yaw top rate at handling 100, degrees per second. |
+| `freeRollRateDeg` | 0 (uses `freeTurnRateDeg x freeRollShare`) | Roll top rate at handling 100, degrees per second. |
+| `freePitchRampMs`, `freeYawRampMs`, `freeRollRampMs` | 0 (uses `freeTurnRampMs`) | Time for that axis to reach its top rate and return, ms. |
 | `freeTurnExponent` | 0.75 | The turn rate grows with (handling / 100) to this power. |
 | `freeTurnAboveShare` | 0.1 | The share of the turn rate above the top rate at handling 100 that counts. |
 | `freeTurnRampMs` | 400 | Time from no turn to the top turn rate and back, ms. |
@@ -1726,6 +1729,8 @@ per ms.
 | `freeAccelForward` | 1.3851 | Forward acceleration, top speeds per second (at handling 100). |
 | `freeAccelSide` | 1.88877 | Sideways and up / down acceleration, their top speeds per second. |
 | `freeAccelReverse` | 0 (uses `freeAccelSide`) | Backward acceleration, in backward top speeds per second; does not change backward top speed. |
+| `freeAccelStrafe` | 0 (uses `freeAccelSide`) | Left/right acceleration, in sideways top speeds per second. |
+| `freeAccelHover` | 0 (uses `freeAccelSide`) | Up/down acceleration, in vertical top speeds per second. |
 | `freeAccelHandlingExponent` | 0.5 | The acceleration grows with (handling / 100) to this power. |
 | `freeEaseExponent` | 3 | Dampeners on: the acceleration eases out as 1 - (speed / top speed) to this power. |
 | `freeBrakeShare` | 0.25 | Dampeners on: braking, of the forward acceleration. |
