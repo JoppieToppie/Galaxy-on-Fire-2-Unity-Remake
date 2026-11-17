@@ -123,13 +123,11 @@ Shader "GoF2/Cloak"
             ENDHLSL
         }
 
-        // Modified: the hull's depth, drawn by CloakPass before the transparents (CloakPass.DepthPass), only where the hull
-        // is still mostly there (CloakHullLeft >= 0.5): the cloaked hull's colour comes after them, so without it the
-        // ship's lights and engine glow on its far side (the wing tips' light strips seen through the wings) drew through
-        // the hull and showed through the cloak, which an uncloaked hull hides. Where the hull has dissolved, and on a
-        // fully cloaked ship (_AnimValue >= 0.75, pure refraction), no depth: the shots, explosions, smoke and engine
-        // flames behind it are drawn and refracted as the original's (no depth before its last-drawn hull); a depth
-        // silhouette there cut a hole in them that gave the ship away.
+        // Modified: the hull's depth, drawn by CloakPass before the transparents (CloakPass.DepthPass): the cloaked hull's
+        // colour comes after them, so without it the ship's lights and engine glow on its far side (the wing tips' light
+        // strips seen through the wings) drew through the hull and showed through the cloak, which an uncloaked hull
+        // hides. The whole hull, at every stage of the cloak (2026-11-17; the #185 review had it only where the hull was
+        // still mostly there, so a fully cloaked ship showed its far-side lights again).
         Pass
         {
             Tags { "LightMode" = "GoF2CloakDepth" }
@@ -154,7 +152,9 @@ Shader "GoF2/Cloak"
             half4 frag(Varyings i) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
-                clip(CloakHullLeft(SAMPLE_TEXTURE2D(_CloakMap, sampler_CloakMap, i.uv).r) - 0.5);
+                // Modified: the whole hull, cloaked or not (the user's request, 2026-11-17): a fully cloaked ship wrote no
+                // depth (the #185 review), so its own lights and engine glow on the far side showed through the
+                // invisible hull. The shots, explosions and smoke behind it are hidden by it too, as an uncloaked hull does.
                 return 0;
             }
             ENDHLSL

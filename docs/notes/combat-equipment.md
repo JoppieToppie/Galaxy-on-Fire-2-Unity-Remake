@@ -37,10 +37,10 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   refraction FBO (`Engine::CopyFBO` after every alpha / additive material), so the hull refracts the ship's own lights
   and glare, smeared by the wobble: the crawling coloured patches of a cloaked ship; Modified, #185: the picture behind
   stays bent in place by the normal map and only its bright part, the glow, wobbles, where the original's sweep slid
-  the stars too; the hull's depth goes in before the transparents, `CloakPass.DepthPass`, but only where the hull
-  hasn't dissolved yet, clipped by the dissolve map against `_AnimValue` like the colour: the ship's own lights behind
-  the solid hull stay hidden, and a fully cloaked ship writes none, so the shots, explosions, smoke and flames behind it
-  still show through it instead of a hole in its shape), the lights keep glowing and
+  the stars too; the hull's depth goes in before the transparents, `CloakPass.DepthPass`, the whole hull at every
+  stage (2026-11-17; the #185 review wrote it only where the hull hadn't dissolved, so a fully cloaked ship showed its
+  own far-side lights through itself): the ship's own lights behind the hull stay hidden, and so do the shots,
+  explosions and smoke behind it, as behind an uncloaked hull), the lights keep glowing and
   animating (the original's white at alpha max(50, ...) leaves its additive layers at full brightness; #47: the remake
   hid them), the NPC Specters' engine glow hides from 25 % (`CloakGlow`, `NpcCloak`; the code hides the ship group's
   last child), the players' ships keep theirs (`CloakGlow.KeepEngine`, #85: the reporter's screenshots of the original
