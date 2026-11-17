@@ -347,7 +347,7 @@ namespace GoF2Remake.UI
             if (s == null) return;
             Heading(hardpoints, T("mbAddPoint", "Add a hardpoint"));
             var addRow = Add(hardpoints, new VisualElement(), "mbv-row", "mbv-add-row");
-            for (int t = 0; t < 4; t++)
+            for (int t = 0; t < 5; t++)
             {
                 int type = t;
                 var b = Act(addRow, "+ " + T("mbType" + TypeNames[t], TypeNames[t]), () => { placing = placing == type ? -1 : type; BuildHardpointsPage(); }, "mbv-type-button");
@@ -366,12 +366,12 @@ namespace GoF2Remake.UI
             }
 
             Heading(hardpoints, T("mbPoints", "Hardpoints"));
-            var counts = new int[4];
+            var counts = new int[5];
             for (int i = 0; i < s.Mounts.Count; i++)
             {
                 int index = i;
                 var m = s.Mounts[i];
-                int type = Mathf.Clamp(m.slotType, 0, 3);
+                int type = m.slotType == 8 ? 4 : Mathf.Clamp(m.slotType, 0, 3);
                 counts[type]++;
                 var p = m.position_engine ?? new int[3];
                 var row = new Button(() => { sound(false); gizmo.Selected = index; gizmo.Refresh(); BuildHardpointsPage(); }) { focusable = false };
@@ -394,18 +394,35 @@ namespace GoF2Remake.UI
             if (s == null || i < 0 || i >= s.Count) { px = null; return; }
             var m = s[i];
             m.position_engine ??= new int[3];
-            int type = Mathf.Clamp(m.slotType, 0, 3);
+            int type = m.slotType == 8 ? 4 : Mathf.Clamp(m.slotType, 0, 3);
             var selectedBox = Add(into ?? hardpoints, new VisualElement(), "mbv-selected");
             Heading(selectedBox, string.Format(T("mbSelectedPoint", "Selected: {0}"), T("mbType" + TypeNames[type], TypeNames[type])));
             var xyz = Add(selectedBox, new VisualElement(), "mbv-row", "mbv-xyz");
-            px = Int(xyz, "X", m.position_engine[0], -200000, 200000, v => { m.position_engine[0] = v; OnMountEdited(type); });
-            py = Int(xyz, "Y", m.position_engine[1], -200000, 200000, v => { m.position_engine[1] = v; OnMountEdited(type); });
-            pz = Int(xyz, "Z", m.position_engine[2], -200000, 200000, v => { m.position_engine[2] = v; OnMountEdited(type); });
+            px = Int(xyz, "X", m.position_engine[0], -200000, 200000, v => { m.position_engine[0] = v; OnMountEdited(m.slotType); });
+            py = Int(xyz, "Y", m.position_engine[1], -200000, 200000, v => { m.position_engine[1] = v; OnMountEdited(m.slotType); });
+            pz = Int(xyz, "Z", m.position_engine[2], -200000, 200000, v => { m.position_engine[2] = v; OnMountEdited(m.slotType); });
             Note(selectedBox, T("mbXyzNote", "Game units from the centre: X left, Y up, Z forward (20 = 1 m)."));
             var acts = Add(selectedBox, new VisualElement(), "mbv-row");
             Act(acts, T("mbMirror", "Mirror"), Mirror);
-            Act(acts, T("mbCentre", "Centre X"), () => { m.position_engine[0] = 0; OnMountEdited(type); RefreshPoints(); });
+            Act(acts, T("mbCentre", "Centre X"), () => { m.position_engine[0] = 0; OnMountEdited(m.slotType); RefreshPoints(); });
             Act(acts, T("mbDelete", "Delete"), DeleteSelected, "mbv-danger");
+            if (type == 4)
+            {
+                // External docking hardpoints carry a full attachment orientation, like the station-side docking point.
+                float Rotation(int axis) => m.rotation != null && m.rotation.Length > axis ? m.rotation[axis] : 0f;
+                void SetRotation(int axis, float value)
+                {
+                    var r = new[] { Rotation(0), Rotation(1), Rotation(2) };
+                    r[axis] = value;
+                    m.rotation = r;
+                    OnMountEdited(m.slotType);
+                }
+                Heading(selectedBox, T("mbDockingOrientation", "Docking hardpoint orientation"));
+                Float(selectedBox, T("mbDockingRotX", "Rotation X (degrees)"), Rotation(0), -180f, 180f, v => SetRotation(0, v));
+                Float(selectedBox, T("mbDockingRotY", "Rotation Y (degrees)"), Rotation(1), -180f, 180f, v => SetRotation(1, v));
+                Float(selectedBox, T("mbDockingRotZ", "Rotation Z (degrees)"), Rotation(2), -180f, 180f, v => SetRotation(2, v));
+                Note(selectedBox, T("mbDockingOrientationNote", "The ship is aligned so this hardpoint matches the station's manually placed docking point."));
+            }
             if (type == 2)
             {
                 // The way the turret's base faces (WeaponMount.turretUp): a preset, or the hull's surface at the point.
@@ -590,7 +607,8 @@ namespace GoF2Remake.UI
         {
             var s = EditedMounts;
             var g = gizmo.GameOf(world);
-            var m = new WeaponMount { slotType = type, position_engine = new[] { g.x, g.y, g.z } };
+            int slotType = type == 4 ? 8 : type;
+            var m = new WeaponMount { slotType = slotType, position_engine = new[] { g.x, g.y, g.z } };
             if (type == 2) m.SetTurretUp(gizmo.GameDirOf(normal), true);
             if (type == 3)
             {
@@ -602,7 +620,7 @@ namespace GoF2Remake.UI
             if (type < 3 && SlotsFollow && Current.SlotCount(type) < Current.MountCount(type)) Current.SetSlotCount(type, Current.MountCount(type));
             gizmo.Selected = s.Count - 1;
             gizmo.Refresh();
-            OnMountEdited(type);
+            OnMountEdited(slotType);
             RefreshPoints();
             BuildLoadoutPage();
         }

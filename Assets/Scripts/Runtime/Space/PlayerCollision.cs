@@ -153,7 +153,7 @@ namespace GoF2Remake.Flight
             for (int i = 0; i < all.Count; i++)
             {
                 var o = all[i];
-                if (o == null || o.landmark != landmarks || !o.Active || o.UsesHull) continue;   // a hull: CheckHulls
+                if (o == null || o.landmark != landmarks || !o.Active || (o.UsesHull && !o.isStation)) continue;   // station volumes supplement the mesh hull
                 if (ignoreGate && o.cubeIsContact) continue;
                 // Remake: the object being docked at doesn't block its own approach (the original's autopilot could pin the
                 // ship on a hull face when it started beside the object; from afar it comes in over the top anyway).
@@ -162,8 +162,9 @@ namespace GoF2Remake.Flight
                         // ... nor the station a docking target stands in for (102: Tadram's pads)
                         || (o.isStation && (o.transform.position - docking.Target.transform.position).sqrMagnitude < 1f))) continue;
                 var pos = transform.position;
-                if (!o.Touches(pos, out _)) continue;
-                transform.position = o.PushOut(pos);
+                float radius = o.isStation ? ProbeRadius() : 0f;
+                if (o.isStation ? !o.TouchesSphere(pos, radius, out _) : !o.Touches(pos, out _)) continue;
+                transform.position = o.isStation ? o.PushOutSphere(pos, radius) : o.PushOut(pos);
                 Ram(transform.position - pos);
                 if (o.isStation) TouchingStation = true;
                 scraping = true;

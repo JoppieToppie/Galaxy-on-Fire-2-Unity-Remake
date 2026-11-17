@@ -151,7 +151,7 @@ namespace GoF2Remake.UI
                     var r = hangar.CanMount(item, out _);
                     // Modified: a jump drive on a ship with one built in stays pressable: it says why (HangarWindowActions).
                     bool driveBuiltIn = r == Hangar.Result.NotMountable && GalaxyMap.IsKhadorDrive(item) && GalaxyMap.HasIntegratedDrive(Session.ShipIndex);
-                    ShowAction(T(281).UiCaps(), r == Hangar.Result.Ok || r == Hangar.Result.Swap || driveBuiltIn);
+                    ShowAction(T(281).UiCaps(), r == Hangar.Result.Ok || r == Hangar.Result.Swap || driveBuiltIn || r == Hangar.Result.WrongShipClass);   // a class misfit stays pressable: it says why
                 }
             }
             else if (selected.ship >= 0)

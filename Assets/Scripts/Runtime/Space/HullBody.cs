@@ -30,6 +30,9 @@ namespace GoF2Remake.Flight
         /// hull; Mixed: not a flyable ship's; Original: none, HullCollision.Takes).</summary>
         public bool Collides => Active && HullCollision.Takes(flyableShip);
 
+        /// <summary>NPC navigation uses obstacle geometry regardless of the player's ship-collision preference.</summary>
+        public bool NavigationActive => Active && obstacle != null;
+
         void OnDestroy()
         {
             foreach (var c in colliders) if (c != null) HullCollision.Forget(c);

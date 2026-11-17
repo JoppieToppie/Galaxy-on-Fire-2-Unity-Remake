@@ -115,6 +115,9 @@ namespace GoF2Remake.UI
                     // Modified: a jump drive on a ship with one built in (Hangar.CanMount).
                     if (r == Hangar.Result.NotMountable && GalaxyMap.IsKhadorDrive(item) && GalaxyMap.HasIntegratedDrive(Session.ShipIndex))
                     { menu.ShowToast(Localization.Extra("driveBuiltIn", "This ship has a jump drive built in.")); break; }
+                    // Remake mods: an item restricted to other ship classes (Modding.ShipClassRules).
+                    if (r == Hangar.Result.WrongShipClass)
+                    { menu.ShowToast(Localization.Extra("wrongShipClass", "This ship's class can't mount that.")); break; }
                     if (r == Hangar.Result.Swap)
                     {
                         string text = Localization.Get(287).Replace("#ITEM1", ItemInfo.ItemName(Session.Equipment[swapWith].item))

@@ -126,12 +126,19 @@ namespace GoF2Remake.World
         public void FlingShip(float gameRadiansPerSecond) => flingVelocity = PlayerFlying ? 0f : gameRadiansPerSecond;
         /// <summary>Remake mods: the hangar is the station's own model docked EVERSPACE 2's way (World.Es2Dock): the ship rests on
         /// the dock's DockingTransform (its hull's middle on it, facing along it), the camera still on the dock's spring arm.</summary>
-        bool Es2Docked => customHangar != null && customHangar.es2Dock;
+        bool Es2Docked => customHangar != null && customHangar.es2Dock || orbit != null && orbit.ExternalDocked;
         void ApplyShipYaw()
         {
             if (playerShip == null || PlayerFlying) return;
             if (Es2Docked)
             {
+                if (orbit != null && orbit.ExternalDocked)
+                {
+                    // The player's visible station-scene ship copy occupies the exterior attachment pose; the orbit camera
+                    // remains active and the original flight ship is held by Es2Dock.
+                    playerShip.SetPositionAndRotation(orbit.ActiveEs2.DockedPosition, orbit.ActiveEs2.DockedRotation);
+                    return;
+                }
                 // (room metres: hangarRoot's frame, the world's unless docked inside the orbit)
                 var rot = Quaternion.LookRotation(customHangar.shipAhead - customHangar.ship, Vector3.up);
                 var local = ShipLocalBounds(playerShip, false);

@@ -238,6 +238,8 @@ earlier). Only the fields you give change. Giving `name` or `description` rename
 | `lowestPriceSystem`, `highestPriceSystem` | System numbers where it's cheapest and dearest. |
 | `vosskOnly` | `true`: only Vossk systems sell it. |
 | `alwaysSoldAt` | A station number that always stocks it, whatever its tech level (78 = Var Hastra, the starting station; -1 = none). |
+| `allowedClasses` | Optional class/tag allow-list for mounting equipment, e.g. `["frigate", "capital"]`; applies only to ships explicitly assigned a class or tags. |
+| `excludedClasses` | Optional class/tag deny-list, e.g. `["small"]`; deny wins over allow. Unclassified vanilla ships remain unrestricted. |
 | `tractorColor` | A tractor beam's colour, `"#rrggbb"` or `[r, g, b]` (0-255): its beams are drawn in it (see [Multi-grab tractor beams](#multi-grab-tractor-beams)). |
 | `stats` | The item's numbers, see below. |
 | `attributes` | The original game's attribute numbers directly: `{ "9": 14 }`. For anything `stats` has no name for. |
@@ -898,6 +900,19 @@ styles](#exhaust-styles)), 4 manoeuvring jet (`"direction": [x, y, z]`, the way 
 | `available` | Optional. A [condition](#conditions) that must hold before it is sold anywhere (dealers and lounges), and before NPCs fly it. |
 | `sounds` | Optional. The ship's own engine and boost sounds, see [Ship sounds](#ship-sounds). |
 | `crate`, `crateSize` | Optional. The loot container a ship of this type leaves when it is destroyed or robbed with a tractor beam: a `.glb` / `.gltf` file in the mod, drawn in place of its race's container and as big as that container, unless `crateSize` gives its largest extent in game units (the game's containers are about 400). Ships may share a file; the first one's `crateSize` counts. None = its race's container. |
+| `shipClass` | Optional stable class id on a new ship or override, e.g. `"light_fighter"`; vanilla ships remain unclassified unless a mod opts them in. |
+| `classTags` | Optional shared tags for equipment matching, e.g. `["small", "mymod:agile"]`. |
+| `className` | Optional translated display label for the class scanner; class ids remain the machine identity. |
+ 
+The remake provides a built-in class registry (the classes exist in the engine, but **no original ship is assigned one by default**):
+`light_fighter`, `heavy_fighter`, `light_bomber`, `heavy_bomber`, `interceptor`, `stealth_bomber`, `hauler`,
+`light_privateer`, `privateer`, `heavy_privateer`, `frigate`, `freighter`, `cruiser`, and `carrier`.
+Use one of these ids in `shipClass`; ids are case-insensitive and stored in canonical lowercase. Custom ids remain supported.
+The fighter, bomber and interceptor classes default to internal hangar docking; frigate, cruiser and carrier default to
+external docking (which still requires a ship `slotType: 8` docking hardpoint and a station's authored exterior dock point).
+Hauler and privateer classes default to internal docking; freighters join frigates, cruisers and carriers in external-only docking.
+Custom classes can declare a docking role with `classTags`: `fighter`, `interceptor` or `bomber` for internal docking;
+`frigate`, `cruiser` or `carrier` for external docking. Conflicting role tags are rejected.
 | `wingmanDevice` | Optional. What a hired wingman flying this ship uses (Galaxy on Fire 3's wingmen): `"repair"` (Hull Repair: with your hull under 40 %, a quarter of it mended over 3 seconds), `"ammo"` (Ammo Supply: 5 more rounds of your selected secondary weapon when you are down to one or none) or `"charged"` (Charged Shots: its own shots do x1.75 for 5 seconds while it attacks); 55 seconds between uses. The HUD says when it does. None = nothing, like the game's wingmen. See [Wingmen](#wingmen). |
 | `integrated` | Optional, also in an `override`. Equipment built into the hull, like the Kothar ships' Khador Drive (Cronus, Typhon, Nemesis) and the Specter's / Scimitar's cloak: `{ "khadorDrive": true, "cloak": true }`. `khadorDrive`: the ship can make Khador jumps without the drive in a slot (it still needs energy cells). `cloak`: `true` (the U'tool's stats), a cloak item (a number or `"mod:id"`, e.g. `96`) whose stats it has, or `false`; a cloak the player mounts replaces it, and with the Gameplay option "Cloak bay on cloaking ships" it goes into the built-in cloak's bay instead of a slot. `false` takes an original ship's away. `items`: any equipment built in, a list of item numbers, `"mod:id"` keys or `{ "item": ..., "amount": n }` (a secondary weapon's starting ammo, default 10), e.g. `"items": [46, { "item": 36, "amount": 20 }, 54]`. Built-in items work like mounted ones but take no slot, show on the hangar's Ship tab under "Built into the ship", and can't be demounted, sold or stored; they stay with the ship type when the player changes ships. A one-per-ship item the player fits (a shield, armor, a booster, a scanner, a drill, a cloak...) takes the built-in one's place without a slot, and the built-in one is back when it is demounted; built-in weapons and turrets add to the ship's own slots. A built-in launcher's missiles are refilled by buying more; a one-off item that is used up (an emergency system) is back at the next docking. An empty list takes them away. |
 

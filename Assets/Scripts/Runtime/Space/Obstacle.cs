@@ -34,7 +34,7 @@ namespace GoF2Remake.Flight
         public bool projectFromVolume = true;
         public List<CollisionVolume> volumes = new List<CollisionVolume>();
         /// <summary>Remake: the player slides along this hull's MeshColliders instead of the volumes (HullCollision); NPC
-        /// fighters still steer by the volumes. Null = none.</summary>
+        /// NPC fighters steer by the same mesh when available, with volumes as fallback. Null = none.</summary>
         [System.NonSerialized] public HullBody hull;
         /// <summary>The player collides with the hull, not the volumes.</summary>
         public bool UsesHull => hull != null && hull.Collides;   // not taken by the ship collision mode (Mixed: another player's ship; Original: any): its volumes
@@ -61,6 +61,14 @@ namespace GoF2Remake.Flight
                 if (cubeHalf > 0f) reach = cubeHalf * 1.7321f;   // Touches is false outside the cube
                 else if (volumes != null)
                     foreach (var v in volumes) reach = Mathf.Max(reach, v.centre.magnitude + (v.sphere ? v.radius : v.half.magnitude));
+                // Exact mesh parts can extend beyond the legacy steering volumes. Sync moving kinematic hulls before
+                // reading their world bounds, or protrusions can be culled by a stale broad-phase sphere.
+                if (hull != null && hull.NavigationActive)
+                {
+                    HullCollision.Sync();
+                    foreach (var c in hull.colliders) if (c != null && c.enabled)
+                        reach = Mathf.Max(reach, (c.bounds.center - transform.position).magnitude + c.bounds.extents.magnitude);
+                }
                 broadReach = reach + 50f;   // what the obstacle can move in the rest of the frame, generously
             }
             return broadActive && (world - broadCentre).sqrMagnitude <= broadReach * broadReach;
@@ -96,6 +104,78 @@ namespace GoF2Remake.Flight
 
         /// <summary>projectCollisionOnSurface: 'world' moved out of every volume containing it.</summary>
         public Vector3 PushOut(Vector3 world) => ToWorld(CollisionVolume.ProjectOut(Local(world), volumes));
+
+        /// <summary>
+        /// Station contact for the player's full clearance sphere. The original station volumes are a coarse safety shell
+        /// around the detailed mesh; testing only the ship centre let small ships slip through gaps between adjacent boxes.
+        /// This tests the sphere against each box / sphere volume, including rounded box edges.
+        /// </summary>
+        public bool TouchesSphere(Vector3 world, float radius, out int index)
+        {
+            index = -1;
+            var p = Local(world);
+            if (cubeHalf > 0f && (Mathf.Abs(p.x) >= cubeHalf + radius || Mathf.Abs(p.y) >= cubeHalf + radius || Mathf.Abs(p.z) >= cubeHalf + radius)) return false;
+            float r2 = radius * radius;
+            for (int i = 0; i < volumes.Count; i++)
+            {
+                var v = volumes[i];
+                var d = p - v.centre;
+                if (v.sphere)
+                {
+                    float reach = v.radius + radius;
+                    if (d.sqrMagnitude < reach * reach) { index = i; return true; }
+                }
+                else
+                {
+                    var closest = new Vector3(Mathf.Clamp(d.x, -v.half.x, v.half.x),
+                                              Mathf.Clamp(d.y, -v.half.y, v.half.y),
+                                              Mathf.Clamp(d.z, -v.half.z, v.half.z));
+                    if ((d - closest).sqrMagnitude < r2 || v.Contains(p)) { index = i; return true; }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Push the player's clearance sphere out of all intersecting station volumes, with two passes for overlaps.</summary>
+        public Vector3 PushOutSphere(Vector3 world, float radius)
+        {
+            var p = Local(world);
+            for (int pass = 0; pass < 2; pass++)
+                for (int i = 0; i < volumes.Count; i++)
+                {
+                    var v = volumes[i];
+                    var d = p - v.centre;
+                    if (v.sphere)
+                    {
+                        float reach = v.radius + radius, len = d.magnitude;
+                        if (len >= reach) continue;
+                        p = v.centre + (len > 1e-5f ? d / len : Vector3.up) * reach;
+                    }
+                    else
+                    {
+                        var closest = new Vector3(Mathf.Clamp(d.x, -v.half.x, v.half.x),
+                                                  Mathf.Clamp(d.y, -v.half.y, v.half.y),
+                                                  Mathf.Clamp(d.z, -v.half.z, v.half.z));
+                        var delta = d - closest;
+                        float len = delta.magnitude;
+                        if (len >= radius) continue;
+                        if (len > 1e-5f) p = v.centre + closest + delta * (radius / len);
+                        else
+                        {
+                            int axis = 0;
+                            float best = v.half.x - Mathf.Abs(d.x);
+                            for (int a = 1; a < 3; a++)
+                            {
+                                float distance = v.half[a] - Mathf.Abs(d[a]);
+                                if (distance < best) { best = distance; axis = a; }
+                            }
+                            float sign = Mathf.Abs(d[axis]) > 1e-5f ? Mathf.Sign(d[axis]) : 1f;
+                            p[axis] = v.centre[axis] + sign * (v.half[axis] + radius);
+                        }
+                    }
+                }
+            return ToWorld(p);
+        }
 
         /// <summary>Remake (Flight.LineOfFire, without hull meshes: the Original ship collision): a ray from 'from' along 'dir'
         /// (unit) runs into these volumes: it enters one it isn't in, sampled along its way, or it heads inward through the face
