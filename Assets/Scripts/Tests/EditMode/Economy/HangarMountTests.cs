@@ -73,6 +73,38 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void AModCanRefuseBaseEquipmentForAMount()
+        {
+            var previous = Hangar.MountRefusal;
+            try
+            {
+                Hangar.MountRefusal = (ship, item) => item == 84 ? "Capital ships cannot use base equipment." : null;
+                Session.Cargo.Add(new ItemStack(84, 1));   // Hiroto Ultrascan
+                var h = Dis();
+                Assert.AreEqual(Hangar.Result.NotMountable, h.CanMount(84, out _));
+                Assert.IsFalse(h.Mount(84));
+                Assert.IsFalse(h.Swap(4, 84), "the swap path must obey the same rule");
+                Assert.AreEqual(1, h.CargoOf(84), "a refused item stays in the hold");
+            }
+            finally { Hangar.MountRefusal = previous; }
+        }
+
+        [Test]
+        public void ShipSyncReturnsNewlyForbiddenEquipmentToTheHold()
+        {
+            var previous = Hangar.MountRefusal;
+            try
+            {
+                Hangar.MountRefusal = (ship, item) => item == 84 ? "Capital ships cannot use base equipment." : null;
+                Session.Equipment.Add(new ItemStack(84, 1));   // already fitted before the class rule applies
+                Assert.IsTrue(Hangar.SyncBuiltIn(Db));
+                Assert.AreEqual(0, Mounted(84));
+                Assert.AreEqual(1, Shop.CargoOf(84), "do not destroy equipment when a ship changes");
+            }
+            finally { Hangar.MountRefusal = previous; }
+        }
+
+        [Test]
         public void OnePerShipCategorySwaps()
         {
             // 287: the E2 Exoclad armor (55) for the mounted T'yol (59, equipment index 4)
