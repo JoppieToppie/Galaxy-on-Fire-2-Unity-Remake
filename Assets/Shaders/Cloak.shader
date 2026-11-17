@@ -94,8 +94,11 @@ Shader "GoF2/Cloak"
                 // original swept the whole refracted picture, so the stars and space behind the ship slid too (the user's
                 // comparison: there only the lights move). The bright part of the still picture is taken out and the
                 // bright part of the moving one put in.
-                float2 bend = float2(nTS.x * 100.0, nTS.y * 75.0) / float2(1024.0, 768.0);
-                float2 sweep = float2(nTS.x * 100.0 * sin(_CloakRate), nTS.y * 75.0 * cos(_CloakRate)) / float2(1024.0, 768.0);
+                // Modified (the user's comparison, 2026-11-17): half the original's 100 / 75 px: at the remake's resolutions
+                // the normal map's fine detail smeared what shows through into a blur and bent objects too far.
+                const float bendScale = 0.5;
+                float2 bend = float2(nTS.x * 100.0, nTS.y * 75.0) * bendScale / float2(1024.0, 768.0);
+                float2 sweep = float2(nTS.x * 100.0 * sin(_CloakRate), nTS.y * 75.0 * cos(_CloakRate)) * bendScale / float2(1024.0, 768.0);
                 half3 still = SAMPLE_TEXTURE2D_X(_GoF2CloakScene, sampler_GoF2CloakScene, UnityStereoTransformScreenSpaceTex(saturate(suv + bend))).rgb;
                 half3 moving = SAMPLE_TEXTURE2D_X(_GoF2CloakScene, sampler_GoF2CloakScene, UnityStereoTransformScreenSpaceTex(saturate(suv + sweep))).rgb;
                 // Modified (the user's Darkzov in an orange nebula, 2026-11-17): the glow taken out of the still picture and
