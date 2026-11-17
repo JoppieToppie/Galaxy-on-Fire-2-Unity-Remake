@@ -36,7 +36,7 @@ namespace GoF2Remake.Flight
     public class FreeLookCamera : MonoBehaviour
     {
         const float M = 0.05f, FrameMs = OriginalFrame.Ms, MinDistance = 1500f;
-        /// <summary>Modder hook: maximum free-look orbit distance in world units. Change before gameplay starts.</summary>
+        /// <summary>Modder hook: maximum free-look orbit distance in world units. A mod may set this before or during gameplay.</summary>
         public static float MaxOrbitDistance = 70000f;
         public enum Mode { Standard = 0, Turret = 1, FirstPerson = 2, FreeLook = 3 }
         const string CockpitPref = "flight_camera_cockpit";
