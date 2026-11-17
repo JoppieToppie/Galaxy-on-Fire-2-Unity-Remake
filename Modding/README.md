@@ -1712,6 +1712,8 @@ per ms.
 | `levelGraceMs` | 300 | After this long (ms) a push ends a level-out without the neutral stick. |
 | **Free flight: turning** | | |
 | `freeTurnRateDeg` | 125 | Top turn rate at handling 100, degrees per second. |
+| `freePitchRateDeg` | 0 (uses `freeTurnRateDeg`) | Pitch top rate at handling 100, degrees per second. |
+| `freeYawRateDeg` | 0 (uses `freeTurnRateDeg`) | Yaw top rate at handling 100, degrees per second. |
 | `freeTurnExponent` | 0.75 | The turn rate grows with (handling / 100) to this power. |
 | `freeTurnAboveShare` | 0.1 | The share of the turn rate above the top rate at handling 100 that counts. |
 | `freeTurnRampMs` | 400 | Time from no turn to the top turn rate and back, ms. |
@@ -1722,7 +1724,8 @@ per ms.
 | `freeStrafeShare` | 0.5 | Top speed sideways, of the forward one. |
 | `freeHoverShare` | 0.5 | Top speed up and down, of the forward one. |
 | `freeAccelForward` | 1.3851 | Forward acceleration, top speeds per second (at handling 100). |
-| `freeAccelSide` | 1.88877 | Backward, sideways and up / down acceleration, their top speeds per second. |
+| `freeAccelSide` | 1.88877 | Sideways and up / down acceleration, their top speeds per second. |
+| `freeAccelReverse` | 0 (uses `freeAccelSide`) | Backward acceleration, in backward top speeds per second; does not change backward top speed. |
 | `freeAccelHandlingExponent` | 0.5 | The acceleration grows with (handling / 100) to this power. |
 | `freeEaseExponent` | 3 | Dampeners on: the acceleration eases out as 1 - (speed / top speed) to this power. |
 | `freeBrakeShare` | 0.25 | Dampeners on: braking, of the forward acceleration. |
