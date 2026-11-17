@@ -3,7 +3,9 @@
 // class and no original item a list, so without a mod using them nothing changes (AI_PROJECT_CONTEXT.md 6.1 / 6.2).
 //   ships.json (a new ship or an "override" of an original one):
 //       "shipClass": "light_fighter"            the ship's class, a free word the mod picks (what a class scanner shows)
-//       "classTags": ["small", "mymod:agile"]   more free words the ship answers to (a mod's own, or shared with other mods)
+//       "classTags": ["small", "mymod:agile"]   additional free words the ship answers to (a mod's own, or shared with other mods)
+//   The engine's ShipClassCatalog defines fourteen canonical base classes; see Modding/README.md. Defining a class does not
+//   assign it to any ship. Known ids are normalised to lowercase; custom ids remain supported.
 //   items.json (a new item or an "override"):
 //       "allowedClasses":  ["frigate", "capital"]   only a ship whose class or tags name one of these may mount it
 //       "excludedClasses": ["small"]                a ship whose class or tags name one of these may not
