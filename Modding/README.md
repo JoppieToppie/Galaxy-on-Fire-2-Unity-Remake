@@ -3482,7 +3482,7 @@ The 16 classes describe ship roles and broad handling expectations; they are **n
 | Class | Role and defining characteristics | Movement intent |
 |---|---|---|
 | Light Fighter | Agile combat craft; strong handling and useful primary-weapon capability. | Responsive fighter handling within the standard dogfight speed band. |
-| Heavy Fighter | Heavier fighter with substantial weapon fit; turret-equipped fighters need at least four weapon hardpoints. Fighter classification normally uses the 75-tonne cargo boundary as a guide, not a substitute for inspecting the hull. | More mass and momentum than a light fighter, while retaining fighter-grade control. |
+| Heavy Fighter | Heavier fighter with substantial weapon fit; turret-equipped fighters need at least four weapon hardpoints. Fighter classification normally uses the 75-tonne cargo boundary as a guide, not a substitute for inspecting the hull; the cargo threshold is a role boundary, not a hard-coded engine test. | More mass and momentum than a light fighter, while retaining fighter-grade control. |
 | Light Bomber | Secondary-weapon/bombing-equipment focused attack craft. | Less agile than fighters; movement must account for ordnance load and momentum. |
 | Heavy Bomber | Larger or more heavily equipped bomber; Teneta is the current assignment. | Heavier momentum than light bombers; do not tune as a fighter with extra weapons. |
 | Interceptor | High-speed combat specialist with strong primary weapons; no turrets. Turret configuration is a disqualifier for this class. | 300–500 m/s intended speed envelope; high acceleration and fast response, while preserving strong primary combat capability. |
@@ -3491,7 +3491,7 @@ The 16 classes describe ship roles and broad handling expectations; they are **n
 | Scout | Reconnaissance and mobility specialist; Betty and Wasp are assigned here. Limited combat emphasis distinguishes it from an interceptor. | 300–500 m/s intended speed envelope, combining interceptor-like speed with fighter-like agility. |
 | Hauler | Large cargo capacity and no primary weapons; cargo role takes precedence over combat capability. | Cargo mass and inertia matter more than dogfight agility; tune each hull to its load and scale. |
 | Light Privateer | Multipurpose ship with useful cargo for its size and mixed weapon capability; Furious, Salvéhn and Cronus are assigned here. | More agile than heavier privateers; handling sits between fighters and bombers. |
-| Privateer | General-purpose privateer; Groza, Velasco, Blue Fyre, Anaan, Nuyang II and Hernstein are assigned here. | Balanced handling between fighter and bomber behaviour, with cargo and weapon compromises. |
+| Privateer | General-purpose privateer; Groza, Velasco, Blue Fyre, Anaan, Nuyang II and Hernstein are assigned here. | Balanced handling between fighter and bomber behaviour, with cargo and weapon compromises; privateers sit between fighters and bombers in handling. |
 | Heavy Privateer | Larger multipurpose privateer; Bloodstar, Gator Custom, S'Kanarr and Dark Angel are assigned here. | More momentum than standard privateers, but not automatically a capital-ship flight model. |
 | Frigate | Capital combat vessel. No hull is assigned in the reviewed class roster. | Capital-scale handling; fighter dogfight speed assumptions do not apply. Tune steering and translation independently. |
 | Freighter | Large transport/cargo vessel. Terran Freighter is the intended class assignment. | Cargo- and mass-led movement; slower response and substantial momentum are expected, but values remain hull-specific. |
@@ -3502,7 +3502,7 @@ The 16 classes describe ship roles and broad handling expectations; they are **n
 
 - Standard dogfighting ships should generally sit around **215–325 m/s**.
 - Interceptors and scouts should generally sit around **300–500 m/s**.
-- Forward thrust is the strongest translation axis. Reverse acceleration should be stronger than lateral strafe; vertical movement shares the strafe behaviour.
+- Forward thrust is the strongest translation axis. Reverse acceleration should be stronger than lateral strafe; vertical movement uses the same movement behaviour as strafe.
 - Reverse acceleration must be independently tunable rather than inheriting strafe acceleration.
 - Roll, lateral/vertical strafe and steering on the two turn axes must be independently tunable wherever the flight model exposes them. A ship can, for example, have excellent roll but poor strafing: the Amboss is the explicit reference case.
 - Class envelopes guide tuning; they do not override individual hull identity. Do not flatten ships into identical movement presets just because they share a class.
