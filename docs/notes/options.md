@@ -169,13 +169,21 @@ resolution (URP clamps it into MetalFX Temporal's supported range); Temporal cou
 verified on a Mac or an iPhone.
 - **Original bloom** (`ClassicBloomPass` + `Resources/GoF2PostFx/ClassicBloom.shader`; the bloom option's "Original"):
   the original's only post effect (`AbyssEngine::BloomShader`, on from `MGame::OnInitialize` via
-  `Engine::SetPostEffect(0x1400000, true)`; the radial blur 0x1400002 and glow 0x1400001 exist but are never switched
-  on) as a URP render-graph pass after the post-processing, queued from `beginCameraRendering` on every base screen
+  `Engine::SetPostEffect(0x1400000, true)`; the glow 0x1400001 exists but is never switched on; the radial blur 0x1400002
+  runs while boosting, `RadialBlurPass`, below) as a URP render-graph pass after the post-processing, queued from `beginCameraRendering` on every base screen
   camera with post-processing (no renderer-asset change): the scene sampled into 256 × 256 through the original's
   gamma-space bright pass (Luminance 0.08, middle gray 0.005, white cutoff 0.014: about everything above half
-  brightness), 6 × the "horizontal" blur (its offsets are vec2(o), a diagonal blur) and the vertical one (9 taps,
+  brightness), 6 × the horizontal blur (the phone's offsets are vec2(o), a diagonal blur; Modified 2026-11-17: truly
+  horizontal, as the PC version's BloomShader.fx, the user's files) and the vertical one (9 taps,
   texSize 256), then clamp(scene + glow) (`Engine::switchBloom` = 3 in the binary); URP's Bloom is off meanwhile. The
   original also blooms its HUD (drawn into the same FBO); the remake's UI Toolkit HUD doesn't.
+- **Boost blur** (`RadialBlurPass` + `Resources/GoF2PostFx/RadialBlur.shader`, remake 2026-11-17, always on): the
+  original's post effect 0x1400002, which `MGame::OnUpdate` switches on while `PlayerEgo::boosting` (not docking to a
+  planet): the screen smeared toward the player's ship on screen, mixed in by clamp(distance x the boost percentage);
+  the pixel and 5 samples 0.01-0.03 of the screen along the line, x 0.1429. A render-graph pass after the
+  post-processing on the camera with a `ChaseCamera` whose ship boosts (`BoostVisualPercent`). The PC version's
+  BlurShader.fx is another, zoom-style blur (6 scaled samples, `u_radial_bright`) whose strength and brightness aren't
+  known; the phone's is the one ported.
 - Frame rate option (`Settings.FrameRate`: 30 / 60 / 120 / Uncapped / V-Sync, default V-Sync; 60 on Android, the user's choice
   2026-10-22: a 120 Hz phone at 120 heats up and throttles) is applied by `Bootstrap.ApplyFrameRate`.
 - **Game experience** (remake, 2026-11-04, the Gameplay tab's first row, after a player's request: "a preset 'Vanilla'

@@ -33,6 +33,49 @@ Shader "GoF2/Cloak"
             float _AnimValue, _CloakRate;
         CBUFFER_END
 
+        // Modified: the PC version's vertex shimmer (BumpShaderCloak.fx, the user's files, 2026-11-17): every vertex pushed
+        // by 3D simplex noise of its position (x8, in game units) and the cloak's clock, along (1, 1, 1), by up to 4 game units
+        // as the cloak starts (lerp(0, 4, clamp(u_AnimValue x 2))), staying at 4 once it is half way. The phone's has none.
+        // The noise: the classic 3D simplex lattice (skewed tetrahedra, permutation by mod-289 polynomials, 4 gradients).
+        float3 CloakMod289(float3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        float4 CloakMod289(float4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        float4 CloakPermute(float4 x) { return CloakMod289((x * 34.0 + 1.0) * x); }
+        float CloakSimplex(float3 v)
+        {
+            const float2 C = float2(1.0 / 6.0, 1.0 / 3.0);
+            float3 i = floor(v + dot(v, C.yyy));
+            float3 x0 = v - i + dot(i, C.xxx);
+            float3 g = step(x0.yzx, x0.xyz);
+            float3 l = 1.0 - g;
+            float3 i1 = min(g, l.zxy), i2 = max(g, l.zxy);
+            float3 x1 = x0 - i1 + C.xxx, x2 = x0 - i2 + C.yyy, x3 = x0 - 0.5;
+            i = CloakMod289(i);
+            float4 p = CloakPermute(CloakPermute(CloakPermute(i.z + float4(0.0, i1.z, i2.z, 1.0))
+                                               + i.y + float4(0.0, i1.y, i2.y, 1.0)) + i.x + float4(0.0, i1.x, i2.x, 1.0));
+            // gradients on a 7 x 7 grid folded onto an octahedron
+            float4 j = p - 49.0 * floor(p * (1.0 / 49.0));
+            float4 gx = floor(j * (1.0 / 7.0)), gy = floor(j - 7.0 * gx);
+            gx = (gx * 2.0 + 0.5) / 7.0 - 1.0;
+            gy = (gy * 2.0 + 0.5) / 7.0 - 1.0;
+            float4 h = 1.0 - abs(gx) - abs(gy);
+            float4 b0 = float4(gx.xy, gy.xy), b1 = float4(gx.zw, gy.zw);
+            float4 s0 = floor(b0) * 2.0 + 1.0, s1 = floor(b1) * 2.0 + 1.0, sh = -step(h, 0.0);
+            float4 a0 = b0.xzyw + s0.xzyw * sh.xxyy, a1 = b1.xzyw + s1.xzyw * sh.zzww;
+            float3 p0 = float3(a0.xy, h.x), p1 = float3(a0.zw, h.y), p2 = float3(a1.xy, h.z), p3 = float3(a1.zw, h.w);
+            float4 norm = rsqrt(float4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+            p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+            float4 m = max(0.6 - float4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
+            m = m * m;
+            return 42.0 * dot(m * m, float4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+        }
+        // The shimmered vertex in object space (Unity metres: a game unit is 0.05, ImportSettings.ModelScale).
+        float3 CloakShimmer(float3 positionOS)
+        {
+            const float unitsPerMetre = 20.0;
+            float3 game = positionOS * unitsPerMetre;
+            float push = CloakSimplex(float3(_CloakRate, 0.0, 0.0) + game * 8.0) * lerp(0.0, 4.0, saturate(_AnimValue * 2.0));
+            return positionOS + push / unitsPerMetre;
+        }
         // How much of the lit hull is left in the colour pass's blend at this texel (d: the dissolve map): up to 0.5 the
         // hull where d - 0.025 >= _AnimValue stays, the dissolved rest fades from it over 0..0.25; from 0.5 to 0.75 what
         // was left goes too.
@@ -69,7 +112,7 @@ Shader "GoF2/Cloak"
                 Varyings o;
                 UNITY_SETUP_INSTANCE_ID(i);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-                o.positionCS = TransformObjectToHClip(i.positionOS.xyz);
+                o.positionCS = TransformObjectToHClip(CloakShimmer(i.positionOS.xyz));   // Modified: the PC version's shimmer
                 o.uv = i.uv;
                 VertexNormalInputs n = GetVertexNormalInputs(i.normalOS, i.tangentOS);
                 o.normalWS = n.normalWS;
@@ -141,7 +184,7 @@ Shader "GoF2/Cloak"
                 Varyings o;
                 UNITY_SETUP_INSTANCE_ID(i);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-                o.positionCS = TransformObjectToHClip(i.positionOS.xyz);
+                o.positionCS = TransformObjectToHClip(CloakShimmer(i.positionOS.xyz));   // Modified: the PC version's shimmer
                 o.uv = i.uv;
                 return o;
             }

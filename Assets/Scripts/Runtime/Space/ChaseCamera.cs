@@ -20,7 +20,7 @@
 //    it should be, the sliding ship left the frame).
 //  * Boost (MGame::OnUpdate): the vertical FOV grows by 0.35 rad x the boost percentage, and
 //    TargetFollowCamera::setBoostPercentage(pct, clamp(boost speed, 2, 8)) jitters the look-at point by
-//    pct x n units per axis each frame. The radial blur on top (post effect 0x1400002) isn't reproduced.
+//    pct x n units per axis each frame. The radial blur on top (post effect 0x1400002): RadialBlurPass.
 //  * The cockpit view (MGame::switchCamera mode 2, TargetFollowCamera::enableFirstPersonCam +0xf0, unreachable in this
 //    build: switchCamera and nextCamId turn 2 into 3): the camera on the ship's matrix, looking along its direction, the
 //    ship hidden (PlayerEgo::hideShipForFirstPersonCameraView), the hit shake x0.001 and the rumble x0.0015. Remake

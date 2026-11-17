@@ -70,6 +70,7 @@ namespace GoF2Remake
             UwpDisplay.Install();                 // UWP: the display's real pixel size (a 4K TV, an Xbox), not its view pixels
 #endif
             Visuals.ClassicBloomPass.Install();   // the "Original" bloom option
+            Visuals.RadialBlurPass.Install();     // Modified: the original's boost blur (post effect 0x1400002), always on
             Visuals.PreTransformGuard.Install();  // Android Vulkan: the scene never drawn straight to the pre-rotated back buffer
             HitchLogger.Install();                // development builds: frame hitches to hitches.log
             UI.ScreenshotKey.Install();           // F12: a screenshot to the pictures library
