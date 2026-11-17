@@ -82,20 +82,10 @@ namespace GoF2Remake.Modding
         static readonly string[] ExternalDockClasses = { "frigate", "cruiser", "carrier" };
 
         public static bool IsInternalDockClass(ShipData ship) =>
-            ShipClassCatalog.DockingRoleOf(ship?.shipClass) == ShipDockingRole.InternalOnly || MatchesTags(ship, InternalDockClasses);
+            ShipClassCatalog.DockingRoleOf(ship?.shipClass) == ShipDockingRole.InternalOnly || Matches(ship, InternalDockClasses);
 
         public static bool IsExternalDockClass(ShipData ship) =>
-            ShipClassCatalog.DockingRoleOf(ship?.shipClass) == ShipDockingRole.ExternalOnly || MatchesTags(ship, ExternalDockClasses);
-
-        // The registered base class determines the default docking role. Custom classes may still opt in through classTags.
-        static bool MatchesTags(ShipData ship, string[] words)
-        {
-            if (ship?.classTags == null || words == null) return false;
-            foreach (var tag in ship.classTags)
-                foreach (var word in words)
-                    if (string.Equals(tag, word, StringComparison.OrdinalIgnoreCase)) return true;
-            return false;
-        }
+            ShipClassCatalog.DockingRoleOf(ship?.shipClass) == ShipDockingRole.ExternalOnly || Matches(ship, ExternalDockClasses);
 
         /// <summary>
         /// Internal hangars accept fighter / interceptor / bomber classes. For backward compatibility, an otherwise
