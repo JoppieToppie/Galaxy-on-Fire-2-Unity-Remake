@@ -166,6 +166,7 @@ replaces one (call `original(...)` for the game's own behaviour and return what 
 - `SplitReward(arg1: FreelanceMission, arg2: int): int`: This player's share of the pay; unset: all of it.
 - `MissionFailed(arg1: FreelanceMission, arg2: int): int`: The mission failed: this player's share of a lost wager; unset: all of it.
 - `StartQuest(arg1: string, arg2: bool): string`: Remake: starts a quest graph by name (single player; EventRunner.StartQuest: the reason it can't, null = started; 'quiet' = one under way or done is no error): a cruise drive encounter of kind "quest" (CruiseEncounters).
+- `EventMissionAcceptRefusal(arg1: string, arg2: int): string`: Why this player / squad cannot accept an event graph bar mission (mission key, station index); null = allowed. Checked before confirmation and again by the server.
 - `ActiveEventMissionTitle(): string`: The title of the event graph bar mission this player is on, null = none.
 - `Condition(expression: string, out error: string): bool` (a hook returns the out values after its result): An event graph expression on this game's state (EventRunner.Condition); unset: true.
 - `Number(expression: string, out value: double, out error: string): bool` (a hook returns the out values after its result): An event graph expression's value on this game's state (EventRunner.Number: the mods' medal counters, Modding.ModMedals); unset: no value (false).
