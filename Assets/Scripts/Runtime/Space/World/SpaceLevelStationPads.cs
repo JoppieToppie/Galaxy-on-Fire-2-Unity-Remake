@@ -39,7 +39,8 @@ namespace GoF2Remake.World
             }
         }
 
-        bool ExternalDockInRange => Station != null && StationShown && Player != null && Player.transform.position.sqrMagnitude < DockMeters * DockMeters;
+        bool ExternalDockInRange => Station != null && StationShown && Player != null
+            && (Player.transform.position - Station.transform.position).sqrMagnitude < DockMeters * DockMeters;
         bool CanDockExternally => ExternalDockEligible && externalDockPoints.Count > 0;
 
         /// <summary>The range used by the selected class's docking route at the orbit's fixed station.</summary>
