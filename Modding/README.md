@@ -1540,7 +1540,12 @@ Everything else is a normal ship's (stats, `mounts`, `icon`, glows, `lounge`, `d
 fires from, and glows at, its parts' mounts of each slot type (with the tier extensions' at that tier), and uses the ship's own
 `mounts` only for a slot type none of its parts has. A primary or secondary mount may carry `"rotation"`: how its weapon model is turned on the hull, in the ship model's frame (x
 right, y up, z forward), as Euler degrees `[x, y, z]` or a quaternion `[x, y, z, w]` (a gun on a slanted wing); the shots
-still fly along the nose, from the turned model's muzzle. `"nodes": ["<node name>", ...]` names parts of the ship's own
+still fly along the nose, from the turned model's muzzle. A secondary mount may also carry `"launchRotation"`, a separate
+turn from the nose that sets its shots' initial direction (Euler degrees `[x, y, z]` or quaternion `[x, y, z, w]`; absent =
+straight ahead). It does not change the weapon model's appearance, and `"rotation"` does not redirect the shot. A secondary
+mount's `"lockDelayMs"` delays homing by that many milliseconds after launch (e.g. `1000` for one second; absent / zero =
+immediate homing). Both fields are per hardpoint, so identical missiles on different mounts can behave differently. Primaries,
+turrets and NPC weapons ignore them. `"nodes": ["<node name>", ...]` names parts of the ship's own
 model (a hardpoint's pylon) that show only while that mount carries a weapon: with two guns mounted, only the first two
 mounts' pylons show. So wings can carry their guns, rears their exhausts, and a turret socket
 comes with the wing set that has one (give the ship as many turret slots as its default build has turret mounts).
