@@ -158,11 +158,15 @@ namespace GoF2Remake.Multiplayer
             // A profile saved before the upgrade cap: cut back here too, so the game gets (and next uploads) the capped hull.
             SaveData saved = null;
             int cut = !coopHost && json.Length > 0 && SaveGame.TryParse(json, NetGame.Db, out saved, out _) ? ClampMods(saved) : 0;
-            if (cut > 0)
+            int misfits = saved != null ? ClampClasses(saved) : 0;   // remake mods: gear the ship's class can't mount
+            if (cut > 0 || misfits > 0)
             {
                 json = JsonUtility.ToJson(saved, false);
                 if (Write(ProfilePath(login.account.id), json))
-                    Debug.LogWarning($"Server: profile {login.account.id} ({login.account.name}): {cut} Kaamo upgrade level(s) past {Session.MaxModLevel} per mod removed.");
+                {
+                    if (cut > 0) Debug.LogWarning($"Server: profile {login.account.id} ({login.account.name}): {cut} Kaamo upgrade level(s) past {Session.MaxModLevel} per mod removed.");
+                    if (misfits > 0) Debug.LogWarning($"Server: profile {login.account.id} ({login.account.name}): {misfits} item(s) the ship's class can't mount moved to the hold.");
+                }
             }
             int home = login.account != null ? NetFactions.HomeOf(login.account.id) : -1;   // a faction member starts at its home
             NetState.Instance?.SendProfile(login.client, newToken, login.controller, login.account == null, json, home);
@@ -219,6 +223,35 @@ namespace GoF2Remake.Multiplayer
             if (s.parkedShip != null) cut += Clamp(s.parkedShip.mods);
             return cut;
         }
+        /// <summary>Remake mods (Modding.ShipClassRules): what the flown ship and the parked one carry that their class can't
+        /// mount (items.json allowedClasses / excludedClasses) goes to the same ship's hold: the client enforces it in the
+        /// hangar (Hangar.CanMount), this is the server's say on what an upload claims. Original items and ships without a class
+        /// never move. A Kaamo Club hull's gear is checked when it is taken out (Hangar.SwitchTo). Returns how many stacks moved.</summary>
+        static int ClampClasses(SaveData s)
+        {
+            var db = NetGame.Db;
+            if (s == null || db == null) return 0;
+            int Clamp(int ship, List<ItemStack> equipment, List<ItemStack> cargo)
+            {
+                if (equipment == null || cargo == null) return 0;
+                var hull = db.Ship(ship);
+                int moved = 0;
+                for (int i = equipment.Count - 1; i >= 0; i--)
+                {
+                    var e = equipment[i];
+                    if (e == null || e.builtIn || Modding.ShipClassRules.Fits(db.Item(e.item), hull)) continue;
+                    equipment.RemoveAt(i);
+                    int units = Mathf.Max(1, e.amount);
+                    var held = cargo.Find(c => c != null && c.item == e.item);
+                    if (held != null) held.amount += units; else cargo.Add(new ItemStack(e.item, units));
+                    moved++;
+                }
+                return moved;
+            }
+            int total = Clamp(s.ship, s.equipment, s.cargo);
+            if (s.hasParkedShip && s.parkedShip != null) total += Clamp(s.parkedShip.ship, s.parkedShip.equipment, s.parkedShip.cargo);
+            return total;
+        }
         // ---- uploads ----------------------------------------------------------------------------------------
         /// <summary>NetState.UploadChunkRpc: a piece of a client's profile; the last one checks and saves it.</summary>
         public static void OnUploadChunk(ulong client, int seq, int part, int count, byte[] data)
@@ -246,10 +279,12 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             int cut = ClampMods(save);
-            if (cut > 0)
+            int misfits = ClampClasses(save);   // remake mods: gear the ship's class can't mount
+            if (cut > 0 || misfits > 0)
             {
                 json = JsonUtility.ToJson(save, false);
-                Debug.LogWarning($"Server: profile {account.id} ({account.name}): {cut} Kaamo upgrade level(s) past {Session.MaxModLevel} per mod removed.");
+                if (cut > 0) Debug.LogWarning($"Server: profile {account.id} ({account.name}): {cut} Kaamo upgrade level(s) past {Session.MaxModLevel} per mod removed.");
+                if (misfits > 0) Debug.LogWarning($"Server: profile {account.id} ({account.name}): {misfits} item(s) the ship's class can't mount moved to the hold.");
             }
             long worth = Worth(save);
             string why = !NetGame.HostAllowsDebug && !IsHostClient(client) ? Implausible(login, save, worth) : null;
