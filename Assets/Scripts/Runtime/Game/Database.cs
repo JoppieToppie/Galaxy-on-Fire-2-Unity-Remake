@@ -132,7 +132,9 @@ namespace GoF2Remake.Data
     [System.Serializable] public class WeaponMount
     {
         public int slotType; public int[] position_engine; public float[] turretAngles; public bool upsideDown;
-        public float[] glowColor, glowSize, turretUp, rotation;
+        public float[] glowColor, glowSize, turretUp;
+        /// <summary>Remake mods: mount orientation; slotType 8 uses this for an external docking hardpoint.</summary>
+        public float[] rotation;
         public string glowShape;
 
         /// <summary>turretUp (else upsideDown) in the Unity ship frame ((-x, y, z), the models are mirrored): a unit vector,
@@ -187,7 +189,6 @@ namespace GoF2Remake.Data
         /// or a quaternion [x, y, z, w]; none = upright (upsideDown still turns it over). Only the look and the muzzle: the
         /// shots still fly along the nose. An exhaust mount (slotType 3) of a ship with "engineFx": the way it blows, turned
         /// from straight back (Modding.EngineFx).</summary>
-        public float[] rotation;   // slotType 8: external docking hardpoint orientation (Euler degrees [x,y,z])
         /// <summary>Remake mods, a primary / secondary mount: nodes of the ship's model (by name) that show only while this mount
         /// carries a weapon (a hardpoint's pylon; Modding.ModHardpoints.AttachWeapons).</summary>
         public string[] nodes;
