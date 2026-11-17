@@ -69,6 +69,7 @@ namespace GoF2Remake.Tests
         public void TurretMountScaleDefaultsToOneAndAllowsLargeValues()
         {
             Assert.AreEqual(1f, new WeaponMount { slotType = 2 }.TurretScale);
+            Assert.AreEqual(1f, new WeaponMount { slotType = 2, turretScale = 0f }.TurretScale, "an omitted/deserialized zero uses the legacy default");
             Assert.AreEqual(2.5f, new WeaponMount { slotType = 2, turretScale = 2.5f }.TurretScale);
             Assert.AreEqual(1000f, new WeaponMount { slotType = 2, turretScale = 2500f }.TurretScale, "runtime scale is capped at 1000x");
             Assert.AreEqual(1f, new WeaponMount { slotType = 2, turretScale = float.NaN }.TurretScale, "invalid values fall back to normal size");
