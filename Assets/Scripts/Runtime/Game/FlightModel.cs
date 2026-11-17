@@ -377,12 +377,17 @@ namespace GoF2Remake.Flight
         /// scaled by (H / 20)^0.75, softly capped there (a tenth of what lies above, FreeTurnAboveShare), then the
         /// steering sensitivity option x0.6..1.6 (1 at its default). The option itself, not Sensitivity: that one is the
         /// original's ramp setting, a fixed 2.7 under mouse steering.</summary>
-        float FreeTopTurnRate(float he)
+        float FreeTopTurnRate(float he, float rateDeg)
         {
             float f = Mathf.Pow(Mathf.Max(1f, he) / 20f, R.freeTurnExponent);
             if (f > 1f) f = 1f + (f - 1f) * R.freeTurnAboveShare;
-            return (R.freeTurnRateDeg * Mathf.Deg2Rad / 1000f) * f * Style.turnScale * TurnScale * Mathf.Clamp(0.5f + 0.5f * Data.Settings.Sensitivity, 0.6f, 1.6f);
+            return (rateDeg * Mathf.Deg2Rad / 1000f) * f * Style.turnScale * TurnScale * Mathf.Clamp(0.5f + 0.5f * Data.Settings.Sensitivity, 0.6f, 1.6f);
         }
+
+        // A zero per-axis rate preserves the shared setting for existing mods; roll continues to use freeTurnRateDeg.
+        float FreeTopTurnRate(float he) => FreeTopTurnRate(he, R.freeTurnRateDeg);
+        float FreeTopPitchRate(float he) => FreeTopTurnRate(he, R.freePitchRateDeg > 0f ? R.freePitchRateDeg : R.freeTurnRateDeg);
+        float FreeTopYawRate(float he) => FreeTopTurnRate(he, R.freeYawRateDeg > 0f ? R.freeYawRateDeg : R.freeTurnRateDeg);
 
         /// <summary>Free flight: how many times faster than the original this ship turns at full input (its top turn rate over
         /// the original's full-stick 750 H / 63 units); 1 in the original flight. The chase camera follows that much faster
@@ -393,7 +398,8 @@ namespace GoF2Remake.Flight
             {
                 if (!FreeFlight) return 1f;
                 float he = EffectiveHandling, original = R.turnRateScale * Mathf.Max(1f, he) / R.turnRateDivisor * RateToRadiansPerMs;
-                return Mathf.Max(1f, FreeTopTurnRate(he) / original);
+                float fastest = Mathf.Max(FreeTopTurnRate(he), Mathf.Max(FreeTopPitchRate(he), FreeTopYawRate(he)));
+                return Mathf.Max(1f, fastest / original);
             }
         }
 
@@ -405,10 +411,12 @@ namespace GoF2Remake.Flight
             UpdateBoost(dtMs);
 
             // ---- turning: the rates ramp toward the aim (the stick's or the virtual joystick's deflection x the top rate)
-            float maxRate = FreeTopTurnRate(he) * (IsBoosting ? R.freeBoostTurnShare : 1f);
-            float step = maxRate / (R.freeTurnRampMs / Mathf.Max(0.05f, Inertia)) * dtMs;
-            freeYaw = Mathf.MoveTowards(freeYaw, Mathf.Clamp(input.aim.x, -1f, 1f) * maxRate, step);
-            freePitch = Mathf.MoveTowards(freePitch, Mathf.Clamp(input.aim.y, -1f, 1f) * maxRate, step);
+            float boostTurn = IsBoosting ? R.freeBoostTurnShare : 1f;
+            float maxYawRate = FreeTopYawRate(he) * boostTurn;
+            float maxPitchRate = FreeTopPitchRate(he) * boostTurn;
+            float rampMs = R.freeTurnRampMs / Mathf.Max(0.05f, Inertia);
+            freeYaw = Mathf.MoveTowards(freeYaw, Mathf.Clamp(input.aim.x, -1f, 1f) * maxYawRate, maxYawRate / rampMs * dtMs);
+            freePitch = Mathf.MoveTowards(freePitch, Mathf.Clamp(input.aim.y, -1f, 1f) * maxPitchRate, maxPitchRate / rampMs * dtMs);
             float roll = Mathf.Clamp(input.roll, -1f, 1f);
             if (Mathf.Abs(roll) > 0.01f) StopLeveling();
             UpdateLevelRequest(input.aim, dtMs);
@@ -476,8 +484,11 @@ namespace GoF2Remake.Flight
             {
                 // (the accelerations are attributes of their own: the boost raises only the forward one)
                 float sideTop = top * Style.strafeScale;
+                // Reverse has its own acceleration, but its speed cap remains fwdTop * freeReverseShare above.
+                // Zero keeps older mods' behaviour by falling back to freeAccelSide.
+                float reverseAccel = R.freeAccelReverse > 0f ? R.freeAccelReverse : R.freeAccelSide;
                 var accels = new Vector3((R.freeAccelSide / 1000f) * sideTop * R.freeStrafeShare * sideShare, (R.freeAccelSide / 1000f) * sideTop * R.freeHoverShare * sideShare,
-                                         thrust < 0f ? (R.freeAccelSide / 1000f) * top * R.freeReverseShare * sideShare
+                                         thrust < 0f ? (reverseAccel / 1000f) * top * R.freeReverseShare * sideShare
                                                      : accelFwd * (IsBoosting ? R.freeBoostAccel : 1f));
                 float accel = inpMag * Vector3.Scale(accels, targetDir).magnitude;
                 float ease = 1f;
