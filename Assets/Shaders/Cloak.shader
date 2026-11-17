@@ -159,5 +159,33 @@ Shader "GoF2/Cloak"
             }
             ENDHLSL
         }
+    
+        // Modified (2026-11-17): the whole hull's depth, drawn by CloakPass after the transparents and before its copy of
+        // the frame: the ship's own lights and glow (CloakGlow.Defer) are drawn against it then, so those on the hull's far
+        // side stay hidden while the near ones go into the copy and are bent and wobbled by the refraction like everything
+        // else in it. Everything else behind the ship is already drawn by then (no hole in it).
+        Pass
+        {
+            Tags { "LightMode" = "GoF2CloakDepthAll" }
+            ZWrite On
+            ColorMask 0
+            Cull Back
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_instancing
+            struct Attributes { float4 positionOS : POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            struct Varyings { float4 positionCS : SV_POSITION; UNITY_VERTEX_OUTPUT_STEREO };
+            Varyings vert(Attributes i)
+            {
+                Varyings o;
+                UNITY_SETUP_INSTANCE_ID(i);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+                o.positionCS = TransformObjectToHClip(i.positionOS.xyz);
+                return o;
+            }
+            half4 frag(Varyings i) : SV_Target { UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i); return 0; }
+            ENDHLSL
+        }
     }
 }

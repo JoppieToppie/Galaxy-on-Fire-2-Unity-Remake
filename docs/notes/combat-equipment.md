@@ -41,8 +41,9 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   hasn't dissolved yet, clipped by the dissolve map against `_AnimValue` like the colour: the ship's own lights behind
   the solid hull stay hidden, and a fully cloaked ship writes none, so the shots, explosions, smoke and flames behind it
   still show through it instead of a hole in its shape; Modified 2026-11-17: the ship's own lights, glow and engine
-  (`CloakGlow.Defer`) are taken out of URP's transparents while cloaked and drawn by `CloakPass` right after the hull,
-  whose colour pass writes its depth, so those on its far side stay hidden behind the invisible hull too), the lights keep glowing and
+  (`CloakGlow.Defer`) are taken out of URP's transparents while cloaked and drawn by `CloakPass` after them against the
+  hull's whole depth (pass `GoF2CloakDepthAll`) before its copy of the frame: those on its far side stay hidden behind
+  the invisible hull, the near ones go into the copy and are refracted and wobbled with it), the lights keep glowing and
   animating (the original's white at alpha max(50, ...) leaves its additive layers at full brightness; #47: the remake
   hid them), the NPC Specters' engine glow hides from 25 % (`CloakGlow`, `NpcCloak`; the code hides the ship group's
   last child), the players' ships keep theirs (`CloakGlow.KeepEngine`, #85: the reporter's screenshots of the original
