@@ -6,9 +6,8 @@
 //   nt = normal map * 2 - 1;  rim = smoothstep(0, 1, 1 - dot(e, n))
 //   rimFx = smoothstep(0, 1, 1 - dot(e, n * nt)) * (0, 0.6, 1)
 //   coord = fragCoord + (nt.xy * 0.4 + n.xy * rim) * 150 px;  colour = screen(coord) + rimFx
-// The noise texture (s_texture[0]) is bound but unused on the phone, and so are the clocks UpdateMeshData sets; the PC
-// version (EnergyShield.fx) draws two energy bands with them and pushes the screen further (250 / 200 px), as here.
-// #251: the remake drew it with SimpleRefractionShader's formula instead (only the bent screen, no colour), so the shield was hard to see.
+// The noise texture (s_texture[0]) is bound but unused, and so are the clocks UpdateMeshData sets. #251: the remake drew it
+// with SimpleRefractionShader's formula instead (only the bent screen, no colour), so the shield was hard to see.
 // The scene it shows is clamped to LDR, like the original's framebuffer: the remake's HDR sun core smeared over the bubble
 // bloomed the screen white (#45). Remake (Discord report "Emergency system invisible"): drawn by CloakPass (LightMode
 // GoF2Cloak) from its copy of the frame taken after the transparents, like the original's draw after Engine::CopyFBO, so the
@@ -18,7 +17,6 @@ Shader "GoF2/ShieldBubble"
     Properties
     {
         _NormalMap ("Normal", 2D) = "bump" {}
-        _NoiseMap ("Noise", 2D) = "black" {}
         _Anim ("Anim", Float) = 0
         _Strength ("Strength", Float) = 1
     }
@@ -38,10 +36,9 @@ Shader "GoF2/ShieldBubble"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             TEXTURE2D(_NormalMap); SAMPLER(sampler_NormalMap);
-            TEXTURE2D(_NoiseMap); SAMPLER(sampler_NoiseMap);
             TEXTURE2D_X(_GoF2CloakScene); SAMPLER(sampler_GoF2CloakScene);
             CBUFFER_START(UnityPerMaterial)
-                float4 _NormalMap_ST, _NoiseMap_ST;
+                float4 _NormalMap_ST;
                 float _Anim, _Strength;
             CBUFFER_END
 
@@ -86,28 +83,9 @@ Shader "GoF2/ShieldBubble"
                 float rim = smoothstep(0.0, 1.0, 1.0 - dot(e, n));
                 half3 rimFx = smoothstep(0.0, 1.0, 1.0 - dot(e, n * nt)) * half3(0.0, 0.6, 1.0);
                 float2 suv = GetNormalizedScreenSpaceUV(i.positionCS);
-                // Modified: the PC version's EnergyShield.fx (the user's files, 2026-11-17): the push 250 px across, 200 up
-                // (the phone's 150 both ways), at the phone's 1024 x 768 reference.
-                float2 offset = (nt.xy * 0.4 + n.xy * rim) * float2(250.0, 200.0) * _Strength / float2(1024.0, 768.0);
+                float2 offset = (nt.xy * 0.4 + n.xy * rim) * 150.0 * _Strength / float2(1024.0, 768.0);
                 half3 scene = SAMPLE_TEXTURE2D_X(_GoF2CloakScene, sampler_GoF2CloakScene, UnityStereoTransformScreenSpaceTex(saturate(suv + offset))).rgb;
-                // Modified: the PC version's two energy bands, the noise texture's iso-lines at levels sweeping from 0.1 to 0.9
-                // (one up, one down, half a cycle apart, a cycle 2.5 s), shown in a 9 s cycle (in over 0-3 s, out over 4-8 s).
-                // The noise is read like the normal map, by the direction (the mesh's UVs break where they wrap).
-                float noise1 = SAMPLE_TEXTURE2D(_NoiseMap, sampler_NoiseMap, d.yz * 0.25 + 0.5).r * w.x
-                             + SAMPLE_TEXTURE2D(_NoiseMap, sampler_NoiseMap, d.xz * 0.25 + 0.5).r * w.y
-                             + SAMPLE_TEXTURE2D(_NoiseMap, sampler_NoiseMap, d.xy * 0.25 + 0.5).r * w.z;
-                float noise2 = SAMPLE_TEXTURE2D(_NoiseMap, sampler_NoiseMap, d.yz * 0.25 + 0.5 + float2(0.25, 0.5)).r * w.x
-                             + SAMPLE_TEXTURE2D(_NoiseMap, sampler_NoiseMap, d.xz * 0.25 + 0.5 + float2(0.25, 0.5)).r * w.y
-                             + SAMPLE_TEXTURE2D(_NoiseMap, sampler_NoiseMap, d.xy * 0.25 + 0.5 + float2(0.25, 0.5)).r * w.z;
-                float t = _Anim;
-                float level1 = smoothstep(0.0, 1.0, frac(t * 0.4)) * 0.8 + 0.1;
-                float level2 = smoothstep(0.0, 1.0, 1.0 - frac(t * 0.4 + 0.5)) * 0.8 + 0.1;
-                float cycle = fmod(t, 9.0);
-                float shown = smoothstep(0.0, 3.0, cycle) * (1.0 - smoothstep(4.0, 8.0, cycle));
-                float band1 = smoothstep(level1 - 0.04, level1, noise1) * (1.0 - smoothstep(level1, level1 + 0.04, noise1));
-                float band2 = smoothstep(level2 - 0.06, level2, noise2) * (1.0 - smoothstep(level2, level2 + 0.06, noise2));
-                half3 bands = shown * (band1 * half3(0.0, 0.4, 0.7) + band2 * half3(0.0, 0.3, 0.5));
-                return half4(saturate(min(scene, 1.0) + rimFx + bands), 1);
+                return half4(saturate(min(scene, 1.0) + rimFx), 1);
             }
             ENDHLSL
         }
