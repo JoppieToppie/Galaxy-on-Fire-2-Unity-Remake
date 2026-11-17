@@ -100,6 +100,14 @@ namespace GoF2Remake.Flight
         public float freePitchRateDeg;
         [Range(0f, 2000f), Tooltip("Yaw top rate at handling 100, degrees per second. 0 uses freeTurnRateDeg.")]
         public float freeYawRateDeg;
+        [Range(0f, 2000f), Tooltip("Roll top rate at handling 100, degrees per second. 0 uses freeTurnRateDeg x freeRollShare.")]
+        public float freeRollRateDeg;
+        [Range(0f, 60000f), Tooltip("Pitch rate ramp time, ms. 0 uses freeTurnRampMs.")]
+        public float freePitchRampMs;
+        [Range(0f, 60000f), Tooltip("Yaw rate ramp time, ms. 0 uses freeTurnRampMs.")]
+        public float freeYawRampMs;
+        [Range(0f, 60000f), Tooltip("Roll rate ramp time, ms. 0 uses freeTurnRampMs.")]
+        public float freeRollRampMs;
         [Range(0f, 3f), Tooltip("The turn rate grows with (handling / 100) to this power.")]
         public float freeTurnExponent = FlightModel.FreeTurnExponent;
         [Range(0f, 1f), Tooltip("The share of the turn rate above the top rate at handling 100 that counts.")]
@@ -124,6 +132,10 @@ namespace GoF2Remake.Flight
         public float freeAccelSide = 90f / 47.65f;
         [Range(0f, 100f), Tooltip("Backward acceleration, in backward top speeds per second. 0 uses freeAccelSide; does not change the backward top speed.")]
         public float freeAccelReverse;
+        [Range(0f, 100f), Tooltip("Left/right acceleration, in sideways top speeds per second. 0 uses freeAccelSide.")]
+        public float freeAccelStrafe;
+        [Range(0f, 100f), Tooltip("Up/down acceleration, in vertical top speeds per second. 0 uses freeAccelSide.")]
+        public float freeAccelHover;
         [Range(0f, 3f), Tooltip("The acceleration grows with (handling / 100) to this power.")]
         public float freeAccelHandlingExponent = 0.5f;
         [Range(0.1f, 20f), Tooltip("Dampeners on: the acceleration eases out as 1 - (speed / top speed) to this power.")]
