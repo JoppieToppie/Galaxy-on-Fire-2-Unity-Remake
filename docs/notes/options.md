@@ -238,3 +238,5 @@ verified on a Mac or an iPhone.
   reflections pick their blur by mip level); textures made at run time (the mods') aren't affected. Android already
   compresses everything as ASTC (the project's Android default format). Mobile is always display-synced: V-Sync there
   means `targetFrameRate` = display refresh rate.
+
+- Kaamo search (#315) starts read-only and inactive. Only primary click, F or controller Search activates entry. Hover/incidental focus cannot capture hangar keys. Enter, Escape, outside click, tab change and reopening end entry.
