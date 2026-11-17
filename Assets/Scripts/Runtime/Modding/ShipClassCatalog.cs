@@ -64,12 +64,12 @@ namespace GoF2Remake.Modding
             new ShipClassDefinition(BaseShipClass.HeavyBomber, "heavy_bomber", "Heavy Bomber", ShipDockingRole.InternalOnly),
             new ShipClassDefinition(BaseShipClass.Interceptor, "interceptor", "Interceptor", ShipDockingRole.InternalOnly),
             new ShipClassDefinition(BaseShipClass.StealthBomber, "stealth_bomber", "Stealth Bomber", ShipDockingRole.InternalOnly),
-            new ShipClassDefinition(BaseShipClass.Hauler, "hauler", "Hauler", ShipDockingRole.SizeBased),
-            new ShipClassDefinition(BaseShipClass.LightPrivateer, "light_privateer", "Light Privateer", ShipDockingRole.SizeBased),
-            new ShipClassDefinition(BaseShipClass.Privateer, "privateer", "Privateer", ShipDockingRole.SizeBased),
-            new ShipClassDefinition(BaseShipClass.HeavyPrivateer, "heavy_privateer", "Heavy Privateer", ShipDockingRole.SizeBased),
+            new ShipClassDefinition(BaseShipClass.Hauler, "hauler", "Hauler", ShipDockingRole.InternalOnly),
+            new ShipClassDefinition(BaseShipClass.LightPrivateer, "light_privateer", "Light Privateer", ShipDockingRole.InternalOnly),
+            new ShipClassDefinition(BaseShipClass.Privateer, "privateer", "Privateer", ShipDockingRole.InternalOnly),
+            new ShipClassDefinition(BaseShipClass.HeavyPrivateer, "heavy_privateer", "Heavy Privateer", ShipDockingRole.InternalOnly),
             new ShipClassDefinition(BaseShipClass.Frigate, "frigate", "Frigate", ShipDockingRole.ExternalOnly),
-            new ShipClassDefinition(BaseShipClass.Freighter, "freighter", "Freighter", ShipDockingRole.SizeBased),
+            new ShipClassDefinition(BaseShipClass.Freighter, "freighter", "Freighter", ShipDockingRole.ExternalOnly),
             new ShipClassDefinition(BaseShipClass.Cruiser, "cruiser", "Cruiser", ShipDockingRole.ExternalOnly),
             new ShipClassDefinition(BaseShipClass.Carrier, "carrier", "Carrier", ShipDockingRole.ExternalOnly)
         };
