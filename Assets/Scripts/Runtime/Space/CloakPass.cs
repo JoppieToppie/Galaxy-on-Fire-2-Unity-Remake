@@ -59,10 +59,10 @@ namespace GoF2Remake.Visuals
 
         /// <summary>Modified: the cloaked hulls' depth (LightMode "GoF2CloakDepth") before URP's transparents, so the ship's
         /// own lights and engine glow behind the hull stay hidden as on an uncloaked ship (the wing tips' light strips showed
-        /// through the wings); after the skybox and the backdrop, which the hull's depth would otherwise hide. The whole
-        /// hull at every stage of the cloak (2026-11-17, the user's request): with depth only where the hull hadn't
-        /// dissolved (the #185 review), a fully cloaked ship showed its own far-side lights through itself. The transparents
-        /// behind it (shots, explosions, smoke) are hidden by it too, as by an uncloaked hull.</summary>
+        /// through the wings); after the skybox and the backdrop, which the hull's depth would otherwise hide. Only where
+        /// the hull hasn't dissolved yet (GoF2/Cloak clips by the dissolve map against _AnimValue): a fully cloaked ship
+        /// writes none, so the transparents behind it (shots, explosions, smoke, flames) are drawn into the copy it
+        /// refracts as in the original, which draws the hull last with no depth before it, instead of a hole.</summary>
         sealed class DepthPass : ScriptableRenderPass
         {
             static readonly ShaderTagId DepthTag = new ShaderTagId("GoF2CloakDepth");
