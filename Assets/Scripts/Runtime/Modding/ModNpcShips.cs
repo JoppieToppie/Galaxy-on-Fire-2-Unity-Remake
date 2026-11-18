@@ -4,7 +4,7 @@
 // own or another mod's ("override": a game key below or "mod:id"):
 //   [ { "id": "dreadnought", "kind": "capital" | "freighter" | "boss", "ship": n | "mod:id" (its hull: a ships.json ship)
 //       or "looksLike": "battleship" | "carrier" | "vossk_battleship" | "freighter" (a game NPC hull), "name", "race",
-//       "hostile", "hull" (hitpoints, x the difficulty) or "hullFactor", "gunFactor", "speed" (u/ms), "explosionScale",
+//       "hostile", "hull" (hitpoints, x the difficulty) or "hullFactor", "shield", "shieldRechargeMs", "energyResistance", "ballisticResistance", "gunFactor", "speed" (u/ms), "explosionScale",
 //       "missiles", "retreat", "scale" (its size: x the hull's, its hardpoints and pads with it),
 //       "hardpoints": [ { "kind": "turret" | "object" | "hangar", "position": [x, y, z], "item", "upsideDown", "hull", ... } ]
 //                     (ships.json "subsystems" in the ship's frame; they replace its turrets),
