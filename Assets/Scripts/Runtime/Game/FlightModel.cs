@@ -79,6 +79,8 @@ namespace GoF2Remake.Flight
     public class FlightBonus
     {
         public float topSpeed, turnRate, strafeSpeed, acceleration;
+        public float pitchTurnRate, yawTurnRate, rollTurnRate, pitchTurnAcceleration, yawTurnAcceleration, rollTurnAcceleration;
+        public float strafeAcceleration, hoverSpeed, hoverAcceleration, reverseSpeed, reverseAcceleration, forwardAcceleration;
         public int boostFactor;
         /// <summary>Remake, after EVERSPACE 2's ship passives (BP_Ship_Player's TickItemEffects): fullStopDamage = the primary
         /// guns' damage in % more while the ship stands still (FullStopWeaponDamageIncrease: its WeaponBoost condition while
@@ -91,12 +93,17 @@ namespace GoF2Remake.Flight
         {
             if (o == null) return this;
             topSpeed += o.topSpeed; turnRate += o.turnRate; strafeSpeed += o.strafeSpeed; acceleration += o.acceleration;
+            pitchTurnRate += o.pitchTurnRate; yawTurnRate += o.yawTurnRate; rollTurnRate += o.rollTurnRate;
+            pitchTurnAcceleration += o.pitchTurnAcceleration; yawTurnAcceleration += o.yawTurnAcceleration; rollTurnAcceleration += o.rollTurnAcceleration;
+            strafeAcceleration += o.strafeAcceleration; hoverSpeed += o.hoverSpeed; hoverAcceleration += o.hoverAcceleration; reverseSpeed += o.reverseSpeed; reverseAcceleration += o.reverseAcceleration; forwardAcceleration += o.forwardAcceleration;
             fullStopDamage += o.fullStopDamage; lowSpeedResistance += o.lowSpeedResistance;
             if (o.boostFactor > 0) boostFactor = o.boostFactor;
             return this;
         }
 
         public bool IsEmpty => topSpeed == 0f && turnRate == 0f && strafeSpeed == 0f && acceleration == 0f && boostFactor == 0
+                               && pitchTurnRate == 0f && yawTurnRate == 0f && rollTurnRate == 0f && pitchTurnAcceleration == 0f && yawTurnAcceleration == 0f && rollTurnAcceleration == 0f
+                               && strafeAcceleration == 0f && hoverSpeed == 0f && hoverAcceleration == 0f && reverseSpeed == 0f && reverseAcceleration == 0f && forwardAcceleration == 0f
                                && fullStopDamage == 0f && lowSpeedResistance == 0f;
 
         public static float Scale(float percent) => Mathf.Max(0.1f, 1f + percent / 100f);
@@ -212,6 +219,8 @@ namespace GoF2Remake.Flight
             public int boostDurationMs = 5000, boostRechargeMs = 20000;
             public bool hasBooster;
             public float speedScale = 1f, turnScale = 1f, strafeScale = 1f, accelScale = 1f;
+            public float pitchTurnScale = 1f, yawTurnScale = 1f, rollTurnScale = 1f, pitchAccelScale = 1f, yawAccelScale = 1f, rollAccelScale = 1f;
+            public float strafeAccelScale = 1f, hoverScale = 1f, hoverAccelScale = 1f, reverseScale = 1f, reverseAccelScale = 1f, forwardAccelScale = 1f;
             public int boostFactor;   // free flight's boost x100 (0 = the booster's)
             public float fullStopDamage, lowSpeedResistance;   // % (FlightBonus)
         }
@@ -386,12 +395,12 @@ namespace GoF2Remake.Flight
 
         // Zero per-axis rates/ramp times preserve the shared settings for existing mods.
         float FreeTopTurnRate(float he) => FreeTopTurnRate(he, R.freeTurnRateDeg);
-        float FreeTopPitchRate(float he) => FreeTopTurnRate(he, R.freePitchRateDeg > 0f ? R.freePitchRateDeg : R.freeTurnRateDeg);
-        float FreeTopYawRate(float he) => FreeTopTurnRate(he, R.freeYawRateDeg > 0f ? R.freeYawRateDeg : R.freeTurnRateDeg);
-        float FreeTopRollRate(float he) => FreeTopTurnRate(he, R.freeRollRateDeg > 0f ? R.freeRollRateDeg : R.freeTurnRateDeg * R.freeRollShare);
-        float FreePitchRamp => (R.freePitchRampMs > 0f ? R.freePitchRampMs : R.freeTurnRampMs) / Mathf.Max(0.05f, Inertia);
-        float FreeYawRamp => (R.freeYawRampMs > 0f ? R.freeYawRampMs : R.freeTurnRampMs) / Mathf.Max(0.05f, Inertia);
-        float FreeRollRamp => (R.freeRollRampMs > 0f ? R.freeRollRampMs : R.freeTurnRampMs) / Mathf.Max(0.05f, Inertia);
+        float FreeTopPitchRate(float he) => FreeTopTurnRate(he, R.freePitchRateDeg > 0f ? R.freePitchRateDeg : R.freeTurnRateDeg) * Style.pitchTurnScale;
+        float FreeTopYawRate(float he) => FreeTopTurnRate(he, R.freeYawRateDeg > 0f ? R.freeYawRateDeg : R.freeTurnRateDeg) * Style.yawTurnScale;
+        float FreeTopRollRate(float he) => FreeTopTurnRate(he, R.freeRollRateDeg > 0f ? R.freeRollRateDeg : R.freeTurnRateDeg * R.freeRollShare) * Style.rollTurnScale;
+        float FreePitchRamp => (R.freePitchRampMs > 0f ? R.freePitchRampMs : R.freeTurnRampMs) / (Mathf.Max(0.05f, Inertia) * Style.pitchAccelScale);
+        float FreeYawRamp => (R.freeYawRampMs > 0f ? R.freeYawRampMs : R.freeTurnRampMs) / (Mathf.Max(0.05f, Inertia) * Style.yawAccelScale);
+        float FreeRollRamp => (R.freeRollRampMs > 0f ? R.freeRollRampMs : R.freeTurnRampMs) / (Mathf.Max(0.05f, Inertia) * Style.rollAccelScale);
 
         /// <summary>Free flight: how many times faster than the original this ship turns at full input (its top turn rate over
         /// the original's full-stick 750 H / 63 units); 1 in the original flight. The chase camera follows that much faster
@@ -440,11 +449,13 @@ namespace GoF2Remake.Flight
             // y up / down, z thrust; units / ms)
             float top = TopSpeed;
             float fwdTop = IsBoosting ? top * FreeBoostFactor : top;   // the boost's speed modifier on MaxSpeedForward
-            float otherTop = fwdTop * Style.strafeScale;               // strafe and up / down follow the forward top speed
+            float strafeTop = fwdTop * Style.strafeScale;
+            float hoverTop = fwdTop * Style.hoverScale;
+            float reverseTop = fwdTop * R.freeReverseShare * Style.reverseScale;
             float handlingScale = Mathf.Pow(20f / Mathf.Max(5f, he), R.freeAccelHandlingExponent) / Style.accelScale;   // a mod's acceleration bonus
             float fwdShare = FreeEaseFwdMs / (FreeEaseFwdMs * handlingScale + AccelMs);     // a heavy hull accelerates slower
             float sideShare = FreeEaseSideMs / (FreeEaseSideMs * handlingScale + AccelMs);
-            float accelFwd = (R.freeAccelForward / 1000f) * top * fwdShare;   // unboosted: the braking and turning boost derive from it
+            float accelFwd = (R.freeAccelForward / 1000f) * top * fwdShare * Style.forwardAccelScale;   // unboosted: the braking and turning boost derive from it
             float thrust = Mathf.Clamp(input.thrust, -1f, 1f), strafe = Mathf.Clamp(input.strafe, -1f, 1f), hover = Mathf.Clamp(input.hover, -1f, 1f);
             ThrustInput = new Vector3(strafe, hover, thrust);
             if (IsBoosting) thrust = 1f;   // the boost drives forward whatever is held
@@ -453,7 +464,7 @@ namespace GoF2Remake.Flight
             var inp = new Vector3(strafe, hover, thrust);
             if (inp.sqrMagnitude > 1f) inp.Normalize();   // the input vector is clamped to length 1
             float inpMag = inp.magnitude;
-            var tops = new Vector3(otherTop * R.freeStrafeShare, otherTop * R.freeHoverShare, thrust < 0f ? fwdTop * R.freeReverseShare : fwdTop);
+            var tops = new Vector3(strafeTop * R.freeStrafeShare, hoverTop * R.freeHoverShare, thrust < 0f ? reverseTop : fwdTop);
             var target = Vector3.Scale(inp, tops);   // GetTargetVelocityFromInput
             float targetSpeed = target.magnitude;
             var targetDir = targetSpeed > 1e-9f ? target / targetSpeed : Vector3.zero;
@@ -487,13 +498,12 @@ namespace GoF2Remake.Flight
             {
                 // (the accelerations are attributes of their own: the boost raises only the forward one)
                 float sideTop = top * Style.strafeScale;
-                // Reverse has its own acceleration, but its speed cap remains fwdTop * freeReverseShare above.
-                // Each translation axis has its own acceleration. Zero preserves the legacy shared side acceleration.
-                float reverseAccel = R.freeAccelReverse > 0f ? R.freeAccelReverse : R.freeAccelSide;
-                float strafeAccel = R.freeAccelStrafe > 0f ? R.freeAccelStrafe : R.freeAccelSide;
-                float hoverAccel = R.freeAccelHover > 0f ? R.freeAccelHover : R.freeAccelSide;
-                var accels = new Vector3((strafeAccel / 1000f) * sideTop * R.freeStrafeShare * sideShare, (hoverAccel / 1000f) * sideTop * R.freeHoverShare * sideShare,
-                                         thrust < 0f ? (reverseAccel / 1000f) * top * R.freeReverseShare * sideShare
+                float hoverTopAccel = top * Style.hoverScale;
+                float reverseAccel = (R.freeAccelReverse > 0f ? R.freeAccelReverse : R.freeAccelSide) * Style.reverseAccelScale;
+                float strafeAccel = (R.freeAccelStrafe > 0f ? R.freeAccelStrafe : R.freeAccelSide) * Style.strafeAccelScale;
+                float hoverAccel = (R.freeAccelHover > 0f ? R.freeAccelHover : R.freeAccelSide) * Style.hoverAccelScale;
+                var accels = new Vector3((strafeAccel / 1000f) * sideTop * R.freeStrafeShare * sideShare, (hoverAccel / 1000f) * hoverTopAccel * R.freeHoverShare * sideShare,
+                                         thrust < 0f ? (reverseAccel / 1000f) * top * R.freeReverseShare * Style.reverseScale * sideShare
                                                      : accelFwd * (IsBoosting ? R.freeBoostAccel : 1f));
                 float accel = inpMag * Vector3.Scale(accels, targetDir).magnitude;
                 float ease = 1f;
@@ -611,6 +621,10 @@ namespace GoF2Remake.Flight
             st.turnScale = FlightBonus.Scale(b.turnRate);
             st.strafeScale = FlightBonus.Scale(b.strafeSpeed);
             st.accelScale = FlightBonus.Scale(b.acceleration);
+            st.pitchTurnScale = FlightBonus.Scale(b.pitchTurnRate); st.yawTurnScale = FlightBonus.Scale(b.yawTurnRate); st.rollTurnScale = FlightBonus.Scale(b.rollTurnRate);
+            st.pitchAccelScale = FlightBonus.Scale(b.pitchTurnAcceleration); st.yawAccelScale = FlightBonus.Scale(b.yawTurnAcceleration); st.rollAccelScale = FlightBonus.Scale(b.rollTurnAcceleration);
+            st.strafeAccelScale = FlightBonus.Scale(b.strafeAcceleration); st.hoverScale = FlightBonus.Scale(b.hoverSpeed); st.hoverAccelScale = FlightBonus.Scale(b.hoverAcceleration);
+            st.reverseScale = FlightBonus.Scale(b.reverseSpeed); st.reverseAccelScale = FlightBonus.Scale(b.reverseAcceleration); st.forwardAccelScale = FlightBonus.Scale(b.forwardAcceleration);
             st.boostFactor = Mathf.Max(0, b.boostFactor);
             st.fullStopDamage = b.fullStopDamage;
             st.lowSpeedResistance = b.lowSpeedResistance;
@@ -815,10 +829,10 @@ namespace GoF2Remake.Flight
             VisualYawBank = !yawInput ? 0f : (TrackAnalogInput ? Mathf.Clamp(steer.x, -1f, 1f) : Mathf.Sign(steer.x)) * he;
             VisualPitchBank = !pitchInput ? 0f : (TrackAnalogInput ? Mathf.Clamp(steer.y, -1f, 1f) : Mathf.Sign(steer.y)) * he;
 
-            if (yawInput) YawRate = RampToward(YawRate, steer.x, he, dtMs, 1f);
+            if (yawInput) YawRate = RampToward(YawRate, steer.x, he, dtMs, 1f, Style.yawTurnScale, Style.yawAccelScale);
             if (pitchInput)
                 PitchRate = RampToward(PitchRate, steer.y, he, dtMs,
-                    !TiltMode ? 1f : steer.y > 0 ? R.tiltPitchDownScale : R.tiltPitchUpScale);
+                    !TiltMode ? 1f : steer.y > 0 ? R.tiltPitchDownScale : R.tiltPitchUpScale, Style.pitchTurnScale, Style.pitchAccelScale);
 
             // The original (PlayerEgo::roll, from PlayerEgo::update while +0x2f4 is set) keeps rolling under the stick until
             // level; only alignToHorizon (the stick's double tap) starts it. Remake: steering ends it, as it fought the
@@ -949,14 +963,14 @@ namespace GoF2Remake.Flight
             return new FrameResult { forwardUnits = forward };
         }
 
-        float RampToward(float rate, float input, float he, float dtMs, float sensitivityScale)
+        float RampToward(float rate, float input, float he, float dtMs, float sensitivityScale, float axisRateScale = 1f, float axisAccelScale = 1f)
         {
             // target = trunc(input * 750 * H) / 63 (integer division, like the original)
             int raw = (int)(input * R.turnRateScale * he);
-            float target = (int)(raw / R.turnRateDivisor) * TurnScale * Style.turnScale;   // remake debug: a heavy hull's lower top rate (Mass); a mod's turn bonus
+            float target = (int)(raw / R.turnRateDivisor) * TurnScale * Style.turnScale * axisRateScale;   // remake debug: a heavy hull's lower top rate (Mass); a mod's turn bonus
             float denom = (R.turnRampBase - Sensitivity * sensitivityScale) * R.turnRampScale;
             if (denom < 1f) denom = 1f; // guard against extreme sensitivity values
-            float step = dtMs * he / denom * Inertia * Style.turnScale;   // the same time to the (scaled) top rate
+            float step = dtMs * he / denom * Inertia * Style.turnScale * axisAccelScale;   // the same time to the (scaled) top rate
 
             // The original only accelerates toward the target in the input's direction and never slows an
             // over-target rate while the direction is held. That was fine for its digital input (the target is
