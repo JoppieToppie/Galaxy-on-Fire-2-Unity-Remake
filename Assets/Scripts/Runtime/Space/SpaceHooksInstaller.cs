@@ -28,7 +28,8 @@ namespace GoF2Remake.Flight
             // Remake mods: a mod capital ship's / freighter's boxes from its own model.
             CollisionVolume.ShipVolumes = Modding.ModCapitalShips.HullVolumes;
             // The original visitor mesh selection, exposed so mods can choose a station-specific silhouette.
-            SpaceHooks.VisitorRace = (agent, station) => agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
+            SpaceHooks.VisitorRace = (agent, station) => agent.modRace >= Modding.ModRaces.FirstRace ? agent.modRace
+                : agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
         }
     }
 }
