@@ -9,7 +9,7 @@
 //   Timed     PlayerTurret::handleTurret / pickEnemy 0x182e90 (the NPC turrets): a new pick only once more than 3000 ms
 //             have passed (the first after 3 s); the nearest candidate within range, the unreachable one only when nothing
 //             else is nearer; running into a limit keeps the target until the next pick, which then prefers another.
-// The aim point: the target's position + its heading * 1500 units (the lead both use).
+// The aim point: the nearest point on its exact hull (when available) + its heading * 1500 units.
 
 using System;
 using System.Collections.Generic;
@@ -57,6 +57,9 @@ namespace GoF2Remake.Flight
 
         /// <summary>The player's lead point: where the target will be (its position + heading * 1500 units).</summary>
         public static Vector3 LeadPoint(Target t) => t.transform.position + t.transform.forward * LeadUnits * M;
+
+        /// <summary>Lead from the nearest point on the target's real collision meshes, for a particular turret muzzle.</summary>
+        public static Vector3 LeadPoint(Target t, Vector3 from) => t.NearestHullPoint(from) + t.transform.forward * LeadUnits * M;
 
         /// <summary>The timer runs; a new pick when the rule says so. Returns the target.</summary>
         public Target Update(float dtMs, IReadOnlyList<Target> pool, Vector3 from)
