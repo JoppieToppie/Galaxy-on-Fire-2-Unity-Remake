@@ -332,6 +332,7 @@ namespace GoF2Remake.Multiplayer
             target.isShip = true;
             target.customDeath = true;
             target.maxHp = 100f;
+            target.RemoteDamage = (amount, hitVector, byNpc, _) => DamageUpRpc(amount, hitVector, byNpc, -1);
             target.RemoteTypedDamage = (amount, hitVector, byNpc, _, weaponItem) => DamageUpRpc(amount, hitVector, byNpc, weaponItem);
             target.RemoteEmp = emp => EmpUpRpc(emp);
             target.SlowBy = (ms, factor, noTurn) => SlowUpRpc(ms, factor, noTurn);   // remake: an EMP device (Flight.Device), a slowing weapon
@@ -507,7 +508,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetGuard.Damage(amount) || !NetGuard.Finite(hitVector)) { NetRateLimit.Reject(shooter, $"a hit of {amount}"); return; }
             if (!NetGuard.InOrbit(shooter, station.Value)) return;
             var by = NetSquad.Find(shooter);
-            if (!byNpc && (weaponItem < 0 || by == null || !by.HasWeaponItem(weaponItem))) { NetRateLimit.Reject(shooter, $"a hit from unmounted weapon {weaponItem}"); return; }
+            if (!byNpc && weaponItem >= 0 && (by == null || !by.HasWeaponItem(weaponItem))) { NetRateLimit.Reject(shooter, $"a hit from unmounted weapon {weaponItem}"); return; }
             if (byNpc) weaponItem = -1;
             NetState.Instance?.NoteHit(NetworkObjectId, shooter);
             DamageRpc(amount, hitVector, byNpc, shooter, weaponItem);
