@@ -666,7 +666,8 @@ namespace GoF2Remake.Flight
                 : r.gun.damage * DamageBoost * FlightDamageFactor;
             if (!missile && wasAlive && target.isShip) PrimaryDamageDealt?.Invoke(damage);
             if (Cheats.OneHitKills && !target.isPlayer) damage = 99999999f;
-            target.Damage(damage, false, r.gun.bullets[bullet].velocity, r.gun.shieldFactor);
+            var shot = r.gun.bullets[bullet];
+            target.Damage(damage, false, shot.velocity, r.gun.shieldFactor, shot.networkSourceObjectId, shot.networkShotId);
             if (r.gun.slowMs > 0f && target.Alive && !target.isPlayer) target.SlowBy?.Invoke(r.gun.slowMs, r.gun.slowFactor, r.gun.slowFreeze);   // remake mods: slowMs (slowFreeze: no turning)
             // remake mods (2026-11-02): EVERSPACE 2's corrosion / infestation and destabilization (TargetDebuffs)
             if (target.Alive && target.isShip && !target.isPlayer)
