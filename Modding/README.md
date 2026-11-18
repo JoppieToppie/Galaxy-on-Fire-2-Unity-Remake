@@ -325,7 +325,10 @@ energy cells.
 | `scanHitpoints` | 141 | Scanners: 1 = a new lock shows the ship's shield, armor and hull |
 | `scanWeapons` | 142 | Scanners: 1 = a new lock shows the ship's weapons |
 | `tractorNoLock` | 137 | Tractor beams: 1 = the scanner never locks a container; every beam takes containers by itself (see [Multi-grab tractor beams](#multi-grab-tractor-beams)) |
-| `shieldDamage` | 124 | A weapon's damage to a shield in percent (default 100; the Disruptor Laser and items based on it 200). What the shield doesn't absorb hits the armor and hull at the plain damage. Only ships with a shield feel it: the players (each other in multiplayer), not the game's NPCs |
+| `shieldDamage` | 124 | A weapon's damage to a shield in percent (default 100; the Disruptor Laser and items based on it 200). What the shield doesn't absorb hits the armor and hull at the plain damage. |
+| `damageType` | 172 | Optional explicit damage channel: `1` = energy, `2` = ballistic; unset / `0` keeps the original damage behaviour. This is not inferred from the weapon category. |
+| `energyResistance` | 173 | Optional shield resistance to energy damage, percent (0–100). The shield takes less energy damage and overflow still reaches armor / hull. |
+| `ballisticResistance` | 174 | Optional shield resistance to ballistic penetration, percent (0–100). Ballistic hits damage shield and hull together; penetration is reduced by this resistance multiplied by the remaining shield fraction. |
 | `echoDelayMs` | 127 | A second, weaker blast at each hit, this many ms after it (0 or none = no echo; see [Echo blasts](#echo-blasts)) |
 | `echoPercent` | 128 | The echo's damage, EMP and size in percent of the shot's (default 50) |
 | `echoRadius` | 129 | The echo's reach in game units (0 = the gun's own `blastRadius`) |
