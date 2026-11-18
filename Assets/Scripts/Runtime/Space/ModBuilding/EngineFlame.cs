@@ -17,7 +17,9 @@
 //   ship's when it flies faster than its top speed;
 // - SteeringOffset, the player's ship's velocity: each flame's tip bends against it, u^2 x -0.008 x min(|v|, 100 m/s) (in
 //   EVERSPACE 2's cm: at most 80 cm on a 5 m flame; here 0.16 of the flame's length), only while thrusting forward (x the
-//   thrust's forward share) (_SteerBend, world space).
+//   thrust's forward share) (_SteerBend, world space);
+// - the remake's (2026-11-17): the turn's own bend, added to it (TurnBend: the tip where the nozzle pointed TurnLag ago,
+//   from the measured turn rate, Spin). EVERSPACE 2's bend follows the drift alone, and the original flight has none.
 // The flames read the thrust's forward part (_FlameThrust) and the boost (_FlameBoost); LateralThrusters and Es2EngineVfx
 // read the rest (Input, Thrust, Boost, Boosting, Velocity, Pilot).
 // A customized exhaust (ModExhausts: the hangar's Customize screen, any ship) brings flames of its own under a holder
@@ -43,6 +45,12 @@ namespace GoF2Remake.Modding
         internal static readonly float RiseRate = -Mathf.Log(1f - 0.8f) * 60f, FallRate = -Mathf.Log(1f - 0.4f) * 60f;
         internal const float SteerShare = 0.16f;       // -0.008 x 10000 cm/s = 80 cm of the 500 cm flame
         internal const float SteerTopSpeed = 100f;     // m/s (EVERSPACE 2's |SteeringOffset| clamp 10000 cm/s; the remake's top speed)
+        // The remake's (2026-11-17): the turn's own bend. EVERSPACE 2's follows the drift alone, and the original flight
+        // has none (the ship flies where its nose points): its flames stayed rigid in every turn.
+        internal const float TurnLag = 0.15f;          // s: the tip is where the nozzle pointed this long ago
+        internal const float TurnShare = 0.25f;        // at most this share of the length (~95 deg/s)
+        internal const float SpinRate = 12f;           // per s: the measured turn rate's easing
+        internal const float SpinLimit = 12f;          // rad/s: faster in one frame is a jump, a respawn or a cut
 
         static readonly int DirId = Shader.PropertyToID("_FlameDir");
         static readonly int ThrustId = Shader.PropertyToID("_FlameThrust");
@@ -77,6 +85,8 @@ namespace GoF2Remake.Modding
         public float Travel { get; private set; }
         /// <summary>The ship's velocity, world space, metres a second.</summary>
         public Vector3 Velocity { get; private set; }
+        /// <summary>The ship's turn rate, world space, rad/s (eased: TrackSpin).</summary>
+        public Vector3 Spin { get; private set; }
         /// <summary>The local player's ship (EVERSPACE 2's BP_Ship_Player: input-driven, eased; its engine lights, veil trails
         /// and manoeuvring jets).</summary>
         public bool Pilot { get; private set; }
@@ -93,9 +103,10 @@ namespace GoF2Remake.Modding
         EngineDrive drive;
         ShipController ship;
         GameObject engineGlow;
-        bool ready, inStation, hasLast;
+        bool ready, inStation, hasLast, hasLastTurn;
         float level = -1f;
         Vector3 lastPosition;
+        Quaternion lastRotation;
 
         /// <summary>Adds the component to a ship template (once).</summary>
         public static void Add(GameObject ship)
@@ -140,7 +151,7 @@ namespace GoF2Remake.Modding
                     var bounds = r.localBounds;
                     bounds.Encapsulate(bounds.min + d * reach);
                     bounds.Encapsulate(bounds.max + d * reach);
-                    bounds.Expand(reach * SteerShare * 2f);
+                    bounds.Expand(reach * (SteerShare + TurnShare) * 2f);
                     r.localBounds = bounds;
                 }
             }
@@ -161,8 +172,8 @@ namespace GoF2Remake.Modding
             float target = On && !drive.Off && !suppressed && d > IdleThrust ? 1f : 0f;
             level = level < 0f ? target : Mathf.MoveTowards(level, target, Time.unscaledDeltaTime * FadePerSecond);
             // SteeringOffset (the player's ship only, EngineVFXApplySteeringOffset): against the velocity, x the thrust's
-            // forward share (sat(Thrust.x / |Thrust|)), as a share of the flame's length
-            Vector4 steer = Pilot && !inStation ? (Vector4)SteerBend(Velocity, Thrust) : Vector4.zero;
+            // forward share (sat(Thrust.x / |Thrust|)), as a share of the flame's length; and the turn's own bend
+            Vector4 steer = Pilot && !inStation ? (Vector4)(SteerBend(Velocity, Thrust) + TurnBend(Spin, -transform.forward)) : Vector4.zero;
             foreach (var (r, index, dir) in flames)
             {
                 if (r == null) continue;
@@ -197,6 +208,27 @@ namespace GoF2Remake.Modding
             return Vector3.ClampMagnitude(velocity / SteerTopSpeed, 1f) * (-SteerShare * share);
         }
 
+        /// <summary>The turn's bend as the flame tip's offset, world space, a share of the flame's length: the exhaust
+        /// blown TurnLag ago still lies where the nozzle pointed then, so a flame blowing along 'back' (world) on a ship
+        /// turning at 'spin' (world, rad/s) trails toward the inside of the turn. A roll about the flame's own axis bends
+        /// nothing.</summary>
+        internal static Vector3 TurnBend(Vector3 spin, Vector3 back)
+            => Vector3.ClampMagnitude(Vector3.Cross(spin, back) * -TurnLag, TurnShare);
+
+        /// <summary>Eases 'spin' (world, rad/s) toward the turn from 'last' to 'now' over 'dt' and keeps 'now' in 'last'.</summary>
+        internal static void TrackSpin(ref Vector3 spin, ref Quaternion last, ref bool hasLast, Quaternion now, float dt)
+        {
+            if (hasLast && dt > 0f)
+            {
+                (now * Quaternion.Inverse(last)).ToAngleAxis(out float deg, out Vector3 axis);
+                if (deg > 180f) deg -= 360f;
+                var w = float.IsNaN(axis.x) || float.IsInfinity(axis.x) ? Vector3.zero : axis * (deg * Mathf.Deg2Rad / dt);
+                if (w.magnitude < SpinLimit) spin = Vector3.Lerp(spin, w, 1f - Mathf.Exp(-dt * SpinRate));
+            }
+            last = now;
+            hasLast = true;
+        }
+
         /// <summary>EVERSPACE 2's EngineVFX_Update and EaseEngineVFX for this frame ('d' the engine drive, 0..2).</summary>
         void UpdateInputs(float dt, float d)
         {
@@ -211,6 +243,9 @@ namespace GoF2Remake.Modding
             }
             lastPosition = p;
             hasLast = true;
+            var spin = Spin;
+            TrackSpin(ref spin, ref lastRotation, ref hasLastTurn, transform.rotation, dt);
+            Spin = spin;
             var m = ship != null ? ship.Model : null;
             Pilot = m != null && !inStation;
             bool engines = On && !drive.Off && !suppressed;
