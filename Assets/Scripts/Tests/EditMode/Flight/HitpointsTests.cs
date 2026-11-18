@@ -310,6 +310,11 @@ namespace GoF2Remake.Tests
         [Test]
         public void BallisticDamagePenetratesInProportionToRemainingShield()
         {
+            var unresisted = new Hitpoints(100, 100);
+            Assert.IsFalse(unresisted.Damage(30, 1f, DamageType.Ballistic));
+            Assert.AreEqual(70f, unresisted.shield);
+            Assert.AreEqual(70, unresisted.hull, "zero resistance means full ballistic penetration");
+
             var full = new Hitpoints(100, 100) { ballisticResistance = 0.5f };
             Assert.IsFalse(full.Damage(100, 1f, DamageType.Ballistic));
             Assert.AreEqual(0f, full.shield);
