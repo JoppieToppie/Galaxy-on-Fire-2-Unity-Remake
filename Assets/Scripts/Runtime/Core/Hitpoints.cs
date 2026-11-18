@@ -64,7 +64,7 @@ namespace GoF2Remake.Flight
         /// GoF3's AbilityBypassShield): the hit goes on to the armor and hull, the shield untouched.</summary>
         public bool Damage(int dmg, float shieldFactor = 1f) => Damage(dmg, shieldFactor, DamageType.None);
 
-        /// <summary>Applies an explicitly typed hit. Energy resistance reduces shield effectiveness and carries overflow
+        /// <summary>Applies an explicitly typed hit. Energy resistance reduces incoming energy damage to the shield and carries overflow
         /// into armor/hull. Ballistic hits damage shield and hull together; hull penetration is reduced by ballistic
         /// resistance scaled by the shield fraction immediately before impact. Untyped hits retain the legacy algorithm.</summary>
         public bool Damage(int dmg, float shieldFactor, DamageType damageType)
@@ -82,7 +82,7 @@ namespace GoF2Remake.Flight
             }
             if (damageType == DamageType.Ballistic && ballisticResistance > 0f)
             {
-                float fraction = maxShield > 0 ? Clamp01(shield / maxShield) : 0f;
+                float fraction = shieldFactor > 0f && maxShield > 0 ? Clamp01(shield / maxShield) : 0f;
                 float penetration = Clamp01(ballisticResistance) * fraction * Clamp01(ballisticPenetration);
                 float hullDamage = dmg * (1f - penetration);
                 float cost = dmg * Math.Max(0f, shieldFactor);
