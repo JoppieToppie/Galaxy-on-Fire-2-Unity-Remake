@@ -112,6 +112,15 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ProxyShieldFractionsPreserveNoShieldAndCurrentCapacity()
+        {
+            Assert.AreEqual(-1f, new NetProxyStatus { shield = NetProxyStatus.Shield(-1f) }.ShieldFraction, "no shield is distinct from an empty shield");
+            Assert.AreEqual(0f, new NetProxyStatus { shield = NetProxyStatus.Shield(0f) }.ShieldFraction);
+            Assert.AreEqual(0.5f, new NetProxyStatus { shield = NetProxyStatus.Shield(0.5f) }.ShieldFraction, 2e-5f);
+            Assert.AreEqual(1f, new NetProxyStatus { shield = NetProxyStatus.Shield(1f) }.ShieldFraction);
+        }
+
+        [Test]
         public void Fractions()
         {
             Assert.AreEqual(-1f, WireQuant.Fraction(WireQuant.Fraction(-1f)), "none");
