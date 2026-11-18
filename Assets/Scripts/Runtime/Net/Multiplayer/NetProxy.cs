@@ -509,7 +509,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetGuard.InOrbit(shooter, station.Value)) return;
             var by = NetSquad.Find(shooter);
             if (!byNpc && weaponItem >= 0 && (by == null || !by.HasWeaponItem(weaponItem))) { NetRateLimit.Reject(shooter, $"a hit from unmounted weapon {weaponItem}"); return; }
-            if (byNpc) weaponItem = -1;
+            if (byNpc && weaponItem >= 0 && (by == null || by.RunsOrbit != station.Value || Database.Shared.Item(weaponItem) == null)) { NetRateLimit.Reject(shooter, $"an NPC hit from untrusted weapon {weaponItem}"); return; }
             NetState.Instance?.NoteHit(NetworkObjectId, shooter);
             DamageRpc(amount, hitVector, byNpc, shooter, weaponItem);
         }
@@ -522,7 +522,13 @@ namespace GoF2Remake.Multiplayer
             if (junk != null) { if (junk.Alive) junk.Damage(amount, true, hitVector); return; }   // counts for the mission (all junk)
             if (ship == null || ship.Target == null || !ship.Target.Alive) return;
             // Another game's NPC (its shot at this player's wingman): an NPC's hit, nobody's kill.
-            if (byNpc) { ship.Target.Damage(amount, true, hitVector); return; }
+            if (byNpc)
+            {
+                var npcItem = weaponItem >= 0 ? Database.Shared.Item(weaponItem) : null;
+                var npcDamageType = npcItem != null ? (DamageType)Mathf.Clamp(npcItem.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None;
+                ship.Target.Damage(amount, true, hitVector, 1f, npcDamageType);
+                return;
+            }
             var by = NetSquad.Find(shooter);
             // Whether it was after them (their kill counts only then, like the player's own: Traffic.OnShipDied).
             bool hostile = by != null && World.NpcShip.HostileToRemote != null && World.NpcShip.HostileToRemote(ship, by.LocalTarget);
