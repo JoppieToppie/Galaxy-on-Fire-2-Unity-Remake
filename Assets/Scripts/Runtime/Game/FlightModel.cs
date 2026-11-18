@@ -72,7 +72,7 @@ namespace GoF2Remake.Flight
         public FlightBonus bonus = new FlightBonus();
     }
 
-    /// <summary>Remake, for mods: per-style flight bonuses (Modding.ModFlight: items' stats 111-121, ships.json "flight").
+    /// <summary>Remake, for mods: per-style flight bonuses (Modding.ModFlight: items' stats 111-121 and 170-181, ships.json "flight").
     /// Percentages add up (20 = +20 %, -10 = 10 % less; the total never below -90 %); boostFactor is free flight's boost top
     /// speed in hundredths of the top speed (350 = x3.5), 0 = the booster's own.</summary>
     [Serializable]
@@ -1016,7 +1016,7 @@ namespace GoF2Remake.Flight
             levelSide = side;
 
             float dir = lean > 0f ? 1f : -1f; // roll so that the lean shrinks
-            return dir * rate * Mathf.Min(dtMs, LevelMaxDtMs);
+            return dir * rate * Style.rollTurnScale * Mathf.Min(dtMs, LevelMaxDtMs);
         }
 
         /// <summary>The boost timer alone, for frames another component moves the ship (ShipController.externalControl).</summary>
