@@ -204,7 +204,11 @@ namespace GoF2Remake.Flight
             if (RemoteDamage != null) { RemoteDamage(amount, hitVector, byNpc, shieldFactor); return; }
             // (a weak spot passes on what it takes, not the overkill of the hit that destroys it)
             if (forwardTo != null && forwardTo != this && forwardFactor > 0f && forwardTo.Alive)
+            {
+                if (byNpc) forwardTo.lastNpcWeapon = lastNpcWeapon;
+                else forwardTo.lastPlayerWeapon = lastPlayerWeapon;
                 forwardTo.Damage(Mathf.Min(amount * damageFactor, hitpoints != null ? hitpoints.Combined : hp) * forwardFactor, byNpc, hitVector, shieldFactor, damageType);
+            }
             amount *= damageFactor;
             int dmg = Mathf.Max(0, (int)amount);
             lastHitVector = hitVector;
