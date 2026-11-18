@@ -471,7 +471,8 @@ namespace GoF2Remake.World
             slotTaken[slot] = true;
             int i = visitors.Count;
             {
-                int race = agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
+                int race = SpaceHooks.VisitorRace != null ? SpaceHooks.VisitorRace(agent, Layout.stationIndex)
+                          : agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
                 var prefab = VisitorPrefab(StationTables.VisitorFor(race, !agent.male));
                 if (prefab == null) return false;
                 var feet = SlotFeet(slot);
