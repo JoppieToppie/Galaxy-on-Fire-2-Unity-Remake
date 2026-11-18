@@ -273,7 +273,6 @@ namespace GoF2Remake.Flight
             echo = GunEcho.From(visualItem);
             this.damage = damage;
             damageType = (DamageType)Mathf.Clamp(visualItem.Attr(DamageTypeAttr), 0, 2);
-            shieldFactor = ShieldFactor(visualItem);
             this.reloadMs = Mathf.Max(1f, reloadMs);
             this.lifetimeMs = lifetimeMs;
             this.speedUnitsPerMs = speedUnitsPerMs;
