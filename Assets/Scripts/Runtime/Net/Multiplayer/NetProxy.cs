@@ -332,7 +332,7 @@ namespace GoF2Remake.Multiplayer
             target.isShip = true;
             target.customDeath = true;
             target.maxHp = 100f;
-            target.RemoteDamage = (amount, hitVector, byNpc, _) => DamageUpRpc(amount, hitVector, byNpc);   // NPCs have no shield
+            target.RemoteTypedDamage = (amount, hitVector, byNpc, _, weaponItem) => DamageUpRpc(amount, hitVector, byNpc, weaponItem);
             target.RemoteEmp = emp => EmpUpRpc(emp);
             target.SlowBy = (ms, factor, noTurn) => SlowUpRpc(ms, factor, noTurn);   // remake: an EMP device (Flight.Device), a slowing weapon
             target.RemoteSteal = (item, amount) => StealUpRpc(item, amount);
@@ -500,20 +500,23 @@ namespace GoF2Remake.Multiplayer
         /// damage up to NetGuard.MaxDamage, at its rate. (A direct RPC to the owner let a modified client destroy every NPC
         /// of any orbit from anywhere.)</summary>
         [Rpc(SendTo.Server)]
-        void DamageUpRpc(float amount, Vector3 hitVector, bool byNpc, RpcParams rpc = default)
+        void DamageUpRpc(float amount, Vector3 hitVector, bool byNpc, int weaponItem, RpcParams rpc = default)
         {
             ulong shooter = rpc.Receive.SenderClientId;
             if (shooter == OwnerClientId || !NetRateLimit.Allow(shooter, NetRateLimit.Kind.Hit)) return;
             if (!NetGuard.Damage(amount) || !NetGuard.Finite(hitVector)) { NetRateLimit.Reject(shooter, $"a hit of {amount}"); return; }
             if (!NetGuard.InOrbit(shooter, station.Value)) return;
+            var by = NetSquad.Find(shooter);
+            if (!byNpc && (weaponItem < 0 || by == null || !by.HasWeaponItem(weaponItem))) { NetRateLimit.Reject(shooter, $"a hit from unmounted weapon {weaponItem}"); return; }
+            if (byNpc) weaponItem = -1;
             NetState.Instance?.NoteHit(NetworkObjectId, shooter);
-            DamageRpc(amount, hitVector, byNpc, shooter);
+            DamageRpc(amount, hitVector, byNpc, shooter, weaponItem);
         }
 
         /// <summary>The checked hit (DamageUpRpc): the owner's ship takes it, and turns on that player's squad (not on its own
         /// player: taken as an NPC's hit, so no standing change or kill credit for the owner).</summary>
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
-        void DamageRpc(float amount, Vector3 hitVector, bool byNpc, ulong shooter)
+        void DamageRpc(float amount, Vector3 hitVector, bool byNpc, ulong shooter, int weaponItem)
         {
             if (junk != null) { if (junk.Alive) junk.Damage(amount, true, hitVector); return; }   // counts for the mission (all junk)
             if (ship == null || ship.Target == null || !ship.Target.Alive) return;
@@ -525,7 +528,9 @@ namespace GoF2Remake.Multiplayer
             ship.OnRemoteHit(shooter, (int)amount);
             ship.Target.killedByRemote = true;   // a freelance mission counts another player's kill as its player's
             ship.Target.remoteKiller = shooter;  // and the raid news names them (NetOrbit)
-            ship.Target.Damage(amount, true, hitVector);
+            var item = weaponItem >= 0 ? GoF2Remake.Data.Database.Shared.Item(weaponItem) : null;
+            var damageType = item != null ? (DamageType)Mathf.Clamp(item.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None;
+            ship.Target.Damage(amount, true, hitVector, 1f, damageType);
             if (ship.Target.Alive) { ship.Target.killedByRemote = false; ship.Target.remoteKiller = ulong.MaxValue; }
             if (!ship.Target.Alive) { var s = St; s.killer = shooter; status.Value = s; }
             if (!ship.Target.Alive && NetOrbit.Current != null) KillCreditUpRpc(shooter, ship.Race, NetOrbit.Current.SystemRace, hostile);
