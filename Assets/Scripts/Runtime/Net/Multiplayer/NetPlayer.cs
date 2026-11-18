@@ -455,7 +455,7 @@ namespace GoF2Remake.Multiplayer
             var by = NetSquad.Find(shooter);
             if (!NetGuard.SameOrbit(by, this)) return;   // gone from the orbit a moment ago, or a hit from elsewhere
             if (!byNpc && weaponItem >= 0 && !by.HasWeaponItem(weaponItem)) { NetRateLimit.Reject(shooter, $"a hit from unmounted weapon {weaponItem}"); return; }
-            if (byNpc) weaponItem = -1; // NPC damage type is not client-selected.
+            if (byNpc && weaponItem >= 0 && (by.RunsOrbit != Station || Database.Shared.Item(weaponItem) == null)) { NetRateLimit.Reject(shooter, $"an NPC hit from untrusted weapon {weaponItem}"); return; }
             if (!byNpc && NetSquad.Same(by, this)) return;
             NetState.Instance?.NoteHit(NetworkObjectId, shooter);
             HitRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem);
