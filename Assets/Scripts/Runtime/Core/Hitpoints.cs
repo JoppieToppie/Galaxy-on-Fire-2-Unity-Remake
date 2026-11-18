@@ -79,7 +79,7 @@ namespace GoF2Remake.Flight
                 ApplyArmorHull(Math.Max(0, (int)overflow));
                 return hull < 1;
             }
-            if (damageType == DamageType.Ballistic && ballisticResistance > 0f)
+            if (damageType == DamageType.Ballistic)
             {
                 float fraction = shieldFactor > 0f && maxShield > 0 ? Clamp01(shield / maxShield) : 0f;
                 float penetration = Clamp01(ballisticResistance) * fraction;
