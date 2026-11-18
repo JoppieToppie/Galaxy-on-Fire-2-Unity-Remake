@@ -1740,7 +1740,7 @@ per ms.
 | **Free flight: boost** | | |
 | `freeBoostScale` | 1.06667 | Boost top speed = the booster's original boost x this (of the top speed). |
 | `freeBoostFallback` | 3.2 | Boost top speed of a booster without a boost speed, of the top speed. |
-| `freeBoostAccel` | 1.63 | Acceleration while boosting, of the forward one. |
+| `freeBoostAccel` | 1.63 | Acceleration multiplier while boosting, applied to the requested forward, reverse, strafe and vertical movement. |
 | `freeBoostDurationMs` | 3500 | A full boost pool lasts this long (ms) for a booster without a duration. |
 | `boostRestartEnergy` | 0.2 | An emptied boost pool boosts again from this share. |
 | **Free flight: auto-roll** | | |
