@@ -447,7 +447,7 @@ namespace GoF2Remake.Flight
             float accelFwd = (R.freeAccelForward / 1000f) * top * fwdShare;   // unboosted: the braking and turning boost derive from it
             float thrust = Mathf.Clamp(input.thrust, -1f, 1f), strafe = Mathf.Clamp(input.strafe, -1f, 1f), hover = Mathf.Clamp(input.hover, -1f, 1f);
             ThrustInput = new Vector3(strafe, hover, thrust);
-            if (IsBoosting) thrust = 1f;   // the boost drives forward whatever is held
+            // Boost amplifies the requested translation; it never supplies its own forward input.
             var fwd = rotation * Vector3.forward;
             var v = Quaternion.Inverse(rotation) * FreeVelocity;
             var inp = new Vector3(strafe, hover, thrust);
@@ -485,16 +485,15 @@ namespace GoF2Remake.Flight
             // within what it was when already faster (the thrust only steers it there).
             if (inpMag > 0f && targetSpeed > 0f)
             {
-                // (the accelerations are attributes of their own: the boost raises only the forward one)
-                float sideTop = top * Style.strafeScale;
-                // Reverse has its own acceleration, but its speed cap remains fwdTop * freeReverseShare above.
-                // Each translation axis has its own acceleration. Zero preserves the legacy shared side acceleration.
+                // Each translation axis has its own acceleration. Boost amplifies whichever axes are requested,
+                // rather than injecting forward thrust. Zero preserves the legacy shared side acceleration.
                 float reverseAccel = R.freeAccelReverse > 0f ? R.freeAccelReverse : R.freeAccelSide;
                 float strafeAccel = R.freeAccelStrafe > 0f ? R.freeAccelStrafe : R.freeAccelSide;
                 float hoverAccel = R.freeAccelHover > 0f ? R.freeAccelHover : R.freeAccelSide;
-                var accels = new Vector3((strafeAccel / 1000f) * sideTop * R.freeStrafeShare * sideShare, (hoverAccel / 1000f) * sideTop * R.freeHoverShare * sideShare,
-                                         thrust < 0f ? (reverseAccel / 1000f) * top * R.freeReverseShare * sideShare
-                                                     : accelFwd * (IsBoosting ? R.freeBoostAccel : 1f));
+                float boostAccel = IsBoosting ? R.freeBoostAccel : 1f;
+                var accels = new Vector3((strafeAccel / 1000f) * sideTop * R.freeStrafeShare * sideShare * boostAccel,
+                                         (hoverAccel / 1000f) * sideTop * R.freeHoverShare * sideShare * boostAccel,
+                                         (thrust < 0f ? (reverseAccel / 1000f) * top * R.freeReverseShare * sideShare : accelFwd) * boostAccel);
                 float accel = inpMag * Vector3.Scale(accels, targetDir).magnitude;
                 float ease = 1f;
                 if (damp)
