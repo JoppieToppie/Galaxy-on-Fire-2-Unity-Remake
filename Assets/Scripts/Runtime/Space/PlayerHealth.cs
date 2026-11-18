@@ -107,6 +107,9 @@ namespace GoF2Remake.Flight
             Target.customDeath = true;
             Target.radius = HitRadiusUnits * M;
             Target.hitpoints = new Hitpoints(hull, shield, armor);
+            // Optional resistances on the mounted shield; unset values leave the original damage model unchanged.
+            Hp.energyResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(173) / 100f) : 0f;
+            Hp.ballisticResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(174) / 100f) : 0f;
             if (Session.PlayerHull >= 0) Hp.hull = Mathf.Clamp(Session.PlayerHull, 1, hull);
             if (Session.PlayerArmor >= 0) Hp.armor = Mathf.Clamp(Session.PlayerArmor, 0, armor);
             if (Session.PlayerShield >= 0f) Hp.shield = Mathf.Clamp(Session.PlayerShield, 0f, shield);
