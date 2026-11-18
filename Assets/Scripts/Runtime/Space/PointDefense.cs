@@ -1,7 +1,7 @@
 // PointDefense.cs
 // Remake, for mods (EVERSPACE 2's Missile Defense System; the original has no point defense): equipment with the stat
 // "missileDefense" (attr 131, a reach in game units) lets the ship's auto turrets shoot down incoming homing missiles,
-// rockets and nukes within its reach. "missileDefenseTargets" (attr 144) selects which: bits 1/2/4 respectively, with
+// rockets and nukes within its reach. "missileDefenseTargets" (attr 186) selects which: bits 1/2/4 respectively, with
 // zero (the default) covering all three. While covered ordnance is within reach, an auto turret (PlayerTurret) turns to it
 // instead of its ship target, leading it by the turret's shot's travel time, and fires when aligned; each shot destroys it
 // when the shot arrives (that travel time later), with the rocket impact's burst (GunRig.ShowImpact's
