@@ -119,8 +119,6 @@ namespace GoF2Remake.World
         public static Action<SpaceLevel> LevelBuilt;
         /// <summary>The station is built: multiplayer adds its NetHangar.</summary>
         public static Action<StationLevel> StationBuilt;
-        /// <summary>Optional override for an automatically chosen bar visitor race (agent, station index); negative = use the default.</summary>
-        public static Func<Agent, int, int> VisitorRace;
         /// <summary>No other player is in that orbit (NetState.OrbitEmpty): this game builds its traffic.</summary>
         public static Func<int, bool> OrbitEmpty;
         /// <summary>A point out of the other players' sight (NetOrbit.OutOfSight), game units.</summary>
