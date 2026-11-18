@@ -35,7 +35,9 @@ namespace GoF2Remake.Flight
 {
     public class FreeLookCamera : MonoBehaviour
     {
-        const float M = 0.05f, FrameMs = OriginalFrame.Ms, MinDistance = 1500f, MaxDistance = 45000f;
+        const float M = 0.05f, FrameMs = OriginalFrame.Ms, MinDistance = 1500f;
+        /// <summary>Modder hook: maximum free-look orbit distance in world units.</summary>
+        public static float MaxOrbitDistance = 70000f;
         public enum Mode { Standard = 0, Turret = 1, FirstPerson = 2, FreeLook = 3 }
         const string CockpitPref = "flight_camera_cockpit";
 
@@ -89,7 +91,7 @@ namespace GoF2Remake.Flight
         /// <summary>Sets the ship's default free-look orbit radius (game units), clamped to the existing zoom range.</summary>
         public void SetDefaultOrbitDistance(float gameUnits)
         {
-            distance = Mathf.Clamp(gameUnits, MinDistance, MaxDistance);
+            distance = Mathf.Clamp(gameUnits, MinDistance, Mathf.Max(MinDistance, MaxOrbitDistance));
             if (Current == Mode.FreeLook) Place();
         }
 
@@ -308,14 +310,14 @@ namespace GoF2Remake.Flight
             float pitch = Mathf.Asin(Mathf.Clamp(-u.y, -1f, 1f)), yaw = Mathf.Atan2(u.x, u.z);
             x = yaw / 0.005f;
             y = Mathf.Clamp(-pitch / 0.005f, -200f, 200f);
-            d = Mathf.Clamp(len / M, MinDistance, MaxDistance);
+            d = Mathf.Clamp(len / M, MinDistance, Mathf.Max(MinDistance, MaxOrbitDistance));
             return true;
         }
 
         void EnterFreeLook()
         {
             px = 0f; py = 0f; fling = Vector2.zero; wheel = 0f;
-            distance = Mathf.Clamp(distance, MinDistance, MaxDistance);
+            distance = Mathf.Clamp(distance, MinDistance, Mathf.Max(MinDistance, MaxOrbitDistance));
             Place();
             if (chase == null) return;
             chase.follow = anchor;
@@ -491,7 +493,7 @@ namespace GoF2Remake.Flight
             }
             px += delta.x;
             py = Mathf.Clamp(py + delta.y, -200f, 200f);
-            distance = Mathf.Clamp(distance, MinDistance, MaxDistance);
+            distance = Mathf.Clamp(distance, MinDistance, Mathf.Max(MinDistance, MaxOrbitDistance));
             Place();
         }
 
