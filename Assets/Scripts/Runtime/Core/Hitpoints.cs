@@ -72,9 +72,10 @@ namespace GoF2Remake.Flight
             if (!vulnerable || hull <= 0 || dmg <= 0) return false;
             if (damageType == DamageType.Energy && shield > 0f && energyResistance > 0f)
             {
-                float factor = Math.Max(0f, shieldFactor) * (1f - Clamp01(energyResistance));
+                float baseFactor = Math.Max(0f, shieldFactor);
+                float factor = baseFactor * (1f - Clamp01(energyResistance));
                 float cost = dmg * factor;
-                float overflow = factor > 0f ? Math.Max(0f, dmg - shield / factor) : dmg;
+                float overflow = baseFactor <= 0f ? dmg : factor <= 0f ? 0f : Math.Max(0f, dmg - shield / factor);
                 shield = Math.Max(0f, shield - cost);
                 if (cost > 0f) shieldHit = true;
                 ApplyArmorHull(Math.Max(0, (int)overflow));
