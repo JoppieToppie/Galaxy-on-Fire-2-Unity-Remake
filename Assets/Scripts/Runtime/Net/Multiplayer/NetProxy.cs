@@ -509,6 +509,9 @@ namespace GoF2Remake.Multiplayer
             shieldFactor = byNpc || float.IsNaN(shieldFactor) ? 1f : shieldFactor <= 0f ? 0f : Mathf.Clamp(shieldFactor, 0.01f, 10f);
             if (!NetGuard.InOrbit(shooter, station.Value)) return;
             var by = NetSquad.Find(shooter);
+            if (byNpc && !NetGuard.NpcDamageRunner(by != null && by.InSpace, by != null && by.RunsOrbitActive,
+                                                   by != null ? by.RunsOrbit : -1, station.Value))
+            { NetRateLimit.Reject(shooter, "NPC damage from a client that does not run this orbit"); return; }
             if (!byNpc && weaponItem >= 0)
             {
                 var weapon = Database.Shared.Item(weaponItem);

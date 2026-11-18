@@ -67,6 +67,10 @@ namespace GoF2Remake.Multiplayer
         /// <summary>'p' and 'q' fly in the same orbit.</summary>
         public static bool SameOrbit(NetPlayer p, NetPlayer q) => p != null && q != null && p.InSpace && q.InSpace && p.Station == q.Station;
 
+        /// <summary>Only the server-selected runner may relay NPC damage for an orbit; the active bit distinguishes Void (-1) from none.</summary>
+        public static bool NpcDamageRunner(bool inSpace, bool isRunner, int runsOrbit, int targetStation) =>
+            inSpace && isRunner && runsOrbit == targetStation;
+
         /// <summary>'client' is a player of the session docked at 'station' (taking off included).</summary>
         public static bool DockedAt(ulong client, int station)
         {

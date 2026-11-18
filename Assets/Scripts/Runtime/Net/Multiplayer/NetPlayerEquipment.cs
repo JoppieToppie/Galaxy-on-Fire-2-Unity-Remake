@@ -288,6 +288,8 @@ namespace GoF2Remake.Multiplayer
             if (!NetGuard.Damage(amount) || !NetGuard.Finite(hitVector)) { NetRateLimit.Reject(shooter, $"a sentry hit of {amount}"); return; }
             var by = NetSquad.Find(shooter);
             if (!NetGuard.SameOrbit(by, this)) return;
+            if (byNpc && !NetGuard.NpcDamageRunner(by.InSpace, by.RunsOrbitActive, by.RunsOrbit, Station))
+            { NetRateLimit.Reject(shooter, "NPC sentry damage from a client that does not run this orbit"); return; }
             if (!byNpc && NetSquad.Same(by, this)) return;
             SentryHitRpc(sentry, amount, hitVector, byNpc, shooter);
         }

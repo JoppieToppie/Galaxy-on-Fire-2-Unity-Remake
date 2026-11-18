@@ -46,8 +46,9 @@ namespace GoF2Remake.Multiplayer
             foreach (var p in NetPlayer.All)
             {
                 if (p == null || !p.IsSpawned) continue;
-                int orbit = p.InSpace && orbitRunners.TryGetValue(p.Station, out ulong id) && id == p.OwnerClientId ? p.Station : -1;
-                p.SetRunsOrbit(orbit);
+                bool active = p.InSpace && orbitRunners.TryGetValue(p.Station, out ulong id) && id == p.OwnerClientId;
+                int orbit = active ? p.Station : -1;
+                p.SetRunsOrbit(orbit, active);
             }
             UpdateInterest();
             HandOver(here);
