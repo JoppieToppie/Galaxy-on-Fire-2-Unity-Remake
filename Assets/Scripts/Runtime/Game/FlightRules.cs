@@ -154,7 +154,7 @@ namespace GoF2Remake.Flight
         public float freeBoostScale = FlightModel.FreeBoostScale;
         [Range(1f, 50f), Tooltip("Boost top speed of a booster without a boost speed, of the top speed.")]
         public float freeBoostFallback = FlightModel.FreeBoostFallback;
-        [Range(0f, 50f), Tooltip("Acceleration while boosting, of the forward one.")]
+        [Range(0f, 50f), Tooltip("Acceleration multiplier while boosting, applied to the requested forward, reverse, strafe and vertical movement.")]
         public float freeBoostAccel = FlightModel.FreeBoostAccel;
         [Range(100f, 600000f), Tooltip("A full boost pool lasts this long (ms) for a booster without a duration.")]
         public float freeBoostDurationMs = FlightModel.FreeBoostDurationMs;
