@@ -392,3 +392,7 @@ the player ship) and `NavigationView` (flight HUD).
   The option is unavailable with Ship cruise (including single-player cruise), multiplayer and co-op.
   Manual locked-object flight, mining/docking approaches without autopilot, jump/drive/device and
   near-arrival restrictions retain their existing behavior. This does not grant invulnerability or change radar hostility.
+
+- **Time speedup near hostiles (UI)**: the stored choice stays editable in either single-player fast-forward mode.
+  Ship cruise makes it ineffective; selecting cruise does not clear or disable the preference. Multiplayer/co-op
+  still disables the control and rejects the simulation override.
