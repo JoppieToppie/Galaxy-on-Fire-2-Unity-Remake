@@ -471,7 +471,9 @@ namespace GoF2Remake.Flight
                 // evasion.
                 if (dropShaken && !b.lockLost && (object)b.target == null) { b.lockLost = true; shaken = true; }
                 if (steer > 0f && !b.lockLost && homeOn.ShakesMissiles) { b.lockLost = true; shaken = true; }
-                if (steer > 0f && !b.lockLost && homeOn.isPlayer) IncomingMissiles.Report(this, i, b.position, b.velocity);
+                if (homeOn != null && homeOn.Alive && !b.lockLost && homeOn.isPlayer &&
+                    (steer > 0f || kind == Kind.Rocket || kind == Kind.Nuke))
+                    IncomingMissiles.Report(this, i, b.position, b.velocity);
                 bool homing = steer > 0f && !b.lockLost && b.age >= homingDelayMs;
                 var goal = homing ? (b.aimed ? homeOn.transform.TransformPoint(b.aim) : homeOn.transform.position) : Vector3.zero;
                 if (homing)
