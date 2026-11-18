@@ -471,23 +471,16 @@ namespace GoF2Remake.World
             slotTaken[slot] = true;
             int i = visitors.Count;
             {
+                int race = agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
+                var prefab = VisitorPrefab(StationTables.VisitorFor(race, !agent.male));
                 var character = Modding.ModCharacters.Find(agent.character);
-                // A character's explicit race wins; otherwise a mod-race diplomat keeps its actual side (Agent.race is
-                // deliberately the look race for its name, portrait, glow and dialogue).
-                int race = character != null && character.hasRace ? character.race
-                         : agent.modRace >= Modding.ModRaces.FirstRace ? agent.modRace : agent.race;
-                if (character == null || !character.hasRace)
-                {
-                    race = agent.modRace >= Modding.ModRaces.FirstRace ? agent.modRace
-                         : agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
-                    // Keep the visitor-race extension point active for automatically assigned identities.
-                    int hookedRace = SpaceHooks.VisitorRace?.Invoke(agent, Layout.stationIndex) ?? -1;
-                    if (hookedRace >= 0) race = hookedRace;
-                }
+                // Explicit character race takes precedence over station weighting; mod-race diplomats keep their actual side.
+                if (character != null && character.hasRace) race = character.race;
+                else if (agent.modRace >= Modding.ModRaces.FirstRace) race = agent.modRace;
                 var silhouette = character?.silhouette;
-                // A custom race supplies its own GLB visitor unless this character explicitly selects a built-in silhouette.
-                var prefab = string.IsNullOrEmpty(silhouette) && Modding.ModRaces.Is(race) ? Modding.ModRaceVisitors.Prefab(race) : null;
-                if (prefab == null) prefab = VisitorPrefab(StationTables.VisitorForSilhouette(silhouette, Modding.ModRaces.Look(race), !agent.male));
+                // A custom race supplies its own GLB visitor unless the character explicitly selects a built-in silhouette.
+                var customVisitor = string.IsNullOrEmpty(silhouette) && Modding.ModRaces.Is(race) ? Modding.ModRaceVisitors.Prefab(race) : null;
+                prefab = customVisitor ?? VisitorPrefab(StationTables.VisitorForSilhouette(silhouette, Modding.ModRaces.Look(race), !agent.male));
                 if (prefab == null) return false;
                 var feet = SlotFeet(slot);
                 var v = new Visitor { feet = feet, agent = agent };
