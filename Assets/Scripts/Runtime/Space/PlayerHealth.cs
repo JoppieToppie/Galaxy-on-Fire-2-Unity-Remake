@@ -96,6 +96,8 @@ namespace GoF2Remake.Flight
             int shield = shieldItem != null ? shieldItem.Attr(18) : 0;
             shieldRechargeMs = shieldItem != null ? shieldItem.Attr(19) : 0;
             int armor = armorItem != null ? armorItem.Attr(20) : 0;
+            Hp.energyResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(173) / 100f) : 0f;
+            Hp.ballisticResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(174) / 100f) : 0f;
             HasShield = shield > 0;
             HasArmor = armor > 0;
             if (repair != null) { hasRepair = true; RepairRates(repair, out repairHullMs, out repairArmorMs); }
