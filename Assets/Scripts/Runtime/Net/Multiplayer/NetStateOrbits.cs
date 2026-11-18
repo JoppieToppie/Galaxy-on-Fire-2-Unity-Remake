@@ -48,7 +48,7 @@ namespace GoF2Remake.Multiplayer
                 if (p == null || !p.IsSpawned) continue;
                 bool active = p.InSpace && orbitRunners.TryGetValue(p.Station, out ulong id) && id == p.OwnerClientId;
                 int orbit = active ? p.Station : -1;
-                p.SetRunsOrbit(orbit);
+                p.SetRunsOrbit(orbit, active);
             }
             UpdateInterest();
             HandOver(here);
