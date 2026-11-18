@@ -696,7 +696,11 @@ namespace GoF2Remake.Flight
             bool wasAlive = target.Alive;
             target.lastPlayerWeapon = r.gun.itemIndex;
             if (Cheats.OneHitKills && !target.isPlayer && dmg > 0) dmg = 99999999;
-            if (dmg > 0) target.Damage(dmg, false, (target.transform.position - center).normalized, r.gun.shieldFactor, r.gun.damageType);
+            if (dmg > 0)
+            {
+                if (r.gun.damageType == DamageType.None) target.Damage(dmg, false, (target.transform.position - center).normalized);
+                else target.Damage(dmg, false, (target.transform.position - center).normalized, r.gun.shieldFactor, r.gun.damageType);
+            }
             if (wasAlive && !target.Alive && target.isAsteroid)
             {
                 Session.AsteroidsDestroyed++;
