@@ -55,9 +55,9 @@ namespace GoF2Remake.Modding
             // Equipment with missileDefense (a reach in game units) lets the ship's auto turrets shoot down incoming ordnance.
             ["missileDefense"] = 131,
             // A point-defense item's mode: 0 (default) also resumes ship targeting between threats; 1 reserves auto turrets for ordnance.
-            ["missileDefenseMode"] = 143,
+            ["missileDefenseMode"] = 185,
             // Incoming ordnance covered by point defense: bit 1 homing missiles, bit 2 rockets, bit 4 nukes; 0 (default) means all.
-            ["missileDefenseTargets"] = 144,
+            ["missileDefenseTargets"] = 186,
             // An ore's mining time in percent of the game's (Flight.MiningGame / MiningBeamExtraction; default 100): 200 takes
             // each layer twice as long for the same ore (EVERSPACE 2's DT_Mining_Yield: its crystals 10 s against the ores' 5 s).
             ["miningTime"] = 132,

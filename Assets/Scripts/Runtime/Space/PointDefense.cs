@@ -26,9 +26,9 @@ namespace GoF2Remake.Flight
         /// <summary>The item attribute (Modding.ItemStats "missileDefense").</summary>
         public const int Attribute = 131;
         /// <summary>Optional mode stat: 0 = balanced, 1 = pure missile defense.</summary>
-        public const int ModeAttribute = 143;
+        public const int ModeAttribute = 185;
         /// <summary>Optional coverage bitmask: 1 homing missiles, 2 rockets, 4 nukes; 0 = all three.</summary>
-        public const int TargetsAttribute = 144;
+        public const int TargetsAttribute = 186;
         public const int HomingMissileTarget = 1, RocketTarget = 2, NukeTarget = 4;
         const int AllTargets = HomingMissileTarget | RocketTarget | NukeTarget;
 
