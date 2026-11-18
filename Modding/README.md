@@ -330,7 +330,8 @@ energy cells.
 | `echoPercent` | 128 | The echo's damage, EMP and size in percent of the shot's (default 50) |
 | `echoRadius` | 129 | The echo's reach in game units (0 = the gun's own `blastRadius`) |
 | `echoExplosion` | 130 | The explosion the echo shows: 0 ship, 8 to 10 scatter (8 the default), 11 shock blast, 13 fireworks; -1 none |
-| `missileDefense` | 131 | Missile defense: with this item mounted, the ship's automatic turrets shoot down the homing missiles flying at it within this reach (game units, 20 per metre), before turning to enemy ships. Any item can carry it; on a seatless cabin (`"base": 91`, `"cabinSize": 0`) it changes nothing else and the shop calls it "Missile defense". Another player's missiles in multiplayer are left alone |
+| `missileDefense` | 131 | The automatic turrets can shoot down homing missiles aimed at the ship within this reach (game units, 20 per metre), then resume enemy targeting. Any item can carry it; on a seatless cabin (`"base": 91`, `"cabinSize": 0`) it changes nothing else and the shop calls it "Missile defense". Network mirror shots from another player's guns are not canceled by this local behavior. |
+| `missileDefenseMode` | 143 | Optional behavior for items with `missileDefense`: 0 (default) is balanced and lets turrets resume enemy targeting between threats; 1 reserves automatic turrets for missile defense and prevents them firing at ships. If several defense items are mounted, the strongest mode applies. |
 | `cruiseSpeed` | 133 | A cruise drive's speed factor in hundredths (400 = x4; > 0 makes an item based on the Khador Drive a cruise drive, see [Cruise drives](#cruise-drives)) |
 | `interstellar` | 135 | 1: the mounted cruise drive also flies the space between the systems ([Cruise drives](#cruise-drives)) |
 | `cruiseRange` | 134 | Cruise drive: the distance one leg of energy cells buys (game units, 20 per metre; default 60000 = 3 km) |

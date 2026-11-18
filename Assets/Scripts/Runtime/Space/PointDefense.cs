@@ -23,6 +23,8 @@ namespace GoF2Remake.Flight
     {
         /// <summary>The item attribute (Modding.ItemStats "missileDefense").</summary>
         public const int Attribute = 131;
+        /// <summary>Optional mode stat: 0 = balanced, 1 = pure missile defense.</summary>
+        public const int ModeAttribute = 143;
 
         static readonly List<IncomingMissiles.Missile> incoming = new List<IncomingMissiles.Missile>();
         // -> when it dies (Time.time) and the missile's age when claimed (Gun.Bullet.age: a younger one is a new missile)
@@ -53,6 +55,19 @@ namespace GoF2Remake.Flight
             if (key.gun.bullets[key.index].age >= c.age) return true;
             claimed.Remove(key);   // the claimed one is gone, its slot fired again
             return false;
+        }
+
+        /// <summary>The strongest mounted missile-defense mode: 0 = balanced, 1 = reserve auto turrets for missiles.</summary>
+        public static int Mode(Database db)
+        {
+            if (db == null) return 0;
+            int mode = 0;
+            foreach (var e in Session.Equipment)
+            {
+                var it = db.Item(e.item);
+                if (it != null) mode = Mathf.Max(mode, Mathf.Clamp(it.Attr(ModeAttribute), 0, 1));
+            }
+            return mode;
         }
 
         /// <summary>The reach of the mounted equipment's missile defense in game units (the longest), 0 = none.</summary>
