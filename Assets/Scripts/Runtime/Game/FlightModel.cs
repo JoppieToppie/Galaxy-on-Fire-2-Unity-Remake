@@ -458,7 +458,7 @@ namespace GoF2Remake.Flight
             float accelFwd = (R.freeAccelForward / 1000f) * top * fwdShare * Style.forwardAccelScale;   // unboosted: the braking and turning boost derive from it
             float thrust = Mathf.Clamp(input.thrust, -1f, 1f), strafe = Mathf.Clamp(input.strafe, -1f, 1f), hover = Mathf.Clamp(input.hover, -1f, 1f);
             ThrustInput = new Vector3(strafe, hover, thrust);
-            if (IsBoosting) thrust = 1f;   // the boost drives forward whatever is held
+            // Boost amplifies requested translation; it does not inject forward thrust.
             var fwd = rotation * Vector3.forward;
             var v = Quaternion.Inverse(rotation) * FreeVelocity;
             var inp = new Vector3(strafe, hover, thrust);
