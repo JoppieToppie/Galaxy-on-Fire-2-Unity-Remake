@@ -197,6 +197,7 @@ namespace GoF2Remake.Flight
             if (vulnerability > 0f) amount *= 1f + vulnerability;   // remake: a weapon's vulnerability (TargetDebuffs)
             if (!byNpc && PlayerWeaponFactor != null && lastPlayerWeapon >= 0) amount *= PlayerWeaponFactor(lastPlayerWeapon);
             if (HitFilter != null) amount = HitFilter(amount, hitVector);
+            if (damageType == DamageType.None && RemoteDamage != null) { RemoteDamage(amount, hitVector, byNpc, shieldFactor); return; }
             if (RemoteTypedDamage != null) { RemoteTypedDamage(amount, hitVector, byNpc, shieldFactor, byNpc ? -1 : lastPlayerWeapon); return; }
             if (RemoteDamage != null) { RemoteDamage(amount, hitVector, byNpc, shieldFactor); return; }
             // (a weak spot passes on what it takes, not the overkill of the hit that destroys it)
