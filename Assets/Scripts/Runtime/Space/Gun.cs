@@ -91,7 +91,7 @@ namespace GoF2Remake.Flight
         /// <summary>Attr 105 = 1: the shots are homing missiles (they home on the lock / the turret's target, keep their size,
         /// trail smoke and burst like a rocket on a hit), whatever the item's category.</summary>
         public readonly bool missiles;
-        /// <summary>Explicit mod-defined damage channel (item attribute 172); never inferred from weapon category.</summary>
+        /// <summary>Explicit mod-defined damage channel (item attribute 182); never inferred from weapon category.</summary>
         public readonly DamageType damageType;
         /// <summary>Attr 106: shots side by side per trigger; attr 107: salvos per magazine, attr 108 ms apart (the reload,
         /// attr 11, comes after the last).</summary>
@@ -187,7 +187,7 @@ namespace GoF2Remake.Flight
         [System.NonSerialized] public float shieldFactor = 1f;
 
         public const int ShieldDamageAttr = 124, DisruptorShieldPercent = 200;
-        public const int DamageTypeAttr = 172;
+        public const int DamageTypeAttr = 182;
         /// <summary>Remake mods (GoF3's abilities): 161 shieldBypass (its hits go past the shield), 162 slowMs / 163 slowPercent
         /// (a hit slows the ship to that share of its speed for that long, turning still allowed: AbilitySlowdown).</summary>
         public const int ShieldBypassAttr = 161, SlowMsAttr = 162, SlowPercentAttr = 163;

@@ -96,8 +96,8 @@ namespace GoF2Remake.Flight
             int shield = shieldItem != null ? shieldItem.Attr(18) : 0;
             shieldRechargeMs = shieldItem != null ? shieldItem.Attr(19) : 0;
             int armor = armorItem != null ? armorItem.Attr(20) : 0;
-            Hp.energyResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(173) / 100f) : 0f;
-            Hp.ballisticResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(174) / 100f) : 0f;
+            Hp.energyResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(183) / 100f) : 0f;
+            Hp.ballisticResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(184) / 100f) : 0f;
             HasShield = shield > 0;
             HasArmor = armor > 0;
             if (repair != null) { hasRepair = true; RepairRates(repair, out repairHullMs, out repairArmorMs); }
@@ -111,7 +111,7 @@ namespace GoF2Remake.Flight
             Target.hitpoints = new Hitpoints(hull, shield, armor);
             // Optional resistances on the mounted shield; unset values leave the original damage model unchanged.
             Hp.energyResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(173) / 100f) : 0f;
-            Hp.ballisticResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(174) / 100f) : 0f;
+            Hp.ballisticResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(184) / 100f) : 0f;
             if (Session.PlayerHull >= 0) Hp.hull = Mathf.Clamp(Session.PlayerHull, 1, hull);
             if (Session.PlayerArmor >= 0) Hp.armor = Mathf.Clamp(Session.PlayerArmor, 0, armor);
             if (Session.PlayerShield >= 0f) Hp.shield = Mathf.Clamp(Session.PlayerShield, 0f, shield);
