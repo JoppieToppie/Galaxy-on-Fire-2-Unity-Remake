@@ -41,9 +41,8 @@ namespace GoF2Remake.Data
         [System.NonSerialized] public List<Vector3> smokePoints;
         [System.NonSerialized] public float explosionScale = 1f;
 
-        /// <summary>Remake mods (Modding.ShipClassRules, ships.json "shipClass" / "classTags"): the ship's docking class and role tags; none on any original ship unless a mod assigns them.</summary>
-        [System.NonSerialized] public string shipClass;
-        [System.NonSerialized] public string[] classTags;
+        /// <summary>Remake mods (ships.json "dockingRole"): an explicit "internal" or "external" dock role; null preserves size-based legacy eligibility.</summary>
+        [System.NonSerialized] public string dockingRole;
     }
 
     [System.Serializable] public class StatEntry { public string key; public int value; }

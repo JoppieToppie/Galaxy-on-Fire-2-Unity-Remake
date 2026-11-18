@@ -14,11 +14,11 @@ namespace GoF2Remake.World
         GoF2Remake.Data.ShipData PlayerShipData => db != null ? db.Ship(Session.ShipIndex) : null;
 
         /// <summary>The ship's class / role allows external docking, regardless of legacy hull-size or ship-index guesses.</summary>
-        bool ExternalDockClass => Modding.ShipClassRules.CanDockExternally(PlayerShipData);
+        bool ExternalDockClass => Modding.ExternalDockingRules.CanDockExternally(PlayerShipData);
 
         /// <summary>Internal docking remains available to fighter / interceptor / bomber roles and legacy small hulls.</summary>
         bool InternalDockEligible => Player != null && PlayerHull.PlayerShip
-                                     && Modding.ShipClassRules.CanDockInternally(PlayerShipData, PlayerHull.Big);
+                                     && Modding.ExternalDockingRules.CanDockInternally(PlayerShipData, PlayerHull.Big);
 
         /// <summary>External docking requires both the designated large-ship class role and an authored slotType 8 hardpoint.</summary>
         bool ExternalDockEligible
