@@ -696,6 +696,7 @@ namespace GoF2Remake.Multiplayer
             s.race = (short)t.race;
             s.relation = t.hostileToPlayer ? Hostile : t.friendToPlayer ? Friend : Neutral;
             s.hull = NetProxyStatus.Hull(t.HullFraction);
+            s.shield = NetProxyStatus.Shield(ship.Hp != null && ship.Hp.maxShield > 0 ? ship.Hp.shield / ship.Hp.maxShield : -1f);
             s.radius = t.radius;
             byte l = ship.Current == NpcShip.State.Dying ? Dying : ship.Current == NpcShip.State.Dead || ship.Gone ? Dead : Flying;
             // Destroyed by this game's own player (not an NPC's shot, not another player's: DamageRpc wrote that one).
@@ -831,6 +832,8 @@ namespace GoF2Remake.Multiplayer
             // Dying / dead (a tumble, a wreck, destroyed junk): not alive here either, so shots pass it like on the owner's.
             target.hp = st.life == Flying ? Mathf.Max(0.001f, st.HullFraction) * target.maxHp : 0f;
             target.netMaxHull = p != null ? p.maxHull : -1;   // the repair / transfusion beams' pick (RepairBeam)
+            target.netShield = st.ShieldFraction;              // remote NPC shield bar; -1 when this NPC has no shield
+            target.netArmor = -1f;                             // NPCs have no separate armor pool
             target.radius = st.radius;
             int volume = p != null ? p.hitVolume : -1;
             if (boxesFor != volume)
