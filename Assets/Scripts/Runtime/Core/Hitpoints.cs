@@ -1,3 +1,5 @@
+using System;
+
 // Hitpoints.cs
 // The original's Player stat object (Reference/research/ship_combat.md 2): three pools, no damage reduction.
 //   Player::damage 0xafa70     the hit comes off the shield (its fraction is truncated on every hit), the overflow off
