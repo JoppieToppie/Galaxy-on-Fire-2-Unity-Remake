@@ -666,7 +666,7 @@ namespace GoF2Remake.Flight
                 : r.gun.damage * DamageBoost * FlightDamageFactor;
             if (!missile && wasAlive && target.isShip) PrimaryDamageDealt?.Invoke(damage);
             if (Cheats.OneHitKills && !target.isPlayer) damage = 99999999f;
-            target.Damage(damage, false, r.gun.bullets[bullet].velocity, r.gun.shieldFactor);
+            target.Damage(damage, false, r.gun.bullets[bullet].velocity, r.gun.shieldFactor, r.gun.damageType);
             if (r.gun.slowMs > 0f && target.Alive && !target.isPlayer) target.SlowBy?.Invoke(r.gun.slowMs, r.gun.slowFactor, r.gun.slowFreeze);   // remake mods: slowMs (slowFreeze: no turning)
             // remake mods (2026-11-02): EVERSPACE 2's corrosion / infestation and destabilization (TargetDebuffs)
             if (target.Alive && target.isShip && !target.isPlayer)
@@ -696,7 +696,7 @@ namespace GoF2Remake.Flight
             bool wasAlive = target.Alive;
             target.lastPlayerWeapon = r.gun.itemIndex;
             if (Cheats.OneHitKills && !target.isPlayer && dmg > 0) dmg = 99999999;
-            if (dmg > 0) target.Damage(dmg, false, (target.transform.position - center).normalized);
+            if (dmg > 0) target.Damage(dmg, false, (target.transform.position - center).normalized, r.gun.shieldFactor, r.gun.damageType);
             if (wasAlive && !target.Alive && target.isAsteroid)
             {
                 Session.AsteroidsDestroyed++;
@@ -716,7 +716,7 @@ namespace GoF2Remake.Flight
             if (target == null || !target.Alive) return;
             target.lastPlayerWeapon = item;
             if (Cheats.OneHitKills && !target.isPlayer && damage > 0f) damage = 99999999f;
-            if (damage > 0f) target.Damage(damage, false, direction, shieldFactor);
+            if (damage > 0f) target.Damage(damage, false, direction, shieldFactor, item >= 0 && GoF2Remake.Data.Database.Shared.Item(item) is GoF2Remake.Data.ItemData it ? (DamageType)Mathf.Clamp(it.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None);
             ApplyEmp(target, emp);
             if (damage > 0f) Hit?.Invoke();
         }
