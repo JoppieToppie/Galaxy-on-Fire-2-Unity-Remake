@@ -509,7 +509,12 @@ namespace GoF2Remake.Multiplayer
             shieldFactor = byNpc || float.IsNaN(shieldFactor) ? 1f : shieldFactor <= 0f ? 0f : Mathf.Clamp(shieldFactor, 0.01f, 10f);
             if (!NetGuard.InOrbit(shooter, station.Value)) return;
             var by = NetSquad.Find(shooter);
-            if (!byNpc && weaponItem >= 0 && (by == null || !by.HasWeaponItem(weaponItem))) { NetRateLimit.Reject(shooter, $"a hit from unmounted weapon {weaponItem}"); return; }
+            if (!byNpc && weaponItem >= 0)
+            {
+                var weapon = Database.Shared.Item(weaponItem);
+                if (by == null || !by.HasWeaponItem(weaponItem) || weapon == null) { NetRateLimit.Reject(shooter, $"a hit from unmounted weapon {weaponItem}"); return; }
+                shieldFactor = Gun.ShieldFactor(weapon); // typed damage never trusts a client-supplied shield multiplier
+            }
             if (byNpc && weaponItem >= 0 && (by == null || by.RunsOrbit != station.Value || Database.Shared.Item(weaponItem) == null)) { NetRateLimit.Reject(shooter, $"an NPC hit from untrusted weapon {weaponItem}"); return; }
             NetState.Instance?.NoteHit(NetworkObjectId, shooter);
             DamageRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem);
