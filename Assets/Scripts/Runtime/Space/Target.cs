@@ -205,9 +205,12 @@ namespace GoF2Remake.Flight
             // (a weak spot passes on what it takes, not the overkill of the hit that destroys it)
             if (forwardTo != null && forwardTo != this && forwardFactor > 0f && forwardTo.Alive)
             {
+                int previousWeapon = byNpc ? forwardTo.lastNpcWeapon : forwardTo.lastPlayerWeapon;
                 if (byNpc) forwardTo.lastNpcWeapon = lastNpcWeapon;
                 else forwardTo.lastPlayerWeapon = lastPlayerWeapon;
                 forwardTo.Damage(Mathf.Min(amount * damageFactor, hitpoints != null ? hitpoints.Combined : hp) * forwardFactor, byNpc, hitVector, shieldFactor, damageType);
+                if (byNpc) forwardTo.lastNpcWeapon = previousWeapon;
+                else forwardTo.lastPlayerWeapon = previousWeapon;
             }
             amount *= damageFactor;
             int dmg = Mathf.Max(0, (int)amount);
