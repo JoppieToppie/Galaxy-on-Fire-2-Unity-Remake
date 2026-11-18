@@ -478,7 +478,7 @@ namespace GoF2Remake.Multiplayer
             if (alive && !byNpc) NetAggression.Hit(shooter, amount);   // an attack makes them an enemy here (NetAggression)
             var item = weaponItem >= 0 ? GoF2Remake.Data.Database.Shared.Item(weaponItem) : null;
             var damageType = item != null ? (DamageType)Mathf.Clamp(item.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None;
-            own.lastPlayerWeapon = weaponItem;
+            own.lastPlayerWeapon = byNpc ? -1 : weaponItem;
             own.Damage(amount, byNpc, hitVector, shieldFactor, damageType);
             if (alive && !own.Alive && !byNpc && NetState.Instance != null) NetState.Instance.DestroyedByRpc(shooter);
         }
