@@ -450,7 +450,7 @@ namespace GoF2Remake.Flight
             float top = TopSpeed;
             float fwdTop = IsBoosting ? top * FreeBoostFactor : top;   // the boost's speed modifier on MaxSpeedForward
             float strafeTop = fwdTop * Style.strafeScale;
-            float hoverTop = fwdTop * Style.hoverScale;
+            float hoverTop = fwdTop * Style.strafeScale * Style.hoverScale;
             float reverseTop = fwdTop * R.freeReverseShare * Style.reverseScale;
             float handlingScale = Mathf.Pow(20f / Mathf.Max(5f, he), R.freeAccelHandlingExponent) / Style.accelScale;   // a mod's acceleration bonus
             float fwdShare = FreeEaseFwdMs / (FreeEaseFwdMs * handlingScale + AccelMs);     // a heavy hull accelerates slower
@@ -498,7 +498,7 @@ namespace GoF2Remake.Flight
             {
                 // (the accelerations are attributes of their own: the boost raises only the forward one)
                 float sideTop = top * Style.strafeScale;
-                float hoverTopAccel = top * Style.hoverScale;
+                float hoverTopAccel = top * Style.strafeScale * Style.hoverScale;
                 float reverseAccel = (R.freeAccelReverse > 0f ? R.freeAccelReverse : R.freeAccelSide) * Style.reverseAccelScale;
                 float strafeAccel = (R.freeAccelStrafe > 0f ? R.freeAccelStrafe : R.freeAccelSide) * Style.strafeAccelScale;
                 float hoverAccel = (R.freeAccelHover > 0f ? R.freeAccelHover : R.freeAccelSide) * Style.hoverAccelScale;
@@ -878,8 +878,8 @@ namespace GoF2Remake.Flight
             }
 
             // ---- no input: rates drain linearly back to zero (uses base H, not the cargo-reduced one)
-            if (!yawInput) YawRate = Mathf.MoveTowards(YawRate, 0f, dtMs * Handling / R.turnDecayDivisor * Inertia * Style.turnScale);
-            if (!pitchInput) PitchRate = Mathf.MoveTowards(PitchRate, 0f, dtMs * Handling / R.turnDecayDivisor * Inertia * Style.turnScale);
+            if (!yawInput) YawRate = Mathf.MoveTowards(YawRate, 0f, dtMs * Handling / R.turnDecayDivisor * Inertia * Style.turnScale * Style.yawAccelScale);
+            if (!pitchInput) PitchRate = Mathf.MoveTowards(PitchRate, 0f, dtMs * Handling / R.turnDecayDivisor * Inertia * Style.turnScale * Style.pitchAccelScale);
 
             // ---- movement -------------------------------------------------------------------------
             float forward = dtMs * StepMoveSpeed(dtMs);
