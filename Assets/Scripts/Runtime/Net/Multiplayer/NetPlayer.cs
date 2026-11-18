@@ -56,8 +56,8 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> station = new NetworkVariable<int>(-1, Read, Write);
         readonly NetworkVariable<byte> place = new NetworkVariable<byte>((byte)Place.None, Read, Write);
         readonly NetworkVariable<bool> authority = new NetworkVariable<bool>(false, Read, Write);   // its game built / runs its orbit's traffic
-        readonly NetworkVariable<int> runsOrbit = new NetworkVariable<int>(-1);   // the server's: orbit assigned by NetState.UpdateOrbitRunners
-        readonly NetworkVariable<bool> runsOrbitActive = new NetworkVariable<bool>(false);   // separates the Void's -1 id from no runner
+        readonly NetworkVariable<int> runsOrbit = new NetworkVariable<int>(-1);   // the server's: the orbit it runs (NetState.UpdateOrbitRunners)
+        readonly NetworkVariable<bool> runsOrbitActive = new NetworkVariable<bool>(false);   // separate: -1 is also a valid Void orbit id
         readonly NetworkVariable<int> squad = new NetworkVariable<int>(0);   // the host's (NetSquad), 0 = none
         readonly NetworkVariable<bool> observer = new NetworkVariable<bool>(false);   // the server's: another device controls the profile
         readonly NetworkVariable<FixedString32Bytes> factionTag = new NetworkVariable<FixedString32Bytes>();   // the server's: NetFactions, "" = none
@@ -108,7 +108,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>This player's game says it runs its orbit's traffic (it built it, or was handed it): the server's pick
         /// among the claims is RunsOrbit.</summary>
         public bool OrbitAuthority => authority.Value;
-        /// <summary>The orbit the server made this player run (NetState.UpdateOrbitRunners), -1 = none.</summary>
+        /// <summary>The orbit the server made this player run (NetState.UpdateOrbitRunners).</summary>
         public int RunsOrbit => runsOrbit.Value;
         /// <summary>Whether the server selected this player as an orbit runner (separate from the orbit id: Void is -1).</summary>
         public bool RunsOrbitActive => runsOrbitActive.Value;
@@ -464,8 +464,15 @@ namespace GoF2Remake.Multiplayer
             shieldFactor = byNpc || float.IsNaN(shieldFactor) ? 1f : shieldFactor <= 0f ? 0f : Mathf.Clamp(shieldFactor, 0.01f, 10f);
             var by = NetSquad.Find(shooter);
             if (!NetGuard.SameOrbit(by, this)) return;   // gone from the orbit a moment ago, or a hit from elsewhere
+            // "byNpc" is supplied by the caller, so it is not proof of an NPC hit. Only the server-selected
+            // runner of this orbit may relay NPC damage. This closes the easy bypass where any client could
+            // set byNpc=true to ignore PvP and squad protection. The runner still simulates NPC combat locally;
+            // fully proving an individual shot requires authoritative NPC combat, not a client flag.
             if (byNpc && !NetGuard.NpcDamageRunner(by.InSpace, by.RunsOrbitActive, by.RunsOrbit, Station))
-            { NetRateLimit.Reject(shooter, "NPC damage from a client that does not run this orbit"); return; }
+            {
+                NetRateLimit.Reject(shooter, "NPC damage from a client that does not run this orbit");
+                return;
+            }
             if (!byNpc && weaponItem >= 0)
             {
                 var weapon = Database.Shared.Item(weaponItem);
