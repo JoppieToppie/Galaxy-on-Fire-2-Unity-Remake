@@ -486,6 +486,7 @@ namespace GoF2Remake.Flight
             if (inpMag > 0f && targetSpeed > 0f)
             {
                 // Each translation axis has its own acceleration. Boost amplifies whichever axes are requested,
+                float sideTop = top * Style.strafeScale;
                 // rather than injecting forward thrust. Zero preserves the legacy shared side acceleration.
                 float reverseAccel = R.freeAccelReverse > 0f ? R.freeAccelReverse : R.freeAccelSide;
                 float strafeAccel = R.freeAccelStrafe > 0f ? R.freeAccelStrafe : R.freeAccelSide;
