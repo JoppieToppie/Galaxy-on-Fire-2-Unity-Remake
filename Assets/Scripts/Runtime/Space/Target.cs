@@ -187,7 +187,7 @@ namespace GoF2Remake.Flight
 
         /// <summary>Player::damage: 'byNpc' = an NPC gun fired it (friendGun); 'hitVector' = the bullet velocity;
         /// 'shieldFactor' = the weapon's x on the shield (remake, Flight.Gun.ShieldFactor; Hitpoints.Damage).</summary>
-        public void Damage(float amount, bool byNpc = false, Vector3 hitVector = default, float shieldFactor = 1f)
+        public void Damage(float amount, bool byNpc = false, Vector3 hitVector = default, float shieldFactor = 1f, DamageType damageType = DamageType.None)
         {
             if (!Alive || invulnerable || phased) return;
             if (isPlayer && Data.Cheats.GodMode) return;   // remake: the Debug panel's god mode
@@ -198,14 +198,14 @@ namespace GoF2Remake.Flight
             if (RemoteDamage != null) { RemoteDamage(amount, hitVector, byNpc, shieldFactor); return; }
             // (a weak spot passes on what it takes, not the overkill of the hit that destroys it)
             if (forwardTo != null && forwardTo != this && forwardFactor > 0f && forwardTo.Alive)
-                forwardTo.Damage(Mathf.Min(amount * damageFactor, hitpoints != null ? hitpoints.Combined : hp) * forwardFactor, byNpc, hitVector, shieldFactor);
+                forwardTo.Damage(Mathf.Min(amount * damageFactor, hitpoints != null ? hitpoints.Combined : hp) * forwardFactor, byNpc, hitVector, shieldFactor, damageType);
             amount *= damageFactor;
             int dmg = Mathf.Max(0, (int)amount);
             lastHitVector = hitVector;
             bool dead;
             if (hitpoints != null)
             {
-                dead = hitpoints.Damage(dmg, shieldFactor);
+                dead = hitpoints.Damage(dmg, shieldFactor, damageType);
                 hp = hitpoints.hull;
                 maxHp = hitpoints.maxHull;
             }
