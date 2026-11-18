@@ -159,7 +159,7 @@ namespace GoF2Remake.UI
         int aimPointer = -1;
         Vector2 aimStart, fireStart, gestureAim, fireAim;
 
-        static Texture2D Tex(string name) => Resources.Load<Texture2D>("GoF2Hud/" + name);
+        static Texture2D Tex(string name) => GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + name);
 
         /// <param name="layer">the touch layer inside the safe area</param>
         /// <param name="pauseHost">where the pause button goes (the HUD root, so it shows during cutscenes)</param>

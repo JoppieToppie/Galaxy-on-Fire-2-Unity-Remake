@@ -14,6 +14,18 @@ namespace GoF2Remake
         public static string Override;
 
         /// <summary>Application.persistentDataPath unless a test sandbox replaces it (main thread only, like it).</summary>
-        public static string Data => string.IsNullOrEmpty(Override) ? Application.persistentDataPath : Override;
+        public static string Data => !string.IsNullOrEmpty(Override) ? Override : DevData ?? Application.persistentDataPath;
+
+        /// <summary>Development builds only: $GOF2_DATA names another data folder (PlayerAssetsCheck: kept packs, saves and
+        /// settings of its own, the player's untouched). A runtime check: Unity 7 defines no DEVELOPMENT_BUILD for scripts.</summary>
+        static string DevData
+        {
+            get
+            {
+                if (Application.isEditor || !Debug.isDebugBuild) return null;
+                string d = System.Environment.GetEnvironmentVariable("GOF2_DATA");
+                return string.IsNullOrEmpty(d) ? null : d;
+            }
+        }
     }
 }

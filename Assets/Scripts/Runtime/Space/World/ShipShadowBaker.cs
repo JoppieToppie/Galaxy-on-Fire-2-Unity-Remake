@@ -6,7 +6,9 @@
 // Shadows" (HangarShadowsBuilder) bakes the game's ships with it; at run time it bakes the ships the set has no entry for
 // whose meshes are readable (the mods' ships: glTFast keeps its meshes readable), once per assembly and set of mods, the
 // rasterising on a worker thread (Request / Bake). The game's own meshes are imported non-readable, so the debug capital
-// hulls keep the soft oval.
+// hulls keep the soft oval. A build without the originals builds the game's ships from the player's converted copy with
+// readable meshes (OriginalModels): their maps are baked here too, kept in that copy's GPU caches (GameContent.GpuCache/
+// shadows, by the same hull hash), so each is baked once.
 // A mod ship's map is kept on disk for later plays (persistentDataPath/ModCache/ShipShadows/<mod id>/<hull hash>.shadow,
 // read and written on the worker thread): the hull hash is the ship's identity (its triangles: a changed model is another
 // file; their "ship_NNN_mod" numbers differ between games). The loading screen's pass keeps only the files its ships used
@@ -96,7 +98,9 @@ namespace GoF2Remake.World
             var tris = new List<Vector3>();
             if (!Collect(ship, tris, out float bottom, false)) { baked[assembly] = null; return false; }
             var mod = ModOf(ship);
-            string dir = mod != null ? Path.Combine(CacheRoot, mod.Id) : null;
+            // a game ship built from the player's converted copy (its meshes are readable): kept with that copy's GPU caches
+            string dir = mod != null ? Path.Combine(CacheRoot, mod.Id)
+                       : !IsModShip(ship) && Data.GameContent.Installed ? Path.Combine(Data.GameContent.GpuCache, "shadows") : null;
             pending[assembly] = Task.Run(() => BakeCached(assembly, tris, bottom, mod, dir));
             return true;
         }
@@ -213,10 +217,12 @@ namespace GoF2Remake.World
             return mod != null && mod.Manifest != null && !string.IsNullOrEmpty(mod.Id) ? mod : null;
         }
 
-        /// <summary>The map from the cache, else baked and saved there (a worker thread; 'mod' null: not cached).</summary>
+        /// <summary>The map from the cache, else baked and saved there (a worker thread; 'dir' null: not cached; 'mod' null:
+        /// a game ship of the converted copy, cached in its GPU caches).</summary>
         static Result BakeCached(string assembly, List<Vector3> tris, float bottom, Modding.ModInfo mod, string dir)
         {
-            if (mod == null || dir == null) return Rasterise(tris, bottom);
+            if (dir == null) return Rasterise(tris, bottom);
+            string label = mod != null ? mod.Id : "the game's ships";
             string file = null;
             try
             {
@@ -224,7 +230,7 @@ namespace GoF2Remake.World
                 var cached = Read(file);
                 if (cached != null) { cacheFiles[assembly] = file; return cached; }
             }
-            catch (System.Exception e) { Debug.LogWarning($"Hangar shadow cache ({mod.Id}): {e.Message}"); }
+            catch (System.Exception e) { Debug.LogWarning($"Hangar shadow cache ({label}): {e.Message}"); }
             var r = Rasterise(tris, bottom);
             if (r != null && file != null)
                 try
@@ -233,7 +239,7 @@ namespace GoF2Remake.World
                     Write(file, r);
                     cacheFiles[assembly] = file;
                 }
-                catch (System.Exception e) { Debug.LogWarning($"Hangar shadow cache ({mod.Id}): {e.Message}"); }
+                catch (System.Exception e) { Debug.LogWarning($"Hangar shadow cache ({label}): {e.Message}"); }
             return r;
         }
 

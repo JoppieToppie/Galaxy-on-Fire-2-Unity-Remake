@@ -129,7 +129,7 @@ namespace GoF2Remake.UI
         /// <summary>An "i" (the keys icon) in the layout (not over it), 'size' square; 'content' builds its window.</summary>
         public static VisualElement KeysIcon(Func<VisualElement> content, float size = 32f)
         {
-            var icon = OptionInfo.Icon(content, Resources.Load<Texture2D>("GoF2Hud/option_keys"));
+            var icon = OptionInfo.Icon(content, GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/option_keys"));
             return InLayout(icon, "menu-keys", size);
         }
 

@@ -51,6 +51,6 @@ namespace GoF2Remake.Data
         public Texture2D sunExplosionCoreTexture, sunExplosionRingTexture;
 
         static SupernovaAssets instance;
-        public static SupernovaAssets Load() => instance != null ? instance : instance = Resources.Load<SupernovaAssets>("GoF2Story/SupernovaAssets");
+        public static SupernovaAssets Load() => instance != null ? instance : instance = GoF2Remake.Data.OriginalRefs.Load<SupernovaAssets>("GoF2Story/SupernovaAssets");
     }
 }

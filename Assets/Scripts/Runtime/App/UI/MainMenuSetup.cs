@@ -19,6 +19,20 @@ namespace GoF2Remake.UI
 {
     public partial class MainMenu
     {
+        /// <summary>A build without the originals has no campaign cards (MainMenuBuilder cut them from the original's atlases):
+        /// the same cuts of the player's converted copy (OriginalTextures.MenuImage) on their elements.</summary>
+        void UseCopysMenuImages()
+        {
+            if (OriginalSetup.BuiltIn || !GameContent.Installed) return;
+            foreach (var n in new[] { "gof2", "valkyrie", "supernova" })
+                foreach (var hover in new[] { false, true })
+                {
+                    var tex = OriginalTextures.MenuImage($"card_{n}{(hover ? "_hover" : "")}");
+                    if (tex == null) continue;
+                    root.Query(className: $"card-{n}{(hover ? "-hover" : "")}").ForEach(e => e.style.backgroundImage = new StyleBackground(tex));
+                }
+        }
+
         void OnUIReload(PanelRenderer renderer, VisualElement rootElement, int version)
         {
             root = rootElement;
@@ -34,6 +48,7 @@ namespace GoF2Remake.UI
             logo.RegisterCallback<GeometryChangedEvent>(_ => PlaceTitleLogo());
             splash = root.Q("splash");
             splashLogo = root.Q("splashLogo");
+            UseCopysMenuImages();
             fade = root.Q("fade");
             // Remake mods: the loading screen while the mods load (on the startup splash, and on the fade before a game).
             splashLoading = new ModLoadingView(splash);

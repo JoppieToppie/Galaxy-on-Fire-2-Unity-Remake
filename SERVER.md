@@ -149,6 +149,9 @@ Players on a different game version are turned away with a message saying which 
 |---|---|
 | `-batchmode -nographics` | No window, no rendering, no sound. |
 | `-server` | Run as a dedicated server. |
+| `-convert FILE` | A build without the original game's files (the player-assets builds): convert your copy of Galaxy on Fire 2 HD into the server's data folder first: the Android `.xapk` (or its `.obb`), the iOS `.ipa` or the macOS app's zip. Give it more than once for several files (a later one's files win). Once is enough: the converted copy stays. Without a converted copy such a server says so and quits. |
+| `-pack FILE` | Also keep a `.gof2pack` (what your copy lacks: the common pack, your edition's gap pack) and write it over the copy. Repeatable. |
+| `-convertonly` | Convert (and write the packs), then quit. |
 | `-relay` | Host online with a join code (Unity Relay). Without it, players join on the machine's address. |
 | `-name "..."` | The name in the server browser (online). |
 | `-unlisted` | Keep the game out of the server browser; players join with the join code. |

@@ -104,10 +104,10 @@ namespace GoF2Remake.UI
                 foreach (var p in s.success) Line(p.voice, s.index.ToString(), p.speaker, p.text);
                 if (s.radio != null) foreach (var r in s.radio) Line(r.voice, s.index.ToString(), r.speaker, r.text);
             }
-            var table = Resources.Load<TextAsset>("GoF2Data/voice_table");
+            var table = GoF2Remake.Data.GameContent.Text("GoF2Data/voice_table");
             if (table != null)
             {
-                var vt = JsonUtility.FromJson<VoiceTable>(table.text);
+                var vt = JsonUtility.FromJson<VoiceTable>(table);
                 if (vt?.items != null) foreach (var v in vt.items) Line(v.voice, "", -1, v.text);
             }
             var assets = StoryAssets.Load();

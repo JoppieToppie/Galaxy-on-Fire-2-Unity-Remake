@@ -330,7 +330,7 @@ namespace GoF2Remake.World
             modTexture = false;
             // Remake mods: a mod's planet / sun PNG ("mod:<id>|<path>", ModBackdrop).
             if (Modding.ModBackdrop.IsMod(texture)) return Modding.ModBackdrop.Material(texture, sun);
-            var m = Resources.Load<Material>($"{MaterialFolder}/{texture}");
+            var m = Visuals.OriginalBackdrop.Get(texture);   // (Resources', else made from the player's copy)
             if (m == null) Debug.LogWarning($"Backdrop: missing material Resources/{MaterialFolder}/{texture}");
             // Remake mods: a texture replacement named like the game's (textures/planet_000_small.png...), as on the ships.
             var replaced = Modding.ModTextures.Replace(m);

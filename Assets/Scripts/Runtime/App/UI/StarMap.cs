@@ -174,7 +174,7 @@ namespace GoF2Remake.UI
         {
             if (containedSun != null) return containedSun;
             if (from == null) return null;
-            var tex = Resources.Load<Material>("GoF2Backdrop/sn_sun_011")?.mainTexture;
+            var tex = Visuals.OriginalBackdrop.Get("sn_sun_011")?.mainTexture;
             if (tex == null) return null;
             containedSun = new Material(from) { name = "sn_sun_011 (map)" };
             containedSun.SetTexture("_MainTex", tex);
@@ -321,7 +321,7 @@ namespace GoF2Remake.UI
         bool dragged;
         int lastPadDir;
 
-        static Texture2D Tex(string name) => Resources.Load<Texture2D>("GoF2Hud/" + name);
+        static Texture2D Tex(string name) => GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + name);
         static string T(int id) => Localization.Get(id);
 
         // ---- opening / closing ---------------------------------------------------------------------------

@@ -72,16 +72,17 @@
     --button-primary-line: var(--gof-amber);
     --button-primary-focus-fill: rgba(255, 166, 48, 0.38);
 
-    /* Klavika, the typeface of the original HD versions' interface. Medium is the body weight (the font has no upright
-       Regular); its asset's weight table gives bold and italic the real faces. Inter is the fallback for the letters
-       Klavika lacks (Cyrillic and the like). The only rule that names a font: a font chosen in Options > Accessibility
-       (UiFont) replaces it inline on each panel's root. */
-    -unity-font-definition: url("project://database/Assets/UI/Fonts/Klavika-Medium-SDF.asset");
+    /* Inter (SIL Open Font License): Regular the body weight, its asset's weight table giving bold the SemiBold face.
+       Klavika, the original HD versions' interface typeface, was the font until 2026-11-15: a commercial typeface the
+       project has no licence to ship (the player's copy has no font file either, only glyph images), so players who own it
+       import it (Options > Accessibility, UiFont). The only rule that names a font: a font chosen there replaces it inline
+       on each panel's root. */
+    -unity-font-definition: url("project://database/Assets/UI/Fonts/Inter-Regular-SDF.asset");
     color: var(--gof-text);
     font-size: var(--text-body);
 }
 
-/* The bold weight of the font in use: Klavika's own Bold through its asset's weight table, and a font chosen in Options >
+/* The bold weight of the font in use: Inter's SemiBold through its asset's weight table, and a font chosen in Options >
    Accessibility (UiFont) its family's Bold face or faux bold. A font set here would override the player's choice. */
 .gof-semibold {
     -unity-font-style: bold;
@@ -2520,4 +2521,125 @@
 .pad-keyboard__prompts {
     margin-top: var(--space-s);
     justify-content: center;
+}
+
+/* ---- The first start (OriginalSetupView, docs/notes/player-assets.md "First start"): the player's copy of the game */
+
+.original-setup {
+    width: 90%;
+    max-width: 1000px;
+    padding: 40px 48px;
+    background-color: var(--gof-panel);
+    border-width: 1px;
+    border-color: var(--gof-line);
+}
+
+.original-setup-title {
+    font-size: var(--text-title);
+    color: #FFFFFF;
+    margin-bottom: 16px;
+    -unity-font-style: bold;
+    white-space: normal;
+}
+
+.original-setup-text {
+    font-size: var(--text-body);
+    color: var(--gof-text);
+    white-space: normal;
+    margin-bottom: 12px;
+}
+
+.original-setup-hint {
+    font-size: var(--text-small);
+    color: var(--gof-text-dim);
+    white-space: normal;
+    margin-top: 8px;
+}
+
+.original-setup-heading {
+    font-size: var(--text-subhead);
+    color: var(--gof-cyan);
+    margin-top: 16px;
+    margin-bottom: 4px;
+}
+
+.original-setup-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom-width: 1px;
+    border-color: var(--gof-line);
+}
+
+.original-setup-file {
+    font-size: var(--text-body);
+    color: var(--gof-text);
+    white-space: normal;
+}
+
+.original-setup-file-detail {
+    font-size: var(--text-small);
+    color: var(--gof-text-dim);
+    white-space: normal;
+}
+
+.original-setup-problem {
+    font-size: var(--text-small);
+    color: var(--gof-amber);
+    white-space: normal;
+}
+
+.original-setup-buttons {
+    flex-direction: row;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    margin-top: 28px;
+}
+
+.original-setup-buttons > .gof-button {
+    margin-left: 12px;
+    margin-top: 8px;
+}
+
+.original-setup-bar {
+    height: 10px;
+    margin: 20px 0 10px 0;
+    background-color: var(--gof-cyan-faint);
+}
+
+.original-setup-bar-fill {
+    height: 100%;
+    width: 0;
+    background-color: var(--gof-cyan);
+}
+
+/* the setup card as a window over a screen (UI.HdWindow: Options > Graphics "HD resources") */
+.original-setup-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.9);
+}
+
+/* (over a screen: the card opaque, the screen behind not showing through it) */
+.original-setup-overlay > .original-setup {
+    background-color: rgb(5, 11, 19);
+}
+
+/* a choice of the card: its title and what it means, its button at the right */
+.original-setup-choice {
+    flex-direction: row;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom-width: 1px;
+    border-color: var(--gof-line);
+}
+
+.original-setup-choice > .gof-button {
+    margin-left: 16px;
+    flex-shrink: 0;
 }

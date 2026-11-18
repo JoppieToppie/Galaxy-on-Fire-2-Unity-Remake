@@ -263,7 +263,7 @@ namespace GoF2Remake.UI
 
         static Texture2D vipIcon, homeIcon;
         static Texture2D VipIcon => vipIcon != null ? vipIcon : vipIcon = Resources.Load<Texture2D>("GoF2Races/kaamo_club_icon");
-        static Texture2D HomeIcon => homeIcon != null ? homeIcon : homeIcon = Resources.Load<Texture2D>("GoF2Hud/map_home");
+        static Texture2D HomeIcon => homeIcon != null ? homeIcon : homeIcon = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/map_home");
 
         static string VipPerks() => Localization.Extra("kaamoVipText",
             "Become a VIP member of the hottest club in the universe. Your card upgrades the Kaamo Club's storage:\n\n"

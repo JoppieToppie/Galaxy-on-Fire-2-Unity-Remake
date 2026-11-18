@@ -29,10 +29,8 @@ namespace GoF2Remake.Visuals
         {
             if (offsets != null) return;
             offsets = new Dictionary<string, int>();
-            var asset = Resources.Load<TextAsset>(ResourcePath);
-            if (asset == null) return;   // not baked yet
-            data = asset.bytes;
-            Resources.UnloadAsset(asset);
+            data = GoF2Remake.Data.GameContent.Bytes(ResourcePath);   // (the player's converted copy, else Resources)
+            if (data == null) return;   // not baked yet
             try
             {
                 using var r = new BinaryReader(new MemoryStream(data, false));

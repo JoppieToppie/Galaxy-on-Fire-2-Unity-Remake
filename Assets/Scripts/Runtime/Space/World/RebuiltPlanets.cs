@@ -216,14 +216,26 @@ namespace GoF2Remake.World
             return looks[key] = l;
         }
 
+        /// <summary>A planet map from the converted copy (the HD pack) as install_unity.py imported it: linear data; the
+        /// equirect layers round in u and clamped in v; the ring's profile without mipmaps.</summary>
+        static Texture2D PackMap(string key, string n)
+        {
+            string path = $"Resources/{Folder}/{key}/{n}.png";
+            bool equirect = n == "albedo" || n == "emission" || n == "night" || n == "glow" || n == "ring";
+            if (n == "ring_profile") return Data.OriginalTextures.Data(path, true, false, TextureWrapMode.Clamp, TextureWrapMode.Clamp);
+            return Data.OriginalTextures.Data(path, true, true, equirect ? TextureWrapMode.Repeat : TextureWrapMode.Clamp, TextureWrapMode.Clamp, FilterMode.Trilinear);
+        }
+
         static Look Load(string key)
         {
-            var json = Resources.Load<TextAsset>($"{Folder}/{key}/planet");
-            if (json == null) return null;
+            // the build's own, else the converted copy's (docs/notes/player-assets.md: the HD pack brings them)
+            var asset = Resources.Load<TextAsset>($"{Folder}/{key}/planet");
+            string text = asset != null ? asset.text : Data.GameContent.Text($"{Folder}/{key}/planet");
+            if (text == null) return null;
             JObject j;
-            try { j = JObject.Parse(json.text); }
+            try { j = JObject.Parse(text); }
             catch (System.Exception e) { Debug.LogWarning($"RebuiltPlanets: {key}/planet.json: {e.Message}"); return null; }
-            Texture2D Tex(string n) => Resources.Load<Texture2D>($"{Folder}/{key}/{n}");
+            Texture2D Tex(string n) => Resources.Load<Texture2D>($"{Folder}/{key}/{n}") ?? PackMap(key, n);
             var l = new Look { albedo = Tex("albedo"), face = Tex("face"), corr = Tex("corr") };
             if (l.albedo == null || l.face == null || l.corr == null) { Debug.LogWarning($"RebuiltPlanets: {key} is missing a map"); return null; }
             var layers = j["layers"] as JArray;

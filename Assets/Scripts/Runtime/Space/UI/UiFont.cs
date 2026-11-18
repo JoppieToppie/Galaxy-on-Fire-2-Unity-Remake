@@ -1,11 +1,11 @@
 // UiFont.cs
 // Remake (the user's request, 2026-10-24): Options > Accessibility "Interface font", a font of the player's choice for the
-// whole interface instead of Klavika: a font file they imported ("Import font file...", copied into
+// whole interface instead of Inter (the theme's; Klavika until 2026-11-15, which players who own it import here): a font file they imported ("Import font file...", copied into
 // persistentDataPath/Fonts) or one installed on the device (FontEngine.GetSystemFontNames). UiLayout.Configure puts it
 // inline on every panel's root and the panel's top element, so every text inherits it: the theme sets the font only on
 // :root, and bold text is -unity-font-style: bold (.gof-semibold too), which takes the family's own Bold face when it has
 // one (an imported file of the same family, the installed "Bold" style), else the asset's faux bold. Letters the font
-// lacks fall back to Klavika (and Inter after it). A font that can't be loaded leaves Klavika, with the reason on the row.
+// lacks fall back to Inter. A font that can't be loaded leaves Inter, with the reason on the row.
 // An imported file in use is kept open by the font engine: removing it deletes it at the next start when it can't now.
 
 using System;
@@ -23,13 +23,13 @@ namespace GoF2Remake.UI
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class UiFont
     {
-        /// <summary>Settings.UiFont's forms: "" the theme's Klavika, "file:<file name>" an imported file, "system:<family> -
+        /// <summary>Settings.UiFont's forms: "" the theme's Inter, "file:<file name>" an imported file, "system:<family> -
         /// <style>" an installed font (FontEngine's names).</summary>
         public const string FilePrefix = "file:", SystemPrefix = "system:";
         /// <summary>The font files the importer takes (a .ttc's first face).</summary>
         public static readonly string[] Extensions = { "ttf", "otf", "ttc" };
         /// <summary>The theme's font, the fallback of every chosen one (the asset the theme loads, found by name).</summary>
-        const string ThemeFont = "Klavika-Medium-SDF";
+        const string ThemeFont = "Inter-Regular-SDF";
         const int PointSize = 90, Padding = 9, Atlas = 1024;
 
         public static string Folder => Path.Combine(GamePaths.Data, "Fonts");

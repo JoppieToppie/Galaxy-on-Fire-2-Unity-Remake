@@ -72,7 +72,7 @@ namespace GoF2Remake.UI
 
         static Texture2D Tex(string name)
         {
-            if (!textures.TryGetValue(name, out var t) || t == null) textures[name] = t = Resources.Load<Texture2D>("GoF2Hud/" + name);
+            if (!textures.TryGetValue(name, out var t) || t == null) textures[name] = t = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + name);
             return t;
         }
 

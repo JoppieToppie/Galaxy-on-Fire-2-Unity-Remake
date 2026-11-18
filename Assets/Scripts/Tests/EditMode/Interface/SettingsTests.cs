@@ -93,6 +93,26 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(rows.All(o => o.page == GoF2Remake.UI.OptionPage.Graphics && o.kind == GoF2Remake.UI.OptionKind.Toggle));
         }
 
+        /// <summary>FSR 4 Lite (2026-11-16): off by default, stored, reset with the Graphics tab; its row is a Graphics toggle
+        /// in builds with the upscaler framework, hidden where FSR 4 doesn't run through ffx-vk-linux (the Editor's tests).</summary>
+        [Test]
+        public void Fsr4LiteOption()
+        {
+            AllDefaults();
+            Assert.IsFalse(Settings.Fsr4Lite, "the GPU's own FSR 4 model by default");
+            Settings.Fsr4Lite = true;
+            Assert.IsTrue(Settings.Fsr4Lite);
+            CollectionAssert.Contains(Settings.GraphicsKeys, "fsr4Lite", "Default settings resets it with the Graphics tab");
+            Settings.Reset(Settings.GraphicsKeys);
+            Assert.IsFalse(Settings.Fsr4Lite, "off again after Default settings");
+            var row = GoF2Remake.UI.OptionsCatalog.All().FirstOrDefault(o => o.id == "fsr4Lite");
+            if (!UpscalerFramework.Compiled) { Assert.IsNull(row, "no row without the upscaler framework"); return; }
+            Assert.IsNotNull(row);
+            Assert.IsTrue(row.page == GoF2Remake.UI.OptionPage.Graphics && row.kind == GoF2Remake.UI.OptionKind.Toggle);
+            Settings.Upscaler = Settings.UpscalerOff;
+            Assert.IsFalse(row.visible(), "hidden while FSR 4 isn't the upscaler");
+        }
+
         /// <summary>Autopilot takes jumpgates (Discord, 2026-11-04): on by default, reset with the Gameplay tab, a row there; the
         /// gate jumps on toward a destination elsewhere unasked while it is on (SystemJump.GateJumpsUnasked), and off only on
         /// a route under way, as before.</summary>

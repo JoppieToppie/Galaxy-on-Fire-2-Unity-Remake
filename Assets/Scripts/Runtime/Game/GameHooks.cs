@@ -13,6 +13,11 @@ namespace GoF2Remake.Data
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class GameHooks
     {
+        // ---- the player's converted copy (OriginalRefs) ----------------------------------------------------------------
+        /// <summary>An original's material or prefab by its project path ("Materials/mat_20099_....mat", "Prefabs/....prefab"),
+        /// made from the converted copy (OriginalContent.Resolve, GoF2.Space); unset: none.</summary>
+        public static Func<Type, string, object> ResolveOriginal;
+
         // ---- squad missions (NetMissions) ---------------------------------------------------------------------------
 
         /// <summary>Why the squad can't take a mission now (the whole squad docked here), null = it can.</summary>

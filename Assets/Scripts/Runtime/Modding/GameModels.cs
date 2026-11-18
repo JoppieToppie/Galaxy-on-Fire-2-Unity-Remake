@@ -48,7 +48,7 @@ namespace GoF2Remake.Modding
         /// <summary>An "icon" that is one of the game's shop icons ("gof2:item_046", "gof2:ship_005": Resources/GoF2Icons),
         /// null = not one of them / no such icon.</summary>
         public static UnityEngine.Texture2D Icon(string icon) =>
-            Is(icon, out string name) && name.Length > 0 ? UnityEngine.Resources.Load<UnityEngine.Texture2D>("GoF2Icons/" + name) : null;
+            Is(icon, out string name) && name.Length > 0 ? GoF2Remake.Data.OriginalTextures.Image("GoF2Icons/" + name) : null;
 
         /// <summary>The original ship (0..63) whose model this is (any race's variant of its group), -1 = none: its
         /// hardpoints, hangar height and icon go with the model.</summary>

@@ -19,13 +19,13 @@ namespace GoF2Remake.Modding
         public List<string> names = new List<string>();
         public List<AudioClip> clips = new List<AudioClip>();
 
-        Dictionary<string, AudioClip> byName;
+        Dictionary<string, int> byName;   // a sound's name -> its index in clips
         static GameAudioIndex instance;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => instance = null;
 
-        public static GameAudioIndex Load() => instance != null ? instance : instance = Resources.Load<GameAudioIndex>(ResourcePath);
+        public static GameAudioIndex Load() => instance != null ? instance : instance = GoF2Remake.Data.OriginalRefs.Load<GameAudioIndex>(ResourcePath);
 
         /// <summary>The game's sound effect or music track of that name, or null.</summary>
         public static AudioClip Clip(string name)
@@ -34,11 +34,12 @@ namespace GoF2Remake.Modding
             if (index == null || string.IsNullOrEmpty(name)) return null;
             if (index.byName == null)
             {
-                index.byName = new Dictionary<string, AudioClip>(StringComparer.OrdinalIgnoreCase);
+                index.byName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                 for (int i = 0; i < index.names.Count && i < index.clips.Count; i++)
-                    if (index.clips[i] != null) index.byName[index.names[i]] = index.clips[i];
+                    index.byName[index.names[i]] = i;
             }
-            return index.byName.TryGetValue(name, out var c) ? c : null;
+            // (a build without the originals: the clip from the converted copy the first time it is asked for, OriginalRefs)
+            return index.byName.TryGetValue(name, out int at) ? GoF2Remake.Data.OriginalRefs.Entry(index, nameof(clips), index.clips, at) : null;
         }
     }
 }

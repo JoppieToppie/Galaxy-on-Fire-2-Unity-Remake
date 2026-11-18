@@ -99,6 +99,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void TheGamesSkiesHaveTheirStarLists()
         {
+            if (GameContent.Bytes("GoF2SkyHd/stars_000") == null) Assert.Ignore("the Enhanced skies aren't in this checkout or the copy (the HD pack)");
             for (int i = 0; i < 3; i++)
             {
                 var stars = SkyStars.List($"stars_{i:000}");
@@ -115,21 +116,22 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(SkyStars.LayerNebula, SkyStars.List("nebula_016")[0].layer);
             for (int i = 0; i <= 18; i++)
             {
-                Assert.IsNotNull(Resources.Load<Cubemap>($"GoF2SkyHd/nebula_{i:000}"), $"nebula_{i:000}");
-                Assert.IsNotNull(Resources.Load<TextAsset>($"GoF2SkyHd/nebula_{i:000}"), $"nebula_{i:000}.bytes");
+                Assert.IsNotNull(GoF2Remake.Visuals.OriginalSkies.Hd($"nebula_{i:000}"), $"nebula_{i:000}");
+                Assert.IsNotNull(GameContent.Bytes($"GoF2SkyHd/nebula_{i:000}"), $"nebula_{i:000}.bytes");
             }
         }
 
         [Test]
         public void EnhancePutsTheUpscaledLayersAndTheStarsOnTheSky()
         {
+            if (GameContent.Bytes("GoF2SkyHd/stars_000") == null) Assert.Ignore("the Enhanced skies aren't in this checkout or the copy (the HD pack)");
             Assume.That(SkyStars.Supported, "a device with 32-bit float textures");
             var sky = new Material(Shader.Find("GoF2/SpaceSky"));
             try
             {
                 OrbitBuilder.Enhance(sky, 1, 16);
-                Assert.AreEqual(Resources.Load<Cubemap>("GoF2SkyHd/stars_001"), sky.GetTexture("_Stars"));
-                Assert.AreEqual(Resources.Load<Cubemap>("GoF2SkyHd/nebula_016"), sky.GetTexture("_Nebula"));
+                Assert.AreEqual(GoF2Remake.Visuals.OriginalSkies.Hd("stars_001"), sky.GetTexture("_Stars"));
+                Assert.AreEqual(GoF2Remake.Visuals.OriginalSkies.Hd("nebula_016"), sky.GetTexture("_Nebula"));
                 Assert.AreEqual(new Vector4(SkyStars.GridSize, SkyStars.DataWidth, 0, 0), sky.GetVector("_StarGrid"));
                 var index = sky.GetTexture("_StarIndex");
                 Assert.AreEqual(6 * SkyStars.GridSize, index.width);

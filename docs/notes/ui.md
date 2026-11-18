@@ -74,7 +74,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   menu animations), Colour-blind markers (friends blue, `CombatView.MarkerTex`), Dialogue highlights (2026-11-09, the
   user's wish; off by default: the animated dialogue's coloured names and icons, `Settings.DialogueHighlights`,
   `TextReveal.Parse`). **Interface font** (2026-10-24, the
-  user's request; `UiFont`, Space/UI; `Settings.UiFont`: "" Klavika, "file:<name>" a file imported into
+  user's request; `UiFont`, Space/UI; `Settings.UiFont`: "" the theme's Inter (Klavika until 2026-11-15: not licensed to
+  ship, see docs/notes/player-assets.md "The interface font"; players who own it import it here), "file:<name>" a file imported into
   persistentDataPath/Fonts, "system:<family> - <style>" an installed font, `FontEngine.GetSystemFontNames`, each
   family's Regular listed): the row, "Import font file…" (`ModImport.Pick`, checked with `FontEngine.LoadFontFace`,
   copied in and chosen) and "Remove this font file" (a file the font engine holds open is deleted at the next start,
@@ -84,9 +85,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   Font object (`new Font(path)` loads the file): `FontAsset.CreateFontAsset(path, ...)` makes an asset the text
   generator refuses ("FontAsset is invalid", every text blank), and DynamicOS looks the family up among the installed
   fonts. Bold / italic: the family's other imported files (the same family, or one named after it plus the style,
-  "LDFComicSansBold") or its installed styles, through the asset's weight table, else faux bold; Klavika is the fallback
+  "LDFComicSansBold") or its installed styles, through the asset's weight table, else faux bold; Inter is the fallback
   (found by name among the loaded assets). Checked in Play mode with Arial and an imported LDF Comic Sans (regular +
-  bold); not yet on Android / iOS (their pickers, their system fonts). Symbols neither Klavika nor Inter has show as
+  bold); not yet on Android / iOS (their pickers, their system fonts). Symbols Inter hasn't show as
   boxes where the system has no fallback (phones): ▾ ✕ ✖ ➔ were replaced by ▼ × × → (2026-10-24, the host card's "More
   options" on a phone); check a new symbol against both fonts. **Controller keyboard** (`PadKeyboard`,
   `Attach(root)` per screen): A on a text field with a controller where there's no system keyboard opens a key grid;

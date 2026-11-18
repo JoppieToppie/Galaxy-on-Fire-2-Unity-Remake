@@ -40,7 +40,7 @@ namespace GoF2Remake.UI
         public bool IsOpen { get; private set; }
 
         static string T(int id) => Localization.Get(id);
-        static Texture2D Hud(string n) => Resources.Load<Texture2D>("GoF2Hud/" + n);
+        static Texture2D Hud(string n) => GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + n);
 
         public ItemInfoWindow(StationMenu owner, VisualElement root)
         {

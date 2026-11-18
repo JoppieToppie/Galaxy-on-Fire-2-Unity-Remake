@@ -92,7 +92,7 @@ namespace GoF2Remake.UI
             int system = level.Layout.systemIndex, race = level.Layout.raceId;
             bool owned = GalaxyMap.HasOwner(system) && race >= 0 && race <= 3;
             var logo = orbitInfo.Q("orbitLogo");
-            var tex = owned ? Resources.Load<Texture2D>($"GoF2Hud/logo_{race}") : null;
+            var tex = owned ? GoF2Remake.Data.OriginalTextures.Image($"GoF2Hud/logo_{race}") : null;
             logo.style.display = tex != null ? DisplayStyle.Flex : DisplayStyle.None;
             if (tex != null) { logo.style.backgroundImage = new StyleBackground(tex); logo.style.width = tex.width; logo.style.height = tex.height; }
             orbitInfo.Q<Label>("orbitStation").text = st == null ? "" : st.index == 101 ? st.name : $"{st.name} {Localization.Get(136)}";

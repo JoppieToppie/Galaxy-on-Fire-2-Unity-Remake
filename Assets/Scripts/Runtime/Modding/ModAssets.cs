@@ -46,7 +46,7 @@ namespace GoF2Remake.Modding
 
         public static ModAssets Get()
         {
-            if (loaded == null) loaded = Resources.Load<ModAssets>(ResourcePath);
+            if (loaded == null) loaded = GoF2Remake.Data.OriginalRefs.Load<ModAssets>(ResourcePath);
             if (loaded == null) Debug.LogWarning("Mods: Resources/" + ResourcePath + " missing (GoF2 > Build > Mod Assets): mod ships can't be built");
             return loaded;
         }

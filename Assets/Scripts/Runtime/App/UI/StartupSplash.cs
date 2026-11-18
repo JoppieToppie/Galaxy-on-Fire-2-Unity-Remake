@@ -57,8 +57,10 @@ namespace GoF2Remake.UI
             if (GoF2Remake.Multiplayer.DedicatedServer.ShutOff(gameObject.scene)) return;
             LogosShown = Running = true;
             DontDestroyOnLoad(gameObject);   // over the menu scene until the last logo is gone
-            SplashMusic.Begin();
-            Modding.ModLoading.Preload();   // the mods load while the logos show (the menu waits for the rest)
+            // the player's copy first (OriginalSetupView), or the packs added since: no music, no mods yet
+            // (or the HD question, once: docs/notes/player-assets.md "HD resources")
+            setup = GoF2Remake.Data.OriginalSetup.Needed || GoF2Remake.Data.OriginalSetup.PacksPending || GoF2Remake.Data.OriginalSetup.HdPromptDue;
+            if (!setup) BeginLoading();
             // Nothing to draw but the panel: until the menu's own, a camera that only clears the screen (black).
             cam = new GameObject("Splash camera").AddComponent<Camera>();
             cam.transform.SetParent(transform, false);
@@ -76,6 +78,15 @@ namespace GoF2Remake.UI
             panelRenderer.RegisterUIReloadCallback(OnUIReload);
             panelRenderer.visualTreeAsset = emptyTree;
             anyKey = InputSystem.onAnyButtonPress.Call(_ => skip = true);
+        }
+
+        bool setup;
+        VisualElement uiRoot;
+
+        void BeginLoading()
+        {
+            SplashMusic.Begin();
+            Modding.ModLoading.Preload();   // the mods load while the logos show (the menu waits for the rest)
         }
 
         void OnDestroy()
@@ -115,6 +126,7 @@ namespace GoF2Remake.UI
 
         void OnUIReload(PanelRenderer renderer, VisualElement root, int version)
         {
+            uiRoot = root;
             root.pickingMode = PickingMode.Ignore;
             root.style.position = Position.Absolute;
             root.style.left = root.style.top = root.style.right = root.style.bottom = 0;
@@ -135,6 +147,18 @@ namespace GoF2Remake.UI
             // The menu loads behind the logos from the first frame on: started as the first scene wakes, the load ignored
             // allowSceneActivation and replaced this scene before its first frame.
             yield return null;
+            if (setup)
+            {
+                // a build without the original's content: the player's copy converted before anything else
+                while (uiRoot == null || logo == null) yield return null;
+                logo.style.display = DisplayStyle.None;   // (its 44 % of the height would push the card down)
+                var start = GoF2Remake.Data.OriginalSetup.Needed ? OriginalSetupView.Start.Copy
+                          : GoF2Remake.Data.OriginalSetup.PacksPending ? OriginalSetupView.Start.Packs : OriginalSetupView.Start.Hd;
+                yield return new OriginalSetupView(uiRoot).Run(start);
+                logo.style.display = DisplayStyle.Flex;
+                setup = false;
+                BeginLoading();
+            }
             menuLoad = SceneManager.LoadSceneAsync(menuScene);
             if (menuLoad == null) { Destroy(gameObject); yield break; }
             menuLoad.allowSceneActivation = false;
@@ -143,8 +167,12 @@ namespace GoF2Remake.UI
             if (!straight)
             {
                 while (logo == null) yield return null;
-                foreach (var tex in logos)
+                for (int i = 0; i < logos.Length; i++)
+                {
+                    // (the FISHLABS logo, an original's image: a build without the originals cuts it from the player's copy)
+                    var tex = logos[i] != null ? logos[i] : i == 0 ? CopysFishlabsLogo() : null;
                     if (tex != null) yield return Show(tex);
+                }
             }
             Activate();   // not in yet (a slow load): now, on black (the menu's own splash is black too)
             while (!menuLoad.isDone) yield return null;
@@ -152,8 +180,18 @@ namespace GoF2Remake.UI
             Destroy(gameObject);
         }
 
+        /// <summary>The FISHLABS logo of a build without the originals: the HD pack's large one, else the copy's atlas cut.</summary>
+        static Texture2D CopysFishlabsLogo()
+        {
+            var png = UiImageSlots.ImageOf("logo_fishlabs");
+            if (png == null) return null;
+            var t = new Texture2D(2, 2, TextureFormat.RGBA32, false) { name = "logo_fishlabs" };
+            return t.LoadImage(png, true) ? t : null;
+        }
+
         void Update()
         {
+            if (setup) return;   // (no game data before the player's copy is converted: the mods wait for it)
             _ = Modding.ModLoading.Busy;   // polled as the menu's loading screen does (the hangar shadows)
             if (held && menuLoad != null && menuLoad.progress >= 0.9f) Activate();
         }

@@ -23,8 +23,7 @@ namespace GoF2Remake.Tests
         /// unused entries without a model (50, 53).</summary>
         static IEnumerable<int> OwnableShips() => Enumerable.Range(0, 64).Where(i => i != 13 && i != 14 && i != 15 && i != 50 && i != 53);
 
-        static bool PrefabExists(AssemblyData a) =>
-            a != null && DataUiTestKit.AssetExists("Assets/Resources/" + Visuals.AssembledObject.PrefabPath(a) + ".prefab");
+        static bool PrefabExists(AssemblyData a) => DataUiTestKit.AssembledExists(a);
 
         [Test]
         public void ShipNamesComeFromTheTextTable()
@@ -158,7 +157,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void HangarLiftsAreWellFormed()
         {
-            var file = JsonUtility.FromJson<LiftFile>(Resources.Load<TextAsset>("GoF2Data/hangar_heights").text);
+            var file = JsonUtility.FromJson<LiftFile>(GameContent.Text("GoF2Data/hangar_heights"));
             Assert.IsNotNull(file?.entries);
             Assert.Greater(file.entries.Count, 0);
             var seen = new HashSet<(int, int, int)>();

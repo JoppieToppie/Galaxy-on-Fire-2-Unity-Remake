@@ -27,8 +27,10 @@ namespace GoF2Remake.Data
         /// <summary>Loads text_{lang}.json content (array of strings).</summary>
         public static void Load(string language, TextAsset table)
         {
-            if (table == null) return;
-            var w = JsonUtility.FromJson<Wrapper>("{\"items\":" + table.text + "}");
+            // the player's converted copy of the language first (docs/notes/player-assets.md), else the build's own table
+            string json = GameContent.LanguageText(language) ?? (table != null ? table.text : null);
+            if (json == null) return;
+            var w = JsonUtility.FromJson<Wrapper>("{\"items\":" + json + "}");
             texts = w?.items ?? new string[0];
             for (int i = 0; i < texts.Length; i++) if (texts[i] != null) texts[i] = Clean(texts[i]);   // once, not on every Get
             Language = language;
@@ -52,11 +54,32 @@ namespace GoF2Remake.Data
 
         static bool autoLoadTried;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void HookContent()
+        {
+            GameContent.Refreshed -= Forget;
+            GameContent.Refreshed += Forget;
+        }
+
+        /// <summary>The player's copy converted: the next Get loads its table (a table found missing before, too).</summary>
+        static void Forget()
+        {
+            texts = new string[0];
+            autoLoadTried = false;
+        }
+
         static void AutoLoad()
         {
             if (autoLoadTried) return;
             autoLoadTried = true;
             var t = LanguageTables.Load();
+            if (GameContent.LanguageText(Settings.Language) != null || GameContent.LanguageText("en") != null)
+            {
+                // the converted copy has the language (or English to fall back to): no table asset needed
+                string code = GameContent.LanguageText(Settings.Language) != null ? Settings.Language : "en";
+                Load(code, null);
+                return;
+            }
             if (t == null || t.tables == null || t.tables.Length == 0) return;
             int i = t.codes != null ? Array.IndexOf(t.codes, Settings.Language) : -1;
             if (i < 0 || i >= t.tables.Length || t.tables[i] == null) i = 0;

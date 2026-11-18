@@ -58,7 +58,7 @@ namespace GoF2Remake.UI
 
         static StyleBackground Image(string name)
         {
-            var t = Resources.Load<Texture2D>("GoF2Hud/" + name);
+            var t = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + name);
             return t != null ? new StyleBackground(t) : new StyleBackground(StyleKeyword.None);
         }
 

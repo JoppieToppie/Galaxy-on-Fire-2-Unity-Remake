@@ -34,6 +34,6 @@ namespace GoF2Remake.Flight
         /// Scrap .. Valuable Button_Sell, Rare Hacking_Solved, Exceptional Mission_Accomplished.</summary>
         public AudioClip wasteFound, wasteRare, wasteExceptional;
 
-        public static CombatAudio Load() => Resources.Load<CombatAudio>($"{WeaponFx.ResourcesFolder}/CombatAudio");
+        public static CombatAudio Load() => GoF2Remake.Data.OriginalRefs.Load<CombatAudio>($"{WeaponFx.ResourcesFolder}/CombatAudio");
     }
 }

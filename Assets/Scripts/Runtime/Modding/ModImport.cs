@@ -52,6 +52,10 @@ namespace GoF2Remake.Modding
             catch (Exception e) { return new Picked { error = e.Message }; }
         }
 
+        /// <summary>The picked file: copied in, or as it is.</summary>
+        static Picked Take(string source, string folder, bool copyIn) =>
+            copyIn ? CopyIn(source, folder) : new Picked { path = source, name = Path.GetFileName(source) };
+
 #if UNITY_STANDALONE_LINUX
         /// <summary>Runs a picker program and returns what it printed (the path), "" when cancelled; throws
         /// Win32Exception when the program isn't installed.</summary>
@@ -72,7 +76,7 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>The picker program on a worker thread; the poll answers once it has.</summary>
-        static Func<Picked> PickWithProgram(Func<string> run, string folder)
+        static Func<Picked> PickWithProgram(Func<string> run, string folder, bool copyIn)
         {
             Picked result = null;
             var thread = new System.Threading.Thread(() =>
@@ -81,7 +85,7 @@ namespace GoF2Remake.Modding
                 try
                 {
                     string path = run();
-                    r = string.IsNullOrEmpty(path) ? new Picked { cancelled = true } : CopyIn(path, folder);
+                    r = string.IsNullOrEmpty(path) ? new Picked { cancelled = true } : Take(path, folder, copyIn);
                 }
                 catch (Exception e) { r = new Picked { error = e.Message }; }
                 System.Threading.Volatile.Write(ref result, r);
@@ -113,8 +117,10 @@ namespace GoF2Remake.Modding
         public static Func<Picked> Pick() => Pick(Title, "Galaxy on Fire 2 mods", Extensions);
 
         /// <summary>The picker for any file kind (the Mod Builder's models): 'title', the filter's name and its extensions
-        /// (without the dot). The Android picker shows every file (its activity takes any type).</summary>
-        public static Func<Picked> Pick(string title, string filterName, string[] extensions)
+        /// (without the dot). The Android picker shows every file (its activity takes any type).
+        /// 'copyIn' false: a desktop picker hands over the picked file where it is (the player's copy of the game, 1.4 GB,
+        /// read in place); the phones' pickers always copy (their files have no path).</summary>
+        public static Func<Picked> Pick(string title, string filterName, string[] extensions, bool copyIn = true)
         {
             string folder = ImportFolder;   // temporaryCachePath: main thread only
             string Title = title;
@@ -122,11 +128,11 @@ namespace GoF2Remake.Modding
 #if UNITY_EDITOR
             string p = UnityEditor.EditorUtility.OpenFilePanelWithFilters(Title,
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), new[] { filterName, string.Join(",", extensions), "All files", "*" });
-            var result = string.IsNullOrEmpty(p) ? new Picked { cancelled = true } : CopyIn(p, folder);
+            var result = string.IsNullOrEmpty(p) ? new Picked { cancelled = true } : Take(p, folder, copyIn);
             return () => result;
 #elif UNITY_STANDALONE_WIN
             string p = Data.FileDialog.Open(Title, filterName, extensions);
-            var result = string.IsNullOrEmpty(p) ? new Picked { cancelled = true } : CopyIn(p, folder);
+            var result = string.IsNullOrEmpty(p) ? new Picked { cancelled = true } : Take(p, folder, copyIn);
             return () => result;
 #elif UNITY_STANDALONE_LINUX
             string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -144,13 +150,13 @@ namespace GoF2Remake.Modding
                         throw new Exception("no file picker found (install zenity or kdialog), or copy the mod into " + ModManager.MainFolder);
                     }
                 }
-            }, folder);
+            }, folder, copyIn);
 #elif UNITY_STANDALONE_OSX
             Picked result;
             try
             {
                 string p = Data.FileDialog.Open(Title, filterName, extensions);
-                result = string.IsNullOrEmpty(p) ? new Picked { cancelled = true } : CopyIn(p, folder);
+                result = string.IsNullOrEmpty(p) ? new Picked { cancelled = true } : Take(p, folder, copyIn);
             }
             catch (Exception e) { result = new Picked { error = e.Message }; }
             return () => result;

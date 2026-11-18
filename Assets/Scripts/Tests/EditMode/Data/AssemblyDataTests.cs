@@ -18,14 +18,12 @@ namespace GoF2Remake.Tests
     {
         static List<AssemblyData> Originals() => Database.Load().Assemblies.Where(a => a.pack != "mod").ToList();
 
-        static string PrefabAsset(AssemblyData a) => "Assets/Resources/" + Visuals.AssembledObject.PrefabPath(a) + ".prefab";
-
         [Test]
         public void EveryAssemblyHasItsPrefab()
         {
             var list = Originals();
             Assert.Greater(list.Count, 300, "assemblies.json");
-            var missing = list.Where(a => !DataUiTestKit.AssetExists(PrefabAsset(a))).Select(a => a.pack + "/" + a.category + "/" + a.name).ToList();
+            var missing = list.Where(a => !DataUiTestKit.AssembledExists(a)).Select(a => a.pack + "/" + a.category + "/" + a.name).ToList();
             Assert.IsEmpty(missing, "assemblies without a prefab (run GoF2 > Build > Assembled Prefabs)");
         }
 
@@ -57,7 +55,7 @@ namespace GoF2Remake.Tests
                 if (room == null) continue;
                 var a = db.Assemblies.FirstOrDefault(x => x.name == room || x.name == "v_" + room);
                 Assert.IsNotNull(a, "hangar " + room);
-                Assert.IsTrue(DataUiTestKit.AssetExists(PrefabAsset(a)), room);
+                Assert.IsTrue(DataUiTestKit.AssembledExists(a), room);
             }
             foreach (var bar in new[] { "bar_terran", "bar_vossk", "bar_nivelian", "bar_midorian" })
                 Assert.IsNotNull(db.AssemblyByName(bar), bar);
@@ -74,7 +72,7 @@ namespace GoF2Remake.Tests
             {
                 var a = db.AssemblyByName(name);
                 Assert.IsNotNull(a, name);
-                Assert.IsTrue(DataUiTestKit.AssetExists(PrefabAsset(a)), name);
+                Assert.IsTrue(DataUiTestKit.AssembledExists(a), name);
             }
         }
     }

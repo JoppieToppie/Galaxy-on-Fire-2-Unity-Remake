@@ -14,6 +14,15 @@ namespace GoF2Remake.Tests
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public class RebuiltPlanetsTests : SandboxTest
     {
+        /// <summary>The maps are derived from the original's planets and distributed separately (docs/notes/player-assets.md
+        /// "Weapon fx, hangar shadows, sky masks, 3D planets"): a checkout without them (the test bed) has nothing to test.</summary>
+        [SetUp]
+        public void NeedTheMaps()
+        {
+            if (UnityEngine.Resources.Load<UnityEngine.Texture2D>(RebuiltPlanets.Folder + "/000/albedo") == null)
+                Assert.Ignore("the 3D planets' maps aren't in this checkout (distributed separately)");
+        }
+
         static readonly string[] Keys =
             { "000", "001", "002", "003", "004", "005", "006", "007", "008", "009", "010", "011", "012", "013", "014", "015", "016", "017", "018", "019", "020", "021", "022", "024", "025", "026" };
 

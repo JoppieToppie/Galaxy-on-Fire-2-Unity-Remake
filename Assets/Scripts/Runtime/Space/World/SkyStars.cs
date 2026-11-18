@@ -123,9 +123,8 @@ namespace GoF2Remake.World
         public static Star[] List(string layer)
         {
             if (lists.TryGetValue(layer, out var l)) return l;
-            var asset = Resources.Load<TextAsset>("GoF2SkyHd/" + layer);
-            l = asset != null ? Parse(asset.bytes) : new Star[0];
-            if (asset != null) Resources.UnloadAsset(asset);
+            var bytes = Data.GameContent.Bytes("GoF2SkyHd/" + layer);   // (the build's, else the HD pack's in the converted copy)
+            l = bytes != null ? Parse(bytes) : new Star[0];
             return lists[layer] = l;
         }
 

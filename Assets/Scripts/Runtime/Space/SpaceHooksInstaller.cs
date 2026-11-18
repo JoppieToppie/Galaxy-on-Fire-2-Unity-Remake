@@ -15,6 +15,7 @@ namespace GoF2Remake.Flight
         public static void Install()
         {
             GameHooks.RepairLiveShip = PlayerHealth.RepairLive;
+            GameHooks.ResolveOriginal = Visuals.OriginalContent.Resolve;
             GameHooks.ResetControls = GameControls.ResetToDefaults;
             GameHooks.ModsScanned = ids => { ShipShadowBaker.PruneCache(ids); Visuals.ModLodCache.PruneCache(ids); };
             GameHooks.FlightMessage = text => UI.UiHooks.FlightMessage?.Invoke(text);

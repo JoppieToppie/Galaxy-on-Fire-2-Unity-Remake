@@ -85,12 +85,8 @@ namespace GoF2Remake.Tests
             }
         }
 
-        static bool HasClip(StoryAssets a, string voice)
-        {
-            int i = a.voiceNamesEng.IndexOf(voice);
-            if (i < 0) i = a.voiceNamesEng.IndexOf(voice + "_Alt2");
-            return i >= 0 && i < a.voiceClipsEng.Count && a.voiceClipsEng[i] != null;
-        }
+        // (the build's clip, or in a build without the originals the converted copy's: OriginalRefs)
+        static bool HasClip(StoryAssets a, string voice) => a.HasEnglishVoice(voice);
 
         [Test]
         public void EveryStoryVoiceLineHasItsClip()
@@ -112,7 +108,7 @@ namespace GoF2Remake.Tests
         public void EveryGenericVoiceHasItsClip()
         {
             var a = Assets();
-            var table = JsonUtility.FromJson<VoiceTable>(Resources.Load<TextAsset>("GoF2Data/voice_table").text);
+            var table = JsonUtility.FromJson<VoiceTable>(GameContent.Text("GoF2Data/voice_table"));
             Assert.IsNotNull(table?.items);
             Assert.Greater(table.items.Count, 0);
             var missing = table.items.Where(r => !HasClip(a, r.voice)).Select(r => r.voice).ToList();

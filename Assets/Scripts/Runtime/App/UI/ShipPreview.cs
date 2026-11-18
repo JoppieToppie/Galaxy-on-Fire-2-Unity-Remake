@@ -60,7 +60,7 @@ namespace GoF2Remake.UI
         float yawPx, flingPx, lastX, travel;
         int pointer = -1;
 
-        static Texture2D Hud(string n) => Resources.Load<Texture2D>("GoF2Hud/" + n);
+        static Texture2D Hud(string n) => GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + n);
 
         /// <param name="stagePosition">where the ship stands (each preview its own place: two can be open at once)</param>
         /// <param name="framing">the camera distance against the one that just fits the ship's bounding sphere</param>

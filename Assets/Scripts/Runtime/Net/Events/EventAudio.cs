@@ -34,7 +34,7 @@ namespace GoF2Remake.Events
 
         static EventAudio cached;
 
-        public static EventAudio Load() => cached != null ? cached : cached = Resources.Load<EventAudio>(ResourcePath);
+        public static EventAudio Load() => cached != null ? cached : cached = GoF2Remake.Data.OriginalRefs.Load<EventAudio>(ResourcePath);
 
         public AudioClip Sound(int index)
         {
