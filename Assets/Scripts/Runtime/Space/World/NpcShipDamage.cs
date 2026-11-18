@@ -134,7 +134,7 @@ namespace GoF2Remake.World
                 dmg = (int)(dmg * 0.2f);   // multiplayer: the same for another player it isn't after
             else if (hit.isPlayer && ObjectDocking.PlayerDocked) dmg = (int)(dmg * 0.75f);
             else if (!hit.isPlayer && RemoteDockedAtObject != null && RemoteDockedAtObject(hit)) dmg = (int)(dmg * 0.75f);   // multiplayer
-            hit.Damage(dmg, true, g.bullets[bullet].velocity);
+            hit.Damage(dmg, true, g.bullets[bullet].velocity, g.shieldFactor, g.damageType);
             if (IsWingman && wasAlive && !hit.Alive && !hit.isPlayer) WingmanSays(WingmanCrew.Kill, 0.5f);   // remake mods: its crew's lines
             // remake mods: a webber's hit slows the player's ship (NpcRoles)
             if (Role == NpcRoles.Role.Webber && hit.isPlayer && Target.hostileToPlayer) hit.SlowBy?.Invoke(Random.Range(NpcRoles.WebMinMs, NpcRoles.WebMaxMs), NpcRoles.WebSpeedFactor, false);
