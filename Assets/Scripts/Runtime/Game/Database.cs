@@ -40,6 +40,10 @@ namespace GoF2Remake.Data
         [System.NonSerialized] public Vector3? cockpit;
         [System.NonSerialized] public List<Vector3> smokePoints;
         [System.NonSerialized] public float explosionScale = 1f;
+
+        /// <summary>Remake mods (Modding.ShipClassRules, ships.json "shipClass" / "classTags"): the ship's docking class and role tags; none on any original ship unless a mod assigns them.</summary>
+        [System.NonSerialized] public string shipClass;
+        [System.NonSerialized] public string[] classTags;
     }
 
     [System.Serializable] public class StatEntry { public string key; public int value; }
@@ -66,6 +70,7 @@ namespace GoF2Remake.Data
         [System.NonSerialized] public string modKey;
         [System.NonSerialized] public int lookIndex;
         public int Look => modded ? lookIndex : index;
+
 
         public bool HasAttr(int id) => System.Array.IndexOf(attrKeys, id) >= 0;
         public int Attr(int id, int fallback = 0)
@@ -124,6 +129,8 @@ namespace GoF2Remake.Data
     {
         public int slotType; public int[] position_engine; public float[] turretAngles; public bool upsideDown;
         public float[] glowColor, glowSize, turretUp;
+        /// <summary>Remake mods: mount orientation; slotType 8 uses this for an external docking hardpoint.</summary>
+        public float[] rotation;
         public string glowShape;
 
         /// <summary>turretUp (else upsideDown) in the Unity ship frame ((-x, y, z), the models are mirrored): a unit vector,
@@ -178,7 +185,6 @@ namespace GoF2Remake.Data
         /// or a quaternion [x, y, z, w]; none = upright (upsideDown still turns it over). Only the look and the muzzle: the
         /// shots still fly along the nose. An exhaust mount (slotType 3) of a ship with "engineFx": the way it blows, turned
         /// from straight back (Modding.EngineFx).</summary>
-        public float[] rotation;
         /// <summary>Remake mods, a primary / secondary mount: nodes of the ship's model (by name) that show only while this mount
         /// carries a weapon (a hardpoint's pylon; Modding.ModHardpoints.AttachWeapons).</summary>
         public string[] nodes;
@@ -203,7 +209,7 @@ namespace GoF2Remake.Data
         public int priceDefault;           // the Default Economy's price (0 = the same as 'price')
         public int hangarHeight = 250;     // StationTables.ShipY: pivot height above the hangar floor, game units
         public string assembly;            // set by ModContent: "ship_NNN_mod" (Database.ShipAssembly finds it by number)
-        public List<WeaponMount> mounts;   // like weapons_hd.json: slotType 0 primary, 1 secondary, 2 turret, 3 exhaust, 4 manoeuvring jet
+        public List<WeaponMount> mounts;   // like weapons_hd.json: slotType 0 primary, 1 secondary, 2 turret, 3 exhaust, 4 manoeuvring jet, 8 external-docking hardpoint
         public string model;               // the glTF / GLB file in the mod, or "gof2:<model>" (Modding.GameModels)
         public string icon;                // the shop icon (PNG, 180 x 88 like the originals); none = the Phantom's
         /// <summary>Remake (Modding.GameModels): with a "gof2:" model, the original ship that model belongs to (its hangar
@@ -837,6 +843,13 @@ namespace GoF2Remake.Data
         /// <summary>Mount positions of a slot type for a ship, in the order of Ship::getSlotPos.</summary>
         public List<WeaponMount> MountsOf(int shipIndex, int slotType)
         {
+            // Remake external docking: slotType 8 is a ship-authored docking hardpoint, not a build-part weapon socket.
+            // Keep it on the ship definition even when a kit build supplies the weapon / exhaust mounts.
+            if (slotType == 8)
+            {
+                var dockingSet = WeaponMounts.FirstOrDefault(m => m.ship == shipIndex);
+                return dockingSet != null ? dockingSet.mounts.Where(m => m.slotType == 8).ToList() : new List<WeaponMount>();
+            }
             // Remake mods: a customizable ship's mounts come with its build's parts (Modding.ModShipKits).
             var built = Modding.KitRules.BuildMounts(shipIndex, slotType);
             if (built != null) return built;

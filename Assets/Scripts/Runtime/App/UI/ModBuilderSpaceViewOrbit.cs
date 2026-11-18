@@ -60,6 +60,9 @@ namespace GoF2Remake.UI
                 if (o["pads"] is JArray pads)
                     for (int i = 0; i < pads.Count; i++)
                         if (pads[i] is JObject pad && Units(pad["position"]) is int[] at) { orbitMounts.Add(new WeaponMount { slotType = 0, position_engine = at }); orbitKeys.Add(i.ToString()); }
+                if (o["externalDocks"] is JArray docks)
+                    for (int i = 0; i < docks.Count; i++)
+                        if (docks[i] is JObject dock && Units(dock["position"]) is int[] at) { orbitMounts.Add(new WeaponMount { slotType = 8, position_engine = at }); orbitKeys.Add("dock:" + i); }
                 orbitGizmo.Bind(orbitMounts.Count > 0 ? level.Station.transform : null, orbitMounts);
                 orbitBound = now;
             }
@@ -108,7 +111,12 @@ namespace GoF2Remake.UI
             var o = Obj(s, "orbit");
             var place = new JArray(p[0], p[1], p[2]);
             string key = orbitKeys[i];
-            if (int.TryParse(key, out int pad))
+            if (key.StartsWith("dock:", System.StringComparison.Ordinal) && int.TryParse(key.Substring(5), out int dockIndex))
+            {
+                if (!(o["externalDocks"] is JArray docks) || !(docks.ElementAtOrDefault(dockIndex) is JObject dockObj)) return;
+                dockObj["position"] = place;
+            }
+            else if (int.TryParse(key, out int pad))
             {
                 if (!(o["pads"] is JArray pads) || !(pads.ElementAtOrDefault(pad) is JObject padObj)) return;
                 // the approach point moves along with the pad
