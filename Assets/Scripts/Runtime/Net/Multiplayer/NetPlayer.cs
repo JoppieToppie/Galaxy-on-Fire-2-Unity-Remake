@@ -165,6 +165,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (item < 0) return false;
             foreach (int turret in UnpackTurrets(turretItem.Value)) if (turret == item) return true;
+            // The flyable capital hulls have built-in turrets and the Intelli Jet / S'koonn salvo outside the normal loadout.
+            if (ship.Value == 14 && (item == World.CapitalShips.TerranMissile || item == World.CapitalShips.VosskMissile || item == 48 || item == 49)) return true;
             foreach (var stack in WeaponStacks(NetGame.Db, weapons.Value.ToString())) if (stack.item == item) return true;
             return false;
         }
