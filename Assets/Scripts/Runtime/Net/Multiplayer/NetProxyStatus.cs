@@ -18,6 +18,7 @@ namespace GoF2Remake.Multiplayer
         public short race;
         public byte relation;      // NetProxy.Hostile / Friend / Neutral toward the owner's player
         public ushort hull;        // 0..65535 = the hull fraction
+        public ushort shield;      // 0..65534 = shield fraction; 65535 = no shield
         public float radius;
         public byte flags;
         public byte life;          // NetProxy.Flying / Dying / Dead
@@ -31,13 +32,16 @@ namespace GoF2Remake.Multiplayer
 
         public bool Has(byte flag) => (flags & flag) != 0;
         public float HullFraction => hull / 65535f;
+        public float ShieldFraction => shield == 65535 ? -1f : shield / 65534f;
         public static ushort Hull(float fraction) => (ushort)UnityEngine.Mathf.Clamp(UnityEngine.Mathf.CeilToInt(fraction * 65535f), 0, 65535);
+        public static ushort Shield(float fraction) => fraction < 0f ? (ushort)65535 : (ushort)UnityEngine.Mathf.Clamp(UnityEngine.Mathf.CeilToInt(fraction * 65534f), 0, 65534);
 
         public void NetworkSerialize<T>(BufferSerializer<T> s) where T : IReaderWriter
         {
             s.SerializeValue(ref race);
             s.SerializeValue(ref relation);
             s.SerializeValue(ref hull);
+            s.SerializeValue(ref shield);
             s.SerializeValue(ref radius);
             s.SerializeValue(ref flags);
             s.SerializeValue(ref life);
@@ -50,7 +54,7 @@ namespace GoF2Remake.Multiplayer
             s.SerializeValue(ref empMs);
         }
 
-        public bool Equals(NetProxyStatus o) => race == o.race && relation == o.relation && hull == o.hull && radius == o.radius
+        public bool Equals(NetProxyStatus o) => race == o.race && relation == o.relation && hull == o.hull && shield == o.shield && radius == o.radius
             && flags == o.flags && life == o.life && cloak == o.cloak && stealItem == o.stealItem && stealAmount == o.stealAmount
             && roleFlags == o.roleFlags && killer == o.killer && routeIndex == o.routeIndex && empMs == o.empMs;
 
