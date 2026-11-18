@@ -132,6 +132,10 @@ namespace GoF2Remake.Flight
             if (t.name != null) { host.name = t.name; host.nameText = -1; }
             if (t.hostile == true) host.alwaysEnemy = true;
             else if (t.hostile == false && t.kind == ModNpcShips.Boss) host.alwaysEnemy = false;
+            host.shield = t.shield;
+            host.shieldRechargeMs = t.shieldRechargeMs;
+            host.energyResistance = t.energyResistance / 100f;
+            host.ballisticResistance = t.ballisticResistance / 100f;
             if (t.hull >= 0) host.hitpoints = Mathf.Max(1, Mathf.RoundToInt(t.hull * Session.DifficultyFactor));
             else if (!Mathf.Approximately(t.hullFactor, 1f))
             {
