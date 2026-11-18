@@ -202,7 +202,7 @@ window, **Admin** tab, **Server settings**. You can also type `/set <key> <value
 | `allowdebug` | Players may use the Debug menu (`on` / `off`) | At once. |
 | `freepvp` | Players may fight anywhere (`on` / `off`) | At once. |
 | `flightmodel` | The flight model above (`gof2`, `es2` or `player`; also `/flightmodel`) | At once. |
-| `shipcollision` | The ship collision mode above (`exact`, `mixed` or `original`) | At once. |
+| `shipcollision` | The ship collision mode above (`exact`, `mixed` or `original`) | At once. Clients that report a different effective mode are warned; weapon damage from their game is refused until it matches. |
 | `cloakhides`, `pirateevents`, `capitalships`, `informeroriginal`, `kaamostacking`, `kaamoequipment`, `cloakbay`, `empcloak`, `smarttargeting` | The gameplay rules above (`on` / `off`; `on` = the option on) | At once (new orbits get the spawns that depend on them). |
 | `kaamomaxlevel` | The Kaamo Club upgrade limit above (2-20) | At once for new upgrades; profiles above a lowered limit are cut back at their next sign-in or upload. |
 | `maxearn` | Worth a profile may gain per minute | At once. |
