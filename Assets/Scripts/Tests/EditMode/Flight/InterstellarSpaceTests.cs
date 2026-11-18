@@ -219,7 +219,7 @@ namespace GoF2Remake.Tests
         {
             Settings.Reset(new[] { "interstellarDistance" });
             Assert.IsTrue(Settings.InterstellarDistance);
-            CollectionAssert.Contains(Settings.GameplayKeys, "interstellarDistance", "reset with the Gameplay tab");
+            CollectionAssert.Contains(Settings.CosmeticsKeys, "interstellarDistance", "reset with the Cosmetics tab");
             Settings.InterstellarDistance = false;
             Assert.IsFalse(Settings.InterstellarDistance);
             Settings.Reset(new[] { "interstellarDistance" });

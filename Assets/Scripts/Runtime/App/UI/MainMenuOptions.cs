@@ -47,6 +47,7 @@ namespace GoF2Remake.UI
         void SetupOptions()
         {
             optionControls.Clear();
+            optionSections.Clear();
             foreach (var def in OptionsCatalog.All())
             {
                 if (def.inGameOnly) continue;
@@ -55,12 +56,28 @@ namespace GoF2Remake.UI
                 HookFocusSound(c.Field);
                 if (def.kind == OptionKind.Choice || def.kind == OptionKind.Toggle) c.Changed += () => Play(buttonRelease);
                 // Options depend on each other (STP turns MSAA off): every row follows a change.
-                c.Changed += () => { foreach (var o in optionControls) if (o != c) o.Refresh(); UpdateDebugButton(); };
+                c.Changed += () =>
+                {
+                    foreach (var o in optionControls) if (o != c) o.Refresh();
+                    foreach (var section in optionSections) section.Refresh();
+                    UpdateDebugButton();
+                };
                 // Original: the FX volume plays a sample on release; remake: the voice volume a voice line.
                 if (def.id == "sfx") c.Field.RegisterCallback<PointerCaptureOutEvent>(_ => Play(infoSound));
                 if (def.id == "voice") c.Field.RegisterCallback<PointerCaptureOutEvent>(_ => PlayVoicePreview());
                 if (def.page == OptionPage.Language) c.Root.AddToClassList("language-voice-row");
-                root.Q(PageName(def.page)).Add(c.Root);
+                var parent = root.Q(PageName(def.page));
+                if (def.section != OptionSection.None)
+                {
+                    var section = optionSections.Find(block => block.Section == def.section);
+                    if (section == null)
+                    {
+                        section = new OptionSectionBlock(parent, def.section, RequestRulesAccess, true, RequestDebugAccess);
+                        optionSections.Add(section);
+                    }
+                    section.Add(def, c.Root);
+                }
+                else parent.Add(c.Root);
                 optionControls.Add(c);
             }
 
@@ -85,6 +102,31 @@ namespace GoF2Remake.UI
                 root.Q(tab).EnableInClassList("tab-button--active", p == page);
                 root.Q(p).EnableInClassList("tab-page--active", p == page);
             }
+        }
+
+        readonly List<OptionSectionBlock> optionSections = new List<OptionSectionBlock>();
+        void RequestRulesAccess(Action accepted)
+        {
+            if (GameRulesAccess.Confirmed) { accepted?.Invoke(); return; }
+            ShowDialog(GameRulesAccess.Title, GameRulesAccess.Warning, () =>
+            {
+                GameRulesAccess.Accept();
+                accepted?.Invoke();
+                foreach (var section in optionSections) section.Refresh();
+            });
+            InputGlyph.SetText(root.Q<Button>("dialogYes"), GameRulesAccess.Enable.UiCaps());
+            InputGlyph.SetText(root.Q<Button>("dialogNo"), Localization.Get(425).UiCaps());
+        }
+
+        void RequestDebugAccess(Action accepted)
+        {
+            ShowDialog(Localization.Extra("debugTools", "Debug tools"), Localization.Extra("debugToolsHelp", "Enable the Debug tools?"), () =>
+            {
+                accepted?.Invoke();
+                OptionControl.RefreshShown();
+            });
+            InputGlyph.SetText(root.Q<Button>("dialogYes"), GameRulesAccess.DebugEnable.UiCaps());
+            InputGlyph.SetText(root.Q<Button>("dialogNo"), Localization.Get(425).UiCaps());
         }
 
         void ApplySettings()
@@ -217,6 +259,7 @@ namespace GoF2Remake.UI
             Set("tabControls", OptionsCatalog.PageTitle(OptionPage.Controls).UiCaps());
             Set("tabBindings", OptionsCatalog.PageTitle(OptionPage.Bindings).UiCaps());
             Set("tabGameplay", OptionsCatalog.PageTitle(OptionPage.Gameplay).UiCaps());
+            Set("tabCosmetics", OptionsCatalog.PageTitle(OptionPage.Cosmetics).UiCaps());
             Set("tabAccessibility", OptionsCatalog.PageTitle(OptionPage.Accessibility).UiCaps());
             Set("tabLanguage", T(0));
             Set("optionsDefaults", T(497));
@@ -225,6 +268,7 @@ namespace GoF2Remake.UI
             Set("dialogNo", T(135));
 
             foreach (var c in optionControls) c.Refresh();
+            foreach (var section in optionSections) section.Refresh();
             foreach (var b in root.Q("languageList").Query<Button>().ToList())
                 b.EnableInClassList("language-button--active", b.name == "lang_" + Localization.Language);
 

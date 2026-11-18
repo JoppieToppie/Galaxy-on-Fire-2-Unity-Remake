@@ -11,16 +11,149 @@ using System.Collections.Generic;
 using System.Linq;
 using GoF2Remake.Data;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace GoF2Remake.UI
 {
-    public enum OptionPage { Sound, Graphics, Controls, Gameplay, Language, Bindings, Accessibility }
+    public enum OptionPage { Sound, Graphics, Controls, Gameplay, Language, Bindings, Accessibility, Cosmetics }
+    public enum OptionSection { None, SpecialFeatures, Interface, Convenience, GameRules, Hud, Tools, Storage, Mods }
+    public enum OptionGroup { None, Debug, World, Progression, Combat, Flight, Custom, Mods, Missions }
+
+    /// <summary>UI-only consent for this app session; accepting enables no cheat and changes no setting.</summary>
+    public static class GameRulesAccess
+    {
+        public static bool Confirmed { get; private set; }
+        public static void Accept() => Confirmed = true;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        public static void Reset() => Confirmed = false;
+        public static string Title => Localization.Extra("sectionGameRules", "Game Rules");
+        public static string Warning => Localization.Extra("gameRulesAccessWarning",
+            "Rules can change progression and balance. Most settings apply across saves; Difficulty belongs to the current playthrough. Open this section?");
+        public static string Expand => Localization.Extra("gameRulesExpand", "Expand");
+        public static string Enable => Localization.Extra("gameRulesAccessEnable", "Open Game Rules");
+        public static string DebugEnable => Localization.Extra("debugToolsEnable", "Enable");
+    }
+
+    /// <summary>The same subsection geometry and consent gate in the main, station and pause menus.</summary>
+    public sealed class OptionSectionBlock
+    {
+        readonly OptionSection section;
+        public OptionSection Section => section;
+        readonly TextElement heading;
+        readonly Action<Action> requestAccess;
+        readonly Action<Action> requestDebugAccess;
+        readonly Dictionary<OptionGroup, VisualElement> groups = new Dictionary<OptionGroup, VisualElement>();
+        readonly Dictionary<OptionGroup, Label> groupHeadings = new Dictionary<OptionGroup, Label>();
+        readonly Dictionary<OptionGroup, List<OptionDef>> groupOptions = new Dictionary<OptionGroup, List<OptionDef>>();
+        public readonly VisualElement Body;
+        public readonly VisualElement Preset;
+        public readonly Button Gate;
+        public OptionSectionBlock(VisualElement parent, OptionSection section, Action<Action> requestAccess, bool focusable, Action<Action> requestDebugAccess = null)
+        {
+            this.section = section;
+            this.requestAccess = requestAccess;
+            this.requestDebugAccess = requestDebugAccess ?? requestAccess;
+            heading = new Label { pickingMode = PickingMode.Ignore };
+            if (section == OptionSection.GameRules)
+            {
+                Preset = new VisualElement();
+                Gate = new Button(Open) { focusable = focusable };
+                Gate.AddToClassList("options-section-gate");
+                Gate.AddToClassList("menu-button");
+                Gate.AddToClassList("gof-semibold");
+            }
+
+            heading.AddToClassList("options-section-title");
+            heading.AddToClassList("gof-semibold");
+            Body = new VisualElement();
+            Body.AddToClassList("options-section-body");
+            parent.Add(heading);
+            if (Preset != null) parent.Add(Preset);
+            if (Gate != null) parent.Add(Gate);
+            parent.Add(Body);
+            Refresh();
+        }
+        /// <summary>All menus use the same group headers, inside the existing Game Rules consent boundary.</summary>
+        public void Add(OptionDef def, VisualElement row)
+        {
+            if (def.id == "debugTools")
+            {
+                var set = def.setBool;
+                def.setBool = value =>
+                {
+                    if (!value) { set(false); return; }
+                    requestDebugAccess?.Invoke(() => { set(true); OptionControl.RefreshShown(); });
+                    OptionControl.RefreshShown();
+                };
+            }
+            if (def.id == "gameplayExperience" || def.id == "difficulty")
+            {
+                if (def.id == "gameplayExperience") def.customRulesRequested = Open;
+                Preset.Add(row);
+                return;
+            }
+            if (def.group == OptionGroup.None) { Body.Add(row); return; }
+            if (!groups.TryGetValue(def.group, out var body))
+            {
+                var label = new Label(OptionsCatalog.GroupTitle(def.group).UiCaps()) { pickingMode = PickingMode.Ignore };
+                label.AddToClassList("options-section-title");
+                label.AddToClassList("options-group-title");
+                label.AddToClassList("gof-semibold");
+                body = new VisualElement();
+                body.AddToClassList("options-rule-group");
+                Body.Add(label);
+                Body.Add(body);
+                groups.Add(def.group, body);
+                groupHeadings.Add(def.group, label);
+                groupOptions.Add(def.group, new List<OptionDef>());
+            }
+            body.Add(row);
+            groupOptions[def.group].Add(def);
+            RefreshGroups();
+        }
+        void RefreshGroups()
+        {
+            foreach (var pair in groupOptions)
+            {
+                bool shown = pair.Value.Any(option => option.visible == null || option.visible());
+                groups[pair.Key].style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+                groupHeadings[pair.Key].style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
+        public void Open()
+        {
+            void RevealCustomRules()
+            {
+                GameRulesAccess.Accept();
+                Settings.SelectCustomGameplayExperience();
+                Refresh();
+                OptionControl.RefreshShown();
+            }
+            if (GameRulesAccess.Confirmed) { RevealCustomRules(); return; }
+            requestAccess?.Invoke(RevealCustomRules);
+        }
+        public void Refresh()
+        {
+            heading.text = OptionsCatalog.SectionTitle(section).UiCaps();
+            foreach (var pair in groupHeadings) pair.Value.text = OptionsCatalog.GroupTitle(pair.Key).UiCaps();
+            RefreshGroups();
+            if (section == OptionSection.GameRules)
+            {
+                Body.style.display = GameRulesAccess.Confirmed ? DisplayStyle.Flex : DisplayStyle.None;
+                Gate.text = GameRulesAccess.Expand.UiCaps();
+                Gate.style.display = GameRulesAccess.Confirmed ? DisplayStyle.None : DisplayStyle.Flex;
+                Gate.EnableInClassList("options-section--locked", !GameRulesAccess.Confirmed);
+            }
+        }
+    }
     public enum OptionKind { Slider, Toggle, Choice, Button, Binding }
 
     public sealed class OptionDef
     {
         public string id;
         public OptionPage page;
+        public OptionSection section;
+        public OptionGroup group;
         public OptionKind kind;
         /// <summary>A volume slider: a speaker before its value mutes it. Its own flag, not the page: a row built by hand
         /// (the photo panel, the Debug page) leaves the page at its default, Sound, and every slider there had the
@@ -55,6 +188,8 @@ namespace GoF2Remake.UI
         public Func<string[]> choices;
         public Func<int> getIndex;
         public Action<int> setIndex;
+        /// <summary>Gameplay Custom opens the same consent gate as Expand, without applying settings.</summary>
+        public Action customRulesRequested;
         public bool segmented;
         /// <summary>A change asks "Keep these settings?" with a countdown that puts the old value back (SettingsConfirm):
         /// the display mode, the resolution and the interface / text size, which can leave a screen unreadable.</summary>
@@ -99,7 +234,34 @@ namespace GoF2Remake.UI
             OptionPage.Bindings => X("tabBindings", "Key bindings"),
             OptionPage.Language => Localization.Get(0),
             OptionPage.Accessibility => X("tabAccessibility", "Accessibility"),
+            OptionPage.Cosmetics => X("tabCosmetics", "Cosmetics"),
             _ => X("tabGameplay", "Gameplay"),
+        };
+
+        public static string SectionTitle(OptionSection section) => section switch
+        {
+            OptionSection.SpecialFeatures => X("sectionPresentation", "Presentation"),
+            OptionSection.Interface => X("sectionInterface", "UI"),
+            OptionSection.Hud => X("sectionHud", "HUD and markers"),
+            OptionSection.Tools => X("sectionTools", "Tools"),
+            OptionSection.Mods => X("groupMods", "Mods"),
+            OptionSection.Storage => X("sectionStorage", "Saves and storage"),
+            OptionSection.Convenience => X("sectionConvenience", "QoL"),
+            OptionSection.GameRules => GameRulesAccess.Title,
+            _ => "",
+        };
+
+        public static string GroupTitle(OptionGroup group) => group switch
+        {
+            OptionGroup.Debug => X("groupDebug", "Debug tools"),
+            OptionGroup.World => X("groupWorld", "World and encounters"),
+            OptionGroup.Progression => X("groupShipsEconomy", "Progression and economy"),
+            OptionGroup.Missions => X("groupMissions", "Missions and simulation"),
+            OptionGroup.Combat => X("groupCombat", "Combat and NPC behavior"),
+            OptionGroup.Flight => X("groupFlight", "Traversal"),
+            OptionGroup.Custom => X("groupCustom", "Custom rules and experiments"),
+            OptionGroup.Mods => X("groupMods", "Mods"),
+            _ => "",
         };
 
         /// <summary>Remake (players' request): "Default settings" for one tab only, the choice the menus offer next to every
@@ -112,6 +274,7 @@ namespace GoF2Remake.UI
                 case OptionPage.Graphics: Settings.Reset(Settings.GraphicsKeys); break;
                 case OptionPage.Controls: Settings.Reset(Settings.ControlsKeys); break;
                 case OptionPage.Gameplay: Settings.Reset(Settings.GameplayKeys); Modding.ModGameOptions.ResetSettings(); break;
+                case OptionPage.Cosmetics: Settings.Reset(Settings.CosmeticsKeys); break;
                 case OptionPage.Language: Settings.Reset(Settings.LanguageKeys); break;
                 case OptionPage.Accessibility: Settings.Reset(Settings.AccessibilityKeys); break;
                 case OptionPage.Bindings: Flight.GameControls.ResetToDefaults(); break;
@@ -197,6 +360,7 @@ namespace GoF2Remake.UI
             AddGraphics(list);
             AddControls(list);
             AddGameplay(list);
+            SplitGameplay(list);
 
             foreach (var d in list)
                 if (d.description == null && Help.TryGetValue(d.id, out var help)) d.description = () => X(help.key, help.english);

@@ -270,10 +270,10 @@ namespace GoF2Remake.UI
             }
             // Remake (players' wish): the original game's look for every menu, the remake's screens and features kept
             // (Settings.OriginalUi, GoF2Original.uss).
-            list.Add(Choice("originalUi", OptionPage.Graphics, () => X("uiStyle", "Interface style"), true,
+            list.Add(Choice("originalUi", OptionPage.Gameplay, () => X("uiStyle", "Interface style"), true,
                 () => new[] { X("uiStyleRemake", "Remake"), X("uiStyleOriginal", "Original") },
                 () => Settings.OriginalUi ? 1 : 0, i => Settings.OriginalUi = i == 1,
-                () => X("uiStyleHelp", "Remake: the remake's look. Original: the original game's panels, buttons and colours; the menus keep every new feature.")));
+                () => X("uiStyleHelp", "Remake is the default interface, including with Cosmetic Experience: Original. The Original interface is a legacy option with dated layout and usability. Select it manually if you prefer its appearance; Cosmetic Experience presets do not change Interface style.")));
             list.Add(Choice("uiWidth", OptionPage.Graphics, () => X("uiWidth", "Interface width"), true,
                 () => new[] { "16:9", "21:9", X("uiWidthFull", "Full width") },
                 () => Settings.UiWidth, i => Settings.UiWidth = i,
@@ -307,16 +307,6 @@ namespace GoF2Remake.UI
         /// <summary>All()'s Options > Controls and the key bindings rows.</summary>
         static void AddControls(List<OptionDef> list)
         {
-            // Remake: free flight after EVERSPACE 2 (Settings.FlightStyle, FlightModel.StepFree); it switches the key layout too.
-            // A toggle: off = the original's flight and key layout, untouched.
-            var freeFlight = Toggle("flightStyle", OptionPage.Controls, () => X("flightStyleFree", "Free flight (EVERSPACE 2 style)"),
-                () => Settings.FlightStyle == FlightStyles.Free, v => Settings.FlightStyle = v ? FlightStyles.Free : FlightStyles.Original);
-            freeFlight.description = () => (FlightStyles.Forced ? FlightStyleForcedNote() + " " : "") + X("flightStyleHelp", "Free flight: W / S thrust, A / D strafe, Space / Ctrl up and down, Q / E roll, Shift boost, Z dampeners. Own key layout.")
-                // Remake: free flight's touch layout (TouchControlsFreeFlight), on a touch device.
-                + (Application.isMobilePlatform || InputMode.Current == InputKind.Touch
-                    ? " " + X("flightStyleTouchHelp", "Touch: the stick thrusts and strafes, drag the screen (or the held fire button) to aim, the buttons beside the stick go up, down and switch the dampeners; the ship rolls itself level.")
-                    : "");
-            list.Add(freeFlight);
             // MenuTouchWindow state 8: 490 Touch / 491 Accelerometer pictures (options[0x11]), 492 Steering Calibration
             // (493, then OK stores the device's position), the sensitivity slider per mode (+0x14 / +0x18).
             if (Flight.TiltSteering.Available)
@@ -479,14 +469,32 @@ namespace GoF2Remake.UI
             X("experienceOriginal", "Original"), X("experienceCosmetic", "Cosmetic"), X("experienceRemake", "Remake"), X("presetCustom", "Custom"),
         };
 
+        static string[] ScopedExperienceNames() => new[]
+        {
+            X("experienceOriginal", "Original"), X("experienceRemake", "Remake"), X("presetCustom", "Custom"),
+        };
+
         static void AddGameplay(List<OptionDef> list)
         {
+            // Remake: free flight after EVERSPACE 2 (Settings.FlightStyle, FlightModel.StepFree); it switches the key layout too.
+            // A toggle: off = the original's flight and key layout, untouched.
+            var freeFlight = Toggle("flightStyle", OptionPage.Gameplay, () => X("flightStyleFree", "Free flight (EVERSPACE 2 style)"),
+                () => Settings.FlightStyle == FlightStyles.Free, v => Settings.FlightStyle = v ? FlightStyles.Free : FlightStyles.Original);
+            freeFlight.description = () => (FlightStyles.Forced ? FlightStyleForcedNote() + " " : "") + X("flightStyleHelp", "Free flight: W / S thrust, A / D strafe, Space / Ctrl up and down, Q / E roll, Shift boost, Z dampeners. Own key layout.")
+                // Remake: free flight's touch layout (TouchControlsFreeFlight), on a touch device.
+                + (Application.isMobilePlatform || InputMode.Current == InputKind.Touch
+                    ? " " + X("flightStyleTouchHelp", "Touch: the stick thrusts and strafes, drag the screen (or the held fire button) to aim, the buttons beside the stick go up, down and switch the dampeners; the ship rolls itself level.")
+                    : "");
+            list.Add(freeFlight);
             // Remake (the user's request, 2026-11-04): Original / Cosmetic / Remake set the experience options at once
             // (Settings.ApplyExperience); the row shows the one they match, else Custom (picking Custom sets nothing). Every
             // row below reads off (or its first choice) = the original game.
-            list.Add(Choice("gameExperience", OptionPage.Gameplay, () => X("gameExperience", "Game experience"), true,
-                ExperienceNames, Settings.CurrentExperience, i => Settings.ApplyExperience(i),
-                () => X("gameExperienceHelp", "Original: the game as it was, nothing added. Cosmetic: the original plus the remake's presentation, like ships flying in and out of the hangars and animated dialogue. Remake: every new feature on. Change any option below and it becomes Custom.")));
+            list.Add(Choice("cosmeticExperience", OptionPage.Gameplay, () => X("cosmeticExperience", "Cosmetic Experience"), true,
+                ScopedExperienceNames, () => Settings.CurrentScopedExperience(true), i => Settings.ApplyScopedExperience(true, i),
+                () => X("cosmeticExperienceHelp", "Original or Remake presentation settings, independently of gameplay. Any manual Cosmetics change selects Custom, even if values match a preset again. Select Original or Remake explicitly to reactivate it.")));
+            list.Add(Choice("gameplayExperience", OptionPage.Gameplay, () => X("gameplayExperience", "Gameplay Experience"), true,
+                ScopedExperienceNames, () => Settings.CurrentScopedExperience(false), i => Settings.ApplyScopedExperience(false, i),
+                () => X("gameplayExperienceHelp", "Original or Remake gameplay settings, independently of cosmetics. Choosing Custom or expanding Game Rules selects Custom without changing any rule. Any manual Gameplay change selects Custom, even if values match a preset again. Select Original or Remake explicitly to reactivate it.")));
             // The original's fly-past camera, as a "skip" so that off is the original (Settings.LaunchCamera).
             var skipLaunch = Toggle("launchCamera", OptionPage.Gameplay, () => X("skipLaunchCamera", "Skip launch and arrival camera"),
                 () => !Settings.LaunchCamera, v => Settings.LaunchCamera = !v);
@@ -737,5 +745,10 @@ namespace GoF2Remake.UI
                     action = () => SaveFolderPressed?.Invoke(),
                 });
         }
+
+        // Owner follow-up (#311): save-bind Kaamo stacking/limit, content, travel/simulation, informer rules, difficulty
+        // and future economy/balance profiles. Preserve purchased upgrade levels in migrations. Autocomplete and
+        // combat/AI need UI separation but are not requested as mandatory save-bound rules. Stored equipment is QoL.
+        static void SplitGameplay(List<OptionDef> list) => OrganizeGameplay(list);
     }
 }

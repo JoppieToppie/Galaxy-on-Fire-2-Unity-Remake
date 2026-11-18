@@ -26,7 +26,7 @@ namespace GoF2Remake.Tests
         /// (Session), the Debug tools (Cheats), the tilt steering choice (calibrates the device when turned on), buttons,
         /// and the text language (Settings.ResetToDefaults keeps it: a Defaults button should not put a player back into a
         /// language they can't read).</summary>
-        static readonly HashSet<string> NotSettings = new HashSet<string> { "difficulty", "debugTools", "steering", "language" };
+        static readonly HashSet<string> NotSettings = new HashSet<string> { "difficulty", "debugTools", "steering", "language", "cosmeticExperience", "gameplayExperience" };
 
         DataUiTestKit.PrefsSnapshot prefs;
         DataUiTestKit.TextLanguage english;
@@ -43,6 +43,72 @@ namespace GoF2Remake.Tests
         {
             english?.Dispose();
             prefs?.Dispose();
+        }
+
+        [Test]
+        public void CosmeticsAndGameplayUseTheAgreedSubsections()
+        {
+            var all = OptionsCatalog.All();
+            foreach (var id in new[] { "launchCamera", "hangarFlights", "animatedDialogue" })
+            {
+                var row = all.First(o => o.id == id);
+                Assert.AreEqual(OptionPage.Cosmetics, row.page, id);
+                Assert.AreEqual(OptionSection.SpecialFeatures, row.section, id);
+            }
+            foreach (var id in new[] { "inputHints", "shopByCategory" })
+                Assert.AreEqual(OptionSection.Interface, all.First(o => o.id == id).section, id);
+            foreach (var id in new[] { "hudMode", "hudScale", "hudOpacity", "farShipMarkers", "markerDistance" })
+                Assert.AreEqual(OptionSection.Hud, all.First(o => o.id == id).section, id);
+            foreach (var id in new[] { "showStoryStep", "speedrunTimer", "speedrunSplits", "speedrunCompare" })
+                Assert.AreEqual(OptionSection.Tools, all.First(o => o.id == id).section, id);
+            foreach (var id in new[] { "kaamoKeepsEquipment", "autoJumpgate" })
+            {
+                var row = all.First(o => o.id == id);
+                Assert.AreEqual(OptionPage.Gameplay, row.page, id);
+                Assert.AreEqual(OptionSection.GameRules, row.section, id);
+            }
+            // These options are supplied by separate PRs; validate placement when integrated, without requiring them.
+            foreach (var row in all.Where(o => o.id == "systemMapAnimationSpeed" || o.id == "hostileAutopilotFastForward"))
+            {
+                bool cosmetic = row.id == "systemMapAnimationSpeed";
+                Assert.AreEqual(cosmetic ? OptionPage.Cosmetics : OptionPage.Gameplay, row.page);
+                Assert.AreEqual(cosmetic ? OptionSection.Hud : OptionSection.GameRules, row.section);
+            }
+            Assert.AreEqual(OptionPage.Accessibility, all.First(o => o.id == "discordPresence").page);
+            var rules = all.Where(o => o.section == OptionSection.GameRules).ToList();
+            Assert.AreEqual("gameplayExperience", rules[0].id);
+            Assert.IsFalse(rules.Any(o => o.id == "debugTools"));
+        }
+
+        [Test]
+        public void GameRulesStayHiddenUntilConfirmationAndCancelChangesNothing()
+        {
+            bool before = GameRulesAccess.Confirmed;
+            bool debug = Cheats.Unlocked, stacking = Settings.KaamoStacking;
+            try
+            {
+                GameRulesAccess.Reset();
+                var view = new OptionsView(() => { }, false);
+                for (int i = 0; i < 5; i++) view.StepTab(1);
+                Assert.IsFalse(view.RulesPromptOpen, "the profile selector opens without prompting");
+                Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "gameplayExperience"));
+                Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "difficulty"));
+                Assert.IsFalse(view.NavItems().Any(v => view.RowOf(v)?.def.section == OptionSection.GameRules
+                    && view.RowOf(v)?.def.id != "gameplayExperience" && view.RowOf(v)?.def.id != "difficulty"));
+                var gate = view.NavItems().OfType<UnityEngine.UIElements.Button>().Single(b => b.ClassListContains("options-section-gate"));
+                view.Activate(gate);
+                Assert.IsTrue(view.RulesPromptOpen);
+                Assert.AreEqual(2, view.NavItems().Count);
+                view.Activate(view.FooterButtons[0]);
+                Assert.IsFalse(GameRulesAccess.Confirmed);
+                view.Activate(gate);
+                view.Activate(view.FooterButtons[1]);
+                Assert.IsTrue(GameRulesAccess.Confirmed);
+                Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "pirateEvents"));
+                Assert.AreEqual(debug, Cheats.Unlocked);
+                Assert.AreEqual(stacking, Settings.KaamoStacking);
+            }
+            finally { if (before) GameRulesAccess.Accept(); else GameRulesAccess.Reset(); }
         }
 
         static bool IsValue(OptionDef o) => o.kind == OptionKind.Slider || o.kind == OptionKind.Toggle || o.kind == OptionKind.Choice;
@@ -157,7 +223,7 @@ namespace GoF2Remake.Tests
                     default:
                         int n = o.choices().Length;
                         if (o.id == "graphicsPreset") n = Settings.PresetCustom;   // Custom only reads back, it sets nothing
-                        if (o.id == "gameExperience") n = Settings.ExperienceCustom;
+                        if (o.id == "cosmeticExperience" || o.id == "gameplayExperience") n = 2;   // Custom only reads back
                         for (int i = 0; i < n; i++)
                         {
                             o.setIndex(i);
@@ -169,7 +235,7 @@ namespace GoF2Remake.Tests
         }
 
         static IEnumerable<OptionPage> SettingsPages() =>
-            new[] { OptionPage.Sound, OptionPage.Graphics, OptionPage.Controls, OptionPage.Gameplay, OptionPage.Accessibility, OptionPage.Language };
+            new[] { OptionPage.Sound, OptionPage.Graphics, OptionPage.Controls, OptionPage.Gameplay, OptionPage.Cosmetics, OptionPage.Accessibility, OptionPage.Language };
 
         [TestCaseSource(nameof(SettingsPages))]
         public void DefaultSettingsForATabResetsEveryOptionOnIt(OptionPage page)
@@ -393,5 +459,121 @@ namespace GoF2Remake.Tests
             }
             finally { Settings.OverrideAndroidDefaults(null); }
         }
+
+        [Test]
+        public void InterfaceStyleBelongsToCosmeticsUiAndItsReset()
+        {
+            var row = OptionsCatalog.All().Single(o => o.id == "originalUi");
+            Assert.AreEqual(OptionPage.Cosmetics, row.page);
+            Assert.AreEqual(OptionSection.Interface, row.section);
+            StringAssert.Contains("Select it manually", row.description());
+            StringAssert.Contains("Cosmetic Experience", row.description());
+            row.setIndex(1);
+            Settings.Reset(Settings.GraphicsKeys);
+            Assert.IsTrue(Settings.OriginalUi, "Graphics reset does not change the interface style");
+            Settings.Reset(Settings.CosmeticsKeys);
+            Assert.IsFalse(Settings.OriginalUi, "Cosmetics owns the reset");
+        }
+
+        [Test]
+        public void OriginalExperienceStillDefaultsToRemakeUiAndPreservesManualStyle()
+        {
+            Settings.Reset(new[] { "originalUi" });
+            Settings.ApplyExperience(Settings.ExperienceOriginal);
+            Settings.ApplyScopedExperience(true, 0);
+            Settings.ApplyScopedExperience(false, 0);
+            Assert.IsFalse(Settings.OriginalUi, "Original gameplay never forces the old interface");
+            Settings.OriginalUi = true;
+            Settings.ApplyExperience(Settings.ExperienceOriginal);
+            Settings.ApplyScopedExperience(false, 1);
+            Assert.IsTrue(Settings.OriginalUi, "the old interface remains an explicit independent preference");
+        }
+
+        [TestCase(false)] [TestCase(true)]
+        public void GameplayCustomAndExpandUseTheSameConfirmation(bool alreadyCustom)
+        {
+            bool confirmed = GameRulesAccess.Confirmed;
+            try
+            {
+                GameRulesAccess.Reset();
+                Settings.ApplyScopedExperience(false, 1);
+                if (alreadyCustom) Settings.KaamoVipMode = Settings.KaamoVipOff;
+                int vip = Settings.KaamoVipMode;
+                bool pirates = Settings.PirateEvents;
+                var view = new OptionsView(() => { }, false);
+                for (int i = 0; i < 5; i++) view.StepTab(1);
+                var field = view.NavItems().Single(e => view.RowOf(e)?.def.id == "gameplayExperience");
+                var choice = (ChoiceRow)field;
+                choice.Step(1);
+                Assert.IsTrue(view.RulesPromptOpen, "also when Custom was already displayed");
+                Assert.IsFalse(GameRulesAccess.Confirmed);
+                view.Activate(view.FooterButtons[0]);
+                Assert.IsFalse(GameRulesAccess.Confirmed);
+                Assert.AreEqual(vip, Settings.KaamoVipMode);
+                Assert.AreEqual(pirates, Settings.PirateEvents);
+                choice.Step(1);
+                view.Activate(view.FooterButtons[1]);
+                Assert.IsTrue(GameRulesAccess.Confirmed);
+                Assert.AreEqual(2, view.RowOf(field).def.getIndex(), "accepted Custom/Expand is explicitly Custom");
+                Assert.AreEqual(2, ((ChoiceRow)field).Index, "the visible selection is Custom");
+                Assert.IsTrue(view.NavItems().Any(e => view.RowOf(e)?.def.id == "kaamoVip"));
+                Assert.AreEqual(vip, Settings.KaamoVipMode);
+                Assert.AreEqual(pirates, Settings.PirateEvents);
+            }
+            finally { if (confirmed) GameRulesAccess.Accept(); else GameRulesAccess.Reset(); }
+        }
+
+        [Test]
+        public void EditingARuleOutsideThePresetTableStillSelectsCustom()
+        {
+            bool confirmed = GameRulesAccess.Confirmed;
+            try
+            {
+                GameRulesAccess.Accept();
+                Settings.ApplyScopedExperience(false, 0);
+                var view = new OptionsView(() => { }, false);
+                for (int i = 0; i < 5; i++) view.StepTab(1);
+                var experience = view.NavItems().Single(e => view.RowOf(e)?.def.id == "gameplayExperience");
+                var npc = view.NavItems().Single(e => view.RowOf(e)?.def.id == "npcDogfight");
+                Assert.AreEqual(0, view.RowOf(experience).def.getIndex());
+                view.RowOf(npc).Step(1);
+                Assert.AreEqual(2, view.RowOf(experience).def.getIndex());
+                Assert.AreEqual(2, ((ChoiceRow)experience).Index, "the visible row refreshes too");
+                Settings.ApplyScopedExperience(false, 1);
+                Assert.AreEqual(1, view.RowOf(experience).def.getIndex(), "an explicit preset clears Custom mode");
+                Settings.ApplyScopedExperience(true, 0);
+                Assert.AreEqual(1, view.RowOf(experience).def.getIndex(), "cosmetics do not change gameplay mode");
+            }
+            finally { if (confirmed) GameRulesAccess.Accept(); else GameRulesAccess.Reset(); }
+        }
+
+        [TestCase(false, 0)] [TestCase(false, 1)] [TestCase(true, 0)] [TestCase(true, 1)]
+        public void ManualChangesStayCustomEvenWhenValuesReturnToThePreset(bool cosmetics, int preset)
+        {
+            Settings.ApplyScopedExperience(cosmetics, preset);
+            Assert.AreEqual(preset, Settings.CurrentScopedExperience(cosmetics));
+            if (cosmetics)
+            {
+                bool original = Settings.HangarFlights;
+                Settings.HangarFlights = !original;
+                Settings.HangarFlights = original;
+            }
+            else
+            {
+                bool original = Settings.PirateEvents;
+                Settings.PirateEvents = !original;
+                Settings.PirateEvents = original;
+            }
+            Assert.AreEqual(2, Settings.CurrentScopedExperience(cosmetics), "matching values cannot reactivate a preset");
+            DataUiTestKit.ClearSettingsCache();
+            Assert.AreEqual(2, Settings.CurrentScopedExperience(cosmetics), "Custom survives reloading settings");
+            Settings.ApplyScopedExperience(cosmetics, 0);
+            Assert.AreEqual(0, Settings.CurrentScopedExperience(cosmetics), "explicit selection reactivates Original");
+            Settings.ApplyScopedExperience(cosmetics, 1);
+            Assert.AreEqual(1, Settings.CurrentScopedExperience(cosmetics), "explicit selection activates Remake");
+            Settings.ApplyScopedExperience(cosmetics, 2);
+            Assert.AreEqual(2, Settings.CurrentScopedExperience(cosmetics), "explicit Custom preserves values but changes mode");
+        }
+
     }
 }
