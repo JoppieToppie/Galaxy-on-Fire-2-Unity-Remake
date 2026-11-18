@@ -49,7 +49,7 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<ulong> creator = new NetworkVariable<ulong>(ulong.MaxValue);  // server-written at spawn: whose ship
         readonly NetworkVariable<bool> handedOver = new NetworkVariable<bool>(false);   // server-written: handed to an orbit's runner (NetState.HandOver)
         readonly NetworkVariable<FixedString4096Bytes> spec = new NetworkVariable<FixedString4096Bytes>(default, Read, Owner);   // ProxySpec, base64
-        readonly NetworkVariable<NetProxyStatus> status = new NetworkVariable<NetProxyStatus>(new NetProxyStatus { race = -1, relation = Neutral, hull = 65535, radius = 50f, stealItem = -1, killer = ulong.MaxValue }, Read, Owner);
+        readonly NetworkVariable<NetProxyStatus> status = new NetworkVariable<NetProxyStatus>(new NetProxyStatus { race = -1, relation = Neutral, hull = 65535, shield = 65535, radius = 50f, stealItem = -1, killer = ulong.MaxValue }, Read, Owner);
         // Hostility toward the other players (NpcShip.aggressors, client ids), for their markers and a takeover.
         readonly NetworkVariable<FixedString128Bytes> aggressors = new NetworkVariable<FixedString128Bytes>(default, Read, Owner);
         const int FreighterVolumes = 100000;
