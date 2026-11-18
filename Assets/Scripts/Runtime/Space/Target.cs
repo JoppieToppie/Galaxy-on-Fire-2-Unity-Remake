@@ -158,6 +158,8 @@ namespace GoF2Remake.Flight
         [NonSerialized] public Vector3 lastHitVector;
         /// <summary>Player::damage's weapon argument: the item of the player weapon that hit last (-1 = none / an NPC).</summary>
         [NonSerialized] public int lastPlayerWeapon = -1;
+        /// <summary>The NPC gun item that dealt the last NPC hit (-1 when the hit has no weapon source).</summary>
+        [NonSerialized] public int lastNpcWeapon = -1;
         /// <summary>Remake mods (Data.DamageTaken: a Most Wanted criminal's "damageTaken"): the player's hits x this of the item
         /// that dealt them (lastPlayerWeapon, which every player hit sets first); null = all of it.</summary>
         [NonSerialized] public Func<int, float> PlayerWeaponFactor;
@@ -198,7 +200,7 @@ namespace GoF2Remake.Flight
             if (!byNpc && PlayerWeaponFactor != null && lastPlayerWeapon >= 0) amount *= PlayerWeaponFactor(lastPlayerWeapon);
             if (HitFilter != null) amount = HitFilter(amount, hitVector);
             if (damageType == DamageType.None && RemoteDamage != null) { RemoteDamage(amount, hitVector, byNpc, shieldFactor); return; }
-            if (RemoteTypedDamage != null) { RemoteTypedDamage(amount, hitVector, byNpc, shieldFactor, byNpc ? -1 : lastPlayerWeapon); return; }
+            if (RemoteTypedDamage != null) { RemoteTypedDamage(amount, hitVector, byNpc, shieldFactor, byNpc ? lastNpcWeapon : lastPlayerWeapon); return; }
             if (RemoteDamage != null) { RemoteDamage(amount, hitVector, byNpc, shieldFactor); return; }
             // (a weak spot passes on what it takes, not the overkill of the hit that destroys it)
             if (forwardTo != null && forwardTo != this && forwardFactor > 0f && forwardTo.Alive)
