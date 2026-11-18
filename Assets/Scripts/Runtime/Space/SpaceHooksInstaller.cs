@@ -27,6 +27,9 @@ namespace GoF2Remake.Flight
             GameHooks.KitBuildText = o => Modding.ModShipKits.Build.FromJson(o).ToString();
             // Remake mods: a mod capital ship's / freighter's boxes from its own model.
             CollisionVolume.ShipVolumes = Modding.ModCapitalShips.HullVolumes;
+            // Preserve the original Midorian-with-Nivelian-face exception and custom race identity by default.
+            SpaceHooks.VisitorRace = (agent, station) => agent.modRace >= Modding.ModRaces.FirstRace ? agent.modRace
+                : agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
         }
     }
 }

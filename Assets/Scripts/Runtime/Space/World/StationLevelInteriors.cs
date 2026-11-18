@@ -477,8 +477,13 @@ namespace GoF2Remake.World
                 int race = character != null && character.hasRace ? character.race
                          : agent.modRace >= Modding.ModRaces.FirstRace ? agent.modRace : agent.race;
                 if (character == null || !character.hasRace)
-                    race = agent.modRace >= Modding.ModRaces.FirstRace ? race
+                {
+                    race = agent.modRace >= Modding.ModRaces.FirstRace ? agent.modRace
                          : agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
+                    // Keep the visitor-race extension point active for automatically assigned identities.
+                    int hookedRace = SpaceHooks.VisitorRace?.Invoke(agent, Layout.stationIndex) ?? -1;
+                    if (hookedRace >= 0) race = hookedRace;
+                }
                 var silhouette = character?.silhouette;
                 // A custom race supplies its own GLB visitor unless this character explicitly selects a built-in silhouette.
                 var prefab = string.IsNullOrEmpty(silhouette) && Modding.ModRaces.Is(race) ? Modding.ModRaceVisitors.Prefab(race) : null;
