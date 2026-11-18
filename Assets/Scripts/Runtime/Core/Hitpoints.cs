@@ -28,8 +28,6 @@ namespace GoF2Remake.Flight
 
         /// <summary>Optional shield resistances, expressed as fractions from 0 to 1. Zero preserves legacy behaviour.</summary>
         public float energyResistance, ballisticResistance;
-        /// <summary>Maximum fraction of ballistic damage that resistance may prevent, default 1.</summary>
-        public float ballisticPenetration = 1f;
 
         /// <summary>Which layer took the last hit (the player's hit sound: 25 shield, 23 armor, 24 hull).</summary>
         public bool shieldHit, armorHit, hullHit;
@@ -84,7 +82,7 @@ namespace GoF2Remake.Flight
             if (damageType == DamageType.Ballistic && ballisticResistance > 0f)
             {
                 float fraction = shieldFactor > 0f && maxShield > 0 ? Clamp01(shield / maxShield) : 0f;
-                float penetration = Clamp01(ballisticResistance) * fraction * Clamp01(ballisticPenetration);
+                float penetration = Clamp01(ballisticResistance) * fraction;
                 float hullDamage = dmg * (1f - penetration);
                 float cost = dmg * Math.Max(0f, shieldFactor);
                 if (shield > 0f && cost > 0f) { shield = Math.Max(0f, shield - cost); shieldHit = true; }
