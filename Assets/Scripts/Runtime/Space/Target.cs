@@ -74,6 +74,7 @@ namespace GoF2Remake.Flight
         /// <summary>Multiplayer: a hit (amount, hit vector, by an NPC, the weapon's shield factor) is passed on to the game
         /// that owns the ship (NetProxy, NetPlayer) instead of applied here.</summary>
         [NonSerialized] public Action<float, Vector3, bool, float> RemoteDamage;
+        [NonSerialized] public Action<float, Vector3, bool, float, ulong, uint> RemoteShotDamage;
         /// <summary>Multiplayer: EMP (points) passed on to the game that owns the ship (NetProxy, NetPlayer).</summary>
         [NonSerialized] public Action<int> RemoteEmp;
         /// <summary>Multiplayer: a repair beam's hull points passed on to the game that owns the ship (NetProxy, NetPlayer);
@@ -187,7 +188,8 @@ namespace GoF2Remake.Flight
 
         /// <summary>Player::damage: 'byNpc' = an NPC gun fired it (friendGun); 'hitVector' = the bullet velocity;
         /// 'shieldFactor' = the weapon's x on the shield (remake, Flight.Gun.ShieldFactor; Hitpoints.Damage).</summary>
-        public void Damage(float amount, bool byNpc = false, Vector3 hitVector = default, float shieldFactor = 1f)
+        public void Damage(float amount, bool byNpc = false, Vector3 hitVector = default, float shieldFactor = 1f,
+                           ulong sourceObjectId = 0, uint shotId = 0)
         {
             if (!Alive || invulnerable || phased) return;
             if (isPlayer && Data.Cheats.GodMode) return;   // remake: the Debug panel's god mode
@@ -195,6 +197,7 @@ namespace GoF2Remake.Flight
             if (vulnerability > 0f) amount *= 1f + vulnerability;   // remake: a weapon's vulnerability (TargetDebuffs)
             if (!byNpc && PlayerWeaponFactor != null && lastPlayerWeapon >= 0) amount *= PlayerWeaponFactor(lastPlayerWeapon);
             if (HitFilter != null) amount = HitFilter(amount, hitVector);
+            if (shotId != 0 && RemoteShotDamage != null) { RemoteShotDamage(amount, hitVector, byNpc, shieldFactor, sourceObjectId, shotId); return; }
             if (RemoteDamage != null) { RemoteDamage(amount, hitVector, byNpc, shieldFactor); return; }
             // (a weak spot passes on what it takes, not the overkill of the hit that destroys it)
             if (forwardTo != null && forwardTo != this && forwardFactor > 0f && forwardTo.Alive)
@@ -352,6 +355,22 @@ namespace GoF2Remake.Flight
                 if (d < bestD) { bestD = d; best = p; }
             }
             return transform.TransformPoint(best);
+        }
+
+        /// <summary>The point on the target's exact collision meshes nearest 'from'; position when there is no mesh hull.</summary>
+        public Vector3 NearestHullPoint(Vector3 from)
+        {
+            if (hull == null || hull.colliders == null || hull.colliders.Count == 0) return transform.position;
+            Vector3 best = transform.position;
+            float bestD = float.MaxValue;
+            foreach (var collider in hull.colliders)
+            {
+                if (collider == null || !collider.enabled) continue;
+                var point = collider.ClosestPoint(from);
+                float d = (point - from).sqrMagnitude;
+                if (d < bestD) { bestD = d; best = point; }
+            }
+            return bestD < float.MaxValue ? best : transform.position;
         }
 
         void Die(bool loot)
