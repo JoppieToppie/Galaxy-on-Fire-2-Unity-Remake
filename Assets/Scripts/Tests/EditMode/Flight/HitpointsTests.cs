@@ -296,6 +296,11 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(50f, h.shield);
             Assert.AreEqual(100, h.hull);
 
+            var immune = new Hitpoints(100, 100) { energyResistance = 1f };
+            Assert.IsFalse(immune.Damage(100, 1f, DamageType.Energy));
+            Assert.AreEqual(100f, immune.shield, "full resistance absorbs the hit without spending shield points");
+            Assert.AreEqual(100, immune.hull);
+
             var overflow = new Hitpoints(100, 25) { energyResistance = 0.5f };
             Assert.IsFalse(overflow.Damage(100, 1f, DamageType.Energy));
             Assert.AreEqual(0f, overflow.shield);
