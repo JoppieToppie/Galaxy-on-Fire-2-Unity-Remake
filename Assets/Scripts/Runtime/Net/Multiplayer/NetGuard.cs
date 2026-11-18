@@ -67,7 +67,11 @@ namespace GoF2Remake.Multiplayer
         /// <summary>'p' and 'q' fly in the same orbit.</summary>
         public static bool SameOrbit(NetPlayer p, NetPlayer q) => p != null && q != null && p.InSpace && q.InSpace && p.Station == q.Station;
 
-        /// <summary>Only the server-selected runner may relay NPC damage for an orbit; active distinguishes Void (-1) from no runner.</summary>
+        /// <summary>
+        /// A client may claim that damage came from an NPC, but only the server-selected runner may relay NPC
+        /// damage for this orbit. This is a source-authority check, not proof of an individual NPC shot: NPC
+        /// combat is still simulated by that runner's client.
+        /// </summary>
         public static bool NpcDamageRunner(bool inSpace, bool isRunner, int runsOrbit, int targetStation) =>
             inSpace && isRunner && runsOrbit == targetStation;
 
