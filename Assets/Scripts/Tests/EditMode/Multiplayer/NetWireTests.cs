@@ -249,6 +249,7 @@ namespace GoF2Remake.Tests
                 secondaryItem = 48, secondaryFactor = 4f, hiddenBlueprint = 2, modBlueprint = 300, pirateEvent = SpawnSpec.EventBoss,
                 eventTier = 5, sightingId = 9, capital = SpawnSpec.CapitalCarrier, capitalPart = true, capitalEnhanced = true,
                 fleetBattle = true, turretHunter = true, deathMs = 12000f, empPoints = 900, modCapital = true,
+                shield = 180, shieldRechargeMs = 30000, energyResistance = 0.25f, ballisticResistance = 0.65f,
             };
         }
 
