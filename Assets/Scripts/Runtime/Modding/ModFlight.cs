@@ -53,10 +53,10 @@ namespace GoF2Remake.Modding
         const int TopSpeed = 111, TurnRate = 112, StrafeSpeed = 113, OrigTopSpeed = 114, OrigTurnRate = 115, OrigStrafeSpeed = 116,
                   FreeTopSpeed = 117, FreeTurnRate = 118, FreeStrafeSpeed = 119, FreeAcceleration = 120, FreeBoostFactor = 121,
                   FullStopDamage = 138, LowSpeedResistance = 139,
-                  PitchTurnRate = 140, YawTurnRate = 141, RollTurnRate = 142,
-                  PitchTurnAcceleration = 143, YawTurnAcceleration = 144, RollTurnAcceleration = 145,
-                  StrafeAcceleration = 146, HoverSpeed = 147, HoverAcceleration = 148,
-                  ReverseSpeed = 149, ReverseAcceleration = 150, ForwardAcceleration = 151;
+                  PitchTurnRate = 170, YawTurnRate = 171, RollTurnRate = 172,
+                  PitchTurnAcceleration = 173, YawTurnAcceleration = 174, RollTurnAcceleration = 175,
+                  StrafeAcceleration = 176, HoverSpeed = 177, HoverAcceleration = 178,
+                  ReverseSpeed = 179, ReverseAcceleration = 180, ForwardAcceleration = 181;
 
         /// <summary>ships.json's "flight" fields (also inside its "original" / "free" objects).</summary>
         static readonly HashSet<string> BonusFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
