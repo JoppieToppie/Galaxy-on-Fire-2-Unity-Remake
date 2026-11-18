@@ -160,6 +160,15 @@ namespace GoF2Remake.Multiplayer
         /// (Modding.ModHardpoints), on its model in space and in the hangar (NetHangar).</summary>
         public string Weapons => weapons.Value.ToString();
 
+        /// <summary>Server-side validation that a reported weapon belongs to this player's synchronised loadout.</summary>
+        public bool HasWeaponItem(int item)
+        {
+            if (item < 0) return false;
+            if (turretItem.Value == item) return true;
+            foreach (var stack in WeaponStacks(NetGame.Db, weapons.Value.ToString())) if (stack.item == item) return true;
+            return false;
+        }
+
         /// <summary>The build of this player's customizable ship (Modding.ModShipKits: parts, tier, colours, the save's text),
         /// "" = not a kit ship or its default build; the others show their ship so (its parts load on demand).</summary>
         public string BuildText => build.Value.ToString();
@@ -337,7 +346,7 @@ namespace GoF2Remake.Multiplayer
             target.maxHp = 100f;
             // This player's weapons hitting them count toward them being this player's enemy too (NetAggression, both ways); an NPC's shot
             // relayed by this orbit's authority isn't.
-            target.RemoteDamage = (amount, hitVector, byNpc, shieldFactor) => { if (!byNpc) NetAggression.Hit(OwnerClientId, amount); HitUpRpc(amount, hitVector, byNpc, shieldFactor); };
+            target.RemoteTypedDamage = (amount, hitVector, byNpc, shieldFactor, weaponItem) => { if (!byNpc) NetAggression.Hit(OwnerClientId, amount); HitUpRpc(amount, hitVector, byNpc, shieldFactor, weaponItem); };
             target.RemoteEmp = emp => { NetAggression.Hit(OwnerClientId, emp); EmpUpRpc(emp); };
             target.RemoteHeal = points => HealUpRpc(points);   // a squadmate's repair beam (NetPlayerEquipment)
             ApplyName();
@@ -435,7 +444,7 @@ namespace GoF2Remake.Multiplayer
         /// other's line of fire), a finite damage up to NetGuard.MaxDamage, at its rate. (A direct RPC to the owner let a
         /// modified client destroy any player anywhere, or send NaN damage.)</summary>
         [Rpc(SendTo.Server)]
-        void HitUpRpc(float amount, Vector3 hitVector, bool byNpc, float shieldFactor, RpcParams rpc = default)
+        void HitUpRpc(float amount, Vector3 hitVector, bool byNpc, float shieldFactor, int weaponItem, RpcParams rpc = default)
         {
             ulong shooter = rpc.Receive.SenderClientId;
             if (shooter == OwnerClientId || !NetRateLimit.Allow(shooter, NetRateLimit.Kind.Hit)) return;
@@ -444,14 +453,16 @@ namespace GoF2Remake.Multiplayer
             shieldFactor = byNpc || float.IsNaN(shieldFactor) ? 1f : shieldFactor <= 0f ? 0f : Mathf.Clamp(shieldFactor, 0.01f, 10f);
             var by = NetSquad.Find(shooter);
             if (!NetGuard.SameOrbit(by, this)) return;   // gone from the orbit a moment ago, or a hit from elsewhere
+            if (!byNpc && (weaponItem < 0 || !by.HasWeaponItem(weaponItem))) { NetRateLimit.Reject(shooter, $"a hit from unmounted weapon {weaponItem}"); return; }
+            if (byNpc) weaponItem = -1; // NPC damage type is not client-selected.
             if (!byNpc && NetSquad.Same(by, this)) return;
             NetState.Instance?.NoteHit(NetworkObjectId, shooter);
-            HitRpc(amount, hitVector, byNpc, shooter, shieldFactor);
+            HitRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem);
         }
 
         /// <summary>The checked hit (HitUpRpc): this player's own ship takes it; destroyed by a player = a notice for everyone.</summary>
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
-        void HitRpc(float amount, Vector3 hitVector, bool byNpc, ulong shooter, float shieldFactor)
+        void HitRpc(float amount, Vector3 hitVector, bool byNpc, ulong shooter, float shieldFactor, int weaponItem)
         {
             var own = level != null && level.Health != null ? level.Health.Target : null;
             if (own == null) return;
@@ -464,7 +475,10 @@ namespace GoF2Remake.Multiplayer
             }
             bool alive = own.Alive;
             if (alive && !byNpc) NetAggression.Hit(shooter, amount);   // an attack makes them an enemy here (NetAggression)
-            own.Damage(amount, byNpc, hitVector, shieldFactor);
+            var item = weaponItem >= 0 ? GoF2Remake.Data.Database.Shared.Item(weaponItem) : null;
+            var damageType = item != null ? (DamageType)Mathf.Clamp(item.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None;
+            own.lastPlayerWeapon = weaponItem;
+            own.Damage(amount, byNpc, hitVector, shieldFactor, damageType);
             if (alive && !own.Alive && !byNpc && NetState.Instance != null) NetState.Instance.DestroyedByRpc(shooter);
         }
 
