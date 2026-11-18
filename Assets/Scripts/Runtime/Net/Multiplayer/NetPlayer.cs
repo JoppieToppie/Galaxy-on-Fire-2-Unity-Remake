@@ -164,7 +164,7 @@ namespace GoF2Remake.Multiplayer
         public bool HasWeaponItem(int item)
         {
             if (item < 0) return false;
-            if (turretItem.Value == item) return true;
+            foreach (int turret in UnpackTurrets(turretItem.Value)) if (turret == item) return true;
             foreach (var stack in WeaponStacks(NetGame.Db, weapons.Value.ToString())) if (stack.item == item) return true;
             return false;
         }
