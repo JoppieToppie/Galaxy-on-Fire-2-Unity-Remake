@@ -7,6 +7,114 @@ namespace GoF2Remake.Multiplayer
     public static partial class NetPlayerStations
     {
 
+        /// <summary>Public, presentation-neutral dry-dock state for future station screens and animated build visuals.</summary>
+        [Serializable]
+        public sealed class DryDockVisualStatus
+        {
+            public int stationId;
+            public bool installed, operational, building;
+            public int storedHulls, hullCapacity, blueprintItem = -1, shipIndex = -1;
+            public string stationName, blueprintName, builderProfile;
+            public long startedUtc, completesUtc, remainingSeconds;
+            public float progress;
+            public bool consumesBlueprint;
+        }
+
+        /// <summary>
+        /// Read-only status snapshot for visual/UI layers. It contains no owner-private storage or profile data.
+        /// Times are UTC Unix seconds; progress is clamped to 0..1.
+        /// </summary>
+        public static DryDockVisualStatus GetDryDockVisualStatus(int id)
+        {
+            var record = Find(id);
+            if (record == null) return null;
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            bool installed = record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false;
+            bool building = installed && record.dryDockBuilding && record.dryDockCompletesUtc > now;
+            long duration = Math.Max(1L, record.dryDockCompletesUtc - record.dryDockStartedUtc);
+            long remaining = building ? Math.Max(0L, record.dryDockCompletesUtc - now) : 0L;
+            var db = NetGame.Db;
+            return new DryDockVisualStatus
+            {
+                stationId = record.id,
+                stationName = record.name,
+                installed = installed,
+                operational = installed && !record.underConstruction,
+                building = building,
+                storedHulls = record.dryDockShips?.Count ?? 0,
+                hullCapacity = MaxDryDockShipsPerStation,
+                blueprintItem = building ? record.dryDockBlueprintItem : -1,
+                shipIndex = building ? record.dryDockShip : -1,
+                blueprintName = building ? (db?.Ship(record.dryDockShip)?.name ?? ("Ship " + record.dryDockShip)) : null,
+                builderProfile = building ? record.dryDockBuilderProfile : null,
+                startedUtc = building ? record.dryDockStartedUtc : 0,
+                completesUtc = building ? record.dryDockCompletesUtc : 0,
+                remainingSeconds = remaining,
+                progress = building ? Math.Max(0f, Math.Min(1f, 1f - remaining / (float)duration)) : 0f,
+                consumesBlueprint = building && record.dryDockConsumeBlueprint,
+            };
+        }
+
+        static int DryDockBuildDuration(int productId, int shipIndex)
+        {
+            var definition = Modding.ModBlueprints.Of(productId);
+            if (definition != null && definition.constructionTimeSeconds > 0)
+                return definition.constructionTimeSeconds;
+            string kind = Modding.ShipClassRules.ClassOf(NetGame.Db?.Ship(shipIndex));
+            if (string.Equals(kind, Modding.ShipClassRules.Frigate, StringComparison.OrdinalIgnoreCase)) return 21600;
+            if (string.Equals(kind, Modding.ShipClassRules.Freighter, StringComparison.OrdinalIgnoreCase)) return 28800;
+            if (string.Equals(kind, Modding.ShipClassRules.Cruiser, StringComparison.OrdinalIgnoreCase)) return 43200;
+            if (string.Equals(kind, Modding.ShipClassRules.Carrier, StringComparison.OrdinalIgnoreCase)) return 64800;
+            return 7200;
+        }
+
+        static void ClearDryDockJob(PlayerStationRecord record)
+        {
+            record.dryDockBuilding = false;
+            record.dryDockBlueprintItem = -1;
+            record.dryDockShip = -1;
+            record.dryDockStartedUtc = 0;
+            record.dryDockCompletesUtc = 0;
+            record.dryDockBuilderProfile = null;
+            record.dryDockConsumeBlueprint = false;
+        }
+
+        /// <summary>Finish a due job exactly once. A failed save restores the active job for retry on the next tick.</summary>
+        static bool CompleteDryDockJob(PlayerStationRecord record, long now)
+        {
+            if (record == null || !record.dryDockBuilding || record.dryDockCompletesUtc > now) return false;
+            record.dryDockShips ??= new List<StoredShip>();
+            if (record.dryDockShips.Count >= MaxDryDockShipsPerStation) return false;
+            int ship = record.dryDockShip;
+            int race = NetGame.Db?.Systems?.Find(x => x.index == record.system)?.raceId ?? 0;
+            record.dryDockShips.Add(new StoredShip(ship, race, new List<int>()));
+            long started = record.dryDockStartedUtc, completes = record.dryDockCompletesUtc;
+            int blueprint = record.dryDockBlueprintItem;
+            string builder = record.dryDockBuilderProfile;
+            bool consume = record.dryDockConsumeBlueprint;
+            ClearDryDockJob(record);
+            if (Save()) return true;
+            record.dryDockShips.RemoveAt(record.dryDockShips.Count - 1);
+            record.dryDockBuilding = true;
+            record.dryDockBlueprintItem = blueprint;
+            record.dryDockShip = ship;
+            record.dryDockStartedUtc = started;
+            record.dryDockCompletesUtc = completes;
+            record.dryDockBuilderProfile = builder;
+            record.dryDockConsumeBlueprint = consume;
+            return false;
+        }
+
+        /// <summary>Called by the authoritative server update loop; due jobs survive restarts via UTC timestamps.</summary>
+        internal static void Tick()
+        {
+            if (!NetGame.IsServer || !sessionActive || registry?.stations == null) return;
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            foreach (var record in registry.stations)
+                if (record != null && record.dryDockBuilding && record.dryDockCompletesUtc <= now)
+                    CompleteDryDockJob(record, now);
+        }
+
         /// <summary>List ship blueprints that this station's dry dock can construct.</summary>
         internal static string DryDockBlueprintList(NetPlayer by, int id)
         {
@@ -16,35 +124,41 @@ namespace GoF2Remake.Multiplayer
             if (record.underConstruction) return "Finish station construction before using the dry dock.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
                 return "This station has no dry dock module.";
+            if (record.dryDockBuilding) return "The dry dock is occupied by " + (NetGame.Db?.Ship(record.dryDockShip)?.name ?? "a ship") +
+                ". Remaining seconds: " + Math.Max(0L, record.dryDockCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds()) + ".";
             var db = NetGame.Db;
             if (db == null) return "The ship database is not ready.";
             var lines = new List<string> { "Dry dock ship blueprints (product item id):" };
             foreach (var product in GoF2Remake.Data.Blueprints.Products(db))
             {
                 int ship = Modding.ModBlueprints.ShipOf(product.index);
-                if (ship < 0 || !Modding.ModBlueprints.RequiresDryDock(product.index) ||
+                if (ship < 0 || !Modding.ModBlueprints.RequiresDryDock(product.index, db) ||
                     !GoF2Remake.Data.Blueprints.IsUnlocked(product.index)) continue;
                 lines.Add(product.index + ": " + (db.Ship(ship)?.name ?? ("Ship " + ship)) +
                     " — " + (Modding.ShipClassRules.ClassLabel(db.Ship(ship)) ?? "Dry-dock restricted"));
             }
             if (lines.Count == 1) lines.Add("No unlocked dry-dock ship blueprints are available.");
-            lines.Add("Build with /station drydock-build <station id> <blueprint item id>.");
+            lines.Add("Start with /station drydock-build <station id> <blueprint item id>.");
             return string.Join("\n", lines);
         }
 
         /// <summary>
-        /// Construct a ship from a resolved mod blueprint, consuming its complete ingredient recipe from
-        /// station storage and placing a bare hull directly in the dry dock. The server owns both mutations.
+        /// Start a timed, persistent dry-dock job. The full recipe is reserved from station storage at start;
+        /// the completed bare hull appears in the dry dock when the UTC timer expires.
         /// </summary>
         internal static string DryDockBuildShip(NetPlayer by, int id, int productId)
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManageHangar(by, record, out _))
+            if (!CanManageHangar(by, record, out string account))
                 return "Dock at this station with an authorised profile to use its dry dock.";
             if (record.underConstruction) return "Finish station construction before building ships.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
                 return "Install a dry dock module first.";
+            CompleteDryDockJob(record, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            if (record.dryDockBuilding)
+                return "The dry dock is already constructing " + (NetGame.Db?.Ship(record.dryDockShip)?.name ?? "a ship") +
+                    "; remaining seconds: " + Math.Max(0L, record.dryDockCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds()) + ".";
             if (StorageCapacity(record) <= 0)
                 return "Install station storage first; ship construction materials are drawn from station storage.";
             record.dryDockShips ??= new List<StoredShip>();
@@ -55,8 +169,8 @@ namespace GoF2Remake.Multiplayer
             int shipIndex = Modding.ModBlueprints.ShipOf(productId);
             if (product == null || shipIndex < 0 || db.Ship(shipIndex) == null)
                 return "That item is not a valid ship blueprint.";
-            if (!Modding.ModBlueprints.RequiresDryDock(productId))
-                return "That blueprint does not require a dry dock; use an eligible ship-construction facility.";
+            if (!Modding.ModBlueprints.RequiresDryDock(productId, db))
+                return "That blueprint does not require a dry dock.";
             if (!GoF2Remake.Data.Blueprints.IsUnlocked(productId))
                 return "That ship blueprint has not been unlocked.";
             if (Modding.ModBlueprints.RequiresShipRefusal(productId, by.ShipIndex) is string refusal)
@@ -83,23 +197,35 @@ namespace GoF2Remake.Multiplayer
             var previousStorage = new List<PlayerStationStorage>();
             foreach (var entry in record.storage)
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
-            int race = db.Systems.Find(x => x.index == record.system)?.raceId ?? 0;
-            var hull = new StoredShip(shipIndex, race, new List<int>());
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            int duration = DryDockBuildDuration(productId, shipIndex);
+            var definition = Modding.ModBlueprints.Of(productId);
+            bool consumeBlueprint = definition != null && definition.consumeBlueprint;
             foreach (var pair in required)
             {
                 var stack = record.storage.Find(x => x != null && x.item == pair.Key);
                 stack.amount -= pair.Value;
             }
             record.storage.RemoveAll(x => x == null || x.amount <= 0);
-            record.dryDockShips.Add(hull);
+            record.dryDockBuilding = true;
+            record.dryDockBlueprintItem = productId;
+            record.dryDockShip = shipIndex;
+            record.dryDockStartedUtc = now;
+            record.dryDockCompletesUtc = now + duration;
+            record.dryDockBuilderProfile = account;
+            record.dryDockConsumeBlueprint = consumeBlueprint;
+            if (consumeBlueprint) GoF2Remake.Data.Session.UnlockedBlueprints.Remove(productId);
             if (!Save())
             {
-                record.dryDockShips.RemoveAt(record.dryDockShips.Count - 1);
                 record.storage = previousStorage;
-                return "The dry dock could not save the completed construction; materials were restored.";
+                ClearDryDockJob(record);
+                if (consumeBlueprint) GoF2Remake.Data.Blueprints.Unlock(productId);
+                return "The dry-dock job could not be saved; all materials and the blueprint were restored.";
             }
-            return "Constructed " + db.Ship(shipIndex).name + " from blueprint " + productId +
-                " at " + record.name + ". The bare hull is now in the dry dock; equipment and cargo can be fitted from station storage after retrieval.";
+            return "Dry dock construction started for " + db.Ship(shipIndex).name + " at " + record.name +
+                ". Estimated duration: " + duration + " seconds. The recipe has been reserved from station storage" +
+                (consumeBlueprint ? "; the blueprint was consumed." : "; the blueprint remains unlocked.") +
+                " Check /station drydock <id> for progress.";
         }
 
         // GoF2's paired ore/core commodities. A refinery converts ten units of raw ore into one core.
