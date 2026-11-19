@@ -195,7 +195,13 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             if (!CanManage(by, record, out _)) return "Only the station owner or owning faction managers can view construction contributions.";
-            var lines = new List<string> { "Construction contributions for " + record.name + ":" };
+            var lines = new List<string>
+            {
+                "Construction contributions for " + record.name + ":",
+                record.ownershipType == PlayerStationOwnershipType.Faction
+                    ? "Faction-funded contributions are paid immediately from the owning faction bank."
+                    : "Individually owned station contributions are personal investments and are not paid from a faction bank."
+            };
             if (record.constructionContributions == null || record.constructionContributions.Count == 0)
                 lines.Add("No contribution ledger is available.");
             else
@@ -203,8 +209,14 @@ namespace GoF2Remake.Multiplayer
                 {
                     if (contribution == null) continue;
                     string item = NetGame.Db?.Item(contribution.item)?.name ?? ("Item " + contribution.item);
-                    lines.Add((contribution.contributorProfile ?? "Unknown profile") + ": " +
-                        contribution.amount + " x " + item);
+                    string line = (contribution.contributorProfile ?? "Unknown profile") + ": " +
+                        contribution.amount + " x " + item;
+                    if (contribution.paidCredits > 0)
+                        line += " | paid " + contribution.paidCredits.ToString("N0") +
+                            " credits (" + Math.Max(0, contribution.unitValue).ToString("N0") + " per unit)";
+                    else if (record.ownershipType == PlayerStationOwnershipType.Individual)
+                        line += " | no faction-bank payment";
+                    lines.Add(line);
                 }
             return string.Join("\n", lines);
         }
