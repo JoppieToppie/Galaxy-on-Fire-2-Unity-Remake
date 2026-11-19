@@ -410,7 +410,11 @@ namespace GoF2Remake.Multiplayer
         public static bool Save()
         {
             if (registry == null || string.IsNullOrEmpty(path)) return false;
-            if (File.Exists(TransactionPath) && !RecoverPendingTransaction()) return false;
+            if (File.Exists(TransactionPath))
+            {
+                RecoverPendingTransaction();
+                return false; // Do not save a caller's potentially stale in-memory mutation over the recovered snapshot.
+            }
             if (!NetProfiles.Write(path, JsonUtility.ToJson(registry, true))) return false;
             NetState.Instance?.PublishPlayerStations(Snapshot);
             return true;

@@ -35,8 +35,11 @@ namespace GoF2Remake.Multiplayer
                 string.IsNullOrEmpty(account) || changes == null || changes.Length == 0)
                 return false;
 
-            if (File.Exists(TransactionPath) && !RecoverPendingTransaction())
-                return false;
+            if (File.Exists(TransactionPath))
+            {
+                RecoverPendingTransaction();
+                return false; // The caller's in-memory mutation predates recovery and must be retried against the recovered registry.
+            }
 
             var targets = new Dictionary<int, int>();
             foreach (var change in changes)
