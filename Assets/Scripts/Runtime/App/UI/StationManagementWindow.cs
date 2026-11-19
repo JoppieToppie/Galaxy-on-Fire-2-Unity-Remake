@@ -230,16 +230,42 @@ namespace GoF2Remake.UI
             AddField("buyAmount", "Purchase amount", "1");
             AddAction("Buy listing", () => Send("/station buy " + id + " " + Value("listingIndex") + " " + Value("buyAmount")));
             AddAction("Cancel your listing", () => Send("/station delist " + id + " " + Value("listingIndex")));
-            AddSection("CONSTRUCTION PROCUREMENT", "Buy orders reserve credits from the individual station owner's balance or the faction treasury. Other pilots can sell the requested materials directly into the project; sellers are paid from escrow, not also given a contribution reward.");
-            AddField("buyOrderItem", "Required material item ID", "156");
-            AddField("buyOrderAmount", "Units to buy (1–500)", "10");
-            AddField("buyOrderPrice", "Offer per unit (credits)", "100");
-            AddAction("Create construction buy order", () => Send("/station buy-order " + id + " " + Value("buyOrderItem") + " " + Value("buyOrderAmount") + " " + Value("buyOrderPrice")));
-            AddField("sellOrderIndex", "Construction order index", "0");
-            AddField("sellOrderAmount", "Units to sell", "1");
-            AddAction("Sell materials into construction order", () => Send("/station sell-order " + id + " " + Value("sellOrderIndex") + " " + Value("sellOrderAmount")));
-            AddField("cancelOrderIndex", "Construction order index", "0");
-            AddAction("Cancel construction buy order", () => Send("/station cancel-order " + id + " " + Value("cancelOrderIndex")));
+            AddSection("CONSTRUCTION PROCUREMENT", "The station owner or an authorised faction officer can reserve funds for missing construction materials. Any pilot docked here can sell into an active order. Payment comes from escrow, so sellers do not also receive a contribution payout.");
+            var activeOrders = selected.buyOrders ?? new List<PlayerStationBuyOrder>();
+            if (activeOrders.Count == 0)
+                AddInfo("Active buy orders", "None. Create an order below to invite other pilots to supply materials.");
+            else
+            {
+                AddInfo("Active buy orders", activeOrders.Count.ToString());
+                for (int i = 0; i < activeOrders.Count; i++)
+                {
+                    var order = activeOrders[i];
+                    if (order == null || order.remaining <= 0) continue;
+                    string itemName = NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item);
+                    AddInfo("BUY ORDER #" + i, itemName + "  ·  " + order.remaining.ToString("N0") +
+                        " remaining at " + order.unitPrice.ToString("N0") + " cr each");
+                    AddInfo("Escrow", order.reservedCredits.ToString("N0") + " credits reserved");
+                    AddField("procureSellAmount" + i, "Units to sell into order #" + i, "1");
+                    int orderIndex = i;
+                    AddAction("Sell " + itemName + " to order #" + i, () =>
+                        Send("/station sell-order " + id + " " + orderIndex + " " + Value("procureSellAmount" + orderIndex)));
+                    AddAction("Cancel order #" + i + " and refund unused escrow", () =>
+                        Send("/station cancel-order " + id + " " + orderIndex));
+                }
+            }
+            if (selected.underConstruction)
+            {
+                AddInfo("Procurement funding", selected.ownershipType == PlayerStationOwnershipType.Faction
+                    ? "Faction treasury. Orders require leader/officer authority."
+                    : "Station owner's personal credits.");
+                AddField("buyOrderItem", "Required material item ID", "156");
+                AddField("buyOrderAmount", "Units to purchase (1–500)", "10");
+                AddField("buyOrderPrice", "Offer per unit (credits)", "100");
+                AddAction("Create construction buy order", () => Send("/station buy-order " + id + " " +
+                    Value("buyOrderItem") + " " + Value("buyOrderAmount") + " " + Value("buyOrderPrice")));
+            }
+            else
+                AddInfo("Procurement status", "Construction is complete. No further material orders can be created.");
 
 
         }
