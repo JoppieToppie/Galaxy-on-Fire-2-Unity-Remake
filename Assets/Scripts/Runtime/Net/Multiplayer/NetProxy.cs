@@ -839,6 +839,7 @@ namespace GoF2Remake.Multiplayer
             // Dying / dead (a tumble, a wreck, destroyed junk): not alive here either, so shots pass it like on the owner's.
             target.hp = st.life == Flying ? Mathf.Max(0.001f, st.HullFraction) * target.maxHp : 0f;
             target.netMaxHull = p != null ? p.maxHull : -1;   // the repair / transfusion beams' pick (RepairBeam)
+            target.netShipIndex = p?.spec != null ? p.spec.ship : -1;   // the class scanner's (CombatRadar.ReadShip)
             target.netShield = st.ShieldFraction;              // remote NPC shield bar; -1 when this NPC has no shield
             target.netArmor = -1f;                             // NPCs have no separate armor pool
             target.radius = st.radius;

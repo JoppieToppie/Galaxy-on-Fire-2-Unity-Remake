@@ -152,6 +152,7 @@ namespace GoF2Remake.Modding
                             ModFlight.ApplyShip(s, o, d.where);
                             ModShipView.ApplyShip(s, o);
                             ExternalDockingRules.ApplyShip(s, o);
+                            ShipClassRules.ApplyShip(s, o, d.mod);
                             if (s is CustomShipData cs)
                             {
                                 cs.race = d.raceRef != null ? (ModRaces.TryResolve(d.raceRef, d.mod, out int ofr) ? ofr : cs.race) : ModJson.Int(o, "race", cs.race, ShipsFile);
@@ -201,6 +202,7 @@ namespace GoF2Remake.Modding
                         ModFlight.ApplyShip(c, d.json, d.where);
                         ModShipView.ApplyShip(c, d.json);
                         ExternalDockingRules.ApplyShip(c, d.json);
+                        ShipClassRules.ApplyShip(c, d.json, d.mod);
                         db.Ships.Add(c);
                         if (GameModels.Is(c.model, out string shipModel))
                         {
@@ -425,6 +427,7 @@ namespace GoF2Remake.Modding
             if (ModJson.Has(o, "vosskOnly")) SetAttr(it, 60, ModJson.Bool(o, "vosskOnly", false, F) ? 1 : 0);
             if (ModJson.Has(o, "alwaysSoldAt")) SetAttr(it, 61, ModJson.Int(o, "alwaysSoldAt", -1, F));
             if (ModJson.Get(o, "tractorColor") is JToken tc && TractorColorValue(tc) is int rgb && rgb >= 0) SetAttr(it, 136, rgb);   // Flight.CombatRadar
+            ShipClassRules.ApplyItem(it, o);   // "allowedClasses", "excludedClasses"
             if (ModJson.Get(o, "stats") is JObject st)
                 foreach (var prop in st.Properties()) SetAttr(it, ItemStats.IdOf(prop.Name), ModJson.Int(st, prop.Name, 0, F));
             if (ModJson.Get(o, "attributes") is JObject at)

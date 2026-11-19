@@ -45,6 +45,11 @@ namespace GoF2Remake.Data
 
         /// <summary>Remake mods (ships.json "dockingRole"): an explicit "internal" or "external" dock role; null preserves size-based legacy eligibility.</summary>
         [System.NonSerialized] public string dockingRole;
+        /// <summary>Remake mods (Modding.ShipClassRules, ships.json "shipClass" / "classTags"): the ship's class (a free word a
+        /// class scanner shows) and the words it answers to besides; none on every original ship.</summary>
+        [System.NonSerialized] public string shipClass;
+        [System.NonSerialized] public string shipClassLabel;
+        [System.NonSerialized] public string[] classTags;
     }
 
     [System.Serializable] public class StatEntry { public string key; public int value; }
@@ -74,6 +79,9 @@ namespace GoF2Remake.Data
 
         /// <summary>The hitscan beam looks shared by display grouping and weapon behavior, including mod-derived items.</summary>
         public static bool IsBeamLook(int look) => look == 9 || look == 10 || look == 11 || look == 228;
+        /// <summary>Remake mods (Modding.ShipClassRules, items.json "allowedClasses" / "excludedClasses"): the ship classes / tags
+        /// that may / may not mount it; null = no list (every original item: it fits every ship).</summary>
+        [System.NonSerialized] public string[] allowedClasses, excludedClasses;
 
         public bool HasAttr(int id) => System.Array.IndexOf(attrKeys, id) >= 0;
         public int Attr(int id, int fallback = 0)

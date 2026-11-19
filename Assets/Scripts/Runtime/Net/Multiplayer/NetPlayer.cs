@@ -348,7 +348,7 @@ namespace GoF2Remake.Multiplayer
                 FindLevel();
                 return;
             }
-            ship.OnValueChanged += (_, s) => BuildModel(s);
+            ship.OnValueChanged += (_, s) => { if (target != null) target.netShipIndex = s; BuildModel(s); };   // the class scanner reads it
             // Docked = repaired (the pose stream stops there, so its last hull would linger until the next launch's first pose).
             place.OnValueChanged += (_, now) => { if (now != (byte)Place.Space) { look.hull = WireQuant.Fraction(1f); hasPose = false; } };
             turretItem.OnValueChanged += (_, _) => BuildTurret();
@@ -357,6 +357,7 @@ namespace GoF2Remake.Multiplayer
 
             target = gameObject.AddComponent<Target>();
             target.isShip = true;
+            target.netShipIndex = ship.Value;
             target.netPilot = true;
             target.customDeath = true;
             target.maxHp = 100f;
