@@ -229,8 +229,9 @@ namespace GoF2Remake.Multiplayer
             if (!CollectShipInventory(candidate, items)) return "The ship contains an invalid equipment or cargo item; nothing was transferred.";
             if (!CanFitStationItems(record, items)) return "Station storage lacks the capacity or item-type space for this ship's equipment and cargo; nothing was transferred.";
 
-            if (!NetProfiles.RemoveStoredShip(account, by.OwnerClientId, fleetIndex - 1, out StoredShip ship))
-                return "The ship could not be removed from your personal fleet.";
+            var targetShips = new List<StoredShip>(owned);
+            StoredShip ship = candidate;
+            targetShips.RemoveAt(fleetIndex - 1);
             var previousStorage = new List<PlayerStationStorage>();
             foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
@@ -238,15 +239,13 @@ namespace GoF2Remake.Multiplayer
             AddStationItems(record, items, account);
             record.storedShips.Add(BareHull(ship));
             record.storedShipOwners.Add(account);
-            if (!Save())
+            if (!CommitStoredShipTransaction(account, targetShips))
             {
                 record.storedShips.RemoveAt(record.storedShips.Count - 1);
                 record.storedShipOwners.RemoveAt(record.storedShipOwners.Count - 1);
                 record.storage = previousStorage;
                 record.storageLots = previousLots;
-                if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, ship))
-                    Debug.LogError("NetPlayerStations: failed to roll back ship storage transfer for profile " + account);
-                return "The station could not save the transfer; the ship and its inventory were returned to your personal fleet.";
+                return "The ship transfer could not be journalled; the ship and its inventory remain in your personal fleet.";
             }
             if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
             return "Stored " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " at " + record.name +
@@ -275,7 +274,9 @@ namespace GoF2Remake.Multiplayer
             if (items.Count > 0 && !CanFitStationItems(record, items))
                 return "Station storage cannot accommodate this legacy ship inventory; nothing was withdrawn.";
             var bare = BareHull(ship);
-            if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, bare)) return "Your personal stored fleet is full or could not be saved.";
+            var personalShips = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
+            if (personalShips == null || personalShips.Count >= 100) return "Your personal stored fleet is full or unavailable.";
+            var targetShips = new List<StoredShip>(personalShips) { bare };
             var previousStorage = new List<PlayerStationStorage>();
             foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
@@ -283,16 +284,13 @@ namespace GoF2Remake.Multiplayer
             AddStationItems(record, items, account);
             record.storedShips.RemoveAt(hangarIndex - 1);
             record.storedShipOwners.RemoveAt(hangarIndex - 1);
-            if (!Save())
+            if (!CommitStoredShipTransaction(account, targetShips))
             {
                 record.storedShips.Insert(hangarIndex - 1, ship);
                 record.storedShipOwners.Insert(hangarIndex - 1, account);
                 record.storage = previousStorage;
                 record.storageLots = previousLots;
-                var personal = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
-                if (personal == null || personal.Count == 0 || !NetProfiles.RemoveStoredShip(account, by.OwnerClientId, personal.Count - 1, out _))
-                    Debug.LogError("NetPlayerStations: failed to roll back ship retrieval for profile " + account);
-                return "The station could not save the withdrawal; the ship remains in station storage.";
+                return "The ship retrieval could not be journalled; the ship remains in station storage.";
             }
             if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
             return "Returned a bare " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) +
@@ -388,8 +386,9 @@ namespace GoF2Remake.Multiplayer
             var items = new Dictionary<int, long>();
             if (!CollectShipInventory(candidate, items)) return "The ship contains an invalid equipment or cargo item; nothing was transferred.";
             if (!CanFitStationItems(record, items)) return "Station storage lacks the capacity or item-type space for this ship's equipment and cargo; nothing was transferred.";
-            if (!NetProfiles.RemoveStoredShip(account, by.OwnerClientId, fleetIndex - 1, out StoredShip ship))
-                return "The ship could not be removed from your personal fleet.";
+            var targetShips = new List<StoredShip>(fleet);
+            StoredShip ship = candidate;
+            targetShips.RemoveAt(fleetIndex - 1);
             var previousStorage = new List<PlayerStationStorage>();
             foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
@@ -398,15 +397,13 @@ namespace GoF2Remake.Multiplayer
             record.dryDockShips.Add(BareHull(ship));
             record.dryDockShipOwners ??= new List<string>();
             record.dryDockShipOwners.Add(account);
-            if (!Save())
+            if (!CommitStoredShipTransaction(account, targetShips))
             {
                 record.dryDockShips.RemoveAt(record.dryDockShips.Count - 1);
                 record.dryDockShipOwners.RemoveAt(record.dryDockShipOwners.Count - 1);
                 record.storage = previousStorage;
                 record.storageLots = previousLots;
-                if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, ship))
-                    Debug.LogError("NetPlayerStations: failed to roll back dry dock transfer for profile " + account);
-                return "The dry dock could not save the transfer; the ship and its inventory were returned to your personal fleet.";
+                return "The dry dock transfer could not be journalled; the ship and its inventory remain in your personal fleet.";
             }
             if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
             return "Stored " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " in the dry dock at " + record.name + ".";
@@ -431,7 +428,9 @@ namespace GoF2Remake.Multiplayer
             if (!CollectShipInventory(ship, items)) return "The stored ship contains an invalid equipment or cargo item; nothing was withdrawn.";
             if (items.Count > 0 && !CanFitStationItems(record, items)) return "Station storage cannot accommodate this legacy ship inventory; nothing was withdrawn.";
             var bare = BareHull(ship);
-            if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, bare)) return "Your personal stored fleet is full or could not be saved.";
+            var personalShips = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
+            if (personalShips == null || personalShips.Count >= 100) return "Your personal stored fleet is full or unavailable.";
+            var targetShips = new List<StoredShip>(personalShips) { bare };
             var previousStorage = new List<PlayerStationStorage>();
             foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
@@ -439,16 +438,13 @@ namespace GoF2Remake.Multiplayer
             AddStationItems(record, items, account);
             record.dryDockShips.RemoveAt(dockIndex - 1);
             record.dryDockShipOwners.RemoveAt(dockIndex - 1);
-            if (!Save())
+            if (!CommitStoredShipTransaction(account, targetShips))
             {
                 record.dryDockShips.Insert(dockIndex - 1, ship);
                 record.dryDockShipOwners.Insert(dockIndex - 1, account);
                 record.storage = previousStorage;
                 record.storageLots = previousLots;
-                var personal = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
-                if (personal == null || personal.Count == 0 || !NetProfiles.RemoveStoredShip(account, by.OwnerClientId, personal.Count - 1, out _))
-                    Debug.LogError("NetPlayerStations: failed to roll back dry dock retrieval for profile " + account);
-                return "The dry dock could not save the withdrawal; the ship remains stored.";
+                return "The dry dock retrieval could not be journalled; the ship remains in station storage.";
             }
             if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
             return "Returned a bare " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " to your personal stored fleet.";
