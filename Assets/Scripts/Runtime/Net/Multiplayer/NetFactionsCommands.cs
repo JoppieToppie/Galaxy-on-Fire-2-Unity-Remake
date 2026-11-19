@@ -279,5 +279,11 @@ namespace GoF2Remake.Multiplayer
             var faction = Of(account);
             if (faction != null) Remove(faction, account);
         }
+        internal static Faction FindById(string id)
+        {
+            return string.IsNullOrEmpty(id) ? null :
+                list?.factions?.Find(x => x != null && string.Equals(x.id, id, StringComparison.Ordinal));
+        }
+
     }
 }
