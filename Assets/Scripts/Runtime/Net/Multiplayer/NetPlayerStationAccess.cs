@@ -32,6 +32,22 @@ namespace GoF2Remake.Multiplayer
             return memberFaction != null && string.Equals(memberFaction.id, factionId, StringComparison.Ordinal);
         }
 
+        internal static bool CanViewManagement(PlayerStationRecord record)
+        {
+            if (record == null) return false;
+            string account = NetProfiles.AccountOf(NetGame.LocalId);
+            if (string.IsNullOrEmpty(account)) return false;
+            if (record.ownershipType == PlayerStationOwnershipType.Individual &&
+                string.Equals(account, record.ownerProfile, StringComparison.Ordinal)) return true;
+            string factionId = record.ownershipType == PlayerStationOwnershipType.Faction
+                ? record.ownerFactionId : NetFactions.Of(record.ownerProfile)?.id;
+            if (string.IsNullOrEmpty(factionId) ||
+                (record.ownershipType == PlayerStationOwnershipType.Individual && !record.factionStorageAccess))
+                return false;
+            var faction = NetFactions.Of(account);
+            return faction != null && string.Equals(faction.id, factionId, StringComparison.Ordinal);
+        }
+
         static bool CanManageStorage(NetPlayer by, PlayerStationRecord record, out string account)
         {
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
