@@ -152,6 +152,11 @@ namespace GoF2Remake.Multiplayer
             return "Pending transfer of " + record.name + " to " + target + ". Expires in " + remaining + " seconds.";
         }
 
+        internal static bool HasFactionOwnedStations(string factionId) =>
+            !string.IsNullOrEmpty(factionId) &&
+            registry?.stations?.Exists(x => x != null && x.ownershipType == PlayerStationOwnershipType.Faction &&
+                string.Equals(x.ownerFactionId, factionId, StringComparison.Ordinal)) == true;
+
         internal static string ConstructionContributions(NetPlayer by, int id)
         {
             var record = Find(id);
