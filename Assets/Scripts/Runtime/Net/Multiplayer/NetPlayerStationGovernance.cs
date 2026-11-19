@@ -724,7 +724,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var model in stations)
                 if (model != null && model.index >= 0 && !IsPlayerStation(model.index))
                     lines.Add("  " + model.index + ": " + (string.IsNullOrWhiteSpace(model.name) ? "Unnamed station model" : model.name));
-            return string.Join("\\n", lines);
+            return string.Join("\n", lines);
         }
 
         static bool CanManageAppearance(NetPlayer by, PlayerStationRecord record, out string account)
