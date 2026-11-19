@@ -501,6 +501,7 @@ namespace GoF2Remake.Multiplayer
             // The Host card's choices win over the saved settings (they are its "command line").
             NetServerSettings.Load(option => option == "-password" || option == "-maxplayers" || option == "-allowdebug" || option == "-name");
             NetProfiles.Start();   // the profiles, factions, bans and news (before NetState: it carries the world's id)
+            NetPlayerStations.Start();   // durable player-built stations, before NetState accepts world actions
             Debug.Log($"NetGame: hosting a {(CoopSession ? "co-op campaign" : "persistent world")} in {NetProfiles.Folder}.");
         }
 
@@ -515,6 +516,7 @@ namespace GoF2Remake.Multiplayer
             NetMods.BeginHost();
             Dedicated = true;
             NetProfiles.Start();   // the player profiles (before NetState: it carries the server's id)
+            NetPlayerStations.Start();   // durable player-built stations, before NetState accepts world actions
             if (!keepSeed || Seed == 0) Seed = Environment.TickCount & 0x7fffffff;   // a restart keeps the world's asteroid fields
             var m = EnsureManager();
             if (relay != null) Transport.SetRelayServerData(relay.ToRelayServerData(RelayConnection));
@@ -1139,3 +1141,4 @@ namespace GoF2Remake.Multiplayer
         }
     }
 }
+
