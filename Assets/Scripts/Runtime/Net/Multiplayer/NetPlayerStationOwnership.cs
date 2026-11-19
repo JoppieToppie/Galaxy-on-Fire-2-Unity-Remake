@@ -118,8 +118,7 @@ namespace GoF2Remake.Multiplayer
                 record.ownerFactionId = null;
                 record.ownerName = by.DisplayName;
                 record.factionStorageAccess = false;
-                record.factionPermissions = new PlayerStationFactionPermissionProfile
-                { visit = false, storage = false, hangar = false };
+                record.factionPermissions = NewIndividualFactionPermissionProfile(false);
             }
             else
             {
@@ -129,9 +128,9 @@ namespace GoF2Remake.Multiplayer
                 record.ownerProfile = faction?.leader ?? account;
                 record.ownerName = faction?.name ?? "Faction";
                 record.factionStorageAccess = true;
-                record.factionPermissions = new PlayerStationFactionPermissionProfile
-                { visit = true, storage = true, hangar = true };
+                record.factionPermissions = NewFactionOwnedPermissionProfile();
             }
+            ClearOwnerVisitorRestrictions(record);
             record.pendingTransfer = null;
             // A transfer initiated by the original builder is their voluntary relinquishment
             // of builder authority. A faction leader or later owner cannot erase those rights.
