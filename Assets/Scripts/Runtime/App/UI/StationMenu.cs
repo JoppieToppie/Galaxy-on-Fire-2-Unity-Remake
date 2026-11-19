@@ -67,6 +67,7 @@ namespace GoF2Remake.UI
         Button hangarButton, loungeButton, mapButton, missionsButton, statusButton, inspectButton, launchButton, dialogYes, dialogNo;
         Button customizeButton;   // remake mods: a customizable ship's Customize screen (ShipCustomizePanel)
         StatusWindow status;
+        DryDockWindow dryDock;
         LoungePanel lounge;
         bool safeAreaHidden;
         MissionsWindow missions;
@@ -121,6 +122,7 @@ namespace GoF2Remake.UI
             InputMode.Changed -= ApplyInputMode;
             Localization.Changed -= RefreshTexts;
             if (level != null) level.ViewChanged -= OnViewChanged;
+            dryDock?.Dispose();
         }
 
         void OnApplicationFocus(bool focused)
@@ -199,6 +201,7 @@ namespace GoF2Remake.UI
             SetupTicker();
             missions = new MissionsWindow(this, level, root);
             status = new StatusWindow(this, level, root);
+            dryDock = new DryDockWindow(this, level, root);
             root.Q("storyDialogue").pickingMode = PickingMode.Ignore;
             if (voiceSource == null)
             {
@@ -506,6 +509,7 @@ namespace GoF2Remake.UI
         void Update()
         {
             if (root == null || level == null) return;
+            dryDock?.Update();
             // The layout first: the Mod Builder's screen below shares this panel and its scale.
             if (lastScreen != ScreenSize() || lastSafeArea != Screen.safeArea || lastLayout != UiLayout.Revision) UpdateLayout();
             if (builderView != null) { builderView.Update(); return; }   // the Mod Builder's hangar
