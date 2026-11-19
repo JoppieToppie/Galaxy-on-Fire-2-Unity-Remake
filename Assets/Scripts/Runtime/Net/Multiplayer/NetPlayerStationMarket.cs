@@ -107,11 +107,9 @@ namespace GoF2Remake.Multiplayer
                 {
                     if (pending == null || pending.reservedCredits <= 0) continue;
                     // Escrow belongs to the account/faction that funded this order, even if station ownership
-                    // changed while construction was in progress. Legacy records fall back to their creator.
+                    // changed while construction was in progress. Never guess when legacy data lacks a funder. 
                     string refundProfile = pending.fundedByProfile;
                     string refundFaction = pending.fundedByFactionId;
-                    if (string.IsNullOrEmpty(refundProfile) && string.IsNullOrEmpty(refundFaction))
-                        refundProfile = pending.createdBy;
                     if (!string.IsNullOrEmpty(refundProfile))
                         credits.Add((refundProfile, pending.reservedCredits));
                     else if (!string.IsNullOrEmpty(refundFaction))
