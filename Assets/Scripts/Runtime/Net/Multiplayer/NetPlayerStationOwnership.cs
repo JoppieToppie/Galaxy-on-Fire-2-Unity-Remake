@@ -190,8 +190,11 @@ namespace GoF2Remake.Multiplayer
         internal static bool HasFactionMarketplaceClaims(string factionId)
         {
             if (string.IsNullOrEmpty(factionId) || registry?.stations == null) return false;
-            return registry.stations.Exists(station => station?.listings?.Exists(listing =>
-                listing != null && string.Equals(listing.payoutFactionId, factionId, StringComparison.Ordinal)) == true);
+            return registry.stations.Exists(station =>
+                station?.listings?.Exists(listing =>
+                    listing != null && string.Equals(listing.payoutFactionId, factionId, StringComparison.Ordinal)) == true ||
+                station?.buyOrders?.Exists(order =>
+                    order != null && string.Equals(order.fundedByFactionId, factionId, StringComparison.Ordinal)) == true);
         }
 
         internal static string ConstructionContributions(NetPlayer by, int id)
