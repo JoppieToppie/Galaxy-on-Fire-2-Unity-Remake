@@ -140,7 +140,9 @@ namespace GoF2Remake.UI
             if (selected != null)
             {
                 AddInfo("Station", selected.name + "  (#" + selected.id + ")");
-                AddInfo("Owner", selected.ownerName ?? "Unknown");
+                AddInfo("Ownership", selected.ownershipType == PlayerStationOwnershipType.Faction ? "Faction-owned" : "Individually owned");
+                AddInfo("Owner", selected.ownershipType == PlayerStationOwnershipType.Faction
+                    ? (selected.ownerFactionId ?? "Unknown faction") : (selected.ownerName ?? "Unknown"));
                 AddInfo("State", selected.underConstruction ? "Under construction" : "Operational");
                 AddInfo("System index", selected.system.ToString());
                 string installed = selected.addons == null || selected.addons.Count == 0
@@ -217,9 +219,6 @@ namespace GoF2Remake.UI
             AddAction("Buy listing", () => Send("/station buy " + id + " " + Value("listingIndex") + " " + Value("buyAmount")));
             AddAction("Cancel your listing", () => Send("/station delist " + id + " " + Value("listingIndex")));
 
-            AddSection("WORLD DIRECTORY", "Browse all player-built stations and their operational state.");
-            AddAction("Refresh station directory", "/station list");
-            AddAction("List available systems", "/station systems");
         }
 
         void AddSection(string title, string description)
