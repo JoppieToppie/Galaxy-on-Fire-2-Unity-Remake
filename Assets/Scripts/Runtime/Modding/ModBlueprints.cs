@@ -43,7 +43,7 @@ namespace GoF2Remake.Modding
 
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "id", "ship", "item", "ingredients", "requiresShip", "autocomplete", "available", "unlocked", "lounge", "derelict", "drops",
+            "id", "ship", "item", "ingredients", "requiresShip", "dryDockOnly", "autocomplete", "available", "unlocked", "lounge", "derelict", "drops",
         };
         static readonly HashSet<string> DerelictFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "chance", "race", "stations", "position" };
 
@@ -59,7 +59,7 @@ namespace GoF2Remake.Modding
             public ModInfo mod;
             public string where, localId, shipRef, itemRef, requiresShipRef, available;
             public readonly List<(string item, int amount)> ingredients = new List<(string, int)>();
-            public bool autocomplete = true, unlocked;
+            public bool autocomplete = true, unlocked, dryDockOnly;
             public int autocompletePrice = -1;          // -1: the original's formula
             public float loungeChance, derelictChance;  // 0: no such source
             public int loungePrice, loungeRace = -1, derelictRace = -1;
@@ -102,6 +102,7 @@ namespace GoF2Remake.Modding
                     mod = mod, where = where, localId = ModJson.Str(o, "id"), shipRef = ModJson.Str(o, "ship"), itemRef = ModJson.Str(o, "item"),
                     requiresShipRef = ModJson.Str(o, "requiresShip"), available = ModJson.Str(o, "available"),
                     unlocked = ModJson.Bool(o, "unlocked", false, File),
+                    dryDockOnly = ModJson.Bool(o, "dryDockOnly", false, File),
                 };
                 if (string.IsNullOrEmpty(d.localId) || !ModManifest.ValidId(d.localId))
                     throw new ModJsonException($"{where}: \"id\" is missing or uses more than a-z, 0-9, _ and -");
@@ -280,6 +281,22 @@ namespace GoF2Remake.Modding
 
         /// <summary>The ship a ship blueprint's item stands for (-1: not one).</summary>
         public static int ShipOf(int item) => deedShip.TryGetValue(item, out int s) ? s : -1;
+
+        /// <summary>
+        /// Large hull classes always require a player station dry dock. Mods may also mark a
+        /// specialised ship blueprint with "dryDockOnly": true in blueprints.json.
+        /// </summary>
+        public static bool RequiresDryDock(int product)
+        {
+            var d = Of(product);
+            if (d == null || d.ship < 0) return false;
+            if (d.dryDockOnly) return true;
+            string kind = ShipClassRules.ClassOf(NetGame.Db?.Ship(d.ship));
+            return string.Equals(kind, ShipClassRules.Frigate, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(kind, ShipClassRules.Freighter, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(kind, ShipClassRules.Cruiser, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(kind, ShipClassRules.Carrier, StringComparison.OrdinalIgnoreCase);
+        }
 
         /// <summary>Its "available" condition holds in this game.</summary>
         public static bool Available(Def d) => !Shop.SlipstreamOff(d.product) && ModUnlocks.Holds(d.mod, d.available, d.where);   // remake: Settings.KhadorSlipstream
