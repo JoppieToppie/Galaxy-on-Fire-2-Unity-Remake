@@ -320,10 +320,13 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>The blueprint can only be built while flying a certain ship (a skin): the refusal while not, else null.</summary>
-        public static string RequiresShipRefusal(int product)
+        public static string RequiresShipRefusal(int product) => RequiresShipRefusal(product, Session.ShipIndex);
+
+        /// <summary>The same restriction for a network pilot, whose ship is not the local Session ship.</summary>
+        public static string RequiresShipRefusal(int product, int currentShip)
         {
             var d = Of(product);
-            if (d == null || d.requiresShip < 0 || Session.ShipIndex == d.requiresShip) return null;
+            if (d == null || d.requiresShip < 0 || currentShip == d.requiresShip) return null;
             return string.Format(Localization.Extra("bpRequiresShip", "You need to fly the {0} to build this."), GameNames.Ship(d.requiresShip));
         }
 
