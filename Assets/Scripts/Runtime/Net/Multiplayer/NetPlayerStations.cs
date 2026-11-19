@@ -54,6 +54,7 @@ namespace GoF2Remake.Multiplayer
         public PlayerStationOwnershipType factionSuccessorType = PlayerStationOwnershipType.Individual;
         public string factionSuccessorDelegateProfile;
         public PlayerStationFactionPermissionProfile factionPermissions = new PlayerStationFactionPermissionProfile();
+        public int governanceVersion;
         public List<PlayerStationPermissionOverride> permissionOverrides = new List<PlayerStationPermissionOverride>();
         public List<PlayerStationRoleAssignment> roleAssignments = new List<PlayerStationRoleAssignment>();
         public List<PlayerStationBan> bans = new List<PlayerStationBan>();
@@ -452,7 +453,7 @@ namespace GoF2Remake.Multiplayer
                 if (record.storage != null)
                     foreach (var stack in record.storage) if (stack != null) stored += Math.Max(0, stack.amount);
                 lines.Add($"Storage: {stored:N0}/{storageCapacity:N0}");
-                lines.Add($"Storage access: {(record.factionStorageAccess ? "Faction members" : "Owner only")}");
+                lines.Add($"Storage access: {(record.factionPermissions?.storage == true ? "Faction members" : "Owner only")}");
             }
             if (record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)
                 lines.Add($"Ship hangar: {record.storedShips?.Count ?? 0}/100 hulls stored");
@@ -603,6 +604,8 @@ namespace GoF2Remake.Multiplayer
                 ownerProfile = owner,
                 ownerName = by.DisplayName,
                 originalBuilderProfile = owner,
+                governanceVersion = 1,
+                factionPermissions = new PlayerStationFactionPermissionProfile { visit = false, storage = false, hangar = false },
                 system = system.index,
                 looksLike = look,
                 createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
