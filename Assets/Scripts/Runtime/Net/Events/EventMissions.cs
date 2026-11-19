@@ -189,7 +189,7 @@ namespace GoF2Remake.Events
             {
                 if (Active != null) return string.Format(X("mpEventMissionActive", "You are already on the mission {0}."), Active.title);
                 if (Freelance.Active) return X("mpEventMissionFreelance", "You already have a mission: finish or discard it first (Missions).");
-                return null;
+                return RequirementsRefusal(o);
             }
             if (!InSession) return X("mpEventMissionOffline", "Not connected to the session.");
             if (Active != null) return string.Format(X("mpEventMissionActive", "You are already on the mission {0}."), Active.title);
@@ -198,8 +198,11 @@ namespace GoF2Remake.Events
             int pilots = NetSquad.InSquad ? NetSquad.Members().Count : 1;
             if (pilots < o.minPlayers) return string.Format(X("mpEventMissionTooFew", "This mission needs at least {0} pilots: invite some into your squad."), o.minPlayers);
             if (pilots > o.maxPlayers) return string.Format(X("mpEventMissionTooMany", "This mission takes at most {0} pilots."), o.maxPlayers);
-            return null;
+            return RequirementsRefusal(o);
         }
+
+        // Checked by the lounge for feedback and again by the authoritative server.
+        static string RequirementsRefusal(Offer o) => o == null ? null : GameHooks.EventMissionAcceptRefusal?.Invoke(o.name, o.station);
 
         /// <summary>LoungeChat's confirmation: the server starts it for the squad (or answers why not).</summary>
         public static void Accept(Offer o)
@@ -214,6 +217,8 @@ namespace GoF2Remake.Events
         {
             var info = EventRunner.MissionGraphs().Find(m => m.name == o.name);
             if (info == null || ((!Offered(info, o.station) || !Startable(info)) && !PlayTested(o.name))) { EventHost.NoticeTo(LocalPilot.Instance, X("mpEventMissionGone", "That mission isn't offered here any more.")); return; }
+            string requirements = RequirementsRefusal(o);
+            if (requirements != null) { EventHost.NoticeTo(LocalPilot.Instance, requirements); return; }
             var record = new GraphQuestState { name = o.name, kind = GraphQuestState.KindMission, title = o.title, station = o.station, offer = o.entry,
                                                once = info.once ? o.name : "" };
             Session.GraphQuests.Add(record);
@@ -405,6 +410,8 @@ namespace GoF2Remake.Events
                 if (!q.InHangar || q.Station != station) { Refuse(X("mpMissionSquadHere", "The whole squad must be docked at this station to accept a mission.")); return; }
             if (team.Count < info.minPlayers || team.Count > info.maxPlayers)
             { Refuse(string.Format(X("mpEventMissionCount", "This mission takes {0} to {1} pilots."), info.minPlayers, info.maxPlayers)); return; }
+            string requirements = RequirementsRefusal(new Offer { name = name, station = station });
+            if (requirements != null) { Refuse(requirements); return; }
             string why = EventRunner.StartMission(name, team, station, p);
             if (why != null) { Refuse(why); return; }
             if (info.takers != EventMissionTakers.Anyone) Taken(name, station);

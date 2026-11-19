@@ -33,6 +33,8 @@ namespace GoF2Remake.Data
 
         // ---- event graphs (EventMissions, EventRunner) --------------------------------------------------------------
 
+        /// <summary>Why a player or squad cannot accept an event graph bar mission (mission name, station); null = allowed.</summary>
+        public static Func<string, int, string> EventMissionAcceptRefusal;
         /// <summary>The title of the event graph bar mission this player is on, null = none.</summary>
         public static Func<string> ActiveEventMissionTitle;
 
