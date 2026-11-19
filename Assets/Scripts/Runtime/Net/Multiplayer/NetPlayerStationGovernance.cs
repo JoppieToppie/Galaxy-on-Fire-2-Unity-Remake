@@ -716,6 +716,17 @@ namespace GoF2Remake.Multiplayer
             return "Builder rights could not be relinquished because the change could not be saved.";
         }
 
+        internal static string AppearancePresets()
+        {
+            var stations = NetGame.Db?.Stations;
+            if (stations == null) return "The station model catalogue is unavailable.";
+            var lines = new List<string> { "Built-in station appearance presets (use the index):" };
+            foreach (var model in stations)
+                if (model != null && model.index >= 0 && !IsPlayerStation(model.index))
+                    lines.Add("  " + model.index + ": " + (string.IsNullOrWhiteSpace(model.name) ? "Unnamed station model" : model.name));
+            return string.Join("\\n", lines);
+        }
+
         static bool CanManageAppearance(NetPlayer by, PlayerStationRecord record, out string account)
         {
             if (!IsStationContext(by, record, out account)) return false;
