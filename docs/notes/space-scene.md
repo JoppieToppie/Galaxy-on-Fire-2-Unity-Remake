@@ -34,6 +34,9 @@ Research: `Reference/research/space_level_setup.md`, `space_backdrop.md` (+ `spa
   the hangar is shown its race's own (`SkyReflection.SetHangar(HangarIndex)`, `Resources/GoF2Reflections/cubemap_hangar_terran
   / vossk / nivelian / midorian`, glossy convolution; the Supernova systems too), the Valkyrie hangars (7 / 8) a black one
   (no reflection, the rim stays), a mod's own hangar and the lounge the system's.
+  **Size** (2026-11-16): `HangarCubemapCapture` captures 256 px faces (a 256 x 1536 strip, was 512); phones import every
+  cubemap of the folder at 128 px faces (`ImportPostprocessor.ReflectionCube`, Android / iPhone Max Size 128: a cubemap's
+  Max Size limits the face, not the strip).
 - **Skies** (remake, 2026-11-14; Options > Graphics "Skies", `Settings.SkyStyle`, Original by default: the others invent
   detail; the user: "4 options. chorus enhanced on its own which is only a slight improvement whereas es2 is es2 styled then
   chorus and es2 combined should be the best of both worlds"): **Original**; **Enhanced** (below: the upscaled layers and
