@@ -135,6 +135,8 @@ namespace GoF2Remake.Multiplayer
             if (faction == null) return Localization.Extra("mpFactionNone", "You aren't in a faction.");
             if (faction.leader == me && faction.members.Count > 1)
                 return Localization.Extra("mpFactionLeaderLeave", "Hand the faction over first (/faction leader <pilot>), or /faction disband.");
+            if (faction.leader == me && NetPlayerStations.HasFactionOwnedStations(faction.id))
+                return "This faction owns player-built stations. Transfer every station to a nominated player or successor faction before leaving or disbanding; use /station transfer <id> player|faction <recipient account id>.";
             Remove(faction, me);
             return Localization.Extra("mpFactionYouLeft", "You left the faction.");
         }
@@ -180,6 +182,8 @@ namespace GoF2Remake.Multiplayer
         {
             var faction = Of(me);
             if (faction == null || faction.leader != me) return Localization.Extra("mpFactionNotLeader", "Only the faction's leader can do that.");
+            if (NetPlayerStations.HasFactionOwnedStations(faction.id))
+                return "This faction still owns player-built stations. Nominate a player or successor faction and complete a station transfer for each one before disbanding.";
             TellFaction(faction, string.Format(Localization.Extra("mpFactionDisbanded", "The faction [{0}] {1} was disbanded."), faction.tag, faction.name));
             var members = new List<string>(faction.members);
             int claimsBefore = list.claims.Count;
