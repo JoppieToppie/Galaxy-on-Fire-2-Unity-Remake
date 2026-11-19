@@ -27,7 +27,10 @@
 // mission's reward), with numbers, indices and texts in range. The messages for the players (notices, results, stock,
 // teleports...) may only come from the server (InvokePermission.Server): a client can't send them to the others.
 
+using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 using GoF2Remake.Data;
 using Unity.Collections;
 using Unity.Netcode;
@@ -59,7 +62,11 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<bool> profilesOn = new NetworkVariable<bool>();     // the server keeps player profiles (NetProfiles)
         readonly NetworkVariable<bool> freePvp = new NetworkVariable<bool>();        // players may fight anywhere (else only in arenas)
         readonly NetworkVariable<FixedString4096Bytes> claims = new NetworkVariable<FixedString4096Bytes>();   // NetFactions' territory
-        readonly NetworkVariable<FixedString4096Bytes> playerStations = new NetworkVariable<FixedString4096Bytes>(); // persistent player-built station registry
+        // Player stations can outgrow one NetworkVariable. Each entry carries its snapshot revision and position;
+        // clients apply only a complete, internally consistent set of chunks.
+        const int PlayerStationChunkBytes = 2800, MaxPlayerStationChunks = 1024;
+        readonly NetworkList<FixedString4096Bytes> playerStationChunks = new NetworkList<FixedString4096Bytes>(null, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        int playerStationRevision;
         readonly NetworkVariable<FixedString4096Bytes> sieges = new NetworkVariable<FixedString4096Bytes>();   // NetFactions' sieges
         readonly NetworkVariable<FixedString4096Bytes> pirateBoard = new NetworkVariable<FixedString4096Bytes>();   // PirateReports' board (JSON)
         readonly NetworkVariable<int> toll = new NetworkVariable<int>();   // NetFactions.Toll
@@ -143,19 +150,71 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The factions' claimed stations, "station|TAG|Name|VAT %" per line (NetFactions, NetFactionsClient).</summary>
         public string Claims => claims.Value.ToString();
 
-        /// <summary>Persistent player-built stations (NetPlayerStations), shared with every joining player.</summary>
-        public string PlayerStations => playerStations.Value.ToString();
-
-        internal void PublishPlayerStations(string json)
+        /// <summary>Publish a versioned, chunked player-station snapshot. The registry is UTF-8 encoded before splitting so
+        /// a multi-byte character may safely cross a chunk boundary; base64 keeps each network entry independently valid.</summary>
+        internal bool PublishPlayerStations(string json)
         {
-            if (!IsServer) return;
+            if (!IsServer || !IsSpawned) return false;
             json ??= "";
-            if (System.Text.Encoding.UTF8.GetByteCount(json) > 4000)
+            byte[] bytes = Encoding.UTF8.GetBytes(json);
+            int count = Math.Max(1, (bytes.Length + PlayerStationChunkBytes - 1) / PlayerStationChunkBytes);
+            if (count > MaxPlayerStationChunks)
             {
-                Debug.LogWarning("NetState: player station registry exceeds its initial snapshot limit; change was saved but not replicated.");
-                return;
+                Debug.LogWarning($"NetState: player station snapshot needs {count} chunks (limit {MaxPlayerStationChunks}); it was saved but cannot be replicated.");
+                return false;
             }
-            if (playerStations.Value.ToString() != json) playerStations.Value = json;
+
+            unchecked { playerStationRevision++; }
+            if (playerStationRevision <= 0) playerStationRevision = 1;
+            playerStationChunks.Clear();
+            for (int index = 0; index < count; index++)
+            {
+                int offset = index * PlayerStationChunkBytes;
+                int length = Math.Min(PlayerStationChunkBytes, bytes.Length - offset);
+                string payload = length > 0 ? Convert.ToBase64String(bytes, offset, length) : "";
+                string entry = $"{playerStationRevision}:{index}:{count}:{payload}";
+                playerStationChunks.Add(new FixedString4096Bytes(entry));
+            }
+            TryApplyPlayerStationSnapshot();
+            return true;
+        }
+
+        void TryApplyPlayerStationSnapshot()
+        {
+            if (playerStationChunks.Count == 0) return;
+            int revision = -1, count = -1;
+            var payloads = new string[playerStationChunks.Count];
+            foreach (var value in playerStationChunks)
+            {
+                string entry = value.ToString();
+                int a = entry.IndexOf(':');
+                int b = a < 0 ? -1 : entry.IndexOf(':', a + 1);
+                int d = b < 0 ? -1 : entry.IndexOf(':', b + 1);
+                if (a <= 0 || b <= a + 1 || d <= b + 1) return;
+                if (!int.TryParse(entry.Substring(0, a), NumberStyles.None, CultureInfo.InvariantCulture, out int itemRevision) ||
+                    !int.TryParse(entry.Substring(a + 1, b - a - 1), NumberStyles.None, CultureInfo.InvariantCulture, out int index) ||
+                    !int.TryParse(entry.Substring(b + 1, d - b - 1), NumberStyles.None, CultureInfo.InvariantCulture, out int itemCount)) return;
+                if (itemRevision <= 0 || itemCount < 1 || itemCount > MaxPlayerStationChunks || index < 0 || index >= itemCount) return;
+                if (revision < 0) { revision = itemRevision; count = itemCount; payloads = new string[count]; }
+                if (revision != itemRevision || count != itemCount || payloads[index] != null) return;
+                payloads[index] = entry.Substring(d + 1);
+            }
+            if (count != payloads.Length) return;
+            var joined = new StringBuilder();
+            for (int i = 0; i < count; i++)
+            {
+                if (payloads[i] == null) return;
+                joined.Append(payloads[i]);
+            }
+            try
+            {
+                byte[] snapshot = Convert.FromBase64String(joined.ToString());
+                NetPlayerStations.ReceiveSnapshot(Encoding.UTF8.GetString(snapshot));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"NetState: player station snapshot {revision} could not be decoded ({e.Message}).");
+            }
         }
 
         /// <summary>Server: the claims (cut at a whole line to fit the network variable's 4 KB).</summary>
@@ -235,8 +294,8 @@ namespace GoF2Remake.Multiplayer
                 NetTrade.Reset();
                 PublishPlayerStations(NetPlayerStations.Snapshot);
             }
-            playerStations.OnValueChanged += (_, now) => NetPlayerStations.ReceiveSnapshot(now.ToString());
-            NetPlayerStations.ReceiveSnapshot(playerStations.Value.ToString());
+            playerStationChunks.OnListChanged += _ => TryApplyPlayerStationSnapshot();
+            TryApplyPlayerStationSnapshot();
             // The session's Pirate activity board on every game (the host's too), now and whenever the server changes it.
             pirateBoard.OnValueChanged += (_, now) => PirateReports.ApplyShared(now.ToString());
             PirateReports.ApplyShared(pirateBoard.Value.ToString());
