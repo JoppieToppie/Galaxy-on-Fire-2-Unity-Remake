@@ -149,6 +149,9 @@ namespace GoF2Remake.World
             if (cloak != null && Settings.EmpBreaksCloak) cloak.Break();
         }
 
+        /// <summary>Remake (Chorus's Rite of the Senses): its cloak dropped, whatever the EMP option.</summary>
+        public void Uncloak() { if (cloak != null) cloak.Break(); }
+
         /// <summary>An NPC's EMP shot on 'hit': its cloak drops, the player's or another NPC's (Settings.EmpBreaksCloak).</summary>
         static void EmpBreaksCloak(Target hit)
         {

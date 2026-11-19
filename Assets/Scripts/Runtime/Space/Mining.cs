@@ -48,8 +48,10 @@ namespace GoF2Remake.Flight
         public Target Candidate { get; private set; }
         public Target Locked { get; private set; }
         public Target Target { get; private set; }
-        /// <summary>A scanner with attr 30 = 1 marks the class-A asteroids (Radar::draw 0x1577de).</summary>
-        public bool Ultrascan { get; private set; }
+        /// <summary>A scanner with attr 30 = 1 marks the class-A asteroids (Radar::draw 0x1577de); remake: so does the Rite of the
+        /// Senses while it lasts (RiteSenses).</summary>
+        public bool Ultrascan { get => ultrascan || RiteSenses.Active; private set => ultrascan = value; }
+        bool ultrascan;
         /// <summary>Level::isInAsteroidCenterRange: within 100 000 units of the field's centre.</summary>
         public const float FieldRangeMeters = 100000f * 0.05f;
 

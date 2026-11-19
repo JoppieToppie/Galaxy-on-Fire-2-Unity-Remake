@@ -70,6 +70,8 @@ namespace GoF2Remake.Modding
             public bool? shotLoops;
             /// <summary>"trail": the shots' smoke trail (false: none), null = the base item's.</summary>
             public TrailLook trail;
+            /// <summary>"rite": a Rite's looks (a JSON file in the mod, Data.CustomRiteFx), null = none.</summary>
+            public CustomRiteFx rite;
             /// <summary>"turret": the turret's own model, its muzzle and where its shots start (game units, -1 = the base's).</summary>
             public string turretModel;
             public List<CustomShipMaterial> turretMaterials;   // "turret": "materials", like a ship's (ModShipBuilder.ApplyMaterials)
@@ -244,7 +246,7 @@ namespace GoF2Remake.Modding
         }
 
         static readonly HashSet<string> FxFields = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
-            { "projectile", "muzzle", "impact", "shot", "shotLoops", "explosionSound", "turret", "trail" };
+            { "projectile", "muzzle", "impact", "shot", "shotLoops", "explosionSound", "turret", "trail", "rite" };
         static readonly HashSet<string> EffectFields = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase) { "id", "name", "base" };
         static readonly HashSet<string> PartFields = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
             { "sprite", "model", "texture", "size", "color", "glow", "additive", "lifetime", "grow", "fade", "spin", "alongFlight", "stretch", "rotate",
@@ -270,10 +272,31 @@ namespace GoF2Remake.Modding
             };
             if (ModJson.Has(o, "shotLoops")) d.shotLoops = ModJson.Bool(o, "shotLoops", false, File);
             d.trail = ParseTrail(mod, ModJson.Get(o, "trail"));
+            d.rite = ParseRite(mod, ModJson.Get(o, "rite"));
             foreach (var f in Concat(d.shots, d.explosionSounds))
                 if (!mod.Source.Exists(f)) throw new ModJsonException($"{where}: the sound {f} isn't in the mod");
             ParseTurret(mod, d, ModJson.Get(o, "turret"));
             return d;
+        }
+
+        /// <summary>"rite": a JSON file in the mod (Data.CustomRiteFx): a Rite's effects and sounds; its sounds must be there.</summary>
+        static CustomRiteFx ParseRite(ModInfo mod, JToken t)
+        {
+            if (t == null) return null;
+            string where = ModJson.Where(t, File);
+            if (t.Type != JTokenType.String) throw new ModJsonException($"{where}: \"rite\" is a JSON file in the mod");
+            string path = (string)t;
+            string text = mod.Source.Exists(path) ? mod.Source.ReadText(path) : null;
+            if (string.IsNullOrEmpty(text)) throw new ModJsonException($"{where}: the Rite's effects {path} aren't in the mod");
+            CustomRiteFx r;
+            try { r = JsonUtility.FromJson<CustomRiteFx>(text); }
+            catch (System.Exception e) { throw new ModJsonException($"{path}: {e.Message}"); }
+            if (r == null) return null;
+            foreach (var list in new[] { r.vanishSound, r.appearSound, r.hitSound, r.loopSound, r.endSound, r.furySound, r.absorbSound, r.healSound })
+                if (list != null)
+                    foreach (var f in list)
+                        if (!string.IsNullOrEmpty(f) && !mod.Source.Exists(f)) throw new ModJsonException($"{path}: the sound {f} isn't in the mod");
+            return r;
         }
 
         /// <summary>"trail": false (none) or { "color": [r, g, b] (0..1 / 0..255 / "#rrggbb"), "width": game units (half the
@@ -502,9 +525,17 @@ namespace GoF2Remake.Modding
                 for (int i = 0; i < 3; i++) built[i] = parts[i] == null || parts[i].remove || parts[i].copy ? Task.FromResult<GameObject>(null) : BuildPart(rev, d, parts[i], i);
                 var shots = LoadClips(d.mod, d.shots);
                 var booms = LoadClips(d.mod, d.explosionSounds);
+                var riteVanish = LoadClips(d.mod, Files(d.rite?.vanishSound));
+                var riteAppear = LoadClips(d.mod, Files(d.rite?.appearSound));
+                var riteHit = LoadClips(d.mod, Files(d.rite?.hitSound));
+                var riteLoop = LoadClips(d.mod, Files(d.rite?.loopSound));
+                var riteEnd = LoadClips(d.mod, Files(d.rite?.endSound));
+                var riteFury = LoadClips(d.mod, Files(d.rite?.furySound));
+                var riteAbsorb = LoadClips(d.mod, Files(d.rite?.absorbSound));
+                var riteHeal = LoadClips(d.mod, Files(d.rite?.healSound));
                 bool gameTurret = GameModels.Is(d.turretModel, out string turretGame);
                 var turret = d.turretModel != null && !gameTurret ? BuildTurret(rev, d) : Task.FromResult<GameObject>(null);
-                await Task.WhenAll(built[0], built[1], built[2], shots, booms, turret);
+                await Task.WhenAll(built[0], built[1], built[2], shots, booms, turret, riteVanish, riteAppear, riteHit, riteLoop, riteEnd, riteFury, riteAbsorb, riteHeal);
                 if (rev != ModManager.Revision) return;
                 var baseFx = BaseFx(d.item);
                 var fx = baseFx != null ? Object.Instantiate(baseFx) : ScriptableObject.CreateInstance<WeaponFx>();
@@ -535,6 +566,10 @@ namespace GoF2Remake.Modding
                 if (booms.Result != null && booms.Result.Length > 0) { fx.explosionSounds = booms.Result; fx.explosionSound = booms.Result[0]; }
                 if (d.shotLoops.HasValue) fx.shotLoops = d.shotLoops.Value;
                 if (d.trail != null) fx.trail = d.trail;
+                if (d.rite != null)
+                    fx.rite = new RiteLook { mod = d.mod, spec = d.rite, vanish = riteVanish.Result, appear = riteAppear.Result, hit = riteHit.Result,
+                                           loop = riteLoop.Result, end = riteEnd.Result, fury = riteFury.Result,
+                                           absorb = riteAbsorb.Result, heal = riteHeal.Result };
                 var turretModel = turret.Result;
                 float muzzle = d.turretMuzzle, shotStart = d.turretShot;
                 // A game turret's model ("item"), else the base item's when resized / moved: a copy of its ship-mounted model
@@ -586,6 +621,8 @@ namespace GoF2Remake.Modding
             catch (System.Exception) { }   // a stale load (the mods changed meanwhile)
             finally { if (rev == ModManager.Revision) Done++; }
         }
+
+        static List<string> Files(string[] files) => files?.Where(f => !string.IsNullOrEmpty(f)).ToList();
 
         static async Task<AudioClip[]> LoadClips(ModInfo mod, List<string> files)
         {

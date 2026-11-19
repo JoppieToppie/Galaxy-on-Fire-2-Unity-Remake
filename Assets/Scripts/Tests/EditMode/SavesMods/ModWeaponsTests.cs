@@ -1,7 +1,7 @@
 // ModWeaponsTests.cs
 // Feature: Modding/README.md "Weapon effects" (ModWeapons.Defs, the items.json "fx" entries): a turret's own model ("turret":
 // a file, or { "model", "muzzle", "shotStart", "scale" }), a part borrowed from another item ("item") and resized ("scale"), a sound
-// taken from another item ("shot": a number), and their refusals. Only the parsing: the models aren't loaded here.
+// taken from another item ("shot": a number), a Rite's looks ("rite": a JSON file of effects and sounds), and their refusals. Only the parsing: the models aren't loaded here.
 
 using System.Linq;
 using GoF2Remake.Modding;
@@ -120,6 +120,26 @@ namespace GoF2Remake.Tests
         {
             Assert.IsNull(DefOf("{ 'turret': { 'model': 'models/t.glb', 'scale': 0 } }", ("models/t.glb", "glb")));
             StringAssert.Contains("\"scale\" must be above 0", AllMessages(Installed(Mod)));
+        }
+
+        [Test]
+        public void ARitesLooksAreAFileOfEffectsAndSounds()
+        {
+            const string rite = "{ \"vanish\": { \"emitters\": [ { \"image\": \"fx/spark.png\", \"bursts\": [0, 20], \"life\": [0.2, 0.4] } ] }, " +
+                                "\"appearSound\": [\"audio/appear.ogg\"], \"fury\": { \"emitters\": [ { \"rate\": 5 } ] }, " +
+                                "\"healSound\": [\"audio/appear.ogg\"] }";
+            var d = DefOf("{ 'rite': 'fx/rite.json' }", ("fx/rite.json", rite), ("audio/appear.ogg", "ogg"));
+            Assert.AreEqual(1, d.rite.fury.emitters.Length, "an upgrade's part");
+            CollectionAssert.AreEqual(new[] { "audio/appear.ogg" }, d.rite.healSound);
+            Assert.IsNotNull(d, AllMessages(Installed(Mod)));
+            Assert.AreEqual(1, d.rite.vanish.emitters.Length);
+            Assert.AreEqual(20f, d.rite.vanish.emitters[0].bursts[1]);
+            CollectionAssert.AreEqual(new[] { "audio/appear.ogg" }, d.rite.appearSound);
+            Assert.IsNull(d.rite.hit?.emitters, "a part left out");
+            Assert.IsNull(DefOf("{ 'rite': 'fx/none.json' }"));
+            StringAssert.Contains("aren't in the mod", AllMessages(Installed(Mod)));
+            Assert.IsNull(DefOf("{ 'rite': 'fx/rite.json' }", ("fx/rite.json", "{ \"hitSound\": [\"audio/none.ogg\"] }")));
+            StringAssert.Contains("the sound audio/none.ogg isn't in the mod", AllMessages(Installed(Mod)));
         }
 
         [Test]

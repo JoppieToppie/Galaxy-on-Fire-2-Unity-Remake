@@ -119,6 +119,12 @@ namespace GoF2Remake.Flight
         /// <summary>Remake: phased out by a phase cloak (PlayerCloak.Phasing, NetPlayer for the other players): shots fly
         /// through it (Gun), blasts pass it and it takes no damage.</summary>
         [NonSerialized] public bool phased;
+        /// <summary>Remake (Chorus's Rite of the Storm, BP_Buff_Pulse's JamTarget): until this Time.time the ship holds its
+        /// fire (NpcShip.HoldFire); its slow comes through SlowBy.</summary>
+        [NonSerialized] public float jammedUntil = -1f;
+        /// <summary>Remake (Chorus's Rite of Control letting a ship go): its slow lifted at once (NpcShip's; null = none).</summary>
+        [NonSerialized] public Action ClearSlow;
+        public bool Jammed => Time.time < jammedUntil;
         /// <summary>Remake: a player's ship boosting (ShipController for the local one, NetPlayer for the others): homing
         /// missiles locked on it lose their lock (Gun). NPC ships never set it.</summary>
         [NonSerialized] public bool boosting;
