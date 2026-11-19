@@ -124,16 +124,25 @@ namespace GoF2Remake.Data
         /// <summary>Item::mixItems: everything in cargo or in stock, by item index. Remake: an item number the item table
         /// doesn't have is left out (logged once): the window reads every row's item, and one unknown number in the hold
         /// or the stock threw on every trade (crash reports from a Windows build, 2026-10-12, source not found yet).
-        /// Remake (PR #282, Settings.ShopByCategory, off by default): by category, then tech level, then index, so the DLC
-        /// items (indices after the base game's) sit beside their kind.</summary>
+        /// CLAUDE.md "Shop order": the optional category order also keeps beam/auto families together.
+        /// This orders only the returned view; the cargo and stock lists keep their own order.</summary>
         public List<int> ShopItems()
         {
             var items = Session.Cargo.Where(s => s.amount > 0).Select(s => s.item)
                 .Concat(Stock.items.Where(s => s.amount > 0).Select(s => s.item)).Distinct().Where(Known);
             return (Settings.ShopByCategory
-                ? items.OrderBy(i => db.Item(i).categoryId).ThenBy(i => db.Item(i).techLevel).ThenBy(i => i)
+                ? items.OrderBy(i => db.Item(i).categoryId).ThenBy(i => DisplaySubtype(db.Item(i)))
+                    .ThenBy(i => db.Item(i).techLevel).ThenBy(i => i)
                 : items.OrderBy(i => i)).ToList();
         }
+
+        /// <summary>Display-only subgroups: ordinary lasers before M6 beams, manual turrets before automatic ones.</summary>
+        public static int DisplaySubtype(ItemData item) => item.categoryId switch
+        {
+            0 => ItemData.IsBeamLook(item.Look) ? 1 : 0,
+            8 => item.Attr(16) == 1 ? 1 : 0,
+            _ => 0,
+        };
 
         static readonly HashSet<int> reportedUnknown = new HashSet<int>();
 

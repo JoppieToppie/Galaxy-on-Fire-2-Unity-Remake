@@ -33,7 +33,7 @@ namespace GoF2Remake.Flight
     public class Gun
     {
         /// <summary>The beam lasers (BeamGun: 9-11, 228; a mod's item by its look): one beam mesh scaled along the shot.</summary>
-        public static bool IsBeamLook(int look) => look == 9 || look == 10 || look == 11 || look == 228;
+        public static bool IsBeamLook(int look) => ItemData.IsBeamLook(look);
 
         public enum Kind
         {

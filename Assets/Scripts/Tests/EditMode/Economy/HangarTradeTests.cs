@@ -46,6 +46,46 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void CategoryOrderKeepsM6BeamsTogetherAfterOrdinaryLasers()
+        {
+            using var setting = new SettingsScope<bool>(() => Settings.ShopByCategory, v => Settings.ShopByCategory = v);
+            Settings.ShopByCategory = true;
+            Session.Cargo.Clear();
+            var h = Dis(228, 1, 8, 1, 9, 1, 183, 1, 10, 1, 229, 1, 11, 1);
+            CollectionAssert.AreEqual(new[] { 8, 183, 229, 9, 10, 11, 228 }, h.ShopItems());
+        }
+
+        [Test]
+        public void CategoryOrderKeepsManualAndAutomaticTurretsInSeparateGroups()
+        {
+            using var setting = new SettingsScope<bool>(() => Settings.ShopByCategory, v => Settings.ShopByCategory = v);
+            Settings.ShopByCategory = true;
+            Session.Cargo.Clear();
+            var sorted = Dis(182, 1, 47, 1, 224, 1, 180, 1, 49, 1, 181, 1, 48, 1).ShopItems();
+            bool automaticSeen = false;
+            foreach (int id in sorted)
+            {
+                if (Db.Item(id).Attr(16) == 1) automaticSeen = true;
+                else Assert.IsFalse(automaticSeen, "manual turrets must not follow automatic ones");
+            }
+            Assert.IsTrue(automaticSeen);
+        }
+
+        [Test]
+        public void ModDisplaySubtypesFollowTheSameBeamLookAndAutoAttributeAsWeapons()
+        {
+            var item = new ItemData { index = 900, modded = true, lookIndex = 228, categoryId = 0, name = "Custom" };
+            Assert.IsTrue(GoF2Remake.Flight.Gun.IsBeamLook(item.Look));
+            Assert.AreEqual(1, Hangar.DisplaySubtype(item));
+            item.lookIndex = 8;
+            Assert.IsFalse(GoF2Remake.Flight.Gun.IsBeamLook(item.Look));
+            Assert.AreEqual(0, Hangar.DisplaySubtype(item));
+            item.categoryId = 8; item.attrKeys = new[] { 16 }; item.attrValues = new[] { 1 };
+            Assert.AreEqual(1, Hangar.DisplaySubtype(item));
+            item.attrValues[0] = 0;
+            Assert.AreEqual(0, Hangar.DisplaySubtype(item));
+        }
+        [Test]
         public void BuyOneUnit()
         {
             Session.Credits = 10000;

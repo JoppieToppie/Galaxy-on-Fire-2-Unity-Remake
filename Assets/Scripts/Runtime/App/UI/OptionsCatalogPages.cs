@@ -616,7 +616,7 @@ namespace GoF2Remake.UI
             // Remake (PR #282): the shop's and storage's item order (Hangar.ShopItems); off = the original's, by item number.
             var shopOrder = Toggle("shopByCategory", OptionPage.Gameplay, () => X("shopByCategory", "Sort the shop by category"),
                 () => Settings.ShopByCategory, v => Settings.ShopByCategory = v);
-            shopOrder.description = () => X("shopByCategoryHelp", "The shop and storage list items by category, then tech level, so add-on equipment sits beside its kind. Off: by item number, as in the original.");
+            shopOrder.description = () => X("shopByCategoryHelp", "The shop and storage list items by category, subtype and tech level; beam lasers and manual/automatic turrets stay together. Off: by item number, as in the original.");
             list.Add(shopOrder);
             var cloakBay = Toggle("cloakBay", OptionPage.Gameplay, () => X("cloakBay", "Cloak bay on cloaking ships"),
                 () => Settings.CloakBay, v => Settings.CloakBay = v);

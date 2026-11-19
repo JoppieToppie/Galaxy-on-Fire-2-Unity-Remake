@@ -3242,7 +3242,7 @@
  "kaamoVipOff": "Disattivata",
  "kaamoVipOptionHelp": "La tessera VIP aggiunge al deposito del Kaamo Club una casella di ricerca e l'ordinamento, una scheda Navi per le tue navi depositate e un segno Kaamo sulle navi che hai già lì. Acquisto al club: la tessera si compra nella scheda Deposito. Sempre attiva: senza tessera. Disattivata: il club originale.",
  "shopByCategory": "Ordina il negozio per categoria",
- "shopByCategoryHelp": "Negozio e deposito elencano gli oggetti per categoria, poi per livello tecnologico, così l'equipaggiamento aggiuntivo sta accanto a quelli del suo tipo. Disattivato: per numero dell'oggetto, come nell'originale.",
+ "shopByCategoryHelp": "Negozio e deposito ordinano per categoria, sottotipo e livello tecnologico; laser a raggio e torrette manuali e automatiche restano in gruppi separati. Disattivato: per numero dell’oggetto, come nell’originale.",
  "shopSearch": "Cerca",
  "shopSortBy": "Ordina: {0}",
  "shopSortDefault": "Predefinito",

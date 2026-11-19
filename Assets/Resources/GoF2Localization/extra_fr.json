@@ -3242,7 +3242,7 @@
  "kaamoVipOff": "Désactivée",
  "kaamoVipOptionHelp": "La carte VIP ajoute au stockage du Kaamo Club une barre de recherche et le tri, un onglet Vaisseaux pour vos vaisseaux entreposés et un repère Kaamo sur les vaisseaux que vous y avez déjà. Achat au club : la carte est vendue dans l'onglet Entrepôt. Toujours activée : sans carte. Désactivée : le club d'origine.",
  "shopByCategory": "Trier la boutique par catégorie",
- "shopByCategoryHelp": "La boutique et l'entrepôt classent les objets par catégorie, puis par niveau technologique : l'équipement additionnel se range avec ceux de son type. Désactivé : par numéro d'objet, comme dans l'original.",
+ "shopByCategoryHelp": "La boutique et l’entrepôt trient par catégorie, sous-type et niveau technologique ; lasers à faisceau, tourelles manuelles et automatiques restent regroupés séparément. Désactivé : par numéro d’objet, comme dans l’original.",
  "shopSearch": "Rechercher",
  "shopSortBy": "Tri : {0}",
  "shopSortDefault": "Par défaut",
