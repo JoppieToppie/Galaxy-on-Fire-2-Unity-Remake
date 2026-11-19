@@ -243,14 +243,13 @@ namespace GoF2Remake.Multiplayer
 
                 string successor = record.factionSuccessorProfile;
                 string successorFactionId = record.factionSuccessorFactionId;
+                var nextFaction = NetFactions.Of(successor);
                 bool successorFactionValid = record.factionSuccessorType == PlayerStationOwnershipType.Faction &&
-                    !string.IsNullOrEmpty(successorFactionId) &&
-                    NetFactions.Of(successor) is NetFactions.Faction nextFaction &&
+                    !string.IsNullOrEmpty(successorFactionId) && nextFaction != null &&
                     string.Equals(nextFaction.id, successorFactionId, StringComparison.Ordinal);
 
                 if (successorFactionValid)
                 {
-                    var nextFaction = NetFactions.Of(successor);
                     record.ownershipType = PlayerStationOwnershipType.Faction;
                     record.ownerFactionId = nextFaction.id;
                     record.ownerProfile = nextFaction.leader;
