@@ -76,3 +76,15 @@ The dry dock costs 200 Iron, 150 Titanium, 100 Electronics and 80 Microchips. It
 - Hangar and dry-dock hull records now have parallel owner-profile entries. Existing hulls migrate to the station's individual owner, preventing them from becoming claimable by every faction member. New hulls retain the profile that stored them; only that profile can retrieve them. A ship built in the dry dock is assigned to the profile that initiated the build.
 - Ownership transfer, faction-bank proceeds, faction disband resolution and station-asset policy are intentionally pending explicit design decisions. These require deciding how station inventory, installed facilities, active dry-dock jobs, escrowed listings and outstanding seller proceeds behave when the owner changes.
 - Source changes have not yet been compiled in Unity or tested in a multiplayer session.
+
+
+## Transfer policy and contribution ledger (20 November 2026)
+
+- Station structure, installed modules, upgrades and expansion remain attached to the station during ownership changes.
+- Construction contributions are recorded by contributor profile and material. They do not grant ownership automatically; the ledger is retained so contributors can agree compensation during a transfer. Automated compensation settlement is not yet implemented.
+- Station transfers use a persisted proposal and acceptance flow. The individual owner or current faction leader proposes; the receiving player or receiving faction leader accepts while docked at the station. Proposals expire after seven days and are revalidated against current authority at acceptance. Commands: `/station transfer <id> player|faction <recipient account id>`, `/station transfer-accept <id>`, `/station transfer-cancel <id>`, `/station transfer-status <id>`.
+- The command `/station contributions <id>` displays the construction contribution ledger.
+- Transfer acceptance changes station ownership only. Stored hulls remain personal property, the active dry-dock builder retains the resulting ship, and marketplace seller-profile claims are preserved.
+- Station storage is intended to remain attributable to its original contributors. The per-profile inventory ledger and safe migration/withdrawal path are the next implementation step; until then, transfers should not be treated as production-ready.
+- Faction-owned station disband resolution still needs integration with the faction disband/leadership lifecycle. The agreed policy is to require the faction to nominate a successor or recipient before disbanding; a station must never be silently orphaned.
+- Marketplace proceeds default to the listing creator. An optional per-listing faction-treasury destination is planned, but must be integrated into the marketplace transaction journal before it can be safely enabled.
