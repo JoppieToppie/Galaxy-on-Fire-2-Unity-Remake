@@ -252,7 +252,9 @@ namespace GoF2Remake.UI
                     lines.Add((level.Database.Item(pair.Key)?.name ?? ("Item " + pair.Key)) + "  ×  " + pair.Value);
             }
             recipeText.text = string.Join("\n", lines);
-            buildButton.SetEnabled(unlocked && !requestPending && !(NetPlayerStations.GetDryDockVisualStatus(station.id)?.building ?? false)
+            var dockStatus = NetPlayerStations.GetDryDockVisualStatus(station.id);
+            bool hasCapacity = dockStatus != null && dockStatus.storedHulls < dockStatus.hullCapacity;
+            buildButton.SetEnabled(unlocked && hasCapacity && !requestPending && !(dockStatus?.building ?? true)
                 && product?.blueprint != null && product.blueprint.Count > 0);
             foreach (var child in list.Children())
             {
@@ -286,9 +288,12 @@ namespace GoF2Remake.UI
             }
             else
             {
-                statusText.text = "DRY DOCK IDLE\nStored hulls: " + state.storedHulls + " / " + state.hullCapacity;
-                buildButton.text = "BEGIN CONSTRUCTION";
+                bool full = state.storedHulls >= state.hullCapacity;
+                statusText.text = (full ? "DRY DOCK FULL" : "DRY DOCK IDLE") +
+                    "\nStored hulls: " + state.storedHulls + " / " + state.hullCapacity;
+                buildButton.text = full ? "DRY DOCK FULL" : "BEGIN CONSTRUCTION";
                 if (selectedProduct >= 0) Select(selectedProduct);
+                if (full) buildButton.SetEnabled(false);
             }
         }
 
