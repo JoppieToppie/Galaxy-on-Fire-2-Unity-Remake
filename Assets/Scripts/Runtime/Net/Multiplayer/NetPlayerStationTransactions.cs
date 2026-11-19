@@ -106,7 +106,7 @@ namespace GoF2Remake.Multiplayer
             List<(string factionId, long delta)> factionBankChanges,
             List<(string account, List<StoredShip> ships)> shipChanges = null)
         {
-            if (!NetGame.IsServer || registry == null || string.IsNullOrEmpty(path)) return false;
+            if (!NetGame.IsServer || persistenceFaulted || registry == null || string.IsNullOrEmpty(path)) return false;
             if (File.Exists(TransactionPath))
             {
                 RecoverPendingTransaction();
