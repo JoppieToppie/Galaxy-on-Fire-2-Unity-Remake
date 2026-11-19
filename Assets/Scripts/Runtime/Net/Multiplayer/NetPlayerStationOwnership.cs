@@ -160,11 +160,17 @@ namespace GoF2Remake.Multiplayer
             return "The cancellation could not be saved; the proposal remains active.";
         }
 
-        internal static string TransferStatus(int id)
+        internal static string TransferStatus(NetPlayer by, int id)
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             var proposal = record.pendingTransfer;
+            string account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
+            bool recipient = proposal != null && (proposal.targetType == PlayerStationOwnershipType.Individual
+                ? string.Equals(account, proposal.targetProfile, StringComparison.Ordinal)
+                : IsFactionLeaderOf(account, proposal.targetFactionId));
+            if (!CanViewStationRecord(by, record) && !recipient)
+                return "Transfer details are private to the station owner and intended recipient.");
             if (proposal == null) return "No ownership transfer is pending.";
             long remaining = Math.Max(0, proposal.expiresUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             string target = proposal.targetType == PlayerStationOwnershipType.Faction
