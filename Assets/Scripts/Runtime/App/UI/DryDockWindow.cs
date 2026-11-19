@@ -26,10 +26,11 @@ namespace GoF2Remake.UI
         PlayerStationRecord station;
         int selectedProduct = -1, selectedStation = -1;
         float refreshIn;
-        bool requestPending;
+        bool requestPending, isOpen;
+
         string lastResponse = "";
 
-        public bool IsOpen => panel != null && panel.style.display == DisplayStyle.Flex;
+        public bool IsOpen => isOpen;
         public Button MenuButton => openButton;
 
         public VisualElement[] NavItems()
@@ -162,6 +163,7 @@ namespace GoF2Remake.UI
             if (station == null || !NetGame.Active) return;
             menu.CloseHangar();
             panel.style.display = DisplayStyle.Flex;
+            isOpen = true;
             panel.BringToFront();
             refreshIn = 0f;
             requestPending = false;
@@ -173,6 +175,7 @@ namespace GoF2Remake.UI
         {
             if (!IsOpen) return;
             panel.style.display = DisplayStyle.None;
+            isOpen = false;
             requestPending = false;
         }
 
