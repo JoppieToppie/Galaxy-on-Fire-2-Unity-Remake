@@ -37,7 +37,6 @@ namespace GoF2Remake.Multiplayer
         public bool dryDockBuilding;
         public int dryDockBlueprintItem = -1, dryDockShip = -1;
         public long dryDockStartedUtc, dryDockCompletesUtc;
-        public string dryDockBuilderProfile;
         public bool dryDockConsumeBlueprint;
         /// <summary>When enabled, members of the owner's current faction may use station storage and hangar.</summary>
         public bool factionStorageAccess;
