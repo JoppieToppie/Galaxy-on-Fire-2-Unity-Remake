@@ -48,8 +48,9 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out string account))
-                return "Only the station owner can change storage access, while docked at the station.";
+            if (!IsStationAuthority(by, record, out string account) ||
+                record.ownershipType != PlayerStationOwnershipType.Individual)
+                return "Only the individual station owner can change this legacy faction-sharing setting.";
             bool hasHangar = record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false;
             if (StorageCapacity(record) <= 0 && !hasHangar)
                 return "Install a storage or ship hangar module before changing its access policy.";
@@ -79,6 +80,11 @@ namespace GoF2Remake.Multiplayer
             record.factionPermissions.officerVisit = enabled;
             record.factionPermissions.officerStorage = enabled;
             record.factionPermissions.officerHangar = enabled;
+            int oldHistoryCount = record.history?.Count ?? 0;
+            int oldSequence = record.nextHistorySequence;
+            RecordHistory(record, account, "legacy-faction-access-changed", null,
+                "Legacy access command set member and officer visit, storage and hangar defaults to " +
+                (enabled ? "allow" : "deny") + ".");
             if (!Save())
             {
                 record.factionStorageAccess = !enabled;
@@ -88,8 +94,12 @@ namespace GoF2Remake.Multiplayer
                 record.factionPermissions.officerVisit = previousOfficerVisit;
                 record.factionPermissions.officerStorage = previousOfficerStorage;
                 record.factionPermissions.officerHangar = previousOfficerHangar;
+                if (record.history != null && record.history.Count > oldHistoryCount)
+                    record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
+                record.nextHistorySequence = oldSequence;
                 return "The storage access policy could not be saved.";
             }
+            EjectDeniedVisitors(record);
             return enabled
                 ? "Faction access enabled. Current members of your faction can use the station's authorised storage and ship hangar while docked here."
                 : "Faction storage access disabled. Only you can use the station's storage and ship hangar.";
