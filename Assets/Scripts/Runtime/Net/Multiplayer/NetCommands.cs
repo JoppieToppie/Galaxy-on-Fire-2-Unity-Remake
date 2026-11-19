@@ -434,6 +434,14 @@ namespace GoF2Remake.Multiplayer
                     return "/station builder-relinquish <station id>";
                 return NetPlayerStations.RelinquishBuilderRights(by as NetPlayer, builderStationId);
             }
+            const string individualSuccessor = "individual-successor ";
+            if (args.StartsWith(individualSuccessor, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(individualSuccessor.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int individualSuccessorStationId))
+                    return "/station individual-successor <station id> <account id|clear>";
+                return NetPlayerStations.SetIndividualSuccessor(by as NetPlayer, individualSuccessorStationId, words[1]);
+            }
             const string successorDelegate = "successor-delegate ";
             if (args.StartsWith(successorDelegate, StringComparison.OrdinalIgnoreCase))
             {
