@@ -91,7 +91,7 @@ namespace GoF2Remake.Multiplayer
                 string.IsNullOrEmpty(record.ownerProfile))
                 return "Administrative individual-owner recovery applies only to individually owned stations.";
             string successor = record.individualSuccessorProfile;
-            if (string.IsNullOrEmpty(successor) || !NetProfiles.AccountExists(successor))
+            if (string.IsNullOrEmpty(successor) || !string.Equals(NetProfiles.FindAccount(successor), successor, StringComparison.Ordinal))
                 return "The station has no valid nominated individual successor. The owner must have nominated one before losing access.";
             if (record.pendingTransfer != null)
                 return "Resolve or cancel the existing ownership transfer before authorizing recovery.";
