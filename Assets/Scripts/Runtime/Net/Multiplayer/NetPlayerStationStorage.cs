@@ -20,7 +20,132 @@ namespace GoF2Remake.Multiplayer
 
         internal static string Modules()
         {
-            return "Station modules:\nStorage — 50 Iron, 25 Titanium, 20 Electronics. Holds 10,000 units.\nRefinery — 100 Iron, 50 Titanium, 30 Electronics, 20 Microchips. Requires storage; converts 10 ore into 1 matching ore core.\nFactory — 150 Iron, 100 Titanium, 50 Electronics, 50 Microchips. Requires storage; manufactures trade commodities from stored inputs.\nInstall with /station install <station id> storage|refinery|factory.";
+            return "Station modules:\nStorage — 50 Iron, 25 Titanium, 20 Electronics. Holds 10,000 units.\nRefinery — 100 Iron, 50 Titanium, 30 Electronics, 20 Microchips. Requires storage; converts 10 ore into 1 matching ore core.\nFactory — 150 Iron, 100 Titanium, 50 Electronics, 50 Microchips. Requires storage; manufactures trade commodities from stored inputs.\nShip hangar — 100 Iron, 100 Titanium, 80 Electronics, 50 Microchips. Stores up to 100 profile-owned hulls with upgrades and equipment.\nInstall with /station install <station id> storage|refinery|factory|hangar.";
+        }
+
+
+        const int MaxStoredShipsPerStation = 100;
+
+        internal static string InstallHangar(NetPlayer by, int id)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManage(by, record, out string account)) return "Dock at this station and use its controlling profile to manage it.";
+            if (record.underConstruction) return "Finish station construction before installing modules.";
+            record.addons ??= new List<PlayerStationAddon>();
+            if (record.addons.Exists(a => a != null && a.kind == "hangar")) return "This station already has a ship hangar.";
+            if (record.addons.Count >= MaxAddonsPerStation) return "This station has reached its module limit.";
+            var costs = new[] { (item: 156, amount: 100), (item: 155, amount: 100), (item: 118, amount: 80), (item: 127, amount: 50) };
+            foreach (var cost in costs)
+                if (NetProfiles.CargoAmount(account, cost.item) < cost.amount)
+                    return "Insufficient " + (NetGame.Db?.Item(cost.item)?.name ?? ("item " + cost.item)) + "; no hangar was installed.";
+            record.addons.Add(new PlayerStationAddon { kind = "hangar", level = 1 });
+            if (!CommitCargoTransaction(account, (156, -100), (155, -100), (118, -80), (127, -50)))
+            { record.addons.RemoveAt(record.addons.Count - 1); return "The hangar installation transaction could not be journalled; no materials were taken."; }
+            if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
+                foreach (var cost in costs) NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, cost.item, cost.amount, 0, "", "Station hangar");
+            return "Ship hangar installed at " + record.name + ". Use /station ships to manage stored hulls.";
+        }
+
+        static bool CanManageHangar(NetPlayer by, PlayerStationRecord record, out string account)
+        {
+            account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
+            if (CanManage(by, record, out account)) return true;
+            if (!NetGame.IsServer || !sessionActive || record == null || !record.factionStorageAccess ||
+                by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) ||
+                string.IsNullOrEmpty(account) || string.IsNullOrEmpty(record.ownerProfile)) return false;
+            var ownerFaction = NetFactions.Of(record.ownerProfile);
+            var memberFaction = NetFactions.Of(account);
+            return ownerFaction != null && memberFaction != null && string.Equals(ownerFaction.id, memberFaction.id, StringComparison.Ordinal);
+        }
+
+        internal static string PersonalFleet(NetPlayer by)
+        {
+            if (by == null || !by.IsSpawned || !by.InHangar || !NetProfiles.Controls(by.OwnerClientId))
+                return "Dock at a station and use a controlled player profile to list your stored fleet.";
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            var ships = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
+            var lines = new List<string> { "Your personal stored fleet (use these indexes with /station store-ship):" };
+            if (ships != null)
+                for (int i = 0; i < ships.Count; i++)
+                {
+                    var ship = ships[i]; if (ship == null) continue;
+                    lines.Add((i + 1) + ". " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("Ship " + ship.ship)) +
+                        " — " + (ship.mods?.Count ?? 0) + " upgrades, " + (ship.equipment?.Count ?? 0) + " equipment entries");
+                }
+            if (lines.Count == 1) lines.Add("Your personal stored fleet is empty.");
+            return string.Join("\n", lines);
+        }
+
+        internal static string ShipStorageStatus(NetPlayer by, int id)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManageHangar(by, record, out _)) return "Ship hangar access is private to the owner and authorised faction members.";
+            if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false))
+                return "This station has no ship hangar module.";
+            record.storedShips ??= new List<StoredShip>();
+            var lines = new List<string> { "Ship hangar at " + record.name + ":" };
+            for (int i = 0; i < record.storedShips.Count; i++)
+            {
+                var ship = record.storedShips[i]; if (ship == null) continue;
+                lines.Add((i + 1) + ". " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("Ship " + ship.ship)) +
+                    " — " + (ship.mods?.Count ?? 0) + " upgrades, " + (ship.equipment?.Count ?? 0) + " equipment entries");
+            }
+            if (lines.Count == 1) lines.Add("No ships are stored here.");
+            lines.Add("Capacity: " + record.storedShips.Count + "/" + MaxStoredShipsPerStation);
+            lines.Add("Factions share access, never ownership.");
+            return string.Join("\n", lines);
+        }
+
+        internal static string StoreShip(NetPlayer by, int id, int fleetIndex)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its ship hangar.";
+            if (record.underConstruction) return "Finish station construction before using the ship hangar.";
+            if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "Install a ship hangar module first.";
+            record.storedShips ??= new List<StoredShip>();
+            if (record.storedShips.Count >= MaxStoredShipsPerStation) return "This station's ship hangar is full.";
+            var owned = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
+            if (owned == null || fleetIndex < 1 || fleetIndex > owned.Count) return "That index is not in your personal stored fleet. Use /station fleet.";
+            if (!NetProfiles.RemoveStoredShip(account, by.OwnerClientId, fleetIndex - 1, out StoredShip ship))
+                return "The ship could not be removed from your personal fleet.";
+            record.storedShips.Add(ship);
+            if (!Save())
+            {
+                record.storedShips.RemoveAt(record.storedShips.Count - 1);
+                if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, ship))
+                    Debug.LogError("NetPlayerStations: failed to roll back ship storage transfer for profile " + account);
+                return "The station could not save the stored ship; the transfer was rolled back.";
+            }
+            return "Stored " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " at " + record.name +
+                ". Its hull upgrades and installed equipment remain attached.";
+        }
+
+        internal static string RetrieveShip(NetPlayer by, int id, int hangarIndex)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its ship hangar.";
+            if (record.underConstruction) return "Finish station construction before using the ship hangar.";
+            if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "This station has no ship hangar module.";
+            record.storedShips ??= new List<StoredShip>();
+            if (hangarIndex < 1 || hangarIndex > record.storedShips.Count) return "That ship index is not in this station's hangar.";
+            var ship = record.storedShips[hangarIndex - 1];
+            if (ship == null) return "That stored ship record is invalid.";
+            if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, ship)) return "Your personal stored fleet is full or could not be saved.";
+            record.storedShips.RemoveAt(hangarIndex - 1);
+            if (!Save())
+            {
+                record.storedShips.Insert(hangarIndex - 1, ship);
+                var personal = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
+                if (personal == null || personal.Count == 0 || !NetProfiles.RemoveStoredShip(account, by.OwnerClientId, personal.Count - 1, out _))
+                    Debug.LogError("NetPlayerStations: failed to roll back ship retrieval for profile " + account);
+                return "The station could not save the withdrawal; the ship remains in station storage.";
+            }
+            return "Returned " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " to your personal stored fleet.";
         }
 
         internal static string Install(NetPlayer by, int id, string kind)
