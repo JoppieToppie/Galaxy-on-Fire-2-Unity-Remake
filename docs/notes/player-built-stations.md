@@ -88,3 +88,28 @@ The dry dock costs 200 Iron, 150 Titanium, 100 Electronics and 80 Microchips. It
 - Station storage is intended to remain attributable to its original contributors. The per-profile inventory ledger and safe migration/withdrawal path are the next implementation step; until then, transfers should not be treated as production-ready.
 - Faction-owned station disband resolution still needs integration with the faction disband/leadership lifecycle. The agreed policy is to require the faction to nominate a successor or recipient before disbanding; a station must never be silently orphaned.
 - Marketplace proceeds default to the listing creator. An optional per-listing faction-treasury destination is planned, but must be integrated into the marketplace transaction journal before it can be safely enabled.
+
+
+## Asset ownership and transfer implementation update (20 November 2026)
+
+The transfer foundation and asset ledgers are now present in source:
+
+- **Station structure:** ownership changes leave the station, installed modules and upgrades in place.
+- **Personal ships:** stored hulls remain attached to their original player profile. Ships built in a dry dock belong to the profile that started the build, and the builder must personally own the reserved recipe materials.
+- **Station inventory:** storage is tracked by item and contributing profile. Legacy stock without a contributor record is assigned to the station's legacy individual owner. A contributor can view and withdraw only their own goods, including after station ownership changes. Storage deposits require current station access; withdrawal of an already-owned lot only requires docking at the station with the contributing profile.
+- **Production:** refinery and factory inputs must belong to the profile operating the facility. Outputs are attributed to that operator. This prevents one member from consuming another contributor's stock.
+- **Marketplace escrow:** goods can only be listed by their owner. Listing proceeds default to the seller profile. Sellers who belong to a faction can optionally select `faction` when creating a listing; the sale is then credited to that faction's treasury through the station write-ahead transaction journal. The payout faction is captured on the listing, so later ownership or membership changes do not redirect proceeds. Only the original seller can cancel and reclaim a listing.
+- **Construction contributions:** each profile's delivered material quantities are recorded. The ledger is visible to station ownership managers. It is retained across transfers, but negotiated compensation is not yet automatically settled.
+- **Transfers:** the proposal/acceptance flow is available through station commands and the management window. The individual owner or faction leader proposes; the receiving player or faction leader accepts while docked. The proposal expires after seven days and authority is revalidated at acceptance.
+- **Faction dissolution:** a faction cannot disband or have its last leader leave while it owns player stations or is named as the payout destination for active marketplace listings. Transfer stations and settle/cancel those listings first. A faction leadership handover preserves station ownership because ownership is tied to the faction ID, not the leader's profile.
+
+Useful commands:
+- `/station transfer <id> player <profile ID or account name>`
+- `/station transfer <id> faction <member profile ID or account name>`
+- `/station transfer-accept <id>`
+- `/station transfer-cancel <id>`
+- `/station transfer-status <id>`
+- `/station contributions <id>`
+- `/station list-item <id> <item id> <amount> <unit price> [personal|faction]`
+
+These changes are source-level only. Unity compilation, server/client testing, crash recovery tests, ownership-transfer tests, and faction treasury settlement tests remain outstanding.
