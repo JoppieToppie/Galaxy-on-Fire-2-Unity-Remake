@@ -4,27 +4,43 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 
 ## UI and platforms
 
-- **Cosmetics and Gameplay (final organization)**: Cosmetics has Presentation, UI, and HUD and map.
-  Gameplay shows Difficulty beside Gameplay Experience, then expandable Game Rules: World, Progression and economy,
-  Combat and NPC behavior, Traversal, and Missions and simulation. Mod traffic/settings belong to Missions; there is
-  no separate Mods tab. Tools are always visible; every Debug enable asks Enable/Cancel independently of Expand.
-  Nested headings stay cyan and are indented. Interface style and its reset belong to Cosmetics > UI.
-  The UI portion of #345 and explicit selection interaction of #346 are included here to avoid competing edits.
-  Complete preset values and default-reset policy are delivered separately by #346. Save-bound rules remain a
-  proposal under #311; Difficulty is unchanged by reset. Future independently customizable difficulty rules should
-  be considered inside Game Rules without changing current save/session ownership.
+- **Default settings**: resetting Cosmetics or Gameplay applies that scope's current Remake preset after resetting
+  its own preferences. Resetting all tabs applies both Remake scopes. Difficulty belongs to the current save and
+  is never changed by these resets. Gameplay/all-tab reset turns off story-step reporting, the speedrun timer,
+  LiveSplit integration and Debug access. A new story-step preference also defaults off.
+  Other preset values remain a separate review. Original and Remake both use Time speedup, pause gameplay during
+  conversations and turn Keep enemy lock off. Reset bypasses the Expand/Custom consent in both menu builders;
+  it does not grant custom-rule access. Fresh installs explicitly select Remake in both scopes at Bootstrap.
+  Complete policies live in `ExperiencePresets`: every built-in Cosmetics/Game Rules preference has an explicit
+  Original and Remake value. Tools, difficulty and old storage aliases are outside that policy; coverage tests
+  reject an omitted preference. Both profiles disable ES2 NPC aiming/flight, collision damage, blueprint
+  autocomplete, Free flight and Ship cruise; Custom preserves manually chosen values. Mod settings reset to
+  their declared defaults when a Gameplay preset is selected. Cosmetic presets use Remake UI; the legacy UI
+  is a manual Custom override. Map animation is 2x in both. Gameplay presets notify all affected session hooks.
+  The welcome screen maps Original/Cosmetic/Remake to these same scoped policies; it must not use an incomplete
+  legacy value matrix. New-game Tutorials and Capital ships use the same keys as Cosmetics and Game Rules;
+  toggling them selects Custom in the appropriate scope. BeginGame preserves those choices and visual preferences.
 
-- **Cosmetics and Gameplay** (issue #311, UI organization only): Cosmetics has Special features (presentation and
-  transition animations) and UI; Gameplay has QoL and Game Rules. Time speedup near hostiles, stored ships keeping
-  equipment, and autopilot jumpgate confirmations are QoL (defaults: off, off and on respectively). Discord presence
-  belongs to Accessibility. Gameplay Experience is always visible under Game Rules; Expand asks for confirmation
-  before revealing the custom controls, with Debug tools first.
+- **Cosmetics and Gameplay** (issue #311, UI organization only): Cosmetics has Presentation, UI, and HUD and map.
+  Gameplay contains Game Rules with World, Ships and economy, Combat, Flight/navigation, and Missions/simulation
+  groups and an always-visible Tools section. Difficulty is shown alongside Gameplay Experience before Expand;
+  mod traffic and active mods' settings are in Missions/simulation, with no separate Mods section for now.
+  A future difficulty editor may expose independently adjustable parameters inside Game Rules; this layout does
+  not define or rebalance them. Map speed belongs beside HUD/map
+  information. Settings are grouped by function rather than QoL or Custom-only labels. Tools contains speedrun,
+  diagnostics, save-folder management and Debug access; it is independent of the Game Rules reveal action. Debug
+  still requires consent when enabled. Discord presence belongs to Accessibility. Gameplay Experience remains
+  visible above the rule controls; selecting Custom and pressing Expand share the existing confirmation action.
+  Both menu builders use OptionsOrganization and OptionSectionBlock; unknown future rules stay in gated Gameplay
+  until explicitly placed. This organization does not change named preset values or their application logic.
   Custom Game Rules stay hidden until explicit confirmation; Cancel/Back changes nothing. The same app-session consent
   gate covers legacy main-menu, station and flight Debug entries. Confirmation enables no cheat and applies no rule.
   Existing setting keys, save formats and multiplayer authority are retained. Cosmetics and Gameplay reset only
   their own keys. Cosmetic Experience and Gameplay Experience independently offer Original / Remake / Custom;
   they reuse their scope's values from the existing explicit preset table. Cosmetic Original sorts by ID, Remake
-  by type. The legacy welcome screen retains its existing whole-experience API. Custom only reports a mixed state.
+  by type. Cosmetic Original disables Kaamo special UI features; Remake enables them. Custom changes no value.
+  The free Kaamo toggle defaults on; fresh installations explicitly select Cosmetic and Gameplay Remake.
+  The welcome screen's whole-experience API delegates to the same complete scoped policies.
   Owner follow-up: bind Kaamo stacking/limit, world content, travel/simulation, informer rules, difficulty and future
   economy/balance profiles to the playthrough. Preserve purchased upgrades during migration. Autocomplete and
   combat/AI need UI separation but are not proposed as mandatory save-bound settings. Stored equipment is QoL.
@@ -42,7 +58,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   main menu, star map, `KeepClear` overlays, FPS / speedrun / story-step labels); in `UiLayout.Revision`, so the screens
   lay out again when it changes. The edge margin and interface width still apply on top.
 
-- **Original by default** (2026-11-19, after an audit of the 46 PRs merged that day): every remake addition starts off and
+- **Upstream baseline: Original by default** (2026-11-19, after an audit of the 46 PRs merged that day): every remake addition starts off and
   the Original presets turn it off. The defaults put back: 3D planets off (`rebuiltPlanets`), camera shake 100 %. Behind new
   switches (default off): Gameplay > Combat "Turrets lead moving targets" (`turretLeadAim`: #354's turret aim, see
   weapons.md "Turrets"), "Remake free look" (`remakeFreeLook`: #336's zoom to 70,000 and #302's lock on the view's middle;
@@ -54,6 +70,16 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
     the looks on, shake 30 %; Remake: all on). The Cosmetic Experience covers the Graphics page's experience options too
     (`Settings.InScope`). Migration version 10 (`AddedExperienceKeys`): an install matching a preset gets its values for
     the new options. A fresh install stores both Custom flags off, so its rows read Original, not Custom.
+
+- **Gameplay Custom** opens the same Game Rules consent path as Expand in the main, station and pause menus,
+  even when the current combination already reads Custom. Accept selects the explicit Custom label without changing
+  any rule, cheat or VIP mode; Cancel changes nothing. Editing any Game Rules row also selects Custom, including
+  rules outside the legacy preset-value table. Original/Remake are explicitly activated selections in each scope.
+  Any manual change within Cosmetics or Game Rules selects and persists Custom for that scope, even when values are
+  subsequently returned to an exact preset match. Only explicitly selecting Original/Remake reactivates that preset.
+  **Kaamo special UI features** is a free Cosmetics > UI toggle, on by default. VIP discount mode stays in Game Rules.
+  **Interface style** (Remake / Original) also belongs to Cosmetics > UI; Cosmetics owns its reset, not Graphics.
+  Remake is used by both named Cosmetic presets. Original UI is an explicit manual Custom option.
 
 - Text comes from the original table via `Localization.Get(textId)`; remake-only strings via `Extra(key, english)`,
   translated per language in `Resources/GoF2Localization/extra_<lang>.json` (a { key: text } object, loaded with the
@@ -407,3 +433,184 @@ verified on a Mac or an iPhone.
 - Kaamo search (#315) starts read-only and inactive. Only primary click, F or controller Search activates entry. Hover/incidental focus cannot capture hangar keys. Enter, Escape, outside click, tab change and reopening end entry.
 
 - Kaamo numeric shortcuts follow visible order: 1 Ship, 2 Store, 3 Ships, 4 Blueprints when the extra tab is present. Ordinary hangars keep 1/2/3 and ignore 4. Cycling and tooltips use the same order.
+
+
+## Settings cleanup and proposed complete experience policy
+
+Conflict-resolution review: upstream currently starts with Original; this PR retains its proposed Remake defaults
+for maintainer review. Resolving merge conflicts does not imply agreement on that policy. The complete registry
+retains upstream's new presentation and combat options and the three flight styles.
+Kaamo's free UI preference joins the versioned experience migration (version 11), so an existing named preset
+does not turn Custom merely because the new preference was absent. Explicitly stored choices are retained.
+At this review's main (`4d5aa01a`), the map-speed, hostile-time-speedup, autocomplete and settings-layout
+prerequisites are already merged. Their implementation commits are not replayed in the rebased PR. The remaining
+unmerged dependency is #341; #346's own delta contains preset/reset policy, its tests and documentation.
+
+### Scope and dependency
+
+This change owns the Original/Remake policy tables, explicit Custom state, preset/reset behavior,
+compatible preference migration, and the welcome screen's use of the same tables. Menu organization
+already exists on main; it is not implemented again here. The VIP discount and free Kaamo UI option
+belong to #341. This change only assigns that option's preset values.
+
+Main already includes #297 (hostile time speedup), #299 (map animation), #316 (optional autocomplete)
+and #320 (settings organization). Their implementations and merge commits are not part of this change.
+Only #341 remains an unmerged prerequisite.
+
+Manual scoped edits remain Custom even when values return to a named policy. Only explicit Original/Remake
+selection reactivates a named preset. Gameplay Custom and Expand keep their existing shared consent action.
+Difficulty and Tools remain separate. A future difficulty editor may expose individual rules, with its own
+named/custom selection and save/session ownership; this change does not implement or rebalance it.
+
+### Complete current presets
+
+The source of truth is `Assets/Scripts/Runtime/Game/ExperiencePresets.cs`: 21 Cosmetic and 31 Gameplay values.
+Every built-in parameter in the corresponding scope has explicit values in both named presets. A coverage test
+rejects omissions. **Custom does not apply another value table:** it retains the player's choices. Selecting a
+named preset replaces every value in that scope, including parameters that are disabled or hidden in its UI.
+
+#### Cosmetic Experience
+
+| UI setting | Original | Remake | Stored key |
+| --- | --- | --- | --- |
+| Skip launch and arrival camera | Off | Off | `launchCamera` (inverted UI) |
+| Hangar arrival/take-off | Off | On | `hangarFlights` |
+| Animated dialogue | Off | On | `animatedDialogue` |
+| Auto-play dialogue | On | On | `autoAdvanceDialogue` |
+| Interface style | Remake | Remake | `originalUi` |
+| Tutorials | Off | Off | `tutorialHints` |
+| Button hints | On | On | `inputHints` |
+| Hint size | 100% | 100% | `hintScale` |
+| Shop category sorting | Off | On | `shopByCategory` |
+| Kaamo special UI features | Off | On | `kaamoSpecialUiFeatures` |
+| HUD mode | Full | Full | `hudMode` |
+| HUD size | 100% | 100% | `hudScale` |
+| HUD opacity | 100% | 100% | `hudOpacity` |
+| Hide salvage markers on dying ships | Off | Off | `dyingCargoMarkers` (inverted UI) |
+| Far-ship marker style | Original | Original | `farShipMarkers` |
+| Distance on ship markers | Off | On | `markerDistance` |
+| Interstellar distances | On | On | `interstellarDistance` |
+| System-map animation speed | 1× | 1× | `systemMapAnimationSpeed` |
+| 3D planets | Off | On | `rebuiltPlanets` |
+| Camera shake | 100% | 30% | `cameraShake` |
+| Remastered shield/cloak | Off | On | `remasteredEffects` |
+
+The legacy Original interface remains available as a manual Custom choice because its layout and usability are
+dated. Both named Cosmetic presets use Remake UI. A Gameplay preset does not change cosmetic preferences.
+
+#### Gameplay Experience
+
+| Group / setting | Original | Remake | Stored key |
+| --- | --- | --- | --- |
+| World: pirate events | Off | On | `pirateEvents` |
+| Capital ship enhancements | Off | On | `capitalShips` |
+| Derelict freighters | Off | On | `derelictWrecks` |
+| Station scale | 1× | 1× | `stationScale` |
+| Progression: repeated Kaamo upgrades | Off | On | `kaamoStacking` |
+| Kaamo upgrade limit | 5, inactive | 5 | `kaamoMaxLevel` |
+| Kaamo VIP membership | Off | Purchasable | `kaamoVip` |
+| Cloak bay | Off | On | `cloakBay` |
+| Stored ships keep equipment | Off | On | `kaamoKeepsEquipment` |
+| Blueprint autocomplete | Off | Off | `blueprintAutocomplete` |
+| Combat: cloak loses pursuers | Off | On | `cloakLosesPursuers` |
+| EMP breaks cloak | Off | On | `empBreaksCloak` |
+| Bomb arming distance | Off | On | `bombArming` |
+| Smarter NPC targeting | Off | On | `smarterNpcTargeting` |
+| NPC dogfighting | Original | GoF3 for requesting mod hulls | `npcDogfight` |
+| EVERSPACE 2 NPC aiming | Off | Off | `es2Aiming` |
+| EVERSPACE 2 NPC flight | Off | Off | `es2NpcFlight` |
+| Ship collision | Original | Mixed | `shipCollision` |
+| Smart target lock | Off | On | `originalTargetLock` (inverted UI) |
+| Keep enemy lock | Off | Off | `keepEnemyLock` |
+| Collision damage extension | Off | Off | `collisionDamage` |
+| Flight style | Original | Original | `flightStyle` |
+| Traversal: Fast-forward | Time speedup | Time speedup | `fastForwardCruise` |
+| Khador Slipstream | Off | On | `khadorSlipstream` |
+| Time speedup near hostiles | Off | Off | `hostileAutopilotFastForward` |
+| Autopilot takes jumpgates | On | On | `autoJumpgate` |
+| Missions: lenient informer missions | Off | On | `informerOriginalRule` (inverted UI) |
+| Game runs in conversations | Off | Off | `playOnInConversations` |
+| Mod ships in traffic | Off | 25% | `modShipTraffic` |
+| Turrets lead moving targets | Off | On | `turretLeadAim` |
+| Remake free look | Off | On | `remakeFreeLook` |
+
+With stacking off, Original permits one effective Kaamo upgrade; the stored limit accepts 2–20 and therefore
+remains 5 while inactive. Changing profiles never removes already purchased upgrade levels. VIP is a 1,000,000
+credit membership giving 20% off Kaamo mechanic upgrades only. Ship and equipment dealers, including Kaamo's,
+retain normal prices. Search/sort/browsing functionality is free. The proposal and rationale remain in #295.
+
+Both named Gameplay presets explicitly disable ES2 aiming/flight, collision damage extension, autocomplete,
+Free flight and Ship cruise. These can be enabled manually in Custom. Disabling the collision-damage extension
+retains original collision-damage rules; it does not mean every collision becomes harmless. Active mods' exposed
+Gameplay settings reset to their own declared defaults when a named Gameplay preset is selected.
+
+Joppie should polish the final UI and make the maintainer's own decision about Remake's composition. These are
+the reviewed current values, not a claim that the proposed balance is the only faithful interpretation.
+
+### Defaults and new-game behavior
+
+- Fresh installations explicitly select both Remake policies. Existing installations keep their preferences until
+  they explicitly select a preset or reset them; the fresh-install policy is not an old-save migration.
+- **Only this tab** resets the open tab. Cosmetics selects Cosmetic Remake; Gameplay selects Gameplay Remake.
+  The other experience scope and its label are preserved. Other tabs retain their own reset behavior.
+- **All tabs** resets all preference tabs and bindings, applies both Remake policies and retains text language.
+  Both reset paths bypass Expand/Custom consent; neither grants access to custom rules or enables Debug.
+- **Neither reset changes current-save difficulty.** Gameplay/all-tab reset disables story-step reporting,
+  speedrun timer, LiveSplit and Debug access. Experience presets themselves do not enable or reset Tools.
+- Sound, Controls, Bindings, Accessibility and Language remain outside the experience policies. Graphics keeps
+  rendering/performance settings and their tab-reset ownership. Only its presentation keys `rebuiltPlanets`,
+  `cameraShake` and `remasteredEffects` also participate in Cosmetic Experience.
+- The welcome choice uses the same scoped policies: Original = Original/Original; Cosmetic = Remake cosmetics
+  plus Original gameplay; Remake = Remake/Remake. This prevents an obsolete partial table leaving accidental Custom.
+- The existing new-game Tutorials and Capital ships buttons write the same keys as Cosmetics and Game Rules.
+  Editing them selects Custom in the appropriate scope. Starting the campaign preserves those choices and all
+  visual preferences. Difficulty is taken from the new-game difficulty choice, or from the save when loading.
+
+### Proposal: choose Gameplay Experience during new-game creation
+
+This is a follow-up proposal under #311, **not implemented save binding**.
+
+1. Add an explicit **Gameplay Experience: Original / Remake / Custom** choice to the existing new-game options
+   step, alongside the existing campaign, difficulty and economy flow. Display or expand its actual Game Rules.
+   Reuse the canonical policy table; do not create a second set of defaults in `MainMenuNewGame`.
+2. Keep a draft configuration for the prospective playthrough. Manual rule changes select Custom; changing a
+   named preset replaces all draft rules. Back/Cancel discards the draft rather than altering another saved game's
+   effective rules. Start commits the selected draft to the new session. Keep cosmetics as personal preferences,
+   with an optional route to Cosmetics rather than duplicating its controls in game creation.
+3. Keep Difficulty and Economy explicitly separate. Do not make an experience reset change either. Consider
+   independently customizable difficulty parameters later, with a clear named/custom label and save/session ownership.
+
+### Proposal: persist concrete playthrough rules with saves
+
+Saving only a profile name is insufficient: changing the Remake table later must not silently rebalance existing
+playthroughs. Prefer a versioned concrete rule snapshot, plus optional source-profile ID/revision for provenance.
+
+- Personal Cosmetics, accessibility, input settings and Tools stay global. Difficulty and economy already belong
+  to the game; retain their existing persistence. Do not duplicate multiplayer authority: adapt the current
+  `SessionRules` / host-rule mechanism to the loaded snapshot. Clients use the host's effective rules.
+- Define deliberate in-progress rule overrides and when each takes effect: immediately, next docking or next orbit.
+  An override selects Custom. It must not automatically enable cheats, change NoMedals, reset statistics/visits,
+  remove purchased upgrades or charge/refund credits.
+- Legacy saves need an explicit migration policy for absent fields. Do not apply today's Remake policy to every old
+  or imported save. Preserve recorded state and known legacy semantics; surface unresolved choices without inventing
+  historical values. Unknown schema/profile IDs need validated fallbacks. Original-game export cannot represent
+  arbitrary remake rules; document what is preserved, omitted or explicitly rejected.
+- New Game+ should retain its source game's rule snapshot unless the player explicitly selects another configuration
+  for the new run. Preserve purchased VIP membership and upgrade levels independently of feature availability.
+- Use stable mod IDs and option keys. Specify behavior when mods are disabled, missing, updated or re-enabled;
+  preserve unknown stored data without activating code unexpectedly. A mod's default must not silently rewrite an
+  existing saved snapshot after an update.
+- Check host/co-op saves, import/export, synchronization and save-folder changes before choosing a schema.
+- Required tests include two saves with different rules while global preferences change, restart/load, older saves,
+  preset revisions, unknown fields/IDs, mods removed/re-enabled, New Game+, original import/export, host/client
+  authority, draft cancellation, and rule application timing. Cover both interface styles and all UI languages.
+
+### Validation record
+
+The conflict-resolved combined sources passed 207/207 targeted EditMode tests and 7/7 PlayMode tests.
+Coverage includes preset/reset behavior, main's added presentation/combat settings, Chorus selection and
+bindings, VIP prices, Kaamo UI/input, the welcome screen and campaign creation. The standalone VIP head
+passed 124/124 targeted EditMode tests separately. Manual review remains required before merging; these checks are not a standalone
+player build or a new save-binding implementation.
+
+Assisted-by: OpenAI Codex

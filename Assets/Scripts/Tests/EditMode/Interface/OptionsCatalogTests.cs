@@ -442,11 +442,12 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void AndroidStartsOnTheLowPresetAt60FpsWithOriginalCollision()
+        public void AndroidFallbackUsesLowGraphicsAt60FpsWithOriginalCollision()
         {
             try
             {
                 Settings.ResetToDefaults();
+                Settings.Reset(Settings.GameplayKeys); // test fresh preference fallbacks, without an explicit Remake selection
                 Settings.OverrideAndroidDefaults(true);
                 Assert.AreEqual(Settings.PresetLow, OptionsCatalog.CurrentPreset(), "every preset option at Low");
                 Assert.AreEqual(FrameRate.Fps60, Settings.FrameRate);
@@ -500,7 +501,7 @@ namespace GoF2Remake.Tests
             var row = OptionsCatalog.All().Single(o => o.id == "originalUi");
             Assert.AreEqual(OptionPage.Cosmetics, row.page);
             Assert.AreEqual(OptionSection.Interface, row.section);
-            StringAssert.Contains("Select it manually", row.description());
+            StringAssert.Contains("manual Custom option", row.description());
             StringAssert.Contains("Cosmetic Experience", row.description());
             row.setIndex(1);
             Settings.Reset(Settings.GraphicsKeys);
@@ -510,7 +511,7 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void OriginalExperienceStillDefaultsToRemakeUiAndPreservesManualStyle()
+        public void NamedCosmeticPresetsSelectRemakeUiAndManualStyleSelectsCustom()
         {
             Settings.Reset(new[] { "originalUi" });
             Settings.ApplyExperience(Settings.ExperienceOriginal);
@@ -518,9 +519,12 @@ namespace GoF2Remake.Tests
             Settings.ApplyScopedExperience(false, 0);
             Assert.IsFalse(Settings.OriginalUi, "Original gameplay never forces the old interface");
             Settings.OriginalUi = true;
+            Assert.AreEqual(2, Settings.CurrentScopedExperience(true));
+            Settings.ApplyScopedExperience(false, 1);
+            Assert.IsTrue(Settings.OriginalUi, "Gameplay leaves cosmetic choices alone");
             Settings.ApplyExperience(Settings.ExperienceOriginal);
             Settings.ApplyScopedExperience(false, 1);
-            Assert.IsTrue(Settings.OriginalUi, "the old interface remains an explicit independent preference");
+            Assert.IsFalse(Settings.OriginalUi, "named Cosmetics reset every cosmetic parameter; legacy UI is Custom-only");
         }
 
         [TestCase(false)] [TestCase(true)]
@@ -626,9 +630,43 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(OptionSection.GameRules, OptionsCatalog.All().Single(o => o.id == "kaamoVip").section);
         }
 
+        [Test]
+        public void GameplayPresetsOptIntoVipOnlyForRemake()
+        {
+            var gameplay = OptionsCatalog.All().Single(o => o.id == "gameplayExperience");
+            gameplay.setIndex(1);
+            Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode);
+            bool pirates = Settings.PirateEvents;
+            gameplay.setIndex(2);
+            Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode, "Custom preserves VIP too");
+            Assert.AreEqual(pirates, Settings.PirateEvents, "Custom preserves other rules");
+            gameplay.setIndex(0);
+            Assert.AreEqual(Settings.KaamoVipOff, Settings.KaamoVipMode);
+        }
 
-
-
+        [Test]
+        public void CosmeticPresetsControlKaamoToolsAndStyleWithoutChangingVip()
+        {
+            Settings.KaamoVipMode = Settings.KaamoVipAlways;
+            Settings.OriginalUi = true;
+            Settings.ApplyScopedExperience(true, 0);
+            Assert.IsFalse(Settings.KaamoSpecialUiFeatures);
+            Assert.AreEqual(0, Settings.CurrentScopedExperience(true));
+            Assert.IsFalse(Settings.OriginalUi, "legacy style requires a manual Custom override");
+            Assert.AreEqual(Settings.KaamoVipAlways, Settings.KaamoVipMode, "cosmetics cannot change paid benefits");
+            Settings.KaamoSpecialUiFeatures = true;
+            Assert.AreEqual(2, Settings.CurrentScopedExperience(true), "an override is Custom");
+            Settings.ApplyScopedExperience(true, 2);
+            Assert.IsTrue(Settings.KaamoSpecialUiFeatures, "Custom preserves the override");
+            Settings.ApplyScopedExperience(true, 1);
+            Assert.IsTrue(Settings.KaamoSpecialUiFeatures);
+            Assert.AreEqual(1, Settings.CurrentScopedExperience(true));
+            Settings.KaamoSpecialUiFeatures = false;
+            Assert.AreEqual(2, Settings.CurrentScopedExperience(true));
+            Settings.ApplyScopedExperience(false, 1);
+            Assert.IsFalse(Settings.KaamoSpecialUiFeatures, "Gameplay preset cannot change cosmetic tools");
+            Assert.IsFalse(Settings.OriginalUi);
+        }
 
     }
 }

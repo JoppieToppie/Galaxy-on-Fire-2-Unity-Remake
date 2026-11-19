@@ -1,5 +1,5 @@
 // Options > Gameplay "Game experience" (Settings.ApplyExperience / CurrentExperience / MigrateExperienceDefaults, 2026-11-04):
-// Original by default, Cosmetic and Remake at once, Custom after any one change, and an install played before keeps its options.
+// Fresh installs select Remake in both scopes; existing installs keep their options.
 
 using System.Linq;
 using GoF2Remake.Data;
@@ -25,18 +25,20 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void AFreshInstallPlaysTheOriginal()
+        public void AFreshInstallSelectsRemakeInBothScopes()
         {
             NothingStored();
-            Assert.AreEqual(Settings.ExperienceOriginal, Settings.CurrentExperience(), "every option's default is the original's");
-            Assert.IsFalse(Settings.HangarFlights);
-            Assert.IsFalse(Settings.KhadorSlipstream);
-            Assert.IsTrue(Settings.OriginalTargetLock);
-            Assert.AreEqual(SessionRules.CollisionOriginal, Settings.ShipCollision);
             Settings.MigrateExperienceDefaults();
             Assert.IsTrue(Settings.FreshInstall);
-            Assert.AreEqual(Settings.ExperienceOriginal, Settings.CurrentExperience(), "the migration stores nothing for it");
+            Assert.AreEqual(1, Settings.CurrentScopedExperience(true));
+            Assert.AreEqual(1, Settings.CurrentScopedExperience(false));
+            Assert.IsTrue(Settings.HangarFlights && Settings.KhadorSlipstream);
+            Assert.IsFalse(Settings.FastForwardCruise || Settings.PlayOnInConversations || Settings.KeepEnemyLock);
             Assert.IsFalse(Settings.WelcomeShown);
+            Settings.HangarFlights = false;
+            Settings.MigrateExperienceDefaults();
+            Assert.AreEqual(2, Settings.CurrentScopedExperience(true), "a later startup preserves manual Custom");
+            Assert.IsFalse(Settings.HangarFlights);
         }
 
         [Test]
@@ -67,7 +69,7 @@ namespace GoF2Remake.Tests
             Settings.CapitalShips = false;
             Assert.AreEqual(Settings.ExperienceCustom, Settings.CurrentExperience());
             Settings.CapitalShips = true;
-            Assert.AreEqual(Settings.ExperienceRemake, Settings.CurrentExperience());
+            Assert.AreEqual(Settings.ExperienceCustom, Settings.CurrentExperience(), "manual edits stay Custom until a named preset is selected");
             Settings.ApplyExperience(Settings.ExperienceOriginal);
             Settings.LaunchCamera = false;
             Assert.AreEqual(Settings.ExperienceCustom, Settings.CurrentExperience(), "the original's own features count too");
@@ -80,7 +82,7 @@ namespace GoF2Remake.Tests
             var row = OptionsCatalog.All().First(o => o.id == "cosmeticExperience");
             var gameplay = OptionsCatalog.All().First(o => o.id == "gameplayExperience");
             Assert.AreEqual(3, row.choices().Length, "Original, Remake, Custom");
-            Assert.AreEqual(2, row.getIndex(), "fresh scoped settings have no explicitly selected preset");
+            Assert.AreEqual(2, row.getIndex(), "free Kaamo tools default on; the Original preset requires them off");
             row.setIndex(1);
             Assert.AreEqual(1, row.getIndex());
             Assert.AreEqual(2, gameplay.getIndex(), "cosmetics do not activate a gameplay preset");
@@ -162,6 +164,24 @@ namespace GoF2Remake.Tests
             Settings.HangarFlights = false;
             Settings.MigrateExperienceDefaults();
             Assert.IsFalse(Settings.HangarFlights, "once only");
+        }
+        [Test]
+        public void LegacyRemakeMigrationSeedsMissingOptionsWithoutRebalancingStoredRules()
+        {
+            NothingStored();
+            foreach (var key in Settings.ExperienceKeys)
+                PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + key, Settings.ExperienceValue(Settings.ExperienceRemake, key));
+            PlayerPrefs.DeleteKey(DataUiTestKit.SettingsPrefix + "bombArming");
+            PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "experienceDefaults", 1f);
+            DataUiTestKit.ClearSettingsCache();
+            Settings.MigrateExperienceDefaults();
+            Assert.IsTrue(Settings.BombArming);
+            Assert.IsTrue(Settings.KeepEnemyLock && Settings.FastForwardCruise && Settings.PlayOnInConversations,
+                "the release's historical Remake values must not be overwritten by the new named policy");
+            Assert.AreEqual(2, Settings.CurrentScopedExperience(false));
+            Settings.ApplyScopedExperience(false, 1);
+            Assert.IsFalse(Settings.KeepEnemyLock || Settings.FastForwardCruise || Settings.PlayOnInConversations,
+                "only explicit selection applies today's complete Remake policy");
         }
     }
 }

@@ -655,13 +655,11 @@ namespace GoF2Remake.Data
 
         // ---- game experience (remake, the user's request 2026-11-04) --------------------------------------------------
 
-        /// <summary>Options > Gameplay "Game experience" (and the welcome screen's choice): Original = the game as it was,
-        /// every remake feature off (every option's default, so a fresh install plays the original); Cosmetic = that plus the
-        /// remake's presentation (hangar flights, animated dialogue); Remake = every addition on. The row shows the preset the
-        /// options match, else Custom (picking it sets nothing), so changing one option makes it Custom, like the graphics
-        /// preset. Off / the first choice is always the original's.</summary>
+        /// <summary>Legacy combined experience IDs and historical values for migration. Active policies and scoped
+        /// selectors use ExperiencePresets; manual changes retain Custom until a named policy is explicitly selected.</summary>
         public const int ExperienceOriginal = 0, ExperienceCosmetic = 1, ExperienceRemake = 2, ExperienceCustom = 3;
 
+        // Historical columns for migration only. Active named policies live in ExperiencePresets.
         public static readonly string[] ExperienceKeys =
         {
             "launchCamera", "dyingCargoMarkers", "hangarFlights", "animatedDialogue", "pirateEvents", "capitalShips",
@@ -670,6 +668,7 @@ namespace GoF2Remake.Data
             "khadorSlipstream", "markerDistance", "bombArming", "derelictWrecks",
             "rebuiltPlanets", "cameraShake", "remasteredEffects", "blueprintAutocomplete", "hostileAutopilotFastForward",
             "turretLeadAim", "remakeFreeLook",
+            "kaamoSpecialUiFeatures",
         };
 
         // One row per preset, in ExperienceKeys' order. The first two are the original's own features (on everywhere; turned
@@ -677,94 +676,88 @@ namespace GoF2Remake.Data
         static readonly float[][] Experiences =
         {
             //      launch cargo hangar anim pirate capital stack keep vip     bay informerO lockO keepLock cloakLoses emp smartNpc collision  conv cruise slip distance bombArming derelicts
-            //      planets3D shake remasteredFx autocomplete hostileSpeedup turretLead freeLook
+            //      planets3D shake remasteredFx autocomplete hostileSpeedup turretLead freeLook kaamoUi
             new[] { 1f, 1f, 0f, 0f, 0f, 0f, 0f, 0f, KaamoVipOff,  0f, 1f, 1f, 1f, 0f, 0f, 0f, R.CollisionOriginal, 0f, 0f, 0f, 0f, 0f, 0f,
-                    0f, 1f, 0f, 0f, 0f, 0f, 0f },
+                    0f, 1f, 0f, 0f, 0f, 0f, 0f, 0f },
             new[] { 1f, 1f, 1f, 1f, 0f, 0f, 0f, 0f, KaamoVipOff,  0f, 1f, 1f, 1f, 0f, 0f, 0f, R.CollisionOriginal, 0f, 0f, 0f, 0f, 0f, 0f,
-                    1f, 0.3f, 1f, 0f, 0f, 0f, 0f },
+                    1f, 0.3f, 1f, 0f, 0f, 0f, 0f, 1f },
             new[] { 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, KaamoVipCard, 1f, 0f, 0f, 1f, 1f, 1f, 1f, R.CollisionMixed,    1f, 1f, 1f, 1f, 1f, 1f,
-                    1f, 0.3f, 1f, 1f, 1f, 1f, 1f },
+                    1f, 0.3f, 1f, 1f, 1f, 1f, 1f, 1f },
         };
 
         /// <summary>'key''s value in 'experience' (ExperienceOriginal..ExperienceRemake).</summary>
         public static float ExperienceValue(int experience, string key) =>
             Experiences[Mathf.Clamp(experience, 0, Experiences.Length - 1)][Array.IndexOf(ExperienceKeys, key)];
 
-        /// <summary>Independent UI presets: 0 Original, 1 Remake, 2 Custom. Reuse the existing explicit preset values.</summary>
+        /// <summary>Independent complete policies: 0 Original, 1 Remake, 2 Custom. Tools and save difficulty are separate.</summary>
         public static bool CustomGameplayExperience => GetBool("gameplayExperienceCustom", true);
         public static bool CustomCosmeticExperience => GetBool("cosmeticExperienceCustom", true);
         public static void SelectCustomExperience(bool cosmetics) => SetBool(cosmetics ? "cosmeticExperienceCustom" : "gameplayExperienceCustom", true);
         public static void SelectCustomGameplayExperience() => SelectCustomExperience(false);
-
-        /// <summary>The scoped experience 'key' belongs to: Gameplay its GameplayKeys, Cosmetic its CosmeticsKeys and the
-        /// Graphics page's experience options (3D planets, camera shake, the remastered effects: presentation).</summary>
-        static bool InScope(string key, bool cosmetics) => cosmetics
-            ? Array.IndexOf(CosmeticsKeys, key) >= 0 || Array.IndexOf(GraphicsKeys, key) >= 0
-            : Array.IndexOf(GameplayKeys, key) >= 0;
 
         public static int CurrentScopedExperience(bool cosmetics)
         {
             if (cosmetics ? CustomCosmeticExperience : CustomGameplayExperience) return 2;
             for (int choice = 0; choice < 2; choice++)
             {
-                int preset = choice == 0 ? ExperienceOriginal : ExperienceRemake;
                 bool matches = true;
-                foreach (var key in ExperienceKeys)
-                    if (InScope(key, cosmetics) && !Mathf.Approximately(StoredExperienceValue(key), ExperienceValue(preset, key)))
+                foreach (var value in ExperiencePresets.ForScope(cosmetics))
+                    if (!Mathf.Approximately(StoredScopedValue(value), value.ForChoice(choice)))
                     { matches = false; break; }
-                if (cosmetics && ShopByCategory != (choice == 1)) matches = false;
                 if (matches) return choice;
             }
             return 2;
         }
+
+        static float StoredScopedValue(ExperiencePresets.Value value) => value.Key switch
+        {
+            "shipCollision" => LocalCollision,
+            "npcDogfight" => LocalDogfight,
+            "kaamoMaxLevel" => LocalKaamoLevel(),
+            _ => Get(value.Key, value.Original),
+        };
 
         public static void ApplyScopedExperience(bool cosmetics, int choice)
         {
             if (choice == 2) { SelectCustomExperience(cosmetics); return; }
             if (choice < 0 || choice > 1) return;
             SetQuiet(cosmetics ? "cosmeticExperienceCustom" : "gameplayExperienceCustom", 0f);
-            int preset = choice == 0 ? ExperienceOriginal : ExperienceRemake;
-            foreach (var key in ExperienceKeys)
-                if (InScope(key, cosmetics)) SetQuiet(key, ExperienceValue(preset, key));
-            if (cosmetics) SetQuiet("shopByCategory", choice);
+            foreach (var value in ExperiencePresets.ForScope(cosmetics)) SetQuiet(value.Key, value.ForChoice(choice));
+            if (!cosmetics) Modding.ModGameOptions.ResetSettings();
             PlayerPrefs.Save();
             if (!cosmetics) NotifyExperienceRules();
             Changed?.Invoke();
         }
 
-        /// <summary>Sets every option of 'experience' (ExperienceOriginal..ExperienceRemake; Custom does nothing), one Changed.
-        /// The session rules among them go through their setters, so a player host's session follows.</summary>
+        /// <summary>The welcome screen's combined choice, using the same complete policies as the scoped selectors.
+        /// Cosmetic means Remake presentation with Original gameplay. Custom leaves both scopes unchanged.</summary>
         public static void ApplyExperience(int experience)
         {
             if (experience < 0 || experience >= Experiences.Length) return;
-            SetQuiet("gameplayExperienceCustom", 0f);
-            SetQuiet("cosmeticExperienceCustom", 0f);
-            for (int i = 0; i < ExperienceKeys.Length; i++) SetQuiet(ExperienceKeys[i], Experiences[experience][i]);
-            PlayerPrefs.Save();
-            NotifyExperienceRules();
-            Changed?.Invoke();
+            ApplyScopedExperience(true, experience == ExperienceOriginal ? 0 : 1);
+            ApplyScopedExperience(false, experience == ExperienceRemake ? 1 : 0);
         }
 
         static void NotifyExperienceRules()
         {
             int rules = LocalRules();
             foreach (int bit in new[] { R.CloakLosesPursuers, R.PirateEvents, R.CapitalShips, R.InformerOriginalRule, R.KaamoStacking,
-                                        R.KaamoKeepsEquipment, R.CloakBay, R.EmpBreaksCloak, R.SmarterNpcTargeting, R.DerelictWrecks })
+                                        R.KaamoKeepsEquipment, R.CloakBay, R.EmpBreaksCloak, R.SmarterNpcTargeting, R.DerelictWrecks,
+                                        R.Es2Aiming, R.Es2NpcFlight, R.DogfightOriginal, R.DogfightEvery, R.DogfightEs2 })
                 GameHooks.RuleChangedByHost?.Invoke(bit, (rules & bit) != 0);
             int collision = LocalCollision;
             GameHooks.RuleChangedByHost?.Invoke(R.PreciseShipCollision, collision == R.CollisionExact);
             GameHooks.RuleChangedByHost?.Invoke(R.OriginalCollision, collision == R.CollisionOriginal);
+            GameHooks.KaamoLevelChangedByHost?.Invoke(LocalKaamoLevel());
         }
 
-        /// <summary>The preset the player's own options match, else ExperienceCustom (the stored values, not a session's).</summary>
+        /// <summary>The combined explicitly selected policies, or Custom after manual scoped changes.</summary>
         public static int CurrentExperience()
         {
-            for (int e = 0; e < Experiences.Length; e++)
-            {
-                bool all = true;
-                for (int i = 0; i < ExperienceKeys.Length && all; i++) all = Mathf.Approximately(StoredExperienceValue(ExperienceKeys[i]), Experiences[e][i]);
-                if (all) return e;
-            }
+            int cosmetics = CurrentScopedExperience(true), gameplay = CurrentScopedExperience(false);
+            if (cosmetics == 0 && gameplay == 0) return ExperienceOriginal;
+            if (cosmetics == 1 && gameplay == 0) return ExperienceCosmetic;
+            if (cosmetics == 1 && gameplay == 1) return ExperienceRemake;
             return ExperienceCustom;
         }
 
@@ -780,22 +773,23 @@ namespace GoF2Remake.Data
         /// ExperienceKeys' order: MigrateExperienceDefaults keeps them for a player who played before.</summary>
         static readonly float[] DefaultsBefore =
             { 1f, 1f, 1f, 1f, 1f, 0f, 1f, 1f, KaamoVipCard, 1f, 0f, 0f, 1f, 0f, 1f, 0f, R.CollisionMixed, 0f, 0f, 1f, 0f, 0f, 0f,
-              0f, 1f, 0f, 1f, 0f, 0f, 0f };   // (blueprint autocomplete was always on then)
+              0f, 1f, 0f, 1f, 0f, 0f, 0f, 1f };   // (blueprint autocomplete was always on then)
         const string ExperienceVersionKey = "experienceDefaults";
         /// <summary>The migration's version: 2 = the experience options added after the presets (AddedExperienceKeys), one
         /// more for each of them after the first.</summary>
-        const float ExperienceVersion = 10f;
+        const float ExperienceVersion = 11f;
         /// <summary>Experience options added after 2026-11-04's presets, oldest first.</summary>
         static readonly string[] AddedExperienceKeys =
         {
             "bombArming", "derelictWrecks",
             "rebuiltPlanets", "cameraShake", "remasteredEffects", "blueprintAutocomplete", "hostileAutopilotFastForward",
             "turretLeadAim", "remakeFreeLook",
+            "kaamoSpecialUiFeatures",
         };
 
         /// <summary>Once (Bootstrap, before any option is read): an install that was played before the Original experience
         /// became the default keeps what it played with: every experience option it never set is stored at its old default
-        /// (Android's collision stays Original). A fresh install stores nothing and so plays the original.</summary>
+        /// (Android's collision stays Original). This PR proposes Remake for both scopes on a fresh install.</summary>
         public static void MigrateExperienceDefaults()
         {
             if (PlayerPrefs.HasKey(Prefix + ExperienceVersionKey))
@@ -806,12 +800,7 @@ namespace GoF2Remake.Data
                 PlayerPrefs.Save();
                 return;
             }
-            if (!PlayedBefore())
-            {
-                SetQuiet("gameplayExperienceCustom", 0f);   // (nothing set: every option at its default, the original's)
-                SetQuiet("cosmeticExperienceCustom", 0f);
-            }
-            else
+            if (PlayedBefore())
             {
                 PlayerPrefs.SetFloat(Prefix + PlayedKey, 1f);
                 for (int i = 0; i < ExperienceKeys.Length; i++)
@@ -824,6 +813,11 @@ namespace GoF2Remake.Data
                             : AndroidDefaults ? R.CollisionOriginal : old;
                     SetQuiet(key, old);
                 }
+            }
+            else
+            {
+                ApplyScopedExperience(true, 1);
+                ApplyScopedExperience(false, 1);
             }
             PlayerPrefs.SetFloat(Prefix + ExperienceVersionKey, ExperienceVersion);
             PlayerPrefs.Save();
@@ -849,6 +843,27 @@ namespace GoF2Remake.Data
                 foreach (var key in AddedExperienceKeys)
                     if (!PlayerPrefs.HasKey(Prefix + key)) SetQuiet(key, Experiences[e][Array.IndexOf(ExperienceKeys, key)]);
                 return;
+            }
+
+            // A profile selected under the complete policy can also need an added preference. Keep historical
+            // matching above for old releases; never rewrite their stored rules to match today's policy.
+            foreach (bool cosmetics in new[] { true, false })
+            {
+                if (cosmetics ? CustomCosmeticExperience : CustomGameplayExperience) continue;
+                for (int choice = 0; choice < 2; choice++)
+                {
+                    bool matches = true;
+                    foreach (var value in ExperiencePresets.ForScope(cosmetics))
+                    {
+                        if (Array.IndexOf(AddedExperienceKeys, value.Key) >= 0 && !PlayerPrefs.HasKey(Prefix + value.Key)) continue;
+                        if (!Mathf.Approximately(StoredScopedValue(value), value.ForChoice(choice))) { matches = false; break; }
+                    }
+                    if (!matches) continue;
+                    foreach (var value in ExperiencePresets.ForScope(cosmetics))
+                        if (Array.IndexOf(AddedExperienceKeys, value.Key) >= 0 && !PlayerPrefs.HasKey(Prefix + value.Key))
+                            SetQuiet(value.Key, value.ForChoice(choice));
+                    break;
+                }
             }
         }
 
@@ -1042,7 +1057,7 @@ namespace GoF2Remake.Data
         public static int ScreenCutout { get => Mathf.Clamp(Mathf.RoundToInt(Get("screenCutout", ScreenCutoutClear)), ScreenCutoutClear, ScreenCutoutFull); set => Set("screenCutout", Mathf.Clamp(value, ScreenCutoutClear, ScreenCutoutFull)); }
 
         /// <summary>Remake (#40): the story step at the bottom right (StoryStepLabel), for bug reports; off by default.</summary>
-        public static bool ShowStoryStep { get => GetBool("showStoryStep", true); set => SetBool("showStoryStep", value); }
+        public static bool ShowStoryStep { get => GetBool("showStoryStep", false); set => SetBool("showStoryStep", value); }
 
         public static int SystemMapAnimationSpeed
         {
@@ -1136,15 +1151,32 @@ namespace GoF2Remake.Data
             Changed?.Invoke();
         }
 
-        /// <summary>"Default settings" (497), every tab: every option back to its default and the key bindings, the language
-        /// kept. (Before, a list from the early options: 19 later ones, animated dialogue, hangar flights and shadows, mouse
-        /// steering, Show FPS, the target lock... were never reset.)</summary>
+        /// <summary>Reset one experience scope and explicitly select its current Remake preset.</summary>
+        public static void ResetExperienceToRemake(bool cosmetics)
+        {
+            Reset(cosmetics ? CosmeticsKeys : GameplayKeys);
+            if (!cosmetics) DisableDefaultTools();
+            ApplyScopedExperience(cosmetics, 1);
+        }
+
+        static void DisableDefaultTools()
+        {
+            SetQuiet("showStoryStep", 0f);
+            SetQuiet("speedrunTimer", 0f);
+            SetQuiet("speedrunLiveSplit", 0f);
+            Cheats.Unlocked = false;
+            Speedrun.Reset();
+        }
+
         public static void ResetToDefaults()
         {
             GameHooks.ResetControls?.Invoke();
             var all = new List<string>();
             foreach (var group in new[] { SoundKeys, GraphicsKeys, ControlsKeys, GameplayKeys, CosmeticsKeys, AccessibilityKeys, LanguageKeys }) all.AddRange(group);
             Reset(all);
+            DisableDefaultTools();
+            ApplyScopedExperience(true, 1);
+            ApplyScopedExperience(false, 1);
             Modding.ModGameOptions.ResetSettings();   // the mods' gameplay settings (gameoptions.json "setting")
         }
 
@@ -1187,8 +1219,8 @@ namespace GoF2Remake.Data
         {
             if (!force && Mathf.Approximately(PlayerPrefs.GetFloat(Prefix + key, float.NaN), value)) return;
             SetQuiet(key, value);
-            if (key != "cosmeticExperienceCustom" && Array.IndexOf(CosmeticsKeys, key) >= 0) SetQuiet("cosmeticExperienceCustom", 1f);
-            if (key != "gameplayExperienceCustom" && Array.IndexOf(GameplayKeys, key) >= 0) SetQuiet("gameplayExperienceCustom", 1f);
+            if (ExperiencePresets.Contains(true, key)) SetQuiet("cosmeticExperienceCustom", 1f);
+            if (ExperiencePresets.Contains(false, key)) SetQuiet("gameplayExperienceCustom", 1f);
             PlayerPrefs.Save();
             Changed?.Invoke();
         }
