@@ -50,6 +50,8 @@ namespace GoF2Remake.Multiplayer
         public string dryDockBuilderProfile;
         /// <summary>When enabled, members of the owner's current faction may use station storage and hangar.</summary>
         public bool factionStorageAccess;
+        public List<PlayerStationContribution> constructionContributions = new List<PlayerStationContribution>();
+        public PlayerStationTransferProposal pendingTransfer;
     }
 
     [Serializable]
@@ -58,6 +60,25 @@ namespace GoF2Remake.Multiplayer
         public int item;
         public int required;
         public int delivered;
+    }
+
+    [Serializable]
+    public sealed class PlayerStationContribution
+    {
+        public string contributorProfile;
+        public int item;
+        public int amount;
+        public long contributedUtc;
+    }
+
+    [Serializable]
+    public sealed class PlayerStationTransferProposal
+    {
+        public PlayerStationOwnershipType targetType;
+        public string targetProfile;
+        public string targetFactionId;
+        public string proposedBy;
+        public long expiresUtc;
     }
 
     [Serializable]
@@ -135,6 +156,7 @@ namespace GoF2Remake.Multiplayer
                 station.addons ??= new List<PlayerStationAddon>();
                 station.materials ??= new List<PlayerStationMaterial>();
                 station.listings ??= new List<PlayerStationListing>();
+                station.constructionContributions ??= new List<PlayerStationContribution>();
                 station.storage ??= new List<PlayerStationStorage>();
                 station.storedShips ??= new List<StoredShip>();
                 station.dryDockShips ??= new List<StoredShip>();
@@ -164,6 +186,7 @@ namespace GoF2Remake.Multiplayer
                     station.addons ??= new List<PlayerStationAddon>();
                     station.materials ??= new List<PlayerStationMaterial>();
                     station.listings ??= new List<PlayerStationListing>();
+                    station.constructionContributions ??= new List<PlayerStationContribution>();
                     station.storage ??= new List<PlayerStationStorage>();
                     station.storedShips ??= new List<StoredShip>();
                     station.dryDockShips ??= new List<StoredShip>();
