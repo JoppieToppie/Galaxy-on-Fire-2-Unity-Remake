@@ -37,7 +37,6 @@ namespace GoF2Remake.Multiplayer
             {
                 if (string.Equals(account, targetAccount, StringComparison.Ordinal))
                     return "The station is already owned by that profile.";
-                if (string.IsNullOrEmpty(targetAccount)) return "The receiving profile could not be identified. Supply a valid profile ID or account name.";
                 record.pendingTransfer = new PlayerStationTransferProposal
                 {
                     targetType = PlayerStationOwnershipType.Individual,
