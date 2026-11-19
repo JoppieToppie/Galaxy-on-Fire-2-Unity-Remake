@@ -135,12 +135,11 @@ namespace GoF2Remake.Multiplayer
             if (faction == null) return Localization.Extra("mpFactionNone", "You aren't in a faction.");
             if (faction.leader == me && faction.members.Count > 1)
                 return Localization.Extra("mpFactionLeaderLeave", "Hand the faction over first (/faction leader <pilot>), or /faction disband.");
-            if (faction.leader == me && NetPlayerStations.HasFactionOwnedStations(faction.id))
-                return "This faction owns player-built stations. Transfer every station to a nominated player or successor faction before leaving or disbanding; use /station transfer <id> player|faction <recipient account id>.";
             if (faction.leader == me && faction.members.Count == 1 && NetPlayerStations.HasFactionMarketplaceClaims(faction.id))
                 return "This faction is still named as the payout destination for active station listings. Complete or cancel those listings before leaving.";
-            Remove(faction, me);
-            return Localization.Extra("mpFactionYouLeft", "You left the faction.");
+            return Remove(faction, me)
+                ? Localization.Extra("mpFactionYouLeft", "You left the faction.")
+                : "Your faction could not be dissolved safely because its station ownership changes could not be saved.";
         }
         static string Kick(string me, string who)
         {
@@ -152,8 +151,8 @@ namespace GoF2Remake.Multiplayer
             if (target == faction.leader || (faction.officers.Contains(target) && faction.leader != me))
                 return Localization.Extra("mpFactionKickRank", "Only the leader can remove an officer, and nobody the leader.");
             Tell(target, string.Format(Localization.Extra("mpFactionKicked", "You were removed from the faction [{0}]."), faction.tag));
-            Remove(faction, target);
-            return "";
+            return Remove(faction, target) ? "" :
+                "The member could not be removed because the faction's final station ownership changes could not be saved.";
         }
         static string SetOfficer(string me, string who, bool on)
         {
@@ -184,10 +183,10 @@ namespace GoF2Remake.Multiplayer
         {
             var faction = Of(me);
             if (faction == null || faction.leader != me) return Localization.Extra("mpFactionNotLeader", "Only the faction's leader can do that.");
-            if (NetPlayerStations.HasFactionOwnedStations(faction.id))
-                return "This faction still owns player-built stations. Nominate a player or successor faction and complete a station transfer for each one before disbanding.";
             if (NetPlayerStations.HasFactionMarketplaceClaims(faction.id))
                 return "This faction is still named as the payout destination for active station listings. Complete or cancel those listings before disbanding.";
+            if (!NetPlayerStations.ResolveFactionDissolution(faction.id))
+                return "Faction dissolution was cancelled because station ownership could not be saved safely.";
             TellFaction(faction, string.Format(Localization.Extra("mpFactionDisbanded", "The faction [{0}] {1} was disbanded."), faction.tag, faction.name));
             var members = new List<string>(faction.members);
             int claimsBefore = list.claims.Count;
@@ -242,8 +241,11 @@ namespace GoF2Remake.Multiplayer
             return sb.ToString();
         }
         /// <summary>A member out of the faction (left, kicked, profile deleted); an emptied faction ends, a leaderless one passes on.</summary>
-        static void Remove(Faction faction, string account)
+        static bool Remove(Faction faction, string account)
         {
+            if (faction == null || string.IsNullOrEmpty(account)) return false;
+            if (faction.members.Count == 1 && !NetPlayerStations.ResolveFactionDissolution(faction.id))
+                return false;
             faction.members.Remove(account);
             faction.officers.Remove(account);
             invites.Remove(account);
@@ -266,6 +268,7 @@ namespace GoF2Remake.Multiplayer
             }
             Save();
             RefreshTags(account);
+            return true;
         }
         /// <summary>NetProfiles: a profile was deleted.</summary>
         public static void OnAccountDeleted(string account)
