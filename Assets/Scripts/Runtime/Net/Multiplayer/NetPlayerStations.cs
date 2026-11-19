@@ -161,16 +161,27 @@ namespace GoF2Remake.Multiplayer
             public int nextId = 1;
             public List<PlayerStationRecord> stations = new List<PlayerStationRecord>();
             public List<PlayerJumpgateRecord> jumpgates = new List<PlayerJumpgateRecord>();
+            public List<int> consumedBlueprints = new List<int>();
         }
 
         static Registry registry;
         static string path;
         static bool sessionActive;
+        static bool persistenceFaulted;
 
         /// <summary>Current server registry; empty until a persistent world starts.</summary>
         public static IReadOnlyList<PlayerStationRecord> Stations => registry?.stations;
         /// <summary>Independent player-built gates, each anchored to one system orbit.</summary>
         public static IReadOnlyList<PlayerJumpgateRecord> Jumpgates => registry?.jumpgates;
+
+        internal static bool IsBlueprintConsumed(int item) => registry?.consumedBlueprints?.Contains(item) == true;
+
+        static void ReconcileConsumedBlueprints()
+        {
+            if (registry?.consumedBlueprints == null || GoF2Remake.Data.Session.UnlockedBlueprints == null) return;
+            foreach (int item in registry.consumedBlueprints)
+                GoF2Remake.Data.Session.UnlockedBlueprints.Remove(item);
+        }
 
         /// <summary>The current registry for NetState's initial session snapshot.</summary>
         internal static string Snapshot => registry != null ? JsonUtility.ToJson(registry) : "";
@@ -181,25 +192,52 @@ namespace GoF2Remake.Multiplayer
             registry = null;
             path = null;
             nextDryDockRetryUtc = 0;
+            persistenceFaulted = false;
             sessionActive = NetGame.PersistentHost || NetGame.Dedicated;
             if (!sessionActive) return;
 
             string folder = NetProfiles.Folder;
             if (string.IsNullOrEmpty(folder)) folder = NetGame.HostedWorldFolder;
             path = Path.Combine(folder, FileName);
+            string backupPath = path + ".bak";
             try
             {
                 Directory.CreateDirectory(folder);
-                if (File.Exists(path)) registry = JsonUtility.FromJson<Registry>(File.ReadAllText(path));
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        registry = JsonUtility.FromJson<Registry>(File.ReadAllText(path));
+                        if (registry == null) throw new InvalidDataException("registry JSON produced no data");
+                    }
+                    catch (Exception primaryError)
+                    {
+                        Debug.LogError($"NetPlayerStations: {FileName} is unreadable ({primaryError.Message}); attempting its backup.");
+                        if (!File.Exists(backupPath)) throw new InvalidDataException("no registry backup exists", primaryError);
+                        string backupJson = File.ReadAllText(backupPath);
+                        registry = JsonUtility.FromJson<Registry>(backupJson);
+                        if (registry == null) throw new InvalidDataException("registry backup produced no data");
+                        // Do not use NetProfiles.Write here: it would overwrite the known-good backup with the corrupt primary.
+                        string recoveryPath = path + ".recovered";
+                        File.WriteAllText(recoveryPath, backupJson);
+                        if (File.Exists(path)) File.Delete(path);
+                        File.Move(recoveryPath, path);
+                        Debug.LogWarning($"NetPlayerStations: restored {FileName} from its backup. The damaged original was replaced; retain external backups as well.");
+                    }
+                }
+                else registry = new Registry();
             }
             catch (Exception e)
             {
-                Debug.LogError($"NetPlayerStations: {FileName} unreadable ({e.Message}); starting an empty registry.");
+                persistenceFaulted = true;
+                registry = null;
+                Debug.LogError($"NetPlayerStations: station persistence is disabled because neither the primary registry nor its backup could be loaded ({e.Message}). No station data will be overwritten.");
+                return;
             }
 
-            registry ??= new Registry();
             registry.stations ??= new List<PlayerStationRecord>();
             registry.jumpgates ??= new List<PlayerJumpgateRecord>();
+            registry.consumedBlueprints ??= new List<int>();
             if (registry.stations.Count > MaxStations)
                 Debug.LogWarning($"NetPlayerStations: saved registry contains {registry.stations.Count} stations (limit {MaxStations}); preserving all records and refusing new construction.");
             int highest = 0;
@@ -224,7 +262,13 @@ namespace GoF2Remake.Multiplayer
                     Debug.LogWarning($"NetPlayerStations: station {station.id} exceeds a module or listing limit; preserving all saved records.");
             }
             registry.nextId = Math.Max(highest + 1, Math.Max(1, registry.nextId));
-            RecoverPendingTransaction();
+            if (!RecoverPendingTransaction())
+            {
+                persistenceFaulted = true;
+                Debug.LogError("NetPlayerStations: station persistence is disabled because an interrupted transaction could not be recovered. Preserve the journal and registry for manual recovery.");
+                return;
+            }
+            ReconcileConsumedBlueprints();
             if (MigrateLegacyJumpgates()) Save();
         }
 
@@ -238,6 +282,7 @@ namespace GoF2Remake.Multiplayer
                 registry = JsonUtility.FromJson<Registry>(json) ?? new Registry();
                 registry.stations ??= new List<PlayerStationRecord>();
                 registry.jumpgates ??= new List<PlayerJumpgateRecord>();
+                registry.consumedBlueprints ??= new List<int>();
                 if (registry.stations.Count > MaxStations)
                     Debug.LogWarning($"NetPlayerStations: received registry contains {registry.stations.Count} stations (limit {MaxStations}); preserving all records.");
                 foreach (var gate in registry.jumpgates)
@@ -595,7 +640,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Persist a server-side change atomically, retaining the prior registry as a backup.</summary>
         public static bool Save()
         {
-            if (registry == null || string.IsNullOrEmpty(path)) return false;
+            if (persistenceFaulted || registry == null || string.IsNullOrEmpty(path)) return false;
             if (File.Exists(TransactionPath))
             {
                 RecoverPendingTransaction();
