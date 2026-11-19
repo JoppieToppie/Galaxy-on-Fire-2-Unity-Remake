@@ -325,6 +325,12 @@ energy cells.
 | `scanShip` | 140 | Scanners: 1 = the lock plate names the locked ship's hull, "Pirate · Phantom 85%" (see [Scanner readouts](#scanner-readouts)) |
 | `scanHitpoints` | 141 | Scanners: 1 = a new lock shows the ship's shield, armor and hull |
 | `scanWeapons` | 142 | Scanners: 1 = a new lock shows the ship's weapons |
+| `pitchTurnRate`, `yawTurnRate`, `rollTurnRate` | 170 to 172 | Independent pitch, yaw and roll rate bonuses (%) |
+| `pitchTurnAcceleration`, `yawTurnAcceleration`, `rollTurnAcceleration` | 173 to 175 | Independent pitch, yaw and roll response / ramp bonuses (%) |
+| `strafeAcceleration` | 176 | Lateral acceleration bonus (%) in free flight |
+| `hoverSpeed`, `hoverAcceleration` | 177 to 178 | Vertical thrust speed and acceleration bonuses (%) in free flight |
+| `reverseSpeed`, `reverseAcceleration` | 179 to 180 | Reverse thrust speed and acceleration bonuses (%) in free flight |
+| `forwardAcceleration` | 181 | Forward thrust acceleration bonus (%) in free flight |
 | `tractorNoLock` | 137 | Tractor beams: 1 = the scanner never locks a container; every beam takes containers by itself (see [Multi-grab tractor beams](#multi-grab-tractor-beams)) |
 | `shieldDamage` | 124 | A weapon's damage to a shield in percent (default 100; the Disruptor Laser and items based on it 200). What the shield doesn't absorb hits the armor and hull at the plain damage. Only ships with a shield feel it: the players (each other in multiplayer), not the game's NPCs |
 | `echoDelayMs` | 127 | A second, weaker blast at each hit, this many ms after it (0 or none = no echo; see [Echo blasts](#echo-blasts)) |
@@ -1719,8 +1725,10 @@ either style flies by (see [Flight rules](#flight-rules)).
 **Items** (their `stats`, see [Stats](#stats)): a booster's and a Steering Nozzle's own stats (`boostSpeed`,
 `boostRechargeMs`, `boostDurationMs`, `agility`) count in both styles unless `flightScope` keeps them to one. On top of that,
 any item (an engine part, a module, a booster) can carry percentage bonuses for both styles (`topSpeed`, `turnRate`,
-`strafeSpeed`), for the original only (`originalTopSpeed`...) or free flight only (`freeTopSpeed`, ..., `freeAcceleration`), and
-`freeBoostFactor` sets free flight's boost outright (by default free flight takes the booster's original boost speed x 3.2 / 3:
+`strafeSpeed`, `pitchTurnRate`, `yawTurnRate`, `rollTurnRate`, `pitchTurnAcceleration`, `yawTurnAcceleration`,
+`rollTurnAcceleration`). Movement-axis modifiers are `strafeAcceleration`, `hoverSpeed`, `hoverAcceleration`,
+`reverseSpeed`, `reverseAcceleration` and `forwardAcceleration`; acceleration modifiers apply in free flight. Existing
+`original*` and `free*` fields remain available for legacy style-specific bonuses, and `freeBoostFactor` sets free flight's boost outright (by default free flight takes the booster's original boost speed x 3.2 / 3:
 Linear and Cyclotron x1.6, Synchrotron x2.67, Me'al x3.2, Polytron x4.27). The bonuses of every mounted item and of the ship
 add up; no total goes below -90 %.
 
@@ -1746,7 +1754,7 @@ bonuses instead.
 | Field | |
 |---|---|
 | `flightStyle` | `"free"`, `"chorus"` or `"original"`: this ship always flies so, whatever the player's option (`"player"` or no field: the player's). Chorus flight is a free-flight style: the `free` bonuses and `flightScope` 2 count in it too. |
-| `flight` | Bonuses in % for both styles: `topSpeed`, `turnRate`, `strafeSpeed`, `acceleration` (free flight only: the original has none), `boostFactor` (free flight's boost in hundredths of the top speed), `fullStopDamage` and `lowSpeedResistance` (EVERSPACE 2's ship passives, see the [stats](#stats) 138 / 139: the guns hit harder while the ship stands still, it takes less once it has flown slower than 30 m/s for a second). `original` / `free` inside it: the same, for one style only. `rules`: the ship's own [flight rules](#flight-rules). |
+| `flight` | Bonuses in %: `topSpeed`, `turnRate`, `strafeSpeed`, `pitchTurnRate`, `yawTurnRate`, `rollTurnRate`, `pitchTurnAcceleration`, `yawTurnAcceleration`, `rollTurnAcceleration`, `strafeAcceleration`, `hoverSpeed`, `hoverAcceleration`, `reverseSpeed`, `reverseAcceleration`, `forwardAcceleration`, `acceleration`, `boostFactor` (free flight's boost in hundredths of the top speed), `fullStopDamage` and `lowSpeedResistance` (EVERSPACE 2's ship passives, see the [stats](#stats) 138 / 139: the guns hit harder while the ship stands still, it takes less once it has flown slower than 30 m/s for a second). The acceleration fields count in free flight only (the original has none); the axis turn rates and their response in both styles. `original` / `free` inside it: the same, for one style only. `rules`: the ship's own [flight rules](#flight-rules). |
 
 **Who decides the style**, first match: an event or mission (the **Set Flight Model** node, `/flightstyle`), the ship flown,
 the mod campaign (`campaign.json`'s `"flightStyle"`), a new-game option that is on (`gameoptions.json`'s `"flightStyle"`), then
