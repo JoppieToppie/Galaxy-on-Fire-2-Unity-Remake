@@ -68,11 +68,17 @@ namespace GoF2Remake.Multiplayer
             record.factionStorageAccess = enabled;
             record.factionPermissions ??= new PlayerStationFactionPermissionProfile();
             bool previousDefault = record.factionPermissions.storage;
+            bool previousHangar = record.factionPermissions.hangar;
+            bool previousVisit = record.factionPermissions.visit;
+            record.factionPermissions.visit = enabled;
             record.factionPermissions.storage = enabled;
+            record.factionPermissions.hangar = enabled;
             if (!Save())
             {
                 record.factionStorageAccess = !enabled;
+                record.factionPermissions.visit = previousVisit;
                 record.factionPermissions.storage = previousDefault;
+                record.factionPermissions.hangar = previousHangar;
                 return "The storage access policy could not be saved.";
             }
             return enabled
