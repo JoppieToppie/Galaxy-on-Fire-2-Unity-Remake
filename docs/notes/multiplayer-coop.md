@@ -173,8 +173,8 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
     `StoryRole`, `StoryBurnShift`): Errkt's freighter at 41 / 42, the plasma array at 158. One-off effects go as
     `SpaceHooks.CoopFx` (`CampaignLevel.CoopFx`, reliable): 42's mother ship blast (`MainCampaignLevels.FollowBlast` /
     `FollowTick`: the meshes, sound 154 and the station and asteroids shrinking into it; the camera, fade and ride are
-    the leader's). Not yet sent: the other scripted effects that aren't ships (step 80's lasers, blasts and fires on
-    Kothar's station, the Valkyrie hyperdrive flashes and unfolding station, the evacuation's beam). Tests
+    the leader's). 80 / 81's and 157's scenery: "Story scenery" below. Not yet sent:
+    78's unfolding station and hyperdrive, the evacuation's beam, 29's probe, 145's array blast. Tests
     `CoopLevelMirrorTests`. The kill count goes with `CoopLevelState` too (`playerKills` / `npcKills`, one int in the
     RPC): step 36's wager with Errkt read 0 : 0 on a follower's HUD (a Discord report 2026-11-17).
   - **Moves**: the leader's level-driven moves (`SpaceLevel.TravelTo`, `RideWormhole`, `Dock(false)` while it runs a story
@@ -219,9 +219,17 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
     (`CampaignLevel.CrewCrateCaptured`, step 24's 3 t). A crew member's Liberator kill of a convoy freighter another
     game runs counts for step 60's bonus (`NetProxy` passes the weapon). A success the leader's move cuts off is
     paid (`StorySpace.SettleCutOffSuccess`).
-  - Not done: step 80 / 81's battlestation and 157's Valkyrie are the leader's scenery only (guests see their turrets
-    alone); 29's probe and 145's array blast aren't sent; a move the leader makes while a guest loads a scene is lost;
-    the hold doesn't stop a guest's guns.
+  - **Story scenery** (2026-11-19, the sweep's follow-up): 80 / 81's battlestation (its volumes too: guests flew through
+    the hull its turrets sat on), its laser, Kothar's laser, the station's blast and fires, the hyperdrive flashes, and
+    157's Valkyrie with its gun, burning stages, blasts, beam and the sun's collapse are built and played on a follower
+    too: `ValkyrieLevelsCoop` / `SupernovaLevelsCoop` (`BuildFollower` from the same builders as the leader's,
+    `BuildBattlestation80` / `BuildLasers80` / `BuildBattlestation81` / `BuildValkyrie157`; `FollowTick` plays each
+    moment, the same helpers as `Tick80` / `Tick81`, as the leader's script step reaches it). `CoopLevelState` carries
+    the script's step (`scriptEvent`, the follower's `CampaignLevel.Event`) and 157's Valkyrie place (`sceneryAt`,
+    moved on at the leader's speed between states). Steps caught up at once (a guest arriving late) show what they leave
+    behind without their blasts and sounds. No camera or ships touched (the leader's). Not tried with two games.
+  - Not done: 29's probe and 145's array blast aren't sent; a move the leader makes while a guest loads a scene is
+    lost; the hold doesn't stop a guest's guns.
 - **Not shared**: the level's own music (a follower hears the orbit's), the mining minigame, object docking / hacking and
   the scripted flights that move the player's ship (the leader does those; the crew fights alongside or watches). Not
   tested with two games yet (2026-11-01: the rules by `CoopCampaignTests`; the session, the follower view and the

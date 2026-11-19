@@ -104,14 +104,15 @@ namespace GoF2Remake.Multiplayer
         internal void SendCoopLevel(CoopLevelState s)
         {
             if (!IsServer || !Coop || !NetInterest.OrbitGroup(this, s.station, NetworkManager.ServerClientId, out var target)) return;
-            byte flags = (byte)((s.cutscene ? 1 : 0) | (s.invulnerable ? 2 : 0) | (s.hold ? 4 : 0) | (s.holeVisible ? 8 : 0));
+            byte flags = (byte)((s.cutscene ? 1 : 0) | (s.invulnerable ? 2 : 0) | (s.hold ? 4 : 0) | (s.holeVisible ? 8 : 0) | (s.hasScenery ? 16 : 0));
             CoopLevelRpc(s.station, s.index, flags, s.missionMs, s.timeLimitMs, s.routeIndex, s.fadeAlpha, s.fadeColor, s.radioLine,
-                         s.holePosition, s.holeTimer, (Mathf.Clamp(s.playerKills, 0, 0xFFFF) << 16) | Mathf.Clamp(s.npcKills, 0, 0xFFFF), target);
+                         s.holePosition, s.holeTimer, (Mathf.Clamp(s.playerKills, 0, 0xFFFF) << 16) | Mathf.Clamp(s.npcKills, 0, 0xFFFF),
+                         s.scriptEvent, s.sceneryAt, target);
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server, Delivery = RpcDelivery.Unreliable)]
         void CoopLevelRpc(int station, int index, byte flags, float missionMs, float timeLimitMs, int routeIndex, float fadeAlpha, Color32 fadeColor, int radioLine,
-                          Vector3 holePosition, int holeTimer, int kills, RpcParams rpc = default)
+                          Vector3 holePosition, int holeTimer, int kills, int scriptEvent, Vector3 sceneryAt, RpcParams rpc = default)
         {
             var state = new CoopLevelState
             {
@@ -119,6 +120,7 @@ namespace GoF2Remake.Multiplayer
                 missionMs = missionMs, timeLimitMs = timeLimitMs, routeIndex = routeIndex, fadeAlpha = fadeAlpha, fadeColor = fadeColor,
                 radioLine = radioLine, holeVisible = (flags & 8) != 0, holePosition = holePosition, holeTimer = holeTimer,
                 playerKills = (kills >> 16) & 0xFFFF, npcKills = kills & 0xFFFF,
+                scriptEvent = scriptEvent, hasScenery = (flags & 16) != 0, sceneryAt = sceneryAt,
             };
             if (CampaignLevel.Current != null) CampaignLevel.Current.OnLeaderState(state);
             else NetCoop.LeaderStateWithoutLevel(station, index);   // a plain orbit here: the story level instead

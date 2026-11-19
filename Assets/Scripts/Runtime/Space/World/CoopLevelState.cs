@@ -31,5 +31,11 @@ namespace GoF2Remake.World
         /// <summary>The level's kill count (CampaignLevel.PlayerKills / NpcKills): step 36's wager with Errkt on the follower's
         /// HUD too (a Discord report 2026-11-17: it stayed 0 : 0 for the second pilot).</summary>
         public int playerKills, npcKills;
+        /// <summary>The level script's step (CampaignLevel.Event): a follower's scenery plays its moments as the leader's script
+        /// reaches them (80 / 81's battlestation, 157's Valkyrie), and the rules that read it (40's wormhole) agree.</summary>
+        public int scriptEvent;
+        /// <summary>The level's moving scenery (157: the Valkyrie's place, the original's coordinates), if it has one.</summary>
+        public bool hasScenery;
+        public Vector3 sceneryAt;
     }
 }

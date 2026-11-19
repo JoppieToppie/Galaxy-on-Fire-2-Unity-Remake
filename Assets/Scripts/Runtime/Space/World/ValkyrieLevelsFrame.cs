@@ -530,6 +530,18 @@ namespace GoF2Remake.World
             return turretMoved >= 1100f;
         }
         // 81: Alice stranded in the Void (LevelScript.c 1899-1998).
+        /// <summary>81's hyperdrive fx, the battlestation dropping out of hyperspace: like 78 / 80, aligned with the
+        /// battlestation instead of facing the camera, with 78's custom texture when there is one. Remake co-op: a follower's
+        /// too.</summary>
+        void ArriveFx81()
+        {
+            SpawnHyperDrive(new Vector3(0, 0, 10000), 30f, texture78: true);
+            if (fx == null) return;
+            var bs = battlestation != null ? battlestation.transform.position : Vector3.zero;
+            fx.transform.SetPositionAndRotation(bs + HyperDrivePos81 * StructureScale, Quaternion.Euler(HyperDriveRot81));   // OrbitScale
+            fx.transform.localScale = Vector3.one * (HyperDriveScale81 * StructureScale);
+            fxFixed = true;
+        }
         void Tick81(float dtMs)
         {
             switch (Step)
@@ -538,16 +550,7 @@ namespace GoF2Remake.World
                     cam.Rumble = Mathf.Clamp01(T / 10000f);
                     if (T >= 10001f)
                     {
-                        // Modified: like 78 / 80: aligned with the battlestation instead of facing the camera, with 78's custom
-                        // texture when there is one.
-                        SpawnHyperDrive(new Vector3(0, 0, 10000), 30f, texture78: true);
-                        if (fx != null)
-                        {
-                            var bs = battlestation != null ? battlestation.transform.position : Vector3.zero;
-                            fx.transform.SetPositionAndRotation(bs + HyperDrivePos81 * StructureScale, Quaternion.Euler(HyperDriveRot81));   // OrbitScale
-                            fx.transform.localScale = Vector3.one * (HyperDriveScale81 * StructureScale);
-                            fxFixed = true;
-                        }
+                        ArriveFx81();
                         Step = 1;
                     }
                     break;

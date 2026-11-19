@@ -54,6 +54,10 @@ namespace GoF2Remake.World
         /// <summary>Remake co-op, a follower: the main campaign's effects it plays of the leader's level (OnLeaderFx); never
         /// ticked as a level (main is the leader's / single player's).</summary>
         MainCampaignLevels coopFx;
+        /// <summary>Remake co-op, a follower: the scenery of the leader's 80 / 81 and 157 (BuildFollowerScenery); never ticked
+        /// as levels.</summary>
+        ValkyrieLevels coopValkyrie;
+        SupernovaLevels coopSupernova;
         ValkyrieLevels valkyrie;
         SupernovaLevels supernova;
         int cratesAtStart;
@@ -279,6 +283,7 @@ namespace GoF2Remake.World
             main?.LateTick(dtMs);
             valkyrie?.LateTick(dtMs);
             supernova?.LateTick(dtMs);
+            coopValkyrie?.FollowLateTick(dtMs);   // remake co-op: a follower's scenery (no camera)
         }
 
         // ---- cutscene helpers ------------------------------------------------------------------------------

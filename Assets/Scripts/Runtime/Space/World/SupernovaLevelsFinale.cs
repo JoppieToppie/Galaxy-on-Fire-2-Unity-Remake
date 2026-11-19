@@ -73,6 +73,14 @@ namespace GoF2Remake.World
             alice.SetVisible(false);
             // [23] Valkyrie with the plasma gun at (-120000, 0, 20000).
             c.AddPlaceholder();
+            BuildValkyrie157();
+            MovePlayer(new Vector3(100000, 0, 20000), new Vector3(-1, -0.2f, -0.5f));
+        }
+
+        /// <summary>157's Valkyrie: the station with its plasma gun and the burning stages (hidden until state 9), scenery.
+        /// Remake co-op: a follower's too (SupernovaLevelsCoop).</summary>
+        void BuildValkyrie157()
+        {
             var vp = new Vector3(-120000, 0, 20000);
             var vrot = OrbitLayout.RotationToUnity(new Vector3(0, Mathf.PI, 0));
             // OrbitScale: the station, its gun and its burning stages where the scaled orbit has it, grown like the stations
@@ -92,7 +100,6 @@ namespace GoF2Remake.World
             stage2 = Scenery("sn_burning_valkyrie_stage_2", OrbitScale.Place(vp), vrot, "Valkyrie burning 2");
             if (stage1 != null) { OrbitScale.Structure(stage1.transform); stage1.SetActive(false); }
             if (stage2 != null) { OrbitScale.Structure(stage2.transform); stage2.SetActive(false); }
-            MovePlayer(new Vector3(100000, 0, 20000), new Vector3(-1, -0.2f, -0.5f));
         }
 
         // 158: Luur, the duel with Trunt Harval.

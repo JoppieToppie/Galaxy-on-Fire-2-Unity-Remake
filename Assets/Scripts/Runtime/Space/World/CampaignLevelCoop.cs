@@ -143,6 +143,7 @@ namespace GoF2Remake.World
                 if (traffic != null)
                     foreach (var s in traffic.Ships)
                         if (s != null && !s.StoryShip && !s.IsWingman && !s.MissionShip && !s.Gone) MarkStoryShip(s);
+                Vector3 sceneryAt = Vector3.zero;
                 SpaceHooks.CoopLevelState?.Invoke(new CoopLevelState
                 {
                     station = CoopStation, index = BuiltIndex, cutscene = Cutscene, invulnerable = PlayerInvulnerable, hold = Held,
@@ -151,7 +152,8 @@ namespace GoF2Remake.World
                     holeVisible = level.Wormhole != null && level.Wormhole.Visible,
                     holePosition = level.Wormhole != null ? level.Wormhole.GamePosition : Vector3.zero,
                     holeTimer = level.Wormhole != null ? level.Wormhole.Timer : 0,
-                    playerKills = PlayerKills, npcKills = NpcKills,
+                    playerKills = PlayerKills, npcKills = NpcKills, scriptEvent = Event,
+                    hasScenery = supernova != null && supernova.CoopSceneryAt(out sceneryAt), sceneryAt = sceneryAt,
                 });
                 // The route when it changes, and every 2 s for a crew member arriving later.
                 if (PlayerRoute != coopRouteSent || ++coopRouteIndexSent >= 8)
@@ -206,6 +208,7 @@ namespace GoF2Remake.World
             gameObject.AddComponent<CoopCameraMirror>().Setup(this);
             // The prologue and the rescue (0 / 1): this game plays their cutscenes around its own Phantom, paced by the
             // leader's radio lines; the pirates and Gunant's salvager are the leader's (IntroCutscenes' follower).
+            BuildFollowerScenery(BuiltIndex);
             if (BuiltIndex == 0 || BuiltIndex == 1)
             {
                 intro = new IntroCutscenes(this, level, BuiltIndex, true);
@@ -249,6 +252,18 @@ namespace GoF2Remake.World
             }
             if (!level.Dialogue && level.LaunchCameraOver) Radio?.Update(dtMs, this);
             coopFx?.FollowTick(dtMs);
+            coopValkyrie?.FollowTick(dtMs, leaderSeen);
+            coopSupernova?.FollowTick(dtMs, leaderSeen);
+        }
+
+        /// <summary>The leader's level's scenery here too (80 / 81's battlestation, 157's Valkyrie: not ships, so no copies of
+        /// them reached the crew), played as the leader's script goes (Event).</summary>
+        void BuildFollowerScenery(int index)
+        {
+            coopValkyrie = new ValkyrieLevels(this, level);
+            if (!coopValkyrie.BuildFollower(index)) coopValkyrie = null;
+            coopSupernova = new SupernovaLevels(this, level);
+            if (!coopSupernova.BuildFollower(index)) coopSupernova = null;
         }
 
         /// <summary>The radio the leader's level of step 'index' plays: 42's is 41's (built at 42 or reached from 41; Setup), so
@@ -282,6 +297,8 @@ namespace GoF2Remake.World
             // The kill count (step 36's wager on the HUD): the leader's, which counts the crew's kills as the player's.
             PlayerKills = s.playerKills;
             NpcKills = s.npcKills;
+            Event = s.scriptEvent;   // the script's step (the scenery's moments, 40's wormhole rule)
+            if (s.hasScenery) coopSupernova?.LeaderSceneryAt(s.sceneryAt);
         }
 
         // ---- the leader's one-off effects --------------------------------------------------------------------------

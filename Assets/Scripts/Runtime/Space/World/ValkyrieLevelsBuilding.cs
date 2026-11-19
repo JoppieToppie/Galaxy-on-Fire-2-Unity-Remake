@@ -340,12 +340,7 @@ namespace GoF2Remake.World
             var host = Host80;
             // [0] Alice's battlestation, unrotated (scenery with the station's volumes mirrored; the radio doesn't count it).
             c.AddPlaceholder();
-            battlestation = Scenery("v_station_battlestation_anim_mission_object", host, OrbitLayout.RotationToUnity(Vector3.zero), "Valkyrie battlestation");
-            // PlayerStation ctor 0x1473c2 (station 0x65 from campaign 0x50): Transform::Update(dt = the animation's length)
-            // once, then PlayerStation::update 0x147dbc never runs it again: the arms unfolded (the turrets and shield
-            // generators below sit on them), not the folded load pose that looped as "opening itself".
-            PartAnimation.HoldAllAtEnd(battlestation);
-            AddStationVolumes(battlestation, true, unfolded: true);   // Modified: the unfolded arms' volumes
+            BuildBattlestation80();
             // [1-12] turrets and shield generators: at host + (-x, y, -z), rotation (0, 0, -rz) (the table rotated by (0, pi, 0)).
             int rank = Session.Rank;
             int hp = rank <= 20 ? rank * 15 + 220 : 520;
@@ -378,6 +373,23 @@ namespace GoF2Remake.World
             route.points.Add(new Vector3(0, 0, 80000));
             for (int i = 0; i < 6; i++) c.SpawnShip(Standing.Pirate, NpcTables.RandomFighter(Standing.Pirate), route.points[0], true, s => { s.alwaysEnemy = true; s.route = route; });
             for (int i = 0; i < 3; i++) c.SpawnShip(0, 17, route.points[0], true, s => { s.alwaysFriend = true; s.route = route; });
+            BuildLasers80();
+            c.WinObjective = () => c.Radio != null && c.Radio.LastOver;   // 0x16
+        }
+        /// <summary>80's battlestation: scenery (the radio doesn't count it), its volumes. Remake co-op: a follower's too.</summary>
+        void BuildBattlestation80()
+        {
+            battlestation = Scenery("v_station_battlestation_anim_mission_object", Host80, OrbitLayout.RotationToUnity(Vector3.zero), "Valkyrie battlestation");
+            // PlayerStation ctor 0x1473c2 (station 0x65 from campaign 0x50): Transform::Update(dt = the animation's length)
+            // once, then PlayerStation::update 0x147dbc never runs it again: the arms unfolded (the turrets and shield
+            // generators below sit on them), not the folded load pose that looped as "opening itself".
+            PartAnimation.HoldAllAtEnd(battlestation);
+            AddStationVolumes(battlestation, true, unfolded: true);   // Modified: the unfolded arms' volumes
+        }
+        /// <summary>80's lasers and Kothar's station held intact until the hit. Remake co-op: a follower's too.</summary>
+        void BuildLasers80()
+        {
+            var host = Host80;
             // LevelScript ctor: the battlestation's laser at it (playing), the deep science station's laser (hidden), the
             // station's explosion animation held until the hit.
             battleLaser = Scenery("v_station_battlestation_laser_anim_add", host, OrbitLayout.RotationToUnity(Vector3.zero), "Battlestation laser");
@@ -403,16 +415,12 @@ namespace GoF2Remake.World
                 LoopEmitters80(level.Station);   // Modified: its thrusters' flames keep scrolling
                 MakeFlamePieces80();             // Modified: the flames split onto the engine glows they belong to
             }
-            c.WinObjective = () => c.Radio != null && c.Radio.LastOver;   // 0x16
         }
         void Build81()
         {
             // [0] the battlestation (hidden until it drops out of hyperspace), [1-8] Void fighters.
             c.AddPlaceholder();
-            battlestation = Scenery("v_station_battlestation_anim_mission_object", Vector3.zero, Quaternion.identity, "Valkyrie battlestation");
-            PartAnimation.HoldAllAtEnd(battlestation);   // station 101 from 0x50: unfolded and held (as in 80)
-            if (battlestation != null) battlestation.SetActive(false);
-            AddStationVolumes(battlestation, false);
+            BuildBattlestation81();
             for (int i = 0; i < 8; i++)
                 c.SpawnShip(Standing.Void, 8, new Vector3(Sign() * (20000 + R(80000)), Sign() * (20000 + R(80000)), Sign() * (20000 + R(80000))), false);
             // LevelScript ctor: the player hidden and parked at the origin, the camera at (-20000, 800, 120000).
@@ -429,6 +437,14 @@ namespace GoF2Remake.World
             var voidMusic = assets != null ? assets.voidBattle : null;
             if (voidMusic == null && level.Traffic != null) voidMusic = level.Traffic.RaceSpaceMusic() ?? level.Traffic.CalmClip();
             if (voidMusic != null) c.PlayMusic(voidMusic, true);
+        }
+        /// <summary>81's battlestation, hidden until it drops out of hyperspace. Remake co-op: a follower's too.</summary>
+        void BuildBattlestation81()
+        {
+            battlestation = Scenery("v_station_battlestation_anim_mission_object", Vector3.zero, Quaternion.identity, "Valkyrie battlestation");
+            PartAnimation.HoldAllAtEnd(battlestation);   // station 101 from 0x50: unfolded and held (as in 80)
+            if (battlestation != null) battlestation.SetActive(false);
+            AddStationVolumes(battlestation, false);
         }
         /// <summary>PlayerStation 101's volumes on a scenery battlestation (unrotated: the (0, pi, 0) of the table mirrored).</summary>
         /// Modified: 'unfolded' (80: the arms held unfolded) takes the alien orbit's battlestation volumes (collision 1003:
