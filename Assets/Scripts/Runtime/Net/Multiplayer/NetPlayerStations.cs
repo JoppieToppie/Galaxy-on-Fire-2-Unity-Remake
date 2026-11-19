@@ -34,6 +34,7 @@ namespace GoF2Remake.Multiplayer
         public List<PlayerStationMaterial> materials = new List<PlayerStationMaterial>();
         public List<PlayerStationAddon> addons = new List<PlayerStationAddon>();
         public List<PlayerStationListing> listings = new List<PlayerStationListing>();
+        public List<PlayerStationBuyOrder> buyOrders = new List<PlayerStationBuyOrder>();
         public List<PlayerStationStorage> storage = new List<PlayerStationStorage>();
         public List<PlayerStationStorageLot> storageLots = new List<PlayerStationStorageLot>();
         public List<StoredShip> storedShips = new List<StoredShip>();
@@ -53,6 +54,14 @@ namespace GoF2Remake.Multiplayer
         public bool factionStorageAccess;
         public List<PlayerStationContribution> constructionContributions = new List<PlayerStationContribution>();
         public PlayerStationTransferProposal pendingTransfer;
+    }
+
+    [Serializable]
+    public sealed class PlayerStationBuyOrder
+    {
+        public int item, remaining;
+        public long unitPrice, reservedCredits, createdUtc;
+        public string fundedByProfile, fundedByFactionId, createdBy;
     }
 
     [Serializable]
@@ -171,6 +180,7 @@ namespace GoF2Remake.Multiplayer
                 station.addons ??= new List<PlayerStationAddon>();
                 station.materials ??= new List<PlayerStationMaterial>();
                 station.listings ??= new List<PlayerStationListing>();
+                station.buyOrders ??= new List<PlayerStationBuyOrder>();
                 station.constructionContributions ??= new List<PlayerStationContribution>();
                 station.storage ??= new List<PlayerStationStorage>();
                 NormalizeStorageLots(station);
