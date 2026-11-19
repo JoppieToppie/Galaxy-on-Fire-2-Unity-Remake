@@ -104,6 +104,7 @@ namespace GoF2Remake.Multiplayer
         public int amount;
         public long unitPrice;
         public string sellerProfile;
+        public string payoutFactionId;
     }
 
     /// <summary>Server-owned, durable state for player-built stations in persistent multiplayer worlds.</summary>
