@@ -82,6 +82,7 @@ namespace GoF2Remake.Multiplayer
                 record.jumpgateBuilding = previousBuilding;
                 record.jumpgateStartedUtc = previousStart;
                 record.jumpgateCompletesUtc = previousEnd;
+                record.jumpgateBuildSeconds = previousBuildSeconds;
                 record.jumpgateMaterials = previousMaterials;
                 record.jumpgateContributions = previousContributions;
                 return "The jumpgate construction plan could not be saved.";
