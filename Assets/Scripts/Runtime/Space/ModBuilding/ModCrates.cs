@@ -5,7 +5,9 @@
 // models when the mods change (Preload; ModLoading), into a hidden DontDestroyOnLoad holder; a crate made before its model
 // is there shows the race's container. Instantiate fits the copy to the race's container (its largest extent) unless the
 // entry gives "crateSize" (game units). A crate's model key is "<mod id>|<path>". The orbits' containers', asteroids' and
-// wrecks' models (stations.json "orbit.containers" / "asteroids" / "wrecks", ModWorld.ContainerModels) load with them.
+// wrecks' models (stations.json "orbit.containers" / "asteroids" / "wrecks", ModWorld.ContainerModels) load with them, and
+// the ships' own wrecks (ships.json "wreck": World.WreckBreakup) and Shield Overcharge shells (ships.json "overcharge":
+// Flight.ShieldShell), with their ships' materials.
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -24,6 +26,9 @@ namespace GoF2Remake.Modding
         static readonly Dictionary<string, float> extents = new Dictionary<string, float>();   // a template's largest extent (Unity)
         static readonly Dictionary<string, List<CustomShipMaterial>> materials = new Dictionary<string, List<CustomShipMaterial>>();   // an orbit container model's own
         static readonly Dictionary<int, string> shipKeys = new Dictionary<int, string>();
+        static readonly Dictionary<int, string> wreckKeys = new Dictionary<int, string>();   // a ship's "wreck" model
+        static readonly Dictionary<int, Texture2D> burnMaps = new Dictionary<int, Texture2D>();   // its "burnMap" (loaded with it)
+        static readonly Dictionary<int, string> overchargeKeys = new Dictionary<int, string>();   // a ship's "overcharge" model
         static readonly Dictionary<string, float> sizes = new Dictionary<string, float>();   // a key's "crateSize" (game units)
         static readonly Dictionary<int, float> raceExtents = new Dictionary<int, float>();
         static readonly List<GLTFast.GltfImport> imports = new List<GLTFast.GltfImport>();
@@ -34,7 +39,8 @@ namespace GoF2Remake.Modding
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
-            templates.Clear(); extents.Clear(); shipKeys.Clear(); sizes.Clear(); raceExtents.Clear(); imports.Clear();
+            templates.Clear(); extents.Clear(); shipKeys.Clear(); wreckKeys.Clear(); sizes.Clear(); raceExtents.Clear(); imports.Clear();
+            burnMaps.Clear(); overchargeKeys.Clear();
             holder = null; agent = null; loadingRevision = loadedRevision = keysRevision = -1;
         }
 
@@ -87,6 +93,37 @@ namespace GoF2Remake.Modding
             if (extent > 0f && extents.TryGetValue(key, out float have) && have > 1e-6f) go.transform.localScale = Vector3.one * (extent / have);
             return go;
         }
+
+        /// <summary>A copy of ship 'ship''s "wreck" model at the world pose and scale of 'like' (the dead ship's hull: the wreck
+        /// is made in its frame); null with none or while it isn't loaded.</summary>
+        public static GameObject InstantiateWreck(int ship, Transform like)
+        {
+            Keys();
+            if (like == null || !wreckKeys.TryGetValue(ship, out var key)) return null;
+            if (loadedRevision != ModManager.Revision) { Preload(); return null; }
+            if (!templates.TryGetValue(key, out var template) || template == null) return null;
+            var go = Object.Instantiate(template, like.position, like.rotation);
+            go.transform.localScale = like.lossyScale;
+            go.SetActive(true);
+            return go;
+        }
+
+        /// <summary>A copy of ship 'ship''s "overcharge" shell under 'hull' (its model's hull node: the shell is made in its frame),
+        /// inactive; null with none or while it isn't loaded.</summary>
+        public static GameObject InstantiateOvercharge(int ship, Transform hull)
+        {
+            Keys();
+            if (hull == null || !overchargeKeys.TryGetValue(ship, out var key)) return null;
+            if (loadedRevision != ModManager.Revision) { Preload(); return null; }
+            if (!templates.TryGetValue(key, out var template) || template == null) return null;
+            var go = Object.Instantiate(template, hull, false);
+            go.transform.localPosition = Vector3.zero; go.transform.localRotation = Quaternion.identity; go.transform.localScale = Vector3.one;
+            go.SetActive(false);
+            return go;
+        }
+
+        /// <summary>Ship 'ship''s wreck "burnMap" (Chorus's burn noise, repeating, as data), loaded with its wreck; null with none.</summary>
+        public static Texture2D WreckBurnMap(int ship) => loadedRevision == ModManager.Revision && burnMaps.TryGetValue(ship, out var t) ? t : null;
 
         /// <summary>The largest side of a hierarchy's mesh bounds (Unity, as it stands).</summary>
         public static float ExtentOf(GameObject root) => root != null ? LargestExtent(root) : 0f;
@@ -146,9 +183,11 @@ namespace GoF2Remake.Modding
         {
             if (keysRevision == ModManager.Revision) return;
             keysRevision = ModManager.Revision;
-            shipKeys.Clear(); sizes.Clear();
+            shipKeys.Clear(); sizes.Clear(); wreckKeys.Clear(); overchargeKeys.Clear();
             foreach (var (mod, ship) in ModContent.ActiveShips())
             {
+                if (ship != null && !string.IsNullOrEmpty(ship.wreck?.model)) wreckKeys[ship.index] = mod.Id + "|" + ship.wreck.model;
+                if (ship != null && !string.IsNullOrEmpty(ship.overcharge?.model)) overchargeKeys[ship.index] = mod.Id + "|" + ship.overcharge.model;
                 if (ship == null || string.IsNullOrEmpty(ship.crate)) continue;
                 string key = mod.Id + "|" + ship.crate;
                 shipKeys[ship.index] = key;
@@ -159,14 +198,35 @@ namespace GoF2Remake.Modding
         static async Task LoadAll(int rev)
         {
             foreach (var t in templates.Values) if (t != null) Object.Destroy(t);
-            templates.Clear(); extents.Clear(); raceExtents.Clear(); materials.Clear();
+            templates.Clear(); extents.Clear(); raceExtents.Clear(); materials.Clear(); burnMaps.Clear();
             foreach (var i in imports) i.Dispose();
             imports.Clear();
             var files = new Dictionary<string, ModInfo>();
             try
             {
                 foreach (var (mod, ship) in ModContent.ActiveShips())
+                {
                     if (ship != null && !string.IsNullOrEmpty(ship.crate)) files[mod.Id + "|" + ship.crate] = mod;
+                    // (a ship's wreck, painted with the ship's own materials: World.WreckBreakup)
+                    if (ship != null && !string.IsNullOrEmpty(ship.wreck?.model))
+                    {
+                        string key = mod.Id + "|" + ship.wreck.model;
+                        files[key] = mod;
+                        if (ship.materials != null && ship.materials.Count > 0 && !materials.ContainsKey(key)) materials[key] = ship.materials;
+                        if (!string.IsNullOrEmpty(ship.wreck.burnMap))
+                        {
+                            var burn = ModMaterials.Texture(mod, ship.wreck.burnMap, true);
+                            if (burn != null) { burn.wrapMode = TextureWrapMode.Repeat; burnMaps[ship.index] = burn; }
+                        }
+                    }
+                }
+                foreach (var (mod, ship) in ModContent.ActiveShips())   // (a ship's Shield Overcharge shell: Flight.ShieldShell)
+                {
+                    if (ship == null || string.IsNullOrEmpty(ship.overcharge?.model)) continue;
+                    string key = mod.Id + "|" + ship.overcharge.model;
+                    files[key] = mod;
+                    if (ship.materials != null && ship.materials.Count > 0 && !materials.ContainsKey(key)) materials[key] = ship.materials;
+                }
                 foreach (var (mod, path, mats) in ModWorld.ContainerModels())   // (the orbits' containers, with their materials)
                 {
                     files[mod.Id + "|" + path] = mod;

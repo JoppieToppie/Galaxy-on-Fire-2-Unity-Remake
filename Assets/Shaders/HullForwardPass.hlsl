@@ -21,6 +21,8 @@
 #ifndef GOF2_HULL_FORWARD_PASS_INCLUDED
 #define GOF2_HULL_FORWARD_PASS_INCLUDED
 
+#include "HullWreck.hlsl"   // a wreck piece's burn and disintegration
+
 half _GoF2HullReflection;
 half3 _GoF2HullRimColor;
 // Modified: the original lights in gamma space (StarSystem::initLight: LIGHT0 diffuse 2.0, fixed-function), so a face
@@ -107,7 +109,8 @@ half3 GoF2RadialFog(half3 color, float d)
 //   light = lightColour x N.L + ambient
 //   specular = (Phong pow(R.V, exp2(9 gloss + 1)) x lightColour [x Specular_Multiplier] + ambient x fresnel) x spec
 //   out   = diffuse x light x (1 - specular.r) + specular [x Specular_Multiplier]
-//   env   = the environment (GoF3's generic cubes are grey, its blur picked by gloss) x spec x (light + fresnel), clamped,
+//   env   = the environment (the material's GoF3 cube, its four blurs picked by gloss, tinted by and plus the system's sky
+//           cube at that blur; else the place's brightness) x spec x (light + fresnel), clamped,
 //           x Environment_Amount: out = out x (1 - env) + env
 //   rim   = 0.1 x (1 - N.V) x lightColour x light;  glass: alpha raised by specular.r, env.r and the fresnel
 // and differ per kind in what _GoF3Params says (ModMaterials, from the mod's material): x the environment (ship bodies and
@@ -121,6 +124,20 @@ half3 GoF2RadialFog(half3 color, float d)
 // wide. The gloss comes as smoothness 1 - (2 / (n + 2))^0.25 (the importer's conversion, inverted here). One light, as
 // GoF3: the main light (in a GoF2 hangar the key light from above, _GoF2PbrLight, as the other mod materials get it); the
 // ambient URP's own; both and the environment dimmed by the occlusion (_GoF2PbrIndirectDim in a GoF2 hangar).
+// A 6:1 strip of cube faces (right, left, up, down, front, back, each as seen from inside): SpaceSkyCore.hlsl's StripUV,
+// which this file can't include (its own UnityPerMaterial), so the GoF3 cubes lie as the GoF3 Systems mod's skies do.
+float2 GoF3StripUV(float3 d, float texelHeight)
+{
+    float3 a = abs(d);
+    float face; float2 f;
+    if (a.x >= a.y && a.x >= a.z) { if (d.x > 0) { face = 0; f = float2(-d.z, d.y) / a.x; } else { face = 1; f = float2(d.z, d.y) / a.x; } }
+    else if (a.y >= a.z) { if (d.y > 0) { face = 2; f = float2(d.x, -d.z) / a.y; } else { face = 3; f = float2(d.x, d.z) / a.y; } }
+    else { if (d.z > 0) { face = 4; f = float2(d.x, d.y) / a.z; } else { face = 5; f = float2(-d.x, d.y) / a.z; } }
+    float inset = 0.5 * texelHeight;
+    float2 uv = clamp(f * 0.5 + 0.5, inset, 1.0 - inset);
+    return float2((face + uv.x) / 6.0, uv.y);
+}
+
 half4 GoF3ShipShader(InputData inputData, SurfaceData surfaceData)
 {
     half3 nrm = inputData.normalWS, v = inputData.viewDirectionWS;
@@ -161,11 +178,36 @@ half4 GoF3ShipShader(InputData inputData, SurfaceData surfaceData)
     half3 env = 0.0h;
     if (environment > 0.0h)
     {
-        // GoF3's generic cubes are grey: the place's environment as its brightness, at the gloss's blur
-        half3 envColor = GlossyEnvironmentReflection(reflect(-v, nrm), inputData.positionWS, 1.0h - gloss, surfaceData.occlusion,
-            inputData.normalizedScreenSpaceUV, UseEnvironmentReflections());
-        half envG = LinearToSRGB(dot(envColor, half3(0.2126h, 0.7152h, 0.0722h)).xxx).r;
-        env = saturate(envG * spec * (light + fresnel)) * environment;
+        half3 envC;
+        if (_GoF3Env.x > 0.5)
+        {
+            // The material's own GoF3 cube (_GoF3Env; the importer's hulls: GoF3's cubemap_generic_000): GoF3's ShipShader reads
+            // it as it is, a monochrome cube with four blurs in its channels, A the blurriest to R the sharpest, the gloss
+            // choosing between them (its "Interpolate between R->G->B->A by glossiness", the first step unclamped as GoF3's);
+            // the strip in the sky's layout (SpaceSkyCore.hlsl StripUV). In a GoF2 hangar dimmed with the indirect light.
+            half4 c = SAMPLE_TEXTURE2D_LOD(_GoF3EnvMap, sampler_LinearClamp, GoF3StripUV(reflect(-v, nrm), _GoF3Env.y), 0);
+            half envG = c.a;
+            envG = lerp(envG, c.b, gloss / 0.33h);
+            envG = lerp(envG, c.g, saturate((gloss - 0.33h) / 0.33h));
+            envG = lerp(envG, c.r, saturate((gloss - 0.66h) / 0.33h));
+            // Remake (2026-11-12, the user's choice): the place's own sky too. GoF3's cube shapes the reflection; the system's
+            // reflection cubemap (_GoF2ReflectionCube, SkyReflection: each system's sky, a hangar's own), at the gloss's blur,
+            // colours it, by its hue as much as the sky is bright there (dark sky: GoF3's own grey), and adds its light (a
+            // bright sun or nebula shows on the hull).
+            half3 sky = LinearToSRGB(SAMPLE_TEXTURECUBE_LOD(_GoF2ReflectionCube, sampler_GoF2ReflectionCube, reflect(-v, nrm),
+                (1.0h - gloss) * 6.0h).rgb) * _GoF2HullReflection;
+            half skyLum = dot(sky, half3(0.2126h, 0.7152h, 0.0722h));
+            half3 tint = lerp(half3(1.0h, 1.0h, 1.0h), min(sky / max(skyLum, 1e-3h), 2.0h), saturate(skyLum * 4.0h));
+            envC = (envG * tint + sky) * surfaceData.occlusion;
+        }
+        else
+        {
+            // Without one: the place's environment as its brightness, at the gloss's blur
+            half3 envColor = GlossyEnvironmentReflection(reflect(-v, nrm), inputData.positionWS, 1.0h - gloss, surfaceData.occlusion,
+                inputData.normalizedScreenSpaceUV, UseEnvironmentReflections());
+            envC = LinearToSRGB(dot(envColor, half3(0.2126h, 0.7152h, 0.0722h)).xxx);
+        }
+        env = saturate(envC * spec * (light + fresnel)) * environment;
         outG = outG * (1.0h - env) + env;
     }
     outG += rimAmount * 0.1h * (1.0h - ndv) * lightG * light;   // (RimLight_LightStrength 1, RimLight_FallOff 1)
@@ -299,6 +341,7 @@ void ChorusLayers(Varyings input, inout SurfaceData s)
         metal = saturate(lerp(metal, (half)_ChorusAccent2.x, accent));
         rough = saturate(rough + accent * (half)_ChorusAccent2.y);
     }
+    half dirtD = 0.0h;
     if (_ChorusDirt.a > 0.0)
     {
         half vc = input.color.r;
@@ -306,8 +349,10 @@ void ChorusLayers(Varyings input, inout SurfaceData s)
         half mask = SAMPLE_TEXTURE2D(_DetailMask, sampler_LinearRepeat, uv1 * _ChorusDirt2.y).r;
         half d = saturate(saturate((1.0h - ao) * (half)_ChorusDirt2.z + (vc - 0.5h) * 2.0h) * 2.0h + mask - 1.0h);
         half c = (half)_ChorusDirt2.w;
-        d = saturate(lerp(-c, 1.0h + c, d)) * vc * dr.y;
+        // (M_NPCShipTrimMaster's dirt, the Disruptor's: x the vertex alpha alone, _ChorusDirt3.y)
+        d = saturate(lerp(-c, 1.0h + c, d)) * (_ChorusDirt3.y > 0.5 ? input.color.a : vc) * dr.y;
         if (_ChorusDirt3.x > 0.5) d *= input.color.a;
+        dirtD = d;
         half3 dirt = _ChorusDirt.rgb * SAMPLE_TEXTURE2D(_DetailAlbedoMap, sampler_LinearRepeat, uv1 * _ChorusDirt2.x).rgb;
         albedo = saturate(lerp(albedo, dirt, d));
         metal = saturate(metal * (1.0h - d * d));
@@ -326,39 +371,298 @@ void ChorusLayers(Varyings input, inout SurfaceData s)
         // (the masters' "UV shift" mask: Chorus lights only the faces whose palette UV is shifted below 0, past 1 here)
         half on = _ChorusEmitG.a > 0.5 ? (uv3.y > 1.0 ? 1.0h : 0.0h) : 1.0h;
         e *= on * (half)_ChorusEmitR.a;
+        if (_ChorusDirt3.z > 0.5) e *= 1.0h - dirtD;   // (M_NPCShipTrimMaster's: the dirt covers the emissive too)
     }
     gChorusEmissive = e;
     s.emission = e * (half)(_ChorusKicker2.z * _ChorusParams.w);
 }
 
 // Chorus's M_Guilt_Shell (_ChorusParams.x 3; Guilt's two shells), after its compiled base and masked depth passes: a dither
-// (screen noise) and the flowing noise (HullInput.hlsl ChorusShellFlow) dissolve it, ((mask.r + Arms Fade) x 0.5 + dither -
-// 0.5) x saturate(2 Coverage - (1 - noise) x (1 - mask.g)^Erode Exponent) - (1 - MasterAlpha) clipped below 1/3; its colour,
-// metal and roughness flat; its glow the mask flowing the same way, less Emissive Exponent, x Emissive Color x Intensity x
-// saturate(1 - the distance from the model's origin / Center Emissive Radius)^2. (The base pass's normal from the flowing
-// noise is left flat.)
+// and the flowing noise dissolve it (HullInput.hlsl ChorusShellClip, the shadow and depth passes too); its colour, metal and
+// roughness flat; its normal the noise map's red and green at the flowed UVs as a tangent normal (Unreal's green flipped),
+// blended as the noise; its glow the glow map (_EmissionMap) flowing the same way, less Emissive Exponent, x Emissive Color
+// x Intensity x saturate(1 - the distance from the model's origin / Center Emissive Radius)^2.
+half3 ChorusShellNormal(half2 rg)
+{
+    half2 xy = rg * 2.0h - 1.0h;
+    return half3(xy.x, -xy.y, sqrt(max(1.0h - dot(xy, xy), 0.0h)));
+}
+
 void ChorusShell(Varyings input, inout SurfaceData s)
 {
     float2 uv0 = input.uv, a, b; float k;
+    ChorusShellClip(uv0, input.positionCS.xy);
     ChorusShellFlow(uv0, a, b, k);
     float2 dx = ddx(uv0 * _ChorusParams.y), dy = ddy(uv0 * _ChorusParams.y);   // (the flowed UVs jump; their gradients don't)
-    half n = lerp(SAMPLE_TEXTURE2D_GRAD(_OcclusionMap, sampler_LinearRepeat, b, dx, dy).r, SAMPLE_TEXTURE2D_GRAD(_OcclusionMap, sampler_LinearRepeat, a, dx, dy).r, (half)k);
-    half4 mask = SAMPLE_TEXTURE2D(_BaseMap, sampler_LinearRepeat, uv0);
-    half erode = pow(max(1.0h - mask.g, 1e-4h), (half)_ChorusEmitR.z);
-    half dither = InterleavedGradientNoise(input.positionCS.xy, 0);
-    half vis = ((mask.r + (half)_ChorusEmitR.x) * 0.5h + dither - 0.5h) * saturate(2.0h * (half)_ChorusEmitR.y - (1.0h - n) * erode) - (1.0h - (half)_ChorusEmitR.w);
-    clip(vis - 0.3333h);
+    half3 na = ChorusShellNormal(SAMPLE_TEXTURE2D_GRAD(_OcclusionMap, sampler_LinearRepeat, a, dx, dy).rg);
+    half3 nb = ChorusShellNormal(SAMPLE_TEXTURE2D_GRAD(_OcclusionMap, sampler_LinearRepeat, b, dx, dy).rg);
     s.albedo = (half)_ChorusEmitG.z;
     s.metallic = (half)_ChorusEmitG.w;
     s.smoothness = 1.0h - (half)_ChorusEmitB.x;
     s.occlusion = 1.0h;
-    s.normalTS = half3(0.0h, 0.0h, 1.0h);
+    s.normalTS = normalize(lerp(nb, na, (half)k));
     s.alpha = 1.0h;
-    half3 at = lerp(SAMPLE_TEXTURE2D_GRAD(_BaseMap, sampler_LinearRepeat, b, dx, dy).rgb, SAMPLE_TEXTURE2D_GRAD(_BaseMap, sampler_LinearRepeat, a, dx, dy).rgb, (half)k);
+    half3 at = lerp(SAMPLE_TEXTURE2D_GRAD(_EmissionMap, sampler_LinearRepeat, b, dx, dy).rgb, SAMPLE_TEXTURE2D_GRAD(_EmissionMap, sampler_LinearRepeat, a, dx, dy).rgb, (half)k);
     float d = length(TransformWorldToObject(input.positionWS));
     half fall = saturate(1.0h - (half)(d / _ChorusAccent2.y)); fall *= fall;
     s.emission = max(at - (half)_ChorusAccent2.x, 0.0h) * _ChorusAccent.rgb * (half)(_ChorusAccent.a * _ChorusParams.w) * fall;
     gChorusEmissive = 0.0h;
+}
+
+// GoF2: Chorus's M_Phoenix glow lines (its compiled base pass): the Magnetic Plates Pattern (R its strength, G and B its
+// phase) over UV0 x Magnetic Pattern Tiling; frac(G - (B + time)) a triangle wave 1 - 2 |phase - 0.5| running along it;
+// lerp(Emissive02 Min, Max, wave) x wave x R x the emissive masks' green x Emissive02_Multiplier, added.
+half3 GlowWave(float2 uv)
+{
+    half3 p = SAMPLE_TEXTURE2D(_WavePattern, sampler_LinearRepeat, uv * _WaveParams.y).rgb;
+    half4 m = SAMPLE_TEXTURE2D(_WaveMask, sampler_LinearRepeat, uv);
+    half mask = _WaveParams.w < 0.5 ? m.r : (_WaveParams.w < 1.5 ? m.g : m.b);
+    half phase = frac(p.g - p.b - (half)(_Time.y * _WaveParams.z));
+    half t = 1.0h - 2.0h * abs(phase - 0.5h);
+    return lerp((half3)_WaveMin.rgb, (half3)_WaveMax.rgb, t) * (t * p.r * mask * (half)_WaveParams.x);
+}
+
+// GoF2: Chorus's flowing lava (M_BrokenPlanet_Core's compiled base pass: Nimika Prime's broken planet's core), added to the
+// emission. Over UV0, with r the part mask (_LavaMasks.b) and t the time: the first flow, Core - Flow Emissive Diffuse at
+// uv x Magma Tiling pushed along Core - Flowmap (at uv x Flowmap Tiling, its mip FlowMipLevel; rg x 2 - 1 x FlowIntensity
+// x r, x mirrored) by two phases half a cycle apart, t x FlowSpeed - TimeOffset (R at uv x its tiling, x its intensity),
+// the first's UVs wrapped and offset by Flowmap UV Texture Offset, blended by a triangle wave; the second the same with
+// its own maps (no part mask, no intensity on its offset, its first UVs + 0.5), x 2nd magma multiply ^ 2nd magma Exp;
+// mixed by the first's (x 2nd core mask multiply)^exp, x r; the temperature Temp Min + (Max - Min) x that x r; the glow
+// Chorus's blackbody (HullWreck.hlsl) x the core mask (_LavaMasks.a) x _LavaE.w. (The flowing normals are left baked.) The
+// flow's offsets are Unreal's (v down): on the remake's UVs (v up) their v turns over, as the texture offset's.
+float LavaTri(float f) { return f < 0.5 ? 2.0 * f : 2.0 - 2.0 * f; }
+
+half3 LavaFlow(float2 uv)
+{
+    float t = _Time.y;
+    half4 m = SAMPLE_TEXTURE2D(_LavaMasks, sampler_LinearRepeat, uv);
+    float r = m.b;
+    // the first flow
+    float2 uvM = uv * _LavaA.x;
+    float ph = t * _LavaA.y - SAMPLE_TEXTURE2D(_LavaMasks, sampler_LinearRepeat, uv * _LavaB.x).r * _LavaB.y;
+    float2 fv = (SAMPLE_TEXTURE2D_LOD(_LavaFlowMaps, sampler_LinearRepeat, uv * _LavaA.z, _LavaF.x).rg * 2.0 - 1.0) * _LavaA.w * r * float2(-1.0, -1.0);
+    float2 dx = ddx(uvM), dy = ddy(uvM);
+    float a1 = SAMPLE_TEXTURE2D_GRAD(_LavaEmit, sampler_LinearRepeat, frac(uvM + fv * frac(ph - 0.5)) + float2(_LavaB.z, -_LavaB.w), dx, dy).r;
+    float b1 = SAMPLE_TEXTURE2D_GRAD(_LavaEmit, sampler_LinearRepeat, uvM + fv * frac(ph), dx, dy).r;
+    float lava1 = lerp(a1, b1, LavaTri(frac(ph)));
+    float k = lava1 * _LavaD.y > 0.0 ? pow(lava1 * _LavaD.y, _LavaD.z) : 0.0;
+    // the second
+    float2 uv2 = uv * _LavaC.x;
+    float ph2 = t * _LavaC.y - SAMPLE_TEXTURE2D(_LavaMasks, sampler_LinearRepeat, uv * _LavaD.x).g;
+    float2 fv2 = (SAMPLE_TEXTURE2D_LOD(_LavaFlowMaps, sampler_LinearRepeat, uv * _LavaC.z, _LavaF.y).ba * 2.0 - 1.0) * _LavaC.w * float2(-1.0, -1.0);
+    float2 dx2 = ddx(uv2), dy2 = ddy(uv2);
+    float a2 = SAMPLE_TEXTURE2D_GRAD(_LavaEmit, sampler_LinearRepeat, frac(uv2 + fv2 * frac(ph2 - 0.5)) + 0.5, dx2, dy2).g;
+    float b2 = SAMPLE_TEXTURE2D_GRAD(_LavaEmit, sampler_LinearRepeat, uv2 + fv2 * frac(ph2), dx2, dy2).g;
+    float l2 = lerp(a2, b2, LavaTri(frac(ph2))) * _LavaD.w;
+    float lava2 = l2 > 0.0 ? pow(l2, _LavaE.x) : 0.0;
+    float lava = lerp(lava1, lava2, k) * r;
+    float T = _LavaE.y + (_LavaE.z - _LavaE.y) * lava * r;
+    return (half3)(max(HullWreckBlackbody(T), 0.0) * m.a * _LavaE.w);
+}
+
+// GoF2: Chorus's hit flash (M_Phoenix's compiled base pass, its MF_HitEffect): u = the flash's age 0..1; a ring
+// max(1 - |max(1 - d / (u R), 0) - 0.07| / 0.07, 0) growing from the hit to R, plus (1 - N.V)^7 x saturate(1 - d / R);
+// x (1 - u) x HitColor x HitEmissiveStrength, x min(((P(2 uv) + P(5 uv - 0.5 turned by 0.1 t, + 0.5)) / 2)^4, 1) with P
+// T_Lu_Noise_29's red (here _WavePattern.a; none: 1).
+half3 HitFlash(float2 uv, float3 positionWS, float3 normalWS)
+{
+    float u = _HitFx.x, R = max(_HitFx.y, 1e-5);
+    float d = distance(positionWS, _HitPos.xyz);
+    float3 v = normalize(GetCameraPositionWS() - positionWS);
+    float rim = 1.0 - max(dot(normalize(normalWS), v), 0.0);
+    float glow = rim > 0.0 ? pow(rim, 7.0) * saturate(1.0 - d / R) : 0.0;
+    float ring = max(1.0 - abs(max(1.0 - d / max(u * R, 1e-5), 0.0) - 0.07) * 14.285714, 0.0);
+    float mask = 1.0;
+    if (_HitFx.w < 1.5)
+    {
+        float s, c;
+        sincos(_Time.y * 0.1, s, c);
+        float2 q = uv * 5.0 - 0.5;
+        float2 turned = float2(c * q.x - s * q.y, s * q.x + c * q.y) + 0.5;
+        float p = (SAMPLE_TEXTURE2D(_WavePattern, sampler_LinearRepeat, uv * 2.0).a + SAMPLE_TEXTURE2D(_WavePattern, sampler_LinearRepeat, turned).a) * 0.5;
+        mask = min(p * p * p * p, 1.0);
+    }
+    return (half3)(_HitColor.rgb * ((ring + glow) * (1.0 - u) * mask));
+}
+
+// GoF2: Chorus's crystal (M_JTU_Blend's compiled base pass: the Omen crystal, the Prophet's crown), _ChorusParams.x 4. Two
+// surfaces A and B, each mapped along the mesh's own tangent frame at a world scale (the object-space position in cm on
+// its tangent and bitangent / A or B - Surface Textures World Scale), blended by the vertex colour's red: sharpened by a
+// 3-octave turbulence (its world scale, contrast, level offset) and the breath, then against A's emissive mask (red) as a
+// height with VC Transition Softness. A: its colour tinted to the Macro Color by A's mask at x Macro Tiling Factor; both
+// overlaid with the inner variation. Normals x their intensities, metal and roughness (+ biases; A's toward Macro Roughness
+// by the macro mask). The inner glow: the vein heightmap (red) at the position / Inner Variation World Scale pushes the
+// inner variation's lookup (green) along the view by Inner HeightRatio (h - 1) and along the normal's tilt by Inner
+// Refraction from Normal; x Inner Glow Color x the breath (a CA_BaseVFX row at frac(time / Breath Interval - the distance
+// from the object's origin / Pulse Wave Period): red the glow, green added to the blend x Breath Amount) x A's mask x A -
+// Emissive Intensity, or B's mask x B - Emissive Pulse Intensity x B - Emissive Intensity, blended. Slots: _BaseMap /
+// _BumpMap / _MetallicGlossMap A's colour / normal / MRO, _DetailAlbedoMap / _DetailNormalMap / _OcclusionMap B's,
+// _EmissionMap A's emissive mask, _ChorusPalette B's, _Es2WearMap the vein heightmap, _Es2WearNoiseMap the inner
+// variation, _ChorusDirtRough the breath row. _ChorusParams: y A's world scale, z B's, w the emission's scale; _ChorusAccent
+// rgb Macro Color, a Macro Color Amt; _ChorusAccent2 x Macro Tiling Factor, y Macro Roughness, z Macro Roughness Amt, w
+// Specular; _ChorusEmitR rgb Inner Glow Color, a A - Emissive Intensity; _ChorusEmitG x B - Emissive Pulse Intensity, y B -
+// Emissive Intensity, z Inner Refraction from Normal, w Inner HeightRatio; _ChorusEmitB x Inner Variation World Scale, y
+// Noise World Scale, z Noise Contrast, w NoiseLeveOffset; _ChorusKicker x Breath Interval, y Pulse Wave Period UU, z Breath
+// Amount, w VC Transition Softness; _ChorusKicker2 x A - NormalIntensity, y B - NormalIntensity; _ChorusDirt x A - Roughness
+// Bias, y B - Roughness Bias.
+float CrystalHash(float3 p) { p = frac(p * 0.3183099 + 0.1); p *= 17.0; return frac(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float CrystalNoise(float3 x)   // value noise in -1..1 (Unreal's gradient noise texture stands in)
+{
+    float3 i = floor(x), f = frac(x);
+    f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+    float n = lerp(lerp(lerp(CrystalHash(i), CrystalHash(i + float3(1, 0, 0)), f.x), lerp(CrystalHash(i + float3(0, 1, 0)), CrystalHash(i + float3(1, 1, 0)), f.x), f.y),
+                   lerp(lerp(CrystalHash(i + float3(0, 0, 1)), CrystalHash(i + float3(1, 0, 1)), f.x), lerp(CrystalHash(i + float3(0, 1, 1)), CrystalHash(i + float3(1, 1, 1)), f.x), f.y), f.z);
+    return n * 2.0 - 1.0;
+}
+half3 CrystalOverlay(half3 a, half b) { return lerp(2.0h * a * b, 1.0h - 2.0h * (1.0h - a) * (1.0h - b), step(0.5h, a)); }
+
+void ChorusCrystal(Varyings input, inout SurfaceData s)
+{
+    half3 n = normalize(input.normalWS.xyz);
+#if defined(REQUIRES_WORLD_SPACE_TANGENT_INTERPOLATOR)
+    half3 t = normalize(input.tangentWS.xyz);
+    half3 b = input.tangentWS.w * cross(n, t);
+#else
+    half3 t = normalize(cross(abs(n.y) < 0.99h ? half3(0.0h, 1.0h, 0.0h) : half3(1.0h, 0.0h, 0.0h), n));
+    half3 b = cross(n, t);
+#endif
+#if defined(REQUIRES_WORLD_SPACE_POS_INTERPOLATOR)
+    float3 posWS = input.positionWS;
+#else
+    float3 posWS = float3(0, 0, 0);
+#endif
+    // the object-space position in Chorus's centimetres (the model's units are its metres) on the tangent frame
+    float3 p = mul(GetWorldToObjectMatrix(), float4(posWS, 1.0)).xyz * 100.0;
+    float3 to = normalize(mul((float3x3)GetWorldToObjectMatrix(), t)), bo = normalize(mul((float3x3)GetWorldToObjectMatrix(), b));
+    float2 proj = float2(dot(p, to), dot(p, bo));
+    float2 uvA = proj / max((float)_ChorusParams.y, 1.0), uvB = proj / max((float)_ChorusParams.z, 1.0);
+
+    half maskA = SAMPLE_TEXTURE2D(_EmissionMap, sampler_LinearRepeat, uvA).r;
+    // the breath: a wave out from the object's origin
+    // (a Breath Interval of 0: no breathing, the curve's start; the Prophet's crown)
+    float phase = _ChorusKicker.x > 0.0 ? frac(_Time.y / _ChorusKicker.x - length(p) / max((float)_ChorusKicker.y, 1.0)) : 0.0;
+    half2 breath = SAMPLE_TEXTURE2D_LOD(_ChorusDirtRough, sampler_LinearClamp, float2(phase, 0.5), 0).rg;
+    // the blend: the vertex colour sharpened by the turbulence and the breath, against A's mask
+    float3 q = p / max((float)_ChorusEmitB.y, 1.0);
+    float turb = 0.0, amp = 1.0;
+    [unroll] for (int o = 0; o < 3; o++) { turb += abs(CrystalNoise(q)) * amp; q *= 2.0; amp *= 0.5; }
+    half c = (half)_ChorusEmitB.z;
+    half nz = saturate((half)(turb + _ChorusEmitB.w) * (2.0h * c + 1.0h) - c) - 0.5h;
+    half v = input.color.r - 0.5h;
+    half x = nz + (2.0h * v) * (2.0h * v) * (2.0h * v - nz);
+    x += breath.g * (half)_ChorusKicker.z;
+    half th = (1.0h - saturate((x + 1.0h) * 0.5h)) * ((half)_ChorusKicker.w + 1.0h) - (half)_ChorusKicker.w;
+    half blend = saturate(saturate((maskA - th) / max((half)_ChorusKicker.w, 1e-5h)) * 5.0h - 2.0h);
+
+    // the normals, blended
+    half3 nA = UnpackNormal(SAMPLE_TEXTURE2D(_BumpMap, sampler_LinearRepeat, uvA)) * half3((half)_ChorusKicker2.x, (half)_ChorusKicker2.x, 1.0h);
+    half3 nB = UnpackNormal(SAMPLE_TEXTURE2D(_DetailNormalMap, sampler_LinearRepeat, uvB)) * half3((half)_ChorusKicker2.y, (half)_ChorusKicker2.y, 1.0h);
+    half3 nT = normalize(lerp(nA, nB, blend));
+    s.normalTS = nT;
+    half3 nW = normalize(t * nT.x + b * nT.y + n * nT.z);
+
+    // the inner glow's variation, through the veins' parallax and the normal's refraction
+    float3 view = normalize(GetCameraPositionWS() - posWS);
+    float2 uvI = proj / max((float)_ChorusEmitB.x, 1.0);
+    half h = SAMPLE_TEXTURE2D(_Es2WearMap, sampler_LinearRepeat, uvI).r;
+    half hr = (half)_ChorusEmitG.w;
+    uvI += float2(dot(t, view), dot(b, view)) * (hr * h - hr) + float2(dot(t, nW), dot(b, nW)) * _ChorusEmitG.z;
+    half variation = SAMPLE_TEXTURE2D(_Es2WearNoiseMap, sampler_LinearRepeat, uvI).g;
+
+    // the colours: A tinted to the macro colour, both overlaid with the variation
+    half macro = SAMPLE_TEXTURE2D(_EmissionMap, sampler_LinearRepeat, uvA * _ChorusAccent2.x).r;
+    half3 colA = lerp(SAMPLE_TEXTURE2D(_BaseMap, sampler_LinearRepeat, uvA).rgb, (half3)_ChorusAccent.rgb, macro * (half)_ChorusAccent.a);
+    half3 colB = SAMPLE_TEXTURE2D(_DetailAlbedoMap, sampler_LinearRepeat, uvB).rgb;
+    s.albedo = saturate(lerp(CrystalOverlay(colA, variation), CrystalOverlay(colB, variation), blend));
+    half2 mroA = SAMPLE_TEXTURE2D(_MetallicGlossMap, sampler_LinearRepeat, uvA).rg;
+    half2 mroB = SAMPLE_TEXTURE2D(_OcclusionMap, sampler_LinearRepeat, uvB).rg;
+    half roughA = mroA.y + (half)_ChorusDirt.x;
+    roughA += (half)_ChorusAccent2.z * macro * ((half)_ChorusAccent2.y - roughA);
+    half roughB = mroB.y + (half)_ChorusDirt.y;
+    s.metallic = saturate(lerp(mroA.x, mroB.x, blend));
+    s.smoothness = 1.0h - saturate(lerp(roughA, roughB, blend));
+    s.occlusion = 1.0h;
+
+    // the inner glow
+    half3 glow = variation * (half3)_ChorusEmitR.rgb * breath.r;
+    half3 eA = glow * maskA * (half)_ChorusEmitR.a;
+    half3 eB = glow * SAMPLE_TEXTURE2D(_ChorusPalette, sampler_LinearRepeat, uvB).r * (half)(_ChorusEmitG.x * _ChorusEmitG.y);
+    gChorusEmissive = lerp(eA, eB, blend);
+    s.emission = gChorusEmissive * (half)_ChorusParams.w;
+}
+
+// GoF2: Chorus's Omen tissue (M_JTU_Faceless's compiled base pass: the Faceless ships and fortresses), _ChorusParams.x 5.
+// A black base, no metal: all glow. In UV0, V the view in the tangent frame: the outer and inner variations (red) through a
+// parallax of (Thickness.r - 0.5) x Depth; T_Dirt_02's blue at UV0 x NoiseTiling - 0.19 V; the ice mask (red) at UV0 x
+// NoiseTiling + 0.1 t - 0.939 V, x the inverse fresnel 1 - (0.04 + 0.96 (1 - N.V)^0.1424); the breath (a CA_BaseVFX row's
+// rgb at frac(time / Breath Interval - the distance from the object's origin / Pulse Wave Period)). The glow
+// lerp(Outer Glow x (dirt + outer), Inner Glow x (ice x fresnel + inner), clamp((outer + inner) x saturate(1 / (Thickness.r x
+// Strength)) + breath, 0.5, 1)); roughness lerp(RoughnessIntensity, 0.05, Thickness.g); occlusion the AO map. Slots:
+// _BumpMap its normal, _OcclusionMap its AO, _MetallicGlossMap its thickness, _DetailAlbedoMap the outer variation,
+// _Es2WearMap the inner variation, _Es2WearNoiseMap the ice mask, _ChorusPalette T_Dirt_02, _ChorusDirtRough the breath
+// row. _ChorusEmitR / G rgb the outer / inner glow; _ChorusEmitB x NoiseTiling, y Depth, z Strength, w RoughnessIntensity;
+// _ChorusKicker x Breath Interval (0: none), y Pulse Wave Period UU; _ChorusParams.w the emission's scale. The warp-in
+// dissolve's edge glow (Driver, Edge Thickness) is left out (at rest it shows none). Enable Core (MI_JTU_OmenDroneCore's
+// compiled base pass): the glow + m x (the glow + saturate(N.V)^Inner Contrast x Inner Core Color), m = saturate(1 - the
+// distance from Sphere Offset / sphere radius (object space, Chorus's cm)) x Thickness.r x (1 - (0.04 + 0.96 (1 - N.V)^5));
+// _ChorusAccent rgb Inner Core Color, a Inner Contrast (0: no core); _ChorusDirt xyz Sphere Offset, w sphere radius.
+void ChorusTissue(Varyings input, inout SurfaceData s)
+{
+    half3 n = normalize(input.normalWS.xyz);
+#if defined(REQUIRES_WORLD_SPACE_TANGENT_INTERPOLATOR)
+    half3 t = normalize(input.tangentWS.xyz);
+    half3 b = input.tangentWS.w * cross(n, t);
+#else
+    half3 t = normalize(cross(abs(n.y) < 0.99h ? half3(0.0h, 1.0h, 0.0h) : half3(1.0h, 0.0h, 0.0h), n));
+    half3 b = cross(n, t);
+#endif
+#if defined(REQUIRES_WORLD_SPACE_POS_INTERPOLATOR)
+    float3 posWS = input.positionWS;
+#else
+    float3 posWS = float3(0, 0, 0);
+#endif
+    float2 uv = input.uv;
+    half3 view = normalize(GetCameraPositionWS() - posWS);
+    float2 vt = float2(dot(t, view), dot(b, view));
+    half3 nT = UnpackNormal(SAMPLE_TEXTURE2D(_BumpMap, sampler_LinearRepeat, uv));
+    s.normalTS = nT;
+    half3 nW = normalize(t * nT.x + b * nT.y + n * nT.z);
+
+    half2 thick = SAMPLE_TEXTURE2D(_MetallicGlossMap, sampler_LinearRepeat, uv).rg;
+    float tiling = _ChorusEmitB.x, depth = _ChorusEmitB.y;
+    float2 uvP = uv + vt * (depth * (thick.r - 0.5));
+    half outer = SAMPLE_TEXTURE2D(_DetailAlbedoMap, sampler_LinearRepeat, uvP).r;
+    half inner = SAMPLE_TEXTURE2D(_Es2WearMap, sampler_LinearRepeat, uvP).r;
+    half dirt = SAMPLE_TEXTURE2D(_ChorusPalette, sampler_LinearRepeat, uv * tiling - vt * 0.19).b;
+    half ice = SAMPLE_TEXTURE2D(_Es2WearNoiseMap, sampler_LinearRepeat, uv * tiling + _Time.y * 0.1 - vt * 0.939183891).r;
+    half f = 1.0h - max(dot(nW, view), 0.0h);
+    half fres = f > 0.0h ? 1.0h - (pow(f, 0.142417h) * 0.96h + 0.04h) : 0.96h;
+    half k = thick.r * (half)_ChorusEmitB.z;
+    k = k > 0.0h ? saturate(1.0h / k) : 0.0h;
+    float3 p = mul(GetWorldToObjectMatrix(), float4(posWS, 1.0)).xyz * 100.0;
+    float phase = _ChorusKicker.x > 0.0 ? frac(_Time.y / _ChorusKicker.x - length(p) / max((float)_ChorusKicker.y, 1.0)) : 0.0;
+    half3 breath = SAMPLE_TEXTURE2D_LOD(_ChorusDirtRough, sampler_LinearClamp, float2(phase, 0.5), 0).rgb;
+    half3 w = clamp((outer + inner) * k + breath, 0.5h, 1.0h);
+    half3 glow = lerp((half3)_ChorusEmitR.rgb * (dirt + outer), (half3)_ChorusEmitG.rgb * (ice * fres + inner), w);
+    if (_ChorusAccent.a > 0.0)
+    {
+        half ndv = max(dot(nW, view), 0.0h);
+        half x = 1.0h - ndv;
+        half rim = x > 0.0h ? 1.0h - (x * x * x * x * x * 0.96h + 0.04h) : 0.96h;
+        half m = saturate(1.0h - (half)(length(p - _ChorusDirt.xyz) / max(_ChorusDirt.w, 1e-5))) * thick.r * rim;
+        half c = min(ndv, 1.0h);
+        half3 core = c > 0.0h ? pow(c, (half)_ChorusAccent.a) * (half3)_ChorusAccent.rgb : 0.0h;
+        glow += m * (glow + core);
+    }
+
+    s.albedo = 0.0h;
+    s.metallic = 0.0h;
+    half ri = (half)_ChorusEmitB.w;
+    s.smoothness = 1.0h - saturate(lerp(ri, 0.05h, thick.g));
+    s.occlusion = saturate(SAMPLE_TEXTURE2D(_OcclusionMap, sampler_LinearRepeat, uv).r);
+    gChorusEmissive = glow;
+    s.emission = glow * (half)_ChorusParams.w;
 }
 
 // M_NPCShipTrimMaster's far emission: past Kicker Fade Offset (view depth), over Kicker Fade Length, the kicker rim
@@ -392,14 +696,30 @@ void HullPassFragment(
     SurfaceData surfaceData;
     InitializeStandardLitSurfaceData(input.uv, surfaceData);
     if (_Es2Wear2.z > 0.0) Es2StructureLayers(input, surfaceData);   // GoF2: EVERSPACE 2's structure layers
-    if (_ChorusParams.x > 2.5) ChorusShell(input, surfaceData);      // GoF2: Chorus's shell (Guilt)
+    if (_ChorusParams.x > 4.5) ChorusTissue(input, surfaceData);     // GoF2: Chorus's Omen tissue (the Faceless)
+    else if (_ChorusParams.x > 3.5) ChorusCrystal(input, surfaceData);    // GoF2: Chorus's crystal (the Prophet's crown)
+    else if (_ChorusParams.x > 2.5) ChorusShell(input, surfaceData);      // GoF2: Chorus's shell (Guilt)
     else if (_ChorusParams.x > 0.0) ChorusLayers(input, surfaceData);   // GoF2: Chorus's trim sheets and platings
+    if (_WaveParams.x > 0.0) surfaceData.emission += GlowWave(input.uv);   // GoF2: a glow along a pattern (Chorus's M_Phoenix)
+    if (_LavaE.w > 0.0) surfaceData.emission += LavaFlow(input.uv);   // GoF2: Chorus's flowing lava (M_BrokenPlanet_Core)
+    if (_HitFx.w > 0.0 && _HitFx.x < 1.0) surfaceData.emission += HitFlash(input.uv, input.positionWS, input.normalWS);   // GoF2: a hit (Chorus's M_Phoenix)
+    if (_WreckFx.x > 0.0 || _WreckFx.y > 0.0)   // GoF2: a wreck piece's burn and disintegration (HullWreck.hlsl)
+    {
+        HullWreckClip(input.positionWS);
+        if (_WreckBurn.z > 0.0)   // (Chorus's own burn, from its map)
+        {
+            half b = HullWreckBurn(input.uv, input.chorusUV.xy, input.color.r);
+            surfaceData.emission += HullWreckBurnGlow(b) + HullWreckEmission(input.positionWS, false);
+            surfaceData.smoothness *= 1.0h - b;
+        }
+        else surfaceData.emission += HullWreckEmission(input.positionWS);
+    }
 
     LODFadeCrossFade(input.positionCS);
 
     InputData inputData;
     InitializeInputData(input, surfaceData.normalTS, inputData);
-    if (_ChorusParams.x > 0.0) surfaceData.emission += ChorusFarEmission(inputData);   // GoF2: Chorus's far kicker
+    if (_ChorusParams.x > 0.0 && _ChorusParams.x < 3.5) surfaceData.emission += ChorusFarEmission(inputData);   // GoF2: Chorus's far kicker
     if (_Es2Wear2.z > 0.0)
     {
         // EVERSPACE 2's rim: the colour x (1 + 5 (1 - N.V)^3), saturated

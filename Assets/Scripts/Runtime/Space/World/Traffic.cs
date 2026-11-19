@@ -207,7 +207,7 @@ namespace GoF2Remake.World
                       // Ship 13 is the Vossk freighter whatever the race (Globals::getShipGroup; its boxes too): step 40's
                       // Errkt flies it as race 0 until it appears (createShip(0, 1, 0xd)) and showed the Terran model.
                       : spec.freighter && !spec.modCapital ? db.AssemblyByName(NpcTables.FreighterAssembly(spec.ship == 13 ? 1 : spec.race))
-                                       : Modding.ModTraffic.Assembly(spec.ship) ?? ShipAssembly(db, spec.ship, spec.race);   // remake mods: a kit ship's random build
+                                       : Modding.ModTraffic.Assembly(spec.ship, spec.skin) ?? ShipAssembly(db, spec.ship, spec.race);   // remake mods: a kit ship's random build (a criminal's own skin)
         }
 
         NpcShip Create(SpawnSpec spec)

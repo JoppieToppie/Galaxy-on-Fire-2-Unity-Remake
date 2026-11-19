@@ -11,7 +11,9 @@
 // answered "Its shields hold" now and then) and the renderers whose material is named like "shieldMaterial" (the ship's
 // energy fields) show, hidden once the last generator falls; a "weakspot" part passes its hits on to the hull x that factor
 // and its death takes "bonus" of the hull's maximum; a part of a higher "stage" can't be harmed while one of a lower stage
-// stands (ES2's encounter stages). A retreating ship (CapitalRetreat) halts them: they stop firing and launching, its hangars'
+// stands (ES2's encounter stages). ships.json "hullDamage" (Chorus's warships, 0) scales the hull's direct hits only: a weak
+// spot's passed-on hits and bonuses (Target.PassOn) get through, and a direct hit it shrugs off is answered "shoot its weak
+// points" now and then. A retreating ship (CapitalRetreat) halts them: they stop firing and launching, its hangars'
 // fighters jump out (ES2's BP_Dreadnought_Command_JumpOut: TimeUntilJumpOut 3 s on, then one at random every 0.1-0.3 s; the
 // rest at once should the ship be gone first), and they leave with it. Parts take the ship's side: hostile when it is, turned when it turns. Only the game running
 // the orbit's NPCs builds them (Traffic.Create); the other players see them as proxies.
@@ -119,7 +121,8 @@ namespace GoF2Remake.World
                 };
                 var localPos = Flight.WeaponSystem.MountToLocal(mount) * k;
                 var worldPos = host.transform.TransformPoint(localPos);
-                var worldRot = host.transform.rotation * mount.TurretTurn;
+                // (a part with "turretForward" as well: turned fully, Chorus's devices on their sockets; a turret by its up alone)
+                var worldRot = host.transform.rotation * (d.kind != "turret" && d.forward.sqrMagnitude > 1e-6f ? PartTurn(d.forward, mount.TurretUpLocal) : mount.TurretTurn);
                 if (d.kind != "turret" && string.Equals(d.model, "none", System.StringComparison.OrdinalIgnoreCase))
                 {
                     // A launch point alone (a hangar deck without a part of its own to shoot off).
@@ -145,13 +148,31 @@ namespace GoF2Remake.World
                 s.transform.SetParent(host.transform, true);
                 if (d.kind != "turret") s.shootingEnabled = false;
                 if (d.weakspot > 0f) { s.Target.forwardTo = host.Target; s.Target.forwardFactor = d.weakspot; }
+                if (d.shield > 0f && s.Target.hitpoints != null)
+                {
+                    // (a shield of its own, shot down first: Chorus's shielded turret mounts; it doesn't recharge)
+                    s.Target.hitpoints.maxShield = Mathf.RoundToInt(hull * d.shield);
+                    s.Target.hitpoints.shield = s.Target.hitpoints.maxShield;
+                }
                 parts.Add(new Part { data = d, ship = s, waveMs = d.everyMs * 0.5f });
             }
             if (data != null && !string.IsNullOrEmpty(data.shieldMaterial))
                 foreach (var r in host.GetComponentsInChildren<Renderer>(true))
                     foreach (var m in r.sharedMaterials)
                         if (m != null && m.name.IndexOf(data.shieldMaterial, System.StringComparison.OrdinalIgnoreCase) >= 0) { fields.Add(r); break; }
+            // (shield fields that block the way: their meshes in the hull while they show; Chorus's warship barriers)
+            if (data != null && data.shieldBlocks && host.Target.hull != null)
+                foreach (var r in fields)
+                    if (r != null) Flight.HullCollision.AddShape(host.Target.hull, r.GetComponent<MeshFilter>());
             traffic.ConnectPlayers();
+        }
+
+        /// <summary>A part's turn from its facing (game axes, as turretUp) and its up in the ship's Unity frame.</summary>
+        public static Quaternion PartTurn(Vector3 forwardGame, Vector3 upLocal)
+        {
+            var f = new Vector3(-forwardGame.x, forwardGame.y, forwardGame.z).normalized;   // (the game frame's x mirrored, as turretUp)
+            if (Mathf.Abs(Vector3.Dot(f, upLocal)) > 0.999f) return Quaternion.FromToRotation(Vector3.up, upLocal);
+            return Quaternion.LookRotation(f, upLocal);
         }
 
         /// <summary>A part's model: "gof2:<assembly>", a ship (its assembly), else the game's battlestation shield generator.</summary>
@@ -176,14 +197,24 @@ namespace GoF2Remake.World
         void ApplyShields()
         {
             host.Target.damageFactor = shieldsUp ? Mathf.Max(0f, data != null ? data.shieldedDamage : 0f) : 1f;
+            host.Target.directFactor = data != null ? Mathf.Max(0f, data.hullDamage) : 1f;
             foreach (var r in fields) if (r != null && r.enabled != shieldsUp) r.enabled = shieldsUp;
         }
 
         void OnHostDamaged(Target t, int dmg, bool byNpc)
         {
-            if (!shieldsUp || byNpc || sinceWarnMs < ShieldWarnMs) return;
-            sinceWarnMs = 0f;
-            traffic.Warn(Localization.Extra("capitalShieldsHold", "Its shields hold: destroy the shield generators!"));
+            if (byNpc || Target.PassingOn || sinceWarnMs < ShieldWarnMs) return;
+            if (shieldsUp)
+            {
+                sinceWarnMs = 0f;
+                traffic.Warn(Localization.Extra("capitalShieldsHold", "Its shields hold: destroy the shield generators!"));
+            }
+            else if (data != null && data.hullDamage <= 0f && dmg <= 0)
+            {
+                // (Chorus's warships: the hull itself shrugs every hit off)
+                sinceWarnMs = 0f;
+                traffic.Warn(Localization.Extra("capitalWeakPoints", "Its armour holds: shoot its weak points!"));
+            }
         }
 
         void PayBonus(Part p)
@@ -191,7 +222,7 @@ namespace GoF2Remake.World
             if (p.data.bonus <= 0f || !host.Target.Alive || p.ship.Target.killedByNpc) return;
             float factor = host.Target.damageFactor;
             host.Target.damageFactor = 1f;   // a weak spot's blast gets through the shields
-            host.Target.Damage(host.Hp.maxHull * p.data.bonus, false);
+            host.Target.PassOn(host.Hp.maxHull * p.data.bonus, false);
             host.Target.damageFactor = factor;
         }
 

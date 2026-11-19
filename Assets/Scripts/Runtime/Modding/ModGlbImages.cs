@@ -47,6 +47,12 @@ namespace GoF2Remake.Modding
             /// <summary>Remake mods: a material's GoF3 terms from its "extras" ("environment", "rim", "highlightMultiplier",
             /// "multiplierInMap"), by material name, as GoF2/Hull's _GoF3Params (GoF3Params).</summary>
             public readonly Dictionary<string, UnityEngine.Vector4> gof3 = new Dictionary<string, UnityEngine.Vector4>();
+            /// <summary>Remake mods: a material's own GoF3 environment cube from its "extras" ("environmentCube": a 6:1 strip in the
+            /// mod), by material name (ModMaterials.GoF3Environment).</summary>
+            public readonly Dictionary<string, string> gof3Cube = new Dictionary<string, string>();
+            /// <summary>Remake mods: a material's glow layer from its "extras" ("additive": true and its terms, Glow), by
+            /// material name: drawn by GoF2/ModGlow instead of a lit material (ModMaterials.GlowFromGltf).</summary>
+            public readonly Dictionary<string, Glow> glow = new Dictionary<string, Glow>();
         }
 
         const uint Magic = 0x46546C67, ChunkJson = 0x4E4F534A, ChunkBin = 0x004E4942;
@@ -130,6 +136,10 @@ namespace GoF2Remake.Modding
                         && (ex["environment"] != null || ex["rim"] != null || ex["highlightMultiplier"] != null || ex["multiplierInMap"] != null))
                         result.gof3[mname] = GoF3Params(Number(ex["environment"], 1f), Number(ex["rim"], 1f),
                             Number(ex["highlightMultiplier"], 1f), ex["multiplierInMap"]?.Type == JTokenType.Boolean && (bool)ex["multiplierInMap"]);
+                    if (m?["extras"] is JObject ex2 && (string)m["name"] is string cname && ex2["environmentCube"]?.Type == JTokenType.String)
+                        result.gof3Cube[cname] = (string)ex2["environmentCube"];
+                    if (m?["extras"] is JObject ex3 && (string)m["name"] is string gname && ex3["additive"]?.Type == JTokenType.Boolean && (bool)ex3["additive"])
+                        result.glow[gname] = Glow.From(ex3);
                 }
 
             // The new binary chunk: every other bufferView packed (16-byte aligned), then the stand-in PNG.
@@ -179,6 +189,41 @@ namespace GoF2Remake.Modding
                 return img;
             }
             return null;
+        }
+
+        /// <summary>A glow layer's terms (a glTF material's "extras" with "additive": true, or a JSON material's), after Galaxy on
+        /// Fire 3's effect shaders (its BlendMode 2 materials; the GoF3 importer bakes their colour into the texture): "intensity"
+        /// (x the texture), "vertexColors", "scroll" [u, v] a second, "angleFade" [min, max] (|N.E| faded in between them,
+        /// GoF3's AngleBlend; "angleAbsolute": false = N.E as it is), "pulse" {frequency, min, max, threshold, step, smooth,
+        /// vertexOffset} (GoF3's Pulsate: |sin((t [+ vertex red]) x frequency)|, [step(threshold)], then smoothstep into min..max
+        /// or clamped to them), "billboard": true (each vertex at its sprite's centre, TEXCOORD_1 its corner's offset in view
+        /// space x the model's scale: GoF3's sprites).</summary>
+        public sealed class Glow
+        {
+            public float intensity = 1f;
+            public bool vertexColors = true, billboard, angleAbsolute = true;
+            public UnityEngine.Vector2 scroll;
+            public UnityEngine.Vector2? angleFade;
+            public float pulseFrequency, pulseMin, pulseMax = 1f, pulseThreshold;
+            public bool pulseStep, pulseSmooth, pulseVertexOffset;
+
+            public static Glow From(JObject ex)
+            {
+                var g = new Glow { intensity = Number(ex["intensity"], 1f), billboard = ex["billboard"]?.Type == JTokenType.Boolean && (bool)ex["billboard"] };
+                if (ex["vertexColors"]?.Type == JTokenType.Boolean) g.vertexColors = (bool)ex["vertexColors"];
+                if (ex["angleAbsolute"]?.Type == JTokenType.Boolean) g.angleAbsolute = (bool)ex["angleAbsolute"];
+                if (ex["scroll"] is JArray sc && sc.Count >= 2) g.scroll = new UnityEngine.Vector2(Number(sc[0], 0f), Number(sc[1], 0f));
+                if (ex["angleFade"] is JArray af && af.Count >= 2) g.angleFade = new UnityEngine.Vector2(Number(af[0], 0f), Number(af[1], 1f));
+                if (ex["pulse"] is JObject pu)
+                {
+                    g.pulseFrequency = Number(pu["frequency"], 0f);
+                    g.pulseMin = Number(pu["min"], 0f); g.pulseMax = Number(pu["max"], 1f); g.pulseThreshold = Number(pu["threshold"], 0f);
+                    g.pulseStep = pu["step"]?.Type == JTokenType.Boolean && (bool)pu["step"];
+                    g.pulseSmooth = pu["smooth"]?.Type == JTokenType.Boolean && (bool)pu["smooth"];
+                    g.pulseVertexOffset = pu["vertexOffset"]?.Type == JTokenType.Boolean && (bool)pu["vertexOffset"];
+                }
+                return g;
+            }
         }
 
         /// <summary>A glTF metallic / roughness factor: 0..1, default 1.</summary>

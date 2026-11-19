@@ -246,6 +246,7 @@ namespace GoF2Remake.UI
             Flight.Device.Type.OverchargeBeam => Localization.Extra("deviceOverchargeBeam", "Spends shield as beams at enemies ahead"),
             Flight.Device.Type.StrikeCharge => Localization.Extra("deviceStrikeCharge", "Charged by hits, then boosts the guns' damage"),
             Flight.Device.Type.Deflector => Localization.Extra("deviceDeflector", "Turns enemy shots back at their shooters"),
+            Flight.Device.Type.ShieldOvercharge => Localization.Extra("deviceShieldOvercharge", "Fills the shield; nothing gets past it for a while"),
             _ => "",
         };
 

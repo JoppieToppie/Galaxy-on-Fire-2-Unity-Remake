@@ -441,6 +441,11 @@ battle spawns in 156 ms with its hulls.
   Remake mods (2026-11-05, GoF3's NPC loadouts SW_DL_*): ships.json "traffic": { "secondaries" } (`CustomSecondary`,
   JsonUtility): `NpcShip.SetOwnSecondary` gives a traffic NPC (not a wingman, nor a boss's clone) the first entry it
   carries (rank within minRank..maxRank, share % rolled at spawn) as its second gun at x factor, when its spec has none.
+  Remake mods (2026-11-11, Chorus's BP_NPC_Weapon_*): "traffic": { "primaries" } (`CustomPrimary` : `CustomSecondary` +
+  `reloadMs`): `NpcShip.SetOwnPrimary` (not a wingman; a Most Wanted criminal's `gunItem` wins) replaces the NPC gun with
+  the first entry it carries: the item's look, fired every reloadMs (0: `NpcTables.GunReloadMs`; `MakeGun`'s reload), its
+  shot `gunBase` x `PrimaryShotFactor` = factor x reloadMs / GunReloadMs, so `factor` is its damage a second against the
+  game's NPC gun at the same level. The Chorus importer writes each hull's blueprint gun against the Circle fighter's.
 - **Missile warning and evasion** (remake; the original has neither): any homing missile (Missile, ClusterMissile,
   Thermo kinds) locked on a boosting or cloaked player loses its lock for good and flies straight on (`Gun.Update`:
   `Bullet.lockLost`, `Target.ShakesMissiles` = `boosting` || `cloaked`, set by `ShipController` / `PlayerCloak` for the
@@ -539,6 +544,39 @@ battle spawns in 156 ms with its hulls.
   `JumpOut` (state 6, gone with the rest, nobody's kill). Never a traffic fighter (`ModTraffic.Scan`); the cruise drive's
   `lootdrone` encounter flies it, neutral; the other ships leave it out of their enemy lists (`Traffic.ConnectPlayers`, ES2's
   bIgnoredByAI).
+  pursuer (2026-11-11, Chorus's Guilt: BT_Guilt's BTService_CheckDistance steps 8000 / 60000 / 100000 / 300000 cm and its
+  FlyToTarget tasks' LinearSpeedMultiplier 0.5 (TargetReachedDistance 2000) / 3 / 5 / 7, else 1; BTService_SelectTarget
+  bPreferPlayer; BP_Guilt_Debuff MaxWither 5; BP_NPC_Guilt ProximityIntensityMax 0.4, PP_Guilt): `UpdateTargeting` takes the
+  player, `RolePace` (`NpcRoles.ChaseFactor` on the distance in game units, Chorus's cm x 0.72) multiplies its top speed, no
+  break-off, `Hp.vulnerable` false; every 250 ms within 11520 units (160 m) the player takes 5 % of its maximum hull a second
+  past the shield (the wither, the remake's reading of MaxWither), and within 108000 units `World.PursuerFx` (a global URP
+  volume: a dark red vignette, saturation drained) follows `NpcRoles.Proximity`. Never traffic (`ModTraffic.Scan`): npcships.json
+  or an event graph spawns it. Chorus's MTAction_ManageGuiltNPC (a blueprint finding Guilt in the mission's whiteboard;
+  the parking itself is native MTAction_ManageGuiltNPCBase) is the event graphs' orders: a hold parks it (`NpcShip.Update`
+  returns before `UpdateRole` while parked), any other order pauses its chase, wither and screen
+  (`NpcRoles.PursuitPaused`, 2026-11-11), Resume sets it on the player again. Not done: its combat area.
+- **Chorus's way of fighting** (remake 2026-11-11, for mods; ships.json `traffic.ai` "chorus"; `Flight.ChorusDogfight` plain +
+  `World.NpcShip` part NpcShipChorus): after BT_Fighter_CombatRoam (BTTask_AttackApproach FiringStartDistance 60000 /
+  ClosestDistance 5000 cm, TaskDuration 10, LinearSpeedMultiplier 2; BTTask_Flee with EQQuery_PassByPosition 4 s;
+  BTService_CheckForEnemyAttack -> a 2 s flee, BTDecorator_Cooldown 3; CompareHealthPercent < 0.5 -> BTTask_Flee_14 5 s,
+  cooldown 15; CheckForOutOfView 2 s + CheckInDistance 120000 -> BTTask_Teleport TeleportToDistance 40000, cooldown 15), cm x
+  0.72 game units. `SetupDogfight` makes it for "chorus"; `UpdateChorus` (after the targeting) steps it (the target's nose
+  within 10 deg of it inside the firing distance = aimed at; out of view = outside the main camera's viewport, players
+  only) and `ChorusJump`s (behind the target, facing it, `HullWarpIn`); Steer takes `ChorusFightGoal` (the target, a point
+  past it, a break or a retreat point by the mode's side), its speed factor and hold, no formation or break-off box. The
+  attack tokens (Gen1 / Gen11 / Gen14, the AI director's counts) are the remake's: the nearest MaxAttackers (3) on a player
+  fire. The pass and the run away fly to EQQuery_PassByPosition's point (2026-11-11, `ChorusFleePoint`: 32 points on a
+  sphere at DistanceOfTargetPoint 75000 cm, scored by `ChorusDogfight.FleeScore`: ExclusionAngle x5, FleeDirection x10,
+  SetPredefinedScores x2 as a random share, once per mode entry (`Entries`); the two native tests' curves are the
+  remake's linear reading, InCombatArea / NearGeometry left out); the attack point stays the target. `"ai":
+  "chorusScout"` (BT_Scout_CombatRoam: its break also on CheckForTargetAligned's 25 deg within 500 m, at x1.5, every 4 s)
+  and `"chorusGunship"` (BT_Gunship_CombatRoam_New: in at x2 to 600 m, `Mode.Hold` there at speed x0.1 facing and firing,
+  in again past 800 m; no break, run away or jump; its line-of-sight repositioning left out), `"chorusDrone"`
+  (BT_CombatRoam_OmenDrone) and `"chorusSwarm"` (BT_BatSwarm_CombatRoam): kiters, in (x2 / x1.5) to 200 / 400 m, then
+  `Mode.Hold` at an attack position 400 m off on their side (the goal the target once there), firing, a 3 s flight away
+  (`PassBy` at the 135 deg EQS point) within 100 / 150 m; the drone jumps as the fighters, the swarm runs away below half
+  its hull every 25 s instead (its weak-point respawns left out) by `ChorusDogfight.Kind` (`KindOf`). Tests
+  `ChorusDogfightTests`.
 - **A ship type's own drops** (remake 2026-11-04, for mods; ships.json `traffic.loot` [ { item, chance, min, max } ] and
   `lootDrops`, `CustomTraffic.loot` / `CustomLoot`, `NpcShip.AddOwnLoot` at Setup and Revive): after EVERSPACE 2's
   loot_npcs.csv (a blueprint, its drop count, then item / chance / amount range triples): each entry by its chance, at most

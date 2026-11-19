@@ -76,7 +76,8 @@ float4 _Es2Grunge;
 // loader's V flip), B.a Emissive Channel Distance Boost; _ChorusKicker: rgb Kicker Color, a Kicker Exp (0 = no kicker);
 // _ChorusKicker2: x Kicker Fade Offset, y Kicker Fade Length (world units), z the near emission's factor; _ChorusDirt: rgb
 // Dirt Tint, a 1 = dirt on; _ChorusDirt2: x Dirt UV Scale, y Dirt Mask UV Scale, z Dirt from Material AO Intensity, w Dirt
-// Contrast; _ChorusDirt3: x 0 = weighted by the vertex colour's red (trim), 1 = its alpha too (plating).
+// Contrast; _ChorusDirt3: x 0 = weighted by the vertex colour's red (trim), 1 = its alpha too (plating); y 1 = by its alpha
+// instead of its red, z 1 = the dirt covers the trim emissive too (M_NPCShipTrimMaster's dirt, the Disruptor's).
 float4 _ChorusParams;
 float4 _ChorusAccent;
 float4 _ChorusAccent2;
@@ -88,6 +89,40 @@ float4 _ChorusKicker2;
 float4 _ChorusDirt;
 float4 _ChorusDirt2;
 float4 _ChorusDirt3;
+// GoF2: a glow travelling along a pattern (Chorus's M_Phoenix glow lines; HullForwardPass.hlsl GlowWave), on when
+// _WaveParams.x > 0: x its multiplier, y the pattern's tiling, z its speed, w the mask's channel; _WaveMin / _WaveMax rgb.
+float4 _WaveParams;
+float4 _WaveMin;
+float4 _WaveMax;
+// GoF2: a wreck piece's burn and disintegration (HullWreck.hlsl; World.WreckBreakup's property block): x the burn amount,
+// y the share cut away, z the pattern's cells a unit, w the cut edge's width; _WreckBurnColor rgb the glow (HDR), a its
+// temperature (K, with the burn map); _WreckBurn (with _WreckBurnMap: Chorus's MF_WreckBurn) x Burn_NoiseTiling, y
+// Burn_Noise_Offset, z Burn_Falloff (0: no map, the value noise), w + 1 the vertex colour's red keeps it from burning, + 2
+// the map over UV1 (Burn_Noise_UseUV1: the trim masters')
+float4 _WreckFx;
+float4 _WreckBurnColor;
+float4 _WreckBurn;
+// GoF2: the hull's hit flash (Chorus's M_Phoenix; HullForwardPass.hlsl HitFlash; World.HullHitFlash's property block): x the
+// flash's age 0..1 (1 = none), y its radius (m), z its duration (s), w 1 its pattern in _WavePattern.a / 2 none / 0 off;
+// _HitPos xyz the hit (world); _HitColor rgb (HDR)
+float4 _HitFx;
+float4 _HitPos;
+float4 _HitColor;
+// GoF2: Chorus's flowing lava (M_BrokenPlanet_Core; HullForwardPass.hlsl LavaFlow; ModMaterials.LavaFlow): _LavaA x Magma
+// Tiling, y FlowSpeed, z Flowmap Tiling, w FlowIntensity; _LavaB x TimeOffset Tiling, y its intensity, zw Flowmap UV Texture
+// Offset; _LavaC x 2nd Magma Tiling, y FlowSpeed 2, z Flowmap Tiling 2, w FlowIntensity 2; _LavaD x TimeOffset 2 Tiling,
+// y 2nd core mask multiply, z its exp, w 2nd magma multiply; _LavaE x 2nd magma exp, y Temp Min, z Temp Max, w the glow's
+// scale (0: off); _LavaF x FlowMipLevel, y FlowMipLevel 2
+float4 _LavaA;
+float4 _LavaB;
+float4 _LavaC;
+float4 _LavaD;
+float4 _LavaE;
+float4 _LavaF;
+// GoF2: a GoF3 material's own environment cube (ModMaterials, a mod material's "environmentCube"; HullForwardPass.hlsl
+// GoF3ShipShader): x 1 = _GoF3EnvMap holds it (a 6:1 strip of GoF3's generic cube: monochrome, four blurs in R G B A, R the
+// sharpest), else the place's environment stands in; y the strip's texel height (1 / its height).
+float4 _GoF3Env;
 UNITY_TEXTURE_STREAMING_DEBUG_VARS;
 CBUFFER_END
 
@@ -194,8 +229,15 @@ TEXTURE2D(_Es2WearNoiseMap);
 TEXTURE2D(_Es2GrungeMap);
 // GoF2: Chorus's layers: the palette (left half: LayerColors, linear; right half: LayerData), read by texel; the dirt's
 // roughness (sampled with the global linear-repeat sampler). Their other maps take URP's slots (ModMaterials.ChorusLayers).
+TEXTURE2D(_WavePattern);
+TEXTURE2D(_WaveMask);
 TEXTURE2D(_ChorusPalette);
 TEXTURE2D(_ChorusDirtRough);
+TEXTURE2D(_WreckBurnMap);
+TEXTURE2D(_LavaEmit);       // GoF2: the lava's flow emissives (R the first, G the second)
+TEXTURE2D(_LavaFlowMaps);   // its flowmaps (RG the first, BA the second)
+TEXTURE2D(_GoF3EnvMap);     // GoF3's environment cube as a 6:1 strip (_GoF3Env; sampler_LinearClamp)
+TEXTURE2D(_LavaMasks);      // R / G the time offsets, B the part mask, A the core mask   // GoF2: a wreck piece's burn noise (HullWreck.hlsl HullWreckBurn)
 UNITY_TEXTURE_STREAMING_DEBUG_VARS_FOR_TEX(_BaseMap);
 
 // GoF2: Chorus's M_Guilt_Shell (_ChorusParams.x 3; ModMaterials.ChorusShell): its noise flowing along its flow map, as its
@@ -224,6 +266,25 @@ float ChorusShellNoiseLod(float2 uv0)
 
 // The vertex shader's push, model units: push + pushNoise x (1 - the noise)
 float ChorusShellPush(float2 uv0) { return _ChorusEmitG.x + _ChorusEmitG.y * (1.0 - ChorusShellNoiseLod(uv0)); }
+
+// Whether this material is Chorus's shell (only it pushes and dissolves: the crystal's and the tissue's vectors mean else)
+bool ChorusIsShell() { return _ChorusParams.x > 2.5 && _ChorusParams.x < 3.5; }
+
+// The shell's dissolve (M_Guilt_Shell's masked depth pass; every pass that draws it, the shadow and depth passes too): the
+// noise flowed, T_Guilt_A's red (the body) and green (the arms), a screen dither at 'pixel'; ((mask.r + Arms Fade) x 0.5 +
+// dither - 0.5) x saturate(2 Coverage - (1 - noise) x (1 - mask.g)^Erode Exponent) - (1 - MasterAlpha) clipped below 1/3.
+void ChorusShellClip(float2 uv0, float2 pixel)
+{
+    float2 a, b; float k;
+    ChorusShellFlow(uv0, a, b, k);
+    float2 dx = ddx(uv0 * _ChorusParams.y), dy = ddy(uv0 * _ChorusParams.y);   // (the flowed UVs jump; their gradients don't)
+    half n = lerp(SAMPLE_TEXTURE2D_GRAD(_OcclusionMap, sampler_LinearRepeat, b, dx, dy).r, SAMPLE_TEXTURE2D_GRAD(_OcclusionMap, sampler_LinearRepeat, a, dx, dy).r, (half)k);
+    half4 mask = SAMPLE_TEXTURE2D(_BaseMap, sampler_LinearRepeat, uv0);
+    half erode = pow(max(1.0h - mask.g, 1e-4h), (half)_ChorusEmitR.z);
+    half dither = InterleavedGradientNoise(pixel, 0);
+    half vis = ((mask.r + (half)_ChorusEmitR.x) * 0.5h + dither - 0.5h) * saturate(2.0h * (half)_ChorusEmitR.y - (1.0h - n) * erode) - (1.0h - (half)_ChorusEmitR.w);
+    clip(vis - 0.3333h);
+}
 
 // Simple getters for the material properties above. All raw material input (constant buffer
 // values, texture samples) is accessed through these; the feature helpers build on them.

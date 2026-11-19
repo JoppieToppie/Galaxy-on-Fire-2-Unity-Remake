@@ -207,6 +207,7 @@ namespace GoF2Remake.Data
         public string idle;                 // loops whenever nothing else plays
         public ShipStateAnimation drift;    // Chorus flight's drift
         public ShipStateAnimation travel;   // Chorus flight's travel boost
+        public ShipStateAnimation braking;  // while the brake is held (Chorus's player capital ship's flaps)
         public ShipStateAnimation weapons;  // while the player fires: deploy (start), deployed (loop), undeploy (end)
         public string steerLeft, steerRight, thrust, brake, bankLeft, bankRight;   // poses laid over it by the input (each clip's last frame)
         public ShipStateAnimation dodgeLeft, dodgeRight;   // Chorus flight's dash: played once (start, then end)
@@ -252,7 +253,15 @@ namespace GoF2Remake.Data
         // none) and its renderers with a material named like 'shieldMaterial' show (its energy fields), hidden once they fall.
         public string shieldMaterial;
         public float shieldedDamage;
+        // Remake mods (2026-11-11, Chorus's warship barriers): the shield fields (shieldMaterial) block the way while they show.
+        public bool shieldBlocks;
+        // Remake mods (2026-11-11, Chorus's warships): the share of a direct hit on the hull it takes (after the shields); 0 = it is
+        // hurt only through its weak spots (their passed-on hits and bonuses), Chorus's DefaultDamageMultiplier 0.
+        public float hullDamage = 1f;
         public float hullFactor = 1f;     // remake mods: a mod capital ship's hull x this (Modding.ModCapitalShips.Spawn)
+        /// <summary>Remake mods (Chorus's player capital ship): the player's hull mends by this many points a second
+        /// (PlayerHealth, Hitpoints.RegenerateHull); 0 = only a repair bot's.</summary>
+        public float hullRegen;
         /// <summary>"es2": EVERSPACE 2's engine effects (Modding.Es2EngineVfx: the glow, trails and lights at the exhaust and
         /// booster mounts) without flame materials of its own and without the glow discs (a capital ship's sockets).</summary>
         public string engineStyle;
@@ -267,9 +276,135 @@ namespace GoF2Remake.Data
         /// extent, game units) says otherwise; none = the race's.</summary>
         public string crate;
         public float crateSize;
+        /// <summary>Remake mods (2026-11-11, Chorus's wrecks): what the ship breaks into where it explodes (World.WreckBreakup);
+        /// null = it explodes and is gone.</summary>
+        public CustomWreck wreck;
+        /// <summary>Remake mods (2026-11-11, Chorus's BP_Effect_Auxiliary_Shield_PlayerCapitalShip): the Shield Overcharge's look
+        /// on this ship (Flight.ShieldShell): a shell model in the ship model's own frame, painted with the ship's materials (a
+        /// "shield" block); null = the emergency system's bubble.</summary>
+        public CustomOvercharge overcharge;
+        /// <summary>Remake mods (2026-11-11, Chorus's explosions): a JSON file in the mod with the ship's own death effects
+        /// (CustomFxFile, World.ModDeathFx) instead of the game's explosion; null = the game's.</summary>
+        public string deathFx;
+        /// <summary>Remake mods (2026-11-11, Chorus's warships): a capital ship's reactor going critical when its hull runs out
+        /// (CustomDeathThroes, NpcShipDamage); null = it burns and explodes as the game's do.</summary>
+        public CustomDeathThroes deathThroes;
+        /// <summary>Remake mods: its NPCs materialize where they arrive in flight (World.HullWarpIn); null = they just appear.</summary>
+        public CustomWarpIn warpIn;
         /// <summary>Remake mods (after Galaxy on Fire 3's wingmen): the device a hired wingman flying this hull uses: "repair",
         /// "ammo" or "charged" (Flight.WingmanDevice); none = none, like the game's wingmen.</summary>
         public string wingmanDevice;
+    }
+
+    /// <summary>Remake mods (ships.json "deathThroes", 2026-11-11, after Chorus's BP_NPC_Warship_Base: StartDeathThroes, its
+    /// countdown and its blast): when the hull runs out, "{name}'s reactor is going critical" and 'seconds' of blasts over the
+    /// hull ('blasts' of them, the ship's "dying" death effect where it has one), then the explosion hurts everything within
+    /// 'radius' game units: 'damage' x a ship's maximum hull (shields first) at its middle, falling off to nothing at the
+    /// edge; the player's camera shakes within twice that.</summary>
+    /// <summary>Remake mods (2026-11-11, Chorus's Omen tissue warping in): an NPC ship of this type arriving in flight
+    /// materializes over 'seconds', its hull cut away by noise that shrinks to nothing, the cut's 'edge' (a share of the noise)
+    /// glowing in 'color' (HDR; World.HullWarpIn, the hull shader's wreck cut run backward).</summary>
+    [System.Serializable] public class CustomWarpIn
+    {
+        public float seconds = 2f, edge = 0.02f;
+        public float[] color;
+    }
+
+    [System.Serializable] public class CustomDeathThroes
+    {
+        public float seconds = 10f, radius = 16000f, damage = 1f;
+        public int blasts = 12;
+    }
+
+    /// <summary>Remake mods (ships.json "deathFx", 2026-11-11, after Chorus's Cascade explosions): the ship's death effects,
+    /// a JSON file in the mod: 'main' at the explosion, 'dying' 'dyingCount' times over its tumble (at points on the hull),
+    /// in place of the game's explosion (its sound stays).</summary>
+    [System.Serializable] public class CustomFxFile
+    {
+        public CustomFx main, dying;
+        public int[] dyingCount;
+    }
+
+    /// <summary>One effect: its emitters, each a particle system, together.</summary>
+    [System.Serializable] public class CustomFx
+    {
+        public CustomFxEmitter[] emitters;
+    }
+
+    /// <summary>A particle emitter (after a Cascade emitter's level 0): sizes and speeds in game units, times in seconds.
+    /// 'image' a PNG in the mod (white on black, added; 'sheet' [columns, rows] of frames, 'frames' the frame over the
+    /// particle's life as samples 0..1 of the sheet, else 'randomFrame' one at random), 'bursts' [time, count, ...], 'rate'
+    /// a second over 'duration'; 'life' / 'size' / 'speed' (outward, or along the effect's forward with 'forward') / 'spin'
+    /// (deg a second) [min, max]; 'sphere' the radius they start in; 'drag' as Unreal's (velocity lost a second x it);
+    /// 'inherit' of the ship's motion; 'color' its brightest colour (HDR), 'colorOverLife' [r, g, b, ...] and
+    /// 'alphaOverLife' samples 0..1 times it, 'sizeOverLife' samples times 'size'; 'stretch' > 0: drawn along its
+    /// flight, that long for its width. Remake (2026-11-11): 'blend' "alpha" draws the image over what is behind instead of
+    /// adding it (smoke, debris; its colour then a plain tint, 0..1); 'light' &gt; 0 makes it a light, no particles: a point
+    /// light of that range (game units) and 'lightIntensity', the colour, colour / alpha / size over its life
+    /// (World.FxFlash), from the first burst.</summary>
+    [System.Serializable] public class CustomFxEmitter
+    {
+        public string image, blend;
+        public float light, lightIntensity = 1f;
+        /// <summary>Remake (2026-11-11, Chorus's SpawnPerUnit trails and VectorFieldLocal turbulence): 'trail' puffs left along each
+        /// particle's flight (a particle without an 'image' is only the trail's source); 'noise' [strength game units a second,
+        /// cell size game units] a turbulence on the particles.</summary>
+        public CustomFxTrail trail;
+        public float[] noise;
+        public int[] sheet;
+        public float[] frames;
+        public bool randomFrame, forward, randomRotation;
+        public float[] bursts;
+        public float rate, duration = 1f, sphere, drag, inherit = 1f, stretch;
+        public float[] life, size, speed, spin, color, colorOverLife, alphaOverLife, sizeOverLife;
+    }
+
+    /// <summary>A death effect emitter's trail: puffs of 'image' (a 'sheet' with 'frames', or 'randomFrame') every 'every' game
+    /// units along its particle's flight, each living 'life' [min, max] s, 'size' [min, max] game units, 'sizeOverLife',
+    /// 'color' (HDR), 'colorOverLife', 'alphaOverLife', added (or "blend": "alpha").</summary>
+    [System.Serializable] public class CustomFxTrail
+    {
+        public string image, blend;
+        public int[] sheet;
+        public float[] frames, life, size, sizeOverLife, color, colorOverLife, alphaOverLife;
+        public bool randomFrame, randomRotation;
+        public float every = 100f;
+    }
+
+    /// <summary>A ship's Shield Overcharge look (CustomShipData.overcharge; Chorus's P_Buff_Auxiliary_Shield_PlayerCapitalShip,
+    /// one mesh particle): 'model' (a glTF / GLB in the mod, made in the ship model's frame and units, its materials from the
+    /// ship's "materials": a "shield" block) shown 'delay' seconds after the overcharge starts for 'seconds', its tint 'color'
+    /// (RGB, HDR) x 'colorOverLife' (brightness samples over its life, evenly spaced; none: 1) with 'alpha' x 'alphaOverLife'
+    /// (likewise).</summary>
+    [System.Serializable] public class CustomOvercharge
+    {
+        public string model;
+        public float seconds = 4.8f, delay = 0.5f, alpha = 1f;
+        public float[] color, colorOverLife, alphaOverLife;
+    }
+
+    /// <summary>Remake mods (ships.json "wreck", 2026-11-11, after Chorus's ExplosionPhysics wrecks): 'model' a glTF / GLB in the
+    /// mod made in the ship model's own frame and units (it is placed exactly where the hull was), each node with a mesh one
+    /// piece, painted with the ship's "materials"; the pieces fly apart from the wreck's middle at 'speed' (x a tenth of the
+    /// ship's length a second) with the ship's own motion, turn at 'spin' (x 20-90 deg a second), slow down, burn and are
+    /// gone after 'seconds' (shrinking away over the last quarter).</summary>
+    [System.Serializable] public class CustomWreck
+    {
+        public string model;
+        public float seconds = 6f, speed = 1f, spin = 1f;
+        /// <summary>Remake (2026-11-11, Chorus's MF_WreckBurn / Dissolve): the pieces' glowing burn at first (0 none, 1
+        /// Chorus's Burn_Amount), cooling over the first half; 'burnColor' its HDR colour (none: Chorus's 1500 K); 'dissolve'
+        /// false: the pieces shrink away instead of disintegrating.</summary>
+        public float burn = 1f;
+        public float[] burnColor;
+        public bool dissolve = true;
+        /// <summary>Remake (2026-11-11, MF_WreckBurn's compiled base pass): Chorus's own burn: 'burnMap' (PNG, R the noise,
+        /// over UV0 x 'burnTiling', + 'burnOffset'), sharpened by 'burnFalloff', glowing as a blackbody at 'burnTemperature'
+        /// (K) x the burn; 'burnVertexRed' the vertex colour's red keeps parts from burning; 'burnUv1' the map over UV1 (the
+        /// model's second UV set). None: the value-noise burn.</summary>
+        public string burnMap;
+        public float burnTiling = 1f, burnOffset, burnFalloff = 3f, burnTemperature = 1500f;
+        public bool burnVertexRed, burnUv1;
     }
 
     /// <summary>Remake mods: EVERSPACE 2's per-ship switches of its engine effects (a ship blueprint's SpawnEngineGlow /
@@ -293,9 +428,11 @@ namespace GoF2Remake.Data
     {
         public string kind = "object", name, model;
         public Vector3 position, up = Vector3.up;
+        public Vector3 forward;   // remake (2026-11-11, Chorus's warship devices): a part's facing with 'up' (game axes); zero = by 'up' alone
         public int item = -1, hull = -1, stage;
         public bool shields;
         public float weakspot, bonus, scale = 1f, radius = -1f;
+        public float shield;   // remake (2026-11-11, Chorus's shielded turret mounts): shield points = its hull x this, taken first, not recharged
         public List<string> ships = new List<string>();
         public float everyMs = 25000f;
         public int perWave = 2, maxAlive = 6, total = -1;
@@ -358,6 +495,17 @@ namespace GoF2Remake.Data
         /// <summary>Remake (2026-11-05, GoF3's NPC loadouts): a second weapon its NPCs may carry, the first entry carried
         /// (CustomSecondary.Carried) at its spawn (World.NpcShip); null = none, as the game's NPCs.</summary>
         public CustomSecondary[] secondaries;
+        /// <summary>Remake (2026-11-11, Chorus's NPC weapons, BP_NPC_Weapon_*): the gun its NPCs fire instead of the game's NPC
+        /// gun, the first entry carried (World.NpcShip.SetOwnPrimary); null = the game's. A Most Wanted criminal's weapon wins.</summary>
+        public CustomPrimary[] primaries;
+    }
+
+    /// <summary>A ships.json "traffic.primaries" entry: as a secondary ('item' its look, carried by rank and share), its
+    /// 'factor' the damage a second against the game's NPC gun at the same level (1 = as much), fired every 'reloadMs'
+    /// (0 = the game's NPC interval: each shot then carries more or less to keep the factor).</summary>
+    [System.Serializable] public class CustomPrimary : CustomSecondary
+    {
+        public float reloadMs;
     }
 
     /// <summary>A ships.json "traffic.secondaries" entry: 'item' (a reference, "31" or "mod:id"), carried while the player's
@@ -427,6 +575,14 @@ namespace GoF2Remake.Data
         // Specular_Multiplier on the highlight (default 1) and 'multiplierInMap' when the map already carries it.
         public float environment = 1f, rim = 1f, highlightMultiplier = 1f;
         public bool multiplierInMap;
+        // With a specular map: GoF3's own environment cube for it to reflect, a 6:1 strip of its faces in the mod (GoF3's generic
+        // cube: four blurs in R G B A, the gloss choosing; ModMaterials.GoF3Environment); without one the place's surroundings.
+        public string environmentCube;
+        // With "additive" (a glow layer): GoF3's effect terms (ModGlbImages.Glow): 'angleFade' [min, max] (|N.E| faded in between),
+        // 'pulse' [frequency, min, max, threshold, step 0/1, smooth 0/1, vertexOffset 0/1], 'billboard' (TEXCOORD_1 / UV1 the
+        // corners' view-space offsets: sprites that face the camera).
+        public float[] angleFade, pulse;
+        public bool billboard;
         public bool doubleSided;   // both faces drawn (models with one-sided panels the camera can see from behind)
         public bool engine;        // its emission shows only while the engines run (dark on a ship parked in a hangar)
         // With "engine": its share of the glow at throttle 0 (0..1); 1 = steady like the game's own engine glow, lit
@@ -468,6 +624,16 @@ namespace GoF2Remake.Data
         public ChorusPortalSpec portal;
         /// <summary>Remake (2026-11-11): Chorus's rift vortex (GoF2/ChorusRift, ModMaterials.Rift).</summary>
         public ChorusRiftSpec rift;
+        /// <summary>Remake (2026-11-11): Chorus's flowing lava (M_BrokenPlanet_Core; GoF2/Hull LavaFlow, ModMaterials.LavaFlow).</summary>
+        public ChorusLavaSpec lava;
+        /// <summary>Remake (2026-11-11): Chorus's shield shell (M_Shield; GoF2/ChorusShield, ModMaterials.Shield; a ship's
+        /// "overcharge" model, Flight.ShieldShell).</summary>
+        public ChorusShieldSpec shield;
+        /// <summary>Remake (2026-11-11): a glow that travels along a pattern (Chorus's M_Phoenix glow lines; GoF2/Hull GlowWave).</summary>
+        public GlowWaveSpec wave;
+        /// <summary>Remake (2026-11-11): the hull's flash where the player's ship is hit (Chorus's M_Phoenix MF_HitEffect; GoF2/Hull
+        /// HitFlash, World.HullHitFlash).</summary>
+        public HitFlashSpec hit;
         // An engine flame (GoF2/ModEngineFlame, Modding.EngineFlame): the surfaces are flame stubs whose UV u runs from the
         // nozzle (0) to the tip (1), stretched backward by the throttle; emissionColor x emissionIntensity is its colour.
         public bool flame;
@@ -486,7 +652,9 @@ namespace GoF2Remake.Data
     /// (its channels x 'emissiveR' / 'G' / 'B' x 'emissiveAmount'; 'emissiveUvShift' only on faces shifted out of the
     /// palette) over UV0; 'accentColor' (null = none) with 'accentMetal' / 'accentRoughness' / 'accentNormal'. Plating:
     /// 'tilingDiffuse' / 'tilingRmo' / 'tilingNormal' are Albedo / ORM / Normal over UV0 x 'tiling'. 'dirt' / 'dirtMask' /
-    /// 'dirtRoughness' (Dirt BaseColor x 'dirtTint', over UV1) by the vertex colour's red ('dirtAlpha': x its alpha too).
+    /// 'dirtRoughness' (Dirt BaseColor x 'dirtTint', over UV1) by the vertex colour's red ('dirtAlpha': x its alpha too;
+    /// 'dirtByAlpha': by its alpha instead of its red; 'dirtOverEmissive': the dirt covers the trim emissive too, the
+    /// M_NPCShipTrimMaster's dirt).
     /// 'kickerColor' / 'kickerExp' (0 = none): the far rim, faded in past 'kickerFadeOffset' over 'kickerFadeLength' (world
     /// units), with the emissive x 'distanceBoost' there; 'nearEmission' the emissive's factor up close (M_NPCShipTrimMaster's
     /// 2). Every emission x 'emissionScale' (Chorus's HDR to the remake's bloom).</summary>
@@ -494,7 +662,12 @@ namespace GoF2Remake.Data
     /// GoF2/ChorusPortal. kind "portal": 'noise' (T_main) in polar coordinates x (1, tilingV), scrolling by panningV, ^
     /// structurePower x structureMult into the colour 'curve' (one row), 'height' (its bump offset by heightRatio and the
     /// refraction's mask), 'sphereNormal' / 'ringNormal' and 'ior' / 'pulseSpeed' / 'pulseB' / 'refraction' the scene
-    /// bent behind it, x 'fade'. kind "glow": 'gradient' at -UV, lerp(color x g, the curve at g, lerpColor) x g.</summary>
+    /// bent behind it, x 'fade'. kind "glow": 'gradient' at -UV, lerp(color x g, the curve at g, lerpColor) x g. kind "core"
+    /// (Guilt's, MP_Guilt_Core_Radial_02): 'noise' (the threads) in polar coordinates of the card's UVs pinched by 'pinch' x
+    /// (tilingU, tilingV), read panned by (speedU, panningV) and (-speedU, panningV), added; the core 1 - e^-(2.333 edge)^2
+    /// ^ corePower x coreMult; the colour the 'curve' at threads + core (x 'fade'); the alpha (threads + threads^threadsPower
+    /// x threadsMult + core) x the core's edge - (1 - masterAlpha), faded within 'depthFade' (game units) of what is behind
+    /// it; alpha-blended.</summary>
     [System.Serializable] public class ChorusPortalSpec
     {
         public string kind;   // "portal" or "glow"; empty = off
@@ -503,8 +676,11 @@ namespace GoF2Remake.Data
         public float ior = 1.5f, pulseSpeed = -0.4f, pulseB = 3f, refraction = 0.05f;
         public float[] color;
         public float lerpColor = 1f;
-        public bool On => kind == "portal" ? !string.IsNullOrEmpty(noise) : kind == "glow" && !string.IsNullOrEmpty(gradient);
+        public float tilingU = 1f, speedU = 0.05f, pinch = -1.6f, corePower = 8.845f, coreMult = 1.2f, threadsPower = 1.5f;
+        public float threadsMult = 5f, masterAlpha = 1f, depthFade;
+        public bool On => kind == "portal" || kind == "core" ? !string.IsNullOrEmpty(noise) : kind == "glow" && !string.IsNullOrEmpty(gradient);
         public bool Glow => kind == "glow";
+        public bool Core => kind == "core";
 
         /// <summary>Its maps: (path, linear, normal map).</summary>
         public System.Collections.Generic.IEnumerable<(string path, bool linear, bool normal)> Textures()
@@ -513,6 +689,30 @@ namespace GoF2Remake.Data
             foreach (var t in new[] { (noise, true, false), (height, true, false), (curve, true, false), (sphereNormal, true, false), (ringNormal, true, false), (gradient, true, false) })
                 if (!string.IsNullOrEmpty(t.Item1)) yield return t;
         }
+    }
+
+    /// <summary>A material's "wave" block (GoF2/Hull's GlowWave; ModMaterials.GlowWave), after Chorus's M_Phoenix (its compiled
+    /// base pass): the 'pattern' (R its strength, G and B its phase) over UV0 x 'tiling'; at each texel the phase
+    /// frac(G - B - time x 'speed') makes a triangle wave t (0 at its ends, 1 in its middle) that runs along the pattern;
+    /// the glow lerp('min', 'max', t) x t x R x the 'mask' image's 'channel' (0 R, 1 G, 2 B; over UV0) x 'multiplier', added to
+    /// the emission. Both images read as data.</summary>
+    /// <summary>Chorus's hit flash (M_Phoenix's compiled base pass): for 'duration' seconds after a hit, 'color' (HDR: HitColor x
+    /// HitEmissiveStrength) fading out, in a ring growing from the hit to 'radius' (game units) and a fresnel^7 glow within it,
+    /// x the pattern (the wave pattern's alpha: T_Lu_Noise_29 at 2 uv and at 5 uv turning, ((a + b) / 2)^4) with 'pattern'.</summary>
+    [System.Serializable] public class HitFlashSpec
+    {
+        public float[] color;
+        public float radius = 648f, duration = 0.04f;
+        public bool pattern;
+    }
+
+    [System.Serializable] public class GlowWaveSpec
+    {
+        public string pattern, mask;
+        public int channel = 1;
+        public float tiling = 1f, speed = 1f, multiplier = 1f;
+        public float[] min, max;
+        public bool On => !string.IsNullOrEmpty(pattern) && !string.IsNullOrEmpty(mask);
     }
 
     /// <summary>A material's "rift" block: Chorus's rift vortex (M_PortalRift_2, on SM_Rift_Vortex), drawn added by
@@ -529,14 +729,67 @@ namespace GoF2Remake.Data
         public float frames = 4f, lightningMul = 100000f, lightningCloud = 200f, gradation = 4f;
         public float blendExp = 1f, blendMult = 1f, corePow = 35f, coreTint = 0.05f, exposure = 0.4f;
         public float[] inner, outer, core, brightness, background, clouds;
+        /// <summary>Remake (2026-11-11): "bottom": Chorus's M_PortalRift_BOTTOM (the Rift seen from inside, LocRFA's vortex):
+        /// one 'emissive' colour for the inner / outer blend, the rock in 'baseColor', the bolts and the cloud lightning not
+        /// held to the red centre, the clouds in the emissive colour without the g^2; alpha-blended, fading out within
+        /// 'depthFade' of what is behind it and nearer than 'fadeOffset' + 'fadeLength' to the camera (game units).</summary>
+        public string mode;
+        public float[] emissive, baseColor;
+        public float depthFade, fadeOffset, fadeLength;
+        /// <summary>The vertex shader's world position offset (M_PortalRift_2's / _BOTTOM's: the vertex along its normal by
+        /// 'wpoMap' (R) at uv x tiling + t x pan, x saturate(5 g (1 - g)) x the strength): 'wpo' [strength in the model's
+        /// own units, tiling u, v, pan u, v]; none = still.</summary>
+        public string wpoMap;
+        public float[] wpo;
+        public bool Bottom => string.Equals(mode, "bottom", System.StringComparison.OrdinalIgnoreCase);
         public bool On => !string.IsNullOrEmpty(tiled);
 
         /// <summary>Its maps: (path, linear, normal map).</summary>
         public System.Collections.Generic.IEnumerable<(string path, bool linear, bool normal)> Textures()
         {
             if (!On) yield break;
-            foreach (var t in new[] { tiled, strip, lightning, cloudMask, cloud, rock })
+            foreach (var t in new[] { tiled, strip, lightning, cloudMask, cloud, rock, wpoMap })
                 if (!string.IsNullOrEmpty(t)) yield return (t, true, false);
+        }
+    }
+
+    /// <summary>A material's "shield" block: Chorus's M_Shield (its compiled translucent pass on MI_Shield_PlayerCapital_Auxiliary),
+    /// drawn added by GoF2/ChorusShield on both faces; the formula is in the shader's header. 'mask' (R, over UV0 x
+    /// 'noiseScale', panned by 'pan' [u1, v1, u2, v2]), 'noise' (R, over UV1); lengths ('radius' [start, end], 'ring' [radius
+    /// start, end, width start, end]) in the model's own units from its origin; 'cameraFade' [offset, length] and 'depthFade'
+    /// in game units; 'exposure' scales it (Chorus's HDR to the remake's).</summary>
+    /// <summary>A material's "lava" block: Chorus's flowing lava (M_BrokenPlanet_Core's compiled base pass) added to the
+    /// glow of a GoF2/Hull material (HullForwardPass.hlsl LavaFlow, its formula there). Its three maps, read as data: 'emit'
+    /// (R the first flow emissive, G the second), 'flow' (RG the first flowmap, BA the second), 'masks' (R / G the time
+    /// offsets, B the part mask, A the core mask); 'a' [Magma Tiling, FlowSpeed, Flowmap Tiling, FlowIntensity], 'b'
+    /// [TimeOffset Tiling, its intensity, Flowmap UV Texture Offset u, v], 'c' [2nd Magma Tiling, FlowSpeed 2, Flowmap Tiling
+    /// 2, FlowIntensity 2], 'd' [TimeOffset 2 Tiling, 2nd core mask multiply, its exp, 2nd magma multiply], 'magma2Exp',
+    /// 'tempMin' / 'tempMax' (K), 'mip' / 'mip2' the flowmaps' mip levels, 'glow' the glow's scale.</summary>
+    [System.Serializable] public class ChorusLavaSpec
+    {
+        public string emit, flow, masks;
+        public float[] a, b, c, d;
+        public float magma2Exp = 1f, tempMin = 400f, tempMax = 3000f, mip, mip2, glow = 1f;
+        public bool On => !string.IsNullOrEmpty(emit) && !string.IsNullOrEmpty(flow) && !string.IsNullOrEmpty(masks);
+    }
+
+    [System.Serializable] public class ChorusShieldSpec
+    {
+        public string mask, noise;
+        public float[] pan, radius, ring, cameraFade;
+        public float noiseScale = 4f, noiseTimeScalar = 0.01f, noisePanSpeed = 0.01f, timeExponent = 0.37f;
+        public float edgeModulateAmount = 0.2f, edgeModulateIntensity = 10f, edgeModulateWidth = 0.08f, fresnelExponent = 1f;
+        public float modulateColorAmount = 0.3f, timeModulationAmount = 0.2f, opacityNoise = 0.571429f;
+        public float radiusExponent = 3f, radiusIntensity = 1f, ringExponent = 3f, ringIntensity = 1f;
+        public float opacityStart = 1f, opacityEnd, opacityFacing = 1f, opacityBackface = 0.1f, depthFade, exposure = 1f;
+        public bool On => !string.IsNullOrEmpty(mask);
+
+        /// <summary>Its maps: (path, linear, normal map).</summary>
+        public System.Collections.Generic.IEnumerable<(string path, bool linear, bool normal)> Textures()
+        {
+            if (!On) yield break;
+            yield return (mask, true, false);
+            if (!string.IsNullOrEmpty(noise)) yield return (noise, true, false);
         }
     }
 
@@ -554,7 +807,7 @@ namespace GoF2Remake.Data
         public float kickerExp, kickerFadeOffset, kickerFadeLength = 1f;
         public float[] dirtTint;
         public float dirtUvScale = 1f, dirtMaskUvScale = 1f, dirtAo = 1f, dirtContrast;
-        public bool dirtAlpha;
+        public bool dirtAlpha, dirtByAlpha, dirtOverEmissive;
         // kind "shell" (Chorus's M_Guilt_Shell, its compiled base, depth and vertex passes): no palette; 'mask' (T_Guilt_A: R the
         // body, G the arms), 'noise' (the grey that flows), 'flow' (RG its flow vectors), 'phase' (R the flow's offset) over UV0.
         // A noise flowing at flowSpeed along the flow x flowStrength over UV0 x tiling (the phase's at UV0 x randomness) dissolves
@@ -563,13 +816,52 @@ namespace GoF2Remake.Data
         // flowing the same way - emissiveExponent) x emissiveColor x emissiveIntensity x saturate(1 - distance from the model's
         // origin / centerRadius)^2; base colour, metallic and roughness flat.
         public string mask, noise, flow, phase;
+        // Remake (2026-11-11): 'glow' the map that flows for the glow (M_Guilt_Shell's: the obsidian rock's AO; none: the
+        // mask); the noise map's red and green are also its normal (the base pass's, Unreal's green flipped).
+        public string glow;
         public float randomness = 1f, flowSpeed = 1f, flowStrength = 1f, armsFade = 1f, coverage = 0.5f, erode = 1f, masterAlpha = 1f;
         public float push, pushNoise, baseColor, metal = 0.5f, roughness = 0.5f, emissiveExponent = 1f, emissiveIntensity, centerRadius = 1f;
         public float[] emissiveColor;
+        // kind "crystal" (Chorus's M_JTU_Blend, its compiled base pass: the Omen crystal, the Prophet's crown; HullForwardPass.hlsl
+        // ChorusCrystal): two surfaces A and B ('diffuseA' / 'normalA' / 'mroA' (R metal, G roughness) / 'maskA' (R), and B's),
+        // each mapped along the mesh's tangent frame at 'scaleA' / 'scaleB' (Chorus centimetres; the model's units its metres),
+        // blended by the vertex colour's red sharpened by a turbulence ('noiseScale', 'noiseContrast', 'noiseOffset') and the
+        // breath, against maskA as a height ('transitionSoftness'); A tinted to 'macroColor' by maskA at x 'macroTiling'
+        // ('macroAmount'; its roughness toward 'macroRoughness' by 'macroRoughnessAmount'); both overlaid with the inner
+        // 'variation' (G), looked up at the position / 'innerScale' pushed along the view by the 'heightmap' (R) x
+        // 'innerHeightRatio' and along the normal by 'innerRefraction'; the glow: variation x 'innerGlow' x the breath ('breath':
+        // a curve row, R the glow, G added to the blend x 'breathAmount', at frac(time / 'breathInterval' - the distance from
+        // the origin / 'pulsePeriod'); a breathInterval of 0 holds it at the row's start) x maskA x 'glowA', or maskB x
+        // 'glowPulseB' x 'glowB'; normals x
+        // 'normalIntensityA' / 'B', roughness + 'roughnessBiasA' / 'B'; x emissionScale.
+        public string diffuseA, normalA, mroA, maskA, diffuseB, normalB, mroB, maskB, heightmap, variation, breath;
+        public float scaleA = 25000f, scaleB = 30000f, normalIntensityA = 1f, normalIntensityB = 1f, roughnessBiasA, roughnessBiasB;
+        public float[] macroColor, innerGlow;
+        public float macroAmount = 1f, macroTiling = 0.05f, macroRoughness = 0.2f, macroRoughnessAmount = 0.5f;
+        public float glowA = 2f, glowPulseB = 1f, glowB = 5f, innerRefraction = 1f, innerHeightRatio = 0.37f, innerScale = 150000f;
+        public float noiseScale = 50000f, noiseContrast = 0.1f, noiseOffset, breathInterval = 8f, pulsePeriod = 4000000f, breathAmount = 1f;
+        public float transitionSoftness = 0.44f;
+        // kind "tissue" (Chorus's M_JTU_Faceless, its compiled base pass: the Omen's Faceless ships; GoF2/Hull's ChorusTissue): all
+        // glow on a black base, over UV0: 'thickness' (R its thickness, G toward smooth), 'outerVariation' / 'innerVariation'
+        // (R) through a parallax of (thickness - 0.5) x 'depth', 'dirt' (B) and the 'ice' mask (R, scrolling 0.1 a second) at x
+        // 'noiseTiling', 'normal', 'ao'; lerp('outerGlow' x (dirt + outer), 'innerGlow' x (ice x the inverse fresnel + inner),
+        // clamp((outer + inner) x saturate(1 / (thickness x 'strength')) + the breath, 0.5, 1)) (the breath as the crystal's:
+        // 'breath', 'breathInterval', 'pulsePeriod'); roughness lerp('roughnessIntensity', 0.05, thickness G); x emissionScale.
+        public string thickness, outerVariation, innerVariation, ice, normal, ao;
+        public float[] outerGlow;   // (and 'innerGlow', 'dirt', 'breath' as the other kinds')
+        public float noiseTiling = 1f, depth = 0.1f, strength = 1f, roughnessIntensity = 1f;
+        // Its core (Enable Core: the Omen drones' and the bat swarms' cores): + m x (the glow + saturate(N.V)^'coreContrast' x
+        // 'coreColor'), m = saturate(1 - the distance from 'sphereOffset' / 'sphereRadius' (object space, Chorus's cm)) x the
+        // thickness x the inverse fresnel^5. No 'coreColor' or a 'coreContrast' of 0: none.
+        public float[] coreColor, sphereOffset;
+        public float coreContrast, sphereRadius = 1000000f;
 
-        public bool On => !string.IsNullOrEmpty(kind) && (Shell ? !string.IsNullOrEmpty(mask) : !string.IsNullOrEmpty(palette));
+        public bool On => !string.IsNullOrEmpty(kind) && (Shell ? !string.IsNullOrEmpty(mask) : Crystal ? !string.IsNullOrEmpty(diffuseA)
+            : Tissue ? !string.IsNullOrEmpty(thickness) : !string.IsNullOrEmpty(palette));
         public bool Plating => kind == "plating";
         public bool Shell => kind == "shell";
+        public bool Crystal => kind == "crystal";
+        public bool Tissue => kind == "tissue";
 
         /// <summary>The PNGs it reads, and how (linear, normal map): ModMaterials.ChorusLayers, the preloads.</summary>
         public System.Collections.Generic.IEnumerable<(string path, bool linear, bool normal)> Textures()
@@ -578,7 +870,11 @@ namespace GoF2Remake.Data
             foreach (var t in new[] { (palette, true, false), (tilingDiffuse, false, false), (tilingRmo, true, false), (tilingNormal, true, true),
                                       (trimAo, true, false), (trimNormal, true, true), (trimEmissive, false, false), (dirt, false, false),
                                       (dirtMask, true, false), (dirtRoughness, true, false), (mask, true, false), (noise, true, false),
-                                      (flow, true, false), (phase, true, false) })
+                                      (flow, true, false), (phase, true, false), (glow, true, false), (diffuseA, false, false), (normalA, true, true),
+                                      (mroA, true, false), (maskA, true, false), (diffuseB, false, false), (normalB, true, true), (mroB, true, false),
+                                      (maskB, true, false), (heightmap, true, false), (variation, true, false), (breath, true, false),
+                                      (thickness, true, false), (outerVariation, true, false), (innerVariation, true, false), (ice, true, false),
+                                      (normal, true, true), (ao, true, false) })
                 if (!string.IsNullOrEmpty(t.Item1)) yield return t;
         }
     }
@@ -673,6 +969,7 @@ namespace GoF2Remake.Data
         [System.NonSerialized] public DamageTaken damageTaken;
         [System.NonSerialized] public List<NpcDeviceSpec> devices;
         [System.NonSerialized] public List<int> turrets;   // its turret items (null = its ship type's, Database.NpcTurrets)
+        [System.NonSerialized] public string skin;         // remake mods: a kit skin its ship wears ("skin", ModTraffic.Assembly)
         [System.NonSerialized] public int[] systems, escorts;
         [System.NonSerialized] public int routeMin = 2, routeMax = 4, secondary = -1;
         [System.NonSerialized] public Modding.ModInfo mod;

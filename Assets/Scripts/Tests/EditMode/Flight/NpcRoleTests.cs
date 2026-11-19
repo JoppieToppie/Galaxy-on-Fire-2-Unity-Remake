@@ -71,5 +71,24 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(7, NpcRoles.LootMax);
             Assert.AreEqual(6000f, NpcRoles.JumpChargeMs, "ES2's OrbitJumpChargeDuration 6 s");
         }
-    }
+    
+        [Test]
+        public void APursuerChasesAtChorusGuiltsSteps()
+        {
+            Assert.AreEqual(NpcRoles.Role.Pursuer, NpcRoles.Parse("Pursuer"));
+            Assert.IsFalse(NpcRoles.Fires(NpcRoles.Role.Pursuer), "it doesn't fire");
+            Assert.AreEqual(0f, NpcRoles.ChaseFactor(1000f), "stopped just short of the player");
+            Assert.AreEqual(0.5f, NpcRoles.ChaseFactor(5000f), "x0.5 within 80 m (Chorus's)");
+            Assert.AreEqual(3f, NpcRoles.ChaseFactor(20000f));
+            Assert.AreEqual(5f, NpcRoles.ChaseFactor(60000f));
+            Assert.AreEqual(7f, NpcRoles.ChaseFactor(200000f));
+            Assert.AreEqual(1f, NpcRoles.ChaseFactor(400000f), "its own speed past 3 km");
+            Assert.AreEqual(0f, NpcRoles.Proximity(NpcRoles.ProximityUnits));
+            Assert.AreEqual(NpcRoles.ProximityMax, NpcRoles.Proximity(0f), 1e-6f);
+            Assert.AreEqual(-40f, GoF2Remake.World.PursuerFx.Strength(0.4f).saturation, 1e-4f);
+            Assert.IsFalse(NpcRoles.PursuitPaused(false, false));
+            Assert.IsTrue(NpcRoles.PursuitPaused(true, false), "an event graph's order (MTAction_ManageGuiltNPC's)");
+            Assert.IsTrue(NpcRoles.PursuitPaused(false, true), "a hold");
+        }
+}
 }

@@ -182,6 +182,15 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   blasts and mines applying them (direct hits only). Not yet: the shots / beams / waves seen by the
   other players, the deflector against other players, NPC devices (GoF3's bosses), translations of the texts.
   `cloakCooldownMs` (attr 160) gives a cloak its own cooldown (`Cloak` constructor; GoF3's Hiroto Cloak 60 s, no cells).
+  Shield Overcharge (22, remake 2026-11-11, Chorus's player capital ship: BP_Player_Auxiliary_ShieldOvercharge_PlayerCapitalShip,
+  Duration 5, Cooldown 10; its native AAuxiliaryShieldOvercharge::OnActivation isn't readable, so the effect is the name's
+  and the HUD's overcharge bar's): the shield filled, then `Hitpoints.shieldLocked` until its end (`Damage` stops every hit
+  at the shield, `shieldHit` for the hit feedback, nothing taken off); its look the ship's own shell where ships.json has
+  an `"overcharge"` (`ShieldShell`, Chorus's BP_Effect_Auxiliary_Shield_PlayerCapitalShip on M_Shield: mods-models.md
+  "Chorus shield shell"), else the emergency system's `EmergencyBubble` while it runs.
+- **Hull regeneration** (remake 2026-11-11, for mods): ships.json `"hullRegen"` (points a second; Chorus's PCLS
+  PlayerHealthComponent HealthRegenRate 250 of its 5000) -> `PlayerHealth` (`Hitpoints.RegenerateHull`, fractions carried,
+  nothing at 0 or full), beside a repair bot.
 - **Shield injector** (227): an empty shield takes 30 t Blue Plasma (202, "-30t Blue Plasma") and refills at 0.15 per ms; sounds 2258 / 2257 / 2259.
 - **Gamma** (supernova stations 109-113, `PlayerHealth`): a 0..100 pool drains at the station's rate by campaign
   progress (gamma shields 205 / 206 cut it by attr 52 %), "Warning: Gamma shield low" (3201) below 15, death at 0,

@@ -13,6 +13,7 @@ using GoF2Remake.Modding;
 using GoF2Remake.World;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace GoF2Remake.Tests
 {
@@ -95,6 +96,86 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(r.gof3.TryGetValue("glass", out var p), "the material's extras");
             Assert.AreEqual(new Vector4(1f, 0f, 2f, 0f), p);
             Assert.IsFalse(r.gof3.ContainsKey("plain"), "no extras: the defaults");
+        }
+
+        [Test]
+        public void AGlbMaterialNamesItsGoF3CubeInItsExtras()
+        {
+            var tex = new Texture2D(1, 1);
+            byte[] png = tex.EncodeToPNG();
+            Object.DestroyImmediate(tex);
+            string json = "{\"asset\":{\"version\":\"2.0\"},\"buffers\":[{\"byteLength\":" + png.Length + "}]," +
+                "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":" + png.Length + "}]," +
+                "\"images\":[{\"bufferView\":0,\"mimeType\":\"image/png\"}],\"textures\":[{\"source\":0}]," +
+                "\"materials\":[{\"name\":\"body\",\"pbrMetallicRoughness\":{\"baseColorTexture\":{\"index\":0}}," +
+                "\"extras\":{\"environment\":1,\"environmentCube\":\"env/cubemap_generic_000.png\"}},{\"name\":\"plain\"}]}";
+            var r = ModGlbImages.Strip(Glb(json, png));
+            Assert.IsNotNull(r);
+            Assert.AreEqual("env/cubemap_generic_000.png", r.gof3Cube["body"]);
+            Assert.IsFalse(r.gof3Cube.ContainsKey("plain"), "no cube: the place's environment");
+        }
+
+        [Test]
+        public void AGoF3CubeIsASixToOneStripOrNone()
+        {
+            var m = new Material(Shader.Find("GoF2/Hull"));
+            var strip = new Texture2D(48, 8);
+            var square = new Texture2D(8, 8);
+            try
+            {
+                ModMaterials.GoF3Environment(m, strip);
+                Assert.AreEqual(new Vector4(1f, 1f / 8f, 0f, 0f), m.GetVector("_GoF3Env"), "on, with its texel height");
+                Assert.AreSame(strip, m.GetTexture("_GoF3EnvMap"));
+                Assert.AreEqual(m.GetVector("_GoF3Env"), new Material(m).GetVector("_GoF3Env"), "a copy (a kit skin's) keeps it");
+                LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("6:1 strip"));
+                ModMaterials.GoF3Environment(m, square);
+                Assert.AreEqual(Vector4.zero, m.GetVector("_GoF3Env"), "not 6:1: the place's environment");
+                ModMaterials.GoF3Environment(m, null);
+                Assert.AreEqual(Vector4.zero, m.GetVector("_GoF3Env"));
+            }
+            finally { Object.DestroyImmediate(m); Object.DestroyImmediate(strip); Object.DestroyImmediate(square); }
+        }
+
+        [Test]
+        public void AGlbMaterialMarkedAdditiveIsAGlowLayerWithGoF3sTerms()
+        {
+            var tex = new Texture2D(1, 1);
+            byte[] png = tex.EncodeToPNG();
+            Object.DestroyImmediate(tex);
+            string json = "{\"asset\":{\"version\":\"2.0\"},\"buffers\":[{\"byteLength\":" + png.Length + "}]," +
+                "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":" + png.Length + "}]," +
+                "\"images\":[{\"bufferView\":0,\"mimeType\":\"image/png\"}],\"textures\":[{\"source\":0}]," +
+                "\"materials\":[{\"name\":\"fx_sprites\",\"emissiveTexture\":{\"index\":0}," +
+                "\"extras\":{\"additive\":true,\"intensity\":1.4,\"vertexColors\":false,\"scroll\":[0.05,0.25],\"angleFade\":[0.3,1]," +
+                "\"pulse\":{\"frequency\":1,\"min\":0.1,\"max\":1,\"threshold\":0.9,\"step\":true,\"vertexOffset\":true},\"billboard\":true}}," +
+                "{\"name\":\"hull\",\"extras\":{\"environment\":1}}]}";
+            var r = ModGlbImages.Strip(Glb(json, png));
+            Assert.IsNotNull(r);
+            Assert.IsTrue(r.glow.TryGetValue("fx_sprites", out var g), "its extras say additive");
+            Assert.IsFalse(r.glow.ContainsKey("hull"), "not additive: a lit material");
+            Assert.AreEqual(1.4f, g.intensity, 1e-5f);
+            Assert.IsFalse(g.vertexColors);
+            Assert.AreEqual(new Vector2(0.05f, 0.25f), g.scroll);
+            Assert.AreEqual(new Vector2(0.3f, 1f), g.angleFade);
+            Assert.IsTrue(g.billboard);
+            Assert.AreEqual(1f, g.pulseFrequency); Assert.AreEqual(0.9f, g.pulseThreshold, 1e-5f);
+            Assert.IsTrue(g.pulseStep && g.pulseVertexOffset && !g.pulseSmooth);
+
+            var m = new Material(Shader.Find("GoF2/ModGlow"));
+            try
+            {
+                ModMaterials.GlowTerms(m, g);
+                Assert.AreEqual(new Vector4(1f, 0.3f, 1f, 1f), m.GetVector("_FxAngle"), "on, min, max, absolute");
+                Assert.AreEqual(new Vector4(1f, 0.9f, 0.1f, 1f), m.GetVector("_FxPulse"), "frequency, threshold, min, max");
+                Assert.AreEqual(new Vector4(1f, 1f, 0f, 1f), m.GetVector("_FxPulseMode"), "on, step, smooth, vertex offset");
+                Assert.AreEqual(1f, m.GetFloat("_Billboard"));
+                Assert.AreEqual(m.GetVector("_FxPulse"), new Material(m).GetVector("_FxPulse"), "a copy (a kit skin's) keeps them");
+                ModMaterials.GlowTerms(m, new ModGlbImages.Glow());
+                Assert.AreEqual(0f, m.GetVector("_FxAngle").x, "no angle fade by default");
+                Assert.AreEqual(0f, m.GetVector("_FxPulseMode").x, "no pulse by default");
+                Assert.AreEqual(0f, m.GetFloat("_Billboard"));
+            }
+            finally { Object.DestroyImmediate(m); }
         }
 
         static byte[] Glb(string json, byte[] bin)

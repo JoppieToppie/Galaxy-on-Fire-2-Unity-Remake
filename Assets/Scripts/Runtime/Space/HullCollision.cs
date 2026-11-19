@@ -204,6 +204,22 @@ namespace GoF2Remake.Flight
             if (b.obstacle != null && b.obstacle.hull == b) b.obstacle.hull = null;
         }
 
+        /// <summary>One more mesh of the model shaping its hull (a capital ship's shield fields that block the way while they
+        /// stand: CapitalSubsystems, ships.json "shieldBlocks"); it collides only while its renderer shows (Shown).</summary>
+        public static void AddShape(HullBody body, MeshFilter mf)
+        {
+            if (body == null || mf == null || mf.sharedMesh == null || !mf.sharedMesh.isReadable || mf.sharedMesh.vertexCount == 0) return;
+            foreach (var existing in body.colliders) if (existing != null && existing.sharedMesh == mf.sharedMesh && existing.transform.parent == mf.transform) return;
+            var mesh = mf.sharedMesh;
+            if (baked.Add(mesh)) Physics.BakeMesh(mesh.GetEntityId(), false);
+            var go = new GameObject("Hull") { layer = HullLayer };
+            go.transform.SetParent(mf.transform, false);
+            var c = go.AddComponent<MeshCollider>();
+            c.sharedMesh = mesh;
+            body.colliders.Add(c);
+            bodies[c] = body;
+        }
+
         public static HullBody BodyOf(Collider c) => c != null && bodies.TryGetValue(c, out var b) ? b : null;
 
         /// <summary>The part this collider shapes can be seen: its renderer (on the collider's parent, the mesh's object)

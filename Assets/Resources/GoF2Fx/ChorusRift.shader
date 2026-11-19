@@ -12,7 +12,13 @@
 //   lightningCloud, + (1 - saturate s) x Rock(uv + 0.3)^2 x Rock(uv) (both x the rock tiling + t x its pan) x background,
 //   + n^cloudPow x clouds x g^2. Its opacity: D = min(g^gradation, 1); y = (D - (1 - saturate s) x rock + 1) x D;
 //   saturate(y (1 + saturate(9 s x the colour's red))). Added: colour x opacity x exposure (Chorus's HDR to the remake's).
-// The vertex shader's world position offset (T_Noise_Tiled04 x WP_Strenth) is left out.
+// The vertex shader's world position offset (2026-11-11, its VS: the vertex along its normal by T_Noise_Tiled04 (R) at uv x
+// (ucoord_WP, Vcoord_WP) + t x (Upannel_WP, Vpannel_WP), x saturate(5 g (1 - g)) x WP_Strenth): _Wpo / _WpoUV / _WpoMap.
+// _Mode 1, M_PortalRift_BOTTOM (the Rift seen from inside, LocRFA's vortex; its compiled base pass): s x Emmisive_Color for
+// the inner / outer blend; the bolts and the cloud lightning added whole (not x r); the rock x Base_Color; the clouds
+// n^cloudPow x the emissive colour x cloudMul (no g^2); the opacity's red term s x the emissive red; translucent (alpha
+// blended: _SrcBlend / _DstBlend), its alpha the opacity x its depth fade (Dapthfade: what is behind within it) x its
+// camera fade (Fade Offset, Fade Length). Its "cb2[0].x" factor on D (a parameter collection's) is taken as 1.
 Shader "GoF2/ChorusRift"
 {
     Properties
@@ -41,13 +47,22 @@ Shader "GoF2/ChorusRift"
         _Clouds ("Clouds colour", Vector) = (0.0064, 0.0061, 0.02, 0)
         _Exposure ("Exposure", Float) = 0.4
         _Color ("Fade (a)", Color) = (1, 1, 1, 1)
+        _Mode ("0 M_PortalRift_2, 1 M_PortalRift_BOTTOM", Float) = 0
+        _Emissive ("Bottom: emissive colour", Vector) = (0.05, 0.0075, 0.0088, 0)
+        _BaseCol ("Bottom: base (rock) colour", Vector) = (0.05, 0.0097, 0.0092, 0)
+        _Fade ("Bottom: depth fade, fade offset, fade length (m)", Vector) = (0, 0, 0, 0)
+        _WpoMap ("Offset noise (T_Noise_Tiled04)", 2D) = "black" {}
+        _Wpo ("Offset strength (model units)", Vector) = (0, 0, 0, 0)
+        _WpoUV ("Offset: tiling u, v, pan u, v", Vector) = (1, 2, 0.01, 0.04)
+        [HideInInspector] _SrcBlend ("Src blend", Float) = 1
+        [HideInInspector] _DstBlend ("Dst blend", Float) = 1
     }
     SubShader
     {
         Tags { "Queue" = "Transparent" "RenderType" = "Transparent" "IgnoreProjector" = "True" }
         ZWrite Off
         Cull Off
-        Blend One One
+        Blend [_SrcBlend] [_DstBlend]
 
         Pass
         {
@@ -56,6 +71,8 @@ Shader "GoF2/ChorusRift"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            TEXTURE2D(_WpoMap); SAMPLER(sampler_WpoMap);
             TEXTURE2D(_Tiled); SAMPLER(sampler_Tiled);
             TEXTURE2D(_Strip); SAMPLER(sampler_Strip);
             TEXTURE2D(_Lightning); SAMPLER(sampler_Lightning);
@@ -67,6 +84,8 @@ Shader "GoF2/ChorusRift"
                 float4 _Inner, _Outer, _Core, _Brightness, _Background, _Clouds;
                 float _Exposure;
                 half4 _Color;
+                float _Mode;
+                float4 _Emissive, _BaseCol, _Fade, _Wpo, _WpoUV;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float4 tangentOS : TANGENT; float2 uv : TEXCOORD0; float2 uv1 : TEXCOORD1; };
@@ -79,6 +98,14 @@ Shader "GoF2/ChorusRift"
             Varyings vert(Attributes i)
             {
                 Varyings o;
+                if (_Wpo.x != 0.0)
+                {
+                    // the world position offset: along the normal, none at the vortex's rim and middle
+                    float g = 1.0 - i.uv.y;   // (Unreal's v)
+                    float2 at = float2(i.uv.x, g) * _WpoUV.xy + _Time.y * _WpoUV.zw;
+                    float n = SAMPLE_TEXTURE2D_LOD(_WpoMap, sampler_WpoMap, float2(at.x, 1.0 - at.y), 0).r;
+                    i.positionOS.xyz += i.normalOS * (n * saturate(5.0 * g * (1.0 - g)) * _Wpo.x);
+                }
                 o.positionWS = TransformObjectToWorld(i.positionOS.xyz);
                 o.positionCS = TransformWorldToHClip(o.positionWS);
                 o.uv = float4(i.uv, i.uv1);
@@ -119,6 +146,36 @@ Shader "GoF2/ChorusRift"
                 float n = Tex(TEXTURE2D_ARGS(_Cloud, sampler_Cloud), float2(uv.x, PowZ(g, _Detail2.z)) * _ParUV.xy + t * _ParUV.zw + off);
 
                 float s = a * d + n + r * _Shape.w + g9;
+                if (_Mode > 0.5)
+                {
+                    // M_PortalRift_BOTTOM
+                    float3 c = s * _Emissive.rgb;
+                    c += g9 > 0.0 ? min(pow(g9, _Blend.z), 1.0) * _Core.rgb * _Blend.w : 0.0;
+                    c += boltCol;
+                    c += PowZ(1.0 - n, 90.0) * _Brightness.rgb * p * mask * _Bolts2.z;
+                    float out1 = 1.0 - saturate(s);
+                    float k1 = Tex(TEXTURE2D_ARGS(_Rock, sampler_Rock), (uv + 0.3) * _RockUV.xy + t * _RockUV.zw);
+                    float k2 = Tex(TEXTURE2D_ARGS(_Rock, sampler_Rock), uv * _RockUV.xy + t * _RockUV.zw);
+                    float rk = k1 * k1 * k2;
+                    c += out1 * rk * _BaseCol.rgb;
+                    c += PowZ(n, _HeightPan.z) * _Emissive.rgb * _HeightPan.w;
+                    float D1 = g > 0.0 ? min(pow(g, _Bolts2.w), 1.0) : 0.0;
+                    float y1 = (D1 - out1 * rk + 1.0) * D1;
+                    float alpha = saturate(saturate(s * _Emissive.r * 9.0) * y1 + y1);
+                    // its fades: what is behind it within the depth fade, the camera nearer than offset + length
+                    float eye = -TransformWorldToView(i.positionWS).z;
+                    if (_Fade.x > 0.0)
+                    {
+                        float raw = SampleSceneDepth(i.positionCS.xy / _ScaledScreenParams.xy);
+                        float behind = saturate((LinearEyeDepth(raw, _ZBufferParams) - eye) / _Fade.x);
+                        #if !UNITY_REVERSED_Z
+                        if (raw <= 0.0) behind = 1.0;   // (no depth texture: nothing to fade against)
+                        #endif
+                        alpha *= behind;
+                    }
+                    if (_Fade.z > 0.0) alpha *= saturate((eye - _Fade.y) / _Fade.z);
+                    return half4(max(c, 0.0) * _Exposure, saturate(alpha * _Color.a));
+                }
                 float blend = s > 0.0 ? saturate(pow(s, _Blend.x) * _Blend.y) : 0.0;
                 float3 base = lerp(_Outer.rgb, _Inner.rgb, blend);
                 float3 col = s * base;

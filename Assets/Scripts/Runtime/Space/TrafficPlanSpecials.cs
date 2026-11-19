@@ -26,6 +26,7 @@ namespace GoF2Remake.Flight
                 // Level::assignGuns: the wanted's flying ships 45-48 add a rocket gun (item 31 G'liissk, 4 x damage).
                 secondaryItem = w.IsMod ? w.secondary : w.ship >= 45 && w.ship <= 48 ? 31 : -1, secondaryFactor = 4f,   // (a mod's: its "secondary")
                 turretItems = w.turrets != null ? new List<int>(w.turrets) : null,   // (a mod's "turrets", else its ship type's)
+                skin = w.skin,   // (a mod's "skin": its gang's paint)
             });
             for (int i = 0; i < w.numWingmen; i++)   // (a mod's "escorts": its ships in turn)
                 list.Add(new SpawnSpec { group = NpcGroup.Escort, race = race, position = wpLocal + Jitter(),

@@ -20,6 +20,8 @@ namespace GoF2Remake.Flight
         public float empRecoveryMs;
         public bool empDisabled;
         public bool vulnerable = true;
+        /// <summary>Remake (Flight.Device's Shield Overcharge): every hit stops at the shield and takes nothing off it.</summary>
+        public bool shieldLocked;
 
         /// <summary>Which layer took the last hit (the player's hit sound: 25 shield, 23 armor, 24 hull).</summary>
         public bool shieldHit, armorHit, hullHit;
@@ -55,6 +57,7 @@ namespace GoF2Remake.Flight
         public bool Damage(int dmg, float shieldFactor = 1f)
         {
             if (!vulnerable || hull <= 0 || dmg <= 0) return false;
+            if (shieldLocked) { shieldHit = true; return false; }   // remake: an overcharged shield (Device.Type.ShieldOvercharge)
             int s;
             if (shieldFactor <= 0f)
             {
@@ -125,6 +128,20 @@ namespace GoF2Remake.Flight
             if (shieldTickMs < 101f) return;
             shieldTickMs = 0f;
             shield = System.Math.Min(shield + maxShield / (fullRechargeMs / 100f), maxShield);
+        }
+
+        float hullRegenAcc;
+
+        /// <summary>Remake mods (ships.json "hullRegen", Chorus's PlayerHealthComponent HealthRegenRate): the hull mends by
+        /// 'perSecond' points a second, the fractions carried over; nothing once it is gone or full.</summary>
+        public void RegenerateHull(float dtMs, float perSecond)
+        {
+            if (hull <= 0 || perSecond <= 0f || hull >= maxHull) { hullRegenAcc = 0f; return; }
+            hullRegenAcc += perSecond * dtMs / 1000f;
+            int whole = (int)hullRegenAcc;
+            if (whole <= 0) return;
+            hullRegenAcc -= whole;
+            hull = System.Math.Min(hull + whole, maxHull);
         }
 
         /// <summary>PlayerEgo::update repair bot: hull +1 per 'hullMs'; once the hull is full armor +2 per 'armorMs'.</summary>

@@ -11,6 +11,14 @@
 //     offsets), blended in by that mask.
 //   _Kind 1, the glow: the vertical gradient at -UV: lerp(Color x g, the curve's colour at g, Lerp Color) x saturate(g),
 //     added.
+//   _Kind 2, Guilt's core (MP_Guilt_Core_Radial_02 on M_Warpin_Omen_Portal, its compiled translucent base pass): about the
+//     card's middle, d = uv - 0.5, edge = 1 - 2|d|; d pinched by (1 - max(edge, 0))^Threads Pinch Max (use UV Pinch; its
+//     UV distortion noise is off, Strength 0); polar coordinates of 2 d (the angle round it, the distance out) x (Tiling
+//     U, V), the threads (the noise's R) read there panned by (Speed U, V) and by (-Speed U, V) + 0.5, added; the core
+//     g = 1 - e^-(2.333 edge)^2 (0 outside the card's circle), g^Core Power x Core Mult; the colour the curve row at
+//     threads + core; the alpha saturate((threads + threads^Threads Power x Threads Mult + core) x g) - (1 - MasterAlpha),
+//     faded where the scene is within Fade Distance behind it; alpha-blended. (CompAmount, its auto-exposure
+//     compensation, is left out: the remake has none.)
 Shader "GoF2/ChorusPortal"
 {
     Properties
@@ -27,6 +35,11 @@ Shader "GoF2/ChorusPortal"
         _Pulse ("Pulse speed, pulse B", Vector) = (-0.4, 3, 0, 0)
         _GlowColor ("Glow: colour (rgb), lerp to the curve (a)", Vector) = (1, 0, 0, 1)
         _Color ("Fade (a)", Color) = (1, 1, 1, 1)
+        _CoreUV ("Core: tiling U, V, speed U, V", Vector) = (1, 0.15, 0.05, 0.56)
+        _CoreShape ("Core: pinch, core power, core mult, threads power", Vector) = (-1.6, 8.85, 1.2, 1.5)
+        _CoreAlpha ("Core: threads mult, master alpha, depth fade (m), colour scale", Vector) = (5, 1, 36, 1)
+        [HideInInspector] _SrcBlend ("Src blend", Float) = 1
+        [HideInInspector] _DstBlend ("Dst blend", Float) = 1
     }
     SubShader
     {
@@ -37,6 +50,7 @@ Shader "GoF2/ChorusPortal"
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl"
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
         TEXTURE2D(_Noise); SAMPLER(sampler_Noise);
         TEXTURE2D(_Height); SAMPLER(sampler_Height);
         TEXTURE2D(_Curve); SAMPLER(sampler_Curve);
@@ -45,7 +59,7 @@ Shader "GoF2/ChorusPortal"
         TEXTURE2D(_Gradient); SAMPLER(sampler_Gradient);
         CBUFFER_START(UnityPerMaterial)
             float _Kind;
-            float4 _Polar, _Bump, _Pulse, _GlowColor;
+            float4 _Polar, _Bump, _Pulse, _GlowColor, _CoreUV, _CoreShape, _CoreAlpha;
             half4 _Color;
         CBUFFER_END
 
@@ -71,6 +85,40 @@ Shader "GoF2/ChorusPortal"
         // Unreal's UVs (v down) on the loader's (v up): the card's maps as made
         float2 UE(float2 uv) { return float2(uv.x, 1.0 - uv.y); }
         float PowZ(float x, float e) { return x > 0.0 ? pow(x, e) : 0.0; }
+        // Guilt's core (_Kind 2; see the header)
+        half4 Core(Varyings i, float2 uv)
+        {
+            float2 d = uv - 0.5;
+            float edge = 1.0 - 2.0 * length(d);
+            float w = 1.0 - max(edge, 0.0);
+            float2 p = (w > 0.0 ? d * pow(w, _CoreShape.x) : 0.0) * 2.0;
+            float a = atan2(p.x, p.y) * (0.5 / PI);
+            float a1 = frac(a), a2 = frac(a + 0.5) - 0.5, r = length(p);
+            float2 polar = float2(a1, r) * _CoreUV.xy;
+            // the angle's gradients from whichever of its two cuts is smooth here: no seam
+            float2 gx = float2(abs(ddx(a1)) < abs(ddx(a2)) ? ddx(a1) : ddx(a2), ddx(r)) * _CoreUV.xy;
+            float2 gy = float2(abs(ddy(a1)) < abs(ddy(a2)) ? ddy(a1) : ddy(a2), ddy(r)) * _CoreUV.xy;
+            float t = _Time.y;
+            float threads = SAMPLE_TEXTURE2D_GRAD(_Noise, sampler_Noise, UE(polar + t * _CoreUV.zw), gx, gy).r
+                          + SAMPLE_TEXTURE2D_GRAD(_Noise, sampler_Noise, UE(polar + t * float2(-_CoreUV.z, _CoreUV.w) + 0.5), gx, gy).r;
+            float x = edge * 2.333;
+            float g = edge >= 0.0 && abs(edge) > 1e-5 ? 1.0 - exp(-x * x) : 0.0;
+            float core = PowZ(g, _CoreShape.y) * _CoreShape.z;
+            half3 col = SAMPLE_TEXTURE2D_LOD(_Curve, sampler_Curve, float2(threads + core, 0.5), 0).rgb;
+            float alpha = saturate((threads + PowZ(threads, _CoreShape.w) * _CoreAlpha.x + core) * g) - (1.0 - _CoreAlpha.y);
+            if (_CoreAlpha.z > 0.0)
+            {
+                float eye = -TransformWorldToView(i.positionWS).z;
+                float raw = SampleSceneDepth(i.positionCS.xy / _ScaledScreenParams.xy);
+                float behind = saturate((LinearEyeDepth(raw, _ZBufferParams) - eye) / _CoreAlpha.z);
+                #if !UNITY_REVERSED_Z
+                if (raw <= 0.0) behind = 1.0;   // (no depth texture: nothing to fade against)
+                #endif
+                alpha *= behind;
+            }
+            return half4(max(col, 0.0) * _CoreAlpha.w, saturate(alpha * _Color.a));
+        }
+
         float3 UnpackXY(float4 c) { float2 n = c.xy * 2.0 - 1.0; return float3(n, sqrt(max(1.0 - dot(n, n), 0.0))); }
         ENDHLSL
 
@@ -105,11 +153,11 @@ Shader "GoF2/ChorusPortal"
             ENDHLSL
         }
 
-        // the veins (M_FTL_Portal's base pass) or the glow (M_FTL_PortalGlow's), added
+        // the veins (M_FTL_Portal's base pass) or the glow (M_FTL_PortalGlow's), added; Guilt's core alpha-blended
         Pass
         {
             Tags { "LightMode" = "UniversalForward" }
-            Blend One One
+            Blend [_SrcBlend] [_DstBlend]
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -117,6 +165,7 @@ Shader "GoF2/ChorusPortal"
             {
                 float2 uv = UE(i.uv);
                 half3 col;
+                if (_Kind > 1.5) return Core(i, uv);
                 if (_Kind > 0.5)
                 {
                     float g = SAMPLE_TEXTURE2D(_Gradient, sampler_Gradient, UE(-uv)).r;

@@ -257,6 +257,11 @@ namespace GoF2Remake.World
         float dyingMs, deadMs;
         Vector3 spinAxis, deathDir;
         Explosion explosion;
+        /// <summary>Remake mods: the death tumble's own effects still to come (ms left of dyingMs when each plays; ModDeathFx).</summary>
+        readonly List<float> dyingFxMs = new List<float>();
+        /// <summary>Remake mods: the ship's reactor going critical (CustomShipData.deathThroes) while it dies; its hull blasts to come.</summary>
+        CustomDeathThroes throes;
+        readonly List<float> throesBlastMs = new List<float>();
         int explosionSerial;   // the explosions are pooled: this one's Spawn (Explosion.Done)
         GameObject wreck;
         float wreckDamageMs;   // until the wreck takes its damaged material (CombatAssets.ApplyWreckDamage)
@@ -296,6 +301,9 @@ namespace GoF2Remake.World
         int es2Seed, es2Attackers;
         float es2CountMs;
         Es2Dogfight es2Fight;
+        ChorusDogfight chorusFight;   // remake mods: Chorus's way of fighting (NpcShipChorus)
+        Target chorusTarget;
+        Vector3 chorusGoal; ChorusDogfight.Mode chorusGoalMode = ChorusDogfight.Mode.Approach; int chorusGoalEntry = -1;   // (its EQS point)
         Vector3 es2Leg;
         float es2LegMs;
         /// <summary>Remake option (Settings.Es2NpcFlight, NpcShipEs2Flight): it flies on EVERSPACE 2's physics: its velocity (units
@@ -472,6 +480,10 @@ namespace GoF2Remake.World
                 model = modelGo.transform;
                 if (spec.scale != 1f) model.localScale *= spec.scale;
                 if (StructureScale != 1f) model.localScale *= StructureScale;   // OrbitScale: a structure grows like the stations
+                // remake mods: a ship arriving in flight materializes ("warpIn"; not those there as the orbit loads)
+                if (spec.fixedObject == null && spec.turretAssembly == null && !spec.stationary && Time.timeSinceLevelLoad > 3f
+                    && CustomShips.Get(spec.ship)?.warpIn is CustomWarpIn warp && warp.seconds > 0f)
+                    HullWarpIn.Begin(gameObject, warp);
                 if (playerEngines)
                 {
                     var glow = asm.playerVariantParts[0];
@@ -597,12 +609,32 @@ namespace GoF2Remake.World
             if ((spec.race == Standing.Specter || spec.ship == 49) && spec.fixedObject == null && modelGo != null) cloak = new NpcCloak(model);
             // Level::assignGuns: a Most Wanted criminal fires its own weapon at x4.
             if (spec.gunItem >= 0 && gun != null) SetGun(spec.gunItem, spec.gunFactor);
+            else if (gun != null && spec.group != NpcGroup.Wingman) SetOwnPrimary(db, spec);
             // Remake (generic turrets): turret items on its turret mounts, its own or its type's (a mod's "npcTurrets").
             if (spec.turretAssembly == null && spec.fixedObject == null && modelGo != null)
                 mounted = NpcMountedTurrets.Build(this, db, spec.ship, spec.turretItems ?? db.NpcTurretsOf(spec.ship), model, fxRoot, GunHit);
             if (spec.secondaryItem >= 0 && gun != null) SetSecondaryGun(spec.secondaryItem, spec.secondaryFactor);
             else if (gun != null && spec.group != NpcGroup.Wingman && !spec.noDevices) SetOwnSecondary(db, spec);
         }
+
+        /// <summary>Remake mods (Chorus's NPC weapons): its hull's "traffic": { "primaries" }, the first one it carries: that
+        /// item's look, fired every reloadMs (0: the game's), its damage a second 'factor' x the game's NPC gun's.</summary>
+        void SetOwnPrimary(Database db, SpawnSpec spec)
+        {
+            var list = (db?.Ship(spec.ship) as CustomShipData)?.traffic?.primaries;
+            if (list == null) return;
+            foreach (var p in list)
+            {
+                if (p == null || !p.Carried(Session.Rank, Random.value)) continue;
+                if (Modding.ModContent.TryResolveItem(p.item, out int item) && db.Item(item) != null)
+                    SetGun(item, PrimaryShotFactor(p, NpcTables.GunReloadMs), p.reloadMs);
+                return;
+            }
+        }
+
+        /// <summary>A primary's damage a shot against the game's NPC shot: its factor a second, over its own interval.</summary>
+        public static float PrimaryShotFactor(CustomPrimary p, float gameReloadMs) =>
+            Mathf.Max(0f, p.factor) * (p.reloadMs > 0f ? p.reloadMs / Mathf.Max(1f, gameReloadMs) : 1f);
 
         /// <summary>Remake mods (GoF3's NPC loadouts): its hull's "traffic": { "secondaries" }, the first one it carries.</summary>
         void SetOwnSecondary(Database db, SpawnSpec spec)

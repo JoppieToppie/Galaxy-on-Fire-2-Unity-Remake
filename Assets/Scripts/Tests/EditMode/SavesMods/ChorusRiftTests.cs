@@ -69,6 +69,35 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void TheBottomIsBlendedAndTheVortexWobbles()
+        {
+            var mod = ModWithMaps();
+            var m = ModMaterials.FromSpec(mod, JsonUtility.FromJson<CustomShipMaterial>("{ \"material\": \"r\", \"rift\": { \"tiled\": \"maps/tiled.png\", " +
+                "\"mode\": \"bottom\", \"emissive\": [0.05, 0.0075, 0.0088], \"baseColor\": [0.05, 0.0097, 0.0092], \"depthFade\": 6000, " +
+                "\"fadeOffset\": 300, \"fadeLength\": 300, \"wpoMap\": \"maps/cloud.png\", \"wpo\": [0.4, 1, 2, 0.01, 0.04] } }"), "bottom");
+            try
+            {
+                Assert.AreEqual(1f, m.GetFloat("_Mode"), "M_PortalRift_BOTTOM");
+                Assert.AreEqual((float)UnityEngine.Rendering.BlendMode.SrcAlpha, m.GetFloat("_SrcBlend"), "alpha-blended");
+                Assert.AreEqual((float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha, m.GetFloat("_DstBlend"));
+                Assert.AreEqual(new Vector4(0.05f, 0.0075f, 0.0088f, 0f), m.GetVector("_Emissive"));
+                Assert.AreEqual(new Vector4(300f, 15f, 15f, 0f), m.GetVector("_Fade"), "game units to metres");
+                Assert.AreEqual(0.4f, m.GetVector("_Wpo").x, 1e-6f);
+                Assert.AreEqual(new Vector4(1f, 2f, 0.01f, 0.04f), m.GetVector("_WpoUV"));
+                Assert.IsNotNull(m.GetTexture("_WpoMap"));
+            }
+            finally { Object.DestroyImmediate(m); }
+            var plain = ModMaterials.FromSpec(mod, JsonUtility.FromJson<CustomShipMaterial>("{ \"material\": \"r\", \"rift\": { \"tiled\": \"maps/tiled.png\" } }"), "plain");
+            try
+            {
+                Assert.AreEqual(0f, plain.GetFloat("_Mode"));
+                Assert.AreEqual((float)UnityEngine.Rendering.BlendMode.One, plain.GetFloat("_DstBlend"), "added, as before");
+                Assert.AreEqual(0f, plain.GetVector("_Wpo").x, "no map: still");
+            }
+            finally { Object.DestroyImmediate(plain); }
+        }
+
+        [Test]
         public void TheShaderCompiles()
         {
             var shader = Resources.Load<Shader>("GoF2Fx/ChorusRift");

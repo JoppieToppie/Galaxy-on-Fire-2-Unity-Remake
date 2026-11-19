@@ -78,13 +78,13 @@ namespace GoF2Remake.World
         }
 
         /// <summary>Level::assignGuns' per-mission guns (index 70: every ship the Disruptor Laser 183 at x2.5 damage).</summary>
-        public void SetGun(int itemIndex, float damageFactor)
+        public void SetGun(int itemIndex, float damageFactor, float reloadMs = 0f)
         {
             var item = db.Item(itemIndex);
             if (item == null || IsFreighter || IsFixed) return;
             rig?.HideAll();
             if (gun != null) { gun.Hit -= OnGunHit; gun.AreaHit -= HitByBlast; }
-            gun = MakeGun(item, gunBase * damageFactor);
+            gun = MakeGun(item, gunBase * damageFactor, reloadMs);
             rig = new GunRig(gun, WeaponFx.Load(item.index), fxRootRef, IsTurret ? turretCore?.GunNode : null, 2);
             WireGun(gun);
             turretCore?.SetGun(gun, rig);
@@ -110,11 +110,11 @@ namespace GoF2Remake.World
 
         /// <summary>Level::assignGuns: rockets / missiles (sorts 4, 5, 40) become a RocketGun (speed 8, lifetime 10 000, reload
         /// 3000, homing for 5 / 40 after 1000 ms); every other item only gives the look of the NPC gun (16 u/ms, 3000 ms).</summary>
-        Gun MakeGun(ItemData item, float damage)
+        Gun MakeGun(ItemData item, float damage, float reloadMs = 0f)
         {
             bool rocket = item.categoryId == (int)Gun.Kind.Rocket || item.categoryId == (int)Gun.Kind.Missile || item.categoryId == (int)Gun.Kind.ClusterMissile;
             if (!rocket)
-                return new Gun(item, damage, NpcTables.GunReloadMs, NpcTables.GunPool, NpcTables.GunLifetimeMs, gunSpeed) { owner = Target, emp = item.Attr(10) };
+                return new Gun(item, damage, reloadMs > 0f ? reloadMs : NpcTables.GunReloadMs, NpcTables.GunPool, NpcTables.GunLifetimeMs, gunSpeed) { owner = Target, emp = item.Attr(10) };
             int pool = item.categoryId == (int)Gun.Kind.ClusterMissile ? Mathf.Max(1, item.index - 211) : NpcTables.GunPool;
             return new Gun(item, damage, RocketReloadMs, pool, RocketLifetimeMs, RocketSpeed) { owner = Target, homingDelayMs = 1000f };
         }

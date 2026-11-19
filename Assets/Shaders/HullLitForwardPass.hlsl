@@ -193,7 +193,7 @@ Varyings LitPassVertex(Attributes input)
     UNITY_TRANSFER_INSTANCE_ID(input, output);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-    if (_ChorusParams.x > 2.5) input.positionOS.xyz += input.normalOS * ChorusShellPush(input.texcoord);   // GoF2: Chorus's shell push
+    if (ChorusIsShell()) input.positionOS.xyz += input.normalOS * ChorusShellPush(input.texcoord);   // GoF2: Chorus's shell push
     VertexPositionInputs vertexInput = GetVertexPositionInputs(input.positionOS.xyz);
 
     // normalWS and tangentWS already normalize.

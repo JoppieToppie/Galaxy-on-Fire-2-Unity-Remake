@@ -32,6 +32,13 @@
 //                    when it dies drops at once (ES2's BP_LootDrone: RandomIntegerInRange(4, 7), its DropPercentages, flee
 //                    delay 5..10 s, OrbitJumpChargeDuration 6 s, ApplyEMP's AbortJumpFocus, BP_Explosion_ProximityMine with
 //                    no damage)
+//   pursuer          (Chorus's Guilt, 2026-11-11: BT_Guilt, BP_Guilt_Debuff, BP_NPC_Guilt) can't be harmed and doesn't fire:
+//                    it picks the player and chases at its BTService_CheckDistance steps: within ChaseSteps[0] at x0.5,
+//                    stopping StopUnits short; within [1] x3, [2] x5, [3] x7 (its FlyToTarget tasks' LinearSpeedMultiplier);
+//                    farther at its own speed (Chorus's cm x 0.72 game units, the ships' scale). Within WitherUnits (160 m)
+//                    the player's hull withers, past the shield (BP_Guilt_Debuff's MaxWither 5: here 5 % of the maximum
+//                    hull a second); within ProximityUnits (1.5 km) the screen darkens toward it (PP_Guilt;
+//                    ProximityIntensityMax 0.4: World.PursuerFx)
 // ES2's amounts are on its scale of hit points; the remake's NPCs have GoF2's, so they go over as shares of the ES2 Outlaw
 // raider's (npc_leveling.CSV: hull 200 + armour 50 + shield 60 = Es2RaiderHp, HullDPSPrimary 31 + ShieldDPSPrimary 24 =
 // Es2RaiderDps).
@@ -40,7 +47,28 @@ namespace GoF2Remake.Flight
 {
     public static class NpcRoles
     {
-        public enum Role { None, Sniper, Detonator, Webber, ShieldCharger, ArmorLink, AntiMissile, JumpSuppressor, LootDrone }
+        public enum Role { None, Sniper, Detonator, Webber, ShieldCharger, ArmorLink, AntiMissile, JumpSuppressor, LootDrone, Pursuer }
+
+        /// <summary>The pursuer's distance steps (game units: Chorus's 8000, 60000, 100000, 300000 cm x 0.72) and their speed
+        /// factors; StopUnits its stop short of the player at the first (2000 cm).</summary>
+        public static readonly float[] ChaseSteps = { 5760f, 43200f, 72000f, 216000f };
+        public static readonly float[] ChaseFactors = { 0.5f, 3f, 5f, 7f };
+        public const float StopUnits = 1440f, WitherUnits = 11520f, WitherShare = 0.05f, ProximityUnits = 108000f, ProximityMax = 0.4f;
+
+        /// <summary>The pursuer's speed factor 'distance' game units from the player (0: close enough to stop).</summary>
+        /// <summary>A pursuer an event graph has given an order or a hold (Chorus's MTAction_ManageGuiltNPC): it neither
+        /// chases nor withers while that lasts.</summary>
+        public static bool PursuitPaused(bool ordered, bool parked) => ordered || parked;
+
+        public static float ChaseFactor(float distance)
+        {
+            if (distance <= StopUnits) return 0f;
+            for (int i = 0; i < ChaseSteps.Length; i++) if (distance <= ChaseSteps[i]) return ChaseFactors[i];
+            return 1f;
+        }
+
+        /// <summary>The pursuer's proximity effect 'distance' game units away: 0 past ProximityUnits up to ProximityMax at it.</summary>
+        public static float Proximity(float distance) => distance >= ProximityUnits ? 0f : ProximityMax * (1f - distance / ProximityUnits);
 
         public const float FireRangeFactor = 2f;
         public const float Es2RaiderHp = 310f, Es2RaiderDps = 55f;
@@ -65,6 +93,7 @@ namespace GoF2Remake.Flight
                 case "antimissile": return Role.AntiMissile;
                 case "jumpsuppressor": return Role.JumpSuppressor;
                 case "lootdrone": case "loot": return Role.LootDrone;
+                case "pursuer": return Role.Pursuer;
                 default: return Role.None;
             }
         }

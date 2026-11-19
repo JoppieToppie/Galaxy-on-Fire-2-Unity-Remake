@@ -381,6 +381,23 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   station's stations.json `materials`, and an interiors.json room's, ignored their `material` filter
   (`ModStations.Build` / `ModInteriors.Build` passed no glTF material name to `ModShipBuilder.MaterialFor`), so such a
   station showed its model's own white materials.
+- **Death throes, blocking fields, part shields** (remake, 2026-11-11, Chorus's warships): ships.json `"deathThroes"`
+  (`CustomDeathThroes`: NpcShipDamage.OnDied's freighter / mod capital branch sets `dyingMs` to its seconds, warns
+  "capitalCritical", schedules `throesBlastMs` hull blasts (ModDeathFx dying, else `Explosion.Spawn` at a quarter of the
+  freighter scale); `ThroesBlast` at the final explosion: every `Target.All` within the radius takes damage x (maxHull +
+  maxShield) x (1 - d / r) as an NPC hit, the camera shakes within 2 r). `"shieldBlocks"`: `CapitalSubsystems.Build`
+  adds the shield field renderers' meshes to the hull (`HullCollision.AddShape`); `HullCollision.Shown` drops them once
+  the fields hide. A subsystem's `"shield"` (`CapitalSubsystem.shield`): the part's `Hitpoints.maxShield` = hull x it
+  (NPC shields don't recharge). Tests in `ModCapitalShipsTests`.
+- **Hurt only through its parts** (remake, 2026-11-11, Chorus's warships: BP_NPC_Warship_Base's DamageReceiverComponent
+  DefaultDamageMultiplier 0, their health from their weakpoints): ships.json `"hullDamage"` (`CustomShipData.hullDamage`,
+  default 1) is `Target.directFactor`, set with the shields (`CapitalSubsystems.ApplyShields`): a direct hit x it before
+  `damageFactor`; a weak spot's passed-on hit and its death bonus go through `Target.PassOn` (`Target.PassingOn` while
+  dealt), which skips it (the shields' `damageFactor` still applies). `OnHostDamaged` no longer warns on a passed-on hit,
+  and with `hullDamage` 0 answers a bare hit "Its armour holds: shoot its weak points!" (Extra `capitalWeakPoints`).
+  A subsystem's `"turretForward"` (`CapitalSubsystem.forward`, game axes) turns a part that isn't a turret fully with its
+  up (`CapitalSubsystems.PartTurn`: LookRotation in the ship's Unity frame, x mirrored), for Chorus's devices on their
+  sockets. Tests `ModCapitalShipsTests` (AHullHurtOnlyThroughItsWeakSpots, the parse test).
 - **NPC ships** (remake, 2026-11-02, the user's request: "just like flyable ships", ships nobody flies, new or replaced, with
   loot, escorts and their strength, hardpoints, spawn rate and places, a capital ship's docking and shop; `npcships.json`,
   Modding/README.md "NPC ships"): `Modding.ModNpcShips` (Game layer; parsed in `ModContent.Parse` into `Parsed.npcShips`,
@@ -563,6 +580,11 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   "turrets" (2026-11-05, the GoF3 bosses' Backfire / Tank Turrets): turret items (category 8 / 35) for its ship's turret
   mounts, `WantedData.turrets` -> `SpawnSpec.turretItems` (`TrafficPlan.AddWanted`; null = the type's `npcTurrets`, [] =
   none; more than the mounts warns), fired by `NpcMountedTurrets` at the item's own damage (no x4 like its gun).
+  "skin" (2026-11-11, the GoF3 bosses' gang paint): a kit skin id of its ship, `WantedData.skin` -> `SpawnSpec.skin`
+  (`TrafficPlan.AddWanted`) -> `Traffic.AssemblyOf` -> `ModTraffic.Assembly(ship, skin)`: `SkinBuild` = the default build
+  with that skin (its colours, livery, decal; `Normalize`d), flown once `ModShips.BuildLoaded`, else warmed and the plain
+  assembly this time; `ModTraffic.Warm` warms every wanted skin build too (`WarmSkins`, within `WarmBuilds`). An unknown
+  skin or one the type doesn't allow flies the plain build. `ModWantedTests.ASkinIsTheKitSkinItsShipWears`.
 - **Mod wingmen** (remake, 2026-11-05, the GoF3 roadmap's G5 after GoF3's wingmen, the user's choice: GoF2's progression
   systems plus what it lacks; Modding/README.md "Wingmen"): ships.json "wingmanDevice" (`CustomShipData.wingmanDevice`,
   checked in `ModWingmen.Apply`) gives a hired wingman flying that hull GoF3's device (`Flight.WingmanDevice`, Core: Hull

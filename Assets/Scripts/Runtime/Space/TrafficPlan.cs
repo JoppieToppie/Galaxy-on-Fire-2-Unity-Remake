@@ -75,6 +75,7 @@ namespace GoF2Remake.Flight
         // Remake (generic turrets, Flight.TurretCore): any turret item on an NPC.
         public int turretItem = -1;    // a turret object built from this turret item: its model, aim and gun (-1 = turretAssembly's)
         public List<int> turretItems;  // turret items on the ship's turret mounts (null = its type's, Database.NpcTurrets; empty = none)
+        public string skin;            // remake mods: a kit ship's skin it flies in (a Most Wanted criminal's "skin"; ModTraffic.Assembly)
         public bool guard;             // PlayerFighter+0x12b: waking calls Level::pirateStationAction(true)
         public int lootItem = -1, lootAmount;   // a fixed crate (the pirate outposts, DAT_002543e0)
         public List<ItemStack> extraLoot;       // remake: more stacks in that crate (a pirate outpost by tier)
