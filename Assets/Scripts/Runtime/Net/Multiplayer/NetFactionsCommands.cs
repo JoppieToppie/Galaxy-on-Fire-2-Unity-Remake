@@ -184,6 +184,8 @@ namespace GoF2Remake.Multiplayer
             if (faction == null || faction.leader != me) return Localization.Extra("mpFactionNotLeader", "Only the faction's leader can do that.");
             if (NetPlayerStations.HasFactionOwnedStations(faction.id))
                 return "This faction still owns player-built stations. Nominate a player or successor faction and complete a station transfer for each one before disbanding.";
+            if (NetPlayerStations.HasFactionMarketplaceClaims(faction.id))
+                return "This faction is still named as the payout destination for active station listings. Complete or cancel those listings before disbanding.";
             TellFaction(faction, string.Format(Localization.Extra("mpFactionDisbanded", "The faction [{0}] {1} was disbanded."), faction.tag, faction.name));
             var members = new List<string>(faction.members);
             int claimsBefore = list.claims.Count;
