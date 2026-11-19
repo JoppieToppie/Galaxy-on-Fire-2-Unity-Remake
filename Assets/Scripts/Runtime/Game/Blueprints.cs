@@ -170,7 +170,7 @@ namespace GoF2Remake.Data
         {
             if (units <= 0) return;
             // A dry-dock-restricted ship blueprint cannot be progressed through an ordinary station's hangar.
-            if (Modding.ModBlueprints.RequiresDryDock(product) && !Multiplayer.NetPlayerStations.HasDryDockAtStation(station)) return;
+            if (Modding.ModBlueprints.RequiresDryDock(product, db) && !Multiplayer.NetPlayerStations.HasDryDockAtStation(station)) return;
             var s = State(db, product);
             var it = db.Item(product);
             int slot = it.blueprint.FindIndex(p => p.item == ingredient);
@@ -266,7 +266,7 @@ namespace GoF2Remake.Data
         public static bool Produce(Database db, int product, int currentStation)
         {
             // Keep the final production path authoritative too; the UI's CanStartIn check is not a security boundary.
-            if (Modding.ModBlueprints.RequiresDryDock(product) && !Multiplayer.NetPlayerStations.HasDryDockAtStation(currentStation)) return false;
+            if (Modding.ModBlueprints.RequiresDryDock(product, db) && !Multiplayer.NetPlayerStations.HasDryDockAtStation(currentStation)) return false;
             var it = db.Item(product);
             if (it == null || it.blueprint == null) return false;   // not a product (-1 from a stale hangar row)
             var s = State(db, product);
