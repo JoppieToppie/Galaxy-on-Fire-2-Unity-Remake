@@ -174,13 +174,28 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Independent player-built gates, each anchored to one system orbit.</summary>
         public static IReadOnlyList<PlayerJumpgateRecord> Jumpgates => registry?.jumpgates;
 
-        internal static bool IsBlueprintConsumed(int item) => registry?.consumedBlueprints?.Contains(item) == true;
+        static bool consumedBlueprintsReconciled;
+
+        internal static bool IsBlueprintConsumed(int item)
+        {
+            if (registry?.consumedBlueprints?.Contains(item) != true) return false;
+            // A later acquisition can unlock the same blueprint again. Startup reconciliation first removes
+            // stale unlocks left behind by a crash; an unlock after that point is a genuinely new blueprint.
+            if (consumedBlueprintsReconciled && GoF2Remake.Data.Blueprints.IsUnlocked(item))
+            {
+                registry.consumedBlueprints.Remove(item);
+                if (Save()) return false;
+                registry.consumedBlueprints.Add(item);
+            }
+            return true;
+        }
 
         static void ReconcileConsumedBlueprints()
         {
             if (registry?.consumedBlueprints == null || GoF2Remake.Data.Session.UnlockedBlueprints == null) return;
             foreach (int item in registry.consumedBlueprints)
                 GoF2Remake.Data.Session.UnlockedBlueprints.Remove(item);
+            consumedBlueprintsReconciled = true;
         }
 
         /// <summary>The current registry for NetState's initial session snapshot.</summary>
@@ -193,6 +208,7 @@ namespace GoF2Remake.Multiplayer
             path = null;
             nextDryDockRetryUtc = 0;
             persistenceFaulted = false;
+            consumedBlueprintsReconciled = false;
             sessionActive = NetGame.PersistentHost || NetGame.Dedicated;
             if (!sessionActive) return;
 
