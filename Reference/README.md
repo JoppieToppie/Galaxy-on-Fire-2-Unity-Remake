@@ -19,6 +19,9 @@ Source material for the remake. Nothing in here is used by Unity; it's for readi
 | `tools/show.py` | `python Reference/tools/show.py "^PlayerFighter::update$"` prints matching decompiled functions. |
 | `tools/rf.py` | `python Reference/tools/rf.py 000a8178` reads a `DAT_` constant as float/hex (needs `pip install pyelftools`). |
 | `tools/asset_conversion/` | The scripts that produced `Assets`: `aem.py` (meshes), `aei.py` (textures), `parse_bins.py` (data), `emu_resources.py` (resource table), `aem2fbx.py` (Blender FBX export), `convert_remodel.py` (a remodelled room's new .aem files -> FBX + the current sidecar format), `run_audio.sh` (FMOD banks). |
+| `tools/sky/sky_layers.py` | `Assets/Resources/GoF2SkyLayers`: the layered GoF2 skies' own star and nebula masks, sharper patches and each sky's layout (Options > Graphics "Skies"). Run it in a capped scope; see its docstring. |
+| `tools/sky/nebula_clouds.py` | `Assets/Resources/GoF2SkyLayers`: the nebula clouds' tileable masks (spectral noise) and each GoF2 nebula sky's cloud colours. |
+| `tools/sky/enhance_skies.py` | `Assets/Resources/GoF2SkyHd` (Options > Graphics "Enhanced skies"): the base skies' point stars as star lists, the nebulae upscaled by Real-ESRGAN's anime model (`realesrgan-ncnn-vulkan`). Run it in a capped scope; see its docstring. |
 | `tools/*.java` | Ghidra headless scripts used for the decompile. |
 
 ## Reading the pseudocode

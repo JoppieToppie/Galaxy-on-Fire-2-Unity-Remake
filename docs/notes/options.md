@@ -95,7 +95,9 @@ performance; they pick their resolution from it, not the render scale) and MSAA 
 bloom (Off / Remake: URP Bloom on the HDR glow, threshold 1 / Original: `ClassicBloomPass`, see below / Both: the two
 together, #45; "Bloom strength" 25..200 %, a player's wish, 2026-10-18: `Settings.BloomStrength`, a factor on each scene
 volume's own Bloom intensity in `Bootstrap.ApplyPostProcessing`, shown with Remake and Both, the original's pass is not
-scaled), hangar depth of field (see "Station scene"), lens flare, hangar ship shadows (Off / Player ship only /
+scaled), hangar depth of field (see "Station scene"), lens flare, skies (`Settings.SkyStyle`: Original (default) /
+Enhanced / EVERSPACE 2 style / Combined, not in the presets, space-scene.md "Skies"), nebula clouds
+(`Settings.NebulaClouds`, off by default, not in the presets: space-scene.md "Nebula clouds"), hangar ship shadows (Off / Player ship only /
 All ships, see "Station scene"), levels of detail (see "Assembled prefabs"), field of view (chase camera, default the
 original's 1.22 rad), camera shake, vibration (see **Haptics**), stick dead zone, launch / arrival camera, hangar
 arrival and take-off (`HangarFlight`), auto-play dialogue (the dialogue's AUTO pill), animated dialogue (`TextReveal`),

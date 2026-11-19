@@ -442,6 +442,14 @@ namespace GoF2Remake.World
             Shader.SetGlobalFloat("_BlendStarsGain", sky.GetFloat("_StarsGain"));
             Shader.SetGlobalFloat("_BlendNebulaGain", sky.GetFloat("_NebulaGain"));
             Shader.SetGlobalFloat("_BlendExposure", sky.GetFloat("_Exposure"));
+            // its Enhanced stars (SkyStars), else the stars it lifted out of its layers were missing until the arrival
+            var grid = sky.GetVector("_StarGrid");
+            Shader.SetGlobalVector("_BlendStarGrid", grid);
+            if (grid.x > 0f)
+            {
+                Shader.SetGlobalTexture("_BlendStarIndex", sky.GetTexture("_StarIndex"));
+                Shader.SetGlobalTexture("_BlendStarData", sky.GetTexture("_StarData"));
+            }
         }
 
         static void SetMap(Material sky, string from, string to, string texel)

@@ -203,6 +203,11 @@ namespace GoF2Remake.Modding
             return textures.TryGetValue(name, out var t) ? t : null;
         }
 
+        /// <summary>Remake (2026-11-14): one of the layered skies' images (Resources/GoF2SkyLayers/&lt;name&gt;, a sky's "gof2:&lt;name&gt;":
+        /// star_mask, nebula_masks, patch_0XX) replaced by a mod's textures/&lt;name&gt; file, else null (World.GoF2SkyLayers,
+        /// OrbitBuilder.SetChorusSky). The EVERSPACE 2 importer's mod gives ES2's own star and nebula masks this way.</summary>
+        public static Texture2D SkyLayer(string name) => Hud(name);
+
         /// <summary>The replacement for a texture on an object of 'scope': its ship's own (a game model's copy for one mod ship),
         /// its own, its model's (a copy's), else every object's.</summary>
         static Texture2D Find(string texture, string scope)

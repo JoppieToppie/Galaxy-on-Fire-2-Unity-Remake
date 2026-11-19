@@ -210,6 +210,22 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   (they read `_NebulaMap`). Cost (estimated, not measured): about 6 texture reads and 150-200 ALU per sky pixel against
   the image skies' 2 reads: ~0.1 ms on a desktop GPU, twice that in the warp, ~0.5-1 ms on a mid phone (hence off on Low).
   The importer's `tools/sky.py` writes both (the panorama by the same formula in numpy). Tests `ChorusSkyTests`.
+- **Layered skies** (remake, 2026-11-14, the user: "combine es2s methods with chorus methods for the skies", "one layered
+  sky for all"; built from what EVERSPACE 2's compiled materials and scripts do, no ES2 file needed): the `"chorus"` block
+  takes EVERSPACE 2's methods too. Stars: the mask's `channels` weighted (M_Skybox_Stars: r + g / 2 + b / 4, three star
+  layers), `tiling` [u, v] (its sky sphere tiles 2 x 1) and `noise` (thinned by a 3D gradient noise over the sky, ^2.5:
+  clusters; `SpaceSkyCore` `GradientNoise`). Layers (6 now, 5 vectors each, `_ChorusL{n}A..E`; D.x the kind): kind 0
+  Chorus's image patch as before; kind 1 a tinted mask (M_Nebula_Hemisphere_Parent / M_Nebula_Local_Parent: a greyscale
+  mask's channel x colour, added, brighter toward the sun by pow((dot + 1) / 2, 32) x `sunScatter` x the sun's colour,
+  `_ChorusSun` / `_ChorusSunColor` from `OrbitBuilder.SetChorusSun`: the orbit's sun in the sky's frame, Unreal axes), placed
+  as a patch (scale 2 = the whole sky), tiled / offset in it, with a gaussian `falloff` round its middle (q = (0, -1, 0));
+  kind 2 ES2's gradient (M_Skybox_Gradient: saturate((dot(view, up) + 1) / 2 + Offset), Absolute folds it
+  (1 - |2g - 1|), Invert flips it, smoothstep(GradientMin, GradientMax), Schlick's bias g / ((1 / bias - 2)(1 - g) + 1) as
+  its preshader passes it, ^Power, colour over by it x opacity). `"base": true` (`_ChorusStarsB.w`) keeps the skybox's own
+  layers under it (`BaseSky`: the game's cubes or the images, the Enhanced stars) instead of black. ES2's levels hold only
+  the background in their sky level (Map_Skybox_S0XX: stars sphere, matte, a sky-wide nebula in some at intensity 0.2); its
+  local nebulae are 3D actors in the location levels (221 in all, most levels two): see space-scene.md "Nebula clouds".
+  Tests `ChorusSkyTests` (`Es2LayersAreReadAndPacked`; the compile test now also builds the plain sky).
 - **Characters** (`ModCharacters`, a mod's `characters.json`: id, name (per language), portrait PNG, race, gender, mirrored,
   background, frame, replaces): `NetAdmin.ResolveSpeaker` takes a character by key "mod_id:id" (before the story speakers),
   else after them by id or name (any language), "x as Name" renaming; the spec is "-3 US rename US key" (`Events.SpeakerSpec`,

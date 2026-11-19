@@ -95,6 +95,49 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void Es2LayersAreReadAndPacked()
+        {
+            // the layered sky's EVERSPACE 2 methods: clustered stars, a tinted mask (no image: a glow), a gradient band
+            const string json = "[ { 'override': 1, 'skybox': { 'chorus': { 'base': true, " +
+                "'stars': { 'image': 'skies/stars.png', 'tiling': [2, 1], 'channels': [1, 0.5, 0.25], 'noise': { 'scale': 3 } }, 'layers': [ " +
+                "{ 'type': 'mask', 'color': [0.2, 0.4, 0.8], 'intensity': 0.5, 'falloff': 30, 'sunScatter': 2, 'heading': 0.5 }, " +
+                "{ 'type': 'gradient', 'up': [0, 0, 2], 'absolute': true, 'min': 0.6, 'max': 1, 'bias': 0.25, 'power': 2, 'color': [1, 0, 0], 'opacity': 0.3 } ] } } } ]";
+            string dir = WriteMod("w", "t_es2sky", "1.0", "", ("systems.json", json));
+            Directory.CreateDirectory(Path.Combine(dir, "skies"));
+            var t = new Texture2D(8, 8, TextureFormat.RGBA32, false);
+            File.WriteAllBytes(Path.Combine(dir, "skies", "stars.png"), t.EncodeToPNG());
+            Object.DestroyImmediate(t);
+            ScanAndEnable("t_es2sky");
+            Database.Load();
+            var c = ModWorld.SkyOf(1).chorus;
+            Assert.IsTrue(c.keepBase);
+            Assert.AreEqual(2f, c.starsTiling); Assert.AreEqual(1f, c.starsTilingV);
+            Assert.AreEqual(new Vector3(1f, 0.5f, 0.25f), c.starsChannels);
+            Assert.AreEqual(3f, c.starsNoiseScale); Assert.AreEqual(2.5f, c.starsNoiseExponent, "ES2's ^2.5 by default");
+            Assert.AreEqual(ModWorld.ChorusLayer.Mask, c.layers[0].kind);
+            Assert.IsNull(c.layers[0].image, "a mask without an image: a glow");
+            Assert.AreEqual(2f, c.layers[0].scale, "a mask covers the whole sky by default");
+            Assert.AreEqual(ModWorld.ChorusLayer.Gradient, c.layers[1].kind);
+            Assert.AreEqual(new Vector3(0, 0, 1), c.layers[1].up, "normalized");
+
+            var sky = new Material(Resources.Load<Material>("GoF2Sky/SpaceSky"));
+            try
+            {
+                GoF2Remake.World.OrbitBuilder.SetChorusSky(sky, c);
+                Assert.AreEqual(2f, sky.GetVector("_ChorusMisc").z, "both layers drawn, the mask without an image too");
+                Assert.AreEqual(1f, sky.GetVector("_ChorusStarsB").w, "the game's layers under it");
+                Assert.AreEqual(3f, sky.GetVector("_ChorusStarsB").y);
+                var d = sky.GetVector("_ChorusL1D");
+                Assert.AreEqual(1f, d.x, "a mask"); Assert.AreEqual(4f, d.y, "no image: 1 everywhere");
+                Assert.AreEqual(30f * Mathf.Deg2Rad, d.z, 1e-5f); Assert.AreEqual(2f, d.w);
+                Assert.AreEqual(new Vector4(0.2f, 0.4f, 0.8f, 1f), sky.GetVector("_ChorusL1C"), "colour, exponent");
+                Assert.AreEqual(new Vector4(2f, 1f, 0f, 0f), sky.GetVector("_ChorusL2D"), "a gradient, folded");
+                Assert.AreEqual(new Vector4(0.6f, 1f, 2f, 2f), sky.GetVector("_ChorusL2B"), "min, max, Schlick's 1 / 0.25 - 2, power");
+            }
+            finally { Object.DestroyImmediate(sky); }
+        }
+
+        [Test]
         public void ALayerIsAnImageOfTheMod() =>
             StringAssert.Contains("isn't in the mod", WorldError("[ { 'override': 1, 'skybox': { 'chorus': { 'layers': [ { 'image': 'skies/none.png' } ] } } } ]"));
 
@@ -118,6 +161,7 @@ namespace GoF2Remake.Tests
                 var m = new Material(Resources.Load<Material>(path));
                 try
                 {
+                    UnityEditor.ShaderUtil.CompilePass(m, 0, true);   // the game's layers (BaseSky, the Enhanced stars)
                     m.EnableKeyword("_CHORUS_SKY");
                     UnityEditor.ShaderUtil.CompilePass(m, 0, true);
                     var errors = UnityEditor.ShaderUtil.GetShaderMessages(m.shader).Where(x => x.severity == UnityEditor.Rendering.ShaderCompilerMessageSeverity.Error);

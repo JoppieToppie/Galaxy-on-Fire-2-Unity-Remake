@@ -544,9 +544,9 @@ namespace GoF2Remake.Modding
             public ChorusSky chorus;
         }
 
-        /// <summary>A skybox's "chorus" block: Chorus's M_Skybox_MASTER (GoF2/SpaceSky ChorusSky). Directions are Unreal's
-        /// (x forward, y right, z up), angles in turns as Chorus's; images are Backdrop "mod:" names (sRGB, the star mask
-        /// too: stored sRGB-encoded).</summary>
+        /// <summary>A skybox's "chorus" block, the layered sky (GoF2/SpaceSky ChorusSky): Chorus's M_Skybox_MASTER with EVERSPACE 2's
+        /// sky methods (2026-11-14: ES2's clustered stars, tinted masks and gradients). Directions are Unreal's (x forward, y right,
+        /// z up), angles in turns as Chorus's; images are Backdrop "mod:" names (sRGB, the star mask too: stored sRGB-encoded).</summary>
         public sealed class ChorusSky
         {
             /// <summary>The gradient (null: none): along 'up', (dot + bias)^gamma, colour A to B, times opacity.</summary>
@@ -557,18 +557,44 @@ namespace GoF2Remake.Modding
             /// brightness.</summary>
             public string stars;
             public float starsTiling = 1f, starsBrightness = 1f, starsExponent = 1f;
+            /// <summary>Its v tiling (0: as u; ES2's sky sphere tiles its star mask 2 x 1).</summary>
+            public float starsTilingV;
             public Vector2 starsOffset;
             public Vector4 curve0 = new Vector4(0f, 0f, 0f, 0.1821f), curve1 = new Vector4(1f, 1f, 1f, 0.5361f);
-            /// <summary>Its layers, in order (at most 4).</summary>
+            /// <summary>The mask's channel weights: Chorus's red (1, 0, 0); ES2's three star layers (1, 0.5, 0.25).</summary>
+            public Vector3 starsChannels = new Vector3(1f, 0f, 0f);
+            /// <summary>ES2's clustering: the stars thinned by a 3D noise over the sky at this scale (0: none), ^exponent.</summary>
+            public float starsNoiseScale, starsNoiseExponent = 2.5f;
+            /// <summary>"base": the skybox's own layers (the game's, or its "nebula" / "stars" images) drawn under it all.</summary>
+            public bool keepBase;
+            /// <summary>Its layers, in order (at most MaxLayers).</summary>
             public readonly List<ChorusLayer> layers = new List<ChorusLayer>();
+            public const int MaxLayers = 6;
             /// <summary>OverallEmissive: the whole sky's multiplier.</summary>
             public float emissive = 1f;
         }
 
+        /// <summary>A layered sky's layer: Chorus's image patch ("image"), ES2's tinted mask ("mask") or ES2's gradient ("gradient").</summary>
         public sealed class ChorusLayer
         {
+            public const int Image = 0, Mask = 1, Gradient = 2;
+            public int kind = Image;
+            /// <summary>Image and mask: the image (a mask without one is 1 everywhere: a glow), placed as a patch.</summary>
             public string image;
             public float heading, elevation, scale = 1f, rotation, emissive = 1f, exponent = 2f, opacity = 1f;
+            /// <summary>Mask: its colour times intensity; its channel 0-3 (r g b a); tiling and offset in the patch; a falloff
+            /// round the patch's middle (degrees, 0: none); how much brighter toward the sun.</summary>
+            public Color color = Color.white;
+            public float intensity = 1f, falloff, sunScatter;
+            public int channel;
+            public Vector2 tiling = Vector2.one, offset;
+            /// <summary>Gradient: along 'up' (as the sky is seen), offset, folded / flipped, smoothstep min..max, Schlick's bias,
+            /// power; 'color' over what is under it by that times 'opacity'.</summary>
+            public Vector3 up = new Vector3(0f, 0f, 1f);
+            public float gradientOffset, min, max = 1f, bias = 0.5f, power = 1f;
+            public bool absolute, invert;
+            /// <summary>Gradient: added to what is under it (a glowing band) instead of laid over it.</summary>
+            public bool additive;
         }
 
         static readonly Dictionary<int, Skybox> skyboxes = new Dictionary<int, Skybox>();
