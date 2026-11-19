@@ -33,6 +33,14 @@ MonoBehaviour:
   m_UpscalerPriority:
   - upscalerId: unity.stp
     upscalerName: Spatial-Temporal Post-Processing
+  - upscalerId: nvidia.dlss4
+    upscalerName: Deep Learning Super Sampling 4
+  - upscalerId: amd.fsr4
+    upscalerName: FidelityFX Super Resolution 4
+  - upscalerId: amd.fsr3
+    upscalerName: FidelityFX Super Resolution 3
+  - upscalerId: amd.fsr2
+    upscalerName: FidelityFX Super Resolution 2
   - upscalerId: amd.fsr1
     upscalerName: FidelityFX Super Resolution 1.0
   - upscalerId: unity.auto
@@ -78,6 +86,8 @@ MonoBehaviour:
   m_ConservativeEnclosingSphere: 1
   m_NumIterationsEnclosingSphere: 64
   m_SoftShadowQuality: 1
+  m_MainLightShadowsPCSS: 0
+  m_AdditionalLightShadowsPCSS: 0
   m_AdditionalLightsCookieResolution: 1024
   m_AdditionalLightsCookieFormat: 1
   m_UseSRPBatcher: 1
@@ -132,6 +142,7 @@ MonoBehaviour:
   m_PrefilterSoftShadowsQualityMedium: 1
   m_PrefilterSoftShadowsQualityHigh: 1
   m_PrefilterSoftShadows: 0
+  m_PrefilterShadowsPCSS: 0
   m_PrefilterScreenCoord: 1
   m_PrefilterScreenSpaceIrradiance: 1
   m_PrefilterNativeRenderPass: 1
