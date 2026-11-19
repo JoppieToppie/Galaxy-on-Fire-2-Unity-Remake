@@ -59,6 +59,7 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<bool> profilesOn = new NetworkVariable<bool>();     // the server keeps player profiles (NetProfiles)
         readonly NetworkVariable<bool> freePvp = new NetworkVariable<bool>();        // players may fight anywhere (else only in arenas)
         readonly NetworkVariable<FixedString4096Bytes> claims = new NetworkVariable<FixedString4096Bytes>();   // NetFactions' territory
+        readonly NetworkVariable<FixedString4096Bytes> playerStations = new NetworkVariable<FixedString4096Bytes>(); // persistent player-built station registry
         readonly NetworkVariable<FixedString4096Bytes> sieges = new NetworkVariable<FixedString4096Bytes>();   // NetFactions' sieges
         readonly NetworkVariable<FixedString4096Bytes> pirateBoard = new NetworkVariable<FixedString4096Bytes>();   // PirateReports' board (JSON)
         readonly NetworkVariable<int> toll = new NetworkVariable<int>();   // NetFactions.Toll
@@ -142,6 +143,21 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The factions' claimed stations, "station|TAG|Name|VAT %" per line (NetFactions, NetFactionsClient).</summary>
         public string Claims => claims.Value.ToString();
 
+        /// <summary>Persistent player-built stations (NetPlayerStations), shared with every joining player.</summary>
+        public string PlayerStations => playerStations.Value.ToString();
+
+        internal void PublishPlayerStations(string json)
+        {
+            if (!IsServer) return;
+            json ??= "";
+            if (System.Text.Encoding.UTF8.GetByteCount(json) > 4000)
+            {
+                Debug.LogWarning("NetState: player station registry exceeds its initial snapshot limit; change was saved but not replicated.");
+                return;
+            }
+            if (playerStations.Value.ToString() != json) playerStations.Value = json;
+        }
+
         /// <summary>Server: the claims (cut at a whole line to fit the network variable's 4 KB).</summary>
         internal void SetClaims(string text)
         {
@@ -217,7 +233,10 @@ namespace GoF2Remake.Multiplayer
                 cratePrefab = Resources.Load<GameObject>($"{NetGame.PrefabFolder}/NetCrate");
                 NetRateLimit.Reset();
                 NetTrade.Reset();
+                PublishPlayerStations(NetPlayerStations.Snapshot);
             }
+            playerStations.OnValueChanged += (_, now) => NetPlayerStations.ReceiveSnapshot(now.ToString());
+            NetPlayerStations.ReceiveSnapshot(playerStations.Value.ToString());
             // The session's Pirate activity board on every game (the host's too), now and whenever the server changes it.
             pirateBoard.OnValueChanged += (_, now) => PirateReports.ApplyShared(now.ToString());
             PirateReports.ApplyShared(pirateBoard.Value.ToString());
@@ -412,3 +431,4 @@ namespace GoF2Remake.Multiplayer
 
     }
 }
+

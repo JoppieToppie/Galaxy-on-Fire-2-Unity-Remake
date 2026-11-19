@@ -61,6 +61,9 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Current server registry; empty until a persistent world starts.</summary>
         public static IReadOnlyList<PlayerStationRecord> Stations => registry?.stations;
 
+        /// <summary>The current registry for NetState's initial session snapshot.</summary>
+        internal static string Snapshot => registry != null ? JsonUtility.ToJson(registry) : "";
+
         /// <summary>Load station state before the world starts accepting player actions.</summary>
         public static void Start()
         {
@@ -97,6 +100,31 @@ namespace GoF2Remake.Multiplayer
             registry.nextId = Math.Max(highest + 1, Math.Max(1, registry.nextId));
         }
 
+        /// <summary>Apply the server's station snapshot on a joining game. Clients keep a read-only copy and never save it.</summary>
+        internal static void ReceiveSnapshot(string json)
+        {
+            if (string.IsNullOrEmpty(json)) { registry = new Registry(); return; }
+            try
+            {
+                registry = JsonUtility.FromJson<Registry>(json) ?? new Registry();
+                registry.stations ??= new List<PlayerStationRecord>();
+                if (registry.stations.Count > MaxStations) registry.stations.RemoveRange(MaxStations, registry.stations.Count - MaxStations);
+                foreach (var station in registry.stations)
+                {
+                    if (station == null) continue;
+                    station.addons ??= new List<PlayerStationAddon>();
+                    station.listings ??= new List<PlayerStationListing>();
+                    if (station.addons.Count > MaxAddonsPerStation) station.addons.RemoveRange(MaxAddonsPerStation, station.addons.Count - MaxAddonsPerStation);
+                    if (station.listings.Count > MaxListingsPerStation) station.listings.RemoveRange(MaxListingsPerStation, station.listings.Count - MaxListingsPerStation);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"NetPlayerStations: server snapshot unreadable ({e.Message}).");
+                registry = new Registry();
+            }
+        }
+
         /// <summary>Find a station by its persistent server-assigned id.</summary>
         public static PlayerStationRecord Find(int id) => registry?.stations.Find(s => s != null && s.id == id);
 
@@ -104,8 +132,11 @@ namespace GoF2Remake.Multiplayer
         public static bool Save()
         {
             if (registry == null || string.IsNullOrEmpty(path)) return false;
-            return NetProfiles.Write(path, JsonUtility.ToJson(registry, true));
+            if (!NetProfiles.Write(path, JsonUtility.ToJson(registry, true))) return false;
+            NetState.Instance?.PublishPlayerStations(Snapshot);
+            return true;
         }
     }
 }
+
 
