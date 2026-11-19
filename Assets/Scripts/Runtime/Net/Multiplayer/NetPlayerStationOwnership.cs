@@ -170,7 +170,7 @@ namespace GoF2Remake.Multiplayer
                 ? string.Equals(account, proposal.targetProfile, StringComparison.Ordinal)
                 : IsFactionLeaderOf(account, proposal.targetFactionId));
             if (!CanViewStationRecord(by, record) && !recipient)
-                return "Transfer details are private to the station owner and intended recipient.");
+                return "Transfer details are private to the station owner and intended recipient.";
             if (proposal == null) return "No ownership transfer is pending.";
             long remaining = Math.Max(0, proposal.expiresUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             string target = proposal.targetType == PlayerStationOwnershipType.Faction
