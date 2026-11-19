@@ -27,8 +27,18 @@ namespace GoF2Remake.UI
         int selectedProduct = -1, selectedStation = -1;
         float refreshIn;
         bool requestPending;
+        string lastResponse = "";
 
         public bool IsOpen => panel != null && panel.style.display == DisplayStyle.Flex;
+        public Button MenuButton => openButton;
+
+        public VisualElement[] NavItems()
+        {
+            var items = new List<VisualElement> { closeButton };
+            foreach (var child in list.Children()) if (child is Button) items.Add(child);
+            items.Add(buildButton);
+            return items.ToArray();
+        }
 
         public DryDockWindow(StationMenu menu, StationLevel level, VisualElement root)
         {
@@ -279,12 +289,16 @@ namespace GoF2Remake.UI
         void OnChat(NetChat.Message message)
         {
             if (!IsOpen || message == null || message.channel != NetChat.Channel.Notice) return;
-            statusText.text = message.text;
+            lastResponse = message.text;
             requestPending = false;
             RefreshStatus();
             if (station != null && NetPlayerStations.GetDryDockVisualStatus(station.id)?.building == true)
                 RebuildBlueprints();
-            else if (selectedProduct >= 0) Select(selectedProduct);
+            else
+            {
+                if (selectedProduct >= 0) Select(selectedProduct);
+                statusText.text = lastResponse;
+            }
         }
     }
 }
