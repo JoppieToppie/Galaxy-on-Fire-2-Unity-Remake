@@ -50,6 +50,7 @@ namespace GoF2Remake.Multiplayer
     {
         const int MaxStations = 256, MaxAddonsPerStation = 64, MaxListingsPerStation = 512;
         const int MaxStationsPerSystem = 32;
+        const long ConstructionPrice = 5000000;
         const string FileName = "player-stations.json";
 
         [Serializable]
@@ -124,6 +125,9 @@ namespace GoF2Remake.Multiplayer
                     if (station.addons.Count > MaxAddonsPerStation) station.addons.RemoveRange(MaxAddonsPerStation, station.addons.Count - MaxAddonsPerStation);
                     if (station.listings.Count > MaxListingsPerStation) station.listings.RemoveRange(MaxListingsPerStation, station.listings.Count - MaxListingsPerStation);
                 }
+                // The snapshot can change during a live session. Append any newly built stations to this game's
+                // database before the player next enters their orbit.
+                if (NetGame.Active) Apply(NetGame.Db);
             }
             catch (Exception e)
             {
@@ -142,6 +146,67 @@ namespace GoF2Remake.Multiplayer
             foreach (var station in registry.stations)
                 if (station != null && station.stationIndex == stationIndex) return station.looksLike;
             return -1;
+        }
+
+        /// <summary>Create an orbital station for a player docked at its anchor. The server owns every validation and debit.</summary>
+        internal static string Build(NetPlayer by, string name)
+        {
+            if (!NetGame.IsServer || !sessionActive || registry == null)
+                return "Player-built stations need a persistent host or dedicated server.";
+            if (by == null || !by.IsSpawned || !by.InHangar)
+                return "Dock at a station before starting construction.";
+            if (!NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Sign in to a controlled player profile before building a station.";
+            name = (name ?? "").Trim();
+            if (name.Length < 3 || name.Length > 40 || name.IndexOfAny(new[] { '\\r', '\\n', '\\t', '\\0' }) >= 0)
+                return "Choose a station name between 3 and 40 characters.";
+            var db = NetGame.Db;
+            var anchor = db?.Stations?.Find(s => s != null && s.index == by.Station);
+            var system = anchor == null ? null : db.Systems?.Find(s => s != null && s.index == anchor.system);
+            if (anchor == null || system == null || system.stations == null || !NetGuard.Station(by.Station))
+                return "This location cannot anchor a station.";
+            if (registry.stations.Count >= MaxStations)
+                return "This world has reached its player station limit.";
+            int inSystem = 0;
+            foreach (var station in registry.stations) if (station != null && station.system == anchor.system) inSystem++;
+            if (inSystem >= MaxStationsPerSystem)
+                return "This system has reached its player station limit.";
+
+            string owner = NetProfiles.AccountOf(by.OwnerClientId);
+            if (string.IsNullOrEmpty(owner)) return "Your controlled profile has no account identity.";
+            bool hostOwnsGame = NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId;
+            if (hostOwnsGame ? Session.Credits < ConstructionPrice : NetProfiles.SpendableCredits(by.OwnerClientId, owner) < ConstructionPrice)
+                return $"Station construction costs {ConstructionPrice:N0} credits.";
+            if (hostOwnsGame) Session.Credits -= ConstructionPrice;
+            else if (!NetProfiles.MoveCredits(by.OwnerClientId, owner, -ConstructionPrice))
+                return "The server could not debit your construction funds.";
+            if (hostOwnsGame) NetProfiles.AdjustWorth(owner, -ConstructionPrice);
+
+            var record = new PlayerStationRecord
+            {
+                id = registry.nextId++,
+                stationIndex = db.Stations.Count,
+                name = name,
+                ownerProfile = owner,
+                ownerName = by.DisplayName,
+                system = anchor.system,
+                orbitStation = anchor.index,
+                looksLike = Modding.ModWorld.StationLook(anchor.index),
+                createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            };
+            registry.stations.Add(record);
+            if (!Save())
+            {
+                registry.stations.Remove(record);
+                registry.nextId--;
+                if (hostOwnsGame) Session.Credits += ConstructionPrice;
+                else NetProfiles.MoveCredits(by.OwnerClientId, owner, ConstructionPrice);
+                if (hostOwnsGame) NetProfiles.AdjustWorth(owner, ConstructionPrice);
+                return "The station registry could not be saved; construction was cancelled.";
+            }
+            Apply(db);
+            NetGuard.RefreshStations();
+            return $"Construction started: {name} in {system.name} ({ConstructionPrice:N0} credits).";
         }
 
         /// <summary>End the replicated session view; saved server data is reloaded next time.</summary>
@@ -193,6 +258,7 @@ namespace GoF2Remake.Multiplayer
                 });
                 if (!system.stations.Contains(record.stationIndex)) system.stations.Add(record.stationIndex);
             }
+            NetGuard.RefreshStations();
         }
 
         /// <summary>Persist a server-side change atomically, retaining the prior registry as a backup.</summary>

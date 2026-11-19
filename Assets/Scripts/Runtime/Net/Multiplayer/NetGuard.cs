@@ -32,6 +32,9 @@ namespace GoF2Remake.Multiplayer
 
         static HashSet<int> stations;
 
+        /// <summary>Clear the station index cache after player stations are appended to the live database.</summary>
+        internal static void RefreshStations() => stations = null;
+
         public static bool Finite(float f) => !float.IsNaN(f) && !float.IsInfinity(f);
         public static bool Finite(Vector3 v) => Finite(v.x) && Finite(v.y) && Finite(v.z);
 

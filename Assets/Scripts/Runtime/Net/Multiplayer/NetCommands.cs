@@ -341,9 +341,21 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
+            new Command { name = "station", usage = "build <name>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+                run = (a, by) => Station(a, by), needsPlayer = true,
+                description = () => X("mpCmdStation", "builds a new orbital station while docked at an existing station; persistent worlds only") },
         };
 
         static bool ProfilesOn => NetState.Instance != null && NetState.Instance.ProfilesOn;
+
+        static string Station(string args, IPilot by)
+        {
+            args = (args ?? "").Trim();
+            const string build = "build ";
+            if (args.Length <= build.Length || !args.StartsWith(build, StringComparison.OrdinalIgnoreCase))
+                return "/station build <name> (build while docked; construction costs 5,000,000 credits)";
+            return NetPlayerStations.Build(by as NetPlayer, args.Substring(build.Length));
+        }
 
         /// <summary>This player's server role (NetModeration; 0 without profiles).</summary>
         static int LocalRole => NetPlayer.Local != null ? NetPlayer.Local.StaffRole : 0;
