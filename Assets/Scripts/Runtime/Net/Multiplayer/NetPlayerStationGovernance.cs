@@ -804,45 +804,8 @@ namespace GoF2Remake.Multiplayer
             return "The delegation change could not be saved; the previous delegation remains active.";
         }
 
-        internal static bool OnFactionMemberLeaving(string account, string factionId)
+        static void ApplyFactionDissolution(string factionId)
         {
-            if (string.IsNullOrEmpty(account) || string.IsNullOrEmpty(factionId) || registry?.stations == null) return true;
-            var affected = registry.stations.FindAll(x => x != null &&
-                x.ownershipType == PlayerStationOwnershipType.Individual &&
-                string.Equals(x.ownerProfile, account, StringComparison.Ordinal) &&
-                string.Equals(StationFactionId(x), factionId, StringComparison.Ordinal));
-            if (affected.Count == 0) return true;
-            string previousRegistry = JsonUtility.ToJson(registry, true);
-            foreach (var record in affected)
-            {
-                record.factionStorageAccess = false;
-                record.factionPermissions = NewIndividualFactionPermissionProfile(false);
-                RecordHistory(record, account, "owner-left-faction", null,
-                    "Former faction defaults were revoked; individually assigned permissions remain.");
-            }
-            if (Save())
-            {
-                foreach (var record in affected) EjectDeniedVisitors(record);
-                return true;
-            }
-            registry = JsonUtility.FromJson<Registry>(previousRegistry);
-            if (registry == null)
-            {
-                persistenceFaulted = true;
-                Debug.LogError("NetPlayerStations: faction-leave rollback failed; station persistence is disabled.");
-            }
-            return false;
-        }
-
-        /// <summary>Resolve faction-owned stations before the faction record is deleted.</summary>
-        internal static bool ResolveFactionDissolution(string factionId)
-        {
-            if (string.IsNullOrEmpty(factionId) || registry?.stations == null) return true;
-            bool affected = registry.stations.Exists(x => x != null &&
-                x.ownershipType == PlayerStationOwnershipType.Faction &&
-                string.Equals(x.ownerFactionId, factionId, StringComparison.Ordinal));
-            if (!affected) return true;
-            string previousRegistry = JsonUtility.ToJson(registry, true);
             foreach (var record in registry.stations)
             {
                 if (record == null || record.ownershipType != PlayerStationOwnershipType.Faction ||
@@ -852,8 +815,7 @@ namespace GoF2Remake.Multiplayer
                 string successorFactionId = record.factionSuccessorFactionId;
                 var nextFaction = NetFactions.FindById(successorFactionId);
                 bool successorFactionValid = record.factionSuccessorType == PlayerStationOwnershipType.Faction &&
-                    !string.IsNullOrEmpty(successorFactionId) && nextFaction != null &&
-                    string.Equals(nextFaction.id, successorFactionId, StringComparison.Ordinal);
+                    !string.IsNullOrEmpty(successorFactionId) && nextFaction != null;
 
                 if (successorFactionValid)
                 {
@@ -862,8 +824,7 @@ namespace GoF2Remake.Multiplayer
                     record.ownerProfile = nextFaction.leader;
                     record.ownerName = nextFaction.name;
                     record.factionStorageAccess = true;
-                    record.factionPermissions = new PlayerStationFactionPermissionProfile
-                    { visit = true, storage = true, hangar = true };
+                    record.factionPermissions = NewFactionOwnedPermissionProfile();
                 }
                 else
                 {
@@ -874,11 +835,9 @@ namespace GoF2Remake.Multiplayer
                     record.ownerFactionId = null;
                     record.ownerName = string.IsNullOrEmpty(newOwner) ? "Unclaimed" : newOwner;
                     record.factionStorageAccess = false;
-                    record.factionPermissions = new PlayerStationFactionPermissionProfile
-                    { visit = false, storage = false, hangar = false };
+                    record.factionPermissions = NewIndividualFactionPermissionProfile(false);
                 }
 
-                // Old faction appointments and bans cannot survive the faction's dissolution.
                 record.roleAssignments?.Clear();
                 record.bans?.RemoveAll(x => x != null && x.source == PlayerStationBanSource.OwnerAuthority);
                 ClearOwnerVisitorRestrictions(record);
@@ -905,20 +864,52 @@ namespace GoF2Remake.Multiplayer
                             ? "successor faction " + record.ownerFactionId : "individual profile " + record.ownerProfile) + ".");
                 SyncJumpgatesForStation(record);
             }
+        }
+
+        internal static bool PrepareFactionDeparture(string account, string factionId, bool dissolving)
+        {
+            if (string.IsNullOrEmpty(factionId) || registry?.stations == null) return true;
+            var individualStations = string.IsNullOrEmpty(account) ? new List<PlayerStationRecord>() :
+                registry.stations.FindAll(x => x != null &&
+                    x.ownershipType == PlayerStationOwnershipType.Individual &&
+                    string.Equals(x.ownerProfile, account, StringComparison.Ordinal) &&
+                    string.Equals(StationFactionId(x), factionId, StringComparison.Ordinal));
+            var factionStations = dissolving ? registry.stations.FindAll(x => x != null &&
+                x.ownershipType == PlayerStationOwnershipType.Faction &&
+                string.Equals(x.ownerFactionId, factionId, StringComparison.Ordinal)) :
+                new List<PlayerStationRecord>();
+            if (individualStations.Count == 0 && factionStations.Count == 0) return true;
+
+            string previousRegistry = JsonUtility.ToJson(registry, true);
+            foreach (var record in individualStations)
+            {
+                record.factionStorageAccess = false;
+                record.factionPermissions = NewIndividualFactionPermissionProfile(false);
+                RecordHistory(record, account, "owner-left-faction", null,
+                    "Former faction defaults were revoked; individually assigned permissions remain.");
+            }
+            if (dissolving) ApplyFactionDissolution(factionId);
+
             if (Save())
             {
-                foreach (var station in registry.stations)
-                    if (station != null) EjectDeniedVisitors(station);
+                foreach (var record in individualStations) EjectDeniedVisitors(record);
+                foreach (var record in factionStations) EjectDeniedVisitors(record);
                 return true;
             }
             registry = JsonUtility.FromJson<Registry>(previousRegistry);
             if (registry == null)
             {
                 persistenceFaulted = true;
-                Debug.LogError("NetPlayerStations: faction dissolution rollback failed; station persistence is disabled.");
+                Debug.LogError("NetPlayerStations: faction departure rollback failed; station persistence is disabled.");
             }
             return false;
         }
+
+        internal static bool OnFactionMemberLeaving(string account, string factionId) =>
+            PrepareFactionDeparture(account, factionId, false);
+
+        internal static bool ResolveFactionDissolution(string factionId) =>
+            PrepareFactionDeparture(null, factionId, true);
 
         internal static string GovernanceHistory(NetPlayer by, int stationId, int count = 50)
         {
