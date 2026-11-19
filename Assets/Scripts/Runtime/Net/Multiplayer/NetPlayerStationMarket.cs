@@ -135,11 +135,13 @@ namespace GoF2Remake.Multiplayer
             record.storage ??= new List<PlayerStationStorage>();
             var stock = record.storage.Find(x => x != null && x.item == listing.item);
             int capacity = StorageCapacity(record);
-            int stored = 0;
+            long stored = 0;
             foreach (var stack in record.storage) if (stack != null) stored += Math.Max(0, stack.amount);
             if (stock == null && record.storage.Count >= MaxStorageItemTypes)
                 return "Storage has reached its item-type limit; free a slot before cancelling this listing.";
-            if ((long)stored + listing.amount > capacity)
+            if (stock != null && stock.amount > int.MaxValue - listing.amount)
+                return "The returned item stack has reached its maximum supported quantity.";
+            if (stored + listing.amount > capacity)
                 return "Storage has insufficient room to return this listing; withdraw or clear space first.";
 
             if (stock == null) record.storage.Add(stock = new PlayerStationStorage { item = listing.item });
