@@ -15,7 +15,7 @@ namespace GoF2Remake.Multiplayer
             public bool installed, operational, building;
             public int storedHulls, hullCapacity, blueprintItem = -1, shipIndex = -1;
             public string stationName, blueprintName;
-            public long startedUtc, completesUtc, remainingSeconds;
+            public long startedUtc, completesUtc, durationSeconds, remainingSeconds;
             public float progress;
             public bool consumesBlueprint;
         }
@@ -30,7 +30,7 @@ namespace GoF2Remake.Multiplayer
             if (record == null) return null;
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             bool installed = record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false;
-            bool building = installed && record.dryDockBuilding && record.dryDockCompletesUtc > now;
+            bool building = installed && record.dryDockBuilding;
             long duration = Math.Max(1L, record.dryDockCompletesUtc - record.dryDockStartedUtc);
             long remaining = building ? Math.Max(0L, record.dryDockCompletesUtc - now) : 0L;
             var db = NetGame.Db;
