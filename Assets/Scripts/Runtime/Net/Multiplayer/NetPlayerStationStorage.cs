@@ -72,7 +72,7 @@ namespace GoF2Remake.Multiplayer
                 {
                     var ship = ships[i]; if (ship == null) continue;
                     lines.Add((i + 1) + ". " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("Ship " + ship.ship)) +
-                        " — " + (ship.mods?.Count ?? 0) + " hull upgrades, bare hull");
+                        " — " + (ship.mods?.Count ?? 0) + " hull upgrades, " + (ship.equipment?.Count ?? 0) + " fitted equipment entries");
                 }
             if (lines.Count == 1) lines.Add("Your personal stored fleet is empty.");
             return string.Join("\n", lines);
