@@ -1,4 +1,6 @@
 {
+ "blueprintAutocomplete": "Automatyczne uzupełnianie schematów",
+ "blueprintAutocompleteHelp": "Pozwala zapłacić kredytami za brakujące składniki. Domyślnie wyłączone. Nie obejmuje schematów zabraniających automatycznego uzupełniania.",
  "driveQueued": "Napęd skokowy: oczekiwanie na systemy...",
  "driveNoVoid": "Ten napęd skokowy nie może opuścić Void.",
  "driveFailure": "Awaria napędu skokowego!",

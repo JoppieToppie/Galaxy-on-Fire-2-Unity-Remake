@@ -1,4 +1,6 @@
 {
+ "blueprintAutocomplete": "Blauwdrukken automatisch aanvullen",
+ "blueprintAutocompleteHelp": "Betaal credits voor ontbrekende materialen. Standaard uit. Blauwdrukken die automatisch aanvullen verbieden, blijven uitgesloten.",
  "driveQueued": "Sprongaandrijving: wacht op de systemen...",
  "driveNoVoid": "Deze sprongaandrijving kan de Void niet verlaten.",
  "driveFailure": "Sprongaandrijving faalt!",

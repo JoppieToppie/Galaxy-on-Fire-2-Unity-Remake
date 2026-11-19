@@ -86,6 +86,9 @@ generator).
   (`.missions-scroll--fit` / `.missions-footer--under` in Lounge.uss), not in the panel's bottom-right corner; a long
   text still scrolls with the button in view. The Missions tab keeps its buttons bottom-right.
 - **Blueprints** (`Blueprints`, the hangar's Blueprints tab 272): 25 products keyed by item (items.json ingredients),
+  paid autocomplete is opt-in through Options > Gameplay "Blueprint autocomplete" (`Settings.BlueprintAutocomplete`,
+  off by default, reset with the Gameplay tab). `Blueprints.CanAutocomplete` gates its row and activation; a mod's
+  `autocomplete: false` still forbids it even with the option on. Prices and manual ingredient supply use their existing rules.
   per-ingredient progress, production station (first investment; 212), 200 $ per unit shipping from another station
   (288; volatile 204 / 209 refused, 289), 210 / 223 need gate routes (528), Autocomplete `int(qty*maxPrice*1.25)` (iOS 1.1.19, the Default economy: `int(max(remaining value, qty*maxPrice)*1.4)`; 210:
   2 000 000 + the rest's value), a finished run to the hold (211) or waiting at the production station (210, collected

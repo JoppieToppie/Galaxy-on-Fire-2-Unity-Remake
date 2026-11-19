@@ -1,4 +1,6 @@
 {
+ "blueprintAutocomplete": "設計図の自動補完",
+ "blueprintAutocompleteHelp": "クレジットで設計図の不足材料を補充できます。初期設定はオフです。自動補完が禁止された設計図には使えません。",
  "driveQueued": "ジャンプドライブ：システム待機中...",
  "driveNoVoid": "このジャンプドライブはヴォイドから出られない。",
  "driveFailure": "ジャンプドライブ故障！",

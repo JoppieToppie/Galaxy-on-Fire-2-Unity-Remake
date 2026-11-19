@@ -1,4 +1,6 @@
 {
+ "blueprintAutocomplete": "蓝图自动补全",
+ "blueprintAutocompleteHelp": "允许支付信用点补齐蓝图缺少的材料。默认关闭。禁止自动补全的蓝图仍无法使用此功能。",
  "driveQueued": "跃迁引擎：等待系统就绪……",
  "driveNoVoid": "这个跃迁引擎无法离开Void。",
  "driveFailure": "跃迁引擎故障！",
