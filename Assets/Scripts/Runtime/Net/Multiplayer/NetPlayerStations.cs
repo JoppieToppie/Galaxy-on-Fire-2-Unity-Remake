@@ -138,5 +138,3 @@ namespace GoF2Remake.Multiplayer
         }
     }
 }
-
-
