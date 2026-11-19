@@ -30,7 +30,7 @@ namespace GoF2Remake.World
 
         public static readonly Color[] TypeColours =
         {
-            new Color(1f, 0.32f, 0.25f), new Color(1f, 0.7f, 0.2f), new Color(0.25f, 0.85f, 1f), new Color(0.72f, 0.45f, 1f),
+            new Color(1f, 0.32f, 0.25f), new Color(1f, 0.7f, 0.2f), new Color(0.25f, 0.85f, 1f), new Color(0.72f, 0.45f, 1f), new Color(0.3f, 0.95f, 0.65f),
         };
         static readonly Color[] AxisColours = { new Color(0.95f, 0.25f, 0.25f), new Color(0.35f, 0.9f, 0.3f), new Color(0.3f, 0.55f, 1f) };
         static readonly Color Hot = new Color(1f, 0.9f, 0.3f);
@@ -167,7 +167,7 @@ namespace GoF2Remake.World
                 bool on = i < n && Ship != null;
                 markers[i].go.SetActive(on);
                 if (!on) continue;
-                int type = Mathf.Clamp(Mounts[i].slotType, 0, 3);
+                int type = Mounts[i].slotType == 8 ? 4 : Mathf.Clamp(Mounts[i].slotType, 0, 3);
                 markers[i].mat.SetColor("_Color", i == Selected ? Color.Lerp(TypeColours[type], Color.white, 0.35f) : TypeColours[type]);
                 markers[i].stub.SetActive(type == 3);
             }

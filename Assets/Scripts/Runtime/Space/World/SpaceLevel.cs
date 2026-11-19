@@ -150,6 +150,8 @@ namespace GoF2Remake.World
         /// <summary>Remake mods: docked on the station's pad inside this orbit (EVERSPACE 2's way): the Station scene runs on
         /// top (its menu, the hangar view through this level's camera), the orbit lives on around it.</summary>
         public bool DockedInOrbit { get; private set; }
+        /// <summary>The player is externally attached to a manually authored large-ship station point.</summary>
+        public bool ExternalDocked => DockedInOrbit && ActiveEs2 != null && ActiveEs2.IsExternal;
         /// <summary>The level's camera (the station's menu drives it while docked inside the orbit).</summary>
         public Camera MainCamera => mainCamera;
         readonly System.Collections.Generic.List<AudioSource> dockPausedAudio = new System.Collections.Generic.List<AudioSource>();
@@ -191,9 +193,10 @@ namespace GoF2Remake.World
 
         /// <summary>The HUD's "Dock" prompt: an orbit with a station, player inside the dock range, not during the launch
         /// camera, and only after having left the range once (the undock spawn at 10000 units is inside it).</summary>
-        public bool CanDock => ((Layout.hasStation && StationShown && leftDockRange && InDockRange) || MobileInRange != null)
-                               && Player != null && launchCameraMs <= 0f && (Health == null || !Health.Dead)
-                               && !DockingBlocked && PlayerHull.PlayerShip   // remake debug: no hangar for a freighter / capital ship
+        public bool CanDock => Player != null && launchCameraMs <= 0f && (Health == null || !Health.Dead)
+                               && !DockingBlocked
+                               && ((InternalDockEligible && (AtFixedStationDockRange || MobileInRange != null))
+                                   || (CanDockExternally && AtFixedStationDockRange))
                                && (Mining == null || Mining.State == Mining.Phase.Idle);
         /// <summary>The station is there (a level script may hide it: 78's Valkyrie jumping away); nothing docks at a hidden one.</summary>
         bool StationShown => Station == null || Station.activeInHierarchy;
@@ -316,6 +319,13 @@ namespace GoF2Remake.World
 
         /// <summary>The scene's lights as this orbit has them.</summary>
         public void LightFor(OrbitLayout orbit) => OrbitBuilder.SetupLights(orbit, sunLight, planetLight, sunIntensityAt2, planetLightIntensity);
+
+        /// <summary>The take-off's end: continue to a programmed station when travel was queued.</summary>
+        void OnTookOff()
+        {
+            if (Session.ProgrammedStation >= 0 && !Session.InstantJump && !Session.SlipstreamDeparture)
+                Navigation?.ContinueToProgrammedStation();
+        }
 
         void Awake()
         {
@@ -440,11 +450,6 @@ namespace GoF2Remake.World
                 mobileDockPoints[point] = m;
                 if (Navigation.Targets.Find(x => x.transform == m.transform) is Navigation.Target mt) mt.transform = point;
             }
-            void OnTookOff()
-            {
-                // the take-off's end, like the launch camera's: on to a programmed station (the map's destination)
-                if (Session.ProgrammedStation >= 0 && !Session.InstantJump && !Session.SlipstreamDeparture) Navigation?.ContinueToProgrammedStation();
-            }
             if (Es2 != null) Es2.TookOff += OnTookOff;
             foreach (var md in mobileDocks.Values) md.TookOff += OnTookOff;
             // a launch from a station docked EVERSPACE 2's way (the orbit's, or the mobile station's it was launched from)
@@ -553,7 +558,11 @@ namespace GoF2Remake.World
                 Docking.Docked += () => { if (DockedLook) FreeLook.EnterDockedLook(); };
             }
             // Remake mods: a station's docking pads outside (stations.json "orbit.pads"): every game builds its own port.
-            if (plainOrbit && !prologue && !interstellar && Station != null) SpawnStationPads(station);
+            if (plainOrbit && !prologue && !interstellar && Station != null)
+            {
+                SpawnStationPads(station);
+                SpawnExternalDockPoints(station);
+            }
             Docking.Refusal = t => t.DockingType == ObjectDocking.StationPad && (GoF2Remake.World.SpaceHooks.NoDocking || (Siege != null && Siege.Active))
                 ? Localization.Get(525) : null;
             Docking.Docked += () =>
@@ -899,7 +908,7 @@ namespace GoF2Remake.World
         void LateUpdate()
         {
             if (Player == null || (Health != null && Health.Dead)) return;
-            if (!InDockRange) leftDockRange = true;
+            if (!(ExternalDockClass ? ExternalDockInRange : InDockRange)) leftDockRange = true;
             UpdateDriveArrival();   // Modified: a mod drive's arrival fx
             foreach (var m in Mobiles) if (m != null && !m.LeftRange && !m.InRange(Player.transform.position)) m.LeftRange = true;
             // Remake mods: the autopilot to a mobile station docks within its range.
@@ -913,7 +922,7 @@ namespace GoF2Remake.World
             }
             // MGame::dockEvent: the autopilot to the station docks within 16000 units or on touching the station (collision
             // is off during the launch).
-            if (Navigation != null && Navigation.GoingToStation && (InDockRange || (Es2 == null && Collision.TouchingStation)) && launchCameraMs <= 0f && Layout.hasStation && StationShown)
+            if (Navigation != null && Navigation.GoingToStation && DockingApproachRange && launchCameraMs <= 0f && Layout.hasStation && StationShown)
             {
                 if (DockingBlocked) { Navigation.Refuse(); return; }   // 525 "Not possible on a mission."
                 if (!PlayerHull.PlayerShip)   // remake debug: no hangar takes a freighter / capital ship

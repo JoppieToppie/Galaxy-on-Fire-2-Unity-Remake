@@ -115,6 +115,8 @@ namespace GoF2Remake.Modding
         public static OrbitSpec OrbitOf(int station) => orbits.TryGetValue(station, out var o) ? o : null;
         /// <summary>A station's docking pads outside (stations.json "orbit.pads"), empty = none.</summary>
         public static List<SpacePoints.Point> StationPads(int station) => OrbitOf(station)?.pads ?? new List<SpacePoints.Point>();
+        /// <summary>A station's manually placed large-ship external docking points from stations.json orbit.externalDocks.</summary>
+        public static List<ExternalDockPointSpec> ExternalDockPoints(int station) => OrbitOf(station)?.externalDocks ?? new List<ExternalDockPointSpec>();
         /// <summary>Pirates hold 'station' of 'system' (stations.json "orbit.pirateHeld", else systems.json "pirateHeld").</summary>
         public static bool PirateHeld(int station, int system) => OrbitOf(station)?.pirateHeld ?? systemPirateHeld.Contains(system);
         /// <summary>Remake (a modder's wish, 2026-10-18): systems.json "pirateHideout", the traffic of the game's pirate loot
@@ -157,6 +159,27 @@ namespace GoF2Remake.Modding
             {
                 if (held.Type != JTokenType.Boolean) throw new ModJsonException($"{where}: orbit \"pirateHeld\" is true or false");
                 s.pirateHeld = (bool)held;
+            }
+            if (ModJson.Get(o, "externalDocks") is JToken docksToken)
+            {
+                if (!(docksToken is JArray dockList)) throw new ModJsonException($"{where}: orbit \"externalDocks\" must be a list [ {{ \"position\": [x, y, z], \"rotation\": [x, y, z] }} ]");
+                s.externalDocks = new List<ExternalDockPointSpec>();
+                foreach (var pt in dockList)
+                {
+                    if (!(pt is JObject po) || !(Xyz(po, "position", where) is Vector3 at))
+                        throw new ModJsonException($"{where}: each external docking point needs \"position\": [x, y, z]");
+                    Vector3 rotation = Vector3.zero;
+                    if (ModJson.Get(po, "rotation") is JToken rt)
+                    {
+                        if (!(rt is JArray ra) || ra.Count != 3 || ra.Any(v => v.Type != JTokenType.Integer && v.Type != JTokenType.Float))
+                            throw new ModJsonException($"{where}: an external docking point's \"rotation\" must be Euler degrees [x, y, z]");
+                        rotation = new Vector3((float)ra[0], (float)ra[1], (float)ra[2]);
+                        if (Mathf.Abs(rotation.x) > 360f || Mathf.Abs(rotation.y) > 360f || Mathf.Abs(rotation.z) > 360f)
+                            throw new ModJsonException($"{where}: external docking point rotations must be within -360..360 degrees");
+                    }
+                    s.externalDocks.Add(new ExternalDockPointSpec { position = at, rotation = rotation });
+                }
+                if (s.externalDocks.Count == 0) s.externalDocks = null;
             }
             if (ModJson.Get(o, "pads") is JToken padsToken)
             {

@@ -241,6 +241,7 @@ namespace GoF2Remake.Modding
             "crate", "crateSize", "wreck", "deathFx", "deathThroes", "warpIn",   // its loot container's and wreck's models (ModCrates, World.WreckBreakup)
             "wingmanDevice",   // a hired wingman's device in it (ModWingmen, Flight.WingmanDevice)
             "animations",      // the model's clips by what the ship does: idle, Chorus flight's drift (ModShipAnimator)
+            "dockingRole",   // whether a hull is eligible for internal or external docking (ExternalDockingRules)
         };
 
         static void ParseShips(ModInfo mod, Parsed p)
@@ -277,6 +278,7 @@ namespace GoF2Remake.Modding
                     if (f != "race" || d.raceRef == null) ModJson.Int(o, f, 0, ShipsFile);
                 ModFlight.CheckShip(o, where, mod, ShipsFile);   // "flightStyle", "flight": per flight style
                 ModShipView.CheckShip(o, where, mod, ShipsFile);   // "camera", "cockpit", "smoke", "explosionScale"
+                ExternalDockingRules.CheckShip(o, where, mod, ShipsFile);   // "dockingRole"
                 d.sounds = GameHooks.ParseShipSounds?.Invoke(o, mod, ShipsFile);
                 if (d.localId != null)
                 {

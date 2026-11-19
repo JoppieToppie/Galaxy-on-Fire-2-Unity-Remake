@@ -286,11 +286,11 @@ namespace GoF2Remake.UI
             if (n == 0) return;
             float w = root.layout.width, h = root.layout.height;
             if (float.IsNaN(w) || w <= 0f) return;
-            var counts = new int[4];
+            var counts = new int[5];
             for (int i = 0; i < n; i++)
             {
                 var m = s[i];
-                int type = Mathf.Clamp(m.slotType, 0, 3);
+                int type = m.slotType == 8 ? 4 : Mathf.Clamp(m.slotType, 0, 3);
                 counts[type]++;
                 var tag = (Label)labels[i];
                 var sp = cam.WorldToScreenPoint(gizmo.WorldOf(m));

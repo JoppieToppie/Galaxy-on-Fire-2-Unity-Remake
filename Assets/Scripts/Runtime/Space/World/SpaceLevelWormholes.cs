@@ -736,9 +736,23 @@ namespace GoF2Remake.World
         {
             if (!flyIn) CoopLeaderMoved(Session.StationIndex, true, false);   // remake co-op: the story's move into a station
             // Remake mods: the player's own docking near a mobile station (and not at the orbit's station) docks there.
-            if (flyIn && MobileInRange is MobileStation near && !(Layout.hasStation && StationShown && leftDockRange && InDockRange))
+            if (flyIn && MobileInRange is MobileStation near && !AtFixedStationDockRange)
             {
                 DockMobile(near);
+                return;
+            }
+            if (flyIn && DockingBlocked) { Navigation?.Refuse(); return; }
+            // Class roles choose the docking route. Frigates / cruisers / carriers require a manually authored exterior
+            // attachment and a slotType 8 ship hardpoint; they never fall back to an internal hangar or NPC pad.
+            if (flyIn && ExternalDockClass)
+            {
+                if (TryBeginExternalDocking()) return;
+                Navigation?.Refuse(Localization.Extra("hullNoExternalDock", "This ship or station has no compatible exterior docking point."));
+                return;
+            }
+            if (flyIn && !InternalDockEligible)
+            {
+                Navigation?.Refuse(string.Format(Localization.Extra("hullNoDock", "The {0} doesn't fit in the hangar."), PlayerHull.Label));
                 return;
             }
             // Remake mods: EVERSPACE 2's docking: the ship lands on the dock in this orbit, then the station opens (Es2Dock).
@@ -831,6 +845,11 @@ namespace GoF2Remake.World
         /// else its hangar (DockAt).</summary>
         void DockMobile(MobileStation mobile)
         {
+            if (!InternalDockEligible)
+            {
+                Navigation?.Refuse(Localization.Extra("hullNoExternalDock", "This ship needs a compatible exterior docking point; this mobile station has no external dock."));
+                return;
+            }
             if (MobileDock(mobile) is not Es2Dock d) { DockAt(mobile); return; }
             if (Es2Busy || DockedInOrbit || Leaving) return;
             if (DockingBlocked) { Navigation?.Refuse(); return; }
@@ -847,7 +866,7 @@ namespace GoF2Remake.World
         void DockAt(MobileStation mobile)
         {
             if (DockingBlocked) { Navigation?.Refuse(); return; }
-            if (!PlayerHull.PlayerShip)
+            if (!InternalDockEligible)
             {
                 Navigation?.Refuse(string.Format(Localization.Extra("hullNoDock", "The {0} doesn't fit in the hangar."), PlayerHull.Label));
                 return;

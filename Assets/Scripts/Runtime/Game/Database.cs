@@ -42,6 +42,9 @@ namespace GoF2Remake.Data
         [System.NonSerialized] public Vector3? cockpit;
         [System.NonSerialized] public List<Vector3> smokePoints;
         [System.NonSerialized] public float explosionScale = 1f;
+
+        /// <summary>Remake mods (ships.json "dockingRole"): an explicit "internal" or "external" dock role; null preserves size-based legacy eligibility.</summary>
+        [System.NonSerialized] public string dockingRole;
     }
 
     [System.Serializable] public class StatEntry { public string key; public int value; }
@@ -202,7 +205,8 @@ namespace GoF2Remake.Data
         /// is turned on the hull, in the ship model's frame (x right, y up, z forward): Euler degrees [x, y, z] (Unity's order)
         /// or a quaternion [x, y, z, w]; none = upright (upsideDown still turns it over). Only the look and the muzzle: the
         /// shots still fly along the nose. An exhaust mount (slotType 3) of a ship with "engineFx": the way it blows, turned
-        /// from straight back (Modding.EngineFx).</summary>
+        /// from straight back (Modding.EngineFx). An external docking hardpoint (slotType 8): its orientation
+        /// (ExternalDockingRules).</summary>
         public float[] rotation;
         /// <summary>Remake mods, a secondary (slotType 1) mount: the direction its shots leave in, as a turn from the ship's
         /// nose in the ship model's frame. Euler degrees [x, y, z] or quaternion [x, y, z, w]; absent = straight ahead.
@@ -254,7 +258,7 @@ namespace GoF2Remake.Data
         public int priceDefault;           // the Default Economy's price (0 = the same as 'price')
         public int hangarHeight = 250;     // StationTables.ShipY: pivot height above the hangar floor, game units
         public string assembly;            // set by ModContent: "ship_NNN_mod" (Database.ShipAssembly finds it by number)
-        public List<WeaponMount> mounts;   // like weapons_hd.json: slotType 0 primary, 1 secondary, 2 turret, 3 exhaust, 4 manoeuvring jet
+        public List<WeaponMount> mounts;   // like weapons_hd.json: slotType 0 primary, 1 secondary, 2 turret, 3 exhaust, 4 manoeuvring jet, 8 external-docking hardpoint
         public string model;               // the glTF / GLB file in the mod, or "gof2:<model>" (Modding.GameModels)
         public string icon;                // the shop icon (PNG, 180 x 88 like the originals); none = the Phantom's
         /// <summary>Remake (Modding.GameModels): with a "gof2:" model, the original ship that model belongs to (its hangar
@@ -1313,6 +1317,13 @@ namespace GoF2Remake.Data
         /// <summary>Mount positions of a slot type for a ship, in the order of Ship::getSlotPos.</summary>
         public List<WeaponMount> MountsOf(int shipIndex, int slotType)
         {
+            // Remake external docking: slotType 8 is a ship-authored docking hardpoint, not a build-part weapon socket.
+            // Keep it on the ship definition even when a kit build supplies the weapon / exhaust mounts.
+            if (slotType == 8)
+            {
+                var dockingSet = WeaponMounts.FirstOrDefault(m => m.ship == shipIndex);
+                return dockingSet != null ? dockingSet.mounts.Where(m => m.slotType == 8).ToList() : new List<WeaponMount>();
+            }
             // Remake mods: a customizable ship's mounts come with its build's parts (Modding.ModShipKits).
             var built = Modding.KitRules.BuildMounts(shipIndex, slotType);
             if (built != null) return built;
