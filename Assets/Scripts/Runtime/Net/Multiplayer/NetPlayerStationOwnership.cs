@@ -105,6 +105,9 @@ namespace GoF2Remake.Multiplayer
             var previousType = record.ownershipType;
             string previousOwner = record.ownerProfile, previousFaction = record.ownerFactionId, previousName = record.ownerName;
             bool previousFactionAccess = record.factionStorageAccess;
+            long previousBuilderRelinquished = record.builderRightsRelinquishedUtc;
+            int previousHistoryCount = record.history?.Count ?? 0;
+            int previousHistorySequence = record.nextHistorySequence;
             if (proposal.targetType == PlayerStationOwnershipType.Individual)
             {
                 record.ownershipType = PlayerStationOwnershipType.Individual;
@@ -123,6 +126,20 @@ namespace GoF2Remake.Multiplayer
                 record.factionStorageAccess = true;
             }
             record.pendingTransfer = null;
+            // A transfer initiated by the original builder is their voluntary relinquishment
+            // of builder authority. A faction leader or later owner cannot erase those rights.
+            bool builderVoluntaryTransfer = HasBuilderRights(record, proposal.proposedBy);
+            if (builderVoluntaryTransfer)
+                record.builderRightsRelinquishedUtc = now;
+            string newOwner = proposal.targetType == PlayerStationOwnershipType.Faction
+                ? "faction " + (proposal.targetFactionId ?? "")
+                : "profile " + (proposal.targetProfile ?? "");
+            RecordHistory(record, proposal.proposedBy, "ownership-transferred", proposal.targetProfile,
+                "Ownership changed from " + (previousType == PlayerStationOwnershipType.Faction
+                    ? "faction " + (previousFaction ?? "") : "profile " + (previousOwner ?? "")) +
+                " to " + newOwner + (builderVoluntaryTransfer
+                    ? "; original builder voluntarily relinquished builder rights."
+                    : "; original builder rights preserved."));
             // Gates are assets of the station that sponsored them. Keep their ownership in
             // the same registry transaction as the station transfer.
             SyncJumpgatesForStation(record);
@@ -133,6 +150,10 @@ namespace GoF2Remake.Multiplayer
                 record.ownerFactionId = previousFaction;
                 record.ownerName = previousName;
                 record.factionStorageAccess = previousFactionAccess;
+                record.builderRightsRelinquishedUtc = previousBuilderRelinquished;
+                if (record.history != null && record.history.Count > previousHistoryCount)
+                    record.history.RemoveRange(previousHistoryCount, record.history.Count - previousHistoryCount);
+                record.nextHistorySequence = previousHistorySequence;
                 record.pendingTransfer = proposal;
                 SyncJumpgatesForStation(record);
                 return "The ownership change could not be saved; the previous owner and pending proposal were restored.";
