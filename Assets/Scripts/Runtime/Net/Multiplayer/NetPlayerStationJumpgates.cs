@@ -7,6 +7,7 @@ namespace GoF2Remake.Multiplayer
     public static partial class NetPlayerStations
     {
         const int MaxJumpgateBuildSeconds = 2592000;
+        static long nextJumpgateRetryUtc;
 
         /// <summary>Whether this orbit contains a completed player-built jumpgate.</summary>
         internal static bool HasJumpgateAtStation(int stationIndex)
@@ -35,6 +36,25 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.IsServer) return;
             record.jumpgateBuilding = false;
             if (!Save()) record.jumpgateBuilding = true;
+        }
+
+        /// <summary>Server update loop: commit timed jumpgates when their UTC build deadline expires.</summary>
+        internal static void TickJumpgates()
+        {
+            if (!NetGame.IsServer || !sessionActive || registry?.stations == null) return;
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (now < nextJumpgateRetryUtc) return;
+            foreach (var record in registry.stations)
+            {
+                if (record == null || !record.jumpgateBuilding || record.jumpgateStartedUtc <= 0 ||
+                    record.jumpgateCompletesUtc <= 0 || record.jumpgateCompletesUtc > now) continue;
+                CompleteJumpgateIfDue(record);
+                if (record.jumpgateBuilding)
+                {
+                    nextJumpgateRetryUtc = now + 5;
+                    return;
+                }
+            }
         }
 
         static List<PlayerStationMaterial> RequiredJumpgateMaterials() => new List<PlayerStationMaterial>
@@ -66,6 +86,7 @@ namespace GoF2Remake.Multiplayer
             var previousBuilding = record.jumpgateBuilding;
             var previousStart = record.jumpgateStartedUtc;
             var previousEnd = record.jumpgateCompletesUtc;
+            var previousBuildSeconds = record.jumpgateBuildSeconds;
             var previousMaterials = record.jumpgateMaterials;
             var previousContributions = record.jumpgateContributions;
             record.jumpgateDestinationSystem = destinationSystem;
