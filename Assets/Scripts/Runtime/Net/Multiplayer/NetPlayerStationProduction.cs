@@ -233,7 +233,7 @@ namespace GoF2Remake.Multiplayer
                 record.storage = previousStorage;
                 record.storageLots = previousLots;
                 ClearDryDockJob(record);
-                if (consumeBlueprint) registry.consumedBlueprints?.Remove(productId);
+                if (consumeBlueprint) registry?.consumedBlueprints?.Remove(productId);
                 return "The dry-dock job could not be saved; all materials and the blueprint were restored.";
             }
             if (consumeBlueprint) GoF2Remake.Data.Session.UnlockedBlueprints.Remove(productId);
