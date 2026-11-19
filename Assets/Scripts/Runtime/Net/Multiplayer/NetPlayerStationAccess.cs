@@ -14,10 +14,13 @@ namespace GoF2Remake.Multiplayer
                 string.IsNullOrEmpty(account) || string.IsNullOrEmpty(record.ownerProfile))
                 return false;
 
-            var ownerFaction = NetFactions.Of(record.ownerProfile);
             var memberFaction = NetFactions.Of(account);
-            return ownerFaction != null && memberFaction != null &&
-                string.Equals(ownerFaction.id, memberFaction.id, StringComparison.Ordinal);
+            if (memberFaction == null) return false;
+            if (record.ownershipType == PlayerStationOwnershipType.Faction)
+                return !string.IsNullOrEmpty(record.ownerFactionId) &&
+                    string.Equals(record.ownerFactionId, memberFaction.id, StringComparison.Ordinal);
+            var ownerFaction = NetFactions.Of(record.ownerProfile);
+            return ownerFaction != null && string.Equals(ownerFaction.id, memberFaction.id, StringComparison.Ordinal);
         }
 
         internal static string SetStorageAccess(NetPlayer by, int id, string mode)
@@ -37,6 +40,8 @@ namespace GoF2Remake.Multiplayer
             if (record.factionStorageAccess == enabled)
                 return enabled ? "Faction storage access is already enabled." : "Storage is already owner-only.";
 
+            if (record.ownershipType == PlayerStationOwnershipType.Faction)
+                return "Faction-owned stations use faction membership permissions; individual faction-sharing cannot be changed here.";
             if (enabled && NetFactions.Of(account) == null)
                 return "Join a faction before enabling faction storage access.";
             record.factionStorageAccess = enabled;
