@@ -225,11 +225,8 @@ namespace GoF2Remake.Multiplayer
             foreach (var item in record.permissionOverrides ?? new List<PlayerStationPermissionOverride>())
             {
                 if (item == null || item.builderState == PlayerStationPermissionState.Inherit) continue;
-                if (item.state == PlayerStationPermissionState.Inherit)
-                {
-                    item.state = item.builderState;
-                    item.setBy = item.builderSetBy;
-                }
+                item.state = item.builderState;
+                item.setBy = item.builderSetBy;
                 item.builderState = PlayerStationPermissionState.Inherit;
                 item.builderSetBy = null;
             }
@@ -256,7 +253,7 @@ namespace GoF2Remake.Multiplayer
                 if (visitorOverride != null && visitorOverride.builderState != PlayerStationPermissionState.Inherit)
                     return visitorOverride.builderState == PlayerStationPermissionState.Allow;
                 if (builder) return true;
-                if (HasBan(record, account, PlayerStationBanSource.Faction)) return false;
+                if (HasBan(record, account, PlayerStationBanSource.OwnerAuthority)) return false;
             }
             if (record.ownershipType == PlayerStationOwnershipType.Individual &&
                 string.Equals(record.ownerProfile, account, StringComparison.Ordinal)) return true;
