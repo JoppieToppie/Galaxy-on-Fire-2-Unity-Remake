@@ -362,37 +362,37 @@ namespace GoF2Remake.Multiplayer
             const string jumpgateStatus = "jumpgate-status ";
             if (args.StartsWith(jumpgateStatus, StringComparison.OrdinalIgnoreCase))
             {
-                if (!int.TryParse(args.Substring(jumpgateStatus.Length).Trim(), out int gateOrbit))
+                if (!int.TryParse(args.Substring(jumpgateStatus.Length).Trim(), out int statusOrbit))
                     return "/station jumpgate-status <orbit station index>";
-                return NetPlayerStations.JumpgateStatus(by as NetPlayer, gateOrbit);
+                return NetPlayerStations.JumpgateStatus(by as NetPlayer, statusOrbit);
             }
             const string jumpgateContribute = "jumpgate-contribute ";
             if (args.StartsWith(jumpgateContribute, StringComparison.OrdinalIgnoreCase))
             {
                 string[] words = args.Substring(jumpgateContribute.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (words.Length != 3 || !int.TryParse(words[0], out int gateOrbit) ||
+                if (words.Length != 3 || !int.TryParse(words[0], out int contributeOrbit) ||
                     !int.TryParse(words[1], out int gateItem) || !int.TryParse(words[2], out int gateAmount))
                     return "/station jumpgate-contribute <orbit station index> <item id> <amount>";
-                return NetPlayerStations.ContributeJumpgate(by as NetPlayer, gateOrbit, gateItem, gateAmount);
+                return NetPlayerStations.ContributeJumpgate(by as NetPlayer, contributeOrbit, gateItem, gateAmount);
             }
             const string jumpgateDestination = "jumpgate-destination ";
             if (args.StartsWith(jumpgateDestination, StringComparison.OrdinalIgnoreCase))
             {
                 string[] words = args.Substring(jumpgateDestination.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (words.Length != 2 || !int.TryParse(words[0], out int gateOrbit) || !int.TryParse(words[1], out int destination))
+                if (words.Length != 2 || !int.TryParse(words[0], out int destinationOrbit) || !int.TryParse(words[1], out int newDestination))
                     return "/station jumpgate-destination <orbit station index> <destination system id>";
-                return NetPlayerStations.ChangeJumpgateDestination(by as NetPlayer, gateOrbit, destination);
+                return NetPlayerStations.ChangeJumpgateDestination(by as NetPlayer, destinationOrbit, newDestination);
             }
             const string jumpgate = "jumpgate ";
             if (args.StartsWith(jumpgate, StringComparison.OrdinalIgnoreCase))
             {
                 string[] words = args.Substring(jumpgate.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if ((words.Length != 3 && words.Length != 4) || !int.TryParse(words[0], out int sponsorStationId) ||
-                    !int.TryParse(words[1], out int orbitStationIndex) || !int.TryParse(words[2], out int destinationSystem) ||
+                    !int.TryParse(words[1], out int buildOrbit) || !int.TryParse(words[2], out int destinationSystem) ||
                     (words.Length == 4 && !int.TryParse(words[3], out _)))
                     return "/station jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds]";
                 int seconds = words.Length == 4 ? int.Parse(words[3]) : 0;
-                return NetPlayerStations.StartJumpgate(by as NetPlayer, sponsorStationId, orbitStationIndex, destinationSystem, seconds);
+                return NetPlayerStations.StartJumpgate(by as NetPlayer, sponsorStationId, buildOrbit, destinationSystem, seconds);
             }
             const string transferAccept = "transfer-accept ";
             if (args.StartsWith(transferAccept, StringComparison.OrdinalIgnoreCase))
