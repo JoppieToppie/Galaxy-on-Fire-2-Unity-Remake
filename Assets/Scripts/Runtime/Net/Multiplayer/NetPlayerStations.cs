@@ -260,11 +260,12 @@ namespace GoF2Remake.Multiplayer
         public static PlayerStationRecord Find(int id) => registry?.stations.Find(s => s != null && s.id == id);
 
         /// <summary>Show the persistent state and construction progress of one player station.</summary>
-        internal static string Status(int id)
+        internal static string Status(NetPlayer by, int id)
         {
             if (!NetGame.Active || registry?.stations == null) return "Join a multiplayer session first.";
             var record = Find(id);
             if (record == null) return $"No player station with project id {id} exists in this world.";
+            if (!CanViewStationRecord(by, record)) return "That station's management status is private to its owner and authorised faction members.";
 
             var system = NetGame.Db?.Systems?.Find(s => s != null && s.index == record.system);
             var lines = new List<string>
