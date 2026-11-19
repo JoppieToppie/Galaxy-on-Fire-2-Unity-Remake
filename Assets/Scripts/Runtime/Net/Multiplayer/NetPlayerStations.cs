@@ -235,6 +235,8 @@ namespace GoF2Remake.Multiplayer
             }
             if (record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)
                 lines.Add($"Ship hangar: {record.storedShips?.Count ?? 0}/100 hulls stored");
+            if (record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false)
+                lines.Add($"Dry dock: {record.dryDockShips?.Count ?? 0}/20 large hulls stored");
             lines.Add($"Marketplace listings: {record.listings?.Count ?? 0}");
             return string.Join("\n", lines);
         }
