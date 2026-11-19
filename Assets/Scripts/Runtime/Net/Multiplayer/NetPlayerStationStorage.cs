@@ -120,6 +120,7 @@ namespace GoF2Remake.Multiplayer
                     Debug.LogError("NetPlayerStations: failed to roll back ship storage transfer for profile " + account);
                 return "The station could not save the stored ship; the transfer was rolled back.";
             }
+            if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
             return "Stored " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " at " + record.name +
                 ". Its hull upgrades and installed equipment remain attached.";
         }
@@ -145,6 +146,7 @@ namespace GoF2Remake.Multiplayer
                     Debug.LogError("NetPlayerStations: failed to roll back ship retrieval for profile " + account);
                 return "The station could not save the withdrawal; the ship remains in station storage.";
             }
+            if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
             return "Returned " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " to your personal stored fleet.";
         }
 
