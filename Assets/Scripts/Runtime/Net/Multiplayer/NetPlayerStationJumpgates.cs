@@ -28,6 +28,9 @@ namespace GoF2Remake.Multiplayer
         static bool CanViewJumpgate(NetPlayer by, PlayerJumpgateRecord gate) =>
             CanViewStationRecord(by, JumpgateAccessRecord(gate));
 
+        internal static bool CanViewJumpgateManagement(NetPlayer by, PlayerJumpgateRecord gate) =>
+            CanViewJumpgate(by, gate);
+
         static bool CanManageJumpgate(NetPlayer by, PlayerJumpgateRecord gate, out string account)
         {
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
