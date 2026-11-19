@@ -605,7 +605,7 @@ namespace GoF2Remake.Multiplayer
                 ownerName = by.DisplayName,
                 originalBuilderProfile = owner,
                 governanceVersion = 1,
-                factionPermissions = new PlayerStationFactionPermissionProfile { visit = false, storage = false, hangar = false },
+                factionPermissions = NewIndividualFactionPermissionProfile(false),
                 system = system.index,
                 looksLike = look,
                 createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
