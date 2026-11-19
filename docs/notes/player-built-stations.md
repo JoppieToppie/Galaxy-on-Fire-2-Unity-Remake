@@ -17,4 +17,14 @@ Player-built stations are a persistent multiplayer feature. The server owns stat
 5. **Jumpgates:** allow multiple player-built gates per system, with one gate in each occupied orbit and a configurable destination system for each gate.
 6. **Recovery and limits:** protect projects and modules across handovers/restarts, cap per-world stations/listings, and provide server administration for recovery/removal.
 
-The current implementation persists, replicates and loads station records; starts projects remotely; and accumulates required materials through server-validated deposits. Construction completion opens the reserved orbit. Station UI, storage, production modules, dry docks, the marketplace and configurable jumpgates remain to be implemented.
+The current implementation persists, replicates and loads station records; starts projects remotely; and accumulates required materials through server-validated deposits. Construction completion opens the reserved orbit. A project status command is now available through `/station status <project id>`.
+
+## Audit findings (19 November 2026)
+
+- **Replication capacity is undersized:** the registry is carried in one `FixedString4096Bytes` NetworkVariable and explicitly rejected above 4,000 UTF-8 bytes, while the registry permits 256 stations and up to 512 listings per station. Persistence can succeed while clients silently retain an older snapshot. Replace this with versioned chunked replication before expanding station capacity.
+- **Load-time truncation risks data loss:** `Start` and `ReceiveSnapshot` trim station, add-on and listing lists to their configured limits. The server-side trim can later be written back over the original file. Preserve over-limit records and refuse new additions instead of silently deleting saved state.
+- **Construction deposits span two durable stores:** cargo is written to the player profile before the station registry is saved; a compensating cargo write is attempted if the registry save fails. This is not a fully atomic transaction and needs a recoverable transaction journal/idempotency key before marketplace transactions are added.
+- **No dedicated station tests exist yet.** Add coverage for registry loading, stable station indices, snapshot replication, construction progress, failed writes and reconnect/restart recovery before treating the current implementation as production-safe.
+- **The material recipe is currently hard-coded** to item IDs 156 (Iron), 155 (Titanium), 118 (Electronics) and 127 (Microchips). Those IDs were checked against the branch's item database. Recipes and costs should become data-driven as station modules are introduced.
+
+Station UI, storage, production modules, dry docks, the marketplace and configurable jumpgates remain to be implemented.
