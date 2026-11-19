@@ -330,6 +330,11 @@ namespace GoF2Remake.Multiplayer
             name = $"NetPlayer {OwnerClientId}";
             if (IsServer) collisionModeReportDeadline = Time.unscaledTime + CollisionModeReportGrace;
             if (IsServer) ship.OnValueChanged += (old, _) => PreviousShip = old;
+            if (IsServer)
+            {
+                station.OnValueChanged += OnStationValueChanged;
+                place.OnValueChanged += OnPlaceValueChanged;
+            }
             if (IsServer) SetStaffRole(NetModeration.RoleOfClient(OwnerClientId));   // signed in before the ship spawned
             if (IsServer) NetNews.SendAll(OwnerClientId);   // the sector's recent news for their ticker
             NetPoses.Register(this);
@@ -454,6 +459,11 @@ namespace GoF2Remake.Multiplayer
 
         public override void OnNetworkDespawn()
         {
+            if (IsServer)
+            {
+                station.OnValueChanged -= OnStationValueChanged;
+                place.OnValueChanged -= OnPlaceValueChanged;
+            }
             // Host: a player going (disconnected: Netcode despawns the player object before OnClientDisconnectCallback) hands
             // what they carried for the squad's mission to a squadmate (not when the whole session closes).
             if (IsServer && !IsOwner && NetState.Instance != null && !NetworkManager.ShutdownInProgress) NetState.Instance.HandOverMission(this);
