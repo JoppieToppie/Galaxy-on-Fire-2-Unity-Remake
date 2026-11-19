@@ -99,6 +99,66 @@ namespace GoF2Remake.Multiplayer
             return string.Join("\n", lines);
         }
 
+        // A parked hull is only an owned hull and its permanent upgrades. Removable equipment and hold
+        // contents belong to station storage, never to the stored ship record.
+        static bool CollectShipInventory(StoredShip ship, Dictionary<int, long> items)
+        {
+            if (ship == null || items == null) return false;
+            foreach (var stack in ship.equipment ?? new List<ItemStack>())
+            {
+                if (stack == null) continue;
+                int units = Hangar.UnitsOf(NetGame.Db, stack);
+                if (units == 0) continue;
+                if (NetGame.Db?.Item(stack.item) == null) return false;
+                items[stack.item] = (items.TryGetValue(stack.item, out long old) ? old : 0) + units;
+            }
+            foreach (var stack in ship.cargo ?? new List<ItemStack>())
+            {
+                if (stack == null || stack.amount <= 0) continue;
+                if (NetGame.Db?.Item(stack.item) == null) return false;
+                items[stack.item] = (items.TryGetValue(stack.item, out long old) ? old : 0) + stack.amount;
+            }
+            return true;
+        }
+
+        static bool CanFitStationItems(PlayerStationRecord record, Dictionary<int, long> items)
+        {
+            if (StorageCapacity(record) <= 0) return false;
+            long stored = 0;
+            var types = new HashSet<int>();
+            foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
+            {
+                if (entry == null || entry.amount <= 0) continue;
+                stored += entry.amount;
+                types.Add(entry.item);
+            }
+            foreach (var pair in items)
+            {
+                if (pair.Value <= 0 || pair.Value > int.MaxValue) return false;
+                if (!types.Contains(pair.Key)) types.Add(pair.Key);
+                if (pair.Value > int.MaxValue - (record.storage?.Find(x => x != null && x.item == pair.Key)?.amount ?? 0))
+                    return false;
+            }
+            long incoming = 0;
+            foreach (var amount in items.Values) incoming += amount;
+            return stored + incoming <= StorageCapacity(record) && types.Count <= MaxStorageItemTypes;
+        }
+
+        static void AddStationItems(PlayerStationRecord record, Dictionary<int, long> items)
+        {
+            record.storage ??= new List<PlayerStationStorage>();
+            foreach (var pair in items)
+            {
+                if (pair.Value <= 0) continue;
+                var entry = record.storage.Find(x => x != null && x.item == pair.Key);
+                if (entry == null) record.storage.Add(entry = new PlayerStationStorage { item = pair.Key });
+                entry.amount += (int)pair.Value;
+            }
+        }
+
+        static StoredShip BareHull(StoredShip ship) =>
+            new StoredShip(ship.ship, ship.race, ship.mods != null ? new List<int>(ship.mods) : new List<int>());
+
         internal static string StoreShip(NetPlayer by, int id, int fleetIndex)
         {
             var record = Find(id);
@@ -106,23 +166,35 @@ namespace GoF2Remake.Multiplayer
             if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its ship hangar.";
             if (record.underConstruction) return "Finish station construction before using the ship hangar.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "Install a ship hangar module first.";
+            if (StorageCapacity(record) <= 0) return "Install a station storage module before storing ships; their equipment and cargo must be transferred into station storage.";
             record.storedShips ??= new List<StoredShip>();
             if (record.storedShips.Count >= MaxStoredShipsPerStation) return "This station's ship hangar is full.";
             var owned = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
             if (owned == null || fleetIndex < 1 || fleetIndex > owned.Count) return "That index is not in your personal stored fleet. Use /station fleet.";
+            var candidate = owned[fleetIndex - 1];
+            if (candidate == null) return "That ship record is invalid.";
+            var items = new Dictionary<int, long>();
+            if (!CollectShipInventory(candidate, items)) return "The ship contains an invalid equipment or cargo item; nothing was transferred.";
+            if (!CanFitStationItems(record, items)) return "Station storage lacks the capacity or item-type space for this ship's equipment and cargo; nothing was transferred.";
+
             if (!NetProfiles.RemoveStoredShip(account, by.OwnerClientId, fleetIndex - 1, out StoredShip ship))
                 return "The ship could not be removed from your personal fleet.";
-            record.storedShips.Add(ship);
+            var previousStorage = new List<PlayerStationStorage>();
+            foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
+                if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
+            AddStationItems(record, items);
+            record.storedShips.Add(BareHull(ship));
             if (!Save())
             {
                 record.storedShips.RemoveAt(record.storedShips.Count - 1);
+                record.storage = previousStorage;
                 if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, ship))
                     Debug.LogError("NetPlayerStations: failed to roll back ship storage transfer for profile " + account);
-                return "The station could not save the stored ship; the transfer was rolled back.";
+                return "The station could not save the transfer; the ship and its inventory were returned to your personal fleet.";
             }
             if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
             return "Stored " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " at " + record.name +
-                ". Its hull upgrades and installed equipment remain attached.";
+                ". Its removable equipment and cargo are now in station storage; hull upgrades remain with the ship.";
         }
 
         internal static string RetrieveShip(NetPlayer by, int id, int hangarIndex)
@@ -136,18 +208,31 @@ namespace GoF2Remake.Multiplayer
             if (hangarIndex < 1 || hangarIndex > record.storedShips.Count) return "That ship index is not in this station's hangar.";
             var ship = record.storedShips[hangarIndex - 1];
             if (ship == null) return "That stored ship record is invalid.";
-            if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, ship)) return "Your personal stored fleet is full or could not be saved.";
+            // Older registry records may still contain fitted equipment or cargo. Migrate it to station
+            // storage before returning a bare hull, rather than silently putting the old behaviour back.
+            var items = new Dictionary<int, long>();
+            if (!CollectShipInventory(ship, items)) return "The stored ship contains an invalid equipment or cargo item; nothing was withdrawn.";
+            if (items.Count > 0 && !CanFitStationItems(record, items))
+                return "Station storage cannot accommodate this legacy ship inventory; nothing was withdrawn.";
+            var bare = BareHull(ship);
+            if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, bare)) return "Your personal stored fleet is full or could not be saved.";
+            var previousStorage = new List<PlayerStationStorage>();
+            foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
+                if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
+            AddStationItems(record, items);
             record.storedShips.RemoveAt(hangarIndex - 1);
             if (!Save())
             {
                 record.storedShips.Insert(hangarIndex - 1, ship);
+                record.storage = previousStorage;
                 var personal = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
                 if (personal == null || personal.Count == 0 || !NetProfiles.RemoveStoredShip(account, by.OwnerClientId, personal.Count - 1, out _))
                     Debug.LogError("NetPlayerStations: failed to roll back ship retrieval for profile " + account);
                 return "The station could not save the withdrawal; the ship remains in station storage.";
             }
             if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
-            return "Returned " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " to your personal stored fleet.";
+            return "Returned a bare " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) +
+                " to your personal stored fleet. Its equipment and cargo remain in station storage.";
         }
 
         internal static string Install(NetPlayer by, int id, string kind)
