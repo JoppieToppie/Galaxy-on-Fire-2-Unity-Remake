@@ -79,6 +79,8 @@ namespace GoF2Remake.Multiplayer
             int stored = 0;
             foreach (var stack in record.storage) if (stack != null) stored += Math.Max(0, stack.amount);
             // Ten units become one: refining frees nine units of capacity per batch.
+            if (output == null && record.storage.Count >= MaxStorageItemTypes)
+                return "Storage has reached its item-type limit.";
             if (stored - amount + batches > StorageCapacity(record))
                 return "Station storage has insufficient room for the refined cores.";
 
