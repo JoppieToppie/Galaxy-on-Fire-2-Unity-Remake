@@ -387,7 +387,15 @@ namespace GoF2Remake.Multiplayer
                 return "Only the station owner, faction leader or an authorised station administrator may change permissions.";
             string targetAccount = NetProfiles.FindAccount((target ?? "").Trim());
             if (string.IsNullOrEmpty(targetAccount)) return "Supply a valid target account.";
-            string targetFactionId = NetFactions.Of(targetAccount)?.id;
+            if (!builder && record.ownershipType == PlayerStationOwnershipType.Individual &&
+                string.Equals(targetAccount, record.ownerProfile, StringComparison.Ordinal))
+                return "The station owner cannot have their own permissions overridden.";
+            var targetFaction = NetFactions.Of(targetAccount);
+            if (!builder && record.ownershipType == PlayerStationOwnershipType.Faction &&
+                targetFaction != null && string.Equals(targetFaction.id, record.ownerFactionId, StringComparison.Ordinal) &&
+                string.Equals(targetFaction.leader, targetAccount, StringComparison.Ordinal))
+                return "The faction leader's authority cannot be overridden by a station permission entry.";
+            string targetFactionId = targetFaction?.id;
             string ownerFactionId = StationFactionId(record);
             if (!string.IsNullOrEmpty(targetFactionId) && !string.IsNullOrEmpty(ownerFactionId) &&
                 !string.Equals(targetFactionId, ownerFactionId, StringComparison.Ordinal))
@@ -452,6 +460,7 @@ namespace GoF2Remake.Multiplayer
                 return "Choose member or officer.";
             string field = (officer ? "officer" : "") + permission.ToString();
             var profile = record.factionPermissions ?? (record.factionPermissions = new PlayerStationFactionPermissionProfile());
+            bool previousFactionStorageAccess = record.factionStorageAccess;
             bool old;
             switch (field)
             {
@@ -475,6 +484,8 @@ namespace GoF2Remake.Multiplayer
                 case "officerSecurity": old = profile.officerSecurity; profile.officerSecurity = state == PlayerStationPermissionState.Allow; break;
                 default: return "That permission cannot be configured.";
             }
+            if (!officer && record.ownershipType == PlayerStationOwnershipType.Individual)
+                record.factionStorageAccess = profile.storage && profile.hangar;
             int oldHistoryCount = record.history?.Count ?? 0, oldSequence = record.nextHistorySequence;
             RecordHistory(record, account, "faction-permission-default-changed", null,
                 field + " default set to " + state + ".");
@@ -504,6 +515,7 @@ namespace GoF2Remake.Multiplayer
                 case "officerMarketplace": profile.officerMarketplace = old; break;
                 case "officerSecurity": profile.officerSecurity = old; break;
             }
+            record.factionStorageAccess = previousFactionStorageAccess;
             if (record.history != null && record.history.Count > oldHistoryCount)
                 record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
             record.nextHistorySequence = oldSequence;
