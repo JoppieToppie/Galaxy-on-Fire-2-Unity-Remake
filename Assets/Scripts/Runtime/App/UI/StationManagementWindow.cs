@@ -143,7 +143,7 @@ namespace GoF2Remake.UI
                 AddInfo("Station", selected.name + "  (#" + selected.id + ")");
                 AddInfo("Ownership", selected.ownershipType == PlayerStationOwnershipType.Faction ? "Faction-owned" : "Individually owned");
                 AddInfo("Owner", selected.ownershipType == PlayerStationOwnershipType.Faction
-                    ? (selected.ownerFactionId ?? "Unknown faction") : (selected.ownerName ?? "Unknown"));
+                    ? (selected.ownerName ?? selected.ownerFactionId ?? "Unknown faction") : (selected.ownerName ?? "Unknown"));
                 AddInfo("State", selected.underConstruction ? "Under construction" : "Operational");
                 AddAction("View construction contribution ledger", "/station contributions " + selected.id);
                 AddAction("View ownership transfer status", "/station transfer-status " + selected.id);
