@@ -15,7 +15,9 @@ namespace GoF2Remake.Multiplayer
             return NetGame.IsServer && sessionActive && registry != null &&
                 by != null && by.IsSpawned && by.InHangar && by.Station == record?.stationIndex && NetProfiles.Enabled &&
                 NetProfiles.Controls(by.OwnerClientId) && !string.IsNullOrEmpty(account) &&
-                string.Equals(account, record?.ownerProfile, StringComparison.Ordinal);
+                (record != null && (record.ownershipType == PlayerStationOwnershipType.Individual
+                    ? string.Equals(account, record.ownerProfile, StringComparison.Ordinal)
+                    : IsFactionManager(record, account)));
         }
 
         internal static string Modules()
@@ -51,13 +53,7 @@ namespace GoF2Remake.Multiplayer
         {
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
             if (CanManage(by, record, out account)) return true;
-            if (!NetGame.IsServer || !sessionActive || record == null || !record.factionStorageAccess ||
-                by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
-                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) ||
-                string.IsNullOrEmpty(account) || string.IsNullOrEmpty(record.ownerProfile)) return false;
-            var ownerFaction = NetFactions.Of(record.ownerProfile);
-            var memberFaction = NetFactions.Of(account);
-            return ownerFaction != null && memberFaction != null && string.Equals(ownerFaction.id, memberFaction.id, StringComparison.Ordinal);
+            return HasFactionFacilityAccess(by, record, account);
         }
 
         internal static string PersonalFleet(NetPlayer by)
