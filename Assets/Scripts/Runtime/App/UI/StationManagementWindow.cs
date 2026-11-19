@@ -211,8 +211,7 @@ namespace GoF2Remake.UI
             AddSection("JUMPGATE NETWORK", "Use this station as the sponsor to build a gate at any existing orbital location in this system. Each orbit can hold one player-built gate; each gate has one destination. Cost: 500 Iron, 250 Titanium, 200 Electronics and 150 Microchips. A return route requires another gate in the destination system.");
             AddAction("List orbital locations in this system", "/station jumpgate-orbits " + selected.system);
 
-            var systemGates = NetPlayerStations.Jumpgates?
-                .Where(g => g != null && g.system == selected.system &&
+            var systemGates = NetPlayerStations.Jumpgates?.Where(g => g != null && g.system == selected.system &&
                     NetPlayerStations.CanViewJumpgateManagement(NetPlayer.Local, g))
                 .OrderBy(g => g.orbitStationIndex).ToList();
             if (systemGates == null || systemGates.Count == 0)
