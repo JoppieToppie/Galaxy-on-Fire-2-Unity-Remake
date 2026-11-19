@@ -137,6 +137,8 @@ namespace GoF2Remake.Multiplayer
                 return Localization.Extra("mpFactionLeaderLeave", "Hand the faction over first (/faction leader <pilot>), or /faction disband.");
             if (faction.leader == me && NetPlayerStations.HasFactionOwnedStations(faction.id))
                 return "This faction owns player-built stations. Transfer every station to a nominated player or successor faction before leaving or disbanding; use /station transfer <id> player|faction <recipient account id>.";
+            if (faction.leader == me && faction.members.Count == 1 && NetPlayerStations.HasFactionMarketplaceClaims(faction.id))
+                return "This faction is still named as the payout destination for active station listings. Complete or cancel those listings before leaving.";
             Remove(faction, me);
             return Localization.Extra("mpFactionYouLeft", "You left the faction.");
         }
