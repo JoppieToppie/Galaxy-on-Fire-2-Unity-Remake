@@ -20,7 +20,7 @@ namespace GoF2Remake.Multiplayer
 
         internal static string Modules()
         {
-            return "Station modules:\nStorage — 50 Iron, 25 Titanium, 20 Electronics. Holds 10,000 units. Install with /station install <station id> storage.";
+            return "Station modules:\nStorage — 50 Iron, 25 Titanium, 20 Electronics. Holds 10,000 units.\nRefinery — 100 Iron, 50 Titanium, 30 Electronics, 20 Microchips. Requires storage; converts 10 ore into 1 matching ore core.\nInstall with /station install <station id> storage or /station install <station id> refinery.";
         }
 
         internal static string Install(NetPlayer by, int id, string kind)
