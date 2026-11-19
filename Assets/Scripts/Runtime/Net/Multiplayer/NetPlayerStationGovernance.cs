@@ -880,8 +880,15 @@ namespace GoF2Remake.Multiplayer
                 }
                 else
                 {
+                    // A nominated player remains eligible while inactive, but a deleted or
+                    // otherwise unresolvable profile cannot receive ownership. In that case,
+                    // fall back to the original builder only if that profile still exists.
                     string newOwner = record.factionSuccessorType == PlayerStationOwnershipType.Individual &&
-                        !string.IsNullOrEmpty(successor) ? successor : record.originalBuilderProfile;
+                        !string.IsNullOrEmpty(successor) && NetProfiles.FindAccount(successor) != null
+                        ? successor
+                        : (!string.IsNullOrEmpty(record.originalBuilderProfile) &&
+                           NetProfiles.FindAccount(record.originalBuilderProfile) != null
+                            ? record.originalBuilderProfile : null);
                     record.ownershipType = PlayerStationOwnershipType.Individual;
                     record.ownerProfile = newOwner;
                     record.ownerFactionId = null;
