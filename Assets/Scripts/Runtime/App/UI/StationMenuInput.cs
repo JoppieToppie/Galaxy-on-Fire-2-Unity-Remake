@@ -160,7 +160,8 @@ namespace GoF2Remake.UI
             if (GoF2Remake.Multiplayer.NetChat.Typing) return;
             pointerDriven = false;
             if (root.focusController?.focusedElement != null) return;
-            if (missions != null && missions.IsOpen) Select(missions.NavItems()[0]);
+            if (dryDock != null && dryDock.IsOpen) Select(dryDock.NavItems()[0]);
+            else if (missions != null && missions.IsOpen) Select(missions.NavItems()[0]);
             else if (lounge != null && lounge.ChatOpen) lounge.FocusFirst();
             else Select(DefaultFocus());
         }
