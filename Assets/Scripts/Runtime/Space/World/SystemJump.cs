@@ -112,6 +112,9 @@ namespace GoF2Remake.World
         /// <summary>The Khador Drive starts charging (multiplayer: the others hear it).</summary>
         public event Action ChargeStarted;
 
+        /// <summary>A player-built gate may finish while this orbit is loaded; update the cinematic's gate reference.</summary>
+        public void SetJumpgate(GameObject jumpgate) => gate = jumpgate;
+
         public void Setup(Database database, Navigation navigation, ShipController controller, WeaponSystem weaponSystem,
                           ChaseCamera chaseCamera, GameObject jumpgate)
         {
