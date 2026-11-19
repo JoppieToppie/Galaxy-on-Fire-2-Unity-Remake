@@ -108,3 +108,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `Aspect.VerticalFovKeepWidth` (wider screens keep the 16:9 width and lose a little top and bottom: the bars are only
   modelled as far as the original's camera sees); the hangars are back on Hor+ (`StationLevel.SetLens(..., keepWidth: false)`):
   a new hangar model is being made, so their cut-off edges on 21:9 / 32:9 are left for it.
+
+- **Drag test timing** (`MouseDragInputTests`): batch frames can complete a whole drag inside the 30 ms
+  `MouseButtonDebounce` window. Model the held gesture for 50 ms before the final movement; wait up to 250 ms for
+  release delivery instead of assuming two rendered frames exceed the debounce interval. Keep the pointer-clear and
+  deliberate-fling assertions. Separate quick-release cases check that both map and turntable release without a
+  subsequent mouse report. This changes test timing only; the production debounce and gesture handlers are unchanged.
