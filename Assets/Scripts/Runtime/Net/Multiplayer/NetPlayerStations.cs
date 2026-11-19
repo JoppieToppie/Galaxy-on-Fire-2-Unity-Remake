@@ -14,6 +14,22 @@ namespace GoF2Remake.Multiplayer
     public enum PlayerStationOwnershipType { Individual = 0, Faction = 1 }
 
     [Serializable]
+    public sealed class PlayerJumpgateRecord
+    {
+        // The database station index is the stable orbital anchor and unique gate identifier.
+        public int orbitStationIndex = -1;
+        public int system;
+        public int destinationSystem = -1;
+        public PlayerStationOwnershipType ownershipType = PlayerStationOwnershipType.Individual;
+        public string ownerProfile, ownerFactionId, ownerName;
+        public bool building;
+        public long startedUtc, completesUtc, destinationChangedUtc;
+        public int buildSeconds;
+        public List<PlayerStationMaterial> materials = new List<PlayerStationMaterial>();
+        public List<PlayerStationContribution> contributions = new List<PlayerStationContribution>();
+    }
+
+    [Serializable]
     public sealed class PlayerStationRecord
     {
         public int id;
@@ -141,6 +157,7 @@ namespace GoF2Remake.Multiplayer
         {
             public int nextId = 1;
             public List<PlayerStationRecord> stations = new List<PlayerStationRecord>();
+            public List<PlayerJumpgateRecord> jumpgates = new List<PlayerJumpgateRecord>();
         }
 
         static Registry registry;
@@ -177,6 +194,7 @@ namespace GoF2Remake.Multiplayer
 
             registry ??= new Registry();
             registry.stations ??= new List<PlayerStationRecord>();
+            registry.jumpgates ??= new List<PlayerJumpgateRecord>();
             if (registry.stations.Count > MaxStations)
                 Debug.LogWarning($"NetPlayerStations: saved registry contains {registry.stations.Count} stations (limit {MaxStations}); preserving all records and refusing new construction.");
             int highest = 0;
@@ -201,6 +219,7 @@ namespace GoF2Remake.Multiplayer
                     Debug.LogWarning($"NetPlayerStations: station {station.id} exceeds a module or listing limit; preserving all saved records.");
             }
             registry.nextId = Math.Max(highest + 1, Math.Max(1, registry.nextId));
+            MigrateLegacyJumpgates();
             RecoverPendingTransaction();
         }
 
@@ -213,8 +232,15 @@ namespace GoF2Remake.Multiplayer
             {
                 registry = JsonUtility.FromJson<Registry>(json) ?? new Registry();
                 registry.stations ??= new List<PlayerStationRecord>();
+                registry.jumpgates ??= new List<PlayerJumpgateRecord>();
                 if (registry.stations.Count > MaxStations)
                     Debug.LogWarning($"NetPlayerStations: received registry contains {registry.stations.Count} stations (limit {MaxStations}); preserving all records.");
+                foreach (var gate in registry.jumpgates)
+                {
+                    if (gate == null) continue;
+                    gate.materials ??= new List<PlayerStationMaterial>();
+                    gate.contributions ??= new List<PlayerStationContribution>();
+                }
                 foreach (var station in registry.stations)
                 {
                     if (station == null) continue;
