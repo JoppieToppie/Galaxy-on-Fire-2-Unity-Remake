@@ -326,6 +326,13 @@ namespace GoF2Remake.World
             ship.ExternalSpeedMetersPerSecond = ship.SpeedMetersPerSecond;
             if (weapons != null) weapons.Blocked = true;
             nav.Paused = true;
+            int fixedDestination = GoF2Remake.Multiplayer.NetPlayerStations.JumpgateDestinationStation(Session.StationIndex);
+            if (fixedDestination >= 0)
+            {
+                // A player-built gate is a point-to-point connection, not a general-purpose system gate.
+                OnGateMapClosed(new StarMapResult { station = fixedDestination, safestRoute = false });
+                return;
+            }
             int prog = Session.ProgrammedStation;
             // Remake (jumpgate route planning): on a route under way (a hop kept the destination) the gate jumps on toward it
             // without asking: the route was confirmed on the map and at its first gate. Remake (Settings.AutoJumpgate, Discord
