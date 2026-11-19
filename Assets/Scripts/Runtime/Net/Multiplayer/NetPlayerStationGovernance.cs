@@ -131,10 +131,11 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(stationId);
             if (record == null) return "No player station with that id exists.";
-            if (!CanViewStationRecord(by, record))
-                return "Station governance history is private to the owner, original builder and authorised faction managers.";
             string account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
-            if (!HasBuilderRights(record, account) && !CanManage(by, record, out _))
+            bool builder = HasBuilderRights(record, account);
+            if (!builder && !CanViewStationRecord(by, record))
+                return "Station governance history is private to the owner, original builder and authorised faction managers.";
+            if (!builder && !CanManage(by, record, out _))
                 return "You are not authorised to view this station's governance history.";
             var lines = new List<string> { "Governance history for " + record.name + ":" };
             var history = record.history ?? new List<PlayerStationHistoryEntry>();
