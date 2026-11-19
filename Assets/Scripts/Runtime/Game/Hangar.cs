@@ -828,6 +828,45 @@ namespace GoF2Remake.Data
 
         // ---- Kaamo Club ------------------------------------------------------------------------------------------
 
+        /// <summary>CLAUDE.md "Kaamo Club": buy the offered hull into storage at full price, without trading the flown hull.
+        /// Passengers and the flown hull's capacity do not constrain a delivery to storage.</summary>
+        public Result CanBuyShipToKaamoFor(int ship, int price, out int need)
+        {
+            need = 0;
+            if (!KaamoClub.Owned || NetSession.Active || db.Ship(ship) == null || price < 0) return Result.NotSaleable;
+            if (KaamoClub.HasShip(ship)) return Result.AlreadyStored;
+            int cost = Cheats.FreeShopping ? 0 : price;
+            if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
+            return Result.Ok;
+        }
+
+        public bool BuyShipToKaamoFor(int ship, int price, List<int> mods = null)
+        {
+            if (CanBuyShipToKaamoFor(ship, price, out _) != Result.Ok) return false;
+            if (!KaamoClub.Store(ship, 0, mods != null ? new List<int>(mods) : null)) return false;
+            if (!Cheats.FreeShopping) ChangeCredits(-price);
+            Session.ShipsBought.Add(Session.ShipRef(ship));
+            return true;
+        }
+
+        public Result CanBuyShipToKaamo(int ship, out int need)
+        {
+            need = 0;
+            if (Storage || Stock.ships == null || !Stock.ships.Contains(ship)) return Result.NoStock;
+            return CanBuyShipToKaamoFor(ship, BuyShipPrice(ship), out need);
+        }
+
+        public bool BuyShipToKaamo(int ship)
+        {
+            if (CanBuyShipToKaamo(ship, out _) != Result.Ok) return false;
+            if (!BuyShipToKaamoFor(ship, BuyShipPrice(ship), Stock.ModsOf(ship))) return false;
+            if (CronusGift(ship)) Session.KhadorCronusGift = false;
+            Stock.TakeMods(ship);
+            Stock.ships.Remove(ship);
+            GameHooks.StockShipChanged?.Invoke(Station, ship, -1);
+            return true;
+        }
+
         /// <summary>327 -> 331 "Keep": the old hull goes to the club, the new one costs its full price.</summary>
         public Result CanKeepAndBuyShip(int ship, out int need)
         {

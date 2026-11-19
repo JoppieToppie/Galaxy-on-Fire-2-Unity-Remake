@@ -54,7 +54,9 @@ namespace GoF2Remake.UI
             return true;
         }
         /// <summary>Enter / A / the action button: mount, demount or buy the selected ship; on a shop row buy one unit.</summary>
-        public void Action()
+        public void Action() => Action(false);
+
+        void Action(bool shipDestinationChosen)
         {
             if (selected == null) return;
             var db = level.Database;
@@ -137,6 +139,14 @@ namespace GoF2Remake.UI
                 case RowKind.ShopShip:
                 {
                     int ship = selected.ship;
+                    if (KaamoClub.Owned && !NetSession.Active && !shipDestinationChosen)
+                    {
+                        menu.ShowDialog(Localization.Get(304), () => menu.ShowChoice(
+                            string.Format(Localization.Extra("shipDeliveryChoice", "Fly the new ship, or deliver it to Kaamo for {0} without trading your current ship?"), ItemInfo.Credits(hangar.BuyShipPrice(ship))),
+                            Localization.Extra("shipDeliveryFly", "Fly new ship"), Localization.Extra("shipDeliveryKaamo", "Buy to Kaamo"),
+                            () => Action(true), () => BuyToKaamo(ship), true));
+                        break;
+                    }
                     var r = hangar.CanBuyShip(ship, out int need);
                     if (r == Hangar.Result.Passengers) { menu.ShowToast(Localization.Get(336)); break; }
                     if (r == Hangar.Result.SameShip) { menu.ShowToast(Localization.Get(329)); break; }
@@ -170,13 +180,15 @@ namespace GoF2Remake.UI
                         + "\n\n" + Localization.Extra("shopGearToHold", "Your equipment goes into the cargo hold.");
                     if (!KaamoClub.Owned) { menu.ShowDialog(tradeIn, TradeIn); break; }
                     // 304, then 327 "sell your old ship or keep it and have it brought to your station?" (330 / 331).
-                    menu.ShowDialog(Localization.Get(304), () => menu.ShowChoice(Localization.Get(327), Localization.Get(330), Localization.Get(331), TradeIn, () =>
+                    void ChooseOldShip() => menu.ShowChoice(Localization.Get(327), Localization.Get(330), Localization.Get(331), TradeIn, () =>
                     {
                         var k = hangar.CanKeepAndBuyShip(ship, out int missing);
                         if (k == Hangar.Result.AlreadyStored) { menu.ShowDialog(Localization.Get(328), null, true); return; }
                         if (k == Hangar.Result.NoCredits) { menu.ShowToast(Localization.Get(203).Replace("#C", ItemInfo.Credits(missing))); return; }
                         menu.AskMoveEquipment(move => Reserved(() => hangar.KeepAndBuyShip(ship, move)));   // #83
-                    }, true));
+                    }, true);
+                    if (shipDestinationChosen) ChooseOldShip();
+                    else menu.ShowDialog(Localization.Get(304), ChooseOldShip);
                     break;
                 }
                 case RowKind.StoredShip:
@@ -198,6 +210,19 @@ namespace GoF2Remake.UI
                 }
             }
         }
+        void BuyToKaamo(int ship)
+        {
+            var result = hangar.CanBuyShipToKaamo(ship, out int need);
+            if (result == Hangar.Result.AlreadyStored) { menu.ShowDialog(Localization.Get(328), null, true); return; }
+            if (result == Hangar.Result.NoCredits) { menu.ShowToast(Localization.Get(203).Replace("#C", ItemInfo.Credits(need))); return; }
+            if (result != Hangar.Result.Ok) return;
+            if (!hangar.BuyShipToKaamo(ship)) return;
+            level.RefreshParkedShips();
+            menu.ShowToast(string.Format(Localization.Extra("shipDeliveredKaamo", "Your {0} was delivered to Kaamo."), ItemInfo.ShipName(ship)));
+            selected = null;
+            Rebuild();
+        }
+
         /// <summary>The second row button (X / controller X): Sell a stored hull (330 -> 334).</summary>
         public void SecondaryAction()
         {

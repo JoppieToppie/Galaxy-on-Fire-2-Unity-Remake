@@ -61,3 +61,10 @@ Research: `Reference/research/kaamo_club.md` (states, the siege, docking convers
   of a type parked at the club carries an AT KAAMO badge with the map's house (`map_home`), and a lounge seller's ship
   says so in the offer (`loungeShipAtKaamo`). No multiplayer handling: the flag rides in the save / profile.
 - Not wired in the original and left out: advert 189, the 478 hint (no shop to jump to), radio 3162 / 3163 (voiced, never sent).
+
+- **Buy to Kaamo** (single player, club owned): after purchase confirmation, choose whether to fly the new hull
+  (the existing trade-in/keep-old flow) or deliver the purchased hull to the club at full price. Delivery neither
+  changes the flown hull nor moves its cargo/equipment/upgrades; passengers and its capacity do not constrain storage.
+  The purchased dealer row and its upgrades move to storage; its full buy price, including any price hooks, is paid.
+  Lounge ship sellers use their offered price. A duplicate stored hull, unavailable stock, missing club or insufficient
+  balance refuses before changing money or inventory. No new settings or save fields. Existing multiplayer flow stays.
