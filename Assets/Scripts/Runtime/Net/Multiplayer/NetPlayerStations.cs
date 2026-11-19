@@ -58,6 +58,7 @@ namespace GoF2Remake.Multiplayer
         public int jumpgateDestinationSystem = -1;
         public bool jumpgateBuilding;
         public long jumpgateStartedUtc, jumpgateCompletesUtc;
+        public int jumpgateBuildSeconds;
         public List<PlayerStationMaterial> jumpgateMaterials = new List<PlayerStationMaterial>();
         public List<PlayerStationContribution> jumpgateContributions = new List<PlayerStationContribution>();
     }
@@ -188,6 +189,8 @@ namespace GoF2Remake.Multiplayer
                 station.listings ??= new List<PlayerStationListing>();
                 station.buyOrders ??= new List<PlayerStationBuyOrder>();
                 station.constructionContributions ??= new List<PlayerStationContribution>();
+                station.jumpgateMaterials ??= new List<PlayerStationMaterial>();
+                station.jumpgateContributions ??= new List<PlayerStationContribution>();
                 station.storage ??= new List<PlayerStationStorage>();
                 NormalizeStorageLots(station);
                 station.storedShips ??= new List<StoredShip>();
