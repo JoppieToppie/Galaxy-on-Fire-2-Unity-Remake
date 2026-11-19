@@ -217,6 +217,9 @@ namespace GoF2Remake.Multiplayer
                         string backupJson = File.ReadAllText(backupPath);
                         registry = JsonUtility.FromJson<Registry>(backupJson);
                         if (registry == null) throw new InvalidDataException("registry backup produced no data");
+                        // Preserve the damaged primary for diagnosis; do not let a recovery overwrite destroy evidence.
+                        string damagedPath = path + ".corrupt-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+                        File.Copy(path, damagedPath, true);
                         // Do not use NetProfiles.Write here: it would overwrite the known-good backup with the corrupt primary.
                         string recoveryPath = path + ".recovered";
                         File.WriteAllText(recoveryPath, backupJson);
@@ -265,6 +268,7 @@ namespace GoF2Remake.Multiplayer
             if (!RecoverPendingTransaction())
             {
                 persistenceFaulted = true;
+                registry = null;
                 Debug.LogError("NetPlayerStations: station persistence is disabled because an interrupted transaction could not be recovered. Preserve the journal and registry for manual recovery.");
                 return;
             }
