@@ -621,7 +621,7 @@ namespace GoF2Remake.UI
             // laid out a frame after it appears (a focus set before that doesn't take), so it is tried again until it
             // lands; Select itself does nothing while the mouse is the one in use.
             bool popupNow = SquadView.PopupOpen;
-            bool canFocusPopup = !HangarOpen && !DialogOpen && !SystemMenuOpen && !MultiplayerWindow.IsOpenAny
+            bool canFocusPopup = !HangarOpen && !DialogOpen && !SystemMenuOpen && !MultiplayerWindow.IsOpenAny && !(dryDock != null && dryDock.IsOpen)
                                  && InputMode.Current != InputKind.Touch && !InputMode.MousePointing;
             if (popupNow != squadPopupShown)
             {
@@ -645,6 +645,7 @@ namespace GoF2Remake.UI
             if ((kb != null && kb.escapeKey.wasPressedThisFrame) || (pad != null && pad.buttonEast.wasPressedThisFrame)) { Back(); return; }
             if (infoWindow != null && infoWindow.IsOpen) { infoWindow.Tick(); return; }   // it takes all input
             if (MultiplayerWindow.IsOpenAny) return;   // the faction window's buttons and text fields take the input
+            if (dryDock != null && dryDock.IsOpen) return; // the dry-dock panel owns its navigation while open
             if (pad != null && pad.startButton.wasPressedThisFrame && !DialogOpen)
             {
                 Play(buttonRelease);
@@ -663,7 +664,8 @@ namespace GoF2Remake.UI
                 && (InputMode.Current == InputKind.Gamepad || MenuFocus.NavPressed(pad, kb)))
             {
                 SetTouchMode(false);
-                var target = missions != null && missions.IsOpen ? MenuFocus.First(missions.NavItems())
+                var target = dryDock != null && dryDock.IsOpen ? MenuFocus.First(dryDock.NavItems())
+                           : missions != null && missions.IsOpen ? MenuFocus.First(missions.NavItems())
                            : status != null && status.IsOpen ? MenuFocus.First(status.NavItems())
                            : lounge != null && lounge.ChatOpen ? MenuFocus.First(lounge.NavItems())
                            : DefaultFocus();
