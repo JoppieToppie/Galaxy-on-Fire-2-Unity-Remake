@@ -50,3 +50,15 @@ The factory add-on was added in this continuation. It requires storage, has its 
 - The buyer's active game receives credit and item updates; an online seller's active controller receives the credit update. Offline sellers are credited in their saved profile.
 - The current client-facing credit update is bounded to the `int` range supported by the existing multiplayer admin RPC, even though stored profile balances are 64-bit.
 - Still required: Unity compilation, host/client tests, offline-seller tests, insufficient-credit tests, full/partial listing tests, and crash injection at each journal stage. Buyer cargo-capacity handling also needs gameplay verification.
+
+
+## Dry dock implementation
+
+The station dry dock is now a separate add-on from the regular ship hangar. It holds up to 20 large hulls whose mod-defined ship class is Frigate, Freighter, Cruiser or Carrier. Dry-docked hulls are bare: removable equipment and cargo move into the station's shared storage, while hull upgrades remain attached. Retrieval returns the bare hull to the requesting player's personal stored fleet. Faction access follows the existing station hangar permission policy, but each pilot can only move hulls belonging to their own profile.
+
+- Install: `/station install <id> drydock`
+- List: `/station drydock <id>`
+- Store: `/station drydock-store <id> <fleet index>`
+- Retrieve: `/station drydock-retrieve <id> <dock index>`
+
+The dry dock costs 200 Iron, 150 Titanium, 100 Electronics and 80 Microchips. It requires station storage for transferred inventory. This is source-level functionality; Unity compilation and host/client, faction, save/reload and transaction-failure tests remain outstanding. Ships must have one of the four explicit mod-defined classes to qualify; unclassified original hulls are not automatically treated as capital ships.
