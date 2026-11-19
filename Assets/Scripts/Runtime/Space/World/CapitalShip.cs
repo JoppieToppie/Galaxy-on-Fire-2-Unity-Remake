@@ -382,7 +382,9 @@ namespace GoF2Remake.World
             float dmg = missileBase * (big ? CapitalShips.MissileCapitalFactor : CapitalShips.MissileFactor);
             if (hit.isPlayer && !ship.Target.hostileToPlayer) dmg *= 0.2f;   // a stray hit (NpcShip.GunHit)
             else if (!hit.isPlayer && IsRemotePlayer(hit) && !NpcShip.HostileToRemote(ship, hit)) dmg *= 0.2f;   // multiplayer: the same
-            hit.Damage(dmg, true, missiles.bullets[b].velocity);
+            hit.lastNpcWeapon = missiles.itemIndex;
+            hit.Damage(dmg, true, missiles.bullets[b].velocity, missiles.shieldFactor, missiles.damageType);
+            hit.lastNpcWeapon = -1;
             missileRig.ShowImpact(point);
         }
 

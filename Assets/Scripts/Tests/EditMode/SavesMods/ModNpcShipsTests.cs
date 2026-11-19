@@ -29,7 +29,7 @@ namespace GoF2Remake.Tests
         }
 
         const string Cruiser = @"[
-            { 'id': 'cruiser', 'kind': 'capital', 'looksLike': 'carrier', 'name': 'Cruiser', 'race': 'vossk', 'gunFactor': 2,
+            { 'id': 'cruiser', 'kind': 'capital', 'looksLike': 'carrier', 'name': 'Cruiser', 'race': 'vossk', 'gunFactor': 2, 'shield': 120, 'shieldRechargeMs': 30000, 'energyResistance': 35, 'ballisticResistance': 60,
               'escorts': { 'count': 3, 'ships': [ 5 ], 'strength': 2 },
               'loot': { 'items': [ { 'item': 113, 'amount': 4 }, { 'item': 101, 'amount': [1, 2], 'chance': 0 } ] },
               'spawn': { 'chance': 40, 'races': [ 1 ], 'minRank': 2 },
@@ -61,6 +61,10 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(ModNpcShips.Carrier, t.BaseKey);
             Assert.AreEqual("Cruiser", t.name);
             Assert.AreEqual(1, t.race, "a race word");
+            Assert.AreEqual(120, t.shield);
+            Assert.AreEqual(30000, t.shieldRechargeMs);
+            Assert.AreEqual(35f, t.energyResistance);
+            Assert.AreEqual(60f, t.ballisticResistance);
             Assert.AreEqual(3, t.escorts.min);
             Assert.AreEqual(2f, t.escorts.hull);
             Assert.AreEqual(40f, t.spawn.chance);
@@ -81,6 +85,10 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(ObjectDocking.Resupply, host.dockingType);
             Assert.AreEqual(SpacePoints.NpcPadBase + t.index, host.spacePoints);
             Assert.AreEqual(NpcTables.Hull(1, 14) * 5, host.hitpoints, "killable, like the enhanced battleship");
+            Assert.AreEqual(120, host.shield);
+            Assert.AreEqual(30000, host.shieldRechargeMs);
+            Assert.AreEqual(0.35f, host.energyResistance);
+            Assert.AreEqual(0.6f, host.ballisticResistance);
             Assert.AreEqual(113, host.lootItem);
             Assert.AreEqual(4, host.lootAmount);
             Assert.IsNull(host.extraLoot, "a 0 % entry never comes");

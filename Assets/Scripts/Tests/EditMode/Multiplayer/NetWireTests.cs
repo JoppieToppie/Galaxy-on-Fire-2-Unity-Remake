@@ -112,6 +112,15 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ProxyShieldFractionsPreserveNoShieldAndCurrentCapacity()
+        {
+            Assert.AreEqual(-1f, new NetProxyStatus { shield = NetProxyStatus.Shield(-1f) }.ShieldFraction, "no shield is distinct from an empty shield");
+            Assert.AreEqual(0f, new NetProxyStatus { shield = NetProxyStatus.Shield(0f) }.ShieldFraction);
+            Assert.AreEqual(0.5f, new NetProxyStatus { shield = NetProxyStatus.Shield(0.5f) }.ShieldFraction, 2e-5f);
+            Assert.AreEqual(1f, new NetProxyStatus { shield = NetProxyStatus.Shield(1f) }.ShieldFraction);
+        }
+
+        [Test]
         public void Fractions()
         {
             Assert.AreEqual(-1f, WireQuant.Fraction(WireQuant.Fraction(-1f)), "none");
@@ -249,6 +258,7 @@ namespace GoF2Remake.Tests
                 secondaryItem = 48, secondaryFactor = 4f, hiddenBlueprint = 2, modBlueprint = 300, pirateEvent = SpawnSpec.EventBoss,
                 eventTier = 5, sightingId = 9, capital = SpawnSpec.CapitalCarrier, capitalPart = true, capitalEnhanced = true,
                 fleetBattle = true, turretHunter = true, deathMs = 12000f, empPoints = 900, modCapital = true,
+                shield = 180, shieldRechargeMs = 30000, energyResistance = 0.25f, ballisticResistance = 0.65f,
             };
         }
 

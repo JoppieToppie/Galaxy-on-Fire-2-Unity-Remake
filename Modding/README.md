@@ -332,7 +332,10 @@ energy cells.
 | `reverseSpeed`, `reverseAcceleration` | 179 to 180 | Reverse thrust speed and acceleration bonuses (%) in free flight |
 | `forwardAcceleration` | 181 | Forward thrust acceleration bonus (%) in free flight |
 | `tractorNoLock` | 137 | Tractor beams: 1 = the scanner never locks a container; every beam takes containers by itself (see [Multi-grab tractor beams](#multi-grab-tractor-beams)) |
-| `shieldDamage` | 124 | A weapon's damage to a shield in percent (default 100; the Disruptor Laser and items based on it 200). What the shield doesn't absorb hits the armor and hull at the plain damage. Only ships with a shield feel it: the players (each other in multiplayer), not the game's NPCs |
+| `shieldDamage` | 124 | A weapon's damage to a shield in percent (default 100; the Disruptor Laser and items based on it 200). What the shield doesn't absorb hits the armor and hull at the plain damage. |
+| `damageType` | 182 | Optional explicit damage channel: `1` = energy, `2` = ballistic; unset / `0` keeps the original damage behaviour. This is not inferred from the weapon category. |
+| `energyResistance` | 183 | Optional shield resistance to energy damage, percent (0–100). The shield takes less energy damage and overflow still reaches armor / hull. |
+| `ballisticResistance` | 184 | Optional shield resistance to ballistic penetration, percent (0–100). Ballistic hits damage shield and hull together; penetration is reduced by this resistance multiplied by the remaining shield fraction. |
 | `echoDelayMs` | 127 | A second, weaker blast at each hit, this many ms after it (0 or none = no echo; see [Echo blasts](#echo-blasts)) |
 | `echoPercent` | 128 | The echo's damage, EMP and size in percent of the shot's (default 50) |
 | `echoRadius` | 129 | The echo's reach in game units (0 = the gun's own `blastRadius`) |
@@ -1439,6 +1442,7 @@ edits them in space, the hull beside the orbit's station with its hardpoints and
   **`"hostile": true`** makes it always the player's enemy.
 - **`hull`** sets its hit points (x the difficulty), or **`hullFactor`** multiplies its default (a new capital ship: 5 x the
   Terran battleship's, as the enhanced battleship has; a freighter: the freighter's; a boss: the pirate boss's).
+  **`shield`** adds an optional NPC shield pool (points); **`shieldRechargeMs`** is the time for a full recharge (0 = no regeneration). **`energyResistance`** and **`ballisticResistance`** are shield resistances in percent (0–100): energy resistance reduces incoming energy damage to the shield, while ballistic resistance reduces hull penetration in proportion to the remaining shield fraction. These are opt-in; NPCs without these fields keep their original hull-only behaviour.
   **`gunFactor`** multiplies its guns' and turrets' damage. A game capital ship given a hull (or a ship) can be destroyed.
 - **`hardpoints`**: its turrets and other parts, in the format of `ships.json`'s `"subsystems"` (above) with `"position"`
   (game units in the ship's frame), `"kind"` `"turret"` by default and a turret without an `"item"` the game's Terran

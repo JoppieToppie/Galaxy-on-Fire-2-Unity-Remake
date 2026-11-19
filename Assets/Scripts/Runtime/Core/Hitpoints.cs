@@ -1,3 +1,5 @@
+using System;
+
 // Hitpoints.cs
 // The original's Player stat object (Reference/research/ship_combat.md 2): three pools, no damage reduction.
 //   Player::damage 0xafa70     the hit comes off the shield (its fraction is truncated on every hit), the overflow off
@@ -11,6 +13,9 @@
 
 namespace GoF2Remake.Flight
 {
+    /// <summary>Explicit mod-defined damage channel. None retains the original shield/armor/hull calculation.</summary>
+    public enum DamageType { None = 0, Energy = 1, Ballistic = 2 }
+
     public class Hitpoints
     {
         public float shield;
@@ -22,6 +27,9 @@ namespace GoF2Remake.Flight
         public bool vulnerable = true;
         /// <summary>Remake (Flight.Device's Shield Overcharge): every hit stops at the shield and takes nothing off it.</summary>
         public bool shieldLocked;
+
+        /// <summary>Optional shield resistances, expressed as fractions from 0 to 1. Zero preserves legacy behaviour.</summary>
+        public float energyResistance, ballisticResistance;
 
         /// <summary>Which layer took the last hit (the player's hit sound: 25 shield, 23 armor, 24 hull).</summary>
         public bool shieldHit, armorHit, hullHit;
@@ -54,10 +62,36 @@ namespace GoF2Remake.Flight
         /// the shield (a weapon's shieldDamage, the Disruptor's x2: Flight.Gun.ShieldFactor); the part the shield doesn't
         /// absorb goes on to the armor and hull at its plain value. A factor of 0 bypasses the shield (a weapon's shieldBypass,
         /// GoF3's AbilityBypassShield): the hit goes on to the armor and hull, the shield untouched.</summary>
-        public bool Damage(int dmg, float shieldFactor = 1f)
+        public bool Damage(int dmg, float shieldFactor = 1f) => Damage(dmg, shieldFactor, DamageType.None);
+
+        /// <summary>Applies an explicitly typed hit. Energy resistance reduces incoming energy damage to the shield and carries overflow
+        /// into armor/hull. Ballistic hits damage shield and hull together; hull penetration is reduced by ballistic
+        /// resistance scaled by the shield fraction immediately before impact. Untyped hits retain the legacy algorithm.</summary>
+        public bool Damage(int dmg, float shieldFactor, DamageType damageType)
         {
             if (!vulnerable || hull <= 0 || dmg <= 0) return false;
             if (shieldLocked) { shieldHit = true; return false; }   // remake: an overcharged shield (Device.Type.ShieldOvercharge)
+            if (damageType == DamageType.Energy && shield > 0f && energyResistance > 0f)
+            {
+                float baseFactor = Math.Max(0f, shieldFactor);
+                float factor = baseFactor * (1f - Clamp01(energyResistance));
+                float cost = dmg * factor;
+                float overflow = baseFactor <= 0f ? dmg : factor <= 0f ? 0f : Math.Max(0f, dmg - shield / factor);
+                shield = Math.Max(0f, shield - cost);
+                if (cost > 0f) shieldHit = true;
+                ApplyArmorHull(Math.Max(0, (int)overflow));
+                return hull < 1;
+            }
+            if (damageType == DamageType.Ballistic)
+            {
+                float fraction = shieldFactor > 0f && maxShield > 0 ? Clamp01(shield / maxShield) : 0f;
+                float penetration = Clamp01(ballisticResistance) * fraction;
+                float hullDamage = dmg * (1f - penetration);
+                float cost = dmg * Math.Max(0f, shieldFactor);
+                if (shield > 0f && cost > 0f) { shield = Math.Max(0f, shield - cost); shieldHit = true; }
+                ApplyArmorHull(Math.Max(0, (int)hullDamage));
+                return hull < 1;
+            }
             int s;
             if (shieldFactor <= 0f)
             {
@@ -84,6 +118,17 @@ namespace GoF2Remake.Flight
             }
             if (hull < 1) { hull = 0; return true; }
             return false;
+        }
+
+        static float Clamp01(float value) => Math.Max(0f, Math.Min(1f, value));
+
+        void ApplyArmorHull(int damage)
+        {
+            if (damage <= 0) return;
+            int remaining = armor - damage;
+            if (remaining >= 0) { armor = remaining; armorHit = true; }
+            else { armor = 0; hull += remaining; hullHit = true; }
+            if (hull < 1) hull = 0;
         }
 
         /// <summary>Player::damageEmp: returns true when this hit disabled it.</summary>

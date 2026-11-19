@@ -49,6 +49,10 @@ namespace GoF2Remake.Modding
             // A weapon's damage to a shield in percent (Flight.Gun.ShieldFactor; default 100, the Disruptor Laser and items
             // based on it 200): the part the shield doesn't absorb hits the armor and hull at its plain value.
             ["shieldDamage"] = 124,
+            // Explicit damage channel: 0 = legacy/none, 1 = energy, 2 = ballistic.
+            ["damageType"] = 182,
+            // Optional shield resistances, percentages (0..100).
+            ["energyResistance"] = 183, ["ballisticResistance"] = 184,
             // A weapon's echo (Flight.GunEcho): a second, weaker blast at each hit, echoDelayMs after it (0 = none), at
             // echoPercent of the damage, EMP and size; echoRadius is that blast's reach in game units (0 = blastRadius, 14);
             // echoExplosion is the explosion type it shows (0 ship, 8-10 scatter, 11 shock blast, 13 fireworks; -1 none).
