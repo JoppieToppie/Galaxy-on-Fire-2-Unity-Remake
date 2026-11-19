@@ -105,10 +105,10 @@ namespace GoF2Remake.UI
             // Management is contextual, not a world directory: only expose the player station at the location
             // where this management screen is open. The server still enforces owner/faction permissions per command.
             int currentStation = level?.Layout != null ? level.Layout.stationIndex : -1;
-            var records = NetPlayerStations.Stations?.Where(x => x != null && x.stationIndex == currentStation && NetPlayerStations.CanViewManagement(x)).OrderBy(x => x.id).ToList();
+            var records = NetPlayerStations.Stations?.Where(x => x != null && x.stationIndex == currentStation && (NetPlayerStations.CanViewManagement(x) || (x.buyOrders != null && x.buyOrders.Any(order => order != null && order.remaining > 0)))).OrderBy(x => x.id).ToList();
             if (records == null || records.Count == 0)
             {
-                stationList.Add(new Label("No station you are authorised to manage is available at this location."));
+                stationList.Add(new Label("No managed station or public construction buy orders are available at this location."));
                 selected = null;
                 return;
             }
@@ -164,6 +164,11 @@ namespace GoF2Remake.UI
                 AddAction("Show station storage", "/station storage " + selected.id);
                 AddAction("Show ship hangar", "/station ships " + selected.id);
                 AddAction("Show dry-dock status", "/station drydock " + selected.id);
+                if (!NetPlayerStations.CanViewManagement(selected))
+                {
+                    BuildConstructionProcurement(selected.id.ToString(), false);
+                    return;
+                }
             }
 
             AddSection("BUILD A STATION", "Start a private construction project by entering a known system index. Deposits are made while docked at any station. Faction-owned projects pay each contributor immediately from the faction bank; individual projects do not create faction-bank obligations.");
@@ -230,10 +235,19 @@ namespace GoF2Remake.UI
             AddField("buyAmount", "Purchase amount", "1");
             AddAction("Buy listing", () => Send("/station buy " + id + " " + Value("listingIndex") + " " + Value("buyAmount")));
             AddAction("Cancel your listing", () => Send("/station delist " + id + " " + Value("listingIndex")));
+            BuildConstructionProcurement(id, true);
+
+
+        }
+
+        void BuildConstructionProcurement(string id, bool allowManagement)
+        {
             AddSection("CONSTRUCTION PROCUREMENT", "The station owner or an authorised faction officer can reserve funds for missing construction materials. Any pilot docked here can sell into an active order. Payment comes from escrow, so sellers do not also receive a contribution payout.");
-            var activeOrders = selected.buyOrders ?? new List<PlayerStationBuyOrder>();
+            var activeOrders = selected?.buyOrders ?? new List<PlayerStationBuyOrder>();
             if (activeOrders.Count == 0)
-                AddInfo("Active buy orders", "None. Create an order below to invite other pilots to supply materials.");
+                AddInfo("Active buy orders", allowManagement
+                    ? "None. Create an order below to invite other pilots to supply materials."
+                    : "No active public construction orders.");
             else
             {
                 AddInfo("Active buy orders", activeOrders.Count.ToString());
@@ -249,10 +263,12 @@ namespace GoF2Remake.UI
                     int orderIndex = i;
                     AddAction("Sell " + itemName + " to order #" + i, () =>
                         Send("/station sell-order " + id + " " + orderIndex + " " + Value("procureSellAmount" + orderIndex)));
-                    AddAction("Cancel order #" + i + " and refund unused escrow", () =>
-                        Send("/station cancel-order " + id + " " + orderIndex));
+                    if (allowManagement)
+                        AddAction("Cancel order #" + i + " and refund unused escrow", () =>
+                            Send("/station cancel-order " + id + " " + orderIndex));
                 }
             }
+            if (!allowManagement) return;
             if (selected.underConstruction)
             {
                 AddInfo("Procurement funding", selected.ownershipType == PlayerStationOwnershipType.Faction
@@ -266,8 +282,6 @@ namespace GoF2Remake.UI
             }
             else
                 AddInfo("Procurement status", "Construction is complete. No further material orders can be created.");
-
-
         }
 
         void AddSection(string title, string description)
