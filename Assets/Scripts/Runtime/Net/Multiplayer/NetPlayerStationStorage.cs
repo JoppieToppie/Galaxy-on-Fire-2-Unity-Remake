@@ -32,7 +32,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out string account)) return "Dock at this station and use its controlling profile to manage it.";
+            if (!CanManageConstruction(by, record, out string account)) return "Only the original builder, or an authorised faction construction manager while the builder is absent, may install station modules.";
             if (record.underConstruction) return "Finish station construction before installing modules.";
             record.addons ??= new List<PlayerStationAddon>();
             if (record.addons.Exists(a => a != null && a.kind == "hangar")) return "This station already has a ship hangar.";
@@ -313,7 +313,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out string account)) return "Dock at this station and use its controlling profile to manage it.";
+            if (!CanManageConstruction(by, record, out string account)) return "Only the original builder, or an authorised faction construction manager while the builder is absent, may install station modules.";
             if (record.underConstruction) return "Finish station construction before installing modules.";
             if (record.addons?.Exists(a => a != null && a.kind == "drydock") == true) return "This station already has a dry dock.";
             if (record.addons?.Count >= MaxAddonsPerStation) return "This station has reached its module limit.";
