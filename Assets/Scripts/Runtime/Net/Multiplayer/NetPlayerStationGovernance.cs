@@ -798,6 +798,8 @@ namespace GoF2Remake.Multiplayer
                     record.ownerProfile = nextFaction.leader;
                     record.ownerName = nextFaction.name;
                     record.factionStorageAccess = true;
+                    record.factionPermissions = new PlayerStationFactionPermissionProfile
+                    { visit = true, storage = true, hangar = true };
                 }
                 else
                 {
@@ -808,6 +810,8 @@ namespace GoF2Remake.Multiplayer
                     record.ownerFactionId = null;
                     record.ownerName = string.IsNullOrEmpty(newOwner) ? "Unclaimed" : newOwner;
                     record.factionStorageAccess = false;
+                    record.factionPermissions = new PlayerStationFactionPermissionProfile
+                    { visit = false, storage = false, hangar = false };
                 }
 
                 // Old faction appointments and bans cannot survive the faction's dissolution.
