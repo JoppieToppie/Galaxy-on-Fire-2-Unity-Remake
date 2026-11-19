@@ -25,23 +25,31 @@ namespace GoF2Remake.Multiplayer
                 var listing = record.listings[i];
                 if (listing == null || listing.amount <= 0) continue;
                 string itemName = NetGame.Db?.Item(listing.item)?.name ?? ("Item " + listing.item);
-                lines.Add($"#{i}: {itemName} x{listing.amount:N0} — {listing.unitPrice:N0} credits each");
+                lines.Add($"#{i}: {itemName} x{listing.amount:N0} — {listing.unitPrice:N0} credits each" +
+                    (!string.IsNullOrEmpty(listing.payoutFactionId) ? " (faction treasury)" : " (seller)"));
             }
             return string.Join("\n", lines);
         }
 
-        internal static string CreateListing(NetPlayer by, int id, int item, int amount, long unitPrice)
+        internal static string CreateListing(NetPlayer by, int id, int item, int amount, long unitPrice, bool payFactionTreasury = false)
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out string account))
-                return "Only the station owner can create listings while docked at the station.";
+            if (!CanManageStorage(by, record, out string account))
+                return "Dock at this station using an authorised profile to list your own stored goods.";
             if (record.underConstruction) return "Finish station construction before opening listings.";
             if (StorageCapacity(record) <= 0) return "Install a storage module before listing station goods.";
             if (!NetGuard.Item(item) || !Hangar.IsSaleable(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice)
                 return "Use a saleable item, 1–500 units, and a unit price from 1 to 1,000,000,000 credits.";
             record.listings ??= new List<PlayerStationListing>();
             if (record.listings.Count >= MaxStationListings) return "This station has reached its listing limit.";
+            string payoutFactionId = null;
+            if (payFactionTreasury)
+            {
+                var sellerFaction = NetFactions.Of(account);
+                if (sellerFaction == null) return "Join a faction before directing listing proceeds to its treasury.";
+                payoutFactionId = sellerFaction.id;
+            }
             record.storage ??= new List<PlayerStationStorage>();
             EnsureStorageLots(record);
             var stock = record.storage.Find(x => x != null && x.item == item);
@@ -53,7 +61,7 @@ namespace GoF2Remake.Multiplayer
             RemoveStorageLots(record, account, item, amount);
             stock.amount -= amount;
             if (stock.amount == 0) record.storage.Remove(stock);
-            record.listings.Add(new PlayerStationListing { item = item, amount = amount, unitPrice = unitPrice, sellerProfile = account });
+            record.listings.Add(new PlayerStationListing { item = item, amount = amount, unitPrice = unitPrice, sellerProfile = account, payoutFactionId = payoutFactionId });
             if (!Save())
             {
                 record.listings.RemoveAt(record.listings.Count - 1);
@@ -100,7 +108,11 @@ namespace GoF2Remake.Multiplayer
             bool removeListing = amount == listing.amount;
             if (removeListing) record.listings.RemoveAt(listingIndex);
             else listing.amount -= amount;
-            if (!CommitMarketplaceTransaction(buyer, seller, listing.item, amount, total))
+            bool paidToFaction = !string.IsNullOrEmpty(listing.payoutFactionId);
+            bool committed = paidToFaction
+                ? CommitMarketplaceFactionTransaction(buyer, listing.payoutFactionId, listing.item, amount, total)
+                : CommitMarketplaceTransaction(buyer, seller, listing.item, amount, total);
+            if (!committed)
             {
                 if (removeListing) record.listings.Insert(listingIndex, listing);
                 else listing.amount += amount;
@@ -114,7 +126,7 @@ namespace GoF2Remake.Multiplayer
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Give, listing.item, amount, 0, "", "Station marketplace");
             }
 
-            foreach (ulong client in NetProfiles.ClientsOf(seller))
+            foreach (ulong client in (paidToFaction ? new List<ulong>() : NetProfiles.ClientsOf(seller)))
             {
                 if (!NetProfiles.Controls(client)) continue;
                 if (!(NetGame.PersistentHost && client == NetGame.LocalId))
@@ -124,7 +136,7 @@ namespace GoF2Remake.Multiplayer
 
             string itemName = NetGame.Db?.Item(listing.item)?.name ?? ("Item " + listing.item);
             return "Purchased " + amount + " x " + itemName + " for " + total.ToString("N0") +
-                " credits from " + record.name + ".";
+                " credits from " + record.name + (paidToFaction ? "; proceeds credited to faction treasury." : "; proceeds credited to the seller.") ;
         }
 
         internal static string CancelListing(NetPlayer by, int id, int listingIndex)
