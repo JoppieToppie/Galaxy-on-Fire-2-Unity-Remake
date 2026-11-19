@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.Multiplayer;
+using GoF2Remake.Modding;
 using GoF2Remake.World;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -101,6 +102,13 @@ namespace GoF2Remake.UI
             NetChat.Added += OnChat;
         }
 
+        public void Dispose()
+        {
+            NetChat.Added -= OnChat;
+            openButton?.RemoveFromHierarchy();
+            panel?.RemoveFromHierarchy();
+        }
+
         public void Update()
         {
             if (level == null || level.Layout == null || !NetGame.Active)
@@ -168,11 +176,11 @@ namespace GoF2Remake.UI
 
             foreach (var product in Blueprints.Products(db))
             {
-                int ship = Modding.ModBlueprints.ShipOf(product.index);
+                int ship = ModBlueprints.ShipOf(product.index);
                 if (ship < 0 || !Modding.ModBlueprints.RequiresDryDock(product.index, db)) continue;
                 var hull = db.Ship(ship);
                 string name = hull?.name ?? ("Ship " + ship);
-                string className = Modding.ShipClassRules.ClassLabel(hull) ?? "Dry-dock restricted";
+                string className = ShipClassRules.ClassLabel(hull) ?? "Dry-dock restricted";
                 blueprints.Add((product.index, ship, name, className));
             }
             blueprints.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.OrdinalIgnoreCase));
@@ -218,7 +226,7 @@ namespace GoF2Remake.UI
                 lines.Add("No valid recipe is defined.");
             else
                 foreach (var part in product.blueprint)
-                    lines.Add((level.Database.Item(part.item)?.name ?? ("Item " + part.item)) + "  ×  " + part.amount);
+                    if (part != null) lines.Add((level.Database.Item(part.item)?.name ?? ("Item " + part.item)) + "  ×  " + part.amount);
             recipeText.text = string.Join("\n", lines);
             buildButton.SetEnabled(unlocked && !requestPending && !(NetPlayerStations.GetDryDockVisualStatus(station.id)?.building ?? false)
                 && product?.blueprint != null && product.blueprint.Count > 0);
