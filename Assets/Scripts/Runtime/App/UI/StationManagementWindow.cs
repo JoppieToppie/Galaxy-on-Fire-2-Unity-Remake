@@ -145,6 +145,9 @@ namespace GoF2Remake.UI
                 AddInfo("Owner", selected.ownershipType == PlayerStationOwnershipType.Faction
                     ? (selected.ownerName ?? selected.ownerFactionId ?? "Unknown faction") : (selected.ownerName ?? "Unknown"));
                 AddInfo("State", selected.underConstruction ? "Under construction" : "Operational");
+                AddInfo("Construction settlement", selected.ownershipType == PlayerStationOwnershipType.Faction
+                    ? "Deposits are paid immediately from the faction bank at the fixed catalogue minimum value. If the bank cannot cover a payout, the deposit is rejected and your cargo stays with you."
+                    : "Deposits are personal contributions. Individually owned stations do not draw from faction funds.");
                 AddAction("View construction contribution ledger", "/station contributions " + selected.id);
                 AddAction("View ownership transfer status", "/station transfer-status " + selected.id);
                 AddField("transferKind", "Transfer recipient type (player/faction)", "player");
@@ -163,7 +166,7 @@ namespace GoF2Remake.UI
                 AddAction("Show dry-dock status", "/station drydock " + selected.id);
             }
 
-            AddSection("BUILD A STATION", "Start a private construction project by entering a known system index. Deposits are made while docked at any station.");
+            AddSection("BUILD A STATION", "Start a private construction project by entering a known system index. Deposits are made while docked at any station. Faction-owned projects pay each contributor immediately from the faction bank; individual projects do not create faction-bank obligations.");
             AddField("system", "System index", "0");
             AddField("name", "New station name", "Frontier Outpost");
             AddAction("Start station project", () => Send("/station start " + Value("system") + " " + Value("name")));
