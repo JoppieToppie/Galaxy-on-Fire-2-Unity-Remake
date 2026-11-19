@@ -30,6 +30,8 @@ namespace GoF2Remake.Multiplayer
         public List<PlayerStationAddon> addons = new List<PlayerStationAddon>();
         public List<PlayerStationListing> listings = new List<PlayerStationListing>();
         public List<PlayerStationStorage> storage = new List<PlayerStationStorage>();
+        /// <summary>When enabled, members of the owner's current faction may use station storage.</summary>
+        public bool factionStorageAccess;
     }
 
     [Serializable]
