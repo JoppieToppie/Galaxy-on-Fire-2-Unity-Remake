@@ -180,9 +180,11 @@ namespace GoF2Remake.Multiplayer
             RecordHistory(record, proposal.proposedBy, "ownership-transferred", proposal.targetProfile,
                 "Ownership changed from " + (previousType == PlayerStationOwnershipType.Faction
                     ? "faction " + (previousFaction ?? "") : "profile " + (previousOwner ?? "")) +
-                " to " + newOwner + (builderVoluntaryTransfer
-                    ? "; original builder voluntarily relinquished builder rights."
-                    : "; original builder rights preserved."));
+                " to " + newOwner +
+                "; previous owner permissions, faction bans, station roles and succession nominations were cleared." +
+                (builderVoluntaryTransfer
+                    ? " Original builder voluntarily relinquished builder rights."
+                    : " Original builder rights and builder-imposed visitor bans were preserved."));
             // Gates are assets of the station that sponsored them. Keep their ownership in
             // the same registry transaction as the station transfer.
             SyncJumpgatesForStation(record);
