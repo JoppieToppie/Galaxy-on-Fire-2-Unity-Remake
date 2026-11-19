@@ -331,6 +331,23 @@ namespace GoF2Remake.World
 
         /// <summary>DAT_00254380: visitor mesh per agent race (female Terrans: 14724). Cyborgs and Midorians use the Terran man.</summary>
         public enum Visitor { TerranMale, TerranFemale, Vossk, Nivelian, Multipod, Bobolan, Grey }
+        /// <summary>Explicit mod-character lounge figure; null retains the original race / portrait mapping.</summary>
+        public static Visitor VisitorForSilhouette(string silhouette, int race, bool female)
+        {
+            if (string.IsNullOrEmpty(silhouette)) return VisitorFor(race, female);
+            switch (silhouette.Trim().ToLowerInvariant())
+            {
+                case "terran": return female ? Visitor.TerranFemale : Visitor.TerranMale;
+                case "vossk": return Visitor.Vossk;
+                case "nivelian": return Visitor.Nivelian;
+                case "octopod": return Visitor.Multipod;
+                case "bobolian": return Visitor.Bobolan;
+                case "grey": return Visitor.Grey;
+                // Original game representation: Midorian, Cyborg and Void use the Terran male visitor mesh.
+                case "midorian": case "cyborg": case "void": return Visitor.TerranMale;
+                default: return VisitorFor(race, female);
+            }
+        }
         public static Visitor VisitorFor(int race, bool female) => race switch
         {
             0 => female ? Visitor.TerranFemale : Visitor.TerranMale,

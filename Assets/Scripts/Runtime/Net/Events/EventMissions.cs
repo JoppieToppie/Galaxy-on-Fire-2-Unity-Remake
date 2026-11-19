@@ -151,7 +151,7 @@ namespace GoF2Remake.Events
                 o.entry = entry;
                 var agent = new Agent
                 {
-                    name = o.clientName, race = o.race, male = o.male, station = station, offer = AgentOffer.EventMission,
+                    name = o.clientName, character = o.character, race = o.race, male = o.male, station = station, offer = AgentOffer.EventMission,
                     portrait = o.face ?? AgentGenerator.CreatePortrait(true, 0),
                 };
                 if (Active != null && Active.name == o.name) agent.accepted = true;
@@ -346,7 +346,7 @@ namespace GoF2Remake.Events
                 {
                     o.character = who.characterKey;
                     var c = who.CharacterDef;
-                    if (c != null) { o.race = c.race; o.male = c.male; }   // the bar figure
+                    if (c != null) { if (c.hasRace) o.race = c.race; if (c.hasGender) o.male = c.male; }   // only explicit identity fields override the mission client
                     o.clientName = who.DisplayName("");
                 }
                 else if (id >= 0)

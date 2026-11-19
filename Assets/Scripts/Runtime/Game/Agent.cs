@@ -89,6 +89,7 @@ namespace GoF2Remake.Data
     public class Agent
     {
         public string name = "";
+        public string character;
         public int race, station = -1;
         public bool male = true;
         /// <summary>Agent+0x38: agents.json index of a story agent, -1 = generic.</summary>

@@ -49,9 +49,12 @@ namespace GoF2Remake.UI
         {
             mod = ModManager.BuilderProject, id = c.Id, key = Project.Id + ":" + c.Id, portrait = c.Portrait,
             name = new Dictionary<string, string> { ["en"] = c.Name ?? c.Id },
-            male = c.Male, mirrored = c.Mirrored, frame = c.Frame, background = c.Background,
-            race = c.Race != null ? Mathf.Max(0, Multiplayer.NetAdmin.RaceWord(c.Race)) : 0,
+            male = c.Male, mirrored = c.Mirrored, frame = c.Frame, background = c.Background, silhouette = c.Silhouette,
+            race = CharacterRace(c), hasRace = c.Race != null, hasGender = c.HasGender,
         };
+
+        int CharacterRace(ProjectCharacter c) =>
+            c.Race != null && ModRaces.TryResolve(c.Race, ModManager.BuilderProject, out int race) ? race : 0;
 
         Texture2D PortraitOf(ProjectCharacter c) => ModManager.BuilderProject != null ? ModCharacters.Portrait(DefOf(c)) : null;
 
@@ -119,17 +122,53 @@ namespace GoF2Remake.UI
 
             Add(characterPage, new Label(T("mbRace", "Race").ToUpperInvariant()), "mbv-label");
             var races = Add(characterPage, new VisualElement(), "mbv-seg-row");
+            Act(races, T("mbAuto", "Auto"), () => { c.Race = null; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg")
+                .EnableInClassList("mbv-seg--on", c.Race == null);
             for (int i = 0; i < RaceWords.Length; i++)
             {
                 string word = RaceWords[i];
                 var b = Act(races, T("race" + RaceNames[i], RaceNames[i]), () => { c.Race = word; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg");
                 b.EnableInClassList("mbv-seg--on", string.Equals(c.Race, word, StringComparison.OrdinalIgnoreCase));
             }
+            var projectRaceKeys = new HashSet<string>();
+            if (Project != null)
+                foreach (var projectRace in Project.Races.Where(r => r.Id != null))
+                {
+                    string key = Project.Key(projectRace.Id);
+                    projectRaceKeys.Add(key);
+                    var b = Act(races, ModRaceTitle(projectRace), () => { c.Race = key; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg");
+                    b.EnableInClassList("mbv-seg--on", string.Equals(c.Race, key, StringComparison.OrdinalIgnoreCase));
+                }
+            foreach (var race in ModRaces.All)
+            {
+                string key = race.key;
+                if (projectRaceKeys.Contains(key)) continue;
+                var b = Act(races, ModRaces.Name(race.race), () =>
+                {
+                    Project.AddDependency(race.mod.Id, race.mod.Version);
+                    c.Race = key;
+                    CharacterEdited();
+                    BuildCharacterPage();
+                }, "mbv-seg");
+                b.EnableInClassList("mbv-seg--on", string.Equals(c.Race, key, StringComparison.OrdinalIgnoreCase));
+            }
             Add(characterPage, new Label(T("mbGender", "Gender").ToUpperInvariant()), "mbv-label");
             var genders = Add(characterPage, new VisualElement(), "mbv-seg-row");
             Act(genders, T("mbMale", "Male"), () => { c.Male = true; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg").EnableInClassList("mbv-seg--on", c.Male);
             Act(genders, T("mbFemale", "Female"), () => { c.Male = false; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg").EnableInClassList("mbv-seg--on", !c.Male);
-            Note(characterPage, T("mbRaceNote", "Race and gender pick the figure in the Space Lounge and the name's colour."));
+            Note(characterPage, T("mbRaceNote", "Race and gender set the name's colour and the default lounge figure."));
+
+            Add(characterPage, new Label(T("mbSilhouette", "Lounge silhouette").ToUpperInvariant()), "mbv-label");
+            var silhouettes = Add(characterPage, new VisualElement(), "mbv-seg-row");
+            var choices = new[] { "", "terran", "vossk", "nivelian", "midorian", "void", "cyborg", "octopod", "bobolian", "grey" };
+            var labels = new[] { "Auto", "Terran", "Vossk", "Nivelian", "Midorian", "Void", "Cyborg", "Octopod", "Bobolian", "Grey" };
+            for (int i = 0; i < choices.Length; i++)
+            {
+                string choice = choices[i];
+                var b = Act(silhouettes, labels[i], () => { c.Silhouette = choice; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg");
+                b.EnableInClassList("mbv-seg--on", string.Equals(c.Silhouette ?? "", choice, StringComparison.OrdinalIgnoreCase));
+            }
+            Note(characterPage, T("mbSilhouetteNote", "Auto preserves the original race-based figure. Cyborg and Midorian use the original Terran male mesh; Octopod uses the Multipod mesh."));
 
             Heading(characterPage, T("mbStandsInForOptional", "Stands in for (optional)"));
             var srow = Add(characterPage, new VisualElement(), "mbv-row");
