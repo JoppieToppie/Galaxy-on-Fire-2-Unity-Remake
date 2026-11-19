@@ -20,7 +20,7 @@ namespace GoF2Remake.Multiplayer
 
         internal static string Modules()
         {
-            return "Station modules:\nStorage — 50 Iron, 25 Titanium, 20 Electronics. Holds 10,000 units.\nRefinery — 100 Iron, 50 Titanium, 30 Electronics, 20 Microchips. Requires storage; converts 10 ore into 1 matching ore core.\nFactory — 150 Iron, 100 Titanium, 50 Electronics, 50 Microchips. Requires storage; manufactures trade commodities from stored inputs.\nShip hangar — 100 Iron, 100 Titanium, 80 Electronics, 50 Microchips. Stores up to 100 bare profile-owned hulls; removable equipment and cargo must fit station storage.\nInstall with /station install <station id> storage|refinery|factory|hangar.";
+            return "Station modules:\nStorage — 50 Iron, 25 Titanium, 20 Electronics. Holds 10,000 units.\nRefinery — 100 Iron, 50 Titanium, 30 Electronics, 20 Microchips. Requires storage; converts 10 ore into 1 matching ore core.\nFactory — 150 Iron, 100 Titanium, 50 Electronics, 50 Microchips. Requires storage; manufactures trade commodities from stored inputs.\nShip hangar — 100 Iron, 100 Titanium, 80 Electronics, 50 Microchips. Stores up to 100 small/medium bare hulls.\nDry dock — 200 Iron, 150 Titanium, 100 Electronics, 80 Microchips. Stores up to 20 frigates, freighters, cruisers and carriers as bare hulls. Both transfer removable equipment and cargo into station storage.\nInstall with /station install <station id> storage|refinery|factory|hangar|drydock.";
         }
 
 
@@ -233,6 +233,133 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
             return "Returned a bare " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) +
                 " to your personal stored fleet. Its equipment and cargo remain in station storage.";
+        }
+
+        const int MaxDryDockShipsPerStation = 20;
+
+        static bool IsDryDockHull(StoredShip ship)
+        {
+            var data = ship == null ? null : NetGame.Db?.Ship(ship.ship);
+            string kind = Modding.ShipClassRules.ClassOf(data);
+            return string.Equals(kind, Modding.ShipClassRules.Frigate, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(kind, Modding.ShipClassRules.Freighter, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(kind, Modding.ShipClassRules.Cruiser, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(kind, Modding.ShipClassRules.Carrier, StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal static string InstallDryDock(NetPlayer by, int id)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManage(by, record, out string account)) return "Dock at this station and use its controlling profile to manage it.";
+            if (record.underConstruction) return "Finish station construction before installing modules.";
+            if (record.addons?.Exists(a => a != null && a.kind == "drydock") == true) return "This station already has a dry dock.";
+            if (record.addons?.Count >= MaxAddonsPerStation) return "This station has reached its module limit.";
+            var costs = new[] { (item: 156, amount: 200), (item: 155, amount: 150), (item: 118, amount: 100), (item: 127, amount: 80) };
+            foreach (var cost in costs)
+                if (NetProfiles.CargoAmount(account, cost.item) < cost.amount)
+                    return "Insufficient " + (NetGame.Db?.Item(cost.item)?.name ?? ("item " + cost.item)) + "; no dry dock was installed.";
+            record.addons ??= new List<PlayerStationAddon>();
+            record.addons.Add(new PlayerStationAddon { kind = "drydock", level = 1 });
+            if (!CommitCargoTransaction(account, (156, -200), (155, -150), (118, -100), (127, -80)))
+            {
+                record.addons.RemoveAt(record.addons.Count - 1);
+                return "The dry dock installation transaction could not be journalled; no materials were taken.";
+            }
+            if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
+                foreach (var cost in costs) NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, cost.item, cost.amount, 0, "", "Station dry dock");
+            return "Dry dock installed at " + record.name + ". It accepts frigates, freighters, cruisers and carriers with a configured ship class.";
+        }
+
+        internal static string DryDockStatus(NetPlayer by, int id)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManageHangar(by, record, out _)) return "Dry dock access is private to the owner and authorised faction members.";
+            if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
+                return "This station has no dry dock module.";
+            record.dryDockShips ??= new List<StoredShip>();
+            var lines = new List<string> { "Dry dock at " + record.name + ":" };
+            for (int i = 0; i < record.dryDockShips.Count; i++)
+            {
+                var ship = record.dryDockShips[i]; if (ship == null) continue;
+                lines.Add((i + 1) + ". " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("Ship " + ship.ship)) +
+                    " — " + (ship.mods?.Count ?? 0) + " hull upgrades, bare hull");
+            }
+            if (lines.Count == 1) lines.Add("No large ships are stored here.");
+            lines.Add("Capacity: " + record.dryDockShips.Count + "/" + MaxDryDockShipsPerStation);
+            lines.Add("Eligible classes: Frigate, Freighter, Cruiser, Carrier.");
+            return string.Join("\n", lines);
+        }
+
+        internal static string DryDockStoreShip(NetPlayer by, int id, int fleetIndex)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its dry dock.";
+            if (record.underConstruction) return "Finish station construction before using the dry dock.";
+            if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false)) return "Install a dry dock module first.";
+            if (StorageCapacity(record) <= 0) return "Install station storage first; ship equipment and cargo are transferred there.";
+            record.dryDockShips ??= new List<StoredShip>();
+            if (record.dryDockShips.Count >= MaxDryDockShipsPerStation) return "This station's dry dock is full.";
+            var fleet = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
+            if (fleet == null || fleetIndex < 1 || fleetIndex > fleet.Count) return "That index is not in your personal stored fleet. Use /station fleet.";
+            var candidate = fleet[fleetIndex - 1];
+            if (!IsDryDockHull(candidate)) return "The dry dock only accepts ships classified as Frigate, Freighter, Cruiser or Carrier.";
+            var items = new Dictionary<int, long>();
+            if (!CollectShipInventory(candidate, items)) return "The ship contains an invalid equipment or cargo item; nothing was transferred.";
+            if (!CanFitStationItems(record, items)) return "Station storage lacks the capacity or item-type space for this ship's equipment and cargo; nothing was transferred.";
+            if (!NetProfiles.RemoveStoredShip(account, by.OwnerClientId, fleetIndex - 1, out StoredShip ship))
+                return "The ship could not be removed from your personal fleet.";
+            var previousStorage = new List<PlayerStationStorage>();
+            foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
+                if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
+            AddStationItems(record, items);
+            record.dryDockShips.Add(BareHull(ship));
+            if (!Save())
+            {
+                record.dryDockShips.RemoveAt(record.dryDockShips.Count - 1);
+                record.storage = previousStorage;
+                if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, ship))
+                    Debug.LogError("NetPlayerStations: failed to roll back dry dock transfer for profile " + account);
+                return "The dry dock could not save the transfer; the ship and its inventory were returned to your personal fleet.";
+            }
+            if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
+            return "Stored " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " in the dry dock at " + record.name + ".";
+        }
+
+        internal static string DryDockRetrieveShip(NetPlayer by, int id, int dockIndex)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its dry dock.";
+            if (record.underConstruction) return "Finish station construction before using the dry dock.";
+            if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false)) return "This station has no dry dock module.";
+            record.dryDockShips ??= new List<StoredShip>();
+            if (dockIndex < 1 || dockIndex > record.dryDockShips.Count) return "That index is not in this station's dry dock.";
+            var ship = record.dryDockShips[dockIndex - 1];
+            if (ship == null) return "That stored ship record is invalid.";
+            var items = new Dictionary<int, long>();
+            if (!CollectShipInventory(ship, items)) return "The stored ship contains an invalid equipment or cargo item; nothing was withdrawn.";
+            if (items.Count > 0 && !CanFitStationItems(record, items)) return "Station storage cannot accommodate this legacy ship inventory; nothing was withdrawn.";
+            var bare = BareHull(ship);
+            if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, bare)) return "Your personal stored fleet is full or could not be saved.";
+            var previousStorage = new List<PlayerStationStorage>();
+            foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
+                if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
+            AddStationItems(record, items);
+            record.dryDockShips.RemoveAt(dockIndex - 1);
+            if (!Save())
+            {
+                record.dryDockShips.Insert(dockIndex - 1, ship);
+                record.storage = previousStorage;
+                var personal = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
+                if (personal == null || personal.Count == 0 || !NetProfiles.RemoveStoredShip(account, by.OwnerClientId, personal.Count - 1, out _))
+                    Debug.LogError("NetPlayerStations: failed to roll back dry dock retrieval for profile " + account);
+                return "The dry dock could not save the withdrawal; the ship remains stored.";
+            }
+            if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
+            return "Returned a bare " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " to your personal stored fleet.";
         }
 
         internal static string Install(NetPlayer by, int id, string kind)
