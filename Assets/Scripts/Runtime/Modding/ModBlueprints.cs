@@ -6,6 +6,8 @@
 //       "ingredients": [ { "item": 155, "amount": 120 }, ... ]   (in the hold; items too, demounted),
 //       "requiresShip": "mod_id:ship_id"       (optional: only built while flying that ship, which it replaces: a skin),
 //       "dryDockOnly": true                 (optional: ship blueprint requires a player station dry dock; large ship classes always do),
+//       "consumeBlueprint": true          (optional: consume the unlocked blueprint when construction starts; default false),
+//       "constructionTimeSeconds": 3600    (optional: dry dock build duration; defaults by ship class),
 //       "autocomplete": true | false | 1500000 (the price; true = the original's 1.25 x the product's price),
 //       "available": "condition"               (EventRunner.Condition: before any source offers it),
 //       "unlocked": false                      (true: known as soon as it is available),
@@ -45,7 +47,7 @@ namespace GoF2Remake.Modding
 
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "id", "ship", "item", "ingredients", "requiresShip", "dryDockOnly", "autocomplete", "available", "unlocked", "lounge", "derelict", "drops",
+            "id", "ship", "item", "ingredients", "requiresShip", "dryDockOnly", "consumeBlueprint", "constructionTimeSeconds", "autocomplete", "available", "unlocked", "lounge", "derelict", "drops",
         };
         static readonly HashSet<string> DerelictFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "chance", "race", "stations", "position" };
 
@@ -61,7 +63,8 @@ namespace GoF2Remake.Modding
             public ModInfo mod;
             public string where, localId, shipRef, itemRef, requiresShipRef, available;
             public readonly List<(string item, int amount)> ingredients = new List<(string, int)>();
-            public bool autocomplete = true, unlocked, dryDockOnly;
+            public bool autocomplete = true, unlocked, dryDockOnly, consumeBlueprint;
+            public int constructionTimeSeconds; // 0: choose a duration from the ship class
             public int autocompletePrice = -1;          // -1: the original's formula
             public float loungeChance, derelictChance;  // 0: no such source
             public int loungePrice, loungeRace = -1, derelictRace = -1;
@@ -105,13 +108,15 @@ namespace GoF2Remake.Modding
                     requiresShipRef = ModJson.Str(o, "requiresShip"), available = ModJson.Str(o, "available"),
                     unlocked = ModJson.Bool(o, "unlocked", false, File),
                     dryDockOnly = ModJson.Bool(o, "dryDockOnly", false, File),
+                    consumeBlueprint = ModJson.Bool(o, "consumeBlueprint", false, File),
+                    constructionTimeSeconds = ModJson.Int(o, "constructionTimeSeconds", 0, File),
                 };
                 if (string.IsNullOrEmpty(d.localId) || !ModManifest.ValidId(d.localId))
                     throw new ModJsonException($"{where}: \"id\" is missing or uses more than a-z, 0-9, _ and -");
                 if (!ids.Add(d.localId)) throw new ModJsonException($"{where}: the id \"{d.localId}\" is used twice");
                 if ((d.shipRef == null) == (d.itemRef == null))
                     throw new ModJsonException($"{where}: a blueprint makes either a \"ship\" or an \"item\"");
-                if (d.dryDockOnly && !d.IsShip)
+                if ((d.dryDockOnly || d.consumeBlueprint || d.constructionTimeSeconds > 0) && !d.IsShip)
                     throw new ModJsonException($"{where}: \"dryDockOnly\" is only valid for a ship blueprint");
                 if (!(ModJson.Get(o, "ingredients") is JArray ing) || ing.Count == 0)
                     throw new ModJsonException($"{where}: \"ingredients\" is missing: [ {{ \"item\": 155, \"amount\": 50 }}, ... ]");
