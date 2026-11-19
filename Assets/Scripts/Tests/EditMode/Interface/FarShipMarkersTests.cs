@@ -69,8 +69,8 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Settings.MarkerDistance);
             Settings.FarShipMarkers = 9;
             Assert.AreEqual(Settings.FarMarkerSmallDot, Settings.FarShipMarkers);
-            CollectionAssert.Contains(Settings.GameplayKeys, "farShipMarkers");
-            CollectionAssert.Contains(Settings.GameplayKeys, "markerDistance");
+            CollectionAssert.Contains(Settings.CosmeticsKeys, "farShipMarkers");
+            CollectionAssert.Contains(Settings.CosmeticsKeys, "markerDistance");
         }
 
         // The Minimal HUD shows the lock plate again for a new name only (FlightHud.LateUpdate), not for a hull percentage.

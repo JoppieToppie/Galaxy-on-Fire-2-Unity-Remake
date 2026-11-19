@@ -1519,6 +1519,57 @@
     color: var(--gof-amber);
 }
 
+/* Issue #311: headings share the row margins; the rules warning overlays instead of resizing the page. */
+.options-section-title {
+    margin-top: var(--space-m);
+    margin-bottom: var(--space-m);
+    padding-bottom: var(--space-s);
+    color: var(--gof-cyan);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--gof-line);
+    white-space: normal;
+}
+.options-section-gate {
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+    border-right-width: 0;
+    border-top-width: 0;
+    -unity-text-align: middle-left;
+}
+.options-section-gate.options-section--locked {
+    color: var(--gof-amber);
+}
+.options-rules-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.85);
+}
+.options-rules-confirm {
+    width: 90%;
+    max-width: 620px;
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-l);
+    background-color: var(--gof-panel);
+    border-top-width: 2px;
+    border-top-color: var(--gof-amber);
+}
+.options-rules-confirm > .options-reset-question {
+    flex-grow: 0;
+    margin-right: 0;
+    margin-bottom: var(--space-m);
+}
+.options-rules-confirm > .menu-button {
+    margin-left: 0;
+    margin-top: var(--space-s);
+    white-space: normal;
+}
+
 /* OptionsView: the panel itself, like the main menu's .panel (shown at once, no slide-in). */
 .options-panel {
     width: 94%;
@@ -2520,4 +2571,21 @@
 .pad-keyboard__prompts {
     margin-top: var(--space-s);
     justify-content: center;
+}
+
+.options-section-body .options-group-title {
+    margin-left: var(--space-l);
+    margin-top: var(--space-m);
+    margin-bottom: var(--space-s);
+    padding-bottom: 0;
+    font-size: var(--text-small);
+    color: var(--gof-cyan);
+    border-bottom-width: 0;
+}
+
+.options-rule-group {
+    margin-left: var(--space-l);
+    padding-left: var(--space-m);
+    border-left-width: 1px;
+    border-left-color: var(--gof-line);
 }

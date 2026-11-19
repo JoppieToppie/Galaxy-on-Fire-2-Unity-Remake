@@ -77,13 +77,23 @@ namespace GoF2Remake.Tests
         public void ThePlayersRowShowsTheMatchAndCustomOnlyReadsBack()
         {
             NothingStored();
-            var row = OptionsCatalog.All().First(o => o.id == "gameExperience");
-            Assert.AreEqual(Settings.ExperienceCustom + 1, row.choices().Length, "Original, Cosmetic, Remake, Custom");
-            Assert.AreEqual(Settings.ExperienceOriginal, row.getIndex());
-            row.setIndex(Settings.ExperienceRemake);
-            Assert.AreEqual(Settings.ExperienceRemake, row.getIndex());
+            var row = OptionsCatalog.All().First(o => o.id == "cosmeticExperience");
+            var gameplay = OptionsCatalog.All().First(o => o.id == "gameplayExperience");
+            Assert.AreEqual(3, row.choices().Length, "Original, Remake, Custom");
+            Assert.AreEqual(2, row.getIndex(), "fresh scoped settings have no explicitly selected preset");
+            row.setIndex(1);
+            Assert.AreEqual(1, row.getIndex());
+            Assert.AreEqual(2, gameplay.getIndex(), "cosmetics do not activate a gameplay preset");
+            Assert.IsTrue(Settings.ShopByCategory);
+            gameplay.setIndex(1);
+            Assert.AreEqual(1, gameplay.getIndex());
+            Assert.AreEqual(1, row.getIndex(), "gameplay leaves cosmetics alone");
             OptionsCatalog.All().First(o => o.id == "hangarFlights").setBool(false);
-            Assert.AreEqual(Settings.ExperienceCustom, row.getIndex(), "like the graphics preset");
+            Assert.AreEqual(2, row.getIndex(), "like the graphics preset");
+            Assert.AreEqual(1, gameplay.getIndex());
+            row.setIndex(0);
+            Assert.IsFalse(Settings.ShopByCategory);
+            Assert.AreEqual(1, gameplay.getIndex());
         }
 
         [Test]
@@ -91,7 +101,7 @@ namespace GoF2Remake.Tests
         {
             NothingStored();
             Settings.ApplyExperience(Settings.ExperienceOriginal);
-            foreach (var o in OptionsCatalog.All().Where(o => o.page == OptionPage.Gameplay))
+            foreach (var o in OptionsCatalog.All().Where(o => o.page == OptionPage.Gameplay || o.page == OptionPage.Cosmetics))
             {
                 if (o.visible != null && !o.visible()) continue;   // the smart lock's own option, hidden with the original's lock
                 if (o.kind == OptionKind.Toggle && (Settings.ExperienceKeys.Contains(o.id) || o.id == "informerRule" || o.id == "targetLock"))

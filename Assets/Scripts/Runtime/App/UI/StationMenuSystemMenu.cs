@@ -232,6 +232,11 @@ namespace GoF2Remake.UI
 
         void ShowSystemPage(SysPage page)
         {
+            if (page == SysPage.Debug && !GameRulesAccess.Confirmed)
+            {
+                ShowDialog(GameRulesAccess.Warning, () => { GameRulesAccess.Accept(); ShowSystemPage(page); });
+                return;
+            }
             sysPage = page;
             bool slots = page == SysPage.Save || page == SysPage.Load;
             systemMain.EnableInClassList("system-menu-page--shown", page == SysPage.Main);

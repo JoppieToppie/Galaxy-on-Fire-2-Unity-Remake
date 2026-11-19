@@ -20,7 +20,7 @@ namespace GoF2Remake.UI
 {
     public sealed class OptionsView
     {
-        static readonly OptionPage[] PageOrder = { OptionPage.Sound, OptionPage.Graphics, OptionPage.Controls, OptionPage.Bindings, OptionPage.Gameplay, OptionPage.Accessibility, OptionPage.Language };
+        static readonly OptionPage[] PageOrder = { OptionPage.Sound, OptionPage.Graphics, OptionPage.Controls, OptionPage.Bindings, OptionPage.Cosmetics, OptionPage.Gameplay, OptionPage.Accessibility, OptionPage.Language };
 
         sealed class Tab
         {
@@ -28,6 +28,7 @@ namespace GoF2Remake.UI
             public Button button;
             public ScrollView scroll;
             public readonly List<OptionControl> rows = new List<OptionControl>();
+            public readonly List<OptionSectionBlock> sections = new List<OptionSectionBlock>();
         }
 
         readonly List<Tab> tabs = new List<Tab>();
@@ -35,6 +36,11 @@ namespace GoF2Remake.UI
         readonly Dictionary<VisualElement, OptionControl> byField = new Dictionary<VisualElement, OptionControl>();
         readonly bool focusableRows;
         readonly Label title;
+        readonly VisualElement rulesOverlay;
+        readonly Label rulesQuestion;
+        readonly Button rulesCancel, rulesOpen;
+        Action pendingRulesAction;
+        public bool RulesPromptOpen => rulesOverlay.style.display == DisplayStyle.Flex;
         VisualElement selected;
 
         /// <summary>The panel: add it where the menu's panel goes.</summary>
@@ -101,11 +107,27 @@ namespace GoF2Remake.UI
                 c.Field.AddToClassList("option-row");
                 c.Field.focusable = focusableRows;
                 // Options depend on each other (STP turns MSAA off): every row follows a change.
-                c.Changed += () => { foreach (var o in all) if (o != c) o.Refresh(); Changed?.Invoke(c); };
+                c.Changed += () =>
+                {
+                    foreach (var o in all) if (o != c) o.Refresh();
+                    foreach (var page in tabs) foreach (var section in page.sections) section.Refresh();
+                    Changed?.Invoke(c);
+                };
                 var row = c.Root;
                 var scroll = tab.scroll;
                 if (focusableRows) c.Field.RegisterCallback<FocusInEvent>(_ => { if (!DragScroll.PointerActive) scroll.ScrollTo(row); });
-                tab.scroll.Add(c.Root);
+                VisualElement parent = tab.scroll;
+                if (def.section != OptionSection.None)
+                {
+                    var block = tab.sections.Find(section => section.Section == def.section);
+                    if (block == null)
+                    {
+                        block = new OptionSectionBlock(parent, def.section, RequestRulesAccess, focusableRows, RequestDebugAccess);
+                        tab.sections.Add(block);
+                    }
+                    block.Add(def, c.Root);
+                }
+                else parent.Add(c.Root);
                 tab.rows.Add(c);
                 all.Add(c);
                 byField[c.Field] = c;
@@ -145,6 +167,31 @@ namespace GoF2Remake.UI
             prompts = MenuKeys.Bar(MenuKeys.Rows.Select | MenuKeys.Rows.Change | MenuKeys.Rows.Tabs | MenuKeys.Rows.Confirm | MenuKeys.Rows.Back);
             prompts.AddToClassList("prompt-bar--row");
             Root.Add(prompts);
+            rulesOverlay = new VisualElement();
+            rulesOverlay.AddToClassList("options-rules-overlay");
+            var rulesPanel = new VisualElement();
+            rulesPanel.AddToClassList("options-rules-confirm");
+            rulesQuestion = new Label(GameRulesAccess.Warning) { pickingMode = PickingMode.Ignore };
+            rulesQuestion.AddToClassList("options-reset-question");
+            rulesPanel.Add(rulesQuestion);
+            rulesOpen = new Button(() =>
+            {
+                var accepted = pendingRulesAction;
+                CloseResetPrompt();
+                accepted?.Invoke();
+                RefreshAll();
+                TabChanged?.Invoke();
+            }) { text = GameRulesAccess.Enable.UiCaps(), focusable = focusableRows };
+            rulesCancel = new Button(() => CloseResetPrompt()) { text = Localization.Get(425).UiCaps(), focusable = focusableRows };
+            foreach (var button in new[] { rulesOpen, rulesCancel })
+            {
+                button.AddToClassList("menu-button");
+                button.AddToClassList("gof-semibold");
+                rulesPanel.Add(button);
+            }
+            rulesOverlay.Add(rulesPanel);
+            rulesOverlay.style.display = DisplayStyle.None;
+            Root.Add(rulesOverlay);
 
             SelectTab(0, false);
             // Modified: the language row (OptionsCatalog "language") changes the table while this page is open: re-label it
@@ -165,6 +212,9 @@ namespace GoF2Remake.UI
             CancelButton.text = Localization.Get(425).UiCaps();
             ResetTabButton.text = OptionsCatalog.ResetTabLabel(tabs[TabIndex].page).UiCaps();
             ResetAllButton.text = OptionsCatalog.ResetAllLabel.UiCaps();
+            rulesQuestion.text = GameRulesAccess.Warning;
+            rulesOpen.text = GameRulesAccess.Enable.UiCaps();
+            rulesCancel.text = Localization.Get(425).UiCaps();
             RefreshAll();
         }
 
@@ -188,11 +238,11 @@ namespace GoF2Remake.UI
 
         /// <summary>The footer's buttons as shown, left to right: Back and Default settings, or the prompt's Cancel, this
         /// tab, every tab.</summary>
-        public IReadOnlyList<Button> FooterButtons => ResetPromptOpen
+        public IReadOnlyList<Button> FooterButtons => RulesPromptOpen ? new[] { rulesCancel, rulesOpen } : ResetPromptOpen
             ? new[] { CancelButton, ResetTabButton, ResetAllButton }
             : new[] { BackButton, DefaultsButton };
 
-        public bool IsFooter(VisualElement e) => e is Button b && (b == BackButton || b == DefaultsButton || b == CancelButton || b == ResetTabButton || b == ResetAllButton);
+        public bool IsFooter(VisualElement e) => e is Button b && (b == BackButton || b == DefaultsButton || b == CancelButton || b == ResetTabButton || b == ResetAllButton || b == rulesCancel || b == rulesOpen);
 
         /// <summary>The footer button beside 'e' (dir -1 left, +1 right; stays at the ends).</summary>
         public Button FooterStep(VisualElement e, int dir)
@@ -206,6 +256,17 @@ namespace GoF2Remake.UI
         /// <summary>What a host with its own highlight (the pause menu) does on Enter / A for a footer button.</summary>
         public void Activate(VisualElement e)
         {
+            foreach (var tab in tabs) foreach (var section in tab.sections) if (section.Gate == e) { section.Open(); return; }
+            if (e == rulesCancel) { CloseResetPrompt(); return; }
+            if (e == rulesOpen)
+            {
+                var accepted = pendingRulesAction;
+                CloseResetPrompt();
+                accepted?.Invoke();
+                RefreshAll();
+                TabChanged?.Invoke();
+                return;
+            }
             if (e == BackButton) back?.Invoke();
             else if (e == DefaultsButton) OpenResetPrompt();
             else if (e == CancelButton) CloseResetPrompt();
@@ -217,10 +278,32 @@ namespace GoF2Remake.UI
         public event Action FooterChanged;
         /// <summary>Where the highlight goes after the footer changed: "only this tab" when the prompt opens (the gentler
         /// choice), Default settings when it closes.</summary>
-        public Button FooterFocus => ResetPromptOpen ? ResetTabButton : DefaultsButton;
+        public Button FooterFocus => RulesPromptOpen ? rulesCancel : ResetPromptOpen ? ResetTabButton : DefaultsButton;
+
+        void RequestRulesAccess(Action accepted)
+        {
+            if (GameRulesAccess.Confirmed) { accepted?.Invoke(); return; }
+            rulesQuestion.text = GameRulesAccess.Warning;
+            rulesOpen.text = GameRulesAccess.Enable.UiCaps();
+            pendingRulesAction = () => { GameRulesAccess.Accept(); accepted?.Invoke(); };
+            rulesOverlay.style.display = DisplayStyle.Flex;
+            rulesOverlay.BringToFront();
+            FooterChanged?.Invoke();
+        }
+
+        void RequestDebugAccess(Action accepted)
+        {
+            pendingRulesAction = accepted;
+            rulesQuestion.text = Localization.Extra("debugToolsHelp", "Enable the Debug tools?");
+            rulesOpen.text = GameRulesAccess.DebugEnable.UiCaps();
+            rulesOverlay.style.display = DisplayStyle.Flex;
+            rulesOverlay.BringToFront();
+            FooterChanged?.Invoke();
+        }
 
         void OpenResetPrompt()
         {
+            if (RulesPromptOpen) return;
             if (tabs.Count == 0) return;
             ResetTabButton.text = OptionsCatalog.ResetTabLabel(tabs[TabIndex].page).UiCaps();
             BackButton.style.display = DisplayStyle.None;
@@ -232,6 +315,13 @@ namespace GoF2Remake.UI
         /// <summary>Closes the defaults prompt (Cancel, Esc / B). False when it wasn't open.</summary>
         public bool CloseResetPrompt()
         {
+            if (RulesPromptOpen)
+            {
+                rulesOverlay.style.display = DisplayStyle.None;
+                pendingRulesAction = null;
+                FooterChanged?.Invoke();
+                return true;
+            }
             if (!ResetPromptOpen) return false;
             prompt.style.display = DisplayStyle.None;
             BackButton.style.display = StyleKeyword.Null;
@@ -266,8 +356,23 @@ namespace GoF2Remake.UI
         public List<VisualElement> NavItems()
         {
             var list = new List<VisualElement>();
+            if (RulesPromptOpen) { list.AddRange(FooterButtons); return list; }
             if (ActiveTab != null) list.Add(ActiveTab);
-            if (tabs.Count > 0) foreach (var c in tabs[TabIndex].rows) if (c.Shown && c.Enabled) list.Add(c.Field);
+            bool gateAdded = false;
+            if (tabs.Count > 0) foreach (var c in tabs[TabIndex].rows)
+            {
+                if (c.def.section == OptionSection.GameRules && c.def.id != "gameplayExperience" && c.def.id != "difficulty")
+                {
+                    if (!gateAdded)
+                    {
+                        var block = tabs[TabIndex].sections.Find(section => section.Section == OptionSection.GameRules);
+                        if (block?.Gate != null && !GameRulesAccess.Confirmed) list.Add(block.Gate);
+                        gateAdded = true;
+                    }
+                    if (!GameRulesAccess.Confirmed) continue;
+                }
+                if (c.Shown && c.Enabled) list.Add(c.Field);
+            }
             list.AddRange(FooterButtons);
             return list;
         }
@@ -279,6 +384,7 @@ namespace GoF2Remake.UI
 
         void SelectTab(int index, bool notify)
         {
+            if (RulesPromptOpen) return;
             if (tabs.Count == 0) return;
             TabIndex = Mathf.Clamp(index, 0, tabs.Count - 1);
             for (int i = 0; i < tabs.Count; i++)
@@ -320,6 +426,7 @@ namespace GoF2Remake.UI
         public void RefreshAll()
         {
             foreach (var c in all) c.Refresh();
+            foreach (var tab in tabs) foreach (var section in tab.sections) section.Refresh();
         }
 
     }

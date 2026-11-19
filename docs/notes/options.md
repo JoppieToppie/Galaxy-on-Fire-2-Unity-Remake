@@ -4,6 +4,31 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 
 ## UI and platforms
 
+- **Cosmetics and Gameplay (final organization)**: Cosmetics has Presentation, UI, and HUD and map.
+  Gameplay shows Difficulty beside Gameplay Experience, then expandable Game Rules: World, Progression and economy,
+  Combat and NPC behavior, Traversal, and Missions and simulation. Mod traffic/settings belong to Missions; there is
+  no separate Mods tab. Tools are always visible; every Debug enable asks Enable/Cancel independently of Expand.
+  Nested headings stay cyan and are indented. Interface style and its reset belong to Cosmetics > UI.
+  The UI portion of #345 and explicit selection interaction of #346 are included here to avoid competing edits.
+  Complete preset values and default-reset policy are delivered separately by #346. Save-bound rules remain a
+  proposal under #311; Difficulty is unchanged by reset. Future independently customizable difficulty rules should
+  be considered inside Game Rules without changing current save/session ownership.
+
+- **Cosmetics and Gameplay** (issue #311, UI organization only): Cosmetics has Special features (presentation and
+  transition animations) and UI; Gameplay has QoL and Game Rules. Time speedup near hostiles, stored ships keeping
+  equipment, and autopilot jumpgate confirmations are QoL (defaults: off, off and on respectively). Discord presence
+  belongs to Accessibility. Gameplay Experience is always visible under Game Rules; Expand asks for confirmation
+  before revealing the custom controls, with Debug tools first.
+  Custom Game Rules stay hidden until explicit confirmation; Cancel/Back changes nothing. The same app-session consent
+  gate covers legacy main-menu, station and flight Debug entries. Confirmation enables no cheat and applies no rule.
+  Existing setting keys, save formats and multiplayer authority are retained. Cosmetics and Gameplay reset only
+  their own keys. Cosmetic Experience and Gameplay Experience independently offer Original / Remake / Custom;
+  they reuse their scope's values from the existing explicit preset table. Cosmetic Original sorts by ID, Remake
+  by type. The legacy welcome screen retains its existing whole-experience API. Custom only reports a mixed state.
+  Owner follow-up: bind Kaamo stacking/limit, world content, travel/simulation, informer rules, difficulty and future
+  economy/balance profiles to the playthrough. Preserve purchased upgrades during migration. Autocomplete and
+  combat/AI need UI separation but are not proposed as mandatory save-bound settings. Stored equipment is QoL.
+
 - Text comes from the original table via `Localization.Get(textId)`; remake-only strings via `Extra(key, english)`,
   translated per language in `Resources/GoF2Localization/extra_<lang>.json` (a { key: text } object, loaded with the
   table by `Localization.LoadExtra`; 11 languages, KiritoJPK, PR #54, then Chinese and Hindi; a key it lacks stays
@@ -143,7 +168,8 @@ build without them hides STP instead of freezing. **DLSS / FSR 2-4** (`UpscalerF
 behind the undocumented `ENABLE_UPSCALER_FRAMEWORK` define (Player settings, Standalone only; Android keeps the asset's
 upscaling filter) on the built-in modules `com.unity.modules.nvidia` / `com.unity.modules.amd`. With it compiled in URP
 ignores the old upscaling filter: every upscaler choice goes through `UniversalRenderPipeline.SetUpscaler` (Off =
-`unity.auto`, `amd.fsr1`, `unity.stp`, `nvidia.dlss4`, the newest of `amd.fsr4` / `fsr3` / `fsr2`), set again on
+`unity.auto`, `amd.fsr1`, `unity.stp`,
+vidia.dlss4`, the newest of `amd.fsr4` / `fsr3` / `fsr2`), set again on
 `RenderPipelineManager.activeRenderPipelineCreated`; the quality mode on the framework's options; device support from
 the framework's own `isSupportedOnDevice` (read through the internal `UniversalRenderPipeline.upscaling`; DLSS: RTX,
 D3D11 / 12 / Vulkan; FSR 2 D3D11 / 12 / Vulkan; FSR 3 / 4 D3D12, FSR 4 AMD's newest GPUs; Windows builds only; only
@@ -254,3 +280,6 @@ verified on a Mac or an iPhone.
   reflections pick their blur by mip level); textures made at run time (the mods') aren't affected. Android already
   compresses everything as ASTC (the project's Android default format). Mobile is always display-synced: V-Sync there
   means `targetFrameRate` = display refresh rate.
+
+- Interface style belongs to Cosmetics > UI, including reset ownership. Remake is the default even with Original presets. Original UI is a manual legacy appearance option; experience presets preserve that choice.
+- Original and Remake experience presets activate only through explicit selection. Any manual change in the corresponding Cosmetics or Gameplay section persistently selects Custom, even after values return to a preset match. Gameplay Custom and Expand share the same consent gate: accepting selects Custom without altering any rule or cheat; cancelling changes nothing.

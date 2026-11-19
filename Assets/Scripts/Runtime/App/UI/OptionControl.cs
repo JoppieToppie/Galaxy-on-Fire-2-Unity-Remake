@@ -50,6 +50,18 @@ namespace GoF2Remake.UI
         /// <summary>The player changed the value through this row.</summary>
         public event Action Changed;
 
+        void NotifyChanged()
+        {
+            // Opening a picker/folder or resetting a run is an action, not an experience setting edit.
+            // An action that really writes a Settings value marks its scope through Settings.Set itself.
+            if (def.kind != OptionKind.Button && def.section != OptionSection.Tools)
+            {
+                if (def.page == OptionPage.Cosmetics && def.id != "cosmeticExperience") Settings.SelectCustomExperience(true);
+                if (def.page == OptionPage.Gameplay && def.id != "gameplayExperience" && def.id != "difficulty") Settings.SelectCustomExperience(false);
+            }
+            Changed?.Invoke();
+        }
+
         /// <summary>Every row on show reads its setting again: a change that finishes later than its row's press (the
         /// interface font's import, after the file picker).</summary>
         public static void RefreshShown() => refreshShown?.Invoke();
@@ -66,7 +78,7 @@ namespace GoF2Remake.UI
             {
                 case OptionKind.Slider:
                     slider = new Slider(d.min, d.max);
-                    slider.RegisterValueChangedCallback(e => { d.set(e.newValue); UpdateSliderLabel(); Changed?.Invoke(); });
+                    slider.RegisterValueChangedCallback(e => { d.set(e.newValue); UpdateSliderLabel(); NotifyChanged(); });
                     Field = slider;
                     BuildSliderBox(d.volume);
                     // Enter / Space on a focused slider with keys and mouse: type its value (the main menu's and the
@@ -81,7 +93,7 @@ namespace GoF2Remake.UI
                     break;
                 case OptionKind.Toggle:
                     toggle = new Toggle();
-                    toggle.RegisterValueChangedCallback(e => { d.setBool(e.newValue); Changed?.Invoke(); });
+                    toggle.RegisterValueChangedCallback(e => { d.setBool(e.newValue); NotifyChanged(); });
                     Field = toggle;
                     break;
                 case OptionKind.Binding:
@@ -89,19 +101,25 @@ namespace GoF2Remake.UI
                     Field = binding;
                     break;
                 case OptionKind.Button:
-                    button = new Button(() => { d.action?.Invoke(); Changed?.Invoke(); });
+                    button = new Button(() => { d.action?.Invoke(); NotifyChanged(); });
                     button.AddToClassList("option-button");
                     Field = button;
                     break;
                 default:
                     // Modified: every choice is a drop-down (ChoiceRow, ChoicePopup), the few-value ones too (they were segments).
                     choice = new ChoiceRow(false);
+                    choice.InterceptPick = i =>
+                    {
+                        if (i != 2 || d.customRulesRequested == null) return false;
+                        d.customRulesRequested();
+                        return true;
+                    };
                     choice.Changed += i =>
                     {
                         int before = d.getIndex();
                         d.setIndex(i);
                         UpdateDescription();
-                        Changed?.Invoke();
+                        NotifyChanged();
                         // A display or size change asks to be kept, else it goes back by itself (docs/UI-DESIGN.md "Options").
                         if (d.confirm && before != i) SettingsConfirm.Changed(this, before);
                     };
@@ -267,7 +285,7 @@ namespace GoF2Remake.UI
             if (!Enabled) return;
             if (slider != null) { if (InputMode.Current != InputKind.Gamepad) BeginEdit(null); }
             else if (toggle != null) toggle.value = !toggle.value;
-            else if (button != null) { def.action?.Invoke(); Changed?.Invoke(); }
+            else if (button != null) { def.action?.Invoke(); NotifyChanged(); }
             else if (binding != null) binding.Activate();
         }
     
@@ -360,7 +378,7 @@ namespace GoF2Remake.UI
                 {
                     def.set(v);
                     Refresh();
-                    Changed?.Invoke();
+                    NotifyChanged();
                 }
             }
             // Back on the row unless a click took the focus elsewhere (the menu's selection stays on it).
@@ -451,7 +469,7 @@ namespace GoF2Remake.UI
             else if (choice != null && !def.confirm) def.setIndex(Mathf.RoundToInt(d));
             else return;
             Refresh();
-            Changed?.Invoke();
+            NotifyChanged();
         }
 
         /// <summary>The selected row (focused, or the pause menu's / photo panel's highlight) takes a typed digit, and
