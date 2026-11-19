@@ -4,23 +4,38 @@ namespace GoF2Remake.Multiplayer
 {
     public static partial class NetPlayerStations
     {
+        static bool IsFactionManager(PlayerStationRecord record, string account)
+        {
+            if (record == null || string.IsNullOrEmpty(account)) return false;
+            string factionId = record.ownershipType == PlayerStationOwnershipType.Faction
+                ? record.ownerFactionId : NetFactions.Of(record.ownerProfile)?.id;
+            if (string.IsNullOrEmpty(factionId)) return false;
+            var faction = NetFactions.Of(account);
+            return faction != null && string.Equals(faction.id, factionId, StringComparison.Ordinal) &&
+                (string.Equals(faction.leader, account, StringComparison.Ordinal) ||
+                 faction.officers?.Contains(account) == true);
+        }
+
+        static bool HasFactionFacilityAccess(NetPlayer by, PlayerStationRecord record, string account)
+        {
+            if (!NetGame.IsServer || !sessionActive || registry == null || record == null ||
+                by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) || string.IsNullOrEmpty(account))
+                return false;
+
+            string factionId = record.ownershipType == PlayerStationOwnershipType.Faction
+                ? record.ownerFactionId : NetFactions.Of(record.ownerProfile)?.id;
+            if (string.IsNullOrEmpty(factionId)) return false;
+            if (record.ownershipType == PlayerStationOwnershipType.Individual && !record.factionStorageAccess)
+                return false;
+            var memberFaction = NetFactions.Of(account);
+            return memberFaction != null && string.Equals(memberFaction.id, factionId, StringComparison.Ordinal);
+        }
+
         static bool CanManageStorage(NetPlayer by, PlayerStationRecord record, out string account)
         {
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
-            if (CanManage(by, record, out account)) return true;
-            if (!NetGame.IsServer || !sessionActive || registry == null || record == null ||
-                !record.factionStorageAccess || by == null || !by.IsSpawned || !by.InHangar ||
-                by.Station != record.stationIndex || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) ||
-                string.IsNullOrEmpty(account) || string.IsNullOrEmpty(record.ownerProfile))
-                return false;
-
-            var memberFaction = NetFactions.Of(account);
-            if (memberFaction == null) return false;
-            if (record.ownershipType == PlayerStationOwnershipType.Faction)
-                return !string.IsNullOrEmpty(record.ownerFactionId) &&
-                    string.Equals(record.ownerFactionId, memberFaction.id, StringComparison.Ordinal);
-            var ownerFaction = NetFactions.Of(record.ownerProfile);
-            return ownerFaction != null && string.Equals(ownerFaction.id, memberFaction.id, StringComparison.Ordinal);
+            return CanManage(by, record, out account) || HasFactionFacilityAccess(by, record, account);
         }
 
         internal static string SetStorageAccess(NetPlayer by, int id, string mode)
