@@ -217,7 +217,7 @@ namespace GoF2Remake.Multiplayer
                 if (target == null || !NetFactions.SetBankAmount(target.factionId, target.amount))
                     return false;
             foreach (var target in journal.storedShips)
-                if (target == null || string.IsNullOrEmpty(target.account) ||
+                if (target == null || string.IsNullOrEmpty(target.account) || target.ships == null ||
                     !NetProfiles.SetStoredShips(target.account, target.ships))
                     return false;
 
