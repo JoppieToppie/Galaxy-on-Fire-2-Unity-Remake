@@ -193,7 +193,8 @@ namespace GoF2Remake.Multiplayer
 
         static void ReconcileConsumedBlueprints()
         {
-            if (registry?.consumedBlueprints == null || GoF2Remake.Data.Session.UnlockedBlueprints == null) return;
+            // The registry is server-owned. Never mutate a joining client's local blueprint unlocks.
+            if (!NetGame.IsServer || registry?.consumedBlueprints == null || GoF2Remake.Data.Session.UnlockedBlueprints == null) return;
             foreach (int item in registry.consumedBlueprints)
                 GoF2Remake.Data.Session.UnlockedBlueprints.Remove(item);
             consumedBlueprintsReconciled = true;
