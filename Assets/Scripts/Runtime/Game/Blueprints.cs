@@ -226,7 +226,7 @@ namespace GoF2Remake.Data
         /// <summary>210 / 223 can't be started in a system without gate routes (528).</summary>
         public static bool CanStartIn(Database db, int product, int station)
         {
-            if (Modding.ModBlueprints.RequiresDryDock(product) && !Multiplayer.NetPlayerStations.HasDryDockAtStation(station)) return false;
+            if (Modding.ModBlueprints.RequiresDryDock(product, db) && !Multiplayer.NetPlayerStations.HasDryDockAtStation(station)) return false;
             if (!NeedsRoutes.Contains(product)) return true;
             int sys = db.Stations.Find(x => x.index == station)?.system ?? -1;
             var routes = db.Systems.Find(x => x.index == sys)?.jumpRoutesTo;
