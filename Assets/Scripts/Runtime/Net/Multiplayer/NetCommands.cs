@@ -368,7 +368,7 @@ namespace GoF2Remake.Multiplayer
             if (args.StartsWith(transferStatus, StringComparison.OrdinalIgnoreCase))
             {
                 if (!int.TryParse(args.Substring(transferStatus.Length).Trim(), out int stationId)) return "/station transfer-status <station id>";
-                return NetPlayerStations.TransferStatus(stationId);
+                return NetPlayerStations.TransferStatus(by as NetPlayer, stationId);
             }
             const string transfer = "transfer ";
             if (args.StartsWith(transfer, StringComparison.OrdinalIgnoreCase))
