@@ -609,5 +609,26 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(2, Settings.CurrentScopedExperience(cosmetics), "explicit Custom preserves values but changes mode");
         }
 
+        [Test]
+        public void KaamoUiDefaultsOnAndResetsOnlyWithCosmetics()
+        {
+            Settings.Reset(new[] { "kaamoSpecialUiFeatures" });
+            var row = OptionsCatalog.All().Single(o => o.id == "kaamoSpecialUiFeatures");
+            Assert.AreEqual("Kaamo special UI features", row.label());
+            Assert.AreEqual(OptionPage.Cosmetics, row.page);
+            Assert.AreEqual(OptionSection.Interface, row.section);
+            Assert.IsTrue(row.getBool());
+            row.setBool(false);
+            Settings.Reset(Settings.GameplayKeys);
+            Assert.IsFalse(row.getBool());
+            Settings.Reset(Settings.CosmeticsKeys);
+            Assert.IsTrue(row.getBool());
+            Assert.AreEqual(OptionSection.GameRules, OptionsCatalog.All().Single(o => o.id == "kaamoVip").section);
+        }
+
+
+
+
+
     }
 }

@@ -695,12 +695,15 @@ namespace GoF2Remake.UI
                 () => Settings.KaamoKeepsEquipment, v => Settings.KaamoKeepsEquipment = v);
             kaamoGear.description = () => X("kaamoKeepsEquipmentHelp", "A ship parked in the Kaamo Club keeps its weapons and equipment.");
             list.Add(SessionRule(kaamoGear));
-            // Remake (players' suggestion): the Kaamo Club VIP Card's shop tools (KaamoClub.VipFeatures): search, sorting, a Ships
-            // tab in the club's storage, a Kaamo marker on dealers' ships already stored there.
+            var kaamoUi = Toggle("kaamoSpecialUiFeatures", OptionPage.Gameplay, () => X("kaamoSpecialUiFeatures", "Kaamo special UI features"),
+                () => Settings.KaamoSpecialUiFeatures, v => Settings.KaamoSpecialUiFeatures = v);
+            kaamoUi.description = () => X("kaamoSpecialUiFeaturesHelp", "Free search, sorting, a Ships tab and stored-ship markers for Kaamo Club owners. Independent of VIP membership.");
+            list.Add(kaamoUi);
+            // The paid VIP membership discounts ship upgrades only; free UI tools have a separate cosmetic toggle.
             list.Add(Choice("kaamoVip", OptionPage.Gameplay, () => X("kaamoVip", "Kaamo Club VIP Card"), false,
                 () => new[] { X("kaamoVipOff", "Off"), X("kaamoVipCard", "Buy at the club"), X("kaamoVipAlways", "Always on") },
                 () => (Settings.KaamoVipMode + 1) % 3, i => Settings.KaamoVipMode = (i + 2) % 3,   // Off (the original) first
-                () => X("kaamoVipOptionHelp", "The VIP Card adds a search box and sorting to the Kaamo Club's Store, a Ships tab for your stored ships, and a Kaamo marker on ships you already keep there. Buy at the club: the card is sold in the Store tab. Always on: no card needed. Off: the original club.")));
+                () => X("kaamoVipOptionHelp", "The VIP Card gives 20% off ship upgrades by Kaamo mechanics. Ships and equipment are excluded. Buy at the club: membership costs 1,000,000 credits. Always on: no card needed. Off: no discount. Storage UI tools are a separate cosmetic option.")));
             // Remake (PR #282): the shop's and storage's item order (Hangar.ShopItems); off = the original's, by item number.
             var shopOrder = Toggle("shopByCategory", OptionPage.Gameplay, () => X("shopByCategory", "Sort the shop by category"),
                 () => Settings.ShopByCategory, v => Settings.ShopByCategory = v);

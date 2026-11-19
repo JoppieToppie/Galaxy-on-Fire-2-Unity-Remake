@@ -84,7 +84,7 @@ namespace GoF2Remake.UI
         void Rebuild()
         {
             if (!IsOpen) return;
-            UpdateVipTools();   // remake: the VIP Card's Ships tab and tools (a Ships tab without them falls back to the Store)
+            UpdateVipTools();   // remake: the free Kaamo Ships tab and tools (a Ships tab without them falls back to the Store)
             tabShip.EnableInClassList("hangar-tab--active", tab == Tab.Ship);
             tabShop.EnableInClassList("hangar-tab--active", tab == Tab.Shop);
             tabBlueprints.EnableInClassList("hangar-tab--active", tab == Tab.Blueprints);
@@ -104,7 +104,7 @@ namespace GoF2Remake.UI
                 {
                     // Remake: the Kaamo Club VIP Card, for sale at the top of the Store (HangarWindowKaamoVip).
                     if (KaamoClub.VipForSale) AddRow(new Row { kind = RowKind.VipCard });
-                    // Station::getShips(108): the parked hulls (remake: in the Ships tab with the VIP Card's perks).
+                    // Station::getShips(108): the parked hulls (remake: in the Ships tab with the free UI tools).
                     if (!VipTools)
                     {
                         if (Session.KaamoShips.Count > 0) AddHeader(T(173));
@@ -121,7 +121,7 @@ namespace GoF2Remake.UI
                 int listed = 0;
                 for (int type = 0; type <= 4; type++)
                 {
-                    // Remake: with the VIP Card's perks the storage's search and order (SortItems keeps the list's own without).
+                    // Remake: with the free UI tools the storage's search and order (SortItems keeps the list's own without).
                     var ofType = SortItems(items.Where(i => hangar.TypeOf(i) == type && ItemMatches(i)));
                     if (ofType.Count == 0) continue;
                     AddHeader(T(typeHeaders[type]));
@@ -130,7 +130,7 @@ namespace GoF2Remake.UI
                 }
                 if (listed == 0 && VipTools && search.Length > 0) AddNote(NoMatchText());
             }
-            else if (tab == Tab.Ships) AddStoredShipsTab();   // remake: the VIP Card's Ships tab
+            else if (tab == Tab.Ships) AddStoredShipsTab();   // remake: the free Kaamo Ships tab
             else if (tab == Tab.Blueprints)
             {
                 var db = level.Database;

@@ -872,10 +872,10 @@ namespace GoF2Remake.Data
         public static bool FreshInstall => !PlayerPrefs.HasKey(Prefix + PlayedKey);
         const string PlayedKey = "experienceDefaults.played";
 
-        /// <summary>Remake (players' suggestion): the Kaamo Club VIP Card's shop tools (KaamoClub.VipFeatures): KaamoVipCard =
-        /// the card is bought in the club's Store tab (the Remake experience), KaamoVipAlways = on without it, KaamoVipOff = never (default, the
-        /// original's club).</summary>
+        /// <summary>The VIP membership mode controls the upgrade discount only.</summary>
         public static int KaamoVipMode { get => Mathf.Clamp(Mathf.RoundToInt(Get("kaamoVip", KaamoVipOff)), 0, 2); set => Set("kaamoVip", Mathf.Clamp(value, 0, 2)); }
+        /// <summary>Free Kaamo storage tools, enabled by default and independent of membership.</summary>
+        public static bool KaamoSpecialUiFeatures { get => GetBool("kaamoSpecialUiFeatures", true); set => SetBool("kaamoSpecialUiFeatures", value); }
         public const int KaamoVipCard = 0, KaamoVipAlways = 1, KaamoVipOff = 2;
         /// <summary>Remake (PR #282): the shop and storage list items by category, then tech level (Hangar.ShopItems); off
         /// (default) by item index, as the original's Item::mixItems.</summary>
@@ -1114,7 +1114,7 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] CosmeticsKeys =
         {
-            "cosmeticExperienceCustom", "launchCamera", "hangarFlights", "tutorialHints", "shopByCategory", "originalUi", "dyingCargoMarkers", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "farShipMarkers", "markerDistance", "interstellarDistance", "systemMapAnimationSpeed",
+            "cosmeticExperienceCustom", "launchCamera", "hangarFlights", "tutorialHints", "shopByCategory", "kaamoSpecialUiFeatures", "originalUi", "dyingCargoMarkers", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "farShipMarkers", "markerDistance", "interstellarDistance", "systemMapAnimationSpeed",
         };
         public static readonly string[] GameplayKeys =
         {
