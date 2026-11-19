@@ -261,6 +261,7 @@ namespace GoF2Remake.Multiplayer
         public override void OnNetworkDespawn()
         {
             if (Instance == this) Instance = null;
+            NetPlayerStations.EndSession();
         }
 
         /// <summary>No other player is in this orbit: the arriving player builds its traffic (only then: the players already

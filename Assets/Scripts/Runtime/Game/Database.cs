@@ -1260,6 +1260,7 @@ namespace GoF2Remake.Data
                 {
                     Modding.ModContent.Apply(db);
                     Modding.ModScripts.Raise("database", db);   // the mod scripts' own changes to the tables, last
+                    GoF2Remake.Multiplayer.NetPlayerStations.Apply(db);   // persistent multiplayer stations follow static and mod stations
                 }
                 finally { applying = outer; }
             }

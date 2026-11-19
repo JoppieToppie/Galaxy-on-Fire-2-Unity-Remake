@@ -15,11 +15,14 @@ namespace GoF2Remake.Multiplayer
     public sealed class PlayerStationRecord
     {
         public int id;
+        /// <summary>The station index assigned in database order; kept stable while the server's mod set stays the same.</summary>
+        public int stationIndex = -1;
         public string name;
         public string ownerProfile;
         public string ownerName;
         public int system;
         public int orbitStation;
+        public int looksLike = -1;
         public long createdUtc;
         public List<PlayerStationAddon> addons = new List<PlayerStationAddon>();
         public List<PlayerStationListing> listings = new List<PlayerStationListing>();
@@ -46,6 +49,7 @@ namespace GoF2Remake.Multiplayer
     public static class NetPlayerStations
     {
         const int MaxStations = 256, MaxAddonsPerStation = 64, MaxListingsPerStation = 512;
+        const int MaxStationsPerSystem = 32;
         const string FileName = "player-stations.json";
 
         [Serializable]
@@ -57,6 +61,7 @@ namespace GoF2Remake.Multiplayer
 
         static Registry registry;
         static string path;
+        static bool sessionActive;
 
         /// <summary>Current server registry; empty until a persistent world starts.</summary>
         public static IReadOnlyList<PlayerStationRecord> Stations => registry?.stations;
@@ -69,7 +74,8 @@ namespace GoF2Remake.Multiplayer
         {
             registry = null;
             path = null;
-            if (!NetGame.PersistentHost && !NetGame.Dedicated) return;
+            sessionActive = NetGame.PersistentHost || NetGame.Dedicated;
+            if (!sessionActive) return;
 
             string folder = NetProfiles.Folder;
             if (string.IsNullOrEmpty(folder)) folder = NetGame.HostedWorldFolder;
@@ -103,6 +109,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Apply the server's station snapshot on a joining game. Clients keep a read-only copy and never save it.</summary>
         internal static void ReceiveSnapshot(string json)
         {
+            sessionActive = true;
             if (string.IsNullOrEmpty(json)) { registry = new Registry(); return; }
             try
             {
@@ -127,6 +134,66 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>Find a station by its persistent server-assigned id.</summary>
         public static PlayerStationRecord Find(int id) => registry?.stations.Find(s => s != null && s.id == id);
+
+        /// <summary>Station model/collision preset inherited by a player station from its chosen orbital anchor.</summary>
+        internal static int LooksLike(int stationIndex)
+        {
+            if (!sessionActive || registry?.stations == null) return -1;
+            foreach (var station in registry.stations)
+                if (station != null && station.stationIndex == stationIndex) return station.looksLike;
+            return -1;
+        }
+
+        /// <summary>End the replicated session view; saved server data is reloaded next time.</summary>
+        internal static void EndSession()
+        {
+            registry = null;
+            path = null;
+            sessionActive = false;
+        }
+
+        /// <summary>Add saved player stations to a freshly loaded game database, after mods have added their stations.</summary>
+        internal static void Apply(Database db)
+        {
+            if (!sessionActive || registry?.stations == null || db?.Stations == null || db.Systems == null) return;
+            foreach (var record in registry.stations)
+            {
+                if (record == null || record.stationIndex < 0) continue;
+                // Station indices also index several legacy tables. Append contiguously so the original index/count
+                // invariant remains true, and refuse a stale or colliding record rather than corrupting another station.
+                if (record.stationIndex != db.Stations.Count)
+                {
+                    if (db.Stations.Find(s => s.index == record.stationIndex) is StationData existing && existing.name == record.name) continue;
+                    Debug.LogError($"NetPlayerStations: station {record.id} expected index {record.stationIndex}, but the database ends at {db.Stations.Count}; check that the server and client use the same mods.");
+                    continue;
+                }
+                var parent = db.Stations.Find(s => s != null && s.index == record.orbitStation);
+                var system = db.Systems.Find(s => s != null && s.index == record.system);
+                if (parent == null || system == null || parent.system != record.system || system.stations == null)
+                {
+                    Debug.LogError($"NetPlayerStations: station {record.id} has an invalid system or orbital anchor; it was not loaded.");
+                    continue;
+                }
+                if (record.looksLike < 0) record.looksLike = Modding.ModWorld.StationLook(parent.index);
+                int count = 0;
+                foreach (var station in registry.stations) if (station != null && station.system == record.system) count++;
+                if (count > MaxStationsPerSystem)
+                {
+                    Debug.LogError($"NetPlayerStations: system {record.system} exceeds the player station limit.");
+                    continue;
+                }
+                db.Stations.Add(new StationData
+                {
+                    index = record.stationIndex,
+                    name = string.IsNullOrWhiteSpace(record.name) ? $"{record.ownerName}'s Station" : record.name,
+                    system = record.system,
+                    systemName = system.name,
+                    techLevel = parent.techLevel,
+                    textureIndex = parent.textureIndex,
+                });
+                if (!system.stations.Contains(record.stationIndex)) system.stations.Add(record.stationIndex);
+            }
+        }
 
         /// <summary>Persist a server-side change atomically, retaining the prior registry as a backup.</summary>
         public static bool Save()

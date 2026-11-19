@@ -254,7 +254,8 @@ namespace GoF2Remake.World
         {
             if (Session.CompletedWorld && station == 109) return 114;
             if (Session.CompletedWorld && station == 110) return 115;
-            return Modding.ModWorld.StationLook(station);
+            int playerStationLook = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(station);
+            return playerStationLook >= 0 ? Modding.ModWorld.StationLook(playerStationLook) : Modding.ModWorld.StationLook(station);
         }
 
         /// <summary>Remake mods: stations.json "orbit" over the seeded layout (Modding.ModWorld.OrbitSpec). The station stays
