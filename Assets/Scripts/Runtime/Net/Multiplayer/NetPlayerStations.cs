@@ -178,6 +178,7 @@ namespace GoF2Remake.Multiplayer
 
         internal static bool IsBlueprintConsumed(int item)
         {
+            if (!consumedBlueprintsReconciled) ReconcileConsumedBlueprints();
             if (registry?.consumedBlueprints?.Contains(item) != true) return false;
             // A later acquisition can unlock the same blueprint again. Startup reconciliation first removes
             // stale unlocks left behind by a crash; an unlock after that point is a genuinely new blueprint.
