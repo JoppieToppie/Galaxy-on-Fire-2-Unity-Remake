@@ -520,8 +520,12 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManageStorage(by, record, out string account))
-                return "Dock at this station and use its controlling profile to manage storage.";
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
+                by.Station != record.stationIndex || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Dock at this station using a controlled profile to manage storage.";
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            if (deposit && !CanManageStorage(by, record, out _))
+                return "Only the owner or authorised faction members may deposit into this station.";
             if (record.underConstruction) return "Finish station construction before using storage.";
             if (amount < 1 || amount > 500 || !NetGuard.Item(item))
                 return "Move between 1 and 500 units of a valid item.";
