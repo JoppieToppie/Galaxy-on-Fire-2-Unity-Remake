@@ -26,7 +26,7 @@ namespace GoF2Remake.UI
         VisualElement vipTools, screenRoot;
         TextField searchField;
         string search = "";
-        bool searchFocused, hintsForVip;
+        bool searchFocused, searchRequested, hintsForVip;
         /// <summary>How the storage's lists are sorted, kept while the game runs (Sort).</summary>
         static int sortMode;
         /// <summary>The club's order, by name (A-Z), by value (highest first), by race (ships) / type (items).</summary>
@@ -58,6 +58,12 @@ namespace GoF2Remake.UI
             searchField = new TextField { maxLength = 40 };
             searchField.AddToClassList("gof-field");
             searchField.AddToClassList("hangar-search");
+            searchField.tabIndex = -1;
+            SetSearchFocus(false);
+            searchField.RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button == 0) { EnableSearchEntry(); searchField.Focus(); }
+            }, TrickleDown.TrickleDown);
             searchField.RegisterValueChangedCallback(e =>
             {
                 string q = (e.newValue ?? "").Trim();
@@ -67,7 +73,11 @@ namespace GoF2Remake.UI
             });
             // The game's own keys rest while it is typed into (NetChat.SetTyping, as the multiplayer window's fields do):
             // W A S D, Q / E, the digits and Enter belong to the box then. Enter or Esc gives the keys back.
-            searchField.RegisterCallback<FocusInEvent>(_ => SetSearchFocus(true));
+            searchField.RegisterCallback<FocusInEvent>(_ =>
+            {
+                if (searchRequested) SetSearchFocus(true);
+                else searchField.Blur();
+            });
             searchField.RegisterCallback<FocusOutEvent>(e =>
             {
                 if (e.relatedTarget is VisualElement to && Inside(to, searchField)) return;
@@ -75,9 +85,9 @@ namespace GoF2Remake.UI
             });
             searchField.RegisterCallback<KeyDownEvent>(e =>
             {
-                if (e.keyCode != KeyCode.Return && e.keyCode != KeyCode.KeypadEnter) return;
+                if (e.keyCode != KeyCode.Return && e.keyCode != KeyCode.KeypadEnter && e.keyCode != KeyCode.Escape) return;
                 e.StopPropagation();
-                searchField.Blur();
+                EndSearchEntry();
             }, TrickleDown.TrickleDown);
             TextFieldKeys.Guard(searchField);
             PhoneKeyboard.Attach(searchField);
@@ -88,9 +98,9 @@ namespace GoF2Remake.UI
             sortButton.clicked += CycleSort;
             vipTools.Add(sortButton);
             // A press anywhere else in the window (a row, a tab) ends the typing: the list's rows take no focus of their own.
-            window.RegisterCallback<PointerDownEvent>(e =>
+            root.RegisterCallback<PointerDownEvent>(e =>
             {
-                if (searchFocused && !(e.target is VisualElement v && Inside(v, searchField))) searchField.Blur();
+                if (searchRequested && !(e.target is VisualElement v && Inside(v, searchField))) EndSearchEntry();
             }, TrickleDown.TrickleDown);
             RefreshVipTexts();
         }
@@ -101,8 +111,25 @@ namespace GoF2Remake.UI
             return false;
         }
 
+        void EnableSearchEntry()
+        {
+            searchRequested = true;
+            searchField.isReadOnly = false;
+        }
+
+        void EndSearchEntry()
+        {
+            searchField?.Blur();
+            SetSearchFocus(false);
+        }
+
         void SetSearchFocus(bool on)
         {
+            if (!on)
+            {
+                searchRequested = false;
+                if (searchField != null) searchField.isReadOnly = true;
+            }
             if (searchFocused == on) return;
             searchFocused = on;
             NetChat.SetTyping(on);
@@ -155,6 +182,7 @@ namespace GoF2Remake.UI
         /// <summary>Open: the search starts empty; the sort stays.</summary>
         void ResetVipTools()
         {
+            EndSearchEntry();
             search = "";
             searchField?.SetValueWithoutNotify("");
             PlaceVipTools();
@@ -166,8 +194,9 @@ namespace GoF2Remake.UI
         {
             if (!SearchTab) return;
             menu.PlayPush();
+            EnableSearchEntry();
             if (pad) { PadKeyboard.Open(screenRoot, searchField); return; }
-            searchField.schedule.Execute(() => { if (SearchTab) searchField.Focus(); });
+            searchField.schedule.Execute(() => { if (SearchTab && searchRequested) searchField.Focus(); });
         }
 
         /// <summary>The sort button / R / the controller's left stick press: the next order.</summary>

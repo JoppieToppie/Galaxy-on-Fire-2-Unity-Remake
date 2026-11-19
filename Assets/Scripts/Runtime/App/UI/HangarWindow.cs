@@ -508,7 +508,7 @@ namespace GoF2Remake.UI
             if (!IsOpen) return;
             AutoEquip();
             if (HasPending) Revert();
-            if (searchFocused) { searchField.Blur(); SetSearchFocus(false); }
+            EndSearchEntry();
             IsOpen = false;
             ClearBlueprintShopHighlight();
             editing = -1;
@@ -547,7 +547,8 @@ namespace GoF2Remake.UI
 
         public void SetTab(Tab t)
         {
-            if (t == Tab.Ships && !VipTools) return;   // the VIP Card's tab, only with its perks at the club
+            EndSearchEntry();
+            if (t == Tab.Ships && !VipTools) return;   // the extra tab, only with the free UI tools at the club
             if (tab == t && rows.Count > 0 && editing < 0) return;
             if (tab == Tab.Shop && t != Tab.Shop) ClearBlueprintShopHighlight();
             // Confirm freight for the entire pending shipment before leaving the recipe.
