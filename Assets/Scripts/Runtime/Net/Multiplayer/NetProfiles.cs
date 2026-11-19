@@ -169,6 +169,13 @@ namespace GoF2Remake.Multiplayer
         internal static string Folder => folder;
 
         /// <summary>A connected player's profile id, null = a guest or not signed in.</summary>
+        /// <summary>Send the server's just-updated profile back to its controller while it is docked.</summary>
+        internal static void RefreshProfile(ulong client)
+        {
+            if (logins.TryGetValue(client, out var login) && login.account != null && login.controller)
+                SendProfile(login, null);
+        }
+
         internal static string AccountOf(ulong client) => logins.TryGetValue(client, out var l) && l.account != null ? l.account.id : null;
 
         /// <summary>A profile's last pilot name, null = unknown.</summary>
