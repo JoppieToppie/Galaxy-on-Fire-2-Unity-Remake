@@ -141,6 +141,20 @@ namespace GoF2Remake.Flight
             return t;
         }
         public bool GoingToGate => AutopilotTarget?.kind == Kind.Jumpgate;
+
+        /// <summary>Add the landmark when a timed player-built gate becomes operational during this orbit.</summary>
+        internal void AddPlayerJumpgateTarget()
+        {
+            if (layout == null || !layout.hasJumpgate) return;
+            gateRadiusUnits = layout.JumpgateRadius;
+            if (Targets.Exists(t => t.kind == Kind.Jumpgate)) return;
+            Targets.Add(new Target
+            {
+                kind = Kind.Jumpgate,
+                fixedPosition = OrbitLayout.ToUnity(layout.Place(layout.jumpgate)),
+                name = Localization.Get(547)
+            });
+        }
         /// <summary>A campaign level's player route (Level+0x108, PlayerEgo::setRoute): its current waypoint is a landmark
         /// target named "Waypoint" (548): marked on the HUD, lockable, and the autopilot flies to it; "Waypoint reached."
         /// (543) / "Last waypoint reached." (544) as the route advances.</summary>
