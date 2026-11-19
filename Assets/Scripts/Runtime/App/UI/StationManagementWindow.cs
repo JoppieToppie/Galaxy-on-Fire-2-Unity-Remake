@@ -203,6 +203,42 @@ namespace GoF2Remake.UI
             foreach (string module in new[] { "storage", "refinery", "factory", "hangar", "drydock" })
                 AddAction("Install " + ModuleLabel(module), "/station install " + id + " " + module);
 
+            AddSection("JUMPGATE NETWORK", "Each completed gate occupies this station's orbit and links to one fixed destination system. Build additional gates in other player-station orbits in the same system to expand the network. Cost: 500 Iron, 250 Titanium, 200 Electronics and 150 Microchips.");
+            if (selected.underConstruction)
+                AddInfo("Jumpgate availability", "This orbit must finish station construction before a jumpgate can be started.");
+            else if (selected.jumpgateDestinationSystem >= 0)
+            {
+                var gateDestination = NetGame.Db?.Systems?.Find(x => x != null && x.index == selected.jumpgateDestinationSystem);
+                AddInfo("Gate destination", gateDestination?.name ?? ("System " + selected.jumpgateDestinationSystem));
+                AddAction("Refresh jumpgate status", "/station jumpgate-status " + id);
+                if (selected.jumpgateStartedUtc <= 0)
+                {
+                    AddInfo("Gate status", "Awaiting construction materials");
+                    if (selected.jumpgateMaterials != null)
+                        foreach (var material in selected.jumpgateMaterials)
+                            if (material != null)
+                                AddInfo(NetGame.Db?.Item(material.item)?.name ?? ("Item " + material.item),
+                                    Math.Max(0, material.delivered) + "/" + Math.Max(0, material.required));
+                    AddField("jumpgateItem", "Contribution item ID", "156");
+                    AddField("jumpgateAmount", "Contribution amount (1–500)", "10");
+                    AddAction("Contribute jumpgate materials", () => Send("/station jumpgate-contribute " + id + " " + Value("jumpgateItem") + " " + Value("jumpgateAmount")));
+                }
+                else if (selected.jumpgateBuilding)
+                {
+                    long remaining = Math.Max(0, selected.jumpgateCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    AddInfo("Gate status", "Under construction · " + remaining.ToString("N0") + " seconds remaining");
+                }
+                else AddInfo("Gate status", "Operational");
+            }
+            else
+            {
+                AddInfo("Gate status", "No gate or active gate project in this orbit");
+                AddField("jumpgateDestination", "Destination system index", "");
+                AddField("jumpgateBuildSeconds", "Build time in seconds (0 = no timer)", "0");
+                AddAction("Start jumpgate construction", () => Send("/station jumpgate " + id + " " +
+                    Value("jumpgateDestination") + " " + Value("jumpgateBuildSeconds")));
+            }
+
             AddSection("STORAGE & ACCESS", "Move goods between your cargo hold and shared station storage. Access can be restricted to the owner or shared with current faction members.");
             AddField("storageItem", "Item ID", "156");
             AddField("storageAmount", "Amount", "10");
