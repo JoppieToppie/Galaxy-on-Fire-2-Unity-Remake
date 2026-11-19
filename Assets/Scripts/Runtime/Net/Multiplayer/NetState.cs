@@ -439,6 +439,7 @@ namespace GoF2Remake.Multiplayer
             if (!IsServer || !IsSpawned) return;
             NetTrade.Tick();      // trade requests and trades that ran out, sides that left the hangar
             NetAudit.Tick();      // the shop runs that stopped, into the money log
+            NetPlayerStations.Tick(); // persistent dry-dock construction timers
             NetProfiles.Tick();   // link codes and handovers that ran out
             NetArena.Tick();      // queues, countdowns, time limits
             if (NetProfiles.Enabled) NetFactions.Tick();   // claims kept by docking members, lapses, stale deposits
