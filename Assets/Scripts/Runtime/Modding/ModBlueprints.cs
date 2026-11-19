@@ -117,7 +117,9 @@ namespace GoF2Remake.Modding
                 if ((d.shipRef == null) == (d.itemRef == null))
                     throw new ModJsonException($"{where}: a blueprint makes either a \"ship\" or an \"item\"");
                 if ((d.dryDockOnly || d.consumeBlueprint || d.constructionTimeSeconds > 0) && !d.IsShip)
-                    throw new ModJsonException($"{where}: \"dryDockOnly\" is only valid for a ship blueprint");
+                    throw new ModJsonException($"{where}: dry-dock construction options are only valid for a ship blueprint");
+                if (d.constructionTimeSeconds < 0 || d.constructionTimeSeconds > 2592000)
+                    throw new ModJsonException($"{where}: \"constructionTimeSeconds\" must be 0 (class default) or between 1 and 2592000");
                 if (!(ModJson.Get(o, "ingredients") is JArray ing) || ing.Count == 0)
                     throw new ModJsonException($"{where}: \"ingredients\" is missing: [ {{ \"item\": 155, \"amount\": 50 }}, ... ]");
                 foreach (var e in ing)
