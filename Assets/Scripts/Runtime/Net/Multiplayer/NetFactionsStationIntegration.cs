@@ -18,9 +18,14 @@ namespace GoF2Remake.Multiplayer
             if (string.IsNullOrEmpty(factionId) || amount < 0 || list?.factions == null) return false;
             var faction = list.factions.Find(x => x != null && string.Equals(x.id, factionId, StringComparison.Ordinal));
             if (faction == null) return false;
+            long previous = faction.bank;
             faction.bank = amount;
-            Save();
-            return BankAmount(factionId) == amount;
+            if (!NetProfiles.Write(PathOf, UnityEngine.JsonUtility.ToJson(list, true)))
+            {
+                faction.bank = previous;
+                return false;
+            }
+            return true;
         }
     }
 }
