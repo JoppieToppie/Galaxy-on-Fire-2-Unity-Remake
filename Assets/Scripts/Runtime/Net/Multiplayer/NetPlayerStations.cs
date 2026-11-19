@@ -50,6 +50,8 @@ namespace GoF2Remake.Multiplayer
         public long builderRightsRelinquishedUtc;
         public string individualSuccessorProfile;
         public string factionSuccessorProfile;
+        public string factionSuccessorFactionId;
+        public PlayerStationOwnershipType factionSuccessorType = PlayerStationOwnershipType.Individual;
         public string factionSuccessorDelegateProfile;
         public PlayerStationFactionPermissionProfile factionPermissions = new PlayerStationFactionPermissionProfile();
         public List<PlayerStationPermissionOverride> permissionOverrides = new List<PlayerStationPermissionOverride>();
