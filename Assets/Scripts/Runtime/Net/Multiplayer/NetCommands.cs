@@ -341,9 +341,9 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
-            new Command { name = "station", usage = "build <name>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+            new Command { name = "station", usage = "systems | start <system id> <name> | contribute <project id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
-                description = () => X("mpCmdStation", "builds a new orbital station while docked at an existing station; persistent worlds only") },
+                description = () => X("mpCmdStation", "starts a station project in any system and deposits construction resources while docked; persistent worlds only") },
         };
 
         static bool ProfilesOn => NetState.Instance != null && NetState.Instance.ProfilesOn;
@@ -351,10 +351,26 @@ namespace GoF2Remake.Multiplayer
         static string Station(string args, IPilot by)
         {
             args = (args ?? "").Trim();
-            const string build = "build ";
-            if (args.Length <= build.Length || !args.StartsWith(build, StringComparison.OrdinalIgnoreCase))
-                return "/station build <name> (build while docked; construction costs 5,000,000 credits)";
-            return NetPlayerStations.Build(by as NetPlayer, args.Substring(build.Length));
+            if (args.Equals("systems", StringComparison.OrdinalIgnoreCase)) return NetPlayerStations.SystemList();
+            const string start = "start ";
+            if (args.StartsWith(start, StringComparison.OrdinalIgnoreCase))
+            {
+                string rest = args.Substring(start.Length).Trim();
+                int split = rest.IndexOf(' ');
+                if (split <= 0 || !int.TryParse(rest.Substring(0, split), out int system))
+                    return "/station start <system id> <name> (planning is available from anywhere in the system)";
+                return NetPlayerStations.StartConstruction(by as NetPlayer, system, rest.Substring(split + 1));
+            }
+            const string contribute = "contribute ";
+            if (args.StartsWith(contribute, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(contribute.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int project) || !int.TryParse(words[1], out int item)
+                    || !int.TryParse(words[2], out int amount))
+                    return "/station contribute <project id> <item id> <amount> (deposit while docked at any station)";
+                return NetPlayerStations.Contribute(by as NetPlayer, project, item, amount);
+            }
+            return "/station systems | start <system id> <name> | contribute <project id> <item id> <amount>";
         }
 
         /// <summary>This player's server role (NetModeration; 0 without profiles).</summary>

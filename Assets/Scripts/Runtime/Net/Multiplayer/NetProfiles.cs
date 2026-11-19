@@ -127,7 +127,7 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>The hosting player's own game (a persistent hosted world): always a profile, always the master admin,
         /// never banned, its uploads never doubted (it runs the world).</summary>
-        static bool IsHostClient(ulong client) => NetGame.PersistentHost && client == Unity.Netcode.NetworkManager.ServerClientId;
+        internal static bool IsHostClient(ulong client) => NetGame.PersistentHost && client == Unity.Netcode.NetworkManager.ServerClientId;
 
         /// <summary>This server's id (accounts.json), the key under which a client keeps its token; "" = none.</summary>
         public static string ServerId => index != null ? index.serverId : "";
@@ -231,6 +231,39 @@ namespace GoF2Remake.Multiplayer
             save.credits = now;
             if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
             AdjustWorth(id, delta);
+            return true;
+        }
+
+        /// <summary>Server-moved cargo for a docked station project or marketplace. The active host's live hold is the
+        /// authority for its own save; another player's last uploaded profile is changed before its game is updated.</summary>
+        internal static bool MoveCargo(ulong client, string id, int item, int delta)
+        {
+            if (id == null || item < 0 || delta == 0 || NetGame.Db.Item(item) == null) return false;
+            if (IsHostClient(client))
+            {
+                int have = Shop.CargoOf(item);
+                if (delta < 0 && have < -delta) return false;
+                if (delta < 0) Shop.RemoveFromCargo(item, -delta);
+                else Shop.AddToCargo(item, delta);
+                GoF2Remake.UI.UiHooks.StationCargoChanged?.Invoke();
+                return true;
+            }
+            var save = ReadSave(id);
+            if (save == null) return false;
+            save.cargo ??= new List<ItemStack>();
+            var stack = save.cargo.Find(s => s != null && s.item == item);
+            int haveSaved = stack?.amount ?? 0;
+            long next = (long)haveSaved + delta;
+            if (next < 0 || next > int.MaxValue) return false;
+            if (stack == null && next > 0) save.cargo.Add(stack = new ItemStack(item, (int)next));
+            else if (stack != null)
+            {
+                stack.amount = (int)next;
+                if (stack.amount == 0) save.cargo.Remove(stack);
+            }
+            if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
+            int unitValue = Math.Max(0, NetGame.Db.Item(item)?.minPrice ?? 0);
+            AdjustWorth(id, (long)unitValue * delta);
             return true;
         }
 
