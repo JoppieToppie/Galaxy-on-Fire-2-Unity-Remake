@@ -29,7 +29,7 @@ namespace GoF2Remake.Multiplayer
                 return "Only the individual owner or owning faction leader can propose a station transfer while docked there.";
             if (record.underConstruction) return "Finish station construction before transferring ownership.";
             targetKind = (targetKind ?? "").Trim().ToLowerInvariant();
-            targetAccount = (targetAccount ?? "").Trim();
+            targetAccount = NetProfiles.FindAccount((targetAccount ?? "").Trim());
             if (targetKind != "player" && targetKind != "faction")
                 return "Choose a recipient type: player or faction.";
             if (string.IsNullOrEmpty(targetAccount)) return "Supply the receiving player's or faction leader's profile account ID.";
@@ -37,8 +37,7 @@ namespace GoF2Remake.Multiplayer
             {
                 if (string.Equals(account, targetAccount, StringComparison.Ordinal))
                     return "The station is already owned by that profile.";
-                if (NetFactions.Of(targetAccount) == null && string.IsNullOrEmpty(targetAccount))
-                    return "The receiving profile could not be identified.";
+                if (string.IsNullOrEmpty(targetAccount)) return "The receiving profile could not be identified. Supply a valid profile ID or account name.";
                 record.pendingTransfer = new PlayerStationTransferProposal
                 {
                     targetType = PlayerStationOwnershipType.Individual,
@@ -153,10 +152,11 @@ namespace GoF2Remake.Multiplayer
             return "Pending transfer of " + record.name + " to " + target + ". Expires in " + remaining + " seconds.";
         }
 
-        internal static string ConstructionContributions(int id)
+        internal static string ConstructionContributions(NetPlayer by, int id)
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (!CanManage(by, record, out _)) return "Only the station owner or owning faction managers can view construction contributions.";
             var lines = new List<string> { "Construction contributions for " + record.name + ":" };
             if (record.constructionContributions == null || record.constructionContributions.Count == 0)
                 lines.Add("No contribution ledger is available.");
