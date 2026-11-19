@@ -222,6 +222,8 @@ namespace GoF2Remake.Multiplayer
                     station.materials ??= new List<PlayerStationMaterial>();
                     station.listings ??= new List<PlayerStationListing>();
                     station.constructionContributions ??= new List<PlayerStationContribution>();
+                    station.jumpgateMaterials ??= new List<PlayerStationMaterial>();
+                    station.jumpgateContributions ??= new List<PlayerStationContribution>();
                     station.storage ??= new List<PlayerStationStorage>();
                     NormalizeStorageLots(station);
                     station.storedShips ??= new List<StoredShip>();
