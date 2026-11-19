@@ -114,7 +114,7 @@ namespace GoF2Remake.Tests
                 Keep(SettingsPrefix + "language", true);
                 Keep(SettingsPrefix + "voiceLanguage", true);
                 // The game experience's migration and the welcome screen (Settings.MigrateExperienceDefaults, WelcomeShown).
-                foreach (var k in new[] { "experienceDefaults", "experienceDefaults.played", "welcomeShown" }) Keep(SettingsPrefix + k, false);
+                foreach (var k in new[] { "experienceDefaults", "experienceDefaults.played", "welcomeShown", "musicTrackGroups.v1" }) Keep(SettingsPrefix + k, false);
                 // Every flight style's layout (GameControls' "_free" / "_chorus" keys): ResetToDefaults below drops the loaded one.
                 foreach (var k in ControlsLayoutKeys) Keep(k, true);
             }

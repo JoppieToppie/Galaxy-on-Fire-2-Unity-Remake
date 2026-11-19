@@ -838,8 +838,26 @@ namespace GoF2Remake.Data
         public static int MedalSound { get => Mathf.Clamp(Mathf.RoundToInt(Get("medalSound", MedalSoundChime)), MedalSoundChime, MedalSoundOff); set => Set("medalSound", Mathf.Clamp(value, MedalSoundChime, MedalSoundOff)); }
         /// <summary>Remake (a player's request, 2026-11-04): a flight music track plays (default) or is skipped (MusicTracks:
         /// a battle track off leaves the calm track playing).</summary>
-        public static bool MusicTrackOn(string track) => GetBool(MusicTracks.Key(track), true);
-        public static void SetMusicTrackOn(string track, bool on) => SetBool(MusicTracks.Key(track), on);
+        public static bool MusicTrackOn(string track)
+        {
+            MigrateMusicTrackGroups();
+            foreach (var member in MusicTracks.Group(track)) if (!GetBool(MusicTracks.Key(member), true)) return false;
+            return true;
+        }
+        public static void SetMusicTrackOn(string track, bool on)
+        {
+            MigrateMusicTrackGroups();
+            foreach (var member in MusicTracks.Group(track)) SetBool(MusicTracks.Key(member), on);
+        }
+
+        /// <summary>CLAUDE.md "Music tracks off": enable every group once on upgrade, then keep the player's choices.</summary>
+        static void MigrateMusicTrackGroups()
+        {
+            if (defaultReads >= 0 || GetBool("musicTrackGroups.v1", false)) return;
+            foreach (var member in MusicTracks.All) SetQuiet(MusicTracks.Key(member), 1f);
+            SetQuiet("musicTrackGroups.v1", 1f);
+            PlayerPrefs.Save();
+        }
         /// <summary>Remake: the touch fire button's double-press autofire latch on the keyboard / mouse / controller fire
         /// binding (the PC version had none).</summary>
         public static bool KeyAutofire { get => GetBool("keyAutofire", false); set => SetBool("keyAutofire", value); }

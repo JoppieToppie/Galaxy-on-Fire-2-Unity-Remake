@@ -293,8 +293,11 @@ simulates an orbit's traffic) and `ship_combat.md` (+ `Reference/tools/combat/co
   Space_Battle_Low / Medium / Full (136 in the alien orbit, at an attacked station and at campaign 0x10; 151 for an
   uncovered criminal, 149 / 150 for Specters). A battle track that plays is kept until the orbit is calm (only 151 takes
   over). Hostiles also block fast-forward. Docked: station 10 at 0x9f plays 144.
-- **Music tracks off** (remake, a Discord player's request 2026-11-04; `MusicTracks`, Options > Sound, one toggle per
-  track, all on by default; `Settings.MusicTrackOn`, keys `musicTrack.<id>` in `Settings.SoundKeys`): the rules above are
+- **Music tracks off** (remake, a Discord player's request 2026-11-04; `MusicTracks`, Options > Sound): four groups in
+  story order: Standard (Low / Medium / Full), The Voids, Stealth Fighters (both tracks), Most Wanted. All are on by
+  default. The one-time `musicTrackGroups.v1` migration enables every track for all players on this upgrade; later
+  choices persist normally. `Settings.MusicTrackOn` reads each member's existing `musicTrack.<id>` key. Setting a group writes all its members;
+  `Settings.SoundKeys` still resets every original key. The rules above are
   `MusicTracks.Category` (pure, `MusicTracksTests`), which skips a turned-off track: Battle Low / Medium / Full (140-142)
   or the Void's 136 off leaves the calm track playing (or keeps the battle track already playing, as before, until the
   orbit is calm); Specters 149 / 150 or the criminal's 151 off gives the battle track the ship count picks (the calm one

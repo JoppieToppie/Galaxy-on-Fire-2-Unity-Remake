@@ -143,13 +143,10 @@ namespace GoF2Remake.UI
         /// <summary>Options > Sound's music track rows: track, Localization.Extra key, English label.</summary>
         static readonly (string track, string key, string english)[] MusicTrackRows =
         {
-            (MusicTracks.BattleLow, "musicBattleLow", "Battle music: few enemies"),
-            (MusicTracks.BattleMedium, "musicBattleMedium", "Battle music: several enemies"),
-            (MusicTracks.BattleFull, "musicBattleFull", "Battle music: many enemies"),
-            (MusicTracks.VoidBattle, "musicVoidBattle", "Battle music: the Void"),
-            (MusicTracks.Specters1, "musicSpecters1", "Battle music: Specters"),
-            (MusicTracks.Specters2, "musicSpecters2", "Battle music: many Specters"),
-            (MusicTracks.Wanted, "musicWanted", "Battle music: Most Wanted criminal"),
+            (MusicTracks.BattleLow, "musicBattleLow", "Battle music: Standard"),
+            (MusicTracks.VoidBattle, "musicVoidBattle", "Battle music: The Voids"),
+            (MusicTracks.Specters1, "musicSpecters1", "Battle music: Stealth Fighters"),
+            (MusicTracks.Wanted, "musicWanted", "Battle music: Most Wanted"),
         };
 
         /// <summary>The options of this platform, page by page.</summary>
@@ -193,9 +190,7 @@ namespace GoF2Remake.UI
                 string t = track;
                 list.Add(Described(Toggle("musicTrack_" + t, OptionPage.Sound, () => X(key, english),
                     () => Settings.MusicTrackOn(t), v => Settings.SetMusicTrackOn(t, v)),
-                    t == MusicTracks.Specters1 || t == MusicTracks.Specters2 || t == MusicTracks.Wanted
-                        ? () => X("musicTrackSpecialHelp", "Off: this track no longer plays; the usual battle music plays instead.")
-                        : () => X("musicTrackHelp", "Off: this track no longer plays; the calm music of the orbit goes on instead.")));
+                    () => MusicTrackHelp(t)));
             }
 
             AddGraphics(list);
@@ -206,6 +201,14 @@ namespace GoF2Remake.UI
                 if (d.description == null && Help.TryGetValue(d.id, out var help)) d.description = () => X(help.key, help.english);
             return list;
         }
+
+        static string MusicTrackHelp(string track) => (track switch
+        {
+            MusicTracks.BattleLow => X("musicStandardHelp", "The three standard battle themes, selected according to combat intensity and hostile ship count. Off: the orbit's calm music continues instead."),
+            MusicTracks.VoidBattle => X("musicVoidsHelp", "The Voids battle theme, used during Void encounters and battles at stations attacked by the Voids. Off: the orbit's calm music continues instead."),
+            MusicTracks.Specters1 => X("musicStealthHelp", "Both Stealth Fighters battle themes, used when hostile Specters are present. Off: standard battle music plays instead, or calm music if Standard is disabled."),
+            _ => X("musicWantedHelp", "The battle theme used when a Most Wanted criminal is uncovered. Off: standard battle music plays instead, or calm music if Standard is disabled."),
+        }) + " " + X("musicScriptedHelp", "Scripted story music is not affected.");
 
         /// <summary>The descriptions of the rows built without one (their "?" and, with a controller, the line under them):
         /// option id -> its Localization.Extra key and English text.</summary>

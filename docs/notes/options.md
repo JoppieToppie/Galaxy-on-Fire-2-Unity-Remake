@@ -126,7 +126,7 @@ default, clear of the safe area; at the top centre the flight HUD's lock plate a
 #137), every weapon's own shot sound (`Settings.EachWeaponSound`, Sound tab), the Supernova Challenge's combo sounds
 (#165, Sound tab, `Settings.ChallengeComboSounds`, on: SV_Mode_01..10 in `ChallengeOrbit.PlaySound`), the medal sound
 (#165, Sound tab, `Settings.MedalSound`: the remake's chime, the original's info blip, or none; the toast in
-`StationMenu`), the battle music tracks one by one
+`StationMenu`), the four battle music groups in story order
 (Sound tab, `MusicTracks`, "Music tracks off" in npcs-and-combat.md), mute in background (desktop,
 `Settings.MuteInBackground`: `Bootstrap` zeroes the listener volume while the window is unfocused), double-press fire
 for auto-fire (`Settings.KeyAutofire`, off by default: the touch fire button's 249 ms latch, `AutofireLatch`, on the
