@@ -213,6 +213,18 @@ namespace GoF2Remake.Multiplayer
                 }
             }
             lines.Add($"Installed modules: {record.addons?.Count ?? 0}");
+            if (record.addons != null)
+                foreach (var addon in record.addons)
+                    if (addon != null) lines.Add($"  {addon.kind}: level {addon.level}");
+            int storageCapacity = StorageCapacity(record);
+            if (storageCapacity > 0)
+            {
+                int stored = 0;
+                if (record.storage != null)
+                    foreach (var stack in record.storage) if (stack != null) stored += Math.Max(0, stack.amount);
+                lines.Add($"Storage: {stored:N0}/{storageCapacity:N0}");
+                lines.Add($"Storage access: {(record.factionStorageAccess ? "Faction members" : "Owner only")}");
+            }
             lines.Add($"Marketplace listings: {record.listings?.Count ?? 0}");
             return string.Join("\n", lines);
         }
