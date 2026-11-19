@@ -2,7 +2,7 @@
 // One shot as NetShotSender sends it and NetShotMirror draws it (docs/notes/multiplayer-sync.md "Bandwidth"): sent once,
 // when fired; every other game in the orbit flies its own copy (a homing one toward the same target). Packed: the item
 // (16 bits), the start position (Data.WireQuant: 0.05 m steps), the velocity (3 halves), the up vector (octahedral), the
-// lifetime and homing delay (16-bit ms) and the target's NetworkObject id (a varint, 0 = none): about 27 bytes, where
+// lifetime and homing delay (16-bit ms), target NetworkObject id and a compact shot id: about 29 bytes, where
 // the plain parameters took 56 plus the RPC's.
 
 using GoF2Remake.Data;
@@ -18,11 +18,12 @@ namespace GoF2Remake.Multiplayer
         public Vector3 position, velocity, up;
         public float lifetimeMs, homingDelayMs;
         public ulong targetId;
+        public uint shotId;
 
         static readonly WireWriter writer = new WireWriter(64);
         static byte[] buffer = new byte[64];
 
-        public NetShotData(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId)
+        public NetShotData(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId, uint shotId = 0)
         {
             this.item = item;
             this.position = position;
@@ -31,6 +32,7 @@ namespace GoF2Remake.Multiplayer
             this.lifetimeMs = lifetimeMs;
             this.homingDelayMs = homingDelayMs;
             this.targetId = targetId;
+            this.shotId = shotId;
         }
 
         public void Write(WireWriter w)
@@ -47,6 +49,7 @@ namespace GoF2Remake.Multiplayer
             w.UShort(Mathf.Clamp(Mathf.RoundToInt(lifetimeMs) + 5000, 0, 65535));
             w.UShort(Mathf.Clamp(Mathf.RoundToInt(homingDelayMs), 0, 65535));
             w.VarULong(targetId == NetShots.NoTarget ? 0 : targetId + 1);
+            w.UShort((ushort)Mathf.Clamp((int)shotId, 0, ushort.MaxValue));
         }
 
         public static NetShotData Read(WireReader r)
@@ -58,6 +61,7 @@ namespace GoF2Remake.Multiplayer
             d.homingDelayMs = r.UShort();
             ulong t = r.VarULong();
             d.targetId = t == 0 ? NetShots.NoTarget : t - 1;
+            d.shotId = r.UShort();
             return d;
         }
 

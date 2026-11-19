@@ -75,7 +75,9 @@ namespace GoF2Remake.Flight
         /// <summary>The turret's aim (world), for the collector's scope.</summary>
         public Vector3 AimForward => core != null && core.Valid ? core.BarrelForward : transform.forward;
         public bool AutoEnabled { get; private set; } = true;
-        float defenseReachMeters;   // PointDefense: the mounted missile defense's reach, 0 = none
+        float defenseReachMeters;   // PointDefense: the mounted defense's reach, 0 = none
+        int defenseTargets;            // homing missiles, rockets and nukes covered by mounted defense equipment
+        bool missileOnlyDefense;     // mode 1 holds automatic turrets for incoming missiles between threats
         bool defending;             // this frame's aim is at a missile ...
         IncomingMissiles.Missile missile;   // ... this one
         float missileFlightMs;      // ... its shot's flight time
@@ -259,6 +261,8 @@ namespace GoF2Remake.Flight
             Hangs = mount.TurretHangs;
             IsAuto = item.Attr(16) == 1;
             defenseReachMeters = PointDefense.ReachUnits(Database.Shared) * Gun.MetersPerUnit;
+            defenseTargets = PointDefense.TargetMask(Database.Shared);
+            missileOnlyDefense = PointDefense.Mode(Database.Shared) == 1;
             IsCollector = item.categoryId == 35;
             PullSpeed = item.Attr(49);
             CollectRange = item.Attr(51);
@@ -539,11 +543,13 @@ namespace GoF2Remake.Flight
         bool? DefenseAim(float dtMs)
         {
             defending = false;
-            if (defenseReachMeters <= 0f || !PointDefense.Pick(GunPosition, defenseReachMeters, out missile)) return null;
+            if (defenseReachMeters <= 0f) return null;
+            if (!PointDefense.Pick(GunPosition, defenseReachMeters, defenseTargets, out missile))
+                return missileOnlyDefense ? false : (bool?)null;
             float shotSpeed = gun.speedUnitsPerMs * Gun.MetersPerUnit;
             var at = PointDefense.Lead(missile, GunPosition, shotSpeed, out missileFlightMs);
             bool aligned = core.StepToward(at, dtMs);
-            if (aim.LimitHit || aligned && core.Blocked) return null;   // out of its arc or behind its own hull: the ship target
+            if (aim.LimitHit || aligned && core.Blocked) return missileOnlyDefense ? false : (bool?)null;
             defending = true;
             return aligned;
         }
@@ -561,7 +567,7 @@ namespace GoF2Remake.Flight
         {
             var t = picking.Update(dtMs, Target.All, transform.position);
             if (t == null) return false;
-            bool aligned = core.StepToward(TurretTargeting.LeadPoint(t), dtMs);
+            bool aligned = core.StepToward(picking.LeadPoint(t, GunPosition, gun.speedUnitsPerMs, gun.lifetimeMs), dtMs);
             if (aim.LimitHit || aligned && core.Blocked) { picking.LimitHit(dtMs); return false; }   // (its own hull in the way: another target)
             return aligned;
         }
