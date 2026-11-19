@@ -91,7 +91,7 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>CLAUDE.md "Mining": cores from a completed class-A asteroid; absent = one, negative = zero.</summary>
-        public const int CoreYieldAttr = 172;
+        public const int CoreYieldAttr = 189;   // (was 172: Flight.Gun.BeamRadiusAttr's)
         public int CoreYield => Mathf.Max(0, Attr(CoreYieldAttr, 1));
 
         /// <summary>Attribute 1: 0 primary, 1 secondary, 2 turret, 3 equipment, 4 commodity.</summary>

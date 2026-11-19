@@ -3674,5 +3674,11 @@
  "mpScriptsShort": "먼저 스크립트를 허용하십시오: {0}",
  "mpModsCountScripts": "모드 ({0}개 활성, 스크립트 포함)",
  "scriptNoCommand": "\"{0}\" 명령이 없습니다.",
- "mapAnimationSpeed": "확대/축소 속도: ×{0}"
+ "mapAnimationSpeed": "확대/축소 속도: ×{0}",
+ "remasteredEffects": "리마스터 방어막과 은폐",
+ "remasteredEffectsHelp": "비상 시스템의 방어막이 PC판의 에너지 띠를 보여 주고 뒤쪽 시야를 더 크게 왜곡합니다. 은폐는 비쳐 보이는 것을 절반만 왜곡해 요즘 해상도에서 더 섬세합니다. 끄기: 원작의 효과.",
+ "turretLeadAim": "포탑 예측 사격",
+ "turretLeadAimHelp": "포탑(내 포탑, 센트리 건, NPC의 포탑)이 목표를 향해 곧바로 돌고, 조준이 맞았을 때만 쏘며, 탄이 도착할 때 목표가 있을 곳을 겨냥합니다. 끄기: 원작의 포탑.",
+ "remakeFreeLook": "리메이크 자유 시점",
+ "remakeFreeLookHelp": "자유 시점이 세 배 이상 멀리 줌아웃되고, 내 함선의 조준선 대신 화면 중앙에 가장 가까운 함선을 고정합니다. 끄기: 원작의 자유 시점."
 }

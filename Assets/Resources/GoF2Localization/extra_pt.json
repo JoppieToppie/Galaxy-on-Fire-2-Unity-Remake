@@ -3674,5 +3674,11 @@
  "mpScriptsShort": "permita os scripts primeiro: {0}",
  "mpModsCountScripts": "Mods ({0} ativados, com scripts)",
  "scriptNoCommand": "Não há comando \"{0}\".",
- "mapAnimationSpeed": "Velocidade do zoom: ×{0}"
+ "mapAnimationSpeed": "Velocidade do zoom: ×{0}",
+ "remasteredEffects": "Escudo e camuflagem remasterizados",
+ "remasteredEffectsHelp": "O escudo do sistema de emergência mostra as faixas de energia da versão para PC e distorce mais a vista atrás dele; a camuflagem distorce metade do que se vê através dela, mais fina nas resoluções atuais. Desligado: os efeitos do original.",
+ "turretLeadAim": "Torretas antecipam o alvo",
+ "turretLeadAimHelp": "As torretas (as suas, as torretas sentinela e as dos NPCs) giram diretamente para o alvo, só disparam quando estão sobre ele e miram onde ele estará quando o tiro chegar. Desligado: as torretas do original.",
+ "remakeFreeLook": "Visão livre do remake",
+ "remakeFreeLookHelp": "A visão livre afasta-se mais de três vezes e trava a nave mais próxima do centro da vista em vez da mira da sua nave. Desligado: a visão livre do original."
 }

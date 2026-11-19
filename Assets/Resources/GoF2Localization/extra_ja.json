@@ -3674,5 +3674,11 @@
  "mpScriptsShort": "先にスクリプトを許可：{0}",
  "mpModsCountScripts": "MOD（{0}個有効、スクリプトあり）",
  "scriptNoCommand": "コマンド「{0}」はありません。",
- "mapAnimationSpeed": "ズーム速度：×{0}"
+ "mapAnimationSpeed": "ズーム速度：×{0}",
+ "remasteredEffects": "リマスター版のシールドとクローク",
+ "remasteredEffectsHelp": "緊急システムのシールドにPC版のエネルギーの帯が表示され、その向こうの景色がより大きく歪みます。クロークは透けて見えるものの歪みが半分になり、現在の解像度でより細やかになります。オフ:オリジナルのエフェクト。",
+ "turretLeadAim": "タレットの偏差射撃",
+ "turretLeadAimHelp": "タレット(自機、セントリーガン、NPCのもの)が目標へまっすぐ向き、照準が合ったときだけ撃ち、弾が届く時点の目標の位置を狙います。オフ:オリジナルのタレット。",
+ "remakeFreeLook": "リメイク版フリールック",
+ "remakeFreeLookHelp": "フリールックで3倍以上遠くまでズームアウトでき、自機の照準ではなく画面中央に最も近い船をロックします。オフ:オリジナルのフリールック。"
 }

@@ -327,5 +327,20 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(1, Db.MountsOf(10, 1).Count);
             Assert.IsEmpty(Db.MountsOf(9999, 0));
         }
+
+        /// <summary>The remake's own attribute numbers (100 and up) each mean one thing: #318's coreYield, #350's flight
+        /// bonuses and #352's damageType took numbers the Chorus stack's stats already had (moved 2026-11-19).</summary>
+        [Test]
+        public void NoTwoRemakeStatsShareAnAttributeNumber()
+        {
+            var clashes = ItemStats.Readable().Where(kv => kv.Value >= 100).GroupBy(kv => kv.Value).Where(g => g.Count() > 1)
+                .Select(g => g.Key + ": " + string.Join(", ", g.Select(kv => kv.Key))).ToList();
+            Assert.IsEmpty(clashes);
+            Assert.AreEqual(189, ItemStats.IdOf("coreYield"));
+            Assert.AreEqual(190, ItemStats.IdOf("damageType"));
+            Assert.AreEqual(191, ItemStats.IdOf("pitchTurnRate"));
+            Assert.AreEqual(202, ItemStats.IdOf("forwardAcceleration"));
+            Assert.AreEqual(173, ItemStats.IdOf("heatShots"), "the Chorus stack's kept theirs");
+        }
     }
 }

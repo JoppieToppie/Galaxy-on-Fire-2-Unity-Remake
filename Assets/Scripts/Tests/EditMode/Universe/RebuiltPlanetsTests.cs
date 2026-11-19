@@ -108,10 +108,13 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void TheSettingIsOnByDefault()
+        public void TheSettingIsOffByDefaultAndOnInTheRemakeLooks()
         {
             Assert.IsTrue(Settings.TryDefault(() => Settings.RebuiltPlanets, out bool on));
-            Assert.IsTrue(on);
+            Assert.IsFalse(on, "the original's flat planets (2026-11-19)");
+            Assert.AreEqual(0f, Settings.ExperienceValue(Settings.ExperienceOriginal, "rebuiltPlanets"));
+            Assert.AreEqual(1f, Settings.ExperienceValue(Settings.ExperienceCosmetic, "rebuiltPlanets"));
+            Assert.AreEqual(1f, Settings.ExperienceValue(Settings.ExperienceRemake, "rebuiltPlanets"));
             using (new SettingsScope<bool>(() => Settings.RebuiltPlanets, v => Settings.RebuiltPlanets = v))
             {
                 Settings.RebuiltPlanets = false;

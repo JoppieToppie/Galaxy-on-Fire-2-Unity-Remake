@@ -278,7 +278,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   the counter against the cabins), goods (0xae), the kill score (Challenge / 36) and the volatile bar.
 - **Camera modes** (`FreeLookCamera`, `MGame::switchCamera`): F3 / D-pad up cycle standard (or
   cockpit, see below) and free look; T controls manual turrets. The touch button retains the combined cycle (217 / 219 / 218 / 220): an orbit around the ship (−0.005
-  rad/px, pitch ±200 px, zoom 1500..20000, middle mouse / right stick / touch drag); no locks or tractor in the turret
+  rad/px, pitch ±200 px, zoom 1500..20000 (`FreeLookCamera.MaxOrbitDistance`, a mod hook; Gameplay "Remake free look"
+  70,000 and the lock on the view's middle, #336 / #302; a mod ship's own orbit distance always reachable), middle
+  mouse / right stick / touch drag); no locks or tractor in the turret
   view.
 - **Cockpit view** (remake, `FreeLookCamera.Mode.FirstPerson` = the original's mode 2,
   `TargetFollowCamera::enableFirstPersonCam`, which `switchCamera` / `nextCamId` always skip; its text 219 "Cockpit" and

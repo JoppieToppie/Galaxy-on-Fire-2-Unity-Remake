@@ -3674,5 +3674,11 @@
  "mpScriptsShort": "请先允许其脚本：{0}",
  "mpModsCountScripts": "模组（{0}个已开启，含脚本）",
  "scriptNoCommand": "没有命令“{0}”。",
- "mapAnimationSpeed": "缩放速度：×{0}"
+ "mapAnimationSpeed": "缩放速度：×{0}",
+ "remasteredEffects": "重制版护盾与隐形",
+ "remasteredEffectsHelp": "紧急系统的护盾显示PC版的能量光带，并更强烈地扭曲其后的景象；隐形对透过它看到的景物的扭曲减半，在如今的分辨率下更细腻。关闭：原版效果。",
+ "turretLeadAim": "炮塔预判射击",
+ "turretLeadAimHelp": "炮塔（你的、哨戒炮以及NPC的）直接转向目标，只在瞄准目标时开火，并瞄准炮弹到达时目标所在的位置。关闭：原版炮塔。",
+ "remakeFreeLook": "重制版自由视角",
+ "remakeFreeLookHelp": "自由视角可拉远三倍以上，并锁定离画面中心最近的飞船，而不是你飞船的准星。关闭：原版自由视角。"
 }

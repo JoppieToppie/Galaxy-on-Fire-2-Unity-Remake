@@ -578,15 +578,44 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(70f, Settings.FieldOfView, 1e-4f);
         }
         [Test]
-        public void CameraShakeDefaultsToThirtyPercentAndPreservesExplicitValues()
+        public void CameraShakeDefaultsToTheOriginalsAndTheRemakeLooksSoftenIt()
         {
             AllDefaults();
-            Assert.AreEqual(0.3f, Settings.CameraShake, 1e-6f);
+            Assert.AreEqual(1f, Settings.CameraShake, 1e-6f, "the ported shakes at full strength (2026-11-19)");
             Settings.CameraShake = 0.75f;
             DataUiTestKit.ClearSettingsCache();
-            Assert.AreEqual(0.75f, Settings.CameraShake, 1e-6f, "existing choices are not migrated");
+            Assert.AreEqual(0.75f, Settings.CameraShake, 1e-6f, "existing choices are kept");
             Settings.Reset(Settings.GraphicsKeys);
-            Assert.AreEqual(0.3f, Settings.CameraShake, 1e-6f, "Graphics reset uses the new default");
+            Assert.AreEqual(1f, Settings.CameraShake, 1e-6f, "Graphics reset: the default");
+            Settings.ApplyScopedExperience(true, 1);
+            Assert.AreEqual(0.3f, Settings.CameraShake, 1e-6f, "Cosmetic Experience Remake: #342's 30 %");
+            Settings.ApplyScopedExperience(true, 0);
+            Assert.AreEqual(1f, Settings.CameraShake, 1e-6f, "Cosmetic Experience Original");
+        }
+
+        [Test]
+        public void EveryAdditionStartsOffAndTheOriginalPresetsTurnItOff()
+        {
+            AllDefaults();
+            Assert.IsFalse(Settings.RebuiltPlanets);
+            Assert.IsFalse(Settings.RemasteredEffects);
+            Assert.IsFalse(Settings.TurretLeadAim);
+            Assert.IsFalse(Settings.RemakeFreeLook);
+            Assert.IsFalse(Settings.BlueprintAutocomplete);
+            Assert.IsFalse(Settings.HostileAutopilotFastForward);
+            Assert.AreEqual(Settings.ExperienceOriginal, Settings.CurrentExperience(), "the defaults are the Original experience");
+
+            Settings.ApplyExperience(Settings.ExperienceRemake);
+            Assert.IsTrue(Settings.RebuiltPlanets && Settings.RemasteredEffects && Settings.TurretLeadAim && Settings.RemakeFreeLook
+                          && Settings.BlueprintAutocomplete && Settings.HostileAutopilotFastForward, "Remake turns every addition on");
+            Settings.ApplyScopedExperience(false, 0);
+            Assert.IsFalse(Settings.TurretLeadAim || Settings.RemakeFreeLook || Settings.BlueprintAutocomplete || Settings.HostileAutopilotFastForward,
+                           "Gameplay Experience Original");
+            Assert.IsTrue(Settings.RebuiltPlanets && Settings.RemasteredEffects, "the gameplay preset leaves the looks");
+            Settings.ApplyScopedExperience(true, 0);
+            Assert.IsFalse(Settings.RebuiltPlanets || Settings.RemasteredEffects, "Cosmetic Experience Original: the graphics page's looks too");
+            Assert.AreEqual(0, Settings.CurrentScopedExperience(true));
+            Assert.AreEqual(0, Settings.CurrentScopedExperience(false));
         }
 
     }

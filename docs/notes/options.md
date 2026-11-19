@@ -29,8 +29,21 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   economy/balance profiles to the playthrough. Preserve purchased upgrades during migration. Autocomplete and
   combat/AI need UI separation but are not proposed as mandatory save-bound settings. Stored equipment is QoL.
 
-- **Camera shake** defaults to 30% for new or reset preferences. Existing explicitly saved values are preserved;
-  the slider retains its full 0-100% range. Graphics defaults reset the value to 30%.
+- **Camera shake** (Graphics, `Settings.CameraShake`): 100 % by default, the ported shakes unscaled (#342 had made 30 % the
+  default; back 2026-11-19); the Cosmetic and Remake experiences set 30 %. Saved values are kept; Graphics defaults: 100 %.
+
+- **Original by default** (2026-11-19, after an audit of the 46 PRs merged that day): every remake addition starts off and
+  the Original presets turn it off. The defaults put back: 3D planets off (`rebuiltPlanets`), camera shake 100 %. Behind new
+  switches (default off): Gameplay > Combat "Turrets lead moving targets" (`turretLeadAim`: #354's turret aim, see
+  weapons.md "Turrets"), "Remake free look" (`remakeFreeLook`: #336's zoom to 70,000 and #302's lock on the view's middle;
+  off: the original's 20,000 and the ship's crosshair), Graphics "Remastered shield and cloak" (`remasteredEffects`: #340's
+  PC version shield bubble and half-bent cloak, shader global `_GoF2RemasteredFx`; off: the phone original's). Kept on:
+  #340's boost blur (the original's own effect 0x1400002) and its cloak fixes, #300's Kaamo purchase step, #298's keys.
+  - The experience presets (`ExperienceKeys`, `Experiences`) gained rebuiltPlanets, cameraShake, remasteredEffects,
+    blueprintAutocomplete, hostileAutopilotFastForward, turretLeadAim and remakeFreeLook (Original: off / 100 %; Cosmetic:
+    the looks on, shake 30 %; Remake: all on). The Cosmetic Experience covers the Graphics page's experience options too
+    (`Settings.InScope`). Migration version 10 (`AddedExperienceKeys`): an install matching a preset gets its values for
+    the new options. A fresh install stores both Custom flags off, so its rows read Original, not Custom.
 
 - Text comes from the original table via `Localization.Get(textId)`; remake-only strings via `Extra(key, english)`,
   translated per language in `Resources/GoF2Localization/extra_<lang>.json` (a { key: text } object, loaded with the

@@ -40,6 +40,7 @@ Shader "GoF2/ShieldBubble"
             TEXTURE2D(_NormalMap); SAMPLER(sampler_NormalMap);
             TEXTURE2D(_NoiseMap); SAMPLER(sampler_NoiseMap);
             TEXTURE2D_X(_GoF2CloakScene); SAMPLER(sampler_GoF2CloakScene);
+            float _GoF2RemasteredFx;   // Settings.RemasteredEffects (Bootstrap): 1 = the PC version's look below, 0 = the phone's
             CBUFFER_START(UnityPerMaterial)
                 float4 _NormalMap_ST, _NoiseMap_ST;
                 float _Anim, _Strength;
@@ -88,7 +89,9 @@ Shader "GoF2/ShieldBubble"
                 float2 suv = GetNormalizedScreenSpaceUV(i.positionCS);
                 // Modified: the PC version's EnergyShield.fx (the user's files, 2026-11-17): the push 250 px across, 200 up
                 // (the phone's 150 both ways), at the phone's 1024 x 768 reference.
-                float2 offset = (nt.xy * 0.4 + n.xy * rim) * float2(250.0, 200.0) * _Strength / float2(1024.0, 768.0);
+                // Options > Graphics "Remastered shield and cloak" (off by default): the phone's 150 px both ways.
+                float2 push = _GoF2RemasteredFx > 0.5 ? float2(250.0, 200.0) : float2(150.0, 150.0);
+                float2 offset = (nt.xy * 0.4 + n.xy * rim) * push * _Strength / float2(1024.0, 768.0);
                 half3 scene = SAMPLE_TEXTURE2D_X(_GoF2CloakScene, sampler_GoF2CloakScene, UnityStereoTransformScreenSpaceTex(saturate(suv + offset))).rgb;
                 // Modified: the PC version's two energy bands, the noise texture's iso-lines at levels sweeping from 0.1 to 0.9
                 // (one up, one down, half a cycle apart, a cycle 2.5 s), shown in a 9 s cycle (in over 0-3 s, out over 4-8 s).
@@ -106,7 +109,7 @@ Shader "GoF2/ShieldBubble"
                 float shown = smoothstep(0.0, 3.0, cycle) * (1.0 - smoothstep(4.0, 8.0, cycle));
                 float band1 = smoothstep(level1 - 0.04, level1, noise1) * (1.0 - smoothstep(level1, level1 + 0.04, noise1));
                 float band2 = smoothstep(level2 - 0.06, level2, noise2) * (1.0 - smoothstep(level2, level2 + 0.06, noise2));
-                half3 bands = shown * (band1 * half3(0.0, 0.4, 0.7) + band2 * half3(0.0, 0.3, 0.5));
+                half3 bands = shown * (band1 * half3(0.0, 0.4, 0.7) + band2 * half3(0.0, 0.3, 0.5)) * step(0.5, _GoF2RemasteredFx);
                 return half4(saturate(min(scene, 1.0) + rimFx + bands), 1);
             }
             ENDHLSL

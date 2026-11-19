@@ -59,7 +59,9 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   bent by `v_shield_normal` and the clip-space normal, (nt.xy * 0.4 + n.xy * rim) * 150 px, plus a blue rim
   smoothstep(1 - dot(e, n * nt)) * (0, 0.6, 1); the noise texture unused on the phone. Modified 2026-11-17 (the PC
   version's EnergyShield.fx, the user's files): pushed 250 px across / 200 up, and two blue energy bands, iso-lines of
-  `v_shield_noise` at levels sweeping 0.1-0.9 (2.5 s), shown in a 9 s cycle (in 0-3 s, out 4-8 s), on `_Anim`. #251: it was drawn with
+  `v_shield_noise` at levels sweeping 0.1-0.9 (2.5 s), shown in a 9 s cycle (in 0-3 s, out 4-8 s), on `_Anim`. Since
+  2026-11-19 only with Options > Graphics "Remastered shield and cloak" (`_GoF2RemasteredFx`; it also halves the cloak's
+  bend); off by default: the phone's 150 px and no bands. #251: it was drawn with
   `SimpleRefractionShader`'s formula, no colour, hard to see. Drawn by `CloakPass` from its copy of the frame after the
   transparents so the ship's lights and exhaust show through it; the normal map sampled by three planar projections, as
   the mesh's UVs cut it where they wrap; the scene clamped to LDR (#45: the HDR sun core smeared over it bloomed the

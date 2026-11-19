@@ -276,7 +276,8 @@ namespace GoF2Remake.Flight
             if (!blocked && cam != null && tractorMode == 1 && Salvaging == null) AutoSalvage(cam, true);
             if (!blocked && cam != null)
             {
-                var c = LockCrosshairPoint(cam, transform, freeLook != null && freeLook.FreeLookActive);
+                // (Remake free look, #302: the middle of the view in free look; else the ship's crosshair, as the original)
+                var c = LockCrosshairPoint(cam, transform, Settings.RemakeFreeLook && freeLook != null && freeLook.FreeLookActive);
                 float box = Screen.width / 16f, bestD = float.MaxValue, stealD = float.MaxValue;
                 if (c.z > 0f)
                 {

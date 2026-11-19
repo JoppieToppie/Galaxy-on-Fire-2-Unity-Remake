@@ -113,7 +113,11 @@ namespace GoF2Remake.World
             if (target == null || target.cloaked || target.untargetable) return;   // handleTurret: no turning toward a cloaked target (Modified: nor one a jump scene hides)
             var aimPoint = Spec.capitalEnhanced && target.boxes != null && target.boxes.Length > 0 ? TurretAimPoint(target, turretCore.GunPosition)
                          : AimAt(target, dtMs);
-            var at = turretPicking.LeadPoint(target, aimPoint, turretCore.GunPosition, gun.speedUnitsPerMs, gun.lifetimeMs);
+            // the original's: a capital ship's spot on a boxed target or a fixed target as it is, else led at a spot on it;
+            // Settings.TurretLeadAim: #354's ballistic lead to the spot
+            var at = Settings.TurretLeadAim ? turretPicking.LeadPoint(target, aimPoint, turretCore.GunPosition, gun.speedUnitsPerMs, gun.lifetimeMs)
+                   : Spec.capitalEnhanced && target.boxes != null && target.boxes.Length > 0 || turretTargetFixed ? aimPoint
+                   : TurretTargeting.LeadPoint(target) + (aimPoint - target.transform.position);
             bool aligned = turretCore.StepToward(at, dtMs);
             if (turretCore.Aim.LimitHit) { turretPicking.LimitHit(dtMs); return; }   // out of reach: dropped at the next pick
             if (!aligned || !shootingEnabled || HoldFire) return;

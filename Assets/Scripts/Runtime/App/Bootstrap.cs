@@ -161,7 +161,11 @@ namespace GoF2Remake
             ApplyFog();
             ApplyPostProcessing();
             ApplyDisplay();
+            // Options > Graphics "Remastered shield and cloak" (#340): the shield bubble's and the cloak's look (ShieldBubble,
+            // Cloak shaders); 0 = the phone original's.
+            Shader.SetGlobalFloat(RemasteredFxId, Settings.RemasteredEffects ? 1f : 0f);
         }
+        static readonly int RemasteredFxId = Shader.PropertyToID("_GoF2RemasteredFx");
 
         // Android at 100 % render scale (#45, #163): since Vulkan pre-transform went back on (2026.10.23) part of the screen
         // stays black / frozen at exactly 100 % (rotating the phone 180 degrees shows the other part), on Mali, Exynos and

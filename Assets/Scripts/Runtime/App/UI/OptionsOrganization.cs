@@ -35,7 +35,8 @@ namespace GoF2Remake.UI
                 "kaamoKeepsEquipment", "blueprintAutocomplete");
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.Combat,
                 "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight",
-                "es2Aiming", "es2NpcFlight", "shipCollision", "targetLock", "keepEnemyLock", "collisionDamage", "flightStyle");
+                "es2Aiming", "es2NpcFlight", "shipCollision", "targetLock", "keepEnemyLock", "collisionDamage", "flightStyle",
+                "turretLeadAim", "remakeFreeLook");
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.Flight,
                 "fastForwardMode", "khadorSlipstream",
                 "hostileAutopilotFastForward", "autoJumpgate");

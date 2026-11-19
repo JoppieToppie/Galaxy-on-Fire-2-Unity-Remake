@@ -3674,5 +3674,11 @@
  "mpScriptsShort": "najpierw zezwól na skrypty: {0}",
  "mpModsCountScripts": "Mody (włączone: {0}, ze skryptami)",
  "scriptNoCommand": "Nie ma polecenia \"{0}\".",
- "mapAnimationSpeed": "Szybkość zoomu: ×{0}"
+ "mapAnimationSpeed": "Szybkość zoomu: ×{0}",
+ "remasteredEffects": "Odnowiona tarcza i kamuflaż",
+ "remasteredEffectsHelp": "Tarcza systemu awaryjnego pokazuje pasma energii z wersji PC i mocniej zniekształca widok za nią; kamuflaż zniekształca to, co przez niego widać, o połowę słabiej, subtelniej w dzisiejszych rozdzielczościach. Wyłączone: efekty oryginału.",
+ "turretLeadAim": "Wieżyczki strzelają z wyprzedzeniem",
+ "turretLeadAimHelp": "Wieżyczki (twoje, działka strażnicze i należące do NPC) obracają się prosto na cel, strzelają tylko wtedy, gdy w niego mierzą, i celują tam, gdzie będzie, gdy dotrze pocisk. Wyłączone: wieżyczki oryginału.",
+ "remakeFreeLook": "Swobodny widok z remake'u",
+ "remakeFreeLookHelp": "Swobodny widok oddala się ponad trzy razy dalej i namierza statek najbliższy środka widoku zamiast celownika twojego statku. Wyłączone: swobodny widok oryginału."
 }

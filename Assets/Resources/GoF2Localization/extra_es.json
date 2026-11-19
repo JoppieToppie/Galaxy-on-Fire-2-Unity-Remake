@@ -3674,5 +3674,11 @@
  "mpScriptsShort": "permite antes sus scripts: {0}",
  "mpModsCountScripts": "Mods ({0} activados, con scripts)",
  "scriptNoCommand": "No existe el comando \"{0}\".",
- "mapAnimationSpeed": "Velocidad de zoom: ×{0}"
+ "mapAnimationSpeed": "Velocidad de zoom: ×{0}",
+ "remasteredEffects": "Escudo y camuflaje remasterizados",
+ "remasteredEffectsHelp": "El escudo del sistema de emergencia muestra las bandas de energía de la versión de PC y deforma más la vista tras él; el camuflaje deforma la mitad lo que se ve a través, más fino a las resoluciones actuales. Desactivado: los efectos del original.",
+ "turretLeadAim": "Las torretas se adelantan al blanco",
+ "turretLeadAimHelp": "Las torretas (las tuyas, las torretas centinela y las de los PNJ) giran directamente hacia su objetivo, solo disparan cuando lo apuntan y apuntan adonde estará cuando llegue el disparo. Desactivado: las torretas del original.",
+ "remakeFreeLook": "Vista libre del remake",
+ "remakeFreeLookHelp": "La vista libre se aleja más del triple y fija la nave más cercana al centro de la vista en lugar de la mira de tu nave. Desactivado: la vista libre del original."
 }

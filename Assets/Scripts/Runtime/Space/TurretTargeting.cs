@@ -9,10 +9,12 @@
 //   Timed     PlayerTurret::handleTurret / pickEnemy 0x182e90 (the NPC turrets): a new pick only once more than 3000 ms
 //             have passed (the first after 3 s); the nearest candidate within range, the unreachable one only when nothing
 //             else is nearer; running into a limit keeps the target until the next pick, which then prefers another.
-// The aim point: the nearest point on its exact hull (when available) + its heading * 1500 units.
+// The aim point: the target's position + its heading * 1500 units (the lead both use). Remake (#354, Settings.TurretLeadAim,
+// off by default): a ballistic lead from the nearest point of its hull, by its measured speed and the shot's.
 
 using System;
 using System.Collections.Generic;
+using GoF2Remake.Data;
 using UnityEngine;
 
 namespace GoF2Remake.Flight
@@ -71,7 +73,8 @@ namespace GoF2Remake.Flight
 
         /// <summary>Ballistic lead to a target's nearest hull point, using the projectile's speed and lifetime.</summary>
         public Vector3 LeadPoint(Target t, Vector3 from, float projectileSpeedUnitsPerMs, float projectileLifetimeMs) =>
-            t == null ? Vector3.zero : LeadPoint(t, t.NearestHullPoint(from), from, projectileSpeedUnitsPerMs, projectileLifetimeMs);
+            t == null ? Vector3.zero : !Settings.TurretLeadAim ? LeadPoint(t)   // the original's
+            : LeadPoint(t, t.NearestHullPoint(from), from, projectileSpeedUnitsPerMs, projectileLifetimeMs);
 
         /// <summary>Ballistic lead to a chosen point on a target (e.g. an NPC turret hardpoint).</summary>
         public Vector3 LeadPoint(Target t, Vector3 aimPoint, Vector3 from, float projectileSpeedUnitsPerMs, float projectileLifetimeMs)

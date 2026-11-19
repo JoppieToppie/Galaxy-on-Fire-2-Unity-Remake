@@ -292,7 +292,7 @@ energy cells.
 | `radarShowsCargo` | 31 | 1 = shows a locked ship's cargo (its first entry); 2 = its whole hold (see [Scanner readouts](#scanner-readouts)) |
 | `drillSpeed` | 32 | Mining laser speed |
 | `miningYield` | 33 | Mining laser yield |
-| `coreYield` | 172 | Cores from a completed class-A asteroid, capped to free cargo. Default 1; negative values act as zero. Applies to drills and mining beams independently of ore yield. |
+| `coreYield` | 189 | Cores from a completed class-A asteroid, capped to free cargo. Default 1; negative values act as zero. Applies to drills and mining beams independently of ore yield. |
 | `cabins` | 34 | Passenger cabins |
 | `cloakDurationMs` | 35 | How long the cloak lasts (ms) |
 | `cloakChargeMs` | 36 | Cloak charge time (ms) |
@@ -325,15 +325,15 @@ energy cells.
 | `scanShip` | 140 | Scanners: 1 = the lock plate names the locked ship's hull, "Pirate · Phantom 85%" (see [Scanner readouts](#scanner-readouts)) |
 | `scanHitpoints` | 141 | Scanners: 1 = a new lock shows the ship's shield, armor and hull |
 | `scanWeapons` | 142 | Scanners: 1 = a new lock shows the ship's weapons |
-| `pitchTurnRate`, `yawTurnRate`, `rollTurnRate` | 170 to 172 | Independent pitch, yaw and roll rate bonuses (%) |
-| `pitchTurnAcceleration`, `yawTurnAcceleration`, `rollTurnAcceleration` | 173 to 175 | Independent pitch, yaw and roll response / ramp bonuses (%) |
-| `strafeAcceleration` | 176 | Lateral acceleration bonus (%) in free flight |
-| `hoverSpeed`, `hoverAcceleration` | 177 to 178 | Vertical thrust speed and acceleration bonuses (%) in free flight |
-| `reverseSpeed`, `reverseAcceleration` | 179 to 180 | Reverse thrust speed and acceleration bonuses (%) in free flight |
-| `forwardAcceleration` | 181 | Forward thrust acceleration bonus (%) in free flight |
+| `pitchTurnRate`, `yawTurnRate`, `rollTurnRate` | 191 to 193 | Independent pitch, yaw and roll rate bonuses (%) |
+| `pitchTurnAcceleration`, `yawTurnAcceleration`, `rollTurnAcceleration` | 194 to 196 | Independent pitch, yaw and roll response / ramp bonuses (%) |
+| `strafeAcceleration` | 197 | Lateral acceleration bonus (%) in free flight |
+| `hoverSpeed`, `hoverAcceleration` | 198 to 199 | Vertical thrust speed and acceleration bonuses (%) in free flight |
+| `reverseSpeed`, `reverseAcceleration` | 200 to 201 | Reverse thrust speed and acceleration bonuses (%) in free flight |
+| `forwardAcceleration` | 202 | Forward thrust acceleration bonus (%) in free flight |
 | `tractorNoLock` | 137 | Tractor beams: 1 = the scanner never locks a container; every beam takes containers by itself (see [Multi-grab tractor beams](#multi-grab-tractor-beams)) |
 | `shieldDamage` | 124 | A weapon's damage to a shield in percent (default 100; the Disruptor Laser and items based on it 200). What the shield doesn't absorb hits the armor and hull at the plain damage. |
-| `damageType` | 182 | Optional explicit damage channel: `1` = energy, `2` = ballistic; unset / `0` keeps the original damage behaviour. This is not inferred from the weapon category. |
+| `damageType` | 190 | Optional explicit damage channel: `1` = energy, `2` = ballistic; unset / `0` keeps the original damage behaviour. This is not inferred from the weapon category. |
 | `energyResistance` | 183 | Optional shield resistance to energy damage, percent (0–100). The shield takes less energy damage and overflow still reaches armor / hull. |
 | `ballisticResistance` | 184 | Optional shield resistance to ballistic penetration, percent (0–100). Ballistic hits damage shield and hull together; penetration is reduced by this resistance multiplied by the remaining shield fraction. |
 | `echoDelayMs` | 127 | A second, weaker blast at each hit, this many ms after it (0 or none = no echo; see [Echo blasts](#echo-blasts)) |

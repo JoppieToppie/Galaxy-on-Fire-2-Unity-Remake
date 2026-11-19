@@ -193,7 +193,7 @@ namespace GoF2Remake.Flight
         [System.NonSerialized] public float shieldFactor = 1f;
 
         public const int ShieldDamageAttr = 124, DisruptorShieldPercent = 200;
-        public const int DamageTypeAttr = 182;
+        public const int DamageTypeAttr = 190;   // (was 182: Core.Device.ElementalAttr's)
         /// <summary>Remake mods (GoF3's abilities): 161 shieldBypass (its hits go past the shield), 162 slowMs / 163 slowPercent
         /// (a hit slows the ship to that share of its speed for that long, turning still allowed: AbilitySlowdown).</summary>
         public const int ShieldBypassAttr = 161, SlowMsAttr = 162, SlowPercentAttr = 163;

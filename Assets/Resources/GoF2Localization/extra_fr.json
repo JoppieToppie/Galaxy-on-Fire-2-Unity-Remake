@@ -3674,5 +3674,11 @@
  "mpScriptsShort": "autorise d'abord ses scripts : {0}",
  "mpModsCountScripts": "Mods ({0} activés, avec scripts)",
  "scriptNoCommand": "Aucune commande « {0} ».",
- "mapAnimationSpeed": "Vitesse du zoom : ×{0}"
+ "mapAnimationSpeed": "Vitesse du zoom : ×{0}",
+ "remasteredEffects": "Bouclier et camouflage remastérisés",
+ "remasteredEffectsHelp": "Le bouclier du système d'urgence montre les bandes d'énergie de la version PC et déforme davantage la vue derrière lui ; le camouflage déforme deux fois moins ce qu'on voit au travers, plus fin aux résolutions actuelles. Désactivé : les effets de l'original.",
+ "turretLeadAim": "Tourelles qui anticipent",
+ "turretLeadAimHelp": "Les tourelles (les vôtres, les tourelles sentinelles et celles des PNJ) pivotent directement vers leur cible, ne tirent que lorsqu'elles sont dessus et visent là où elle sera à l'arrivée du tir. Désactivé : les tourelles de l'original.",
+ "remakeFreeLook": "Vue libre du remake",
+ "remakeFreeLookHelp": "La vue libre recule plus de trois fois plus loin et verrouille le vaisseau le plus proche du centre de la vue au lieu du réticule de votre vaisseau. Désactivé : la vue libre de l'original."
 }

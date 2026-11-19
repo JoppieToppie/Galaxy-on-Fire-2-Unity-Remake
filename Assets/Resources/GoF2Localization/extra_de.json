@@ -3674,5 +3674,11 @@
  "mpScriptsShort": "erst die Skripte erlauben: {0}",
  "mpModsCountScripts": "Mods ({0} aktiv, mit Skripten)",
  "scriptNoCommand": "Kein Befehl \"{0}\".",
- "mapAnimationSpeed": "Zoomtempo: ×{0}"
+ "mapAnimationSpeed": "Zoomtempo: ×{0}",
+ "remasteredEffects": "Überarbeiteter Schild und Tarnung",
+ "remasteredEffectsHelp": "Der Schild des Notfallsystems zeigt die Energiebänder der PC-Version und verzerrt die Sicht dahinter stärker; die Tarnung verzerrt, was durch sie zu sehen ist, nur halb so stark, feiner bei heutigen Auflösungen. Aus: die Effekte des Originals.",
+ "turretLeadAim": "Geschütztürme zielen vor",
+ "turretLeadAimHelp": "Geschütztürme (deine, Wachgeschütze und die der NPCs) drehen sich direkt auf ihr Ziel, feuern nur, wenn sie darauf gerichtet sind, und zielen dorthin, wo es beim Eintreffen des Schusses sein wird. Aus: die Geschütztürme des Originals.",
+ "remakeFreeLook": "Remake-Freie-Sicht",
+ "remakeFreeLookHelp": "Die freie Sicht zoomt mehr als dreimal so weit heraus und erfasst das Schiff, das der Bildmitte am nächsten ist, statt des Fadenkreuzes deines Schiffs. Aus: die freie Sicht des Originals."
 }

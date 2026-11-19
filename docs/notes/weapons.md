@@ -81,6 +81,10 @@ is generated from it by `Reference/tools/weapons/build_weapon_fx.py`; **GoF2 > B
   in free flight (a player's report: `ShipController.ReadMouseSteer` centred the mouse whenever the autopilot flew,
   before its steering-locked case, and free flight's `ReadVirtualStick` whenever steering was locked, the Liberator's
   own lock; the turret view the same), the virtual stick centred as it starts and ends.
+- **Turret aim** (2026-11-19): the original's by default (`TurretAim.StepOriginal`: fixed-rate turns outside a 0.05 dead
+  zone; the lead position + heading x 1500; an NPC turret on a fixed target unled). Gameplay > Combat "Turrets lead moving
+  targets" (`Settings.TurretLeadAim`) gives #354's: a turn straight onto the target, aligned within 0.14 deg, and a
+  ballistic lead from the nearest hull point by the target's measured speed (`TurretTargeting.LeadPoint`).
 - **Turrets** (`PlayerTurret`, `TurretAim`): the turret-slot item on the ship's turret mount (in space the
   `*_ship_mounted` assemblies, in the hangar `hangar_turret_item_N`; remake fix: the Archimedes' (182) and the 181's gun
   offsets are written turned with their base in the ship-mounted rules, (-34, 88, -1.6) / (0, 88, 11), since the base

@@ -263,6 +263,12 @@ namespace GoF2Remake.UI
                 () => Settings.RebuiltPlanets, v => Settings.RebuiltPlanets = v);
             rebuiltPlanets.description = () => X("rebuiltPlanetsHelp", "The planets in orbit, on the star map and in slipstream are lit 3D spheres rebuilt from the original planet images. Off: the original flat images. From the next orbit or star map view.");
             list.Add(rebuiltPlanets);
+            // Remake (#340, behind a switch 2026-11-19): the emergency shield's PC version look and the subtler cloak
+            // (Settings.RemasteredEffects, the shader global _GoF2RemasteredFx).
+            var remasteredFx = Toggle("remasteredEffects", OptionPage.Graphics, () => X("remasteredEffects", "Remastered shield and cloak"),
+                () => Settings.RemasteredEffects, v => Settings.RemasteredEffects = v);
+            remasteredFx.description = () => X("remasteredEffectsHelp", "The emergency system's shield shows the PC version's energy bands and bends the view behind it further; the cloak bends what shows through it half as far, finer at today's resolutions. Off: the original's effects.");
+            list.Add(remasteredFx);
             list.Add(Slider("fov", OptionPage.Graphics, () => X("fov", "Field of view"), 55f, 95f,
                 () => Settings.FieldOfView, v => Settings.FieldOfView = Mathf.Round(v), v => $"{Mathf.RoundToInt(v)}°"));
             list.Add(Slider("cameraShake", OptionPage.Graphics, () => X("cameraShake", "Camera shake"), 0f, 1f,
@@ -567,6 +573,16 @@ namespace GoF2Remake.UI
                     ? " " + X("flightStyleTouchHelp", "Touch: the stick thrusts and strafes, drag the screen (or the held fire button) to aim, the buttons beside the stick go up, down and switch the dampeners; the ship rolls itself level.")
                     : "");
             list.Add(freeFlight);
+            // Remake (#354's turret aiming, behind a switch 2026-11-19; Settings.TurretLeadAim, TurretAim, TurretTargeting).
+            var turretLead = Toggle("turretLeadAim", OptionPage.Gameplay, () => X("turretLeadAim", "Turrets lead moving targets"),
+                () => Settings.TurretLeadAim, v => Settings.TurretLeadAim = v);
+            turretLead.description = () => X("turretLeadAimHelp", "Turrets (yours, sentry guns and the NPCs') turn straight onto their target, fire only when on it and aim where it will be when the shot arrives. Off: the original's turrets.");
+            list.Add(turretLead);
+            // Remake (#336 / #302, behind a switch 2026-11-19; Settings.RemakeFreeLook, FreeLookCamera, CombatRadar).
+            var remakeFreeLook = Toggle("remakeFreeLook", OptionPage.Gameplay, () => X("remakeFreeLook", "Remake free look"),
+                () => Settings.RemakeFreeLook, v => Settings.RemakeFreeLook = v);
+            remakeFreeLook.description = () => X("remakeFreeLookHelp", "Free look zooms out more than three times as far, and locks onto the ship nearest the middle of the view instead of your ship's crosshair. Off: the original's free look.");
+            list.Add(remakeFreeLook);
             // Remake (the user's request, 2026-11-04): Original / Cosmetic / Remake set the experience options at once
             // (Settings.ApplyExperience); the row shows the one they match, else Custom (picking Custom sets nothing). Every
             // row below reads off (or its first choice) = the original game.

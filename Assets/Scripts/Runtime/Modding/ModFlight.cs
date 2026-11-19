@@ -52,13 +52,14 @@ namespace GoF2Remake.Modding
     public static class ModFlight
     {
         public const int ScopeAttr = 110, ScopeBoth = 0, ScopeOriginal = 1, ScopeFree = 2;
+        // (2026-11-19: the per-axis ones were 170-181, which the Chorus stack's weapon and device stats already had; 191-202)
         const int TopSpeed = 111, TurnRate = 112, StrafeSpeed = 113, OrigTopSpeed = 114, OrigTurnRate = 115, OrigStrafeSpeed = 116,
                   FreeTopSpeed = 117, FreeTurnRate = 118, FreeStrafeSpeed = 119, FreeAcceleration = 120, FreeBoostFactor = 121,
-                  FullStopDamage = 138, LowSpeedResistance = 139,
-                  PitchTurnRate = 170, YawTurnRate = 171, RollTurnRate = 172,
-                  PitchTurnAcceleration = 173, YawTurnAcceleration = 174, RollTurnAcceleration = 175,
-                  StrafeAcceleration = 176, HoverSpeed = 177, HoverAcceleration = 178,
-                  ReverseSpeed = 179, ReverseAcceleration = 180, ForwardAcceleration = 181;
+                  FullStopDamage = 138, LowSpeedResistance = 139;
+        public const int PitchTurnRate = 191, YawTurnRate = 192, RollTurnRate = 193,
+                  PitchTurnAcceleration = 194, YawTurnAcceleration = 195, RollTurnAcceleration = 196,
+                  StrafeAcceleration = 197, HoverSpeed = 198, HoverAcceleration = 199,
+                  ReverseSpeed = 200, ReverseAcceleration = 201, ForwardAcceleration = 202;
 
         /// <summary>ships.json's "flight" fields (also inside its "original" / "free" objects).</summary>
         static readonly HashSet<string> BonusFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

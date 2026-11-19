@@ -3674,5 +3674,11 @@
  "mpScriptsShort": "consenti prima i suoi script: {0}",
  "mpModsCountScripts": "Mod ({0} attive, con script)",
  "scriptNoCommand": "Nessun comando \"{0}\".",
- "mapAnimationSpeed": "Velocità zoom: ×{0}"
+ "mapAnimationSpeed": "Velocità zoom: ×{0}",
+ "remasteredEffects": "Scudo e occultamento rimasterizzati",
+ "remasteredEffectsHelp": "Lo scudo del sistema di emergenza mostra le bande di energia della versione PC e distorce di più la vista dietro di esso; l'occultamento distorce la metà ciò che si vede attraverso, più fine alle risoluzioni odierne. Disattivato: gli effetti dell'originale.",
+ "turretLeadAim": "Torrette che anticipano il bersaglio",
+ "turretLeadAimHelp": "Le torrette (le tue, le torrette sentinella e quelle dei PNG) ruotano direttamente verso il bersaglio, sparano solo quando lo puntano e mirano dove sarà all'arrivo del colpo. Disattivato: le torrette dell'originale.",
+ "remakeFreeLook": "Visuale libera del remake",
+ "remakeFreeLookHelp": "La visuale libera si allontana più di tre volte tanto e aggancia la nave più vicina al centro della vista invece del mirino della tua nave. Disattivato: la visuale libera dell'originale."
 }

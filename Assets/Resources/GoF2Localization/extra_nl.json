@@ -3674,5 +3674,11 @@
  "mpScriptsShort": "sta eerst de scripts toe: {0}",
  "mpModsCountScripts": "Mods ({0} aan, met scripts)",
  "scriptNoCommand": "Geen opdracht \"{0}\".",
- "mapAnimationSpeed": "Zoomsnelheid: ×{0}"
+ "mapAnimationSpeed": "Zoomsnelheid: ×{0}",
+ "remasteredEffects": "Vernieuwd schild en camouflage",
+ "remasteredEffectsHelp": "Het schild van het noodsysteem toont de energiebanden van de pc-versie en vervormt het zicht erachter sterker; de camouflage vervormt wat erdoorheen te zien is maar half zo sterk, fijner op de resoluties van nu. Uit: de effecten van het origineel.",
+ "turretLeadAim": "Geschutskoepels mikken vooruit",
+ "turretLeadAimHelp": "Geschutskoepels (die van jou, wachtgeschut en die van NPC's) draaien recht naar hun doel, vuren alleen als ze erop gericht zijn en mikken op waar het is wanneer het schot aankomt. Uit: de geschutskoepels van het origineel.",
+ "remakeFreeLook": "Remake-vrij rondkijken",
+ "remakeFreeLookHelp": "Vrij rondkijken zoomt meer dan drie keer zo ver uit en vergrendelt het schip het dichtst bij het midden van het beeld in plaats van het vizier van je schip. Uit: het vrij rondkijken van het origineel."
 }

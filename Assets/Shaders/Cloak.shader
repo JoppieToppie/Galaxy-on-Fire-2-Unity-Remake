@@ -63,6 +63,7 @@ Shader "GoF2/Cloak"
             #pragma multi_compile_instancing
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             TEXTURE2D_X(_GoF2CloakScene); SAMPLER(sampler_GoF2CloakScene);
+            float _GoF2RemasteredFx;   // Settings.RemasteredEffects (Bootstrap): 1 = the remastered look
 
             struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float4 tangentOS : TANGENT; float2 uv : TEXCOORD0; UNITY_VERTEX_INPUT_INSTANCE_ID };
             struct Varyings
@@ -127,9 +128,10 @@ Shader "GoF2/Cloak"
                 // original swept the whole refracted picture, so the stars and space behind the ship slid too (the user's
                 // comparison: there only the lights move). The bright part of the still picture is taken out and the
                 // bright part of the moving one put in.
-                // Modified (the user's comparison, 2026-11-17): half the original's 100 / 75 px: at the remake's resolutions
-                // the normal map's fine detail smeared what shows through into a blur and bent objects too far.
-                const float bendScale = 0.5;
+                // Modified (#340, the user's comparison, 2026-11-17), Options > Graphics "Remastered shield and cloak"
+                // (_GoF2RemasteredFx, off by default): half the original's 100 / 75 px: at the remake's resolutions the
+                // normal map's fine detail smeared what shows through into a blur and bent objects too far.
+                float bendScale = _GoF2RemasteredFx > 0.5 ? 0.5 : 1.0;
                 float2 bend = float2(nTS.x * 100.0, nTS.y * 75.0) * bendScale / float2(1024.0, 768.0);
                 float2 sweep = float2(nTS.x * 100.0 * sin(_CloakRate), nTS.y * 75.0 * cos(_CloakRate)) * bendScale / float2(1024.0, 768.0);
                 half3 still = SAMPLE_TEXTURE2D_X(_GoF2CloakScene, sampler_GoF2CloakScene, UnityStereoTransformScreenSpaceTex(saturate(suv + bend))).rgb;
