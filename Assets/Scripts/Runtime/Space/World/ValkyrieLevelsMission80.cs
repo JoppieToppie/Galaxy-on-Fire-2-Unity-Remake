@@ -23,9 +23,21 @@ namespace GoF2Remake.World
                     if (Over(0))
                     {
                         EnterCutscene();
-                        // Modified: the shot is on the battlestation itself (the laser only appears LaserDelay80 ms in, step 1).
+                        // Modified: the shot is on the battlestation itself (the laser fires LaserDelay80 ms in, step 1).
                         var shot = new Vector3(-20000, 5000, -35000);
                         cam.LookAtUnity(host + ToUnity(shot) * k, battlestation != null ? battlestation.transform : battleLaser?.transform);
+                        // Modified: the laser shows from the shot's start, held at its load pose until it fires (the original's
+                        // +0xbc is visible from the ctor, its animation advanced only in step 2; the user's request, 2026-11-16,
+                        // with the laser's animation reworked).
+                        if (battleLaser != null)
+                        {
+                            battleLaser.SetActive(true);
+                            foreach (var a in battleLaser.GetComponentsInChildren<PartAnimation>(true))
+                            {
+                                a.applyMaterialChannels = true;
+                                a.Hold();
+                            }
+                        }
                         camStartZ80 = cam.Camera != null ? cam.Camera.position.z : 0f;
                         // OrbitScale: the pull back ends where the scaled orbit has the original's end (toward Kothar), at least
                         // CamPullBack80 on (at 1x: exactly that).
@@ -40,39 +52,18 @@ namespace GoF2Remake.World
                     PullBack80(stepMs);
                     if (stepMs >= LaserDelay80)
                     {
-                        // Modified: the laser starts LaserDelay80 ms into the shot (it played from the level's start), its
-                        // firing animation from the beginning.
+                        // The laser's animation runs from its load pose at its own speed (LevelScript step 2's
+                        // Transform::Update); its material channels (the fades) too.
                         if (battleLaser != null)
                         {
-                            battleLaser.SetActive(true);
-                            // the charge-up lives in the parts' material channels (like 89's supernova front)
-                            laserAnims80 = battleLaser.GetComponentsInChildren<PartAnimation>(true);
-                            laserFullOn80 = new float[laserAnims80.Length];
-                            foreach (var a in laserAnims80) { a.applyMaterialChannels = true; a.speed = 1f; }
+                            foreach (var a in battleLaser.GetComponentsInChildren<PartAnimation>(true)) { a.applyMaterialChannels = true; a.speed = 1f; }
                             PartAnimation.PlayOnce(battleLaser);
-                            // Modified: each part plays from its start to LaserHoldAt80 of its length in LaserChargeMs80, then is
-                            // held there (step 2) until the cut: its tail (fading out) no longer shows, nor a second hit.
-                            for (int i = 0; i < laserAnims80.Length; i++)
-                            {
-                                var a = laserAnims80[i];
-                                float start = Mathf.Clamp(a.loopStartMs, 0f, a.LengthMs);
-                                laserFullOn80[i] = Mathf.Lerp(start, a.LengthMs, Mathf.Clamp01(LaserHoldAt80));
-                                a.speed = Mathf.Max(0.01f, (laserFullOn80[i] - start) / LaserChargeMs80);
-                            }
                         }
-                        laserLooping80 = false;
                         Step = 2;
                     }
                     break;
                 case 2:
                     PullBack80(LaserDelay80 + stepMs);   // Modified: still pulling back
-                    // Modified: once charged the laser stays fully on (held at its LaserHoldAt80 pose) until the
-                    // camera cuts to the Void.
-                    if (!laserLooping80 && stepMs >= LaserChargeMs80 && laserAnims80 != null)
-                    {
-                        for (int i = 0; i < laserAnims80.Length; i++) laserAnims80[i].Hold(laserFullOn80[i]);
-                        laserLooping80 = true;
-                    }
                     if (stepMs >= LaserWindow80)
                     {
                         if (battleLaser != null) battleLaser.SetActive(false);
@@ -123,7 +114,7 @@ namespace GoF2Remake.World
                         var hitPoint = new Vector3(12487, -11451, 5958);
                         // Modified: the blast HitBlastOffset80 from the hit point (was the hit point itself).
                         // OrbitScale: the hit point where the scaled orbit has it, the offsets on Kothar's hull grown with it.
-                        Explosion.Spawn(0, At(hitPoint) + ToUnity(HitBlastOffset80) * k, Vector3.forward, 3f, CombatAssets.Pick(combat?.explosionBig), true);   // sound 18
+                        Explosion.Spawn(0, At(hitPoint) + ToUnity(HitBlastOffset80) * k, Vector3.forward, HitBlastScale80, CombatAssets.Pick(combat?.explosionBig), true);   // sound 18; Modified: HitBlastScale80 (was 3)
                         // Level+0x58 at the hit point and Level+0x5c at hit + (4500, 0, 1000) (record 24, both emitting for
                         // the rest of the level; the second point drifts +2 u/ms along x in state 9).
                         burnA = new GameObject("Deep science burn A").transform;
