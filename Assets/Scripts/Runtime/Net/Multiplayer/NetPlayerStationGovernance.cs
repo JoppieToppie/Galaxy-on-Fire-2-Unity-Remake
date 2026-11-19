@@ -14,7 +14,7 @@ namespace GoF2Remake.Multiplayer
         StationAdministrator = 0, Quartermaster = 1, ConstructionManager = 2,
         MarketManager = 3, SecurityOfficer = 4
     }
-    public enum PlayerStationBanSource { Faction = 0, OriginalBuilder = 1 }
+    public enum PlayerStationBanSource { OwnerAuthority = 0, OriginalBuilder = 1 }
 
     [Serializable]
     public sealed class PlayerStationPermissionOverride
@@ -193,6 +193,49 @@ namespace GoF2Remake.Multiplayer
                 case PlayerStationPermission.Security: return profile.security;
                 default: return false;
             }
+        }
+
+        static List<PlayerStationPermissionOverride> ClonePermissionOverrides(PlayerStationRecord record)
+        {
+            var copy = new List<PlayerStationPermissionOverride>();
+            foreach (var item in record?.permissionOverrides ?? new List<PlayerStationPermissionOverride>())
+                if (item != null) copy.Add(new PlayerStationPermissionOverride
+                {
+                    account = item.account, permission = item.permission, state = item.state, setBy = item.setBy,
+                    builderState = item.builderState, builderSetBy = item.builderSetBy
+                });
+            return copy;
+        }
+
+        static List<PlayerStationBan> CloneBans(PlayerStationRecord record)
+        {
+            var copy = new List<PlayerStationBan>();
+            foreach (var item in record?.bans ?? new List<PlayerStationBan>())
+                if (item != null) copy.Add(new PlayerStationBan
+                {
+                    account = item.account, source = item.source, imposedBy = item.imposedBy,
+                    reason = item.reason, createdUtc = item.createdUtc
+                });
+            return copy;
+        }
+
+        static void ConvertBuilderAuthorityRecords(PlayerStationRecord record)
+        {
+            if (record == null) return;
+            foreach (var item in record.permissionOverrides ?? new List<PlayerStationPermissionOverride>())
+            {
+                if (item == null || item.builderState == PlayerStationPermissionState.Inherit) continue;
+                if (item.state == PlayerStationPermissionState.Inherit)
+                {
+                    item.state = item.builderState;
+                    item.setBy = item.builderSetBy;
+                }
+                item.builderState = PlayerStationPermissionState.Inherit;
+                item.builderSetBy = null;
+            }
+            foreach (var ban in record.bans ?? new List<PlayerStationBan>())
+                if (ban != null && ban.source == PlayerStationBanSource.OriginalBuilder)
+                    ban.source = PlayerStationBanSource.OwnerAuthority;
         }
 
         static bool HasBan(PlayerStationRecord record, string account, PlayerStationBanSource source)
@@ -456,7 +499,7 @@ namespace GoF2Remake.Multiplayer
             if (string.Equals(targetAccount, account, StringComparison.Ordinal))
                 return "You cannot ban yourself from the station.";
             record.bans ??= new List<PlayerStationBan>();
-            var source = builder ? PlayerStationBanSource.OriginalBuilder : PlayerStationBanSource.Faction;
+            var source = builder ? PlayerStationBanSource.OriginalBuilder : PlayerStationBanSource.OwnerAuthority;
             var existing = record.bans.Find(x => x != null && string.Equals(x.account, targetAccount, StringComparison.Ordinal) && x.source == source);
             if (ban)
             {
@@ -477,7 +520,7 @@ namespace GoF2Remake.Multiplayer
             }
             int oldHistoryCount = record.history?.Count ?? 0, oldSequence = record.nextHistorySequence;
             RecordHistory(record, account, ban ? "visitor-banned" : "visitor-unbanned", targetAccount,
-                (builder ? "Original builder" : "Faction authority") + (ban ? " imposed" : " lifted") +
+                (builder ? "Original builder" : "Station owner authority") + (ban ? " imposed" : " lifted") +
                 " the station ban." + (string.IsNullOrEmpty(reason) ? "" : " Reason: " + reason.Trim()));
             if (Save()) return ban ? "Station ban applied to " + targetAccount + "." : "Station ban lifted for " + targetAccount + ".";
             if (ban) record.bans.RemoveAll(x => x != null && x.source == source && string.Equals(x.account, targetAccount, StringComparison.Ordinal));
@@ -563,13 +606,18 @@ namespace GoF2Remake.Multiplayer
             if (!HasBuilderRights(record, account))
                 return "Only the original builder can relinquish these reserved rights.";
             long previous = record.builderRightsRelinquishedUtc;
+            var previousOverrides = ClonePermissionOverrides(record);
+            var previousBans = CloneBans(record);
             int oldHistoryCount = record.history?.Count ?? 0;
             int oldSequence = record.nextHistorySequence;
             record.builderRightsRelinquishedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            ConvertBuilderAuthorityRecords(record);
             RecordHistory(record, account, "builder-rights-relinquished", null,
                 "The original builder voluntarily relinquished their reserved station authority.");
             if (Save()) return "Your reserved original-builder rights have been relinquished permanently.";
             record.builderRightsRelinquishedUtc = previous;
+            record.permissionOverrides = previousOverrides;
+            record.bans = previousBans;
             if (record.history != null && record.history.Count > oldHistoryCount)
                 record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
             record.nextHistorySequence = oldSequence;
@@ -718,8 +766,19 @@ namespace GoF2Remake.Multiplayer
 
                 // Old faction appointments and bans cannot survive the faction's dissolution.
                 record.roleAssignments?.Clear();
-                record.bans?.RemoveAll(x => x != null && x.source == PlayerStationBanSource.Faction);
-                record.permissionOverrides?.Clear();
+                record.bans?.RemoveAll(x => x != null && x.source == PlayerStationBanSource.OwnerAuthority);
+                if (record.permissionOverrides != null)
+                {
+                    for (int i = record.permissionOverrides.Count - 1; i >= 0; i--)
+                    {
+                        var permission = record.permissionOverrides[i];
+                        if (permission == null) { record.permissionOverrides.RemoveAt(i); continue; }
+                        permission.state = PlayerStationPermissionState.Inherit;
+                        permission.setBy = null;
+                        if (permission.builderState == PlayerStationPermissionState.Inherit)
+                            record.permissionOverrides.RemoveAt(i);
+                    }
+                }
                 record.factionPermissions = new PlayerStationFactionPermissionProfile();
                 record.pendingTransfer = null;
                 record.factionSuccessorProfile = null;
