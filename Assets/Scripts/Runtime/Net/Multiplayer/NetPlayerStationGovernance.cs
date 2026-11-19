@@ -152,10 +152,8 @@ namespace GoF2Remake.Multiplayer
         static bool IsStationOwnerAccount(PlayerStationRecord record, string account)
         {
             if (record == null || string.IsNullOrEmpty(account)) return false;
-            if (record.ownershipType == PlayerStationOwnershipType.Individual)
-                return string.Equals(record.ownerProfile, account, StringComparison.Ordinal);
-            var faction = NetFactions.FindById(record.ownerFactionId);
-            return faction != null && string.Equals(faction.leader, account, StringComparison.Ordinal);
+            return record.ownershipType == PlayerStationOwnershipType.Individual &&
+                string.Equals(record.ownerProfile, account, StringComparison.Ordinal);
         }
 
         static void ClearOwnerVisitorRestrictions(PlayerStationRecord record)
