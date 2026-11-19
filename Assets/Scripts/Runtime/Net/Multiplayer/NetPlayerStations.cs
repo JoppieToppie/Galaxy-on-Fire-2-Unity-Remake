@@ -162,6 +162,37 @@ namespace GoF2Remake.Multiplayer
             return string.Join("\n", lines);
         }
 
+        /// <summary>Show the persistent state and construction progress of one player station.</summary>
+        internal static string Status(int id)
+        {
+            if (!NetGame.Active || registry?.stations == null) return "Join a multiplayer session first.";
+            var record = Find(id);
+            if (record == null) return $"No player station with project id {id} exists in this world.";
+
+            var system = NetGame.Db?.Systems?.Find(s => s != null && s.index == record.system);
+            var lines = new List<string>
+            {
+                $"Station #{record.id}: {record.name}",
+                $"System: {(system != null ? system.name : $"Unknown ({record.system})")}",
+                $"Owner: {(string.IsNullOrWhiteSpace(record.ownerName) ? "Unknown" : record.ownerName)}",
+                $"Status: {(record.underConstruction ? "Under construction" : "Operational")}",
+            };
+
+            if (record.materials != null && record.materials.Count > 0)
+            {
+                lines.Add("Construction materials:");
+                foreach (var material in record.materials)
+                {
+                    if (material == null) continue;
+                    string itemName = NetGame.Db?.Item(material.item)?.name ?? $"Item {material.item}";
+                    lines.Add($"  {itemName}: {Math.Max(0, material.delivered)}/{Math.Max(0, material.required)}");
+                }
+            }
+            lines.Add($"Installed modules: {record.addons?.Count ?? 0}");
+            lines.Add($"Marketplace listings: {record.listings?.Count ?? 0}");
+            return string.Join("\n", lines);
+        }
+
         /// <summary>Station model/collision preset inherited by a player station from its chosen orbital anchor.</summary>
         internal static int LooksLike(int stationIndex)
         {
