@@ -380,12 +380,21 @@ namespace GoF2Remake.Flight
         /// scaled by (H / 20)^0.75, softly capped there (a tenth of what lies above, FreeTurnAboveShare), then the
         /// steering sensitivity option x0.6..1.6 (1 at its default). The option itself, not Sensitivity: that one is the
         /// original's ramp setting, a fixed 2.7 under mouse steering.</summary>
-        float FreeTopTurnRate(float he)
+        float FreeTopTurnRate(float he, float rateDeg)
         {
             float f = Mathf.Pow(Mathf.Max(1f, he) / 20f, R.freeTurnExponent);
             if (f > 1f) f = 1f + (f - 1f) * R.freeTurnAboveShare;
-            return (R.freeTurnRateDeg * Mathf.Deg2Rad / 1000f) * f * Style.turnScale * TurnScale * Mathf.Clamp(0.5f + 0.5f * Data.Settings.Sensitivity, 0.6f, 1.6f);
+            return (rateDeg * Mathf.Deg2Rad / 1000f) * f * Style.turnScale * TurnScale * Mathf.Clamp(0.5f + 0.5f * Data.Settings.Sensitivity, 0.6f, 1.6f);
         }
+
+        // Zero per-axis rates/ramp times preserve the shared settings for existing mods.
+        float FreeTopTurnRate(float he) => FreeTopTurnRate(he, R.freeTurnRateDeg);
+        float FreeTopPitchRate(float he) => FreeTopTurnRate(he, R.freePitchRateDeg > 0f ? R.freePitchRateDeg : R.freeTurnRateDeg);
+        float FreeTopYawRate(float he) => FreeTopTurnRate(he, R.freeYawRateDeg > 0f ? R.freeYawRateDeg : R.freeTurnRateDeg);
+        float FreeTopRollRate(float he) => FreeTopTurnRate(he, R.freeRollRateDeg > 0f ? R.freeRollRateDeg : R.freeTurnRateDeg * R.freeRollShare);
+        float FreePitchRamp => (R.freePitchRampMs > 0f ? R.freePitchRampMs : R.freeTurnRampMs) / Mathf.Max(0.05f, Inertia);
+        float FreeYawRamp => (R.freeYawRampMs > 0f ? R.freeYawRampMs : R.freeTurnRampMs) / Mathf.Max(0.05f, Inertia);
+        float FreeRollRamp => (R.freeRollRampMs > 0f ? R.freeRollRampMs : R.freeTurnRampMs) / Mathf.Max(0.05f, Inertia);
 
         /// <summary>Free flight: how many times faster than the original this ship turns at full input (its top turn rate over
         /// the original's full-stick 750 H / 63 units); 1 in the original flight. The chase camera follows that much faster
@@ -396,7 +405,8 @@ namespace GoF2Remake.Flight
             {
                 if (!FreeFlight) return 1f;
                 float he = EffectiveHandling, original = R.turnRateScale * Mathf.Max(1f, he) / R.turnRateDivisor * RateToRadiansPerMs;
-                return Mathf.Max(1f, FreeTopTurnRate(he) / original);
+                float fastest = Mathf.Max(FreeTopRollRate(he), Mathf.Max(FreeTopPitchRate(he), FreeTopYawRate(he)));
+                return Mathf.Max(1f, fastest / original);
             }
         }
 
@@ -409,11 +419,12 @@ namespace GoF2Remake.Flight
             UpdateBoost(dtMs);
 
             // ---- turning: the rates ramp toward the aim (the stick's or the virtual joystick's deflection x the top rate)
-            float maxRate = FreeTopTurnRate(he) * (IsBoosting ? R.freeBoostTurnShare : 1f);
-            float step = maxRate / (R.freeTurnRampMs / Mathf.Max(0.05f, Inertia)) * dtMs;
-            freeYaw = Mathf.MoveTowards(freeYaw, Mathf.Clamp(input.aim.x, -1f, 1f) * maxRate, step);
+            float boostTurn = IsBoosting ? R.freeBoostTurnShare : 1f;
+            float maxYawRate = FreeTopYawRate(he) * boostTurn;
+            float maxPitchRate = FreeTopPitchRate(he) * boostTurn;
+            freeYaw = Mathf.MoveTowards(freeYaw, Mathf.Clamp(input.aim.x, -1f, 1f) * maxYawRate, maxYawRate / FreeYawRamp * dtMs);
             YawInput = Mathf.Clamp(input.aim.x, -1f, 1f);
-            freePitch = Mathf.MoveTowards(freePitch, Mathf.Clamp(input.aim.y, -1f, 1f) * maxRate, step);
+            freePitch = Mathf.MoveTowards(freePitch, Mathf.Clamp(input.aim.y, -1f, 1f) * maxPitchRate, maxPitchRate / FreePitchRamp * dtMs);
             float roll = Mathf.Clamp(input.roll, -1f, 1f);
             if (Mathf.Abs(roll) > 0.01f) StopLeveling();
             UpdateLevelRequest(input.aim, dtMs);
@@ -421,8 +432,8 @@ namespace GoF2Remake.Flight
             // EVERSPACE 2's auto-roll (AutoRollInput): only with no roll held and no level-out running
             if (Mathf.Abs(roll) <= 0.01f && !IsLeveling) roll = AutoRollInput(dtMs, rotation * Vector3.forward, shipUp, shipRight, input.aim.y);
             else autoRolling = false;
-            float rollTop = FreeTopTurnRate(he) * RollScale * R.freeRollShare;   // EVERSPACE 2 rolls as fast as it turns
-            freeRoll = Mathf.MoveTowards(freeRoll, roll * rollTop, rollTop / (R.freeTurnRampMs / Mathf.Max(0.05f, Inertia)) * dtMs);
+            float rollTop = FreeTopRollRate(he) * RollScale;   // independently tunable; zero rate falls back to turn rate x roll share
+            freeRoll = Mathf.MoveTowards(freeRoll, roll * rollTop, rollTop / FreeRollRamp * dtMs);
             float rollRad = -freeRoll * dtMs;
             rollLevelled = false;
             if (IsLeveling) { rollRad += AutoLevelRoll(dtMs, shipUp, shipRight) * RollScale; if (rollLevelled) IsLeveling = false; }
@@ -441,7 +452,7 @@ namespace GoF2Remake.Flight
             float accelFwd = (R.freeAccelForward / 1000f) * top * fwdShare;   // unboosted: the braking and turning boost derive from it
             float thrust = Mathf.Clamp(input.thrust, -1f, 1f), strafe = Mathf.Clamp(input.strafe, -1f, 1f), hover = Mathf.Clamp(input.hover, -1f, 1f);
             ThrustInput = new Vector3(strafe, hover, thrust);
-            if (IsBoosting) thrust = 1f;   // the boost drives forward whatever is held
+            // Boost amplifies the requested translation; it never supplies its own forward input.
             var fwd = rotation * Vector3.forward;
             var v = Quaternion.Inverse(rotation) * FreeVelocity;
             var inp = new Vector3(strafe, hover, thrust);
@@ -479,11 +490,16 @@ namespace GoF2Remake.Flight
             // within what it was when already faster (the thrust only steers it there).
             if (inpMag > 0f && targetSpeed > 0f)
             {
-                // (the accelerations are attributes of their own: the boost raises only the forward one)
+                // Each translation axis has its own acceleration. Boost amplifies whichever axes are requested,
+                // rather than injecting forward thrust. Zero preserves the legacy shared side acceleration.
                 float sideTop = top * Style.strafeScale;
-                var accels = new Vector3((R.freeAccelSide / 1000f) * sideTop * R.freeStrafeShare * sideShare, (R.freeAccelSide / 1000f) * sideTop * R.freeHoverShare * sideShare,
-                                         thrust < 0f ? (R.freeAccelSide / 1000f) * top * R.freeReverseShare * sideShare
-                                                     : accelFwd * (IsBoosting ? R.freeBoostAccel : 1f));
+                float reverseAccel = R.freeAccelReverse > 0f ? R.freeAccelReverse : R.freeAccelSide;
+                float strafeAccel = R.freeAccelStrafe > 0f ? R.freeAccelStrafe : R.freeAccelSide;
+                float hoverAccel = R.freeAccelHover > 0f ? R.freeAccelHover : R.freeAccelSide;
+                float boostAccel = IsBoosting ? R.freeBoostAccel : 1f;
+                var accels = new Vector3((strafeAccel / 1000f) * sideTop * R.freeStrafeShare * sideShare * boostAccel,
+                                         (hoverAccel / 1000f) * sideTop * R.freeHoverShare * sideShare * boostAccel,
+                                         (thrust < 0f ? (reverseAccel / 1000f) * top * R.freeReverseShare * sideShare : accelFwd) * boostAccel);
                 float accel = inpMag * Vector3.Scale(accels, targetDir).magnitude;
                 float ease = 1f;
                 if (damp)
