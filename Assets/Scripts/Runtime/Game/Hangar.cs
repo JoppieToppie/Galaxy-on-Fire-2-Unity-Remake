@@ -534,10 +534,10 @@ namespace GoF2Remake.Data
             return Result.Ok;
         }
 
-        /// <summary>Status::changeCredits: ignores absurd changes, never below 0.</summary>
-        static void ChangeCredits(int delta)
+        /// <summary>Status::changeCredits: never below 0. Remake (64-bit credits): the original ignored a change over
+        /// 1 000 000 000 as absurd, which let a mod ship priced over that be bought for nothing (and sold for nothing).</summary>
+        static void ChangeCredits(long delta)
         {
-            if (Mathf.Abs(delta) > 1000000000) return;
             Session.Credits = System.Math.Max(0L, Session.SaturatingAdd(Session.Credits, delta));
         }
 

@@ -128,10 +128,10 @@ namespace GoF2Remake.Multiplayer
         public static int OfferedOf(int item) => draft.items.Find(s => s.item == item)?.amount ?? 0;
 
         /// <summary>The credits offered (0..what this player has).</summary>
-        public static void SetCredits(int credits)
+        public static void SetCredits(long credits)
         {
             if (Current == null || Current.phase != NetTrade.Phase.Open) return;
-            credits = (int)Math.Max(0L, Math.Min(credits, Session.Credits));
+            credits = Math.Max(0L, Math.Min(credits, Session.Credits));
             if (credits == draft.credits) return;
             draft.credits = credits;
             Changed();
@@ -290,7 +290,7 @@ namespace GoF2Remake.Multiplayer
                 }
                 // Sold or used meanwhile: the offer shrinks to what is left.
                 bool trimmed = false;
-                if (draft.credits > Session.Credits) { draft.credits = (int)Math.Max(0L, Session.Credits); trimmed = true; }
+                if (draft.credits > Session.Credits) { draft.credits = Math.Max(0L, Session.Credits); trimmed = true; }
                 for (int i = draft.items.Count - 1; i >= 0; i--)
                 {
                     int have = Shop.CargoOf(draft.items[i].item);

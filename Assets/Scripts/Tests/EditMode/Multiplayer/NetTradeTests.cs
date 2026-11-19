@@ -20,8 +20,22 @@ namespace GoF2Remake.Tests
 {
     public class NetTradeTests : SandboxTest
     {
-        static bool Check(int[] packed, out NetTrade.Offer offer)
+        /// <summary>An offer written the short way (the credits as one int, then item / amount pairs) in the packed form (the
+        /// credits 64-bit: low, high).</summary>
+        static int[] Wide(int[] shortForm)
         {
+            if (shortForm == null || shortForm.Length == 0) return shortForm;
+            long credits = shortForm[0];
+            var a = new List<int> { (int)(credits & 0xFFFFFFFFL), (int)(credits >> 32) };
+            for (int i = 1; i < shortForm.Length; i++) a.Add(shortForm[i]);
+            return a.ToArray();
+        }
+
+        static NetTrade.Offer Unpack(int[] shortForm) => NetTrade.Offer.Unpack(Wide(shortForm));
+
+        static bool Check(int[] shortForm, out NetTrade.Offer offer)
+        {
+            var packed = Wide(shortForm);
             var m = typeof(NetTrade).GetMethod("TryParse", BindingFlags.NonPublic | BindingFlags.Static);
             Assert.IsNotNull(m, "NetTrade.TryParse");
             var args = new object[] { packed, null, null };
@@ -119,16 +133,32 @@ namespace GoF2Remake.Tests
             o.items.Add(new ItemStack(85, 3));
             o.items.Add(new ItemStack(90, 1));
             var packed = o.Pack();
-            CollectionAssert.AreEqual(new[] { 1234, 85, 3, 90, 1 }, packed);
+            CollectionAssert.AreEqual(new[] { 1234, 0, 85, 3, 90, 1 }, packed);
             var back = NetTrade.Offer.Unpack(packed);
             Assert.IsTrue(back.Same(o));
             Assert.IsTrue(o.Same(back));
         }
 
+        /// <summary>64-bit credits (a Discord report 2026-11-16 about the 32-bit cap): a trade of more than 2 147 483 647.</summary>
+        [Test]
+        public void CreditsPastThe32BitTop()
+        {
+            var o = new NetTrade.Offer { credits = 5_000_000_000_000L };
+            o.items.Add(new ItemStack(85, 3));
+            var back = NetTrade.Offer.Unpack(o.Pack());
+            Assert.AreEqual(5_000_000_000_000L, back.credits);
+            Assert.IsTrue(back.Same(o));
+            Assert.IsTrue(Check(new[] { 0, 85, 1 }, out _));
+            var m = typeof(NetTrade).GetMethod("TryParse", BindingFlags.NonPublic | BindingFlags.Static);
+            var args = new object[] { new NetTrade.Offer { credits = long.MaxValue }.Pack(), null, null };
+            Assert.IsTrue((bool)m.Invoke(null, args));
+            Assert.AreEqual(long.MaxValue, ((NetTrade.Offer)args[1]).credits);
+        }
+
         [Test]
         public void UnpackDropsWhatIsntThere()
         {
-            var o = NetTrade.Offer.Unpack(new[] { -50, 85, 0, 90, 2, 77 });
+            var o = Unpack(new[] { -50, 85, 0, 90, 2, 77 });
             Assert.AreEqual(0, o.credits, "no negative credits");
             Assert.AreEqual(1, o.items.Count, "no empty stacks, no half pair");
             Assert.AreEqual(90, o.items[0].item);
@@ -139,11 +169,11 @@ namespace GoF2Remake.Tests
         [Test]
         public void SameComparesEverything()
         {
-            var a = NetTrade.Offer.Unpack(new[] { 10, 85, 1 });
-            Assert.IsFalse(a.Same(NetTrade.Offer.Unpack(new[] { 11, 85, 1 })));
-            Assert.IsFalse(a.Same(NetTrade.Offer.Unpack(new[] { 10, 85, 2 })));
-            Assert.IsFalse(a.Same(NetTrade.Offer.Unpack(new[] { 10, 84, 1 })));
-            Assert.IsFalse(a.Same(NetTrade.Offer.Unpack(new[] { 10 })));
+            var a = Unpack(new[] { 10, 85, 1 });
+            Assert.IsFalse(a.Same(Unpack(new[] { 11, 85, 1 })));
+            Assert.IsFalse(a.Same(Unpack(new[] { 10, 85, 2 })));
+            Assert.IsFalse(a.Same(Unpack(new[] { 10, 84, 1 })));
+            Assert.IsFalse(a.Same(Unpack(new[] { 10 })));
             Assert.IsFalse(a.Same(null));
         }
 
@@ -151,7 +181,7 @@ namespace GoF2Remake.Tests
         public void AnOfferDescribed()
         {
             Assert.AreEqual(Localization.Extra("mpTradeNothing", "nothing"), NetTradeClient.Describe(new NetTrade.Offer()));
-            var o = NetTrade.Offer.Unpack(new[] { 0, 85, 2 });
+            var o = Unpack(new[] { 0, 85, 2 });
             StringAssert.StartsWith("2 t ", NetTradeClient.Describe(o));
         }
 

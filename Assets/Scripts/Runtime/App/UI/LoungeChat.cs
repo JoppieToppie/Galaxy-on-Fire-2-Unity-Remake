@@ -378,16 +378,17 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Agent::getModPricePercentage 0x1a698c: the ship's price x 20 / 30 / 40 / 20 % (mods 0..3); remake
-        /// (Settings.KaamoStacking): x2 for every level already fitted, capped at int.MaxValue. A ship without a price is
-        /// valued at UnpricedShipValue.</summary>
-        int ModPrice(Agent a)
+        /// (Settings.KaamoStacking): x2 for every level already fitted, up to the 64-bit credits' top (Session.MaxCredits;
+        /// it stopped at 2 147 483 647, every level past it the same price). A ship without a price is valued at
+        /// UnpricedShipValue.</summary>
+        long ModPrice(Agent a)
         {
             int[] pct = { 20, 30, 40, 20 };
             int ship = db.Ship(Session.ShipIndex)?.price ?? 0;
             if (ship <= 0) ship = UnpricedShipValue;
             if (a.sellMod < 0 || a.sellMod >= pct.Length) return a.sellPrice;
             double price = (double)ship * pct[a.sellMod] / 100 * System.Math.Pow(2, Session.ModLevel(a.sellMod));
-            return price >= int.MaxValue ? int.MaxValue : (int)price;
+            return price >= 9.2e18 ? Session.MaxCredits : (long)price;
         }
 
         /// <summary>Remake (players' feedback, 2026-10): the Cronus (37), Khador's gift at step 77, has no price, so its upgrades
@@ -527,7 +528,7 @@ namespace GoF2Remake.Data
                     return Outcome.ConfirmShip;
                 }
             }
-            int price = Price(a);
+            long price = Price(a);
             if (price > Session.Credits) return Refuse(T(203).Replace("#C", C(price - Session.Credits)));
             ConfirmText = a.offer switch
             {
@@ -540,7 +541,7 @@ namespace GoF2Remake.Data
             return Outcome.Confirm;
         }
 
-        int Price(Agent a) => a.offer == AgentOffer.SellMod ? ModPrice(a) : a.sellPrice;
+        long Price(Agent a) => a.offer == AgentOffer.SellMod ? ModPrice(a) : a.sellPrice;
 
         /// <summary>The trades of this station (Hangar, as the hangar window opens it).</summary>
         Hangar TradeHangar() => new Hangar(db, Session.RecentStations.Find(s => s.station == station) ?? new StationStock { station = station });

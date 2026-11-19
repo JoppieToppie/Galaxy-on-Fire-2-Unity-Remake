@@ -160,8 +160,14 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   int, the cheats capped at 999 999 999). Overflow: `Session.Credits` is a property whose setter keeps long.MaxValue when
   a sum wraps (positive credits set to below long.MinValue / 2), so any `Credits += x` saturates; `Session.AddCredits` /
   `SaturatingAdd` clamp explicitly (cheats, admin gifts, trades, profile moves). `GameNames.Credits(long)` formats the
-  whole range. Prices, rewards and the multiplayer trade offers stay ints; an original-format export clamps to int.MaxValue
-  (`OriginalSaveConvert`); medal 25 reads the highest credits clamped to an int. Tests `CheatsTests`.
+  whole range. Prices and rewards stay ints; an original-format export clamps to int.MaxValue (`OriginalSaveConvert`);
+  medal 25 reads the highest credits clamped to an int; an admin's `/credits` gives at most 999 999 999 a command.
+  2026-11-19 (a Discord report from a pre-11.15 build: one credit past 2 147 483 647 reset the wallet): the amounts
+  that were still ints move 64-bit too: the Kaamo Club's stacked upgrade price (`LoungeChat.ModPrice` doubles on past
+  2 147 483 647, where every level cost the same), the squad trades' credits (`NetTrade.Offer.credits`, packed as two
+  ints, low then high), the faction bank's `/faction deposit` / `withdraw` (`ChargeRpc` / `GrantRpc` longs), and
+  `Hangar.ChangeCredits` no longer drops a change over 1 000 000 000 as absurd (Status::changeCredits' guard let a
+  mod ship priced over that be bought for nothing). Tests `CheatsTests`, `NetTradeTests`.
 - **New game:** 0 credits, like the original (sell starting gear to get money). `Session.CampaignMission` is a free-play
   20 (past the tutorial locks) until there is a campaign. Var Hastra always stocks a drill and energy cells then
   (remake-only, see "Mining" and "Star map and system travel").
@@ -178,7 +184,7 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   profiles back to it, `NetProfiles.ClampMods`; levels fitted before a lower limit stay in single player; at the top the
   mechanic says so, `kaamoModMaxed`), a level = how many times it is in `Session.ShipMods` (`Session.ModLevel`; every
   effect is per level: hull, cargo, slots, `BuildFlightStats`' handling upgrades), the price x2 per level fitted
-  (`LoungeChat.ModPrice`, capped at int.MaxValue; a ship without a price, the Cronus (37, Khador's gift at step 77), is
+  (`LoungeChat.ModPrice`, capped at the 64-bit top; a ship without a price, the Cronus (37, Khador's gift at step 77), is
   valued at 2 500 000 between its sister ships the Typhon and the Nemesis, `UnpricedShipValue`; in multiplayer the
   Cronus itself costs 1 150 000, `Database.CronusSessionPrice`: its upgrades cost 0 at every level; the offer adds
   "(Upgrade level N.)"), the lines show the total and "level N"; off = the original's one of each

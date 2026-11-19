@@ -36,27 +36,31 @@ namespace GoF2Remake.Multiplayer
 
         public sealed class Offer
         {
-            public int credits;
+            public long credits;
             public readonly List<ItemStack> items = new List<ItemStack>();
 
             public bool Empty => credits <= 0 && items.Count == 0;
 
-            /// <summary>credits, then item / amount pairs (the RPCs' form).</summary>
+            /// <summary>The credits (64-bit: low, high), then item / amount pairs (the RPCs' form).</summary>
             public int[] Pack()
             {
-                var a = new int[1 + items.Count * 2];
-                a[0] = credits;
-                for (int i = 0; i < items.Count; i++) { a[1 + i * 2] = items[i].item; a[2 + i * 2] = items[i].amount; }
+                var a = new int[2 + items.Count * 2];
+                a[0] = (int)(credits & 0xFFFFFFFFL);
+                a[1] = (int)(credits >> 32);
+                for (int i = 0; i < items.Count; i++) { a[2 + i * 2] = items[i].item; a[3 + i * 2] = items[i].amount; }
                 return a;
             }
+
+            /// <summary>The 64-bit credits of a packed offer (0 when it is too short).</summary>
+            public static long PackedCredits(int[] a) => a == null || a.Length < 2 ? 0L : ((long)a[1] << 32) | (uint)a[0];
 
             /// <summary>The packed form back (no checks: NetTradeClient's side, from the server).</summary>
             public static Offer Unpack(int[] a)
             {
                 var o = new Offer();
-                if (a == null || a.Length == 0) return o;
-                o.credits = Mathf.Max(0, a[0]);
-                for (int i = 1; i + 1 < a.Length; i += 2) if (a[i + 1] > 0) o.items.Add(new ItemStack(a[i], a[i + 1]));
+                if (a == null || a.Length < 2) return o;
+                o.credits = System.Math.Max(0L, PackedCredits(a));
+                for (int i = 2; i + 1 < a.Length; i += 2) if (a[i + 1] > 0) o.items.Add(new ItemStack(a[i], a[i + 1]));
                 return o;
             }
 
@@ -188,11 +192,11 @@ namespace GoF2Remake.Multiplayer
         {
             offer = new Offer();
             problem = null;
-            if (packed == null || packed.Length == 0 || packed.Length % 2 == 0 || packed.Length > 1 + MaxKinds * 2) { problem = "a bad length"; return false; }
-            if (packed[0] < 0) { problem = "negative credits"; return false; }
-            offer.credits = packed[0];
+            if (packed == null || packed.Length < 2 || packed.Length % 2 == 1 || packed.Length > 2 + MaxKinds * 2) { problem = "a bad length"; return false; }
+            offer.credits = Offer.PackedCredits(packed);
+            if (offer.credits < 0) { problem = "negative credits"; return false; }
             var seen = new HashSet<int>();
-            for (int i = 1; i < packed.Length; i += 2)
+            for (int i = 2; i < packed.Length; i += 2)
             {
                 int item = packed[i], amount = packed[i + 1];
                 if (!Tradeable(item) || amount < 1 || amount > MaxUnits || !seen.Add(item)) { problem = $"item {item} x {amount}"; return false; }
@@ -281,7 +285,7 @@ namespace GoF2Remake.Multiplayer
         static bool Debit(Trade t, ulong client)
         {
             string account = client == t.a ? t.accA : t.accB;
-            int credits = t.OfferOf(client).credits;
+            long credits = t.OfferOf(client).credits;
             if (account == null || credits <= 0) return true;
             if (!NetProfiles.MoveCredits(client, account, -credits)) return false;
             if (client == t.a) t.debitedA = true; else t.debitedB = true;
