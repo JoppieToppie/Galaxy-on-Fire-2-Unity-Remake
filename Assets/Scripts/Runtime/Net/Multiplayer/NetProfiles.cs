@@ -362,6 +362,47 @@ namespace GoF2Remake.Multiplayer
             }
             catch (Exception e) { Debug.LogError($"NetProfiles: profile {id} unreadable: {e.Message}"); return null; }
         }
+        internal static List<StoredShip> StoredShipsOf(string id, ulong client)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            if (IsHostClient(client)) { Session.KaamoShips ??= new List<StoredShip>(); return Session.KaamoShips; }
+            return ReadSave(id)?.kaamoShips;
+        }
+
+        internal static bool RemoveStoredShip(string id, ulong client, int index, out StoredShip ship)
+        {
+            ship = null;
+            if (string.IsNullOrEmpty(id)) return false;
+            if (IsHostClient(client))
+            {
+                Session.KaamoShips ??= new List<StoredShip>();
+                if (index < 0 || index >= Session.KaamoShips.Count || Session.KaamoShips[index] == null) return false;
+                ship = Session.KaamoShips[index]; Session.KaamoShips.RemoveAt(index); return true;
+            }
+            var save = ReadSave(id);
+            if (save?.kaamoShips == null || index < 0 || index >= save.kaamoShips.Count || save.kaamoShips[index] == null) return false;
+            ship = save.kaamoShips[index]; save.kaamoShips.RemoveAt(index);
+            if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) { ship = null; return false; }
+            return true;
+        }
+
+        internal static bool AddStoredShip(string id, ulong client, StoredShip ship)
+        {
+            if (string.IsNullOrEmpty(id) || ship == null || ship.ship < 0) return false;
+            if (IsHostClient(client))
+            {
+                Session.KaamoShips ??= new List<StoredShip>();
+                if (Session.KaamoShips.Count >= 100) return false;
+                Session.KaamoShips.Add(ship); return true;
+            }
+            var save = ReadSave(id);
+            if (save == null) return false;
+            save.kaamoShips ??= new List<StoredShip>();
+            if (save.kaamoShips.Count >= 100) return false;
+            save.kaamoShips.Add(ship);
+            return Write(ProfilePath(id), JsonUtility.ToJson(save, false));
+        }
+
 
         /// <summary>A profile's worth at its last accepted upload (credits + ships + items), 0 = unknown.</summary>
         internal static long WorthOf(string id) => id == null ? 0 : index?.accounts.Find(x => x.id == id)?.worth ?? 0;
