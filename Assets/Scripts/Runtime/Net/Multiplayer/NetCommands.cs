@@ -400,7 +400,7 @@ namespace GoF2Remake.Multiplayer
             if (args.StartsWith(storage, StringComparison.OrdinalIgnoreCase))
             {
                 if (!int.TryParse(args.Substring(storage.Length).Trim(), out int stationId)) return "/station storage <station id>";
-                return NetPlayerStations.StorageStatus(stationId);
+                return NetPlayerStations.StorageStatus(by as NetPlayer, stationId);
             }
             foreach (string action in new[] { "deposit ", "withdraw " })
             {
