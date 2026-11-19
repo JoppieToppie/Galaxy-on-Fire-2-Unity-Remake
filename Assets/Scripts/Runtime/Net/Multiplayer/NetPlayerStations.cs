@@ -30,7 +30,8 @@ namespace GoF2Remake.Multiplayer
         public List<PlayerStationAddon> addons = new List<PlayerStationAddon>();
         public List<PlayerStationListing> listings = new List<PlayerStationListing>();
         public List<PlayerStationStorage> storage = new List<PlayerStationStorage>();
-        /// <summary>When enabled, members of the owner's current faction may use station storage.</summary>
+        public List<StoredShip> storedShips = new List<StoredShip>();
+        /// <summary>When enabled, members of the owner's current faction may use station storage and hangar.</summary>
         public bool factionStorageAccess;
     }
 
@@ -117,6 +118,7 @@ namespace GoF2Remake.Multiplayer
                 station.materials ??= new List<PlayerStationMaterial>();
                 station.listings ??= new List<PlayerStationListing>();
                 station.storage ??= new List<PlayerStationStorage>();
+                station.storedShips ??= new List<StoredShip>();
                 if (station.addons.Count > MaxAddonsPerStation || station.listings.Count > MaxListingsPerStation)
                     Debug.LogWarning($"NetPlayerStations: station {station.id} exceeds a module or listing limit; preserving all saved records.");
             }
