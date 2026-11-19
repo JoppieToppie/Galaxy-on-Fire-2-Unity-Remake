@@ -48,6 +48,7 @@ namespace GoF2Remake.Multiplayer
                 blueprintName = building ? (db?.Ship(record.dryDockShip)?.name ?? ("Ship " + record.dryDockShip)) : null,
                 startedUtc = building ? record.dryDockStartedUtc : 0,
                 completesUtc = building ? record.dryDockCompletesUtc : 0,
+                durationSeconds = building ? duration : 0,
                 remainingSeconds = remaining,
                 progress = building ? Math.Max(0f, Math.Min(1f, 1f - remaining / (float)duration)) : 0f,
                 consumesBlueprint = building && record.dryDockConsumeBlueprint,
