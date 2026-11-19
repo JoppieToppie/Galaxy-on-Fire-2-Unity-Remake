@@ -89,12 +89,15 @@ namespace GoF2Remake.Multiplayer
             int ship = record.dryDockShip;
             int race = NetGame.Db?.Systems?.Find(x => x.index == record.system)?.raceId ?? 0;
             record.dryDockShips.Add(new StoredShip(ship, race, new List<int>()));
+            record.dryDockShipOwners ??= new List<string>();
+            record.dryDockShipOwners.Add(record.ownerProfile ?? "");
             long started = record.dryDockStartedUtc, completes = record.dryDockCompletesUtc;
             int blueprint = record.dryDockBlueprintItem;
             bool consume = record.dryDockConsumeBlueprint;
             ClearDryDockJob(record);
             if (Save()) return true;
             record.dryDockShips.RemoveAt(record.dryDockShips.Count - 1);
+            record.dryDockShipOwners.RemoveAt(record.dryDockShipOwners.Count - 1);
             record.dryDockBuilding = true;
             record.dryDockBlueprintItem = blueprint;
             record.dryDockShip = ship;
