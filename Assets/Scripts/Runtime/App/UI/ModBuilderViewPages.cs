@@ -408,6 +408,12 @@ namespace GoF2Remake.UI
             Act(acts, T("mbDelete", "Delete"), DeleteSelected, "mbv-danger");
             if (type == 2)
             {
+                Int(selectedBox, T("mbTurretMountScale", "Turret size (%)"), Mathf.RoundToInt(m.TurretScale * 100f), 1, 100000, v =>
+                {
+                    m.turretScale = v / 100f;
+                    OnMountEdited(2);
+                });
+                Note(selectedBox, T("mbTurretMountScaleNote", "Multiplies this mount's turret size on this ship only. 100% is normal; maximum 100000% (1000x)."));
                 // The way the turret's base faces (WeaponMount.turretUp): a preset, or the hull's surface at the point.
                 Add(selectedBox, new Label(T("mbTurretFaces", "Turret faces")), "mbv-inline-label");
                 var faces = Add(selectedBox, new VisualElement(), "mbv-row", "mbv-add-row");

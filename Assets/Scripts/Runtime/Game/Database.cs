@@ -134,6 +134,9 @@ namespace GoF2Remake.Data
         public int slotType; public int[] position_engine; public float[] turretAngles; public bool upsideDown;
         public float[] glowColor, glowSize, turretUp;
         public string glowShape;
+        /// <summary>Per-mount turret model scale; multiplies the weapon's own turret scale. 1 = unchanged, up to 1000.</summary>
+        public float turretScale = 1f;
+        public float TurretScale => turretScale <= 0f || float.IsNaN(turretScale) || float.IsInfinity(turretScale) ? 1f : Mathf.Clamp(turretScale, 0.01f, 1000f);
 
         /// <summary>A secondary mount's launchRotation in the ship model's Unity frame: Euler degrees [x, y, z] or
         /// quaternion [x, y, z, w]; identity when absent. Used only for player secondary launch direction.</summary>

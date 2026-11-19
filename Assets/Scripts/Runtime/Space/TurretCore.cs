@@ -94,6 +94,8 @@ namespace GoF2Remake.Flight
         {
             model.localPosition = WeaponSystem.MountToLocal(mount);
             model.localRotation = mount.TurretTurn * turn;
+            // Per-mount multiplier: retain the weapon item's fx.turret.scale as its baseline.
+            model.localScale *= mount.TurretScale;
         }
 
         /// <summary>An item turret's aim (PlayerEgo::checkForTurret): yaw by attr 17, pitch -6 .. +44 deg; 'backwards' = the
