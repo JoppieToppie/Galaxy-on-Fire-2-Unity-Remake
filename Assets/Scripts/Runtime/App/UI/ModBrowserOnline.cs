@@ -1,5 +1,5 @@
 // ModBrowserOnline.cs
-// The Mod Browser's Online tab (remake, 2026-11-19; Discord "Mod browser browsing": players wanted to browse and download
+// The Mod Browser's Explore Mods tab (remake, 2026-11-19; Discord "Mod browser browsing": players wanted to browse and download
 // mods in the game, with pictures and descriptions): the community catalog (ModCatalog, github.com/JoppieToppie/gof2r-mods).
 // The list: each mod's thumbnail, name, version, author and its views and downloads, a badge when it is installed or has
 // an update; a search field (name, author, id, description) and the sort (most downloaded, newest, most viewed, name).
@@ -155,7 +155,7 @@ namespace GoF2Remake.UI
         {
             count.text = ModCatalog.Status == ModCatalog.State.Ready
                 ? string.Format(T("modsOnlineCount", "{0} mods in the catalog"), ModCatalog.Mods.Count) : "";
-            note.text = T("modsOnlineNote", "Mods shared by players (github.com/JoppieToppie/gof2r-mods). They install turned off: turn them on before starting or loading a game.");
+            note.text = T("modsOnlineNote", "Mods shared by players at github.com/JoppieToppie/gof2r-mods.");   // one line: it sits under the list
             var downloading = ModCatalog.Busy ? ModCatalog.Current.entry.id : null;
             foreach (var pair in onlineRows)
             {
@@ -362,7 +362,7 @@ namespace GoF2Remake.UI
                 Debug.LogWarning($"Mods: \"{e.id}\" from the catalog: {error}");
             }
             if (installQueue.Count > 0) NextInstall();
-            // The Online tab keeps its rows (and the focus); the Installed tab's list changed.
+            // The Explore Mods tab keeps its rows (and the focus); the Installed tab's list changed.
             if (online) Refresh();
             else Rebuild();
         }

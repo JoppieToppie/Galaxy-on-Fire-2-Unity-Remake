@@ -807,6 +807,11 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   warning: runtime Ogg Vorbis works on iOS; the textures cached as ETC2, the simulator offers no DXT) and its Sentinel
   flown; the browser names the folder as the Files app shows it on iOS (`ModBrowser.Shown`: "Files › On My iPhone › GoF2
   Remake › Mods", not the sandbox path); not yet run on an Android phone, Linux, macOS or UWP.
+- **Mod browser layout** (2026-11-19, a player's screenshot: the description got two lines): the detail's picture sits
+  beside the name and meta lines (`.mods-detail-head`, 320x180 at most half the width, never shrunk: the info wraps;
+  TV and handheld (a 1280x720 window too) 256x144, phone 160x90), so the description takes the rest of the column; the note sits under the list
+  and Back shares the footer row with the buttons (`.mods-back`); the panel 88% high with 28 / 36 px padding. The tabs
+  read Installed / Explore Mods (`modsOnlineTab`; "Online" said where, not what).
 - **Mod catalog** (2026-11-19, Discord "Mod browser browsing": players wanted to browse and download mods in the game with
   pictures and descriptions; ModDB has no API, MediaFire and free Nexus accounts give no direct links, so the catalog is
   our own on GitHub): the repository **github.com/JoppieToppie/gof2r-mods** (local clone `D:\Projects\gof2r-mods`, its
@@ -829,11 +834,10 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   Images: at most 4 at once, kept for the run (a preview fetched once per run and mod = one view). Downloads: one at a
   time into temporaryCachePath/ModDownload (`DownloadHandlerFile`, no timeout, Cancel aborts), then size + SHA-256 on a
   worker thread, then the browser's `ModImport.Inspect` (id must be the catalog's) and `Install` (new = off; an update
-  keeps on / off and the load order). The browser (`ModBrowserOnline`, the panel's Installed / Online tabs beside the
+  keeps on / off and the load order). The browser (`ModBrowserOnline`, the panel's Installed / Explore Mods tabs beside the
   title, `.mods-tabs`): search (name, author, id, description), sort (most downloaded, newest, most viewed, name), rows
   with thumbnail, name, version · author, views · downloads (`.mods-row-stats`), a badge (Installed / On / Update in
-  amber `.mods-badge--update` / the download's %); the details: preview (`.mods-panel--online .mods-preview` 44%: a
-  fixed 300 px squeezed the description out at 720p), version · by author · id · website, views · downloads · size ·
+  amber `.mods-badge--update` / the download's %); the details: preview, version · by author · id · website, views · downloads · size ·
   updated, installed state, needs (installed / installed with it / not installed), the script warning; Install /
   Update to vX (missing dependencies the catalog has: asked, then installed first, `ModCatalog.Needed`), Turn on / off,
   Cancel; the progress line `.mods-progress`; the controller's X installs. The Installed tab: "Update: vX" in the row and

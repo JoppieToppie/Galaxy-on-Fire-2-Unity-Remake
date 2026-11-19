@@ -437,8 +437,9 @@
 
 .mods-panel {
     max-width: 1320px;
-    height: 84%;
-    max-height: 84%;
+    height: 88%;
+    max-height: 88%;
+    padding: 28px 36px;   /* 2026-11-19: tighter than a panel's 36 / 44, the lists and the description get it */
 }
 
 .mods-title-row {
@@ -576,10 +577,25 @@
     min-width: 0;
 }
 
-.mods-preview {
-    height: 300px;
+/* The detail's head: the picture beside the name and the meta lines (2026-11-19: on top of everything it left the
+   description two lines) */
+.mods-detail-head {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
+.mods-detail-info {
+    flex-grow: 1;
     flex-shrink: 1;
-    min-height: 120px;
+    min-width: 0;
+}
+
+.mods-preview {
+    width: 320px;
+    max-width: 50%;
+    height: 180px;
+    flex-shrink: 0;   /* the info beside it wraps instead (it squeezed the picture to a stamp) */
+    margin-right: var(--space-l);
     background-color: rgba(0, 0, 0, 0.45);
     border-width: 1px;
     border-color: var(--gof-line);
@@ -592,7 +608,7 @@
 
 .mods-name {
     flex-shrink: 0;
-    margin-top: var(--space-l);
+    margin-top: 0;
     font-size: var(--text-title);
     color: var(--gof-text);
     white-space: normal;
@@ -779,14 +795,22 @@
     margin-top: var(--space-l);
 }
 
+/* Under the list (2026-11-19: it shared the footer with the buttons, Back a row of its own below) */
 .mods-note {
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-width: 200px;   /* Modified: with the footer wrapping, it keeps a readable width */
-    margin-right: var(--space-l);
-    font-size: var(--text-small);
+    flex-shrink: 0;
+    margin-top: var(--space-s);
+    font-size: var(--text-caption);
     color: var(--gof-text-dim);
     white-space: normal;
+}
+
+.mods-footer-spacer {
+    flex-grow: 1;
+}
+
+.mods-footer > .mods-back {
+    margin-top: 0;
+    align-self: center;
 }
 
 .mods-footer-button {
@@ -845,13 +869,6 @@
 
 .mods-update {
     border-color: var(--gof-amber);
-}
-
-/* Online: the picture gives way to the description and the notes (installed / scripts / needs), which say what Install
-   does; a fixed 300 px squeezed them out at 720p */
-.mods-panel--online .mods-preview {
-    height: 44%;
-    min-height: 0;
 }
 
 /* What is downloading, above the buttons */
@@ -2253,15 +2270,20 @@
 }
 
 /* Modified: likewise the Mods browser's picture gives way first on a TV, so the Delete row stays above the footer. */
-.layout-tv .mods-preview {
-    height: 220px;
-    min-height: 0;   /* a DLC's place line or a long path: the picture goes rather than the buttons onto the footer */
+.layout-tv .mods-preview,
+.layout-handheld .mods-preview {
+    width: 256px;
+    height: 144px;   /* beside the name since 2026-11-19: smaller, so the description keeps its lines */
 }
 
 /* Remake (#242): a wide phone's panel is shorter still (an iPhone 17 Pro Max with a two-line mod name and 64-unit touch
    buttons put the action rows on the footer): there the picture and the description give way, down to nothing. */
-.layout-phone .mods-preview,
-.layout-handheld .mods-preview,
+.layout-phone .mods-preview {
+    width: 160px;
+    height: 90px;
+    min-width: 96px;
+}
+
 .layout-phone .mods-desc-scroll,
 .layout-handheld .mods-desc-scroll {
     min-height: 0;

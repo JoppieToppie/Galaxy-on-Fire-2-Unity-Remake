@@ -1,5 +1,5 @@
 // ModCatalogTests.cs
-// Feature: CLAUDE.md "Mod catalog" (docs/notes/mods.md): the Mod Browser's Online tab reads the community catalog
+// Feature: CLAUDE.md "Mod catalog" (docs/notes/mods.md): the Mod Browser's Explore Mods tab reads the community catalog
 // (github.com/JoppieToppie/gof2r-mods catalog.json); only links into that repository's releases are fetched, an entry
 // without a valid id, version, SHA-256 or size is left out, a catalog of a newer format is refused; an installed version
 // is the same, older (an update) or newer than the catalog's (ModManifest.VersionAtLeast); counts read 999 / 1.2k / 12k /
