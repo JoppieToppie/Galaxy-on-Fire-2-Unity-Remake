@@ -103,7 +103,8 @@ namespace GoF2Remake.Multiplayer
 
             registry ??= new Registry();
             registry.stations ??= new List<PlayerStationRecord>();
-            if (registry.stations.Count > MaxStations) registry.stations.RemoveRange(MaxStations, registry.stations.Count - MaxStations);
+            if (registry.stations.Count > MaxStations)
+                Debug.LogWarning($"NetPlayerStations: saved registry contains {registry.stations.Count} stations (limit {MaxStations}); preserving all records and refusing new construction.");
             int highest = 0;
             foreach (var station in registry.stations)
             {
@@ -112,8 +113,8 @@ namespace GoF2Remake.Multiplayer
                 station.addons ??= new List<PlayerStationAddon>();
                 station.materials ??= new List<PlayerStationMaterial>();
                 station.listings ??= new List<PlayerStationListing>();
-                if (station.addons.Count > MaxAddonsPerStation) station.addons.RemoveRange(MaxAddonsPerStation, station.addons.Count - MaxAddonsPerStation);
-                if (station.listings.Count > MaxListingsPerStation) station.listings.RemoveRange(MaxListingsPerStation, station.listings.Count - MaxListingsPerStation);
+                if (station.addons.Count > MaxAddonsPerStation || station.listings.Count > MaxListingsPerStation)
+                    Debug.LogWarning($"NetPlayerStations: station {station.id} exceeds a module or listing limit; preserving all saved records.");
             }
             registry.nextId = Math.Max(highest + 1, Math.Max(1, registry.nextId));
         }
@@ -127,15 +128,16 @@ namespace GoF2Remake.Multiplayer
             {
                 registry = JsonUtility.FromJson<Registry>(json) ?? new Registry();
                 registry.stations ??= new List<PlayerStationRecord>();
-                if (registry.stations.Count > MaxStations) registry.stations.RemoveRange(MaxStations, registry.stations.Count - MaxStations);
+                if (registry.stations.Count > MaxStations)
+                    Debug.LogWarning($"NetPlayerStations: received registry contains {registry.stations.Count} stations (limit {MaxStations}); preserving all records.");
                 foreach (var station in registry.stations)
                 {
                     if (station == null) continue;
                     station.addons ??= new List<PlayerStationAddon>();
                     station.materials ??= new List<PlayerStationMaterial>();
                     station.listings ??= new List<PlayerStationListing>();
-                    if (station.addons.Count > MaxAddonsPerStation) station.addons.RemoveRange(MaxAddonsPerStation, station.addons.Count - MaxAddonsPerStation);
-                    if (station.listings.Count > MaxListingsPerStation) station.listings.RemoveRange(MaxListingsPerStation, station.listings.Count - MaxListingsPerStation);
+                    if (station.addons.Count > MaxAddonsPerStation || station.listings.Count > MaxListingsPerStation)
+                        Debug.LogWarning($"NetPlayerStations: received station {station.id} exceeds a module or listing limit; preserving all records.");
                 }
                 // The snapshot can change during a live session. Append any newly built stations to this game's
                 // database before the player next enters their orbit.
