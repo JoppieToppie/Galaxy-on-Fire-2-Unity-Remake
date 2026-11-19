@@ -281,8 +281,8 @@ namespace GoF2Remake.UI
             jumpChargeLabel = root.Q<Label>("jumpChargeLabel");
             jumpChargeLabel.text = Localization.Get(318).UiCaps();   // Drive charging
             jumpChargeStripes = root.Q("jumpChargeStripes");
-            var chargeFrame = Resources.Load<Texture2D>("GoF2Hud/charge_frame");
-            var chargeFill = Resources.Load<Texture2D>("GoF2Hud/charge_fill");
+            var chargeFrame = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/charge_frame");
+            var chargeFill = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/charge_fill");
             if (chargeFrame != null) jumpCharge.style.backgroundImage = new StyleBackground(chargeFrame);
             if (chargeFill != null) jumpChargeStripes.style.backgroundImage = new StyleBackground(chargeFill);
             orbitInfoFilled = false;
@@ -389,7 +389,7 @@ namespace GoF2Remake.UI
             autopilotMenu.parent?.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());
             autopilotMenuItems.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());   // entries added / removed
             root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).UiCaps();   // Autopilot
-            var menuIcon = Resources.Load<Texture2D>("GoF2Hud/autopilot_title");
+            var menuIcon = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/autopilot_title");
             if (menuIcon != null) root.Q("autopilotMenuIcon").style.backgroundImage = new StyleBackground(menuIcon);
             BuildTouchControls();
 
@@ -418,7 +418,7 @@ namespace GoF2Remake.UI
         /// Off-screen markers and the hit arcs sit on it (CombatView / NavigationView EllipseX / Y).</summary>
         static void BuildRadarEllipse(VisualElement host)
         {
-            var tex = Resources.Load<Texture2D>("GoF2Hud/radar_ellipse");
+            var tex = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/radar_ellipse");
             if (host == null || tex == null) return;
             host.Clear();
             for (int q = 0; q < 4; q++)

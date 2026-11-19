@@ -61,7 +61,7 @@ namespace GoF2Remake.UI
             root.Insert(0, layer);   // under the HUD
         }
 
-        static Texture2D Tex(string name) => Resources.Load<Texture2D>("GoF2Hud/" + name);
+        static Texture2D Tex(string name) => GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + name);
 
         public void Update(Backdrop backdrop, bool hidden)
         {

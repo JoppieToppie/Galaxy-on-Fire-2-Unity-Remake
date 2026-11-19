@@ -25,6 +25,8 @@ namespace GoF2Remake.Visuals
             if (entry.pack == Modding.ModShips.Pack)   // a mod's ship or station (built at run time)
                 return Modding.ModStations.IsStationAssembly(entry.name) ? Modding.ModStations.Template(entry.name) : Modding.ModShips.Template(entry.name);
             var prefab = Resources.Load<GameObject>(PrefabPath(entry));
+            // a build without the originals: the template from the player's converted copy (docs/notes/player-assets.md)
+            if (prefab == null) prefab = OriginalAssemblies.Template(entry);
             if (prefab == null) Debug.LogWarning($"AssembledObject: no prefab for '{entry.name}' ({entry.pack}/{entry.category})");
             return prefab;
         }

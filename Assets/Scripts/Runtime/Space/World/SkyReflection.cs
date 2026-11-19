@@ -27,7 +27,7 @@ namespace GoF2Remake.World
         public static void SetSystem(OrbitLayout layout)
         {
             if (layout == null) return;
-            var cube = Resources.Load<Cubemap>("GoF2Reflections/" + SystemCubeName(layout));
+            var cube = GoF2Remake.Visuals.OriginalSkies.Reflection(SystemCubeName(layout));
             Shader.SetGlobalFloat(ReflectionId, 1f);
             Shader.SetGlobalFloat(PbrDimId, 0f);   // space, the lounge, a mod's own hangar: the mods' hulls as URP lights them
             Shader.SetGlobalVector(PbrLightId, Vector4.zero);
@@ -64,12 +64,12 @@ namespace GoF2Remake.World
             Cubemap cube;
             if (hangarIndex >= 0 && hangarIndex < HangarCubes.Length)
             {
-                cube = Resources.Load<Cubemap>("GoF2Reflections/" + HangarCubes[hangarIndex]);
+                cube = GoF2Remake.Visuals.OriginalSkies.Reflection(HangarCubes[hangarIndex]);
                 if (cube == null) return;   // not found: the system's stays
             }
             else if (hangarIndex == 7 || hangarIndex == 8)
                 // Modified: the Valkyrie hangars' own, once captured (HangarCubemapCapture), else none.
-                cube = Resources.Load<Cubemap>("GoF2Reflections/" + HangarCubeName(hangarIndex)) ?? Black;
+                cube = GoF2Remake.Visuals.OriginalSkies.Reflection(HangarCubeName(hangarIndex)) ?? Black;
             else return;
             Shader.SetGlobalTexture(CubeId, cube);
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;

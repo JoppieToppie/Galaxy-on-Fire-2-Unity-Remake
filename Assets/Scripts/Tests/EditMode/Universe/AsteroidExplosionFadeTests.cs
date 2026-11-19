@@ -14,7 +14,10 @@ namespace GoF2Remake.Tests
     {
         static AnimationKey[] Extra(string model, int part)
         {
-            var meta = JsonUtility.FromJson<MeshMeta>(File.ReadAllText(Path.Combine(Application.dataPath, "Models", model + ".gof2mesh.json")));
+            // (the project's sidecar, or in a checkout without the originals the converted copy's)
+            string path = Path.Combine(Application.dataPath, "Models", model + ".gof2mesh.json");
+            if (!File.Exists(path)) path = GoF2Remake.Data.GameContent.CachePath("Models/" + model + ".gof2mesh.json") ?? path;
+            var meta = JsonUtility.FromJson<MeshMeta>(File.ReadAllText(path));
             foreach (var c in meta.parts[part].channels) if (c.target == "extra") return c.keys;
             Assert.Fail($"{model} part {part} has no extra channel");
             return null;

@@ -100,11 +100,74 @@ namespace GoF2Remake.Multiplayer
 
         static string Value(string flag) => NetGame.CommandLineValue(flag);
 
+        /// <summary>Every value given after 'flag' (it may come more than once).</summary>
+        static List<string> Values(string flag)
+        {
+            var args = Environment.GetCommandLineArgs();
+            var list = new List<string>();
+            for (int i = 0; i + 1 < args.Length; i++)
+                if (string.Equals(args[i], flag, StringComparison.OrdinalIgnoreCase)) list.Add(args[i + 1]);
+            return list;
+        }
+
+        /// <summary>docs/notes/player-assets.md "First start" for a server: a build without the original's content has no
+        /// screen to show the setup on, so the copy comes on the command line: -convert <package> (repeatable: an Android
+        /// .xapk / .obb / .apk, an iOS .ipa, the macOS app's zip; a later one's files win) converts it into the data
+        /// folder's Original, -pack <file.gof2pack> (repeatable) keeps a pack and writes it in, -convertonly quits after
+        /// that. Without a converted copy (and nothing built in) the server says so and quits: false.</summary>
+        static bool PrepareContent()
+        {
+            foreach (var pack in Values("-pack"))
+            {
+                var info = OriginalPacks.Read(pack);
+                if (info == null) { Debug.LogError($"Server: {pack} isn't a Galaxy on Fire 2 pack"); continue; }
+                OriginalPacks.Keep(info, OriginalPacks.Folder, move: false);
+                Debug.Log($"Server: pack {info.title ?? info.name} kept");
+            }
+            var packages = Values("-convert");
+            OriginalSetup.Job job = null;
+            if (packages.Count > 0)
+            {
+                Debug.Log($"Server: converting {string.Join(", ", packages)} into {GameContent.Root}");
+                job = OriginalSetup.Convert(packages);
+            }
+            else if (OriginalSetup.PacksPending) job = OriginalSetup.ApplyPacks();
+            if (job != null)
+            {
+                // (a line per phase, then every tenth of it)
+                string lastPhase = null; int lastTenth = -1;
+                while (!job.Finished)
+                {
+                    string phase = job.Phase; int tenth = job.Total > 0 ? 10 * job.Done / job.Total : 0;
+                    if (phase != lastPhase || tenth != lastTenth)
+                    {
+                        Debug.Log($"Server: {phase}" + (job.Total > 0 ? $" {tenth * 10}%" : ""));
+                        lastPhase = phase; lastTenth = tenth;
+                    }
+                    System.Threading.Thread.Sleep(250);
+                }
+                OriginalSetup.Finish(job);
+                if (job.Error != null) Debug.LogError("Server: the conversion failed: " + job.Error);
+                else Debug.Log($"Server: {job.Files} files in {job.Seconds:0} s" + (job.Problems.Count > 0 ? $", {job.Problems.Count} not read" : ""));
+            }
+            if (HasFlag("-convertonly")) { Application.Quit(job != null && job.Error != null ? 1 : 0); return false; }
+            if (OriginalSetup.Needed)
+            {
+                Debug.LogError("Server: no game content. This build comes without the original game's files: start it once with " +
+                               "-convert <your copy of Galaxy on Fire 2 HD> (the Android .xapk or .obb, the iOS .ipa or the macOS app's zip) " +
+                               "and, for what that copy lacks, -pack <file.gof2pack>.");
+                Application.Quit(2);
+                return false;
+            }
+            return true;
+        }
+
         /// <summary>Bootstrap (BeforeSceneLoad): the first scene's objects are loaded but not awake yet. They are switched off
         /// and replaced by an empty scene, and the server starts.</summary>
         public static void Boot()
         {
             if (instance != null) return;
+            if (!PrepareContent()) return;
             int fps = int.TryParse(Value("-fps"), out int f) ? Mathf.Clamp(f, 10, 240) : 60;
             port = ushort.TryParse(Value("-port"), out ushort p) && p >= 1024 ? p : NetGame.DefaultPort;
             NetGame.MaxPlayers = int.TryParse(Value("-maxplayers"), out int mp) ? mp : NetGame.DefaultMaxPlayers;   // 2..100

@@ -54,9 +54,10 @@ namespace GoF2Remake.Flight
             list != null && list.Length > 0 ? list[Random.Range(0, list.Length)] : fallback;
 
         /// <summary>The item's fx: a mod item's own (items.json "fx", Modding.ModWeapons), else its base item's
-        /// (Modding.ModContent.ItemLook).</summary>
+        /// (Modding.ModContent.ItemLook), its prefabs and sounds filled from the player's converted copy in a build without
+        /// the originals (OriginalRefs).</summary>
         public static WeaponFx Load(int item) =>
-            Modding.ModWeapons.Fx(item) ?? Resources.Load<WeaponFx>($"{ResourcesFolder}/item_{Modding.ModContent.ItemLook(item):000}");
+            Modding.ModWeapons.Fx(item) ?? Data.OriginalRefs.Load<WeaponFx>($"{ResourcesFolder}/item_{Modding.ModContent.ItemLook(item):000}");
     }
 
     /// <summary>Remake mods, items.json fx "rite" (ModWeapons, Data.CustomRiteFx): a Rite's looks, its mod's effects and its

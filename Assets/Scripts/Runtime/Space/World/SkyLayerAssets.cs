@@ -27,6 +27,6 @@ namespace GoF2Remake.World
         public Material asteroidBeltMaterial;
 
         static SkyLayerAssets cached;
-        public static SkyLayerAssets Load() => cached != null ? cached : cached = Resources.Load<SkyLayerAssets>(ResourcePath);
+        public static SkyLayerAssets Load() => cached != null ? cached : cached = GoF2Remake.Data.OriginalRefs.Load<SkyLayerAssets>(ResourcePath);
     }
 }

@@ -174,6 +174,10 @@ ignores the old upscaling filter: every upscaler choice goes through `UniversalR
 `unity.auto`, `amd.fsr1`, `unity.stp`,
 vidia.dlss4`, the newest of `amd.fsr4` / `fsr3` / `fsr2`), set again on
 `RenderPipelineManager.activeRenderPipelineCreated`; the quality mode on the framework's options; device support from
+`unity.auto`, `amd.fsr1`, `unity.stp`, `nvidia.dlss4`, the newest of `amd.fsr4` / `fsr3` / `fsr2`), set again on
+`RenderPipelineManager.activeRenderPipelineCreated`; the quality mode on the framework's options (on Windows only since 2026-11-16: `GoF2.App.asmdef` lacked the
+`ENABLE_AMD_MODULE` / `ENABLE_NVIDIA_MODULE` version defines, which only the render pipeline package had, so the DLSS / FSR
+quality code never compiled and both ran at the framework's default mode); device support from
 the framework's own `isSupportedOnDevice` (read through the internal `UniversalRenderPipeline.upscaling`; DLSS: RTX,
 D3D11 / 12 / Vulkan; FSR 2 D3D11 / 12 / Vulkan; FSR 3 / 4 D3D12, FSR 4 AMD's newest GPUs; Windows builds only; only
 known once URP has made its pipeline at the first frame, after the main menu built its rows: the Upscaler row asks again
@@ -198,6 +202,88 @@ it; on iOS the framework offers Off / FSR 1 / STP / MetalFX, the Mobile URP asse
 `isSupportedOnDevice` (Metal, macOS 13+ / iOS 16+). No quality modes: the Render scale row stays and sets their input
 resolution (URP clamps it into MetalFX Temporal's supported range); Temporal counts as temporal (MSAA off). Not yet
 verified on a Mac or an iPhone.
+- **FSR on Linux** (remake, 2026-11-16, the user's request; `LinuxFsrUpscaler` / `LinuxFsrOptions`, native plugin
+  `Native/FsrLinux` → `Assets/Plugins/Linux/x86_64`): Unity's AMD module is Windows only, so a Linux player had no FSR 2-4.
+  [ffx-vk-linux](https://github.com/DuIslingr/ffx-vk-linux) (the user's library: AMD's Windows FidelityFX Vulkan DLLs loaded
+  natively, no Wine) runs them; `LinuxFsrUpscaler` registers FSR 4 / 3 / 2 with URP's upscaler framework under the
+  Windows ids (`amd.fsr4` / `fsr3` / `fsr2`), so `UpscalerFramework.BestFsr`, the Upscaler option and its quality modes
+  work unchanged (Linux players on Vulkan only; compiled for `UNITY_STANDALONE_LINUX` without the AMD module).
+  - **Vulkan 1.2+ and FSR's features:** Unity asks Vulkan for 1.1 and enables only its own device features (no project
+    setting changes that). `libgof2_fsr.so` is preloaded (`isPreloaded`) and hooks Unity's Vulkan initialization
+    (`IUnityGraphicsVulkanV2::AddInterceptInitialization`): `vkCreateInstance` asks for 1.3 (or the loader's version),
+    `vkCreateDevice` adds what FSR's shaders and passes use where the GPU has it: float16 / int8, 8 / 16-bit storage,
+    integer dot product, subgroup size control and extended types, the memory model, descriptor indexing (FSR 4's
+    descriptor sets bind partially), separate depth / stencil layouts (its barriers name a D32S8 depth's depth aspect
+    alone), storage images without a format, int16 / int64, compute shader derivatives, AMD coherent memory; never the
+    robustness features. Set into Unity's own feature structs where its chain has them (put back after the call), else
+    added; Unity's request again if the device fails. Below Vulkan 1.2 nothing changes and FSR stays off.
+  - **Rendering:** create / dispatch / destroy are plugin events on the render graph's command buffer (outside a render
+    pass, Unity's state rebuilt after), their data in an unmanaged ring; the textures by `GetNativeTexturePtr` (the depth by
+    its render buffer) through `IUnityGraphicsVulkanV2::AccessTexture` (barriers into shader-read / general); a
+    destroyed context is released once Unity's `safeFrameNumber` passes its last use; all at device shutdown.
+    Jitter, mip bias, flags and motion-vector scale as Unity's FSR (`FSRUtils`); render size from FSR's ratios.
+  - **The DLLs are the player's** (like the original assets): `amd_fidelityfx_loader_vk.dll` +
+    `amd_fidelityfx_upscaler_vk.dll` (AMD FidelityFX SDK 2.4, `Kits/FidelityFX/signedbin`: FSR 3.1.6 / 2.3.4) and, for FSR
+    4, `amdvkffx64.dll` from AMD's Windows driver (Adrenalin 26.10.1), in `GamePaths.Data/FidelityFX` (`$FFXVK_DLL_DIR`
+    overrides; `$FFXVK_DRIVER_DLL` for the driver's elsewhere). The log line "FSR (Linux): …" says what ran.
+  - **Building the plugin:** `cmake -S Native/FsrLinux -B Native/FsrLinux/build -DCMAKE_BUILD_TYPE=Release
+    -DFFXVK_DIR=<ffx-vk-linux checkout>`, `cmake --build …`, `cmake --install …` (builds ffx-vk-linux too, from its
+    checkout: commit db8277d or later for the fixes below, e06f017 or later for FSR 4 Lite). Against OpenSSL 3 where the system has it (Arch's `openssl-3`):
+    ffx-vk-linux builds with 3 or 4, but players' systems mostly have `libcrypto.so.3`. Its other runtime needs:
+    `libSPIRV-Tools.so`, `libdrm_amdgpu`.
+  - **Performance** (2026-11-16, RX 7900 XTX, RADV / Mesa 26.2.6). The first build's FSR 4 cost 4.3 ms of GPU time at 4K
+    Quality, FSR 3 1.15 ms: AMD's Vulkan code, not the plugin (its CPU part < 0.1 ms) nor ffx-vk-linux (AMD's DLLs as
+    Windows code under Wine cost the same). Found with a per-dispatch GPU-timing Vulkan layer and RADV's shader
+    statistics, and fixed in ffx-vk-linux (for every program using it), the output byte-identical (its probe):
+    - **Uncached memory:** AMD's allocator took RADV's "device coherent, device uncached" types (~300 MB per 4K
+      context), which the GPU's caches skip: the cached type instead (4.3 → 3.2 ms).
+    - **Wave size:** RADV compiles AMD's compute shaders as wave32 (FSR 4 also asks for 32 on 13 of 30); those with a
+      64-multiple workgroup and no subgroup operations run as wave64 (→ 2.7 ms).
+    - **Host-visible buffers** in system memory (RADV lists that type first): in VRAM with Resizable BAR (→ 2.6 ms).
+    - **DCC stores:** RADV's compressed writes to storage images cost FSR 4 ~0.3 ms; the plugin sets Mesa's
+      `radv_disable_dcc_stores` for the game before Unity creates its Vulkan instance (unless set, or
+      `GOF2_KEEP_DCC_STORES=1`); FSR 3 and the game's own rendering measured the same either way (→ 2.28 ms).
+    - **Against D3D12** (the Windows build under Proton CachyOS, Unity's own FSR through vkd3d-proton, same GPU),
+      back to back in desktop windows, GPU time (FrameTimingManager) with FSR minus bilinear from the same render
+      resolution, five views: FSR 4 2.30 ms here against 2.54 (that one's 4.1.1), FSR 3 0.72 against 0.74. vkd3d-proton
+      does the first three itself (cached and Resizable BAR VRAM types only, wave64 for those passes: the same layer);
+      with `radv_disable_dcc_stores=true` too its FSR 4 takes 2.28 ms, level with this path (2026-11-16): nothing else
+      it does differently (images kept in GENERAL, fewer barriers, no constant-buffer copies) measures.
+    - **No Unity overhead:** CR3-U (a native C++ port using ffx-vk-linux) costs the same FSR 4 time at the same clock.
+      A frame cap (vsync) lets the GPU clock down: FSR 4 then takes ~4.1 ms (still within the frame).
+    - **Not taken:** skipping read-only barriers, wave64 for the 32-thread passes, auto exposure off (no gain);
+      RDNA 3's matrix units (WMMA) - AMD's matrix path is FSR 4's RDNA 4 FP8 model; async compute - FSR 4's passes
+      already overlap fill-bound work on the graphics queue (it helps FSR 3: ffx-vk-linux's README, "Asynchronous
+      compute"); the plugin can't split Unity's frame for it anyway.
+  - **FSR 4 Lite** (remake, 2026-11-16, the user's "sure why not"; Graphics "FSR 4 Lite", `Settings.Fsr4Lite`, off by
+    default, in the Graphics reset list): AMD's smaller FSR 4 model, the one its driver DLL gives integrated GPUs, in
+    place of the GPU's own; 1.36 ms against 2.27 at 4K Quality here (329 → 466 fps in the test bed's orbit), a picture
+    of its own. The row shows only while FSR 4 is the upscaler and it runs through ffx-vk-linux
+    (`UpscalerFramework.Fsr4LiteAvailable`: Linux, `Gof2Fsr_LiteAvailable`; not Windows, where Unity's AMD module or
+    AMD's own loader picks the model). It switches while playing: `LinuxFsrOptions.lite` is part of what a context
+    is valid for, so URP's framework makes a new one, and `CreateData.lite` has the plugin call ffx-vk-linux's
+    `ffxvkFsr4Model` right before `ffxCreateContext` on the render thread. The driver DLL settles on a model once per
+    instance, so the library keeps a second instance of `amdvkffx64.dll` for the other model (72 MB more, loaded at the
+    first switch) and gives its provider a version id of its own for AMD's SDK (ffx-vk-linux's README, "FSR 4 Lite").
+    A switch that fails (the DLL not loadable again) keeps the model and logs why. `$FFXVK_FSR4_MODEL` doesn't apply
+    in the game: the option sets the model for every FSR 4 context. Label not translated (a product name); the help
+    in all 13 languages (`fsr4LiteHelp`). Checked on the RX 7900 XTX only.
+  - **The check:** `PlayerAssetsCheck -gof2fsr <quality>` (FSR for the run; `$GOF2_FSR_VERSION=3` / `2` that one where FSR
+    4 also runs), `-gof2fps <s>` (frame-rate samples with the GPU frame time and, on Linux, FSR's own GPU / CPU time),
+    `-gof2scale <s>` (that render scale, upscaler off: the bilinear baseline), `-gof2cap <fps>` (a frame cap for the
+    samples), `-gof2fsrlite 1` (FSR 4 Lite for the run) / `2` (the option switched on and off again in the hangar, a
+    picture and a sample each). Development builds turn on frame timing stats for it (PlayerAssetsBuild).
+  - **Windows comparison builds:** `PlayerAssetsBuild.WindowsDevelopment` (CoreCLR: IL2CPP for Windows can't be built on
+    Linux; D3D12, or Vulkan with `$GOF2_BUILD_API=Vulkan`). On Vulkan the same plugin, `gof2_fsr.dll`
+    (`Assets/Plugins/Windows/x86_64`, cross-built with llvm-mingw: `x86_64-w64-mingw32-g++ -std=c++20 -O2 -shared -static
+    … Native/FsrLinux/gof2_fsr.cpp` with the Unity plugin, FFX and Vulkan headers), loads AMD's DLLs as they are and
+    registers as `ffxvk.fsr4` / `fsr3` / `fsr2` (Unity's AMD module has `amd.*` there); it does the library's memory and
+    wave64 changes itself. Proton: in a desktop window (Wine under headless gamescope hangs at the D3D12 / Vulkan device),
+    `PROTON_FSR4_UPGRADE=0` (no download) and `amdxcffx64.dll` from the same driver in the prefix's `system32` for D3D12 FSR
+    4 (Unity's SDK DLL also runs 4.1.1 without it).
+  - **Checked** (2026-11-16, Linux development build): Vulkan 1.3, providers 4.1.2 / 3.1.6 / 2.3.4, FSR 4 Quality in the
+    menu, orbits and hangar, pictures as native; no validation error from the hook or FSR (gamescope's WSI layer has its
+    own). Not checked: other GPUs / vendors, the FSR option changed while playing.
 - **Original bloom** (`ClassicBloomPass` + `Resources/GoF2PostFx/ClassicBloom.shader`; the bloom option's "Original"):
   the original's only post effect (`AbyssEngine::BloomShader`, on from `MGame::OnInitialize` via
   `Engine::SetPostEffect(0x1400000, true)`; the glow 0x1400001 exists but is never switched on; the radial blur 0x1400002

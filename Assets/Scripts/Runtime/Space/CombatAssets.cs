@@ -128,7 +128,7 @@ namespace GoF2Remake.Flight
         public AudioClip repairLoop1, repairLoop2, drainLoop1, drainLoop2;
 
         static CombatAssets cached;
-        public static CombatAssets Load() => cached != null ? cached : cached = Resources.Load<CombatAssets>(ResourcePath);
+        public static CombatAssets Load() => cached != null ? cached : cached = GoF2Remake.Data.OriginalRefs.Load<CombatAssets>(ResourcePath);
 
         /// <summary>KIPlayer::createCrate(type)'s mesh: 1 the rock 0x421e, 2 the Void rock 0x421f, 3 the junk container 0x4218,
         /// else the race's container.</summary>

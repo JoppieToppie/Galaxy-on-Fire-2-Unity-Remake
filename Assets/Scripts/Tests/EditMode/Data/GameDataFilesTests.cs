@@ -20,8 +20,13 @@ namespace GoF2Remake.Tests
     {
         const string DataFolder = "Assets/Resources/GoF2Data";
 
-        static IEnumerable<string> DataFiles() =>
-            Directory.GetFiles(DataUiTestKit.FullPath(DataFolder), "*.json").Select(Path.GetFileName).OrderBy(f => f);
+        /// <summary>The project's tables and, in a checkout without the originals, the converted copy's (GameContent: the
+        /// original tables come from the player's copy there).</summary>
+        static IEnumerable<string> DataFiles()
+        {
+            var dirs = new[] { DataUiTestKit.FullPath(DataFolder), Path.Combine(GameContent.Root ?? "", "Resources", "GoF2Data") };
+            return dirs.Where(Directory.Exists).SelectMany(d => Directory.GetFiles(d, "*.json")).Select(Path.GetFileName).Distinct().OrderBy(f => f);
+        }
 
         [Test]
         public void TheDataFolderHasTheTablesTheGameReads()
@@ -45,8 +50,8 @@ namespace GoF2Remake.Tests
             Assert.DoesNotThrow(() => doc = DataUiTestKit.ParseJson(DataUiTestKit.ReadAsset(DataFolder + "/" + file), duplicates), file);
             Assert.IsNotNull(doc, file + " is empty");
             Assert.IsEmpty(duplicates, file + ": duplicate keys");
-            // Resources loads it as a TextAsset (Database.Read).
-            Assert.IsNotNull(Resources.Load<TextAsset>("GoF2Data/" + Path.GetFileNameWithoutExtension(file)), file);
+            // the game reads it so (Database.Read: GameContent.Text, the copy's table or the TextAsset in Resources)
+            Assert.IsNotNull(GameContent.Text("GoF2Data/" + Path.GetFileNameWithoutExtension(file)), file);
         }
 
         [Test]
@@ -147,7 +152,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void StoryAgentsSitAtTheirSystemsStations()
         {
-            var agents = JsonUtility.FromJson<AgentList>("{\"list\":" + Resources.Load<TextAsset>("GoF2Data/agents").text + "}").list;
+            var agents = JsonUtility.FromJson<AgentList>("{\"list\":" + GameContent.Text("GoF2Data/agents") + "}").list;
             Assert.Greater(agents.Count, 0);
             foreach (var a in agents)
             {

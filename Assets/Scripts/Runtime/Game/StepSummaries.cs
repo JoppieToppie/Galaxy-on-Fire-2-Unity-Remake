@@ -33,8 +33,8 @@ namespace GoF2Remake.Data
             if (byIndex == null)
             {
                 byIndex = new Dictionary<int, Entry>();
-                var asset = Resources.Load<TextAsset>("GoF2Data/step_summaries");
-                var file = asset != null ? JsonUtility.FromJson<File>(asset.text) : null;
+                var asset = GoF2Remake.Data.GameContent.Text("GoF2Data/step_summaries");
+                var file = asset != null ? JsonUtility.FromJson<File>(asset) : null;
                 if (file?.steps != null) foreach (var e in file.steps) byIndex[e.index] = e;
             }
             return byIndex.TryGetValue(index, out var entry) ? entry : null;

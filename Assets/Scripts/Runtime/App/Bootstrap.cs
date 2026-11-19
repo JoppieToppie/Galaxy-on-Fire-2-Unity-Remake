@@ -196,7 +196,7 @@ namespace GoF2Remake
             if (!Application.isPlaying || urp == null) return;
             int upscaler = ActiveUpscaler;
 #if ENABLE_UPSCALER_FRAMEWORK
-            UpscalerFramework.Apply(UpscalerId(upscaler), Settings.UpscalerQuality);
+            UpscalerFramework.Apply(UpscalerId(upscaler), Settings.UpscalerQuality, Settings.Fsr4Lite);
 #else
             // FSR 1 only below 100 % (#45: on Android FSR at 100 % or more left part of the screen frozen; at those scales
             // there is nothing to upscale). The cause was thought to be the scene drawn straight to the pre-rotated back buffer, which

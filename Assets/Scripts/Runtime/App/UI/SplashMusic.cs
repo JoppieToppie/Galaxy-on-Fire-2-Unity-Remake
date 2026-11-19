@@ -32,7 +32,7 @@ namespace GoF2Remake.UI
         public static void Begin()
         {
             if (source != null || Application.isBatchMode || GoF2Remake.Multiplayer.DedicatedServer.Enabled) return;
-            var theme = Resources.Load<SplashTheme>("GoF2Music/MenuTheme");
+            var theme = GoF2Remake.Data.OriginalRefs.Load<SplashTheme>("GoF2Music/MenuTheme");
             var clip = theme != null ? theme.clip : null;
             if (clip == null) return;
             var go = new GameObject("Splash music");

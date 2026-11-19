@@ -18,6 +18,8 @@ namespace GoF2Remake.Tests
         [Test]
         public void EverySkyHasItsLayoutAndTheImagesAreTheGames()
         {
+            // (the patches come from the optional upscaled skies: a checkout without them, the test bed, has none)
+            if (Resources.Load<Texture2D>("GoF2SkyLayers/patch_000") == null) Assert.Ignore("the sky patches aren't in this checkout (the optional upscaled skies)");
             for (int i = 0; i <= 18; i++)
             {
                 var sky = GoF2SkyLayers.Of(i);
@@ -100,8 +102,11 @@ namespace GoF2Remake.Tests
                 var both = OrbitBuilder.MakeSky(layout);
                 Assert.IsTrue(both.IsKeywordEnabled("_CHORUS_SKY"));
                 Assert.AreEqual(1f, both.GetVector("_ChorusStarsB").w, "over the game's layers");
-                Assert.AreEqual(Resources.Load<Cubemap>("GoF2SkyHd/nebula_016"), both.GetTexture("_Nebula"), "Enhanced's upscaled nebula under it");
-                Assert.IsNotNull(both.GetTexture("_ChorusLayer1"), "the patch");
+                // (Enhanced's: the build's or the HD pack's; without either the game's own nebula)
+                var hd = GoF2Remake.Visuals.OriginalSkies.Hd("nebula_016");
+                if (hd != null) Assert.AreEqual(hd, both.GetTexture("_Nebula"), "Enhanced's upscaled nebula under it");
+                if (Resources.Load<Texture2D>("GoF2SkyLayers/patch_000") != null)   // (the optional upscaled skies' patches)
+                    Assert.IsNotNull(both.GetTexture("_ChorusLayer1"), "the patch");
                 Settings.SkyStyle = Settings.SkyEs2;
                 var es2 = OrbitBuilder.MakeSky(layout);
                 Assert.AreEqual(0f, es2.GetVector("_ChorusStarsB").w, "no painted nebula under it");

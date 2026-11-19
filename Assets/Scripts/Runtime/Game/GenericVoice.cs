@@ -34,8 +34,8 @@ namespace GoF2Remake.Data
             {
                 if (table != null) return table;
                 table = new Dictionary<int, string>();
-                var ta = Resources.Load<TextAsset>("GoF2Data/voice_table");
-                var t = ta != null ? JsonUtility.FromJson<Table>(ta.text) : null;
+                var ta = GoF2Remake.Data.GameContent.Text("GoF2Data/voice_table");
+                var t = ta != null ? JsonUtility.FromJson<Table>(ta) : null;
                 if (t?.items != null) foreach (var r in t.items) table[r.text] = r.voice;
                 return table;
             }

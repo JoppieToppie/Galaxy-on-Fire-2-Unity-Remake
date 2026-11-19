@@ -71,6 +71,7 @@ namespace GoF2Remake.Tests
         public void NoPrefabOrSceneUsesAStrippedFeature()
         {
             foreach (string folder in new[] { "Assets/Resources", "Assets/Prefabs", "Assets/Scenes" })
+                if (Directory.Exists(folder))   // (no Assets/Prefabs in a checkout without the originals)
                 foreach (string file in Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories))
                 {
                     if (!file.EndsWith(".prefab") && !file.EndsWith(".unity")) continue;

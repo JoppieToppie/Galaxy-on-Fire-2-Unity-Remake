@@ -30,7 +30,7 @@ namespace GoF2Remake.UI
         {
             for (int i = 0; i < 10; i++)
             {
-                var t = Resources.Load<Texture2D>($"GoF2Hud/challenge_digit_{i}");
+                var t = GoF2Remake.Data.OriginalTextures.Image($"GoF2Hud/challenge_digit_{i}");
                 digits[i] = t != null ? new StyleBackground(t) : new StyleBackground(StyleKeyword.None);
             }
             root = new VisualElement { name = "challengeHud", pickingMode = PickingMode.Ignore };
@@ -40,7 +40,7 @@ namespace GoF2Remake.UI
             root.Add(scoreRow);
             comboRow = Row("challenge-combo");
             var label = new VisualElement { pickingMode = PickingMode.Ignore };
-            var comboTex = Resources.Load<Texture2D>("GoF2Hud/challenge_combo");
+            var comboTex = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/challenge_combo");
             if (comboTex != null) label.style.backgroundImage = new StyleBackground(comboTex);
             label.style.width = 471f * DigitScale;
             label.style.height = 86f * DigitScale;

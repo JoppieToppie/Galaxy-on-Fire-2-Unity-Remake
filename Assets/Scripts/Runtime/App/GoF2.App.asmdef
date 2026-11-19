@@ -30,6 +30,16 @@
             "name": "com.unity.services.user-reporting",
             "expression": "2.0.0",
             "define": "GOF2_USER_REPORTING"
+        },
+        {
+            "name": "com.unity.modules.amd",
+            "expression": "1.0.0",
+            "define": "ENABLE_AMD_MODULE"
+        },
+        {
+            "name": "com.unity.modules.nvidia",
+            "expression": "1.0.0",
+            "define": "ENABLE_NVIDIA_MODULE"
         }
     ],
     "noEngineReferences": false

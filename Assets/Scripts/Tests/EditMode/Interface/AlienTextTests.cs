@@ -19,7 +19,7 @@ namespace GoF2Remake.Tests
         public void EveryAlienGlyphExists()
         {
             for (char c = 'A'; c <= 'Z'; c++)
-                Assert.IsNotNull(Resources.Load<Texture2D>("GoF2Hud/alien_" + c), "GoF2Hud/alien_" + c);
+                Assert.IsNotNull(GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/alien_" + c), "GoF2Hud/alien_" + c);
         }
 
         [Test]
@@ -54,13 +54,13 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(1, box[2].childCount, "E");
             Assert.AreEqual("after", parent[2].name);
 
-            var a = Resources.Load<Texture2D>("GoF2Hud/alien_A");
+            var a = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/alien_A");
             var g = box[0][0];
             Assert.AreEqual(a.width, g.style.width.value.value, "glyphs at their pixel size");
             Assert.AreEqual(a.height, g.style.height.value.value);
             Assert.AreEqual(2f, g.style.marginRight.value.value, "2 px between glyphs");
             Assert.AreEqual(10f, box[0].style.marginRight.value.value, "a 12 px space after the last glyph's 2");
-            Assert.AreEqual(Resources.Load<Texture2D>("GoF2Hud/alien_B"), box[0][1].style.backgroundImage.value.texture, "lower case b = B");
+            Assert.AreEqual(GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/alien_B"), box[0][1].style.backgroundImage.value.texture, "lower case b = B");
         }
 
         [Test]

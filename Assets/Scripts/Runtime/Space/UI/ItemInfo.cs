@@ -36,7 +36,7 @@ namespace GoF2Remake.UI
 
         static Texture2D Icon(string name)
         {
-            if (!icons.TryGetValue(name, out var t)) icons[name] = t = Resources.Load<Texture2D>("GoF2Icons/" + name);
+            if (!icons.TryGetValue(name, out var t)) icons[name] = t = GoF2Remake.Data.OriginalTextures.Image("GoF2Icons/" + name);
             return t;
         }
 

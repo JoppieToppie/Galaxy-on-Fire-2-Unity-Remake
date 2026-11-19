@@ -93,6 +93,10 @@ namespace GoF2Remake.Data
         /// 2 balanced, 3 performance, 4 ultra performance.</summary>
         public static int UpscalerQuality { get => Mathf.RoundToInt(Get("upscalerQuality", 1f)); set => Set("upscalerQuality", Mathf.Clamp(value, 0, 4)); }
 
+        /// <summary>FSR 4 Lite (remake, 2026-11-16, the user's request): AMD's smaller FSR 4 model in place of the GPU's own,
+        /// where FSR 4 runs through ffx-vk-linux (Linux; docs/notes/options.md "FSR on Linux"). Off by default.</summary>
+        public static bool Fsr4Lite { get => GetBool("fsr4Lite", false); set => SetBool("fsr4Lite", value); }
+
         /// <summary>MSAA samples (1 = off, 2, 4, 8); 0 = the platform's render pipeline asset.</summary>
         public static int Msaa { get => Mathf.RoundToInt(Get("msaa", Default("msaa", 0f))); set => Set("msaa", value); }
 
@@ -218,6 +222,9 @@ namespace GoF2Remake.Data
         /// (World.RebuiltPlanets) in orbit, on the star map and between the systems; off: the original's flat images. On by
         /// default; from the next orbit or star map view.</summary>
         public static bool RebuiltPlanets { get => GetBool("rebuiltPlanets", true); set => SetBool("rebuiltPlanets", value); }
+        /// <summary>Remake (docs/notes/player-assets.md "HD resources"): the HD folder's files are read before the copy's
+        /// (GameContent.HdActive reads this key itself, "gof2.hdResources": from the next start); on by default.</summary>
+        public static bool HdResources { get => GetBool("hdResources", true); set => SetBool("hdResources", value); }
         /// <summary>Remake: the hangar view's depth of field on the player's ship (StationLevel); off by default on phones.</summary>
         public static bool HangarDepthOfField { get => GetBool("hangarDof", Default("hangarDof", 0f) > 0.5f); set => SetBool("hangarDof", value); }   // off by default (2026-10)
 
@@ -1051,7 +1058,7 @@ namespace GoF2Remake.Data
             "musicTrack.specters2", "musicTrack.wanted" };
         public static readonly string[] GraphicsKeys =
         {
-            "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality",
+            "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality", "fsr4Lite",
             "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "liveSkies", "skyStyle", "nebulaClouds", "npcPlayerEngines", "rebuiltPlanets", "fov",
             "cameraShake", "originalChaseCamera", "es2FreeFlightCamera", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
         };

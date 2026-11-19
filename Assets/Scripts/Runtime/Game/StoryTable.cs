@@ -97,8 +97,8 @@ namespace GoF2Remake.Data
             {
                 if (data == null)
                 {
-                    var text = Resources.Load<TextAsset>("GoF2Data/story");
-                    data = text != null ? JsonUtility.FromJson<File>(text.text) : null;
+                    var text = GoF2Remake.Data.GameContent.Text("GoF2Data/story");
+                    data = text != null ? JsonUtility.FromJson<File>(text) : null;
                     if (data == null) { Debug.LogError("StoryTable: GoF2Data/story missing"); data = new File(); }
                     data.steps ??= new List<StoryStep>();
                     data.speakers ??= new List<Speaker>();

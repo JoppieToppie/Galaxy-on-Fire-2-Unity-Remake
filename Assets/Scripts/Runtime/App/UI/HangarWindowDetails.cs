@@ -551,7 +551,7 @@ namespace GoF2Remake.UI
                 right.AddToClassList("stat-compare");
                 var a = new VisualElement { pickingMode = PickingMode.Ignore };
                 a.AddToClassList("stat-arrow");
-                var tex = Resources.Load<Texture2D>("GoF2Hud/" + (compare < 0 ? "compare_worse" : compare > 0 ? "compare_better" : "compare_equal"));
+                var tex = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + (compare < 0 ? "compare_worse" : compare > 0 ? "compare_better" : "compare_equal"));
                 if (tex != null) a.style.backgroundImage = new StyleBackground(tex);
                 right.Add(v);
                 right.Add(a);

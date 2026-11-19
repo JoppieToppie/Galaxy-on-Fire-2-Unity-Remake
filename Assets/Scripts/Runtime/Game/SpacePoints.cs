@@ -74,9 +74,9 @@ namespace GoF2Remake.Data
         static void Load()
         {
             sets = new Dictionary<int, List<Point>>();
-            var text = Resources.Load<TextAsset>("GoF2Data/docks_hd");
+            var text = GoF2Remake.Data.GameContent.Text("GoF2Data/docks_hd");
             if (text == null) return;
-            var file = JsonUtility.FromJson<FileJson>("{\"sets\":" + text.text + "}");
+            var file = JsonUtility.FromJson<FileJson>("{\"sets\":" + text + "}");
             if (file?.sets == null) return;
             foreach (var s in file.sets)
             {

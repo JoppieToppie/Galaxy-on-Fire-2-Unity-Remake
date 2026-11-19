@@ -118,8 +118,8 @@ namespace GoF2Remake.Tests
 
         static Dictionary<int, int[]> Raw(string name)
         {
-            string path = Path.Combine(Application.dataPath, "Resources", "GoF2Data", name + ".json");
-            var list = JsonUtility.FromJson<RawList>("{\"items\":" + File.ReadAllText(path) + "}");
+            // (the project's table, or in a checkout without the originals the converted copy's: GameContent.Text)
+            var list = JsonUtility.FromJson<RawList>("{\"items\":" + GoF2Remake.Data.GameContent.Text("GoF2Data/" + name) + "}");
             var map = new Dictionary<int, int[]>();
             foreach (var e in list.items) map[e.id] = e.values;
             return map;

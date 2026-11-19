@@ -108,6 +108,12 @@ namespace GoF2Remake.UI
                     () => X("upscalerQualityHelp", "The resolution DLSS / FSR render at: from native down to a third."));
                 quality.visible = DlssOrFsrOn;
                 list.Add(quality);
+                // FSR 4 Lite (remake, 2026-11-16, the user's request; docs/notes/options.md "FSR on Linux"): AMD's smaller FSR 4
+                // model, where FSR 4 runs through ffx-vk-linux (Linux); the row only while FSR 4 is the upscaler there.
+                var fsr4Lite = Toggle("fsr4Lite", OptionPage.Graphics, () => "FSR 4 Lite", () => Settings.Fsr4Lite, v => Settings.Fsr4Lite = v);
+                fsr4Lite.description = () => X("fsr4LiteHelp", "FSR 4's smaller model, made by AMD for integrated graphics: faster, at some cost in image quality.");
+                fsr4Lite.visible = () => Bootstrap.ActiveUpscaler == Settings.UpscalerFsrTemporal && UpscalerFramework.Fsr4LiteAvailable;
+                list.Add(fsr4Lite);
             }
             // MSAA with a temporal upscaler on (STP, DLSS, FSR 2+, MetalFX Temporal): its anti-aliasing takes the place, so the row
             // is greyed out (a player's request: with DLAA it read as if it did something) and says why.
@@ -209,6 +215,50 @@ namespace GoF2Remake.UI
             list.Add(Toggle("npcPlayerEngines", OptionPage.Graphics, () => X("npcPlayerEngines", "Other ships' engines like yours"),
                 () => Settings.NpcPlayerEngines, v => Settings.NpcPlayerEngines = v));
             // Remake: the planets as the rebuilt 3D spheres (World.RebuiltPlanets); on by default.
+            // Remake (docs/notes/player-assets.md "Packs"): a build without the originals takes the separately distributed packs
+            // (the HD pack: HD textures, skies, 3D planets) from here too, not only on the first start's setup screen
+            list.Add(new OptionDef
+            {
+                id = "addPack", page = OptionPage.Graphics, kind = OptionKind.Button, menuOnly = true,
+                label = () => X("addPack", "Add a pack…"),
+                description = () =>
+                {
+                    if (OriginalPacks.LastAdded != null) return OriginalPacks.LastAdded;
+                    var kept = OriginalPacks.Kept(OriginalPacks.Folder);
+                    return kept.Count == 0 ? X("addPackHelp", "A pack brings what your copy of the game lacks, or the HD textures, skies and 3D planets.")
+                                           : string.Format(X("addPackKept", "Packs: {0}"), string.Join(", ", kept.ConvertAll(k => k.title ?? k.name)));
+                },
+                visible = () => Modding.ModImport.Available && !OriginalSetup.BuiltIn,
+                action = () =>
+                {
+                    var row = OptionControl.Pressing?.Root;
+                    OriginalPacks.Add(X("addPack", "Add a pack…"), (_, hd) =>
+                    {
+                        if (hd != null) HdWindow.Show(row, hd);   // (the HD pack: installed by the HD window, not kept)
+                        OptionControl.RefreshShown();
+                    });
+                },
+            });
+            // Remake (docs/notes/player-assets.md "HD resources", the user's request 2026-11-15): the HD pack supplied, kept in
+            // a folder of its own and used over the copy's files (switchable), or written over the copy for space.
+            list.Add(new OptionDef
+            {
+                id = "hdResourcesWindow", page = OptionPage.Graphics, kind = OptionKind.Button, menuOnly = true,
+                label = () => X("hdResourcesWindow", "HD resources…"),
+                description = () => GameContent.HdInstalled
+                    ? X("hdResourcesApart", "Installed in a folder of their own, beside your copy: replace the originals with them (for space) or remove them.")
+                    : OriginalPacks.HdInCopy(GameContent.Root)
+                        ? X("hdResourcesInCopy", "Written over your converted copy (converting it again removes them). Supply a newer HD pack here.")
+                        : X("hdResourcesNone", "Not installed: the separately distributed HD pack brings higher-resolution textures, the upscaled skies and the 3D planets."),
+                visible = () => !OriginalSetup.BuiltIn && GameContent.Installed,
+                action = () => HdWindow.Show(OptionControl.Pressing?.Root),
+            });
+            var useHd = Toggle("hdResources", OptionPage.Graphics, () => X("hdResources", "Use the HD resources"),
+                () => Settings.HdResources, v => Settings.HdResources = v);
+            useHd.description = () => X("hdResourcesHelp", "Off: your copy's own textures and skies (the HD folder stays). From the next start.");
+            useHd.visible = () => !OriginalSetup.BuiltIn && GameContent.HdInstalled;
+            useHd.menuOnly = true;
+            list.Add(useHd);
             var rebuiltPlanets = Toggle("rebuiltPlanets", OptionPage.Graphics, () => X("rebuiltPlanets", "3D planets"),
                 () => Settings.RebuiltPlanets, v => Settings.RebuiltPlanets = v);
             rebuiltPlanets.description = () => X("rebuiltPlanetsHelp", "The planets in orbit, on the star map and in slipstream are lit 3D spheres rebuilt from the original planet images. Off: the original flat images. From the next orbit or star map view.");
@@ -240,11 +290,11 @@ namespace GoF2Remake.UI
             // Remake (the user's request, 2026-10-24): the interface font (UiFont), Klavika or one the player imported or has
             // installed; the import's and removal's rows under it.
             var uiFont = Choice("uiFont", OptionPage.Accessibility, () => X("uiFont", "Interface font"), false,
-                () => UiFont.Choices().ConvertAll(c => c.name ?? X("uiFontDefault", "Klavika (default)")).ToArray(),
+                () => UiFont.Choices().ConvertAll(c => c.name ?? X("uiFontDefault", "Inter (default)")).ToArray(),
                 () => Mathf.Max(0, UiFont.Choices().FindIndex(c => c.key == Settings.UiFont)),
                 i => { var all = UiFont.Choices(); Settings.UiFont = all[Mathf.Clamp(i, 0, all.Count - 1)].key; },
                 () => UiFont.Current == null && UiFont.Problem != null ? UiFont.Problem
-                    : X("uiFontHelp", "The font of every menu and the HUD: Klavika, a font file you import, or one installed on this device."));
+                    : X("uiFontHelp", "The font of every menu and the HUD: Inter, a font file you import (Klavika, if you own it), or one installed on this device."));
             uiFont.defaultValue = () => 0f;
             list.Add(uiFont);
             list.Add(new OptionDef
@@ -259,7 +309,7 @@ namespace GoF2Remake.UI
             {
                 id = "uiFontRemove", page = OptionPage.Accessibility, kind = OptionKind.Button,
                 label = () => X("uiFontRemove", "Remove this font file"),
-                description = () => X("uiFontRemoveHelp", "Deletes the imported font in use; Klavika comes back."),
+                description = () => X("uiFontRemoveHelp", "Deletes the imported font in use; Inter comes back."),
                 visible = () => (Settings.UiFont ?? "").StartsWith(UiFont.FilePrefix, System.StringComparison.Ordinal),
                 action = UiFont.RemoveCurrent,
             });

@@ -145,7 +145,7 @@ namespace GoF2Remake.UI
 
         Texture2D Tex(string name)
         {
-            if (!textures.TryGetValue(name, out var t)) textures[name] = t = Modding.ModTextures.Hud(name) ?? Resources.Load<Texture2D>("GoF2Hud/" + name);
+            if (!textures.TryGetValue(name, out var t)) textures[name] = t = Modding.ModTextures.Hud(name) ?? GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + name);
             return t;
         }
 

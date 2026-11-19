@@ -33,6 +33,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void EachArmsPrefabAnimatesWithTheRoomsMaterial()
         {
+            DataUiTestKit.NeedsOriginal("Assets/Prefabs/main/bars");   // (the editor's per-mesh prefabs)
             var room = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/mat_20059_bar_vossk_diffuse.mat");
             foreach (string bot in Bots)
             {

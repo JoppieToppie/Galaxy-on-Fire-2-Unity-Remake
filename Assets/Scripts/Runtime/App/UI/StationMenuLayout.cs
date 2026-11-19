@@ -60,7 +60,7 @@ namespace GoF2Remake.UI
             var tex = station == KaamoClub.Station ? Resources.Load<Texture2D>(KaamoClub.Owned ? "GoF2Races/kaamo_club_icon" : "GoF2Races/kaamo_club_locked_icon") : null;
             if (tex == null && Modding.ModRaces.Is(race)) tex = Modding.ModRaces.Icon(race);   // remake mods: a mod race's emblem
             if (tex == null) tex = race >= 0 && race <= 3 ? Resources.Load<Texture2D>($"GoF2Races/{StatusWindow.RaceFile(race)}_icon")
-                    : race == 8 || race == 9 ? Resources.Load<Texture2D>("GoF2Hud/race_" + race) : null;
+                    : race == 8 || race == 9 ? GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/race_" + race) : null;
             icon.style.backgroundImage = tex != null ? new StyleBackground(tex) : new StyleBackground(StyleKeyword.None);
             icon.style.display = tex != null ? DisplayStyle.Flex : DisplayStyle.None;
         }

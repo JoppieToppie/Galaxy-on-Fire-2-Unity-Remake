@@ -157,10 +157,10 @@ namespace GoF2Remake.Data
             {
                 if (names != null) return names;
                 names = new Dictionary<string, List<string>>();
-                var ta = Resources.Load<TextAsset>("GoF2Data/names");
+                var ta = GoF2Remake.Data.GameContent.Text("GoF2Data/names");
                 if (ta == null) return names;
                 // A flat { "key": ["a", "b"] } file; JsonUtility can't read dictionaries.
-                foreach (Match m in Regex.Matches(ta.text, "\"([a-z0-9_]+)\"\\s*:\\s*\\[(.*?)\\]", RegexOptions.Singleline))
+                foreach (Match m in Regex.Matches(ta, "\"([a-z0-9_]+)\"\\s*:\\s*\\[(.*?)\\]", RegexOptions.Singleline))
                 {
                     var list = new List<string>();
                     foreach (Match s in Regex.Matches(m.Groups[2].Value, "\"((?:[^\"\\\\]|\\\\.)*)\"")) list.Add(Regex.Unescape(s.Groups[1].Value));
@@ -175,8 +175,8 @@ namespace GoF2Remake.Data
             get
             {
                 if (story != null) return story;
-                var ta = Resources.Load<TextAsset>("GoF2Data/agents");
-                story = ta != null ? JsonUtility.FromJson<StoryWrapper>("{\"list\":" + ta.text + "}").list : new List<StoryAgentData>();
+                var ta = GoF2Remake.Data.GameContent.Text("GoF2Data/agents");
+                story = ta != null ? JsonUtility.FromJson<StoryWrapper>("{\"list\":" + ta + "}").list : new List<StoryAgentData>();
                 return story ?? (story = new List<StoryAgentData>());
             }
         }

@@ -104,7 +104,7 @@ namespace GoF2Remake.Tests
         [System.Serializable] class EntryList { public List<Entry> items; }
 
         static List<Entry> Volumes(string file) =>
-            JsonUtility.FromJson<EntryList>("{\"items\":" + Resources.Load<TextAsset>("GoF2Data/" + file).text + "}").items;
+            JsonUtility.FromJson<EntryList>("{\"items\":" + GameContent.Text("GoF2Data/" + file) + "}").items;
 
         [TestCase("collision")]
         [TestCase("static_collisions")]

@@ -1,0 +1,11 @@
+<!-- The in-game converter (Assets/Scripts/Runtime/Core/Content) run from the command line, for checking it against the
+     project and building the separate packs (docs/notes/player-assets.md). Build and run with any .NET SDK, e.g. the
+     Unity Editor's own: <Editor>/Data/DotNetSdk/dotnet run -c Release (then the cache dir and <package> packages) -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="../../../../Assets/Scripts/Runtime/Core/Content/*.cs" />
+  </ItemGroup>
+</Project>

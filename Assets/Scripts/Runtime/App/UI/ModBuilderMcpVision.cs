@@ -440,7 +440,7 @@ namespace GoF2Remake.UI
             }
             var loaded = Resources.FindObjectsOfTypeAll<Texture2D>().FirstOrDefault(t => t.name.Equals(name, StringComparison.OrdinalIgnoreCase));
             if (loaded != null) return loaded;
-            var backdrop = Resources.Load<Material>("GoF2Backdrop/" + name);
+            var backdrop = Visuals.OriginalBackdrop.Get(name);
             if (backdrop != null && backdrop.mainTexture != null) return backdrop.mainTexture;
             var db = Database.Shared;
             foreach (var entry in db.Assemblies.Where(x => x.pack != ModContent.Pack && name.StartsWith(x.name, StringComparison.OrdinalIgnoreCase))
