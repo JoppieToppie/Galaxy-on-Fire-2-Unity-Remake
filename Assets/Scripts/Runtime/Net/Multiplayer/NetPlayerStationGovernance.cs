@@ -127,6 +127,30 @@ namespace GoF2Remake.Multiplayer
             });
         }
 
+        internal static string RelinquishBuilderRights(NetPlayer by, int stationId)
+        {
+            var record = Find(stationId);
+            if (record == null) return "No player station with that id exists.";
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
+                by.Station != record.stationIndex || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Dock at the station using your controlled builder profile to relinquish builder rights.";
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            if (!HasBuilderRights(record, account))
+                return "Only the original builder can relinquish these reserved rights.";
+            long previous = record.builderRightsRelinquishedUtc;
+            int oldHistoryCount = record.history?.Count ?? 0;
+            int oldSequence = record.nextHistorySequence;
+            record.builderRightsRelinquishedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            RecordHistory(record, account, "builder-rights-relinquished", null,
+                "The original builder voluntarily relinquished their reserved station authority.");
+            if (Save()) return "Your reserved original-builder rights have been relinquished permanently.";
+            record.builderRightsRelinquishedUtc = previous;
+            if (record.history != null && record.history.Count > oldHistoryCount)
+                record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
+            record.nextHistorySequence = oldSequence;
+            return "Builder rights could not be relinquished because the change could not be saved.";
+        }
+
         internal static string SetFactionSuccessor(NetPlayer by, int stationId, string targetKind, string target)
         {
             var record = Find(stationId);
