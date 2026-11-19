@@ -6,6 +6,102 @@ namespace GoF2Remake.Multiplayer
 {
     public static partial class NetPlayerStations
     {
+
+        /// <summary>List ship blueprints that this station's dry dock can construct.</summary>
+        internal static string DryDockBlueprintList(NetPlayer by, int id)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManageHangar(by, record, out _)) return "Dry dock access is private to the owner and authorised faction members.";
+            if (record.underConstruction) return "Finish station construction before using the dry dock.";
+            if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
+                return "This station has no dry dock module.";
+            var db = NetGame.Db;
+            if (db == null) return "The ship database is not ready.";
+            var lines = new List<string> { "Dry dock ship blueprints (product item id):" };
+            foreach (var product in GoF2Remake.Data.Blueprints.Products(db))
+            {
+                int ship = Modding.ModBlueprints.ShipOf(product.index);
+                if (ship < 0 || !Modding.ModBlueprints.RequiresDryDock(product.index) ||
+                    !GoF2Remake.Data.Blueprints.IsUnlocked(product.index)) continue;
+                lines.Add(product.index + ": " + (db.Ship(ship)?.name ?? ("Ship " + ship)) +
+                    " — " + (Modding.ShipClassRules.ClassLabel(db.Ship(ship)) ?? "Dry-dock restricted"));
+            }
+            if (lines.Count == 1) lines.Add("No unlocked dry-dock ship blueprints are available.");
+            lines.Add("Build with /station drydock-build <station id> <blueprint item id>.");
+            return string.Join("\n", lines);
+        }
+
+        /// <summary>
+        /// Construct a ship from a resolved mod blueprint, consuming its complete ingredient recipe from
+        /// station storage and placing a bare hull directly in the dry dock. The server owns both mutations.
+        /// </summary>
+        internal static string DryDockBuildShip(NetPlayer by, int id, int productId)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManageHangar(by, record, out _))
+                return "Dock at this station with an authorised profile to use its dry dock.";
+            if (record.underConstruction) return "Finish station construction before building ships.";
+            if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
+                return "Install a dry dock module first.";
+            if (StorageCapacity(record) <= 0)
+                return "Install station storage first; ship construction materials are drawn from station storage.";
+            record.dryDockShips ??= new List<StoredShip>();
+            if (record.dryDockShips.Count >= MaxDryDockShipsPerStation)
+                return "This station's dry dock is full.";
+            var db = NetGame.Db;
+            var product = db?.Item(productId);
+            int shipIndex = Modding.ModBlueprints.ShipOf(productId);
+            if (product == null || shipIndex < 0 || db.Ship(shipIndex) == null)
+                return "That item is not a valid ship blueprint.";
+            if (!Modding.ModBlueprints.RequiresDryDock(productId))
+                return "That blueprint does not require a dry dock; use an eligible ship-construction facility.";
+            if (!GoF2Remake.Data.Blueprints.IsUnlocked(productId))
+                return "That ship blueprint has not been unlocked.";
+            if (Modding.ModBlueprints.RequiresShipRefusal(productId) is string refusal)
+                return refusal;
+            if (product.blueprint == null || product.blueprint.Count == 0)
+                return "That ship blueprint has no valid construction recipe.";
+
+            record.storage ??= new List<PlayerStationStorage>();
+            var required = new Dictionary<int, int>();
+            foreach (var part in product.blueprint)
+            {
+                if (part == null || part.item < 0 || part.amount <= 0 || db.Item(part.item) == null)
+                    return "The ship blueprint contains an invalid ingredient; nothing was consumed.";
+                required[part.item] = required.TryGetValue(part.item, out int old) ? old + part.amount : part.amount;
+            }
+            foreach (var pair in required)
+            {
+                var stack = record.storage.Find(x => x != null && x.item == pair.Key);
+                if (stack == null || stack.amount < pair.Value)
+                    return "Insufficient " + (db.Item(pair.Key)?.name ?? ("item " + pair.Key)) +
+                        " in station storage; required: " + pair.Value + ".";
+            }
+
+            var previousStorage = new List<PlayerStationStorage>();
+            foreach (var entry in record.storage)
+                if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
+            int race = db.Systems.Find(x => x.index == record.system)?.raceId ?? 0;
+            var hull = new StoredShip(shipIndex, race, new List<int>());
+            foreach (var pair in required)
+            {
+                var stack = record.storage.Find(x => x != null && x.item == pair.Key);
+                stack.amount -= pair.Value;
+            }
+            record.storage.RemoveAll(x => x == null || x.amount <= 0);
+            record.dryDockShips.Add(hull);
+            if (!Save())
+            {
+                record.dryDockShips.RemoveAt(record.dryDockShips.Count - 1);
+                record.storage = previousStorage;
+                return "The dry dock could not save the completed construction; materials were restored.";
+            }
+            return "Constructed " + db.Ship(shipIndex).name + " from blueprint " + productId +
+                " at " + record.name + ". The bare hull is now in the dry dock; equipment and cargo can be fitted from station storage after retrieval.";
+        }
+
         // GoF2's paired ore/core commodities. A refinery converts ten units of raw ore into one core.
         static readonly int[,] RefineryRecipes =
         {
