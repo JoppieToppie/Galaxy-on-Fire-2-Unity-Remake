@@ -73,11 +73,12 @@ namespace GoF2Remake.Multiplayer
             return Math.Max(0, level) * StorageCapacityPerLevel;
         }
 
-        internal static string StorageStatus(int id)
+        internal static string StorageStatus(NetPlayer by, int id)
         {
             if (!NetGame.Active) return "Join a multiplayer session first.";
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (!CanManageStorage(by, record, out _)) return "Storage contents are private to the owner and any faction members granted access.";
             if (StorageCapacity(record) <= 0) return "This station has no storage module.";
 
             var lines = new List<string> { "Storage at " + record.name + ":" };
