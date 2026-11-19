@@ -4,9 +4,15 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 
 ## UI and platforms
 
-- **Game Rules access** (issue #311): Debug tools is the first custom control under Options > Gameplay > Game Rules > Expand.
-  The preset remains visible; expanding the custom controls and legacy Debug entry points require the same app-session confirmation. Opening them does not
-  enable cheats or change rules. Existing Debug pages remain available through their normal enable toggle.
+- The station creates its Debug menu entry even while locked and refreshes visibility when returning to the system
+  menu. Enabling/disabling Debug through Options therefore works without reloading the station. The confirmation
+  and multiplayer access checks are retained.
+  Enabling Debug uses its own confirmation. Opening an already-enabled Debug page in the main menu, station or
+  flight never asks to expand Game Rules, grants rule-editing consent or changes the experience profile.
+
+- **Game Rules access** (issue #311): Expand/Custom has its own app-session consent. Debug tools belongs to the
+  always-visible Tools section and uses a separate Enable/Cancel confirmation when enabled. Debug entry points
+  never grant or request Game Rules consent.
 
 - **Debug sizing** (remake): the main menu's Debug panel is 88 % of the screen high with the mission list and the cheats
   (a ScrollView following the focus) filling it; the pause menu's Debug page scrolls its rows (`.debug-scroll`, as tall
