@@ -343,7 +343,7 @@ namespace GoF2Remake.Multiplayer
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
             new Command { name = "station", usage = "systems | list | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | market <id> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
-                description = () => X("mpCmdStation", "builds stations, installs modules and manages station storage; persistent worlds only") },
+                description = () => X("mpCmdStation", "builds stations, installs modules, manages storage and station listings; persistent worlds only") },
         };
 
         static bool ProfilesOn => NetState.Instance != null && NetState.Instance.ProfilesOn;
