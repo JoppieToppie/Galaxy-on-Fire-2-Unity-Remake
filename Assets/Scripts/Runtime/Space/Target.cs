@@ -158,11 +158,12 @@ namespace GoF2Remake.Flight
         public static bool PassingOn { get; private set; }
 
         /// <summary>Deals a hit passed on from a weak spot (or its bonus): through damageFactor, not directFactor.</summary>
-        public void PassOn(float amount, bool byNpc = false, Vector3 hitVector = default, float shieldFactor = 1f, DamageType damageType = DamageType.None)
+        public void PassOn(float amount, bool byNpc = false, Vector3 hitVector = default, float shieldFactor = 1f, DamageType damageType = DamageType.None,
+                           ulong sourceObjectId = 0, uint shotId = 0)
         {
             bool was = PassingOn;
             PassingOn = true;
-            try { Damage(amount, byNpc, hitVector, shieldFactor, damageType); }
+            try { Damage(amount, byNpc, hitVector, shieldFactor, damageType, sourceObjectId, shotId); }
             finally { PassingOn = was; }
         }
         [Tooltip("Local-space hit boxes (metres) instead of the cube (big ships).")]
@@ -238,7 +239,7 @@ namespace GoF2Remake.Flight
                 int previousWeapon = byNpc ? forwardTo.lastNpcWeapon : forwardTo.lastPlayerWeapon;
                 if (byNpc) forwardTo.lastNpcWeapon = lastNpcWeapon;
                 else forwardTo.lastPlayerWeapon = lastPlayerWeapon;
-                forwardTo.PassOn(Mathf.Min(amount * damageFactor, hitpoints != null ? hitpoints.Combined : hp) * forwardFactor, byNpc, hitVector, shieldFactor, damageType);
+                forwardTo.PassOn(Mathf.Min(amount * damageFactor, hitpoints != null ? hitpoints.Combined : hp) * forwardFactor, byNpc, hitVector, shieldFactor, damageType, sourceObjectId, shotId);   // a shot down shot's part hit counts for nothing too
                 if (byNpc) forwardTo.lastNpcWeapon = previousWeapon;
                 else forwardTo.lastPlayerWeapon = previousWeapon;
             }
