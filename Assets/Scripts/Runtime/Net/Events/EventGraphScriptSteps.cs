@@ -400,7 +400,8 @@ namespace GoF2Remake.Events
                     case "EventFlightModelNode":
                     {
                         var model = (EventFlightModel)Int(n, "Model");
-                        Line(Join("flightstyle", Text(n, "Players"), model == EventFlightModel.FreeFlight ? "free" : model == EventFlightModel.Original ? "original" : "player"));
+                        Line(Join("flightstyle", Text(n, "Players"), model == EventFlightModel.FreeFlight ? "free" : model == EventFlightModel.Original ? "original"
+                                                                    : model == EventFlightModel.ChorusFlight ? "chorus" : "player"));
                         break;
                     }
                     case "EventRestrictTravelNode":

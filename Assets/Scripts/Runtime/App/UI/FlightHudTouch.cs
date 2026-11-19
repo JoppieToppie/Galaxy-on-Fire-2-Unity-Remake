@@ -163,6 +163,7 @@ namespace GoF2Remake.UI
                 // Remake: free flight's touch layout (TouchControlsFreeFlight); not in the cursor mode (keys and mouse).
                 f.freeFlight = touchMode && ship.TouchFree;
                 f.dampeners = ShipController.Dampeners;
+                f.chorus = f.freeFlight && ship.ChorusFlightActive;
             }
             if (!touchMode && flying && !level.Cutscene && level.LaunchCameraOver && (nav == null || !nav.Jumping))
             {

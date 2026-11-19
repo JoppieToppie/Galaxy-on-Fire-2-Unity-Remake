@@ -9,7 +9,8 @@
 //                        still dodges; in free look the drag orbits as before
 //   the fire button      aims as well while held, by the thumb's offset from where it went down (a larger dead zone, so
 //                        plain firing doesn't turn the ship), so one thumb shoots and aims
-//   beside the stick     a column: the dampeners toggle (lit while on), up, down (held)
+//   beside the stick     a column: the dampeners toggle (lit while on), up, down (held); in Chorus flight (Frame.chorus,
+//                        2026-11-11) only the pill, held for the drift (Chorus has no up / down or dampeners)
 //   the boost            held while held (free flight's boost; Settings.BoostToggle makes a tap start / stop it)
 // No throttle drag (free flight has no throttle) and no roll buttons: the ship rolls itself level (ShipController.TouchFree
 // turns EVERSPACE 2's auto-roll on, as ES2 does for a controller).
@@ -47,7 +48,7 @@ namespace GoF2Remake.UI
             Show(aimBase, false);
             Show(aimKnob, false);
 
-            dampButton = Button(FreeButton("touch-damp"), null, () => DampenersToggled?.Invoke());
+            dampButton = Button(FreeButton("touch-damp"), null, () => { if (!frame.chorus) DampenersToggled?.Invoke(); });
             dampLabel = new Label { pickingMode = PickingMode.Ignore };
             dampLabel.AddToClassList("touch-damp-text");
             dampLabel.AddToClassList("gof-semibold");
@@ -124,8 +125,8 @@ namespace GoF2Remake.UI
                 Place(aimKnob, aimStart + new Vector2(gestureAim.x, -gestureAim.y) * AimRadius - new Vector2(22f, 22f));
             }
             bool col = on && column;
-            Show(upButton, col);
-            Show(downButton, col);
+            Show(upButton, col && !frame.chorus);
+            Show(downButton, col && !frame.chorus);
             Show(dampButton, col);
             if (!col)
             {
@@ -134,9 +135,10 @@ namespace GoF2Remake.UI
             }
             upButton.EnableInClassList("touch-free-button--held", held.Contains(upButton));
             downButton.EnableInClassList("touch-free-button--held", held.Contains(downButton));
-            dampButton.EnableInClassList("touch-damp--on", frame.dampeners);
+            // Chorus flight: the pill is the drift, lit while held.
+            dampButton.EnableInClassList("touch-damp--on", frame.chorus ? held.Contains(dampButton) : frame.dampeners);
             dampButton.EnableInClassList("touch-free-button--held", held.Contains(dampButton));
-            string text = Localization.Extra("hudDampeners", "DAMPENERS");
+            string text = frame.chorus ? Localization.Extra("hudDrift", "DRIFT") : Localization.Extra("hudDampeners", "DAMPENERS");
             if (dampLabel.text != text) dampLabel.text = text;
             float alpha = frame.dimStick ? 50f / 255f : 1f;
             upButton.style.opacity = alpha;

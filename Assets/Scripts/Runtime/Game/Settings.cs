@@ -21,7 +21,12 @@ namespace GoF2Remake.Data
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class FlightStyles
     {
-        public const int Original = 0, Free = 1;
+        public const int Original = 0, Free = 1, Chorus = 2;
+        public const int Count = 3;
+
+        /// <summary>A free-flight style: no throttle, the keys held (Free after EVERSPACE 2, Chorus after Chorus; both fly
+        /// through FlightModel.StepFree and share free flight's tuning, mods' "free" bonuses included).</summary>
+        public static bool IsFree(int style) => style == Free || style == Chorus;
 
         /// <summary>The style the game flies with now: what a mod or an event sets (Modding.ModFlight: an event, the ship
         /// flown, the mod campaign, a new-game option), else the player's option (Settings.FlightStyle).</summary>
@@ -303,8 +308,10 @@ namespace GoF2Remake.Data
         public static Vector2 MouseMove(Vector2 delta) => delta * MouseSensitivity;
         /// <summary>Remake: how the player's ship flies (FlightStyles): the original's (a throttle, the ship always flying
         /// forward) or free flight after EVERSPACE 2 (thrust, strafe and up / down held, inertial dampeners, the mouse aiming
-        /// through a virtual joystick; Flight.FlightModel's free mode). It also switches the key layout (GameControls).</summary>
-        public static int FlightStyle { get => Mathf.Clamp(Mathf.RoundToInt(Get("flightStyle", FlightStyles.Original)), 0, 1); set => Set("flightStyle", Mathf.Clamp(value, 0, 1)); }
+        /// through a virtual joystick; Flight.FlightModel's free mode). It also switches the key layout (GameControls).
+        /// Remake (2026-11-11): or Chorus's (FlightStyles.Chorus, FlightModel.StepChorus: forward-only thrust, a held boost and
+        /// a held drift), with its own key layout.</summary>
+        public static int FlightStyle { get => Mathf.Clamp(Mathf.RoundToInt(Get("flightStyle", FlightStyles.Original)), 0, FlightStyles.Count - 1); set => Set("flightStyle", Mathf.Clamp(value, 0, FlightStyles.Count - 1)); }
         /// <summary>Remake: EVERSPACE 2's auto-roll in free flight (FlightModel.AutoRoll): the ship rolls itself level with the
         /// horizon, gently, once it leans past 15 degrees; off by default (EVERSPACE 2 turns it on for a controller only).</summary>
         public static bool AutoRoll { get => GetBool("autoRoll", false); set => SetBool("autoRoll", value); }

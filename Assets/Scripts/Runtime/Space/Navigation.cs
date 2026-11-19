@@ -295,6 +295,9 @@ namespace GoF2Remake.Flight
         public static float CruiseFactor { get; private set; } = 1f;
         /// <summary>The cruise is held and allowed now, or the cruise drive runs (its boost look, FlightModel.CruiseVisual, follows this).</summary>
         public static bool Cruising { get; private set; }
+        /// <summary>Remake (2026-11-11): Chorus flight's travel boost may run (FlightModel.TravelBoostAllowed): no hostiles, not
+        /// jumping, not in interstellar space, no time extender: where the fast-forward's own rules don't forbid it.</summary>
+        public static bool TravelBoostAllowed { get; private set; }
         const float CruiseRampUpMs = 3000f, CruiseRampDownMs = 1200f;
         float cruiseLevel;
         /// <summary>Lock ring frame 0..23 (no 500 ms delay for landmarks and planets), -1 = none.</summary>
@@ -393,7 +396,7 @@ namespace GoF2Remake.Flight
             MenuOpen = false;
             paused = false;
             SetFastForward(false);
-            cruiseLevel = 0f; CruiseFactor = 1f; Cruising = false;
+            cruiseLevel = 0f; CruiseFactor = 1f; Cruising = false; TravelBoostAllowed = false;
             ApplyTimeScale();
         }
 
@@ -638,6 +641,7 @@ namespace GoF2Remake.Flight
                 playerRoute?.Update(at);
                 eventRoute?.Update(at);
             }
+            TravelBoostAllowed = false;   // set again at the end, when nothing below returned early
             if (Jumping) { UpdateJump(dtMs); return; }
             if (paused || pauseMenuOpen) return;
             if (Autopilot) AboutToReach = RunPlanet == null && ReachUnits(AutopilotTarget, (AutopilotTarget.Position - ship.transform.position).magnitude / M) < AboutToReachUnits;
@@ -647,6 +651,7 @@ namespace GoF2Remake.Flight
             UpdateInterstellar();
             UpdatePlanetRun();
             SetFastForward(fastForwardHeld && CanFastForward);
+            TravelBoostAllowed = !Interstellar && !Jumping && !HostilesPresent && !TimeExtender.Active && !Autopilot;
         }
 
         void LateUpdate()
@@ -904,7 +909,7 @@ namespace GoF2Remake.Flight
         public static bool PressesBlocked => InputHalted || Time.frameCount - lastHaltedFrame <= 1;
         static int lastHaltedFrame = -10;
 
-        void OnDestroy() { halted = ConversationRuns = false; CruiseFactor = 1f; Cruising = false; MusicPaused = false; if (!GoF2Remake.Data.NetSession.Active) AudioListener.pause = false; }
+        void OnDestroy() { halted = ConversationRuns = false; CruiseFactor = 1f; Cruising = false; TravelBoostAllowed = false; MusicPaused = false; if (!GoF2Remake.Data.NetSession.Active) AudioListener.pause = false; }
 
         /// <summary>MGame::pauseSounds 0x1a8304: a conversation, hint or map pauses only the sound effects and the engines
         /// (FModSound::pauseAllPlayingSoundFXEvents: the events of the effects category); only the pause menu stops

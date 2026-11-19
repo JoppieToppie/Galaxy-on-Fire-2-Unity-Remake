@@ -53,15 +53,15 @@ namespace GoF2Remake.Tests
             "firePrimary", "fireSecondary", "switchSecondary", "camera", "cockpitView", "autoTurret", "unlockTarget", "action", "autopilotMenu", "actionsMenu",
             "fastForward", "wingmen", "khadorDrive", "cloak", "timeExtender", "mouseSteering", "chat", "chatSend", "chatChannel",
             "screenshot", "hudToggle", "multiplayerWindow", "distressCall",
-            "thrust", "strafe", "hover", "dampeners", "freeLookHold",   // free flight (PR #87)
+            "thrust", "strafe", "hover", "dampeners", "drift", "travelBoost", "freeLookHold",   // free flight (PR #87), Chorus's drift and travel boost (2026-11-11)
             "device1", "device2", "device3",   // the active devices (PlayerDevices)
             "headlights",   // EVERSPACE 2's headlights (Flight.Headlights)
         };
 
         [Test]
-        public void ThereAreFortyThreeFlightRows()
+        public void ThereAreFortyFiveFlightRows()
         {
-            Assert.AreEqual(43, GameControls.Rows.Count);
+            Assert.AreEqual(45, GameControls.Rows.Count);
             CollectionAssert.AreEqual(RowIds, GameControls.Rows.Select(r => r.id).ToArray(), "in the options' order (the overrides are kept by action name)");
             foreach (var r in GameControls.Rows)
             {
@@ -159,6 +159,8 @@ namespace GoF2Remake.Tests
             yield return D("distressCall", BindSlot.Key1, "");
             yield return D("distressCall", BindSlot.Key2, "");
             yield return D("distressCall", BindSlot.Pad, "");
+            yield return D("drift", BindSlot.Key1, "");   // Chorus flight's, bound only in its layout (ChorusFlightTests)
+            yield return D("travelBoost", BindSlot.Key1, "");
         }
 
         [TestCaseSource(nameof(Defaults_))]

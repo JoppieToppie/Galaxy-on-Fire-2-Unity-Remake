@@ -40,7 +40,7 @@ namespace GoF2Remake.Events
     /// <summary>The Fade node: to the colour (held), from it, or gone at once.</summary>
     public enum EventFade { Out, In, Clear }
     /// <summary>The Set Flight Model node (/flightstyle): free flight, the original, or the player's own option again.</summary>
-    public enum EventFlightModel { FreeFlight, Original, PlayersChoice }
+    public enum EventFlightModel { FreeFlight, Original, PlayersChoice, ChorusFlight }   // (new values at the end: graphs store the number)
     /// <summary>The Show / Hide System node (/system): on the map, off it, or as the map has it again.</summary>
     public enum EventSystemAction { Show, Hide, Reset }
     /// <summary>What a ship does when its Fly To / Fly Route order is done (NpcOrder.Then).</summary>

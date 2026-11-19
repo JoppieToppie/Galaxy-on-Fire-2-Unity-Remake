@@ -87,9 +87,13 @@ namespace GoF2Remake.UI
                 "campaign" => X("flightForcedCampaign", "this mod campaign"),
                 _ => X("flightForcedOption", "a game option of a mod"),
             };
-            string style = FlightStyles.Current == FlightStyles.Free ? X("flightStyleFree", "Free flight (EVERSPACE 2 style)") : X("flightStyleOriginal", "Original");
-            return string.Format(X("flightForcedNote", "Now set by {0}: {1}."), who, style);
+            return string.Format(X("flightForcedNote", "Now set by {0}: {1}."), who, StyleName(FlightStyles.Current));
         }
+
+        /// <summary>A flight style's name (FlightStyles) for the options.</summary>
+        static string StyleName(int style) => style == FlightStyles.Free ? X("flightStyleFree", "Free flight (EVERSPACE 2 style)")
+                                            : style == FlightStyles.Chorus ? X("flightStyleChorus", "Chorus style")
+                                            : X("flightStyleOriginal", "Original");
 
         public static string PageTitle(OptionPage page) => page switch
         {

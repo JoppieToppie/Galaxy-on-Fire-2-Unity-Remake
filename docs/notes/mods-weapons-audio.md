@@ -132,6 +132,16 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   (`tools/audio.py`, vgmstream through Wine). Verified in Play mode (the Gunship): every sound loads and resolves per
   weapon type, the engine plays, a boost runs the loop to pitch 1.5 and the stop, the charger climbs 0.7 -> 1.9 as it refills
   and stops when full. Not yet: the shots fired by hand, multiplayer.
+  (2026-11-11, Chorus flight) seven more slots, `ShipSounds.All` lists every slot for `Preload`:
+  - `driftStart` / `driftStop` one-shots on `FlightModel.Drifting`'s edges, and `driftLoop` while drifting, by speed like
+    the engine.
+  - `dodge`: a one-shot as `Maneuver` starts, in any style.
+  - `travelStart` / `travelLoop` / `travelStop` on `TravelBoosting`. They stand in for the boost's three while the travel
+    boost runs; a travel edge skips the boost's own start / stop.
+
+  `PlayerEngine.OneShot` plays them on the boost's source. The Chorus importer writes them from Chorus's FMOD events (the
+  exporter's `fmod` command: event paths from MasterBank.strings.bank, waves through CUE4Parse's EventNodesResolver).
+  Tests `ModShipSoundsTests`. Not heard in game yet.
 - **New sounds, game lines replaced, voices per language** (2026-10-22, the user's requests): a `sounds/` file not named like
   a game clip is a new sound, played by name (`ModSounds.Named` / `Has`; `/sound <name>` sends Order.Sound a = -2 ->
   `EventScreen.PlayModSound`; the quest step's picker lists the project's own, the Play Sound node a Mod sound field); a

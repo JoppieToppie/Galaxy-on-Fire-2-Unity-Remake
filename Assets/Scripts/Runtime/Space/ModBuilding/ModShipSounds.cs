@@ -3,7 +3,7 @@
 // written by the ES2 importer). Unlike ModSounds (sounds/<game clip name>: a replacement everywhere) these belong to one ship
 // or one weapon model, so their files may sit anywhere in the mod (the importer uses audio/).
 //   ships.json, a new ship or an override:
-//     "sounds": { "engine": S, "boostStart": S, "boostLoop": S, "boostStop": S, "boostDepleted": S, "charger": S }
+//     "sounds": { "engine": S, "boostStart": S, "boostLoop": S, "boostStop": S, "boostDepleted": S, "charger": S, ... }
 //       engine      the engine loop (PlayerEngine; also the ship's NPCs, hangar flights and other players' copies): volume
 //                   and pitch go from their first value at a standstill to their second at top speed
 //       boostStart  one shot when a boost starts; boostStop when it ends ("pitch" [a, b]: a random pitch in between);
@@ -11,6 +11,11 @@
 //                   TryToBoostWithEnergyDepletedSound)
 //       boostLoop   a loop while boosting: volume / pitch from the boost's start to its full strength (BoostVisualPercent)
 //       charger     a loop while the booster recharges: volume / pitch from empty to full
+//     Remake (2026-11-11, Chorus flight, FlightModel.StepChorus; written by the Chorus importer from Chorus's FMOD events):
+//       driftStart / driftStop  one shot when a drift starts / ends; driftLoop a loop while drifting (volume / pitch by the
+//                   speed, as the engine)
+//       dodge       one shot when a dodge starts (any flight style)
+//       travelStart / travelStop / travelLoop  Chorus's travel boost, in place of the boost's three while it runs
 //     A ship without "sounds" (or without one of them) keeps the game's.
 //   shipkits.json, a hardpoint weapon rule (ModHardpoints):
 //     "sound": { "shot": S, "loop": S, "release": ms }
@@ -65,6 +70,9 @@ namespace GoF2Remake.Modding
         public sealed class ShipSounds
         {
             public Sound engine, boostStart, boostLoop, boostStop, boostDepleted, charger;
+            public Sound driftStart, driftLoop, driftStop, dodge, travelStart, travelLoop, travelStop;   // remake: Chorus flight
+            public IEnumerable<Sound> All => new[] { engine, boostStart, boostLoop, boostStop, boostDepleted, charger,
+                                                     driftStart, driftLoop, driftStop, dodge, travelStart, travelLoop, travelStop };
         }
 
         public sealed class WeaponSound
@@ -74,7 +82,8 @@ namespace GoF2Remake.Modding
         }
 
         static readonly HashSet<string> ShipKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "engine", "boostStart", "boostLoop", "boostStop", "boostDepleted", "charger" };
+            { "engine", "boostStart", "boostLoop", "boostStop", "boostDepleted", "charger",
+              "driftStart", "driftLoop", "driftStop", "dodge", "travelStart", "travelLoop", "travelStop" };
         static readonly HashSet<string> WeaponKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "shot", "loop", "release" };
         static readonly HashSet<string> SoundKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "file", "files", "volume", "pitch" };
 
@@ -165,6 +174,13 @@ namespace GoF2Remake.Modding
                     case "booststop": s.boostStop = snd; break;
                     case "boostdepleted": s.boostDepleted = snd; break;
                     case "charger": s.charger = snd; break;
+                    case "driftstart": s.driftStart = snd; break;
+                    case "driftloop": s.driftLoop = snd; break;
+                    case "driftstop": s.driftStop = snd; break;
+                    case "dodge": s.dodge = snd; break;
+                    case "travelstart": s.travelStart = snd; break;
+                    case "travelloop": s.travelLoop = snd; break;
+                    case "travelstop": s.travelStop = snd; break;
                 }
             }
             return s;
@@ -198,7 +214,7 @@ namespace GoF2Remake.Modding
             ships = ModContent.ShipSounds().ToDictionary(kv => kv.Key, kv => (ShipSounds)kv.Value);
             var wanted = new Dictionary<string, (ModInfo mod, string file)>(StringComparer.OrdinalIgnoreCase);
             void Want(Sound s) { if (s != null) foreach (var f in s.files) wanted[Key(s.mod, f)] = (s.mod, f); }
-            foreach (var s in ships.Values) { Want(s.engine); Want(s.boostStart); Want(s.boostLoop); Want(s.boostStop); Want(s.boostDepleted); Want(s.charger); }
+            foreach (var s in ships.Values) foreach (var snd in s.All) Want(snd);
             foreach (var kit in ModShipKits.All())
                 if (kit.hardpoints != null)
                     foreach (var r in kit.hardpoints.weapons) { Want(r.sound?.shot); Want(r.sound?.loop); }

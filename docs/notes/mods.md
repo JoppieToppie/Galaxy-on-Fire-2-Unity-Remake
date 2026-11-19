@@ -222,7 +222,9 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   with each option's default. Verified in Play mode with 8 options from two mods (with and without images, a missing image
   warned), the arrow-key navigation and the scrolling, and 3 mod campaigns (6 cards).
 - **Flight styles** (`ModFlight`; the guide's "Flight styles"): mods choose per content whether they touch the original
-  flight, free flight or both. Items: attributes 110-121 (`ItemStats`): `flightScope` (110: 0 both, 1 original, 2 free) keeps
+  flight, free flight or both. (2026-11-11: `"chorus"` names a third style, Chorus flight, `FlightStyles.Chorus`; it is a
+  free-flight style, `FlightStyles.IsFree`, so free flight's bonuses, `flightScope` 2 and `freeBoostFactor` apply to it;
+  events read `chorusflight`; the Set Flight Model node's ChorusFlight and `/flightstyle chorus` set it.) Items: attributes 110-121 (`ItemStats`): `flightScope` (110: 0 both, 1 original, 2 free) keeps
   the item's booster / Steering Nozzle attributes 25-28 to one style; % bonuses `topSpeed` / `turnRate` / `strafeSpeed` (both,
   111-113), `original*` (114-116), `free*` + `freeAcceleration` (117-120) and `freeBoostFactor` (121, x100, instead of the
   booster's); `fullStopDamage` / `lowSpeedResistance` (138 / 139, both styles, 2026-11-02: EVERSPACE 2's ship passives from

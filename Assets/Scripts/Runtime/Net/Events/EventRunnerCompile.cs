@@ -378,6 +378,7 @@ namespace GoF2Remake.Events
                     case "kills": return Session.Kills;
                     case "systemsvisited": return VisitedSystems();   // remake: 2+ = the player has left the starting system
                     case "freeflight": return FlightStyles.Current == FlightStyles.Free ? 1 : 0;   // the flight style in use (ModFlight)
+                    case "chorusflight": return FlightStyles.Current == FlightStyles.Chorus ? 1 : 0;   // remake, 2026-11-11
                 }
                 throw new Exception(string.Format(X("mpEventNoVar", "no variable \"{0}\" (set it first)."), name));
             }

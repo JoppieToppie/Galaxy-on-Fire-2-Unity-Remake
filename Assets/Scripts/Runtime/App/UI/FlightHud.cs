@@ -848,7 +848,7 @@ namespace GoF2Remake.UI
             if (Vr.VrControls.Steer.HasValue) touchStick = Vr.VrControls.Steer.Value;   // VR: the cockpit's stick, held
             // Remake: free flight on touch (TouchControlsFreeFlight): the stick thrusts and strafes (linear), the drag aims.
             bool touchFree = touchMode && touch != null && ship.TouchFree;
-            ship.SetTouchFree(touchFree ? raw : Vector2.zero, touchFree ? touch.UpDown : 0f, touchFree && touch.BoostHeld);
+            ship.SetTouchFree(touchFree ? raw : Vector2.zero, touchFree ? touch.UpDown : 0f, touchFree && touch.BoostHeld, touchFree && touch.DriftHeld);
             ship.SetSteer(touchFree ? touch.Aim : touchStick);
             mining?.SetTouchInput(touchStick);
 
