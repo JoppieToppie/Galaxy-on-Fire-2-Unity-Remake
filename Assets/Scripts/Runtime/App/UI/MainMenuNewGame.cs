@@ -255,7 +255,7 @@ namespace GoF2Remake.UI
             var desc = root.Q<Label>("medalsDesc");
             if (desc != null)
                 desc.text = Localization.Extra("medalsDesc",
-                    "Off: no medals in this game. The VoidX then comes with winning the main story, the Specter and the fireworks with finishing Supernova.");
+                    "Off: no medals in this game. The VoidX and wingmen who pay you to hire them become available after winning the main story; the Specter and fireworks after finishing Supernova.");
         }
 
         /// <summary>The Supernova Challenge's entry under the campaign cards (the remake's: the original offered it nowhere,

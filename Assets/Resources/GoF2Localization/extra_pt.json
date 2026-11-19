@@ -3403,7 +3403,7 @@
  "autoJumpgateHelp": "Com um destino definido, o piloto automático atravessa o portal rumo a ele sem perguntar. Desligado: o portal pergunta primeiro, como no original.",
  "statLoadingTime": "Tempo de recarga",
  "medalsTitle": "Medalhas",
- "medalsDesc": "Desligado: sem medalhas neste jogo. A VoidX vem então com a vitória na história principal, e o Specter e os fogos de artifício com o fim de Supernova.",
+ "medalsDesc": "Desligado: sem medalhas neste jogo. A VoidX vem então com a vitória na história principal, e o Specter e os fogos de artifício com o fim de Supernova. Após concluir a história principal, os pilotos de escolta pagam para você contratá-los.",
  "noMedalsVoidX": "Pela sua vitória sobre os voidianos, a Deep Science fornecerá a você um protótipo de um caça restaurado dos voidianos. Você pode comprá-lo em Thynome.",
  "noMedalsFireworks": "Você superou a crise da Supernova: como recompensa, você recebe um novo diagrama de fogos de artifício.",
  "noMedalsTag": "SEM MEDALHAS",

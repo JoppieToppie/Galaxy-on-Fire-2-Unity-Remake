@@ -44,6 +44,10 @@ namespace GoF2Remake.Data
         /// without medals the main story won (Story.GameWonIndex: a Valkyrie or Supernova start counts it won too).</summary>
         public static bool VoidXUnlocked => Session.NoMedals ? !Session.FreePlay && Story.GameWon : GotAllGoldMedals;
 
+        /// <summary>CLAUDE.md "A game without medals": fan wingmen pay after the main story when medals are off.
+        /// With medals enabled, retain the original all-base-medals condition (any grade, not all gold).</summary>
+        public static bool WingmenPayPlayer => Session.NoMedals ? !Session.FreePlay && Story.GameWon : GotAllMedals;
+
         /// <summary>The fireworks blueprint (232) and Katashán's Specter: every gold and Supernova medal
         /// (gotAllSupernovaMedals); in a game without medals the Supernova story finished (Story.LastIndex).</summary>
         public static bool SupernovaUnlocked => Session.NoMedals ? !Session.FreePlay && Story.Index >= Story.LastIndex : GotAllSupernovaMedals;

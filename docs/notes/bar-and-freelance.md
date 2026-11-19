@@ -170,8 +170,8 @@ generator).
   (`Achievements.VoidXUnlocked` / `SupernovaUnlocked`, medals or story by the flag, never in free play): Thynome's VoidX
   (`Shop.GenerateShips`, `Story.OnDocked`) once the main story is won (`Story.GameWon`, so a Valkyrie / Supernova start
   has it at once), the fireworks blueprint 232 and Katashán's Specter (44, hint 0x3a / 3233) once the Supernova story is
-  finished (index 162). `StationMenu.CheckMedalHints` skips 649 (all medals: the wingman fans who pay stay a medal
-  reward) and tells the VoidX and the fireworks in texts of its own without medals (`noMedalsVoidX`,
+  finished (index 162). `StationMenu.CheckMedalHints` skips the medal-specific 649 notification and tells
+  the VoidX and fireworks in texts of its own without medals (`noMedalsVoidX`,
   `noMedalsFireworks`; 650 / 651 congratulate on the medals). The event conditions `medals(allgold | allsupernova)` read
   the same gates, so mod content behind them stays reachable; `medals(gold ...)` counts 0. Save v18 (`noMedals`; older
   saves have medals); the slot rows say NO MEDALS. Tests `NoMedalsTests`.
@@ -182,3 +182,8 @@ generator).
 - **Bonus percentage** (767 "#P %"): `(int)(getMissionBonus x 100f)` (SpaceLounge::startChat 0x19a582,
   Globals::getAgentMissionText 0xfbd62; the decompile drops the x 100), cut, not rounded: standing 53 reads 52 %, 59 reads
   58 % (the only two from 0 to 100 that differ). `LoungeChat` rounded it until 2026-11-15.
+
+- **Fan wingmen without medals**: `Achievements.WingmenPayPlayer` uses main-story completion with medals off,
+  and all base medals at any grade with medals on. Offer text, confirmation and credit transfer share this gate.
+  Before that milestone the player pays the normal fee; afterward the crew pays that same fee to the player.
+  Free play does not gain this story reward merely from its story index. Fireworks still unlocks after Supernova.

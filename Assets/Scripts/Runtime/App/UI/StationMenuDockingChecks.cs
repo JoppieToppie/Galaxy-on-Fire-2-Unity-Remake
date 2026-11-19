@@ -90,7 +90,7 @@ namespace GoF2Remake.UI
             else if (!Session.Hints.Contains(0x1b) && Achievements.VoidXUnlocked)
             {
                 Session.Hints.Add(0x1b);
-                text = none ? Localization.Extra("noMedalsVoidX", "For your victory over the Void, Deep Science will provide you with a prototype of a restored Void fighter spaceship. You can buy it at Thynome.")
+                text = none ? Localization.Extra("noMedalsVoidX", "For your victory over the Voids, Deep Science will provide you with a prototype of a restored Void fighter spaceship. You can buy it at Thynome.")
                             : Localization.Get(650);
             }
             else if (!Session.UnlockedBlueprints.Contains(232) && Achievements.SupernovaUnlocked)
