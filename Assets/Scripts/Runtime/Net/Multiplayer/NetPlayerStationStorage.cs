@@ -498,7 +498,15 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.Active) return "Join a multiplayer session first.";
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManageStorage(by, record, out _)) return "Storage contents are private to the owner and any faction members granted access.";
+            if (by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Dock at this station using a controlled profile to view storage.";
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            bool manager = CanManageStorage(by, record, out _);
+            EnsureStorageLots(record);
+            if (!manager && !record.storageLots.Exists(x => x != null &&
+                string.Equals(x.ownerProfile, account, StringComparison.Ordinal) && x.amount > 0))
+                return "Storage contents are private to the owner and authorised faction members; this profile has no goods stored here.";
             if (StorageCapacity(record) <= 0) return "This station has no storage module.";
 
             var lines = new List<string> { "Storage at " + record.name + ":" };
@@ -507,9 +515,11 @@ namespace GoF2Remake.Multiplayer
                 foreach (var stack in record.storage)
                 {
                     if (stack == null || stack.amount <= 0) continue;
-                    total += stack.amount;
+                    int visibleAmount = manager ? stack.amount : OwnedStorageAmount(record, account, stack.item);
+                    if (visibleAmount <= 0) continue;
+                    total += visibleAmount;
                     string itemName = NetGame.Db?.Item(stack.item)?.name ?? ("Item " + stack.item);
-                    lines.Add("  " + itemName + ": " + stack.amount.ToString("N0"));
+                    lines.Add("  " + itemName + ": " + visibleAmount.ToString("N0"));
                 }
             if (lines.Count == 1) lines.Add("Empty.");
             lines.Add("Capacity: " + total.ToString("N0") + "/" + StorageCapacity(record).ToString("N0"));
