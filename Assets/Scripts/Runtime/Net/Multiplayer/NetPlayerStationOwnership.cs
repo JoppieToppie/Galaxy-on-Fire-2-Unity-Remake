@@ -135,7 +135,7 @@ namespace GoF2Remake.Multiplayer
             }
             foreach (ulong client in NetProfiles.ClientsOf(proposal.proposedBy))
                 NetState.Instance?.Notify(client, "Ownership of " + record.name + " has been transferred successfully.");
-            return "Station ownership transferred successfully. Personal ships, contributor-owned storage and existing marketplace seller claims remain separate from station ownership.";
+            return "Station ownership transferred successfully. Construction contributions were settled when deposited; no contributor compensation carries over. Personal ships, contributor-owned storage and existing marketplace seller claims remain separate from station ownership.";
         }
 
         static bool IsFactionLeaderOf(string account, string factionId)
@@ -212,10 +212,16 @@ namespace GoF2Remake.Multiplayer
                     string line = (contribution.contributorProfile ?? "Unknown profile") + ": " +
                         contribution.amount + " x " + item;
                     if (contribution.paidCredits > 0)
+                    {
                         line += " | paid " + contribution.paidCredits.ToString("N0") +
                             " credits (" + Math.Max(0, contribution.unitValue).ToString("N0") + " per unit)";
+                        if (contribution.paidUtc > 0)
+                            line += " | last paid " + DateTimeOffset.FromUnixTimeSeconds(contribution.paidUtc).ToLocalTime().ToString("g");
+                    }
                     else if (record.ownershipType == PlayerStationOwnershipType.Individual)
                         line += " | no faction-bank payment";
+                    if (contribution.contributedUtc > 0)
+                        line += " | first contributed " + DateTimeOffset.FromUnixTimeSeconds(contribution.contributedUtc).ToLocalTime().ToString("g");
                     lines.Add(line);
                 }
             return string.Join("\n", lines);
