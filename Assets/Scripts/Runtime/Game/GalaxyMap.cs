@@ -282,6 +282,9 @@ namespace GoF2Remake.Data
         /// any distance.</summary>
         public static int NextHop(Database db, int from, int to, bool safest = false)
         {
+            // A player-built gate has one fixed destination and bypasses the ordinary system-route graph.
+            int playerGateDestination = GoF2Remake.Multiplayer.NetPlayerStations.JumpgateDestinationStation(from);
+            if (playerGateDestination >= 0) return playerGateDestination;
             int a = db.Stations.Find(s => s.index == from)?.system ?? -1;
             int b = db.Stations.Find(s => s.index == to)?.system ?? -1;
             if (a < 0 || b < 0 || (!safest && IsInRoutes(db.Systems.Find(s => s.index == a), b))) return to;
