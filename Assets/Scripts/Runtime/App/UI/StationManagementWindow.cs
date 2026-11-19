@@ -208,49 +208,86 @@ namespace GoF2Remake.UI
             foreach (string module in new[] { "storage", "refinery", "factory", "hangar", "drydock" })
                 AddAction("Install " + ModuleLabel(module), "/station install " + id + " " + module);
 
-            AddSection("JUMPGATE NETWORK", "Each completed gate occupies this station's orbit and links to one fixed destination system. Build additional gates in other player-station orbits in the same system to expand the network. Cost: 500 Iron, 250 Titanium, 200 Electronics and 150 Microchips.");
-            if (selected.underConstruction)
-                AddInfo("Jumpgate availability", "This orbit must finish station construction before a jumpgate can be started.");
-            else if (selected.jumpgateDestinationSystem >= 0)
-            {
-                var gateDestination = NetGame.Db?.Systems?.Find(x => x != null && x.index == selected.jumpgateDestinationSystem);
-                AddInfo("Gate destination", gateDestination?.name ?? ("System " + selected.jumpgateDestinationSystem));
-                AddAction("Refresh jumpgate status", "/station jumpgate-status " + id);
-                if (selected.jumpgateStartedUtc <= 0)
-                {
-                    AddInfo("Gate status", "Awaiting construction materials");
-                    if (selected.jumpgateMaterials != null)
-                        foreach (var material in selected.jumpgateMaterials)
-                            if (material != null)
-                                AddInfo(NetGame.Db?.Item(material.item)?.name ?? ("Item " + material.item),
-                                    Math.Max(0, material.delivered) + "/" + Math.Max(0, material.required));
-                    AddField("jumpgateItem", "Contribution item ID", "156");
-                    AddField("jumpgateAmount", "Contribution amount (1–500)", "10");
-                    AddAction("Contribute jumpgate materials", () => Send("/station jumpgate-contribute " + id + " " + Value("jumpgateItem") + " " + Value("jumpgateAmount")));
-                }
-                else if (selected.jumpgateBuilding)
-                {
-                    long remaining = Math.Max(0, selected.jumpgateCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-                    AddInfo("Gate status", "Under construction · " + remaining.ToString("N0") + " seconds remaining");
-                }
-                else AddInfo("Gate status", "Operational");
-            }
+            AddSection("JUMPGATE NETWORK", "Use this station as the sponsor to build a gate at any existing orbital location in this system. Each orbit can hold one player-built gate; each gate has one destination. Cost: 500 Iron, 250 Titanium, 200 Electronics and 150 Microchips. A return route requires another gate in the destination system.");
+            AddAction("List orbital locations in this system", "/station jumpgate-orbits " + selected.system);
+
+            var systemGates = NetPlayerStations.Jumpgates?
+                .Where(g => g != null && g.system == selected.system &&
+                    NetPlayerStations.CanViewJumpgateManagement(NetPlayer.Local, g))
+                .OrderBy(g => g.orbitStationIndex).ToList();
+            if (systemGates == null || systemGates.Count == 0)
+                AddInfo("Your gates in this system", "None currently built or under construction.");
             else
             {
-                AddInfo("Gate status", "No gate or active gate project in this orbit");
+                foreach (var gate in systemGates)
+                {
+                    string orbitId = gate.orbitStationIndex.ToString();
+                    string orbitName = NetGame.Db?.Stations.Find(x => x != null && x.index == gate.orbitStationIndex)?.name
+                        ?? ("Orbit " + orbitId);
+                    string destinationName = NetGame.Db?.Systems.Find(x => x != null && x.index == gate.destinationSystem)?.name
+                        ?? ("System " + gate.destinationSystem);
+                    AddInfo("Gate · " + orbitName + " (" + orbitId + ")", "Destination: " + destinationName);
+                    AddAction("Refresh gate status · orbit " + orbitId, "/station jumpgate-status " + orbitId);
+                    if (gate.startedUtc <= 0)
+                    {
+                        AddInfo("Gate status", "Awaiting construction materials");
+                        if (gate.materials != null)
+                            foreach (var material in gate.materials)
+                                if (material != null)
+                                    AddInfo(NetGame.Db?.Item(material.item)?.name ?? ("Item " + material.item),
+                                        Math.Max(0, material.delivered) + "/" + Math.Max(0, material.required));
+                        AddField("jumpgateItem_" + orbitId, "Contribution item ID · orbit " + orbitId, "156");
+                        AddField("jumpgateAmount_" + orbitId, "Contribution amount · orbit " + orbitId, "10");
+                        AddAction("Contribute to orbit " + orbitId, () => Send("/station jumpgate-contribute " + orbitId + " " +
+                            Value("jumpgateItem_" + orbitId) + " " + Value("jumpgateAmount_" + orbitId)));
+                    }
+                    else if (gate.building)
+                    {
+                        long remaining = Math.Max(0, gate.completesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                        AddInfo("Gate status", "Under construction · " + remaining.ToString("N0") + " seconds remaining");
+                    }
+                    else
+                    {
+                        AddInfo("Gate status", "Operational");
+                        long nextChange = gate.destinationChangedUtc + 86400;
+                        long untilChange = Math.Max(0, nextChange - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                        AddInfo("Destination changes", untilChange == 0 ? "Available now" : "Available in " + untilChange.ToString("N0") + " seconds");
+                        AddField("jumpgateNewDestination_" + orbitId, "New destination system · orbit " + orbitId, gate.destinationSystem.ToString());
+                        AddAction("Change destination · orbit " + orbitId, () =>
+                        {
+                            string destination = Value("jumpgateNewDestination_" + orbitId).Trim();
+                            if (!int.TryParse(destination, out _))
+                            {
+                                feedback.text = "Enter a valid destination system index.";
+                                feedbackTime = 4f;
+                                return;
+                            }
+                            Send("/station jumpgate-destination " + orbitId + " " + destination);
+                        });
+                    }
+                }
+            }
+
+            AddSection("BUILD A JUMPGATE", "The selected station sponsors the project and determines its owner. Choose an existing orbit in this system; the original system jumpgate orbit cannot be used. The optional timer starts only after all materials are funded. Use 0 for no timer.");
+            if (selected.underConstruction)
+                AddInfo("Jumpgate availability", "The sponsoring station must finish construction first.");
+            else
+            {
+                AddField("jumpgateOrbit", "Existing orbit station index", "");
                 AddField("jumpgateDestination", "Destination system index", "");
                 AddField("jumpgateBuildSeconds", "Build time in seconds (0 = no timer)", "0");
                 AddAction("Start jumpgate construction", () =>
                 {
+                    string orbit = Value("jumpgateOrbit").Trim();
                     string destination = Value("jumpgateDestination").Trim();
                     string buildSeconds = Value("jumpgateBuildSeconds").Trim();
-                    if (!int.TryParse(destination, out _) || !int.TryParse(buildSeconds, out _))
+                    if (!int.TryParse(orbit, out _) || !int.TryParse(destination, out _) || !int.TryParse(buildSeconds, out _))
                     {
-                        feedback.text = "Enter a valid destination system index and build time in seconds.";
+                        feedback.text = "Enter valid orbit, destination system and build-time indexes.";
                         feedbackTime = 4f;
                         return;
                     }
-                    Send("/station jumpgate " + id + " " + destination + " " + buildSeconds);
+                    Send("/station jumpgate " + id + " " + orbit + " " + destination + " " + buildSeconds);
                 });
             }
 
