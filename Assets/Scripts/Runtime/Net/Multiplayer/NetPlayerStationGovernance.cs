@@ -212,6 +212,7 @@ namespace GoF2Remake.Multiplayer
                 if (builderOverride?.builderOverride == true &&
                     builderOverride.state != PlayerStationPermissionState.Inherit)
                     return builderOverride.state == PlayerStationPermissionState.Allow;
+                if (builder) return true;
                 if (HasBan(record, account, PlayerStationBanSource.Faction)) return false;
             }
             if (record.ownershipType == PlayerStationOwnershipType.Individual &&
@@ -317,7 +318,10 @@ namespace GoF2Remake.Multiplayer
             bool builder = HasBuilderRights(record, account);
             if (builder && permission != PlayerStationPermission.Visit)
                 return "The original builder can only override individual visitor access; other permissions belong to station governance.";
-            if (!builder && !IsStationAuthority(by, record, out _))
+            if (!builder && permission == PlayerStationPermission.Visit &&
+                !HasStationPermission(record, account, PlayerStationPermission.Security))
+                return "Only the station owner or an authorised station security role may change visitor permissions.";
+            if (!builder && permission != PlayerStationPermission.Visit && !IsStationAuthority(by, record, out _))
                 return "Only the station owner, faction leader or an authorised station administrator may change permissions.";
             string targetAccount = NetProfiles.FindAccount((target ?? "").Trim());
             if (string.IsNullOrEmpty(targetAccount)) return "Supply a valid target account.";
@@ -426,8 +430,8 @@ namespace GoF2Remake.Multiplayer
             if (!IsStationContext(by, record, out string account))
                 return "Dock at the station using a controlled profile to manage visitor bans.";
             bool builder = HasBuilderRights(record, account);
-            if (!builder && !IsStationAuthority(by, record, out _))
-                return "Only the original builder or faction security authority may manage station bans.";
+            if (!builder && !HasStationPermission(record, account, PlayerStationPermission.Security))
+                return "Only the original builder or an authorised station security role may manage station bans.";
             string targetAccount = NetProfiles.FindAccount((target ?? "").Trim());
             if (string.IsNullOrEmpty(targetAccount)) return "Supply a valid target account.";
             if (string.Equals(targetAccount, account, StringComparison.Ordinal))
@@ -500,7 +504,8 @@ namespace GoF2Remake.Multiplayer
                 (faction.officers?.Contains(account) == true && HasConstructionRole(record, account));
             // The original builder has first say while their profile is in the session. Faction
             // construction authority becomes available only while that builder is absent.
-            return factionAuthority && !OriginalBuilderInSession(record);
+            return factionAuthority && !OriginalBuilderInSession(record) &&
+                HasStationPermission(record, account, PlayerStationPermission.Construction);
         }
 
         internal static bool HasBuilderRights(PlayerStationRecord record, string account)
