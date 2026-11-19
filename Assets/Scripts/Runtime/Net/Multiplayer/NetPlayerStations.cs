@@ -229,6 +229,8 @@ namespace GoF2Remake.Multiplayer
                 lines.Add($"Storage: {stored:N0}/{storageCapacity:N0}");
                 lines.Add($"Storage access: {(record.factionStorageAccess ? "Faction members" : "Owner only")}");
             }
+            if (record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)
+                lines.Add($"Ship hangar: {record.storedShips?.Count ?? 0}/100 hulls stored");
             lines.Add($"Marketplace listings: {record.listings?.Count ?? 0}");
             return string.Join("\n", lines);
         }
