@@ -20,7 +20,7 @@ namespace GoF2Remake.Multiplayer
 
         internal static string Modules()
         {
-            return "Station modules:\nStorage — 50 Iron, 25 Titanium, 20 Electronics. Holds 10,000 units.\nRefinery — 100 Iron, 50 Titanium, 30 Electronics, 20 Microchips. Requires storage; converts 10 ore into 1 matching ore core.\nFactory — 150 Iron, 100 Titanium, 50 Electronics, 50 Microchips. Requires storage; manufactures trade commodities from stored inputs.\nShip hangar — 100 Iron, 100 Titanium, 80 Electronics, 50 Microchips. Stores up to 100 small/medium bare hulls.\nDry dock — 200 Iron, 150 Titanium, 100 Electronics, 80 Microchips. Stores up to 20 frigates, freighters, cruisers and carriers as bare hulls. Both transfer removable equipment and cargo into station storage.\nInstall with /station install <station id> storage|refinery|factory|hangar|drydock.";
+            return "Station modules:\nStorage — 50 Iron, 25 Titanium, 20 Electronics. Holds 10,000 units.\nRefinery — 100 Iron, 50 Titanium, 30 Electronics, 20 Microchips. Requires storage; converts 10 ore into 1 matching ore core.\nFactory — 150 Iron, 100 Titanium, 50 Electronics, 50 Microchips. Requires storage; manufactures trade commodities from stored inputs.\nShip hangar — 100 Iron, 100 Titanium, 80 Electronics, 50 Microchips. Stores up to 100 small/medium bare hulls.\nDry dock — 200 Iron, 150 Titanium, 100 Electronics, 80 Microchips. Stores up to 20 large hulls and constructs dry-dock-restricted ship blueprints from station storage. Large classes (frigates, freighters, cruisers and carriers) always require a dry dock. Both hangar types transfer removable equipment and cargo into station storage.\nInstall with /station install <station id> storage|refinery|factory|hangar|drydock.";
         }
 
 
@@ -290,6 +290,7 @@ namespace GoF2Remake.Multiplayer
             if (lines.Count == 1) lines.Add("No large ships are stored here.");
             lines.Add("Capacity: " + record.dryDockShips.Count + "/" + MaxDryDockShipsPerStation);
             lines.Add("Eligible classes: Frigate, Freighter, Cruiser, Carrier.");
+            lines.Add("Ship construction: /station drydock-blueprints " + id + " (build from station storage).");
             return string.Join("\n", lines);
         }
 
