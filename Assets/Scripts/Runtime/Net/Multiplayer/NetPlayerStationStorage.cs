@@ -12,12 +12,8 @@ namespace GoF2Remake.Multiplayer
         static bool CanManage(NetPlayer by, PlayerStationRecord record, out string account)
         {
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
-            return NetGame.IsServer && sessionActive && registry != null &&
-                by != null && by.IsSpawned && by.InHangar && by.Station == record?.stationIndex && NetProfiles.Enabled &&
-                NetProfiles.Controls(by.OwnerClientId) && !string.IsNullOrEmpty(account) &&
-                (record != null && (record.ownershipType == PlayerStationOwnershipType.Individual
-                    ? string.Equals(account, record.ownerProfile, StringComparison.Ordinal)
-                    : IsFactionManager(record, account)));
+            return IsStationContext(by, record, out account) &&
+                HasStationPermission(record, account, PlayerStationPermission.StationOperations);
         }
 
         internal static string Modules()
@@ -51,9 +47,8 @@ namespace GoF2Remake.Multiplayer
 
         static bool CanManageHangar(NetPlayer by, PlayerStationRecord record, out string account)
         {
-            account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
-            if (CanManage(by, record, out account)) return true;
-            return HasFactionFacilityAccess(by, record, account);
+            return IsStationContext(by, record, out account) &&
+                HasStationPermission(record, account, PlayerStationPermission.Hangar);
         }
 
         internal static string PersonalFleet(NetPlayer by)
