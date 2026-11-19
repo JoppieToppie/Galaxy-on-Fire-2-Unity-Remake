@@ -299,6 +299,11 @@ namespace GoF2Remake.Multiplayer
         NetShotSender sender;
         NetShotMirror mirror;
         bool shown, joinNoticePending, joinAnnounced;
+        const float CollisionModeReportInterval = 2f, CollisionModeReportGrace = 8f, CollisionModeMismatchGrace = 2f;
+        const byte UnknownCollisionMode = byte.MaxValue;
+        byte reportedCollisionMode = UnknownCollisionMode;
+        float nextCollisionModeReport, collisionModeReportDeadline, collisionModeMismatchSince;
+        bool collisionModeWarningSent;
         /// <summary>The chat's join / leave notices (a relog loop flooded the chat): a join is told only once the player has
         /// stayed JoinNoticeSeconds, and not when they left less than QuietRejoinSeconds ago; a leave only when their join
         /// was told (or they were here before this game joined), and once per QuietRejoinSeconds per name.</summary>
@@ -323,6 +328,7 @@ namespace GoF2Remake.Multiplayer
             DontDestroyOnLoad(gameObject);
             All.Add(this);
             name = $"NetPlayer {OwnerClientId}";
+            if (IsServer) collisionModeReportDeadline = Time.unscaledTime + CollisionModeReportGrace;
             if (IsServer) ship.OnValueChanged += (old, _) => PreviousShip = old;
             if (IsServer) SetStaffRole(NetModeration.RoleOfClient(OwnerClientId));   // signed in before the ship spawned
             if (IsServer) NetNews.SendAll(OwnerClientId);   // the sector's recent news for their ticker
@@ -378,6 +384,70 @@ namespace GoF2Remake.Multiplayer
             joinNoticePending = Local != null && Time.unscaledTime - Local.spawnedAt > 3f;
             joinAnnounced = !joinNoticePending;   // already here when this game joined: their leave is told
             spawnedAt = Time.unscaledTime;
+        }
+
+        /// <summary>Whether this pilot has confirmed that its weapon hit tests use the server's collision rule.</summary>
+        internal bool CollisionModeCompliant => IsOwner && IsServer
+            ? HullCollision.Mode == NetRules.HostCollision
+            : reportedCollisionMode == (byte)NetRules.HostCollision;
+
+        /// <summary>The owner's effective collision mode, not its saved preference. Repeated reports recover from a lost
+        /// update and let the server block weapon damage from a client that remains on a different mode.</summary>
+        void ReportCollisionModeIfNeeded()
+        {
+            if (!IsOwner || IsServer || !NetGame.Active || !NetRules.TryGetCollision(out _)) return;
+            float now = Time.unscaledTime;
+            byte actual = (byte)HullCollision.Mode;
+            if (actual == lastCollisionModeReported && now < nextCollisionModeReport) return;
+            lastCollisionModeReported = actual;
+            nextCollisionModeReport = now + CollisionModeReportInterval;
+            ReportCollisionModeRpc(actual);
+        }
+
+        byte lastCollisionModeReported = UnknownCollisionMode;
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void ReportCollisionModeRpc(byte mode, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId) return;
+            if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Request)) return;
+            if (mode > SessionRules.CollisionOriginal)
+            {
+                NetRateLimit.Reject(OwnerClientId, "an invalid collision-mode report");
+                return;
+            }
+
+            reportedCollisionMode = mode;
+            CheckReportedCollisionMode();
+        }
+
+        internal void CheckReportedCollisionMode()
+        {
+            if (!IsServer || IsOwner) return;
+            if (reportedCollisionMode == UnknownCollisionMode && Time.unscaledTime < collisionModeReportDeadline) return;
+            bool matches = reportedCollisionMode == NetRules.HostCollision;
+            if (matches)
+            {
+                collisionModeMismatchSince = 0f;
+                if (collisionModeWarningSent)
+                {
+                    collisionModeWarningSent = false;
+                    NetState.Instance?.NoticeTo(this, Localization.Extra("mpCollisionModeRestored", "Your ship collision mode now matches the server."));
+                }
+                return;
+            }
+
+            if (collisionModeMismatchSince <= 0f) collisionModeMismatchSince = Time.unscaledTime;
+            if (Time.unscaledTime - collisionModeMismatchSince < CollisionModeMismatchGrace) return;
+            if (collisionModeWarningSent) return;
+            collisionModeWarningSent = true;
+            string actual = reportedCollisionMode == UnknownCollisionMode
+                ? Localization.Extra("mpCollisionModeUnknown", "not reported")
+                : SessionRules.CollisionText(reportedCollisionMode);
+            string expected = SessionRules.CollisionText(NetRules.HostCollision);
+            string message = string.Format(Localization.Extra("mpCollisionModeMismatch", "Your ship collision mode ({0}) does not match this server's {1} mode. Weapon damage from your game is disabled until it matches."), actual, expected);
+            NetState.Instance?.NoticeTo(this, message);
+            Debug.LogWarning($"NetPlayer: {DisplayName}'s collision mode is {actual}; server requires {expected}. Weapon damage from this game is blocked.");
         }
 
         public override void OnNetworkDespawn()
@@ -481,6 +551,11 @@ namespace GoF2Remake.Multiplayer
             }
             if (byNpc && weaponItem >= 0 && (by.RunsOrbit != Station || Database.Shared.Item(weaponItem) == null)) { NetRateLimit.Reject(shooter, $"an NPC hit from untrusted weapon {weaponItem}"); return; }
             if (!byNpc && NetSquad.Same(by, this)) return;
+            if (!by.CollisionModeCompliant)
+            {
+                by.CheckReportedCollisionMode();
+                return;
+            }
             NetState.Instance?.NoteHit(NetworkObjectId, shooter);
             HitRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem);
         }
@@ -638,6 +713,7 @@ namespace GoF2Remake.Multiplayer
             if (emp <= 0 || emp > NetGuard.MaxDamage) { NetRateLimit.Reject(shooter, $"an EMP of {emp}"); return; }
             var by = NetSquad.Find(shooter);
             if (!NetGuard.SameOrbit(by, this) || NetSquad.Same(by, this)) return;
+            if (!by.CollisionModeCompliant) { by.CheckReportedCollisionMode(); return; }
             EmpRpc(emp, shooter);
         }
 
@@ -724,6 +800,7 @@ namespace GoF2Remake.Multiplayer
         void Update()
         {
             if (!IsSpawned) return;
+            if (IsServer) CheckReportedCollisionMode();
             if (!IsOwner)
             {
                 if (joinNoticePending && pilot.Value.Length > 0 && Time.unscaledTime - spawnedAt > JoinNoticeSeconds)
@@ -759,6 +836,7 @@ namespace GoF2Remake.Multiplayer
                 mirror?.Update(Time.deltaTime * 1000f);
                 return;
             }
+            ReportCollisionModeIfNeeded();
             NetProfileClient.Tick();   // the server profile's periodic upload
             WriteEquipment();   // max hull, emergency clock, sentries (NetPlayerEquipment)
             if (tollStation.Value != NetFactionsClient.TollStation) tollStation.Value = NetFactionsClient.TollStation;

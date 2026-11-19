@@ -296,6 +296,11 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             if (!byNpc && NetSquad.Same(by, this)) return;
+            if (!by.CollisionModeCompliant)
+            {
+                by.CheckReportedCollisionMode();
+                return;
+            }
             SentryHitRpc(sentry, amount, hitVector, byNpc, shooter);
         }
 

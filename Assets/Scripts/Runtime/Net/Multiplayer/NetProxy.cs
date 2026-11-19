@@ -519,6 +519,7 @@ namespace GoF2Remake.Multiplayer
                 shieldFactor = Gun.ShieldFactor(weapon); // typed damage never trusts a client-supplied shield multiplier
             }
             if (byNpc && weaponItem >= 0 && (by == null || by.RunsOrbit != station.Value || Database.Shared.Item(weaponItem) == null)) { NetRateLimit.Reject(shooter, $"an NPC hit from untrusted weapon {weaponItem}"); return; }
+            if (by == null || !by.CollisionModeCompliant) { by?.CheckReportedCollisionMode(); return; }
             NetState.Instance?.NoteHit(NetworkObjectId, shooter);
             DamageRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem);
         }
@@ -559,7 +560,10 @@ namespace GoF2Remake.Multiplayer
             ulong shooter = rpc.Receive.SenderClientId;
             if (shooter == OwnerClientId || !NetRateLimit.Allow(shooter, NetRateLimit.Kind.Hit)) return;
             if (emp <= 0 || emp > NetGuard.MaxDamage) { NetRateLimit.Reject(shooter, $"an EMP of {emp}"); return; }
-            if (NetGuard.InOrbit(shooter, station.Value)) EmpRpc(emp, shooter);
+            if (!NetGuard.InOrbit(shooter, station.Value)) return;
+            var by = NetSquad.Find(shooter);
+            if (by == null || !by.CollisionModeCompliant) { by?.CheckReportedCollisionMode(); return; }
+            EmpRpc(emp, shooter);
         }
 
         /// <summary>The checked EMP: the owner's ship takes it (it may turn on them).</summary>

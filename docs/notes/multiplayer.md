@@ -191,7 +191,9 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   (`-cloakhides`, `-capitalships`, `-informeroriginal`, `-nopirateevents`, `-nokaamostacking`, `-nokaamoequipment`,
   `-nocloakbay`, `-noempcloak`, `-smarttargeting`, `-es2aiming`, `-es2flight`, `-derelicts`) turns
   one the other way (the ship collision mode is `-shipcollision exact|mixed|original`, two bits set as one setting,
-  `NetRules.SetCollision`), and the server settings (`cloakhides` ...) change them while running. The Kaamo Club upgrade
+  `NetRules.SetCollision`), and the server settings (`cloakhides` ...) change them while running. Clients report their
+  effective ship collision mode to the server; a mismatch is reported privately and weapon damage from that game is
+  refused until it matches (`NetPlayer.ReportCollisionModeRpc`, `CollisionModeCompliant`). The Kaamo Club upgrade
   limit
   is a number beside the bits (`NetRules.HostKaamoLevel`, `NetState.KaamoLevel`, `GameHooks.SessionKaamoLevel`;
   `-kaamomaxlevel N`, `/set kaamomaxlevel`, 2..20, default 5). So is the flight model (2026-10-16; players flying free
