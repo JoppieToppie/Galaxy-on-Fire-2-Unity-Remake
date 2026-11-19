@@ -67,8 +67,10 @@ namespace GoF2Remake.Multiplayer
             if (input == null || input.amount < amount) return "The station does not have enough of that ore in storage.";
             int batches = amount / 10;
             var output = record.storage.Find(x => x != null && x.item == outputItem);
-            int stored = 0;
+            long stored = 0;
             foreach (var stack in record.storage) if (stack != null) stored += Math.Max(0, stack.amount);
+            if (output != null && output.amount > int.MaxValue - batches)
+                return "The refined core stack has reached its maximum supported quantity.";
             // Ten units become one: refining frees nine units of capacity per batch.
             if (output == null && record.storage.Count >= MaxStorageItemTypes)
                 return "Storage has reached its item-type limit.";

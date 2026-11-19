@@ -101,11 +101,13 @@ namespace GoF2Remake.Multiplayer
             var stack = record.storage.Find(x => x != null && x.item == item);
             if (deposit)
             {
-                int stored = 0;
+                long stored = 0;
                 foreach (var entry in record.storage)
                     if (entry != null) stored += Math.Max(0, entry.amount);
                 if (stored + amount > capacity)
-                    return "Storage has room for only " + Math.Max(0, capacity - stored) + " more units.";
+                    return "Storage has room for only " + Math.Max(0L, capacity - stored) + " more units.";
+                if (stack != null && stack.amount > int.MaxValue - amount)
+                    return "That storage stack has reached its maximum supported quantity.";
                 if (stack == null && record.storage.Count >= MaxStorageItemTypes)
                     return "Storage has reached its item-type limit.";
                 if (stack == null)
@@ -119,7 +121,7 @@ namespace GoF2Remake.Multiplayer
                 }
                 if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                     NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Station storage");
-                return "Stored " + amount + " x " + NetGame.Db.Item(item).name + " at " + record.name + ".";
+                return "Stored " + amount + " x " + (NetGame.Db?.Item(item)?.name ?? ("item " + item)) + " at " + record.name + ".";
             }
 
             if (stack == null || stack.amount < amount)
@@ -134,7 +136,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Give, item, amount, 0, "", "Station storage");
-            return "Withdrew " + amount + " x " + NetGame.Db.Item(item).name + " from " + record.name + ".";
+            return "Withdrew " + amount + " x " + (NetGame.Db?.Item(item)?.name ?? ("item " + item)) + " from " + record.name + ".";
         }
     }
 }
