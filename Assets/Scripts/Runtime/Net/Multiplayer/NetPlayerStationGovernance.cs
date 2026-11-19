@@ -716,6 +716,40 @@ namespace GoF2Remake.Multiplayer
             return "Builder rights could not be relinquished because the change could not be saved.";
         }
 
+        internal static string SetIndividualSuccessor(NetPlayer by, int stationId, string target)
+        {
+            var record = Find(stationId);
+            if (record == null) return "No player station with that id exists.";
+            if (record.ownershipType != PlayerStationOwnershipType.Individual)
+                return "Individual successor nominations apply only to individually owned stations.";
+            if (!IsStationAuthority(by, record, out string account) ||
+                !string.Equals(account, record.ownerProfile, StringComparison.Ordinal))
+                return "Only the individual station owner can nominate a successor.";
+            string successor = null;
+            if (!string.Equals((target ?? "").Trim(), "clear", StringComparison.OrdinalIgnoreCase))
+            {
+                successor = NetProfiles.FindAccount((target ?? "").Trim());
+                if (string.IsNullOrEmpty(successor))
+                    return "Supply a valid player account or use clear to remove the nomination.";
+                if (string.Equals(successor, record.ownerProfile, StringComparison.Ordinal))
+                    return "The current owner cannot nominate themselves as successor.";
+            }
+            string previous = record.individualSuccessorProfile;
+            int oldHistoryCount = record.history?.Count ?? 0;
+            int oldSequence = record.nextHistorySequence;
+            record.individualSuccessorProfile = successor;
+            RecordHistory(record, account, successor == null ? "individual-successor-cleared" : "individual-successor-nominated",
+                successor, successor == null ? "Individual successor nomination cleared." :
+                "Individual successor nominated. The nomination grants no access or management authority while the owner remains active.");
+            if (Save()) return successor == null ? "Individual successor nomination cleared." :
+                "Successor nominated: " + successor + ". This grants no station access or authority while you remain the owner.";
+            record.individualSuccessorProfile = previous;
+            if (record.history != null && record.history.Count > oldHistoryCount)
+                record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
+            record.nextHistorySequence = oldSequence;
+            return "The successor nomination could not be saved; the previous nomination remains active.";
+        }
+
         internal static string SetFactionSuccessor(NetPlayer by, int stationId, string targetKind, string target)
         {
             var record = Find(stationId);
