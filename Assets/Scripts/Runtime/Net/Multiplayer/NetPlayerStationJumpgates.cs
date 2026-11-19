@@ -288,6 +288,7 @@ namespace GoF2Remake.Multiplayer
             CompleteJumpgateIfDue(gate);
             if (gate.building || gate.startedUtc <= 0) return "The jumpgate must be fully operational before changing its destination.";
             if (destinationSystem == gate.system) return "A jumpgate must connect to a different system.";
+            if (destinationSystem == gate.destinationSystem) return "That jumpgate already points to the selected destination.";
             var destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == destinationSystem);
             if (destination?.stations == null || destination.stations.Count == 0)
                 return "Choose a valid destination system with at least one orbital location.";
