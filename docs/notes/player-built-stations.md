@@ -119,20 +119,24 @@ These changes are source-level only. Unity compilation, server/client testing, c
 
 ## Player-built jumpgates
 
-Player-built jumpgates are constructed in the orbit of an existing player-built station. This uses the station's orbit as the gate's location; it does not create a second station or a new orbital anchor. Each player-station orbit can host one player-built jumpgate, while separate player-station orbits in the same system can each host their own gate.
+Player-built jumpgates occupy an existing orbital anchor in a system, independently of whether a player-built station exists there. The orbit index is the database station index listed by `/station jumpgate-orbits <system id>`. The owner authorises construction by docking at and managing a player-built sponsor station in the same system; the gate itself can be placed at any other valid orbit in that system, including an otherwise empty orbital location. A system can contain multiple player-built gates, but each orbital anchor can contain only one gate. The system's original jumpgate orbit is reserved and cannot receive a player-built gate.
 
 A gate has one fixed destination system. It bypasses the ordinary system jump-route graph and arrives at the destination system's existing jumpgate orbit when one exists, otherwise at that system's first station orbit. Connections are directional: a return route requires a separately built gate in the destination system pointing back.
 
-Construction is server-authoritative and persisted in the station registry:
-- Start from the station management UI or `/station jumpgate <station id> <destination system id> [build seconds]`.
+Construction is server-authoritative and persisted in the station registry's separate jumpgate collection:
+- List available and occupied orbital locations with `/station jumpgate-orbits <system id>`.
+- Start from the station management UI or `/station jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds]`.
 - The material recipe is 500 Iron, 250 Titanium, 200 Electronics and 150 Microchips.
-- Contributions can be deposited while docked at any station using `/station jumpgate-contribute <station id> <item id> <amount>`.
+- Contributions can be deposited while docked at any station using `/station jumpgate-contribute <orbit station index> <item id> <amount>`.
 - Individually owned gates use personal material contributions. Faction-owned gates pay each contributor immediately from the owning faction bank at the fixed catalogue minimum value, using the same journalled cargo/credit transaction as station construction.
 - A build time of 0 makes the gate operational as soon as it is fully funded. A value from 1 to 2,592,000 seconds starts a persistent UTC timer after the final required material arrives.
-- `/station jumpgate-status <station id>` shows destination, material progress and timer state.
-- The station management window exposes the same start, contribution and status controls, including per-material progress and the optional timer.
-- The server update loop completes due UTC timers and replicates the updated station record. If the orbit is already loaded, the gate model, collision and navigation target are materialized in place; players do not need to leave and re-enter.
+- `/station jumpgate-status <orbit station index>` shows destination, material progress, timer state and the next permitted destination-change time.
+- The gate owner, or an authorised faction manager for a faction-owned gate, can change its destination once every 24 hours while docked: `/station jumpgate-destination <orbit station index> <destination system id>`. The cooldown is stored per gate and begins when the gate first becomes operational; changing ownership or reconnecting does not reset it.
+- The station management window exposes orbit selection, the system's orbital-location list, construction, contributions, status and destination changes.
+- The server update loop completes due UTC timers and replicates the updated gate record. If the orbit is already loaded, the gate model, collision and navigation target are materialized in place; players do not need to leave and re-enter.
 
-The gate is rendered with the system's existing race/mod jumpgate assembly and collision/approach behavior. A player-built gate's destination is fixed; it does not open the unrestricted gate destination map. The reverse connection is intentionally a separate construction project.
+Existing saves with the earlier station-bound jumpgate fields are migrated into the separate gate collection on server startup. The legacy fields are retained for backward-compatible deserialization but are no longer used for new construction.
 
-This is source-level implementation. Unity compilation and multiplayer tests remain outstanding, including: two gates in separate orbits in one system; rejection of a second gate in the same orbit; directed travel and return-gate behavior; timer completion across restart; initial registry sync and live updates; faction-bank contribution settlement; and compatibility with systems that already have a static jumpgate.
+The gate is rendered with the system's existing race/mod jumpgate assembly and collision/approach behavior. A player-built gate's destination is fixed at any given time; it does not open the unrestricted gate destination map. The reverse connection is intentionally a separate construction project.
+
+This is source-level implementation. Unity compilation and multiplayer tests remain outstanding, including: multiple gates in different orbits in one system; rejection of a second gate in the same orbit; rejection of the system's original jumpgate orbit; placement at a non-player-station orbit; directed travel and return-gate behavior; 24-hour destination cooldown and persistence across restart; timer completion across restart; initial registry sync and live updates; faction-bank contribution settlement; and compatibility with systems that already have a static jumpgate.
