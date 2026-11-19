@@ -186,7 +186,8 @@ namespace GoF2Remake.Multiplayer
             {
                 registry.consumedBlueprints.Remove(item);
                 if (Save()) return false;
-                registry.consumedBlueprints.Add(item);
+                if (registry?.consumedBlueprints != null && !registry.consumedBlueprints.Contains(item))
+                    registry.consumedBlueprints.Add(item);
             }
             return true;
         }
