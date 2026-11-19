@@ -140,7 +140,7 @@ namespace GoF2Remake.Multiplayer
             {
                 int ship = Modding.ModBlueprints.ShipOf(product.index);
                 if (ship < 0 || !Modding.ModBlueprints.RequiresDryDock(product.index, db) ||
-                    !GoF2Remake.Data.Blueprints.IsUnlocked(product.index)) continue;
+                    IsBlueprintConsumed(product.index) || !GoF2Remake.Data.Blueprints.IsUnlocked(product.index)) continue;
                 lines.Add(product.index + ": " + (db.Ship(ship)?.name ?? ("Ship " + ship)) +
                     " — " + (Modding.ShipClassRules.ClassLabel(db.Ship(ship)) ?? "Dry-dock restricted"));
             }
@@ -178,8 +178,8 @@ namespace GoF2Remake.Multiplayer
                 return "That item is not a valid ship blueprint.";
             if (!Modding.ModBlueprints.RequiresDryDock(productId, db))
                 return "That blueprint does not require a dry dock.";
-            if (!GoF2Remake.Data.Blueprints.IsUnlocked(productId))
-                return "That ship blueprint has not been unlocked.";
+            if (IsBlueprintConsumed(productId) || !GoF2Remake.Data.Blueprints.IsUnlocked(productId))
+                return "That ship blueprint has not been unlocked or has already been consumed in this world.";
             if (Modding.ModBlueprints.RequiresShipRefusal(productId, by.ShipIndex) is string refusal)
                 return refusal;
             if (product.blueprint == null || product.blueprint.Count == 0)
@@ -223,15 +223,20 @@ namespace GoF2Remake.Multiplayer
             record.dryDockCompletesUtc = now + duration;
             record.dryDockConsumeBlueprint = consumeBlueprint;
             record.dryDockBuilderProfile = builderAccount;
-            if (consumeBlueprint) GoF2Remake.Data.Session.UnlockedBlueprints.Remove(productId);
+            if (consumeBlueprint)
+            {
+                registry.consumedBlueprints ??= new List<int>();
+                if (!registry.consumedBlueprints.Contains(productId)) registry.consumedBlueprints.Add(productId);
+            }
             if (!Save())
             {
                 record.storage = previousStorage;
                 record.storageLots = previousLots;
                 ClearDryDockJob(record);
-                if (consumeBlueprint) GoF2Remake.Data.Blueprints.Unlock(productId);
+                if (consumeBlueprint) registry.consumedBlueprints?.Remove(productId);
                 return "The dry-dock job could not be saved; all materials and the blueprint were restored.";
             }
+            if (consumeBlueprint) GoF2Remake.Data.Session.UnlockedBlueprints.Remove(productId);
             return "Dry dock construction started for " + db.Ship(shipIndex).name + " at " + record.name +
                 ". Estimated duration: " + duration + " seconds. The recipe has been reserved from station storage" +
                 (consumeBlueprint ? "; the blueprint was consumed." : "; the blueprint remains unlocked.") +
