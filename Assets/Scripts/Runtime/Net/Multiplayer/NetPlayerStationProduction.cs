@@ -308,7 +308,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out _))
+            if (!CanManage(by, record, out string account))
                 return "Dock at this station and use its controlling profile to operate the factory.";
             if (record.underConstruction) return "Finish station construction before manufacturing.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "factory" && a.level > 0) ?? false))
@@ -323,7 +323,7 @@ namespace GoF2Remake.Multiplayer
             if (recipe == null) return "Unknown recipe. Use /station recipes to list available recipes.";
             if (!NetGuard.Item(recipe.output) || NetGame.Db?.Item(recipe.output)?.type != "commodity")
                 return "The recipe output is unavailable in this game's item database.";
-            record.storage ??= new List<PlayerStationStorage>();
+            EnsureStorageLots(record);
 
             var inputStacks = new List<(PlayerStationStorage stack, int amount)>();
             foreach (var input in recipe.inputs)
@@ -331,8 +331,8 @@ namespace GoF2Remake.Multiplayer
                 if (input.amount > int.MaxValue / batches) return "That batch count exceeds the supported input quantity.";
                 int required = input.amount * batches;
                 var stack = record.storage.Find(x => x != null && x.item == input.item);
-                if (stack == null || stack.amount < required)
-                    return "Insufficient " + (NetGame.Db?.Item(input.item)?.name ?? ("item " + input.item)) +
+                if (stack == null || stack.amount < required || OwnedStorageAmount(record, account, input.item) < required)
+                    return "Insufficient personally owned " + (NetGame.Db?.Item(input.item)?.name ?? ("item " + input.item)) +
                         " in station storage; required: " + required + ".";
                 inputStacks.Add((stack, required));
             }
@@ -354,18 +354,22 @@ namespace GoF2Remake.Multiplayer
             if (stored - consumed + produced > capacity)
                 return "Station storage has insufficient room for the factory output.";
 
+            var previousLots = CloneStorageLots(record);
             foreach (var input in inputStacks)
             {
+                RemoveStorageLots(record, account, input.stack.item, input.amount);
                 input.stack.amount -= input.amount;
                 if (input.stack.amount == 0) record.storage.Remove(input.stack);
             }
             if (outputStack == null)
                 record.storage.Add(outputStack = new PlayerStationStorage { item = recipe.output });
             outputStack.amount += produced;
+            AddStorageLot(record, account, recipe.output, produced);
 
             if (!Save())
             {
                 outputStack.amount -= produced;
+                record.storageLots = previousLots;
                 if (outputStack.amount == 0) record.storage.Remove(outputStack);
                 foreach (var input in inputStacks)
                 {
@@ -428,9 +432,9 @@ namespace GoF2Remake.Multiplayer
                 if (RefineryRecipes[i, 0] == oreItem) { outputItem = RefineryRecipes[i, 1]; break; }
             if (outputItem < 0) return "That commodity cannot be refined into a core.";
 
-            record.storage ??= new List<PlayerStationStorage>();
+            EnsureStorageLots(record);
             var input = record.storage.Find(x => x != null && x.item == oreItem);
-            if (input == null || input.amount < amount) return "The station does not have enough of that ore in storage.";
+            if (input == null || input.amount < amount || OwnedStorageAmount(record, account, oreItem) < amount) return "Your profile does not own enough of that ore in station storage.";
             int batches = amount / 10;
             var output = record.storage.Find(x => x != null && x.item == outputItem);
             long stored = 0;
@@ -443,13 +447,17 @@ namespace GoF2Remake.Multiplayer
             if (stored - amount + batches > StorageCapacity(record))
                 return "Station storage has insufficient room for the refined cores.";
 
+            var previousLots = CloneStorageLots(record);
+            RemoveStorageLots(record, account, oreItem, amount);
             input.amount -= amount;
             if (input.amount == 0) record.storage.Remove(input);
             if (output == null) record.storage.Add(output = new PlayerStationStorage { item = outputItem });
             output.amount += batches;
+            AddStorageLot(record, account, outputItem, batches);
             if (!Save())
             {
                 output.amount -= batches;
+                record.storageLots = previousLots;
                 if (output.amount == 0) record.storage.Remove(output);
                 if (input.amount == 0) record.storage.Add(input);
                 input.amount += amount;
