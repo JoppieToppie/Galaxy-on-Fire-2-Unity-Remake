@@ -28,3 +28,13 @@ The current implementation persists, replicates and loads station records; start
 - **The material recipe is currently hard-coded** to item IDs 156 (Iron), 155 (Titanium), 118 (Electronics) and 127 (Microchips). Those IDs were checked against the branch's item database. Recipes and costs should become data-driven as station modules are introduced.
 
 The station marketplace now supports public listing readouts, owner-created listings backed by escrowed station inventory, and owner cancellation with goods returned to storage. Buyer checkout, payment settlement and transaction recovery remain intentionally unimplemented until an idempotent cross-profile transaction journal is in place. A graphical station management UI, faction-member ship storage, additional production facilities and factory recipes, dry docks, and configurable jumpgates remain to be implemented. Storage is currently owner-only and has a 10,000-unit capacity. Module installation and storage transfers use compensating writes across profile and station files; these are not crash-atomic, so the transaction journal remains a prerequisite before credit-bearing marketplace purchases.
+
+
+## Transaction journal implementation
+
+- Cross-file station/profile cargo operations now write a durable `player-stations.json.transaction` write-ahead journal containing the intended station-registry snapshot and absolute post-transaction cargo counts.
+- The profile side uses absolute cargo targets rather than replaying deltas. Re-running recovery after a crash between the profile write and registry write therefore cannot debit or credit the same cargo twice.
+- Startup recovery replays the profile targets, writes the station snapshot, then removes the journal. Ordinary station saves are held while an unresolved journal cannot be recovered, preventing later writes from overwriting the pending intended state.
+- Construction contributions, storage deposits/withdrawals, storage-module installation and refinery installation use this coordinator. Their previous compensating-write paths are removed.
+- The journal is deliberately single-flight: a second cross-file transaction cannot start until the first is completed or recovered.
+- This is source-level implementation only at this point. Unity compilation and dedicated-server/persistent-host crash-injection tests are still required. In particular, test a crash after journal creation, after each profile cargo write, after the registry write, and during journal cleanup. Verify host live cargo and its saved profile remain aligned.

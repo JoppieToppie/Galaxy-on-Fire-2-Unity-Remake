@@ -28,24 +28,15 @@ namespace GoF2Remake.Multiplayer
             if (record.addons.Count >= MaxAddonsPerStation) return "This station has reached its module limit.";
 
             var costs = new[] { (item: 156, amount: 100), (item: 155, amount: 50), (item: 118, amount: 30), (item: 127, amount: 20) };
-            var paid = new List<(int item, int amount)>();
             foreach (var cost in costs)
-            {
-                if (!NetProfiles.MoveCargo(by.OwnerClientId, account, cost.item, -cost.amount))
-                {
-                    foreach (var refund in paid) NetProfiles.MoveCargo(by.OwnerClientId, account, refund.item, refund.amount);
-                    string itemName = NetGame.Db?.Item(cost.item)?.name ?? ("item " + cost.item);
-                    return "Insufficient " + itemName + "; no refinery was installed.";
-                }
-                paid.Add(cost);
-            }
+                if (NetProfiles.CargoAmount(account, cost.item) < cost.amount)
+                    return "Insufficient " + (NetGame.Db?.Item(cost.item)?.name ?? ("item " + cost.item)) + "; no refinery was installed.";
 
             record.addons.Add(new PlayerStationAddon { kind = "refinery", level = 1 });
-            if (!Save())
+            if (!CommitCargoTransaction(account, (156, -100), (155, -50), (118, -30), (127, -20)))
             {
                 record.addons.RemoveAt(record.addons.Count - 1);
-                foreach (var refund in paid) NetProfiles.MoveCargo(by.OwnerClientId, account, refund.item, refund.amount);
-                return "The refinery could not be saved; its materials were returned where possible.";
+                return "The refinery transaction could not be journalled; no materials were taken.";
             }
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                 foreach (var cost in paid)

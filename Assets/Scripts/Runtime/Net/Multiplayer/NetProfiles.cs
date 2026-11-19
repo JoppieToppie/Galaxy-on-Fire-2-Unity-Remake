@@ -267,6 +267,58 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
+        /// <summary>Absolute cargo count used by the station transaction journal. Reapplying a target is safe after a crash.</summary>
+        internal static int CargoAmount(string id, int item)
+        {
+            if (id == null || item < 0) return -1;
+            foreach (var login in logins.Values)
+                if (login.account != null && login.account.id == id && IsHostClient(login.client))
+                    return Shop.CargoOf(item);
+            var save = ReadSave(id);
+            if (save == null) return -1;
+            return save.cargo?.Find(x => x != null && x.item == item)?.amount ?? 0;
+        }
+
+        /// <summary>Set, rather than increment, a saved cargo count. This makes journal replay idempotent.</summary>
+        internal static bool SetCargoAmount(string id, int item, int amount)
+        {
+            if (id == null || item < 0 || amount < 0 || NetGame.Db?.Item(item) == null) return false;
+            var save = ReadSave(id);
+            if (save == null) return false;
+            bool host = false;
+            int liveBefore = 0;
+            foreach (var login in logins.Values)
+                if (login.account != null && login.account.id == id && IsHostClient(login.client))
+                {
+                    host = true;
+                    liveBefore = Shop.CargoOf(item);
+                    break;
+                }
+            save.cargo ??= new List<ItemStack>();
+            var stack = save.cargo.Find(x => x != null && x.item == item);
+            int previous = host ? liveBefore : stack?.amount ?? 0;
+            if ((stack?.amount ?? 0) != amount)
+            {
+                if (stack == null && amount > 0) save.cargo.Add(new ItemStack(item, amount));
+                else if (stack != null)
+                {
+                    stack.amount = amount;
+                    if (amount == 0) save.cargo.Remove(stack);
+                }
+                if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
+            }
+
+            if (host)
+            {
+                if (liveBefore < amount) Shop.AddToCargo(item, amount - liveBefore);
+                else if (liveBefore > amount) Shop.RemoveFromCargo(item, liveBefore - amount);
+                GoF2Remake.UI.UiHooks.StationCargoChanged?.Invoke();
+            }
+            int unitValue = Math.Max(0, NetGame.Db.Item(item)?.minPrice ?? 0);
+            AdjustWorth(id, (long)unitValue * (amount - previous));
+            return true;
+        }
+
         static SaveData ReadSave(string id)
         {
             if (id == null || folder == null) return null;

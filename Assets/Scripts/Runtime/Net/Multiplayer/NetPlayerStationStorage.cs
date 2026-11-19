@@ -39,26 +39,15 @@ namespace GoF2Remake.Multiplayer
             if (record.addons.Count >= MaxAddonsPerStation) return "This station has reached its module limit.";
 
             var costs = new[] { (item: 156, amount: 50), (item: 155, amount: 25), (item: 118, amount: 20) };
-            var paid = new List<(int item, int amount)>();
             foreach (var cost in costs)
-            {
-                if (!NetProfiles.MoveCargo(by.OwnerClientId, account, cost.item, -cost.amount))
-                {
-                    foreach (var refund in paid)
-                        NetProfiles.MoveCargo(by.OwnerClientId, account, refund.item, refund.amount);
-                    string itemName = NetGame.Db?.Item(cost.item)?.name ?? ("item " + cost.item);
-                    return "Insufficient " + itemName + "; no module was installed.";
-                }
-                paid.Add(cost);
-            }
+                if (NetProfiles.CargoAmount(account, cost.item) < cost.amount)
+                    return "Insufficient " + (NetGame.Db?.Item(cost.item)?.name ?? ("item " + cost.item)) + "; no module was installed.";
 
             record.addons.Add(new PlayerStationAddon { kind = kind, level = 1 });
-            if (!Save())
+            if (!CommitCargoTransaction(account, (156, -50), (155, -25), (118, -20)))
             {
                 record.addons.RemoveAt(record.addons.Count - 1);
-                foreach (var refund in paid)
-                    NetProfiles.MoveCargo(by.OwnerClientId, account, refund.item, refund.amount);
-                return "The module could not be saved; its materials were returned where possible.";
+                return "The module transaction could not be journalled; no materials were taken.";
             }
 
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
@@ -119,18 +108,14 @@ namespace GoF2Remake.Multiplayer
                     return "Storage has room for only " + Math.Max(0, capacity - stored) + " more units.";
                 if (stack == null && record.storage.Count >= MaxStorageItemTypes)
                     return "Storage has reached its item-type limit.";
-                if (!NetProfiles.MoveCargo(by.OwnerClientId, account, item, -amount))
-                    return "Your saved cargo does not contain that many units.";
-
                 if (stack == null)
                     record.storage.Add(stack = new PlayerStationStorage { item = item });
                 stack.amount += amount;
-                if (!Save())
+                if (!CommitCargoTransaction(account, (item, -amount)))
                 {
                     stack.amount -= amount;
                     if (stack.amount == 0) record.storage.Remove(stack);
-                    NetProfiles.MoveCargo(by.OwnerClientId, account, item, amount);
-                    return "Storage could not be saved; your cargo was returned where possible.";
+                    return "Storage transaction could not be journalled; no cargo was taken.";
                 }
                 if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                     NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Station storage");
@@ -141,18 +126,11 @@ namespace GoF2Remake.Multiplayer
                 return "The station does not have that much of this item.";
             stack.amount -= amount;
             if (stack.amount == 0) record.storage.Remove(stack);
-            if (!NetProfiles.MoveCargo(by.OwnerClientId, account, item, amount))
+            if (!CommitCargoTransaction(account, (item, amount)))
             {
                 if (stack.amount == 0) record.storage.Add(stack);
                 stack.amount += amount;
-                return "Your cargo hold could not accept the withdrawal.";
-            }
-            if (!Save())
-            {
-                NetProfiles.MoveCargo(by.OwnerClientId, account, item, -amount);
-                if (stack.amount == 0) record.storage.Add(stack);
-                stack.amount += amount;
-                return "Storage could not be saved; the withdrawal was reversed where possible.";
+                return "Storage transaction could not be journalled; the withdrawal was cancelled.";
             }
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Give, item, amount, 0, "", "Station storage");

@@ -121,6 +121,7 @@ namespace GoF2Remake.Multiplayer
                     Debug.LogWarning($"NetPlayerStations: station {station.id} exceeds a module or listing limit; preserving all saved records.");
             }
             registry.nextId = Math.Max(highest + 1, Math.Max(1, registry.nextId));
+            RecoverPendingTransaction();
         }
 
         /// <summary>Apply the server's station snapshot on a joining game. Clients keep a read-only copy and never save it.</summary>
@@ -258,20 +259,18 @@ namespace GoF2Remake.Multiplayer
             int remaining = resource.required - resource.delivered;
             if (amount > remaining) return $"The project needs only {remaining} more units of that material.";
             string account = NetProfiles.AccountOf(by.OwnerClientId);
-            if (string.IsNullOrEmpty(account) || !NetProfiles.MoveCargo(by.OwnerClientId, account, item, -amount))
-                return "Your saved cargo does not have that many units. Dock again to sync your hold.";
+            if (string.IsNullOrEmpty(account)) return "Your player profile is unavailable.";
 
             resource.delivered += amount;
             bool complete = true;
             foreach (var material in record.materials)
                 if (material != null && material.delivered < material.required) { complete = false; break; }
             if (complete) record.underConstruction = false;
-            if (!Save())
+            if (!CommitCargoTransaction(account, (item, -amount)))
             {
                 resource.delivered -= amount;
                 if (complete) record.underConstruction = true;
-                NetProfiles.MoveCargo(by.OwnerClientId, account, item, amount);
-                return "The project could not be saved; your materials were returned.";
+                return "The project transaction could not be journalled; no materials were taken.";
             }
 
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
@@ -411,6 +410,7 @@ namespace GoF2Remake.Multiplayer
         public static bool Save()
         {
             if (registry == null || string.IsNullOrEmpty(path)) return false;
+            if (File.Exists(TransactionPath) && !RecoverPendingTransaction()) return false;
             if (!NetProfiles.Write(path, JsonUtility.ToJson(registry, true))) return false;
             NetState.Instance?.PublishPlayerStations(Snapshot);
             return true;
