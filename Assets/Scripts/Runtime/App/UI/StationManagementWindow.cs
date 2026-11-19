@@ -77,6 +77,7 @@ namespace GoF2Remake.UI
             {
                 refresh = 2f;
                 RebuildStationList();
+                RebuildBody(); // Keep public procurement quantities and escrow current while the window remains open.
             }
         }
 
