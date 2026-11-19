@@ -219,8 +219,8 @@ namespace GoF2Remake.Multiplayer
                     Debug.LogWarning($"NetPlayerStations: station {station.id} exceeds a module or listing limit; preserving all saved records.");
             }
             registry.nextId = Math.Max(highest + 1, Math.Max(1, registry.nextId));
-            MigrateLegacyJumpgates();
             RecoverPendingTransaction();
+            if (MigrateLegacyJumpgates()) Save();
         }
 
         /// <summary>Apply the server's station snapshot on a joining game. Clients keep a read-only copy and never save it.</summary>
