@@ -1,6 +1,7 @@
 {
  "blueprintAutocomplete": "Completar projetos automaticamente",
  "blueprintAutocompleteHelp": "Permite pagar créditos pelos materiais que faltam. Desativado por padrão. Projetos que proíbem essa função continuam indisponíveis.",
+ "statCoreYield": "Rendimento de núcleos",
  "driveQueued": "Motor de salto: aguardando os sistemas...",
  "driveNoVoid": "Este motor de salto não consegue sair do Void.",
  "driveFailure": "Falha no motor de salto!",

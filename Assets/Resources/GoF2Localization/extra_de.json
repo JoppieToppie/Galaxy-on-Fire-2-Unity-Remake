@@ -1,6 +1,7 @@
 {
  "blueprintAutocomplete": "Baupläne automatisch vervollständigen",
  "blueprintAutocompleteHelp": "Fehlende Bauplanmaterialien gegen Credits ergänzen. Standardmäßig aus. Baupläne, die dies verbieten, bleiben ausgeschlossen.",
+ "statCoreYield": "Kernausbeute",
  "driveQueued": "Sprungantrieb: warte auf die Systeme...",
  "driveNoVoid": "Dieser Sprungantrieb kann das Void nicht verlassen.",
  "driveFailure": "Sprungantrieb-Ausfall!",

@@ -176,6 +176,8 @@ namespace GoF2Remake.UI
                         break;
                 }
             }
+            if (it.categoryId == 19)
+                rows.Add((Localization.Extra("statCoreYield", "Core yield"), it.CoreYield.ToString()));
             // Remake: a weapon's damage to shields (Flight.Gun.ShieldFactor: the Disruptor's 200 %, a mod's shieldDamage), or
             // through them (shieldBypass); its slow (slowMs / slowPercent).
             float shieldFactor = Flight.Gun.ShieldFactor(it);

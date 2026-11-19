@@ -79,6 +79,10 @@ namespace GoF2Remake.Data
             return i >= 0 ? attrValues[i] : fallback;
         }
 
+        /// <summary>CLAUDE.md "Mining": cores from a completed class-A asteroid; absent = one, negative = zero.</summary>
+        public const int CoreYieldAttr = 172;
+        public int CoreYield => Mathf.Max(0, Attr(CoreYieldAttr, 1));
+
         /// <summary>Attribute 1: 0 primary, 1 secondary, 2 turret, 3 equipment, 4 commodity.</summary>
         public int TypeId => Attr(1, type switch { "primary" => 0, "secondary" => 1, "turret" => 2, "equipment" => 3, _ => 4 });
 

@@ -1,6 +1,7 @@
 {
  "blueprintAutocomplete": "설계도 자동 완성",
  "blueprintAutocompleteHelp": "크레딧으로 설계도의 부족한 재료를 충당합니다. 기본값은 꺼짐입니다. 자동 완성이 금지된 설계도에는 사용할 수 없습니다.",
+ "statCoreYield": "코어 채굴량",
  "driveQueued": "점프 드라이브: 시스템 대기 중...",
  "driveNoVoid": "이 점프 드라이브로는 Void를 벗어날 수 없다.",
  "driveFailure": "점프 드라이브 고장!",
