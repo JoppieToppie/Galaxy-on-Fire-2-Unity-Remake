@@ -341,7 +341,7 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
-            new Command { name = "station", usage = "start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> [personal|faction] | delist <id> <listing index> | buy-order <id> <item id> <amount> <unit price> | sell-order <id> <order index> <amount> | cancel-order <id> <order index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | transfer <id> player|faction <recipient account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | successor <id> player|faction <account>|clear | successor-delegate <id> <officer account|none> | builder-relinquish <id> | history <id> | contributions <id> | jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds] | jumpgate-orbits <system id> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+            new Command { name = "station", usage = "start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> [personal|faction] | delist <id> <listing index> | buy-order <id> <item id> <amount> <unit price> | sell-order <id> <order index> <amount> | cancel-order <id> <order index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | transfer <id> player|faction <recipient account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | successor <id> player|faction <account>|clear | successor-delegate <id> <officer account|none> | builder-relinquish <id> | history <id> | role <id> <account> <role|none> | permission <id> <account> <permission> <inherit|allow|deny> | default <id> <member|officer> <permission> <allow|deny> | ban <id> <account> <reason> | unban <id> <account> | contributions <id> | jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds] | jumpgate-orbits <system id> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
                 description = () => X("mpCmdStation", "builds stations and independent-orbit jumpgates, changes gate destinations daily, installs modules, manages storage, ship hangars, dry docks and station listings; persistent worlds only") },
         };
@@ -452,6 +452,48 @@ namespace GoF2Remake.Multiplayer
                 if (words.Length != 3 || !int.TryParse(words[0], out int successorStationId))
                     return "/station successor <station id> player|faction <account id> | successor <station id> clear";
                 return NetPlayerStations.SetFactionSuccessor(by as NetPlayer, successorStationId, words[1], words[2]);
+            }
+            const string role = "role ";
+            if (args.StartsWith(role, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(role.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int roleStationId))
+                    return "/station role <station id> <account id> <StationAdministrator|Quartermaster|ConstructionManager|MarketManager|SecurityOfficer|none>";
+                return NetPlayerStations.SetStationRole(by as NetPlayer, roleStationId, words[1], words[2]);
+            }
+            const string permission = "permission ";
+            if (args.StartsWith(permission, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(permission.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 4 || !int.TryParse(words[0], out int permissionStationId))
+                    return "/station permission <station id> <account id> <permission> <inherit|allow|deny>";
+                return NetPlayerStations.SetStationPermission(by as NetPlayer, permissionStationId, words[1], words[2], words[3]);
+            }
+            const string permissionDefault = "default ";
+            if (args.StartsWith(permissionDefault, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(permissionDefault.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 4 || !int.TryParse(words[0], out int defaultStationId))
+                    return "/station default <station id> <member|officer> <permission> <allow|deny>";
+                return NetPlayerStations.SetFactionPermissionDefault(by as NetPlayer, defaultStationId, words[1], words[2], words[3]);
+            }
+            const string ban = "ban ";
+            if (args.StartsWith(ban, StringComparison.OrdinalIgnoreCase))
+            {
+                string rest = args.Substring(ban.Length).Trim();
+                string[] words = rest.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length < 2 || !int.TryParse(words[0], out int banStationId))
+                    return "/station ban <station id> <account id> [reason]";
+                return NetPlayerStations.SetStationBan(by as NetPlayer, banStationId, words[1],
+                    words.Length == 3 ? words[2] : "", true);
+            }
+            const string unban = "unban ";
+            if (args.StartsWith(unban, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(unban.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int unbanStationId))
+                    return "/station unban <station id> <account id>";
+                return NetPlayerStations.SetStationBan(by as NetPlayer, unbanStationId, words[1], "", false);
             }
             const string contributions = "contributions ";
             if (args.StartsWith(contributions, StringComparison.OrdinalIgnoreCase))
