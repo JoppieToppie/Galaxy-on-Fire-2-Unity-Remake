@@ -92,6 +92,7 @@ namespace GoF2Remake.World
     }
 
     public delegate bool PoseQuery(out Vector3 position, out Quaternion rotation);
+    public delegate bool ExternalDockTestTaker(int station, out int point);
     public delegate bool StationPoseQuery(int station, out Vector3 position, out Quaternion rotation);
     public delegate bool StarMapOpener(Database db, StarMapMode mode, bool jumpDrive, Action<StarMapResult> closed, int promptStation, bool askVoid);
 
@@ -260,6 +261,16 @@ namespace GoF2Remake.World
 
         /// <summary>The multiplayer window is open.</summary>
         public static Func<bool> MultiplayerWindowOpen;
+        /// <summary>The Mod Builder's external docking test (UI.ModBuilderPlay): one queued for this station; take it, with
+        /// its dock point (SpaceLevel.StartExternalDockTest).</summary>
+        public static Func<int, bool> ExternalDockTestQueued;
+        public static ExternalDockTestTaker TakeExternalDockTest;
+        public static bool ExternalDockTestQueuedFor(int station) => ExternalDockTestQueued != null && ExternalDockTestQueued(station);
+        public static bool TakeDockTest(int station, out int point)
+        {
+            point = -1;
+            return TakeExternalDockTest != null && TakeExternalDockTest(station, out point);
+        }
         /// <summary>The star map is open; open it (false = it couldn't).</summary>
         public static Func<bool> StarMapOpenProvider;
         public static StarMapOpener OpenStarMap;

@@ -230,6 +230,7 @@ namespace GoF2Remake.World
         public bool LocalOnly { get; set; }
         Route route;
         Gun gun;
+        System.Action<Target, int, int, Vector3> gunBlast;   // WireGun's echo handler (HitByBlast with its gun), unhooked with the gun
         GunRig rig;
         /// <summary>Remake: this ship's (or turret's) gun visuals (ValkyrieLevels: the battlestation turrets' twin muzzles).</summary>
         public GunRig Rig => rig;

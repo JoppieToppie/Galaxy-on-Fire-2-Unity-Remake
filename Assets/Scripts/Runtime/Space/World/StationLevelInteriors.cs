@@ -516,7 +516,7 @@ namespace GoF2Remake.World
         static bool VisitorMeshBounds(Transform root, Matrix4x4 toSpace, out Bounds b)
         {
             bool any = false;
-            b = new Bounds();
+            var all = new Bounds();
             void Add(Bounds lb, Transform meshTransform, Renderer renderer)
             {
                 if (!meshTransform.gameObject.activeSelf || !renderer.enabled) return;
@@ -524,7 +524,7 @@ namespace GoF2Remake.World
                 for (int i = 0; i < 8; i++)
                 {
                     var p = m.MultiplyPoint3x4(lb.center + Vector3.Scale(lb.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1)));
-                    if (!any) { b = new Bounds(p, Vector3.zero); any = true; } else b.Encapsulate(p);
+                    if (!any) { all = new Bounds(p, Vector3.zero); any = true; } else all.Encapsulate(p);
                 }
             }
             foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
@@ -533,6 +533,7 @@ namespace GoF2Remake.World
             // and centred from the actual model rather than the generic fallback height.
             foreach (var skinned in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
                 if (skinned.sharedMesh != null) Add(skinned.localBounds, skinned.transform, skinned);
+            b = all;
             return any;
         }
         GameObject VisitorPrefab(StationTables.Visitor v) => v switch

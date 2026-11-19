@@ -93,7 +93,7 @@ namespace GoF2Remake.World
                     externalDockPoints.Add(point);
                 }
             }
-            if (Modding.ModBuilderPlay.ExternalDockTestQueuedFor(station))
+            if (SpaceHooks.ExternalDockTestQueuedFor(station))
             {
                 var starter = gameObject.AddComponent<ExternalDockTestStarter>();
                 starter.Setup(this, station);
@@ -154,7 +154,7 @@ namespace GoF2Remake.World
         public void Setup(SpaceLevel owner, int stationIndex) { level = owner; station = stationIndex; }
         void Start()
         {
-            if (level != null && Modding.ModBuilderPlay.TakeExternalDockTest(station, out int point))
+            if (level != null && SpaceHooks.TakeDockTest(station, out int point))
                 level.StartExternalDockTest(point);
         }
     }

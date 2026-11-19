@@ -37,7 +37,9 @@ namespace GoF2Remake.Tests
                 var camera = cameraObject.AddComponent<UnityEngine.Camera>();
                 camera.pixelRect = new UnityEngine.Rect(100f, 50f, 800f, 600f);
                 var crosshair = CombatRadar.LockCrosshairPoint(camera, shipObject.transform, true);
-                Assert.AreEqual(new UnityEngine.Vector3(500f, 350f, 1f), crosshair);
+                // (an edit-mode camera's pixelRect is clipped to the Game view's size, so the centre is read back)
+                var centre = camera.pixelRect.center;
+                Assert.AreEqual(new UnityEngine.Vector3(centre.x, centre.y, 1f), crosshair);
             }
             finally
             {

@@ -17,6 +17,8 @@ namespace GoF2Remake
         public static void Install()
         {
             SpaceHooks.MultiplayerWindowOpen = () => MultiplayerWindow.IsOpenAny;
+            SpaceHooks.ExternalDockTestQueued = ModBuilderPlay.ExternalDockTestQueuedFor;
+            SpaceHooks.TakeExternalDockTest = ModBuilderPlay.TakeExternalDockTest;
             SpaceHooks.StarMapOpenProvider = () => StarMap.IsOpen;
             SpaceHooks.OpenStarMap = (db, mode, jumpDrive, closed, promptStation, askVoid) =>
                 StarMap.Open(db, mode, jumpDrive, closed, promptStation, -1, askVoid) != null;

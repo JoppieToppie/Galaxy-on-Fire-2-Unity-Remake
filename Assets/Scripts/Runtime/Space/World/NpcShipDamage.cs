@@ -103,7 +103,7 @@ namespace GoF2Remake.World
         void WireGun(Gun g)
         {
             g.Hit += OnGunHit;
-            if (g.echo != null) g.AreaHit += (target, dmg, emp, center) => HitByBlast(g, target, dmg, emp, center);
+            if (g.echo != null) g.AreaHit += gunBlast = (target, dmg, emp, center) => HitByBlast(g, target, dmg, emp, center);
         }
 
         /// <summary>An NPC gun's area blast on one target (Gun.AreaDamage, the echo): the hull damage and EMP, no stray-fire

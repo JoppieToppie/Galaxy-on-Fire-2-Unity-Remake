@@ -83,7 +83,7 @@ namespace GoF2Remake.World
             var item = db.Item(itemIndex);
             if (item == null || IsFreighter || IsFixed) return;
             rig?.HideAll();
-            if (gun != null) { gun.Hit -= OnGunHit; gun.AreaHit -= HitByBlast; }
+            if (gun != null) { gun.Hit -= OnGunHit; if (gunBlast != null) gun.AreaHit -= gunBlast; gunBlast = null; }
             gun = MakeGun(item, gunBase * damageFactor, reloadMs);
             rig = new GunRig(gun, WeaponFx.Load(item.index), fxRootRef, IsTurret ? turretCore?.GunNode : null, 2);
             WireGun(gun);
