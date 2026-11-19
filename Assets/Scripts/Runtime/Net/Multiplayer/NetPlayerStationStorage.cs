@@ -71,7 +71,7 @@ namespace GoF2Remake.Multiplayer
             if (StorageCapacity(record) <= 0) return "This station has no storage module.";
 
             var lines = new List<string> { "Storage at " + record.name + ":" };
-            int total = 0;
+            long total = 0;
             if (record.storage != null)
                 foreach (var stack in record.storage)
                 {
