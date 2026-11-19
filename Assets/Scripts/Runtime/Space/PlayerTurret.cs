@@ -59,8 +59,8 @@ namespace GoF2Remake.Flight
         /// <summary>How far an auto turret looks for a target (units) unless the item's attr 109 says otherwise (mods).</summary>
         public const float AutoRangeUnits = 60000f;
 
-        // The controls are GameControls' (rebindable): Camera (the turret view, T / D-pad up), AutoTurret (Y / D-pad down).
-        static InputAction viewAction => GameControls.Camera;
+        // The controls are GameControls' (rebindable): TurretView (F3; controller binding available), AutoTurret (Y / D-pad down).
+        static InputAction viewAction => GameControls.TurretView;
         static InputAction autoAction => GameControls.AutoTurret;
 
         /// <summary>180-182: aims and fires by itself.</summary>
@@ -168,6 +168,20 @@ namespace GoF2Remake.Flight
         {
             foreach (int item in TurretItems(db, equipment)) if (item >= 0) return item;
             return -1;
+        }
+
+        /// <summary>Only mixed mod loadouts need a separate auto-fire binding; collectors count as manual turrets.</summary>
+        public static bool MixedLoadout(Database db, IList<ItemStack> equipment)
+        {
+            bool manual = false, automatic = false;
+            if (db == null || equipment == null) return false;
+            foreach (var stack in equipment)
+            {
+                var item = stack != null && stack.amount > 0 ? db.Item(stack.item) : null;
+                if (item == null || (item.categoryId != 8 && item.categoryId != 35)) continue;
+                if (item.Attr(16) == 1) automatic = true; else manual = true;
+            }
+            return manual && automatic;
         }
 
         /// <summary>Every turret-slot item (category 8 / 35) of this equipment in mount order: the n-th entry is the turret on
@@ -370,11 +384,11 @@ namespace GoF2Remake.Flight
         /// <summary>The touch turret button: toggles auto-fire, or the turret view for a manual turret. Remake, with several
         /// turrets: any auto turret on the ship -> auto fire for all of them; else the view steps to the next manual turret
         /// and then back out.</summary>
-        public void Toggle()
+        public void Toggle(bool manualFirst = false)
         {
             var group = On(gameObject);
             var firstAuto = group.Find(t => t.IsAuto);
-            if (firstAuto != null) { firstAuto.SetAuto(!firstAuto.AutoEnabled); return; }
+            if (firstAuto != null && (!manualFirst || !group.Exists(t => !t.IsAuto))) { firstAuto.SetAuto(!firstAuto.AutoEnabled); return; }
             var manual = group.FindAll(t => !t.IsAuto);
             int at = manual.FindIndex(t => t.InTurretView);
             if (at < 0) { if (manual.Count > 0) manual[0].SetTurretView(true); }
@@ -472,11 +486,12 @@ namespace GoF2Remake.Flight
                 // The view key (V / D-pad up) is the camera button now: FreeLookCamera cycles standard / turret / free look.
                 // With several turrets the first manual / auto one answers the keys for all of them (Toggle / SetAuto).
                 var group = On(gameObject);
-                if (viewAction.WasPressedThisFrame() && !IsAuto && GetComponent<FreeLookCamera>() == null && group.Find(t => !t.IsAuto) == this)
+                if (viewAction.WasPressedThisFrame() && GetComponent<FreeLookCamera>() == null && group[0] == this)
                 {
-                    if (group.FindAll(t => !t.IsAuto).Count > 1) Toggle(); else SetTurretView(!InTurretView);
+                    Toggle(true);
                 }
-                if (autoAction.WasPressedThisFrame() && IsAuto && group.Find(t => t.IsAuto) == this) SetAuto(!AutoEnabled);
+                if (autoAction.WasPressedThisFrame() && IsAuto && group.Exists(t => !t.IsAuto)
+                    && group.Find(t => t.IsAuto) == this) SetAuto(!AutoEnabled);
             }
             bool dead = GetComponent<Target>() is Target me && !me.Alive;
             if (InTurretView && (GunsBlocked || dead)) SetTurretView(false);

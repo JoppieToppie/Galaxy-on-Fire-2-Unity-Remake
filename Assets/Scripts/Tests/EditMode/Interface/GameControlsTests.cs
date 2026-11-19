@@ -3,7 +3,7 @@
 // each with two keyboard / mouse slots and a controller slot (none for mouse steering and the chat's send / channel keys).
 // The defaults typed below are CLAUDE.md's (the PC / Mac version's keys: arrows steer, W boost, S brake, ] and / thrust,
 // Space / LMB fire, R / RMB secondary, A / D strafe, 1 / 3 roll, F (and Enter) action, Q autopilot, E actions, Tab
-// fast-forward, T view, V wingmen, K Khador Drive, C cloak, M / middle mouse mouse steering, 2 level out, G switch secondary,
+// fast-forward, F3 view, T manual turrets, V wingmen, K Khador Drive, C cloak, M / middle mouse mouse steering, 2 level out, G switch secondary,
 // X time extender, Y auto turret, U unlock target, F12 screenshot, F1 toggle HUD, B chat, Enter / keypad Enter send, Tab channel, N multiplayer window,
 // the distress call unbound; the controller: LS steer, RB / LB throttle, A boost, Y level out and fast-forward, RT / LT
 // fire, D-pad right / up / down switch secondary / camera / auto turret, B unlock target, X action, View autopilot menu, D-pad left
@@ -50,7 +50,7 @@ namespace GoF2Remake.Tests
         static readonly string[] RowIds =
         {
             "steer", "throttle", "brake", "boost", "roll", "levelOut", "strafeLeft", "strafeRight", "dodgeLeft", "dodgeRight", "drill",
-            "firePrimary", "fireSecondary", "switchSecondary", "camera", "cockpitView", "autoTurret", "unlockTarget", "action", "autopilotMenu", "actionsMenu",
+            "firePrimary", "fireSecondary", "switchSecondary", "camera", "cockpitView", "turretView", "autoTurret", "unlockTarget", "action", "autopilotMenu", "actionsMenu",
             "fastForward", "wingmen", "khadorDrive", "cloak", "timeExtender", "mouseSteering", "chat", "chatSend", "chatChannel",
             "screenshot", "hudToggle", "multiplayerWindow", "distressCall",
             "thrust", "strafe", "hover", "dampeners", "drift", "travelBoost", "freeLookHold",   // free flight (PR #87), Chorus's drift and travel boost (2026-11-11)
@@ -59,9 +59,9 @@ namespace GoF2Remake.Tests
         };
 
         [Test]
-        public void ThereAreFortyFiveFlightRows()
+        public void ThereAreFortySixFlightRows()
         {
-            Assert.AreEqual(45, GameControls.Rows.Count);
+            Assert.AreEqual(46, GameControls.Rows.Count);
             CollectionAssert.AreEqual(RowIds, GameControls.Rows.Select(r => r.id).ToArray(), "in the options' order (the overrides are kept by action name)");
             foreach (var r in GameControls.Rows)
             {
@@ -125,10 +125,12 @@ namespace GoF2Remake.Tests
             yield return D("fireSecondary", BindSlot.Pad, "<Gamepad>/leftTrigger");
             yield return D("switchSecondary", BindSlot.Key1, "<Keyboard>/g");
             yield return D("switchSecondary", BindSlot.Pad, "<Gamepad>/dpad/right");
-            yield return D("camera", BindSlot.Key1, "<Keyboard>/t");
+            yield return D("camera", BindSlot.Key1, "<Keyboard>/f3");
             yield return D("camera", BindSlot.Pad, "<Gamepad>/dpad/up");
+            yield return D("turretView", BindSlot.Key1, "<Keyboard>/t");
+            yield return D("turretView", BindSlot.Pad, "<Gamepad>/dpad/down");
             yield return D("autoTurret", BindSlot.Key1, "<Keyboard>/y");
-            yield return D("autoTurret", BindSlot.Pad, "<Gamepad>/dpad/down");
+            yield return D("autoTurret", BindSlot.Pad, "");
             yield return D("unlockTarget", BindSlot.Key1, "<Keyboard>/u");
             yield return D("unlockTarget", BindSlot.Pad, "<Gamepad>/buttonEast");
             yield return D("action", BindSlot.Key1, "<Keyboard>/f");

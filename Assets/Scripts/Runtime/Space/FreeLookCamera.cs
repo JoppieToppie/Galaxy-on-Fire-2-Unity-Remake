@@ -177,13 +177,39 @@ namespace GoF2Remake.Flight
         const float CockpitHoldSeconds = 0.5f;
         float cameraDownAt = -1f;
         bool cameraHoldUsed;
+        bool cameraIncludesTurrets;
+
+        /// <summary>CLAUDE.md "Key bindings": keyboard/controller camera cycling never enters manual turret control.
+        /// Touch keeps its combined cycle because its existing camera button is the only view control.</summary>
+        public void CycleCameraView()
+        {
+            if (Blocked != null && Blocked()) return;
+            Set(NextMode(Current, Base, false, Settings.CockpitInCameraCycle && !VrFlags.Enabled));
+            RememberBase();
+        }
+
+        /// <summary>Contextual turret action: cycle manual mounts, or toggle fire when only automatic turrets are installed.</summary>
+        public void CycleTurretView()
+        {
+            if (Blocked != null && Blocked() && (TurretAllowed == null || !TurretAllowed())) return;
+            if (!TurretMode)
+            {
+                var automatic = PlayerTurret.On(gameObject).Find(t => t.IsAuto);
+                if (automatic != null) automatic.SetAuto(!automatic.AutoEnabled);
+                return;
+            }
+            if (Current != Mode.Turret) Set(Mode.Turret);
+            else if (turretIndex + 1 < Manual().Count) EnterTurret(turretIndex + 1, true);
+            else Set(Base);
+        }
 
         /// <summary>The camera button went down (the key, the controller, the touch button): a tap cycles on release, a hold
         /// switches to or from the cockpit view (Update).</summary>
-        public void CameraDown()
+        public void CameraDown(bool includeTurrets = true)
         {
             cameraDownAt = Time.unscaledTime;
             cameraHoldUsed = false;
+            cameraIncludesTurrets = includeTurrets;
         }
 
         /// <summary>The camera button came up: a tap's cycle ('cycle' false: only let go, e.g. while mining).</summary>
@@ -191,7 +217,7 @@ namespace GoF2Remake.Flight
         {
             bool tap = cameraDownAt >= 0f && !cameraHoldUsed;
             cameraDownAt = -1f;
-            if (tap && cycle) Cycle();
+            if (tap && cycle) { if (cameraIncludesTurrets) Cycle(); else CycleCameraView(); }
         }
 
         /// <summary>The chase view <-> the cockpit view (the "Cockpit view" binding, a held camera button); from a turret view
@@ -424,7 +450,7 @@ namespace GoF2Remake.Flight
             // Not under a menu either (Navigation.PressesBlocked): in a multiplayer session the game doesn't pause, and the
             // pause / autopilot / secondary weapon menus' D-pad up cycled the camera (Discord report, 2026-10-17).
             // A tap cycles on release, a hold switches the cockpit view (CameraDown / CameraUp, also the touch button's).
-            if (!halted && !Navigation.PressesBlocked && cycleAction.WasPressedThisFrame()) CameraDown();
+            if (!halted && !Navigation.PressesBlocked && cycleAction.WasPressedThisFrame()) CameraDown(false);
             if (cycleAction.WasReleasedThisFrame() && cameraDownAt >= 0f) CameraUp(!halted && !Navigation.PressesBlocked);
             if (cameraDownAt >= 0f && !cameraHoldUsed && Time.unscaledTime - cameraDownAt >= CockpitHoldSeconds)
             {
@@ -432,6 +458,7 @@ namespace GoF2Remake.Flight
                 if (!halted && !Navigation.PressesBlocked) ToggleCockpit();
             }
             if (!halted && !Navigation.PressesBlocked && GameControls.CockpitView.WasPressedThisFrame()) ToggleCockpit();
+            if (!halted && !Navigation.PressesBlocked && GameControls.TurretView.WasPressedThisFrame()) CycleTurretView();
             // Remake: free look while a key is held (GameControls.FreeLookHold, EVERSPACE 2's Alt in the free-flight layout):
             // from the standard view, back to it on release.
             if (!halted && !Navigation.InputHalted)

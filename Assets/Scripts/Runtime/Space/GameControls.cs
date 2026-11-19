@@ -62,7 +62,7 @@ namespace GoF2Remake.Flight
 
         public static readonly InputAction Steer, Throttle, Brake, Boost, LevelOut, Roll, StrafeLeft, StrafeRight, DodgeLeft, DodgeRight, Drill,
             FirePrimary, FireSecondary, SwitchSecondary, UnlockTarget, Action, AutopilotMenu, ActionsMenu, Wingmen, KhadorDrive, FastForward,
-            Camera, CockpitView, AutoTurret, Cloak, TimeExtender, MouseSteering, Chat, ChatSend, ChatChannel, Screenshot,
+            Camera, CockpitView, TurretView, AutoTurret, Cloak, TimeExtender, MouseSteering, Chat, ChatSend, ChatChannel, Screenshot,
             HudToggle, MultiplayerWindow, DistressCall,
             Thrust, StrafeAxis, Hover, Dampeners, FreeLookHold, Drift, TravelBoost,
             Device1, Device2, Device3,
@@ -110,11 +110,12 @@ namespace GoF2Remake.Flight
             FirePrimary = Button("firePrimary", () => X("ctlFirePrimary", "Fire"), "<Keyboard>/space", "<Mouse>/leftButton", "<Gamepad>/rightTrigger");
             FireSecondary = Button("fireSecondary", () => X("ctlFireSecondary", "Fire secondary"), "<Keyboard>/r", "<Mouse>/rightButton", "<Gamepad>/leftTrigger");
             SwitchSecondary = Button("switchSecondary", () => X("ctlSwitchSecondary", "Switch secondary"), "<Keyboard>/g", null, "<Gamepad>/dpad/right");
-            Camera = Button("camera", () => X("ctlCamera", "Camera / turret view"), "<Keyboard>/t", null, "<Gamepad>/dpad/up");
+            Camera = Button("camera", () => X("ctlCycleView", "Cycle camera view"), "<Keyboard>/f3", null, "<Gamepad>/dpad/up");
             // Remake (players' feedback, 2026-10-22): the cockpit view on its own (FreeLookCamera.ToggleCockpit), out of the
             // camera cycle; holding the camera button does the same. No controller default: D-pad up held.
             CockpitView = Button("cockpitView", () => X("ctlCockpitView", "Cockpit view on / off"), "<Keyboard>/f2", null, null);
-            AutoTurret = Button("autoTurret", () => X("ctlAutoTurret", "Auto turret on / off"), "<Keyboard>/y", null, "<Gamepad>/dpad/down");
+            TurretView = Button("turretView", () => X("ctlTurretView", "Turret control"), "<Keyboard>/t", null, "<Gamepad>/dpad/down");
+            AutoTurret = Button("autoTurret", () => X("ctlAutoTurret", "Auto turret on / off"), "<Keyboard>/y", null, null);
             // Remake: drops the ship lock (CombatRadar.Unlock; the original has none). U, and B: in flight B is only the
             // menus' back, and the flight's presses wait while a menu is open (Navigation.PressesBlocked).
             UnlockTarget = Button("unlockTarget", () => X("ctlUnlockTarget", "Unlock target"), "<Keyboard>/u", null, "<Gamepad>/buttonEast");
@@ -179,6 +180,7 @@ namespace GoF2Remake.Flight
                     case "thrust": r.visible = Free; break;
                     case "strafe": case "hover": case "dampeners": r.visible = Es2; break;
                     case "drift": case "travelBoost": r.visible = Chorus; break;
+                    case "autoTurret": r.visible = () => PlayerTurret.MixedLoadout(Database.Shared, Session.Equipment); break;
                 }
         }
 
