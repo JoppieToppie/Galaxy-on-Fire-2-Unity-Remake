@@ -19,7 +19,7 @@ namespace GoF2Remake.UI
         readonly StationMenu menu;
         readonly StationLevel level;
         readonly VisualElement safeArea, panel, list, detail;
-        readonly Label title, statusText, detailTitle, detailText, recipeText;
+        readonly Label title, statusText, feedbackText, detailTitle, detailText, recipeText;
         readonly Button openButton, closeButton, buildButton;
         readonly List<(int productId, int shipIndex, string name, string className)> blueprints =
             new List<(int, int, string, string)>();
@@ -28,7 +28,7 @@ namespace GoF2Remake.UI
         float refreshIn;
         bool requestPending, isOpen;
 
-        string lastResponse = "";
+        float feedbackRemaining;
 
         public bool IsOpen => isOpen;
         public Button MenuButton => openButton;
@@ -98,6 +98,9 @@ namespace GoF2Remake.UI
             statusText = new Label();
             statusText.AddToClassList("drydock-status");
             detail.Add(statusText);
+            feedbackText = new Label();
+            feedbackText.AddToClassList("drydock-feedback");
+            detail.Add(feedbackText);
             buildButton = new Button(StartBuild) { text = "BEGIN CONSTRUCTION" };
             buildButton.AddToClassList("drydock-build");
             buildButton.clicked += menu.PlayRelease;
@@ -151,6 +154,7 @@ namespace GoF2Remake.UI
             else station = current;
 
             if (!IsOpen) return;
+            if (feedbackRemaining > 0f && (feedbackRemaining -= Time.unscaledDeltaTime) <= 0f) feedbackText.text = "";
             if ((refreshIn -= Time.unscaledDeltaTime) <= 0f)
             {
                 refreshIn = 0.5f;
@@ -301,7 +305,8 @@ namespace GoF2Remake.UI
         void OnChat(NetChat.Message message)
         {
             if (!IsOpen || message == null || message.channel != NetChat.Channel.Notice) return;
-            lastResponse = message.text;
+            feedbackText.text = message.text;
+            feedbackRemaining = 5f;
             requestPending = false;
             RefreshStatus();
             if (station != null && NetPlayerStations.GetDryDockVisualStatus(station.id)?.building == true)
@@ -309,7 +314,6 @@ namespace GoF2Remake.UI
             else
             {
                 if (selectedProduct >= 0) Select(selectedProduct);
-                statusText.text = lastResponse;
             }
         }
     }
