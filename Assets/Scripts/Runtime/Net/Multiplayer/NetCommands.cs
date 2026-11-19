@@ -341,7 +341,7 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
-            new Command { name = "station", usage = "systems | list | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+            new Command { name = "station", usage = "systems | list | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
                 description = () => X("mpCmdStation", "builds stations, installs modules, manages storage, ship hangars and station listings; persistent worlds only") },
         };
@@ -381,6 +381,8 @@ namespace GoF2Remake.Multiplayer
                     return NetPlayerStations.InstallFactory(by as NetPlayer, stationId);
                 if (string.Equals(words[1], "hangar", StringComparison.OrdinalIgnoreCase))
                     return NetPlayerStations.InstallHangar(by as NetPlayer, stationId);
+                if (string.Equals(words[1], "drydock", StringComparison.OrdinalIgnoreCase))
+                    return NetPlayerStations.InstallDryDock(by as NetPlayer, stationId);
                 return NetPlayerStations.Install(by as NetPlayer, stationId, words[1]);
             }
             if (args.Equals("recipes", StringComparison.OrdinalIgnoreCase))
@@ -396,19 +398,28 @@ namespace GoF2Remake.Multiplayer
             }
             if (args.Equals("fleet", StringComparison.OrdinalIgnoreCase))
                 return NetPlayerStations.PersonalFleet(by as NetPlayer);
-            foreach (string action in new[] { "ships ", "store-ship ", "retrieve-ship " })
+            foreach (string action in new[] { "ships ", "store-ship ", "retrieve-ship ", "drydock ", "drydock-store ", "drydock-retrieve " })
             {
                 if (!args.StartsWith(action, StringComparison.OrdinalIgnoreCase)) continue;
                 string[] words = args.Substring(action.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (action == "ships ")
+                if (action == "ships " || action == "drydock ")
                 {
-                    if (words.Length != 1 || !int.TryParse(words[0], out int stationId)) return "/station ships <station id>";
-                    return NetPlayerStations.ShipStorageStatus(by as NetPlayer, stationId);
+                    if (words.Length != 1 || !int.TryParse(words[0], out int stationId))
+                        return action == "ships " ? "/station ships <station id>" : "/station drydock <station id>";
+                    return action == "ships " ? NetPlayerStations.ShipStorageStatus(by as NetPlayer, stationId) :
+                        NetPlayerStations.DryDockStatus(by as NetPlayer, stationId);
                 }
                 if (words.Length != 2 || !int.TryParse(words[0], out int id) || !int.TryParse(words[1], out int index))
-                    return action == "store-ship " ? "/station store-ship <station id> <fleet index>" : "/station retrieve-ship <station id> <hangar index>";
-                return action == "store-ship " ? NetPlayerStations.StoreShip(by as NetPlayer, id, index) :
-                    NetPlayerStations.RetrieveShip(by as NetPlayer, id, index);
+                {
+                    if (action == "store-ship ") return "/station store-ship <station id> <fleet index>";
+                    if (action == "retrieve-ship ") return "/station retrieve-ship <station id> <hangar index>";
+                    if (action == "drydock-store ") return "/station drydock-store <station id> <fleet index>";
+                    return "/station drydock-retrieve <station id> <dock index>";
+                }
+                if (action == "store-ship ") return NetPlayerStations.StoreShip(by as NetPlayer, id, index);
+                if (action == "retrieve-ship ") return NetPlayerStations.RetrieveShip(by as NetPlayer, id, index);
+                return action == "drydock-store " ? NetPlayerStations.DryDockStoreShip(by as NetPlayer, id, index) :
+                    NetPlayerStations.DryDockRetrieveShip(by as NetPlayer, id, index);
             }
             const string refine = "refine ";
             if (args.StartsWith(refine, StringComparison.OrdinalIgnoreCase))
