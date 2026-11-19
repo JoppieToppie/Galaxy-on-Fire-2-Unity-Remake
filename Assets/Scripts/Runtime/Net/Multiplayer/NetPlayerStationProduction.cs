@@ -114,6 +114,7 @@ namespace GoF2Remake.Multiplayer
         internal static void Tick()
         {
             if (!NetGame.IsServer || !sessionActive || registry?.stations == null) return;
+            TickJumpgates(); // fixed-destination gate projects share the persistent UTC construction lifecycle.
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             if (now < nextDryDockRetryUtc) return;
             foreach (var record in registry.stations)
