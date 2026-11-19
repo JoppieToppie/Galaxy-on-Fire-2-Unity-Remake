@@ -1,64 +1,130 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using GoF2Remake.Data;
 
 namespace GoF2Remake.Multiplayer
 {
     public static partial class NetPlayerStations
     {
         const int MaxJumpgateBuildSeconds = 2592000;
+        const long JumpgateDestinationCooldownSeconds = 86400;
         static long nextJumpgateRetryUtc;
 
-        /// <summary>Whether this orbit contains a completed player-built jumpgate.</summary>
-        internal static bool HasJumpgateAtStation(int stationIndex)
+        static PlayerJumpgateRecord FindJumpgate(int orbitStationIndex) =>
+            registry?.jumpgates?.Find(x => x != null && x.orbitStationIndex == orbitStationIndex);
+
+        static PlayerStationRecord JumpgateAccessRecord(PlayerJumpgateRecord gate) => gate == null ? null : new PlayerStationRecord
         {
-            var record = registry?.stations?.Find(x => x != null && x.stationIndex == stationIndex);
-            if (record == null || record.jumpgateDestinationSystem < 0) return false;
-            CompleteJumpgateIfDue(record);
-            return record.jumpgateDestinationSystem >= 0 && !record.jumpgateBuilding;
+            stationIndex = -1,
+            name = "Player jumpgate",
+            ownershipType = gate.ownershipType,
+            ownerProfile = gate.ownerProfile,
+            ownerFactionId = gate.ownerFactionId,
+            ownerName = gate.ownerName,
+            factionStorageAccess = true
+        };
+
+        static bool CanViewJumpgate(NetPlayer by, PlayerJumpgateRecord gate) =>
+            CanViewStationRecord(by, JumpgateAccessRecord(gate));
+
+        static bool CanManageJumpgate(NetPlayer by, PlayerJumpgateRecord gate, out string account)
+        {
+            account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
+            if (!NetGame.IsServer || !sessionActive || registry == null || by == null || !by.IsSpawned ||
+                !by.InHangar || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) ||
+                string.IsNullOrEmpty(account) || gate == null) return false;
+            var access = JumpgateAccessRecord(gate);
+            return gate.ownershipType == PlayerStationOwnershipType.Individual
+                ? string.Equals(account, gate.ownerProfile, StringComparison.Ordinal)
+                : IsFactionManager(access, account);
         }
 
-        /// <summary>Returns the fixed arrival orbit for this gate, or -1 when this is not an operational player gate.</summary>
+        static bool ValidOrbit(int systemIndex, int orbitStationIndex, out SystemData system)
+        {
+            system = NetGame.Db?.Systems?.Find(x => x != null && x.index == systemIndex);
+            if (system?.stations == null || !system.stations.Contains(orbitStationIndex)) return false;
+            return NetGame.Db.Stations.Find(x => x != null && x.index == orbitStationIndex && x.system == systemIndex) != null;
+        }
+
+        static void MigrateLegacyJumpgates()
+        {
+            if (registry?.stations == null) return;
+            registry.jumpgates ??= new List<PlayerJumpgateRecord>();
+            foreach (var station in registry.stations)
+            {
+                if (station == null || station.jumpgateDestinationSystem < 0 ||
+                    registry.jumpgates.Exists(g => g != null && g.orbitStationIndex == station.stationIndex)) continue;
+                registry.jumpgates.Add(new PlayerJumpgateRecord
+                {
+                    orbitStationIndex = station.stationIndex,
+                    system = station.system,
+                    destinationSystem = station.jumpgateDestinationSystem,
+                    ownershipType = station.ownershipType,
+                    ownerProfile = station.ownerProfile,
+                    ownerFactionId = station.ownerFactionId,
+                    ownerName = station.ownerName,
+                    building = station.jumpgateBuilding,
+                    startedUtc = station.jumpgateStartedUtc,
+                    completesUtc = station.jumpgateCompletesUtc,
+                    buildSeconds = station.jumpgateBuildSeconds,
+                    destinationChangedUtc = station.jumpgateBuilding ? 0 :
+                        (station.jumpgateCompletesUtc > 0 ? station.jumpgateCompletesUtc : station.createdUtc),
+                    materials = station.jumpgateMaterials ?? new List<PlayerStationMaterial>(),
+                    contributions = station.jumpgateContributions ?? new List<PlayerStationContribution>()
+                });
+            }
+        }
+
+        /// <summary>Whether an orbital anchor contains an operational player-built jumpgate.</summary>
+        internal static bool HasJumpgateAtStation(int stationIndex)
+        {
+            var gate = FindJumpgate(stationIndex);
+            if (gate == null || gate.destinationSystem < 0) return false;
+            CompleteJumpgateIfDue(gate);
+            return gate.destinationSystem >= 0 && !gate.building;
+        }
+
+        /// <summary>Returns the arrival orbit in the gate's fixed destination system.</summary>
         internal static int JumpgateDestinationStation(int stationIndex)
         {
             if (!HasJumpgateAtStation(stationIndex)) return -1;
-            var gate = registry?.stations?.Find(x => x != null && x.stationIndex == stationIndex);
-            var db = NetGame.Db;
-            var target = db?.Systems?.Find(x => x != null && x.index == gate?.jumpgateDestinationSystem);
+            var gate = FindJumpgate(stationIndex);
+            var target = NetGame.Db?.Systems?.Find(x => x != null && x.index == gate?.destinationSystem);
             if (target?.stations == null || target.stations.Count == 0) return -1;
             return target.stations.Contains(target.jumpgateStation) ? target.jumpgateStation : target.stations[0];
         }
 
-        static void CompleteJumpgateIfDue(PlayerStationRecord record)
+        static void CompleteJumpgateIfDue(PlayerJumpgateRecord gate)
         {
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            if (record == null || !record.jumpgateBuilding || record.jumpgateCompletesUtc <= 0 ||
-                now < record.jumpgateCompletesUtc || now < nextJumpgateRetryUtc || !NetGame.IsServer) return;
-            record.jumpgateBuilding = false;
+            if (gate == null || !gate.building || gate.completesUtc <= 0 ||
+                now < gate.completesUtc || now < nextJumpgateRetryUtc || !NetGame.IsServer) return;
+            bool oldBuilding = gate.building;
+            long oldChanged = gate.destinationChangedUtc;
+            gate.building = false;
+            if (gate.destinationChangedUtc <= 0) gate.destinationChangedUtc = now;
             if (!Save())
             {
-                record.jumpgateBuilding = true;
+                gate.building = oldBuilding;
+                gate.destinationChangedUtc = oldChanged;
                 nextJumpgateRetryUtc = now + 5;
             }
             else nextJumpgateRetryUtc = 0;
         }
 
-        /// <summary>Server update loop: commit timed jumpgates when their UTC build deadline expires.</summary>
+        /// <summary>Called from the authoritative station update loop; due projects survive restarts.</summary>
         internal static void TickJumpgates()
         {
-            if (!NetGame.IsServer || !sessionActive || registry?.stations == null) return;
+            if (!NetGame.IsServer || !sessionActive || registry?.jumpgates == null) return;
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             if (now < nextJumpgateRetryUtc) return;
-            foreach (var record in registry.stations)
+            foreach (var gate in registry.jumpgates)
             {
-                if (record == null || !record.jumpgateBuilding || record.jumpgateStartedUtc <= 0 ||
-                    record.jumpgateCompletesUtc <= 0 || record.jumpgateCompletesUtc > now) continue;
-                CompleteJumpgateIfDue(record);
-                if (record.jumpgateBuilding)
-                {
-                    nextJumpgateRetryUtc = now + 5;
-                    return;
-                }
+                if (gate == null || !gate.building || gate.startedUtc <= 0 ||
+                    gate.completesUtc <= 0 || gate.completesUtc > now) continue;
+                CompleteJumpgateIfDue(gate);
+                if (gate.building) { nextJumpgateRetryUtc = now + 5; return; }
             }
         }
 
@@ -70,57 +136,59 @@ namespace GoF2Remake.Multiplayer
             new PlayerStationMaterial { item = 127, required = 150 },  // Microchips
         };
 
-        internal static string StartJumpgate(NetPlayer by, int stationId, int destinationSystem, int buildSeconds)
+        /// <summary>Build at any orbital anchor in the sponsor station's system, not only at the sponsor station itself.</summary>
+        internal static string StartJumpgate(NetPlayer by, int sponsorStationId, int orbitStationIndex, int destinationSystem, int buildSeconds)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Player-built jumpgates need a persistent host or dedicated server.";
-            var record = Find(stationId);
-            if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out _))
-                return "Only the station owner or an authorised faction manager can build a jumpgate in this orbit while docked here.";
-            if (record.underConstruction) return "The station orbit must be operational before a jumpgate can be built.";
-            var destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == destinationSystem);
-            if (destination == null || destination.stations == null || destination.stations.Count == 0)
+            var sponsor = Find(sponsorStationId);
+            if (sponsor == null) return "No player station with that project id exists.";
+            if (!CanManage(by, sponsor, out _))
+                return "Dock at a player station you own or manage to authorise a jumpgate project.";
+            if (sponsor.underConstruction) return "The sponsoring station must be operational.";
+            if (!ValidOrbit(sponsor.system, orbitStationIndex, out var origin))
+                return "Choose an existing orbital location in the sponsoring station's system.";
+            if (origin.jumpgateStation == orbitStationIndex)
+                return "That orbit already contains the system's original jumpgate.";
+            if (!ValidOrbit(destinationSystem, NetGame.Db?.Systems?.Find(x => x != null && x.index == destinationSystem)?.stations?.Count > 0
+                ? NetGame.Db.Systems.Find(x => x.index == destinationSystem).stations[0] : -1, out _))
                 return "Choose a valid destination system with at least one orbital location.";
-            if (destinationSystem == record.system) return "A jumpgate must connect to a different system.";
+            if (destinationSystem == sponsor.system) return "A jumpgate must connect to a different system.";
             if (buildSeconds < 0 || buildSeconds > MaxJumpgateBuildSeconds)
                 return "Build time must be between 0 and 2,592,000 seconds (30 days). Use 0 for no build timer.";
-            if (record.jumpgateDestinationSystem >= 0 || record.jumpgateBuilding)
-                return "This orbit already has a player-built jumpgate or an active gate project. Only one gate can occupy an orbit.";
-            var previousDestination = record.jumpgateDestinationSystem;
-            var previousBuilding = record.jumpgateBuilding;
-            var previousStart = record.jumpgateStartedUtc;
-            var previousEnd = record.jumpgateCompletesUtc;
-            var previousBuildSeconds = record.jumpgateBuildSeconds;
-            var previousMaterials = record.jumpgateMaterials;
-            var previousContributions = record.jumpgateContributions;
-            record.jumpgateDestinationSystem = destinationSystem;
-            record.jumpgateBuilding = true;
-            record.jumpgateStartedUtc = 0;
-            record.jumpgateCompletesUtc = 0;
-            record.jumpgateMaterials = RequiredJumpgateMaterials();
-            record.jumpgateContributions = new List<PlayerStationContribution>();
-            // The optional timer begins once the full material requirement has been funded.
-            record.jumpgateBuildSeconds = buildSeconds;
+            if (FindJumpgate(orbitStationIndex) != null)
+                return "That orbit already has a player-built jumpgate or an active gate project. Only one gate can occupy an orbit.";
+
+            var gate = new PlayerJumpgateRecord
+            {
+                orbitStationIndex = orbitStationIndex,
+                system = sponsor.system,
+                destinationSystem = destinationSystem,
+                ownershipType = sponsor.ownershipType,
+                ownerProfile = sponsor.ownerProfile,
+                ownerFactionId = sponsor.ownerFactionId,
+                ownerName = sponsor.ownerName,
+                building = true,
+                buildSeconds = buildSeconds,
+                materials = RequiredJumpgateMaterials(),
+                contributions = new List<PlayerStationContribution>()
+            };
+            registry.jumpgates ??= new List<PlayerJumpgateRecord>();
+            registry.jumpgates.Add(gate);
             if (!Save())
             {
-                record.jumpgateDestinationSystem = previousDestination;
-                record.jumpgateBuilding = previousBuilding;
-                record.jumpgateStartedUtc = previousStart;
-                record.jumpgateCompletesUtc = previousEnd;
-                record.jumpgateBuildSeconds = previousBuildSeconds;
-                record.jumpgateMaterials = previousMaterials;
-                record.jumpgateContributions = previousContributions;
+                registry.jumpgates.Remove(gate);
                 return "The jumpgate construction plan could not be saved.";
             }
-            return "Jumpgate project started in " + record.name + "'s orbit, linking to " + destination.name +
-                ". Required materials: 500 Iron, 250 Titanium, 200 Electronics and 150 Microchips. " +
+            var destination = NetGame.Db.Systems.Find(x => x.index == destinationSystem);
+            return "Jumpgate project started in orbit " + orbitStationIndex + " of " + origin.name +
+                ", linking to " + destination.name + ". Required materials: 500 Iron, 250 Titanium, 200 Electronics and 150 Microchips. " +
                 (buildSeconds == 0 ? "The gate will become operational as soon as it is fully funded." :
                 "After funding, construction will take " + TimeText(buildSeconds) + ".") +
-                " Contribute with /station jumpgate-contribute " + stationId + " <item id> <amount>.";
+                " Contribute with /station jumpgate-contribute " + orbitStationIndex + " <item id> <amount>.";
         }
 
-        internal static string ContributeJumpgate(NetPlayer by, int stationId, int item, int amount)
+        internal static string ContributeJumpgate(NetPlayer by, int orbitStationIndex, int item, int amount)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Player jumpgate construction needs a persistent server.";
@@ -130,42 +198,40 @@ namespace GoF2Remake.Multiplayer
                 return "Use a controlled player profile to contribute materials.";
             if (amount < 1 || amount > 500 || !NetGuard.Item(item))
                 return "Deposit between 1 and 500 units of a valid item.";
-            var record = Find(stationId);
-            if (record == null || record.jumpgateDestinationSystem < 0 || !record.jumpgateBuilding ||
-                record.jumpgateStartedUtc > 0)
+            var gate = FindJumpgate(orbitStationIndex);
+            if (gate == null || gate.destinationSystem < 0 || !gate.building || gate.startedUtc > 0)
                 return "That jumpgate project is not accepting materials.";
-            var material = record.jumpgateMaterials?.Find(x => x != null && x.item == item);
+            var material = gate.materials?.Find(x => x != null && x.item == item);
             if (material == null) return "That item is not required for this jumpgate.";
             int remaining = material.required - material.delivered;
             if (amount > remaining) return "The project needs only " + remaining + " more units of that material.";
             string account = NetProfiles.AccountOf(by.OwnerClientId);
             if (string.IsNullOrEmpty(account)) return "Your controlled player profile is unavailable.";
 
-            bool factionOwned = record.ownershipType == PlayerStationOwnershipType.Faction;
+            bool factionOwned = gate.ownershipType == PlayerStationOwnershipType.Faction;
             long unitValue = 0, payout = 0;
             if (factionOwned)
             {
                 unitValue = Math.Max(1, NetGame.Db?.Item(item)?.minPrice ?? 0);
                 if (unitValue > long.MaxValue / amount) return "The contribution value is outside the supported credit range.";
                 payout = unitValue * amount;
-                long bank = NetFactions.BankAmount(record.ownerFactionId);
+                long bank = NetFactions.BankAmount(gate.ownerFactionId);
                 if (bank < 0) return "The owning faction treasury is unavailable; no materials were taken.";
                 if (bank < payout) return "The faction bank needs " + payout.ToString("N0") +
                     " credits to pay this contribution but only has " + bank.ToString("N0") + ". Your materials were not taken.";
             }
 
-            record.jumpgateContributions ??= new List<PlayerStationContribution>();
-            var contribution = record.jumpgateContributions.Find(x => x != null &&
+            gate.contributions ??= new List<PlayerStationContribution>();
+            var contribution = gate.contributions.Find(x => x != null &&
                 string.Equals(x.contributorProfile, account, StringComparison.Ordinal) && x.item == item);
             if (contribution == null)
-                record.jumpgateContributions.Add(contribution = new PlayerStationContribution
+                gate.contributions.Add(contribution = new PlayerStationContribution
                 { contributorProfile = account, item = item, amount = 0, unitValue = unitValue,
                     contributedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
-            int oldDelivered = material.delivered;
-            int oldAmount = contribution.amount;
+            int oldDelivered = material.delivered, oldAmount = contribution.amount;
             long oldPaid = contribution.paidCredits, oldPaidUtc = contribution.paidUtc;
-            bool oldBuilding = record.jumpgateBuilding;
-            long oldStarted = record.jumpgateStartedUtc, oldCompletes = record.jumpgateCompletesUtc;
+            bool oldBuilding = gate.building;
+            long oldStarted = gate.startedUtc, oldCompletes = gate.completesUtc, oldChanged = gate.destinationChangedUtc;
             material.delivered += amount;
             contribution.amount += amount;
             if (factionOwned)
@@ -174,18 +240,18 @@ namespace GoF2Remake.Multiplayer
                 contribution.paidCredits += payout;
                 contribution.paidUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             }
-            bool complete = record.jumpgateMaterials.TrueForAll(x => x == null || x.delivered >= x.required);
+            bool complete = gate.materials.TrueForAll(x => x == null || x.delivered >= x.required);
             if (complete)
             {
-                int duration = Math.Max(0, record.jumpgateBuildSeconds);
                 long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                record.jumpgateStartedUtc = now;
-                record.jumpgateCompletesUtc = now + duration;
-                record.jumpgateBuilding = duration > 0;
+                gate.startedUtc = now;
+                gate.completesUtc = now + Math.Max(0, gate.buildSeconds);
+                gate.building = gate.buildSeconds > 0;
+                if (!gate.building) gate.destinationChangedUtc = now;
             }
 
             bool committed = factionOwned
-                ? CommitConstructionContribution(account, record.ownerFactionId, item, amount, payout)
+                ? CommitConstructionContribution(account, gate.ownerFactionId, item, amount, payout)
                 : CommitCargoTransaction(account, (item, -amount));
             if (!committed)
             {
@@ -193,44 +259,100 @@ namespace GoF2Remake.Multiplayer
                 contribution.amount = oldAmount;
                 contribution.paidCredits = oldPaid;
                 contribution.paidUtc = oldPaidUtc;
-                record.jumpgateBuilding = oldBuilding;
-                record.jumpgateStartedUtc = oldStarted;
-                record.jumpgateCompletesUtc = oldCompletes;
-                if (contribution.amount <= 0) record.jumpgateContributions.Remove(contribution);
+                gate.building = oldBuilding;
+                gate.startedUtc = oldStarted;
+                gate.completesUtc = oldCompletes;
+                gate.destinationChangedUtc = oldChanged;
+                if (contribution.amount <= 0) gate.contributions.Remove(contribution);
                 return "The contribution transaction could not be committed; no materials were taken.";
             }
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Jumpgate construction");
-            string message = "Contributed " + amount + " x " + NetGame.Db.Item(item).name + " to the jumpgate in " + record.name + "'s orbit.";
+            string message = "Contributed " + amount + " x " + NetGame.Db.Item(item).name + " to jumpgate orbit " + orbitStationIndex + ".";
             if (factionOwned) message += " Paid " + payout.ToString("N0") + " credits from the faction bank.";
-            if (complete) message += record.jumpgateBuilding
-                ? " Materials complete. Construction timer started."
-                : " Jumpgate is now operational.";
+            if (complete) message += gate.building ? " Materials complete. Construction timer started." : " Jumpgate is now operational.";
             return message;
         }
 
-        internal static string JumpgateStatus(NetPlayer by, int stationId)
+        internal static string ChangeJumpgateDestination(NetPlayer by, int orbitStationIndex, int destinationSystem)
         {
-            var record = Find(stationId);
-            if (record == null) return "No player station with that id exists.";
-            if (!CanViewStationRecord(by, record)) return "Jumpgate project details are private to station managers.";
-            CompleteJumpgateIfDue(record);
-            if (record.jumpgateDestinationSystem < 0) return "No jumpgate is built or under construction in this orbit.";
-            string destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == record.jumpgateDestinationSystem)?.name
-                ?? ("System " + record.jumpgateDestinationSystem);
-            var lines = new List<string> { "Jumpgate in " + record.name + "'s orbit", "Destination: " + destination };
-            if (record.jumpgateMaterials != null)
-                foreach (var m in record.jumpgateMaterials)
+            var gate = FindJumpgate(orbitStationIndex);
+            if (gate == null) return "No player-built jumpgate exists in that orbit.";
+            if (!CanManageJumpgate(by, gate, out _))
+                return "Only the gate owner or an authorised faction manager can change its destination while docked.";
+            CompleteJumpgateIfDue(gate);
+            if (gate.building || gate.startedUtc <= 0) return "The jumpgate must be fully operational before changing its destination.";
+            if (destinationSystem == gate.system) return "A jumpgate must connect to a different system.";
+            var destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == destinationSystem);
+            if (destination?.stations == null || destination.stations.Count == 0)
+                return "Choose a valid destination system with at least one orbital location.";
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            long readyAt = gate.destinationChangedUtc + JumpgateDestinationCooldownSeconds;
+            if (gate.destinationChangedUtc > 0 && now < readyAt)
+                return "This gate's destination can next be changed in " + TimeText(readyAt - now) + ". Destinations can be changed once every 24 hours.";
+            int previous = gate.destinationSystem;
+            long previousChanged = gate.destinationChangedUtc;
+            gate.destinationSystem = destinationSystem;
+            gate.destinationChangedUtc = now;
+            if (!Save())
+            {
+                gate.destinationSystem = previous;
+                gate.destinationChangedUtc = previousChanged;
+                return "The destination change could not be saved.";
+            }
+            return "Jumpgate in orbit " + orbitStationIndex + " now links to " + destination.name +
+                ". Its next destination change is available in 24 hours.";
+        }
+
+        internal static string JumpgateOrbits(int systemIndex)
+        {
+            var system = NetGame.Db?.Systems?.Find(x => x != null && x.index == systemIndex);
+            if (system?.stations == null) return "No system with that index exists.";
+            var lines = new List<string> { "Orbital locations in " + system.name + ":" };
+            foreach (int orbit in system.stations)
+            {
+                var station = NetGame.Db.Stations.Find(x => x != null && x.index == orbit);
+                var gate = FindJumpgate(orbit);
+                string label = station?.name ?? ("Orbit " + orbit);
+                if (system.jumpgateStation == orbit) label += " [original jumpgate]";
+                else if (gate != null) label += gate.building ? " [player gate under construction]" : " [player jumpgate]";
+                else label += " [available]";
+                lines.Add("Orbit " + orbit + ": " + label);
+            }
+            return string.Join("\n", lines);
+        }
+
+        internal static string JumpgateStatus(NetPlayer by, int orbitStationIndex)
+        {
+            var gate = FindJumpgate(orbitStationIndex);
+            if (gate == null) return "No player-built jumpgate exists in orbit " + orbitStationIndex + ".";
+            if (!CanViewJumpgate(by, gate)) return "Jumpgate project details are private to its owner and authorised faction members.";
+            CompleteJumpgateIfDue(gate);
+            string destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == gate.destinationSystem)?.name
+                ?? ("System " + gate.destinationSystem);
+            string origin = NetGame.Db?.Systems?.Find(x => x != null && x.index == gate.system)?.name
+                ?? ("System " + gate.system);
+            var lines = new List<string> { "Jumpgate in orbit " + orbitStationIndex + " (" + origin + ")",
+                "Destination: " + destination };
+            if (gate.materials != null)
+                foreach (var m in gate.materials)
                     if (m != null) lines.Add((NetGame.Db?.Item(m.item)?.name ?? ("Item " + m.item)) +
                         ": " + m.delivered + "/" + m.required);
-            if (record.jumpgateStartedUtc <= 0) lines.Add("Status: awaiting materials");
-            else if (record.jumpgateBuilding)
+            if (gate.startedUtc <= 0) lines.Add("Status: awaiting materials");
+            else if (gate.building)
             {
-                long remaining = Math.Max(0, record.jumpgateCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                long remaining = Math.Max(0, gate.completesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
                 lines.Add("Status: under construction, " + TimeText(remaining) + " remaining");
             }
             else lines.Add("Status: operational");
-            lines.Add("One jumpgate per orbit. Each gate has one fixed destination system.");
+            if (!gate.building && gate.destinationChangedUtc > 0)
+            {
+                long readyAt = gate.destinationChangedUtc + JumpgateDestinationCooldownSeconds;
+                lines.Add("Destination can next be changed: " +
+                    (readyAt <= DateTimeOffset.UtcNow.ToUnixTimeSeconds() ? "now" :
+                    "in " + TimeText(readyAt - DateTimeOffset.UtcNow.ToUnixTimeSeconds())));
+            }
+            lines.Add("One gate per orbit. Destination changes are limited to once every 24 hours.");
             return string.Join("\n", lines);
         }
 
