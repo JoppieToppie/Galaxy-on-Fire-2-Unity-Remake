@@ -77,7 +77,12 @@ namespace GoF2Remake.Multiplayer
         public string contributorProfile;
         public int item;
         public int amount;
+        /// <summary>Fixed catalogue unit value used when the contribution was paid.</summary>
+        public long unitValue;
+        /// <summary>Total credits actually paid to this contributor from the faction bank.</summary>
+        public long paidCredits;
         public long contributedUtc;
+        public long paidUtc;
     }
 
     [Serializable]
@@ -347,30 +352,64 @@ namespace GoF2Remake.Multiplayer
             string account = NetProfiles.AccountOf(by.OwnerClientId);
             if (string.IsNullOrEmpty(account)) return "Your player profile is unavailable.";
 
+            bool factionOwned = record.ownershipType == PlayerStationOwnershipType.Faction;
+            long unitValue = 0, payout = 0;
+            if (factionOwned)
+            {
+                var itemData = NetGame.Db?.Item(item);
+                // Use the static catalogue floor, not a live station quote or a player-controlled listing price.
+                // This makes contribution valuation deterministic and prevents market-price manipulation.
+                unitValue = Math.Max(1, itemData?.minPrice ?? 0);
+                if (unitValue > long.MaxValue / amount) return "The contribution value is outside the supported credit range.";
+                payout = unitValue * amount;
+                long bank = NetFactions.BankAmount(record.ownerFactionId);
+                if (bank < 0) return "The owning faction treasury is unavailable; no materials were taken.";
+                if (bank < payout)
+                    return $"The faction bank needs {payout:N0} credits to pay this contribution but only has {bank:N0}. Your materials were not taken.";
+            }
+
             record.constructionContributions ??= new List<PlayerStationContribution>();
             var contribution = record.constructionContributions.Find(x => x != null &&
                 string.Equals(x.contributorProfile, account, StringComparison.Ordinal) && x.item == item);
             if (contribution == null)
                 record.constructionContributions.Add(contribution = new PlayerStationContribution
-                { contributorProfile = account, item = item, amount = 0, contributedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+                { contributorProfile = account, item = item, amount = 0, unitValue = unitValue, paidCredits = 0,
+                    contributedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+            long previousPaid = contribution.paidCredits;
+            long previousPaidUtc = contribution.paidUtc;
             contribution.amount += amount;
+            if (factionOwned)
+            {
+                contribution.unitValue = unitValue;
+                contribution.paidCredits += payout;
+                contribution.paidUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            }
             resource.delivered += amount;
             bool complete = true;
             foreach (var material in record.materials)
                 if (material != null && material.delivered < material.required) { complete = false; break; }
             if (complete) record.underConstruction = false;
-            if (!CommitCargoTransaction(account, (item, -amount)))
+
+            bool committed = factionOwned
+                ? CommitConstructionContribution(account, record.ownerFactionId, item, amount, payout)
+                : CommitCargoTransaction(account, (item, -amount));
+            if (!committed)
             {
                 resource.delivered -= amount;
                 contribution.amount -= amount;
+                contribution.paidCredits = previousPaid;
+                contribution.paidUtc = previousPaidUtc;
                 if (contribution.amount <= 0) record.constructionContributions.Remove(contribution);
                 if (complete) record.underConstruction = true;
-                return "The project transaction could not be journalled; no materials were taken.";
+                return factionOwned
+                    ? "The contribution and faction-bank payout could not be committed; no materials were taken."
+                    : "The project transaction could not be journalled; no materials were taken.";
             }
 
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Station construction");
             string result = $"Deposited {amount} x {NetGame.Db.Item(item).name} into {record.name}.";
+            if (factionOwned) result += $" Paid {payout:N0} credits from the faction bank ({unitValue:N0} per unit).";
             return record.underConstruction ? result : result + " Construction is complete; the station is now open.";
         }
 
