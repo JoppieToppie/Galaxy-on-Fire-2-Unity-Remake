@@ -329,6 +329,7 @@ namespace GoF2Remake.UI
                 CloseDialog();
                 a?.Invoke();
             }
+            else if (dryDock != null && dryDock.IsOpen) { Play(buttonRelease); dryDock.Close(); }
             else if (missions != null && missions.IsOpen) { Play(buttonRelease); missions.Close(); }
             else if (status != null && status.IsOpen) { Play(buttonRelease); status.Close(); }
             else if (lounge != null && lounge.ChatOpen) { Play(buttonRelease); lounge.CloseChat(); }
