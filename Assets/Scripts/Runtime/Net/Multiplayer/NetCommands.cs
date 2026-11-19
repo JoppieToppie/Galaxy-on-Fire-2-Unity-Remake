@@ -341,7 +341,7 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
-            new Command { name = "station", usage = "systems | list | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery | storage <id> | refine <id> <ore item id> <amount> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+            new Command { name = "station", usage = "systems | list | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
                 description = () => X("mpCmdStation", "builds stations, installs modules and manages station storage; persistent worlds only") },
         };
@@ -387,6 +387,14 @@ namespace GoF2Remake.Multiplayer
                     !int.TryParse(words[1], out int oreItem) || !int.TryParse(words[2], out int amount))
                     return "/station refine <station id> <ore item id> <amount>";
                 return NetPlayerStations.Refine(by as NetPlayer, stationId, oreItem, amount);
+            }
+            const string access = "access ";
+            if (args.StartsWith(access, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(access.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId))
+                    return "/station access <station id> owner|faction";
+                return NetPlayerStations.SetStorageAccess(by as NetPlayer, stationId, words[1]);
             }
             const string storage = "storage ";
             if (args.StartsWith(storage, StringComparison.OrdinalIgnoreCase))
