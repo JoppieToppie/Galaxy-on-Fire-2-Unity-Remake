@@ -93,10 +93,14 @@ namespace GoF2Remake.Multiplayer
             record.bans ??= new List<PlayerStationBan>();
             record.history ??= new List<PlayerStationHistoryEntry>();
             record.factionPermissions ??= new PlayerStationFactionPermissionProfile();
-            if (record.ownershipType == PlayerStationOwnershipType.Individual && record.factionStorageAccess &&
-                !record.factionPermissions.storage)
+            if (record.governanceVersion < 1)
             {
-                record.factionPermissions.storage = true;
+                bool legacyFactionAccess = record.ownershipType == PlayerStationOwnershipType.Individual
+                    ? record.factionStorageAccess : true;
+                record.factionPermissions.visit = legacyFactionAccess;
+                record.factionPermissions.storage = legacyFactionAccess;
+                record.factionPermissions.hangar = legacyFactionAccess;
+                record.governanceVersion = 1;
                 changed = true;
             }
 
