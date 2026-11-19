@@ -27,7 +27,6 @@ namespace GoF2Remake.Multiplayer
             if (record == null) return "No player station with that id exists.";
             if (!CanManage(by, record, out string account) || !IsOwnershipAuthority(record, account))
                 return "Only the individual owner or owning faction leader can propose a station transfer while docked there.";
-            if (record.underConstruction) return "Finish station construction before transferring ownership.";
             targetKind = (targetKind ?? "").Trim().ToLowerInvariant();
             targetAccount = NetProfiles.FindAccount((targetAccount ?? "").Trim());
             if (targetKind != "player" && targetKind != "faction")
@@ -69,6 +68,10 @@ namespace GoF2Remake.Multiplayer
                 record.pendingTransfer = previousProposal;
                 return "The transfer proposal could not be saved.";
             }
+            string recipient = record.pendingTransfer.targetProfile;
+            foreach (ulong client in NetProfiles.ClientsOf(recipient))
+                NetState.Instance?.Notify(client, "A station ownership transfer for " + record.name +
+                    " is awaiting your acceptance. Dock there and use /station transfer-accept " + id + ".");
             return "Transfer proposal recorded. The receiving player or faction leader must dock at this station and use /station transfer-accept " + id + " within seven days.";
         }
 
@@ -131,6 +134,8 @@ namespace GoF2Remake.Multiplayer
                 record.pendingTransfer = proposal;
                 return "The ownership change could not be saved; the previous owner and pending proposal were restored.";
             }
+            foreach (ulong client in NetProfiles.ClientsOf(proposal.proposedBy))
+                NetState.Instance?.Notify(client, "Ownership of " + record.name + " has been transferred successfully.");
             return "Station ownership transferred successfully. Personal ships, contributor-owned storage and existing marketplace seller claims remain separate from station ownership.";
         }
 
