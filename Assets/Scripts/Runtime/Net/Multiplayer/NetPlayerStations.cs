@@ -18,6 +18,9 @@ namespace GoF2Remake.Multiplayer
     {
         // The database station index is the stable orbital anchor and unique gate identifier.
         public int orbitStationIndex = -1;
+        // Ownership follows the player station that authorised construction, not the orbital anchor.
+        // -1 denotes a legacy gate whose sponsor could not be identified unambiguously.
+        public int sponsorStationId = -1;
         public int system;
         public int destinationSystem = -1;
         public PlayerStationOwnershipType ownershipType = PlayerStationOwnershipType.Individual;
