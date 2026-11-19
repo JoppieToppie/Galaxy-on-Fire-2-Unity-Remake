@@ -35,6 +35,7 @@ namespace GoF2Remake.Multiplayer
         public List<PlayerStationAddon> addons = new List<PlayerStationAddon>();
         public List<PlayerStationListing> listings = new List<PlayerStationListing>();
         public List<PlayerStationStorage> storage = new List<PlayerStationStorage>();
+        public List<PlayerStationStorageLot> storageLots = new List<PlayerStationStorageLot>();
         public List<StoredShip> storedShips = new List<StoredShip>();
         // Parallel owner lists preserve the existing StoredShip save format while ensuring shared access never
         // grants ownership of another pilot's hull. Legacy entries are assigned to the station's individual owner.
@@ -52,6 +53,14 @@ namespace GoF2Remake.Multiplayer
         public bool factionStorageAccess;
         public List<PlayerStationContribution> constructionContributions = new List<PlayerStationContribution>();
         public PlayerStationTransferProposal pendingTransfer;
+    }
+
+    [Serializable]
+    public sealed class PlayerStationStorageLot
+    {
+        public string ownerProfile;
+        public int item;
+        public int amount;
     }
 
     [Serializable]
@@ -158,6 +167,7 @@ namespace GoF2Remake.Multiplayer
                 station.listings ??= new List<PlayerStationListing>();
                 station.constructionContributions ??= new List<PlayerStationContribution>();
                 station.storage ??= new List<PlayerStationStorage>();
+                NormalizeStorageLots(station);
                 station.storedShips ??= new List<StoredShip>();
                 station.dryDockShips ??= new List<StoredShip>();
                 NormalizeOwnershipAndHullOwners(station);
@@ -188,6 +198,7 @@ namespace GoF2Remake.Multiplayer
                     station.listings ??= new List<PlayerStationListing>();
                     station.constructionContributions ??= new List<PlayerStationContribution>();
                     station.storage ??= new List<PlayerStationStorage>();
+                    NormalizeStorageLots(station);
                     station.storedShips ??= new List<StoredShip>();
                     station.dryDockShips ??= new List<StoredShip>();
                     NormalizeOwnershipAndHullOwners(station);
@@ -225,6 +236,23 @@ namespace GoF2Remake.Multiplayer
                 station.storedShipOwners.RemoveRange(station.storedShips?.Count ?? 0, station.storedShipOwners.Count - (station.storedShips?.Count ?? 0));
             if (station.dryDockShipOwners.Count > (station.dryDockShips?.Count ?? 0))
                 station.dryDockShipOwners.RemoveRange(station.dryDockShips?.Count ?? 0, station.dryDockShipOwners.Count - (station.dryDockShips?.Count ?? 0));
+        }
+
+        static void NormalizeStorageLots(PlayerStationRecord station)
+        {
+            station.storageLots ??= new List<PlayerStationStorageLot>();
+            // Legacy inventory has no depositor identity. Attribute it to the station's individual owner,
+            // preserving the goods as that profile's property instead of gifting them to a later owner.
+            foreach (var stack in station.storage ?? new List<PlayerStationStorage>())
+            {
+                if (stack == null || stack.amount <= 0) continue;
+                int attributed = 0;
+                foreach (var lot in station.storageLots)
+                    if (lot != null && lot.item == stack.item) attributed += Math.Max(0, lot.amount);
+                if (attributed < stack.amount)
+                    station.storageLots.Add(new PlayerStationStorageLot
+                    { ownerProfile = station.ownerProfile ?? "", item = stack.item, amount = stack.amount - attributed });
+            }
         }
 
         /// <summary>Find a station by its persistent server-assigned id.</summary>
