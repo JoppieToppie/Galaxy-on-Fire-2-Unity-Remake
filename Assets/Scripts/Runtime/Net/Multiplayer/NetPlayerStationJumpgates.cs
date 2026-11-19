@@ -31,11 +31,16 @@ namespace GoF2Remake.Multiplayer
 
         static void CompleteJumpgateIfDue(PlayerStationRecord record)
         {
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             if (record == null || !record.jumpgateBuilding || record.jumpgateCompletesUtc <= 0 ||
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds() < record.jumpgateCompletesUtc) return;
-            if (!NetGame.IsServer) return;
+                now < record.jumpgateCompletesUtc || now < nextJumpgateRetryUtc || !NetGame.IsServer) return;
             record.jumpgateBuilding = false;
-            if (!Save()) record.jumpgateBuilding = true;
+            if (!Save())
+            {
+                record.jumpgateBuilding = true;
+                nextJumpgateRetryUtc = now + 5;
+            }
+            else nextJumpgateRetryUtc = 0;
         }
 
         /// <summary>Server update loop: commit timed jumpgates when their UTC build deadline expires.</summary>
