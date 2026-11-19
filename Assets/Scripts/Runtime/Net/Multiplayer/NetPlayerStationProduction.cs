@@ -77,7 +77,6 @@ namespace GoF2Remake.Multiplayer
             record.dryDockShip = -1;
             record.dryDockStartedUtc = 0;
             record.dryDockCompletesUtc = 0;
-            record.dryDockBuilderProfile = null;
             record.dryDockConsumeBlueprint = false;
         }
 
@@ -92,7 +91,6 @@ namespace GoF2Remake.Multiplayer
             record.dryDockShips.Add(new StoredShip(ship, race, new List<int>()));
             long started = record.dryDockStartedUtc, completes = record.dryDockCompletesUtc;
             int blueprint = record.dryDockBlueprintItem;
-            string builder = record.dryDockBuilderProfile;
             bool consume = record.dryDockConsumeBlueprint;
             ClearDryDockJob(record);
             if (Save()) return true;
@@ -102,7 +100,6 @@ namespace GoF2Remake.Multiplayer
             record.dryDockShip = ship;
             record.dryDockStartedUtc = started;
             record.dryDockCompletesUtc = completes;
-            record.dryDockBuilderProfile = builder;
             record.dryDockConsumeBlueprint = consume;
             return false;
         }
@@ -215,7 +212,6 @@ namespace GoF2Remake.Multiplayer
             record.dryDockShip = shipIndex;
             record.dryDockStartedUtc = now;
             record.dryDockCompletesUtc = now + duration;
-            record.dryDockBuilderProfile = account;
             record.dryDockConsumeBlueprint = consumeBlueprint;
             if (consumeBlueprint) GoF2Remake.Data.Session.UnlockedBlueprints.Remove(productId);
             if (!Save())
