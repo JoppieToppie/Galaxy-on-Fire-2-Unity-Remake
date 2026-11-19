@@ -269,6 +269,7 @@ namespace GoF2Remake.Modding
                     throw new ModJsonException($"{where}: \"subsystems\" must be a list [ {{ \"kind\": \"turret\", \"position_engine\": [x, y, z], \"item\": 48 }} ]");
                 CheckAddParts(o, where, mod);
                 CheckEngineFx(ModJson.Get(o, "engineFx"), where, mod);
+                CheckMounts(o, where, mod);   // secondary-only launch direction and homing delay
                 foreach (var prop in o.Properties())
                     if (!ShipFields.Contains(prop.Name)) mod.Warnings.Add($"{ModJson.Where(prop, ShipsFile)}: unknown field \"{prop.Name}\" (ignored)");
                 if (ModJson.Get(o, "race") is JToken rt && rt.Type == JTokenType.String) d.raceRef = (string)rt;   // a mod race (ModRaces)
@@ -335,6 +336,40 @@ namespace GoF2Remake.Modding
             foreach (var (field, instead) in RetiredEngineFx)
                 if (ModJson.Has(fx, field))
                     mod.Warnings.Add($"{where}: \"engineFx\": \"{field}\" is no longer read (ignored): Galaxy on Fire 3's engines use \"{instead}\" now");
+        }
+
+        /// <summary>Validate secondary hardpoint launch settings early, with a location a modder can fix.</summary>
+        static void CheckMounts(JObject o, string where, ModInfo mod)
+        {
+            var token = ModJson.Get(o, "mounts");
+            if (token == null) return;
+            if (!(token is JArray mounts)) throw new ModJsonException($"{where}: \"mounts\" must be a list of mount objects");
+            foreach (var entry in mounts)
+            {
+                string at = ModJson.Where(entry, ShipsFile);
+                if (!(entry is JObject mount)) throw new ModJsonException($"{at}: each mount must be an object");
+                int slot = ModJson.Int(mount, "slotType", -1, ShipsFile);
+                bool hasLaunch = ModJson.Has(mount, "launchRotation");
+                bool hasDelay = ModJson.Has(mount, "lockDelayMs");
+                if (hasLaunch)
+                {
+                    var rotation = ModJson.Get(mount, "launchRotation");
+                    bool Number(JToken n) => n is JValue v && (v.Type == JTokenType.Integer || v.Type == JTokenType.Float)
+                                             && !float.IsNaN((float)v) && !float.IsInfinity((float)v);
+                    if (!(rotation is JArray values) || (values.Count != 3 && values.Count != 4) || values.Any(v => !Number(v)))
+                        throw new ModJsonException($"{ModJson.Where(rotation, ShipsFile)}: \"launchRotation\" must be three Euler degrees [x, y, z] or a four-value quaternion [x, y, z, w]");
+                    if (values.Count == 4)
+                    {
+                        double magnitude = 0;
+                        foreach (var v in values) magnitude += (double)(float)v * (float)v;
+                        if (magnitude < 1e-12) throw new ModJsonException($"{ModJson.Where(rotation, ShipsFile)}: \"launchRotation\" quaternion must not be zero");
+                    }
+                }
+                if (hasDelay && ModJson.Int(mount, "lockDelayMs", 0, ShipsFile) < 0)
+                    throw new ModJsonException($"{ModJson.Where(ModJson.Get(mount, "lockDelayMs"), ShipsFile)}: \"lockDelayMs\" must be zero or greater");
+                if (slot != 1 && (hasLaunch || hasDelay))
+                    mod.Warnings.Add($"{at}: \"launchRotation\" and \"lockDelayMs\" are only used on secondary mounts (ignored here)");
+            }
         }
 
         /// <summary>ships.json "addParts": a list of { model, role, texture } (CustomAddPart). A wrong shape or role is an error,
