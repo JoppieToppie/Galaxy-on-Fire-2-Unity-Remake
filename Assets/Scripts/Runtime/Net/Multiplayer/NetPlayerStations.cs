@@ -241,6 +241,7 @@ namespace GoF2Remake.Multiplayer
                         File.Copy(path, damagedPath, true);
                         // Do not use NetProfiles.Write here: it would overwrite the known-good backup with the corrupt primary.
                         string recoveryPath = path + ".recovered";
+                        if (File.Exists(recoveryPath)) File.Delete(recoveryPath);
                         File.WriteAllText(recoveryPath, backupJson);
                         if (File.Exists(path)) File.Delete(path);
                         File.Move(recoveryPath, path);
@@ -252,8 +253,10 @@ namespace GoF2Remake.Multiplayer
                     string backupJson = File.ReadAllText(backupPath);
                     registry = JsonUtility.FromJson<Registry>(backupJson);
                     if (registry == null) throw new InvalidDataException("registry backup produced no data");
-                    File.WriteAllText(path + ".recovered", backupJson);
-                    File.Move(path + ".recovered", path);
+                    string recoveryPath = path + ".recovered";
+                    if (File.Exists(recoveryPath)) File.Delete(recoveryPath);
+                    File.WriteAllText(recoveryPath, backupJson);
+                    File.Move(recoveryPath, path);
                     Debug.LogWarning($"NetPlayerStations: restored missing {FileName} from its backup.");
                 }
                 else registry = new Registry();
