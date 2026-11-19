@@ -23,7 +23,8 @@ namespace GoF2Remake.Multiplayer
         public PlayerStationPermission permission;
         public PlayerStationPermissionState state = PlayerStationPermissionState.Inherit;
         public string setBy;
-        public bool builderOverride;
+        public PlayerStationPermissionState builderState = PlayerStationPermissionState.Inherit;
+        public string builderSetBy;
     }
 
     [Serializable]
@@ -208,10 +209,9 @@ namespace GoF2Remake.Multiplayer
             if (permission == PlayerStationPermission.Visit)
             {
                 if (HasBan(record, account, PlayerStationBanSource.OriginalBuilder)) return false;
-                var builderOverride = FindPermissionOverride(record, account, PlayerStationPermission.Visit);
-                if (builderOverride?.builderOverride == true &&
-                    builderOverride.state != PlayerStationPermissionState.Inherit)
-                    return builderOverride.state == PlayerStationPermissionState.Allow;
+                var visitorOverride = FindPermissionOverride(record, account, PlayerStationPermission.Visit);
+                if (visitorOverride != null && visitorOverride.builderState != PlayerStationPermissionState.Inherit)
+                    return visitorOverride.builderState == PlayerStationPermissionState.Allow;
                 if (builder) return true;
                 if (HasBan(record, account, PlayerStationBanSource.Faction)) return false;
             }
@@ -226,8 +226,7 @@ namespace GoF2Remake.Multiplayer
                 permission == PlayerStationPermission.Appearance)) return true;
 
             var explicitOverride = FindPermissionOverride(record, account, permission);
-            if (explicitOverride != null && !explicitOverride.builderOverride &&
-                explicitOverride.state != PlayerStationPermissionState.Inherit)
+            if (explicitOverride != null && explicitOverride.state != PlayerStationPermissionState.Inherit)
             {
                 if (explicitOverride.state == PlayerStationPermissionState.Deny) return false;
                 string ownerFactionId = StationFactionId(record);
@@ -297,7 +296,9 @@ namespace GoF2Remake.Multiplayer
                 targetAccount, remove ? "Station role removed." : "Assigned role " + role + ".");
             if (Save()) return remove ? "Station role removed from " + targetAccount + "." :
                 "Assigned " + role + " to " + targetAccount + ".";
-            if (previous != null) record.roleAssignments.Add(savedPrevious);
+            record.roleAssignments.RemoveAll(x => x != null &&
+                string.Equals(x.account, targetAccount, StringComparison.Ordinal));
+            if (savedPrevious != null) record.roleAssignments.Add(savedPrevious);
             if (record.history != null && record.history.Count > oldHistoryCount)
                 record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
             record.nextHistorySequence = oldSequence;
@@ -333,17 +334,35 @@ namespace GoF2Remake.Multiplayer
             record.permissionOverrides ??= new List<PlayerStationPermissionOverride>();
             var previous = FindPermissionOverride(record, targetAccount, permission);
             PlayerStationPermissionOverride savedPrevious = previous == null ? null : new PlayerStationPermissionOverride
-            { account = previous.account, permission = previous.permission, state = previous.state, setBy = previous.setBy, builderOverride = previous.builderOverride };
+            { account = previous.account, permission = previous.permission, state = previous.state, setBy = previous.setBy,
+                builderState = previous.builderState, builderSetBy = previous.builderSetBy };
             int oldHistoryCount = record.history?.Count ?? 0, oldSequence = record.nextHistorySequence;
-            if (previous != null) record.permissionOverrides.Remove(previous);
-            if (state != PlayerStationPermissionState.Inherit)
-                record.permissionOverrides.Add(new PlayerStationPermissionOverride
-                { account = targetAccount, permission = permission, state = state, setBy = account, builderOverride = builder });
+            var current = previous;
+            if (current == null)
+            {
+                current = new PlayerStationPermissionOverride { account = targetAccount, permission = permission };
+                record.permissionOverrides.Add(current);
+            }
+            if (builder)
+            {
+                current.builderState = state;
+                current.builderSetBy = state == PlayerStationPermissionState.Inherit ? null : account;
+            }
+            else
+            {
+                current.state = state;
+                current.setBy = state == PlayerStationPermissionState.Inherit ? null : account;
+            }
+            if (current.state == PlayerStationPermissionState.Inherit &&
+                current.builderState == PlayerStationPermissionState.Inherit)
+                record.permissionOverrides.Remove(current);
             RecordHistory(record, account, "station-permission-changed", targetAccount,
                 permission + " set to " + state + (builder ? " by original builder." : "."));
             if (Save()) return state == PlayerStationPermissionState.Inherit
-                ? "Permission override removed; the station default now applies."
+                ? "Permission override removed; the underlying permission default now applies."
                 : permission + " permission set to " + state + " for " + targetAccount + ".";
+            record.permissionOverrides.RemoveAll(x => x != null &&
+                string.Equals(x.account, targetAccount, StringComparison.Ordinal) && x.permission == permission);
             if (savedPrevious != null) record.permissionOverrides.Add(savedPrevious);
             if (record.history != null && record.history.Count > oldHistoryCount)
                 record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
