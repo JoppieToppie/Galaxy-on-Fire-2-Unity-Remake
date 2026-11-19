@@ -1451,6 +1451,8 @@
  "photoUpDown": "上 / 下",
  "photoTouchFree": "拖动环顾 · 双指捏合移动",
  "photoShowInFolder": "在文件夹中显示",
+ "systemMapAnimationSpeed": "地图动画速度",
+ "systemMapAnimationSpeedHelp": "加快星系和完整地图的展开与收起，不改变模拟时间。×2和×4时不播放缩放音效。",
  "hudMode": "飞行HUD",
  "hudFull": "完整",
  "hudMinimal": "精简",
@@ -3641,5 +3643,6 @@
  "mpScriptsNotAllowed": "该游戏使用了你尚未允许的脚本模组：{0}。请先在“模组”中开启一次以允许其脚本，然后重新加入。",
  "mpScriptsShort": "请先允许其脚本：{0}",
  "mpModsCountScripts": "模组（{0}个已开启，含脚本）",
- "scriptNoCommand": "没有命令“{0}”。"
+ "scriptNoCommand": "没有命令“{0}”。",
+ "mapAnimationSpeed": "缩放速度：×{0}"
 }

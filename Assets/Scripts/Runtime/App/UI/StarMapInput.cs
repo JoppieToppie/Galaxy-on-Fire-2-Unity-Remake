@@ -48,6 +48,7 @@ namespace GoF2Remake.UI
                 return;
             }
             if (world == null || zoomDir != 0) return;
+            if (Pressed(k => k.zKey.wasPressedThisFrame, g => g.leftShoulder.wasPressedThisFrame)) CycleAnimationSpeed();
             if (Pressed(k => k.kKey.wasPressedThisFrame, g => g.buttonNorth.wasPressedThisFrame)) { Play(assets.buttonRelease); ToggleKey(); }
             if (!systemView && Pressed(k => k.qKey.wasPressedThisFrame, g => g.buttonWest.wasPressedThisFrame)) SetOverview(!overview);
             if (askVoid && Pressed(k => k.vKey.wasPressedThisFrame, g => g.rightShoulder.wasPressedThisFrame)) { Play(assets.buttonRelease); AskVoid(); return; }
@@ -177,6 +178,7 @@ namespace GoF2Remake.UI
         /// only to collect the hint rows.</summary>
         void UpdateMapButtons()
         {
+            RefreshAnimationSpeed();
             bool sys = systemView || zoomDir > 0;
             if (zoomButton != null)
             {
@@ -187,6 +189,25 @@ namespace GoF2Remake.UI
                 keyButton.style.marginLeft = zoomShown ? new StyleLength(0f) : new StyleLength(StyleKeyword.Null);
             }
             if (voidButton != null) voidButton.style.display = askVoid && builder == null && !revealing ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        string AnimationSpeedText => string.Format(Localization.Extra("mapAnimationSpeed", "Zoom in/out speed: ×{0}"), Settings.SystemMapAnimationSpeed).OgCase();
+
+        void RefreshAnimationSpeed()
+        {
+            if (animationSpeedButton == null) return;
+            animationSpeedButton.text = AnimationSpeedText;
+            animationSpeedButton.tooltip = Localization.Extra("systemMapAnimationSpeed", "Map animation speed") + " (Z / LB)";
+            animationSpeedButton.style.display = builder == null && !revealing ? DisplayStyle.Flex : DisplayStyle.None;
+            FitSideButtons();
+        }
+
+        void CycleAnimationSpeed()
+        {
+            if (builder != null || revealing || DialogOpen || zoomDir != 0 || OverviewMoving) return;
+            Settings.SystemMapAnimationSpeed = Settings.SystemMapAnimationSpeed == 1 ? 2 : Settings.SystemMapAnimationSpeed == 2 ? 4 : 1;
+            Play(assets.buttonRelease);
+            BuildHints(InputMode.Current);
         }
         /// <summary>Modified: the hint rows for 'kind' into 'into' (the hint bar's box, or the "i" window's).</summary>
         void AddHints(VisualElement into, InputKind kind)
@@ -222,6 +243,7 @@ namespace GoF2Remake.UI
                 if (!sys) Hint(into, fullMap, InputGlyph.Key("Q"));
                 if (askVoid) Hint(into, toVoid, InputGlyph.Key("V"));
                 Hint(into, key, InputGlyph.Key("K"));
+                Hint(into, AnimationSpeedText, InputGlyph.Key("Z"));
                 Hint(into, back, InputGlyph.Key("ESC"));
             }
             else if (kind == InputKind.Gamepad)
@@ -232,6 +254,7 @@ namespace GoF2Remake.UI
                 if (!sys) Hint(into, fullMap, InputGlyph.Pad(PadButton.X));
                 if (askVoid) Hint(into, toVoid, InputGlyph.Pad(PadButton.RightBumper));
                 Hint(into, key, InputGlyph.Pad(PadButton.Y));
+                Hint(into, AnimationSpeedText, InputGlyph.Pad(PadButton.LeftBumper));
                 Hint(into, back, InputGlyph.Pad(PadButton.B));
             }
         }
@@ -253,6 +276,8 @@ namespace GoF2Remake.UI
         void Play(AudioClip clip)
         {
             if (clip == null) return;
+            // Accelerated transitions must not leave the original-length zoom sound playing after they finish.
+            if (Settings.SystemMapAnimationSpeed != 1 && assets != null && (clip == assets.zoomIn || clip == assets.zoomOut)) return;
             Source().PlayOneShot(GoF2Remake.Modding.ModSounds.Get(clip), Settings.SfxVolume);
         }
         AudioSource Source()

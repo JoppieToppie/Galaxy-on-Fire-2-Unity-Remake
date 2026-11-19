@@ -1552,6 +1552,8 @@
  "photoUpDown": "MONTER / DESCENDRE",
  "photoTouchFree": "GLISSER POUR REGARDER · PINCER POUR AVANCER",
  "photoShowInFolder": "AFFICHER DANS LE DOSSIER",
+ "systemMapAnimationSpeed": "Vitesse d’animation de la carte",
+ "systemMapAnimationSpeedHelp": "Accélère l’ouverture et la fermeture des systèmes et de la carte complète sans modifier le temps de simulation. À ×2 et ×4, les sons de zoom sont coupés.",
  "hudMode": "HUD de vol",
  "hudFull": "Complet",
  "hudMinimal": "Minimal",
@@ -3641,5 +3643,6 @@
  "mpScriptsNotAllowed": "Cette partie utilise des mods à scripts que tu n'as pas autorisés : {0}. Active-les une fois dans Mods pour autoriser leurs scripts, puis rejoins à nouveau.",
  "mpScriptsShort": "autorise d'abord ses scripts : {0}",
  "mpModsCountScripts": "Mods ({0} activés, avec scripts)",
- "scriptNoCommand": "Aucune commande « {0} »."
+ "scriptNoCommand": "Aucune commande « {0} ».",
+ "mapAnimationSpeed": "Vitesse du zoom : ×{0}"
 }

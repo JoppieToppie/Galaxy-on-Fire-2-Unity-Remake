@@ -1552,6 +1552,8 @@
  "photoUpDown": "HOCH / RUNTER",
  "photoTouchFree": "ZIEHEN ZUM UMSEHEN · ZWEI FINGER ZUM BEWEGEN",
  "photoShowInFolder": "IM ORDNER ZEIGEN",
+ "systemMapAnimationSpeed": "Animationsgeschwindigkeit der Karte",
+ "systemMapAnimationSpeedHelp": "Beschleunigt das Öffnen und Schließen von Systemen und der Gesamtkarte, ohne die Simulationszeit zu ändern. Bei ×2 und ×4 werden die Zoomgeräusche stummgeschaltet.",
  "hudMode": "Flug-HUD",
  "hudFull": "Voll",
  "hudMinimal": "Minimal",
@@ -3641,5 +3643,6 @@
  "mpScriptsNotAllowed": "Dieses Spiel nutzt Skript-Mods, die du nicht erlaubt hast: {0}. Schalte sie einmal unter Mods ein, um ihre Skripte zu erlauben, und tritt dann erneut bei.",
  "mpScriptsShort": "erst die Skripte erlauben: {0}",
  "mpModsCountScripts": "Mods ({0} aktiv, mit Skripten)",
- "scriptNoCommand": "Kein Befehl \"{0}\"."
+ "scriptNoCommand": "Kein Befehl \"{0}\".",
+ "mapAnimationSpeed": "Zoomtempo: ×{0}"
 }

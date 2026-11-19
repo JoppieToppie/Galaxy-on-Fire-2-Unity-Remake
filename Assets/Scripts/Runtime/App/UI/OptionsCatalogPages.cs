@@ -701,6 +701,12 @@ namespace GoF2Remake.UI
                 () => System.Array.ConvertAll(HudOpacitySteps, p => p + " %"),
                 () => Mathf.Max(0, System.Array.IndexOf(HudOpacitySteps, Settings.HudOpacityPercent)), i => Settings.HudOpacityPercent = HudOpacitySteps[Mathf.Clamp(i, 0, HudOpacitySteps.Length - 1)],
                 () => X("hudOpacityHelp", "How solid the HUD markings are; messages and menus stay opaque.")));
+            list.Add(Choice("systemMapAnimationSpeed", OptionPage.Gameplay,
+                () => X("systemMapAnimationSpeed", "Map animation speed"), true,
+                () => new[] { "1×", "2×", "4×" },
+                () => Settings.SystemMapAnimationSpeed == 4 ? 2 : Settings.SystemMapAnimationSpeed == 2 ? 1 : 0,
+                i => Settings.SystemMapAnimationSpeed = 1 << Mathf.Clamp(i, 0, 2),
+                () => X("systemMapAnimationSpeedHelp", "Speeds up opening and closing systems and Full Map without changing simulation time. At ×2 and ×4, zoom sounds are muted.")));
             // Remake (players' request): a far ship's marker that leaves the ship in view, and its distance (CombatView,
             // FarShipMarkers).
             list.Add(Choice("farShipMarkers", OptionPage.Gameplay, () => X("farShipMarkers", "Far ship markers"), true,

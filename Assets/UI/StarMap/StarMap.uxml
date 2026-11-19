@@ -24,10 +24,13 @@
                     <!-- Modified: the right-hand buttons stacked (Jump to the Void, Full map, Key from the top), the key legend above them. -->
                     <ui:VisualElement class="map-side" picking-mode="Ignore">
                         <ui:VisualElement name="keyBox" class="key-box" picking-mode="Ignore" />
-                        <ui:VisualElement name="mapSideButtons" class="map-side-buttons" picking-mode="Ignore">
-                            <ui:Button name="voidButton" class="map-button gof-semibold" />
-                            <ui:Button name="zoomButton" class="map-button gof-semibold" />
-                            <ui:Button name="keyButton" class="map-button gof-semibold" />
+                        <ui:VisualElement name="mapActionStack" class="map-action-stack" picking-mode="Ignore">
+                            <ui:VisualElement name="mapSideButtons" class="map-side-buttons" picking-mode="Ignore">
+                                <ui:Button name="voidButton" class="map-button gof-semibold" />
+                                <ui:Button name="zoomButton" class="map-button gof-semibold" />
+                                <ui:Button name="keyButton" class="map-button gof-semibold" />
+                            </ui:VisualElement>
+                            <ui:Button name="animationSpeedButton" class="map-button gof-semibold" />
                         </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>

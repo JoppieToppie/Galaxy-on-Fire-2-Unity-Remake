@@ -332,3 +332,15 @@ runtime by `Open()`), the flight side in `SystemJump` (on the player ship).
   drag move, + min(|yaw + pitch velocity| · 0.01, 10) per frame in the system view, 0 past 100): entering the parameter
   regions 0 / 25 / 49.8 / 75 plays Map_Click_01 (event volume 0.439); a touch-down restarts it, the back button stops
   it.
+
+- **System map animation speed** (Gameplay): 1x (default), 2x or 4x scales galaxy-to-system zoom and Full Map transitions
+  in both directions. The original duration 32768/15 ms becomes approximately 2185, 1092 or 546 ms.
+  The sine easing, final camera positions, reveal animation, input timers and simulation time remain unchanged.
+
+- **On-map animation control**: the bottom-right Animation button below Key and Full Map cycles the same 1x / 2x / 4x preference as Gameplay;
+  Z / controller LB do the same, and touch uses the button. It is hidden in the mod builder and during reveal, and
+  disabled while a transition or dialog takes input. Animation is the final action under the existing map buttons,
+  with right edges aligned in both UI styles. Its label/help cover all 14 offered languages.
+  At 2x and 4x, Map_Zoom_In / Map_Zoom_Out are suppressed (including the overview's use of those clips); other map
+  sounds remain. At 1x the original audio is unchanged. Full Map uses the same selected multiplier for both entering
+  and leaving the overview.

@@ -925,6 +925,12 @@ namespace GoF2Remake.Data
         /// <summary>Remake (#40): the story step at the bottom right (StoryStepLabel), for bug reports; off by default.</summary>
         public static bool ShowStoryStep { get => GetBool("showStoryStep", true); set => SetBool("showStoryStep", value); }
 
+        public static int SystemMapAnimationSpeed
+        {
+            get { int speed = Mathf.RoundToInt(Get("systemMapAnimationSpeed", 1f)); return speed == 2 || speed == 4 ? speed : 1; }
+            set => Set("systemMapAnimationSpeed", value == 2 || value == 4 ? value : 1);
+        }
+
         /// <summary>Remake (players' request): the speedrun timer with splits (Speedrun, SpeedrunOverlay); a new game starts a run.</summary>
         public static bool SpeedrunTimer { get => GetBool("speedrunTimer", false); set => SetBool("speedrunTimer", value); }
         /// <summary>Remake: the speedrun splits at every story step instead of the chapters (SpeedrunRoute; from the next run).</summary>
@@ -995,6 +1001,7 @@ namespace GoF2Remake.Data
             "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "discordPresence",
             "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare", "hostileAutopilotFastForward",
             "speedrunPosition", "speedrunLiveSplit",
+            "systemMapAnimationSpeed",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
         public static readonly string[] AccessibilityKeys = { "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers", "cursorSize", "dialogueHighlights" };

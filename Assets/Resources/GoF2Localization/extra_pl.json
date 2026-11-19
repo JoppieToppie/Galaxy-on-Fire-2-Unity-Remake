@@ -1552,6 +1552,8 @@
  "photoUpDown": "GÓRA / DÓŁ",
  "photoTouchFree": "PRZECIĄGNIJ, BY SIĘ ROZEJRZEĆ · ZSZCZYPNIJ, BY SIĘ RUSZYĆ",
  "photoShowInFolder": "POKAŻ W FOLDERZE",
+ "systemMapAnimationSpeed": "Szybkość animacji mapy",
+ "systemMapAnimationSpeedHelp": "Przyspiesza otwieranie i zamykanie układów oraz pełnej mapy bez zmiany czasu symulacji. Przy ×2 i ×4 dźwięki zbliżania i oddalania są wyciszone.",
  "hudMode": "HUD lotu",
  "hudFull": "Pełny",
  "hudMinimal": "Minimalny",
@@ -3641,5 +3643,6 @@
  "mpScriptsNotAllowed": "Ta gra używa modów ze skryptami, na które nie masz zgody: {0}. Włącz je raz w Modach, aby zezwolić na ich skrypty, i dołącz ponownie.",
  "mpScriptsShort": "najpierw zezwól na skrypty: {0}",
  "mpModsCountScripts": "Mody (włączone: {0}, ze skryptami)",
- "scriptNoCommand": "Nie ma polecenia \"{0}\"."
+ "scriptNoCommand": "Nie ma polecenia \"{0}\".",
+ "mapAnimationSpeed": "Szybkość zoomu: ×{0}"
 }

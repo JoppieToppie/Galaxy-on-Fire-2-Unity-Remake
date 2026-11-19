@@ -1552,6 +1552,8 @@
  "photoUpDown": "OMHOOG / OMLAAG",
  "photoTouchFree": "SLEEP OM TE KIJKEN · KNIJP OM TE BEWEGEN",
  "photoShowInFolder": "TONEN IN MAP",
+ "systemMapAnimationSpeed": "Animatiesnelheid van de kaart",
+ "systemMapAnimationSpeedHelp": "Versnelt het openen en sluiten van stelsels en de volledige kaart zonder de simulatietijd te veranderen. Bij ×2 en ×4 worden de zoomgeluiden gedempt.",
  "hudMode": "Vlucht-HUD",
  "hudFull": "Volledig",
  "hudMinimal": "Minimaal",
@@ -3641,5 +3643,6 @@
  "mpScriptsNotAllowed": "Dit spel gebruikt scriptmods die je niet hebt toegestaan: {0}. Zet ze één keer aan onder Mods om hun scripts toe te staan en doe dan opnieuw mee.",
  "mpScriptsShort": "sta eerst de scripts toe: {0}",
  "mpModsCountScripts": "Mods ({0} aan, met scripts)",
- "scriptNoCommand": "Geen opdracht \"{0}\"."
+ "scriptNoCommand": "Geen opdracht \"{0}\".",
+ "mapAnimationSpeed": "Zoomsnelheid: ×{0}"
 }

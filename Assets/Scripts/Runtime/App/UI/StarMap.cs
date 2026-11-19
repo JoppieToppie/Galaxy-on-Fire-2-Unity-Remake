@@ -284,8 +284,8 @@ namespace GoF2Remake.UI
         float overviewT;
         Vector2 overviewMin, overviewMax;
         float overviewZ;
-        // As long as the galaxy <-> system zoom (ZoomMs, the same sine ease and the same sounds, Map_Zoom_In 2.68 s / Map_Zoom_Out
-        // 2.32 s): at 650 ms the move was over long before its sound.
+        // Full Map and system zoom share the original base duration and selected animation multiplier.
+        // Zoom clips retain their original 2.68 / 2.32 s duration and play only at 1x.
         const float OverviewMs = ZoomMs;
         float OverviewEase => 0.5f - 0.5f * Mathf.Cos(Mathf.PI * overviewT);
         bool InOverview => overview || overviewT > 0f;
@@ -301,7 +301,7 @@ namespace GoF2Remake.UI
         int lastLayout = -1;
         Vector2Int lastSafeScreen;
         Label energyLine;
-        Button backButton, keyButton, zoomButton, voidButton, dialogYes, dialogNo;
+        Button backButton, keyButton, zoomButton, animationSpeedButton, voidButton, dialogYes, dialogNo;
         /// <summary>Modified: a choice dialog's Back, at its top right (ShowDialog).</summary>
         Button dialogBack;
         /// <summary>Modified: the planet the current press began on in the system view, -1 none (OnPointerUp).</summary>
@@ -341,6 +341,7 @@ namespace GoF2Remake.UI
                 panelRenderer.panelSettings = runtimePanel;   // scaled by UiLayout in UpdateSafeArea
             }
             InputMode.Changed += ApplyInputMode;
+            Settings.Changed += RefreshAnimationSpeed;
         }
 
         void OnDisable()
@@ -348,6 +349,7 @@ namespace GoF2Remake.UI
             CancelPointer();
             panelRenderer?.UnregisterUIReloadCallback(OnUIReload);
             InputMode.Changed -= ApplyInputMode;
+            Settings.Changed -= RefreshAnimationSpeed;
         }
 
         void OnDestroy()
@@ -423,13 +425,14 @@ namespace GoF2Remake.UI
             if (!revealing) HandleKeys(dtMs);
             if (world == null || this == null) return;
             UpdateReveal(dtMs);
-            overviewT = Mathf.MoveTowards(overviewT, overview ? 1f : 0f, dtMs / OverviewMs);
+            overviewT = Mathf.MoveTowards(overviewT, overview ? 1f : 0f, dtMs * Settings.SystemMapAnimationSpeed / OverviewMs);
             // Modified: Full map / Close up clickable again once the camera is there.
             if (zoomButton != null && zoomButton.enabledSelf == OverviewMoving) zoomButton.SetEnabled(!OverviewMoving);
+            if (animationSpeedButton != null) animationSpeedButton.SetEnabled(builder == null && !revealing && !DialogOpen && zoomDir == 0 && !OverviewMoving);
 
             if (zoomDir != 0)
             {
-                zoomMs += zoomDir * dtMs;
+                zoomMs += zoomDir * dtMs * Settings.SystemMapAnimationSpeed;
                 float e = ZoomEase;
                 fade = 255f * (1f - e);
                 // Modified: no shrink along the zoom: the system's sun keeps one size (SystemSunScale).
