@@ -145,6 +145,13 @@ namespace GoF2Remake.UI
                 AddInfo("Owner", selected.ownershipType == PlayerStationOwnershipType.Faction
                     ? (selected.ownerFactionId ?? "Unknown faction") : (selected.ownerName ?? "Unknown"));
                 AddInfo("State", selected.underConstruction ? "Under construction" : "Operational");
+                AddAction("View construction contribution ledger", "/station contributions " + selected.id);
+                AddAction("View ownership transfer status", "/station transfer-status " + selected.id);
+                AddField("transferKind", "Transfer recipient type (player/faction)", "player");
+                AddField("transferAccount", "Recipient profile account ID", "");
+                AddAction("Propose ownership transfer", () => Send("/station transfer " + selected.id + " " + Value("transferKind") + " " + Value("transferAccount")));
+                AddAction("Accept pending transfer", "/station transfer-accept " + selected.id);
+                AddAction("Cancel pending transfer", "/station transfer-cancel " + selected.id);
                 AddInfo("System index", selected.system.ToString());
                 string installed = selected.addons == null || selected.addons.Count == 0
                     ? "None" : string.Join(", ", selected.addons.Where(a => a != null && a.level > 0).Select(a => ModuleLabel(a.kind)));
