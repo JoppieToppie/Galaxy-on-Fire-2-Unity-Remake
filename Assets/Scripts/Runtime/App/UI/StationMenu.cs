@@ -201,6 +201,7 @@ namespace GoF2Remake.UI
             SetupTicker();
             missions = new MissionsWindow(this, level, root);
             status = new StatusWindow(this, level, root);
+            dryDock?.Dispose();
             dryDock = new DryDockWindow(this, level, root);
             root.Q("storyDialogue").pickingMode = PickingMode.Ignore;
             if (voiceSource == null)
