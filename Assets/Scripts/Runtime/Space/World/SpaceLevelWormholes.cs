@@ -217,7 +217,7 @@ namespace GoF2Remake.World
         void UpdatePlayerJumpgate()
         {
             if (Layout == null || Jumpgate != null || Navigation == null || SystemJump == null ||
-                !NetPlayerStations.HasJumpgateAtStation(Layout.stationIndex)) return;
+                !GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(Layout.stationIndex)) return;
             var refreshed = OrbitLayout.Build(db, Layout.stationIndex);
             if (refreshed == null || !refreshed.hasJumpgate) return;
             Layout.hasJumpgate = true;
