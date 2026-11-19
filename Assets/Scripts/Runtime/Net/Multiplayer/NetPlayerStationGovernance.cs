@@ -635,14 +635,17 @@ namespace GoF2Remake.Multiplayer
                 return false;
 
             if (HasBuilderRights(record, account)) return true;
+
+            // The original builder has first say while their profile is in the session, even
+            // when station ownership has since passed to another individual or faction. The
+            // current owner and delegated construction managers may act only while the builder
+            // is absent; a transfer by someone other than the builder does not remove this right.
+            if (OriginalBuilderInSession(record)) return false;
+
             if (record.ownershipType == PlayerStationOwnershipType.Individual)
                 return string.Equals(record.ownerProfile, account, StringComparison.Ordinal);
 
-            // The original builder has first say while their profile is in the session. Any
-            // construction permission delegated by station governance becomes available only
-            // while that builder is absent.
-            return !OriginalBuilderInSession(record) &&
-                HasStationPermission(record, account, PlayerStationPermission.Construction);
+            return HasStationPermission(record, account, PlayerStationPermission.Construction);
         }
 
         internal static bool HasBuilderRights(PlayerStationRecord record, string account)
