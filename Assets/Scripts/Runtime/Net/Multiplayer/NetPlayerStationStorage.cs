@@ -141,7 +141,60 @@ namespace GoF2Remake.Multiplayer
             return stored + incoming <= StorageCapacity(record) && types.Count <= MaxStorageItemTypes;
         }
 
-        static void AddStationItems(PlayerStationRecord record, Dictionary<int, long> items)
+        static void EnsureStorageLots(PlayerStationRecord record)
+        {
+            if (record == null) return;
+            record.storage ??= new List<PlayerStationStorage>();
+            record.storageLots ??= new List<PlayerStationStorageLot>();
+            NormalizeStorageLots(record);
+        }
+
+        static int OwnedStorageAmount(PlayerStationRecord record, string account, int item)
+        {
+            EnsureStorageLots(record);
+            long total = 0;
+            foreach (var lot in record.storageLots)
+                if (lot != null && lot.item == item && string.Equals(lot.ownerProfile, account, StringComparison.Ordinal))
+                    total += Math.Max(0, lot.amount);
+            return (int)Math.Min(int.MaxValue, total);
+        }
+
+        static void AddStorageLot(PlayerStationRecord record, string account, int item, int amount)
+        {
+            if (amount <= 0) return;
+            EnsureStorageLots(record);
+            var lot = record.storageLots.Find(x => x != null && x.item == item &&
+                string.Equals(x.ownerProfile, account, StringComparison.Ordinal));
+            if (lot == null) record.storageLots.Add(lot = new PlayerStationStorageLot { ownerProfile = account, item = item });
+            lot.amount = checked(lot.amount + amount);
+        }
+
+        static bool RemoveStorageLots(PlayerStationRecord record, string account, int item, int amount)
+        {
+            if (amount <= 0 || OwnedStorageAmount(record, account, item) < amount) return false;
+            int remaining = amount;
+            for (int i = record.storageLots.Count - 1; i >= 0 && remaining > 0; i--)
+            {
+                var lot = record.storageLots[i];
+                if (lot == null || lot.item != item || !string.Equals(lot.ownerProfile, account, StringComparison.Ordinal)) continue;
+                int take = Math.Min(remaining, lot.amount);
+                lot.amount -= take;
+                remaining -= take;
+                if (lot.amount <= 0) record.storageLots.RemoveAt(i);
+            }
+            return remaining == 0;
+        }
+
+        static List<PlayerStationStorageLot> CloneStorageLots(PlayerStationRecord record)
+        {
+            EnsureStorageLots(record);
+            var copy = new List<PlayerStationStorageLot>();
+            foreach (var lot in record.storageLots)
+                if (lot != null) copy.Add(new PlayerStationStorageLot { ownerProfile = lot.ownerProfile, item = lot.item, amount = lot.amount });
+            return copy;
+        }
+
+        static void AddStationItems(PlayerStationRecord record, Dictionary<int, long> items, string ownerProfile)
         {
             record.storage ??= new List<PlayerStationStorage>();
             foreach (var pair in items)
@@ -150,6 +203,7 @@ namespace GoF2Remake.Multiplayer
                 var entry = record.storage.Find(x => x != null && x.item == pair.Key);
                 if (entry == null) record.storage.Add(entry = new PlayerStationStorage { item = pair.Key });
                 entry.amount += (int)pair.Value;
+                AddStorageLot(record, ownerProfile, pair.Key, (int)pair.Value);
             }
         }
 
@@ -180,7 +234,8 @@ namespace GoF2Remake.Multiplayer
             var previousStorage = new List<PlayerStationStorage>();
             foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
-            AddStationItems(record, items);
+            var previousLots = CloneStorageLots(record);
+            AddStationItems(record, items, account);
             record.storedShips.Add(BareHull(ship));
             record.storedShipOwners.Add(account);
             if (!Save())
@@ -188,6 +243,7 @@ namespace GoF2Remake.Multiplayer
                 record.storedShips.RemoveAt(record.storedShips.Count - 1);
                 record.storedShipOwners.RemoveAt(record.storedShipOwners.Count - 1);
                 record.storage = previousStorage;
+                record.storageLots = previousLots;
                 if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, ship))
                     Debug.LogError("NetPlayerStations: failed to roll back ship storage transfer for profile " + account);
                 return "The station could not save the transfer; the ship and its inventory were returned to your personal fleet.";
@@ -223,7 +279,8 @@ namespace GoF2Remake.Multiplayer
             var previousStorage = new List<PlayerStationStorage>();
             foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
-            AddStationItems(record, items);
+            var previousLots = CloneStorageLots(record);
+            AddStationItems(record, items, account);
             record.storedShips.RemoveAt(hangarIndex - 1);
             record.storedShipOwners.RemoveAt(hangarIndex - 1);
             if (!Save())
@@ -231,6 +288,7 @@ namespace GoF2Remake.Multiplayer
                 record.storedShips.Insert(hangarIndex - 1, ship);
                 record.storedShipOwners.Insert(hangarIndex - 1, account);
                 record.storage = previousStorage;
+                record.storageLots = previousLots;
                 var personal = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
                 if (personal == null || personal.Count == 0 || !NetProfiles.RemoveStoredShip(account, by.OwnerClientId, personal.Count - 1, out _))
                     Debug.LogError("NetPlayerStations: failed to roll back ship retrieval for profile " + account);
@@ -344,6 +402,7 @@ namespace GoF2Remake.Multiplayer
                 record.dryDockShips.RemoveAt(record.dryDockShips.Count - 1);
                 record.dryDockShipOwners.RemoveAt(record.dryDockShipOwners.Count - 1);
                 record.storage = previousStorage;
+                record.storageLots = previousLots;
                 if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, ship))
                     Debug.LogError("NetPlayerStations: failed to roll back dry dock transfer for profile " + account);
                 return "The dry dock could not save the transfer; the ship and its inventory were returned to your personal fleet.";
@@ -383,6 +442,7 @@ namespace GoF2Remake.Multiplayer
                 record.dryDockShips.Insert(dockIndex - 1, ship);
                 record.dryDockShipOwners.Insert(dockIndex - 1, account);
                 record.storage = previousStorage;
+                record.storageLots = previousLots;
                 var personal = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
                 if (personal == null || personal.Count == 0 || !NetProfiles.RemoveStoredShip(account, by.OwnerClientId, personal.Count - 1, out _))
                     Debug.LogError("NetPlayerStations: failed to roll back dry dock retrieval for profile " + account);
@@ -466,7 +526,7 @@ namespace GoF2Remake.Multiplayer
             int capacity = StorageCapacity(record);
             if (capacity <= 0) return "Install a storage module first.";
 
-            record.storage ??= new List<PlayerStationStorage>();
+            EnsureStorageLots(record);
             var stack = record.storage.Find(x => x != null && x.item == item);
             if (deposit)
             {
@@ -482,9 +542,11 @@ namespace GoF2Remake.Multiplayer
                 if (stack == null)
                     record.storage.Add(stack = new PlayerStationStorage { item = item });
                 stack.amount += amount;
+                AddStorageLot(record, account, item, amount);
                 if (!CommitCargoTransaction(account, (item, -amount)))
                 {
                     stack.amount -= amount;
+                    RemoveStorageLots(record, account, item, amount);
                     if (stack.amount == 0) record.storage.Remove(stack);
                     return "Storage transaction could not be journalled; no cargo was taken.";
                 }
@@ -495,12 +557,17 @@ namespace GoF2Remake.Multiplayer
 
             if (stack == null || stack.amount < amount)
                 return "The station does not have that much of this item.";
+            if (OwnedStorageAmount(record, account, item) < amount)
+                return "Those goods belong to another contributor and cannot be withdrawn by this profile.";
+            var previousLots = CloneStorageLots(record);
+            RemoveStorageLots(record, account, item, amount);
             stack.amount -= amount;
             if (stack.amount == 0) record.storage.Remove(stack);
             if (!CommitCargoTransaction(account, (item, amount)))
             {
                 if (stack.amount == 0) record.storage.Add(stack);
                 stack.amount += amount;
+                record.storageLots = previousLots;
                 return "Storage transaction could not be journalled; the withdrawal was cancelled.";
             }
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
