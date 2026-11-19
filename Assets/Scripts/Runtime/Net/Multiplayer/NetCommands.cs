@@ -341,7 +341,7 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
-            new Command { name = "station", usage = "systems | list | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | market <id> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+            new Command { name = "station", usage = "systems | list | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
                 description = () => X("mpCmdStation", "builds stations, installs modules, manages storage and station listings; persistent worlds only") },
         };
@@ -402,6 +402,15 @@ namespace GoF2Remake.Multiplayer
                 if (!int.TryParse(args.Substring(market.Length).Trim(), out int stationId)) return "/station market <station id>";
                 return NetPlayerStations.MarketStatus(stationId);
             }
+            const string buy = "buy ";
+            if (args.StartsWith(buy, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(buy.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int stationId) ||
+                    !int.TryParse(words[1], out int listingIndex) || !int.TryParse(words[2], out int amount))
+                    return "/station buy <station id> <listing index> <amount>";
+                return NetPlayerStations.BuyListing(by as NetPlayer, stationId, listingIndex, amount);
+            }
             const string listItem = "list-item ";
             if (args.StartsWith(listItem, StringComparison.OrdinalIgnoreCase))
             {
@@ -443,7 +452,7 @@ namespace GoF2Remake.Multiplayer
                     return "/station contribute <project id> <item id> <amount> (deposit while docked at any station)";
                 return NetPlayerStations.Contribute(by as NetPlayer, project, item, amount);
             }
-            return "/station systems | list | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage | storage <id> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount>";
+            return "/station systems | list | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery | storage <id> | access <id> owner|faction | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | refine <id> <ore item id> <amount> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index>";
         }
 
         /// <summary>This player's server role (NetModeration; 0 without profiles).</summary>

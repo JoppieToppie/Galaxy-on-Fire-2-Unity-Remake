@@ -319,6 +319,39 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
+        /// <summary>The durable credits available to a station transaction (the live host's balance when applicable).</summary>
+        internal static long CreditAmount(string id)
+        {
+            if (id == null) return -1;
+            foreach (var login in logins.Values)
+                if (login.account != null && login.account.id == id && IsHostClient(login.client))
+                    return Session.Credits;
+            return ReadSave(id)?.credits ?? -1;
+        }
+
+        /// <summary>Set an absolute saved credit balance so a station journal can safely replay a purchase.</summary>
+        internal static bool SetCreditsAmount(string id, long amount)
+        {
+            if (id == null || amount < 0) return false;
+            var save = ReadSave(id);
+            if (save == null) return false;
+            bool host = false;
+            long liveBefore = 0;
+            foreach (var login in logins.Values)
+                if (login.account != null && login.account.id == id && IsHostClient(login.client))
+                {
+                    host = true;
+                    liveBefore = Session.Credits;
+                    break;
+                }
+            long previous = host ? liveBefore : save.credits;
+            save.credits = amount;
+            if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
+            if (host) Session.Credits = amount;
+            AdjustWorth(id, amount - previous);
+            return true;
+        }
+
         static SaveData ReadSave(string id)
         {
             if (id == null || folder == null) return null;

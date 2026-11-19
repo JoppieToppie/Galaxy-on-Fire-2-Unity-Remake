@@ -27,7 +27,7 @@ The current implementation persists, replicates and loads station records; start
 - **No dedicated station tests exist yet.** Add coverage for registry loading, stable station indices, snapshot replication, construction progress, storage capacity, faction permissions and transfers, refinery recipes and output limits, listing escrow and cancellation, failed writes and reconnect/restart recovery before treating the current implementation as production-safe.
 - **The material recipe is currently hard-coded** to item IDs 156 (Iron), 155 (Titanium), 118 (Electronics) and 127 (Microchips). Those IDs were checked against the branch's item database. Recipes and costs should become data-driven as station modules are introduced.
 
-The station marketplace now supports public listing readouts, owner-created listings backed by escrowed station inventory, and owner cancellation with goods returned to storage. Buyer checkout, payment settlement and transaction recovery remain intentionally unimplemented until an idempotent cross-profile transaction journal is in place. A graphical station management UI, faction-member ship storage, additional production facilities and factory recipes, dry docks, and configurable jumpgates remain to be implemented. Storage is currently owner-only and has a 10,000-unit capacity. Module installation and storage transfers use compensating writes across profile and station files; these are not crash-atomic, so the transaction journal remains a prerequisite before credit-bearing marketplace purchases.
+The station marketplace supports public listing readouts, owner-created listings backed by escrowed station inventory, owner cancellation, and buyer checkout. Checkout requires the buyer to be docked at the station, debits the buyer's saved profile, transfers the goods, credits the listing's seller profile (including offline sellers), and reduces or removes the escrowed listing through the cross-profile transaction journal. The checkout command is `/station buy <station id> <listing index> <amount>`. A graphical station management UI, faction-member ship storage, additional production facilities and factory recipes, dry docks, and configurable jumpgates remain to be implemented. Item storage supports optional access for the owner's current faction and has a 10,000-unit base capacity.
 
 
 ## Transaction journal implementation
@@ -38,3 +38,13 @@ The station marketplace now supports public listing readouts, owner-created list
 - Construction contributions, storage deposits/withdrawals, storage-module installation and refinery installation use this coordinator. Their previous compensating-write paths are removed.
 - The journal is deliberately single-flight: a second cross-file transaction cannot start until the first is completed or recovered.
 - This is source-level implementation only at this point. Unity compilation and dedicated-server/persistent-host crash-injection tests are still required. In particular, test a crash after journal creation, after each profile cargo write, after the registry write, and during journal cleanup. Verify host live cargo and its saved profile remain aligned.
+
+
+## Marketplace checkout implementation
+
+- Buyer checkout is server-authoritative and requires a controlled profile docked at the player station.
+- One journal now coordinates multiple profiles: buyer cargo, buyer credits, seller credits, and the station's post-purchase listing state.
+- A fully purchased listing is removed; a partially purchased listing retains its remaining escrow amount.
+- The buyer's active game receives credit and item updates; an online seller's active controller receives the credit update. Offline sellers are credited in their saved profile.
+- The current client-facing credit update is bounded to the `int` range supported by the existing multiplayer admin RPC, even though stored profile balances are 64-bit.
+- Still required: Unity compilation, host/client tests, offline-seller tests, insufficient-credit tests, full/partial listing tests, and crash injection at each journal stage. Buyer cargo-capacity handling also needs gameplay verification.
