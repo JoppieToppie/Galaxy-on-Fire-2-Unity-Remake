@@ -24,6 +24,8 @@ Changing those variables to server-write-only without replacing the existing own
 
 The Relay path explicitly selects Unity Relay's `dtls` connection type. The direct-IP path calls `SetConnectionData` and does not configure equivalent encryption in this project. Do not treat direct-IP sessions as having the same transport confidentiality as Relay sessions. This branch logs a warning for direct-IP hosts and clients. Use Relay, or restrict direct-IP play to a trusted LAN/VPN until a supported authenticated encryption design is implemented and tested for the exact Unity Transport package version in use.
 
+Since 2026-11-19 the session password itself no longer crosses the network: the connection data carries a salted PBKDF2-SHA256 proof of it (`NetGame.PasswordProof`), compared in constant time. A captured proof can still be replayed to join that session, so the advice above stands.
+
 No speculative transport API or custom cryptography has been added here.
 
 ### Flooding and denial of service
@@ -32,7 +34,7 @@ No speculative transport API or custom cryptography has been added here.
 
 ### Web Admin
 
-The web admin already binds to `127.0.0.1` by default and warns when configured on a non-loopback address because its built-in HTTP listener is not TLS. Keep it loopback-only, or expose it only through a correctly configured TLS reverse proxy/VPN. A warning does not encrypt a connection.
+The web admin binds to `127.0.0.1` by default. Since 2026-11-19 it refuses any other address unless the operator also passes `-webinsecure` (its built-in HTTP listener is not TLS); the launchers add the flag when their `WEBBIND` setting is changed, and the Docker compose files pass it because the container's port is published on the host's loopback only. Keep it loopback-only, or expose it only through a correctly configured TLS reverse proxy/VPN. A warning does not encrypt a connection.
 
 ## Verification status
 

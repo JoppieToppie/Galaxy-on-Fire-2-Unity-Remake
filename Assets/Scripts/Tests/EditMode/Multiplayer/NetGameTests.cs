@@ -139,6 +139,20 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ThePasswordNeverTravelsAsTyped()
+        {
+            string proof = NetGame.PasswordProof(" secret ");
+            StringAssert.StartsWith("p1:", proof);
+            StringAssert.DoesNotContain("secret", proof);
+            Assert.AreEqual(proof, NetGame.PasswordProof("secret"), "trimmed like the password itself");
+            Assert.AreNotEqual(proof, NetGame.PasswordProof("Secret"));
+            Assert.AreEqual("", NetGame.PasswordProof("  "), "no password: nothing");
+            Assert.IsTrue(NetGame.SameProof(proof, NetGame.PasswordProof("secret")));
+            Assert.IsFalse(NetGame.SameProof(proof, proof.Substring(0, proof.Length - 1)));
+            Assert.IsFalse(NetGame.SameProof(proof, "secret"));
+        }
+
+        [Test]
         public void ThePlayerLimitIs2To100()
         {
             Assert.AreEqual(16, NetGame.DefaultMaxPlayers);

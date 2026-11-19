@@ -83,6 +83,13 @@ This file holds only what every task needs. Everything about one area of the gam
   `UiPanelHangGuard` (Editor) takes the half-inserted element out again when an exception is logged and rebuilds that
   renderer's root; it logs a warning when it did. Not seen again since (12 reloads), so the guard has only run on a
   made-up half-insert (`IssueReportTests`). A hung Editor's managed stacks: `dotnet-stack report -p <pid>`.
+  It can also crash outright (2026-11-19: an access violation reading 0xffffffff in `VisualElement.SetPanelBatched` under
+  the same `Hierarchy.Insert`, from `PanelRenderer.AddRootVisualElementToTree` in `PreparePanelRenderers`, a while after
+  a successful reload; earlier crash dumps 2026-11-15). Ruled out with `unity command eval` over forced reloads (`touch`
+  doesn't reload: change a file's content): Unity already drops the renderer's root and gives every PanelSettings a new
+  panel at each reload, so detaching roots / disposing panels before it changes nothing, and building the root from
+  `afterAssemblyReload` crashed in Unity's own rebuild (`InitRootVisualElement`). No project-side fix: report it to Unity
+  with the dump (`%TEMP%/Unity/Editor/Crashes`), and reopen the Editor with `unity open .`.
 - `Assets/Plugins/MoonSharp/MoonSharp.Interpreter.dll` (MoonSharp 3.0.0-beta.1 from NuGet, netstandard2.0, BSD): the Lua
   interpreter of the mods' scripts (`ModScripts`, "Mod scripts" in docs/notes/mods.md). A plain precompiled DLL every
   assembly sees; only GoF2.Game's `ModScripts*` files use it. `Assets/link.xml` keeps it and the game's assemblies from

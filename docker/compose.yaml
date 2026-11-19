@@ -1,13 +1,14 @@
 # The dedicated server from the published image (SERVER.md). Run from this folder: docker compose up -d
 # The options are the command line's (SERVER.md, "Command-line options"): add -password X, -allowdebug, -freepvp... to
 # command. -relay = online with a join code, listed in the server browser (no ports needed); without it players join on
-# this machine's address and UDP 7777 must be open. The web admin is published on this machine only (127.0.0.1:8080).
+# this machine's address and UDP 7777 must be open. The web admin is published on this machine only (127.0.0.1:8080):
+# inside the container it listens on every adapter, which plain HTTP only does with -webinsecure.
 # Profiles, factions, bans and settings live in the volume "data". The admin token: docker compose logs | grep "admin token"
 services:
   server:
     image: ghcr.io/joppietoppie/gof2-server:${GOF2_TAG:-latest}
     restart: unless-stopped
-    command: ["-relay", "-name", "Galaxy on Fire 2 server", "-maxplayers", "16", "-web", "8080", "-webbind", "0.0.0.0"]
+    command: ["-relay", "-name", "Galaxy on Fire 2 server", "-maxplayers", "16", "-web", "8080", "-webbind", "0.0.0.0", "-webinsecure"]
     ports:
       - "7777:7777/udp"
       - "127.0.0.1:8080:8080"

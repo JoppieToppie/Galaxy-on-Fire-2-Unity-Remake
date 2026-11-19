@@ -130,7 +130,10 @@ now takes an option right after another (a dash and a letter) as no value). `Boo
   pilots, and an admin's `/news <text | clear>` (GalNet). Player text is made tag-free (`NetNews.Safe`). Not tested in a
   build yet.
 - **Web admin** (`WebAdmin`, a dedicated server started with `-web [port]` / `-webport N`, `-webbind ADDRESS` default
-  127.0.0.1; the launchers' `WEBPORT` / `WEBBIND`; the operator guide in `SERVER.md`): a minimal HTTP/1.1 server on a
+  127.0.0.1, another address only with `-webinsecure` (2026-11-19, Spectre's security review: it's plain HTTP, the admin
+  token or login code crosses that network readable; without the flag it stays off with an error; the launchers add it
+  when `WEBBIND` isn't 127.0.0.1, the Docker compose files have it: 0.0.0.0 inside the container, the host publishes the
+  port on 127.0.0.1); the launchers' `WEBPORT` / `WEBBIND`; the operator guide in `SERVER.md`): a minimal HTTP/1.1 server on a
   `TcpListener` (works in the IL2CPP player) serving one page (`Resources/GoF2Server/WebAdmin.html`: Tailwind CSS 4's
   browser build from jsDelivr, the script inline with a per-response CSP nonce, every server text set as textContent) and
   a JSON API (`/api/login`, `/logout`, `/state`, `/command`, `/log`) run on the main thread (`WebAdmin.Pump` from

@@ -963,9 +963,44 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The password this game joins with (the Join card), empty = none.</summary>
         public static string JoinPassword { get; set; } = CommandLineValue("-mppassword") ?? "";   // -mppassword: testing with -mpjoin
 
-        /// <summary>The connection data: the fingerprint, the password, the shown version (for the refusal's text). Builds from
-        /// before the fingerprint send their version first and their password: refused, their version is the first line.</summary>
-        static byte[] Payload() => System.Text.Encoding.UTF8.GetBytes(Protocol + "\n" + CleanPassword(JoinPassword) + "\n" + Version + "\n" + NetMods.InstalledList);
+        /// <summary>The connection data: the fingerprint, the password's proof (PasswordProof), the shown version (for the
+        /// refusal's text). Builds from before the fingerprint send their version first and their password: refused, their
+        /// version is the first line.</summary>
+        static byte[] Payload() => System.Text.Encoding.UTF8.GetBytes(Protocol + "\n" + PasswordProof(JoinPassword) + "\n" + Version + "\n" + NetMods.InstalledList);
+
+        /// <summary>What the connection data carries for a password (empty = none): a salted PBKDF2-SHA256 digest of it, never
+        /// the password itself. Remake security (Spectre's review, 2026-11-16): a direct-IP session has no DTLS (only the
+        /// Relay's is encrypted), so the typed password crossed the network readable, and players reuse passwords. The digest
+        /// still lets whoever captures it join that session (replay; use Relay or a trusted LAN / VPN against that), but
+        /// the password itself isn't exposed, and the iterations slow guessing it from a capture.</summary>
+        public static string PasswordProof(string password)
+        {
+            string clean = CleanPassword(password);
+            if (clean.Length == 0) return "";
+            using var kdf = new System.Security.Cryptography.Rfc2898DeriveBytes(System.Text.Encoding.UTF8.GetBytes(clean),
+                System.Text.Encoding.UTF8.GetBytes("GoF2Remake session password v1"), ProofIterations,
+                System.Security.Cryptography.HashAlgorithmName.SHA256);
+            return "p1:" + Convert.ToBase64String(kdf.GetBytes(32));
+        }
+        const int ProofIterations = 20000;
+
+        /// <summary>The host's password's proof, worked out once per password (a flood of joins costs the server no PBKDF2).</summary>
+        static string ExpectedProof()
+        {
+            string clean = CleanPassword(HostPassword);
+            if (clean != provenPassword) { provenPassword = clean; provenProof = PasswordProof(clean); }
+            return provenProof;
+        }
+        static string provenPassword, provenProof = "";
+
+        /// <summary>Two proofs alike, in a time that doesn't tell how much of a guess was right.</summary>
+        internal static bool SameProof(string a, string b)
+        {
+            a ??= ""; b ??= "";
+            int diff = a.Length ^ b.Length;
+            for (int i = 0; i < a.Length && i < b.Length; i++) diff |= a[i] ^ b[i];
+            return diff == 0;
+        }
 
         public static string CleanPassword(string text)
         {
@@ -1007,8 +1042,8 @@ namespace GoF2Remake.Multiplayer
                 Debug.Log($"NetGame: turned away client {request.ClientNetworkId}, version '{theirVersion}' / '{theirs}' (this one {Version} / {Protocol})");
                 return;
             }
-            string expected = CleanPassword(HostPassword);
-            if (expected.Length > 0 && password != expected)
+            string expected = ExpectedProof();
+            if (expected.Length > 0 && !SameProof(password, expected))
             {
                 response.Approved = false;
                 response.Reason = password.Length == 0

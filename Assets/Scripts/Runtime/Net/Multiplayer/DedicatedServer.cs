@@ -25,7 +25,7 @@
 //   -siegecost N     a siege on another faction's station, from the bank (default 250 000); -toll N what another faction's
 //                    pilot pays to be spared by a held station's defence (default 10 000, 0 = no toll)
 //   -web [port]      the web admin (WebAdmin: a browser page for the console, players, bans, settings, the log), default
-//                    port 8080 (-webport N too); -webbind ADDRESS what it listens on (default 127.0.0.1, this machine only;
+//                    port 8080 (-webport N too); -webbind ADDRESS what it listens on (default 127.0.0.1, this machine only; another address needs -webinsecure;
 //                    0.0.0.0 every adapter: then put it behind a TLS reverse proxy)
 // Bootstrap calls Boot before the first scene wakes and swaps in an empty scene. The main menu scene never runs: in the
 // Editor its objects are already loaded and are switched off at once; in a player the scene is still loading then, so

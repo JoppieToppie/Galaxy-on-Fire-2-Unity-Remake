@@ -75,7 +75,7 @@ namespace GoF2Remake.EditorTools
             "rem The web admin (a browser page: players, bans, settings, console, log): a port such as 8080, empty = off.\n" +
             "rem Log in with the admin token from the console, or a code from /web in the game.\n" +
             "set WEBPORT=\n" +
-            "rem 127.0.0.1 = this PC only; 0.0.0.0 = the network too (plain HTTP: not on the open internet).\n" +
+            "rem 127.0.0.1 = this PC only; 0.0.0.0 = the network too (plain HTTP: a trusted network only, never the open internet).\n" +
             "set WEBBIND=127.0.0.1\n" +
             "rem 1 = the session runs every mod in the Mods folder next to the game (players need the same files); 0 = none.\n" +
             "set ALLOWMODS=0\n" +
@@ -87,6 +87,8 @@ namespace GoF2Remake.EditorTools
             "if \"%ALLOWDEBUG%\"==\"1\" set DEBUGARG=-allowdebug\n" +
             "set WEBARG=\n" +
             "if defined WEBPORT set WEBARG=-webport %WEBPORT% -webbind %WEBBIND%\n" +
+            // Choosing another address than this PC here is the operator's -webinsecure (WebAdmin: plain HTTP on a network).
+            "if defined WEBPORT if not \"%WEBBIND%\"==\"127.0.0.1\" set WEBARG=%WEBARG% -webinsecure\n" +
             "set MODSARG=\n" +
             "if \"%ALLOWMODS%\"==\"1\" set MODSARG=-allowmods\n" +
             "set PVPARG=\n" +
@@ -105,7 +107,7 @@ namespace GoF2Remake.EditorTools
             "PVP=0              # 1 = PvP: players may fight anywhere; 0 = PvE: only in arena matches and faction sieges\n" +
             "FLIGHT=player      # the flight model: player (each one's own Options choice), or gof2 (the game's) / es2 (EVERSPACE 2) for all\n" +
             "WEBPORT=           # the web admin's port (e.g. 8080), empty = off; log in with the admin token or /web's code\n" +
-            "WEBBIND=127.0.0.1  # 127.0.0.1 = this machine only; 0.0.0.0 = the network (plain HTTP: put a TLS proxy in front)\n" +
+            "WEBBIND=127.0.0.1  # 127.0.0.1 = this machine only; 0.0.0.0 = the network (plain HTTP: a trusted network only)\n" +
             "ALLOWMODS=0        # 1 = the session runs every mod in the Mods folder (players need the same files)\n" +
             "# Add -unlisted to keep it out of the server browser (players then join with the join code shown here).\n" +
             "cd \"$(dirname \"$0\")\"\n" +
@@ -113,6 +115,7 @@ namespace GoF2Remake.EditorTools
             "if [ -n \"$PASSWORD\" ]; then set -- -password \"$PASSWORD\"; else set --; fi\n" +
             "if [ \"$ALLOWDEBUG\" = \"1\" ]; then set -- \"$@\" -allowdebug; fi\n" +
             "if [ -n \"$WEBPORT\" ]; then set -- \"$@\" -webport \"$WEBPORT\" -webbind \"$WEBBIND\"; fi\n" +
+            "if [ -n \"$WEBPORT\" ] && [ \"$WEBBIND\" != \"127.0.0.1\" ]; then set -- \"$@\" -webinsecure; fi\n" +
             "if [ \"$ALLOWMODS\" = \"1\" ]; then set -- \"$@\" -allowmods; fi\n" +
             "if [ \"$PVP\" = \"1\" ]; then set -- \"$@\" -freepvp; fi\n" +
             $"exec \"./{exe}\" -batchmode -nographics -server -relay -name \"$NAME\" \"$@\" -maxplayers \"$MAXPLAYERS\" -flightmodel \"$FLIGHT\" -logFile -\n";

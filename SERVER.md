@@ -176,7 +176,8 @@ Players on a different game version are turned away with a message saying which 
 | `-fps N` | The server's frame rate (default 60). |
 | `-noconsole` | Windows: no console window of its own. |
 | `-web [port]` | Start the [web admin](#the-web-admin) (default port 8080; `-webport N` does the same). |
-| `-webbind ADDRESS` | What the web admin listens on (default `127.0.0.1`, this machine only; `0.0.0.0` for every network adapter). |
+| `-webbind ADDRESS` | What the web admin listens on (default `127.0.0.1`, this machine only; `0.0.0.0` for every network adapter, which also needs `-webinsecure`). |
+| `-webinsecure` | Lets the web admin listen on an address other than this machine's (`-webbind`). It is plain HTTP: the login crosses that network unencrypted, so only on a network you trust. |
 | **Player profiles** | |
 | `-noprofiles` | Don't keep player profiles. Every session starts fresh, and factions, moderation and the leaderboard are off. |
 | `-maxearn N` | Without `-allowdebug`: how much a profile's worth may grow per minute online (default 1 000 000). |

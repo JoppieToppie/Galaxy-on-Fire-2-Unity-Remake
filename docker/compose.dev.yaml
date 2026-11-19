@@ -6,4 +6,4 @@ services:
     build:
       context: ../Build/LinuxServer
       dockerfile: ../../docker/server.Dockerfile
-    command: ["-name", "Galaxy on Fire 2 dev server", "-web", "8080", "-webbind", "0.0.0.0"]
+    command: ["-name", "Galaxy on Fire 2 dev server", "-web", "8080", "-webbind", "0.0.0.0", "-webinsecure"]
