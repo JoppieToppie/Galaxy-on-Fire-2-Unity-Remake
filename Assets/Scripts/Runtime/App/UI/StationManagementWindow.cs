@@ -174,15 +174,20 @@ namespace GoF2Remake.UI
 
             if (selected != null)
             {
-                AddSection("PLAYER-BUILT JUMPGATE", "Build one fixed-destination jumpgate in this station's orbit. Each orbit can host only one player-built gate; other station orbits in the same system can host their own gates. Materials can be contributed while docked anywhere. A non-zero build time starts after all materials arrive.");
-                AddAction("View jumpgate project status", "/station jumpgate-status " + selected.id);
-                AddField("jumpgateDestination", "Destination system index", "0");
+                AddSection("PLAYER-BUILT JUMPGATES", "Sponsor construction from this station, but place the gate in any orbital location in this system. Each orbit can contain only one gate. Owners and faction managers can change an operational gate's destination once every 24 hours.");
+                AddField("jumpgateOrbit", "Orbit station index (see orbital list)", selected.stationIndex.ToString());
+                AddAction("List this system's orbital locations", "/station jumpgate-orbits " + selected.system);
+                AddField("jumpgateDestination", "Initial destination system index", "0");
                 AddField("jumpgateBuildSeconds", "Optional build time in seconds (0 = no timer)", "0");
-                AddAction("Start jumpgate project", () => Send("/station jumpgate " + selected.id + " " +
-                    Value("jumpgateDestination") + " " + Value("jumpgateBuildSeconds")));
+                AddAction("Start jumpgate project in selected orbit", () => Send("/station jumpgate " + selected.id + " " +
+                    Value("jumpgateOrbit") + " " + Value("jumpgateDestination") + " " + Value("jumpgateBuildSeconds")));
+                AddAction("View jumpgate project status", () => Send("/station jumpgate-status " + Value("jumpgateOrbit")));
+                AddField("jumpgateNewDestination", "New destination system index", "0");
+                AddAction("Change destination (24-hour cooldown)", () => Send("/station jumpgate-destination " +
+                    Value("jumpgateOrbit") + " " + Value("jumpgateNewDestination")));
                 AddField("jumpgateItem", "Contribution material item ID", "156");
                 AddField("jumpgateAmount", "Contribution amount (up to 500)", "25");
-                AddAction("Contribute jumpgate materials", () => Send("/station jumpgate-contribute " + selected.id + " " +
+                AddAction("Contribute jumpgate materials", () => Send("/station jumpgate-contribute " + Value("jumpgateOrbit") + " " +
                     Value("jumpgateItem") + " " + Value("jumpgateAmount")));
             }
 
