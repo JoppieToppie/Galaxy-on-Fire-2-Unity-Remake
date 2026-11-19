@@ -173,6 +173,13 @@ namespace GoF2Remake.Multiplayer
             registry?.stations?.Exists(x => x != null && x.ownershipType == PlayerStationOwnershipType.Faction &&
                 string.Equals(x.ownerFactionId, factionId, StringComparison.Ordinal)) == true;
 
+        internal static bool HasFactionMarketplaceClaims(string factionId)
+        {
+            if (string.IsNullOrEmpty(factionId) || registry?.stations == null) return false;
+            return registry.stations.Exists(station => station?.listings?.Exists(listing =>
+                listing != null && string.Equals(listing.payoutFactionId, factionId, StringComparison.Ordinal)) == true);
+        }
+
         internal static string ConstructionContributions(NetPlayer by, int id)
         {
             var record = Find(id);
