@@ -21,6 +21,14 @@ namespace GoF2Remake.Flight
     {
         const float M = Gun.MetersPerUnit;
         public const float PickMs = 3000f, LeadUnits = 1500f;
+        const float TeleportSpeed = 5000f, MaxVelocitySampleSeconds = 0.5f;
+        sealed class Motion { public Vector3 position, velocity; public float time; public int frame; }
+        static readonly Dictionary<Target, Motion> motions = new Dictionary<Target, Motion>();
+        static readonly List<Target> gone = new List<Target>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetMotion() { motions.Clear(); gone.Clear(); }
+
 
         public enum Rule { Retarget, Timed }
 
@@ -60,6 +68,84 @@ namespace GoF2Remake.Flight
 
         /// <summary>Lead from the nearest point on the target's real collision meshes, for a particular turret muzzle.</summary>
         public static Vector3 LeadPoint(Target t, Vector3 from) => t.NearestHullPoint(from) + t.transform.forward * LeadUnits * M;
+
+        /// <summary>Ballistic lead to a target's nearest hull point, using the projectile's speed and lifetime.</summary>
+        public Vector3 LeadPoint(Target t, Vector3 from, float projectileSpeedUnitsPerMs, float projectileLifetimeMs) =>
+            t == null ? Vector3.zero : LeadPoint(t, t.NearestHullPoint(from), from, projectileSpeedUnitsPerMs, projectileLifetimeMs);
+
+        /// <summary>Ballistic lead to a chosen point on a target (e.g. an NPC turret hardpoint).</summary>
+        public Vector3 LeadPoint(Target t, Vector3 aimPoint, Vector3 from, float projectileSpeedUnitsPerMs, float projectileLifetimeMs)
+        {
+            if (t == null) return aimPoint;
+            float speed = projectileSpeedUnitsPerMs * M * 1000f; // Gun speed is Unity distance units per millisecond.
+            if (speed <= 1e-5f) return aimPoint;                 // instant beam / stationary shot
+
+            Vector3 velocity = VelocityOf(t);
+            Vector3 relative = aimPoint - from;
+            float flightSeconds = InterceptSeconds(relative, velocity, speed, projectileLifetimeMs * 0.001f);
+            return aimPoint + velocity * flightSeconds;
+        }
+
+        static Vector3 VelocityOf(Target t)
+        {
+            float now = Time.time;
+            if (!motions.TryGetValue(t, out var m))
+            {
+                motions[t] = new Motion { position = t.transform.position, time = now, frame = Time.frameCount };
+                return Vector3.zero;
+            }
+            if (m.frame == Time.frameCount) return m.velocity;
+
+            float elapsed = now - m.time;
+            Vector3 position = t.transform.position;
+            Vector3 previous = m.position;
+            m.frame = Time.frameCount;
+            m.position = position;
+            m.time = now;
+            if (elapsed <= 1e-5f) return m.velocity;
+
+            Vector3 measured = (position - previous) / elapsed;
+            if (elapsed > MaxVelocitySampleSeconds || measured.sqrMagnitude > TeleportSpeed * TeleportSpeed)
+                m.velocity = Vector3.zero;
+            else
+                m.velocity = Vector3.Lerp(m.velocity, measured, 0.5f);
+
+            if ((Time.frameCount & 63) == 0)
+            {
+                gone.Clear();
+                foreach (var pair in motions) if (pair.Key == null) gone.Add(pair.Key);
+                foreach (var target in gone) motions.Remove(target);
+            }
+            return m.velocity;
+        }
+
+        static float InterceptSeconds(Vector3 relative, Vector3 velocity, float projectileSpeed, float lifetimeSeconds)
+        {
+            float c = Vector3.Dot(relative, relative);
+            if (c <= 1e-8f) return 0f;
+            float a = Vector3.Dot(velocity, velocity) - projectileSpeed * projectileSpeed;
+            float b = 2f * Vector3.Dot(relative, velocity);
+            float time = 0f;
+            if (Mathf.Abs(a) < 1e-5f)
+            {
+                if (b < -1e-5f) time = -c / b;
+            }
+            else
+            {
+                float discriminant = b * b - 4f * a * c;
+                if (discriminant >= 0f)
+                {
+                    float root = Mathf.Sqrt(discriminant);
+                    float first = (-b - root) / (2f * a), second = (-b + root) / (2f * a);
+                    if (first > 0f) time = first;
+                    if (second > 0f && (time <= 0f || second < time)) time = second;
+                }
+            }
+            if (time <= 0f) time = Mathf.Sqrt(c) / projectileSpeed;
+            return lifetimeSeconds > 0f ? Mathf.Min(time, lifetimeSeconds) : time;
+        }
+
+
 
         /// <summary>The timer runs; a new pick when the rule says so. Returns the target.</summary>
         public Target Update(float dtMs, IReadOnlyList<Target> pool, Vector3 from)

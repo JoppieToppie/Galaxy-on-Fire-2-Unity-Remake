@@ -552,7 +552,7 @@ namespace GoF2Remake.Flight
         {
             var t = picking.Update(dtMs, Target.All, transform.position);
             if (t == null) return false;
-            bool aligned = core.StepToward(TurretTargeting.LeadPoint(t, GunPosition), dtMs);
+            bool aligned = core.StepToward(picking.LeadPoint(t, GunPosition, gun.speedUnitsPerMs, gun.lifetimeMs), dtMs);
             if (aim.LimitHit || aligned && core.Blocked) { picking.LimitHit(dtMs); return false; }   // (its own hull in the way: another target)
             return aligned;
         }

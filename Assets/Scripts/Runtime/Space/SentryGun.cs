@@ -149,7 +149,7 @@ namespace GoF2Remake.Flight
             if (ageMs < InvulnerableMs) return;
             var target = picking.Update(dtMs, Target.All, transform.position);
             if (target == null) return;
-            if (core.StepToward(TurretTargeting.LeadPoint(target), dtMs) && core.Fire() >= 0
+            if (core.StepToward(picking.LeadPoint(target, core.GunPosition, core.Gun.speedUnitsPerMs, core.Gun.lifetimeMs), dtMs) && core.Fire() >= 0
                 && lookFx != null && lookFx.shot != null) Sfx.PlayAt(lookFx.Shot, transform.position, 0.6f);
         }
 
