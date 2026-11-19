@@ -287,9 +287,9 @@ namespace GoF2Remake.Multiplayer
                 lines.Add((i + 1) + ". " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("Ship " + ship.ship)) +
                     " — " + (ship.mods?.Count ?? 0) + " hull upgrades, bare hull");
             }
-            if (lines.Count == 1) lines.Add("No large ships are stored here.");
+            if (lines.Count == 1) lines.Add("No ships are stored here.");
             lines.Add("Capacity: " + record.dryDockShips.Count + "/" + MaxDryDockShipsPerStation);
-            lines.Add("Eligible classes: Frigate, Freighter, Cruiser, Carrier.");
+            lines.Add("Stored hull classes: Frigate, Freighter, Cruiser, Carrier. Blueprint-designated hulls can also be constructed here.");
             lines.Add("Ship construction: /station drydock-blueprints " + id + " (build from station storage).");
             return string.Join("\n", lines);
         }
