@@ -106,6 +106,8 @@ namespace GoF2Remake.Multiplayer
             string previousOwner = record.ownerProfile, previousFaction = record.ownerFactionId, previousName = record.ownerName;
             bool previousFactionAccess = record.factionStorageAccess;
             long previousBuilderRelinquished = record.builderRightsRelinquishedUtc;
+            var previousPermissionOverrides = ClonePermissionOverrides(record);
+            var previousBans = CloneBans(record);
             int previousHistoryCount = record.history?.Count ?? 0;
             int previousHistorySequence = record.nextHistorySequence;
             if (proposal.targetType == PlayerStationOwnershipType.Individual)
@@ -130,7 +132,10 @@ namespace GoF2Remake.Multiplayer
             // of builder authority. A faction leader or later owner cannot erase those rights.
             bool builderVoluntaryTransfer = HasBuilderRights(record, proposal.proposedBy);
             if (builderVoluntaryTransfer)
+            {
                 record.builderRightsRelinquishedUtc = now;
+                ConvertBuilderAuthorityRecords(record);
+            }
             string newOwner = proposal.targetType == PlayerStationOwnershipType.Faction
                 ? "faction " + (proposal.targetFactionId ?? "")
                 : "profile " + (proposal.targetProfile ?? "");
@@ -151,6 +156,8 @@ namespace GoF2Remake.Multiplayer
                 record.ownerName = previousName;
                 record.factionStorageAccess = previousFactionAccess;
                 record.builderRightsRelinquishedUtc = previousBuilderRelinquished;
+                record.permissionOverrides = previousPermissionOverrides;
+                record.bans = previousBans;
                 if (record.history != null && record.history.Count > previousHistoryCount)
                     record.history.RemoveRange(previousHistoryCount, record.history.Count - previousHistoryCount);
                 record.nextHistorySequence = previousHistorySequence;
