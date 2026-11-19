@@ -195,6 +195,11 @@ namespace GoF2Remake.UI
             list.Add(Toggle("lensFlare", OptionPage.Graphics, () => X("lensFlare", "Lens flare"), () => Settings.LensFlare, v => Settings.LensFlare = v));
             list.Add(Toggle("npcPlayerEngines", OptionPage.Graphics, () => X("npcPlayerEngines", "Other ships' engines like yours"),
                 () => Settings.NpcPlayerEngines, v => Settings.NpcPlayerEngines = v));
+            // Remake: the planets as the rebuilt 3D spheres (World.RebuiltPlanets); on by default.
+            var rebuiltPlanets = Toggle("rebuiltPlanets", OptionPage.Graphics, () => X("rebuiltPlanets", "3D planets"),
+                () => Settings.RebuiltPlanets, v => Settings.RebuiltPlanets = v);
+            rebuiltPlanets.description = () => X("rebuiltPlanetsHelp", "The planets in orbit, on the star map and in slipstream are lit 3D spheres rebuilt from the original planet images. Off: the original flat images. From the next orbit or star map view.");
+            list.Add(rebuiltPlanets);
             list.Add(Slider("fov", OptionPage.Graphics, () => X("fov", "Field of view"), 55f, 95f,
                 () => Settings.FieldOfView, v => Settings.FieldOfView = Mathf.Round(v), v => $"{Mathf.RoundToInt(v)}°"));
             list.Add(Slider("cameraShake", OptionPage.Graphics, () => X("cameraShake", "Camera shake"), 0f, 1f,
@@ -203,6 +208,11 @@ namespace GoF2Remake.UI
                 () => new[] { X("chaseCameraRemake", "Remake"), X("chaseCameraOriginal", "Original") },
                 () => Settings.OriginalChaseCamera ? 1 : 0, i => Settings.OriginalChaseCamera = i == 1,
                 () => X("chaseCameraHelp", "Remake: the camera stays close and keeps the ship centred. Original: it lags behind, the ship swings out in turns.")));
+            // Remake: EVERSPACE 2's chase camera in free flight (Flight.Es2ChaseRig); on by default.
+            var es2Camera = Toggle("es2FreeFlightCamera", OptionPage.Graphics, () => X("es2FreeFlightCamera", "EVERSPACE 2 camera in free flight"),
+                () => Settings.Es2FreeFlightCamera, v => Settings.Es2FreeFlightCamera = v);
+            es2Camera.description = () => X("es2FreeFlightCameraHelp", "In free flight the camera follows as in EVERSPACE 2: it turns a moment after the ship and rolls with it, trails behind as you speed up or strafe, and widens while boosting. Off: the chase camera above. Also its close view, free look and camera shakes.");
+            list.Add(es2Camera);
             // Remake: the interface's size, width and edge margin (UiLayout, docs/UI-DESIGN.md "Scaling").
             list.Add(Confirmed(Choice("uiScale", OptionPage.Accessibility, () => X("uiScale", "Interface size"), false,
                 () => System.Array.ConvertAll(UiScaleSteps, p => p + " %"),

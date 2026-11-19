@@ -30,6 +30,9 @@
 //    2026-10-18, extreme shaking): each offset is held for that frame (HeldJitter) instead of a new one every rendered
 //    frame (at 144 fps an explosion's rumble jolted the view 2.8 deg every 7 ms), and laid on top of the follow, taken
 //    off again the next frame (UndoJitter): drawn into the eased pose, it piled up through the easing.
+//  * Remake, free flight (Graphics "EVERSPACE 2 camera in free flight", Settings.Es2FreeFlightCamera, on by default):
+//    EVERSPACE 2's rig instead of the follow (Es2ChaseRig, PlaceEs2): the camera swings round a pivot ahead of the ship
+//    whose rotation lags the ship's (roll too), trails the velocity, and the boost widens the view by ES2's 15 deg.
 
 using UnityEngine;
 
@@ -85,6 +88,12 @@ namespace GoF2Remake.Flight
         Vector3 basePos, shownPos;
         Quaternion baseRot, shownRot;
         bool jittered;
+        // EVERSPACE 2's rig (PlaceEs2): the pivot's lagged rotation, the ship's rotation it last chased, the pivot's place in
+        // the ship's frame (metres), the boost's and the cruise's eased extra FOV (horizontal degrees); invalid = start anew.
+        bool es2Valid;
+        Quaternion es2Rot, es2LastTarget;
+        Vector3 es2Pivot;
+        float es2BoostFov, es2CruiseFov;
 
         /// <summary>The original's frame (OriginalFrame.Ms, 60 Hz): a shake or rumble offset lasts this long.</summary>
         public const float JitterMs = OriginalFrame.Ms;
@@ -136,6 +145,9 @@ namespace GoF2Remake.Flight
         /// ('ms' 1000 / a 6 when the player is hit, 50 / 2 per own shot).</summary>
         public void Shake(float ms, float amplitudeUnits)
         {
+            // EVERSPACE 2's camera: a hit or a collision (the 6-unit shake) is BP_CamShake_Hit_001 at 0.5; ES2's own shots
+            // don't shake the camera
+            if (Es2Mode) { if (amplitudeUnits >= 4f) es2HitPending = true; return; }
             if (ms >= shakeMs) { shakeMs = ms; shakeUnits = amplitudeUnits; }
         }
 
@@ -171,12 +183,13 @@ namespace GoF2Remake.Flight
             fpActive != null && fpActive.fpShown && fpActive.target != null && fpActive.target.transform == ship ? fpActive.transform.position : ship.position;
 
         void Awake() => cam = GetComponent<Camera>();
-        void OnEnable() { lookValid = false; cruiseTracked = false; }
+        void OnEnable() { lookValid = false; cruiseTracked = false; es2Valid = false; }
         // Disabled = another camera holds it (the launch / arrival fly-in, a cutscene, a jump, mining, object docking, the
         // death camera, Action Freeze): the hull shows; enabled again, the cockpit view comes back.
         void OnDisable()
         {
             bool wasShown = fpShown;
+            SetHullHidden(false);
             EndFirstPerson();
             // Some of them leave the camera where it is (the death camera, mining's landing, the planet jump): from behind the
             // ship as in the standard view, not inside the bow of a tumbling or pitching hull.
@@ -184,7 +197,7 @@ namespace GoF2Remake.Flight
             PlaceBehind();
             if (cam != null) cam.fieldOfView = GoF2Remake.Visuals.Aspect.VerticalFov(baseFov, cam.aspect);
         }
-        void OnDestroy() => EndFirstPerson();
+        void OnDestroy() { SetHullHidden(false); EndFirstPerson(); }
 
         void LateUpdate()
         {
@@ -212,6 +225,14 @@ namespace GoF2Remake.Flight
             float engineRumble = mass * (0.06f + 0.25f * strain + 0.3f * model.BoostVisualPercent);
             Haptics.Rumble(Mathf.Max(rumble, Mathf.Max(boostRumble, engineRumble)));
             rumble *= GoF2Remake.Data.Settings.CameraShake;   // the camera shake option
+            // EVERSPACE 2's camera (free flight): its chase views and its own free look, blended over them
+            if (Es2Mode && !firstPerson && (follow == null || es2FreeLook))
+            {
+                EndFirstPerson();
+                PlaceEs2(ship, model, dtMs, boosting, boostRumble);
+                return;
+            }
+            SetHullHidden(false);
             if (follow != null)
             {
                 var fp = follow.TransformPoint(followOffset);
@@ -230,6 +251,7 @@ namespace GoF2Remake.Flight
                 EndJitter();
                 if (cam != null) cam.fieldOfView = GoF2Remake.Visuals.Aspect.VerticalFov(baseFov, cam.aspect);
                 lookValid = false;
+                es2Valid = false;
                 EndFirstPerson();   // the turret view, free look, the Liberator: the hull shows
                 return;
             }
@@ -242,11 +264,13 @@ namespace GoF2Remake.Flight
                 shakeMs = 0f;
                 if (cam != null) cam.fieldOfView = GoF2Remake.Visuals.Aspect.VerticalFov(baseFov, cam.aspect);
                 lookValid = false;
+                es2Valid = false;
                 return;
             }
 
-            if (firstPerson) { PlaceFirstPerson(ship, dtMs, boosting, boostRumble, mass); return; }
+            if (firstPerson) { es2Valid = false; PlaceFirstPerson(ship, dtMs, boosting, boostRumble, mass); return; }
             EndFirstPerson();
+            es2Valid = false;
 
             Coefficients(out float posK, out float rotK);
             float speedup = model.FreeTurnSpeedup;
@@ -371,6 +395,15 @@ namespace GoF2Remake.Flight
         {
             var ship = target.transform;
             dtMs = Mathf.Max(dtMs, 0.1f);
+            if (Es2Active)
+            {
+                // flying straight: the pivot's rotation on the ship's, the pivot settled at its velocity offset
+                var r = Es2Rig();
+                var pivot = Es2ChaseRig.PivotGoal(Quaternion.Inverse(ship.rotation) * velocity * 1000f, r.pivot, r.scale);
+                rotation = ship.rotation;
+                position = Es2ChaseRig.CameraPosition(ship.position + ship.rotation * pivot, rotation, r.pivot, r.behind, r.height);
+                return;
+            }
             Coefficients(out float posK, out float rotK);
             bool original = GoF2Remake.Data.Settings.OriginalChaseCamera;
             float kp = original ? Ease(posK, dtMs) : Follow(posK, dtMs), kr = original ? Ease(rotK, dtMs) : Follow(rotK, dtMs);
@@ -397,6 +430,12 @@ namespace GoF2Remake.Flight
             PlaceBehind();
             if (GoF2Remake.Data.VrFlags.Enabled) transform.SetPositionAndRotation(ship.TransformPoint(GoF2Remake.Data.VrFlags.CockpitSeat), ship.rotation);
             else if (firstPerson && follow == null) transform.SetPositionAndRotation(ship.TransformPoint(FirstPersonSeat()), ship.rotation);
+            else if (Es2Active)
+            {
+                StartEs2(ship.rotation, Es2Velocity(0f));
+                var r = Es2Rig();
+                transform.SetPositionAndRotation(Es2ChaseRig.CameraPosition(ship.position + ship.rotation * es2Pivot, es2Rot, r.pivot, r.behind, r.height), es2Rot);
+            }
         }
 
         /// <summary>Remake: the view an arrival at speed flew in with, in the ship's frame (the follow's lag), after Snap.</summary>
@@ -406,6 +445,7 @@ namespace GoF2Remake.Flight
             var ship = target.transform;
             transform.SetPositionAndRotation(ship.TransformPoint(local), ship.rotation * turn);
             lookValid = false;
+            es2Valid = false;
             lastShipPosition = ship.position;
             cruiseTracked = true;
         }
@@ -419,6 +459,258 @@ namespace GoF2Remake.Flight
             lookPoint = ship.TransformPoint(lookOffset);
             lookValid = true;
             slide = Vector3.zero;
+        }
+
+        // ---- EVERSPACE 2's camera (remake, free flight) -------------------------------------------------------------
+
+        /// <summary>Free flight with "EVERSPACE 2 camera in free flight" on (not in VR): ES2's views, free look and shakes.</summary>
+        public bool Es2Mode => target != null && target.FreeFlightActive && GoF2Remake.Data.Settings.Es2FreeFlightCamera
+                               && !GoF2Remake.Data.VrFlags.Enabled;
+        /// <summary>ES2's chase view places the camera now (no other camera holding this one, not the cockpit).</summary>
+        bool Es2Active => Es2Mode && follow == null && !firstPerson;
+
+        /// <summary>ES2's close view (CurrentCameraView 1, SpringArmTPClose) instead of the far one; FreeLookCamera's cycle.</summary>
+        [System.NonSerialized] public bool es2Close;
+        /// <summary>FreeLookCamera: free look is ES2's on the 'follow' anchor (rigid with the ship, blended in and out over
+        /// LookBlendRate while the chase rig keeps running underneath).</summary>
+        [System.NonSerialized] public bool es2FreeLook;
+        Transform es2LookAnchor;
+        Vector3 es2LookOffset;
+        float es2LookBlend;   // 0 the chase view .. 1 free look (FreelookBlendTimeine)
+
+        /// <summary>The rig's scale: the hull's chase distance over ES2's far arm (Es2Rig).</summary>
+        public float Es2Scale => Mathf.Max(0.5f, -offset.z) / (Es2ChaseRig.ArmCm / 100f);
+        /// <summary>How far the hull reaches from its pivot (metres; free look's closest zoom adds ES2's 2 m to it).</summary>
+        public float Es2HullReach => hullBoundsKnown ? hullBounds.extents.magnitude : 0f;
+
+        /// <summary>ES2's rig at this hull's size (metres): the far view's ship-to-camera distance and height are the hull's
+        /// chase offset (PlayerHull sizes it); the close view's ES2's shorter arm and lower socket in proportion; the pivot ES2's
+        /// PivotX at that scale ahead; the arm then dollied for the Field of view option (UpdateFOV).</summary>
+        (float scale, float pivot, float behind, float height) Es2Rig()
+        {
+            float scale = Es2Scale, far = scale * Es2ChaseRig.ArmCm / 100f;
+            float behind = es2Close ? far * Es2ChaseRig.CloseArmCm / Es2ChaseRig.ArmCm : far;
+            float height = offset.y * (es2Close ? Es2ChaseRig.CloseSocketCm / Es2ChaseRig.SocketCm : 1f);
+            behind = Es2ChaseRig.DollyArm(behind, GoF2Remake.Data.Settings.OriginalFov, baseFov);
+            return (scale, Es2ChaseRig.PivotCm / 100f * scale, behind, height);
+        }
+
+        /// <summary>The ship's velocity (world, m/s) for the rig: free flight's own, plus a dodge's slide this frame.</summary>
+        Vector3 Es2Velocity(float dtS)
+        {
+            var v = target.Model.FreeVelocity * (target.metersPerUnit * 1000f);
+            if (dtS > 0f) v += target.ManeuverSlide / dtS;
+            return v;
+        }
+
+        /// <summary>The rig starts at 'rotation' (the view it takes over, no turn in one frame), its pivot settled at the
+        /// velocity's offset.</summary>
+        void StartEs2(Quaternion rotation, Vector3 velocity)
+        {
+            var ship = target.transform;
+            var r = Es2Rig();
+            es2Rot = rotation;
+            es2LastTarget = ship.rotation;
+            es2Pivot = Es2ChaseRig.PivotGoal(Quaternion.Inverse(ship.rotation) * velocity, r.pivot, r.scale);
+            es2BoostFov = es2CruiseFov = 0f;
+            es2LookBlend = 0f;
+            es2LookAnchor = null;
+            es2Valid = true;
+            slide = Vector3.zero;
+            lookValid = false;
+        }
+
+        /// <summary>Where the chase rig puts the camera this frame (advancing its lag and pivot): BP_Ship_Player's
+        /// UpdateCameraRotationLag, the arm, then the arm's collision probe from its root.</summary>
+        void Es2Pose(Transform ship, float dtMs, out Vector3 pos, out Quaternion rot, out Vector3 pivotWorld, out Vector3 velocity)
+        {
+            float dtS = dtMs / 1000f;
+            velocity = Es2Velocity(dtS);
+            if (!es2Valid) StartEs2(transform.rotation, velocity);
+            var r = Es2Rig();
+            // the lag's frame cap goes with fast-forward (TimeExtender.PlayerFactor scales dtMs), so a sped-up frame doesn't
+            // leave the view further behind than a normal one
+            float factor = Mathf.Max(1f, TimeExtender.PlayerFactor);
+            es2Rot = Es2ChaseRig.LagRotation(es2Rot, es2LastTarget, ship.rotation, dtS, Mathf.Pow(10f, Es2ChaseRig.Stiffness), Es2ChaseRig.MaxDt * factor);
+            es2LastTarget = ship.rotation;
+            var goal = Es2ChaseRig.PivotGoal(Quaternion.Inverse(ship.rotation) * velocity, r.pivot, r.scale);
+            es2Pivot = Es2ChaseRig.InterpTo(es2Pivot, goal, dtS, Es2ChaseRig.OffsetSpeed);
+            pivotWorld = ship.position + ship.rotation * es2Pivot;
+            pos = Es2ChaseRig.CameraPosition(pivotWorld, es2Rot, r.pivot, r.behind, r.height);
+            rot = es2Rot;
+            var root = pivotWorld + es2Rot * new Vector3(0f, 0f, -r.pivot);   // the arm's root, at the ship
+            pos = Probe(root, pos, Es2ChaseRig.ProbeCm / 100f * r.scale, ship, 0.5f);
+        }
+
+        /// <summary>BP_Ship_Player's CameraDynamicsTick for the third-person views (Es2ChaseRig): the chase rig, ES2's free look
+        /// blended over it, ES2's shakes (or the remake's rumble), the ship hidden with the camera inside it, ES2's FOV.</summary>
+        void PlaceEs2(Transform ship, FlightModel model, float dtMs, bool boosting, float boostRumble)
+        {
+            float dtS = dtMs / 1000f;
+            Es2Pose(ship, dtMs, out var pos, out var rot, out var pivotWorld, out var velocity);
+            bool looking = follow != null && es2FreeLook;
+            if (looking) { es2LookAnchor = follow; es2LookOffset = followOffset; }
+            // the blend runs on real time (the timeline isn't the ship's: fast-forward doesn't hurry it)
+            es2LookBlend = Mathf.MoveTowards(es2LookBlend, looking ? 1f : 0f, Time.unscaledDeltaTime * Es2ChaseRig.LookBlendRate);
+            if (es2LookBlend > 0f && es2LookAnchor != null)
+            {
+                // ES2's free look: the arm on the pivot at the ship, rigid with it, the camera looking along it at the ship
+                var lp = Probe(es2LookAnchor.position, es2LookAnchor.TransformPoint(es2LookOffset), Es2ChaseRig.ProbeCm / 100f * Es2Scale, ship, 0.5f);
+                float e = Es2ChaseRig.EaseInOut(es2LookBlend, Es2ChaseRig.LookBlendExp);
+                pos = Vector3.Lerp(pos, lp, e);
+                rot = Quaternion.Slerp(rot, es2LookAnchor.rotation, e);
+            }
+            else es2LookAnchor = null;
+            if (easeInMs > 0f)   // Modified: SoftReturn, gliding over from where another view left the camera
+            {
+                easeInMs = Mathf.Max(0f, easeInMs - dtMs);
+                float f = Mathf.Lerp(0.06f, 1f, Mathf.SmoothStep(0f, 1f, 1f - easeInMs / Mathf.Max(1f, easeInTotalMs)));
+                float k = 1f - Mathf.Pow(1f - f, dtMs / OriginalFrame.Ms);
+                pos = Vector3.Lerp(transform.position, pos, k);
+                rot = Quaternion.Slerp(transform.rotation, rot, k);
+            }
+            transform.SetPositionAndRotation(pos, rot);
+            lastShipPosition = ship.position;
+            cruiseTracked = true;
+
+            BeginJitter();
+            Es2Shakes(ship, model, dtMs, velocity, pivotWorld, looking, false);
+            EndJitter();
+            Es2HideHull(ship, transform.position);
+
+            // UpdateBoostCameraBehavior / UpdateFOV: the boost's 15 deg while boosting the way the camera looks, the cruise's 20
+            float along = velocity.sqrMagnitude > 1e-6f ? Mathf.Max(0f, Vector3.Dot(transform.forward, velocity.normalized)) : 0f;
+            es2BoostFov = Es2ChaseRig.InterpTo(es2BoostFov, model.IsBoosting ? Es2ChaseRig.BoostFov * along : 0f, dtS, Es2ChaseRig.FovSpeed);
+            es2CruiseFov = Es2ChaseRig.InterpTo(es2CruiseFov, model.CruiseVisual > 0f ? Es2ChaseRig.CruiseFov : 0f, dtS, Es2ChaseRig.FovSpeed);
+            if (cam != null)
+                cam.fieldOfView = GoF2Remake.Visuals.Aspect.VerticalFov(Es2ChaseRig.WidenVertical(baseFov, es2BoostFov + es2CruiseFov), cam.aspect);
+        }
+
+        // ES2's shakes (Es2CameraShake): the assets, the eased idle and sway intensities, the boost / cruise edges, a hit asked
+        // for this frame, the last velocity (the sway's acceleration).
+        readonly Es2CameraShake es2Idle = Es2CameraShake.IdleFlight(), es2Boost = Es2CameraShake.Boost(), es2BoostInit = Es2CameraShake.BoostInit(),
+            es2Hit = Es2CameraShake.Hit(), es2CruiseStart = Es2CameraShake.CruiseStart(), es2CruiseRumble = Es2CameraShake.CruiseRumble(),
+            es2Sway = Es2CameraShake.AccelerationSway();
+        float es2IdleI, es2SwayI;
+        bool es2HitPending, es2WasBoosting, es2WasCruising;
+        Vector3 es2LastVelocity;
+
+        /// <summary>BP_Ship_Player's per-frame shakes (UpdateIdleFlightCameraShake, UpdateCameraAccelerationShake in the cockpit,
+        /// UpdateBoostCameraBehavior, OnBoostStart, the cruise's start and rumble, a hit) through LIB_F_General.PlayCameraShake
+        /// (x the ship class's scale and the Camera shake option), then their sum laid on the camera (local: ES2's play space).
+        /// Explosions keep the remake's rumble (ES2's player has no shake of its own for them).</summary>
+        void Es2Shakes(Transform ship, FlightModel model, float dtMs, Vector3 velocity, Vector3 rumbleAt, bool looking, bool cockpit)
+        {
+            float dtS = dtMs / 1000f;
+            float s = GoF2Remake.Data.Settings.CameraShake * Es2CameraShake.ClassScale(target.mass);
+            // the idle shake: the speed's share of 10000 cm/s, eased at 1; nothing in free look
+            if (looking) es2IdleI = 0f;
+            else
+            {
+                es2IdleI = Es2ChaseRig.InterpTo(es2IdleI, Mathf.Clamp01(velocity.magnitude / 100f), dtS, 1f);
+                es2Idle.Play(es2IdleI * s);
+            }
+            // the acceleration sway, the cockpit only: the acceleration's share of 10000 cm/s^2, eased at 8
+            if (cockpit && dtS > 0f)
+            {
+                es2SwayI = Es2ChaseRig.InterpTo(es2SwayI, Mathf.Clamp01((velocity - es2LastVelocity).magnitude / dtS / 100f), dtS, 8f);
+                es2Sway.Play(es2SwayI * s);
+            }
+            else es2SwayI = 0f;
+            es2LastVelocity = velocity;
+            if (model.IsBoosting) es2Boost.Play(s);
+            if (model.IsBoosting && !es2WasBoosting) es2BoostInit.Play(s);
+            es2WasBoosting = model.IsBoosting;
+            bool cruising = model.CruiseVisual > 0f;
+            if (cruising && !es2WasCruising) es2CruiseStart.Play(s);
+            if (cruising) es2CruiseRumble.Play(0.15f * s);
+            es2WasCruising = cruising;
+            if (es2HitPending) { es2Hit.Play(0.5f * s); es2HitPending = false; }
+
+            Vector3 rot = Vector3.zero, loc = Vector3.zero;
+            es2Idle.Tick(dtS, cockpit, ref rot, ref loc);
+            es2Sway.Tick(dtS, cockpit, ref rot, ref loc);
+            es2Boost.Tick(dtS, cockpit, ref rot, ref loc);
+            es2BoostInit.Tick(dtS, cockpit, ref rot, ref loc);
+            es2Hit.Tick(dtS, cockpit, ref rot, ref loc);
+            es2CruiseStart.Tick(dtS, cockpit, ref rot, ref loc);
+            es2CruiseRumble.Tick(dtS, cockpit, ref rot, ref loc);
+            // cm at ES2's ship size -> metres at this hull's; UE pitch up / roll right -> Unity's
+            transform.position += transform.rotation * (loc * (0.01f * Es2Scale));
+            transform.rotation *= Quaternion.Euler(-rot.x, rot.y, -rot.z);
+            shakeMs = 0f;
+            if (rumble > 0f)
+            {
+                TurnBy(rumbleAt, rumbleDir * (rumble * 50f * target.metersPerUnit));
+                rumble = 0f;
+            }
+        }
+
+        /// <summary>A sphere of 'radius' swept from 'from' to 'to' (the hull meshes, HullCollision.CameraHit, 'ignore' left out,
+        /// and the collision volumes of objects without them): the camera kept on this side of the first thing it meets, at
+        /// least 'minM' from 'from'. ES2's spring arm probe; FreeLookCamera's docked orbit.</summary>
+        public static Vector3 Probe(Vector3 from, Vector3 to, float radius, Transform ignore, float minM)
+        {
+            var d = to - from;
+            float len = d.magnitude;
+            if (len < 0.01f) return to;
+            var dir = d / len;
+            float hit = HullCollision.CameraHit(from, dir, len, radius, ignore) - radius * 0.5f;
+            var all = Obstacle.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var o = all[i];
+                if (o == null || (o.hull != null && o.hull.Active)) continue;   // a hull: CameraHit
+                float t = o.RayDistance(from, dir);
+                if (t > 0f && t < float.MaxValue) hit = Mathf.Min(hit, t - radius);
+            }
+            if (hit >= len) return to;
+            return from + dir * Mathf.Max(minM, hit);
+        }
+
+        // The ship hidden while the camera is inside it (CameraDynamicsTick: a 50 cm sphere at the camera overlapping the
+        // ship): the hull's bounds, read again now and then (a hull swap, kit parts).
+        Bounds hullBounds;
+        bool hullBoundsKnown, hullHidden, hullMaskCleared;
+        float hullScanMs;
+
+        void Es2HideHull(Transform ship, Vector3 camera)
+        {
+            hullScanMs -= Time.unscaledDeltaTime * 1000f;
+            if (hullScanMs <= 0f || !hullBoundsKnown)
+            {
+                hullScanMs = 500f;
+                hullBounds = World.PlayerHull.HullBounds(ship, target.visualModel != null ? target.visualModel : ship);
+                hullBoundsKnown = hullBounds.size != Vector3.zero;
+            }
+            bool inside = false;
+            if (hullBoundsKnown)
+            {
+                var b = hullBounds;
+                b.Expand(2f * Es2ChaseRig.HideRadiusCm / 100f);
+                inside = b.Contains(ship.InverseTransformPoint(camera));
+            }
+            SetHullHidden(inside);
+        }
+
+        void SetHullHidden(bool hide)
+        {
+            if (hide == hullHidden || fpShown) return;
+            hullHidden = hide;
+            if (hide)
+            {
+                HideHull();
+                if (cam != null)
+                {
+                    hullMaskCleared = (cam.cullingMask & (1 << HiddenLayer)) != 0;
+                    cam.cullingMask &= ~(1 << HiddenLayer);
+                }
+            }
+            else
+            {
+                RestoreHullLayers();
+                if (cam != null && hullMaskCleared) cam.cullingMask |= 1 << HiddenLayer;
+            }
         }
 
         // ---- the cockpit view (remake) ----------------------------------------------------------------------------
@@ -436,6 +728,7 @@ namespace GoF2Remake.Flight
         {
             if (!fpShown)
             {
+                SetHullHidden(false);
                 fpShown = true;
                 fpActive = this;
                 fpScanMs = 0f;
@@ -457,6 +750,17 @@ namespace GoF2Remake.Flight
                 fpSeat = FirstPersonSeat();
             }
             var rot = ship.rotation;
+            if (Es2Mode)
+            {
+                // EVERSPACE 2's cockpit: its shakes, the location ones x FirstPersonScale, the acceleration sway
+                transform.SetPositionAndRotation(ship.TransformPoint(fpSeat), rot);
+                Es2Shakes(ship, target.Model, dtMs, Es2Velocity(dtMs / 1000f), ship.TransformPoint(fpSeat) + ship.forward * 30f, false, true);
+                slide = Vector3.zero;
+                lookValid = false;
+                if (cam != null)
+                    cam.fieldOfView = GoF2Remake.Visuals.Aspect.VerticalFov(baseFov + 0.5f * boostFovAdd * target.Model.BoostVisualPercent * Mathf.Lerp(1f, 0.5f, mass), cam.aspect);
+                return;
+            }
             // The original keeps a thousandth of the hit shake: the remake turns the view a little instead (a hit 0.5 deg, an
             // own shot 0.16 deg), and the explosions' / the boost's rumble at a third of the chase view's.
             float j = 0f;
@@ -521,15 +825,21 @@ namespace GoF2Remake.Flight
             fpRenderers.Clear();
         }
 
+        /// <summary>The hull's renderers back on their own layers.</summary>
+        void RestoreHullLayers()
+        {
+            foreach (var kv in fpLayers) if (kv.Key != null && kv.Key.layer == HiddenLayer) kv.Key.layer = kv.Value;
+            fpLayers.Clear();
+            fpModel = null;
+        }
+
         /// <summary>The hull's layers, the near plane and the culling mask back.</summary>
         void EndFirstPerson()
         {
             if (!fpShown) return;
             fpShown = false;
             if (fpActive == this) fpActive = null;
-            foreach (var kv in fpLayers) if (kv.Key != null && kv.Key.layer == HiddenLayer) kv.Key.layer = kv.Value;
-            fpLayers.Clear();
-            fpModel = null;
+            RestoreHullLayers();
             if (cam != null)
             {
                 cam.nearClipPlane = fpNear;

@@ -25,6 +25,7 @@ namespace GoF2Remake.Tests
         string savedName;
         bool savedCoop;
         int savedNew, savedSlot;
+        Economy savedEconomy;
 
         [SetUp]
         public void CoopHostSettings()
@@ -34,6 +35,7 @@ namespace GoF2Remake.Tests
             savedCoop = NetGame.HostWantsCoop;
             savedNew = NetGame.CoopNewCampaign;
             savedSlot = NetGame.CoopSlot;
+            savedEconomy = NetGame.CoopEconomy;
         }
 
         [TearDown]
@@ -43,6 +45,7 @@ namespace GoF2Remake.Tests
             NetGame.HostWantsCoop = savedCoop;
             NetGame.CoopNewCampaign = savedNew;
             NetGame.CoopSlot = savedSlot;
+            NetGame.CoopEconomy = savedEconomy;
         }
 
         [UnityTest]
@@ -53,6 +56,7 @@ namespace GoF2Remake.Tests
             NetGame.HostWantsCoop = true;
             NetGame.CoopNewCampaign = (int)Campaign.GalaxyOnFire2;
             Assert.IsTrue(NetGame.CanHost(), "the port is free");
+            NetGame.CoopEconomy = Economy.Android;   // (a new game's pick: the lobby asks PC or Android since 4063ce66c; put back in the teardown)
             Assert.IsTrue(NetGame.StartHost(), NetGame.Status);
             yield return WaitFor(() => NetGame.InLobby, 60f, "the new campaign's lobby");
             Assert.IsTrue(NetCoop.Active, "a co-op session");

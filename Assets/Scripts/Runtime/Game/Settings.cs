@@ -180,6 +180,10 @@ namespace GoF2Remake.Data
         /// (LOD 0, as the original binary's AEGeometry::updateLod). On by default on every platform (the user's choice,
         /// 2026-10-22; it was phones only).</summary>
         public static bool Lods { get => GetBool("lods", Default("lods", 1f) > 0.5f); set => SetBool("lods", value); }
+        /// <summary>Remake (the user's request 2026-11-06): the planets drawn as lit 3D spheres rebuilt from their pngs
+        /// (World.RebuiltPlanets) in orbit, on the star map and between the systems; off: the original's flat images. On by
+        /// default; from the next orbit or star map view.</summary>
+        public static bool RebuiltPlanets { get => GetBool("rebuiltPlanets", true); set => SetBool("rebuiltPlanets", value); }
         /// <summary>Remake: the hangar view's depth of field on the player's ship (StationLevel); off by default on phones.</summary>
         public static bool HangarDepthOfField { get => GetBool("hangarDof", Default("hangarDof", 0f) > 0.5f); set => SetBool("hangarDof", value); }   // off by default (2026-10)
 
@@ -247,6 +251,11 @@ namespace GoF2Remake.Data
         /// <summary>The chase camera follows at the original's damping and looks at its eased point (#114, ChaseCamera); off
         /// (default) = the remake's tighter follow (2026.10.09's: twice the rate, a slerped rotation).</summary>
         public static bool OriginalChaseCamera { get => GetBool("originalChaseCamera", false); set => SetBool("originalChaseCamera", value); }
+        /// <summary>Remake (the user's request 2026-11-10): in free flight the chase camera is EVERSPACE 2's (Flight.Es2ChaseRig:
+        /// a pivot ahead of the ship its rotation lags, the camera rolling with the ship and trailing its velocity, the boost's
+        /// wider view); off: the chase camera above (OriginalChaseCamera's follow). On by default; the original flight style
+        /// keeps the chase camera either way.</summary>
+        public static bool Es2FreeFlightCamera { get => GetBool("es2FreeFlightCamera", true); set => SetBool("es2FreeFlightCamera", value); }
 
         // ---- controls ----------------------------------------------------------------------------------------
 
@@ -912,8 +921,8 @@ namespace GoF2Remake.Data
         public static readonly string[] GraphicsKeys =
         {
             "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality",
-            "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "npcPlayerEngines", "fov",
-            "cameraShake", "originalChaseCamera", "originalUi", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
+            "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "npcPlayerEngines", "rebuiltPlanets", "fov",
+            "cameraShake", "originalChaseCamera", "es2FreeFlightCamera", "originalUi", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
         };
         public static readonly string[] ControlsKeys =
         {

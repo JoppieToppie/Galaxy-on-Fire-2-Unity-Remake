@@ -170,6 +170,39 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ALockedCoilTurnsWithTheShipAndTumblesOnWhenLetGo()
+        {
+            // UPortableComponent::Attach with bLockObjectRotation: the turn against the ship is kept from the grab on.
+            var ship0 = UnityEngine.Quaternion.Euler(0f, 30f, 0f);
+            var own = UnityEngine.Quaternion.Euler(10f, 80f, 5f);
+            var held = GoF2Remake.World.Portable.HeldTurn(ship0, own);
+            var ship1 = UnityEngine.Quaternion.Euler(0f, 120f, 40f);
+            var now = ship1 * held;
+            Assert.Less(UnityEngine.Quaternion.Angle(now, ship1 * UnityEngine.Quaternion.Inverse(ship0) * own), 0.01f);
+            Assert.Less(UnityEngine.Quaternion.Angle(ship0 * held, own), 0.01f, "unchanged at the grab");
+            // Its spin is the ship's turn rate: 90 deg/s about up.
+            var a = UnityEngine.Quaternion.identity;
+            var b = UnityEngine.Quaternion.Euler(0f, 0.9f, 0f);
+            var spin = GoF2Remake.World.Portable.SpinBetween(a, b, 0.01f);
+            Assert.AreEqual(90f * UnityEngine.Mathf.Deg2Rad, spin.y, 1e-3f);
+            Assert.AreEqual(0f, spin.x, 1e-4f);
+            // Let go it keeps it (Detach bKeepMomentum) and turns on: half a second at 90 deg/s is 45 deg (an exact spin here:
+            // the one measured above from a 0.9 deg step is only good to float precision, about 0.02 deg after half a second).
+            var turned = GoF2Remake.World.Portable.Turned(UnityEngine.Quaternion.identity, new UnityEngine.Vector3(0f, 90f * UnityEngine.Mathf.Deg2Rad, 0f), 0.5f);
+            Assert.AreEqual(45f, UnityEngine.Quaternion.Angle(UnityEngine.Quaternion.identity, turned), 0.01f);
+            Assert.AreEqual(UnityEngine.Vector3.zero, GoF2Remake.World.Portable.SpinBetween(a, a, 0.01f), "no turn, no spin");
+        }
+
+        [Test]
+        public void ALooseSpinSlowsWithTheCoilsAngularDamping()
+        {
+            Assert.AreEqual(0.1f, GoF2Remake.World.Portable.AngularDamping, "BP_Portable_EnergyCoil / BP_Conductor_Portable AngularDamping");
+            var spin = new UnityEngine.Vector3(0f, 2f, 0f);
+            var after = GoF2Remake.World.Portable.Damped(spin, 10f);
+            Assert.AreEqual(2f * UnityEngine.Mathf.Exp(-1f), after.y, 1e-4f, "10 s: a time constant");
+        }
+
+        [Test]
         public void ACloakedContainerShowsItselfOnlyUpClose()
         {
             Assert.AreEqual(2, GoF2Remake.World.CloakedContainers.Stage(100f), "within ES2's InteractRadius 40 m x 3.6: the marker comes on");

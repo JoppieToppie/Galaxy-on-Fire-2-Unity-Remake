@@ -16,6 +16,10 @@
 //        lit sphere (GoF2/Es2Planet) in place of its quad: as big on screen as its quad's disc (DiscShare of the quad), placed
 //        SphereFar times farther (so a planet near the size of the view never takes the camera in), its pole on the quad's
 //        up, lit by the orbit's sun; no mirroring, no ring.
+//   Remake (Options > Graphics "3D planets", World.RebuiltPlanets): a game planet with a rebuilt sphere is drawn as that sphere
+//        (GoF2/RebuiltPlanetBackdrop) in place of its quad: the disc where the quad's png has it (its centre and radius in the
+//        png), SphereFar times farther, its frame the quad's (mirrored with it), lit by its png's own light, so the orbit looks
+//        as its png; a companion in its png (025's moon) beside it. Not planet_void, nor a planet a mod's texture replaces.
 //   Remake mods: a planet whose texture a mod replaces is drawn as a star when a mod's backdrop.json asks for it
 //        (ModBackdrop.StarPlanets): it faces the camera with the camera's up like the sun, isn't mirrored, has no ring, and
 //        its near-white core is lifted to planetGlow under the remake's bloom (a small glow); looked at, it gets the sun's
@@ -50,6 +54,12 @@ namespace GoF2Remake.World
             public bool orbitPlanet;
             public bool star;            // remake mods: drawn as a star (faces the camera, its core glows)
             public bool sphere;          // remake mods: a lit sphere (planetSphere)
+            public string rebuilt;       // remake: the rebuilt sphere's key (RebuiltPlanets), null for a png's quad
+            public bool mirror;          // (the rebuilt sphere's: mirrored as the quad would be)
+            public Vector2 discCentre;   // (and its disc in the png: its centre, its radius, in the png's width)
+            public float discRadius;
+            public readonly List<MeshRenderer> extra = new List<MeshRenderer>();   // (its companions' renderers)
+            public readonly List<(Vector3 at, float radius)> extraAt = new List<(Vector3, float)>();   // (and where they lie, in its radii)
             public MeshRenderer shell;   // remake mods: its atmosphere (GoF2/Es2Atmosphere), faded with it
             public Body starStreak;      // remake mods: the star's horizontal streak (additive)
         }
@@ -125,7 +135,27 @@ namespace GoF2Remake.World
                     PlanetTargets.Add((p.station, ball.t, p.isOrbitPlanet));
                     continue;
                 }
-                var body = Make(p.texture, Load(p.texture, false, out bool modTexture), 2901, dir, rot, p.scale);
+                var pngMat = Load(p.texture, false, out bool modTexture);
+                // Remake: the rebuilt sphere of a game planet (not one a mod's texture replaces)
+                string rebuiltKey = !modTexture && RebuiltPlanets.Enabled ? RebuiltPlanets.KeyOfTexture(p.texture) : null;
+                var rebuiltMat = rebuiltKey != null ? RebuiltPlanets.MakeMaterial(rebuiltKey, true) : null;
+                if (rebuiltMat != null)
+                {
+                    ownMaterials.Add(rebuiltMat);
+                    var rb = Make(p.texture, rebuiltMat, 2901, dir, rot, p.scale);
+                    MakeRebuilt(rb, rebuiltKey, mirror, tint);
+                    rb.orbitPlanet = p.isOrbitPlanet;
+                    planets.Add(rb);
+                    PlanetTargets.Add((p.station, rb.t, p.isOrbitPlanet));
+                    if (p.ring && ringMat != null)
+                    {
+                        var ring = Make(p.texture + "_ring", ringMat, 2902, dir, rot, p.scale * 4f);
+                        SetProps(ring.t, mirror, Color.clear);
+                        rings.Add(ring);
+                    }
+                    continue;
+                }
+                var body = Make(p.texture, pngMat, 2901, dir, rot, p.scale);
                 body.orbitPlanet = p.isOrbitPlanet;
                 bool starStyle = Modding.ModBackdrop.StarPlanets(out _, out float flare);
                 body.star = modTexture && starStyle;
@@ -192,6 +222,12 @@ namespace GoF2Remake.World
                 fadeBlock.SetColor("_Color", added ? new Color(f, f, f, f) : new Color(1f, 1f, 1f, f));
                 b.r.SetPropertyBlock(fadeBlock);
                 if (b.shell != null) b.shell.SetPropertyBlock(fadeBlock);
+                foreach (var e in b.extra)
+                {
+                    e.GetPropertyBlock(fadeBlock);
+                    fadeBlock.SetColor("_Color", new Color(1f, 1f, 1f, f));
+                    e.SetPropertyBlock(fadeBlock);
+                }
             }
         }
 
@@ -261,6 +297,17 @@ namespace GoF2Remake.World
             foreach (var p in planets)
             {
                 if (!p.orbitPlanet) continue;
+                if (p.rebuilt != null)   // (a rebuilt sphere: the rebuilt planet_000, its companions gone)
+                {
+                    var m000 = RebuiltPlanets.MakeMaterial("000", true);
+                    if (m000 == null) continue;
+                    ownMaterials.Add(m000);
+                    p.r.sharedMaterial = m000;
+                    p.rebuilt = "000";
+                    RebuiltPlanets.Disc("000", out p.discCentre, out p.discRadius);
+                    foreach (var e in p.extra) e.gameObject.SetActive(false);
+                    continue;
+                }
                 // StarSystem::switchPlanetForIntro also doubles the scaling, but StarSystem::render sets the orbit planet's
                 // scale to +0x58 + zoom every frame (0x15de6c), so the x2 never shows: the size stays.
                 if (mat != null) p.t.GetComponent<MeshRenderer>().sharedMaterial = mat;
@@ -440,6 +487,7 @@ namespace GoF2Remake.World
             {
                 // StarSystem::render: not in the alien orbit or a planet ring orbit (the orbit planet stays at its size).
                 float k = (p.orbitPlanet && !layout.ringOrbit && !layout.alienOrbit ? p.scale + zoom : p.scale) * planetSize;
+                if (p.rebuilt != null) { PlaceRebuilt(p, c, k); continue; }
                 if (p.sphere) { PlaceSphere(p, c, k); continue; }
                 if (!p.star) { Place(p, c, p.rot, Vector3.one * k); continue; }
                 // Remake mods: a star faces the camera with its roll, like the sun, and gets the sun's flare (render2D's
@@ -509,6 +557,60 @@ namespace GoF2Remake.World
             float far = Distance * SphereFar;
             b.t.SetPositionAndRotation(camPos + b.dir * far, b.rot);
             b.t.localScale = Vector3.one * (far * Mathf.Sin(angle));   // (SphereMesh: radius 1)
+        }
+
+        /// <summary>Remake: a rebuilt sphere's quad, frame and companions (RebuiltPlanets), its props as the png quad's would be.</summary>
+        void MakeRebuilt(Body b, string key, bool mirror, Color tint)
+        {
+            b.t.GetComponent<MeshFilter>().sharedMesh = RebuiltPlanets.Quad;
+            b.rebuilt = key;
+            b.mirror = mirror;
+            RebuiltPlanets.Disc(key, out b.discCentre, out b.discRadius);
+            SetProps(b.t, mirror, tint);
+            foreach (var (ck, at, cr) in RebuiltPlanets.Companions(key, mirror))
+            {
+                var cm = RebuiltPlanets.MakeMaterial(ck, true);
+                if (cm == null) continue;
+                ownMaterials.Add(cm);
+                var go = new GameObject(b.t.name + " " + ck);
+                go.transform.SetParent(b.t, false);
+                go.transform.localPosition = at;
+                go.transform.localScale = Vector3.one * cr;
+                go.AddComponent<MeshFilter>().sharedMesh = RebuiltPlanets.Quad;
+                var r = go.AddComponent<MeshRenderer>();
+                r.sharedMaterial = cm;
+                // (behind its planet by the backdrop pass's back-to-front order in their queue: a lower sorting order drew it before the
+                //  sky's layers, which then covered it)
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+                r.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+                r.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+                SetProps(go.transform, mirror, tint);
+                b.extra.Add(r);
+                b.extraAt.Add((at, cr));
+            }
+        }
+
+        /// <summary>Remake: a rebuilt sphere where its png's disc is on the quad of 'k' (its centre off the quad's, mirrored with it),
+        /// the same angle across, SphereFar farther out.</summary>
+        static void PlaceRebuilt(Body b, Vector3 camPos, float k)
+        {
+            float side = QuadMeters * k;
+            var local = new Vector3((b.discCentre.x - 0.5f) * (b.mirror ? -1f : 1f), 0.5f - b.discCentre.y, 0f) * side;
+            var onQuad = b.dir * Distance + b.rot * local;   // (the disc's centre on the quad, from the camera)
+            float d0 = Mathf.Max(1e-3f, onQuad.magnitude), disc = side * b.discRadius;
+            b.t.SetPositionAndRotation(camPos + onQuad * SphereFar, b.rot);
+            float radius = d0 * SphereFar * Mathf.Sin(Mathf.Atan(disc / d0));
+            b.t.localScale = Vector3.one * radius;
+            // (a companion behind or before it where the png has it: its offset across and its size grown with its distance, the
+            //  png being a flat picture; at its own depth alone the perspective drew 025's moon a third nearer the planet, behind it)
+            for (int i = 0; i < b.extra.Count; i++)
+            {
+                var (at, cr) = b.extraAt[i];
+                float grow = (d0 * SphereFar + at.z * radius) / (d0 * SphereFar);
+                b.extra[i].transform.localPosition = new Vector3(at.x * grow, at.y * grow, at.z);
+                b.extra[i].transform.localScale = Vector3.one * (cr * grow);
+            }
         }
 
         static Shader es2Planet;
