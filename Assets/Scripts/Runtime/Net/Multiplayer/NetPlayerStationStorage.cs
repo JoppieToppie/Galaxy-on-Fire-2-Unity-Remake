@@ -281,6 +281,20 @@ namespace GoF2Remake.Multiplayer
                 return "This station has no dry dock module.";
             record.dryDockShips ??= new List<StoredShip>();
             var lines = new List<string> { "Dry dock at " + record.name + ":" };
+            if (record.dryDockBuilding)
+            {
+                long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                long total = Math.Max(1L, record.dryDockCompletesUtc - record.dryDockStartedUtc);
+                long remaining = Math.Max(0L, record.dryDockCompletesUtc - now);
+                float progress = Math.Max(0f, Math.Min(1f, 1f - remaining / (float)total));
+                lines.Add("UNDER CONSTRUCTION: " + (NetGame.Db?.Ship(record.dryDockShip)?.name ?? ("Ship " + record.dryDockShip)));
+                lines.Add("Blueprint item: " + record.dryDockBlueprintItem);
+                lines.Add("Progress: " + (progress * 100f).ToString("0.0") + "%");
+                lines.Add("Time remaining: " + remaining + " seconds");
+                lines.Add("Completion time (UTC): " + DateTimeOffset.FromUnixTimeSeconds(record.dryDockCompletesUtc).ToString("u"));
+                lines.Add("Blueprint consumed: " + (record.dryDockConsumeBlueprint ? "yes" : "no"));
+            }
+            else lines.Add("Construction status: idle");
             for (int i = 0; i < record.dryDockShips.Count; i++)
             {
                 var ship = record.dryDockShips[i]; if (ship == null) continue;
