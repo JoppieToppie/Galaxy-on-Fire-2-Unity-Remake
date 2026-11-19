@@ -317,7 +317,7 @@ namespace GoF2Remake.Multiplayer
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false)) return "Install a dry dock module first.";
             if (StorageCapacity(record) <= 0) return "Install station storage first; ship equipment and cargo are transferred there.";
             record.dryDockShips ??= new List<StoredShip>();
-            if (record.dryDockShips.Count >= MaxDryDockShipsPerStation) return "This station's dry dock is full.";
+            if (record.dryDockShips.Count + (record.dryDockBuilding ? 1 : 0) >= MaxDryDockShipsPerStation) return "This station's dry dock is full or its remaining slot is reserved for the active build.";
             var fleet = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
             if (fleet == null || fleetIndex < 1 || fleetIndex > fleet.Count) return "That index is not in your personal stored fleet. Use /station fleet.";
             var candidate = fleet[fleetIndex - 1];
