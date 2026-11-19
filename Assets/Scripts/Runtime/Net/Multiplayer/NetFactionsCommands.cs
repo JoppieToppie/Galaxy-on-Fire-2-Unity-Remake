@@ -163,6 +163,7 @@ namespace GoF2Remake.Multiplayer
             if (on && !faction.officers.Contains(target)) faction.officers.Add(target);
             if (!on) faction.officers.Remove(target);
             Save();
+            NetPlayerStations.RefreshAccessForFactionChange();
             TellFaction(faction, string.Format(on ? Localization.Extra("mpFactionPromoted", "{0} is an officer now.") : Localization.Extra("mpFactionDemoted", "{0} is no officer any more."), NameOf(target)));
             return "";
         }
@@ -176,6 +177,7 @@ namespace GoF2Remake.Multiplayer
             faction.officers.Remove(target);
             if (!faction.officers.Contains(me)) faction.officers.Add(me);   // the old leader stays an officer
             Save();
+            NetPlayerStations.RefreshAccessForFactionChange();
             TellFaction(faction, string.Format(Localization.Extra("mpFactionNewLeader", "{0} leads the faction now."), NameOf(target)));
             return "";
         }
@@ -267,6 +269,7 @@ namespace GoF2Remake.Multiplayer
                 TellFaction(faction, string.Format(Localization.Extra("mpFactionMemberLeft", "{0} left the faction."), NameOf(account)));
             }
             Save();
+            NetPlayerStations.RefreshAccessForFactionChange();
             RefreshTags(account);
             return true;
         }
