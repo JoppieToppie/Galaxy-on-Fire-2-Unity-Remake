@@ -480,10 +480,182 @@ namespace GoF2Remake.Modding
             m.SetVector(Es2GrungeId, new Vector4(grunge != null ? Mathf.Clamp01(e.grungeAmount) : 0f, Mathf.Max(0.01f, e.grungeTiling), Mathf.Max(0f, e.rimBoost), 0f));
         }
 
+        static readonly int ChorusParamsId = Shader.PropertyToID("_ChorusParams"), ChorusAccentId = Shader.PropertyToID("_ChorusAccent"),
+            ChorusAccent2Id = Shader.PropertyToID("_ChorusAccent2"), ChorusEmitRId = Shader.PropertyToID("_ChorusEmitR"),
+            ChorusEmitGId = Shader.PropertyToID("_ChorusEmitG"), ChorusEmitBId = Shader.PropertyToID("_ChorusEmitB"),
+            ChorusKickerId = Shader.PropertyToID("_ChorusKicker"), ChorusKicker2Id = Shader.PropertyToID("_ChorusKicker2"),
+            ChorusDirtId = Shader.PropertyToID("_ChorusDirt"), ChorusDirt2Id = Shader.PropertyToID("_ChorusDirt2"),
+            ChorusDirt3Id = Shader.PropertyToID("_ChorusDirt3");
+
+        static Vector4 Rgba(float[] c, float a) => c != null && c.Length >= 3 ? new Vector4(c[0], c[1], c[2], a) : new Vector4(0f, 0f, 0f, a);
+
+        /// <summary>Chorus's trim sheets and platings (CustomShipMaterial "chorus", GoF2/Hull's ChorusLayers): its maps in URP's
+        /// slots, which the layer reads in their place (_BaseMap the tiling diffuse / plating albedo, _MetallicGlossMap its RMO /
+        /// ORM, _DetailNormalMap the tiling normal, _BumpMap the trim normal (the plating's normal), _OcclusionMap Trim AAO,
+        /// _EmissionMap Trim Emissive, _DetailAlbedoMap / _DetailMask the dirt and its mask), and the palette and dirt roughness
+        /// in their own. The template's keywords stay (no detail or occlusion keyword: Lit doesn't apply them itself). Off
+        /// (_ChorusParams.x 0) without a kind or a palette, as the templates have it.</summary>
+        static void ChorusLayers(ModInfo mod, CustomShipMaterial e, Material m)
+        {
+            var c = e.chorus;
+            if (c == null || !c.On) return;
+            if (c.Shell) { ChorusShell(mod, c, m); return; }
+            var palette = Texture(mod, c.palette, true);
+            if (palette == null) return;
+            bool plating = c.Plating;
+            m.SetTexture("_ChorusPalette", palette);
+            var diffuse = Texture(mod, c.tilingDiffuse, false);
+            if (diffuse == null) diffuse = Solid(Color.white, false);
+            m.SetTexture("_BaseMap", diffuse);
+            m.SetTexture("_MainTex", diffuse);
+            m.SetTextureScale("_BaseMap", Vector2.one);   // (the layer scales its own UVs)
+            m.SetTextureScale("_MainTex", Vector2.one);
+            m.SetColor("_BaseColor", Color.white);
+            var rmo = Texture(mod, c.tilingRmo, true);
+            // without one: mid roughness, no metal, no occlusion (trim RMO: R G B; plating ORM: R G B)
+            m.SetTexture("_MetallicGlossMap", rmo != null ? rmo : Solid(plating ? new Color(1f, 0.5f, 0f, 1f) : new Color(0.5f, 0f, 1f, 1f)));
+            m.SetTexture(plating ? "_BumpMap" : "_DetailNormalMap", Texture(mod, c.tilingNormal, true, normal: true));
+            if (!plating)
+            {
+                m.SetTexture("_BumpMap", Texture(mod, c.trimNormal, true, normal: true));
+                var ao = Texture(mod, c.trimAo, true);
+                m.SetTexture("_OcclusionMap", ao != null ? ao : Solid(new Color(0f, 1f, 1f, 1f)));
+            }
+            var emissive = plating ? null : Texture(mod, c.trimEmissive, false);
+            m.SetTexture("_EmissionMap", emissive);
+            m.SetColor("_EmissionColor", Color.black);   // (the layer makes the emission itself)
+            float kind = plating ? 2f : 1f;
+            m.SetVector(ChorusParamsId, new Vector4(kind, Mathf.Max(1e-4f, c.tiling), Mathf.Clamp01(c.aoIntensity), Mathf.Max(0f, c.emissionScale)));
+            bool accent = !plating && c.accentColor != null && c.accentColor.Length >= 3;
+            m.SetVector(ChorusAccentId, Rgba(c.accentColor, accent ? 1f : 0f));
+            m.SetVector(ChorusAccent2Id, new Vector4(c.accentMetal, c.accentRoughness, c.accentNormal, 0f));
+            m.SetVector(ChorusEmitRId, Rgba(c.emissiveR, emissive != null ? Mathf.Max(0f, c.emissiveAmount) : 0f));
+            m.SetVector(ChorusEmitGId, Rgba(c.emissiveG, c.emissiveUvShift ? 1f : 0f));
+            m.SetVector(ChorusEmitBId, Rgba(c.emissiveB, c.distanceBoost));
+            m.SetVector(ChorusKickerId, Rgba(c.kickerColor, c.kickerColor != null ? Mathf.Max(0f, c.kickerExp) : 0f));
+            m.SetVector(ChorusKicker2Id, new Vector4(c.kickerFadeOffset, Mathf.Max(1e-3f, c.kickerFadeLength), Mathf.Max(0f, c.nearEmission), 0f));
+            var dirt = Texture(mod, c.dirt, false);
+            m.SetVector(ChorusDirtId, Rgba(c.dirtTint ?? new[] { 1f, 1f, 1f }, dirt != null ? 1f : 0f));
+            m.SetVector(ChorusDirt2Id, new Vector4(c.dirtUvScale, c.dirtMaskUvScale, c.dirtAo, c.dirtContrast));
+            m.SetVector(ChorusDirt3Id, new Vector4(c.dirtAlpha ? 1f : 0f, 0f, 0f, 0f));
+            if (dirt != null)
+            {
+                m.SetTexture("_DetailAlbedoMap", dirt);
+                var mask = Texture(mod, c.dirtMask, true);
+                m.SetTexture("_DetailMask", mask != null ? mask : Solid(Color.white));
+                var dr = Texture(mod, c.dirtRoughness, true);
+                m.SetTexture("_ChorusDirtRough", dr != null ? dr : Solid(new Color(0.5f, 0f, 1f, 1f)));
+            }
+        }
+
+        /// <summary>Chorus's M_Guilt_Shell (a "chorus" block of kind "shell"; GoF2/Hull's ChorusShell): the mask in _BaseMap
+        /// (the shadow pass reads its alpha), the flowing noise in _OcclusionMap, the flow vectors in _DetailNormalMap (read as
+        /// plain data), the flow's phase in _DetailMask; its values in _ChorusParams (x 3, y tiling, z randomness, w the
+        /// emission's scale), _ChorusAccent (rgb emissiveColor, a emissiveIntensity), _ChorusAccent2 (x emissiveExponent, y
+        /// centerRadius, z flowSpeed, w flowStrength), _ChorusEmitR (x armsFade, y coverage, z erode, w masterAlpha),
+        /// _ChorusEmitG (x push, y pushNoise, z baseColor, w metallic), _ChorusEmitB (x roughness).</summary>
+        static void ChorusShell(ModInfo mod, ChorusLayersSpec c, Material m)
+        {
+            var mask = Texture(mod, c.mask, true);
+            if (mask == null) return;
+            m.SetTexture("_BaseMap", mask); m.SetTexture("_MainTex", mask);
+            m.SetTextureScale("_BaseMap", Vector2.one); m.SetTextureScale("_MainTex", Vector2.one);
+            m.SetColor("_BaseColor", Color.white);
+            var noise = Texture(mod, c.noise, true);
+            m.SetTexture("_OcclusionMap", noise != null ? noise : Solid(new Color(0.5f, 0.5f, 0.5f, 1f)));
+            var flow = Texture(mod, c.flow, true);
+            m.SetTexture("_DetailNormalMap", flow != null ? flow : Solid(new Color(0.5f, 0.5f, 1f, 1f)));
+            var phase = Texture(mod, c.phase, true);
+            m.SetTexture("_DetailMask", phase != null ? phase : Solid(new Color(0.5f, 0.5f, 0.5f, 1f)));
+            m.SetTexture("_EmissionMap", null);
+            m.SetColor("_EmissionColor", Color.black);
+            m.SetVector(ChorusParamsId, new Vector4(3f, Mathf.Max(1e-4f, c.tiling), Mathf.Max(1e-4f, c.randomness), Mathf.Max(0f, c.emissionScale)));
+            m.SetVector(ChorusAccentId, Rgba(c.emissiveColor, Mathf.Max(0f, c.emissiveIntensity)));
+            m.SetVector(ChorusAccent2Id, new Vector4(c.emissiveExponent, Mathf.Max(1e-4f, c.centerRadius), c.flowSpeed, c.flowStrength));
+            m.SetVector(ChorusEmitRId, new Vector4(c.armsFade, c.coverage, Mathf.Max(1e-4f, c.erode), c.masterAlpha));
+            m.SetVector(ChorusEmitGId, new Vector4(c.push, c.pushNoise, Mathf.Clamp01(c.baseColor), Mathf.Clamp01(c.metal)));
+            m.SetVector(ChorusEmitBId, new Vector4(Mathf.Clamp01(c.roughness), 0f, 0f, 0f));
+            m.SetVector(ChorusKickerId, Vector4.zero);
+            m.SetVector(ChorusDirtId, Vector4.zero);
+        }
+
+        static Shader portalShader;
+
+        /// <summary>A "portal" block (Chorus's FTL portal or its glow) on GoF2/ChorusPortal: its maps as data (linear), the curve
+        /// row clamped; World.PortalRefraction gives it the scene behind (URP's opaque texture).</summary>
+        static Material Portal(ModInfo mod, ChorusPortalSpec p, string name)
+        {
+            if (portalShader == null) portalShader = Resources.Load<Shader>("GoF2Fx/ChorusPortal");
+            if (portalShader == null) return null;
+            var m = new Material(portalShader) { name = name };
+            void Map(string prop, string path, TextureWrapMode wrap)
+            {
+                var t = Texture(mod, path, true);
+                if (t == null) return;
+                t.wrapMode = wrap;
+                m.SetTexture(prop, t);
+            }
+            Map("_Noise", p.noise, TextureWrapMode.Repeat);
+            Map("_Height", p.height, TextureWrapMode.Clamp);
+            Map("_Curve", p.curve, TextureWrapMode.Clamp);
+            Map("_SphereNormal", p.sphereNormal, TextureWrapMode.Clamp);
+            Map("_RingNormal", p.ringNormal, TextureWrapMode.Clamp);
+            Map("_Gradient", p.gradient, TextureWrapMode.Repeat);
+            m.SetFloat("_Kind", p.Glow ? 1f : 0f);
+            m.SetVector("_Polar", new Vector4(p.tilingV, p.panningV, p.structurePower, p.structureMult));
+            m.SetVector("_Bump", new Vector4(p.heightRatio, p.fade, p.ior, p.refraction));
+            m.SetVector("_Pulse", new Vector4(p.pulseSpeed, p.pulseB, 0f, 0f));
+            var c = p.color != null && p.color.Length >= 3 ? p.color : new[] { 1f, 1f, 1f };
+            m.SetVector("_GlowColor", new Vector4(c[0], c[1], c[2], p.lerpColor));
+            return m;
+        }
+
+        static Shader riftShader;
+
+        /// <summary>A "rift" block (Chorus's rift vortex) on GoF2/ChorusRift: its maps as data (linear), repeating.</summary>
+        static Material Rift(ModInfo mod, ChorusRiftSpec r, string name)
+        {
+            if (riftShader == null) riftShader = Resources.Load<Shader>("GoF2Fx/ChorusRift");
+            if (riftShader == null) return null;
+            var m = new Material(riftShader) { name = name };
+            void Map(string prop, string path)
+            {
+                var t = Texture(mod, path, true);
+                if (t == null) return;
+                t.wrapMode = TextureWrapMode.Repeat;
+                m.SetTexture(prop, t);
+            }
+            Map("_Tiled", r.tiled); Map("_Strip", r.strip); Map("_Lightning", r.lightning);
+            Map("_CloudMask", r.cloudMask); Map("_Cloud", r.cloud); Map("_Rock", r.rock);
+            Vector4 V(float[] f, Vector4 d) => f == null ? d : new Vector4(f.Length > 0 ? f[0] : d.x, f.Length > 1 ? f[1] : d.y, f.Length > 2 ? f[2] : d.z, f.Length > 3 ? f[3] : d.w);
+            m.SetVector("_MainUV", V(r.mainUV, new Vector4(1.5f, 1f, 0.01f, 0.03f)));
+            m.SetVector("_DetailUV", V(r.detailUV, new Vector4(1f, 1.5f, 0f, 0.02f)));
+            m.SetVector("_ParUV", V(r.cloudsUV, new Vector4(2f, 1f, 0.018f, 0.02f)));
+            m.SetVector("_RockUV", V(r.rockUV, new Vector4(3f, 1f, 0.009f, 0.018f)));
+            m.SetVector("_Shape", new Vector4(r.mainPow, r.detailPow, r.detailMul, r.redCenter));
+            var off = V(r.detailOffset, new Vector4(0.4f, 0.4f, 0f, 0f));
+            m.SetVector("_Detail2", new Vector4(off.x, off.y, r.cloudsPow, r.heightRatio));
+            var pan = V(r.heightPan, new Vector4(0.018f, 0.02f, 0f, 0f));
+            m.SetVector("_HeightPan", new Vector4(pan.x, pan.y, r.cloudPow, r.cloudMul));
+            m.SetVector("_Bolts", new Vector4(r.boltSpeed, r.pulseRate1, r.pulseRate2, r.sequenceTime));
+            m.SetVector("_Bolts2", new Vector4(Mathf.Max(1f, r.frames), r.lightningMul, r.lightningCloud, r.gradation));
+            m.SetVector("_Blend", new Vector4(r.blendExp, r.blendMult, r.corePow, r.coreTint));
+            m.SetVector("_Inner", V(r.inner, new Vector4(0.1f, 0f, 0.003f, 0f)));
+            m.SetVector("_Outer", V(r.outer, new Vector4(0.1f, 0f, 0.0333f, 0f)));
+            m.SetVector("_Core", V(r.core, Vector4.zero));
+            m.SetVector("_Brightness", V(r.brightness, new Vector4(200f, 0.8f, 5f, 0f)));
+            m.SetVector("_Background", V(r.background, new Vector4(0.01f, 0.013f, 0.02f, 0f)));
+            m.SetVector("_Clouds", V(r.clouds, new Vector4(0.0064f, 0.0061f, 0.02f, 0f)));
+            m.SetFloat("_Exposure", Mathf.Max(0f, r.exposure));
+            return m;
+        }
+
         public static Material FromSpec(ModInfo mod, CustomShipMaterial e, string name)
         {
             var a = ModAssets.Get();
             if (a == null) return null;
+            if (e.portal != null && e.portal.On) return Portal(mod, e.portal, name);
+            if (e.rift != null && e.rift.On) return Rift(mod, e.rift, name);
             if (e.flame) return Flame(mod, e, name, a);
             if (e.hologram) return Hologram(mod, e, name, a);
             if (e.shimmer) return Shimmer(mod, e, name, a);
@@ -528,6 +700,7 @@ namespace GoF2Remake.Modding
             }
             m.SetFloat("_Smoothness", e.smoothness);
             Es2Layers(mod, e, m);
+            ChorusLayers(mod, e, m);
             var em = Texture(mod, e.emission, false);
             bool emColor = e.emissionColor != null && e.emissionColor.Length >= 3;
             if (em != null || emColor)

@@ -620,6 +620,7 @@ namespace GoF2Remake.World
         Material SphereMaterial(Modding.ModWorld.PlanetSphereSpec spec, Vector3 sunDir, OrbitLayout orbit)
         {
             if (spec == null) return null;
+            if (spec.look == "chorus") return ChorusPlanetMaterial(spec, sunDir, orbit);
             if (es2Planet == null) es2Planet = Resources.Load<Shader>("GoF2Sky/Es2Planet");
             if (es2Planet == null) return null;
             var m = new Material(es2Planet) { name = "ES2 planet " + spec.look, renderQueue = 2901 };
@@ -648,6 +649,7 @@ namespace GoF2Remake.World
         /// AtmosphereScale x the planet's, drawn right after it; null without an atmosphere colour (or the shader).</summary>
         MeshRenderer AtmosphereShell(Transform planet, Modding.ModWorld.PlanetSphereSpec spec, Vector3 sunDir, OrbitLayout orbit)
         {
+            if (spec?.chorusAtmosphere != null) return ChorusAtmosphereShell(planet, spec, sunDir);
             if (spec?.atmosphere == null) return null;
             if (es2Atmosphere == null) es2Atmosphere = Resources.Load<Shader>("GoF2Sky/Es2Atmosphere");
             if (es2Atmosphere == null) return null;
@@ -663,6 +665,97 @@ namespace GoF2Remake.World
             var go = new GameObject("Atmosphere");
             go.transform.SetParent(planet, false);
             go.transform.localScale = Vector3.one * AtmosphereScale;
+            go.AddComponent<MeshFilter>().sharedMesh = SphereMesh;
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = m;
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            return r;
+        }
+
+        static Shader chorusPlanet, chorusAtmosphere;
+
+        /// <summary>A Chorus planet (planetSphere "look": "chorus", GoF2/ChorusPlanet): its maps by role from its mod (linear,
+        /// the curves clamped), its Chorus values by their parameter names into the shader's vectors.</summary>
+        Material ChorusPlanetMaterial(Modding.ModWorld.PlanetSphereSpec spec, Vector3 sunDir, OrbitLayout orbit)
+        {
+            var c = spec.chorus;
+            if (c == null) return null;
+            if (chorusPlanet == null) chorusPlanet = Resources.Load<Shader>("GoF2Sky/ChorusPlanet");
+            if (chorusPlanet == null) return null;
+            var m = new Material(chorusPlanet) { name = "Chorus planet", renderQueue = 2901 };
+            ownMaterials.Add(m);
+            bool cheap = c.kind == "cheap";
+            var roles = cheap
+                ? new[] { ("normal", "_CPTerrainNormal"), ("diffuse", "_CPDiffuse"), ("night", "_CPNight"), ("clouds", "_CPClouds") }
+                : new[] { ("terrainNormal", "_CPTerrainNormal"), ("macroNormal", "_CPMacroNormal"), ("macroHeight", "_CPMacroHeight"), ("terrainHeight", "_CPTerrainHeight"),
+                          ("grunge", "_CPGrunge"), ("curves", "_CPCurves"), ("clouds", "_CPClouds"), ("cloudsFlow", "_CPCloudsFlow"), ("flowNoise", "_CPFlowNoise") };
+            foreach (var (role, prop) in roles)
+                if (spec.maps.TryGetValue(role, out var file) && Modding.ModMaterials.Texture(spec.mod, file, !c.srgb.Contains(role)) is Texture2D t)
+                {
+                    t.wrapMode = role == "curves" ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
+                    m.SetTexture(prop, t);
+                    if (role == "curves") m.SetVector("_CPFlags2", new Vector4(0f, 0f, t.height, 0f));
+                }
+            float V(string n, float f) => c.Value(n, f);
+            m.SetFloat("_CPKind", cheap ? 1f : 0f);
+            m.SetVector("_CPFlags", new Vector4(c.water ? 1 : 0, c.clouds ? 1 : 0, c.macroNormal ? 1 : 0, c.macroThreshold ? 1 : 0));
+            float rows = m.GetVector("_CPFlags2").z;
+            m.SetVector("_CPFlags2", new Vector4(c.roughnessConstant ? 1 : 0, c.shadedSpecular ? 1 : 0, rows > 0 ? rows : 3, c.simple ? 1 : 0));
+            m.SetVector("_CPTiling", new Vector4(V("Tiling | Terrain Base", 24), V("Tiling | Macro Tile Factor", 0.2f), V("Grunge | Tiling Factor", 0.5f), V("PanSpeed | Terrain", 0)));
+            m.SetVector("_CPNormal", new Vector4(V("Terrain | Normal Intensity", 1), V("Macro | Normal Intensity", 1), V("Macro | Treshold", 0.5f), V("Macro | Treshold Contrast", 1)));
+            m.SetVector("_CPFresnel", new Vector4(V("Atmosphere Fresnel Exp", 8), V("Atmosphere Fresnel Base", 0.05f), V("Terminator Tightness (for Opacity)", 10), V("Atmosphere Clouds Emissive", 0)));
+            m.SetVector("_CPAtmos", new Vector4(V("Atmosphere Directional Emissive", 1), V("Fresnel Lit Intensity", 1), V("Fresnel Shade Intensity", 1), V("Atmosphere Fresnel Emissive", 1)));
+            m.SetVector("_CPBright", new Vector4(V("Overall Brightness Lit Side", 1), V("Overall Brightness Shadowed Side", 0.05f), V("Overall Specular Shadowed Side", 0.5f), V("Roughness | Grunge/Height Balance", 0.5f)));
+            m.SetVector("_CPColor", new Vector4(V("Color | Dimming Factor", 1), V("Grunge | Intensity", 0), V("Atmosphere Roughness", 0.85f), V("Macro | Color Influence", 0)));
+            m.SetVector("_CPWater", new Vector4(V("Water Level", 0), V("Water Density", 1), V("Underwater Normal Intensity", 0.1f), V("Terrain Macro Height Strength", 1)));
+            m.SetVector("_CPWater2", new Vector4(V("Water Metallic", 0), V("Water Specular", 0.5f), V("Water Roughness", 0.1f), V("Roughness | Constant", 0.7f)));
+            m.SetVector("_CPWaterDeep", c.Colour("Water Color Deep", Vector4.zero));
+            m.SetVector("_CPWaterShallow", c.Colour("Water Color Shallow", Vector4.zero));
+            m.SetVector("_CPCloudsA", new Vector4(V("Tiling Clouds", 11), V("PanSpeed_Clouds", 0.005f), V("Cloud Coverage", 0.5f), V("Cloud Contrast", 0.5f)));
+            m.SetVector("_CPCloudsB", new Vector4(V("Flowmap Tiling", 5), V("PanSpeed_CloudsFlow", 0), V("Flowmap Speed", 0.01f), V("Flowmap Offsets", 0.3f)));
+            m.SetVector("_CPCloudsC", new Vector4(V("Flowmap Noise Tiling", 10), V("Flowmap Noise", 0), V("Flowmap Mip Level", 3), V("Clouds Brightness Min", 0)));
+            m.SetVector("_CPCloudsD", new Vector4(V("Clouds Emissive", 0), 0, 0, 0));
+            m.SetVector("_CPCloudsTint", c.Colour("Clouds Tint", Vector4.one));
+            m.SetVector("_CPBaseTint", c.Colour("Overall Basecolor Tint", Vector4.one));
+            m.SetVector("_CPEmissiveTint", c.Colour("Overall Emissive Tint", Vector4.one));
+            m.SetVector("_CPCheap", new Vector4(V("PlanetSpeed", 0), V("CloudSpeed", 0), V("NightIntensity", 0.2f), V("Normal Intensity", 1)));
+            m.SetVector("_CPCheap2", new Vector4(V("AreaCoverage", 0.5f), V("AreaContrast", 5), V("RimContrast", 4), V("BlueRimContrast", 30)));
+            m.SetVector("_CPInside", c.Colour("InsideColor", Vector4.zero));
+            m.SetVector("_CPRim", c.Colour("RimColor", Vector4.zero));
+            m.SetVector("_CPBlueRim", c.Colour("BlueRimColor", Vector4.zero));
+            m.SetVector("_SunDir", sunDir);
+            var sc = orbit.SunLightColor;
+            float max = Mathf.Max(sc.r, Mathf.Max(sc.g, sc.b), 1e-3f);
+            m.SetColor("_SunColor", Color.Lerp(Color.white, sc / max, 0.5f) * 1.6f);   // (as the ES2 planets': SphereMaterial)
+            return m;
+        }
+
+        /// <summary>A Chorus planet's atmosphere shell (planetSphere "chorusAtmosphere", GoF2/ChorusAtmosphere): a child sphere
+        /// just past the atmosphere's height (AtmosphereHeightUU / PlanetRadiusUU of the planet's radius), drawn additively.</summary>
+        MeshRenderer ChorusAtmosphereShell(Transform planet, Modding.ModWorld.PlanetSphereSpec spec, Vector3 sunDir)
+        {
+            var c = spec.chorusAtmosphere;
+            if (chorusAtmosphere == null) chorusAtmosphere = Resources.Load<Shader>("GoF2Sky/ChorusAtmosphere");
+            if (chorusAtmosphere == null) return null;
+            var m = new Material(chorusAtmosphere) { name = "Chorus atmosphere", renderQueue = 2902 };
+            ownMaterials.Add(m);
+            if (spec.maps.TryGetValue("atmosphereCurves", out var file) && Modding.ModMaterials.Texture(spec.mod, file, true) is Texture2D t)
+            {
+                t.wrapMode = TextureWrapMode.Clamp;
+                m.SetTexture("_CACurves", t);
+            }
+            float V(string n, float f) => c.Value(n, f);
+            float height = V("AtmosphereHeightUU", 6e6f) / Mathf.Max(V("PlanetRadiusUU", 2e8f), 1f);
+            float scale = 1f + height * 1.05f;
+            m.SetVector("_CAShape", new Vector4(height, V("AtmosphereExponent", 3), scale, V("Terminator Tightness (for Opacity)", 10)));
+            m.SetVector("_CAColour", new Vector4(V("Atmosphere Directional Emissive", 1), V("Atmosphere Fresnel Exp", 8), V("Atmosphere Fresnel Base", 0.05f), V("Atmosphere Fresnel Emissive", 1)));
+            m.SetVector("_CABright", new Vector4(V("Fresnel Lit Intensity", 1), V("Fresnel Shade Intensity", 1), V("Overall Brightness Lit Side", 1), V("Overall Brightness Shadowed Side", 1)));
+            m.SetVector("_CATint", c.Colour("Overall Emissive Tint", Vector4.one));
+            m.SetVector("_SunDir", sunDir);
+            var go = new GameObject("Atmosphere");
+            go.transform.SetParent(planet, false);
+            go.transform.localScale = Vector3.one * scale;
             go.AddComponent<MeshFilter>().sharedMesh = SphereMesh;
             var r = go.AddComponent<MeshRenderer>();
             r.sharedMaterial = m;

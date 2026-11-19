@@ -170,6 +170,16 @@ namespace GoF2Remake.Data
         /// <summary>The sun's lens flare in flight (LensFlareView).</summary>
         public static bool LensFlare { get => GetBool("lensFlare", Default("lensFlare", 1f) > 0.5f); set => SetBool("lensFlare", value); }
 
+        /// <summary>Remake: a mod sky's live shader where it has one (systems.json skybox "chorus": Chorus's sky drawn as its
+        /// game draws it, OrbitBuilder.SetChorusSky), else its baked panorama ("nebula"); from the next orbit. On from Medium up.
+        /// Unset, it follows the detail distance (off at Low's), so a desktop player on Low still matches the Low preset.</summary>
+        public static bool LiveSkies
+        {
+            // (unset: worked out on each read, not cached, as the detail distance can change after it)
+            get => defaultReads < 0 && PlayerPrefs.HasKey(Prefix + "liveSkies") ? GetBool("liveSkies", true) : Default("liveSkies", DetailDistance > 0 ? 1f : 0f) > 0.5f;
+            set => SetBool("liveSkies", value);
+        }
+
         /// <summary>Remake: the hangar ships' contact shadows (HangarShipShadow): 0 off, 1 only the player's own ship, 2 every
         /// ship (default). Off also drops the station camera's depth texture they read.</summary>
         public static int HangarShadows { get => Mathf.Clamp(Mathf.RoundToInt(Get("hangarShadows", Default("hangarShadows", HangarShadowsPlayer))), 0, 2); set => Set("hangarShadows", Mathf.Clamp(value, 0, 2)); }
@@ -209,7 +219,7 @@ namespace GoF2Remake.Data
         public static readonly string[] PresetKeys =
         {
             "renderScale", "upscaler", "msaa", "postAa", "bloomStyle", "hangarShadows", "hangarDof", "lensFlare", "npcPlayerEngines", "lods",
-            "textureQuality", "fireSmoke", "fog", "detailDistance", "textureFiltering",
+            "textureQuality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "liveSkies",
         };
 
         // One row per preset, in PresetKeys' order. Low / Medium as the original's Quality Low / Medium (fire, smoke and fog
@@ -220,11 +230,11 @@ namespace GoF2Remake.Data
         // field, no made levels of detail, detail distance x2, 16x filtering.
         static readonly float[][] Presets =
         {
-            //      scale  upscaler     msaa post aa     bloom        hangar shadows       dof lens npcEng lods textures fire fog detail filter
-            new[] { 0.67f, UpscalerFsr, 1f, PostAaFxaa, BloomOff,    HangarShadowsOff,    0f, 0f, 0f, 1f, 1f, 0f, 0f, 0f, 1f },
-            new[] { 0.8f,  UpscalerFsr, 1f, PostAaSmaa, BloomRemake, HangarShadowsPlayer, 0f, 1f, 0f, 1f, 0f, 0f, 0f, 1f, 1f },
-            new[] { 1f,    UpscalerOff, 1f, PostAaSmaa, BloomRemake, HangarShadowsPlayer, 0f, 1f, 1f, 1f, 0f, 1f, 1f, 2f, 2f },
-            new[] { 1.5f,  UpscalerOff, 8f, PostAaSmaa, BloomRemake, HangarShadowsAll,    1f, 1f, 1f, 0f, 0f, 1f, 1f, 3f, 3f },
+            //      scale  upscaler     msaa post aa     bloom        hangar shadows       dof lens npcEng lods textures fire fog detail filter skies
+            new[] { 0.67f, UpscalerFsr, 1f, PostAaFxaa, BloomOff,    HangarShadowsOff,    0f, 0f, 0f, 1f, 1f, 0f, 0f, 0f, 1f, 0f },
+            new[] { 0.8f,  UpscalerFsr, 1f, PostAaSmaa, BloomRemake, HangarShadowsPlayer, 0f, 1f, 0f, 1f, 0f, 0f, 0f, 1f, 1f, 1f },
+            new[] { 1f,    UpscalerOff, 1f, PostAaSmaa, BloomRemake, HangarShadowsPlayer, 0f, 1f, 1f, 1f, 0f, 1f, 1f, 2f, 2f, 1f },
+            new[] { 1.5f,  UpscalerOff, 8f, PostAaSmaa, BloomRemake, HangarShadowsAll,    1f, 1f, 1f, 0f, 0f, 1f, 1f, 3f, 3f, 1f },
         };
 
         /// <summary>'key''s value in 'preset' (PresetLow..PresetUltra).</summary>
@@ -928,7 +938,7 @@ namespace GoF2Remake.Data
         public static readonly string[] GraphicsKeys =
         {
             "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality",
-            "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "npcPlayerEngines", "rebuiltPlanets", "fov",
+            "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "liveSkies", "npcPlayerEngines", "rebuiltPlanets", "fov",
             "cameraShake", "originalChaseCamera", "es2FreeFlightCamera", "originalUi", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
         };
         public static readonly string[] ControlsKeys =

@@ -50,6 +50,19 @@ namespace GoF2Remake.Flight
         /// Phantom is silent (index 0 swaps it for the broken engine 156, IntroCutscenes).</summary>
         bool storySilent;
 
+        Modding.ModShipAnimator animator;
+        WeaponSystem weapons;
+        bool wasDashing;
+
+        /// <summary>The ship model's ModShipAnimator, found again after the model changed (a new ship, a rebuilt kit).</summary>
+        Modding.ModShipAnimator Animator()
+        {
+            if (animator != null) return animator;
+            var root = ship != null && ship.visualModel != null ? ship.visualModel : transform;
+            animator = root.GetComponentInChildren<Modding.ModShipAnimator>(true);
+            return animator;
+        }
+
         public static PlayerEngine Attach(GameObject player, Database db, ShipController ship)
         {
             var e = player.AddComponent<PlayerEngine>();
@@ -235,6 +248,18 @@ namespace GoF2Remake.Flight
             bool drifting = model != null && model.Drifting;
             if (driftLoop != null) Drive(driftLoop, on && drifting, modSounds.driftLoop.Volume(speed) * gain, modSounds.driftLoop.Pitch(speed) * deep);
             if (on && drifting != wasDrifting) OneShot(drifting ? modSounds.driftStart : modSounds.driftStop, gain, deep);
+            if (drifting != wasDrifting) Animator()?.SetDrift(drifting);   // the hull's own drift animation (ships.json "animations")
+            if (Animator() is Modding.ModShipAnimator hullAnim && model != null)
+            {
+                // its travel boost, and its flaps by the stick and the throttle
+                hullAnim.SetTravel(model.TravelBoosting);
+                float z = model.ThrustInput.z;
+                hullAnim.SetPoses(model.YawInput, Mathf.Max(0f, z), Mathf.Max(0f, -z), Time.deltaTime);
+                if (weapons == null) weapons = GetComponent<WeaponSystem>();
+                hullAnim.SetFiring(weapons != null && weapons.FireHeld, Time.time);
+                if (model.Dashing && !wasDashing) hullAnim.Dodge(model.DashDirection);
+            }
+            wasDashing = model != null && model.Dashing;
             wasDrifting = drifting;
             // The dodge (the original's manoeuvre, any style): one shot as it starts.
             bool dodging = ship.Maneuver.Active || (model != null && model.Dashing);

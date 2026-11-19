@@ -433,8 +433,10 @@ namespace GoF2Remake.Tests
         {
             WriteMod("w", "t_world", "1.0", "", ("systems.json",
                 "[ { 'id': 'far', 'name': 'Far', 'race': 1, 'position': [1, 2, 3], 'jumpgate': { 'model': 'models/gate.glb', 'size': 20000 } }, " +
-                "  { 'id': 'near', 'name': 'Near', 'race': 1, 'position': [4, 5, 6] } ]"), ("stations.json",
-                "[ { 'id': 'post', 'system': 't_world:far', 'name': 'Post' }, { 'id': 'other', 'system': 't_world:near', 'name': 'Other' } ]"));
+                "  { 'id': 'near', 'name': 'Near', 'race': 1, 'position': [4, 5, 6] }, " +
+                "  { 'id': 'long', 'name': 'Long', 'race': 1, 'position': [7, 8, 9], 'jumpgate': { 'model': 'models/gate.glb', 'centre': false } } ]"), ("stations.json",
+                "[ { 'id': 'post', 'system': 't_world:far', 'name': 'Post' }, { 'id': 'other', 'system': 't_world:near', 'name': 'Other' }, " +
+                "  { 'id': 'third', 'system': 't_world:long', 'name': 'Third' } ]"));
             ScanAndEnable("t_world");
             var db = Database.Load();
             Assert.IsTrue(GoF2Remake.Modding.ModWorld.TryResolveSystem("t_world:far", out int far));
@@ -443,6 +445,9 @@ namespace GoF2Remake.Tests
             Assert.IsNotNull(gate);
             Assert.AreEqual($"modgate_{far:000}", gate.Assembly);
             Assert.AreEqual(10000f, gate.gateRadius, "half its size unless 'radius' is given");
+            Assert.IsTrue(gate.centre, "the middle of its bounds by default");
+            Assert.IsTrue(GoF2Remake.Modding.ModWorld.TryResolveSystem("t_world:long", out int longGate));
+            Assert.IsFalse(GoF2Remake.Modding.ModWorld.GateModelOf(longGate).centre, "\"centre\": false: the model's own origin");
             Assert.IsNotNull(db.Assemblies.Find(a => a.name == gate.Assembly), "registered for AssembledObject.LoadPrefab");
             Assert.IsNull(GoF2Remake.Modding.ModWorld.GateModelOf(near), "the race's gate");
             // Models() loads the tables again, which makes new model objects: compare by assembly

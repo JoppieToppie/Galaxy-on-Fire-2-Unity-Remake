@@ -182,6 +182,10 @@ namespace GoF2Remake.Data
         /// <summary>Remake mods, a primary / secondary mount: nodes of the ship's model (by name) that show only while this mount
         /// carries a weapon (a hardpoint's pylon; Modding.ModHardpoints.AttachWeapons).</summary>
         public string[] nodes;
+        /// <summary>Remake mods, a primary / secondary mount of a kit ship: the node of the ship's model (by name) its weapon
+        /// model rides on, so it moves with that part's animation (the Forsaken's gun platforms as its weapons deploy;
+        /// Modding.ModHardpoints.AttachWeapons). Null = the ship itself.</summary>
+        public string follow;
         /// <summary>Remake mods, an exhaust mount (slotType 3) of a ship with "engineFx": that effect's size here (GoF3's engine
         /// helper scale; 0 = 1).</summary>
         public float fxScale;
@@ -197,6 +201,20 @@ namespace GoF2Remake.Data
     /// <summary>A mod's ship (a ships.json entry, Modding.ModContent; the format of PR #34's custom_ships.json): a ships.json
     /// entry plus what the original keeps in its fixed tables (race, hangar height), the weapon mounts and how to build its
     /// model at run time (Modding.ModShipBuilder). Paths are inside the mod.</summary>
+    /// <summary>Remake: ships.json "animations": a model's glTF clips by name for what the ship is doing (ModShipAnimator).</summary>
+    [System.Serializable] public class ShipAnimations
+    {
+        public string idle;                 // loops whenever nothing else plays
+        public ShipStateAnimation drift;    // Chorus flight's drift
+        public ShipStateAnimation travel;   // Chorus flight's travel boost
+        public ShipStateAnimation weapons;  // while the player fires: deploy (start), deployed (loop), undeploy (end)
+        public string steerLeft, steerRight, thrust, brake, bankLeft, bankRight;   // poses laid over it by the input (each clip's last frame)
+        public ShipStateAnimation dodgeLeft, dodgeRight;   // Chorus flight's dash: played once (start, then end)
+        public string driftDodgeLeft, driftDodgeRight;      // the same out of a drift (played once)
+    }
+
+    [System.Serializable] public class ShipStateAnimation { public string start, loop, end; }
+
     [System.Serializable] public class CustomShipData : ShipData
     {
         public int race = -1;              // 0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirate, 9 void (Shop.ShipRace)
@@ -216,6 +234,10 @@ namespace GoF2Remake.Data
         public float engineGlowRadius = 24f;   // game units, the glow disc at each exhaust mount
         public float[] engineGlowColor;    // RGB 0..1: every exhaust's flame colour (a mount's glowColor wins); none = the original glow
         public List<CustomShipMaterial> materials;   // replace the model's materials on the renderers / submeshes they name
+        public ShipAnimations animations;  // Remake: the model's clips by what the ship does (Modding.ModShipAnimator); null = its first clip loops
+        // Remake: keep the model's skinned meshes skinned, so clips that bend it (a creature's tentacles: Chorus's Guilt) play;
+        // otherwise they are baked to their rest pose (ModShipBuilder.FlattenSkinned). Measuring and collision read the bind pose.
+        public bool skinned;
         public CustomThrottleGlow throttleGlow;   // a glow on part of the hull that follows the throttle (no mask = none)
         public List<CustomThrottleGlow> extraGlows;   // more of them (each its own mask, colour, levels and trail)
         public CustomEngineFx engineFx;    // remake mods: Galaxy on Fire 3's engine effect at every exhaust (Modding.EngineFx); null = none
@@ -439,6 +461,13 @@ namespace GoF2Remake.Data
         public string wear, wearNormal, wearNoise, grunge;
         public float wearTiling = 1f, wearExponent = 0.5f, wearCap, wearWidth = 0.5f, wearBrightness = 0.5f, wearMetal = 1f;
         public float grungeTiling = 1f, grungeAmount, baseRoughness = -1f, rimBoost;
+        // Chorus's trim sheets and platings (GoF2/Hull's ChorusLayers; ChorusLayersSpec): drawn from Chorus's own maps over the
+        // model's UV sets 0, 1 and 3 instead of this entry's diffuse / normal / metallicSmoothness. Off without a "kind".
+        public ChorusLayersSpec chorus;
+        /// <summary>Remake (2026-11-11): Chorus's FTL portal or its glow (GoF2/ChorusPortal, ModMaterials.Portal).</summary>
+        public ChorusPortalSpec portal;
+        /// <summary>Remake (2026-11-11): Chorus's rift vortex (GoF2/ChorusRift, ModMaterials.Rift).</summary>
+        public ChorusRiftSpec rift;
         // An engine flame (GoF2/ModEngineFlame, Modding.EngineFlame): the surfaces are flame stubs whose UV u runs from the
         // nozzle (0) to the tip (1), stretched backward by the throttle; emissionColor x emissionIntensity is its colour.
         public bool flame;
@@ -446,6 +475,112 @@ namespace GoF2Remake.Data
         public float flameIdle = 0.15f;    // the length at idle, a share of flameLength
         public string flameNoise;          // a PNG in the mod (grey noise, tiling), streaked along the flame
         public float[] boostColor;         // RGB 0..1 while boosting (default a hot blue), x emissionIntensity
+    }
+
+    /// <summary>Chorus's trim sheets and platings on a mod material (a ships.json / station "materials" entry's "chorus";
+    /// GoF2/Hull's ChorusLayers, after M_TrimLayersMaster / M_NPCShipTrimMaster / M_PlatingMaster's compiled base passes;
+    /// Modding/README.md "Chorus layers"). The model carries UV0 (the trim sheet, or the plating), UV1 (the tiling layer and
+    /// dirt) and UV3 (the palette: one swatch per face). 'palette': LayerColors (left half, its colours already linear) and
+    /// LayerData (right half) side by side, read linear by texel. Trim: 'tilingDiffuse' / 'tilingRmo' / 'tilingNormal' over
+    /// UV1 x 'tiling'; 'trimAo' (Trim AAO: R the accent mask, B occlusion x 'aoIntensity'), 'trimNormal', 'trimEmissive'
+    /// (its channels x 'emissiveR' / 'G' / 'B' x 'emissiveAmount'; 'emissiveUvShift' only on faces shifted out of the
+    /// palette) over UV0; 'accentColor' (null = none) with 'accentMetal' / 'accentRoughness' / 'accentNormal'. Plating:
+    /// 'tilingDiffuse' / 'tilingRmo' / 'tilingNormal' are Albedo / ORM / Normal over UV0 x 'tiling'. 'dirt' / 'dirtMask' /
+    /// 'dirtRoughness' (Dirt BaseColor x 'dirtTint', over UV1) by the vertex colour's red ('dirtAlpha': x its alpha too).
+    /// 'kickerColor' / 'kickerExp' (0 = none): the far rim, faded in past 'kickerFadeOffset' over 'kickerFadeLength' (world
+    /// units), with the emissive x 'distanceBoost' there; 'nearEmission' the emissive's factor up close (M_NPCShipTrimMaster's
+    /// 2). Every emission x 'emissionScale' (Chorus's HDR to the remake's bloom).</summary>
+    /// <summary>A material's "portal" block: Chorus's FTL portal (M_FTL_Portal) or its glow (M_FTL_PortalGlow), drawn by
+    /// GoF2/ChorusPortal. kind "portal": 'noise' (T_main) in polar coordinates x (1, tilingV), scrolling by panningV, ^
+    /// structurePower x structureMult into the colour 'curve' (one row), 'height' (its bump offset by heightRatio and the
+    /// refraction's mask), 'sphereNormal' / 'ringNormal' and 'ior' / 'pulseSpeed' / 'pulseB' / 'refraction' the scene
+    /// bent behind it, x 'fade'. kind "glow": 'gradient' at -UV, lerp(color x g, the curve at g, lerpColor) x g.</summary>
+    [System.Serializable] public class ChorusPortalSpec
+    {
+        public string kind;   // "portal" or "glow"; empty = off
+        public string noise, height, curve, sphereNormal, ringNormal, gradient;
+        public float tilingV = 0.15f, panningV = 0.33f, structurePower = 1.5f, structureMult = 1f, heightRatio = -1f, fade = 1f;
+        public float ior = 1.5f, pulseSpeed = -0.4f, pulseB = 3f, refraction = 0.05f;
+        public float[] color;
+        public float lerpColor = 1f;
+        public bool On => kind == "portal" ? !string.IsNullOrEmpty(noise) : kind == "glow" && !string.IsNullOrEmpty(gradient);
+        public bool Glow => kind == "glow";
+
+        /// <summary>Its maps: (path, linear, normal map).</summary>
+        public System.Collections.Generic.IEnumerable<(string path, bool linear, bool normal)> Textures()
+        {
+            if (!On) yield break;
+            foreach (var t in new[] { (noise, true, false), (height, true, false), (curve, true, false), (sphereNormal, true, false), (ringNormal, true, false), (gradient, true, false) })
+                if (!string.IsNullOrEmpty(t.Item1)) yield return t;
+        }
+    }
+
+    /// <summary>A material's "rift" block: Chorus's rift vortex (M_PortalRift_2, on SM_Rift_Vortex), drawn added by
+    /// GoF2/ChorusRift. Its maps (each read as data, R unless said): 'tiled' (T_HeroRift_Tileable), 'strip' (the bolts' 1D
+    /// pulse), 'lightning' / 'cloudMask' (N x N flipbooks, 'frames' N, over UV0 / UV1), 'cloud' (R the clouds, G their
+    /// height), 'rock' (the dark background). Each "...UV" is [tiling u, v, pan u, v a second]; the rest as the material
+    /// instance's parameters (see the shader's header). 'exposure' scales the whole (Chorus's HDR to the remake's).</summary>
+    [System.Serializable] public class ChorusRiftSpec
+    {
+        public string tiled, strip, lightning, cloudMask, cloud, rock;
+        public float[] mainUV, detailUV, cloudsUV, rockUV, detailOffset, heightPan;
+        public float mainPow = 0.7f, detailPow = 7f, detailMul = 1f, redCenter = 1794f, cloudsPow = 2f, heightRatio = 1.5f;
+        public float cloudPow = 15f, cloudMul = 100f, boltSpeed = 0.1f, pulseRate1 = 0.05f, pulseRate2 = 0.02f, sequenceTime = 0.1f;
+        public float frames = 4f, lightningMul = 100000f, lightningCloud = 200f, gradation = 4f;
+        public float blendExp = 1f, blendMult = 1f, corePow = 35f, coreTint = 0.05f, exposure = 0.4f;
+        public float[] inner, outer, core, brightness, background, clouds;
+        public bool On => !string.IsNullOrEmpty(tiled);
+
+        /// <summary>Its maps: (path, linear, normal map).</summary>
+        public System.Collections.Generic.IEnumerable<(string path, bool linear, bool normal)> Textures()
+        {
+            if (!On) yield break;
+            foreach (var t in new[] { tiled, strip, lightning, cloudMask, cloud, rock })
+                if (!string.IsNullOrEmpty(t)) yield return (t, true, false);
+        }
+    }
+
+    [System.Serializable] public class ChorusLayersSpec
+    {
+        public string kind;   // "trim" or "plating"; empty = off
+        public string palette, tilingDiffuse, tilingRmo, tilingNormal, trimAo, trimNormal, trimEmissive, dirt, dirtMask, dirtRoughness;
+        public float tiling = 1f, aoIntensity = 1f, emissionScale = 1f;
+        public float[] accentColor;
+        public float accentMetal, accentRoughness, accentNormal = 1f;
+        public float[] emissiveR, emissiveG, emissiveB;
+        public float emissiveAmount = 1f, distanceBoost = 1f, nearEmission = 1f;
+        public bool emissiveUvShift;
+        public float[] kickerColor;
+        public float kickerExp, kickerFadeOffset, kickerFadeLength = 1f;
+        public float[] dirtTint;
+        public float dirtUvScale = 1f, dirtMaskUvScale = 1f, dirtAo = 1f, dirtContrast;
+        public bool dirtAlpha;
+        // kind "shell" (Chorus's M_Guilt_Shell, its compiled base, depth and vertex passes): no palette; 'mask' (T_Guilt_A: R the
+        // body, G the arms), 'noise' (the grey that flows), 'flow' (RG its flow vectors), 'phase' (R the flow's offset) over UV0.
+        // A noise flowing at flowSpeed along the flow x flowStrength over UV0 x tiling (the phase's at UV0 x randomness) dissolves
+        // it: ((mask.r + armsFade) x 0.5 + a dither - 0.5) x saturate(2 coverage - (1 - noise) x (1 - mask.g)^erode) - (1 -
+        // masterAlpha) >= 1/3; pushes it out along its normals by push + pushNoise x (1 - noise) (model units); glows (the mask
+        // flowing the same way - emissiveExponent) x emissiveColor x emissiveIntensity x saturate(1 - distance from the model's
+        // origin / centerRadius)^2; base colour, metallic and roughness flat.
+        public string mask, noise, flow, phase;
+        public float randomness = 1f, flowSpeed = 1f, flowStrength = 1f, armsFade = 1f, coverage = 0.5f, erode = 1f, masterAlpha = 1f;
+        public float push, pushNoise, baseColor, metal = 0.5f, roughness = 0.5f, emissiveExponent = 1f, emissiveIntensity, centerRadius = 1f;
+        public float[] emissiveColor;
+
+        public bool On => !string.IsNullOrEmpty(kind) && (Shell ? !string.IsNullOrEmpty(mask) : !string.IsNullOrEmpty(palette));
+        public bool Plating => kind == "plating";
+        public bool Shell => kind == "shell";
+
+        /// <summary>The PNGs it reads, and how (linear, normal map): ModMaterials.ChorusLayers, the preloads.</summary>
+        public System.Collections.Generic.IEnumerable<(string path, bool linear, bool normal)> Textures()
+        {
+            if (!On) yield break;
+            foreach (var t in new[] { (palette, true, false), (tilingDiffuse, false, false), (tilingRmo, true, false), (tilingNormal, true, true),
+                                      (trimAo, true, false), (trimNormal, true, true), (trimEmissive, false, false), (dirt, false, false),
+                                      (dirtMask, true, false), (dirtRoughness, true, false), (mask, true, false), (noise, true, false),
+                                      (flow, true, false), (phase, true, false) })
+                if (!string.IsNullOrEmpty(t.Item1)) yield return t;
+        }
     }
 
     /// <summary>A mod ship's throttle-driven glow (Modding.ModShipBuilder, ThrottleGlow): the

@@ -11,7 +11,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   baked into a plain one in its drawn pose first,
   `ModShipBuilder.FlattenSkinned`: the sizing, collision, shadows and the Mod Builder read the bind-pose mesh, which the
   bones drew elsewhere and at another size, so bone animations don't play; the GLB's node animations, parts moving on
-  their own, loop: `ModGltf.LoopAnimations`, glTFast's legacy Animation at the default wrap mode played its clip once),
+  their own, loop: `ModGltf.LoopAnimations`, glTFast's legacy Animation at the default wrap mode played its clip once;
+  2026-11-11: ships.json `animations` names clips by state instead, `ModShipAnimator` on the built ship: idle on a loop,
+  Chorus flight's drift start / loop / end cross-faded, driven by `PlayerEngine` from `FlightModel.Drifting`; for Chorus's
+  Forsaken, whose rigid skin the importer splits into parts on its skeleton's nodes),
   engine glow discs at the
   slot-3 mounts on mat_34813 (a mount's `glowSize` [half width, half height, flame length] makes an ellipse, its
   `glowShape` another outline in that box: rounded / square / hexagon / diamond / triangle, `EngineGlowShape`, the
@@ -322,6 +325,32 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   roughness map (0.5 = as it is); the rim x (1 + `rimBoost` (1 - N.V)^3). The vertex colour reaches the fragment through
   HullLitForwardPass.hlsl, URP 17.7's LitForwardPass.hlsl copied with the lines marked GoF2 (copy it again when URP is
   updated). The ModLit / ModSpec materials gain the new properties' defaults when Unity imports the shader. Landed 2026-11-06.
+- **Chorus's layers** (remake 2026-11-11, the Chorus importer's NPC hulls; a material's `chorus` block, `ChorusLayersSpec` in
+  Database.cs, `ModMaterials.ChorusLayers`; GoF2/Hull's `ChorusLayers` / `ChorusFarEmission` in HullForwardPass.hlsl, on
+  while `_ChorusParams.x` > 0: 1 trim, 2 plating; `ChorusLayersTests`): Chorus's M_TrimLayersMaster, M_NPCShipTrimMaster
+  and M_PlatingMaster after their compiled base-pass pixel and vertex shaders (the exporter's `shaders` command, d3dcompiler's
+  disassembly; the importer's tools/npcs.py TRIM_SHADER has the formulas). A baked texture set over the lightmap UVs lost the
+  trim sheet's detail (a 2K map over a 4 km warship: metres a texel), so the hull keeps Chorus's UV sets: UV0 the trim sheet
+  (or plating), UV1 the tiling layer and dirt (Attributes .staticLightmapUV: mod hulls have no lightmaps), UV3 the palette
+  (a new TEXCOORD3 attribute), both carried in Varyings .chorusUV. The palette PNG is LayerColors and LayerData side by
+  side, read by texel (`LOAD_TEXTURE2D`, frac of the UVs: UE wraps it) so no filtering bleeds between swatches. The other
+  maps take URP's slots, which the template's keywords (no detail, no occlusion) leave unread by Lit itself: _BaseMap the
+  tiling diffuse, _MetallicGlossMap its RMO, _DetailNormalMap the tiling normal (in its own UVs' frame from the derivatives,
+  as Chorus builds it, then reoriented onto the trim normal in _BumpMap), _OcclusionMap Trim AAO (R the accent mask),
+  _EmissionMap Trim Emissive, _DetailAlbedoMap / _DetailMask the dirt; the dirt's roughness in _ChorusDirtRough. glTFast
+  flips V, so the masters' emissive "UV shift" mask (UV3.v < 0) is UV3.y > 1 here. M_NPCShipTrimMaster's emissive is 2x up
+  close; past Kicker Fade Offset (view depth) it fades to the kicker rim plus the emissive x Emissive Channel Distance Boost.
+  Kind "shell" (`_ChorusParams.x` 3, 2026-11-11, Chorus's Guilt; `ModMaterials.ChorusShell`, HullForwardPass.hlsl
+  `ChorusShell`, HullInput.hlsl `ChorusShellFlow` / `ChorusShellPush`): M_Guilt_Shell after its compiled base, masked depth
+  and vertex passes. Its flowing noise (two phases half a cycle apart, a triangle-wave blend) dissolves it in the forward
+  pass (clip, with InterleavedGradientNoise for UE's screen dither) and pushes it out along its normals in LitPassVertex
+  (forward only: depth priming is off and the depth texture is copied from the forward depth; the shadow pass draws it
+  whole and unpushed). Slots: _BaseMap the mask (the shadow pass reads its alpha), _OcclusionMap the noise, _DetailNormalMap
+  the flow vectors (loaded as plain data), _DetailMask the phase.
+- **Skinned mod ships** (2026-11-11, ships.json `skinned`; `CustomShipData.skinned`, `ModShipBuilder.KeepSkinned`): the
+  model's SkinnedMeshRenderers are kept (updateWhenOffscreen, its arms swing past the bind pose's bounds) instead of
+  `FlattenSkinned`, so `animations` play on the bones (Chorus's Guilt: a soft skin, 26 joints, its 42 s idle). Measuring,
+  collision and the LODs (AutoLods takes MeshFilters only: none for it) read or skip the bind pose.
 - **Image formats** (`ImageImport`): every mod image (ModMaterials' `Texture` and background `PreloadTexture`, so skins,
   portraits, icons, hull textures, planets / suns / skies; ModInfo's preview; ModTextures' file list) and the Mod Builder's
   pickers (which store a picked image as PNG) read PNG / JPG by Unity's decoders and TGA (plain / RLE), BMP (8 / 24 / 32-bit),
@@ -335,3 +364,26 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   colours, alpha), a PC `.aei` skin identical to an independent decode and shown on the turntable through the background
   loader; PVRTC 4bpp on that iOS file (the Midorian ships' atlas, identical to an independent Python decode); PVRTC 2bpp
   and ATC only against hand-built blocks (`ImageImportTests`), no real file.
+
+- **Chorus portals** (remake, 2026-11-11, for Chorus's jumpgate): a material's `"portal"` block (`ChorusPortalSpec` in
+  Database.cs, `ModMaterials.Portal`, GoF2/ChorusPortal in Resources/GoF2Fx) after Chorus's FTL portal's compiled shaders:
+  M_FTL_Portal's base pass (a bump offset by HeightRatioInput x the spherical gradient along the view, the UVs to polar
+  coordinates about the card's middle x (1, Tiling V) scrolling by Panning V, T_main there ^ Structure Power x Structure
+  Mult into a CA_BaseVFX row, x FadeInAndOut, additive) and its distortion pass (SphericalNormal_001 zoomed about the
+  middle by frac(t x VeinPulse_speed) x B - 2, plus T_Circle_N, in view space, x (IOR - 1) x the gradient's mask squared;
+  here a pass before the veins sampling URP's opaque texture at that offset x `refraction`, blended in by the mask, as
+  Chorus's screen offsets aren't the remake's: the scale is the remake's own); M_FTL_PortalGlow (T_Gradient_Vertical_04 at
+  -UV, lerp(Color1 x g, the curve, LerpColorParm) x g, additive). `World.PortalRefraction` switches the opaque texture on
+  for the main camera while a gate with one is in the orbit (`OrbitBuilder.SpawnJumpgate`, `Flight.OpaqueTexture`).
+  Tests `ChorusPortalTests`.
+- **Chorus rifts** (remake, 2026-11-11, for the Chorus rift look and Nimika's dormant rift): a material's `"rift"` block
+  (`ChorusRiftSpec` in Database.cs, `ModMaterials.Rift`, GoF2/ChorusRift in Resources/GoF2Fx) after M_PortalRift_2's
+  compiled base pass (MI_PortalRift_2_LocAST_Outside's parameters as the defaults; its uniform slots decoded from the
+  preshaders): two T_HeroRift_Tileable samples (one at v^Acc_pow_Main, one offset ^ pow x mul) and their product x v^9 (the
+  red centre, x mul_RedCenter), T_Cloud_03's R pushed along the view by its G (a bump offset, Height Ratio), an N x N
+  flipbook of T_Lightning_Random over UV0 x T_CloudMask over UV1 pulsed by two T_NoiseStrip_B reads, the obsidian rock as the
+  dark background where the sum is under 1; colour lerp(Color Outer, Color Inner) x the sum plus those, opacity from
+  v^pow_Gradation; additive. The hard-wired textures (T_NoiseStrip_B, T_Cloud_03) come from the material's referenced
+  textures by their slot order. Left out: the vertex shader's world position offset (T_Noise_Tiled04 x WP_Strenth), the
+  fog, the pre-exposure (`exposure` instead: the importer's 0.4 puts the vortex's 99th-percentile brightness, about 5 in
+  Chorus's units, near 2). Tests `ChorusRiftTests`.

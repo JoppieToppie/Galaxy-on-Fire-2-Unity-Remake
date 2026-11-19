@@ -292,8 +292,12 @@ namespace GoF2Remake.Modding
                         root = new GameObject("Hardpoints");
                         root.transform.SetParent(shipModel, false);
                     }
-                    Holder(root.transform, (secondary ? "secondary " : "primary ") + (i + 1), Flight.WeaponSystem.MountToLocal(mounts[i]),
+                    var holder = Holder(root.transform, (secondary ? "secondary " : "primary ") + (i + 1), Flight.WeaponSystem.MountToLocal(mounts[i]),
                            MountTurn(mounts[i]), kit, t);
+                    // "follow": onto a node of the hull, keeping its place, so it rides that part's animation (the Forsaken's
+                    // gun platforms sliding out as its weapons deploy)
+                    if (!string.IsNullOrEmpty(mounts[i].follow) && Find(shipModel, n => n == mounts[i].follow.ToLowerInvariant()) is Transform node)
+                        holder.SetParent(node, true);
                 }
             }
             if (root != null)

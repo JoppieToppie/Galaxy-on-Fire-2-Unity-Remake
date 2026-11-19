@@ -330,6 +330,7 @@ namespace GoF2Remake.UI
                 "hangarShadows" => Settings.HangarShadows,
                 "hangarDof" => Settings.HangarDepthOfField ? 1f : 0f,
                 "lensFlare" => Settings.LensFlare ? 1f : 0f,
+                "liveSkies" => Settings.LiveSkies ? 1f : 0f,
                 "npcPlayerEngines" => Settings.NpcPlayerEngines ? 1f : 0f,
                 "lods" => Settings.Lods ? 1f : 0f,
                 "textureQuality" => Settings.TextureQuality,

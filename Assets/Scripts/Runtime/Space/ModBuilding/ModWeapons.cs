@@ -25,6 +25,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -71,6 +72,7 @@ namespace GoF2Remake.Modding
             public TrailLook trail;
             /// <summary>"turret": the turret's own model, its muzzle and where its shots start (game units, -1 = the base's).</summary>
             public string turretModel;
+            public List<CustomShipMaterial> turretMaterials;   // "turret": "materials", like a ship's (ModShipBuilder.ApplyMaterials)
             public float turretMuzzle = -1f, turretShot = -1f;
             /// <summary>"turret" "scale": the model's size factor (1 = as made, 1 unit = 1 m).</summary>
             public float turretScale = 1f;
@@ -248,7 +250,7 @@ namespace GoF2Remake.Modding
             { "sprite", "model", "texture", "size", "color", "glow", "additive", "lifetime", "grow", "fade", "spin", "alongFlight", "stretch", "rotate",
               "item", "scale" };
         static readonly HashSet<string> CopyFields = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase) { "item", "scale", "color", "glow" };
-        static readonly HashSet<string> TurretFields = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase) { "model", "item", "muzzle", "shotStart", "scale", "offset" };
+        static readonly HashSet<string> TurretFields = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase) { "model", "item", "muzzle", "shotStart", "scale", "offset", "materials" };
 
         static Def Parse(ModInfo mod, JToken token, int item, string label, bool effect = false)
         {
@@ -302,7 +304,8 @@ namespace GoF2Remake.Modding
             return Color.white;
         }
 
-        /// <summary>"turret": "models/x.glb" or { "model": ..., "muzzle": units, "shotStart": units, "scale": f, "offset": [x, y, z] };
+        /// <summary>"turret": "models/x.glb" or { "model": ..., "muzzle": units, "shotStart": units, "scale": f, "offset": [x, y, z],
+        /// "materials": [ ... ] (a ship's "materials" entries on the model's renderers) };
         /// "item": n instead of "model" takes that item's turret model (no 3D file needed); without either the base item's,
         /// resized and / or moved.</summary>
         static void ParseTurret(ModInfo mod, Def d, JToken t)
@@ -324,6 +327,12 @@ namespace GoF2Remake.Modding
                     if (!(off is JArray a) || a.Count != 3 || a.Any(v => v.Type != JTokenType.Integer && v.Type != JTokenType.Float))
                         throw new ModJsonException($"{ModJson.Where(off, File)}: \"turret\": \"offset\" is [x, y, z] (game units)");
                     d.turretOffset = new Vector3((float)a[0], (float)a[1], (float)a[2]);
+                }
+                if (ModJson.Get(o, "materials") is JToken mt)
+                {
+                    // the model's materials replaced as a ship's are (ships.json "materials": colour maps, Chorus's layers...)
+                    if (!(mt is JArray ma)) throw new ModJsonException($"{ModJson.Where(mt, File)}: \"turret\": \"materials\" is a list, like a ship's");
+                    d.turretMaterials = ma.Select(x => JsonUtility.FromJson<CustomShipMaterial>(x.ToString(Newtonsoft.Json.Formatting.None))).Where(x => x != null).ToList();
                 }
                 if (ModJson.Get(o, "item") is JToken it)
                 {
@@ -617,6 +626,8 @@ namespace GoF2Remake.Modding
             owned.Add(root);
             if (!await ModGltf.InstantiateMain(import, root.transform)) { Warn(d.mod, $"{d.turretModel}: no scene to show"); return null; }
             if (rev != ModManager.Revision || holder == null) return null;
+            if (d.turretMaterials != null && d.turretMaterials.Count > 0)
+                ModShipBuilder.ApplyMaterials(d.mod, d.turretMaterials, root.GetComponentsInChildren<Renderer>(true), d.label);
             Reshape(root.transform, TurretRig(root.transform), d);
             return root;
         }
