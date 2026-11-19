@@ -109,6 +109,15 @@ namespace GoF2Remake.Multiplayer
             long previousBuilderRelinquished = record.builderRightsRelinquishedUtc;
             var previousPermissionOverrides = ClonePermissionOverrides(record);
             var previousBans = CloneBans(record);
+            var previousRoles = new List<PlayerStationRoleAssignment>();
+            foreach (var role in record.roleAssignments ?? new List<PlayerStationRoleAssignment>())
+                if (role != null) previousRoles.Add(new PlayerStationRoleAssignment
+                { account = role.account, role = role.role, assignedBy = role.assignedBy, assignedUtc = role.assignedUtc });
+            string previousIndividualSuccessor = record.individualSuccessorProfile;
+            string previousFactionSuccessor = record.factionSuccessorProfile;
+            string previousFactionSuccessorId = record.factionSuccessorFactionId;
+            PlayerStationOwnershipType previousFactionSuccessorType = record.factionSuccessorType;
+            string previousSuccessorDelegate = record.factionSuccessorDelegateProfile;
             int previousHistoryCount = record.history?.Count ?? 0;
             int previousHistorySequence = record.nextHistorySequence;
             if (proposal.targetType == PlayerStationOwnershipType.Individual)
@@ -130,6 +139,29 @@ namespace GoF2Remake.Multiplayer
                 record.factionStorageAccess = true;
                 record.factionPermissions = NewFactionOwnedPermissionProfile();
             }
+            // An intact voluntary handover starts a fresh governance regime. Previous owner
+            // permissions, roles, bans and succession instructions do not silently become the
+            // new owner's policy. Original-builder visitor permissions/bans survive only while
+            // those reserved rights remain active.
+            record.roleAssignments?.Clear();
+            record.bans?.RemoveAll(x => x == null || x.source == PlayerStationBanSource.OwnerAuthority);
+            if (record.permissionOverrides != null)
+            {
+                for (int i = record.permissionOverrides.Count - 1; i >= 0; i--)
+                {
+                    var permission = record.permissionOverrides[i];
+                    if (permission == null) { record.permissionOverrides.RemoveAt(i); continue; }
+                    permission.state = PlayerStationPermissionState.Inherit;
+                    permission.setBy = null;
+                    if (permission.builderState == PlayerStationPermissionState.Inherit)
+                        record.permissionOverrides.RemoveAt(i);
+                }
+            }
+            record.individualSuccessorProfile = null;
+            record.factionSuccessorProfile = null;
+            record.factionSuccessorFactionId = null;
+            record.factionSuccessorType = PlayerStationOwnershipType.Individual;
+            record.factionSuccessorDelegateProfile = null;
             ClearOwnerVisitorRestrictions(record);
             record.pendingTransfer = null;
             // A transfer initiated by the original builder is their voluntary relinquishment
@@ -139,6 +171,8 @@ namespace GoF2Remake.Multiplayer
             {
                 record.builderRightsRelinquishedUtc = now;
                 ConvertBuilderAuthorityRecords(record);
+                record.permissionOverrides?.Clear();
+                record.bans?.RemoveAll(x => x == null || x.source == PlayerStationBanSource.OwnerAuthority);
             }
             string newOwner = proposal.targetType == PlayerStationOwnershipType.Faction
                 ? "faction " + (proposal.targetFactionId ?? "")
@@ -163,6 +197,12 @@ namespace GoF2Remake.Multiplayer
                 record.builderRightsRelinquishedUtc = previousBuilderRelinquished;
                 record.permissionOverrides = previousPermissionOverrides;
                 record.bans = previousBans;
+                record.roleAssignments = previousRoles;
+                record.individualSuccessorProfile = previousIndividualSuccessor;
+                record.factionSuccessorProfile = previousFactionSuccessor;
+                record.factionSuccessorFactionId = previousFactionSuccessorId;
+                record.factionSuccessorType = previousFactionSuccessorType;
+                record.factionSuccessorDelegateProfile = previousSuccessorDelegate;
                 if (record.history != null && record.history.Count > previousHistoryCount)
                     record.history.RemoveRange(previousHistoryCount, record.history.Count - previousHistoryCount);
                 record.nextHistorySequence = previousHistorySequence;
