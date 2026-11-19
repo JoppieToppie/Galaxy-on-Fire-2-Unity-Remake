@@ -824,8 +824,7 @@ namespace GoF2Remake.Multiplayer
             if (Save())
             {
                 foreach (var station in registry.stations)
-                    if (station != null && station.ownershipType == PlayerStationOwnershipType.Individual)
-                        EjectDeniedVisitors(station);
+                    if (station != null) EjectDeniedVisitors(station);
                 return true;
             }
             registry = JsonUtility.FromJson<Registry>(previousRegistry);
