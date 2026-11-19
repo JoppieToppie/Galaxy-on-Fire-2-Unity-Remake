@@ -74,6 +74,62 @@ namespace GoF2Remake.Multiplayer
             return "Transfer proposal recorded. The receiving player or faction leader must dock at this station and use /station transfer-accept " + id + " within seven days.";
         }
 
+        /// <summary>
+        /// An administrator may authorize a nominated individual successor when the owner has
+        /// genuinely lost access. The successor still has to dock and accept; no inactivity
+        /// timer or automatic transfer is used.
+        /// </summary>
+        internal static string AuthorizeIndividualRecovery(NetPlayer by, int id, string reason)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
+                by.Station != record.stationIndex || !NetProfiles.Enabled ||
+                !NetProfiles.Controls(by.OwnerClientId) || !NetCommands.IsAdmin(by))
+                return "Only a server admin docked at the affected station may authorize ownership recovery.";
+            if (record.ownershipType != PlayerStationOwnershipType.Individual ||
+                string.IsNullOrEmpty(record.ownerProfile))
+                return "Administrative individual-owner recovery applies only to individually owned stations.";
+            string successor = record.individualSuccessorProfile;
+            if (string.IsNullOrEmpty(successor) || !NetProfiles.AccountExists(successor))
+                return "The station has no valid nominated individual successor. The owner must have nominated one before losing access.";
+            if (record.pendingTransfer != null)
+                return "Resolve or cancel the existing ownership transfer before authorizing recovery.";
+            reason = (reason ?? "").Trim();
+            if (reason.Length < 12 || reason.Length > 240 ||
+                reason.IndexOfAny(new[] { '\r', '\n', '\t', '\0' }) >= 0)
+                return "Provide a concise verification note between 12 and 240 characters.";
+            string admin = NetProfiles.AccountOf(by.OwnerClientId);
+            if (string.IsNullOrEmpty(admin)) return "The authorizing administrator has no verified profile account.";
+            var proposal = new PlayerStationTransferProposal
+            {
+                targetType = PlayerStationOwnershipType.Individual,
+                targetProfile = successor,
+                proposedBy = record.ownerProfile,
+                administrativeRecovery = true,
+                recoveryAuthorizedBy = admin,
+                recoveryReason = reason,
+                expiresUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + TransferProposalLifetimeSeconds
+            };
+            record.pendingTransfer = proposal;
+            int oldHistoryCount = record.history?.Count ?? 0;
+            int oldSequence = record.nextHistorySequence;
+            RecordHistory(record, admin, "individual-recovery-authorized", successor,
+                "A server administrator verified an owner-access-loss case and authorized the pre-nominated successor. Verification note: " + reason);
+            if (!Save())
+            {
+                record.pendingTransfer = null;
+                if (record.history != null && record.history.Count > oldHistoryCount)
+                    record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
+                record.nextHistorySequence = oldSequence;
+                return "Recovery authorization could not be saved; ownership is unchanged.";
+            }
+            foreach (ulong client in NetProfiles.ClientsOf(successor))
+                NetState.Instance?.Notify(client, "An administrator authorized succession for " + record.name +
+                    ". Dock there and use /station transfer-accept " + id + " within seven days.");
+            return "Recovery authorized for the nominated successor. They must dock at the station and use /station transfer-accept " + id + " within seven days. No ownership changes until they accept.";
+        }
+
         internal static string AcceptTransfer(NetPlayer by, int id)
         {
             var record = Find(id);
@@ -95,7 +151,18 @@ namespace GoF2Remake.Multiplayer
                 ? string.Equals(account, proposal.targetProfile, StringComparison.Ordinal)
                 : IsFactionLeaderOf(account, proposal.targetFactionId);
             if (!accepted) return "This profile is not authorised to accept the pending transfer.";
-            if (!IsOwnershipAuthority(record, proposal.proposedBy))
+            bool validRecovery = proposal.administrativeRecovery &&
+                record.ownershipType == PlayerStationOwnershipType.Individual &&
+                string.Equals(record.ownerProfile, proposal.proposedBy, StringComparison.Ordinal) &&
+                string.Equals(record.individualSuccessorProfile, proposal.targetProfile, StringComparison.Ordinal) &&
+                !string.IsNullOrEmpty(proposal.recoveryAuthorizedBy);
+            if (proposal.administrativeRecovery && !validRecovery)
+            {
+                record.pendingTransfer = null;
+                if (!Save()) record.pendingTransfer = proposal;
+                return "The recovery authorization is no longer valid; the nomination or ownership changed.";
+            }
+            if (!validRecovery && !IsOwnershipAuthority(record, proposal.proposedBy))
             {
                 record.pendingTransfer = null;
                 if (!Save()) record.pendingTransfer = proposal;
@@ -166,7 +233,7 @@ namespace GoF2Remake.Multiplayer
             record.pendingTransfer = null;
             // A transfer initiated by the original builder is their voluntary relinquishment
             // of builder authority. A faction leader or later owner cannot erase those rights.
-            bool builderVoluntaryTransfer = HasBuilderRights(record, proposal.proposedBy);
+            bool builderVoluntaryTransfer = !proposal.administrativeRecovery && HasBuilderRights(record, proposal.proposedBy);
             if (builderVoluntaryTransfer)
             {
                 record.builderRightsRelinquishedUtc = now;
@@ -177,11 +244,14 @@ namespace GoF2Remake.Multiplayer
             string newOwner = proposal.targetType == PlayerStationOwnershipType.Faction
                 ? "faction " + (proposal.targetFactionId ?? "")
                 : "profile " + (proposal.targetProfile ?? "");
-            RecordHistory(record, proposal.proposedBy, "ownership-transferred", proposal.targetProfile,
+            RecordHistory(record, proposal.administrativeRecovery ? proposal.recoveryAuthorizedBy : proposal.proposedBy,
+                "ownership-transferred", proposal.targetProfile,
                 "Ownership changed from " + (previousType == PlayerStationOwnershipType.Faction
                     ? "faction " + (previousFaction ?? "") : "profile " + (previousOwner ?? "")) +
                 " to " + newOwner +
-                "; previous owner permissions, faction bans, station roles and succession nominations were cleared." +
+                (proposal.administrativeRecovery
+                    ? "; server-admin-authorized individual-owner recovery. Verification note: " + proposal.recoveryReason
+                    : "; previous owner permissions, faction bans, station roles and succession nominations were cleared.") +
                 (builderVoluntaryTransfer
                     ? " Original builder voluntarily relinquished builder rights."
                     : " Original builder rights and builder-imposed visitor bans were preserved."));
