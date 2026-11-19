@@ -403,6 +403,10 @@ namespace GoF2Remake.World
             // inside the level's burning station (sn_burning_station_mission_object, the same station_076 hull turned
             // another way), two hulls in one (a player's report).
             if (layout.stationIndex == 111 && !Session.CompletedWorld && Session.CampaignMission == 0x5e) return null;
+            // Modified: none in the Supernova Challenge with its scenery on (Settings.ChallengeScenery): the wreck
+            // (sn_station_midorian_wrecked) stood inside the scenery's burning platform at the origin (ChallengeOrbit.SpawnScenery),
+            // two hulls in one (the user's report). The platform takes its place, as in createMission 0xb7.
+            if (layout.stationIndex == SupernovaChallenge.Station && SupernovaChallenge.Active && Settings.ChallengeScenery) return null;
             string name = StationAssembly(db, layout);
             if (name == null) { Debug.LogWarning($"OrbitBuilder: no station assembly for {layout.stationIndex}"); return null; }
             // Modified: Luur turned as the burning station of its missions (createStaticObject's (0, -2.356, 0), 94: 135 deg
