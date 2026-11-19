@@ -50,6 +50,19 @@ namespace GoF2Remake.Multiplayer
             return CommitProfileTransaction(cargo, null, null);
         }
 
+        /// <summary>
+        /// Atomically removes construction cargo, pays the contributor, debits the owning faction treasury,
+        /// and commits the updated station ledger through the same write-ahead journal.
+        /// </summary>
+        internal static bool CommitConstructionContribution(string account, string factionId, int item, int amount, long payout)
+        {
+            if (string.IsNullOrEmpty(factionId) || payout <= 0) return false;
+            return CommitProfileTransaction(
+                new List<(string account, int item, int delta)> { (account, item, -amount) },
+                new List<(string account, long delta)> { (account, payout) },
+                new List<(string factionId, long delta)> { (factionId, -payout) });
+        }
+
         /// <summary>One durable settlement for a marketplace buyer's cargo/credits and the seller's credits.</summary>
         internal static bool CommitMarketplaceTransaction(string buyer, string seller, int item, int amount, long total)
         {
