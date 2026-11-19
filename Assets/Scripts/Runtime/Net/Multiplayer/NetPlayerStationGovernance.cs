@@ -347,8 +347,12 @@ namespace GoF2Remake.Multiplayer
             { account = targetAccount, role = role, assignedBy = account, assignedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
             RecordHistory(record, account, remove ? "station-role-revoked" : "station-role-assigned",
                 targetAccount, remove ? "Station role removed." : "Assigned role " + role + ".");
-            if (Save()) return remove ? "Station role removed from " + targetAccount + "." :
-                "Assigned " + role + " to " + targetAccount + ".";
+            if (Save())
+            {
+                EjectDeniedVisitors(record);
+                return remove ? "Station role removed from " + targetAccount + "." :
+                    "Assigned " + role + " to " + targetAccount + ".";
+            }
             record.roleAssignments.RemoveAll(x => x != null &&
                 string.Equals(x.account, targetAccount, StringComparison.Ordinal));
             if (savedPrevious != null) record.roleAssignments.Add(savedPrevious);
@@ -411,9 +415,13 @@ namespace GoF2Remake.Multiplayer
                 record.permissionOverrides.Remove(current);
             RecordHistory(record, account, "station-permission-changed", targetAccount,
                 permission + " set to " + state + (builder ? " by original builder." : "."));
-            if (Save()) return state == PlayerStationPermissionState.Inherit
-                ? "Permission override removed; the underlying permission default now applies."
-                : permission + " permission set to " + state + " for " + targetAccount + ".";
+            if (Save())
+            {
+                if (permission == PlayerStationPermission.Visit) EjectDeniedVisitors(record);
+                return state == PlayerStationPermissionState.Inherit
+                    ? "Permission override removed; the underlying permission default now applies."
+                    : permission + " permission set to " + state + " for " + targetAccount + ".";
+            }
             record.permissionOverrides.RemoveAll(x => x != null &&
                 string.Equals(x.account, targetAccount, StringComparison.Ordinal) && x.permission == permission);
             if (savedPrevious != null) record.permissionOverrides.Add(savedPrevious);
@@ -466,7 +474,11 @@ namespace GoF2Remake.Multiplayer
             int oldHistoryCount = record.history?.Count ?? 0, oldSequence = record.nextHistorySequence;
             RecordHistory(record, account, "faction-permission-default-changed", null,
                 field + " default set to " + state + ".");
-            if (Save()) return field + " default set to " + state + ".";
+            if (Save())
+            {
+                if (permission == PlayerStationPermission.Visit) EjectDeniedVisitors(record);
+                return field + " default set to " + state + ".";
+            }
             switch (field)
             {
                 case "Visit": profile.visit = old; break;
@@ -532,7 +544,11 @@ namespace GoF2Remake.Multiplayer
             RecordHistory(record, account, ban ? "visitor-banned" : "visitor-unbanned", targetAccount,
                 (builder ? "Original builder" : "Station owner authority") + (ban ? " imposed" : " lifted") +
                 " the station ban." + (string.IsNullOrEmpty(reason) ? "" : " Reason: " + reason.Trim()));
-            if (Save()) return ban ? "Station ban applied to " + targetAccount + "." : "Station ban lifted for " + targetAccount + ".";
+            if (Save())
+            {
+                if (ban) EjectDeniedVisitors(record);
+                return ban ? "Station ban applied to " + targetAccount + "." : "Station ban lifted for " + targetAccount + ".";
+            }
             if (ban) record.bans.RemoveAll(x => x != null && x.source == source && string.Equals(x.account, targetAccount, StringComparison.Ordinal));
             else record.bans.Add(existing);
             if (record.history != null && record.history.Count > oldHistoryCount)
@@ -624,7 +640,11 @@ namespace GoF2Remake.Multiplayer
             ConvertBuilderAuthorityRecords(record);
             RecordHistory(record, account, "builder-rights-relinquished", null,
                 "The original builder voluntarily relinquished their reserved station authority.");
-            if (Save()) return "Your reserved original-builder rights have been relinquished permanently.";
+            if (Save())
+            {
+                EjectDeniedVisitors(record);
+                return "Your reserved original-builder rights have been relinquished permanently.";
+            }
             record.builderRightsRelinquishedUtc = previous;
             record.permissionOverrides = previousOverrides;
             record.bans = previousBans;
@@ -801,7 +821,13 @@ namespace GoF2Remake.Multiplayer
                             ? "successor faction " + record.ownerFactionId : "individual profile " + record.ownerProfile) + ".");
                 SyncJumpgatesForStation(record);
             }
-            if (Save()) return true;
+            if (Save())
+            {
+                foreach (var station in registry.stations)
+                    if (station != null && station.ownershipType == PlayerStationOwnershipType.Individual)
+                        EjectDeniedVisitors(station);
+                return true;
+            }
             registry = JsonUtility.FromJson<Registry>(previousRegistry);
             if (registry == null)
             {
