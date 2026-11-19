@@ -317,6 +317,13 @@ namespace GoF2Remake.Multiplayer
             string account = NetProfiles.AccountOf(by.OwnerClientId);
             if (string.IsNullOrEmpty(account)) return "Your player profile is unavailable.";
 
+            record.constructionContributions ??= new List<PlayerStationContribution>();
+            var contribution = record.constructionContributions.Find(x => x != null &&
+                string.Equals(x.contributorProfile, account, StringComparison.Ordinal) && x.item == item);
+            if (contribution == null)
+                record.constructionContributions.Add(contribution = new PlayerStationContribution
+                { contributorProfile = account, item = item, amount = 0, contributedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+            contribution.amount += amount;
             resource.delivered += amount;
             bool complete = true;
             foreach (var material in record.materials)
@@ -325,6 +332,8 @@ namespace GoF2Remake.Multiplayer
             if (!CommitCargoTransaction(account, (item, -amount)))
             {
                 resource.delivered -= amount;
+                contribution.amount -= amount;
+                if (contribution.amount <= 0) record.constructionContributions.Remove(contribution);
                 if (complete) record.underConstruction = true;
                 return "The project transaction could not be journalled; no materials were taken.";
             }
