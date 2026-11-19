@@ -267,6 +267,7 @@ namespace GoF2Remake.Multiplayer
         internal static void Route(int station, System.Collections.Generic.List<Vector3> points) { if (Leader) NetState.Instance.SendCoopRoute(station, points); }
         internal static void Radio(int station, int index, int line) { if (Leader) NetState.Instance.SendCoopRadio(station, index, line); }
         internal static void Camera(int station, Vector3 pos, Quaternion rot, float fov) { if (Leader) NetState.Instance.SendCoopCamera(station, pos, rot, fov); }
+        internal static void Fx(int station, int kind, Vector3 position) { if (Leader) NetState.Instance.SendCoopFx(station, kind, position); }
         internal static void Travel(int from, int to, bool dock, bool streamOut) { if (Leader) NetState.Instance.SendCoopTravel(from, to, dock, streamOut); }
 
         /// <summary>The leader flies in 'station'.</summary>

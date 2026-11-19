@@ -325,10 +325,8 @@ namespace GoF2Remake.World
                 f.SetMoving(false);
                 f.SetEngineSound(false);
                 f.SetExhaust(false);
-                freighterFire ??= new WreckBurn(f.transform, WreckBurn.VosskCargo);
-                freighterTrail ??= new WreckBurn(f.transform, WreckBurn.VosskFreighterSmoke);
-                freighterFire.SetEmitting(true);
-                freighterTrail.SetEmitting(true);
+                freighterFire ??= f.StoryBurn(WreckBurn.VosskCargo);   // remake co-op: on the crew's copies too
+                freighterTrail ??= f.StoryBurn(WreckBurn.VosskFreighterSmoke);
                 f.SetHull(max);
                 f.SetHull(100, false);
                 f.noFriendlyFire = true;
@@ -758,10 +756,8 @@ namespace GoF2Remake.World
                         // The engine hit: fire and smoke, unkillable, stopped, Errkt's music.
                         // Records 40 / 41 on enemy 0 (LevelScript 0x29 at msg 5): the burning freighter (#46: the fighters'
                         // damage smoke stood in, a small puff at its centre).
-                        freighterFire ??= new WreckBurn(f.transform, WreckBurn.VosskCargo);
-                        freighterTrail ??= new WreckBurn(f.transform, WreckBurn.VosskFreighterSmoke);
-                        freighterFire.SetEmitting(true);
-                        freighterTrail.SetEmitting(true);
+                        freighterFire ??= f.StoryBurn(WreckBurn.VosskCargo);   // remake co-op: on the crew's copies too
+                        freighterTrail ??= f.StoryBurn(WreckBurn.VosskFreighterSmoke);
                         // setRotationAroundTarget(false), then (0x163cc8-0x163d02) the camera on the freighter again:
                         // setPosition(its position), translate(-3000, -2000, 12000): ahead of it and below, as it drifts past
                         // and sinks.
@@ -866,6 +862,7 @@ namespace GoF2Remake.World
                         if (Hole != null) Hole.closeForGood = true;   // Modified: no other one opens after it (Relocate)
                         Sfx.PlayAt(assets?.mothershipCutscene, Player.position);   // 154
                         SpawnExplosion(station);
+                        c.SendFx(CampaignLevel.CoopFx.VoidStationExplosion, station);   // remake co-op: the crew sees it too
                         Step = 7;
                     }
                     break;
@@ -936,6 +933,8 @@ namespace GoF2Remake.World
             }
             void Add(Transform t) { if (t != null && t.gameObject.activeInHierarchy) shrinking.Add((t, t.position, t.localScale)); }
             if (level.Station != null) Add(level.Station.transform);
+            if (level.Asteroids != null) Add(level.Asteroids);
+            if (c.Follower) return;   // remake co-op: the leader's ships are the leader's (their copies die with them)
             var errkt = S(0);
             if (errkt != null) { errkt.Deactivate(); Add(errkt.transform); }
             foreach (var npc in Object.FindObjectsByType<NpcShip>())
@@ -944,7 +943,42 @@ namespace GoF2Remake.World
                 if (npc.Target != null && npc.Target.Alive) npc.Target.Damage(9999999f, true, Vector3.zero);
                 else if (npc.IsFreighter || npc.IsFixed) { npc.Deactivate(); Add(npc.transform); }   // a wreck left there
             }
-            if (level.Asteroids != null) Add(level.Asteroids);
+        }
+
+        // ---- remake co-op: a follower plays the leader's blast -------------------------------------------------------
+
+        float followMs = -1f;
+
+        /// <summary>A co-op follower (CampaignLevel.OnLeaderFx): the leader's mother ship blew up at 'at' (Tick42's state 6):
+        /// its sound, the explosion meshes and the shrink into the blast, here too. The camera is the leader's
+        /// (CoopCameraMirror), the fade the leader's state, the ride out the leader's move.</summary>
+        public void FollowBlast(Vector3 at)
+        {
+            if (followMs >= 0f) return;
+            Sfx.PlayAt(assets?.mothershipCutscene, Player.position);   // 154
+            SpawnExplosion(at);
+            shrinking = null;
+            followMs = 0f;
+        }
+
+        /// <summary>Tick42's state 7 for a follower's blast: the _lookat meshes face the camera, the station and the asteroids
+        /// shrink into it, the meshes stop at 15 s.</summary>
+        public void FollowTick(float dtMs)
+        {
+            if (followMs < 0f || followMs == float.MaxValue || explosion == null) return;
+            followMs += dtMs;
+            var camera = Camera.main;
+            if (camera != null)
+                for (int i = 1; i < explosion.Length && i <= 2; i++)
+                    if (explosion[i] != null) explosion[i].transform.rotation = Quaternion.LookRotation(camera.transform.forward, Vector3.up);
+            if (followMs >= ShrinkFromMs && shrinking == null) BeginShrink();
+            if (shrinking != null && shrinkLeft) UpdateShrink(Mathf.InverseLerp(ShrinkFromMs, ShrinkToMs, followMs));
+            if (followMs >= 15000f)
+            {
+                foreach (var e in explosion)
+                    if (e != null) foreach (var a in e.GetComponentsInChildren<PartAnimation>(true)) a.Pause();
+                followMs = float.MaxValue;   // over (and never again in this level)
+            }
         }
 
         /// <summary>'k' 0..1: each one drawn into the blast's centre and shrunk with it; gone at the end.</summary>

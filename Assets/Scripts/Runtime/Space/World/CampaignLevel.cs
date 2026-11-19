@@ -51,6 +51,9 @@ namespace GoF2Remake.World
         public SpaceLevel Level => level;
         public Traffic Traffic => traffic;
         MainCampaignLevels main;
+        /// <summary>Remake co-op, a follower: the main campaign's effects it plays of the leader's level (OnLeaderFx); never
+        /// ticked as a level (main is the leader's / single player's).</summary>
+        MainCampaignLevels coopFx;
         ValkyrieLevels valkyrie;
         SupernovaLevels supernova;
         int cratesAtStart;

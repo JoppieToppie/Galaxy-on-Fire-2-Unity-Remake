@@ -148,6 +148,9 @@ namespace GoF2Remake.World
                     station = CoopStation, index = BuiltIndex, cutscene = Cutscene, invulnerable = PlayerInvulnerable, hold = Held,
                     missionMs = MissionMs, timeLimitMs = TimeLimitMs, routeIndex = PlayerRoute != null ? PlayerRoute.index : 0,
                     fadeAlpha = FadeAlpha, fadeColor = FadeColor, radioLine = coopRadioLine,
+                    holeVisible = level.Wormhole != null && level.Wormhole.Visible,
+                    holePosition = level.Wormhole != null ? level.Wormhole.GamePosition : Vector3.zero,
+                    holeTimer = level.Wormhole != null ? level.Wormhole.Timer : 0,
                 });
                 // The route when it changes, and every 2 s for a crew member arriving later.
                 if (PlayerRoute != coopRouteSent || ++coopRouteIndexSent >= 8)
@@ -234,6 +237,7 @@ namespace GoF2Remake.World
                 // The leader isn't running it here (not arrived yet, left, docked): nothing held, a note now and then.
                 if (Cutscene) EndFollowedCutscene();
                 PlayerInvulnerable = Held = false;
+                if (level.Wormhole != null && level.Wormhole.Mirrored) level.Wormhole.StopMirroring();
                 FadeAlpha = 0f;
                 bool leaderHere = SpaceHooks.CoopLeaderHere != null && SpaceHooks.CoopLeaderHere(CoopStation);
                 if (!leaderHere && level.LaunchCameraOver && (coopWaitNoticeMs -= dtMs) <= 0f)
@@ -243,6 +247,7 @@ namespace GoF2Remake.World
                 }
             }
             if (!level.Dialogue && level.LaunchCameraOver) Radio?.Update(dtMs, this);
+            coopFx?.FollowTick(dtMs);
         }
 
         /// <summary>NetCoop: the leader's level state for this orbit.</summary>
@@ -267,6 +272,36 @@ namespace GoF2Remake.World
             if (PlayerRoute != null && PlayerRoute.points.Count > 0) PlayerRoute.index = Mathf.Clamp(s.routeIndex, 0, PlayerRoute.points.Count);
             FadeAlpha = s.fadeAlpha;
             FadeColor = s.fadeColor;
+            // The wormhole as the leader's (2026-11-17: the second pilot saw none at step 40, and at 42 the arrival's).
+            if (level != null && level.Wormhole != null) level.Wormhole.Mirror(s.holeVisible, s.holePosition, s.holeTimer);
+        }
+
+        // ---- the leader's one-off effects --------------------------------------------------------------------------
+
+        /// <summary>The kinds of SpaceHooks.CoopFx: what a follower plays of the leader's level besides its ships (their fires
+        /// go with them, NpcShip.StoryBurns) and its wormhole (CoopLevelState).</summary>
+        public static class CoopFx
+        {
+            /// <summary>Step 42: the Void mother ship blows up (MainCampaignLevels.SpawnExplosion, its sound and the shrink).</summary>
+            public const int VoidStationExplosion = 1;
+        }
+
+        /// <summary>The leader: its level played a one-off effect at 'position' (Unity metres); the crew there plays it too.</summary>
+        public void SendFx(int kind, Vector3 position)
+        {
+            if (CoopCampaign.Leader) SpaceHooks.CoopFx?.Invoke(CoopStation, kind, position);
+        }
+
+        /// <summary>NetCoop: the leader's level played a one-off effect here (a Discord report 2026-11-17: the second pilot
+        /// saw the mother ship stand through the leader's cutscene of its explosion).</summary>
+        public void OnLeaderFx(int station, int kind, Vector3 position)
+        {
+            if (!Follower || station != CoopStation || level == null) return;
+            if (kind == CoopFx.VoidStationExplosion)
+            {
+                coopFx ??= new MainCampaignLevels(this, level);
+                coopFx.FollowBlast(position);
+            }
         }
 
         /// <summary>NetCoop: the leader's route (game units) for this orbit.</summary>

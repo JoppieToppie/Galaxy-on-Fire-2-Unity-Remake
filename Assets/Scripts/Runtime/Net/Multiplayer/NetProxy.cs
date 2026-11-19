@@ -107,6 +107,9 @@ namespace GoF2Remake.Multiplayer
         public const int StoryRole = 1 << 24;
         /// <summary>A co-op story level's ship of the leader's: it goes when the leader leaves its orbit (never handed over).</summary>
         public bool IsStoryShip => (RoleFlags & StoryRole) != 0;
+        /// <summary>RoleFlags' bits above StoryRole: the story level's fires on the ship (NpcShip.StoryBurns), its copies burn too.</summary>
+        public const int StoryBurnShift = 25;
+        public int StoryBurns => (RoleFlags >> StoryBurnShift) & 31;
         public bool IsFlying => St.life == Flying;
         public byte Life => St.life;
         public string Label => Spec?.label ?? "";
@@ -729,7 +732,7 @@ namespace GoF2Remake.Multiplayer
             if (ship.Spec != null && ship.Spec.derelict && ship.DockingType == ObjectDocking.Hackable) f |= NetProxyStatus.Hackable;
             s.flags = f;
             s.cloak = (byte)Mathf.Clamp(Mathf.RoundToInt(ship.CloakPercent), 0, 100);
-            s.roleFlags = (ship.MissionShip && NetOrbit.Current != null ? NetOrbit.Current.MissionRole(ship) : 0) | (ship.StoryShip ? StoryRole : 0);
+            s.roleFlags = (ship.MissionShip && NetOrbit.Current != null ? NetOrbit.Current.MissionRole(ship) : 0) | (ship.StoryShip ? StoryRole | (ship.StoryBurns & 31) << StoryBurnShift : 0);
             int si = -1, sa = 0;
             if (emp && ship.HasCargo)
                 foreach (var c in ship.CargoList)
@@ -819,6 +822,24 @@ namespace GoF2Remake.Multiplayer
             else { smoothing.Snap(); shownLife = St.life; }   // no explosion for a ship that died before we came
         }
 
+        int shownBurns;
+        readonly WreckBurn[] burns = new WreckBurn[5];
+
+        /// <summary>A co-op story ship's fires (its owner's NpcShip.StoryBurns): lit and put out on this copy as there (a Discord
+        /// report 2026-11-17: Errkt's freighter didn't burn for the second pilot).</summary>
+        void ShowStoryBurns(int bits)
+        {
+            if (bits == shownBurns) return;
+            for (int i = 0; i < burns.Length && i < NpcShip.BurnRecords.Length; i++)
+            {
+                bool on = (bits & (1 << i)) != 0;
+                if (on == ((shownBurns & (1 << i)) != 0)) continue;
+                if (on && burns[i] == null) burns[i] = new WreckBurn(transform, NpcShip.BurnRecords[i]);
+                burns[i]?.SetEmitting(on);
+            }
+            shownBurns = bits;
+        }
+
         void ApplyTarget()
         {
             var st = St;
@@ -868,6 +889,7 @@ namespace GoF2Remake.Multiplayer
             bool fighterTurret = st.radius <= 0f && !IsJunk;
             if (fighterTurret && !turretHullDetached) { HullCollision.Detach(target); turretHullDetached = true; }
             bool hidden = st.Has(NetProxyStatus.Hidden);
+            ShowStoryBurns(hidden ? 0 : StoryBurns);
             target.untargetable = hidden || st.life != Flying || cloaked >= 25f || fighterTurret;
             // A mission ship's name only for the mission's team (its owner and their squad).
             bool team = !IsMissionShip || NetSquad.SameClient(OwnerClientId, NetPlayer.Local);

@@ -20,6 +20,8 @@
 //                        (PlayerEgo+0x25, isInWormhole); the ride itself is SpaceLevel's (MGame::OnUpdate)
 // Remake events / missions (EventWormhole, /wormhole): a 'held' wormhole stays open until Close() shrinks it away, with no
 // story rules; SpaceLevel rides it to its own destination.
+// Remake co-op: a follower's story wormhole shows the leader's (Mirror: shown, place, timer from CoopLevelState), with
+// none of its own opening, closing or moving (a Discord report 2026-11-17: the second pilot saw no wormhole).
 
 using GoF2Remake.Data;
 using GoF2Remake.Visuals;
@@ -52,6 +54,12 @@ namespace GoF2Remake.World
         /// <summary>Remake events: open until Close(), never relocated, no mission lock.</summary>
         public bool held;
         bool closing;
+        /// <summary>Its timer (ms: below 0 growing, 0..60000 open, then shrinking): a co-op leader's, sent to the crew.</summary>
+        public int Timer => timer;
+        /// <summary>Remake co-op: a follower's, showing the leader's (Mirror): its own rules don't move, close or reopen it.</summary>
+        public bool Mirrored { get; private set; }
+        int mirrorCap;   // the timer runs on locally between the leader's states, never this far past the last one
+        const int MirrorLeadMs = 400;
 
         public static Wormhole Spawn(StoryAssets assets, Vector3 gamePosition, bool visible)
         {
@@ -115,6 +123,21 @@ namespace GoF2Remake.World
         }
 
         public void FreeMissionLock() => missionLock = false;
+
+        /// <summary>Remake co-op: as the leader's wormhole is ('game': its place in the original's coordinates). A timer that
+        /// jumped (opened, reset) is taken at once, a few frames' drift is left alone, so it grows and shrinks smoothly.</summary>
+        public void Mirror(bool visible, Vector3 game, int leaderTimer)
+        {
+            Mirrored = true;
+            mirrorCap = leaderTimer + MirrorLeadMs;
+            if (visible != Visible) { SetVisible(visible); timer = leaderTimer; }
+            if ((OrbitScale.ToUnity(game) - transform.position).sqrMagnitude > 1f) SetPosition(game);
+            if (Mathf.Abs(leaderTimer - timer) > MirrorLeadMs) timer = leaderTimer;
+            closing = false;
+        }
+
+        /// <summary>Remake co-op: the leader no longer runs the level here: its own rules again.</summary>
+        public void StopMirroring() => Mirrored = false;
         /// <summary>Modified: once shrunk it stays gone instead of reopening elsewhere (Relocate): 42's, behind the player as
         /// the mother ship explodes (another one opened in view, a player's report).</summary>
         [System.NonSerialized] public bool closeForGood;
@@ -134,6 +157,15 @@ namespace GoF2Remake.World
             if (!Visible) return;
             int dt = Mathf.RoundToInt(Time.deltaTime * 1000f);
             timer += dt;
+            if (Mirrored)
+            {
+                // The leader's: grown, open or shrunk by its timer only (the leader's states say where it goes or hides).
+                timer = Mathf.Min(timer, mirrorCap);
+                scale = timer < 0 ? 4096 - (int)(-timer / (float)GrowMs * 4096f)
+                      : timer > OpenMs ? 4096 - (int)((timer - OpenMs) / (float)ShrinkMs * 4096f) : 4096;
+                scale = Mathf.Clamp(scale, 0, 4096);
+                return;
+            }
             int index = Story.Index;
             if (timer < 0) scale = 4096 - (int)(-timer / (float)GrowMs * 4096f);
             else if (held && !closing) { timer = 0; scale = 4096; }   // an event's: open until closed

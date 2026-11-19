@@ -168,6 +168,7 @@ namespace GoF2Remake.Multiplayer
             SpaceHooks.CoopRadioShown = NetCoop.Radio;
             SpaceHooks.CoopRoute = NetCoop.Route;
             SpaceHooks.CoopCamera = NetCoop.Camera;
+            SpaceHooks.CoopFx = NetCoop.Fx;
             SpaceHooks.CoopTravel = NetCoop.Travel;
             SpaceHooks.CoopLevelFailed = NetCoop.LevelFailed;
             SpaceHooks.CoopDialog = NetCoop.Dialog;

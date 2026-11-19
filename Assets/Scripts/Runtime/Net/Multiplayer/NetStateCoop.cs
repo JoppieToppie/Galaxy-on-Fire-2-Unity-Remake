@@ -104,20 +104,32 @@ namespace GoF2Remake.Multiplayer
         internal void SendCoopLevel(CoopLevelState s)
         {
             if (!IsServer || !Coop || !NetInterest.OrbitGroup(this, s.station, NetworkManager.ServerClientId, out var target)) return;
-            byte flags = (byte)((s.cutscene ? 1 : 0) | (s.invulnerable ? 2 : 0) | (s.hold ? 4 : 0));
-            CoopLevelRpc(s.station, s.index, flags, s.missionMs, s.timeLimitMs, s.routeIndex, s.fadeAlpha, s.fadeColor, s.radioLine, target);
+            byte flags = (byte)((s.cutscene ? 1 : 0) | (s.invulnerable ? 2 : 0) | (s.hold ? 4 : 0) | (s.holeVisible ? 8 : 0));
+            CoopLevelRpc(s.station, s.index, flags, s.missionMs, s.timeLimitMs, s.routeIndex, s.fadeAlpha, s.fadeColor, s.radioLine,
+                         s.holePosition, s.holeTimer, target);
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server, Delivery = RpcDelivery.Unreliable)]
-        void CoopLevelRpc(int station, int index, byte flags, float missionMs, float timeLimitMs, int routeIndex, float fadeAlpha, Color32 fadeColor, int radioLine, RpcParams rpc = default)
+        void CoopLevelRpc(int station, int index, byte flags, float missionMs, float timeLimitMs, int routeIndex, float fadeAlpha, Color32 fadeColor, int radioLine,
+                          Vector3 holePosition, int holeTimer, RpcParams rpc = default)
         {
             CampaignLevel.Current?.OnLeaderState(new CoopLevelState
             {
                 station = station, index = index, cutscene = (flags & 1) != 0, invulnerable = (flags & 2) != 0, hold = (flags & 4) != 0,
                 missionMs = missionMs, timeLimitMs = timeLimitMs, routeIndex = routeIndex, fadeAlpha = fadeAlpha, fadeColor = fadeColor,
-                radioLine = radioLine,
+                radioLine = radioLine, holeVisible = (flags & 8) != 0, holePosition = holePosition, holeTimer = holeTimer,
             });
         }
+
+        /// <summary>Server (the leader): its story level played a one-off effect (CampaignLevel.CoopFx), to the crew in that orbit.</summary>
+        internal void SendCoopFx(int station, int kind, Vector3 position)
+        {
+            if (!IsServer || !Coop || !NetInterest.OrbitGroup(this, station, NetworkManager.ServerClientId, out var target)) return;
+            CoopFxRpc(station, kind, position, target);
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void CoopFxRpc(int station, int kind, Vector3 position, RpcParams rpc = default) => CampaignLevel.Current?.OnLeaderFx(station, kind, position);
 
         /// <summary>Server (the leader): its story level's route, to the crew in that orbit.</summary>
         internal void SendCoopRoute(int station, List<Vector3> points)

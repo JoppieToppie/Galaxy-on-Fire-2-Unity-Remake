@@ -165,6 +165,17 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
     leader isn't running the level there (`CampaignLevel.LeaderAway`: no state for 2 s) the step's mission doesn't lock the
     follower's orbit (`SpaceLevel.StoryLocked`): until 2026-11-12 a guest left there after the leader docked got "Not
     possible on a mission." at the station, the gate and the jumps (a Discord report).
+  - **What else a follower sees** (a Discord report 2026-11-17: the second pilot saw no wormhole at step 40, the arrival's
+    at 42, Errkt's freighter not burning and the mother ship standing through the leader's cutscene of its blast):
+    the level's wormhole goes with `CoopLevelState` (shown, place, timer): the follower's `Wormhole.Mirror`s it, with none
+    of its own opening, closing or moving (`StopMirroring` while the leader is away). The fires a level lights on its
+    ships (`NpcShip.StoryBurn`, bits of `NpcShip.BurnRecords`) go with the ship's copy (`NetProxy` role flags above
+    `StoryRole`, `StoryBurnShift`): Errkt's freighter at 41 / 42, the plasma array at 158. One-off effects go as
+    `SpaceHooks.CoopFx` (`CampaignLevel.CoopFx`, reliable): 42's mother ship blast (`MainCampaignLevels.FollowBlast` /
+    `FollowTick`: the meshes, sound 154 and the station and asteroids shrinking into it; the camera, fade and ride are
+    the leader's). Not yet sent: the other scripted effects that aren't ships (step 80's lasers, blasts and fires on
+    Kothar's station, the Valkyrie hyperdrive flashes and unfolding station, the evacuation's beam). Tests
+    `CoopLevelMirrorTests`.
   - **Moves**: the leader's level-driven moves (`SpaceLevel.TravelTo`, `RideWormhole`, `Dock(false)` while it runs a story
     level, `CoopLeaderMoved`) take the followers in that orbit along (`CoopTravelRpc` with the leader's step: the follower
     catches up first, `CoopCampaign.CatchUpTo`, so the next orbit is built as the story's).

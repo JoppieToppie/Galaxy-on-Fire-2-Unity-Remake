@@ -238,6 +238,8 @@ namespace GoF2Remake.World
         public static Action<int, List<Vector3>> CoopRoute;
         /// <summary>The leader's cutscene camera (station, position, rotation, field of view).</summary>
         public static Action<int, Vector3, Quaternion, float> CoopCamera;
+        /// <summary>The leader's level played a one-off effect (station, CampaignLevel.CoopFx kind, position in Unity metres).</summary>
+        public static Action<int, int, Vector3> CoopFx;
         /// <summary>The leader's level moved it on (station left, station reached, docked, by travel).</summary>
         public static Action<int, int, bool, bool> CoopTravel;
         /// <summary>The leader's level in 'station' failed (or the leader died in it): the crew's failure.</summary>
