@@ -118,11 +118,10 @@ namespace GoF2Remake.UI
                 button.EnableInClassList("player-station-row--selected", selected?.id == record.id);
                 stationList.Add(button);
             }
-            if (selected == null || records.All(x => x.id != selected.id))
-            {
-                selected = records.FirstOrDefault(x => x.stationIndex == level.Layout.stationIndex) ?? records[0];
-                RebuildBody();
-            }
+            int previousId = selected?.id ?? -1;
+            selected = records.FirstOrDefault(x => x.id == previousId)
+                ?? records.FirstOrDefault(x => x.stationIndex == level.Layout.stationIndex) ?? records[0];
+            if (previousId != selected.id) RebuildBody();
         }
 
         void SelectStation(PlayerStationRecord record)
@@ -142,6 +141,9 @@ namespace GoF2Remake.UI
                 AddInfo("Owner", selected.ownerName ?? "Unknown");
                 AddInfo("State", selected.underConstruction ? "Under construction" : "Operational");
                 AddInfo("System index", selected.system.ToString());
+                string installed = selected.addons == null || selected.addons.Count == 0
+                    ? "None" : string.Join(", ", selected.addons.Where(a => a != null && a.level > 0).Select(a => ModuleLabel(a.kind)));
+                AddInfo("Installed facilities", installed);
                 AddAction("Refresh station project status", "/station status " + selected.id);
                 AddAction("Show marketplace", "/station market " + selected.id);
                 AddAction("Show station storage", "/station storage " + selected.id);
