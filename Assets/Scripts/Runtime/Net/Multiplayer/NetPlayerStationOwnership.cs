@@ -123,6 +123,9 @@ namespace GoF2Remake.Multiplayer
                 record.factionStorageAccess = true;
             }
             record.pendingTransfer = null;
+            // Gates are assets of the station that sponsored them. Keep their ownership in
+            // the same registry transaction as the station transfer.
+            SyncJumpgatesForStation(record);
             if (!Save())
             {
                 record.ownershipType = previousType;
@@ -131,6 +134,7 @@ namespace GoF2Remake.Multiplayer
                 record.ownerName = previousName;
                 record.factionStorageAccess = previousFactionAccess;
                 record.pendingTransfer = proposal;
+                SyncJumpgatesForStation(record);
                 return "The ownership change could not be saved; the previous owner and pending proposal were restored.";
             }
             foreach (ulong client in NetProfiles.ClientsOf(proposal.proposedBy))
