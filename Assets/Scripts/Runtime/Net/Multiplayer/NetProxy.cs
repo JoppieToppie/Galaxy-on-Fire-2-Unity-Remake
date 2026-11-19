@@ -523,8 +523,7 @@ namespace GoF2Remake.Multiplayer
             shieldFactor = byNpc || float.IsNaN(shieldFactor) ? 1f : shieldFactor <= 0f ? 0f : Mathf.Clamp(shieldFactor, 0.01f, 10f);
             if (!NetGuard.InOrbit(shooter, station.Value)) return;
             var by = NetSquad.Find(shooter);
-            if (byNpc && !NetGuard.NpcDamageRunner(by != null && by.InSpace, by != null && by.RunsOrbitActive,
-                                                   by != null ? by.RunsOrbit : -1, station.Value))
+            if (byNpc && !NetGuard.NpcDamageFrom(by, station.Value))
             { NetRateLimit.Reject(shooter, "NPC damage from a client that does not run this orbit"); return; }
             if (!byNpc && weaponItem >= 0)
             {
@@ -559,6 +558,7 @@ namespace GoF2Remake.Multiplayer
             ship.OnRemoteHit(shooter, (int)amount);
             ship.Target.killedByRemote = true;   // a freelance mission counts another player's kill as its player's
             ship.Target.remoteKiller = shooter;  // and the raid news names them (NetOrbit)
+            ship.Target.lastPlayerWeapon = weaponItem;   // its weapon (step 59: a convoy freighter the Liberator killed)
             var item = weaponItem >= 0 ? GoF2Remake.Data.Database.Shared.Item(weaponItem) : null;
             var damageType = item != null ? (DamageType)Mathf.Clamp(item.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None;
             ship.Target.Damage(amount, true, hitVector, shieldFactor, damageType);

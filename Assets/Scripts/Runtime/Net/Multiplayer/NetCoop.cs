@@ -306,6 +306,23 @@ namespace GoF2Remake.Multiplayer
             CampaignLevel.Current?.OnLeaderTravel(from, to, dock, streamOut);
         }
 
+        /// <summary>A guest flying a plain orbit where the leader's story level now runs (it was there when the step became a
+        /// level here, or launched while its step lagged): caught up and built again as the follower of that level. Its plain
+        /// level ignored the leader's state and moves (no cutscene, hold or ride along), and its own traffic fought inside
+        /// the story level.</summary>
+        internal static void LeaderStateWithoutLevel(int station, int index)
+        {
+            if (!Active || Leader) return;
+            var level = UnityEngine.Object.FindAnyObjectByType<SpaceLevel>();
+            if (level == null || level.Leaving || level.Campaign != null || level.Layout == null || level.Layout.stationIndex != station
+                || !level.LaunchCameraOver || level.Health == null || level.Health.Dead) return;
+            CoopCampaign.CatchUpTo(index, NetGame.Db);
+            if (Story.Index != index || !Story.IsLevelMission(station)) return;
+            Debug.Log($"NetCoop: the leader's step {index} level runs in this plain orbit {station}: built again as its follower");
+            Session.LaunchedFromStation = Session.ArrivedByTravel = false;
+            level.Reload();
+        }
+
         // ---- a guest destroyed in the leader's story orbit -----------------------------------------------------------
 
         /// <summary>This guest's ship comes back beside the leader (the leader alive in this story orbit) instead of docking.</summary>

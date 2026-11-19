@@ -75,6 +75,18 @@ namespace GoF2Remake.Multiplayer
         public static bool NpcDamageRunner(bool inSpace, bool isRunner, int runsOrbit, int targetStation) =>
             inSpace && isRunner && runsOrbit == targetStation;
 
+        /// <summary>NpcDamageRunner for 'by', or (remake co-op) the host flying in that orbit: its story level's ships are its
+        /// own NPCs wherever a guest who entered first runs the orbit's traffic (their hits on the crew were all refused,
+        /// the whole story level harmless to guests).</summary>
+        public static bool NpcDamageFrom(NetPlayer by, int targetStation)
+        {
+            if (by == null) return false;
+            if (NpcDamageRunner(by.InSpace, by.RunsOrbitActive, by.RunsOrbit, targetStation)) return true;
+            var state = NetState.Instance;
+            return state != null && state.Coop && by.OwnerClientId == Unity.Netcode.NetworkManager.ServerClientId
+                   && by.InSpace && by.Station == targetStation;
+        }
+
         /// <summary>'client' is a player of the session docked at 'station' (taking off included).</summary>
         public static bool DockedAt(ulong client, int station)
         {

@@ -290,7 +290,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetGuard.SameOrbit(by, this)) return;
             // The NPC-origin bit is client-supplied, not authentication. As for ship damage, only the
             // server-selected orbit runner may relay NPC hits against a remote player's sentry.
-            if (byNpc && !NetGuard.NpcDamageRunner(by.InSpace, by.RunsOrbitActive, by.RunsOrbit, Station))
+            if (byNpc && !NetGuard.NpcDamageFrom(by, Station))
             {
                 NetRateLimit.Reject(shooter, "NPC sentry damage from a client that does not run this orbit");
                 return;

@@ -117,6 +117,9 @@ namespace GoF2Remake.Data
         static float waitingSince = -1f, aheadSince = -1f;
         static bool catchingUp;
         static int appliedFailSerial = -1;
+        /// <summary>A guest: the step it last left through its own success conversation (-1 = none): ahead of a leader still
+        /// on it, it waits for the leader rather than being set back (GuestTick).</summary>
+        static int wonLeftFrom = -1;
         // The leader's own bookkeeping (in its State).
         static int crewMissions, crewMissionsIndex = -1, failSerial;
         static readonly HashSet<long> missionsCounted = new HashSet<long>();
@@ -133,7 +136,7 @@ namespace GoF2Remake.Data
             successOpen = waitingIndex = -1;
             waitingSince = aheadSince = -1f;
             catchingUp = false;
-            appliedFailSerial = -1;
+            appliedFailSerial = wonLeftFrom = -1;
             crewMissions = 0;
             crewMissionsIndex = -1;
             failSerial = 0;
@@ -261,6 +264,7 @@ namespace GoF2Remake.Data
         {
             if (!Active) return;
             crewWon.RemoveWhere(i => i < to);
+            if (Guest && wasWon && !catchingUp) wonLeftFrom = from;
             if (Leader || catchingUp || wasWon) return;
             GameHooks.CoopAdvanced?.Invoke(from);
         }
@@ -406,7 +410,17 @@ namespace GoF2Remake.Data
                 if (Story.Index > s.index) ForceTo(s);   // the failed chain starts again
             }
             CatchUp(s, db);
-            if (Story.Index == s.index) Overwrite(s);
+            if (Story.Index == s.index) { SendProgress(); Overwrite(s); }   // its own changes since the last tick first
+        }
+
+        /// <summary>A guest: its changes to the step's shared fields since the baseline, to the leader.</summary>
+        static void SendProgress()
+        {
+            if (baseline == null || baseline.index != Story.Index) return;
+            var p = Diff(baseline);
+            if (p.IsEmpty) return;
+            baseline = Snapshot();
+            GameHooks.CoopProgress?.Invoke(JsonUtility.ToJson(p));
         }
 
         /// <summary>A guest, every frame: the catch-up's wait, the time ahead, its own Progress out.</summary>
@@ -414,17 +428,18 @@ namespace GoF2Remake.Data
         {
             if (!Guest || leaderState == null) return;
             CatchUp(leaderState, db);
-            if (Story.Index > leaderState.index)
+            // A step this guest left through its own success conversation, the leader still in (or before) its own: the leader
+            // follows through it, so the guest waits ahead. Set back after 120 s, it was paid the step and ran its moves again
+            // (every 120 s while the leader sat in the hangar or its conversation).
+            if (Story.Index > leaderState.index && leaderState.index == wonLeftFrom && Story.Index == wonLeftFrom + 1) aheadSince = -1f;
+            else if (Story.Index > leaderState.index)
             {
                 if (aheadSince < 0f) aheadSince = Time.unscaledTime;
                 else if (Time.unscaledTime - aheadSince > AheadSeconds) { Debug.Log($"CoopCampaign: step {Story.Index} ahead of the leader's {leaderState.index} too long"); ForceTo(leaderState); }
             }
             else aheadSince = -1f;
             if (baseline == null || baseline.index != Story.Index) { baseline = Snapshot(); return; }
-            var p = Diff(baseline);
-            if (p.IsEmpty) return;
-            baseline = Snapshot();
-            GameHooks.CoopProgress?.Invoke(JsonUtility.ToJson(p));
+            SendProgress();
         }
 
         static void CatchUp(State s, Database db, bool now = false)
@@ -473,6 +488,7 @@ namespace GoF2Remake.Data
         /// <summary>The leader's step as it is, without Advance (a failure's checkpoint, a guest ahead for too long).</summary>
         static void ForceTo(State s)
         {
+            Story.SettleLoaner(s.index);   // set back before a loaner: the own ship again
             Session.CampaignMission = s.index;
             Session.StoryMission = Clone(s.mission);
             Session.StoryMission.won = false;
@@ -572,12 +588,6 @@ namespace GoF2Remake.Data
             if (s != null && s.index > 1) Session.Credits = credits;
             if (s == null) return;
             Session.Campaign = (Campaign)Mathf.Clamp(s.campaign, 0, 2);
-            if (s.kitShip >= 0 && db.Ship(s.kitShip) != null)
-            {
-                Session.ShipIndex = s.kitShip;
-                Session.Equipment = new List<ItemStack>();
-                if (s.kit != null) foreach (var e in s.kit) if (e != null && db.Item(e.item) != null) Session.Equipment.Add(e.Clone());
-            }
             if (s.station >= 0 && s.station < db.Stations.Count) Session.StationIndex = s.station;   // docked where the leader last docked
             Session.LaunchedFromStation = Session.ArrivedByTravel = false;   // (the prologue: in the belt like the leader)
             SetSettings(s.strength, s.spawns, s.splitRewards);
@@ -586,6 +596,16 @@ namespace GoF2Remake.Data
             appliedFailSerial = s.failSerial;
             CatchUp(s, db);
             if (Story.Index == s.index) Overwrite(s);
+            // The leader's kit after the catch-up: its steps' changes to the ship (10 swaps the drill for an IMT Extract, 78
+            // takes the Khador Drive) are in the kit already and took a better drill from it. A loaner flown: the kit parked.
+            if (s.kitShip >= 0 && db.Ship(s.kitShip) != null)
+            {
+                var kit = new List<ItemStack>();
+                if (s.kit != null) foreach (var e in s.kit) if (e != null && db.Item(e.item) != null) kit.Add(e.Clone());
+                var parked = Session.ParkedShip;
+                if (parked != null && string.IsNullOrEmpty(parked.lentBy)) { parked.ship = s.kitShip; parked.equipment = kit; }
+                else { Session.ShipIndex = s.kitShip; Session.Equipment = kit; }
+            }
         }
 
         /// <summary>A co-op profile (SaveGame.ApplyProfile): the campaign's world, not the finished one.</summary>
@@ -595,6 +615,7 @@ namespace GoF2Remake.Data
             Session.CompletedWorld = false;
             if (Guest && leaderState != null)
             {
+                Session.Campaign = (Campaign)Mathf.Clamp(leaderState.campaign, 0, 2);   // the crew's (a profile from another one)
                 appliedFailSerial = leaderState.failSerial;
                 if (Story.Index > leaderState.index) ForceTo(leaderState);
                 CatchUp(leaderState, db);

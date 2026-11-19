@@ -67,7 +67,11 @@ namespace GoF2Remake.World
         /// <summary>The Khador Drive's refusal at 42 in the Void (Story.EscapesByWormhole): the way out instead of 525.</summary>
         static string WormholeEscapeHint => Localization.Extra("khadorWormholeEscape",
             "The Khador Drive won't work here. Destroy the freighter, then escape through the wormhole.");
-        bool WormholeNoPull => WormholeKills && Story.Index == 40;
+        bool WormholeNoPull => (WormholeKills && Story.Index == 40) || FollowsLeadersHole;
+        /// <summary>Remake co-op: a follower in a story orbit the leader runs: the wormhole is the leader's (mirrored), and the
+        /// leader's ride takes the crew (CoopTravel). Its own ride ran Story.Advance and rode alone (24: the leader then
+        /// followed the guest's advance inside 24's level), and at 40 it killed: a follower's script event stays 0.</summary>
+        bool FollowsLeadersHole => Campaign != null && Campaign.Follower && !Campaign.LeaderAway;
         /// <summary>MGame::OnUpdate, PlayerEgo::isInWormhole (see the header).</summary>
         void UpdateWormholeRide()
         {
@@ -77,11 +81,14 @@ namespace GoF2Remake.World
                 return;
             }
             if (riding || Collision == null || !Collision.InWormhole || Health == null || Health.Dead) return;
+            if (FollowsLeadersHole) return;   // remake co-op: the leader's ride takes it along
             int index = Story.Index;
             bool active = !Session.FreePlay && Campaign != null && Story.IsLevelMission(Layout.stationIndex);
             if (index == 42)
             {
-                if (Layout.alienOrbit) return;   // the mother ship's explosion: the level script rides out itself
+                // the mother ship's explosion: the level script rides out itself (remake co-op: a follower whose leader has
+                // gone rides out on its own, else the held-open wormhole kept it for good)
+                if (Layout.alienOrbit && !(Campaign != null && Campaign.Follower)) return;
                 RideWormhole();
                 return;
             }

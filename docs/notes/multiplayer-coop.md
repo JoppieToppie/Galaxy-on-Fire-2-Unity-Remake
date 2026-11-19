@@ -194,6 +194,34 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
   stock in a co-op campaign (`NetStock.Shared` false), each game rolls its stations' lists as in single player. The
   story stocks one set per player (Var Hastra's free starter gear before step 7, one of each; Kappa's 10 free EMP GL I
   at step 20), so the shared list gave them to whoever docked first.
+  Every crew member's `Story.Advance` past step 6 or 20 gives that free gear where its ship has nothing of the kind, in
+  a free slot, else the hold (`Story.CrewStepEffects`, the mission select's `PlayStep` / `EnsureMounted`): the shop
+  prices it once the step is gone, and a guest whose leader launched from Var Hastra first was left unarmed with no
+  credits (a Discord report 2026-11-16; a crew win advancing the step skipped it as much as a catch-up).
+- **The co-op sweep** (2026-11-19, after a run of Discord reports; tests `CoopCampaignTests`, none with two games):
+  - Every crew member's game, whoever won the step (`Story.CrewStepEffects`): step 50's hostile Vossk (only the
+    leader's level script set it), Khador's free Cronus at 77 (only a game docked at Kothar as 76 closed got it; 77
+    refuses every launch in another ship). A parked own ship is never overwritten by a loaner (`ParkOwnShip`), and a
+    guest set back before a loaner step gets its own ship back (`Story.SettleLoaner` in `ForceTo`).
+  - A guest ahead of the leader on a step it left through its own success conversation waits for the leader there
+    (`wonLeftFrom`): the 120 s reset paid it the step again. Its unsent Progress goes before the leader's State
+    overwrites the step (`SendProgress`). The add-on entry call advances once, and only from the step it opened on.
+  - Guests skip the level requirement refusals (cabins, Gamma Shield II, drill, plasma kit: the leader's to bring),
+    not 139's Vossk ship; 42 isn't won by a guest docked outside the Void; 79 in co-op forces the Khador Drive into
+    the Void like 78 (a guest's misjump at 78 moved the crew to 79, leaving the leader no way in).
+  - A guest's plain level in the orbit where the leader's story level runs is built again as its follower
+    (`NetCoop.LeaderStateWithoutLevel`); a guest respawned in the Void at 42 gets a follower level there (it got a
+    plain one, held by the open wormhole for good); a follower rides only with the leader's move while the leader
+    runs the level (`SpaceLevel.FollowsLeadersHole`: at 24 it rode alone and advanced the leader, at 40 it died),
+    and at 42 in the Void rides out by itself once the leader has gone. 42's follower radio is 41's, as the leader's.
+  - The leader's story ships hurt the crew where a guest runs the orbit (`NetGuard.NpcDamageFrom`: the host in that
+    orbit may relay NPC hits). A crew member's capture of a level's crate counts for the leader
+    (`CampaignLevel.CrewCrateCaptured`, step 24's 3 t). A crew member's Liberator kill of a convoy freighter another
+    game runs counts for step 60's bonus (`NetProxy` passes the weapon). A success the leader's move cuts off is
+    paid (`StorySpace.SettleCutOffSuccess`).
+  - Not done: step 80 / 81's battlestation and 157's Valkyrie are the leader's scenery only (guests see their turrets
+    alone); 29's probe and 145's array blast aren't sent; a move the leader makes while a guest loads a scene is lost;
+    the hold doesn't stop a guest's guns.
 - **Not shared**: the level's own music (a follower hears the orbit's), the mining minigame, object docking / hacking and
   the scripted flights that move the player's ship (the leader does those; the crew fights alongside or watches). Not
   tested with two games yet (2026-11-01: the rules by `CoopCampaignTests`; the session, the follower view and the

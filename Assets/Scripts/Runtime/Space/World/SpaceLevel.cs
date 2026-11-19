@@ -487,7 +487,7 @@ namespace GoF2Remake.World
             // Modified: 42 in the Void (its 0xa0 mission targets this orbit, so it isn't a level mission here) builds its level
             // when the scene loads there (the mission select's 42, a save made in it): MainCampaignLevels.Build42. Reached from
             // 41 the level keeps 41's scene. Without it the arrival's wormhole, held open at 42, drew the player in for good.
-            bool storyOrbit = !interstellar && !Session.FreePlay && (Story.IsLevelMission(station) || (Story.EscapesByWormhole(station) && !CoopCampaign.Active));
+            bool storyOrbit = !interstellar && !Session.FreePlay && (Story.IsLevelMission(station) || (Story.EscapesByWormhole(station) && (!CoopCampaign.Active || CoopCampaign.Guest)));
             IsStoryOrbit = storyOrbit;
             // Status::departStation: the freelance mission's target orbit is built around it (not over a story orbit).
             // Multiplayer: not when a squadmate here already runs this mission (their ships are shown here, NetMissions).

@@ -113,13 +113,15 @@ namespace GoF2Remake.Multiplayer
         void CoopLevelRpc(int station, int index, byte flags, float missionMs, float timeLimitMs, int routeIndex, float fadeAlpha, Color32 fadeColor, int radioLine,
                           Vector3 holePosition, int holeTimer, int kills, RpcParams rpc = default)
         {
-            CampaignLevel.Current?.OnLeaderState(new CoopLevelState
+            var state = new CoopLevelState
             {
                 station = station, index = index, cutscene = (flags & 1) != 0, invulnerable = (flags & 2) != 0, hold = (flags & 4) != 0,
                 missionMs = missionMs, timeLimitMs = timeLimitMs, routeIndex = routeIndex, fadeAlpha = fadeAlpha, fadeColor = fadeColor,
                 radioLine = radioLine, holeVisible = (flags & 8) != 0, holePosition = holePosition, holeTimer = holeTimer,
                 playerKills = (kills >> 16) & 0xFFFF, npcKills = kills & 0xFFFF,
-            });
+            };
+            if (CampaignLevel.Current != null) CampaignLevel.Current.OnLeaderState(state);
+            else NetCoop.LeaderStateWithoutLevel(station, index);   // a plain orbit here: the story level instead
         }
 
         /// <summary>Server (the leader): its story level played a one-off effect (CampaignLevel.CoopFx), to the crew in that orbit.</summary>

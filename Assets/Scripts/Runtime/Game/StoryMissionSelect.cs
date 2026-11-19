@@ -129,12 +129,42 @@ namespace GoF2Remake.Data
                 case 118: Shop.AddToCargo(209, 1); break;                           // the K'mirkk Toad Mutagen bought at Bak S'ondorr
             }
         }
+        /// <summary>Remake co-op (Advance, every crew member's game): what step 'k' gives a player there, which the step's
+        /// own path only gives the game that played it: the free gear the shop prices once the step is gone (Var Hastra's
+        /// starter gun and armour at 6, AdjustPrice / the tutorial stock; Kappa's EMP GL I at 20, which 21's launch needs;
+        /// a Discord report 2026-11-16: a guest whose leader launched first was left unarmed with no credits), step 50's
+        /// hostile Vossk (the leader's level script sets it, ValkyrieLevels.Tick50), Khador's free Cronus at 77 (given only
+        /// when docked at Kothar as 76's conversation closes, AfterDockedAdvance; 77 refuses every launch in another ship).
+        /// Gear is mounted only where the ship has nothing of that kind.</summary>
+        public static void CrewStepEffects(Database db, int k)
+        {
+            if (k == 6 || k == 20 || k == 50) PlayStep(db, k);
+            if (k == 76 && Session.ShipIndex != 37) { AddDealerShip(100, 37); Session.KhadorCronusGift = true; }
+        }
+
+        /// <summary>Remake co-op: a guest set back to step 'index' (CoopCampaign.ForceTo) flies its own ship there unless the
+        /// step lends one (48-54, 56-57): else a later 48 / 56 parked the loaner as the own ship.</summary>
+        public static void SettleLoaner(int index)
+        {
+            var p = Session.ParkedShip;
+            if (p == null || !string.IsNullOrEmpty(p.lentBy)) return;
+            if ((index >= 48 && index <= 54) || (index >= 56 && index <= 57)) return;
+            RestoreOwnShip();
+        }
         /// <summary>Mounted if the ship has nothing of that category (else at least 'amount' of it).</summary>
         static void EnsureMounted(Database db, int category, int item, int amount = 1)
         {
             var have = Session.Equipment.Find(e => db.Item(e.item)?.categoryId == category);
-            if (have == null) Session.Equipment.Add(new ItemStack(item, amount));
-            else if (have.amount < amount) have.amount = amount;
+            if (have != null) { if (have.amount < amount) have.amount = amount; return; }
+            // Remake co-op: the crew's gifts (CrewStepEffects) only into a free slot of its kind (a ship whose slots are full, a
+            // gun of another kind in Betty's one primary slot), else into the hold. The mission select mounts its own.
+            if (!CoopCampaign.Active) { Session.Equipment.Add(new ItemStack(item, amount)); return; }
+            int type = db.Item(item)?.TypeId ?? 4;
+            var slots = db.Ship(Session.ShipIndex)?.slots;
+            int max = slots == null ? 0 : type switch { 0 => slots.primary, 1 => slots.secondary, 2 => slots.turret, 3 => slots.equipment, _ => 0 };
+            if (type == 3) max += Hangar.BaySlot(db, Session.ShipIndex, Session.Equipment);
+            if (slots == null || Session.Equipment.FindAll(e => (db.Item(e.item)?.TypeId ?? 4) == type).Count < max) Session.Equipment.Add(new ItemStack(item, amount));
+            else Shop.AddToCargo(item, amount);
         }
         /// <summary>A dealer ship bought at 'station' like Hangar.BuyShip: the old hull traded in at its price there, every
         /// mounted item to the first free slot of its type, the rest to the hold; mods stay with the old hull.</summary>

@@ -57,6 +57,10 @@ namespace GoF2Remake.World
         float successPauseMs = -1f;
         List<DialoguePage> pendingSuccess;
         int pendingReward, pendingIndex;
+        /// <summary>Remake co-op: the success conversation on screen, its step and reward (-1 = none), and whether a move of the
+        /// leader's paid it already (SettleCutOffSuccess).</summary>
+        int openIndex = -1, openReward;
+        bool openPaid;
         public bool SuccessPending => successPauseMs >= 0f;
 
         public void Setup(SpaceLevel spaceLevel, CampaignLevel campaignLevel)
@@ -79,11 +83,17 @@ namespace GoF2Remake.World
                 if (successPauseMs >= 0f) return;
                 successPauseMs = -1f;
                 int reward = pendingReward, shown = pendingIndex;
+                openIndex = shown;
+                openReward = reward;
+                openPaid = false;
                 Open(pendingSuccess, _ =>
                 {
+                    bool paid = openPaid;
+                    openIndex = -1;
+                    openPaid = false;
                     // Remake co-op: the leader's level took the crew past this step meanwhile: its reward, no second advance.
-                    if (CoopCampaign.SuccessClosed(shown)) AfterSuccess(reward);
-                    else Session.Credits += CoopCampaign.Share(reward);
+                    if (CoopCampaign.SuccessClosed(shown)) { if (!paid) AfterSuccess(reward); }
+                    else if (!paid) Session.Credits += CoopCampaign.Share(reward);
                 });
                 pendingSuccess = null;
                 return;
@@ -229,6 +239,25 @@ namespace GoF2Remake.World
             else AfterSuccess(reward);
         }
 
+        /// <summary>Remake co-op: the leader's move (a ride, a jump, docked) takes this follower on while its success of an
+        /// earlier step waits for its pause or is on screen: the scene change cut it off unpaid (a catch-up pays nothing), so
+        /// its reward is paid now.</summary>
+        public void SettleCutOffSuccess()
+        {
+            if (SuccessPending && Story.Index > pendingIndex)
+            {
+                Session.Credits += CoopCampaign.Share(pendingReward);
+                successPauseMs = -1f;
+                pendingSuccess = null;
+                CoopCampaign.SuccessClosed(pendingIndex);
+            }
+            else if (openIndex >= 0 && !openPaid && Story.Index > openIndex)
+            {
+                Session.Credits += CoopCampaign.Share(openReward);
+                openPaid = true;
+            }
+        }
+
         /// <summary>MGame::OnTouchEnd after a campaign success conversation in space.</summary>
         void AfterSuccess(int reward)
         {
@@ -366,7 +395,15 @@ namespace GoF2Remake.World
             if (level.Navigation != null && level.Navigation.Autopilot) return;
             var call = StoryTable.Step(index + 1);   // conversation 46 / 85
             if (call == null || call.success.Count == 0) return;
-            Open(call.success, _ => { Story.Advance(level.Database); Story.Advance(level.Database); });
+            // Remake co-op: the leader (or a guest's catch-up) may have moved the step on under the open call: its close then
+            // advances nothing (it advanced twice from there, the crew skipping 47 / 48 or 86 / 87).
+            CoopCampaign.SuccessOpened(index);
+            Open(call.success, _ =>
+            {
+                if (!CoopCampaign.SuccessClosed(index)) return;
+                Story.Advance(level.Database);
+                Story.Advance(level.Database);
+            });
         }
 
         /// <summary>A conversation from another level script (the Kaamo siege's calls), held like the story's.</summary>

@@ -202,7 +202,7 @@ namespace GoF2Remake.World
             music = gameObject.AddComponent<AudioSource>();
             music.playOnAwake = false;
             music.spatialBlend = 0f;
-            Radio = new Radio(Story.Step?.radio) { Remote = true };
+            Radio = new Radio(FollowerRadio(BuiltIndex)) { Remote = true };
             gameObject.AddComponent<CoopCameraMirror>().Setup(this);
             // The prologue and the rescue (0 / 1): this game plays their cutscenes around its own Phantom, paced by the
             // leader's radio lines; the pirates and Gunant's salvager are the leader's (IntroCutscenes' follower).
@@ -251,6 +251,10 @@ namespace GoF2Remake.World
             coopFx?.FollowTick(dtMs);
         }
 
+        /// <summary>The radio the leader's level of step 'index' plays: 42's is 41's (built at 42 or reached from 41; Setup), so
+        /// a follower's 42 had no lines and dropped every one the leader showed.</summary>
+        static List<RadioLine> FollowerRadio(int index) => StoryTable.Step(index == 42 ? 41 : index)?.radio;
+
         /// <summary>NetCoop: the leader's level state for this orbit.</summary>
         public void OnLeaderState(CoopLevelState s)
         {
@@ -261,7 +265,7 @@ namespace GoF2Remake.World
             {
                 // The leader's level went on to the next step on the same ships (4 -> 5): that step's radio.
                 BuiltIndex = s.index;
-                Radio = new Radio(StoryTable.Step(s.index)?.radio) { Remote = true };
+                Radio = new Radio(FollowerRadio(s.index)) { Remote = true };
             }
             bool wasCutscene = Cutscene;
             Cutscene = s.cutscene;
@@ -350,6 +354,7 @@ namespace GoF2Remake.World
         {
             if (!Follower || from != CoopStation || level == null || level.Leaving) return;
             Debug.Log($"CampaignLevel: following the leader from {from} to {to}{(dock ? " (docked)" : "")}");
+            level.StorySpace?.SettleCutOffSuccess();   // a success the move cuts off: its reward
             if (dock) { Session.StationIndex = to; level.Dock(); }
             else level.TravelTo(to, streamOut);
         }
