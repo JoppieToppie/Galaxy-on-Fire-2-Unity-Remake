@@ -210,6 +210,26 @@ namespace GoF2Remake.World
             MovePlayer(position, rotation);
             return true;
         }
+        /// <summary>
+        /// A timed player-built gate can finish while its orbit is already loaded. Materialize the same gate model,
+        /// collision and navigation landmark that a fresh orbit load would create.
+        /// </summary>
+        void UpdatePlayerJumpgate()
+        {
+            if (Layout == null || Jumpgate != null || Navigation == null || SystemJump == null ||
+                !NetPlayerStations.HasJumpgateAtStation(Layout.stationIndex)) return;
+            var refreshed = OrbitLayout.Build(db, Layout.stationIndex);
+            if (refreshed == null || !refreshed.hasJumpgate) return;
+            Layout.hasJumpgate = true;
+            Layout.jumpgate = refreshed.jumpgate;
+            Jumpgate = OrbitBuilder.SpawnJumpgate(db, Layout);
+            if (Jumpgate == null) return;
+            OrbitBuilder.AddObstacles(Layout, null, Jumpgate);
+            HullCollision.Attach(Jumpgate, null, Jumpgate.GetComponent<Obstacle>());
+            Navigation.AddPlayerJumpgateTarget();
+            SystemJump.SetJumpgate(Jumpgate);
+        }
+
         /// <summary>The station's volumes (collision.json) and the visible jumpgate's sphere (see Obstacle).</summary>
         void AddObstacles()
         {
