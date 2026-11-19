@@ -352,32 +352,47 @@ namespace GoF2Remake.Multiplayer
         {
             args = (args ?? "").Trim();
             if (args.Equals("modules", StringComparison.OrdinalIgnoreCase)) return NetPlayerStations.Modules();
+            const string jumpgateOrbits = "jumpgate-orbits ";
+            if (args.StartsWith(jumpgateOrbits, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(jumpgateOrbits.Length).Trim(), out int orbitSystem))
+                    return "/station jumpgate-orbits <system id>";
+                return NetPlayerStations.JumpgateOrbits(orbitSystem);
+            }
             const string jumpgateStatus = "jumpgate-status ";
             if (args.StartsWith(jumpgateStatus, StringComparison.OrdinalIgnoreCase))
             {
-                if (!int.TryParse(args.Substring(jumpgateStatus.Length).Trim(), out int gateStationId))
-                    return "/station jumpgate-status <station id>";
-                return NetPlayerStations.JumpgateStatus(by as NetPlayer, gateStationId);
+                if (!int.TryParse(args.Substring(jumpgateStatus.Length).Trim(), out int gateOrbit))
+                    return "/station jumpgate-status <orbit station index>";
+                return NetPlayerStations.JumpgateStatus(by as NetPlayer, gateOrbit);
             }
             const string jumpgateContribute = "jumpgate-contribute ";
             if (args.StartsWith(jumpgateContribute, StringComparison.OrdinalIgnoreCase))
             {
                 string[] words = args.Substring(jumpgateContribute.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (words.Length != 3 || !int.TryParse(words[0], out int gateId) ||
+                if (words.Length != 3 || !int.TryParse(words[0], out int gateOrbit) ||
                     !int.TryParse(words[1], out int gateItem) || !int.TryParse(words[2], out int gateAmount))
-                    return "/station jumpgate-contribute <station id> <item id> <amount>";
-                return NetPlayerStations.ContributeJumpgate(by as NetPlayer, gateId, gateItem, gateAmount);
+                    return "/station jumpgate-contribute <orbit station index> <item id> <amount>";
+                return NetPlayerStations.ContributeJumpgate(by as NetPlayer, gateOrbit, gateItem, gateAmount);
+            }
+            const string jumpgateDestination = "jumpgate-destination ";
+            if (args.StartsWith(jumpgateDestination, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(jumpgateDestination.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int gateOrbit) || !int.TryParse(words[1], out int destination))
+                    return "/station jumpgate-destination <orbit station index> <destination system id>";
+                return NetPlayerStations.ChangeJumpgateDestination(by as NetPlayer, gateOrbit, destination);
             }
             const string jumpgate = "jumpgate ";
             if (args.StartsWith(jumpgate, StringComparison.OrdinalIgnoreCase))
             {
                 string[] words = args.Substring(jumpgate.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if ((words.Length != 2 && words.Length != 3) || !int.TryParse(words[0], out int gateId) ||
-                    !int.TryParse(words[1], out int destinationSystem) ||
-                    (words.Length == 3 && !int.TryParse(words[2], out _)))
-                    return "/station jumpgate <station id> <destination system id> [build seconds]";
-                int seconds = words.Length == 3 ? int.Parse(words[2]) : 0;
-                return NetPlayerStations.StartJumpgate(by as NetPlayer, gateId, destinationSystem, seconds);
+                if ((words.Length != 3 && words.Length != 4) || !int.TryParse(words[0], out int sponsorStationId) ||
+                    !int.TryParse(words[1], out int orbitStationIndex) || !int.TryParse(words[2], out int destinationSystem) ||
+                    (words.Length == 4 && !int.TryParse(words[3], out _)))
+                    return "/station jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds]";
+                int seconds = words.Length == 4 ? int.Parse(words[3]) : 0;
+                return NetPlayerStations.StartJumpgate(by as NetPlayer, sponsorStationId, orbitStationIndex, destinationSystem, seconds);
             }
             const string transferAccept = "transfer-accept ";
             if (args.StartsWith(transferAccept, StringComparison.OrdinalIgnoreCase))
@@ -595,7 +610,7 @@ namespace GoF2Remake.Multiplayer
                     return "/station contribute <project id> <item id> <amount> (deposit while docked at any station)";
                 return NetPlayerStations.Contribute(by as NetPlayer, project, item, amount);
             }
-            return "/station jumpgate <station id> <destination system id> [build seconds] | jumpgate-contribute <station id> <item id> <amount> | jumpgate-status <station id> | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar | storage <id> | access <id> owner|faction | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index>";
+            return "/station jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds] | jumpgate-orbits <system id> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index> | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar | storage <id> | access <id> owner|faction | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index>";
         }
 
         /// <summary>This player's server role (NetModeration; 0 without profiles).</summary>
