@@ -393,5 +393,40 @@ namespace GoF2Remake.Tests
             }
             finally { Settings.OverrideAndroidDefaults(null); }
         }
+
+        [Test]
+        public void IosStartsOnTheMediumPresetAt60Fps()
+        {
+            try
+            {
+                Settings.ResetToDefaults();
+                Settings.OverrideAndroidDefaults(false);
+                Settings.OverrideIosDefaults(true);
+                Assert.AreEqual(Settings.PresetMedium, OptionsCatalog.CurrentPreset(), "every preset option at Medium");
+                Assert.AreEqual(FrameRate.Fps60, Settings.FrameRate, "not the 120 Hz screens' 120");
+                Assert.AreEqual(0.8f, Settings.RenderScale, 1e-4f);
+                Assert.AreEqual(Settings.UpscalerMetalFxSpatial, Settings.Upscaler, "Apple's own upscaler, not FSR 1");
+                Assert.AreEqual(Settings.PostAaFxaa, Settings.PostAntialiasing, "FXAA's one pass for SMAA's three");
+                Assert.IsFalse(Settings.FireSmoke);
+                Settings.ApplyPreset(Settings.PresetLow);
+                Assert.AreEqual(Settings.UpscalerMetalFxSpatial, Settings.Upscaler, "Low too");
+                Assert.AreEqual(Settings.PresetLow, OptionsCatalog.CurrentPreset(), "and the row still reads Low");
+                Settings.ResetToDefaults();
+                Settings.FrameRate = FrameRate.Fps120;
+                Assert.AreEqual(FrameRate.Fps120, Settings.FrameRate, "a player's choice stays theirs");
+                Settings.OverrideIosDefaults(false);
+                Settings.ResetToDefaults();
+                Assert.AreEqual(Settings.PresetHigh, OptionsCatalog.CurrentPreset(), "elsewhere the desktop's");
+            }
+            finally { Settings.OverrideIosDefaults(null); Settings.OverrideAndroidDefaults(null); Settings.ResetToDefaults(); }
+        }
+
+        [Test]
+        public void AFoldablesInnerScreenStaysAPhone()
+        {
+            Assert.Greater(UiLayout.PhoneMaxInches, 7.6f, "the iPhone Duo's inner screen");
+            Assert.Greater(UiLayout.PhoneMaxInches, 8.0f, "the largest Fold-type inner screens");
+            Assert.Less(UiLayout.PhoneMaxInches, 8.3f, "an iPad mini stays a desktop layout");
+        }
     }
 }

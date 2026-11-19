@@ -148,6 +148,9 @@ namespace GoF2Remake.UI
         /// the Editor at any Game view size; MainMenu.simulatePhone still forces a phone too).</summary>
         static int DebugDevice() => PlayerPrefs.GetInt("debug_ui_device", 0);
 
+        /// <summary>The largest mobile screen drawn as a phone (inches): a foldable's inner screen, not a tablet.</summary>
+        public const float PhoneMaxInches = 8.1f;
+
         /// <summary>The screen's diagonal in inches, 20 when the dpi isn't known.</summary>
         public static float Inches(float w, float h) => Screen.dpi > 0f ? Mathf.Sqrt(w * w + h * h) / Screen.dpi : 20f;
 
@@ -157,7 +160,10 @@ namespace GoF2Remake.UI
             if (debug >= 1 && debug <= 4) return (Device)(debug - 1);
             if (forcePhone) return Device.Phone;
             // UnityEngine.Device: the Device Simulator's phone in the Editor (UnityEngine.Application stays the Editor there).
-            if (UnityEngine.Device.Application.isMobilePlatform) return Inches(w, h) < 7.5f ? Device.Phone : Device.Desktop;
+            // A phone up to 8.1": folding phones' inner screens (the iPhone Duo's 7.6", the Fold-type Androids' 7.6 - 8.0") keep
+            // the phone layout when unfolded, so folding doesn't switch the UI's whole size; a tablet (an iPad mini's 8.3" up)
+            // gets the desktop's (2026-11-14, the user's "optimize the game for the iPhone Duo"; 7.5" before).
+            if (UnityEngine.Device.Application.isMobilePlatform) return Inches(w, h) < PhoneMaxInches ? Device.Phone : Device.Desktop;
             if (TvDetected) return Device.Tv;
             // Steam sets SteamDeck=1 on the Deck (GOF2_STEAMDECK=1 once SteamDeckRelaunch has restarted the Linux player
             // without it, #232); any other small desktop screen whose dpi says so counts too.

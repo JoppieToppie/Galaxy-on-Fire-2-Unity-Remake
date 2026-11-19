@@ -177,7 +177,8 @@ verified on a Mac or an iPhone.
   texSize 256), then clamp(scene + glow) (`Engine::switchBloom` = 3 in the binary); URP's Bloom is off meanwhile. The
   original also blooms its HUD (drawn into the same FBO); the remake's UI Toolkit HUD doesn't.
 - Frame rate option (`Settings.FrameRate`: 30 / 60 / 120 / Uncapped / V-Sync, default V-Sync; 60 on Android, the user's choice
-  2026-10-22: a 120 Hz phone at 120 heats up and throttles) is applied by `Bootstrap.ApplyFrameRate`.
+  2026-10-22: a 120 Hz phone at 120 heats up and throttles; 60 on iOS too since 2026-11-14, `Settings.IosDefaults`) is
+  applied by `Bootstrap.ApplyFrameRate`.
 - **Game experience** (remake, 2026-11-04, the Gameplay tab's first row, after a player's request: "a preset 'Vanilla'
   toggle ... vanilla should be default"; `Settings.ExperienceKeys` / `ApplyExperience` / `CurrentExperience`): Original /
   Cosmetic / Remake set the experience options at once; the row shows the one they match, else Custom (picking it sets
@@ -223,7 +224,19 @@ verified on a Mac or an iPhone.
   Ultra = every option at its most (MSAA 8×, every ship's hangar shadow, depth of field, no made levels of detail, detail
   Ultra, forced 16×) but the render scale at 150 % (the row goes to 200 %: four times 100 %'s pixels with MSAA 8× is past
   most GPUs). Android's defaults are Low (`Settings.AndroidDefaults`: each preset key's fallback, `Default`;
-  keys a player set stay theirs; `OverrideAndroidDefaults` for tests) and the Original ship collision.
+  keys a player set stay theirs; `OverrideAndroidDefaults` for tests) and the Original ship collision. iOS's are Medium
+  (`Settings.IosDefaults`, `OverrideIosDefaults`; 2026-11-14, the user's "optimize the game for the iPhone Duo": High's
+  100 % on its 1878 x 2670 inner screen at 120 Hz is five megapixels 120 times a second; Apple's chips carry Medium's
+  80 % easily, so not Android's Low). On iOS and macOS players the presets' FSR 1 is MetalFX Spatial (`Settings.
+  AppleUpscaler`, swapped in `PresetValue`, so `ApplyPreset`, the defaults and the row's match all take it; the user's
+  "why fsr when metalfx is a thing"): Apple's own spatial upscaler, like for like; not Temporal, as the temporal paths
+  ghost on fast flight and neither MetalFX is yet seen on a device (Temporal stays in the Upscaler row). A MetalFX the
+  device lacks falls back to its FSR counterpart (`Bootstrap.ActiveUpscaler`: Spatial to FSR 1, Temporal to FSR
+  temporal or FSR 1), no longer to no upscaling. iOS's Medium takes FXAA in SMAA's place (`PresetValue`; one pass for three,
+  MetalFX takes the edges on again as it upscales, 430 - 460 ppi screens); High and Ultra keep SMAA. The Mobile URP asset's
+  soft shadows are at Low (`m_SoftShadowQuality` 1, was Medium: fewer taps a shadowed pixel; Android and iOS). The audio
+  needed nothing: 3866 clips compressed in memory and loaded in the background, none preloaded, 93 short ones decompressed
+  on load, 41 tracks streamed.
 - **Post-process AA** (remake, 2026-11-05, Graphics, below MSAA; `Settings.PostAntialiasing`, key `postAa`: 0 SMAA,
   1 FXAA, 2 TAA, 3 Off; `Visuals.ScreenAntialiasing`): the URP camera anti-aliasing of the cameras that draw to the screen.
   They were all SMAA as built (Space / MainMenu / Station scenes, the star map) and stay so by default; FXAA is the Low

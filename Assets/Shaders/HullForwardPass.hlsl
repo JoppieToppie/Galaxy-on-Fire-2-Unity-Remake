@@ -695,6 +695,12 @@ void HullPassFragment(
 
     SurfaceData surfaceData;
     InitializeStandardLitSurfaceData(input.uv, surfaceData);
+    // The mods' own surface features, compiled only into the mods' variant (_GOF2_PBR: every mod material is a copy of a
+    // ModAssets template, all of which carry it; the game's hulls never do), so the game's ships, stations and asteroids
+    // don't carry their code: a mobile GPU sizes a shader's registers for its heaviest path, branch taken or not (2026-11-14,
+    // the user's "what can we do to improve performance for ios"). Wreck effects, decals, liveries and the sun's tint stay
+    // in every variant: they reach the game's hulls too.
+#if defined(_GOF2_PBR)
     if (_Es2Wear2.z > 0.0) Es2StructureLayers(input, surfaceData);   // GoF2: EVERSPACE 2's structure layers
     if (_ChorusParams.x > 4.5) ChorusTissue(input, surfaceData);     // GoF2: Chorus's Omen tissue (the Faceless)
     else if (_ChorusParams.x > 3.5) ChorusCrystal(input, surfaceData);    // GoF2: Chorus's crystal (the Prophet's crown)
@@ -703,6 +709,7 @@ void HullPassFragment(
     if (_WaveParams.x > 0.0) surfaceData.emission += GlowWave(input.uv);   // GoF2: a glow along a pattern (Chorus's M_Phoenix)
     if (_LavaE.w > 0.0) surfaceData.emission += LavaFlow(input.uv);   // GoF2: Chorus's flowing lava (M_BrokenPlanet_Core)
     if (_HitFx.w > 0.0 && _HitFx.x < 1.0) surfaceData.emission += HitFlash(input.uv, input.positionWS, input.normalWS);   // GoF2: a hit (Chorus's M_Phoenix)
+#endif
     if (_WreckFx.x > 0.0 || _WreckFx.y > 0.0)   // GoF2: a wreck piece's burn and disintegration (HullWreck.hlsl)
     {
         HullWreckClip(input.positionWS);
@@ -719,6 +726,7 @@ void HullPassFragment(
 
     InputData inputData;
     InitializeInputData(input, surfaceData.normalTS, inputData);
+#if defined(_GOF2_PBR)   // (the mods' variant alone, as above)
     if (_ChorusParams.x > 0.0 && _ChorusParams.x < 3.5) surfaceData.emission += ChorusFarEmission(inputData);   // GoF2: Chorus's far kicker
     if (_Es2Wear2.z > 0.0)
     {
@@ -726,6 +734,7 @@ void HullPassFragment(
         half f = max(1.0 - saturate(dot(inputData.normalWS, inputData.viewDirectionWS)), 1e-4);
         surfaceData.albedo = saturate(surfaceData.albedo * (1.0 + (half)_Es2Grunge.z * f * f * f));
     }
+#endif
     SETUP_DEBUG_TEXTURE_DATA(inputData, UNDO_TRANSFORM_TEX(input.uv, _BaseMap));
 
 #if defined(_DBUFFER)
