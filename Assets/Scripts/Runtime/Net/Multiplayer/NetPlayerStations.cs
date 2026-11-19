@@ -97,6 +97,7 @@ namespace GoF2Remake.Multiplayer
         {
             registry = null;
             path = null;
+            nextDryDockRetryUtc = 0;
             sessionActive = NetGame.PersistentHost || NetGame.Dedicated;
             if (!sessionActive) return;
 
@@ -128,6 +129,7 @@ namespace GoF2Remake.Multiplayer
                 station.storage ??= new List<PlayerStationStorage>();
                 station.storedShips ??= new List<StoredShip>();
                 station.dryDockShips ??= new List<StoredShip>();
+                if (!station.dryDockBuilding) ClearDryDockJob(station);
                 if (station.addons.Count > MaxAddonsPerStation || station.listings.Count > MaxListingsPerStation)
                     Debug.LogWarning($"NetPlayerStations: station {station.id} exceeds a module or listing limit; preserving all saved records.");
             }
