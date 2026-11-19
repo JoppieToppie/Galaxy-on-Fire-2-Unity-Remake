@@ -716,6 +716,50 @@ namespace GoF2Remake.Multiplayer
             return "Builder rights could not be relinquished because the change could not be saved.";
         }
 
+        static bool CanManageAppearance(NetPlayer by, PlayerStationRecord record, out string account)
+        {
+            if (!IsStationContext(by, record, out account)) return false;
+            if (HasBuilderRights(record, account)) return true;
+            // The original builder keeps first say while present. Once absent, normal owner
+            // and delegated appearance permissions become effective.
+            if (OriginalBuilderInSession(record)) return false;
+            return HasStationPermission(record, account, PlayerStationPermission.Appearance);
+        }
+
+        /// <summary>Change the station's visual/collision preset using an existing non-player station model.</summary>
+        internal static string SetStationAppearance(NetPlayer by, int stationId, int modelStationIndex)
+        {
+            var record = Find(stationId);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManageAppearance(by, record, out string account))
+                return "The original builder controls appearance while present; otherwise an authorised owner or construction manager must be docked here.";
+            var db = NetGame.Db;
+            var model = db?.Stations?.Find(x => x != null && x.index == modelStationIndex);
+            if (model == null || modelStationIndex < 0 || IsPlayerStation(modelStationIndex))
+                return "Choose the index of an existing built-in station model preset.";
+            var live = db.Stations.Find(x => x != null && x.index == record.stationIndex);
+            if (live == null) return "The station's live model record is unavailable.";
+            int previousLook = record.looksLike;
+            int previousTech = live.techLevel;
+            int previousTexture = live.textureIndex;
+            record.looksLike = modelStationIndex;
+            live.techLevel = model.techLevel;
+            live.textureIndex = model.textureIndex;
+            RecordHistory(record, account, "station-appearance-changed", null,
+                "Station visual/collision preset changed from " + previousLook + " to " + modelStationIndex + ".");
+            if (Save())
+            {
+                NetGuard.RefreshStations();
+                return "Station appearance preset updated. Model preset " + modelStationIndex + " is now active.";
+            }
+            record.looksLike = previousLook;
+            live.techLevel = previousTech;
+            live.textureIndex = previousTexture;
+            record.history?.RemoveAt(record.history.Count - 1);
+            record.nextHistorySequence = Math.Max(1, record.nextHistorySequence - 1);
+            return "The appearance change could not be saved; the previous preset remains active.";
+        }
+
         internal static string SetIndividualSuccessor(NetPlayer by, int stationId, string target)
         {
             var record = Find(stationId);
