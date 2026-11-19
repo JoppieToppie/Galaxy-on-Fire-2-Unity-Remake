@@ -154,8 +154,8 @@ namespace GoF2Remake.Multiplayer
             if (sponsor.underConstruction) return "The sponsoring station must be operational.";
             if (!ValidOrbit(sponsor.system, orbitStationIndex, out var origin))
                 return "Choose an existing orbital location in the sponsoring station's system.";
-            if (origin.jumpgateStation == orbitStationIndex)
-                return "That orbit already contains the system's original jumpgate.";
+            if (origin.jumpgateStation == orbitStationIndex || Modding.ModWorld.OrbitOf(orbitStationIndex)?.jumpgate == true)
+                return "That orbit already contains a system or mod-defined jumpgate.";
             if (destinationSystem == sponsor.system) return "A jumpgate must connect to a different system.";
             var destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == destinationSystem);
             if (destination?.stations == null || destination.stations.Count == 0)
