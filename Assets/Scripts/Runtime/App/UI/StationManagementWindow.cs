@@ -221,7 +221,8 @@ namespace GoF2Remake.UI
             AddField("marketItem", "Sale item ID", "156");
             AddField("marketAmount", "Units to list (1–500)", "1");
             AddField("marketPrice", "Price per unit (credits)", "100");
-            AddAction("Create listing", () => Send("/station list-item " + id + " " + Value("marketItem") + " " + Value("marketAmount") + " " + Value("marketPrice")));
+            AddField("marketPayout", "Listing proceeds (personal/faction)", "personal");
+            AddAction("Create listing", () => Send("/station list-item " + id + " " + Value("marketItem") + " " + Value("marketAmount") + " " + Value("marketPrice") + " " + Value("marketPayout")));
             AddField("listingIndex", "Listing index", "0");
             AddField("buyAmount", "Purchase amount", "1");
             AddAction("Buy listing", () => Send("/station buy " + id + " " + Value("listingIndex") + " " + Value("buyAmount")));
