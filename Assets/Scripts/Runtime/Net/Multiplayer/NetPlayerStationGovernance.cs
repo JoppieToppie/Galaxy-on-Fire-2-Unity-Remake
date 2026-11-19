@@ -353,15 +353,6 @@ namespace GoF2Remake.Multiplayer
                 string.Equals(faction.leader, account, StringComparison.Ordinal);
         }
 
-        static bool IsStationManagementAuthority(NetPlayer by, PlayerStationRecord record, out string account)
-        {
-            if (IsStationAuthority(by, record, out account)) return true;
-            if (string.IsNullOrEmpty(account)) return false;
-            return record.ownershipType == PlayerStationOwnershipType.Faction &&
-                HasRole(record, account, PlayerStationRole.StationAdministrator) &&
-                HasStationPermission(record, account, PlayerStationPermission.StationOperations);
-        }
-
         internal static string SetStationRole(NetPlayer by, int stationId, string target, string roleName)
         {
             var record = Find(stationId);
