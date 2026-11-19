@@ -664,7 +664,12 @@ namespace GoF2Remake.Multiplayer
             if (persistenceFaulted || registry == null || string.IsNullOrEmpty(path)) return false;
             if (File.Exists(TransactionPath))
             {
-                RecoverPendingTransaction();
+                if (!RecoverPendingTransaction())
+                {
+                    persistenceFaulted = true;
+                    registry = null;
+                    Debug.LogError("NetPlayerStations: station persistence has been disabled because a pending transaction failed recovery.");
+                }
                 return false; // Do not save a caller's potentially stale in-memory mutation over the recovered snapshot.
             }
             if (!NetProfiles.Write(path, JsonUtility.ToJson(registry, true))) return false;
