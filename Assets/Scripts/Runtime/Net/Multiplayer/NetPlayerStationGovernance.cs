@@ -189,7 +189,8 @@ namespace GoF2Remake.Multiplayer
 
         static bool RoleGrants(PlayerStationRecord record, string account, PlayerStationPermission permission)
         {
-            if (HasRole(record, account, PlayerStationRole.StationAdministrator)) return true;
+            if (permission == PlayerStationPermission.StationOperations &&
+                HasRole(record, account, PlayerStationRole.StationAdministrator)) return true;
             if (permission == PlayerStationPermission.Storage && HasRole(record, account, PlayerStationRole.Quartermaster)) return true;
             if (permission == PlayerStationPermission.Hangar && HasRole(record, account, PlayerStationRole.Quartermaster)) return true;
             if ((permission == PlayerStationPermission.Construction || permission == PlayerStationPermission.Appearance) &&
@@ -581,6 +582,11 @@ namespace GoF2Remake.Multiplayer
             if (string.IsNullOrEmpty(targetAccount)) return "Supply a valid target account.";
             if (IsStationOwnerAccount(record, targetAccount))
                 return "The current station owner cannot be banned from their own station.";
+            var targetFaction = NetFactions.Of(targetAccount);
+            if (!builder && record.ownershipType == PlayerStationOwnershipType.Faction &&
+                targetFaction != null && string.Equals(targetFaction.id, record.ownerFactionId, StringComparison.Ordinal) &&
+                string.Equals(targetFaction.leader, targetAccount, StringComparison.Ordinal))
+                return "Only the original builder may impose a visitor ban on the owning faction leader.";
             if (string.Equals(targetAccount, account, StringComparison.Ordinal))
                 return "You cannot ban yourself from the station.";
             record.bans ??= new List<PlayerStationBan>();
