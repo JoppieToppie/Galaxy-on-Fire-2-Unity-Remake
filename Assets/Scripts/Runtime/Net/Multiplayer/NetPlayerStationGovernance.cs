@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
 {
@@ -134,6 +135,27 @@ namespace GoF2Remake.Multiplayer
                 NetProfiles.Enabled && NetProfiles.Controls(by.OwnerClientId) && !string.IsNullOrEmpty(account);
         }
 
+        static bool IsStationOwnerAccount(PlayerStationRecord record, string account)
+        {
+            if (record == null || string.IsNullOrEmpty(account)) return false;
+            if (record.ownershipType == PlayerStationOwnershipType.Individual)
+                return string.Equals(record.ownerProfile, account, StringComparison.Ordinal);
+            var faction = NetFactions.FindById(record.ownerFactionId);
+            return faction != null && string.Equals(faction.leader, account, StringComparison.Ordinal);
+        }
+
+        static void ClearOwnerVisitorRestrictions(PlayerStationRecord record)
+        {
+            if (record == null) return;
+            string owner = record.ownershipType == PlayerStationOwnershipType.Individual
+                ? record.ownerProfile : NetFactions.FindById(record.ownerFactionId)?.leader;
+            if (string.IsNullOrEmpty(owner)) return;
+            record.bans?.RemoveAll(x => x != null && string.Equals(x.account, owner, StringComparison.Ordinal));
+            record.permissionOverrides?.RemoveAll(x => x != null &&
+                string.Equals(x.account, owner, StringComparison.Ordinal) &&
+                x.permission == PlayerStationPermission.Visit);
+        }
+
         static string StationFactionId(PlayerStationRecord record)
         {
             return record == null ? null : record.ownershipType == PlayerStationOwnershipType.Faction
@@ -249,6 +271,7 @@ namespace GoF2Remake.Multiplayer
             PlayerStationPermission permission)
         {
             if (record == null || string.IsNullOrEmpty(account)) return false;
+            if (IsStationOwnerAccount(record, account)) return true;
             bool builder = HasBuilderRights(record, account);
             var visitorOverride = FindPermissionOverride(record, account, PlayerStationPermission.Visit);
             PlayerStationPermissionState builderVisitState = visitorOverride?.builderState ?? PlayerStationPermissionState.Inherit;
@@ -533,6 +556,8 @@ namespace GoF2Remake.Multiplayer
                 return "Only the original builder or an authorised station security role may manage station bans.";
             string targetAccount = NetProfiles.FindAccount((target ?? "").Trim());
             if (string.IsNullOrEmpty(targetAccount)) return "Supply a valid target account.";
+            if (IsStationOwnerAccount(record, targetAccount))
+                return "The current station owner cannot be banned from their own station.";
             if (string.Equals(targetAccount, account, StringComparison.Ordinal))
                 return "You cannot ban yourself from the station.";
             record.bans ??= new List<PlayerStationBan>();
@@ -781,7 +806,7 @@ namespace GoF2Remake.Multiplayer
 
                 string successor = record.factionSuccessorProfile;
                 string successorFactionId = record.factionSuccessorFactionId;
-                var nextFaction = NetFactions.Of(successor);
+                var nextFaction = NetFactions.FindById(successorFactionId);
                 bool successorFactionValid = record.factionSuccessorType == PlayerStationOwnershipType.Faction &&
                     !string.IsNullOrEmpty(successorFactionId) && nextFaction != null &&
                     string.Equals(nextFaction.id, successorFactionId, StringComparison.Ordinal);
@@ -812,6 +837,7 @@ namespace GoF2Remake.Multiplayer
                 // Old faction appointments and bans cannot survive the faction's dissolution.
                 record.roleAssignments?.Clear();
                 record.bans?.RemoveAll(x => x != null && x.source == PlayerStationBanSource.OwnerAuthority);
+                ClearOwnerVisitorRestrictions(record);
                 if (record.permissionOverrides != null)
                 {
                     for (int i = record.permissionOverrides.Count - 1; i >= 0; i--)
@@ -824,7 +850,6 @@ namespace GoF2Remake.Multiplayer
                             record.permissionOverrides.RemoveAt(i);
                     }
                 }
-                record.factionPermissions = new PlayerStationFactionPermissionProfile();
                 record.pendingTransfer = null;
                 record.factionSuccessorProfile = null;
                 record.factionSuccessorFactionId = null;
