@@ -11,6 +11,8 @@ using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
 {
+    public enum PlayerStationOwnershipType { Individual = 0, Faction = 1 }
+
     [Serializable]
     public sealed class PlayerStationRecord
     {
@@ -18,7 +20,10 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The station index assigned in database order; kept stable while the server's mod set stays the same.</summary>
         public int stationIndex = -1;
         public string name;
+        // OwnershipType defaults to Individual for old JSON saves and remains backward compatible.
+        public PlayerStationOwnershipType ownershipType = PlayerStationOwnershipType.Individual;
         public string ownerProfile;
+        public string ownerFactionId;
         public string ownerName;
         public int system;
         /// <summary>Existing station index whose look is used for this station's model and collision preset.</summary>
@@ -31,8 +36,12 @@ namespace GoF2Remake.Multiplayer
         public List<PlayerStationListing> listings = new List<PlayerStationListing>();
         public List<PlayerStationStorage> storage = new List<PlayerStationStorage>();
         public List<StoredShip> storedShips = new List<StoredShip>();
+        // Parallel owner lists preserve the existing StoredShip save format while ensuring shared access never
+        // grants ownership of another pilot's hull. Legacy entries are assigned to the station's individual owner.
+        public List<string> storedShipOwners = new List<string>();
         /// <summary>Large hulls held in the station's dedicated dry dock.</summary>
         public List<StoredShip> dryDockShips = new List<StoredShip>();
+        public List<string> dryDockShipOwners = new List<string>();
         /// <summary>One persistent in-progress dry-dock ship build. Completion is evaluated by the server clock.</summary>
         public bool dryDockBuilding;
         public int dryDockBlueprintItem = -1, dryDockShip = -1;
@@ -128,6 +137,7 @@ namespace GoF2Remake.Multiplayer
                 station.storage ??= new List<PlayerStationStorage>();
                 station.storedShips ??= new List<StoredShip>();
                 station.dryDockShips ??= new List<StoredShip>();
+                NormalizeOwnershipAndHullOwners(station);
                 if (!station.dryDockBuilding) ClearDryDockJob(station);
                 if (station.addons.Count > MaxAddonsPerStation || station.listings.Count > MaxListingsPerStation)
                     Debug.LogWarning($"NetPlayerStations: station {station.id} exceeds a module or listing limit; preserving all saved records.");
@@ -156,6 +166,7 @@ namespace GoF2Remake.Multiplayer
                     station.storage ??= new List<PlayerStationStorage>();
                     station.storedShips ??= new List<StoredShip>();
                     station.dryDockShips ??= new List<StoredShip>();
+                    NormalizeOwnershipAndHullOwners(station);
                     if (!station.dryDockBuilding) ClearDryDockJob(station);
                     if (station.addons.Count > MaxAddonsPerStation || station.listings.Count > MaxListingsPerStation)
                         Debug.LogWarning($"NetPlayerStations: received station {station.id} exceeds a module or listing limit; preserving all records.");
@@ -169,6 +180,27 @@ namespace GoF2Remake.Multiplayer
                 Debug.LogWarning($"NetPlayerStations: server snapshot unreadable ({e.Message}).");
                 registry = new Registry();
             }
+        }
+
+        static void NormalizeOwnershipAndHullOwners(PlayerStationRecord station)
+        {
+            if (station == null) return;
+            // Missing ownershipType in pre-feature saves deserializes to Individual (zero).
+            if (station.ownershipType != PlayerStationOwnershipType.Faction)
+            {
+                station.ownershipType = PlayerStationOwnershipType.Individual;
+                station.ownerFactionId = null;
+            }
+            station.storedShipOwners ??= new List<string>();
+            station.dryDockShipOwners ??= new List<string>();
+            while (station.storedShipOwners.Count < (station.storedShips?.Count ?? 0))
+                station.storedShipOwners.Add(station.ownerProfile ?? "");
+            while (station.dryDockShipOwners.Count < (station.dryDockShips?.Count ?? 0))
+                station.dryDockShipOwners.Add(station.ownerProfile ?? "");
+            if (station.storedShipOwners.Count > (station.storedShips?.Count ?? 0))
+                station.storedShipOwners.RemoveRange(station.storedShips?.Count ?? 0, station.storedShipOwners.Count - (station.storedShips?.Count ?? 0));
+            if (station.dryDockShipOwners.Count > (station.dryDockShips?.Count ?? 0))
+                station.dryDockShipOwners.RemoveRange(station.dryDockShips?.Count ?? 0, station.dryDockShipOwners.Count - (station.dryDockShips?.Count ?? 0));
         }
 
         /// <summary>Find a station by its persistent server-assigned id.</summary>
@@ -186,7 +218,7 @@ namespace GoF2Remake.Multiplayer
             {
                 $"Station #{record.id}: {record.name}",
                 $"System: {(system != null ? system.name : $"Unknown ({record.system})")}",
-                $"Owner: {(string.IsNullOrWhiteSpace(record.ownerName) ? "Unknown" : record.ownerName)}",
+                $"Owner: {(record.ownershipType == PlayerStationOwnershipType.Faction ? "Faction " + (record.ownerFactionId ?? "unknown") : (string.IsNullOrWhiteSpace(record.ownerName) ? "Unknown" : record.ownerName))}",
                 $"Status: {(record.underConstruction ? "Under construction" : "Operational")}",
             };
 
