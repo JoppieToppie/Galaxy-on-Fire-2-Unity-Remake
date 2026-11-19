@@ -389,7 +389,7 @@ namespace GoF2Remake.Multiplayer
             {
                 if (!int.TryParse(args.Substring(status.Length).Trim(), out int project))
                     return "/station status <project id>";
-                return NetPlayerStations.Status(project);
+                return NetPlayerStations.Status(by as NetPlayer, project);
             }
             const string start = "start ";
             if (args.StartsWith(start, StringComparison.OrdinalIgnoreCase))
