@@ -263,8 +263,7 @@ namespace GoF2Remake.Multiplayer
                 if (HasBan(record, account, PlayerStationBanSource.OwnerAuthority)) return false;
                 if (builder) return true;
             }
-            else if (HasBan(record, account, PlayerStationBanSource.OwnerAuthority) &&
-                builderVisitState != PlayerStationPermissionState.Allow) return false;
+            else if (HasBan(record, account, PlayerStationBanSource.OwnerAuthority)) return false;
 
             if (record.ownershipType == PlayerStationOwnershipType.Individual &&
                 string.Equals(record.ownerProfile, account, StringComparison.Ordinal)) return true;
@@ -601,14 +600,10 @@ namespace GoF2Remake.Multiplayer
             if (record.ownershipType == PlayerStationOwnershipType.Individual)
                 return string.Equals(record.ownerProfile, account, StringComparison.Ordinal);
 
-            var faction = NetFactions.Of(account);
-            if (faction == null || !string.Equals(faction.id, record.ownerFactionId, StringComparison.Ordinal))
-                return false;
-            bool factionAuthority = string.Equals(faction.leader, account, StringComparison.Ordinal) ||
-                (faction.officers?.Contains(account) == true && HasConstructionRole(record, account));
-            // The original builder has first say while their profile is in the session. Faction
-            // construction authority becomes available only while that builder is absent.
-            return factionAuthority && !OriginalBuilderInSession(record) &&
+            // The original builder has first say while their profile is in the session. Any
+            // construction permission delegated by station governance becomes available only
+            // while that builder is absent.
+            return !OriginalBuilderInSession(record) &&
                 HasStationPermission(record, account, PlayerStationPermission.Construction);
         }
 
