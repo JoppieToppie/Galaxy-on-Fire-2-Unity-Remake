@@ -25,8 +25,13 @@ namespace GoF2Remake.Multiplayer
             factionStorageAccess = true
         };
 
-        static bool CanViewJumpgate(NetPlayer by, PlayerJumpgateRecord gate) =>
-            CanViewStationRecord(by, JumpgateAccessRecord(gate));
+        static bool CanViewJumpgate(NetPlayer by, PlayerJumpgateRecord gate)
+        {
+            var sponsor = gate == null ? null : Find(gate.sponsorStationId);
+            return sponsor != null
+                ? CanViewStationRecord(by, sponsor)
+                : CanViewStationRecord(by, JumpgateAccessRecord(gate));
+        }
 
         internal static bool CanViewJumpgateManagement(NetPlayer by, PlayerJumpgateRecord gate) =>
             CanViewJumpgate(by, gate);
@@ -37,6 +42,11 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.IsServer || !sessionActive || registry == null || by == null || !by.IsSpawned ||
                 !by.InHangar || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) ||
                 string.IsNullOrEmpty(account) || gate == null) return false;
+            var sponsor = Find(gate.sponsorStationId);
+            if (sponsor != null)
+                return sponsor.ownershipType == PlayerStationOwnershipType.Individual
+                    ? string.Equals(account, sponsor.ownerProfile, StringComparison.Ordinal)
+                    : IsFactionManager(sponsor, account);
             var access = JumpgateAccessRecord(gate);
             return gate.ownershipType == PlayerStationOwnershipType.Individual
                 ? string.Equals(account, gate.ownerProfile, StringComparison.Ordinal)
@@ -48,6 +58,31 @@ namespace GoF2Remake.Multiplayer
             system = NetGame.Db?.Systems?.Find(x => x != null && x.index == systemIndex);
             if (system?.stations == null || !system.stations.Contains(orbitStationIndex)) return false;
             return NetGame.Db.Stations.Find(x => x != null && x.index == orbitStationIndex && x.system == systemIndex) != null;
+        }
+
+        static bool CopyStationOwnershipToGate(PlayerStationRecord station, PlayerJumpgateRecord gate)
+        {
+            if (station == null || gate == null) return false;
+            bool changed = gate.ownershipType != station.ownershipType ||
+                !string.Equals(gate.ownerProfile, station.ownerProfile, StringComparison.Ordinal) ||
+                !string.Equals(gate.ownerFactionId, station.ownerFactionId, StringComparison.Ordinal) ||
+                !string.Equals(gate.ownerName, station.ownerName, StringComparison.Ordinal);
+            gate.ownershipType = station.ownershipType;
+            gate.ownerProfile = station.ownerProfile;
+            gate.ownerFactionId = station.ownerFactionId;
+            gate.ownerName = station.ownerName;
+            return changed;
+        }
+
+        /// <summary>Synchronise every gate sponsored by this station as part of the same registry save.</summary>
+        internal static bool SyncJumpgatesForStation(PlayerStationRecord station)
+        {
+            if (station == null || registry?.jumpgates == null) return false;
+            bool changed = false;
+            foreach (var gate in registry.jumpgates)
+                if (gate != null && gate.sponsorStationId == station.id)
+                    changed |= CopyStationOwnershipToGate(station, gate);
+            return changed;
         }
 
         static bool MigrateLegacyJumpgates()
@@ -62,6 +97,7 @@ namespace GoF2Remake.Multiplayer
                 registry.jumpgates.Add(new PlayerJumpgateRecord
                 {
                     orbitStationIndex = station.stationIndex,
+                    sponsorStationId = station.id,
                     system = station.system,
                     destinationSystem = station.jumpgateDestinationSystem,
                     ownershipType = station.ownershipType,
@@ -78,6 +114,38 @@ namespace GoF2Remake.Multiplayer
                     contributions = station.jumpgateContributions ?? new List<PlayerStationContribution>()
                 });
                 changed = true;
+            }
+
+            // Older independent gate records did not retain their sponsoring station. Link them only
+            // when exactly one station in the same system has the same owner; guessing among multiple
+            // candidates could silently transfer somebody else's gate.
+            foreach (var gate in registry.jumpgates)
+            {
+                if (gate == null) continue;
+                PlayerStationRecord sponsor = gate.sponsorStationId > 0 ? Find(gate.sponsorStationId) : null;
+                if (sponsor == null && gate.sponsorStationId <= 0)
+                {
+                    PlayerStationRecord candidate = null;
+                    int matches = 0;
+                    foreach (var station in registry.stations)
+                    {
+                        if (station == null || station.system != gate.system ||
+                            station.ownershipType != gate.ownershipType) continue;
+                        bool sameOwner = gate.ownershipType == PlayerStationOwnershipType.Faction
+                            ? string.Equals(station.ownerFactionId, gate.ownerFactionId, StringComparison.Ordinal)
+                            : string.Equals(station.ownerProfile, gate.ownerProfile, StringComparison.Ordinal);
+                        if (!sameOwner) continue;
+                        candidate = station;
+                        matches++;
+                    }
+                    if (matches == 1)
+                    {
+                        sponsor = candidate;
+                        gate.sponsorStationId = sponsor.id;
+                        changed = true;
+                    }
+                }
+                if (sponsor != null) changed |= CopyStationOwnershipToGate(sponsor, gate);
             }
             return changed;
         }
@@ -168,6 +236,7 @@ namespace GoF2Remake.Multiplayer
             var gate = new PlayerJumpgateRecord
             {
                 orbitStationIndex = orbitStationIndex,
+                sponsorStationId = sponsor.id,
                 system = sponsor.system,
                 destinationSystem = destinationSystem,
                 ownershipType = sponsor.ownershipType,
