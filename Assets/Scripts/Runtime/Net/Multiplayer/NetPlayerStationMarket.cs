@@ -38,8 +38,8 @@ namespace GoF2Remake.Multiplayer
                 return "Only the station owner can create listings while docked at the station.";
             if (record.underConstruction) return "Finish station construction before opening listings.";
             if (StorageCapacity(record) <= 0) return "Install a storage module before listing station goods.";
-            if (!NetGuard.Item(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice)
-                return "Use a valid item, 1–500 units, and a unit price from 1 to 1,000,000,000 credits.";
+            if (!NetGuard.Item(item) || !Hangar.IsSaleable(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice)
+                return "Use a saleable item, 1–500 units, and a unit price from 1 to 1,000,000,000 credits.";
             record.listings ??= new List<PlayerStationListing>();
             if (record.listings.Count >= MaxStationListings) return "This station has reached its listing limit.";
             record.storage ??= new List<PlayerStationStorage>();
