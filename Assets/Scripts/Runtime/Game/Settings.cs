@@ -1033,6 +1033,14 @@ namespace GoF2Remake.Data
         /// that cuts its edges off); -1 = automatic, 5 % on a TV and none elsewhere (UiLayout.OptionInsets).</summary>
         public static float UiMarginPercent { get => Mathf.Clamp(Get("uiMargin", -1f), -1f, 10f); set => Set("uiMargin", Mathf.Clamp(value, -1f, 10f)); }
 
+        /// <summary>Remake (2026-11-19, the user's request): Options > Graphics "Camera cutout", phones only: the device's
+        /// own safe-area insets (the camera hole / notch / Dynamic Island, the home indicator) kept clear (the default,
+        /// the behaviour since the iOS work), mirrored to the other side as well (Android insets only the cutout's side, so
+        /// the HUD sat off centre), or ignored for the whole screen (SafeArea.Device). The edge margin and interface width
+        /// options apply either way.</summary>
+        public const int ScreenCutoutClear = 0, ScreenCutoutBothSides = 1, ScreenCutoutFull = 2;
+        public static int ScreenCutout { get => Mathf.Clamp(Mathf.RoundToInt(Get("screenCutout", ScreenCutoutClear)), ScreenCutoutClear, ScreenCutoutFull); set => Set("screenCutout", Mathf.Clamp(value, ScreenCutoutClear, ScreenCutoutFull)); }
+
         /// <summary>Remake (#40): the story step at the bottom right (StoryStepLabel), for bug reports; off by default.</summary>
         public static bool ShowStoryStep { get => GetBool("showStoryStep", true); set => SetBool("showStoryStep", value); }
 
@@ -1098,7 +1106,7 @@ namespace GoF2Remake.Data
         {
             "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality", "fsr4Lite",
             "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "liveSkies", "skyStyle", "nebulaClouds", "npcPlayerEngines", "rebuiltPlanets", "hdResources", "remasteredEffects", "fov",
-            "cameraShake", "originalChaseCamera", "es2FreeFlightCamera", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
+            "cameraShake", "originalChaseCamera", "es2FreeFlightCamera", "uiWidth", "uiMargin", "screenCutout", "showFps", "fpsPosition", "gameCursor",
         };
         public static readonly string[] ControlsKeys =
         {

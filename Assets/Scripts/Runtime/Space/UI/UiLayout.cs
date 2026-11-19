@@ -73,7 +73,7 @@ namespace GoF2Remake.UI
         /// <summary>Changes whenever something the layout depends on changes (the options, the device override): the screens
         /// compare it each frame like the screen size and lay out again.</summary>
         public static int Revision => Settings.UiScalePercent * 1000 + Settings.UiWidth * 100 + Mathf.RoundToInt(Settings.UiMarginPercent * 10f)
-                                      + (TvDetected ? 7 : 0) + DebugDevice() * 13 + Settings.UiTextScalePercent * 100000
+                                      + (TvDetected ? 7 : 0) + DebugDevice() * 13 + Settings.ScreenCutout * 17 + Settings.UiTextScalePercent * 100000
                                       + (Settings.HighContrast ? 1 : 0) * 30000000 + (Settings.ReduceMotion ? 1 : 0) * 60000000
                                       + (Settings.ColorblindMarkers ? 1 : 0) * 120000000
                                       + (Settings.OriginalUi ? 1 : 0) * 240000000 + UiFont.Revision + settle * 7919;

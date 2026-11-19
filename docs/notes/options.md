@@ -32,6 +32,16 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 - **Camera shake** (Graphics, `Settings.CameraShake`): 100 % by default, the ported shakes unscaled (#342 had made 30 % the
   default; back 2026-11-19); the Cosmetic and Remake experiences set 30 %. Saved values are kept; Graphics defaults: 100 %.
 
+- **Camera cutout** (remake, 2026-11-19, the user's request; Graphics below "Screen edge margin", phones only:
+  `UnityEngine.Device.Application.isMobilePlatform`, so the Device Simulator shows it; `Settings.ScreenCutout`, key
+  `screenCutout`): Keep clear (0, the default: the behaviour since the iOS work, platform behaviour rather than a
+  gameplay change, so not in the experience presets) / Both sides (1: left and right both the larger inset; Android insets
+  only the camera hole's side, which moved the HUD's left half, the joystick and the FF / autopilot buttons, right) / Full
+  screen (2: no device insets at all, the home indicator's included). Applied in `SafeArea.Device` (testable overload
+  `Device(Rect, w, h, cutout)`, `ScreenCutoutTests`), which every safe-area user reads (the HUD, touch controls, station,
+  main menu, star map, `KeepClear` overlays, FPS / speedrun / story-step labels); in `UiLayout.Revision`, so the screens
+  lay out again when it changes. The edge margin and interface width still apply on top.
+
 - **Original by default** (2026-11-19, after an audit of the 46 PRs merged that day): every remake addition starts off and
   the Original presets turn it off. The defaults put back: 3D planets off (`rebuiltPlanets`), camera shake 100 %. Behind new
   switches (default off): Gameplay > Combat "Turrets lead moving targets" (`turretLeadAim`: #354's turret aim, see

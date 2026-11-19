@@ -361,6 +361,14 @@ namespace GoF2Remake.UI
                 () => System.Array.ConvertAll(UiMarginSteps, m => m < 0f ? X("uiMarginAuto", "Automatic") : m == 0f ? X("off", "Off") : m.ToString("0.#") + " %"),
                 () => Mathf.Max(0, System.Array.IndexOf(UiMarginSteps, Settings.UiMarginPercent)), i => Settings.UiMarginPercent = UiMarginSteps[Mathf.Clamp(i, 0, UiMarginSteps.Length - 1)],
                 () => X("uiMarginHelp", "Moves the interface in from the screen's edges, for TVs that cut them off.")));
+            // Remake (the user's request): the device's safe area (SafeArea.Device) kept clear, on both sides, or not at all.
+            // Phones only (UnityEngine.Device: the Device Simulator too); a desktop's safe area is the whole screen.
+            var screenCutout = Choice("screenCutout", OptionPage.Graphics, () => X("screenCutout", "Camera cutout"), true,
+                () => new[] { X("screenCutoutClear", "Keep clear"), X("screenCutoutBoth", "Both sides"), X("screenCutoutFull", "Full screen") },
+                () => Settings.ScreenCutout, i => Settings.ScreenCutout = i,
+                () => X("screenCutoutHelp", "Keep clear moves the interface away from the camera hole or notch. Both sides leaves the same gap on the other side, so the interface stays centred. Full screen uses the whole display: the camera may cover a little of the interface."));
+            screenCutout.visible = () => UnityEngine.Device.Application.isMobilePlatform;
+            list.Add(screenCutout);
             list.Add(Toggle("showFps", OptionPage.Graphics, () => X("showFps", "Show FPS"), () => Settings.ShowFps, v => Settings.ShowFps = v));
             // Remake (#137): the counter in any corner or the middle of any side, so it can stay clear of what a player watches.
             var fpsPosition = Choice("fpsPosition", OptionPage.Graphics, () => X("fpsPosition", "FPS counter position"), false,

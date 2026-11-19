@@ -64,7 +64,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   height above the key hints (`#campaignPanel`, its content past 80 % with New Game+); the Mods browser's picture shrinks
   to nothing on a TV so Delete stays above the footer.
   The safe area (`SafeArea.Pixels` = `UiLayout.OptionInsets`) adds Options > Graphics "Screen edge margin" (automatic: 5 %
-  on a TV) and "Interface width" (16:9 / 21:9 by default / full: side bands on wider screens) to the device's cutouts.
+  on a TV) and "Interface width" (16:9 / 21:9 by default / full: side bands on wider screens) to the device's cutouts,
+  which Options > Graphics "Camera cutout" keeps clear, mirrors to both sides or ignores (docs/notes/options.md).
   Button prompts are visible (no "i" popups any more): `MenuKeys.Bar` rows in menus and windows, the hint rows of the HUD,
   hangar, star map and orbit views, B / A glyphs inside Back and dialog buttons (`InputGlyph.PadPrompt`, text through
   `InputGlyph.SetText`).
