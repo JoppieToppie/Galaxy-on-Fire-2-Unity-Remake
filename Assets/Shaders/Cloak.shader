@@ -13,6 +13,9 @@ Shader "GoF2/Cloak"
         _BaseMap ("Base", 2D) = "white" {}
         [Normal] _BumpMap ("Normal", 2D) = "bump" {}
         _CloakMap ("Cloak map", 2D) = "white" {}
+        _MetallicGlossMap ("Specular (a)", 2D) = "black" {}
+        _EmissionMap ("Emission", 2D) = "white" {}
+        [HDR] _EmissionColor ("Emission colour", Color) = (0, 0, 0, 0)
         _AnimValue ("Anim value", Range(0, 1)) = 0
         _CloakRate ("Cloak rate", Float) = 0
     }
@@ -28,10 +31,17 @@ Shader "GoF2/Cloak"
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
         TEXTURE2D(_BumpMap); SAMPLER(sampler_BumpMap);
         TEXTURE2D(_CloakMap); SAMPLER(sampler_CloakMap);
+        TEXTURE2D(_MetallicGlossMap); SAMPLER(sampler_MetallicGlossMap);
+        TEXTURE2D(_EmissionMap); SAMPLER(sampler_EmissionMap);
         CBUFFER_START(UnityPerMaterial)
             float4 _BaseMap_ST;
+            float4 _EmissionColor;
             float _AnimValue, _CloakRate;
         CBUFFER_END
+        // GoF2/Hull's globals (HullForwardPass.hlsl), for the hull's look while it is still there
+        TEXTURECUBE(_GoF2ReflectionCube); SAMPLER(sampler_GoF2ReflectionCube);
+        half _GoF2HullReflection;
+        half3 _GoF2HullRimColor, _GoF2SunGamma, _GoF2SunAmbient;
 
         // How much of the lit hull is left in the colour pass's blend at this texel (d: the dissolve map): up to 0.5 the
         // hull where d - 0.025 >= _AnimValue stays, the dissolved rest fades from it over 0..0.25; from 0.5 to 0.75 what
@@ -61,6 +71,7 @@ Shader "GoF2/Cloak"
                 float2 uv : TEXCOORD0;
                 float3 normalWS : TEXCOORD1;
                 float4 tangentWS : TEXCOORD2;
+                float3 positionWS : TEXCOORD3;   // Modified: the view direction for the reflection
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -70,6 +81,7 @@ Shader "GoF2/Cloak"
                 UNITY_SETUP_INSTANCE_ID(i);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 o.positionCS = TransformObjectToHClip(i.positionOS.xyz);
+                o.positionWS = TransformObjectToWorld(i.positionOS.xyz);
                 o.uv = i.uv;
                 VertexNormalInputs n = GetVertexNormalInputs(i.normalOS, i.tangentOS);
                 o.normalWS = n.normalWS;
@@ -85,7 +97,28 @@ Shader "GoF2/Cloak"
                 float3 nWS = normalize(mul(nTS, float3x3(i.tangentWS.xyz, bit, i.normalWS)));
                 half3 albedo = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).rgb;
                 Light main = GetMainLight();
-                half3 lit = albedo * (main.color * saturate(dot(nWS, main.direction)) + SampleSH(nWS));
+                half ndl = saturate(dot(nWS, main.direction));
+                half3 lit = albedo * (main.color * ndl + SampleSH(nWS));
+                // Modified (the user's report, 2026-11-17: as the cloak went on and off the hull lost its reflection and its
+                // glow): the lit hull with GoF2/Hull's main terms. The original's gamma-space sun (texture x LIGHT0, clamped)
+                // where the system sets it, the reflection cubemap and rim by the specular map, and the glowing panels'
+                // emission (HDR, so they bloom).
+                if (max(_GoF2SunGamma.r, max(_GoF2SunGamma.g, _GoF2SunGamma.b)) > 0.0)
+                {
+                    half3 texG = LinearToSRGB(albedo);
+                    lit = SRGBToLinear(saturate(texG * main.color * ndl * _GoF2SunGamma + texG * _GoF2SunAmbient)) + albedo * SampleSH(nWS);
+                }
+                {
+                    half spec = SAMPLE_TEXTURE2D(_MetallicGlossMap, sampler_MetallicGlossMap, i.uv).a;
+                    half reflectTex = spec * spec;
+                    float3 v = GetWorldSpaceNormalizeViewDir(i.positionWS);
+                    half facing = 1.0h - saturate(dot(v, nWS));
+                    half rim = smoothstep(0.8h, 1.0h, facing);
+                    half reflectivity = clamp(smoothstep(0.6h, 1.0h, facing), reflectTex, spec * 2.0h + rim);
+                    half3 env = SAMPLE_TEXTURECUBE(_GoF2ReflectionCube, sampler_GoF2ReflectionCube, reflect(-v, nWS)).rgb;
+                    lit += (env * reflectivity + rim * reflectTex * _GoF2HullRimColor) * _GoF2HullReflection;
+                }
+                lit += SAMPLE_TEXTURE2D(_EmissionMap, sampler_EmissionMap, i.uv).rgb * _EmissionColor.rgb;
 
                 float2 suv = GetNormalizedScreenSpaceUV(i.positionCS);
                 // Modified: the screen behind is bent by the hull's normal map where it is and stays bent; only the glow
@@ -94,13 +127,22 @@ Shader "GoF2/Cloak"
                 // original swept the whole refracted picture, so the stars and space behind the ship slid too (the user's
                 // comparison: there only the lights move). The bright part of the still picture is taken out and the
                 // bright part of the moving one put in.
-                float2 bend = float2(nTS.x * 100.0, nTS.y * 75.0) / float2(1024.0, 768.0);
-                float2 sweep = float2(nTS.x * 100.0 * sin(_CloakRate), nTS.y * 75.0 * cos(_CloakRate)) / float2(1024.0, 768.0);
+                // Modified (the user's comparison, 2026-11-17): half the original's 100 / 75 px: at the remake's resolutions
+                // the normal map's fine detail smeared what shows through into a blur and bent objects too far.
+                const float bendScale = 0.5;
+                float2 bend = float2(nTS.x * 100.0, nTS.y * 75.0) * bendScale / float2(1024.0, 768.0);
+                float2 sweep = float2(nTS.x * 100.0 * sin(_CloakRate), nTS.y * 75.0 * cos(_CloakRate)) * bendScale / float2(1024.0, 768.0);
                 half3 still = SAMPLE_TEXTURE2D_X(_GoF2CloakScene, sampler_GoF2CloakScene, UnityStereoTransformScreenSpaceTex(saturate(suv + bend))).rgb;
                 half3 moving = SAMPLE_TEXTURE2D_X(_GoF2CloakScene, sampler_GoF2CloakScene, UnityStereoTransformScreenSpaceTex(saturate(suv + sweep))).rgb;
-                half glowStill = smoothstep(0.3, 0.75, dot(still, half3(0.3, 0.59, 0.11)));
-                half glowMoving = smoothstep(0.3, 0.75, dot(moving, half3(0.3, 0.59, 0.11)));
-                half3 refr = still * (1.0 - glowStill) + moving * glowMoving;
+                // Modified (the user's Darkzov in an orange nebula, 2026-11-17): the glow taken out of the still picture and
+                // the moving one's put in left black patches where the still one was bright and the moving one dark, and
+                // doubled ones the other way; a bright nebula counted as glow (luma 0.3-0.75). Now the moving picture
+                // replaces the still one where either is glow (luma 0.6-0.95), and both are clamped to the original's LDR.
+                still = saturate(still);
+                moving = saturate(moving);
+                half glowStill = smoothstep(0.6, 0.95, dot(still, half3(0.3, 0.59, 0.11)));
+                half glowMoving = smoothstep(0.6, 0.95, dot(moving, half3(0.3, 0.59, 0.11)));
+                half3 refr = lerp(still, moving, max(glowStill, glowMoving));
 
                 // BumpShaderCloak's fragment shader as it is (libgof2hdaa.so 0x218183): where the dissolve map is below
                 // u_AnimValue (+0.025) the screen behind shows, plus a light-blue band along the dissolve front
@@ -151,6 +193,34 @@ Shader "GoF2/Cloak"
                 clip(CloakHullLeft(SAMPLE_TEXTURE2D(_CloakMap, sampler_CloakMap, i.uv).r) - 0.5);
                 return 0;
             }
+            ENDHLSL
+        }
+    
+        // Modified (2026-11-17): the whole hull's depth, drawn by CloakPass after the transparents and before its copy of
+        // the frame: the ship's own lights and glow (CloakGlow.Defer) are drawn against it then, so those on the hull's far
+        // side stay hidden while the near ones go into the copy and are bent and wobbled by the refraction like everything
+        // else in it. Everything else behind the ship is already drawn by then (no hole in it).
+        Pass
+        {
+            Tags { "LightMode" = "GoF2CloakDepthAll" }
+            ZWrite On
+            ColorMask 0
+            Cull Back
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_instancing
+            struct Attributes { float4 positionOS : POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            struct Varyings { float4 positionCS : SV_POSITION; UNITY_VERTEX_OUTPUT_STEREO };
+            Varyings vert(Attributes i)
+            {
+                Varyings o;
+                UNITY_SETUP_INSTANCE_ID(i);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+                o.positionCS = TransformObjectToHClip(i.positionOS.xyz);
+                return o;
+            }
+            half4 frag(Varyings i) : SV_Target { UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i); return 0; }
             ENDHLSL
         }
     }

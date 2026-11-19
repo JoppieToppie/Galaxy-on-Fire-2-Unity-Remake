@@ -87,6 +87,9 @@ namespace GoF2Remake.Visuals
         public bool ownMaterials;
         [Tooltip("Pose the parts only while one of their renderers is in a camera's view (the time runs on): weapon effects.")]
         public bool onlyWhenSeen;
+        /// <summary>Modified: counts as seen whatever its renderers' isVisible says (CloakGlow.Defer: a cloaked ship's lights
+        /// are drawn by CloakPass with forceRenderingOff, so isVisible stayed false and their animations stopped).</summary>
+        [System.NonSerialized] public bool forceSeen;
         Renderer[] seenBy;
         bool poseNext = true;   // the first frame after it is shown or restarted is always posed: its renderers' view is from before
 
@@ -507,6 +510,7 @@ namespace GoF2Remake.Visuals
         /// <summary>onlyWhenSeen: one of the parts' renderers was in a camera's view last frame (Renderer.isVisible).</summary>
         bool Seen()
         {
+            if (forceSeen) return true;
             seenBy ??= GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < seenBy.Length; i++) if (seenBy[i] != null && seenBy[i].isVisible) return true;
             return false;

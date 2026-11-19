@@ -29,7 +29,8 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   route flies straight on instead of circling the cloaked player. In a session it is the session's rule (see
   "Multiplayer", Gameplay rules). Remake: the homing missiles locked on the ship lose their lock like on a boost (see
   "Missile warning and evasion"); in multiplayer the other players lose the ship's marker and lock (a held lock too,
-  `CombatRadar`) from the moment it engages. Look: the hull switches to `GoF2/Cloak` (BumpShaderCloak's fragment shader
+  `CombatRadar`) from the moment it engages. Look: the hull switches to `GoF2/Cloak` (the PC version's vertex shimmer, BumpShaderCloak.fx's
+  simplex-noise push of up to 4 units as the cloak starts, was tried and left out, 2026-11-17; its fragment shader
   as it is: dissolve by `cloak_map.png`'s veins into the refracted screen with a light-blue band along the front, over
   the lit hull up to 0.5 and into pure refraction by 0.75, so the pattern shows through most of each 2 s fade; #47: it
   ran at twice the speed; drawn by `CloakPass` after URP's transparents from a copy of the frame, like the original's
@@ -39,7 +40,10 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   the stars too; the hull's depth goes in before the transparents, `CloakPass.DepthPass`, but only where the hull
   hasn't dissolved yet, clipped by the dissolve map against `_AnimValue` like the colour: the ship's own lights behind
   the solid hull stay hidden, and a fully cloaked ship writes none, so the shots, explosions, smoke and flames behind it
-  still show through it instead of a hole in its shape), the lights keep glowing and
+  still show through it instead of a hole in its shape; Modified 2026-11-17: the ship's own lights, glow and engine
+  (`CloakGlow.Defer`) are taken out of URP's transparents while cloaked and drawn by `CloakPass` after them against the
+  hull's whole depth (pass `GoF2CloakDepthAll`) before its copy of the frame: those on its far side stay hidden behind
+  the invisible hull, the near ones go into the copy and are refracted and wobbled with it), the lights keep glowing and
   animating (the original's white at alpha max(50, ...) leaves its additive layers at full brightness; #47: the remake
   hid them), the NPC Specters' engine glow hides from 25 % (`CloakGlow`, `NpcCloak`; the code hides the ship group's
   last child), the players' ships keep theirs (`CloakGlow.KeepEngine`, #85: the reporter's screenshots of the original
@@ -53,7 +57,9 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   (attr 41) in the `v_shield` bubble (`GoF2/ShieldBubble`, a port of `AbyssEngine::EnergyShield` 0x9519c: material
   27150 is type 0x22, which `PaintCanvas::End3d` draws with flag 0x200000 after `Engine::CopyFBO`; the screen behind it
   bent by `v_shield_normal` and the clip-space normal, (nt.xy * 0.4 + n.xy * rim) * 150 px, plus a blue rim
-  smoothstep(1 - dot(e, n * nt)) * (0, 0.6, 1); the noise texture unused. #251: it was drawn with
+  smoothstep(1 - dot(e, n * nt)) * (0, 0.6, 1); the noise texture unused on the phone. Modified 2026-11-17 (the PC
+  version's EnergyShield.fx, the user's files): pushed 250 px across / 200 up, and two blue energy bands, iso-lines of
+  `v_shield_noise` at levels sweeping 0.1-0.9 (2.5 s), shown in a 9 s cycle (in 0-3 s, out 4-8 s), on `_Anim`. #251: it was drawn with
   `SimpleRefractionShader`'s formula, no colour, hard to see. Drawn by `CloakPass` from its copy of the frame after the
   transparents so the ship's lights and exhaust show through it; the normal map sampled by three planar projections, as
   the mesh's UVs cut it where they wrap; the scene clamped to LDR (#45: the HDR sun core smeared over it bloomed the

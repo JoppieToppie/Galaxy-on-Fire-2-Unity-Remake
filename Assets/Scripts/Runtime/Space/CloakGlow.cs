@@ -19,9 +19,17 @@ namespace GoF2Remake.Flight
         static readonly int ColorId = Shader.PropertyToID("_Color");
 
         readonly List<Renderer> engine = new List<Renderer>();
+        /// <summary>Modified: the `*_engine_glow_add` meshes, hidden from 25 % even with KeepEngine (the user's comparison,
+        /// 2026-11-17: the original's cloak shows no engine glow, neither on the ship nor in its refraction; #85's kept glow
+        /// is the exhaust flame).</summary>
+        readonly List<Renderer> engineGlow = new List<Renderer>();
+        /// <summary>Modified: every non-hull renderer of the ship (lights, glow; the engine's stay as they were), drawn by
+        /// CloakPass against the cloaked hull's depth while cloaked (Defer) so the hull hides those on its far side.</summary>
+        readonly List<Renderer> all = new List<Renderer>();
+        bool deferred;
         readonly List<(Renderer r, Color baseColor)> dimmed = new List<(Renderer, Color)>();
         MaterialPropertyBlock block;
-        bool engineHidden, dimmedSet;
+        bool engineHidden, engineGlowHidden, dimmedSet;
         /// <summary>The engine glow stays on while cloaked (the players' ships, #85).</summary>
         public bool KeepEngine;
 
@@ -29,10 +37,22 @@ namespace GoF2Remake.Flight
         public void Add(Renderer r, Transform root)
         {
             if (r == null) return;
-            if (IsEngine(r.transform, root)) { engine.Add(r); return; }
+            if (!(r is ParticleSystemRenderer)) all.Add(r);
+            if (IsEngine(r.transform, root)) { engine.Add(r); if (IsEngineGlow(r.transform, root)) engineGlow.Add(r); return; }
             var m = r.sharedMaterial;
             if (m == null || m.shader == null || !m.HasProperty(ColorId) || m.shader.name.Contains("Additive")) return;
             dimmed.Add((r, m.GetColor(ColorId)));
+        }
+
+        /// <summary>Modified: the player's `*_engine_glow_add` mesh (Database.CustomAddPart EngineGlow).</summary>
+        static bool IsEngineGlow(Transform t, Transform root)
+        {
+            for (; t != null; t = t.parent)
+            {
+                if (t.name.Contains("_engine_glow")) return true;
+                if (t == root) break;
+            }
+            return false;
         }
 
         static bool IsEngine(Transform t, Transform root)
@@ -49,10 +69,12 @@ namespace GoF2Remake.Flight
         public void Apply(float pct)
         {
             bool hide = pct >= 25f && !KeepEngine;
-            if (hide != engineHidden)
+            bool hideGlow = pct >= 25f;
+            if (hide != engineHidden || hideGlow != engineGlowHidden)
             {
                 engineHidden = hide;
-                foreach (var r in engine) if (r != null) r.forceRenderingOff = hide;
+                engineGlowHidden = hideGlow;
+                foreach (var r in engine) if (r != null) r.forceRenderingOff = hide || (hideGlow && engineGlow.Contains(r));   // (never deferred)
             }
             if (dimmed.Count == 0) return;
             float a = Mathf.Max(50f / 255f, 1f - pct / 100f);
@@ -67,10 +89,37 @@ namespace GoF2Remake.Flight
             dimmedSet = true;
         }
 
+        /// <summary>Modified (the user's report, 2026-11-17): while cloaked ('on') the ship's non-hull renderers are taken
+        /// out of URP's transparent pass (forceRenderingOff) and drawn by CloakPass right after the cloaked hull, whose colour
+        /// pass writes its depth: the lights and glow on the hull's far side stay hidden behind the invisible hull, as behind
+        /// a visible one. Everything else behind it (shots, explosions, smoke) is drawn as before and refracted through it.</summary>
+        public void Defer(object owner, bool on)
+        {
+            if (deferred == on) return;
+            deferred = on;
+            foreach (var r in all)
+            {
+                // The engine glow stays in URP's transparents (it went invisible when drawn by CloakPass; the user's
+                // report, 2026-11-17), hidden or not by Apply as before.
+                if (r == null || engine.Contains(r)) continue;
+                r.forceRenderingOff = on;
+                // isVisible stays false while forceRenderingOff: their animations (onlyWhenSeen) would stop
+                foreach (var a in r.GetComponentsInParent<GoF2Remake.Visuals.PartAnimation>(true)) a.forceSeen = on;
+            }
+            GoF2Remake.Visuals.CloakPass.DrawAfterHull(owner, on ? this : null);
+        }
+
+        /// <summary>Modified: the renderers CloakPass draws against the hull's depth (not the engine glow).</summary>
+        public void ForEachDeferred(System.Action<Renderer> draw)
+        {
+            foreach (var r in all)
+                if (r != null && r.enabled && r.gameObject.activeInHierarchy && !engine.Contains(r)) draw(r);
+        }
+
         /// <summary>Uncloaked: everything shown at its own colour again.</summary>
         public void Restore()
         {
-            if (engineHidden) { engineHidden = false; foreach (var r in engine) if (r != null) r.forceRenderingOff = false; }
+            if (engineHidden || engineGlowHidden) { engineHidden = engineGlowHidden = false; foreach (var r in engine) if (r != null) r.forceRenderingOff = false; }
             if (!dimmedSet) return;
             dimmedSet = false;
             block ??= new MaterialPropertyBlock();
