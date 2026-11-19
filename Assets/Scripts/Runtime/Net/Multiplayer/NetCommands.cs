@@ -341,7 +341,7 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
-            new Command { name = "station", usage = "systems | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+            new Command { name = "station", usage = "systems | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage | storage <id> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
                 description = () => X("mpCmdStation", "plans stations, checks construction progress and deposits construction resources; persistent worlds only") },
         };
@@ -352,6 +352,7 @@ namespace GoF2Remake.Multiplayer
         {
             args = (args ?? "").Trim();
             if (args.Equals("systems", StringComparison.OrdinalIgnoreCase)) return NetPlayerStations.SystemList();
+            if (args.Equals("modules", StringComparison.OrdinalIgnoreCase)) return NetPlayerStations.Modules();
             const string status = "status ";
             if (args.StartsWith(status, StringComparison.OrdinalIgnoreCase))
             {
@@ -368,6 +369,27 @@ namespace GoF2Remake.Multiplayer
                     return "/station start <system id> <name> (planning is available from anywhere in the system)";
                 return NetPlayerStations.StartConstruction(by as NetPlayer, system, rest.Substring(split + 1));
             }
+            const string install = "install ";
+            if (args.StartsWith(install, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(install.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId)) return "/station install <station id> storage";
+                return NetPlayerStations.Install(by as NetPlayer, stationId, words[1]);
+            }
+            const string storage = "storage ";
+            if (args.StartsWith(storage, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(storage.Length).Trim(), out int stationId)) return "/station storage <station id>";
+                return NetPlayerStations.StorageStatus(stationId);
+            }
+            foreach (string action in new[] { "deposit ", "withdraw " })
+            {
+                if (!args.StartsWith(action, StringComparison.OrdinalIgnoreCase)) continue;
+                string[] words = args.Substring(action.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int stationId) || !int.TryParse(words[1], out int itemId) || !int.TryParse(words[2], out int amount))
+                    return "/station " + action.Trim() + " <station id> <item id> <amount>";
+                return NetPlayerStations.MoveStorage(by as NetPlayer, stationId, itemId, amount, action.StartsWith("deposit", StringComparison.Ordinal));
+            }
             const string contribute = "contribute ";
             if (args.StartsWith(contribute, StringComparison.OrdinalIgnoreCase))
             {
@@ -377,7 +399,7 @@ namespace GoF2Remake.Multiplayer
                     return "/station contribute <project id> <item id> <amount> (deposit while docked at any station)";
                 return NetPlayerStations.Contribute(by as NetPlayer, project, item, amount);
             }
-            return "/station systems | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount>";
+            return "/station systems | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage | storage <id> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount>";
         }
 
         /// <summary>This player's server role (NetModeration; 0 without profiles).</summary>
