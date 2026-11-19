@@ -102,6 +102,44 @@ namespace GoF2Remake.Multiplayer
             return changed;
         }
 
+        static bool OriginalBuilderInSession(PlayerStationRecord record)
+        {
+            if (record == null || !HasBuilderRights(record, record.originalBuilderProfile)) return false;
+            foreach (ulong client in NetProfiles.ClientsOf(record.originalBuilderProfile))
+                if (NetProfiles.Controls(client)) return true;
+            return false;
+        }
+
+        static bool HasConstructionRole(PlayerStationRecord record, string account)
+        {
+            return record?.roleAssignments?.Exists(x => x != null &&
+                string.Equals(x.account, account, StringComparison.Ordinal) &&
+                (x.role == PlayerStationRole.ConstructionManager ||
+                 x.role == PlayerStationRole.StationAdministrator)) == true;
+        }
+
+        static bool CanManageConstruction(NetPlayer by, PlayerStationRecord record, out string account)
+        {
+            account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
+            if (!NetGame.IsServer || !sessionActive || registry == null || record == null ||
+                by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) || string.IsNullOrEmpty(account))
+                return false;
+
+            if (HasBuilderRights(record, account)) return true;
+            if (record.ownershipType == PlayerStationOwnershipType.Individual)
+                return string.Equals(record.ownerProfile, account, StringComparison.Ordinal);
+
+            var faction = NetFactions.Of(account);
+            if (faction == null || !string.Equals(faction.id, record.ownerFactionId, StringComparison.Ordinal))
+                return false;
+            bool factionAuthority = string.Equals(faction.leader, account, StringComparison.Ordinal) ||
+                (faction.officers?.Contains(account) == true && HasConstructionRole(record, account));
+            // The original builder has first say while their profile is in the session. Faction
+            // construction authority becomes available only while that builder is absent.
+            return factionAuthority && !OriginalBuilderInSession(record);
+        }
+
         internal static bool HasBuilderRights(PlayerStationRecord record, string account)
         {
             return record != null && !string.IsNullOrEmpty(account) &&
