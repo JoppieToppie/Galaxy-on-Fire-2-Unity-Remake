@@ -173,6 +173,7 @@ namespace GoF2Remake.Multiplayer
             if (owned == null || fleetIndex < 1 || fleetIndex > owned.Count) return "That index is not in your personal stored fleet. Use /station fleet.";
             var candidate = owned[fleetIndex - 1];
             if (candidate == null) return "That ship record is invalid.";
+            if (IsDryDockHull(candidate)) return "Frigates, freighters, cruisers and carriers must use a station dry dock.";
             var items = new Dictionary<int, long>();
             if (!CollectShipInventory(candidate, items)) return "The ship contains an invalid equipment or cargo item; nothing was transferred.";
             if (!CanFitStationItems(record, items)) return "Station storage lacks the capacity or item-type space for this ship's equipment and cargo; nothing was transferred.";
