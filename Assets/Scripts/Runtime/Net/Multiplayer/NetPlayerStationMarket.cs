@@ -9,12 +9,174 @@ namespace GoF2Remake.Multiplayer
         const int MaxStationListings = 64;
         const long MaxStationUnitPrice = 1000000000L;
 
+        const int MaxConstructionBuyOrders = 32;
+
+        internal static string CreateConstructionBuyOrder(NetPlayer by, int id, int item, int amount, long unitPrice)
+        {
+            var record = Find(id);
+            if (record == null || !record.underConstruction) return "That construction project is not active.";
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Dock at the station using a controlled profile to create a construction buy order.";
+            if (!NetGuard.Item(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice ||
+                unitPrice > int.MaxValue / (long)Math.Max(1, amount))
+                return "Use a valid material, 1–500 units, and a supported positive unit price.";
+            var material = record.materials?.Find(x => x != null && x.item == item);
+            if (material == null || amount > material.required - material.delivered)
+                return "The order exceeds the project's remaining requirement for that material.";
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            if (string.IsNullOrEmpty(account)) return "Your player profile is unavailable.";
+            string fundingProfile = null, fundingFaction = null;
+            long available;
+            if (record.ownershipType == PlayerStationOwnershipType.Faction)
+            {
+                if (!IsFactionManager(record, account)) return "Only the owning faction leader or an officer may spend its treasury.";
+                fundingFaction = record.ownerFactionId;
+                available = NetFactions.BankAmount(fundingFaction);
+            }
+            else
+            {
+                if (!string.Equals(account, record.ownerProfile, StringComparison.Ordinal))
+                    return "Only the individual station owner may fund its construction buy orders.";
+                fundingProfile = record.ownerProfile;
+                available = NetProfiles.CreditAmount(fundingProfile);
+            }
+            long reserve = unitPrice * amount;
+            if (available < 0) return "The station funding account is unavailable.";
+            if (available < reserve) return $"The order needs {reserve:N0} credits in escrow; only {available:N0} are available.";
+            record.buyOrders ??= new List<PlayerStationBuyOrder>();
+            if (record.buyOrders.Count >= MaxConstructionBuyOrders) return "This project has reached its active buy-order limit.";
+            var order = new PlayerStationBuyOrder { item = item, remaining = amount, unitPrice = unitPrice, reservedCredits = reserve,
+                fundedByProfile = fundingProfile, fundedByFactionId = fundingFaction, createdBy = account,
+                createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() };
+            record.buyOrders.Add(order);
+            var credits = fundingProfile != null ? new List<(string account, long delta)> { (fundingProfile, -reserve) } : null;
+            var banks = fundingFaction != null ? new List<(string factionId, long delta)> { (fundingFaction, -reserve) } : null;
+            if (!CommitProfileTransaction(null, credits, banks))
+            {
+                record.buyOrders.Remove(order);
+                return "The order could not be journalled; no funds were reserved.";
+            }
+            if (fundingProfile != null && !(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
+                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Credits, -(int)reserve, 0, 0, "", "Construction buy order escrow");
+            return $"Construction buy order #{record.buyOrders.Count - 1} created for {amount} x {NetGame.Db?.Item(item)?.name ?? ("Item " + item)} at {unitPrice:N0} each. {reserve:N0} credits escrowed.";
+        }
+
+        internal static string FulfilConstructionBuyOrder(NetPlayer by, int id, int orderIndex, int amount)
+        {
+            var record = Find(id);
+            if (record == null || !record.underConstruction) return "That construction project is not active.";
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Dock at the station using a controlled profile to sell materials into a construction order.";
+            if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
+                return "No construction buy order exists at that index.";
+            var order = record.buyOrders[orderIndex];
+            if (order == null || order.remaining < 1 || order.unitPrice < 1 || order.reservedCredits < order.unitPrice)
+                return "That construction buy order is invalid.";
+            if (amount < 1 || amount > 500 || amount > order.remaining) return "Choose 1–500 units, up to the order's remaining quantity.";
+            var material = record.materials?.Find(x => x != null && x.item == order.item);
+            if (material == null || amount > material.required - material.delivered)
+                return "The project no longer needs that quantity of this material.";
+            string seller = NetProfiles.AccountOf(by.OwnerClientId);
+            int cargo = NetProfiles.CargoAmount(seller, order.item);
+            long total = order.unitPrice * amount, balance = NetProfiles.CreditAmount(seller);
+            if (string.IsNullOrEmpty(seller) || cargo < amount) return "Your saved profile does not have enough of that material.";
+            if (total > int.MaxValue || balance < 0 || balance > long.MaxValue - total) return "Your profile cannot receive this payment.";
+
+            var oldOrders = new List<PlayerStationBuyOrder>();
+            foreach (var pending in record.buyOrders)
+                if (pending != null) oldOrders.Add(new PlayerStationBuyOrder { item = pending.item, remaining = pending.remaining,
+                    unitPrice = pending.unitPrice, reservedCredits = pending.reservedCredits, fundedByProfile = pending.fundedByProfile,
+                    fundedByFactionId = pending.fundedByFactionId, createdBy = pending.createdBy, createdUtc = pending.createdUtc });
+            int oldDelivered = material.delivered;
+            bool wasUnderConstruction = record.underConstruction;
+            material.delivered += amount;
+            order.remaining -= amount;
+            order.reservedCredits -= total;
+            if (order.remaining == 0) record.buyOrders.RemoveAt(orderIndex);
+            bool complete = true;
+            foreach (var resource in record.materials)
+                if (resource != null && resource.delivered < resource.required) { complete = false; break; }
+            var credits = new List<(string account, long delta)> { (seller, total) };
+            var banks = new List<(string factionId, long delta)>();
+            if (complete)
+            {
+                record.underConstruction = false;
+                long refund = 0;
+                foreach (var pending in record.buyOrders) if (pending != null) refund += Math.Max(0, pending.reservedCredits);
+                if (refund > 0)
+                {
+                    if (record.ownershipType == PlayerStationOwnershipType.Faction) banks.Add((record.ownerFactionId, refund));
+                    else credits.Add((record.ownerProfile, refund));
+                }
+                record.buyOrders.Clear();
+            }
+            if (!CommitProfileTransaction(new List<(string account, int item, int delta)> { (seller, order.item, -amount) }, credits, banks))
+            {
+                material.delivered = oldDelivered;
+                record.underConstruction = wasUnderConstruction;
+                record.buyOrders = oldOrders;
+                return "The sale could not be journalled; no cargo or credits were transferred.";
+            }
+            if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
+            {
+                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, order.item, amount, 0, "", "Construction buy order");
+                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Credits, (int)total, 0, 0, "", "Construction buy order");
+            }
+            return $"Sold {amount} x {NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item)} into construction order #{orderIndex} for {total:N0} credits." +
+                (complete ? " Construction is complete; remaining order escrow was refunded." : " Materials were added to the construction project.");
+        }
+
+        internal static string CancelConstructionBuyOrder(NetPlayer by, int id, int orderIndex)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Dock at the station using a controlled profile to cancel a construction order.";
+            if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
+                return "No construction buy order exists at that index.";
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            if (record.ownershipType == PlayerStationOwnershipType.Faction
+                ? !IsFactionManager(record, account)
+                : !string.Equals(account, record.ownerProfile, StringComparison.Ordinal))
+                return "Only the station owner, or the owning faction's leader/officer, may cancel this order.";
+            var order = record.buyOrders[orderIndex];
+            if (order == null || order.reservedCredits < 0) return "That order has invalid escrow and cannot be cancelled automatically.";
+            record.buyOrders.RemoveAt(orderIndex);
+            var credits = order.fundedByProfile != null && order.reservedCredits > 0
+                ? new List<(string account, long delta)> { (order.fundedByProfile, order.reservedCredits) } : null;
+            var banks = order.fundedByFactionId != null && order.reservedCredits > 0
+                ? new List<(string factionId, long delta)> { (order.fundedByFactionId, order.reservedCredits) } : null;
+            if (!CommitProfileTransaction(null, credits, banks))
+            {
+                record.buyOrders.Insert(orderIndex, order);
+                return "The cancellation could not be journalled; the order and escrow remain active.";
+            }
+            if (order.fundedByProfile != null && !(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
+                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Credits, (int)order.reservedCredits, 0, 0, "", "Construction buy order refund");
+            return $"Construction buy order cancelled. {order.reservedCredits:N0} unspent escrow credits were returned.";
+        }
+
+
         internal static string MarketStatus(int id)
         {
             if (!NetGame.Active) return "Join a multiplayer session first.";
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             var lines = new List<string> { "Marketplace at " + record.name + ":" };
+            if (record.buyOrders != null && record.buyOrders.Count > 0)
+            {
+                lines.Add("Construction buy orders:");
+                for (int i = 0; i < record.buyOrders.Count; i++)
+                {
+                    var order = record.buyOrders[i];
+                    if (order == null || order.remaining <= 0) continue;
+                    string name = NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item);
+                    lines.Add($"Buy #{i}: {name} x{order.remaining:N0} at {order.unitPrice:N0} each ({order.reservedCredits:N0} credits escrowed)");
+                }
+            }
             if (record.listings == null || record.listings.Count == 0)
             {
                 lines.Add("No active listings.");
