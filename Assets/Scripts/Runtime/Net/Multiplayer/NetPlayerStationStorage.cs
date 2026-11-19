@@ -20,7 +20,7 @@ namespace GoF2Remake.Multiplayer
 
         internal static string Modules()
         {
-            return "Station modules:\nStorage — 50 Iron, 25 Titanium, 20 Electronics. Holds 10,000 units.\nRefinery — 100 Iron, 50 Titanium, 30 Electronics, 20 Microchips. Requires storage; converts 10 ore into 1 matching ore core.\nFactory — 150 Iron, 100 Titanium, 50 Electronics, 50 Microchips. Requires storage; manufactures trade commodities from stored inputs.\nShip hangar — 100 Iron, 100 Titanium, 80 Electronics, 50 Microchips. Stores up to 100 profile-owned hulls with upgrades and equipment.\nInstall with /station install <station id> storage|refinery|factory|hangar.";
+            return "Station modules:\nStorage — 50 Iron, 25 Titanium, 20 Electronics. Holds 10,000 units.\nRefinery — 100 Iron, 50 Titanium, 30 Electronics, 20 Microchips. Requires storage; converts 10 ore into 1 matching ore core.\nFactory — 150 Iron, 100 Titanium, 50 Electronics, 50 Microchips. Requires storage; manufactures trade commodities from stored inputs.\nShip hangar — 100 Iron, 100 Titanium, 80 Electronics, 50 Microchips. Stores up to 100 bare profile-owned hulls; removable equipment and cargo must fit station storage.\nInstall with /station install <station id> storage|refinery|factory|hangar.";
         }
 
 
@@ -72,7 +72,7 @@ namespace GoF2Remake.Multiplayer
                 {
                     var ship = ships[i]; if (ship == null) continue;
                     lines.Add((i + 1) + ". " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("Ship " + ship.ship)) +
-                        " — " + (ship.mods?.Count ?? 0) + " upgrades, " + (ship.equipment?.Count ?? 0) + " equipment entries");
+                        " — " + (ship.mods?.Count ?? 0) + " hull upgrades, bare hull");
                 }
             if (lines.Count == 1) lines.Add("Your personal stored fleet is empty.");
             return string.Join("\n", lines);
@@ -91,7 +91,7 @@ namespace GoF2Remake.Multiplayer
             {
                 var ship = record.storedShips[i]; if (ship == null) continue;
                 lines.Add((i + 1) + ". " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("Ship " + ship.ship)) +
-                    " — " + (ship.mods?.Count ?? 0) + " upgrades, " + (ship.equipment?.Count ?? 0) + " equipment entries");
+                    " — " + (ship.mods?.Count ?? 0) + " hull upgrades, bare hull");
             }
             if (lines.Count == 1) lines.Add("No ships are stored here.");
             lines.Add("Capacity: " + record.storedShips.Count + "/" + MaxStoredShipsPerStation);
