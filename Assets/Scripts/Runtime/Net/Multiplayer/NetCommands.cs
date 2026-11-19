@@ -398,6 +398,21 @@ namespace GoF2Remake.Multiplayer
             }
             if (args.Equals("fleet", StringComparison.OrdinalIgnoreCase))
                 return NetPlayerStations.PersonalFleet(by as NetPlayer);
+            const string dryDockBlueprints = "drydock-blueprints ";
+            if (args.StartsWith(dryDockBlueprints, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(dryDockBlueprints.Length).Trim(), out int stationId))
+                    return "/station drydock-blueprints <station id>";
+                return NetPlayerStations.DryDockBlueprintList(by as NetPlayer, stationId);
+            }
+            const string dryDockBuild = "drydock-build ";
+            if (args.StartsWith(dryDockBuild, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(dryDockBuild.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId) || !int.TryParse(words[1], out int blueprintId))
+                    return "/station drydock-build <station id> <blueprint item id>";
+                return NetPlayerStations.DryDockBuildShip(by as NetPlayer, stationId, blueprintId);
+            }
             foreach (string action in new[] { "ships ", "store-ship ", "retrieve-ship ", "drydock ", "drydock-store ", "drydock-retrieve " })
             {
                 if (!args.StartsWith(action, StringComparison.OrdinalIgnoreCase)) continue;
