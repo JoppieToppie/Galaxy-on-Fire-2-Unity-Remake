@@ -3399,6 +3399,8 @@
  "hangarRobotsHelp": "Robot di servizio volano negli hangar terrestri e niveliani.",
  "barRobots": "Robot del bar",
  "barRobotsHelp": "I robot al lavoro nei bar terrestri e vossk.",
+ "hostileAutopilotFastForward": "Tempo accelerato vicino ai nemici",
+  "hostileAutopilotFastForwardHelp": "Consente di accelerare il tempo in autopilota nonostante i contatti ostili sul radar. Non ha effetto quando è selezionato Ship cruise; il valore viene conservato per il ritorno all’accelerazione del tempo. Restano valide le altre restrizioni. Non disponibile in multigiocatore o cooperativa.",
  "autoJumpgate": "Il pilota automatico usa i portali",
  "autoJumpgateHelp": "Con una destinazione impostata, il pilota automatico attraversa il portale verso di essa senza chiedere. Disattivato: il portale chiede prima, come nell'originale.",
  "statLoadingTime": "Tempo di carica",

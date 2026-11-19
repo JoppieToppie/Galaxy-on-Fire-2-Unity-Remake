@@ -320,6 +320,8 @@ namespace GoF2Remake.Flight
         [NonSerialized] public Transform ShipLocked;
         /// <summary>Radar+0x54: hostile ships around (Traffic): no fast-forward.</summary>
         [NonSerialized] public bool HostilesPresent;
+        /// <summary>Radio/chatter is also part of the legacy HostilesPresent gate; the hostile-contact option never waives it.</summary>
+        [NonSerialized] public bool FastForwardRadioBlocked;
         public bool AboutToReach { get; private set; }
         public event Action<string, HudMessageKind> Message;
 
@@ -575,7 +577,11 @@ namespace GoF2Remake.Flight
         {
             get
             {
-                if (Interstellar || Jumping || HostilesPresent || TimeExtender.Active) return false;   // (the drive has the button there)
+                if (Interstellar || Jumping || TimeExtender.Active) return false;   // (the drive has the button there)
+                // Only waive the radar-contact restriction, not arrival/jump/device restrictions or session authority.
+                if (FastForwardRadioBlocked) return false;
+                if (HostilesPresent && !(Autopilot && !NetSession.Active && !Settings.FastForwardCruise
+                    && Settings.HostileAutopilotFastForward)) return false;
                 if (Autopilot) return !AboutToReach;
                 if (mining != null && mining.Target != null && mining.State == Mining.Phase.Approaching)
                     return (mining.Target.transform.position - ship.transform.position).magnitude / M >= AboutToReachUnits;

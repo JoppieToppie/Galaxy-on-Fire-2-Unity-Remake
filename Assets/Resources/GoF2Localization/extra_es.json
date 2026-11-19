@@ -3399,6 +3399,8 @@
  "hangarRobotsHelp": "Robots de servicio vuelan por los hangares terrícolas y nivelianos.",
  "barRobots": "Robots del bar",
  "barRobotsHelp": "Los robots que trabajan en los bares terrícolas y vossk.",
+ "hostileAutopilotFastForward": "Acelerar el tiempo cerca de enemigos",
+  "hostileAutopilotFastForwardHelp": "Permite acelerar el tiempo con el piloto automático pese a los contactos hostiles del radar. No tiene efecto cuando se elige Ship cruise; conserva su valor para volver a la aceleración del tiempo. Las demás restricciones siguen vigentes. No está disponible en multijugador ni en cooperativo.",
  "autoJumpgate": "El piloto automático usa las puertas de salto",
  "autoJumpgateHelp": "Con un destino fijado, el piloto automático cruza la puerta de salto hacia él sin preguntar. Desactivado: la puerta pregunta primero, como en el original.",
  "statLoadingTime": "Tiempo de recarga",

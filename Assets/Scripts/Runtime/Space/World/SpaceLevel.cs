@@ -822,7 +822,9 @@ namespace GoF2Remake.World
                             || (Campaign != null && Campaign.CollisionOff);   // PlayerEgo+0x144
             Collision.ignoreGate = Navigation.GoingToGate;
             // Hostiles, or a radio line on screen, block fast-forward (MGame::OnUpdate).
-            Navigation.HostilesPresent = (Traffic != null && (Traffic.HostileCount > 0 || Traffic.ChatterVisible != null)) || (Campaign != null && Campaign.Radio != null && Campaign.Radio.Busy);
+            Navigation.FastForwardRadioBlocked = (Traffic != null && Traffic.ChatterVisible != null)
+                || (Campaign != null && Campaign.Radio != null && Campaign.Radio.Busy);
+            Navigation.HostilesPresent = (Traffic != null && Traffic.HostileCount > 0) || Navigation.FastForwardRadioBlocked;
             if (Extender != null && ExtenderCancelled) Extender.Cancel();
             if (Devices != null && ExtenderCancelled) Devices.Cancel();
             if (DockedInOrbit) return;   // docked inside the orbit: no wormhole, no hidden-system leave

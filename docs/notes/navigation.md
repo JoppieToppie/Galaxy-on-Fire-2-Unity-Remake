@@ -411,3 +411,13 @@ the player ship) and `NavigationView` (flight HUD).
   Supernova Challenge, see "Supernova add-on").
   Remake: where the menu would be empty (the alien orbit: no docking target there, `Navigation.MenuEmpty`) the autopilot
   button is dimmed (`nav-button--dim`) and Q / the button don't open it; it still turns a running autopilot off.
+
+- **Time speedup near hostiles** (Gameplay, off by default): in single player with time compression,
+  `Settings.HostileAutopilotFastForward` waives hostile radar contacts only while autopilot is active.
+  The option is unavailable with Ship cruise (including single-player cruise), multiplayer and co-op.
+  Manual locked-object flight, mining/docking approaches without autopilot, jump/drive/device and
+  near-arrival restrictions retain their existing behavior. This does not grant invulnerability or change radar hostility.
+
+- **Time speedup near hostiles (UI)**: the stored choice stays editable in either single-player fast-forward mode.
+  Ship cruise makes it ineffective; selecting cruise does not clear or disable the preference. Multiplayer/co-op
+  still disables the control and rejects the simulation override.

@@ -3399,6 +3399,8 @@
  "hangarRobotsHelp": "テラン族とニヴェリアン族の格納庫をサービスロボットが飛び回ります。",
  "barRobots": "バーのロボット",
  "barRobotsHelp": "テラン族とヴォスク族のバーで働くロボット。",
+ "hostileAutopilotFastForward": "敵付近での時間加速",
+  "hostileAutopilotFastForwardHelp": "敵のレーダー反応があってもオートパイロット中の時間加速を許可します。Ship cruise選択中は効果がありませんが、設定値はTime speedup用に保持されます。その他の制限は適用されます。マルチプレイヤーと協力プレイでは利用できません。",
  "autoJumpgate": "自動操縦でジャンプゲートを通過",
  "autoJumpgateHelp": "目的地が設定されていると、自動操縦は確認せずにジャンプゲートを通って目的地へ向かいます。オフ：オリジナルと同様、ゲートが先に確認します。",
  "statLoadingTime": "装填時間",

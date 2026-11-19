@@ -3399,6 +3399,8 @@
  "hangarRobotsHelp": "Servicerobots vliegen door de Terraanse en Nivelianse hangars.",
  "barRobots": "Barrobots",
  "barRobotsHelp": "De robots aan het werk in de Terraanse en Vossk-bars.",
+ "hostileAutopilotFastForward": "Tijdversnelling nabij vijanden",
+  "hostileAutopilotFastForwardHelp": "Staat tijdversnelling op de automatische piloot toe ondanks vijandelijke radarcontacten. Heeft geen effect met Ship cruise; de waarde blijft bewaard voor Time speedup. Andere beperkingen blijven gelden. Niet beschikbaar in multiplayer of coöp.",
  "autoJumpgate": "Automatische piloot neemt sprongpoorten",
  "autoJumpgateHelp": "Met een ingestelde bestemming vliegt de automatische piloot zonder te vragen door de sprongpoort ernaartoe. Uit: de poort vraagt het eerst, zoals in het origineel.",
  "statLoadingTime": "Laadtijd",

@@ -3399,6 +3399,8 @@
  "hangarRobotsHelp": "服务机器人在Terran人和Nivelian人的机库中飞行。",
  "barRobots": "酒吧机器人",
  "barRobotsHelp": "在Terran人和Vossk人的酒吧里工作的机器人。",
+ "hostileAutopilotFastForward": "敌人附近的时间加速",
+  "hostileAutopilotFastForwardHelp": "允许在雷达上有敌对目标时使用自动驾驶时间加速。选择Ship cruise时不生效，但会保留设置值供Time speedup使用。其他限制仍然适用。多人和合作模式中不可用。",
  "autoJumpgate": "自动飞行穿越星门",
  "autoJumpgateHelp": "设定目的地后，自动飞行器会不经询问穿过星门飞向目的地。关闭：星门先询问，与原版相同。",
  "statLoadingTime": "再充时间",

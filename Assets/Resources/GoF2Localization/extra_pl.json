@@ -3399,6 +3399,8 @@
  "hangarRobotsHelp": "Roboty serwisowe latają po hangarach Terran i Nivelian.",
  "barRobots": "Roboty w barze",
  "barRobotsHelp": "Roboty przy pracy w barach Terran i Vossków.",
+ "hostileAutopilotFastForward": "Przyspieszenie czasu w pobliżu wrogów",
+  "hostileAutopilotFastForwardHelp": "Pozwala przyspieszać czas na autopilocie mimo wrogich kontaktów radarowych. Nie działa w trybie Ship cruise; wartość jest zachowywana dla Time speedup. Pozostałe ograniczenia nadal obowiązują. Niedostępne w grze wieloosobowej ani kooperacyjnej.",
  "autoJumpgate": "Autopilot przelatuje przez hiperwrota",
  "autoJumpgateHelp": "Gdy cel jest ustawiony, autopilot bez pytania przelatuje przez hiperwrota w jego stronę. Wyłączone: wrota najpierw pytają, jak w oryginale.",
  "statLoadingTime": "Czas przeładowania",
