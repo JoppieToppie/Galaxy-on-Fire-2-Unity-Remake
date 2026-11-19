@@ -155,11 +155,20 @@ namespace GoF2Remake.Multiplayer
                 : !string.Equals(account, record.ownerProfile, StringComparison.Ordinal))
                 return "Only the station owner, or the owning faction's leader/officer, may cancel this order.";
             var order = record.buyOrders[orderIndex];
-            if (order == null || order.reservedCredits < 0) return "That order has invalid escrow and cannot be cancelled automatically.";
+            if (order == null || order.reservedCredits < 0)
+                return "That order has invalid escrow and cannot be cancelled automatically.";
+
+            // A positive escrow balance must have exactly one recorded funding identity. Legacy orders
+            // without one (or malformed orders naming both) stay intact for administrator recovery.
+            bool hasProfileFunder = !string.IsNullOrEmpty(order.fundedByProfile);
+            bool hasFactionFunder = !string.IsNullOrEmpty(order.fundedByFactionId);
+            if (order.reservedCredits > 0 && hasProfileFunder == hasFactionFunder)
+                return "This order's escrow owner cannot be identified safely. The order and its escrow were preserved for administrator recovery.";
+
             record.buyOrders.RemoveAt(orderIndex);
-            var credits = order.fundedByProfile != null && order.reservedCredits > 0
+            var credits = hasProfileFunder && order.reservedCredits > 0
                 ? new List<(string account, long delta)> { (order.fundedByProfile, order.reservedCredits) } : null;
-            var banks = order.fundedByFactionId != null && order.reservedCredits > 0
+            var banks = hasFactionFunder && order.reservedCredits > 0
                 ? new List<(string factionId, long delta)> { (order.fundedByFactionId, order.reservedCredits) } : null;
             if (!CommitProfileTransaction(null, credits, banks))
             {
