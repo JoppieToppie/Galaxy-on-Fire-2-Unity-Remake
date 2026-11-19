@@ -415,6 +415,17 @@ namespace GoF2Remake.Multiplayer
         {
             if (string.IsNullOrEmpty(id)) return false;
             var save = ReadSave(id);
+            bool host = false;
+            foreach (var login in logins.Values)
+                if (login.account != null && string.Equals(login.account.id, id, StringComparison.Ordinal) && IsHostClient(login.client))
+                { host = true; break; }
+            // The host's first profile upload may not have created a server-side file yet. Seed it from
+            // the live game profile so the transaction journal always has a durable replay target.
+            if (save == null && host)
+            {
+                try { save = JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()); }
+                catch (Exception e) { Debug.LogError($"NetProfiles: could not seed the host profile for a stored-ship transaction: {e.Message}"); }
+            }
             if (save == null) return false;
             var target = ships != null ? new List<StoredShip>(ships) : new List<StoredShip>();
             if (target.Count > 100 || target.Exists(x => x == null || x.ship < 0)) return false;
