@@ -909,9 +909,10 @@ namespace GoF2Remake.Multiplayer
                 record.factionSuccessorDelegateProfile = null;
                 RecordHistory(record, factionId, "faction-dissolved-ownership-resolved", record.ownerProfile,
                     string.IsNullOrEmpty(record.ownerProfile)
-                        ? "No successor or recoverable original builder was available; station is unowned."
+                        ? "No valid successor or recoverable original builder was available; station remains an unowned recoverable orphan."
                         : "Station ownership resolved to " + (record.ownershipType == PlayerStationOwnershipType.Faction
-                            ? "successor faction " + record.ownerFactionId : "individual profile " + record.ownerProfile) + ".");
+                            ? "successor faction " + record.ownerFactionId : "individual profile " + record.ownerProfile) +
+                          ". Dissolved-faction roles, permission overrides, bans and pending transfers were cleared; original-builder restrictions were retained.");
                 SyncJumpgatesForStation(record);
             }
         }
