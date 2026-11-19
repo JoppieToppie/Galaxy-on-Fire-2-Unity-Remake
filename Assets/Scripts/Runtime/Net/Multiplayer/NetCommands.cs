@@ -375,7 +375,8 @@ namespace GoF2Remake.Multiplayer
             {
                 string[] words = args.Substring(install.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (words.Length != 2 || !int.TryParse(words[0], out int stationId)) return "/station install <station id> storage";
-                return string.Equals(words[1], "refinery", StringComparison.OrdinalIgnoreCase)\n                    ? NetPlayerStations.InstallRefinery(by as NetPlayer, stationId)\n                    : NetPlayerStations.Install(by as NetPlayer, stationId, words[1]);
+                return string.Equals(words[1], "refinery", StringComparison.OrdinalIgnoreCase)
+                    ? NetPlayerStations.InstallRefinery(by as NetPlayer, stationId)\n                    : NetPlayerStations.Install(by as NetPlayer, stationId, words[1]);
             }
             const string refine = "refine ";
             if (args.StartsWith(refine, StringComparison.OrdinalIgnoreCase))
