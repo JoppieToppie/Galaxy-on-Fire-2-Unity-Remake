@@ -271,8 +271,8 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out string account))
-                return "Dock at this station and use its controlling profile to manage it.";
+            if (!CanManageConstruction(by, record, out string account))
+                return "Only the original builder, or an authorised faction construction manager while the builder is absent, may install station modules.";
             if (record.underConstruction) return "Finish station construction before installing modules.";
             if (StorageCapacity(record) <= 0) return "Install a storage module first; factory inputs and outputs use station storage.";
             record.addons ??= new List<PlayerStationAddon>();
@@ -397,8 +397,8 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out string account))
-                return "Dock at this station and use its controlling profile to manage it.";
+            if (!CanManageConstruction(by, record, out string account))
+                return "Only the original builder, or an authorised faction construction manager while the builder is absent, may install station modules.";
             if (record.underConstruction) return "Finish station construction before installing modules.";
             if (StorageCapacity(record) <= 0) return "Install a storage module first; refinery output is placed in station storage.";
             record.addons ??= new List<PlayerStationAddon>();
