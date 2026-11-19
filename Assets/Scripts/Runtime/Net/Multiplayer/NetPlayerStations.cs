@@ -220,7 +220,7 @@ namespace GoF2Remake.Multiplayer
             int storageCapacity = StorageCapacity(record);
             if (storageCapacity > 0)
             {
-                int stored = 0;
+                long stored = 0;
                 if (record.storage != null)
                     foreach (var stack in record.storage) if (stack != null) stored += Math.Max(0, stack.amount);
                 lines.Add($"Storage: {stored:N0}/{storageCapacity:N0}");
