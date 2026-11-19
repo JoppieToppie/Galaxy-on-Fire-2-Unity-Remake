@@ -218,8 +218,8 @@ namespace GoF2Remake.Multiplayer
                         if (contribution.paidUtc > 0)
                             line += " | last paid " + DateTimeOffset.FromUnixTimeSeconds(contribution.paidUtc).ToLocalTime().ToString("g");
                     }
-                    else if (record.ownershipType == PlayerStationOwnershipType.Individual)
-                        line += " | no faction-bank payment";
+                    else
+                        line += " | no faction-bank payment recorded";
                     if (contribution.contributedUtc > 0)
                         line += " | first contributed " + DateTimeOffset.FromUnixTimeSeconds(contribution.contributedUtc).ToLocalTime().ToString("g");
                     lines.Add(line);
