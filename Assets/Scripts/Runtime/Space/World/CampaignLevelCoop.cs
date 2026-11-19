@@ -151,6 +151,7 @@ namespace GoF2Remake.World
                     holeVisible = level.Wormhole != null && level.Wormhole.Visible,
                     holePosition = level.Wormhole != null ? level.Wormhole.GamePosition : Vector3.zero,
                     holeTimer = level.Wormhole != null ? level.Wormhole.Timer : 0,
+                    playerKills = PlayerKills, npcKills = NpcKills,
                 });
                 // The route when it changes, and every 2 s for a crew member arriving later.
                 if (PlayerRoute != coopRouteSent || ++coopRouteIndexSent >= 8)
@@ -274,6 +275,9 @@ namespace GoF2Remake.World
             FadeColor = s.fadeColor;
             // The wormhole as the leader's (2026-11-17: the second pilot saw none at step 40, and at 42 the arrival's).
             if (level != null && level.Wormhole != null) level.Wormhole.Mirror(s.holeVisible, s.holePosition, s.holeTimer);
+            // The kill count (step 36's wager on the HUD): the leader's, which counts the crew's kills as the player's.
+            PlayerKills = s.playerKills;
+            NpcKills = s.npcKills;
         }
 
         // ---- the leader's one-off effects --------------------------------------------------------------------------

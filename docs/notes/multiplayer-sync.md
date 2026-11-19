@@ -76,7 +76,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   follower's mining plant. One hack a wreck: the loot goes into the hacker's hold (a crate only for what found no room,
   shared like any crate; the blueprint is the hacker's), and their game tells the owner through the server (`NetProxy.ReportHacked`: from that orbit, while open), whose wreck closes; the
   stand-ins go once it is closed or gone. Two players finishing the minigame at once both get the loot. A handover keeps
-  a hacked wreck closed (`NetOrbit.Restore`).
+  a hacked wreck closed (`NetOrbit.Restore`). **Blueprint wrecks** (a Supernova hidden blueprint, a mod blueprint's
+  derelict; a Discord report 2026-11-17: only the pilot who entered the orbit first could dock at one) get the same
+  stand-in, but each player's own: open while this player hasn't that blueprint (`NetProxy.OpenBlueprintWreck`,
+  `TrafficPlan.BlueprintLeft`), whatever the owner did, the stand-in docking type 3 even where the owner's is closed; no word to
+  the owner. Tests `CoopLevelMirrorTests`.
 - **NetProxy**: the ship's model by its Resources path (`NpcShip.ModelPath`), its description (`ProxySpec`, written once and
   again when its cargo or a reference changes), status (`NetProxyStatus`: race, standing, hull, hit radius, hidden, life,
   cloak, EMP, stealable cargo, mission role, killer, waypoint) and aggressors: four owner-written NetworkVariables where

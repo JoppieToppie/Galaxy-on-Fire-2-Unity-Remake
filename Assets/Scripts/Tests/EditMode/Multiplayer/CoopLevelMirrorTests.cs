@@ -4,6 +4,7 @@
 // carried in NetProxy's role flags). A Discord report 2026-11-17: the second pilot saw no wormhole at step 40, no burning
 // freighter and no blast at 42.
 
+using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using GoF2Remake.Multiplayer;
 using GoF2Remake.World;
@@ -61,6 +62,36 @@ namespace GoF2Remake.Tests
                 Assert.AreEqual(2, (flags >> NetProxy.StoryBurnShift) & 31);
             }
             finally { Object.DestroyImmediate(go); }
+        }
+
+        /// <summary>A Discord report 2026-11-17: only the pilot who entered the orbit first could dock at its wrecks. A
+        /// blueprint wreck is open to each player until they have its blueprint, whatever its owner did.</summary>
+        [Test]
+        public void ABlueprintWreckIsOpenToEachPlayerUntilTheirsIsFound()
+        {
+            int found = Session.HiddenBlueprintsFound;
+            var known = new System.Collections.Generic.List<int>(Session.UnlockedBlueprints);
+            try
+            {
+                Session.HiddenBlueprintsFound = 0;
+                var hidden = new SpawnSpec { hiddenBlueprint = 1, dockingType = 0 };   // the owner had found it: closed there
+                Assert.IsTrue(TrafficPlan.BlueprintLeft(hidden));
+                Session.HiddenBlueprintsFound = 1 << 1;
+                Assert.IsFalse(TrafficPlan.BlueprintLeft(hidden), "found here: no stand-in");
+                int product = TrafficPlan.HiddenBlueprints[0].blueprint;
+                Session.UnlockedBlueprints.Remove(product);
+                var mod = new SpawnSpec { modBlueprint = product };
+                Assert.IsTrue(TrafficPlan.BlueprintLeft(mod));
+                Session.UnlockedBlueprints.Add(product);
+                Assert.IsFalse(TrafficPlan.BlueprintLeft(mod));
+                Assert.IsFalse(TrafficPlan.BlueprintLeft(new SpawnSpec { derelict = true }), "a derelict: the shared rule (OpenDerelict)");
+            }
+            finally
+            {
+                Session.HiddenBlueprintsFound = found;
+                Session.UnlockedBlueprints.Clear();
+                foreach (int b in known) Session.UnlockedBlueprints.Add(b);
+            }
         }
     }
 }

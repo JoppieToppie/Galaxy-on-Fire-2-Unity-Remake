@@ -28,5 +28,8 @@ namespace GoF2Remake.World
         public bool holeVisible;
         public Vector3 holePosition;
         public int holeTimer;
+        /// <summary>The level's kill count (CampaignLevel.PlayerKills / NpcKills): step 36's wager with Errkt on the follower's
+        /// HUD too (a Discord report 2026-11-17: it stayed 0 : 0 for the second pilot).</summary>
+        public int playerKills, npcKills;
     }
 }

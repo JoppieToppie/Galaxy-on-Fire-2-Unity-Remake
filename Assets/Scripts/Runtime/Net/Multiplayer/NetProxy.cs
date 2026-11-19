@@ -164,6 +164,11 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Remake (Settings.DerelictWrecks): another game's derelict freighter nobody has hacked yet: this player
         /// docks at a stand-in of it (NetOrbit.UpdateDerelictStandIns).</summary>
         public bool OpenDerelict => IsSpawned && !IsOwner && St.life == Flying && St.Has(NetProxyStatus.Hackable) && (Spec?.spec?.derelict ?? false);
+        /// <summary>Another game's wreck holding a blueprint this player hasn't recovered yet (a Supernova hidden blueprint,
+        /// TrafficPlan.HiddenBlueprints; a mod blueprint's derelict): each player hacks it for their own, at a stand-in of it
+        /// (NetOrbit.UpdateDerelictStandIns), whatever the owner did (a Discord report 2026-11-17: only the pilot who
+        /// entered the orbit first could dock at it).</summary>
+        public bool OpenBlueprintWreck => IsSpawned && !IsOwner && St.life == Flying && TrafficPlan.BlueprintLeft(Spec?.spec);
         /// <summary>This player hacked the derelict (their stand-in): the owner's wreck closes, for everyone.</summary>
         public void ReportHacked() { if (IsSpawned && !IsOwner) HackedUpRpc(); }
 

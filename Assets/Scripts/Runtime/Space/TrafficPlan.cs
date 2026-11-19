@@ -147,6 +147,16 @@ namespace GoF2Remake.Flight
             (123, 227, 2, new Vector3(40000, 20000, 140000), 12),
         };
 
+        /// <summary>Remake multiplayer: 's' is a blueprint wreck (a hidden blueprint's, a mod blueprint's derelict) whose
+        /// blueprint this player hasn't got yet: another game's is open to them (NetProxy.OpenBlueprintWreck).</summary>
+        public static bool BlueprintLeft(SpawnSpec s)
+        {
+            if (s == null) return false;
+            int k = s.hiddenBlueprint;
+            if (k >= 0 && k < HiddenBlueprints.Length) return (Session.HiddenBlueprintsFound & (1 << k)) == 0;
+            return s.modBlueprint >= 0 && !Blueprints.IsUnlocked(s.modBlueprint);
+        }
+
         static Vector3 Jitter() => new Vector3(Random.Range(0, 40000) - 20000, Random.Range(0, 40000) - 20000, Random.Range(0, 40000) - 20000);
 
         /// <summary>Remake: a hackable freighter wreck like the hidden blueprints' (Level::createMission's block below): race 0-3

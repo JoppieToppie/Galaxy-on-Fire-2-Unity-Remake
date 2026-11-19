@@ -175,7 +175,8 @@ The story for a crew of players, 4 by default (remake-only, 2026-11-01). Code: `
     `FollowTick`: the meshes, sound 154 and the station and asteroids shrinking into it; the camera, fade and ride are
     the leader's). Not yet sent: the other scripted effects that aren't ships (step 80's lasers, blasts and fires on
     Kothar's station, the Valkyrie hyperdrive flashes and unfolding station, the evacuation's beam). Tests
-    `CoopLevelMirrorTests`.
+    `CoopLevelMirrorTests`. The kill count goes with `CoopLevelState` too (`playerKills` / `npcKills`, one int in the
+    RPC): step 36's wager with Errkt read 0 : 0 on a follower's HUD (a Discord report 2026-11-17).
   - **Moves**: the leader's level-driven moves (`SpaceLevel.TravelTo`, `RideWormhole`, `Dock(false)` while it runs a story
     level, `CoopLeaderMoved`) take the followers in that orbit along (`CoopTravelRpc` with the leader's step: the follower
     catches up first, `CoopCampaign.CatchUpTo`, so the next orbit is built as the story's).
