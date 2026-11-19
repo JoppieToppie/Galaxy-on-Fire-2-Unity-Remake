@@ -33,6 +33,7 @@ namespace GoF2Remake.Multiplayer
             if (targetKind != "player" && targetKind != "faction")
                 return "Choose a recipient type: player or faction.";
             if (string.IsNullOrEmpty(targetAccount)) return "Supply the receiving player's or faction leader's profile account ID.";
+            var previousProposal = record.pendingTransfer;
             if (targetKind == "player")
             {
                 if (string.Equals(account, targetAccount, StringComparison.Ordinal))
@@ -65,7 +66,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (!Save())
             {
-                record.pendingTransfer = null;
+                record.pendingTransfer = previousProposal;
                 return "The transfer proposal could not be saved.";
             }
             return "Transfer proposal recorded. The receiving player or faction leader must dock at this station and use /station transfer-accept " + id + " within seven days.";
@@ -84,7 +85,7 @@ namespace GoF2Remake.Multiplayer
             if (proposal.expiresUtc <= now)
             {
                 record.pendingTransfer = null;
-                Save();
+                if (!Save()) record.pendingTransfer = proposal;
                 return "That transfer proposal expired.";
             }
             string account = NetProfiles.AccountOf(by.OwnerClientId);
@@ -95,10 +96,13 @@ namespace GoF2Remake.Multiplayer
             if (!IsOwnershipAuthority(record, proposal.proposedBy))
             {
                 record.pendingTransfer = null;
-                Save();
+                if (!Save()) record.pendingTransfer = proposal;
                 return "The original owner's authority changed; the proposal has been cancelled.";
             }
 
+            var previousType = record.ownershipType;
+            string previousOwner = record.ownerProfile, previousFaction = record.ownerFactionId, previousName = record.ownerName;
+            bool previousFactionAccess = record.factionStorageAccess;
             if (proposal.targetType == PlayerStationOwnershipType.Individual)
             {
                 record.ownershipType = PlayerStationOwnershipType.Individual;
@@ -117,7 +121,16 @@ namespace GoF2Remake.Multiplayer
                 record.factionStorageAccess = true;
             }
             record.pendingTransfer = null;
-            if (!Save()) return "The ownership change could not be saved; retry after the station registry recovers.";
+            if (!Save())
+            {
+                record.ownershipType = previousType;
+                record.ownerProfile = previousOwner;
+                record.ownerFactionId = previousFaction;
+                record.ownerName = previousName;
+                record.factionStorageAccess = previousFactionAccess;
+                record.pendingTransfer = proposal;
+                return "The ownership change could not be saved; the previous owner and pending proposal were restored.";
+            }
             return "Station ownership transferred successfully. Personal ships, contributor-owned storage and existing marketplace seller claims remain separate from station ownership.";
         }
 
@@ -136,8 +149,11 @@ namespace GoF2Remake.Multiplayer
             if (!CanManage(by, record, out string account) || !IsOwnershipAuthority(record, account))
                 return "Only the individual owner or owning faction leader can cancel a transfer proposal.";
             if (record.pendingTransfer == null) return "There is no pending transfer for this station.";
+            var proposal = record.pendingTransfer;
             record.pendingTransfer = null;
-            return Save() ? "Transfer proposal cancelled." : "The cancellation could not be saved.";
+            if (Save()) return "Transfer proposal cancelled.";
+            record.pendingTransfer = proposal;
+            return "The cancellation could not be saved; the proposal remains active.";
         }
 
         internal static string TransferStatus(int id)
