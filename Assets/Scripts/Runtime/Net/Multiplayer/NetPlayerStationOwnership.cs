@@ -165,6 +165,7 @@ namespace GoF2Remake.Multiplayer
                 SyncJumpgatesForStation(record);
                 return "The ownership change could not be saved; the previous owner and pending proposal were restored.";
             }
+            EjectDeniedVisitors(record);
             foreach (ulong client in NetProfiles.ClientsOf(proposal.proposedBy))
                 NetState.Instance?.Notify(client, "Ownership of " + record.name + " has been transferred successfully.");
             return "Station ownership transferred successfully. Construction contributions were settled when deposited; no contributor compensation carries over. Personal ships, contributor-owned storage and existing marketplace seller claims remain separate from station ownership.";
