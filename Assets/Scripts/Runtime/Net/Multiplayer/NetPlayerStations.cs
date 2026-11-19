@@ -167,6 +167,23 @@ namespace GoF2Remake.Multiplayer
             return string.Join("\n", lines);
         }
 
+        internal static string ListStations()
+        {
+            if (!NetGame.Active || registry?.stations == null) return "Join a multiplayer session first.";
+            var lines = new List<string> { "Player-built stations:" };
+            foreach (var record in registry.stations)
+            {
+                if (record == null) continue;
+                var system = NetGame.Db?.Systems?.Find(x => x != null && x.index == record.system);
+                lines.Add("#" + record.id + "  " + record.name + " — " +
+                    (system != null ? system.name : ("System " + record.system)) + " — " +
+                    (record.underConstruction ? "Under construction" : "Operational") +
+                    " — " + (record.ownerName ?? "Unknown"));
+            }
+            if (lines.Count == 1) lines.Add("No stations have been built in this world yet.");
+            return string.Join("\n", lines);
+        }
+
         /// <summary>Show the persistent state and construction progress of one player station.</summary>
         internal static string Status(int id)
         {
