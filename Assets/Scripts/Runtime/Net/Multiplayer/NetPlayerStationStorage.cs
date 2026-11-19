@@ -86,6 +86,7 @@ namespace GoF2Remake.Multiplayer
             if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false))
                 return "This station has no ship hangar module.";
             record.storedShips ??= new List<StoredShip>();
+            record.storedShipOwners ??= new List<string>();
             var lines = new List<string> { "Ship hangar at " + record.name + ":" };
             for (int i = 0; i < record.storedShips.Count; i++)
             {
@@ -185,9 +186,11 @@ namespace GoF2Remake.Multiplayer
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
             AddStationItems(record, items);
             record.storedShips.Add(BareHull(ship));
+            record.storedShipOwners.Add(account);
             if (!Save())
             {
                 record.storedShips.RemoveAt(record.storedShips.Count - 1);
+                record.storedShipOwners.RemoveAt(record.storedShipOwners.Count - 1);
                 record.storage = previousStorage;
                 if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, ship))
                     Debug.LogError("NetPlayerStations: failed to roll back ship storage transfer for profile " + account);
@@ -206,9 +209,13 @@ namespace GoF2Remake.Multiplayer
             if (record.underConstruction) return "Finish station construction before using the ship hangar.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "This station has no ship hangar module.";
             record.storedShips ??= new List<StoredShip>();
+            record.storedShipOwners ??= new List<string>();
             if (hangarIndex < 1 || hangarIndex > record.storedShips.Count) return "That ship index is not in this station's hangar.";
             var ship = record.storedShips[hangarIndex - 1];
             if (ship == null) return "That stored ship record is invalid.";
+            if (hangarIndex > record.storedShipOwners.Count ||
+                !string.Equals(record.storedShipOwners[hangarIndex - 1], account, StringComparison.Ordinal))
+                return "That hull belongs to another pilot and cannot be retrieved by this profile.";
             // Older registry records may still contain fitted equipment or cargo. Migrate it to station
             // storage before returning a bare hull, rather than silently putting the old behaviour back.
             var items = new Dictionary<int, long>();
@@ -222,9 +229,11 @@ namespace GoF2Remake.Multiplayer
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
             AddStationItems(record, items);
             record.storedShips.RemoveAt(hangarIndex - 1);
+            record.storedShipOwners.RemoveAt(hangarIndex - 1);
             if (!Save())
             {
                 record.storedShips.Insert(hangarIndex - 1, ship);
+                record.storedShipOwners.Insert(hangarIndex - 1, account);
                 record.storage = previousStorage;
                 var personal = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
                 if (personal == null || personal.Count == 0 || !NetProfiles.RemoveStoredShip(account, by.OwnerClientId, personal.Count - 1, out _))
@@ -332,9 +341,12 @@ namespace GoF2Remake.Multiplayer
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
             AddStationItems(record, items);
             record.dryDockShips.Add(BareHull(ship));
+            record.dryDockShipOwners ??= new List<string>();
+            record.dryDockShipOwners.Add(account);
             if (!Save())
             {
                 record.dryDockShips.RemoveAt(record.dryDockShips.Count - 1);
+                record.dryDockShipOwners.RemoveAt(record.dryDockShipOwners.Count - 1);
                 record.storage = previousStorage;
                 if (!NetProfiles.AddStoredShip(account, by.OwnerClientId, ship))
                     Debug.LogError("NetPlayerStations: failed to roll back dry dock transfer for profile " + account);
@@ -352,9 +364,13 @@ namespace GoF2Remake.Multiplayer
             if (record.underConstruction) return "Finish station construction before using the dry dock.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false)) return "This station has no dry dock module.";
             record.dryDockShips ??= new List<StoredShip>();
+            record.dryDockShipOwners ??= new List<string>();
             if (dockIndex < 1 || dockIndex > record.dryDockShips.Count) return "That index is not in this station's dry dock.";
             var ship = record.dryDockShips[dockIndex - 1];
             if (ship == null) return "That stored ship record is invalid.";
+            if (dockIndex > record.dryDockShipOwners.Count ||
+                !string.Equals(record.dryDockShipOwners[dockIndex - 1], account, StringComparison.Ordinal))
+                return "That hull belongs to another pilot and cannot be retrieved by this profile.";
             var items = new Dictionary<int, long>();
             if (!CollectShipInventory(ship, items)) return "The stored ship contains an invalid equipment or cargo item; nothing was withdrawn.";
             if (items.Count > 0 && !CanFitStationItems(record, items)) return "Station storage cannot accommodate this legacy ship inventory; nothing was withdrawn.";
@@ -365,9 +381,11 @@ namespace GoF2Remake.Multiplayer
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
             AddStationItems(record, items);
             record.dryDockShips.RemoveAt(dockIndex - 1);
+            record.dryDockShipOwners.RemoveAt(dockIndex - 1);
             if (!Save())
             {
                 record.dryDockShips.Insert(dockIndex - 1, ship);
+                record.dryDockShipOwners.Insert(dockIndex - 1, account);
                 record.storage = previousStorage;
                 var personal = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
                 if (personal == null || personal.Count == 0 || !NetProfiles.RemoveStoredShip(account, by.OwnerClientId, personal.Count - 1, out _))
