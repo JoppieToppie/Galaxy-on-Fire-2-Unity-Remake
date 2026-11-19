@@ -29,6 +29,7 @@ namespace GoF2Remake.Multiplayer
         public List<PlayerStationMaterial> materials = new List<PlayerStationMaterial>();
         public List<PlayerStationAddon> addons = new List<PlayerStationAddon>();
         public List<PlayerStationListing> listings = new List<PlayerStationListing>();
+        public List<PlayerStationStorage> storage = new List<PlayerStationStorage>();
     }
 
     [Serializable]
@@ -57,7 +58,7 @@ namespace GoF2Remake.Multiplayer
 
     /// <summary>Server-owned, durable state for player-built stations in persistent multiplayer worlds.</summary>
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
-    public static class NetPlayerStations
+    public static partial class NetPlayerStations
     {
         const int MaxStations = 256, MaxAddonsPerStation = 64, MaxListingsPerStation = 512;
         const int MaxStationsPerSystem = 8;
@@ -113,6 +114,7 @@ namespace GoF2Remake.Multiplayer
                 station.addons ??= new List<PlayerStationAddon>();
                 station.materials ??= new List<PlayerStationMaterial>();
                 station.listings ??= new List<PlayerStationListing>();
+                station.storage ??= new List<PlayerStationStorage>();
                 if (station.addons.Count > MaxAddonsPerStation || station.listings.Count > MaxListingsPerStation)
                     Debug.LogWarning($"NetPlayerStations: station {station.id} exceeds a module or listing limit; preserving all saved records.");
             }
