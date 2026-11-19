@@ -410,6 +410,28 @@ namespace GoF2Remake.Multiplayer
             return Write(ProfilePath(id), JsonUtility.ToJson(save, false));
         }
 
+        /// <summary>Replace a profile's complete stored-hull list with an absolute target for journal replay.</summary>
+        internal static bool SetStoredShips(string id, List<StoredShip> ships)
+        {
+            if (string.IsNullOrEmpty(id)) return false;
+            var save = ReadSave(id);
+            if (save == null) return false;
+            var target = ships != null ? new List<StoredShip>(ships) : new List<StoredShip>();
+            if (target.Count > 100 || target.Exists(x => x == null || x.ship < 0)) return false;
+            save.kaamoShips = new List<StoredShip>(target);
+            if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
+            foreach (var login in logins.Values)
+                if (login.account != null && string.Equals(login.account.id, id, StringComparison.Ordinal) &&
+                    IsHostClient(login.client))
+                {
+                    Session.KaamoShips ??= new List<StoredShip>();
+                    Session.KaamoShips.Clear();
+                    Session.KaamoShips.AddRange(target);
+                    break;
+                }
+            return true;
+        }
+
 
         /// <summary>A profile's worth at its last accepted upload (credits + ships + items), 0 = unknown.</summary>
         internal static long WorthOf(string id) => id == null ? 0 : index?.accounts.Find(x => x.id == id)?.worth ?? 0;
