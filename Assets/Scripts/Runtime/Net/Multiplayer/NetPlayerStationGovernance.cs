@@ -22,6 +22,8 @@ namespace GoF2Remake.Multiplayer
         public string account;
         public PlayerStationPermission permission;
         public PlayerStationPermissionState state = PlayerStationPermissionState.Inherit;
+        public string setBy;
+        public bool builderOverride;
     }
 
     [Serializable]
@@ -55,6 +57,17 @@ namespace GoF2Remake.Multiplayer
         public bool finance;
         public bool marketplace;
         public bool security;
+        // Officers inherit broad management authority by default. The leader can restrict each
+        // capability independently for this station.
+        public bool officerVisit = true;
+        public bool officerStorage = true;
+        public bool officerHangar = true;
+        public bool officerStationOperations = true;
+        public bool officerConstruction;
+        public bool officerAppearance;
+        public bool officerFinance = true;
+        public bool officerMarketplace = true;
+        public bool officerSecurity = true;
     }
 
     [Serializable]
@@ -79,6 +92,12 @@ namespace GoF2Remake.Multiplayer
             record.bans ??= new List<PlayerStationBan>();
             record.history ??= new List<PlayerStationHistoryEntry>();
             record.factionPermissions ??= new PlayerStationFactionPermissionProfile();
+            if (record.ownershipType == PlayerStationOwnershipType.Individual && record.factionStorageAccess &&
+                !record.factionPermissions.storage)
+            {
+                record.factionPermissions.storage = true;
+                changed = true;
+            }
 
             // Older individually owned stations predate builder identity. Their recorded owner is
             // the only safe migration source. Faction-owned legacy stations are deliberately left
@@ -100,6 +119,350 @@ namespace GoF2Remake.Multiplayer
                 changed = true;
             }
             return changed;
+        }
+
+        static bool IsStationContext(NetPlayer by, PlayerStationRecord record, out string account)
+        {
+            account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
+            return NetGame.IsServer && sessionActive && registry != null && record != null &&
+                by != null && by.IsSpawned && by.InHangar && by.Station == record.stationIndex &&
+                NetProfiles.Enabled && NetProfiles.Controls(by.OwnerClientId) && !string.IsNullOrEmpty(account);
+        }
+
+        static string StationFactionId(PlayerStationRecord record)
+        {
+            return record == null ? null : record.ownershipType == PlayerStationOwnershipType.Faction
+                ? record.ownerFactionId : NetFactions.Of(record.ownerProfile)?.id;
+        }
+
+        static PlayerStationPermissionOverride FindPermissionOverride(PlayerStationRecord record,
+            string account, PlayerStationPermission permission)
+        {
+            return record?.permissionOverrides?.Find(x => x != null &&
+                string.Equals(x.account, account, StringComparison.Ordinal) && x.permission == permission);
+        }
+
+        static bool HasRole(PlayerStationRecord record, string account, PlayerStationRole role)
+        {
+            return record?.roleAssignments?.Exists(x => x != null &&
+                string.Equals(x.account, account, StringComparison.Ordinal) && x.role == role) == true;
+        }
+
+        static bool RoleGrants(PlayerStationRecord record, string account, PlayerStationPermission permission)
+        {
+            if (HasRole(record, account, PlayerStationRole.StationAdministrator)) return true;
+            if (permission == PlayerStationPermission.Storage && HasRole(record, account, PlayerStationRole.Quartermaster)) return true;
+            if (permission == PlayerStationPermission.Hangar && HasRole(record, account, PlayerStationRole.Quartermaster)) return true;
+            if ((permission == PlayerStationPermission.Construction || permission == PlayerStationPermission.Appearance) &&
+                HasRole(record, account, PlayerStationRole.ConstructionManager)) return true;
+            if (permission == PlayerStationPermission.Marketplace && HasRole(record, account, PlayerStationRole.MarketManager)) return true;
+            if (permission == PlayerStationPermission.Security && HasRole(record, account, PlayerStationRole.SecurityOfficer)) return true;
+            return false;
+        }
+
+        static bool ProfilePermission(PlayerStationFactionPermissionProfile profile,
+            PlayerStationPermission permission, bool officer)
+        {
+            if (profile == null) return false;
+            if (officer)
+            {
+                switch (permission)
+                {
+                    case PlayerStationPermission.Visit: return profile.officerVisit;
+                    case PlayerStationPermission.Storage: return profile.officerStorage;
+                    case PlayerStationPermission.Hangar: return profile.officerHangar;
+                    case PlayerStationPermission.StationOperations: return profile.officerStationOperations;
+                    case PlayerStationPermission.Construction: return profile.officerConstruction;
+                    case PlayerStationPermission.Appearance: return profile.officerAppearance;
+                    case PlayerStationPermission.Finance: return profile.officerFinance;
+                    case PlayerStationPermission.Marketplace: return profile.officerMarketplace;
+                    case PlayerStationPermission.Security: return profile.officerSecurity;
+                }
+            }
+            switch (permission)
+            {
+                case PlayerStationPermission.Visit: return profile.visit;
+                case PlayerStationPermission.Storage: return profile.storage;
+                case PlayerStationPermission.Hangar: return profile.hangar;
+                case PlayerStationPermission.StationOperations: return profile.stationOperations;
+                case PlayerStationPermission.Construction: return profile.construction;
+                case PlayerStationPermission.Appearance: return profile.appearance;
+                case PlayerStationPermission.Finance: return profile.finance;
+                case PlayerStationPermission.Marketplace: return profile.marketplace;
+                case PlayerStationPermission.Security: return profile.security;
+                default: return false;
+            }
+        }
+
+        static bool HasBan(PlayerStationRecord record, string account, PlayerStationBanSource source)
+        {
+            return record?.bans?.Exists(x => x != null && x.source == source &&
+                string.Equals(x.account, account, StringComparison.Ordinal)) == true;
+        }
+
+        internal static bool HasStationPermission(PlayerStationRecord record, string account,
+            PlayerStationPermission permission)
+        {
+            if (record == null || string.IsNullOrEmpty(account)) return false;
+            bool builder = HasBuilderRights(record, account);
+            if (permission == PlayerStationPermission.Visit)
+            {
+                if (HasBan(record, account, PlayerStationBanSource.OriginalBuilder)) return false;
+                var builderOverride = FindPermissionOverride(record, account, PlayerStationPermission.Visit);
+                if (builderOverride?.builderOverride == true &&
+                    builderOverride.state != PlayerStationPermissionState.Inherit)
+                    return builderOverride.state == PlayerStationPermissionState.Allow;
+                if (HasBan(record, account, PlayerStationBanSource.Faction)) return false;
+            }
+            if (record.ownershipType == PlayerStationOwnershipType.Individual &&
+                string.Equals(record.ownerProfile, account, StringComparison.Ordinal)) return true;
+
+            // The builder's reserved authority is deliberately narrow: visitor control, security,
+            // module construction and appearance. It never grants the faction's treasury or assets.
+            if (builder && (permission == PlayerStationPermission.Visit ||
+                permission == PlayerStationPermission.Security ||
+                permission == PlayerStationPermission.Construction ||
+                permission == PlayerStationPermission.Appearance)) return true;
+
+            var explicitOverride = FindPermissionOverride(record, account, permission);
+            if (explicitOverride != null && !explicitOverride.builderOverride &&
+                explicitOverride.state != PlayerStationPermissionState.Inherit)
+            {
+                if (explicitOverride.state == PlayerStationPermissionState.Deny) return false;
+                string ownerFactionId = StationFactionId(record);
+                var targetFaction = NetFactions.Of(account);
+                if (targetFaction != null && !string.IsNullOrEmpty(ownerFactionId) &&
+                    !string.Equals(targetFaction.id, ownerFactionId, StringComparison.Ordinal)) return false;
+                return true;
+            }
+
+            var faction = NetFactions.Of(account);
+            string stationFactionId = StationFactionId(record);
+            bool sameFaction = faction != null && !string.IsNullOrEmpty(stationFactionId) &&
+                string.Equals(faction.id, stationFactionId, StringComparison.Ordinal);
+            if (faction != null && !string.IsNullOrEmpty(stationFactionId) && !sameFaction) return false;
+            if (sameFaction && string.Equals(faction.leader, account, StringComparison.Ordinal)) return true;
+            if (RoleGrants(record, account, permission)) return true;
+            if (!sameFaction) return false;
+            bool officer = faction.officers?.Contains(account) == true;
+            return ProfilePermission(record.factionPermissions, permission, officer);
+        }
+
+        static bool IsStationAuthority(NetPlayer by, PlayerStationRecord record, out string account)
+        {
+            account = null;
+            if (!IsStationContext(by, record, out account)) return false;
+            if (record.ownershipType == PlayerStationOwnershipType.Individual &&
+                string.Equals(record.ownerProfile, account, StringComparison.Ordinal)) return true;
+            var faction = NetFactions.Of(account);
+            return faction != null && string.Equals(faction.id, record.ownerFactionId, StringComparison.Ordinal) &&
+                (string.Equals(faction.leader, account, StringComparison.Ordinal) ||
+                 HasRole(record, account, PlayerStationRole.StationAdministrator));
+        }
+
+        internal static string SetStationRole(NetPlayer by, int stationId, string target, string roleName)
+        {
+            var record = Find(stationId);
+            if (record == null) return "No player station with that id exists.";
+            if (!IsStationAuthority(by, record, out string account))
+                return "Only the station owner or faction leader may assign station roles.";
+            string targetAccount = NetProfiles.FindAccount((target ?? "").Trim());
+            if (string.IsNullOrEmpty(targetAccount)) return "Supply a valid target account.";
+            string targetFactionId = NetFactions.Of(targetAccount)?.id;
+            string ownerFactionId = StationFactionId(record);
+            if (!string.IsNullOrEmpty(targetFactionId) && !string.IsNullOrEmpty(ownerFactionId) &&
+                !string.Equals(targetFactionId, ownerFactionId, StringComparison.Ordinal))
+                return "Players from an opposing faction cannot be assigned station roles.";
+            roleName = (roleName ?? "").Trim();
+            PlayerStationRole role = PlayerStationRole.StationAdministrator;
+            bool remove = string.Equals(roleName, "none", StringComparison.OrdinalIgnoreCase);
+            if (!remove && !Enum.TryParse(roleName, true, out role))
+                return "Choose StationAdministrator, Quartermaster, ConstructionManager, MarketManager, SecurityOfficer or none.";
+            if (role == PlayerStationRole.StationAdministrator && record.ownershipType == PlayerStationOwnershipType.Faction)
+            {
+                var faction = NetFactions.Of(account);
+                if (faction == null || !string.Equals(faction.leader, account, StringComparison.Ordinal))
+                    return "Only the faction leader can appoint a station administrator.";
+            }
+            record.roleAssignments ??= new List<PlayerStationRoleAssignment>();
+            var previous = record.roleAssignments.Find(x => x != null && string.Equals(x.account, targetAccount, StringComparison.Ordinal));
+            PlayerStationRoleAssignment savedPrevious = previous == null ? null : new PlayerStationRoleAssignment
+            { account = previous.account, role = previous.role, assignedBy = previous.assignedBy, assignedUtc = previous.assignedUtc };
+            int oldHistoryCount = record.history?.Count ?? 0, oldSequence = record.nextHistorySequence;
+            if (previous != null) record.roleAssignments.Remove(previous);
+            if (!remove) record.roleAssignments.Add(new PlayerStationRoleAssignment
+            { account = targetAccount, role = role, assignedBy = account, assignedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+            RecordHistory(record, account, remove ? "station-role-revoked" : "station-role-assigned",
+                targetAccount, remove ? "Station role removed." : "Assigned role " + role + ".");
+            if (Save()) return remove ? "Station role removed from " + targetAccount + "." :
+                "Assigned " + role + " to " + targetAccount + ".";
+            if (previous != null) record.roleAssignments.Add(savedPrevious);
+            if (record.history != null && record.history.Count > oldHistoryCount)
+                record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
+            record.nextHistorySequence = oldSequence;
+            return "The role change could not be saved; the previous assignment remains active.";
+        }
+
+        internal static string SetStationPermission(NetPlayer by, int stationId, string target,
+            string permissionName, string stateName)
+        {
+            var record = Find(stationId);
+            if (record == null) return "No player station with that id exists.";
+            if (!IsStationContext(by, record, out string account))
+                return "Dock at the station using a controlled profile to change permissions.";
+            if (!Enum.TryParse(permissionName, true, out PlayerStationPermission permission))
+                return "Unknown permission. Use visit, storage, hangar, stationOperations, construction, appearance, finance, marketplace or security.";
+            if (!Enum.TryParse(stateName, true, out PlayerStationPermissionState state))
+                return "Choose inherit, allow or deny.";
+            bool builder = HasBuilderRights(record, account);
+            if (builder && permission != PlayerStationPermission.Visit)
+                return "The original builder can only override individual visitor access; other permissions belong to station governance.";
+            if (!builder && !IsStationAuthority(by, record, out _))
+                return "Only the station owner, faction leader or an authorised station administrator may change permissions.";
+            string targetAccount = NetProfiles.FindAccount((target ?? "").Trim());
+            if (string.IsNullOrEmpty(targetAccount)) return "Supply a valid target account.";
+            string targetFactionId = NetFactions.Of(targetAccount)?.id;
+            string ownerFactionId = StationFactionId(record);
+            if (!string.IsNullOrEmpty(targetFactionId) && !string.IsNullOrEmpty(ownerFactionId) &&
+                !string.Equals(targetFactionId, ownerFactionId, StringComparison.Ordinal))
+                return "Players from an opposing faction cannot be granted station permissions.";
+            record.permissionOverrides ??= new List<PlayerStationPermissionOverride>();
+            var previous = FindPermissionOverride(record, targetAccount, permission);
+            PlayerStationPermissionOverride savedPrevious = previous == null ? null : new PlayerStationPermissionOverride
+            { account = previous.account, permission = previous.permission, state = previous.state, setBy = previous.setBy, builderOverride = previous.builderOverride };
+            int oldHistoryCount = record.history?.Count ?? 0, oldSequence = record.nextHistorySequence;
+            if (previous != null) record.permissionOverrides.Remove(previous);
+            if (state != PlayerStationPermissionState.Inherit)
+                record.permissionOverrides.Add(new PlayerStationPermissionOverride
+                { account = targetAccount, permission = permission, state = state, setBy = account, builderOverride = builder });
+            RecordHistory(record, account, "station-permission-changed", targetAccount,
+                permission + " set to " + state + (builder ? " by original builder." : "."));
+            if (Save()) return state == PlayerStationPermissionState.Inherit
+                ? "Permission override removed; the station default now applies."
+                : permission + " permission set to " + state + " for " + targetAccount + ".";
+            if (savedPrevious != null) record.permissionOverrides.Add(savedPrevious);
+            if (record.history != null && record.history.Count > oldHistoryCount)
+                record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
+            record.nextHistorySequence = oldSequence;
+            return "The permission change could not be saved; the previous setting remains active.";
+        }
+
+        internal static string SetFactionPermissionDefault(NetPlayer by, int stationId,
+            string groupName, string permissionName, string stateName)
+        {
+            var record = Find(stationId);
+            if (record == null) return "No player station with that id exists.";
+            if (!IsStationAuthority(by, record, out string account))
+                return "Only the station owner or faction leader may change faction permission defaults.";
+            if (!Enum.TryParse(permissionName, true, out PlayerStationPermission permission))
+                return "Unknown permission.";
+            if (!Enum.TryParse(stateName, true, out PlayerStationPermissionState state) ||
+                state == PlayerStationPermissionState.Inherit)
+                return "Choose allow or deny for a faction default.";
+            bool officer = string.Equals((groupName ?? "").Trim(), "officer", StringComparison.OrdinalIgnoreCase);
+            if (!officer && !string.Equals((groupName ?? "").Trim(), "member", StringComparison.OrdinalIgnoreCase))
+                return "Choose member or officer.";
+            string field = (officer ? "officer" : "") + permission.ToString();
+            var profile = record.factionPermissions ?? (record.factionPermissions = new PlayerStationFactionPermissionProfile());
+            bool old;
+            switch (field)
+            {
+                case "Visit": old = profile.visit; profile.visit = state == PlayerStationPermissionState.Allow; break;
+                case "Storage": old = profile.storage; profile.storage = state == PlayerStationPermissionState.Allow; break;
+                case "Hangar": old = profile.hangar; profile.hangar = state == PlayerStationPermissionState.Allow; break;
+                case "StationOperations": old = profile.stationOperations; profile.stationOperations = state == PlayerStationPermissionState.Allow; break;
+                case "Construction": old = profile.construction; profile.construction = state == PlayerStationPermissionState.Allow; break;
+                case "Appearance": old = profile.appearance; profile.appearance = state == PlayerStationPermissionState.Allow; break;
+                case "Finance": old = profile.finance; profile.finance = state == PlayerStationPermissionState.Allow; break;
+                case "Marketplace": old = profile.marketplace; profile.marketplace = state == PlayerStationPermissionState.Allow; break;
+                case "Security": old = profile.security; profile.security = state == PlayerStationPermissionState.Allow; break;
+                case "officerVisit": old = profile.officerVisit; profile.officerVisit = state == PlayerStationPermissionState.Allow; break;
+                case "officerStorage": old = profile.officerStorage; profile.officerStorage = state == PlayerStationPermissionState.Allow; break;
+                case "officerHangar": old = profile.officerHangar; profile.officerHangar = state == PlayerStationPermissionState.Allow; break;
+                case "officerStationOperations": old = profile.officerStationOperations; profile.officerStationOperations = state == PlayerStationPermissionState.Allow; break;
+                case "officerConstruction": old = profile.officerConstruction; profile.officerConstruction = state == PlayerStationPermissionState.Allow; break;
+                case "officerAppearance": old = profile.officerAppearance; profile.officerAppearance = state == PlayerStationPermissionState.Allow; break;
+                case "officerFinance": old = profile.officerFinance; profile.officerFinance = state == PlayerStationPermissionState.Allow; break;
+                case "officerMarketplace": old = profile.officerMarketplace; profile.officerMarketplace = state == PlayerStationPermissionState.Allow; break;
+                case "officerSecurity": old = profile.officerSecurity; profile.officerSecurity = state == PlayerStationPermissionState.Allow; break;
+                default: return "That permission cannot be configured.";
+            }
+            int oldHistoryCount = record.history?.Count ?? 0, oldSequence = record.nextHistorySequence;
+            RecordHistory(record, account, "faction-permission-default-changed", null,
+                field + " default set to " + state + ".");
+            if (Save()) return field + " default set to " + state + ".";
+            switch (field)
+            {
+                case "Visit": profile.visit = old; break;
+                case "Storage": profile.storage = old; break;
+                case "Hangar": profile.hangar = old; break;
+                case "StationOperations": profile.stationOperations = old; break;
+                case "Construction": profile.construction = old; break;
+                case "Appearance": profile.appearance = old; break;
+                case "Finance": profile.finance = old; break;
+                case "Marketplace": profile.marketplace = old; break;
+                case "Security": profile.security = old; break;
+                case "officerVisit": profile.officerVisit = old; break;
+                case "officerStorage": profile.officerStorage = old; break;
+                case "officerHangar": profile.officerHangar = old; break;
+                case "officerStationOperations": profile.officerStationOperations = old; break;
+                case "officerConstruction": profile.officerConstruction = old; break;
+                case "officerAppearance": profile.officerAppearance = old; break;
+                case "officerFinance": profile.officerFinance = old; break;
+                case "officerMarketplace": profile.officerMarketplace = old; break;
+                case "officerSecurity": profile.officerSecurity = old; break;
+            }
+            if (record.history != null && record.history.Count > oldHistoryCount)
+                record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
+            record.nextHistorySequence = oldSequence;
+            return "The faction default could not be saved; the previous setting remains active.";
+        }
+
+        internal static string SetStationBan(NetPlayer by, int stationId, string target,
+            string reason, bool ban)
+        {
+            var record = Find(stationId);
+            if (record == null) return "No player station with that id exists.";
+            if (!IsStationContext(by, record, out string account))
+                return "Dock at the station using a controlled profile to manage visitor bans.";
+            bool builder = HasBuilderRights(record, account);
+            if (!builder && !IsStationAuthority(by, record, out _))
+                return "Only the original builder or faction security authority may manage station bans.";
+            string targetAccount = NetProfiles.FindAccount((target ?? "").Trim());
+            if (string.IsNullOrEmpty(targetAccount)) return "Supply a valid target account.";
+            if (string.Equals(targetAccount, account, StringComparison.Ordinal))
+                return "You cannot ban yourself from the station.";
+            record.bans ??= new List<PlayerStationBan>();
+            var source = builder ? PlayerStationBanSource.OriginalBuilder : PlayerStationBanSource.Faction;
+            var existing = record.bans.Find(x => x != null && string.Equals(x.account, targetAccount, StringComparison.Ordinal) && x.source == source);
+            if (ban)
+            {
+                if (existing != null) return "That player is already banned by this authority.";
+                record.bans.Add(new PlayerStationBan
+                { account = targetAccount, source = source, imposedBy = account, reason = (reason ?? "").Trim(),
+                    createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+            }
+            else
+            {
+                if (existing == null)
+                {
+                    if (!builder && HasBan(record, targetAccount, PlayerStationBanSource.OriginalBuilder))
+                        return "The original builder imposed that ban and only they can lift it.";
+                    return "No ban imposed by your authority exists for that player.";
+                }
+                record.bans.Remove(existing);
+            }
+            int oldHistoryCount = record.history?.Count ?? 0, oldSequence = record.nextHistorySequence;
+            RecordHistory(record, account, ban ? "visitor-banned" : "visitor-unbanned", targetAccount,
+                (builder ? "Original builder" : "Faction authority") + (ban ? " imposed" : " lifted") +
+                " the station ban." + (string.IsNullOrEmpty(reason) ? "" : " Reason: " + reason.Trim()));
+            if (Save()) return ban ? "Station ban applied to " + targetAccount + "." : "Station ban lifted for " + targetAccount + ".";
+            if (ban) record.bans.RemoveAll(x => x != null && x.source == source && string.Equals(x.account, targetAccount, StringComparison.Ordinal));
+            else record.bans.Add(existing);
+            if (record.history != null && record.history.Count > oldHistoryCount)
+                record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
+            record.nextHistorySequence = oldSequence;
+            return "The ban change could not be saved; the previous ban state remains active.";
         }
 
         static bool OriginalBuilderInSession(PlayerStationRecord record)
