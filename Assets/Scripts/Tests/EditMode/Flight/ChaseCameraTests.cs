@@ -128,5 +128,23 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(F, FreeLookCamera.NextMode(T, C, false, true));
             Assert.AreEqual(S, FreeLookCamera.NextMode(F, C, false, true));
         }
+
+        // 2026-11-16 (the user's report): the Mod Builder's chase camera changed nothing on a ship over 150 m across, whose
+        // camera PlayerHull fitted to the hull instead.
+        [Test]
+        public void ABigHullKeepsItsOwnCamera()
+        {
+            var hull = new Bounds(new Vector3(0f, 10f, 40f), new Vector3(200f, 80f, 600f));   // the middle 40 m ahead of the pivot
+            var fitted = new GoF2Remake.Data.ShipData();
+            GoF2Remake.World.PlayerHull.BigHullOffsets(hull, 1f, fitted, out var offset, out var look);
+            Assert.AreEqual(new Vector3(0f, 40f * 1.6f, -300f * 1.25f), offset, "no camera of its own: fitted to the hull");
+            Assert.AreEqual(new Vector3(0f, 40f * 1.1f, 30f), look);
+
+            var own = new GoF2Remake.Data.ShipData { chaseCamera = new[] { 9000f, 1500f, 1200f, 2000f } };
+            GoF2Remake.World.PlayerHull.BigHullOffsets(hull, 1f, own, out offset, out look);
+            // the model moved back by the middle, so the camera moves with it: where the modder put it against the hull
+            Assert.AreEqual(new Vector3(0f, 75f, -450f) - hull.center, offset);
+            Assert.AreEqual(new Vector3(0f, 60f, 100f) - hull.center, look);
+        }
     }
 }

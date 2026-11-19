@@ -116,7 +116,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `ModHullLightingTests`.
 - **How a ship is seen** (`ModShipView`, 2026-10-24; GoF3's ship files): ships.json `"camera"` { distance, height,
   lookHeight, lookAhead } game units (`ShipData.chaseCamera`; `ModShipView.CameraOffsets` in `SpaceLevel`'s camera
-  set-up and `PlayerHull.FitCamera`'s ordinary path, the original's 1338 / 600 / 600 / -650 for a field left out),
+  set-up and `PlayerHull.FitCamera`, the original's 1338 / 600 / 600 / -650 for a field left out; a hull over 150 m
+  across keeps it too, shifted with its centred model, `PlayerHull.BigHullOffsets`: it was fitted to the hull before,
+  so the builder's values changed nothing there, the user's report 2026-11-16; free flight's EVERSPACE 2 camera takes
+  only distance and height, it looks along the ship),
   `"cockpit"` [x, y, z] (`ShipData.cockpit`, mount axes; `ChaseCamera.FirstPersonSeat` takes it, still behind the
   frontmost primary, not for the debug Big hulls), `"smoke"` up to 4 points (`ShipData.smokePoints`; `ShipSmoke` makes a
   smoke / fire pair at each, the rate and pool shared, the fire on the point) and `"explosionScale"` 0.25..20

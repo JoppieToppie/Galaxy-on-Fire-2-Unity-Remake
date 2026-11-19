@@ -87,12 +87,14 @@ namespace GoF2Remake.World
             }
         }
 
-        /// <summary>The mods changed: their ships are other ones now, so the list and its tables are made again.</summary>
+        /// <summary>The mods changed: their ships are other ones now, so the list and its tables are made again (and their
+        /// sizes: a Mod Builder model scaled past BigRadius, or a mod's ship under another number).</summary>
         static void CheckMods()
         {
             if (hullsRevision == Modding.ModManager.Revision) return;
             hulls = null;
             hullsDb = null;
+            bigCache.Clear();
             hullsRevision = Modding.ModManager.Revision;
         }
 
@@ -376,8 +378,9 @@ namespace GoF2Remake.World
 
         /// <summary>The player's model and chase camera for the hull flown: a big hull's model is shifted so the ship turns
         /// around its middle (the battleship's pivot is at its bow), the camera sits just behind the stern and above the
-        /// deck, and the far plane reaches past the bow; any other ship gets the original's offsets (TargetFollowCamera:
-        /// (0, 600, -1338) / (0, 600, -650) units, or a mod ship's own "camera", ModShipView) and the level's far plane.</summary>
+        /// deck (BigHullOffsets), and the far plane reaches past the bow; any other ship gets the original's offsets
+        /// (TargetFollowCamera: (0, 600, -1338) / (0, 600, -650) units, or a mod ship's own "camera", ModShipView) and the
+        /// level's far plane.</summary>
         public static void FitCamera(Transform root, Transform model, ChaseCamera chase, float levelFarClip)
         {
             var cam = chase != null ? chase.GetComponent<Camera>() : null;
@@ -390,10 +393,29 @@ namespace GoF2Remake.World
             var b = LocalBounds(root, model);
             model.localPosition -= b.center;   // the hull's middle on the pivot
             if (chase == null) return;
-            float halfLength = b.extents.z, halfHeight = b.extents.y * (Current(Db)?.cameraHeight ?? 1f);
-            chase.offset = new Vector3(0f, halfHeight * 1.6f, -halfLength * 1.25f);
-            chase.lookOffset = new Vector3(0f, halfHeight * 1.1f, halfLength * 0.1f);
+            var h = Current(Db);
+            // A mod ship's own "camera" belongs to its own model (not to a debug pick of another hull flying its stats).
+            var own = h != null && h.own ? Database.Shared.Ship(Session.ShipIndex) : null;
+            BigHullOffsets(b, h?.cameraHeight ?? 1f, own, out chase.offset, out chase.lookOffset);
             if (cam != null) cam.farClipPlane = Mathf.Max(levelFarClip, chase.offset.magnitude + b.extents.magnitude * 2f + 2000f);
+        }
+
+        /// <summary>A big hull's chase offsets (metres, the root's frame) once its middle, 'hull'.center, is on the pivot: the
+        /// ship's own "camera" (ModShipView; a mod's big ship: the user's report 2026-11-16, the Mod Builder's chase camera
+        /// changed nothing on a hull over 150 m across) moved with the model so it stays where the modder put it against
+        /// the hull, else just behind the stern and above the deck (its height x 'cameraHeight').</summary>
+        public static void BigHullOffsets(Bounds hull, float cameraHeight, ShipData ship, out Vector3 offset, out Vector3 lookOffset)
+        {
+            if (ship?.chaseCamera != null)
+            {
+                Modding.ModShipView.CameraOffsets(ship, M, out offset, out lookOffset);
+                offset -= hull.center;
+                lookOffset -= hull.center;
+                return;
+            }
+            float halfLength = hull.extents.z, halfHeight = hull.extents.y * cameraHeight;
+            offset = new Vector3(0f, halfHeight * 1.6f, -halfLength * 1.25f);
+            lookOffset = new Vector3(0f, halfHeight * 1.1f, halfLength * 0.1f);
         }
 
         /// <summary>The hangar's turntable: a big hull shrunk to a large ship's size so the hangar camera sees it.</summary>
