@@ -102,10 +102,10 @@ namespace GoF2Remake.UI
         void RebuildStationList()
         {
             stationList.Clear();
-            var records = NetPlayerStations.Stations?.Where(x => x != null).OrderBy(x => x.id).ToList();
+            // Management is contextual, not a world directory: only expose the player station at the location\n            // where this management screen is open. The server still enforces owner/faction permissions per command.\n            int currentStation = level?.Layout != null ? level.Layout.stationIndex : -1;\n            var records = NetPlayerStations.Stations?.Where(x => x != null && x.stationIndex == currentStation).OrderBy(x => x.id).ToList();
             if (records == null || records.Count == 0)
             {
-                stationList.Add(new Label("No player-built stations exist in this world yet."));
+                stationList.Add(new Label("No player-built station is available to manage at this location."));
                 selected = null;
                 return;
             }
@@ -151,7 +151,7 @@ namespace GoF2Remake.UI
                 AddAction("Show dry-dock status", "/station drydock " + selected.id);
             }
 
-            AddSection("BUILD A STATION", "Start a persistent project in an available system. Planning can be done while connected; deposits are made while docked at any station.");
+            AddSection("BUILD A STATION", "Start a private construction project by entering a known system index. Deposits are made while docked at any station.");
             AddField("system", "System index", "0");
             AddField("name", "New station name", "Frontier Outpost");
             AddAction("Start station project", () => Send("/station start " + Value("system") + " " + Value("name")));
