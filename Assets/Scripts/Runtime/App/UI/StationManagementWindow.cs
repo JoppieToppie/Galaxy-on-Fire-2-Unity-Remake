@@ -104,10 +104,10 @@ namespace GoF2Remake.UI
             stationList.Clear();
             // Management is contextual, not a world directory: only expose the player station at the location
             // where this management screen is open. The server still enforces owner/faction permissions per command.
-            int currentStation = level?.Layout != null ? level.Layout.stationIndex : -1;\n            var records = NetPlayerStations.Stations?.Where(x => x != null && x.stationIndex == currentStation).OrderBy(x => x.id).ToList();
+            int currentStation = level?.Layout != null ? level.Layout.stationIndex : -1;\n            var records = NetPlayerStations.Stations?.Where(x => x != null && x.stationIndex == currentStation && NetPlayerStations.CanViewManagement(x)).OrderBy(x => x.id).ToList();
             if (records == null || records.Count == 0)
             {
-                stationList.Add(new Label("No player-built station is available to manage at this location."));
+                stationList.Add(new Label("No station you are authorised to manage is available at this location."));
                 selected = null;
                 return;
             }
