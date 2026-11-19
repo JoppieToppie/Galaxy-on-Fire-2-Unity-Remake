@@ -253,6 +253,15 @@ namespace GoF2Remake.Multiplayer
         internal static bool IsPlayerStation(int stationIndex) =>
             sessionActive && registry?.stations?.Exists(s => s != null && s.stationIndex == stationIndex) == true;
 
+        /// <summary>Whether an existing station index belongs to a completed player station with an installed dry dock.</summary>
+        internal static bool HasDryDockAtStation(int stationIndex)
+        {
+            if (!sessionActive || registry?.stations == null) return false;
+            var station = registry.stations.Find(s => s != null && s.stationIndex == stationIndex);
+            return station != null && !station.underConstruction &&
+                (station.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false);
+        }
+
         internal static bool UnderConstruction(int stationIndex) =>
             registry?.stations?.Find(s => s != null && s.stationIndex == stationIndex)?.underConstruction == true;
 
