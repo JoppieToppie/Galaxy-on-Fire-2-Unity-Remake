@@ -254,6 +254,7 @@ namespace GoF2Remake.World
             Session.ShipIndex = shipIndex;
             var prefab = AssembledObject.LoadPrefab(PlayerHull.Assembly(db, shipIndex));
             if (prefab == null) { Session.ShipIndex = before; return; }
+            FreeLook?.SetDefaultOrbitDistance(Modding.ModShipView.OrbitDistance(db.Ship(shipIndex)));
             Hangar.SyncBuiltIn(db);   // the new hull's built-in items, the old one's gone
             var root = ctrl.gameObject;
             PlayerHull.RemoveTurrets(this);   // before the old model goes (they ride on it)
@@ -423,7 +424,7 @@ namespace GoF2Remake.World
             turrets.AddRange(PlayerTurret.AttachAll(root, db, Session.ShipIndex, Session.Equipment, chase));
             hardpoints = Modding.ModHardpoints.AttachWeapons(db, Session.ShipIndex, Session.Equipment, ctrl.visualModel);   // a kit ship's weapon models
             // MGame::switchCamera: the camera button's modes (standard / turret / free look).
-            FreeLook = FreeLookCamera.Attach(root, chase, Turret);
+            FreeLook = FreeLookCamera.Attach(root, chase, Turret, Modding.ModShipView.OrbitDistance(db.Ship(Session.ShipIndex)));
             // Level::createGasClouds: the Supernova plasma clouds (a spectral filter mounted).
             if (!Layout.interstellar) GasClouds = GasCloudField.Spawn(db, Layout, ctrl, Turret);
             if (!Layout.interstellar && !Layout.alienOrbit) WreckField.Spawn(db, Layout);   // remake mods: the orbit's wreck field

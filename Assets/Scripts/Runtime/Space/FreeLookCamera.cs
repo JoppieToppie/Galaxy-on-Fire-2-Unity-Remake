@@ -41,7 +41,9 @@ namespace GoF2Remake.Flight
 {
     public class FreeLookCamera : MonoBehaviour
     {
-        const float M = 0.05f, FrameMs = OriginalFrame.Ms, MinDistance = 1500f, MaxDistance = 20000f;
+        const float M = 0.05f, FrameMs = OriginalFrame.Ms, MinDistance = 1500f;
+        /// <summary>Modder hook: maximum free-look orbit distance in world units.</summary>
+        public static float MaxOrbitDistance = 70000f;
         public enum Mode { Standard = 0, Turret = 1, FirstPerson = 2, FreeLook = 3 }
         const string CockpitPref = "flight_camera_cockpit";
 
@@ -84,11 +86,19 @@ namespace GoF2Remake.Flight
         bool leftDrag;   // Modified: docked at an object, the left button held from off the HUD orbits the camera
 
         /// <summary>'turret' is unused since the turrets are looked up on the player (PlayerTurret.On); kept for the callers.</summary>
-        public static FreeLookCamera Attach(GameObject player, ChaseCamera chase, PlayerTurret turret = null)
+        public static FreeLookCamera Attach(GameObject player, ChaseCamera chase, PlayerTurret turret = null, float defaultOrbitDistance = 3800f)
         {
             var f = player.AddComponent<FreeLookCamera>();
             f.chase = chase;
+            f.SetDefaultOrbitDistance(defaultOrbitDistance);
             return f;
+        }
+
+        /// <summary>Sets the ship's default free-look orbit radius (game units), clamped to the existing zoom range.</summary>
+        public void SetDefaultOrbitDistance(float gameUnits)
+        {
+            distance = Mathf.Clamp(gameUnits, MinDistance, Mathf.Max(MinDistance, MaxOrbitDistance));
+            if (Current == Mode.FreeLook) Place();
         }
 
         /// <summary>The ship's manual turrets (and plasma collectors), in mount order: the ones with a turret view. Looked up
@@ -338,7 +348,7 @@ namespace GoF2Remake.Flight
             float pitch = Mathf.Asin(Mathf.Clamp(-u.y, -1f, 1f)), yaw = Mathf.Atan2(u.x, u.z);
             x = yaw / 0.005f;
             y = Mathf.Clamp(-pitch / 0.005f, -200f, 200f);
-            d = Mathf.Clamp(len / M, MinDistance, MaxDistance);
+            d = Mathf.Clamp(len / M, MinDistance, Mathf.Max(MinDistance, MaxOrbitDistance));
             return true;
         }
 
@@ -350,7 +360,7 @@ namespace GoF2Remake.Flight
         void EnterFreeLook()
         {
             px = 0f; py = 0f; fling = Vector2.zero; wheel = 0f;
-            distance = Mathf.Clamp(distance, MinDistance, MaxDistance);
+            distance = Mathf.Clamp(distance, MinDistance, Mathf.Max(MinDistance, MaxOrbitDistance));
             es2Look = chase != null && chase.Es2Mode && !DockingHoldsCamera && (DockedView == null || !DockedView());
             if (es2Look)
             {
@@ -555,7 +565,7 @@ namespace GoF2Remake.Flight
             }
             px += delta.x;
             py = Mathf.Clamp(py + delta.y, -200f, 200f);
-            distance = Mathf.Clamp(distance, MinDistance, MaxDistance);
+            distance = Mathf.Clamp(distance, MinDistance, Mathf.Max(MinDistance, MaxOrbitDistance));
             Place();
         }
 
