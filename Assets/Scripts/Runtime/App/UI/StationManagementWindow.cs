@@ -230,6 +230,17 @@ namespace GoF2Remake.UI
             AddField("buyAmount", "Purchase amount", "1");
             AddAction("Buy listing", () => Send("/station buy " + id + " " + Value("listingIndex") + " " + Value("buyAmount")));
             AddAction("Cancel your listing", () => Send("/station delist " + id + " " + Value("listingIndex")));
+            AddSection("CONSTRUCTION PROCUREMENT", "Buy orders reserve credits from the individual station owner's balance or the faction treasury. Other pilots can sell the requested materials directly into the project; sellers are paid from escrow, not also given a contribution reward.");
+            AddField("buyOrderItem", "Required material item ID", "156");
+            AddField("buyOrderAmount", "Units to buy (1–500)", "10");
+            AddField("buyOrderPrice", "Offer per unit (credits)", "100");
+            AddAction("Create construction buy order", () => Send("/station buy-order " + id + " " + Value("buyOrderItem") + " " + Value("buyOrderAmount") + " " + Value("buyOrderPrice")));
+            AddField("sellOrderIndex", "Construction order index", "0");
+            AddField("sellOrderAmount", "Units to sell", "1");
+            AddAction("Sell materials into construction order", () => Send("/station sell-order " + id + " " + Value("sellOrderIndex") + " " + Value("sellOrderAmount")));
+            AddField("cancelOrderIndex", "Construction order index", "0");
+            AddAction("Cancel construction buy order", () => Send("/station cancel-order " + id + " " + Value("cancelOrderIndex")));
+
 
         }
 
