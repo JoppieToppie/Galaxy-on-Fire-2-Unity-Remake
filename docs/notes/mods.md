@@ -776,7 +776,8 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   method that isn't behind a delegate (no runtime patching under IL2CPP), defining C# classes, anything before the main
   menu. Verified: `ModScriptMoreTests` (13; 37 with `ModScriptTests`). Not yet: the message RPCs in a real session,
   `game.sound`, a `LuaBehaviour`'s physics messages, the new game events in play.
-- **Mod browser** (`ModBrowser`, the main menu's Mods button and `modsPanel`; styles `.mods-*` in MainMenu.uss): the list in
+- **Mod browser** (`ModBrowser`, the main menu's Mods button and `modsPanel`; styles `.mods-*` in MainMenu.uss; its Online
+  tab: "Mod catalog" below): the Installed tab's list in
   load order (thumbnail, name, version · author, On / Off / Error / Can't load), a click or keyboard / controller focus
   selecting a row (the mouse's hover focus doesn't: passing over the rows on the way to Turn on changed the mod it acted
   on), the selected mod's preview, name, meta,
@@ -806,6 +807,41 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   warning: runtime Ogg Vorbis works on iOS; the textures cached as ETC2, the simulator offers no DXT) and its Sentinel
   flown; the browser names the folder as the Files app shows it on iOS (`ModBrowser.Shown`: "Files › On My iPhone › GoF2
   Remake › Mods", not the sandbox path); not yet run on an Android phone, Linux, macOS or UWP.
+- **Mod catalog** (2026-11-19, Discord "Mod browser browsing": players wanted to browse and download mods in the game with
+  pictures and descriptions; ModDB has no API, MediaFire and free Nexus accounts give no direct links, so the catalog is
+  our own on GitHub): the repository **github.com/JoppieToppie/gof2r-mods** (local clone `D:\Projects\gof2r-mods`, its
+  README the authors' guide). A mod is one file, `submissions/<id>.json`: `owner` (GitHub login) and either `download`
+  (a direct https link to the zip; an update is a pull request changing it) or `github` ("user/repo", optional `asset`:
+  the newest release's `<id>.zip` / only .zip, polled hourly, so an author's new release is an update with no pull
+  request). Workflows (`tools/catalog.py`, its tests `tools/test_catalog.py`): **Check submission** (pull requests: only
+  `submissions/*.json` unless a maintainer, `CATALOG_MAINTAINERS`; a submission changed only by its owner; a followed repo
+  must be the owner's; the zip downloaded and checked as `ZipSource` reads it: mod.json at the root or in one top folder,
+  a valid id = the file name, no `..` / absolute paths, no executables (.exe .dll .sh .js .py ...), at most 1 GB / 4 GB
+  unpacked / 20000 files; the same version with other files or a lower version refused), **Publish** (merge, hourly,
+  manual with "force": the zip released here as tag `<id>-v<version>` with `<id>.zip`, `<id>-preview.jpg` 1280x720 and
+  `<id>-thumb.jpg` 320x180 cropped 16:9 like the browser, a card with the name when there's no preview; `catalog.json`
+  written; a followed repo's refused release kept under `rejected` so the hourly run doesn't fail on it again), **Stats**
+  (every 3 h: per mod the summed download counts of its release assets, `<id>.zip` = downloads, `<id>-preview.jpg` =
+  views). The four example mods were published from the `sources` pre-release. The game (`ModCatalog`, GoF2.Game):
+  catalog.json from raw.githubusercontent.com (once per run, the Mods panel's Open; Refresh adds a `?t=` past its 5-minute
+  cache), no GitHub API (no rate limit); entries without a valid id / version / SHA-256 / size or with a download outside
+  `ReleasePrefix` (this repo's releases) dropped, images from elsewhere too; `format` above 1 refused ("update the game").
+  Images: at most 4 at once, kept for the run (a preview fetched once per run and mod = one view). Downloads: one at a
+  time into temporaryCachePath/ModDownload (`DownloadHandlerFile`, no timeout, Cancel aborts), then size + SHA-256 on a
+  worker thread, then the browser's `ModImport.Inspect` (id must be the catalog's) and `Install` (new = off; an update
+  keeps on / off and the load order). The browser (`ModBrowserOnline`, the panel's Installed / Online tabs beside the
+  title, `.mods-tabs`): search (name, author, id, description), sort (most downloaded, newest, most viewed, name), rows
+  with thumbnail, name, version · author, views · downloads (`.mods-row-stats`), a badge (Installed / On / Update in
+  amber `.mods-badge--update` / the download's %); the details: preview (`.mods-panel--online .mods-preview` 44%: a
+  fixed 300 px squeezed the description out at 720p), version · by author · id · website, views · downloads · size ·
+  updated, installed state, needs (installed / installed with it / not installed), the script warning; Install /
+  Update to vX (missing dependencies the catalog has: asked, then installed first, `ModCatalog.Needed`), Turn on / off,
+  Cancel; the progress line `.mods-progress`; the controller's X installs. The Installed tab: "Update: vX" in the row and
+  an Update to vX button (`ModCatalog.UpdateFor`). Verified in Play mode (2026-11-19): the catalog's four mods listed with
+  thumbnails and previews, Pirate Bounty installed from it (Mods/pirate_bounty.zip, off, the row "Installed" and Turn on);
+  `ModCatalogTests` (7); the Stats run counted those views and the download (GitHub's counts lag a few minutes, and
+  each new asset started at 1 before anyone fetched it). Not yet: an update of a real newer version, Cancel, the
+  dependency question, a followed repository's release, a phone.
 - **Mods folder (Android)** (2026-11-12, a player's request: Android/data is out of the file managers' reach): the browser's
   footer "Mods folder" picks a folder through `SaveFolderPicker` (the SAF tree picker, a persistable grant; one in use asks
   to stop using it instead), kept as `ModManager.PickedFolder` (PlayerPrefs `mods_folder`). Mods can't load from a tree

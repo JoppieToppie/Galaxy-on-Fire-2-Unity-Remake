@@ -150,6 +150,14 @@ plasma_arsenal.zip            plasma_arsenal.zip
                                  └─ items.json
 ```
 
+### The in-game mod catalog
+
+Players browse and install shared mods in the game (**Mods > Mod Browser > Online**), with each mod's preview,
+description, author, views and downloads. To list yours, add one small file to
+[gof2r-mods](https://github.com/JoppieToppie/gof2r-mods) by pull request; its README explains it. The easiest way is to
+point the file at your own GitHub repository. Then every new release there, with a higher `version` in `mod.json`,
+reaches players as an update within the hour, with no further pull request.
+
 ## mod.json
 
 Every mod needs a `mod.json` at its top level:

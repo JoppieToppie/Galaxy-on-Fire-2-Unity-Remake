@@ -796,6 +796,74 @@
     white-space: nowrap;
 }
 
+/* The Installed / Online tabs (ModBrowserOnline, 2026-11-19): the shared tab look (.tab-row / .tab-button), in the title
+   row beside the title */
+.mods-tabs {
+    margin: 0 0 0 var(--space-xl);
+    border-bottom-width: 0;
+    flex-wrap: nowrap;
+}
+
+.mods-tabs > .tab-button {
+    padding: 6px 14px;
+    font-size: var(--text-small);
+}
+
+/* Online: the search field and the sort button above the list */
+.mods-online-bar {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-bottom: var(--space-s);
+}
+
+.mods-search {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0 8px 0 0;
+}
+
+.mods-online-bar > .mods-sort {
+    flex-shrink: 0;
+    margin: 0;
+    font-size: var(--text-caption);
+    white-space: nowrap;
+}
+
+/* A catalog mod's views and downloads under its version and author */
+.mods-row-stats {
+    color: rgba(62, 200, 255, 0.75);
+}
+
+/* A newer version is in the catalog: amber, the update colour */
+.mods-badge--update {
+    color: #04121c;
+    background-color: var(--gof-amber);
+    border-color: var(--gof-amber);
+}
+
+.mods-update {
+    border-color: var(--gof-amber);
+}
+
+/* Online: the picture gives way to the description and the notes (installed / scripts / needs), which say what Install
+   does; a fixed 300 px squeezed them out at 720p */
+.mods-panel--online .mods-preview {
+    height: 44%;
+    min-height: 0;
+}
+
+/* What is downloading, above the buttons */
+.mods-progress {
+    display: none;
+    flex-shrink: 0;
+    margin-top: var(--space-s);
+    font-size: var(--text-small);
+    color: var(--gof-amber);
+    white-space: normal;
+}
+
 /* ---- Mod Builder projects (remake, ModBuilderProjects) ---------------------------------- */
 
 .mb-new-row {
