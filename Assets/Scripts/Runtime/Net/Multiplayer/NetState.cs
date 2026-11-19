@@ -67,6 +67,7 @@ namespace GoF2Remake.Multiplayer
         const int PlayerStationChunkBytes = 2800, MaxPlayerStationChunks = 1024;
         readonly NetworkList<FixedString4096Bytes> playerStationChunks = new NetworkList<FixedString4096Bytes>(null, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         int playerStationRevision;
+        string playerStationJson = "";
         readonly NetworkVariable<FixedString4096Bytes> sieges = new NetworkVariable<FixedString4096Bytes>();   // NetFactions' sieges
         readonly NetworkVariable<FixedString4096Bytes> pirateBoard = new NetworkVariable<FixedString4096Bytes>();   // PirateReports' board (JSON)
         readonly NetworkVariable<int> toll = new NetworkVariable<int>();   // NetFactions.Toll
@@ -150,6 +151,9 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The factions' claimed stations, "station|TAG|Name|VAT %" per line (NetFactions, NetFactionsClient).</summary>
         public string Claims => claims.Value.ToString();
 
+        /// <summary>The latest complete player-station registry snapshot.</summary>
+        public string PlayerStations => playerStationJson;
+
         /// <summary>Publish a versioned, chunked player-station snapshot. The registry is UTF-8 encoded before splitting so
         /// a multi-byte character may safely cross a chunk boundary; base64 keeps each network entry independently valid.</summary>
         internal bool PublishPlayerStations(string json)
@@ -175,7 +179,6 @@ namespace GoF2Remake.Multiplayer
                 string entry = $"{playerStationRevision}:{index}:{count}:{payload}";
                 playerStationChunks.Add(new FixedString4096Bytes(entry));
             }
-            TryApplyPlayerStationSnapshot();
             return true;
         }
 
@@ -209,7 +212,8 @@ namespace GoF2Remake.Multiplayer
             try
             {
                 byte[] snapshot = Convert.FromBase64String(joined.ToString());
-                NetPlayerStations.ReceiveSnapshot(Encoding.UTF8.GetString(snapshot));
+                playerStationJson = Encoding.UTF8.GetString(snapshot);
+                NetPlayerStations.ReceiveSnapshot(playerStationJson);
             }
             catch (Exception e)
             {
@@ -320,6 +324,7 @@ namespace GoF2Remake.Multiplayer
         public override void OnNetworkDespawn()
         {
             if (Instance == this) Instance = null;
+            playerStationJson = "";
             NetPlayerStations.EndSession();
         }
 
