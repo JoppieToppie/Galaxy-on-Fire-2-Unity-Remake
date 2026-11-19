@@ -106,6 +106,9 @@ namespace GoF2Remake.World
         public static Func<IEnumerable<IOrbitProxy>> ProxiesProvider;
         public static Func<IEnumerable<IOrbitCrate>> CratesProvider;
         public static Func<ISharedOrbit> SharedOrbitProvider;
+        /// <summary>Point defense shot down another game's mirrored shot (source object, shot id): ask the server to cancel it
+        /// (NetPlayer.InterceptMirrorShot), so the shot's later hit counts for nothing.</summary>
+        public static Action<ulong, uint> InterceptMirrorShot;
 
         /// <summary>The players' games in the session (this one's included); none outside one.</summary>
         public static IEnumerable<IOrbitPeer> Peers => PeersProvider != null ? PeersProvider() : Array.Empty<IOrbitPeer>();

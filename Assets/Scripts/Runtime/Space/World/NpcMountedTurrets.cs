@@ -89,7 +89,7 @@ namespace GoF2Remake.World
                     target = t.picking.Update(dtMs, enemies, ship.transform.position);
                     if (target != null && !target.cloaked)
                     {
-                        bool aligned = core.StepToward(TurretTargeting.LeadPoint(target), dtMs);
+                        bool aligned = core.StepToward(t.picking.LeadPoint(target, core.GunPosition, core.Gun.speedUnitsPerMs, core.Gun.lifetimeMs), dtMs);
                         if (core.Aim.LimitHit) t.picking.LimitHit(dtMs);
                         else if (aligned && core.Fire() >= 0) Sfx.PlayAt(t.shot, core.GunPosition, 0.6f);
                         else if (aligned && core.Blocked) t.picking.LimitHit(dtMs);   // its own hull in the way: another target

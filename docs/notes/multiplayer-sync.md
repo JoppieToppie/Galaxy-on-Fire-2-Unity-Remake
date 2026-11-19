@@ -92,9 +92,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 - **Shots** (every gun, the turret, rockets / missiles / bombs / mines / beams): `Gun.Fired` / `Gun.Ignited` ->
   `NetShotSender` (a NetProxy's owner, the owner's NetPlayer) -> an RPC to the server and from it to the players in that
   orbit only (`NetInterest.OrbitGroup`; shots unreliable, blasts reliable), sent once, when fired: every game flies its
-  own copy (`NetShotData`: about 27 bytes, the parameters were 56) -> `NetShotMirror` (only where the shooter is shown): a Gun per weapon item with its GunRig and shot sound, the bullet
+  own copy (`NetShotData`: about 29 bytes, the parameters were 56) -> `NetShotMirror` (only where the shooter is shown): a Gun per weapon item with its GunRig and shot sound and a compact shot id, the bullet
   injected at the sender's pose and life left (`Gun.Inject`), beams through the gun's beam path at the same target,
-  homing toward the sender's lock (ids: `NetShots`), blasts as the fx's explosion. The mirrors stop on what they hit here
+  homing toward the sender's lock (ids: `NetShots`); point defense uses the shot id for server-confirmed cancellation of a PvP projectile. Blasts show as the fx's explosion. The mirrors stop on what they hit here
   and show the impact, but deal no damage (no handler on their Hit): the shooter's own game applies the hits. Their pools
   live in the scene: after a scene change the mirrors start over (`NetShotMirror.Refresh`). Deployed sentry guns' shots
   are mirrored too; a beam's auto-aim never picks a squadmate.

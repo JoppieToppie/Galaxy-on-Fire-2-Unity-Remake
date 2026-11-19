@@ -50,6 +50,9 @@ namespace GoF2Remake.Flight
             public Vector3 aim;        // remake: where on its lock target it homes, in the target's own frame (SetAim) ...
             public bool aimed;         // ... else on the target's centre
             public Target target;      // remake: its own target instead of the gun's lock (SetTarget), null = the lock
+            public uint networkShotId, shotGeneration;
+            public ulong networkSourceObjectId;
+            public bool networkPlayerShot;
             public bool Active(float limit) => timer > limit;
         }
 
@@ -100,6 +103,7 @@ namespace GoF2Remake.Flight
         public readonly int salvoShots = 1, salvoCount = 1;
         public readonly float salvoGapMs;
         int salvoIndex;
+        uint shotGeneration;
         const float SalvoSpreadUnits = 120f;   // sideways between the shots of one salvo
 
         /// <summary>Multiplayer: targets this gun's bullets pass straight through (a squadmate of the shooter), null = none.</summary>
@@ -413,6 +417,7 @@ namespace GoF2Remake.Flight
                 bb.timer = lifetimeMs;
                 bb.age = 0f;
                 bb.lockLost = false; bb.aimed = false; bb.target = null;
+                TagNewShot(ref bb);
                 reloadAcc = 0f;
                 Fired?.Invoke(this, 0);
                 return 0;
@@ -431,6 +436,7 @@ namespace GoF2Remake.Flight
                     c.timer = lifetimeMs;
                     c.age = 0f;
                     c.lockLost = false; c.aimed = false; c.target = null;
+                    TagNewShot(ref c);
                 }
                 reloadAcc = 0f;
                 Fired?.Invoke(this, free);
@@ -452,6 +458,7 @@ namespace GoF2Remake.Flight
                     c.timer = lifetimeMs;
                     c.age = 0f;
                     c.lockLost = false; c.aimed = false; c.target = null;
+                    TagNewShot(ref c);
                     made++;
                     Fired?.Invoke(this, i);
                 }
@@ -475,6 +482,7 @@ namespace GoF2Remake.Flight
             b.timer = lifetimeMs;
             b.age = 0f;
             b.lockLost = false; b.aimed = false; b.target = null;
+            TagNewShot(ref b);
             NextSalvo();
             Fired?.Invoke(this, free);
             return free;
@@ -490,6 +498,9 @@ namespace GoF2Remake.Flight
         /// <summary>Multiplayer: another player's shot drawn by this (visual-only) gun (NetShotMirror): a free bullet at
         /// that pose with the sender's life left; false when the pool is full.</summary>
         public bool Inject(Vector3 position, Vector3 velocity, Vector3 up, float lifeMs)
+            => Inject(position, velocity, up, lifeMs, 0, 0, false, out _);
+
+        public bool Inject(Vector3 position, Vector3 velocity, Vector3 up, float lifeMs, uint shotId, ulong sourceObjectId, bool playerSource, out int index)
         {
             for (int i = 0; i < bullets.Length; i++)
             {
@@ -501,9 +512,31 @@ namespace GoF2Remake.Flight
                 b.timer = lifeMs;
                 b.age = 0f;
                 b.lockLost = false; b.aimed = false; b.target = null;
+                TagNewShot(ref b);
+                b.networkShotId = shotId;
+                b.networkSourceObjectId = sourceObjectId;
+                b.networkPlayerShot = playerSource;
+                index = i;
                 return true;
             }
+            index = -1;
             return false;
+        }
+
+        void TagNewShot(ref Bullet bullet)
+        {
+            bullet.shotGeneration = ++shotGeneration;
+            bullet.networkShotId = 0;
+            bullet.networkSourceObjectId = 0;
+            bullet.networkPlayerShot = false;
+        }
+
+        public void TagNetworkShot(int index, uint shotId, ulong sourceObjectId, bool playerSource = false)
+        {
+            if (index < 0 || index >= bullets.Length) return;
+            bullets[index].networkShotId = shotId;
+            bullets[index].networkSourceObjectId = sourceObjectId;
+            bullets[index].networkPlayerShot = playerSource;
         }
 
         /// <summary>Remake (the capital ships' salvos, CapitalShips.SpreadAim): bullet 'i' homes on 'local', a point in the
@@ -551,7 +584,9 @@ namespace GoF2Remake.Flight
                 // evasion.
                 if (dropShaken && !b.lockLost && (object)b.target == null) { b.lockLost = true; shaken = true; }
                 if (steer > 0f && !b.lockLost && homeOn.ShakesMissiles) { b.lockLost = true; shaken = true; }
-                if (steer > 0f && !b.lockLost && homeOn.isPlayer) IncomingMissiles.Report(this, i, b.position, b.velocity);
+                if (homeOn != null && homeOn.Alive && !b.lockLost && homeOn.isPlayer &&
+                    (steer > 0f || kind == Kind.Rocket || kind == Kind.Nuke))
+                    IncomingMissiles.Report(this, i, b.position, b.velocity);
                 bool homing = steer > 0f && !b.lockLost && b.age >= homingDelayMs;
                 var goal = homing ? (b.aimed ? homeOn.transform.TransformPoint(b.aim) : homeOn.transform.position) : Vector3.zero;
                 if (homing)

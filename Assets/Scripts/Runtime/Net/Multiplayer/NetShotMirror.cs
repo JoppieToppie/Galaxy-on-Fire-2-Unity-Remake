@@ -79,7 +79,8 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>A shot: bullet pose and life left (beams: the start point and unit direction), the homing delay and lock.</summary>
-        public void Shot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, Target target)
+        public void Shot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs,
+                         Target target, uint shotId, ulong sourceObjectId, bool playerSource)
         {
             var m = Get(item);
             if (m == null) return;
@@ -89,9 +90,11 @@ namespace GoF2Remake.Multiplayer
             {
                 m.gun.AutoAim = () => m.target != null && m.target.Alive ? m.target : null;
                 m.gun.reloadAcc = m.gun.WaitMs + 1f;
-                if (m.gun.TryFire(position, Quaternion.LookRotation(velocity, up), false) < 0) return;
+                int fired = m.gun.TryFire(position, Quaternion.LookRotation(velocity, up), false);
+                if (fired < 0) return;
+                m.gun.TagNetworkShot(fired, shotId, sourceObjectId, playerSource);
             }
-            else if (!m.gun.Inject(position, velocity, up, lifetimeMs)) return;
+            else if (!m.gun.Inject(position, velocity, up, lifetimeMs, shotId, sourceObjectId, playerSource, out _)) return;
             m.rig.OnShot();
             // Player::calcWeaponSounds: only one primary gun makes the shot sound (the first that fired here stands in for
             // the shooter's first mounted primary); the others' shots were sounded too, a 4-gun ship 4 times over.

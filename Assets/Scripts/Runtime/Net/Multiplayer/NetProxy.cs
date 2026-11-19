@@ -254,7 +254,7 @@ namespace GoF2Remake.Multiplayer
                 orbit.Register(this, ship);
                 WriteSpec();
                 SendState();
-                sender = new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null);
+                sender = new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null, () => NetworkObjectId);
                 sender.Hook(ship.Guns);
                 return;
             }
@@ -332,8 +332,9 @@ namespace GoF2Remake.Multiplayer
             target.isShip = true;
             target.customDeath = true;
             target.maxHp = 100f;
-            target.RemoteDamage = (amount, hitVector, byNpc, shieldFactor) => DamageUpRpc(amount, hitVector, byNpc, shieldFactor, -1);
-            target.RemoteTypedDamage = (amount, hitVector, byNpc, shieldFactor, weaponItem) => DamageUpRpc(amount, hitVector, byNpc, shieldFactor, weaponItem);
+            target.RemoteDamage = (amount, hitVector, byNpc, shieldFactor) => DamageUpRpc(amount, hitVector, byNpc, shieldFactor, -1, 0, 0);
+            target.RemoteHit = (amount, hitVector, byNpc, shieldFactor, weaponItem, sourceObjectId, shotId) =>
+                DamageUpRpc(amount, hitVector, byNpc, shieldFactor, weaponItem, sourceObjectId, shotId);
             target.RemoteEmp = emp => EmpUpRpc(emp);
             target.SlowBy = (ms, factor, noTurn) => SlowUpRpc(ms, factor, noTurn);   // remake: an EMP device (Flight.Device), a slowing weapon
             target.RemoteSteal = (item, amount) => StealUpRpc(item, amount);
@@ -403,7 +404,7 @@ namespace GoF2Remake.Multiplayer
             ship = rebuilt;
             NetOrbit.Current?.Register(this, rebuilt);
             lastAggressors = -1;   // written again from the new ship
-            sender ??= new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null);
+            sender ??= new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null, () => NetworkObjectId);
             sender.Hook(rebuilt.Guns);
         }
 
@@ -464,8 +465,8 @@ namespace GoF2Remake.Multiplayer
 
         // ---- shots and hits -------------------------------------------------------------------------------------------
 
-        void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId) =>
-            ShotUpRpc(new NetShotData(item, position, velocity, up, lifetimeMs, homingDelayMs, targetId));
+        void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId, uint shotId) =>
+            ShotUpRpc(new NetShotData(item, position, velocity, up, lifetimeMs, homingDelayMs, targetId, shotId));
 
         /// <summary>The owner's NPC shot, through the server (only the ship's game sends its shots): checked and limited like
         /// a player's (NetPlayer.ShotUpRpc), then to the players in its orbit.</summary>
@@ -474,14 +475,18 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Shot)) return;
             if (!NetGuard.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs)) { NetRateLimit.Reject(OwnerClientId, $"an NPC shot of item {shot.item}"); return; }
+            NetShotRegistry.Register(NetworkObjectId, shot.shotId, shot.item, shot.targetId, Mathf.Max(0f, shot.lifetimeMs + 2000f));
             if (NetInterest.OrbitGroup(this, station.Value, OwnerClientId, out var to)) ShotRpc(shot, to);
         }
 
         [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable, InvokePermission = RpcInvokePermission.Server)]
         void ShotRpc(NetShotData shot, RpcParams rpc = default)
         {
-            if (shown) mirror?.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs, NetShots.Resolve(shot.targetId));
+            if (shown) mirror?.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs, NetShots.Resolve(shot.targetId), shot.shotId, NetworkObjectId, false);
         }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void CancelShotRpc(uint shotId) => sender?.CancelShot(shotId);
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         void BlastUpRpc(int item, Vector3 point)
@@ -501,10 +506,11 @@ namespace GoF2Remake.Multiplayer
         /// damage up to NetGuard.MaxDamage, at its rate. (A direct RPC to the owner let a modified client destroy every NPC
         /// of any orbit from anywhere.)</summary>
         [Rpc(SendTo.Server)]
-        void DamageUpRpc(float amount, Vector3 hitVector, bool byNpc, float shieldFactor, int weaponItem, RpcParams rpc = default)
+        void DamageUpRpc(float amount, Vector3 hitVector, bool byNpc, float shieldFactor, int weaponItem, ulong sourceObjectId, uint shotId, RpcParams rpc = default)
         {
             ulong shooter = rpc.Receive.SenderClientId;
             if (shooter == OwnerClientId || !NetRateLimit.Allow(shooter, NetRateLimit.Kind.Hit)) return;
+            if (shotId != 0 && (sourceObjectId == 0 || NetShotRegistry.IsCanceled(sourceObjectId, shotId))) return;
             if (!NetGuard.Damage(amount) || !NetGuard.Finite(hitVector)) { NetRateLimit.Reject(shooter, $"a hit of {amount}"); return; }
             shieldFactor = byNpc || float.IsNaN(shieldFactor) ? 1f : shieldFactor <= 0f ? 0f : Mathf.Clamp(shieldFactor, 0.01f, 10f);
             if (!NetGuard.InOrbit(shooter, station.Value)) return;
