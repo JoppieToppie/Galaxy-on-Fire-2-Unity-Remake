@@ -190,7 +190,7 @@ namespace GoF2Remake.UI
             foreach (var product in Blueprints.Products(db))
             {
                 int ship = ModBlueprints.ShipOf(product.index);
-                if (ship < 0 || !Modding.ModBlueprints.RequiresDryDock(product.index, db)) continue;
+                if (ship < 0 || !ModBlueprints.RequiresDryDock(product.index, db)) continue;
                 var hull = db.Ship(ship);
                 string name = hull?.name ?? ("Ship " + ship);
                 string className = ShipClassRules.ClassLabel(hull) ?? "Dry-dock restricted";
@@ -231,15 +231,22 @@ namespace GoF2Remake.UI
             if (item.productId < 0) return;
             detailTitle.text = item.name;
             bool unlocked = Blueprints.IsUnlocked(productId);
+            var definition = ModBlueprints.Of(productId);
             detailText.text = item.className + "\nBlueprint item ID: " + productId +
-                "\nBlueprint status: " + (unlocked ? "UNLOCKED" : "LOCKED");
+                "\nBlueprint status: " + (unlocked ? "UNLOCKED" : "LOCKED") +
+                "\nBlueprint consumption: " + (definition != null && definition.consumeBlueprint ? "consumed at start" : "retained");
             var product = level.Database.Item(productId);
             var lines = new List<string> { "REQUIRED MATERIALS" };
             if (product?.blueprint == null || product.blueprint.Count == 0)
                 lines.Add("No valid recipe is defined.");
             else
+            {
+                var required = new SortedDictionary<int, int>();
                 foreach (var part in product.blueprint)
-                    if (part != null) lines.Add((level.Database.Item(part.item)?.name ?? ("Item " + part.item)) + "  ×  " + part.amount);
+                    if (part != null) required[part.item] = required.TryGetValue(part.item, out int amount) ? amount + part.amount : part.amount;
+                foreach (var pair in required)
+                    lines.Add((level.Database.Item(pair.Key)?.name ?? ("Item " + pair.Key)) + "  ×  " + pair.Value);
+            }
             recipeText.text = string.Join("\n", lines);
             buildButton.SetEnabled(unlocked && !requestPending && !(NetPlayerStations.GetDryDockVisualStatus(station.id)?.building ?? false)
                 && product?.blueprint != null && product.blueprint.Count > 0);
@@ -267,7 +274,9 @@ namespace GoF2Remake.UI
                 var remaining = TimeSpan.FromSeconds(Math.Max(0, seconds));
                 statusText.text = "CONSTRUCTION IN PROGRESS\n" + state.blueprintName + "\n" +
                     (state.progress * 100f).ToString("0.0") + "% complete  ·  " +
-                    remaining.ToString(@"d\.hh\:mm\:ss") + " remaining";
+                    remaining.ToString(@"d\.hh\:mm\:ss") + " remaining\n" +
+                    "Blueprint " + (state.consumesBlueprint ? "will be consumed" : "will be retained") + "\n" +
+                    "Expected completion: " + DateTimeOffset.FromUnixTimeSeconds(state.completesUtc).ToLocalTime().ToString("g");
                 buildButton.text = "DRY DOCK OCCUPIED";
                 buildButton.SetEnabled(false);
             }
