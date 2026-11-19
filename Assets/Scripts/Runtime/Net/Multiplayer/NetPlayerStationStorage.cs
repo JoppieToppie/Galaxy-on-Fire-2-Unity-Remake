@@ -393,7 +393,8 @@ namespace GoF2Remake.Multiplayer
             var previousStorage = new List<PlayerStationStorage>();
             foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
-            AddStationItems(record, items);
+            var previousLots = CloneStorageLots(record);
+            AddStationItems(record, items, account);
             record.dryDockShips.Add(BareHull(ship));
             record.dryDockShipOwners ??= new List<string>();
             record.dryDockShipOwners.Add(account);
@@ -434,7 +435,8 @@ namespace GoF2Remake.Multiplayer
             var previousStorage = new List<PlayerStationStorage>();
             foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
-            AddStationItems(record, items);
+            var previousLots = CloneStorageLots(record);
+            AddStationItems(record, items, account);
             record.dryDockShips.RemoveAt(dockIndex - 1);
             record.dryDockShipOwners.RemoveAt(dockIndex - 1);
             if (!Save())
