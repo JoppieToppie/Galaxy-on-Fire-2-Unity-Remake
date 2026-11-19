@@ -85,6 +85,22 @@ namespace GoF2Remake.Multiplayer
 
     public static partial class NetPlayerStations
     {
+        static PlayerStationFactionPermissionProfile NewIndividualFactionPermissionProfile(bool shared = false)
+        {
+            return new PlayerStationFactionPermissionProfile
+            {
+                visit = shared, storage = shared, hangar = shared,
+                officerVisit = shared, officerStorage = shared, officerHangar = shared,
+                officerStationOperations = false, officerConstruction = false, officerAppearance = false,
+                officerFinance = false, officerMarketplace = false, officerSecurity = false
+            };
+        }
+
+        static PlayerStationFactionPermissionProfile NewFactionOwnedPermissionProfile()
+        {
+            return new PlayerStationFactionPermissionProfile { visit = true, storage = true, hangar = true };
+        }
+
         static bool NormalizeGovernance(PlayerStationRecord record)
         {
             if (record == null) return false;
@@ -96,11 +112,9 @@ namespace GoF2Remake.Multiplayer
             record.factionPermissions ??= new PlayerStationFactionPermissionProfile();
             if (record.governanceVersion < 1)
             {
-                bool legacyFactionAccess = record.ownershipType == PlayerStationOwnershipType.Individual
-                    ? record.factionStorageAccess : true;
-                record.factionPermissions.visit = legacyFactionAccess;
-                record.factionPermissions.storage = legacyFactionAccess;
-                record.factionPermissions.hangar = legacyFactionAccess;
+                record.factionPermissions = record.ownershipType == PlayerStationOwnershipType.Individual
+                    ? NewIndividualFactionPermissionProfile(record.factionStorageAccess)
+                    : NewFactionOwnedPermissionProfile();
                 record.governanceVersion = 1;
                 changed = true;
             }
@@ -788,6 +802,36 @@ namespace GoF2Remake.Multiplayer
                 record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);
             record.nextHistorySequence = oldSequence;
             return "The delegation change could not be saved; the previous delegation remains active.";
+        }
+
+        internal static bool OnFactionMemberLeaving(string account, string factionId)
+        {
+            if (string.IsNullOrEmpty(account) || string.IsNullOrEmpty(factionId) || registry?.stations == null) return true;
+            var affected = registry.stations.FindAll(x => x != null &&
+                x.ownershipType == PlayerStationOwnershipType.Individual &&
+                string.Equals(x.ownerProfile, account, StringComparison.Ordinal) &&
+                string.Equals(StationFactionId(x), factionId, StringComparison.Ordinal));
+            if (affected.Count == 0) return true;
+            string previousRegistry = JsonUtility.ToJson(registry, true);
+            foreach (var record in affected)
+            {
+                record.factionStorageAccess = false;
+                record.factionPermissions = NewIndividualFactionPermissionProfile(false);
+                RecordHistory(record, account, "owner-left-faction", null,
+                    "Former faction defaults were revoked; individually assigned permissions remain.");
+            }
+            if (Save())
+            {
+                foreach (var record in affected) EjectDeniedVisitors(record);
+                return true;
+            }
+            registry = JsonUtility.FromJson<Registry>(previousRegistry);
+            if (registry == null)
+            {
+                persistenceFaulted = true;
+                Debug.LogError("NetPlayerStations: faction-leave rollback failed; station persistence is disabled.");
+            }
+            return false;
         }
 
         /// <summary>Resolve faction-owned stations before the faction record is deleted.</summary>
