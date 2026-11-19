@@ -184,7 +184,7 @@ namespace GoF2Remake.Multiplayer
             if (product.blueprint == null || product.blueprint.Count == 0)
                 return "That ship blueprint has no valid construction recipe.";
 
-            record.storage ??= new List<PlayerStationStorage>();
+            EnsureStorageLots(record);
             var required = new Dictionary<int, int>();
             foreach (var part in product.blueprint)
             {
@@ -195,14 +195,15 @@ namespace GoF2Remake.Multiplayer
             foreach (var pair in required)
             {
                 var stack = record.storage.Find(x => x != null && x.item == pair.Key);
-                if (stack == null || stack.amount < pair.Value)
-                    return "Insufficient " + (db.Item(pair.Key)?.name ?? ("item " + pair.Key)) +
+                if (stack == null || stack.amount < pair.Value || OwnedStorageAmount(record, builderAccount, pair.Key) < pair.Value)
+                    return "Insufficient personally owned " + (db.Item(pair.Key)?.name ?? ("item " + pair.Key)) +
                         " in station storage; required: " + pair.Value + ".";
             }
 
             var previousStorage = new List<PlayerStationStorage>();
             foreach (var entry in record.storage)
                 if (entry != null) previousStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
+            var previousLots = CloneStorageLots(record);
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             int duration = DryDockBuildDuration(productId, shipIndex);
             var definition = Modding.ModBlueprints.Of(productId);
@@ -210,6 +211,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var pair in required)
             {
                 var stack = record.storage.Find(x => x != null && x.item == pair.Key);
+                RemoveStorageLots(record, builderAccount, pair.Key, pair.Value);
                 stack.amount -= pair.Value;
             }
             record.storage.RemoveAll(x => x == null || x.amount <= 0);
@@ -224,6 +226,7 @@ namespace GoF2Remake.Multiplayer
             if (!Save())
             {
                 record.storage = previousStorage;
+                record.storageLots = previousLots;
                 ClearDryDockJob(record);
                 if (consumeBlueprint) GoF2Remake.Data.Blueprints.Unlock(productId);
                 return "The dry-dock job could not be saved; all materials and the blueprint were restored.";
