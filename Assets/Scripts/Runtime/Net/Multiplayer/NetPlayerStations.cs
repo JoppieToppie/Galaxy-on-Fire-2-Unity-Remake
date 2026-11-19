@@ -44,6 +44,19 @@ namespace GoF2Remake.Multiplayer
         public string ownerProfile;
         public string ownerFactionId;
         public string ownerName;
+        // The first account to establish this station remains its builder identity. Rights are
+        // relinquished only by a voluntary builder transfer or destruction through combat.
+        public string originalBuilderProfile;
+        public long builderRightsRelinquishedUtc;
+        public string individualSuccessorProfile;
+        public string factionSuccessorProfile;
+        public string factionSuccessorDelegateProfile;
+        public PlayerStationFactionPermissionProfile factionPermissions = new PlayerStationFactionPermissionProfile();
+        public List<PlayerStationPermissionOverride> permissionOverrides = new List<PlayerStationPermissionOverride>();
+        public List<PlayerStationRoleAssignment> roleAssignments = new List<PlayerStationRoleAssignment>();
+        public List<PlayerStationBan> bans = new List<PlayerStationBan>();
+        public List<PlayerStationHistoryEntry> history = new List<PlayerStationHistoryEntry>();
+        public int nextHistorySequence = 1;
         public int system;
         /// <summary>Existing station index whose look is used for this station's model and collision preset.</summary>
         public int looksLike = -1;
@@ -304,7 +317,9 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             ReconcileConsumedBlueprints();
-            if (MigrateLegacyJumpgates()) Save();
+            MigrateLegacyJumpgates();
+            // Persist one-time governance-field migrations for existing individual stations.
+            Save();
         }
 
         /// <summary>Apply the server's station snapshot on a joining game. Clients keep a read-only copy and never save it.</summary>
@@ -374,6 +389,7 @@ namespace GoF2Remake.Multiplayer
                 station.storedShipOwners.RemoveRange(station.storedShips?.Count ?? 0, station.storedShipOwners.Count - (station.storedShips?.Count ?? 0));
             if (station.dryDockShipOwners.Count > (station.dryDockShips?.Count ?? 0))
                 station.dryDockShipOwners.RemoveRange(station.dryDockShips?.Count ?? 0, station.dryDockShipOwners.Count - (station.dryDockShips?.Count ?? 0));
+            NormalizeGovernance(station);
         }
 
         static void NormalizeStorageLots(PlayerStationRecord station)
@@ -584,12 +600,15 @@ namespace GoF2Remake.Multiplayer
                 name = name,
                 ownerProfile = owner,
                 ownerName = by.DisplayName,
+                originalBuilderProfile = owner,
                 system = system.index,
                 looksLike = look,
                 createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 underConstruction = true,
                 materials = RequiredMaterials(),
             };
+            RecordHistory(record, owner, "station-construction-started", null,
+                "Original builder established the station project.");
             registry.stations.Add(record);
             if (!Save())
             {
