@@ -329,6 +329,22 @@ namespace GoF2Remake.UI
             string T(string key, string english) => Localization.Extra(key, english);
             // Modified: the system menu (MENU) shows no hints under it any more (its own Back, the keys as in every menu).
             if (SystemMenuOpen) return;
+            if (dryDock != null && dryDock.IsOpen)
+            {
+                if (kind == InputKind.KeyboardMouse)
+                {
+                    Hint(T("hudSelect", "SELECT"), InputGlyph.Key("W"), InputGlyph.Key("S"));
+                    Hint(T("hudConfirm", "CONFIRM"), InputGlyph.Key("ENTER", true));
+                    Hint(T("hudBack", "BACK"), InputGlyph.Key("ESC"));
+                }
+                else if (kind == InputKind.Gamepad)
+                {
+                    Hint(T("hudSelect", "SELECT"), InputGlyph.Pad(PadButton.DPad));
+                    Hint(T("hudConfirm", "CONFIRM"), InputGlyph.Pad(PadButton.A));
+                    Hint(T("hudBack", "BACK"), InputGlyph.Pad(PadButton.B));
+                }
+                return;
+            }
             if (HangarOpen)
             {
                 bool store = hangarWindow != null && hangarWindow.StorageMode;   // the Kaamo Club's storage
