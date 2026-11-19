@@ -246,22 +246,28 @@ namespace GoF2Remake.Multiplayer
         {
             if (record == null || string.IsNullOrEmpty(account)) return false;
             bool builder = HasBuilderRights(record, account);
+            var visitorOverride = FindPermissionOverride(record, account, PlayerStationPermission.Visit);
+            PlayerStationPermissionState builderVisitState = visitorOverride?.builderState ?? PlayerStationPermissionState.Inherit;
+
+            // A builder ban always wins. A builder visitor allow can override an owner/faction ban,
+            // but it grants entry only; other capabilities still need their own permission.
+            if (HasBan(record, account, PlayerStationBanSource.OriginalBuilder)) return false;
+            if (builderVisitState == PlayerStationPermissionState.Deny) return false;
             if (permission == PlayerStationPermission.Visit)
             {
-                if (HasBan(record, account, PlayerStationBanSource.OriginalBuilder)) return false;
-                var visitorOverride = FindPermissionOverride(record, account, PlayerStationPermission.Visit);
-                if (visitorOverride != null && visitorOverride.builderState != PlayerStationPermissionState.Inherit)
-                    return visitorOverride.builderState == PlayerStationPermissionState.Allow;
-                if (builder) return true;
+                if (builderVisitState == PlayerStationPermissionState.Allow) return true;
                 if (HasBan(record, account, PlayerStationBanSource.OwnerAuthority)) return false;
+                if (builder) return true;
             }
+            else if (HasBan(record, account, PlayerStationBanSource.OwnerAuthority) &&
+                builderVisitState != PlayerStationPermissionState.Allow) return false;
+
             if (record.ownershipType == PlayerStationOwnershipType.Individual &&
                 string.Equals(record.ownerProfile, account, StringComparison.Ordinal)) return true;
 
             // The builder's reserved authority is deliberately narrow: visitor control, security,
             // module construction and appearance. It never grants the faction's treasury or assets.
-            if (builder && (permission == PlayerStationPermission.Visit ||
-                permission == PlayerStationPermission.Security ||
+            if (builder && (permission == PlayerStationPermission.Security ||
                 permission == PlayerStationPermission.Construction ||
                 permission == PlayerStationPermission.Appearance)) return true;
 
@@ -288,6 +294,12 @@ namespace GoF2Remake.Multiplayer
             return ProfilePermission(record.factionPermissions, permission, officer);
         }
 
+        internal static bool CanVisitStation(int stationIndex, string account)
+        {
+            var record = registry?.stations?.Find(x => x != null && x.stationIndex == stationIndex);
+            return record == null || HasStationPermission(record, account, PlayerStationPermission.Visit);
+        }
+
         static bool IsStationAuthority(NetPlayer by, PlayerStationRecord record, out string account)
         {
             account = null;
@@ -297,7 +309,8 @@ namespace GoF2Remake.Multiplayer
             var faction = NetFactions.Of(account);
             return faction != null && string.Equals(faction.id, record.ownerFactionId, StringComparison.Ordinal) &&
                 (string.Equals(faction.leader, account, StringComparison.Ordinal) ||
-                 HasRole(record, account, PlayerStationRole.StationAdministrator));
+                 (HasRole(record, account, PlayerStationRole.StationAdministrator) &&
+                  HasStationPermission(record, account, PlayerStationPermission.StationOperations)));
         }
 
         internal static string SetStationRole(NetPlayer by, int stationId, string target, string roleName)
