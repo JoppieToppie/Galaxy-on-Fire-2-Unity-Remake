@@ -314,10 +314,10 @@ namespace GoF2Remake.Multiplayer
             if (explicitOverride != null && explicitOverride.state != PlayerStationPermissionState.Inherit)
             {
                 if (explicitOverride.state == PlayerStationPermissionState.Deny) return false;
-                string ownerFactionId = StationFactionId(record);
-                var targetFaction = NetFactions.Of(account);
-                if (targetFaction != null && !string.IsNullOrEmpty(ownerFactionId) &&
-                    !string.Equals(targetFaction.id, ownerFactionId, StringComparison.Ordinal)) return false;
+                // Explicit grants are durable individual decisions. A later faction change by
+                // either the owner or recipient does not silently revoke them; the owner must
+                // explicitly change the entry back to Inherit or Deny. New grants are still
+                // checked against opposing-faction restrictions when they are created.
                 return true;
             }
 
