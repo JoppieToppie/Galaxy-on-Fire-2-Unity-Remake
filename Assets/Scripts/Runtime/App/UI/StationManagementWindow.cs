@@ -269,7 +269,11 @@ namespace GoF2Remake.UI
             refresh = 0;
         }
 
-        static string ModuleLabel(string id) => id == "drydock" ? "Dry Dock" : id == "hangar" ? "Ship Hangar" :
-            char.ToUpperInvariant(id[0]) + id.Substring(1);
+        static string ModuleLabel(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return "Unknown module";
+            return id == "drydock" ? "Dry Dock" : id == "hangar" ? "Ship Hangar" :
+                char.ToUpperInvariant(id[0]) + id.Substring(1);
+        }
     }
 }
