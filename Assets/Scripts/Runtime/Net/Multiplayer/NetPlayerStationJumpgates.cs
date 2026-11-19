@@ -320,7 +320,7 @@ namespace GoF2Remake.Multiplayer
                 var station = NetGame.Db.Stations.Find(x => x != null && x.index == orbit);
                 var gate = FindJumpgate(orbit);
                 string label = station?.name ?? ("Orbit " + orbit);
-                if (system.jumpgateStation == orbit) label += " [original jumpgate]";
+                if (system.jumpgateStation == orbit || Modding.ModWorld.OrbitOf(orbit)?.jumpgate == true) label += " [system/mod jumpgate]";
                 else if (gate != null) label += gate.building ? " [player gate under construction]" : " [player jumpgate]";
                 else label += " [available]";
                 lines.Add("Orbit " + orbit + ": " + label);
