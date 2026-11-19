@@ -354,6 +354,11 @@ namespace GoF2Remake.Multiplayer
             if (gate == null) return "No player-built jumpgate exists in that orbit.";
             if (!CanManageJumpgate(by, gate, out _))
                 return "Only the gate owner or an authorised faction manager can change its destination while docked.";
+            var sponsor = Find(gate.sponsorStationId);
+            if (sponsor == null)
+                return "This jumpgate has no recoverable sponsoring station; its destination cannot be changed automatically.";
+            if (by.Station != sponsor.stationIndex)
+                return "Dock at the sponsoring player station to change this jumpgate's destination.";
             CompleteJumpgateIfDue(gate);
             if (gate.building || gate.startedUtc <= 0) return "The jumpgate must be fully operational before changing its destination.";
             if (destinationSystem == gate.system) return "A jumpgate must connect to a different system.";
