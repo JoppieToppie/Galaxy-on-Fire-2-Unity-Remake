@@ -166,6 +166,8 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>Current server registry; empty until a persistent world starts.</summary>
         public static IReadOnlyList<PlayerStationRecord> Stations => registry?.stations;
+        /// <summary>Independent player-built gates, each anchored to one system orbit.</summary>
+        public static IReadOnlyList<PlayerJumpgateRecord> Jumpgates => registry?.jumpgates;
 
         /// <summary>The current registry for NetState's initial session snapshot.</summary>
         internal static string Snapshot => registry != null ? JsonUtility.ToJson(registry) : "";
