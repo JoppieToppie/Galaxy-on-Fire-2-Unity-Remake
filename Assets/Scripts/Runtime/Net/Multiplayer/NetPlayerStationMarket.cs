@@ -72,7 +72,7 @@ namespace GoF2Remake.Multiplayer
             if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
                 return "No construction buy order exists at that index.";
             var order = record.buyOrders[orderIndex];
-            if (order == null || order.remaining < 1 || order.unitPrice < 1 || order.reservedCredits < order.unitPrice)
+            if (order == null || order.remaining < 1 || order.unitPrice < 1 || order.reservedCredits < order.unitPrice * (long)order.remaining)
                 return "That construction buy order is invalid.";
             if (amount < 1 || amount > 500 || amount > order.remaining) return "Choose 1–500 units, up to the order's remaining quantity.";
             var material = record.materials?.Find(x => x != null && x.item == order.item);
