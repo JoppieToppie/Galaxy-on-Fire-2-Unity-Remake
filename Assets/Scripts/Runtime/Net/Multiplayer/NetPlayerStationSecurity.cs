@@ -40,6 +40,12 @@ namespace GoF2Remake.Multiplayer
                 player.ForceStationLaunch("You do not have permission to visit this station.");
         }
 
+        internal static void RefreshAccessForFactionChange()
+        {
+            if (!NetGame.IsServer || registry?.stations == null) return;
+            foreach (var record in registry.stations) EjectDeniedVisitors(record);
+        }
+
         static void EjectDeniedVisitors(PlayerStationRecord record)
         {
             if (!NetGame.IsServer || record == null) return;
