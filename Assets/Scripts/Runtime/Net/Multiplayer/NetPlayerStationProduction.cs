@@ -14,7 +14,7 @@ namespace GoF2Remake.Multiplayer
             public int stationId;
             public bool installed, operational, building;
             public int storedHulls, hullCapacity, blueprintItem = -1, shipIndex = -1;
-            public string stationName, blueprintName, builderProfile;
+            public string stationName, blueprintName;
             public long startedUtc, completesUtc, remainingSeconds;
             public float progress;
             public bool consumesBlueprint;
@@ -46,7 +46,6 @@ namespace GoF2Remake.Multiplayer
                 blueprintItem = building ? record.dryDockBlueprintItem : -1,
                 shipIndex = building ? record.dryDockShip : -1,
                 blueprintName = building ? (db?.Ship(record.dryDockShip)?.name ?? ("Ship " + record.dryDockShip)) : null,
-                builderProfile = building ? record.dryDockBuilderProfile : null,
                 startedUtc = building ? record.dryDockStartedUtc : 0,
                 completesUtc = building ? record.dryDockCompletesUtc : 0,
                 remainingSeconds = remaining,
@@ -54,6 +53,8 @@ namespace GoF2Remake.Multiplayer
                 consumesBlueprint = building && record.dryDockConsumeBlueprint,
             };
         }
+
+        static long nextDryDockRetryUtc;
 
         static int DryDockBuildDuration(int productId, int shipIndex)
         {
@@ -110,9 +111,10 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetGame.IsServer || !sessionActive || registry?.stations == null) return;
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (now < nextDryDockRetryUtc) return;
             foreach (var record in registry.stations)
                 if (record != null && record.dryDockBuilding && record.dryDockCompletesUtc <= now)
-                    CompleteDryDockJob(record, now);
+                    if (!CompleteDryDockJob(record, now)) nextDryDockRetryUtc = now + 5;
         }
 
         /// <summary>List ship blueprints that this station's dry dock can construct.</summary>
