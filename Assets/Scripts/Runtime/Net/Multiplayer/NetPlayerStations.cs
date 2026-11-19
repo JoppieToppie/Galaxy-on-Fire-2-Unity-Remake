@@ -54,6 +54,12 @@ namespace GoF2Remake.Multiplayer
         public bool factionStorageAccess;
         public List<PlayerStationContribution> constructionContributions = new List<PlayerStationContribution>();
         public PlayerStationTransferProposal pendingTransfer;
+        // One fixed-destination jumpgate may be built in this station's orbit.
+        public int jumpgateDestinationSystem = -1;
+        public bool jumpgateBuilding;
+        public long jumpgateStartedUtc, jumpgateCompletesUtc;
+        public List<PlayerStationMaterial> jumpgateMaterials = new List<PlayerStationMaterial>();
+        public List<PlayerStationContribution> jumpgateContributions = new List<PlayerStationContribution>();
     }
 
     [Serializable]
