@@ -157,6 +157,7 @@ namespace GoF2Remake.Multiplayer
                     station.storage ??= new List<PlayerStationStorage>();
                     station.storedShips ??= new List<StoredShip>();
                     station.dryDockShips ??= new List<StoredShip>();
+                    if (!station.dryDockBuilding) ClearDryDockJob(station);
                     if (station.addons.Count > MaxAddonsPerStation || station.listings.Count > MaxListingsPerStation)
                         Debug.LogWarning($"NetPlayerStations: received station {station.id} exceeds a module or listing limit; preserving all records.");
                 }
