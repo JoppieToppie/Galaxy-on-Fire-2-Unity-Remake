@@ -143,6 +143,10 @@ namespace GoF2Remake.Multiplayer
         public string targetProfile;
         public string targetFactionId;
         public string proposedBy;
+        // Set only after a server admin verifies an individual-owner recovery case.
+        public bool administrativeRecovery;
+        public string recoveryAuthorizedBy;
+        public string recoveryReason;
         public long expiresUtc;
     }
 
