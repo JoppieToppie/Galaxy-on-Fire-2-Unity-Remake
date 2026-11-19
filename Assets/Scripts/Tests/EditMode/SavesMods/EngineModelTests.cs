@@ -117,6 +117,28 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ATurnTrailsTheTipTowardItsInside()
+        {
+            // a right turn (about +Y) of a ship facing +Z: its exhaust lies along the path behind it, right of the tail
+            var bend = EngineFlame.TurnBend(new Vector3(0f, 1f, 0f), Vector3.back);
+            Assert.AreEqual(EngineFlame.TurnLag, bend.x, 1e-5f, "the tip where the nozzle pointed TurnLag ago");
+            Assert.AreEqual(0f, bend.y, 1e-6f); Assert.AreEqual(0f, bend.z, 1e-6f);
+            Assert.Less(EngineFlame.TurnBend(new Vector3(1f, 0f, 0f), Vector3.back).y, 0f, "nose down: the tip stays below");
+            Assert.AreEqual(Vector3.zero, EngineFlame.TurnBend(new Vector3(0f, 0f, 3f), Vector3.back), "a roll about the flame bends nothing");
+            Assert.AreEqual(EngineFlame.TurnShare, EngineFlame.TurnBend(new Vector3(0f, 9f, 0f), Vector3.back).magnitude, 1e-5f, "at most TurnShare");
+
+            // the measured turn rate: 90 degrees a second about +Y, eased; a cut (a respawn) ignored
+            Vector3 spin = Vector3.zero; Quaternion last = default; bool has = false;
+            for (int i = 0; i <= 120; i++)
+                EngineFlame.TrackSpin(ref spin, ref last, ref has, Quaternion.Euler(0f, 90f * i / 60f, 0f), 1f / 60f);
+            Assert.AreEqual(90f * Mathf.Deg2Rad, spin.y, 0.01f, "the turn rate, rad/s");
+            Assert.AreEqual(0f, spin.x, 1e-3f); Assert.AreEqual(0f, spin.z, 1e-3f);
+            var before = spin;
+            EngineFlame.TrackSpin(ref spin, ref last, ref has, Quaternion.Euler(0f, 0f, 0f), 1f / 60f);
+            Assert.AreEqual(before, spin, "a turn too fast for a frame is a cut");
+        }
+
+        [Test]
         public void EachExhaustGivesTheBendItsNozzleAndLength()
         {
             var mod = EngineModOn();

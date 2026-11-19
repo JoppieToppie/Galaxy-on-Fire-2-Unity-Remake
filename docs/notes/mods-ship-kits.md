@@ -139,7 +139,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   a jump) the same; any other ship its velocity in its own frame over the top speed and its boost when faster, at once
   (BP_ShipBase's 0.3 s step: the target at once); the flames take the thrust's forward part; and the player's flames
   bend against the velocity (SteeringOffset: + u^2 x -0.008 x min(|v|, 10000 cm/s) in world space, x sat(thrust.x /
-  |thrust|): at most 80 cm of a 5 m flame, here `_SteerBend`, 0.16 of the flame's length at 100 m/s). **EVERSPACE 2's
+  |thrust|): at most 80 cm of a 5 m flame, here `_SteerBend`, 0.16 of the flame's length at 100 m/s; since 2026-11-17
+  the remake adds the turn's own bend, `EngineFlame.TurnBend`: "GoF3's engines bend in turns" in mods-models.md). **EVERSPACE 2's
   other engine effects** (`Es2EngineVfx`, `GoF2/ModEs2Particle` in Resources/GoF2Mods, its kinds each a decompiled
   material; the Niagara systems' VM scripts disassembled by the importer's `tools/shaders/niagara.py`) at every engine
   socket (exhaust mount, slotType 3) and booster socket (slotType 5, ES2's `SKT_Booster`, which the importer now keeps),

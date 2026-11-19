@@ -180,6 +180,14 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `_BendOrigin`, `_BendAxis` per exhaust; L from the parts' rest bounds, x the holder's length that frame), a sprite (the
   glare) with its centre; the parts' bounds grown by the bend. NPCs, mobile stations, the Customize preview and the Fork
   particles don't bend. Not yet checked in Play mode (another session had the Editor).
+  **The turn's own bend** (2026-11-17, the user's video of a Shotér Paah in the original flight: three Nivelian helixes
+  rigid through every turn): that bend follows the drift alone, and the original flight has none (the ship flies where its
+  nose points: the offset lay along the flame and only lengthened it). Added to it, for `EngineFx` and `EngineFlame` alike:
+  `EngineFlame.TurnBend`, the tip where the nozzle pointed `TurnLag` 0.15 s ago, -(spin x back) x 0.15 of the length, at
+  most `TurnShare` 0.25 (~95 deg/s), toward the inside of the turn; the spin measured from the model's rotation each frame
+  (`TrackSpin`: eased at 12 / s, a turn of more than 12 rad/s in a frame a cut), so the autopilot's and a cutscene's turns
+  bend them too; a roll about the flame's axis bends nothing. The same scope: the player's ship in space. Tests
+  `EngineModelTests.ATurnTrailsTheTipTowardItsInside`. Not yet checked in Play mode.
 - **Exhaust styles** (`ModExhausts`, a mod's `exhausts.json`; the guide's "Exhaust styles"): engine effects any ship can wear,
   picked in the hangar's Customize screen (`ShipCustomizePanel`'s Exhaust row and the style's two colour rows; with styles in
   the mods that are on every ship has the screen: `ModShipKits.CustomizationOf` gives a ship without other customizations a
