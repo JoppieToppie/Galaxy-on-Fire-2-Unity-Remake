@@ -375,6 +375,13 @@ namespace GoF2Remake.Multiplayer
                     return "/station jumpgate-contribute <orbit station index> <item id> <amount>";
                 return NetPlayerStations.ContributeJumpgate(by as NetPlayer, contributeOrbit, gateItem, gateAmount);
             }
+            const string jumpgateOrbits = "jumpgate-orbits ";
+            if (args.StartsWith(jumpgateOrbits, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(jumpgateOrbits.Length).Trim(), out int orbitSystem))
+                    return "/station jumpgate-orbits <system id>";
+                return NetPlayerStations.JumpgateOrbits(orbitSystem);
+            }
             const string jumpgateDestination = "jumpgate-destination ";
             if (args.StartsWith(jumpgateDestination, StringComparison.OrdinalIgnoreCase))
             {
