@@ -47,9 +47,10 @@ namespace GoF2Remake.Multiplayer
             return NetGame.Db.Stations.Find(x => x != null && x.index == orbitStationIndex && x.system == systemIndex) != null;
         }
 
-        static void MigrateLegacyJumpgates()
+        static bool MigrateLegacyJumpgates()
         {
-            if (registry?.stations == null) return;
+            if (registry?.stations == null) return false;
+            bool changed = false;
             registry.jumpgates ??= new List<PlayerJumpgateRecord>();
             foreach (var station in registry.stations)
             {
@@ -73,7 +74,9 @@ namespace GoF2Remake.Multiplayer
                     materials = station.jumpgateMaterials ?? new List<PlayerStationMaterial>(),
                     contributions = station.jumpgateContributions ?? new List<PlayerStationContribution>()
                 });
+                changed = true;
             }
+            return changed;
         }
 
         /// <summary>Whether an orbital anchor contains an operational player-built jumpgate.</summary>
@@ -150,10 +153,10 @@ namespace GoF2Remake.Multiplayer
                 return "Choose an existing orbital location in the sponsoring station's system.";
             if (origin.jumpgateStation == orbitStationIndex)
                 return "That orbit already contains the system's original jumpgate.";
-            if (!ValidOrbit(destinationSystem, NetGame.Db?.Systems?.Find(x => x != null && x.index == destinationSystem)?.stations?.Count > 0
-                ? NetGame.Db.Systems.Find(x => x.index == destinationSystem).stations[0] : -1, out _))
-                return "Choose a valid destination system with at least one orbital location.";
             if (destinationSystem == sponsor.system) return "A jumpgate must connect to a different system.";
+            var destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == destinationSystem);
+            if (destination?.stations == null || destination.stations.Count == 0)
+                return "Choose a valid destination system with at least one orbital location.";
             if (buildSeconds < 0 || buildSeconds > MaxJumpgateBuildSeconds)
                 return "Build time must be between 0 and 2,592,000 seconds (30 days). Use 0 for no build timer.";
             if (FindJumpgate(orbitStationIndex) != null)
@@ -180,7 +183,6 @@ namespace GoF2Remake.Multiplayer
                 registry.jumpgates.Remove(gate);
                 return "The jumpgate construction plan could not be saved.";
             }
-            var destination = NetGame.Db.Systems.Find(x => x.index == destinationSystem);
             return "Jumpgate project started in orbit " + orbitStationIndex + " of " + origin.name +
                 ", linking to " + destination.name + ". Required materials: 500 Iron, 250 Titanium, 200 Electronics and 150 Microchips. " +
                 (buildSeconds == 0 ? "The gate will become operational as soon as it is fully funded." :
