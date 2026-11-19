@@ -341,9 +341,9 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
-            new Command { name = "station", usage = "systems | start <system id> <name> | contribute <project id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+            new Command { name = "station", usage = "systems | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
-                description = () => X("mpCmdStation", "starts a station project in any system and deposits construction resources while docked; persistent worlds only") },
+                description = () => X("mpCmdStation", "plans stations, checks construction progress and deposits construction resources; persistent worlds only") },
         };
 
         static bool ProfilesOn => NetState.Instance != null && NetState.Instance.ProfilesOn;
@@ -352,6 +352,13 @@ namespace GoF2Remake.Multiplayer
         {
             args = (args ?? "").Trim();
             if (args.Equals("systems", StringComparison.OrdinalIgnoreCase)) return NetPlayerStations.SystemList();
+            const string status = "status ";
+            if (args.StartsWith(status, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(status.Length).Trim(), out int project))
+                    return "/station status <project id>";
+                return NetPlayerStations.Status(project);
+            }
             const string start = "start ";
             if (args.StartsWith(start, StringComparison.OrdinalIgnoreCase))
             {
@@ -370,7 +377,7 @@ namespace GoF2Remake.Multiplayer
                     return "/station contribute <project id> <item id> <amount> (deposit while docked at any station)";
                 return NetPlayerStations.Contribute(by as NetPlayer, project, item, amount);
             }
-            return "/station systems | start <system id> <name> | contribute <project id> <item id> <amount>";
+            return "/station systems | start <system id> <name> | status <project id> | contribute <project id> <item id> <amount>";
         }
 
         /// <summary>This player's server role (NetModeration; 0 without profiles).</summary>
