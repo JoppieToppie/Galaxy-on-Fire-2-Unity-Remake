@@ -432,8 +432,9 @@ namespace GoF2Remake.Multiplayer
             string targetFactionId = targetFaction?.id;
             string ownerFactionId = StationFactionId(record);
             if (!string.IsNullOrEmpty(targetFactionId) && !string.IsNullOrEmpty(ownerFactionId) &&
-                !string.Equals(targetFactionId, ownerFactionId, StringComparison.Ordinal))
-                return "Players from an opposing faction cannot be granted station permissions.";
+                !string.Equals(targetFactionId, ownerFactionId, StringComparison.Ordinal) &&
+                !(builder && permission == PlayerStationPermission.Visit && state == PlayerStationPermissionState.Allow))
+                return "Players from an opposing faction cannot be granted station permissions. The original builder may explicitly permit an individual visitor, overriding a faction-imposed visitor restriction.";
             record.permissionOverrides ??= new List<PlayerStationPermissionOverride>();
             var previous = FindPermissionOverride(record, targetAccount, permission);
             PlayerStationPermissionOverride savedPrevious = previous == null ? null : new PlayerStationPermissionOverride
