@@ -130,6 +130,8 @@ Construction is server-authoritative and persisted in the station registry:
 - Individually owned gates use personal material contributions. Faction-owned gates pay each contributor immediately from the owning faction bank at the fixed catalogue minimum value, using the same journalled cargo/credit transaction as station construction.
 - A build time of 0 makes the gate operational as soon as it is fully funded. A value from 1 to 2,592,000 seconds starts a persistent UTC timer after the final required material arrives.
 - `/station jumpgate-status <station id>` shows destination, material progress and timer state.
+- The station management window exposes the same start, contribution and status controls, including per-material progress and the optional timer.
+- The server update loop completes due UTC timers and replicates the updated station record. If the orbit is already loaded, the gate model, collision and navigation target are materialized in place; players do not need to leave and re-enter.
 
 The gate is rendered with the system's existing race/mod jumpgate assembly and collision/approach behavior. A player-built gate's destination is fixed; it does not open the unrestricted gate destination map. The reverse connection is intentionally a separate construction project.
 
