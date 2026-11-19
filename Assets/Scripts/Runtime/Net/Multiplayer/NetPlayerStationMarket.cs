@@ -43,15 +43,21 @@ namespace GoF2Remake.Multiplayer
             record.listings ??= new List<PlayerStationListing>();
             if (record.listings.Count >= MaxStationListings) return "This station has reached its listing limit.";
             record.storage ??= new List<PlayerStationStorage>();
+            EnsureStorageLots(record);
             var stock = record.storage.Find(x => x != null && x.item == item);
             if (stock == null || stock.amount < amount) return "The station does not have enough stock to escrow that listing.";
+            if (OwnedStorageAmount(record, account, item) < amount)
+                return "Those goods belong to another contributor; only their owner can list them.";
 
+            var previousLots = CloneStorageLots(record);
+            RemoveStorageLots(record, account, item, amount);
             stock.amount -= amount;
             if (stock.amount == 0) record.storage.Remove(stock);
             record.listings.Add(new PlayerStationListing { item = item, amount = amount, unitPrice = unitPrice, sellerProfile = account });
             if (!Save())
             {
                 record.listings.RemoveAt(record.listings.Count - 1);
+                record.storageLots = previousLots;
                 if (stock.amount == 0) record.storage.Add(stock);
                 stock.amount += amount;
                 return "The listing could not be saved; the goods were returned to storage where possible.";
@@ -125,14 +131,18 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out _))
-                return "Only the station owner can cancel listings while docked at the station.";
+            if (by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Dock at this station using a controlled profile to cancel a listing.";
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
             if (listingIndex < 0 || record.listings == null || listingIndex >= record.listings.Count)
                 return "No listing exists at that index.";
             var listing = record.listings[listingIndex];
-            if (listing == null || listing.amount <= 0 || !NetGuard.Item(listing.item))
+            if (listing == null || !string.Equals(listing.sellerProfile, account, StringComparison.Ordinal))
+                return "Only the original seller can cancel and reclaim this listing.";
+            if (listing.amount <= 0 || !NetGuard.Item(listing.item))
                 return "That listing is invalid and cannot be returned automatically.";
-            record.storage ??= new List<PlayerStationStorage>();
+            EnsureStorageLots(record);
             var stock = record.storage.Find(x => x != null && x.item == listing.item);
             int capacity = StorageCapacity(record);
             long stored = 0;
@@ -144,12 +154,15 @@ namespace GoF2Remake.Multiplayer
             if (stored + listing.amount > capacity)
                 return "Storage has insufficient room to return this listing; withdraw or clear space first.";
 
+            var previousLots = CloneStorageLots(record);
             if (stock == null) record.storage.Add(stock = new PlayerStationStorage { item = listing.item });
             stock.amount += listing.amount;
+            AddStorageLot(record, account, listing.item, listing.amount);
             record.listings.RemoveAt(listingIndex);
             if (!Save())
             {
                 stock.amount -= listing.amount;
+                record.storageLots = previousLots;
                 if (stock.amount == 0) record.storage.Remove(stock);
                 record.listings.Insert(listingIndex, listing);
                 return "The cancellation could not be saved; the listing remains active.";
