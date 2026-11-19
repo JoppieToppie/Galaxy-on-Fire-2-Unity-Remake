@@ -172,6 +172,20 @@ namespace GoF2Remake.UI
                 }
             }
 
+            if (selected != null)
+            {
+                AddSection("PLAYER-BUILT JUMPGATE", "Build one fixed-destination jumpgate in this station's orbit. Each orbit can host only one player-built gate; other station orbits in the same system can host their own gates. Materials can be contributed while docked anywhere. A non-zero build time starts after all materials arrive.");
+                AddAction("View jumpgate project status", "/station jumpgate-status " + selected.id);
+                AddField("jumpgateDestination", "Destination system index", "0");
+                AddField("jumpgateBuildSeconds", "Optional build time in seconds (0 = no timer)", "0");
+                AddAction("Start jumpgate project", () => Send("/station jumpgate " + selected.id + " " +
+                    Value("jumpgateDestination") + " " + Value("jumpgateBuildSeconds")));
+                AddField("jumpgateItem", "Contribution material item ID", "156");
+                AddField("jumpgateAmount", "Contribution amount (up to 500)", "25");
+                AddAction("Contribute jumpgate materials", () => Send("/station jumpgate-contribute " + selected.id + " " +
+                    Value("jumpgateItem") + " " + Value("jumpgateAmount")));
+            }
+
             AddSection("BUILD A STATION", "Start a private construction project by entering a known system index. Deposits are made while docked at any station. Faction-owned projects pay each contributor immediately from the faction bank; individual projects do not create faction-bank obligations.");
             AddField("system", "System index", "0");
             AddField("name", "New station name", "Frontier Outpost");
