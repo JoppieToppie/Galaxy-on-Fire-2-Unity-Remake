@@ -296,11 +296,11 @@ namespace GoF2Remake.UI
             // Remake (the user's request, 2026-10-24): the interface font (UiFont), Klavika or one the player imported or has
             // installed; the import's and removal's rows under it.
             var uiFont = Choice("uiFont", OptionPage.Accessibility, () => X("uiFont", "Interface font"), false,
-                () => UiFont.Choices().ConvertAll(c => c.name ?? X("uiFontDefault", "Inter (default)")).ToArray(),
+                () => UiFont.Choices().ConvertAll(c => c.name ?? string.Format(X("uiFontDefault", "{0} (default)"), UiFont.DefaultName)).ToArray(),
                 () => Mathf.Max(0, UiFont.Choices().FindIndex(c => c.key == Settings.UiFont)),
                 i => { var all = UiFont.Choices(); Settings.UiFont = all[Mathf.Clamp(i, 0, all.Count - 1)].key; },
                 () => UiFont.Current == null && UiFont.Problem != null ? UiFont.Problem
-                    : X("uiFontHelp", "The font of every menu and the HUD: Inter, a font file you import (Klavika, if you own it), or one installed on this device."));
+                    : string.Format(X("uiFontHelp", "The font of every menu and the HUD: {0}, a font file you import (Klavika, if you own it), or one installed on this device."), UiFont.DefaultName));
             uiFont.defaultValue = () => 0f;
             list.Add(uiFont);
             list.Add(new OptionDef
