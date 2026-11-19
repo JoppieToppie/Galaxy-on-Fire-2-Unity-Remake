@@ -78,6 +78,7 @@ namespace GoF2Remake.Multiplayer
             record.dryDockStartedUtc = 0;
             record.dryDockCompletesUtc = 0;
             record.dryDockConsumeBlueprint = false;
+            record.dryDockBuilderProfile = null;
         }
 
         /// <summary>Finish a due job exactly once. A failed save restores the active job for retry on the next tick.</summary>
@@ -90,10 +91,11 @@ namespace GoF2Remake.Multiplayer
             int race = NetGame.Db?.Systems?.Find(x => x.index == record.system)?.raceId ?? 0;
             record.dryDockShips.Add(new StoredShip(ship, race, new List<int>()));
             record.dryDockShipOwners ??= new List<string>();
-            record.dryDockShipOwners.Add(record.ownerProfile ?? "");
+            record.dryDockShipOwners.Add(record.dryDockBuilderProfile ?? record.ownerProfile ?? "");
             long started = record.dryDockStartedUtc, completes = record.dryDockCompletesUtc;
             int blueprint = record.dryDockBlueprintItem;
             bool consume = record.dryDockConsumeBlueprint;
+            string builder = record.dryDockBuilderProfile;
             ClearDryDockJob(record);
             if (Save()) return true;
             record.dryDockShips.RemoveAt(record.dryDockShips.Count - 1);
@@ -104,6 +106,7 @@ namespace GoF2Remake.Multiplayer
             record.dryDockStartedUtc = started;
             record.dryDockCompletesUtc = completes;
             record.dryDockConsumeBlueprint = consume;
+            record.dryDockBuilderProfile = builder;
             return false;
         }
 
@@ -153,7 +156,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManageHangar(by, record, out _))
+            if (!CanManageHangar(by, record, out string builderAccount))
                 return "Dock at this station with an authorised profile to use its dry dock.";
             if (record.underConstruction) return "Finish station construction before building ships.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
@@ -216,6 +219,7 @@ namespace GoF2Remake.Multiplayer
             record.dryDockStartedUtc = now;
             record.dryDockCompletesUtc = now + duration;
             record.dryDockConsumeBlueprint = consumeBlueprint;
+            record.dryDockBuilderProfile = builderAccount;
             if (consumeBlueprint) GoF2Remake.Data.Session.UnlockedBlueprints.Remove(productId);
             if (!Save())
             {
