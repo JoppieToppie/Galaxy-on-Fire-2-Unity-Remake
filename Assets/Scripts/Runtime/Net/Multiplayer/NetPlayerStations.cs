@@ -33,6 +33,12 @@ namespace GoF2Remake.Multiplayer
         public List<StoredShip> storedShips = new List<StoredShip>();
         /// <summary>Large hulls held in the station's dedicated dry dock.</summary>
         public List<StoredShip> dryDockShips = new List<StoredShip>();
+        /// <summary>One persistent in-progress dry-dock ship build. Completion is evaluated by the server clock.</summary>
+        public bool dryDockBuilding;
+        public int dryDockBlueprintItem = -1, dryDockShip = -1;
+        public long dryDockStartedUtc, dryDockCompletesUtc;
+        public string dryDockBuilderProfile;
+        public bool dryDockConsumeBlueprint;
         /// <summary>When enabled, members of the owner's current faction may use station storage and hangar.</summary>
         public bool factionStorageAccess;
     }
