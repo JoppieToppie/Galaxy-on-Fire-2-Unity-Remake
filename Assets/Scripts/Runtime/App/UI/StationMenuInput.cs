@@ -216,13 +216,14 @@ namespace GoF2Remake.UI
                 root.focusController?.IgnoreEvent(e);
                 return;
             }
-            var stationItems = new VisualElement[] { hangarButton, loungeButton, mapButton, missionsButton, statusButton, inspectButton, customizeButton, launchButton };
+            var stationItems = new VisualElement[] { hangarButton, loungeButton, mapButton, missionsButton, statusButton, dryDock?.MenuButton, inspectButton, customizeButton, launchButton };
             VisualElement[] items;
             // A squad invitation / trade request (SquadView): its Accept and Decline, like a dialog's Yes and No.
             bool squadPopup = !DialogOpen && SquadView.PopupOpen;
             if (DialogOpen) items = new VisualElement[] { dialogYes, dialogNo };
             else if (squadPopup) items = SquadView.PopupButtons;
             else if (SystemMenuOpen) items = SystemMenuItems();
+            else if (dryDock != null && dryDock.IsOpen) { items = dryDock.NavItems(); vertical |= horizontal; }
             else if (missions != null && missions.IsOpen) { items = missions.NavItems(); vertical |= horizontal; }
             else if (status != null && status.IsOpen) { items = status.NavItems(); vertical |= horizontal; }
             else if (lounge != null && lounge.ChatOpen) items = lounge.NavItems();
