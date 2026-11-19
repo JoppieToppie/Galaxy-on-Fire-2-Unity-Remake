@@ -338,17 +338,27 @@ namespace GoF2Remake.Multiplayer
             return record == null || HasStationPermission(record, account, PlayerStationPermission.Visit);
         }
 
+        // Ownership authority controls staffing and faction-wide station policy.
+        // Station administrators manage day-to-day settings but cannot appoint staff or
+        // rewrite the faction's permission profile.
         static bool IsStationAuthority(NetPlayer by, PlayerStationRecord record, out string account)
         {
             account = null;
             if (!IsStationContext(by, record, out account)) return false;
-            if (record.ownershipType == PlayerStationOwnershipType.Individual &&
-                string.Equals(record.ownerProfile, account, StringComparison.Ordinal)) return true;
+            if (record.ownershipType == PlayerStationOwnershipType.Individual)
+                return string.Equals(record.ownerProfile, account, StringComparison.Ordinal);
             var faction = NetFactions.Of(account);
             return faction != null && string.Equals(faction.id, record.ownerFactionId, StringComparison.Ordinal) &&
-                (string.Equals(faction.leader, account, StringComparison.Ordinal) ||
-                 (HasRole(record, account, PlayerStationRole.StationAdministrator) &&
-                  HasStationPermission(record, account, PlayerStationPermission.StationOperations)));
+                string.Equals(faction.leader, account, StringComparison.Ordinal);
+        }
+
+        static bool IsStationManagementAuthority(NetPlayer by, PlayerStationRecord record, out string account)
+        {
+            if (IsStationAuthority(by, record, out account)) return true;
+            if (string.IsNullOrEmpty(account)) return false;
+            return record.ownershipType == PlayerStationOwnershipType.Faction &&
+                HasRole(record, account, PlayerStationRole.StationAdministrator) &&
+                HasStationPermission(record, account, PlayerStationPermission.StationOperations);
         }
 
         internal static string SetStationRole(NetPlayer by, int stationId, string target, string roleName)
@@ -417,7 +427,7 @@ namespace GoF2Remake.Multiplayer
             if (!builder && permission == PlayerStationPermission.Visit &&
                 !HasStationPermission(record, account, PlayerStationPermission.Security))
                 return "Only the station owner or an authorised station security role may change visitor permissions.";
-            if (!builder && permission != PlayerStationPermission.Visit && !IsStationAuthority(by, record, out _))
+            if (!builder && permission != PlayerStationPermission.Visit && !IsStationManagementAuthority(by, record, out _))
                 return "Only the station owner, faction leader or an authorised station administrator may change permissions.";
             string targetAccount = NetProfiles.FindAccount((target ?? "").Trim());
             if (string.IsNullOrEmpty(targetAccount)) return "Supply a valid target account.";
