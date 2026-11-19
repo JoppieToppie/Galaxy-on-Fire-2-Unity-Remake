@@ -247,6 +247,15 @@ namespace GoF2Remake.Multiplayer
                         Debug.LogWarning($"NetPlayerStations: restored {FileName} from its backup. The damaged original was replaced; retain external backups as well.");
                     }
                 }
+                else if (File.Exists(backupPath))
+                {
+                    string backupJson = File.ReadAllText(backupPath);
+                    registry = JsonUtility.FromJson<Registry>(backupJson);
+                    if (registry == null) throw new InvalidDataException("registry backup produced no data");
+                    File.WriteAllText(path + ".recovered", backupJson);
+                    File.Move(path + ".recovered", path);
+                    Debug.LogWarning($"NetPlayerStations: restored missing {FileName} from its backup.");
+                }
                 else registry = new Registry();
             }
             catch (Exception e)
