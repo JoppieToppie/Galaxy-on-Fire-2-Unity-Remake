@@ -5,6 +5,7 @@
 //       "item": "mod_id:item_id" | number      (... or an item; a secondary weapon comes 10 at a time),
 //       "ingredients": [ { "item": 155, "amount": 120 }, ... ]   (in the hold; items too, demounted),
 //       "requiresShip": "mod_id:ship_id"       (optional: only built while flying that ship, which it replaces: a skin),
+//       "dryDockOnly": true                 (optional: ship blueprint requires a player station dry dock; large ship classes always do),
 //       "autocomplete": true | false | 1500000 (the price; true = the original's 1.25 x the product's price),
 //       "available": "condition"               (EventRunner.Condition: before any source offers it),
 //       "unlocked": false                      (true: known as soon as it is available),
@@ -110,6 +111,8 @@ namespace GoF2Remake.Modding
                 if (!ids.Add(d.localId)) throw new ModJsonException($"{where}: the id \"{d.localId}\" is used twice");
                 if ((d.shipRef == null) == (d.itemRef == null))
                     throw new ModJsonException($"{where}: a blueprint makes either a \"ship\" or an \"item\"");
+                if (d.dryDockOnly && !d.IsShip)
+                    throw new ModJsonException($"{where}: \"dryDockOnly\" is only valid for a ship blueprint");
                 if (!(ModJson.Get(o, "ingredients") is JArray ing) || ing.Count == 0)
                     throw new ModJsonException($"{where}: \"ingredients\" is missing: [ {{ \"item\": 155, \"amount\": 50 }}, ... ]");
                 foreach (var e in ing)
@@ -287,12 +290,14 @@ namespace GoF2Remake.Modding
         /// Large hull classes always require a player station dry dock. Mods may also mark a
         /// specialised ship blueprint with "dryDockOnly": true in blueprints.json.
         /// </summary>
-        public static bool RequiresDryDock(int product)
+        public static bool RequiresDryDock(int product) => RequiresDryDock(product, NetGame.Db);
+
+        public static bool RequiresDryDock(int product, Database db)
         {
             var d = Of(product);
             if (d == null || d.ship < 0) return false;
             if (d.dryDockOnly) return true;
-            string kind = ShipClassRules.ClassOf(NetGame.Db?.Ship(d.ship));
+            string kind = ShipClassRules.ClassOf(db?.Ship(d.ship));
             return string.Equals(kind, ShipClassRules.Frigate, StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(kind, ShipClassRules.Freighter, StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(kind, ShipClassRules.Cruiser, StringComparison.OrdinalIgnoreCase) ||
