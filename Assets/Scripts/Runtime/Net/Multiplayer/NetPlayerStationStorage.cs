@@ -99,7 +99,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out string account))
+            if (!CanManageStorage(by, record, out string account))
                 return "Dock at this station and use its controlling profile to manage storage.";
             if (record.underConstruction) return "Finish station construction before using storage.";
             if (amount < 1 || amount > 500 || !NetGuard.Item(item))
