@@ -30,6 +30,13 @@ namespace GoF2Remake.Multiplayer
         }
 
         [Serializable]
+        sealed class StationShipTarget
+        {
+            public string account;
+            public List<StoredShip> ships = new List<StoredShip>();
+        }
+
+        [Serializable]
         sealed class StationTransactionJournal
         {
             // Legacy single-profile field: retained so an interrupted journal from the first version can recover.
@@ -38,6 +45,7 @@ namespace GoF2Remake.Multiplayer
             public List<StationCargoTarget> cargo = new List<StationCargoTarget>();
             public List<StationCreditTarget> credits = new List<StationCreditTarget>();
             public List<StationFactionBankTarget> factionBanks = new List<StationFactionBankTarget>();
+            public List<StationShipTarget> storedShips = new List<StationShipTarget>();
         }
 
         static string TransactionPath => path == null ? null : path + ".transaction";
@@ -83,10 +91,19 @@ namespace GoF2Remake.Multiplayer
         /// Commits station state and absolute profile targets through a write-ahead journal. Replaying targets is
         /// idempotent: a crash between any profile write and the registry write cannot apply a transfer twice.
         /// </summary>
+        internal static bool CommitStoredShipTransaction(string account, List<StoredShip> targetShips)
+        {
+            if (string.IsNullOrEmpty(account) || targetShips == null || targetShips.Count > 100 ||
+                targetShips.Exists(x => x == null || x.ship < 0)) return false;
+            return CommitProfileTransaction(null, null, null,
+                new List<(string account, List<StoredShip> ships)> { (account, new List<StoredShip>(targetShips)) });
+        }
+
         static bool CommitProfileTransaction(
             List<(string account, int item, int delta)> cargoChanges,
             List<(string account, long delta)> creditChanges,
-            List<(string factionId, long delta)> factionBankChanges)
+            List<(string factionId, long delta)> factionBankChanges,
+            List<(string account, List<StoredShip> ships)> shipChanges = null)
         {
             if (!NetGame.IsServer || registry == null || string.IsNullOrEmpty(path)) return false;
             if (File.Exists(TransactionPath))
@@ -135,7 +152,14 @@ namespace GoF2Remake.Multiplayer
                 factionBankTargets[change.factionId] = next;
             }
 
-            if (cargoTargets.Count == 0 && creditTargets.Count == 0 && factionBankTargets.Count == 0) return false;
+            var shipTargets = new Dictionary<string, List<StoredShip>>(StringComparer.Ordinal);
+            foreach (var change in shipChanges ?? new List<(string, List<StoredShip>)>())
+            {
+                if (string.IsNullOrEmpty(change.account) || change.ships == null || change.ships.Count > 100 ||
+                    change.ships.Exists(x => x == null || x.ship < 0)) return false;
+                shipTargets[change.account] = new List<StoredShip>(change.ships);
+            }
+            if (cargoTargets.Count == 0 && creditTargets.Count == 0 && factionBankTargets.Count == 0 && shipTargets.Count == 0) return false;
             var journal = new StationTransactionJournal { registryJson = JsonUtility.ToJson(registry, true) };
             foreach (var target in cargoTargets)
                 journal.cargo.Add(new StationCargoTarget { account = target.Key.account, item = target.Key.item, amount = target.Value });
@@ -143,6 +167,8 @@ namespace GoF2Remake.Multiplayer
                 journal.credits.Add(new StationCreditTarget { account = target.Key, amount = target.Value });
             foreach (var target in factionBankTargets)
                 journal.factionBanks.Add(new StationFactionBankTarget { factionId = target.Key, amount = target.Value });
+            foreach (var target in shipTargets)
+                journal.storedShips.Add(new StationShipTarget { account = target.Key, ships = target.Value });
 
             if (!NetProfiles.Write(TransactionPath, JsonUtility.ToJson(journal, true))) return false;
             if (!FinishTransaction(journal))
@@ -162,6 +188,7 @@ namespace GoF2Remake.Multiplayer
                 journal.cargo ??= new List<StationCargoTarget>();
                 journal.credits ??= new List<StationCreditTarget>();
                 journal.factionBanks ??= new List<StationFactionBankTarget>();
+                journal.storedShips ??= new List<StationShipTarget>();
                 // Upgrade a pending journal from the original one-account cargo format in place.
                 foreach (var target in journal.cargo)
                     if (target != null && string.IsNullOrEmpty(target.account)) target.account = journal.account;
@@ -188,6 +215,10 @@ namespace GoF2Remake.Multiplayer
                     return false;
             foreach (var target in journal.factionBanks)
                 if (target == null || !NetFactions.SetBankAmount(target.factionId, target.amount))
+                    return false;
+            foreach (var target in journal.storedShips)
+                if (target == null || string.IsNullOrEmpty(target.account) ||
+                    !NetProfiles.SetStoredShips(target.account, target.ships))
                     return false;
 
             if (!NetProfiles.Write(path, journal.registryJson)) return false;
