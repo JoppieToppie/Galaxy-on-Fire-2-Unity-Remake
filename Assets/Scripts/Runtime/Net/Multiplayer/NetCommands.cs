@@ -341,7 +341,7 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
-            new Command { name = "station", usage = "start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | transfer <id> player|faction <recipient account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | contributions <id>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+            new Command { name = "station", usage = "start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> [personal|faction] | delist <id> <listing index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | transfer <id> player|faction <recipient account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | contributions <id>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
                 description = () => X("mpCmdStation", "builds stations, installs modules, manages storage, ship hangars, dry docks and station listings; persistent worlds only") },
         };
@@ -502,11 +502,14 @@ namespace GoF2Remake.Multiplayer
             if (args.StartsWith(listItem, StringComparison.OrdinalIgnoreCase))
             {
                 string[] words = args.Substring(listItem.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (words.Length != 4 || !int.TryParse(words[0], out int stationId) ||
+                if ((words.Length != 4 && words.Length != 5) || !int.TryParse(words[0], out int stationId) ||
                     !int.TryParse(words[1], out int item) || !int.TryParse(words[2], out int amount) ||
                     !long.TryParse(words[3], out long unitPrice))
-                    return "/station list-item <station id> <item id> <amount> <unit price>";
-                return NetPlayerStations.CreateListing(by as NetPlayer, stationId, item, amount, unitPrice);
+                    return "/station list-item <station id> <item id> <amount> <unit price> [personal|faction]";
+                bool payFaction = words.Length == 5 && string.Equals(words[4], "faction", StringComparison.OrdinalIgnoreCase);
+                if (words.Length == 5 && !payFaction && !string.Equals(words[4], "personal", StringComparison.OrdinalIgnoreCase))
+                    return "Choose personal or faction for listing proceeds.";
+                return NetPlayerStations.CreateListing(by as NetPlayer, stationId, item, amount, unitPrice, payFaction);
             }
             const string delist = "delist ";
             if (args.StartsWith(delist, StringComparison.OrdinalIgnoreCase))
