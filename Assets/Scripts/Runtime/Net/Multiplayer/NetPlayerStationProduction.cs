@@ -59,7 +59,7 @@ namespace GoF2Remake.Multiplayer
                 return "That blueprint does not require a dry dock; use an eligible ship-construction facility.";
             if (!GoF2Remake.Data.Blueprints.IsUnlocked(productId))
                 return "That ship blueprint has not been unlocked.";
-            if (Modding.ModBlueprints.RequiresShipRefusal(productId) is string refusal)
+            if (Modding.ModBlueprints.RequiresShipRefusal(productId, by.ShipIndex) is string refusal)
                 return refusal;
             if (product.blueprint == null || product.blueprint.Count == 0)
                 return "That ship blueprint has no valid construction recipe.";
