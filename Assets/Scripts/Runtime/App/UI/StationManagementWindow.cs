@@ -235,8 +235,18 @@ namespace GoF2Remake.UI
                 AddInfo("Gate status", "No gate or active gate project in this orbit");
                 AddField("jumpgateDestination", "Destination system index", "");
                 AddField("jumpgateBuildSeconds", "Build time in seconds (0 = no timer)", "0");
-                AddAction("Start jumpgate construction", () => Send("/station jumpgate " + id + " " +
-                    Value("jumpgateDestination") + " " + Value("jumpgateBuildSeconds")));
+                AddAction("Start jumpgate construction", () =>
+                {
+                    string destination = Value("jumpgateDestination").Trim();
+                    string buildSeconds = Value("jumpgateBuildSeconds").Trim();
+                    if (!int.TryParse(destination, out _) || !int.TryParse(buildSeconds, out _))
+                    {
+                        feedback.text = "Enter a valid destination system index and build time in seconds.";
+                        feedbackTime = 4f;
+                        return;
+                    }
+                    Send("/station jumpgate " + id + " " + destination + " " + buildSeconds);
+                });
             }
 
             AddSection("STORAGE & ACCESS", "Move goods between your cargo hold and shared station storage. Access can be restricted to the owner or shared with current faction members.");
