@@ -51,7 +51,7 @@ namespace GoF2Remake.Multiplayer
             }
 
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
-                foreach (var cost in paid)
+                foreach (var cost in costs)
                     NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, cost.item, cost.amount, 0, "", "Station module");
             return "Storage module installed at " + record.name + ". It can hold " + StorageCapacityPerLevel.ToString("N0") + " units.";
         }

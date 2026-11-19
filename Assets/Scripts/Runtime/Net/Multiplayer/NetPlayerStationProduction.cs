@@ -39,7 +39,7 @@ namespace GoF2Remake.Multiplayer
                 return "The refinery transaction could not be journalled; no materials were taken.";
             }
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
-                foreach (var cost in paid)
+                foreach (var cost in costs)
                     NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, cost.item, cost.amount, 0, "", "Station refinery");
             return "Refinery installed at " + record.name + ". Use /station refine <id> <ore item id> <amount>.";
         }
