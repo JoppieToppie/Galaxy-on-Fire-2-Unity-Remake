@@ -428,8 +428,8 @@ namespace GoF2Remake.Multiplayer
             if (!builder && permission == PlayerStationPermission.Visit &&
                 !HasStationPermission(record, account, PlayerStationPermission.Security))
                 return "Only the station owner or an authorised station security role may change visitor permissions.";
-            if (!builder && permission != PlayerStationPermission.Visit && !IsStationManagementAuthority(by, record, out _))
-                return "Only the station owner, faction leader or an authorised station administrator may change permissions.";
+            if (!builder && permission != PlayerStationPermission.Visit && !IsStationAuthority(by, record, out _))
+                return "Only the individual owner or owning faction leader may grant or revoke non-visitor permissions. Station administrators cannot grant themselves or others additional authority.";
             string targetAccount = NetProfiles.FindAccount((target ?? "").Trim());
             if (string.IsNullOrEmpty(targetAccount)) return "Supply a valid target account.";
             if (!builder && record.ownershipType == PlayerStationOwnershipType.Individual &&
