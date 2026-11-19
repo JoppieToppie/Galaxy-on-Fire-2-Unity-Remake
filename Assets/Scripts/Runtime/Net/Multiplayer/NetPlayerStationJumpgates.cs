@@ -122,9 +122,9 @@ namespace GoF2Remake.Multiplayer
                 if (unitValue > long.MaxValue / amount) return "The contribution value is outside the supported credit range.";
                 payout = unitValue * amount;
                 long bank = NetFactions.BankAmount(record.ownerFactionId);
-                if (bank < payout) return "The faction bank needs " + payout.ToString("N0") +
-                    " credits to pay this contribution but only has " + Math.Max(0, bank).ToString("N0") + ". Your materials were not taken.";
                 if (bank < 0) return "The owning faction treasury is unavailable; no materials were taken.";
+                if (bank < payout) return "The faction bank needs " + payout.ToString("N0") +
+                    " credits to pay this contribution but only has " + bank.ToString("N0") + ". Your materials were not taken.";
             }
 
             record.jumpgateContributions ??= new List<PlayerStationContribution>();
