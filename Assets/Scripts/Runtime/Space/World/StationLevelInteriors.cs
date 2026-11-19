@@ -161,6 +161,7 @@ namespace GoF2Remake.World
                                                                           traffic != null && traffic.SpawningGuest >= 0 ? SpaceHooks.GuestAssembly?.Invoke((ulong)traffic.SpawningGuest, ship) : null),
                                             npcTraffic, Settings.HangarFlights, FitParkingYaw);
             if (traffic != null) traffic.NpcSpawned = (go, ship) => AddNpcTurrets(go, ship, null);
+            if (traffic != null) traffic.View = () => hangarView;   // not Inspect ship's close-up (a player's report, 2026-11-17)
             if (traffic != null && GoF2Remake.Data.NetSession.Active)
             {
                 traffic.KeepOneFree = true;          // a pad for another player docking

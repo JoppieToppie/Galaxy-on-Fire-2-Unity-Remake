@@ -3,7 +3,8 @@
 // (StationTables.HangarLane.pillars, HangarFlight.AvoidPillars); a player's report 2026-10-16: ships flew through the pillar
 // in front of the right pad. Expected values: the pillars measured on hangar_nivelian's mesh (StationTables), the pads
 // (the turntable at the origin, ParkedSlots[2] through OrbitLayout.ToUnity); along every arrival and departure the ship's
-// outline from above (its width x length, facing along the path) keeps clear of each pillar's radius.
+// outline from above (its width x length, facing along the path) keeps clear of each pillar's radius. Also where the
+// ships shrink at the edge of the view: the hangar camera's own view, not Inspect ship's close-up.
 
 using System.Linq;
 using GoF2Remake.World;
@@ -48,12 +49,13 @@ namespace GoF2Remake.Tests
             return least;
         }
 
-        HangarFlight Fly(StationTables.HangarLane lane, Vector3 pad, bool arriving)
+        HangarFlight Fly(StationTables.HangarLane lane, Vector3 pad, bool arriving, HangarFlight.View? view = null)
         {
             ship.transform.position = pad;
             ship.transform.rotation = Quaternion.identity;
             ship.transform.localScale = size;
-            return arriving ? HangarFlight.Arrival(ship.transform, lane, pad, null, null, 0f) : HangarFlight.Departure(ship.transform, lane, null, 0f);
+            return arriving ? HangarFlight.Arrival(ship.transform, lane, pad, null, null, 0f, view)
+                            : HangarFlight.Departure(ship.transform, lane, null, 0f, view);
         }
 
         [TestCase(20f, 30f)]   // a fighter
@@ -119,6 +121,63 @@ namespace GoF2Remake.Tests
             ship = GameObject.CreatePrimitive(PrimitiveType.Cube);
             size = new Vector3(20f, 8f, 30f);
             Assert.Less(LeastClearance(Fly(bare, NivelianPads[1], true), lane.pillars, 20f, 30f), 0f);
+        }
+
+        // 2026-11-17 (a player's report): NPC ships taking off in the Vossk hangar shrank to nothing just over their pads
+        // during Inspect ship. HangarFlight measured where the path leaves the view against the camera as it was, the
+        // orbit's close-up; StationLevel passes the hangar camera's own view (HangarFlight.View) instead.
+        [Test]
+        public void TheShrinkFollowsTheViewItIsGiven()
+        {
+            var lane = StationTables.HangarLanes[1];
+            var pad = VosskPads()[3];
+            ship = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            size = new Vector3(20f, 8f, 30f);
+            // the top of the climb, looked at from 80 m further from the hub: a close-up like Inspect ship's
+            var top = Fly(lane, pad, false).Path.First(q => new Vector2(q.x - pad.x, q.z - pad.z).magnitude > 1f);
+            var away = new Vector3(pad.x - lane.hub.x, 0f, pad.z - lane.hub.z).normalized;
+            var closeAt = top + away * 80f;
+            var closeUp = new HangarFlight.View { position = closeAt, rotation = Quaternion.LookRotation(top - closeAt), verticalFovDeg = 50f, aspect = 16f / 9f };
+            // high over the hub looking down, the whole room and the space outside the portal in view
+            var whole = new HangarFlight.View { position = lane.hub + Vector3.up * 3000f, rotation = Quaternion.LookRotation(Vector3.down, Vector3.forward),
+                                                verticalFovDeg = 120f, aspect = 1f };
+            Assert.Less(ScaleAway(Fly(lane, pad, false, closeUp), pad, 250f), 0.01f, "out of the close-up's view: shrunk away");
+            Assert.AreEqual(1f, ScaleAway(Fly(lane, pad, false, whole), pad, 250f), 1e-3f, "in the room's view: full size");
+        }
+
+        /// <summary>Flies 'f' until the ship is 'distance' metres (across the floor) from 'pad': its scale then, of its own.</summary>
+        float ScaleAway(HangarFlight f, Vector3 pad, float distance)
+        {
+            for (int i = 0; i < 20000 && !f.Done; i++)
+            {
+                f.Update(0.02f);
+                var p = ship.transform.position;
+                if (new Vector2(p.x - pad.x, p.z - pad.z).magnitude >= distance) return ship.transform.localScale.x / size.x;
+            }
+            Assert.Fail("the ship never got " + distance + " m from its pad");
+            return 0f;
+        }
+
+        [Test]
+        public void TheViewProjectsLikeACamera()
+        {
+            var go = new GameObject("view test camera");
+            try
+            {
+                var cam = go.AddComponent<Camera>();
+                cam.fieldOfView = 47f;
+                cam.aspect = 16f / 9f;
+                go.transform.SetPositionAndRotation(new Vector3(30f, 80f, -400f), Quaternion.Euler(12f, 25f, 3f));
+                var view = HangarFlight.View.Of(cam).Value;
+                foreach (var p in new[] { new Vector3(0f, 0f, 0f), new Vector3(200f, -50f, 300f), new Vector3(-150f, 120f, 50f) })
+                {
+                    Vector3 a = cam.WorldToViewportPoint(p), b = view.Viewport(p);
+                    Assert.AreEqual(a.x, b.x, 1e-3f, p.ToString());
+                    Assert.AreEqual(a.y, b.y, 1e-3f, p.ToString());
+                    Assert.AreEqual(a.z, b.z, 1e-2f, p.ToString());
+                }
+            }
+            finally { Object.DestroyImmediate(go); }
         }
     }
 }

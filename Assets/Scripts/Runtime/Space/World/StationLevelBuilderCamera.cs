@@ -56,6 +56,7 @@ namespace GoF2Remake.World
                     cam.SetPositionAndRotation(shipPivot + OrbitLayout.ToUnity(p), CameraRotation(r.x, r.y, StationTables.HangarCameraRoll));
                     SetLens(StationTables.HangarFov, StationTables.HangarNear, StationTables.HangarFar, false);
                 }
+                hangarView = HangarFlight.View.Of(mainCamera);   // the room's view, before the orbit below moves the camera
                 // Remake: Inspect ship, from the hangar pose just set to the orbit around the ship (and back).
                 if (Inspect.Shown || Inspect.Active)
                 {
