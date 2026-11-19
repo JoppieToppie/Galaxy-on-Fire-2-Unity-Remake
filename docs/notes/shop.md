@@ -221,6 +221,8 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   `statLoadingTime` "Loading time" (`ItemInfo.LoadingTime`); most languages' 149 says speed too.
 
 - **Item details numbers** (2026-11-15, from the disassembly: the decompile drops these multiplies): `ItemInfo` shows
+  shield regeneration and hull/armor repair rates rounded to two decimal places. Shield rate is capacity x 1000 /
+  full recharge milliseconds; repair rates are 1000 / hull interval and 2000 / armor interval. Only formatting changes.
   attr 14 x 0.5 (missiles', mines' and flak's magnitude), attrs 51 / 53 x 0.1 (collectors', repair and transfusion
   beams' reach), each cut to an int; a gun's range ending in exactly 50 goes up to the next hundred (Ridil Blaster 1250
   reads 1300); the DPS row and the Status window's fire power (StatusWindow::draw 0x1840e2) use the original's decimals,

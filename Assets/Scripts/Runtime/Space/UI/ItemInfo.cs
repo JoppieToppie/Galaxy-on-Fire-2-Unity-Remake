@@ -127,7 +127,7 @@ namespace GoF2Remake.UI
                         // Remake (a player's suggestion): a shield's full recharge time (the original's "speed") and its rate, the
                         // shield points per second (Hitpoints.RegenerateShield: max / (attr 19 / 100) per 100 ms), like weapons' DPS.
                         rows.Add((Localization.Extra("statFullRecharge", "Full recharge"), $"{v} ms"));
-                        rows.Add((Localization.Extra("statShieldPerSecond", "Shield per second"), (it.Attr(18) * 1000f / v).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)));
+                        rows.Add((Localization.Extra("statShieldPerSecond", "Shield per second"), (it.Attr(18) * 1000f / v).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)));
                         break;
                     case 19: case 26: case 36: case 37: case 43: rows.Add((LoadingTime, $"{v} ms")); break;
                     case 21: rows.Add((T(140), $"{v} %")); break;
@@ -201,8 +201,8 @@ namespace GoF2Remake.UI
             {
                 Flight.PlayerHealth.RepairRates(it, out float hullMs, out float armorMs);
                 var inv = System.Globalization.CultureInfo.InvariantCulture;
-                rows.Add((Localization.Extra("statHullRepair", "Hull repair per second"), (1000f / hullMs).ToString("0.0", inv)));
-                rows.Add((Localization.Extra("statArmorRepair", "Armor repair per second"), (2000f / armorMs).ToString("0.0", inv)));
+                rows.Add((Localization.Extra("statHullRepair", "Hull repair per second"), (1000f / hullMs).ToString("0.00", inv)));
+                rows.Add((Localization.Extra("statArmorRepair", "Armor repair per second"), (2000f / armorMs).ToString("0.00", inv)));
             }
             int defense = it.Attr(Flight.PointDefense.Attribute);
             if (defense > 0)
