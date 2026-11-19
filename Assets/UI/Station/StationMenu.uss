@@ -927,3 +927,29 @@
     font-size: var(--text-small);
     color: var(--gof-text-dim);
 }
+
+
+.layout-phone .drydock-window {
+    left: 2%;
+    right: 2%;
+    top: 3%;
+    bottom: 3%;
+    padding: 12px;
+}
+.layout-phone .drydock-content {
+    flex-direction: column;
+}
+.layout-phone .drydock-blueprint-list {
+    width: auto;
+    height: 38%;
+    margin-right: 0;
+    margin-bottom: 10px;
+}
+.layout-phone .drydock-details {
+    flex-grow: 1;
+    padding: 12px;
+}
+.layout-phone .drydock-title {
+    font-size: var(--text-subhead);
+    letter-spacing: 2px;
+}
