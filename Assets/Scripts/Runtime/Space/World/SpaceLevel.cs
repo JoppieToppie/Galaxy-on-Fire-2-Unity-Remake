@@ -816,6 +816,7 @@ namespace GoF2Remake.World
             // MGame::OnUpdate: the wingmen's contract runs down while flying (fast-forward included, not while paused).
             if (Session.Wingmen.Count > 0 && Session.WingmanContractMs > 0f) Session.WingmanContractMs = Mathf.Max(0f, Session.WingmanContractMs - Time.deltaTime * 1000f);
             if (Health == null) return;
+            UpdatePlayerJumpgate();
             bool warpHolds = WarpHolds;
             if (Weapons != null) Weapons.WarpHeld = warpHolds;
             Navigation.ArrivalHeld = warpSky != null && warpSky.Arriving;
