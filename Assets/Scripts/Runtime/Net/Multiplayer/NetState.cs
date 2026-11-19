@@ -179,6 +179,7 @@ namespace GoF2Remake.Multiplayer
                 string entry = $"{playerStationRevision}:{index}:{count}:{payload}";
                 playerStationChunks.Add(new FixedString4096Bytes(entry));
             }
+            playerStationJson = json;
             return true;
         }
 
