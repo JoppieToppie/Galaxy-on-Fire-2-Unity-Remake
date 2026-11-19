@@ -271,7 +271,7 @@ namespace GoF2Remake.Multiplayer
             {
                 $"Station #{record.id}: {record.name}",
                 $"System: {(system != null ? system.name : $"Unknown ({record.system})")}",
-                $"Owner: {(record.ownershipType == PlayerStationOwnershipType.Faction ? "Faction " + (record.ownerFactionId ?? "unknown") : (string.IsNullOrWhiteSpace(record.ownerName) ? "Unknown" : record.ownerName))}",
+                $"Owner: {(record.ownershipType == PlayerStationOwnershipType.Faction ? "Faction " + (string.IsNullOrWhiteSpace(record.ownerName) ? (record.ownerFactionId ?? "unknown") : record.ownerName) : (string.IsNullOrWhiteSpace(record.ownerName) ? "Unknown" : record.ownerName))}",
                 $"Status: {(record.underConstruction ? "Under construction" : "Operational")}",
             };
 
