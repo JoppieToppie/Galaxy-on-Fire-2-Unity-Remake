@@ -103,12 +103,26 @@ namespace GoF2Remake.Multiplayer
             if (complete)
             {
                 record.underConstruction = false;
-                long refund = 0;
-                foreach (var pending in record.buyOrders) if (pending != null) refund += Math.Max(0, pending.reservedCredits);
-                if (refund > 0)
+                foreach (var pending in record.buyOrders)
                 {
-                    if (record.ownershipType == PlayerStationOwnershipType.Faction) banks.Add((record.ownerFactionId, refund));
-                    else credits.Add((record.ownerProfile, refund));
+                    if (pending == null || pending.reservedCredits <= 0) continue;
+                    // Escrow belongs to the account/faction that funded this order, even if station ownership
+                    // changed while construction was in progress. Legacy records fall back to their creator.
+                    string refundProfile = pending.fundedByProfile;
+                    string refundFaction = pending.fundedByFactionId;
+                    if (string.IsNullOrEmpty(refundProfile) && string.IsNullOrEmpty(refundFaction))
+                        refundProfile = pending.createdBy;
+                    if (!string.IsNullOrEmpty(refundProfile))
+                        credits.Add((refundProfile, pending.reservedCredits));
+                    else if (!string.IsNullOrEmpty(refundFaction))
+                        banks.Add((refundFaction, pending.reservedCredits));
+                    else
+                    {
+                        material.delivered = oldDelivered;
+                        record.underConstruction = wasUnderConstruction;
+                        record.buyOrders = oldOrders;
+                        return "Construction cannot complete because an outstanding buy order has no recoverable escrow owner. The order was preserved for administrator recovery.";
+                    }
                 }
                 record.buyOrders.Clear();
             }
