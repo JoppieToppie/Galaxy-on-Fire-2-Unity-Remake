@@ -341,7 +341,7 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
-            new Command { name = "station", usage = "start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> [personal|faction] | delist <id> <listing index> | buy-order <id> <item id> <amount> <unit price> | sell-order <id> <order index> <amount> | cancel-order <id> <order index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | transfer <id> player|faction <recipient account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | contributions <id> | jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds] | jumpgate-orbits <system id> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+            new Command { name = "station", usage = "start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> [personal|faction] | delist <id> <listing index> | buy-order <id> <item id> <amount> <unit price> | sell-order <id> <order index> <amount> | cancel-order <id> <order index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | transfer <id> player|faction <recipient account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | successor <id> player|faction <account>|clear | successor-delegate <id> <officer account|none> | builder-relinquish <id> | history <id> | contributions <id> | jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds] | jumpgate-orbits <system id> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
                 description = () => X("mpCmdStation", "builds stations and independent-orbit jumpgates, changes gate destinations daily, installs modules, manages storage, ship hangars, dry docks and station listings; persistent worlds only") },
         };
@@ -419,6 +419,39 @@ namespace GoF2Remake.Multiplayer
                 if (words.Length != 3 || !int.TryParse(words[0], out int stationId))
                     return "/station transfer <station id> player|faction <recipient account id>";
                 return NetPlayerStations.ProposeTransfer(by as NetPlayer, stationId, words[1], words[2]);
+            }
+            const string history = "history ";
+            if (args.StartsWith(history, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(history.Length).Trim(), out int historyId))
+                    return "/station history <station id>";
+                return NetPlayerStations.GovernanceHistory(by as NetPlayer, historyId);
+            }
+            const string builderRelinquish = "builder-relinquish ";
+            if (args.StartsWith(builderRelinquish, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(builderRelinquish.Length).Trim(), out int builderStationId))
+                    return "/station builder-relinquish <station id>";
+                return NetPlayerStations.RelinquishBuilderRights(by as NetPlayer, builderStationId);
+            }
+            const string successorDelegate = "successor-delegate ";
+            if (args.StartsWith(successorDelegate, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(successorDelegate.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int delegateStationId))
+                    return "/station successor-delegate <station id> <officer account id|none>";
+                return NetPlayerStations.SetFactionSuccessorDelegate(by as NetPlayer, delegateStationId, words[1]);
+            }
+            const string successor = "successor ";
+            if (args.StartsWith(successor, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(successor.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length == 2 && string.Equals(words[1], "clear", StringComparison.OrdinalIgnoreCase) &&
+                    int.TryParse(words[0], out int clearStationId))
+                    return NetPlayerStations.SetFactionSuccessor(by as NetPlayer, clearStationId, "clear", null);
+                if (words.Length != 3 || !int.TryParse(words[0], out int successorStationId))
+                    return "/station successor <station id> player|faction <account id> | successor <station id> clear";
+                return NetPlayerStations.SetFactionSuccessor(by as NetPlayer, successorStationId, words[1], words[2]);
             }
             const string contributions = "contributions ";
             if (args.StartsWith(contributions, StringComparison.OrdinalIgnoreCase))
