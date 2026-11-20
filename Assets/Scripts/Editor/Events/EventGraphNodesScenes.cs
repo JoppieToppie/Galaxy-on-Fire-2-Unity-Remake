@@ -256,4 +256,22 @@ namespace GoF2Remake.EditorTools
             context.AddOption<string>(Line).WithTooltip("Any server command without the \"/\" (/help lists them); {expression} parts are filled in.")
                 .Delayed().Build();
     }
+
+    /// <summary>Lua code of the mod the graph belongs to, run when the flow reaches it (EventRunner's "lua" line,
+    /// Modding.ModScripts.RunCode): for what no node does. The mod's scripts must be allowed by the player.</summary>
+    [Serializable]
+    [Node("Commands", null, "Lua")]
+    public class EventLuaNode : EventCommandNode
+    {
+        public const string Code = "Code", Result = "Result";
+
+        protected override void OnDefineOptions(IOptionDefinitionContext context)
+        {
+            context.AddOption<string>(Code).WithTooltip("Lua code, run in this mod's scripts (the game table, the game's classes, your own globals). " +
+                "\"local event = ...\" gives event.name, event.get(\"expression\") (a value of this graph: a variable, kills, credits ...) and " +
+                "event.set(\"variable\", number). It runs where the event runs (single player, or the host / server).")
+                .AsTextArea(4, 20).Delayed().Build();
+            context.AddOption<string>(Result).WithTooltip("Optional: a variable for the number or true / false the code returns.").Delayed().Build();
+        }
+    }
 }

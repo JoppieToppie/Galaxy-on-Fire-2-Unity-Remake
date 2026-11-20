@@ -273,6 +273,18 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   systems 25 / 27 / 32 / 33, a pirate base system, an empty orbit, `PirateEventRules.InStoryline`, a mobile or missing
   mod station; -1 none) and the text fills `{stationname(x)}` / `{systemname(x)}` (`Fill`, `PlaceName`;
   `QuestFile.StateWords` keeps them).
+- **Lua step** (2026-11-21, the user: "a lua node for the graph so it can also run code"; tests `EventLuaStepTests`): the
+  graph Editor's **Lua** node (Commands, `EventLuaNode`: Code, a text area, and Result) and the Mod Builder missions' `lua`
+  step (`QuestSteps`: code, result) both write `lua <variable | -> <code as base64>` (the code has line breaks, braces
+  and `#`, which the line form reads as its own). `EventRun.RunLua` runs it in the scripts of the mod the event came
+  from (`EventRun.mod`, set by `Start` from `Load`'s `from`: a mod's id; an Events-folder file or a built-in can't run
+  code) through `ModScripts.RunCode`: the chunk (cached per code text) gets the table `event` (`name`, `get(expr)` =
+  the run's `Eval(Fill(expr))`, `set(var, n)` = `SetVar`) and a returned number / boolean goes into the variable; a
+  failure is the step's error (the event's log line). `lua` is caught before `NetCommands.RunOnServer`, so it is never
+  a chat or console command. A mod with a Lua step is a script mod: `ModScripts.HasScripts` counts `LuaEventFiles`
+  (events/ files naming the step), and the approval's `ScriptHash` covers every events/ file that mentions "lua" once
+  the mod runs Lua, so changed code asks again. It runs where the event runs: single player, the host / server in a
+  session (scripts run on every game, so the mod's state is there).
 - **Event graph bar missions** (`EventMissions`): an event graph whose Start node has a Mission title (its Mission
   settings: offer text, client (a story character or "race name" like /dialog's speakers; empty: someone of the station's
   race), reward, offered at (stations; empty: every one), min / max pilots, offer chance % (`mission chance`, default 35,

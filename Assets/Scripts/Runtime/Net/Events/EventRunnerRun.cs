@@ -479,11 +479,26 @@ namespace GoF2Remake.Events
 
             static ScoreMode Mode(string word) => word == "kills" ? ScoreMode.Kills : word == "points" ? ScoreMode.Points : ScoreMode.Time;
 
+            /// <summary>A Lua step ("lua &lt;variable | -&gt; &lt;the code, base64&gt;": EventGraphScript's Lua node, QuestSteps' "lua"):
+            /// run in the scripts of the mod this event came from (ModScripts.RunCode); a number or true / false it returns
+            /// goes into the variable. Only a mod's own event runs code: not a file of the Events folder, not a built-in.</summary>
+            void RunLua(string args)
+            {
+                int sp = args.IndexOf(' ');
+                string variable = sp < 0 ? "-" : args.Substring(0, sp), code;
+                try { code = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(sp < 0 ? args : args.Substring(sp + 1).Trim())); }
+                catch (FormatException) { throw new Exception("a Lua step's code can't be read."); }
+                if (string.IsNullOrEmpty(mod)) throw new Exception("a Lua step only runs in an event of a mod (its events/ folder).");
+                if (!Modding.ModScripts.RunCode(mod, code, running, e => Eval(Fill(e)), SetVar, out double? result, out string error)) throw new Exception(error);
+                if (variable != "-" && result != null) SetVar(variable, result.Value);
+            }
+
             void RunCommand(string line)
             {
                 int sp = line.IndexOf(' ');
                 string name = (sp < 0 ? line : line.Substring(0, sp)).ToLowerInvariant();
                 string args = sp < 0 ? "" : line.Substring(sp + 1).Trim();
+                if (name == "lua") { RunLua(args); return; }   // never a server command: nobody can type it in the chat
                 var was = executing;
                 executing = this;
                 string answer;

@@ -119,6 +119,45 @@ namespace GoF2Remake.Modding
         {
             const int PatchFailures = 5;
 
+            readonly Dictionary<string, DynValue> eventChunks = new Dictionary<string, DynValue>(StringComparer.Ordinal);
+
+            /// <summary>ModScripts.RunCode: an event's Lua step in this mod's state. The code is a chunk whose argument is
+            /// the "event" table: local event = ...</summary>
+            public bool RunCode(string code, string eventName, Func<string, double> value, Action<string, double> set, out double? result, out string error)
+            {
+                result = null;
+                error = null;
+                if (stopped) { error = "the mod's scripts have stopped"; return false; }
+                if (!eventChunks.TryGetValue(code, out var chunk))
+                {
+                    try { chunk = script.LoadString(code, null, "event " + eventName); }
+                    catch (InterpreterException e) { error = "Lua step: " + (e.DecoratedMessage ?? e.Message); Error(error); return false; }
+                    if (eventChunks.Count > 256) eventChunks.Clear();
+                    eventChunks[code] = chunk;
+                }
+                var ev = new Table(script);
+                ev["name"] = eventName;
+                ev["get"] = DynValue.NewCallback((context, a) =>
+                {
+                    try { return DynValue.NewNumber(value(a.AsType(0, "event.get", DataType.String).String)); }
+                    catch (Exception e) when (!(e is InterpreterException)) { throw new ScriptRuntimeException("event.get: " + e.Message); }
+                }, "event.get");
+                ev["set"] = DynValue.NewCallback((context, a) =>
+                {
+                    string name = a.AsType(0, "event.set", DataType.String).String.Trim().ToLowerInvariant();
+                    if (name.Length == 0 || !name.All(c => char.IsLetterOrDigit(c) || c == '_')) throw new ScriptRuntimeException("event.set: a variable's name is letters, digits and _");
+                    var v = a.Count > 1 ? a[1] : DynValue.Nil;
+                    set(name, v.Type == DataType.Boolean ? (v.Boolean ? 1 : 0) : a.AsType(1, "event.set", DataType.Number).Number);
+                    return DynValue.Nil;
+                }, "event.set");
+                var r = Call(chunk, out bool ok, true, DynValue.NewTable(ev));
+                if (!ok) { error = "its Lua step failed (the mod's script messages say why)"; return false; }
+                if (r.Type == DataType.Tuple) r = r.Tuple.Length > 0 ? r.Tuple[0] : DynValue.Nil;
+                if (r.Type == DataType.Number) result = r.Number;
+                else if (r.Type == DataType.Boolean) result = r.Boolean ? 1 : 0;
+                return true;
+            }
+
             /// <summary>game.patch: see the file's head. Returns the handle game.off takes.</summary>
             DynValue Patch(CallbackArguments a)
             {

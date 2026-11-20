@@ -403,6 +403,9 @@ namespace GoF2Remake.Events
         sealed partial class EventRun
         {
             public readonly string running;
+            /// <summary>The mod whose events/ folder the event came from (null: the Events folder, a built-in): whose
+            /// scripts a Lua step runs in.</summary>
+            public string mod;
             public readonly List<Step> program;
             public readonly MissionInfo info;
             public readonly HashSet<ulong> team;

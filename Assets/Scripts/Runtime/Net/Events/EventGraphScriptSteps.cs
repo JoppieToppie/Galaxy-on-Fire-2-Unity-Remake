@@ -561,6 +561,16 @@ namespace GoF2Remake.Events
                         else Line(line);
                         break;
                     }
+                    case "EventLuaNode":
+                    {
+                        // The code travels as one word (base64): it has line breaks, braces and "#", which the line form
+                        // reads as its own. "-": no variable for what it returns.
+                        string code = Get(n, "Code").Replace("\r", "");
+                        if (code.Trim().Length == 0) { Warning(n, "An empty Lua node does nothing."); break; }
+                        string into = Get(n, "Result", false).Trim();
+                        Line("lua " + (into.Length > 0 ? VariableName(into, n) : "-") + " " + Convert.ToBase64String(Encoding.UTF8.GetBytes(code)));
+                        break;
+                    }
                     case "EventStartNode":
                         Error(n, "Only one Start node runs; this one is ignored.");
                         break;
