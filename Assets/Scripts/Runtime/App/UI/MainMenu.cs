@@ -287,6 +287,7 @@ namespace GoF2Remake.UI
             InputMode.Changed -= UpdatePressAnyKey;
             UpdateCheck.Changed -= RefreshUpdateButton;
             if (OptionsCatalog.SaveFolderPressed == (Action)ChooseSaveFolder) OptionsCatalog.SaveFolderPressed = null;
+            if (OptionsCatalog.BenchmarkPressed == (Action)StartBenchmark) OptionsCatalog.BenchmarkPressed = null;
             anyKey?.Dispose();
         }
 
@@ -1056,6 +1057,14 @@ namespace GoF2Remake.UI
             ShowChoice(Localization.Get(293), text, X("challengeOriginalRound", "Original"), () => Begin(false),
                        X("challengeWithScenery", "With scenery"), () => Begin(true));
             if (Settings.ChallengeScenery) Select(root.Q<Button>("dialogAlt"));
+        }
+
+        /// <summary>Options > Graphics "Benchmark" (UI.BenchmarkRunner): leaves the menu for its first scene.</summary>
+        void StartBenchmark()
+        {
+            if (screen == MenuState.Leaving) return;
+            string scene = BenchmarkRunner.Begin();
+            if (scene != null) StartCoroutine(Leave(scene));
         }
 
         /// <summary>The dialog with two answers and Cancel (the reset choice's third button).</summary>

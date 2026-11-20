@@ -10,6 +10,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   (`OptionSectionBlock`, `OptionsView.NavItems`). Picking Custom on the Gameplay Experience row selects Custom at once
   (no rule changes). Unchanged: every Debug tools enable still asks Enable / Cancel, and the Debug pages of the main,
   pause and station menus still ask `GameRulesAccess`'s question once per app session.
+  The groups look like the other tabs' categories since (the owner: "gameplay options look different than the other
+  option menus"): their smaller, indented headings and the indented block with a line down its left are gone from
+  `GoF2Common.uss` (`.options-group-title`, `.options-rule-group` keep their names, no rules of their own). Not seen
+  in the game yet.
 - **Cosmetics and Gameplay (final organization)**: Cosmetics has Presentation, UI, and HUD and map.
   Gameplay shows Difficulty beside Gameplay Experience, then expandable Game Rules: World, Progression and economy,
   Combat and NPC behavior, Traversal, and Missions and simulation. Mod traffic/settings belong to Missions; there is
@@ -501,6 +505,22 @@ verified on a Mac or an iPhone.
   - **No generated frames behind a menu** (`FrameGeneration.SetMenu`): the pause menu, the station's system menu and a
     main menu panel hold frame generation off while open (Streamline's guide: menus are still interface; DLSS-G keeps
     its resources, `eRetainResourcesWhenOff`, so it is back at once). `$GOF2_FRAMEGEN_MENUS=1` leaves it on, for tests.
+    The option's help says so while a menu is up (`frameGenerationMenuPause`; the owner turned it on in the options,
+    a menu itself, and saw nothing change: "nothing changes when i press apply", 2026-11-20). Measured at a start with
+    Streamline on a 144 Hz screen (`$GOF2_SL_VERBOSE`): V-Sync 140 rendered without frame generation, 71 x 2 with it
+    (the counter reads 144 either way), Uncapped ~300 x 2, the 60 limit 30 x 2.
+  - **The frame's wait on the swap chain** (the plugin's `Hook_GetFrameLatencyWaitableObject`, `PaceThread`): Unity
+    waits at each frame's start, without a timeout, on its swap chain's frame-latency waitable object
+    (`GfxDeviceD3D12::WaitForLastPresentationAndGetTimestamp`; it makes the swap chain with flags 0x842, so by
+    Streamline's guide, DLSS-G 12.1, the object is the game's). Through Streamline's proxy a signal can stay away: the
+    owner's build stopped responding for good (2026-11-20; a dump: the main thread in
+    `SwapChainWaitingContext::WaitOnSwapChain`, minutes after HDR was switched and some Alt+Tabs; Streamline also logs
+    "Couldn't lock the mutex on sync present - will skip the present", and a skipped present signals nothing). Unity now
+    gets a semaphore of the plugin's, released by a thread for every signal of the real object and after 250 ms
+    without one. Checked: frame rates as before; with the real signal withheld (`$GOF2_WAITABLE_STALL=1`) the game
+    stays responsive at ~4 frames a second and logs it. The hang itself was not reproduced (Alt+Tab every 6 - 10 s,
+    borderless and exclusive), so that this ends it is not shown. Reading such a hang: `MiniDumpWriteDump`, then
+    WinDbg's `cdb -z` with the Editor's `Variations/win64_player_nondevelopment_il2cpp` as the symbol path.
   - **The interface's own layer** (`FrameGenerationPass.RecordInterface`): the overlay (UI Toolkit / uGUI) drawn once
     more into a texture cleared to nothing, its alpha copied into an R8 texture the way up the back buffer is and
     tagged as `kBufferTypeUIAlpha` beside the HUD-less colour; `DLSSGOptions.enableUserInterfaceRecomposition` then has
@@ -555,7 +575,8 @@ verified on a Mac or an iPhone.
   in screen fractions: Streamline's `mvecScale`), in a render thread event (`EventUpscale`), on a Streamline viewport
   of its own per camera context (1 .. 16; freed with the context, `EventUpscaleFree`): viewport 0's tags and constants
   are frame generation's. The render size is `slDLSSGetOptimalSettings`'. The DLSS preset row offers every preset the
-  module names there (it can't be asked which a mode offers); the plugin maps the letter (F, J, K, L, M). A failure
+  module names there, in every quality mode (Unity's own DLSS lists only the ones its module allows for the mode: two
+  for Quality); the plugin maps the letter (F, J, K, L, M). A failure
   leaves the picture as it was where the sizes match (DLAA). NGX looks for `nvngx_dlss.dll` beside Streamline's plugins
   (not beside the player, where Unity ships it: "DLSS Super Resolution (Streamline): not supported (result 32)"), so
   `DlssRedist` copies it into `Plugins/x86_64` as well. **Checked** (2026-11-20, RTX 4080, a build, `$GOF2_UPSCALER=3`
@@ -569,6 +590,69 @@ verified on a Mac or an iPhone.
   `Gof2Sl_AntiLag` runs first thing in a frame, before the input is read (`FrameGeneration.FrameStart`; the player loop
   step is hooked for it alone when Streamline is not started). Its limiter takes a frame rate cap like Reflex's. Changes
   at once. **Not checked:** no Radeon card here (on the RTX 4080 the driver's DLL is not there and nothing happens).
+- **Benchmark** (remake, 2026-11-20, the user's request: "a benchmark button that automatically goes through a bunch of
+  repeatable scenarios with realtime stats and a stats page at the end ... save / export, an image to share"; Graphics,
+  Interface: "Benchmark…", main menu only; `UI.BenchmarkRunner`, the numbers in `Data.Benchmark`, `BenchmarkTests`):
+  - **The run:** `OptionsCatalog.BenchmarkPressed` -> `MainMenu.StartBenchmark` -> `BenchmarkRunner.Begin` (a
+    DontDestroyOnLoad object with its own panel, sorting +90) and the menu's `Leave`. Seven scenes (`Steps`), each a
+    throwaway game set up like the Mod Builder's (`Session.ResetNewGame` + `UseCompletedWorld`, god mode granted, every
+    hint marked shown, `Random.InitState` with one seed before the load and before the spawns): station orbit (Dis, 70),
+    dogfight 10 v 10 and large dogfight 50 v 50 (Kallsta Omba, 20; `DebugSpawner.SpawnShip` rows), fleet battle and
+    large fleet battle (Nehebru, 0; `DebugSpawner.SpawnFleetBattle(level, at)`, one or three), effects (Dis: 160 neutral
+    ships in 16 rows, `DebugSpawner.KillAround` four times a second with a range growing 200 m/s: about a row of
+    explosions, wrecks and crates a second), hangar (the Station scene at Dis). A scene settles 3 s (plus 1 s after its
+    spawns), then 15-25 s are measured.
+  - **Fully automatic** (the user: "make sure user can't control during benchmark"): the runner flies the ship itself,
+    as a cutscene does (`ShipController.externalControl` + `inputLocked`, the transform moved along a weave about the
+    start heading by the game's clock, a speed per scene), so the path is the same whatever the flight style (in free
+    flight a ship without input stands still). The player's input is off four ways: `GameControls.Suspend` (the action
+    map), `Navigation.InputHalted` while `Benchmark.Active` (steering, guns, the free-look camera's direct mouse / stick
+    reads), `GameControls.ModalOpen` (the menus' keys) and the runner's full-screen panel taking the pointer. Only
+    Esc / B is read (from the devices): it ends the run, nothing kept. The flight HUD's key hints are left out
+    meanwhile (`FlightHud.BuildHints`, the user's request).
+  - **Nothing limits it:** `Benchmark.Active` makes `Bootstrap.ApplyFrameRate` act as Uncapped (no V-Sync) and
+    `FrameGeneration.FrameLimitUs` 0 (Reflex's limiter); both come back when the run ends. In the Editor the Game view's
+    own "VSync (Game view only)" held a run at the display's 144 Hz (the game's vSyncCount was 0): the runner switches
+    it off for the run and puts it back (`EditorVSync`, reflection). A driver-forced V-Sync is out of reach.
+  - **Nothing saved:** `SaveGame.Save` / `AutoSave` return while `Benchmark.Active` (the hangar scene docks).
+  - **What is measured:** every frame's time from the real clock; Unity's `FrameTimingManager` for the main thread,
+    render thread, GPU and present wait (needs Player Settings "Frame Timing Stats", switched on for it 2026-11-20:
+    release builds had none; without GPU times the page says "Not measured"). `Benchmark.Measure`: the average, the
+    1 % and 0.1 % lows (the frame rate of the slowest hundredth / thousandth of the frames), min / max, the frame rate
+    of each half second for the graph. `Benchmark.Classify`, per frame, by the rule of URP's Rendering Debugger
+    (`DebugFrameTiming.DetermineBottleneck`): a part within 20 % of the whole frame's time is the limit (GPU, CPU,
+    neither with a present wait = a limit or the display, else balanced); a scene shows the limit of most frames and
+    their share. With frame generation the rendered frames are measured and the shown rate is a line of its own.
+  - **On screen:** during a scene a box at the right (clear of the flight HUD's and station menu's corners): scene n / 7,
+    the frame rate now (every 0.25 s), the average, CPU / GPU ms, a graph and the run's progress. Its updates are part
+    of what is measured. The results page (over the main menu, opaque: the UI blends in linear colour and 3 % of the
+    logo showed through): average, lows, the limit, the system (CPU, GPU, memory, display, API), the graphics options as
+    their rows show them (`OptionsCatalog.All`, the visible ones of a fixed list), the frame rate over the run with the
+    scenes marked (`FpsGraph`: Painter2D for the lines; the numbers and scene names are Labels, each name cut to its
+    scene's width: `MeshGenerationContext.DrawText` kept its size on a smaller screen and the names collided) and a
+    row per scene. Keys: left / right,
+    Enter / A, Esc / B.
+  - **Suggestions** (the user: "settings suggestions, with a button to set, and set and rerun"; `Suggest`): under the
+    settings, option changes as the rows show them ("Detail distance: High -> Medium"), from the scenes' limits. A scene
+    limited by the GPU: an upscaler where one runs (DLSS, else FSR, else XeSS, at Quality or lower), or with one on
+    the next quality down (to Performance); without any, the render scale to 80 % and MSAA off. By the CPU: detail
+    distance one step down, levels of detail on, fire and smoke off. No timings: both kinds. None when every scene
+    ran faster than the display's refresh rate (said so). "Apply suggestions" sets them through the rows' setters
+    (`ApplySuggestions`); "Apply and run again" then flies the run again with the same runner (`Rerun`: its numbers
+    dropped, the controls stay off). The gains are not measured beforehand: the second run shows them.
+  - **Saved:** `<data>/Benchmarks/benchmark_<stamp>.json` (the report) and `_frames.csv` (scene, every frame's ms),
+    written when the run ends. "Save image": the panel drawn into a 1920 x 1080 texture of its own for six frames
+    (as `PlayerAssetsCheck.PanelShot`), with the buttons and the suggestions taken out of the layout (the user: "just
+    the data", "no empty space": `ShowExtras`, display none, so the graph and the left column's blocks take the room;
+    the panel reloads when its target changes and the page is built again, so `ShowResults` leaves them out while
+    `savingImage`), to the pictures folder (`PhotoMode.StoreAt`), shown in
+    the file browser. Not a screenshot: on an HDR screen (the Editor's Game view too) a screenshot comes out washed.
+  - **Checked** (2026-11-20, Editor, RTX 4080): three runs through `BenchmarkPressed`; the last, all seven scenes,
+    252 fps average (386 orbit, 320 / 176 dogfights, 248 / 151 fleet battles, 132 effects, 423 hangar), no console
+    errors, the image and files written; a fourth for the suggestions ("Detail distance: High -> Medium", "Fire and
+    smoke: On -> Off" from the CPU-limited scenes) and "Apply and run again" (the options set, scene 1 flying), ended
+    through `End` (menu, controls and V-Sync back). Not checked: a built player (GPU times there, DLSS frame generation's shown
+    rate), Esc, real key presses against the input lock, phones.
 - **Frame rate limits** (remake, 2026-11-20, the user's "add more FrameRate limit options"): 30, 40, 45, 50, 60, 72,
   75, 90, 100, 120, 144, 165, 180, 200, 240, 300, 360, Uncapped, V-Sync (`Settings.FrameRateChoices`: the order shown;
   the enum's first five keep their stored numbers, the new ones follow; `Settings.FrameRateLimit`). A phone or tablet

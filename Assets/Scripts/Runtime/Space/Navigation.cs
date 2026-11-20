@@ -907,7 +907,8 @@ namespace GoF2Remake.Flight
         /// a menu, conversation or map is open (the world goes on there).</summary>
         public static bool InputHalted => Time.timeScale <= 0f || ConversationRuns || (GoF2Remake.Data.NetSession.Active && (halted || GoF2Remake.World.SpaceHooks.MultiplayerWindowIsOpen))
                                           || GoF2Remake.World.SpaceHooks.QuestionOpen   // an event's question (multiplayer)
-                                          || GoF2Remake.World.SpaceHooks.DockedInOrbit;  // remake mods: docked inside the orbit
+                                          || GoF2Remake.World.SpaceHooks.DockedInOrbit   // remake mods: docked inside the orbit
+                                          || GoF2Remake.Data.Benchmark.Active;           // a benchmark run flies itself (UI.BenchmarkRunner)
 
         /// <summary>Remake (#85): the flight controls' presses wait while a menu, conversation or map halts them and for the frame
         /// after it closes: the press that closed it (A on Resume, a menu entry) went on to boost, as the ship's controls run

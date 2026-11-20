@@ -211,6 +211,8 @@ namespace GoF2Remake.UI
 
         /// <summary>The save folder row's press: the main menu asks and runs the folder picker (MainMenu.ChooseSaveFolder).</summary>
         public static Action SaveFolderPressed;
+        /// <summary>The Graphics tab's Benchmark row's press: the main menu leaves for the run (MainMenu.StartBenchmark).</summary>
+        public static Action BenchmarkPressed;
         static string Percent(float v) => $"{Mathf.RoundToInt(v * 100f)} %";
 
         /// <summary>Remake (Modding.ModFlight): who sets the flight style now instead of the Free flight toggle.</summary>

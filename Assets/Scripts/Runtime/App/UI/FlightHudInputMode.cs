@@ -76,7 +76,7 @@ namespace GoF2Remake.UI
         {
             hints.Clear();
             hintKind = kind;
-            if (kind == InputKind.Touch) return;
+            if (kind == InputKind.Touch || Benchmark.Active) return;   // (a benchmark run flies itself: no key hints)
             bool pad = kind == InputKind.Gamepad;
             string T(string key, string english) => Localization.Extra(key, english);
             // The menus' own keys are fixed (arrows / D-pad, Enter / A, Esc / B / Menu); the rest are GameControls' bindings.

@@ -500,6 +500,68 @@ HRESULT STDMETHODCALLTYPE Hook_Present1(IDXGISwapChain1* self, UINT interval, UI
     return hr;
 }
 
+// The swap chain's frame-latency waitable object. Unity waits on it at each frame's start without a timeout
+// (GfxDeviceD3D12::WaitForLastPresentationAndGetTimestamp -> SwapChainWaitingContext::WaitOnSwapChain), and through
+// Streamline's proxy its signal can stay away: the game stopped responding for good (2026-11-20, a dump of the build:
+// the main thread in that wait, minutes after HDR was switched and a few Alt+Tabs, right after a "setFlipConfig" line
+// of Streamline's; not reproduced since, so which present lost its signal is not known). Unity therefore gets a
+// semaphore of the plugin's, which a thread releases for every signal of the real object, and also when none came for
+// kPaceTimeoutMs: a lost signal then costs one late frame, a swap chain that stops signalling a slow game one can
+// still leave. (Streamline's guide, DLSS-G 12.1: Unity makes its swap chain with
+// DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT, flags 0x842, so the object is the game's and Streamline's pacer
+// stays off it. A game that made its swap chain without the flag gets what DXGI gives then: no handle.)
+const DWORD kPaceTimeoutMs = 250;
+using SetMaximumFrameLatencyFn = HRESULT STDMETHODCALLTYPE(IDXGISwapChain2*, UINT);
+using GetFrameLatencyWaitableObjectFn = HANDLE STDMETHODCALLTYPE(IDXGISwapChain2*);
+SetMaximumFrameLatencyFn* s_realSetMaximumFrameLatency;
+GetFrameLatencyWaitableObjectFn* s_realGetFrameLatencyWaitableObject;
+bool s_appWaitable;                    // the game asked for the waitable object itself: it is the game's
+std::atomic<int> s_waitableAsked{0};   // (logged once)
+std::atomic<HANDLE> s_realWaitable{nullptr};
+HANDLE s_pace;                         // what Unity waits on
+std::atomic<int> s_paceTimeouts{0};
+
+DWORD WINAPI PaceThread(void*)
+{
+    bool stall = EnvOn(L"GOF2_WAITABLE_STALL");   // (testing: as if the swap chain never signalled)
+    for (;;)
+    {
+        HANDLE real = s_realWaitable.load();
+        DWORD result = real && !stall ? WaitForSingleObject(real, kPaceTimeoutMs) : WAIT_FAILED;
+        if (result == WAIT_FAILED) Sleep(kPaceTimeoutMs);
+        if (result != WAIT_OBJECT_0 && s_paceTimeouts.fetch_add(1) == 40)   // (10 s of them in all: loading screens have some)
+            Log(kUnityLogTypeLog, "the swap chain gave no frame signal %lu ms long, 41 times; the frame's wait goes on without it", kPaceTimeoutMs);
+        ReleaseSemaphore(s_pace, 1, nullptr);   // (full already: a signal nobody waited for)
+    }
+}
+
+HRESULT STDMETHODCALLTYPE Hook_SetMaximumFrameLatency(IDXGISwapChain2* self, UINT latency)
+{
+    if (s_appWaitable || t_inside) return s_realSetMaximumFrameLatency(self, latency);
+    return DXGI_ERROR_INVALID_CALL;
+}
+
+HANDLE STDMETHODCALLTYPE Hook_GetFrameLatencyWaitableObject(IDXGISwapChain2* self)
+{
+    if (t_inside) return s_realGetFrameLatencyWaitableObject(self);
+    if (!s_appWaitable) return nullptr;
+    HANDLE real = s_realGetFrameLatencyWaitableObject(self);
+    if (!real) return nullptr;
+    // shortcut: an earlier call's handle is left open (the thread may be waiting on it), one per swap chain made
+    s_realWaitable.store(real);
+    if (!s_waitableAsked.exchange(1))
+    {
+        s_pace = CreateSemaphoreW(nullptr, 1, 2, nullptr);
+        HANDLE thread = s_pace ? CreateThread(nullptr, 0, PaceThread, nullptr, 0, nullptr) : nullptr;
+        if (thread) CloseHandle(thread);
+        else { s_waitableAsked.store(2); Log(kUnityLogTypeWarning, "no frame wait thread (%lu)", GetLastError()); }
+    }
+    HANDLE mine = nullptr;   // (Unity closes what it gets)
+    if (s_waitableAsked.load() != 1 || !DuplicateHandle(GetCurrentProcess(), s_pace, GetCurrentProcess(), &mine, 0, FALSE, DUPLICATE_SAME_ACCESS))
+        return real;
+    return mine;
+}
+
 void SwapChainMade(HRESULT hr, IUnknown* swapChain, const char* how)
 {
     if (FAILED(hr) || !swapChain)
@@ -522,6 +584,15 @@ void SwapChainMade(HRESULT hr, IUnknown* swapChain, const char* how)
             if (void* old = PatchVtable(chain, 22, (void*)&Hook_Present1)) s_realPresent1 = (Present1Fn*)old;
             chain->Release();
         }
+        // IDXGISwapChain2: SetSourceSize 29, GetSourceSize 30, SetMaximumFrameLatency 31, GetMaximumFrameLatency 32,
+        // GetFrameLatencyWaitableObject 33
+        IDXGISwapChain2* chain2 = nullptr;
+        if (SUCCEEDED(swapChain->QueryInterface(IID_PPV_ARGS(&chain2))))
+        {
+            if (void* old = PatchVtable(chain2, 31, (void*)&Hook_SetMaximumFrameLatency)) s_realSetMaximumFrameLatency = (SetMaximumFrameLatencyFn*)old;
+            if (void* old = PatchVtable(chain2, 33, (void*)&Hook_GetFrameLatencyWaitableObject)) s_realGetFrameLatencyWaitableObject = (GetFrameLatencyWaitableObjectFn*)old;
+            chain2->Release();
+        }
     }
     Log(proxied ? kUnityLogTypeLog : kUnityLogTypeWarning, "%s: %s", how, proxied ? "Unity's swap chain is Streamline's" : "no swap chain proxy");
 }
@@ -537,6 +608,9 @@ HRESULT STDMETHODCALLTYPE Hook_CreateSwapChainForHwnd(IDXGIFactory2* self, IUnkn
     }
     IDXGIFactory2* proxy = IsUnitySwapChain(device, _ReturnAddress()) ? ProxyFactory(self) : nullptr;
     if (!proxy) return s_realCreateSwapChainForHwnd(self, device, window, desc, fullscreen, output, swapChain);
+    s_appWaitable = desc && (desc->Flags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
+    if (desc) Log(kUnityLogTypeLog, "Unity's swap chain: %u x %u, format %u, %u buffers, swap effect %u, flags 0x%x", desc->Width, desc->Height,
+                  (unsigned)desc->Format, desc->BufferCount, (unsigned)desc->SwapEffect, desc->Flags);
     t_inside++;
     HRESULT hr = proxy->CreateSwapChainForHwnd(device, window, desc, fullscreen, output, swapChain);
     t_inside--;
@@ -554,6 +628,7 @@ HRESULT STDMETHODCALLTYPE Hook_CreateSwapChain(IDXGIFactory* self, IUnknown* dev
         self2->Release();
     }
     if (!proxy) return s_realCreateSwapChain(self, device, desc, swapChain);
+    s_appWaitable = desc && (desc->Flags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
     t_inside++;
     HRESULT hr = proxy->CreateSwapChain(device, desc, swapChain);
     t_inside--;

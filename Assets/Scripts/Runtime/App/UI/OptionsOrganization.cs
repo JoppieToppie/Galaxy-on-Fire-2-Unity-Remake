@@ -106,7 +106,7 @@ namespace GoF2Remake.UI
             (OptionSection.GraphicsStations, new[] { "hangarShadows", "hangarDof", "hangarRobots", "barRobots" }),
             (OptionSection.GraphicsWorld, new[] { "skyStyle", "nebulaClouds", "liveSkies", "rebuiltPlanets" }),
             (OptionSection.GraphicsCamera, new[] { "fov", "cameraShake", "chaseCamera", "es2FreeFlightCamera" }),
-            (OptionSection.GraphicsInterface, new[] { "uiWidth", "uiMargin", "screenCutout", "showFps", "fpsPosition", "gameCursor" }),
+            (OptionSection.GraphicsInterface, new[] { "uiWidth", "uiMargin", "screenCutout", "showFps", "fpsPosition", "benchmark", "gameCursor" }),
             // (the main menu's: the HD resources and add-on packs)
             (OptionSection.GraphicsPacks, new[] { "addPack", "hdResourcesWindow", "hdResources" }),
         };

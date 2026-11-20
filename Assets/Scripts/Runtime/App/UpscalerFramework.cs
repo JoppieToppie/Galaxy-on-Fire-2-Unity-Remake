@@ -221,9 +221,9 @@ namespace GoF2Remake
             var list = new System.Collections.Generic.List<int> { 0 };
 #if ENABLE_NVIDIA && ENABLE_NVIDIA_MODULE
             uint mask = PresetMask(quality);
-            // (through Streamline the module can't be asked which presets a mode offers: every one it names; a preset the
-            // mode doesn't take is NVIDIA's default there)
-            if (mask == 0 && FrameGeneration.StreamlineDlss) mask = uint.MaxValue;
+            // Through Streamline every preset the module names, in every mode: the module's own list is per mode (two of
+            // them for Quality: a player's "only 2 DLSS presets?", 2026-11-20), and Streamline takes any preset for any.
+            if (FrameGeneration.StreamlineDlss) mask = uint.MaxValue;
             foreach (UnityEngine.NVIDIA.DLSSPreset preset in System.Enum.GetValues(typeof(UnityEngine.NVIDIA.DLSSPreset)))
                 if (preset != UnityEngine.NVIDIA.DLSSPreset.Preset_Default && (mask & (uint)preset) != 0 && !list.Contains((int)(uint)preset))
                     list.Add((int)(uint)preset);

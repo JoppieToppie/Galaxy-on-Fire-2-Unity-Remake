@@ -429,7 +429,7 @@ namespace GoF2Remake
         /// without a cap (V-Sync, uncapped) or without Streamline. ($GOF2_FRAMELIMIT: a cap in frames a second, for testing.)</summary>
         static uint FrameLimitUs()
         {
-            if (!Bound) return 0;
+            if (!Bound || Benchmark.Active) return 0;   // (a benchmark run: no limit)
             int fps = limitOverride >= 0 ? limitOverride : Bootstrap.FrameRateCap;
             return fps > 0 ? (uint)(1000000 / fps) : 0u;
         }
@@ -610,6 +610,10 @@ namespace GoF2Remake
                 : X("frameGenerationHelp", "NVIDIA DLSS Frame Generation: AI-made frames between the rendered ones, for a smoother picture. Best from 60 rendered frames a second up.");
             if (Settings.FrameGeneration > 0 && !NeedsRestart && Problem() is string problem) return help + " " + problem;
             if (NeedsRestart && Settings.FrameGeneration > 0) return help + " " + X("frameGenerationRestart", "Restart the game to turn it on.");
+            // (the options screens are menus themselves: turning it on there showed nothing in the frame rate, a player's
+            // "nothing changes when I press Apply", 2026-11-20)
+            if (Settings.FrameGeneration > 0 && (Running || FsrRunning) && MenuOpen && !ignoreMenus)
+                return help + " " + X("frameGenerationMenuPause", "It pauses while a menu is open: its extra frames show in flight and in the hangar, not here.");
             if (Generating) return help + " " + string.Format(X("frameGenerationNow", "Now: {0:0.0} frames shown for each rendered one."), PresentedPerFrame);
             return help;
         }

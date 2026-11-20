@@ -558,6 +558,15 @@ namespace GoF2Remake.UI
                 () => Settings.FpsPosition, i => Settings.FpsPosition = i,
                 () => X("fpsPositionHelp", "Where the FPS counter sits."));
             fpsPosition.visible = () => Settings.ShowFps;
+            // Remake (2026-11-20, the user's request; docs/notes/options.md "Benchmark"): the benchmark run (UI.BenchmarkRunner);
+            // main menu only: it flies a throwaway game.
+            list.Add(new OptionDef
+            {
+                id = "benchmark", page = OptionPage.Graphics, kind = OptionKind.Button, menuOnly = true,
+                label = () => X("benchmark", "Benchmark") + "…",
+                description = () => X("benchmarkHelp", "Flies a set of fixed scenes by itself with the settings in use and shows the frame rates, what limits them and your system, to save or share. About three minutes."),
+                action = () => BenchmarkPressed?.Invoke(),
+            });
             list.Add(fpsPosition);
             // Modified: the interface's own mouse cursor (GameCursor); desktop only, phones have none.
             if (!Application.isMobilePlatform)

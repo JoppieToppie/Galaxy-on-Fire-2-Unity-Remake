@@ -2574,22 +2574,8 @@
     justify-content: center;
 }
 
-.options-section-body .options-group-title {
-    margin-left: var(--space-l);
-    margin-top: var(--space-m);
-    margin-bottom: var(--space-s);
-    padding-bottom: 0;
-    font-size: var(--text-small);
-    color: var(--gof-cyan);
-    border-bottom-width: 0;
-}
-
-.options-rule-group {
-    margin-left: var(--space-l);
-    padding-left: var(--space-m);
-    border-left-width: 1px;
-    border-left-color: var(--gof-line);
-}
+/* The Game Rules groups (World, Progression, Combat ...) look like every tab's categories: a section heading and
+   its rows, no smaller indented block (2026-11-20, the owner: the Gameplay tab looked unlike the other tabs). */
 
 /* ---- The first start (OriginalSetupView, docs/notes/player-assets.md "First start"): the player's copy of the game */
 

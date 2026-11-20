@@ -160,13 +160,14 @@ namespace GoF2Remake.World
             : kind == SpawnSpec.CapitalVossk ? $"{Localization.Get(407)} {Localization.Get(1667)}" : $"{Localization.Get(406)} {Localization.Get(1667)}";
 
         /// <summary>A fleet battle (TrafficPlan.AddFleetBattle: a Terran and a Vossk capital ship with their wings) centred about
-        /// 7 km ahead of the player, the two side by side across the player's view; the result text.</summary>
-        public static string SpawnFleetBattle(SpaceLevel level)
+        /// 7 km ahead of the player, the two side by side across the player's view, or centred on 'at' (a Unity position in
+        /// this orbit: the benchmark's battles); the result text.</summary>
+        public static string SpawnFleetBattle(SpaceLevel level, Vector3? at = null)
         {
             if (level == null || level.Traffic == null || level.Player == null) return Localization.Extra("debugNoFlight", "Only in flight.");
             var p = level.Player.transform;
             var list = new System.Collections.Generic.List<SpawnSpec>();
-            TrafficPlan.AddFleetBattle(level.Database, list, Session.StationIndex, ToGame(p.position + p.forward * 7000f));
+            TrafficPlan.AddFleetBattle(level.Database, list, Session.StationIndex, ToGame(at ?? p.position + p.forward * 7000f));
             foreach (var s in list) level.Traffic.SpawnShip(s);
             level.Traffic.ConnectPlayers();
             return Localization.Extra("debugFleetBattle", "Fleet battle spawned ahead.");

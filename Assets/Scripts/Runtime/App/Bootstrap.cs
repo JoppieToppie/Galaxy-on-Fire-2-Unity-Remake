@@ -332,7 +332,8 @@ namespace GoF2Remake
         {
             if (!Application.isPlaying) return;
             bool mobile = Application.isMobilePlatform;
-            switch (Settings.FrameRate)
+            // A benchmark run measures what the device can do: no limit, no V-Sync (Data.Benchmark).
+            switch (Benchmark.Active ? FrameRate.Uncapped : Settings.FrameRate)
             {
                 case FrameRate.Uncapped:
                     QualitySettings.vSyncCount = 0;

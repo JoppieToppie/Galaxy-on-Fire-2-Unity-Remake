@@ -109,6 +109,7 @@ namespace GoF2Remake.UI
             exitButton = Bind("exitButton", () => ShowDialog(Localization.Get(390), Localization.Get(53), Quit));
             // Remake: the chosen save folder's newer saves in first (SaveFolder; a no-op without one), then Resume's test.
             OptionsCatalog.SaveFolderPressed = ChooseSaveFolder;
+            OptionsCatalog.BenchmarkPressed = StartBenchmark;
             SyncSaveFolder(true);
             resumeButton.EnableInClassList("menu-button--gone", SaveGame.MostRecentSlot() < 0);   // only with a save
             UpdateColumnFit();
