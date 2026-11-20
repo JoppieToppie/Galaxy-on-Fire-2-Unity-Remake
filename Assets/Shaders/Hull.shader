@@ -223,6 +223,7 @@ Shader "GoF2/Hull"
             #pragma multi_compile _ META_QUEST_LIGHTUNROLL
 #endif
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile _ _SHADOW_RECEIVER_NORMAL_BIAS
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHTS
             #pragma multi_compile _ _LIGHT_FALLOFF_QUADRATIC
@@ -233,6 +234,7 @@ Shader "GoF2/Hull"
             #pragma multi_compile_fragment _ _REFLECTION_PROBE_ATLAS
             #pragma multi_compile_fragment _ _SCREEN_SPACE_REFLECTION
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
+            #pragma multi_compile_fragment _ _SHADOWS_PCSS
             #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
             #pragma multi_compile_fragment _ _SCREEN_SPACE_IRRADIANCE
             #pragma multi_compile_fragment _ _DBUFFER_MRT1 _DBUFFER_MRT2 _DBUFFER_MRT3
@@ -292,8 +294,10 @@ Shader "GoF2/Hull"
             ZTest LEqual
             ColorMask 0
             Cull[_Cull]
+            ZClip [_ZClip]
 
             HLSLPROGRAM
+            #define _SHADOW_CASTER_ZCLIP 1
             #pragma target 3.0   // GoF2: (2.0) the shell's push reads its noise in the vertex shader
 
             // -------------------------------------
@@ -389,6 +393,7 @@ Shader "GoF2/Hull"
             // -------------------------------------
             // Universal Pipeline keywords
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile _ _SHADOW_RECEIVER_NORMAL_BIAS
             //#pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             //#pragma multi_compile _ _ADDITIONAL_LIGHT_SHADOWS
             #pragma multi_compile_fragment _ _REFLECTION_PROBE_BLENDING

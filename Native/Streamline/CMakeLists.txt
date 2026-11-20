@@ -13,7 +13,7 @@ project(gof2_streamline CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(STREAMLINE_SDK "${CMAKE_CURRENT_SOURCE_DIR}/sdk" CACHE PATH "The Streamline SDK checkout (include/)")
-set(UNITY_PLUGIN_API "C:/Program Files/Unity/Hub/Editor/7000.0.0a16/Editor/Data/PluginAPI" CACHE PATH "Unity's PluginAPI headers")
+set(UNITY_PLUGIN_API "C:/Program Files/Unity/Hub/Editor/7000.0.0a20/Editor/Data/PluginAPI" CACHE PATH "Unity's PluginAPI headers")
 set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/../../Assets/Plugins/Windows/x86_64" CACHE PATH "" FORCE)
 
 # sl.interposer.dll's import library from its export names: it is delay-loaded, so the plugin loads without Streamline's

@@ -8,7 +8,7 @@ project(gof2_fsr CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(FFXVK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../ffx-vk-linux" CACHE PATH "The ffx-vk-linux checkout")
-set(UNITY_PLUGIN_API "$ENV{HOME}/Unity/Hub/Editor/7000.0.0a16/Editor/Data/PluginAPI" CACHE PATH "Unity's PluginAPI headers")
+set(UNITY_PLUGIN_API "$ENV{HOME}/Unity/Hub/Editor/7000.0.0a20/Editor/Data/PluginAPI" CACHE PATH "Unity's PluginAPI headers")
 set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/../../Assets/Plugins/Linux/x86_64" CACHE PATH "" FORCE)
 
 # OpenSSL 3 where the system's is newer (Arch's openssl-3 package): ffx-vk-linux builds with either, but players' systems

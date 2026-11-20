@@ -4,7 +4,9 @@
 // structure layers (HullForwardPass.hlsl Es2StructureLayers: its alpha the ambient occlusion and wear mask) and Chorus's dirt;
 // and UV sets 1 and 3 (Varyings .chorusUV) for Chorus's tiling layer and palette (HullForwardPass.hlsl ChorusLayers); and Chorus's
 // shell push in LitPassVertex (HullInput.hlsl ChorusShellPush). When URP is
-// updated, copy it again and repeat the lines marked GoF2.
+// updated, copy it again and repeat the lines marked GoF2. (Last brought in step: Unity 7000.0.0a20, 2026-11-20: the
+// geometric normal moved from UniversalFragmentPBR's last argument into InputData. Without the old Editor to compare,
+// `diff` this file against the package's: everything not marked GoF2 is URP's.)
 #ifndef UNIVERSAL_FORWARD_LIT_PASS_INCLUDED
 #define UNIVERSAL_FORWARD_LIT_PASS_INCLUDED
 
@@ -123,6 +125,7 @@ void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData
 #endif
 
     inputData.normalWS = NormalizeNormalPerPixel(inputData.normalWS, UseNormalMap());
+    inputData.geometricNormalWS = input.normalWS.xyz;
     inputData.viewDirectionWS = viewDirWS;
 
 #if USE_VERTEX_SHADOW_COORD_INTERPOLATOR
@@ -305,7 +308,7 @@ void LitPassFragment(
 
     URP_LIGHT_ACCUM4 color = UniversalFragmentPBR(inputData, surfaceData,
         IsSpecularSetup(), UseSpecularHighlights(), UseAlphaPremultiply(),
-        UseClearCoat() || UseClearCoatMap(), ReceiveShadows(), IsSurfaceTypeTransparent(), UseEnvironmentReflections(), input.normalWS.xyz);
+        UseClearCoat() || UseClearCoatMap(), ReceiveShadows(), IsSurfaceTypeTransparent(), UseEnvironmentReflections());
     color.rgb = ClampExposed(inputData.preExposureMultiplier * BlendDistanceFog(color.rgb, input.positionCS));
 #if defined(_TRANSPARENT_RECEIVE_FOG)
     if (IsSurfaceTypeTransparent())

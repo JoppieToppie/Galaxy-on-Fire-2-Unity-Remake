@@ -18,7 +18,7 @@ Material:
   - _METALLICSPECGLOSSMAP
   - _NORMALMAP
   m_InvalidKeywords: []
-  m_LightmapFlags: 0
+  m_LightmapFlags: 8
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: 2450
@@ -35,6 +35,14 @@ Material:
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
         m_Texture: {fileID: 2800000, guid: eb8ef5b6dca214248bbda45ec4c249f0, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ChorusDirtRough:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ChorusPalette:
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
@@ -69,6 +77,22 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _GoF3EnvMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LavaEmit:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LavaFlowMaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LavaMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _LiveryMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -90,6 +114,18 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SpecGlossMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _WaveMask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _WavePattern:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _WreckBurnMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -144,6 +180,17 @@ Material:
     - _ZWrite: 1
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ChorusAccent: {r: 0, g: 0, b: 0, a: 0}
+    - _ChorusAccent2: {r: 0, g: 0, b: 1, a: 0}
+    - _ChorusDirt: {r: 0, g: 0, b: 0, a: 0}
+    - _ChorusDirt2: {r: 1, g: 1, b: 1, a: 0}
+    - _ChorusDirt3: {r: 0, g: 0, b: 0, a: 0}
+    - _ChorusEmitB: {r: 0, g: 0, b: 0, a: 0}
+    - _ChorusEmitG: {r: 0, g: 0, b: 0, a: 0}
+    - _ChorusEmitR: {r: 0, g: 0, b: 0, a: 0}
+    - _ChorusKicker: {r: 0, g: 0, b: 0, a: 0}
+    - _ChorusKicker2: {r: 0, g: 1, b: 1, a: 0}
+    - _ChorusParams: {r: 0, g: 1, b: 1, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _DecalColor1: {r: 1, g: 1, b: 1, a: 1}
     - _DecalColor2: {r: 1, g: 1, b: 1, a: 1}
@@ -153,7 +200,17 @@ Material:
     - _Es2Grunge: {r: 0, g: 1, b: 0, a: 0}
     - _Es2Wear: {r: 1, g: 0.5, b: 0, a: 0.5}
     - _Es2Wear2: {r: 0.5, g: 1, b: 0, a: -1}
+    - _GoF3Env: {r: 0, g: 0, b: 0, a: 0}
     - _GoF3Params: {r: 1, g: 1, b: 1, a: 0}
+    - _HitColor: {r: 0, g: 0, b: 0, a: 0}
+    - _HitFx: {r: 1, g: 1, b: 0.04, a: 0}
+    - _HitPos: {r: 0, g: 0, b: 0, a: 0}
+    - _LavaA: {r: 6, g: 0.1, b: 1, a: 0.1}
+    - _LavaB: {r: 1, g: 1, b: 0, a: 0}
+    - _LavaC: {r: 30, g: 0.1, b: 1, a: 0.1}
+    - _LavaD: {r: 1, g: 1, b: 1, a: 1}
+    - _LavaE: {r: 1, g: 400, b: 3000, a: 0}
+    - _LavaF: {r: 0, g: 0, b: 0, a: 0}
     - _LiveryColor: {r: 1, g: 1, b: 1, a: 0}
     - _LiveryForward: {r: -1, g: 0, b: 0, a: 0}
     - _LiveryParams: {r: 0, g: 0, b: 0, a: 0}
@@ -162,6 +219,12 @@ Material:
     - _LiveryTransform: {r: 1, g: 1, b: 0, a: 0}
     - _LiveryUp: {r: 0, g: 1, b: 0, a: 0}
     - _SpecColor: {r: 1, g: 1, b: 1, a: 1}
+    - _WaveMax: {r: 0, g: 0, b: 0, a: 0}
+    - _WaveMin: {r: 0, g: 0, b: 0, a: 0}
+    - _WaveParams: {r: 0, g: 1, b: 1, a: 1}
+    - _WreckBurn: {r: 1, g: 0, b: 0, a: 0}
+    - _WreckBurnColor: {r: 0, g: 0, b: 0, a: 0}
+    - _WreckFx: {r: 0, g: 0, b: 1, a: 0.1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &5414033743490011996

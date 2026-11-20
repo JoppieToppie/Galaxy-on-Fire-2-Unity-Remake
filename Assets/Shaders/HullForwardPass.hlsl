@@ -775,7 +775,7 @@ void HullPassFragment(
 #else
     URP_LIGHT_ACCUM4 color = UniversalFragmentPBR(inputData, surfaceData,
         IsSpecularSetup(), UseSpecularHighlights(), UseAlphaPremultiply(),
-        UseClearCoat() || UseClearCoatMap(), ReceiveShadows(), IsSurfaceTypeTransparent(), UseEnvironmentReflections(), input.normalWS.xyz);
+        UseClearCoat() || UseClearCoatMap(), ReceiveShadows(), IsSurfaceTypeTransparent(), UseEnvironmentReflections());
 #endif
 
 #if defined(_METALLICSPECGLOSSMAP) && !defined(_GOF2_PBR)

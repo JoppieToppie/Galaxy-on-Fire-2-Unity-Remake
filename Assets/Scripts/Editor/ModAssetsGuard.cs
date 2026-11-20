@@ -43,12 +43,18 @@ namespace GoF2Remake.EditorTools
                     AssetDatabase.SaveAssetIfDirty(m);
                     Debug.LogWarning($"GoF2: the mod template {m.name} had {(spec ? "lost" : "gained")} _SPECULAR_SETUP; put right before the build");
                 }
-                if (m == null || m.IsKeywordEnabled("_EMISSION")) continue;
+                if (m == null) continue;
+                // The flag URP's LitShader editor keeps _EMISSION by (ModAssetsBuilder): without it the Editor drops the
+                // keyword again the next time it imports the material (Unity 7000.0.0a20 on).
+                bool flagged = (m.globalIlluminationFlags & MaterialGlobalIlluminationFlags.RealtimeDirectEmission) != 0;
+                if (flagged && m.IsKeywordEnabled("_EMISSION")) continue;
+                bool lost = !m.IsKeywordEnabled("_EMISSION");
+                m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeDirectEmission;
                 m.EnableKeyword("_EMISSION");
                 if (m.GetColor("_EmissionColor").maxColorComponent <= 0f) m.SetColor("_EmissionColor", new Color(1f / 255f, 1f / 255f, 1f / 255f, 1f));
                 EditorUtility.SetDirty(m);
                 AssetDatabase.SaveAssetIfDirty(m);
-                Debug.LogWarning($"GoF2: the mod template {m.name} had lost _EMISSION; put back before the build");
+                Debug.LogWarning($"GoF2: the mod template {m.name} {(lost ? "had lost _EMISSION" : "had no emission flag")}; put right before the build");
             }
         }
     }

@@ -215,7 +215,10 @@ namespace GoF2Remake.EditorTools
             // stays. With them the mod ships were milky white in the hangars.
             m.EnableKeyword("_GOF2_PBR");
             m.SetColor("_EmissionColor", new Color(1f / 255f, 1f / 255f, 1f / 255f, 1f));
-            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            // URP's LitShader editor keeps _EMISSION only with this flag (BaseShaderGUI.SetMaterialKeywords), and from Unity
+            // 7000.0.0a20 on the Editor validates a material whenever it imports it: with None every template lost the
+            // keyword in memory (the files kept it), 2026-11-20.
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeDirectEmission;
             m.SetFloat("_SmoothnessTextureChannel", 0f);
             m.SetFloat("_AlphaClip", cutout ? 1f : 0f);
             m.SetFloat("_Cutoff", 0.5f);

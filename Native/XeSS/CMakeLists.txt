@@ -12,7 +12,7 @@ project(gof2_xess CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(XESS_SDK "${CMAKE_CURRENT_SOURCE_DIR}/sdk" CACHE PATH "Intel's XeSS SDK checkout (inc/, lib/, bin/)")
-set(UNITY_PLUGIN_API "C:/Program Files/Unity/Hub/Editor/7000.0.0a16/Editor/Data/PluginAPI" CACHE PATH "Unity's PluginAPI headers")
+set(UNITY_PLUGIN_API "C:/Program Files/Unity/Hub/Editor/7000.0.0a20/Editor/Data/PluginAPI" CACHE PATH "Unity's PluginAPI headers")
 set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/../../Assets/Plugins/Windows/x86_64" CACHE PATH "" FORCE)
 
 add_library(gof2_xess SHARED gof2_xess.cpp)

@@ -81,30 +81,8 @@ MonoBehaviour:
       - rid: 7146566248358215681
       - rid: 2994102259275005952
     m_RuntimeSettings:
-      m_List:
-      - rid: 6852985685364965378
-      - rid: 6852985685364965380
-      - rid: 6852985685364965381
-      - rid: 6852985685364965384
-      - rid: 6852985685364965387
-      - rid: 6852985685364965392
-      - rid: 6852985685364965394
-      - rid: 8712630790384254976
-      - rid: 4284062438471237637
-      - rid: 5747374308340793348
-      - rid: 6588237625532874753
-      - rid: 6588237625532874755
-      - rid: 6588237625532874757
-      - rid: 6588237625532874759
-      - rid: 6588237625532874761
-      - rid: 3196867971078422529
-      - rid: 3196867971078422530
-      - rid: 3196867971078422532
-      - rid: 3196867971078422533
-      - rid: 7146566248358215680
-      - rid: 7146566248358215681
-      - rid: 2994102259275005952
-  m_AssetVersion: 16
+      m_List: []
+  m_AssetVersion: 17
   m_ObsoleteDefaultVolumeProfile: {fileID: 0}
   m_RenderingLayerNames:
   - Light Layer default
@@ -173,7 +151,7 @@ MonoBehaviour:
       type: {class: RenderingCapabilitiesSettings, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.Runtime}
       data:
         m_Version: 0
-        m_UseGlobalConstantBuffer: 0
+        m_UsePersistentGlobalConstantBuffer: 0
     - rid: 3196867971078422534
       type: {class: SurfaceCacheRenderPipelineResourceSet, ns: UnityEngine.Rendering, asm: Unity.SurfaceCache.Runtime}
       data:
