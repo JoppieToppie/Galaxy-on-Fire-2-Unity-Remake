@@ -295,15 +295,26 @@ namespace GoF2Remake.Flight
             if (model == null) return;
             var volumes = GoF2Remake.Modding.ModCapitalShips.Measure(model.gameObject, Quaternion.identity);
             if (volumes == null || volumes.Count == 0) return;
-            var scale = model.lossyScale;
-            float scaleMax = Mathf.Max(Mathf.Abs(scale.x), Mathf.Max(Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
+            var min = volumes[0].centre;
+            var max = min;
             foreach (var volume in volumes)
             {
                 if (volume == null || volume.sphere) continue;
-                var h = volume.half;
-                float[] extents = { Mathf.Abs(h.x), Mathf.Abs(h.y), Mathf.Abs(h.z) };
-                Array.Sort(extents);
-                float radius = Mathf.Sqrt(extents[0] * extents[0] + extents[1] * extents[1]) * scaleMax;
+                min = Vector3.Min(min, volume.centre);
+                max = Vector3.Max(max, volume.centre);
+            }
+            var spread = max - min;
+            int longAxis = spread.x >= spread.y && spread.x >= spread.z ? 0 : spread.y >= spread.z ? 1 : 2;
+            int crossA = longAxis == 0 ? 1 : 0;
+            int crossB = longAxis == 2 ? 1 : 2;
+            var scale = model.lossyScale;
+            float scaleA = Mathf.Abs(scale[crossA]), scaleB = Mathf.Abs(scale[crossB]);
+            foreach (var volume in volumes)
+            {
+                if (volume == null || volume.sphere) continue;
+                float a = Mathf.Abs(volume.half[crossA]) * scaleA;
+                float b = Mathf.Abs(volume.half[crossB]) * scaleB;
+                float radius = Mathf.Sqrt(a * a + b * b);
                 if (radius > 0.1f) hullProbes.Add(new HullProbe(volume.centre, Mathf.Max(3f, radius)));
             }
         }
