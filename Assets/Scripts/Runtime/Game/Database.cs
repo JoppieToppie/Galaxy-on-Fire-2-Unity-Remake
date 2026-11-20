@@ -330,6 +330,10 @@ namespace GoF2Remake.Data
         /// <summary>Remake mods (2026-11-11, Chorus's explosions): a JSON file in the mod with the ship's own death effects
         /// (CustomFxFile, World.ModDeathFx) instead of the game's explosion; null = the game's.</summary>
         public string deathFx;
+        /// <summary>Remake mods (2026-11-19, Chorus's Forsaken): the look of Chorus flight's drift on this ship, the player's
+        /// (CustomDriftFx, World.ModDriftFx): effects on nodes of its model, switched on as the drift starts and off as it
+        /// ends; null = none.</summary>
+        public CustomDriftFx driftFx;
         /// <summary>Remake mods (2026-11-11, Chorus's warships): a capital ship's reactor going critical when its hull runs out
         /// (CustomDeathThroes, NpcShipDamage); null = it burns and explodes as the game's do.</summary>
         public CustomDeathThroes deathThroes;
@@ -375,6 +379,50 @@ namespace GoF2Remake.Data
         public CustomFxEmitter[] emitters;
     }
 
+    /// <summary>Remake mods (ships.json "driftFx", 2026-11-19, after Chorus's Forsaken: BP_Player_Ship_Phoenix's "FX Drift
+    /// Started" activates its four Cascade systems on the skeleton's SCK_VFX_Drift sockets, "FX Drift Recovery Started"
+    /// deactivates them): the drift's look on the player's ship (World.ModDriftFx). Each part sits on a node of the ship's
+    /// model, by name ('node'; none = the ship itself), in that node's frame: 'fx' its particle emitters (a "loop" one keeps
+    /// emitting until the drift ends, then its particles live out), 'fields' its energy-field shells.</summary>
+    [System.Serializable] public class CustomDriftFx
+    {
+        public CustomDriftPart[] parts;
+    }
+
+    [System.Serializable] public class CustomDriftPart
+    {
+        public string node;
+        public CustomFx fx;
+        public CustomDriftField[] fields;
+    }
+
+    /// <summary>One energy-field shell of the drift (Chorus's M_Drift_MagnetField on a mesh particle of SM_Drift_HalfSphere,
+    /// emitted again every 0.2 s for as long as the drift lasts: a shell that stays): 'mesh' a JSON file in the mod
+    /// (CustomFxMesh, made in its part's frame, game units), drawn on GoF2/ChorusDriftField with 'band' (T_ShockWave_Rect_G),
+    /// 'mask' (T_VFX_Masks_Ellipse), 'distort' (T_Noise_Fractal_07), 'line' (T_Line_01) and 'background' (T_Noise_Tiled03),
+    /// PNGs in the mod; 'color' the particle's colour (HDR), 'exposure' Chorus's brightness to the remake's. The other values
+    /// are the material's parameters (Chorus's defaults): 'offset' Upositon, 'pan' Panning V, 'tiling' [Tiling U, Tiling V],
+    /// 'core' [pow_core, mul_core], 'coreLine' [Panning_V_CoreLine, Tiling U_CoreLine, Tiling_V_CoreLine, mul_CoreLine],
+    /// 'distortRing' Distort_Ring, 'tilingBg' [Tiling U_BG, Tiling V_BG], 'bg' [pow_BG, Mul_BG], 'textures' [Textures Exp,
+    /// Textures Mult], 'fresnel' Fresnel_pow.</summary>
+    [System.Serializable] public class CustomDriftField
+    {
+        public string mesh, band, mask, distort, line, background;
+        public float[] color;
+        public float exposure = 1f;
+        public float offset = 0.5f, pan = 0.2f, distortRing = 0.06f, fresnel = 1.6f;
+        public float[] tiling = { 1f, 0.12f }, core = { 1f, 5f }, coreLine = { 2f, 1f, 1f, 12f }, tilingBg = { 1.5f, 0.45f },
+            bg = { 1.5f, 2f }, textures = { 1f, 4f };
+    }
+
+    /// <summary>A small mesh as JSON (a drift field's shell): 'positions' and 'normals' [x, y, z, ...] in game units (Unity's
+    /// axes: x right, y up, z forward), 'uvs' [u, v, ...] (Unreal's: v down), 'triangles' three indices each.</summary>
+    [System.Serializable] public class CustomFxMesh
+    {
+        public float[] positions, normals, uvs;
+        public int[] triangles;
+    }
+
     /// <summary>Remake mods (items.json fx "rite", 2026-11-13, after Chorus's Rites' particle systems and FMOD events): a Rite's
     /// looks, a JSON file in the mod (Flight.RiteLook, PlayerDevices): 'start' at the ship as it fires (its sound the fx's
     /// "shot"), 'vanish' where the Hunt leaves, 'appear' where it lands, 'hit' on each ship the Storm or the Star strikes
@@ -407,6 +455,12 @@ namespace GoF2Remake.Data
         /// cell size game units] a turbulence on the particles.</summary>
         public CustomFxTrail trail;
         public float[] noise;
+        /// <summary>Remake (2026-11-19, the drift's Cascade emitters): 'loop' emits again every 'duration' (its bursts) for as
+        /// long as the effect runs (Cascade's EmitterLoops 0; a drift part's until the drift ends, World.ModDriftFx; a light's
+        /// flash repeats); 'local' its particles move with the effect (bUseLocalSpace); 'at' [x, y, z] where they start, game
+        /// units in the effect's frame (Unity's axes; Cascade's Location module).</summary>
+        public bool loop, local;
+        public float[] at;
         public int[] sheet;
         public float[] frames;
         public bool randomFrame, forward, randomRotation;

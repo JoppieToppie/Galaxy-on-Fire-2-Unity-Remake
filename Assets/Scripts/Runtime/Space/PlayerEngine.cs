@@ -51,6 +51,8 @@ namespace GoF2Remake.Flight
         bool storySilent;
 
         Modding.ModShipAnimator animator;
+        /// <summary>The drift's look while it runs (ships.json "driftFx", World.ModDriftFx).</summary>
+        World.ModDriftFx driftLook;
         WeaponSystem weapons;
         bool wasDashing;
 
@@ -248,7 +250,13 @@ namespace GoF2Remake.Flight
             bool drifting = model != null && model.Drifting;
             if (driftLoop != null) Drive(driftLoop, on && drifting, modSounds.driftLoop.Volume(speed) * gain, modSounds.driftLoop.Pitch(speed) * deep);
             if (on && drifting != wasDrifting) OneShot(drifting ? modSounds.driftStart : modSounds.driftStop, gain, deep);
-            if (drifting != wasDrifting) Animator()?.SetDrift(drifting);   // the hull's own drift animation (ships.json "animations")
+            if (drifting != wasDrifting)
+            {
+                Animator()?.SetDrift(drifting);   // the hull's own drift animation (ships.json "animations")
+                // and its look: Chorus's drift effects on the hull's nodes (ships.json "driftFx")
+                driftLook?.Stop();
+                driftLook = drifting ? World.ModDriftFx.Start(Session.ShipIndex, ship != null && ship.visualModel != null ? ship.visualModel : transform) : null;
+            }
             if (Animator() is Modding.ModShipAnimator hullAnim && model != null)
             {
                 // its travel boost, and its flaps by the stick and the throttle
@@ -313,6 +321,12 @@ namespace GoF2Remake.Flight
             s.pitch = pitch * TimeExtender.SoundPitch;
             if (on && !s.isPlaying) s.Play();
             else if (!on && s.isPlaying) s.Stop();
+        }
+    
+        void OnDestroy()
+        {
+            driftLook?.Clear();
+            driftLook = null;
         }
     }
 }
