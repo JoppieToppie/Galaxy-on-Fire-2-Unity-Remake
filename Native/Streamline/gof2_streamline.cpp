@@ -53,6 +53,7 @@
 #include "sl_security.h"
 
 #include "sl_nis.h"
+#include "sl_dlss.h"
 #include "sl_deepdvc.h"
 
 // AMD Anti-Lag 2 (docs/notes/options.md "Anti-Lag 2"): AMD's SDK is this one header (Native/AntiLag2/sdk, from
@@ -119,12 +120,15 @@ enum StateBits : int
     kFsrArmed = 1 << 15,     // FSR frame generation is this run's provider: its hooks are in (Streamline is not started)
     kFsrSwapChain = 1 << 16, // Unity's swap chain is FSR's frame generation swap chain
     kFsrRunning = 1 << 17,   // its frame generation context exists
+    kDlssPresent = 1 << 18,  // sl.dlss.dll (DLSS Super Resolution through Streamline) is beside the plugin
+    kDlssSupported = 1 << 19, // and this adapter runs it
 };
 
 AMD::AntiLag2DX12::Context s_antiLag;
 
 const wchar_t* kRegKey = L"Software\\GoF2Remake\\FrameGeneration";
-const int kEventTag = 0x534C0001, kEventFrameEnd = 0x534C0002, kEventNeural = 0x534C0003, kEventPicture = 0x534C0004;
+const int kEventTag = 0x534C0001, kEventFrameEnd = 0x534C0002, kEventNeural = 0x534C0003, kEventPicture = 0x534C0004,
+    kEventUpscale = 0x534C0005, kEventUpscaleFree = 0x534C0006;
 
 IUnityInterfaces* s_unity;
 IUnityGraphics* s_graphics;
@@ -334,6 +338,12 @@ void BindDevice(ID3D12Device* device)
     if (s_supportResult == (int)sl::Result::eOk) s_state |= kSupported;
     Log(kUnityLogTypeLog, "device bound, DLSS-G %s (result %d, requirement flags 0x%x)",
         s_supportResult == 0 ? "supported" : "not supported", s_supportResult, s_requirementFlags);
+    if (s_state & kDlssPresent)
+    {
+        int dlss = (int)slIsFeatureSupported(sl::kFeatureDLSS, adapter);
+        if (dlss == (int)sl::Result::eOk) s_state |= kDlssSupported;
+        Log(kUnityLogTypeLog, "DLSS Super Resolution (Streamline): %s (result %d)", dlss == 0 ? "supported" : "not supported on this GPU", dlss);
+    }
     if (s_state & kNisPresent)
     {
         int nis = (int)slIsFeatureSupported(sl::kFeatureNIS, adapter);
@@ -648,11 +658,12 @@ void Arm()
     pluginPaths[0] = pluginDir.c_str();
     // DLSS neural rendering ("DLSS 5", sl.dlss_nr.dll + nvngx_dlssnr.dll): asked for only where its plugin is beside the
     // others, and only probed (BindDevice logs whether this GPU runs it): its API has no public header yet.
-    static sl::Feature features[6] = {sl::kFeatureDLSS_G, sl::kFeatureReflex, sl::kFeaturePCL};
+    static sl::Feature features[7] = {sl::kFeatureDLSS_G, sl::kFeatureReflex, sl::kFeaturePCL};
     uint32_t featureCount = 3;
     if (s_state & kNrPresent) features[featureCount++] = sl::kFeatureDLSS_NR;
     if (s_state & kNisPresent) features[featureCount++] = sl::kFeatureNIS;
     if (s_state & kDvcPresent) features[featureCount++] = sl::kFeatureDeepDVC;
+    if (s_state & kDlssPresent) features[featureCount++] = sl::kFeatureDLSS;
     static wchar_t logDir[MAX_PATH];
     bool logToFile = GetEnvironmentVariableW(L"GOF2_SL_LOGDIR", logDir, MAX_PATH) > 0;
 
@@ -1203,6 +1214,193 @@ void OnPicture(const PictureData* d)
     }
 }
 
+// ---- DLSS Super Resolution through Streamline -------------------------------------------------------------------------
+// docs/notes/options.md "DLSS with Streamline": Unity's own DLSS upscaler (its NVIDIA module) starts NGX itself, and NGX
+// is Streamline's while Streamline runs in the process ("DLSS not available on the current NVIDIA graphics card" in the
+// log: the Upscaler option lost DLSS whenever frame generation, Reflex or Image Scaling was on). So with Streamline
+// started the DLSS upscaler is Streamline's sl.dlss, on a viewport of its own per camera (1 ..: the frame generation's
+// tags and constants are viewport 0's), fed by StreamlineDlssUpscaler the way Unity feeds its own module.
+
+struct UpscaleData
+{
+    void* color;         // ID3D12Resource: the camera's colour at the render resolution
+    void* depth;         // the depth texture, and
+    void* depthBuffer;   // the depth render buffer (whichever of the two is a depth format)
+    void* motion;        // the motion vectors
+    void* output;        // the result at the display resolution (unordered access)
+    // flags: 1 reset, 2 the colour is HDR, 4 inverted depth, 8 jittered motion vectors; mode: 0 DLAA, 1 quality,
+    // 2 balanced, 3 performance, 4 ultra performance; preset: its letter ('K'), 0 = NVIDIA's default
+    uint32_t frame, viewport, renderWidth, renderHeight, outputWidth, outputHeight, flags, mode, preset;
+    float jitterX, jitterY, mvScaleX, mvScaleY, preExposure, cameraNear, cameraFar, fovVertical;
+};
+
+const uint32_t kUpscaleViewports = 17;   // viewports 1 .. 16
+struct UpscaleState { uint32_t mode = UINT32_MAX, preset = 0, width = 0, height = 0, hdr = 0; float preExposure = 0.f; };
+UpscaleState s_upscale[kUpscaleViewports];
+std::atomic<uint32_t> s_upscaleErrors{0}, s_upscaleRuns{0};
+
+sl::DLSSMode DlssMode(uint32_t mode)
+{
+    switch (mode)
+    {
+    case 0: return sl::DLSSMode::eDLAA;
+    case 1: return sl::DLSSMode::eMaxQuality;
+    case 2: return sl::DLSSMode::eBalanced;
+    case 3: return sl::DLSSMode::eMaxPerformance;
+    default: return sl::DLSSMode::eUltraPerformance;
+    }
+}
+
+sl::DLSSPreset DlssPreset(uint32_t letter)
+{
+    switch (letter)
+    {
+    case 'F': return sl::DLSSPreset::ePresetF;
+    case 'J': return sl::DLSSPreset::ePresetJ;
+    case 'K': return sl::DLSSPreset::ePresetK;
+    case 'L': return sl::DLSSPreset::ePresetL;
+    case 'M': return sl::DLSSPreset::ePresetM;
+    default: return sl::DLSSPreset::eDefault;
+    }
+}
+
+bool IsDepthFormat(ID3D12Resource* resource)
+{
+    if (!resource) return false;
+    switch (resource->GetDesc().Format)
+    {
+    case DXGI_FORMAT_R32_TYPELESS: case DXGI_FORMAT_D32_FLOAT: case DXGI_FORMAT_R32_FLOAT:
+    case DXGI_FORMAT_R32G8X24_TYPELESS: case DXGI_FORMAT_D32_FLOAT_S8X24_UINT: case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_R24G8_TYPELESS: case DXGI_FORMAT_D24_UNORM_S8_UINT: case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_R16_TYPELESS: case DXGI_FORMAT_D16_UNORM: case DXGI_FORMAT_R16_UNORM:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void OnUpscale(const UpscaleData* d)
+{
+    if (!d || !d->color || !d->output) return;
+    auto color = (ID3D12Resource*)d->color;
+    auto output = (ID3D12Resource*)d->output;
+    auto motion = (ID3D12Resource*)d->motion;
+    auto depth = IsDepthFormat((ID3D12Resource*)d->depth) ? (ID3D12Resource*)d->depth : (ID3D12Resource*)d->depthBuffer;
+    UnityGraphicsD3D12RecordingState recording{};
+    if (!s_d3d12->CommandRecordingState(&recording) || !recording.commandList) return;
+
+    bool done = false;
+    bool usable = Bound() && (s_state & kDlssSupported) && d->viewport >= 1 && d->viewport < kUpscaleViewports && motion && depth;
+    sl::FrameToken* token = usable ? Token(d->frame) : nullptr;
+    if (token)
+    {
+        sl::ViewportHandle viewport(d->viewport);
+        UpscaleState& state = s_upscale[d->viewport];
+        uint32_t hdr = (d->flags & 2) ? 1u : 0u;
+        sl::Result result = sl::Result::eOk;
+        if (state.mode != d->mode || state.preset != d->preset || state.width != d->outputWidth || state.height != d->outputHeight
+            || state.hdr != hdr || state.preExposure != d->preExposure)
+        {
+            sl::DLSSOptions options{};
+            options.mode = DlssMode(d->mode);
+            options.outputWidth = d->outputWidth;
+            options.outputHeight = d->outputHeight;
+            options.colorBuffersHDR = hdr ? sl::Boolean::eTrue : sl::Boolean::eFalse;
+            options.preExposure = d->preExposure;
+            options.useAutoExposure = sl::Boolean::eFalse;
+            sl::DLSSPreset preset = DlssPreset(d->preset);
+            options.dlaaPreset = options.qualityPreset = options.balancedPreset = options.performancePreset = options.ultraPerformancePreset = preset;
+            result = slDLSSSetOptions(viewport, options);
+            if (result == sl::Result::eOk)
+            {
+                state.mode = d->mode; state.preset = d->preset; state.width = d->outputWidth; state.height = d->outputHeight;
+                state.hdr = hdr; state.preExposure = d->preExposure;
+            }
+            else Log(kUnityLogTypeWarning, "slDLSSSetOptions failed (%d)", (int)result);
+        }
+        if (result == sl::Result::eOk)
+        {
+            // The frame's constants for this viewport: what DLSS reads of them (the jitter, the motion vector scale, the
+            // depth's direction, the reset); the camera's matrices are frame generation's (viewport 0) and stay identity.
+            static const float identity[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+            sl::Constants c{};
+            c.cameraViewToClip = Matrix(identity);
+            c.clipToCameraView = Matrix(identity);
+            c.clipToLensClip = Matrix(identity);
+            c.clipToPrevClip = Matrix(identity);
+            c.prevClipToClip = Matrix(identity);
+            c.jitterOffset = sl::float2(d->jitterX, d->jitterY);
+            c.mvecScale = sl::float2(d->mvScaleX, d->mvScaleY);
+            c.cameraPinholeOffset = sl::float2(0, 0);
+            c.cameraPos = sl::float3(0, 0, 0);
+            c.cameraUp = sl::float3(0, 1, 0);
+            c.cameraRight = sl::float3(1, 0, 0);
+            c.cameraFwd = sl::float3(0, 0, 1);
+            c.cameraNear = d->cameraNear;
+            c.cameraFar = d->cameraFar;
+            c.cameraFOV = d->fovVertical;
+            c.cameraAspectRatio = d->outputHeight ? (float)d->outputWidth / (float)d->outputHeight : 1.f;
+            c.motionVectorsInvalidValue = sl::INVALID_FLOAT;
+            c.depthInverted = (d->flags & 4) ? sl::Boolean::eTrue : sl::Boolean::eFalse;
+            c.cameraMotionIncluded = sl::Boolean::eTrue;
+            c.motionVectors3D = sl::Boolean::eFalse;
+            c.reset = (d->flags & 1) ? sl::Boolean::eTrue : sl::Boolean::eFalse;
+            c.orthographicProjection = sl::Boolean::eFalse;
+            c.motionVectorsDilated = sl::Boolean::eFalse;
+            c.motionVectorsJittered = (d->flags & 8) ? sl::Boolean::eTrue : sl::Boolean::eFalse;
+            result = slSetConstants(c, *token, viewport);
+        }
+        if (result == sl::Result::eOk)
+        {
+            const uint32_t readState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            s_d3d12->RequestResourceState(color, (D3D12_RESOURCE_STATES)readState);
+            s_d3d12->RequestResourceState(motion, (D3D12_RESOURCE_STATES)readState);
+            s_d3d12->RequestResourceState(depth, (D3D12_RESOURCE_STATES)readState);
+            s_d3d12->RequestResourceState(output, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            sl::Extent renderExtent{0, 0, d->renderWidth, d->renderHeight};
+            sl::Extent outputExtent{0, 0, d->outputWidth, d->outputHeight};
+            sl::Resource colorResource(sl::ResourceType::eTex2d, color, readState);
+            sl::Resource motionResource(sl::ResourceType::eTex2d, motion, readState);
+            sl::Resource depthResource(sl::ResourceType::eTex2d, depth, readState);
+            sl::Resource outputResource(sl::ResourceType::eTex2d, output, (uint32_t)D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            sl::ResourceTag tags[4] = {
+                sl::ResourceTag(&colorResource, sl::kBufferTypeScalingInputColor, sl::ResourceLifecycle::eValidUntilEvaluate, &renderExtent),
+                sl::ResourceTag(&outputResource, sl::kBufferTypeScalingOutputColor, sl::ResourceLifecycle::eValidUntilEvaluate, &outputExtent),
+                sl::ResourceTag(&depthResource, sl::kBufferTypeDepth, sl::ResourceLifecycle::eValidUntilEvaluate, &renderExtent),
+                sl::ResourceTag(&motionResource, sl::kBufferTypeMotionVectors, sl::ResourceLifecycle::eValidUntilEvaluate, &renderExtent),
+            };
+            result = slSetTagForFrame(*token, viewport, tags, 4, recording.commandList);
+            if (result == sl::Result::eOk)
+            {
+                const sl::BaseStructure* inputs[] = {&viewport};
+                result = slEvaluateFeature(sl::kFeatureDLSS, *token, inputs, 1, recording.commandList);
+            }
+        }
+        done = result == sl::Result::eOk;
+        if (done) s_upscaleRuns++;
+        else if (s_upscaleErrors++ < 5) Log(kUnityLogTypeWarning, "DLSS (Streamline) failed (%d)", (int)result);
+    }
+    if (!done)
+    {
+        // Nothing upscaled: at least a picture where the sizes allow a plain copy (DLAA)
+        D3D12_RESOURCE_DESC a = color->GetDesc(), b = output->GetDesc();
+        if (a.Width == b.Width && a.Height == b.Height && a.Format == b.Format)
+        {
+            s_d3d12->RequestResourceState(color, D3D12_RESOURCE_STATE_COPY_SOURCE);
+            s_d3d12->RequestResourceState(output, D3D12_RESOURCE_STATE_COPY_DEST);
+            recording.commandList->CopyResource(output, color);
+        }
+    }
+}
+
+/// A camera's upscaler context went: its viewport's DLSS resources with it.
+void OnUpscaleFree(const UpscaleData* d)
+{
+    if (!d || !Bound() || !(s_state & kDlssSupported) || d->viewport < 1 || d->viewport >= kUpscaleViewports) return;
+    slFreeResources(sl::kFeatureDLSS, sl::ViewportHandle(d->viewport));
+    s_upscale[d->viewport] = UpscaleState{};
+}
+
 void OnFrameEnd(const FrameEndData* d)
 {
     if (!Bound() || !d) return;
@@ -1364,6 +1562,8 @@ void UNITY_INTERFACE_API OnRenderEvent(int eventId, void* data)
     else if (eventId == kEventFrameEnd) OnFrameEnd((const FrameEndData*)data);
     else if (eventId == kEventNeural) OnNeural((const NeuralData*)data);
     else if (eventId == kEventPicture) OnPicture((const PictureData*)data);
+    else if (eventId == kEventUpscale) OnUpscale((const UpscaleData*)data);
+    else if (eventId == kEventUpscaleFree) OnUpscaleFree((const UpscaleData*)data);
 }
 
 void UNITY_INTERFACE_API OnDeviceEvent(UnityGfxDeviceEventType type)
@@ -1385,6 +1585,8 @@ void UNITY_INTERFACE_API OnDeviceEvent(UnityGfxDeviceEventType type)
         s_d3d12->ConfigureEvent(kEventTag, &config);
         s_d3d12->ConfigureEvent(kEventNeural, &config);
         s_d3d12->ConfigureEvent(kEventPicture, &config);
+        s_d3d12->ConfigureEvent(kEventUpscale, &config);
+        s_d3d12->ConfigureEvent(kEventUpscaleFree, &config);
         config.flags = 0;
         s_d3d12->ConfigureEvent(kEventFrameEnd, &config);
         if ((s_state & kArmed) && !(s_state & kDeviceBound))
@@ -1430,6 +1632,7 @@ void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnityInterfaces
     if (FilesPresent()) s_state |= kFilesPresent;
     if (FileExists(s_dir + L"sl.dlss_nr.dll") && FileExists(s_dir + L"nvngx_dlssnr.dll")) s_state |= kNrPresent;
     if (FileExists(s_dir + L"sl.nis.dll")) s_state |= kNisPresent;
+    if (FileExists(s_dir + L"sl.dlss.dll")) s_state |= kDlssPresent;
     if (FileExists(s_dir + L"sl.deepdvc.dll") && FileExists(s_dir + L"nvngx_deepdvc.dll")) s_state |= kDvcPresent;
 
     wchar_t exe[MAX_PATH * 2];
@@ -1471,6 +1674,22 @@ int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API Gof2Sl_State() { return s_state.l
 /// The option for the next start (the registry: read before any managed code runs).
 void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API Gof2Sl_SetArmed(int on) { RegSet(L"Armed", on ? 1 : 0); }
 int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API Gof2Sl_GetArmed() { return (int)RegGet(L"Armed", 0); }
+
+/// Main thread: the render resolution DLSS wants for a quality mode (0 DLAA .. 4 ultra performance) at this display
+/// resolution. 0 when Streamline can't say.
+int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API Gof2Sl_DlssRenderSize(int mode, uint32_t outputWidth, uint32_t outputHeight, uint32_t* width, uint32_t* height)
+{
+    if (!Bound() || !(s_state & kDlssSupported) || !width || !height) return 0;
+    sl::DLSSOptions options{};
+    options.mode = DlssMode((uint32_t)mode);
+    options.outputWidth = outputWidth;
+    options.outputHeight = outputHeight;
+    sl::DLSSOptimalSettings settings{};
+    if (slDLSSGetOptimalSettings(options, settings) != sl::Result::eOk || !settings.optimalRenderWidth || !settings.optimalRenderHeight) return 0;
+    *width = settings.optimalRenderWidth;
+    *height = settings.optimalRenderHeight;
+    return 1;
+}
 
 /// The next start's provider of generated frames: 0 Streamline (DLSS-G, and Reflex and the rest of it), 1 AMD FSR.
 void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API Gof2Sl_SetProvider(int provider) { RegSet(L"Provider", provider == 1 ? 1 : 0); }

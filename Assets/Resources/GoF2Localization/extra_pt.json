@@ -13,7 +13,6 @@
   "sectionHud": "HUD e marcadores",
   "sectionPresentation": "Apresentação",
   "gameRulesAccessWarning": "As regras podem alterar a progressão e o equilíbrio. A maioria das configurações vale para todos os salvamentos; a dificuldade pertence à partida atual. Abrir esta seção?",
- "gameRulesExpand": "Expandir",
  "cosmeticExperience": "Experiência visual",
  "gameplayExperience": "Experiência de jogo",
   "cosmeticExperienceHelp": "Apresentação Original ou Remake sem mudar as regras. Original ordena por ID; Remake, por tipo. Outras combinações mostram Personalizado. Original e Remake exigem seleção explícita. Qualquer alteração manual passa para Custom; restaurar valores iguais não reativa um preajuste.",

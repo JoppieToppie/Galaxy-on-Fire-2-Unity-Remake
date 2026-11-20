@@ -13,7 +13,6 @@
   "sectionHud": "HUD e indicatori",
   "sectionPresentation": "Presentazione",
   "gameRulesAccessWarning": "Le regole possono cambiare progressione e bilanciamento. La maggior parte delle impostazioni vale per tutti i salvataggi; la difficoltà appartiene alla partita attuale. Aprire questa sezione?",
- "gameRulesExpand": "Espandi",
  "cosmeticExperience": "Esperienza visiva",
  "gameplayExperience": "Esperienza di gioco",
   "cosmeticExperienceHelp": "Presentazione Original o Remake senza cambiare le regole. Original ordina per ID, Remake per tipo. Altre combinazioni mostrano Personalizzato. Original e Remake si attivano solo scegliendoli esplicitamente. Ogni modifica manuale passa a Custom; ripristinare gli stessi valori non riattiva il preset.",

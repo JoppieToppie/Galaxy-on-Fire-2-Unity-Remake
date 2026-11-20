@@ -1540,16 +1540,6 @@
     border-bottom-color: var(--gof-line);
     white-space: normal;
 }
-.options-section-gate {
-    background-color: rgba(0, 0, 0, 0);
-    border-left-width: 0;
-    border-right-width: 0;
-    border-top-width: 0;
-    -unity-text-align: middle-left;
-}
-.options-section-gate.options-section--locked {
-    color: var(--gof-amber);
-}
 .options-rules-overlay {
     position: absolute;
     left: 0;

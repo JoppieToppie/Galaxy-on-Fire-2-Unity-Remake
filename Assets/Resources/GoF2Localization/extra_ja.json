@@ -13,7 +13,6 @@
   "sectionHud": "HUDとマーカー",
   "sectionPresentation": "演出",
   "gameRulesAccessWarning": "ルールは進行やバランスに影響します。ほとんどの設定はすべてのセーブに適用されますが、難易度は現在のプレイに属します。このセクションを開きますか？",
- "gameRulesExpand": "展開",
  "cosmeticExperience": "演出プリセット",
  "gameplayExperience": "ゲームプレイプリセット",
   "cosmeticExperienceHelp": "ゲームルールを変えずにOriginalまたはRemakeの演出を選びます。OriginalはID順、Remakeは種類順に並べます。それ以外の組み合わせはCustomです。 Original と Remake は明示的に選んだときだけ有効になります。手動で変更すると Custom になり、値が再び一致してもプリセットは自動で再有効化されません。",

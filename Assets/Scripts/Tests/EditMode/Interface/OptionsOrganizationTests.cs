@@ -93,8 +93,7 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(OptionSection.Tools, row.section);
             Assert.AreEqual(OptionGroup.None, row.group);
             var block = new OptionSectionBlock(new VisualElement(), row.section, _ => Assert.Fail("Storage needs no rule consent"), false);
-            Assert.IsNull(block.Gate);
-            Assert.AreEqual(DisplayStyle.Flex, block.Body.style.display.value);
+            Assert.AreNotEqual(DisplayStyle.None, block.Body.style.display.value);
         }
 
         [TestCase(false)] [TestCase(true)]
@@ -112,7 +111,6 @@ namespace GoF2Remake.Tests
                     action => { prompts++; accept = action; });
                 var row = new OptionDef { id = "debugTools", setBool = value => enabled = value };
                 block.Add(row, new VisualElement());
-                Assert.IsNull(block.Gate);
                 Assert.AreEqual(DisplayStyle.Flex, block.Body.style.display.value);
                 row.setBool(true);
                 Assert.AreEqual(1, prompts);
@@ -132,7 +130,7 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void SubgroupHeadingsRemainInsideTheSingleConsentBoundary()
+        public void SubgroupHeadingsShowAndCustomAsksNothing()
         {
             bool confirmed = GameRulesAccess.Confirmed;
             try
@@ -150,15 +148,12 @@ namespace GoF2Remake.Tests
                 Assert.AreSame(block.Preset, presetRow.parent);
                 Assert.IsTrue(block.Body.Contains(ruleRow));
                 Assert.AreEqual(1, block.Body.Query<Label>(className: "options-group-title").ToList().Count);
-                Assert.AreEqual(DisplayStyle.None, block.Body.style.display.value);
+                Assert.AreNotEqual(DisplayStyle.None, block.Body.style.display.value, "the rules show without a gate (2026-11-20)");
+                Assert.AreEqual(1, Settings.CurrentScopedExperience(false));
                 preset.customRulesRequested();
-                Assert.IsNotNull(accept);
-                Assert.IsFalse(GameRulesAccess.Confirmed);
-                Assert.AreEqual(1, Settings.CurrentScopedExperience(false), "requesting access changes no preset yet");
-                accept();
-                Assert.AreEqual(DisplayStyle.Flex, block.Body.style.display.value);
+                Assert.IsNull(accept, "no consent is asked");
                 Assert.AreEqual(2, Settings.CurrentScopedExperience(false));
-                Assert.AreEqual(pirates, Settings.PirateEvents, "revealing groups applies no rule");
+                Assert.AreEqual(pirates, Settings.PirateEvents, "picking Custom applies no rule");
             }
             finally { if (confirmed) GameRulesAccess.Accept(); else GameRulesAccess.Reset(); }
         }

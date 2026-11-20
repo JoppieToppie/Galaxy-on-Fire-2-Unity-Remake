@@ -41,12 +41,15 @@ namespace GoF2Remake.UI
         public static string Title => Localization.Extra("sectionGameRules", "Game Rules");
         public static string Warning => Localization.Extra("gameRulesAccessWarning",
             "Rules can change progression and balance. Most settings apply across saves; Difficulty belongs to the current playthrough. Open this section?");
-        public static string Expand => Localization.Extra("gameRulesExpand", "Expand");
         public static string Enable => Localization.Extra("gameRulesAccessEnable", "Open Game Rules");
         public static string DebugEnable => Localization.Extra("debugToolsEnable", "Enable");
     }
 
-    /// <summary>The same subsection geometry and consent gate in the main, station and pause menus.</summary>
+    /// <summary>The same subsection geometry in the main, station and pause menus. The Game Rules section had an
+    /// "Expand" button with a consent prompt before its rows showed (#311); removed 2026-11-20 at the owner's word
+    /// ("remove expand and just show all settings with their categories"): the rows always show under their group
+    /// headings, and picking Custom on the Gameplay Experience row no longer asks. Enabling the Debug tools still
+    /// does (requestDebugAccess), and the Debug pages keep GameRulesAccess's prompt.</summary>
     public sealed class OptionSectionBlock
     {
         readonly OptionSection section;
@@ -60,21 +63,13 @@ namespace GoF2Remake.UI
         readonly List<OptionDef> rows = new List<OptionDef>();   // every row of the section: its heading hides with them
         public readonly VisualElement Body;
         public readonly VisualElement Preset;
-        public readonly Button Gate;
         public OptionSectionBlock(VisualElement parent, OptionSection section, Action<Action> requestAccess, bool focusable, Action<Action> requestDebugAccess = null)
         {
             this.section = section;
             this.requestAccess = requestAccess;
             this.requestDebugAccess = requestDebugAccess ?? requestAccess;
             heading = new Label { pickingMode = PickingMode.Ignore };
-            if (section == OptionSection.GameRules)
-            {
-                Preset = new VisualElement();
-                Gate = new Button(Open) { focusable = focusable };
-                Gate.AddToClassList("options-section-gate");
-                Gate.AddToClassList("menu-button");
-                Gate.AddToClassList("gof-semibold");
-            }
+            if (section == OptionSection.GameRules) Preset = new VisualElement();
 
             heading.AddToClassList("options-section-title");
             heading.AddToClassList("gof-semibold");
@@ -82,7 +77,6 @@ namespace GoF2Remake.UI
             Body.AddToClassList("options-section-body");
             parent.Add(heading);
             if (Preset != null) parent.Add(Preset);
-            if (Gate != null) parent.Add(Gate);
             parent.Add(Body);
             Refresh();
         }
@@ -138,30 +132,18 @@ namespace GoF2Remake.UI
             if (section != OptionSection.GameRules && rows.Count > 0)
                 heading.style.display = rows.Any(option => option.visible == null || option.visible()) ? DisplayStyle.Flex : DisplayStyle.None;
         }
+        /// <summary>Custom picked on the Gameplay Experience row: the experience reads Custom (no rule changes).</summary>
         public void Open()
         {
-            void RevealCustomRules()
-            {
-                GameRulesAccess.Accept();
-                Settings.SelectCustomGameplayExperience();
-                Refresh();
-                OptionControl.RefreshShown();
-            }
-            if (GameRulesAccess.Confirmed) { RevealCustomRules(); return; }
-            requestAccess?.Invoke(RevealCustomRules);
+            Settings.SelectCustomGameplayExperience();
+            Refresh();
+            OptionControl.RefreshShown();
         }
         public void Refresh()
         {
             heading.text = OptionsCatalog.SectionTitle(section).UiCaps();
             foreach (var pair in groupHeadings) pair.Value.text = OptionsCatalog.GroupTitle(pair.Key).UiCaps();
             RefreshGroups();
-            if (section == OptionSection.GameRules)
-            {
-                Body.style.display = GameRulesAccess.Confirmed ? DisplayStyle.Flex : DisplayStyle.None;
-                Gate.text = GameRulesAccess.Expand.UiCaps();
-                Gate.style.display = GameRulesAccess.Confirmed ? DisplayStyle.None : DisplayStyle.Flex;
-                Gate.EnableInClassList("options-section--locked", !GameRulesAccess.Confirmed);
-            }
         }
     }
     public enum OptionKind { Slider, Toggle, Choice, Button, Binding }

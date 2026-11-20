@@ -58,11 +58,16 @@ namespace GoF2Remake.EditorTools
             string from = Path.GetDirectoryName(Source);
             string plugins = Path.Combine(Path.GetDirectoryName(exe), Path.GetFileNameWithoutExtension(exe) + "_Data", "Plugins", "x86_64");
             if (!Directory.Exists(plugins)) return;
-            foreach (string[] names in new[] { new[] { "sl.nis.dll" }, new[] { "sl.deepdvc.dll", "nvngx_deepdvc.dll" } })
+            foreach (string[] names in new[] { new[] { "sl.nis.dll" }, new[] { "sl.dlss.dll" }, new[] { "sl.deepdvc.dll", "nvngx_deepdvc.dll" } })
             {
                 if (!Array.TrueForAll(names, n => File.Exists(Path.Combine(from, n)))) continue;
                 foreach (string n in names) File.Copy(Path.Combine(from, n), Path.Combine(plugins, n), true);
                 UnityEngine.Debug.Log("Streamline: " + names[0] + " copied into the build");
+                // Streamline's DLSS has NGX look for nvngx_dlss.dll beside the plugins ("Module not found at ...\Plugins\
+                // x86_64", then "DLSS Super Resolution: not supported"); Unity ships it beside the player: a copy of that one
+                // (after the swap for the newer one above).
+                string dlss = Path.Combine(Path.GetDirectoryName(exe), "nvngx_dlss.dll");
+                if (names[0] == "sl.dlss.dll" && File.Exists(dlss)) File.Copy(dlss, Path.Combine(plugins, "nvngx_dlss.dll"), true);
             }
         }
 

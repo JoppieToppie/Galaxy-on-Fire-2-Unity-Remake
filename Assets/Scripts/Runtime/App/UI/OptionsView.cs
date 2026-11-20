@@ -352,7 +352,6 @@ namespace GoF2Remake.UI
         /// <summary>What a host with its own highlight (the pause menu) does on Enter / A for a footer button.</summary>
         public void Activate(VisualElement e)
         {
-            foreach (var tab in tabs) foreach (var section in tab.sections) if (section.Gate == e) { section.Open(); return; }
             if (e == rulesCancel) { ClosePrompts(); return; }
             if (e == rulesOpen)
             {
@@ -478,21 +477,8 @@ namespace GoF2Remake.UI
             var list = new List<VisualElement>();
             if (RulesPromptOpen) { list.AddRange(FooterButtons); return list; }
             if (ActiveTab != null) list.Add(ActiveTab);
-            bool gateAdded = false;
             if (tabs.Count > 0) foreach (var c in tabs[TabIndex].rows)
-            {
-                if (c.def.section == OptionSection.GameRules && c.def.id != "gameplayExperience" && c.def.id != "difficulty")
-                {
-                    if (!gateAdded)
-                    {
-                        var block = tabs[TabIndex].sections.Find(section => section.Section == OptionSection.GameRules);
-                        if (block?.Gate != null && !GameRulesAccess.Confirmed) list.Add(block.Gate);
-                        gateAdded = true;
-                    }
-                    if (!GameRulesAccess.Confirmed) continue;
-                }
                 if (c.Shown && c.Enabled) list.Add(c.Field);
-            }
             list.AddRange(FooterButtons);
             return list;
         }

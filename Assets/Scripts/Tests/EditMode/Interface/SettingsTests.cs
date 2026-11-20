@@ -338,7 +338,11 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(FrameGeneration.FsrOffered);
             Assert.IsFalse(FrameGeneration.UsesFsr);
             Assert.IsFalse(FrameGeneration.WantsPicture);
-            Assert.IsFalse(FrameGeneration.MenuOpen);
+            FrameGeneration.SetMenu("test", true);
+            Assert.IsTrue(FrameGeneration.MenuOpen);
+            FrameGeneration.SetMenu("test", false);
+            Assert.IsFalse(FrameGeneration.StreamlineDlss, "no Streamline in the Editor: Unity's own DLSS is the one offered");
+            Assert.AreEqual(UpscalerFramework.Dlss, UpscalerFramework.DlssId);
             Assert.AreEqual(0f, FrameGeneration.LatencyMs);
 
             // XeSS: an upscaler choice of its own; a device without it gets a temporal upscaler it has, or none

@@ -13,7 +13,6 @@
   "sectionHud": "ATH et marqueurs",
   "sectionPresentation": "Présentation",
   "gameRulesAccessWarning": "Les règles peuvent modifier la progression et l’équilibrage. La plupart des réglages s’appliquent à toutes les sauvegardes ; la difficulté appartient à la partie en cours. Ouvrir cette section ?",
- "gameRulesExpand": "Développer",
  "cosmeticExperience": "Expérience visuelle",
  "gameplayExperience": "Expérience de jeu",
   "cosmeticExperienceHelp": "Présentation Original ou Remake sans changer les règles. Original trie par identifiant, Remake par type. Les autres combinaisons indiquent Personnalisé. Original et Remake s’activent par choix explicite. Toute modification manuelle passe à Custom ; retrouver les valeurs d’un préréglage ne le réactive pas.",

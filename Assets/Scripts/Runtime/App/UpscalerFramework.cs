@@ -36,6 +36,8 @@ namespace GoF2Remake
             Fsr4 = "amd.fsr4", Fsr3 = "amd.fsr3", Fsr2 = "amd.fsr2",
             MetalFxSpatial = "apple.metalfx-spatial", MetalFxTemporal = "apple.metalfx-temporal",
             Xess = "intel.xess",   // XessUpscaler (Windows Direct3D 12, any GPU with Shader Model 6.4)
+            // StreamlineDlssUpscaler: DLSS through Streamline while Streamline runs (Unity's own, Dlss, can't start then)
+            StreamlineDlss = "nvidia.dlss-streamline",
             // LinuxFsrUpscaler on Windows Vulkan (its plugin with AMD's Vulkan DLLs as they are: a comparison build)
             VkFsr4 = "ffxvk.fsr4", VkFsr3 = "ffxvk.fsr3", VkFsr2 = "ffxvk.fsr2";
 
@@ -75,7 +77,10 @@ namespace GoF2Remake
             catch (System.Exception) { return false; }
         }
 
-        public static bool DlssSupported => Supports(Dlss);
+        public static bool DlssSupported => Supports(Dlss) || Supports(StreamlineDlss);
+
+        /// <summary>The DLSS upscaler that runs here: Unity's own, or Streamline's while Streamline has NGX.</summary>
+        public static string DlssId => Supports(Dlss) || !Supports(StreamlineDlss) ? Dlss : StreamlineDlss;
 
         /// <summary>Intel XeSS on this device (XessUpscaler: Windows Direct3D 12 builds with its plugin and Intel's DLL).</summary>
         public static bool XessSupported => Supports(Xess);
@@ -174,6 +179,7 @@ namespace GoF2Remake
 #endif
 #if UNITY_STANDALONE_WIN
             if (options is XessOptions xess) xess.qualityMode = q;
+            if (options is StreamlineDlssOptions streamline) { streamline.qualityMode = q; streamline.preset = dlssPreset; }
 #endif
             // Linux (LinuxFsrUpscaler: the same ids, its own options; FSR 2 through the SDK takes native AA too)
             if (options is LinuxFsrOptions linux)
@@ -215,6 +221,9 @@ namespace GoF2Remake
             var list = new System.Collections.Generic.List<int> { 0 };
 #if ENABLE_NVIDIA && ENABLE_NVIDIA_MODULE
             uint mask = PresetMask(quality);
+            // (through Streamline the module can't be asked which presets a mode offers: every one it names; a preset the
+            // mode doesn't take is NVIDIA's default there)
+            if (mask == 0 && FrameGeneration.StreamlineDlss) mask = uint.MaxValue;
             foreach (UnityEngine.NVIDIA.DLSSPreset preset in System.Enum.GetValues(typeof(UnityEngine.NVIDIA.DLSSPreset)))
                 if (preset != UnityEngine.NVIDIA.DLSSPreset.Preset_Default && (mask & (uint)preset) != 0 && !list.Contains((int)(uint)preset))
                     list.Add((int)(uint)preset);
@@ -258,6 +267,7 @@ namespace GoF2Remake
         public static bool Compiled => false;
         public static bool Supports(string id) => false;
         public static bool DlssSupported => false;
+        public static string DlssId => Dlss;
         public static bool XessSupported => false;
         public static bool MetalFxSpatialSupported => false;
         public static bool MetalFxTemporalSupported => false;

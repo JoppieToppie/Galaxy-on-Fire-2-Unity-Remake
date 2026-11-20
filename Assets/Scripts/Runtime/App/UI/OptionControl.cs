@@ -124,6 +124,7 @@ namespace GoF2Remake.UI
                     {
                         if (i != 2 || d.customRulesRequested == null) return false;
                         d.customRulesRequested();
+                        Refresh();   // (the row itself: Custom is selected at once, no prompt between)
                         return true;
                     };
                     choice.Changed += i =>

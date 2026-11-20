@@ -226,7 +226,7 @@ namespace GoF2Remake
         {
             Settings.UpscalerFsr => UpscalerFramework.Fsr1,
             Settings.UpscalerStp => UpscalerFramework.Stp,
-            Settings.UpscalerDlss => UpscalerFramework.Dlss,
+            Settings.UpscalerDlss => UpscalerFramework.DlssId,
             Settings.UpscalerFsrTemporal => UpscalerFramework.BestFsr ?? UpscalerFramework.Auto,
             Settings.UpscalerMetalFxSpatial => UpscalerFramework.MetalFxSpatial,
             Settings.UpscalerMetalFxTemporal => UpscalerFramework.MetalFxTemporal,

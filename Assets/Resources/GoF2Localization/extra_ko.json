@@ -13,7 +13,6 @@
   "sectionHud": "HUD 및 표식",
   "sectionPresentation": "연출",
   "gameRulesAccessWarning": "규칙은 진행과 밸런스를 바꿀 수 있습니다. 대부분의 설정은 모든 저장에 적용되지만 난이도는 현재 플레이에 속합니다. 이 섹션을 열까요?",
- "gameRulesExpand": "펼치기",
  "cosmeticExperience": "표현 프리셋",
  "gameplayExperience": "게임플레이 프리셋",
   "cosmeticExperienceHelp": "게임 규칙을 바꾸지 않고 Original 또는 Remake 표현 설정을 선택합니다. Original은 ID순, Remake는 유형순으로 정렬합니다. 다른 조합은 Custom입니다. Original과 Remake는 직접 선택해야 활성화됩니다. 수동 변경 시 Custom이 되며, 값이 다시 일치해도 프리셋은 자동으로 재활성화되지 않습니다.",

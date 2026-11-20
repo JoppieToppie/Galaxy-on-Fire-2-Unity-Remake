@@ -13,7 +13,6 @@
   "sectionHud": "HUD und Markierungen",
   "sectionPresentation": "Präsentation",
   "gameRulesAccessWarning": "Regeln können Fortschritt und Balance verändern. Die meisten Einstellungen gelten für alle Spielstände; der Schwierigkeitsgrad gehört zum aktuellen Spieldurchlauf. Diesen Bereich öffnen?",
- "gameRulesExpand": "Erweitern",
  "cosmeticExperience": "Darstellungserlebnis",
  "gameplayExperience": "Spielerlebnis",
   "cosmeticExperienceHelp": "Original- oder Remake-Darstellung ohne Änderung der Spielregeln. Original sortiert nach ID, Remake nach Typ. Andere Kombinationen: Benutzerdefiniert. Original und Remake werden ausdrücklich gewählt. Jede manuelle Änderung wählt Custom; passende Werte aktivieren kein Preset automatisch erneut.",

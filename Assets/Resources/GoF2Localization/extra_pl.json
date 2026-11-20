@@ -13,7 +13,6 @@
   "sectionHud": "HUD i znaczniki",
   "sectionPresentation": "Oprawa",
   "gameRulesAccessWarning": "Zasady mogą zmieniać postępy i balans. Większość ustawień dotyczy wszystkich zapisów; poziom trudności należy do bieżącej rozgrywki. Otworzyć tę sekcję?",
- "gameRulesExpand": "Rozwiń",
  "cosmeticExperience": "Oprawa gry",
  "gameplayExperience": "Rozgrywka",
   "cosmeticExperienceHelp": "Oprawa Original lub Remake bez zmiany zasad. Original sortuje według ID, Remake według typu. Inne kombinacje pokazują Własne. Original i Remake wymagają jawnego wyboru. Każda ręczna zmiana wybiera Custom; przywrócenie zgodnych wartości nie włącza ponownie zestawu.",

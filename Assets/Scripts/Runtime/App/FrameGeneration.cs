@@ -28,12 +28,13 @@ namespace GoF2Remake
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]   // (the native state lives as long as the process)
     public static class FrameGeneration
     {
-        public const int EventTag = 0x534C0001, EventFrameEnd = 0x534C0002, EventNeural = 0x534C0003, EventPicture = 0x534C0004;
+        public const int EventTag = 0x534C0001, EventFrameEnd = 0x534C0002, EventNeural = 0x534C0003, EventPicture = 0x534C0004,
+            EventUpscale = 0x534C0005, EventUpscaleFree = 0x534C0006;
         public const int TagValues = 84;   // the plugin's TagData.values
         // The plugin's StateBits
         const int Armed = 1, DeviceBound = 2, SwapChainProxied = 4, Supported = 8, Latched = 16, FilesPresent = 32, LateLoad = 64,
             NeuralPresent = 128, NeuralRuns = 256, AntiLagBit = 512, NisPresent = 1024, VibrancePresent = 2048, NisRuns = 4096, VibranceRuns = 8192,
-            FsrPresent = 1 << 14, FsrArmed = 1 << 15, FsrSwapChain = 1 << 16;
+            FsrPresent = 1 << 14, FsrArmed = 1 << 15, FsrSwapChain = 1 << 16, DlssPresent = 1 << 18, DlssRuns = 1 << 19;
         // sl::Result
         const int ResultDriverOutOfDate = 2, ResultOsOutOfDate = 3, ResultOsDisabledHws = 4, ResultNoSupportedAdapter = 6, ResultAdapterNotSupported = 7;
 
@@ -51,6 +52,7 @@ namespace GoF2Remake
         [DllImport(Lib)] static extern int Gof2Sl_State();
         [DllImport(Lib)] static extern void Gof2Sl_SetArmed(int on);
         [DllImport(Lib)] static extern void Gof2Sl_SetProvider(int provider);
+        [DllImport(Lib)] static extern int Gof2Sl_DlssRenderSize(int mode, uint outputWidth, uint outputHeight, out uint width, out uint height);
         [DllImport(Lib)] static extern void Gof2Sl_StartedOk();
         [DllImport(Lib)] static extern int Gof2Sl_FrameStart(uint frame, int reflexMode, uint frameLimitUs);
         [DllImport(Lib)] static extern void Gof2Sl_SimulationEnd(uint frame);
@@ -62,6 +64,7 @@ namespace GoF2Remake
         static int Gof2Sl_State() => throw new DllNotFoundException();
         static void Gof2Sl_SetArmed(int on) { }
         static void Gof2Sl_SetProvider(int provider) { }
+        static int Gof2Sl_DlssRenderSize(int mode, uint outputWidth, uint outputHeight, out uint width, out uint height) { width = height = 0; return 0; }
         static void Gof2Sl_StartedOk() { }
         static int Gof2Sl_FrameStart(uint frame, int reflexMode, uint frameLimitUs) => 0;
         static void Gof2Sl_SimulationEnd(uint frame) { }
@@ -121,6 +124,28 @@ namespace GoF2Remake
 
         /// <summary>Frames are being generated right now.</summary>
         public static bool Generating => (Running || FsrRunning) && info.generating != 0;
+
+        // ---- DLSS Super Resolution through Streamline (StreamlineDlssUpscaler) ---------------------------------------------
+
+        /// <summary>Streamline runs here with its DLSS plugin on a GPU that takes it: the DLSS upscaler is Streamline's
+        /// (Unity's own can't start NGX beside Streamline).</summary>
+        public static bool StreamlineDlss => Bound && (state & DlssRuns) != 0;
+
+        /// <summary>The render resolution DLSS wants for a quality mode (UpscalerFramework.Quality*) at this display size.</summary>
+        public static Vector2Int DlssRenderSize(int quality, Vector2Int display)
+        {
+            try
+            {
+                if (StreamlineDlss && Gof2Sl_DlssRenderSize(quality, (uint)display.x, (uint)display.y, out uint w, out uint h) != 0)
+                    return new Vector2Int(Mathf.Clamp((int)w, 1, display.x), Mathf.Clamp((int)h, 1, display.y));
+            }
+            catch (EntryPointNotFoundException) { }
+            float ratio = quality switch { 0 => 1f, 1 => 1.5f, 2 => 1.724f, 3 => 2f, _ => 3f };
+            return new Vector2Int(Mathf.Max(1, Mathf.RoundToInt(display.x / ratio)), Mathf.Max(1, Mathf.RoundToInt(display.y / ratio)));
+        }
+
+        /// <summary>An unmanaged block for a plugin event of the render thread (the ring the tag events use).</summary>
+        public static IntPtr EventSlot() => NextSlot();
 
         // ---- AMD FSR frame generation -----------------------------------------------------------------------------------
 
@@ -253,6 +278,10 @@ namespace GoF2Remake
 
         /// <summary>A menu holds frame generation off right now.</summary>
         public static bool MenuOpen => menus.Count > 0;
+
+        // (the Editor's Play mode keeps the statics: a session left with a menu open left its name here)
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetMenus() => menus.Clear();
 
         /// <summary>No generated frames for the next 'frames' frames: the swap chain is about to change (HDR on or off), and
         /// DLSS-G must be off across that (Streamline's guide, "DLSS-G and DXGI").</summary>

@@ -4,6 +4,12 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 
 ## UI and platforms
 
+- **No "Expand" on Game Rules** (2026-11-20, the owner: "remove expand and just show all settings with their
+  categories"): the Game Rules rows always show under their group headings; the gate button and its consent prompt
+  (below: "expandable Game Rules", "Expand asks for confirmation") are gone from the three menus
+  (`OptionSectionBlock`, `OptionsView.NavItems`). Picking Custom on the Gameplay Experience row selects Custom at once
+  (no rule changes). Unchanged: every Debug tools enable still asks Enable / Cancel, and the Debug pages of the main,
+  pause and station menus still ask `GameRulesAccess`'s question once per app session.
 - **Cosmetics and Gameplay (final organization)**: Cosmetics has Presentation, UI, and HUD and map.
   Gameplay shows Difficulty beside Gameplay Experience, then expandable Game Rules: World, Progression and economy,
   Combat and NPC behavior, Traversal, and Missions and simulation. Mod traffic/settings belong to Missions; there is
@@ -537,6 +543,25 @@ verified on a Mac or an iPhone.
     **Not checked:** the picture in flight by eye, a Radeon or Arc card, V-Sync's pacing (the game rendered 144 frames
     a second on the 143 Hz display with it on: how many generated frames the display then shows was not measured), a
     resolution or HDR change while it runs, the options' restart flow played through the menu.
+- **DLSS with Streamline** (2026-11-20, a player's report: "DLSS is not in the upscaler dropdown";
+  `StreamlineDlssUpscaler` / `StreamlineDlssOptions`, the plugin's `OnUpscale`): Unity's own DLSS upscaler (its NVIDIA
+  module, `nvidia.dlss4`) starts NGX itself, and NGX is Streamline's while Streamline runs in the process: the module
+  logs "DLSS not available on the current NVIDIA graphics card" and the Upscaler option lost DLSS in every run with
+  frame generation, Reflex or Image Scaling on (so since frame generation went in). In those runs DLSS Super
+  Resolution is Streamline's `sl.dlss` (`sl.dlss.dll` of the release in `Native/Streamline/redist`, copied into a build
+  by `DlssRedist`; state bits 1 << 18 / 19), registered with URP's upscaler framework as `nvidia.dlss-streamline` and
+  picked by the same option (`UpscalerFramework.DlssId`: Unity's own where it runs, else this). The inputs are what
+  Unity gives its module (the colour, depth and motion vectors at the render resolution, the jitter; the motion scale
+  in screen fractions: Streamline's `mvecScale`), in a render thread event (`EventUpscale`), on a Streamline viewport
+  of its own per camera context (1 .. 16; freed with the context, `EventUpscaleFree`): viewport 0's tags and constants
+  are frame generation's. The render size is `slDLSSGetOptimalSettings`'. The DLSS preset row offers every preset the
+  module names there (it can't be asked which a mode offers); the plugin maps the letter (F, J, K, L, M). A failure
+  leaves the picture as it was where the sizes match (DLAA). NGX looks for `nvngx_dlss.dll` beside Streamline's plugins
+  (not beside the player, where Unity ships it: "DLSS Super Resolution (Streamline): not supported (result 32)"), so
+  `DlssRedist` copies it into `Plugins/x86_64` as well. **Checked** (2026-11-20, RTX 4080, a build, `$GOF2_UPSCALER=3`
+  with `-framegen`): Quality mode renders 2293 x 960 for 3440 x 1440, a clean picture in the menu, no errors, DLSS-G
+  generating beside it (150 shown, 75 rendered). Not checked: the other quality modes and presets, flight (ghosting by
+  eye), HDR with it, a camera context freed and made again (the star map).
 - **Anti-Lag 2** (remake, 2026-11-20, the user's request; Graphics "AMD Anti-Lag 2", `Settings.AntiLag`): Reflex's
   counterpart on Radeon cards. AMD's SDK is one header (`Native/AntiLag2/sdk/ffx_antilag2_dx12.h`, git-ignored: the
   clone is `github.com/GPUOpen-LibrariesAndSDKs/AntiLag2-SDK`) talking to the driver (`amdxc64.dll`) through the D3D12

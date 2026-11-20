@@ -81,8 +81,9 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void GameRulesStayHiddenUntilConfirmationAndCancelChangesNothing()
+        public void GameRulesShowWithoutAGate()
         {
+            // (2026-11-20: the "Expand" button and its consent prompt are gone; the rows show under their groups at once)
             bool before = GameRulesAccess.Confirmed;
             bool debug = Cheats.Unlocked, stacking = Settings.KaamoStacking;
             try
@@ -90,21 +91,12 @@ namespace GoF2Remake.Tests
                 GameRulesAccess.Reset();
                 var view = new OptionsView(() => { }, false);
                 for (int i = 0; i < 5; i++) view.StepTab(1);
-                Assert.IsFalse(view.RulesPromptOpen, "the profile selector opens without prompting");
+                Assert.IsFalse(view.RulesPromptOpen);
                 Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "gameplayExperience"));
                 Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "difficulty"));
-                Assert.IsFalse(view.NavItems().Any(v => view.RowOf(v)?.def.section == OptionSection.GameRules
-                    && view.RowOf(v)?.def.id != "gameplayExperience" && view.RowOf(v)?.def.id != "difficulty"));
-                var gate = view.NavItems().OfType<UnityEngine.UIElements.Button>().Single(b => b.ClassListContains("options-section-gate"));
-                view.Activate(gate);
-                Assert.IsTrue(view.RulesPromptOpen);
-                Assert.AreEqual(2, view.NavItems().Count);
-                view.Activate(view.FooterButtons[0]);
-                Assert.IsFalse(GameRulesAccess.Confirmed);
-                view.Activate(gate);
-                view.Activate(view.FooterButtons[1]);
-                Assert.IsTrue(GameRulesAccess.Confirmed);
-                Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "pirateEvents"));
+                Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "pirateEvents"), "a rule row, without opening anything");
+                Assert.IsFalse(view.NavItems().OfType<UnityEngine.UIElements.Button>().Any(b => b.ClassListContains("options-section-gate")));
+                Assert.IsFalse(GameRulesAccess.Confirmed, "the Debug pages' own consent is not given by looking");
                 Assert.AreEqual(debug, Cheats.Unlocked);
                 Assert.AreEqual(stacking, Settings.KaamoStacking);
             }
@@ -525,7 +517,7 @@ namespace GoF2Remake.Tests
         }
 
         [TestCase(false)] [TestCase(true)]
-        public void GameplayCustomAndExpandUseTheSameConfirmation(bool alreadyCustom)
+        public void GameplayCustomSelectsWithoutAPrompt(bool alreadyCustom)
         {
             bool confirmed = GameRulesAccess.Confirmed;
             try
@@ -539,17 +531,10 @@ namespace GoF2Remake.Tests
                 for (int i = 0; i < 5; i++) view.StepTab(1);
                 var field = view.NavItems().Single(e => view.RowOf(e)?.def.id == "gameplayExperience");
                 var choice = (ChoiceRow)field;
+                Assert.IsTrue(view.NavItems().Any(e => view.RowOf(e)?.def.id == "kaamoVip"), "the rules show before Custom is picked");
                 choice.Step(1);
-                Assert.IsTrue(view.RulesPromptOpen, "also when Custom was already displayed");
-                Assert.IsFalse(GameRulesAccess.Confirmed);
-                view.Activate(view.FooterButtons[0]);
-                Assert.IsFalse(GameRulesAccess.Confirmed);
-                Assert.AreEqual(vip, Settings.KaamoVipMode);
-                Assert.AreEqual(pirates, Settings.PirateEvents);
-                choice.Step(1);
-                view.Activate(view.FooterButtons[1]);
-                Assert.IsTrue(GameRulesAccess.Confirmed);
-                Assert.AreEqual(2, view.RowOf(field).def.getIndex(), "accepted Custom/Expand is explicitly Custom");
+                Assert.IsFalse(view.RulesPromptOpen, "no consent prompt any more");
+                Assert.AreEqual(2, view.RowOf(field).def.getIndex(), "Custom is explicitly Custom");
                 Assert.AreEqual(2, ((ChoiceRow)field).Index, "the visible selection is Custom");
                 Assert.IsTrue(view.NavItems().Any(e => view.RowOf(e)?.def.id == "kaamoVip"));
                 Assert.AreEqual(vip, Settings.KaamoVipMode);
