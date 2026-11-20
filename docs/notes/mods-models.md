@@ -486,6 +486,42 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   the delay, sets `_ShieldLife` / `_ShieldTint` per renderer (a property block), and is gone at its end;
   `PlayerDevices` shows it on overcharge (`model.Find("hull")`), else `EmergencyBubble` as before. Tests
   `ChorusShieldTests`.
+- **Drift energy field** (remake, 2026-11-19, the user's "did we get forsakens drifting energy field in?" then "yes, write
+  the drift field"): ships.json `"driftFx"` (`CustomDriftFx` / `CustomDriftPart` / `CustomDriftField` / `CustomFxMesh` in
+  Database.cs; `World.ModDriftFx`; Resources/GoF2Fx/ChorusDriftField.shader). Chorus: BP_Player_Ship_Phoenix's "FX Drift
+  Started" activates four Cascade systems and "FX Drift Recovery Started" deactivates them (its graph, the exporter's
+  `CHORUS_SCRIPT=1`): DriftStartParticles_L1 / R1 (P_Drift_L / _R) on the skeleton's SCK_VFX_Drift_L2 / R2 sockets
+  (BONE_SM_Phoenix_wingLow_l1 / r1), P_Drift_L_Top / _R_Top on L4 / R4 (wingBase_Top_l / r), so they ride the wings. Each
+  has a dot (MI_Drift_Dot on M_Pulse_Glow, 1.2-1.3 s, again every 1 s), on the side ones 100 GPU sparks once (MI_Spark_Hit_GPU,
+  a turbulence) and a light pulsing every 1 s (its brightness curve 0 -> peak -> 0: 0.06 on the explosions' scale), a
+  refraction shock wave (left out) and the field: mesh emitters of SM_Drift_HalfSphere on M_Drift_MagnetField ("Bot" and
+  "vertical" on the sides, "Top" on the top ones), emitted again every 0.2 s with a 0.2 s life, so a shell that stays.
+  The Chorus importer (tools/drift.py) puts the four sockets into models/forsaken.glb as nodes on their bones and writes a
+  part per system in that node's frame: the emitters through explosions.py's reader (its `cascade` option: emitters off in
+  the editor left out, Unreal's EmitterLoops 0 as `"loop"`, bUseLocalSpace `"local"`, the Location start `"at"`), each shell's
+  mesh baked into the node's frame (its Size per axis, MeshRotation as FRotator(Y, Z, X) turns, its Location; the mesh's X
+  along the velocity under PSA_Velocity is no turn, the velocity being zero: my reading, unchecked in Chorus) as fx/drift/
+  `*.json`. Its brightness the shield shell's rule (3 / the colour's peak: exposure 3 for (0.4, 1, 0.9)).
+  - **The shader** (M_Drift_MagnetField's compiled translucent base pass, the mesh-particle pixel shader; its uniform slots
+    from the 4.26 preshader bytes: 03 a parameter, 02 a constant, 24 append, 23 a component, 07 multiply; its textures by
+    ReferencedTextures order through the uniform texture list): the formula in the shader's header. Two shock-wave bands
+    (T_ShockWave_Rect_G) panned both ways, an ellipse mask (T_VFX_Masks_Ellipse) distorted by the first, a core line
+    (T_Line_01) racing along u distorted by two fractal noises (T_Noise_Fractal_07), its glow x 26 at the shell's v edges, two
+    background noises (T_Noise_Tiled03), the whole x (N.V)^1.6 (both faces), added. Left out: Exposure Compensation (0.4
+    of the colour made exposure-independent), SelectionColor, the height fog.
+  - **The remake:** `PlayerEngine` starts `ModDriftFx` as `FlightModel.Drifting` turns on and stops it as it turns off (with
+    `ModShipAnimator.SetDrift`). Each part is a root on its node (`SetParent(node, true)`: it rides the animation, its world
+    scale stays 1); emitters through `ModDeathFx.Build` (its new `loop`: Unity's main.loop, the particles still alive from
+    earlier cycles counted; `local`: local simulation; `at`: the shape's position), lights through `FxFlash` (its new loop:
+    a flash every `duration` until `StopLooping`; `at` its position); shells a MeshRenderer of the JSON mesh on the
+    material (cached per mod and values). Stop: emitters stop emitting (their particles live out), lights end with their
+    flash, shells go after 0.2 s, the roots after the longest life. The player's own look only (other players' ships and
+    NPCs don't drift). Tests `ModDriftFxTests`; the importer's `DriftTests`.
+  - **Not checked:** compiled with dotnet against the Library's assemblies (Game, Space, the tests); not run in Unity (the
+    edit-mode tests included) nor seen in Play mode: the shells' brightness, size and place, the dots' camera-facing (Chorus
+    locks them to X), and whether Chorus's shells really turn with the socket under PSA_Velocity. Left out: the refraction
+    shock waves, the hull's own drift glow (the Drift_Emissive_ON / Off timelines on DMI_DriftEmissive's
+    Emissive02_Multiplier), the supercharged Forsaken's drift (its own skeleton clips, not its effects).
 - **Glow waves** (remake, 2026-11-11, Chorus's M_Phoenix glow lines, from its compiled base pass): a material's `"wave"`
   block (`GlowWaveSpec` in Database.cs, `ModMaterials.GlowWave`, GoF2/Hull's `GlowWave` in HullForwardPass.hlsl, on when
   `_WaveParams.x` > 0: x multiplier, y tiling, z speed, w the mask's channel; `_WaveMin` / `_WaveMax`; `_WavePattern`,

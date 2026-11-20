@@ -140,17 +140,18 @@ namespace GoF2Remake.World
 
             var main = ps.main;
             main.duration = duration;
-            main.loop = false;
+            main.loop = e.loop && !asTrail;   // ("loop": its bursts again every duration until stopped, ModDriftFx)
             main.playOnAwake = false;
             main.startLifetime = new ParticleSystem.MinMaxCurve(Mathf.Max(0.01f, Min(e.life, 1f)), Mathf.Max(0.01f, Max(e.life, 1f)));
             main.startSize = new ParticleSystem.MinMaxCurve(Min(e.size, 100f) * k, Max(e.size, 100f) * k);
             main.startSpeed = new ParticleSystem.MinMaxCurve(Min(e.speed, 0f) * k, Max(e.speed, 0f) * k);
             main.startColor = Color.white;
             main.startRotation = e.randomRotation ? new ParticleSystem.MinMaxCurve(0f, 2f * Mathf.PI) : new ParticleSystem.MinMaxCurve(0f);
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.simulationSpace = e.local ? ParticleSystemSimulationSpace.Local : ParticleSystemSimulationSpace.World;
             main.emitterVelocityMode = ParticleSystemEmitterVelocityMode.Custom;
             main.emitterVelocity = velocity;
-            main.maxParticles = Mathf.Min(count + 8, 2000);
+            int cycles = e.loop ? Mathf.CeilToInt(Max(e.life, 1f) / duration) + 1 : 1;   // (a loop's earlier cycles still alive)
+            main.maxParticles = Mathf.Min(count * cycles + 8, 2000);
             main.scalingMode = ParticleSystemScalingMode.Hierarchy;
             lasts = duration + Max(e.life, 1f);
 
@@ -160,6 +161,7 @@ namespace GoF2Remake.World
 
             var sh = ps.shape;
             sh.enabled = true;
+            if (e.at != null && e.at.Length >= 3) sh.position = new Vector3(e.at[0], e.at[1], e.at[2]) * k;   // ("at": where they start)
             if (e.forward)
             {
                 // along the effect's forward from a disc of the sphere's radius
