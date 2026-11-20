@@ -344,6 +344,7 @@ namespace GoF2Remake.Modding
                     var types = list.Values.Select(TypeArgument).ToArray();
                     return Results(ScriptAccess.Invoke(target, type, name, a.GetArray(3), types));
                 });
+                Fn(g, "patch", Patch);   // any method replaced (ModScriptsPatch.cs)
 
                 // ---- the mod's own files ----
                 Fn(g, "files", a =>

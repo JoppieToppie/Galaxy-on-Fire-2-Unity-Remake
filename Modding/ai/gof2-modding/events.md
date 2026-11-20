@@ -461,7 +461,7 @@ Flow: in; out: Next.
 
 | Kind | Name | Type | Default | What it is |
 |---|---|---|---|---|
-| option | Model | Choice: FreeFlight / Original / PlayersChoice |  | Free flight (EVERSPACE 2 style) or the original's flight for these players, before their own option, their ship's or the mod campaign's; Players Choice gives it back. Undone when the event ends. |
+| option | Model | Choice: FreeFlight / Original / PlayersChoice / ChorusFlight |  | Free flight (EVERSPACE 2 style), Chorus flight or the original's flight for these players, before their own option, their ship's or the mod campaign's; Players Choice gives it back. Undone when the event ends. |
 | input | Players | Text | `@a` | Who: @a everyone, @r a random player, @alive, @space, @docked, @dead, @survivors (never destroyed since the fight began), or a player's name. |
 
 ### Set Objective
@@ -897,7 +897,7 @@ leading `/`, the dedicated server's console without it. `[players]` is a player'
 | /pvp | <on / off> | admins: free for all, every pilot an enemy of every other (squadmates excepted) |
 | /respawn | [players] <station [x y z] [spread <units>] [delay <seconds>] / off> | admins: where destroyed ships come back in space (not docked), until off |
 | /restrict | [players] <jumps / docking / all / khador / off> | admins: no jumps (planet, gate, Khador) and / or no docking (khador: only the Khador Drive), until off |
-| /flightstyle | [players] <es2 / gof2 / player> | admins: some players' flight model (es2 / gof2) for now; player gives it back |
+| /flightstyle | [players] <es2 / chorus / gof2 / player> | admins: some players' flight model (es2 / gof2) for now; player gives it back |
 | /provoke | [players] [race] [within <metres>] | admins: the NPC ships around them turn on them and their squad (a race, a distance) |
 | /radio | [players] <speaker> : <text> | admins: a radio call in flight (a face, a name, gone by itself); speakers as /dialog |
 | /waypoint | [players] <station x y z / off> | admins: a waypoint to fly to (game coordinates in a station's orbit; /pos shows yours) |

@@ -133,6 +133,20 @@ HOOKS
   The hook classes GameHooks, SpaceHooks, UiHooks and NetSession hold most
   of what the game's layers tell each other.
 
+PATCHES
+  game.patch(target, ""Method"", function(original, self, ...) ... end)
+      replaces any method of a game class, public or not (no self for a
+      static method). original(self, ...) runs the code it replaced; return
+      the result (then the method's ref / out values):
+      game.patch(""Shop"", ""GenerateItems"", function(original, db, station)
+          local list = original(db, station)
+          list:RemoveAll(function(s) return db:Item(s.item).techLevel > 5 end)
+          return list
+      end)
+  Overloads: name the parameter types as a 4th argument, ""Database, int"".
+  game.describe(X, true) lists a class's methods. Not patchable: constructors,
+  generic methods, lambdas, a struct's own methods, file / network methods.
+
 YOUR MOD'S FILES AND CONTENT
   game.files(""data"")                  the mod's files (in a folder)
   game.readText(""data/note.txt"")      a text file of the mod, or nil

@@ -658,6 +658,11 @@ private members too).
 - `game.hook("GameHooks", "Member", function(original, ...) return original(...) end)` replaces one of the game's hook
   delegates (GameHooks, SpaceHooks, UiHooks, NetSession; listed in scripting.md; out values are returned after the result);
   `game.listen(target, "Event", fn)` adds to a C# event. Both are undone when the scripts stop.
+- `game.patch("Class", "Method", function(original, self, ...) return original(self, ...) end)` replaces ANY method of a game
+  class, public or not (no `self` for a static method; `out` / `ref` values after the result; overloads: a 4th argument
+  with the parameter types, "Database, int"). Use it when no hook or event fits; `game.describe("Class", true)` lists the
+  methods. Not patchable: constructors, generics, lambdas / coroutine bodies, auto-properties, a struct's own methods,
+  RPCs, file / address methods, Unity's code. Inner methods change between game versions: wrap optional patches in `pcall`.
 - The mod's own files: `game.readText(path)`, `game.readJson(path)`, `game.files(folder)`, `game.texture(path)`,
   `game.sound(path, function(clip) end)`. Content keys to this game's numbers: `game.item("id" or "mod:id")`, `game.ship`,
   `game.system`, `game.station` (commands take the keys themselves).

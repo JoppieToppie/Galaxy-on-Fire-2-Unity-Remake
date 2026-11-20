@@ -189,6 +189,12 @@ The full list with what each item makes and writes: [docs/notes/editor-tools.md]
   moves their methods and properties into `<Class><Area>.cs` (a dry run with sizes; `--write` writes, then compile).
 - Gameplay logic is a clean C# reimplementation of the behaviour in the decompiled code, not a line-by-line transliteration. Comment the original function names and constants you based it on.
 - Keep game-logic classes plain C# where possible (like `FlightModel`) so they can be unit-tested. MonoBehaviours adapt them to Unity.
+- **Every method of the runtime assemblies is patchable by mods** (`game.patch`, "Patches" in docs/notes/mods.md): the
+  build step `Scripts/Editor/CodeGen/PatchWeaver.cs` weaves a check into the start of each one (a static array load and a
+  branch), so no hook has to be written for a mod to change something. Mark a tiny method called many thousands of times a
+  frame `[MethodImpl(MethodImplOptions.AggressiveInlining)]` to keep it out. After a Unity update: if the game's classes
+  stop being patchable (`ModScriptPatchTests.EveryGameAssemblyIsWoven`), the ILPostProcessor wasn't run or failed (a
+  "PatchWeaver:" warning in the Console).
 - A type with static fields, auto-properties or events carries `[Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]`
   (Unity 6.7's UAL0010 / UAL0013 analyzer): Play mode runs without a domain reload and the code resets what it needs itself
   (`RuntimeInitializeOnLoadMethod(SubsystemRegistration)`). Use `FindObjectsByType<T>()` / `(FindObjectsInactive)`, never the

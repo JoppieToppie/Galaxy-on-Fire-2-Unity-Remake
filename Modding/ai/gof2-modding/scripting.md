@@ -117,6 +117,20 @@ HOOKS
   The hook classes GameHooks, SpaceHooks, UiHooks and NetSession hold most
   of what the game's layers tell each other.
 
+PATCHES
+  game.patch(target, "Method", function(original, self, ...) ... end)
+      replaces any method of a game class, public or not (no self for a
+      static method). original(self, ...) runs the code it replaced; return
+      the result (then the method's ref / out values):
+      game.patch("Shop", "GenerateItems", function(original, db, station)
+          local list = original(db, station)
+          list:RemoveAll(function(s) return db:Item(s.item).techLevel > 5 end)
+          return list
+      end)
+  Overloads: name the parameter types as a 4th argument, "Database, int".
+  game.describe(X, true) lists a class's methods. Not patchable: constructors,
+  generic methods, lambdas, a struct's own methods, file / network methods.
+
 YOUR MOD'S FILES AND CONTENT
   game.files("data")                  the mod's files (in a folder)
   game.readText("data/note.txt")      a text file of the mod, or nil
@@ -159,6 +173,7 @@ replaces one (call `original(...)` for the game's own behaviour and return what 
 
 ### GameHooks
 
+- `ResolveOriginal(arg1: Type, arg2: string): any` (not for scripts: an argument scripts can't hold): An original's material or prefab by its project path ("Materials/mat_20099_....mat", "Prefabs/....prefab"), made from the converted copy (OriginalContent.Resolve, GoF2.Space); unset: none.
 - `SquadAcceptRefusal(): string`: Why the squad can't take a mission now (the whole squad docked here), null = it can.
 - `MissionAccepted(obj: FreelanceMission)`: A mission was accepted: the squad gets it too.
 - `MissionShared(arg1: FreelanceMission, arg2: bool)`: The mission changed (Recovery's return trip): the squad's copies follow.
@@ -166,7 +181,7 @@ replaces one (call `original(...)` for the game's own behaviour and return what 
 - `SplitReward(arg1: FreelanceMission, arg2: int): int`: This player's share of the pay; unset: all of it.
 - `MissionFailed(arg1: FreelanceMission, arg2: int): int`: The mission failed: this player's share of a lost wager; unset: all of it.
 - `StartQuest(arg1: string, arg2: bool): string`: Remake: starts a quest graph by name (single player; EventRunner.StartQuest: the reason it can't, null = started; 'quiet' = one under way or done is no error): a cruise drive encounter of kind "quest" (CruiseEncounters).
-- `EventMissionAcceptRefusal(arg1: string, arg2: int): string`: Why this player / squad cannot accept an event graph bar mission (mission key, station index); null = allowed. Checked before confirmation and again by the server.
+- `EventMissionAcceptRefusal(arg1: string, arg2: int): string`: Why a player or squad cannot accept an event graph bar mission (mission name, station); null = allowed.
 - `ActiveEventMissionTitle(): string`: The title of the event graph bar mission this player is on, null = none.
 - `Condition(expression: string, out error: string): bool` (a hook returns the out values after its result): An event graph expression on this game's state (EventRunner.Condition); unset: true.
 - `Number(expression: string, out value: double, out error: string): bool` (a hook returns the out values after its result): An event graph expression's value on this game's state (EventRunner.Number: the mods' medal counters, Modding.ModMedals); unset: no value (false).
@@ -213,8 +228,10 @@ replaces one (call `original(...)` for the game's own behaviour and return what 
 - `ProxiesProvider(): IEnumerable<IOrbitProxy>`
 - `CratesProvider(): IEnumerable<IOrbitCrate>`
 - `SharedOrbitProvider(): ISharedOrbit`
+- `InterceptMirrorShot(arg1: UInt64, arg2: UInt32)`: Point defense shot down another game's mirrored shot (source object, shot id): ask the server to cancel it (NetPlayer.InterceptMirrorShot), so the shot's later hit counts for nothing.
 - `LevelBuilt(obj: SpaceLevel)`: The level is built (SpaceLevel.Start's end): multiplayer adds its NetOrbit.
 - `StationBuilt(obj: StationLevel)`: The station is built: multiplayer adds its NetHangar.
+- `VisitorRace(arg1: Agent, arg2: int): int`: The race used to choose a bar visitor's silhouette (agent, station index). Mods may override it before the prefab is selected; the default preserves the game's Midorian-with-Nivelian-face exception.
 - `OrbitEmpty(arg: int): bool`: No other player is in that orbit (NetState.OrbitEmpty): this game builds its traffic.
 - `OutOfSight(arg: Vector3): Vector3`: A point out of the other players' sight (NetOrbit.OutOfSight), game units.
 - `OtherDockedHere(arg: int): bool`: Another player is docked at that station (NetHangar.OtherDockedHere).
@@ -258,6 +275,7 @@ replaces one (call `original(...)` for the game's own behaviour and return what 
 - `CoopRadioShown(arg1: int, arg2: int, arg3: int)`: The leader's level showed radio line 'line' of step 'index' in 'station'.
 - `CoopRoute(arg1: int, arg2: List<Vector3>)`: The leader's level route changed (station, points in game units, the index reached).
 - `CoopCamera(arg1: int, arg2: Vector3, arg3: Quaternion, arg4: float)`: The leader's cutscene camera (station, position, rotation, field of view).
+- `CoopFx(arg1: int, arg2: int, arg3: Vector3)`: The leader's level played a one-off effect (station, CampaignLevel.CoopFx kind, position in Unity metres).
 - `CoopTravel(arg1: int, arg2: int, arg3: bool, arg4: bool)`: The leader's level moved it on (station left, station reached, docked, by travel).
 - `CoopLevelFailed(obj: int)`: The leader's level in 'station' failed (or the leader died in it): the crew's failure.
 - `CoopDialog(obj: bool)`: This game's story conversation opened / closed (the leader holds its level meanwhile).
@@ -265,6 +283,8 @@ replaces one (call `original(...)` for the game's own behaviour and return what 
 - `CoopLeaderHere(arg: int): bool`: The leader flies in 'station' (a follower's level waits for it).
 - `CoopLeaderPose(station: int, out position: Vector3, out rotation: Quaternion): bool` (a hook returns the out values after its result): The leader's ship's pose in 'station' (false = not there).
 - `MultiplayerWindowOpen(): bool`: The multiplayer window is open.
+- `ExternalDockTestQueued(arg: int): bool`: The Mod Builder's external docking test (UI.ModBuilderPlay): one queued for this station; take it, with its dock point (SpaceLevel.StartExternalDockTest).
+- `TakeExternalDockTest(station: int, out point: int): bool` (a hook returns the out values after its result)
 - `StarMapOpenProvider(): bool`: The star map is open; open it (false = it couldn't).
 - `OpenStarMap(db: Database, mode: StarMapMode, jumpDrive: bool, closed: Action<StarMapResult>, promptStation: int, askVoid: bool): bool`
 - `VrEye(): Camera`: The VR eye camera (VrRig.Current.Eye), null without VR.
@@ -393,6 +413,7 @@ static LomaTollRefused: bool
 static MaxCredits: long = 9223372036854775807
 static MaxRank: int = 20
 static Medals: int[]
+static MissionSelectGame: bool
 static ModBounties: int[]
 static ModCampaign: string
 static ModGameOptions: HashSet<string>
@@ -548,12 +569,15 @@ StationsIn(systemIndex: int): IEnumerable<StationData>
 ### ItemData (`GoF2Remake.Data.ItemData`)
 
 ```
+static CoreYieldAttr: int = 189
+allowedClasses: string[]
 attrKeys: int[]
 attrValues: int[]
 blueprint: List<BlueprintPart>
 category: string
 categoryId: int
 description: string
+excludedClasses: string[]
 highestPriceSystem: int
 index: int
 lookIndex: int
@@ -567,11 +591,13 @@ occurrence: int
 statList: List<StatEntry>
 techLevel: int
 type: string
+CoreYield: int (read only)
 Look: int (read only)
 TypeId: int (read only)
 __new()
 Attr(id: int, fallback: int?): int
 HasAttr(id: int): bool
+static IsBeamLook(look: int): bool
 Stat(key: string, fallback: int?): int
 ```
 
@@ -581,8 +607,10 @@ Stat(key: string, fallback: int?): int
 armor: int
 cargo: int
 chaseCamera: float[]
+classTags: string[]
 cockpit: Vector3?
 description: string
+dockingRole: string
 explosionScale: float
 flightBoth: FlightBonus
 flightFree: FlightBonus
@@ -593,7 +621,10 @@ handling: float
 handlingMultiplier: float
 index: int
 name: string
+orbitCameraDistance: float
 price: int
+shipClass: string
+shipClassLabel: string
 slots: ShipSlots
 smokePoints: List<Vector3>
 __new()
@@ -638,6 +669,7 @@ static PlayerWon: int = 1
 static RivalWon: int = 2
 accepted: bool
 challengeResult: int
+character: string
 costs: int
 known: bool
 male: bool
@@ -705,6 +737,7 @@ static BloomOff: int = 0
 static BloomOriginal: int = 2
 static BloomRemake: int = 1
 static ControlsKeys: string[] (read only)
+static CosmeticsKeys: string[] (read only)
 static DefaultDeadzone: float = 0,125
 static DefaultMouseDeadzone: float = 0,08
 static ExperienceCosmetic: int = 1
@@ -723,6 +756,10 @@ static FpsRight: int = 4
 static FpsTop: int = 1
 static FpsTopLeft: int = 0
 static FpsTopRight: int = 2
+static FrameGenerationDlss: int = 0
+static FrameGenerationDynamic: int = 6
+static FrameGenerationFsr: int = 1
+static FrameRateChoices: FrameRate[] (read only)
 static GameplayKeys: string[] (read only)
 static GraphicsKeys: string[] (read only)
 static HangarShadowsAll: int = 2
@@ -755,6 +792,13 @@ static PresetKeys: string[] (read only)
 static PresetLow: int = 0
 static PresetMedium: int = 1
 static PresetUltra: int = 3
+static ScreenCutoutBothSides: int = 1
+static ScreenCutoutClear: int = 0
+static ScreenCutoutFull: int = 2
+static SkyCombined: int = 3
+static SkyEnhanced: int = 1
+static SkyEs2: int = 2
+static SkyOriginal: int = 0
 static SoundKeys: string[] (read only)
 static UiWidth16x9: int = 0
 static UiWidth21x9: int = 1
@@ -766,8 +810,11 @@ static UpscalerMetalFxSpatial: int = 5
 static UpscalerMetalFxTemporal: int = 6
 static UpscalerOff: int = 0
 static UpscalerStp: int = 2
+static UpscalerXess: int = 7
 static AndroidDefaults: bool (read only)
 static AnimatedDialogue: bool
+static AntiLag: bool
+static AppleUpscaler: bool (read only)
 static AutoAdvanceDialogue: bool
 static AutoJumpgate: bool
 static AutoRoll: bool
@@ -775,6 +822,7 @@ static BarRobots: bool
 static Bloom: bool (read only)
 static BloomStrength: float
 static BloomStyle: int
+static BlueprintAutocomplete: bool
 static BombArming: bool
 static BoostToggle: bool
 static Brightness: int
@@ -782,6 +830,7 @@ static BrightnessExposure: float (read only)
 static CameraShake: float
 static CapitalShips: bool
 static ChallengeComboSounds: bool
+static ChallengeScenery: bool
 static ClassicBloom: bool (read only)
 static CloakBay: bool
 static CloakLosesPursuers: bool
@@ -789,16 +838,24 @@ static CockpitInCameraCycle: bool
 static CollisionDamage: bool
 static ColorblindMarkers: bool
 static CursorSizePercent: int
+static CustomCosmeticExperience: bool (read only)
+static CustomGameplayExperience: bool (read only)
 static DerelictWrecks: bool
 static DetailDistance: int
 static DetailDistanceFactor: float (read only)
 static DialogueHighlights: bool
 static DiscordPresence: bool
 static DisplayMode: DisplayMode
+static DlssPreset: int
 static DyingCargoMarkers: bool
+static DynamicVibrance: bool
+static DynamicVibranceIntensity: float
+static DynamicVibranceSaturation: float
 static EachWeaponSound: bool
 static EmpBreaksCloak: bool
+static EnhancedSkies: bool (read only)
 static Es2Aiming: bool
+static Es2FreeFlightCamera: bool
 static Es2NpcFlight: bool
 static FarShipMarkers: int
 static FastForwardCruise: bool
@@ -808,8 +865,12 @@ static FlightStyle: int
 static FloatingTouchStick: bool
 static Fog: bool
 static FpsPosition: int
+static FrameGeneration: int
+static FrameGenerationProvider: int
+static FrameGenerationTarget: int
 static FrameRate: FrameRate
 static FreshInstall: bool (read only)
+static Fsr4Lite: bool
 static GameCursor: bool
 static GermanVoices: bool (read only)
 static GyroSensitivity: float
@@ -819,9 +880,21 @@ static HangarFlights: bool
 static HangarRobots: bool
 static HangarShadows: int
 static HapticsIntensity: float
+static HasStaged: bool (read only)
+static HdResources: bool
+static Hdr: bool
+static HdrAcesPreset: int
+static HdrBlack: float
+static HdrDetectLimits: bool
+static HdrHueShift: float
+static HdrPaperWhite: float
+static HdrPeak: float
+static HdrRangeReduction: int
+static HdrTonemapping: int
 static Headlights: bool
 static HighContrast: bool
 static HintScalePercent: int
+static HostileAutopilotFastForward: bool
 static HudMode: int
 static HudOpacityPercent: int
 static HudScalePercent: int
@@ -834,8 +907,10 @@ static InvertOrbitX: bool
 static InvertOrbitY: bool
 static InvertPitch: bool
 static InvertYaw: bool
+static IosDefaults: bool (read only)
 static KaamoKeepsEquipment: bool
 static KaamoMaxLevel: int
+static KaamoSpecialUiFeatures: bool
 static KaamoStacking: bool
 static KaamoVipMode: int
 static KeepEnemyLock: bool
@@ -845,6 +920,7 @@ static Language: string
 static LaunchCamera: bool
 static LensFlare: bool
 static LevelPitch: bool
+static LiveSkies: bool
 static Lods: bool
 static MarkerDistance: bool
 static MasterVolume: float
@@ -857,7 +933,15 @@ static MouseSteering: bool
 static Msaa: int
 static MusicVolume: float
 static MuteInBackground: bool
+static NebulaClouds: bool
+static NeuralRendering: bool
+static NeuralRenderingIntensity: float
+static NeuralRenderingQuality: int
+static NeuralRenderingSkin: float
+static NeuralRenderingStructure: float
+static NeuralRenderingTone: float
 static NintendoLayout: bool
+static NisSharpness: float
 static NpcDogfight: int
 static NpcPlayerEngines: bool
 static OriginalChaseCamera: bool
@@ -867,14 +951,21 @@ static PadGlyphs: int
 static PirateEvents: bool
 static PlayOnInConversations: bool
 static PostAntialiasing: int
+static RebuiltPlanets: bool
 static ReduceMotion: bool
+static Reflex: int
+static RemakeFreeLook: bool
+static RemasteredEffects: bool
 static RenderScale: float
 static Resolution: Vector2Int
+static ScreenCutout: int
 static Sensitivity: float
 static SfxVolume: float
 static ShipCollision: int
+static ShopByCategory: bool
 static ShowFps: bool
 static ShowStoryStep: bool
+static SkyStyle: int
 static SmarterNpcTargeting: bool
 static SpeedrunAllCampaigns: bool
 static SpeedrunCompare: string
@@ -883,7 +974,10 @@ static SpeedrunGameTime: bool
 static SpeedrunLiveSplit: bool
 static SpeedrunPosition: int
 static SpeedrunTimer: bool
+static Staging: bool (read only)
+static StationScale: float
 static StickDeadzone: float
+static SystemMapAnimationSpeed: int
 static TextureFiltering: int
 static TextureQuality: int
 static TiltCalX: float
@@ -894,6 +988,7 @@ static TiltSteering: bool
 static TouchLeftHeight: float
 static TouchOpacity: float
 static TouchRightHeight: float
+static TurretLeadAim: bool
 static TutorialHints: bool
 static UiFont: string
 static UiMarginPercent: float
@@ -908,8 +1003,15 @@ static VrGrabControls: bool
 static WelcomeShown: bool
 static ApplyExperience(experience: int)
 static ApplyPreset(preset: int)
+static ApplyScopedExperience(cosmetics: bool, choice: int)
+static ApplyStaged()
+static BeginStaging()
 static CurrentExperience(): int
+static CurrentScopedExperience(cosmetics: bool): int
+static DiscardStaged()
+static EndStaging()
 static ExperienceValue(experience: int, key: string): float
+static FrameRateLimit(rate: FrameRate): int
 static LocalKaamoLevel(): int
 static LocalRules(): int
 static MigrateExperienceDefaults()
@@ -917,11 +1019,19 @@ static MouseMove(delta: Vector2): Vector2
 static MusicTrackOn(track: string): bool
 static OrbitTurn(d: Vector2): Vector2
 static OverrideAndroidDefaults(android: bool?)
+static OverrideIosDefaults(ios: bool?)
 static PresetValue(preset: int, key: string): float
 static Reset(keys: IEnumerable<string>)
+static ResetExperienceToRemake(cosmetics: bool)
 static ResetToDefaults()
+static SelectCustomExperience(cosmetics: bool)
+static SelectCustomGameplayExperience()
 static SetMusicTrackOn(track: string, on: bool)
+static Unstage(keys: string[])
+static ViewApplied(): Settings.StagedScope
+static ViewStaged(): Settings.StagedScope
 static event Changed()
+static event StagedChanged()
 ```
 
 ### Localization (`GoF2Remake.Data.Localization`)
@@ -974,6 +1084,7 @@ static GotAllMedals: bool (read only)
 static GotAllSupernovaMedals: bool (read only)
 static SupernovaUnlocked: bool (read only)
 static VoidXUnlocked: bool (read only)
+static WingmenPayPlayer: bool (read only)
 static Check(db: Database): List<int>
 static Elite(medal: int, count: int)
 static Grade(medal: int): int
@@ -1023,6 +1134,7 @@ DriveArriving: bool (read only)
 Es2: Es2Dock (read only)
 EventWormhole: Wormhole (read only)
 Extender: TimeExtender (read only)
+ExternalDocked: bool (read only)
 Fog: SpaceDust (read only)
 FreeLook: FreeLookCamera (read only)
 FreelanceOrbit: FreelanceOrbit (read only)
@@ -1078,6 +1190,7 @@ RestoreOrbitSky()
 ReturnToLastDocked()
 RideWormhole()
 SpawnNetworkAsteroids(seed: int)
+StartExternalDockTest(pointIndex: int)
 SwapPlayerShip(shipIndex: int)
 static SwapScene(scene: string)
 TakeOverNetAuthority()
@@ -1265,6 +1378,7 @@ and what MonoBehaviour has
 
 ```
 AttachedTurret: NpcShip
+static BurnRecords: int[] (read only)
 ExtraGuns: List<Gun> (read only)
 static HostileToLocalBySquad: Func<NpcShip, bool>
 static HostileToRemote: Func<NpcShip, Target, bool>
@@ -1341,7 +1455,9 @@ SecondGunItem: int (read only)
 ShipMarker: bool
 SpacePointSet: int (read only)
 Spec: SpawnSpec (read only)
+StoryBurns: int (read only)
 StoryShip: bool
+StructureScale: float (read only)
 Target: Target (read only)
 Turret: TurretCore (read only)
 __new()
@@ -1352,8 +1468,9 @@ Cloak(ms: float, instant: bool?)
 CreateStealCrate(): Crate
 Deactivate()
 DestroyAsTurret()
-HitByBlast(t: Target, dmg: int, emp: int, center: Vector3)
+HitByBlast(gun: Gun, t: Target, dmg: int, emp: int, center: Vector3)
 InitPush(center: Vector3, radius: float)
+static IsStructure(spec: SpawnSpec): bool
 JumpOut()
 static LocalBoxes(volumes: List<CollisionVolume>): Bounds[]
 LootTaken()
@@ -1365,13 +1482,14 @@ OnPlayerEmp(emp: int)
 OnRemoteEmp(client: UInt64, emp: int)
 OnRemoteHit(client: UInt64, dmg: int)
 Place(position: Vector3, forward: Vector3)
+static PrimaryShotFactor(p: CustomPrimary, gameReloadMs: float): float
 RestoreState(unitsPerMs: float, routeIndex: int, asleep: bool, stillInactive: bool, turned: bool, empOff: bool, empElapsedMs: float)
 Resume()
 Revive(position: Vector3)
 SetAlwaysEnemy()
 SetEngineSound(on: bool)
 SetExhaust(on: bool)
-SetGun(itemIndex: int, damageFactor: float)
+SetGun(itemIndex: int, damageFactor: float, reloadMs: float?)
 SetHold()
 SetHull(hull: int, alsoMax: bool?)
 SetLoot(items: List<ItemStack>)
@@ -1386,6 +1504,9 @@ SetVisible(visible: bool)
 Setup(owner: Traffic, database: Database, spec: SpawnSpec, prefab: GameObject, fxRoot: Transform)
 ShiftRoute(gameDelta: Vector3)
 StealFrom(item: int, amount: int)
+StopStoryBurn(record: int)
+StoryBurn(record: int): WreckBurn
+Uncloak()
 Vanish()
 Wake()
 WingmanCommand(command: int, locked: Target, playerRoute: Route)
@@ -1414,6 +1535,7 @@ alwaysFriend: bool
 alwaysNeutral: bool
 asleep: bool
 assembly: AssemblyData
+ballisticResistance: float
 battleFoe: SpawnSpec
 capital: int
 capitalEnhanced: bool
@@ -1426,6 +1548,7 @@ deathMs: float
 derelict: bool
 dockingType: int
 empPoints: int
+energyResistance: float
 escortLeader: SpawnSpec
 escortOffset: Vector3
 eventTag: int
@@ -1452,9 +1575,11 @@ modCapital: bool
 name: string
 nameText: int
 noDevices: bool
+noFighterTurret: bool
 noLoot: bool
 npcType: NpcShipType
 pirateEvent: int
+placedOn: SpawnSpec
 position: Vector3
 race: int
 radarHidden: bool
@@ -1465,8 +1590,11 @@ routeAround: SpawnSpec
 scale: float
 secondaryFactor: float
 secondaryItem: int
+shield: int
+shieldRechargeMs: int
 ship: int
 sightingId: int
+skin: string
 spacePoints: int
 speed: float
 standIn: GameObject
@@ -1474,6 +1602,7 @@ standInAsleep: List<Behaviour>
 startsDead: bool
 stationPort: bool
 stationary: bool
+structure: bool
 turretAssembly: string
 turretHunter: bool
 turretItem: int
@@ -1522,6 +1651,8 @@ and what MonoBehaviour has
 ### ShipController (`GoF2Remake.Flight.ShipController`)
 
 ```
+DriveMs: float
+DriveTurnDegS: float
 ExternalSpeedMetersPerSecond: float
 static RateToDegrees: float = 0,087890625
 static StickRadius: float = 0,5
@@ -1549,6 +1680,7 @@ tiltMode: bool
 turnOnly: bool
 useBuiltInInput: bool
 visualModel: Transform
+ChorusFlightActive: bool (read only)
 static Dampeners: bool (read only)
 FreeFlightActive: bool (read only)
 Maneuver: Maneuver (read only)
@@ -1565,13 +1697,14 @@ __new()
 AlignToHorizon()
 ApplyStats()
 Boost()
+static CapTurn(pitch: float, yaw: float, maxDeg: float)
 CenterMouse()
 OnHitPush(amount: float)
 RequestDodge(type: int): bool
 SetRoll(roll: float)
 SetSteer(steer: Vector2)
 SetThrottle(t: float)
-SetTouchFree(move: Vector2, hover: float, boost: bool)
+SetTouchFree(move: Vector2, hover: float, boost: bool, drift: bool?)
 ToggleDampeners()
 static event DampenersChanged(obj: bool)
 event DodgeRequested()
@@ -1582,14 +1715,22 @@ and what MonoBehaviour has
 
 ```
 AutoAim: Func<Target>
+static BeamRadiusAttr: int = 172
 static BeamRangeUnits: float = 30000
+static BeamReachAttr: int = 176
+BeamSweeps: Func<Target, bool>
 static BombArmingUnits: float = 2000
+static ChargeMsAttr: int = 177
+static DamageTypeAttr: int = 190
 static DisruptorShieldPercent: int = 200
 static DotDamageAttr: int = 168
 static DotMsAttr: int = 169
+static HeatCoolMsAttr: int = 174
+static HeatShotsAttr: int = 173
 Ignores: Func<Target, bool>
 static MetersPerUnit: float = 0,05
 Mirror: bool
+static OverheatMsAttr: int = 175
 static ShieldBypassAttr: int = 161
 static ShieldDamageAttr: int = 124
 static SlowFreezeAttr: int = 167
@@ -1597,23 +1738,31 @@ static SlowMsAttr: int = 162
 static SlowPercentAttr: int = 163
 static VulnerableMsAttr: int = 171
 static VulnerablePercentAttr: int = 170
+beamRadius: float (read only)
+beamReach: float (read only)
 bullets: Gun.Bullet[] (read only)
 categoryId: int (read only)
+chargeMs: float (read only)
 damage: float
+damageType: DamageType (read only)
 dotDamage: float
 dotMs: float
 echo: GunEcho (read only)
 emp: float
+heatCoolMs: float (read only)
+heatShots: int (read only)
 homingDelayMs: float
 isBeam: bool (read only)
 isSecondary: bool (read only)
 itemIndex: int (read only)
 kind: Gun.Kind (read only)
+launchTurn: Quaternion
 lifetimeMs: float (read only)
 lookIndex: int (read only)
 magnitude: float (read only)
 missiles: bool (read only)
 mountLocal: Vector3 (read only)
+overheatMs: float (read only)
 owner: Target
 reloadAcc: float
 reloadMs: float
@@ -1632,11 +1781,15 @@ BeamDir: Vector3 (read only)
 BeamLengthUnits: float (read only)
 BeamTarget: Transform (read only)
 BombInFlight: bool (read only)
+Charge01: float (read only)
+Charged: bool (read only)
 Guided: bool
+Heat01: float (read only)
 Homing: bool (read only)
 IsBomb: bool (read only)
 IsMissile: bool (read only)
 LastLock: Target (read only)
+Overheated: bool (read only)
 Ready: bool (read only)
 ReloadRate: float (read only)
 SustainedReloadMs: float (read only)
@@ -1644,9 +1797,12 @@ WaitMs: float (read only)
 __new(item: ItemData, mountLocal: Vector3, secondary: bool)
 __new(visualItem: ItemData, damage: float, reloadMs: float, pool: int, lifetimeMs: float, speedUnitsPerMs: float, missiles: bool?)
 static BombArmed(ageMs: float, speedUnitsPerMs: float, arming: bool): bool
+Charge(dtMs: float, held: bool)
+Cool(dtMs: float)
 Detonate()
 static FiresPlainShots(item: ItemData): bool
 Inject(position: Vector3, velocity: Vector3, up: Vector3, lifeMs: float): bool
+Inject(position: Vector3, velocity: Vector3, up: Vector3, lifeMs: float, shotId: UInt32, sourceObjectId: UInt64, playerSource: bool, out index: int): bool
 IsActive(i: int): bool
 static IsBeamLook(look: int): bool
 RemoveAll()
@@ -1655,10 +1811,12 @@ SetTarget(i: int, t: Target)
 static ShieldFactor(item: ItemData): float
 ShootDown(i: int): Vector3
 SteerBullet(i: int, stick: Vector2, dtMs: float, rateRadPerMs: float, yawAxis: Vector3??, pitchAxis: Vector3??)
+TagNetworkShot(index: int, shotId: UInt32, sourceObjectId: UInt64, playerSource: bool?)
 TryFire(ship: Transform): int
 TryFire(origin: Vector3, rotation: Quaternion, addForwardOffset: bool?): int
 Update(dtMs: float, targets: IReadOnlyList<Target>, lockTarget: Target)
 VisualScale(i: int): float
+static WithinBeam(p: Vector3, a: Vector3, b: Vector3, radius: float): bool
 event AreaHit(arg1: Target, arg2: int, arg3: int, arg4: Vector3)
 static event Detonated(arg1: Gun, arg2: Vector3)
 event Echoed(obj: Vector3)
@@ -1667,6 +1825,7 @@ event Fired(arg1: Gun, arg2: int)
 event Hit(arg1: int, arg2: Target, arg3: Vector3)
 event Ignited(obj: Vector3)
 static event LockShaken(arg1: Gun, arg2: Target)
+event OverheatStarted(obj: Gun)
 event SceneryHit(obj: Vector3)
 ```
 
@@ -1681,6 +1840,7 @@ Devices: PlayerDevices
 Docking: ObjectDocking
 EncountersAllowed: bool
 Extender: TimeExtender
+FastForwardRadioBlocked: bool
 HasWingmen: Func<bool>
 HostilesPresent: bool
 JumpRefusalText: Func<string>
@@ -1756,6 +1916,7 @@ RunGoal: Vector3 (read only)
 RunPlanet: Navigation.Target (read only)
 ShipLockDocking: NpcShip (read only)
 SignalPlaced: bool (read only)
+static TravelBoostAllowed: bool (read only)
 VoidDive: Navigation.Target (read only)
 VoidDiveMs: float
 WorldScale: float (read only)
@@ -1859,25 +2020,25 @@ Release()
 
 By namespace; `import("Name")` (or the full name where two classes share one) gives the class. The game's:
 
-- `GoF2Remake`: AppHooksInstaller, Bootstrap, InputDeviceLog, LogFilter, MouseButtonDebounce, UpscalerFramework
+- `GoF2Remake`: AppHooksInstaller, Bootstrap, FrameGeneration, InputDeviceLog, LinuxFsr, LinuxFsr2Upscaler, LinuxFsr3Upscaler, LinuxFsr4Upscaler, LinuxFsrContext, LinuxFsrOptions, LinuxFsrUpscaler, LogFilter, MouseButtonDebounce, PlayerAssetsCheck, StreamlineDlssContext, StreamlineDlssOptions, StreamlineDlssUpscaler, UpscalerFramework, VideoMemory, Xess, XessContext, XessOptions, XessUpscaler
 
-- `GoF2Remake.Data`: Achievements, Agent, AgentData, AgentGenerator, AgentOffer, AssemblyData, BlueprintPart, BlueprintState, Blueprints, Campaign, CapitalSubsystem, Cheats, CoopCampaign, CruiseEncounterRules, CustomAddPart, CustomDealer, CustomEngineFx, CustomEs2Engine, CustomForkEmitter, CustomLoot, CustomLoungeSeller, CustomSecondary, CustomShipData, CustomShipMaterial, CustomShips, CustomThrottleGlow, CustomTraffic, DamageTaken, Database, DialoguePage, DisplayMode, Economy, FlightStyles, FrameRate, Freelance, FreelanceMission, GalaxyMap, GameHooks, GameNames, GenericVoice, GraphQuestState, Hangar, InterstellarSpace, ItemData, ItemStack, JavaRandom, KaamoClub, LanguageTables, Localization, LoungeChat, MapPos, MenuRequest, MenuRow, MenuSection, MiningPlant, MissionType, ModWantedSave, MusicTracks, NetSession, NewGamePlus, NewsTicker, OriginalAgent, OriginalBlueprint, OriginalEquipment, OriginalItem, OriginalMission, OriginalParkedShip, OriginalPendingProduct, OriginalPreview, OriginalRecord, OriginalSaveConvert, OriginalShip, OriginalStation, OriginalWanted, OriginalWingmen, ParkedShip, PendingProduct, PirateBases, PirateEventRules, PirateHold, PirateReports, PirateSighting, PortraitBody, PortraitLayer, PortraitOffset, PoseBatch, PoseEntry, PoseLook, PoseSchedule, RadioLine, SaveData, SaveGame, Session, SessionRules, Settings, ShaderVariantRules, ShipData, ShipPresets, ShipSlots, Shop, SpacePoints, Speaker, Speedrun, SpeedrunRoute, SpeedrunSegment, SplitTime, StatEntry, StationData, StationStock, StepSummaries, StoredShip, Story, StoryAgentData, StoryAssets, StoryContext, StoryMission, StoryStep, StoryTable, StoryType, SupernovaAssets, SupernovaChallenge, SystemData, TickerItem, VrFlags, WantedBoard, WantedData, WantedState, WarpBands, WasteProcessing, WeaponMount, WeaponMountSet, WingmanCrew, Wingmen, WireQuant, WireReader, WireWriter
+- `GoF2Remake.Data`: Achievements, AeiImage, AemMesh, Agent, AgentData, AgentGenerator, AgentOffer, AssemblyData, Benchmark, BlueprintPart, BlueprintState, Blueprints, Campaign, CapitalSubsystem, Cheats, ChorusLavaSpec, ChorusLayersSpec, ChorusPortalSpec, ChorusRiftSpec, ChorusShieldSpec, ContentTimings, CoopCampaign, CruiseEncounterRules, CustomAddPart, CustomDealer, CustomDeathThroes, CustomDriftField, CustomDriftFx, CustomDriftPart, CustomEngineFx, CustomEs2Engine, CustomForkEmitter, CustomFx, CustomFxEmitter, CustomFxFile, CustomFxMesh, CustomFxTrail, CustomLoot, CustomLoungeSeller, CustomOvercharge, CustomPrimary, CustomRiteFx, CustomSecondary, CustomShipData, CustomShipMaterial, CustomShips, CustomThrottleGlow, CustomTraffic, CustomWarpIn, CustomWreck, DamageTaken, Database, DerivedImages, DialoguePage, DisplayMode, Dxt, Economy, Etc1, ExperiencePresets, FlightStyles, FrameRate, Freelance, FreelanceMission, FsbBank, GalaxyMap, GameContent, GameHooks, GameNames, GameTables, GenericVoice, GlowWaveSpec, GraphQuestState, Hangar, HitFlashSpec, InterstellarSpace, ItemData, ItemIconTable, ItemStack, JavaRandom, JsonObj, KaamoClub, LangFile, LangMaps, LanguageTables, Localization, LoungeChat, MapPos, MenuRequest, MenuRow, MenuSection, MiningPlant, MissionType, ModWantedSave, MusicTracks, NetSession, NewGamePlus, NewsTicker, OriginalAgent, OriginalAudio, OriginalBlueprint, OriginalConverter, OriginalEquipment, OriginalItem, OriginalMission, OriginalPacks, OriginalParkedShip, OriginalPendingProduct, OriginalPreview, OriginalRecord, OriginalRefs, OriginalSaveConvert, OriginalSetup, OriginalShip, OriginalStation, OriginalTextures, OriginalWanted, OriginalWingmen, ParkedShip, PendingProduct, PirateBases, PirateEventRules, PirateHold, PirateReports, PirateSighting, PngWriter, PortraitBody, PortraitLayer, PortraitOffset, PoseBatch, PoseEntry, PoseLook, PoseSchedule, Pvrtc, RadioLine, SaveData, SaveGame, Session, SessionRules, Settings, ShaderVariantRules, ShipAnimations, ShipData, ShipPresets, ShipSlots, ShipStateAnimation, Shop, SpacePoints, Speaker, Speedrun, SpeedrunRoute, SpeedrunSegment, SplitTime, StatEntry, StationData, StationStock, StepSummaries, StoredShip, Story, StoryAgentData, StoryAssets, StoryContext, StoryMission, StoryStep, StoryTable, StoryType, SupernovaAssets, SupernovaChallenge, SystemData, TableJson, TickerItem, VrFlags, WantedBoard, WantedData, WantedState, WarpBands, WasteProcessing, WeaponMount, WeaponMountSet, WingmanCrew, Wingmen, WireQuant, WireReader, WireWriter, ZipSlice
 
 - `GoF2Remake.Events`: EventAudio, EventBehaviour, EventCheat, EventCompareOp, EventCutscene, EventFade, EventFlight, EventFlightModel, EventGameValue, EventGraphData, EventGraphFile, EventGraphScript, EventHost, EventKind, EventLogicOp, EventMathOp, EventMissionTakers, EventMissions, EventMusic, EventNames, EventPickups, EventPlayersWho, EventRace, EventRespawn, EventRules, EventRunner, EventScoreBy, EventScreen, EventShipAction, EventShipOrders, EventShipThen, EventSound, EventSystemAction, EventTrigger, EventWaypoint, EventWinnerBy, EventWormhole, IPilot, LocalEvents, LocalPilot, QuestBlock, QuestField, QuestFieldKind, QuestFile, QuestGraph, QuestReader, QuestSchema, QuestStepType, QuestSteps, SpeakerSpec
 
-- `GoF2Remake.Flight`: AutofireLatch, BindSlot, CameraFacing, ChaseCamera, Cloak, CloakGlow, CollisionVolume, CombatAssets, CombatAudio, CombatRadar, ConductorGraph, ControlRow, ControllerGyro, Crate, CruiseDrive, CruiseEncounters, Debuffs, Device, DrillSound, EmergencyBubble, EmpSparks, EngineVoices, Es2Aim, Es2Director, Es2Dogfight, Es2NpcFlight, Explosion, FighterPool, FlightBonus, FlightModel, FlightRules, FlightStats, FlightTuning, FreeLookCamera, GameControls, Gof3Dogfight, Gun, GunEcho, GunRig, HackingGame, HapticMixer, HapticPulse, Haptics, Hazards, Headlights, Hitpoints, HudMessageKind, HudMessageQueue, HullBody, HullCollision, IRadioWorld, IncomingMissiles, KhadorTimeline, Maneuver, Mining, MiningBeamExtraction, MiningBeamFx, MiningGame, Navigation, NpcDeviceSpec, NpcDeviceState, NpcGroup, NpcRoles, NpcTables, NpcTargetRules, ObjectDocking, Obstacle, OpaqueTexture, OriginalFrame, Overheat, PlayerCloak, PlayerCollision, PlayerDebuffs, PlayerDevices, PlayerEngine, PlayerHealth, PlayerTurret, PointDefense, ProxySpec, RadarJam, Radio, RepairBeam, RiftRun, RocketTrail, Route, ScreenFlash, SentryGun, Sfx, SfxFollow, ShipBurn, ShipController, ShipExhaust, ShipSmoke, ShotTriggerChain, ShotVoices, Slow, SpaceHooksInstaller, SpawnSpec, Standing, StillLock, Target, TargetDebuffs, TargetGrid, TargetLockRules, TiltSteering, TimeExtender, TrafficLane, TrafficPlan, TrailLook, TurretAim, TurretCore, TurretTargeting, VolatileCargo, WeaponFx, WeaponSystem, WeaponTint, WingmanDevice, WreckBurn
+- `GoF2Remake.Flight`: AutofireLatch, BindSlot, CameraFacing, ChaseCamera, ChorusDogfight, Cloak, CloakGlow, CollisionVolume, CombatAssets, CombatAudio, CombatRadar, ConductorGraph, ControlRow, ControllerGyro, Crate, CruiseDrive, CruiseEncounters, DamageType, Debuffs, Device, DrillSound, EmergencyBubble, EmpSparks, EngineVoices, Es2Aim, Es2CameraShake, Es2ChaseRig, Es2Director, Es2Dogfight, Es2NpcFlight, Explosion, FighterPool, FlightBonus, FlightModel, FlightRules, FlightStats, FlightTuning, FreeLookCamera, GameControls, Gof3Dogfight, Gun, GunEcho, GunRig, HackingGame, HapticMixer, HapticPulse, Haptics, Hazards, Headlights, Hitpoints, HudMessageKind, HudMessageQueue, HullBody, HullCollision, IRadioWorld, IncomingMissiles, KhadorTimeline, Maneuver, Mining, MiningBeamExtraction, MiningBeamFx, MiningGame, Navigation, NpcDeviceSpec, NpcDeviceState, NpcGroup, NpcRoles, NpcTables, NpcTargetRules, ObjectDocking, Obstacle, OpaqueTexture, OriginalFrame, Overheat, PlayerCloak, PlayerCollision, PlayerDebuffs, PlayerDevices, PlayerEngine, PlayerHealth, PlayerTurret, PointDefense, ProxySpec, RadarJam, Radio, RepairBeam, RiftRun, RiteLook, RiteSenses, RocketTrail, Route, ScreenFlash, SentryGun, Sfx, SfxFollow, ShieldShell, ShipBurn, ShipController, ShipExhaust, ShipSmoke, ShotTriggerChain, ShotVoices, Slow, SpaceHooksInstaller, SpawnSpec, Standing, StillLock, Target, TargetDebuffs, TargetGrid, TargetLockRules, TiltSteering, TimeExtender, TrafficLane, TrafficPlan, TrailLook, TurretAim, TurretCore, TurretTargeting, VoidEnergy, VolatileCargo, WeaponFx, WeaponSystem, WeaponTint, WingmanDevice, WreckBurn
 
-- `GoF2Remake.Modding`: DamageEmbers, EngineAnim, EngineChannel, EngineFlame, EngineFx, EngineGlowShape, EngineMaterialGlow, EngineModelFile, EngineModels, EnginePart, EntryPatch, Es2Contrails, Es2EngineVfx, Es2Headlights, Es2Trails, GameAudioIndex, GameModels, ItemStats, KitEffect, KitRules, LateralThrusters, LuaBehaviour, MeshSimplifier, MobileStations, ModAssets, ModAudio, ModBackdrop, ModBlueprints, ModBuilder, ModCampaigns, ModCapitalShips, ModCharacters, ModContent, ModCrates, ModDlcs, ModEncounters, ModExhausts, ModFileException, ModFlight, ModFxPart, ModGameOptions, ModGlbImages, ModGltf, ModGltfMaterials, ModHardpoints, ModInfo, ModInteriors, ModJson, ModJsonException, ModJumpFx, ModLoading, ModManager, ModManifest, ModMaterials, ModMedals, ModMusic, ModNpcShips, ModRaces, ModRefs, ModSaves, ModShipBuilder, ModShipKits, ModShipSounds, ModShipView, ModShips, ModShipsWaiter, ModSounds, ModStations, ModTextures, ModTraffic, ModUnlocks, ModVoices, ModWanted, ModWarp, ModWeapons, ModWingmen, ModWorld, NpcShipType, ProjectBlueprint, ProjectCampaign, ProjectCharacter, ProjectEntry, ProjectGameOption, ProjectInterior, ProjectItem, ProjectKit, ProjectKitPart, ProjectNpcShip, ProjectQuest, ProjectRace, ProjectShip, ProjectStack, ProjectStation, ProjectSystem, ProjectWeaponEffect, RefEntry, RefKind, SaveMod, SaveModKey, SaveScriptData, ShipIconMaker
+- `GoF2Remake.Modding`: DamageEmbers, EngineAnim, EngineChannel, EngineFlame, EngineFx, EngineGlowShape, EngineMaterialGlow, EngineModelFile, EngineModels, EnginePart, EntryPatch, Es2Contrails, Es2EngineVfx, Es2Headlights, Es2Trails, ExternalDockingRules, GameAudioIndex, GameModels, ItemStats, KitEffect, KitRules, LateralThrusters, LuaBehaviour, MeshSimplifier, MobileStations, ModAssets, ModAudio, ModBackdrop, ModBlueprints, ModBuilder, ModCampaigns, ModCapitalShips, ModCatalog, ModCharacters, ModContent, ModCrates, ModDlcs, ModEncounters, ModExhausts, ModFileException, ModFlight, ModFxPart, ModGameOptions, ModGlbImages, ModGltf, ModGltfMaterials, ModHardpoints, ModInfo, ModInteriors, ModJson, ModJsonException, ModJumpFx, ModLoading, ModManager, ModManifest, ModMaterials, ModMedals, ModMusic, ModNpcShips, ModRaceVisitors, ModRaces, ModRefs, ModSaves, ModShipAnimator, ModShipBuilder, ModShipKits, ModShipSounds, ModShipView, ModShips, ModShipsWaiter, ModSounds, ModStations, ModTextures, ModTraffic, ModUnlocks, ModVoices, ModWanted, ModWarp, ModWeapons, ModWingmen, ModWorld, NpcShipType, ProjectBlueprint, ProjectCampaign, ProjectCharacter, ProjectEntry, ProjectGameOption, ProjectInterior, ProjectItem, ProjectKit, ProjectKitPart, ProjectNpcShip, ProjectQuest, ProjectRace, ProjectShip, ProjectStack, ProjectStation, ProjectSystem, ProjectWeaponEffect, RefEntry, RefKind, SaveMod, SaveModKey, SaveScriptData, ShipClassRules, ShipIconMaker
 
-- `GoF2Remake.Multiplayer`: INetPosed, NetAdmin, NetAggression, NetArena, NetArenaClient, NetAudit, NetChat, NetCommands, NetCoop, NetCrate, NetDelayedShutdown, NetDistress, NetFactions, NetFactionsClient, NetFollow, NetGame, NetGuard, NetHandOverRule, NetHangar, NetHooksInstaller, NetInterest, NetMissions, NetModRaceStandings, NetMods, NetMotd, NetNews, NetOrbit, NetPanel, NetPing, NetPlayModeReset, NetPlayer, NetPoses, NetProfileClient, NetProxy, NetProxyStatus, NetRateLimit, NetRules, NetServerSettings, NetShotData, NetShotMirror, NetShotSender, NetShots, NetSmoothing, NetSquad, NetState, NetStats, NetStock, NetTeleport, NetTrade, NetTradeClient, NetTransport
+- `GoF2Remake.Multiplayer`: INetPosed, NetAdmin, NetAggression, NetArena, NetArenaClient, NetAudit, NetChat, NetCommands, NetCoop, NetCrate, NetDelayedShutdown, NetDistress, NetFactions, NetFactionsClient, NetFollow, NetGame, NetGuard, NetHandOverRule, NetHangar, NetHooksInstaller, NetInterest, NetMissions, NetModRaceStandings, NetMods, NetMotd, NetNews, NetOrbit, NetPanel, NetPing, NetPlayModeReset, NetPlayer, NetPoses, NetProfileClient, NetProxy, NetProxyStatus, NetRateLimit, NetRules, NetServerSettings, NetShotData, NetShotMirror, NetShotRegistry, NetShotSender, NetShots, NetSmoothing, NetSquad, NetState, NetStats, NetStock, NetTeleport, NetTrade, NetTradeClient, NetTransport
 
-- `GoF2Remake.UI`: AboutText, AlienText, ArenaView, BindingRow, BuildVersion, CarrierShopWindow, ChallengeView, ChatView, CheatsCatalog, ChoicePopup, ChoiceRow, CombatView, CooldownView, DialogueLine, DialogueView, DiscordPresence, DockedMenu, DpadTapNavigation, DragScroll, EndingCredits, FarShipMarkers, FlightHud, FpsCounter, GameCursor, HackingView, HangarWindow, HeldRepeat, HeldTrade, HudReadout, IDialogueWindow, InputGlyph, InputKind, InputMode, IssueReportUpload, ItemInfo, ItemInfoWindow, KeyboardLift, LanguageFlags, LensFlareView, LotTones, LoungePanel, MacGameControllerGamepad, MacGameControllerRunner, MainMenu, McpInput, MenuConfirm, MenuFocus, MenuKeys, MiningView, MissileWarningView, MissionsWindow, ModBrowser, ModBuilderPlay, ModBuilderProjects, ModBuilderScreen, ModBuilderSpaceView, ModBuilderView, ModLoadingView, ModelViewer, MouseWheel, MultiplayerWindow, NavigationView, OptionControl, OptionDef, OptionInfo, OptionKind, OptionPage, OptionsCatalog, OptionsView, OrbitViewUi, PadButton, PadGlyph, PadKeyboard, PadStyle, PauseMenu, PhoneKeyboard, PhotoGuides, PhotoMode, PhotoSettings, Portrait, QuestGraphView, SafeArea, SaveSlotRow, ScreenshotKey, ScrollBars, SettingsConfirm, ShipCustomizePanel, ShipPreview, SpatialNav, SpeedrunOverlay, SplashMusic, SplashTheme, SquadView, StarMap, StarMapAssets, StarMapMode, StarMapResult, StartupSplash, StationMenu, StatusWindow, StickScroll, StoryStepLabel, TerritoryView, TextFieldKeys, TextMarquee, TextReveal, TouchControls, TwoFingerTouch, UiBusy, UiCase, UiFocus, UiFont, UiHooks, UiHover, UiLayout, UiPointerButtons, UiScale, UiSounds, UwpAppInstaller
+- `GoF2Remake.UI`: AboutText, AlienText, ArenaView, BenchmarkRunner, BindingRow, BuildVersion, CarrierShopWindow, ChallengeView, ChatView, CheatsCatalog, ChoicePopup, ChoiceRow, CombatView, CooldownView, DialogueLine, DialogueView, DiscordPresence, DockedMenu, DpadTapNavigation, DragScroll, EndingCredits, FarShipMarkers, FlightHud, FpsCounter, GameCursor, GameRulesAccess, HackingView, HangarWindow, HdWindow, HdrCalibration, HeldRepeat, HeldTrade, HudReadout, IDialogueWindow, InputGlyph, InputKind, InputMode, IssueReportUpload, ItemInfo, ItemInfoWindow, KeyboardLift, LanguageFlags, LensFlareView, LotTones, LoungePanel, MacGameControllerGamepad, MacGameControllerRunner, MainMenu, McpInput, MenuConfirm, MenuFocus, MenuKeys, MiningView, MissileWarningView, MissionsWindow, ModBrowser, ModBuilderPlay, ModBuilderProjects, ModBuilderScreen, ModBuilderSpaceView, ModBuilderView, ModLoadingView, ModelViewer, MouseWheel, MultiplayerWindow, NavigationView, OptionControl, OptionDef, OptionGroup, OptionInfo, OptionKind, OptionPage, OptionSection, OptionSectionBlock, OptionsCatalog, OptionsView, OrbitViewUi, OriginalSetupView, PadButton, PadGlyph, PadKeyboard, PadStyle, PauseMenu, PhoneKeyboard, PhotoGuides, PhotoMode, PhotoSettings, Portrait, QuestGraphView, SafeArea, SaveSlotRow, ScreenshotKey, ScrollBars, SettingsConfirm, ShipCustomizePanel, ShipPreview, SpatialNav, SpeedrunOverlay, SplashMusic, SplashTheme, SquadView, StarMap, StarMapAssets, StarMapMode, StarMapResult, StartupSplash, StationMenu, StatusWindow, StickScroll, StoryStepLabel, TerritoryView, TextFieldKeys, TextIcons, TextMarquee, TextReveal, TouchControls, TwoFingerTouch, UiBusy, UiCase, UiFocus, UiFont, UiHooks, UiHover, UiImageSlots, UiLayout, UiPointerButtons, UiScale, UiSounds, UwpAppInstaller
 
-- `GoF2Remake.Visuals`: AnimationChannel, AnimationKey, Aspect, AssembledObject, AutoLods, AxisMap, BackdropPass, ClassicBloomPass, CloakPass, EmissiveReflection, EndingDrift, EngineDrive, EnginePreview, FxFog, GameLods, LodMeshes, MenuBackground, MenuCamera, MeshMeta, MeshSmoother, Part, PartAnimation, PhotoBlurPass, PhotoMotionPass, PhotoZoomPass, PlanetMeshes, PreTransformGuard, ResourceInfo, ScreenAntialiasing, Spin, StationModelContext, ThrottleGlow, WarpSky
+- `GoF2Remake.Visuals`: AnimationChannel, AnimationKey, Aspect, AssembledObject, AutoLods, AxisMap, BackdropPass, ClassicBloomPass, CloakPass, EmissiveReflection, EndingDrift, EngineDrive, EnginePreview, FrameGenerationPass, FxFog, GameLods, LodMeshes, MenuBackground, MenuCamera, MeshMeta, MeshSmoother, NeuralRenderingPass, OriginalAsmEntry, OriginalAsmPart, OriginalAsmTable, OriginalAssemblies, OriginalBackdrop, OriginalContent, OriginalMaterials, OriginalModels, OriginalResMaterial, OriginalResMesh, OriginalResTable, OriginalSkies, Part, PartAnimation, PhotoBlurPass, PhotoMotionPass, PhotoZoomPass, PictureFiltersPass, PlanetMeshes, PreTransformGuard, RadialBlurPass, ResourceInfo, ScreenAntialiasing, Spin, StationModelContext, ThrottleGlow, WarpSky
 
 - `GoF2Remake.Vr`: VrCockpit, VrControls, VrMode, VrPad, VrPanels, VrRadar, VrRig, VrStation
 
-- `GoF2Remake.World`: AcidSackBase, ArenaMatchInfo, ArrivalScale, Backdrop, BarFlybys, CampaignLevel, CapitalRetreat, CapitalShip, CapitalShips, CapitalSubsystems, CarryPuzzle, ChallengeOrbit, ChallengeWatch, CloakedContainers, ConductorNet, CoopCameraMirror, CoopLevelState, CruiseEncounterSpawner, CutsceneCamera, CycleSound, DebugSpawner, EncounterMusic, EncounterWatch, EnergySocket, Es2Dock, Es2DockCurves, FlightHints, FreeCamera, FreelanceOrbit, GasCloudField, HangarFlight, HangarInspect, HangarShipShadow, HangarTraffic, HazardLooks, HazardZones, IOrbitCrate, IOrbitPeer, IOrbitProxy, ISharedOrbit, InterstellarField, IntroCutscenes, KaamoSiege, KhadorFx, LootContainer, MainCampaignLevels, MinesweeperWatch, MiningSite, MobileStation, ModBuilderGizmo, ModBuilderRange, ModJumpEffect, NpcCloak, NpcCloud, NpcDevices, NpcMountedTurrets, NpcOrder, NpcShip, NpcWormhole, OrbDispenser, OrbitAmbience, OrbitBuilder, OrbitLayout, OrbitMine, OrbitMinefield, OrbitProps, OrbitStorm, PlanetApproach, PlayerCapitalMissiles, PlayerHull, Portable, PoseQuery, PuzzleSounds, RiftBulb, RiftEncounter, RiftField, RiftHazards, RiftMine, SeekerMine, ShipCorrosion, ShipInNeed, ShipShadowSet, ShotTrigger, ShuttleRoutes, SkyLayerAssets, SkyLayers, SkyReflection, SkySphereSmoothing, SpaceDust, SpaceHooks, SpaceLevel, StarMapOpener, StationLevel, StationLife, StationPoseQuery, StationTables, StationView, StorySpace, SupernovaLevels, SystemApproach, SystemJump, TerranHangarBots, Traffic, TrafficLanes, ValkyrieLevels, VosskBarBots, Wormhole, WreckField
+- `GoF2Remake.World`: AcidSackBase, ArenaMatchInfo, ArrivalScale, Backdrop, BarFlybys, CampaignLevel, CapitalRetreat, CapitalShip, CapitalShips, CapitalSubsystems, CarryPuzzle, ChallengeOrbit, ChallengeWatch, CloakedContainers, ConductorNet, CoopCameraMirror, CoopLevelState, CruiseEncounterSpawner, CutsceneCamera, CycleSound, DebugSpawner, EncounterMusic, EncounterWatch, EnergySocket, Es2Dock, Es2DockCurves, ExternalDockTestTaker, FlightHints, FreeCamera, FreelanceOrbit, FxFlash, GasCloudField, GoF2SkyLayers, HangarFlight, HangarInspect, HangarShipShadow, HangarTraffic, HazardLooks, HazardZones, HullHitFlash, HullWarpIn, IOrbitCrate, IOrbitPeer, IOrbitProxy, ISharedOrbit, InterstellarField, IntroCutscenes, KaamoSiege, KhadorFx, LootContainer, MainCampaignLevels, MinesweeperWatch, MiningSite, MobileStation, ModBuilderGizmo, ModBuilderRange, ModDeathFx, ModDriftFx, ModJumpEffect, NebulaClouds, NpcCloak, NpcCloud, NpcDevices, NpcMountedTurrets, NpcOrder, NpcShip, NpcWormhole, OrbDispenser, OrbitAmbience, OrbitBuilder, OrbitLayout, OrbitMine, OrbitMinefield, OrbitProps, OrbitScale, OrbitStorm, PlanetApproach, PlayerCapitalMissiles, PlayerHull, Portable, PortalRefraction, PoseQuery, PursuerFx, PuzzleSounds, RebuiltPlanetOwner, RebuiltPlanets, RiftBulb, RiftEncounter, RiftField, RiftHazards, RiftMine, RiftPortal, SeekerMine, ShipCorrosion, ShipInNeed, ShipShadowSet, ShotTrigger, ShuttleRoutes, SkyLayerAssets, SkyLayers, SkyReflection, SkySphereSmoothing, SkyStars, SpaceDust, SpaceHooks, SpaceLevel, StarMapOpener, StationLevel, StationLife, StationPoseQuery, StationTables, StationView, StorySpace, SupernovaLevels, SystemApproach, SystemJump, TerranHangarBots, Traffic, TrafficLanes, ValkyrieLevels, VosskBarBots, Wormhole, WreckBreakup, WreckField
 
 Unity's: the public classes of these namespaces (https://docs.unity3d.com/ScriptReference/), except those that
 reach outside the game (Application, PlayerPrefs, the clipboard, asset bundles, web requests, the camera and microphone):
@@ -1891,11 +2052,11 @@ reach outside the game (Application, PlayerPrefs, the clipboard, asset bundles, 
 - `UnityEngine.InputSystem` (69 classes)
 - `UnityEngine.InputSystem.Controls` (17 classes)
 - `UnityEngine.Playables` (27 classes)
-- `UnityEngine.Rendering` (488 classes)
-- `UnityEngine.Rendering.Universal` (226 classes)
+- `UnityEngine.Rendering` (489 classes)
+- `UnityEngine.Rendering.Universal` (227 classes)
 - `UnityEngine.SceneManagement` (10 classes)
 - `UnityEngine.TextCore` (12 classes)
 - `UnityEngine.TextCore.Text` (25 classes)
 - `UnityEngine.UI` (61 classes)
-- `UnityEngine.UIElements` (438 classes)
+- `UnityEngine.UIElements` (440 classes)
 - `UnityEngine.VFX` (18 classes)

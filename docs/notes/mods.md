@@ -199,6 +199,15 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   in Play mode with a local test campaign (Mods/test_campaign: Kepler, the Jedi Starfighter, the plasma weapons): the entry,
   the start (station, ship, credits, equipment), only Kepler visible, mod-only dealers, Jedi / Banshee traffic, missions
   inside Kepler, the quest running, save / load keeping it.
+  **For whole game modes as mods** (#313, AntonTolochko's Scavenger mode, withdrawn from #285 to be a mod): `BeginGame`
+  sets `Session.ModCampaign` before `Database.Load`, and `Database.Shared` loads again when the campaign changes, so a
+  script's `database` handler can keep its changes to its campaign; `"economy": "original" | "default"` fixes the
+  economy (`PickDifficulty` skips the panel, Back from the game options goes to the difficulty); `"medals": [n | key]`
+  are the only medals awarded and shown (`ModCampaigns.MedalAllowed`: `Achievements.Check` / `Elite` / `Earned`,
+  `ModMedals.Check` / `Shown`, the Status grid keeps a hidden one's number with no button; `[]` none). What shops offer and
+  NPC ships carry: a script patches the methods (`game.patch`, "Patches" under Mod scripts; two hooks made for it,
+  `ModHooks.ItemOffered` / `CargoRolled`, were dropped the same day for that). The save slots stay shared by every campaign (#313's answer, 2026-11-20:
+  the replaced auto-save is kept in Saves/Deleted, #240), and #285's v19 saves aren't read.
 - **Mod DLCs** (remake, 2026-11-01, the user's request: mods that go on after the last DLC; `ModDlcs`, a mod's `dlc.json`:
   name, description, image, imageHover, showTitle, quest (required), index, intro, introSpeaker, startStation, startShip,
   credits, equipment, cargo; the guide's "DLCs"): one play order for the DLCs that are on (`ModDlcs.All`): the player's
@@ -772,10 +781,35 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   ...))`; single player: straight back. *Settings*: `game.config`, JSON in PlayerPrefs `mod_script_config_<id>`,
   written on stop / `game.saveConfig()`. *The scene*: `game.space()` / `station()` / `player()`, `game.myId()`. *More
   events*: `lateUpdate`, `trade` (`Hangar.Shared`), `missionAccepted` / `missionSucceeded` / `missionFailed`
-  (`Freelance`), `storyStep` (`Story.Advance`), `chat` (`NetChat.Added`). Still not possible, by nature: rewriting a
-  method that isn't behind a delegate (no runtime patching under IL2CPP), defining C# classes, anything before the main
-  menu. Verified: `ModScriptMoreTests` (13; 37 with `ModScriptTests`). Not yet: the message RPCs in a real session,
+  (`Freelance`), `storyStep` (`Story.Advance`), `chat` (`NetChat.Added`). Still not possible, by nature: defining C# classes, anything before the main
+  menu (rewriting a method: Patches, below). Verified: `ModScriptMoreTests` (13; 37 with `ModScriptTests`). Not yet: the message RPCs in a real session,
   `game.sound`, a `LuaBehaviour`'s physics messages, the new game events in play.
+  **Patches** (2026-11-20, the user: "so lua can do anything and we don't have to write hooks for anything anymore";
+  `Core/PatchRuntime.cs`, `Editor/CodeGen/PatchWeaver.cs`, `Modding/ModScriptsPatch.cs`, the guide's "Patching the game's
+  methods"): `game.patch(target, "Method", fn [, "ParamTypes"])` replaces any method of the game's classes. IL2CPP can't
+  rewrite a method at run time (Harmony's way), so the build does the preparing: `PatchWeaver` is an ILPostProcessor
+  (assembly `Unity.GoF2.Patching.CodeGen`: Unity hands the ILPostProcessing API only to assemblies named
+  `Unity.*.CodeGen`; Unity.Pipeline's CodeReload weaver was the model) run on GoF2.Core / Game / Space / Net / App after
+  every compile, the Editor's too. Each method gets `[PatchSite(id)]` and a prologue `h = PatchTable.Table[id]; if (h !=
+  null && !PatchRuntime.Skip(h)) return (T)h(this, args)` (arguments boxed into an object[], ref / out values copied
+  back; `PatchTable` is made per assembly: a readonly array, the `Skipped` count). 13,573 methods woven on 2026-11-20
+  (Core 583, Game 3477, Space 4340, Net 1905, App 3268; the DLLs +15 %), left out: constructors (4160), compiler-made
+  code (lambdas, iterator / async state machines, local functions: 8670), auto-property accessors (1429), RPCs (160)
+  and Netcode's generated `__` members (its ILPP runs first), struct instance methods (36), generics (26), ref-struct /
+  pointer signatures (11), `[AggressiveInlining]` (the way to keep a hot method out), Burst and native callbacks.
+  **Its own code**: `Skip` is true once for the handler being passed by (a thread-static), so the runtime calls the
+  method again by reflection (`MethodInfo.Invoke`, the inner exception rethrown unwrapped); an overridable method gets a
+  private `__patchBase_<Name>` that calls it non-virtually (reflection would run the object's override instead).
+  Patches on one method stack, the newest first (`PatchRuntime.Add`, `PatchBody(original, self, args)`; Dispose takes
+  one out; `RemoveAll` at SubsystemRegistration). **The Lua side** (`Vm.Patch`): `original` first, `self` for an
+  instance method, then the arguments; the result, then the ref / out values (as game.hook); the nearest class up the
+  chain declaring the name, a 4th argument of parameter types for overloads; `ScriptAccess.PatchTarget` refuses classes
+  scripts can't use and a method that takes or returns a path-like text (`HandlesPath`: it could send the game's files
+  elsewhere); a value of a type scripts can't hold is nil in Lua and passes through; off the main thread / stopped /
+  game.off: the method as it was; a Lua error: the method's own behaviour without running it twice, 5 in a row take
+  the patch out. The classes are named `Patch*` so the sandbox's prefix rule denies them to scripts. Cost with no
+  patch: a static array load and a branch per call (edit-mode suite 94 -> 100 s). Tests `ModScriptPatchTests` (16).
+  Not yet: an IL2CPP player build with the weaving, a frame-time measurement in flight, a patch in a real session.
 - **Mod browser** (`ModBrowser`, the main menu's Mods button and `modsPanel`; styles `.mods-*` in MainMenu.uss; its Online
   tab: "Mod catalog" below): the Installed tab's list in
   load order (thumbnail, name, version · author, On / Off / Error / Can't load), a click or keyboard / controller focus

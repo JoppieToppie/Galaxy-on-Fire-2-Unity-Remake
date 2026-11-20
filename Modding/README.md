@@ -2212,7 +2212,7 @@ them (`/standing`, the quests' Standing step) or ask for them (`standing(guild) 
 ## Campaigns
 
 A mod can be a game of its own: `campaign.json` adds an entry under the three campaigns in **Start new game**. Picking it
-asks for the difficulty and the economy like the others, then starts the player where the campaign says, with the GoF2
+asks for the difficulty and the economy like the others (not the economy when the campaign names its own), then starts the player where the campaign says, with the GoF2
 story off.
 
 ```json
@@ -2253,9 +2253,13 @@ story off.
 | `ships` | `"mod"`: dealers sell only mods' ships. Default `"all"`. |
 | `trafficShips` | The ships NPC fighters fly, per race (`terran`, `vossk`, `nivelian`, `midorian`, `pirate`). Default: the game's. |
 | `flightStyle` | `"free"`, `"chorus"` or `"original"`: the campaign's games always fly so (see [Flight styles](#flight-styles)). Default: the player's option. |
+| `economy` | `"original"` (the original game's prices and stock) or `"default"` (the remake's Default Economy): the campaign's own, and the menu doesn't ask. Default: the player picks. |
+| `medals` | The only [medals](#medals) the campaign's games award and show: the game's by number (0-44, as in the Status window from 0), mods' by key (`"mod_id:medal"`; a bare id is this mod's). `[]`: none at all. Default: every medal. |
 
 A campaign's mod usually depends on the mods with its galaxy, ships and items, so turning it on turns them on too. Saves
-remember the campaign; loading one asks for its mods like any modded save.
+remember the campaign; loading one asks for its mods like any modded save. A campaign's own rules beyond these fields are
+[scripts](#scripts): `Session.ModCampaign` is the campaign's id from before its tables load, and a script can
+[patch](#patching-the-games-methods) any of the game's methods (what shops stock, what NPC ships carry).
 
 ## DLCs
 
@@ -3174,7 +3178,8 @@ end)
 ```
 
 Change them only there: the game loads its tables again whenever a game starts or loads, and a change made elsewhere is gone
-with the next load. New items, ships and systems still belong in the JSON files (they get their numbers and their place in
+with the next load. A [campaign](#campaigns)'s id is in `Session.ModCampaign` before its tables load, so a change meant for
+that campaign alone checks it (`if Session.ModCampaign == "my_mod" then ... end`); other games load the tables without it. New items, ships and systems still belong in the JSON files (they get their numbers and their place in
 the saves there); a script changes what exists and decides what happens.
 
 ### Hooks
@@ -3201,6 +3206,47 @@ game.listen("Settings", "Changed", function() print("an option changed") end)
 
 Both are undone when your scripts stop, or with `game.off(handle)`. `scripting.md` lists every hook with what it is for.
 `game.hook` and `game.listen` take any public delegate or event of any object, not only the hook classes'.
+
+### Patching the game's methods
+
+`game.patch` puts your function in the place of **any method of the game's classes**, public or not: there doesn't have
+to be a hook for it. It gets the code it replaced as `original`, then the object the method was called on (not for a
+static method), then the arguments; what it returns is what the caller gets:
+
+```lua
+-- Shops stock nothing above tech level 5.
+game.patch("Shop", "GenerateItems", function(original, db, station)
+    local list = original(db, station)
+    for i = list.Count - 1, 0, -1 do
+        if db:Item(list[i].item).techLevel > 5 then list:RemoveAt(i) end
+    end
+    return list
+end)
+
+-- An object's method: self comes after original.
+game.patch("ItemData", "HasAttr", function(original, self, id)
+    return id == 9 or original(self, id)
+end)
+```
+
+- `game.describe("Shop", true)` lists a class's methods with the private ones; a property is `get_Name` / `set_Name`.
+- Call `original(...)` with the same kind of arguments to run the game's own code (or the patch another mod put there
+  before yours); leave it out and that code doesn't run. A method with `out` / `ref` values returns them after its result,
+  and so does your function: `local ok, index = original(reference)` ... `return ok, index`.
+- Where a method has several versions, name the parameter types as a fourth argument, the way `game.describe` prints them:
+  `game.patch("CapitalShips", "RollLoot", fn, "Database")`. The error lists the versions.
+- An error in your function leaves the game's own behaviour for that call; after five errors in a row the patch is taken
+  out. `game.off(handle)` takes it out, and so does stopping the scripts.
+- A value of a type scripts can't hold (see [Limits](#limits)) arrives as `nil` and is passed on unchanged.
+
+What can't be patched: constructors, generic methods and classes, a struct's own methods, the small pieces the compiler
+makes (lambdas, the inside of a coroutine, automatic properties: set the field or property instead), network calls (RPCs),
+methods that take or return a file or address, and the classes scripts can't use. Unity's own code and other libraries
+can't either: only the game's classes are prepared for it.
+
+A patch reaches deeper than a hook, and the game's inner methods change between versions: a patch that worked can find its
+method renamed or gone after an update (`game.patch` then fails with an error naming it). Prefer a hook or an event where
+one does the job, and wrap a patch you can live without in `pcall`.
 
 ### Commands
 
@@ -3322,8 +3368,8 @@ out of the host's session; a dedicated server runs the scripts of every mod in i
   can't be called.
 - Some of the game's own classes are left out because they open files or the network (the file pickers, the mod importer,
   the updater, the save folder tools), and so are the game's functions that take a file name, a path or an address.
-- A script can't rewrite a function of the game that isn't behind a delegate: it changes the data and state the function
-  works with, or replaces the hook it is called through.
+- A script replaces the game's functions with [`game.patch`](#patching-the-games-methods), but not Unity's own or another
+  library's, and not the few kinds listed there.
 - New classes can't be written in Lua; `game.behaviour` is how a script gets a component of its own.
 - Scripts run on the game's main thread, between its frames: a long calculation makes the game stutter, and a single call
   is stopped after ten million Lua instructions.

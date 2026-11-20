@@ -317,7 +317,7 @@ plays one with `[voice <clip>]` in its text (English or German by the player's v
 | MISSION_END_35_1 | 35 | 0 Keith T. Maxwell | Yeah, that was me. People still talk about that battle? |
 | MISSION_END_35_2 | 35 | 7 Errkt Uggut | No. I've just done some research on you before our meeting. I'm sure you did the same with me. |
 | MISSION_END_35_3 | 35 | 0 Keith T. Maxwell | Erm... Naturally. But enough pleasantries. What about the freighter? |
-| MISSION_END_35_4 | 35 | 7 Errkt Uggut | His Highness the Emperor has been informed about your intentions against the Voids our commom enemy and commands that the Empire shall take part in the mission. |
+| MISSION_END_35_4 | 35 | 7 Errkt Uggut | His Majesty the Emperor has been informed about your intentions against the Voids, our common enemy, and commands that the Empire shall take part in the mission. |
 | MISSION_END_35_5 | 35 | 0 Keith T. Maxwell | Okay, I wasn't prepared for that. |
 | MISSION_END_35_6 | 35 | 7 Errkt Uggut | There is too much at stake for the Empire. We can't hand over a K'Sarr without our supervision. It is the will of the Emperor that I shall pilot the K'Sarr myself. |
 | MISSION_END_35_7 | 35 | 0 Keith T. Maxwell | So why did you ask for me? |
