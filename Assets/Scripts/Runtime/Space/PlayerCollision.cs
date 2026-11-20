@@ -81,6 +81,7 @@ namespace GoF2Remake.Flight
 
         // Remake: where the ship was after last frame's collision, for the hull sweep (none after a skipped frame)
         Vector3 lastPosition;
+        Quaternion lastRotation;
         bool hasLastPosition;
         const float MaxSweepMeters = 300f;   // a longer step is a teleport (a jump, a launch, an event's move), not flight
 
@@ -140,6 +141,7 @@ namespace GoF2Remake.Flight
             }
             scrapedLastFrame = scraping;
             lastPosition = transform.position;
+            lastRotation = transform.rotation;
             hasLastPosition = true;
         }
 
@@ -163,12 +165,34 @@ namespace GoF2Remake.Flight
                         // ... nor the station a docking target stands in for (102: Tadram's pads)
                         || (o.isStation && (o.transform.position - docking.Target.transform.position).sqrMagnitude < 1f))) continue;
                 var pos = transform.position;
-                if (!o.Touches(pos, out _)) continue;
-                transform.position = o.PushOut(pos);
-                Ram(transform.position - pos);
-                if (o.isStation) TouchingStation = true;
-                scraping = true;
-                Hit();
+                EnsureHullProbes();
+                if (hullProbes.Count == 0)
+                {
+                    if (!o.Touches(pos, out _)) continue;
+                    transform.position = o.PushOut(pos);
+                    Ram(transform.position - pos);
+                    if (o.isStation) TouchingStation = true;
+                    scraping = true;
+                    Hit();
+                    continue;
+                }
+                bool touched = false;
+                foreach (var p in hullProbes)
+                {
+                    var centre = transform.position + HullProbeWorldOffset(p.centre);
+                    if (!o.TryPushOutSphere(centre, p.radius, out var pushed)) continue;
+                    var correction = pushed - centre;
+                    if (correction.sqrMagnitude < 1e-8f) { touched = true; continue; }
+                    transform.position += correction;
+                    Ram(correction);
+                    touched = true;
+                }
+                if (touched)
+                {
+                    if (o.isStation) TouchingStation = true;
+                    scraping = true;
+                    Hit();
+                }
             }
         }
 
@@ -216,8 +240,9 @@ namespace GoF2Remake.Flight
             {
                 Vector3 offset = HullProbeWorldOffset(p.centre);
                 float half = p.radius * 0.5f;
-                var from = lastPosition + offset;
-                var to = pos + offset;
+                var localOffset = HullProbeLocalOffset(p.centre);
+                var from = lastPosition + lastRotation * localOffset;
+                var to = pos + transform.rotation * localOffset;
                 if (HullCollision.Sweep(from, to, half, Solid, out float hit)) stop = Mathf.Min(stop, hit - half);
                 if (HullCollision.Sweep(from, to, 0.01f, Solid, out float centreHit)) stop = Mathf.Min(stop, centreHit - p.radius);
             }
@@ -283,9 +308,14 @@ namespace GoF2Remake.Flight
             }
         }
 
+        Vector3 HullProbeLocalOffset(Vector3 localCentre)
+        {
+            return probeModel != null ? transform.InverseTransformPoint(probeModel.TransformPoint(localCentre)) : Vector3.zero;
+        }
+
         Vector3 HullProbeWorldOffset(Vector3 localCentre)
         {
-            return probeModel != null ? probeModel.TransformPoint(localCentre) - transform.position : Vector3.zero;
+            return transform.TransformVector(HullProbeLocalOffset(localCentre));
         }
 
         /// <summary>Metres: the probe sphere round the ship's centre, a third of the model's largest extent (the original
