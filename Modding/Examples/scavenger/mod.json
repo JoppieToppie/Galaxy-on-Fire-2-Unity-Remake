@@ -1,0 +1,9 @@
+{
+    "id": "scavenger",
+    "name": "Scavenger (game mode example)",
+    "version": "1.0",
+    "author": "JoppieToppie, after AntonTolochko's Scavenger mode (#285)",
+    "description": {
+        "en": "A game mode as a mod: start with nothing at Dis, in the finished galaxy. Shops sell gear only up to tech level 5, so everything better is loot. Collect it all to build the Fireworks and earn the mode's only medal. The whole mode is one campaign file and one script that patches the game's own methods."
+    }
+}

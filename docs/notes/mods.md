@@ -810,6 +810,15 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   the patch out. The classes are named `Patch*` so the sandbox's prefix rule denies them to scripts. Cost with no
   patch: a static array load and a branch per call (edit-mode suite 94 -> 100 s). Tests `ModScriptPatchTests` (16).
   Not yet: an IL2CPP player build with the weaving, a frame-time measurement in flight, a patch in a real session.
+  **The example** `Modding/Examples/scavenger` (2026-11-20, the proof that a game mode needs no code of its own in the
+  game: AntonTolochko's Scavenger mode of #285 as campaign.json + medals.json + 12 patches, tests
+  `ScavengerExampleTests`): `ModCampaigns.Start` (the finished world, `Session.UseCompletedWorld`, set again on
+  `gameLoaded`: a save doesn't keep `CompletedWorld`), the `database` event (every recipe but the Chromo Plasma's
+  cleared, the Fireworks' 42 rows), `ModBlueprints.AutocompleteOverride` / `Available`, `Shop.GenerateItems` (fresh
+  stock only, so sold loot can be bought back), `AgentGenerator.CreateAgent` / `StorySellerAvailable` /
+  `AddStoryBlueprintSellers`, `CapitalShips.ResupplyOffers` / `RollLoot`, `NpcTables.RollLoot`, `NpcShip.AddOwnLoot`
+  (a fixed crate's items rerolled through the private `loot`), `ModMedals.Available`. Left out against the prototype:
+  its own save slots and menu tab (campaigns share the slots, #313's answer), localized texts.
 - **Mod browser** (`ModBrowser`, the main menu's Mods button and `modsPanel`; styles `.mods-*` in MainMenu.uss; its Online
   tab: "Mod catalog" below): the Installed tab's list in
   load order (thumbnail, name, version · author, On / Off / Error / Can't load), a click or keyboard / controller focus

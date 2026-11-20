@@ -3661,6 +3661,10 @@ Nivelian interior; the system has its own sun and its own nebula sky. It also br
 `Modding/Examples/pirate_bounty` is a script mod: `scripts/main.lua` pays a bounty for every pirate you destroy, counts them
 in the save and reports the count a moment after you dock (`game.wait`), with its numbers read from `data/bounty.json`
 by the module `scripts/lib/bounty.lua` and a `/bounty` command of its own.
+`Modding/Examples/scavenger` is a whole game mode: a [campaign](#campaigns) that starts you with nothing in the finished
+galaxy, where shops sell gear only up to tech level 5, NPC cargo can be any item, and the one medal is earned by building
+the Fireworks from one of everything. Its rules are [patches](#patching-the-games-methods) on the game's own methods in
+`scripts/main.lua`, each doing nothing outside a Scavenger game (after AntonTolochko's Scavenger mode).
 
 
 ## Ship classes and class-based equipment restrictions

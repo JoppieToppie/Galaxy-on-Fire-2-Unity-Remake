@@ -1,0 +1,9 @@
+[
+    {
+        "id": "champion",
+        "name": "Champion",
+        "hint": "Build the Fireworks.",
+        "icon": 35,
+        "grades": { "gold": "produced(232) >= 1" }
+    }
+]
