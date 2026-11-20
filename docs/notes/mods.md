@@ -809,7 +809,12 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   game.off: the method as it was; a Lua error: the method's own behaviour without running it twice, 5 in a row take
   the patch out. The classes are named `Patch*` so the sandbox's prefix rule denies them to scripts. Cost with no
   patch: a static array load and a branch per call (edit-mode suite 94 -> 100 s). Tests `ModScriptPatchTests` (16).
-  Not yet: an IL2CPP player build with the weaving, a frame-time measurement in flight, a patch in a real session.
+  Checked in a Windows IL2CPP development build (2026-11-20; run headless as `-server -allowmods -noprofiles` with
+  `$GOF2_DATA` naming a scratch data folder holding the Scavenger example and a self-test script mod, results read
+  from the log): static, instance and private methods, out values, two stacked patches, removal, the method's own
+  exception going on to its caller, and the example's recipes, shop stock (664 stacks), cargo (167 kinds) and
+  autocomplete rule, 16 of 16. Not yet: a frame-time measurement in flight, a patch in a real session, the mode
+  played by hand.
   **The example** `Modding/Examples/scavenger` (2026-11-20, the proof that a game mode needs no code of its own in the
   game: AntonTolochko's Scavenger mode of #285 as campaign.json + medals.json + 12 patches, tests
   `ScavengerExampleTests`): `ModCampaigns.Start` (the finished world, `Session.UseCompletedWorld`, set again on
