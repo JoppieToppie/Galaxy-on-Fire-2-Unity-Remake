@@ -333,7 +333,7 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>Shown in the Status window: available (or earned), and not hidden until earned.</summary>
-        public static bool Shown(Medal m) => Earned(m) != null || (!m.hidden && Available(m));
+        public static bool Shown(Medal m) => ModCampaigns.MedalAllowed(IndexOf(m)) && (Earned(m) != null || (!m.hidden && Available(m)));
 
         static bool Available(Medal m) => ModUnlocks.Holds(m.mod, m.available, m.where);
 
@@ -365,6 +365,7 @@ namespace GoF2Remake.Modding
             for (int k = 0; k < all.Count; k++)
             {
                 var m = all[k];
+                if (!ModCampaigns.MedalAllowed(Achievements.Count + k)) continue;   // a mod campaign's own medals only (#313)
                 var had = Earned(m);
                 if (Available(m))
                 {

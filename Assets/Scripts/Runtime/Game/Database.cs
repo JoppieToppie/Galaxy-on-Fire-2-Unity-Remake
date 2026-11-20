@@ -1237,6 +1237,7 @@ namespace GoF2Remake.Data
         static Database shared;
         static Economy sharedEconomy;
         static int sharedRevision = -1;
+        static string sharedCampaign;
         /// <summary>The database a Load is applying the mods to: what Shared answers meanwhile. Code the mods' entries run
         /// (a kit ship's mounts, read through Shared) would otherwise load Shared, which applies the mods again, and so on: a
         /// stack overflow that took the Editor down (a kit ship with "npcTurrets", 2026-10-24).</summary>
@@ -1251,9 +1252,11 @@ namespace GoF2Remake.Data
             get
             {
                 if (applying != null) return applying;
-                if (shared == null || sharedEconomy != Session.Economy || sharedRevision != Modding.ModManager.Revision)
+                if (shared == null || sharedEconomy != Session.Economy || sharedRevision != Modding.ModManager.Revision
+                    || sharedCampaign != Session.ModCampaign)   // a mod campaign's scripts may change it for that campaign only (#313)
                 {
                     sharedEconomy = Session.Economy;
+                    sharedCampaign = Session.ModCampaign;
                     sharedRevision = Modding.ModManager.Revision;
                     shared = Load();
                     // (the load may have made the first scan of the Mods folders, which bumps the revision: it is this one's)

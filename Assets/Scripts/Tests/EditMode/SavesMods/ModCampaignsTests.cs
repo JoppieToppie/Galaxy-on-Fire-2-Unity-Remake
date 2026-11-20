@@ -139,6 +139,49 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(7, ModCampaigns.TrafficShip(8, 7));
         }
 
+        // #313 (a game mode as a mod): the campaign's economy and medals, and its id known before its tables load.
+        const string ModeJson = "{ 'startStation': 70, 'startShip': 5, 'economy': 'original', 'medals': [3, 'champion', 'other:m'] }";
+
+        [Test]
+        public void ACampaignCanFixItsEconomyAndMedals()
+        {
+            var c = CampaignOn(ModeJson);
+            Assert.AreEqual(Economy.Android, c.economy, "\"original\": the original game's tables");
+            CollectionAssert.AreEqual(new[] { "3", "t_camp:champion", "other:m" }, c.medals, "a bare id is the campaign mod's");
+            Assert.IsNull(CampaignOn(CampaignJson, "t_plain").economy, "none: the player picks");
+            Assert.IsNull(ModCampaigns.All().Find(x => x.Id == "t_plain").medals, "none: every medal");
+        }
+
+        [Test]
+        public void OnlyTheCampaignsMedalsAreAwarded()
+        {
+            var c = CampaignOn(ModeJson);
+            var db = Database.Load();
+            Session.ResetNewGame();
+            Assert.IsTrue(ModCampaigns.MedalAllowed(0), "a GoF2 game: every medal");
+            Session.ModCampaign = c.Id;
+            Assert.IsTrue(ModCampaigns.MedalAllowed(3));
+            Assert.IsFalse(ModCampaigns.MedalAllowed(0));
+            Assert.IsFalse(ModCampaigns.MedalAllowed(35));
+            Achievements.Check(db);
+            Assert.AreEqual(0, Achievements.Grade(0), "no preset Veteran");
+            Session.Medals[12] = 1;   // earned elsewhere (a carried-over save): not counted here
+            Assert.AreEqual(0, Achievements.Earned().earned);
+            Session.Medals[3] = 2;
+            Assert.AreEqual(1, Achievements.Earned().earned);
+        }
+
+        [Test]
+        public void TheSharedTablesFollowTheCampaign()
+        {
+            var c = CampaignOn(ModeJson);
+            Session.ModCampaign = "";
+            var gof2 = Database.Shared;
+            Assert.AreSame(gof2, Database.Shared);
+            Session.ModCampaign = c.Id;
+            Assert.AreNotSame(gof2, Database.Shared, "a campaign's scripts may change its tables: loaded again for it");
+        }
+
         [Test]
         public void TrafficShipsComeFromTheCampaign()
         {

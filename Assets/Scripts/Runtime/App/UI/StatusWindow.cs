@@ -190,7 +190,8 @@ namespace GoF2Remake.UI
                 scroll.parent.Insert(scroll.parent.IndexOf(scroll), summary);
             }
             var (earned, gold) = Achievements.Earned();
-            int total = Achievements.Count;
+            int total = 0;
+            for (int i = 0; i < Achievements.Count; i++) if (Modding.ModCampaigns.MedalAllowed(i)) total++;
             var goldTier = Modding.ModMedals.TierOf("gold");
             foreach (var mm in Modding.ModMedals.All)
             {
@@ -205,6 +206,8 @@ namespace GoF2Remake.UI
                                          earned, total, gold);
             for (int i = 0; i < Achievements.Count; i++)
             {
+                // Remake mods (#313): a campaign naming its "medals" shows only those (the others keep their number, no button).
+                if (!Modding.ModCampaigns.MedalAllowed(i)) { medalButtons.Add(null); continue; }
                 int medal = i;
                 int grade = Achievements.Grade(i);
                 bool elite = i >= Achievements.BaseCount;
