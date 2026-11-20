@@ -874,11 +874,11 @@
 }
 
 .row-move-arrow {
-    font-size: var(--text-heading);
-    color: #FFFFFF;
+    width: var(--text-caption);
+    height: var(--text-caption);
+    flex-shrink: 0;
     margin: 0;
     padding: 0;
-    -unity-text-align: middle-center;
 }
 
 .detail-scroll {

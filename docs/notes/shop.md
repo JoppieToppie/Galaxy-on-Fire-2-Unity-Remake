@@ -98,6 +98,8 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   `HangarWindow::selectItem` 0x178e20); a double click / double tap or Shift + primary click mounts or demounts
   (the Mount / Demount button's action; a controller's confirm button does the same).
 - **Row actions** (a player's feedback 2026-11-03: the Mount / Demount buttons sat "way off to the right of the slots"):
+  Reorder arrows use mirrored vector strokes in equal centered boxes, rather than rotated text glyphs whose font
+  bearings can offset Up and Down in opposite directions. This applies to both interface styles.
   the original turns a tapped slot into its own little list (`HangarList::fillBuyList` 0x14348c: 277 Selected, the row,
   278 Actions with 279 Sell this item and 282 Demount as style-7 button rows drawn at the rows' place by
   `HangarWindow::render`, then 284 Available in cargo). The remake keeps its list and puts the selected row's actions

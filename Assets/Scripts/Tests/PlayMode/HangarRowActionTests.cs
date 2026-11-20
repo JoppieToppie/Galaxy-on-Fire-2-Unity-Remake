@@ -51,6 +51,14 @@ namespace GoF2Remake.Tests
             var action = Get<Button>(window, "actionButton");
             var up = Get<Button>(window, "moveUpButton");
             var down = Get<Button>(window, "moveDownButton");
+            var upArrow = up.Q<VisualElement>(className: "row-move-arrow");
+            var downArrow = down.Q<VisualElement>(className: "row-move-arrow");
+            Assert.IsFalse(upArrow is Label || downArrow is Label, "font bearings must not offset the arrow ink");
+            Assert.AreEqual(up.worldBound.center.x, upArrow.worldBound.center.x, 0.5f);
+            Assert.AreEqual(down.worldBound.center.x, downArrow.worldBound.center.x, 0.5f);
+            Assert.AreEqual(upArrow.worldBound.center.x, downArrow.worldBound.center.x, 0.5f);
+            Assert.AreEqual(up.worldBound.center.y, upArrow.worldBound.center.y, 0.5f);
+            Assert.AreEqual(down.worldBound.center.y, downArrow.worldBound.center.y, 0.5f);
             float demountWidth = action.worldBound.width;
             Assert.LessOrEqual(action.MeasureTextSize(action.text, 0f, VisualElement.MeasureMode.Undefined,
                 0f, VisualElement.MeasureMode.Undefined).x, action.contentRect.width + 1f,

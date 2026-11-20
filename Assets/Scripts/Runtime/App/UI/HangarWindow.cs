@@ -306,15 +306,31 @@ namespace GoF2Remake.UI
         VisualElement rowActionsHost;
 
         /// <summary>Modified: an arrow button moving the selected mounted item to the previous (-1) or next (1) slot of its
-        /// type; the arrow is the drawer's chevron turned (no text to translate).</summary>
+        /// type. Mirrored vector strokes share a center instead of rotating a font glyph and its baseline.</summary>
         Button MoveArrow(int step)
         {
             var b = new Button { focusable = false };
             b.AddToClassList("row-move-button");
             if (step > 0) b.AddToClassList("row-move-button--down");
-            var chevron = new Label("\u2039") { pickingMode = PickingMode.Ignore };
+            var chevron = new VisualElement { pickingMode = PickingMode.Ignore };
             chevron.AddToClassList("row-move-arrow");
-            chevron.style.rotate = new Rotate(step < 0 ? 90f : -90f);
+            chevron.generateVisualContent += context =>
+            {
+                var r = chevron.contentRect;
+                if (r.width <= 0f || r.height <= 0f) return;
+                float wing = step < 0 ? 0.65f : 0.35f;
+                float tip = 1f - wing;
+                var painter = context.painter2D;
+                painter.strokeColor = Color.white;
+                painter.lineWidth = r.width * 0.1f;
+                painter.lineCap = LineCap.Round;
+                painter.lineJoin = LineJoin.Round;
+                painter.BeginPath();
+                painter.MoveTo(new Vector2(r.x + r.width * 0.2f, r.y + r.height * wing));
+                painter.LineTo(new Vector2(r.center.x, r.y + r.height * tip));
+                painter.LineTo(new Vector2(r.x + r.width * 0.8f, r.y + r.height * wing));
+                painter.Stroke();
+            };
             b.Add(chevron);
             b.clicked += () =>
             {
