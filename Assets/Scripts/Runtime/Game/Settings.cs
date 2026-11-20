@@ -1101,7 +1101,7 @@ namespace GoF2Remake.Data
         /// stand apart from the red hostile ones for red-green colour blindness (CombatView).</summary>
         public static bool ColorblindMarkers { get => GetBool("colorblindMarkers", false); set => SetBool("colorblindMarkers", value); }
 
-        /// <summary>Remake: Options > Accessibility "Interface font" (UiFont): "" the theme's Klavika, "file:<name>" a font file
+        /// <summary>Options > Accessibility "Interface font" (UiFont): "" automatic Klavika / Calibri / Inter, "file:<name>" a font file
         /// imported into the Fonts folder, "system:<family> - <style>" an installed one.</summary>
         public static string UiFont
         {

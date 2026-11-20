@@ -1,6 +1,6 @@
 // UiFont.cs
 // Remake (the user's request, 2026-10-24): Options > Accessibility "Interface font", a font of the player's choice for the
-// whole interface instead of Inter (the theme's; Klavika until 2026-11-15, which players who own it import here): a font file they imported ("Import font file...", copied into
+// whole interface. Automatic prefers installed Klavika, then Calibri, then the bundled Inter theme. A manual choice is a font file they imported ("Import font file...", copied into
 // persistentDataPath/Fonts) or one installed on the device (FontEngine.GetSystemFontNames). UiLayout.Configure puts it
 // inline on every panel's root and the panel's top element, so every text inherits it: the theme sets the font only on
 // :root, and bold text is -unity-font-style: bold (.gof-semibold too), which takes the family's own Bold face when it has
@@ -23,7 +23,7 @@ namespace GoF2Remake.UI
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class UiFont
     {
-        /// <summary>Settings.UiFont's forms: "" the theme's Inter, "file:<file name>" an imported file, "system:<family> -
+        /// <summary>Settings.UiFont's forms: "" automatic (installed Klavika, Calibri, then bundled Inter), "file:<file name>" an imported file, "system:<family> -
         /// <style>" an installed font (FontEngine's names).</summary>
         public const string FilePrefix = "file:", SystemPrefix = "system:";
         /// <summary>The font files the importer takes (a .ttc's first face).</summary>
@@ -45,6 +45,8 @@ namespace GoF2Remake.UI
 
         static string loadedKey;
         static FontAsset loaded, themeFont;
+        static FontAsset automaticFont;
+        static string automaticFamily;
         static readonly Dictionary<string, FontAsset> assets = new Dictionary<string, FontAsset>();
         static string[] systemNames;
         static bool pendingDone;
@@ -59,6 +61,9 @@ namespace GoF2Remake.UI
             loadedKey = null;
             loaded = null;
             themeFont = null;
+            automaticFont = null;
+            automaticFamily = null;
+            systemNames = null;
             assets.Clear();
             choices = null;
             Problem = null;
@@ -70,17 +75,53 @@ namespace GoF2Remake.UI
             get
             {
                 string key = Settings.UiFont ?? "";
+                if (key.Length == 0) { Problem = null; return AutomaticFont; }
                 // Modified: a font made in an earlier Play session is destroyed when Play mode ends, but the statics
                 // live on (no domain reload): the dead asset compared as null and the theme's font showed while the
                 // option still named the chosen one. Loaded again then.
-                if (key == loadedKey && (key.Length == 0 || loaded != null || Problem != null)) return loaded;
+                if (key == loadedKey && (loaded != null || Problem != null)) return loaded;
                 loadedKey = key;
                 loaded = null;
-                if (key.Length == 0) { Problem = null; return null; }
                 loaded = Load(key, out string problem);
                 Problem = problem;
                 return loaded;
             }
+        }
+
+        /// <summary>The automatic choice's actual family, also shown in the localized default label.</summary>
+        public static string DefaultName { get { _ = AutomaticFont; return automaticFamily; } }
+
+        static FontAsset AutomaticFont
+        {
+            get
+            {
+                if (automaticFamily != null && (automaticFont != null || automaticFamily == "Inter")) return automaticFont;
+                foreach (string key in DefaultSystemKeys(SystemNames()))
+                {
+                    var font = Load(key, out _);
+                    if (font == null) continue;   // an installed but unreadable face must not prevent the next fallback
+                    automaticFont = font;
+                    Split(key.Substring(SystemPrefix.Length), out automaticFamily, out _);
+                    return font;
+                }
+                automaticFont = null;
+                automaticFamily = "Inter";
+                return null;   // inherit the bundled theme font
+            }
+        }
+
+        static IEnumerable<string> DefaultSystemKeys(IEnumerable<string> names)
+        {
+            var available = new List<string>(names);
+            // Medium matches the original HD interface; Regular also supports other Klavika installations.
+            foreach (string preferred in new[] { "Klavika - Medium", "Klavika - Regular", "Calibri - Regular" })
+                foreach (string name in available)
+                {
+                    Split(name, out string family, out string style);
+                    if (IsPlainStyle(style)) style = "Regular";
+                    if (string.Equals(family + " - " + style, preferred, StringComparison.OrdinalIgnoreCase))
+                        yield return SystemPrefix + name;
+                }
         }
 
         /// <summary>Puts the chosen font (or the theme's back) on a panel's root and its top element.</summary>
@@ -94,7 +135,7 @@ namespace GoF2Remake.UI
             if (top != null && top != root) top.style.unityFontDefinition = style;
         }
 
-        /// <summary>What the option offers, the theme's first (its name null: the caller's text): the imported files, then
+        /// <summary>What the option offers, automatic first (its name null: the caller's text): the imported files, then
         /// the installed families (each family's Regular, else its first style).</summary>
         public static List<Choice> Choices()
         {

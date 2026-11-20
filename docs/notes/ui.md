@@ -75,8 +75,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   menu animations), Colour-blind markers (friends blue, `CombatView.MarkerTex`), Dialogue highlights (2026-11-09, the
   user's wish; off by default: the animated dialogue's coloured names and icons, `Settings.DialogueHighlights`,
   `TextReveal.Parse`). **Interface font** (2026-10-24, the
-  user's request; `UiFont`, Space/UI; `Settings.UiFont`: "" the theme's Inter (Klavika until 2026-11-15: not licensed to
-  ship, see docs/notes/player-assets.md "The interface font"; players who own it import it here), "file:<name>" a file imported into
+  user's request; `UiFont`, Space/UI; `Settings.UiFont`: "" automatically tries installed Klavika (Medium, then Regular),
+  installed Calibri, then bundled Inter. An unreadable preferred face falls through; the default label names the resolved
+  family. System fonts are loaded at runtime without copying or bundling them. Manual selections are preserved.
+  "file:<name>" is a file imported into
   persistentDataPath/Fonts, "system:<family> - <style>" an installed font, `FontEngine.GetSystemFontNames`, each
   family's Regular listed): the row, "Import font file…" (`ModImport.Pick`, checked with `FontEngine.LoadFontFace`,
   copied in and chosen) and "Remove this font file" (a file the font engine holds open is deleted at the next start,

@@ -595,5 +595,69 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(2, Settings.CurrentScopedExperience(cosmetics), "explicit Custom preserves values but changes mode");
         }
 
+        [TestCase("Calibri - Regular|Klavika - Regular|Klavika - Medium", "system:Klavika - Medium|system:Klavika - Regular|system:Calibri - Regular")]
+        [TestCase("Calibri - Regular", "system:Calibri - Regular")]
+        [TestCase("Klavika - Normal|Calibri - Regular", "system:Klavika - Normal|system:Calibri - Regular")]
+        [TestCase("klavika - medium|CALIBRI - Regular", "system:klavika - medium|system:CALIBRI - Regular")]
+        [TestCase("Arial - Regular|Klavika Condensed - Regular|Calibri - Bold", "")]
+        public void AutomaticFontCandidatesFollowFamilyAndBodyWeightPriority(string installed, string expected)
+        {
+            var method = typeof(GoF2Remake.UI.UiFont).GetMethod("DefaultSystemKeys",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            var keys = (IEnumerable<string>)method.Invoke(null, new object[] { installed.Split('|') });
+            Assert.AreEqual(expected, string.Join("|", keys));
+        }
+
+        [Test]
+        public void AutomaticFontFallsBackToThemeWhenPreferredFamiliesAreAbsent()
+        {
+            var flags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic;
+            var type = typeof(GoF2Remake.UI.UiFont);
+            var names = type.GetField("systemNames", flags);
+            var font = type.GetField("automaticFont", flags);
+            var family = type.GetField("automaticFamily", flags);
+            object oldNames = names.GetValue(null), oldFont = font.GetValue(null), oldFamily = family.GetValue(null);
+            try
+            {
+                names.SetValue(null, new[] { "Arial - Regular" });
+                font.SetValue(null, null);
+                family.SetValue(null, null);
+                Settings.UiFont = "";
+                Assert.IsNull(GoF2Remake.UI.UiFont.Current, "null inherits bundled Inter");
+                Assert.AreEqual("Inter", GoF2Remake.UI.UiFont.DefaultName);
+                Assert.IsNull(GoF2Remake.UI.UiFont.Problem);
+                Assert.AreEqual("", Settings.UiFont, "automatic resolution does not persist a device-specific font");
+            }
+            finally
+            {
+                names.SetValue(null, oldNames);
+                font.SetValue(null, oldFont);
+                family.SetValue(null, oldFamily);
+            }
+        }
+
+        [Test]
+        public void AutomaticFontLabelMatchesItsResolvedFamilyAndKeepsTheAutomaticChoice()
+        {
+            Settings.UiFont = "";
+            var current = GoF2Remake.UI.UiFont.Current;
+            string family = GoF2Remake.UI.UiFont.DefaultName;
+            if (current != null) Assert.AreEqual(family, current.faceInfo.familyName);
+            else Assert.AreEqual("Inter", family);
+            var row = OptionsCatalog.All().Single(d => d.id == "uiFont");
+            Assert.AreEqual(family + " (default)", row.choices()[0]);
+            Assert.AreEqual(0, row.getIndex());
+            Assert.AreEqual("", Settings.UiFont);
+            Assert.AreSame(current, GoF2Remake.UI.UiFont.Current, "reuse the resolved asset");
+        }
+
+        [Test]
+        public void ExplicitMissingFontDoesNotSilentlySelectAnAutomaticSystemFont()
+        {
+            Settings.UiFont = "file:missing-hotfix-font.ttf";
+            Assert.IsNull(GoF2Remake.UI.UiFont.Current);
+            Assert.IsNotNull(GoF2Remake.UI.UiFont.Problem);
+            Assert.AreEqual("file:missing-hotfix-font.ttf", Settings.UiFont);
+        }
     }
 }
