@@ -246,12 +246,16 @@ verified on a Mac or an iPhone.
     destroyed context is released once Unity's `safeFrameNumber` passes its last use; all at device shutdown.
     Jitter, mip bias, flags and motion-vector scale as Unity's FSR (`FSRUtils`); render size from FSR's ratios.
   - **The DLLs are the player's** (like the original assets): `amd_fidelityfx_loader_vk.dll` +
-    `amd_fidelityfx_upscaler_vk.dll` (AMD FidelityFX SDK 2.4, `Kits/FidelityFX/signedbin`: FSR 3.1.6 / 2.3.4) and, for FSR
-    4, `amdvkffx64.dll` from AMD's Windows driver (Adrenalin 26.10.1), in `GamePaths.Data/FidelityFX` (`$FFXVK_DLL_DIR`
-    overrides; `$FFXVK_DRIVER_DLL` for the driver's elsewhere). The log line "FSR (Linux): …" says what ran.
+    `amd_fidelityfx_upscaler_vk.dll` (AMD FidelityFX SDK 2.4, `Kits/FidelityFX/signedbin`: FSR 3.1.6 / 2.3.4, and FSR 4
+    itself) in `GamePaths.Data/FidelityFX` (`$FFXVK_DLL_DIR` overrides). The log line "FSR (Linux): …" says what ran.
+    **The driver DLL is optional** (2026-11-19, ffx-vk-linux e1d5a41): until then FSR 4 also needed `amdvkffx64.dll`
+    from AMD's Windows driver (Adrenalin 26.10.1; `$FFXVK_DRIVER_DLL` for one elsewhere), because the SDK DLL's own
+    FSR 4 providers ask Windows which GPU they run on and the library answered only for the driver DLL. Beside the SDK
+    DLLs it is still used (its FSR 4 in place of the SDK's: the same 4.1.2, the same GPU time here).
   - **Building the plugin:** `cmake -S Native/FsrLinux -B Native/FsrLinux/build -DCMAKE_BUILD_TYPE=Release
     -DFFXVK_DIR=<ffx-vk-linux checkout>`, `cmake --build …`, `cmake --install …` (builds ffx-vk-linux too, from its
-    checkout: commit db8277d or later for the fixes below, e06f017 or later for FSR 4 Lite). Against OpenSSL 3 where the system has it (Arch's `openssl-3`):
+    checkout: commit db8277d or later for the fixes below, e06f017 or later for FSR 4 Lite, e1d5a41 or later for FSR 4
+    without the driver DLL; the plugin as checked in is built from e1d5a41). Against OpenSSL 3 where the system has it (Arch's `openssl-3`):
     ffx-vk-linux builds with 3 or 4, but players' systems mostly have `libcrypto.so.3`. Its other runtime needs:
     `libSPIRV-Tools.so`, `libdrm_amdgpu`.
   - **Performance** (2026-11-16, RX 7900 XTX, RADV / Mesa 26.2.6). The first build's FSR 4 cost 4.3 ms of GPU time at 4K
@@ -288,7 +292,9 @@ verified on a Mac or an iPhone.
     `ffxvkFsr4Model` right before `ffxCreateContext` on the render thread. The driver DLL settles on a model once per
     instance, so the library keeps a second instance of `amdvkffx64.dll` for the other model (72 MB more, loaded at the
     first switch) and gives its provider a version id of its own for AMD's SDK (ffx-vk-linux's README, "FSR 4 Lite").
-    A switch that fails (the DLL not loadable again) keeps the model and logs why. `$FFXVK_FSR4_MODEL` doesn't apply
+    A switch that fails (the DLL not loadable again) keeps the model and logs why. Without the driver DLL the SDK's
+    DLL holds both models and one instance serves (the library gives Lite's questions an adapter id of their own), so
+    that switch can't fail. `$FFXVK_FSR4_MODEL` doesn't apply
     in the game: the option sets the model for every FSR 4 context. Label not translated (a product name); the help
     in all 13 languages (`fsr4LiteHelp`). Checked on the RX 7900 XTX only.
   - **The check:** `PlayerAssetsCheck -gof2fsr <quality>` (FSR for the run; `$GOF2_FSR_VERSION=3` / `2` that one where FSR
@@ -307,6 +313,12 @@ verified on a Mac or an iPhone.
   - **Checked** (2026-11-16, Linux development build): Vulkan 1.3, providers 4.1.2 / 3.1.6 / 2.3.4, FSR 4 Quality in the
     menu, orbits and hangar, pictures as native; no validation error from the hook or FSR (gamescope's WSI layer has its
     own). Not checked: other GPUs / vendors, the FSR option changed while playing.
+  - **Checked again** (2026-11-19, the same build with the library from e1d5a41, 4K Quality, `-gof2fsr 1 -gof2fps 3`):
+    with the driver DLL as before (providers 4.1.2 / 3.1.6 / 2.3.4, FSR 4 2.24-2.30 ms in the five views); with the two
+    SDK DLLs alone the same providers and times (2.25-2.30 ms); and from the SDK DLLs alone `-gof2fsrlite 2`: Lite
+    switched on in the hangar 1.66 ms against 2.31, and 2.31 again after switching back. Not run: the Lite switch with
+    the driver DLL on this library, and the SDK's FSR 4 on any GPU but the RX 7900 XTX (ffx-vk-linux's README lists
+    which GPUs the SDK DLL's checks take).
 - **Original bloom** (`ClassicBloomPass` + `Resources/GoF2PostFx/ClassicBloom.shader`; the bloom option's "Original"):
   the original's only post effect (`AbyssEngine::BloomShader`, on from `MGame::OnInitialize` via
   `Engine::SetPostEffect(0x1400000, true)`; the glow 0x1400001 exists but is never switched on; the radial blur 0x1400002
