@@ -14,7 +14,8 @@
 // Vulkan instance, unless set already or GOF2_KEEP_DCC_STORES is. ffx-vk-linux's own RADV fixes (cached memory types,
 // wave64, host-visible buffers in VRAM) apply inside the library.
 //
-// The AMD DLLs are the player's (Gof2Fsr_Init's directory; FFXVK_DRIVER_DLL for the driver's amdvkffx64.dll elsewhere).
+// The AMD DLLs are the player's (Gof2Fsr_Init's directory: the SDK's two; the driver's amdvkffx64.dll is optional, there
+// or where FFXVK_DRIVER_DLL says).
 // Contexts are made, used and destroyed on the render thread, by plugin events with data blocks the C# side fills:
 // create / dispatch / destroy. A destroyed context is released once Unity says the frames that used it are done.
 // Windows (gof2_fsr.dll, a comparison build on Vulkan): the same plugin with AMD's DLLs loaded as they are (LoadLibrary)
@@ -852,8 +853,8 @@ EXPORT const char* Gof2Fsr_Status()
 
 EXPORT UnityRenderingEventAndData Gof2Fsr_EventFunc() { return OnEvent; }
 
-/// 1 where FSR 4 Lite can be asked for (CreateData.lite): FSR 4 runs here through ffx-vk-linux, which holds the driver
-/// DLL's two models apart. Not on Windows (AMD's own loader gives the GPU's model).
+/// 1 where FSR 4 Lite can be asked for (CreateData.lite): FSR 4 runs here through ffx-vk-linux, which holds the two
+/// models apart (the SDK DLL's, or the driver DLL's). Not on Windows (AMD's own loader gives the GPU's model).
 EXPORT int Gof2Fsr_LiteAvailable()
 {
 #ifdef _WIN32

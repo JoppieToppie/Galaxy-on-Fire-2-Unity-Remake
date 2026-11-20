@@ -4,8 +4,8 @@
 // UpscalerFramework and the Upscaler option treat them alike. The work is done by the native plugin libgof2_fsr.so
 // (Native/FsrLinux): preloaded, it raises Unity's Vulkan version and device features for FSR; it runs AMD's FidelityFX
 // Vulkan DLLs natively with ffx-vk-linux. The DLLs are the player's: amd_fidelityfx_loader_vk.dll and
-// amd_fidelityfx_upscaler_vk.dll from AMD's FidelityFX SDK (FSR 3 / 2), plus amdvkffx64.dll from AMD's Windows driver for FSR
-// 4, in GamePaths.Data/FidelityFX ($FFXVK_DLL_DIR elsewhere). Without them, another graphics API or a GPU without Vulkan 1.2,
+// amd_fidelityfx_upscaler_vk.dll from AMD's FidelityFX SDK (FSR 4 / 3 / 2; amdvkffx64.dll from AMD's Windows driver is
+// optional: its FSR 4 in place of the SDK's), in GamePaths.Data/FidelityFX ($FFXVK_DLL_DIR elsewhere). Without them, another graphics API or a GPU without Vulkan 1.2,
 // none is supported and the option offers no FSR.
 // Contexts and dispatches are plugin events on the render graph's command buffer (create / dispatch / destroy), with
 // their data in unmanaged blocks the render thread reads later (a ring: a few frames of slack).
@@ -138,7 +138,7 @@ namespace GoF2Remake
         public static string Provider(int major) => ready && !string.IsNullOrEmpty(providers[major]) ? providers[major] : null;
 
         /// <summary>FSR 4 Lite can be asked for (the Graphics option "FSR 4 Lite"): FSR 4 runs here through ffx-vk-linux,
-        /// which keeps an instance of AMD's driver DLL per model. Linux only.</summary>
+        /// which holds the two models apart (the SDK DLL's, or an instance of AMD's driver DLL per model). Linux only.</summary>
         public static bool LiteAvailable => liteAvailable && Provider(4) != null;
 
         public static int NewHandle()
