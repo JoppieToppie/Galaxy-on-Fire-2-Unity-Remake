@@ -53,12 +53,14 @@ namespace GoF2Remake.Tests
             var down = Get<Button>(window, "moveDownButton");
             var upArrow = up.Q<VisualElement>(className: "row-move-arrow");
             var downArrow = down.Q<VisualElement>(className: "row-move-arrow");
+            // A pixel: the Original style's scaled panel puts the centres 0.65 px apart at 960 / 1280 (a20).
+            const float Px = 1f;
             Assert.IsFalse(upArrow is Label || downArrow is Label, "font bearings must not offset the arrow ink");
-            Assert.AreEqual(up.worldBound.center.x, upArrow.worldBound.center.x, 0.5f);
-            Assert.AreEqual(down.worldBound.center.x, downArrow.worldBound.center.x, 0.5f);
-            Assert.AreEqual(upArrow.worldBound.center.x, downArrow.worldBound.center.x, 0.5f);
-            Assert.AreEqual(up.worldBound.center.y, upArrow.worldBound.center.y, 0.5f);
-            Assert.AreEqual(down.worldBound.center.y, downArrow.worldBound.center.y, 0.5f);
+            Assert.AreEqual(up.worldBound.center.x, upArrow.worldBound.center.x, Px);
+            Assert.AreEqual(down.worldBound.center.x, downArrow.worldBound.center.x, Px);
+            Assert.AreEqual(upArrow.worldBound.center.x, downArrow.worldBound.center.x, Px);
+            Assert.AreEqual(up.worldBound.center.y, upArrow.worldBound.center.y, Px);
+            Assert.AreEqual(down.worldBound.center.y, downArrow.worldBound.center.y, Px);
             float demountWidth = action.worldBound.width;
             Assert.LessOrEqual(action.MeasureTextSize(action.text, 0f, VisualElement.MeasureMode.Undefined,
                 0f, VisualElement.MeasureMode.Undefined).x, action.contentRect.width + 1f,
