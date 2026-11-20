@@ -238,7 +238,6 @@ namespace GoF2Remake.Flight
             }
             else foreach (var p in hullProbes)
             {
-                Vector3 offset = HullProbeWorldOffset(p.centre);
                 float half = p.radius * 0.5f;
                 var localOffset = HullProbeLocalOffset(p.centre);
                 var from = lastPosition + lastRotation * localOffset;
@@ -289,8 +288,8 @@ namespace GoF2Remake.Flight
         {
             var current = GetComponent<ShipController>();
             var model = current != null ? current.visualModel : null;
-            if (model == probeModel) return;
-            probeModel = model;
+            if (model == hullProbeModel) return;
+            hullProbeModel = model;
             hullProbes.Clear();
             if (model == null) return;
             var volumes = GoF2Remake.Modding.ModCapitalShips.Measure(model.gameObject, Quaternion.identity);
@@ -321,7 +320,7 @@ namespace GoF2Remake.Flight
 
         Vector3 HullProbeLocalOffset(Vector3 localCentre)
         {
-            return probeModel != null ? transform.InverseTransformPoint(probeModel.TransformPoint(localCentre)) : Vector3.zero;
+            return hullProbeModel != null ? transform.InverseTransformPoint(hullProbeModel.TransformPoint(localCentre)) : Vector3.zero;
         }
 
         Vector3 HullProbeWorldOffset(Vector3 localCentre)
@@ -358,6 +357,7 @@ namespace GoF2Remake.Flight
         }
 
         Transform probeModel;
+        Transform hullProbeModel;
 
         void CheckWormhole()
         {
