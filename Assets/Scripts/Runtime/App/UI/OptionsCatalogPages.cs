@@ -529,7 +529,7 @@ namespace GoF2Remake.UI
             list.Add(Choice("originalUi", OptionPage.Gameplay, () => X("uiStyle", "Interface style"), true,
                 () => new[] { X("uiStyleRemake", "Remake"), X("uiStyleOriginal", "Original") },
                 () => Settings.OriginalUi ? 1 : 0, i => Settings.OriginalUi = i == 1,
-                () => X("uiStyleHelp", "Remake is the default interface, including with Cosmetic Experience: Original. The Original interface is a legacy option with dated layout and usability. Select it manually if you prefer its appearance; Cosmetic Experience presets do not change Interface style.")));
+                () => X("uiStyleHelp", "Both Cosmetic Experience presets use the Remake interface. The Original interface has dated layout and usability and is available as a manual Custom option.")));
             list.Add(Choice("uiWidth", OptionPage.Graphics, () => X("uiWidth", "Interface width"), true,
                 () => new[] { "16:9", "21:9", X("uiWidthFull", "Full width") },
                 () => Settings.UiWidth, i => Settings.UiWidth = i,
@@ -782,10 +782,10 @@ namespace GoF2Remake.UI
             // row below reads off (or its first choice) = the original game.
             list.Add(Choice("cosmeticExperience", OptionPage.Gameplay, () => X("cosmeticExperience", "Cosmetic Experience"), true,
                 ScopedExperienceNames, () => Settings.CurrentScopedExperience(true), i => Settings.ApplyScopedExperience(true, i),
-                () => X("cosmeticExperienceHelp", "Original or Remake presentation settings, independently of gameplay. Any manual Cosmetics change selects Custom, even if values match a preset again. Select Original or Remake explicitly to reactivate it.")));
+                () => X("cosmeticExperienceHelp", "Original or Remake presentation settings, independently of gameplay. Original sorts items by ID and turns off Kaamo special UI features; Remake groups items by type and enables those features. Interface style remains a manual choice. Any manual Cosmetics change selects Custom, even if values match a preset again. Select Original or Remake explicitly to reactivate it.")));
             list.Add(Choice("gameplayExperience", OptionPage.Gameplay, () => X("gameplayExperience", "Gameplay Experience"), true,
                 ScopedExperienceNames, () => Settings.CurrentScopedExperience(false), i => Settings.ApplyScopedExperience(false, i),
-                () => X("gameplayExperienceHelp", "Original or Remake gameplay settings, independently of cosmetics. Choosing Custom or expanding Game Rules selects Custom without changing any rule. Any manual Gameplay change selects Custom, even if values match a preset again. Select Original or Remake explicitly to reactivate it.")));
+                () => X("gameplayExperienceHelp", "Original or Remake gameplay settings, independently of cosmetics. VIP membership is off in Original and purchasable in Remake. Choosing Custom or expanding Game Rules selects Custom without changing any rule. Any manual Gameplay change selects Custom, even if values match a preset again. Select Original or Remake explicitly to reactivate it.")));
             // The original's fly-past camera, as a "skip" so that off is the original (Settings.LaunchCamera).
             var skipLaunch = Toggle("launchCamera", OptionPage.Gameplay, () => X("skipLaunchCamera", "Skip launch and arrival camera"),
                 () => !Settings.LaunchCamera, v => Settings.LaunchCamera = !v);

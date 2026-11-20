@@ -309,8 +309,8 @@ namespace GoF2Remake.UI
                 case OptionPage.Sound: Settings.Reset(Settings.SoundKeys); break;
                 case OptionPage.Graphics: Settings.Reset(Settings.GraphicsKeys); break;
                 case OptionPage.Controls: Settings.Reset(Settings.ControlsKeys); break;
-                case OptionPage.Gameplay: Settings.Reset(Settings.GameplayKeys); Modding.ModGameOptions.ResetSettings(); break;
-                case OptionPage.Cosmetics: Settings.Reset(Settings.CosmeticsKeys); break;
+                case OptionPage.Gameplay: Settings.ResetExperienceToRemake(false); Modding.ModGameOptions.ResetSettings(); break;
+                case OptionPage.Cosmetics: Settings.ResetExperienceToRemake(true); break;
                 case OptionPage.Language: Settings.Reset(Settings.LanguageKeys); break;
                 case OptionPage.Accessibility: Settings.Reset(Settings.AccessibilityKeys); break;
                 case OptionPage.Bindings: Flight.GameControls.ResetToDefaults(); break;
@@ -598,6 +598,7 @@ namespace GoF2Remake.UI
             {
                 id = id, page = page, kind = OptionKind.Choice, label = label, segmented = segmented, choices = choices, getIndex = get,
                 setIndex = set, description = description,
+                defaultValue = id == "cosmeticExperience" || id == "gameplayExperience" ? () => 1f : null,
             };
     }
 }

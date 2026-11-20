@@ -58,7 +58,7 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(1f, Settings.MouseSensitivity, "the mouse's own movement, as before the option");
             Assert.AreEqual(0.125f, Settings.StickDeadzone, 1e-6f, "the Input System's defaultDeadzoneMin");
             Assert.IsFalse(Settings.TutorialHints, "tutorials off by default");
-            Assert.IsTrue(Settings.ShowStoryStep, "on by default since 2026-10-11");
+            Assert.IsFalse(Settings.ShowStoryStep, "diagnostic tools are off by default");
             Assert.IsTrue(Settings.AutoAdvanceDialogue, "AUTO on by default");
             Assert.IsTrue(Settings.NpcPlayerEngines, "other ships' engines like yours: on");
             Assert.IsTrue(Settings.DyingCargoMarkers, "salvage markers: on");
@@ -880,7 +880,7 @@ namespace GoF2Remake.Tests
                 Assert.AreEqual(2, Settings.DetailDistance);
                 Assert.AreEqual(fps, Settings.ShowFps);
                 Assert.IsFalse(Settings.InvertYaw);
-                Assert.AreEqual(flights, Settings.HangarFlights);
+                Assert.IsTrue(Settings.HangarFlights, "Default settings selects Remake presentation");
                 Assert.AreEqual("auto", Settings.VoiceLanguage);
                 Assert.AreEqual(sfx, Settings.SfxVolume, 1e-6f);
                 Assert.AreEqual("nl", Settings.Language, "the text language is kept");
@@ -962,7 +962,7 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void EveryAdditionStartsOffAndTheOriginalPresetsTurnItOff()
+        public void RawFallbacksAndOriginalPolicyDisableUpstreamAdditions()
         {
             AllDefaults();
             Assert.IsFalse(Settings.RebuiltPlanets);
@@ -971,11 +971,14 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Settings.RemakeFreeLook);
             Assert.IsFalse(Settings.BlueprintAutocomplete);
             Assert.IsFalse(Settings.HostileAutopilotFastForward);
-            Assert.AreEqual(Settings.ExperienceOriginal, Settings.CurrentExperience(), "the defaults are the Original experience");
+            Settings.ApplyExperience(Settings.ExperienceOriginal);
+            Assert.AreEqual(Settings.ExperienceOriginal, Settings.CurrentExperience(), "explicit Original selection");
 
             Settings.ApplyExperience(Settings.ExperienceRemake);
-            Assert.IsTrue(Settings.RebuiltPlanets && Settings.RemasteredEffects && Settings.TurretLeadAim && Settings.RemakeFreeLook
-                          && Settings.BlueprintAutocomplete && Settings.HostileAutopilotFastForward, "Remake turns every addition on");
+            Assert.IsTrue(Settings.RebuiltPlanets && Settings.RemasteredEffects && Settings.TurretLeadAim && Settings.RemakeFreeLook,
+                          "Remake retains main's presentation and combat additions");
+            Assert.IsFalse(Settings.BlueprintAutocomplete || Settings.HostileAutopilotFastForward,
+                           "the complete policy explicitly disables these options");
             Settings.ApplyScopedExperience(false, 0);
             Assert.IsFalse(Settings.TurretLeadAim || Settings.RemakeFreeLook || Settings.BlueprintAutocomplete || Settings.HostileAutopilotFastForward,
                            "Gameplay Experience Original");
