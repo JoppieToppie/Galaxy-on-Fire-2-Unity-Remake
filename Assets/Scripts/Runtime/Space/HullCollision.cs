@@ -390,5 +390,12 @@ namespace GoF2Remake.Flight
             Sync();
             return Physics.OverlapSphereNonAlloc(centre, radius, buffer, HullMask, QueryTriggerInteraction.Ignore);
         }
+
+        /// <summary>The hull colliders touching the box ('halfExtents' world, turned by 'rotation') into 'buffer'; their count.</summary>
+        public static int OverlapBox(Vector3 centre, Vector3 halfExtents, Quaternion rotation, Collider[] buffer)
+        {
+            Sync();
+            return Physics.OverlapBoxNonAlloc(centre, halfExtents, buffer, rotation, HullMask, QueryTriggerInteraction.Ignore);
+        }
     }
 }

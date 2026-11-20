@@ -330,7 +330,13 @@ simulates an orbit's traffic) and `ship_combat.md` (+ `Reference/tools/combat/co
   fighter is gone, so near misses miss. The player's ship: a probe sphere (a third of the model's largest extent, 3..60
   m) pushed out of every landmark's / freighter's / other player's hull it overlaps (`PlayerCollision.CheckHulls`,
   `Physics.ComputePenetration`; it only resolves while the sphere's centre is outside, which flight never crosses),
-  sliding along it, flying through its gaps; fighters stay pass-through. An obstacle without volumes (a mod station's
+  sliding along it, flying through its gaps; fighters stay pass-through. Since 2026-11-20 (after SpectreAnims's #364,
+  which used a sphere per slice: too fat for a flat ship) the push uses the ship's outline instead: the model cut along
+  its length into up to 8 boxes round its hull's points (`ModCapitalShips.Measure`, at least 2 m a side), trigger
+  `BoxCollider`s on `ProbeLayer` under the model so they turn with it (`PlayerCollision.EnsureHullBoxes`,
+  `HullCollision.OverlapBox`); the sphere stays for the sweep, for shots (`hitSphereRadius`) and when nothing was
+  measured. Turning against a hull pushes the ship out too. Only against hulls: Original's volumes keep the ship's
+  centre point. Not flown yet. An obstacle without volumes (a mod station's
   `"collision": "none"`) has no hull contact either. From a contributor's precise-collision version (2026-10-11,
   ported): the probe is also swept from last frame's place each frame (`PlayerCollision.SweepHulls`,
   `HullCollision.Sweep`: half the probe as a sphere, which a ship resting on a hull doesn't start inside, and the centre
