@@ -97,6 +97,62 @@ namespace GoF2Remake.Flight
         /// <summary>projectCollisionOnSurface: 'world' moved out of every volume containing it.</summary>
         public Vector3 PushOut(Vector3 world) => ToWorld(CollisionVolume.ProjectOut(Local(world), volumes));
 
+        /// <summary>Remake: overlap a spherical slice of the player's measured hull with this obstacle's original volumes.
+        /// The returned point is the sphere centre after it has been projected outside every volume it overlaps.</summary>
+        public bool TryPushOutSphere(Vector3 world, float radius, out Vector3 pushed)
+        {
+            pushed = world;
+            var p = Local(world);
+            bool touched = false;
+            if (cubeHalf > 0f && (Mathf.Abs(p.x) > cubeHalf + radius || Mathf.Abs(p.y) > cubeHalf + radius || Mathf.Abs(p.z) > cubeHalf + radius))
+                return false;
+            for (int pass = 0; pass < 2; pass++)
+            {
+                for (int i = 0; i < volumes.Count; i++)
+                {
+                    var v = volumes[i];
+                    var d = p - v.centre;
+                    if (v.sphere)
+                    {
+                        float reach = v.radius + radius;
+                        float sqr = d.sqrMagnitude;
+                        if (sqr >= reach * reach) continue;
+                        float len = Mathf.Sqrt(sqr);
+                        p = v.centre + (len > 1e-5f ? d / len : Vector3.up) * reach;
+                    }
+                    else
+                    {
+                        var closest = new Vector3(
+                            Mathf.Clamp(p.x, v.centre.x - v.half.x, v.centre.x + v.half.x),
+                            Mathf.Clamp(p.y, v.centre.y - v.half.y, v.centre.y + v.half.y),
+                            Mathf.Clamp(p.z, v.centre.z - v.half.z, v.centre.z + v.half.z));
+                        var delta = p - closest;
+                        float sqr = delta.sqrMagnitude;
+                        if (sqr > 1e-8f)
+                        {
+                            if (sqr >= radius * radius) continue;
+                            p = closest + delta.normalized * radius;
+                        }
+                        else
+                        {
+                            int axis = 0;
+                            float best = v.half.x - Mathf.Abs(d.x);
+                            float y = v.half.y - Mathf.Abs(d.y), z = v.half.z - Mathf.Abs(d.z);
+                            if (y < best) { axis = 1; best = y; }
+                            if (z < best) axis = 2;
+                            p[axis] = v.centre[axis] + (d[axis] < 0f ? -1f : 1f) * (v.half[axis] + radius);
+                        }
+                    }
+                    touched = true;
+                }
+            }
+            if (!touched && cubeIsContact && cubeHalf > 0f
+                && Mathf.Abs(p.x) <= cubeHalf + radius && Mathf.Abs(p.y) <= cubeHalf + radius && Mathf.Abs(p.z) <= cubeHalf + radius)
+                touched = true;
+            pushed = ToWorld(p);
+            return touched;
+        }
+
         /// <summary>Remake (Flight.LineOfFire, without hull meshes: the Original ship collision): a ray from 'from' along 'dir'
         /// (unit) runs into these volumes: it enters one it isn't in, sampled along its way, or it heads inward through the face
         /// of the one it starts in nearest its start (a turret on the hull firing into its own ship; along the face or out of it
