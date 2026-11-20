@@ -592,7 +592,8 @@ verified on a Mac or an iPhone.
   at once. **Not checked:** no Radeon card here (on the RTX 4080 the driver's DLL is not there and nothing happens).
 - **Benchmark** (remake, 2026-11-20, the user's request: "a benchmark button that automatically goes through a bunch of
   repeatable scenarios with realtime stats and a stats page at the end ... save / export, an image to share"; Graphics,
-  Interface: "Benchmark…", main menu only; `UI.BenchmarkRunner`, the numbers in `Data.Benchmark`, `BenchmarkTests`):
+  the second row, under the preset and above the categories (`OptionsOrganization.GraphicsTop`; first under Interface,
+  the user: "not a good place"): "Benchmark…", main menu only; `UI.BenchmarkRunner`, the numbers in `Data.Benchmark`, `BenchmarkTests`):
   - **The run:** `OptionsCatalog.BenchmarkPressed` -> `MainMenu.StartBenchmark` -> `BenchmarkRunner.Begin` (a
     DontDestroyOnLoad object with its own panel, sorting +90) and the menu's `Leave`. Seven scenes (`Steps`), each a
     throwaway game set up like the Mod Builder's (`Session.ResetNewGame` + `UseCompletedWorld`, god mode granted, every

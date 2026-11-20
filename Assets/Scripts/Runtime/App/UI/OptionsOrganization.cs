@@ -106,10 +106,14 @@ namespace GoF2Remake.UI
             (OptionSection.GraphicsStations, new[] { "hangarShadows", "hangarDof", "hangarRobots", "barRobots" }),
             (OptionSection.GraphicsWorld, new[] { "skyStyle", "nebulaClouds", "liveSkies", "rebuiltPlanets" }),
             (OptionSection.GraphicsCamera, new[] { "fov", "cameraShake", "chaseCamera", "es2FreeFlightCamera" }),
-            (OptionSection.GraphicsInterface, new[] { "uiWidth", "uiMargin", "screenCutout", "showFps", "fpsPosition", "benchmark", "gameCursor" }),
+            (OptionSection.GraphicsInterface, new[] { "uiWidth", "uiMargin", "screenCutout", "showFps", "fpsPosition", "gameCursor" }),
             // (the main menu's: the HD resources and add-on packs)
             (OptionSection.GraphicsPacks, new[] { "addPack", "hdResourcesWindow", "hdResources" }),
         };
+
+        /// <summary>The rows above the categories, in this order: the preset and the benchmark (the user: under Interface
+        /// "is not a good place"), which are about all of the tab's options.</summary>
+        static readonly string[] GraphicsTop = { "graphicsPreset", "benchmark" };
 
         static readonly Dictionary<string, (OptionSection section, int rank)> GraphicsPlaces = BuildGraphicsPlaces();
 
@@ -123,18 +127,19 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>The Graphics row has a category of its own choosing (the catalog's test: a new row is placed on purpose).</summary>
-        public static bool HasGraphicsPlace(string id) => id == "graphicsPreset" || id != null && GraphicsPlaces.ContainsKey(id);
+        public static bool HasGraphicsPlace(string id) => id != null && (Array.IndexOf(GraphicsTop, id) >= 0 || GraphicsPlaces.ContainsKey(id));
 
         static void OrganizeGraphics(List<OptionDef> list)
         {
             var rows = list.Where(row => row.page == OptionPage.Graphics).ToList();
-            int Rank(OptionDef row) => row.id == "graphicsPreset" ? -1
+            int Top(OptionDef row) => row.id != null ? Array.IndexOf(GraphicsTop, row.id) : -1;
+            int Rank(OptionDef row) => Top(row) >= 0 ? Top(row) - GraphicsTop.Length
                 : row.id != null && GraphicsPlaces.TryGetValue(row.id, out var place) ? place.rank
                 : GraphicsPlaces["remasteredEffects"].rank;   // (unlisted: the end of Effects, in the order added)
             foreach (var row in rows)
             {
                 row.group = OptionGroup.None;
-                row.section = row.id == "graphicsPreset" ? OptionSection.None
+                row.section = Top(row) >= 0 ? OptionSection.None
                     : row.id != null && GraphicsPlaces.TryGetValue(row.id, out var place) ? place.section : OptionSection.GraphicsEffects;
             }
             list.RemoveAll(row => row.page == OptionPage.Graphics);

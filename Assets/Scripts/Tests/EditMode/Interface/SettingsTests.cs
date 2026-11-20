@@ -161,7 +161,7 @@ namespace GoF2Remake.Tests
         }
 
         /// <summary>The Graphics tab's categories (2026-11-20): every Graphics row has a place of its own choosing
-        /// (OptionsCatalog.HasGraphicsPlace), the preset row stays above them, and a category's rows are together in the
+        /// (OptionsCatalog.HasGraphicsPlace), the preset row and the benchmark's stay above them, and a category's rows are together in the
         /// list, the categories in their order (the keys walk the rows in list order). The DLSS preset, neural rendering
         /// and HDR options: off / default by default, stored within their ranges, reset with the tab.</summary>
         [Test]
@@ -171,9 +171,11 @@ namespace GoF2Remake.Tests
             var rows = GoF2Remake.UI.OptionsCatalog.All().Where(o => o.page == GoF2Remake.UI.OptionPage.Graphics).ToList();
             Assert.AreEqual("graphicsPreset", rows[0].id, "the preset above the categories");
             Assert.AreEqual(GoF2Remake.UI.OptionSection.None, rows[0].section);
+            Assert.AreEqual("benchmark", rows[1].id, "the benchmark under the preset, above the categories");
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.None, rows[1].section);
             foreach (var row in rows) Assert.IsTrue(GoF2Remake.UI.OptionsCatalog.HasGraphicsPlace(row.id), row.id + " has no category of its own");
             var seen = new System.Collections.Generic.List<GoF2Remake.UI.OptionSection>();
-            foreach (var row in rows.Skip(1))
+            foreach (var row in rows.Skip(2))
             {
                 Assert.AreNotEqual(GoF2Remake.UI.OptionSection.None, row.section, row.id);
                 if (seen.Count == 0 || seen[seen.Count - 1] != row.section)
