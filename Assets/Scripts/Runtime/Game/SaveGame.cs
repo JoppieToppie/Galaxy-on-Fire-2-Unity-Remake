@@ -119,7 +119,7 @@ namespace GoF2Remake.Data
         public List<Modding.SaveScriptData> scriptData;
         // (remake, no version of its own: older saves have none) the repeatable quests finished, "name|playing seconds"
         public List<string> graphQuestRepeats;
-        // (remake, no version of its own: older saves have none) the Kaamo Club VIP Card bought (KaamoClub.VipFeatures)
+        // (remake, no version of its own: older saves have none) the Kaamo Club VIP Card bought (KaamoClub.VipDiscount)
         public bool kaamoVip;
         // version 14: a mod's campaign (Session.ModCampaign, Modding.ModCampaigns)
         public string modCampaign;

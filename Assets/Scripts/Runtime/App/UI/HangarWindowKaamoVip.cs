@@ -1,9 +1,9 @@
 // HangarWindowKaamoVip.cs
-// HangarWindow: the Kaamo Club VIP Card's tools (part of the partial HangarWindow; its fields are in HangarWindow.cs).
+// HangarWindow: free Kaamo storage tools and paid VIP membership (part of the partial HangarWindow; its fields are in HangarWindow.cs).
 // Remake (players' suggestion, Discord "Kaamo Club features"; KaamoClub.VipFeatures, see docs/notes/kaamo-club.md):
 //   - the card itself is the Store tab's first row while it is for sale (KaamoClub.VipForSale): its perks in the details,
 //     BUY asks and pays KaamoClub.VipPrice;
-//   - with the card, in the club's storage: a search box and a sort button on the header bar (F / R, the controller's
+//   - with the cosmetic option, in the club's storage: a search box and a sort button on the header bar (F / R, the controller's
 //     right / left stick press: the search opens the controller's keyboard), and the stored hulls in a Ships tab of their
 //     own (key 4) between the Store and Blueprints tabs;
 //   - everywhere else: a dealer's ship of a type already parked at the club carries an AT KAAMO badge with the map's house.
@@ -33,7 +33,7 @@ namespace GoF2Remake.UI
         enum Sort { Default, Name, Price, Race }
         const int SortModes = 4;
 
-        /// <summary>The VIP Card's tools are shown: the window open on the owned club's storage with the card's perks on.</summary>
+        /// <summary>Free UI tools are shown in the owned club when the cosmetic option is enabled.</summary>
         public bool VipTools => IsOpen && hangar != null && hangar.Storage && KaamoClub.VipFeatures;
 
         /// <summary>The search box and the sort button are shown: the VIP tools on the Store or Ships tab.</summary>
@@ -164,8 +164,7 @@ namespace GoF2Remake.UI
             }
         }
 
-        /// <summary>Rebuild: the Ships tab and the tools shown with the card's perks (a card bought just now shows them at
-        /// once); without them the Ships tab falls back to the Store.</summary>
+        /// <summary>Rebuild: the Ships tab and tools follow the free cosmetic option; without them Ships falls back to Store.</summary>
         void UpdateVipTools()
         {
             if (vipTools == null) return;
@@ -291,7 +290,7 @@ namespace GoF2Remake.UI
             }
         }
 
-        /// <summary>The Ships tab: the stored hulls (the Store tab lists only the goods while the card's perks are on).</summary>
+        /// <summary>The Ships tab: the stored hulls (the Store tab lists only the goods while the free UI tools are on).</summary>
         void AddStoredShipsTab()
         {
             AddHeader(Localization.Get(173).UiCaps());
@@ -312,10 +311,8 @@ namespace GoF2Remake.UI
         static Texture2D HomeIcon => homeIcon != null ? homeIcon : homeIcon = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/map_home");
 
         static string VipPerks() => Localization.Extra("kaamoVipText",
-            "Become a VIP member of the hottest club in the universe. Your card upgrades the Kaamo Club's storage:\n\n"
-            + "• a search box and sorting by name, value and race or type\n"
-            + "• your stored ships in a Ships tab of their own\n"
-            + "• a Kaamo marker on every ship for sale anywhere that you already keep here");
+            "VIP membership gives 20% off ship upgrades by Kaamo mechanics. Ships and equipment are excluded. "
+            + "Search, sorting, the Ships tab and stored-ship markers are free for club owners through Kaamo special UI features.");
 
         /// <summary>The card's row: the club's icon, its name (80), the perks in a line, the price at the right edge.</summary>
         void FillVipRow(VisualElement e, Label name, Label subText, Label price, out Texture2D tex)
@@ -323,7 +320,7 @@ namespace GoF2Remake.UI
             tex = VipIcon;
             e.AddToClassList("list-row--vip");
             name.text = Localization.Get(80);
-            subText.text = Localization.Extra("kaamoVipRow", "Search, sorting and a Ships tab for your club");
+            subText.text = Localization.Extra("kaamoVipRow", "20% off ship upgrades at Kaamo");
             price.text = ItemInfo.Credits(KaamoClub.VipPrice);
             price.EnableInClassList("row-price--expensive", KaamoClub.VipPrice > Session.Credits);
         }
@@ -355,7 +352,7 @@ namespace GoF2Remake.UI
                 selected = null;
                 Rebuild();
                 menu.ShowDialog(Localization.Extra("kaamoVipBought",
-                    "Welcome to the club, VIP! Your storage now has a search box, sorting and a Ships tab, and ships you already keep here are marked wherever they are sold."), null, true);
+                    "Welcome to the club, VIP! You now receive 20% off ship upgrades by Kaamo mechanics. Ships and equipment are excluded."), null, true);
             });
         }
 
@@ -376,7 +373,7 @@ namespace GoF2Remake.UI
             return b;
         }
 
-        /// <summary>The marker's rule: the card's perks on, a ship of a type the club keeps, not in the club's own storage.</summary>
+        /// <summary>The marker's rule: free UI tools on, a ship of a type the club keeps, not in the club's own storage.</summary>
         bool MarkAtKaamo(int ship) => KaamoClub.VipFeatures && hangar != null && !hangar.Storage && KaamoClub.HasShip(ship);
     }
 }

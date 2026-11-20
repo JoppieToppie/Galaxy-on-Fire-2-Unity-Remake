@@ -169,7 +169,7 @@ namespace GoF2Remake.Data
         /// <summary>Status+0x114 (Reference/research/kaamo_club.md 2): the Kaamo Club, 0 not owned, 1 Mkkt Bkkt's call
         /// heard, 2 purchasable, 3 owned.</summary>
         public static int KaamoState;
-        /// <summary>Remake: the Kaamo Club VIP Card was bought (KaamoClub.VipFeatures; saved, carried into New Game+).</summary>
+        /// <summary>Remake: the Kaamo Club VIP Card was bought (KaamoClub.VipDiscount; saved, carried into New Game+).</summary>
         public static bool KaamoVip;
         /// <summary>Status+0xf4: the selected secondary weapon item (-1 = none), kept while it stays mounted.</summary>
         public static int SelectedSecondary = -1;

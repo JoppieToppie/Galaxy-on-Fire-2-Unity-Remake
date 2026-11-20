@@ -102,17 +102,19 @@ namespace GoF2Remake.Data
 
         // ---- the VIP Card (remake) -----------------------------------------------------------------------------
 
-        /// <summary>Remake (players' suggestion, Discord "Kaamo Club features"): the original's second in-app purchase, the
-        /// "Kaamo Club VIP Card" (texts 80 / 90 / 95, options[0x38]: the Kaamo dealers at half price), comes back as a card
-        /// bought with credits in the club's Store tab. It gives the club the shop tools the players asked for: a search box
-        /// and sorting in the Store, the stored hulls in a Ships tab of their own, and a Kaamo marker on every dealer's ship
-        /// of a type already parked at the club. The remake's Kaamo prices were already the card's, so it changes no price.
-        /// Options > Gameplay "Kaamo Club VIP Card" (Settings.KaamoVipMode): bought at the club (default), always on, or off.</summary>
+        /// <summary>The paid membership discounts ship upgrades; storage UI tools are a free cosmetic option.</summary>
         public const int VipPrice = 1000000;
+        public const int VipUpgradeDiscountPercent = 20;
 
-        /// <summary>The VIP Card's tools are on: the option's "Always", or its default with the card bought.</summary>
-        public static bool VipFeatures => Settings.KaamoVipMode == Settings.KaamoVipAlways
-                                          || (Settings.KaamoVipMode == Settings.KaamoVipCard && Session.KaamoVip);
+        public static bool VipFeatures => Settings.KaamoSpecialUiFeatures && Owned;
+
+        /// <summary>Membership benefits retain the existing Off / Buy / Always setting and purchased save flag.</summary>
+        public static bool VipDiscount => Owned && (Settings.KaamoVipMode == Settings.KaamoVipAlways
+            || (Settings.KaamoVipMode == Settings.KaamoVipCard && Session.KaamoVip));
+
+        /// <summary>Only a mechanic's ship upgrade at Kaamo qualifies. Round the payable amount up to a credit.</summary>
+        public static long UpgradePrice(long price, int station) => station == Station && VipDiscount && price > 0
+            ? price / 5 * 4 + (price % 5 * 4 + 4) / 5 : price;
 
         /// <summary>The Store tab offers the card: the club owned, the option at "bought at the club", not bought yet.</summary>
         public static bool VipForSale => Owned && Settings.KaamoVipMode == Settings.KaamoVipCard && !Session.KaamoVip;

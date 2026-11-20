@@ -265,5 +265,110 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(52 + 2 * 30, Shop.MaxLoad(Db));
             Assert.AreEqual(9 + 4, new Hangar(Db, Stock(70)).SlotCount(3));
         }
+
+        [TestCase(0, 0)] [TestCase(1, 0)] [TestCase(2, 0)] [TestCase(3, 0)]
+        [TestCase(0, 1)] [TestCase(1, 1)] [TestCase(2, 1)] [TestCase(3, 1)]
+        public void VipDiscountIsQuotedAndChargedForEachUpgrade(int mod, int level)
+        {
+            using (new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v))
+            using (new SettingsScope<bool>(() => Settings.KaamoStacking, v => Settings.KaamoStacking = v))
+            using (new DataUiTestKit.TextLanguage())
+            {
+                Settings.KaamoVipMode = Settings.KaamoVipCard;
+                Settings.KaamoStacking = true;
+                Session.KaamoState = 3;
+                Session.KaamoVip = true;
+                Session.ShipIndex = 9;
+                for (int i = 0; i < level; i++) Session.AddShipMod(mod);
+                int regular = (int)((double)Db.Ship(9).price * new[] { 20, 30, 40, 20 }[mod] / 100 * (1 << level));
+                int expected = (int)(((long)regular * 80 + 99) / 100);
+                Session.Credits = expected;
+                var chat = new LoungeChat(Db, new Agent { offer = AgentOffer.SellMod, sellMod = mod }, KaamoClub.Station, null);
+                chat.Start();
+                StringAssert.Contains("VIP discount: 20%", chat.Text);
+                Assert.AreEqual(LoungeChat.Outcome.Confirm, chat.Choose(LoungeChat.Choice.Okay));
+                StringAssert.Contains("Regular price:", chat.ConfirmText);
+                chat.Confirm();
+                Assert.AreEqual(0, Session.Credits, "the quoted discounted amount is the amount charged");
+                Assert.AreEqual(level + 1, Session.ModLevel(mod));
+            }
+        }
+
+        [TestCase(false, 0, 108, 1001)]
+        [TestCase(true, 2, 108, 1001)]
+        [TestCase(true, 0, 107, 1001)]
+        [TestCase(true, 0, 108, 801)]
+        [TestCase(false, 1, 108, 801)]
+        public void UpgradeDiscountRequiresMembershipModeAndKaamo(bool bought, int mode, int station, int expected)
+        {
+            using (new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v))
+            {
+                Settings.KaamoVipMode = mode;
+                Session.KaamoState = 3;
+                Session.KaamoVip = bought;
+                Assert.AreEqual(expected, KaamoClub.UpgradePrice(1001, station));
+                Session.KaamoState = 0;
+                Assert.AreEqual(1001, KaamoClub.UpgradePrice(1001, station), "ownership is required");
+            }
+        }
+
+        [TestCase(0, 0)] [TestCase(1, 1)] [TestCase(5, 4)] [TestCase(2147483647, 1717986918)]
+        public void VipUpgradeRoundingDoesNotOverflow(int regular, int expected)
+        {
+            using (new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v))
+            {
+                Settings.KaamoVipMode = Settings.KaamoVipAlways;
+                Session.KaamoState = 3;
+                Assert.AreEqual(expected, KaamoClub.UpgradePrice(regular, KaamoClub.Station));
+            }
+        }
+
+        [TestCase(AgentOffer.KaamoSpecial)] [TestCase(AgentOffer.ShipDealer)]
+        public void VipDoesNotDiscountKaamoEquipmentOrShipSellers(int offer)
+        {
+            using (new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v))
+            {
+                Settings.KaamoVipMode = Settings.KaamoVipAlways;
+                Session.KaamoState = 3;
+                Session.Credits = 2000000;
+                var chat = new LoungeChat(Db, new Agent { offer = offer, sellShip = 55, sellItem = 0, sellQuantity = 1, sellPrice = 123456 }, KaamoClub.Station, null);
+                chat.Start();
+                Assert.AreEqual(LoungeChat.Outcome.Confirm, chat.Choose(LoungeChat.Choice.Okay));
+                chat.Confirm();
+                Assert.AreEqual(2000000 - 123456, Session.Credits);
+            }
+        }
+
+        [Test]
+        public void BuyingVipGrantsDiscountWithoutControllingFreeUi()
+        {
+            using (new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v))
+            using (new SettingsScope<bool>(() => Settings.KaamoSpecialUiFeatures, v => Settings.KaamoSpecialUiFeatures = v))
+            {
+                Settings.KaamoVipMode = Settings.KaamoVipCard;
+                Settings.KaamoSpecialUiFeatures = true;
+                Session.KaamoState = 3;
+                Session.Credits = KaamoClub.VipPrice;
+                Assert.IsTrue(KaamoClub.VipFeatures);
+                Assert.IsFalse(KaamoClub.VipDiscount);
+                Assert.IsTrue(KaamoClub.BuyVip());
+                Assert.IsFalse(KaamoClub.BuyVip(), "cannot charge twice");
+                Assert.AreEqual(0, Session.Credits);
+                Assert.IsTrue(KaamoClub.VipDiscount);
+                Settings.KaamoSpecialUiFeatures = false;
+                Assert.IsFalse(KaamoClub.VipFeatures);
+                Assert.IsTrue(KaamoClub.VipDiscount);
+            }
+        }
+
+        [Test]
+        public void VipDiscountPreservesLargeCreditAmounts()
+        {
+            using var mode = new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v);
+            Settings.KaamoVipMode = Settings.KaamoVipAlways;
+            Session.KaamoState = 3;
+            Assert.AreEqual(7378697629483820646L, KaamoClub.UpgradePrice(long.MaxValue, KaamoClub.Station));
+            Assert.AreEqual(long.MaxValue, KaamoClub.UpgradePrice(long.MaxValue, 78));
+        }
     }
 }
