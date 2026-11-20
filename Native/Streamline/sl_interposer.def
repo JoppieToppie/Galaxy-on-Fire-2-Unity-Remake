@@ -1,0 +1,20 @@
+LIBRARY sl.interposer.dll
+EXPORTS
+slInit
+slShutdown
+slIsFeatureSupported
+slIsFeatureLoaded
+slSetFeatureLoaded
+slEvaluateFeature
+slAllocateResources
+slFreeResources
+slSetTag
+slSetTagForFrame
+slGetFeatureRequirements
+slGetFeatureVersion
+slUpgradeInterface
+slSetConstants
+slGetNativeInterface
+slGetFeatureFunction
+slGetNewFrameToken
+slSetD3DDevice

@@ -377,6 +377,7 @@ namespace GoF2Remake.UI
             if (IsOpen) return;
             level = spaceLevel;
             IsOpen = true;
+            FrameGeneration.SetMenu("pause", true);   // no generated frames behind a menu
             openedFrame = Time.frameCount;
             previousTimeScale = Time.timeScale;
             if (!GoF2Remake.Multiplayer.NetGame.Active) Time.timeScale = 0f;   // multiplayer: the world keeps running
@@ -420,6 +421,7 @@ namespace GoF2Remake.UI
             if (Photo != null && Photo.Active) Photo.Exit();
             LeaveReport();
             IsOpen = false;
+            FrameGeneration.SetMenu("pause", false);
             inspectOnly = false;
             sorting = null;
             choiceEntries = null;

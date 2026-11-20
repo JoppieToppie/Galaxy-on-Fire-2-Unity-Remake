@@ -16,7 +16,12 @@ using UnityEngine.UIElements;
 namespace GoF2Remake.UI
 {
     public enum OptionPage { Sound, Graphics, Controls, Gameplay, Language, Bindings, Accessibility, Cosmetics }
-    public enum OptionSection { None, SpecialFeatures, Interface, Convenience, GameRules, Hud, Tools, Storage, Mods }
+    public enum OptionSection
+    {
+        None, SpecialFeatures, Interface, Convenience, GameRules, Hud, Tools, Storage, Mods,
+        // The Graphics tab's categories (OptionsCatalog.OrganizeGraphics), in the order shown
+        GraphicsDisplay, GraphicsUpscaling, GraphicsQuality, GraphicsEffects, GraphicsWorld, GraphicsCamera, GraphicsInterface,
+    }
     public enum OptionGroup { None, Debug, World, Progression, Combat, Flight, Custom, Mods, Missions }
 
     /// <summary>UI-only consent for this app session; accepting enables no cheat and changes no setting.</summary>
@@ -45,6 +50,7 @@ namespace GoF2Remake.UI
         readonly Dictionary<OptionGroup, VisualElement> groups = new Dictionary<OptionGroup, VisualElement>();
         readonly Dictionary<OptionGroup, Label> groupHeadings = new Dictionary<OptionGroup, Label>();
         readonly Dictionary<OptionGroup, List<OptionDef>> groupOptions = new Dictionary<OptionGroup, List<OptionDef>>();
+        readonly List<OptionDef> rows = new List<OptionDef>();   // every row of the section: its heading hides with them
         public readonly VisualElement Body;
         public readonly VisualElement Preset;
         public readonly Button Gate;
@@ -92,7 +98,8 @@ namespace GoF2Remake.UI
                 Preset.Add(row);
                 return;
             }
-            if (def.group == OptionGroup.None) { Body.Add(row); return; }
+            rows.Add(def);
+            if (def.group == OptionGroup.None) { Body.Add(row); RefreshGroups(); return; }
             if (!groups.TryGetValue(def.group, out var body))
             {
                 var label = new Label(OptionsCatalog.GroupTitle(def.group).UiCaps()) { pickingMode = PickingMode.Ignore };
@@ -119,6 +126,10 @@ namespace GoF2Remake.UI
                 groups[pair.Key].style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
                 groupHeadings[pair.Key].style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
             }
+            // A section none of whose rows shows here (frame generation without an NVIDIA card) has no heading either. The
+            // Game Rules section keeps its own (its gate).
+            if (section != OptionSection.GameRules && rows.Count > 0)
+                heading.style.display = rows.Any(option => option.visible == null || option.visible()) ? DisplayStyle.Flex : DisplayStyle.None;
         }
         public void Open()
         {
@@ -166,6 +177,8 @@ namespace GoF2Remake.UI
         public bool menuOnly;              // only in the main menu (no game loaded), not the pause / station menus
         public Func<bool> visible;         // optional: the row shows only while true (OptionControl.Refresh)
         public Func<bool> enabled;         // optional: the row is greyed out and skipped by the keys / controller while false
+        /// <summary>The row's changes wait for the options screen's Apply (the Graphics tab's rows: OptionsCatalog.Stage).</summary>
+        public bool staged;
 
         // Slider
         public float min, max;
@@ -252,6 +265,13 @@ namespace GoF2Remake.UI
             OptionSection.Storage => X("sectionStorage", "Saves and storage"),
             OptionSection.Convenience => X("sectionConvenience", "QoL"),
             OptionSection.GameRules => GameRulesAccess.Title,
+            OptionSection.GraphicsDisplay => X("sectionGraphicsDisplay", "Display"),
+            OptionSection.GraphicsUpscaling => X("sectionGraphicsUpscaling", "Upscaling and frame generation"),
+            OptionSection.GraphicsQuality => X("sectionGraphicsQuality", "Image quality"),
+            OptionSection.GraphicsEffects => X("sectionGraphicsEffects", "Effects"),
+            OptionSection.GraphicsWorld => X("sectionGraphicsWorld", "Skies and planets"),
+            OptionSection.GraphicsCamera => X("sectionGraphicsCamera", "Camera"),
+            OptionSection.GraphicsInterface => X("sectionInterface", "UI"),
             _ => "",
         };
 
@@ -360,10 +380,61 @@ namespace GoF2Remake.UI
             AddControls(list);
             AddGameplay(list);
             SplitGameplay(list);
+            OrganizeGraphics(list);
 
             foreach (var d in list)
                 if (d.description == null && Help.TryGetValue(d.id, out var help)) d.description = () => X(help.key, help.english);
+            foreach (var d in list)
+                if (d.page == OptionPage.Graphics && d.kind != OptionKind.Button && d.kind != OptionKind.Binding) Stage(d);
             return list;
+        }
+
+        // ---- the Graphics tab's Apply ---------------------------------------------------------------------------------
+        // Remake (2026-11-20, the user's request): the Graphics tab's rows wait for Apply while an options screen is open
+        // (Settings.BeginStaging; the screens' Apply button and their question on leaving). Every delegate of such a row
+        // runs inside Settings.ViewStaged, so the row writes to and reads from the staged values, and the rows that
+        // depend on it (shown, greyed out, their help) follow what was picked. Without an open screen (the tests, the
+        // photo panel) the view does nothing and they apply at once as before.
+
+        static void Stage(OptionDef d)
+        {
+            d.staged = true;
+            d.get = Staged(d.get);
+            d.set = Staged(d.set);
+            d.getBool = Staged(d.getBool);
+            d.setBool = Staged(d.setBool);
+            d.getIndex = Staged(d.getIndex);
+            d.setIndex = Staged(d.setIndex);
+            d.choices = Staged(d.choices);
+            d.description = Staged(d.description);
+            d.visible = Staged(d.visible);
+            d.enabled = Staged(d.enabled);
+            d.defaultValue = Staged(d.defaultValue);
+        }
+
+        static Func<T> Staged<T>(Func<T> read) => read == null ? null : () => { using (Settings.ViewStaged()) return read(); };
+        static Action<T> Staged<T>(Action<T> write) => write == null ? null : v => { using (Settings.ViewStaged()) write(v); };
+
+        public static string ApplyLabel => X("optionsApply", "Apply");
+        public static string DiscardLabel => X("optionsDiscard", "Discard");
+        public static string ApplyQuestion => X("optionsApplyQuestion", "Apply the changed graphics settings?");
+
+        /// <summary>The Apply button: the staged changes take effect. A display mode or resolution among them asks to be
+        /// kept afterwards, like a change made directly (SettingsConfirm), with the applied value to go back to.</summary>
+        public static void ApplyStaged(IEnumerable<OptionControl> rows)
+        {
+            if (!Settings.HasStaged) return;
+            var confirm = new List<(OptionControl row, int before)>();
+            if (rows != null) foreach (var row in rows)
+            {
+                var d = row.def;
+                if (!d.staged || !d.confirm || d.getIndex == null) continue;
+                int before;
+                using (Settings.ViewApplied()) before = d.getIndex();
+                if (before != d.getIndex()) confirm.Add((row, before));
+            }
+            Settings.ApplyStaged();
+            foreach (var (row, before) in confirm) SettingsConfirm.Changed(row, before);
         }
 
         static string MusicTrackHelp(string track) => (track switch

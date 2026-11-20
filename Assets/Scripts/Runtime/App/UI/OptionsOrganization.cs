@@ -76,6 +76,55 @@ namespace GoF2Remake.UI
             }
         }
 
+        // ---- the Graphics tab's categories (remake, 2026-11-20, the user's request: "in categories just like gameplay has")
+        // Sections with a heading, like the Cosmetics and Gameplay tabs': the preset row above them all, then each
+        // category's rows in the order listed here. A row not listed (a new option) lands under Effects.
+        static readonly (OptionSection section, string[] ids)[] GraphicsLayout =
+        {
+            (OptionSection.GraphicsDisplay, new[] { "displayMode", "resolution", "frameRate", "brightness", "hdr", "hdrPaperWhite", "hdrDetectLimits",
+                                                    "hdrPeak", "hdrBlack", "hdrTonemapping", "hdrAcesPreset", "hdrRangeReduction", "hdrHueShift", "hdrCalibrate" }),
+            (OptionSection.GraphicsUpscaling, new[] { "renderScale", "upscaler", "upscalerQuality", "dlssPreset", "fsr4Lite", "frameGeneration", "frameGenerationProvider", "frameGenerationTarget", "reflex", "antiLag",
+                                                      "neuralRendering", "neuralRenderingIntensity", "neuralRenderingTone", "neuralRenderingStructure",
+                                                      "neuralRenderingSkin", "neuralRenderingQuality" }),
+            (OptionSection.GraphicsQuality, new[] { "msaa", "postAa", "textureQuality", "textureFiltering", "detailDistance", "lods" }),
+            (OptionSection.GraphicsEffects, new[] { "bloom", "bloomStrength", "lensFlare", "fireSmoke", "fog", "hangarShadows", "hangarDof", "hangarRobots",
+                                                    "barRobots", "npcPlayerEngines", "nisSharpness", "dynamicVibrance", "dynamicVibranceIntensity",
+                                                    "dynamicVibranceSaturation", "remasteredEffects" }),
+            (OptionSection.GraphicsWorld, new[] { "skyStyle", "nebulaClouds", "liveSkies", "rebuiltPlanets", "addPack", "hdResourcesWindow", "hdResources" }),
+            (OptionSection.GraphicsCamera, new[] { "fov", "cameraShake", "chaseCamera", "es2FreeFlightCamera" }),
+            (OptionSection.GraphicsInterface, new[] { "uiWidth", "uiMargin", "screenCutout", "showFps", "fpsPosition", "gameCursor" }),
+        };
+
+        static readonly Dictionary<string, (OptionSection section, int rank)> GraphicsPlaces = BuildGraphicsPlaces();
+
+        static Dictionary<string, (OptionSection section, int rank)> BuildGraphicsPlaces()
+        {
+            var result = new Dictionary<string, (OptionSection section, int rank)>();
+            int rank = 0;
+            foreach (var (section, ids) in GraphicsLayout)
+                foreach (var id in ids) result.Add(id, (section, rank++));
+            return result;
+        }
+
+        /// <summary>The Graphics row has a category of its own choosing (the catalog's test: a new row is placed on purpose).</summary>
+        public static bool HasGraphicsPlace(string id) => id == "graphicsPreset" || id != null && GraphicsPlaces.ContainsKey(id);
+
+        static void OrganizeGraphics(List<OptionDef> list)
+        {
+            var rows = list.Where(row => row.page == OptionPage.Graphics).ToList();
+            int Rank(OptionDef row) => row.id == "graphicsPreset" ? -1
+                : row.id != null && GraphicsPlaces.TryGetValue(row.id, out var place) ? place.rank
+                : GraphicsPlaces["remasteredEffects"].rank;   // (unlisted: the end of Effects, in the order added)
+            foreach (var row in rows)
+            {
+                row.group = OptionGroup.None;
+                row.section = row.id == "graphicsPreset" ? OptionSection.None
+                    : row.id != null && GraphicsPlaces.TryGetValue(row.id, out var place) ? place.section : OptionSection.GraphicsEffects;
+            }
+            list.RemoveAll(row => row.page == OptionPage.Graphics);
+            list.AddRange(rows.OrderBy(Rank));   // (a stable sort)
+        }
+
         static void OrganizeGameplay(List<OptionDef> list)
         {
             foreach (var row in list.Where(row => row.page == OptionPage.Gameplay)) OrganizeGameplayOption(row);

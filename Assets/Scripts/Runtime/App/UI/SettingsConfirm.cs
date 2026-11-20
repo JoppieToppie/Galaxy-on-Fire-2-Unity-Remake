@@ -189,6 +189,7 @@ namespace GoF2Remake.UI
                     row.def.setIndex(before);
                     if (row.Root.panel != null) row.Refresh();
                 }
+                Settings.ApplyStaged();   // (a Graphics row stages while its options screen is open: the old values at once)
             }
             pending.Clear();
         }

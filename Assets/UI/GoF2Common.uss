@@ -1491,6 +1491,16 @@
     color: var(--gof-text-dim);
 }
 
+/* Apply (the Graphics tab's staged changes): lit while something waits, greyed out otherwise (.unity-disabled). */
+.options-apply {
+    align-self: auto;
+    color: var(--gof-amber);
+}
+
+.options-apply:disabled {
+    opacity: 0.4;
+}
+
 /* Default settings' prompt in the footer's place: the question, then Cancel, only this tab, every tab. */
 .options-reset-prompt {
     flex-grow: 1;

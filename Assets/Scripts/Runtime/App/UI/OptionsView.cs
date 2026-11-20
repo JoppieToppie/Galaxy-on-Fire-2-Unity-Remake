@@ -136,12 +136,21 @@ namespace GoF2Remake.UI
             var footer = new VisualElement();
             footer.AddToClassList("options-footer");
             Root.Add(footer);
-            BackButton = new Button(() => back?.Invoke()) { text = "‹  " + T(170), focusable = focusableRows };
+            BackButton = new Button(RequestBack) { text = "‹  " + T(170), focusable = focusableRows };
             BackButton.AddToClassList("menu-button");
             BackButton.AddToClassList("back-button");
             BackButton.AddToClassList("gof-semibold");
             InputGlyph.PadPrompt(BackButton, PadButton.B);   // B for a controller (docs/UI-DESIGN.md "Button prompts")
             footer.Add(BackButton);
+            // Remake (2026-11-20, the user's request): the Graphics tab's changes wait for Apply (Settings' staged options);
+            // the page stays open. Shown on that tab, lit while something waits.
+            ApplyButton = new Button(ApplyStaged) { text = OptionsCatalog.ApplyLabel.UiCaps(), focusable = focusableRows };
+            ApplyButton.AddToClassList("menu-button");
+            ApplyButton.AddToClassList("back-button");
+            ApplyButton.AddToClassList("options-defaults");   // (a plain button like Default settings, not Back's pointed one)
+            ApplyButton.AddToClassList("options-apply");
+            ApplyButton.AddToClassList("gof-semibold");
+            footer.Add(ApplyButton);
             DefaultsButton = new Button(OpenResetPrompt) { text = T(497), focusable = focusableRows };
             DefaultsButton.AddToClassList("menu-button");
             DefaultsButton.AddToClassList("back-button");
@@ -156,12 +165,25 @@ namespace GoF2Remake.UI
             question = new Label(OptionsCatalog.ResetQuestion) { pickingMode = PickingMode.Ignore };
             question.AddToClassList("options-reset-question");
             prompt.Add(question);
-            CancelButton = PromptButton(Localization.Get(425).UiCaps(), () => CloseResetPrompt());   // Cancel
+            CancelButton = PromptButton(Localization.Get(425).UiCaps(), () => ClosePrompts());   // Cancel
             ResetTabButton = PromptButton("", () => Reset(false));
             ResetAllButton = PromptButton(OptionsCatalog.ResetAllLabel.UiCaps(), () => Reset(true));
             ResetAllButton.AddToClassList("options-reset-all");
             prompt.style.display = DisplayStyle.None;
             footer.Add(prompt);
+            // Leaving with changes not applied asks, in the footer's place like the defaults prompt: Cancel (Esc / B),
+            // Discard, Apply.
+            leavePrompt = new VisualElement();
+            leavePrompt.AddToClassList("options-reset-prompt");
+            leaveQuestion = new Label(OptionsCatalog.ApplyQuestion) { pickingMode = PickingMode.Ignore };
+            leaveQuestion.AddToClassList("options-reset-question");
+            leavePrompt.Add(leaveQuestion);
+            LeaveCancelButton = PromptButton(Localization.Get(425).UiCaps(), () => ClosePrompts(), leavePrompt);
+            LeaveDiscardButton = PromptButton(OptionsCatalog.DiscardLabel.UiCaps(), () => Leave(false), leavePrompt);
+            LeaveApplyButton = PromptButton(OptionsCatalog.ApplyLabel.UiCaps(), () => Leave(true), leavePrompt);
+            LeaveApplyButton.AddToClassList("options-apply");
+            leavePrompt.style.display = DisplayStyle.None;
+            footer.Add(leavePrompt);
             // Rework: the page's keys (select, change a value, switch tab, confirm, back) as a prompt row under the footer
             // (docs/UI-DESIGN.md "Button prompts"; it was an "i" at the tab row's end).
             prompts = MenuKeys.Bar(MenuKeys.Rows.Select | MenuKeys.Rows.Change | MenuKeys.Rows.Tabs | MenuKeys.Rows.Confirm | MenuKeys.Rows.Back);
@@ -177,12 +199,12 @@ namespace GoF2Remake.UI
             rulesOpen = new Button(() =>
             {
                 var accepted = pendingRulesAction;
-                CloseResetPrompt();
+                ClosePrompts();
                 accepted?.Invoke();
                 RefreshAll();
                 TabChanged?.Invoke();
             }) { text = GameRulesAccess.Enable.UiCaps(), focusable = focusableRows };
-            rulesCancel = new Button(() => CloseResetPrompt()) { text = Localization.Get(425).UiCaps(), focusable = focusableRows };
+            rulesCancel = new Button(() => ClosePrompts()) { text = Localization.Get(425).UiCaps(), focusable = focusableRows };
             foreach (var button in new[] { rulesOpen, rulesCancel })
             {
                 button.AddToClassList("menu-button");
@@ -198,6 +220,72 @@ namespace GoF2Remake.UI
             // then. Only while it is on a panel, so the views the menus drop on leaving the page don't stay subscribed.
             Root.RegisterCallback<AttachToPanelEvent>(_ => Localization.Changed += RefreshTexts);
             Root.RegisterCallback<DetachFromPanelEvent>(_ => Localization.Changed -= RefreshTexts);
+            // The Graphics rows stage their changes while this page is on a panel; what was not applied when it goes (the
+            // menu closed another way than Back) is dropped.
+            Root.RegisterCallback<AttachToPanelEvent>(_ => { Settings.BeginStaging(); Settings.StagedChanged += UpdateApply; UpdateApply(); });
+            Root.RegisterCallback<DetachFromPanelEvent>(_ => { Settings.StagedChanged -= UpdateApply; Settings.EndStaging(); });
+            UpdateApply();
+        }
+
+        // ---- Apply ----------------------------------------------------------------------------------------------------
+
+        readonly VisualElement leavePrompt;
+        readonly Label leaveQuestion;
+        public readonly Button ApplyButton, LeaveCancelButton, LeaveDiscardButton, LeaveApplyButton;
+
+        /// <summary>Apply is in the footer: on the Graphics tab, with a change waiting.</summary>
+        bool ApplyShown => tabs.Count > 0 && tabs[TabIndex].page == OptionPage.Graphics && !ResetPromptOpen && !LeavePromptOpen;
+        bool ApplyUsable => ApplyShown && Settings.HasStaged;
+
+        /// <summary>The question on leaving with changes not applied is showing (in the footer's place).</summary>
+        public bool LeavePromptOpen => leavePrompt.style.display == DisplayStyle.Flex;
+
+        void UpdateApply()
+        {
+            ApplyButton.style.display = ApplyShown ? DisplayStyle.Flex : DisplayStyle.None;
+            ApplyButton.SetEnabled(Settings.HasStaged);
+        }
+
+        /// <summary>The staged Graphics changes take effect; the page stays open.</summary>
+        void ApplyStaged()
+        {
+            if (!Settings.HasStaged) return;
+            OptionsCatalog.ApplyStaged(all);
+            RefreshAll();
+            UpdateApply();
+            Applied?.Invoke();
+            footerBack = true;   // Apply is greyed out again: the highlight to Back
+            FooterChanged?.Invoke();
+        }
+
+        /// <summary>Apply was pressed (the host's sound).</summary>
+        public event Action Applied;
+
+        /// <summary>Back: with changes not applied it asks first.</summary>
+        void RequestBack()
+        {
+            if (!OfferLeave()) back?.Invoke();
+        }
+
+        bool OfferLeave()
+        {
+            if (!Settings.HasStaged || LeavePromptOpen) return false;
+            leaveQuestion.text = OptionsCatalog.ApplyQuestion;
+            BackButton.style.display = DisplayStyle.None;
+            DefaultsButton.style.display = DisplayStyle.None;
+            leavePrompt.style.display = DisplayStyle.Flex;
+            UpdateApply();
+            FooterChanged?.Invoke();
+            return true;
+        }
+
+        void Leave(bool apply)
+        {
+            if (apply) OptionsCatalog.ApplyStaged(all);
+            else Settings.DiscardStaged();
+            RefreshAll();
+            ClosePrompts();
+            back?.Invoke();
         }
 
         /// <summary>Modified: every text of the page from the table loaded now: the title, the tabs, the footer and the
@@ -208,6 +296,11 @@ namespace GoF2Remake.UI
             foreach (var tab in tabs) tab.button.text = OptionsCatalog.PageTitle(tab.page).UiCaps();
             InputGlyph.SetText(BackButton, "‹  " + T(170));
             DefaultsButton.text = T(497);
+            ApplyButton.text = OptionsCatalog.ApplyLabel.UiCaps();
+            leaveQuestion.text = OptionsCatalog.ApplyQuestion;
+            LeaveCancelButton.text = Localization.Get(425).UiCaps();
+            LeaveDiscardButton.text = OptionsCatalog.DiscardLabel.UiCaps();
+            LeaveApplyButton.text = OptionsCatalog.ApplyLabel.UiCaps();
             question.text = OptionsCatalog.ResetQuestion;
             CancelButton.text = Localization.Get(425).UiCaps();
             ResetTabButton.text = OptionsCatalog.ResetTabLabel(tabs[TabIndex].page).UiCaps();
@@ -223,13 +316,13 @@ namespace GoF2Remake.UI
         readonly VisualElement prompts;
         public readonly Button CancelButton, ResetTabButton, ResetAllButton;
 
-        Button PromptButton(string text, Action action)
+        Button PromptButton(string text, Action action, VisualElement into = null)
         {
             var b = new Button(action) { text = text, focusable = focusableRows };
             b.AddToClassList("menu-button");
             b.AddToClassList("back-button");
             b.AddToClassList("gof-semibold");
-            prompt.Add(b);
+            (into ?? prompt).Add(b);
             return b;
         }
 
@@ -240,9 +333,12 @@ namespace GoF2Remake.UI
         /// tab, every tab.</summary>
         public IReadOnlyList<Button> FooterButtons => RulesPromptOpen ? new[] { rulesCancel, rulesOpen } : ResetPromptOpen
             ? new[] { CancelButton, ResetTabButton, ResetAllButton }
+            : LeavePromptOpen ? new[] { LeaveCancelButton, LeaveDiscardButton, LeaveApplyButton }
+            : ApplyUsable ? new[] { BackButton, ApplyButton, DefaultsButton }
             : new[] { BackButton, DefaultsButton };
 
-        public bool IsFooter(VisualElement e) => e is Button b && (b == BackButton || b == DefaultsButton || b == CancelButton || b == ResetTabButton || b == ResetAllButton || b == rulesCancel || b == rulesOpen);
+        public bool IsFooter(VisualElement e) => e is Button b && (b == BackButton || b == DefaultsButton || b == CancelButton || b == ResetTabButton || b == ResetAllButton || b == rulesCancel || b == rulesOpen
+            || b == ApplyButton || b == LeaveCancelButton || b == LeaveDiscardButton || b == LeaveApplyButton);
 
         /// <summary>The footer button beside 'e' (dir -1 left, +1 right; stays at the ends).</summary>
         public Button FooterStep(VisualElement e, int dir)
@@ -257,19 +353,23 @@ namespace GoF2Remake.UI
         public void Activate(VisualElement e)
         {
             foreach (var tab in tabs) foreach (var section in tab.sections) if (section.Gate == e) { section.Open(); return; }
-            if (e == rulesCancel) { CloseResetPrompt(); return; }
+            if (e == rulesCancel) { ClosePrompts(); return; }
             if (e == rulesOpen)
             {
                 var accepted = pendingRulesAction;
-                CloseResetPrompt();
+                ClosePrompts();
                 accepted?.Invoke();
                 RefreshAll();
                 TabChanged?.Invoke();
                 return;
             }
-            if (e == BackButton) back?.Invoke();
+            if (e == BackButton) RequestBack();
+            else if (e == ApplyButton) ApplyStaged();
+            else if (e == LeaveCancelButton) ClosePrompts();
+            else if (e == LeaveDiscardButton) Leave(false);
+            else if (e == LeaveApplyButton) Leave(true);
             else if (e == DefaultsButton) OpenResetPrompt();
-            else if (e == CancelButton) CloseResetPrompt();
+            else if (e == CancelButton) ClosePrompts();
             else if (e == ResetTabButton) Reset(false);
             else if (e == ResetAllButton) Reset(true);
         }
@@ -278,7 +378,9 @@ namespace GoF2Remake.UI
         public event Action FooterChanged;
         /// <summary>Where the highlight goes after the footer changed: "only this tab" when the prompt opens (the gentler
         /// choice), Default settings when it closes.</summary>
-        public Button FooterFocus => RulesPromptOpen ? rulesCancel : ResetPromptOpen ? ResetTabButton : DefaultsButton;
+        public Button FooterFocus => RulesPromptOpen ? rulesCancel : ResetPromptOpen ? ResetTabButton : LeavePromptOpen ? LeaveApplyButton
+            : footerBack ? BackButton : DefaultsButton;
+        bool footerBack;   // the leave prompt or Apply was the last thing in the footer: the highlight goes to Back, not Default settings
 
         void RequestRulesAccess(Action accepted)
         {
@@ -306,14 +408,20 @@ namespace GoF2Remake.UI
             if (RulesPromptOpen) return;
             if (tabs.Count == 0) return;
             ResetTabButton.text = OptionsCatalog.ResetTabLabel(tabs[TabIndex].page).UiCaps();
+            if (LeavePromptOpen) return;
             BackButton.style.display = DisplayStyle.None;
             DefaultsButton.style.display = DisplayStyle.None;
             prompt.style.display = DisplayStyle.Flex;
+            UpdateApply();
             FooterChanged?.Invoke();
         }
 
-        /// <summary>Closes the defaults prompt (Cancel, Esc / B). False when it wasn't open.</summary>
-        public bool CloseResetPrompt()
+        /// <summary>The host's Back (Esc / B): closes the prompt on show (Cancel); with none, and Graphics changes not
+        /// applied, asks about them first. False: nothing to do here, the host leaves the page.</summary>
+        public bool CloseResetPrompt() => ClosePrompts() || OfferLeave();
+
+        /// <summary>Closes the prompt on show (the rules question, the leave question, the defaults prompt). False: none was.</summary>
+        bool ClosePrompts()
         {
             if (RulesPromptOpen)
             {
@@ -322,10 +430,22 @@ namespace GoF2Remake.UI
                 FooterChanged?.Invoke();
                 return true;
             }
+            if (LeavePromptOpen)
+            {
+                leavePrompt.style.display = DisplayStyle.None;
+                BackButton.style.display = StyleKeyword.Null;
+                DefaultsButton.style.display = StyleKeyword.Null;
+                footerBack = true;
+                UpdateApply();
+                FooterChanged?.Invoke();
+                return true;
+            }
             if (!ResetPromptOpen) return false;
             prompt.style.display = DisplayStyle.None;
             BackButton.style.display = StyleKeyword.Null;
             DefaultsButton.style.display = StyleKeyword.Null;
+            footerBack = false;
+            UpdateApply();
             FooterChanged?.Invoke();
             return true;
         }
@@ -335,7 +455,7 @@ namespace GoF2Remake.UI
             if (everything) Settings.ResetToDefaults();
             else OptionsCatalog.ResetPage(tabs[TabIndex].page);
             RefreshAll();
-            CloseResetPrompt();
+            ClosePrompts();
             DefaultsRestored?.Invoke();
         }
 
@@ -393,6 +513,7 @@ namespace GoF2Remake.UI
                 tabs[i].scroll.EnableInClassList("tab-page--active", i == TabIndex);
             }
             tabs[TabIndex].scroll.scrollOffset = Vector2.zero;
+            UpdateApply();
             if (ResetPromptOpen) ResetTabButton.text = OptionsCatalog.ResetTabLabel(tabs[TabIndex].page).UiCaps();
             if (notify) TabChanged?.Invoke();
         }

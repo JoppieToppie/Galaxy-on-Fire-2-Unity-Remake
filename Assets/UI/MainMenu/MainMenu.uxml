@@ -163,6 +163,7 @@
                     </ui:ScrollView>
                     <ui:VisualElement class="options-footer">
                         <ui:Button name="optionsBack" class="menu-button back-button gof-semibold" />
+                        <ui:Button name="optionsApply" class="menu-button back-button options-defaults options-apply gof-semibold" />
                         <ui:Button name="optionsDefaults" class="menu-button back-button options-defaults gof-semibold" />
                     </ui:VisualElement>
                 </ui:VisualElement>

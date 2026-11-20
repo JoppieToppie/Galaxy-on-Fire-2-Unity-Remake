@@ -33,8 +33,10 @@ namespace GoF2Remake.UI
                     i => Settings.Resolution = i <= 0 ? Vector2Int.zero : sizes[i - 1])));
             }
             list.Add(Choice("frameRate", OptionPage.Graphics, () => X("frameRate", "Frame rate"), true,
-                () => new[] { "30", "60", "120", X("fpsUncapped", "UNCAPPED"), X("fpsVSync", "V-SYNC") },
-                () => (int)Settings.FrameRate, i => Settings.FrameRate = (FrameRate)i));
+                () => Bootstrap.FrameRateChoices().Select(r => r == FrameRate.Uncapped ? X("fpsUncapped", "UNCAPPED") : r == FrameRate.VSync ? X("fpsVSync", "V-SYNC")
+                                                                : Settings.FrameRateLimit(r).ToString()).ToArray(),
+                () => Math.Max(0, Bootstrap.FrameRateChoices().IndexOf(Settings.FrameRate)),
+                i => { var l = Bootstrap.FrameRateChoices(); Settings.FrameRate = l[Math.Clamp(i, 0, l.Count - 1)]; }));
             // The original's Quality (504) in its parts: fire and smoke, fog, detail distance (Settings.FireSmoke etc.).
             var fireSmoke = Toggle("fireSmoke", OptionPage.Graphics, () => X("fireSmoke", "Fire and smoke"), () => Settings.FireSmoke, v => Settings.FireSmoke = v);
             fireSmoke.description = () => X("fireSmokeHelp", "Damaged ships trail smoke and fire, and ships and wrecks burn as they are destroyed.");
@@ -48,7 +50,8 @@ namespace GoF2Remake.UI
                 () => X("detailDistanceHelp", "How far away ships, stations and asteroids keep their full detail before simpler models take over.")));
             // DLSS / FSR 2+ pick their own render resolution (the Upscaler quality below): no render scale while one is on.
             // MetalFX keeps the render scale (its input resolution; URP clamps it into MetalFX Temporal's supported range).
-            bool DlssOrFsrOn() => Bootstrap.ActiveUpscaler == Settings.UpscalerDlss || Bootstrap.ActiveUpscaler == Settings.UpscalerFsrTemporal;
+            bool DlssOrFsrOn() => Bootstrap.ActiveUpscaler == Settings.UpscalerDlss || Bootstrap.ActiveUpscaler == Settings.UpscalerFsrTemporal
+                || Bootstrap.ActiveUpscaler == Settings.UpscalerXess;
             var renderScale = Choice("renderScale", OptionPage.Graphics, () => X("renderScale", "Render scale"), false,
                 () => RenderScales.Select(Percent).ToArray(),
                 () => Nearest(RenderScales, Settings.RenderScale > 0f ? Settings.RenderScale : Bootstrap.DefaultRenderScale),
@@ -66,6 +69,7 @@ namespace GoF2Remake.UI
                 if (Bootstrap.StpSupported) l.Add(Settings.UpscalerStp);
                 if (Bootstrap.DlssSupported) l.Add(Settings.UpscalerDlss);
                 if (Bootstrap.FsrTemporalSupported) l.Add(Settings.UpscalerFsrTemporal);
+                if (Bootstrap.XessSupported) l.Add(Settings.UpscalerXess);
                 if (Bootstrap.MetalFxSpatialSupported) l.Add(Settings.UpscalerMetalFxSpatial);
                 if (Bootstrap.MetalFxTemporalSupported) l.Add(Settings.UpscalerMetalFxTemporal);
                 return l;
@@ -77,6 +81,7 @@ namespace GoF2Remake.UI
                 Settings.UpscalerStp => "STP",
                 Settings.UpscalerDlss => "DLSS",
                 Settings.UpscalerFsrTemporal => UpscalerFramework.BestFsrLabel ?? "FSR",
+                Settings.UpscalerXess => "XeSS",
                 Settings.UpscalerMetalFxSpatial => "MetalFX",
                 Settings.UpscalerMetalFxTemporal => "MetalFX Temporal",
                 _ => X("off", "Off"),
@@ -93,6 +98,7 @@ namespace GoF2Remake.UI
                         Settings.UpscalerDlss => X("upscalerDlss", "NVIDIA DLSS: AI upscaling and anti-aliasing; replaces MSAA"),
                         Settings.UpscalerFsrTemporal => string.Format(X("upscalerFsrTemporal", "AMD {0}: temporal upscaling and anti-aliasing; replaces MSAA"),
                             UpscalerFramework.BestFsrLabel ?? "FSR"),
+                        Settings.UpscalerXess => X("upscalerXess", "Intel XeSS: AI upscaling and anti-aliasing on any recent graphics card; replaces MSAA"),
                         Settings.UpscalerMetalFxSpatial => X("upscalerMetalFxSpatial", "Apple MetalFX Spatial: sharp upscaling from the render scale"),
                         Settings.UpscalerMetalFxTemporal => X("upscalerMetalFxTemporal", "Apple MetalFX Temporal: temporal upscaling and anti-aliasing; replaces MSAA"),
                         _ => X("upscalerOff", "Plain scaling from the render scale"),
@@ -108,6 +114,22 @@ namespace GoF2Remake.UI
                     () => X("upscalerQualityHelp", "The resolution DLSS / FSR render at: from native down to a third."));
                 quality.visible = DlssOrFsrOn;
                 list.Add(quality);
+                // Remake (2026-11-20, the user's request): DLSS's model ("render preset") in place of NVIDIA's pick for the
+                // quality mode: Default, then the letters that mode offers (UpscalerFramework.DlssPresets); only with DLSS on.
+                List<int> DlssPresets() => UpscalerFramework.DlssPresets(Settings.UpscalerQuality);
+                var dlssPreset = Choice("dlssPreset", OptionPage.Graphics, () => X("dlssPreset", "DLSS preset"), false,
+                    () => DlssPresets().Select(p => p == 0 ? X("dlssPresetDefault", "Default") : UpscalerFramework.DlssPresetName(p)).ToArray(),
+                    () => Math.Max(0, DlssPresets().IndexOf(Settings.DlssPreset)),
+                    i => { var l = DlssPresets(); Settings.DlssPreset = l[Math.Clamp(i, 0, l.Count - 1)]; },
+                    () =>
+                    {
+                        string help = X("dlssPresetHelp", "The DLSS model. Default: NVIDIA's choice for the quality mode. The letters are NVIDIA's presets: newer ones are usually sharper and steadier in motion, and some cost more.");
+                        int picked = DlssPresets().Contains(Settings.DlssPreset) ? Settings.DlssPreset : 0;
+                        string about = UpscalerFramework.DlssPresetExplanation(picked);
+                        return string.IsNullOrEmpty(about) ? help : help + " " + UpscalerFramework.DlssPresetName(picked) + ": " + about;
+                    });
+                dlssPreset.visible = () => Bootstrap.ActiveUpscaler == Settings.UpscalerDlss;
+                list.Add(dlssPreset);
                 // FSR 4 Lite (remake, 2026-11-16, the user's request; docs/notes/options.md "FSR on Linux"): AMD's smaller FSR 4
                 // model, where FSR 4 runs through ffx-vk-linux (Linux); the row only while FSR 4 is the upscaler there.
                 var fsr4Lite = Toggle("fsr4Lite", OptionPage.Graphics, () => "FSR 4 Lite", () => Settings.Fsr4Lite, v => Settings.Fsr4Lite = v);
@@ -115,6 +137,96 @@ namespace GoF2Remake.UI
                 fsr4Lite.visible = () => Bootstrap.ActiveUpscaler == Settings.UpscalerFsrTemporal && UpscalerFramework.Fsr4LiteAvailable;
                 list.Add(fsr4Lite);
             }
+            // NVIDIA DLSS Frame Generation and Reflex (remake, 2026-11-20, the user's request; docs/notes/options.md "Frame
+            // generation"): Windows D3D12 players on NVIDIA cards, in builds with the plugin and Streamline's DLLs. The
+            // multipliers are the GPU's (2x alone on RTX 40, more on RTX 50), Dynamic where the driver has it; turning one
+            // on for the first time takes a restart, and the help says so.
+            var frameGeneration = Choice("frameGeneration", OptionPage.Graphics, () => X("frameGeneration", "Frame generation"), true,
+                FrameGeneration.Choices, FrameGeneration.ChoiceIndex, FrameGeneration.SetChoice, FrameGeneration.Help);
+            frameGeneration.visible = () => FrameGeneration.AnyOffered;
+            list.Add(frameGeneration);
+            // AMD FSR frame generation (remake, 2026-11-20, the user's request; docs/notes/options.md "FSR frame
+            // generation"): the other provider, on any GPU. Where both can run (an NVIDIA card) this row picks; a
+            // start's choice, like turning frame generation on.
+            var provider = Choice("frameGenerationProvider", OptionPage.Graphics, () => X("frameGenerationProvider", "Frame generation type"), true,
+                () => new[] { "NVIDIA DLSS", "AMD FSR" },
+                () => Settings.FrameGenerationProvider, i => Settings.FrameGenerationProvider = i,
+                () => X("frameGenerationProviderHelp", "Which technology makes the extra frames. NVIDIA DLSS needs a GeForce RTX 40 series card or newer; AMD FSR runs on any recent graphics card. Changing it takes a restart."));
+            provider.visible = () => FrameGeneration.Offered && FrameGeneration.FsrOffered;
+            list.Add(provider);
+            // Dynamic's target: the display's refresh rate, or a frame rate of the player's (DLSSGOptions.dynamicTargetFrameRate).
+            int[] targets = { 0, 60, 90, 120, 144, 165, 240, 360 };
+            var frameTarget = Choice("frameGenerationTarget", OptionPage.Graphics, () => X("frameGenerationTarget", "Frame generation target"), false,
+                () => targets.Select(t => t == 0 ? X("frameGenerationTargetDisplay", "Display's refresh rate") : t + " FPS").ToArray(),
+                () => Math.Max(0, Array.IndexOf(targets, Settings.FrameGenerationTarget)),
+                i => Settings.FrameGenerationTarget = targets[Math.Clamp(i, 0, targets.Length - 1)],
+                () => X("frameGenerationTargetHelp", "The frame rate Dynamic frame generation aims for: it makes as many frames as that takes. With V-Sync on it follows the display."));
+            frameTarget.visible = () => FrameGeneration.Offered && !FrameGeneration.UsesFsr && Settings.FrameGeneration == Settings.FrameGenerationDynamic;
+            list.Add(frameTarget);
+            var reflex = Choice("reflex", OptionPage.Graphics, () => "NVIDIA Reflex", true,
+                () => new[] { X("off", "Off"), X("on", "On"), X("reflexBoost", "On + Boost") },
+                () => Settings.Reflex, i => Settings.Reflex = i, FrameGeneration.ReflexHelp);
+            reflex.visible = () => FrameGeneration.Offered;
+            list.Add(reflex);
+            // AMD Anti-Lag 2 (remake, 2026-11-20, the user's request; docs/notes/options.md "Anti-Lag 2"): Reflex's
+            // counterpart on Radeon cards; the row only where the driver has it.
+            var antiLag = Toggle("antiLag", OptionPage.Graphics, () => "AMD Anti-Lag 2", () => Settings.AntiLag, v => Settings.AntiLag = v);
+            antiLag.description = () => X("antiLagHelp", "AMD Anti-Lag 2: the driver paces the game's frames for less delay between your input and the picture.");
+            antiLag.visible = () => FrameGeneration.AntiLagOffered;
+            list.Add(antiLag);
+            // NVIDIA DLSS neural rendering ("DLSS 5"; remake, 2026-11-20, the user's request; docs/notes/options.md "Neural
+            // rendering"): only where the GPU runs it (RTX 50 and up, NVIDIA's own check) and its DLLs are beside the plugin.
+            // Its strengths and quality are the plugin's own options; all of them change in a running game.
+            var neural = Toggle("neuralRendering", OptionPage.Graphics, () => X("neuralRendering", "Neural rendering (DLSS 5)"),
+                () => Settings.NeuralRendering, v => Settings.NeuralRendering = v);
+            neural.description = FrameGeneration.NeuralHelp;
+            neural.visible = () => FrameGeneration.NeuralOffered;
+            list.Add(neural);
+            bool NeuralOn() => FrameGeneration.NeuralOffered && Settings.NeuralRendering;
+            string StrengthHelp() => X("neuralRenderingStrengthHelp", "How strongly neural rendering changes this part of the picture. 100 % is NVIDIA's default.");
+            foreach (var (id, key, english, get, set) in new (string, string, string, Func<float>, Action<float>)[]
+            {
+                ("neuralRenderingIntensity", "neuralRenderingIntensity", "Neural rendering: intensity", () => Settings.NeuralRenderingIntensity, v => Settings.NeuralRenderingIntensity = v),
+                ("neuralRenderingTone", "neuralRenderingTone", "Neural rendering: lighting", () => Settings.NeuralRenderingTone, v => Settings.NeuralRenderingTone = v),
+                ("neuralRenderingStructure", "neuralRenderingStructure", "Neural rendering: detail", () => Settings.NeuralRenderingStructure, v => Settings.NeuralRenderingStructure = v),
+                ("neuralRenderingSkin", "neuralRenderingSkin", "Neural rendering: skin detail", () => Settings.NeuralRenderingSkin, v => Settings.NeuralRenderingSkin = v),
+            })
+            {
+                var strength = Slider(id, OptionPage.Graphics, () => X(key, english), 0f, 1f, get, set, Percent);
+                strength.description = StrengthHelp;
+                strength.visible = NeuralOn;
+                list.Add(strength);
+            }
+            var neuralQuality = Choice("neuralRenderingQuality", OptionPage.Graphics, () => X("neuralRenderingQuality", "Neural rendering: quality"), true,
+                () => new[] { X("upscalerP", "Performance"), X("upscalerB", "Balanced"), X("upscalerQ", "Quality") },
+                () => Settings.NeuralRenderingQuality, i => Settings.NeuralRenderingQuality = i,
+                () => X("neuralRenderingQualityHelp", "Quality looks best; Performance costs the least frame time."));
+            neuralQuality.visible = NeuralOn;
+            list.Add(neuralQuality);
+            // NVIDIA Image Scaling's sharpening and RTX Dynamic Vibrance (remake, 2026-11-20, the user's request;
+            // docs/notes/options.md "Image Scaling and Dynamic Vibrance"): Streamline's two filters of the finished
+            // picture, where their DLLs are in the build and the GPU runs them. Like frame generation, the first one
+            // turned on takes a restart (Streamline starts with the game).
+            var nis = Slider("nisSharpness", OptionPage.Graphics, () => X("nisSharpness", "NVIDIA Image Scaling sharpening"), 0f, 1f,
+                () => Settings.NisSharpness, v => Settings.NisSharpness = v, v => v <= 0.005f ? X("off", "Off") : Percent(v));
+            nis.description = () => FrameGeneration.PictureHelp(X("nisSharpnessHelp", "Sharpens the finished picture with NVIDIA Image Scaling's filter. Useful with DLSS, which has no sharpening of its own."));
+            nis.visible = () => FrameGeneration.SharpeningOffered;
+            list.Add(nis);
+            var vibrance = Toggle("dynamicVibrance", OptionPage.Graphics, () => "RTX Dynamic Vibrance", () => Settings.DynamicVibrance, v => Settings.DynamicVibrance = v);
+            vibrance.description = () => FrameGeneration.PictureHelp(X("dynamicVibranceHelp", "NVIDIA's AI filter for more vivid colours, without crushing the details the way plain saturation does. GeForce RTX cards."));
+            vibrance.visible = () => FrameGeneration.VibranceOffered;
+            list.Add(vibrance);
+            bool VibranceOn() => FrameGeneration.VibranceOffered && Settings.DynamicVibrance;
+            var vibranceIntensity = Slider("dynamicVibranceIntensity", OptionPage.Graphics, () => X("dynamicVibranceIntensity", "Dynamic Vibrance: intensity"), 0f, 1f,
+                () => Settings.DynamicVibranceIntensity, v => Settings.DynamicVibranceIntensity = v, Percent);
+            vibranceIntensity.description = () => X("dynamicVibranceIntensityHelp", "How strongly the filter works on the picture. 50 % is NVIDIA's default.");
+            vibranceIntensity.visible = VibranceOn;
+            list.Add(vibranceIntensity);
+            var vibranceSaturation = Slider("dynamicVibranceSaturation", OptionPage.Graphics, () => X("dynamicVibranceSaturation", "Dynamic Vibrance: saturation"), 0f, 1f,
+                () => Settings.DynamicVibranceSaturation, v => Settings.DynamicVibranceSaturation = v, Percent);
+            vibranceSaturation.description = () => X("dynamicVibranceSaturationHelp", "How much colour it adds. 25 % is NVIDIA's default.");
+            vibranceSaturation.visible = VibranceOn;
+            list.Add(vibranceSaturation);
             // MSAA with a temporal upscaler on (STP, DLSS, FSR 2+, MetalFX Temporal): its anti-aliasing takes the place, so the row
             // is greyed out (a player's request: with DLAA it read as if it did something) and says why.
             var msaa = Choice("msaa", OptionPage.Graphics, () => X("antiAliasing", "Anti-aliasing"), true,
@@ -166,6 +278,71 @@ namespace GoF2Remake.UI
             list.Add(Choice("brightness", OptionPage.Graphics, () => Localization.Get(503), true,
                 () => new[] { Localization.Get(513), Localization.Get(514), Localization.Get(515) },
                 () => Settings.Brightness, i => Settings.Brightness = i));
+            // Remake (2026-11-20, the user's request; docs/notes/options.md "HDR"): HDR display output and URP's HDR
+            // tonemapping parameters. Desktop players; the row is greyed out until the display has HDR on in Windows.
+            if (Bootstrap.HasDisplayOptions)
+            {
+                var hdr = Toggle("hdr", OptionPage.Graphics, () => "HDR", () => Settings.Hdr, v => Settings.Hdr = v);
+                hdr.description = () => Bootstrap.HdrAvailable
+                    ? X("hdrHelp", "HDR output: brighter highlights and deeper colours on an HDR display.")
+                    : X("hdrUnavailable", "HDR output. Turn on HDR for this display in Windows' display settings first.");
+                hdr.enabled = () => Bootstrap.HdrAvailable;
+                list.Add(hdr);
+                bool HdrOn() => Settings.Hdr && Bootstrap.HdrAvailable;
+                string Nits(float v) => $"{Mathf.RoundToInt(v)} nits";
+                var paperWhite = Slider("hdrPaperWhite", OptionPage.Graphics, () => X("hdrPaperWhite", "HDR paper white"), 80f, 400f,
+                    () => Settings.HdrPaperWhite, v => Settings.HdrPaperWhite = Mathf.Round(v / 10f) * 10f, Nits);
+                paperWhite.description = () => X("hdrPaperWhiteHelp", "How bright white is: the interface and the scene's overall brightness. Around 200 nits suits most rooms.");
+                paperWhite.visible = HdrOn;
+                list.Add(paperWhite);
+                var detect = Toggle("hdrDetectLimits", OptionPage.Graphics, () => X("hdrDetectLimits", "HDR: use the display's limits"),
+                    () => Settings.HdrDetectLimits, v => Settings.HdrDetectLimits = v);
+                detect.description = () => X("hdrDetectLimitsHelp", "The peak brightness and black level the display reports. Off: set them yourself below.");
+                detect.visible = HdrOn;
+                list.Add(detect);
+                var peak = Slider("hdrPeak", OptionPage.Graphics, () => X("hdrPeak", "HDR peak brightness"), 400f, 4000f,
+                    () => Settings.HdrPeak, v => Settings.HdrPeak = Mathf.Round(v / 50f) * 50f, Nits);
+                peak.description = () => X("hdrPeakHelp", "The brightest your display gets. Too high clips the highlights; too low dulls them.");
+                peak.visible = () => HdrOn() && !Settings.HdrDetectLimits;
+                list.Add(peak);
+                var black = Slider("hdrBlack", OptionPage.Graphics, () => X("hdrBlack", "HDR black level"), 0f, 0.5f,
+                    () => Settings.HdrBlack, v => Settings.HdrBlack = Mathf.Round(v * 200f) / 200f, v => $"{v:0.000} nits");
+                black.description = () => X("hdrBlackHelp", "The darkest your display gets. 0.005 suits OLED; raise it for an LCD's glowing black.");
+                black.visible = () => HdrOn() && !Settings.HdrDetectLimits;
+                list.Add(black);
+                var tonemapping = Choice("hdrTonemapping", OptionPage.Graphics, () => X("hdrTonemapping", "HDR tonemapping"), true,
+                    () => new[] { X("hdrTonemapNone", "None"), "Neutral", "ACES" },
+                    () => Settings.HdrTonemapping, i => Settings.HdrTonemapping = i,
+                    () => X("hdrTonemappingHelp", "How the picture's brightness is fitted to the display. Neutral keeps the game's colours; ACES is a filmic look with more contrast; None leaves the highlights as they are."));
+                tonemapping.visible = HdrOn;
+                list.Add(tonemapping);
+                var aces = Choice("hdrAcesPreset", OptionPage.Graphics, () => X("hdrAcesPreset", "HDR ACES display"), true,
+                    () => new[] { "1000 nits", "2000 nits", "4000 nits" },
+                    () => Settings.HdrAcesPreset, i => Settings.HdrAcesPreset = i,
+                    () => X("hdrAcesPresetHelp", "The display brightness ACES is made for: the one nearest your display's peak."));
+                aces.visible = () => HdrOn() && Settings.HdrTonemapping == 2;
+                list.Add(aces);
+                var reduction = Choice("hdrRangeReduction", OptionPage.Graphics, () => X("hdrRangeReduction", "HDR range reduction"), true,
+                    () => new[] { "BT.2390", "Reinhard" },
+                    () => Settings.HdrRangeReduction, i => Settings.HdrRangeReduction = i,
+                    () => X("hdrRangeReductionHelp", "How Neutral rolls off brightness past the display's peak. BT.2390 is the broadcast standard; Reinhard is softer."));
+                reduction.visible = () => HdrOn() && Settings.HdrTonemapping == 1;
+                list.Add(reduction);
+                var hue = Slider("hdrHueShift", OptionPage.Graphics, () => X("hdrHueShift", "HDR hue shift"), 0f, 1f,
+                    () => Settings.HdrHueShift, v => Settings.HdrHueShift = v, Percent);
+                hue.description = () => X("hdrHueShiftHelp", "How far very bright colours may drift toward white. 0 % keeps every hue.");
+                hue.visible = () => HdrOn() && Settings.HdrTonemapping == 1;
+                list.Add(hue);
+                // The calibration screen (UI.HdrCalibration): a test pattern to set the peak and paper white by eye.
+                list.Add(new OptionDef
+                {
+                    id = "hdrCalibrate", page = OptionPage.Graphics, kind = OptionKind.Button,
+                    label = () => X("hdrCalibrate", "HDR calibration…"),
+                    description = () => X("hdrCalibrateHelp", "A test pattern for setting the peak brightness and paper white by eye. HDR has to be on (and applied)."),
+                    visible = () => Bootstrap.HdrActive,
+                    action = () => HdrCalibration.Show(OptionControl.Pressing?.Root),
+                });
+            }
             // Remake: the remake's bloom (the HDR glow of lights and effects), the original's (every bright pixel, ClassicBloomPass)
             // or both (#45).
             list.Add(Choice("bloom", OptionPage.Graphics, () => X("bloom", "Bloom"), true,

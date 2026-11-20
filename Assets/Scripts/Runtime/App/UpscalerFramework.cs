@@ -35,6 +35,7 @@ namespace GoF2Remake
         public const string Auto = "unity.auto", Fsr1 = "amd.fsr1", Stp = "unity.stp", Dlss = "nvidia.dlss4",
             Fsr4 = "amd.fsr4", Fsr3 = "amd.fsr3", Fsr2 = "amd.fsr2",
             MetalFxSpatial = "apple.metalfx-spatial", MetalFxTemporal = "apple.metalfx-temporal",
+            Xess = "intel.xess",   // XessUpscaler (Windows Direct3D 12, any GPU with Shader Model 6.4)
             // LinuxFsrUpscaler on Windows Vulkan (its plugin with AMD's Vulkan DLLs as they are: a comparison build)
             VkFsr4 = "ffxvk.fsr4", VkFsr3 = "ffxvk.fsr3", VkFsr2 = "ffxvk.fsr2";
 
@@ -76,6 +77,9 @@ namespace GoF2Remake
 
         public static bool DlssSupported => Supports(Dlss);
 
+        /// <summary>Intel XeSS on this device (XessUpscaler: Windows Direct3D 12 builds with its plugin and Intel's DLL).</summary>
+        public static bool XessSupported => Supports(Xess);
+
         /// <summary>MetalFX Spatial / Temporal on this device (macOS / iOS builds on Metal with the MetalFX module; iOS 16+,
         /// A13 or newer for Temporal per Apple's supportsDevice).</summary>
         public static bool MetalFxSpatialSupported => Supports(MetalFxSpatial);
@@ -107,13 +111,13 @@ namespace GoF2Remake
 
         /// <summary>Activates the upscaler 'id' (one this device doesn't run falls back to Auto) with the DLSS / FSR quality
         /// mode 'quality'; false before URP has made its pipeline (Bootstrap applies it again then).</summary>
-        public static bool Apply(string id, int quality, bool fsr4Lite = false)
+        public static bool Apply(string id, int quality, bool fsr4Lite = false, int dlssPreset = 0)
         {
             var pipeline = Pipeline;
             var instance = Instance;
             if (pipeline == null || instance == null) return false;
             if (string.IsNullOrEmpty(id) || !Supports(id)) id = Auto;
-            SetQuality(instance, id, Mathf.Clamp(quality, QualityNative, QualityUltra), fsr4Lite);
+            SetQuality(instance, id, Mathf.Clamp(quality, QualityNative, QualityUltra), fsr4Lite, dlssPreset);
             if (instance.activeUpscaler?.upscalerId != id && !pipeline.SetUpscaler(id)) pipeline.SetUpscaler(Auto);
             return true;
         }
@@ -144,21 +148,22 @@ namespace GoF2Remake
 
         /// <summary>The quality mode on the upscaler's options (the framework's global options; a changed mode recreates the
         /// upscaler's context).</summary>
-        static void SetQuality(Upscaling instance, string id, int q, bool fsr4Lite)
+        static void SetQuality(Upscaling instance, string id, int q, bool fsr4Lite, int dlssPreset = 0)
         {
             var upscaler = instance.GetIUpscalerById(id);
             var options = upscaler != null ? instance.GetGlobalOptions(upscaler) : null;
             if (options == null) return;
 #if ENABLE_NVIDIA && ENABLE_NVIDIA_MODULE
             if (options is DLSSOptions dlss)
-                dlss.dlssQualityMode = q switch
-                {
-                    QualityNative => UnityEngine.NVIDIA.DLSSQuality.DLAA,
-                    QualityQuality => UnityEngine.NVIDIA.DLSSQuality.MaximumQuality,
-                    QualityBalanced => UnityEngine.NVIDIA.DLSSQuality.Balanced,
-                    QualityPerformance => UnityEngine.NVIDIA.DLSSQuality.MaximumPerformance,
-                    _ => UnityEngine.NVIDIA.DLSSQuality.UltraPerformance,
-                };
+            {
+                dlss.dlssQualityMode = DlssQuality(q);
+                // The model picked (Settings.DlssPreset) for every quality mode that offers it, NVIDIA's default for the others.
+                dlss.dlssRenderPresetDLAA = PresetFor(dlssPreset, QualityNative);
+                dlss.dlssRenderPresetQuality = PresetFor(dlssPreset, QualityQuality);
+                dlss.dlssRenderPresetBalanced = PresetFor(dlssPreset, QualityBalanced);
+                dlss.dlssRenderPresetPerformance = PresetFor(dlssPreset, QualityPerformance);
+                dlss.dlssRenderPresetUltraPerformance = PresetFor(dlssPreset, QualityUltra);
+            }
 #endif
 #if ENABLE_AMD && ENABLE_AMD_MODULE
             // FSR 3 / 4: native AA, quality, balanced, performance, ultra performance (the option's order); FSR 2 has no native
@@ -167,12 +172,74 @@ namespace GoF2Remake
             else if (options is FSR3Options fsr3) fsr3.fsr3QualityMode = (UnityEngine.AMD.FSR3Quality)q;
             else if (options is FSR2Options fsr2) fsr2.fsr2QualityMode = (UnityEngine.AMD.FSR2Quality)Mathf.Max(0, q - 1);
 #endif
+#if UNITY_STANDALONE_WIN
+            if (options is XessOptions xess) xess.qualityMode = q;
+#endif
             // Linux (LinuxFsrUpscaler: the same ids, its own options; FSR 2 through the SDK takes native AA too)
             if (options is LinuxFsrOptions linux)
             {
                 linux.qualityMode = q;
                 linux.lite = fsr4Lite;
             }
+        }
+
+        // ---- DLSS presets (remake, 2026-11-20, the user's request) ------------------------------------------------------
+        // DLSS's models ("render presets": F, J, K, L, M in this NVIDIA module; which a quality mode offers is the
+        // module's GetAvailableDLSSPresetsForQuality, a bit mask of DLSSPreset values). The option picks one; 0 is
+        // NVIDIA's default for the mode.
+
+#if ENABLE_NVIDIA && ENABLE_NVIDIA_MODULE
+        static UnityEngine.NVIDIA.DLSSQuality DlssQuality(int q) => q switch
+        {
+            QualityNative => UnityEngine.NVIDIA.DLSSQuality.DLAA,
+            QualityQuality => UnityEngine.NVIDIA.DLSSQuality.MaximumQuality,
+            QualityBalanced => UnityEngine.NVIDIA.DLSSQuality.Balanced,
+            QualityPerformance => UnityEngine.NVIDIA.DLSSQuality.MaximumPerformance,
+            _ => UnityEngine.NVIDIA.DLSSQuality.UltraPerformance,
+        };
+
+        static uint PresetMask(int quality)
+        {
+            try { return UnityEngine.NVIDIA.GraphicsDevice.GetAvailableDLSSPresetsForQuality(DlssQuality(quality)); }
+            catch (System.Exception) { return 0; }   // (no NVIDIA plugin on this device)
+        }
+
+        static UnityEngine.NVIDIA.DLSSPreset PresetFor(int preset, int quality) =>
+            preset > 0 && (PresetMask(quality) & (uint)preset) != 0 ? (UnityEngine.NVIDIA.DLSSPreset)(uint)preset
+                                                                   : UnityEngine.NVIDIA.DLSSPreset.Preset_Default;
+#endif
+
+        /// <summary>The DLSS presets the quality mode offers, as Settings.DlssPreset values: 0 (default) first.</summary>
+        public static System.Collections.Generic.List<int> DlssPresets(int quality)
+        {
+            var list = new System.Collections.Generic.List<int> { 0 };
+#if ENABLE_NVIDIA && ENABLE_NVIDIA_MODULE
+            uint mask = PresetMask(quality);
+            foreach (UnityEngine.NVIDIA.DLSSPreset preset in System.Enum.GetValues(typeof(UnityEngine.NVIDIA.DLSSPreset)))
+                if (preset != UnityEngine.NVIDIA.DLSSPreset.Preset_Default && (mask & (uint)preset) != 0 && !list.Contains((int)(uint)preset))
+                    list.Add((int)(uint)preset);
+#endif
+            return list;
+        }
+
+        /// <summary>A preset's letter ("K"); null for the default.</summary>
+        public static string DlssPresetName(int preset)
+        {
+#if ENABLE_NVIDIA && ENABLE_NVIDIA_MODULE
+            if (preset > 0) return ((UnityEngine.NVIDIA.DLSSPreset)(uint)preset).ToString().Replace("Preset_", "");
+#endif
+            return null;
+        }
+
+        /// <summary>NVIDIA's own line about a preset (English, from the module); "" for the default or when it has none.</summary>
+        public static string DlssPresetExplanation(int preset)
+        {
+#if ENABLE_NVIDIA && ENABLE_NVIDIA_MODULE
+            if (preset > 0)
+                try { return UnityEngine.NVIDIA.GraphicsDevice.GetDLSSPresetExplanation((UnityEngine.NVIDIA.DLSSPreset)(uint)preset) ?? ""; }
+                catch (System.Exception) { }
+#endif
+            return "";
         }
 
         /// <summary>The option "FSR 4 Lite" applies: FSR 4 is the FSR this device runs, through ffx-vk-linux (Linux).</summary>
@@ -191,13 +258,17 @@ namespace GoF2Remake
         public static bool Compiled => false;
         public static bool Supports(string id) => false;
         public static bool DlssSupported => false;
+        public static bool XessSupported => false;
         public static bool MetalFxSpatialSupported => false;
         public static bool MetalFxTemporalSupported => false;
         public static string BestFsr => null;
         public static string BestFsrLabel => null;
         public static string ActiveId => "";
         public static bool Ready => false;
-        public static bool Apply(string id, int quality, bool fsr4Lite = false) => false;
+        public static bool Apply(string id, int quality, bool fsr4Lite = false, int dlssPreset = 0) => false;
+        public static System.Collections.Generic.List<int> DlssPresets(int quality) => new System.Collections.Generic.List<int> { 0 };
+        public static string DlssPresetName(int preset) => null;
+        public static string DlssPresetExplanation(int preset) => "";
         public static bool Fsr4LiteAvailable => false;
         public static void FlushContexts(ScriptableRenderContext context, Camera camera) { }
 #endif

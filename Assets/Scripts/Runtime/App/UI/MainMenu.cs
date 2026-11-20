@@ -137,6 +137,8 @@ namespace GoF2Remake.UI
             panelRenderer = GetComponent<PanelRenderer>();
             if (!started) touchMode = Application.isMobilePlatform;
             Settings.Changed += ApplySettings;
+            Settings.StagedChanged -= UpdateOptionsApply;
+            Settings.StagedChanged += UpdateOptionsApply;
             InputMode.Changed -= UpdatePressAnyKey;
             InputMode.Changed += UpdatePressAnyKey;
             UpdateCheck.Changed -= RefreshUpdateButton;
@@ -280,6 +282,8 @@ namespace GoF2Remake.UI
         {
             panelRenderer?.UnregisterUIReloadCallback(OnUIReload);
             Settings.Changed -= ApplySettings;
+            Settings.StagedChanged -= UpdateOptionsApply;
+            if (Settings.Staging) Settings.EndStaging();   // (the scene goes with the Options panel open)
             InputMode.Changed -= UpdatePressAnyKey;
             UpdateCheck.Changed -= RefreshUpdateButton;
             if (OptionsCatalog.SaveFolderPressed == (Action)ChooseSaveFolder) OptionsCatalog.SaveFolderPressed = null;
@@ -624,6 +628,10 @@ namespace GoF2Remake.UI
         {
             if (openPanel != null) HidePanel(openPanel);
             var p = panels[name];
+            // The Options panel's Graphics rows stage their changes while it is open (MainMenuOptions "Apply").
+            if (name == "optionsPanel") { Settings.BeginStaging(); UpdateOptionsApply(); }
+            else if (Settings.Staging) Settings.EndStaging();
+            FrameGeneration.SetMenu("menu", true);   // no generated frames behind a panel
             openPanel = p;
             p.AddToClassList("panel--shown");
             p.schedule.Execute(() => p.AddToClassList("panel--visible")).ExecuteLater(16);
@@ -654,6 +662,8 @@ namespace GoF2Remake.UI
             if (screen != MenuState.Menu) return;
             if (dialog.ClassListContains("dialog-backdrop--shown")) { var no = dialogNo; CloseDialog(); no?.Invoke(); return; }
             if (openPanel == null) return;
+            // Graphics changes not applied: apply or discard first (MainMenuOptions.AskApplyOptions comes back here).
+            if (openPanel == panels["optionsPanel"] && Settings.HasStaged) { AskApplyOptions(); return; }
             Play(buttonRelease);
             if (openPanel == panels["gameOptionsPanel"]) { OpenPanel("economyPanel"); return; }
             if (openPanel == panels["economyPanel"]) { OpenPanel("difficultyPanel"); return; }
@@ -674,6 +684,8 @@ namespace GoF2Remake.UI
             }
             var closing = openPanel;
             HidePanel(closing);
+            if (closing == panels["optionsPanel"]) Settings.EndStaging();
+            FrameGeneration.SetMenu("menu", false);
             openPanel = null;
             mainColumn.RemoveFromClassList("main-column--dimmed");
             root.RemoveFromClassList("menu-root--panel");

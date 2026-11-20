@@ -11,8 +11,14 @@ using R = GoF2Remake.Data.SessionRules;
 
 namespace GoF2Remake.Data
 {
-    /// <summary>Frame rate option (remake only; the original ran at the device's fixed rate).</summary>
-    public enum FrameRate { Fps30, Fps60, Fps120, Uncapped, VSync }
+    /// <summary>Frame rate option (remake only; the original ran at the device's fixed rate).
+    /// The first five are stored by their number since the option exists; the limits added later (2026-11-20, the user's
+    /// "add more FrameRate limit options") follow them, and Settings.FrameRateChoices has the order the option shows.</summary>
+    public enum FrameRate
+    {
+        Fps30, Fps60, Fps120, Uncapped, VSync,
+        Fps40, Fps45, Fps50, Fps72, Fps75, Fps90, Fps100, Fps144, Fps165, Fps180, Fps200, Fps240, Fps300, Fps360,
+    }
 
     /// <summary>Window mode option (desktop only).</summary>
     public enum DisplayMode { Borderless, Fullscreen, Windowed }
@@ -74,9 +80,28 @@ namespace GoF2Remake.Data
         /// "optimize the game for the iPhone Duo": its two ProMotion screens are 120 Hz).</summary>
         public static FrameRate FrameRate
         {
-            get => (FrameRate)Mathf.Clamp(Mathf.RoundToInt(Get("frameRate", (float)(AndroidDefaults || IosDefaults ? FrameRate.Fps60 : FrameRate.VSync))), 0, (int)FrameRate.VSync);
+            get => (FrameRate)Mathf.Clamp(Mathf.RoundToInt(Get("frameRate", (float)(AndroidDefaults || IosDefaults ? FrameRate.Fps60 : FrameRate.VSync))), 0, (int)FrameRate.Fps360);
             set => Set("frameRate", (float)value);
         }
+
+        /// <summary>The frame rate option's choices in the order it shows them: the limits from low to high, then
+        /// Uncapped and V-Sync.</summary>
+        public static readonly FrameRate[] FrameRateChoices =
+        {
+            FrameRate.Fps30, FrameRate.Fps40, FrameRate.Fps45, FrameRate.Fps50, FrameRate.Fps60, FrameRate.Fps72, FrameRate.Fps75,
+            FrameRate.Fps90, FrameRate.Fps100, FrameRate.Fps120, FrameRate.Fps144, FrameRate.Fps165, FrameRate.Fps180, FrameRate.Fps200,
+            FrameRate.Fps240, FrameRate.Fps300, FrameRate.Fps360, FrameRate.Uncapped, FrameRate.VSync,
+        };
+
+        /// <summary>A frame rate choice's limit in frames a second; 0 for Uncapped and V-Sync.</summary>
+        public static int FrameRateLimit(FrameRate rate) => rate switch
+        {
+            FrameRate.Fps30 => 30, FrameRate.Fps40 => 40, FrameRate.Fps45 => 45, FrameRate.Fps50 => 50, FrameRate.Fps60 => 60,
+            FrameRate.Fps72 => 72, FrameRate.Fps75 => 75, FrameRate.Fps90 => 90, FrameRate.Fps100 => 100, FrameRate.Fps120 => 120,
+            FrameRate.Fps144 => 144, FrameRate.Fps165 => 165, FrameRate.Fps180 => 180, FrameRate.Fps200 => 200, FrameRate.Fps240 => 240,
+            FrameRate.Fps300 => 300, FrameRate.Fps360 => 360,
+            _ => 0,
+        };
 
         /// <summary>URP render scale; 0 = the platform's render pipeline asset (1 on PC, 0.8 on mobile).</summary>
         public static float RenderScale { get => Get("renderScale", Default("renderScale", 0f)); set => Set("renderScale", value <= 0f ? 0f : Mathf.Clamp(value, 0.5f, 2f)); }
@@ -84,18 +109,87 @@ namespace GoF2Remake.Data
         /// <summary>Upscaler: 0 off (URP's automatic bilinear / point), 1 AMD FSR 1 (sharpening, also at 100 %), 2 Unity STP
         /// (temporal: anti-aliasing and upscaling, replaces MSAA), 3 NVIDIA DLSS and 4 AMD FSR 2 / 3 / 4 (temporal, the render
         /// resolution by UpscalerQuality; desktop builds with the upscaler framework only, UpscalerFramework), 5 Apple MetalFX
-        /// Spatial and 6 MetalFX Temporal (macOS / iOS on Metal, from the render scale; 6 temporal like STP).</summary>
-        public static int Upscaler { get => Mathf.RoundToInt(Get("upscaler", Default("upscaler", 0f))); set => Set("upscaler", Mathf.Clamp(value, 0, 6)); }
+        /// Spatial and 6 MetalFX Temporal (macOS / iOS on Metal, from the render scale; 6 temporal like STP), 7 Intel XeSS
+        /// (2026-11-20: temporal like DLSS, on any recent GPU; Windows Direct3D 12 builds with its plugin, XessUpscaler).</summary>
+        public static int Upscaler { get => Mathf.RoundToInt(Get("upscaler", Default("upscaler", 0f))); set => Set("upscaler", Mathf.Clamp(value, 0, 7)); }
         public const int UpscalerOff = 0, UpscalerFsr = 1, UpscalerStp = 2, UpscalerDlss = 3, UpscalerFsrTemporal = 4,
-            UpscalerMetalFxSpatial = 5, UpscalerMetalFxTemporal = 6;
+            UpscalerMetalFxSpatial = 5, UpscalerMetalFxTemporal = 6, UpscalerXess = 7;
 
         /// <summary>DLSS / FSR 2+ quality mode (UpscalerFramework.Quality*): 0 native (DLAA / native AA), 1 quality (default),
         /// 2 balanced, 3 performance, 4 ultra performance.</summary>
         public static int UpscalerQuality { get => Mathf.RoundToInt(Get("upscalerQuality", 1f)); set => Set("upscalerQuality", Mathf.Clamp(value, 0, 4)); }
 
+        // Remake (2026-11-20, the user's request): HDR display output (desktop; Bootstrap.ApplyHdr, docs/notes/options.md
+        // "HDR"): off by default. The rest are URP's HDR tonemapping parameters (its Tonemapping override).
+        public static bool Hdr { get => GetBool("hdr", false); set => SetBool("hdr", value); }
+        /// <summary>The brightness of white (the interface, a white wall) in nits.</summary>
+        public static float HdrPaperWhite { get => Get("hdrPaperWhite", 200f); set => Set("hdrPaperWhite", Mathf.Clamp(value, 80f, 400f)); }
+        /// <summary>The display's own brightness limits (what it reports) in place of HdrPeak / HdrBlack.</summary>
+        public static bool HdrDetectLimits { get => GetBool("hdrDetectLimits", true); set => SetBool("hdrDetectLimits", value); }
+        public static float HdrPeak { get => Get("hdrPeak", 1000f); set => Set("hdrPeak", Mathf.Clamp(value, 400f, 4000f)); }
+        public static float HdrBlack { get => Get("hdrBlack", 0.005f); set => Set("hdrBlack", Mathf.Clamp(value, 0f, 0.5f)); }
+        /// <summary>0 none (the picture as the game makes it, its highlights past white), 1 Neutral (default), 2 ACES.</summary>
+        public static int HdrTonemapping { get => Mathf.RoundToInt(Get("hdrTonemapping", 1f)); set => Set("hdrTonemapping", Mathf.Clamp(value, 0, 2)); }
+        /// <summary>ACES: the display preset, 0 1000 nits, 1 2000, 2 4000.</summary>
+        public static int HdrAcesPreset { get => Mathf.RoundToInt(Get("hdrAcesPreset", 0f)); set => Set("hdrAcesPreset", Mathf.Clamp(value, 0, 2)); }
+        /// <summary>Neutral: how the range is reduced to the display's, 0 BT.2390 (default), 1 Reinhard; and how far bright
+        /// colours may shift in hue toward white (0 keeps the hue).</summary>
+        public static int HdrRangeReduction { get => Mathf.RoundToInt(Get("hdrRangeReduction", 0f)); set => Set("hdrRangeReduction", Mathf.Clamp(value, 0, 1)); }
+        public static float HdrHueShift { get => Get("hdrHueShift", 0f); set => Set("hdrHueShift", Mathf.Clamp01(value)); }
+
+        /// <summary>Remake (2026-11-20, the user's request): the DLSS model ("render preset") in place of NVIDIA's pick for the
+        /// quality mode: 0 default, else the NVIDIA module's DLSSPreset value (a bit: F, J, K, L, M ...; a preset the
+        /// quality mode doesn't offer falls back to the default, UpscalerFramework.DlssPresets).</summary>
+        public static int DlssPreset { get => Mathf.RoundToInt(Get("dlssPreset", 0f)); set => Set("dlssPreset", Mathf.Max(0, value)); }
+
         /// <summary>FSR 4 Lite (remake, 2026-11-16, the user's request): AMD's smaller FSR 4 model in place of the GPU's own,
         /// where FSR 4 runs through ffx-vk-linux (Linux; docs/notes/options.md "FSR on Linux"). Off by default.</summary>
         public static bool Fsr4Lite { get => GetBool("fsr4Lite", false); set => SetBool("fsr4Lite", value); }
+
+        /// <summary>Remake (2026-11-20, the user's request): NVIDIA DLSS Frame Generation, the frames made between two
+        /// rendered ones: 0 off (default), 1..5 that many generated frames per rendered one (2x .. 6x; what the GPU runs,
+        /// FrameGeneration.MaxFrames), 6 dynamic (the driver picks the multiplier for the display's refresh rate, where
+        /// it can). Windows D3D12 players on RTX cards with Streamline's DLLs in the build; Streamline is started at the
+        /// next start of the game (docs/notes/options.md "Frame generation").</summary>
+        public static int FrameGeneration { get => Mathf.RoundToInt(Get("frameGeneration", 0f)); set => Set("frameGeneration", Mathf.Clamp(value, 0, FrameGenerationDynamic)); }
+        public const int FrameGenerationDynamic = 6;
+        /// <summary>Remake (2026-11-20): who makes the generated frames where both can: 0 NVIDIA DLSS (default), 1 AMD FSR
+        /// (FrameGeneration.UsesFsr; a start's choice, like turning frame generation on).</summary>
+        public static int FrameGenerationProvider { get => Mathf.RoundToInt(Get("frameGenerationProvider", 0f)); set => Set("frameGenerationProvider", Mathf.Clamp(value, 0, 1)); }
+        public const int FrameGenerationDlss = 0, FrameGenerationFsr = 1;
+
+        /// <summary>Dynamic frame generation's target frame rate: 0 the display's refresh rate (default), else frames a second.</summary>
+        public static int FrameGenerationTarget { get => Mathf.RoundToInt(Get("frameGenerationTarget", 0f)); set => Set("frameGenerationTarget", Mathf.Clamp(value, 0, 1000)); }
+
+        /// <summary>Remake (2026-11-20, the user's request): DLSS neural rendering ("DLSS 5") on the finished picture, where
+        /// the GPU runs it (RTX 50 and up, by NVIDIA's own check) and its two DLLs are beside the plugin: off by default; its
+        /// intensity 0..1 (docs/notes/options.md "Neural rendering").</summary>
+        public static bool NeuralRendering { get => GetBool("neuralRendering", false); set => SetBool("neuralRendering", value); }
+        public static float NeuralRenderingIntensity { get => Get("neuralRenderingIntensity", 1f); set => Set("neuralRenderingIntensity", Mathf.Clamp01(value)); }
+        /// <summary>DLSS-NR's other strengths (0..1, the plugin's defaults 1): how far it changes the lighting's tones, the
+        /// fine structure, and the structure of skin; and its quality mode (0 performance, 1 balanced, 2 quality: default).</summary>
+        public static float NeuralRenderingTone { get => Get("neuralRenderingTone", 1f); set => Set("neuralRenderingTone", Mathf.Clamp01(value)); }
+        public static float NeuralRenderingStructure { get => Get("neuralRenderingStructure", 1f); set => Set("neuralRenderingStructure", Mathf.Clamp01(value)); }
+        public static float NeuralRenderingSkin { get => Get("neuralRenderingSkin", 1f); set => Set("neuralRenderingSkin", Mathf.Clamp01(value)); }
+        public static int NeuralRenderingQuality { get => Mathf.RoundToInt(Get("neuralRenderingQuality", 2f)); set => Set("neuralRenderingQuality", Mathf.Clamp(value, 0, 2)); }
+
+        /// <summary>Remake (2026-11-20): NVIDIA Reflex Low Latency through the same Streamline: 0 off (default), 1 on,
+        /// 2 on + boost. Frame generation runs with at least "on" (DLSS-G needs it).</summary>
+        public static int Reflex { get => Mathf.RoundToInt(Get("reflex", 0f)); set => Set("reflex", Mathf.Clamp(value, 0, 2)); }
+
+        /// <summary>Remake (2026-11-20): NVIDIA Image Scaling's sharpening of the finished picture (Streamline's sl.nis,
+        /// PictureFiltersPass): 0 off (default) .. 1.</summary>
+        public static float NisSharpness { get => Get("nisSharpness", 0f); set => Set("nisSharpness", Mathf.Clamp01(value)); }
+
+        /// <summary>Remake (2026-11-20): RTX Dynamic Vibrance (Streamline's sl.deepdvc: AI-driven colour vibrance on the
+        /// finished picture), off by default, with NVIDIA's defaults for its two strengths.</summary>
+        public static bool DynamicVibrance { get => GetBool("dynamicVibrance", false); set => SetBool("dynamicVibrance", value); }
+        public static float DynamicVibranceIntensity { get => Get("dynamicVibranceIntensity", 0.5f); set => Set("dynamicVibranceIntensity", Mathf.Clamp01(value)); }
+        public static float DynamicVibranceSaturation { get => Get("dynamicVibranceSaturation", 0.25f); set => Set("dynamicVibranceSaturation", Mathf.Clamp01(value)); }
+
+        /// <summary>Remake (2026-11-20): AMD Anti-Lag 2 (the driver's low-latency pacing, Radeon cards under D3D12; the
+        /// plugin's Gof2Sl_AntiLag). Off by default; changes at once.</summary>
+        public static bool AntiLag { get => GetBool("antiLag", false); set => SetBool("antiLag", value); }
 
         /// <summary>MSAA samples (1 = off, 2, 4, 8); 0 = the platform's render pipeline asset.</summary>
         public static int Msaa { get => Mathf.RoundToInt(Get("msaa", Default("msaa", 0f))); set => Set("msaa", value); }
@@ -286,7 +380,7 @@ namespace GoF2Remake.Data
             if (preset < 0 || preset >= Presets.Length) return;
             for (int i = 0; i < PresetKeys.Length; i++) SetQuiet(PresetKeys[i], PresetValue(preset, PresetKeys[i]));   // (Apple's MetalFX swap too)
             PlayerPrefs.Save();
-            Changed?.Invoke();
+            RaiseChanged();
         }
 
         /// <summary>The Android defaults: the Low preset and 60 fps (the user's choice, 2026-10-22). Tests set the override.</summary>
@@ -729,7 +823,7 @@ namespace GoF2Remake.Data
             if (cosmetics) SetQuiet("shopByCategory", choice);
             PlayerPrefs.Save();
             if (!cosmetics) NotifyExperienceRules();
-            Changed?.Invoke();
+            RaiseChanged();
         }
 
         /// <summary>Sets every option of 'experience' (ExperienceOriginal..ExperienceRemake; Custom does nothing), one Changed.
@@ -742,7 +836,7 @@ namespace GoF2Remake.Data
             for (int i = 0; i < ExperienceKeys.Length; i++) SetQuiet(ExperienceKeys[i], Experiences[experience][i]);
             PlayerPrefs.Save();
             NotifyExperienceRules();
-            Changed?.Invoke();
+            RaiseChanged();
         }
 
         static void NotifyExperienceRules()
@@ -1019,7 +1113,7 @@ namespace GoF2Remake.Data
                 uiFont = value;
                 PlayerPrefs.SetString(Prefix + "uiFont", value);
                 PlayerPrefs.Save();
-                Changed?.Invoke();
+                RaiseChanged();
             }
         }
         static string uiFont;
@@ -1069,7 +1163,7 @@ namespace GoF2Remake.Data
                 if (value == SpeedrunCompare) return;
                 PlayerPrefs.SetString(Prefix + "speedrunCompare", value);
                 PlayerPrefs.Save();
-                Changed?.Invoke();
+                RaiseChanged();
             }
         }
         /// <summary>Remake: where the speedrun timer sits (FpsPosition's places), the top left by default.</summary>
@@ -1081,7 +1175,7 @@ namespace GoF2Remake.Data
         public static string Language
         {
             get => PlayerPrefs.GetString(Prefix + "language", "en");
-            set { PlayerPrefs.SetString(Prefix + "language", value); PlayerPrefs.Save(); Changed?.Invoke(); }
+            set { PlayerPrefs.SetString(Prefix + "language", value); PlayerPrefs.Save(); RaiseChanged(); }
         }
 
         /// <summary>Remake: the voice language apart from the text: "auto" = German voices with the German text (the
@@ -1089,7 +1183,7 @@ namespace GoF2Remake.Data
         public static string VoiceLanguage
         {
             get => PlayerPrefs.GetString(Prefix + "voiceLanguage", "auto");
-            set { PlayerPrefs.SetString(Prefix + "voiceLanguage", value); PlayerPrefs.Save(); Changed?.Invoke(); }
+            set { PlayerPrefs.SetString(Prefix + "voiceLanguage", value); PlayerPrefs.Save(); RaiseChanged(); }
         }
 
         /// <summary>Whether the German voice lines play (VoiceLanguage, "auto" follows the text language).</summary>
@@ -1104,7 +1198,8 @@ namespace GoF2Remake.Data
             "musicTrack.specters2", "musicTrack.wanted" };
         public static readonly string[] GraphicsKeys =
         {
-            "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality", "fsr4Lite",
+            "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality", "dlssPreset", "fsr4Lite", "frameGeneration", "frameGenerationProvider", "frameGenerationTarget", "reflex", "antiLag", "neuralRendering", "neuralRenderingIntensity", "neuralRenderingTone", "neuralRenderingStructure", "neuralRenderingSkin", "neuralRenderingQuality", "nisSharpness", "dynamicVibrance", "dynamicVibranceIntensity", "dynamicVibranceSaturation",
+            "hdr", "hdrPaperWhite", "hdrDetectLimits", "hdrPeak", "hdrBlack", "hdrTonemapping", "hdrAcesPreset", "hdrRangeReduction", "hdrHueShift",
             "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "liveSkies", "skyStyle", "nebulaClouds", "npcPlayerEngines", "rebuiltPlanets", "hdResources", "remasteredEffects", "fov",
             "cameraShake", "originalChaseCamera", "es2FreeFlightCamera", "uiWidth", "uiMargin", "screenCutout", "showFps", "fpsPosition", "gameCursor",
         };
@@ -1126,6 +1221,9 @@ namespace GoF2Remake.Data
         /// <summary>These options back to their defaults.</summary>
         public static void Reset(IEnumerable<string> keys)
         {
+            bool hadStaged = false;
+            foreach (var key in keys) hadStaged |= staged.Remove(key);   // a default restored is not waiting for Apply
+            if (hadStaged) StagedChanged?.Invoke();
             foreach (var key in keys)
             {
                 PlayerPrefs.DeleteKey(Prefix + key);
@@ -1133,7 +1231,7 @@ namespace GoF2Remake.Data
                 if (key == "uiFont") uiFont = null;
             }
             PlayerPrefs.Save();
-            Changed?.Invoke();
+            RaiseChanged();
         }
 
         /// <summary>"Default settings" (497), every tab: every option back to its default and the key bindings, the language
@@ -1165,9 +1263,110 @@ namespace GoF2Remake.Data
         }
         static int defaultReads = -1;   // >= 0 while TryDefault reads: the options read meanwhile
 
+        // ---- staged options (the Graphics tab's Apply) ---------------------------------------------------------------
+        // Remake (2026-11-20, the user's request): the Graphics tab's options wait for Apply. While an options screen is
+        // open (BeginStaging) its Graphics rows read and write through ViewStaged (OptionsCatalog wraps their delegates):
+        // inside it a Set goes to 'staged' and a Get answers from it, so the rows show what was picked and follow each
+        // other (the upscaler's quality row with the upscaler), while everything else, the game and Bootstrap's appliers,
+        // keeps reading the applied values. ApplyStaged writes them at once (one Changed); DiscardStaged drops them.
+        // Changed's listeners always see the applied values, also when it is raised inside the view.
+        static readonly Dictionary<string, float> staged = new Dictionary<string, float>();
+        static int stagedView, appliedView;
+
+        /// <summary>An options screen is open: its Graphics rows stage their changes.</summary>
+        public static bool Staging { get; private set; }
+        /// <summary>Changes wait for Apply.</summary>
+        public static bool HasStaged => staged.Count > 0;
+        /// <summary>The staged changes changed (a row, Apply, Discard).</summary>
+        public static event Action StagedChanged;
+
+        static bool StagedNow => stagedView > 0 && appliedView == 0;
+
+        public static void BeginStaging() => Staging = true;
+
+        /// <summary>The options screen closed: what was not applied is dropped.</summary>
+        public static void EndStaging()
+        {
+            Staging = false;
+            stagedView = 0;
+            DiscardStaged();
+        }
+
+        /// <summary>These options are no longer waiting for Apply (something else set them for good meanwhile).</summary>
+        public static void Unstage(params string[] keys)
+        {
+            bool had = false;
+            foreach (var key in keys) had |= staged.Remove(key);
+            if (had) StagedChanged?.Invoke();
+        }
+
+        public static void DiscardStaged()
+        {
+            if (staged.Count == 0) return;
+            staged.Clear();
+            StagedChanged?.Invoke();
+        }
+
+        /// <summary>Writes the staged changes, with one Changed.</summary>
+        public static void ApplyStaged()
+        {
+            if (staged.Count == 0) return;
+            var values = new List<KeyValuePair<string, float>>(staged);
+            staged.Clear();
+            foreach (var kv in values)
+            {
+                WriteQuiet(kv.Key, kv.Value);
+                if (kv.Key != "cosmeticExperienceCustom" && Array.IndexOf(CosmeticsKeys, kv.Key) >= 0) WriteQuiet("cosmeticExperienceCustom", 1f);
+                if (kv.Key != "gameplayExperienceCustom" && Array.IndexOf(GameplayKeys, kv.Key) >= 0) WriteQuiet("gameplayExperienceCustom", 1f);
+            }
+            PlayerPrefs.Save();
+            StagedChanged?.Invoke();
+            RaiseChanged();
+        }
+
+        /// <summary>Until disposed, options are read and written as staged (nothing without an open options screen).</summary>
+        public static StagedScope ViewStaged() => new StagedScope(Staging, false);
+        /// <summary>Until disposed, options are read as applied, inside ViewStaged too.</summary>
+        public static StagedScope ViewApplied() => new StagedScope(true, true);
+
+        public readonly struct StagedScope : IDisposable
+        {
+            readonly bool on, applied;
+            public StagedScope(bool on, bool applied)
+            {
+                this.on = on;
+                this.applied = applied;
+                if (!on) return;
+                if (applied) appliedView++; else stagedView++;
+            }
+            public void Dispose()
+            {
+                if (!on) return;
+                if (applied) appliedView = Mathf.Max(0, appliedView - 1); else stagedView = Mathf.Max(0, stagedView - 1);
+            }
+        }
+
+        static void Stage(string key, float value)
+        {
+            // Back at the applied value: nothing to apply for it (the cache holds what the rows read before the change).
+            float applied = cache.TryGetValue(key, out var c) ? c : PlayerPrefs.GetFloat(Prefix + key, float.NaN);
+            if (Mathf.Approximately(applied, value)) { if (!staged.Remove(key)) return; }
+            else if (staged.TryGetValue(key, out var was) && Mathf.Approximately(was, value)) return;
+            else staged[key] = value;
+            StagedChanged?.Invoke();
+        }
+
+        static void RaiseChanged()
+        {
+            appliedView++;
+            try { Changed?.Invoke(); }
+            finally { appliedView--; }
+        }
+
         static float Get(string key, float fallback)
         {
             if (defaultReads >= 0) { defaultReads++; return fallback; }
+            if (stagedView > 0 && appliedView == 0 && staged.TryGetValue(key, out var pending)) return pending;
             if (cache.TryGetValue(key, out var v)) return v;
             v = PlayerPrefs.GetFloat(Prefix + key, fallback);
             cache[key] = v;
@@ -1179,18 +1378,25 @@ namespace GoF2Remake.Data
 
         static void SetQuiet(string key, float value)
         {
+            if (StagedNow) { Stage(key, value); return; }
+            WriteQuiet(key, value);
+        }
+
+        static void WriteQuiet(string key, float value)
+        {
             PlayerPrefs.SetFloat(Prefix + key, value);
             cache[key] = value;
         }
 
         static void Set(string key, float value, bool force = false)
         {
+            if (StagedNow) { Stage(key, value); return; }
             if (!force && Mathf.Approximately(PlayerPrefs.GetFloat(Prefix + key, float.NaN), value)) return;
             SetQuiet(key, value);
             if (key != "cosmeticExperienceCustom" && Array.IndexOf(CosmeticsKeys, key) >= 0) SetQuiet("cosmeticExperienceCustom", 1f);
             if (key != "gameplayExperienceCustom" && Array.IndexOf(GameplayKeys, key) >= 0) SetQuiet("gameplayExperienceCustom", 1f);
             PlayerPrefs.Save();
-            Changed?.Invoke();
+            RaiseChanged();
         }
     }
 }

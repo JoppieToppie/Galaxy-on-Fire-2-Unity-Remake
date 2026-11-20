@@ -209,7 +209,7 @@ row only while it isn't (`OptionDef.visible`; they pick their own resolution), a
 Options opens). `UrpStpGuard` keeps every URP asset's upscaler priority list (STP, DLSS, FSR 4 / 3 / 2, FSR 1, Auto) so
 `isStpUsed` holds and nothing is stripped; the scaling mode stays None (the Editor's views render plain). The PC asset's
 opaque texture is full size (opaque downsampling None: FSR's reactive mask warned every frame with 2x). Verified in the
-Editor on an RTX 5070 laptop (D3D12): DLSS (all modes) and FSR 3 in the menu, station and flight; no frame generation.
+Editor on an RTX 5070 laptop (D3D12): DLSS (all modes) and FSR 3 in the menu, station and flight; no frame generation (that is "Frame generation" below).
 **Context leak** (`UpscalerFramework.FlushContexts`, hooked on `endCameraRendering` by `Bootstrap`): the framework keeps
 one DLSS / FSR context per camera (~190 MB at 3440 x 1440) and drops it after 400 frames unused or on a resolution /
 quality change, but `UniversalRenderPipeline.Render` records those DestroyFeature calls after the frame's last Submit
@@ -307,6 +307,247 @@ verified on a Mac or an iPhone.
   - **Checked** (2026-11-16, Linux development build): Vulkan 1.3, providers 4.1.2 / 3.1.6 / 2.3.4, FSR 4 Quality in the
     menu, orbits and hangar, pictures as native; no validation error from the hook or FSR (gamescope's WSI layer has its
     own). Not checked: other GPUs / vendors, the FSR option changed while playing.
+- **Frame generation** and **Reflex** (remake, 2026-11-20, the user's request; Graphics "Frame generation" / "NVIDIA
+  Reflex", `Settings.FrameGeneration` 0 off, 1..5 generated frames per rendered one, 6 dynamic / `Settings.Reflex` 0 off,
+  1 on, 2 on + boost; `FrameGeneration`, `FrameGenerationPass`, native plugin `Native/Streamline` →
+  `Assets/Plugins/Windows/x86_64/gof2_streamline.dll`): NVIDIA DLSS Frame Generation (DLSS-G) and Reflex through NVIDIA
+  Streamline 2.14.16, in Windows D3D12 players on NVIDIA GPUs. Unity's NVIDIA module is the upscaler alone, and DLSS-G has
+  to own the swap chain (it presents the generated frames), which Unity makes itself.
+  - **Attaching** (the plugin's header): preloaded (`isPreloaded`), so `UnityPluginLoad` runs before Unity makes its
+    device; Streamline's "manual hooking" mode (`sdk/docs/ProgrammingGuideManualHooking.md`): Unity keeps its native
+    device, queues and factory, and only three calls go through Streamline's proxies. `D3D12CreateDevice`
+    (UnityPlayer.dll's delay import, ordinal 101) → the device's `CreateCommandQueue` vtable slot; Unity's first
+    `CreateCommandQueue` gives Streamline the device (`slSetD3DDevice`) and runs through the proxy device (DLSS-G's hook
+    wants the queues; Unity gets the native queue back); `CreateDXGIFactory` / `2` (UnityPlayer.dll's imports) → the
+    factory's `CreateSwapChain(ForHwnd)` slots: a D3D12 swap chain Unity makes goes through the proxy factory, so Unity
+    holds Streamline's swap chain proxy. Only calls whose return address is in UnityPlayer.dll are redirected
+    (Streamline's own queues and swap chain use the same vtables). `sl.interposer.dll` is loaded after its signature
+    check, delay-linked from an import library made of its export names (`sl_interposer.def`), `EngineType::eUnity`
+    (sl.reflex then takes the render-submit-end marker for the frame being presented: Unity presents out of reach).
+  - **Armed:** whether to start Streamline has to be known before any managed code runs: `HKCU\Software\GoF2Remake\
+    FrameGeneration` `Armed` (written on every option change, `Gof2Sl_SetArmed`: either option on). Unarmed the plugin
+    does nothing at all, so turning an option on for the first time needs a restart (the row's help says so); once
+    Streamline runs, the multiplier, off and Reflex's mode change at once (DLSS-G stays loaded with mode off: a copy a
+    frame, no restart). `Starting` is set before Streamline starts and cleared once the game has run 120 frames
+    (`Gof2Sl_StartedOk`): a start that never got there is not repeated (the next one stays unarmed, turns both options off
+    and says so). Never armed with `-batchmode` / `-nographics` / `-server` / another `-force-` API / `-vr` / `-vrsim`;
+    `-noframegen` / `-framegen` force it either way.
+  - **Per frame:** player loop steps (`FrameGeneration.HookPlayerLoop`, only while armed): first thing in a frame
+    `slReflexSleep` + the simulation-start marker; before `PostLateUpdate.FinishFrameRendering` simulation end / render
+    submit start; after it a render thread event (`EventFrameEnd`): render submit end, `slDLSSGSetOptions` when the mode
+    changes (off on a frame nothing was tagged for: loading, no screen camera), `slDLSSGGetState` (what the options and
+    the frame rate counter show: "118 FPS (59 × 2)"). `FrameGenerationPass` (`RenderPassEvent.AfterRendering`: after the
+    final blit, before URP draws the interface's overlay; the first full-screen screen camera of a frame, asking URP for
+    depth and motion vectors) copies the camera's depth and motion vectors into two textures of its own
+    (`FrameGenInputs.shader`), the way up the back buffer is: on Direct3D URP's render textures are usually the other way
+    up (the render graph's `TextureUVOrigin`; the motion's y negated with the turn), and DLSS-G interpolates the back
+    buffer. Its tag event (`EventTag`) gives Streamline those two (ours: valid until the present, in the state
+    `RequestResourceState` put them in), the camera constants (Unity's matrices are for column vectors: Streamline's rows
+    are our columns; `GL.GetGPUProjectionMatrix(…, false)`, no jitter; clip to previous clip from the frame before, reset
+    on another camera or a skipped frame; motion vector scale -1, -1: URP's are current minus previous in texture
+    coordinates), and the back buffer as it is then, before the interface, as the HUD-less colour (Streamline copies it
+    on Unity's command list: the HUD is not smeared along with the scene behind it).
+  - **The options:** shown where the plugin and Streamline's DLLs are in the build on an NVIDIA GPU under D3D12
+    (`FrameGeneration.Offered`). Frame generation: Off, 2× … the GPU's most (`numFramesToGenerateMax`: 2× alone on RTX
+    40, more on RTX 50), Dynamic where the driver has it; a stored choice the GPU doesn't run is clamped. Reflex: Off /
+    On / On + Boost; frame generation keeps it at least on (DLSS-G needs it). The help line names what stops it (the
+    driver, Windows, hardware-accelerated GPU scheduling off, the GPU). DLSS-G stops by itself while the window has no
+    focus and where VSync already fills the display's refresh rate.
+  - **The DLLs** (`Assets/Plugins/Windows/x86_64`, Win64 only): `sl.interposer.dll`, `sl.common.dll`, `sl.dlss_g.dll`,
+    `sl.reflex.dll`, `sl.pcl.dll` (Streamline 2.14.16, production, NVIDIA-signed) and `nvngx_dlssg.dll` (310.9.16), under
+    NVIDIA's RTX SDKs licence (kept with the SDK's in `Native/Streamline/redist`, git-ignored); without them the options
+    are not shown. The plugin builds against the SDK's headers of the same version (`Native/Streamline/sdk`, git-ignored:
+    the clone command and the build are in `Native/Streamline/CMakeLists.txt`). `DlssRedist` (Editor, after a Windows
+    build) puts a newer `nvngx_dlss.dll` from `Native/Streamline/redist` in place of the one Unity ships (310.5.3 →
+    310.9.16: the upscaler's newer models).
+  - **Testing:** `$GOF2_FRAMEGEN` (0..6) / `$GOF2_REFLEX` (0..2) in place of the options for one run, with `-framegen`;
+    `$GOF2_SL_VERBOSE` a status line every 512 frames and Streamline's own log lines in the Player.log;
+    `$GOF2_SL_LOGDIR` Streamline's log files; `$GOF2_FRAMEGEN_ONLY_GENERATED` shows the generated frames alone.
+  - **Checked** (2026-11-20, RTX 4080, driver 621.24, Windows 11 26300, a build): Streamline starts before the device,
+    "Unity's swap chain is Streamline's", DLSS-G supported (2× the most there), Reflex low latency available, the menu
+    camera tagged without errors, and in the focused menu on the 3440 x 1440, 143 Hz display with VSync: 2.00 frames
+    shown per rendered one, 68 - 70 rendered a second (half the refresh rate: DLSS-G's own pacing), status OK. A window
+    without focus is not interpolated (Streamline: "DLSS-G disabled: window not focused"), so a test started from a
+    script has to bring the window to the front. Not checked: the picture in flight (motion vectors and the HUD by
+    eye), the resolution or the window mode changed while it generates, multi frame generation (RTX 50), HDR.
+- **Apply (the Graphics tab)** (remake, 2026-11-20, the user's request: "an apply button … that applies but does not
+  close the settings"; the user chose the Graphics tab alone, the other tabs apply as you change them): while an options
+  screen is open the Graphics tab's rows wait for the footer's Apply; the screen stays open. Leaving with changes not
+  applied asks "Apply the changed graphics settings?" (Apply / Discard / Cancel).
+  - **Staged options** (`Settings`: `BeginStaging` / `EndStaging`, `ViewStaged`, `ApplyStaged`, `DiscardStaged`,
+    `HasStaged`, `StagedChanged`): inside `ViewStaged` a `Set` / `SetQuiet` goes to a pending table and a `Get` answers
+    from it; outside it everything reads the applied values. `OptionsCatalog.All` wraps every delegate of the Graphics
+    rows in it (`Stage`, `OptionDef.staged`), so a row shows what was picked and the rows depending on it follow (the
+    upscaler's quality row, MSAA greyed out, the preset row), while the game and `Bootstrap`'s appliers see nothing
+    until Apply: one `Changed` for the lot. A value put back to the applied one leaves nothing waiting; a preset stages
+    all its options; Default settings applies at once and drops what waited for those keys. `Changed`'s listeners always
+    read the applied values (`RaiseChanged`), also when raised inside the view. Without an open screen (the tests, rows
+    built elsewhere) the view does nothing: at once, as before.
+  - **The screens:** `OptionsView` (pause menu, station, Mod Builder) stages while it is on a panel (dropped when it
+    goes another way than Back); Apply is in the footer on the Graphics tab, greyed out and skipped by the keys while
+    nothing waits; the question takes the footer's place like the defaults prompt, and the hosts' Back
+    (`CloseResetPrompt`) opens it. `MainMenu` stages while its Options panel is open (`OpenPanel` / `Back`), its
+    `optionsApply` button and the dialog's three buttons (`AskApplyOptions`).
+  - **Keep these settings?** (`SettingsConfirm`): a display mode or resolution asks once it is applied
+    (`OptionsCatalog.ApplyStaged`), with the applied value to go back to; Revert writes the old values at once.
+  - **Checked** (2026-11-20, the Editor's Play mode, main menu): the button on the Graphics tab only, lit by a change,
+    the option applied with the panel open, Back with a change waiting asks. The in-game page by its tests
+    (`SettingsTests.OptionsPageApplyAndLeavePrompt`), not played.
+- **Graphics categories** (remake, 2026-11-20, the user's request: "in categories just like gameplay has"): the Graphics
+  tab's rows under headings like the Cosmetics and Gameplay tabs' (`OptionSection.Graphics*`, `OptionSectionBlock`):
+  the preset row above them, then Display, Upscaling and frame generation, Image quality, Effects, Skies and planets,
+  Camera, UI. `OptionsOrganization.GraphicsLayout` lists each category's rows in the order shown (`OrganizeGraphics`
+  sorts the list to it: the keys walk the rows in list order); a row not listed lands at the end of Effects, and
+  `SettingsTests.GraphicsCategoriesAndNewOptions` fails until a new row is placed (`HasGraphicsPlace`). A section's
+  heading hides while none of its rows shows (`OptionSectionBlock.RefreshGroups`).
+- **DLSS preset** (remake, 2026-11-20, the user's request; Graphics "DLSS preset", `Settings.DlssPreset`, with DLSS on):
+  DLSS's model in place of NVIDIA's pick for the quality mode: Default, then the letters the mode offers (F, J, K, L, M in
+  this NVIDIA module: `UpscalerFramework.DlssPresets`, the module's `GetAvailableDLSSPresetsForQuality` bit mask); the
+  value is the module's `DLSSPreset` bit, set on all five of `DLSSOptions`' per-mode presets where the mode offers it
+  (`SetQuality`), NVIDIA's default elsewhere. The help line adds NVIDIA's own (English) line about the picked preset.
+- **Neural rendering** (remake, 2026-11-20, the user's request: "DLSS 5", "only on 50xx and up"; Graphics "Neural
+  rendering (DLSS 5)" and its strengths / quality, `Settings.NeuralRendering*`; `NeuralRenderingPass`, the plugin's
+  `OnNeural`): NVIDIA's DLSS 3D-guided neural rendering (Streamline's `sl.dlss_nr`, NGX `nvngx_dlssnr.dll`) on the
+  finished picture.
+  - **No public header:** Streamline 2.14's public SDK has only the feature id and the three "uplift" buffer types; the
+    API is in NVIDIA's NDA SDK. The plugin declares it itself (`gof2_streamline.cpp`, top): the one function the DLL
+    exports by name (`slDLSSNRSetOptions`), the options struct's id (found byte for byte in `sl.dlss_nr.dll` 2.13), its
+    members in the order Gaijin's Dagor Engine sets them (`streamline_adapter.cpp`, built against the real header) and a
+    community reconstruction lists them. Replace it with NVIDIA's `sl_dlss_nr.h` once there is one.
+  - **Only where it runs:** the two DLLs are not in the repository (NVIDIA has not published them; a builder who has
+    them puts them in `Native/Streamline/redist`, and `DlssRedist` copies them beside the plugin). The plugin asks for
+    the feature only when both are there and logs NVIDIA's own answer ("DLSS neural rendering: supported / not supported
+    on this GPU", state bits 128 / 256): the options show only where it is supported (`FrameGeneration.NeuralOffered`;
+    before Streamline has run, by the card's name: not GTX, RTX 20 / 30 / 40).
+  - **The frame** (as Dagor evaluates it): `NeuralRenderingPass` after the post-processing, before the final blit, on
+    the camera `FrameGenerationPass` picked: the frame's inputs first (the constants, the depth and motion vector
+    copies: shared with DLSS-G, tagged once), the picture (linear SDR there) sRGB-encoded into a 10-bit texture the way
+    up the back buffer is (DLSS-NR takes tonemapped SDR at the output resolution), the event (`slSetTagForFrame` with
+    the uplift input / output colour valid until the evaluate, `slEvaluateFeature`), and back into a camera colour
+    texture, linear again. A failure copies the picture through; after 8 the pass stops for the session. Not with HDR
+    output (the picture is not SDR then). All its options change in a running game (the rows are in the pause and
+    station menus too): `slDLSSNRSetOptions` when a value changes.
+  - **Checked** (2026-11-20, RTX 4080): with the genuine NVIDIA-signed 2.13 DLLs beside the plugin Streamline loads
+    `sl.dlss_nr`, reports "DLSS-NR feature is not supported" and ignores it, the options stay hidden and nothing else
+    changes. **Not checked at all:** the feature running (no RTX 50 card here): the struct layout, the picture's
+    encoding and the orientation are from public code, not from a run.
+- **HDR** (remake, 2026-11-20, the user's request: "HDR support with all its settings"; Graphics, Display: "HDR" and its
+  rows, `Settings.Hdr*`; `Bootstrap.ApplyHdr`): HDR display output on desktop players. The player allows it
+  (`allowHDRDisplaySupport`, 10 bit: HDR10, the format DLSS frame generation needs; not "use HDR display output", so a
+  start is in SDR until the option asks). The option (off by default; greyed out until the display has HDR on in
+  Windows, `HDROutputSettings.main.available`) requests the mode (`RequestHDRModeChange`; frame generation pauses 90
+  frames across the swap chain's change, `FrameGeneration.Pause`). While it is on a global volume of the game's own
+  (priority 1000, kept across scenes) carries URP's `Tonemapping` override with the options' values: paper white (80 -
+  400 nits, default 200), the display's own limits or the player's peak (400 - 4000) and black level, the tonemapper
+  (None / Neutral, the default / ACES), ACES's display preset (1000 / 2000 / 4000 nits), Neutral's range reduction
+  (BT.2390 / Reinhard) and hue shift. Off, the volume is inactive and the scenes are as built (they have no tonemapping).
+  With HDR on URP draws the interface into the picture before the final blit, so DLSS-G's HUD-less colour holds the HUD
+  too (the HUD is interpolated with the scene); neural rendering does not run. Not checked on an HDR display.
+  - **Calibration** (the "HDR calibration…" row, `HdrCalibration` + `Resources/GoF2PostFx/HdrCalibration.shader`; only
+    with HDR on and applied): a test pattern in place of the scene (`PatternPass`, before the post-processing: nits
+    through the same tonemapping the game gets, the bloom and colour adjustments held neutral) with two sliders. Left:
+    a diamond at the display's full signal in a block at the peak picked: raise the peak until the diamond is gone and
+    no further. Right: a band at paper white beside reference greys. The sliders write the options at once
+    (`Settings.Unstage`: not waiting for Apply); the other panels hide while it is up. Not checked on an HDR display.
+- **Frame generation's later additions** (remake, 2026-11-20, the user's requests):
+  - **Latency readout:** the frame rate counter adds "PCL 6 ms": Reflex's own reports (`slReflexGetState`, the median
+    of the last whole reports' GPU render end minus simulation start; `FrameGeneration.LatencyMs`). The reports stay
+    empty past the render submit without the present markers, and Unity presents by itself: the swap chain proxy's
+    `Present` / `Present1` vtable slots are wrapped (`Hook_Present`: present start, the proxy's present, present end,
+    for the frame whose FrameEnd event ran last). Before that the counter showed ~445 ms from stale entries. Checked:
+    whole reports ("Reflex report:" with `$GOF2_SL_VERBOSE`), ~5.6 ms sim start to GPU end at 70 rendered frames.
+  - **Reflex's frame limiter:** while Streamline runs, a frame rate cap (30 .. 360) is Reflex's
+    (`ReflexOptions.frameLimitUs`, the driver paces it in `slReflexSleep` in step with frame generation) and Unity's
+    `targetFrameRate` is off (`FrameGeneration.ReflexLimits`, `Bootstrap.Limit`). Checked: `$GOF2_FRAMELIMIT=60` under
+    V-Sync held 59 - 60 rendered frames a second.
+  - **Dynamic's target** ("Frame generation target", `Settings.FrameGenerationTarget`, with Dynamic picked): the
+    display's refresh rate or 60 .. 360 frames a second (`DLSSGOptions.dynamicTargetFrameRate`). Not checked (the RTX 40
+    driver has no Dynamic).
+  - **No generated frames behind a menu** (`FrameGeneration.SetMenu`): the pause menu, the station's system menu and a
+    main menu panel hold frame generation off while open (Streamline's guide: menus are still interface; DLSS-G keeps
+    its resources, `eRetainResourcesWhenOff`, so it is back at once). `$GOF2_FRAMEGEN_MENUS=1` leaves it on, for tests.
+  - **The interface's own layer** (`FrameGenerationPass.RecordInterface`): the overlay (UI Toolkit / uGUI) drawn once
+    more into a texture cleared to nothing, its alpha copied into an R8 texture the way up the back buffer is and
+    tagged as `kBufferTypeUIAlpha` beside the HUD-less colour; `DLSSGOptions.enableUserInterfaceRecomposition` then has
+    DLSS-G interpolate the scene and the interface apart. An unsafe pass with the target bound by hand
+    (`SetRenderTarget`), as URP's own off-screen overlay with a backdrop filter: in a raster pass two UI Toolkit panels
+    came out opposite ways up (UI Toolkit reads the active render target when a panel is drawn). Not with HDR output
+    (URP composites the interface before the back buffer there); `$GOF2_FRAMEGEN_UI=0` leaves it out;
+    `$GOF2_FRAMEGEN_DUMP=<folder>` writes the mask and a screenshot of one frame. Checked: the mask lies exactly over
+    the menu's logo and the counter, 2.00 frames shown per rendered one with it, no tag errors. Not compared by eye
+    against frames without it.
+- **FSR frame generation** (remake, 2026-11-20, the user's request; Graphics "Frame generation" with "Frame generation
+  type" `Settings.FrameGenerationProvider` 0 NVIDIA DLSS / 1 AMD FSR; `FrameGeneration.UsesFsr`, the plugin's "AMD FSR
+  frame generation" part): the other provider of generated frames, on any vendor's GPU under D3D12. One generated
+  frame per rendered one (Off / 2×). On an NVIDIA card the type row picks (DLSS by default); elsewhere FSR is the
+  only one and the row hides.
+  - **One or the other per run:** two frame generators can't share a swap chain, and FSR's has to be made in place of
+    Unity's, so the provider is a start's choice like "armed" (`HKCU\...\FrameGeneration` `Provider`, written with every
+    option change: FSR only while frame generation is on with it; `-fsrframegen` forces it). In an FSR run Streamline
+    is not started: no Reflex (its row says so), Image Scaling, Dynamic Vibrance or neural rendering; Anti-Lag 2 is
+    separate and stays. Changing the type, or turning FSR's frame generation on, takes a restart.
+  - **Attaching:** AMD's FidelityFX API through the loader Unity's AMD module already puts beside the player
+    (`amd_fidelityfx_loader_dx12.dll`, 2.3.0; its five functions by name, nothing linked) plus
+    `amd_fidelityfx_framegeneration_dx12.dll` of the same SDK build (AMD-signed, `Native/FsrFrameGen/sdk`, git-ignored:
+    the clone command is in `Native/Streamline/CMakeLists.txt`; `DlssRedist` copies it beside the loader when the two
+    loaders' versions match). The same `CreateDXGIFactory` / `CreateSwapChainForHwnd` hooks as Streamline's: Unity's
+    swap chain is FSR's frame generation swap chain (`ffxCreateContext`, `..._FRAMEGENERATIONSWAPCHAIN_FOR_HWND_DX12`);
+    Unity's own when FSR can't make one.
+  - **Per frame** (render thread, `FsrOnTag` / `FsrOnFrameEnd`, the Tag and FrameEnd events `FrameGenerationPass` and
+    `FrameGeneration` already issue): the frame generation context for the back buffer's size and format (made again
+    when they change, after `WAIT_FOR_PRESENTS`); the back buffer before the interface copied into a texture of ours,
+    the HUD-less colour (kept until the present); `ffxConfigure` (enabled, the HUD-less colour, the frame's number, the
+    generation callback: `ffxDispatch` on our context when the swap chain presents); the "prepare" dispatch with the
+    depth and motion vector copies DLSS-G gets (inverted depth; motion scale minus the render size: ours are current
+    minus previous in texture coordinates), the jitter and the camera. Off (`ffxConfigure`) on a frame that tagged
+    nothing, behind a menu, or after a failure (5 and it stays off). The counter's "× 2" there is the plugin's own
+    count of frames it asked for, not a measurement.
+  - **Checked** (2026-11-20, RTX 4080, a build with `-fsrframegen`): "Unity's swap chain is FSR's", the context made,
+    no errors, a clean exit; with `$GOF2_FSR_DEBUG` FSR's debug view on the screen itself (a capture of the display):
+    the generated frame, its optical flow, the HUD-less picture without the menu's logo beside the frame with it.
+    **Not checked:** the picture in flight by eye, a Radeon or Arc card, V-Sync's pacing (the game rendered 144 frames
+    a second on the 143 Hz display with it on: how many generated frames the display then shows was not measured), a
+    resolution or HDR change while it runs, the options' restart flow played through the menu.
+- **Anti-Lag 2** (remake, 2026-11-20, the user's request; Graphics "AMD Anti-Lag 2", `Settings.AntiLag`): Reflex's
+  counterpart on Radeon cards. AMD's SDK is one header (`Native/AntiLag2/sdk/ffx_antilag2_dx12.h`, git-ignored: the
+  clone is `github.com/GPUOpen-LibrariesAndSDKs/AntiLag2-SDK`) talking to the driver (`amdxc64.dll`) through the D3D12
+  device; the plugin initializes it when Unity's device exists (state bit 512: only there the row shows) and
+  `Gof2Sl_AntiLag` runs first thing in a frame, before the input is read (`FrameGeneration.FrameStart`; the player loop
+  step is hooked for it alone when Streamline is not started). Its limiter takes a frame rate cap like Reflex's. Changes
+  at once. **Not checked:** no Radeon card here (on the RTX 4080 the driver's DLL is not there and nothing happens).
+- **Frame rate limits** (remake, 2026-11-20, the user's "add more FrameRate limit options"): 30, 40, 45, 50, 60, 72,
+  75, 90, 100, 120, 144, 165, 180, 200, 240, 300, 360, Uncapped, V-Sync (`Settings.FrameRateChoices`: the order shown;
+  the enum's first five keep their stored numbers, the new ones follow; `Settings.FrameRateLimit`). A phone or tablet
+  shows only the limits its screen reaches (`Bootstrap.FrameRateChoices`), a desktop all of them.
+- **Image Scaling and Dynamic Vibrance** (remake, 2026-11-20, the user's request; Graphics, Effects: "NVIDIA Image
+  Scaling sharpening" `Settings.NisSharpness` 0 off .. 1, "RTX Dynamic Vibrance" `Settings.DynamicVibrance` with its
+  intensity and saturation; `PictureFiltersPass`, the plugin's `OnPicture`): Streamline's two filters of the finished
+  picture. NIS as a sharpener (`NISMode::eSharpen`: the picture is at its final size; DLSS has no sharpening of its own)
+  and DeepDVC in place on the result, on the SDR picture sRGB-encoded into a 10-bit texture between the post-processing
+  and the final blit, like neural rendering's pass and after it. Neither needs depth, motion vectors or constants. Like
+  frame generation they need Streamline started with the game (a restart the first time); a failure leaves the picture
+  as it was and after 8 the pass stops. Not with HDR output.
+  - **The DLLs:** `sl.nis.dll` (Streamline's release, NVIDIA-signed) in `Native/Streamline/redist` is copied into a
+    build by `DlssRedist`. **DeepDVC's public DLL is watermarked** ("DeepDVC - DO NOT DISTRIBUTE - CONTACT NVIDIA TO
+    OBTAIN DLLs FOR YOUR APPLICATION" in the picture's corner): `sl.deepdvc.dll` / `nvngx_deepdvc.dll` of the release
+    are kept in `redist/watermarked` and not copied, so builds have no Dynamic Vibrance row until NVIDIA's production
+    DLLs are in `redist`.
+  - **Checked** (2026-11-20, RTX 4080): both supported, 6000 frames filtered without an error (`$GOF2_NIS=60`,
+    `$GOF2_VIBRANCE=1` in place of the options), the picture as expected plus DeepDVC's watermark. Not compared by eye
+    at different strengths.
+- **XeSS** (remake, 2026-11-20, the user's request; the Upscaler option's "XeSS", `Settings.UpscalerXess` = 7;
+  `XessUpscaler` / `XessOptions`, native plugin `Native/XeSS` → `Assets/Plugins/Windows/x86_64/gof2_xess.dll`): Intel
+  XeSS Super Resolution through URP's upscaler framework (id `intel.xess`), in Windows D3D12 players on any GPU with
+  Shader Model 6.4: the one AI upscaler every recent card has. Temporal like DLSS (MSAA off, the Upscaler quality option
+  picks the render resolution: XeSS's own answer, `xessGetOptimalInputResolution`; native = its AA mode). Contexts and
+  dispatches are plugin events on the render graph's command buffer like `LinuxFsrUpscaler`'s; a destroyed context is
+  kept two seconds first (the GPU may still run its last frame). Inputs: the camera colour, depth (inverted) and motion
+  vectors at the render resolution, FSR's jitter and motion scale conventions (XeSS's are the same). Intel's
+  `libxess.dll` (the XeSS SDK, `Native/XeSS/sdk`, git-ignored; Intel's licence lets it be redistributed unchanged with
+  its notice) is delay-loaded from beside the plugin, where `DlssRedist` copies it; without it or the plugin the option
+  has no XeSS. A stored XeSS on a device without it falls to FSR 2+ or STP. `$GOF2_UPSCALER=7` picks it for a run.
+  **Checked** (2026-11-20, RTX 4080, XeSS 2.0.2): quality mode at 3440 x 1440 renders 2024 x 848, a clean picture in
+  the menu, no errors. Not checked: flight (ghosting by eye), an Intel or AMD card, a resolution change.
 - **Original bloom** (`ClassicBloomPass` + `Resources/GoF2PostFx/ClassicBloom.shader`; the bloom option's "Original"):
   the original's only post effect (`AbyssEngine::BloomShader`, on from `MGame::OnInitialize` via
   `Engine::SetPostEffect(0x1400000, true)`; the glow 0x1400001 exists but is never switched on; the radial blur 0x1400002

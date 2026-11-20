@@ -211,6 +211,7 @@ namespace GoF2Remake.UI
         void OpenSystemMenu()
         {
             if (SystemMenuOpen || level == null || ArrivalPending) return;
+            FrameGeneration.SetMenu("station", true);   // no generated frames behind a menu
             CloseHangar();
             focusBeforeSystemMenu = root.focusController?.focusedElement as VisualElement;
             systemMenu.AddToClassList("station-dialog-backdrop--shown");
@@ -220,6 +221,7 @@ namespace GoF2Remake.UI
         void CloseSystemMenu()
         {
             if (!SystemMenuOpen) return;
+            FrameGeneration.SetMenu("station", false);
             systemMenu.RemoveFromClassList("station-dialog-backdrop--shown");
             if (root.focusController?.focusedElement is VisualElement f) f.Blur();
             // Rework (docs/UI-DESIGN.md "Focus"): back where it was before the menu opened, else the view's button. It went to
