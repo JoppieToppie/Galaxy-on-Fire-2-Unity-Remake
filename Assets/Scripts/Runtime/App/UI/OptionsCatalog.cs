@@ -20,7 +20,14 @@ namespace GoF2Remake.UI
     {
         None, SpecialFeatures, Interface, Convenience, GameRules, Hud, Tools, Storage, Mods,
         // The Graphics tab's categories (OptionsCatalog.OrganizeGraphics), in the order shown
-        GraphicsDisplay, GraphicsUpscaling, GraphicsQuality, GraphicsEffects, GraphicsWorld, GraphicsCamera, GraphicsInterface,
+        GraphicsDisplay, GraphicsUpscaling, GraphicsFrames, GraphicsQuality, GraphicsEffects, GraphicsStations, GraphicsWorld, GraphicsCamera,
+        GraphicsInterface, GraphicsPacks,
+        // The other tabs' categories (OptionsCatalog.PageLayouts), each tab's in the order shown. A section belongs to
+        // one tab: the main menu finds a section's block by its value alone.
+        SoundVolume, SoundEffects, SoundMusic,
+        ControlsFlight, ControlsInvert, ControlsMouse, ControlsController, ControlsTouch, ControlsVr,
+        AccessSize, AccessVisibility, AccessPrivacy,
+        BindFlight, BindWeapons, BindNavigation, BindEquipment, BindCamera, BindMultiplayer,
     }
     public enum OptionGroup { None, Debug, World, Progression, Combat, Flight, Custom, Mods, Missions }
 
@@ -266,12 +273,33 @@ namespace GoF2Remake.UI
             OptionSection.Convenience => X("sectionConvenience", "QoL"),
             OptionSection.GameRules => GameRulesAccess.Title,
             OptionSection.GraphicsDisplay => X("sectionGraphicsDisplay", "Display"),
-            OptionSection.GraphicsUpscaling => X("sectionGraphicsUpscaling", "Upscaling and frame generation"),
+            OptionSection.GraphicsUpscaling => X("sectionGraphicsUpscale", "Upscaling"),
+            OptionSection.GraphicsFrames => X("sectionGraphicsFrames", "Frame generation and latency"),
+            OptionSection.GraphicsStations => X("sectionGraphicsStations", "Hangar and bar"),
+            OptionSection.GraphicsPacks => X("sectionGraphicsPacks", "Asset packs"),
             OptionSection.GraphicsQuality => X("sectionGraphicsQuality", "Image quality"),
             OptionSection.GraphicsEffects => X("sectionGraphicsEffects", "Effects"),
             OptionSection.GraphicsWorld => X("sectionGraphicsWorld", "Skies and planets"),
             OptionSection.GraphicsCamera => X("sectionGraphicsCamera", "Camera"),
             OptionSection.GraphicsInterface => X("sectionInterface", "UI"),
+            OptionSection.SoundVolume => X("sectionSoundVolume", "Volume"),
+            OptionSection.SoundEffects => X("sectionSoundEffects", "Sound effects"),
+            OptionSection.SoundMusic => X("sectionSoundMusic", "Battle music"),
+            OptionSection.ControlsFlight => X("sectionControlsFlight", "Steering and flight"),
+            OptionSection.ControlsInvert => X("sectionControlsInvert", "Inverted axes"),
+            OptionSection.ControlsMouse => X("sectionControlsMouse", "Mouse"),
+            OptionSection.ControlsController => X("sectionControlsController", "Controller"),
+            OptionSection.ControlsTouch => X("sectionControlsTouch", "Touch controls"),
+            OptionSection.ControlsVr => X("sectionControlsVr", "VR"),
+            OptionSection.AccessSize => X("sectionAccessSize", "Size and text"),
+            OptionSection.AccessVisibility => X("sectionAccessVisibility", "Visibility"),
+            OptionSection.AccessPrivacy => X("sectionAccessPrivacy", "Privacy"),
+            OptionSection.BindFlight => X("sectionBindFlight", "Flying"),
+            OptionSection.BindWeapons => X("sectionBindWeapons", "Weapons and targeting"),
+            OptionSection.BindNavigation => X("sectionBindNavigation", "Navigation and mining"),
+            OptionSection.BindEquipment => X("sectionBindEquipment", "Equipment"),
+            OptionSection.BindCamera => X("sectionBindCamera", "Camera and view"),
+            OptionSection.BindMultiplayer => X("sectionBindMultiplayer", "Multiplayer"),
             _ => "",
         };
 
@@ -381,6 +409,7 @@ namespace GoF2Remake.UI
             AddGameplay(list);
             SplitGameplay(list);
             OrganizeGraphics(list);
+            OrganizePages(list);
 
             foreach (var d in list)
                 if (d.description == null && Help.TryGetValue(d.id, out var help)) d.description = () => X(help.key, help.english);

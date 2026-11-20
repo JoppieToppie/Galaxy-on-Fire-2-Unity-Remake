@@ -194,7 +194,8 @@ namespace GoF2Remake.Tests
             Assert.AreEqual("resetBindings", rows[0].id, "Reset key bindings first");
             var bindings = rows.Where(o => o.kind == OptionKind.Binding).ToList();
             Assert.AreEqual(GameControls.Rows.Count, bindings.Count);
-            for (int i = 0; i < bindings.Count; i++) Assert.AreSame(GameControls.Rows[i], bindings[i].control);
+            // (each control once; their order is the tab's categories', SettingsTests.OtherTabsHaveCategories)
+            CollectionAssert.AreEquivalent(GameControls.Rows.ToList(), bindings.Select(o => o.control).ToList());
         }
 
         [Test]

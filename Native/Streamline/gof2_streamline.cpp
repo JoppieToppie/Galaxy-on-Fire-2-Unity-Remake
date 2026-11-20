@@ -205,6 +205,15 @@ bool HasArgument(const wchar_t* argument)
     return false;
 }
 
+/// A testing switch of the environment is on: set to something, and not to 0 (a variable that is there but empty,
+/// which a script's "clearing" can leave behind, is off).
+bool EnvOn(const wchar_t* name)
+{
+    wchar_t value[8];
+    DWORD n = GetEnvironmentVariableW(name, value, 8);
+    return n > 0 && !(n == 1 && value[0] == L'0');
+}
+
 bool FileExists(const std::wstring& path)
 {
     DWORD attributes = GetFileAttributesW(path.c_str());
@@ -572,7 +581,7 @@ HRESULT WINAPI Hook_CreateDXGIFactory2(UINT flags, REFIID riid, void** factory)
 
 void SlLog(sl::LogType type, const char* message)
 {
-    static const bool verbose = GetEnvironmentVariableW(L"GOF2_SL_VERBOSE", nullptr, 0) != 0;
+    static const bool verbose = EnvOn(L"GOF2_SL_VERBOSE");
     if (type == sl::LogType::eInfo && !verbose) return;
     char text[900];
     snprintf(text, sizeof(text), "%s", message ? message : "");
@@ -649,7 +658,7 @@ void Arm()
 
     sl::Preferences pref{};
     pref.showConsole = false;
-    pref.logLevel = GetEnvironmentVariableW(L"GOF2_SL_VERBOSE", nullptr, 0) != 0 ? sl::LogLevel::eVerbose : sl::LogLevel::eDefault;
+    pref.logLevel = EnvOn(L"GOF2_SL_VERBOSE") ? sl::LogLevel::eVerbose : sl::LogLevel::eDefault;
     pref.pathsToPlugins = pluginPaths;
     pref.numPathsToPlugins = 1;
     pref.pathToLogsAndData = logToFile ? logDir : nullptr;
@@ -729,10 +738,10 @@ void FsrConfigure(bool enabled, uint64_t frame)
     if (enabled && s_fsrHudless)
         config.HUDLessColor = ffxApiGetResourceDX12(s_fsrHudless, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
     // (testing: $GOF2_FRAMEGEN_ONLY_GENERATED shows the generated frames alone)
-    static const bool onlyGenerated = GetEnvironmentVariableW(L"GOF2_FRAMEGEN_ONLY_GENERATED", nullptr, 0) != 0;
+    static const bool onlyGenerated = EnvOn(L"GOF2_FRAMEGEN_ONLY_GENERATED");
     config.onlyPresentGenerated = onlyGenerated;
     // (testing: $GOF2_FSR_DEBUG draws FSR's own debug view and tear lines into what it presents)
-    static const bool debugView = GetEnvironmentVariableW(L"GOF2_FSR_DEBUG", nullptr, 0) != 0;
+    static const bool debugView = EnvOn(L"GOF2_FSR_DEBUG");
     if (debugView) config.flags = FFX_FRAMEGENERATION_FLAG_DRAW_DEBUG_VIEW | FFX_FRAMEGENERATION_FLAG_DRAW_DEBUG_TEAR_LINES;
     config.generationRect.left = 0;
     config.generationRect.top = 0;
@@ -1227,7 +1236,7 @@ void OnFrameEnd(const FrameEndData* d)
         options.enableUserInterfaceRecomposition = recompose ? sl::Boolean::eTrue : sl::Boolean::eFalse;
         options.flags = sl::DLSSGFlags::eRetainResourcesWhenOff;
         // (testing: $GOF2_FRAMEGEN_ONLY_GENERATED shows the generated frames alone, to look at what DLSS-G makes of the inputs)
-        static const bool onlyGenerated = GetEnvironmentVariableW(L"GOF2_FRAMEGEN_ONLY_GENERATED", nullptr, 0) != 0;
+        static const bool onlyGenerated = EnvOn(L"GOF2_FRAMEGEN_ONLY_GENERATED");
         if (onlyGenerated) options.flags |= sl::DLSSGFlags::eShowOnlyInterpolatedFrame;
         sl::Result result = slDLSSGSetOptions(s_viewport, options);
         if (result != sl::Result::eOk) Log(kUnityLogTypeWarning, "slDLSSGSetOptions failed (%d)", (int)result);
@@ -1532,7 +1541,7 @@ float LatencyMs()
         if (count < 64) samples[count++] = (double)(report.gpuRenderEndTime - report.simStartTime);
     }
     // ($GOF2_SL_VERBOSE: the newest report's times after its simulation start, once in a while)
-    static const bool verbose = GetEnvironmentVariableW(L"GOF2_SL_VERBOSE", nullptr, 0) != 0;
+    static const bool verbose = EnvOn(L"GOF2_SL_VERBOSE");
     static int calls;
     if (verbose && (++calls % 60) == 20)
     {

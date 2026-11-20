@@ -135,7 +135,14 @@ namespace GoF2Remake.World
         public static (Texture2D index, Texture2D data)? Grid(int stars, int nebula)
         {
             var key = (stars, nebula);
-            if (grids.TryGetValue(key, out var hit)) { recent.Remove(key); recent.Add(key); return hit; }
+            if (grids.TryGetValue(key, out var hit))
+            {
+                recent.Remove(key);
+                if (hit.index != null && hit.data != null) { recent.Add(key); return hit; }
+                // Its textures were destroyed (the Editor without a domain reload: a test run's or a Play session's end
+                // takes them and leaves the entry; SkyStarsTests then failed on every run but the first): made again.
+                grids.Remove(key);
+            }
             var all = new List<Star>();
             if (stars >= 0) all.AddRange(List($"stars_{stars:000}"));
             if (nebula >= 0) all.AddRange(List($"nebula_{nebula:000}"));

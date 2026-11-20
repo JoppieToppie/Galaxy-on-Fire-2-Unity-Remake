@@ -184,7 +184,17 @@ namespace GoF2Remake.Tests
             }
             CollectionAssert.AreEqual(seen.OrderBy(s => (int)s).ToList(), seen, "the categories in their order");
             Assert.IsFalse(string.IsNullOrEmpty(GoF2Remake.UI.OptionsCatalog.SectionTitle(GoF2Remake.UI.OptionSection.GraphicsUpscaling)));
-            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsUpscaling, rows.First(o => o.id == "frameGeneration").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsFrames, rows.First(o => o.id == "frameGeneration").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsFrames, rows.First(o => o.id == "reflex").section, "the latency options beside it");
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsUpscaling, rows.First(o => o.id == "upscaler").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsQuality, rows.First(o => o.id == "nisSharpness").section, "sharpening is image quality");
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsEffects, rows.First(o => o.id == "neuralRendering").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsStations, rows.First(o => o.id == "hangarShadows").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsPacks, rows.First(o => o.id == "hdResources").section);
+            foreach (GoF2Remake.UI.OptionSection section in System.Enum.GetValues(typeof(GoF2Remake.UI.OptionSection)))
+                if (section != GoF2Remake.UI.OptionSection.None && section != GoF2Remake.UI.OptionSection.Convenience
+                    && section != GoF2Remake.UI.OptionSection.Storage)
+                    Assert.IsFalse(string.IsNullOrEmpty(GoF2Remake.UI.OptionsCatalog.SectionTitle(section)), section + " has no title");
             Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsDisplay, rows.First(o => o.id == "frameRate").section);
 
             Assert.AreEqual(0, Settings.DlssPreset);
@@ -206,6 +216,68 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(200f, Settings.HdrPaperWhite);
             Assert.AreEqual(1, Settings.HdrTonemapping);
             Assert.AreEqual(2, Settings.NeuralRenderingQuality);
+        }
+
+        /// <summary>The other tabs' categories (2026-11-20): every row of Sound, Controls, Accessibility and Key bindings
+        /// has a category of its own choosing (or stands above them), a tab's categories are whole and in their order,
+        /// each has a title, and no category is shared between tabs (the main menu finds a block by its section alone).</summary>
+        [Test]
+        public void OtherTabsHaveCategories()
+        {
+            AllDefaults();
+            var all = GoF2Remake.UI.OptionsCatalog.All();
+            var owner = new System.Collections.Generic.Dictionary<GoF2Remake.UI.OptionSection, GoF2Remake.UI.OptionPage>();
+            foreach (var row in all.Where(o => o.section != GoF2Remake.UI.OptionSection.None))
+            {
+                if (owner.TryGetValue(row.section, out var page)) Assert.AreEqual(page, row.page, row.section + " is on two tabs (" + row.id + ")");
+                else owner.Add(row.section, row.page);
+            }
+            foreach (var page in new[] { GoF2Remake.UI.OptionPage.Sound, GoF2Remake.UI.OptionPage.Controls, GoF2Remake.UI.OptionPage.Accessibility,
+                                         GoF2Remake.UI.OptionPage.Bindings })
+            {
+                Assert.IsTrue(GoF2Remake.UI.OptionsCatalog.HasCategories(page));
+                var rows = all.Where(o => o.page == page).ToList();
+                Assert.Greater(rows.Count, 3, page.ToString());
+                var seen = new System.Collections.Generic.List<GoF2Remake.UI.OptionSection>();
+                bool headings = false;
+                foreach (var row in rows)
+                {
+                    Assert.IsTrue(GoF2Remake.UI.OptionsCatalog.HasPagePlace(page, row.id), row.id + " has no category of its own on " + page);
+                    if (row.section == GoF2Remake.UI.OptionSection.None)
+                    {
+                        Assert.IsFalse(headings, row.id + " without a category below the first heading");
+                        continue;
+                    }
+                    headings = true;
+                    if (seen.Count == 0 || seen[seen.Count - 1] != row.section)
+                    {
+                        Assert.IsFalse(seen.Contains(row.section), row.section + " is split in the list");
+                        seen.Add(row.section);
+                        Assert.IsFalse(string.IsNullOrEmpty(GoF2Remake.UI.OptionsCatalog.SectionTitle(row.section)), row.section + " has no title");
+                    }
+                }
+                Assert.Greater(seen.Count, 2, page + " has its categories");
+                CollectionAssert.AreEqual(seen.OrderBy(s => (int)s).ToList(), seen, page + ": the categories in their order");
+            }
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.SoundVolume, all.First(o => o.id == "master").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.ControlsInvert, all.First(o => o.id == "invert").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.AccessPrivacy, all.First(o => o.id == "discordPresence").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.BindWeapons, all.First(o => o.id == "bind_firePrimary").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.None, all.First(o => o.id == "resetBindings").section, "the reset button above the headings");
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.ControlsController, all.First(o => o.id == "haptics").section, "the vibration with the controller (desktop)");
+            // Inside the Cosmetics / Gameplay groups the rows stand in the organization table's order
+            var hud = all.Where(o => o.section == GoF2Remake.UI.OptionSection.Hud).Select(o => o.id).ToList();
+            Assert.AreEqual("hudMode", hud[0]);
+            Assert.Less(hud.IndexOf("hudOpacity"), hud.IndexOf("farShipMarkers"));
+            var combat = all.Where(o => o.group == GoF2Remake.UI.OptionGroup.Combat).Select(o => o.id).ToList();
+            Assert.AreEqual("flightStyle", combat[0]);
+            Assert.Less(combat.IndexOf("targetLock"), combat.IndexOf("smarterNpcTargeting"), "your own aiming before the NPCs'");
+            var progression = all.Where(o => o.group == GoF2Remake.UI.OptionGroup.Progression).Select(o => o.id).ToList();
+            Assert.AreEqual(progression.IndexOf("kaamoStacking") + 1, progression.IndexOf("kaamoMaxLevel"), "the limit under the option it belongs to");
+            Assert.AreEqual("resetBindings", all.First(o => o.page == GoF2Remake.UI.OptionPage.Bindings).id);
+            Assert.IsFalse(GoF2Remake.UI.OptionsCatalog.HasCategories(GoF2Remake.UI.OptionPage.Language), "two rows: no headings");
+            foreach (var row in all.Where(o => o.page == GoF2Remake.UI.OptionPage.Language))
+                Assert.AreEqual(GoF2Remake.UI.OptionSection.None, row.section);
         }
 
         /// <summary>The later additions of 2026-11-20: the frame rate limits (the first five keep their stored numbers, the

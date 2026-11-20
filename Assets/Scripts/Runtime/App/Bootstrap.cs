@@ -453,8 +453,9 @@ namespace GoF2Remake
         static void ApplyFog() => RenderSettings.fog = sceneFog && Settings.Fog;
 
         // ---- HDR output (remake, 2026-11-20, the user's request; docs/notes/options.md "HDR") --------------------------
-        // The player allows HDR display output (10 bit: HDR10, which DLSS frame generation needs); Unity then starts in it on
-        // a display with HDR on, so the option (off by default) switches it at every start as well. While it is on, a global
+        // The player allows and uses HDR display output (10 bit: HDR10, which DLSS frame generation needs; without "Use HDR
+        // Display Output" Unity reports no HDR display at all, 2026-11-20); Unity then starts in it on a display with HDR on,
+        // so the option (off by default) switches it at every start as well. While it is on, a global
         // volume of our own carries URP's Tonemapping override with the options' values (its HDR parameters: paper white,
         // the display's limits or ours, the tonemapper and its settings); off, the volume is gone and the scenes are as built.
 
@@ -464,9 +465,54 @@ namespace GoF2Remake
             get
             {
                 if (Application.isMobilePlatform || Application.isEditor) return false;
+                LogHdr();
                 try { return HDROutputSettings.main != null && HDROutputSettings.main.available; }
                 catch (System.Exception) { return false; }
             }
+        }
+
+        // (testing: $GOF2_HDR=1 / 0 takes the HDR option's place for this run)
+        static int hdrOverride = -2;
+        static bool HdrOption
+        {
+            get
+            {
+                if (hdrOverride == -2) hdrOverride = System.Environment.GetEnvironmentVariable("GOF2_HDR") switch { "1" => 1, "0" => 0, _ => -1 };
+                return hdrOverride >= 0 ? hdrOverride > 0 : Settings.Hdr;
+            }
+        }
+
+        static string hdrLogged;
+        static bool hdrLogLater;
+
+        /// <summary>What Unity says about HDR on this display, in the log whenever it changes (a player's "pretty sure I
+        /// have HDR on" with the option greyed out, 2026-11-20: the log has to say why).</summary>
+        static void LogHdr()
+        {
+            string line;
+            try
+            {
+                var display = HDROutputSettings.main;
+                bool available = display != null && display.available;
+                line = $"HDR: system {SystemInfo.hdrDisplaySupportFlags}, displays {HDROutputSettings.displays.Length}, main available {available}"
+                    + (available ? $", active {display.active}, gamut {display.displayColorGamut}, format {display.graphicsFormat}, "
+                                   + $"{display.minToneMapLuminance} - {display.maxToneMapLuminance} nits, paper white {display.paperWhiteNits}" : "")
+                    + $", window mode {Screen.fullScreenMode}, {Screen.width} x {Screen.height}, frame generation hook {FrameGeneration.Bound || FrameGeneration.FsrRunning}";
+            }
+            catch (System.Exception e) { line = "HDR: " + e.Message; }
+            if (line != hdrLogged) { hdrLogged = line; Debug.Log(line); }
+            if (!hdrLogLater) { hdrLogLater = true; LogHdrLater(); }
+        }
+
+        /// <summary>Once more a while after the start: the window is on its display and the swap chain settled by then.</summary>
+        static async void LogHdrLater()
+        {
+            try
+            {
+                await Awaitable.WaitForSecondsAsync(10f);
+                LogHdr();
+            }
+            catch (System.Exception) { }
         }
 
         /// <summary>HDR output is on (the option, on a display that takes it).</summary>
@@ -483,10 +529,11 @@ namespace GoF2Remake
         static void ApplyHdr()
         {
             if (!Application.isPlaying || Application.isEditor) return;
+            LogHdr();
             bool available;
             try { available = HDROutputSettings.main != null && HDROutputSettings.main.available; }
             catch (System.Exception) { return; }
-            bool want = available && Settings.Hdr && !Application.isMobilePlatform;
+            bool want = available && HdrOption && !Application.isMobilePlatform;
             if (available && HDROutputSettings.main.active != want)
             {
                 FrameGeneration.Pause(90);   // the swap chain changes its format: no generated frames across it

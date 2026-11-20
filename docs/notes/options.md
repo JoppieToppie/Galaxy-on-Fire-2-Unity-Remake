@@ -395,11 +395,32 @@ verified on a Mac or an iPhone.
     (`SettingsTests.OptionsPageApplyAndLeavePrompt`), not played.
 - **Graphics categories** (remake, 2026-11-20, the user's request: "in categories just like gameplay has"): the Graphics
   tab's rows under headings like the Cosmetics and Gameplay tabs' (`OptionSection.Graphics*`, `OptionSectionBlock`):
-  the preset row above them, then Display, Upscaling and frame generation, Image quality, Effects, Skies and planets,
-  Camera, UI. `OptionsOrganization.GraphicsLayout` lists each category's rows in the order shown (`OrganizeGraphics`
+  the preset row above them, then Display, Upscaling, Frame generation and latency (with Reflex and Anti-Lag 2), Image
+  quality (with NIS's sharpening), Effects (with Dynamic Vibrance and neural rendering), Hangar and bar, Skies and
+  planets, Camera, UI, Asset packs (the main menu's HD resources rows). `OptionsOrganization.GraphicsLayout` lists each category's rows in the order shown (`OrganizeGraphics`
   sorts the list to it: the keys walk the rows in list order); a row not listed lands at the end of Effects, and
   `SettingsTests.GraphicsCategoriesAndNewOptions` fails until a new row is placed (`HasGraphicsPlace`). A section's
   heading hides while none of its rows shows (`OptionSectionBlock.RefreshGroups`).
+- **The other tabs' categories and the rows' order** (remake, 2026-11-20, the user's requests: "add categories to the
+  other settings pages as well", "move settings around so they make more sense"):
+  - **Headings** (`OptionsOrganization.PageLayouts`, `OrganizePages`; a table per tab like `GraphicsLayout`): Sound
+    (Volume / Sound effects / Battle music), Controls (Steering and flight / Inverted axes / Mouse / Controller / Touch
+    controls / VR), Accessibility (Size and text / Visibility / Privacy), Key bindings (the reset button and the
+    columns' header above them, then Flying / Weapons and targeting / Navigation and mining / Equipment / Camera and
+    view / Multiplayer). Language has two rows and none. A section belongs to one tab (the main menu finds a section's
+    block by its value alone), a row not listed lands at the end of the tab's first category, and
+    `SettingsTests.OtherTabsHaveCategories` fails until a new row is placed (`HasPagePlace`). The table is made on
+    first use: a field initializer reading another file's static (`MusicTrackRows`) has no defined order.
+  - **Moved:** the key bindings stand by category, not in `GameControls.Rows`' order (the saved overrides are by action,
+    not by row); Vibration is under Controller (on a phone or tablet under Touch controls); inside the Cosmetics and
+    Gameplay sections and groups the rows stand in the organization table's order (`OrganizationRank`: they stood in
+    the order the catalog happened to make them): the HUD's mode, size and opacity before its markers, the Kaamo limit
+    under stacking, the flight style and your own aiming before the NPCs' behaviour.
+  - **Left where they were agreed** (#311 / #345 / #346, pinned by `OptionsOrganizationTests`): which tab, section and
+    group a Cosmetics / Gameplay row is in (the flight style in Combat, Discord presence on Accessibility: now under
+    "Privacy").
+  - **Checked** (2026-11-20, the Editor's Play mode, main menu): the four tabs' headings as laid out. The pause and
+    station menus by the shared `OptionSectionBlock` and the tests, not looked at.
 - **DLSS preset** (remake, 2026-11-20, the user's request; Graphics "DLSS preset", `Settings.DlssPreset`, with DLSS on):
   DLSS's model in place of NVIDIA's pick for the quality mode: Default, then the letters the mode offers (F, J, K, L, M in
   this NVIDIA module: `UpscalerFramework.DlssPresets`, the module's `GetAvailableDLSSPresetsForQuality` bit mask); the
@@ -432,17 +453,25 @@ verified on a Mac or an iPhone.
     changes. **Not checked at all:** the feature running (no RTX 50 card here): the struct layout, the picture's
     encoding and the orientation are from public code, not from a run.
 - **HDR** (remake, 2026-11-20, the user's request: "HDR support with all its settings"; Graphics, Display: "HDR" and its
-  rows, `Settings.Hdr*`; `Bootstrap.ApplyHdr`): HDR display output on desktop players. The player allows it
-  (`allowHDRDisplaySupport`, 10 bit: HDR10, the format DLSS frame generation needs; not "use HDR display output", so a
-  start is in SDR until the option asks). The option (off by default; greyed out until the display has HDR on in
-  Windows, `HDROutputSettings.main.available`) requests the mode (`RequestHDRModeChange`; frame generation pauses 90
-  frames across the swap chain's change, `FrameGeneration.Pause`). While it is on a global volume of the game's own
+  rows, `Settings.Hdr*`; `Bootstrap.ApplyHdr`): HDR display output on desktop players. The player allows **and uses**
+  it (`allowHDRDisplaySupport` + `useHDRDisplay`, 10 bit: HDR10, the format DLSS frame generation needs). With "Allow"
+  alone Unity reports no HDR display at all (`HDROutputSettings.main.available` false with HDR on in Windows, boot.config
+  `hdr-display-enabled=0`: a player's "pretty sure I have HDR on", 2026-11-20; the boot.config line alone does not
+  change it). So Unity starts in HDR on such a display and the option (off by default) switches it off in the first
+  frames (`RequestHDRModeChange`; frame generation pauses 90 frames across the swap chain's change,
+  `FrameGeneration.Pause`); it is greyed out until the display has HDR on in Windows. `LogHdr` writes what Unity says
+  ("HDR: system …, main available …, gamut, format, nits") to the log whenever it changes; `$GOF2_HDR=1 / 0` takes the
+  option's place for a run. The backend build profiles (`Assets/Settings/Build Profiles/Windows D3D12` …) carry a copy
+  of the player settings from when they were made: "GoF2 > Build > Backend Build Profiles" again for HDR in those. While it is on a global volume of the game's own
   (priority 1000, kept across scenes) carries URP's `Tonemapping` override with the options' values: paper white (80 -
   400 nits, default 200), the display's own limits or the player's peak (400 - 4000) and black level, the tonemapper
   (None / Neutral, the default / ACES), ACES's display preset (1000 / 2000 / 4000 nits), Neutral's range reduction
   (BT.2390 / Reinhard) and hue shift. Off, the volume is inactive and the scenes are as built (they have no tonemapping).
   With HDR on URP draws the interface into the picture before the final blit, so DLSS-G's HUD-less colour holds the HUD
-  too (the HUD is interpolated with the scene); neural rendering does not run. Not checked on an HDR display.
+  too (the HUD is interpolated with the scene); neural rendering does not run. **Checked** (2026-11-20, an HDR400
+  display, a build): found and on (HDR10, `A2B10G10R10`, 0 - 400 nits, paper white 160), off again by the option at
+  the start, and on together with DLSS-G (2.00 frames shown, no tag errors) and with FSR frame generation (its context
+  made for the 10-bit format). Not checked: the picture itself by eye, the calibration pattern, a change while flying.
   - **Calibration** (the "HDR calibration…" row, `HdrCalibration` + `Resources/GoF2PostFx/HdrCalibration.shader`; only
     with HDR on and applied): a test pattern in place of the scene (`PatternPass`, before the post-processing: nits
     through the same tonemapping the game gets, the bloom and colour adjustments held neutral) with two sliders. Left:
