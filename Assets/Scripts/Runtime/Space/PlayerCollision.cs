@@ -30,6 +30,7 @@
 
 
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace GoF2Remake.Flight
@@ -176,6 +177,8 @@ namespace GoF2Remake.Flight
         // flies through its gaps and doesn't stop short of it in a box's empty corner.
         static readonly Collider[] overlaps = new Collider[32];
         SphereCollider probe;
+        readonly List<HullProbe> hullProbes = new List<HullProbe>();
+        struct HullProbe { public Vector3 centre; public float radius; public HullProbe(Vector3 centre, float radius) { this.centre = centre; this.radius = radius; } }
 
         /// <summary>A hull the ship collides with: an obstacle's (Active: it has volumes too, so a mod station's "collision":
         /// "none" has no hull contact either), not the gate the autopilot flies into, not the object being docked at (nor the
@@ -200,41 +203,89 @@ namespace GoF2Remake.Flight
             var pos = transform.position;
             var step = pos - lastPosition;
             float len = step.magnitude;
-            float r = ProbeRadius();
-            if (len < r * 0.5f || len > MaxSweepMeters) return;   // short steps: the push handles them
-            // Half the probe: a ship the push left resting on a hull touches it with the whole probe, and a cast that starts
-            // inside a collider never reports it (distance 0); the half is clear of it. Stopped the other half short of the
-            // hit, so at most that much overlap is left for the push.
-            // And the ship's centre as a ray (the contributor's way), which can't start inside: a slanted face beside the path
-            // already touches the half sphere where it starts. The nearer stop wins.
-            float half = r * 0.5f, stop = float.MaxValue;
-            if (HullCollision.Sweep(lastPosition, pos, half, Solid, out float sphereHit)) stop = sphereHit - half;
-            if (HullCollision.Sweep(lastPosition, pos, 0.01f, Solid, out float centreHit)) stop = Mathf.Min(stop, centreHit - r);
-            if (stop == float.MaxValue) return;
-            transform.position = lastPosition + step / len * Mathf.Max(0f, stop);
+            if (len < 0.01f || len > MaxSweepMeters) return;   // a longer step is a teleport, not flight
+            EnsureHullProbes();
+            float stop = float.MaxValue;
+            if (hullProbes.Count == 0)
+            {
+                float r = ProbeRadius(), half = r * 0.5f;
+                if (len >= half && HullCollision.Sweep(lastPosition, pos, half, Solid, out float hit)) stop = hit - half;
+                if (HullCollision.Sweep(lastPosition, pos, 0.01f, Solid, out float centreHit)) stop = Mathf.Min(stop, centreHit - r);
+            }
+            else foreach (var p in hullProbes)
+            {
+                Vector3 offset = HullProbeWorldOffset(p.centre);
+                float half = p.radius * 0.5f;
+                var from = lastPosition + offset;
+                var to = pos + offset;
+                if (HullCollision.Sweep(from, to, half, Solid, out float hit)) stop = Mathf.Min(stop, hit - half);
+                if (HullCollision.Sweep(from, to, 0.01f, Solid, out float centreHit)) stop = Mathf.Min(stop, centreHit - p.radius);
+            }
+            if (stop != float.MaxValue) transform.position = lastPosition + step / len * Mathf.Max(0f, stop);
         }
 
         void CheckHulls(bool landmarks)
         {
             if (!HullCollision.Any) return;
             var pos = transform.position;
-            float r = ProbeRadius();
-            int n = HullCollision.Overlap(pos, r, overlaps);
+            EnsureHullProbes();
+            if (hullProbes.Count == 0)
+            {
+                ResolveHullProbe(ref pos, pos, ProbeRadius(), landmarks);
+                return;
+            }
+            foreach (var p in hullProbes)
+                ResolveHullProbe(ref pos, pos + HullProbeWorldOffset(p.centre), p.radius, landmarks);
+        }
+
+        void ResolveHullProbe(ref Vector3 shipPosition, Vector3 centre, float radius, bool landmarks)
+        {
+            int n = HullCollision.Overlap(centre, radius, overlaps);
             for (int k = 0; k < n; k++)
             {
                 var c = overlaps[k];
                 var body = HullCollision.BodyOf(c);
                 if (!Solid(body) || body.obstacle.landmark != landmarks || !HullCollision.Shown(c)) continue;
                 var o = body.obstacle;
-                probe.transform.position = pos;
-                if (!Physics.ComputePenetration(probe, pos, Quaternion.identity, c, c.transform.position, c.transform.rotation, out var dir, out float dist)) continue;
-                pos += dir * dist;
-                transform.position = pos;
+                probe.radius = radius;
+                probe.transform.position = centre;
+                if (!Physics.ComputePenetration(probe, centre, Quaternion.identity, c, c.transform.position, c.transform.rotation, out var dir, out float dist)) continue;
+                shipPosition += dir * dist;
+                transform.position = shipPosition;
+                centre += dir * dist;
                 Ram(dir);
                 if (o.isStation) TouchingStation = true;
                 scraping = true;
                 Hit();
             }
+        }
+
+        void EnsureHullProbes()
+        {
+            var current = GetComponent<ShipController>();
+            var model = current != null ? current.visualModel : null;
+            if (model == probeModel) return;
+            probeModel = model;
+            hullProbes.Clear();
+            if (model == null) return;
+            var volumes = GoF2Remake.Modding.ModCapitalShips.Measure(model.gameObject, Quaternion.identity);
+            if (volumes == null || volumes.Count == 0) return;
+            var scale = model.lossyScale;
+            float scaleMax = Mathf.Max(Mathf.Abs(scale.x), Mathf.Max(Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
+            foreach (var volume in volumes)
+            {
+                if (volume == null || volume.sphere) continue;
+                var h = volume.half;
+                float[] extents = { Mathf.Abs(h.x), Mathf.Abs(h.y), Mathf.Abs(h.z) };
+                Array.Sort(extents);
+                float radius = Mathf.Sqrt(extents[0] * extents[0] + extents[1] * extents[1]) * scaleMax;
+                if (radius > 0.1f) hullProbes.Add(new HullProbe(volume.centre, Mathf.Max(3f, radius)));
+            }
+        }
+
+        Vector3 HullProbeWorldOffset(Vector3 localCentre)
+        {
+            return probeModel != null ? probeModel.TransformPoint(localCentre) - transform.position : Vector3.zero;
         }
 
         /// <summary>Metres: the probe sphere round the ship's centre, a third of the model's largest extent (the original
