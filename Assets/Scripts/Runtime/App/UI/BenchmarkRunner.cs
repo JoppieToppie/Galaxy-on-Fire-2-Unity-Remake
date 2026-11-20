@@ -20,6 +20,11 @@
 // flight input waits (Navigation.InputHalted while Benchmark.Active: steering, guns, the free-look camera), the menus
 // ignore their keys (GameControls.ModalOpen) and the runner's own panel, above everything like the FPS counter, takes
 // the pointer. Only Esc / B is read, from the devices.
+// Memory (the user's request): the most the process had in use during a scene, from Unity's memory counter
+// (ProfilerRecorder "System Used Memory"), and its video memory (VideoMemory: Windows' count; Unity's "Gfx Used Memory"
+// reads 0 in a release build), read four times a second with the live box: the counters run for that one frame only
+// (running, Unity gathers its memory numbers at every frame's end, which would be part of what is measured).
+// Scripted runs: the -benchmark argument starts a run at the main menu and quits when its results are written.
 
 using System;
 using System.Collections;
@@ -30,6 +35,7 @@ using System.Text;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using GoF2Remake.World;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -128,9 +134,12 @@ namespace GoF2Remake.UI
         readonly List<float> sceneMs = new List<float>(16384), allMs = new List<float>(65536);
         readonly List<int> sceneStarts = new List<int>();   // where each scene's frames start in allMs (the CSV)
         readonly FrameTiming[] timing = new FrameTiming[1];
-        readonly int[] sceneLimits = new int[5], allLimits = new int[5];
-        double sceneCpu, sceneGpu, allCpu, allGpu, sceneShown;
+        readonly int[] sceneLimits = new int[6], allLimits = new int[6];
+        double sceneCpu, sceneGpu, allCpu, allGpu, sceneShown, sceneRender, scenePresentWait, sceneStartWait, allStartWait;
         int sceneTimed, allTimed;
+        ProfilerRecorder ramRecorder, vramRecorder;
+        float sceneRam, sceneVram;
+        bool memoryAsked;
         string display;
         Benchmark.Report report;
         string reportPath, imagePath;
@@ -143,8 +152,35 @@ namespace GoF2Remake.UI
         static string X(string key, string english) => Localization.Extra(key, english);
         static string F(float value, string format = "0") => value.ToString(format, Inv);
 
+        static string Gb(float mb) => mb > 0f ? F(mb / 1024f, "0.0") + " GB" : "–";
+        static float Mb(ProfilerRecorder recorder) => recorder.Valid ? recorder.LastValue / 1048576f : 0f;
+
+        /// <summary>The memory counters on for one frame: its end fills them, the next frame reads them (TakeMemory).</summary>
+        void AskMemory()
+        {
+            ramRecorder.Start();
+            vramRecorder.Start();
+            memoryAsked = true;
+        }
+
+        void TakeMemory()
+        {
+            memoryAsked = false;
+            sceneRam = Mathf.Max(sceneRam, Mb(ramRecorder));
+            // (Windows' own count of the process's video memory; elsewhere Unity's counter, which only the Editor and
+            // development builds fill)
+            float vram = VideoMemory.UsedMb();
+            sceneVram = Mathf.Max(sceneVram, vram > 0f ? vram : Mb(vramRecorder));
+            ramRecorder.Stop();
+            vramRecorder.Stop();
+        }
+
         /// <summary>A run is on or its results are up.</summary>
         public static bool Open => instance != null;
+
+        /// <summary>The -benchmark argument: the main menu starts a run by itself and the game quits when its results are
+        /// written (<data>/Benchmarks), for runs from a script.</summary>
+        public static readonly bool AutoRun = Array.Exists(Environment.GetCommandLineArgs(), a => string.Equals(a, "-benchmark", StringComparison.OrdinalIgnoreCase));
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => instance = null;
@@ -182,12 +218,16 @@ namespace GoF2Remake.UI
             panelRenderer = GetComponent<PanelRenderer>();
             panelRenderer.RegisterUIReloadCallback(OnUIReload);
             SceneManager.sceneLoaded += OnSceneLoaded;
+            ramRecorder = new ProfilerRecorder(ProfilerCategory.Memory, "System Used Memory");
+            vramRecorder = new ProfilerRecorder(ProfilerCategory.Memory, "Gfx Used Memory");
         }
 
         void OnDisable()
         {
             panelRenderer?.UnregisterUIReloadCallback(OnUIReload);
             SceneManager.sceneLoaded -= OnSceneLoaded;
+            ramRecorder.Dispose();
+            vramRecorder.Dispose();
         }
 
         void OnDestroy()
@@ -271,8 +311,10 @@ namespace GoF2Remake.UI
 
             sceneMs.Clear();
             Array.Clear(sceneLimits, 0, sceneLimits.Length);
-            sceneCpu = sceneGpu = sceneShown = 0;
+            sceneCpu = sceneGpu = sceneShown = sceneRender = scenePresentWait = sceneStartWait = 0;
             sceneTimed = 0;
+            sceneRam = sceneVram = 0f;
+            AskMemory();
             ShowLive(s, false);
             var ship = level != null ? level.Player : null;
             var heading = ship != null ? ship.transform.rotation : Quaternion.identity;
@@ -300,39 +342,54 @@ namespace GoF2Remake.UI
                 last = now;
                 sceneMs.Add(ms);
                 sceneShown += FrameGeneration.PresentedPerFrame;
-                if (FrameTimingManager.GetLatestTimings(1, timing) == 1 && timing[0].cpuFrameTime > 0)
+                if (memoryAsked) TakeMemory();
+                // (a GPU time of hours: Unity now and then hands out one such frame, which alone set a scene's average,
+                // "GPU 124805800.0 ms" in a build's dogfight: that frame's timings are left out)
+                if (FrameTimingManager.GetLatestTimings(1, timing) == 1 && timing[0].cpuFrameTime > 0 && timing[0].gpuFrameTime < 10000.0)
                 {
                     var t = timing[0];
-                    cpuNow = (float)t.cpuMainThreadFrameTime;
+                    // Reflex's wait at the frame's start is in Unity's main thread time: not the game's work (this
+                    // frame's wait against a timing a few frames old: they agree over a scene).
+                    float wait = Mathf.Min(FrameGeneration.StartWaitMs, (float)t.cpuMainThreadFrameTime);
+                    cpuNow = (float)t.cpuMainThreadFrameTime - wait;
                     gpuNow = (float)t.gpuFrameTime;
-                    sceneCpu += cpuNow;
+                    sceneCpu += t.cpuMainThreadFrameTime;
+                    sceneStartWait += wait;
                     sceneGpu += gpuNow;
+                    sceneRender += t.cpuRenderThreadFrameTime;
+                    scenePresentWait += t.cpuMainThreadPresentWaitTime;
                     sceneTimed++;
-                    sceneLimits[(int)Benchmark.Classify((float)t.cpuFrameTime, cpuNow, (float)t.cpuRenderThreadFrameTime, gpuNow,
-                                                        (float)t.cpuMainThreadPresentWaitTime)]++;
+                    sceneLimits[(int)Benchmark.Classify((float)t.cpuFrameTime, (float)t.cpuMainThreadFrameTime, (float)t.cpuRenderThreadFrameTime, gpuNow,
+                                                        (float)t.cpuMainThreadPresentWaitTime, wait)]++;
                 }
                 shownFrames++;
                 if (now - shownAt < 0.25) continue;
                 float fps = (float)(shownFrames / (now - shownAt));
                 shownAt = now;
                 shownFrames = 0;
+                AskMemory();
                 float done = (step + (float)((now - start) / s.seconds)) / Steps.Length;
                 UpdateLive(fps, (float)(sceneMs.Count / (now - start)), cpuNow, gpuNow, done);
             }
             flying = false;
 
             var scene = Benchmark.Measure(X(s.key, s.english), sceneMs, sceneCpu, sceneGpu, sceneTimed, sceneLimits,
-                                          sceneMs.Count > 0 ? (float)(sceneShown / sceneMs.Count) : 1f);
+                                          sceneMs.Count > 0 ? (float)(sceneShown / sceneMs.Count) : 1f, sceneStartWait);
+            scene.ramMb = sceneRam;
+            scene.vramMb = sceneVram;
             report ??= new Benchmark.Report();
             report.scenes.Add(scene);
             sceneStarts.Add(allMs.Count);
             allMs.AddRange(sceneMs);
             allCpu += sceneCpu;
             allGpu += sceneGpu;
+            allStartWait += sceneStartWait;
             allTimed += sceneTimed;
             for (int i = 0; i < allLimits.Length; i++) allLimits[i] += sceneLimits[i];
             Debug.Log($"Benchmark: {s.english}: {F(scene.average)} fps, 1% low {F(scene.low1)}, CPU {F(scene.cpuMs, "0.0")} ms, "
-                      + $"GPU {F(scene.gpuMs, "0.0")} ms, {scene.limit} ({scene.frames} frames)");
+                      + $"GPU {F(scene.gpuMs, "0.0")} ms, {scene.limit} ({scene.frames} frames), RAM {Gb(scene.ramMb)}, VRAM {Gb(scene.vramMb)}; "
+                      + $"render thread {F((float)(sceneRender / Math.Max(1, sceneTimed)), "0.00")} ms, present wait {F((float)(scenePresentWait / Math.Max(1, sceneTimed)), "0.00")} ms, "
+                      + $"frame start wait {F(scene.waitMs, "0.00")} ms");
 
             if (step + 1 < Steps.Length) { SceneManager.LoadScene(Setup(step + 1)); yield break; }
             Finish();
@@ -351,7 +408,7 @@ namespace GoF2Remake.UI
         /// <summary>The run is over: the report is filled and written, the main menu shows it.</summary>
         void Finish()
         {
-            report.overall = Benchmark.Overall(X("benchmarkOverall", "Whole run"), report.scenes, allMs, allCpu, allGpu, allTimed, allLimits);
+            report.overall = Benchmark.Overall(X("benchmarkOverall", "Whole run"), report.scenes, allMs, allCpu, allGpu, allTimed, allLimits, allStartWait);
             report.date = DateTime.Now.ToString("yyyy-MM-dd HH:mm", Inv);
             report.version = $"{Application.productName} {BuildVersion.Text}";
             report.cpu = $"{SystemInfo.processorType.Trim()} ({SystemInfo.processorCount} threads)";
@@ -362,6 +419,7 @@ namespace GoF2Remake.UI
             report.api = $"{SystemInfo.graphicsDeviceType}, {SystemInfo.graphicsDeviceVersion}";
             report.settings = SettingsShown();
             reportPath = Save(report);
+            if (AutoRun) { Application.Quit(); return; }
             resultsPending = true;
             LeaveGame();
             SceneManager.LoadScene(MenuScene);
@@ -542,7 +600,7 @@ namespace GoF2Remake.UI
             allMs.Clear();
             sceneStarts.Clear();
             Array.Clear(allLimits, 0, allLimits.Length);
-            allCpu = allGpu = 0;
+            allCpu = allGpu = allStartWait = 0;
             allTimed = 0;
             Benchmark.Active = true;
             Bootstrap.ApplyFrameRate();
@@ -634,6 +692,7 @@ namespace GoF2Remake.UI
             liveFps.text = shown > 1.05f ? $"{F(fps * shown)} FPS  ({F(fps)} × {F(shown, "0.#")})" : $"{F(fps)} FPS";
             string detail = $"{X("benchmarkAverage", "Average")} {F(average)}  ·  {F(1000f / Mathf.Max(fps, 0.001f), "0.0")} ms";
             if (cpuMs > 0f) detail += $"\nCPU {F(cpuMs, "0.0")} ms" + (gpuMs > 0f ? $"  ·  GPU {F(gpuMs, "0.0")} ms" : "");
+            if (sceneRam > 0f) detail += $"\nRAM {Gb(sceneRam)}" + (sceneVram > 0f ? $"  ·  VRAM {Gb(sceneVram)}" : "");
             liveDetail.text = detail;
             liveBar.style.width = Length.Percent(100f * Mathf.Clamp01(done));
             liveFpsValues.Add(fps);
@@ -646,8 +705,12 @@ namespace GoF2Remake.UI
         {
             Enum.TryParse(s.limit, out Benchmark.Limit limit);
             float share = limit == Benchmark.Limit.Gpu ? s.gpuShare : limit == Benchmark.Limit.Cpu ? s.cpuShare
-                        : limit == Benchmark.Limit.Present ? s.presentShare : 1f - s.gpuShare - s.cpuShare - s.presentShare;
-            string name = limit == Benchmark.Limit.Gpu ? X("benchmarkGpu", "Graphics card (GPU)")
+                        : limit == Benchmark.Limit.Present ? s.presentShare : limit == Benchmark.Limit.Pacing ? s.pacingShare
+                        : 1f - s.gpuShare - s.cpuShare - s.presentShare - s.pacingShare;
+            // Pacing: the frame's start waited in Reflex's sleep for the GPU side: with frame generation the generated
+            // frames and their pacing (not in Unity's GPU time), without it the graphics card.
+            string name = limit == Benchmark.Limit.Pacing ? (s.shownPerFrame > 1.05f ? X("frameGeneration", "Frame generation") + " (GPU)" : X("benchmarkGpu", "Graphics card (GPU)"))
+                        : limit == Benchmark.Limit.Gpu ? X("benchmarkGpu", "Graphics card (GPU)")
                         : limit == Benchmark.Limit.Cpu ? X("benchmarkCpu", "Processor (CPU)")
                         : limit == Benchmark.Limit.Present ? X("benchmarkPresent", "Frame rate limit or display")
                         : limit == Benchmark.Limit.Balanced ? X("benchmarkBalanced", "Balanced (CPU and GPU)")
@@ -703,6 +766,7 @@ namespace GoF2Remake.UI
             Section(block, X("benchmarkLimitedBy", "Limited by"));
             Say(block, LimitText(o), 20, Ink);
             if (o.cpuMs > 0f) Say(block, $"CPU {F(o.cpuMs, "0.0")} ms" + (o.gpuMs > 0f ? $"  ·  GPU {F(o.gpuMs, "0.0")} ms" : ""), 18, Dim);
+            if (o.ramMb > 0f) Say(block, $"RAM {Gb(o.ramMb)}" + (o.vramMb > 0f ? $"  ·  VRAM {Gb(o.vramMb)}" : ""), 18, Dim);
             block = Box(left);
             Section(block, X("benchmarkSystem", "System"));
             foreach (string line in new[] { report.cpu, report.gpu, $"{report.memory} RAM  ·  {report.display}", report.system, report.api })
@@ -733,10 +797,10 @@ namespace GoF2Remake.UI
             right.Add(graph);
             var table = Box(right);
             table.style.marginTop = 16;
-            Row(table, Cyan, X("benchmarkScene", "Scene"), X("benchmarkAverage", "Average"), X("benchmarkLow1", "1% low"), "CPU", "GPU", X("benchmarkLimitedBy", "Limited by"));
+            Row(table, Cyan, X("benchmarkScene", "Scene"), X("benchmarkAverage", "Average"), X("benchmarkLow1", "1% low"), "CPU", "GPU", "RAM", "VRAM", X("benchmarkLimitedBy", "Limited by"));
             foreach (var s in report.scenes)
                 Row(table, Ink, s.name, F(s.average) + " FPS", F(s.low1), s.cpuMs > 0f ? F(s.cpuMs, "0.0") + " ms" : "–",
-                    s.gpuMs > 0f ? F(s.gpuMs, "0.0") + " ms" : "–", LimitText(s));
+                    s.gpuMs > 0f ? F(s.gpuMs, "0.0") + " ms" : "–", Gb(s.ramMb), Gb(s.vramMb), LimitText(s));
 
             footer = Box(results, true);
             footer.style.marginTop = 16;
@@ -776,7 +840,7 @@ namespace GoF2Remake.UI
             l.style.letterSpacing = 2;
         }
 
-        static readonly float[] Columns = { 24f, 14f, 10f, 11f, 11f, 30f };
+        static readonly float[] Columns = { 19f, 11f, 8f, 9f, 9f, 8f, 9f, 27f };
 
         static void Row(VisualElement table, Color color, params string[] cells)
         {

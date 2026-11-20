@@ -648,6 +648,36 @@ verified on a Mac or an iPhone.
     the panel reloads when its target changes and the page is built again, so `ShowResults` leaves them out while
     `savingImage`), to the pictures folder (`PhotoMode.StoreAt`), shown in
     the file browser. Not a screenshot: on an HDR screen (the Editor's Game view too) a screenshot comes out washed.
+  - **Memory** (the user's request, 2026-11-20: "add ram/vram"): a scene's peak RAM and VRAM in the live box, a line
+    under "Limited by", two columns of the table and the JSON (`Scene.ramMb` / `vramMb`; the run's = its scenes' peak).
+    RAM: Unity's "System Used Memory" counter (`ProfilerRecorder`). VRAM: `VideoMemory.UsedMb`, Windows' count of the
+    process's video memory (DXGI `IDXGIAdapter3::QueryVideoMemoryInfo`, local segment: DLSS's and frame generation's
+    buffers included; the vtable called from C#); Unity's "Gfx Used Memory" reads 0 in a release build (the first
+    build showed "–") and stays the fallback off Windows (Editor / development builds only). Read four times a second,
+    the counters on for that one frame: left running Unity gathers its memory numbers at every frame's end.
+  - **Reflex's wait is not CPU work** (`Limit.Pacing`, `FrameGeneration.StartWaitMs`, `Scene.waitMs`): the user's first
+    build run read "Processor (CPU), 100 %" in every scene, 4.0 ms of main thread in an empty hangar. `slReflexSleep`
+    (the frame's first step) holds the main thread until the GPU side can take the frame, which with DLSS-G is the
+    generated frames and their pacing, and Unity counts that in `cpuMainThreadFrameTime`. Measured (RTX 4080, 3440 x
+    1440, DLSS Quality): orbit 294 rendered frames a second with frame generation 2× + Reflex Boost (1.96 ms of the
+    3.4 ms waiting), 902 with both off (`$GOF2_FRAMEGEN=0 $GOF2_REFLEX=0`). The wait is timed around
+    `Gof2Sl_FrameStart`, taken off the CPU time shown, and a frame that waited there with nothing else near its length
+    is Pacing: shown as "Frame generation (GPU)" with generated frames, else "Graphics card (GPU)"; no suggestions come
+    from it. A frame whose GPU time is over 10 s (Unity hands out one now and then) is left out of the timings.
+  - **Scripted runs:** the `-benchmark` argument starts a run at the main menu (no key press) and quits when the
+    results are written; with `-logFile` the scenes' lines ("Benchmark: <scene>: ...", with the render thread, present
+    wait and frame start wait) are the output. Used for the numbers here (`Build/Bench`, `-monitor 1`).
+  - **What the runs led to** (2026-11-20, the user: "use benchmark to optimize the game's code"; Editor Profiler over
+    each scene's last 1200 frames, `HierarchyFrameDataView` summed per marker, allocation call stacks): the heavy
+    scenes are spread thin (100 ships: NPC update, ~360 exhaust particle systems, HUD markers, audio, culling), no one
+    hot spot. Done: the HUD's dock check made ~1.3 KB of garbage a frame (`PlayerHull.Current`'s lambdas,
+    `Database.MountsOf` asked before the cheap tests) and the music picker ~0.45 KB (`MusicTracks.Key` strings, a
+    delegate): none now; a shot's two identical physics sweeps are one (`HullCollision.ShotSweep`); the NPC shots'
+    asteroid test reads the rocks once a frame (`Gun.Rocks`). Build, frame generation and Reflex off, before -> after:
+    large dogfight 257 -> 309 fps (1 % low 182 -> 213), fleet battle 500 -> 536, large fleet battle 263 -> 291,
+    effects 205 -> 214, orbit 902 -> 898 (1 % low 434 -> 568). Left: `PartAnimation` (0.8 ms in the effects scene in
+    the Editor: a key's rotation is worked out again every frame), the NPC plumes' particle systems, the Entities
+    default world's systems running every frame for nothing (Netcode's package).
   - **Checked** (2026-11-20, Editor, RTX 4080): three runs through `BenchmarkPressed`; the last, all seven scenes,
     252 fps average (386 orbit, 320 / 176 dogfights, 248 / 151 fleet battles, 132 effects, 423 hangar), no console
     errors, the image and files written; a fourth for the suggestions ("Detail distance: High -> Medium", "Fire and

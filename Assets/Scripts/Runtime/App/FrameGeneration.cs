@@ -406,11 +406,13 @@ namespace GoF2Remake
             }
             // DLSS-G needs Reflex on; the sleep and the markers are sent in every mode.
             int reflex = Mathf.Max(ReflexSetting, Wanted(out _) > 0 ? 1 : 0);
+            long waitFrom = System.Diagnostics.Stopwatch.GetTimestamp();
             bool limits = Gof2Sl_FrameStart(frame, reflex, FrameLimitUs()) != 0;
             // AMD Anti-Lag 2 (an AMD GPU: no Reflex there): its delay goes here too, ahead of the frame's input, and its
             // limiter takes the frame rate cap the same way.
             if ((state & AntiLagBit) != 0)
                 limits |= Gof2Sl_AntiLag(Settings.AntiLag ? 1 : 0, (uint)Mathf.Max(0, limitOverride >= 0 ? limitOverride : Bootstrap.FrameRateCap)) != 0;
+            StartWaitMs = (System.Diagnostics.Stopwatch.GetTimestamp() - waitFrom) * 1000f / System.Diagnostics.Stopwatch.Frequency;
             if (limits != ReflexLimits)
             {
                 // The driver's limiter took the frame rate cap (or gave it back): Unity's own goes off (or on again).
@@ -418,6 +420,11 @@ namespace GoF2Remake
                 Bootstrap.RefreshFrameRate();
             }
         }
+
+        /// <summary>How long this frame's start took in Reflex's sleep (or Anti-Lag 2's), ms: the driver holds the main
+        /// thread there until the GPU can take the frame (and for its frame rate cap), so that time is a wait, not the
+        /// game's work, though Unity counts it in the main thread's frame time. 0 without either.</summary>
+        public static float StartWaitMs { get; private set; }
 
         /// <summary>Reflex's (or Anti-Lag 2's) limiter holds the frame rate cap now (Bootstrap.Limit then sets none of Unity's).</summary>
         public static bool ReflexLimits { get; private set; }

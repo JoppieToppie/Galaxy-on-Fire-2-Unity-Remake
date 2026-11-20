@@ -349,7 +349,7 @@ namespace GoF2Remake.World
             // Most Wanted criminal 151, hostile Specters (race 10) 149 / 150; a battle track that plays is kept until
             // the orbit is calm, only 151 takes over.
             int cat = MusicTracks.Category(HostileCount, FleetBattleRaging, musicCategory,
-                !Session.FreePlay && Session.CampaignMission == 0x91, WantedUncovered, SpectersHostile, voidBattle, MusicTracks.On);
+                !Session.FreePlay && Session.CampaignMission == 0x91, WantedUncovered, SpectersHostile, voidBattle, MusicTracks.IsOn);
             if (cat != musicCategory && cat != pendingCategory) pendingCategory = cat;
             if (pendingCategory >= 0)
             {

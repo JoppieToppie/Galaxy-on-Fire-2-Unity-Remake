@@ -544,9 +544,10 @@ namespace GoF2Remake.UI
             yield return new WaitForSeconds(splashLogos ? 1.5f : 0.3f);
             splash.AddToClassList("splash--removed");
             pulse = pressAnyKey.schedule.Execute(() => pressAnyKey.ToggleInClassList("press-any-key--on")).Every(1050);
-            skipRequested = false;
+            skipRequested = BenchmarkRunner.AutoRun;   // (-benchmark: no wait for a key)
             while (!skipRequested) yield return null;
             EnterMenu();
+            if (BenchmarkRunner.AutoRun) StartBenchmark();
         }
 
         IEnumerator Wait(float seconds)

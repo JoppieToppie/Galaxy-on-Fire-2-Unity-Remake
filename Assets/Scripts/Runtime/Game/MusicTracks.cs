@@ -35,10 +35,14 @@ namespace GoF2Remake.Data
         };
 
         /// <summary>The Settings key of a track's toggle (in Settings.SoundKeys).</summary>
-        public static string Key(string track) => "musicTrack." + track;
+        public static string Key(string track) => keys.TryGetValue(track, out string key) ? key : keys[track] = "musicTrack." + track;
+        // (kept: Traffic.UpdateMusic asks every frame, and each key was a new string)
+        static readonly System.Collections.Generic.Dictionary<string, string> keys = new System.Collections.Generic.Dictionary<string, string>();
 
         /// <summary>The player's option: the track plays (default) or is skipped.</summary>
         public static bool On(string track) => Settings.MusicTrackOn(track);
+        /// <summary>On as a delegate made once (Traffic.UpdateMusic passes it every frame).</summary>
+        public static readonly Func<string, bool> IsOn = On;
 
         /// <summary>Traffic's music categories: 0 the calm track, 1-3 Space_Battle_Low / Medium / Full, 4 the Most Wanted
         /// criminal's, 5 / 6 the Specters'.</summary>

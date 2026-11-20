@@ -709,24 +709,45 @@ namespace GoF2Remake.Flight
             var dir = d / len;
             Target first = null;
             float best = len;
-            var all = Target.All;
+            var all = Rocks();
             for (int k = 0; k < all.Count; k++)
             {
-                var t = all[k];
-                if ((object)t == null || !t.isAsteroid || !t.Alive) continue;
-                float r = t.radius;
-                var m = from - t.transform.position;
+                var rock = all[k];
+                float r = rock.radius;
+                var m = from - rock.centre;
                 float bd = Vector3.Dot(m, dir), c = m.sqrMagnitude - r * r;
                 if (c > 0f && bd > 0f) continue;   // outside it and heading away
                 float disc = bd * bd - c;
                 if (disc < 0f) continue;
                 float at = Mathf.Max(0f, -bd - Mathf.Sqrt(disc));
-                if (at >= best) continue;
+                if (at >= best || !rock.target.Alive) continue;   // (alive: one shot down earlier this frame)
                 best = at;
-                first = t;
+                first = rock.target;
             }
             if ((object)first != null) point = from + dir * best;
             return first;
+        }
+
+        // The alive asteroids' hit spheres as of this frame (FirstAsteroid): every NPC shot in flight asks, and walking
+        // all the orbit's targets and reading each rock's transform for each shot was most of a fleet battle's gun time.
+        struct Rock { public Target target; public Vector3 centre; public float radius; }
+        static readonly List<Rock> rocks = new List<Rock>();
+        static int rocksFrame = -1;
+
+        static List<Rock> Rocks()
+        {
+            int frame = Time.frameCount;
+            if (frame == rocksFrame && Application.isPlaying) return rocks;   // (an edit-mode test's frame never ends)
+            rocksFrame = frame;
+            rocks.Clear();
+            var all = Target.All;
+            for (int k = 0; k < all.Count; k++)
+            {
+                var t = all[k];
+                if ((object)t == null || !t.isAsteroid || !t.Alive) continue;
+                rocks.Add(new Rock { target = t, centre = t.transform.position, radius = t.radius });
+            }
+            return rocks;
         }
 
         void TestTargets(int i, ref Bullet b, IReadOnlyList<Target> targets, Vector3 from)

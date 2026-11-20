@@ -25,8 +25,9 @@ namespace GoF2Remake.World
         {
             get
             {
-                var mounts = db != null ? db.MountsOf(Session.ShipIndex, 8) : null;
-                return Player != null && PlayerHull.PlayerShip && ExternalDockClass && mounts != null && mounts.Count > 0;
+                if (Player == null || db == null || !PlayerHull.PlayerShip || !ExternalDockClass) return false;
+                var mounts = db.MountsOf(Session.ShipIndex, 8);   // (a new list: asked last, the HUD's dock check runs every frame)
+                return mounts != null && mounts.Count > 0;
             }
         }
 

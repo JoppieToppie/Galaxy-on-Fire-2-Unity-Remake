@@ -120,7 +120,13 @@ namespace GoF2Remake.World
         public static List<Hull> All(Database db)
         {
             CheckMods();
-            if (hulls != null) return hulls;   // the same for every economy: built once per set of mods
+            return hulls ?? BuildAll(db);   // the same for every economy: built once per set of mods
+        }
+
+        // (apart from All: its last lambda holds 'db', an object made on every call of the method it is in, and the HUD
+        // asks for the flown hull several times a frame)
+        static List<Hull> BuildAll(Database db)
+        {
             hullsDb ??= db;
             hulls = new List<Hull>();
             foreach (var ship in db.Ships)
@@ -242,10 +248,20 @@ namespace GoF2Remake.World
         {
             var all = All(db);
             string key = PickedKey;
-            var picked = key.Length > 0 ? all.Find(h => h.key == key) : null;
-            if (picked != null && picked.stats == Session.ShipIndex) return picked;
+            int ship = Session.ShipIndex;
+            // (loops, not List.Find: a lambda holding 'key' is two new objects a call, ~0.7 KB a frame from the HUD's dock check)
+            if (key.Length > 0)
+                foreach (var h in all)
+                    if (h.key == key) { if (h.stats == ship) return h; break; }
             // The ship's own model; ships 13 / 15 have none of their own (the freighters): the first freighter.
-            return all.Find(h => h.own && h.stats == Session.ShipIndex) ?? all.Find(h => h.stats == Session.ShipIndex);
+            Hull first = null;
+            foreach (var h in all)
+            {
+                if (h.stats != ship) continue;
+                if (h.own) return h;
+                first ??= h;
+            }
+            return first;
         }
 
         /// <summary>The hull flown is one the player can normally own (any but the freighters, the battleship and the capital

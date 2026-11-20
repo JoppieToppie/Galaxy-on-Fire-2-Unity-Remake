@@ -52,6 +52,25 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ReflexsWaitIsNotTheProcessorsWork()
+        {
+            // A 3.4 ms frame whose main thread took 3.4 ms, 2 ms of it in Reflex's sleep (frame generation's pacing)
+            Assert.AreEqual(Benchmark.Limit.Cpu, Benchmark.Classify(3.4f, 3.4f, 0.5f, 0.6f, 0f));
+            Assert.AreEqual(Benchmark.Limit.Pacing, Benchmark.Classify(3.4f, 3.4f, 0.5f, 0.6f, 0f, 2f));
+            // The wait a sliver of a frame the game's work fills: still the processor
+            Assert.AreEqual(Benchmark.Limit.Cpu, Benchmark.Classify(4.1f, 4.1f, 0.6f, 0.8f, 0f, 0.06f));
+            // A scene's CPU time is the work alone, the wait beside it
+            var limits = new int[6];
+            limits[(int)Benchmark.Limit.Pacing] = 9;
+            limits[(int)Benchmark.Limit.Cpu] = 1;
+            var s = Benchmark.Measure("test", new List<float> { 3.4f, 3.4f }, 6.8, 1.2, 2, limits, 2f, 4.0);
+            Assert.AreEqual("Pacing", s.limit);
+            Assert.AreEqual(0.9f, s.pacingShare, 0.001f);
+            Assert.AreEqual(1.4f, s.cpuMs, 0.001f);
+            Assert.AreEqual(2f, s.waitMs, 0.001f);
+        }
+
+        [Test]
         public void TheSceneTakesTheLimitOfMostFrames()
         {
             var limits = new int[5];
@@ -66,6 +85,18 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(3f, s.cpuMs, 0.001f);
             Assert.AreEqual(9f, s.gpuMs, 0.001f);
             Assert.AreEqual(2f, s.shownPerFrame);
+        }
+
+        [Test]
+        public void TheRunsMemoryIsItsScenesPeak()
+        {
+            var a = Benchmark.Measure("a", new List<float> { 10f });
+            var b = Benchmark.Measure("b", new List<float> { 10f });
+            a.ramMb = 2000f; a.vramMb = 900f;
+            b.ramMb = 1500f; b.vramMb = 1200f;
+            var all = Benchmark.Overall("all", new[] { a, b }, new List<float> { 10f, 10f }, 0, 0, 0, null);
+            Assert.AreEqual(2000f, all.ramMb);
+            Assert.AreEqual(1200f, all.vramMb);
         }
     }
 }
