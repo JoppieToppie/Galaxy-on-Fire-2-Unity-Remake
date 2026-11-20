@@ -727,6 +727,10 @@ namespace GoF2Remake.Flight
                 // the hold.
                 bool known = Blueprints.IsUnlocked(entry.item);
                 Blueprints.Unlock(entry.item);
+                // #329: a living ship's steal takes it off the ship too, or the beam stole the same blueprint again and again.
+                crate.stolenFrom?.StealFrom(entry.item, entry.amount);
+                crate.stolenFromRemote?.RemoteSteal?.Invoke(entry.item, entry.amount);
+                if (crate.stolenFrom != null && !crate.stolenFrom.Target.Alive) crate.stolenFrom.LootTaken();
                 Message?.Invoke(string.Format(known ? Localization.Extra("bpKnown", "Blueprint already known: {0}")
                                                     : Localization.Extra("bpFound", "Blueprint found: {0}"), GameNames.Item(entry.item)), 2, HudMessageKind.Normal);
                 crate.CapturedHere?.Invoke();
