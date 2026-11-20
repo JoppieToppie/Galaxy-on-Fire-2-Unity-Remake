@@ -3312,8 +3312,26 @@ The functions it may have: `update`, `lateUpdate`, `fixedUpdate` (with the secon
 `triggerEnter`, `triggerExit` (with the collider) and `collisionEnter` (with the collision). `self.gameObject` and
 `self.transform` are the object's. The component goes when your scripts stop.
 
-The game's interface is Unity's UI Toolkit: its classes (`VisualElement`, `Label`, `Button` ...) are there like any other,
-and `game.uiEvent(element, "ClickEvent", function(event) ... end)` listens to an element's events.
+The game's interface is Unity's UI Toolkit: its classes (`VisualElement`, `Label` ...) are there like any other,
+`game.uiEvent(element, "ClickEvent", function(event) ... end)` listens to an element's events, and `game.style` sets an
+element's own styles (the element's `style` itself can't be reached from a script):
+
+```lua
+local label = Label.__new("AUTO TURRET: ON")
+label:AddToClassList("gof-semibold")                      -- one of the game's own style classes
+game.style(label, { position = "absolute", left = 24, top = 230, fontSize = 16, color = "#9fd8ff" })
+game.field(game.findOne("FlightHud"), "root"):Add(label)   -- onto the flight HUD (its root is a private field)
+```
+
+`game.style` takes UI Toolkit's style names: a number is pixels (or the plain number of `opacity`, `flexGrow` ...), a
+text `"50%"`, `"auto"`, a colour (`"#ff8800"`, `"red"`, a `Color`), or a choice by name (`position = "absolute"`,
+`display = "none"`, `flexDirection = "row"`); `backgroundImage` takes `game.texture(...)`; `nil` takes a style off again.
+A class whose short name Unity uses twice is asked for by its full name: `game.type("UnityEngine.UIElements.Button")`.
+The game builds each screen anew (the flight HUD for every flight), so add your elements again when yours is gone
+(`label.parent ~= root`); `Modding/Examples/turret_status` does.
+
+A Lua function also serves where a list of the game's objects wants one: `db.Stations:Find(function(s) return s.index
+== 70 end)`, `list:RemoveAll(fn)`, `list:Sort(function(a, b) return a.amount - b.amount end)`, `list:ForEach(fn)`.
 
 ### What players see
 
@@ -3665,6 +3683,9 @@ by the module `scripts/lib/bounty.lua` and a `/bounty` command of its own.
 galaxy, where shops sell gear only up to tech level 5, NPC cargo can be any item, and the one medal is earned by building
 the Fireworks from one of everything. Its rules are [patches](#patching-the-games-methods) on the game's own methods in
 `scripts/main.lua`, each doing nothing outside a Scavenger game (after AntonTolochko's Scavenger mode).
+Four small ones, each a players' request done in a few lines: `mixed_wings` (every pirate of a group flies its own ship),
+`heavy_ammo` (mounted missiles take cargo space), `khador_interference` (no Khador Drive in the systems its
+`data/interference.json` names) and `turret_status` (a line on the flight HUD: is the automatic turret on?).
 
 
 ## Ship classes and class-based equipment restrictions

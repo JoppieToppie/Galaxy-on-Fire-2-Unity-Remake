@@ -663,6 +663,12 @@ private members too).
   with the parameter types, "Database, int"). Use it when no hook or event fits; `game.describe("Class", true)` lists the
   methods. Not patchable: constructors, generics, lambdas / coroutine bodies, auto-properties, a struct's own methods,
   RPCs, file / address methods, Unity's code. Inner methods change between game versions: wrap optional patches in `pcall`.
+- Interface from a script: `Label.__new("text")`, `element:Add(child)`, `element:AddToClassList("gof-semibold")`,
+  `game.style(element, { position = "absolute", top = 40, left = "5%", color = "#ff8800", display = "none" })` (an
+  element's `.style` can't be read or set directly), `game.uiEvent`. The flight HUD's root: `game.field(game.findOne(
+  "FlightHud"), "root")`; rebuilt every flight, so re-add elements. Lists take Lua functions: `list:Find(fn)`,
+  `:RemoveAll(fn)`, `:Sort(fn)`. Examples to copy from: `Modding/Examples/` mixed_wings, heavy_ammo,
+  khador_interference, turret_status, scavenger.
 - The mod's own files: `game.readText(path)`, `game.readJson(path)`, `game.files(folder)`, `game.texture(path)`,
   `game.sound(path, function(clip) end)`. Content keys to this game's numbers: `game.item("id" or "mod:id")`, `game.ship`,
   `game.system`, `game.station` (commands take the keys themselves).

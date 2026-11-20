@@ -69,6 +69,16 @@ namespace GoF2Remake.Modding
             }
             foreach (var t in AllowedTypes(true))
             {
+                // A Lua function for a list of the game's objects: list:Find(fn), :RemoveAll(fn), :Sort(fn), :ForEach(fn).
+                // (Classes only: a struct's instantiation may not be in an IL2CPP build.)
+                if (t.IsClass && !t.IsAbstract && !t.IsGenericTypeDefinition && !typeof(Delegate).IsAssignableFrom(t))
+                    try
+                    {
+                        types.Add(typeof(Predicate<>).MakeGenericType(t));
+                        types.Add(typeof(Comparison<>).MakeGenericType(t));
+                        types.Add(typeof(Action<>).MakeGenericType(t));
+                    }
+                    catch (Exception) { }
                 try
                 {
                     foreach (var f in t.GetFields(AnyMember)) Consider(f.FieldType);

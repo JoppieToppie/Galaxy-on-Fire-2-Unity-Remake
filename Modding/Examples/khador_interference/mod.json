@@ -1,0 +1,9 @@
+{
+    "id": "khador_interference",
+    "name": "Khador Interference (patch example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "The Khador Drive doesn't work in the star systems listed in data/interference.json (Loma, to begin with): leave through the jumpgate. For campaigns that want a region you can't jump out of."
+    }
+}

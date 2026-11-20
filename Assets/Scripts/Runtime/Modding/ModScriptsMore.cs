@@ -458,6 +458,17 @@ namespace GoF2Remake.Modding
                     return self;
                 });
 
+                // ---- UI Toolkit styles ----
+                // An element's inline style is an internal Unity class a script can't hold: game.style sets it by name.
+                Fn(g, "style", a =>
+                {
+                    object element = a.Count > 0 && a[0].Type == DataType.UserData ? a[0].UserData.Object : null;
+                    if (!(element is UnityEngine.UIElements.VisualElement ve)) throw new ScriptRuntimeException("game.style: an interface element is needed first");
+                    foreach (var pair in a.AsType(1, "game.style", DataType.Table).Table.Pairs)
+                        ScriptAccess.SetStyle(ve.style, pair.Key.CastToString(), pair.Value);
+                    return DynValue.Nil;
+                });
+
                 // ---- UI Toolkit events ----
                 Fn(g, "uiEvent", a =>
                 {

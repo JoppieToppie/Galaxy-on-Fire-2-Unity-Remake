@@ -67,6 +67,52 @@ namespace GoF2Remake.Modding
         }
     }
 
+    public static partial class ScriptAccess
+    {
+        /// <summary>game.style: one inline style of an interface element from a Lua value. A number (pixels, or the plain
+        /// number of opacity / flexGrow ...), "50%", "auto" / "none" / "initial", a colour ("#ff8800", "red", a Color), an
+        /// enum's name ("absolute", "row", "none"), a Texture2D for backgroundImage; nil takes the style off again.</summary>
+        public static void SetStyle(UnityEngine.UIElements.IStyle style, string name, DynValue v)
+        {
+            var p = typeof(UnityEngine.UIElements.IStyle).GetProperty(name ?? "", BindingFlags.Public | BindingFlags.Instance);
+            if (p == null || !p.CanWrite) throw new ScriptRuntimeException($"game.style: there is no style \"{name}\" (top, left, width, color, fontSize, position, display ...)");
+            var type = p.PropertyType;
+            object Keyword(UnityEngine.UIElements.StyleKeyword k) => Activator.CreateInstance(type, k);
+            string text = v.Type == DataType.String ? v.String.Trim() : null;
+            object value = null;
+            if (v.IsNil()) value = Keyword(UnityEngine.UIElements.StyleKeyword.Null);
+            else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(UnityEngine.UIElements.StyleEnum<>))
+            {
+                var e = type.GetGenericArguments()[0];
+                object member = text != null ? (Enum.GetNames(e).FirstOrDefault(n => string.Equals(n, text, StringComparison.OrdinalIgnoreCase)) is string n0 ? Enum.Parse(e, n0) : null)
+                              : v.Type == DataType.Number ? Enum.ToObject(e, (int)v.Number) : v.ToObject(e);
+                if (member == null) throw new ScriptRuntimeException($"game.style: {name} is one of {string.Join(", ", Enum.GetNames(e))}");
+                value = Activator.CreateInstance(type, member);
+            }
+            else if (text != null && Enum.TryParse(text, true, out UnityEngine.UIElements.StyleKeyword keyword) && keyword != UnityEngine.UIElements.StyleKeyword.Undefined)
+                value = Keyword(keyword);
+            else if (type == typeof(UnityEngine.UIElements.StyleLength))
+            {
+                if (v.Type == DataType.Number) value = new UnityEngine.UIElements.StyleLength((float)v.Number);
+                else if (text != null && text.EndsWith("%", StringComparison.Ordinal) && float.TryParse(text.TrimEnd('%'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float percent))
+                    value = new UnityEngine.UIElements.StyleLength(new UnityEngine.UIElements.Length(percent, UnityEngine.UIElements.LengthUnit.Percent));
+                else if (text != null && float.TryParse(text.Replace("px", ""), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float px))
+                    value = new UnityEngine.UIElements.StyleLength(px);
+            }
+            else if (type == typeof(UnityEngine.UIElements.StyleFloat) && v.Type == DataType.Number) value = new UnityEngine.UIElements.StyleFloat((float)v.Number);
+            else if (type == typeof(UnityEngine.UIElements.StyleInt) && v.Type == DataType.Number) value = new UnityEngine.UIElements.StyleInt((int)v.Number);
+            else if (type == typeof(UnityEngine.UIElements.StyleColor))
+            {
+                if (text != null) { if (UnityEngine.ColorUtility.TryParseHtmlString(text, out var c)) value = new UnityEngine.UIElements.StyleColor(c); }
+                else if (v.Type == DataType.UserData && v.UserData.Object is UnityEngine.Color colour) value = new UnityEngine.UIElements.StyleColor(colour);
+            }
+            else if (type == typeof(UnityEngine.UIElements.StyleBackground) && v.Type == DataType.UserData && v.UserData.Object is UnityEngine.Texture2D texture)
+                value = new UnityEngine.UIElements.StyleBackground(texture);
+            if (value == null) throw new ScriptRuntimeException($"game.style: {name} can't take {(text != null ? "\"" + text + "\"" : v.Type.ToString().ToLowerInvariant())}");
+            p.SetValue(style, value);
+        }
+    }
+
     public static partial class ModScripts
     {
         sealed partial class Vm

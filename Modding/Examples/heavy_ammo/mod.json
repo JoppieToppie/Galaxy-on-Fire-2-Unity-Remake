@@ -1,0 +1,9 @@
+{
+    "id": "heavy_ammo",
+    "name": "Heavy Ammo (patch example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "Missiles, mines and bombs weigh something: every two rounds mounted on your ship take a ton of cargo space."
+    }
+}

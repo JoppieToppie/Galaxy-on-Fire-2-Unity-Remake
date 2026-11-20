@@ -822,7 +822,21 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   cleared, the Fireworks' 42 rows), `ModBlueprints.AutocompleteOverride` / `Available`, `Shop.GenerateItems` (fresh
   stock only, so sold loot can be bought back), `AgentGenerator.CreateAgent` / `StorySellerAvailable` /
   `AddStoryBlueprintSellers`, `CapitalShips.ResupplyOffers` / `RollLoot`, `NpcTables.RollLoot`, `NpcShip.AddOwnLoot`
-  (a fixed crate's items rerolled through the private `loot`), `ModMedals.Available`. Left out against the prototype:
+  (a fixed crate's items rerolled through the private `loot`), `ModMedals.Available`. **Four small ones** from
+  players' requests (2026-11-20, tests `PatchExampleModsTests`, play mode `TurretStatusExampleTests`): `mixed_wings`
+  (#307: `TrafficPlan.AddRaiders`, each raider its own `NpcTables.RandomFighter`), `heavy_ammo` (#323: `Shop.CargoLoad`
+  + half a ton a mounted round), `khador_interference` (#325: `GalaxyMap.HasJumpDrive` false in the systems of its
+  data file), `turret_status` (#314: a Label on `FlightHud.root`, updated by `game.every`). Writing them found three
+  gaps in the bridge, closed the same day: MoonSharp refused any class hiding a base member with `new` ("Multiple
+  members named experimental": TextElement over VisualElement, so Label, Button and every text control;
+  `ScriptAccess.RegisterHidingTypes` describes such classes itself at `Install`, the most derived member winning, on a
+  `StandardUserDataDescriptor` made with `HideMembers` so it fills nothing); a Lua function wasn't a `Predicate` /
+  `Comparison` / `Action` of a game class (`list:Find(fn)`; `RegisterDelegateTypes` adds the three for every game
+  class, not structs: IL2CPP); an element's `style` is Unity's internal `InlineStyleAccess`, which scripts can't hold:
+  `game.style(element, table)` (`ScriptAccess.SetStyle`: IStyle's properties by name, numbers / "50%" / keywords /
+  colours / enum names / a Texture2D). Also learnt: scripts can't call `Database.Load` (one overload takes a path, so
+  the name is trimmed: `Database.Shared`), and a short class name Unity uses twice (`Button`, `Target`) needs its
+  full name. Left out against the prototype:
   its own save slots and menu tab (campaigns share the slots, #313's answer), localized texts.
 - **Mod browser** (`ModBrowser`, the main menu's Mods button and `modsPanel`; styles `.mods-*` in MainMenu.uss; its Online
   tab: "Mod catalog" below): the Installed tab's list in
