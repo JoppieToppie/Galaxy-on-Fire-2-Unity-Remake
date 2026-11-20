@@ -1,0 +1,15 @@
+[
+    // An override changes one of the game's systems: only the fields named. Pan (system 1) plays this mod's own track,
+    // music/calm_drift.wav, in its orbits instead of the Terran space music.
+    //
+    // The two other things this mod does need no JSON at all:
+    //   sounds/Target_Lock_v08.wav   named like the game's lock sound (Assets/Audio/SFX_SPACE/Target_Lock_v08), so it
+    //                                plays instead of it everywhere;
+    //   music/calm_drift.wav         any other name is a new track: systems and stations name it ("spaceMusic",
+    //                                "stationMusic", "battleMusic", a station's "music"), missions play it.
+    // Sounds and music may be .ogg, .wav or .mp3.
+    {
+        "override": 1,
+        "spaceMusic": "calm_drift"
+    }
+]

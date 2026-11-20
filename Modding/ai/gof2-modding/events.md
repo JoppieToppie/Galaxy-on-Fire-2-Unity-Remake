@@ -106,6 +106,15 @@ Flow: in; out: Next.
 |---|---|---|---|---|
 | input | Players | Text | `@a` | Who: @a everyone, @r a random player, @alive, @space, @docked, @dead, @survivors (never destroyed since the fight began), or a player's name. |
 
+### Lua
+
+Flow: in; out: Next.
+
+| Kind | Name | Type | Default | What it is |
+|---|---|---|---|---|
+| option | Code | Text |  | Lua code, run in this mod's scripts (the game table, the game's classes, your own globals). "local event = ..." gives event.name, event.get("expression") (a value of this graph: a variable, kills, credits ...) and event.set("variable", number). It runs where the event runs (single player, or the host / server). |
+| option | Result | Text |  | Optional: a variable for the number or true / false the code returns. |
+
 ### Make Peace
 
 Runs the command `/peace` (see Commands).

@@ -1,0 +1,54 @@
+[
+    // A new ship ("id") on one of the game's own models: "gof2:" + a model name from the reference ("Models and their
+    // textures"), here the Hatsuyuki's. No 3D file: the model brings its textures, lights, engine glows, gun and exhaust
+    // points (no "mounts" here), its height on the hangar pad (no "hangarHeight") and its shop icon (no "icon").
+    // Everything else is this ship's own: a fast, fragile courier.
+    {
+        "id": "quillon",
+        "name": { "en": "Quillon" },
+        "description": {
+            "en": "Nivelian couriers fly the Quillon when a parcel has to be three systems away before anyone asks what is in it. Its builders took a racing hull, pulled out half the armor plating and bolted a mail hold in its place. It outruns nearly everything and survives nearly nothing."
+        },
+        // Who builds it: 0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian. 1 % cheaper in its race's systems.
+        "race": 2,
+        // Hull points, hold (t) and handling (the game's ships: 30 to 162; the Hatsuyuki has 115 / 28 / 145).
+        "armor": 90, "cargo": 45, "handling": 160,
+        // The price, and the price with the Default Economy (leave "priceDefault" out for the same price in both).
+        "price": 96000, "priceDefault": 192000,
+        // Primary / secondary / turret / equipment slots: fewer than the Hatsuyuki's 2 / 2 / 0 / 8.
+        "slots": { "primary": 1, "secondary": 1, "turret": 0, "equipment": 6 },
+        "model": "gof2:ship_018_nivelian",
+        // Where it is sold: the ordinary ship dealers of Nivelian systems (systemRace 2; -1 = any) at stations of tech
+        // level 4 and up, 30 % each time a station's dealer list is made. Without "dealer" or "lounge" nobody sells it.
+        "dealer": { "chance": 30, "systemRace": 2, "minTechLevel": 4 }
+    },
+
+    // A second ship, on the Anaan's model: a slow hauler with a big hold and the model's one turret point in use.
+    {
+        "id": "stevedore",
+        "name": { "en": "Stevedore" },
+        "description": {
+            "en": "The Stevedore is what Terran dock crews call a hold with engines attached. It turns like a station and takes most of an orbit to reach full speed, but it carries more than three hundred tons, shrugs off the odd pirate volley and has a turret ring for the ones who keep trying."
+        },
+        "race": 0,
+        // The Anaan has 220 / 240 / 65.
+        "armor": 280, "cargo": 320, "handling": 50,
+        // No "priceDefault": the same price in both economies.
+        "price": 210000,
+        // A turret slot needs a turret point on the model: the Anaan's has one.
+        "slots": { "primary": 1, "secondary": 1, "turret": 1, "equipment": 8 },
+        "model": "gof2:ship_007_terran",
+        // Sold in two ways. By the dealers of any system from tech level 3 ...
+        "dealer": { "chance": 20, "systemRace": -1, "minTechLevel": 3 },
+        // ... and by a visitor in the Space Lounges of Terran systems (systemRace 0): from story step 10, in free play
+        // from rank 3, 15 % each time a bar fills with new visitors (and never while you fly or store one).
+        "lounge": { "systemRace": 0, "minCampaign": 10, "minRank": 3, "chance": 15 },
+        // Weight 0 keeps it out of the NPC fighters' hands (the Gameplay option "Mod ships in traffic"): no patrols or
+        // pirates dogfighting in a hauler. Without "traffic" a new ship may fly as a fighter of its race, as the Quillon does.
+        "traffic": { "weight": 0 }
+    },
+
+    // A change to one of the game's ships ("override": its number from the reference's ship list, 0 = the Betty). Only the
+    // fields given change: 10 t more hold (25 -> 35), everything else stays the Betty's.
+    { "override": 0, "cargo": 35 }
+]

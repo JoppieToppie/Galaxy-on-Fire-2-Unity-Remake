@@ -836,7 +836,18 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   `game.style(element, table)` (`ScriptAccess.SetStyle`: IStyle's properties by name, numbers / "50%" / keywords /
   colours / enum names / a Texture2D). Also learnt: scripts can't call `Database.Load` (one overload takes a path, so
   the name is trimmed: `Database.Shared`), and a short class name Unity uses twice (`Button`, `Target`) needs its
-  full name. Left out against the prototype:
+  full name. **The examples** (2026-11-21, the user: "make sure the example mods show most of the capabilities of the
+  modding system, each mod focuses on a different part"): 21 in `Modding/Examples`, the guide's "Examples" table maps
+  each to its chapter. New that day: courier_ships, warlord_fleet, hired_guns, tinkerers_bench, kepler_guild,
+  heavy_flight (written by subagents from the loaders' field lists, then checked), lost_shipment (with the event graphs'
+  new Lua step), epilogue, sound_pack (its WAVs generated: a lock chime, a 16 s pad that loops); frontier_systems and
+  plasma_arsenal got a comment on every field. `ExampleModsTests` loads each with its dependencies and fails on any
+  warning or script error and on an example no test names; `ContentExampleModsTests` checks what each JSON example
+  says it shows. Found on the way (not changed): a wanted.json `ship` takes no name (only a number or `mod:id`), a
+  `route` of `[1, 1]` never activates (the second station is always in another system), a race's `description` is
+  read but shown nowhere, the star map's system panel shows no emblem for a mod race without `icon`, ships.json's
+  `skinned` / `overcharge` are documented but warned as unknown, the guide's two `mounts` rows disagree on x. Left out
+  against the prototype:
   its own save slots and menu tab (campaigns share the slots, #313's answer), localized texts.
 - **Mod browser** (`ModBrowser`, the main menu's Mods button and `modsPanel`; styles `.mods-*` in MainMenu.uss; its Online
   tab: "Mod catalog" below): the Installed tab's list in

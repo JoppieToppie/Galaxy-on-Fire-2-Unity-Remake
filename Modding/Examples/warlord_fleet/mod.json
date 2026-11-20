@@ -1,0 +1,9 @@
+{
+    "id": "warlord_fleet",
+    "name": "Warlord Fleet (NPC ships example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "A pirate warlord's cruiser, parked in the lawless systems with its turrets and escorts, and his gunship hunting where the pirate boss does. An example of npcships.json: ships nobody flies, made from the game's own hulls, so the mod has no 3D file."
+    }
+}

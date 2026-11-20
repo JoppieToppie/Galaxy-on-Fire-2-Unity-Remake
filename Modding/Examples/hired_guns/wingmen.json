@@ -1,0 +1,32 @@
+{
+    // wingmen.json is ONE object: a mod has one crew. The file has no names and no places: the Space Lounges' wingmen
+    // offers stay the game's (the agent, its friends' names, the price, the bar), and this only decides which ships
+    // that crew flies and what its pilots say over the radio.
+
+    // How many of the bars' wingmen offers are this crew's, in percent (default 40). The other offers stay the game's:
+    // a fighter of the agent's race.
+    "chance": 60,
+
+    // The ships they fly. The game's ships go by number (5 Inflict and 27 Taipan: Terran, 9 H'Soc: Vossk,
+    // 18 Hatsuyuki: Nivelian, 30 Berger CrossXT: Midorian). A word without a colon means a ship of this mod's own
+    // ships.json, "other_mod:id" another mod's. Each pilot gets one of the agent's race when the list has one (a Terran
+    // agent's crew: Inflicts and Taipans), else any of them.
+    "ships": [ 5, 27, 9, 18, 30 ],
+
+    // What a wingman in one of these ships says in the flight HUD's radio box. Six kinds, all optional; each is a list
+    // (one line at random) or one line alone.
+    "radio": {
+        // It destroyed a ship (now and then, not every time).
+        "kill": [ "That one's paid for.", "Scratch one. Put it on the bill.", "Target down. Next!" ],
+        // Another wingman was shot down.
+        "lost": [ "We just lost one of ours!", "Wingman down. Somebody pays for that." ],
+        // Its own hull is under a third.
+        "help": [ "I'm taking a beating here, get him off me!", "Hull's going. A little help?" ],
+        // You destroyed a ship that was after it. One line alone: no list needed.
+        "thanks": "Owe you one, boss.",
+        // An enemy is close behind you.
+        "warn": [ "Boss, check your tail!", "You've picked up a shadow. Break off!" ],
+        // Your hull is under a fifth.
+        "playerDown": [ "You're falling apart, boss. Pull back!", "Dead clients don't pay. Get out of there!" ]
+    }
+}

@@ -549,6 +549,13 @@ Any event command (as typed in multiplayer)
 
 - `line`: Command.
 
+### `lua`: Lua
+
+Code of your own (the mod's scripts must be allowed)
+
+- `code`: Lua code (Runs in this mod's scripts (Modding/README.md "Scripts"). local event = .. gives event.name, event.get("expression") and event.set("variable", number); return a number or true / false to put it in the variable below.).
+- `result`: Result into a variable (optional); a variable's name (letters, digits, _).
+
 ## Value nodes (`values`)
 
 - `number` (Number, gives number): `value` value

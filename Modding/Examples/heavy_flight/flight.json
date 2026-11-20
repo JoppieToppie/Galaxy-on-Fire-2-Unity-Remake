@@ -1,0 +1,54 @@
+{
+    // Flight rules: the numbers the player's ship moves by, for EVERY ship the player flies while this mod is on (NPC
+    // ships fly by their own AI). Each rule is one name from the guide's "Flight rules" table and one number
+    // ("truncateBoostSpeed" alone takes true / false); what isn't named here keeps the game's value, given in each
+    // comment. A rule belongs to one flight style by what it is: the first block moves the original flight (a
+    // throttle), the last the free-flight option (names starting with "free"), the dodge both. So one mod can retune
+    // one style and leave the other alone.
+
+    // ---- the original flight ----
+
+    // Top turn rate (game: 750). Full stick turns every ship a fifth slower.
+    "turnRateScale": 600,
+
+    // How fast the turn rate builds up (game: 3.3; higher = slower). At the default steering sensitivity the nose
+    // takes about a third longer to answer the stick.
+    "turnRampBase": 4.4,
+
+    // How fast the turn dies away once the stick is let go (game: 126; higher = slower). The nose swings on twice as
+    // long: aim by letting go early.
+    "turnDecayDivisor": 252,
+
+    // The sideways speed left after each frame once the strafe key is let go (game: 0.7). The ship slides on instead
+    // of stopping almost at once.
+    "strafeDecay": 0.85,
+
+    // ---- the dodge ----
+
+    // A dodge lasts 1.6 s (game: 1200 ms) and can't be steered meanwhile...
+    "dodgeDurationMs": 1600,
+
+    // ...and slides less hard (game: 0.2), so it covers the same distance as before: a slow roll aside, not a jump.
+    "dodgeSlide": 0.15,
+
+    // ---- free flight ----
+
+    // Top turn rate in degrees per second at handling 100 (game: 125): a fifth slower, like the original flight above.
+    "freeTurnRateDeg": 100,
+
+    // Time from no turn to the top turn rate, and back to none (game: 400 ms): the nose starts and stops turning
+    // twice as slowly.
+    "freeTurnRampMs": 800,
+
+    // Forward acceleration in top speeds per second (game: 1.3851). A third less thrust: getting up to speed takes
+    // half as long again, and with the dampeners on the ship swings wider through a turn before it flies where it
+    // points.
+    "freeAccelForward": 0.9,
+
+    // Dampeners on: braking, as a share of the forward acceleration (game: 0.25). With the weaker thrust above the
+    // ship coasts about two and a half times as far after the thrust is let go.
+    "freeBrakeShare": 0.15,
+
+    // Turn rate while boosting, of the turn rate (game: 0.85). A boost is close to a straight line: line up first.
+    "freeBoostTurnShare": 0.6
+}

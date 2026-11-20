@@ -1,0 +1,9 @@
+{
+    "id": "lost_shipment",
+    "name": "Lost Shipment (missions example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "Two missions written by hand as .gof2mission files: a bar mission (a freighter captain in Euclades or Dis wants a lost container back from pirates) and a short quest that starts by itself once it is done. Its Lua step pays a bonus for every pirate destroyed, so the game asks you to allow the mod's code."
+    }
+}

@@ -663,6 +663,9 @@ private members too).
   with the parameter types, "Database, int"). Use it when no hook or event fits; `game.describe("Class", true)` lists the
   methods. Not patchable: constructors, generics, lambdas / coroutine bodies, auto-properties, a struct's own methods,
   RPCs, file / address methods, Unity's code. Inner methods change between game versions: wrap optional patches in `pcall`.
+- A mission's own code: the step `{ "type": "lua", "code": "local event = ... return event.get(\"kills\") * 2", "result": "v" }`
+  (the graph Editor's Lua node): runs in the mod's scripts (needs the player's approval, like scripts), `event.get(expr)`,
+  `event.set(var, n)`, `event.name`; a returned number / boolean goes into `result`. Only in a mod's own events/ files.
 - Interface from a script: `Label.__new("text")`, `element:Add(child)`, `element:AddToClassList("gof-semibold")`,
   `game.style(element, { position = "absolute", top = 40, left = "5%", color = "#ff8800", display = "none" })` (an
   element's `.style` can't be read or set directly), `game.uiEvent`. The flight HUD's root: `game.field(game.findOne(

@@ -2872,7 +2872,19 @@ the default; `@trigger` the player a When block is about; any selector). The ste
 | Cutscenes | `cutscene` (letterbox, freeze, invulnerable), `camera` (from, to, seconds, look, follow, fov, shake), `chasecamera`, `cutsceneend`, `fade` (direction: out / in / clear, seconds, colour), `letterbox` (on) |
 | Sound and screen | `music` (track), `sound` (sound), `timer` (seconds, label, stop) |
 | Score | `points` (amount), `scoreboard` (show, title), `score` (mode), `winner` (mode), `pvp` (on) |
-| Other | `command` (line: any event command) |
+| Other | `command` (line: any event command), `lua` (code, result: see below) |
+
+**Lua**: `{ "type": "lua", "code": "...", "result": "variable" }` runs code of your own where no step does what you need
+(the graph Editor's **Lua** node, in Commands, is the same). It runs in your mod's [scripts](#scripts), so it sees their
+globals and functions, the `game` table and the game's classes, and the player is asked to allow it like any script.
+`local event = ...` gives the mission's side: `event.name`, `event.get("expression")` (any value of the mission: a
+variable, `kills`, `credits`, `docked(78)`) and `event.set("variable", number)`; a number or `true` / `false` it returns
+goes into the `result` variable. Only a mod's own missions run it (not a file of the Events folder), and it runs where the
+mission runs: single player, or the host in a session. `Modding/Examples/lost_shipment` pays a bonus with one.
+
+```json
+{ "type": "lua", "result": "bonus", "code": "local event = ...\nlocal bonus = event.get(\"kills\") * 500\nSession.AddCredits(bonus)\nreturn bonus" }
+```
 
 Places (camera, ship orders) are written as for the [cutscenes](#cutscenes). A field wired to a value node holds
 `{ "$value": "v1" }`, the node in `"values"`: `[ { "id": "v1", "type": "compare", "op": ">=", "a": { "$value": "v2" }, "b": 5 } ]`.
@@ -3668,24 +3680,32 @@ warnings and are skipped. The game's log (`Player.log`) lists every problem too.
 warnings starting with "Script:" and the file and line (`scripts/main.lua:(12,5-9): attempt to index a nil value`); the mod
 stays on and its other scripts keep running.
 
-## Example
+## Examples
 
-`Modding/Examples/plasma_arsenal` in the repository is a complete small mod: two new weapons (the Plasma Lance with its
-own bolts, muzzle flash, impact and shot sound), one rebalanced shield, German texts and a preview image. Copy it into your Mods folder to try it. The Star Wars, Star Trek and Halo ship mods (made from
-PR #34) show ships with models, materials, glows, two turrets and lounge sellers. `Modding/Examples/frontier_systems` adds the
-Kepler system with jumpgate routes and two stations: Kepler Prime with its own station model, its own planet and its own
-hangar and bar (GLBs built from simple shapes, with their markers), and the Rho Freeport looking like an original with a
-Nivelian interior; the system has its own sun and its own nebula sky. It also brings a character, Captain Vega, with a (placeholder) portrait.
-`Modding/Examples/pirate_bounty` is a script mod: `scripts/main.lua` pays a bounty for every pirate you destroy, counts them
-in the save and reports the count a moment after you dock (`game.wait`), with its numbers read from `data/bounty.json`
-by the module `scripts/lib/bounty.lua` and a `/bounty` command of its own.
-`Modding/Examples/scavenger` is a whole game mode: a [campaign](#campaigns) that starts you with nothing in the finished
-galaxy, where shops sell gear only up to tech level 5, NPC cargo can be any item, and the one medal is earned by building
-the Fireworks from one of everything. Its rules are [patches](#patching-the-games-methods) on the game's own methods in
-`scripts/main.lua`, each doing nothing outside a Scavenger game (after AntonTolochko's Scavenger mode).
-Four small ones, each a players' request done in a few lines: `mixed_wings` (every pirate of a group flies its own ship),
-`heavy_ammo` (mounted missiles take cargo space), `khador_interference` (no Khador Drive in the systems its
-`data/interference.json` names) and `turret_status` (a line on the flight HUD: is the automatic turret on?).
+`Modding/Examples` in the repository holds a mod for each part of the format. Copy one into your Mods folder to try it,
+and read its files: every field carries a comment on what it does.
+
+| Example | What it shows |
+|---|---|
+| `plasma_arsenal` | [items.json](#itemsjson): a new weapon with its own bolts, flash, impact and shot sound, a new missile, a change to an original shield; texts per language (`text/de.json`); a preview image. |
+| `exploding_bra` | A weapon whose projectile is one of [the game's own models](#the-games-own-models) (`"gof2:bra"`): no 3D file. |
+| `courier_ships` | [ships.json](#shipsjson): two new ships on the game's models (sold by dealers and a lounge seller, a Default Economy price, kept out of NPC traffic) and a change to the Betty's hold. |
+| `warlord_fleet` | [npcships.json](#npc-ships-npcshipsjson): a pirate capital ship with turret hardpoints, escorts, loot and where it appears, and a pirate boss. |
+| `frontier_systems` | [systems.json and stations.json](#systemsjson-and-stationsjson): a system with its own sun and sky, a station with its own model, planet, hangar and bar ([interiors.json](#hangars-and-bars), GLBs with their markers), one built from the game's parts with a hand-laid orbit, and a [character](#characters). |
+| `kepler_guild` | [races.json](#races) and [building on other mods](#building-on-other-mods): two races with relations, given `frontier_systems`' system by an override; its ships. |
+| `heavy_flight` | [flight.json](#flight-rules): every ship's flight rules, and one ship's own rules winning over them. |
+| `hired_guns` | [wingmen.json](#wingmen) (a crew's ships and radio lines) and [wanted.json](#most-wanted) (three criminals with escorts, routes and conditions). |
+| `tinkerers_bench` | [blueprints.json](#blueprints) (every way to find one, the three autocomplete forms), [gameoptions.json](#new-game-options) and [conditions](#conditions) that tie them together. |
+| `sound_pack` | [Sound effects](#sound-effects) and [music](#music): a game sound replaced by a file of the same name, a new track given to a system. |
+| `lost_shipment` | [Missions](#story-missions-and-bar-missions) written by hand: a bar mission (a dialogue, a fight, cargo to hand in, a Lua step) and a quest that starts by itself after it. |
+| `epilogue` | [dlc.json](#dlcs): the smallest complete DLC, its intro call and its one mission. |
+| `scavenger` | A whole game mode: a [campaign](#campaigns) with its own economy and [medals](#medals), and its rules as [patches](#patching-the-games-methods) of the game's methods. |
+| `pirate_bounty` | [Scripts](#scripts): events (`game.on`), a module, a data file, a value kept in the save, `game.wait` and a chat command. |
+| `mixed_wings`, `heavy_ammo`, `khador_interference` | [Patches](#patching-the-games-methods) in a few lines each: every raider its own ship, missiles that take cargo space, no Khador Drive in some systems (read from a data file). |
+| `turret_status` | [The interface](#objects-and-the-interface) from a script: a line of its own on the flight HUD. |
+
+The Star Wars, Star Trek and Halo ship mods made from PR #34 (not in the repository: third-party models) show ships with
+models, materials, glows, turrets and lounge sellers.
 
 
 ## Ship classes and class-based equipment restrictions

@@ -1,0 +1,9 @@
+{
+    "id": "courier_ships",
+    "name": "Courier Ships (ships example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "An example mod: the Quillon, a fast and fragile courier, and the Stevedore, a slow hauler with a big hold, plus a little more cargo space for the Betty. It shows flyable ships made in ships.json alone, on the game's own models (\"gof2:<model>\"), so the mod has no 3D file."
+    }
+}

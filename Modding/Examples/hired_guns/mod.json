@@ -1,0 +1,9 @@
+{
+    "id": "hired_guns",
+    "name": "Hired Guns (wingmen and Most Wanted example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "A crew of wingmen to hire in the Space Lounges, flying the game's own ships with their own radio lines, and three criminals on the Most Wanted boards. An example of wingmen.json and wanted.json: two text files, no model, image or sound."
+    }
+}

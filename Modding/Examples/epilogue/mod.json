@@ -1,0 +1,9 @@
+{
+    "id": "epilogue",
+    "name": "Epilogue (DLC example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "A DLC as a mod: dlc.json puts a card after Supernova, and in a game that has finished the whole story it starts by itself with a call from Keith, then its one mission. The smallest complete DLC entry."
+    }
+}

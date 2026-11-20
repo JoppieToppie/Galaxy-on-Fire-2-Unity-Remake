@@ -1,8 +1,13 @@
 [
+    // Kepler Prime's own hangar: a GLB room whose empty objects ("markers") say where the ship stands, where the camera
+    // is, where other ships park and fly in (Modding/README.md "Hangars and bars").
     {
         "id": "kepler_hangar", "type": "hangar", "model": "models/kepler_hangar.glb",
-        "fov": 46, "parkedMax": 3, "ambient": [0.32, 0.34, 0.38], "lightIntensity": 1.1
+        "fov": 46,                                // the camera's field of view
+        "parkedMax": 3,                           // at most 3 other ships on its parked_1.. pads
+        "ambient": [0.32, 0.34, 0.38], "lightIntensity": 1.1
     },
+    // Its bar: the visitors stand on the model's visitor_1.. markers.
     {
         "id": "kepler_bar", "type": "bar", "model": "models/kepler_bar.glb",
         "fov": 60, "ambient": [0.25, 0.27, 0.32]

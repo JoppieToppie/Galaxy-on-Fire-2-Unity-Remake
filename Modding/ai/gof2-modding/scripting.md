@@ -148,6 +148,9 @@ OBJECTS AND INTERFACE
                                                -- collisionEnter
       self.gameObject, self.transform
   game.uiEvent(element, "ClickEvent", function(event) ... end) -> handle
+  game.style(element, { position = "absolute", top = 40, left = "5%",
+                        color = "#ff8800", fontSize = 18, display = "none" })
+      an interface element's own styles (UI Toolkit's names; nil takes one off)
 
 OTHER PLAYERS  (multiplayer; in single player the message comes back to you)
   game.send("name", ...)              to every player's scripts (numbers,

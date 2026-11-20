@@ -1,0 +1,9 @@
+{
+    "id": "tinkerers_bench",
+    "name": "Tinkerer's Bench (blueprints and options example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "Three pieces of home-made gear that are never sold, only built from blueprints, switched on by a card in Start new game. An example of blueprints.json (every way to come by a blueprint and every autocomplete form), gameoptions.json and \"available\" conditions; the mod has no model, image or sound."
+    }
+}

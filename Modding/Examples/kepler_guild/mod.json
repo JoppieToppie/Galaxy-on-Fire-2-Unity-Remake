@@ -1,0 +1,10 @@
+{
+    "id": "kepler_guild",
+    "name": "Kepler Guild (races example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "dependencies": ["frontier_systems"],
+    "description": {
+        "en": "An example mod that builds on Frontier: Kepler: the Kepler Guild takes over that mod's system, flies the game's own hulls under its colours and fights off the Claim Jumpers. It teaches races.json and how one mod uses another's content by key."
+    }
+}

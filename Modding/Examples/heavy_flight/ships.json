@@ -1,0 +1,23 @@
+[
+    // Rules for ONE ship: an "override" of the Rhino (ship 51, the heaviest freighter) that changes nothing but how it
+    // flies. Its price, armour, cargo and model stay the game's.
+    {
+        "override": 51,
+
+        // A ship can also pick its flight style: "flightStyle": "original" would make it always fly the original way (a
+        // throttle, no strafing thrusters) whatever the player chose under Options > Controls, "free" / "chorus" the
+        // others. This example leaves the choice to the player (no field, or "player").
+
+        "flight": {
+            // The ship's own flight rules: the same names as in flight.json. They win over flight.json rule by rule,
+            // and every rule not named here still comes from flight.json (so the Rhino also turns a fifth slower).
+            "rules": {
+                // flight.json: 252, the game: 126. Once a turn is started this freighter is very slow to stop it.
+                "turnDecayDivisor": 400,
+
+                // flight.json: 1600, the game: 1200. Its dodge is one long drift aside, 2.2 s without steering.
+                "dodgeDurationMs": 2200
+            }
+        }
+    }
+]
