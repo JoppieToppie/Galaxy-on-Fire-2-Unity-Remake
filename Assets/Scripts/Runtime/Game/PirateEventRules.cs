@@ -40,6 +40,9 @@ namespace GoF2Remake.Data
             if (station == 100 || station == 101 || station == 108 || station == 10 || (station >= 102 && station <= 104)) return false;
             if (system.index == 25 || system.index == 27 || system.index == 32 || system.index == 33 || Modding.ModWorld.PirateHideout(system.index)) return false;
             if (Modding.ModWorld.ModTrafficOnly(system.index)) return false;   // remake mods: a system with mods' ships only
+            // #308: none with volatile goods aboard (step 120's mutagen, Red Plasma): no shooting or boosting with them, so a
+            // boss and its escorts made the delivery impossible. A reported sighting waits for a later visit.
+            if (GalaxyMap.HasVolatileGoods) return false;
             int sec = system.securityLevel;   // 0 Dangerous, 1 Risky, 2 Average, 3 Secure (texts 402-405)
             return sec >= 0 && sec < EventChance.Length && !InStoryline(station);
         }

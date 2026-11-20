@@ -135,7 +135,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   and 7 % in Risky ones (the system's own security level, texts 402-405; never Average or Secure), not below rank 2,
   before campaign 0x10, in Mido in free play, at any station a step of the three campaigns sends the player to
   (story.json's stations, the Void-attacked station, step 59's targets: `InStoryline`), in a pirate base system, the
-  Kaamo siege, Loma, the empty and special orbits, systems 27 / 32 / 33: half the time a sleeping pirate outpost 110-160
+  Kaamo siege, Loma, the empty and special orbits, systems 27 / 32 / 33, with volatile goods aboard (#308: step 120's
+  mutagen can't be fought with): half the time a sleeping pirate outpost 110-160
   km out with its guards (as a pirate base: radio 435-437 / 438-440, red fog, its crate), else a Pirate Boss (1606; hull
   (15 rank + 1680) x difficulty, speed 3.5, a gun by rank x2, 3-8 t of rare goods) with 2-4 escorts in front of the
   station, 30 km further out than the raiders, who calls 8 s in (speaker 9). Dangerous: the outpost has 6 pirate turrets
