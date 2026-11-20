@@ -43,10 +43,9 @@ namespace GoF2Remake.UI
             aboutButton.style.display = DisplayStyle.None;
             var menuPanel0 = root.Q(className: "system-menu");
             if (menuPanel0 != null && systemClose != null) { menuPanel0.Add(systemClose); systemClose.AddToClassList("system-menu-close"); }
-            // Remake: the Debug page once the main menu's Debug panel has been opened (Cheats); in multiplayer whenever the
-            // session allows it (made in every session: a server's admin may switch it on or off meanwhile, ShowSystemPage).
-            if (Cheats.PageShown || GoF2Remake.Multiplayer.NetGame.Active)
-                debugButton = SystemButton(Localization.Extra("debugTitle", "Debug"), 5, () => ShowSystemPage(SysPage.Debug), systemMain);
+            // Settings can enable Debug after this scene loads. Keep the entry and refresh its visibility on return.
+            debugButton = SystemButton(Localization.Extra("debugTitle", "Debug"), 5, () => ShowSystemPage(SysPage.Debug), systemMain);
+            debugButton.style.display = Cheats.PageShown ? StyleKeyword.Null : DisplayStyle.None;
             // Multiplayer: a session's game is never saved, and no single-player save is loaded into it; the co-op
             // campaign's host saves its own game into the slots (SaveGame.HostSaves).
             if (GoF2Remake.Multiplayer.NetGame.Active)
@@ -234,11 +233,6 @@ namespace GoF2Remake.UI
 
         void ShowSystemPage(SysPage page)
         {
-            if (page == SysPage.Debug && !GameRulesAccess.Confirmed)
-            {
-                ShowDialog(GameRulesAccess.Warning, () => { GameRulesAccess.Accept(); ShowSystemPage(page); });
-                return;
-            }
             sysPage = page;
             bool slots = page == SysPage.Save || page == SysPage.Load;
             systemMain.EnableInClassList("system-menu-page--shown", page == SysPage.Main);

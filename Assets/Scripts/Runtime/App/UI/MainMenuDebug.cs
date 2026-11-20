@@ -113,7 +113,12 @@ namespace GoF2Remake.UI
         {
             if (!panels.ContainsKey("debugPanel") || openPanel == panels["debugPanel"]) return;
             if (dialog.ClassListContains("dialog-backdrop--shown")) return;
-            if (!GameRulesAccess.Confirmed) { RequestRulesAccess(OpenDebug); return; }
+            if (!Cheats.Allowed) return;
+            if (!Cheats.Unlocked)
+            {
+                RequestDebugAccess(() => { Cheats.Unlocked = true; OpenDebug(); });
+                return;
+            }
             Play(buttonRelease);
             Cheats.Unlocked = true;   // from now on the pause menu and the station's system menu have a Debug page
             UpdateDebugButton();

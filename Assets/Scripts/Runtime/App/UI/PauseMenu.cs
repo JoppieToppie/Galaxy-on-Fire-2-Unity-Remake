@@ -438,11 +438,9 @@ namespace GoF2Remake.UI
 
         void Show(Page p)
         {
-            if (p == Page.Debug && !GameRulesAccess.Confirmed)
+            if (p == Page.Debug && !Cheats.PageShown)
             {
-                Ask(level, GameRulesAccess.Warning, GameRulesAccess.Enable, Localization.Get(425),
-                    () => { GameRulesAccess.Accept(); Open(level); Show(Page.Debug); },
-                    () => { Open(level); Show(Page.Main); }, GameRulesAccess.Title);
+                Show(Page.Main);
                 return;
             }
             if (p != Page.Report && p != Page.ReportBusy && p != Page.ReportDone) LeaveReport();
