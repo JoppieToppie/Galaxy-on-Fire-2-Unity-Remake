@@ -71,6 +71,7 @@ namespace GoF2Remake.Data
             var campaign = target >= Dlc1WonIndex ? Campaign.Supernova : target >= GameWonIndex ? Campaign.Valkyrie : Campaign.GalaxyOnFire2;
             Session.Campaign = campaign;
             string scene = StartCampaign(db, campaign);
+            Session.MissionSelectGame = true;   // #308: a test game, it never saves over the player's own
             if (Index >= target) return scene;
             // The main game starts in the prologue's orbit, the add-ons docked (Dima, Dis).
             var place = campaign == Campaign.GalaxyOnFire2 ? Place.InOrbit(78) : Place.Docked(Session.StationIndex);

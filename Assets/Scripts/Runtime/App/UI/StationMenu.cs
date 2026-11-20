@@ -721,7 +721,7 @@ namespace GoF2Remake.UI
                 else if (kb != null && kb.digit1Key.wasPressedThisFrame) { Play(buttonPush); hangarWindow.SelectTabNumber(1); }
                 else if (kb != null && kb.digit2Key.wasPressedThisFrame) { Play(buttonPush); hangarWindow.SelectTabNumber(2); }
                 else if (kb != null && kb.digit3Key.wasPressedThisFrame) { Play(buttonPush); hangarWindow.SelectTabNumber(3); }
-                // Kaamo storage tools (HangarWindowKaamoVip): 4 = Blueprints, F / the right stick press = search
+                // Kaamo storage tools (HangarWindowKaamoVip): 4 = the last visible tab, F / the right stick press = search
                 // (a controller's keyboard), R / the left stick press = the next sort order.
                 else if (kb != null && kb.digit4Key.wasPressedThisFrame && hangarWindow.VipTools) { Play(buttonPush); hangarWindow.SelectTabNumber(4); }
                 else if (kb != null && kb.fKey.wasPressedThisFrame) hangarWindow.FocusSearch(false);

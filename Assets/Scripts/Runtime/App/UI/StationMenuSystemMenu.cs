@@ -51,8 +51,8 @@ namespace GoF2Remake.UI
             if (GoF2Remake.Multiplayer.NetGame.Active)
                 foreach (var b in new[] { loadGameButton, saveGameButton })
                     if (b != null && !(b == saveGameButton && SaveGame.HostSaves)) b.style.display = DisplayStyle.None;
-            // Hardcore: the game saves itself when docking (the auto-save) and nowhere else.
-            if (Session.Hardcore && saveGameButton != null) saveGameButton.style.display = DisplayStyle.None;
+            // Hardcore: the game saves itself when docking (the auto-save) and nowhere else; a mission select game never (#308).
+            if ((Session.Hardcore || Session.MissionSelectGame) && saveGameButton != null) saveGameButton.style.display = DisplayStyle.None;
             // The Debug page's scroll list (Options is an OptionsView, BuildOptionsView).
             systemOptions = new VisualElement();
             systemOptions.AddToClassList("system-menu-page");

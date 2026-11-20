@@ -261,6 +261,9 @@ namespace GoF2Remake.Data
         public static bool Hardcore;
         /// <summary>This game's identity (a new one at every new game; saved), so a hardcore death finds every slot of the run.</summary>
         public static string RunId = "";
+        /// <summary>Remake (#308): a game the Debug panel's mission select started (Story.StartAtMission): a throwaway test
+        /// that never saves, so the player's own auto-save and Resume stay theirs.</summary>
+        public static bool MissionSelectGame;
         /// <summary>Remake (a player's request 2026-11-04): a game started without medals, the new game's choice (MainMenu):
         /// none are awarded or shown (Achievements.Enabled), and what they unlock comes from the story instead
         /// (Achievements.VoidXUnlocked / SupernovaUnlocked). Saved; older saves have medals.</summary>
@@ -589,6 +592,7 @@ namespace GoF2Remake.Data
             GraphQuests = new List<GraphQuestState>();
             ModCampaign = "";
             Hardcore = false;
+            MissionSelectGame = false;
             NoMedals = false;
             RunId = System.Guid.NewGuid().ToString("N");
             WasteTons = WasteDry = WasteSinceRare = 0;

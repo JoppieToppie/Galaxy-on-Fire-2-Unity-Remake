@@ -41,7 +41,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   Void return station); then the step's story orbit (launched when docked there, else an arrival from the previous
   place) or that place (docked, never at an empty orbit or a refusing station). Steps only reached inside another (46,
   53, 107, 129, 149 / 150) aren't offered; 42 is since 2026-11-09 (`MainCampaignLevels.Build42`: 41's level from Errkt's
-  end, on 41's radio) (`Story.MissionSelectStart`). On the right the cheat toggles (`Cheats`,
+  end, on 41's radio) (`Story.MissionSelectStart`). Such a
+  game never saves (#308, `Session.MissionSelectGame`, cleared by a new or loaded game; no Save game button): its
+  auto-save on docking replaced the player's own, and Resume then loaded the test. On the right the cheat toggles (`Cheats`,
   PlayerPrefs `cheat_*`, rows from `CheatsCatalog` through `OptionControl`): god mode (`Target.Damage` /
   `PlayerHealth.Kill`, no gamma drain, volatile goods safe), infinite ammo (`WeaponSystem`), no equipment cooldown
   (`Cheats.NoEquipmentCooldown`, players' wish 2026-11-02 "also boosters"; it replaced "no boost cooldown": the booster
