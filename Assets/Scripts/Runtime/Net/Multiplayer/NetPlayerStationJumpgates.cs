@@ -333,7 +333,11 @@ namespace GoF2Remake.Multiplayer
                 gate.destinationChangedUtc = oldChanged;
                 nextJumpgateRetryUtc = now + 5;
             }
-            else nextJumpgateRetryUtc = 0;
+            else
+            {
+                nextJumpgateRetryUtc = 0;
+                NetPlayer.OrbitRunner(gate.orbitStationIndex)?.BroadcastJumpgateRestored(gate.orbitStationIndex);
+            }
         }
 
         /// <summary>Called from the authoritative station update loop; due projects survive restarts.</summary>
