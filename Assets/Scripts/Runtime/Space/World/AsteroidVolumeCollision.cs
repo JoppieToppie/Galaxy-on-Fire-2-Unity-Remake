@@ -1,8 +1,7 @@
 // AsteroidVolumeCollision.cs
 // Native asteroid destruction for explicitly classified large NPC ships. The ship's existing
 // Obstacle volumes are authoritative; asteroid targets use their native Target.Damage death path.
-// Candidate discovery is staggered (30 frames) and restricted to the obstacle's bounding reach,
-// so this does not add a full Target.All scan to every ship on every frame.
+// Candidate discovery is staggered (30 frames) and queries the shared asteroid spatial grid.
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -89,19 +88,7 @@ namespace GoF2Remake.World
         void RefreshCandidates()
         {
             nearby.Clear();
-            var all = Target.All;
-            Vector3 centre = transform.position;
-            float broadReach = reach + 50f;
-            float broadReachSq = broadReach * broadReach;
-            for (int i = all.Count - 1; i >= 0; i--)
-            {
-                var target = all[i];
-                if (target == null || !target.isAsteroid || !target.Alive) continue;
-                float r = Mathf.Max(0f, target.radius);
-                float limit = broadReach + r;
-                if ((target.transform.position - centre).sqrMagnitude <= Mathf.Max(broadReachSq, limit * limit))
-                    nearby.Add(target);
-            }
+            AsteroidTargetGrid.Query(transform.position, reach, nearby);
         }
 
         bool Overlaps(Target asteroid)
