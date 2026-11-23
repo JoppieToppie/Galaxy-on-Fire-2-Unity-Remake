@@ -68,9 +68,10 @@ namespace GoF2Remake.Multiplayer
         static bool JumpgateAccessAllowed(PlayerJumpgateRecord gate, string account, string factionId)
         {
             if (gate == null || gate.scrapped || gate.permanentlyDestroyed || gate.building) return false;
-            bool owner = gate.ownershipType == PlayerStationOwnershipType.Individual
-                ? string.Equals(account, gate.ownerProfile, StringComparison.Ordinal)
-                : !string.IsNullOrEmpty(factionId) && string.Equals(factionId, gate.ownerFactionId, StringComparison.Ordinal);
+            // A faction owns the infrastructure, but individual members remain subject to the
+            // blacklist. Only an individually owned gate's actual owner bypasses its blacklist.
+            bool owner = gate.ownershipType == PlayerStationOwnershipType.Individual &&
+                string.Equals(account, gate.ownerProfile, StringComparison.Ordinal);
             if (owner) return true;
             if (gate.blacklist != null)
                 foreach (var blocked in gate.blacklist)
