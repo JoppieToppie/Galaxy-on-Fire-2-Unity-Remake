@@ -348,17 +348,19 @@ namespace GoF2Remake.Multiplayer
         internal void BroadcastJumpgateRestored(int orbitStationIndex)
         {
             if (!IsServer || !IsSpawned || !RunsOrbitActive || RunsOrbit != orbitStationIndex) return;
-            JumpgateRestoredRpc(orbitStationIndex);
+            var layout = OrbitLayout.Build(NetGame.Db, orbitStationIndex);
+            if (layout != null && layout.hasJumpgate)
+                JumpgateRestoredRpc(orbitStationIndex, layout.jumpgate);
         }
 
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
-        void JumpgateRestoredRpc(int orbitStationIndex)
+        void JumpgateRestoredRpc(int orbitStationIndex, Vector3 gatePosition)
         {
             if (!RunsOrbitActive || RunsOrbit != orbitStationIndex ||
                 Local == null || !Local.InSpace || Local.Station != orbitStationIndex) return;
             if (Local.level != null && Local.level.Layout != null &&
                 Local.level.Layout.stationIndex == orbitStationIndex)
-                Local.level.OnPlayerJumpgateRestored();
+                Local.level.OnPlayerJumpgateRestored(gatePosition);
         }
 
         /// <summary>Server: notify pilots of a persisted EMP shutdown immediately.</summary>
