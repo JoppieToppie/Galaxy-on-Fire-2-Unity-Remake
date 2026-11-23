@@ -420,7 +420,7 @@ namespace GoF2Remake.Multiplayer
 
         static void MergeGateDiscoveries(SaveData save, Account account)
         {
-            if (save == null || account?.gateDiscoveredSystems == null || NetGame.Db?.Systems == null) return;
+            if (save == null || NetGame.Db?.Systems == null) return;
             int count = 0;
             foreach (var system in NetGame.Db.Systems) if (system != null) count = Math.Max(count, system.index + 1);
             if (count <= 0) return;
@@ -432,7 +432,7 @@ namespace GoF2Remake.Multiplayer
                     ? save.systemVisible[i] : definition?.initiallyVisible == true;
             }
             if (GalaxyMap.LomaSystem < visible.Length) visible[GalaxyMap.LomaSystem] = true;
-            foreach (int discovered in account.gateDiscoveredSystems)
+            foreach (int discovered in account?.gateDiscoveredSystems ?? new List<int>())
                 if (discovered >= 0 && discovered < visible.Length) visible[discovered] = true;
             save.systemVisible = visible;
         }
