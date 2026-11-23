@@ -108,7 +108,7 @@ namespace GoF2Remake.UI
             // Management is contextual, not a world directory: only expose the player station at the location
             // where this management screen is open. The server still enforces owner/faction permissions per command.
             int currentStation = level?.Layout != null ? level.Layout.stationIndex : -1;
-            var records = NetPlayerStations.Stations?.Where(x => x != null && x.stationIndex == currentStation && (NetPlayerStations.CanViewManagement(x) || (x.buyOrders != null && x.buyOrders.Any(order => order != null && order.remaining > 0)))).OrderBy(x => x.id).ToList();
+            var records = NetPlayerStations.Stations?.Where(x => x != null && x.stationIndex == currentStation && (x.offeredForClaimUtc > 0 || NetPlayerStations.CanViewManagement(x) || (x.buyOrders != null && x.buyOrders.Any(order => order != null && order.remaining > 0)))).OrderBy(x => x.id).ToList();
             if (records == null || records.Count == 0)
             {
                 stationList.Add(new Label("No managed station or public construction buy orders are available at this location."));
@@ -117,7 +117,8 @@ namespace GoF2Remake.UI
             }
             foreach (var record in records)
             {
-                string state = record.underConstruction ? "CONSTRUCTION" : "OPERATIONAL";
+                string state = record.offeredForClaimUtc > 0 ? "OPEN TO CLAIM" :
+                    record.underConstruction ? "CONSTRUCTION" : "OPERATIONAL";
                 var button = new Button(() => SelectStation(record))
                 { text = record.name + "\n#" + record.id + "  ·  " + state };
                 button.AddToClassList("player-station-row");
@@ -144,6 +145,12 @@ namespace GoF2Remake.UI
             if (selected != null)
             {
                 AddInfo("Station", selected.name + "  (#" + selected.id + ")");
+                if (selected.offeredForClaimUtc > 0)
+                {
+                    AddInfo("Claim price", NetPlayerStations.StationClaimPrice.ToString("N0") + " credits");
+                    AddAction("Claim station", "/station claim " + selected.id);
+                    return;
+                }
                 AddInfo("Ownership", selected.ownershipType == PlayerStationOwnershipType.Faction ? "Faction-owned" : "Individually owned");
                 AddInfo("Owner", selected.ownershipType == PlayerStationOwnershipType.Faction
                     ? (selected.ownerName ?? selected.ownerFactionId ?? "Unknown faction") : (selected.ownerName ?? "Unknown"));
@@ -178,6 +185,8 @@ namespace GoF2Remake.UI
             {
                 AddField("stationName", "New station name", selected.name);
                 AddAction("Rename station", () => Send("/station rename " + selected.id + " " + Value("stationName")));
+                if (!selected.underConstruction)
+                    AddInfo("Public claim", "Owners can use /station retire " + selected.id + " to offer this station for 25,000,000 credits.");
                 AddSection("MARKETPLACE", "Ship sales use the personal stored fleet and the station's sales tax.");
                 AddField("salesTax", "Sales tax (0–10%)", selected.marketplaceTaxPercent.ToString());
                 AddAction("Set marketplace tax", () => Send("/station tax " + selected.id + " " + Value("salesTax")));

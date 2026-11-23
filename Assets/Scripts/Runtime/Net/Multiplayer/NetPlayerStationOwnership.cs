@@ -5,6 +5,118 @@ namespace GoF2Remake.Multiplayer
 {
     public static partial class NetPlayerStations
     {
+        public const long StationClaimPrice = 25_000_000;
+
+        public static bool StationOfferedForClaim(int orbit) => StationAt(orbit)?.offeredForClaimUtc > 0;
+
+        internal static string OfferStationForPublicClaim(NetPlayer pilot, PlayerStationRecord station)
+        {
+            if (!IsStationContext(pilot, station, out string account) || !IsOwnershipAuthority(station, account))
+                return "Dock at this station as its owner or owning faction leader to open it for public claim.";
+            if (station.underConstruction || station.reconstructing || station.wreckClaimOpen || station.destroyed || station.retired)
+                return "Only an operational station can be offered for public claim.";
+
+            var original = registry;
+            int index = original.stations.IndexOf(station);
+            var offer = UnityEngine.JsonUtility.FromJson<PlayerStationRecord>(UnityEngine.JsonUtility.ToJson(station));
+            offer.offeredForClaimUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            offer.pendingTransfer = null;
+            RecordHistory(offer, account, "opened-for-public-claim");
+            original.stations[index] = offer;
+            if (!Save())
+            {
+                if (ReferenceEquals(registry, original)) original.stations[index] = station;
+                return "The station could not be opened for public claim.";
+            }
+            NetState.Instance?.BroadcastStock(offer.stationIndex);
+            return $"{offer.name} is open to claim for {StationClaimPrice:N0} credits.";
+        }
+
+        internal static string ClaimOfferedStation(NetPlayer pilot, int id)
+        {
+            var offer = Find(id);
+            if (!NetGame.IsServer || !sessionActive || offer == null || offer.offeredForClaimUtc <= 0)
+                return "That station is not open for public claim.";
+            if (pilot == null || !pilot.IsSpawned || !pilot.InHangar || pilot.Station != offer.stationIndex ||
+                !NetProfiles.Controls(pilot.OwnerClientId))
+                return "Dock at the station with a controlled profile to claim it.";
+            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
+            if (string.IsNullOrEmpty(account) || NetProfiles.CreditAmount(account) < StationClaimPrice)
+                return $"Claiming this station costs {StationClaimPrice:N0} credits.";
+
+            var original = registry;
+            int index = original.stations.IndexOf(offer);
+            var station = UnityEngine.JsonUtility.FromJson<PlayerStationRecord>(UnityEngine.JsonUtility.ToJson(offer));
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            long paused = Math.Max(0, now - station.offeredForClaimUtc);
+            bool relinquishBuilder = !string.IsNullOrEmpty(station.originalBuilderProfile) &&
+                station.history?.FindLast(value => value != null && value.action == "opened-for-public-claim") is PlayerStationHistoryEntry offerHistory &&
+                HasBuilderRights(station, offerHistory.actorAccount);
+            if (relinquishBuilder)
+            {
+                station.builderRightsRelinquishedUtc = now;
+                station.permissionOverrides?.Clear();
+                station.bans?.Clear();
+            }
+            else
+            {
+                station.permissionOverrides?.RemoveAll(value => value == null ||
+                    value.builderState == PlayerStationPermissionState.Inherit);
+                foreach (var value in station.permissionOverrides ?? new List<PlayerStationPermissionOverride>())
+                {
+                    value.state = PlayerStationPermissionState.Inherit;
+                    value.setBy = null;
+                }
+                station.bans?.RemoveAll(value => value == null || value.source == PlayerStationBanSource.OwnerAuthority);
+            }
+            station.roleAssignments?.Clear();
+            station.individualSuccessorProfile = null;
+            station.factionSuccessorProfile = null;
+            station.factionSuccessorFactionId = null;
+            station.factionSuccessorType = PlayerStationOwnershipType.Individual;
+            station.factionSuccessorDelegateProfile = null;
+            station.ownershipType = PlayerStationOwnershipType.Individual;
+            station.ownerProfile = account;
+            station.ownerFactionId = null;
+            station.ownerName = pilot.DisplayName;
+            station.factionStorageAccess = false;
+            station.factionPermissions = NewIndividualFactionPermissionProfile(false);
+            station.offeredForClaimUtc = 0;
+            ClearOwnerVisitorRestrictions(station);
+
+            if (station.dryDockBuilding)
+            {
+                station.dryDockStartedUtc += paused;
+                station.dryDockCompletesUtc += paused;
+            }
+            if (station.factoryJobs != null)
+                foreach (var job in station.factoryJobs)
+                {
+                    if (job == null) continue;
+                    job.startedUtc += paused;
+                    job.completesUtc += paused;
+                }
+
+            RecordHistory(station, account, "public-claim-completed");
+            var rollbackGates = RestoreSponsoredGateOwnership(station);
+            original.stations[index] = station;
+            SyncJumpgatesForStation(station);
+            if (!CommitProfileTransaction(null, new List<(string account, long delta)> { (account, -StationClaimPrice) }, null))
+            {
+                if (ReferenceEquals(registry, original))
+                {
+                    original.stations[index] = offer;
+                    rollbackGates();
+                }
+                return "The claim could not be saved. Your credits were kept.";
+            }
+
+            NotifyProfileCreditChange(account, -StationClaimPrice, "Public station claim");
+            EjectDeniedVisitors(station);
+            NetState.Instance?.BroadcastStock(station.stationIndex);
+            return $"You claimed {station.name} for {StationClaimPrice:N0} credits. Its facilities are open.";
+        }
+
         const long TransferProposalLifetimeSeconds = 7 * 24 * 60 * 60;
 
         static bool IsOwnershipAuthority(PlayerStationRecord record, string account)
@@ -104,6 +216,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "Claim the station before changing its ownership.";
             if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
                 by.Station != record.stationIndex || !NetProfiles.Enabled ||
                 !NetProfiles.Controls(by.OwnerClientId) || !NetCommands.IsAdmin(by))
@@ -155,6 +268,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "Claim the station before changing its ownership.";
             if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
                 by.Station != record.stationIndex || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "The receiving owner must dock at the station using a controlled profile to accept.";

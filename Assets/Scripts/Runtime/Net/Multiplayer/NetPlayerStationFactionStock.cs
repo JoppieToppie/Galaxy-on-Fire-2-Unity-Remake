@@ -16,7 +16,7 @@ namespace GoF2Remake.Multiplayer
 
         static bool CanUseStationConstructionStock(PlayerStationRecord station, string account)
         {
-            if (station == null || station.retired || station.underConstruction || station.wreckClaimOpen ||
+            if (station == null || station.retired || station.offeredForClaimUtc > 0 || station.underConstruction || station.wreckClaimOpen ||
                 station.destroyed || string.IsNullOrEmpty(account)) return false;
             return station.ownershipType == PlayerStationOwnershipType.Faction
                 ? !string.IsNullOrEmpty(station.ownerFactionId) &&

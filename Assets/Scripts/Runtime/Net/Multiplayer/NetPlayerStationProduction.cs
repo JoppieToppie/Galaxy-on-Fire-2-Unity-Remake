@@ -30,7 +30,7 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return null;
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            bool installed = record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false;
+            bool installed = record.offeredForClaimUtc == 0 && (record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false);
             bool building = installed && record.dryDockBuilding;
             long duration = Math.Max(1L, record.dryDockCompletesUtc - record.dryDockStartedUtc);
             long remaining = building ? Math.Max(0L, record.dryDockCompletesUtc - now) : 0L;
@@ -138,7 +138,7 @@ namespace GoF2Remake.Multiplayer
             TickFactoryJobs(now);
             if (now < nextDryDockRetryUtc) return;
             foreach (var record in registry.stations)
-                if (record != null && record.dryDockBuilding && record.dryDockCompletesUtc <= now)
+                if (record != null && record.offeredForClaimUtc == 0 && record.dryDockBuilding && record.dryDockCompletesUtc <= now)
                     if (!CompleteDryDockJob(record, now)) nextDryDockRetryUtc = now + 5;
         }
 
@@ -530,7 +530,7 @@ namespace GoF2Remake.Multiplayer
             if (registry?.stations == null) return;
             foreach (var record in registry.stations)
             {
-                if (record == null || !HasFactoryModule(record) || record.underConstruction) continue;
+                if (record == null || record.offeredForClaimUtc > 0 || !HasFactoryModule(record) || record.underConstruction) continue;
                 record.storage ??= new List<PlayerStationStorage>();
                 record.factoryJobs ??= new List<PlayerFactoryProductionJob>();
                 record.factoryRepeatOrders ??= new List<PlayerFactoryRepeatOrder>();

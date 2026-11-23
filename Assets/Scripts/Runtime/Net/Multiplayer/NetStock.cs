@@ -306,6 +306,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>A dealer ship's reservation: taken from the host's list (false = none left: another pilot has it).</summary>
         internal static bool HostReserveShip(int station, int ship)
         {
+            if (NetPlayerStations.StationOfferedForClaim(station)) return false;
             var e = Get(station);
             int row = e.ships.IndexOf(ship);
             if (row < 0) return false;
@@ -314,7 +315,8 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>The stock of 'station' (made now if there is none), encoded for the RPC.</summary>
-        internal static string HostGet(int station) => Encode(Get(station));
+        internal static string HostGet(int station) =>
+            NetPlayerStations.StationOfferedForClaim(station) ? "||0|-1" : Encode(Get(station));
 
         /// <summary>One unit of 'item' bought (-1) or sold (+1) at 'station'; false = refused (no unit left to buy). (The
         /// clients only send what their own game shares: no Kaamo check here, the host's club isn't theirs.)</summary>
@@ -326,6 +328,8 @@ namespace GoF2Remake.Multiplayer
         {
             vatUnits = 0;
             if (delta == 0) return 0;
+            // The NPC hangar accepts sales without putting those items back on offer.
+            if (NetPlayerStations.StationOfferedForClaim(station)) return Math.Max(delta, 0);
             var e = Get(station);
             var row = e.items.Find(r => r.item == item);
             if (delta < 0)
@@ -355,6 +359,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>A dealer trade at 'station': the row 'removed' becomes 'added' (in place), or goes / comes.</summary>
         internal static bool HostShip(int station, int removed, int added)
         {
+            if (NetPlayerStations.StationOfferedForClaim(station)) return false;
             var e = Get(station);
             int row = removed >= 0 ? e.ships.IndexOf(removed) : -1;
             if (row >= 0 && added >= 0) e.ships[row] = added;

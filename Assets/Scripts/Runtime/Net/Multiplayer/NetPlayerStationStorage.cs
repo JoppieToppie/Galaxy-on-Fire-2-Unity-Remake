@@ -489,6 +489,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.Active) return "Join a multiplayer session first.";
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
             if (by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Dock at this station using a controlled profile to view storage.";
@@ -521,6 +522,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
             if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
                 by.Station != record.stationIndex || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Dock at this station using a controlled profile to manage storage.";

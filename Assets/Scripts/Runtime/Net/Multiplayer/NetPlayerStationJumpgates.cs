@@ -206,7 +206,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Synchronise every gate sponsored by this station as part of the same registry save.</summary>
         internal static bool SyncJumpgatesForStation(PlayerStationRecord station)
         {
-            if (station == null || station.wreckClaimOpen || station.destroyed || station.reconstructing ||
+            if (station == null || station.offeredForClaimUtc > 0 || station.wreckClaimOpen || station.destroyed || station.reconstructing ||
                 registry?.jumpgates == null) return false;
             bool changed = false;
             foreach (var gate in registry.jumpgates)

@@ -32,7 +32,7 @@ namespace GoF2Remake.Multiplayer
             return station != null && !station.destroyed && (!station.underConstruction || station.reconstructing);
         }
 
-        internal static bool CanDamagePlayerStation(int orbit) => StationSceneryPresent(orbit);
+        internal static bool CanDamagePlayerStation(int orbit) => StationSceneryPresent(orbit) && !StationOfferedForClaim(orbit);
 
         internal static bool ApplyStationCombatHit(int orbit, int weaponItem, float damage)
         {

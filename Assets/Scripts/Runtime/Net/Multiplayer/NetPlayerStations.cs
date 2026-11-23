@@ -179,6 +179,11 @@ namespace GoF2Remake.Multiplayer
             visible.factionSuccessorDelegateProfile = null;
             visible.originalBuilderProfile = null;
             visible.ownerProfile = null;
+            if (offeredForClaimUtc > 0)
+            {
+                visible.ownerName = null;
+                visible.ownerFactionId = null;
+            }
             visible.wreckBlueprintSalvage = null;
             if (wreckClaim != null)
                 visible.wreckClaim = new PlayerStationWreckClaim
@@ -211,6 +216,7 @@ namespace GoF2Remake.Multiplayer
         public bool reconstructing, destroyed, retired, stationIntegrityInitialized;
         public float stationIntegrity, stationIntegrityCapacity;
         public int marketplaceTaxPercent;
+        public long offeredForClaimUtc;
         public float stationOffsetX;
         public List<PlayerStationMaterial> wreckBlueprintSalvage = new List<PlayerStationMaterial>();
         public bool stationExplosionPending, stationSalvagePending;
@@ -591,6 +597,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.Active || registry?.stations == null) return "Join a multiplayer session first.";
             var record = Find(id);
             if (record == null) return $"No player station with project id {id} exists in this world.";
+            if (record.offeredForClaimUtc > 0) return $"{record.name} is open to claim for {StationClaimPrice:N0} credits. Dock and use /station claim {id}.";
             if (record.wreckClaimOpen && record.wreckClaim != null) return WreckClaimStatus(record);
             if (record.destroyed) return $"Station #{id}: {record.name} was destroyed beyond recovery.";
             if (!CanViewStationRecord(by, record)) return "That station's management status is private to its owner and authorised faction members.";
@@ -652,7 +659,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (!sessionActive || registry?.stations == null) return false;
             var station = registry.stations.Find(s => s != null && s.stationIndex == stationIndex);
-            return station != null && !station.underConstruction && !StationClosedByCombat(stationIndex) &&
+            return station != null && station.offeredForClaimUtc == 0 && !station.underConstruction && !StationClosedByCombat(stationIndex) &&
                 (station.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false);
         }
 

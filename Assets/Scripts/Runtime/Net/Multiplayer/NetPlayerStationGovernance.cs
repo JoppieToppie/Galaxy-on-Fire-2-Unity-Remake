@@ -146,7 +146,7 @@ namespace GoF2Remake.Multiplayer
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
             return NetGame.IsServer && sessionActive && registry != null && record != null &&
                 by != null && by.IsSpawned && by.InHangar && by.Station == record.stationIndex &&
-                !StationClosedByCombat(record.stationIndex) &&
+                record.offeredForClaimUtc == 0 && !StationClosedByCombat(record.stationIndex) &&
                 NetProfiles.Enabled && NetProfiles.Controls(by.OwnerClientId) && !string.IsNullOrEmpty(account);
         }
 
@@ -284,7 +284,9 @@ namespace GoF2Remake.Multiplayer
         internal static bool HasStationPermission(PlayerStationRecord record, string account,
             PlayerStationPermission permission)
         {
-            if (record == null || string.IsNullOrEmpty(account)) return false;
+            if (record == null) return false;
+            if (record.offeredForClaimUtc > 0) return permission == PlayerStationPermission.Visit;
+            if (string.IsNullOrEmpty(account)) return false;
             if (IsStationOwnerAccount(record, account)) return true;
             bool builder = HasBuilderRights(record, account);
             var visitorOverride = FindPermissionOverride(record, account, PlayerStationPermission.Visit);
@@ -642,7 +644,7 @@ namespace GoF2Remake.Multiplayer
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
             if (!NetGame.IsServer || !sessionActive || registry == null || record == null ||
                 by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
-                StationClosedByCombat(record.stationIndex) ||
+                record.offeredForClaimUtc > 0 || StationClosedByCombat(record.stationIndex) ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) || string.IsNullOrEmpty(account))
                 return false;
 
@@ -693,8 +695,8 @@ namespace GoF2Remake.Multiplayer
                 by.Station != record.stationIndex || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Dock at the station using your controlled builder profile to relinquish builder rights.";
             string account = NetProfiles.AccountOf(by.OwnerClientId);
-            if (!HasBuilderRights(record, account))
-                return "Only the original builder can relinquish these reserved rights.";
+            if (record.offeredForClaimUtc > 0 || !HasBuilderRights(record, account))
+                return "Only the original builder of an owned station can relinquish these reserved rights.";
             long previous = record.builderRightsRelinquishedUtc;
             var previousOverrides = ClonePermissionOverrides(record);
             var previousBans = CloneBans(record);

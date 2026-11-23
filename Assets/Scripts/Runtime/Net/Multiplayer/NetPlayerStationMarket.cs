@@ -215,6 +215,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.Active) return "Join a multiplayer session first.";
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
             var lines = new List<string> { "Marketplace at " + record.name + ":",
                 $"Sales tax: {Math.Clamp(record.marketplaceTaxPercent, 0, 10)}% added at checkout." };
             if (record.buyOrders != null && record.buyOrders.Count > 0)
@@ -288,6 +289,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
             if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
                 by.Station != record.stationIndex || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Dock at this station and use a controlled player profile to buy goods.";
@@ -370,6 +372,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
             if (by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Dock at this station using a controlled profile to cancel a listing.";

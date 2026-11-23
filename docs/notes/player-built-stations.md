@@ -240,3 +240,10 @@ The exclusive claimant can use `/station rebuild <wreck id>` near the wreck. Rec
 - Public jumpgate records omit owner account and faction IDs, construction issuer details, blacklists and individual contribution histories. The server sends management visibility only to the relevant pilot and evaluates actual access itself.
 
 - Legacy faction-wide stock with no recorded destination is assigned to the oldest surviving station owned by that faction. A pool with no surviving recipient remains saved. Station stock can fund projects sponsored by that station.
+
+
+### Voluntary station retirement
+
+An individual station owner or the owning faction's leader can dock at an operational station and run `/station retire <station id>` to offer it for public claim. The first eligible docked pilot to pay 25,000,000 credits through `/station claim <station id>` becomes its individual owner. The fee is removed from circulation.
+
+While listed, the station remains open for ordinary docking and NPC services. The hangar offers no items or ships, and player modules, private storage and marketplace listings are unavailable. Dry-dock and factory jobs pause. Installed facilities, personal holdings, donated stock, prices and escrow stay with the station. Claiming restores service and resumes the jobs. Sponsored gates transfer with the claim. The usual ownership handover rules apply to builder rights, bans and roles.
