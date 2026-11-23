@@ -18,32 +18,22 @@ namespace GoF2Remake.Multiplayer
 
         internal static string Modules()
         {
-            return "Station modules:\nStorage — 50 Iron, 25 Titanium, 20 Electronics. Holds 10,000 units.\nRefinery — 100 Iron, 50 Titanium, 30 Electronics, 20 Microchips. Requires storage; converts 10 ore into 1 matching ore core.\nFactory — 150 Iron, 100 Titanium, 50 Electronics, 50 Microchips. Requires storage; manufactures trade commodities from stored inputs.\nShip hangar — 100 Iron, 100 Titanium, 80 Electronics, 50 Microchips. Stores up to 100 small/medium bare hulls.\nDry dock — 200 Iron, 150 Titanium, 100 Electronics, 80 Microchips. Stores up to 20 large hulls and constructs dry-dock-restricted ship blueprints from station storage. Large classes (frigates, freighters, cruisers and carriers) always require a dry dock. Both hangar types transfer removable equipment and cargo into station storage.\nInstall with /station install <station id> storage|refinery|factory|hangar|drydock.";
+            var lines = new List<string> { "Station module costs:" };
+            foreach (var kind in ModuleKinds)
+            {
+                var items = new List<string>();
+                foreach (var material in ConstructionCost(kind))
+                    items.Add($"{material.required:N0} x {ConstructionItemName(material.item)}");
+                lines.Add(ModuleName(kind) + " — " + string.Join(", ", items));
+            }
+            lines.Add("Factory and refinery require storage. Install from cargo or open a module project to procure its materials.");
+            return string.Join("\n", lines);
         }
 
 
         const int MaxStoredShipsPerStation = 100;
 
-        internal static string InstallHangar(NetPlayer by, int id)
-        {
-            var record = Find(id);
-            if (record == null) return "No player station with that id exists.";
-            if (!CanManageConstruction(by, record, out string account)) return "Only the original builder, or an authorised faction construction manager while the builder is absent, may install station modules.";
-            if (record.underConstruction) return "Finish station construction before installing modules.";
-            record.addons ??= new List<PlayerStationAddon>();
-            if (record.addons.Exists(a => a != null && a.kind == "hangar")) return "This station already has a ship hangar.";
-            if (record.addons.Count >= MaxAddonsPerStation) return "This station has reached its module limit.";
-            var costs = new[] { (item: 156, amount: 100), (item: 155, amount: 100), (item: 118, amount: 80), (item: 127, amount: 50) };
-            foreach (var cost in costs)
-                if (NetProfiles.CargoAmount(account, cost.item) < cost.amount)
-                    return "Insufficient " + (NetGame.Db?.Item(cost.item)?.name ?? ("item " + cost.item)) + "; no hangar was installed.";
-            record.addons.Add(new PlayerStationAddon { kind = "hangar", level = 1 });
-            if (!CommitCargoTransaction(account, (156, -100), (155, -100), (118, -80), (127, -50)))
-            { record.addons.RemoveAt(record.addons.Count - 1); return "The hangar installation transaction could not be journalled; no materials were taken."; }
-            if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
-                foreach (var cost in costs) NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, cost.item, cost.amount, 0, "", "Station hangar");
-            return "Ship hangar installed at " + record.name + ". Use /station ships to manage stored hulls.";
-        }
+        internal static string InstallHangar(NetPlayer by, int id) => InstallModuleFromCargo(by, id, "hangar");
 
         static bool CanManageHangar(NetPlayer by, PlayerStationRecord record, out string account)
         {
@@ -304,29 +294,7 @@ namespace GoF2Remake.Multiplayer
                 string.Equals(kind, Modding.ShipClassRules.Carrier, StringComparison.OrdinalIgnoreCase);
         }
 
-        internal static string InstallDryDock(NetPlayer by, int id)
-        {
-            var record = Find(id);
-            if (record == null) return "No player station with that id exists.";
-            if (!CanManageConstruction(by, record, out string account)) return "Only the original builder, or an authorised faction construction manager while the builder is absent, may install station modules.";
-            if (record.underConstruction) return "Finish station construction before installing modules.";
-            if (record.addons?.Exists(a => a != null && a.kind == "drydock") == true) return "This station already has a dry dock.";
-            if (record.addons?.Count >= MaxAddonsPerStation) return "This station has reached its module limit.";
-            var costs = new[] { (item: 156, amount: 200), (item: 155, amount: 150), (item: 118, amount: 100), (item: 127, amount: 80) };
-            foreach (var cost in costs)
-                if (NetProfiles.CargoAmount(account, cost.item) < cost.amount)
-                    return "Insufficient " + (NetGame.Db?.Item(cost.item)?.name ?? ("item " + cost.item)) + "; no dry dock was installed.";
-            record.addons ??= new List<PlayerStationAddon>();
-            record.addons.Add(new PlayerStationAddon { kind = "drydock", level = 1 });
-            if (!CommitCargoTransaction(account, (156, -200), (155, -150), (118, -100), (127, -80)))
-            {
-                record.addons.RemoveAt(record.addons.Count - 1);
-                return "The dry dock installation transaction could not be journalled; no materials were taken.";
-            }
-            if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
-                foreach (var cost in costs) NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, cost.item, cost.amount, 0, "", "Station dry dock");
-            return "Dry dock installed at " + record.name + ". It accepts frigates, freighters, cruisers and carriers with a configured ship class.";
-        }
+        internal static string InstallDryDock(NetPlayer by, int id) => InstallModuleFromCargo(by, id, "drydock");
 
         internal static string DryDockStatus(NetPlayer by, int id)
         {
@@ -445,38 +413,8 @@ namespace GoF2Remake.Multiplayer
             return "Returned a bare " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " to your personal stored fleet.";
         }
 
-        internal static string Install(NetPlayer by, int id, string kind)
-        {
-            var record = Find(id);
-            if (record == null) return "No player station with that id exists.";
-            if (!CanManageConstruction(by, record, out string account))
-                return "Only the original builder, or an authorised faction construction manager while the builder is absent, may install station modules.";
-            if (record.underConstruction) return "Finish station construction before installing modules.";
-
-            kind = (kind ?? "").Trim().ToLowerInvariant();
-            if (kind != "storage") return "Available module: storage. Use /station modules for its cost.";
-            record.addons ??= new List<PlayerStationAddon>();
-            if (record.addons.Exists(a => a != null && string.Equals(a.kind, kind, StringComparison.OrdinalIgnoreCase)))
-                return "This station already has a storage module.";
-            if (record.addons.Count >= MaxAddonsPerStation) return "This station has reached its module limit.";
-
-            var costs = new[] { (item: 156, amount: 50), (item: 155, amount: 25), (item: 118, amount: 20) };
-            foreach (var cost in costs)
-                if (NetProfiles.CargoAmount(account, cost.item) < cost.amount)
-                    return "Insufficient " + (NetGame.Db?.Item(cost.item)?.name ?? ("item " + cost.item)) + "; no module was installed.";
-
-            record.addons.Add(new PlayerStationAddon { kind = kind, level = 1 });
-            if (!CommitCargoTransaction(account, (156, -50), (155, -25), (118, -20)))
-            {
-                record.addons.RemoveAt(record.addons.Count - 1);
-                return "The module transaction could not be journalled; no materials were taken.";
-            }
-
-            if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
-                foreach (var cost in costs)
-                    NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, cost.item, cost.amount, 0, "", "Station module");
-            return "Storage module installed at " + record.name + ". It can hold " + StorageCapacityPerLevel.ToString("N0") + " units.";
-        }
+        internal static string Install(NetPlayer by, int id, string kind) =>
+            InstallModuleFromCargo(by, id, (kind ?? "").Trim().ToLowerInvariant());
 
         static int StorageCapacity(PlayerStationRecord record)
         {

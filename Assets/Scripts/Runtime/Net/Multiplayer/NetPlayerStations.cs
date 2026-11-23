@@ -130,6 +130,8 @@ namespace GoF2Remake.Multiplayer
         /// <summary>True until all construction materials have been deposited.</summary>
         public bool underConstruction;
         public List<PlayerStationMaterial> materials = new List<PlayerStationMaterial>();
+        public string moduleConstructionKind;
+        public List<PlayerStationMaterial> moduleConstructionMaterials;
         public List<PlayerStationAddon> addons = new List<PlayerStationAddon>();
         public List<PlayerStationListing> listings = new List<PlayerStationListing>();
         public List<PlayerStationShipListing> shipListings = new List<PlayerStationShipListing>();
@@ -183,6 +185,8 @@ namespace GoF2Remake.Multiplayer
             {
                 visible.ownerName = null;
                 visible.ownerFactionId = null;
+                visible.moduleConstructionKind = null;
+                visible.moduleConstructionMaterials = null;
             }
             visible.wreckBlueprintSalvage = null;
             if (wreckClaim != null)
@@ -194,7 +198,7 @@ namespace GoF2Remake.Multiplayer
                 };
             visible.shipListings = null;
             visible.listings = null; // public listing readout uses the server's marketplace command
-            visible.buyOrders = buyOrders?.ConvertAll(order => order == null ? null : new PlayerStationBuyOrder
+            visible.buyOrders = offeredForClaimUtc > 0 ? null : buyOrders?.ConvertAll(order => order == null ? null : new PlayerStationBuyOrder
             {
                 item = order.item, remaining = order.remaining, unitPrice = order.unitPrice,
                 reservedCredits = order.reservedCredits
@@ -381,6 +385,8 @@ namespace GoF2Remake.Multiplayer
             nextTransactionRetryUtc = 0;
             persistenceFaulted = false;
             consumedBlueprintsReconciled = false;
+            economyCosts.Clear();
+            economyRecipes.Clear();
             sessionActive = NetGame.PersistentHost || NetGame.Dedicated;
             if (!sessionActive) return;
 
@@ -391,6 +397,7 @@ namespace GoF2Remake.Multiplayer
             try
             {
                 Directory.CreateDirectory(folder);
+                LoadStationEconomy(folder);
                 if (File.Exists(path))
                 {
                     try
@@ -620,6 +627,13 @@ namespace GoF2Remake.Multiplayer
                     string itemName = NetGame.Db?.Item(material.item)?.name ?? $"Item {material.item}";
                     lines.Add($"  {itemName}: {Math.Max(0, material.delivered)}/{Math.Max(0, material.required)}");
                 }
+            }
+            if (!string.IsNullOrEmpty(record.moduleConstructionKind))
+            {
+                lines.Add("Module project: " + ModuleName(record.moduleConstructionKind));
+                if (record.moduleConstructionMaterials != null)
+                    foreach (var material in record.moduleConstructionMaterials)
+                        if (material != null) lines.Add($"  {ConstructionItemName(material.item)}: {material.delivered}/{material.required}");
             }
             lines.Add($"Installed modules: {record.addons?.Count ?? 0}");
             if (record.addons != null)
@@ -920,13 +934,7 @@ namespace GoF2Remake.Multiplayer
             return $"Construction project {record.id} started for {name} in {system.name}. Dock at any station to deposit materials over time with /station contribute {record.id} <item id> <amount>.";
         }
 
-        static List<PlayerStationMaterial> RequiredMaterials() => new List<PlayerStationMaterial>
-        {
-            new PlayerStationMaterial { item = 156, required = 200 },  // Iron
-            new PlayerStationMaterial { item = 155, required = 100 },  // Titanium
-            new PlayerStationMaterial { item = 118, required = 80 },   // Electronics
-            new PlayerStationMaterial { item = 127, required = 50 },   // Microchips
-        };
+        static List<PlayerStationMaterial> RequiredMaterials() => ConstructionCost("station");
 
         /// <summary>End the replicated session view; saved server data is reloaded next time.</summary>
         internal static void EndSession()

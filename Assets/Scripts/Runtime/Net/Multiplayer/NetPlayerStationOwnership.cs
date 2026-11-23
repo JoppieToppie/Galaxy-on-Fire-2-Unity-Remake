@@ -100,6 +100,13 @@ namespace GoF2Remake.Multiplayer
             RecordHistory(station, account, "public-claim-completed");
             var rollbackGates = RestoreSponsoredGateOwnership(station);
             original.stations[index] = station;
+            foreach (var gate in original.jumpgates)
+            {
+                if (gate == null || gate.sponsorStationId != station.id || !gate.building ||
+                    gate.permanentlyDestroyed || gate.startedUtc <= 0 || gate.completesUtc <= 0) continue;
+                gate.startedUtc += paused;
+                gate.completesUtc += paused;
+            }
             SyncJumpgatesForStation(station);
             if (!CommitProfileTransaction(null, new List<(string account, long delta)> { (account, -StationClaimPrice) }, null))
             {

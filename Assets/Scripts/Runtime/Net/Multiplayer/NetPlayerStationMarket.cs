@@ -14,16 +14,22 @@ namespace GoF2Remake.Multiplayer
         internal static string CreateConstructionBuyOrder(NetPlayer by, int id, int item, int amount, long unitPrice)
         {
             var record = Find(id);
-            if (record == null || !record.underConstruction) return "That construction project is not active.";
+            var materials = ProcurementMaterials(record);
+            if (materials == null) return "That construction project is not accepting orders.";
             if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Dock at any station using a controlled profile to create a construction buy order.";
             if (!NetGuard.Item(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice ||
                 unitPrice > int.MaxValue / (long)Math.Max(1, amount))
                 return "Use a valid material, 1–500 units, and a supported positive unit price.";
-            var material = record.materials?.Find(x => x != null && x.item == item);
+            var material = materials.Find(x => x != null && x.item == item);
             if (material == null || amount > material.required - material.delivered)
                 return "The order exceeds the project's remaining requirement for that material.";
+            long ordered = 0;
+            foreach (var pending in record.buyOrders ?? new List<PlayerStationBuyOrder>())
+                if (pending != null && pending.item == item && pending.remaining > 0) ordered += pending.remaining;
+            if (amount + ordered > material.required - material.delivered)
+                return "Existing buy orders already cover part or all of that requirement.";
             string account = NetProfiles.AccountOf(by.OwnerClientId);
             if (string.IsNullOrEmpty(account)) return "Your player profile is unavailable.";
             string fundingProfile = null, fundingFaction = null;
@@ -65,10 +71,13 @@ namespace GoF2Remake.Multiplayer
         internal static string FulfilConstructionBuyOrder(NetPlayer by, int id, int orderIndex, int amount)
         {
             var record = Find(id);
-            if (record == null || !record.underConstruction) return "That construction project is not active.";
+            var materials = ProcurementMaterials(record);
+            if (materials == null) return "That construction project is not accepting deliveries.";
             if (!NetGame.IsServer || by == null || !by.IsSpawned ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Use a controlled profile to sell materials into a construction order.";
+            if (!record.underConstruction && (!by.InHangar || by.Station != record.stationIndex))
+                return "Dock at the station commissioning this module to sell its materials.";
             string locationError = ConstructionDeliveryError(by, record);
             if (locationError != null) return locationError;
             if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
@@ -79,7 +88,7 @@ namespace GoF2Remake.Multiplayer
                 order.reservedCredits < order.unitPrice * (long)order.remaining)
                 return "That construction buy order is invalid.";
             if (amount < 1 || amount > 500 || amount > order.remaining) return "Choose 1–500 units, up to the order's remaining quantity.";
-            var material = record.materials?.Find(x => x != null && x.item == order.item);
+            var material = materials.Find(x => x != null && x.item == order.item);
             if (material == null || amount > material.required - material.delivered)
                 return "The project no longer needs that quantity of this material.";
             string seller = NetProfiles.AccountOf(by.OwnerClientId);
@@ -90,7 +99,7 @@ namespace GoF2Remake.Multiplayer
 
             var oldOrders = new List<PlayerStationBuyOrder>();
             foreach (var pending in record.buyOrders)
-                if (pending != null) oldOrders.Add(new PlayerStationBuyOrder { item = pending.item, remaining = pending.remaining,
+                oldOrders.Add(pending == null ? null : new PlayerStationBuyOrder { item = pending.item, remaining = pending.remaining,
                     unitPrice = pending.unitPrice, reservedCredits = pending.reservedCredits, fundedByProfile = pending.fundedByProfile,
                     fundedByFactionId = pending.fundedByFactionId, createdBy = pending.createdBy, createdUtc = pending.createdUtc });
             int oldDelivered = material.delivered;
@@ -99,42 +108,23 @@ namespace GoF2Remake.Multiplayer
             order.remaining -= amount;
             order.reservedCredits -= total;
             if (order.remaining == 0) record.buyOrders.RemoveAt(orderIndex);
+            bool stationProject = record.underConstruction;
             bool complete = true;
-            foreach (var resource in record.materials)
+            foreach (var resource in materials)
                 if (resource != null && resource.delivered < resource.required) { complete = false; break; }
             var credits = new List<(string account, long delta)> { (seller, total) };
             var banks = new List<(string factionId, long delta)>();
             var profileRefunds = new List<(string account, long amount)>();
             if (complete)
             {
-                foreach (var pending in record.buyOrders)
+                if (!StageConstructionEscrowRefunds(record.buyOrders, credits, banks, profileRefunds))
                 {
-                    if (pending == null) continue;
-                    if (pending.reservedCredits < 0)
-                    {
-                        material.delivered = oldDelivered;
-                        record.buyOrders = oldOrders;
-                        return "Construction cannot complete because an outstanding buy order has invalid negative escrow. The order was preserved for administrator recovery.";
-                    }
-                    if (pending.reservedCredits == 0) continue;
-                    // Escrow belongs to exactly one recorded account or faction, even if station ownership
-                    // changed while construction was in progress. Never guess when legacy data is ambiguous.
-                    bool hasProfileFunder = !string.IsNullOrEmpty(pending.fundedByProfile);
-                    bool hasFactionFunder = !string.IsNullOrEmpty(pending.fundedByFactionId);
-                    if (hasProfileFunder == hasFactionFunder)
-                    {
-                        material.delivered = oldDelivered;
-                        record.buyOrders = oldOrders;
-                        return "Construction cannot complete because an outstanding buy order has an ambiguous or missing escrow owner. The order was preserved for administrator recovery.";
-                    }
-                    if (hasProfileFunder)
-                    {
-                        credits.Add((pending.fundedByProfile, pending.reservedCredits));
-                        profileRefunds.Add((pending.fundedByProfile, pending.reservedCredits));
-                    }
-                    else banks.Add((pending.fundedByFactionId, pending.reservedCredits));
+                    material.delivered = oldDelivered;
+                    record.buyOrders = oldOrders;
+                    return "An outstanding buy order has invalid escrow. The order was preserved for administrator recovery.";
                 }
-                rollbackCompletion = CompleteStationConstruction(record);
+                rollbackCompletion = stationProject ? CompleteStationConstruction(record) :
+                    CompleteModuleConstruction(record, record.moduleConstructionKind);
                 record.buyOrders.Clear();
             }
             if (!CommitProfileTransaction(new List<(string account, int item, int delta)> { (seller, order.item, -amount) }, credits, banks))
@@ -144,7 +134,7 @@ namespace GoF2Remake.Multiplayer
                 record.buyOrders = oldOrders;
                 return "The sale could not be journalled; no cargo or credits were transferred.";
             }
-            if (complete) Apply(NetGame.Db);
+            if (complete && stationProject) Apply(NetGame.Db);
 
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, order.item, amount, 0, "", "Construction buy order");
@@ -155,10 +145,32 @@ namespace GoF2Remake.Multiplayer
                 (complete ? " Construction is complete; remaining order escrow was refunded." : " Materials were added to the construction project.");
         }
 
+        static bool StageConstructionEscrowRefunds(List<PlayerStationBuyOrder> orders,
+            List<(string account, long delta)> credits, List<(string factionId, long delta)> banks,
+            List<(string account, long amount)> profileRefunds)
+        {
+            if (orders == null) return true;
+            foreach (var order in orders)
+            {
+                if (order == null || order.reservedCredits == 0) continue;
+                bool personal = !string.IsNullOrEmpty(order.fundedByProfile);
+                bool faction = !string.IsNullOrEmpty(order.fundedByFactionId);
+                if (order.reservedCredits < 0 || personal == faction) return false;
+                if (personal)
+                {
+                    credits.Add((order.fundedByProfile, order.reservedCredits));
+                    profileRefunds.Add((order.fundedByProfile, order.reservedCredits));
+                }
+                else banks.Add((order.fundedByFactionId, order.reservedCredits));
+            }
+            return true;
+        }
+
         internal static string CancelConstructionBuyOrder(NetPlayer by, int id, int orderIndex)
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "Construction orders are paused until the station is claimed.";
             if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Dock at any station using a controlled profile to cancel a construction order.";

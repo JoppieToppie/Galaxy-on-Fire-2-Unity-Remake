@@ -19,6 +19,7 @@ namespace GoF2Remake.UI
         readonly Dictionary<string, TextField> fields = new Dictionary<string, TextField>();
         PlayerStationRecord selected;
         bool open;
+        int confirmRetirementId = -1;
         float refresh;
         float feedbackTime;
 
@@ -100,6 +101,7 @@ namespace GoF2Remake.UI
             if (!open) return;
             panel.style.display = DisplayStyle.None;
             open = false;
+            confirmRetirementId = -1;
         }
 
         void RebuildStationList()
@@ -174,6 +176,22 @@ namespace GoF2Remake.UI
                 AddAction("Show station storage", "/station storage " + selected.id);
                 AddAction("Show ship hangar", "/station ships " + selected.id);
                 AddAction("Show dry-dock status", "/station drydock " + selected.id);
+                if (NetPlayer.Local?.AvailableStationActions.HasFlag(StationProjectActions.OfferForClaim) == true)
+                {
+                    int stationId = selected.id;
+                    if (confirmRetirementId == stationId)
+                    {
+                        AddInfo("Public claim", $"Anyone with {NetPlayerStations.StationClaimPrice:N0} credits can claim the station. Private facilities and sponsored gate construction pause.");
+                        AddAction("Confirm retirement", () =>
+                        {
+                            confirmRetirementId = -1;
+                            Send("/station retire " + stationId);
+                            RebuildBody();
+                        });
+                        AddAction("Keep station", () => { confirmRetirementId = -1; RebuildBody(); });
+                    }
+                    else AddAction("Retire station for public claim", () => { confirmRetirementId = stationId; RebuildBody(); });
+                }
                 if (!NetPlayerStations.CanViewManagement(selected))
                 {
                     BuildConstructionProcurement(selected.id.ToString(), false);
@@ -185,8 +203,6 @@ namespace GoF2Remake.UI
             {
                 AddField("stationName", "New station name", selected.name);
                 AddAction("Rename station", () => Send("/station rename " + selected.id + " " + Value("stationName")));
-                if (!selected.underConstruction)
-                    AddInfo("Public claim", "Owners can use /station retire " + selected.id + " to offer this station for 25,000,000 credits.");
                 AddSection("MARKETPLACE", "Ship sales use the personal stored fleet and the station's sales tax.");
                 AddField("salesTax", "Sales tax (0–10%)", selected.marketplaceTaxPercent.ToString());
                 AddAction("Set marketplace tax", () => Send("/station tax " + selected.id + " " + Value("salesTax")));
@@ -234,11 +250,20 @@ namespace GoF2Remake.UI
             string id = selected.id.ToString();
             AddSection("STATION MODULES", "Install facilities using materials from your controlling profile while docked at the station.");
             AddAction("Module costs and requirements", "/station modules");
-            foreach (string module in new[] { "storage", "refinery", "factory", "hangar", "drydock" })
-                AddAction("Install " + ModuleLabel(module), "/station install " + id + " " + module);
+            if (!selected.underConstruction)
+            {
+                foreach (string module in new[] { "storage", "refinery", "factory", "hangar", "drydock" })
+                {
+                    if (selected.addons?.Any(addon => addon != null && addon.kind == module) == true) continue;
+                    AddAction("Install " + ModuleLabel(module) + " from cargo", "/station install " + id + " " + module);
+                    if (string.IsNullOrEmpty(selected.moduleConstructionKind))
+                        AddAction("Open " + ModuleLabel(module) + " project", "/station module-project " + id + " " + module);
+                }
+            }
 
-            AddSection("JUMPGATE NETWORK", "Use this station as the sponsor to build a gate at any existing orbital location in this system. Each orbit can hold one player-built gate; each gate has one destination. Cost: 500 Iron, 250 Titanium, 200 Electronics and 150 Microchips. A return route requires another gate in the destination system.");
+            AddSection("JUMPGATE NETWORK", "Use this station as the sponsor to build a gate at any existing orbital location in this system. Each orbit can hold one player-built gate; each gate has one destination. A return route requires another gate in the destination system.");
             AddAction("List orbital locations in this system", "/station jumpgate-orbits " + selected.system);
+            AddAction("View jumpgate construction costs", "/station jumpgate-cost");
 
             var systemGates = NetPlayerStations.Jumpgates?.Where(g => g != null && g.system == selected.system &&
                     NetPlayerStations.CanViewJumpgateManagement(NetPlayer.Local, g))
@@ -256,6 +281,14 @@ namespace GoF2Remake.UI
                         ?? ("System " + gate.destinationSystem);
                     AddInfo("Gate · " + orbitName + " (" + orbitId + ")", "Destination: " + destinationName);
                     AddAction("Refresh gate status · orbit " + orbitId, "/station jumpgate-status " + orbitId);
+                    long pausedAt = NetPlayerStations.JumpgateConstructionPausedAt(gate);
+                    if (pausedAt > 0)
+                    {
+                        AddInfo("Gate management", "Paused until the sponsoring station is claimed.");
+                        if (gate.building && gate.startedUtc > 0)
+                            AddInfo("Build time left", Math.Max(0, gate.completesUtc - pausedAt).ToString("N0") + " seconds");
+                        continue;
+                    }
                     if (!gate.scrapped && !gate.permanentlyDestroyed)
                     {
                         string modeKey = "gateAccess_" + orbitId;
@@ -392,8 +425,22 @@ namespace GoF2Remake.UI
 
         void BuildConstructionProcurement(string id, bool allowManagement)
         {
-            AddSection("CONSTRUCTION PROCUREMENT", "The station owner or an authorised faction officer can reserve funds for missing construction materials. Any pilot docked here can sell into an active order. Payment comes from escrow, so sellers do not also receive a contribution payout.");
-            var activeOrders = selected?.buyOrders ?? new List<PlayerStationBuyOrder>();
+            string module = selected.moduleConstructionKind;
+            if (!selected.underConstruction && string.IsNullOrEmpty(module)) return;
+            AddSection("CONSTRUCTION PROCUREMENT", "Suppliers are paid from the station owner’s or faction’s escrow.");
+            if (!string.IsNullOrEmpty(module))
+            {
+                AddInfo("Module project", ModuleLabel(module));
+                if (selected.moduleConstructionMaterials != null)
+                    foreach (var material in selected.moduleConstructionMaterials)
+                        if (material != null)
+                            AddInfo(NetGame.Db?.Item(material.item)?.name ?? ("Item " + material.item),
+                                $"{material.delivered:N0}/{material.required:N0}");
+            }
+            var activeOrders = selected.buyOrders ?? new List<PlayerStationBuyOrder>();
+            if (allowManagement && !string.IsNullOrEmpty(module) && activeOrders.Count == 0 &&
+                selected.moduleConstructionMaterials?.Any(material => material != null && material.delivered > 0) != true)
+                AddAction("Cancel module project", "/station module-project " + id + " cancel");
             if (activeOrders.Count == 0)
                 AddInfo("Active buy orders", allowManagement
                     ? "None. Create an order below to invite other pilots to supply materials."
@@ -419,19 +466,15 @@ namespace GoF2Remake.UI
                 }
             }
             if (!allowManagement) return;
-            if (selected.underConstruction)
-            {
-                AddInfo("Procurement funding", selected.ownershipType == PlayerStationOwnershipType.Faction
-                    ? "Faction treasury. Orders require leader/officer authority."
-                    : "Station owner's personal credits.");
-                AddField("buyOrderItem", "Required material item ID", "156");
-                AddField("buyOrderAmount", "Units to purchase (1–500)", "10");
-                AddField("buyOrderPrice", "Offer per unit (credits)", "100");
-                AddAction("Create construction buy order", () => Send("/station buy-order " + id + " " +
-                    Value("buyOrderItem") + " " + Value("buyOrderAmount") + " " + Value("buyOrderPrice")));
-            }
-            else
-                AddInfo("Procurement status", "Construction is complete. No further material orders can be created.");
+            AddInfo("Procurement funding", selected.ownershipType == PlayerStationOwnershipType.Faction
+                ? "Faction treasury. Orders require leader/officer authority." : "Station owner's personal credits.");
+            var requirements = selected.underConstruction ? selected.materials : selected.moduleConstructionMaterials;
+            var firstOutstanding = requirements?.Find(material => material != null && material.required > material.delivered);
+            AddField("buyOrderItem", "Required material item ID", firstOutstanding?.item.ToString() ?? "");
+            AddField("buyOrderAmount", "Units to purchase (1–500)", "10");
+            AddField("buyOrderPrice", "Offer per unit (credits)", "100");
+            AddAction("Create construction buy order", () => Send("/station buy-order " + id + " " +
+                Value("buyOrderItem") + " " + Value("buyOrderAmount") + " " + Value("buyOrderPrice")));
         }
 
         void AddSection(string title, string description)

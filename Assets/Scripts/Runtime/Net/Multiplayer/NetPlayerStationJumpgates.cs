@@ -88,7 +88,7 @@ namespace GoF2Remake.Multiplayer
             return false;
         }
 
-        static PlayerJumpgateRecord FindJumpgate(int orbitStationIndex) =>
+        internal static PlayerJumpgateRecord FindJumpgate(int orbitStationIndex) =>
             registry?.jumpgates?.Find(x => x != null && x.orbitStationIndex == orbitStationIndex);
 
         static PlayerStationRecord JumpgateAccessRecord(PlayerJumpgateRecord gate) => gate == null ? null : new PlayerStationRecord
@@ -134,12 +134,16 @@ namespace GoF2Remake.Multiplayer
                  HasRole(sponsor, account, PlayerStationRole.StationAdministrator));
         }
 
+        internal static long JumpgateConstructionPausedAt(PlayerJumpgateRecord gate) =>
+            gate != null && gate.sponsorStationId > 0 ? Find(gate.sponsorStationId)?.offeredForClaimUtc ?? 0 : 0;
+
         static bool CanManageJumpgate(NetPlayer by, PlayerJumpgateRecord gate, out string account)
         {
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
             if (!NetGame.IsServer || !sessionActive || registry == null || by == null || !by.IsSpawned ||
                 !by.InHangar || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) ||
-                string.IsNullOrEmpty(account) || gate == null || gate.scrapped || gate.permanentlyDestroyed) return false;
+                string.IsNullOrEmpty(account) || gate == null || gate.scrapped || gate.permanentlyDestroyed ||
+                JumpgateConstructionPausedAt(gate) > 0) return false;
             if (gate.ownershipType == PlayerStationOwnershipType.Individual)
                 return string.Equals(account, gate.ownerProfile, StringComparison.Ordinal);
             var faction = NetFactions.Of(account);
@@ -218,10 +222,10 @@ namespace GoF2Remake.Multiplayer
         static Action RestoreSponsoredGateOwnership(PlayerStationRecord station)
         {
             var saved = new List<(PlayerJumpgateRecord Gate, PlayerStationOwnershipType Type, string Profile,
-                string Faction, string Name, string AccessFaction)>();
+                string Faction, string Name, string AccessFaction, long Started, long Completes)>();
             foreach (var gate in registry.jumpgates)
                 if (gate != null && gate.sponsorStationId == station.id && !gate.permanentlyDestroyed)
-                    saved.Add((gate, gate.ownershipType, gate.ownerProfile, gate.ownerFactionId, gate.ownerName, gate.accessFactionId));
+                    saved.Add((gate, gate.ownershipType, gate.ownerProfile, gate.ownerFactionId, gate.ownerName, gate.accessFactionId, gate.startedUtc, gate.completesUtc));
             return () =>
             {
                 foreach (var entry in saved)
@@ -231,6 +235,8 @@ namespace GoF2Remake.Multiplayer
                     entry.Gate.ownerFactionId = entry.Faction;
                     entry.Gate.ownerName = entry.Name;
                     entry.Gate.accessFactionId = entry.AccessFaction;
+                    entry.Gate.startedUtc = entry.Started;
+                    entry.Gate.completesUtc = entry.Completes;
                 }
             };
         }
@@ -384,7 +390,7 @@ namespace GoF2Remake.Multiplayer
         {
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             if (gate == null || !gate.building || gate.completesUtc <= 0 ||
-                now < gate.completesUtc || now < nextJumpgateRetryUtc || !NetGame.IsServer) return;
+                JumpgateConstructionPausedAt(gate) > 0 || now < gate.completesUtc || now < nextJumpgateRetryUtc || !NetGame.IsServer) return;
             bool oldBuilding = gate.building;
             long oldChanged = gate.destinationChangedUtc;
             gate.building = false;
@@ -452,19 +458,13 @@ namespace GoF2Remake.Multiplayer
             foreach (var gate in registry.jumpgates)
             {
                 if (gate == null || !gate.building || gate.startedUtc <= 0 ||
-                    gate.completesUtc <= 0 || gate.completesUtc > now) continue;
+                    gate.completesUtc <= 0 || gate.completesUtc > now || JumpgateConstructionPausedAt(gate) > 0) continue;
                 CompleteJumpgateIfDue(gate);
                 if (gate.building) { nextJumpgateRetryUtc = now + 5; return; }
             }
         }
 
-        static List<PlayerStationMaterial> RequiredJumpgateMaterials() => new List<PlayerStationMaterial>
-        {
-            new PlayerStationMaterial { item = 156, required = 500 },  // Iron
-            new PlayerStationMaterial { item = 155, required = 250 },  // Titanium
-            new PlayerStationMaterial { item = 118, required = 200 },  // Electronics
-            new PlayerStationMaterial { item = 127, required = 150 },  // Microchips
-        };
+        static List<PlayerStationMaterial> RequiredJumpgateMaterials() => ConstructionCost("jumpgate");
 
         /// <summary>Build at any orbital anchor in the sponsor station's system, not only at the sponsor station itself.</summary>
         internal static string StartJumpgate(NetPlayer by, int sponsorStationId, int orbitStationIndex, int destinationSystem, int buildSeconds)
@@ -547,6 +547,15 @@ namespace GoF2Remake.Multiplayer
                 " Deliver materials in the construction orbit with /station jumpgate-contribute " + orbitStationIndex + " <item id> <amount>.";
         }
 
+        static bool CanUseJumpgateConstructionStock(PlayerJumpgateRecord gate, string account)
+        {
+            var sponsor = Find(gate.sponsorStationId);
+            bool factionOwned = gate.ownershipType == PlayerStationOwnershipType.Faction;
+            return CanUseStationConstructionStock(sponsor, account) && gate.ownershipType == sponsor.ownershipType &&
+                string.Equals(factionOwned ? gate.ownerFactionId : gate.ownerProfile,
+                    factionOwned ? sponsor.ownerFactionId : sponsor.ownerProfile, StringComparison.Ordinal);
+        }
+
         internal static string ContributeJumpgate(NetPlayer by, int orbitStationIndex, int item, int amount, bool fromFactionStock = false)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
@@ -560,6 +569,8 @@ namespace GoF2Remake.Multiplayer
             var gate = FindJumpgate(orbitStationIndex);
             if (gate == null || gate.destinationSystem < 0 || !gate.building || gate.startedUtc > 0)
                 return "That jumpgate project is not accepting materials.";
+            if (JumpgateConstructionPausedAt(gate) > 0)
+                return "Jumpgate construction is paused until its sponsoring station is claimed.";
             var material = gate.materials?.Find(x => x != null && x.item == item);
             if (material == null) return "That item is not required for this jumpgate.";
             int remaining = material.required - material.delivered;
@@ -572,10 +583,7 @@ namespace GoF2Remake.Multiplayer
             if (fromFactionStock)
             {
                 var sponsor = Find(gate.sponsorStationId);
-                if (!CanUseStationConstructionStock(sponsor, account) ||
-                    gate.ownershipType != sponsor.ownershipType ||
-                    !string.Equals(factionOwned ? gate.ownerFactionId : gate.ownerProfile,
-                        factionOwned ? sponsor.ownerFactionId : sponsor.ownerProfile, StringComparison.Ordinal))
+                if (!CanUseJumpgateConstructionStock(gate, account))
                     return "Only the sponsor's owner or owning faction may allocate its station construction stock.";
                 factionMaterial = sponsor.donatedConstructionStock?.Find(stack => stack != null && stack.item == item);
                 if (factionMaterial == null || factionMaterial.amount < amount)
@@ -894,6 +902,8 @@ namespace GoF2Remake.Multiplayer
             var gate = FindJumpgate(orbitStationIndex);
             if (gate == null || !gate.scrapped || gate.permanentlyDestroyed || gate.destructionCount != 1)
                 return "That gate is not in its reclaimable scrapped state.";
+            if (JumpgateConstructionPausedAt(gate) > 0)
+                return "This gate cannot change ownership until its sponsoring station is claimed.";
             if (gate.explosionPending) return "Wait for the gate's destruction to finish before claiming the wreck.";
             string account = NetProfiles.AccountOf(by.OwnerClientId);
             if (string.IsNullOrEmpty(account)) return "Your controlled player profile is unavailable.";
@@ -993,10 +1003,12 @@ namespace GoF2Remake.Multiplayer
                 foreach (var m in gate.materials)
                     if (m != null) lines.Add((NetGame.Db?.Item(m.item)?.name ?? ("Item " + m.item)) +
                         ": " + m.delivered + "/" + m.required);
+            long pausedAt = JumpgateConstructionPausedAt(gate);
+            if (gate.building && pausedAt > 0) lines.Add("Construction is paused until the sponsoring station is claimed.");
             if (gate.startedUtc <= 0) lines.Add("Status: awaiting materials");
             else if (gate.building)
             {
-                long remaining = Math.Max(0, gate.completesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                long remaining = Math.Max(0, gate.completesUtc - (pausedAt > 0 ? pausedAt : DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
                 lines.Add("Status: under construction, " + TimeText(remaining) + " remaining");
             }
             else lines.Add("Status: operational");

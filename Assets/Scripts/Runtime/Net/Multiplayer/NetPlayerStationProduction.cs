@@ -282,7 +282,7 @@ namespace GoF2Remake.Multiplayer
 
         // Built-in starter recipes. Mods can register any validated item output through RegisterFactoryRecipe.
         // Recipe identifiers are stable command-facing IDs; item IDs are resolved against the active database.
-        static readonly List<FactoryRecipe> FactoryRecipes = new List<FactoryRecipe>
+        static readonly List<FactoryRecipe> BuiltInFactoryRecipes = new List<FactoryRecipe>
         {
             new FactoryRecipe { id = 1, output = 120, outputAmount = 1, inputs = new[] { (119, 2) } }, // Plastics
             new FactoryRecipe { id = 2, output = 125, outputAmount = 1, inputs = new[] { (156, 2), (155, 1) } }, // Mechanical Supplies
@@ -296,12 +296,15 @@ namespace GoF2Remake.Multiplayer
             new FactoryRecipe { id = 106, output = 130, outputAmount = 1, inputs = new[] { (156, 1), (119, 1) } }, // Hydraulics
         };
 
+        static readonly List<FactoryRecipe> RegisteredFactoryRecipes = new List<FactoryRecipe>();
+
         /// <summary>Register a recipe from a mod or server extension. IDs are stable command-facing identifiers.</summary>
         public static bool RegisterFactoryRecipe(int id, int output, int outputAmount,
             params (int item, int amount)[] inputs)
         {
             if (id <= 0 || outputAmount <= 0 || !NetGuard.Item(output) || NetGame.Db?.Item(output) == null ||
-                inputs == null || inputs.Length == 0 || FactoryRecipes.Exists(x => x != null && x.id == id)) return false;
+                inputs == null || inputs.Length == 0 || BuiltInFactoryRecipes.Exists(recipe => recipe.id == id) ||
+                RegisteredFactoryRecipes.Exists(recipe => recipe.id == id)) return false;
             var validated = new List<(int item, int amount)>();
             foreach (var input in inputs)
             {
@@ -309,44 +312,17 @@ namespace GoF2Remake.Multiplayer
                     input.amount <= 0 || validated.Exists(x => x.item == input.item)) return false;
                 validated.Add(input);
             }
-            FactoryRecipes.Add(new FactoryRecipe { id = id, output = output, outputAmount = outputAmount, inputs = validated.ToArray() });
+            economyRecipes.Remove(id);
+            RegisteredFactoryRecipes.Add(new FactoryRecipe { id = id, output = output, outputAmount = outputAmount, inputs = validated.ToArray() });
             return true;
         }
 
-        internal static string InstallFactory(NetPlayer by, int id)
-        {
-            var record = Find(id);
-            if (record == null) return "No player station with that id exists.";
-            if (!CanManageConstruction(by, record, out string account))
-                return "Only the original builder, or an authorised faction construction manager while the builder is absent, may install station modules.";
-            if (record.underConstruction) return "Finish station construction before installing modules.";
-            if (StorageCapacity(record) <= 0) return "Install a storage module first; factory inputs and outputs use station storage.";
-            record.addons ??= new List<PlayerStationAddon>();
-            if (record.addons.Exists(a => a != null && a.kind == "factory"))
-                return "This station already has a factory.";
-            if (record.addons.Count >= MaxAddonsPerStation) return "This station has reached its module limit.";
-
-            var costs = new[] { (item: 156, amount: 150), (item: 155, amount: 100), (item: 118, amount: 50), (item: 127, amount: 50) };
-            foreach (var cost in costs)
-                if (NetProfiles.CargoAmount(account, cost.item) < cost.amount)
-                    return "Insufficient " + (NetGame.Db?.Item(cost.item)?.name ?? ("item " + cost.item)) + "; no factory was installed.";
-
-            record.addons.Add(new PlayerStationAddon { kind = "factory", level = 1 });
-            if (!CommitCargoTransaction(account, (156, -150), (155, -100), (118, -50), (127, -50)))
-            {
-                record.addons.RemoveAt(record.addons.Count - 1);
-                return "The factory transaction could not be journalled; no materials were taken.";
-            }
-            if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
-                foreach (var cost in costs)
-                    NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, cost.item, cost.amount, 0, "", "Station factory");
-            return "Factory installed at " + record.name + ". Use /station recipes to view recipes and /station manufacture to produce goods.";
-        }
+        internal static string InstallFactory(NetPlayer by, int id) => InstallModuleFromCargo(by, id, "factory");
 
         internal static string FactoryRecipeList()
         {
             var lines = new List<string> { "Factory recipes (one batch each):" };
-            foreach (var recipe in FactoryRecipes)
+            foreach (var recipe in EffectiveFactoryRecipes())
             {
                 string output = NetGame.Db?.Item(recipe.output)?.name ?? ("Item " + recipe.output);
                 var inputs = new List<string>();
@@ -364,9 +340,9 @@ namespace GoF2Remake.Multiplayer
 
         static FactoryRecipe FindFactoryRecipe(int recipeId)
         {
-            foreach (var candidate in FactoryRecipes)
-                if (candidate.id == recipeId) return candidate;
-            return null;
+            if (economyRecipes.TryGetValue(recipeId, out var recipe)) return recipe;
+            return BuiltInFactoryRecipes.Find(candidate => candidate.id == recipeId) ??
+                RegisteredFactoryRecipes.Find(candidate => candidate.id == recipeId);
         }
 
         static bool HasFactoryModule(PlayerStationRecord record) =>
@@ -629,35 +605,7 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
-        internal static string InstallRefinery(NetPlayer by, int id)
-        {
-            var record = Find(id);
-            if (record == null) return "No player station with that id exists.";
-            if (!CanManageConstruction(by, record, out string account))
-                return "Only the original builder, or an authorised faction construction manager while the builder is absent, may install station modules.";
-            if (record.underConstruction) return "Finish station construction before installing modules.";
-            if (StorageCapacity(record) <= 0) return "Install a storage module first; refinery output is placed in station storage.";
-            record.addons ??= new List<PlayerStationAddon>();
-            if (record.addons.Exists(a => a != null && a.kind == "refinery"))
-                return "This station already has a refinery.";
-            if (record.addons.Count >= MaxAddonsPerStation) return "This station has reached its module limit.";
-
-            var costs = new[] { (item: 156, amount: 100), (item: 155, amount: 50), (item: 118, amount: 30), (item: 127, amount: 20) };
-            foreach (var cost in costs)
-                if (NetProfiles.CargoAmount(account, cost.item) < cost.amount)
-                    return "Insufficient " + (NetGame.Db?.Item(cost.item)?.name ?? ("item " + cost.item)) + "; no refinery was installed.";
-
-            record.addons.Add(new PlayerStationAddon { kind = "refinery", level = 1 });
-            if (!CommitCargoTransaction(account, (156, -100), (155, -50), (118, -30), (127, -20)))
-            {
-                record.addons.RemoveAt(record.addons.Count - 1);
-                return "The refinery transaction could not be journalled; no materials were taken.";
-            }
-            if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
-                foreach (var cost in costs)
-                    NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, cost.item, cost.amount, 0, "", "Station refinery");
-            return "Refinery installed at " + record.name + ". Use /station refine <id> <ore item id> <amount>.";
-        }
+        internal static string InstallRefinery(NetPlayer by, int id) => InstallModuleFromCargo(by, id, "refinery");
 
         internal static string Refine(NetPlayer by, int id, int oreItem, int amount)
         {

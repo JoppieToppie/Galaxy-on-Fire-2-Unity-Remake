@@ -14,7 +14,7 @@ namespace GoF2Remake.Multiplayer
         const float LegacyWreckMaxIntegrity = 12000f;
         const int ReconstructionPercent = 50;
 
-        static PlayerStationRecord StationAt(int orbit) =>
+        internal static PlayerStationRecord StationAt(int orbit) =>
             registry?.stations?.Find(station => station != null && station.stationIndex == orbit);
 
         public static Vector3 StationPosition(int orbit) =>
@@ -111,17 +111,29 @@ namespace GoF2Remake.Multiplayer
             bool factionOwned = station.ownershipType == PlayerStationOwnershipType.Faction;
             string recipient = factionOwned ? station.ownerFactionId : station.ownerProfile;
             bool paysOwner = payout > 0 && !string.IsNullOrEmpty(recipient);
-            bool saved = !paysOwner ? Save() : factionOwned
-                ? CommitProfileTransaction(null, null, new List<(string, long)> { (recipient, payout) })
-                : CommitProfileTransaction(null, new List<(string, long)> { (recipient, payout) }, null);
+            var credits = new List<(string account, long delta)>();
+            var banks = new List<(string factionId, long delta)>();
+            var refunds = new List<(string account, long amount)>();
+            if (paysOwner)
+            {
+                if (factionOwned) banks.Add((recipient, payout));
+                else credits.Add((recipient, payout));
+            }
+            bool validOrders = StageConstructionEscrowRefunds(station.buyOrders, credits, banks, refunds);
+            bool saved = validOrders && (credits.Count == 0 && banks.Count == 0 ? Save() : CommitProfileTransaction(null, credits, banks));
             if (!saved)
             {
                 if (ReferenceEquals(registry, originalRegistry)) registry.stations[index] = station;
                 return false;
             }
 
-            if (paysOwner && !factionOwned && !System.IO.File.Exists(TransactionPath))
-                NotifyProfileCreditChange(recipient, payout, "Station destruction compensation");
+            if (!System.IO.File.Exists(TransactionPath))
+            {
+                if (paysOwner && !factionOwned)
+                    NotifyProfileCreditChange(recipient, payout, "Station destruction compensation");
+                foreach (var refund in refunds)
+                    NotifyProfileCreditChange(refund.account, refund.amount, "Construction buy order escrow refund");
+            }
             wreckControl.Remove(station.id);
             Apply(NetGame.Db);
             EjectDeniedVisitors(site);
@@ -226,35 +238,16 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.IsServer || !sessionActive || registry?.stations == null)
                 return "Reconstruction requires a persistent server.";
             var wreck = Find(id);
-            if (wreck == null || !wreck.wreckClaimOpen || wreck.wreckClaim == null)
-                return "That project is not a reclaimable station wreck.";
-            if (!wreck.wreckClaim.exclusive) return "Wait for the wreck claim to become exclusive.";
-            if (wreck.stationExplosionPending) return "Wait for the destruction event to finish.";
-            if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != wreck.stationIndex ||
-                pilot.Hull <= 0 || !pilot.HasCurrentWreckClaimPose ||
-                (pilot.Position - StationPosition(wreck.stationIndex)).sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres ||
-                !NetProfiles.Controls(pilot.OwnerClientId))
-                return "Fly within 5 km of the wreck with a controlled profile to start reconstruction.";
-
-            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
-            if (string.IsNullOrEmpty(account)) return "Your controlled profile is unavailable.";
-            var faction = NetFactions.Of(account);
-            var side = new WreckClaimant(account, faction?.id, faction?.name ?? pilot.DisplayName);
-            if (!wreck.wreckClaim.BelongsTo(side)) return "Only the exclusive claimant can rebuild this wreck.";
+            string error = RebuildAuthorization(pilot, wreck, out string account, out var side);
+            if (error != null) return error;
             bool factionOwned = side.FactionId != null;
-            if (factionOwned && !string.Equals(faction.leader, account, StringComparison.Ordinal) &&
-                faction.officers?.Contains(account) != true)
-                return "An officer or leader of the claiming faction must start reconstruction.";
 
             if (appearance >= 0 && !CanUseRebuildAppearance(wreck, appearance))
                 return "Choose a station model from the wreck model's race. Use /station appearance-presets to list model indices.";
             var project = SiteOf(wreck);
             if (appearance >= 0) project.looksLike = appearance;
             project.stationOffsetX = wreck.stationOffsetX > 0f ? -1500f : 1500f;
-            var materials = RequiredMaterials();
-            foreach (var material in materials)
-                material.required = (material.required * ReconstructionPercent + 99) / 100;
-            project.materials = materials;
+            project.materials = ConstructionCost("reconstruction");
             project.reconstructing = project.underConstruction = true;
             project.createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             project.ownershipType = factionOwned ? PlayerStationOwnershipType.Faction : PlayerStationOwnershipType.Individual;
@@ -279,7 +272,33 @@ namespace GoF2Remake.Multiplayer
             return $"Reconstruction started for {wreck.name}. Deposit materials with /station contribute {id} <item id> <amount>.";
         }
 
-        static bool CanUseRebuildAppearance(PlayerStationRecord wreck, int appearance)
+        static string RebuildAuthorization(NetPlayer pilot, PlayerStationRecord wreck, out string account, out WreckClaimant side)
+        {
+            account = null;
+            side = default;
+            if (wreck == null || !wreck.wreckClaimOpen || wreck.wreckClaim == null)
+                return "That project is not a reclaimable station wreck.";
+            if (!wreck.wreckClaim.exclusive) return "Wait for the wreck claim to become exclusive.";
+            if (wreck.stationExplosionPending) return "Wait for the destruction event to finish.";
+            if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != wreck.stationIndex ||
+                pilot.Hull <= 0 || !pilot.HasCurrentWreckClaimPose ||
+                (pilot.Position - StationPosition(wreck.stationIndex)).sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres ||
+                !NetProfiles.Controls(pilot.OwnerClientId))
+                return "Fly within 5 km of the wreck with a controlled profile to start reconstruction.";
+
+            account = NetProfiles.AccountOf(pilot.OwnerClientId);
+            if (string.IsNullOrEmpty(account)) return "Your controlled profile is unavailable.";
+            var faction = NetFactions.Of(account);
+            side = new WreckClaimant(account, faction?.id, faction?.name ?? pilot.DisplayName);
+            if (!wreck.wreckClaim.BelongsTo(side)) return "Only the exclusive claimant can rebuild this wreck.";
+            bool factionOwned = side.FactionId != null;
+            if (factionOwned && !string.Equals(faction.leader, account, StringComparison.Ordinal) &&
+                faction.officers?.Contains(account) != true)
+                return "An officer or leader of the claiming faction must start reconstruction.";
+            return null;
+        }
+
+        internal static bool CanUseRebuildAppearance(PlayerStationRecord wreck, int appearance)
         {
             var db = NetGame.Db;
             var target = db?.Stations?.Find(value => value != null && value.index == appearance);

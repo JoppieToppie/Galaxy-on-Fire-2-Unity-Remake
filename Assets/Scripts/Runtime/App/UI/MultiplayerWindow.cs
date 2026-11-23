@@ -48,7 +48,7 @@ namespace GoF2Remake.UI
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public sealed partial class MultiplayerWindow : MonoBehaviour
     {
-        enum Tab { Chat, Squad, Trade, Faction, Arena, Profile, Admin }
+        enum Tab { Chat, Squad, Trade, Faction, Arena, Profile, OrbitProjects, Admin }
 
         static MultiplayerWindow current;
 

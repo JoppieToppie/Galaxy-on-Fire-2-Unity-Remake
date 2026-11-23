@@ -61,6 +61,14 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> squad = new NetworkVariable<int>(0);   // the host's (NetSquad), 0 = none
         readonly NetworkVariable<bool> observer = new NetworkVariable<bool>(false);   // the server's: another device controls the profile
         readonly NetworkVariable<FixedString32Bytes> factionTag = new NetworkVariable<FixedString32Bytes>();   // the server's: NetFactions, "" = none
+        readonly NetworkVariable<byte> stationProjectActions = new NetworkVariable<byte>(0,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+        internal StationProjectActions AvailableStationActions => (StationProjectActions)stationProjectActions.Value;
+        internal void SetStationProjectActions(StationProjectActions value)
+        {
+            if (IsServer && stationProjectActions.Value != (byte)value) stationProjectActions.Value = (byte)value;
+        }
+
         readonly NetworkVariable<FixedString64Bytes> profileAccount = new NetworkVariable<FixedString64Bytes>(default,
             NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
         readonly NetworkVariable<FixedString64Bytes> factionId = new NetworkVariable<FixedString64Bytes>(default,

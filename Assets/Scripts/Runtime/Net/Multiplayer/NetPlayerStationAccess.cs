@@ -4,6 +4,15 @@ using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
 {
+    [Flags]
+    internal enum StationProjectActions : byte
+    {
+        None = 0,
+        OfferForClaim = 1,
+        RebuildWreck = 2,
+        FundJumpgate = 4
+    }
+
     public static partial class NetPlayerStations
     {
         static bool IsFactionManager(PlayerStationRecord record, string account)
@@ -56,8 +65,27 @@ namespace GoF2Remake.Multiplayer
                 bool manages = station != null && !StationClosedByCombat(station.stationIndex) &&
                     HasStationPermission(station, account, PlayerStationPermission.StationOperations);
                 pilot.SetManagedStationOrbit(manages ? station.stationIndex : -1);
+                pilot.SetStationProjectActions(AvailableStationProjectActions(pilot, station, account));
                 if (refreshGates) PublishJumpgateManagementAccess(pilot);
             }
+        }
+
+        static StationProjectActions AvailableStationProjectActions(NetPlayer pilot, PlayerStationRecord docked, string account)
+        {
+            if (string.IsNullOrEmpty(account)) return StationProjectActions.None;
+            if (docked != null && !docked.underConstruction && !docked.reconstructing && !docked.wreckClaimOpen &&
+                !docked.destroyed && !docked.retired && docked.offeredForClaimUtc <= 0 && IsOwnershipAuthority(docked, account))
+                return StationProjectActions.OfferForClaim;
+            if (!pilot.InSpace) return StationProjectActions.None;
+
+            var actions = StationProjectActions.None;
+            var wreck = StationAt(pilot.Station);
+            if (wreck?.wreckClaimOpen == true && RebuildAuthorization(pilot, wreck, out _, out _) == null)
+                actions |= StationProjectActions.RebuildWreck;
+            var gate = FindJumpgate(pilot.Station);
+            if (gate != null && gate.building && gate.startedUtc <= 0 && CanUseJumpgateConstructionStock(gate, account))
+                actions |= StationProjectActions.FundJumpgate;
+            return actions;
         }
 
         static void PublishJumpgateManagementAccess(NetPlayer pilot)
