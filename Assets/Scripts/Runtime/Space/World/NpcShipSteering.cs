@@ -138,6 +138,11 @@ namespace GoF2Remake.World
             float dogSpeed = dog ? dogfight.SpeedFactor * Gof3EasySlowdown() : chorusF ? chorusFight.SpeedFactor : formationSpeed;   // (GoF3's Easy: slower in your sights)
             float topSpeed = speed * slow.SpeedFactor * roleSpeedFactor * dogSpeed * RolePace;   // (remake mods: a pursuer's pace)   // units a ms (remake: a rift's)
             bool useSmepFlight = SmepAiRules.UseCustomFlight(SmepHullEligible, MobilePlatformTarget(target), Hp.empDisabled, slow.CanTurn, noSteer);
+            if (useSmepFlight)
+                // Preserve native boost/pacing as a ratio, but use the modded player hull's top speed.
+                // One shared speed cap applies to forward, reverse, sideways and hover.
+                topSpeed = smepHullTopSpeed * (speed / Mathf.Max(0.01f, baseSpeed))
+                           * slow.SpeedFactor * roleSpeedFactor * dogSpeed * RolePace;
             // SMEP owns movement and steering when active. ES2 is only the fallback controller.
             bool useEs2Flight = es2Flight && !useSmepFlight;
             if (!useSmepFlight)
