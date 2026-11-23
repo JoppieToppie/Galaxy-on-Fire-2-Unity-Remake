@@ -66,6 +66,8 @@ namespace GoF2Remake.Multiplayer
         Target target;
         byte shownLife = Flying;
         NetShotSender sender;
+        readonly Dictionary<Gun, System.Action<int, HullBody, Vector3>> gateImpactHooks =
+            new Dictionary<Gun, System.Action<int, HullBody, Vector3>>();
         NetShotMirror mirror;
         int pendingStation = -1, pendingId = -1;
         bool shown, viewer;
@@ -256,6 +258,7 @@ namespace GoF2Remake.Multiplayer
                 SendState();
                 sender = new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null, () => NetworkObjectId);
                 sender.Hook(ship.Guns);
+                HookGateImpacts(ship.Guns);
                 return;
             }
             InitViewer();
@@ -362,6 +365,7 @@ namespace GoF2Remake.Multiplayer
             junk = null;
             keptSince = -1f;
             sender?.Unhook();
+            UnhookGateImpacts();
             sender = null;
             InitViewer();
         }
@@ -406,6 +410,7 @@ namespace GoF2Remake.Multiplayer
             lastAggressors = -1;   // written again from the new ship
             sender ??= new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null, () => NetworkObjectId);
             sender.Hook(rebuilt.Guns);
+            HookGateImpacts(rebuilt.Guns);
         }
 
         /// <summary>NetOrbit.AdoptHandedOver: not rebuilt but kept as it is (a wreck, a ship finishing its death): this game
@@ -431,6 +436,7 @@ namespace GoF2Remake.Multiplayer
             ship = null;
             junk = null;
             sender?.Unhook();
+            UnhookGateImpacts();
             sender = null;
             if (old != null && !old.Gone) old.Vanish();
             if (oldJunk != null) oldJunk.gameObject.SetActive(false);
@@ -457,10 +463,71 @@ namespace GoF2Remake.Multiplayer
             NetPoses.Unregister(this);
             if (target != null) { Target.NetShips.Remove(target); Target.RadarObjects.Remove(target); }
             sender?.Unhook();
+            UnhookGateImpacts();
             mirror?.Clear();
             sparks?.Clear();
             cloakLook?.Dispose();
             cloakLook = null;
+        }
+
+        // Only the authoritative runner of an NPC may report its exact scenery-mesh impact.
+        void HookGateImpacts(IEnumerable<Gun> guns)
+        {
+            if (!IsOwner || guns == null) return;
+            foreach (var gun in guns)
+            {
+                if (gun == null || gateImpactHooks.ContainsKey(gun)) continue;
+                var g = gun;
+                System.Action<int, HullBody, Vector3> handler = (index, body, point) =>
+                {
+                    if (!IsSpawned || !IsOwner || body == null ||
+                        body.playerJumpgateOrbit != Station || !HullCollision.IsForcedExact(body) ||
+                        index < 0 || index >= g.bullets.Length) return;
+                    uint shotId = g.bullets[index].networkShotId;
+                    if (shotId != 0) NpcJumpgateHitUpRpc(Station, g.itemIndex, shotId, point);
+                };
+                gun.SceneryImpact += handler;
+                gateImpactHooks.Add(gun, handler);
+            }
+        }
+
+        void UnhookGateImpacts()
+        {
+            foreach (var pair in gateImpactHooks)
+                if (pair.Key != null) pair.Key.SceneryImpact -= pair.Value;
+            gateImpactHooks.Clear();
+        }
+
+        bool ReportedNpcWeapon(int weaponItem)
+        {
+            var equipment = Spec?.spec;
+            if (equipment == null) return false;
+            return equipment.gunItem == weaponItem || equipment.secondaryItem == weaponItem ||
+                equipment.turretItem == weaponItem ||
+                (equipment.turretItems != null && equipment.turretItems.Contains(weaponItem));
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void NpcJumpgateHitUpRpc(int orbitStationIndex, int weaponItem, uint shotId, Vector3 point,
+            RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId ||
+                Station != orbitStationIndex || shotId == 0 || !NetGuard.Item(weaponItem) ||
+                !NetGuard.Position(point) || !ReportedNpcWeapon(weaponItem) ||
+                !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Hit) ||
+                !NetPlayerStations.HasJumpgateAtStation(orbitStationIndex)) return;
+            var runner = NetSquad.Find(OwnerClientId);
+            if (runner == null || !NetGuard.NpcDamageRunner(runner.InSpace,
+                runner.RunsOrbitActive, runner.RunsOrbit, orbitStationIndex)) return;
+            var layout = OrbitLayout.Build(NetGame.Db, orbitStationIndex);
+            if (layout == null || !layout.hasJumpgate) return;
+            var centre = OrbitLayout.ToUnity(layout.Place(layout.jumpgate));
+            float radius = layout.JumpgateRadius * OrbitLayout.MetersPerUnit;
+            if (!NetShotRegistry.TryConsumeGateHit(NetworkObjectId, shotId, weaponItem,
+                point, centre, radius)) return;
+            var item = NetGame.Db.Item(weaponItem);
+            if (item != null) NetPlayerStations.ApplyJumpgateCombatHit(orbitStationIndex, weaponItem,
+                Mathf.Max(0, item.Attr(9)), Mathf.Max(0, item.Attr(10)));
         }
 
         // ---- shots and hits -------------------------------------------------------------------------------------------
@@ -475,7 +542,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Shot)) return;
             if (!NetGuard.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs)) { NetRateLimit.Reject(OwnerClientId, $"an NPC shot of item {shot.item}"); return; }
-            NetShotRegistry.Register(NetworkObjectId, shot.shotId, shot.item, shot.targetId, Mathf.Max(0f, shot.lifetimeMs + 2000f));
+            NetShotRegistry.Register(NetworkObjectId, shot.shotId, shot.item, shot.targetId,
+                Mathf.Max(0f, shot.lifetimeMs + 2000f), shot.position, shot.velocity);
             if (NetInterest.OrbitGroup(this, station.Value, OwnerClientId, out var to)) ShotRpc(shot, to);
         }
 
@@ -931,6 +999,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (ship == null) return;
             sender?.Hook(ship.Guns);   // a gun set later (the second slot, a level's SetGun)
+            HookGateImpacts(ship.Guns);
             SendState();
             // The description again when its cargo or a reference to another proxy changed (about once a second).
             if ((specCheckTimer -= Time.unscaledDeltaTime) <= 0f)
