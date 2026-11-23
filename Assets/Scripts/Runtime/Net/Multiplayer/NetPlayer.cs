@@ -338,6 +338,19 @@ namespace GoF2Remake.Multiplayer
         /// <summary>This player's ship as a Target here: the local player's own where it is theirs, else the proxy Target.</summary>
         public Target LocalTarget => IsOwner ? (level != null && level.Health != null ? level.Health.Target : null) : target;
 
+        void OnStationValueChangedWithGateAccess(int previous, int next)
+        {
+            // The gate orbit is the origin of the transition. Reject a destination update
+            // from a player who is not permitted to use that gate.
+            if (previous != next && NetPlayerStations.HasJumpgateAtStation(previous) &&
+                !NetPlayerStations.CanUseJumpgate(this, previous))
+            {
+                station.Value = previous;
+                return;
+            }
+            OnStationValueChanged(previous, next);
+        }
+
         public override void OnNetworkSpawn()
         {
             DontDestroyOnLoad(gameObject);
@@ -347,18 +360,7 @@ namespace GoF2Remake.Multiplayer
             if (IsServer) ship.OnValueChanged += (old, _) => PreviousShip = old;
             if (IsServer)
             {
-                station.OnValueChanged += (previous, next) =>
-                {
-                    // The gate orbit is the origin of the transition. Reject a destination update
-                    // from a player who is not permitted to use that gate.
-                    if (previous != next && NetPlayerStations.HasJumpgateAtStation(previous) &&
-                        !NetPlayerStations.CanUseJumpgate(this, previous))
-                    {
-                        station.Value = previous;
-                        return;
-                    }
-                    OnStationValueChanged(previous, next);
-                };
+                station.OnValueChanged += OnStationValueChangedWithGateAccess;
                 place.OnValueChanged += OnPlaceValueChanged;
             }
             if (IsServer)
@@ -495,7 +497,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (IsServer)
             {
-                station.OnValueChanged -= OnStationValueChanged;
+                station.OnValueChanged -= OnStationValueChangedWithGateAccess;
                 place.OnValueChanged -= OnPlaceValueChanged;
             }
             // Host: a player going (disconnected: Netcode despawns the player object before OnClientDisconnectCallback) hands
