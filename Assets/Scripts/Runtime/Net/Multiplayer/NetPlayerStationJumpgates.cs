@@ -42,7 +42,8 @@ namespace GoF2Remake.Multiplayer
         internal static bool ApplyJumpgateCombatHit(int orbitStationIndex, int weaponId, float structuralDamage, float empDamage)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null ||
-                !NetGuard.Item(weaponId) || !float.IsFinite(structuralDamage) || !float.IsFinite(empDamage) ||
+                !NetGuard.Item(weaponId) || float.IsNaN(structuralDamage) || float.IsInfinity(structuralDamage) ||
+                float.IsNaN(empDamage) || float.IsInfinity(empDamage) ||
                 structuralDamage < 0f || empDamage < 0f) return false;
             var gate = FindJumpgate(orbitStationIndex);
             if (gate == null || gate.building || gate.scrapped || gate.permanentlyDestroyed) return false;

@@ -28,7 +28,7 @@ namespace GoF2Remake.Flight
 
         /// <summary>Shots and the player's ship meet this hull: active, and taken by the ship collision mode (Exact: every
         /// hull; Mixed: not a flyable ship's; Original: none, HullCollision.Takes).</summary>
-        public bool Collides => Active && HullCollision.Takes(flyableShip);
+        public bool Collides => Active && (HullCollision.IsForcedExact(this) || HullCollision.Takes(flyableShip));
 
         void OnDestroy()
         {
