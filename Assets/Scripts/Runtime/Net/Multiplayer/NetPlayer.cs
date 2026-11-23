@@ -384,7 +384,13 @@ namespace GoF2Remake.Multiplayer
             if (cargo.Count == 0) return;
             int race = NetGame.Db?.Systems?.Find(x => x != null && x.stations != null &&
                 x.stations.Contains(orbitStationIndex))?.raceId ?? 0;
-            Vector3 position = LocalTarget != null ? LocalTarget.transform.position : transform.position;
+            // Salvage belongs at the destroyed gate, not wherever the orbit runner happens
+            // to be flying when the persistent queue is delivered.
+            Vector3 position = level != null && level.Layout != null &&
+                level.Layout.stationIndex == orbitStationIndex
+                ? (level.Jumpgate != null ? level.Jumpgate.transform.position
+                    : OrbitLayout.ToUnity(level.Layout.Place(level.Layout.jumpgate)))
+                : (LocalTarget != null ? LocalTarget.transform.position : transform.position);
             var crate = Crate.Spawn(position + Random.insideUnitSphere * 12f, cargo, race, Crate.LookContainer);
             crate.keep = true;
         }
