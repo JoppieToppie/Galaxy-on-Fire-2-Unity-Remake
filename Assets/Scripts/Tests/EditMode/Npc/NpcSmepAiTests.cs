@@ -90,6 +90,17 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void PredictivePathCacheRetestsOnlyWhenStaleOrTurnedSharply()
+        {
+            var forward = UnityEngine.Vector3.forward;
+            Assert.IsTrue(SmepAiRules.RefreshPath(false, 100f, forward, forward));
+            Assert.IsTrue(SmepAiRules.RefreshPath(true, 0f, forward, forward));
+            Assert.IsFalse(SmepAiRules.RefreshPath(true, 100f, forward, forward));
+            Assert.IsFalse(SmepAiRules.RefreshPath(true, 100f, UnityEngine.Quaternion.Euler(0f, 20f, 0f) * forward, forward));
+            Assert.IsTrue(SmepAiRules.RefreshPath(true, 100f, UnityEngine.Quaternion.Euler(0f, 40f, 0f) * forward, forward));
+        }
+
+        [Test]
         public void CollisionVelocityUsesWholeFrameMovementNotAddedCorrection()
         {
             var start = new UnityEngine.Vector3(2f, 0f, 0f);
