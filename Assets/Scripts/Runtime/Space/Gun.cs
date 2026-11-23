@@ -131,6 +131,9 @@ namespace GoF2Remake.Flight
         public event Action<Vector3> Ignited;
         /// <summary>Modified: a shot stopped on the station's or jumpgate's hull there (its GunRig shows the impact).</summary>
         public event Action<Vector3> SceneryHit;
+        /// <summary>Exact scenery hull hit: shot slot, hull owner and impact point (player-built gates).
+        /// Unlike a generic impact position, the hull identity cannot confuse a nearby station with a gate.</summary>
+        public event Action<int, HullBody, Vector3> SceneryImpact;
         /// <summary>A shot's echo went off at this point (its damage is done; the explosion is for the view).</summary>
         public event Action<Vector3> Echoed;
         /// <summary>A shot left the gun (gun, bullet index; a cluster salvo: its first bullet). Multiplayer sends it to the
@@ -657,7 +660,8 @@ namespace GoF2Remake.Flight
         void TestHits(int i, ref Bullet b, IReadOnlyList<Target> targets, Vector3 from)
         {
             var wall = b.position;
-            bool onHull = HullCollision.Any && HullCollision.CastScenery(from, b.position, HullShotRadius, out wall);
+            HullBody sceneryBody = null;
+            bool onHull = HullCollision.Any && HullCollision.CastScenery(from, b.position, HullShotRadius, out wall, out sceneryBody);
             // Modified (a player's request): an NPC's shots (a gun whose targets hold no asteroid, so it can't hit one) stop on
             // asteroids, on the hit sphere the player's shots have (PlayerAsteroid: mesh radius x0.7); they flew through
             // the rocks. The player's own shots keep the original's rules (they hit asteroids as targets).
@@ -673,6 +677,7 @@ namespace GoF2Remake.Flight
             b.position = wall;   // the path ends at the hull / rock: only what lies before it can be hit
             TestTargets(i, ref b, targets, from);
             if (b.timer <= -1e8f) return;   // a target took it on the way
+            if (onHull && sceneryBody != null) SceneryImpact?.Invoke(i, sceneryBody, wall);
             if (IsBomb) { Ignite(targets); return; }
             b.timer = -1e9f;   // gone
             SceneryHit?.Invoke(wall);
