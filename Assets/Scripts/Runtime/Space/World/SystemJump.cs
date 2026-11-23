@@ -341,6 +341,8 @@ namespace GoF2Remake.World
                 Message?.Invoke("Access denied: this player-built jumpgate is restricted by its owner.");
                 return;
             }
+            if (playerGate)
+                GoF2Remake.Multiplayer.NetPlayer.Local?.RequestJumpgateDiscovery(Session.StationIndex);
             int fixedDestination = GoF2Remake.Multiplayer.NetPlayerStations.JumpgateDestinationStation(Session.StationIndex);
             if (fixedDestination >= 0)
             {
