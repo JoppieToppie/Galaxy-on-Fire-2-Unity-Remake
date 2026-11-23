@@ -731,7 +731,7 @@ namespace GoF2Remake.Multiplayer
                     "Status: " + (gate.scrapped ? "Scrapped and reclaimable" : "Destroyed beyond reclamation"),
                     "Destruction count: " + gate.destructionCount,
                     gate.scrapped
-                        ? "Claim with /station jumpgate-claim " + orbitStationIndex + " faction|individual. Faction members may claim for their faction; individual claims require station ownership."
+                        ? "Claim with /station jumpgate-claim " + orbitStationIndex + " faction|individual [destination system id]. Faction members may claim for their faction; individual claims require station ownership."
                         : "A new construction order from an operational player station is required."
                 };
                 if (gate.salvageDropPending) recovery.Add("25% construction-material salvage is awaiting its physical cargo drop.");
