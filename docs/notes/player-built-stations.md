@@ -140,3 +140,12 @@ Existing saves with the earlier station-bound jumpgate fields are migrated into 
 The gate is rendered with the system's existing race/mod jumpgate assembly and collision/approach behavior. A player-built gate's destination is fixed at any given time; it does not open the unrestricted gate destination map. The reverse connection is intentionally a separate construction project.
 
 This is source-level implementation. Unity compilation and multiplayer tests remain outstanding, including: multiple gates in different orbits in one system; rejection of a second gate in the same orbit; rejection of the system's original jumpgate orbit; placement at a non-player-station orbit; directed travel and return-gate behavior; 24-hour destination cooldown and persistence across restart; timer completion across restart; initial registry sync and live updates; faction-bank contribution settlement; and compatibility with systems that already have a static jumpgate.
+
+## Follow-up audit (23 November 2026)
+
+- **Unavailable station index preservation:** if a saved station can no longer be placed because its system, orbit list or model preset is missing, the loader appends an inert `StationData` slot at its reserved index. Later player stations therefore retain their original indices instead of colliding with shifted database entries.
+- **Construction orbit lifecycle:** an under-construction project reserves its database index but is not added to `SystemData.stations`, so it cannot be visited or docked at before funding completes. Direct material contributions and construction buy-order fulfilment both activate the orbit after the durable transaction commits. Clients add the orbit when the completed registry snapshot arrives.
+- **Construction procurement:** buy orders can be created, fulfilled and cancelled while docked at any existing station. Requiring docking at the project itself was incompatible with keeping its orbit closed during construction.
+- **Dry-dock recipe validation:** ingredient totals are checked for integer overflow before station storage is debited; the management UI uses 64-bit totals when displaying recipes.
+- **Storage ownership normalization:** null and non-positive lots are discarded, and aggregate ownership totals use 64-bit arithmetic to avoid overflow during migration and recovery.
+- These are source-level changes. No GitHub Actions runs were configured for this branch, and Unity compilation, edit-mode tests, multiplayer synchronization, and persistence crash-injection tests remain outstanding.
