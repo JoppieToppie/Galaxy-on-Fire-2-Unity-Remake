@@ -576,6 +576,102 @@ namespace GoF2Remake.Multiplayer
             return string.Join("\n", lines);
         }
 
+        /// <summary>
+        /// Called by the gate's authoritative destruction hook. First destruction leaves reclaimable scrap;
+        /// later destruction permanently disables reclamation and returns a 25% salvage manifest for world cargo spawning.
+        /// </summary>
+        internal static bool MarkJumpgateDestroyed(int orbitStationIndex, out List<PlayerStationMaterial> salvage)
+        {
+            salvage = new List<PlayerStationMaterial>();
+            if (!NetGame.IsServer || !sessionActive || registry == null) return false;
+            var gate = FindJumpgate(orbitStationIndex);
+            if (gate == null || gate.scrapped || gate.permanentlyDestroyed) return false;
+            int index = registry.jumpgates.IndexOf(gate);
+            var previous = JsonUtility.FromJson<PlayerJumpgateRecord>(JsonUtility.ToJson(gate));
+            if (gate.destructionCount <= 0)
+            {
+                gate.destructionCount = 1;
+                gate.scrapped = true;
+                gate.permanentlyDestroyed = false;
+                gate.building = false;
+                gate.startedUtc = gate.completesUtc = 0;
+                gate.salvageMaterials = new List<PlayerStationMaterial>();
+                gate.salvageDropPending = false;
+            }
+            else
+            {
+                gate.destructionCount = Math.Max(2, gate.destructionCount + 1);
+                gate.scrapped = false;
+                gate.permanentlyDestroyed = true;
+                gate.building = false;
+                gate.startedUtc = gate.completesUtc = 0;
+                gate.destinationSystem = -1;
+                gate.salvageMaterials = RequiredJumpgateMaterials().ConvertAll(x =>
+                    new PlayerStationMaterial { item = x.item, required = Mathf.CeilToInt(x.required * 0.25f), delivered = 0 });
+                gate.salvageDropPending = true;
+                salvage = gate.salvageMaterials.ConvertAll(x =>
+                    new PlayerStationMaterial { item = x.item, required = x.required, delivered = 0 });
+            }
+            if (!Save())
+            {
+                registry.jumpgates[index] = previous;
+                salvage.Clear();
+                return false;
+            }
+            return true;
+        }
+
+        internal static string ClaimScrappedJumpgate(NetPlayer by, int orbitStationIndex, string claimType)
+        {
+            if (!NetGame.IsServer || !sessionActive || registry == null)
+                return "Jumpgate reclamation needs a persistent host or dedicated server.";
+            if (by == null || !by.IsSpawned || !by.InSpace || by.Station != orbitStationIndex ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Fly to the scrapped gate's orbit to claim it using a controlled profile.";
+            var gate = FindJumpgate(orbitStationIndex);
+            if (gate == null || !gate.scrapped || gate.permanentlyDestroyed || gate.destructionCount != 1)
+                return "That gate is not in its reclaimable scrapped state.";
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            if (string.IsNullOrEmpty(account)) return "Your controlled player profile is unavailable.";
+            var faction = NetFactions.Of(account);
+            bool ownsStation = registry.stations?.Exists(x => x != null && !x.underConstruction &&
+                x.ownershipType == PlayerStationOwnershipType.Individual &&
+                string.Equals(x.ownerProfile, account, StringComparison.Ordinal)) == true;
+            claimType = (claimType ?? "").Trim().ToLowerInvariant();
+            bool factionClaim = claimType == "faction";
+            if (claimType != "faction" && claimType != "individual")
+                return "Choose faction or individual.";
+            if (factionClaim && faction == null)
+                return "Only a faction member may reclaim a gate on behalf of their faction.";
+            if (!factionClaim && !ownsStation)
+                return "An individual reclaim requires you to own an operational player station. Faction members may claim on behalf of their faction.";
+            int index = registry.jumpgates.IndexOf(gate);
+            var previous = JsonUtility.FromJson<PlayerJumpgateRecord>(JsonUtility.ToJson(gate));
+            gate.ownershipType = factionClaim ? PlayerStationOwnershipType.Faction : PlayerStationOwnershipType.Individual;
+            gate.ownerProfile = factionClaim ? null : account;
+            gate.ownerFactionId = factionClaim ? faction.id : null;
+            gate.ownerName = factionClaim ? faction.name : by.DisplayName;
+            gate.accessFactionId = faction?.id;
+            gate.constructionStationId = -1;
+            gate.sponsorStationId = -1;
+            gate.constructionIssuerProfile = account;
+            gate.scrapped = false;
+            gate.permanentlyDestroyed = false;
+            gate.building = true;
+            gate.startedUtc = gate.completesUtc = 0;
+            gate.materials = RequiredJumpgateMaterials();
+            gate.contributions = new List<PlayerStationContribution>();
+            gate.salvageMaterials = new List<PlayerStationMaterial>();
+            gate.salvageDropPending = false;
+            if (!Save())
+            {
+                registry.jumpgates[index] = previous;
+                return "The reclaimed gate could not be saved; its scrapped state is unchanged.";
+            }
+            return "Jumpgate claimed " + (factionClaim ? "on behalf of " + faction.name : "by " + by.DisplayName) +
+                ". Deliver a fresh set of construction materials in this orbit to rebuild it.";
+        }
+
         internal static string JumpgateStatus(NetPlayer by, int orbitStationIndex)
         {
             var gate = FindJumpgate(orbitStationIndex);
