@@ -130,6 +130,41 @@ namespace GoF2Remake.Tests
         // ---- Player-built jumpgate shot validation ----
 
         [Test]
+        public void RebuiltGateSecondDestructionIsPermanent()
+        {
+            var transition = typeof(NetPlayerStations).GetMethod("TransitionDestroyedGate",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(transition);
+            var gate = new PlayerJumpgateRecord
+            {
+                orbitStationIndex = 78,
+                structuralIntegrity = 0f,
+                combatStateInitialized = true
+            };
+            transition.Invoke(null, new object[] { gate });
+            Assert.IsTrue(gate.scrapped);
+            Assert.IsFalse(gate.permanentlyDestroyed);
+            Assert.AreEqual(1, gate.destructionCount);
+            Assert.IsTrue(gate.explosionPending);
+            Assert.IsFalse(gate.salvageDropPending);
+
+            // Reconstruction re-enables the same record after a successful reclaim.
+            gate.scrapped = false;
+            gate.building = false;
+            gate.explosionPending = false;
+            gate.structuralIntegrity = 10000f;
+            transition.Invoke(null, new object[] { gate });
+            Assert.IsFalse(gate.scrapped);
+            Assert.IsTrue(gate.permanentlyDestroyed);
+            Assert.AreEqual(2, gate.destructionCount);
+            Assert.IsTrue(gate.salvageDropPending);
+            Assert.IsTrue(gate.explosionPending);
+            Assert.IsNotEmpty(gate.salvageMaterials);
+            foreach (var material in gate.salvageMaterials)
+                Assert.Greater(material.required, 0);
+        }
+
+        [Test]
         public void RegisteredGateShotCanHitOnlyOnce()
         {
             const ulong source = 100001;
