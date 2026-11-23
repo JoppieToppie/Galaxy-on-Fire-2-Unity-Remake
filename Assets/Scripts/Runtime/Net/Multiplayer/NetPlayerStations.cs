@@ -662,30 +662,38 @@ namespace GoF2Remake.Multiplayer
                     continue;
                 }
                 var system = db.Systems.Find(s => s != null && s.index == record.system);
-                if (system == null || system.stations == null || system.stations.Count == 0)
-                {
-                    Debug.LogError($"NetPlayerStations: station {record.id} has an invalid system or the system has no orbital locations; it was not loaded.");
-                    continue;
-                }
                 var look = db.Stations.Find(s => s != null && s.index == record.looksLike);
-                if (look == null)
+                if (look == null && system?.stations != null && system.stations.Count > 0)
                 {
                     int fallback = system.jumpgateStation >= 0 ? system.jumpgateStation : system.stations[0];
                     look = db.Stations.Find(s => s != null && s.index == fallback);
                 }
-                if (look == null)
+
+                int count = 0;
+                foreach (var station in registry.stations) if (station != null && station.system == record.system) count++;
+                bool validOrbit = system != null && system.stations != null && system.stations.Count > 0;
+                bool validPreset = look != null;
+                if (count > MaxStationsPerSystem || !validOrbit || !validPreset)
                 {
-                    Debug.LogError($"NetPlayerStations: station {record.id} has no valid model preset; it was not loaded.");
+                    // Station indices also index legacy tables. Even when a saved station can no longer be
+                    // placed (for example, its system lost every orbit after a mod change), reserve its
+                    // database index with an inert entry. Skipping it would shift every later player station
+                    // and make otherwise valid records appear to collide with the base database.
+                    string reason = count > MaxStationsPerSystem ? "the system exceeds the player station limit" :
+                        !validOrbit ? "the system is missing or has no orbital locations" : "no valid model preset exists";
+                    Debug.LogError($"NetPlayerStations: station {record.id} is unavailable because {reason}; its index is reserved but it will not be added to the system.");
+                    db.Stations.Add(new StationData
+                    {
+                        index = record.stationIndex,
+                        name = string.IsNullOrWhiteSpace(record.name) ? $"Unavailable player station {record.id}" : record.name,
+                        system = record.system,
+                        systemName = system?.name ?? "",
+                        techLevel = look?.techLevel ?? 0,
+                        textureIndex = look?.textureIndex ?? 0,
+                    });
                     continue;
                 }
                 if (record.looksLike < 0) record.looksLike = look.index;
-                int count = 0;
-                foreach (var station in registry.stations) if (station != null && station.system == record.system) count++;
-                if (count > MaxStationsPerSystem)
-                {
-                    Debug.LogError($"NetPlayerStations: system {record.system} exceeds the player station limit.");
-                    continue;
-                }
                 db.Stations.Add(new StationData
                 {
                     index = record.stationIndex,
