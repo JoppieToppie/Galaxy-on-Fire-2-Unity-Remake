@@ -165,6 +165,9 @@ namespace GoF2Remake.World
                 }
                 remoteTarget = null;
             }
+            // SMEP prefers a hostile desktop remote when acquiring a new target.
+            // Existing valid engagements, including mobile players, remain untouched.
+            if (smepFighterAi && TrySmepDesktopRemoteTarget()) return;
             UpdateTargetingLocal();
             if (attacking && target != null) return;
             var remote = RemotePlayers;
