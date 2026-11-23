@@ -232,7 +232,7 @@ namespace GoF2Remake.World
         }
 
         /// <summary>SMEP's smooth range/strafe movement, applied after native ES2 steering and before obstacle avoidance.</summary>
-        void ApplySmepDogfightTranslation(float dtMs, Vector3 beforePosition)
+        void ApplySmepDogfightTranslation(float dtMs, Vector3 beforePosition, float effectiveTopSpeed)
         {
             if (!SmepEligible || target == null || !target.Alive || followingWaypoint || MobileTouchTarget(target))
             {
@@ -242,7 +242,7 @@ namespace GoF2Remake.World
             var targetPoint = target.transform.position;
             var offset = beforePosition - targetPoint;
             float distance = offset.magnitude;
-            if (distance > SmepDogfightRange) { smepDogfightState = null; return; }
+            // Keep the controller and its velocity state alive through pursuit, not just close combat.
 
             if (smepDogfightState == null || smepDogfightState.target != target)
             {
@@ -250,7 +250,7 @@ namespace GoF2Remake.World
                 smepDogfightState = new SmepDogfightState
                 {
                     target = target,
-                    velocity = Vector3.zero,
+                    velocity = dtMs > 0f ? (transform.position - beforePosition) / (dtMs * M) : Vector3.zero,
                     phase = Random.Range(0f, Mathf.PI * 2f),
                     hoverRate = Random.Range(0.85f, 1.25f),
                     orbitSign = Random.value < 0.5f ? -1 : 1,
@@ -332,13 +332,20 @@ namespace GoF2Remake.World
             if (bursting) desired = state.burstDirection;
             if (desired.sqrMagnitude > 1f) desired.Normalize();
             // All thrust directions share the ship's top speed; only acceleration/response may differ.
-            float topSpeed = Mathf.Max(0.1f, OwnSpeed);
+            float topSpeed = Mathf.Max(0f, effectiveTopSpeed);
             desired *= topSpeed;
 
-            float dt = Mathf.Min(dtMs, 50f);
+            float dt = Mathf.Clamp(dtMs, 0f, 50f);
             float responseMs = bursting ? 90f : 240f;
             float blend = 1f - Mathf.Exp(-dt / responseMs);
-            state.velocity = Vector3.Lerp(state.velocity, desired, blend);
+            // Axis-specific acceleration in ship space; top speed remains shared across directions.
+            var localCurrent = transform.InverseTransformDirection(state.velocity);
+            var localDesired = transform.InverseTransformDirection(desired);
+            float axisStep = topSpeed * blend;
+            localCurrent.x = Mathf.MoveTowards(localCurrent.x, localDesired.x, axisStep * 0.65f);
+            localCurrent.y = Mathf.MoveTowards(localCurrent.y, localDesired.y, axisStep * 0.55f);
+            localCurrent.z = Mathf.MoveTowards(localCurrent.z, localDesired.z, axisStep * (localDesired.z < localCurrent.z ? 0.75f : 1f));
+            state.velocity = Vector3.ClampMagnitude(transform.TransformDirection(localCurrent), topSpeed);
             float maxStep = topSpeed * dt * M;
             var nativeStep = transform.position - beforePosition;
             var customStep = state.velocity * dt * M;
@@ -358,7 +365,8 @@ namespace GoF2Remake.World
                 float projectedRange = beforeAway.magnitude + Vector3.Dot(step, outward);
                 if (projectedRange < SmepCloseLimit) step += outward * (SmepCloseLimit - projectedRange);
             }
-            if (step.magnitude > maxStep && maxStep > 0f)
+            if (maxStep <= 0f) step = Vector3.zero;
+            else if (step.magnitude > maxStep)
                 step = hardRetreat ? away * maxStep : step.normalized * maxStep;
             transform.position = beforePosition + step;
         }
