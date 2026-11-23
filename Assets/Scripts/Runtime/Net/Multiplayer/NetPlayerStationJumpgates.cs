@@ -31,9 +31,10 @@ namespace GoF2Remake.Multiplayer
         static bool RegenerateGate(PlayerJumpgateRecord gate, long now)
         {
             if (gate == null || gate.building || gate.scrapped || gate.permanentlyDestroyed) return false;
+            bool initialized = !gate.combatStateInitialized;
             InitializeGateCombat(gate);
             long start = Math.Max(gate.structuralIntegrityUpdatedUtc, gate.lastStructuralDamageUtc + JumpgateRegenDelaySeconds);
-            if (now <= start || gate.structuralIntegrity >= JumpgateMaxIntegrity) return false;
+            if (now <= start || gate.structuralIntegrity >= JumpgateMaxIntegrity) return initialized;
             gate.structuralIntegrity = Mathf.Min(JumpgateMaxIntegrity,
                 gate.structuralIntegrity + (now - start) * Mathf.Max(0f, JumpgateRegenPerSecond));
             gate.structuralIntegrityUpdatedUtc = now;
