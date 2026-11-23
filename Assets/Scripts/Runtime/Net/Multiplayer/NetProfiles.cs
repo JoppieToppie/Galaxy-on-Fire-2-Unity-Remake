@@ -417,7 +417,8 @@ namespace GoF2Remake.Multiplayer
             if (save != null)
             {
                 MergeGateDiscoveries(save, account);
-                if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
+                if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false)))
+                    Debug.LogWarning("NetProfiles: jumpgate discovery remains persisted in the account index; profile snapshot refresh failed.");
             }
             if (host) GalaxyMap.Reveal(NetGame.Db, system);
             return true;
