@@ -8,8 +8,69 @@ namespace GoF2Remake.Multiplayer
     public static partial class NetPlayerStations
     {
         const int MaxJumpgateBuildSeconds = 2592000;
+        internal const long JumpgateRegenDelaySeconds = 900;
+        // Provisional balancing values; weapon eligibility is independent of ship class.
+        internal static float JumpgateMaxIntegrity = 10000f;
+        internal static float JumpgateRegenPerSecond = 1f;
+        internal static float JumpgateEmpThreshold = 100f;
+        internal static long JumpgateEmpDisableSeconds = 120;
+        internal static Func<int, bool> StructuralWeaponEligible = weaponId => weaponId >= 0;
         const long JumpgateDestinationCooldownSeconds = 86400;
         static long nextJumpgateRetryUtc;
+
+        static void InitializeGateCombat(PlayerJumpgateRecord gate)
+        {
+            if (gate == null || gate.combatStateInitialized) return;
+            gate.structuralIntegrity = JumpgateMaxIntegrity;
+            gate.combatStateInitialized = true;
+            gate.structuralIntegrityUpdatedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        }
+
+        static bool RegenerateGate(PlayerJumpgateRecord gate, long now)
+        {
+            if (gate == null || gate.building || gate.scrapped || gate.permanentlyDestroyed) return false;
+            InitializeGateCombat(gate);
+            long start = Math.Max(gate.structuralIntegrityUpdatedUtc, gate.lastStructuralDamageUtc + JumpgateRegenDelaySeconds);
+            if (now <= start || gate.structuralIntegrity >= JumpgateMaxIntegrity) return false;
+            gate.structuralIntegrity = Mathf.Min(JumpgateMaxIntegrity,
+                gate.structuralIntegrity + (now - start) * Mathf.Max(0f, JumpgateRegenPerSecond));
+            gate.structuralIntegrityUpdatedUtc = now;
+            return true;
+        }
+
+        /// <summary>Server-authoritative combat entry point. Call only after validating the weapon and exact mesh impact.</summary>
+        internal static bool ApplyJumpgateCombatHit(int orbitStationIndex, int weaponId, float structuralDamage, float empDamage)
+        {
+            if (!NetGame.IsServer || !sessionActive || registry == null ||
+                !NetGuard.Item(weaponId) || !float.IsFinite(structuralDamage) || !float.IsFinite(empDamage) ||
+                structuralDamage < 0f || empDamage < 0f) return false;
+            var gate = FindJumpgate(orbitStationIndex);
+            if (gate == null || gate.building || gate.scrapped || gate.permanentlyDestroyed) return false;
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            int index = registry.jumpgates.IndexOf(gate);
+            var previous = JsonUtility.FromJson<PlayerJumpgateRecord>(JsonUtility.ToJson(gate));
+            RegenerateGate(gate, now);
+            if (empDamage >= JumpgateEmpThreshold && empDamage > 0f)
+                gate.empShutdownUntilUtc = Math.Max(gate.empShutdownUntilUtc, now + JumpgateEmpDisableSeconds);
+            if (structuralDamage > 0f && StructuralWeaponEligible != null && StructuralWeaponEligible(weaponId))
+            {
+                gate.structuralIntegrity = Mathf.Max(0f, gate.structuralIntegrity - structuralDamage);
+                gate.lastStructuralDamageUtc = now;
+                gate.structuralIntegrityUpdatedUtc = now;
+            }
+            bool destroyed = gate.structuralIntegrity <= 0f;
+            if (destroyed)
+            {
+                gate.destructionCount = Math.Max(1, gate.destructionCount);
+                gate.scrapped = true;
+                gate.building = false;
+                gate.startedUtc = gate.completesUtc = 0;
+                gate.explosionPending = true;
+            }
+            if (Save()) return true;
+            registry.jumpgates[index] = previous;
+            return false;
+        }
 
         static PlayerJumpgateRecord FindJumpgate(int orbitStationIndex) =>
             registry?.jumpgates?.Find(x => x != null && x.orbitStationIndex == orbitStationIndex);
@@ -77,7 +138,8 @@ namespace GoF2Remake.Multiplayer
 
         static bool JumpgateAccessAllowed(PlayerJumpgateRecord gate, string account, string factionId)
         {
-            if (gate == null || gate.scrapped || gate.permanentlyDestroyed || gate.building) return false;
+            if (gate == null || gate.scrapped || gate.permanentlyDestroyed || gate.building ||
+                gate.empShutdownUntilUtc > DateTimeOffset.UtcNow.ToUnixTimeSeconds()) return false;
             // A faction owns the infrastructure, but individual members remain subject to the
             // blacklist. Only an individually owned gate's actual owner bypasses its blacklist.
             bool owner = gate.ownershipType == PlayerStationOwnershipType.Individual &&
@@ -215,6 +277,7 @@ namespace GoF2Remake.Multiplayer
         internal static int JumpgateDestinationStation(int stationIndex)
         {
             if (!HasJumpgateAtStation(stationIndex)) return -1;
+            if (FindJumpgate(stationIndex)?.empShutdownUntilUtc > DateTimeOffset.UtcNow.ToUnixTimeSeconds()) return -1;
             var gate = FindJumpgate(stationIndex);
             var target = NetGame.Db?.Systems?.Find(x => x != null && x.index == gate?.destinationSystem);
             if (target?.stations == null || target.stations.Count == 0) return -1;
@@ -245,6 +308,13 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.IsServer || !sessionActive || registry?.jumpgates == null) return;
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             if (now < nextJumpgateRetryUtc) return;
+            // Persist regeneration at a coarse cadence, never once per frame.
+            bool changedIntegrity = false;
+            foreach (var activeGate in registry.jumpgates)
+                if (activeGate != null && (activeGate.structuralIntegrityUpdatedUtc == 0 ||
+                    now - activeGate.structuralIntegrityUpdatedUtc >= 60))
+                    changedIntegrity |= RegenerateGate(activeGate, now);
+            if (changedIntegrity && !Save()) { nextJumpgateRetryUtc = now + 5; return; }
             foreach (var gate in registry.jumpgates)
             {
                 if (gate == null || !gate.salvageDropPending || gate.salvageMaterials == null ||
@@ -708,6 +778,10 @@ namespace GoF2Remake.Multiplayer
             gate.contributions = new List<PlayerStationContribution>();
             gate.salvageMaterials = new List<PlayerStationMaterial>();
             gate.salvageDropPending = false;
+            gate.combatStateInitialized = false;
+            gate.structuralIntegrity = 0f;
+            gate.lastStructuralDamageUtc = gate.structuralIntegrityUpdatedUtc = gate.empShutdownUntilUtc = 0;
+            gate.explosionPending = false;
             if (!Save())
             {
                 registry.jumpgates[index] = previous;
