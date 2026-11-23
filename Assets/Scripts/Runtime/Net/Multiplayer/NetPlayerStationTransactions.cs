@@ -187,6 +187,7 @@ namespace GoF2Remake.Multiplayer
                 shipTargets[change.account] = new List<StoredShip>(change.ships);
             }
             if (cargoTargets.Count == 0 && creditTargets.Count == 0 && factionBankTargets.Count == 0 && shipTargets.Count == 0) return false;
+            if (!CanPublishStationSnapshot(Snapshot)) return false;
             var journal = new StationTransactionJournal { registryJson = JsonUtility.ToJson(registry, true) };
             foreach (var target in cargoTargets)
                 journal.cargo.Add(new StationCargoTarget { account = target.Key.account, item = target.Key.item, amount = target.Value });

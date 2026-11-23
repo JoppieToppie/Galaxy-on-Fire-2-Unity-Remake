@@ -885,6 +885,13 @@ namespace GoF2Remake.Multiplayer
             NetGuard.RefreshStations();
         }
 
+        static bool CanPublishStationSnapshot(string snapshot)
+        {
+            if (NetState.FitsPlayerStationSnapshot(snapshot)) return true;
+            Debug.LogWarning("NetPlayerStations: change would exceed the player station replication limit.");
+            return false;
+        }
+
         /// <summary>Persist a server-side change atomically, retaining the prior registry as a backup.</summary>
         public static bool Save()
         {
@@ -899,8 +906,10 @@ namespace GoF2Remake.Multiplayer
                 }
                 return false; // Do not save a caller's potentially stale in-memory mutation over the recovered snapshot.
             }
+            string snapshot = Snapshot;
+            if (!CanPublishStationSnapshot(snapshot)) return false;
             if (!NetProfiles.Write(path, JsonUtility.ToJson(registry, true))) return false;
-            NetState.Instance?.PublishPlayerStations(Snapshot);
+            NetState.Instance?.PublishPlayerStations(snapshot);
             return true;
         }
     }

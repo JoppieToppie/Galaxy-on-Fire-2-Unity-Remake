@@ -156,6 +156,9 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>Publish a versioned, chunked player-station snapshot. The registry is UTF-8 encoded before splitting so
         /// a multi-byte character may safely cross a chunk boundary; base64 keeps each network entry independently valid.</summary>
+        internal static bool FitsPlayerStationSnapshot(string json) =>
+            Encoding.UTF8.GetByteCount(json ?? "") <= PlayerStationChunkBytes * MaxPlayerStationChunks;
+
         internal bool PublishPlayerStations(string json)
         {
             if (!IsServer || !IsSpawned) return false;
@@ -185,7 +188,7 @@ namespace GoF2Remake.Multiplayer
 
         void TryApplyPlayerStationSnapshot()
         {
-            if (playerStationChunks.Count == 0) return;
+            if (IsServer || playerStationChunks.Count == 0) return;
             int revision = -1, count = -1;
             var payloads = new string[playerStationChunks.Count];
             foreach (var value in playerStationChunks)
@@ -299,8 +302,11 @@ namespace GoF2Remake.Multiplayer
                 NetTrade.Reset();
                 PublishPlayerStations(NetPlayerStations.Snapshot);
             }
-            playerStationChunks.OnListChanged += _ => TryApplyPlayerStationSnapshot();
-            TryApplyPlayerStationSnapshot();
+            if (!IsServer)
+            {
+                playerStationChunks.OnListChanged += _ => TryApplyPlayerStationSnapshot();
+                TryApplyPlayerStationSnapshot();
+            }
             // The session's Pirate activity board on every game (the host's too), now and whenever the server changes it.
             pirateBoard.OnValueChanged += (_, now) => PirateReports.ApplyShared(now.ToString());
             PirateReports.ApplyShared(pirateBoard.Value.ToString());
