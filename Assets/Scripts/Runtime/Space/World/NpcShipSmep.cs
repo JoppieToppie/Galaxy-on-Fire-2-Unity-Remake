@@ -498,10 +498,6 @@ namespace GoF2Remake.World
             var previous = smepReciprocalHasPosition ? smepReciprocalLastPosition : current;
             var travel = current - previous;
             var absTravel = new Vector3(Mathf.Abs(travel.x), Mathf.Abs(travel.y), Mathf.Abs(travel.z));
-            // Use finer sweep samples for fast ships while bounding the work near
-            // the player. Broadphase below avoids penetration tests when clear.
-            int steps = Mathf.Clamp(Mathf.CeilToInt(travel.magnitude / 2f), 1, 64);
-
             // Snapshot the player's native collision boxes once per frame, shared by every SMEP fighter.
             // A probe sphere is the fallback on models without hull boxes.
             if (smepPlayerShapeOwner != collision || smepPlayerShapeFrame != Time.frameCount)
@@ -530,7 +526,13 @@ namespace GoF2Remake.World
                 return;
             }
 
-            // Broadphase each NPC collider once against the complete swept path and every player shape.
+            // First reject against the aggregate player bounds. This is conservative:
+            // it never drops a contact with an individual player collider.
+            var playerBounds = smepPlayerShapes[0].bounds;
+            for (int i = 1; i < smepPlayerShapes.Count; i++)
+                playerBounds.Encapsulate(smepPlayerShapes[i].bounds);
+
+            // Broadphase each NPC collider once against the complete swept path.
             smepContactCandidates.Clear();
             for (int i = 0; i < colliders.Count; i++)
             {
@@ -538,6 +540,7 @@ namespace GoF2Remake.World
                 if (collider == null || !HullCollision.Shown(collider)) continue;
                 var bounds = collider.bounds;
                 var swept = new Bounds(bounds.center - travel * 0.5f, bounds.size + absTravel);
+                if (!swept.Intersects(playerBounds)) continue;
                 bool possible = false;
                 for (int shapeIndex = 0; shapeIndex < smepPlayerShapes.Count; shapeIndex++)
                     if (swept.Intersects(smepPlayerShapes[shapeIndex].bounds)) { possible = true; break; }
@@ -557,6 +560,9 @@ namespace GoF2Remake.World
                 return;
             }
 
+            // Only calculate sweep resolution and run narrow-phase physics when
+            // the full-path broadphase found a plausible collider pair.
+            int steps = Mathf.Clamp(Mathf.CeilToInt(travel.magnitude / 2f), 1, 64);
             for (int stepIndex = 1; stepIndex <= steps; stepIndex++)
             {
                 float t = (float)stepIndex / steps;
