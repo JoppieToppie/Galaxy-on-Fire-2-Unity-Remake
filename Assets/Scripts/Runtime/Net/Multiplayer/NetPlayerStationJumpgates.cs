@@ -342,6 +342,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Jumpgate construction");
+            if (factionOwned) NotifyProfileCreditChange(account, payout, "Jumpgate construction contribution");
             string message = "Contributed " + amount + " x " + NetGame.Db.Item(item).name + " to jumpgate orbit " + orbitStationIndex + ".";
             if (factionOwned) message += " Paid " + payout.ToString("N0") + " credits from the faction bank.";
             if (complete) message += gate.building ? " Materials complete. Construction timer started." : " Jumpgate is now operational.";
